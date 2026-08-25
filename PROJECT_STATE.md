@@ -26,111 +26,117 @@ AI Presence / Canvas Tool Bus is transport-independent:
 `BriefCraft-AI-3.8.10-GPT-Direct-Chat-First-Live-Test.zip`
 
 Live verified on 2026-08-25:
-- `СВЯЗЬ` one-word test succeeded inside BriefCraft
-- long ~700–1000 word response succeeded; first response in roughly 7 seconds
+- one-word and long-answer tests succeeded inside BriefCraft
+- first long response appeared in roughly 7 seconds
 - no visible ChatGPT tab/window
 - no new visible ChatGPT conversation in history
 
 Transport uses the authenticated ChatGPT web backend, fresh chat-requirements, SHA3-512 Proof-of-Work and SSE. This is not a stable public API contract; keep it isolated behind Presence Core.
 
 ## Canonical brand
-Canonical source: `brand/briefcraft-logo.svg`; `brand/brand.json` forbids the old blue mark.
-Primary `#EEBF26`, accent `#FFE100`.
+Canonical source: `brand/briefcraft-logo.svg`; `brand/brand.json` forbids the old blue mark. Primary `#EEBF26`, accent `#FFE100`.
 
-## 3.8.11 live result
-Direct text transport stayed clean. Cached screenshot/direct image upload reached GPT successfully and GPT recognized the image. Resizable GPT workspace/settings worked sufficiently to continue.
+## Proven UX layers before 3.8.14
+- 3.8.11: direct multimodal image upload worked; GPT recognized attached screenshots/images.
+- 3.8.12: drag/drop + clipboard image paste + inline previews + exact object focus worked; GPT could read text inside an image and understand a tethered object.
+- Chat history is local/per-project in `chrome.storage.local`, not ChatGPT history.
+- Explicit save/exit dialog and autosave are present.
+- Canonical yellow logo/system typography are in use.
 
-## 3.8.12 live result — 2026-08-25
-`BriefCraft-AI-3.8.12-Focus-Ghost-Save-UX.zip`
-
-User live-tested:
-- arbitrary image attachment and inline preview worked
-- GPT could read text inside the attached image
-- exact object focus context worked: a canvas image object was pinned to the chat and GPT understood its ID/context
-- however GPT still sometimes answered edit commands in natural language without actually returning/applying a patch; e.g. user asked to shrink/recolor the pinned image and GPT claimed it would do so but canvas did not change
-- therefore 3.8.12 proved focus/vision UX but **not reliable canvas execution**
-
-Existing 3.8.12 UX retained as base:
-- drag/drop and Ctrl+V image attachments
-- arbitrary screenshots + cached screenshot shortcut
-- inline image previews
-- purple object eye → exact chat focus
-- draggable/resizable GPT panel and pill
-- AI ghost tied to Tool Bus activity
-- outside-click settings close
-- system UI typography
-- local per-project chat history in `chrome.storage.local`
-- explicit save/exit UX and autosave
-
-## Current build / next test
-### BriefCraft AI 3.8.13 — Agent Threads + Canvas Editing
-Build created 2026-08-25:
+## 3.8.13 live result — 2026-08-25
 `BriefCraft-AI-3.8.13-Agent-Threads-Canvas-Editing.zip`
 
-Built on the proven no-window direct transport and 3.8.12 focus/attachment UX.
+User live-tested:
+- main chat + temporary agent tabs appeared
+- colored agent tethers appeared and persisted enough to test
+- save/exit branded dialog worked through the BriefCraft UI
+- however canvas execution was still unreliable: GPT often said it changed a selected/tethered object, but the real object did not change
+- a visible error appeared: `Patch отклонён: No supported patch actions were produced`
+- tethers originated around the top/tab area and crossed over the chat; they visually jumped too much
+- active-agent identity near `ИИ на холсте` was not explicit enough
+- the chat panel only resized conveniently from the corner
+- composer layout needed plus/smiley/send inside one field; send should be an arrow; input itself should be vertically adjustable
+- after sending, chat sometimes did not scroll fully to the newest message
+- AI ghost could end up effectively offscreen/top-corner instead of visibly studying objects
+- user wants ghosts to linger/move slowly near objects during actual AI work
+- closing the actual Chrome tab/window should at least be protected from accidental loss; Chrome cannot show the custom branded BriefCraft dialog over a browser-X close, only a native `beforeunload` confirmation
 
-### Reliable canvas-edit execution
-- Edit-intent detection now recognizes explicit Russian/English commands such as сделать/изменить/сжать/перекрасить/move/resize/edit/etc.
-- Machine instruction is strict: for an explicit canvas change GPT **must** emit `briefcraft.patch/v1`; it must never claim a change happened without a patch.
-- If GPT still replies only in prose, BriefCraft automatically sends one corrective follow-up in the same hidden GPT thread demanding a real patch.
-- Direct-command mode is the default in this test build; staged supported patches are applied locally and remain undoable through BriefCraft history.
-- Patchable object properties expanded beyond geometry/style/text to include code, browser URL/snapshot properties, shape/button properties and image display properties.
-- Code objects can be edited through `code` patches.
-- Image objects expose `imageFilter`, `imageFit`, and `imageBlendMode`; e.g. `brightness(0) invert(1)` can render opaque image pixels white while preserving transparency.
-- Object detail supplied to GPT exposes these editable fields so the model can form supported patches.
+## Current build / next test
+### BriefCraft AI 3.8.14 — Live Editing + Agent UX
+Build created 2026-08-25:
+`BriefCraft-AI-3.8.14-Live-Editing-Agent-UX.zip`
 
-### Main chat + temporary agent chats
-- One permanent **Главный** chat remains the broad project-aware thread.
-- `+` creates temporary focused agent chats; each has independent local history and an independent hidden GPT conversation thread keyed by project + thread ID.
-- Focused agents receive compact context centered on their tethered objects and task instead of wandering through unrelated canvas content.
-- Agent chats can be renamed by double-click and removed; main chat cannot be removed.
-- Main agent uses canonical gold identity; temporary agents cycle through distinct purple/cyan/pink/green/orange/red/blue identities.
+Built directly from 3.8.13 while preserving the proven no-window GPT transport.
 
-### Chat ↔ object tethers
-- Existing object-eye → chat pin remains.
-- New direction also works: drag the colored ghost/icon of a chat thread onto a canvas object to tether that chat to the object.
-- A chat can tether to multiple objects (up to bounded focus count).
-- Tethers are rendered as transparent animated dashed Bézier threads from the chat tab to each object.
-- Tethers can be detached through the focus-chip × in the active chat.
-- Inactive agent threads retain their tether metadata locally so their threads remain visible while switching chats.
+### Canvas execution hardening
+- GPT machine instructions now include exact `set` patch schema and explicit supported property names.
+- Shape patch instructions explicitly support `rectangle`, `ellipse`, and new `triangle`.
+- Patch validation now normalizes common model variations instead of rejecting them outright:
+  - `action/operation` aliases for `op`
+  - `id/objectId` aliases for target
+  - `props/changes/values` aliases for properties
+  - `update/modify/edit/resize/move/style/recolor/transform` normalize to `set`
+  - `width/height` normalize to `w/h`
+  - `shape` normalizes to `shapeKind`
+  - common color/background aliases normalize to fill/textColor
+- Added a bounded local fallback for explicit edit commands on the pinned/selected object when GPT still fails to produce a valid supported patch. Covered fallback cases include common recolors, triangle/ellipse/rectangle shape changes, width/height half/double, visibility, and simple rotation.
+- Direct mode applies a validated patch immediately and leaves Undo available.
+- Triangle rendering and inspector option were added for shape objects.
 
-### Agent ghosts
-- The moving AI ghost inherits the active chat/agent color.
-- Main ghost is visually distinct from temporary agents.
-- The object being inspected/edited highlights in the active agent color.
-- Different chat tabs show different ghost identities/colors so the user can tell which agent is active.
+### Stable agent tethers
+- Tethers now originate from the **left or right edge of the whole chat panel**, choosing the side nearest the target object.
+- Thread-specific vertical anchor positions are stable and do not originate from the tabs above the chat.
+- Dashed-flow animation was removed to reduce visual jitter.
+- Tether geometry still refreshes while panel/canvas geometry changes, but uses deterministic anchors.
 
-### Chat appearance / light theme
-- Settings now include editable colors for chat panel background, user bubbles, GPT bubbles and composer field.
-- Values persist per project in local storage.
-- **По теме** resets to theme-aware defaults.
-- Light-theme defaults are explicitly light instead of the previous gray/dark-looking chat surfaces.
-- Theme changes reapply defaults when no custom colors are set.
+### Active-agent identity
+- Every temporary agent receives a distinct face string as well as color.
+- The avatar next to `ИИ на холсте` changes to the active agent face/color.
+- Heading identifies `Главный · ИИ на холсте` or `<agent name> · ИИ на холсте`.
+- Thread tabs also show each agent face/color.
 
-### Important future direction — self-editing BriefCraft
-User wants an eventual mode where an agent inside BriefCraft can edit BriefCraft’s own source/repository through an explicitly authorized GitHub tool/connector, including design and code changes. This is **not yet enabled in 3.8.13**. Current direct web GPT transport does not automatically inherit ChatGPT product connectors. The next architecture step after reliable canvas patches is to add an explicit external-tool permission layer (starting with GitHub) rather than pretending the in-app GPT already has those connector powers.
+### Panel + composer UX
+- Native corner-only CSS resize is disabled.
+- Added 8 explicit resize hit areas: top/right/bottom/left plus four corners, so the chat can be reshaped from any edge.
+- Composer is now one rounded field containing `+`, emoji, textarea, and a compact arrow send button.
+- Textarea can be vertically resized within a bounded height.
+- After adding/sending/rendering messages, BriefCraft scrolls to the bottom over several frames/timeouts; image-load completion also retriggers bottom scroll.
 
-### Static verification completed for 3.8.13
-- manifest version = 3.8.13
+### Ghost visibility / motion
+- Ghost targets are clamped inside the visible canvas/viewport area instead of being allowed to disappear offscreen.
+- While GPT is busy, the ghost remains visible and slowly orbits around the object/area being studied.
+- Motion is slower/smoother; object highlight still uses the active agent color.
+- Ghost fades after the task completes instead of timing out in the middle of a longer response.
+
+### Browser close protection
+- Explicit BriefCraft exit continues to use the branded save/exit dialog.
+- Actual browser-tab/window X cannot display that branded dialog because Chrome does not allow custom UI to replace the browser close confirmation.
+- 3.8.14 flushes persistence and requests native `beforeunload` confirmation whenever an active project exists, so accidental browser-X closes are protected as far as Chrome allows.
+
+### Static verification completed for 3.8.14
+- manifest version = 3.8.14
 - all extension JavaScript passes `node --check`
 - manifest JSON parses
-- checked HTML pages have no duplicate IDs
+- checked extension HTML pages have no duplicate IDs
 - ZIP integrity passes
 - no service ChatGPT tab/window transport reintroduced
 
 ### Runtime verification required
 Test in this order:
-1. Load 3.8.13; verify main gold chat tab and `+` agent button.
-2. Create two temporary agents; verify distinct colors, rename one by double-click, switch between histories.
-3. Drag an agent ghost/tab icon onto an existing canvas object; verify translucent tether appears.
-4. Attach two objects to one agent; switch away/back; verify tethers persist; detach with ×.
-5. On a tethered image ask `сожми его по ширине в два раза`; verify the actual object width changes, not just a prose reply, and Undo restores it.
-6. Ask `перекрась изображение полностью в белый`; verify a supported image display patch is applied.
-7. Pin a code object and ask for a small code edit; verify code changes and preview rerenders.
-8. In settings change panel/user/GPT/composer colors; reload and verify persistence; reset **По теме** and inspect light theme.
-9. Observe that the moving ghost/highlight uses the active agent color.
+1. Load 3.8.14; create/select a rectangle and tether it to the main or an agent chat.
+2. Ask `поменяй цвет фигуры на жёлтый`; verify the actual fill changes and Undo restores it.
+3. Ask `преврати его в треугольник`; verify the actual shape changes.
+4. Verify tether starts from the nearest left/right edge of the chat and does not cross over its top.
+5. Switch chats; verify avatar face/color and heading change with the active agent.
+6. Resize chat from each edge, not only the corner.
+7. Send several messages/images and verify composer stays aligned and the chat always lands on the newest message.
+8. Trigger a visual/object read and watch the ghost stay visible and move slowly around the object.
+9. Close through BriefCraft UI to verify branded dialog; then separately test browser X and expect Chrome's native close-protection prompt, not a branded BriefCraft modal.
 
-Do not claim these new 3.8.13 runtime behaviors are proven until the user tests them live.
+Do not claim 3.8.14 runtime behavior is proven until the user tests it live.
+
+## Important future direction — self-editing BriefCraft
+User wants an eventual mode where an agent inside BriefCraft can edit BriefCraft’s own source/repository through an explicitly authorized GitHub tool/connector, including code/design changes and diff/commit/PR review. Current in-app GPT does not automatically inherit ChatGPT product connectors. Build this as a separate external-tools permission layer after canvas execution is stable.
 
 ## Workflow rule
 Keep the proven direct text/multimodal transport stable. Fix runtime issues by layer. Never regress to browser-page automation and never claim live behavior is solved before user verification.
