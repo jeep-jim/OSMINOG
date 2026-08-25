@@ -79,57 +79,55 @@ It does NOT paste the whole canvas. Instead it builds compact/on-demand context:
 5. If the user asked to edit the canvas, GPT can return `briefcraft.patch/v1`.
 6. BriefCraft stages the patch locally; Preview/Apply/Undo remain under BriefCraft control.
 
-## Current build: BriefCraft AI 3.8.1 — GPT Browser Presence Fix
+## Current build: BriefCraft AI 3.8.2 — GPT Browser Presence Thread Fix
 Build created on 2026-08-25:
-`BriefCraft-AI-3.8.1-GPT-Browser-Presence-Fix.zip`
+`BriefCraft-AI-3.8.2-GPT-Browser-Presence-Thread-Fix.zip`
 
-### Why 3.8.0 did not connect
-The user pressed **Подключить GPT** in 3.8.0 and the panel showed:
-`Cannot set properties of null (setting 'textContent')`
+### What happened in 3.8.1
+3.8.1 successfully connected GPT and the movable/minimizable AI panel worked. The user sent an internal BriefCraft message («бро, ты видишь меня?»). ChatGPT answered, but the bridge chose a blank/new ChatGPT conversation instead of the intended already-open working conversation, and the natural answer did not reliably mirror back into the internal BriefCraft panel.
 
-Root cause was found in legacy Presence UI code. `BriefCraftBridge.refreshMirror()` called `updateStatusBadges()`, which tried to update old DOM nodes `#bridgeRevision` and `#bridgeChangeCount`. The 3.8 GPT panel replaces that old body with new elements, so those nodes are intentionally absent. The exception happened while building context and aborted the connect flow before the ChatGPT browser bridge could finish.
+### Root cause
+The background bridge selected ChatGPT tabs too loosely (`active || first tab`) and could silently fall back to the first/blank `chatgpt.com` tab. When the internal prompt was sent into a blank ChatGPT home page, ChatGPT created a new conversation. This broke the intended feeling that the internal BriefCraft chat is attached to the user’s chosen working GPT thread.
 
-### Fixes in 3.8.1
-- Added null guards to legacy bridge status updates so removed UI elements cannot abort Canvas Mirror/context generation.
-- Hardened GPT Presence UI status/sync helpers against missing optional DOM nodes.
-- Hardened background bridge injection: first ping the ChatGPT bridge, inject only if absent, then retry the ping before sending commands. This should reduce race conditions when connecting/reconnecting.
-- Added movable AI chat panel: drag by the panel header.
-- Panel position is saved locally and restored.
-- Added a minimize button in the panel header.
-- Minimize collapses the AI panel into a small floating **GPT · чат** button; clicking it restores the panel.
-- Existing top **Live AI** button can still reopen the panel.
-- No unrelated product features were intentionally changed.
+### Fixes in 3.8.2
+- Presence now binds to one existing ChatGPT tab/conversation and keeps using that exact tab for internal turns.
+- It no longer silently creates a new `chatgpt.com` tab when none is open.
+- The bridge remembers the most recently active ChatGPT tab and prefers an already-open real conversation over the blank ChatGPT home page.
+- Once bound, later internal prompts and tool results stay in the same ChatGPT tab.
+- Connect response now returns the bound ChatGPT title; BriefCraft shows `Привязан чат: …` after connection.
+- Assistant reply detection was hardened for current ChatGPT DOM variants: it checks explicit assistant-role nodes and current conversation-turn article wrappers.
+- Added an assistant baseline when sending an internal/tool-result turn so an old assistant response cannot be mistaken for the new answer.
+- Natural GPT answer is still mirrored back into the internal BriefCraft panel; protocol request/patch blocks remain machine-only when detectable.
+- Existing 3.8.1 UX remains: draggable AI panel, saved position, minimize button, floating `GPT · чат` restore button.
 
-### Verification completed for 3.8.1
-- JavaScript syntax check passed for `gpt-presence.js`, `background.js`, `bridge.js` and other existing JS files involved in the build.
-- `manifest.json` parses and version is `3.8.1`.
+### Verification completed for 3.8.2
+- JavaScript syntax check passed for changed bridge/background/presence files.
+- `manifest.json` parses and version is `3.8.2`.
 - No duplicate HTML IDs in editor/popup/screenshot pages.
-- ZIP integrity and root `manifest.json` verified.
+- ZIP integrity verified; `manifest.json` is at archive root.
 
 ### Verification limitation
-A full live runtime test against the user’s authenticated current ChatGPT web page cannot be executed from the build environment. Therefore connection behavior must be verified manually by the user. Do not claim the live GPT connection is fixed until the user tests 3.8.1.
+A full live runtime test against the user’s authenticated current ChatGPT web page cannot be executed from the build environment. Do not claim same-thread binding/mirroring is fixed until the user tests 3.8.2.
 
 ## Current test / next step
-1. Extract `BriefCraft-AI-3.8.1-GPT-Browser-Presence-Fix.zip`.
-2. Load the extracted folder in `chrome://extensions` as an unpacked extension, replacing 3.8.0.
-3. Open a normal authenticated ChatGPT tab and BriefCraft.
-4. Open **ИИ на холсте**.
-5. First verify UX only:
-   - drag the AI panel by its header;
-   - press the new minus/minimize button;
-   - verify it becomes a small floating `GPT · чат` button;
-   - restore it.
-6. Press **Подключить GPT** and grant `chatgpt.com` permission if Chrome asks.
-7. Expected status: **GPT подключён / GPT LIVE** and a small BriefCraft indicator on the ChatGPT page.
-8. If connected, create/select one simple object and from the internal BriefCraft chat ask: **«Что я сейчас выделил?»**
-9. Then ask: **«Сделай этот объект градиентом от синего к фиолетовому под 45 градусов.»**
-10. Confirm the natural GPT reply mirrors into BriefCraft and a patch is staged for review rather than silently changing the canvas.
-11. If connection still fails, capture the exact visible error and the ChatGPT page state; fix only that connection bug before touching unrelated features.
+1. Extract `BriefCraft-AI-3.8.2-GPT-Browser-Presence-Thread-Fix.zip`.
+2. Load the extracted folder in `chrome://extensions`, replacing 3.8.1.
+3. IMPORTANT: first open/focus the exact ChatGPT conversation that should be paired with BriefCraft (the user’s working chat), then return to BriefCraft.
+4. Open **ИИ на холсте** and press **Подключить GPT**.
+5. Expected connect message in BriefCraft: `Готово. Привязан чат: <title of chosen ChatGPT conversation>`.
+6. From the internal BriefCraft chat send a tiny message such as: **«Ответь одним словом: вижу»**.
+7. Verify BOTH:
+   - ChatGPT continues in the same already-open working conversation; no new ChatGPT chat is created.
+   - the natural GPT answer is mirrored into the internal BriefCraft panel and `Жду ответ GPT…` clears.
+8. If step 7 passes, select one simple canvas object and ask internally: **«Что я сейчас выделил?»**.
+9. Then test edit staging: **«Сделай этот объект градиентом от синего к фиолетовому под 45 градусов.»**.
+10. Report actual behavior/screenshots before changing unrelated product features.
 
 ## Internal + external chat behavior target
-- The user can write inside the BriefCraft AI panel. BriefCraft sends that turn to the normal open ChatGPT session and mirrors GPT’s natural answer back into BriefCraft.
-- While Presence is enabled, a normal message typed directly in the connected ChatGPT tab gets only compact BriefCraft context appended automatically.
+- The user can write inside the BriefCraft AI panel. BriefCraft sends that turn into the exact bound normal ChatGPT conversation and mirrors GPT’s natural answer back into BriefCraft.
+- While Presence is enabled, a normal message typed directly in the bound ChatGPT tab gets only compact BriefCraft context appended automatically.
 - Assistant replies associated with BriefCraft are mirrored back into the internal BriefCraft chat.
+- BriefCraft must never choose/create another ChatGPT conversation after pairing unless the user explicitly reconnects.
 
 ## Known limitations of browser transport
 - It is temporary and depends on the current ChatGPT web composer/message DOM.
