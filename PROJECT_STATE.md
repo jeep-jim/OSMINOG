@@ -18,135 +18,92 @@ Non-negotiable flow: **Install BriefCraft → Connect AI → Allow → work.** G
 - AI must never invent an existing object ID.
 
 ## Proven direct GPT transport
-3.8.0–3.8.7 browser-page/service-window transport is rejected because it created visible ChatGPT surfaces.
+3.8.0–3.8.7 browser-page/service-window transport is rejected because it created visible ChatGPT surfaces. 3.8.8/3.8.9 probes and 3.8.10 live testing proved the extension service worker can use the already-authenticated `chatgpt.com` session directly: short and long replies return inside BriefCraft with no visible ChatGPT tab/window/new visible conversation. This authenticated web-backend path is not a stable public API contract; keep it isolated behind Presence Core.
 
-3.8.8/3.8.9 live probes proved the extension service worker can use the already-authenticated `chatgpt.com` session directly. 3.8.10 live-verified short and long GPT replies inside BriefCraft with no visible ChatGPT tab/window/new visible conversation. This authenticated web-backend path is not a stable public API contract; keep it isolated behind Presence Core.
-
-## Proven UX / execution layers
-- 3.8.11: direct multimodal upload worked; GPT recognized screenshots/images.
+## Proven / built layers
+- 3.8.11: direct multimodal image upload worked.
 - 3.8.12: drag/drop, clipboard images, inline previews and exact object focus worked.
 - 3.8.13: main + temporary agent chats, separate hidden GPT thread IDs, colors and tethers.
-- 3.8.14 live test: real patch execution worked for supported shape edits; GPT also demonstrated building a full interface from a brief by creating/editing code + live-preview objects on canvas.
-- 3.8.15 added vector pen, anchors, Bézier handles, vector paths/masks; user skipped direct live test.
-- 3.8.16 added inspect/work ghost modes and `briefcraft://asset/OBJECT_ID`, but regressed build-from-scratch behavior and exposed persistence problems across random unpacked extension IDs.
-- 3.8.17 restored explicit BUILD MODE for `собери/сверстай/макет/компонент/с нуля/...`, introduced durable save/backups, and — critically — a fixed manifest `key`. Preserve that exact key forever so unpacked dev builds keep one Chrome extension ID.
-- User live-tested 3.8.17 and reported it became **significantly better**.
+- 3.8.14 live test: real patch execution worked for supported shape edits; GPT also built full interfaces from briefs using code + live preview objects.
+- 3.8.15 added Vector Pen, anchors, Bézier handles, vector paths/masks; user skipped direct live test.
+- 3.8.16 added inspect/work ghost modes and `briefcraft://asset/OBJECT_ID`, but regressed build-from-scratch behavior.
+- 3.8.17 restored explicit BUILD MODE and introduced durable save + a fixed manifest `key`. Preserve that exact key forever so unpacked dev builds keep one Chrome extension ID.
+- 3.8.18 added folder-first dark onboarding, project-wide Main GPT memory/map + whole-canvas overview, PDF canvas objects with non-destructive correction overlays, direct PDF document attachments to GPT, optional Internet Research, and owner-only local-source Jarvis tools.
+
+## Persistence rule
+From 3.8.17 onward every dev build MUST preserve the same manifest `key`. Projects should live in the chosen local workspace folder / `.briefcraft.json` backups and not depend only on `chrome.storage.local`. Removing an unpacked extension can remove extension-local storage.
 
 ## Current build / next test
-### BriefCraft AI 3.8.18 — Full Project Memory + Editable PDF + Owner Jarvis
+### BriefCraft AI 3.8.19 — Pen Repair + Owner Updater UI
 Build created 2026-08-26:
-`BriefCraft-AI-3.8.18-Full-Memory-PDF-Jarvis.zip`
+`BriefCraft-AI-3.8.19-Pen-Repair-Owner-Updater.zip`
 
-Built from 3.8.17 and preserves the fixed extension key, direct GPT transport, BUILD MODE, durable save, agent chats, vector/mask layer and live asset URI runtime.
+Built directly from 3.8.18 and preserves the fixed manifest key, direct GPT transport, BUILD MODE, durable save, full-project Main context, PDF/Jarvis features and existing agent system.
 
-### First-run / workspace changes
-- Default theme is now **dark** on first install/open when no saved preference exists.
-- The welcome CTA is now **Choose workspace folder** instead of Create project.
-- Uses File System Access API with a persisted IndexedDB directory handle.
-- If the previously selected workspace folder is still authorized, BriefCraft restores `.briefcraft.json` projects from it and opens the app directly.
-- If none exist, BriefCraft opens an empty project in that workspace.
-- Existing 3.8.17 durable local + external backup behavior remains.
+### Vector Pen repair
+Live feedback on 3.8.18 showed the pen felt broken: while drawing it was not represented as a real layer/object until Enter; control-point editing was hard to discover; Bézier construction lines were hidden in CSS; color/settings were therefore effectively inaccessible during the draft.
 
-### Vector Pen / Bézier reliability
-- Fixed a real node-drag lifecycle bug that left `state.nodeDrag` active because an early return made cleanup unreachable.
-- Pen anchors can now be click-dragged while drawing to create symmetric Bézier in/out handles immediately.
-- Draft path renders cubic curves and construction handles.
-- Node/handle editing finalizes and persists reliably on pointer-up.
-- Existing node movement, smooth-handle toggling, adding/removing anchors and vector masks remain.
+3.8.19 changes:
+- after the second anchor the in-progress vector becomes a real temporary `vector` canvas object immediately;
+- it appears in Layers and becomes the selected object, so normal appearance controls (fill/stroke/color/width/opacity) are available while drawing;
+- dragging a newly placed anchor creates symmetric Bézier handles and live-updates the real draft object;
+- clicking close to the first anchor after 3+ points closes the path; Enter finishes an open path; Escape cancels/removes the draft object;
+- selecting an existing vector automatically enters node-edit mode so control points are visible immediately;
+- Bézier construction lines are visible again; square anchors and round handles remain independently draggable, with Alt allowing separated handles;
+- a transparent thick vector hit-path makes thin/open contours easier to select and drag;
+- double-clicking a segment adds another point; double-clicking an anchor toggles handles; right-click removes an anchor when enough remain;
+- vector paths use rounded joins/caps.
 
-### PDF documents on canvas
-PDF is now a first-class canvas file object instead of a generic glyph:
-- original PDF is rendered in an iframe with page navigation;
-- the original PDF bytes are preserved unchanged;
-- editable correction overlays (`pdfEdits`) can be added on top of individual pages;
-- overlay text is contenteditable and can be moved/resized manually;
-- GPT object detail exposes `pdfPage` and `pdfEdits`, and these are accepted by `set` patches;
-- therefore AI can add/rewrite/reposition visible corrections while preserving the original source document.
+### Pencil repair / smoothing
+Live feedback also showed Pencil strokes could look cut/noisy with an awkward rectangular selection outline.
 
-Important limitation: 3.8.18 PDF editing is **non-destructive overlay editing**. It does not yet rewrite PDF object streams or export a newly merged binary PDF. Do not claim binary PDF rewrite/export is solved.
+3.8.19 changes:
+- input points are distance-filtered and simplified;
+- displayed Pencil strokes use a smoothed quadratic path instead of a raw polyline;
+- larger stroke padding prevents ends from being visually clipped by the object bounds;
+- ink object content uses the full object height and visible overflow;
+- selected Pencil/vector objects no longer show the heavy rectangular outline; resize handles remain;
+- Ink → Vector conversion simplifies the point cloud and generates smooth tangent handles instead of producing dozens of raw mouse-sample anchors.
 
-### Multiple PDFs → GPT document context
-- GPT composer accepts `application/pdf` / `.pdf` attachments.
-- Direct ChatGPT file upload uses the same three-step ChatGPT file flow as existing image upload, with non-image `use_case: my_files` and message attachment metadata.
-- Up to four PDF canvas objects tethered to the active chat are automatically attached as real PDF documents on send, so the model can compare them without converting them to screenshots.
-- This direct-PDF path is new and requires a live test before claiming success.
+### Browser/interface zoom lock
+- While the BriefCraft app is open, Ctrl/Cmd + mouse wheel is intercepted globally so Chrome page/interface zoom cannot accidentally change when the pointer drifts over a panel/object.
+- Ctrl/Cmd + wheel only changes BriefCraft canvas zoom when the pointer is actually over the canvas viewport.
+- Existing Ctrl/Cmd +/-/0 keyboard handling remains scoped to BriefCraft canvas zoom.
 
-### Main GPT full-project awareness / canvas memory
-The permanent **Главный** chat now receives more than pinned-object context:
-- `get_project_map` returns a compact map of up to hundreds of project objects, connections, canvas config and a memory digest derived from briefs/notes/nodes/text;
-- `capture_canvas_overview_image` renders a whole-canvas overview without moving the user viewport;
-- main chat always receives a project map and automatically refreshes the whole-canvas visual overview when project revision changes;
-- GPT is explicitly told that briefs/notes/nodes/connections are durable project memory/instructions.
+### Version / update UI foundation
+User wants GitHub as the owner source of code/releases and a visible version/update button inside BriefCraft.
 
-Goal: the main GPT can answer broad questions such as “what is on this project?”, “what remains according to the brief?” and build large results using the persistent canvas as project memory instead of needing a single tethered object.
+3.8.19 adds:
+- compact `v3.8.19` button beside the BriefCraft brand in the main header;
+- click opens an OWNER update popover with current version, update status and GitHub controls;
+- `Проверить GitHub` calls the GitHub Releases API; if the repo is private without owner auth it explicitly reports that OWNER GitHub authorization is required;
+- `Открыть Releases` opens `jeep-jim/BriefCraft` releases;
+- current version is read from `chrome.runtime.getManifest()` rather than hardcoded in runtime logic.
 
-### Optional Internet Research
-Owner/user can enable **Internet research** in GPT settings.
-- Enabling is an explicit user gesture that requests optional `http://*/*` + `https://*/*` host permissions.
-- Tool Bus adds `web_search` and `web_fetch`.
-- Search/fetch are disabled until the user enables research.
-- GPT is instructed to use only returned URLs/text and not invent citations.
-- Intended workflow: tether several PDFs + enable research + ask GPT to compare documents, verify external facts, and create correction overlays/other canvas edits based on the task.
+Important limitation: one-click self-install from a **private** GitHub repo is not yet implemented. An unpacked Chrome extension cannot honestly self-update private remote executable code without an explicit owner authorization/source-folder update path. The next owner-updater layer should use GitHub OAuth/permission + the already-selected Jarvis source folder, then write approved source files and reload. Public user builds must update through Chrome Web Store.
 
-### OWNER · JARVIS mode
-3.8.18 introduces a developer-only local-source permission path for the project owner. This is **not** exposed as automatic GitHub power and does not inherit ChatGPT product connectors.
-
-In GPT settings:
-- choose a local BriefCraft source folder via File System Access API;
-- explicitly enable Jarvis;
-- source-folder handle is persisted in IndexedDB;
-- only the permanent Main chat receives Jarvis instructions/tools.
-
-Jarvis Tool Bus:
-- `dev_status`
-- `list_dev_files`
-- `read_dev_file`
-- `write_dev_file`
-
-Security/behavior:
-- paths are validated and limited to common source/text extensions;
-- writes require Jarvis enabled;
-- old file content is backed up under `.briefcraft-backups` before write;
-- CSS edits can be live-applied into the running editor session;
-- JS/HTML/manifest edits require extension reload;
-- this edits only the explicitly selected local source folder;
-- no GitHub commit/push/PR is performed automatically. A real GitHub permission/connector layer remains a separate future step.
-
-### New Tool Bus additions in 3.8.18
-- `get_project_map`
-- `capture_canvas_overview_image`
-- `web_search`
-- `web_fetch`
-- `dev_status`
-- `list_dev_files`
-- `read_dev_file`
-- `write_dev_file`
-- existing object/PDF/vector properties extended with `pdfPage` / `pdfEdits`.
-
-### Static verification completed for 3.8.18
-- manifest version = 3.8.18
-- fixed manifest key from 3.8.17 preserved
-- optional all-url host permissions declared rather than granted by default
-- all extension JS passes `node --check`
+### Static verification completed for 3.8.19
+- manifest version = 3.8.19
+- fixed manifest key preserved
+- all extension JavaScript passes `node --check`
 - manifest JSON parses
-- checked editor/popup/screenshot HTML has no duplicate IDs
-- ZIP integrity passes and root manifest is present
+- editor/popup/screenshot HTML have no duplicate IDs
+- ZIP integrity passes
 - no service ChatGPT tab/window transport reintroduced
 
-### Runtime verification required
-1. Update from 3.8.17 to 3.8.18 and verify the project survives the version change under the fixed extension ID.
-2. On a fresh profile/first run verify dark theme and folder-first onboarding.
-3. Vector Pen: draw anchors with click-drag handles, Enter, then edit nodes/handles and verify persistence.
-4. Drop a PDF; change pages, add/move/resize correction overlays, reload and verify state persists.
-5. Tether two PDFs to one chat and ask GPT to compare them; verify direct PDF upload/document context works.
-6. Enable Internet research and test web_search/web_fetch only after permission grant.
-7. In Main chat with no tether, ask a project-wide question and verify GPT understands the broad canvas/project map and refreshed visual overview.
-8. Owner only: select a local BriefCraft source folder, enable Jarvis, ask Main to read a source file and make a small CSS change. Verify backup and live CSS application. Test JS changes only with reload.
+### Runtime verification requested
+1. Update from 3.8.18 without changing/removing the fixed-ID extension if possible; verify project survives.
+2. Press `B`, place 2+ anchors: the draft should immediately appear as a Layer and expose stroke/fill settings.
+3. Click-drag an anchor while drawing and verify visible Bézier handles/curve; click near first anchor to close or Enter to finish open.
+4. Reselect vector: nodes should show immediately. Drag nodes/handles, add/remove nodes, change stroke/fill colors.
+5. Draw with Pencil and verify line is smoother, rounded and not visibly clipped; convert it to vector and verify the node count is much cleaner.
+6. Hold Ctrl and wheel over canvas, then over side panels/chat: canvas may zoom only over canvas; browser/interface zoom must not change anywhere.
+7. Click `v3.8.19`; verify owner update popover. Private repo check may correctly say GitHub owner authorization is required until OAuth is implemented.
 
-Do not claim the new PDF document upload, whole-project overview behavior, Internet Research or Jarvis source editing are runtime-proven until the user tests them live.
+Do not claim these 3.8.19 runtime behaviors are proven until the user tests them live.
 
-## Future direction — GitHub Jarvis
-User ultimately wants an owner-only mode where BriefCraft can edit its own GitHub repository from inside BriefCraft with explicit permissions, diff/commit/PR review. Current 3.8.18 Jarvis is intentionally local-folder-only. Build GitHub access as a separate explicit external-tool permission layer; do not pretend the in-app GPT automatically inherits ChatGPT’s GitHub connector.
+## Next owner-updater direction
+Implement explicit GitHub OAuth/permission for `jeep-jim/BriefCraft`, connect it to the owner-selected Jarvis source folder, show release changelog/diff, create a backup, write the approved new source files, then `chrome.runtime.reload()`. Do not expose this private updater to ordinary Chrome Web Store users.
 
 ## Workflow rule
 Keep the proven direct text/multimodal transport stable. Preserve the fixed manifest key forever. Fix runtime issues by layer and never regress to browser-page automation.
