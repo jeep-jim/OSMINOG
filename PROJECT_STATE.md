@@ -58,66 +58,82 @@ Technically interesting, but wrong for the current test because the user wants G
 ### ChatGPT App / Codespaces 3.7
 A small official ChatGPT App/MCP server was built and put in this repo. GitHub Codespaces successfully exposed port 3000 publicly. However, the user’s current ChatGPT Pro UI does not expose the custom-app/Developer-Mode creation flow needed to attach that temporary MCP endpoint. Therefore this path is paused, not deleted. The repo files may be useful later when official app publishing/custom MCP is available to the account.
 
-## Current test: BriefCraft AI 3.8.0 — GPT Browser Presence Lite
-Current build created on 2026-08-25:
-`BriefCraft-AI-3.8.0-GPT-Browser-Presence-Test.zip`
-
+## Current transport: GPT Browser Presence Lite
 This is a temporary GPT-first transport for the user’s current ChatGPT Pro session. It does **not** use OpenAI API, Cloudflare, Vercel, Codespaces or MCP.
 
-### How 3.8 works
 BriefCraft injects a small local bridge only into `chatgpt.com` after the user explicitly presses **Подключить GPT** and grants the optional host permission.
 
-It does NOT paste the whole canvas.
-Instead it builds a compact context chosen for the current request:
+It does NOT paste the whole canvas. Instead it builds compact/on-demand context:
 - canvas/project status and revision
 - current selection with real properties
 - recent changes
 - a limited lightweight object index
 - browser/code objects only as summaries unless more data is requested
-
-For visual requests, BriefCraft can attach a small crop of the selected object instead of the full canvas.
+- a small visual crop only for visual requests
 
 ### Pseudo-tool loop without MCP/API
-Because the current ChatGPT UI cannot attach our custom MCP app, 3.8 temporarily emulates on-demand tools through very small protocol blocks inside the browser conversation:
-
 1. GPT receives the user request plus compact BriefCraft context.
-2. If GPT needs more data, it can return a machine-only `briefcraft.request/v1` JSON block with up to 4 tool calls.
-3. The extension executes only those local Canvas Tool Bus calls (get_object, read_code, read_browser_dom, capture_selection_image, etc.).
-4. Only those requested results are sent back to GPT.
+2. If more data is needed, GPT can return a machine-only `briefcraft.request/v1` block with up to 4 tool calls.
+3. BriefCraft executes only those local Canvas Tool Bus calls.
+4. Only requested results are sent back.
 5. If the user asked to edit the canvas, GPT can return `briefcraft.patch/v1`.
 6. BriefCraft stages the patch locally; Preview/Apply/Undo remain under BriefCraft control.
 
-The injected bridge hides these machine protocol code blocks in the ChatGPT page UI when possible, so the visible chat stays clean. The important requirement is still to keep payloads small and targeted.
+## Current build: BriefCraft AI 3.8.1 — GPT Browser Presence Fix
+Build created on 2026-08-25:
+`BriefCraft-AI-3.8.1-GPT-Browser-Presence-Fix.zip`
 
-### Internal + external chat behavior
-- The user can write inside the BriefCraft AI panel. BriefCraft sends that turn to the normal open ChatGPT session and mirrors GPT’s natural answer back into the BriefCraft panel.
-- While Presence is enabled, a normal message typed directly in the connected ChatGPT tab gets a compact BriefCraft context appended automatically before sending, so the user can also work from the external chat.
-- Assistant replies associated with BriefCraft are mirrored back into the internal BriefCraft chat.
+### Why 3.8.0 did not connect
+The user pressed **Подключить GPT** in 3.8.0 and the panel showed:
+`Cannot set properties of null (setting 'textContent')`
 
-### UI changes in 3.8
-- GPT-first Russian UI.
-- Main button: **Подключить GPT**.
-- Access choices are in Russian.
-- Change behavior choices are in Russian.
-- Dynamic selects are upgraded through the same BriefCraft smart-select system, so dropdowns use the main interface style instead of browser-default select styling.
-- No visible MCP/Relay/Cloudflare setup is part of the 3.8 flow.
+Root cause was found in legacy Presence UI code. `BriefCraftBridge.refreshMirror()` called `updateStatusBadges()`, which tried to update old DOM nodes `#bridgeRevision` and `#bridgeChangeCount`. The 3.8 GPT panel replaces that old body with new elements, so those nodes are intentionally absent. The exception happened while building context and aborted the connect flow before the ChatGPT browser bridge could finish.
+
+### Fixes in 3.8.1
+- Added null guards to legacy bridge status updates so removed UI elements cannot abort Canvas Mirror/context generation.
+- Hardened GPT Presence UI status/sync helpers against missing optional DOM nodes.
+- Hardened background bridge injection: first ping the ChatGPT bridge, inject only if absent, then retry the ping before sending commands. This should reduce race conditions when connecting/reconnecting.
+- Added movable AI chat panel: drag by the panel header.
+- Panel position is saved locally and restored.
+- Added a minimize button in the panel header.
+- Minimize collapses the AI panel into a small floating **GPT · чат** button; clicking it restores the panel.
+- Existing top **Live AI** button can still reopen the panel.
+- No unrelated product features were intentionally changed.
+
+### Verification completed for 3.8.1
+- JavaScript syntax check passed for `gpt-presence.js`, `background.js`, `bridge.js` and other existing JS files involved in the build.
+- `manifest.json` parses and version is `3.8.1`.
+- No duplicate HTML IDs in editor/popup/screenshot pages.
+- ZIP integrity and root `manifest.json` verified.
+
+### Verification limitation
+A full live runtime test against the user’s authenticated current ChatGPT web page cannot be executed from the build environment. Therefore connection behavior must be verified manually by the user. Do not claim the live GPT connection is fixed until the user tests 3.8.1.
 
 ## Current test / next step
-1. Load `BriefCraft-AI-3.8.0-GPT-Browser-Presence-Test.zip` as an unpacked extension (extract it first).
-2. Open a BriefCraft project that has a few objects.
-3. Open the **ИИ на холсте / Live AI** panel.
-4. Press **Подключить GPT** and allow access to `chatgpt.com`.
-5. Keep a normal ChatGPT conversation open.
-6. First test from inside BriefCraft: select one object and write: **«Что я сейчас выделил?»**
-7. Then test an edit: **«Сделай эту фигуру градиентом от синего к фиолетовому под 45 градусов.»**
-8. Verify that GPT’s natural answer appears in the BriefCraft panel and that a patch appears for review instead of modifying the canvas invisibly.
-9. Then test from the normal ChatGPT page while Presence is connected: ask about the current selection and verify that only compact context is used and the chat does not hang.
-10. Report actual behavior/screenshots before changing any other product features.
+1. Extract `BriefCraft-AI-3.8.1-GPT-Browser-Presence-Fix.zip`.
+2. Load the extracted folder in `chrome://extensions` as an unpacked extension, replacing 3.8.0.
+3. Open a normal authenticated ChatGPT tab and BriefCraft.
+4. Open **ИИ на холсте**.
+5. First verify UX only:
+   - drag the AI panel by its header;
+   - press the new minus/minimize button;
+   - verify it becomes a small floating `GPT · чат` button;
+   - restore it.
+6. Press **Подключить GPT** and grant `chatgpt.com` permission if Chrome asks.
+7. Expected status: **GPT подключён / GPT LIVE** and a small BriefCraft indicator on the ChatGPT page.
+8. If connected, create/select one simple object and from the internal BriefCraft chat ask: **«Что я сейчас выделил?»**
+9. Then ask: **«Сделай этот объект градиентом от синего к фиолетовому под 45 градусов.»**
+10. Confirm the natural GPT reply mirrors into BriefCraft and a patch is staged for review rather than silently changing the canvas.
+11. If connection still fails, capture the exact visible error and the ChatGPT page state; fix only that connection bug before touching unrelated features.
 
-## Known limitations of 3.8
-- It is a temporary browser transport, not the final official ChatGPT App transport.
-- It depends on the current ChatGPT web composer/message DOM and therefore may need selector maintenance if ChatGPT changes its UI.
-- Machine context still technically travels through the ChatGPT conversation transport, but it is intentionally compact/on-demand and machine blocks are hidden from the page UI when possible. This is fundamentally different from the rejected full-canvas dump.
+## Internal + external chat behavior target
+- The user can write inside the BriefCraft AI panel. BriefCraft sends that turn to the normal open ChatGPT session and mirrors GPT’s natural answer back into BriefCraft.
+- While Presence is enabled, a normal message typed directly in the connected ChatGPT tab gets only compact BriefCraft context appended automatically.
+- Assistant replies associated with BriefCraft are mirrored back into the internal BriefCraft chat.
+
+## Known limitations of browser transport
+- It is temporary and depends on the current ChatGPT web composer/message DOM.
+- Machine context still technically travels through the ChatGPT conversation transport, but it must remain compact and on-demand. Never return to full-canvas dumps.
 - Full official silent tool access from external ChatGPT should later use the paused ChatGPT App/MCP path when publishing/account capabilities allow it.
 
 ## Chrome Web Store constraint
