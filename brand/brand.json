@@ -1,0 +1,20 @@
+{
+  "brand": "BriefCraft",
+  "canonicalSource": "brand/briefcraft-logo-master.png",
+  "canonicalSvg": "brand/briefcraft-logo.svg",
+  "colors": {
+    "primary": "#EEBF26",
+    "accent": "#FFE100"
+  },
+  "chromeIcons": {
+    "16": "brand/icon-16.png",
+    "32": "brand/icon-32.png",
+    "48": "brand/icon-48.png",
+    "128": "brand/icon-128.png"
+  },
+  "desktop": {
+    "windowsIco": "brand/briefcraft.ico",
+    "macIcns": "brand/briefcraft.icns"
+  },
+  "rule": "Future builds must use this brand pack. Do not use the legacy blue b° logo."
+}
