@@ -1,112 +1,104 @@
 # BriefCraft AI — project state
 
 ## READ THIS FIRST IN A NEW CHAT
-If the user opens a new chat and writes **«начни»**, read this file completely first and continue from **Current build / next test**. Do not ask the user to retell the project. Do not restart Cloudflare/Codespaces/MCP/old service-tab experiments unless explicitly requested.
+If the user opens a new chat and writes **«начни»**, read this file completely first and continue from **Current build / next test**. Do not ask the user to retell the project. Do not restart rejected service-tab / Cloudflare / old MCP experiments unless explicitly requested.
 
 ## Product goal
-BriefCraft is a persistent shared visual workspace where project memory lives on the canvas. Human and AI work on the same board containing briefs, notes, files, images, audio/video, code, browser/DOM captures, nodes, links and revisions.
+BriefCraft is a persistent shared visual workspace where project memory lives on the canvas. Human and AI work on the same board containing briefs, notes, files, images, audio/video, code, browser/DOM captures, nodes, links, revisions and agent threads.
 
-Non-negotiable flow: **Install BriefCraft → Connect AI → Allow → work.** GPT/ChatGPT first, then Gemini, DeepSeek, Claude later.
+Non-negotiable flow: **Install BriefCraft → Connect AI → Allow → work.** GPT/ChatGPT first; other providers later.
 
 ## Core architecture
-AI Presence / Canvas Tool Bus is transport-independent:
-- stable object IDs; canvas is source of truth
-- compact selection/viewport/revision mirror
-- exact get/search/read/capture calls only on demand
-- structured `briefcraft.patch/v1`
-- local Preview / Apply / Undo
-- AI never invents an existing object ID
+- Canvas is source of truth; stable object IDs.
+- AI Presence / Canvas Tool Bus is transport-independent.
+- Compact selection/viewport/revision context; exact tool reads/captures only on demand.
+- Structured `briefcraft.patch/v1` for canvas mutations.
+- Local Preview / Apply / Undo.
+- AI must never invent an existing object ID.
 
 ## Proven direct GPT transport
 3.8.0–3.8.7 browser-page/service-window transport is rejected because it created visible ChatGPT surfaces.
 
-3.8.8/3.8.9 live probes proved the extension service worker can use the already-authenticated `chatgpt.com` session directly: session/models/chat-requirements HTTP 200, access token and requirements token found, Proof-of-Work required, Arkose/WebSocket not required on the tested account, and no ChatGPT tab/window/chat created.
+3.8.8/3.8.9 live probes proved the extension service worker can use the already-authenticated `chatgpt.com` session directly: session/models/chat-requirements HTTP 200, access token + requirements token found, PoW required, no ChatGPT tab/window/chat created.
 
 ### 3.8.10 — proven baseline
 `BriefCraft-AI-3.8.10-GPT-Direct-Chat-First-Live-Test.zip`
 
-Live verified on 2026-08-25:
-- one-word and long-answer tests succeeded inside BriefCraft
-- first long response appeared in roughly 7 seconds
+Live verified:
+- short and long answers returned inside BriefCraft
+- long response began in roughly 7 seconds
 - no visible ChatGPT tab/window
-- no new visible ChatGPT conversation in history
+- no new visible ChatGPT conversation
 
-Transport uses the authenticated ChatGPT web backend, fresh chat-requirements, SHA3-512 Proof-of-Work and SSE. This is not a stable public API contract; keep it isolated behind Presence Core.
-
-## Canonical brand
-Canonical source: `brand/briefcraft-logo.svg`; `brand/brand.json` forbids the old blue mark. Primary `#EEBF26`, accent `#FFE100`.
+This authenticated web-backend path is not a stable public API contract; keep it isolated behind Presence Core.
 
 ## Proven UX / execution layers
-- 3.8.11: direct multimodal image upload worked; GPT recognized attached screenshots/images.
-- 3.8.12: drag/drop + clipboard image paste + inline previews + exact object focus worked; GPT could read text inside an image and understand a tethered object.
-- Chat history is local/per-project in `chrome.storage.local`, not ChatGPT history.
-- Explicit save/exit dialog and autosave are present.
-- 3.8.13 introduced main + temporary agent chats, separate hidden GPT thread IDs, colors and canvas tethers.
-- 3.8.14 live test confirmed real patch execution for supported canvas edits: GPT changed color and geometry/type of tethered shapes and Undo remained available.
-- 3.8.14 also demonstrated a much larger workflow: GPT can build a full interface from a brief by creating/editing code and live-preview objects on the canvas.
-- A later 3.8.14 live test with an imported MP3 exposed one missing bridge: the audio file existed on canvas and was playable there, but generated code had no stable way to reference its bytes, leaving a placeholder `AUDIO_SRC`.
+- 3.8.11: direct multimodal upload worked; GPT recognized screenshots/images.
+- 3.8.12: drag/drop, clipboard images, inline previews and exact object focus worked.
+- 3.8.13: main + temporary agent chats, separate hidden GPT thread IDs, colors and tethers.
+- 3.8.14 live test: real patch execution worked for supported shape edits; GPT also demonstrated building a full interface from a brief by creating/editing code + live-preview objects on canvas.
+- 3.8.15 added vector pen, anchors, Bézier handles, vector paths/masks and restrained wisp agent identity; user skipped direct live test and went to 3.8.16.
+- 3.8.16 added inspect/work ghost modes and `briefcraft://asset/OBJECT_ID` runtime references for local image/file assets.
 
-## 3.8.15 — vector editor layer (built, skipped for direct live test)
-`BriefCraft-AI-3.8.15-Vector-Pen-Masks-Agent-Wisps.zip`
+## 3.8.16 live regression — 2026-08-26
+User live-tested `BriefCraft-AI-3.8.16-Agent-Work-Modes-Live-Assets.zip` and reported two serious regressions:
 
-The user chose to skip straight to 3.8.16, so do not claim 3.8.15 runtime verification. It added:
-- separate Vector Pen on `B`; Pencil remains on `P`
-- anchor nodes, Bézier handles, add/remove/move points
-- primitive/ink → editable vector conversion
-- vector `pathNodes/pathClosed`
-- image `maskNodes/maskClosed` and path→mask workflow
-- restrained colored wisp identity shared between canvas agents and chat micro-icons
-- compact composer
+1. **Build-from-layout behavior regressed.** In a temporary Agent 1 chat, prompts such as `собери макет` / `собери ... новый макет со слоями` resulted in prose, requests for screenshots, and `Patch отклонён: No supported patch actions were produced`, whereas 3.8.14 had successfully built complex layouts from scratch.
+2. **Project persistence appeared lost across version changes** despite pressing Save repeatedly.
+
+### Root cause found for build regression
+The focused-agent context intentionally hid unrelated canvas content unless the prompt was classified as whole-project. `собери макет` was not classified as an edit/build intent and `макет/собери/рядом/элементы` did not broaden context. Therefore Agent 1 often received only the tethered rectangle and asked for more visual information instead of creating a layout.
+
+### Root cause found for persistence loss
+The unpacked 3.8.14 and 3.8.16 builds had different Chrome extension IDs (visible in the user screenshots). `chrome.storage.local` is scoped to the extension ID, and removing an unpacked extension removes its local storage. Previous update instructions that removed old unpacked builds could therefore destroy saved projects even though the Save button had successfully written to that old extension's storage.
 
 ## Current build / next test
-### BriefCraft AI 3.8.16 — Agent Work Modes + Live Assets
+### BriefCraft AI 3.8.17 — Build Recovery + Durable Save
 Build created 2026-08-26:
-`BriefCraft-AI-3.8.16-Agent-Work-Modes-Live-Assets.zip`
+`BriefCraft-AI-3.8.17-Build-Recovery-Durable-Save.zip`
 
-Built directly on 3.8.15, preserving all vector/mask/editor functionality and the proven direct GPT transport.
+Built from 3.8.16 while preserving vector pen/masks, agents, live asset URIs and the proven direct GPT transport.
 
-### Agent activity states
-Agents now visually distinguish **research** from **work/build**:
-- read/search/capture/focus Tool Bus activity uses `inspect` mode: the colored wisp appears immediately beside the target and slowly orbits it
-- explicit edit/build prompts switch the active agent into `work` mode after context gathering
-- patch execution uses work mode and stays next to the object being edited
-- work/build wisp shows subtle non-emoji hammer/wrench silhouettes plus restrained sparks; no cartoon emoji tools
-- code patches label the activity as code assembly; create patches label it as object assembly; ordinary set patches label it as an edit
-- active agent header/tab receives the same tiny work-state indicator, preserving one visual language
-- after completion, work state returns to the normal wisp identity
+### Build-from-scratch recovery
+- Added explicit `isBuildPrompt` classification for Russian/English build language including `собери`, `сверстай`, `макет`, `интерфейс`, `компонент`, `прототип`, `с нуля`, `из ничего`, `build`, `layout`, `component`, etc.
+- Build prompts are now always edit intents and therefore require a real patch.
+- Build prompts automatically broaden temporary-agent context to nearby/project objects and viewport instead of trapping the agent on one tethered object.
+- Build mode explicitly tells GPT not to ask for a screenshot merely because it is a focused agent; it can request `capture_viewport_image` only if visual data is genuinely needed.
+- Machine instructions now include exact `create` schema: `{op:"create",objectType:"TYPE",properties:{x,y,w,h,...}}` and creatable types.
+- Build requests explicitly require multiple editable `create` actions when needed rather than a prose description or flattened screenshot.
+- Corrective patch retry explicitly tells GPT to use multiple create actions for a layout/component build.
 
-### Live asset URI bridge
-Canvas image/file objects now expose a stable in-project runtime reference:
-`briefcraft://asset/OBJECT_ID`
+### Durable persistence fix
+- Manifest now contains a fixed extension `key`; all future dev builds MUST preserve this exact key so the unpacked extension ID stays stable across build folders/versions.
+- `unlimitedStorage` remains enabled.
+- Primary local project state now also writes a second local backup snapshot key.
+- On startup, if primary project state is missing/empty and the backup is valid, BriefCraft can load the backup snapshot.
+- Explicit **Save** without a connected local folder now also downloads a real `.briefcraft.json` project backup outside extension storage.
+- **Save & Exit** does the same when no local folder is connected.
+- If a local folder is connected, existing folder sync remains the durable external copy.
 
-Behavior:
-- Tool Bus object summaries include `asset.liveUri` for image/file objects
-- GPT receives explicit instructions that this URI is the supported way to reference an existing canvas asset from a BriefCraft code object
-- live code preview resolves `briefcraft://asset/ID` to the actual locally stored Data URL only at runtime
-- source code remains readable and portable inside the project instead of embedding huge base64 payloads into the editor text
-- intended MP3 workflow: import MP3 as a file object → tether file/code/player context → ask GPT to connect it → GPT may generate `<audio src="briefcraft://asset/FILE_ID">` → BriefCraft resolves it in the preview
-- this live-asset runtime is new in 3.8.16 and requires live Chrome verification before claiming the MP3 scenario fully solved
+Important: 3.8.17 is the first fixed-ID build, so storage from older random unpacked IDs cannot be read automatically. If an older extension instance still exists, export its `.briefcraft.json` backup before removing it. From 3.8.17 onward preserve the manifest key in every build and do not deliberately change the extension ID.
 
-### 3.8.16 static verification completed
-- manifest version = 3.8.16
-- all extension JavaScript passes `node --check`
+### Static verification completed for 3.8.17
+- manifest version = 3.8.17
+- fixed manifest key present
+- all extension JS passes `node --check`
 - manifest JSON parses
-- checked editor/popup/screenshot HTML has no duplicate IDs
+- checked HTML pages have no duplicate IDs
 - ZIP integrity passes
 - no service ChatGPT tab/window transport reintroduced
 
-### Runtime verification requested
-1. Load 3.8.16 and first confirm the 3.8.15 Vector Pen/mask layer still loads normally.
-2. Tether a normal object and ask a read-only visual question: wisp should appear beside it in inspect mode and move slowly nearby.
-3. Ask for a real edit: after inspection the same agent should switch to work mode with subtle tools while the patch is being assembled/applied.
-4. Create/build something new and observe the work/build state around the relevant canvas area.
-5. Import an MP3 file, tether the MP3 + a code/player object, and ask GPT to connect playback using the canvas asset. Inspect generated code for `briefcraft://asset/<file-id>` and verify the preview can play after a user click.
-6. Verify Undo still works after AI edits and the direct GPT transport still creates no browser ChatGPT tabs/windows/chats.
+### Runtime verification required
+1. Load 3.8.17 and recreate the failing 3.8.16 scenario in a temporary agent: tether one card/rectangle and ask `собери рядом новый макет по этим элементам отдельными слоями`.
+2. Verify GPT creates actual editable objects/layers instead of asking for a screenshot or returning prose only.
+3. Press Save and confirm a `.briefcraft.json` backup downloads if no local folder is connected.
+4. Close/reopen the same 3.8.17 extension and verify the project restores from local storage.
+5. For the next build, keep the same manifest key and update without intentionally changing/removing the extension identity; verify the project survives the version update.
 
-Do not claim these new 3.8.16 runtime behaviors are proven until the user tests them live.
+Do not claim 3.8.17 runtime behavior is proven until the user tests it live.
 
-## Important future direction — self-editing BriefCraft
-User wants an eventual mode where an agent inside BriefCraft can edit BriefCraft’s own source/repository through an explicitly authorized GitHub tool/connector, including code/design changes and diff/commit/PR review. Current in-app GPT does not automatically inherit ChatGPT product connectors. Build this as a separate external-tools permission layer after canvas editing is sufficiently stable.
+## Future direction — self-editing BriefCraft
+User wants agents inside BriefCraft to eventually edit BriefCraft's own source/repository through explicitly authorized external tools (starting with GitHub), with diff/commit/PR review. Current in-app GPT does not inherit ChatGPT product connectors automatically. Build this as a separate permission/tool layer after canvas execution and persistence are stable.
 
 ## Workflow rule
-Keep the proven direct text/multimodal transport stable. Fix runtime issues by layer. Never regress to browser-page automation and never claim live behavior is solved before user verification.
+Keep the proven direct text/multimodal transport stable. Fix runtime issues by layer. Never regress to browser-page automation. Preserve the fixed manifest key introduced in 3.8.17 in every future build.
