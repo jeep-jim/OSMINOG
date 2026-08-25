@@ -68,57 +68,62 @@ Pseudo-tool loop:
 
 ## What has already been proven
 - 3.8.2 proved an internal BriefCraft message can reach GPT and GPT's answer can mirror back into BriefCraft.
-- 3.8.3 moved internal BriefCraft conversation to a dedicated inactive ChatGPT service tab/thread so visible working ChatGPT conversation is not polluted.
+- 3.8.3 moved internal BriefCraft conversation away from the visible working ChatGPT thread so normal user conversation is not polluted.
 - Movable/minimizable AI panel works and can collapse to `GPT · чат`.
-- 3.8.4 improved streaming handling, but manual test still showed premature truncation: user waited about 6 seconds and BriefCraft mirrored `Нормально, бро 😎 На` while GPT was still continuing.
+- 3.8.4/3.8.5 focused on full final-answer detection because early versions mirrored partial streamed text.
 
-## Current build: BriefCraft AI 3.8.5 — GPT Final Reply Detection Fix
+## New UX bug found in 3.8.5
+Manual test showed that pressing **Подключить GPT** immediately created a new ChatGPT tab in the user's normal tab strip. The user explicitly rejected this. Connecting AI must not visibly open another browser tab.
+
+## Current build: BriefCraft AI 3.8.6 — GPT No-New-Tab Connect
 Build created on 2026-08-25:
-`BriefCraft-AI-3.8.5-GPT-Final-Reply-Detection-Fix.zip`
+`BriefCraft-AI-3.8.6-GPT-No-New-Tab-On-Connect.zip`
 
-### Root cause found after 3.8.4
-A 1.4-second unchanged-text window is not sufficient. GPT can pause for longer than that in the middle of a streamed sentence, so text stability alone can falsely indicate completion.
-
-### Fix in 3.8.5
-- Completion now prefers strong ChatGPT UI signals rather than a short text pause.
-- Streaming detection expanded for current Stop-button/data-testid/title/aria-label variants.
-- The bridge also detects final assistant turn actions such as the Copy action, which normally appears when a turn is complete.
-- If a strong completion signal is observed, BriefCraft mirrors after only a short final stability window (~420 ms), reducing unnecessary post-answer delay.
-- If no strong completion signal is available because ChatGPT changes its DOM, BriefCraft uses a much longer text-stability fallback (~3 s) so a mid-sentence pause is not treated as final.
-- Completion state resets for each internal turn and each tool-result continuation.
-- Protocol request/patch parsing waits for the same final-answer detection, preventing partial JSON consumption.
+### Fix in 3.8.6
+- Pressing **Подключить GPT** now only requests permission and enables Presence state. It does NOT create any ChatGPT tab or window.
+- If an old service channel already exists, connect can refresh it; otherwise no ChatGPT surface is created during connect.
+- The temporary browser transport creates its GPT service channel lazily only when the user actually sends the first internal BriefCraft message.
+- That temporary service channel is created in a separate minimized background Chrome window, not in the user's normal visible tab strip.
+- The same background service tab/window is reused for later internal messages during the session.
+- If the service window/tab is closed, BriefCraft clears its session IDs and recreates it only when another internal message is sent.
+- UI wording now says connection itself opens no new tabs.
 - No unrelated product features were intentionally changed.
 
-### Verification completed for 3.8.5
-- JavaScript syntax checks passed for changed bridge/presence files.
-- `manifest.json` parses and version is `3.8.5`.
-- ZIP integrity verified; root `manifest.json` is present.
+### Why this is still temporary
+Chrome cannot run the authenticated ChatGPT web app invisibly inside an extension service worker/offscreen document as a supported official integration. Therefore the browser-transport prototype still needs some authenticated ChatGPT page somewhere when an internal message is actually processed. In 3.8.6 that implementation detail is moved out of the user's normal tab strip. Final official integration should later use the paused ChatGPT App/MCP path when publishing/account capabilities allow it.
+
+### Verification completed for 3.8.6
+- JavaScript syntax checks passed for `background.js`, `gpt-presence.js`, `chatgpt-lite-bridge.js` and the build JS files.
+- `manifest.json` parses and version is `3.8.6`.
+- Locale JSON parses.
+- No duplicate HTML IDs in editor/popup/screenshot pages.
+- ZIP integrity verified and root `manifest.json` is present.
 
 ### Verification limitation
-A live authenticated ChatGPT streaming runtime cannot be reproduced in the build environment. User must verify manually. Do not claim the live reply-completion issue is solved until user confirms.
+A live authenticated ChatGPT runtime cannot be reproduced in the build environment. Do not claim the new-tab behavior is solved until the user manually verifies 3.8.6.
 
 ## Current test / next step
 1. Disable/remove older unpacked 3.8.x copies so only one BriefCraft Presence bridge is active.
-2. Reload ChatGPT tabs once to remove old injected scripts.
-3. Extract and load `BriefCraft-AI-3.8.5-GPT-Final-Reply-Detection-Fix.zip` in `chrome://extensions`.
-4. Open BriefCraft → **ИИ на холсте** → **Подключить GPT**.
-5. Ask internally a normal sentence-producing question such as **«Как ты? Ответь двумя предложениями.»**
-6. Verify the COMPLETE answer returns into BriefCraft and not a prefix such as `В`, `мы`, or `Нормально, бро 😎 На`.
-7. Observe latency: desired behavior is to mirror shortly after GPT actually finishes, not several seconds after completion.
-8. If full reply works, select one simple canvas object and ask **«Что я сейчас выделил?»**.
-9. Then ask **«Что ты видишь на холсте?»** and verify GPT gets compact semantic context plus only needed crop.
-10. Then test editing: **«Сделай этот объект градиентом от синего к фиолетовому под 45 градусов.»** and verify a structured patch is staged for preview/apply.
-11. Report actual behavior/screenshots before touching unrelated features.
+2. Reload open ChatGPT tabs once to remove old injected scripts.
+3. Extract and load `BriefCraft-AI-3.8.6-GPT-No-New-Tab-On-Connect.zip` in `chrome://extensions`.
+4. Open BriefCraft → **ИИ на холсте**.
+5. Press **Подключить GPT**.
+6. FIRST verify only this UX point: **no new ChatGPT tab should appear in the normal browser tab strip when Connect is pressed**.
+7. If step 6 passes, send one internal message from BriefCraft, e.g. **«Как ты? Ответь двумя предложениями.»**.
+8. On the first actual message a temporary minimized background Chrome service window may be created; it must not appear as a new normal tab beside the user's working tabs.
+9. Verify the full GPT answer returns inside BriefCraft and the visible working ChatGPT conversation remains unchanged.
+10. If full reply works, select/create one simple canvas object and ask **«Что я сейчас выделил?»**.
+11. Then ask **«Что ты видишь на холсте?»** and verify GPT receives compact semantic context plus only needed crop.
+12. Then test edit staging: **«Сделай этот объект градиентом от синего к фиолетовому под 45 градусов.»** and verify a structured patch is staged for preview/apply.
+13. Report actual behavior/screenshots before touching unrelated features.
 
 ## Target behavior
 - Internal BriefCraft chat is default conversation surface.
+- Pressing Connect does not visibly open browser tabs.
 - No duplicate internal turns in user's visible ChatGPT conversation.
 - GPT understands board through compact semantic context and on-demand visual crops/tool requests.
 - Canvas edits arrive as structured patches for local preview/apply/undo.
 - External ChatGPT participation can later be optional separate mode.
-
-## Known limitation of browser transport
-This is temporary browser automation and depends on current ChatGPT web DOM. The dedicated service thread may appear as an inactive/background ChatGPT tab. Final official integration should move to the paused ChatGPT App/MCP route when publishing/account capabilities allow it.
 
 ## Chrome Web Store constraint
 No remote executable code. Keep Manifest V3. `chatgpt.com` access must remain optional and requested by explicit user action. Store release must clearly disclose why BriefCraft needs access to ChatGPT page and what data is shared.
