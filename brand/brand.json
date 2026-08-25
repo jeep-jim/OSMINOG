@@ -1,6 +1,6 @@
 {
   "brand": "BriefCraft",
-  "canonicalSource": "brand/briefcraft-logo-master.png",
+  "canonicalSource": "brand/briefcraft-logo.svg",
   "canonicalSvg": "brand/briefcraft-logo.svg",
   "colors": {
     "primary": "#EEBF26",
@@ -16,5 +16,6 @@
     "windowsIco": "brand/briefcraft.ico",
     "macIcns": "brand/briefcraft.icns"
   },
-  "rule": "Future builds must use this brand pack. Do not use the legacy blue b° logo."
+  "buildRule": "Always derive every product icon, header mark, favicon, Chrome icon and desktop icon from brand/briefcraft-logo.svg. Do not use the legacy blue b° logo.",
+  "sourceStatus": "Owner-supplied canonical SVG on 2026-08-25"
 }
