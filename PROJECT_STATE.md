@@ -36,107 +36,107 @@ Transport uses the authenticated ChatGPT web backend, fresh chat-requirements, S
 ## Canonical brand
 Canonical source: `brand/briefcraft-logo.svg`; `brand/brand.json` forbids the old blue mark. Primary `#EEBF26`, accent `#FFE100`.
 
-## Proven UX layers before 3.8.14
+## Proven UX layers
 - 3.8.11: direct multimodal image upload worked; GPT recognized attached screenshots/images.
 - 3.8.12: drag/drop + clipboard image paste + inline previews + exact object focus worked; GPT could read text inside an image and understand a tethered object.
 - Chat history is local/per-project in `chrome.storage.local`, not ChatGPT history.
 - Explicit save/exit dialog and autosave are present.
 - Canonical yellow logo/system typography are in use.
+- 3.8.13 introduced main + temporary agent chats, separate hidden GPT thread IDs, agent colors and canvas tethers.
 
-## 3.8.13 live result — 2026-08-25
-`BriefCraft-AI-3.8.13-Agent-Threads-Canvas-Editing.zip`
-
-User live-tested:
-- main chat + temporary agent tabs appeared
-- colored agent tethers appeared and persisted enough to test
-- save/exit branded dialog worked through the BriefCraft UI
-- however canvas execution was still unreliable: GPT often said it changed a selected/tethered object, but the real object did not change
-- a visible error appeared: `Patch отклонён: No supported patch actions were produced`
-- tethers originated around the top/tab area and crossed over the chat; they visually jumped too much
-- active-agent identity near `ИИ на холсте` was not explicit enough
-- the chat panel only resized conveniently from the corner
-- composer layout needed plus/smiley/send inside one field; send should be an arrow; input itself should be vertically adjustable
-- after sending, chat sometimes did not scroll fully to the newest message
-- AI ghost could end up effectively offscreen/top-corner instead of visibly studying objects
-- user wants ghosts to linger/move slowly near objects during actual AI work
-- closing the actual Chrome tab/window should at least be protected from accidental loss; Chrome cannot show the custom branded BriefCraft dialog over a browser-X close, only a native `beforeunload` confirmation
-
-## Current build / next test
-### BriefCraft AI 3.8.14 — Live Editing + Agent UX
-Build created 2026-08-25:
+## 3.8.14 live result — 2026-08-25
 `BriefCraft-AI-3.8.14-Live-Editing-Agent-UX.zip`
 
-Built directly from 3.8.13 while preserving the proven no-window GPT transport.
+User live-tested and confirmed the major execution gap is finally closed for supported properties:
+- a tethered/selected shape really changed color on the canvas rather than only receiving a prose promise
+- the shape also changed geometry/type in response to GPT edit commands
+- patch application/Undo path is visibly functioning for these supported operations
+- left/right edge tether routing and agent/chat UI are present enough to continue testing
 
-### Canvas execution hardening
-- GPT machine instructions now include exact `set` patch schema and explicit supported property names.
-- Shape patch instructions explicitly support `rectangle`, `ellipse`, and new `triangle`.
-- Patch validation now normalizes common model variations instead of rejecting them outright:
-  - `action/operation` aliases for `op`
-  - `id/objectId` aliases for target
-  - `props/changes/values` aliases for properties
-  - `update/modify/edit/resize/move/style/recolor/transform` normalize to `set`
-  - `width/height` normalize to `w/h`
-  - `shape` normalizes to `shapeKind`
-  - common color/background aliases normalize to fill/textColor
-- Added a bounded local fallback for explicit edit commands on the pinned/selected object when GPT still fails to produce a valid supported patch. Covered fallback cases include common recolors, triangle/ellipse/rectangle shape changes, width/height half/double, visibility, and simple rotation.
-- Direct mode applies a validated patch immediately and leaves Undo available.
-- Triangle rendering and inspector option were added for shape objects.
+New limitations became clear in the same live test:
+- the editor lacks real vector authoring: pen tool, editable anchor/control points, arbitrary paths and masks
+- complex requests such as adding eyes/teeth/custom silhouettes cannot be expressed reliably using only primitive rectangle/ellipse/triangle properties
+- agent ghosts still look too childish and can feel visually disconnected from the object being investigated; user wants a restrained visual identity shared with agent micro-icons
+- composer still has too much vertical air and the send arrow alignment/position is awkward
 
-### Stable agent tethers
-- Tethers now originate from the **left or right edge of the whole chat panel**, choosing the side nearest the target object.
-- Thread-specific vertical anchor positions are stable and do not originate from the tabs above the chat.
-- Dashed-flow animation was removed to reduce visual jitter.
-- Tether geometry still refreshes while panel/canvas geometry changes, but uses deterministic anchors.
+Therefore 3.8.14 proves **real canvas execution for supported primitive edits**, but not yet free-form vector editing.
 
-### Active-agent identity
-- Every temporary agent receives a distinct face string as well as color.
-- The avatar next to `ИИ на холсте` changes to the active agent face/color.
-- Heading identifies `Главный · ИИ на холсте` or `<agent name> · ИИ на холсте`.
-- Thread tabs also show each agent face/color.
+## Current build / next test
+### BriefCraft AI 3.8.15 — Vector Pen + Masks + Agent Wisps
+Build created 2026-08-25:
+`BriefCraft-AI-3.8.15-Vector-Pen-Masks-Agent-Wisps.zip`
 
-### Panel + composer UX
-- Native corner-only CSS resize is disabled.
-- Added 8 explicit resize hit areas: top/right/bottom/left plus four corners, so the chat can be reshaped from any edge.
-- Composer is now one rounded field containing `+`, emoji, textarea, and a compact arrow send button.
-- Textarea can be vertically resized within a bounded height.
-- After adding/sending/rendering messages, BriefCraft scrolls to the bottom over several frames/timeouts; image-load completion also retriggers bottom scroll.
+Built directly on 3.8.14 while preserving the proven direct GPT transport and working patch path.
 
-### Ghost visibility / motion
-- Ghost targets are clamped inside the visible canvas/viewport area instead of being allowed to disappear offscreen.
-- While GPT is busy, the ghost remains visible and slowly orbits around the object/area being studied.
-- Motion is slower/smoother; object highlight still uses the active agent color.
-- Ghost fades after the task completes instead of timing out in the middle of a longer response.
+### Vector pen and editable geometry
+- Existing freehand Pencil remains separate on `P`.
+- New **Vector Pen** tool is available on `B`.
+- Click to place anchor points; Enter finishes the vector path; Escape cancels the draft.
+- Finished vectors are real canvas objects with normalized `pathNodes` and `pathClosed` state.
+- Double-click a vector enters/exits node editing.
+- Anchor nodes are directly draggable.
+- Double-clicking an anchor toggles smooth Bézier handles.
+- Bézier handles can be dragged; opposite handle mirrors by default, with Alt allowing independent adjustment.
+- Right-click an anchor removes it when the path has enough points.
+- Double-clicking the path while editing adds another anchor at the clicked location.
+- Vector paths support open/closed state, stroke, solid fill and the existing linear-gradient fill model.
 
-### Browser close protection
-- Explicit BriefCraft exit continues to use the branded save/exit dialog.
-- Actual browser-tab/window X cannot display that branded dialog because Chrome does not allow custom UI to replace the browser close confirmation.
-- 3.8.14 flushes persistence and requests native `beforeunload` confirmation whenever an active project exists, so accidental browser-X closes are protected as far as Chrome allows.
+### Convert existing artwork to vectors
+- Double-clicking an ordinary primitive shape converts it to an editable vector outline.
+- Freehand ink inspector includes a **Convert to editable path** action.
+- Inspector for vector objects includes node-edit and open/close-path controls.
 
-### Static verification completed for 3.8.14
-- manifest version = 3.8.14
+### Vector masks
+- When one vector path and one image are selected together, the multi-selection inspector exposes **Path → mask**.
+- The image stores normalized `maskNodes` / `maskClosed` and applies the path as a CSS clip-path mask.
+- Image inspector includes mask removal.
+- This mask implementation is present in code but still requires live Chrome verification in 3.8.15; do not claim runtime success before the user tests it.
+
+### AI-editable vector data
+Canvas Tool Bus / bridge object details now expose:
+- vector `pathNodes`, `pathClosed`
+- image `maskNodes`, `maskClosed`
+
+These properties are accepted by `set` patches, and `vector` is accepted as a creatable object type. GPT machine instructions now explicitly tell the model to use vector/path data for arbitrary geometry and mask data for image masks instead of pretending primitive shape fields can express everything.
+
+### Agent ghost / identity redesign
+- Replaced the cartoon cloud/face treatment with a quieter translucent **wisp** identity.
+- The exact same wisp visual language is used for the active-chat avatar and agent tab micro-icons.
+- Each agent retains its distinct color.
+- When AI activity starts, the canvas wisp is positioned immediately near the target object instead of visually travelling from a corner/top of the screen.
+- While the object is being studied, movement is a slow small orbit around the object rather than large playful motion.
+
+### Composer cleanup
+- Composer starts as a compact one-row field.
+- Textarea auto-grows only as content needs more height, within a bounded range.
+- `+`, emoji and send arrow are vertically centered inside the unified composer frame.
+- Send arrow is a compact upward arrow at the right edge.
+- After send the field collapses back to its compact height.
+
+### Static verification completed for 3.8.15
+- manifest version = 3.8.15
 - all extension JavaScript passes `node --check`
 - manifest JSON parses
-- checked extension HTML pages have no duplicate IDs
+- checked editor/popup/screenshot HTML has no duplicate IDs
 - ZIP integrity passes
-- no service ChatGPT tab/window transport reintroduced
+- no service ChatGPT tab/window transport was reintroduced
 
 ### Runtime verification required
 Test in this order:
-1. Load 3.8.14; create/select a rectangle and tether it to the main or an agent chat.
-2. Ask `поменяй цвет фигуры на жёлтый`; verify the actual fill changes and Undo restores it.
-3. Ask `преврати его в треугольник`; verify the actual shape changes.
-4. Verify tether starts from the nearest left/right edge of the chat and does not cross over its top.
-5. Switch chats; verify avatar face/color and heading change with the active agent.
-6. Resize chat from each edge, not only the corner.
-7. Send several messages/images and verify composer stays aligned and the chat always lands on the newest message.
-8. Trigger a visual/object read and watch the ghost stay visible and move slowly around the object.
-9. Close through BriefCraft UI to verify branded dialog; then separately test browser X and expect Chrome's native close-protection prompt, not a branded BriefCraft modal.
+1. Load 3.8.15 and verify Pencil still works on `P`; activate Vector Pen with `B`.
+2. Click 4–5 anchors and press Enter; verify a new vector object appears.
+3. Double-click the vector; drag an anchor. Double-click an anchor, then drag its Bézier handles.
+4. Right-click an anchor to remove it; double-click the path to add another point.
+5. Double-click an ordinary rectangle/ellipse to convert it to a vector; also test freehand Ink → Convert to editable path.
+6. Select one vector and one image, apply **Path → mask**, and verify the image is clipped; remove the mask afterward.
+7. Tether the vector to GPT and ask for a specific node/path geometry change; verify a real `pathNodes` patch changes the canvas and Undo restores it.
+8. Trigger an object read and verify the active agent wisp appears immediately beside the object and moves slowly nearby; agent tab/header icon should use the same wisp identity.
+9. Type/send one-line and multiline messages; verify the composer stays compact, auto-grows cleanly, and the send arrow remains aligned.
 
-Do not claim 3.8.14 runtime behavior is proven until the user tests it live.
+Do not claim these new 3.8.15 runtime behaviors are proven until the user tests them live.
 
 ## Important future direction — self-editing BriefCraft
-User wants an eventual mode where an agent inside BriefCraft can edit BriefCraft’s own source/repository through an explicitly authorized GitHub tool/connector, including code/design changes and diff/commit/PR review. Current in-app GPT does not automatically inherit ChatGPT product connectors. Build this as a separate external-tools permission layer after canvas execution is stable.
+User wants an eventual mode where an agent inside BriefCraft can edit BriefCraft’s own source/repository through an explicitly authorized GitHub tool/connector, including code/design changes and diff/commit/PR review. Current in-app GPT does not automatically inherit ChatGPT product connectors. Build this as a separate external-tools permission layer after canvas editing is sufficiently stable.
 
 ## Workflow rule
 Keep the proven direct text/multimodal transport stable. Fix runtime issues by layer. Never regress to browser-page automation and never claim live behavior is solved before user verification.
