@@ -14,81 +14,84 @@ Core rule: canvas is source of truth; object IDs are stable; AI reads only neede
 - 3.8.12 object focus + clipboard/drop attachments worked.
 - 3.8.13 introduced main + temporary agent chats and tethers.
 - 3.8.14 live-tested real canvas patches and complex build-from-brief workflows using code + live preview.
-- 3.8.17 restored BUILD MODE and introduced durable save plus a fixed manifest `key`. Preserve that exact key forever so unpacked dev builds keep one Chrome extension ID.
+- 3.8.17 restored BUILD MODE and introduced durable save plus a fixed manifest `key`. Preserve that exact key forever.
 - 3.8.18 added folder-first dark onboarding, whole-project Main GPT context, PDF overlay editing, direct PDF attachments, optional Internet Research and local-folder OWNER Jarvis.
 - 3.8.19 repaired Vector Pen/Pencil editing and added version/update UI foundation.
+- 3.8.20 added external normal-ChatGPT Live Presence, Figma-like sharing-role model, agent pills, per-agent GPT/Gemini/DeepSeek provider selection, browser interaction lock and code preview-only/split controls.
 
 ## Persistence rule
-From 3.8.17 onward every build MUST preserve the same manifest `key`. Projects should live in the selected workspace folder / `.briefcraft.json` backups and not rely only on extension-local storage. Do not delete an unpacked build before external project backup when migrating old random-ID builds.
+From 3.8.17 onward every build MUST preserve the same manifest `key`. Projects should live in the selected workspace folder / `.briefcraft.json` backups and not rely only on extension-local storage.
 
 ## Current build / next test
-### BriefCraft AI 3.8.20 — Live Presence + Collaboration + Agent Providers
+### BriefCraft AI 3.8.21 — Multi-AI Team + Roles + Parallel Tasks + Modules
 Build created 2026-08-26:
-`BriefCraft-AI-3.8.20-Live-Presence-Collab-Providers.zip`
+`BriefCraft-AI-3.8.21-Multi-AI-Team-Modules.zip`
 
-Built from 3.8.19 and preserves the fixed manifest key, direct GPT transport, full-project memory, PDF/Jarvis, BUILD MODE, vector editor, durable save and existing agent system.
+Built directly from 3.8.20; fixed manifest key preserved.
 
-### Figma-like access model foundation
-Main header now has **Доступ** with project-local sharing state:
-- visibility: invite-only or anyone-with-link;
-- link role: view / comment / edit;
-- local invitation list by name/email/nick with per-member roles;
-- AI participant section with role view/comment/edit.
+### Per-agent AI roles
+Every thread/agent now stores both a provider and a role. Available roles:
+- Универсал
+- Верстальщик / DOM-CSS
+- Копирайтер / ТЗ-тексты
+- Исследователь / web research
+- Дизайнер
+- Кодер
 
-Important truth: this build stores the sharing/role model in the project but does **not** yet provide human cross-device realtime collaboration. Real person-to-person invite/link sessions require a BriefCraft Relay/Cloud identity + synchronization layer. Do not claim remote human collaboration works yet.
+Role instructions are injected into that agent's prompt/context. Provider and role are visible on agent pills/settings. Roles are advisory specialization; they do not bypass canvas permissions.
 
-### External Main ChatGPT Live Presence
-The original product goal is restored as a real path:
-- **Подключить текущий ChatGPT** finds an already-open `chatgpt.com` / `chat.openai.com` tab; BriefCraft never creates a new tab for this;
-- the existing `chatgpt-lite-bridge.js` is injected/configured in that chosen ChatGPT tab;
-- manually sent messages in that external ChatGPT receive current compact BriefCraft context;
-- context contains project/revision/canvas/object map/selection/recent changes and project-wide memory data available through existing Tool Bus;
-- external ChatGPT can return `briefcraft.request/v1`; BriefCraft executes requested local tools and returns results/crops;
-- external ChatGPT can return `briefcraft.patch/v1` only when its assigned role is `edit`; view/comment roles cannot mutate the canvas;
-- external patches are staged through normal BriefCraft review/apply flow.
+### Provider identity / colors
+Provider color identity is now explicit:
+- GPT — green (`#22c55e`)
+- Claude — orange (`#f97316`)
+- Gemini — blue-violet (`#6366f1`)
+- DeepSeek — cyan (`#06b6d4`)
 
-This is the first 3.8.x build reconnecting the normal ChatGPT conversation to the modern Canvas Tool Bus. Runtime verification is still required; do not claim it is proven until the user tests it live.
+Switching provider recolors that agent/pill/worker ghost so simultaneous agents are visually distinguishable.
 
-### Temporary agent pills / tether routing
-- temporary agent chats have draggable pills directly on the world/canvas;
-- Main chat gets a pill when it has tethered objects;
-- pill position persists per thread;
-- tethers originate from the agent pill instead of stretching to the large chat panel, making temporary agents spatially placeable near their tasks;
-- clicking a pill switches to that chat; each pill carries the agent color/wisp and provider badge.
+### Claude adapter
+3.8.21 adds a real Anthropic Messages API adapter for Claude using an owner/user-supplied API key stored locally. It follows the same BriefCraft request/patch protocol as Gemini/DeepSeek. This adapter is new and requires live testing before claiming runtime parity.
 
-### Per-agent provider architecture
-Each chat thread stores its own provider selection:
-- **GPT** — existing direct authenticated ChatGPT-session transport, no API key;
-- **Gemini** — owner/user supplies a Gemini API key stored locally; adapter targets Gemini 2.5 Flash and preserves BriefCraft request/patch protocol;
-- **DeepSeek** — owner/user supplies a DeepSeek API key stored locally; adapter uses the DeepSeek chat-completions path and preserves the same BriefCraft request/patch protocol.
+### Parallel agent scheduler
+The previous global busy lock is no longer the only execution state. Each thread has its own task state, so the user can:
+1. send a task to one agent;
+2. switch to another thread;
+3. send a second task while the first provider request is still running.
 
-Provider keys are stored in local extension storage and required host permission is requested explicitly when that provider is enabled.
+Provider generation/research/tool-read work can therefore proceed concurrently across threads. Canvas patch commits are intentionally serialized through a short commit queue so two agents do not overwrite shared canvas state at the exact same instant. This is real parallel provider work with safe serialized mutations, not unrestricted patch races.
 
-Important limitations:
-- Gemini/DeepSeek adapters in 3.8.20 are new and require live testing;
-- they are currently text + Canvas Tool Bus adapters; GPT remains the proven multimodal/PDF path;
-- agent providers can differ per chat, but **true simultaneous concurrent execution of multiple agent requests is not yet enabled** because the current in-app agent pipeline still has one global busy/execution state. Do not claim parallel autonomous work yet.
+Each running thread exposes its own status and a colored worker wisp near the task. The UI no longer needs one global busy state to prevent switching agents.
 
-### Browser/code object interaction repair
-To stop embedded pages from hijacking canvas gestures:
-- browser objects are **canvas-locked by default** with an input shield over the iframe;
-- mouse wheel/zoom gestures therefore reach BriefCraft canvas rather than the embedded site;
-- explicit **Interact** toggles direct iframe interaction when the user actually wants to click/scroll the page;
-- switching back returns gesture ownership to the canvas;
-- browser/code outer objects retain normal resize handles.
+### Modules / connectors foundation
+Main header now includes a Modules button with a separate connector panel.
 
-Code objects now also support:
-- draggable code/preview splitter;
-- persisted split percentage;
-- **preview-only** mode that hides source code and leaves the visual result.
+Owner-build module states:
+- **Figma** — can be connected with a personal access token; token is verified against `api.figma.com/v1/me` and kept local.
+- **GitHub** — can be connected with a personal access token; token is verified against `api.github.com/user` and kept local.
+- **Google Drive** — explicitly reports that OAuth client configuration is required; no fake cookie-based connection is claimed.
+- **Quick Search** — floating no-AI-cost web search panel. Inline results use the existing DuckDuckGo HTML search path and clearly say so; a separate button opens the same query in Google.
 
-### Agent ghost targeting
-Patch/working ghost targeting is hardened: prefer the actual edited object, pinned object, selected object, or first create location instead of falling back to a generic screen corner. Existing wisp/work states remain.
+Connected module tokens are never inserted into GPT context. AI receives only sanitized connection status.
 
-### Static verification completed for 3.8.20
-- manifest version = 3.8.20;
-- fixed manifest key from 3.8.17 preserved;
-- `tabs` permission added for choosing the already-open external ChatGPT tab;
+New module Tool Bus calls:
+- `module_status`
+- `figma_fetch_file` — reads a Figma file by file key/depth when Figma is connected.
+- `github_fetch_file` — reads a repository file by `owner/repo`, path and ref when GitHub is connected.
+
+These tools are available to BriefCraft agents through the existing `briefcraft.request/v1` loop. Google Drive data access is not enabled until a real OAuth client is configured.
+
+### Existing 3.8.20 layers retained
+- external normal ChatGPT Live Presence with view/comment/edit roles;
+- project-local sharing/invite/link-role model (remote human realtime still requires Relay/Cloud);
+- draggable agent pills and tethers;
+- browser iframe canvas-lock / explicit Interact mode;
+- code/preview splitter and preview-only mode;
+- full-project Main GPT memory/map;
+- PDF/Jarvis/vector/BUILD MODE/durable save.
+
+### Static verification completed for 3.8.21
+- manifest version = 3.8.21;
+- fixed manifest key preserved;
 - all extension JavaScript passes `node --check`;
 - manifest JSON parses;
 - editor/popup/screenshot HTML have no duplicate IDs;
@@ -96,21 +99,23 @@ Patch/working ghost targeting is hardened: prefer the actual edited object, pinn
 - no service ChatGPT tab/window transport was reintroduced.
 
 ### Runtime verification required
-1. Load 3.8.20 and verify project survives the fixed-ID update.
-2. Open **Доступ** and inspect invite/link roles; remember human remote sync is only a permission-model foundation in this build.
-3. Open the exact normal ChatGPT conversation you want to use, then in BriefCraft choose AI participant role **Редактировать** and press **Подключить**. In that normal ChatGPT ask: `Что сейчас находится на полотне?` Verify it answers from live BriefCraft context without a new tab.
-4. Ask external ChatGPT for an object/crop it needs and verify request/result loop works. Then ask for a simple edit and verify a staged patch appears only with edit role.
-5. Create two temporary agent chats, drag their pills to different canvas regions, tether objects and verify lines originate from the pills and persist.
-6. Keep one agent on GPT. Configure another for Gemini with a key and another for DeepSeek with a key; test simple text + canvas read/patch tasks separately. Do not test them simultaneously yet.
-7. Put the pointer over a Browser object and wheel/zoom: canvas should keep control while locked. Press **Interact** only when page interaction is needed.
-8. Resize Browser/Code objects; drag code/preview splitter; switch a code object to preview-only and back.
-9. Trigger inspect/edit work and verify wisp/work ghost starts near the relevant task/object rather than a top corner.
+1. Update from 3.8.20 and verify project persistence.
+2. Create three temporary agents. Configure e.g. Claude + Верстальщик, GPT + Копирайтер, Gemini + Исследователь. Verify provider colors/role labels on pills.
+3. Add Claude/Gemini API keys and test each separately first.
+4. Start a longer task in Claude, switch to GPT and start another before Claude finishes, then start Gemini. Verify each thread shows its own busy/status and answers land in the correct local history.
+5. Test two simultaneous canvas-edit tasks on different objects in Direct mode. Provider work should overlap; actual canvas patch application should serialize safely.
+6. Open Modules. Connect Figma/GitHub tokens and verify status. Test `module_status`, then a simple Figma/GitHub file read through an agent.
+7. Open Quick Search, search a query, verify inline web results and Google external-search button.
+8. Confirm Google Drive honestly remains unconnected until OAuth is configured.
+
+Do not claim Claude/Gemini/DeepSeek parity, real parallel runtime, module API reads or external Live Presence are proven until the user tests them live.
 
 ## Next architecture layers
-1. **BriefCraft Relay/Cloud** for real multi-human collaboration, durable invite links, accounts/avatars/presence and live synchronization.
-2. **Concurrent agent scheduler** so GPT/Gemini/DeepSeek agents can genuinely run tasks in parallel with isolated busy/tool/patch state.
-3. **OWNER GitHub updater/OAuth** for private `jeep-jim/BriefCraft`: release check → changelog/diff → backup source folder → write approved update → reload. Ordinary public users must update through Chrome Web Store.
-4. **GitHub Jarvis** after explicit owner authorization: read/write/diff/commit/PR from inside BriefCraft. Current Jarvis edits only the explicitly selected local source folder.
+1. BriefCraft Relay/Cloud for real multi-human accounts, avatars, invite links and realtime synchronization.
+2. OAuth-based Google Drive module and production-grade Figma/GitHub OAuth instead of owner PATs.
+3. Multi-agent conflict UI: per-agent patch previews, object locks/leases, merge/rebase when agents edit the same object.
+4. OWNER GitHub updater/OAuth: release check → changelog/diff → backup → write approved update → reload.
+5. GitHub Jarvis commit/push/PR after explicit owner authorization.
 
 ## Workflow rule
-Keep the proven direct GPT text/multimodal transport stable. Preserve the fixed manifest key forever. Be explicit about runtime-tested vs newly built behavior. Never regress to browser-page service automation and never claim remote human collaboration, non-GPT multimodal parity or parallel agents before they are actually verified.
+Keep the proven direct GPT transport stable. Preserve the fixed manifest key forever. Be explicit about runtime-tested vs newly built behavior. Never claim remote human collaboration or provider parity before live verification.
