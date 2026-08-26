@@ -1,12 +1,22 @@
 {
-  "version": "3.8.32",
-  "baseVersion": "3.8.31",
+  "version": "3.8.33",
+  "baseVersion": "3.8.32",
   "channel": "owner-main",
-  "summary": "Updater popover opens clearly below the BriefCraft header.",
+  "summary": "After an online update BriefCraft automatically reopens the editor instead of leaving the extension closed.",
   "transforms": [
     {
-      "file": "editor.css",
-      "append": "\n/* Microfix 3.8.32: updater popover sits clearly below the app header */\n.update-popover{position:fixed!important;top:108px!important;left:24px!important;max-height:calc(100vh - 124px);overflow:auto}\n@media(max-width:900px){.update-popover{left:12px!important;right:12px!important;width:auto!important;top:96px!important}}\n"
+      "file": "editor.js",
+      "search": "  if(status)status.textContent=`v${manifest.version} · установлено`;if(sub)sub.textContent=\"Перезапускаю BriefCraft…\";setTimeout(()=>chrome.runtime.reload(),600)",
+      "replace": "  try{await chrome.storage.local.set({briefCraftReopenAfterUpdateV1:{at:Date.now(),url:\"editor.html\"}})}catch{};if(status)status.textContent=`v${manifest.version} · установлено`;if(sub)sub.textContent=\"Перезапускаю BriefCraft…\";setTimeout(()=>chrome.runtime.reload(),600)"
+    },
+    {
+      "file": "editor.js",
+      "search": "  const st=result?.status||result;if(st===\"update_available\"){const v=result?.details?.version||\"новая версия\";if(status)status.textContent=`Доступна ${v}`;if(sub)sub.textContent=\"Chrome загрузит обновление автоматически.\";setTimeout(()=>chrome.runtime.reload(),1800);return}",
+      "replace": "  const st=result?.status||result;if(st===\"update_available\"){const v=result?.details?.version||\"новая версия\";if(status)status.textContent=`Доступна ${v}`;if(sub)sub.textContent=\"Chrome загрузит обновление автоматически.\";try{await chrome.storage.local.set({briefCraftReopenAfterUpdateV1:{at:Date.now(),url:\"editor.html\"}})}catch{};setTimeout(()=>chrome.runtime.reload(),1800);return}"
+    },
+    {
+      "file": "background.js",
+      "append": "\n/* Microfix 3.8.33: reopen BriefCraft editor after extension reload/update */\n(async()=>{\n  const KEY=\"briefCraftReopenAfterUpdateV1\";\n  try{\n    const got=await chrome.storage.local.get(KEY),req=got?.[KEY];\n    if(!req)return;\n    const at=Number(req.at||0);\n    if(!at||Date.now()-at>120000){await chrome.storage.local.remove(KEY);return}\n    await chrome.storage.local.remove(KEY);\n    await new Promise(r=>setTimeout(r,350));\n    const editorUrl=chrome.runtime.getURL(String(req.url||\"editor.html\").replace(/^\\/+/,\"\"));\n    const tabs=await chrome.tabs.query({});\n    const existing=tabs.find(t=>typeof t.url===\"string\"&&t.url.startsWith(chrome.runtime.getURL(\"editor.html\")));\n    if(existing?.id){\n      await chrome.tabs.update(existing.id,{active:true});\n      if(existing.windowId!=null)try{await chrome.windows.update(existing.windowId,{focused:true})}catch{}\n    }else{\n      await chrome.tabs.create({url:editorUrl,active:true});\n    }\n  }catch{}\n})();\n"
     }
   ]
 }
