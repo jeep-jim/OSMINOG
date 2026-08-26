@@ -1,0 +1,17 @@
+{
+  "version": "3.8.27",
+  "baseVersion": "3.8.26",
+  "channel": "owner-main",
+  "summary": "Active chat header shows only provider logo and provider name.",
+  "transforms": [
+    {
+      "file": "gpt-presence.js",
+      "search": "  function updateActiveAgentIdentity(){\n    const t=activeThread()||threads[0],orb=panel.querySelector(\".bridge-orb\"),heading=q(\"#bridgeHeading\");\n    panel.style.setProperty(\"--agent-color\",t?.color||\"#8b5cf6\");\n    if(orb){orb.classList.add(\"agent-head-avatar\");orb.style.setProperty(\"--agent-color\",t?.color||\"#8b5cf6\");orb.innerHTML=wispMarkup(\"head\")}\n    if(heading){const pv=t?.provider===\"gemini\"?\"Gemini\":t?.provider===\"claude\"?\"Claude\":t?.provider===\"deepseek\"?\"DeepSeek\":\"GPT\";heading.textContent=t?.kind===\"main\"?`Главный · ${pv} на холсте`:`${t?.name||\"Агент\"} · ${pv} на холсте`};const bubble=q(\"#gptPresenceBubble\");if(bubble){bubble.style.setProperty(\"--agent-color\",t?.color||\"#22c55e\");const strong=bubble.querySelector(\"strong\");if(strong)strong.textContent=t?.provider===\"gemini\"?\"Gemini\":t?.provider===\"claude\"?\"Claude\":t?.provider===\"deepseek\"?\"DeepSeek\":t?.provider===\"custom\"?\"AI\":\"GPT\"}\n  }",
+      "replace": "  function updateActiveAgentIdentity(){\n    const t=activeThread()||threads[0],orb=panel.querySelector(\".bridge-orb\"),heading=q(\"#bridgeHeading\"),kicker=panel.querySelector(\".bridge-title small\");\n    const provider=t?.provider||\"gpt\",pv=providerLabel(provider),icon=provider===\"gemini\"?\"icons/providers/gemini.svg\":provider===\"claude\"?\"icons/providers/claude.svg\":provider===\"deepseek\"?\"icons/providers/deepseek.svg\":provider===\"custom\"?\"icons/providers/custom.svg\":\"icons/providers/openai.svg\";\n    panel.style.setProperty(\"--agent-color\",providerColor(provider));\n    if(kicker)kicker.hidden=true;\n    if(orb){orb.classList.remove(\"agent-head-avatar\");orb.classList.add(\"provider-head-avatar\");orb.style.setProperty(\"--agent-color\",providerColor(provider));orb.innerHTML=`<img src=\"${icon}\" alt=\"${esc(pv)}\">`}\n    if(heading)heading.textContent=pv;const bubble=q(\"#gptPresenceBubble\");if(bubble){bubble.style.setProperty(\"--agent-color\",providerColor(provider));const strong=bubble.querySelector(\"strong\");if(strong)strong.textContent=pv}\n  }"
+    },
+    {
+      "file": "editor.css",
+      "append": "\n/* Microfix 3.8.27: active chat header shows provider identity only */\n.bridge-title .provider-head-avatar{width:35px;height:35px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--surface-2) 88%,transparent);border:1px solid color-mix(in srgb,var(--agent-color,#8b5cf6) 36%,var(--line));box-shadow:none;padding:6px;overflow:hidden}\n.bridge-title .provider-head-avatar img{display:block;width:100%;height:100%;object-fit:contain}\n.bridge-title small[hidden]{display:none!important}\n.bridge-title:has(.provider-head-avatar) strong{margin-top:0;font-size:14px;font-weight:800}\n"
+    }
+  ]
+}
