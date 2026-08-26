@@ -17,102 +17,92 @@ Core rule: canvas is source of truth; object IDs are stable; AI reads only neede
 - 3.8.17 restored BUILD MODE and introduced durable save plus a fixed manifest `key`. Preserve that exact key forever.
 - 3.8.18 added folder-first dark onboarding, whole-project Main GPT context, PDF overlay editing, direct PDF attachments, optional Internet Research and local-folder OWNER Jarvis.
 - 3.8.19 repaired Vector Pen/Pencil editing and added version/update UI foundation.
-- 3.8.20 added external normal-ChatGPT Live Presence, Figma-like sharing-role model, agent pills, per-agent provider architecture, browser interaction lock and code preview-only/split controls.
-- 3.8.21 added Claude, explicit agent roles, parallel provider tasks with serialized canvas commits, Figma/GitHub modules and Quick Search.
-- 3.8.22 replaced Quick Search with a collapsible Google AI widget powered by Gemini API + Google Search grounding when a key is available.
+- 3.8.20 added external normal-ChatGPT Live Presence, sharing-role foundation, agent pills, provider architecture, browser lock and code preview-only/split controls.
+- 3.8.21 added Claude, agent roles, parallel provider tasks with serialized canvas commits and Figma/GitHub modules.
+- 3.8.22 added a collapsible Google AI workspace widget.
+- 3.8.23 added browser-tab-first provider connection UX and Custom OpenAI-compatible AI fallback.
 
 ## Persistence rule
 From 3.8.17 onward every build MUST preserve the same manifest `key`. Projects should live in the selected workspace folder / `.briefcraft.json` backups and not rely only on extension-local storage.
 
 ## Current build / next test
-### BriefCraft AI 3.8.23 — Provider Connect UX + Custom AI
+### BriefCraft AI 3.8.24 — Provider Bridge + Google AI Mode + UI Polish
 Build created 2026-08-26:
-`BriefCraft-AI-3.8.23-Provider-Connect-Custom-AI.zip`
+`BriefCraft-AI-3.8.24-Provider-Bridge-Google-AI-Polish.zip`
 
-Built directly from 3.8.22; fixed manifest key preserved.
+Built from 3.8.23; fixed manifest key preserved.
 
-### Provider connection UX — browser tab first, API fallback
-The normal-user goal is now: **open the AI website → BriefCraft detects the tab → user clicks Connect → no API key is required when the tab bridge works**.
+### Provider tab bridge hardening
+User live-tested 3.8.23 and DeepSeek was detected but did not successfully connect. 3.8.24 hardens the consumer-tab bridge:
+- bridge injection is retried and the service worker polls for the content-script handshake;
+- provider tabs expose a probe with composer detection diagnostics;
+- disconnected message ports trigger one automatic bridge reinjection + retry on send;
+- linked provider tabs are reinjected after page navigation/reload;
+- DeepSeek composer matching now explicitly includes Message/DeepSeek placeholders, textareas, role=textbox and contenteditable editors;
+- submit-button matching is broader and Enter-key fallback dispatches keydown/keypress/keyup;
+- assistant-answer detection now combines provider-specific selectors with broader visible response/article/prose/markdown candidates;
+- the main provider Connect button attempts the detected open tab directly instead of forcing a second settings step.
 
-For Claude / Gemini / DeepSeek:
-- BriefCraft detects already-open tabs for `claude.ai`, `gemini.google.com` and `chat.deepseek.com`;
-- when such a tab appears, BriefCraft sends an in-app suggestion that it can be connected;
-- agent settings show `Подключить открытую вкладку` as the preferred path;
-- connection requests the minimum host permission for that provider and injects `provider-tab-bridge.js` into the existing tab;
-- the bridge uses provider-specific + generic DOM heuristics to locate the composer, submit a prompt and detect the latest assistant answer;
-- the connected tab is reused for subsequent agent turns and Tool Bus follow-ups;
-- no new provider tab is created by BriefCraft;
-- API key remains available under an explicit **API / local server — fallback** section.
+This remains a consumer-site DOM bridge and is **runtime-beta**. Do not claim DeepSeek/Claude/Gemini web-tab stability until live-tested.
 
-Important truth: the Claude/Gemini/DeepSeek consumer-site DOM is not a stable public API. This tab bridge is intentionally marked beta and must be live-tested; if a provider changes its DOM, BriefCraft should fall back to the provider API rather than pretending the web bridge is stable.
+### Google consumer AI Mode bridge
+The Google workspace module now prefers the actual open Google Search AI Mode consumer tab instead of treating Gemini developer API as the primary UX.
+- provider `googleai` detects `google.com/ai` and Google Search AI Mode (`udm=50`) tabs;
+- the Google widget can connect that existing consumer tab and mirror prompts/answers through the same provider-tab bridge;
+- if no Google AI Mode tab exists, the widget opens `https://www.google.com/ai`, waits for the tab, then attempts connection after permission is granted;
+- connected Google AI Mode is tried first, connected Gemini tab second, Gemini API + Google Search grounding remains fallback;
+- the external Google AI conversation is visible in the real Google tab; BriefCraft mirrors the result in the widget.
 
-### DeepSeek API correction
-The fallback adapter now uses the supplied/standard OpenAI-compatible DeepSeek shape:
-- endpoint: `https://api.deepseek.com/v1/chat/completions`;
-- model: `deepseek-chat`;
-- Bearer API key;
-- BriefCraft system/context messages + normal chat-completions message array.
+Important: Google consumer DOM is also not a stable public API. This path requires live testing.
 
-### Custom AI / OpenAI-compatible provider
-3.8.23 adds a real **Custom AI** provider for the integration pattern suggested during testing.
+### Google widget / module polish
+- fixed a real bug that prevented the collapsed Google `G` button from being dragged: the generic drag guard rejected the button itself;
+- drag now distinguishes click vs move so dragging does not reopen the widget;
+- Google module icon uses the clean multicolor G without the extra white tile artifact;
+- the Google AI widget now uses theme-aware variables and adapts to light and dark BriefCraft themes;
+- Google AI Mode is the primary label; Gemini API is presented as fallback.
 
-Agent settings can store locally:
-- display name;
-- Base URL;
-- model name;
-- optional API key;
-- optional custom system prompt.
+### Chat pill identity
+The minimized main AI chat bubble no longer duplicates the BriefCraft product logo. It uses the same agent wisp/mascot visual language as agent tabs/pills and updates its provider label/color with the active thread.
 
-BriefCraft calls an OpenAI-compatible `/v1/chat/completions` endpoint and preserves the same BriefCraft request/patch protocol. Intended targets include OpenRouter, Together-style compatible gateways, LM Studio, Ollama-compatible gateways and other OpenAI-compatible servers. Local endpoints may omit API key when the server allows it.
+### Header/layout polish
+- module button is now a puzzle-piece SVG with a multicolor gradient outline;
+- responsive breakpoints compress mode labels and secondary topbar text before controls can overlap;
+- save/share/AI labels collapse to icons on narrower desktop widths;
+- project width and mode switch are constrained to keep the header from colliding around 1366px-wide layouts.
 
-The Custom AI module is also visible under Modules and opens the same agent provider configuration.
+### Single update button
+The owner update popover no longer exposes GitHub/Releases navigation buttons.
+- only one **Обновить** action is shown;
+- it uses Chrome's update channel via `chrome.runtime.requestUpdateCheck()` when the extension is installed through an update-capable channel such as Chrome Web Store;
+- local unpacked dev builds cannot truthfully self-install remote executable code through this button, so they report that limitation instead of pretending the update happened;
+- future desktop builds should reuse the same single-button updater UX with their native updater backend.
 
-### Google AI widget connection improvement
-The Google AI workspace widget can now use a connected open Gemini tab before requiring a Gemini API key. If no tab bridge is connected, the existing Gemini API + Google Search grounding path remains the stable fallback. Google account/profile identity is still separate from Gemini developer API credentials.
-
-### Module icons / launch-screen redesign
-- Figma, Google Drive, GitHub and Google AI module cards now use branded SVG icon assets instead of placeholder letters.
-- Provider icon assets were added for GPT, Claude, Gemini, DeepSeek and Custom AI.
-- The empty-canvas center was redesigned from the old generic `Build the shared context` block into a clearer launch surface: **С чего начнём?** with primary actions to Connect AI, Create brief, Add reference, plus quick provider launch buttons.
-
-### Existing 3.8.22 layers retained
-- Google AI collapsible widget;
-- multi-agent roles / colors / parallel provider work + serialized canvas commits;
-- external normal ChatGPT Live Presence;
-- agent pills/tethers;
-- Figma/GitHub modules;
-- browser canvas-lock / Interact mode;
-- code/preview splitter + preview-only;
-- full-project Main GPT memory/map;
-- PDF/Jarvis/vector/BUILD MODE/durable save.
-
-### Static verification completed for 3.8.23
-- manifest version = 3.8.23;
+### Static verification completed for 3.8.24
+- manifest version = 3.8.24;
 - fixed manifest key preserved;
-- all extension JavaScript including `provider-tab-bridge.js` passes `node --check`;
+- all extension JavaScript passes `node --check`;
 - manifest JSON parses;
-- editor/popup/screenshot HTML have no duplicate IDs;
+- editor/popup/screenshot HTML contain no duplicate IDs;
 - ZIP integrity passes and root manifest is present.
 
 ### Runtime verification required
-1. Update from 3.8.22 and verify project persistence.
-2. Open DeepSeek in a normal browser tab, then select DeepSeek for an agent. BriefCraft should report that the tab is found; click `Подключить открытую вкладку`.
-3. Send a simple text task through the DeepSeek agent. Confirm the prompt is submitted in the connected DeepSeek tab and the answer returns to the correct BriefCraft thread. This is a beta DOM bridge test.
-4. Repeat separately with Claude and Gemini.
-5. If a tab bridge fails, open the fallback section and test the corresponding API adapter; for DeepSeek verify `deepseek-chat` works.
-6. Test Google AI widget with an open connected Gemini tab and no Gemini API key; then test API-key fallback separately.
-7. Configure a Custom AI endpoint (for example a local OpenAI-compatible server) and test text + one simple canvas patch.
-8. Open Modules and verify branded icons render; open Custom AI from Modules.
-9. Start with an empty canvas and verify the new centered launch design / provider quick-launch buttons.
-
-Do not claim consumer-tab provider bridges are production-stable before live verification. The tab connection is a convenience layer; official/provider API adapters remain the reliable fallback.
+1. Update from 3.8.23 and verify project persistence.
+2. Keep a real DeepSeek chat open, select DeepSeek agent and click the main Connect action. Verify it connects without a second redundant step, then send `ответь одним словом СВЯЗЬ`.
+3. Reload/navigate the DeepSeek tab and send again; the bridge should self-reinject.
+4. Open Google AI Mode (`google.com/ai`), then open the BriefCraft Google module and connect it. Send a short question and verify the same consumer conversation receives the prompt and the answer mirrors back into BriefCraft.
+5. Minimize Google widget to G, drag it, and reopen; it must stay where moved.
+6. Switch BriefCraft light/dark theme while Google widget is open; colors should adapt.
+7. Minimize the main BriefCraft AI chat and verify the collapsed pill shows the wisp mascot rather than the BriefCraft logo.
+8. Inspect the header around 1366px width; controls must not overlap.
+9. Open version popover: only `Обновить` should remain. In local unpacked mode it may correctly report that the dev channel is not auto-installable; Chrome Web Store builds use Chrome Update.
 
 ## Next architecture layers
-1. Harden per-provider tab bridges after live DOM tests and add selector diagnostics/self-healing.
-2. Production OAuth for Google Drive / Figma / GitHub and account-based module connections instead of owner PATs.
+1. Provider-specific DOM diagnostics/self-healing after live DeepSeek/Claude/Gemini/Google AI Mode tests.
+2. Production OAuth for Google Drive / Figma / GitHub and account-based module connections.
 3. BriefCraft Relay/Cloud for real multi-human accounts, avatars, invite links and realtime synchronization.
-4. Multi-agent conflict UI: object leases, per-agent patch previews and merge/rebase when agents touch the same object.
-5. OWNER GitHub updater/OAuth + GitHub Jarvis commit/push/PR after explicit authorization.
+4. Multi-agent conflict UI: object leases, per-agent patch previews and merge/rebase.
+5. Native/desktop updater backend using the same one-button update UI.
 
 ## Workflow rule
-Keep the proven direct GPT transport stable. Preserve the fixed manifest key forever. Be explicit about runtime-tested vs newly built behavior. Never claim remote human collaboration, provider parity or consumer-tab bridge stability before live verification.
+Keep the proven direct GPT transport stable. Preserve the fixed manifest key forever. Be explicit about runtime-tested vs newly built behavior. Never claim remote human collaboration, provider parity, consumer-tab bridge stability or unpacked self-update before live verification.
