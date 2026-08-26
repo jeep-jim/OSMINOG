@@ -1,23 +1,26 @@
 {
-  "version": "3.8.47",
-  "baseVersion": "3.8.46",
+  "version": "3.8.48",
+  "baseVersion": "3.8.47",
   "channel": "owner-main",
-  "summary": "Restore the original pre-3.8.45 light/dark theme switching and canvas theme application without changing screenshot, Objects, agent, or connection improvements.",
+  "summary": "Restore the exact 3.8.22 welcome/canvas theme surfaces and native draggable agent-pill behavior without rolling back newer features.",
   "transforms": [
     {
-      "file": "editor.js",
-      "search": "(()=>{\n  const bind=id=>{const button=document.getElementById(id);if(!button||button.dataset.bcTheme45)return;button.dataset.bcTheme45=\"1\";button.addEventListener(\"click\",event=>{event.preventDefault();event.stopImmediatePropagation();state.theme=state.theme===\"dark\"?\"light\":\"dark\";document.documentElement.dataset.theme=state.theme;applyTheme();queuePersist()},true)};\n  bind(\"workspaceTheme\");bind(\"welcomeTheme\");document.documentElement.dataset.theme=state.theme;applyTheme()\n})();",
-      "replace": "/* 3.8.47: original workspace and welcome theme click handlers restored. */"
-    },
-    {
-      "file": "editor.js",
-      "search": "(()=>{\n  const luminance=value=>{const m=String(value||\"\").match(/^#([0-9a-f]{6})$/i);if(!m)return null;const rgb=[0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4));return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]};\n  const normalizeBoards=()=>{let changed=false;(state.projects||[]).forEach(p=>{const c=p?.canvas;if(!c)return;let light=c.boardLight,dark=c.boardDark,ll=luminance(light),dl=luminance(dark);if(ll===null){light=\"#f7f8fb\";ll=luminance(light);changed=true}if(dl===null){dark=\"#171a20\";dl=luminance(dark);changed=true}if(ll<dl){[light,dark]=[dark,light];changed=true}if(c.boardLight!==light||c.boardDark!==dark){c.boardLight=light;c.boardDark=dark;changed=true}c._themeOrder46=true});if(changed)queuePersist()};\n  const baseApplyTheme46=applyTheme;applyTheme=function(...args){normalizeBoards();const r=baseApplyTheme46(...args);document.body.dataset.editorTheme=state.theme;return r};normalizeBoards();applyTheme();\n})();",
-      "replace": "/* 3.8.47: original applyTheme and canvas theme behavior restored. */"
+      "file": "gpt-presence.js",
+      "search": "\n/* Microfix 3.8.44: canvas agent pills can be freely placed and keep their position. */\n(()=>{\n  const STORE=\"briefCraftAgentPillPositionsV2\";let saved={},drag=null,raf=0;\n  const pid=()=>{try{return globalThis.project?.()?.id||\"current\"}catch{return\"current\"}};\n  const key=pill=>`${pid()}:${pill.dataset.agentPill||\"main\"}`;\n  const wakeTethers=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;window.dispatchEvent(new Event(\"resize\"));document.dispatchEvent(new CustomEvent(\"briefcraft:agent-pill-moved\"))})};\n  const apply=pill=>{const p=saved[key(pill)];if(!p)return;pill.dataset.bcFreeAgent=\"1\";pill.style.left=`${Number(p.x)||0}px`;pill.style.top=`${Number(p.y)||0}px`;pill.style.right=\"auto\";pill.style.bottom=\"auto\"};\n  const scan=()=>document.querySelectorAll(\"[data-agent-pill]\").forEach(pill=>{pill.dataset.bcAgentDraggable=\"1\";apply(pill)});\n  chrome.storage.local.get(STORE).then(g=>{saved=g?.[STORE]||{};scan()}).catch(scan);\n  new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});\n  document.addEventListener(\"pointerdown\",e=>{const pill=e.target.closest?.(\"[data-agent-pill]\");if(!pill||e.button!==0||e.target.closest(\"input,textarea,select,a\")||e.target.closest(\"button\")&&e.target.closest(\"button\")!==pill)return;\n    const inWorld=!!pill.closest(\"#world\"),wp=inWorld&&globalThis.worldPoint?globalThis.worldPoint(e.clientX,e.clientY):{x:e.clientX,y:e.clientY},r=pill.getBoundingClientRect(),rp=inWorld&&globalThis.worldPoint?globalThis.worldPoint(r.left,r.top):{x:r.left,y:r.top};\n    drag={pill,id:e.pointerId,inWorld,start:wp,left:rp.x,top:rp.y,moved:false};pill.setPointerCapture?.(e.pointerId);pill.classList.add(\"bc-agent-dragging\")\n  },true);\n  document.addEventListener(\"pointermove\",e=>{if(!drag||e.pointerId!==drag.id)return;const p=drag.inWorld&&globalThis.worldPoint?globalThis.worldPoint(e.clientX,e.clientY):{x:e.clientX,y:e.clientY},dx=p.x-drag.start.x,dy=p.y-drag.start.y;if(!drag.moved&&Math.abs(dx)+Math.abs(dy)<3)return;drag.moved=true;e.preventDefault();e.stopPropagation();const x=drag.left+dx,y=drag.top+dy;drag.pill.dataset.bcFreeAgent=\"1\";Object.assign(drag.pill.style,{left:`${x}px`,top:`${y}px`,right:\"auto\",bottom:\"auto\"});wakeTethers()},true);\n  const finish=e=>{if(!drag||e.pointerId!==drag.id)return;const d=drag;drag=null;d.pill.classList.remove(\"bc-agent-dragging\");if(!d.moved)return;const x=parseFloat(d.pill.style.left)||0,y=parseFloat(d.pill.style.top)||0;saved[key(d.pill)]={x,y};chrome.storage.local.set({[STORE]:saved}).catch(()=>{});wakeTethers();const block=ev=>{if(ev.target.closest?.(\"[data-agent-pill]\")===d.pill){ev.preventDefault();ev.stopPropagation()}document.removeEventListener(\"click\",block,true)};document.addEventListener(\"click\",block,true)};\n  document.addEventListener(\"pointerup\",finish,true);document.addEventListener(\"pointercancel\",e=>{if(drag&&e.pointerId===drag.id){drag.pill.classList.remove(\"bc-agent-dragging\");drag=null}},true);\n})();\n\n",
+      "replace": "\n/* 3.8.48: removed the conflicting 3.8.44 pill override; native 3.8.22 pointer drag is authoritative. */\n"
     },
     {
       "file": "editor.css",
-      "search": "html[data-theme=\"dark\"] #viewport{box-shadow:inset 0 0 100px rgba(8,12,20,.16)}html[data-theme=\"light\"] #viewport{box-shadow:inset 0 0 100px rgba(117,151,222,.045)}",
+      "search": "[data-agent-pill][data-bc-agent-draggable=\"1\"]{cursor:grab!important;touch-action:none;user-select:none}\n[data-agent-pill][data-bc-free-agent=\"1\"]{position:absolute!important;right:auto!important;bottom:auto!important;pointer-events:auto!important}\n[data-agent-pill].bc-agent-dragging{cursor:grabbing!important;z-index:490!important;filter:drop-shadow(0 12px 22px rgba(0,0,0,.3))}",
       "replace": ""
+    },
+    {
+      "file": "editor.js",
+      "append": "\n/* 3.8.48: restore the 3.8.22 canvas theme state exactly after the 3.8.46 migration. */\n(()=>{\n  const defaults={boardLight:\"#f7f8fb\",boardDark:\"#171a20\",gridColorLight:\"#c8ceda\",gridColorDark:\"#4a5262\"};\n  let changed=false;\n  (state.projects||[]).forEach(p=>{const c=p?.canvas;if(!c||!c._themeOrder46)return;Object.assign(c,defaults);delete c._themeOrder46;changed=true});\n  document.documentElement.dataset.theme=state.theme;\n  applyCanvasStyle();renderObjects();\n  if(changed)queuePersist();\n})();\n"
+    },
+    {
+      "file": "editor.css",
+      "append": "\n/* 3.8.48: exact 3.8.22 welcome and central theme surfaces. */\n.welcome{position:fixed;inset:0;overflow:auto;background:radial-gradient(circle at 82% 22%,color-mix(in srgb,var(--accent-2) 13%,transparent),transparent 33%),radial-gradient(circle at 7% 91%,color-mix(in srgb,var(--cyan) 10%,transparent),transparent 35%),var(--bg)}\n.welcome::before{content:\"\";position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(color-mix(in srgb,var(--text) 17%,transparent) 1px,transparent 1.2px);background-size:22px 22px;mask-image:linear-gradient(to bottom,#000,transparent 88%)}\n"
     }
   ]
 }
