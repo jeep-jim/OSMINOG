@@ -1,14 +1,17 @@
 # BriefCraft — CURRENT STATE
 
-Date: 2026-08-26
+Date: 2026-08-27
 
-- Current tested live line before next click: **3.8.39**.
-- Next online update in GitHub: **3.8.40** — autosave-first navigation, project-card live thumbnails, compact file/image objects, selection chrome with AI/close controls and 8 connection ports, useful collapsed Layers rail, Modules puzzle polish, `Live AI` → `Chat AI`.
-- OWNER online updater is working and reopens `editor.html` after reload.
-- Proven transports: GPT direct authenticated session; DeepSeek direct authenticated hidden web-session. Visible provider chats are not polluted by BriefCraft service prompts.
-- Canvas remains source of truth; agents can read/edit through Tool Bus + `briefcraft.patch/v1`.
-- Fixed manifest `key` from 3.8.17 must never change.
-- Projects/data folder and OWNER application-source folder are separate concepts.
-- Current work phase: **design/UI cleanup and consistency**.
-- Payment research memory lives in `docs/PRODAMUS.md`; reverify provider terms before implementation.
-- Owner microfix workflow: update `extension/update-manifest.json` in GitHub → user presses **Обновить** → patch applies → extension reloads/reopens.
+- **Recovery target / last user-confirmed stable build: 3.8.43.**
+- Stable commit: `b17638ff3925214636b772d43a93dbb2ba204d5d`.
+- Permanent recovery branch: `recovery/briefcraft-3.8.43-stable`.
+- `versions/index.json` and `versions/3.8.43.json` are the recovery/version registry.
+- 3.8.51 was rejected and was not the installed base; 3.8.52 explicitly installed over 3.8.50.
+- Current recovery feed: **3.8.54**, a one-time rollback engine that reverses 3.8.52, 3.8.50, 3.8.49, 3.8.48, 3.8.47, 3.8.46, 3.8.45 and 3.8.44, then writes local manifest version back to **3.8.43** and reloads.
+- Before rollback, key source files are copied locally to `.briefcraft-recovery/3.8.53/`.
+- After the user confirms that 3.8.43 is restored, replace the temporary rollback feed with a stable/no-update 3.8.43 feed before continuing work.
+- From now on, every runtime-tested stable version must receive a permanent `recovery/briefcraft-<version>-stable` branch and an entry in `versions/index.json` before newer risky work begins.
+- OWNER online updater remains the development update channel.
+- Preserve the fixed extension manifest `key` forever.
+- Proven transports retained by stable 3.8.43: GPT direct authenticated session; DeepSeek direct authenticated hidden web-session.
+- Payment research memory: `docs/PRODAMUS.md`.
