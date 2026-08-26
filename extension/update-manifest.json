@@ -1,12 +1,12 @@
 {
-  "version": "3.8.30",
-  "baseVersion": "3.8.29",
+  "version": "3.8.31",
+  "baseVersion": "3.8.30",
   "channel": "owner-main",
   "summary": "Updater popover opens below the BriefCraft header.",
   "transforms": [
     {
       "file": "editor.css",
-      "append": "\n/* Microfix 3.8.30: updater popover stays below the app header */\n.update-popover{position:fixed!important;top:88px!important;left:18px!important;max-height:calc(100vh - 104px);overflow:auto}\n@media(max-width:900px){.update-popover{left:12px!important;right:12px!important;width:auto!important;top:82px!important}}\n"
+      "append": "\n/* Microfix 3.8.31: updater popover stays below the app header */\n.update-popover{position:fixed!important;top:96px!important;left:18px!important;max-height:calc(100vh - 112px);overflow:auto}\n@media(max-width:900px){.update-popover{left:12px!important;right:12px!important;width:auto!important;top:88px!important}}\n"
     }
   ]
 }
