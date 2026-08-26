@@ -1,0 +1,15 @@
+{
+  "format": "briefcraft-version-registry/v1",
+  "stable": "3.8.43",
+  "versions": [
+    {
+      "version": "3.8.43",
+      "status": "runtime-tested-stable",
+      "commit": "b17638ff3925214636b772d43a93dbb2ba204d5d",
+      "recoveryBranch": "recovery/briefcraft-3.8.43-stable",
+      "baseVersion": "3.8.42",
+      "testedAt": "2026-08-26",
+      "notes": "Last user-confirmed stable line before the 3.8.44+ regression sequence. Preserve as rollback target."
+    }
+  ]
+}
