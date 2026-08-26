@@ -4,106 +4,113 @@
 If the user opens a new chat and writes **«начни»**, read this file completely first and continue from **Current build / next test**. Do not ask the user to retell the project. Do not restart rejected service-tab / Cloudflare / old MCP experiments unless explicitly requested.
 
 ## Product goal
-BriefCraft is a persistent shared visual workspace where project memory lives on the canvas. Human and AI work on the same board containing briefs, notes, files, images, audio/video, PDF documents, code, browser/DOM captures, nodes, links, revisions and agent threads.
+BriefCraft is a persistent visual workspace where project memory lives on the canvas. Humans and AI work around the same objects: briefs, notes, files, images, audio/video, PDFs, code/live previews, browser references, nodes, links, revisions and agent threads.
 
-Non-negotiable flow: **Install BriefCraft → Connect AI → Allow → work.** GPT/ChatGPT first; other providers later.
+Core rule: canvas is source of truth; object IDs are stable; AI reads only needed data through Canvas Tool Bus and edits through `briefcraft.patch/v1` with Preview/Apply/Undo.
 
-## Core architecture
-- Canvas is source of truth; stable object IDs.
-- AI Presence / Canvas Tool Bus is transport-independent.
-- Main GPT can receive a compact project-wide semantic map plus on-demand visual captures.
-- Exact get/search/read/capture tools are used only when needed.
-- Structured `briefcraft.patch/v1` for canvas mutations.
-- Local Preview / Apply / Undo.
-- AI must never invent an existing object ID.
-
-## Proven direct GPT transport
-3.8.0–3.8.7 browser-page/service-window transport is rejected because it created visible ChatGPT surfaces. 3.8.8/3.8.9 probes and 3.8.10 live testing proved the extension service worker can use the already-authenticated `chatgpt.com` session directly: short and long replies return inside BriefCraft with no visible ChatGPT tab/window/new visible conversation. This authenticated web-backend path is not a stable public API contract; keep it isolated behind Presence Core.
-
-## Proven / built layers
-- 3.8.11: direct multimodal image upload worked.
-- 3.8.12: drag/drop, clipboard images, inline previews and exact object focus worked.
-- 3.8.13: main + temporary agent chats, separate hidden GPT thread IDs, colors and tethers.
-- 3.8.14 live test: real patch execution worked for supported shape edits; GPT also built full interfaces from briefs using code + live preview objects.
-- 3.8.15 added Vector Pen, anchors, Bézier handles, vector paths/masks; user skipped direct live test.
-- 3.8.16 added inspect/work ghost modes and `briefcraft://asset/OBJECT_ID`, but regressed build-from-scratch behavior.
-- 3.8.17 restored explicit BUILD MODE and introduced durable save + a fixed manifest `key`. Preserve that exact key forever so unpacked dev builds keep one Chrome extension ID.
-- 3.8.18 added folder-first dark onboarding, project-wide Main GPT memory/map + whole-canvas overview, PDF canvas objects with non-destructive correction overlays, direct PDF document attachments to GPT, optional Internet Research, and owner-only local-source Jarvis tools.
+## Proven transport / execution
+- 3.8.8–3.8.10 proved direct authenticated ChatGPT web-session transport with no visible service tab/window/new visible ChatGPT conversation.
+- 3.8.11 direct multimodal image upload worked.
+- 3.8.12 object focus + clipboard/drop attachments worked.
+- 3.8.13 introduced main + temporary agent chats and tethers.
+- 3.8.14 live-tested real canvas patches and complex build-from-brief workflows using code + live preview.
+- 3.8.17 restored BUILD MODE and introduced durable save plus a fixed manifest `key`. Preserve that exact key forever so unpacked dev builds keep one Chrome extension ID.
+- 3.8.18 added folder-first dark onboarding, whole-project Main GPT context, PDF overlay editing, direct PDF attachments, optional Internet Research and local-folder OWNER Jarvis.
+- 3.8.19 repaired Vector Pen/Pencil editing and added version/update UI foundation.
 
 ## Persistence rule
-From 3.8.17 onward every dev build MUST preserve the same manifest `key`. Projects should live in the chosen local workspace folder / `.briefcraft.json` backups and not depend only on `chrome.storage.local`. Removing an unpacked extension can remove extension-local storage.
+From 3.8.17 onward every build MUST preserve the same manifest `key`. Projects should live in the selected workspace folder / `.briefcraft.json` backups and not rely only on extension-local storage. Do not delete an unpacked build before external project backup when migrating old random-ID builds.
 
 ## Current build / next test
-### BriefCraft AI 3.8.19 — Pen Repair + Owner Updater UI
+### BriefCraft AI 3.8.20 — Live Presence + Collaboration + Agent Providers
 Build created 2026-08-26:
-`BriefCraft-AI-3.8.19-Pen-Repair-Owner-Updater.zip`
+`BriefCraft-AI-3.8.20-Live-Presence-Collab-Providers.zip`
 
-Built directly from 3.8.18 and preserves the fixed manifest key, direct GPT transport, BUILD MODE, durable save, full-project Main context, PDF/Jarvis features and existing agent system.
+Built from 3.8.19 and preserves the fixed manifest key, direct GPT transport, full-project memory, PDF/Jarvis, BUILD MODE, vector editor, durable save and existing agent system.
 
-### Vector Pen repair
-Live feedback on 3.8.18 showed the pen felt broken: while drawing it was not represented as a real layer/object until Enter; control-point editing was hard to discover; Bézier construction lines were hidden in CSS; color/settings were therefore effectively inaccessible during the draft.
+### Figma-like access model foundation
+Main header now has **Доступ** with project-local sharing state:
+- visibility: invite-only or anyone-with-link;
+- link role: view / comment / edit;
+- local invitation list by name/email/nick with per-member roles;
+- AI participant section with role view/comment/edit.
 
-3.8.19 changes:
-- after the second anchor the in-progress vector becomes a real temporary `vector` canvas object immediately;
-- it appears in Layers and becomes the selected object, so normal appearance controls (fill/stroke/color/width/opacity) are available while drawing;
-- dragging a newly placed anchor creates symmetric Bézier handles and live-updates the real draft object;
-- clicking close to the first anchor after 3+ points closes the path; Enter finishes an open path; Escape cancels/removes the draft object;
-- selecting an existing vector automatically enters node-edit mode so control points are visible immediately;
-- Bézier construction lines are visible again; square anchors and round handles remain independently draggable, with Alt allowing separated handles;
-- a transparent thick vector hit-path makes thin/open contours easier to select and drag;
-- double-clicking a segment adds another point; double-clicking an anchor toggles handles; right-click removes an anchor when enough remain;
-- vector paths use rounded joins/caps.
+Important truth: this build stores the sharing/role model in the project but does **not** yet provide human cross-device realtime collaboration. Real person-to-person invite/link sessions require a BriefCraft Relay/Cloud identity + synchronization layer. Do not claim remote human collaboration works yet.
 
-### Pencil repair / smoothing
-Live feedback also showed Pencil strokes could look cut/noisy with an awkward rectangular selection outline.
+### External Main ChatGPT Live Presence
+The original product goal is restored as a real path:
+- **Подключить текущий ChatGPT** finds an already-open `chatgpt.com` / `chat.openai.com` tab; BriefCraft never creates a new tab for this;
+- the existing `chatgpt-lite-bridge.js` is injected/configured in that chosen ChatGPT tab;
+- manually sent messages in that external ChatGPT receive current compact BriefCraft context;
+- context contains project/revision/canvas/object map/selection/recent changes and project-wide memory data available through existing Tool Bus;
+- external ChatGPT can return `briefcraft.request/v1`; BriefCraft executes requested local tools and returns results/crops;
+- external ChatGPT can return `briefcraft.patch/v1` only when its assigned role is `edit`; view/comment roles cannot mutate the canvas;
+- external patches are staged through normal BriefCraft review/apply flow.
 
-3.8.19 changes:
-- input points are distance-filtered and simplified;
-- displayed Pencil strokes use a smoothed quadratic path instead of a raw polyline;
-- larger stroke padding prevents ends from being visually clipped by the object bounds;
-- ink object content uses the full object height and visible overflow;
-- selected Pencil/vector objects no longer show the heavy rectangular outline; resize handles remain;
-- Ink → Vector conversion simplifies the point cloud and generates smooth tangent handles instead of producing dozens of raw mouse-sample anchors.
+This is the first 3.8.x build reconnecting the normal ChatGPT conversation to the modern Canvas Tool Bus. Runtime verification is still required; do not claim it is proven until the user tests it live.
 
-### Browser/interface zoom lock
-- While the BriefCraft app is open, Ctrl/Cmd + mouse wheel is intercepted globally so Chrome page/interface zoom cannot accidentally change when the pointer drifts over a panel/object.
-- Ctrl/Cmd + wheel only changes BriefCraft canvas zoom when the pointer is actually over the canvas viewport.
-- Existing Ctrl/Cmd +/-/0 keyboard handling remains scoped to BriefCraft canvas zoom.
+### Temporary agent pills / tether routing
+- temporary agent chats have draggable pills directly on the world/canvas;
+- Main chat gets a pill when it has tethered objects;
+- pill position persists per thread;
+- tethers originate from the agent pill instead of stretching to the large chat panel, making temporary agents spatially placeable near their tasks;
+- clicking a pill switches to that chat; each pill carries the agent color/wisp and provider badge.
 
-### Version / update UI foundation
-User wants GitHub as the owner source of code/releases and a visible version/update button inside BriefCraft.
+### Per-agent provider architecture
+Each chat thread stores its own provider selection:
+- **GPT** — existing direct authenticated ChatGPT-session transport, no API key;
+- **Gemini** — owner/user supplies a Gemini API key stored locally; adapter targets Gemini 2.5 Flash and preserves BriefCraft request/patch protocol;
+- **DeepSeek** — owner/user supplies a DeepSeek API key stored locally; adapter uses the DeepSeek chat-completions path and preserves the same BriefCraft request/patch protocol.
 
-3.8.19 adds:
-- compact `v3.8.19` button beside the BriefCraft brand in the main header;
-- click opens an OWNER update popover with current version, update status and GitHub controls;
-- `Проверить GitHub` calls the GitHub Releases API; if the repo is private without owner auth it explicitly reports that OWNER GitHub authorization is required;
-- `Открыть Releases` opens `jeep-jim/BriefCraft` releases;
-- current version is read from `chrome.runtime.getManifest()` rather than hardcoded in runtime logic.
+Provider keys are stored in local extension storage and required host permission is requested explicitly when that provider is enabled.
 
-Important limitation: one-click self-install from a **private** GitHub repo is not yet implemented. An unpacked Chrome extension cannot honestly self-update private remote executable code without an explicit owner authorization/source-folder update path. The next owner-updater layer should use GitHub OAuth/permission + the already-selected Jarvis source folder, then write approved source files and reload. Public user builds must update through Chrome Web Store.
+Important limitations:
+- Gemini/DeepSeek adapters in 3.8.20 are new and require live testing;
+- they are currently text + Canvas Tool Bus adapters; GPT remains the proven multimodal/PDF path;
+- agent providers can differ per chat, but **true simultaneous concurrent execution of multiple agent requests is not yet enabled** because the current in-app agent pipeline still has one global busy/execution state. Do not claim parallel autonomous work yet.
 
-### Static verification completed for 3.8.19
-- manifest version = 3.8.19
-- fixed manifest key preserved
-- all extension JavaScript passes `node --check`
-- manifest JSON parses
-- editor/popup/screenshot HTML have no duplicate IDs
-- ZIP integrity passes
-- no service ChatGPT tab/window transport reintroduced
+### Browser/code object interaction repair
+To stop embedded pages from hijacking canvas gestures:
+- browser objects are **canvas-locked by default** with an input shield over the iframe;
+- mouse wheel/zoom gestures therefore reach BriefCraft canvas rather than the embedded site;
+- explicit **Interact** toggles direct iframe interaction when the user actually wants to click/scroll the page;
+- switching back returns gesture ownership to the canvas;
+- browser/code outer objects retain normal resize handles.
 
-### Runtime verification requested
-1. Update from 3.8.18 without changing/removing the fixed-ID extension if possible; verify project survives.
-2. Press `B`, place 2+ anchors: the draft should immediately appear as a Layer and expose stroke/fill settings.
-3. Click-drag an anchor while drawing and verify visible Bézier handles/curve; click near first anchor to close or Enter to finish open.
-4. Reselect vector: nodes should show immediately. Drag nodes/handles, add/remove nodes, change stroke/fill colors.
-5. Draw with Pencil and verify line is smoother, rounded and not visibly clipped; convert it to vector and verify the node count is much cleaner.
-6. Hold Ctrl and wheel over canvas, then over side panels/chat: canvas may zoom only over canvas; browser/interface zoom must not change anywhere.
-7. Click `v3.8.19`; verify owner update popover. Private repo check may correctly say GitHub owner authorization is required until OAuth is implemented.
+Code objects now also support:
+- draggable code/preview splitter;
+- persisted split percentage;
+- **preview-only** mode that hides source code and leaves the visual result.
 
-Do not claim these 3.8.19 runtime behaviors are proven until the user tests them live.
+### Agent ghost targeting
+Patch/working ghost targeting is hardened: prefer the actual edited object, pinned object, selected object, or first create location instead of falling back to a generic screen corner. Existing wisp/work states remain.
 
-## Next owner-updater direction
-Implement explicit GitHub OAuth/permission for `jeep-jim/BriefCraft`, connect it to the owner-selected Jarvis source folder, show release changelog/diff, create a backup, write the approved new source files, then `chrome.runtime.reload()`. Do not expose this private updater to ordinary Chrome Web Store users.
+### Static verification completed for 3.8.20
+- manifest version = 3.8.20;
+- fixed manifest key from 3.8.17 preserved;
+- `tabs` permission added for choosing the already-open external ChatGPT tab;
+- all extension JavaScript passes `node --check`;
+- manifest JSON parses;
+- editor/popup/screenshot HTML have no duplicate IDs;
+- ZIP integrity passes and root manifest is present;
+- no service ChatGPT tab/window transport was reintroduced.
+
+### Runtime verification required
+1. Load 3.8.20 and verify project survives the fixed-ID update.
+2. Open **Доступ** and inspect invite/link roles; remember human remote sync is only a permission-model foundation in this build.
+3. Open the exact normal ChatGPT conversation you want to use, then in BriefCraft choose AI participant role **Редактировать** and press **Подключить**. In that normal ChatGPT ask: `Что сейчас находится на полотне?` Verify it answers from live BriefCraft context without a new tab.
+4. Ask external ChatGPT for an object/crop it needs and verify request/result loop works. Then ask for a simple edit and verify a staged patch appears only with edit role.
+5. Create two temporary agent chats, drag their pills to different canvas regions, tether objects and verify lines originate from the pills and persist.
+6. Keep one agent on GPT. Configure another for Gemini with a key and another for DeepSeek with a key; test simple text + canvas read/patch tasks separately. Do not test them simultaneously yet.
+7. Put the pointer over a Browser object and wheel/zoom: canvas should keep control while locked. Press **Interact** only when page interaction is needed.
+8. Resize Browser/Code objects; drag code/preview splitter; switch a code object to preview-only and back.
+9. Trigger inspect/edit work and verify wisp/work ghost starts near the relevant task/object rather than a top corner.
+
+## Next architecture layers
+1. **BriefCraft Relay/Cloud** for real multi-human collaboration, durable invite links, accounts/avatars/presence and live synchronization.
+2. **Concurrent agent scheduler** so GPT/Gemini/DeepSeek agents can genuinely run tasks in parallel with isolated busy/tool/patch state.
+3. **OWNER GitHub updater/OAuth** for private `jeep-jim/BriefCraft`: release check → changelog/diff → backup source folder → write approved update → reload. Ordinary public users must update through Chrome Web Store.
+4. **GitHub Jarvis** after explicit owner authorization: read/write/diff/commit/PR from inside BriefCraft. Current Jarvis edits only the explicitly selected local source folder.
 
 ## Workflow rule
-Keep the proven direct text/multimodal transport stable. Preserve the fixed manifest key forever. Fix runtime issues by layer and never regress to browser-page automation.
+Keep the proven direct GPT text/multimodal transport stable. Preserve the fixed manifest key forever. Be explicit about runtime-tested vs newly built behavior. Never regress to browser-page service automation and never claim remote human collaboration, non-GPT multimodal parity or parallel agents before they are actually verified.
