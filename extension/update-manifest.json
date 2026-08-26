@@ -1,22 +1,17 @@
 {
-  "version": "3.8.33",
-  "baseVersion": "3.8.32",
+  "version": "3.8.34",
+  "baseVersion": "3.8.33",
   "channel": "owner-main",
-  "summary": "After an online update BriefCraft automatically reopens the editor instead of leaving the extension closed.",
+  "summary": "All header dropdowns and popovers open on the same vertical baseline.",
   "transforms": [
     {
-      "file": "editor.js",
-      "search": "  if(status)status.textContent=`v${manifest.version} · установлено`;if(sub)sub.textContent=\"Перезапускаю BriefCraft…\";setTimeout(()=>chrome.runtime.reload(),600)",
-      "replace": "  try{await chrome.storage.local.set({briefCraftReopenAfterUpdateV1:{at:Date.now(),url:\"editor.html\"}})}catch{};if(status)status.textContent=`v${manifest.version} · установлено`;if(sub)sub.textContent=\"Перезапускаю BriefCraft…\";setTimeout(()=>chrome.runtime.reload(),600)"
+      "file": "editor.css",
+      "append": "\n/* Microfix 3.8.34: one baseline for every header dropdown/popover */\n:root{--bc-header-menu-top:68px}\n#projectPopover.popover,.profile-menu,.export-menu,.activity-panel,.collab-popover,.modules-popover,.update-popover{top:var(--bc-header-menu-top)!important}\n.update-popover,.modules-popover{max-height:calc(100vh - 84px)!important}\n@media(max-width:900px){:root{--bc-header-menu-top:64px}}\n"
     },
     {
       "file": "editor.js",
-      "search": "  const st=result?.status||result;if(st===\"update_available\"){const v=result?.details?.version||\"новая версия\";if(status)status.textContent=`Доступна ${v}`;if(sub)sub.textContent=\"Chrome загрузит обновление автоматически.\";setTimeout(()=>chrome.runtime.reload(),1800);return}",
-      "replace": "  const st=result?.status||result;if(st===\"update_available\"){const v=result?.details?.version||\"новая версия\";if(status)status.textContent=`Доступна ${v}`;if(sub)sub.textContent=\"Chrome загрузит обновление автоматически.\";try{await chrome.storage.local.set({briefCraftReopenAfterUpdateV1:{at:Date.now(),url:\"editor.html\"}})}catch{};setTimeout(()=>chrome.runtime.reload(),1800);return}"
-    },
-    {
-      "file": "background.js",
-      "append": "\n/* Microfix 3.8.33: reopen BriefCraft editor after extension reload/update */\n(async()=>{\n  const KEY=\"briefCraftReopenAfterUpdateV1\";\n  try{\n    const got=await chrome.storage.local.get(KEY),req=got?.[KEY];\n    if(!req)return;\n    const at=Number(req.at||0);\n    if(!at||Date.now()-at>120000){await chrome.storage.local.remove(KEY);return}\n    await chrome.storage.local.remove(KEY);\n    await new Promise(r=>setTimeout(r,350));\n    const editorUrl=chrome.runtime.getURL(String(req.url||\"editor.html\").replace(/^\\/+/,\"\"));\n    const tabs=await chrome.tabs.query({});\n    const existing=tabs.find(t=>typeof t.url===\"string\"&&t.url.startsWith(chrome.runtime.getURL(\"editor.html\")));\n    if(existing?.id){\n      await chrome.tabs.update(existing.id,{active:true});\n      if(existing.windowId!=null)try{await chrome.windows.update(existing.windowId,{focused:true})}catch{}\n    }else{\n      await chrome.tabs.create({url:editorUrl,active:true});\n    }\n  }catch{}\n})();\n"
+      "search": "const r=trigger.getBoundingClientRect(),below=innerHeight-r.bottom,menuH=Math.min(260,menu.scrollHeight||260),top=below>menuH+8?r.bottom+5:Math.max(8,r.top-menuH-5);Object.assign(menu.style,{left:`${Math.max(8,Math.min(innerWidth-r.width-8,r.left))}px`,top:`${top}px`,width:`${Math.max(r.width,150)}px`,maxHeight:`${Math.max(120,Math.min(260,innerHeight-top-8))}px`})",
+      "replace": "const r=trigger.getBoundingClientRect(),below=innerHeight-r.bottom,menuH=Math.min(260,menu.scrollHeight||260),top=select.id===\"workspaceLanguage\"?68:(below>menuH+8?r.bottom+5:Math.max(8,r.top-menuH-5));Object.assign(menu.style,{left:`${Math.max(8,Math.min(innerWidth-r.width-8,r.left))}px`,top:`${top}px`,width:`${Math.max(r.width,150)}px`,maxHeight:`${Math.max(120,Math.min(260,innerHeight-top-8))}px`})"
     }
   ]
 }
