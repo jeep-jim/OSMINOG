@@ -1,0 +1,37 @@
+name: Append OSMINOG 3.9.1 project log
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/append-osminog-3.9.1-log.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  append:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Append 3.9.1 entry once
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -q '^## 2026-08-28 — OSMINOG 3.9.1 Google return bridge + movable windows$' OSMINOG_PROJECT_LOG.md; then
+            cat versions/3.9.1/PROJECT_LOG_ENTRY.md >> OSMINOG_PROJECT_LOG.md
+          fi
+      - name: Commit log and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .github/workflows/append-osminog-3.9.1-log.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add OSMINOG_PROJECT_LOG.md versions/3.9.1
+          git commit -m 'Record OSMINOG Chrome 3.9.1'
+          git push origin HEAD:main
