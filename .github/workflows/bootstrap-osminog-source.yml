@@ -26,6 +26,7 @@ jobs:
       - name: Verify and extract source bundle
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $bundle = Join-Path $env:GITHUB_WORKSPACE 'bootstrap/osminog-source.zip'
           if (!(Test-Path $bundle)) { throw "Source bundle not found: $bundle" }
           $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -33,12 +34,19 @@ jobs:
           if ($actual -ne $expected) { throw "Source bundle SHA-256 mismatch: $actual" }
           $extract = Join-Path $env:RUNNER_TEMP 'osminog-source'
           if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
-          Expand-Archive -Path $bundle -DestinationPath $extract -Force
-          Copy-Item (Join-Path $extract '*') $env:GITHUB_WORKSPACE -Recurse -Force
+          New-Item -ItemType Directory -Path $extract | Out-Null
+          & tar -tf $bundle
+          if ($LASTEXITCODE -ne 0) { throw "Unable to list source bundle: tar exit $LASTEXITCODE" }
+          & tar -xf $bundle -C $extract
+          if ($LASTEXITCODE -ne 0) { throw "Unable to extract source bundle: tar exit $LASTEXITCODE" }
+          Get-ChildItem -Force $extract | ForEach-Object {
+            Copy-Item $_.FullName -Destination $env:GITHUB_WORKSPACE -Recurse -Force
+          }
 
       - name: Validate materialized source
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $required = @(
             'devhub/Shared/UpdaterCore.cs',
             'devhub/Osminog.DevHub/Osminog.DevHub.csproj',
@@ -56,6 +64,7 @@ jobs:
       - name: Commit materialized source
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           Remove-Item bootstrap -Recurse -Force
           Remove-Item .github/workflows/bootstrap-osminog-source.yml -Force
           git config user.name 'github-actions[bot]'
