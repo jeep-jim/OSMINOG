@@ -1,0 +1,26 @@
+{
+  "format": "briefcraft-version-registry-entry/v1",
+  "version": "3.8.55",
+  "versionName": "3.8.43 Stable · CWS Bootstrap",
+  "status": "package-built-locally-awaiting-private-cws-upload",
+  "sourceStable": "3.8.43",
+  "sourceCommit": "b17638ff3925214636b772d43a93dbb2ba204d5d",
+  "branch": "release/briefcraft-3.8.55-cws-beta",
+  "packageName": "BriefCraft-AI-3.8.55-CWS-BETA-3.8.43-STABLE.zip",
+  "sha256": "768b4b8035e8649da770aafbc802508360eecb4b1aa482ab7ca30a73ec584366",
+  "distribution": "Chrome Web Store private beta / trusted testers",
+  "changesFromStable": [
+    "Removed the GitHub/local-folder patch updater from executable code",
+    "Update button uses chrome.runtime.requestUpdateCheck only",
+    "ownerBuild disabled for distribution package",
+    "BETA label added to localized extension names",
+    "Manifest version raised for Chrome Web Store upgrade ordering"
+  ],
+  "validation": {
+    "zipIntegrity": true,
+    "allJavaScriptNodeCheck": true,
+    "duplicateHtmlIds": false,
+    "fixedManifestKeyPreserved": true,
+    "legacyFolderUpdaterReferences": false
+  }
+}
