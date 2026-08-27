@@ -319,3 +319,46 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 - Install and runtime-test 3.9.1.
 - If Google still produces an answer that is not returned, inspect only the Google service-tab DOM and V4 probe output. Do not modify DeepSeek.
 - Continue from 3.9.1 and build OSMINOG Dev Hub before attempting automatic development updates again.
+
+---
+
+## 2026-08-28 — OSMINOG 3.10.0 MEDIA CREW
+
+### Starting state and owner request
+- Base: manually installed OSMINOG 3.9.1.
+- DeepSeek works through the authenticated web-session transport and must remain unchanged.
+- Google AI sends prompts but answer return/deduplication still needs live verification.
+- Add Nano Banana, Alice and a broad image/video/music/voice provider catalog; add media attachments and Team tray; connect a normal Desktop project folder; preserve an append-only continuation note.
+
+### Built
+- Version **3.10.0**, codename **MEDIA CREW**; fixed Chrome manifest key preserved.
+- Added Provider Registry with 23 chat/image/video/music/voice services: ChatGPT, DeepSeek, Google AI, Gemini, Claude, Nano Banana, Microsoft Designer, Firefly, Leonardo, Ideogram, Krea, Stability, Pixlr, Canva, Runway, HeyGen, Luma, Pika, Suno, Udio, ElevenLabs, Alice and Yandex Cloud AI Studio.
+- Registry supports category filters, Browser Hub launch and selection into Media Crew. Web-only entries are not claimed as autonomous bridges.
+- Team accepts files, drag/drop, clipboard images and the latest cached OSMINOG screenshot. Agent image URLs/data URLs render as chat previews.
+- Added tools `provider_list`, `provider_open`, `media_crew` and Team minimize-to-tray.
+- Google requests use bridge V4 with duplicate service-tab cleanup, no old keypress fallback and a root-text DOM fallback.
+- DeepSeek transport preserved.
+- Added Desktop-first local project root: one owner-approved directory-picker action creates/reuses an ordinary `OSMINOG` folder and persists its handle. It contains `.osminog/project-manifest.json`, `README-OSMINOG.txt`, `assets`, `exports` and the `.briefcraft.json` project file.
+- Added agent tools `project_folder_status`, `project_folder_list`, `project_folder_read`, `project_folder_write` with safe relative paths.
+
+### Verification and artifact
+- 50 files; root `manifest.json`; version 3.10.0; fixed key unchanged.
+- All JS passes `node --check`; all JSON parses; no duplicate static HTML IDs; ZIP integrity passes.
+- ZIP: `OSMINOG-Chrome-3.10.0-MEDIA-CREW-ROOT.zip`.
+- Size: `272180` bytes.
+- SHA-256: `38b330e788b2cbfe95d5ea8cdfadd3d9cb62a1aa967442a44abda6da302409b4`.
+- The full binary is the ChatGPT artifact; do not claim it is stored in GitHub until remote size and checksum match.
+
+### Honest limitations
+- Most new creative services currently open in Browser Hub; only existing supported transports are autonomous.
+- Chrome requires one explicit owner gesture for Desktop permission.
+- Google answer return, provider UIs and quotas require runtime testing.
+- Automatic development updates remain disabled until OSMINOG Dev Hub.
+
+### Exact next action
+1. Install 3.10.0 into the actual Desktop extension folder and reload the existing Chrome card.
+2. Test Media Crew selection, Ctrl+V/file attachments, image previews and Team tray.
+3. Press Local Folder, choose Desktop once and test agent folder status/list/read/write.
+4. Confirm DeepSeek regression-free.
+5. Test Google: one prompt, one returned answer, no duplicate. If it fails, repair only the Google DOM bridge.
+6. Build OSMINOG Dev Hub before another automatic-update attempt.
