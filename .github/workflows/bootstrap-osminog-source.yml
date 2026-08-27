@@ -1,6 +1,7 @@
 name: Bootstrap OSMINOG source
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - rebrand/osminog-devhub
