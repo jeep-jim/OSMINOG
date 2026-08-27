@@ -1,0 +1,30 @@
+{
+  "product": "OSMINOG",
+  "version": "3.10.0",
+  "codename": "MEDIA CREW",
+  "baseVersion": "3.9.1",
+  "artifact": "OSMINOG-Chrome-3.10.0-MEDIA-CREW-ROOT.zip",
+  "sha256": "38b330e788b2cbfe95d5ea8cdfadd3d9cb62a1aa967442a44abda6da302409b4",
+  "size": 272180,
+  "fileCount": 50,
+  "providerCount": 23,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.10.0",
+  "fixedManifestKeyPreserved": true,
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "htmlDuplicateIds": 0,
+    "zipIntegrity": true,
+    "deepSeekTransportPreserved": true,
+    "googleBridgeV4Present": true,
+    "projectFolderToolsPresent": true,
+    "teamAttachmentsPresent": true,
+    "teamTrayPresent": true,
+    "providerRegistryPresent": true
+  },
+  "runtimeVerified": false,
+  "distribution": "Manual development ZIP. Automatic dev updating remains disabled until OSMINOG Dev Hub is built.",
+  "binaryInGitHub": false,
+  "binaryNote": "Do not claim the full ZIP is stored remotely until its remote byte size and SHA-256 match."
+}
