@@ -3,7 +3,7 @@
   "version": "3.9.0",
   "codename": "TEAM OS",
   "baseVersion": "3.8.64",
-  "artifact": "artifacts/chrome/3.9.0/OSMINOG-Chrome-3.9.0-TEAM-OS-ROOT.zip",
+  "artifact": "OSMINOG-Chrome-3.9.0-TEAM-OS-ROOT.zip",
   "size": 255229,
   "sha256": "d0a8fa70ce1929688ec738a0dcfba2c1436a3c4ca403b4cd2228a6ae3f93db97",
   "fileCount": 47,
@@ -27,5 +27,8 @@
     "jsonParse": true,
     "htmlDuplicateIds": 0,
     "zipIntegrity": true
-  }
+  },
+  "artifactGitHubStatus": "pending: connector binary upload was truncated and removed; verified package remains the owner-installed 3.9.0 build",
+  "artifactExpectedSize": 255229,
+  "artifactExpectedSha256": "d0a8fa70ce1929688ec738a0dcfba2c1436a3c4ca403b4cd2228a6ae3f93db97"
 }

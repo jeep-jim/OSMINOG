@@ -258,3 +258,10 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 - Do not return to the failed Native Messaging updater.
 - Before the next automatic dev-update attempt, build OSMINOG Dev Hub.
 - In a new chat, read this log and continue from the 3.9.0 runtime checklist.
+
+
+### Artifact storage correction for 3.9.0
+- The owner-confirmed installation and 3.9.0 runtime baseline remain valid.
+- A GitHub connector attempt produced a truncated 15,008-byte binary, so that invalid file was removed and is **not** treated as the release package.
+- The verified package remains `OSMINOG-Chrome-3.9.0-TEAM-OS-ROOT.zip`, expected size `255229` bytes and SHA-256 `d0a8fa70ce1929688ec738a0dcfba2c1436a3c4ca403b4cd2228a6ae3f93db97`.
+- Project state, build metadata and continuation memory are stored in GitHub; a proper full binary upload remains pending and must not be claimed complete until its remote size and checksum match.
