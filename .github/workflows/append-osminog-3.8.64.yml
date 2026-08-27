@@ -1,0 +1,131 @@
+name: Record OSMINOG 3.8.64
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/append-osminog-3.8.64.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Append canonical log and version metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -q '^## 2026-08-27 — 3.8.64 Google AI Mode recovery and module links$' OSMINOG_PROJECT_LOG.md; then
+            cat >> OSMINOG_PROJECT_LOG.md <<'EOF'
+
+---
+
+## 2026-08-27 — 3.8.64 Google AI Mode recovery and module links
+
+### Starting state
+- OSMINOG Chrome 3.8.63 was installed manually and loaded successfully.
+- The new Google AI panel rendered, but the 3.8.63 transport failed because it created a Gemini service tab while the proven working user flow was Google AI Mode on google.com.
+- The Google panel still had a search-engine selector, hard-coded dark styling, weak native CSS resizing, and no module-to-canvas connection ports.
+- The old Native Messaging updater remained non-functional; 3.8.64 is therefore distributed as a complete manual dev ZIP. The in-product updater button is disabled until OSMINOG Dev Hub replaces it.
+
+### Requested work
+1. Restore Google AI functionality without writing duplicate messages into the user's visible Google AI conversation.
+2. Remove the search-engine selector; Google AI is the only mode.
+3. Make the panel follow light and dark themes.
+4. Make the panel resizable from all eight edges/corners and persist geometry.
+5. Replace the selector with a compact **Связи** control that reveals eight connection ports.
+6. Allow links from the Google AI module to canvas objects and agent pills; persist links and include linked context in every Google AI request.
+7. Preserve the already working DeepSeek direct authenticated web-session transport.
+8. Preserve Ctrl+V image attachment from the system clipboard and the latest cached OSMINOG screenshot.
+
+### Built changes in 3.8.64
+- `manifest.json`: version 3.8.64; fixed key preserved; valid Google/Gemini host patterns included.
+- `background.js`: transport changed from the broken Gemini-only route to a dedicated inactive Google AI Mode tab at google.com. The visible user conversation is not used. Each request is sent exactly once; there is no post-send retry that could duplicate a prompt.
+- `provider-tab-bridge.js`: Google AI Mode composer and response selectors broadened.
+- `editor.html`: search-engine selector removed; compact **Связи** button, eight module ports, eight resize handles, and link tray added.
+- `editor.css`: Google panel rebuilt with light/dark variables, custom eight-direction resize surfaces, node ports, target glow, and persistent tether overlay.
+- `modules.js`: Google module controller rebuilt. Links can target canvas objects and agent pills, persist per project, render as curves, and are included in request context.
+- Existing Ctrl+V clipboard/cached-screenshot behavior is preserved.
+- DeepSeek provider transport was not changed.
+- The misleading old Native Updater control is disabled and points to the future OSMINOG Dev Hub.
+
+### Static verification
+- Complete reserve ZIP contains 45 files and a root `manifest.json`.
+- Manifest version is 3.8.64 and the fixed Chrome key is unchanged.
+- Every JavaScript file passes `node --check`.
+- Every JSON file parses.
+- No duplicate HTML IDs were found.
+- ZIP integrity passes.
+- Search-engine selector and obsolete installer hint are absent.
+
+### Artifact
+- Complete package: `OSMINOG-Chrome-3.8.64-ROOT.zip`.
+- SHA-256: `9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c`.
+- Size: `244351` bytes.
+- Distribution: manual dev ZIP until OSMINOG Dev Hub is implemented.
+
+### Runtime verification required
+1. Install 3.8.64 manually into the existing `current` folder and reload the same Chrome extension card.
+2. Press **Подключить** in Google AI. OSMINOG should create a pinned inactive Google AI Mode tab. If Google requests login or AI Mode activation, complete it in that service tab once and press **Подключить** again.
+3. Send one message and verify exactly one user bubble and one assistant bubble appear in OSMINOG, with no prompt added to the user's visible Google AI tab.
+4. Switch light/dark theme and resize the panel from all edges/corners.
+5. Press **Связи**, drag any of the eight ports to a canvas object and an agent pill, then verify links and linked context persist.
+6. Test Ctrl+V from a clipboard screenshot and from the latest cached OSMINOG screenshot.
+7. Verify DeepSeek still works unchanged.
+
+### Exact next action
+- Complete the runtime checklist above.
+- If Google AI Mode still fails, inspect only the service-tab DOM/probe and repair the Google provider bridge; do not touch DeepSeek or reintroduce visible-chat mirroring.
+- Build OSMINOG Dev Hub before the next automatic dev-update attempt.
+EOF
+          fi
+          mkdir -p versions/3.8.64
+          cat > versions/3.8.64/build.json <<'EOF'
+{
+  "product": "OSMINOG",
+  "version": "3.8.64",
+  "baseVersion": "3.8.63",
+  "kind": "manual-dev-zip",
+  "artifact": "OSMINOG-Chrome-3.8.64-ROOT.zip",
+  "sha256": "9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c",
+  "size": 244351,
+  "fileCount": 45,
+  "manifestAtRoot": true,
+  "fixedManifestKeyPreserved": true,
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "htmlDuplicateIds": 0,
+    "zipIntegrity": true
+  },
+  "runtimeVerified": false
+}
+EOF
+          cat > versions/3.8.64/README.md <<'EOF'
+# OSMINOG Chrome 3.8.64
+
+Base: 3.8.63.
+
+This is the manual development package after the legacy Native Messaging updater failed repeatedly. It restores the Google AI Mode tab bridge, sends each request once, removes the search-engine selector, adds a theme-aware resizable Google AI module with eight connection ports, preserves DeepSeek, and preserves Ctrl+V clipboard/cached-screenshot attachments.
+
+Artifact SHA-256: `9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c`.
+
+Runtime verification is pending on the owner's Windows/Chrome/Google account.
+EOF
+      - name: Commit record and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .github/workflows/append-osminog-3.8.64.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add OSMINOG_PROJECT_LOG.md versions/3.8.64
+          git commit -m 'Record OSMINOG Chrome 3.8.64'
+          git push origin HEAD:main
