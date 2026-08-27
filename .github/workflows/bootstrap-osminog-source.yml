@@ -1,0 +1,75 @@
+name: Bootstrap OSMINOG source
+
+on:
+  push:
+    branches:
+      - rebrand/osminog-devhub
+    paths:
+      - 'bootstrap/osminog-source.b64.part*'
+      - '.github/workflows/bootstrap-osminog-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize-source:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: rebrand/osminog-devhub
+          fetch-depth: 0
+
+      - name: Reconstruct and extract source bundle
+        shell: pwsh
+        run: |
+          $parts = Get-ChildItem (Join-Path $env:GITHUB_WORKSPACE 'bootstrap') -Filter 'osminog-source.b64.part*' | Sort-Object Name
+          if ($parts.Count -ne 8) { throw "Expected 8 source parts, found $($parts.Count)" }
+          $encoded = ($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join ''
+          $bytes = [Convert]::FromBase64String($encoded)
+          $bundle = Join-Path $env:RUNNER_TEMP 'osminog-source.tar.xz'
+          [IO.File]::WriteAllBytes($bundle, $bytes)
+          $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = 'd76f7ba2a2990592e59fc980c21f9c7260ac0615c7886f37d55fdf8ed76c35af'
+          if ($actual -ne $expected) { throw "Source bundle SHA-256 mismatch: $actual" }
+          $extract = Join-Path $env:RUNNER_TEMP 'osminog-source'
+          if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
+          New-Item -ItemType Directory -Path $extract | Out-Null
+          tar -xJf $bundle -C $extract
+          if ($LASTEXITCODE -ne 0) { throw "tar extraction failed with exit code $LASTEXITCODE" }
+          Get-ChildItem -Force $extract | Copy-Item -Destination $env:GITHUB_WORKSPACE -Recurse -Force
+
+      - name: Validate materialized source
+        shell: pwsh
+        run: |
+          $required = @(
+            'devhub/Shared/UpdaterCore.cs',
+            'devhub/Osminog.DevHub/Osminog.DevHub.csproj',
+            'devhub/Osminog.NativeHost/Osminog.NativeHost.csproj',
+            '.github/workflows/build-osminog-devhub.yml',
+            'brand/osminog-mark.svg',
+            'brand/osminog-logo.svg',
+            'roadmap.md'
+          )
+          foreach ($path in $required) {
+            if (!(Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) { throw "Missing materialized file: $path" }
+          }
+          node --check api/mcp.js
+          node --check server.mjs
+
+      - name: Commit materialized source
+        shell: pwsh
+        run: |
+          Remove-Item bootstrap -Recurse -Force
+          Remove-Item .github/workflows/bootstrap-osminog-source.yml -Force
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if (git diff --cached --quiet) {
+            Write-Host 'Nothing to commit.'
+            exit 0
+          }
+          git commit -m 'Materialize OSMINOG rebrand and Dev Hub source'
+          git push origin HEAD:rebrand/osminog-devhub
