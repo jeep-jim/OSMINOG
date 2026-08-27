@@ -1,0 +1,66 @@
+name: Append OSMINOG 3.8.62 project log
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/append-osminog-project-log-3.8.62.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  append:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Append verified publication state
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='## 2026-08-27 — 3.8.62 publication verified'
+          if ! grep -Fq "$marker" OSMINOG_PROJECT_LOG.md; then
+            cat >> OSMINOG_PROJECT_LOG.md <<'EOF'
+
+---
+
+## 2026-08-27 — 3.8.62 publication verified
+
+### What was completed
+- The complete OSMINOG Chrome **3.8.62** release was built from the owner-approved **3.8.61** baseline.
+- A plain red circle was added immediately beside the OSMINOG name in the header.
+- The canvas/widget request-response bridge requested in `Новый-мир.md` was added:
+  - `OSMINOG_CHAT_REQUEST` is the public action;
+  - the existing provider transports handle the model request;
+  - the legacy `BRIEFCRAFT_CHAT_REQUEST` name remains only as a compatibility alias;
+  - returned `briefcraft.patch/v1` data is parsed and validated before use;
+  - requesting widgets receive structured responses and errors.
+- The fixed Chrome `manifest.key` was preserved.
+- The dev feed was promoted from 3.8.60 to **3.8.62**, with `baseVersion: 3.8.61`.
+- Every file declared by the public fileset was downloaded again from GitHub and verified against its recorded size and SHA-256.
+- The published manifest reports 3.8.62; required files include `editor.html`, `editor.css`, `background.js`, and `osminog-chat-bridge.js`.
+
+### Runtime test now required
+1. The owner manually installs 3.8.61 as an unpacked extension.
+2. Open OSMINOG and press the in-product update button.
+3. Confirm the update completes without selecting a folder or replacing files manually.
+4. Reload/open OSMINOG and confirm the version is **3.8.62**.
+5. Confirm a plain red circle appears beside OSMINOG in the header.
+6. Test one canvas widget request through the new bridge and record the real result.
+
+### Exact next action
+Wait for the owner's live `3.8.61 → 3.8.62` button test. Do not claim the updater is proven until that test succeeds. Append the test result below this entry; never rewrite previous sections.
+EOF
+          fi
+          rm -f .github/workflows/append-osminog-project-log-3.8.62.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add OSMINOG_PROJECT_LOG.md .github/workflows/append-osminog-project-log-3.8.62.yml
+          git commit -m 'Append verified OSMINOG 3.8.62 publication state'
+          git push origin HEAD:main
