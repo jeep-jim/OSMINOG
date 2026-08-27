@@ -1,0 +1,38 @@
+{
+  "product": "OSMINOG",
+  "version": "3.8.64",
+  "baseVersion": "3.8.63",
+  "fileCount": 45,
+  "zipSize": 244351,
+  "sha256": "9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c",
+  "zipIntegrity": true,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.8.64",
+  "fixedManifestKeyPreserved": true,
+  "changes": [
+    "Google AI restored to a dedicated Google AI Mode tab bridge on google.com; the broken Gemini-only service requirement was removed.",
+    "Each Google AI submission is sent exactly once; no post-send retry can duplicate the prompt.",
+    "Search-engine selector removed; a compact Connections control reveals eight module ports.",
+    "Eight module connection ports and eight resize handles added; geometry and links persist.",
+    "Google AI module can link to canvas objects and agent pills and sends linked context with requests.",
+    "Light and dark theme colors added for the whole Google AI module.",
+    "Ctrl+V clipboard and cached-screenshot attachment behavior preserved.",
+    "Legacy Native Updater disabled in the UI pending OSMINOG Dev Hub."
+  ],
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "htmlDuplicateIds": 0,
+    "searchEngineSelectorRemoved": true,
+    "oldInstallerHintRemoved": true,
+    "deepSeekTransportPreserved": true
+  },
+  "runtimePending": [
+    "Google AI Mode connection/send test on the owner account",
+    "single-send/no-duplicate runtime test",
+    "eight-port module connection test",
+    "light-theme visual test",
+    "manual eight-direction resize test",
+    "Ctrl+V clipboard/cache image preview test"
+  ]
+}

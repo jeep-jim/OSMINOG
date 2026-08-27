@@ -127,3 +127,53 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 - If the button fails before the installed version changes, install the complete 3.8.63 reserve ZIP manually into the same unpacked-extension folder, reload the existing Chrome extension card, and stop spending product-development time on the current Native Messaging updater implementation.
 - After that failure, replace the updater architecture rather than issuing another repair script: use a single installed OSMINOG Dev Hub for development builds and platform-native release channels for production.
 - In every new chat, read this file first and continue from this exact runtime test; do not ask the owner to retell the history.
+
+---
+
+## 2026-08-27 — 3.8.64 Google AI Mode recovery and module links
+
+### Starting state
+- OSMINOG Chrome 3.8.63 was installed manually and loaded successfully.
+- The new Google AI panel rendered, but the 3.8.63 transport failed because it created a Gemini service tab while the proven working user flow was Google AI Mode on google.com.
+- The Google panel still had a search-engine selector, hard-coded dark styling, weak native CSS resizing, and no module-to-canvas connection ports.
+- The old Native Messaging updater remained non-functional; 3.8.64 is therefore distributed as a complete manual dev ZIP. The in-product updater button is disabled until OSMINOG Dev Hub replaces it.
+
+### Requested work
+1. Restore Google AI functionality without writing duplicate messages into the user's visible Google AI conversation.
+2. Remove the search-engine selector; Google AI is the only mode.
+3. Make the panel follow light and dark themes.
+4. Make the panel resizable from all eight edges/corners and persist geometry.
+5. Replace the selector with a compact **Связи** control that reveals eight connection ports.
+6. Allow links from the Google AI module to canvas objects and agent pills; persist links and include linked context in every Google AI request.
+7. Preserve the already working DeepSeek direct authenticated web-session transport.
+
+### Built changes in 3.8.64
+- `manifest.json`: version 3.8.64; fixed key preserved; explicit valid Google/Gemini host patterns added.
+- `background.js`: isolated service transport changed from Gemini to a dedicated inactive Google AI Mode tab at google.com; the visible user conversation is not used for requests. The request is sent exactly once: there is no post-send retry that could duplicate a prompt.
+- `provider-tab-bridge.js`: Google AI Mode composer and response selectors broadened.
+- `editor.html`: search-engine selector removed; compact **Связи** button, eight module ports, eight resize handles, and link tray added.
+- `editor.css`: Google panel rebuilt with light/dark variables, custom eight-direction resize surfaces, node ports, target glow, and persistent tether overlay.
+- `modules.js`: full Google module controller rebuilt. Links can target canvas objects and agent pills, persist per project, render as curves, and are included in `googleAiModule.linked` context.
+- The old Native Updater button is disabled and explicitly points to the future OSMINOG Dev Hub.
+- Existing Ctrl+V clipboard/cached-screenshot behavior from 3.8.63 is preserved.
+
+### Static verification required before release
+- Manifest parses and reports 3.8.64.
+- Fixed manifest key and extension ID remain unchanged.
+- Every JavaScript file passes `node --check`.
+- Every JSON file parses.
+- No duplicate HTML IDs.
+- ZIP integrity passes with root `manifest.json`.
+
+### Runtime verification
+1. Install 3.8.64 manually into the existing `current` folder and reload the same extension card.
+2. Press **Подключить** in Google AI. OSMINOG should create a pinned inactive Google AI Mode service tab. If Google asks for login or AI Mode activation, complete it in that service tab once and press **Подключить** again.
+3. Send one message and verify exactly one user bubble and one assistant bubble appear in OSMINOG, with no prompt added to the user's visible Google AI tab.
+4. Switch light/dark theme and resize the panel from all edges/corners.
+5. Press **Связи**, drag any of the eight ports to a canvas object and an agent pill, then send a request and verify link chips and context persist.
+6. Verify DeepSeek still works unchanged.
+
+### Exact next action
+- Complete the runtime checklist above.
+- If the dedicated Google AI Mode tab still fails, capture the service tab DOM/probe output and repair only the Google provider bridge; do not touch DeepSeek or reintroduce visible-chat mirroring.
+- Build OSMINOG Dev Hub before the next attempt at automatic dev updates.
