@@ -29,7 +29,7 @@ jobs:
           $bundle = Join-Path $env:GITHUB_WORKSPACE 'bootstrap/osminog-source.zip'
           if (!(Test-Path $bundle)) { throw "Source bundle not found: $bundle" }
           $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
-          $expected = 'e24cc5bfbfd3632d47e58efdeb3ab291b8966cae6bd61ad50ba80c8f79ad5d98'
+          $expected = '93921ebd4307e57b7cfc0c5a34d45d1daeca0cee942a8932cb33ccd9a8a6169b'
           if ($actual -ne $expected) { throw "Source bundle SHA-256 mismatch: $actual" }
           $extract = Join-Path $env:RUNNER_TEMP 'osminog-source'
           if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
