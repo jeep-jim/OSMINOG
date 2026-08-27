@@ -1,44 +1,65 @@
-# BriefCraft — CURRENT STATE
+# OSMINOG — CURRENT STATE
 
 Date: 2026-08-27
 
-- **Recovery target / last user-confirmed stable product behavior: 3.8.43.**
+## Product and brand
+
+- Visible product name: **OSMINOG**.
+- Primary domain: `osminog.red`.
+- Temporary identity: plain red circle `#FF2D2D` plus the word `OSMINOG`.
+- The owner will provide the final logo later. Do not generate or substitute an octopus mascot.
+- Legacy names may remain only in hidden compatibility identifiers until migrated safely.
+
+## Source of truth
+
+- Canonical work is stored in GitHub. The owner has deleted local build folders and must not be asked to recover or upload them.
+- Private project repository: `jeep-jim/BriefCraft`.
+- Public development feed repository/branch: `jeep-jim/chernogram_new@briefcraft-releases`.
+- Active rebrand and updater branch: `rebrand/osminog-devhub`.
+
+## Verified historical anchors
+
+- Last user-confirmed stable product behavior: 3.8.43.
 - Stable commit: `b17638ff3925214636b772d43a93dbb2ba204d5d`.
 - Permanent recovery branch: `recovery/briefcraft-3.8.43-stable`.
-- Exact reconstructed recovery ZIP: `BriefCraft-AI-3.8.43-STABLE-RECOVERY.zip`, SHA-256 `80d44340a804547ba8ab1bda42acbd9e6cc7315d10845b8e03003966baf7bf8c`.
-- The legacy updater that asks the owner to select a local application folder is deprecated and paused.
-- Chrome Web Store submission is postponed until the product is ready.
+- Registry records a reconstructed recovery package named `BriefCraft-AI-3.8.43-STABLE-RECOVERY.zip` with SHA-256 `80d44340a804547ba8ab1bda42acbd9e6cc7315d10845b8e03003966baf7bf8c`; the binary itself must still be recovered or recreated from Git history before use.
+- Public feed currently publishes development version 3.8.59 over base 3.8.58.
 
-## Active development installation
+## Updater conclusion
 
-- One-time Windows bootstrap: `BriefCraft-AI-3.8.56-ONE-TIME-ONLINE-SETUP-WINDOWS.zip`.
-- Bootstrap ZIP SHA-256: `641138a8459f957b10f34a11545d0e9127f3c1dafc4ed213354e9ff4d6753fab`.
-- The installer owns `%LOCALAPPDATA%\\BriefCraft Dev\\extension`, `%LOCALAPPDATA%\\BriefCraft Dev\\updater`, and recovery builds under `%LOCALAPPDATA%\\BriefCraft Dev\\versions`.
-- The user loads the fixed extension directory once in Chrome. No update folder is selected again.
-- Native host: `com.briefcraft.updater`, host version `1.1.0`, extension ID `hfckimbjiahikihjoceoegilaiolmkgk`.
-- BriefCraft 3.8.56 is the one-time bootstrap; 3.8.57 is the online update proof.
-- The `3.8.56 → 3.8.57 → rollback to 3.8.56` chain passed an end-to-end updater test with SHA verification, backup creation and exact file-result verification.
-- Public binary/feed branch: `jeep-jim/chernogram_new@briefcraft-releases`. It contains release manifests/filesets only; private BriefCraft source remains private.
-- Dev feed: `briefcraft/channels/dev/chrome-extension.json`.
-- 3.8.57 uses a cumulative fileset: complete `manifest.json` plus a SHA-guarded `editor.html` patch. Future releases may ship complete files and exact patches through the same feed.
+The folder-selection updater and subsequent repair-script approach are stopped. They failed because there was no single verified owner of the installed extension directory and the native updater was not reliably bound to the actual unpacked Chrome installation.
 
-## Unified platform layout
+The accepted architecture is:
 
-Private source branches:
-- `platform/web-pwa`
-- `platform/chrome-extension`
-- `platform/windows`
-- `platform/macos`
-- `platform/android`
-- `platform/ios`
+- one OSMINOG release registry;
+- platform-specific install/update adapters;
+- OSMINOG Dev Hub for rapid Chrome development builds;
+- Chrome Web Store for later beta/stable extension delivery;
+- signed native update paths for desktop and store-native paths for mobile.
 
-Public dev release-feed placeholders exist for all six platforms. Chrome extension is active; other clients are prepared for future builds.
+Routine updates must never ask the owner to select an application folder.
 
-## Rules
+## Current blocking task
 
-- Preserve the fixed manifest `key` forever.
-- Every tested stable version must receive a recovery branch, complete package/hash and version-registry entry before riskier work begins.
-- Project/data folders are separate from application/update folders.
-- A future public Chrome release will switch transport to Chrome Web Store without changing the product's Update-button UX.
-- Proven transports retained by the stable core: GPT direct authenticated session; DeepSeek direct authenticated hidden web-session.
-- Payment research memory: `docs/PRODAMUS.md`.
+Recover and normalize the complete Chrome extension source from GitHub history. The repository contains versioned transforms, release metadata and partial historical source, but the current branch does not yet contain a complete trustworthy 3.8.58/3.8.59 source tree.
+
+A previously committed `bootstrap/osminog-source.zip` is corrupt. GitHub Actions verified its actual hash, but both PowerShell and `tar` failed while decompressing `roadmap.md`. It must not be treated as source or shipped to the owner.
+
+## Immediate next steps
+
+1. Scan every reachable Git object and historical path in the private and public repositories.
+2. Recover candidate complete ZIPs and source files.
+3. Reconstruct the newest complete extension deterministically from a verified base plus ordered transforms.
+4. Commit the canonical source under an OSMINOG path.
+5. Apply the visible rebrand while preserving manifest key, extension ID, projects, storage and protocol compatibility.
+6. Build and test OSMINOG Dev Hub end to end before giving the owner another installer.
+
+## Compatibility invariants
+
+Preserve until an explicit migration is tested:
+
+- fixed Chrome manifest `key` and extension ID `hfckimbjiahikihjoceoegilaiolmkgk`;
+- existing `briefCraft...` storage keys;
+- `.briefcraft.json` project compatibility;
+- internal protocols such as `briefcraft.patch/v1`;
+- existing Native Messaging identifiers needed by old builds.
