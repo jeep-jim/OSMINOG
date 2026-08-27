@@ -1,17 +1,17 @@
 {
   "format": "briefcraft-version-registry/v1",
   "stable": "3.8.43",
-  "beta": "3.8.55",
+  "developmentChannel": "owner-native-dev-updater-planned",
   "versions": [
     {
       "version": "3.8.55",
       "versionName": "3.8.43 Stable · CWS Bootstrap",
-      "status": "package-built-awaiting-private-cws-upload",
+      "status": "parked-not-for-submission",
       "sourceStable": "3.8.43",
       "branch": "release/briefcraft-3.8.55-cws-beta",
       "package": "BriefCraft-AI-3.8.55-CWS-BETA-3.8.43-STABLE.zip",
       "sha256": "768b4b8035e8649da770aafbc802508360eecb4b1aa482ab7ca30a73ec584366",
-      "notes": "First folderless Chrome Web Store beta bootstrap. Legacy local-folder updater removed; app Update button uses Chrome-managed update checks."
+      "notes": "Prepared package retained for future Store bootstrap, but Chrome Web Store submission and review are postponed until the product is ready. Do not use as the current development delivery channel."
     },
     {
       "version": "3.8.43",
