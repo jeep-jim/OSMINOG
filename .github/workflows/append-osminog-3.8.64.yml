@@ -19,106 +19,13 @@ jobs:
           ref: main
           fetch-depth: 0
       - name: Append canonical log and version metadata
-        shell: bash
+        env:
+          APPEND_B64: LS0tCgojIyAyMDI2LTA4LTI3IOKAlCAzLjguNjQgR29vZ2xlIEFJIE1vZGUgcmVjb3ZlcnkgYW5kIG1vZHVsZSBsaW5rcwoKIyMjIFN0YXJ0aW5nIHN0YXRlCi0gT1NNSU5PRyBDaHJvbWUgMy44LjYzIHdhcyBpbnN0YWxsZWQgbWFudWFsbHkgYW5kIGxvYWRlZCBzdWNjZXNzZnVsbHkuCi0gVGhlIG5ldyBHb29nbGUgQUkgcGFuZWwgcmVuZGVyZWQsIGJ1dCB0aGUgMy44LjYzIHRyYW5zcG9ydCBmYWlsZWQgYmVjYXVzZSBpdCBjcmVhdGVkIGEgR2VtaW5pIHNlcnZpY2UgdGFiIHdoaWxlIHRoZSBwcm92ZW4gd29ya2luZyB1c2VyIGZsb3cgd2FzIEdvb2dsZSBBSSBNb2RlIG9uIGdvb2dsZS5jb20uCi0gVGhlIEdvb2dsZSBwYW5lbCBzdGlsbCBoYWQgYSBzZWFyY2gtZW5naW5lIHNlbGVjdG9yLCBoYXJkLWNvZGVkIGRhcmsgc3R5bGluZywgd2VhayBuYXRpdmUgQ1NTIHJlc2l6aW5nLCBhbmQgbm8gbW9kdWxlLXRvLWNhbnZhcyBjb25uZWN0aW9uIHBvcnRzLgotIFRoZSBvbGQgTmF0aXZlIE1lc3NhZ2luZyB1cGRhdGVyIHJlbWFpbmVkIG5vbi1mdW5jdGlvbmFsOyAzLjguNjQgaXMgdGhlcmVmb3JlIGRpc3RyaWJ1dGVkIGFzIGEgY29tcGxldGUgbWFudWFsIGRldiBaSVAuIFRoZSBpbi1wcm9kdWN0IHVwZGF0ZXIgYnV0dG9uIGlzIGRpc2FibGVkIHVudGlsIE9TTUlOT0cgRGV2IEh1YiByZXBsYWNlcyBpdC4KCiMjIyBSZXF1ZXN0ZWQgd29yawoxLiBSZXN0b3JlIEdvb2dsZSBBSSBmdW5jdGlvbmFsaXR5IHdpdGhvdXQgd3JpdGluZyBkdXBsaWNhdGUgbWVzc2FnZXMgaW50byB0aGUgdXNlcidzIHZpc2libGUgR29vZ2xlIEFJIGNvbnZlcnNhdGlvbi4KMi4gUmVtb3ZlIHRoZSBzZWFyY2gtZW5naW5lIHNlbGVjdG9yOyBHb29nbGUgQUkgaXMgdGhlIG9ubHkgbW9kZS4KMy4gTWFrZSB0aGUgcGFuZWwgZm9sbG93IGxpZ2h0IGFuZCBkYXJrIHRoZW1lcy4KNC4gTWFrZSB0aGUgcGFuZWwgcmVzaXphYmxlIGZyb20gYWxsIGVpZ2h0IGVkZ2VzL2Nvcm5lcnMgYW5kIHBlcnNpc3QgZ2VvbWV0cnkuCjUuIFJlcGxhY2UgdGhlIHNlbGVjdG9yIHdpdGggYSBjb21wYWN0ICoq0KHQstGP0LfQuCoqIGNvbnRyb2wgdGhhdCByZXZlYWxzIGVpZ2h0IGNvbm5lY3Rpb24gcG9ydHMuCjYuIEFsbG93IGxpbmtzIGZyb20gdGhlIEdvb2dsZSBBSSBtb2R1bGUgdG8gY2FudmFzIG9iamVjdHMgYW5kIGFnZW50IHBpbGxzOyBwZXJzaXN0IGxpbmtzIGFuZCBpbmNsdWRlIGxpbmtlZCBjb250ZXh0IGluIGV2ZXJ5IEdvb2dsZSBBSSByZXF1ZXN0Lgo3LiBQcmVzZXJ2ZSB0aGUgYWxyZWFkeSB3b3JraW5nIERlZXBTZWVrIGRpcmVjdCBhdXRoZW50aWNhdGVkIHdlYi1zZXNzaW9uIHRyYW5zcG9ydC4KCiMjIyBCdWlsdCBjaGFuZ2VzIGluIDMuOC42NAotIGBtYW5pZmVzdC5qc29uYDogdmVyc2lvbiAzLjguNjQ7IGZpeGVkIGtleSBwcmVzZXJ2ZWQ7IGV4cGxpY2l0IHZhbGlkIEdvb2dsZS9HZW1pbmkgaG9zdCBwYXR0ZXJucyBhZGRlZC4KLSBgYmFja2dyb3VuZC5qc2A6IGlzb2xhdGVkIHNlcnZpY2UgdHJhbnNwb3J0IGNoYW5nZWQgZnJvbSBHZW1pbmkgdG8gYSBkZWRpY2F0ZWQgaW5hY3RpdmUgR29vZ2xlIEFJIE1vZGUgdGFiIGF0IGdvb2dsZS5jb207IHRoZSB2aXNpYmxlIHVzZXIgY29udmVyc2F0aW9uIGlzIG5vdCB1c2VkIGZvciByZXF1ZXN0cy4gVGhlIHJlcXVlc3QgaXMgc2VudCBleGFjdGx5IG9uY2U6IHRoZXJlIGlzIG5vIHBvc3Qtc2VuZCByZXRyeSB0aGF0IGNvdWxkIGR1cGxpY2F0ZSBhIHByb21wdC4KLSBgcHJvdmlkZXItdGFiLWJyaWRnZS5qc2A6IEdvb2dsZSBBSSBNb2RlIGNvbXBvc2VyIGFuZCByZXNwb25zZSBzZWxlY3RvcnMgYnJvYWRlbmVkLgotIGBlZGl0b3IuaHRtbGA6IHNlYXJjaC1lbmdpbmUgc2VsZWN0b3IgcmVtb3ZlZDsgY29tcGFjdCAqKtCh0LLRj9C30LgqKiBidXR0b24sIGVpZ2h0IG1vZHVsZSBwb3J0cywgZWlnaHQgcmVzaXplIGhhbmRsZXMsIGFuZCBsaW5rIHRyYXkgYWRkZWQuCi0gYGVkaXRvci5jc3NgOiBHb29nbGUgcGFuZWwgcmVidWlsdCB3aXRoIGxpZ2h0L2RhcmsgdmFyaWFibGVzLCBjdXN0b20gZWlnaHQtZGlyZWN0aW9uIHJlc2l6ZSBzdXJmYWNlcywgbm9kZSBwb3J0cywgdGFyZ2V0IGdsb3csIGFuZCBwZXJzaXN0ZW50IHRldGhlciBvdmVybGF5LgotIGBtb2R1bGVzLmpzYDogZnVsbCBHb29nbGUgbW9kdWxlIGNvbnRyb2xsZXIgcmVidWlsdC4gTGlua3MgY2FuIHRhcmdldCBjYW52YXMgb2JqZWN0cyBhbmQgYWdlbnQgcGlsbHMsIHBlcnNpc3QgcGVyIHByb2plY3QsIHJlbmRlciBhcyBjdXJ2ZXMsIGFuZCBhcmUgaW5jbHVkZWQgaW4gYGdvb2dsZUFpTW9kdWxlLmxpbmtlZGAgY29udGV4dC4KLSBUaGUgb2xkIE5hdGl2ZSBVcGRhdGVyIGJ1dHRvbiBpcyBkaXNhYmxlZCBhbmQgZXhwbGljaXRseSBwb2ludHMgdG8gdGhlIGZ1dHVyZSBPU01JTk9HIERldiBIdWIuCi0gRXhpc3RpbmcgQ3RybCtWIGNsaXBib2FyZC9jYWNoZWQtc2NyZWVuc2hvdCBiZWhhdmlvciBmcm9tIDMuOC42MyBpcyBwcmVzZXJ2ZWQuCgojIyMgU3RhdGljIHZlcmlmaWNhdGlvbiByZXF1aXJlZCBiZWZvcmUgcmVsZWFzZQotIE1hbmlmZXN0IHBhcnNlcyBhbmQgcmVwb3J0cyAzLjguNjQuCi0gRml4ZWQgbWFuaWZlc3Qga2V5IGFuZCBleHRlbnNpb24gSUQgcmVtYWluIHVuY2hhbmdlZC4KLSBFdmVyeSBKYXZhU2NyaXB0IGZpbGUgcGFzc2VzIGBub2RlIC0tY2hlY2tgLgotIEV2ZXJ5IEpTT04gZmlsZSBwYXJzZXMuCi0gTm8gZHVwbGljYXRlIEhUTUwgSURzLgotIFpJUCBpbnRlZ3JpdHkgcGFzc2VzIHdpdGggcm9vdCBgbWFuaWZlc3QuanNvbmAuCgojIyMgUnVudGltZSB2ZXJpZmljYXRpb24KMS4gSW5zdGFsbCAzLjguNjQgbWFudWFsbHkgaW50byB0aGUgZXhpc3RpbmcgYGN1cnJlbnRgIGZvbGRlciBhbmQgcmVsb2FkIHRoZSBzYW1lIGV4dGVuc2lvbiBjYXJkLgoyLiBQcmVzcyAqKtCf0L7QtNC60LvRjtGH0LjRgtGMKiogaW4gR29vZ2xlIEFJLiBPU01JTk9HIHNob3VsZCBjcmVhdGUgYSBwaW5uZWQgaW5hY3RpdmUgR29vZ2xlIEFJIE1vZGUgc2VydmljZSB0YWIuIElmIEdvb2dsZSBhc2tzIGZvciBsb2dpbiBvciBBSSBNb2RlIGFjdGl2YXRpb24sIGNvbXBsZXRlIGl0IGluIHRoYXQgc2VydmljZSB0YWIgb25jZSBhbmQgcHJlc3MgKirQn9C+0LTQutC70Y7Rh9C40YLRjCoqIGFnYWluLgozLiBTZW5kIG9uZSBtZXNzYWdlIGFuZCB2ZXJpZnkgZXhhY3RseSBvbmUgdXNlciBidWJibGUgYW5kIG9uZSBhc3Npc3RhbnQgYnViYmxlIGFwcGVhciBpbiBPU01JTk9HLCB3aXRoIG5vIHByb21wdCBhZGRlZCB0byB0aGUgdXNlcidzIHZpc2libGUgR29vZ2xlIEFJIHRhYi4KNC4gU3dpdGNoIGxpZ2h0L2RhcmsgdGhlbWUgYW5kIHJlc2l6ZSB0aGUgcGFuZWwgZnJvbSBhbGwgZWRnZXMvY29ybmVycy4KNS4gUHJlc3MgKirQodCy0Y/Qt9C4KiosIGRyYWcgYW55IG9mIHRoZSBlaWdodCBwb3J0cyB0byBhIGNhbnZhcyBvYmplY3QgYW5kIGFuIGFnZW50IHBpbGwsIHRoZW4gc2VuZCBhIHJlcXVlc3QgYW5kIHZlcmlmeSBsaW5rIGNoaXBzIGFuZCBjb250ZXh0IHBlcnNpc3QuCjYuIFZlcmlmeSBEZWVwU2VlayBzdGlsbCB3b3JrcyB1bmNoYW5nZWQuCgojIyMgRXhhY3QgbmV4dCBhY3Rpb24KLSBDb21wbGV0ZSB0aGUgcnVudGltZSBjaGVja2xpc3QgYWJvdmUuCi0gSWYgdGhlIGRlZGljYXRlZCBHb29nbGUgQUkgTW9kZSB0YWIgc3RpbGwgZmFpbHMsIGNhcHR1cmUgdGhlIHNlcnZpY2UgdGFiIERPTS9wcm9iZSBvdXRwdXQgYW5kIHJlcGFpciBvbmx5IHRoZSBHb29nbGUgcHJvdmlkZXIgYnJpZGdlOyBkbyBub3QgdG91Y2ggRGVlcFNlZWsgb3IgcmVpbnRyb2R1Y2UgdmlzaWJsZS1jaGF0IG1pcnJvcmluZy4KLSBCdWlsZCBPU01JTk9HIERldiBIdWIgYmVmb3JlIHRoZSBuZXh0IGF0dGVtcHQgYXQgYXV0b21hdGljIGRldiB1cGRhdGVzLgo=
+          BUILD_B64: ewogICJwcm9kdWN0IjogIk9TTUlOT0ciLAogICJ2ZXJzaW9uIjogIjMuOC42NCIsCiAgImJhc2VWZXJzaW9uIjogIjMuOC42MyIsCiAgImZpbGVDb3VudCI6IDQ1LAogICJ6aXBTaXplIjogMjQ0MzUxLAogICJzaGEyNTYiOiAiOWFmZmJjMzY3ZTNmYWUxNWE3MDFlZjNkZTU2YWM2NjNkZDc1ZWVkOTEyNzA5MDk1NzRkM2NhYmZlMTFlZWE0YyIsCiAgInppcEludGVncml0eSI6IHRydWUsCiAgIm1hbmlmZXN0QXRSb290IjogdHJ1ZSwKICAibWFuaWZlc3RWZXJzaW9uIjogIjMuOC42NCIsCiAgImZpeGVkTWFuaWZlc3RLZXlQcmVzZXJ2ZWQiOiB0cnVlLAogICJjaGFuZ2VzIjogWwogICAgIkdvb2dsZSBBSSByZXN0b3JlZCB0byBhIGRlZGljYXRlZCBHb29nbGUgQUkgTW9kZSB0YWIgYnJpZGdlIG9uIGdvb2dsZS5jb207IHRoZSBicm9rZW4gR2VtaW5pLW9ubHkgc2VydmljZSByZXF1aXJlbWVudCB3YXMgcmVtb3ZlZC4iLAogICAgIkVhY2ggR29vZ2xlIEFJIHN1Ym1pc3Npb24gaXMgc2VudCBleGFjdGx5IG9uY2U7IG5vIHBvc3Qtc2VuZCByZXRyeSBjYW4gZHVwbGljYXRlIHRoZSBwcm9tcHQuIiwKICAgICJTZWFyY2gtZW5naW5lIHNlbGVjdG9yIHJlbW92ZWQ7IGEgY29tcGFjdCBDb25uZWN0aW9ucyBjb250cm9sIHJldmVhbHMgZWlnaHQgbW9kdWxlIHBvcnRzLiIsCiAgICAiRWlnaHQgbW9kdWxlIGNvbm5lY3Rpb24gcG9ydHMgYW5kIGVpZ2h0IHJlc2l6ZSBoYW5kbGVzIGFkZGVkOyBnZW9tZXRyeSBhbmQgbGlua3MgcGVyc2lzdC4iLAogICAgIkdvb2dsZSBBSSBtb2R1bGUgY2FuIGxpbmsgdG8gY2FudmFzIG9iamVjdHMgYW5kIGFnZW50IHBpbGxzIGFuZCBzZW5kcyBsaW5rZWQgY29udGV4dCB3aXRoIHJlcXVlc3RzLiIsCiAgICAiTGlnaHQgYW5kIGRhcmsgdGhlbWUgY29sb3JzIGFkZGVkIGZvciB0aGUgd2hvbGUgR29vZ2xlIEFJIG1vZHVsZS4iLAogICAgIkN0cmwrViBjbGlwYm9hcmQgYW5kIGNhY2hlZC1zY3JlZW5zaG90IGF0dGFjaG1lbnQgYmVoYXZpb3IgcHJlc2VydmVkLiIsCiAgICAiTGVnYWN5IE5hdGl2ZSBVcGRhdGVyIGRpc2FibGVkIGluIHRoZSBVSSBwZW5kaW5nIE9TTUlOT0cgRGV2IEh1Yi4iCiAgXSwKICAic3RhdGljQ2hlY2tzIjogewogICAgImphdmFzY3JpcHRTeW50YXgiOiB0cnVlLAogICAgImpzb25QYXJzZSI6IHRydWUsCiAgICAiaHRtbER1cGxpY2F0ZUlkcyI6IDAsCiAgICAic2VhcmNoRW5naW5lU2VsZWN0b3JSZW1vdmVkIjogdHJ1ZSwKICAgICJvbGRJbnN0YWxsZXJIaW50UmVtb3ZlZCI6IHRydWUsCiAgICAiZGVlcFNlZWtUcmFuc3BvcnRQcmVzZXJ2ZWQiOiB0cnVlCiAgfSwKICAicnVudGltZVBlbmRpbmciOiBbCiAgICAiR29vZ2xlIEFJIE1vZGUgY29ubmVjdGlvbi9zZW5kIHRlc3Qgb24gdGhlIG93bmVyIGFjY291bnQiLAogICAgInNpbmdsZS1zZW5kL25vLWR1cGxpY2F0ZSBydW50aW1lIHRlc3QiLAogICAgImVpZ2h0LXBvcnQgbW9kdWxlIGNvbm5lY3Rpb24gdGVzdCIsCiAgICAibGlnaHQtdGhlbWUgdmlzdWFsIHRlc3QiLAogICAgIm1hbnVhbCBlaWdodC1kaXJlY3Rpb24gcmVzaXplIHRlc3QiLAogICAgIkN0cmwrViBjbGlwYm9hcmQvY2FjaGUgaW1hZ2UgcHJldmlldyB0ZXN0IgogIF0KfQo=
+          README_B64: IyBPU01JTk9HIENocm9tZSAzLjguNjQKCkJhc2U6IDMuOC42My4KClRoaXMgaXMgdGhlIG1hbnVhbCBkZXZlbG9wbWVudCBwYWNrYWdlIGFmdGVyIHRoZSBsZWdhY3kgTmF0aXZlIE1lc3NhZ2luZyB1cGRhdGVyIGZhaWxlZCByZXBlYXRlZGx5LiBJdCByZXN0b3JlcyB0aGUgR29vZ2xlIEFJIE1vZGUgdGFiIGJyaWRnZSwgc2VuZHMgZWFjaCByZXF1ZXN0IGV4YWN0bHkgb25jZSwgcmVtb3ZlcyB0aGUgc2VhcmNoLWVuZ2luZSBzZWxlY3RvciwgYWRkcyBhIHRoZW1lLWF3YXJlIHJlc2l6YWJsZSBHb29nbGUgQUkgbW9kdWxlIHdpdGggZWlnaHQgY29ubmVjdGlvbiBwb3J0cywgcHJlc2VydmVzIERlZXBTZWVrLCBhbmQgcHJlc2VydmVzIEN0cmwrViBjbGlwYm9hcmQvY2FjaGVkLXNjcmVlbnNob3QgYXR0YWNobWVudHMuCgpBcnRpZmFjdCBTSEEtMjU2OiBgOWFmZmJjMzY3ZTNmYWUxNWE3MDFlZjNkZTU2YWM2NjNkZDc1ZWVkOTEyNzA5MDk1NzRkM2NhYmZlMTFlZWE0Y2AuCgpSdW50aW1lIHZlcmlmaWNhdGlvbiBpcyBwZW5kaW5nIG9uIHRoZSBvd25lcidzIFdpbmRvd3MvQ2hyb21lL0dvb2dsZSBhY2NvdW50Lgo=
         run: |
           set -euo pipefail
-          if ! grep -q '^## 2026-08-27 — 3.8.64 Google AI Mode recovery and module links$' OSMINOG_PROJECT_LOG.md; then
-            cat >> OSMINOG_PROJECT_LOG.md <<'EOF'
-
----
-
-## 2026-08-27 — 3.8.64 Google AI Mode recovery and module links
-
-### Starting state
-- OSMINOG Chrome 3.8.63 was installed manually and loaded successfully.
-- The new Google AI panel rendered, but the 3.8.63 transport failed because it created a Gemini service tab while the proven working user flow was Google AI Mode on google.com.
-- The Google panel still had a search-engine selector, hard-coded dark styling, weak native CSS resizing, and no module-to-canvas connection ports.
-- The old Native Messaging updater remained non-functional; 3.8.64 is therefore distributed as a complete manual dev ZIP. The in-product updater button is disabled until OSMINOG Dev Hub replaces it.
-
-### Requested work
-1. Restore Google AI functionality without writing duplicate messages into the user's visible Google AI conversation.
-2. Remove the search-engine selector; Google AI is the only mode.
-3. Make the panel follow light and dark themes.
-4. Make the panel resizable from all eight edges/corners and persist geometry.
-5. Replace the selector with a compact **Связи** control that reveals eight connection ports.
-6. Allow links from the Google AI module to canvas objects and agent pills; persist links and include linked context in every Google AI request.
-7. Preserve the already working DeepSeek direct authenticated web-session transport.
-8. Preserve Ctrl+V image attachment from the system clipboard and the latest cached OSMINOG screenshot.
-
-### Built changes in 3.8.64
-- `manifest.json`: version 3.8.64; fixed key preserved; valid Google/Gemini host patterns included.
-- `background.js`: transport changed from the broken Gemini-only route to a dedicated inactive Google AI Mode tab at google.com. The visible user conversation is not used. Each request is sent exactly once; there is no post-send retry that could duplicate a prompt.
-- `provider-tab-bridge.js`: Google AI Mode composer and response selectors broadened.
-- `editor.html`: search-engine selector removed; compact **Связи** button, eight module ports, eight resize handles, and link tray added.
-- `editor.css`: Google panel rebuilt with light/dark variables, custom eight-direction resize surfaces, node ports, target glow, and persistent tether overlay.
-- `modules.js`: Google module controller rebuilt. Links can target canvas objects and agent pills, persist per project, render as curves, and are included in request context.
-- Existing Ctrl+V clipboard/cached-screenshot behavior is preserved.
-- DeepSeek provider transport was not changed.
-- The misleading old Native Updater control is disabled and points to the future OSMINOG Dev Hub.
-
-### Static verification
-- Complete reserve ZIP contains 45 files and a root `manifest.json`.
-- Manifest version is 3.8.64 and the fixed Chrome key is unchanged.
-- Every JavaScript file passes `node --check`.
-- Every JSON file parses.
-- No duplicate HTML IDs were found.
-- ZIP integrity passes.
-- Search-engine selector and obsolete installer hint are absent.
-
-### Artifact
-- Complete package: `OSMINOG-Chrome-3.8.64-ROOT.zip`.
-- SHA-256: `9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c`.
-- Size: `244351` bytes.
-- Distribution: manual dev ZIP until OSMINOG Dev Hub is implemented.
-
-### Runtime verification required
-1. Install 3.8.64 manually into the existing `current` folder and reload the same Chrome extension card.
-2. Press **Подключить** in Google AI. OSMINOG should create a pinned inactive Google AI Mode tab. If Google requests login or AI Mode activation, complete it in that service tab once and press **Подключить** again.
-3. Send one message and verify exactly one user bubble and one assistant bubble appear in OSMINOG, with no prompt added to the user's visible Google AI tab.
-4. Switch light/dark theme and resize the panel from all edges/corners.
-5. Press **Связи**, drag any of the eight ports to a canvas object and an agent pill, then verify links and linked context persist.
-6. Test Ctrl+V from a clipboard screenshot and from the latest cached OSMINOG screenshot.
-7. Verify DeepSeek still works unchanged.
-
-### Exact next action
-- Complete the runtime checklist above.
-- If Google AI Mode still fails, inspect only the service-tab DOM/probe and repair the Google provider bridge; do not touch DeepSeek or reintroduce visible-chat mirroring.
-- Build OSMINOG Dev Hub before the next automatic dev-update attempt.
-EOF
-          fi
-          mkdir -p versions/3.8.64
-          cat > versions/3.8.64/build.json <<'EOF'
-{
-  "product": "OSMINOG",
-  "version": "3.8.64",
-  "baseVersion": "3.8.63",
-  "kind": "manual-dev-zip",
-  "artifact": "OSMINOG-Chrome-3.8.64-ROOT.zip",
-  "sha256": "9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c",
-  "size": 244351,
-  "fileCount": 45,
-  "manifestAtRoot": true,
-  "fixedManifestKeyPreserved": true,
-  "staticChecks": {
-    "javascriptSyntax": true,
-    "jsonParse": true,
-    "htmlDuplicateIds": 0,
-    "zipIntegrity": true
-  },
-  "runtimeVerified": false
-}
-EOF
-          cat > versions/3.8.64/README.md <<'EOF'
-# OSMINOG Chrome 3.8.64
-
-Base: 3.8.63.
-
-This is the manual development package after the legacy Native Messaging updater failed repeatedly. It restores the Google AI Mode tab bridge, sends each request once, removes the search-engine selector, adds a theme-aware resizable Google AI module with eight connection ports, preserves DeepSeek, and preserves Ctrl+V clipboard/cached-screenshot attachments.
-
-Artifact SHA-256: `9affbc367e3fae15a701ef3de56ac663dd75eed91270909574d3cabfe11eea4c`.
-
-Runtime verification is pending on the owner's Windows/Chrome/Google account.
-EOF
+          python -c "import os,base64,pathlib; p=pathlib.Path('OSMINOG_PROJECT_LOG.md'); a=base64.b64decode(os.environ['APPEND_B64']); d=p.read_bytes(); p.write_bytes(d if b'3.8.64 Google AI Mode recovery and module links' in d else d+b'\n'+a); pathlib.Path('versions/3.8.64').mkdir(parents=True,exist_ok=True); pathlib.Path('versions/3.8.64/build.json').write_bytes(base64.b64decode(os.environ['BUILD_B64'])); pathlib.Path('versions/3.8.64/README.md').write_bytes(base64.b64decode(os.environ['README_B64']))"
       - name: Commit record and remove one-shot workflow
         shell: bash
         run: |
