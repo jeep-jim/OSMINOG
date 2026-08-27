@@ -1,13 +1,26 @@
 {
   "format": "briefcraft-version-registry/v1",
   "stable": "3.8.43",
+  "beta": "3.8.55",
   "versions": [
+    {
+      "version": "3.8.55",
+      "versionName": "3.8.43 Stable · CWS Bootstrap",
+      "status": "package-built-awaiting-private-cws-upload",
+      "sourceStable": "3.8.43",
+      "branch": "release/briefcraft-3.8.55-cws-beta",
+      "package": "BriefCraft-AI-3.8.55-CWS-BETA-3.8.43-STABLE.zip",
+      "sha256": "768b4b8035e8649da770aafbc802508360eecb4b1aa482ab7ca30a73ec584366",
+      "notes": "First folderless Chrome Web Store beta bootstrap. Legacy local-folder updater removed; app Update button uses Chrome-managed update checks."
+    },
     {
       "version": "3.8.43",
       "status": "runtime-tested-stable",
       "commit": "b17638ff3925214636b772d43a93dbb2ba204d5d",
       "recoveryBranch": "recovery/briefcraft-3.8.43-stable",
       "baseVersion": "3.8.42",
+      "package": "BriefCraft-AI-3.8.43-STABLE-RECOVERY.zip",
+      "sha256": "80d44340a804547ba8ab1bda42acbd9e6cc7315d10845b8e03003966baf7bf8c",
       "testedAt": "2026-08-26",
       "notes": "Last user-confirmed stable line before the 3.8.44+ regression sequence. Preserve as rollback target."
     }
