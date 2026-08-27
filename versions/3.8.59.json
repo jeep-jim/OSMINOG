@@ -1,0 +1,30 @@
+{
+  "format": "briefcraft-version-registry-entry/v1",
+  "version": "3.8.59",
+  "baseVersion": "3.8.58",
+  "status": "published-to-dev-feed-awaiting-user-test",
+  "platform": "chrome-extension-dev",
+  "summary": "The empty-canvas welcome now switches immediately with EN, RU, DE, ES, JA and ZH.",
+  "distribution": {
+    "repository": "jeep-jim/chernogram_new",
+    "branch": "briefcraft-releases",
+    "feed": "briefcraft/channels/dev/chrome-extension.json",
+    "fileset": "briefcraft/releases/3.8.59/chrome-extension/fileset.json",
+    "filesetSha256": "e0b870c08eb5113664a4338fa9631406e64a91b61ee01d6a39197d6de6f3e51e",
+    "filesetSize": 4812
+  },
+  "fullPackage": {
+    "name": "BriefCraft-AI-3.8.59-EXTENSION-LANG-FIX.zip",
+    "sha256": "94a191ec9f395fa309e7ce35c13dd1b00f8ea6a8640cc8e1fc30fc3dab92ce79",
+    "size": 244513
+  },
+  "validation": {
+    "nativeUpdaterE2E": "3.8.58 -> 3.8.59 passed",
+    "allJavaScriptNodeCheck": true,
+    "zipIntegrity": true,
+    "manifestVersion": "3.8.59",
+    "manifestKeyPreserved": true,
+    "editorBeforeSha256": "fcacf92e3607fb3867f3c7c14d69c9ef8057d642e60338a8e2e48ccd22ae4010",
+    "editorAfterSha256": "875bbffdf863e5453ded7ee61760e3679e393c101cbf9937c5713a69230bf572"
+  }
+}
