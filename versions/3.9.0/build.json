@@ -1,0 +1,31 @@
+{
+  "product": "OSMINOG",
+  "version": "3.9.0",
+  "codename": "TEAM OS",
+  "baseVersion": "3.8.64",
+  "artifact": "artifacts/chrome/3.9.0/OSMINOG-Chrome-3.9.0-TEAM-OS-ROOT.zip",
+  "size": 255229,
+  "sha256": "d0a8fa70ce1929688ec738a0dcfba2c1436a3c4ca403b4cd2228a6ae3f93db97",
+  "fileCount": 47,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.9.0",
+  "fixedManifestKeyPreserved": true,
+  "installationConfirmed": true,
+  "runtimeScope": "manual install, reload, launch and general working state confirmed by owner; subsystem-specific checks remain append-only",
+  "features": [
+    "Team mode with shared multi-agent transcript and execute/review workflows",
+    "Full project capability context for agents",
+    "Validated briefcraft.patch/v1 execution path",
+    "Markdown Studio",
+    "OSMINOG Browser Hub in a separate service window",
+    "Fresh-response guard for Google AI provider DOM",
+    "DeepSeek direct authenticated transport preserved",
+    "Ctrl+V clipboard and cached-screenshot attachment preserved"
+  ],
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "htmlDuplicateIds": 0,
+    "zipIntegrity": true
+  }
+}
