@@ -56,3 +56,74 @@ This file is the canonical continuation note for OSMINOG. Read it completely bef
 
 ### Current next action
 Publish and verify the 3.8.62 dev feed, then have the owner press the update button from the manually installed 3.8.61. Record the real runtime result in a new section below; do not modify this section.
+
+---
+
+## 2026-08-27 — 3.8.62 runtime result and 3.8.63 Google AI build
+
+### Actual runtime result from 3.8.62
+- The owner manually installed **OSMINOG Chrome 3.8.62** successfully.
+- Chrome shows the same fixed extension ID and version 3.8.62.
+- The header shows the temporary plain red circle beside **OSMINOG**.
+- The in-product update button still failed before changing the installed version and displayed the obsolete fallback instruction about `INSTALL_BRIEFCRAFT_DEV.cmd`.
+- This proves the product build is loadable, but does **not** prove the native updater path is working. Do not describe the button updater as fixed until a real version transition succeeds on the owner's Windows/Chrome installation.
+
+### Requested work for 3.8.63
+1. Remove the obsolete `INSTALL_BRIEFCRAFT_DEV.cmd` instruction from the updater error message.
+2. Rebuild the Google AI surface using the supplied OSMINOG widget design:
+   - dark indigo/black body;
+   - purple command accents;
+   - compact header, connected status, message bubbles, timestamps, context attachment and send controls.
+3. Stop duplicate Google AI messages:
+   - one user submission produces one local user turn;
+   - one provider response produces one assistant turn;
+   - prevent repeat submission while the request is active;
+   - identify and deduplicate turns by request ID.
+4. Keep Google AI traffic out of the user's visible Google AI conversation by using a dedicated inactive authenticated service tab.
+5. Preserve the already working DeepSeek direct authenticated web-session transport. Do not replace it with the supplied API-key example.
+6. Make `Ctrl+V` attach an image from the clipboard and, when the paste event has no image payload, fall back to the latest `briefCraftLastCachedImage` screenshot.
+7. Publish a verified **3.8.62 → 3.8.63** patch fileset and prepare a complete reserve ZIP.
+
+### Built changes in 3.8.63
+- `manifest.json`: version raised to 3.8.63; fixed key preserved.
+- `editor.html`: Google AI widget markup replaced with the OSMINOG-native chat surface.
+- `editor.css`: isolated OSMINOG Google AI styles added from the supplied visual specification.
+- `modules.js`: Google AI UI controller rebuilt with request IDs, busy lock, rendered-turn deduplication, timestamps, attachment tray, service status and connect/open controls.
+- `background.js`: Google AI now uses a dedicated inactive `gemini.google.com/app` service tab and a separate connection record; repeat in-flight request IDs are rejected.
+- `gpt-presence.js`: existing clipboard-image paste remains; empty-image paste now falls back to the most recent cached screenshot.
+- `editor.js`: obsolete installer instruction removed; the remaining error copy only states that automatic updating is unavailable in the current dev installation.
+- DeepSeek provider code and its proven hidden authenticated web-session behavior were preserved.
+
+### Static verification
+- Complete reserve ZIP contains 44 files and a root `manifest.json`.
+- Manifest version is 3.8.63 and the fixed Chrome key is unchanged.
+- Every JavaScript file passes `node --check`.
+- Every JSON file parses.
+- No duplicate HTML IDs were found.
+- ZIP integrity passes.
+- Applying the 8 patch operations to the 3.8.62 source produces a byte-identical 3.8.63 source tree.
+
+### Published artifacts
+- Dev feed latest version: **3.8.63**.
+- Base version: **3.8.62**.
+- Fileset SHA-256: `f8fc8547e22c0cb04a4e21eb7d859ec95d6af43334d6e0c7c0522b0e3df72858`.
+- Fileset size: `58,303` bytes.
+- Complete reserve ZIP: `OSMINOG-Chrome-3.8.63-ROOT.zip`.
+- Reserve ZIP SHA-256: `3c4fc65a8b77ee0d6de019cfd2034febe58402c76bab41206768912663d2aa53`.
+- GitHub Actions publication run `33104291567` completed successfully.
+- Google Drive was not used for this release.
+
+### Runtime verification still required
+1. On the installed 3.8.62, press the in-product update button and check whether the version becomes 3.8.63.
+2. After 3.8.63 loads, send one message through the Google AI widget and confirm:
+   - the visible personal Google AI conversation receives no duplicate prompt;
+   - OSMINOG displays exactly one user turn and one assistant turn;
+   - the connected/service status is accurate.
+3. Paste a real clipboard screenshot into the AI chat with `Ctrl+V` and confirm a preview appears.
+4. With no image in the clipboard, use `Ctrl+V` after an OSMINOG screenshot/capture and confirm the latest cached screenshot is attached.
+
+### Exact next action
+- The owner presses **Update** once from 3.8.62.
+- If the button fails before the installed version changes, install the complete 3.8.63 reserve ZIP manually into the same unpacked-extension folder, reload the existing Chrome extension card, and stop spending product-development time on the current Native Messaging updater implementation.
+- After that failure, replace the updater architecture rather than issuing another repair script: use a single installed OSMINOG Dev Hub for development builds and platform-native release channels for production.
+- In every new chat, read this file first and continue from this exact runtime test; do not ask the owner to retell the history.
