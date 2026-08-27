@@ -1,21 +1,18 @@
 {
-  "brand": "BriefCraft",
-  "canonicalSource": "brand/briefcraft-logo.svg",
-  "canonicalSvg": "brand/briefcraft-logo.svg",
+  "brand": "OSMINOG",
+  "domain": "osminog.red",
+  "temporaryMark": "brand/osminog-mark.svg",
+  "temporaryWordmark": "brand/osminog-wordmark.svg",
   "colors": {
-    "primary": "#EEBF26",
-    "accent": "#FFE100"
+    "primary": "#FF2D2D",
+    "background": "#0B0D12",
+    "foreground": "#FFFFFF"
   },
-  "chromeIcons": {
-    "16": "brand/icon-16.png",
-    "32": "brand/icon-32.png",
-    "48": "brand/icon-48.png",
-    "128": "brand/icon-128.png"
+  "temporaryBrandRule": "Until the owner supplies the final logo, every visible product surface uses a plain red circle and the word OSMINOG. Do not invent an octopus mascot, gradients or additional symbols.",
+  "compatibilityRule": "Preserve the existing Chrome manifest key, extension ID, storage keys, project formats and internal protocol identifiers during the rebrand. Rename visible product copy first; migrate internal identifiers only through explicit backward-compatible migrations.",
+  "legacyAssets": {
+    "briefcraftLogo": "brand/briefcraft-logo.svg",
+    "status": "history-only; never use on new visible OSMINOG surfaces"
   },
-  "desktop": {
-    "windowsIco": "brand/briefcraft.ico",
-    "macIcns": "brand/briefcraft.icns"
-  },
-  "buildRule": "Always derive every product icon, header mark, favicon, Chrome icon and desktop icon from brand/briefcraft-logo.svg. Do not use the legacy blue b° logo.",
-  "sourceStatus": "Owner-supplied canonical SVG on 2026-08-25"
+  "sourceStatus": "Temporary owner-directed OSMINOG identity established 2026-08-27"
 }
