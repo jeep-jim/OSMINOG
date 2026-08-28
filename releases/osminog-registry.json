@@ -1,25 +1,25 @@
 {
   "format": "osminog-release-registry/v1",
   "product": "OSMINOG",
-  "updatedAt": "2026-08-28",
+  "updatedAt": "2026-08-29",
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.2",
-    "codename": "PROVIDER SESSION LAYER",
-    "artifact": "OSMINOG-Chrome-3.11.2-PROVIDER-SESSION-LAYER-ROOT.zip",
-    "size": 335371,
-    "sha256": "0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd",
-    "runtimeState": "owner-installed; version 3.11.2 visible in runtime screenshots; Search Layer, folders and Media Crew surfaces load; full subsystem regression remains open"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.3",
     "codename": "BUBBLE EYE ENVIRONMENT",
-    "baseVersion": "3.11.2",
     "artifact": "OSMINOG-Chrome-3.11.3-BUBBLE-EYE-ENVIRONMENT-ROOT.zip",
     "size": 337047,
     "sha256": "797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050",
+    "runtimeState": "owner-installed; build loads in real Chrome, but bottom eye/dock/search visuals were explicitly rejected because of halo/pedestal/duplicate-eye artifacts; useful Ocean FX/bubble environment work remains preserved"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.4",
+    "codename": "LIVING EYE DOCK",
+    "baseVersion": "3.11.3",
+    "artifact": "OSMINOG-Chrome-3.11.4-LIVING-EYE-DOCK-ROOT.zip",
+    "size": 342950,
+    "sha256": "74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2",
     "fileCount": 55,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -28,8 +28,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.2",
-      "candidateVersion": "3.11.3",
+      "currentVersion": "3.11.3",
+      "candidateVersion": "3.11.4",
       "distribution": "manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned for rapid development; Chrome Web Store for beta/stable"
     },
     "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"desktop shell planned; intended to reuse the same Ocean spatial interaction model"},
@@ -39,6 +39,22 @@
     "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"future mobile-specific adaptation; not the current Ocean Shell target"}
   },
   "releases": [
+    {
+      "platform":"chrome-extension",
+      "version":"3.11.4",
+      "codename":"LIVING EYE DOCK",
+      "baseVersion":"3.11.3",
+      "artifact":"OSMINOG-Chrome-3.11.4-LIVING-EYE-DOCK-ROOT.zip",
+      "size":342950,
+      "sha256":"74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2",
+      "fileCount":55,
+      "manifestAtRoot":true,
+      "manifestVersion":"3.11.4",
+      "fixedManifestKeyPreserved":true,
+      "runtimeVerified":false,
+      "binaryInGitHub":false,
+      "notes":"Focused desktop correction from owner-updated Figma reference: one long bottom rail + one living octopus eye. Eye sleeps translucent with bubbles, wakes on hover and tracks the pointer, turns red on activation, and the Search surface lifts from the same rail. Removes 3.11.3 detached halo/pedestal and duplicate-eye artifacts. Static checks pass; owner runtime pending."
+    },
     {
       "platform":"chrome-extension",
       "version":"3.11.3",
@@ -53,7 +69,7 @@
       "fixedManifestKeyPreserved":true,
       "runtimeVerified":false,
       "binaryInGitHub":false,
-      "notes":"Desktop Chrome-first Ocean environment pass. Adds octopus-eye horizontal slit launcher, seabed-push Search geometry, bubble hover/selection/delete/drag feedback and owner-controlled plankton/bioluminescence settings. Figma is used for visual-language reference, not mobile layout. 3.11.2 Provider/Session core is preserved. Static checks pass; owner runtime pending."
+      "notes":"Owner installed this build in real Chrome. Ocean FX/bubble environment loaded, but the lower eye/dock/search presentation was visually rejected due to rendering artifacts and incorrect detached geometry; 3.11.4 replaces only that interaction node while preserving useful environment work."
     },
     {
       "platform":"chrome-extension",
