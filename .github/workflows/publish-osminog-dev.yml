@@ -1,0 +1,102 @@
+name: Publish OSMINOG development release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/chrome/3.10.6/OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip'
+      - 'releases/osminog-registry.json'
+      - '.github/workflows/publish-osminog-dev.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: osminog-dev-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: latest-osminog-dev
+      SOURCE: artifacts/chrome/3.10.6/OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip
+      ASSET: osminog-chrome-extension-3.10.6.zip
+      EXPECTED_SHA: c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c
+      EXPECTED_SIZE: '308710'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify canonical artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$SOURCE"
+          actual_size=$(stat -c%s "$SOURCE")
+          actual_sha=$(sha256sum "$SOURCE" | awk '{print $1}')
+          test "$actual_size" = "$EXPECTED_SIZE"
+          test "$actual_sha" = "$EXPECTED_SHA"
+          cp "$SOURCE" "$ASSET"
+
+      - name: Create or refresh rolling prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "OSMINOG Dev" --prerelease --notes-file releases/3.10.6.md
+          else
+            gh release create "$TAG" --target main --title "OSMINOG Dev" --prerelease --notes-file releases/3.10.6.md
+          fi
+          gh release upload "$TAG" "$ASSET" --clobber
+
+      - name: Verify remote asset digest and size
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset_json=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq ".assets[] | select(.name == \"${ASSET}\")")
+          test -n "$asset_json"
+          remote_size=$(printf '%s' "$asset_json" | jq -r '.size')
+          remote_digest=$(printf '%s' "$asset_json" | jq -r '.digest // empty')
+          test "$remote_size" = "$EXPECTED_SIZE"
+          if [ -n "$remote_digest" ]; then
+            test "$remote_digest" = "sha256:$EXPECTED_SHA"
+          fi
+
+      - name: Mark binary archived and append canonical log
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('versions/3.10.6/build.json')
+          data = json.loads(p.read_text())
+          data['binaryInGitHub'] = True
+          data['binaryNote'] = 'Exact owner-supplied 3.10.6 ZIP is stored in GitHub and published in the rolling latest-osminog-dev prerelease after size/SHA verification.'
+          data['releaseTag'] = 'latest-osminog-dev'
+          data['releaseAsset'] = 'osminog-chrome-extension-3.10.6.zip'
+          data['repositoryArtifact'] = 'artifacts/chrome/3.10.6/OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip'
+          p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+
+          log = Path('OSMINOG_PROJECT_LOG.md')
+          marker = '## 2026-08-28 — MASTER ROADMAP + canonical 3.10.6 GitHub baseline'
+          entry = Path('release-staging/3.10.6/project-log-entry.md').read_text()
+          text = log.read_text()
+          if marker not in text:
+              log.write_text(text.rstrip() + '\n\n---\n\n' + entry.strip() + '\n')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add versions/3.10.6/build.json OSMINOG_PROJECT_LOG.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Finalize OSMINOG 3.10.6 canonical GitHub baseline"
+            git push
+          fi
