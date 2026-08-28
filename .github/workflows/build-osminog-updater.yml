@@ -1,4 +1,4 @@
-name: Build OSMINOG Dev Updater
+name: Build OSMINOG Dev Hub
 
 on:
   workflow_dispatch:
@@ -38,6 +38,7 @@ jobs:
           $exe = 'devhub/UpdaterHost/bin/Release/net8.0/win-x64/publish/OsminogUpdaterHost.exe'
           if (!(Test-Path $exe)) { throw "Host executable was not built" }
           & $exe --version
+          if ($LASTEXITCODE -ne 0) { throw "Host version probe failed" }
 
       - name: Install Inno Setup
         shell: pwsh
@@ -49,21 +50,23 @@ jobs:
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           if (!(Test-Path $iscc)) { throw "ISCC.exe not found" }
           & $iscc 'devhub/installer/OsminogUpdater.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 
       - name: Hash installer
         shell: pwsh
         run: |
-          $setup = 'devhub/installer/output/OSMINOG-Dev-Updater-Setup.exe'
+          $setup = 'devhub/installer/output/OSMINOG-Dev-Hub-Setup.exe'
           if (!(Test-Path $setup)) { throw "Installer was not produced" }
-          Get-FileHash $setup -Algorithm SHA256 | Format-List
-          (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content 'devhub/installer/output/SHA256.txt' -Encoding ascii
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "SHA256=$hash"
+          $hash | Set-Content 'devhub/installer/output/SHA256.txt' -Encoding ascii
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OSMINOG-Dev-Updater-Setup
+          name: OSMINOG-Dev-Hub-Setup
           path: |
-            devhub/installer/output/OSMINOG-Dev-Updater-Setup.exe
+            devhub/installer/output/OSMINOG-Dev-Hub-Setup.exe
             devhub/installer/output/SHA256.txt
           if-no-files-found: error
           retention-days: 30
