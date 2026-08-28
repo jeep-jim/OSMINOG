@@ -5,21 +5,21 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.1",
-    "codename": "SEARCH LAYER",
-    "artifact": "OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip",
-    "size": 323960,
-    "sha256": "b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a",
-    "runtimeState": "owner-installed; Search Layer and live workspace loaded; useful search behavior retained, but bottom emergence geometry explicitly rejected and superseded by 3.11.2; full subsystem regression remains open"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.2",
     "codename": "PROVIDER SESSION LAYER",
-    "baseVersion": "3.11.1",
     "artifact": "OSMINOG-Chrome-3.11.2-PROVIDER-SESSION-LAYER-ROOT.zip",
     "size": 335371,
     "sha256": "0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd",
+    "runtimeState": "owner-installed; version 3.11.2 visible in runtime screenshots; Search Layer, folders and Media Crew surfaces load; full subsystem regression remains open"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.3",
+    "codename": "BUBBLE EYE ENVIRONMENT",
+    "baseVersion": "3.11.2",
+    "artifact": "OSMINOG-Chrome-3.11.3-BUBBLE-EYE-ENVIRONMENT-ROOT.zip",
+    "size": 337047,
+    "sha256": "797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050",
     "fileCount": 55,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -28,17 +28,33 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.1",
-      "candidateVersion": "3.11.2",
+      "currentVersion": "3.11.2",
+      "candidateVersion": "3.11.3",
       "distribution": "manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned for rapid development; Chrome Web Store for beta/stable"
     },
-    "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"signed native package/updater planned"},
-    "macos": {"status":"planned","branch":"platform/macos","currentVersion":null,"distribution":"signed/notarized native package planned"},
+    "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"desktop shell planned; intended to reuse the same Ocean spatial interaction model"},
+    "macos": {"status":"planned","branch":"platform/macos","currentVersion":null,"distribution":"desktop shell planned; intended to reuse the same Ocean spatial interaction model"},
     "web-pwa": {"status":"planned","branch":"platform/web-pwa","currentVersion":null,"distribution":"atomic web deployment + service worker versioning planned"},
-    "android": {"status":"planned","branch":"platform/android","currentVersion":null,"distribution":"internal/store-native channel planned"},
-    "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"TestFlight/App Store planned"}
+    "android": {"status":"planned","branch":"platform/android","currentVersion":null,"distribution":"future mobile-specific adaptation; not the current Ocean Shell target"},
+    "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"future mobile-specific adaptation; not the current Ocean Shell target"}
   },
   "releases": [
+    {
+      "platform":"chrome-extension",
+      "version":"3.11.3",
+      "codename":"BUBBLE EYE ENVIRONMENT",
+      "baseVersion":"3.11.2",
+      "artifact":"OSMINOG-Chrome-3.11.3-BUBBLE-EYE-ENVIRONMENT-ROOT.zip",
+      "size":337047,
+      "sha256":"797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050",
+      "fileCount":55,
+      "manifestAtRoot":true,
+      "manifestVersion":"3.11.3",
+      "fixedManifestKeyPreserved":true,
+      "runtimeVerified":false,
+      "binaryInGitHub":false,
+      "notes":"Desktop Chrome-first Ocean environment pass. Adds octopus-eye horizontal slit launcher, seabed-push Search geometry, bubble hover/selection/delete/drag feedback and owner-controlled plankton/bioluminescence settings. Figma is used for visual-language reference, not mobile layout. 3.11.2 Provider/Session core is preserved. Static checks pass; owner runtime pending."
+    },
     {
       "platform":"chrome-extension",
       "version":"3.11.2",
@@ -53,7 +69,7 @@
       "fixedManifestKeyPreserved":true,
       "runtimeVerified":false,
       "binaryInGitHub":false,
-      "notes":"Replaces owner-rejected 3.11.1 search emergence with a persistent bottom strip and slot-expansion geometry. Introduces shared Provider/Session Manager, unified On/Off status, immediate Connect UX, icon brain picker/full Provider Registry in settings, Google AI as agent brain, fail-closed Google image attachment confirmation and visible Poseidon rename. DeepSeek proven transport preserved. Static checks pass; owner runtime pending."
+      "notes":"Owner installed 3.11.2 and supplied runtime screenshots. The build visibly loads the Ocean workspace and existing surfaces, but a full functional regression is still not complete."
     },
     {
       "platform":"chrome-extension",
@@ -69,7 +85,7 @@
       "fixedManifestKeyPreserved":true,
       "runtimeVerified":false,
       "binaryInGitHub":false,
-      "notes":"Owner installed the build and confirmed the Search Layer loads. Search/index utility remains, but the large dome-like opening geometry was rejected; 3.11.2 replaces only that presentation behavior while keeping the useful search foundation."
+      "notes":"Owner installed the build and confirmed the Search Layer loads. Search/index utility remains, but the original large dome-like opening geometry was rejected and superseded."
     },
     {
       "platform":"chrome-extension","version":"3.11.0","codename":"OCEAN SHELL ALPHA","baseVersion":"3.10.7","artifact":"OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip","size":317919,"sha256":"f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd","fileCount":54,"manifestAtRoot":true,"manifestVersion":"3.11.0","fixedManifestKeyPreserved":true,"runtimeVerified":false,"binaryInGitHub":false,"notes":"Owner installed the first Ocean Shell candidate and confirmed by screenshot that the Ocean workspace and project load successfully and the visual direction is approved. Full subsystem regression is still open."
