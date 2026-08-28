@@ -484,3 +484,44 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 5. Test large icons, tiles, list and details; search; sorting; per-folder sizes and apply-to-all.
 6. Rename and move virtual folders, canvas objects and real files/folders between directories.
 7. Append the real runtime result to this log before the next build.
+
+---
+
+## 2026-08-28 — OSMINOG 3.10.4 RECOVERY PERFORMANCE
+
+### Confirmed runtime failure in 3.10.3
+- After installing 3.10.3, the editor showed a black/loading screen and Chrome became extremely slow.
+- Runtime errors included `Cannot read properties of undefined (reading 'groups')`, `makePreview is not defined`, and a null `textContent` write.
+
+### Root cause
+- 3.10.3 loaded two complete folder runtimes at once: the legacy `osminog-folders-chat-ux.js` plus the new `osminog-windows-folders.js`. Both wrapped core render functions, installed global pointer listeners and watched/mutated the same DOM.
+- The Windows folder runtime had a subtree MutationObserver whose callback rewrote the observed Layers subtree, a hidden-attribute observer that rewrote the observed attribute, and periodic folder polling. This produced a self-sustaining render/mutation loop and severe CPU load.
+- GPT image attachments referenced `makePreview` although the helper did not exist.
+- Core connection/layer rendering assumed a fully initialized project during startup.
+
+### Built changes
+- Product version raised to **3.10.4**, codename **RECOVERY PERFORMANCE**; fixed Chrome key preserved.
+- Removed the legacy folder runtime and the old desktop-folder polling runtime from the loaded page and package.
+- Kept one Windows-style folder engine. Removed its periodic polling and self-triggering MutationObservers. UI work is coalesced into one animation frame and project-folder connection state is event-driven.
+- Added `osminog-chat-ux-lite.js` for grouped chat bubbles and universal Ctrl+V without a second folder engine.
+- Added the missing `makePreview` helper for GPT image/file attachments.
+- Added defensive guards for missing project, groups, connections, stale connection previews and missing DOM nodes.
+- Reduced idle agent-tether refresh work and pause it when the document is hidden.
+- Preserved Windows folders, Media Crew, Team, DeepSeek authenticated transport and Google bridge.
+
+### Verification and artifact
+- Complete ZIP: `OSMINOG-Chrome-3.10.4-RECOVERY-PERFORMANCE-ROOT.zip`.
+- Files: `52`; JavaScript files: `19`; JSON files: `9`.
+- Root `manifest.json`; version `3.10.4`; fixed Chrome key preserved.
+- SHA-256: `c30b62c5df8616589af9275e8c084ecc3c4199a50ade3a5e8df6210441cc4d55`.
+- Size: `298208` bytes.
+- All JavaScript passed `node --check`; all JSON parsed; no duplicate HTML IDs; no missing local references; ZIP integrity passed.
+- Controlled Chromium smoke test: 3.10.3 failed to reach DOMContentLoaded within 30 seconds; 3.10.4 reached it in 0.128 seconds and produced only 2 idle DOM mutations over 1.2 seconds. This is not a substitute for the owner Windows runtime test.
+
+### Exact next action
+1. Replace the files in the actual Desktop extension folder with 3.10.4 and reload the same Chrome card.
+2. Confirm the editor opens without a black screen.
+3. Check Windows Task Manager/Chrome task manager at idle, then open Team and the project folder.
+4. Verify the existing project, folder metadata, connections and chats load.
+5. Test Ctrl+V image attachment.
+6. If a runtime error remains, record its exact first stack trace before adding new features.
