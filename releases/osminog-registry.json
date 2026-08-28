@@ -5,22 +5,22 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.0",
-    "codename": "OCEAN SHELL ALPHA",
-    "artifact": "OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip",
-    "size": 317919,
-    "sha256": "f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd",
-    "runtimeState": "owner-installed; Ocean shell visual load and project opening confirmed by screenshot; full functional regression not completed"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.1",
     "codename": "SEARCH LAYER",
-    "baseVersion": "3.11.0",
     "artifact": "OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip",
     "size": 323960,
     "sha256": "b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a",
-    "fileCount": 54,
+    "runtimeState": "owner-installed; Search Layer and live workspace loaded; useful search behavior retained, but bottom emergence geometry explicitly rejected and superseded by 3.11.2; full subsystem regression remains open"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.2",
+    "codename": "PROVIDER SESSION LAYER",
+    "baseVersion": "3.11.1",
+    "artifact": "OSMINOG-Chrome-3.11.2-PROVIDER-SESSION-LAYER-ROOT.zip",
+    "size": 335371,
+    "sha256": "0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd",
+    "fileCount": 55,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
   },
@@ -28,104 +28,57 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.0",
-      "candidateVersion": "3.11.1",
+      "currentVersion": "3.11.1",
+      "candidateVersion": "3.11.2",
       "distribution": "manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned for rapid development; Chrome Web Store for beta/stable"
     },
-    "windows": {
-      "status": "planned",
-      "branch": "platform/windows",
-      "currentVersion": null,
-      "distribution": "signed native package/updater planned"
-    },
-    "macos": {
-      "status": "planned",
-      "branch": "platform/macos",
-      "currentVersion": null,
-      "distribution": "signed/notarized native package planned"
-    },
-    "web-pwa": {
-      "status": "planned",
-      "branch": "platform/web-pwa",
-      "currentVersion": null,
-      "distribution": "atomic web deployment + service worker versioning planned"
-    },
-    "android": {
-      "status": "planned",
-      "branch": "platform/android",
-      "currentVersion": null,
-      "distribution": "internal/store-native channel planned"
-    },
-    "ios": {
-      "status": "planned",
-      "branch": "platform/ios",
-      "currentVersion": null,
-      "distribution": "TestFlight/App Store planned"
-    }
+    "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"signed native package/updater planned"},
+    "macos": {"status":"planned","branch":"platform/macos","currentVersion":null,"distribution":"signed/notarized native package planned"},
+    "web-pwa": {"status":"planned","branch":"platform/web-pwa","currentVersion":null,"distribution":"atomic web deployment + service worker versioning planned"},
+    "android": {"status":"planned","branch":"platform/android","currentVersion":null,"distribution":"internal/store-native channel planned"},
+    "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"TestFlight/App Store planned"}
   },
   "releases": [
     {
-      "platform": "chrome-extension",
-      "version": "3.11.1",
-      "codename": "SEARCH LAYER",
-      "baseVersion": "3.11.0",
-      "artifact": "OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip",
-      "size": 323960,
-      "sha256": "b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a",
-      "fileCount": 54,
-      "manifestAtRoot": true,
-      "manifestVersion": "3.11.1",
-      "fixedManifestKeyPreserved": true,
-      "runtimeVerified": false,
-      "binaryInGitHub": false,
-      "notes": "Curved bottom Search Layer inspired by the owner's 2011 Yokkey/OSMINOG interaction concept. Adds live indexing of canvas objects, local and virtual folders, providers, agents, Markdown and internal Browser Hub tabs; web actions are internal-first. Static checks pass; owner runtime pending."
+      "platform":"chrome-extension",
+      "version":"3.11.2",
+      "codename":"PROVIDER SESSION LAYER",
+      "baseVersion":"3.11.1",
+      "artifact":"OSMINOG-Chrome-3.11.2-PROVIDER-SESSION-LAYER-ROOT.zip",
+      "size":335371,
+      "sha256":"0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd",
+      "fileCount":55,
+      "manifestAtRoot":true,
+      "manifestVersion":"3.11.2",
+      "fixedManifestKeyPreserved":true,
+      "runtimeVerified":false,
+      "binaryInGitHub":false,
+      "notes":"Replaces owner-rejected 3.11.1 search emergence with a persistent bottom strip and slot-expansion geometry. Introduces shared Provider/Session Manager, unified On/Off status, immediate Connect UX, icon brain picker/full Provider Registry in settings, Google AI as agent brain, fail-closed Google image attachment confirmation and visible Poseidon rename. DeepSeek proven transport preserved. Static checks pass; owner runtime pending."
     },
     {
-      "platform": "chrome-extension",
-      "version": "3.11.0",
-      "codename": "OCEAN SHELL ALPHA",
-      "baseVersion": "3.10.7",
-      "artifact": "OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip",
-      "size": 317919,
-      "sha256": "f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd",
-      "fileCount": 54,
-      "manifestAtRoot": true,
-      "manifestVersion": "3.11.0",
-      "fixedManifestKeyPreserved": true,
-      "runtimeVerified": false,
-      "binaryInGitHub": false,
-      "notes": "Owner installed the first Ocean Shell candidate and confirmed by screenshot that the Ocean workspace and project load successfully and the visual direction is approved. Full subsystem regression is still open."
+      "platform":"chrome-extension",
+      "version":"3.11.1",
+      "codename":"SEARCH LAYER",
+      "baseVersion":"3.11.0",
+      "artifact":"OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip",
+      "size":323960,
+      "sha256":"b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a",
+      "fileCount":54,
+      "manifestAtRoot":true,
+      "manifestVersion":"3.11.1",
+      "fixedManifestKeyPreserved":true,
+      "runtimeVerified":false,
+      "binaryInGitHub":false,
+      "notes":"Owner installed the build and confirmed the Search Layer loads. Search/index utility remains, but the large dome-like opening geometry was rejected; 3.11.2 replaces only that presentation behavior while keeping the useful search foundation."
     },
     {
-      "platform": "chrome-extension",
-      "version": "3.10.7",
-      "codename": "UPDATE BRIDGE",
-      "baseVersion": "3.10.6",
-      "artifact": "OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip",
-      "size": 313664,
-      "sha256": "fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300",
-      "fileCount": 52,
-      "manifestAtRoot": true,
-      "manifestVersion": "3.10.7",
-      "fixedManifestKeyPreserved": true,
-      "runtimeVerified": false,
-      "notes": "Owner manually installed this build and Chrome confirmed version 3.10.7. Full functional regression was not completed before Ocean Shell work began."
+      "platform":"chrome-extension","version":"3.11.0","codename":"OCEAN SHELL ALPHA","baseVersion":"3.10.7","artifact":"OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip","size":317919,"sha256":"f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd","fileCount":54,"manifestAtRoot":true,"manifestVersion":"3.11.0","fixedManifestKeyPreserved":true,"runtimeVerified":false,"binaryInGitHub":false,"notes":"Owner installed the first Ocean Shell candidate and confirmed by screenshot that the Ocean workspace and project load successfully and the visual direction is approved. Full subsystem regression is still open."
     },
     {
-      "platform": "chrome-extension",
-      "version": "3.10.6",
-      "codename": "CANVAS CONTROL",
-      "baseVersion": "3.10.5",
-      "artifact": "osminog-chrome-extension-3.10.6.zip",
-      "sourceArtifactName": "OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip",
-      "size": 308710,
-      "sha256": "c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c",
-      "fileCount": 52,
-      "manifestAtRoot": true,
-      "manifestVersion": "3.10.6",
-      "fixedManifestKeyPreserved": true,
-      "runtimeVerified": false,
-      "notes": "Exact owner-supplied installed baseline verified locally before GitHub archival metadata was created."
+      "platform":"chrome-extension","version":"3.10.7","codename":"UPDATE BRIDGE","baseVersion":"3.10.6","artifact":"OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip","size":313664,"sha256":"fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300","fileCount":52,"manifestAtRoot":true,"manifestVersion":"3.10.7","fixedManifestKeyPreserved":true,"runtimeVerified":false,"notes":"Owner manually installed this build and Chrome confirmed version 3.10.7. Full functional regression was not completed before Ocean Shell work began."
+    },
+    {
+      "platform":"chrome-extension","version":"3.10.6","codename":"CANVAS CONTROL","baseVersion":"3.10.5","artifact":"osminog-chrome-extension-3.10.6.zip","sourceArtifactName":"OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip","size":308710,"sha256":"c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c","fileCount":52,"manifestAtRoot":true,"manifestVersion":"3.10.6","fixedManifestKeyPreserved":true,"runtimeVerified":false,"notes":"Exact owner-supplied installed baseline verified locally before GitHub archival metadata was created."
     }
   ]
 }
