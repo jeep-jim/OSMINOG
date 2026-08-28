@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.10.6 CANVAS CONTROL**  
-**Следующая тестовая сборка:** **3.10.7 UPDATE BRIDGE — Dev Hub bootstrap pending owner runtime**  
+**Текущая установленная сборка:** **3.10.7 UPDATE BRIDGE — вручную установлена владельцем как новый baseline**  
+**Следующий продуктовый этап:** **3.11.0 OCEAN SHELL ALPHA**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -152,7 +152,24 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
 
 ---
 
-# 6. ТЕКУЩИЙ UX/STABILITY PASS — НЕ ДОБАВЛЯЕМ НОВЫЕ БОЛЬШИЕ ФИЧИ
+# 6. НОВОЕ НАПРАВЛЕНИЕ — OCEAN SHELL
+
+Владелец утвердил полный interface-shell rewrite вокруг глубинной океанской метафоры, при сохранении существующего engine/data model. Каноническая спецификация: `docs/OSMINOG_OCEAN_SHELL.md`. Источник дизайна: Figma `h1aG9cEdviAPA45gygUsB9`, Page 1 / node `0:1`.
+
+Главный принцип: OSMINOG — не canvas с набором постоянно открытых AI-окон, а единая пространственная AI-операционная среда. Холст остаётся памятью/графом проекта; тяжёлые модули переходят в sheets/drawers/focus surfaces, а idle workspace должен оставаться спокойным и незахламлённым.
+
+План релизов оболочки:
+- [ ] 3.11.0 OCEAN SHELL ALPHA — shell tokens, ocean background/plankton, top/bottom shell anchors, octopus-eye search trigger, новая surface hierarchy.
+- [ ] 3.11.1 SEARCH LAYER — универсальный поиск/command palette по проекту, объектам, файлам, AI, web, code/media/history.
+- [ ] 3.11.2 PROVIDER / SESSION LAYER — единый Provider Registry, `On`, Session Manager, settings/connect, Google persistent session + multimodal/dedupe.
+- [ ] 3.11.3 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
+- [ ] 3.11.4 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
+
+Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
+
+Текущие 8 UX-пунктов владельца НЕ отменяются — они становятся обязательными требованиями миграции в Ocean Shell.
+
+# 7. ТЕКУЩИЙ UX/STABILITY PASS — 8 ОБЯЗАТЕЛЬНЫХ ПУНКТОВ
 
 Ниже — текущие обязательные пункты владельца. Это ближайший рабочий roadmap.
 
