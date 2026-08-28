@@ -5,31 +5,31 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.10.7",
-    "codename": "UPDATE BRIDGE",
-    "artifact": "OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip",
-    "size": 313664,
-    "sha256": "fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300",
-    "runtimeState": "owner-manually-installed; Chrome version/extension card confirmed; full regression checklist not completed"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.0",
     "codename": "OCEAN SHELL ALPHA",
-    "baseVersion": "3.10.7",
     "artifact": "OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip",
     "size": 317919,
     "sha256": "f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd",
+    "runtimeState": "owner-installed; Ocean shell visual load and project opening confirmed by screenshot; full functional regression not completed"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.1",
+    "codename": "SEARCH LAYER",
+    "baseVersion": "3.11.0",
+    "artifact": "OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip",
+    "size": 323960,
+    "sha256": "b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a",
     "fileCount": 54,
-    "runtimeState": "built-and-statically-verified; owner runtime regression pending",
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
   },
   "platforms": {
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.10.7",
-      "candidateVersion": "3.11.0",
+      "currentVersion": "3.11.0",
+      "candidateVersion": "3.11.1",
       "distribution": "manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned for rapid development; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -66,6 +66,22 @@
   "releases": [
     {
       "platform": "chrome-extension",
+      "version": "3.11.1",
+      "codename": "SEARCH LAYER",
+      "baseVersion": "3.11.0",
+      "artifact": "OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip",
+      "size": 323960,
+      "sha256": "b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a",
+      "fileCount": 54,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.1",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false,
+      "notes": "Curved bottom Search Layer inspired by the owner's 2011 Yokkey/OSMINOG interaction concept. Adds live indexing of canvas objects, local and virtual folders, providers, agents, Markdown and internal Browser Hub tabs; web actions are internal-first. Static checks pass; owner runtime pending."
+    },
+    {
+      "platform": "chrome-extension",
       "version": "3.11.0",
       "codename": "OCEAN SHELL ALPHA",
       "baseVersion": "3.10.7",
@@ -78,7 +94,7 @@
       "fixedManifestKeyPreserved": true,
       "runtimeVerified": false,
       "binaryInGitHub": false,
-      "notes": "First Ocean Shell candidate. Existing engine/code paths and stable IDs are intentionally preserved; new isolated shell CSS/JS and octopus-eye search scaffold added. Static checks pass; owner runtime regression is required."
+      "notes": "Owner installed the first Ocean Shell candidate and confirmed by screenshot that the Ocean workspace and project load successfully and the visual direction is approved. Full subsystem regression is still open."
     },
     {
       "platform": "chrome-extension",
