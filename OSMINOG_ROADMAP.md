@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.3 BUBBLE EYE / ENVIRONMENT — owner установил; сборка загружается, но нижний eye/dock/search визуально забракован из-за артефактов и неверной геометрии**  
-**Текущий кандидат:** **3.11.4 LIVING EYE DOCK — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.4 LIVING EYE DOCK — owner установил; один глаз загружается, но постоянная нижняя полоса и всегда видимый toolbar на пустом холсте забракованы**  
+**Текущий кандидат:** **3.11.5 EYE REVEAL — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -191,16 +191,22 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Ошибка: глаз был собран как несколько независимых halo/pedestal слоёв; появились артефакты, отдельный полукруг-пьедестал и дублирующая eye-графика внутри Search.
   - Owner обновил Figma desktop reference: один длинный нижний rail; спящий почти прозрачный глаз с пузырями; hover пробуждает глаз и зрачок следит за мышью; click делает глаз красным; Search поднимается из того же rail.
   - ZIP: 55 files · 337047 bytes · SHA-256 `797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050`.
-- [x] 3.11.4 LIVING EYE DOCK — candidate собран как focused desktop correction.
-  - Один нижний rounded seabed rail вместо full-width линии/отдельного pedestal.
-  - Один живой octopus eye: sleep opacity low + собственный bubble stream; hover wake; horizontal slit следует за pointer; active/search-open красный.
-  - Search surface collapses into the center of the same rail and expands upward; удалён duplicate eye из search composer.
-  - Убраны лишние пересечения halo/blur/glow, вызвавшие артефакты 3.11.3.
-  - По сравнению с точным 3.11.3 tree изменены только `manifest.json`, `OSMINOG_BUILD.json`, `osminog-ocean-shell.css`, `osminog-ocean-shell.js`.
-  - Candidate ZIP: 55 files · 342950 bytes · SHA-256 `74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2`.
+- [x] 3.11.4 LIVING EYE DOCK — owner runtime загрузки подтверждён, но interaction снова уточнён по свежему Figma desktop reference.
+  - Один глаз загружается корректно, но постоянный нижний rail в idle не нужен.
+  - Owner требует: idle = только один почти прозрачный глаз; pupil следит за мышью всегда; hover = глаз краснеет/просыпается и из него горизонтально растёт translucent bubble; click = из этого же bubble вверх раскрывается Search.
+  - Bottom canvas toolbar также не должен висеть на пустом холсте — показывать его только при selection/edit context.
+  - ZIP: 55 files · 342950 bytes · SHA-256 `74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2`.
+- [x] 3.11.5 EYE REVEAL — candidate собран под точную sequence `idle eye → hover bubble → click lift`.
+  - Empty canvas: `#toolRail` скрыт без selected object/connection/edit context.
+  - Idle: постоянный bottom rail исчезает; остаётся один octopus eye.
+  - Eye pupil отслеживает desktop pointer даже во сне с меньшей амплитудой.
+  - Hover: eye wakes/red-tints; прежний dock element используется только как горизонтальный bubble, который раздувается из центра глаза.
+  - Click/open: eye active red; Search становится composite silhouette из tall rounded body + wide rounded base, поднимающейся из того же hover bubble.
+  - Search index, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence, Ocean FX и stable IDs не переписывались.
+  - Candidate ZIP: 55 files · 344669 bytes · SHA-256 `1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.5 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
-- [ ] 3.11.6 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
+- [ ] 3.11.6 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
+- [ ] 3.11.7 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
