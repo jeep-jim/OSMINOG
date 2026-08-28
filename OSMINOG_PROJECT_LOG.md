@@ -362,3 +362,44 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 4. Confirm DeepSeek regression-free.
 5. Test Google: one prompt, one returned answer, no duplicate. If it fails, repair only the Google DOM bridge.
 6. Build OSMINOG Dev Hub before another automatic-update attempt.
+
+---
+
+## 2026-08-28 — OSMINOG 3.10.1 DESKTOP STABILITY
+
+### Confirmed problem from 3.10.0
+- Opening **Команда** made all canvas files and objects disappear until the extension tab was reloaded. The cause was a Team-mode CSS rule that set `#world`, `#marquee` and `#emptyHint` to `visibility:hidden`.
+- Agent progress was rendered as a body-fixed floating element near the upper-left/agent anchor instead of the purple activity strip in the chat.
+- The default Main agent pill and work mascot could appear near a viewport corner.
+- The approved local project folder existed on the computer but did not have a Windows-style yellow draggable representation on the OSMINOG desktop.
+
+### Built changes
+- Team mode no longer hides or disables the canvas. The Team workspace is a transparent pointer-pass-through overlay; only the movable Team window intercepts input.
+- Thinking progress is rendered inside `#gptPresenceActivity`, with provider colour, elapsed time, estimated remaining time and an inline fill bar. Old floating `.ai-task-progress` elements are disabled and removed.
+- Main agent defaults to the center of the current canvas viewport. Additional agents are arranged around it. User-dragged positions remain authoritative.
+- Idle/tool mascot and parallel work ghost also default to the viewport center when no object target exists.
+- After the owner connects the ordinary local project folder, a yellow draggable **OSMINOG** folder icon appears directly on the OSMINOG desktop. Its position persists per project.
+- Double-clicking the icon opens a movable/resizable project-folder explorer backed by the real approved folder. It supports directory navigation, refresh/sync, image/audio/video/text preview and placing supported files onto the canvas.
+- Folder ready/sync events keep the visual icon and file window synchronized after connection and project saves.
+- Existing MEDIA CREW, Team attachments/tray, Google bridge V4 and DeepSeek authenticated web-session transport were preserved.
+
+### Static verification
+- Complete ZIP: `OSMINOG-Chrome-3.10.1-DESKTOP-STABILITY-ROOT.zip`.
+- Files: `51`; root `manifest.json`; version `3.10.1`; fixed Chrome key preserved.
+- All `18` JavaScript files pass `node --check`; all `9` JSON files parse; no duplicate HTML IDs; no missing local references; CSS parser reports no errors; ZIP integrity passes.
+- SHA-256: `1f02ab9b770a4f18c9a14d0cdb7ed83250e82252a6f7eb3bf125bb77db735251`.
+- Size: `278536` bytes.
+
+### Honest runtime status
+- The build is statically verified but the owner must confirm the Team visibility fix, inline progress position, centered agents/mascot and real folder interaction in Chrome/Windows.
+- Chrome still requires one explicit owner action to grant Desktop folder access.
+- Automatic dev updates remain disabled until OSMINOG Dev Hub.
+
+### Exact next action
+1. Replace the contents of the actual Desktop extension folder with 3.10.1 and reload the same Chrome extension card.
+2. Open Team and confirm every canvas object remains visible without reload.
+3. Send an agent task and confirm progress appears only in the purple chat strip.
+4. Confirm Main and the mascot start in the viewport center, then drag Main and verify the manual position persists.
+5. Connect the local folder, confirm the yellow folder icon appears, drag it, open it and place one image/text file onto the canvas.
+6. Regression-test DeepSeek and Google AI.
+7. Continue appending this file after every build; in a new chat read this log before changing code.
