@@ -1,0 +1,12 @@
+{
+  "replacements": [
+    {
+      "from": "- [ ] Создать этот MASTER ROADMAP в GitHub.",
+      "to": "- [x] Создать этот MASTER ROADMAP в GitHub."
+    },
+    {
+      "from": "- [ ] Создать six-platform release registry.",
+      "to": "- [x] Создать six-platform release registry."
+    }
+  ]
+}
