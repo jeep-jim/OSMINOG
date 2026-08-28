@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.10.7 UPDATE BRIDGE — вручную установлена владельцем как новый baseline**  
-**Текущий кандидат:** **3.11.0 OCEAN SHELL ALPHA — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.0 OCEAN SHELL ALPHA — owner подтвердил загрузку Ocean workspace и проекта; полный regression ещё открыт**  
+**Текущий кандидат:** **3.11.1 SEARCH LAYER — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -24,11 +24,11 @@
 
 ---
 
-## 2. Текущий установленный baseline — 3.10.7 UPDATE BRIDGE
+## 2. Текущий установленный baseline — 3.11.0 OCEAN SHELL ALPHA
 
-- Владелец вручную установил 3.10.7 в существующую Chrome extension card; Chrome подтвердил версию 3.10.7.
-- Эта установка является текущей рабочей точкой для миграции Ocean Shell.
-- Полный regression checklist 3.10.7 не завершался; поэтому запись о runtime не должна трактоваться как подтверждение каждой подсистемы.
+- Владелец установил 3.11.0 и прислал runtime-скриншот: Ocean workspace загрузился, текущий проект открылся, shell/глаз отображаются; визуальное направление одобрено.
+- Это подтверждает реальную загрузку Ocean Shell, но НЕ считается полным regression всех подсистем. Team/Google/Browser/Media/Code/folders/connections/Presence продолжают проверяться по мере миграции.
+- Предыдущая 3.10.7 остаётся непосредственной engine-базой Ocean Shell, а 3.10.6 — проверенной восстановительной точкой.
 
 ### Проверенный восстановительный baseline — 3.10.6 CANVAS CONTROL
 
@@ -165,10 +165,16 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
 Главный принцип: OSMINOG — не canvas с набором постоянно открытых AI-окон, а единая пространственная AI-операционная среда. Холст остаётся памятью/графом проекта; тяжёлые модули переходят в sheets/drawers/focus surfaces, а idle workspace должен оставаться спокойным и незахламлённым.
 
 План релизов оболочки:
-- [x] 3.11.0 OCEAN SHELL ALPHA — candidate собран: Ocean theme/tokens, Figma-derived background/depth/plankton, octopus-eye search/command scaffold и compatibility surface layer поверх 3.10.7. Static checks PASS; owner runtime regression pending.
-  - Candidate ZIP: 54 files · 317919 bytes · SHA-256 `f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd`.
+- [x] 3.11.0 OCEAN SHELL ALPHA — owner runtime загрузки подтверждён: Ocean workspace и существующий проект открылись; визуальное направление принято. Полный subsystem regression остаётся открытым.
+  - ZIP: 54 files · 317919 bytes · SHA-256 `f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd`.
   - P1–P8 остаются обязательными требованиями следующих 3.11.x миграций, а не отменяются редизайном.
-- [ ] 3.11.1 SEARCH LAYER — универсальный поиск/command palette по проекту, объектам, файлам, AI, web, code/media/history.
+- [x] 3.11.1 SEARCH LAYER — candidate собран. Нижняя curved Ocean surface вдохновлена interaction-логикой Yokkey/OSMINOG 2011: поверхность всплывает снизу, а строка поиска находится в нижнем retrieval bar.
+  - Реальный live index: canvas objects, local project-folder entries, virtual folders, Provider Registry, AI agents, Markdown docs, Browser Hub tabs.
+  - Web opening/search теперь internal-first через Browser Hub; внешний Chrome только fallback.
+  - Query actions: подготовить Team task или Google AI prompt без автоматической отправки.
+  - Keyboard/gesture UX: Ctrl/Cmd+K, `/`, стрелки, Enter, Esc, pull-up eye и pull-down crest.
+  - Candidate ZIP: 54 files · 323960 bytes · SHA-256 `b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a`.
+  - Static checks: 20 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
 - [ ] 3.11.2 PROVIDER / SESSION LAYER — единый Provider Registry, `On`, Session Manager, settings/connect, Google persistent session + multimodal/dedupe.
 - [ ] 3.11.3 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
 - [ ] 3.11.4 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
