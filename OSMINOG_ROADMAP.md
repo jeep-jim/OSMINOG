@@ -5,6 +5,7 @@
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
 **Текущая установленная сборка:** **3.10.6 CANVAS CONTROL**  
+**Следующая тестовая сборка:** **3.10.7 UPDATE BRIDGE — Dev Hub bootstrap pending owner runtime**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -424,6 +425,11 @@ Dev Hub должен владеть одной детерминированно�
 - [ ] Опубликовать точный 3.10.6 ZIP в rolling GitHub prerelease.
 
 ### Этап B — Unified Provider/Session foundation
+- [x] Собран OSMINOG Dev Hub 1.1: CI run `33175649379` success.
+- [x] Подготовлен exact guarded fileset `3.10.6 → 3.10.7`; локально воспроизводит byte-identical 52-file tree.
+- [x] Public dev feed `osminog/channels/dev/chrome-extension.json` указывает на 3.10.7.
+- [ ] Runtime: установить Dev Hub 1.1 на Windows, автоматически bootstrap 3.10.6 → 3.10.7 и один раз нажать Reload в Chrome.
+- [ ] После подтверждения 3.10.7 опубликовать 3.10.8 UPDATE PROOF и проверить уже именно кнопку OSMINOG без ручной замены файлов.
 - [ ] P3 unified `● On` state.
 - [ ] P4 Connect/settings redesign.
 - [ ] P5 single internal Session Manager.
