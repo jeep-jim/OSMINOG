@@ -5,7 +5,7 @@
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
 **Текущая установленная сборка:** **3.10.7 UPDATE BRIDGE — вручную установлена владельцем как новый baseline**  
-**Следующий продуктовый этап:** **3.11.0 OCEAN SHELL ALPHA**  
+**Текущий кандидат:** **3.11.0 OCEAN SHELL ALPHA — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -24,7 +24,13 @@
 
 ---
 
-## 2. Текущий канонический baseline — 3.10.6 CANVAS CONTROL
+## 2. Текущий установленный baseline — 3.10.7 UPDATE BRIDGE
+
+- Владелец вручную установил 3.10.7 в существующую Chrome extension card; Chrome подтвердил версию 3.10.7.
+- Эта установка является текущей рабочей точкой для миграции Ocean Shell.
+- Полный regression checklist 3.10.7 не завершался; поэтому запись о runtime не должна трактоваться как подтверждение каждой подсистемы.
+
+### Проверенный восстановительный baseline — 3.10.6 CANVAS CONTROL
 
 Полученный от владельца архив проверен побайтно как точная текущая сборка:
 
@@ -159,7 +165,9 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
 Главный принцип: OSMINOG — не canvas с набором постоянно открытых AI-окон, а единая пространственная AI-операционная среда. Холст остаётся памятью/графом проекта; тяжёлые модули переходят в sheets/drawers/focus surfaces, а idle workspace должен оставаться спокойным и незахламлённым.
 
 План релизов оболочки:
-- [ ] 3.11.0 OCEAN SHELL ALPHA — shell tokens, ocean background/plankton, top/bottom shell anchors, octopus-eye search trigger, новая surface hierarchy.
+- [x] 3.11.0 OCEAN SHELL ALPHA — candidate собран: Ocean theme/tokens, Figma-derived background/depth/plankton, octopus-eye search/command scaffold и compatibility surface layer поверх 3.10.7. Static checks PASS; owner runtime regression pending.
+  - Candidate ZIP: 54 files · 317919 bytes · SHA-256 `f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd`.
+  - P1–P8 остаются обязательными требованиями следующих 3.11.x миграций, а не отменяются редизайном.
 - [ ] 3.11.1 SEARCH LAYER — универсальный поиск/command palette по проекту, объектам, файлам, AI, web, code/media/history.
 - [ ] 3.11.2 PROVIDER / SESSION LAYER — единый Provider Registry, `On`, Session Manager, settings/connect, Google persistent session + multimodal/dedupe.
 - [ ] 3.11.3 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
