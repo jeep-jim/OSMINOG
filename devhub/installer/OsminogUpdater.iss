@@ -47,13 +47,16 @@ end;
 
 function LooksLikeOsminogFolder(Path: String): Boolean;
 var
-  ManifestPath, ManifestText: String;
+  ManifestPath: String;
+  ManifestText: AnsiString;
+  ManifestUnicode: String;
 begin
   Result := False;
   ManifestPath := AddBackslash(Path) + 'manifest.json';
   if not FileExists(ManifestPath) then exit;
   if not LoadStringFromFile(ManifestPath, ManifestText) then exit;
-  Result := (Pos(ManifestKey, ManifestText) > 0) and (Pos('"OSMINOG"', ManifestText) > 0);
+  ManifestUnicode := ManifestText;
+  Result := (Pos(ManifestKey, ManifestUnicode) > 0) and (Pos('"OSMINOG"', ManifestUnicode) > 0);
 end;
 
 function FindOsminogOnDesktop(): String;
@@ -134,12 +137,10 @@ begin
       '}' + #13#10;
     SaveStringToFile(HostManifestPath, HostJson, False);
 
-    { 1. Normal path: let Dev Hub resolve Chrome's currently loaded unpacked extension. }
     BootstrapPath := '';
     WriteConfig('');
     if RunBootstrapUpdate(HostExe) then exit;
 
-    { 2. Reliable owner-development fallback: scan direct folders on Windows Desktop. }
     BootstrapPath := FindOsminogOnDesktop();
     if BootstrapPath <> '' then
     begin
@@ -147,7 +148,6 @@ begin
       if RunBootstrapUpdate(HostExe) then exit;
     end;
 
-    { 3. One-time bootstrap only. Persist the selected path; routine updates never ask again. }
     SelectedDir := ExpandConstant('{userdesktop}');
     if BrowseForFolder('Один раз укажите папку расширения OSMINOG, которую Chrome сейчас загружает. Следующие обновления будут работать без выбора папки.', SelectedDir, False) then
     begin
