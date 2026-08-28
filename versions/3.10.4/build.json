@@ -1,0 +1,43 @@
+{
+  "product": "OSMINOG",
+  "version": "3.10.4",
+  "codename": "RECOVERY PERFORMANCE",
+  "baseVersion": "3.10.3",
+  "artifact": "OSMINOG-Chrome-3.10.4-RECOVERY-PERFORMANCE-ROOT.zip",
+  "sha256": "c30b62c5df8616589af9275e8c084ecc3c4199a50ade3a5e8df6210441cc4d55",
+  "size": 298208,
+  "fileCount": 52,
+  "javascriptFileCount": 19,
+  "jsonFileCount": 9,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.10.4",
+  "fixedManifestKeyPreserved": true,
+  "rootCause": [
+    "3.10.3 loaded the legacy folder runtime and the new Windows folder runtime simultaneously.",
+    "The Windows folder runtime observed and mutated the same Layers subtree, rewrote an observed hidden attribute and polled folder status periodically, creating a self-sustaining render/mutation loop.",
+    "GPT attachments called makePreview although the helper was missing.",
+    "Core connection and layer rendering assumed a fully initialized project during startup."
+  ],
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "htmlDuplicateIds": 0,
+    "missingLocalReferences": 0,
+    "zipIntegrity": true,
+    "singleFolderRuntime": true,
+    "folderPollingRemoved": true,
+    "folderMutationObserversRemoved": true,
+    "makePreviewDefined": true,
+    "safeStartupGuards": true
+  },
+  "performanceSmoke": {
+    "environment": "Headless Chromium with mocked extension APIs and inlined local assets",
+    "version3103": "DOMContentLoaded did not complete within 30 seconds",
+    "version3104DomContentLoadedSeconds": 0.128,
+    "version3104IdleDomMutationsPer1_2Seconds": 2
+  },
+  "runtimeVerified": false,
+  "distribution": "Manual development ZIP. Install into the actual Desktop folder currently loaded by Chrome and reload the same extension card.",
+  "binaryInGitHub": false,
+  "binaryNote": "Do not claim the full ZIP is stored remotely until its remote byte size and SHA-256 match."
+}
