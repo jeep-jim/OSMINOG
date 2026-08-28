@@ -4,8 +4,8 @@
   "codename": "UPDATE BRIDGE",
   "baseVersion": "3.10.6",
   "artifact": "OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip",
-  "sha256": "67f249ae34d4167b9ec8cce52b1c2bd9b9bf35e8a7e163dfd31cccd71d0ad85a",
-  "size": 313665,
+  "sha256": "fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300",
+  "size": 313664,
   "fileCount": 52,
   "manifestAtRoot": true,
   "manifestVersion": "3.10.7",
@@ -15,15 +15,22 @@
     "nativeHostCompatibilityName": "com.briefcraft.updater",
     "autoDetectLoadedExtension": true,
     "feed": "https://raw.githubusercontent.com/jeep-jim/chernogram_new/briefcraft-releases/osminog/channels/dev/chrome-extension.json",
-    "bootstrapTarget": "3.10.7"
+    "bootstrapTarget": "3.10.7",
+    "ciRun": 33175649379,
+    "installerArtifactId": 9687487683,
+    "installerArtifactName": "OSMINOG-Dev-Hub-Setup",
+    "installerExeSha256": "84b56099bd7222d4d786fbe0af7eac00ac271cb6eb2912c48d219e5794dfec8e",
+    "installerExeSize": 24031246
   },
   "staticChecks": {
     "javascriptSyntax": true,
     "jsonParse": true,
     "zipIntegrity": true,
-    "fixedManifestKeyPreserved": true
+    "fixedManifestKeyPreserved": true,
+    "filesetReproducesExactTree": true,
+    "devHubCiBuild": true
   },
   "runtimeVerified": false,
-  "distribution": "First Dev Hub bootstrap: install OSMINOG Dev Hub once; it attempts to auto-detect the currently loaded 3.10.6 folder and apply the 3.10.7 fileset. Then reload the Chrome extension once. Subsequent dev updates are designed to run from the in-product update button.",
+  "distribution": "First Dev Hub bootstrap: leave the currently loaded OSMINOG 3.10.6 enabled, install OSMINOG Dev Hub 1.1 once, let it auto-detect the loaded extension folder and apply the verified 3.10.7 fileset, then press Reload once on the existing Chrome extension card. From 3.10.7 onward, development updates are designed to run from the in-product update button.",
   "binaryInGitHub": false
 }
