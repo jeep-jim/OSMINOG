@@ -1,0 +1,31 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.5",
+  "codename": "EYE REVEAL",
+  "baseVersion": "3.11.4",
+  "artifact": "OSMINOG-Chrome-3.11.5-EYE-REVEAL-ROOT.zip",
+  "size": 344669,
+  "sha256": "1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.5",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": [
+    "manifest.json",
+    "OSMINOG_BUILD.json",
+    "osminog-ocean-shell.css",
+    "osminog-ocean-shell.js"
+  ],
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 9,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true
+  },
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false
+}
