@@ -428,7 +428,10 @@ Dev Hub должен владеть одной детерминированно�
 - [x] Собран OSMINOG Dev Hub 1.1: CI run `33175649379` success.
 - [x] Подготовлен exact guarded fileset `3.10.6 → 3.10.7`; локально воспроизводит byte-identical 52-file tree.
 - [x] Public dev feed `osminog/channels/dev/chrome-extension.json` указывает на 3.10.7.
-- [ ] Runtime: установить Dev Hub 1.1 на Windows, автоматически bootstrap 3.10.6 → 3.10.7 и один раз нажать Reload в Chrome.
+- [x] Runtime 1.1.0: установщик Dev Hub установился, но bootstrap не нашёл текущую unpacked-папку OSMINOG на рабочем столе; рабочая папка не изменена.
+- [x] Исправлен bootstrap 1.1.1: после Chrome Preferences автоматически сканирует прямые папки Windows Desktop; если не найдено — разрешён одноразовый выбор текущей папки OSMINOG с проверкой manifest/key и сохранением пути. Routine updates папку больше не спрашивают.
+- [x] Dev Hub 1.1.1 installer CI run `33177530597` завершён `success`.
+- [ ] Runtime 1.1.1: bootstrap 3.10.6 → 3.10.7 в реальной Desktop-папке, затем один Reload в Chrome.
 - [ ] После подтверждения 3.10.7 опубликовать 3.10.8 UPDATE PROOF и проверить уже именно кнопку OSMINOG без ручной замены файлов.
 - [ ] P3 unified `● On` state.
 - [ ] P4 Connect/settings redesign.
