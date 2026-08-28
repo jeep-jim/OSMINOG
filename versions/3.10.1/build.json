@@ -1,0 +1,43 @@
+{
+  "product": "OSMINOG",
+  "version": "3.10.1",
+  "codename": "DESKTOP STABILITY",
+  "baseVersion": "3.10.0",
+  "artifact": "OSMINOG-Chrome-3.10.1-DESKTOP-STABILITY-ROOT.zip",
+  "sha256": "1f02ab9b770a4f18c9a14d0cdb7ed83250e82252a6f7eb3bf125bb77db735251",
+  "size": 278536,
+  "fileCount": 51,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.10.1",
+  "fixedManifestKeyPreserved": true,
+  "changedFiles": [
+    "manifest.json",
+    "OSMINOG_BUILD.json",
+    "editor.css",
+    "editor.html",
+    "editor.js",
+    "gpt-presence.js",
+    "osminog-window-manager.js",
+    "osminog-desktop-folder.js"
+  ],
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "htmlDuplicateIds": 0,
+    "missingLocalReferences": 0,
+    "cssParseErrors": 0,
+    "zipIntegrity": true,
+    "teamCanvasVisibleOverride": true,
+    "inlineActivityProgress": true,
+    "mainAgentCentered": true,
+    "mascotCentered": true,
+    "desktopFolderExplorer": true,
+    "deepSeekTransportPreserved": true,
+    "googleBackgroundPreserved": true,
+    "teamFeatureCodePreserved": true
+  },
+  "runtimeVerified": false,
+  "distribution": "Manual development ZIP. Install into the actual Desktop folder currently loaded by Chrome and reload the same extension card.",
+  "binaryInGitHub": false,
+  "binaryNote": "Do not claim the full ZIP is stored remotely until the remote byte size and SHA-256 match."
+}
