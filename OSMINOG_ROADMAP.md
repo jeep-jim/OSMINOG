@@ -409,7 +409,7 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - Android/iOS → store-native channels.
 - Web/PWA → atomic deployment + service-worker versioning.
 
-Dev Hub должен владеть одной детерминированной app directory, проверять hash/signature, хранить rollback и никогда не требовать у пользователя вручную выбирать application-source folder при каждом update.
+**Окончательное решение после провалов bootstrap 1.1.0/1.1.1:** Dev Hub не должен искать и обновлять произвольную `Load unpacked` папку на Desktop. Он владеет фиксированной dev-папкой `%LOCALAPPDATA%\OSMINOG\Chrome\current`. Один раз пользователь загружает именно её через Chrome `Load unpacked`; после этого все dev-обновления идут по цепочке `OSMINOG button → Dev Hub → GitHub package → SHA/size verify → staging → backup → managed current → chrome.runtime.reload()`. Для production delivery используется Chrome Web Store automatic update, а Dev Hub конечным пользователям не нужен. Подробный контракт: `docs/OSMINOG_UPDATE_ARCHITECTURE.md`.
 
 ---
 
@@ -431,8 +431,11 @@ Dev Hub должен владеть одной детерминированно�
 - [x] Runtime 1.1.0: установщик Dev Hub установился, но bootstrap не нашёл текущую unpacked-папку OSMINOG на рабочем столе; рабочая папка не изменена.
 - [x] Исправлен bootstrap 1.1.1: после Chrome Preferences автоматически сканирует прямые папки Windows Desktop; если не найдено — разрешён одноразовый выбор текущей папки OSMINOG с проверкой manifest/key и сохранением пути. Routine updates папку больше не спрашивают.
 - [x] Dev Hub 1.1.1 installer CI run `33177530597` завершён `success`.
-- [ ] Runtime 1.1.1: bootstrap 3.10.6 → 3.10.7 в реальной Desktop-папке, затем один Reload в Chrome.
-- [ ] После подтверждения 3.10.7 опубликовать 3.10.8 UPDATE PROOF и проверить уже именно кнопку OSMINOG без ручной замены файлов.
+- [x] Runtime 1.1.1: даже после одноразового выбора Desktop-папки bootstrap 3.10.6 → 3.10.7 не завершился; Desktop-path discovery/mutation признан неправильной архитектурой и закрыт.
+- [ ] Managed Dev Channel v2: Dev Hub создаёт и владеет `%LOCALAPPDATA%\OSMINOG\Chrome\current`, скачивает туда канонический baseline и больше никогда не ищет arbitrary Desktop source.
+- [ ] Один раз загрузить managed `current` через Chrome `Load unpacked`, сохранив фиксированный manifest key/extension ID.
+- [ ] После managed bootstrap опубликовать UPDATE PROOF и проверить кнопку OSMINOG без скачивания ZIP, выбора папки и ручной замены файлов.
+- [ ] Production: CI → Chrome Web Store API → review/publish → automatic Chrome update.
 - [ ] P3 unified `● On` state.
 - [ ] P4 Connect/settings redesign.
 - [ ] P5 single internal Session Manager.
