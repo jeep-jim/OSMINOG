@@ -5,21 +5,21 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.4",
-    "codename": "LIVING EYE DOCK",
-    "artifact": "OSMINOG-Chrome-3.11.4-LIVING-EYE-DOCK-ROOT.zip",
-    "size": 342950,
-    "sha256": "74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2",
-    "runtimeState": "owner-installed; build loads in real Chrome, but the permanent idle rail and always-visible bottom tool rail were explicitly rejected; correct sequence is one idle eye, hover-grown horizontal bubble, then click-lifted Search"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.5",
     "codename": "EYE REVEAL",
-    "baseVersion": "3.11.4",
     "artifact": "OSMINOG-Chrome-3.11.5-EYE-REVEAL-ROOT.zip",
     "size": 344669,
     "sha256": "1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f",
+    "runtimeState": "owner-installed; build loads in real Chrome and is visually closer to the target; remaining issues are eye-to-search morph, duplicate/bright search-row presentation, narrow Search proportions and visible scrollbar"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.6",
+    "codename": "KRAKEN DRIFT",
+    "baseVersion": "3.11.5",
+    "artifact": "OSMINOG-Chrome-3.11.6-KRAKEN-DRIFT-ROOT.zip",
+    "size": 348750,
+    "sha256": "712ead4d1d5c9643b72fe005247f770634259d25e3cda6519ba37b09628abe21",
     "fileCount": 55,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -28,8 +28,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.4",
-      "candidateVersion": "3.11.5",
+      "currentVersion": "3.11.5",
+      "candidateVersion": "3.11.6",
       "distribution": "manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned for rapid development; Chrome Web Store for beta/stable"
     },
     "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"desktop shell planned; intended to reuse the same Ocean spatial interaction model"},
@@ -39,6 +39,22 @@
     "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"future mobile-specific adaptation; not the current Ocean Shell target"}
   },
   "releases": [
+    {
+      "platform":"chrome-extension",
+      "version":"3.11.6",
+      "codename":"KRAKEN DRIFT",
+      "baseVersion":"3.11.5",
+      "artifact":"OSMINOG-Chrome-3.11.6-KRAKEN-DRIFT-ROOT.zip",
+      "size":348750,
+      "sha256":"712ead4d1d5c9643b72fe005247f770634259d25e3cda6519ba37b09628abe21",
+      "fileCount":55,
+      "manifestAtRoot":true,
+      "manifestVersion":"3.11.6",
+      "fixedManifestKeyPreserved":true,
+      "runtimeVerified":false,
+      "binaryInGitHub":false,
+      "notes":"Living-eye refinement: one integrated search row, eye morphs into the red search action at the right edge when Search opens, ugly Search scrollbars hidden, wider result composition. Adds gentle water drift to provider shortcuts/folder icons/module bubbles: hover pauses drift and drag-release adds damped inertia. Light is now a tropical reef/day scene; Dark is abyss/night with bioluminescent ambience. Adds Kraken/Poseidon/Sirens runtime mythos metadata only; those future capabilities are not claimed complete. Static checks pass; owner runtime pending."
+    },
     {
       "platform":"chrome-extension",
       "version":"3.11.5",
@@ -53,7 +69,7 @@
       "fixedManifestKeyPreserved":true,
       "runtimeVerified":false,
       "binaryInGitHub":false,
-      "notes":"Desktop Chrome correction matching the latest owner Figma sequence: empty canvas hides the bottom tool rail; idle shows one eye only with no permanent rail; pupil follows the pointer; hover wakes the eye and grows a horizontal Ocean bubble from it; click turns the eye active red and lifts Search from that same bubble as one composite silhouette. Static checks pass; owner runtime pending."
+      "notes":"Owner installed this build and confirmed it loads in real Chrome. The idle-eye/hover-bubble/click-lift direction is closer, but owner requires the eye to morph into the search action when expanded, removal of the extra bright search-row look and scrollbar, and wider Search proportions."
     },
     {
       "platform":"chrome-extension",
@@ -69,7 +85,7 @@
       "fixedManifestKeyPreserved":true,
       "runtimeVerified":false,
       "binaryInGitHub":false,
-      "notes":"Owner installed this build in real Chrome. One-eye cleanup loaded, but the permanent lower rail and always-visible tool rail were rejected; 3.11.5 replaces that behavior with the precise idle→hover bubble→click lift sequence."
+      "notes":"Owner installed this build in real Chrome. One-eye cleanup loaded, but the permanent lower rail and always-visible tool rail were rejected; 3.11.5 replaced that behavior with the precise idle→hover bubble→click lift sequence."
     },
     {
       "platform":"chrome-extension",
