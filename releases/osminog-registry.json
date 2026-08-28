@@ -5,34 +5,32 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.10.6",
-    "codename": "CANVAS CONTROL",
-    "artifact": "osminog-chrome-extension-3.10.6.zip",
-    "size": 308710,
-    "sha256": "c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c",
-    "runtimeState": "installed-current; detailed 3.10.6 runtime checklist still open"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.10.7",
     "codename": "UPDATE BRIDGE",
-    "baseVersion": "3.10.6",
     "artifact": "OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip",
     "size": 313664,
     "sha256": "fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300",
-    "runtimeState": "built-and-statically-verified; Dev Hub bootstrap runtime test pending",
-    "devFeed": "jeep-jim/chernogram_new@briefcraft-releases:osminog/channels/dev/chrome-extension.json",
-    "devHubVersion": "1.1.0",
-    "devHubCiRun": 33175649379,
-    "devHubInstallerSha256": "84b56099bd7222d4d786fbe0af7eac00ac271cb6eb2912c48d219e5794dfec8e"
+    "runtimeState": "owner-manually-installed; Chrome version/extension card confirmed; full regression checklist not completed"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.0",
+    "codename": "OCEAN SHELL ALPHA",
+    "baseVersion": "3.10.7",
+    "artifact": "OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip",
+    "size": 317919,
+    "sha256": "f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd",
+    "fileCount": 54,
+    "runtimeState": "built-and-statically-verified; owner runtime regression pending",
+    "binaryInGitHub": false
   },
   "platforms": {
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.10.6",
-      "candidateVersion": "3.10.7",
-      "distribution": "OSMINOG Dev Hub 1.1 bootstrap candidate; Chrome Web Store reserved for beta/stable"
+      "currentVersion": "3.10.7",
+      "candidateVersion": "3.11.0",
+      "distribution": "manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned for rapid development; Chrome Web Store for beta/stable"
     },
     "windows": {
       "status": "planned",
@@ -68,6 +66,22 @@
   "releases": [
     {
       "platform": "chrome-extension",
+      "version": "3.11.0",
+      "codename": "OCEAN SHELL ALPHA",
+      "baseVersion": "3.10.7",
+      "artifact": "OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip",
+      "size": 317919,
+      "sha256": "f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd",
+      "fileCount": 54,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.0",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false,
+      "notes": "First Ocean Shell candidate. Existing engine/code paths and stable IDs are intentionally preserved; new isolated shell CSS/JS and octopus-eye search scaffold added. Static checks pass; owner runtime regression is required."
+    },
+    {
+      "platform": "chrome-extension",
       "version": "3.10.7",
       "codename": "UPDATE BRIDGE",
       "baseVersion": "3.10.6",
@@ -79,7 +93,7 @@
       "manifestVersion": "3.10.7",
       "fixedManifestKeyPreserved": true,
       "runtimeVerified": false,
-      "notes": "UPDATE BRIDGE candidate. Public 3.10.6→3.10.7 guarded fileset reproduces the exact local 52-file tree. Dev Hub 1.1 CI installer built successfully; owner Windows runtime test pending."
+      "notes": "Owner manually installed this build and Chrome confirmed version 3.10.7. Full functional regression was not completed before Ocean Shell work began."
     },
     {
       "platform": "chrome-extension",
@@ -95,7 +109,7 @@
       "manifestVersion": "3.10.6",
       "fixedManifestKeyPreserved": true,
       "runtimeVerified": false,
-      "notes": "Exact owner-supplied installed baseline verified locally before GitHub archival."
+      "notes": "Exact owner-supplied installed baseline verified locally before GitHub archival metadata was created."
     }
   ]
 }
