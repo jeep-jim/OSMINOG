@@ -1374,3 +1374,38 @@ Compared byte-for-byte by file path against the owner-tested 3.11.3 tree, only f
 ### Next product step after acceptance
 The previously planned Octopus Work States moves to **3.11.5**. Focus Workspaces moves to **3.11.6**. Do not start those until the lower living-eye interaction is visually accepted.
 
+
+
+---
+
+## 2026-08-29 — OSMINOG 3.11.5 EYE REVEAL
+
+Owner installed 3.11.4 LIVING EYE DOCK in the real Chrome extension and supplied runtime screenshots. The build loads, but the owner rejected two remaining behaviors: the permanent bottom rail in idle state and the always-visible bottom canvas tool rail when nothing is selected.
+
+The owner provided a precise desktop Figma sequence and clarified the interaction contract:
+
+1. **Idle:** only one nearly-transparent octopus eye is visible at the bottom center. No persistent rail. The horizontal pupil follows the desktop pointer even while sleeping.
+2. **Hover:** the eye wakes/red-tints and a translucent horizontal bubble grows outward from the eye.
+3. **Click:** the same eye becomes active red and the Search surface lifts vertically from that same horizontal bubble.
+4. The bottom canvas `toolRail` is hidden when there is no selected object/connection/edit context.
+
+3.11.5 was built from 3.11.4 with only the Ocean shell adapter and version metadata changed. Search index, Provider/Session Manager, Google/DeepSeek transports, Team, Browser Hub, Media Crew, folders, Presence, Ocean FX, stable object IDs and patch semantics were preserved.
+
+Candidate artifact:
+
+- `OSMINOG-Chrome-3.11.5-EYE-REVEAL-ROOT.zip`
+- 55 files
+- 344669 bytes
+- SHA-256 `1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f`
+- manifest version 3.11.5
+- fixed Chrome manifest key preserved
+
+Static verification:
+
+- 21 JavaScript files pass `node --check`;
+- 9 JSON files parse;
+- 0 real duplicate HTML IDs;
+- ZIP integrity PASS.
+
+Runtime status: **owner test pending**. Do not call the eye/hover/Search interaction proven until the owner verifies it in the real extension.
+
