@@ -1,0 +1,71 @@
+{
+  "format": "osminog-release-registry/v1",
+  "product": "OSMINOG",
+  "updatedAt": "2026-08-28",
+  "rollingDevelopmentTag": "latest-osminog-dev",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.10.6",
+    "codename": "CANVAS CONTROL",
+    "artifact": "osminog-chrome-extension-3.10.6.zip",
+    "size": 308710,
+    "sha256": "c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c",
+    "runtimeState": "installed-current; detailed 3.10.6 runtime checklist still open"
+  },
+  "platforms": {
+    "chrome-extension": {
+      "status": "active-development",
+      "branch": "platform/chrome-extension",
+      "currentVersion": "3.10.6",
+      "distribution": "manual dev ZIP now; OSMINOG Dev Hub planned; Chrome Web Store for beta/stable"
+    },
+    "windows": {
+      "status": "planned",
+      "branch": "platform/windows",
+      "currentVersion": null,
+      "distribution": "signed native package/updater planned"
+    },
+    "macos": {
+      "status": "planned",
+      "branch": "platform/macos",
+      "currentVersion": null,
+      "distribution": "signed/notarized native package planned"
+    },
+    "web-pwa": {
+      "status": "planned",
+      "branch": "platform/web-pwa",
+      "currentVersion": null,
+      "distribution": "atomic web deployment + service worker versioning planned"
+    },
+    "android": {
+      "status": "planned",
+      "branch": "platform/android",
+      "currentVersion": null,
+      "distribution": "internal/store-native channel planned"
+    },
+    "ios": {
+      "status": "planned",
+      "branch": "platform/ios",
+      "currentVersion": null,
+      "distribution": "TestFlight/App Store planned"
+    }
+  },
+  "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.10.6",
+      "codename": "CANVAS CONTROL",
+      "baseVersion": "3.10.5",
+      "artifact": "osminog-chrome-extension-3.10.6.zip",
+      "sourceArtifactName": "OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip",
+      "size": 308710,
+      "sha256": "c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c",
+      "fileCount": 52,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.10.6",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "notes": "Exact owner-supplied installed baseline verified locally before GitHub archival."
+    }
+  ]
+}
