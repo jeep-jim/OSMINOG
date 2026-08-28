@@ -1,0 +1,32 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.6",
+  "codename": "KRAKEN DRIFT",
+  "baseVersion": "3.11.5",
+  "artifact": "OSMINOG-Chrome-3.11.6-KRAKEN-DRIFT-ROOT.zip",
+  "size": 348750,
+  "sha256": "712ead4d1d5c9643b72fe005247f770634259d25e3cda6519ba37b09628abe21",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.6",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": [
+    "manifest.json",
+    "OSMINOG_BUILD.json",
+    "osminog-ocean-shell.css",
+    "osminog-ocean-shell.js"
+  ],
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 9,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true
+  },
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "Living eye morphs into the search action; single integrated search row, hidden search scrollbars, wider Search composition; water drift/inertia for provider/folder/module icons; official Light reef-day and Dark abyss-night scenes; Kraken/Poseidon/Sirens mythos metadata only, not yet full product capabilities."
+}
