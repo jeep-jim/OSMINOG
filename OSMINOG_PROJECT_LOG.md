@@ -525,3 +525,60 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 4. Verify the existing project, folder metadata, connections and chats load.
 5. Test Ctrl+V image attachment.
 6. If a runtime error remains, record its exact first stack trace before adding new features.
+
+---
+
+## 2026-08-28 — OSMINOG 3.10.5 DESKTOP UX & STORE
+
+### Starting state
+- Base: OSMINOG 3.10.4 RECOVERY PERFORMANCE.
+- 3.10.4 restored startup speed and removed the duplicate folder engines that caused the black screen and high CPU load.
+- The next UI pass was not yet released when the owner added one more required folder rule: after a virtual folder is closed into the main project folder, it must always be possible to return that folder to the OSMINOG desktop.
+
+### Requested work
+1. Keep only section icons when Layers is collapsed, with the main project folder and `+` controls at the bottom.
+2. Make the main project folder draggable.
+3. Let agent desktop pills be hidden, shown, collapsed and renamed; automatically show an agent when a connected node requires it.
+4. Make the minimized Team bubble draggable and persist its position.
+5. Add provider search, larger provider identity icons, desktop shortcuts and a separate OSMINOG Store developer-rules page.
+6. Add global interface text-size presets.
+7. Keep exactly 4 px between consecutive bubbles from the same participant while preserving Telegram-style grouped corners.
+8. Allow **any virtual folder**—including a previously closed or nested folder—to return to the desktop.
+
+### Built changes
+- Version raised to **3.10.5**, codename **DESKTOP UX & STORE**; fixed Chrome manifest key preserved.
+- Collapsed Layers shows only section icons. The project-folder control and add button remain at the bottom of the Layers rail.
+- Main project folder drag no longer loses pointer events to its own button.
+- Agent pills default hidden, can be shown/hidden from chat, renamed by double-click and collapsed to a compact icon. A linked object can auto-show the required agent.
+- Minimized Team bubble is movable and stores its position.
+- Provider Registry has search, larger service identity marks and draggable desktop shortcuts. OSMINOG Store developer rules are a separate page rather than a fake developer-mode button.
+- Interface text size supports compact, normal, large and extra-large presets.
+- Same-author consecutive chat bubbles keep a 4 px gap.
+- Folder restoration is available in four places:
+  - a visible hover button on every virtual folder inside Explorer;
+  - the folder right-click menu;
+  - the Explorer header action while the folder is open;
+  - dragging a virtual folder out of Explorer onto the desktop.
+- Restoring a folder detaches it from its parent, makes it desktop-visible, restores/clamps its last screen-space position and immediately renders its desktop icon.
+- Added null-safe canvas inspector and folder preference fallbacks so the welcome/empty state does not crash before a project is active.
+
+### Verification and artifact
+- ZIP: `OSMINOG-Chrome-3.10.5-DESKTOP-UX-STORE-ROOT.zip`.
+- Size: `305426` bytes.
+- SHA-256: `871ddcc85ebd4d3679640fdf21a6e1a354271b06c9dbb2b1feb70b82cdb7ce08`.
+- Files: `52`; JavaScript files: `19`; JSON files: `9`; root `manifest.json`; version `3.10.5`; fixed key preserved.
+- All JavaScript passes `node --check`; all JSON parses; no duplicate HTML IDs; no missing local references; CSS parser reports no errors; ZIP integrity passes.
+- Controlled Chromium smoke test reached DOMContentLoaded in approximately 178 ms, produced four idle DOM mutations over one second and verified close → restore through both the API and the Explorer restore button with no page or console errors.
+
+### Honest runtime status
+- Static and controlled smoke verification is complete.
+- The owner still needs to verify the exact Chrome/Windows runtime, saved project migration and all visual interactions.
+- Automatic development updates remain disabled until OSMINOG Dev Hub is built.
+
+### Exact next action
+1. Install 3.10.5 into the actual Desktop extension folder and reload the existing Chrome card.
+2. Close a virtual folder into the main project folder.
+3. Open the main project folder and restore it using the arrow button, right-click menu and drag-out gesture.
+4. Verify nested folders can also be detached and restored to the desktop.
+5. Verify collapsed Layers, main folder drag, agent show/hide/rename, Team bubble drag, Provider Registry search, Store page, text-size presets and 4 px chat gaps.
+6. Append the real runtime result before the next build.
