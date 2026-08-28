@@ -1,5 +1,5 @@
 #define MyAppName "OSMINOG Dev Hub"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "OSMINOG"
 #define MyAppExeName "OsminogUpdaterHost.exe"
 
@@ -36,6 +36,7 @@ const
   FeedUrl = 'https://raw.githubusercontent.com/jeep-jim/chernogram_new/briefcraft-releases/osminog/channels/dev/chrome-extension.json';
 var
   UpdateExitCode: Integer;
+  BootstrapPath: String;
 
 function JsonEscape(Value: String): String;
 begin
@@ -44,26 +45,85 @@ begin
   StringChangeEx(Result, '"', '\"', True);
 end;
 
+function LooksLikeOsminogFolder(Path: String): Boolean;
+var
+  ManifestPath, ManifestText: String;
+begin
+  Result := False;
+  ManifestPath := AddBackslash(Path) + 'manifest.json';
+  if not FileExists(ManifestPath) then exit;
+  if not LoadStringFromFile(ManifestPath, ManifestText) then exit;
+  Result := (Pos(ManifestKey, ManifestText) > 0) and (Pos('"OSMINOG"', ManifestText) > 0);
+end;
+
+function FindOsminogOnDesktop(): String;
+var
+  Root, Candidate: String;
+  FindRec: TFindRec;
+begin
+  Result := '';
+  Root := ExpandConstant('{userdesktop}');
+  if LooksLikeOsminogFolder(Root) then
+  begin
+    Result := Root;
+    exit;
+  end;
+  if FindFirst(AddBackslash(Root) + '*', FindRec) then
+  begin
+    try
+      repeat
+        if ((FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and
+           (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+        begin
+          Candidate := AddBackslash(Root) + FindRec.Name;
+          if LooksLikeOsminogFolder(Candidate) then
+          begin
+            Result := Candidate;
+            exit;
+          end;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
+procedure WriteConfig(InstallDir: String);
+var
+  ConfigPath, ConfigJson: String;
+begin
+  ConfigPath := ExpandConstant('{app}\config.json');
+  ConfigJson := '{' + #13#10 +
+    '  "installDir": "' + JsonEscape(InstallDir) + '",' + #13#10 +
+    '  "feedUrl": "' + FeedUrl + '",' + #13#10 +
+    '  "versionsDir": "' + JsonEscape(ExpandConstant('{localappdata}\OSMINOG\DevHub\versions')) + '",' + #13#10 +
+    '  "workDir": "' + JsonEscape(ExpandConstant('{localappdata}\OSMINOG\DevHub\work')) + '",' + #13#10 +
+    '  "maxBackups": 8,' + #13#10 +
+    '  "extensionId": "' + ExtensionId + '",' + #13#10 +
+    '  "manifestKey": "' + ManifestKey + '"' + #13#10 +
+    '}' + #13#10;
+  SaveStringToFile(ConfigPath, ConfigJson, False);
+end;
+
+function RunBootstrapUpdate(HostExe: String): Boolean;
+var
+  Ok: Boolean;
+begin
+  UpdateExitCode := -1;
+  Ok := Exec(HostExe, '--update', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, UpdateExitCode);
+  if not Ok then UpdateExitCode := -2;
+  Result := Ok and (UpdateExitCode = 0);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  ConfigPath, HostManifestPath, HostExe, ConfigJson, HostJson: String;
-  Ok: Boolean;
+  HostManifestPath, HostExe, HostJson, SelectedDir: String;
 begin
   if CurStep = ssPostInstall then
   begin
     HostExe := ExpandConstant('{app}\OsminogUpdaterHost.exe');
-    ConfigPath := ExpandConstant('{app}\config.json');
     HostManifestPath := ExpandConstant('{app}\com.briefcraft.updater.json');
-
-    ConfigJson := '{' + #13#10 +
-      '  "installDir": "",' + #13#10 +
-      '  "feedUrl": "' + FeedUrl + '",' + #13#10 +
-      '  "versionsDir": "' + JsonEscape(ExpandConstant('{localappdata}\OSMINOG\DevHub\versions')) + '",' + #13#10 +
-      '  "workDir": "' + JsonEscape(ExpandConstant('{localappdata}\OSMINOG\DevHub\work')) + '",' + #13#10 +
-      '  "maxBackups": 8,' + #13#10 +
-      '  "extensionId": "' + ExtensionId + '",' + #13#10 +
-      '  "manifestKey": "' + ManifestKey + '"' + #13#10 +
-      '}' + #13#10;
 
     HostJson := '{' + #13#10 +
       '  "name": "com.briefcraft.updater",' + #13#10 +
@@ -72,13 +132,37 @@ begin
       '  "type": "stdio",' + #13#10 +
       '  "allowed_origins": ["chrome-extension://' + ExtensionId + '/"]' + #13#10 +
       '}' + #13#10;
-
-    SaveStringToFile(ConfigPath, ConfigJson, False);
     SaveStringToFile(HostManifestPath, HostJson, False);
 
-    UpdateExitCode := -1;
-    Ok := Exec(HostExe, '--update', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, UpdateExitCode);
-    if not Ok then UpdateExitCode := -2;
+    { 1. Normal path: let Dev Hub resolve Chrome's currently loaded unpacked extension. }
+    BootstrapPath := '';
+    WriteConfig('');
+    if RunBootstrapUpdate(HostExe) then exit;
+
+    { 2. Reliable owner-development fallback: scan direct folders on Windows Desktop. }
+    BootstrapPath := FindOsminogOnDesktop();
+    if BootstrapPath <> '' then
+    begin
+      WriteConfig(BootstrapPath);
+      if RunBootstrapUpdate(HostExe) then exit;
+    end;
+
+    { 3. One-time bootstrap only. Persist the selected path; routine updates never ask again. }
+    SelectedDir := ExpandConstant('{userdesktop}');
+    if BrowseForFolder('Один раз укажите папку расширения OSMINOG, которую Chrome сейчас загружает. Следующие обновления будут работать без выбора папки.', SelectedDir, False) then
+    begin
+      if LooksLikeOsminogFolder(SelectedDir) then
+      begin
+        BootstrapPath := SelectedDir;
+        WriteConfig(BootstrapPath);
+        RunBootstrapUpdate(HostExe);
+      end
+      else
+      begin
+        UpdateExitCode := -3;
+        MsgBox('В выбранной папке не найден совместимый OSMINOG manifest.json. Папка не была изменена.', mbError, MB_OK);
+      end;
+    end;
   end;
 end;
 
@@ -89,11 +173,12 @@ begin
     if UpdateExitCode = 0 then
       WizardForm.FinishedLabel.Caption :=
         'OSMINOG Dev Hub установлен и текущая папка расширения обновлена.' + #13#10#13#10 +
+        'Папка: ' + BootstrapPath + #13#10#13#10 +
         'Сейчас один раз откройте chrome://extensions и нажмите Reload на карточке OSMINOG.' + #13#10 +
         'После этого следующие dev-обновления будут ставиться прямо кнопкой внутри OSMINOG.'
     else
       WizardForm.FinishedLabel.Caption :=
-        'OSMINOG Dev Hub установлен, но автоматический bootstrap не смог определить текущую папку расширения.' + #13#10#13#10 +
-        'Не удаляйте OSMINOG. Убедитесь, что расширение включено в Chrome, затем запустите этот установщик ещё раз.';
+        'OSMINOG Dev Hub установлен, но bootstrap 3.10.6 → 3.10.7 не завершён.' + #13#10#13#10 +
+        'Рабочая папка OSMINOG не удалялась. Запустите установщик ещё раз и, если автоматический поиск снова не найдёт её, один раз выберите текущую папку OSMINOG на рабочем столе.';
   end;
 end;
