@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.4 LIVING EYE DOCK — owner установил; один глаз загружается, но постоянная нижняя полоса и всегда видимый toolbar на пустом холсте забракованы**  
-**Текущий кандидат:** **3.11.5 EYE REVEAL — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.5 EYE REVEAL — owner установил; направление стало ближе, но eye→search morph, лишняя светлая строка/scrollbar и узкие пропорции требуют следующего прохода**  
+**Текущий кандидат:** **3.11.6 KRAKEN DRIFT — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -196,17 +196,22 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Owner требует: idle = только один почти прозрачный глаз; pupil следит за мышью всегда; hover = глаз краснеет/просыпается и из него горизонтально растёт translucent bubble; click = из этого же bubble вверх раскрывается Search.
   - Bottom canvas toolbar также не должен висеть на пустом холсте — показывать его только при selection/edit context.
   - ZIP: 55 files · 342950 bytes · SHA-256 `74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2`.
-- [x] 3.11.5 EYE REVEAL — candidate собран под точную sequence `idle eye → hover bubble → click lift`.
-  - Empty canvas: `#toolRail` скрыт без selected object/connection/edit context.
-  - Idle: постоянный bottom rail исчезает; остаётся один octopus eye.
-  - Eye pupil отслеживает desktop pointer даже во сне с меньшей амплитудой.
-  - Hover: eye wakes/red-tints; прежний dock element используется только как горизонтальный bubble, который раздувается из центра глаза.
-  - Click/open: eye active red; Search становится composite silhouette из tall rounded body + wide rounded base, поднимающейся из того же hover bubble.
-  - Search index, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence, Ocean FX и stable IDs не переписывались.
-  - Candidate ZIP: 55 files · 344669 bytes · SHA-256 `1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f`.
+- [x] 3.11.5 EYE REVEAL — owner runtime загрузки подтверждён.
+  - Idle eye / hover bubble / click-lift направление стало ближе к Figma.
+  - Remaining owner feedback: при открытом Search глаз должен морфиться/уезжать в правую красную кнопку поиска; убрать лишний bright/white search-row эффект и грубый scrollbar; расширить Search и внутренние элементы.
+  - ZIP: 55 files · 344669 bytes · SHA-256 `1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f`.
+- [x] 3.11.6 KRAKEN DRIFT — candidate собран.
+  - Living Eye: idle = один глаз; hover = горизонтальный bubble; open = тот же глаз перемещается к правому краю единственной integrated search row и становится красным search-action. Старый `Найти` button скрыт.
+  - Search: одна встроенная строка вместо bright/duplicate row, internal scrollbar визуально скрыт при сохранении wheel/trackpad scrolling; shell и result cards расширены.
+  - Water drift: provider shortcuts, virtual/root folder icons и floating module bubble получают мягкий дрейф; hover замораживает drift; после drag-release остаётся короткая затухающая инерция.
+  - Official Light theme = тропический день: бирюзовая лагуна/риф, горизонт, остров и пальмы, светлая водная атмосфера.
+  - Official Dark theme = ночная глубина: abyss gradient, биолюминесцентный планктон и глубоководные силуэты.
+  - Runtime mythos contract добавлен: **Kraken** = menu/brain identity; **Poseidon** = future premium device mode; **Sirens** = future custom audio-player surface. Poseidon/Sirens в 3.11.6 НЕ считаются реализованными продуктами.
+  - Существующие Search index, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence и stable IDs не переписывались.
+  - Candidate ZIP: 55 files · 348750 bytes · SHA-256 `712ead4d1d5c9643b72fe005247f770634259d25e3cda6519ba37b09628abe21`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.6 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
-- [ ] 3.11.7 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
+- [ ] 3.11.7 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
+- [ ] 3.11.8 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
