@@ -1,0 +1,56 @@
+name: Sync OSMINOG master roadmap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'roadmap-update-queue/*.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: osminog-roadmap
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact roadmap replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p roadmap-update-archive
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          roadmap = Path('OSMINOG_ROADMAP.md')
+          text = roadmap.read_text()
+          queue = sorted(Path('roadmap-update-queue').glob('*.json'))
+          for item in queue:
+              data = json.loads(item.read_text())
+              for op in data.get('replacements', []):
+                  old = op['from']
+                  new = op['to']
+                  if old not in text:
+                      raise SystemExit(f'Expected roadmap text not found: {old!r}')
+                  text = text.replace(old, new, 1)
+              archive = Path('roadmap-update-archive') / item.name
+              item.rename(archive)
+          roadmap.write_text(text)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OSMINOG_ROADMAP.md roadmap-update-queue roadmap-update-archive
+          if ! git diff --cached --quiet; then
+            git commit -m "Update OSMINOG master roadmap progress"
+            git push
+          fi
