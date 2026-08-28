@@ -582,3 +582,46 @@ Publish and verify the 3.8.62 dev feed, then have the owner press the update but
 4. Verify nested folders can also be detached and restored to the desktop.
 5. Verify collapsed Layers, main folder drag, agent show/hide/rename, Team bubble drag, Provider Registry search, Store page, text-size presets and 4 px chat gaps.
 6. Append the real runtime result before the next build.
+---
+
+## 2026-08-28 — OSMINOG 3.10.6 CANVAS CONTROL
+
+### Starting state
+- Base: OSMINOG 3.10.5 DESKTOP UX & STORE.
+- Owner confirmed 3.10.5 runs, then requested a control/placement pass.
+- Windows and modules must never reopen in the upper-left corner without intent.
+- Google AI must receive real canvas context, return images/cards/widgets cleanly, and stop showing the fake letter-G assistant avatar.
+- Connections must be directly editable after clicking the line, including colour/width/curve controls and disconnect.
+- Folder Explorer must show image previews and support drag both into and out of an open folder.
+
+### Built changes
+- Version **3.10.6**, codename **CANVAS CONTROL**; fixed Chrome manifest key preserved.
+- Shared window manager tracks the latest owner click and opens unsaved windows around that action point; otherwise it centers them. Saved upper-left legacy positions are treated as bad defaults and migrated.
+- Google widget now builds an expanded context containing project map, status, selection, connections and objects linked to `module:google-ai`.
+- Visual/canvas questions automatically attach a fresh visible-tab screenshot when the user did not already attach an image.
+- Google provider bridge returns detected answer images plus Google rich-card/widget text; the OSMINOG Google chat renders both.
+- Removed the fake `G` assistant avatar from Google message bubbles.
+- Connection curves now support `curvature` and `curveOffset`; the existing single-click connection selection opens the inspector where colour, width, line form, dash, arrow, curve and disconnect/delete can be edited.
+- Folder Explorer renders canvas-image thumbnails immediately and lazy-loads real image-file thumbnails.
+- Explorer items can be dragged back to the canvas/desktop; canvas objects can be dropped into an open virtual folder or a nested virtual-folder row.
+
+### Artifact
+- ZIP: `OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip`
+- Size: `308710` bytes
+- SHA-256: `c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c`
+- Files: `52`
+- Root manifest version: `3.10.6`
+- ZIP integrity: passed
+
+### Runtime verification required
+1. Open/close Team, Browser Hub, Markdown, Modules and Provider Registry from different click locations; confirm they reopen near the action point or center and never jump to the upper-left corner.
+2. Ask Google “что видишь на холсте?” and confirm the service receives project context plus a fresh screenshot and the OSMINOG widget returns the real answer.
+3. Ask Google a search-style query such as weather and confirm detected rich cards/images render inside OSMINOG when present in the Google DOM.
+4. Confirm assistant turns have no fake `G` avatar.
+5. Click any connection line and edit colour, width, curve strength and offset; use Disconnect to remove it.
+6. Open a folder containing image files and confirm thumbnails appear.
+7. Drag a canvas object into the open folder and drag it back out to the canvas.
+
+### Exact next action
+- Install 3.10.6 into the actual Desktop extension folder and reload the same Chrome card.
+- Record the first real Chrome runtime result before adding another large feature.
