@@ -16,12 +16,22 @@ This build is intentionally not a feature expansion. It connects the existing OS
 - It stages the update beside the live extension directory, validates resulting hashes/version/key, swaps the directory, and keeps rollback copies under `%LOCALAPPDATA%\\OSMINOG\\DevHub`.
 - The one-time installer attempts the 3.10.6 → 3.10.7 bootstrap itself. The owner should then press Chrome `Reload` once. From 3.10.7 onward, development updates are intended to be one-click from inside OSMINOG.
 
-## Artifact prepared
+## Verified local artifact
 `OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip`
 
-- Size: 313665 bytes
-- SHA-256: `67f249ae34d4167b9ec8cce52b1c2bd9b9bf35e8a7e163dfd31cccd71d0ad85a`
+- Size: **313664 bytes**
+- SHA-256: `fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300`
 - Files: 52
 - Manifest version: 3.10.7
+- Fixed manifest key preserved.
+- Applying the public 3.10.6 → 3.10.7 fileset reproduces the exact 52-file tree byte-for-byte.
 
-Runtime verification on the owner's Windows/Chrome installation is required before this build is called proven.
+## Dev Hub installer CI
+GitHub Actions run `33175649379` completed successfully.
+
+- Artifact: `OSMINOG-Dev-Hub-Setup`
+- Artifact ID: `9687487683`
+- Installer EXE size: **24031246 bytes**
+- Installer EXE SHA-256: `84b56099bd7222d4d786fbe0af7eac00ac271cb6eb2912c48d219e5794dfec8e`
+
+Runtime verification on the owner's Windows/Chrome installation is still required before either the bootstrap or the one-click button updater is called proven.
