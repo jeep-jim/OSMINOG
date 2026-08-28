@@ -1,5 +1,5 @@
-#define MyAppName "OSMINOG Dev Updater"
-#define MyAppVersion "1.0.0"
+#define MyAppName "OSMINOG Dev Hub"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "OSMINOG"
 #define MyAppExeName "OsminogUpdaterHost.exe"
 
@@ -8,12 +8,12 @@ AppId={{AE7EA7C4-9FBC-4CB2-B4D4-6E004FCF5801}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\BriefCraft Dev\updater
+DefaultDirName={localappdata}\OSMINOG\DevHub
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=output
-OutputBaseFilename=OSMINOG-Dev-Updater-Setup
+OutputBaseFilename=OSMINOG-Dev-Hub-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -29,14 +29,13 @@ Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.briefcraft.
 Root: HKCU32; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.briefcraft.updater"; ValueType: string; ValueName: ""; ValueData: "{app}\com.briefcraft.updater.json"; Flags: uninsdeletekey
 Root: HKCU64; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.briefcraft.updater"; ValueType: string; ValueName: ""; ValueData: "{app}\com.briefcraft.updater.json"; Flags: uninsdeletekey; Check: IsWin64
 
-[Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--self-test"; Flags: runhidden waituntilterminated; StatusMsg: "Проверка OSMINOG Dev Updater..."
-
 [Code]
 const
   ExtensionId = 'hfckimbjiahikihjoceoegilaiolmkgk';
   ManifestKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAstI7PnHbheHLtFKZ+3khPxma+9VesIOBxZc8mu7VuJE8ahUos0draXfHzjy3F1j/42qXKTl+UgagUEO0sj4MYlKyGPpmD6gLBMKyrItP4Qd6PeowtMcyopOVDUUjZNkCa07B9JQ45xwCd3RaDiS1H+io4uOFEAkKrYdbcyUa8ytbJ1EKS4oMiRvyqJjn3T9GuHA7arMpFRwbyBuE/CNchDQ/hjW7LajfOkzS837twTybFGUp+tQHLbHKH3BMjwDmMKOis09DmAVTy2WH5OINqdq9WC+cgJxV2SQQdCZUK1bZ79/RaQzIsAIFN1w0AF0cme1DYF5+xQY8WHWpMGPXfQIDAQAB';
-  FeedUrl = 'https://raw.githubusercontent.com/jeep-jim/chernogram_new/briefcraft-releases/briefcraft/channels/dev/chrome-extension.json';
+  FeedUrl = 'https://raw.githubusercontent.com/jeep-jim/chernogram_new/briefcraft-releases/osminog/channels/dev/chrome-extension.json';
+var
+  UpdateExitCode: Integer;
 
 function JsonEscape(Value: String): String;
 begin
@@ -45,29 +44,10 @@ begin
   StringChangeEx(Result, '"', '\"', True);
 end;
 
-function CurrentDir(): String;
-begin
-  Result := ExpandConstant('{localappdata}\BriefCraft Dev\current');
-end;
-
-function InitializeSetup(): Boolean;
-var
-  ManifestPath: String;
-begin
-  ManifestPath := CurrentDir() + '\manifest.json';
-  if not FileExists(ManifestPath) then
-  begin
-    MsgBox('Не найдена рабочая папка расширения:' + #13#10 + ManifestPath + #13#10#13#10 +
-      'Сначала распакуйте каноническую версию 3.8.58 в папку current.', mbError, MB_OK);
-    Result := False;
-    exit;
-  end;
-  Result := True;
-end;
-
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ConfigPath, HostManifestPath, HostExe, ConfigJson, HostJson: String;
+  Ok: Boolean;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -76,10 +56,10 @@ begin
     HostManifestPath := ExpandConstant('{app}\com.briefcraft.updater.json');
 
     ConfigJson := '{' + #13#10 +
-      '  "installDir": "' + JsonEscape(CurrentDir()) + '",' + #13#10 +
+      '  "installDir": "",' + #13#10 +
       '  "feedUrl": "' + FeedUrl + '",' + #13#10 +
-      '  "versionsDir": "' + JsonEscape(ExpandConstant('{localappdata}\BriefCraft Dev\versions')) + '",' + #13#10 +
-      '  "workDir": "' + JsonEscape(ExpandConstant('{localappdata}\BriefCraft Dev\work')) + '",' + #13#10 +
+      '  "versionsDir": "' + JsonEscape(ExpandConstant('{localappdata}\OSMINOG\DevHub\versions')) + '",' + #13#10 +
+      '  "workDir": "' + JsonEscape(ExpandConstant('{localappdata}\OSMINOG\DevHub\work')) + '",' + #13#10 +
       '  "maxBackups": 8,' + #13#10 +
       '  "extensionId": "' + ExtensionId + '",' + #13#10 +
       '  "manifestKey": "' + ManifestKey + '"' + #13#10 +
@@ -87,7 +67,7 @@ begin
 
     HostJson := '{' + #13#10 +
       '  "name": "com.briefcraft.updater",' + #13#10 +
-      '  "description": "OSMINOG development updater",' + #13#10 +
+      '  "description": "OSMINOG Dev Hub native update bridge",' + #13#10 +
       '  "path": "' + JsonEscape(HostExe) + '",' + #13#10 +
       '  "type": "stdio",' + #13#10 +
       '  "allowed_origins": ["chrome-extension://' + ExtensionId + '/"]' + #13#10 +
@@ -95,6 +75,10 @@ begin
 
     SaveStringToFile(ConfigPath, ConfigJson, False);
     SaveStringToFile(HostManifestPath, HostJson, False);
+
+    UpdateExitCode := -1;
+    Ok := Exec(HostExe, '--update', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, UpdateExitCode);
+    if not Ok then UpdateExitCode := -2;
   end;
 end;
 
@@ -102,8 +86,14 @@ procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpFinished then
   begin
-    WizardForm.FinishedLabel.Caption :=
-      'OSMINOG Dev Updater установлен.' + #13#10#13#10 +
-      'Теперь откройте chrome://extensions, нажмите Reload на карточке расширения, затем в OSMINOG нажмите «Обновить».';
+    if UpdateExitCode = 0 then
+      WizardForm.FinishedLabel.Caption :=
+        'OSMINOG Dev Hub установлен и текущая папка расширения обновлена.' + #13#10#13#10 +
+        'Сейчас один раз откройте chrome://extensions и нажмите Reload на карточке OSMINOG.' + #13#10 +
+        'После этого следующие dev-обновления будут ставиться прямо кнопкой внутри OSMINOG.'
+    else
+      WizardForm.FinishedLabel.Caption :=
+        'OSMINOG Dev Hub установлен, но автоматический bootstrap не смог определить текущую папку расширения.' + #13#10#13#10 +
+        'Не удаляйте OSMINOG. Убедитесь, что расширение включено в Chrome, затем запустите этот установщик ещё раз.';
   end;
 end;
