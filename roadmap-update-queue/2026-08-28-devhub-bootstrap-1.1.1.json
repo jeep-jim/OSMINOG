@@ -1,0 +1,8 @@
+{
+  "replacements": [
+    {
+      "from": "- [ ] Runtime: установить Dev Hub 1.1 на Windows, автоматически bootstrap 3.10.6 → 3.10.7 и один раз нажать Reload в Chrome.",
+      "to": "- [x] Runtime 1.1.0: установщик Dev Hub установился, но bootstrap не нашёл текущую unpacked-папку OSMINOG на рабочем столе; рабочая папка не изменена.\n- [x] Исправлен bootstrap 1.1.1: после Chrome Preferences автоматически сканирует прямые папки Windows Desktop; если не найдено — разрешён одноразовый выбор текущей папки OSMINOG с проверкой manifest/key и сохранением пути. Routine updates папку больше не спрашивают.\n- [x] Dev Hub 1.1.1 installer CI run `33177530597` завершён `success`.\n- [ ] Runtime 1.1.1: bootstrap 3.10.6 → 3.10.7 в реальной Desktop-папке, затем один Reload в Chrome."
+    }
+  ]
+}
