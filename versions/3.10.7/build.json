@@ -1,0 +1,29 @@
+{
+  "product": "OSMINOG",
+  "version": "3.10.7",
+  "codename": "UPDATE BRIDGE",
+  "baseVersion": "3.10.6",
+  "artifact": "OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip",
+  "sha256": "67f249ae34d4167b9ec8cce52b1c2bd9b9bf35e8a7e163dfd31cccd71d0ad85a",
+  "size": 313665,
+  "fileCount": 52,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.10.7",
+  "fixedManifestKeyPreserved": true,
+  "devHub": {
+    "version": "1.1.0",
+    "nativeHostCompatibilityName": "com.briefcraft.updater",
+    "autoDetectLoadedExtension": true,
+    "feed": "https://raw.githubusercontent.com/jeep-jim/chernogram_new/briefcraft-releases/osminog/channels/dev/chrome-extension.json",
+    "bootstrapTarget": "3.10.7"
+  },
+  "staticChecks": {
+    "javascriptSyntax": true,
+    "jsonParse": true,
+    "zipIntegrity": true,
+    "fixedManifestKeyPreserved": true
+  },
+  "runtimeVerified": false,
+  "distribution": "First Dev Hub bootstrap: install OSMINOG Dev Hub once; it attempts to auto-detect the currently loaded 3.10.6 folder and apply the 3.10.7 fileset. Then reload the Chrome extension once. Subsequent dev updates are designed to run from the in-product update button.",
+  "binaryInGitHub": false
+}
