@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.1 SEARCH LAYER — owner подтвердил загрузку; поиск/индекс живы, но геометрия раскрытия отвергнута и заменена в 3.11.2**  
-**Текущий кандидат:** **3.11.2 PROVIDER / SESSION LAYER — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.2 PROVIDER / SESSION LAYER — owner установил; Ocean workspace и основные поверхности визуально загружаются, полный regression ещё открыт**  
+**Текущий кандидат:** **3.11.3 BUBBLE EYE / ENVIRONMENT — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -24,11 +24,11 @@
 
 ---
 
-## 2. Текущий установленный baseline — 3.11.0 OCEAN SHELL ALPHA
+## 2. Текущий установленный baseline — 3.11.2 PROVIDER / SESSION LAYER
 
-- Владелец установил 3.11.0 и прислал runtime-скриншот: Ocean workspace загрузился, текущий проект открылся, shell/глаз отображаются; визуальное направление одобрено.
-- Это подтверждает реальную загрузку Ocean Shell, но НЕ считается полным regression всех подсистем. Team/Google/Browser/Media/Code/folders/connections/Presence продолжают проверяться по мере миграции.
-- Предыдущая 3.10.7 остаётся непосредственной engine-базой Ocean Shell, а 3.10.6 — проверенной восстановительной точкой.
+- Владелец установил 3.11.2 и прислал несколько runtime-скриншотов: версия отображается в top bar, Ocean workspace загружается, Search Layer, папки и Media Crew визуально открываются.
+- Это подтверждает загрузку 3.11.2 на реальном Windows/Chrome, но НЕ считается полным regression provider transports, Team execute, Browser Hub, Google multimodal, folders, connections и Presence.
+- 3.11.3 строится поверх этой реальной установленной точки, а 3.10.6 остаётся проверенной восстановительной базой.
 
 ### Проверенный восстановительный baseline — 3.10.6 CANVAS CONTROL
 
@@ -186,8 +186,18 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - DeepSeek proven transport намеренно не переписывался.
   - Candidate ZIP: 55 files · 335371 bytes · SHA-256 `0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd`.
   - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.3 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
-- [ ] 3.11.4 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
+- [x] 3.11.3 BUBBLE EYE / ENVIRONMENT — candidate собран как desktop Chrome-first Ocean interaction pass.
+  - Новый launcher основан на реальной форме глаза осьминога: полупрозрачная органическая линза + горизонтальная щель; idle почти прозрачный, hover/active красный.
+  - Нижний Search Layer больше не трактуется как отдельное окно: он сжимается в постоянную донную полосу и выталкивается из неё вверх; мобильный layout из Figma НЕ переносится.
+  - Bubble interaction grammar: мягкие bubble-hover/selection состояния для canvas objects, desktop folders, provider shortcuts и базовых toolbar controls.
+  - Delete feedback: pop-ring + мелкие пузыри вверх. Drag feedback: лёгкий water/turbulence trail + пузырьки при отпускании. Focus: micro-vortex вокруг выбранного объекта.
+  - Canvas settings получили Ocean FX: Планктон On/Off, Пузыри On/Off, Морские формы On/Off, Density Low/Medium/High, Bioluminescence Off/Soft/Bright.
+  - Из Figma использован визуальный язык среды: Ocean gradient и полупрозрачные plankton/sea-form мотивы; конкретные mobile-композиции не являются текущим продуктовым layout.
+  - Windows/macOS позже должны повторить ту же spatial shell-модель; сейчас целевая среда — Chrome desktop extension.
+  - Candidate ZIP: 55 files · 337047 bytes · SHA-256 `797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.4 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
+- [ ] 3.11.5 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
