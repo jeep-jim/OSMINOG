@@ -1,0 +1,33 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.2",
+  "codename": "PROVIDER SESSION LAYER",
+  "baseVersion": "3.11.1",
+  "artifact": "OSMINOG-Chrome-3.11.2-PROVIDER-SESSION-LAYER-ROOT.zip",
+  "size": 335371,
+  "sha256": "0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.2",
+  "fixedManifestKeyPreserved": true,
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 8,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true
+  },
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": [
+    "3.11.1 search utility preserved but owner-rejected bottom emergence geometry replaced.",
+    "One shared provider/session manager introduced; one reusable internal session per provider by default.",
+    "Unified On/Off connection state and immediate Connect UX introduced.",
+    "Google AI added as agent brain through existing service transport; screenshot sends fail closed when attachment acceptance cannot be confirmed.",
+    "Visible Jarvis naming changed to Poseidon while internal compatibility aliases remain.",
+    "DeepSeek proven transport intentionally preserved."
+  ]
+}
