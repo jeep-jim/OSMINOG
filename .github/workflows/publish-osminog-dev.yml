@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'artifacts/chrome/3.10.6/OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip'
+      - 'release-staging/3.10.6/PUBLISH-READY'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: latest-osminog-dev
-      SOURCE: artifacts/chrome/3.10.6/OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip
+      CHUNK_DIR: release-staging/3.10.6/base64
       ASSET: osminog-chrome-extension-3.10.6.zip
       EXPECTED_SHA: c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c
       EXPECTED_SIZE: '308710'
@@ -28,16 +28,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify canonical artifact
+      - name: Reconstruct and verify canonical artifact
         shell: bash
         run: |
           set -euo pipefail
-          test -f "$SOURCE"
-          actual_size=$(stat -c%s "$SOURCE")
-          actual_sha=$(sha256sum "$SOURCE" | awk '{print $1}')
+          test -f release-staging/3.10.6/PUBLISH-READY
+          test -d "$CHUNK_DIR"
+          count=$(find "$CHUNK_DIR" -maxdepth 1 -type f -name 'part-*.b64' | wc -l)
+          test "$count" = "30"
+          cat "$CHUNK_DIR"/part-*.b64 | base64 --decode > "$ASSET"
+          actual_size=$(stat -c%s "$ASSET")
+          actual_sha=$(sha256sum "$ASSET" | awk '{print $1}')
           test "$actual_size" = "$EXPECTED_SIZE"
           test "$actual_sha" = "$EXPECTED_SHA"
-          cp "$SOURCE" "$ASSET"
 
       - name: Create or refresh rolling prerelease
         env:
@@ -67,34 +70,42 @@ jobs:
             test "$remote_digest" = "sha256:$EXPECTED_SHA"
           fi
 
-      - name: Mark binary archived and append canonical log
+      - name: Mark binary archived, update roadmap and append canonical log
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
+
           p = Path('versions/3.10.6/build.json')
           data = json.loads(p.read_text())
           data['binaryInGitHub'] = True
-          data['binaryNote'] = 'Exact owner-supplied 3.10.6 ZIP is stored in GitHub and published in the rolling latest-osminog-dev prerelease after size/SHA verification.'
+          data['binaryNote'] = 'Exact owner-supplied 3.10.6 ZIP is published as a verified GitHub Release asset in latest-osminog-dev.'
           data['releaseTag'] = 'latest-osminog-dev'
           data['releaseAsset'] = 'osminog-chrome-extension-3.10.6.zip'
-          data['repositoryArtifact'] = 'artifacts/chrome/3.10.6/OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip'
+          data['repositoryArtifact'] = None
           p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+
+          roadmap = Path('OSMINOG_ROADMAP.md')
+          text = roadmap.read_text()
+          text = text.replace('- [ ] Опубликовать точный 3.10.6 ZIP в rolling GitHub prerelease.', '- [x] Опубликовать точный 3.10.6 ZIP в rolling GitHub prerelease.', 1)
+          roadmap.write_text(text)
 
           log = Path('OSMINOG_PROJECT_LOG.md')
           marker = '## 2026-08-28 — MASTER ROADMAP + canonical 3.10.6 GitHub baseline'
           entry = Path('release-staging/3.10.6/project-log-entry.md').read_text()
-          text = log.read_text()
-          if marker not in text:
-              log.write_text(text.rstrip() + '\n\n---\n\n' + entry.strip() + '\n')
+          current = log.read_text()
+          if marker not in current:
+              log.write_text(current.rstrip() + '\n\n---\n\n' + entry.strip() + '\n')
           PY
+
+          rm -rf "$CHUNK_DIR"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add versions/3.10.6/build.json OSMINOG_PROJECT_LOG.md
+          git add versions/3.10.6/build.json OSMINOG_ROADMAP.md OSMINOG_PROJECT_LOG.md release-staging/3.10.6
           if ! git diff --cached --quiet; then
-            git commit -m "Finalize OSMINOG 3.10.6 canonical GitHub baseline"
+            git commit -m "Finalize verified OSMINOG 3.10.6 rolling release"
             git push
           fi
