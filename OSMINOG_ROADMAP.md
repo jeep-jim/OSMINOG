@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.0 OCEAN SHELL ALPHA — owner подтвердил загрузку Ocean workspace и проекта; полный regression ещё открыт**  
-**Текущий кандидат:** **3.11.1 SEARCH LAYER — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.1 SEARCH LAYER — owner подтвердил загрузку; поиск/индекс живы, но геометрия раскрытия отвергнута и заменена в 3.11.2**  
+**Текущий кандидат:** **3.11.2 PROVIDER / SESSION LAYER — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -168,14 +168,24 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
 - [x] 3.11.0 OCEAN SHELL ALPHA — owner runtime загрузки подтверждён: Ocean workspace и существующий проект открылись; визуальное направление принято. Полный subsystem regression остаётся открытым.
   - ZIP: 54 files · 317919 bytes · SHA-256 `f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd`.
   - P1–P8 остаются обязательными требованиями следующих 3.11.x миграций, а не отменяются редизайном.
-- [x] 3.11.1 SEARCH LAYER — candidate собран. Нижняя curved Ocean surface вдохновлена interaction-логикой Yokkey/OSMINOG 2011: поверхность всплывает снизу, а строка поиска находится в нижнем retrieval bar.
-  - Реальный live index: canvas objects, local project-folder entries, virtual folders, Provider Registry, AI agents, Markdown docs, Browser Hub tabs.
-  - Web opening/search теперь internal-first через Browser Hub; внешний Chrome только fallback.
-  - Query actions: подготовить Team task или Google AI prompt без автоматической отправки.
-  - Keyboard/gesture UX: Ctrl/Cmd+K, `/`, стрелки, Enter, Esc, pull-up eye и pull-down crest.
-  - Candidate ZIP: 54 files · 323960 bytes · SHA-256 `b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a`.
-  - Static checks: 20 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.2 PROVIDER / SESSION LAYER — единый Provider Registry, `On`, Session Manager, settings/connect, Google persistent session + multimodal/dedupe.
+- [x] 3.11.1 SEARCH LAYER — owner runtime загрузки подтверждён: Search Layer и живой индекс отображаются. Полезная search/index логика сохраняется.
+  - Owner visual feedback: большая dome-like поверхность раскрывалась не так, как исходная Yokkey/OSMINOG 2011 механика; требовалось ощущение, что поверхность выталкивается из постоянной нижней полосы с округлёнными нижними плечами.
+  - Эта геометрия считается отвергнутой и не переносится дальше.
+  - ZIP: 54 files · 323960 bytes · SHA-256 `b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a`.
+- [x] 3.11.2 PROVIDER / SESSION LAYER — candidate собран.
+  - Search emergence: постоянная нижняя Ocean-полоса; глаз остаётся в ней; search surface стартует сжатой в центральном slot и расширяется вверх; нижние плечи и central stem скруглены.
+  - Добавлен единый `OSMINOGSessionManager`: один provider → одна переиспользуемая internal Browser Hub/service session по умолчанию.
+  - Session identity сохраняется; stale tabs очищаются; Provider Registry использует общий Session Manager.
+  - AI chat status унифицирован до `On` / `Off` с точкой; `GPT LIVE` и подобные дубли provider-name убираются.
+  - В неподключённом AI chat появляется сразу видимая кнопка `Подключить`.
+  - Settings становятся full-surface внутри AI-chat вместо выпадающей вниз панели.
+  - Provider brain picker получает реальные иконки; доступны ChatGPT, DeepSeek, Google AI, Gemini, Claude и Custom; полный Provider Registry подключается к тому же settings surface.
+  - Google AI добавлен как agent brain через существующий Google service transport; один service-session переиспользуется.
+  - Google multimodal send теперь fail-closed: если OSMINOG не подтверждает видимое принятие изображения Google-композером, текстовый запрос без картинки не отправляется.
+  - Видимое `Jarvis` переименовано в **Poseidon**; legacy internal/storage aliases сохранены для совместимости.
+  - DeepSeek proven transport намеренно не переписывался.
+  - Candidate ZIP: 55 files · 335371 bytes · SHA-256 `0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd`.
+  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
 - [ ] 3.11.3 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
 - [ ] 3.11.4 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown как focus surfaces.
 
