@@ -418,9 +418,9 @@ Dev Hub должен владеть одной детерминированно�
 - [x] Получен точный текущий ZIP 3.10.6.
 - [x] Проверены размер/hash/file count/manifest.
 - [x] Presence подключён к текущему ChatGPT.
-- [ ] Создать этот MASTER ROADMAP в GitHub.
+- [x] Создать этот MASTER ROADMAP в GitHub.
 - [ ] Создать `OSMINOG ROADMAP — LIVE` на canvas.
-- [ ] Создать six-platform release registry.
+- [x] Создать six-platform release registry.
 - [ ] Опубликовать точный 3.10.6 ZIP в rolling GitHub prerelease.
 
 ### Этап B — Unified Provider/Session foundation
