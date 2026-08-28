@@ -1,0 +1,27 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.3",
+  "codename": "BUBBLE EYE ENVIRONMENT",
+  "baseVersion": "3.11.2",
+  "artifact": "OSMINOG-Chrome-3.11.3-BUBBLE-EYE-ENVIRONMENT-ROOT.zip",
+  "size": 337047,
+  "sha256": "797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.3",
+  "fixedManifestKeyPreserved": true,
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 9,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true
+  },
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "desktopChromeFirst": true,
+  "mobileLayoutOutOfScope": true
+}
