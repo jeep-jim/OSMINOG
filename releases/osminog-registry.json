@@ -5,35 +5,36 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.12",
-    "codename": "OCEAN DOCK & BUBBLE CONTAINERS",
-    "artifact": "OSMINOG-Chrome-3.11.12-OCEAN-DOCK-BUBBLE-CONTAINERS-ROOT.zip",
-    "size": 369631,
-    "sha256": "049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487",
-    "runtimeState": "owner-installed; UI loads, but a P0 freeze/performance regression was reproduced in owner runtime after bubble-group/collision/drift work"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.13",
     "codename": "OCEAN CLARITY & PERFORMANCE",
-    "baseVersion": "3.11.12",
     "artifact": "OSMINOG-Chrome-3.11.13-OCEAN-CLARITY-PERFORMANCE-ROOT.zip",
     "size": 372219,
     "sha256": "5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9",
+    "runtimeState": "owner-installed; performance-fixed build loads, but separate Ocean interaction shell was judged too complex for real work"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.14",
+    "codename": "THREE THEME RESET",
+    "baseVersion": "3.11.13",
+    "artifact": "OSMINOG-Chrome-3.11.14-THREE-THEME-RESET-ROOT.zip",
+    "size": 323979,
+    "sha256": "4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498",
     "fileCount": 55,
-    "runtimeState": "built-and-statically-verified with performance guards; owner runtime pending",
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
   },
   "platforms": {
-    "chrome-extension": {"status":"active-development","branch":"platform/chrome-extension","currentVersion":"3.11.12","candidateVersion":"3.11.13","distribution":"manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"},
-    "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"desktop shell planned; reuse Ocean/Space spatial model"},
-    "macos": {"status":"planned","branch":"platform/macos","currentVersion":null,"distribution":"desktop shell planned; reuse Ocean/Space spatial model"},
+    "chrome-extension": {"status":"active-development","branch":"platform/chrome-extension","currentVersion":"3.11.13","candidateVersion":"3.11.14","distribution":"manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"},
+    "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"desktop shell planned; intended to reuse the same familiar workspace layout and theme system"},
+    "macos": {"status":"planned","branch":"platform/macos","currentVersion":null,"distribution":"desktop shell planned; intended to reuse the same familiar workspace layout and theme system"},
     "web-pwa": {"status":"planned","branch":"platform/web-pwa","currentVersion":null,"distribution":"atomic web deployment + service-worker versioning planned"},
     "android": {"status":"planned","branch":"platform/android","currentVersion":null,"distribution":"future mobile-specific adaptation; not current target"},
     "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"future mobile-specific adaptation; not current target"}
   },
   "releases": [
-    {"platform":"chrome-extension","version":"3.11.13","codename":"OCEAN CLARITY & PERFORMANCE","baseVersion":"3.11.12","artifact":"OSMINOG-Chrome-3.11.13-OCEAN-CLARITY-PERFORMANCE-ROOT.zip","size":372219,"sha256":"5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.13","fixedManifestKeyPreserved":true,"runtimeVerified":false,"binaryInGitHub":false,"notes":"P0 freeze fix: removes self-triggering bubble-group observer/render loop and 1.1s global O(n^2) collision timer; collision becomes event-driven. Drift capped ~25fps, hidden-tab work paused, target scanning removed from every frame, and affected global style/class observers removed. Bubble groups become clear/openable focus bubbles with backdrop blur; Layers returns to top-left; idle Inspector closes and never shifts dock; Ocean surfaces lightened."},
+    {"platform":"chrome-extension","version":"3.11.14","codename":"THREE THEME RESET","baseVersion":"3.11.13","artifact":"OSMINOG-Chrome-3.11.14-THREE-THEME-RESET-ROOT.zip","size":323979,"sha256":"4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.14","fixedManifestKeyPreserved":true,"runtimeVerified":false,"binaryInGitHub":false,"notes":"UX reset. One familiar classic/Space workspace layout for Light, Dark and Ocean. Ocean is visual theme only: underwater background, translucent glass and optional Ocean FX. Kraken Arc, Living Eye Search shell, Ocean bottom dock/tool shelf, drift, collision and provider bubble-container runtime removed from active UI path. Theme button cycles Light → Dark → Ocean with waves icon."},
+    {"platform":"chrome-extension","version":"3.11.13","codename":"OCEAN CLARITY & PERFORMANCE","baseVersion":"3.11.12","artifact":"OSMINOG-Chrome-3.11.13-OCEAN-CLARITY-PERFORMANCE-ROOT.zip","size":372219,"sha256":"5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.13","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. P0 freeze path removed, but separate Ocean interaction shell remained too complex and was superseded by 3.11.14 theme-only reset."},
     {"platform":"chrome-extension","version":"3.11.12","codename":"OCEAN DOCK & BUBBLE CONTAINERS","baseVersion":"3.11.11","artifact":"OSMINOG-Chrome-3.11.12-OCEAN-DOCK-BUBBLE-CONTAINERS-ROOT.zip","size":369631,"sha256":"049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.12","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Bottom dock and bubble-container UI load, but owner observed a full freeze. Root cause review found a self-triggering group MutationObserver/render loop plus always-on collision and drift/style observer amplification; superseded by 3.11.13 performance pass."},
     {"platform":"chrome-extension","version":"3.11.11","codename":"SHELL POSITION FIX","baseVersion":"3.11.10","artifact":"OSMINOG-Chrome-3.11.11-SHELL-POSITION-FIX-ROOT.zip","size":363750,"sha256":"cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.11","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Portal/containing-block issue fixed, but split shell visually rejected as too confusing/overloaded."},
     {"platform":"chrome-extension","version":"3.11.10","codename":"OCEAN DESKTOP SHELL","baseVersion":"3.11.9","artifact":"OSMINOG-Chrome-3.11.10-OCEAN-DESKTOP-SHELL-ROOT.zip","size":362800,"sha256":"ea2b19e22010f8c7ea37b3f7e7c4e4462a22e7b894fd41927dff504c0926fa23","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.10","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Ocean Day/no-grid defaults; Ocean canvas palette removed; first topbar decomposition attempt. Positioning regression later fixed in 3.11.11."},
