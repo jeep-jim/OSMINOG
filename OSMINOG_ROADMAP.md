@@ -5,7 +5,7 @@
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
 **Текущая установленная сборка:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner установил; Figma ambience виден, но top/dropdown/chat/settings/brand icons требуют cleanup**  
-**Текущий кандидат:** **3.11.21 UI CLEANUP · BRAND ICONS · CHAT POLISH — собран, static checks PASS, owner runtime pending**  
+**Текущий кандидат:** **3.11.22 TEAM EXECUTION & Z-LAYER FIX — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -298,7 +298,7 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Collapsed zoom должен совпадать по ширине/материалу с inspector mini-rail и жить строго внизу, без вытянутой пустой шахты.
   - В collapsed Layers обнаружен overlap между mini-rail и нижними folder/+ controls; нижние actions также должны иметь тот же button style, что верх rail.
   - ZIP: 55 files · 332263 bytes · SHA-256 `2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3`.
-- [x] 3.11.20 FIGMA PLANKTON & RAIL ALIGN — candidate собран.
+- [x] 3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner runtime загрузки подтверждён; Ocean ambience виден, но во время Team выявлены execution/z-layer/chat-collapse regressions.
   - Live Figma MCP упёрся в Starter-plan call limit, поэтому формы восстановлены по owner-provided Figma screenshots, без выдумывания нового набора: ring/cell/burst/jelly/microbe/star/spore/propeller/droplet/crescent/diamond + tiny plankton points.
   - Ocean forms используют только CSS transform/opacity motion: плавно дрейфуют, меняют направление и вращение; часть форм получает мягкую bioluminescence. Никаких requestAnimationFrame/collision loops.
   - Bubbles отделены в собственный слой и всегда движутся вертикально вверх.
@@ -308,7 +308,16 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Candidate ZIP: 55 files · 334869 bytes · SHA-256 `b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95`.
   - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
 - [x] 3.11.21 UI CLEANUP · BRAND ICONS · CHAT POLISH — candidate собран: убраны shared top containers, dropdowns унифицированы с blur, Layers active = blue/white, Ocean chat/settings очищены, provider branding расширен. ZIP: 56 files · 339311 bytes · SHA-256 `eb1234c27e9cc9131778dae089735678fe9183687a7b77e92747eeef16b22540`. Owner runtime pending.
-- [ ] 3.11.22 FUNCTION REGRESSION & PROVIDER WORKFLOW — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
+- [x] 3.11.22 TEAM EXECUTION & Z-LAYER FIX — candidate собран.
+  - Team execute больше не принимает prose-only completion: отсутствующий patch принудительно запрашивается повторно до двух раз.
+  - Parser принимает `briefcraft.patch/v1` и `briefcraft.request/v1` как в fenced JSON, так и в валидном raw JSON block.
+  - Финальный исполнитель обязан разрешать spatial referents через реальные bounds из projectMap; использовать только существующие IDs.
+  - Если lead не вернул patch, второй выбранный агент становится резервным исполнителем. Если validator отклоняет patch, исполнитель получает фактическую ошибку и делает один corrected-patch pass.
+  - Team workspace поднят над desktop provider shortcuts, но остаётся ниже topbar/Inspector; ярлыки больше не перекрывают командное окно.
+  - Team transcript исключён из generic chat-group collapsing; сообщения имеют auto-height и не схлопываются в полосы.
+  - Candidate ZIP: 56 files · 341171 bytes · SHA-256 `093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412`.
+  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.23 FUNCTION REGRESSION & PROVIDER WORKFLOW — проверить Google/Team/Browser/Media/Presence на реальных задачах после подтверждения Team execution fix.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
