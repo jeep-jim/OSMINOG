@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.6 KRAKEN DRIFT — owner установил; сборка загружается в real Chrome, но первый уровень навигации теперь меняется с прямого Search на Kraken radial launcher**  
-**Текущий кандидат:** **3.11.7 OCEAN ARC LAUNCHER — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.7 OCEAN ARC LAUNCHER — owner установил; Kraken radial launcher загружается в real Chrome и направление принято, Ocean Day с рифом отклонён**  
+**Текущий кандидат:** **3.11.8 OCTOPUS WORK STATES — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -204,7 +204,7 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Living Eye/Search morph, integrated search row, hidden scrollbar, wider Search and water drift are visible in real Chrome.
   - Owner changed the first interaction model: approaching the eye must NOT immediately become the Search surface; the eye is Kraken's sensor and first reveals a semicircular launcher of primary functions.
   - ZIP: 55 files · 348750 bytes · SHA-256 `712ead4d1d5c9643b72fe005247f770634259d25e3cda6519ba37b09628abe21`.
-- [x] 3.11.7 OCEAN ARC LAUNCHER — candidate собран.
+- [x] 3.11.7 OCEAN ARC LAUNCHER — owner runtime загрузки подтверждён; Kraken radial launcher и Ocean/Space mode-switch реально загружаются в Chrome.
   - Interface settings now have two first-class modes: **Ocean** and **Space**. Ocean is the active experimental design line; Space preserves the earlier classic OSMINOG interaction model for users who prefer it.
   - Ocean keeps its own **Day / Night** variants; Space keeps **Light / Dark** variants. Theme toggle changes the variant inside the current mode instead of switching the product between unrelated shells.
   - Empty-canvas welcome card is session-only onboarding: it has a round close button and, once dismissed, stays hidden until a new tab/browser session. It no longer permanently occupies the canvas.
@@ -212,11 +212,19 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - First-level Ocean navigation is a semicircular **Kraken radial launcher** with Search, Files, Team, AI, Browser, Media, Code, Settings and Store. Mouse wheel rotates items along the arc.
   - Search becomes a second-level bubble selected from the Kraken launcher and preserves the 3.11.6 eye→search action morph.
   - Existing folders/modules/windows open through their existing logic but receive Ocean bubble-entry motion and round close/minimize controls; Space keeps the classic surfaces.
-  - Ocean Day = reef/lagoon/horizon/island; Ocean Night = abyss/bioluminescent depth. Space does not receive Ocean ambience.
+  - Owner feedback после runtime: Kraken arc direction принят, но reef/lagoon/island Day scene отклонён. Ocean Day возвращается к светлой дневной глубине без острова/пальм; Ocean Night остаётся abyss/bioluminescent depth. Space не получает Ocean ambience.
   - Search index, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence, water drift and stable project IDs/data are preserved.
   - Candidate ZIP: 55 files · 354073 bytes · SHA-256 `6bc49dddef6fa5cdd654e3ba81a2f76dc5b6306195b407e53ae222f27f608833`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.8 OCTOPUS WORK STATES — агенты-чипы в UI, рабочие осьминоги на canvas только во время задач, tether/connection z-order.
+- [x] 3.11.8 OCTOPUS WORK STATES — candidate собран.
+  - Ocean Day возвращён к светлой подводной глубине из раннего Ocean Shell: свет сверху, голубая толща, планктон/пузыри; reef/island/palms удалены.
+  - Task execution больше не заставляет agent pill висеть на canvas. Постоянный pill остаётся только при явном linked/pinned context.
+  - Активная задача показывает рабочего осьминога около исследуемого/редактируемого объекта; inspect и work states визуально различаются.
+  - Добавлен live tether от agent chip в chat к активному worker-octopus.
+  - Обычные canvas connections лежат за objects; hover/selected edit временно поднимает connection layer для редактирования.
+  - Kraken Arc Launcher, Search, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence и stable IDs/data не переписывались.
+  - Candidate ZIP: 55 files · 356050 bytes · SHA-256 `1ecfdcbe60f9af341f74ea8e553db56e0235437cecf8d9fe0d6f76880a06345f`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
 - [ ] 3.11.9 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
