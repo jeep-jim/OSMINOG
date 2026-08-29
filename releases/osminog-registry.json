@@ -5,21 +5,21 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.18",
-    "codename": "LAYERS & ZOOM POLISH",
-    "artifact": "OSMINOG-Chrome-3.11.18-LAYERS-ZOOM-POLISH-ROOT.zip",
-    "size": 330638,
-    "sha256": "d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a",
-    "runtimeState": "owner-installed; shared workspace layout loads, but Ocean top groups are still over-containerized, collapsed Layers leaks a real preview, GPT chat/settings readability is poor, and scrollbars/zoom need another cleanup"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.19",
     "codename": "OCEAN READABILITY & PANEL CLEANUP",
-    "baseVersion": "3.11.18",
     "artifact": "OSMINOG-Chrome-3.11.19-OCEAN-READABILITY-PANEL-CLEANUP-ROOT.zip",
     "size": 332263,
     "sha256": "2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3",
+    "runtimeState": "owner-installed; readability/panel cleanup improved, but Figma ambience, top-control material consistency, zoom placement and collapsed Layers rail still need polish"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.20",
+    "codename": "FIGMA PLANKTON & RAIL ALIGN",
+    "baseVersion": "3.11.19",
+    "artifact": "OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip",
+    "size": 334869,
+    "sha256": "b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95",
     "fileCount": 55,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -28,8 +28,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.18",
-      "candidateVersion": "3.11.19",
+      "currentVersion": "3.11.19",
+      "candidateVersion": "3.11.20",
       "distribution": "manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -64,6 +64,22 @@
     }
   },
   "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.11.20",
+      "codename": "FIGMA PLANKTON & RAIL ALIGN",
+      "baseVersion": "3.11.19",
+      "artifact": "OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip",
+      "size": 334869,
+      "sha256": "b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95",
+      "fileCount": 55,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.20",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false,
+      "notes": "Figma-referenced Ocean plankton/sea-form set reconstructed from owner-provided screenshots because live Figma MCP hit its Starter-plan call limit. Smooth CSS-only drift/rotation and selective bioluminescence; bubbles rise vertically only. Ocean logo background removed. Top workspace groups use side-rail glass material. Collapsed zoom anchored bottom at 56px width; collapsed Layers footer/mini-rail overlap fixed and lower controls receive matching rail style. No requestAnimationFrame/collision render loops."
+    },
     {
       "platform": "chrome-extension",
       "version": "3.11.19",
