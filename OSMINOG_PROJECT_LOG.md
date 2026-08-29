@@ -1646,3 +1646,30 @@ Candidate artifact: `OSMINOG-Chrome-3.11.15-OCEAN-THEME-HOTFIX-ROOT.zip`
 
 Owner runtime pending.
 
+
+
+---
+
+## 2026-08-29 — 3.11.16 OCEAN UI POLISH
+
+Owner runtime подтвердил, что 3.11.15 восстановила Ocean как третью визуальную тему поверх обычного рабочего layout. Следующий UX-pass выполняется без возврата отдельного Kraken/Ocean shell.
+
+Изменения 3.11.16:
+- Layers toggle вынесен из topbar в отдельный floating bubble слева над Layers panel.
+- Общий внешний контейнер topbar визуально удалён во всех темах; controls остаются на своих рабочих местах.
+- Внешний контейнер нижнего creation tool rail визуально удалён; остаются только сами tool buttons.
+- Welcome/empty card получает круглый glass close control внутри верхнего правого угла вместо квадратного `×`.
+- Цифры 1–5 удалены из видимых Brief/Code/Browser/Design/Team tabs; shortcut logic не удаляется.
+- Лишняя Ocean explanation card из Canvas inspector удалена.
+- Ocean glass осветлён, а backdrop blur усилен примерно до 30px.
+- Ocean FX переработан в компактные switch rows и selects.
+- Планктон, пузыри и морские формы снова визуально живут в Ocean, но реализованы только статическим DOM + CSS keyframes. Запрещённые performance-механизмы из 3.11.12 не возвращаются: нет requestAnimationFrame animation loop, collision timer, self-triggering style observer.
+- `prefers-reduced-motion` отключает ambient animation.
+- Zoom controls перенесены в нижнюю часть collapsed Inspector mini rail; отдельный bottom zoom dock скрыт.
+
+Candidate artifact: `OSMINOG-Chrome-3.11.16-OCEAN-UI-POLISH-ROOT.zip`
+- size: 329105 bytes
+- SHA-256: `c3a32fc2eb2da20cbd9c8c93d752e7920963092246f2a6933691dd721c721177`
+- static: 21 JS syntax PASS, 9 JSON parse PASS, ZIP integrity PASS
+- owner runtime: pending
+
