@@ -5,22 +5,22 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.19",
-    "codename": "OCEAN READABILITY & PANEL CLEANUP",
-    "artifact": "OSMINOG-Chrome-3.11.19-OCEAN-READABILITY-PANEL-CLEANUP-ROOT.zip",
-    "size": 332263,
-    "sha256": "2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3",
-    "runtimeState": "owner-installed; readability/panel cleanup improved, but Figma ambience, top-control material consistency, zoom placement and collapsed Layers rail still need polish"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.20",
     "codename": "FIGMA PLANKTON & RAIL ALIGN",
-    "baseVersion": "3.11.19",
     "artifact": "OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip",
     "size": 334869,
     "sha256": "b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95",
-    "fileCount": 55,
+    "runtimeState": "owner-installed; Figma-referenced ambience is visible, but top group containers returned, dropdown glass/readability is inconsistent, Layers active styling is wrong, GPT chat still has white/sharp surfaces, and provider branding is incomplete"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.21",
+    "codename": "UI CLEANUP · BRAND ICONS · CHAT POLISH",
+    "baseVersion": "3.11.20",
+    "artifact": "OSMINOG-Chrome-3.11.21-UI-CLEANUP-BRAND-ICONS-CHAT-POLISH-ROOT.zip",
+    "size": 339311,
+    "sha256": "eb1234c27e9cc9131778dae089735678fe9183687a7b77e92747eeef16b22540",
+    "fileCount": 56,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
   },
@@ -28,8 +28,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.19",
-      "candidateVersion": "3.11.20",
+      "currentVersion": "3.11.20",
+      "candidateVersion": "3.11.21",
       "distribution": "manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -64,6 +64,30 @@
     }
   },
   "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.11.21",
+      "codename": "UI CLEANUP · BRAND ICONS · CHAT POLISH",
+      "baseVersion": "3.11.20",
+      "artifact": "OSMINOG-Chrome-3.11.21-UI-CLEANUP-BRAND-ICONS-CHAT-POLISH-ROOT.zip",
+      "size": 339311,
+      "sha256": "eb1234c27e9cc9131778dae089735678fe9183687a7b77e92747eeef16b22540",
+      "fileCount": 56,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.21",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false,
+      "notes": [
+        "Ocean top bar group containers removed again; OSMINOG brand stays naked and each action/mode is an individual glass bubble.",
+        "Canonical smart-select styling with blur is reused by normal UI, dynamic Ocean FX and GPT settings dropdowns.",
+        "Layers active state is blue with white icon.",
+        "Ocean GPT chat removes white/sharp nested surfaces and uses one deep-blue rounded glass system.",
+        "GPT settings add provider-logo picker for ChatGPT, DeepSeek, Google AI, Gemini, Claude and Custom AI.",
+        "Provider Registry replaces Nano Banana emoji with a local vector mark and uses service-owned site icons for media providers with fallback.",
+        "Performance guardrails preserved: no Ocean RAF loop, collision timer, or self-triggering render observer."
+      ]
+    },
     {
       "platform": "chrome-extension",
       "version": "3.11.20",
