@@ -1,0 +1,16 @@
+{
+  "replacements": [
+    {
+      "from": "**Текущий кандидат:** **3.11.21 UI CLEANUP · BRAND ICONS · CHAT POLISH — собран, static checks PASS, owner runtime pending**",
+      "to": "**Текущий кандидат:** **3.11.22 TEAM EXECUTION & Z-LAYER FIX — собран, static checks PASS, owner runtime pending**"
+    },
+    {
+      "from": "- [x] 3.11.20 FIGMA PLANKTON & RAIL ALIGN — candidate собран.",
+      "to": "- [x] 3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner runtime загрузки подтверждён; Ocean ambience виден, но во время Team выявлены execution/z-layer/chat-collapse regressions."
+    },
+    {
+      "from": "- [ ] 3.11.22 FUNCTION REGRESSION & PROVIDER WORKFLOW — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.",
+      "to": "- [x] 3.11.22 TEAM EXECUTION & Z-LAYER FIX — candidate собран.\n  - Team execute больше не принимает prose-only completion: отсутствующий patch принудительно запрашивается повторно до двух раз.\n  - Parser принимает `briefcraft.patch/v1` и `briefcraft.request/v1` как в fenced JSON, так и в валидном raw JSON block.\n  - Финальный исполнитель обязан разрешать spatial referents через реальные bounds из projectMap; использовать только существующие IDs.\n  - Если lead не вернул patch, второй выбранный агент становится резервным исполнителем. Если validator отклоняет patch, исполнитель получает фактическую ошибку и делает один corrected-patch pass.\n  - Team workspace поднят над desktop provider shortcuts, но остаётся ниже topbar/Inspector; ярлыки больше не перекрывают командное окно.\n  - Team transcript исключён из generic chat-group collapsing; сообщения имеют auto-height и не схлопываются в полосы.\n  - Candidate ZIP: 56 files · 341171 bytes · SHA-256 `093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412`.\n  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.\n- [ ] 3.11.23 FUNCTION REGRESSION & PROVIDER WORKFLOW — проверить Google/Team/Browser/Media/Presence на реальных задачах после подтверждения Team execution fix."
+    }
+  ]
+}
