@@ -1,0 +1,12 @@
+{
+  "replacements": [
+    {
+      "from": "**Текущая установленная сборка:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner установил; Figma ambience виден, но top/dropdown/chat/settings/brand icons требуют cleanup**",
+      "to": "**Текущая установленная сборка:** **3.11.24 SETTINGS CLOSE HOTFIX — owner установил; Settings закрываются, но новый add-agent/provider flow сломал привычную работу вкладок чата**"
+    },
+    {
+      "from": "**Текущий кандидат:** **3.11.23 AGENT CONNECTION & NODE UX — собран, static checks PASS, owner runtime pending**",
+      "to": "**Текущий кандидат:** **3.11.25 CHAT TABS RESTORE — собран, static checks PASS, owner runtime pending**"
+    }
+  ]
+}
