@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.13 OCEAN CLARITY & PERFORMANCE — owner установил; P0 freeze-path убран, но отдельный Ocean shell признан слишком сложным и неудобным для реальной работы**  
-**Текущий кандидат:** **3.11.14 THREE THEME RESET — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.14 THREE THEME RESET — owner установил; Light/Dark работают, но переключение на Ocean дало blank blue screen без рабочего UI**  
+**Текущий кандидат:** **3.11.15 OCEAN THEME HOTFIX — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -264,18 +264,20 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Product decision: Kraken Arc / Living Eye launcher / отдельный Ocean dock / tool shelves / bubble-container physics больше НЕ являются основным интерфейсом OSMINOG.
   - Исторические идеи сохраняются в project log как R&D, но runtime возвращается к одной знакомой рабочей раскладке.
   - ZIP: 55 files · 372219 bytes · SHA-256 `5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9`.
-- [x] 3.11.14 THREE THEME RESET — candidate собран.
-  - Один и тот же проверенный classic/Space layout используется для всех визуальных тем. Никакой отдельной Ocean navigation/layout модели больше нет.
-  - Три темы: `Light` (☀), `Dark` (☾), `Ocean` (≋ waves). Кнопка темы циклически переключает Light → Dark → Ocean.
-  - Ocean = только визуальная тема: дневная подводная глубина, прозрачные glass surfaces, планктон/пузыри/морские формы и Ocean FX.
-  - Ocean FX не двигают и не заменяют инструменты. Layout, topbar, mode switch, side rails, Inspector и creation toolbar расположены ровно как в обычном рабочем интерфейсе.
-  - Удалены из активного Ocean runtime: Kraken Arc, Living Eye search shell, нижний Ocean dock, Ocean tool shelf, drift/collision engine и provider bubble-container runtime.
-  - `data-ui-mode` принудительно остаётся compatibility `space`; Ocean определяется только `data-theme="ocean"`, поэтому старые Ocean-only layout overrides не активируются.
-  - В Inspector вместо Ocean/Space mode + variant остаётся один простой выбор Theme: Light / Dark / Ocean.
-  - Старые проекты/объекты/Task Orbit не удаляются из данных; экспериментальная Ocean-навигация просто перестаёт управлять workspace.
-  - Candidate ZIP: 55 files · 323979 bytes · SHA-256 `4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Ocean runtime performance guards: no animation-frame JS loop, no collision timer, no self-triggering render MutationObserver. Owner runtime pending.
-- [ ] 3.11.15 WORKFLOW POLISH & FUNCTION REGRESSION — финально допилить понятность стандартного интерфейса, затем вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
+- [x] 3.11.14 THREE THEME RESET — owner runtime загрузки подтверждён, но Ocean theme switch поймал regression.
+  - Product reset верный: Light / Dark / Ocean должны использовать один familiar classic layout.
+  - Runtime bug: после переключения Dark → Ocean владелец получил только синий фон; рабочий UI исчез.
+  - Причина направления hotfix: Ocean всё ещё имел отдельный ambience DOM/stacking path, хотя после reset он уже не должен создавать никакую отдельную оболочку.
+  - ZIP: 55 files · 323979 bytes · SHA-256 `4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498`.
+- [x] 3.11.15 OCEAN THEME HOTFIX — candidate собран.
+  - Ocean теперь CSS-only theme поверх того же `#app`, DOM и layout, что Light/Dark.
+  - Полностью удалён full-screen `oceanAmbience` runtime; никаких новых overlay/navigation DOM nodes при выборе Ocean не создаётся.
+  - Ocean меняет только CSS variables, underwater gradients, glass/material styling и лёгкие FX settings.
+  - `applyTheme()` сохраняет уже открытый workspace при переключении темы.
+  - Если вкладка пережила reload старой unpacked extension, stale experimental Ocean nodes удаляются при init.
+  - Candidate ZIP: 55 files · 323297 bytes · SHA-256 `d2130d19f25a15577e7bfbf3b7bec654cd7a1d3bbe4dd6480a5fe49f3bf70ace`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.16 WORKFLOW POLISH & FUNCTION REGRESSION — после подтверждения трёх тем вернуться к понятности UI и Google/Team/Browser/Media/Presence.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
