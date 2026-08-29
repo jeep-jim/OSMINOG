@@ -1,7 +1,7 @@
 {
   "replacements": [
     {
-      "from": "**Текущая установленная сборка:** **3.11.11 SHELL POSITION FIX — owner установил; технический positioning fix работает, но split-shell визуально отклонён как перегруженный**  \n**Текущий кандидат:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — собран, static checks PASS, owner runtime pending**",
+      "from": "**Текущая установленная сборка:** **3.11.11 SHELL POSITION FIX — owner установил; positioning исправлен, но разнесённый по экрану Ocean shell визуально отклонён как перегруженный и непонятный**  \n**Текущий кандидат:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — собран, static checks PASS, owner runtime pending**",
       "to": "**Текущая установленная сборка:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — owner установил; shell загружается, но обнаружен P0 freeze/performance regression при bubble groups/collision/drift**  \n**Текущий кандидат:** **3.11.13 OCEAN CLARITY & PERFORMANCE — собран, static checks + performance guards PASS, owner runtime pending**"
     },
     {
