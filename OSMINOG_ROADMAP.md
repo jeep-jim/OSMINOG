@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.14 THREE THEME RESET — owner установил; Light/Dark работают, но переключение на Ocean дало blank blue screen без рабочего UI**  
-**Текущий кандидат:** **3.11.15 OCEAN THEME HOTFIX — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.15 OCEAN THEME HOTFIX — owner установил; Ocean снова показывает полный рабочий UI и использует тот же layout, что Light/Dark**  
+**Текущий кандидат:** **3.11.16 OCEAN UI POLISH — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -269,15 +269,24 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Runtime bug: после переключения Dark → Ocean владелец получил только синий фон; рабочий UI исчез.
   - Причина направления hotfix: Ocean всё ещё имел отдельный ambience DOM/stacking path, хотя после reset он уже не должен создавать никакую отдельную оболочку.
   - ZIP: 55 files · 323979 bytes · SHA-256 `4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498`.
-- [x] 3.11.15 OCEAN THEME HOTFIX — candidate собран.
-  - Ocean теперь CSS-only theme поверх того же `#app`, DOM и layout, что Light/Dark.
-  - Полностью удалён full-screen `oceanAmbience` runtime; никаких новых overlay/navigation DOM nodes при выборе Ocean не создаётся.
-  - Ocean меняет только CSS variables, underwater gradients, glass/material styling и лёгкие FX settings.
-  - `applyTheme()` сохраняет уже открытый workspace при переключении темы.
-  - Если вкладка пережила reload старой unpacked extension, stale experimental Ocean nodes удаляются при init.
-  - Candidate ZIP: 55 files · 323297 bytes · SHA-256 `d2130d19f25a15577e7bfbf3b7bec654cd7a1d3bbe4dd6480a5fe49f3bf70ace`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.16 WORKFLOW POLISH & FUNCTION REGRESSION — после подтверждения трёх тем вернуться к понятности UI и Google/Team/Browser/Media/Presence.
+- [x] 3.11.15 OCEAN THEME HOTFIX — owner runtime загрузки подтверждён.
+  - Ocean CSS-only theme снова показывает полный рабочий интерфейс; blank-blue regression 3.11.14 устранён.
+  - Light / Dark / Ocean используют один и тот же `#app`, DOM и layout.
+  - ZIP: 55 files · 323297 bytes · SHA-256 `d2130d19f25a15577e7bfbf3b7bec654cd7a1d3bbe4dd6480a5fe49f3bf70ace`.
+- [x] 3.11.16 OCEAN UI POLISH — candidate собран.
+  - Layers toggle физически вынесен из topbar в отдельный floating bubble слева над Layers panel; работает одинаково во всех темах.
+  - Внешний контейнер topbar удалён визуально во всех темах: controls остаются на местах, но общей плашки/рамки/blur-контейнера больше нет.
+  - Внешний контейнер нижнего creation tool rail также удалён во всех темах; сохраняются только сами цветные tool buttons.
+  - У welcome card исправлен close control: круглая glass-кнопка внутри верхнего правого угла карточки вместо серого квадратного ×.
+  - Удалены цифровые `1 / 2 / 3 / 4 / 5` подписи из Brief / Code / Browser / Design / Team; keyboard shortcuts при этом не отменяются.
+  - Из Ocean Canvas inspector удалена лишняя поясняющая карточка `Ocean — живая среда`.
+  - Ocean glass заметно осветлён, при этом blur усилен до ~30px, чтобы элементы позади не мешали чтению.
+  - Ocean FX control переделан в компактные rows/switches вместо набора сырых checkbox/select controls.
+  - Возвращены планктон, пузыри и морские формы в Ocean, но только через CSS animations + статический DOM: никаких requestAnimationFrame animation loops, collision timers или style-observer loops. `prefers-reduced-motion` поддерживается.
+  - Zoom controls перенесены из отдельного bottom dock в нижнюю часть collapsed Inspector mini-rail справа; отдельный zoom container снизу больше не нужен.
+  - Candidate ZIP: 55 files · 329105 bytes · SHA-256 `c3a32fc2eb2da20cbd9c8c93d752e7920963092246f2a6933691dd721c721177`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.17 WORKFLOW POLISH & FUNCTION REGRESSION — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
