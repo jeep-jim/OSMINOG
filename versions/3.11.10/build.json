@@ -1,0 +1,20 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.10",
+  "codename": "OCEAN DESKTOP SHELL",
+  "baseVersion": "3.11.9",
+  "artifact": "OSMINOG-Chrome-3.11.10-OCEAN-DESKTOP-SHELL-ROOT.zip",
+  "size": 362800,
+  "sha256": "ea2b19e22010f8c7ea37b3f7e7c4e4462a22e7b894fd41927dff504c0926fa23",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.10",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": ["manifest.json","OSMINOG_BUILD.json","editor.js","osminog-ocean-shell.js","osminog-ocean-shell.css"],
+  "staticChecks": {"javascriptFiles":21,"javascriptSyntax":true,"jsonFiles":9,"jsonParse":true,"duplicateRealHtmlIds":0,"zipIntegrity":true},
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "Ocean defaults to Day depth and plain/no-grid via a one-time desktop-shell migration. Ocean inspector removes canvas/grid color controls because the scene owns the palette while optional grid style remains. Frees the top centre: identity/language/theme move to a left bubble cluster, Layers becomes a separate bubble, Brief/Code/Browser/Design/Team move to a right vertical bubble rail, each mode exposes a radial set of its primary sub-tools, top-right utilities remain, and round close/minimize control migration begins. Space remains classic."
+}
