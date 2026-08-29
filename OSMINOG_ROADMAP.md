@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.19 OCEAN READABILITY & PANEL CLEANUP — owner установил; читаемость и панели заметно лучше, но Ocean ambience/верх/zoom/левый rail требуют финального визуального прохода**  
-**Текущий кандидат:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner установил; Figma ambience виден, но top/dropdown/chat/settings/brand icons требуют cleanup**  
+**Текущий кандидат:** **3.11.21 UI CLEANUP · BRAND ICONS · CHAT POLISH — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -307,7 +307,8 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Collapsed Layers заканчивается на той же нижней линии, что zoom; mini-rail и folder dock больше не перекрывают друг друга; нижние `+ / folder` имеют тот же rail-button style.
   - Candidate ZIP: 55 files · 334869 bytes · SHA-256 `b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95`.
   - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.21 FUNCTION REGRESSION & PROVIDER WORKFLOW — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
+- [x] 3.11.21 UI CLEANUP · BRAND ICONS · CHAT POLISH — candidate собран: убраны shared top containers, dropdowns унифицированы с blur, Layers active = blue/white, Ocean chat/settings очищены, provider branding расширен. ZIP: 56 files · 339311 bytes · SHA-256 `eb1234c27e9cc9131778dae089735678fe9183687a7b77e92747eeef16b22540`. Owner runtime pending.
+- [ ] 3.11.22 FUNCTION REGRESSION & PROVIDER WORKFLOW — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
