@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.10 OCEAN DESKTOP SHELL — owner установил; Ocean shell загружается, но topbar children из-за containing-block regression визуально уехали в левый верх**  
-**Текущий кандидат:** **3.11.11 SHELL POSITION FIX — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.11 SHELL POSITION FIX — owner установил; positioning исправлен, но разнесённый по экрану Ocean shell визуально отклонён как перегруженный и непонятный**  
+**Текущий кандидат:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -246,15 +246,25 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Стих первого пробуждения расположен внутри Kraken Arc и не возвращается в Search.
   - Candidate ZIP: 55 files · 362800 bytes · SHA-256 `ea2b19e22010f8c7ea37b3f7e7c4e4462a22e7b894fd41927dff504c0926fa23`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.11 SHELL POSITION FIX — candidate собран.
-  - В Ocean top-left identity, Layers, workspace mode rail и top-right utilities физически portal-ятся из legacy topbar в корень `#app`, поэтому fixed-position считается от viewport.
-  - `Доступ / Chat AI / Export` и системные top-right controls возвращены вправо.
-  - OSMINOG/language/theme остаются в верхнем левом bubble-cluster; Layers — отдельный bubble.
-  - Brief/Code/Browser/Design/Team остаются отдельным правым mode rail и не двигают legacy inspector/right rail.
-  - При переключении в Space исходный DOM topbar восстанавливается, то есть classic shell не ломается.
-  - Candidate ZIP: 55 files · 363750 bytes · SHA-256 `cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674`.
+- [x] 3.11.11 SHELL POSITION FIX — owner runtime загрузки подтверждён, но shell layout визуально отклонён.
+  - Portal/containing-block regression исправлен технически: top-right controls снова на месте.
+  - Owner runtime feedback: отдельный identity bubble сверху слева + отдельный mode rail справа + Kraken снизу + legacy rail создают слишком много независимых навигаций и выглядят как перегруженный Flash-era UI.
+  - Этот layout не переносится дальше как основной Ocean shell; полезный portal fix сохраняется.
+  - ZIP: 55 files · 363750 bytes · SHA-256 `cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674`.
+- [x] 3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — candidate собран по owner drawing.
+  - Один нижний Ocean dock: слева OSMINOG + version + Layers + language + Day/Night; по центру Kraken eye; справа Brief / Code / Browser / Design / Team.
+  - Dock показывается вместе с пробуждением Kraken/Search/tool context, чтобы idle canvas оставался чистым.
+  - Hover по режиму справа показывает компактную линейную выезжающую shelf-панель чуть выше dock; radial submenu для режимов удалён.
+  - Увод мыши из области либо клик по свободному canvas скрывает shelf.
+  - Выбор реального canvas tool переиспользует существующий `setTool()` и right inspector — настройки выбранного инструмента появляются справа, отдельного второго settings UI не создаётся.
+  - Старый нижний creation tool rail скрыт в Ocean как дублирующий; Space его сохраняет.
+  - Zoom в Ocean свёрнут до компактной pill `100%`; дополнительные fit/−/+ раскрываются только при hover/focus.
+  - Добавлен collision separation для provider shortcuts / desktop folders / module bubbles: независимые элементы раздвигаются и не должны спокойно лежать друг на друге.
+  - Intentional provider-on-provider drop создаёт persistent bubble group/container; члены группы перемещаются компактно вместе и сохраняют provider positions. Folder-on-folder продолжает использовать существующую nested-folder механику.
+  - Space mode не меняется.
+  - Candidate ZIP: 55 files · 369631 bytes · SHA-256 `049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.12 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
+- [ ] 3.11.13 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
