@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.11 SHELL POSITION FIX — owner установил; positioning исправлен, но разнесённый по экрану Ocean shell визуально отклонён как перегруженный и непонятный**  
-**Текущий кандидат:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — owner установил; shell загружается, но обнаружен P0 freeze/performance regression при bubble groups/collision/drift**  
+**Текущий кандидат:** **3.11.13 OCEAN CLARITY & PERFORMANCE — собран, static checks + performance guards PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -251,20 +251,24 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Owner runtime feedback: отдельный identity bubble сверху слева + отдельный mode rail справа + Kraken снизу + legacy rail создают слишком много независимых навигаций и выглядят как перегруженный Flash-era UI.
   - Этот layout не переносится дальше как основной Ocean shell; полезный portal fix сохраняется.
   - ZIP: 55 files · 363750 bytes · SHA-256 `cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674`.
-- [x] 3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — candidate собран по owner drawing.
-  - Один нижний Ocean dock: слева OSMINOG + version + Layers + language + Day/Night; по центру Kraken eye; справа Brief / Code / Browser / Design / Team.
-  - Dock показывается вместе с пробуждением Kraken/Search/tool context, чтобы idle canvas оставался чистым.
-  - Hover по режиму справа показывает компактную линейную выезжающую shelf-панель чуть выше dock; radial submenu для режимов удалён.
-  - Увод мыши из области либо клик по свободному canvas скрывает shelf.
-  - Выбор реального canvas tool переиспользует существующий `setTool()` и right inspector — настройки выбранного инструмента появляются справа, отдельного второго settings UI не создаётся.
-  - Старый нижний creation tool rail скрыт в Ocean как дублирующий; Space его сохраняет.
-  - Zoom в Ocean свёрнут до компактной pill `100%`; дополнительные fit/−/+ раскрываются только при hover/focus.
-  - Добавлен collision separation для provider shortcuts / desktop folders / module bubbles: независимые элементы раздвигаются и не должны спокойно лежать друг на друге.
-  - Intentional provider-on-provider drop создаёт persistent bubble group/container; члены группы перемещаются компактно вместе и сохраняют provider positions. Folder-on-folder продолжает использовать существующую nested-folder механику.
-  - Space mode не меняется.
-  - Candidate ZIP: 55 files · 369631 bytes · SHA-256 `049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.13 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
+- [x] 3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — owner runtime загрузки подтверждён, но обнаружен P0 freeze/performance regression.
+  - Нижний dock, linear tool shelf, zoom pill и provider bubble grouping реально загрузились в Chrome.
+  - Owner сообщил о полном зависании вкладки/расширения после работы с новым Ocean shell.
+  - Разбор показал конкретный feedback-loop: bubble-group MutationObserver вызывал `renderGroupBubbles()`, который сам удалял/создавал group DOM и повторно будил observer; одновременно collision resolver запускался каждые 1.1s как O(n²) layout-pass.
+  - Water drift писал `style.translate` каждый animation frame, а глобальные body MutationObserver следили за `style/class`, поэтому drift дополнительно будил дорогие layout/UI sync callbacks практически каждый кадр.
+  - Эта performance-схема запрещена к возврату в следующие версии.
+  - ZIP: 55 files · 369631 bytes · SHA-256 `049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487`.
+- [x] 3.11.13 OCEAN CLARITY & PERFORMANCE — candidate собран.
+  - P0: удалён self-triggering bubble-container observer loop и постоянный `setInterval(resolveCollisions,1100)`. Collision теперь event-driven: pointer release / relevant object additions / project open.
+  - Drift больше не сканирует targets каждый frame, ограничен примерно 25 FPS и не выполняет animation work при hidden tab; observer drift реагирует только на добавление relevant draggable nodes.
+  - Глобальные Ocean observers больше не слушают каждое `style/class` изменение от drift.
+  - Bubble group становится прозрачным clickable bubble. При открытии показывается focus surface с содержимым, а остальной canvas блюрится; есть действие разбить пузырь.
+  - Layers снова отдельный bubble в левом верхнем углу.
+  - Inspector в idle Ocean закрыт, открывается по реальному tool/object context и overlay-ится поверх canvas; нижний dock больше никогда не сдвигается из-за Inspector.
+  - Тяжёлые чёрные Ocean dock/tool surfaces заменены более светлым голубым glass.
+  - Candidate ZIP: 55 files · 372219 bytes · SHA-256 `5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Performance guards: collision timer removed, observer self-loop removed, drift capped ~25fps, hidden-tab drift paused, global body style observers removed from the affected Ocean path. Owner runtime pending.
+- [ ] 3.11.14 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
