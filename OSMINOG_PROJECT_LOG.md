@@ -1486,3 +1486,22 @@ Files: 55
 Static verification: 21 JS syntax PASS; 9 JSON parse PASS; 0 duplicate real HTML IDs; ZIP integrity PASS.  
 Runtime status: owner test pending. Binary is not yet claimed as archived in GitHub.
 
+
+
+---
+
+## 2026-08-29 — OSMINOG 3.11.9 TASK ORBIT INTRO
+
+- Owner installed 3.11.8 OCTOPUS WORK STATES in real Chrome and approved the general Ocean direction.
+- Owner clarified that the awakening poem must NOT live in Search. It belongs only to the first Kraken Arc awakening/onboarding moment.
+- Implemented one-time-per-tab/browser-session Kraken awakening poem using sessionStorage.
+- Added localized poem variants for Russian, English, German, Spanish, Japanese and Chinese.
+- Search no longer renders the poem; it keeps only the project index/summary/results/composer.
+- Added Kraken Arc `Task` action.
+- Added real `task` canvas object with a central task core and orbit nodes for ChatGPT, Claude, Gemini, DeepSeek, Chat, Files and Result.
+- Provider nodes reuse OSMINOG Provider Registry sessions; Chat reuses Team Room; Files reuses project-folder runtime; no duplicate subsystem was introduced.
+- Double-clicking task core opens Team Room and inserts the task title into the team mission field.
+- Build artifact: `OSMINOG-Chrome-3.11.9-TASK-ORBIT-INTRO-ROOT.zip` · 55 files · 356012 bytes · SHA-256 `e547ad48a4f8762a03b8e3c98fd772f63a3f64285cc3b85386269b906cf842d9`.
+- Static checks: 21 JavaScript syntax PASS, 9 JSON parse PASS, real duplicate HTML IDs 0, ZIP integrity PASS.
+- Runtime status: candidate; owner test pending.
+
