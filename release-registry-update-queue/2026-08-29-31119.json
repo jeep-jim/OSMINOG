@@ -1,0 +1,42 @@
+{
+  "updatedAt": "2026-08-29",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.18",
+    "codename": "LAYERS & ZOOM POLISH",
+    "artifact": "OSMINOG-Chrome-3.11.18-LAYERS-ZOOM-POLISH-ROOT.zip",
+    "size": 330638,
+    "sha256": "d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a",
+    "runtimeState": "owner-installed; shared workspace layout loads, but Ocean top groups are still over-containerized, collapsed Layers leaks a real preview, GPT chat/settings readability is poor, and scrollbars/zoom need another cleanup"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.19",
+    "codename": "OCEAN READABILITY & PANEL CLEANUP",
+    "baseVersion": "3.11.18",
+    "artifact": "OSMINOG-Chrome-3.11.19-OCEAN-READABILITY-PANEL-CLEANUP-ROOT.zip",
+    "size": 332263,
+    "sha256": "2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3",
+    "fileCount": 55,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.18",
+  "candidateVersion": "3.11.19",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.19",
+    "codename": "OCEAN READABILITY & PANEL CLEANUP",
+    "baseVersion": "3.11.18",
+    "artifact": "OSMINOG-Chrome-3.11.19-OCEAN-READABILITY-PANEL-CLEANUP-ROOT.zip",
+    "size": 332263,
+    "sha256": "2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3",
+    "fileCount": 55,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.19",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": "Readability cleanup over the single Light/Dark/Ocean layout. Ocean top groups lose long container backgrounds and use individual bubble controls. Collapsed Layers aggressively hides real rows/previews. Folder dock separators removed. Collapsed zoom shortened, expanded Inspector keeps horizontal zoom. Unified themed scrollbars added. Ocean GPT chat is dark blue glass rather than white; GPT settings becomes a full structured scrollable surface. Ocean FX storage key bug fixed with migration from v31118. No animation-frame/collision render loops reintroduced."
+  }
+}
