@@ -5,27 +5,27 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.11",
-    "codename": "SHELL POSITION FIX",
-    "artifact": "OSMINOG-Chrome-3.11.11-SHELL-POSITION-FIX-ROOT.zip",
-    "size": 363750,
-    "sha256": "cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674",
-    "runtimeState": "owner-installed; technical positioning fix works, but the split Ocean shell layout was visually rejected as confusing/overloaded"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.12",
     "codename": "OCEAN DOCK & BUBBLE CONTAINERS",
-    "baseVersion": "3.11.11",
     "artifact": "OSMINOG-Chrome-3.11.12-OCEAN-DOCK-BUBBLE-CONTAINERS-ROOT.zip",
     "size": 369631,
     "sha256": "049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487",
+    "runtimeState": "owner-installed; UI loads, but a P0 freeze/performance regression was reproduced in owner runtime after bubble-group/collision/drift work"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.13",
+    "codename": "OCEAN CLARITY & PERFORMANCE",
+    "baseVersion": "3.11.12",
+    "artifact": "OSMINOG-Chrome-3.11.13-OCEAN-CLARITY-PERFORMANCE-ROOT.zip",
+    "size": 372219,
+    "sha256": "5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9",
     "fileCount": 55,
-    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "runtimeState": "built-and-statically-verified with performance guards; owner runtime pending",
     "binaryInGitHub": false
   },
   "platforms": {
-    "chrome-extension": {"status":"active-development","branch":"platform/chrome-extension","currentVersion":"3.11.11","candidateVersion":"3.11.12","distribution":"manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"},
+    "chrome-extension": {"status":"active-development","branch":"platform/chrome-extension","currentVersion":"3.11.12","candidateVersion":"3.11.13","distribution":"manual alpha ZIP during Ocean Shell migration; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"},
     "windows": {"status":"planned","branch":"platform/windows","currentVersion":null,"distribution":"desktop shell planned; reuse Ocean/Space spatial model"},
     "macos": {"status":"planned","branch":"platform/macos","currentVersion":null,"distribution":"desktop shell planned; reuse Ocean/Space spatial model"},
     "web-pwa": {"status":"planned","branch":"platform/web-pwa","currentVersion":null,"distribution":"atomic web deployment + service-worker versioning planned"},
@@ -33,8 +33,9 @@
     "ios": {"status":"planned","branch":"platform/ios","currentVersion":null,"distribution":"future mobile-specific adaptation; not current target"}
   },
   "releases": [
-    {"platform":"chrome-extension","version":"3.11.12","codename":"OCEAN DOCK & BUBBLE CONTAINERS","baseVersion":"3.11.11","artifact":"OSMINOG-Chrome-3.11.12-OCEAN-DOCK-BUBBLE-CONTAINERS-ROOT.zip","size":369631,"sha256":"049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.12","fixedManifestKeyPreserved":true,"runtimeVerified":false,"binaryInGitHub":false,"notes":"Owner-directed shell correction: one bottom dock, linear hover tool shelf, existing right inspector for tool settings, 100% zoom pill, collision separation, provider bubble containers; Space preserved."},
-    {"platform":"chrome-extension","version":"3.11.11","codename":"SHELL POSITION FIX","baseVersion":"3.11.10","artifact":"OSMINOG-Chrome-3.11.11-SHELL-POSITION-FIX-ROOT.zip","size":363750,"sha256":"cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.11","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Portal/containing-block issue fixed, but resulting split shell was visually rejected as too confusing and overloaded."},
+    {"platform":"chrome-extension","version":"3.11.13","codename":"OCEAN CLARITY & PERFORMANCE","baseVersion":"3.11.12","artifact":"OSMINOG-Chrome-3.11.13-OCEAN-CLARITY-PERFORMANCE-ROOT.zip","size":372219,"sha256":"5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.13","fixedManifestKeyPreserved":true,"runtimeVerified":false,"binaryInGitHub":false,"notes":"P0 freeze fix: removes self-triggering bubble-group observer/render loop and 1.1s global O(n^2) collision timer; collision becomes event-driven. Drift capped ~25fps, hidden-tab work paused, target scanning removed from every frame, and affected global style/class observers removed. Bubble groups become clear/openable focus bubbles with backdrop blur; Layers returns to top-left; idle Inspector closes and never shifts dock; Ocean surfaces lightened."},
+    {"platform":"chrome-extension","version":"3.11.12","codename":"OCEAN DOCK & BUBBLE CONTAINERS","baseVersion":"3.11.11","artifact":"OSMINOG-Chrome-3.11.12-OCEAN-DOCK-BUBBLE-CONTAINERS-ROOT.zip","size":369631,"sha256":"049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.12","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Bottom dock and bubble-container UI load, but owner observed a full freeze. Root cause review found a self-triggering group MutationObserver/render loop plus always-on collision and drift/style observer amplification; superseded by 3.11.13 performance pass."},
+    {"platform":"chrome-extension","version":"3.11.11","codename":"SHELL POSITION FIX","baseVersion":"3.11.10","artifact":"OSMINOG-Chrome-3.11.11-SHELL-POSITION-FIX-ROOT.zip","size":363750,"sha256":"cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.11","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Portal/containing-block issue fixed, but split shell visually rejected as too confusing/overloaded."},
     {"platform":"chrome-extension","version":"3.11.10","codename":"OCEAN DESKTOP SHELL","baseVersion":"3.11.9","artifact":"OSMINOG-Chrome-3.11.10-OCEAN-DESKTOP-SHELL-ROOT.zip","size":362800,"sha256":"ea2b19e22010f8c7ea37b3f7e7c4e4462a22e7b894fd41927dff504c0926fa23","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.10","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Ocean Day/no-grid defaults; Ocean canvas palette removed; first topbar decomposition attempt. Positioning regression later fixed in 3.11.11."},
     {"platform":"chrome-extension","version":"3.11.9","codename":"TASK ORBIT INTRO","baseVersion":"3.11.8","artifact":"OSMINOG-Chrome-3.11.9-TASK-ORBIT-INTRO-ROOT.zip","size":356012,"sha256":"e547ad48a4f8762a03b8e3c98fd772f63a3f64285cc3b85386269b906cf842d9","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.9","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Poem removed from Search and localized for RU/EN/DE/ES/JA/ZH on one-time Kraken intro. Added real Task Orbit canvas object using existing Team/provider/folder runtimes."},
     {"platform":"chrome-extension","version":"3.11.8","codename":"OCTOPUS WORK STATES","baseVersion":"3.11.7","artifact":"OSMINOG-Chrome-3.11.8-OCTOPUS-WORK-STATES-ROOT.zip","size":356050,"sha256":"1ecfdcbe60f9af341f74ea8e553db56e0235437cecf8d9fe0d6f76880a06345f","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.8","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed. Ocean Day restored to bright depth; working octopus states/tethers introduced; normal connections placed behind objects and raised for edit."},
@@ -46,7 +47,7 @@
     {"platform":"chrome-extension","version":"3.11.2","codename":"PROVIDER SESSION LAYER","baseVersion":"3.11.1","artifact":"OSMINOG-Chrome-3.11.2-PROVIDER-SESSION-LAYER-ROOT.zip","size":335371,"sha256":"0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd","fileCount":55,"manifestAtRoot":true,"manifestVersion":"3.11.2","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Provider/Session layer, Google as agent brain, On/Off connection status, fail-closed Google image send, Poseidon naming."},
     {"platform":"chrome-extension","version":"3.11.1","codename":"SEARCH LAYER","baseVersion":"3.11.0","artifact":"OSMINOG-Chrome-3.11.1-SEARCH-LAYER-ROOT.zip","size":323960,"sha256":"b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a","fileCount":54,"manifestAtRoot":true,"manifestVersion":"3.11.1","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner installed; live project index/search works; original opening geometry later superseded."},
     {"platform":"chrome-extension","version":"3.11.0","codename":"OCEAN SHELL ALPHA","baseVersion":"3.10.7","artifact":"OSMINOG-Chrome-3.11.0-OCEAN-SHELL-ALPHA-ROOT.zip","size":317919,"sha256":"f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd","fileCount":54,"manifestAtRoot":true,"manifestVersion":"3.11.0","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"First Ocean Shell; owner confirmed workspace/project loads and visual direction accepted."},
-    {"platform":"chrome-extension","version":"3.10.7","codename":"UPDATE BRIDGE","baseVersion":"3.10.6","artifact":"OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip","size":313664,"sha256":"fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300","fileCount":52,"manifestAtRoot":true,"manifestVersion":"3.10.7","fixedManifestKeyPreserved":true,"runtimeVerified":true,"binaryInGitHub":false,"notes":"Owner manually installed; update bridge baseline before Ocean migration."},
+    {"platform":"chrome-extension","version":"3.10.7","codename":"UPDATE BRIDGE","baseVersion":"3.10.6","artifact":"OSMINOG-Chrome-3.10.7-UPDATE-BRIDGE-ROOT.zip","size":313664,"sha256":"fff22fb96aa3fe3959a832e44a11794c84a1238742015813a8878293ee8ec300","fileCount":52,"manifestAtRoot":true,"manifestVersion":"3.10.7","fixedManifestKeyPreserved":true,"runtimeVerified":true,"notes":"Owner manually installed; update bridge baseline before Ocean migration."},
     {"platform":"chrome-extension","version":"3.10.6","codename":"CANVAS CONTROL","baseVersion":"3.10.5","artifact":"osminog-chrome-extension-3.10.6.zip","sourceArtifactName":"OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip","size":308710,"sha256":"c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c","fileCount":52,"manifestAtRoot":true,"manifestVersion":"3.10.6","fixedManifestKeyPreserved":true,"runtimeVerified":false,"notes":"Exact owner-supplied recovery baseline verified locally."}
   ]
 }
