@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.9 TASK ORBIT INTRO — owner установил; Task Orbit и Kraken/Ocean shell загружаются в real Chrome**  
-**Текущий кандидат:** **3.11.10 OCEAN DESKTOP SHELL — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.10 OCEAN DESKTOP SHELL — owner установил; Ocean shell загружается, но topbar children из-за containing-block regression визуально уехали в левый верх**  
+**Текущий кандидат:** **3.11.11 SHELL POSITION FIX — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -234,7 +234,7 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Double click центральной задачи открывает Team Room и подставляет название задачи в mission input.
   - Candidate ZIP: 55 files · 356012 bytes · SHA-256 `e547ad48a4f8762a03b8e3c98fd772f63a3f64285cc3b85386269b906cf842d9`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.10 OCEAN DESKTOP SHELL — candidate собран.
+- [x] 3.11.10 OCEAN DESKTOP SHELL — owner runtime загрузки подтверждён; функциональная идея принята, но обнаружен positioning regression: top-left identity, workspace modes и top-right utilities оставались дочерними legacy glass topbar и поэтому Chrome позиционировал fixed descendants относительно старого containing block.
   - Ocean получает одноразовую desktop-default миграцию: **Day depth** по умолчанию и **Без сетки** (`plain`) по умолчанию; сетку/точки пользователь может включить вручную.
   - В Ocean настройки цветов холста/сетки скрыты: палитра принадлежит самой Ocean-сцене; остаются grid selector и собственные Ocean FX. Space сохраняет классические canvas colors.
   - Верхний центр освобождён: OSMINOG + язык + переключатель Ocean Day/Night вынесены в компактный bubble-cluster слева.
@@ -246,7 +246,15 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Стих первого пробуждения расположен внутри Kraken Arc и не возвращается в Search.
   - Candidate ZIP: 55 files · 362800 bytes · SHA-256 `ea2b19e22010f8c7ea37b3f7e7c4e4462a22e7b894fd41927dff504c0926fa23`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.11 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
+- [x] 3.11.11 SHELL POSITION FIX — candidate собран.
+  - В Ocean top-left identity, Layers, workspace mode rail и top-right utilities физически portal-ятся из legacy topbar в корень `#app`, поэтому fixed-position считается от viewport.
+  - `Доступ / Chat AI / Export` и системные top-right controls возвращены вправо.
+  - OSMINOG/language/theme остаются в верхнем левом bubble-cluster; Layers — отдельный bubble.
+  - Brief/Code/Browser/Design/Team остаются отдельным правым mode rail и не двигают legacy inspector/right rail.
+  - При переключении в Space исходный DOM topbar восстанавливается, то есть classic shell не ломается.
+  - Candidate ZIP: 55 files · 363750 bytes · SHA-256 `cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.12 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
