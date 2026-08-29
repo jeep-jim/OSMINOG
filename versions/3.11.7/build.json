@@ -1,0 +1,33 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.7",
+  "codename": "OCEAN ARC LAUNCHER",
+  "baseVersion": "3.11.6",
+  "artifact": "OSMINOG-Chrome-3.11.7-OCEAN-ARC-LAUNCHER-ROOT.zip",
+  "size": 354073,
+  "sha256": "6bc49dddef6fa5cdd654e3ba81a2f76dc5b6306195b407e53ae222f27f608833",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.7",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": [
+    "manifest.json",
+    "OSMINOG_BUILD.json",
+    "editor.js",
+    "osminog-ocean-shell.css",
+    "osminog-ocean-shell.js"
+  ],
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 9,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true
+  },
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "Adds Ocean/Space interface modes, session-only welcome, Kraken proximity wake + radial first-level launcher, Ocean day/night variants, Space light/dark preservation, round Ocean window controls and bubble open language. Local Chromium 144 cannot runtime-load the production manifest because minimum_chrome_version remains 148."
+}
