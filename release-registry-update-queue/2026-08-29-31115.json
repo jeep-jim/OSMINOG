@@ -1,0 +1,42 @@
+{
+  "updatedAt": "2026-08-29",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.14",
+    "codename": "THREE THEME RESET",
+    "artifact": "OSMINOG-Chrome-3.11.14-THREE-THEME-RESET-ROOT.zip",
+    "size": 323979,
+    "sha256": "4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498",
+    "runtimeState": "owner-installed; Light/Dark workspace loads, but switching to Ocean produced a blank blue screen with workspace chrome missing"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.15",
+    "codename": "OCEAN THEME HOTFIX",
+    "baseVersion": "3.11.14",
+    "artifact": "OSMINOG-Chrome-3.11.15-OCEAN-THEME-HOTFIX-ROOT.zip",
+    "size": 323297,
+    "sha256": "d2130d19f25a15577e7bfbf3b7bec654cd7a1d3bbe4dd6480a5fe49f3bf70ace",
+    "fileCount": 55,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.14",
+  "candidateVersion": "3.11.15",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.15",
+    "codename": "OCEAN THEME HOTFIX",
+    "baseVersion": "3.11.14",
+    "artifact": "OSMINOG-Chrome-3.11.15-OCEAN-THEME-HOTFIX-ROOT.zip",
+    "size": 323297,
+    "sha256": "d2130d19f25a15577e7bfbf3b7bec654cd7a1d3bbe4dd6480a5fe49f3bf70ace",
+    "fileCount": 55,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.15",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": "Fixes the 3.11.14 Ocean theme blank-screen regression by making Ocean CSS-only on the standard workspace DOM. No ambience overlay DOM or alternate shell is created. Switching themes preserves an already-open app and removes stale abandoned Ocean nodes from surviving live tabs."
+  }
+}
