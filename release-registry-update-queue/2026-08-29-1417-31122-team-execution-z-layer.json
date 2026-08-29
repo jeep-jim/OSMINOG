@@ -1,0 +1,41 @@
+{
+  "updatedAt": "2026-08-29",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.20",
+    "codename": "FIGMA PLANKTON & RAIL ALIGN",
+    "artifact": "OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip",
+    "size": 334869,
+    "sha256": "b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95",
+    "runtimeState": "owner-installed; Team runtime revealed prose-only execution failure, provider shortcuts over Team window, and collapsed Team transcript messages"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.22",
+    "codename": "TEAM EXECUTION & Z-LAYER FIX",
+    "baseVersion": "3.11.21",
+    "artifact": "OSMINOG-Chrome-3.11.22-TEAM-EXECUTION-Z-LAYER-FIX-ROOT.zip",
+    "size": 341171,
+    "sha256": "093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412",
+    "fileCount": 56,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.20",
+  "candidateVersion": "3.11.22",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.22",
+    "codename": "TEAM EXECUTION & Z-LAYER FIX",
+    "baseVersion": "3.11.21",
+    "artifact": "OSMINOG-Chrome-3.11.22-TEAM-EXECUTION-Z-LAYER-FIX-ROOT.zip",
+    "size": 341171,
+    "sha256": "093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412",
+    "fileCount": 56,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.22",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false
+  }
+}
