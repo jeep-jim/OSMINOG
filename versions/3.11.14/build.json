@@ -1,0 +1,32 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.14",
+  "codename": "THREE THEME RESET",
+  "baseVersion": "3.11.13",
+  "artifact": "OSMINOG-Chrome-3.11.14-THREE-THEME-RESET-ROOT.zip",
+  "size": 323979,
+  "sha256": "4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.14",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": ["manifest.json","OSMINOG_BUILD.json","editor.html","editor.js","osminog-ocean-shell.css","osminog-ocean-shell.js"],
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "UX reset. OSMINOG returns to one familiar classic/Space workspace layout for all themes. Light, Dark and Ocean are now three theme states. Ocean keeps only underwater background, translucency and optional Ocean FX; Kraken Arc, Living Eye Search shell, Ocean bottom dock, tool shelves, drift, collision and bubble-container runtime are removed from the active UI path. Theme button cycles Light → Dark → Ocean and Ocean uses a waves icon.",
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 9,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true,
+    "performanceGuards": {
+      "noOceanAnimationFrameLoop": true,
+      "noOceanCollisionTimer": true,
+      "noOceanMutationRenderLoop": true
+    }
+  }
+}
