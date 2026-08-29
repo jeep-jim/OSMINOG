@@ -1,0 +1,16 @@
+{
+  "replacements": [
+    {
+      "from": "**Текущая установленная сборка:** **3.11.9 TASK ORBIT INTRO — owner установил; Task Orbit и Kraken/Ocean shell загружаются в real Chrome**  \n**Текущий кандидат:** **3.11.10 OCEAN DESKTOP SHELL — собран, static checks PASS, owner runtime pending**",
+      "to": "**Текущая установленная сборка:** **3.11.10 OCEAN DESKTOP SHELL — owner установил; Ocean shell загружается, но topbar children из-за containing-block regression визуально уехали в левый верх**  \n**Текущий кандидат:** **3.11.11 SHELL POSITION FIX — собран, static checks PASS, owner runtime pending**"
+    },
+    {
+      "from": "- [x] 3.11.10 OCEAN DESKTOP SHELL — candidate собран.",
+      "to": "- [x] 3.11.10 OCEAN DESKTOP SHELL — owner runtime загрузки подтверждён; функциональная идея принята, но обнаружен positioning regression: top-left identity, workspace modes и top-right utilities оставались дочерними legacy glass topbar и поэтому Chrome позиционировал fixed descendants относительно старого containing block."
+    },
+    {
+      "from": "- [ ] 3.11.11 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.",
+      "to": "- [x] 3.11.11 SHELL POSITION FIX — candidate собран.\n  - В Ocean top-left identity, Layers, workspace mode rail и top-right utilities физически portal-ятся из legacy topbar в корень `#app`, поэтому fixed-position считается от viewport.\n  - `Доступ / Chat AI / Export` и системные top-right controls возвращены вправо.\n  - OSMINOG/language/theme остаются в верхнем левом bubble-cluster; Layers — отдельный bubble.\n  - Brief/Code/Browser/Design/Team остаются отдельным правым mode rail и не двигают legacy inspector/right rail.\n  - При переключении в Space исходный DOM topbar восстанавливается, то есть classic shell не ломается.\n  - Candidate ZIP: 55 files · 363750 bytes · SHA-256 `cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674`.\n  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.\n- [ ] 3.11.12 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces."
+    }
+  ]
+}
