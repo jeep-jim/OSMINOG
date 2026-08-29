@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — owner установил; shell загружается, но обнаружен P0 freeze/performance regression при bubble groups/collision/drift**  
-**Текущий кандидат:** **3.11.13 OCEAN CLARITY & PERFORMANCE — собран, static checks + performance guards PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.13 OCEAN CLARITY & PERFORMANCE — owner установил; P0 freeze-path убран, но отдельный Ocean shell признан слишком сложным и неудобным для реальной работы**  
+**Текущий кандидат:** **3.11.14 THREE THEME RESET — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -258,17 +258,24 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Water drift писал `style.translate` каждый animation frame, а глобальные body MutationObserver следили за `style/class`, поэтому drift дополнительно будил дорогие layout/UI sync callbacks практически каждый кадр.
   - Эта performance-схема запрещена к возврату в следующие версии.
   - ZIP: 55 files · 369631 bytes · SHA-256 `049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487`.
-- [x] 3.11.13 OCEAN CLARITY & PERFORMANCE — candidate собран.
-  - P0: удалён self-triggering bubble-container observer loop и постоянный `setInterval(resolveCollisions,1100)`. Collision теперь event-driven: pointer release / relevant object additions / project open.
-  - Drift больше не сканирует targets каждый frame, ограничен примерно 25 FPS и не выполняет animation work при hidden tab; observer drift реагирует только на добавление relevant draggable nodes.
-  - Глобальные Ocean observers больше не слушают каждое `style/class` изменение от drift.
-  - Bubble group становится прозрачным clickable bubble. При открытии показывается focus surface с содержимым, а остальной canvas блюрится; есть действие разбить пузырь.
-  - Layers снова отдельный bubble в левом верхнем углу.
-  - Inspector в idle Ocean закрыт, открывается по реальному tool/object context и overlay-ится поверх canvas; нижний dock больше никогда не сдвигается из-за Inspector.
-  - Тяжёлые чёрные Ocean dock/tool surfaces заменены более светлым голубым glass.
-  - Candidate ZIP: 55 files · 372219 bytes · SHA-256 `5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Performance guards: collision timer removed, observer self-loop removed, drift capped ~25fps, hidden-tab drift paused, global body style observers removed from the affected Ocean path. Owner runtime pending.
-- [ ] 3.11.14 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
+- [x] 3.11.13 OCEAN CLARITY & PERFORMANCE — owner runtime загрузки подтверждён.
+  - P0 freeze-path из 3.11.12 убран: self-triggering observer/collision loops сняты.
+  - Owner feedback после реального использования: даже после performance fix отдельная Ocean interaction system остаётся слишком сложной, непредсказуемой и мешает базовой работе; создателю самому трудно понять, где находится привычный инструмент.
+  - Product decision: Kraken Arc / Living Eye launcher / отдельный Ocean dock / tool shelves / bubble-container physics больше НЕ являются основным интерфейсом OSMINOG.
+  - Исторические идеи сохраняются в project log как R&D, но runtime возвращается к одной знакомой рабочей раскладке.
+  - ZIP: 55 files · 372219 bytes · SHA-256 `5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9`.
+- [x] 3.11.14 THREE THEME RESET — candidate собран.
+  - Один и тот же проверенный classic/Space layout используется для всех визуальных тем. Никакой отдельной Ocean navigation/layout модели больше нет.
+  - Три темы: `Light` (☀), `Dark` (☾), `Ocean` (≋ waves). Кнопка темы циклически переключает Light → Dark → Ocean.
+  - Ocean = только визуальная тема: дневная подводная глубина, прозрачные glass surfaces, планктон/пузыри/морские формы и Ocean FX.
+  - Ocean FX не двигают и не заменяют инструменты. Layout, topbar, mode switch, side rails, Inspector и creation toolbar расположены ровно как в обычном рабочем интерфейсе.
+  - Удалены из активного Ocean runtime: Kraken Arc, Living Eye search shell, нижний Ocean dock, Ocean tool shelf, drift/collision engine и provider bubble-container runtime.
+  - `data-ui-mode` принудительно остаётся compatibility `space`; Ocean определяется только `data-theme="ocean"`, поэтому старые Ocean-only layout overrides не активируются.
+  - В Inspector вместо Ocean/Space mode + variant остаётся один простой выбор Theme: Light / Dark / Ocean.
+  - Старые проекты/объекты/Task Orbit не удаляются из данных; экспериментальная Ocean-навигация просто перестаёт управлять workspace.
+  - Candidate ZIP: 55 files · 323979 bytes · SHA-256 `4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498`.
+  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Ocean runtime performance guards: no animation-frame JS loop, no collision timer, no self-triggering render MutationObserver. Owner runtime pending.
+- [ ] 3.11.15 WORKFLOW POLISH & FUNCTION REGRESSION — финально допилить понятность стандартного интерфейса, затем вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
