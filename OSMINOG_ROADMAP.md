@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.17 OCEAN CONTRAST & LAYOUT FIX — owner установил; Ocean читается лучше и рабочий UI стабилен, но zoom/Inspector и Layers footer/collapsed UX требуют ещё одного прохода**  
-**Текущий кандидат:** **3.11.18 LAYERS & ZOOM POLISH — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.18 LAYERS & ZOOM POLISH — owner установил; layout работает, но Ocean top groups всё ещё перегружены контейнерами, collapsed Layers показывает preview, GPT chat/settings плохо читаются и scrollbar/zoom требуют cleanup**  
+**Текущий кандидат:** **3.11.19 OCEAN READABILITY & PANEL CLEANUP — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -285,17 +285,25 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Collapsed Layers всё ещё визуально показывает содержимое/preview слоя; expanded footer имеет неверную иерархию: большой `+` и маленькая папка вместо широкой локальной папки + маленького `+`.
   - Ocean top controls местами теряются; нужен единый полупрозрачный substrate без индивидуальных рамок каждого control.
   - ZIP: 55 files · 324575 bytes · SHA-256 `d8e6b11c692c71e505e5efb2ad16216131477647183f9f0516310279b11f3a32`.
-- [x] 3.11.18 LAYERS & ZOOM POLISH — candidate собран.
-  - Collapsed Inspector больше не тянется пустой колонной вниз: quick-actions mini-rail имеет естественную высоту.
-  - При collapsed Inspector zoom живёт отдельной вертикальной pill ниже с явным gap и той же шириной 56px; `100%` остаётся горизонтальным.
-  - При expanded Inspector zoom автоматически перестраивается обратно в горизонтальную classic-pill и располагается рядом с Inspector, не исчезая.
-  - Collapsed Layers жёстко скрывает реальные layer/file rows, groups, previews и thumbnails; остаются только section/navigation controls.
-  - Expanded Layers footer переставлен: широкая кнопка реальной локальной папки проекта слева + маленький `+` справа.
-  - Local project folder control использует существующий `OSMINOGProjectFolderAPI`: если папка не подключена — вызывает owner directory picker; если подключена — открывает существующий local project explorer. В кнопке показывается реальное имя подключённой папки.
-  - Ocean top groups получают единый translucent light substrate; индивидуальные borders/backgrounds большинства topbar controls убраны, hover остаётся мягким.
-  - Candidate ZIP: 55 files · 330638 bytes · SHA-256 `d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a`.
+- [x] 3.11.18 LAYERS & ZOOM POLISH — owner runtime загрузки подтверждён.
+  - Shared Light/Dark/Ocean layout работает, локальная папка и zoom-перестройка загружаются.
+  - Owner feedback: верхние Ocean controls снова воспринимаются как три длинных контейнера вместо отдельных bubble-controls; collapsed Layers всё ещё пропускает реальный thumbnail/preview; zoom collapsed всё ещё визуально слишком длинный.
+  - GPT/ChatGPT окно в Ocean имеет белое/низкоконтрастное поле переписки; Agent Settings полупрозрачны, секции плохо читаются и нижнее содержимое скрывается; scrollbar Inspector/Settings выглядит системно и грубо.
+  - Footer Layers должен быть без разделительных полос и совпадать по высотному ритму с нижним creation toolbar.
+  - ZIP: 55 files · 330638 bytes · SHA-256 `d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a`.
+- [x] 3.11.19 OCEAN READABILITY & PANEL CLEANUP — candidate собран.
+  - Ocean top-left / mode-switch / top-actions больше не имеют длинной общей плашки: каждая кнопка/вкладка получает отдельную blue-glass bubble surface в стиле боковых controls.
+  - Collapsed Layers агрессивно скрывает `layerList`, rows/groups/files/observed previews и любые реальные thumbnails/images; остаются только navigation controls и folder actions.
+  - Project-folder dock лишён separator bars/background band и выровнен по 54px ритму нижнего tool rail.
+  - Collapsed zoom-pill укорочена; expanded Inspector по-прежнему получает classic horizontal zoom.
+  - Добавлены единые тонкие themed scrollbars для Inspector, Layers, AI settings/chat и длинных рабочих панелей во всех темах.
+  - Ocean ChatGPT/AI chat переведён с белого conversation surface на читаемый глубокий blue glass.
+  - Agent Settings становятся full-surface state внутри chat body: непрозрачнее, секции оформлены отдельными blocks, содержимое прокручивается целиком и sticky header показывает, что окно продолжается ниже.
+  - Ocean FX storage key исправлен: v3.11.19 читает собственный key и мигрирует prefs из v3.11.18 вместо прежней ошибки read/write разных keys.
+  - Performance guardrails сохраняются: no requestAnimationFrame Ocean loop, no collision timer, no self-triggering render observer.
+  - Candidate ZIP: 55 files · 332263 bytes · SHA-256 `2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.19 WORKFLOW POLISH & FUNCTION REGRESSION — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
+- [ ] 3.11.20 FUNCTION REGRESSION & PROVIDER WORKFLOW — после подтверждения UI вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
