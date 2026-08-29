@@ -5,21 +5,21 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.24",
-    "codename": "SETTINGS CLOSE HOTFIX",
-    "artifact": "OSMINOG-Chrome-3.11.24-SETTINGS-CLOSE-HOTFIX-ROOT.zip",
-    "size": 344145,
-    "sha256": "31b29ec5179a33536dc418c19ac71b842409a6209cf50f9b73171c0266650d17",
-    "runtimeState": "owner-installed; settings close regression fixed, but 3.11.23 add-agent/provider rewrite broke familiar chat-tab creation and provider choice workflow"
-  },
-  "nextCandidate": {
-    "platform": "chrome-extension",
     "version": "3.11.25",
     "codename": "CHAT TABS RESTORE",
-    "baseVersion": "3.11.24",
     "artifact": "OSMINOG-Chrome-3.11.25-CHAT-TABS-RESTORE-ROOT.zip",
     "size": 345011,
     "sha256": "2257feee3e03f0d013b6133ca0745f67e1d8497bdaf40a82d1fa2cb2941c197b",
+    "runtimeState": "owner-installed; fatal ensureTetherLayer is not defined breaks thread switching/creation and cascades into broken chat controls"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.26",
+    "codename": "CHAT CORE REBUILD",
+    "baseVersion": "3.11.25",
+    "artifact": "OSMINOG-Chrome-3.11.26-CHAT-CORE-REBUILD-ROOT.zip",
+    "size": 346810,
+    "sha256": "1c9333d51aa609413da99c90ecf28853768cc5eca2de6176f446ca382b55f80c",
     "fileCount": 56,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -28,8 +28,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.24",
-      "candidateVersion": "3.11.25",
+      "currentVersion": "3.11.25",
+      "candidateVersion": "3.11.26",
       "distribution": "manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -64,6 +64,21 @@
     }
   },
   "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.11.26",
+      "codename": "CHAT CORE REBUILD",
+      "baseVersion": "3.11.25",
+      "artifact": "OSMINOG-Chrome-3.11.26-CHAT-CORE-REBUILD-ROOT.zip",
+      "size": 346810,
+      "sha256": "1c9333d51aa609413da99c90ecf28853768cc5eca2de6176f446ca382b55f80c",
+      "fileCount": 56,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.26",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false
+    },
     {
       "platform": "chrome-extension",
       "version": "3.11.25",
