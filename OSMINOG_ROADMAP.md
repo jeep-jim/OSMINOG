@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.7 OCEAN ARC LAUNCHER — owner установил; Kraken radial launcher загружается в real Chrome и направление принято, Ocean Day с рифом отклонён**  
-**Текущий кандидат:** **3.11.8 OCTOPUS WORK STATES — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.8 OCTOPUS WORK STATES — owner установил; Ocean Day depth, Kraken Arc и новый рабочий агентный слой загружаются в real Chrome**  
+**Текущий кандидат:** **3.11.9 TASK ORBIT INTRO — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -216,16 +216,25 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Search index, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence, water drift and stable project IDs/data are preserved.
   - Candidate ZIP: 55 files · 354073 bytes · SHA-256 `6bc49dddef6fa5cdd654e3ba81a2f76dc5b6306195b407e53ae222f27f608833`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.8 OCTOPUS WORK STATES — candidate собран.
+- [x] 3.11.8 OCTOPUS WORK STATES — owner runtime загрузки подтверждён.
   - Ocean Day возвращён к светлой подводной глубине из раннего Ocean Shell: свет сверху, голубая толща, планктон/пузыри; reef/island/palms удалены.
   - Task execution больше не заставляет agent pill висеть на canvas. Постоянный pill остаётся только при явном linked/pinned context.
   - Активная задача показывает рабочего осьминога около исследуемого/редактируемого объекта; inspect и work states визуально различаются.
   - Добавлен live tether от agent chip в chat к активному worker-octopus.
   - Обычные canvas connections лежат за objects; hover/selected edit временно поднимает connection layer для редактирования.
   - Kraken Arc Launcher, Search, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence и stable IDs/data не переписывались.
-  - Candidate ZIP: 55 files · 356050 bytes · SHA-256 `1ecfdcbe60f9af341f74ea8e553db56e0235437cecf8d9fe0d6f76880a06345f`.
+  - ZIP: 55 files · 356050 bytes · SHA-256 `1ecfdcbe60f9af341f74ea8e553db56e0235437cecf8d9fe0d6f76880a06345f`.
+- [x] 3.11.9 TASK ORBIT INTRO — candidate собран.
+  - Стих пробуждения полностью удалён из Search.
+  - Стих показывается только при первом раскрытии Kraken Arc в текущей browser/tab session и больше не мешает поиску.
+  - Добавлены локализованные варианты onboarding-текста для RU / EN / DE / ES / JA / ZH.
+  - Kraken Arc получил отдельное действие `Задача`.
+  - Добавлен реальный canvas object `task`: центральная командная задача и orbit bubbles ChatGPT / Claude / Gemini / DeepSeek / Chat / Files / Result.
+  - Orbit actions переиспользуют существующие Provider Registry, Team Room и project-folder runtimes; второго chat/files/provider engine не создаётся.
+  - Double click центральной задачи открывает Team Room и подставляет название задачи в mission input.
+  - Candidate ZIP: 55 files · 356012 bytes · SHA-256 `e547ad48a4f8762a03b8e3c98fd772f63a3f64285cc3b85386269b906cf842d9`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.9 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
+- [ ] 3.11.10 FOCUS WORKSPACES — Browser, Team, Media Crew, Code/Markdown as focus surfaces.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
