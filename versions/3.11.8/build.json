@@ -1,0 +1,20 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.8",
+  "codename": "OCTOPUS WORK STATES",
+  "baseVersion": "3.11.7",
+  "artifact": "OSMINOG-Chrome-3.11.8-OCTOPUS-WORK-STATES-ROOT.zip",
+  "size": 356050,
+  "sha256": "1ecfdcbe60f9af341f74ea8e553db56e0235437cecf8d9fe0d6f76880a06345f",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.8",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": ["manifest.json","OSMINOG_BUILD.json","editor.js","editor.css","gpt-presence.js","osminog-ocean-shell.css","osminog-ocean-shell.js"],
+  "staticChecks": {"javascriptFiles":21,"javascriptSyntax":true,"jsonFiles":9,"jsonParse":true,"duplicateRealHtmlIds":0,"zipIntegrity":true},
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "Ocean Day restored to bright underwater depth without reef/island. Running agents are represented by working octopus visuals instead of task-triggered canvas pills; persistent pills remain only for explicit linked context. Worker tethers connect chat chips to active octopuses. Canvas connections sit behind objects by default and rise for hover/selected edit. Existing Arc Launcher, Search, Provider/Session, Team, Browser Hub, Media Crew, folders and Presence are preserved."
+}
