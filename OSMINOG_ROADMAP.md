@@ -5,7 +5,7 @@
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
 **Текущая установленная сборка:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner установил; Figma ambience виден, но top/dropdown/chat/settings/brand icons требуют cleanup**  
-**Текущий кандидат:** **3.11.22 TEAM EXECUTION & Z-LAYER FIX — собран, static checks PASS, owner runtime pending**  
+**Текущий кандидат:** **3.11.23 AGENT CONNECTION & NODE UX — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -317,7 +317,17 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Team transcript исключён из generic chat-group collapsing; сообщения имеют auto-height и не схлопываются в полосы.
   - Candidate ZIP: 56 files · 341171 bytes · SHA-256 `093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412`.
   - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.23 FUNCTION REGRESSION & PROVIDER WORKFLOW — проверить Google/Team/Browser/Media/Presence на реальных задачах после подтверждения Team execution fix.
+- [x] 3.11.23 AGENT CONNECTION & NODE UX — candidate собран.
+  - Agent Settings переведены на responsive container-query layout: при расширении окна секции перестраиваются в 2–3 колонки вместо растягивания в длинную вертикальную ленту.
+  - Единый brain picker строится из полного Provider Registry; ChatGPT / DeepSeek / Google AI / Gemini / Claude / Nano Banana / media services и другие registry providers могут быть выбраны как мозг отдельного агента. Для сервисов без dedicated transport используется experimental generic internal web-session bridge.
+  - `+` в AI-chat больше не клонирует текущего агента автоматически: открывается центрированный provider picker, где можно добавить ещё одного агента того же ИИ либо выбрать другой сервис.
+  - Provider connection переведён на internal-first flow: OSMINOG создаёт/переиспользует одну managed service session в фоне и подключает именно её. Если сервис требует интерактивный login, кнопка `Авторизовать` раскрывает эту же managed session; случайные внешние tabs не создаются.
+  - Persistent agent pills на canvas отключены. Агент постоянно живёт в chat/team chips; на canvas появляются только worker-octopus во время активной задачи. Явные pinned/node links сохраняют tether без desktop capsule.
+  - Node selection автоматически раскрывает Inspector; существующие node-объекты в любое время дают редактировать содержимое и connection preset: color / width / dashed / arrow, при сохранении восьми edge ports.
+  - Все исправления 3.11.22 Team execution / z-layer / transcript входят в сборку.
+  - Candidate ZIP: 56 files · 338860 bytes · SHA-256 `e18c2bee579078a40501c70be2b079509f40a66f6dbd072c00ba495773949296`.
+  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 duplicate HTML IDs per document, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.24 FUNCTION REGRESSION & PROVIDER WORKFLOW — проверить реальное background connection/auth, generic provider brains, Team execution, Browser/Media/Presence и node editing на живом Chrome runtime.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
