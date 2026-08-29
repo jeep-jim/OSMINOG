@@ -10,16 +10,16 @@
     "artifact": "OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip",
     "size": 334869,
     "sha256": "b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95",
-    "runtimeState": "owner-installed; Figma-referenced ambience is visible, but top group containers returned, dropdown glass/readability is inconsistent, Layers active styling is wrong, GPT chat still has white/sharp surfaces, and provider branding is incomplete"
+    "runtimeState": "owner-installed; Team runtime revealed prose-only execution failure, provider shortcuts over Team window, and collapsed Team transcript messages"
   },
   "nextCandidate": {
     "platform": "chrome-extension",
-    "version": "3.11.21",
-    "codename": "UI CLEANUP · BRAND ICONS · CHAT POLISH",
-    "baseVersion": "3.11.20",
-    "artifact": "OSMINOG-Chrome-3.11.21-UI-CLEANUP-BRAND-ICONS-CHAT-POLISH-ROOT.zip",
-    "size": 339311,
-    "sha256": "eb1234c27e9cc9131778dae089735678fe9183687a7b77e92747eeef16b22540",
+    "version": "3.11.22",
+    "codename": "TEAM EXECUTION & Z-LAYER FIX",
+    "baseVersion": "3.11.21",
+    "artifact": "OSMINOG-Chrome-3.11.22-TEAM-EXECUTION-Z-LAYER-FIX-ROOT.zip",
+    "size": 341171,
+    "sha256": "093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412",
     "fileCount": 56,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -29,7 +29,7 @@
       "status": "active-development",
       "branch": "platform/chrome-extension",
       "currentVersion": "3.11.20",
-      "candidateVersion": "3.11.21",
+      "candidateVersion": "3.11.22",
       "distribution": "manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -64,6 +64,21 @@
     }
   },
   "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.11.22",
+      "codename": "TEAM EXECUTION & Z-LAYER FIX",
+      "baseVersion": "3.11.21",
+      "artifact": "OSMINOG-Chrome-3.11.22-TEAM-EXECUTION-Z-LAYER-FIX-ROOT.zip",
+      "size": 341171,
+      "sha256": "093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412",
+      "fileCount": 56,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.22",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false
+    },
     {
       "platform": "chrome-extension",
       "version": "3.11.21",
