@@ -1,0 +1,34 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.13",
+  "codename": "OCEAN CLARITY & PERFORMANCE",
+  "baseVersion": "3.11.12",
+  "artifact": "OSMINOG-Chrome-3.11.13-OCEAN-CLARITY-PERFORMANCE-ROOT.zip",
+  "size": 372219,
+  "sha256": "5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9",
+  "fileCount": 55,
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.13",
+  "fixedManifestKeyPreserved": true,
+  "changedFromBase": ["manifest.json","OSMINOG_BUILD.json","osminog-ocean-shell.css","osminog-ocean-shell.js"],
+  "staticChecks": {
+    "javascriptFiles": 21,
+    "javascriptSyntax": true,
+    "jsonFiles": 9,
+    "jsonParse": true,
+    "duplicateRealHtmlIds": 0,
+    "zipIntegrity": true,
+    "performanceGuards": {
+      "collisionIntervalRemoved": true,
+      "collisionObserverSelfLoopRemoved": true,
+      "driftFpsCap": 25,
+      "hiddenTabDriftPaused": true,
+      "globalStyleObserversRemoved": true
+    }
+  },
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "P0 freeze fix plus Ocean clarity. 3.11.12 could freeze because provider bubble groups caused a self-triggering childList MutationObserver/render loop while water drift wrote style every animation frame and global observers watched style/class changes; collision also ran an O(n^2) pass every 1.1s. 3.11.13 removes those feedback loops, makes collision event-driven, caps drift to ~25fps and pauses hidden-tab work, and scopes observers to relevant nodes. Bubble groups are clearer and open into a blurred focus surface showing members; Layers is again a detached top-left bubble; Inspector overlays without moving the dock and starts closed on idle Ocean; black/heavy Ocean surfaces are replaced by lighter glass."
+}
