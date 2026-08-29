@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.18 LAYERS & ZOOM POLISH — owner установил; layout работает, но Ocean top groups всё ещё перегружены контейнерами, collapsed Layers показывает preview, GPT chat/settings плохо читаются и scrollbar/zoom требуют cleanup**  
-**Текущий кандидат:** **3.11.19 OCEAN READABILITY & PANEL CLEANUP — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.19 OCEAN READABILITY & PANEL CLEANUP — owner установил; читаемость и панели заметно лучше, но Ocean ambience/верх/zoom/левый rail требуют финального визуального прохода**  
+**Текущий кандидат:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -291,19 +291,23 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - GPT/ChatGPT окно в Ocean имеет белое/низкоконтрастное поле переписки; Agent Settings полупрозрачны, секции плохо читаются и нижнее содержимое скрывается; scrollbar Inspector/Settings выглядит системно и грубо.
   - Footer Layers должен быть без разделительных полос и совпадать по высотному ритму с нижним creation toolbar.
   - ZIP: 55 files · 330638 bytes · SHA-256 `d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a`.
-- [x] 3.11.19 OCEAN READABILITY & PANEL CLEANUP — candidate собран.
-  - Ocean top-left / mode-switch / top-actions больше не имеют длинной общей плашки: каждая кнопка/вкладка получает отдельную blue-glass bubble surface в стиле боковых controls.
-  - Collapsed Layers агрессивно скрывает `layerList`, rows/groups/files/observed previews и любые реальные thumbnails/images; остаются только navigation controls и folder actions.
-  - Project-folder dock лишён separator bars/background band и выровнен по 54px ритму нижнего tool rail.
-  - Collapsed zoom-pill укорочена; expanded Inspector по-прежнему получает classic horizontal zoom.
-  - Добавлены единые тонкие themed scrollbars для Inspector, Layers, AI settings/chat и длинных рабочих панелей во всех темах.
-  - Ocean ChatGPT/AI chat переведён с белого conversation surface на читаемый глубокий blue glass.
-  - Agent Settings становятся full-surface state внутри chat body: непрозрачнее, секции оформлены отдельными blocks, содержимое прокручивается целиком и sticky header показывает, что окно продолжается ниже.
-  - Ocean FX storage key исправлен: v3.11.19 читает собственный key и мигрирует prefs из v3.11.18 вместо прежней ошибки read/write разных keys.
-  - Performance guardrails сохраняются: no requestAnimationFrame Ocean loop, no collision timer, no self-triggering render observer.
-  - Candidate ZIP: 55 files · 332263 bytes · SHA-256 `2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.20 FUNCTION REGRESSION & PROVIDER WORKFLOW — после подтверждения UI вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
+- [x] 3.11.19 OCEAN READABILITY & PANEL CLEANUP — owner runtime загрузки подтверждён.
+  - Читаемость Ocean chat/settings и общий panel cleanup стали заметно лучше; classic shared layout сохранён.
+  - Owner feedback: Figma-набор plankton/sea forms представлен не полностью; формы должны плавно менять направление/вращаться, часть может люминесцировать, а bubbles всегда идут только вверх.
+  - Логотип OSMINOG в Ocean не должен получать собственную подложку; верхние управляющие группы должны использовать тот же glass-material language, что правый quick rail.
+  - Collapsed zoom должен совпадать по ширине/материалу с inspector mini-rail и жить строго внизу, без вытянутой пустой шахты.
+  - В collapsed Layers обнаружен overlap между mini-rail и нижними folder/+ controls; нижние actions также должны иметь тот же button style, что верх rail.
+  - ZIP: 55 files · 332263 bytes · SHA-256 `2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3`.
+- [x] 3.11.20 FIGMA PLANKTON & RAIL ALIGN — candidate собран.
+  - Live Figma MCP упёрся в Starter-plan call limit, поэтому формы восстановлены по owner-provided Figma screenshots, без выдумывания нового набора: ring/cell/burst/jelly/microbe/star/spore/propeller/droplet/crescent/diamond + tiny plankton points.
+  - Ocean forms используют только CSS transform/opacity motion: плавно дрейфуют, меняют направление и вращение; часть форм получает мягкую bioluminescence. Никаких requestAnimationFrame/collision loops.
+  - Bubbles отделены в собственный слой и всегда движутся вертикально вверх.
+  - Логотип OSMINOG в Ocean полностью без background/border/shadow. Workspace prefs, mode switch и top actions используют тот же blue-glass material, что боковой quick rail.
+  - Collapsed zoom: 56px, тот же material/width, anchored bottom-right; expanded Inspector сохраняет горизонтальный classic zoom.
+  - Collapsed Layers заканчивается на той же нижней линии, что zoom; mini-rail и folder dock больше не перекрывают друг друга; нижние `+ / folder` имеют тот же rail-button style.
+  - Candidate ZIP: 55 files · 334869 bytes · SHA-256 `b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95`.
+  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
+- [ ] 3.11.21 FUNCTION REGRESSION & PROVIDER WORKFLOW — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
