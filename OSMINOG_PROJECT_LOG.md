@@ -1737,3 +1737,19 @@ Owner установил 3.11.18 и прислал runtime-скриншоты. �
 Candidate artifact: `OSMINOG-Chrome-3.11.19-OCEAN-READABILITY-PANEL-CLEANUP-ROOT.zip` · 55 files · 332263 bytes · SHA-256 `2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3`.
 Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
 
+
+
+---
+
+## 2026-08-29 — 3.11.20 FIGMA PLANKTON & RAIL ALIGN
+
+Owner runtime подтвердил 3.11.19 как рабочую базу, но дал финальный визуальный feedback по Ocean: набор планктона/морских форм неполный относительно Figma; формы должны плавно менять направление и вращаться, часть — мягко люминесцировать, пузыри должны всегда идти только вверх. Логотип OSMINOG не должен иметь собственную подложку. Верхние управляющие группы должны использовать тот же glass/material язык, что правый quick rail. Collapsed zoom должен совпадать с rail по ширине/материалу и жить строго внизу. В collapsed Layers обнаружено наложение mini-rail и folder actions, а нижние `+ / folder` визуально не соответствуют верхним rail buttons.
+
+Собран candidate 3.11.20 поверх 3.11.19. Live Figma MCP на Starter plan вернул rate-limit, поэтому набор форм восстановлен строго по уже предоставленным владельцем Figma-скриншотам: ring, oval/cell, burst, jelly, microbe, star, spore, propeller, droplet, crescent, diamond и мелкие plankton points. Motion — CSS-only: плавный drift, смена направления и rotation, selective bioluminescence; bubbles находятся в отдельном слое и движутся вертикально вверх. Опасные requestAnimationFrame/collision/style-observer loops не возвращались.
+
+Ocean logo теперь без background/border/shadow. Workspace prefs, mode switch и top actions получают общий blue-glass material side-rail уровня. Collapsed zoom зафиксирован внизу справа, ширина 56px и material совпадают с inspector mini-rail; expanded Inspector сохраняет horizontal classic zoom. Collapsed Layers заканчивается на той же нижней линии, mini-rail и folder dock разведены flex-layout, нижние `+ / folder` получают тот же rail-button style.
+
+Артефакт: `OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip` — 55 files, 334869 bytes, SHA-256 `b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95`.
+
+Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
+
