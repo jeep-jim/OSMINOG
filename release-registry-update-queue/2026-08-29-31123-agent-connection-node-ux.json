@@ -1,0 +1,50 @@
+{
+  "updatedAt": "2026-08-29",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.20",
+    "codename": "FIGMA PLANKTON & RAIL ALIGN",
+    "artifact": "OSMINOG-Chrome-3.11.20-FIGMA-PLANKTON-RAIL-ALIGN-ROOT.zip",
+    "size": 334869,
+    "sha256": "b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95",
+    "runtimeState": "owner-installed; Team/runtime and agent connection UX are being corrected through 3.11.22/3.11.23 candidates"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.23",
+    "codename": "AGENT CONNECTION & NODE UX",
+    "baseVersion": "3.11.22",
+    "artifact": "OSMINOG-Chrome-3.11.23-AGENT-CONNECTION-NODE-UX-ROOT.zip",
+    "size": 338860,
+    "sha256": "e18c2bee579078a40501c70be2b079509f40a66f6dbd072c00ba495773949296",
+    "fileCount": 56,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.20",
+  "candidateVersion": "3.11.23",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.23",
+    "codename": "AGENT CONNECTION & NODE UX",
+    "baseVersion": "3.11.22",
+    "artifact": "OSMINOG-Chrome-3.11.23-AGENT-CONNECTION-NODE-UX-ROOT.zip",
+    "size": 338860,
+    "sha256": "e18c2bee579078a40501c70be2b079509f40a66f6dbd072c00ba495773949296",
+    "fileCount": 56,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.23",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": [
+      "responsive agent settings reflow",
+      "full Provider Registry brain picker",
+      "explicit add-agent provider chooser",
+      "background managed service-session connect/auth flow",
+      "persistent canvas agent pills disabled",
+      "node inspector exposes live connection tools",
+      "includes 3.11.22 Team execution/z-layer fixes"
+    ]
+  }
+}
