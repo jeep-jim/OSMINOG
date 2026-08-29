@@ -4,8 +4,8 @@
 **Канонический продукт:** OSMINOG  
 **Домен:** `osminog.red`  
 **Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.16 OCEAN UI POLISH — owner установил; интерфейс работает, но Ocean оказался слишком ярко-бирюзовым, Layers bubble перекрывает панель, а zoom UX требует исправления**  
-**Текущий кандидат:** **3.11.17 OCEAN CONTRAST & LAYOUT FIX — собран, static checks PASS, owner runtime pending**  
+**Текущая установленная сборка:** **3.11.17 OCEAN CONTRAST & LAYOUT FIX — owner установил; Ocean читается лучше и рабочий UI стабилен, но zoom/Inspector и Layers footer/collapsed UX требуют ещё одного прохода**  
+**Текущий кандидат:** **3.11.18 LAYERS & ZOOM POLISH — собран, static checks PASS, owner runtime pending**  
 
 > Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
 
@@ -279,16 +279,23 @@ OSMINOG — не «чат с холстом» и уже не просто «Figm
   - Layers bubble расположен слишком низко и визуально наезжает на Layers panel; должен жить в самом левом углу шапки.
   - Zoom в collapsed Inspector был реализован слишком буквально: процент повернут вертикально, а при раскрытии Inspector zoom исчезает.
   - ZIP: 55 files · 329105 bytes · SHA-256 `c3a32fc2eb2da20cbd9c8c93d752e7920963092246f2a6933691dd721c721177`.
-- [x] 3.11.17 OCEAN CONTRAST & LAYOUT FIX — candidate собран.
-  - Ocean переведён с washed cyan на более глубокий читаемый blue-glass: фон остаётся светлее Dark, но surfaces стали темнее и контрастнее; blur ~32px сохраняет глубину и отделяет контент от холста.
-  - Layers bubble перенесён в самый левый верхний угол header; topbar смещён вправо, поэтому кнопка больше не перекрывает Layers panel.
-  - Zoom больше не живёт внутри `.inspector-mini`: он всегда остаётся доступным как отдельная вертикальная pill справа.
-  - Процент zoom снова читается горизонтально (`100%`), без writing-mode rotation.
-  - При открытом/ресайзнутом Inspector zoom автоматически сдвигается влево от панели вместо исчезновения или перекрытия.
-  - CSS-only plankton / bubbles / sea forms сохранены; performance-dangerous collision/drift JS loops не возвращались.
-  - Candidate ZIP: 55 files · 324575 bytes · SHA-256 `d8e6b11c692c71e505e5efb2ad16216131477647183f9f0516310279b11f3a32`.
+- [x] 3.11.17 OCEAN CONTRAST & LAYOUT FIX — owner runtime загрузки подтверждён.
+  - Ocean contrast/readability заметно лучше предыдущей washed-cyan версии; основной familiar workspace layout сохранён.
+  - Owner feedback: collapsed Inspector должен быть компактным верхним quick-actions блоком, а zoom — отдельной pill с отступом и той же шириной; при expanded Inspector zoom должен возвращаться в горизонтальную форму.
+  - Collapsed Layers всё ещё визуально показывает содержимое/preview слоя; expanded footer имеет неверную иерархию: большой `+` и маленькая папка вместо широкой локальной папки + маленького `+`.
+  - Ocean top controls местами теряются; нужен единый полупрозрачный substrate без индивидуальных рамок каждого control.
+  - ZIP: 55 files · 324575 bytes · SHA-256 `d8e6b11c692c71e505e5efb2ad16216131477647183f9f0516310279b11f3a32`.
+- [x] 3.11.18 LAYERS & ZOOM POLISH — candidate собран.
+  - Collapsed Inspector больше не тянется пустой колонной вниз: quick-actions mini-rail имеет естественную высоту.
+  - При collapsed Inspector zoom живёт отдельной вертикальной pill ниже с явным gap и той же шириной 56px; `100%` остаётся горизонтальным.
+  - При expanded Inspector zoom автоматически перестраивается обратно в горизонтальную classic-pill и располагается рядом с Inspector, не исчезая.
+  - Collapsed Layers жёстко скрывает реальные layer/file rows, groups, previews и thumbnails; остаются только section/navigation controls.
+  - Expanded Layers footer переставлен: широкая кнопка реальной локальной папки проекта слева + маленький `+` справа.
+  - Local project folder control использует существующий `OSMINOGProjectFolderAPI`: если папка не подключена — вызывает owner directory picker; если подключена — открывает существующий local project explorer. В кнопке показывается реальное имя подключённой папки.
+  - Ocean top groups получают единый translucent light substrate; индивидуальные borders/backgrounds большинства topbar controls убраны, hover остаётся мягким.
+  - Candidate ZIP: 55 files · 330638 bytes · SHA-256 `d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a`.
   - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.18 WORKFLOW POLISH & FUNCTION REGRESSION — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
+- [ ] 3.11.19 WORKFLOW POLISH & FUNCTION REGRESSION — после UI-подтверждения вернуться к Google/Team/Browser/Media/Presence и реальной работе функций.
 
 Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
 
