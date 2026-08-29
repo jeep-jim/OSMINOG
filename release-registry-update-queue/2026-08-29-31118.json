@@ -1,0 +1,42 @@
+{
+  "updatedAt": "2026-08-29",
+  "currentVersion": "3.11.17",
+  "candidateVersion": "3.11.18",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.17",
+    "codename": "OCEAN CONTRAST & LAYOUT FIX",
+    "artifact": "OSMINOG-Chrome-3.11.17-OCEAN-CONTRAST-LAYOUT-FIX-ROOT.zip",
+    "size": 324575,
+    "sha256": "d8e6b11c692c71e505e5efb2ad16216131477647183f9f0516310279b11f3a32",
+    "runtimeState": "owner-installed; Ocean contrast and full workspace render are improved, but zoom adaptation and Layers collapsed/footer UX still need correction"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.18",
+    "codename": "LAYERS & ZOOM POLISH",
+    "baseVersion": "3.11.17",
+    "artifact": "OSMINOG-Chrome-3.11.18-LAYERS-ZOOM-POLISH-ROOT.zip",
+    "size": 330638,
+    "sha256": "d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a",
+    "fileCount": 55,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.18",
+    "codename": "LAYERS & ZOOM POLISH",
+    "baseVersion": "3.11.17",
+    "artifact": "OSMINOG-Chrome-3.11.18-LAYERS-ZOOM-POLISH-ROOT.zip",
+    "size": 330638,
+    "sha256": "d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a",
+    "fileCount": 55,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.18",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": "Zoom now adapts to Inspector state: horizontal beside expanded Inspector, separate same-width vertical pill below compact collapsed Inspector. Collapsed Layers hides actual layer/file content. Expanded Layers footer is wide real local project folder + small add button; disconnected folder action invokes the existing owner directory picker and connected action opens the existing local project explorer. Ocean top control groups use one consistent translucent substrate without per-button outlines."
+  }
+}
