@@ -5,19 +5,19 @@
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.28",
-    "codename": "UNIFIED CHAT RESIZE + TEAM DEFAULT SIZE",
-    "artifact": "OSMINOG-Chrome-3.11.28-UNIFIED-CHAT-RESIZE-TEAM-DEFAULT-SIZE-ROOT.zip",
-    "runtimeState": "owner-installed; Team default size is visible, but AI chat still does not resize from any edge/corner despite the unified WindowManager handles"
+    "version": "3.11.29",
+    "codename": "CHAT FRAME RESIZE HOTFIX",
+    "artifact": "OSMINOG-Chrome-3.11.29-CHAT-FRAME-RESIZE-HOTFIX-ROOT.zip",
+    "runtimeState": "owner-installed; AI chat still does not resize despite frame-edge pointer handling because 3.11.23 responsive CSS hard-locks width and height with !important"
   },
   "nextCandidate": {
     "platform": "chrome-extension",
-    "version": "3.11.29",
-    "codename": "CHAT FRAME RESIZE HOTFIX",
-    "baseVersion": "3.11.28",
-    "artifact": "OSMINOG-Chrome-3.11.29-CHAT-FRAME-RESIZE-HOTFIX-ROOT.zip",
-    "size": 348148,
-    "sha256": "8834fed02b8a248cdd364aa25812c906706e5db3cfa732f7153bf1f573b7164f",
+    "version": "3.11.30",
+    "codename": "CHAT RESIZE ROOT FIX",
+    "baseVersion": "3.11.29",
+    "artifact": "OSMINOG-Chrome-3.11.30-CHAT-RESIZE-ROOT-FIX-ROOT.zip",
+    "size": 348235,
+    "sha256": "74e9c0eb251590eab7685a71c45e65cf2dc413eab4ea49aed747b83b4e12e869",
     "fileCount": 56,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -26,8 +26,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.28",
-      "candidateVersion": "3.11.29",
+      "currentVersion": "3.11.29",
+      "candidateVersion": "3.11.30",
       "distribution": "manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -62,6 +62,27 @@
     }
   },
   "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.11.30",
+      "codename": "CHAT RESIZE ROOT FIX",
+      "baseVersion": "3.11.29",
+      "artifact": "OSMINOG-Chrome-3.11.30-CHAT-RESIZE-ROOT-FIX-ROOT.zip",
+      "size": 348235,
+      "sha256": "74e9c0eb251590eab7685a71c45e65cf2dc413eab4ea49aed747b83b4e12e869",
+      "fileCount": 56,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.30",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false,
+      "notes": [
+        "Root cause fixed: responsive AI Settings CSS from 3.11.23 hard-locked chat width/height using !important.",
+        "Those hard locks are removed for desktop chat geometry.",
+        "OSMINOGWindowManager now writes live width/height as authoritative inline !important values so theme CSS cannot silently block resizing again.",
+        "No thread/provider/Team behavior changed in this hotfix."
+      ]
+    },
     {
       "platform": "chrome-extension",
       "version": "3.11.29",
