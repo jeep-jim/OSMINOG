@@ -1,0 +1,47 @@
+{
+  "updatedAt": "2026-08-30",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.27",
+    "codename": "LIGHT THEME CONTRAST + CHAT RESIZE",
+    "artifact": "OSMINOG-Chrome-3.11.27-LIGHT-CONTRAST-CHAT-RESIZE-ROOT.zip",
+    "size": 346942,
+    "sha256": "e01e02018ac01b855f2398267ea8b1376237c6a297681bfc76ddf212bbe02f03",
+    "runtimeState": "owner-installed; Light contrast accepted for review, but AI chat still does not resize when dragging edges; owner requested Team Room first-open default around 620x520"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.28",
+    "codename": "UNIFIED CHAT RESIZE + TEAM DEFAULT SIZE",
+    "baseVersion": "3.11.27",
+    "artifact": "OSMINOG-Chrome-3.11.28-UNIFIED-CHAT-RESIZE-TEAM-DEFAULT-SIZE-ROOT.zip",
+    "size": 347665,
+    "sha256": "7b3e72036855c7e26e27466246c7329a6c83d0d4fe1ddabb63cac27848f424ac",
+    "fileCount": 56,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.27",
+  "candidateVersion": "3.11.28",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.28",
+    "codename": "UNIFIED CHAT RESIZE + TEAM DEFAULT SIZE",
+    "baseVersion": "3.11.27",
+    "artifact": "OSMINOG-Chrome-3.11.28-UNIFIED-CHAT-RESIZE-TEAM-DEFAULT-SIZE-ROOT.zip",
+    "size": 347665,
+    "sha256": "7b3e72036855c7e26e27466246c7329a6c83d0d4fe1ddabb63cac27848f424ac",
+    "fileCount": 56,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.28",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": [
+      "AI chat migrated from duplicate legacy resize/drag logic to shared OSMINOGWindowManager.",
+      "Managed resize hit targets live inside window borders to avoid overflow clipping and improve pointer capture.",
+      "Team Room first-open default geometry set to 620x520 with responsive two-column layout; saved user geometry still wins.",
+      "Light theme #DEE2E7 baseline from 3.11.27 preserved."
+    ]
+  }
+}
