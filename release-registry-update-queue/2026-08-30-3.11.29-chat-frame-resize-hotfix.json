@@ -1,0 +1,45 @@
+{
+  "updatedAt": "2026-08-30",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.28",
+    "codename": "UNIFIED CHAT RESIZE + TEAM DEFAULT SIZE",
+    "artifact": "OSMINOG-Chrome-3.11.28-UNIFIED-CHAT-RESIZE-TEAM-DEFAULT-SIZE-ROOT.zip",
+    "runtimeState": "owner-installed; Team default size is visible, but AI chat still does not resize from any edge/corner despite the unified WindowManager handles"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.29",
+    "codename": "CHAT FRAME RESIZE HOTFIX",
+    "baseVersion": "3.11.28",
+    "artifact": "OSMINOG-Chrome-3.11.29-CHAT-FRAME-RESIZE-HOTFIX-ROOT.zip",
+    "size": 348148,
+    "sha256": "8834fed02b8a248cdd364aa25812c906706e5db3cfa732f7153bf1f573b7164f",
+    "fileCount": 56,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.28",
+  "candidateVersion": "3.11.29",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.29",
+    "codename": "CHAT FRAME RESIZE HOTFIX",
+    "baseVersion": "3.11.28",
+    "artifact": "OSMINOG-Chrome-3.11.29-CHAT-FRAME-RESIZE-HOTFIX-ROOT.zip",
+    "size": 348148,
+    "sha256": "8834fed02b8a248cdd364aa25812c906706e5db3cfa732f7153bf1f573b7164f",
+    "fileCount": 56,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.29",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": [
+      "AI chat remains on the unified OSMINOGWindowManager.",
+      "Resize no longer relies on child handle hit-testing: pointerdown within 12px of the actual window frame directly starts N/E/S/W or corner resizing.",
+      "The frame-edge capture runs in capture phase so nested chat DOM cannot swallow the resize gesture.",
+      "No other chat/provider/thread behavior changed in this hotfix."
+    ]
+  }
+}
