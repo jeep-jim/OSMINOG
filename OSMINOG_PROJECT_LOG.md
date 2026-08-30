@@ -1943,3 +1943,23 @@ Files: 56
 Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 duplicate real HTML IDs, ZIP integrity PASS.
 Runtime status: owner verification pending.
 
+
+
+---
+
+## 2026-08-30 — OSMINOG 3.11.30 CHAT RESIZE ROOT FIX
+
+Owner runtime on 3.11.29 confirmed that AI chat still could not resize by dragging any edge or corner.
+
+Root cause was finally isolated: the responsive Agent Settings pass introduced in 3.11.23 set `.gpt-resizable-panel` desktop `width` and `height` with `!important`. Both the legacy resize code and the later unified WindowManager computed new geometry correctly, but the browser refused to apply the new dimensions because stylesheet `!important` won over normal inline width/height assignments.
+
+3.11.30 fixes the actual root cause instead of changing hit targets again:
+- desktop AI chat width/height are no longer hard-locked by responsive CSS;
+- `OSMINOGWindowManager` writes live width/height as authoritative inline `!important` values during initialize and resize, preventing future theme CSS from silently disabling resize;
+- left/right/top/bottom/corner resizing remains available through the current managed-window frame system;
+- no chat thread, provider, Team, reaction or connection behavior is changed in this hotfix.
+
+Candidate artifact: `OSMINOG-Chrome-3.11.30-CHAT-RESIZE-ROOT-FIX-ROOT.zip` · 56 files · 348235 bytes · SHA-256 `74e9c0eb251590eab7685a71c45e65cf2dc413eab4ea49aed747b83b4e12e869`.
+
+Static checks: 21 JS syntax PASS · 9 JSON parse PASS · 0 real duplicate HTML IDs · ZIP integrity PASS · explicit assertion that the desktop width/height `!important` lock is absent and WindowManager owns authoritative live dimensions.
+
