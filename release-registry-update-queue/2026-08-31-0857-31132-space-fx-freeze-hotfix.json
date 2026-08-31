@@ -1,0 +1,47 @@
+{
+  "updatedAt": "2026-08-31",
+  "currentDevelopment": {
+    "platform": "chrome-extension",
+    "version": "3.11.31",
+    "codename": "DARK SPACE FX + THEME ICONS",
+    "artifact": "OSMINOG-Chrome-3.11.31-DARK-SPACE-FX-THEME-ICONS-ROOT.zip",
+    "size": 350489,
+    "sha256": "21a6a725a93c964c32a8cb8f78dfd4444138a0fe0d8b550347ee7d34bd11e091",
+    "runtimeState": "owner-installed; switching to Dark triggers an Inspector MutationObserver self-loop and freezes the tab, then reload remains stuck because Dark persists"
+  },
+  "nextCandidate": {
+    "platform": "chrome-extension",
+    "version": "3.11.32",
+    "codename": "SPACE FX FREEZE HOTFIX",
+    "baseVersion": "3.11.31",
+    "artifact": "OSMINOG-Chrome-3.11.32-SPACE-FX-FREEZE-HOTFIX-ROOT.zip",
+    "size": 350604,
+    "sha256": "b9f4effc5196c301bfe83b2d3cf65ea41e6440202c767e0b0a029e33fa9245c1",
+    "fileCount": 56,
+    "runtimeState": "built-and-statically-verified; owner runtime pending",
+    "binaryInGitHub": false
+  },
+  "currentVersion": "3.11.31",
+  "candidateVersion": "3.11.32",
+  "release": {
+    "platform": "chrome-extension",
+    "version": "3.11.32",
+    "codename": "SPACE FX FREEZE HOTFIX",
+    "baseVersion": "3.11.31",
+    "artifact": "OSMINOG-Chrome-3.11.32-SPACE-FX-FREEZE-HOTFIX-ROOT.zip",
+    "size": 350604,
+    "sha256": "b9f4effc5196c301bfe83b2d3cf65ea41e6440202c767e0b0a029e33fa9245c1",
+    "fileCount": 56,
+    "manifestAtRoot": true,
+    "manifestVersion": "3.11.32",
+    "fixedManifestKeyPreserved": true,
+    "runtimeVerified": false,
+    "binaryInGitHub": false,
+    "notes": [
+      "P0 freeze fix for Dark Space FX inspector injection.",
+      "Reentrancy guard prevents observer callbacks from re-entering while the FX section is mutating Inspector DOM.",
+      "Microtask coalescing ensures repeated childList mutations schedule only one injection pass.",
+      "3.11.31 Space FX and colorful theme icons are preserved; no other product behavior changed."
+    ]
+  }
+}
