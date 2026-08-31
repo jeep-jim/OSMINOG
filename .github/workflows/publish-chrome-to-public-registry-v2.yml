@@ -1,0 +1,134 @@
+name: Publish Chrome build to OSMINOG-Releases v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish, for example 3.11.35
+        required: true
+        type: string
+      package_path:
+        description: Repository-relative path to the complete Chrome ZIP
+        required: true
+        type: string
+      metadata_path:
+        description: Repository-relative path to release-v2.json
+        required: true
+        type: string
+      notes_path:
+        description: Repository-relative Markdown release notes path
+        required: true
+        type: string
+      channel:
+        description: Target update channel
+        required: true
+        default: dev
+        type: choice
+        options: [dev, beta, stable]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELEASES_REPOSITORY: jeep-jim/OSMINOG-Releases
+      RELEASES_TOKEN: ${{ secrets.OSMINOG_RELEASES_TOKEN }}
+    steps:
+      - name: Checkout private OSMINOG source
+        uses: actions/checkout@v4
+
+      - name: Verify inputs and complete package
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RELEASES_TOKEN"
+          version='${{ inputs.version }}'
+          package_path='${{ inputs.package_path }}'
+          metadata_path='${{ inputs.metadata_path }}'
+          notes_path='${{ inputs.notes_path }}'
+          test -f "$package_path"
+          test -f "$metadata_path"
+          test -f "$notes_path"
+
+          meta_version=$(jq -r '.version' "$metadata_path")
+          package_name=$(jq -r '.package' "$metadata_path")
+          expected_size=$(jq -r '.size' "$metadata_path")
+          expected_sha=$(jq -r '.sha256' "$metadata_path")
+          expected_manifest=$(jq -r '.manifestVersion // .version' "$metadata_path")
+          test "$meta_version" = "$version"
+          test "$(basename "$package_path")" = "$package_name"
+          test "$(stat -c%s "$package_path")" = "$expected_size"
+          test "$(sha256sum "$package_path" | awk '{print $1}')" = "$expected_sha"
+
+          python - "$package_path" "$expected_manifest" <<'PY'
+          import json, sys, zipfile
+          path, expected = sys.argv[1:3]
+          with zipfile.ZipFile(path) as z:
+              if 'manifest.json' not in z.namelist():
+                  raise SystemExit('root manifest.json missing')
+              manifest = json.loads(z.read('manifest.json'))
+              if manifest.get('version') != expected:
+                  raise SystemExit('manifest version mismatch')
+              if manifest.get('name') != 'OSMINOG':
+                  raise SystemExit('manifest product mismatch')
+              if not manifest.get('key'):
+                  raise SystemExit('fixed extension key missing')
+          PY
+
+          echo "package_name=$package_name" >> "$GITHUB_OUTPUT"
+          echo "size=$expected_size" >> "$GITHUB_OUTPUT"
+          echo "sha256=$expected_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Copy verified build into public registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ inputs.version }}'
+          channel='${{ inputs.channel }}'
+          package_path='${{ inputs.package_path }}'
+          metadata_path='${{ inputs.metadata_path }}'
+          notes_path='${{ inputs.notes_path }}'
+
+          git clone "https://x-access-token:${RELEASES_TOKEN}@github.com/${RELEASES_REPOSITORY}.git" public-registry
+          target="public-registry/platforms/chrome-extension/releases/$version"
+          mkdir -p "$target" "public-registry/staging/chrome-extension/$version"
+          cp "$package_path" "$target/${{ steps.verify.outputs.package_name }}"
+          cp "$metadata_path" "$target/release-v2.json"
+          cp "$notes_path" "$target/README.md"
+          cat > "public-registry/staging/chrome-extension/$version/ACTIVATE-V2" <<EOF
+          version=$version
+          channel=$channel
+          expected_size=${{ steps.verify.outputs.size }}
+          expected_sha256=${{ steps.verify.outputs.sha256 }}
+          source_repository=${GITHUB_REPOSITORY}
+          source_commit=${GITHUB_SHA}
+          EOF
+
+          cd public-registry
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "platforms/chrome-extension/releases/$version" "staging/chrome-extension/$version/ACTIVATE-V2"
+          git commit -m "Stage verified OSMINOG Chrome $version from private source"
+          git push origin main
+
+      - name: Confirm public registry received exact bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ inputs.version }}'
+          package='${{ steps.verify.outputs.package_name }}'
+          url="https://raw.githubusercontent.com/${RELEASES_REPOSITORY}/main/platforms/chrome-extension/releases/${version}/${package}"
+          for attempt in $(seq 1 12); do
+            if curl -fsSL "$url" -o remote-package.zip; then
+              break
+            fi
+            sleep 5
+          done
+          test -f remote-package.zip
+          test "$(stat -c%s remote-package.zip)" = '${{ steps.verify.outputs.size }}'
+          test "$(sha256sum remote-package.zip | awk '{print $1}')" = '${{ steps.verify.outputs.sha256 }}'
+          echo "Public registry byte verification: PASS"
