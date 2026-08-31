@@ -1,0 +1,27 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.39",
+  "baseVersion": "3.11.38",
+  "codename": "CHAT STABILITY + THREE PANE + OCEAN TOPBAR",
+  "package": "OSMINOG-Chrome-3.11.39-CHAT-STABILITY-THREE-PANE-OCEAN-TOPBAR-ROOT.zip",
+  "size": 365546,
+  "sha256": "0477bb96709f2284ca7ebf404dc7689f613ea98513e0024eee5d96a77488fd2f",
+  "manifestAtRoot": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "checks": {
+    "javascriptSyntax": "pass",
+    "jsonParse": "pass",
+    "layoutSmoke": "pass",
+    "layoutSmokeDetails": "1600x1000: team 260/551, team+settings 260/544/360; 30 mode switches without page errors"
+  },
+  "fixes": [
+    "Removed recursive Team/Chat MutationObserver feedback loop",
+    "Made Team mode entry idempotent and lazy-loaded once",
+    "Stopped hidden legacy transcript from re-rendering every team message",
+    "Debounced resize layout and reduced tether redraw work",
+    "Kept one visible messenger: team chats left, chat center, settings right",
+    "Ocean topbar controls match Layers styling"
+  ]
+}
