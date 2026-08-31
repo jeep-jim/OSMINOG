@@ -1,23 +1,25 @@
 {
   "format": "osminog-release-registry/v1",
   "product": "OSMINOG",
-  "updatedAt": "2026-08-30",
+  "updatedAt": "2026-08-31",
   "rollingDevelopmentTag": "latest-osminog-dev",
   "currentDevelopment": {
     "platform": "chrome-extension",
-    "version": "3.11.29",
-    "codename": "CHAT FRAME RESIZE HOTFIX",
-    "artifact": "OSMINOG-Chrome-3.11.29-CHAT-FRAME-RESIZE-HOTFIX-ROOT.zip",
-    "runtimeState": "owner-installed; AI chat still does not resize despite frame-edge pointer handling because 3.11.23 responsive CSS hard-locks width and height with !important"
+    "version": "3.11.31",
+    "codename": "DARK SPACE FX + THEME ICONS",
+    "artifact": "OSMINOG-Chrome-3.11.31-DARK-SPACE-FX-THEME-ICONS-ROOT.zip",
+    "size": 350489,
+    "sha256": "21a6a725a93c964c32a8cb8f78dfd4444138a0fe0d8b550347ee7d34bd11e091",
+    "runtimeState": "owner-installed; switching to Dark triggers an Inspector MutationObserver self-loop and freezes the tab, then reload remains stuck because Dark persists"
   },
   "nextCandidate": {
     "platform": "chrome-extension",
-    "version": "3.11.30",
-    "codename": "CHAT RESIZE ROOT FIX",
-    "baseVersion": "3.11.29",
-    "artifact": "OSMINOG-Chrome-3.11.30-CHAT-RESIZE-ROOT-FIX-ROOT.zip",
-    "size": 348235,
-    "sha256": "74e9c0eb251590eab7685a71c45e65cf2dc413eab4ea49aed747b83b4e12e869",
+    "version": "3.11.32",
+    "codename": "SPACE FX FREEZE HOTFIX",
+    "baseVersion": "3.11.31",
+    "artifact": "OSMINOG-Chrome-3.11.32-SPACE-FX-FREEZE-HOTFIX-ROOT.zip",
+    "size": 350604,
+    "sha256": "b9f4effc5196c301bfe83b2d3cf65ea41e6440202c767e0b0a029e33fa9245c1",
     "fileCount": 56,
     "runtimeState": "built-and-statically-verified; owner runtime pending",
     "binaryInGitHub": false
@@ -26,8 +28,8 @@
     "chrome-extension": {
       "status": "active-development",
       "branch": "platform/chrome-extension",
-      "currentVersion": "3.11.29",
-      "candidateVersion": "3.11.30",
+      "currentVersion": "3.11.31",
+      "candidateVersion": "3.11.32",
       "distribution": "manual alpha ZIP during interface stabilization; Managed Dev Channel v2 planned; Chrome Web Store for beta/stable"
     },
     "windows": {
@@ -62,6 +64,27 @@
     }
   },
   "releases": [
+    {
+      "platform": "chrome-extension",
+      "version": "3.11.32",
+      "codename": "SPACE FX FREEZE HOTFIX",
+      "baseVersion": "3.11.31",
+      "artifact": "OSMINOG-Chrome-3.11.32-SPACE-FX-FREEZE-HOTFIX-ROOT.zip",
+      "size": 350604,
+      "sha256": "b9f4effc5196c301bfe83b2d3cf65ea41e6440202c767e0b0a029e33fa9245c1",
+      "fileCount": 56,
+      "manifestAtRoot": true,
+      "manifestVersion": "3.11.32",
+      "fixedManifestKeyPreserved": true,
+      "runtimeVerified": false,
+      "binaryInGitHub": false,
+      "notes": [
+        "P0 freeze fix for Dark Space FX inspector injection.",
+        "Reentrancy guard prevents observer callbacks from re-entering while the FX section is mutating Inspector DOM.",
+        "Microtask coalescing ensures repeated childList mutations schedule only one injection pass.",
+        "3.11.31 Space FX and colorful theme icons are preserved; no other product behavior changed."
+      ]
+    },
     {
       "platform": "chrome-extension",
       "version": "3.11.30",
