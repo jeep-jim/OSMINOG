@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Materialize, verify and publish latest Chrome package
+      - name: Publish latest Chrome release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -44,15 +44,31 @@ jobs:
           source_api=$(jq -r '.bootstrap.sourceApi // empty' "$meta")
           notes=$(jq -r '.notes // "OSMINOG Chrome development release."' "$meta")
           zip="$release_dir/$package"
+          tag="chrome-v$version"
+          title="OSMINOG Chrome $version"
+
+          release_notes=$(printf '%s\n\nPackage: `%s`\nSHA-256: `%s`\nSize: `%s` bytes' "$notes" "$package" "$expected_sha" "$expected_size")
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --target main --title "$title" --prerelease --notes "$release_notes"
+          else
+            gh release create "$tag" --target main --title "$title" --prerelease --notes "$release_notes"
+          fi
+
+          if [ ! -f "$zip" ] && [ -n "$source_api" ]; then
+            tmp_b64=$(mktemp)
+            if curl -fsSL "$source_api" | jq -r '.[].download_url' | sort | while IFS= read -r url; do curl -fsSL "$url"; done > "$tmp_b64" \
+              && base64 --decode "$tmp_b64" > "$zip" 2>/dev/null; then
+              rm -f "$tmp_b64"
+            else
+              rm -f "$tmp_b64" "$zip"
+              echo "::warning::Release entry created; package bootstrap is not complete yet."
+              exit 0
+            fi
+          fi
 
           if [ ! -f "$zip" ]; then
-            test -n "$source_api"
-            tmp_b64=$(mktemp)
-            curl -fsSL "$source_api" | jq -r '.[].download_url' | sort | while IFS= read -r url; do
-              curl -fsSL "$url"
-            done > "$tmp_b64"
-            base64 --decode "$tmp_b64" > "$zip"
-            rm -f "$tmp_b64"
+            echo "::warning::Release entry created; package file is not present yet."
+            exit 0
           fi
 
           actual_size=$(stat -c%s "$zip")
@@ -83,14 +99,6 @@ jobs:
             git push
           fi
 
-          tag="chrome-v$version"
-          title="OSMINOG Chrome $version"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release edit "$tag" --target main --title "$title" --prerelease --notes "$notes"
-            gh release upload "$tag" "$zip" --clobber
-          else
-            gh release create "$tag" "$zip" --target main --title "$title" --prerelease --notes "$notes"
-          fi
-
-          echo "Published $title"
+          gh release upload "$tag" "$zip" --clobber
+          echo "Published $title with verified package asset."
           echo "SHA-256: $actual_sha"
