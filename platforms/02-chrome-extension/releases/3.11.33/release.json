@@ -1,0 +1,26 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.33",
+  "codename": "SPACE FX VISIBILITY FIX",
+  "baseVersion": "3.11.32",
+  "package": "OSMINOG-Chrome-3.11.33-SPACE-FX-VISIBILITY-FIX-ROOT.zip",
+  "size": 345697,
+  "sha256": "cb4d33f50464ca732f5cad25d1367bcebd83637054e0a04e3480642560e90785",
+  "status": "built-and-statically-verified; owner runtime pending",
+  "rootCause": "Space FX was prepended to #app as a sibling behind the opaque #viewport. The viewport background covered the entire FX layer.",
+  "fix": [
+    "Move #spaceThemeFx inside #viewport",
+    "Render Space FX at z-index 1 above viewport background",
+    "Render #world at z-index 2 above Space FX",
+    "Preserve all existing Space FX controls and the 3.11.32 MutationObserver freeze hotfix"
+  ],
+  "staticChecks": {
+    "jsSyntax": "21 PASS",
+    "jsonParse": "9 PASS",
+    "duplicateHtmlIds": "0 real duplicates PASS",
+    "spaceLayerParent": "#viewport PASS",
+    "spaceLayerStack": "viewport bg < Space FX z1 < world z2 PASS",
+    "zipIntegrity": "PASS"
+  }
+}
