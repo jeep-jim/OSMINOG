@@ -1,0 +1,75 @@
+diff -ruN '--exclude=OSMINOG_BUILD.json' '--exclude=manifest.json' osminog_base_31132/editor.html osminog_work_31133/editor.html
+--- osminog_base_31132/editor.html	2026-08-31 01:58:31.000000000 +0000
++++ osminog_work_31133/editor.html	2026-08-31 04:47:52.087572759 +0000
+@@ -98,7 +98,7 @@
+ 
+   <main id="app" class="app" hidden>
+     <header class="topbar glass">
+-      <div class="top-left"><button id="goHome" class="brand compact"><span class="osminog-header-mark" aria-hidden="true"></span><span>OSMINOG</span></button><button id="versionButton" class="version-chip" title="Версия и обновления">v3.11.32</button><button id="projectMenu" class="project-pill"><span id="projectTitle">Untitled world</span><svg><use href="#i-arrow"/></svg></button><button id="layersToggle" class="icon-btn layers-toggle-left" data-tip="layers"><svg><use href="#i-layers"/></svg></button><div class="workspace-prefs"><select id="workspaceLanguage" aria-label="Language"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option><option value="ja">JA</option><option value="zh">ZH</option></select><button id="workspaceTheme" class="icon-btn" aria-label="Toggle theme"><svg><use href="#i-moon"/></svg></button></div></div>
++      <div class="top-left"><button id="goHome" class="brand compact"><span class="osminog-header-mark" aria-hidden="true"></span><span>OSMINOG</span></button><button id="versionButton" class="version-chip" title="Версия и обновления">v3.11.33</button><button id="projectMenu" class="project-pill"><span id="projectTitle">Untitled world</span><svg><use href="#i-arrow"/></svg></button><button id="layersToggle" class="icon-btn layers-toggle-left" data-tip="layers"><svg><use href="#i-layers"/></svg></button><div class="workspace-prefs"><select id="workspaceLanguage" aria-label="Language"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option><option value="ja">JA</option><option value="zh">ZH</option></select><button id="workspaceTheme" class="icon-btn" aria-label="Toggle theme"><svg><use href="#i-moon"/></svg></button></div></div>
+@@ -276,7 +276,7 @@
+     <button id="googleWidgetBubble" class="module-widget-bubble google-widget-bubble" hidden title="Открыть Google AI"><span class="google-g-mark"><img src="icons/modules/google.svg" alt="Google"></span></button>
+ 
+     <div id="updatePopover" class="update-popover glass" hidden>
+-      <div class="update-head"><div><small>OSMINOG · UNIFIED UPDATE</small><strong>OSMINOG <span id="updateCurrentVersion">v3.11.32</span></strong></div><button id="closeUpdatePopover" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
++      <div class="update-head"><div><small>OSMINOG · UNIFIED UPDATE</small><strong>OSMINOG <span id="updateCurrentVersion">v3.11.33</span></strong></div><button id="closeUpdatePopover" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
+       <div class="update-status-card"><span>Текущая сборка</span><b id="updateStatusText">OSMINOG Dev</b><small id="updateStatusSub">Dev Hub проверит и установит обновление в текущую папку расширения.</small></div>
+       <div class="update-actions one-click"><button id="oneClickUpdate" class="primary-btn">Проверить и обновить</button></div><p class="update-note">OSMINOG Dev Hub проверяет SHA-256, делает резервную копию и после успешной установки перезапускает расширение.</p>
+     </div>
+diff -ruN '--exclude=OSMINOG_BUILD.json' '--exclude=manifest.json' osminog_base_31132/osminog-ocean-shell.css osminog_work_31133/osminog-ocean-shell.css
+--- osminog_base_31132/osminog-ocean-shell.css	2026-08-31 01:58:31.000000000 +0000
++++ osminog_work_31133/osminog-ocean-shell.css	2026-08-31 04:47:52.087158774 +0000
+@@ -169,7 +169,7 @@
+ html[data-theme="ocean"] .gpt-settings-popover :is(.gpt-color-settings,.gpt-power-settings){border:1px solid rgba(220,248,255,.16)!important;border-radius:13px!important;background:rgba(8,67,95,.72)!important;padding:11px!important}
+ 
+ 
+-/* OSMINOG 3.11.31 — Dark theme Space FX (CSS-only, lightweight). */
++/* OSMINOG 3.11.33 — Dark theme Space FX visibility fix. */
+ html[data-theme="dark"] .app{
+   isolation:isolate;
+   background:
+@@ -178,7 +178,9 @@
+     radial-gradient(ellipse at 60% 78%,rgba(168,111,255,.08),transparent 26%),
+     linear-gradient(180deg,#0b101b 0%,#111827 34%,#0d1421 64%,#0a111d 100%);
+ }
+-.space-theme-fx{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
++html[data-theme="dark"] #viewport{isolation:isolate}
++html[data-theme="dark"] #viewport>#world{z-index:2}
++.space-theme-fx{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none}
+ .space-theme-fx[hidden]{display:none!important}
+ .space-theme-fx>div{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+ .space-stars-layer .space-star,
+diff -ruN '--exclude=OSMINOG_BUILD.json' '--exclude=manifest.json' osminog_base_31132/osminog-ocean-shell.js osminog_work_31133/osminog-ocean-shell.js
+--- osminog_base_31132/osminog-ocean-shell.js	2026-08-31 01:58:31.000000000 +0000
++++ osminog_work_31133/osminog-ocean-shell.js	2026-08-31 04:47:52.086877400 +0000
+@@ -65,8 +65,13 @@
+   }
+   function createSpaceNode(cls,vars={}){const el=document.createElement("span");el.className=cls;for(const [k,v] of Object.entries(vars))el.style.setProperty(k,v);return el}
+   function ensureSpaceLayer(){
++    const viewport=$("#viewport");
+     let root=$("#spaceThemeFx");
+-    if(root)return root;
++    if(root){
++      if(viewport&&root.parentElement!==viewport)viewport.prepend(root);
++      return root;
++    }
++    if(!viewport)return null;
+     root=document.createElement("div");root.id="spaceThemeFx";root.className="space-theme-fx";root.setAttribute("aria-hidden","true");
+     const stars=document.createElement("div");stars.className="space-stars-layer";
+     const orbiters=document.createElement("div");orbiters.className="space-orbiters-layer";
+@@ -99,7 +104,7 @@
+     ];
+     phenomenaDefs.forEach(([cls,v],i)=>phenomena.append(createSpaceNode(`${cls}${i%2===0?" space-luma":""}`,{"--x":v.x,"--y":v.y,"--s":v.s,"--d":v.d,"--delay":v.delay,"--r":v.r})));
+     root.append(stars,orbiters,meteors,phenomena);
+-    $("#app")?.prepend(root);
++    viewport.prepend(root);
+     return root;
+   }
+   function applyFx(){
+@@ -211,5 +216,5 @@
+     const body=$("#inspectorBody");if(body)new MutationObserver(()=>{if(!fxInjecting&&(isOcean()||isDark()))queueFxInject()}).observe(body,{childList:true});
+   }
+   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
+-  globalThis.OSMINOGOceanTheme={getPrefs:getOceanPrefs,setPrefs:setOceanPrefs,getSpacePrefs,setSpacePrefs,refresh,version:"3.11.32"};
++  globalThis.OSMINOGOceanTheme={getPrefs:getOceanPrefs,setPrefs:setOceanPrefs,getSpacePrefs,setSpacePrefs,refresh,version:"3.11.33"};
+ })();
