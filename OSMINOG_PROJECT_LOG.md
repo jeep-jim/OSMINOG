@@ -2055,3 +2055,61 @@ Transform OSMINOG from a growing AI brief builder into a general AI-native works
 
 ### Exact next action
 The owner performs the 3.11.41 → 3.11.42 button update and the six runtime checks above. Record only observed results; do not mark Owner Max runtime-verified from static checks alone.
+
+
+---
+
+## 2026-09-01 — 3.11.43 UNIFIED AI SESSIONS
+
+### Owner request
+Remove the mismatch where OSMINOG presented “Internal tabs” but every provider connection still created a minimized background Chrome window. Any provider selected in a project chat should connect through the same in-chat UI, reuse an already-open desktop tab when possible, show a named reconnect action after disconnection, and preserve the proven update button.
+
+### Browser constraint confirmed
+- Manifest V3 extension pages cannot embed protected ChatGPT, DeepSeek, Gemini, Claude and similar web apps when their CSP / X-Frame-Options blocks framing.
+- Therefore this release does not pretend that an iframe or a hidden window is a true internal browser.
+- The OSMINOG project conversation remains inside the OSMINOG chat.
+- A provider webpage is attached only when an authenticated normal Chrome tab already exists.
+- If login is required, the owner must explicitly press “Open for login”; no provider page is created silently.
+- Literal provider WebViews inside one product window require a later native desktop shell or official provider APIs.
+
+### Built changes
+- Replaced the connect-first background window path with OSMINOG_SESSION_CONNECT_EXISTING.
+- Added a generic provider-origin resolver covering ChatGPT, DeepSeek, Google AI, Gemini, Claude, Alice, Nano Banana and the rest of the provider registry.
+- Added transport aliases, including Nano Banana through the Gemini web transport.
+- Removed the remaining chrome.windows.create path from the background service worker.
+- Added one unified “AI connections” center inside chat settings.
+- Redirected the old toolbar tabs icon, provider catalog entries and Google AI connect button to the same session manager.
+- Added “Connect open tab” and explicit “Open for login” actions.
+- Added live connected-provider chips.
+- Added disconnect detection for closed tabs and navigation away from a linked provider.
+- Added a provider-named reconnect popup and restored the chat connect button when the selected provider is offline.
+- Preserved direct ChatGPT session transport and Custom OpenAI-compatible API transport.
+- Preserved manifest key, permissions and the byte-identical working updater.
+
+### Verification and publication
+- 24 JavaScript syntax checks passed.
+- 9 JSON parse checks passed.
+- No chrome.windows.create call remains.
+- ZIP integrity passed; root manifest is 3.11.43 and the fixed extension key is preserved.
+- Package size: 375069 bytes.
+- SHA-256: db29e7bcf99cee27d50c73ed9e571de47b7e10a21eb4996a628783ba4f103306.
+- Registry validation, registry integrity and the primary publisher run completed successfully.
+- Public release asset matches the exact size and SHA-256.
+- Dev feed is active and points to 3.11.43.
+- A redundant dispatched publisher attempt raced the already-successful publisher and remained red at its feed-advance step; it did not alter the valid release, asset or active feed.
+
+### Published artifact
+- Release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.11.43
+- Direct package: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v3.11.43/OSMINOG-Chrome-3.11.43-UNIFIED-AI-SESSIONS-ROOT.zip
+
+### Runtime verification required
+1. From 3.11.42, press **Check and update** and verify 3.11.43 loads.
+2. With DeepSeek already open and signed in, select DeepSeek in an OSMINOG agent and press **Connect open tab**; confirm no new window or tab is created.
+3. Close the linked DeepSeek tab; confirm the named reconnect popup appears and the chat connect button returns.
+4. Press reconnect while no matching tab exists; confirm OSMINOG opens connection settings without creating anything.
+5. Press **Open for login**; confirm one visible normal tab opens only from this explicit action.
+6. Repeat attach/disconnect with Google AI or Gemini.
+7. Confirm ChatGPT direct transport and the update button still work.
+
+### Exact next action
+The owner performs the 3.11.42 → 3.11.43 button update and the seven runtime checks above. Record only observed results; do not mark Unified AI Sessions runtime-verified from static checks alone.

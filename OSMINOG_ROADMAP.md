@@ -733,3 +733,25 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [ ] Следующий слой Poseidon: отдельный native companion для терминала/build/test/device automation. Не объявлять его существующим до реальной реализации и runtime proof.
 
 Ближайший приоритет: **runtime proof 3.11.42 → затем native Poseidon executor**, без возврата к старому updater и без создания ещё одного параллельного tool/provider runtime.
+
+
+---
+
+## 18. Фактическая текущая точка — 2026-09-01 · 3.11.43
+
+- [x] Выпущена 3.11.43 UNIFIED AI SESSIONS.
+- [x] Удалён автоматический chrome.windows.create для provider connection.
+- [x] Все основные кнопки подключения сведены в единый Session Manager и блок внутри настроек чата.
+- [x] Сначала используется уже открытая вкладка провайдера.
+- [x] Авторизация открывает видимую вкладку только по отдельному явному действию владельца.
+- [x] Закрытие/смена адреса связанной вкладки вызывает named reconnect popup.
+- [x] ChatGPT direct session, Custom API, fixed extension key и рабочая update button feed сохранены.
+- [x] Публичный release и active dev feed указывают на 3.11.43 с проверенным SHA-256.
+- [ ] Владелец обновляет 3.11.42 → 3.11.43 кнопкой.
+- [ ] Runtime: DeepSeek existing-tab attach без новой вкладки.
+- [ ] Runtime: close/navigation disconnect popup и возврат chat connect button.
+- [ ] Runtime: explicit “Open for login” создаёт только одну видимую вкладку.
+- [ ] Runtime: Google AI / Gemini attach.
+- [ ] Отдельно решить native desktop shell, если нужен буквальный WebView сайтов провайдеров внутри одного окна; Chrome-extension iframe не выдавать за это.
+
+Ближайший приоритет: **runtime proof 3.11.43**, затем решение по native shell / official APIs для буквального in-window provider WebView.
