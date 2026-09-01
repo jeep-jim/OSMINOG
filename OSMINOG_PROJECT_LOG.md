@@ -2270,3 +2270,47 @@ The shared Team room had no dedicated settings. Clicking the gear in “Общи
 
 ### Exact next action
 The owner performs the 3.11.45 → 3.11.46 button update and the six runtime checks above. Runtime remains pending until these observed results are recorded.
+
+
+---
+
+## 2026-09-01 — OSMINOG 3.11.47 TEAM LIVE PRESENCE
+
+### Starting state
+- OSMINOG 3.11.46 had shared Team controls, but the running state was represented by a thin anonymous bar.
+- Shared response cards did not keep a strong visual author identity.
+- The left Team list and participant settings did not show which agent was writing or waiting.
+
+### Owner request
+1. Show a real progress indicator while an AI is thinking.
+2. Keep visible avatars on messages so every response has an obvious author.
+3. Show animated writing dots and identify who is writing and where.
+
+### Built changes
+- Every response card now keeps an avatar, author, provider badge and timestamp.
+- Team responses retain the agent color as a source accent.
+- The active Team agent is surfaced in a rich live progress card with its provider avatar, action label, animated dots, percentage, current round and response position.
+- The left Team chat list highlights the exact writer and labels selected inactive agents as queued.
+- Team settings mirror the same writing/queued state for every participant.
+- Personal agent chats use the same live thinking card with elapsed and estimated remaining time.
+- Stop behavior, Connection Center, fixed extension key, permissions and updater bytes are unchanged from 3.11.46.
+
+### Verification and publication
+- 24 JavaScript files pass `node --check`; all JSON parses; CSS brace validation passes.
+- Static contracts confirm avatars, provider identity, typing dots, live progress and writing/queued states.
+- ZIP contains 59 files with root `manifest.json`.
+- Package: `OSMINOG-Chrome-3.11.47-TEAM-LIVE-PRESENCE-ROOT.zip`.
+- Size: `387148` bytes.
+- SHA-256: `dabcd956e4f1ad1e9d028c4abd3e6b30a071f3105805976f025e04e60b8e0664`.
+- Public release: `chrome-v3.11.47`.
+- Active dev feed points to 3.11.47; update-button compatibility is preserved.
+
+### Runtime verification still required
+- Update 3.11.46 → 3.11.47 through the in-product button.
+- Start a Team task with at least three selected agents.
+- Confirm one participant shows “Пишет в «Общий чат»” while the others show queued state.
+- Confirm each completed response keeps the correct avatar, provider and timestamp.
+- Confirm a personal-agent task shows the same rich progress card.
+
+### Exact next action
+The owner runs the checklist above. Record the real visual/runtime result before changing Team presence semantics again.
