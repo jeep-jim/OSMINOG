@@ -2217,3 +2217,56 @@ In Team mode, agents were answering into separate personal chats instead of one 
 
 ### Exact next action
 The owner performs the 3.11.44 → 3.11.45 button update and the six runtime checks above. Runtime remains pending until these observed results are recorded.
+
+
+---
+
+## 2026-09-01 — 3.11.46 TEAM CHAT CONTROLS
+
+### Owner report
+The shared Team room had no dedicated settings. Clicking the gear in “Общий чат” exposed ordinary agent/provider controls, so the owner could not limit answer length, constrain the run, choose the working pattern or stop an active team cycle.
+
+### Product logic
+- “Общий чат” now owns a distinct Team settings surface.
+- Personal agent tabs retain their existing provider, connection, role, colors, tools, Poseidon and GitHub settings.
+- Team settings are stored per project and frozen for the duration of one run.
+- The owner chooses participants, work mode, one-to-six rounds, per-answer word limit, total time limit, optional final summary, patch auto-application and full-project access.
+- The settings surface estimates the number of principal responses before launch.
+- Empty participant selection is rejected so the common room cannot start without an agent.
+- During a cycle, mutable settings are visually and functionally locked.
+
+### Stop and limits
+- A large Stop action is shown in the Team settings panel.
+- While the Team runs, the composer send control becomes a red Stop button for immediate access.
+- Stop prevents every subsequent agent launch.
+- If a provider request is already in flight, Chrome cannot cancel that transport safely; its result is discarded when it returns and is never appended or applied.
+- The total deadline follows the same safe boundary: no new request starts after expiration, and an in-flight result arriving after the deadline is discarded.
+- Each agent prompt receives the selected word budget, and displayed text is hard-clipped to that budget if a provider ignores it.
+
+### Verification and publication
+- 24 JavaScript syntax checks passed.
+- All packaged JSON files parse successfully.
+- Static UI/runtime contracts confirm the separate Team surface, settings synchronization, stop action, deadline and hard word clipping are present.
+- Fixed extension key and permission arrays match 3.11.45.
+- `osminog-folder-updater.js` is byte-identical to 3.11.45.
+- ZIP integrity and root manifest checks passed.
+- Package size: 384465 bytes.
+- SHA-256: 9a1987f255b000597f5e426c5bef348ca78962878677d0efc49e7e8b3d5a9e25.
+- The publication workflow completed successfully.
+- GitHub Release asset size and digest match the local artifact.
+- Active dev feed points to 3.11.46.
+
+### Published artifact
+- Release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.11.46
+- Direct package: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v3.11.46/OSMINOG-Chrome-3.11.46-TEAM-CHAT-CONTROLS-ROOT.zip
+
+### Runtime verification required
+1. Update 3.11.45 to 3.11.46 with the existing button.
+2. Enter Team mode, select “Общий чат” and open the gear; confirm the title is “Настройки общего чата”.
+3. Open a personal agent tab and confirm the same gear returns to ordinary agent/provider settings.
+4. Choose two participants, one round, 80 words and a two-minute limit; run one mission and confirm the shared response count and visible word limits.
+5. Start a longer mission, press the red composer Stop control and confirm no subsequent agents launch and the in-flight result is not appended.
+6. Reload the project and confirm the Team settings persist.
+
+### Exact next action
+The owner performs the 3.11.45 → 3.11.46 button update and the six runtime checks above. Runtime remains pending until these observed results are recorded.
