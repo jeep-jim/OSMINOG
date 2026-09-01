@@ -2358,3 +2358,48 @@ Fix providers that appear connected but do not work in Team Room.
 
 ### Exact next action
 The owner runs the checklist. Any remaining provider failure must be fixed from its returned live probe, not hidden behind a URL-only On badge.
+
+
+---
+
+## 2026-09-01 — OSMINOG 3.11.51 AUTONOMOUS SELF-BUILD
+
+### Owner report
+- The permanent main chat returned only one answer and stopped instead of continuing through several visible progress messages and real actions.
+- Commands to repair OSMINOG or create an extension could be misrouted into a canvas patch instead of editing the selected source folder.
+- The owner supplied screenshots from 3.11.33–3.11.34 proving that the older main-chat path displayed consecutive progress replies and wrote real extension source.
+
+### Verified root cause
+- The autonomous Poseidon executor existed in 3.11.50 with source, repository and release completion contracts, 12 tool hops and six continuation turns.
+- The composer never called that executor. Every ordinary message was routed to the parallel personal-agent runner.
+- The parallel runner intentionally completed after one provider response, so the main chat never reached the autonomous source/release path.
+- Composer attachments were copied for display and cleared before the selected runner consumed them.
+- The source-intent classifier did not recognize natural self-repair wording such as “почини сам себя”.
+
+### Built changes
+- The permanent main chat now routes to the autonomous Poseidon executor.
+- Personal agent chats retain independent parallel execution.
+- Tool-request text and continuation progress remain visible as separate messages while execution continues.
+- Main-chat tasks continue until the required canvas, source, repository or release mutation succeeds, or a concrete blocker is returned.
+- Attachments are restored to the selected execution route.
+- Self-repair, chat-interface repair and extension creation wording routes to source tools.
+- Explicit widget/object/canvas requests retain validated osminog.patch/v1 execution.
+- The fixed Chrome key, permissions, provider health, Team Room and updater bytes are preserved.
+
+### Verification
+- All 24 JavaScript files pass node --check.
+- All packaged JSON files parse.
+- Routing tests cover self-repair, chat settings repair, Grafix extension creation, canvas widgets, repository publication, release publication and ordinary discussion.
+- The updater file is byte-identical to 3.11.50.
+- The fixed manifest key and permission arrays match 3.11.50.
+- ZIP contains 59 files with root manifest.json.
+- Package size: 397477 bytes.
+- SHA-256: 9d97f10614d89e585b6949405c49b5fe93b81c7c345a099b93b9f59261fe9861.
+
+### Archived artifact
+- Private path: artifacts/chrome/3.11.51/OSMINOG-Chrome-3.11.51-AUTONOMOUS-SELF-BUILD-ROOT.zip.
+- Runtime remains pending until the owner updates and runs one real self-repair or module-creation command.
+
+### Exact next action
+- Publish chrome-v3.11.51 in jeep-jim/OSMINOG-Releases and advance the signed dev update feed.
+- The owner updates through the working button and tests one source mutation from the permanent main chat.
