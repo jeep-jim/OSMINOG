@@ -2314,3 +2314,47 @@ The owner performs the 3.11.45 → 3.11.46 button update and the six runtime che
 
 ### Exact next action
 The owner runs the checklist above. Record the real visual/runtime result before changing Team presence semantics again.
+
+
+---
+
+## 2026-09-01 — OSMINOG 3.11.48 LIVE PROVIDER HEALTH
+
+### Starting state
+- In 3.11.47 an external provider was shown as connected whenever its saved tab still existed on a matching URL.
+- The screenshot confirmed Google AI entered Team Room as an active agent and failed only during the real send with “поле ввода не распознано”.
+- This proved the green status described tab presence, not usable transport health.
+
+### Owner request
+Fix providers that appear connected but do not work in Team Room.
+
+### Built changes
+- External provider status now requires a live composer probe or, for DeepSeek, an authenticated direct-session probe.
+- A linked tab that cannot accept a prompt is shown as “Не готов”, not “On”.
+- Connection Center exposes the probe error and a “Переподключить” action.
+- Team Room preflights every selected external agent before consuming a round and excludes agents that fail the live check.
+- A mission with no ready participants stops before any provider request.
+- Google AI and generic web-chat composer discovery now covers more textarea/contenteditable/combobox/plaintext patterns.
+- Composer and send-button discovery traverses open Shadow DOM.
+- Alice uses the broadened generic web-chat path.
+- Existing Team presence, fixed extension key, permission arrays and updater bytes are preserved.
+
+### Verification and publication
+- 24 JavaScript files pass `node --check`; all JSON parses; CSS brace validation passes.
+- Static contracts confirm live health probing, not-ready UI, Team preflight and expanded composer discovery.
+- ZIP contains 59 files with root `manifest.json`.
+- Package: `OSMINOG-Chrome-3.11.48-LIVE-PROVIDER-HEALTH-ROOT.zip`.
+- Size: `388634` bytes.
+- SHA-256: `e5623a3f2cf9386f03a1891daafd58008f0b7fbbc0f4ae391527095d6369a035`.
+- Public release: `chrome-v3.11.48`.
+- Active dev feed points to 3.11.48; update-button compatibility is preserved.
+
+### Runtime verification still required
+- Update 3.11.47 → 3.11.48 with the in-product button.
+- Open Connection Center and verify Google AI/Alice show On only after a successful live check.
+- If either shows “Не готов”, open its actual dialog and press “Переподключить”.
+- Run a Team mission and verify every participant marked On produces a response.
+- Record provider-specific DOM/probe diagnostics for any remaining failure.
+
+### Exact next action
+The owner runs the checklist. Any remaining provider failure must be fixed from its returned live probe, not hidden behind a URL-only On badge.

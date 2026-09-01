@@ -847,3 +847,26 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [ ] Runtime: личный чат показывает корректного агента и место ответа.
 
 Ближайший приоритет: **runtime proof Team Live Presence 3.11.47**. Следующее изменение Team UX основывать на наблюдении владельца в реальном запуске, не на статическом макете.
+
+
+---
+
+## 23. Фактическая текущая точка — 2026-09-01 · 3.11.48
+
+- [x] Выпущена 3.11.48 LIVE PROVIDER HEALTH.
+- [x] Статус On требует живой проверки поля ввода или авторизованной direct-session.
+- [x] Открытая, но неработающая вкладка получает статус «Не готов».
+- [x] В Connection Center добавлено явное переподключение неготовой вкладки.
+- [x] Team Room проверяет внешних агентов до запуска и не тратит на неготовых участников круги.
+- [x] Расширен поиск Google AI и generic web-chat composer.
+- [x] Добавлен обход открытых Shadow DOM для поля ввода и кнопки отправки.
+- [x] DeepSeek проверяется через реальную авторизованную web-session.
+- [x] Team presence, fixed extension key, permissions и updater сохранены.
+- [x] Публичный release и active dev feed указывают на 3.11.48 с SHA-256 e5623a3f2cf9386f03a1891daafd58008f0b7fbbc0f4ae391527095d6369a035.
+- [ ] Владелец обновляет 3.11.47 → 3.11.48 кнопкой.
+- [ ] Runtime: Google AI проходит live probe и отвечает в Team Room.
+- [ ] Runtime: Алиса проходит live probe и отвечает в Team Room.
+- [ ] Runtime: неготовая вкладка никогда не показывается зелёным On.
+- [ ] Runtime: DeepSeek продолжает отвечать через direct web-session.
+
+Ближайший приоритет: **runtime proof Google AI, Алисы и DeepSeek в 3.11.48**. Следующий provider-specific patch делать только по фактическому probe/error после обновления.
