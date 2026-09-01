@@ -2165,3 +2165,55 @@ The owner performs the 3.11.42 → 3.11.43 button update and the seven runtime c
 
 ### Exact next action
 The owner performs the 3.11.43 → 3.11.44 button update and the seven runtime checks above. Record only observed results; runtime remains pending until that proof.
+
+---
+
+## 2026-09-01 — 3.11.45 UNIFIED TEAM ROOM ROUTING
+
+### Owner report
+In Team mode, agents were answering into separate personal chats instead of one shared conversation. The owner confirmed that the earlier 3.8-era Team model used a common room.
+
+### Root cause
+- The Team engine still maintained a shared transcript and passed previous agent contributions into the next agent prompt.
+- The unified messenger bridge appended each `osminog:team-message` through the currently active chat buffer.
+- Team mode entry incorrectly called the unified chat with `team:false`.
+- Therefore the orchestration context was shared, but visible persistence depended on whichever personal agent tab was active.
+
+### Built changes
+- Team mode now enters the unified messenger with `team:true` and selects the main shared feed.
+- The main feed is labelled “Общий чат” and “Вся команда · общий поток” in Team mode.
+- Every owner, agent and system event from the Team engine targets the main shared feed explicitly.
+- Team writes are serialized through one promise queue to preserve order and avoid storage races.
+- Author, provider, color, source and attachment metadata are preserved in the shared feed.
+- A tab-switch race is handled by refreshing the active main buffer after an off-thread write completes.
+- Personal agent tabs remain intact for direct one-to-one conversations and are labelled as personal in the Team composer.
+- Team clear removes only team-sourced entries and preserves unrelated main-chat history.
+- Connection Center behavior and the updater are unchanged.
+
+### Verification and publication
+- 24 JavaScript syntax checks passed.
+- Packaged JSON files parse successfully.
+- No Team entry point retains `team:false`.
+- Static routing checks confirm Team events target the serialized main feed.
+- Fixed extension key and permissions match 3.11.44.
+- `osminog-folder-updater.js` is byte-identical to 3.11.44.
+- ZIP integrity and root manifest checks passed.
+- Package size: 378444 bytes.
+- SHA-256: dbecb4c641c2f5ef7a501d796ae1771033f323b2cee8c9302f2cf574325d3248.
+- The publication workflow archived the immutable package and advanced the active dev feed to 3.11.45.
+- Public release metadata and archived package size/hash match the local artifact.
+
+### Published artifact
+- Release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.11.45
+- Direct package: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v3.11.45/OSMINOG-Chrome-3.11.45-UNIFIED-TEAM-ROOM-ROOT.zip
+
+### Runtime verification required
+1. Update 3.11.44 to 3.11.45 with the existing button.
+2. Enter Team mode while a personal agent tab is active; confirm OSMINOG opens “Общий чат”.
+3. Send one mission to at least two selected agents.
+4. Confirm the owner mission, every agent answer and the completion message remain in the same common feed in order.
+5. Open a personal agent tab and confirm it remains a separate direct chat.
+6. Return to “Общий чат” and confirm the full Team transcript is still present.
+
+### Exact next action
+The owner performs the 3.11.44 → 3.11.45 button update and the six runtime checks above. Runtime remains pending until these observed results are recorded.
