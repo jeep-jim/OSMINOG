@@ -2113,3 +2113,55 @@ Remove the mismatch where OSMINOG presented “Internal tabs” but every provid
 
 ### Exact next action
 The owner performs the 3.11.42 → 3.11.43 button update and the seven runtime checks above. Record only observed results; do not mark Unified AI Sessions runtime-verified from static checks alone.
+
+---
+
+## 2026-09-01 — 3.11.44 CONNECTION CENTER UI REPAIR
+
+### Owner report
+3.11.43 regressed the established chat UI: the settings column was crushed, the connect actions overlapped, the old Internal tabs window disappeared, the chat sections no longer adapted to the resized window, and the only visible connect action became a small grey button in the thread bar.
+
+### Built changes
+- Restored the previous Internal tabs surface as a dedicated unified AI connection center.
+- Routed connect actions from chat, agent settings, Modules, provider catalog, desktop provider shortcuts and Google AI into this same center.
+- Added separate Active connections and Quick access sections.
+- Quick access is generated from core chat providers plus every provider selected in Media Crew or placed on the desktop through Modules.
+- Preserved the existing-tab-first connection policy and explicit visible login-tab action.
+- Removed the compact grey header connect action.
+- Added a large branded Connect button inside an empty disconnected chat.
+- Kept the prior agent tabs, chat center, settings, roles, tools, Poseidon and GitHub sections.
+- Replaced hard expansion of the messenger window with width-preserving clamping.
+- Added container-responsive side panes: below the safe chat width, Team and Settings overlay the chat instead of shrinking it.
+- Preserved provider-named disconnect/reconnect notifications.
+- Preserved direct ChatGPT, DeepSeek web, Gemini/Google AI, generic provider and Custom API routes.
+
+### Verification and publication
+- 24 JavaScript syntax checks passed.
+- 9 JSON parse checks passed.
+- Connection-center state smoke test passed.
+- CSS brace/structure check passed.
+- No chrome.windows.create call exists.
+- Fixed extension key and permissions match 3.11.43.
+- osminog-folder-updater.js is byte-identical to 3.11.43.
+- ZIP integrity and root manifest checks passed.
+- Package size: 378050 bytes.
+- SHA-256: ada1b5e73bd257ca01edbdf449ed2d4e5aecffcf9947638d5c262d8e1a764c6b.
+- Primary publisher, registry validation and registry integrity completed successfully.
+- Public release asset size and GitHub SHA-256 digest match.
+- Active dev feed points to 3.11.44.
+
+### Published artifact
+- Release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.11.44
+- Direct package: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v3.11.44/OSMINOG-Chrome-3.11.44-CONNECTION-CENTER-UI-REPAIR-ROOT.zip
+
+### Runtime verification required
+1. Update 3.11.43 to 3.11.44 with the existing button.
+2. Open a DeepSeek agent with no active session and confirm the large centered Connect button is visible.
+3. Press Connect and confirm the restored connection center opens.
+4. Confirm an already-open DeepSeek tab is shown as found and connects without creating another tab.
+5. Add Nano Banana or another provider through Modules / desktop quick access and confirm its icon appears in the center.
+6. Resize the chat with Settings and Team open; confirm panes overlay at narrow widths instead of crushing text and buttons.
+7. Close the linked tab and confirm the named reconnect notification still appears.
+
+### Exact next action
+The owner performs the 3.11.43 → 3.11.44 button update and the seven runtime checks above. Record only observed results; runtime remains pending until that proof.
