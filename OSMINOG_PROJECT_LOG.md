@@ -2403,3 +2403,45 @@ The owner runs the checklist. Any remaining provider failure must be fixed from 
 ### Exact next action
 - Publish chrome-v3.11.51 in jeep-jim/OSMINOG-Releases and advance the signed dev update feed.
 - The owner updates through the working button and tests one source mutation from the permanent main chat.
+
+
+---
+
+## 2026-09-01 — OSMINOG 3.11.52 WORKSPACE APP RUNTIME
+
+### Owner report
+- The 3.11.51 permanent main chat entered the autonomous loop but still produced no real application object.
+- The exact request asked to create an image-editing extension inside OSMINOG with a desktop icon that opens it.
+- The provider returned prose claiming that no active canvas execution channel existed.
+
+### Verified root cause
+- Application creation still depended on the connected model returning a valid osminog.patch/v1.
+- The exact phrase used the Russian infinitive “сделать”; the classifier recognized imperative “сделай” but not the infinitive.
+- A model response containing useful HTML but no patch was discarded as an unverified canvas mutation.
+
+### Built changes
+- Added a dedicated app execution mode for applications, editors, players, studios and extensions inside OSMINOG.
+- Natural forms such as сделать, создать, написать, реализовать and добавить are recognized.
+- Any connected provider supplies standalone HTML; OSMINOG itself creates an editable code window and a linked desktop launcher.
+- Explicit app installation is applied immediately and remains undoable.
+- The launcher opens its exact code application on one click.
+- If provider output has no usable HTML, a built-in working fallback is installed instead of returning another promise.
+- The image-editor fallback includes image open and drag/drop, brush, eraser, line, color/size, undo, clear, grayscale, invert and PNG export.
+- Canvas patch validation now preserves codeViewMode and codeSplit.
+
+### Verification
+- All 24 JavaScript files pass node --check.
+- All packaged JSON files parse.
+- The exact screenshot request routes to app mode.
+- Alternate app, self-source repair, canvas widget, canvas edit and ordinary chat routing tests pass.
+- ZIP contains 59 files with root manifest.json.
+- Package size: 402198 bytes.
+- SHA-256: bd9b87445f0538976740a9e3652b76a192acf4fc0d75d416e8b86c2459dc321e.
+
+### Archived artifact
+- Private path: artifacts/chrome/3.11.52/OSMINOG-Chrome-3.11.52-WORKSPACE-APP-RUNTIME-ROOT.zip.
+- Runtime remains pending until the owner updates and repeats the image-editor request.
+
+### Exact next action
+- Publish chrome-v3.11.52 in jeep-jim/OSMINOG-Releases and advance the signed dev update feed.
+- The owner updates through the working button, repeats the image-editor request and taps the generated launcher.
