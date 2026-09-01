@@ -710,3 +710,26 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 **P3 → P4 → P5 → Google repair → Presence UI/runtime → P1 → P2 → P6 → P8 → P7.**
 
 Это не очередной feature sprint. Это проход, который заставляет уже построенный OSMINOG наконец работать как **одна система**.
+
+
+---
+
+## 17. Фактическая текущая точка — 2026-09-01
+
+Этот раздел заменяет устаревшую «текущую следующую команду» выше, но не удаляет историю решений.
+
+- [x] Выпущена 3.11.41 UNIFIED CANVAS TOOLBAR.
+- [x] Владелец реально подтвердил обновление кнопкой **3.11.40 → 3.11.41**; версия после перезагрузки стала 3.11.41.
+- [x] Публичный dev feed использует совместимый envelope `osminog-update-feed-envelope/v1` с активным signed payload v2.
+- [x] Собрана и опубликована 3.11.42 POSEIDON MAX ACCESS.
+- [x] У внешнего ChatGPT и внутренних агентов унифицирован фактический список возможностей.
+- [x] Добавлены реальные asset/image reads, project tools, agent tools и расширяемый owner-confirmed command registry.
+- [x] Сохранены validated canvas patches, Undo, Poseidon source-folder guard и подтверждение GitHub writes.
+- [ ] Владелец обновляет 3.11.41 → 3.11.42 кнопкой.
+- [ ] Runtime: внешний ChatGPT вызывает `capabilities` и получает Owner Max manifest.
+- [ ] Runtime: выбранное изображение реально передаётся через `read_asset`.
+- [ ] Runtime: из чата создаются тестовый проект, агент и slash-команда.
+- [ ] Runtime: read-only роль блокирует mutating tools.
+- [ ] Следующий слой Poseidon: отдельный native companion для терминала/build/test/device automation. Не объявлять его существующим до реальной реализации и runtime proof.
+
+Ближайший приоритет: **runtime proof 3.11.42 → затем native Poseidon executor**, без возврата к старому updater и без создания ещё одного параллельного tool/provider runtime.

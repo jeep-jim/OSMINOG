@@ -1984,3 +1984,74 @@ Dark Space FX and colorful Light/Dark/Ocean theme icons from 3.11.31 are preserv
 
 Artifact: `OSMINOG-Chrome-3.11.32-SPACE-FX-FREEZE-HOTFIX-ROOT.zip` — 350604 bytes — SHA-256 `b9f4effc5196c301bfe83b2d3cf65ea41e6440202c767e0b0a029e33fa9245c1`.
 
+
+
+---
+
+## 2026-09-01 — 3.11.41 UPDATE BUTTON RUNTIME PROOF
+
+### Starting state
+- OSMINOG 3.11.40 was installed as the owner's unpacked Chrome extension.
+- The signed-envelope development feed and GitHub Release publisher had been repaired, but no real owner-side button transition had yet been recorded.
+
+### Confirmed owner runtime result
+- The owner pressed the in-product **Check and update** button.
+- OSMINOG displayed real package progress and completed the update from **3.11.40 to 3.11.41**.
+- After reload, the product header and update panel both reported **v3.11.41**.
+- This is the first owner-confirmed successful OSMINOG button update in the project history.
+
+### Published artifact
+- Release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.11.41
+- Package: `OSMINOG-Chrome-3.11.41-UNIFIED-CANVAS-TOOLBAR-ROOT.zip`
+- Size: `365952` bytes.
+- SHA-256: `1360a3a678a4d3e9a12856128285cd50b88e9329ce3554b58217e984ed375eb5`.
+
+---
+
+## 2026-09-01 — 3.11.42 POSEIDON MAX ACCESS
+
+### Owner request
+Transform OSMINOG from a growing AI brief builder into a general AI-native workspace. Any connected AI should receive the maximum capability set actually available in the product: canvas, real images, projects, agents, internal commands, browser, files, source code and GitHub. Preserve the now-proven update button path.
+
+### Root cause found
+- Internal Team contexts advertised a broad tool surface.
+- The external ChatGPT Presence transport used by the owner still advertised only the short canvas inspection subset.
+- Consequently, one session could write an OSMINOG module through Poseidon while another connected ChatGPT could not request the actual image bytes, source-folder tools, project tools or command tools.
+
+### Built changes
+- Added `osminog.capabilities/v1` as the actual Owner Max capability manifest exposed through Presence.
+- External ChatGPT, internal agents and provider sessions now receive the same comprehensive tool contract.
+- Raised one tool hop to eight calls and bounded consecutive tool-result hops at eight.
+- Added `read_asset` for delivering real image bytes and text assets to the AI; added `asset_create` for placing returned data/URL assets on the canvas.
+- Added project list/create/switch/rename tools.
+- Added agent create/update/remove/delegate tools.
+- Added an owner-confirmed custom command registry with prompt, tool and chained commands; Team Room can execute registered slash commands.
+- External read/comment roles cannot call mutating tools. Canvas patches remain validated and undoable. Poseidon source writes still require its toggle and a selected source folder. GitHub writes still require owner confirmation.
+- Native shell execution is not claimed: the current Chrome-extension runtime has no native terminal. Generative media execution remains dependent on the connected provider.
+- Existing update feed parsing and the 3.11.41 button path were preserved.
+
+### Verification
+- 24 JavaScript syntax checks passed.
+- 9 JSON parse checks passed.
+- Command registry smoke test passed.
+- ZIP contains 59 files, root manifest 3.11.42 and the fixed extension key.
+- ZIP integrity passed.
+- Package size: `372440` bytes.
+- SHA-256: `a8651f1467291743378b7ad6a151208368aca51bf9ab85f9f4a63389562d6ca2`.
+- GitHub publisher run `33494063169` completed successfully.
+- Public feed is active and points to 3.11.42 with the exact size and SHA-256 above.
+
+### Published artifact
+- Release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.11.42
+- Direct package: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v3.11.42/OSMINOG-Chrome-3.11.42-POSEIDON-MAX-ACCESS-ROOT.zip
+
+### Runtime verification required
+1. From owner-confirmed 3.11.41, press **Check and update** and verify 3.11.42 loads.
+2. Reconnect the current external ChatGPT with role **Edit**.
+3. Ask it to call `capabilities` and confirm Owner Max reports project/agent/command/asset/source/GitHub groups.
+4. Select an image object and ask ChatGPT to inspect it through `read_asset`; confirm a real image attachment arrives in ChatGPT.
+5. Ask ChatGPT to create a test project, a test agent and an owner-approved slash command; verify each appears in OSMINOG.
+6. Confirm a read-only Presence role receives an explicit error for mutating tool calls.
+
+### Exact next action
+The owner performs the 3.11.41 → 3.11.42 button update and the six runtime checks above. Record only observed results; do not mark Owner Max runtime-verified from static checks alone.
