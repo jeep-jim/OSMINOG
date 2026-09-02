@@ -76,13 +76,7 @@
     box.querySelectorAll("[data-session-provider]").forEach(b=>b.addEventListener("click",()=>focus(b.dataset.sessionProvider)));
     const st=await status(selected),row=$("#gptProviderConnectRow");if(row)row.classList.toggle("connected",!!st?.connected)
   }
-  function bindSessionActions(row){
-    for(const [selector,kind] of [["#gptProviderTabConnect","connect"],["#gptProviderAuthorize","authorize"]]){
-      const old=$(selector,row);if(!old||old.dataset.sessionRouter==="1")continue;
-      const button=old.cloneNode(true);button.dataset.sessionRouter="1";old.replaceWith(button);
-      button.addEventListener("click",()=>openSettings(activeProvider()))
-    }
-  }
+  function bindSessionActions(){/* Keep gpt-presence direct connect/authorize listeners. Access Center must not hijack them. */}
   function installAgentSettings(){
     const panel=$("#gptPresenceSettingsPanel"),sel=$("#gptAgentProvider");if(!panel||!sel)return false;
     const brains=brainProviders();sel.innerHTML=brains.map(p=>`<option value="${esc(p.brainId||p.id)}">${esc(p.name)}</option>`).join("");
@@ -92,13 +86,13 @@
     picker.querySelectorAll("img").forEach(img=>img.addEventListener("error",()=>{img.hidden=true;if(img.nextElementSibling)img.nextElementSibling.hidden=false},{once:true}));
     function syncBrain(){picker.querySelectorAll("[data-brain]").forEach(b=>b.classList.toggle("active",b.dataset.brain===sel.value))}
     picker.querySelectorAll("[data-brain]").forEach(b=>b.addEventListener("click",()=>{sel.value=b.dataset.brain;sel.dispatchEvent(new Event("change",{bubbles:true}));syncBrain()}));sel.addEventListener("change",()=>{syncBrain();refreshCenter(sel.value)});syncBrain();
-    const row=$("#gptProviderConnectRow");if(row){row.classList.remove("osminog-session-center");row.classList.add("osminog-connection-launch");$("#osminogSessionCenterHead",row)?.remove();$("#osminogSessionConnectedList",row)?.remove();const connectBtn=$("#gptProviderTabConnect",row),authBtn=$("#gptProviderAuthorize",row),state=$("#gptProviderTabState",row);if(connectBtn){connectBtn.hidden=false;connectBtn.textContent="Открыть центр подключений"}if(authBtn)authBtn.hidden=true;if(state)state.textContent="Подключённые сервисы и быстрый доступ открываются в отдельном адаптивном окне.";bindSessionActions(row)}
+    const row=$("#gptProviderConnectRow");if(row){row.classList.remove("osminog-session-center");row.classList.add("osminog-connection-launch");$("#osminogSessionCenterHead",row)?.remove();$("#osminogSessionConnectedList",row)?.remove();const connectBtn=$("#gptProviderTabConnect",row),authBtn=$("#gptProviderAuthorize",row),state=$("#gptProviderTabState",row);if(connectBtn){connectBtn.hidden=false;connectBtn.textContent="Подключить в фоне"}if(authBtn)authBtn.hidden=false;if(state)state.textContent="Подключённые сервисы и быстрый доступ открываются в отдельном адаптивном окне.";bindSessionActions(row)}
     $("#bridgeLiveBadge")?.setAttribute("aria-label","Provider status");refreshCenter(sel.value);return true
   }
   let tries=0;const timer=setInterval(()=>{tries++;if(installAgentSettings()||tries>40)clearInterval(timer)},120);
   chrome.runtime.onMessage.addListener(message=>{if(message?.type!=="OSMINOG_SESSION_DISCONNECTED")return;showReconnect(message.provider,message.reason);emit(message.provider,{connected:false,reason:message.reason});refreshCenter(message.provider)});
   document.addEventListener("osminog:session-changed",e=>refreshCenter(e.detail?.provider||activeProvider()));
-  globalThis.OSMINOGSessionManager={version:"3.14.1",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
+  globalThis.OSMINOGSessionManager={version:"3.14.2-dev",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
   globalThis.OSMINOGOpenProviderSettings=openSettings;
   document.dispatchEvent(new CustomEvent("osminog:session-manager-ready"));
 })();
