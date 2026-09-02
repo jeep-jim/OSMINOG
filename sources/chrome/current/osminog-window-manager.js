@@ -1,171 +1,43 @@
 "use strict";
 (()=>{
-  if(globalThis.__osminogWindowManagerV1)return;
-  globalThis.__osminogWindowManagerV1=true;
-  const STORAGE_KEY="osminogWindowGeometryV1";
-  const directions=["n","e","s","w","ne","se","sw","nw"];
-  const $=selector=>document.querySelector(selector);
+  if(globalThis.__osminogWindowManagerV2)return;
+  globalThis.__osminogWindowManagerV2=true;
+  const STORAGE_KEY="osminogWindowManagerV2",dirs=["n","e","s","w","ne","se","sw","nw"],windows=new Map();
+  let state={},saveTimer=0,z=12000,lastAction={x:innerWidth/2,y:innerHeight/2,at:0};
+  const $=(s,r=document)=>typeof s==="string"?r.querySelector(s):s;
   const projectKey=()=>globalThis.project?.()?.id||"global";
-  let state={},saveTimer=0,lastAction={x:innerWidth/2,y:innerHeight/2,at:0};
-  window.addEventListener("pointerdown",event=>{
-    if(event.button!==0)return;
-    lastAction={x:event.clientX,y:event.clientY,at:Date.now()};
-    globalThis.__osminogLastActionPoint=lastAction;
-  },{capture:true,passive:true});
-  function spawnGeometry(width,height,minW,minH){
-    width=Math.max(minW,Math.min(innerWidth-16,Number(width)||minW));
-    height=Math.max(minH,Math.min(innerHeight-16,Number(height)||minH));
-    const point=(Date.now()-Number(lastAction.at||0)<3500)?lastAction:(globalThis.__osminogLastActionPoint||{x:innerWidth/2,y:innerHeight/2});
-    const x=Number(point.x)||innerWidth/2,y=Number(point.y)||innerHeight/2;
-    return clampGeometry({left:x-width/2,top:y-height/2,width,height},minW,minH)
-  }
-
-  async function loadState(){
-    try{state=(await chrome.storage.local.get(STORAGE_KEY))?.[STORAGE_KEY]||{}}catch{state={}}
-  }
-  function saveState(){
-    clearTimeout(saveTimer);
-    saveTimer=setTimeout(()=>chrome.storage.local.set({[STORAGE_KEY]:state}).catch(()=>{}),120);
-  }
-  function stateKey(name){return`${projectKey()}:${name}`}
-  function visible(el){const r=el?.getBoundingClientRect?.();return!!el&&!el.hidden&&r&&r.width>10&&r.height>10}
-  function clampGeometry(g,minW,minH){
-    const width=Math.max(minW,Math.min(innerWidth-16,Number(g.width)||minW));
-    const height=Math.max(minH,Math.min(innerHeight-16,Number(g.height)||minH));
-    return{left:Math.max(8,Math.min(innerWidth-width-8,Number(g.left)||8)),top:Math.max(72,Math.min(innerHeight-height-8,Number(g.top)||84)),width,height};
-  }
-  function apply(el,g,minW,minH){
-    const v=clampGeometry(g,minW,minH);
-    Object.assign(el.style,{position:"fixed",left:`${v.left}px`,top:`${v.top}px`,right:"auto",bottom:"auto",maxWidth:"none",maxHeight:"none",margin:"0",transform:"none"});
-    el.style.setProperty("width",`${v.width}px`,"important");
-    el.style.setProperty("height",`${v.height}px`,"important");
-    return v;
-  }
-  function remember(el,name,minW,minH){
-    const r=el.getBoundingClientRect();
-    state[stateKey(name)]=clampGeometry({left:r.left,top:r.top,width:r.width,height:r.height},minW,minH);
-    saveState();
-  }
-  function addHandles(el){
-    if(el.querySelector(":scope > .osminog-window-resize-handles"))return;
-    const box=document.createElement("div");box.className="osminog-window-resize-handles";box.setAttribute("aria-hidden","true");
-    box.innerHTML=directions.map(dir=>`<span class="${dir}" data-osminog-resize="${dir}"></span>`).join("");
-    el.append(box);
-  }
-  function bind(config){
-    const el=$(config.target);if(!el||el.dataset.osminogWindowBound)return;
-    const handle=$(config.handle)||el, name=config.name,minW=config.minW||360,minH=config.minH||300,defaultW=config.defaultW||0,defaultH=config.defaultH||0;
-    el.dataset.osminogWindowBound="1";el.dataset.osminogWindow=name;el.classList.add("osminog-managed-window");handle.classList.add("osminog-window-drag-handle");addHandles(el);
-    let initialized=false;
-    const initialize=()=>{
-      if(initialized||!visible(el))return;
-      const saved=state[stateKey(name)],rect=el.getBoundingClientRect();
-      const badCorner=saved&&Number(saved.left)<88&&Number(saved.top)<150;
-      const initial=saved&&!badCorner?saved:spawnGeometry(defaultW||rect.width,defaultH||rect.height,minW,minH);
-      apply(el,initial,minW,minH);
-      initialized=true;
-    };
-    let drag=null;
-    handle.addEventListener("pointerdown",event=>{
-      if(event.button!==0||event.target.closest("button,input,textarea,select,a,label,[contenteditable='true']"))return;
-      initialize();const r=el.getBoundingClientRect();
-      drag={id:event.pointerId,dx:event.clientX-r.left,dy:event.clientY-r.top};
-      handle.setPointerCapture?.(event.pointerId);el.classList.add("osminog-window-moving");event.preventDefault();
-    });
-    handle.addEventListener("pointermove",event=>{
-      if(!drag||event.pointerId!==drag.id)return;
-      const left=Math.max(8,Math.min(innerWidth-el.offsetWidth-8,event.clientX-drag.dx)),top=Math.max(72,Math.min(innerHeight-el.offsetHeight-8,event.clientY-drag.dy));
-      el.style.left=`${left}px`;el.style.top=`${top}px`;el.style.right="auto";el.style.bottom="auto";
-      globalThis.OSMINOGModuleNodeBridge?.refresh?.();
-    });
-    const stopDrag=event=>{if(!drag||event.pointerId!==drag.id)return;drag=null;el.classList.remove("osminog-window-moving");remember(el,name,minW,minH)};
-    handle.addEventListener("pointerup",stopDrag);handle.addEventListener("pointercancel",()=>{drag=null;el.classList.remove("osminog-window-moving")});
-
-    // 3.11.29: robust frame-edge resizing. Do not rely only on tiny child handles:
-    // detect pointer presses directly against the managed window frame.
-    // This survives complex chat DOM overlays and nested scroll surfaces.
-    {
-      let frameResize=null;
-      const edgeBand=12;
-      const edgeDirection=(event)=>{
-        const r=el.getBoundingClientRect();
-        const x=event.clientX-r.left,y=event.clientY-r.top;
-        const west=x>=0&&x<=edgeBand,east=x<=r.width&&x>=r.width-edgeBand;
-        const north=y>=0&&y<=edgeBand,south=y<=r.height&&y>=r.height-edgeBand;
-        return `${north?"n":south?"s":""}${west?"w":east?"e":""}`;
-      };
-      el.addEventListener("pointerdown",event=>{
-        if(event.button!==0)return;
-        const dir=edgeDirection(event);if(!dir)return;
-        initialize();
-        const r=el.getBoundingClientRect();
-        frameResize={id:event.pointerId,dir,startX:event.clientX,startY:event.clientY,left:r.left,top:r.top,width:r.width,height:r.height};
-        el.setPointerCapture?.(event.pointerId);
-        el.classList.add("osminog-window-resizing");
-        event.preventDefault();event.stopPropagation();event.stopImmediatePropagation?.();
-      },true);
-      el.addEventListener("pointermove",event=>{
-        if(!frameResize||event.pointerId!==frameResize.id)return;
-        const dx=event.clientX-frameResize.startX,dy=event.clientY-frameResize.startY,dir=frameResize.dir;
-        let left=frameResize.left,top=frameResize.top,width=frameResize.width,height=frameResize.height;
-        if(dir.includes("e"))width=Math.max(minW,frameResize.width+dx);
-        if(dir.includes("s"))height=Math.max(minH,frameResize.height+dy);
-        if(dir.includes("w")){width=Math.max(minW,frameResize.width-dx);left=frameResize.left+(frameResize.width-width)}
-        if(dir.includes("n")){height=Math.max(minH,frameResize.height-dy);top=frameResize.top+(frameResize.height-height)}
-        const g=clampGeometry({left,top,width,height},minW,minH);
-        Object.assign(el.style,{left:`${g.left}px`,top:`${g.top}px`,right:"auto",bottom:"auto"});
-        el.style.setProperty("width",`${g.width}px`,"important");
-        el.style.setProperty("height",`${g.height}px`,"important");
-        globalThis.OSMINOGModuleNodeBridge?.refresh?.();
-        event.preventDefault();event.stopPropagation();
-      },true);
-      const finishFrameResize=event=>{
-        if(!frameResize||event.pointerId!==frameResize.id)return;
-        frameResize=null;el.classList.remove("osminog-window-resizing");remember(el,name,minW,minH);
-      };
-      el.addEventListener("pointerup",finishFrameResize,true);
-      el.addEventListener("pointercancel",finishFrameResize,true);
-    }
-
-    el.querySelectorAll("[data-osminog-resize]").forEach(resizer=>{
-      let resize=null;
-      resizer.addEventListener("pointerdown",event=>{
-        if(event.button!==0)return;initialize();const r=el.getBoundingClientRect();
-        resize={id:event.pointerId,dir:resizer.dataset.osminogResize,startX:event.clientX,startY:event.clientY,left:r.left,top:r.top,width:r.width,height:r.height};
-        resizer.setPointerCapture?.(event.pointerId);el.classList.add("osminog-window-resizing");event.preventDefault();event.stopPropagation();
-      });
-      resizer.addEventListener("pointermove",event=>{
-        if(!resize||event.pointerId!==resize.id)return;
-        const dx=event.clientX-resize.startX,dy=event.clientY-resize.startY,dir=resize.dir;let left=resize.left,top=resize.top,width=resize.width,height=resize.height;
-        if(dir.includes("e"))width=Math.max(minW,resize.width+dx);
-        if(dir.includes("s"))height=Math.max(minH,resize.height+dy);
-        if(dir.includes("w")){width=Math.max(minW,resize.width-dx);left=resize.left+(resize.width-width)}
-        if(dir.includes("n")){height=Math.max(minH,resize.height-dy);top=resize.top+(resize.height-height)}
-        const g=clampGeometry({left,top,width,height},minW,minH);Object.assign(el.style,{left:`${g.left}px`,top:`${g.top}px`,right:"auto",bottom:"auto"});el.style.setProperty("width",`${g.width}px`,"important");el.style.setProperty("height",`${g.height}px`,"important");
-        globalThis.OSMINOGModuleNodeBridge?.refresh?.();
-      });
-      const stop=event=>{if(!resize||event.pointerId!==resize.id)return;resize=null;el.classList.remove("osminog-window-resizing");remember(el,name,minW,minH)};
-      resizer.addEventListener("pointerup",stop);resizer.addEventListener("pointercancel",()=>{resize=null;el.classList.remove("osminog-window-resizing")});
-    });
-
-    const visibilityObserver=new MutationObserver(()=>requestAnimationFrame(initialize));
-    visibilityObserver.observe(el,{attributes:true,attributeFilter:["hidden","style","class"]});
-    if(el.parentElement)visibilityObserver.observe(el.parentElement,{attributes:true,attributeFilter:["hidden","style","class"]});
-    visibilityObserver.observe(document.body,{attributes:true,attributeFilter:["class"]});
-    window.addEventListener("resize",()=>{if(!visible(el))return;const r=el.getBoundingClientRect(),g=apply(el,r,minW,minH);state[stateKey(name)]=g;saveState()});
-    requestAnimationFrame(initialize);
-  }
-
-  async function install(){
-    await loadState();
-    bind({name:"ai-chat",target:"#bridgePanel",handle:"#bridgePanel .bridge-head",minW:400,minH:430,defaultW:560,defaultH:690});
-    bind({name:"team",target:"#teamWorkspace .team-shell",handle:"#teamWorkspace .team-head",minW:560,minH:480,defaultW:620,defaultH:520});
-    bind({name:"browser-hub",target:"#browserHub",handle:"#browserHub .browser-hub-head",minW:560,minH:360});
-    bind({name:"markdown",target:"#markdownStudio",handle:"#markdownStudio .markdown-head",minW:620,minH:420});
-    bind({name:"modules",target:"#modulesPopover",handle:"#modulesPopover .modules-head",minW:360,minH:260});
-    bind({name:"provider-registry",target:"#providerRegistry",handle:"#providerRegistry .provider-registry-head",minW:680,minH:460});
-    bind({name:"desktop-folder",target:"#osminogDesktopFolderWindow",handle:"#osminogDesktopFolderWindow .osminog-desktop-folder-head",minW:620,minH:400});
-  }
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
-  globalThis.OSMINOGWindowManager={install,reset:async()=>{state={};await chrome.storage.local.remove(STORAGE_KEY);location.reload()}};
+  const key=name=>`${projectKey()}:${name}`;
+  const clamp=(g,minW=320,minH=220)=>{const width=Math.max(minW,Math.min(innerWidth-16,Number(g.width)||minW)),height=Math.max(minH,Math.min(innerHeight-84,Number(g.height)||minH));return{left:Math.max(8,Math.min(innerWidth-width-8,Number(g.left)||8)),top:Math.max(76,Math.min(innerHeight-height-8,Number(g.top)||76)),width,height}};
+  const save=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>chrome.storage.local.set({[STORAGE_KEY]:state}).catch(()=>{}),100)};
+  const persist=record=>{const r=record.el.getBoundingClientRect();state[key(record.name)]={...clamp(r,record.minW,record.minH),minimized:record.minimized===true};save()};
+  const visible=el=>!!el&&!el.hidden&&el.isConnected&&el.getBoundingClientRect().width>8;
+  const escapeHtml=v=>String(v??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  function ensureTray(){let tray=$("#osminogWindowTray");if(tray)return tray;tray=document.createElement("nav");tray.id="osminogWindowTray";tray.className="osminog-window-tray";tray.setAttribute("aria-label","Свернутые окна");document.body.append(tray);return tray}
+  function renderTray(){const tray=ensureTray(),items=[...windows.values()].filter(x=>x.minimized);tray.hidden=!items.length;tray.innerHTML=items.map(x=>`<button type="button" data-osminog-restore="${x.name}" title="Развернуть ${escapeHtml(x.title)}"><span>${escapeHtml(x.icon||"◈")}</span><b>${escapeHtml(x.title)}</b></button>`).join("");tray.querySelectorAll("[data-osminog-restore]").forEach(b=>b.addEventListener("click",()=>restore(b.dataset.osminogRestore)))}
+  function apply(record,g){const v=clamp(g,record.minW,record.minH);Object.assign(record.el.style,{position:"fixed",left:`${v.left}px`,top:`${v.top}px`,right:"auto",bottom:"auto",maxWidth:"none",maxHeight:"none",margin:"0",transform:"none"});record.el.style.setProperty("width",`${v.width}px`,"important");record.el.style.setProperty("height",`${v.height}px`,"important");return v}
+  function front(target){const record=typeof target==="string"?windows.get(target):target;if(!record||!record.el)return null;record.el.style.zIndex=String(++z);record.el.dataset.osminogFront="1";for(const other of windows.values())if(other!==record)delete other.el.dataset.osminogFront;return record.el}
+  function nodePorts(record){let box=record.el.querySelector(":scope > .osminog-window-node-ports");if(box)return box;box=document.createElement("div");box.className="osminog-window-node-ports";box.innerHTML=dirs.map(d=>`<i class="${d}"></i>`).join("");record.el.append(box);return box}
+  async function focusNode(record){front(record);const objectId=record.objectId||record.el.dataset.objectId||"";if(objectId){const result=await globalThis.BriefCraftBridge?.executeTool?.("focus_object",{id:objectId});if(!result?.error)return}record.el.classList.toggle("osminog-node-focus");nodePorts(record)}
+  function minimize(target){const record=typeof target==="string"?windows.get(target):target;if(!record)return;record.minimized=true;persist(record);record.el.hidden=true;renderTray();record.onMinimize?.()}
+  function restore(target){const record=typeof target==="string"?windows.get(target):target;if(!record)return null;record.minimized=false;record.el.hidden=false;apply(record,state[key(record.name)]||record.initial);front(record);persist(record);renderTray();record.onRestore?.();return record.el}
+  function close(target){const record=typeof target==="string"?windows.get(target):target;if(!record)return;record.minimized=false;if(record.onClose){record.onClose();if(!record.el.isConnected)unregister(record.name)}else record.el.hidden=true;state[key(record.name)]={...(state[key(record.name)]||{}),minimized:false};renderTray();save()}
+  function addShelf(record){if(record.kind==="chat"||record.el.querySelector(":scope > .osminog-window-shelf"))return;const shelf=document.createElement("div");shelf.className="osminog-window-shelf";shelf.innerHTML=`<button type="button" data-os-window-action="focus" title="Ноды и фокус на объекте"><svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg></button><button type="button" data-os-window-action="min" title="Свернуть в верхний трей"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><button type="button" data-os-window-action="close" title="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>`;record.el.append(shelf);shelf.addEventListener("pointerdown",e=>{e.stopPropagation();front(record)});shelf.addEventListener("click",e=>{const action=e.target.closest("button")?.dataset.osWindowAction;if(action==="focus")focusNode(record);if(action==="min")minimize(record);if(action==="close")close(record)})}
+  function addResizeHandles(record){if(record.el.querySelector(":scope > .osminog-window-resize-handles"))return;const box=document.createElement("div");box.className="osminog-window-resize-handles";box.setAttribute("aria-hidden","true");box.innerHTML=dirs.map(d=>`<span class="${d}" data-osminog-resize="${d}"></span>`).join("");record.el.append(box)}
+  function bindDrag(record){const handle=record.handle||record.el;let drag=null;handle.classList.add("osminog-window-drag-handle");handle.addEventListener("pointerdown",e=>{if(e.button!==0||e.target.closest("button,input,textarea,select,a,label,iframe,[contenteditable='true']"))return;front(record);const r=record.el.getBoundingClientRect();drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};handle.setPointerCapture?.(e.pointerId);record.el.classList.add("osminog-window-moving");e.preventDefault()});handle.addEventListener("pointermove",e=>{if(!drag||e.pointerId!==drag.id)return;const g=clamp({left:e.clientX-drag.dx,top:e.clientY-drag.dy,width:record.el.offsetWidth,height:record.el.offsetHeight},record.minW,record.minH);Object.assign(record.el.style,{left:`${g.left}px`,top:`${g.top}px`});globalThis.OSMINOGModuleNodeBridge?.refresh?.()});const stop=e=>{if(!drag||e.pointerId!==drag.id)return;drag=null;record.el.classList.remove("osminog-window-moving");persist(record)};handle.addEventListener("pointerup",stop);handle.addEventListener("pointercancel",stop)}
+  function bindResize(record){if(record.resizable===false)return;addResizeHandles(record);record.el.querySelectorAll(":scope > .osminog-window-resize-handles [data-osminog-resize]").forEach(handle=>{let resize=null;handle.addEventListener("pointerdown",e=>{if(e.button!==0)return;front(record);const r=record.el.getBoundingClientRect();resize={id:e.pointerId,dir:handle.dataset.osminogResize,x:e.clientX,y:e.clientY,left:r.left,top:r.top,width:r.width,height:r.height};handle.setPointerCapture?.(e.pointerId);record.el.classList.add("osminog-window-resizing");e.preventDefault();e.stopPropagation()});handle.addEventListener("pointermove",e=>{if(!resize||e.pointerId!==resize.id)return;const dx=e.clientX-resize.x,dy=e.clientY-resize.y,d=resize.dir;let left=resize.left,top=resize.top,width=resize.width,height=resize.height;if(d.includes("e"))width=resize.width+dx;if(d.includes("s"))height=resize.height+dy;if(d.includes("w")){width=resize.width-dx;left=resize.left+dx}if(d.includes("n")){height=resize.height-dy;top=resize.top+dy}apply(record,{left,top,width,height});record.el.dataset.osminogUserResized="1";globalThis.OSMINOGModuleNodeBridge?.refresh?.()});const stop=e=>{if(!resize||e.pointerId!==resize.id)return;resize=null;record.el.classList.remove("osminog-window-resizing");persist(record)};handle.addEventListener("pointerup",stop);handle.addEventListener("pointercancel",stop)})}
+  function register(config={}){const el=$(config.el||config.target);if(!el)return null;const name=String(config.name||el.id||`window-${windows.size+1}`),prior=windows.get(name);if(prior?.el?.isConnected)return prior;if(prior)unregister(name);const r=el.getBoundingClientRect(),record={name,el,title:config.title||el.getAttribute("aria-label")||name,icon:config.icon||"◈",kind:config.kind||"window",objectId:config.objectId||"",handle:$(config.handle)||null,minW:Number(config.minW)||300,minH:Number(config.minH)||180,resizable:config.resizable!==false,onClose:config.onClose,onMinimize:config.onMinimize,onRestore:config.onRestore,minimized:false,initial:{left:r.left||lastAction.x-r.width/2,top:r.top||lastAction.y-r.height/2,width:Number(config.defaultW)||r.width||520,height:Number(config.defaultH)||r.height||420}};windows.set(name,record);el.dataset.osminogWindow=name;el.classList.add("osminog-managed-window");addShelf(record);bindDrag(record);bindResize(record);el.addEventListener("pointerdown",()=>front(record),{capture:true,passive:true});const saved=state[key(name)];if(saved&&!saved.minimized&&visible(el))apply(record,saved);if(saved?.minimized){record.minimized=true;el.hidden=true}const observer=new MutationObserver(()=>{if(visible(el)&&!record.minimized){if(!el.dataset.osminogGeometryReady){apply(record,saved||record.initial);el.dataset.osminogGeometryReady="1"}front(record)}});observer.observe(el,{attributes:true,attributeFilter:["hidden","class","style"]});if(el.parentElement)observer.observe(el.parentElement,{attributes:true,attributeFilter:["hidden","class","style"]});record.observer=observer;if(visible(el)){apply(record,saved||record.initial);el.dataset.osminogGeometryReady="1";front(record)}renderTray();return record}
+  function unregister(name){const record=windows.get(name);if(!record)return;record.observer?.disconnect();windows.delete(name);delete state[key(name)];save();renderTray()}
+  async function install(){try{state=(await chrome.storage.local.get(STORAGE_KEY))?.[STORAGE_KEY]||{}}catch{state={}}ensureTray();[
+    {name:"ai-chat",target:"#bridgePanel",handle:"#bridgePanel .bridge-head",title:"ChatGPT",icon:"GPT",kind:"chat",minW:400,minH:430,defaultW:560,defaultH:690},
+    {name:"team",target:"#teamWorkspace .team-shell",handle:"#teamWorkspace .team-head",title:"Команда",icon:"◎",minW:560,minH:480,defaultW:760,defaultH:620},
+    {name:"browser-hub",target:"#browserHub",handle:"#browserHub .browser-hub-head",title:"Веб и подключения",icon:"⌕",minW:620,minH:430,defaultW:880,defaultH:640},
+    {name:"markdown",target:"#markdownStudio",handle:"#markdownStudio .markdown-head",title:"Markdown",icon:"MD",minW:620,minH:420},
+    {name:"modules",target:"#modulesPopover",handle:"#modulesPopover .modules-head",title:"Подключения",icon:"◇",minW:560,minH:420,defaultW:820,defaultH:620},
+    {name:"module-store",target:"#providerRegistry",handle:"#providerRegistry .provider-registry-head",title:"Module Store",icon:"▦",minW:760,minH:520,defaultW:1080,defaultH:720},
+    {name:"store-developer",target:"#osminogStoreDeveloperPage",handle:"#osminogStoreDeveloperPage .osminog-store-head",title:"Store Developer",icon:"</>",minW:700,minH:500},
+    {name:"google-ai",target:"#quickSearchPanel",handle:"#quickSearchPanel .osminog-google-chat__header",title:"Google AI",icon:"G",minW:360,minH:420,defaultW:520,defaultH:640}
+  ].forEach(register);window.addEventListener("resize",()=>windows.forEach(r=>{if(visible(r.el))apply(r,r.el.getBoundingClientRect())}))}
+  window.addEventListener("pointerdown",e=>{if(e.button===0){lastAction={x:e.clientX,y:e.clientY,at:Date.now()};globalThis.__osminogLastActionPoint=lastAction}},{capture:true,passive:true});
+  globalThis.OSMINOGWindowManager={install,register,unregister,front,focus:front,minimize,restore,close,list:()=>[...windows.values()].map(x=>({name:x.name,title:x.title,minimized:x.minimized,visible:visible(x.el)})),reset:async()=>{state={};await chrome.storage.local.remove(STORAGE_KEY);location.reload()}};
+  document.readyState==="loading"?document.addEventListener("DOMContentLoaded",install,{once:true}):install();
 })();

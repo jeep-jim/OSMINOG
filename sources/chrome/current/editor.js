@@ -187,7 +187,25 @@ globalThis.OSMINOGProjectAPI={
   create:async(args={})=>{const p=defaultProject(String(args.name||"").trim()||(state.language==="ru"?"Новый проект":"New project"));state.projects.unshift(p);state.activeProject=p.id;state.selected=[];showApp();logChange(`Project created: ${p.name}`);await flushPersist();return{ok:true,project:{id:p.id,name:p.name}}},
   switch:async(args={})=>{const id=String(args.id||"");if(!state.projects.some(p=>p.id===id))return{error:`Project ${id} does not exist`};openProject(id);await flushPersist();return{ok:true,project:{id:project().id,name:project().name}}},
   rename:async(args={})=>{const p=state.projects.find(x=>x.id===String(args.id||state.activeProject));if(!p)return{error:"Project does not exist"};const name=String(args.name||"").trim().slice(0,120);if(!name)return{error:"Project name is required"};p.name=name;p.updated=Date.now();renderAll();await flushPersist();return{ok:true,project:{id:p.id,name:p.name}}},
-  importAsset:async(args={})=>{const src=String(args.dataUrl||args.url||"");if(!/^data:(image|video|audio|application\/pdf)/i.test(src)&&!/^https?:\/\//i.test(src))return{error:"Asset requires a data URL or an http(s) URL"};const image=/^data:image\//i.test(src)||/\.(png|jpe?g|gif|webp|svg)(?:\?|$)/i.test(src),type=image?"image":"file",b=viewportCenter(),o=createObject(type,{src,name:String(args.name||args.fileName||(image?"AI image":"AI asset")).slice(0,160),fileName:String(args.fileName||args.name||"AI asset").slice(0,160),mime:String(args.mime|| (image?src.match(/^data:([^;]+)/i)?.[1]||"image/png":"application/octet-stream")),x:Number.isFinite(Number(args.x))?Number(args.x):b.x-190,y:Number.isFinite(Number(args.y))?Number(args.y):b.y-140,w:Math.max(48,Math.min(4096,Number(args.w)||380)),h:Math.max(48,Math.min(4096,Number(args.h)||280)),radius:0,fillEnabled:false,strokeEnabled:false});await flushPersist();return o?{ok:true,object:{id:o.id,type:o.type,name:o.name}}:{error:"Asset was not created"}}
+  importAsset:async(args={})=>{
+    let src=String(args.dataUrl||args.url||"").trim(),mime=String(args.mime||""),size=Number(args.size)||0,fileName=String(args.fileName||args.name||"").trim();
+    if(!/^data:/i.test(src)&&!/^https?:\/\//i.test(src))return{error:"Asset requires a data URL or an http(s) URL"};
+    if(/^https?:\/\//i.test(src)){
+      try{
+        const url=new URL(src),origin=`${url.origin}/*`;
+        if(!await chrome.permissions.contains({origins:[origin]})&&!await chrome.permissions.request({origins:[origin]}))return{error:"Access to the file host was not granted"};
+        const response=await fetch(src,{credentials:"omit",redirect:"follow"});
+        if(!response.ok)throw new Error(`HTTP ${response.status}`);
+        const blob=await response.blob();mime=blob.type||mime||response.headers.get("content-type")?.split(";")[0]||"application/octet-stream";size=blob.size;
+        src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob)});
+        if(!fileName){const disposition=response.headers.get("content-disposition")||"",named=disposition.match(/filename\*?=(?:UTF-8''|\")?([^";]+)/i)?.[1];fileName=decodeURIComponent(named||url.pathname.split("/").filter(Boolean).pop()||"web-asset")}
+      }catch(error){return{error:`Could not save the remote file: ${error?.message||error}`}}
+    }
+    mime=mime||src.match(/^data:([^;,]+)/i)?.[1]||"application/octet-stream";
+    const image=/^image\//i.test(mime),type=image?"image":"file",b=viewportCenter(),title=String(args.name||fileName||(image?"Web image":"Web file")).slice(0,160);
+    const o=createObject(type,{src,name:title,fileName:String(fileName||title).slice(0,160),mime,size,x:Number.isFinite(Number(args.x))?Number(args.x):b.x-190,y:Number.isFinite(Number(args.y))?Number(args.y):b.y-140,w:Math.max(48,Math.min(4096,Number(args.w)||380)),h:Math.max(48,Math.min(4096,Number(args.h)||280)),radius:0,fillEnabled:false,strokeEnabled:false});
+    await flushPersist();return o?{ok:true,embedded:true,transparencyPreserved:image&&/(png|webp|svg)/i.test(mime),object:{id:o.id,type:o.type,name:o.name,mime:o.mime,size:o.size}}:{error:"Asset was not created"}
+  }
 };
 function renderProjectGrid(filter=""){
   const grid=$("#projectGrid");grid.innerHTML="";const list=state.projects.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase()));

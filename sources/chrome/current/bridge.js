@@ -26,14 +26,15 @@
     browser:["browser_tabs","browser_open","browser_close","web_search","web_fetch"],
     documents:["markdown_list","markdown_read","markdown_write"],
     media:["provider_list","provider_open","media_crew"],
-    modules:["module_list","module_open","module_permissions_revoke"],
+    modules:["module_list","module_open","module_remove","module_permissions_revoke"],
+    windows:["window_list","window_focus","window_minimize","window_restore","window_close"],
     source:["dev_status","list_dev_files","read_dev_file","write_dev_file","source_publish","release_publish"],
     github:["module_status","github_status","github_list_tree","github_search_code","github_fetch_file","github_compare","github_create_branch","github_commit_files","github_open_pr","github_workflow_runs","github_dispatch_workflow"],
     integrations:["figma_fetch_file"]
   };
-  const MUTATING_TOOLS=new Set(["propose_canvas_patch","undo_last_change","asset_create","project_create","project_switch","project_rename","project_folder_write","agent_create","agent_update","agent_remove","command_register","command_remove","command_run","write_dev_file","source_publish","release_publish","github_create_branch","github_commit_files","github_open_pr","github_dispatch_workflow"]);
+  const MUTATING_TOOLS=new Set(["propose_canvas_patch","undo_last_change","asset_create","project_create","project_switch","project_rename","project_folder_write","agent_create","agent_update","agent_remove","command_register","command_remove","command_run","module_remove","window_focus","window_minimize","window_restore","window_close","write_dev_file","source_publish","release_publish","github_create_branch","github_commit_files","github_open_pr","github_dispatch_workflow"]);
   let externalExecutionRole="";
-  function capabilityManifest(){return{protocol:"osminog.capabilities/v1",mode:store.access==="readwrite"?"owner-max":store.access,groups:deepClone(TOOL_GROUPS),tools:[...new Set(Object.values(TOOL_GROUPS).flat())],limits:{callsPerHop:8,toolHops:12,canvasPatchActions:80},safety:{canvasWrites:"validated osminog.patch/v1 with undo",sourceWrites:"Poseidon toggle plus selected local source folder",githubWrites:"explicit owner confirmation; source_publish archives source, release_publish archives and publishes updater feed",commandChanges:"owner confirmation"},runtime:{kind:"chrome-extension",nativeShell:false,generativeMedia:"provider-dependent"}}}
+  function capabilityManifest(){return{protocol:"osminog.capabilities/v1",mode:store.access==="readwrite"?"owner-max":store.access,groups:deepClone(TOOL_GROUPS),tools:[...new Set(Object.values(TOOL_GROUPS).flat())],limits:{callsPerHop:8,toolHops:12,canvasPatchActions:80},safety:{canvasWrites:"validated osminog.patch/v1 with undo",sourceWrites:"direct owner-confirmed GitHub writes to jeep-jim/OSMINOG; local source folder is optional",githubWrites:"explicit owner confirmation; public packages and updater feed use jeep-jim/OSMINOG-Releases",commandChanges:"owner confirmation"},runtime:{kind:"chrome-extension",nativeShell:false,generativeMedia:"provider-dependent"}}}
 
   function projectKey(){return project()?.id||"__none__"}
   function randomToken(bytes=32){const a=new Uint8Array(bytes);crypto.getRandomValues(a);return Array.from(a,b=>b.toString(16).padStart(2,"0")).join("")}
@@ -270,7 +271,13 @@
       else if(name==="media_crew")result={providers:globalThis.OSMINOGProviderRegistry?.selected?.()||[]};
       else if(name==="module_list")result={modules:globalThis.OSMINOGExtensionStudio?.list?.()||[]};
       else if(name==="module_open"){const id=String(args.id||args.moduleId||"");const opened=globalThis.OSMINOGExtensionStudio?.open?.(id);result=opened?{ok:true,id}:{error:"Module not found"};}
+      else if(name==="module_remove"){const id=String(args.id||args.moduleId||"");const mod=globalThis.OSMINOGExtensionStudio?.list?.().find(x=>x.id===id);if(!mod)result={error:"Module not found"};else if(mod.system)result={error:"System modules cannot be deleted"};else{const approved=await globalThis.OSMINOGConfirm?.({title:"Удалить модуль?",text:`«${mod.title}» будет удалён вместе с ярлыком.`,confirmText:"Удалить",danger:true});result=approved?await globalThis.OSMINOGExtensionStudio?.uninstall?.(id):{error:"Module removal cancelled by owner"}}}
       else if(name==="module_permissions_revoke")result=await globalThis.OSMINOGModuleRuntime?.revoke?.(String(args.id||args.moduleId||""))||{error:"Module runtime unavailable"};
+      else if(name==="window_list")result={windows:globalThis.OSMINOGWindowManager?.list?.()||[]};
+      else if(name==="window_focus"){const id=String(args.id||args.name||"");result=globalThis.OSMINOGWindowManager?.focus?.(id)?{ok:true,id}:{error:"Window not found"};}
+      else if(name==="window_minimize"){const id=String(args.id||args.name||"");globalThis.OSMINOGWindowManager?.minimize?.(id);result={ok:true,id};}
+      else if(name==="window_restore"){const id=String(args.id||args.name||"");result=globalThis.OSMINOGWindowManager?.restore?.(id)?{ok:true,id}:{error:"Window not found"};}
+      else if(name==="window_close"){const id=String(args.id||args.name||"");globalThis.OSMINOGWindowManager?.close?.(id);result={ok:true,id};}
       else if(name==="project_folder_status")result=await globalThis.OSMINOGProjectFolderAPI?.status?.()||{error:"Project folder API unavailable"};
       else if(name==="project_folder_list")result=await globalThis.OSMINOGProjectFolderAPI?.list?.(args)||{error:"Project folder API unavailable"};
       else if(name==="project_folder_read")result=await globalThis.OSMINOGProjectFolderAPI?.read?.(args)||{error:"Project folder API unavailable"};
