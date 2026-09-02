@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.13.1",
+  "codename": "ART ICONS AND READER SCROLL",
+  "baseVersion": "3.13.0",
+  "artifact": "OSMINOG-Chrome-3.13.1-ART-ICONS-READER-SCROLL.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.13.1",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": true,
+  "notes": "Stops incoming AI messages from forcing chat scroll while preserving last-message positioning when the chat opens or the thread changes. Replaces flat colored icon containers with eight independent multicolor SVG artworks, including the dimensional yellow Files folder requested by the owner.",
+  "fileCount": 78
+}
