@@ -2,15 +2,15 @@
   "product": "OSMINOG",
   "platform": "chrome-extension",
   "version": "3.14.2",
-  "codename": "CHAT OWNER RUNTIME RECOVERY",
+  "codename": "CHAT OWNER RUNTIME",
   "baseVersion": "3.14.1",
-  "artifact": "OSMINOG-Chrome-3.14.2-CHAT-OWNER-RUNTIME-RC1.zip",
+  "artifact": "OSMINOG-Chrome-3.14.2-CHAT-OWNER-RUNTIME.zip",
   "manifestAtRoot": true,
   "manifestVersion": "3.14.2",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
-  "ownerRuntime": "repair-candidate",
+  "ownerRuntime": "repaired",
   "binaryInGitHub": true,
-  "notes": "RC1 is built as a private GitHub Actions artifact. Static source validation, JavaScript syntax checks, archive integrity and local-reference completeness passed. Owner runtime verification is still required before the public release.",
-  "fileCount": 78
+  "notes": "Repairs ChatGPT Owner Max execution, real module creation for utility apps, visible progress, direct background provider connection actions, and restores persistent project context while preserving the 3.14 desktop UI.",
+  "fileCount": 90
 }
