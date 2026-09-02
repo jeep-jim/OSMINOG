@@ -21,7 +21,7 @@
 
   async function getOrCreate(id,opts={}){
     id=normalize(id);const p=meta(id),provider=id==="gpt"?"gpt":(p?.id||id),url=opts.url||p?.url||"";
-    const r=await call("OSMINOG_SESSION_GET_OR_CREATE",{provider,url,active:!!opts.active,reuse:opts.reuse!==false,allowCreate:opts.allowCreate===true});
+    const r=await call("OSMINOG_SESSION_GET_OR_CREATE",{provider,url,active:!!opts.active,reuse:opts.reuse!==false,allowCreate:opts.allowCreate!==false});
     if(r?.ok)emit(id,{session:r});
     return r
   }
@@ -30,7 +30,9 @@
     if(id==="gpt"){const direct=globalThis.OSMINOGConnectDirectChatGPT;if(typeof direct!=="function")return{ok:false,error:"ChatGPT panel not ready"};const r=await direct();if(r?.ok!==false)emit(id,{connected:true,mode:"direct-session"});return r||{ok:true,provider:id,mode:"direct-session"}}
     if(id==="custom")return{ok:true,provider:id,mode:"custom"};
     if(!await ensurePermission(id))return{ok:false,provider:id,error:`Нужно разрешить доступ к ${label(id)}`};
-    const r=await call("OSMINOG_SESSION_CONNECT_EXISTING",{provider:id});
+    const created=await getOrCreate(id,{active:false,reuse:true,allowCreate:true});
+    if(!created?.ok)return created;
+    const r=id==="googleai"?await call("BC_GOOGLE_AI_SERVICE_CONNECT"):await call("OSMINOG_SESSION_CONNECT",{provider:id,tabId:created.tabId});
     if(r?.ok){emit(id,{connected:true,session:r});await refreshCenter(id)}
     return r
   }
@@ -39,17 +41,20 @@
     if(id==="gpt")return connect(id);
     if(id==="custom")return{ok:true,provider:id,mode:"custom"};
     if(!await ensurePermission(id))return{ok:false,provider:id,error:`Нужно разрешить доступ к ${label(id)}`};
-    const r=await call("OSMINOG_SESSION_AUTHORIZE",{provider:id});
-    if(r?.ok)emit(id,{authorization:true,session:r});
-    return r
+    const st=await status(id);
+    if(st?.tabId){await call("OSMINOG_BROWSER_HUB_FOCUS_TAB",{tabId:st.tabId}).catch(()=>null);return{ok:true,provider:id,tabId:st.tabId,mode:"managed-authorization"}}
+    const r=await getOrCreate(id,{active:true,reuse:true,allowCreate:true});
+    if(r?.ok)emit(id,{authorization:true,session:r});return r
   }
   async function status(id){
     id=normalize(id);
     if(id==="gpt")return{ok:true,provider:id,connected:!!globalThis.OSMINOGDirectChatGPTStatus?.(),found:true,mode:"direct-session"};
     if(id==="custom"){const r=await call("BC_PROVIDER_CUSTOM_GET").catch(()=>null);return{ok:true,provider:id,connected:!!(r?.config?.baseUrl&&r?.config?.model),mode:"custom",config:r?.config||{}}}
+    if(id==="googleai"){const service=await call("BC_GOOGLE_AI_SERVICE_STATUS").catch(()=>null);if(service?.tabId)return{ok:true,provider:id,connected:!!service.connected,ready:!!service.ready,mode:"service",tabId:service.tabId,title:service.title,error:service.error||"",linked:service}}
     const linked=await call("BC_PROVIDER_DISCOVER",{provider:id}).catch(()=>null);
     if(linked?.connected)return{ok:true,provider:id,connected:true,ready:true,mode:linked.linked?.directWeb?"direct-web-session":"attached-tab",tabId:linked.linked?.tabId,title:linked.linked?.title,probe:linked.linked?.probe||null};
-    return{ok:true,provider:id,connected:false,ready:false,linked:linked?.linked||null,found:linked?.found||null,error:linked?.error||"",mode:linked?.linked?"linked-not-ready":linked?.found?"open-tab":"none",tabId:linked?.linked?.tabId||linked?.found?.tabId||null,title:linked?.linked?.title||linked?.found?.title||meta(id)?.name||id}
+    const hub=await list(),rid=registryId(id),session=hub?.sessions?.[rid]||hub?.sessions?.[id];
+    return{ok:true,provider:id,connected:false,ready:false,linked:linked?.linked||session||null,found:linked?.found||null,error:linked?.error||session?.error||"",mode:session?"managed-service":linked?.linked?"linked-not-ready":linked?.found?"open-tab":"none",tabId:session?.tabId||linked?.linked?.tabId||linked?.found?.tabId||null,title:session?.title||linked?.linked?.title||linked?.found?.title||meta(id)?.name||id}
   }
   async function focus(id){const st=await status(id);if(st?.tabId)return call("OSMINOG_BROWSER_HUB_FOCUS_TAB",{tabId:st.tabId});return authorize(id)}
 
@@ -83,7 +88,7 @@
     const brains=brainProviders();sel.innerHTML=brains.map(p=>`<option value="${esc(p.brainId||p.id)}">${esc(p.name)}</option>`).join("");
     $("#gptProviderBrandGrid")?.remove();$("#osminogBrainPicker")?.remove();$("#osminogSettingsProviderTools")?.remove();
     const providerLabel=sel.closest("label");providerLabel?.classList.add("gpt-native-provider-select");
-    const picker=document.createElement("div");picker.id="osminogBrainPicker";picker.className="osminog-brain-picker";picker.innerHTML=`<div class="osminog-brain-picker-head"><span>МОЗГ АГЕНТА</span><small>Выбери ИИ для этого чата. OSMINOG подключает уже открытую авторизованную вкладку, а сам диалог остаётся здесь.</small></div><div class="osminog-brain-picker-grid">${brains.map(p=>`<button type="button" data-brain="${esc(p.brainId||p.id)}" title="${esc(p.name)}" style="--provider-tone:${esc(p.tone||"#58c9ff")}">${icon(p)}<span>${esc(p.name)}</span><i></i></button>`).join("")}</div>`;providerLabel?.before(picker);
+    const picker=document.createElement("div");picker.id="osminogBrainPicker";picker.className="osminog-brain-picker";picker.innerHTML=`<div class="osminog-brain-picker-head"><span>МОЗГ АГЕНТА</span><small>Выбери ИИ для этого чата. OSMINOG держит одну фоновую авторизованную service session для каждого сервиса и переиспользует её.</small></div><div class="osminog-brain-picker-grid">${brains.map(p=>`<button type="button" data-brain="${esc(p.brainId||p.id)}" title="${esc(p.name)}" style="--provider-tone:${esc(p.tone||"#58c9ff")}">${icon(p)}<span>${esc(p.name)}</span><i></i></button>`).join("")}</div>`;providerLabel?.before(picker);
     picker.querySelectorAll("img").forEach(img=>img.addEventListener("error",()=>{img.hidden=true;if(img.nextElementSibling)img.nextElementSibling.hidden=false},{once:true}));
     function syncBrain(){picker.querySelectorAll("[data-brain]").forEach(b=>b.classList.toggle("active",b.dataset.brain===sel.value))}
     picker.querySelectorAll("[data-brain]").forEach(b=>b.addEventListener("click",()=>{sel.value=b.dataset.brain;sel.dispatchEvent(new Event("change",{bubbles:true}));syncBrain()}));sel.addEventListener("change",()=>{syncBrain();refreshCenter(sel.value)});syncBrain();
@@ -93,7 +98,7 @@
   let tries=0;const timer=setInterval(()=>{tries++;if(installAgentSettings()||tries>40)clearInterval(timer)},120);
   chrome.runtime.onMessage.addListener(message=>{if(message?.type!=="OSMINOG_SESSION_DISCONNECTED")return;showReconnect(message.provider,message.reason);emit(message.provider,{connected:false,reason:message.reason});refreshCenter(message.provider)});
   document.addEventListener("osminog:session-changed",e=>refreshCenter(e.detail?.provider||activeProvider()));
-  globalThis.OSMINOGSessionManager={version:"3.11.53",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
+  globalThis.OSMINOGSessionManager={version:"3.14.1",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
   globalThis.OSMINOGOpenProviderSettings=openSettings;
   document.dispatchEvent(new CustomEvent("osminog:session-manager-ready"));
 })();

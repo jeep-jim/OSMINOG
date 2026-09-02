@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.14.0",
-  "codename": "NATIVE OWNER RUNTIME",
-  "baseVersion": "3.13.2",
-  "artifact": "OSMINOG-Chrome-3.14.0-NATIVE-OWNER-RUNTIME.zip",
+  "version": "3.14.1",
+  "codename": "PRESENCE RECOVERY",
+  "baseVersion": "3.14.0",
+  "artifact": "OSMINOG-Chrome-3.14.1-PRESENCE-RECOVERY.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.14.0",
+  "manifestVersion": "3.14.1",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "implemented",
   "binaryInGitHub": true,
-  "notes": "Adds native verified modules, removes generic iframe fallbacks, restores direct object and source editing from chat, returns editable graphics to canvas, unifies account/access/Poseidon, adds revision history and icon overrides.",
-  "fileCount": 89
+  "notes": "Keeps the 3.14 desktop design and restores ChatGPT Live Presence, attached-tab fallback, automatic status recovery and reusable managed background AI sessions verified against the 3.11.26–3.11.33 archives.",
+  "fileCount": 90
 }
