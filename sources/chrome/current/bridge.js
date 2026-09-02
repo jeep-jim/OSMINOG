@@ -26,6 +26,7 @@
     browser:["browser_tabs","browser_open","browser_close","web_search","web_fetch"],
     documents:["markdown_list","markdown_read","markdown_write"],
     media:["provider_list","provider_open","media_crew"],
+    modules:["module_list","module_open","module_permissions_revoke"],
     source:["dev_status","list_dev_files","read_dev_file","write_dev_file","source_publish","release_publish"],
     github:["module_status","github_status","github_list_tree","github_search_code","github_fetch_file","github_compare","github_create_branch","github_commit_files","github_open_pr","github_workflow_runs","github_dispatch_workflow"],
     integrations:["figma_fetch_file"]
@@ -267,6 +268,9 @@
       else if(name==="provider_list")result={providers:globalThis.OSMINOGProviderRegistry?.list?.()||[]};
       else if(name==="provider_open")result=await globalThis.OSMINOGProviderRegistry?.openProvider?.(String(args.providerId||args.id||""))||{error:"Provider Registry unavailable"};
       else if(name==="media_crew")result={providers:globalThis.OSMINOGProviderRegistry?.selected?.()||[]};
+      else if(name==="module_list")result={modules:globalThis.OSMINOGExtensionStudio?.list?.()||[]};
+      else if(name==="module_open"){const id=String(args.id||args.moduleId||"");const opened=globalThis.OSMINOGExtensionStudio?.open?.(id);result=opened?{ok:true,id}:{error:"Module not found"};}
+      else if(name==="module_permissions_revoke")result=await globalThis.OSMINOGModuleRuntime?.revoke?.(String(args.id||args.moduleId||""))||{error:"Module runtime unavailable"};
       else if(name==="project_folder_status")result=await globalThis.OSMINOGProjectFolderAPI?.status?.()||{error:"Project folder API unavailable"};
       else if(name==="project_folder_list")result=await globalThis.OSMINOGProjectFolderAPI?.list?.(args)||{error:"Project folder API unavailable"};
       else if(name==="project_folder_read")result=await globalThis.OSMINOGProjectFolderAPI?.read?.(args)||{error:"Project folder API unavailable"};

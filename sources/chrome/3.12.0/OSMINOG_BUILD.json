@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.12.0",
+  "codename": "CAPABILITY OS",
+  "baseVersion": "3.11.57",
+  "artifact": "OSMINOG-Chrome-3.12.0-CAPABILITY-OS.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.12.0",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "Introduces the permission-scoped OSMINOG Module SDK, isolated module RPC, session-only secret storage, declared-host network gateway, module lifecycle tools and the first working Telegram Bot connector inside the unified Module Store.",
+  "fileCount": 66
+}

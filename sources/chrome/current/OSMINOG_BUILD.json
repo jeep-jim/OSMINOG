@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.11.57",
-  "codename": "UNIFIED MODULE STORE + CHAT MEMORY",
-  "baseVersion": "3.11.56",
-  "artifact": "OSMINOG-Chrome-3.11.57-UNIFIED-MODULE-STORE-MEMORY.zip",
+  "version": "3.12.0",
+  "codename": "CAPABILITY OS",
+  "baseVersion": "3.11.57",
+  "artifact": "OSMINOG-Chrome-3.12.0-CAPABILITY-OS.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.11.57",
+  "manifestVersion": "3.12.0",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "pending",
   "binaryInGitHub": false,
-  "notes": "Restores the bottom streaming progress bar and removes the detached right-side task monitor. Every current-thread message is now supplied as authoritative conversation history. AI-created apps are installed into the single Module Store, restored to the desktop from there, and remain in the store when their desktop shortcut is removed.",
-  "fileCount": 61
+  "notes": "Introduces the permission-scoped OSMINOG Module SDK, isolated module RPC, session-only secret storage, declared-host network gateway, module lifecycle tools and the first working Telegram Bot connector inside the unified Module Store.",
+  "fileCount": 66
 }
