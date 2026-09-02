@@ -2521,3 +2521,19 @@ The owner runs the checklist. Any remaining provider failure must be fixed from 
 ### Runtime verification required
 - Owner updates from 3.11.53 using the normal button.
 - Select any local source folder, let Poseidon make a real file change, confirm «Опубликовать» appears, refresh/reload once, then publish and confirm the button disappears only after success.
+
+
+---
+
+## 2026-09-02 — 3.11.55 CUSTOM EXTENSION STUDIO
+
+- Replaced AI-created canvas-app pairs with a first-class custom extension registry.
+- Custom widgets/apps now render draggable desktop launchers outside the canvas object model.
+- Extensions open in independent interactive, draggable and resizable windows with script/form/download support.
+- Added built-in Extension Studio editing, type selection, save/reopen and confirmed deletion.
+- Extension packages persist in chrome.storage.local under osminogCustomExtensionsV1.
+- Removed duplicate OSMINOG progress/runtime bubbles from the visible transcript; progress stays in the activity strip and one provider completion remains.
+- Legacy 3.11.54 canvas apps remain readable for compatibility but new AI builds use Extension Studio.
+- Static checks: all JavaScript syntax PASS, all JSON parse PASS, ZIP integrity PASS.
+- Package: OSMINOG-Chrome-3.11.55-CUSTOM-EXTENSION-STUDIO-ROOT.zip; 60 files; 407804 bytes; SHA-256 b85aa19eb13f27688e95fcb8543deb9fa3751cac28757d4492c5cec067395275.
+- Owner runtime verification required after update from 3.11.54.
