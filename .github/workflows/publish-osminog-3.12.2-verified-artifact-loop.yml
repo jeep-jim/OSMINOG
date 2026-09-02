@@ -1,0 +1,250 @@
+name: Publish OSMINOG 3.12.2 Verified Artifact Loop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'platforms/02-chrome-extension/releases/3.12.2/BUILD-AND-PUBLISH'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: osminog-3-12-2-release
+  cancel-in-progress: false
+
+jobs:
+  build-publish-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERSION: 3.12.2
+      PACKAGE: OSMINOG-Chrome-3.12.2-VERIFIED-ARTIFACT-LOOP.zip
+      SOURCE_DIR: sources/chrome/current
+      ARCHIVE_DIR: sources/chrome/3.12.2
+      RELEASE_DIR: platforms/02-chrome-extension/releases/3.12.2
+      PUBLIC_REPOSITORY: jeep-jim/OSMINOG-Releases
+      PUBLIC_TOKEN: ${{ secrets.OSMINOG_RELEASES_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout canonical source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Static contract and syntax verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(jq -r '.version' "$SOURCE_DIR/manifest.json")" = "$VERSION"
+          test "$(jq -r '.version_name' "$SOURCE_DIR/manifest.json")" = "$VERSION"
+          test -n "$(jq -r '.key' "$SOURCE_DIR/manifest.json")"
+          find "$SOURCE_DIR" -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          python - "$SOURCE_DIR" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          for path in root.rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+
+          presence = (root / 'gpt-presence.js').read_text(encoding='utf-8')
+          bridge = (root / 'bridge.js').read_text(encoding='utf-8')
+          required = [
+              'function visualArtifactProfile',
+              'OSMINOG HOLISTIC ARTIFACT CONTRACT',
+              'async function requestVisualReview',
+              'capture_viewport_image',
+              '[OSMINOG_VISUAL_QA_PASS]',
+              'Готово · применено и проверено',
+              'Остановлено · визуальная проверка не пройдена',
+          ]
+          missing = [value for value in required if value not in presence]
+          if missing:
+              raise SystemExit(f'missing visual contract tokens: {missing}')
+          if 'undefined?.step' in presence:
+              raise SystemExit('orphan detached task monitor call remains')
+          if 'patch.actions.length>80' not in bridge:
+              raise SystemExit('patch action capacity is not 80')
+          if '["name","group","x"' not in bridge:
+              raise SystemExit('editable group property is unavailable')
+          if 'return !!meta.canvasChanged&&!!meta.visualReview.passed' not in presence:
+              raise SystemExit('canvas completion is not gated by applied visual QA')
+          print('Static visual artifact contract: PASS')
+          PY
+
+      - name: Archive source and build immutable package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PUBLIC_TOKEN"
+          rm -rf "$ARCHIVE_DIR"
+          mkdir -p "$ARCHIVE_DIR" "$RELEASE_DIR"
+          cp -a "$SOURCE_DIR/." "$ARCHIVE_DIR/"
+          rm -f "$RELEASE_DIR/$PACKAGE"
+          (
+            cd "$SOURCE_DIR"
+            zip -qr "$GITHUB_WORKSPACE/$RELEASE_DIR/$PACKAGE" .
+          )
+          size=$(stat -c%s "$RELEASE_DIR/$PACKAGE")
+          sha=$(sha256sum "$RELEASE_DIR/$PACKAGE" | awk '{print $1}')
+          files=$(find "$SOURCE_DIR" -type f | wc -l | tr -d ' ')
+          python - "$RELEASE_DIR/$PACKAGE" "$VERSION" <<'PY'
+          import json
+          import sys
+          import zipfile
+
+          path, expected = sys.argv[1:]
+          with zipfile.ZipFile(path) as archive:
+              names = archive.namelist()
+              if 'manifest.json' not in names:
+                  raise SystemExit('root manifest.json missing')
+              if any(name.startswith('/') or '..' in name.split('/') for name in names):
+                  raise SystemExit('unsafe ZIP path')
+              manifest = json.loads(archive.read('manifest.json'))
+              if manifest.get('version') != expected:
+                  raise SystemExit('manifest version mismatch')
+              if manifest.get('name') != 'OSMINOG' or not manifest.get('key'):
+                  raise SystemExit('product identity mismatch')
+          print('ZIP integrity: PASS')
+          PY
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+      - name: Write release records
+        shell: bash
+        run: |
+          set -euo pipefail
+          size='${{ steps.package.outputs.size }}'
+          sha='${{ steps.package.outputs.sha }}'
+          files='${{ steps.package.outputs.files }}'
+          source_commit="$GITHUB_SHA"
+          notes='Visual canvas tasks now build a holistic editable artifact, render it, inspect a fresh viewport capture and run up to three model-driven correction cycles. OSMINOG reports done only after an applied result passes visual QA; unverified fragments fail closed.'
+          jq -n --arg version "$VERSION" --arg package "$PACKAGE" --arg sha "$sha" --arg notes "$notes" --arg sourceCommit "$source_commit" --argjson size "$size" '{
+            schema:"osminog-chrome-release/v2",product:"OSMINOG",platform:"chrome-extension",channel:"dev",
+            version:$version,package:$package,size:$size,sha256:$sha,manifestVersion:$version,
+            fixedExtensionKeyRequired:true,runtimeVerified:false,publishedAt:null,notes:$notes,
+            sourceRepository:"jeep-jim/OSMINOG",sourceCommit:$sourceCommit,minDevHubVersion:"2.0.0"
+          }' > "$RELEASE_DIR/release-v2.json"
+          jq -n --arg version "$VERSION" --arg package "$PACKAGE" --arg sha "$sha" --arg notes "$notes" --argjson size "$size" --argjson files "$files" '{
+            product:"OSMINOG",platform:"chrome-extension",version:$version,baseVersion:"3.12.1",
+            codename:"VERIFIED ARTIFACT LOOP",package:$package,size:$size,sha256:$sha,manifestAtRoot:true,
+            runtimeVerified:false,ownerRuntime:"pending",fileCount:$files,
+            checks:{javascriptSyntax:"pass",jsonParse:"pass",visualArtifactContract:"pass",zipIntegrity:"pass"},notes:$notes
+          }' > "$RELEASE_DIR/release.json"
+          cp "$SOURCE_DIR/RELEASE_NOTES_3.12.2.md" "$RELEASE_DIR/README.md"
+
+      - name: Append canonical project history
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha='${{ steps.package.outputs.sha }}'
+          size='${{ steps.package.outputs.size }}'
+          files='${{ steps.package.outputs.files }}'
+          if ! grep -q '3.12.2 VERIFIED ARTIFACT LOOP' OSMINOG_PROJECT_LOG.md; then
+            cat >> OSMINOG_PROJECT_LOG.md <<EOF
+
+---
+
+## 2026-09-02 — 3.12.2 VERIFIED ARTIFACT LOOP
+
+- Expanded canvas intent recognition to treat drawing, illustration and portrait commands as holistic builds.
+- Added an editable artifact contract with a character-specific structure for faces and people.
+- Added a rendered viewport QA loop: apply, capture, inspect, correct and re-check up to three times.
+- Canvas execution now passes only when a real patch was applied and the rendered result received the visual QA pass marker.
+- Exhausted, failed or unapplied checks stop without a false done status.
+- Raised the validated patch capacity from 50 to 80 actions and enabled semantic group on editable vector/shape layers.
+- Removed the orphan detached task-monitor call; progress remains in the in-chat activity strip.
+- Static checks: JavaScript syntax PASS, JSON parse PASS, visual contract assertions PASS, ZIP integrity PASS.
+- Package: $PACKAGE; $files files; $size bytes; SHA-256 $sha.
+- Owner Chrome runtime verification remains pending after update from 3.12.1.
+EOF
+          fi
+          if ! grep -q '3.12.2 — VERIFIED ARTIFACT LOOP' OSMINOG_ROADMAP.md; then
+            cat >> OSMINOG_ROADMAP.md <<EOF
+
+---
+
+## 2026-09-02 — 3.12.2 — VERIFIED ARTIFACT LOOP
+
+- [x] Drawing and illustration requests enter holistic canvas build mode.
+- [x] Editable visual structure and character-specific completion criteria are injected into the executor.
+- [x] A fresh rendered viewport capture is required after application.
+- [x] Up to three visual QA/correction cycles run without another owner message.
+- [x] Done requires both applied canvas mutation and a visual QA pass.
+- [x] Failed/unapplied/unverifiable results stop honestly without success.
+- [x] Patch capacity matches the advertised 80 actions; semantic groups are supported.
+- [x] Immutable package verified: $size bytes; SHA-256 $sha.
+- [ ] Owner runtime: update 3.12.1 → 3.12.2 and repeat the vector portrait command.
+EOF
+          fi
+
+      - name: Commit private source archive and package
+        id: private
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f "$RELEASE_DIR/BUILD-AND-PUBLISH"
+          git add "$ARCHIVE_DIR" "$RELEASE_DIR" OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md
+          git commit -m "Publish OSMINOG 3.12.2 Verified Artifact Loop [skip ci]"
+          git push origin HEAD:main
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish verified private release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="chrome-v$VERSION"
+          body=$(printf '%s\n\nPackage: %s\nSHA-256: %s\nSize: %s bytes'             'Verified Artifact Loop: holistic editable builds with rendered visual QA and fail-closed completion.'             "$PACKAGE" '${{ steps.package.outputs.sha }}' '${{ steps.package.outputs.size }}')
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --target '${{ steps.private.outputs.commit }}' --title "OSMINOG Chrome $VERSION" --prerelease --notes "$body"
+          else
+            gh release create "$tag" --target '${{ steps.private.outputs.commit }}' --title "OSMINOG Chrome $VERSION" --prerelease --notes "$body"
+          fi
+          gh release upload "$tag" "$RELEASE_DIR/$PACKAGE" --clobber
+          asset=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.assets[] | select(.name == "'"$PACKAGE"'")')
+          test "$(printf '%s' "$asset" | jq -r '.size')" = '${{ steps.package.outputs.size }}'
+          digest=$(printf '%s' "$asset" | jq -r '.digest // empty')
+          if [ -n "$digest" ]; then test "$digest" = 'sha256:${{ steps.package.outputs.sha }}'; fi
+
+      - name: Stage exact bytes in public updater registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${PUBLIC_TOKEN}@github.com/${PUBLIC_REPOSITORY}.git" public-registry
+          target="public-registry/platforms/chrome-extension/releases/$VERSION"
+          rm -rf "$target"
+          mkdir -p "$target"
+          cp "$RELEASE_DIR/$PACKAGE" "$target/$PACKAGE"
+          cp "$RELEASE_DIR/release-v2.json" "$target/release-v2.json"
+          cp "$RELEASE_DIR/README.md" "$target/README.md"
+          cd public-registry
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "platforms/chrome-extension/releases/$VERSION"
+          git commit -m "Stage verified OSMINOG Chrome $VERSION from private source"
+          git push origin HEAD:main
+
+      - name: Verify public dev feed advanced
+        shell: bash
+        run: |
+          set -euo pipefail
+          feed="https://raw.githubusercontent.com/$PUBLIC_REPOSITORY/main/channels/dev/chrome-extension.json"
+          expected='${{ steps.package.outputs.sha }}'
+          for attempt in $(seq 1 72); do
+            body=$(curl -fsSL "$feed" || true)
+            version=$(printf '%s' "$body" | jq -r '.signed.latest.version // empty' 2>/dev/null || true)
+            sha=$(printf '%s' "$body" | jq -r '.signed.latest.sha256 // empty' 2>/dev/null || true)
+            if [ "$version" = "$VERSION" ] && [ "$sha" = "$expected" ]; then
+              echo "Public dev feed verified: $version $sha"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Public feed did not advance to the verified package" >&2
+          exit 1
