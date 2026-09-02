@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.12.0",
-  "codename": "CAPABILITY OS",
-  "baseVersion": "3.11.57",
-  "artifact": "OSMINOG-Chrome-3.12.0-CAPABILITY-OS.zip",
+  "version": "3.12.1",
+  "codename": "NATIVE WIDGETS",
+  "baseVersion": "3.12.0",
+  "artifact": "OSMINOG-Chrome-3.12.1-NATIVE-WIDGETS.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.12.0",
+  "manifestVersion": "3.12.1",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "pending",
   "binaryInGitHub": false,
-  "notes": "Introduces the permission-scoped OSMINOG Module SDK, isolated module RPC, session-only secret storage, declared-host network gateway, module lifecycle tools and the first working Telegram Bot connector inside the unified Module Store.",
-  "fileCount": 66
+  "notes": "User widgets and tools now open as compact native workspace elements: transparent host shell, content-driven sizing, hover-only controls and no oversized white application container.",
+  "fileCount": 67
 }
