@@ -925,3 +925,18 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - Static checks: all JavaScript syntax PASS, all JSON parse PASS, ZIP integrity PASS.
 - Package: OSMINOG-Chrome-3.11.55-CUSTOM-EXTENSION-STUDIO-ROOT.zip; 60 files; 407804 bytes; SHA-256 b85aa19eb13f27688e95fcb8543deb9fa3751cac28757d4492c5cec067395275.
 - Owner runtime verification required after update from 3.11.54.
+
+
+---
+
+## 2026-09-02 — 3.11.56 AUTONOMOUS WORKSPACE RUNTIME
+
+- Reframed OSMINOG execution around a persistent task contract: goal, stages, actions, verification and explicit result/blocker.
+- Added visible execution monitor and Poseidon step progress.
+- Increased autonomous continuation from 6 to 12 cycles while preserving the 12 tool-hop safety limit.
+- Removed the standalone Button tool from the bottom rail.
+- Removed fake generic extension fallback: no executable HTML means no installation and no false success.
+- Completion now requires the existing mutation/result satisfaction contract.
+- Static checks: all JavaScript syntax PASS, all JSON parse PASS, ZIP integrity PASS.
+- Package: OSMINOG-Chrome-3.11.56-AUTONOMOUS-WORKSPACE-RUNTIME-ROOT.zip; 61 files; 409710 bytes; SHA-256 b4e8c502b343f00d95cfde0fe93aeaff3092b0e388af9a2c21fdc3eab70412a2.
+- Owner runtime verification required after update from 3.11.55.

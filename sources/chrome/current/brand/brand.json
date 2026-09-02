@@ -1,0 +1,16 @@
+{
+  "brand": "OSMINOG",
+  "domain": "osminog.red",
+  "temporaryMark": "brand/osminog-mark.svg",
+  "temporaryWordmark": "brand/osminog-wordmark.svg",
+  "colors": {
+    "primary": "#FF2D2D"
+  },
+  "compatibility": {
+    "legacyLogoPath": "brand/briefcraft-logo.svg",
+    "preserveManifestKey": true,
+    "preserveStorageKeys": true,
+    "preserveProtocols": true
+  },
+  "note": "Temporary identity: plain red circle plus OSMINOG. Owner will replace the final logo later."
+}
