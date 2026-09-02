@@ -1,0 +1,47 @@
+name: Repair OSMINOG chat owner runtime 3.14.2
+
+on:
+  push:
+    branches:
+      - repair/chat-owner-runtime-3.14.2
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused repair
+        run: python3 tools/repair_chat_owner_runtime_3142.py
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check background.js
+          node --check gpt-presence.js
+          node --check osminog-session-manager.js
+          node --check bridge.js
+          node --check chatgpt-lite-bridge.js
+
+      - name: Validate patch cleanliness
+        run: |
+          git diff --check
+          git status --short
+
+      - name: Commit repair result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add background.js gpt-presence.js osminog-session-manager.js OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md project-log-archive docs/OSMINOG_UPDATE_ARCHITECTURE.md
+          if git diff --cached --quiet; then
+            echo "No repair changes produced"
+            exit 1
+          fi
+          git commit -m "Repair chat owner runtime and restore project context [skip ci]"
+          git push
