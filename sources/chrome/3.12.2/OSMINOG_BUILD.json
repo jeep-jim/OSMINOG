@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.12.2",
+  "codename": "VERIFIED ARTIFACT LOOP",
+  "baseVersion": "3.12.1",
+  "artifact": "OSMINOG-Chrome-3.12.2-VERIFIED-ARTIFACT-LOOP.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.12.2",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": true,
+  "notes": "Visual canvas tasks now use a holistic editable-artifact contract, apply the candidate, capture the rendered viewport, run up to three model-driven visual QA and correction cycles, and fail closed without a done status when verification does not pass.",
+  "fileCount": 68
+}

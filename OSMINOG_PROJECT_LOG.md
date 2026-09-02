@@ -2552,3 +2552,19 @@ The owner runs the checklist. Any remaining provider failure must be fixed from 
 - Static checks: all JavaScript syntax PASS, all JSON parse PASS, ZIP integrity PASS.
 - Package: OSMINOG-Chrome-3.11.56-AUTONOMOUS-WORKSPACE-RUNTIME-ROOT.zip; 61 files; 409710 bytes; SHA-256 b4e8c502b343f00d95cfde0fe93aeaff3092b0e388af9a2c21fdc3eab70412a2.
 - Owner runtime verification required after update from 3.11.55.
+
+
+---
+
+## 2026-09-02 — 3.12.2 VERIFIED ARTIFACT LOOP
+
+- Expanded canvas intent recognition to treat drawing, illustration and portrait commands as holistic builds.
+- Added an editable artifact contract with a character-specific structure for faces and people.
+- Added a rendered viewport QA loop: apply, capture, inspect, correct and re-check up to three times.
+- Canvas execution now passes only when a real patch was applied and the rendered result received the visual QA pass marker.
+- Exhausted, failed or unapplied checks stop without a false done status.
+- Raised the validated patch capacity from 50 to 80 actions and enabled semantic group on editable vector/shape layers.
+- Removed the orphan detached task-monitor call; progress remains in the in-chat activity strip.
+- Static checks: JavaScript syntax PASS, JSON parse PASS, visual contract assertions PASS, ZIP integrity PASS.
+- Package: OSMINOG-Chrome-3.12.2-VERIFIED-ARTIFACT-LOOP.zip; 68 files; 422833 bytes; SHA-256 fb8330e85928754be8ff032196421dcc69b26005ca371d2440a42c9bd545c32c.
+- Owner Chrome runtime verification remains pending after update from 3.12.1.

@@ -940,3 +940,18 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - Static checks: all JavaScript syntax PASS, all JSON parse PASS, ZIP integrity PASS.
 - Package: OSMINOG-Chrome-3.11.56-AUTONOMOUS-WORKSPACE-RUNTIME-ROOT.zip; 61 files; 409710 bytes; SHA-256 b4e8c502b343f00d95cfde0fe93aeaff3092b0e388af9a2c21fdc3eab70412a2.
 - Owner runtime verification required after update from 3.11.55.
+
+
+---
+
+## 2026-09-02 — 3.12.2 — VERIFIED ARTIFACT LOOP
+
+- [x] Drawing and illustration requests enter holistic canvas build mode.
+- [x] Editable visual structure and character-specific completion criteria are injected into the executor.
+- [x] A fresh rendered viewport capture is required after application.
+- [x] Up to three visual QA/correction cycles run without another owner message.
+- [x] Done requires both applied canvas mutation and a visual QA pass.
+- [x] Failed/unapplied/unverifiable results stop honestly without success.
+- [x] Patch capacity matches the advertised 80 actions; semantic groups are supported.
+- [x] Immutable package verified: 422833 bytes; SHA-256 fb8330e85928754be8ff032196421dcc69b26005ca371d2440a42c9bd545c32c.
+- [ ] Owner runtime: update 3.12.1 → 3.12.2 and repeat the vector portrait command.
