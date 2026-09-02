@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.12.3",
-  "codename": "UNIFIED WORKSPACE",
-  "baseVersion": "3.12.2",
-  "artifact": "OSMINOG-Chrome-3.12.3-UNIFIED-WORKSPACE.zip",
+  "version": "3.12.4",
+  "codename": "DOCK PERFORMANCE HOTFIX",
+  "baseVersion": "3.12.3",
+  "artifact": "OSMINOG-Chrome-3.12.4-DOCK-PERFORMANCE-HOTFIX.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.12.3",
+  "manifestVersion": "3.12.4",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "pending",
   "binaryInGitHub": true,
-  "notes": "The permanent main chat now routes OSMINOG product edits directly to jeep-jim/OSMINOG through owner-confirmed GitHub tools. A unified Window Manager adds deterministic z-order, move/resize, a shared hover shelf and a top minimize tray. Module Store is now a master/detail surface without duplicate card actions; custom modules are removable, system modules are protected, and desktop shortcuts are independent. Widgets render without a redundant host container, desktop icons share one interaction model, node handles are consistent, web results can be embedded as real files, and transparent PNG/WebP/SVG bytes are preserved.",
-  "fileCount": 71
+  "notes": "Eliminates the self-triggering window style MutationObserver and the empty Module Store render loop. Extension and provider icons are no longer canvas/world objects: all use one fixed-size bottom application dock, independent of canvas zoom. Closing or minimizing reusable windows returns them to the dock, while every newly opened window comes to front.",
+  "fileCount": 74
 }
