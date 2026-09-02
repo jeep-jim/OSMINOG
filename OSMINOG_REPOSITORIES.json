@@ -1,0 +1,31 @@
+{
+  "schema": "osminog.repository-map/v1",
+  "product": "OSMINOG",
+  "canonicalSource": {
+    "repository": "jeep-jim/OSMINOG",
+    "visibility": "private",
+    "contents": [
+      "current source",
+      "versioned source snapshots",
+      "project history",
+      "private build records"
+    ]
+  },
+  "publicReleases": {
+    "repository": "jeep-jim/OSMINOG-Releases",
+    "visibility": "public",
+    "releasesUrl": "https://github.com/jeep-jim/OSMINOG-Releases/releases",
+    "devFeed": "channels/dev/chrome-extension.json",
+    "contents": [
+      "verified immutable ZIP packages",
+      "release metadata",
+      "public GitHub Releases",
+      "active updater feeds"
+    ]
+  },
+  "invariants": [
+    "Never publish extension source as the canonical product from OSMINOG-Releases.",
+    "Never advance a public feed before package size, SHA-256, root manifest version and fixed extension key are verified.",
+    "A version is not released until the matching ZIP exists in OSMINOG-Releases and the public feed points to its exact SHA-256."
+  ]
+}
