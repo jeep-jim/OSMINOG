@@ -10,7 +10,7 @@
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "repair-candidate",
-  "binaryInGitHub": false,
-  "notes": "Restores the full Owner Max capability contract to direct ChatGPT transport, routes utility requests such as stopwatch/timer/calculator into tested OSMINOG modules, keeps concise execution progress visible in chat, restores direct background provider connection actions, and restores canonical project log/roadmap context without rolling back the 3.14 desktop architecture.",
-  "fileCount": 0
+  "binaryInGitHub": true,
+  "notes": "RC1 is built as a private GitHub Actions artifact. Static source validation, JavaScript syntax checks, archive integrity and local-reference completeness passed. Owner runtime verification is still required before the public release.",
+  "fileCount": 78
 }
