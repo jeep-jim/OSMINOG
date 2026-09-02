@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.13.3",
+  "codename": "UNIFIED BROWSER AND ACCESS",
+  "baseVersion": "3.13.2",
+  "artifact": "OSMINOG-Chrome-3.13.3-UNIFIED-BROWSER-ACCESS.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.13.3",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": true,
+  "notes": "Keeps website editing inside the new Browser application, adds internal browser tabs and an integrated element inspector, unifies AI sessions, canvas rights, Poseidon, GitHub and sharing in one access center, removes legacy access routes and suppresses raw fallback glyphs in the dock.",
+  "fileCount": 85
+}

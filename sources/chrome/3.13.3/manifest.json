@@ -1,0 +1,94 @@
+{
+  "manifest_version": 3,
+  "name": "OSMINOG",
+  "short_name": "OSMINOG",
+  "version": "3.13.3",
+  "description": "__MSG_appDescription__",
+  "default_locale": "en",
+  "minimum_chrome_version": "148",
+  "action": {
+    "default_title": "Open OSMINOG",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "sandbox": {
+    "pages": [
+      "module-frame.html"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';",
+    "sandbox": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'; child-src 'self' https: data: blob:;"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "contextMenus",
+    "unlimitedStorage",
+    "scripting",
+    "storage",
+    "tabs",
+    "identity",
+    "clipboardRead",
+    "nativeMessaging"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "https://api.anthropic.com/*",
+    "https://api.deepseek.com/*",
+    "https://chat.deepseek.com/*",
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://deepseek.com/*",
+    "https://gemini.google.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://google.com/*",
+    "https://www.deepseek.com/*",
+    "https://www.google.com/*",
+    "https://designer.microsoft.com/*",
+    "https://firefly.adobe.com/*",
+    "https://app.leonardo.ai/*",
+    "https://ideogram.ai/*",
+    "https://www.krea.ai/*",
+    "https://platform.stability.ai/*",
+    "https://app.runwayml.com/*",
+    "https://app.heygen.com/*",
+    "https://suno.com/*",
+    "https://www.udio.com/*",
+    "https://elevenlabs.io/*",
+    "https://alice.yandex.ru/*",
+    "https://pixlr.com/*",
+    "https://dream-machine.lumalabs.ai/*",
+    "https://pika.art/*",
+    "https://www.canva.com/*",
+    "https://api.github.com/*",
+    "https://uploads.github.com/*",
+    "https://github.com/*",
+    "https://raw.githubusercontent.com/*",
+    "https://api.telegram.org/*"
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAstI7PnHbheHLtFKZ+3khPxma+9VesIOBxZc8mu7VuJE8ahUos0draXfHzjy3F1j/42qXKTl+UgagUEO0sj4MYlKyGPpmD6gLBMKyrItP4Qd6PeowtMcyopOVDUUjZNkCa07B9JQ45xwCd3RaDiS1H+io4uOFEAkKrYdbcyUa8ytbJ1EKS4oMiRvyqJjn3T9GuHA7arMpFRwbyBuE/CNchDQ/hjW7LajfOkzS837twTybFGUp+tQHLbHKH3BMjwDmMKOis09DmAVTy2WH5OINqdq9WC+cgJxV2SQQdCZUK1bZ79/RaQzIsAIFN1w0AF0cme1DYF5+xQY8WHWpMGPXfQIDAQAB",
+  "version_name": "3.13.3",
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://uploads.github.com/*",
+    "https://github.com/*",
+    "https://raw.githubusercontent.com/*"
+  ]
+}

@@ -108,7 +108,7 @@
       </section>
       <button id="gptPresenceRefresh" class="soft-btn gpt-settings-refresh">Обновить связь</button>
       <div id="gptPoseidonPublishRow" class="gpt-poseidon-publish-row" hidden><button id="gptPoseidonPublish" type="button" class="primary-btn">Опубликовать</button><button id="gptPoseidonPublishCancel" type="button" class="soft-btn" title="Отменить публикацию" aria-label="Отменить публикацию">×</button></div>
-      <small class="gpt-settings-note">OSMINOG 3.13.2 · окна едины, графика работает локально, чтение чата остаётся под контролем пользователя.</small>
+      <small class="gpt-settings-note">OSMINOG 3.13.3 · браузер, подключения, права и Poseidon собраны в единую рабочую систему.</small>
       </div>
     </div>
     <div class="gpt-threadbar"><div id="gptThreadTabs" class="gpt-thread-tabs"></div><button id="gptThreadAdd" type="button" class="gpt-thread-add" title="Добавить вкладку ИИ">+</button></div>
