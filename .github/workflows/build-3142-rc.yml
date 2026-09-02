@@ -1,0 +1,94 @@
+name: Build OSMINOG 3.14.2 RC
+
+on:
+  push:
+    branches:
+      - repair/chat-owner-runtime-3.14.2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v4
+
+      - name: Validate runtime source
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m['version']=='3.14.2', m['version']
+          assert m['version_name']=='3.14.2', m.get('version_name')
+          print('manifest',m['version'])
+          PY
+          node --check background.js
+          node --check gpt-presence.js
+          node --check osminog-session-manager.js
+          node --check bridge.js
+          node --check chatgpt-lite-bridge.js
+          grep -F 'project_revisions,project_checkpoint,project_restore_revision' background.js
+          grep -F 'module_list,module_create,module_update,module_test' background.js
+          grep -F 'секундомер|таймер|часы|будильник|калькулятор' gpt-presence.js
+          grep -F 'B.executeTool?.("module_create"' gpt-presence.js
+          grep -F 'Подключить в фоне' osminog-session-manager.js
+
+      - name: Build clean Chrome package
+        run: |
+          set -euxo pipefail
+          ARTIFACT='OSMINOG-Chrome-3.14.2-CHAT-OWNER-RUNTIME-RC1.zip'
+          mkdir -p dist/package
+          rsync -a ./ dist/package/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            --exclude='tools/' \
+            --exclude='docs/' \
+            --exclude='project-log-archive/' \
+            --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' \
+            --exclude='RELEASE_NOTES_*.md'
+          test -f dist/package/manifest.json
+          test -f dist/package/editor.html
+          test -f dist/package/background.js
+          test -f dist/package/gpt-presence.js
+          test -f dist/package/bridge.js
+          test -f dist/package/osminog-session-manager.js
+          ! find dist/package -type f -path '*/.github/*' | grep -q .
+          FILES=$(find dist/package -type f | wc -l | tr -d ' ')
+          BYTES=$(du -sb dist/package | awk '{print $1}')
+          (cd dist/package && zip -qr ../"$ARTIFACT" .)
+          unzip -t "dist/$ARTIFACT"
+          SHA=$(sha256sum "dist/$ARTIFACT" | awk '{print $1}')
+          ZIP_BYTES=$(stat -c%s "dist/$ARTIFACT")
+          printf '%s  %s\n' "$SHA" "$ARTIFACT" > dist/SHA256.txt
+          {
+            echo 'OSMINOG 3.14.2 RC1'
+            echo "commit=${GITHUB_SHA}"
+            echo "package=$ARTIFACT"
+            echo "sha256=$SHA"
+            echo "zip_bytes=$ZIP_BYTES"
+            echo "package_files=$FILES"
+            echo "unpacked_bytes=$BYTES"
+            echo 'node_checks=passed'
+            echo 'manifest_version=3.14.2'
+          } > dist/BUILD_REPORT.txt
+          cp RELEASE_NOTES_3.14.2.md dist/
+          cat dist/BUILD_REPORT.txt
+
+      - name: Upload repair candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.14.2-CHAT-OWNER-RUNTIME-RC1
+          path: |
+            dist/OSMINOG-Chrome-3.14.2-CHAT-OWNER-RUNTIME-RC1.zip
+            dist/SHA256.txt
+            dist/BUILD_REPORT.txt
+            dist/RELEASE_NOTES_3.14.2.md
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
