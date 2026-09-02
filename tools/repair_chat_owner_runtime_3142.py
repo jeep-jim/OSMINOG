@@ -22,9 +22,27 @@ def replace_once(path, old, new):
     write(path, text.replace(old, new, 1))
 
 
+def replace_in_block(path, start_marker, end_marker, old, new):
+    text = read(path)
+    start = text.find(start_marker)
+    if start < 0:
+        raise RuntimeError(f"{path}: start marker not found: {start_marker!r}")
+    end = text.find(end_marker, start)
+    if end < 0:
+        raise RuntimeError(f"{path}: end marker not found: {end_marker!r}")
+    block = text[start:end]
+    count = block.count(old)
+    if count != 1:
+        raise RuntimeError(f"{path}: expected one scoped match, got {count}: {old[:120]!r}")
+    block = block.replace(old, new, 1)
+    write(path, text[:start] + block + text[end:])
+
+
 def regex_once(path, pattern, replacement, flags=0):
     text = read(path)
-    next_text, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+    # Use a callable replacement so JavaScript backslashes are never interpreted
+    # as Python replacement escapes/backreferences.
+    next_text, count = re.subn(pattern, lambda _m: replacement, text, count=1, flags=flags)
     if count != 1:
         raise RuntimeError(f"{path}: expected exactly one regex match, got {count}: {pattern[:120]!r}")
     write(path, next_text)
@@ -53,19 +71,23 @@ replace_once(
     '"module_list","module_open","module_remove","module_permissions_revoke","window_list"',
     '"module_list","module_create","module_update","module_test","module_open","module_remove","module_permissions_revoke","workspace_read","workspace_patch","icon_set","icon_reset","window_list"',
 )
-replace_once(
+replace_in_block(
     "gpt-presence.js",
+    '  function contextForPrompt(prompt="",threadOverride=null,pinsOverride=null){',
+    '\n  async function pushContext',
     '"media_crew","project_folder_status"',
     '"media_crew","project_list","project_create","project_switch","project_rename","project_revisions","project_checkpoint","project_restore_revision","project_folder_status"',
 )
-replace_once(
+replace_in_block(
     "gpt-presence.js",
+    '  function contextForPrompt(prompt="",threadOverride=null,pinsOverride=null){',
+    '\n  async function pushContext',
     '"github_dispatch_workflow","module_status"]}},policy:',
     '"github_dispatch_workflow","module_status","module_list","module_create","module_update","module_test","module_open","module_remove","module_permissions_revoke","workspace_read","workspace_patch","icon_set","icon_reset","dev_status","list_dev_files","read_dev_file","write_dev_file","source_publish","release_publish"]}},policy:',
 )
 
 # 3) Restore visible, sequential execution progress. These are concise status events,
-#    not hidden chain-of-thought, and they remain excluded from the prompt history.
+#    not hidden chain-of-thought, and they remain excluded from the model prompt history.
 replace_once(
     "gpt-presence.js",
     'function add(role,text,attachments=[],meta={}){if(meta.author==="OSMINOG"&&(meta.source==="progress"||meta.source==="runtime")){activity(String(text||""),meta.source==="runtime");return Promise.resolve()}if(!String(text||"").trim()&&!attachments.length)return Promise.resolve();',
@@ -82,7 +104,7 @@ replace_once(
     'Create the requested app as a real OSMINOG module, never as loose canvas shapes/buttons or a browser placeholder. Prefer runtime=native only for behavior covered by a built-in native template such as voice-assistant or clock, or for a declarative panel. For any other interactive utility or application, use module_create with runtime=sandbox and one complete standalone HTML document with inline CSS/JavaScript. module_create performs launch verification and must return test.ok=true and persisted=true before you claim success. For an existing module use module_update and verify it with module_test.',
 )
 
-# 5) Preserve the legacy direct-session HTML path as a safe fallback: turn returned HTML
+# 5) Preserve the direct-session HTML path as a safe fallback: turn returned HTML
 #    into a real, tested Module Store application instead of looping for 12 hops.
 new_install_app = r'''  async function installWorkspaceApp(answer=""){
     const meta=currentPromptMeta;if(!meta)return false;const name=workspaceAppName(meta.text),html=extractWorkspaceHtml(answer);if(!html){activity("Приложение не установлено: ИИ не передал исполняемый HTML. Продолжаю через Module Runtime.",true);return false}
@@ -155,5 +177,24 @@ roadmap = roadmap_path.read_text(encoding="utf-8")
 if roadmap_marker not in roadmap:
     roadmap += f'''\n\n## {roadmap_marker}\n\nЦель: вернуть единый рабочий контракт «чат → реальный инструмент → проверенная мутация», не откатывая новый UI.\n\n1. Один capability contract для direct ChatGPT, attached Presence и других провайдеров.\n2. Простые пользовательские формулировки про секундомер/таймер/калькулятор/приложение должны создавать настоящий Module Store app с launcher, а не россыпь canvas-кнопок.\n3. Короткие этапы работы видны последовательно в чате; внутренний chain-of-thought не показывается.\n4. «Подключить в фоне» реально создаёт/переиспользует service session. Access Center не подменяет действие подключения.\n5. GitHub/исходники, web_search/web_fetch/asset_create, workspace, modules и project revisions доступны Owner Max чату по одному контракту.\n6. Никаких удалений текущей 3.14.x архитектуры: ремонт идёт поверх, с сохранённой историей и проверяемой веткой.\n'''
     roadmap_path.write_text(roadmap, encoding="utf-8")
+
+# Static contract assertions: fail the repair before commit if the intended runtime
+# guarantees are not present in the patched tree.
+bg = read("background.js")
+gpt = read("gpt-presence.js")
+sessions = read("osminog-session-manager.js")
+checks = {
+    "direct project revision tools": all(x in bg for x in ["project_revisions", "project_checkpoint", "project_restore_revision"]),
+    "direct module tools": all(x in bg for x in ["module_create", "module_update", "module_test", "workspace_patch", "icon_set"]),
+    "stopwatch classified as app": "секундомер|таймер|часы|будильник|калькулятор" in gpt and 'return"app"' in gpt,
+    "HTML fallback installs module": 'B.executeTool?.("module_create"' in gpt and "installWorkspaceApp(visibleText)" in gpt,
+    "progress remains visible": 'activity(String(text||""),meta.source==="runtime");}if(!String(text||"").trim()' in gpt,
+    "provider button performs direct routing": "Access Center must not hijack them" in sessions and 'connectBtn.textContent="Подключить в фоне"' in sessions,
+    "restored project log": log_marker in read("OSMINOG_PROJECT_LOG.md"),
+    "restored roadmap": roadmap_marker in read("OSMINOG_ROADMAP.md"),
+}
+failed = [name for name, ok in checks.items() if not ok]
+if failed:
+    raise RuntimeError("repair contract failed: " + ", ".join(failed))
 
 print("OSMINOG 3.14.2 chat owner runtime repair applied")
