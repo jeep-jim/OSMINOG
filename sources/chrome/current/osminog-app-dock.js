@@ -17,6 +17,7 @@
   }
   function icon(item){
     const fallback=esc(item.icon||item.title?.match(/[\p{L}\p{N}]/u)?.[0]||"M");
+    if(item.iconHtml)return `<span class="osminog-dock-icon">${item.iconHtml}</span>`;
     return item.iconSrc
       ? `<span class="osminog-dock-icon"><img src="${esc(item.iconSrc)}" alt=""><b>${fallback}</b></span>`
       : `<span class="osminog-dock-icon"><b>${fallback}</b></span>`;
@@ -37,8 +38,9 @@
   }
   function setGroup(name,items=[]){groups.set(String(name),items.filter(Boolean).map(x=>({...x,id:String(x.id)})));render()}
   function removeGroup(name){groups.delete(String(name));render()}
+  function patchGroup(name,patcher){const key=String(name),items=groups.get(key)||[];groups.set(key,items.map(item=>patcher({...item})||item));render()}
   function refresh(){render()}
-  globalThis.OSMINOGAppDock={setGroup,removeGroup,refresh,list:()=>[...groups.entries()].flatMap(([group,items])=>items.map(item=>({group,id:item.id,title:item.title})))};
+  globalThis.OSMINOGAppDock={setGroup,removeGroup,patchGroup,refresh,list:()=>[...groups.entries()].flatMap(([group,items])=>items.map(item=>({group,id:item.id,title:item.title})))};
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>{ensure();render();document.dispatchEvent(new CustomEvent("osminog:app-dock-ready"))},{once:true});
   else{ensure();render();queueMicrotask(()=>document.dispatchEvent(new CustomEvent("osminog:app-dock-ready")))}
 })();

@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.13.0",
+  "codename": "APPLICATION WORKSPACE",
+  "baseVersion": "3.12.4",
+  "artifact": "OSMINOG-Chrome-3.13.0-APPLICATION-WORKSPACE.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.13.0",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": true,
+  "notes": "Replaces the primitive bottom tool rail with eight permanent applications, unifies window behavior and access controls, fixes chat bottom pinning, adds a real graphics workflow and group-aware connections, makes Module Store resizable with multi-column cards, adds Extension Studio logo upload, removes widget wrapper backgrounds, and promotes asset_create to a verified live canvas operation.",
+  "fileCount": 77
+}

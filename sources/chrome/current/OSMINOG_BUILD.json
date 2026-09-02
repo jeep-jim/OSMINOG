@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.12.4",
-  "codename": "DOCK PERFORMANCE HOTFIX",
-  "baseVersion": "3.12.3",
-  "artifact": "OSMINOG-Chrome-3.12.4-DOCK-PERFORMANCE-HOTFIX.zip",
+  "version": "3.13.0",
+  "codename": "APPLICATION WORKSPACE",
+  "baseVersion": "3.12.4",
+  "artifact": "OSMINOG-Chrome-3.13.0-APPLICATION-WORKSPACE.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.12.4",
+  "manifestVersion": "3.13.0",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "pending",
   "binaryInGitHub": true,
-  "notes": "Eliminates the self-triggering window style MutationObserver and the empty Module Store render loop. Extension and provider icons are no longer canvas/world objects: all use one fixed-size bottom application dock, independent of canvas zoom. Closing or minimizing reusable windows returns them to the dock, while every newly opened window comes to front.",
-  "fileCount": 74
+  "notes": "Replaces the primitive bottom tool rail with eight permanent applications, unifies window behavior and access controls, fixes chat bottom pinning, adds a real graphics workflow and group-aware connections, makes Module Store resizable with multi-column cards, adds Extension Studio logo upload, removes widget wrapper backgrounds, and promotes asset_create to a verified live canvas operation.",
+  "fileCount": 77
 }
