@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.13.2",
+  "codename": "WINDOWS AND GRAPHICS HOTFIX",
+  "baseVersion": "3.13.1",
+  "artifact": "OSMINOG-Chrome-3.13.2-WINDOWS-GRAPHICS-HOTFIX.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.13.2",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": true,
+  "notes": "Unifies every managed window shelf, raises every newly opened window, restores minimized windows through the dock, removes the dock container, fixes instant chat opening without stream auto-follow, restores browser layout editing, and adds an offline Fabric.js graphics studio with tools, properties, layers and explicit apply.",
+  "fileCount": 82
+}
