@@ -1,0 +1,16 @@
+{
+  "product": "OSMINOG",
+  "platform": "chrome-extension",
+  "version": "3.11.54",
+  "codename": "OWNER POSEIDON PUBLISH",
+  "baseVersion": "3.11.53",
+  "artifact": "OSMINOG-Chrome-3.11.54-OWNER-POSEIDON-PUBLISH-ROOT.zip",
+  "manifestAtRoot": true,
+  "manifestVersion": "3.11.54",
+  "fixedManifestKeyPreserved": true,
+  "runtimeVerified": false,
+  "ownerRuntime": "pending",
+  "binaryInGitHub": false,
+  "notes": "Adds an owner-only Poseidon publication control below connection refresh. The button appears after a real local source write, survives extension update/reload through persistent storage, publishes source to jeep-jim/OSMINOG and the release/feed to jeep-jim/OSMINOG-Releases, and clears only after success. A compact confirmed cancel clears the pending marker without deleting local files. The visible toggle is renamed from Poseidon Source to Poseidon.",
+  "fileCount": 59
+}

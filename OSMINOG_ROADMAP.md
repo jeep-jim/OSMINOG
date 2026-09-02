@@ -870,3 +870,42 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [ ] Runtime: DeepSeek продолжает отвечать через direct web-session.
 
 Ближайший приоритет: **runtime proof Google AI, Алисы и DeepSeek в 3.11.48**. Следующий provider-specific patch делать только по фактическому probe/error после обновления.
+
+
+---
+
+## 2026-09-02 — 3.11.54 OWNER POSEIDON PUBLISH
+
+### Starting state
+- Owner runtime baseline: OSMINOG 3.11.53.
+- Poseidon could edit a selected local source folder and publish through tools, but the owner settings had no persistent visible publication action.
+
+### Requested work
+- Work from any selected local source folder on any owner computer.
+- Show an owner-only «Опубликовать» action when local source writes are pending.
+- Keep the pending publication marker through refresh/reload/update until publication succeeds or the owner explicitly cancels it.
+- Add a compact confirmed cancel control.
+- Rename the visible «Poseidon Source» toggle to «Poseidon».
+- Keep private source in jeep-jim/OSMINOG and public packages/update feed in jeep-jim/OSMINOG-Releases.
+
+### Built changes
+- Persistent owner publication marker `osminogPoseidonPublishPendingV1` is set only after a real changed source file is written.
+- The marker is not cleared by connection refresh or extension reload/update.
+- Owner settings render «Опубликовать» below «Обновить связь» only while publication is pending.
+- Publication calls the existing verified `release_publish` pipeline and clears the marker only after successful private-source archive and public release/feed publication.
+- Compact × cancellation requires confirmation and clears only the pending marker; local files are not deleted.
+- Visible toggle now reads «Poseidon: вкл./выкл.».
+- Ordinary users remain outside Owner Max controls; paid Poseidon entitlements are deferred for separate design.
+
+### Static verification
+- All packaged JavaScript files pass `node --check`.
+- All packaged JSON files parse.
+- ZIP integrity passes with root manifest version 3.11.54.
+- Package: `OSMINOG-Chrome-3.11.54-OWNER-POSEIDON-PUBLISH-ROOT.zip`.
+- Files: 59.
+- Size: 404428 bytes.
+- SHA-256: `ab924d0c48b307ba1c357c4b20e5ffa8695c5af94ac1d0b0442aa0582322a450`.
+
+### Runtime verification required
+- Owner updates from 3.11.53 using the normal button.
+- Select any local source folder, let Poseidon make a real file change, confirm «Опубликовать» appears, refresh/reload once, then publish and confirm the button disappears only after success.
