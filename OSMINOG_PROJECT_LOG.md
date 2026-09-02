@@ -2445,3 +2445,40 @@ The owner runs the checklist. Any remaining provider failure must be fixed from 
 ### Exact next action
 - Publish chrome-v3.11.52 in jeep-jim/OSMINOG-Releases and advance the signed dev update feed.
 - The owner updates through the working button, repeats the image-editor request and taps the generated launcher.
+
+
+---
+
+## 2026-09-02 — OSMINOG 3.11.53 NATIVE WORKSPACE APPS
+
+### Owner report
+- The 3.11.52 application installer created a rectangular canvas button and opened the generic code + preview shell.
+- The expected result is a rounded desktop icon that opens a clean internal application window, matching the earlier native Grafix experience.
+
+### Verified root cause
+- The 3.11.52 deterministic installer intentionally emitted a 190 × 76 button and a visible code object in preview mode.
+- Runtime metadata did not distinguish application launchers or application windows from ordinary canvas button and code objects.
+
+### Built changes
+- Added native desktop launchers with rounded icon glyph and label.
+- Added clean internal application windows without URL, index.html or source UI.
+- Added minimize, reopen, developer-source toggle and return-to-app controls.
+- Existing 3.11.52 canvas-app pairs migrate automatically without recreation.
+- Generated downloads remain enabled for applications such as PNG image editors.
+- Preserved Poseidon self-repair, source publication, release publication and the button updater.
+
+### Verification
+- All packaged JavaScript files pass node --check.
+- All packaged JSON files parse.
+- Static migration and interaction checks pass for open, minimize, reopen, developer mode and return-to-app.
+- ZIP contains 59 files with root manifest.json.
+- Package size: 403761 bytes.
+- SHA-256: 793b06d9e8cbe388c4c6c1e67a781f960362b00d1fe8d7dfd71bf668e43bd3f5.
+
+### Archived artifact
+- Private path: artifacts/chrome/3.11.53/OSMINOG-Chrome-3.11.53-NATIVE-WORKSPACE-APPS-ROOT.zip.
+- Runtime verification remains pending until the owner updates and reopens the existing Image Studio launcher.
+
+### Exact next action
+- Publish chrome-v3.11.53 in jeep-jim/OSMINOG-Releases and advance the signed dev update feed.
+- The owner updates through the working button and tests the migrated launcher plus a newly created application.
