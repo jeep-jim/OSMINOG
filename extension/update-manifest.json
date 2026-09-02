@@ -1,7 +1,0 @@
-{
-  "version": "3.8.53",
-  "baseVersion": "3.8.53",
-  "channel": "owner-main-paused",
-  "summary": "Legacy folder-based OWNER updater is paused while BriefCraft migrates to versioned GitHub builds plus Chrome Web Store beta distribution.",
-  "transforms": []
-}

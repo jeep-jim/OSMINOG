@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OSMINOG — Visual workspace</title>
+  <link rel="stylesheet" href="editor.css">
+  <link rel="stylesheet" href="osminog-ocean-shell.css">
+  <link rel="stylesheet" href="osminog-workspace-v2.css">
+  <link rel="stylesheet" href="osminog-app-dock.css">
+  <link rel="stylesheet" href="osminog-native-module.css">
+  <link rel="stylesheet" href="osminog-desktop-v3.css">
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="#FF2D2D"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.2A8 8 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></symbol>
+    <symbol id="i-waves" viewBox="0 0 24 24"><path d="M2 8c2.1 0 2.1 1.6 4.2 1.6S8.3 8 10.4 8s2.1 1.6 4.2 1.6S16.7 8 18.8 8 20.9 9.6 23 9.6M2 14c2.1 0 2.1 1.6 4.2 1.6s2.1-1.6 4.2-1.6 2.1 1.6 4.2 1.6 2.1-1.6 4.2-1.6 2.1 1.6 4.2 1.6"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9H7v-7h10v7"/></symbol>
+    <symbol id="i-brief" viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 9-3 3 3 3m8-6 3 3-3 3m-3-9-2 12"/></symbol>
+    <symbol id="i-browser" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></symbol>
+    <symbol id="i-team" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-4 2-7 5-7s5 3 5 7M13 20c.2-3 1.7-5.5 4-5.5 2.4 0 4 2.3 4 5.5"/></symbol>
+    <symbol id="i-markdown" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6 15V9l3 3 3-3v6m3-3 2 2 2-2m-2 2V9"/></symbol>
+    <symbol id="i-tabs" viewBox="0 0 24 24"><path d="M4 6h7l2 2h7v11H4z"/><path d="M4 10h16"/></symbol>
+    <symbol id="i-design" viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4m-8 4v10"/></symbol>
+    <symbol id="i-select" viewBox="0 0 24 24"><path d="m5 3 13 9-6 1-3 6z"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 11V6a2 2 0 0 1 4 0v4-5a2 2 0 0 1 4 0v6-3a2 2 0 0 1 4 0v6c0 5-3 8-8 8-3 0-5-2-7-5l-2-3a2 2 0 0 1 3-2z"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M8 19h8"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M4 4h16v12l-4 4H4zM16 20v-4h4"/></symbol>
+    <symbol id="i-node" viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="6" rx="2"/><rect x="14" y="14" width="7" height="6" rx="2"/><path d="M10 7h4a3 3 0 0 1 3 3v4"/></symbol>
+    <symbol id="i-frame" viewBox="0 0 24 24"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5M9 20H4v-5"/></symbol>
+    <symbol id="i-shape" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="m4 20 4-1 10-10-3-3L5 16zM14 7l3 3"/></symbol>
+    <symbol id="i-vector" viewBox="0 0 24 24"><path d="M5 19c4-7 4-7 7-7s3 0 7-7"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><path d="M7 17l3-3m4-4 3-3"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 4 4 3-3 4 4"/></symbol>
+    <symbol id="i-shot" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M5 12h9a6 6 0 0 1 6 6"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5m4-5h-9a6 6 0 0 0-6 6"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 20h14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 3h6l1 4H8zM7 7l1 14h8l1-14"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></symbol>
+    <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/><path d="M3 9h18"/></symbol>
+    <symbol id="i-button" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="5"/><path d="M8 12h8"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16M4 16h16M10 4v16M16 4v16"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V3zM8 3v6h8V3M8 15h8v6H8z"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10"/></symbol>
+    <symbol id="i-codeview" viewBox="0 0 24 24"><path d="m9 7-5 5 5 5m6-10 5 5-5 5m-2-12-2 14"/></symbol>
+  </svg>
+
+  <section id="welcome" class="welcome" hidden>
+    <header class="welcome-nav glass">
+      <a class="brand" href="#"><span class="osminog-header-mark" aria-hidden="true"></span><span>OSMINOG</span></a>
+      <div class="welcome-actions">
+        <select id="welcomeLanguage" aria-label="Language"><option value="en">English</option><option value="ru">Русский</option><option value="de">Deutsch</option><option value="es">Español</option><option value="ja">日本語</option><option value="zh">中文</option></select>
+        <button id="welcomeTheme" class="icon-btn" aria-label="Toggle theme"><svg><use href="#i-moon"/></svg></button>
+        <button id="openExisting" class="soft-btn" data-i18n="openProject">Open project</button><button id="welcomeProfile" class="profile-btn" title="Sign in"><span>G</span></button>
+      </div>
+    </header>
+    <main class="welcome-main">
+      <div class="welcome-copy">
+        <span class="eyebrow" data-i18n="eyebrow">THE SHARED SPACE BETWEEN YOU AND AI</span>
+        <h1 data-i18n="hero">Turn scattered context into something AI can truly understand.</h1>
+        <p data-i18n="heroSub">Briefs, code, websites and design live together on one visual map — always current, always explainable.</p>
+        <div class="welcome-cta">
+          <button id="enterWorld" class="primary-btn"><svg><use href="#i-folder"/></svg><span id="enterWorldText">Choose workspace folder</span><svg><use href="#i-arrow"/></svg></button>
+          <button id="showProjects" class="soft-btn" data-i18n="projects">Your projects</button>
+        </div>
+        <div class="trust-row"><span data-i18n="local">Local-first</span><i></i><span data-i18n="noAnalytics">No analytics</span><i></i><span data-i18n="oneCanvas">One infinite canvas</span></div>
+      </div>
+      <div class="story-stage" aria-label="Animated OSMINOG overview">
+        <div class="story-glow"></div>
+        <article class="story-card brief-card"><small data-i18n="storyBrief">01 · BRIEF</small><h3 data-i18n="storyGoal">Show the goal</h3><p data-i18n="storyGoalSub">Notes, screenshots and references.</p><div class="brief-lines"><i></i><i></i></div><span class="story-dot dot-a"></span></article>
+        <article class="story-card code-card"><small data-i18n="storyCode">02 · CODE</small><div class="code-lines"><i></i><i></i><i></i><i></i></div><span class="story-dot dot-b"></span></article>
+        <article class="story-card browser-card"><small data-i18n="storyLive">03 · LIVE</small><div class="mini-tabs"><i></i><i></i><i></i></div><div class="mini-site"><b data-i18n="storyResult">See the real result</b><span></span><span></span></div><span class="story-dot dot-c"></span></article>
+        <article class="story-card design-card"><small data-i18n="storyDesign">04 · DESIGN</small><div class="mini-shape"></div><div class="mini-inspector"><i></i><i></i><i></i></div><span class="story-dot dot-d"></span></article>
+        <svg class="story-links" viewBox="0 0 620 570" preserveAspectRatio="none" aria-hidden="true"><path d="M230 160 C280 110 325 112 375 164"/><path d="M460 208 C550 220 555 275 528 326"/><path d="M405 430 C345 475 270 470 220 407"/></svg>
+        <div class="orbit-chip chip-one" data-i18n="exactContext">Exact context</div><div class="orbit-chip chip-two" data-i18n="liveChange">Live change</div><div class="orbit-chip chip-three" data-i18n="readyAi">Ready for AI</div>
+      </div>
+    </main>
+    <section id="projectHub" class="project-hub" hidden>
+      <div class="hub-head"><div><span class="eyebrow">OSMINOG</span><h2 data-i18n="yourProjects">Your visual AI projects</h2></div><button id="newProjectHome" class="primary-btn"><svg><use href="#i-plus"/></svg><span data-i18n="newProject">New project</span></button></div>
+      <label class="search-field"><svg><use href="#i-search"/></svg><input id="projectSearch" placeholder="Search projects" data-i18n-placeholder="searchProjects"></label>
+      <div id="projectGrid" class="project-grid"></div>
+    </section>
+  </section>
+
+  <main id="app" class="app" hidden>
+    <header class="topbar glass">
+      <div class="top-left"><button id="goHome" class="brand compact"><span class="osminog-header-mark" aria-hidden="true"></span><span>OSMINOG</span></button><button id="versionButton" class="version-chip" title="Версия и обновления">v3.14.0</button><button id="projectMenu" class="project-pill"><span id="projectTitle">Untitled world</span><svg><use href="#i-arrow"/></svg></button><button id="layersToggle" class="icon-btn layers-toggle-left" data-tip="layers"><svg><use href="#i-layers"/></svg></button><div class="workspace-prefs"><select id="workspaceLanguage" aria-label="Language"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option><option value="ja">JA</option><option value="zh">ZH</option></select><button id="workspaceTheme" class="icon-btn" aria-label="Toggle theme"><svg><use href="#i-moon"/></svg></button></div></div>
+      <nav id="modeSwitch" class="mode-switch" aria-label="Workspace mode" hidden>
+        <button data-mode="brief" class="active"><svg><use href="#i-brief"/></svg><span data-i18n="brief">Brief</span></button>
+        <button data-mode="code"><svg><use href="#i-code"/></svg><span data-i18n="code">Code</span></button>
+        <button data-mode="browser"><svg><use href="#i-browser"/></svg><span data-i18n="browser">Browser</span></button>
+        <button data-mode="design"><svg><use href="#i-design"/></svg><span data-i18n="design">Design</span></button>
+        <button data-mode="team"><svg><use href="#i-team"/></svg><span data-i18n="team">Команда</span></button>
+      </nav>
+      <div class="top-actions"><button id="canvasSettings" class="icon-btn" data-tip="canvasSettings"><svg><use href="#i-settings"/></svg></button><button id="saveNow" class="soft-btn save-state-btn" title="Сохранить проект"><svg><use href="#i-save"/></svg><span id="saveStateText">Сохранено</span></button><button id="exitApp" class="icon-btn exit-app-btn" title="Сохранить и выйти"><svg><use href="#i-exit"/></svg></button><button id="modulesButton" class="icon-btn modules-button" title="Модули"><svg class="modules-puzzle" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="bcModuleGrad" x1="2" y1="22" x2="22" y2="2"><stop stop-color="#4285F4"/><stop offset=".34" stop-color="#A259FF"/><stop offset=".68" stop-color="#F24E1E"/><stop offset="1" stop-color="#0ACF83"/></linearGradient></defs><path d="M8.5 3.5h3.1a2.7 2.7 0 1 1 4.8 0H20v5.1a2.7 2.7 0 1 0 0 4.8V20h-5.1a2.7 2.7 0 1 0-4.8 0H4v-5.4a2.7 2.7 0 1 1 0-4.8V3.5z" fill="none" stroke="url(#bcModuleGrad)" stroke-width="2.15" stroke-linejoin="round"/></svg></button><button id="collabShare" class="soft-btn collab-share" title="Доступ к полотну"><svg><use href="#i-link"/></svg><span>Доступ</span></button><button id="share" class="soft-btn ai-share"><span class="online-dot"></span><span data-i18n="aiAccess">AI access</span></button><button id="profileButton" class="profile-btn" title="Sign in"><span>G</span></button><button id="exportBtn" class="primary-btn"><span data-i18n="export">Export</span><svg><use href="#i-export"/></svg></button></div>
+    </header>
+
+    <section id="colorBar" class="color-bar glass" aria-label="Colors">
+      <strong id="colorContext">Холст</strong>
+      <label id="quickTextWrap" class="quick-color color-control" data-quick-kind="text"><span data-i18n="textColor">Text color</span><input id="quickTextColor" type="color"><b id="quickTextHex">#202633</b></label>
+      <label id="quickFillWrap" class="quick-color color-control" data-quick-kind="fill"><span data-i18n="fill">Fill</span><input id="quickFillColor" type="color"><b id="quickFillHex">#ffffff</b></label>
+      <label id="quickStrokeWrap" class="quick-color color-control" data-quick-kind="stroke"><span data-i18n="stroke">Stroke</span><input id="quickStrokeColor" type="color"><b id="quickStrokeHex">#526fff</b></label>
+      <div class="quick-swatches" aria-label="Color presets"><button data-quick-swatch="#526fff"></button><button data-quick-swatch="#8b5cf6"></button><button data-quick-swatch="#ef4c76"></button><button data-quick-swatch="#10b981"></button><button data-quick-swatch="#f5b942"></button><button data-quick-swatch="#202633"></button><button data-quick-swatch="#ffffff"></button></div>
+    </section>
+
+    <aside id="toolRail" class="tool-rail glass">
+      <button data-tool="select" class="active" data-tip="toolSelect"><svg><use href="#i-select"/></svg></button>
+      <button data-tool="hand" data-tip="toolHand"><svg><use href="#i-hand"/></svg></button><div class="rail-sep"></div>
+      <button data-tool="brief" data-tip="toolBrief"><svg><use href="#i-brief"/></svg></button>
+      <button data-tool="text" data-tip="toolText"><svg><use href="#i-text"/></svg></button>
+      <button data-tool="note" data-tip="toolNote"><svg><use href="#i-note"/></svg></button>
+      <button data-tool="node" data-tip="toolNode"><svg><use href="#i-node"/></svg></button>
+      <button data-tool="code" data-tip="toolCode"><svg><use href="#i-code"/></svg></button>
+      <button id="markdownStudioButton" type="button" title="Markdown Studio"><svg><use href="#i-markdown"/></svg></button>
+      <button data-tool="shape" data-tip="toolShape"><svg><use href="#i-shape"/></svg></button>
+      <button data-tool="pen" data-tip="toolPen"><svg><use href="#i-pen"/></svg></button>
+      <button data-tool="vector" data-tip="toolVector"><svg><use href="#i-vector"/></svg></button>
+      <button data-tool="browser" data-tip="toolBrowser"><svg><use href="#i-browser"/></svg></button>
+      <button id="browserHubButton" type="button" title="Подключения ИИ"><svg><use href="#i-tabs"/></svg></button>
+      <button data-tool="image" data-tip="toolImage"><svg><use href="#i-image"/></svg></button>
+      <button data-tool="file" data-tip="toolFile"><svg><use href="#i-file"/></svg></button>
+      <div class="rail-sep"></div><button id="capture" data-tip="toolShot"><svg><use href="#i-shot"/></svg></button><div class="rail-sep rail-sep-history"></div><button id="undo" class="tool-history-action" title="Undo"><svg><use href="#i-undo"/></svg></button><button id="redo" class="tool-history-action" title="Redo"><svg><use href="#i-redo"/></svg></button><button id="activity" class="activity-btn tool-history-action" title="Activity"><span id="activityCount">0</span><svg><use href="#i-more"/></svg></button>
+    </aside>
+
+    <aside id="layersPanel" class="side-panel layers-panel glass" hidden>
+      <div class="panel-resizer panel-resizer-right" data-resize-panel="layersPanel" aria-hidden="true"></div>
+      <div class="panel-head"><div><small data-i18n="project">PROJECT</small><strong id="layersProjectName">Untitled world</strong></div><button class="icon-btn" data-close="layersPanel"><svg><use href="#i-close"/></svg></button></div>
+      <div class="panel-tabs"><button class="active" data-i18n="layers">Layers</button><button data-i18n="files">Files</button></div>
+      <label class="panel-search"><svg><use href="#i-search"/></svg><input id="layerSearch" placeholder="Search layers" data-i18n-placeholder="searchLayers"></label>
+      <div id="layerList" class="layer-list"></div>
+      <div class="panel-footer"><button id="groupSelection" class="soft-btn"><span data-i18n="group">Group</span> <kbd>⌘G</kbd></button><button id="localFolder" class="soft-btn" data-i18n="localFolder">Local folder</button></div>
+    </aside>
+
+    <section id="viewport" class="viewport" tabindex="0">
+      <div id="world" class="world"><svg id="connections" class="connections"></svg><div id="objects" class="objects"></div><svg id="ink" class="ink"></svg></div>
+      <div id="marquee" class="marquee" hidden></div>
+      <div id="emptyHint" class="empty-hint empty-launch">
+        <div class="hint-orb"><svg><use href="#i-logo"/></svg></div>
+        <small class="empty-kicker">OSMINOG</small>
+        <h2>С чего начнём?</h2>
+        <p>Подключи свой ИИ, добавь материалы или сразу собери бриф. Холст станет общей памятью проекта.</p>
+        <div class="empty-launch-actions"><button id="emptyConnectAi" class="primary-btn">Подключить ИИ</button><button data-create="brief" class="soft-btn">Создать бриф</button><button data-create="browser" class="soft-btn">Добавить референс</button></div>
+        <div class="empty-provider-row"><button data-provider-open="gpt"><img src="icons/providers/openai.svg">ChatGPT</button><button data-provider-open="claude"><img src="icons/providers/claude.svg">Claude</button><button data-provider-open="gemini"><img src="icons/providers/gemini.svg">Gemini</button><button data-provider-open="deepseek"><img src="icons/providers/deepseek.svg">DeepSeek</button></div>
+      </div>
+
+      <section id="teamWorkspace" class="team-workspace" hidden aria-label="Командный чат ИИ">
+        <div class="team-shell">
+          <header class="team-head">
+            <div><small>OSMINOG · TEAM OS</small><h2>Командный чат</h2><p>Агенты обсуждают задачу, используют команды проекта и передают результат исполнителю.</p></div>
+            <div class="team-head-actions"><span id="teamAccessBadge" class="team-access-badge">ПОЛНЫЙ ПРОЕКТ</span><button id="teamMediaCatalog" type="button" class="soft-btn">Медиа‑ИИ</button><button id="teamRefreshAgents" type="button" class="soft-btn">Обновить агентов</button><button id="teamMinimize" type="button" class="icon-btn" title="Свернуть командный чат в трей"><svg><use href="#i-minus"/></svg></button></div>
+          </header>
+          <div class="team-layout">
+            <aside class="team-sidebar">
+              <div class="team-section-title"><span>УЧАСТНИКИ</span><button id="teamSelectAll" type="button">Все</button></div>
+              <div id="teamAgentList" class="team-agent-list"></div>
+              <label class="team-field"><span>РЕЖИМ</span><select id="teamRunMode"><option value="execute">Обсудить и сделать</option><option value="council">Совет без правок</option><option value="review">Проверить проект</option></select></label>
+              <label class="team-field"><span>КРУГОВ ОБСУЖДЕНИЯ</span><input id="teamRounds" type="number" min="1" max="6" value="2"></label>
+              <label class="team-field"><span>ДЛИНА ОТВЕТА</span><select id="teamReplyLength"><option value="80">Коротко · до 80 слов</option><option value="180" selected>Обычно · до 180 слов</option><option value="350">Подробно · до 350 слов</option><option value="700">Максимально · до 700 слов</option></select></label>
+              <label class="team-field"><span>ЛИМИТ ВРЕМЕНИ</span><select id="teamTimeout"><option value="2">2 минуты</option><option value="5" selected>5 минут</option><option value="10">10 минут</option><option value="0">Без лимита</option></select></label>
+              <label class="team-toggle"><input id="teamFinalSummary" type="checkbox" checked><span>Собрать общий итог после обсуждения</span></label>
+              <label class="team-toggle"><input id="teamAutoApply" type="checkbox" checked><span>Автоприменять проверенный патч</span></label>
+              <label class="team-toggle"><input id="teamFullAccess" type="checkbox" checked><span>Полный доступ всем агентам</span></label>
+              <div class="team-media-crew"><div class="team-section-title"><span>МЕДИА‑КОМАНДА</span><button id="teamMediaCatalogInline" type="button">Каталог</button></div><div id="providerCrewList" class="team-media-crew-list"><small>Добавь генераторы изображений, видео, музыки и голоса.</small></div></div>
+              <div class="team-command-help"><strong>Команды</strong><code>/plan</code><code>/do</code><code>/review</code><code>/stop</code><code>/clear</code><code>/browser</code><code>/md</code><code>/media</code></div>
+            </aside>
+            <main class="team-room">
+              <div id="teamTranscript" class="team-transcript"><div class="team-empty"><b>Собери команду и поставь задачу.</b><span>Каждый агент получает карту проекта, инструменты чтения, браузера, кода и право вернуть реальный patch.</span></div></div>
+              <div id="teamProgress" class="team-progress" hidden><span></span><small>Команда работает…</small></div>
+              <form id="teamMissionForm" class="team-composer">
+                <div id="teamAttachmentTray" class="team-attachment-tray" hidden></div>
+                <div class="team-composer-input"><button id="teamAttach" type="button" title="Добавить изображение, PDF или текст">+</button><textarea id="teamMission" rows="3" placeholder="Например: обсудите интерфейс, распределите работу и исправьте выбранный блок на холсте"></textarea></div>
+                <div><span id="teamComposerHint">Ctrl+V вставляет скриншот · выбранные медиа‑ИИ доступны как инструменты</span><button id="teamStop" type="button" class="soft-btn" disabled>Стоп</button><button id="teamClear" type="button" class="soft-btn">Очистить</button><button id="teamStart" type="submit" class="primary-btn">Запустить команду</button></div>
+                <input id="teamFileInput" type="file" hidden multiple accept="image/*,.pdf,.txt,.md,.json,.js,.ts,.css,.html">
+              </form>
+            </main>
+          </div>
+        </div>
+      </section>
+      <button id="teamTrayBubble" class="team-tray-bubble" type="button" hidden title="Открыть командный чат"><svg><use href="#i-team"/></svg><span><strong>Команда</strong><small id="teamTrayStatus">свёрнута</small></span><b id="teamTrayCount">0</b></button>
+      <button id="osminogDesktopFolderIcon" class="osminog-desktop-folder-icon" type="button" hidden aria-label="Папка проекта OSMINOG" title="Двойной клик — открыть папку проекта">
+        <span class="osminog-folder-glyph" aria-hidden="true"></span><strong id="osminogDesktopFolderLabel">OSMINOG</strong><small id="osminogDesktopFolderMeta">Папка проекта</small>
+      </button>
+      <section id="osminogDesktopFolderWindow" class="osminog-desktop-folder-window" hidden aria-label="Файлы проекта OSMINOG">
+        <header class="osminog-desktop-folder-head">
+          <div class="osminog-desktop-folder-title"><span class="osminog-folder-glyph" aria-hidden="true"></span><div><strong id="osminogFolderWindowTitle">OSMINOG</strong><small id="osminogFolderWindowStatus">Обычная папка проекта на компьютере</small></div></div>
+          <div class="osminog-desktop-folder-actions"><button id="osminogFolderReconnect" type="button">Подключить</button><button id="osminogFolderSync" type="button">Синхронизировать</button><button id="osminogFolderClose" type="button" title="Закрыть">×</button></div>
+        </header>
+        <div class="osminog-desktop-folder-toolbar"><button id="osminogFolderUp" type="button" title="На уровень выше">↑</button><button id="osminogFolderRefresh" type="button" title="Обновить">↻</button><div id="osminogFolderBreadcrumb" class="osminog-desktop-folder-breadcrumb">OSMINOG</div></div>
+        <div class="osminog-desktop-folder-body"><div id="osminogFolderGrid" class="osminog-desktop-folder-grid"></div><aside id="osminogFolderPreview" class="osminog-desktop-folder-preview"><h3>Папка проекта</h3><p>Двойной клик открывает папку. Выбери файл, чтобы увидеть его и при необходимости положить на холст.</p></aside></div>
+      </section>
+    </section>
+
+    <aside id="inspector" class="inspector glass">
+      <div class="panel-resizer panel-resizer-left" data-resize-panel="inspector" aria-hidden="true"></div>
+      <div class="panel-head"><div><small data-i18n="properties">PROPERTIES</small><strong id="inspectorTitle">Canvas</strong></div><button id="inspectorCollapse" class="icon-btn"><svg><use href="#i-arrow"/></svg></button></div>
+      <div id="inspectorBody" class="inspector-body"></div>
+      <nav class="inspector-mini" aria-label="Quick panels">
+        <button data-mini-action="properties" title="Свойства"><svg><use href="#i-settings"/></svg></button>
+        <button data-mini-action="canvas" title="Холст"><svg><use href="#i-grid"/></svg></button>
+        <button data-mini-action="layers" title="Слои"><svg><use href="#i-layers"/></svg></button>
+        <button data-mini-action="history" title="История"><svg><use href="#i-undo"/></svg></button>
+      </nav>
+    </aside>
+
+    <div class="bottom-dock glass">
+      <div class="zoom-controls"><button id="overview" class="icon-btn" title="Fit"><svg><use href="#i-fit"/></svg></button><button id="zoomOut" class="icon-btn"><svg><use href="#i-minus"/></svg></button><button id="zoomLabel">100%</button><button id="zoomIn" class="icon-btn"><svg><use href="#i-plus"/></svg></button></div>
+    </div>
+
+    <div id="collabPopover" class="collab-popover glass" hidden>
+      <div class="collab-head"><div><small>LIVE PRESENCE · ДОСТУП</small><strong>Кто видит это полотно</strong></div><button id="closeCollabPopover" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
+      <div class="collab-mode-grid"><label><span>РЕЖИМ ССЫЛКИ</span><select id="collabVisibility"><option value="invite">Только по приглашению</option><option value="link">Все, у кого есть ссылка</option></select></label><label><span>РОЛЬ ПО ССЫЛКЕ</span><select id="collabLinkRole"><option value="view">Просмотр</option><option value="comment">Комментарии</option><option value="edit">Редактирование</option></select></label></div>
+      <div class="collab-link-row"><input id="collabLink" readonly><button id="copyCollabLink" class="soft-btn"><svg><use href="#i-copy"/></svg> Копировать</button></div>
+      <div class="collab-section"><div class="collab-section-title"><span>ЛЮДИ</span><small>Роли сохраняются в проекте. Remote realtime — следующий слой Relay.</small></div><div class="collab-invite-row"><input id="collabInviteIdentity" placeholder="Имя, email или ник"><select id="collabInviteRole"><option value="view">Смотреть</option><option value="comment">Комментировать</option><option value="edit">Редактировать</option></select><button id="collabInviteAdd" class="soft-btn">Добавить</button></div><div id="collabMembers" class="collab-members"></div></div>
+      <div class="collab-section collab-ai-section"><div class="collab-section-title"><span>ИИ КАК УЧАСТНИК</span><small>Подключается уже открытый чат ChatGPT — новых вкладок нет.</small></div><div class="collab-ai-row"><div class="collab-avatar ai"><span>AI</span></div><div><strong>Текущий ChatGPT</strong><small id="externalChatGptState">Не подключён</small></div><select id="externalChatGptRole"><option value="view">Смотреть</option><option value="comment">Обсуждать</option><option value="edit" selected>Редактировать</option></select><button id="connectExternalChatGpt" class="primary-btn">Подключить</button></div></div>
+      <small class="collab-footnote">В этой owner-сборке реально работает Live Presence для текущего ChatGPT. Приглашения людей/ссылка сейчас — модель прав доступа; синхронизация между устройствами потребует OSMINOG Relay/Cloud.</small>
+    </div>
+
+
+    <div id="modulesPopover" class="modules-popover glass" hidden>
+      <div class="modules-head"><div><small>MODULES · CONNECTORS</small><strong>Подключения OSMINOG</strong></div><button id="closeModulesPopover" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
+      <p class="modules-intro">Подключай внешние источники к проекту. Токены хранятся локально в owner-сборке.</p><button id="providerRegistryButton" class="provider-registry-launch" type="button"><span>✦</span><div><strong>Медиа‑ИИ и модели</strong><small>Nano Banana, изображения, видео, музыка, озвучка</small></div><b>Открыть каталог</b></button>
+      <div class="module-grid">
+        <article class="module-card" data-module="figma"><div class="module-logo figma"><img src="icons/modules/figma.svg" alt="Figma"></div><div><strong>Figma</strong><small id="moduleFigmaStatus">Не подключено</small></div><button id="moduleFigmaConnect" class="soft-btn">Подключить</button></article>
+        <article class="module-card" data-module="drive"><div class="module-logo drive"><img src="icons/modules/google-drive.svg" alt="Google Drive"></div><div><strong>Google Drive</strong><small id="moduleDriveStatus">Нужен OAuth client</small></div><button id="moduleDriveConnect" class="soft-btn">Открыть Drive</button></article>
+        <article class="module-card" data-module="github"><div class="module-logo github"><img src="icons/modules/github.svg" alt="GitHub"></div><div><strong>GitHub</strong><small id="moduleGithubStatus">Не подключено</small></div><button id="moduleGithubConnect" class="soft-btn">Подключить</button></article>
+        <article class="module-card" data-module="search"><div class="module-logo google"><img src="icons/modules/google.svg" alt="Google"></div><div><strong>Google AI</strong><small id="moduleGoogleAiStatus">Gemini + Google Search</small></div><button id="moduleSearchOpen" class="primary-btn">Открыть</button></article><article class="module-card" data-module="custom-ai"><div class="module-logo custom-ai"><img src="icons/providers/custom.svg" alt="Custom AI"></div><div><strong>Custom AI</strong><small>OpenAI-compatible · локально/облако</small></div><button id="moduleCustomAiOpen" class="soft-btn">Настроить</button></article>
+      </div>
+      <div id="moduleTokenBox" class="module-token-box" hidden><strong id="moduleTokenTitle">Подключить</strong><input id="moduleTokenInput" type="password" autocomplete="off" placeholder="Personal access token"><div><button id="moduleTokenCancel" class="soft-btn">Отмена</button><button id="moduleTokenSave" class="primary-btn">Проверить и сохранить</button></div><small id="moduleTokenNote"></small></div>
+      <small class="modules-footnote">Google Drive требует OAuth-конфигурацию приложения — OSMINOG не подделывает подключение через cookies. Figma и GitHub в owner-сборке можно подключить персональным токеном.</small>
+    </div>
+    <section id="quickSearchPanel" class="quick-search-panel osminog-google-chat glass" data-module-id="module:google-ai" hidden>
+      <div id="googleWidgetDrag" class="osminog-google-chat__header">
+        <div class="osminog-google-chat__identity">
+          <div class="osminog-google-chat__core" aria-hidden="true"><img src="icons/modules/google.svg" alt=""></div>
+          <div class="osminog-google-chat__title"><strong>Google AI</strong><span id="googleAiStatusBadge" class="osminog-google-chat__status">Нужно подключить</span></div>
+        </div>
+        <button id="googleAiNodesToggle" class="osminog-google-chat__nodes" type="button" aria-pressed="false" title="Показать 8 точек связей">Ноды</button>
+        <div class="osminog-google-chat__actions"><button id="googleWidgetMinimize" class="osminog-google-chat__action" type="button" title="Свернуть">−</button><button id="quickSearchClose" class="osminog-google-chat__action" type="button" title="Закрыть">×</button></div>
+      </div>
+      <div id="googleAiConversation" class="osminog-google-chat__messages">
+        <div id="googleAiWelcome" class="osminog-google-chat__welcome"><div class="osminog-google-chat__avatar">G</div><h2>Osminog Assistant</h2><p>Один Google AI‑чат, контекст холста и связи с объектами — без выбора поисковиков.</p></div>
+      </div>
+      <div id="googleAiAttachmentTray" class="osminog-google-chat__attachments" hidden></div>
+      <form id="quickSearchForm" class="osminog-google-chat__composer">
+        <button id="googleAiAttach" type="button" class="osminog-google-chat__attach" title="Привязать контекст холста">+</button>
+        <textarea id="quickSearchInput" rows="1" placeholder="Напиши Бро или закинь контекст..."></textarea>
+        <button id="googleAiSend" class="osminog-google-chat__send" type="submit" title="Отправить"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 15 22l-4-9-9-4 20-7Z"/><path d="m11 13 11-11"/></svg></button>
+      </form>
+      <div class="osminog-google-chat__footer"><span id="quickSearchMeta">Подключи открытую вкладку Google AI Mode</span><button id="googleAiConnect" type="button">Подключить</button><button id="quickSearchGoogle" type="button">Открыть Google AI ↗</button></div>
+      <div id="googleAiNodePorts" class="osminog-google-chat__ports" aria-hidden="true">
+        <button type="button" class="osminog-google-chat__port nw" data-google-port="nw" data-module-id="module:google-ai" title="Связь: верх‑лево"></button>
+        <button type="button" class="osminog-google-chat__port n" data-google-port="n" data-module-id="module:google-ai" title="Связь: сверху"></button>
+        <button type="button" class="osminog-google-chat__port ne" data-google-port="ne" data-module-id="module:google-ai" title="Связь: верх‑право"></button>
+        <button type="button" class="osminog-google-chat__port e" data-google-port="e" data-module-id="module:google-ai" title="Связь: справа"></button>
+        <button type="button" class="osminog-google-chat__port se" data-google-port="se" data-module-id="module:google-ai" title="Связь: низ‑право"></button>
+        <button type="button" class="osminog-google-chat__port s" data-google-port="s" data-module-id="module:google-ai" title="Связь: снизу"></button>
+        <button type="button" class="osminog-google-chat__port sw" data-google-port="sw" data-module-id="module:google-ai" title="Связь: низ‑лево"></button>
+        <button type="button" class="osminog-google-chat__port w" data-google-port="w" data-module-id="module:google-ai" title="Связь: слева"></button>
+      </div>
+      <div class="osminog-google-chat__resize-handles" aria-hidden="true">
+        <span class="nw" data-google-resize="nw"></span><span class="n" data-google-resize="n"></span><span class="ne" data-google-resize="ne"></span><span class="e" data-google-resize="e"></span><span class="se" data-google-resize="se"></span><span class="s" data-google-resize="s"></span><span class="sw" data-google-resize="sw"></span><span class="w" data-google-resize="w"></span>
+      </div>
+    </section>
+    <button id="googleWidgetBubble" class="module-widget-bubble google-widget-bubble" hidden title="Открыть Google AI"><span class="google-g-mark"><img src="icons/modules/google.svg" alt="Google"></span></button>
+
+    <div id="updatePopover" class="update-popover glass" hidden>
+      <div class="update-head"><div><small>OSMINOG · UNIFIED UPDATE</small><strong>OSMINOG <span id="updateCurrentVersion">v3.11.43</span></strong></div><button id="closeUpdatePopover" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
+      <div class="update-status-card"><span>Текущая сборка</span><b id="updateStatusText">OSMINOG Dev</b><small id="updateStatusSub">В первый раз выбери папку установленного OSMINOG; затем обновления ставятся этой кнопкой.</small></div>
+      <div class="update-actions one-click"><button id="oneClickUpdate" class="primary-btn">Проверить и обновить</button></div><p class="update-note">OSMINOG проверяет SHA-256, сохраняет резервную копию и обновляет выбранную папку расширения.</p>
+    </div>
+    <div id="projectPopover" class="popover" hidden><button id="renameProject" data-i18n="renameWorld">Rename world</button><button id="newProject" data-i18n="newWorld">New world</button><button id="openProjectFile" data-i18n="openProjectFile">Open project file</button><button id="saveProjectFile" data-i18n="backupProject">Download project backup</button></div>
+    <div id="profileMenu" class="profile-menu glass" hidden><div class="profile-card"><div id="profileAvatar" class="profile-avatar">G</div><div><strong id="profileName">Google account</strong><small id="profileEmail" data-i18n="profileLocal">Not signed in</small></div></div><button id="profileSignIn" data-i18n="signInGoogle">Sign in with Google</button><button id="profileSync" data-i18n="syncDrive" hidden>Sync with Google Drive</button><button id="profileSignOut" data-i18n="signOut" hidden>Sign out</button><p id="profileNote" data-i18n="profileNote">Sign-in is optional. Local projects work without an account.</p></div>
+    <div id="exportMenu" class="export-menu glass" hidden>
+      <div class="export-head"><small data-i18n="exportDocument">EXPORT DOCUMENT</small><strong data-i18n="chooseFormat">Choose a useful format</strong></div>
+      <button data-export="html"><b>HTML</b><span><strong data-i18n="exportHtml">Editable HTML</strong><small data-i18n="exportHtmlSub">Formatted text and images</small></span></button>
+      <button data-export="svg"><b>SVG</b><span><strong data-i18n="exportSvg">Scalable SVG</strong><small data-i18n="exportSvgSub">Canvas with vectors and text</small></span></button>
+      <button data-export="png"><b>PNG</b><span><strong data-i18n="exportPng">PNG image</strong><small data-i18n="exportPngSub">High-quality visual export</small></span></button>
+      <button data-export="pdf"><b>PDF</b><span><strong data-i18n="exportPdf">Print / Save PDF</strong><small data-i18n="exportPdfSub">Browser print with selectable text</small></span></button>
+      <button data-export="word"><b>W</b><span><strong data-i18n="exportWord">Word document</strong><small data-i18n="exportWordSub">Word-compatible formatted document</small></span></button>
+      <button data-export="excel"><b>X</b><span><strong data-i18n="exportExcel">Excel table</strong><small data-i18n="exportExcelSub">Objects as editable rows</small></span></button>
+      <button data-export="md"><b>MD</b><span><strong>Markdown</strong><small data-i18n="exportMdSub">Portable structured text</small></span></button>
+      <button data-export="txt"><b>TXT</b><span><strong data-i18n="exportTxt">Plain text</strong><small data-i18n="exportTxtSub">Opens everywhere</small></span></button>
+    </div>
+
+    <section id="bridgePanel" class="bridge-panel live-ai-panel glass" hidden aria-label="ИИ на холсте">
+      <div class="bridge-head">
+        <div class="bridge-title"><span class="bridge-orb live-ai-orb"><svg><use href="#i-logo"/></svg></span><div><small>OSMINOG LIVE</small><strong id="bridgeHeading">ИИ на холсте</strong></div></div>
+        <div class="bridge-head-actions"><span id="bridgeLiveBadge" class="bridge-live-badge offline">OFFLINE</span><button id="bridgeClose" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
+      </div>
+      <div class="bridge-body">
+        <div id="connectorSetup" class="live-ai-setup">
+          <div class="bridge-consent">
+            <strong id="connectorSetupTitle">Connect ChatGPT</strong>
+            <p id="connectorSetupText">One click. No API key, no companion app, no canvas dump into chat. OSMINOG keeps the canvas local and answers only the tools ChatGPT actually calls.</p>
+          </div>
+          <label class="field access-field-wide"><span>AI ACCESS</span><select id="liveAiAccess"><option value="readwrite">Read + propose changes</option><option value="read">Read only</option><option value="selection">Selected only</option></select></label>
+          <div id="connectorHealthCard" class="connector-health-card oneclick-card">
+            <span id="connectorHealthDot" class="connector-dot offline"></span>
+            <div><strong id="connectorHealthTitle">OSMINOG Relay</strong><small id="connectorHealthSub">Ready for one-click pairing.</small></div>
+          </div>
+          <button id="connectorConnect" class="primary-btn bridge-connect oneclick-connect">Connect ChatGPT</button>
+          <small id="connectorPrivacy" class="bridge-privacy-note">Your projects stay local. The relay transports only requested tool results and does not store the canvas.</small>
+        </div>
+
+        <div id="connectorWorkspace" class="live-ai-workspace connector-workspace" hidden>
+          <div class="bridge-session"><div><small>LIVE CONNECTOR</small><strong id="connectorProjectName">Current canvas</strong></div><div class="bridge-session-meta"><span id="bridgeRevision">rev 0</span><span id="bridgeChangeCount">0 changes</span></div></div>
+          <div class="live-ai-presence-line"><span class="bridge-pulse"></span><div><strong id="bridgeSyncText">OSMINOG is online</strong><small id="bridgeSyncSub">ChatGPT can request canvas tools without receiving the project as a message.</small></div><button id="connectorSettings" class="soft-btn compact-btn">Access</button></div>
+
+          <div class="connector-pair-box">
+            <div class="connector-pair-icon">↔</div>
+            <div><small>CHATGPT ↔ OSMINOG</small><strong id="connectorPairTitle">Waiting for ChatGPT</strong><p id="connectorPairSub">Leave the canvas open and ask ChatGPT about it. Tool calls will appear below.</p></div>
+            <button id="connectorOpenChatGPT" class="soft-btn compact-btn">Open ChatGPT</button>
+          </div>
+
+          <div id="connectorDevTest" class="connector-dev-test" hidden>
+            <div><small>DEVELOPER TEST ONLY</small><strong>Temporary MCP endpoint</strong></div>
+            <div class="connector-dev-row"><input id="connectorDevMcpUrl" readonly spellcheck="false"><button id="connectorDevCopy" class="soft-btn compact-btn">Copy</button></div>
+            <small>This block is disabled in the Chrome Store build after the OSMINOG ChatGPT app is published.</small>
+          </div>
+
+          <div class="connector-tool-head"><div><small>AI PRESENCE</small><strong id="connectorToolTitle">Waiting for ChatGPT</strong></div><span id="connectorRequestCount">0 calls</span></div>
+          <div id="connectorToolLog" class="connector-tool-log"><div class="connector-empty">No canvas data has been requested yet.</div></div>
+
+          <div id="bridgePatchBox" class="bridge-patch-box" hidden>
+            <div class="bridge-patch-head"><div><small>AI → OSMINOG</small><strong id="bridgePatchTitle">AI proposes changes</strong></div><span id="bridgePatchCount">0</span></div>
+            <div id="bridgePatchList" class="bridge-patch-list"></div>
+            <div class="bridge-patch-actions"><button id="bridgeDismissPatch" class="soft-btn">Dismiss</button><button id="bridgeApplyPatch" class="primary-btn">Apply reviewed patch</button></div>
+          </div>
+          <div class="live-ai-footer connector-footer"><span id="connectorFooterText">Only requested canvas fragments leave the browser.</span><div><button id="connectorDisconnect" class="soft-btn compact-btn danger-soft">Disconnect</button></div></div>
+        </div>
+      </div>
+    </section>
+
+
+
+
+    <section id="providerRegistry" class="provider-registry glass" hidden aria-label="Каталог медиа‑ИИ OSMINOG">
+      <header class="provider-registry-head"><div><small>OSMINOG · MODULE STORE</small><strong>Все модули, приложения и подключения</strong><p>Единый каталог системных сервисов и созданных пользователем расширений. Удаление ярлыка с рабочего стола не удаляет модуль из магазина.</p></div><div class="provider-registry-head-actions"><button id="providerDeveloperPageOpen" class="soft-btn provider-developer-link" type="button">Разработчикам</button><button id="providerRegistryClose" class="icon-btn" type="button"><svg><use href="#i-close"/></svg></button></div></header>
+      <nav class="provider-registry-filters"><div class="provider-filter-pills"><button type="button" class="active" data-provider-filter="all">Все</button><button type="button" data-provider-filter="app">Мои приложения</button><button type="button" data-provider-filter="chat">Чаты</button><button type="button" data-provider-filter="image">Изображения</button><button type="button" data-provider-filter="video">Видео</button><button type="button" data-provider-filter="music">Музыка</button><button type="button" data-provider-filter="voice">Голос</button></div><label class="provider-registry-search"><svg><use href="#i-search"/></svg><input id="providerRegistrySearch" type="search" placeholder="Найти модуль, приложение или возможность"></label><span id="providerRegistryStatus">Каталог загружается…</span></nav>
+      <div id="providerRegistryGrid" class="provider-registry-grid"></div>
+    </section>
+
+    <section id="osminogStoreDeveloperPage" class="osminog-store-developer glass" hidden aria-label="Правила OSMINOG Store">
+      <header class="osminog-store-head"><div><small>OSMINOG STORE · DEVELOPERS</small><strong>Публикация модулей, агентов и инструментов</strong><p>Это отдельная страница правил магазина, а не переключатель «режима разработчика».</p></div><button id="osminogStoreDeveloperClose" class="icon-btn" type="button"><svg><use href="#i-close"/></svg></button></header>
+      <div class="osminog-store-body">
+        <section><h2>Что можно публиковать</h2><div class="osminog-store-grid"><article><b>Модули</b><span>Окна, панели, виджеты, редакторы и визуальные инструменты.</span></article><article><b>Агенты</b><span>Проверяемые роли ИИ с понятными правами и областью работы.</span></article><article><b>Коннекторы</b><span>Интеграции с сервисами, локальными папками и корпоративными системами.</span></article><article><b>Шаблоны</b><span>Проекты, команды, автоматизации, промпты и наборы объектов.</span></article></div></section>
+        <section><h2>Обязательные правила</h2><ol><li><strong>Явные права.</strong> В manifest перечисляются все команды, хосты, файлы и данные.</li><li><strong>Локальность по умолчанию.</strong> Нельзя незаметно отправлять холст, файлы или переписку наружу.</li><li><strong>Никаких скрытых ключей.</strong> Токены хранятся локально или выдаются официальным OAuth‑потоком.</li><li><strong>Проверяемые действия.</strong> Изменения проекта выполняются через валидный patch, журналируются и откатываются.</li><li><strong>Изоляция.</strong> Модуль не может вмешиваться в чужой DOM, процессы или хранилище без заявленного разрешения.</li><li><strong>Версии и совместимость.</strong> Для обновления указываются версия, миграции, контрольная сумма и минимальная версия OSMINOG.</li></ol></section>
+        <section><h2>Путь публикации</h2><div class="osminog-store-flow"><span>1. Пакет</span><i>→</i><span>2. Автопроверка</span><i>→</i><span>3. Песочница</span><i>→</i><span>4. Ревью</span><i>→</i><span>5. OSMINOG Store</span></div><pre>{
+  "schema": "osminog.store/v1",
+  "name": "My module",
+  "version": "1.0.0",
+  "permissions": ["canvas.read", "canvas.patch"],
+  "entry": "module.js",
+  "privacy": "local-first"
+}</pre></section>
+      </div>
+    </section>
+
+    <section id="markdownStudio" class="markdown-studio glass" hidden aria-label="Markdown Studio">
+      <header class="markdown-head"><div><small>CODE · MARKDOWN</small><strong>Markdown Studio</strong></div><div><button id="markdownToCanvas" class="soft-btn" type="button">На холст</button><button id="markdownClose" class="icon-btn" type="button"><svg><use href="#i-close"/></svg></button></div></header>
+      <div class="markdown-toolbar"><input id="markdownName" value="README.md" aria-label="Имя документа"><button id="markdownNew" type="button">Новый</button><button id="markdownSave" type="button">Сохранить</button><button id="markdownCopy" type="button">Копировать</button><button id="markdownDownload" type="button">Скачать .md</button><span id="markdownState">Автосохранение</span></div>
+      <div class="markdown-split"><textarea id="markdownSource" spellcheck="false" placeholder="# Заголовок\n\nНачните писать Markdown…"></textarea><article id="markdownPreview" class="markdown-preview"></article></div>
+    </section>
+
+    <section id="browserHub" class="browser-hub osminog-ai-connections glass" hidden aria-label="Подключения ИИ OSMINOG">
+      <header class="browser-hub-head">
+        <div><small>OSMINOG · AI CONNECTIONS</small><strong>Подключения ИИ</strong><p>Один центр для всех агентов: подключённые сервисы, быстрый доступ и вход без скрытых вкладок.</p></div>
+        <button id="browserHubClose" class="icon-btn" type="button" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button>
+      </header>
+      <div class="browser-hub-current" id="browserHubCurrent"></div>
+      <section class="browser-hub-provider-section">
+        <div class="browser-hub-section-title"><div><strong>Подключённые</strong><small>Активные сессии можно открыть или переподключить</small></div><span id="browserHubConnectedCount">0</span></div>
+        <div id="browserHubConnected" class="browser-hub-provider-grid"></div>
+      </section>
+      <section class="browser-hub-provider-section">
+        <div class="browser-hub-section-title"><div><strong>Быстрый доступ</strong><small>Предустановленные ИИ и сервисы, добавленные через модули</small></div><button id="browserHubOpenCatalog" type="button" class="soft-btn">Каталог модулей</button></div>
+        <div id="browserHubQuick" class="browser-hub-provider-grid"></div>
+      </section>
+      <details class="browser-hub-custom">
+        <summary>Открыть другой сервис или адрес</summary>
+        <form id="browserHubForm" class="browser-hub-form"><input id="browserHubUrl" type="url" placeholder="https://example.com"><button type="submit" class="primary-btn">Открыть видимую вкладку</button></form>
+      </details>
+      <div class="browser-hub-actions"><button id="browserHubRefresh" type="button" class="soft-btn">Обновить список</button><span id="browserHubStatus">Проверяю подключения…</span></div>
+      <div id="browserHubTabs" class="browser-hub-tabs" hidden></div>
+    </section>
+
+    <dialog id="exitDialog" class="exit-dialog">
+      <div class="exit-dialog-card">
+        <div class="exit-dialog-logo"><svg><use href="#i-logo"/></svg></div>
+        <div><small>OSMINOG</small><h3 id="exitDialogTitle">Сохранить проект перед выходом?</h3><p id="exitDialogText">OSMINOG автоматически хранит проект локально. Можно ещё раз сохранить последнюю версию и спокойно выйти.</p></div>
+        <div class="exit-save-status"><span></span><div><strong id="exitSaveStatusTitle">Локальная копия активна</strong><small id="exitSaveStatusSub">Последние изменения будут записаны в Chrome storage.</small></div></div>
+        <div class="exit-dialog-actions"><button id="exitStay" type="button" class="soft-btn">Остаться</button><button id="exitSave" type="button" class="primary-btn"><svg><use href="#i-save"/></svg>Сохранить и выйти</button></div>
+      </div>
+    </dialog>
+    <div id="activityPanel" class="activity-panel glass" hidden><div class="panel-head"><div><small data-i18n="changeLog">CHANGE LOG</small><strong data-i18n="whatChanged">What changed</strong></div><button class="icon-btn" data-close="activityPanel"><svg><use href="#i-close"/></svg></button></div><div id="activityList"></div></div>
+    <div id="toast" class="toast" hidden></div>
+    <input id="fileInput" type="file" hidden multiple>
+    <input id="projectInput" type="file" hidden accept=".json,.briefcraft">
+  </main>
+  <script src="cloud-config.js"></script><script src="osminog-folder-updater.js"></script><script src="editor.js"></script><script src="osminog-icon-registry.js"></script><script src="osminog-app-dock.js"></script><script src="modules.js"></script><script src="bridge.js"></script><script src="osminog-module-runtime.js"></script><script src="osminog-native-module-runtime.js"></script><script src="osminog-extension-studio.js"></script><script src="osminog-builtin-modules.js"></script><script src="gpt-presence.js"></script><script src="osminog-command-registry.js"></script><script src="osminog-markdown.js"></script><script src="osminog-browser-hub.js"></script><script src="osminog-provider-registry.js"></script><script src="osminog-session-manager.js"></script><script src="osminog-unified-chat.js"></script><script src="osminog-team.js"></script><script src="osminog-window-manager.js"></script><script src="osminog-browser-app.js"></script><script src="osminog-access-center.js"></script><script src="osminog-chat-bridge.js"></script><script src="osminog-chat-ux-lite.js"></script><script src="osminog-windows-folders.js"></script><script src="osminog-ocean-shell.js"></script><script src="osminog-workspace-v2.js"></script><script src="vendor/fabric.min.js"></script><script src="osminog-graphics-studio.js"></script><script src="osminog-desktop-v3.js"></script>
+</body>
+</html>
