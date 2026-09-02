@@ -3,7 +3,8 @@
   if(globalThis.__osminogWindowManagerV3)return;
   globalThis.__osminogWindowManagerV3=true;
   const STORAGE_KEY="osminogWindowManagerV3",dirs=["n","e","s","w","ne","se","sw","nw"],windows=new Map();
-  let state={},saveTimer=0,z=12000,lastAction={x:innerWidth/2,y:innerHeight/2,at:0};
+  const CORE_WINDOWS=new Set(["ai-chat","graphics-app","text-app","browser-app","files","module-store","team","code-app"]);
+  let state={},saveTimer=0,z=30000,lastAction={x:innerWidth/2,y:innerHeight/2,at:0};
   const $=(s,r=document)=>typeof s==="string"?r.querySelector(s):s;
   const projectKey=()=>globalThis.project?.()?.id||"global";
   const key=name=>`${projectKey()}:${name}`;
@@ -13,12 +14,16 @@
   const visible=el=>!!el&&!el.hidden&&el.isConnected&&el.getBoundingClientRect().width>8;
   const escapeHtml=v=>String(v??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   function renderTray(){
-    const minimized=new Set([...windows.values()].filter(x=>x.minimized).map(x=>x.name));
-    globalThis.OSMINOGAppDock?.removeGroup?.("windows");
+    const records=[...windows.values()].filter(x=>x.minimized),minimized=new Set(records.map(x=>x.name));
+    const extra=records.filter(x=>!CORE_WINDOWS.has(x.name));
+    if(extra.length)globalThis.OSMINOGAppDock?.setGroup?.("windows",extra.map(record=>({
+      id:`window-${record.name}`,title:record.title||record.name,tone:"#7486ff",iconHtml:`<b>${escapeHtml(String(record.icon||"◈").slice(0,3))}</b>`,active:false,onOpen:()=>restore(record)
+    })));
+    else globalThis.OSMINOGAppDock?.removeGroup?.("windows");
     globalThis.OSMINOGDesktopV3?.syncWindowState?.(minimized);
   }
   function apply(record,g){const v=clamp(g,record.minW,record.minH);record.lastGeometry=v;Object.assign(record.el.style,{position:"fixed",left:`${v.left}px`,top:`${v.top}px`,right:"auto",bottom:"auto",maxWidth:"none",maxHeight:"none",margin:"0",transform:"none"});record.el.style.setProperty("width",`${v.width}px`,"important");record.el.style.setProperty("height",`${v.height}px`,"important");return v}
-  function front(target){const record=typeof target==="string"?windows.get(target):target;if(!record||!record.el)return null;record.el.style.zIndex=String(++z);record.el.dataset.osminogFront="1";for(const other of windows.values())if(other!==record)delete other.el.dataset.osminogFront;return record.el}
+  function front(target){const record=typeof target==="string"?windows.get(target):target;if(!record||!record.el)return null;record.el.style.setProperty("z-index",String(++z),"important");record.el.dataset.osminogFront="1";for(const other of windows.values())if(other!==record)delete other.el.dataset.osminogFront;return record.el}
   function nodePorts(record){let box=record.el.querySelector(":scope > .osminog-window-node-ports");if(box)return box;box=document.createElement("div");box.className="osminog-window-node-ports";box.innerHTML=dirs.map(d=>`<i class="${d}"></i>`).join("");record.el.append(box);return box}
   async function focusNode(record){if(record.nodeable===false)return;front(record);const objectId=record.objectId||record.el.dataset.objectId||"";if(objectId){const result=await globalThis.BriefCraftBridge?.executeTool?.("focus_object",{id:objectId});if(!result?.error)return}record.el.classList.toggle("osminog-node-focus");nodePorts(record)}
   function minimize(target){const record=typeof target==="string"?windows.get(target):target;if(!record)return;record.minimized=true;persist(record);record.el.hidden=true;renderTray();record.onMinimize?.()}

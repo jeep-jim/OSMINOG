@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.13.1",
-  "codename": "ART ICONS AND READER SCROLL",
-  "baseVersion": "3.13.0",
-  "artifact": "OSMINOG-Chrome-3.13.1-ART-ICONS-READER-SCROLL.zip",
+  "version": "3.13.2",
+  "codename": "WINDOWS AND GRAPHICS HOTFIX",
+  "baseVersion": "3.13.1",
+  "artifact": "OSMINOG-Chrome-3.13.2-WINDOWS-GRAPHICS-HOTFIX.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.13.1",
+  "manifestVersion": "3.13.2",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "pending",
   "binaryInGitHub": true,
-  "notes": "Stops incoming AI messages from forcing chat scroll while preserving last-message positioning when the chat opens or the thread changes. Replaces flat colored icon containers with eight independent multicolor SVG artworks, including the dimensional yellow Files folder requested by the owner.",
-  "fileCount": 78
+  "notes": "Unifies every managed window shelf, raises every newly opened window, restores minimized windows through the dock, removes the dock container, fixes instant chat opening without stream auto-follow, restores browser layout editing, and adds an offline Fabric.js graphics studio with tools, properties, layers and explicit apply.",
+  "fileCount": 82
 }

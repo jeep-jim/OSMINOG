@@ -1197,6 +1197,8 @@ globalThis.OSMINOGTaskOrbit={create:(props={})=>{const p=viewportCenter();return
 globalThis.OSMINOGEditorAPI={
   setTool,
   create:(type,props={})=>createObject(type,props),
+  openBrowserEditor:(url="")=>{const p=viewportCenter();let obj=objects().find(o=>o.type==="browser");if(!obj)obj=createObject("browser",{x:p.x-450,y:p.y-290,w:900,h:580,name:state.language==="ru"?"Редактор сайта":"Website editor"});if(url)obj.url=normalUrl(url)||url;obj.visible=true;state.selected=[obj.id];focusObject(obj);renderAll(true);setTimeout(()=>document.querySelector(`.canvas-object[data-id="${obj.id}"] .browser-design`)?.click(),80);return obj},
+  finishVector:()=>{if(!state.vectorDraw)return false;finishVectorDraw(false,false);return true},
   selected:()=>state.selected.slice(),
   select:id=>selectObject(id,false),
   beginConnection:(id,port="e")=>{const obj=objects().find(o=>o.id===id);if(!obj)return{error:"Object not found"};const ids=obj.group?objects().filter(o=>o.group===obj.group).map(o=>o.id):[id],box=bbox(objects().filter(o=>ids.includes(o.id))),point=portPoint(box,port);clearMagneticTarget();state.connect={from:id,fromSelection:ids.length>1?ids:null,port,x:point.x,y:point.y,snapTo:null,startedAt:performance.now()};renderConnections();return{ok:true,from:id,group:ids.length>1?ids:null}},
