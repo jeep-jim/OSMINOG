@@ -1,0 +1,122 @@
+name: Repair and build OSMINOG 3.14.4
+
+on:
+  push:
+    branches:
+      - repair/chat-experience-3.14.4
+    paths:
+      - '.github/workflows/repair-build-3144.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused chat execution repair
+        run: |
+          set -euxo pipefail
+          python3 tools/repair_chat_execution_3144.py
+
+      - name: Validate source and runtime contracts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json, hashlib
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m['version']=='3.14.4'
+          assert m.get('version_name')=='3.14.4'
+          assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          assert 'https://www.bing.com/*' in m['host_permissions']
+          PY
+          for f in background.js gpt-presence.js bridge.js editor.js osminog-desktop-v3.js osminog-module-runtime.js osminog-extension-studio.js osminog-session-manager.js; do node --check "$f"; done
+          git diff --check
+          grep -F 'web_image_search' bridge.js
+          grep -F 'BC_WEB_IMAGE_SEARCH' background.js
+          grep -F 'executeDirectWebAsset' gpt-presence.js
+          grep -F 'responseStartedAt' gpt-presence.js
+          grep -F 'fatalExecutionError' gpt-presence.js
+          grep -F 'readerMoved' gpt-presence.js
+          grep -F 'osminog:module-close' osminog-module-runtime.js
+          grep -F 'osminog:module-close' osminog-extension-studio.js
+          grep -F 'chrome.runtime.getManifest().version' osminog-desktop-v3.js
+          ! grep -F '$("#versionButton").textContent="v3.14.1"' osminog-desktop-v3.js
+          ! grep -F '>v3.14.1</button>' editor.html
+          grep -F 'html[data-ui-text-size]' editor.css
+
+      - name: Commit repaired source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json OSMINOG_BUILD.json editor.html editor.js editor.css osminog-desktop-v3.js osminog-module-runtime.js osminog-extension-studio.js bridge.js background.js gpt-presence.js RELEASE_NOTES_3.14.4.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md project-log-archive/2026-09-03-3144-chat-execution-recovery.md
+          git commit -m 'Repair chat execution lifecycle and UX for 3.14.4 [skip ci]'
+          git push origin HEAD:repair/chat-experience-3.14.4
+
+      - name: Build clean Chrome package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ARTIFACT='OSMINOG-Chrome-3.14.4-CHAT-EXECUTION-RECOVERY.zip'
+          rm -rf dist
+          mkdir -p dist/package
+          rsync -a ./ dist/package/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            --exclude='tools/' \
+            --exclude='docs/' \
+            --exclude='project-log-archive/' \
+            --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' \
+            --exclude='RELEASE_NOTES_*.md'
+          python3 - <<'PY'
+          import json, pathlib
+          m=json.load(open('dist/package/manifest.json',encoding='utf-8'))
+          assert m['version']=='3.14.4'
+          assert pathlib.Path('dist/package/editor.html').is_file()
+          assert pathlib.Path('dist/package/gpt-presence.js').is_file()
+          assert pathlib.Path('dist/package/osminog-module-runtime.js').is_file()
+          PY
+          (cd dist/package && zip -qr ../"$ARTIFACT" .)
+          unzip -t "dist/$ARTIFACT"
+          SHA=$(sha256sum "dist/$ARTIFACT" | awk '{print $1}')
+          ZIP_BYTES=$(stat -c%s "dist/$ARTIFACT")
+          FILES=$(find dist/package -type f | wc -l | tr -d ' ')
+          printf '%s  %s\n' "$SHA" "$ARTIFACT" > dist/SHA256.txt
+          {
+            echo 'OSMINOG 3.14.4 CHAT EXECUTION RECOVERY'
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "package=$ARTIFACT"
+            echo "sha256=$SHA"
+            echo "zip_bytes=$ZIP_BYTES"
+            echo "package_files=$FILES"
+            echo 'node_checks=passed'
+            echo 'manifest_version=3.14.4'
+            echo 'fixed_identity=passed'
+          } > dist/BUILD_REPORT.txt
+          cp RELEASE_NOTES_3.14.4.md dist/
+          cat dist/BUILD_REPORT.txt
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.14.4-CHAT-EXECUTION-RECOVERY
+          path: |
+            dist/OSMINOG-Chrome-3.14.4-CHAT-EXECUTION-RECOVERY.zip
+            dist/SHA256.txt
+            dist/BUILD_REPORT.txt
+            dist/RELEASE_NOTES_3.14.4.md
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
