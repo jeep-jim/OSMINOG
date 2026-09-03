@@ -1,4 +1,5 @@
 name: Build OSMINOG 3.17.0 exact chunks
+# retry after repaired transport chunks
 
 on:
   push:
