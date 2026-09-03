@@ -1,0 +1,101 @@
+name: Build OSMINOG 3.15.1 owner access recovery
+
+on:
+  push:
+    branches:
+      - repair/owner-access-3.15.1
+    paths:
+      - '.github/workflows/build-3151.yml'
+      - 'tools/repair_owner_access_3151.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply owner access recovery
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 tools/repair_owner_access_3151.py
+
+      - name: Validate source contracts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json,hashlib
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m['version']=='3.15.1'
+          assert m.get('version_name')=='3.15.1'
+          assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          PY
+          for f in background.js bridge.js osminog-access-center.js osminog-browser-app.js gpt-presence.js; do node --check "$f"; done
+          git diff --check
+          grep -F 'osminogOwnerGrantV1' bridge.js
+          grep -F 'github_pat_' osminog-access-center.js
+          grep -F 'Poseidon · требуется Owner' osminog-access-center.js
+          grep -F 'github\\.com|raw\\.githubusercontent\\.com' osminog-browser-app.js
+          grep -F 'Открыто в защищённой вкладке Chrome' osminog-browser-app.js
+          grep -F 'if(active&&tab?.id)' background.js
+
+      - name: Commit recovered source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json OSMINOG_BUILD.json bridge.js osminog-access-center.js osminog-browser-app.js background.js RELEASE_NOTES_3.15.1.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md
+          git commit -m 'Recover owner access and protected-site routing in 3.15.1 [skip ci]'
+          git push origin HEAD:repair/owner-access-3.15.1
+
+      - name: Build verified Chrome package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ARTIFACT='OSMINOG-Chrome-3.15.1-OWNER-ACCESS-RECOVERY.zip'
+          rm -rf dist
+          mkdir -p dist/package
+          rsync -a ./ dist/package/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            --exclude='tools/' \
+            --exclude='docs/' \
+            --exclude='project-log-archive/' \
+            --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' \
+            --exclude='RELEASE_NOTES_*.md'
+          (cd dist/package && zip -qr "../$ARTIFACT" .)
+          unzip -t "dist/$ARTIFACT"
+          python3 - <<'PY'
+          import json,zipfile,hashlib
+          p='dist/OSMINOG-Chrome-3.15.1-OWNER-ACCESS-RECOVERY.zip'
+          with zipfile.ZipFile(p) as z:
+              m=json.loads(z.read('manifest.json'))
+              assert m['version']=='3.15.1' and m['version_name']=='3.15.1'
+              assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+              for f in ['bridge.js','osminog-access-center.js','osminog-browser-app.js','background.js']:
+                  assert f in z.namelist()
+          PY
+          cp RELEASE_NOTES_3.15.1.md dist/
+          sha256sum "dist/$ARTIFACT"
+          stat -c '%s' "dist/$ARTIFACT"
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.15.1-OWNER-ACCESS-RECOVERY
+          path: |
+            dist/OSMINOG-Chrome-3.15.1-OWNER-ACCESS-RECOVERY.zip
+            dist/RELEASE_NOTES_3.15.1.md
+          retention-days: 14
