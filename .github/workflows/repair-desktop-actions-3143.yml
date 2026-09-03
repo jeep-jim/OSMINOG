@@ -1,0 +1,114 @@
+name: Repair and build OSMINOG 3.14.3
+
+on:
+  push:
+    branches:
+      - repair/desktop-widgets-assets-source-3.14.3
+
+permissions:
+  contents: write
+
+jobs:
+  repair-build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused 3.14.3 repair
+        run: python3 tools/repair_desktop_actions_3143.py
+
+      - name: Validate runtime source and contracts
+        run: |
+          set -euxo pipefail
+          node --check background.js
+          node --check gpt-presence.js
+          node --check osminog-module-runtime.js
+          node --check osminog-extension-studio.js
+          node --check osminog-session-manager.js
+          node --check bridge.js
+          node --check chatgpt-lite-bridge.js
+          python3 - <<'PY'
+          import json
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m['version']=='3.14.3', m['version']
+          assert m['version_name']=='3.14.3', m.get('version_name')
+          b=json.load(open('OSMINOG_BUILD.json',encoding='utf-8'))
+          assert b['version']=='3.14.3'
+          assert b['baseVersion']=='3.14.2'
+          PY
+          grep -F 'function isWebAssetAction' gpt-presence.js
+          grep -F 'if(isWebAssetAction(v))return"canvas"' gpt-presence.js
+          grep -F 'asset_create returns ok:true with a real object.id' gpt-presence.js
+          grep -F 'OSMINOG Product Source Executor is active.' background.js
+          grep -F 'width:fit-content!important' osminog-module-runtime.js
+          grep -F '.osminog-extension-window.is-compact-widget{display:block!important' osminog-desktop-v3.css
+          git diff --check
+
+      - name: Commit repaired source
+        id: commit
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add background.js gpt-presence.js osminog-module-runtime.js osminog-extension-studio.js osminog-desktop-v3.css osminog-session-manager.js manifest.json OSMINOG_BUILD.json RELEASE_NOTES_3.14.3.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md project-log-archive/2026-09-03-3143-desktop-action-recovery.md
+          git commit -m 'Repair desktop widgets assets and product source execution [skip ci]'
+          git push origin HEAD:repair/desktop-widgets-assets-source-3.14.3
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build clean Chrome 3.14.3 package
+        run: |
+          set -euxo pipefail
+          ARTIFACT='OSMINOG-Chrome-3.14.3-DESKTOP-ACTION-RECOVERY.zip'
+          rm -rf dist
+          mkdir -p dist/package
+          rsync -a ./ dist/package/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            --exclude='tools/' \
+            --exclude='docs/' \
+            --exclude='project-log-archive/' \
+            --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' \
+            --exclude='RELEASE_NOTES_*.md'
+          test -f dist/package/manifest.json
+          test -f dist/package/editor.html
+          test -f dist/package/background.js
+          test -f dist/package/gpt-presence.js
+          test -f dist/package/osminog-module-runtime.js
+          test -f dist/package/osminog-extension-studio.js
+          FILES=$(find dist/package -type f | wc -l | tr -d ' ')
+          (cd dist/package && zip -qr ../"$ARTIFACT" .)
+          unzip -t "dist/$ARTIFACT"
+          SHA=$(sha256sum "dist/$ARTIFACT" | awk '{print $1}')
+          ZIP_BYTES=$(stat -c%s "dist/$ARTIFACT")
+          printf '%s  %s\n' "$SHA" "$ARTIFACT" > dist/SHA256.txt
+          {
+            echo 'OSMINOG 3.14.3 DESKTOP ACTION RECOVERY'
+            echo "source_commit=${{ steps.commit.outputs.sha }}"
+            echo "package=$ARTIFACT"
+            echo "sha256=$SHA"
+            echo "zip_bytes=$ZIP_BYTES"
+            echo "package_files=$FILES"
+            echo 'node_checks=passed'
+            echo 'manifest_version=3.14.3'
+          } > dist/BUILD_REPORT.txt
+          cp RELEASE_NOTES_3.14.3.md dist/
+          cat dist/BUILD_REPORT.txt
+
+      - name: Upload 3.14.3 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.14.3-DESKTOP-ACTION-RECOVERY
+          path: |
+            dist/OSMINOG-Chrome-3.14.3-DESKTOP-ACTION-RECOVERY.zip
+            dist/SHA256.txt
+            dist/BUILD_REPORT.txt
+            dist/RELEASE_NOTES_3.14.3.md
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
