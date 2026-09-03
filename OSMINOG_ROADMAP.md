@@ -722,3 +722,13 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 4. «Подключить в фоне» реально создаёт/переиспользует service session. Access Center не подменяет действие подключения.
 5. GitHub/исходники, web_search/web_fetch/asset_create, workspace, modules и project revisions доступны Owner Max чату по одному контракту.
 6. Никаких удалений текущей 3.14.x архитектуры: ремонт идёт поверх, с сохранённой историей и проверяемой веткой.
+
+
+## 3.14.3 — Desktop action recovery (2026-09-03)
+
+- [x] Remove normal app-shell/header from compact sandbox widgets.
+- [x] Force compact utility document background/size to transparent intrinsic content.
+- [x] Route explicit web image/file → desktop/canvas requests into `web_search`/`web_fetch` → `asset_create`.
+- [x] Require a real asset object id before such tasks are considered complete.
+- [x] Harden OSMINOG product/UI edit routing to canonical GitHub source; canvas mockups do not count as source edits.
+- [ ] Owner smoke test after update: stopwatch without white shell; red-octopus photo appears as a real image object; one harmless UI source tweak completes through GitHub.

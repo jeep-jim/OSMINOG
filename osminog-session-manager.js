@@ -92,7 +92,7 @@
   let tries=0;const timer=setInterval(()=>{tries++;if(installAgentSettings()||tries>40)clearInterval(timer)},120);
   chrome.runtime.onMessage.addListener(message=>{if(message?.type!=="OSMINOG_SESSION_DISCONNECTED")return;showReconnect(message.provider,message.reason);emit(message.provider,{connected:false,reason:message.reason});refreshCenter(message.provider)});
   document.addEventListener("osminog:session-changed",e=>refreshCenter(e.detail?.provider||activeProvider()));
-  globalThis.OSMINOGSessionManager={version:"3.14.2-dev",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
+  globalThis.OSMINOGSessionManager={version:"3.14.3-dev",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
   globalThis.OSMINOGOpenProviderSettings=openSettings;
   document.dispatchEvent(new CustomEvent("osminog:session-manager-ready"));
 })();

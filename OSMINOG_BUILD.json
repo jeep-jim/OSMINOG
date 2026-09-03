@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.14.2",
-  "codename": "CHAT OWNER RUNTIME",
-  "baseVersion": "3.14.1",
-  "artifact": "OSMINOG-Chrome-3.14.2-CHAT-OWNER-RUNTIME.zip",
+  "version": "3.14.3",
+  "codename": "DESKTOP ACTION RECOVERY",
+  "baseVersion": "3.14.2",
+  "artifact": "OSMINOG-Chrome-3.14.3-DESKTOP-ACTION-RECOVERY.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.14.2",
+  "manifestVersion": "3.14.3",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "repaired",
-  "binaryInGitHub": true,
-  "notes": "Repairs ChatGPT Owner Max execution, real module creation for utility apps, visible progress, direct background provider connection actions, and restores persistent project context while preserving the 3.14 desktop UI.",
+  "binaryInGitHub": false,
+  "notes": "Removes the shell around compact desktop widgets, routes internet image/file placement through web_search/web_fetch to asset_create, and hardens direct source editing for the OSMINOG product UI.",
   "fileCount": 90
 }

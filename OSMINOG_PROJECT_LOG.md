@@ -1995,3 +1995,10 @@ Artifact: `OSMINOG-Chrome-3.11.32-SPACE-FX-FREEZE-HOTFIX-ROOT.zip` — 350604 by
 - Session Manager больше не заменяет рабочие обработчики «Подключить в фоне» обработчиком открытия Access Center. Центр остаётся отдельным интерфейсом, а подключение снова выполняет реальный `connect()`.
 - Восстановлены `OSMINOG_PROJECT_LOG.md`, `OSMINOG_ROADMAP.md`, `project-log-archive/` и `docs/OSMINOG_UPDATE_ARCHITECTURE.md` поверх текущего кода без отката 3.14.x.
 - До публичного релиза обязательна проверка: ChatGPT direct + attached fallback; создание секундомера как module/launcher; создание произвольного sandbox app; web_search → asset_create; source/GitHub edit; DeepSeek/Claude/Gemini/Google AI background sessions; восстановление сессии после закрытия/перезапуска.
+
+
+## 2026-09-03 — 3.14.3 DESKTOP ACTION RECOVERY
+
+Owner test of 3.14.2 confirmed that real module creation returned, but exposed three follow-up regressions: compact stopwatch UI was still wrapped by a desktop application shell; an explicit request to find a web photo and place it on the desktop stopped at prose instead of `asset_create`; and the product-source path needed a stronger fail-closed contract so OSMINOG interface edits go to the canonical GitHub source rather than canvas mockups.
+
+3.14.3 repairs those paths additively over 3.14.2. Compact sandbox widgets are transparent/content-sized and the desktop CSS no longer forces the normal 46px extension header on them. Internet image/file placement is promoted to an execution task and only completes after a real `asset_create` object id. Direct source mode now explicitly requires inspection and mutation of `jeep-jim/OSMINOG` and forbids canvas substitution for product UI changes.

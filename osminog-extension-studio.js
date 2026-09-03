@@ -5,7 +5,7 @@
   const uid=()=>`ext-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
   const notify=()=>document.dispatchEvent(new CustomEvent("osminog:extension-registry-changed",{detail:{items:list()}}));
   const save=async()=>{await chrome.storage.local.set({[KEY]:registry});notify()};
-  const compactUtility=input=>/(clock|часы|timer|таймер|calculator|калькулятор|weather|погода|calendar|календар|counter|сч[её]тчик)/i.test(`${input.title||""} ${String(input.html||"").slice(0,5000)}`);
+  const compactUtility=input=>/(clock|часы|timer|таймер|stopwatch|секундомер|alarm|будильник|calculator|калькулятор|weather|погода|calendar|календар|counter|сч[её]тчик|recorder|диктофон)/i.test(`${input.title||""} ${String(input.html||"").slice(0,5000)}`);
   function normalize(input={}){
     const manifest=input.manifest||{},title=String(manifest.name||input.name||"OSMINOG Extension").trim().slice(0,64)||"OSMINOG Extension",id=String(manifest.id||input.id||uid()).toLowerCase().replace(/[^a-z0-9._-]/g,"-"),type=["widget","app","tool","connector"].includes(manifest.type)?manifest.type:"widget",probe={title,html:input.html};
     const runtime=String(manifest.runtime||input.runtime||(input.native?"native":"sandbox"))==="native"?"native":"sandbox",native=input.native&&typeof input.native==="object"?structuredClone(input.native):null;

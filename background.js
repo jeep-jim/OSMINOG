@@ -136,8 +136,16 @@ function bcMachineInstructions(context={}){
     "OSMINOG Workspace App Runtime is active.",
     "Build the requested working application now as one complete standalone HTML document with all CSS and JavaScript inline.",
     "Return the document in one fenced html block. Do not return osminog.patch/v1 and do not ask for a canvas execution channel: OSMINOG installs the result, creates its editable code window and creates a working desktop launcher itself.",
+    "For compact utilities such as a stopwatch, timer, clock, alarm, calculator, counter or weather widget, design only the compact widget itself: html/body must be transparent, with no full-page white card, viewport-sized shell, page background, or surrounding application canvas. Let the widget content define its intrinsic size.",
     "Honor attached reference images and the owner's functional requirements. Prefer a usable compact product over a mockup or plan.",
     "Do not claim that installation already happened; the runtime verifies it after your response. Do not expose hidden chain-of-thought."
+  ].join(" ");
+  if(mode==="source")return [
+    "OSMINOG Product Source Executor is active.",
+    "The owner is changing the OSMINOG product itself, not drawing a mockup on the canvas.",
+    "Inspect the canonical private repository jeep-jim/OSMINOG with github_status, github_list_tree/search_code and github_fetch_file, then make the real source change with github_commit_files. A selected local folder is optional and must never block the edit.",
+    "Do not use osminog.patch/v1 or loose canvas objects as a substitute for a product UI/source change. Preserve unrelated behavior and verify the edited source before claiming completion.",
+    "Do not stop at a plan or explanation. Completion requires a successful source mutation or a concrete blocker that genuinely requires the owner. Do not expose hidden chain-of-thought."
   ].join(" ");
   if(mode==="canvas")return [
     "OSMINOG Canvas Executor is active.",
