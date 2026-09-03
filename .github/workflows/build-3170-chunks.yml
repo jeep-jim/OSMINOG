@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reconstruct and apply exact 3.17.0 patch
+      - name: Reconstruct and apply verified 3.17.0 patch
         shell: bash
         run: |
           set -euxo pipefail
@@ -35,33 +35,33 @@ jobs:
           cat > RELEASE_NOTES_3.17.0.md <<'MD'
           # OSMINOG Chrome 3.17.0 — GENERATIVE APP RUNTIME
 
-          - Hard-coded stopwatch/calendar/player widget templates are removed. Every app/widget is generated from the user's current request.
-          - OSMINOG owns install/update/rollback/testing while the connected AI owns the requested interface and behavior.
-          - Clicking a generated application focuses it for chat follow-ups; «доработай», «почини», «добавь» updates that same application via `module_update`.
+          - Removed hard-coded stopwatch/calendar/player HTML presets. Every app and widget is generated from the user's current request.
+          - OSMINOG owns install, update, rollback and verification; the connected AI owns the requested interface and behavior.
+          - Clicking a generated app focuses it for follow-up work. Requests like «доработай», «почини», «добавь» update the same app with `module_update`.
           - Failed updates roll back to the previous working version.
-          - Sandbox apps can access selected canvas assets, create assets, capture screen/viewport/selection/object, use storage, open browser tabs and use permission-controlled network fetch.
-          - Visible controls are audited for interaction handlers. Dead buttons fail validation instead of being reported as complete.
-          - Compact widgets auto-size to natural content. Manual resize scales the app proportionally instead of clipping it inside an outer shell.
-          - Binary/base64 network responses support browser-compatible JS/WASM libraries and emulator cores when a compatible core exists.
-          - App execution replies stay concise; intermediate provider prose remains in the progress surface instead of flooding chat.
+          - Sandbox apps can read selected canvas assets, create assets, capture screen/viewport/selection/object, use storage, open browser tabs and perform permission-controlled network fetches.
+          - Visible controls are audited for handlers; dead controls fail validation instead of being reported as complete.
+          - Compact widgets auto-size to their natural content. Manual resizing scales them proportionally instead of clipping an iframe/container.
+          - Binary/base64 fetch is supported for browser-compatible JS/WASM libraries and emulator cores when a compatible core exists.
+          - Execution replies are concise; intermediate work stays in the progress surface instead of flooding the chat.
 
-          Emulator support is a runtime capability, not a claim that every ROM/APK can execute. Actual emulation requires a compatible browser JS/WASM core for the file format.
+          Emulator support is a runtime capability. Running a ROM or APK still requires a compatible browser JS/WASM core for that format.
           MD
           cat >> OSMINOG_PROJECT_LOG.md <<'MD'
 
           ## 2026-09-03 — 3.17.0 GENERATIVE APP RUNTIME
-          Удалены встроенные шаблоны секундомера/календаря/плеера. Любое приложение теперь генерируется ИИ по текущему запросу; OSMINOG отвечает за установку, интерактивный тест, transactional update/rollback, фокус приложения для последующей доработки, доступ к файлам/скриншотам, масштабирование и binary JS/WASM fetch.
+          Удалены встроенные HTML-заготовки секундомера, календаря и плеера. Все приложения теперь генерируются ИИ под текущую задачу; OSMINOG отвечает за установку, проверку интерактивности, transactional update/rollback, фокус приложения для последующей доработки, доступ к файлам/скриншотам, пропорциональное масштабирование и binary JS/WASM fetch.
           MD
           cat >> OSMINOG_ROADMAP.md <<'MD'
 
           ### 3.17.0 — GENERATIVE APP RUNTIME
-          - [x] Удалить предустановленные HTML-виджеты и preset routing.
-          - [x] Генерировать приложения по текущему запросу пользователя.
-          - [x] Фокусировать приложение кликом и дорабатывать его через module_update.
+          - [x] Удалить preset routing и предустановленные HTML-виджеты.
+          - [x] Генерировать любое приложение по текущему запросу пользователя.
+          - [x] Фокусировать приложение кликом и дорабатывать через module_update.
           - [x] Rollback при неудачном обновлении.
-          - [x] Проверять обработчики видимых кнопок до ответа «готово».
-          - [x] Natural autosize + пропорциональный widget scaling без clipping/scroll shell.
-          - [x] Selected assets, capture API и binary network fetch для видео/файлов/JS/WASM cores.
+          - [x] Проверять обработчики видимых элементов до ответа «готово».
+          - [x] Natural autosize + пропорциональный resize без clipping внешним контейнером.
+          - [x] Selected assets, capture API и binary fetch для видео, файлов и JS/WASM runtime cores.
           MD
 
       - name: Validate generative app contracts
@@ -75,20 +75,20 @@ jobs:
           assert m['version']=='3.17.0' and m.get('version_name')=='3.17.0'
           assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
           gpt=(root/'gpt-presence.js').read_text(encoding='utf-8')
-          for bad in ['function directAppKind','function directAppSpec','executeDirectApp(']: assert bad not in gpt, bad
-          assert 'OSMINOG GENERATIVE APP RUNTIME v3' in gpt
-          assert 'ctx.appTarget' in gpt
-          assert 'module_update' in gpt and 'module_create' in gpt
+          for bad in ['function directAppKind','function directAppSpec','executeDirectApp(']:
+              assert bad not in gpt, bad
+          for token in ['OSMINOG GENERATIVE APP RUNTIME v3','ctx.appTarget','module_update','module_create']:
+              assert token in gpt, token
           studio=(root/'osminog-extension-studio.js').read_text(encoding='utf-8')
           assert 'compactUtility' not in studio
           assert 'osminog:extension-focused' in studio
           runtime=(root/'osminog-module-runtime.js').read_text(encoding='utf-8')
           for token in ['osminog.module-interactive/v1','osminog.module-viewport/v1','assets.selected','capture.screen']:
               assert token in runtime, token
-          bg=(root/'background.js').read_text(encoding='utf-8')
-          assert 'responseType' in bg and 'base64' in bg and 'arrayBuffer' in bg
           bridge=(root/'bridge.js').read_text(encoding='utf-8')
           assert 'rolledBack:true' in bridge
+          bg=(root/'background.js').read_text(encoding='utf-8')
+          assert 'responseType' in bg and 'base64' in bg and 'arrayBuffer' in bg
           wm=(root/'osminog-window-manager.js').read_text(encoding='utf-8')
           assert 'lockAspect' in wm and 'aspectRatio' in wm
           print('3.17 generative app contracts OK')
@@ -102,8 +102,8 @@ jobs:
           set -euxo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm -r tools/3170
-          git rm -f .github/workflows/build-3170.yml .github/workflows/build-3170-xz.yml .github/workflows/build-3170-chunks.yml
+          rm -rf tools/3170
+          rm -f .github/workflows/build-3170.yml .github/workflows/build-3170-xz.yml .github/workflows/build-3170-chunks.yml .github/workflows/retry-3170.yml
           git add -A
           git commit -m 'Replace preset widgets with generative app runtime in 3.17.0 [skip ci]'
           git push origin HEAD:repair/generative-app-runtime-3.17.0
