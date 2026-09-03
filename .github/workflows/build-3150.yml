@@ -28,6 +28,13 @@ jobs:
           set -euxo pipefail
           python3 tools/fix_upgrade_3150.py
           python3 tools/upgrade_interactive_runtime_3150.py
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ['background.js','bridge.js','gpt-presence.js','editor.js','editor.css','osminog-access-center.js','osminog-module-runtime.js','osminog-graphics-studio.js']:
+              p=Path(name)
+              text=p.read_text(encoding='utf-8')
+              p.write_text('\n'.join(line.rstrip() for line in text.splitlines())+'\n',encoding='utf-8')
+          PY
 
       - name: Validate source contracts
         shell: bash
