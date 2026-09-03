@@ -1,0 +1,146 @@
+name: Build OSMINOG 3.16.0 simple access runtime
+
+on:
+  push:
+    branches:
+      - repair/simple-access-runtime-3.16.0
+    paths:
+      - '.github/workflows/build-3160.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct and apply 3.16.0 source patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat tools/3160/part.* | base64 -d | gunzip > /tmp/os3160.patch
+          test "$(sha256sum /tmp/os3160.patch | awk '{print $1}')" = 'b160560ac07da9bfc0e490b91d33e12d464fceac79b985a4204c745f6bccac94'
+          git apply -p1 --check /tmp/os3160.patch
+          git apply -p1 /tmp/os3160.patch
+          cat > RELEASE_NOTES_3.16.0.md <<'MD'
+          # OSMINOG Chrome 3.16.0 — SIMPLE ACCESS RUNTIME
+
+          This release removes the permission-console architecture and makes the workspace capability model simple.
+
+          - Canvas, assets, graphics, browser, files, apps, modules, commands and normal project edits are always available to the connected AI. There is no Poseidon toggle and no separate AI edit-access selector.
+          - The top-level **Access** window contains only project sharing: who can open the canvas, the link role (view/comment/edit), the share link and link rotation.
+          - The AI connector is automatic. A normal prompt does **not** preload canvas objects, selection, viewport or project map. Canvas context is attached only after an explicit canvas/project/desktop/selection request, a tethered object, or an explicit attachment.
+          - The same lazy-context rule is applied to the built-in Google AI chat.
+          - External ChatGPT Presence receives a minimal connector/capability envelope and requests canvas data through tools only when the user asks for it.
+          - Product self-modification is no longer a normal setting. Requests to read/write/publish private OSMINOG product source trigger a just-in-time **Owner Unlock**.
+          - First Owner Unlock verifies the locally stored GitHub credential against both `jeep-jim/OSMINOG` and `jeep-jim/OSMINOG-Releases`, then enrolls a Google Authenticator-compatible TOTP secret. Future source mutations require only the six-digit code; the unlock lives in memory for 15 minutes.
+          - GitHub credentials and TOTP codes are never inserted into AI chat messages.
+          - The normal Modules surface no longer exposes GitHub/Owner setup; that credential is requested only by the owner gate when product-source work is actually requested.
+
+          Security boundary: Google Authenticator integration is TOTP-based. A true push approval flow would require an external identity/backend service and is not claimed by this release.
+          MD
+          cat >> OSMINOG_PROJECT_LOG.md <<'MD'
+
+          ## 2026-09-03 — 3.16.0 SIMPLE ACCESS RUNTIME
+          Удалена permission-console архитектура: рабочие возможности ИИ доступны постоянно, окно «Доступ» оставлено только для ссылки/ролей холста, контекст холста стал intent-driven без preload, а изменение исходников самого OSMINOG переведено на just-in-time Owner Unlock с Google Authenticator-compatible TOTP.
+          MD
+          cat >> OSMINOG_ROADMAP.md <<'MD'
+
+          ### 3.16.0 — SIMPLE ACCESS RUNTIME
+          - [x] Убрать Poseidon/AI-access переключатели из пользовательского UX.
+          - [x] Оставить в «Доступе» только ссылку на холст и view/comment/edit.
+          - [x] Сделать рабочие canvas/app/file/graphics/browser capabilities постоянными.
+          - [x] Не передавать canvas/project context до явного запроса пользователя или tether/attachment.
+          - [x] Защитить только самоизменение продукта через just-in-time Owner Unlock (GitHub credential + TOTP, 15 минут).
+          MD
+
+      - name: Validate simple access contracts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json, hashlib, pathlib
+          root=pathlib.Path('.')
+          m=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+          assert m['version']=='3.16.0' and m.get('version_name')=='3.16.0'
+          assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          html=(root/'editor.html').read_text(encoding='utf-8')
+          assert 'id="liveAiAccess"' not in html
+          assert 'data-module="github"' not in html
+          assert 'osminog-owner-guard.js' in html and html.index('osminog-owner-guard.js') < html.index('bridge.js')
+          access=(root/'osminog-access-center.js').read_text(encoding='utf-8')
+          assert 'Права и Poseidon' not in access and 'OWNER · POSEIDON' not in access
+          assert 'Что можно делать' in access and 'Копировать ссылку' in access
+          gpt=(root/'gpt-presence.js').read_text(encoding='utf-8')
+          assert 'canvasIncluded:canvasIntent' in gpt and 'preload:false' in gpt
+          assert 'OSMINOGOwnerGuard' in gpt
+          modules=(root/'modules.js').read_text(encoding='utf-8')
+          assert 'googleCanvasIntent' in modules
+          bridge=(root/'bridge.js').read_text(encoding='utf-8')
+          assert 'canvasContextIncluded:false' in bridge and 'PRIVILEGED_PRODUCT_TOOLS' in bridge
+          guard=(root/'osminog-owner-guard.js').read_text(encoding='utf-8')
+          assert 'Google Authenticator' in guard and '15*60*1000' in guard and 'BC_MODULE_TEST' in guard
+          print('simple access contracts OK')
+          PY
+          for f in background.js bridge.js modules.js osminog-owner-guard.js osminog-access-center.js gpt-presence.js osminog-module-runtime.js osminog-browser-app.js; do node --check "$f"; done
+          git diff --check
+
+      - name: Commit synchronized 3.16.0 source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r tools/3160 .github/workflows/build-3160.yml
+          git add -A
+          git commit -m 'Simplify OSMINOG access and add intent context in 3.16.0 [skip ci]'
+          git push origin HEAD:repair/simple-access-runtime-3.16.0
+
+      - name: Build verified Chrome package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ARTIFACT='OSMINOG-Chrome-3.16.0-SIMPLE-ACCESS-RUNTIME.zip'
+          rm -rf dist
+          mkdir -p dist/package
+          rsync -a ./ dist/package/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            --exclude='tools/' \
+            --exclude='docs/' \
+            --exclude='project-log-archive/' \
+            --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' \
+            --exclude='RELEASE_NOTES_*.md'
+          (cd dist/package && zip -qr "../$ARTIFACT" .)
+          unzip -t "dist/$ARTIFACT"
+          python3 - <<'PY'
+          import json,zipfile,hashlib
+          p='dist/OSMINOG-Chrome-3.16.0-SIMPLE-ACCESS-RUNTIME.zip'
+          with zipfile.ZipFile(p) as z:
+              m=json.loads(z.read('manifest.json'))
+              assert m['version']=='3.16.0' and m['version_name']=='3.16.0'
+              assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+              for f in ['bridge.js','gpt-presence.js','modules.js','osminog-access-center.js','osminog-owner-guard.js']:
+                  assert f in z.namelist()
+          PY
+          cp RELEASE_NOTES_3.16.0.md dist/
+          sha256sum "dist/$ARTIFACT"
+          stat -c '%s' "dist/$ARTIFACT"
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.16.0-SIMPLE-ACCESS-RUNTIME
+          path: |
+            dist/OSMINOG-Chrome-3.16.0-SIMPLE-ACCESS-RUNTIME.zip
+            dist/RELEASE_NOTES_3.16.0.md
+          retention-days: 14
