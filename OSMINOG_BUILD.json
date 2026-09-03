@@ -1,8 +1,8 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.14.5",
-  "codename": "LEGACY CHAT POLISH",
+  "version": "3.15.0",
+  "codename": "INTERACTIVE CAPABILITY RUNTIME",
   "baseVersion": "3.14.4",
   "artifact": "OSMINOG-Chrome-3.14.5-LEGACY-CHAT-POLISH.zip",
   "manifestAtRoot": true,
@@ -12,5 +12,6 @@
   "ownerRuntime": "repaired",
   "binaryInGitHub": false,
   "notes": "Finishes the legacy chat recovery by migrating old OSMINOG telemetry out of saved conversations and preserving the single-provider elapsed progress strip and reader-aware scrolling.",
-  "fileCount": 90
+  "fileCount": 90,
+  "status": "candidate"
 }

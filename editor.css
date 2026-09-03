@@ -2503,3 +2503,6 @@ html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-p
 html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small{font-size:var(--osminog-ui-caption)!important}
 html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-head,.bridge-head,.team-head) strong{font-size:var(--osminog-ui-title)!important}
 .local-ai-activity.task-progress-active>small{font-variant-numeric:tabular-nums;letter-spacing:.01em}.local-ai-activity.task-progress-active{min-height:32px!important}
+
+/* OSMINOG 3.15.0 · Interactive Capability Runtime */
+.bc-workbench-media{min-height:100%;display:grid;place-items:center;align-content:center;gap:18px;padding:32px}.bc-workbench-media audio{width:min(720px,90%)}.bc-workbench-media video{max-width:min(900px,92%);max-height:68vh;border-radius:18px;background:#000}.bc-file-lab code{display:block;margin-top:10px;padding:8px 10px;border-radius:9px;background:var(--surface);border:1px solid var(--line);font-size:10px;user-select:all}

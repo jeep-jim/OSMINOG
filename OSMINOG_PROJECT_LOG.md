@@ -2012,3 +2012,7 @@ Live owner testing of 3.14.3 confirmed four regressions: a compact stopwatch cou
 ## 2026-09-03 — 3.14.5 LEGACY CHAT POLISH
 
 Owner supplied the 3.11.34-era chat as the visual/behavior reference. Historical project records confirm the intended chat contract: progress belongs in `#gptPresenceActivity`, uses provider colour, live elapsed timing and an inline moving fill, while the conversation itself remains the provider/user transcript. 3.14.5 completes the migration by deleting previously persisted OSMINOG progress/runtime telemetry cards from loaded chat histories and keeping new execution stages solely in the status strip. The strip now reads as the selected provider + stage + live seconds + continuing state, while reader-aware bottom following remains intact.
+
+
+## 2026-09-03 — 3.15.0 Interactive Capability Runtime
+Owner live-test showed a key architectural issue: one widget could be created successfully, then the same provider would claim on the next command that `module_create` was unavailable. 3.15.0 moves common application mutations into the host, renews the tool lease on every prompt, exposes native editable graphics creation, adds file bytes to sandbox apps, enables selected-canvas audio playback, and locks Poseidon to verified private-repository write access.

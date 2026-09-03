@@ -746,3 +746,14 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - Treat the 3.11.34-era provider chat as the interaction baseline: one visible provider speaker, execution telemetry only in the inline progress strip, live elapsed seconds, stable scroll behavior.
 - Migrate old saved OSMINOG progress/runtime cards out of conversation history on first load after update.
 - Preserve all 3.14.4 execution fixes while polishing only chat continuity.
+
+
+## 3.15.0 — Interactive Capability Runtime
+- [x] Host-owned deterministic widget creation for repeated commands.
+- [x] Fresh capability lease per provider prompt.
+- [x] Structured native graphics creation with editable layers/masks/gradients/vectors.
+- [x] Sandbox `assets.read` for file-aware apps and selected-canvas audio player.
+- [x] File Lab states for binary spreadsheets, ROMs and APKs.
+- [x] Poseidon UI gated by verified write access to private owner repository.
+- [ ] Add dedicated emulator cores/adapters per platform instead of claiming arbitrary binary execution.
+- [ ] Add a real XLSX parser/editor adapter and office document adapters.
