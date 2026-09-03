@@ -1,0 +1,75 @@
+name: Build OSMINOG 3.14.5 legacy chat polish
+
+on:
+  push:
+    branches:
+      - repair/legacy-chat-polish-3.14.5
+    paths:
+      - '.github/workflows/build-3145.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply polish
+        run: |
+          set -euxo pipefail
+          python3 tools/polish_legacy_chat_3145.py
+      - name: Verify source
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json,hashlib
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m['version']=='3.14.5' and m['version_name']=='3.14.5'
+          assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          PY
+          node --check gpt-presence.js
+          git diff --check
+          grep -F 'migratedTelemetry' gpt-presence.js
+          grep -F 'продолжает' gpt-presence.js
+          grep -F 'responseStartedAt' gpt-presence.js
+          grep -F 'executeDirectWebAsset' gpt-presence.js
+          grep -F 'osminog:module-close' osminog-module-runtime.js
+          grep -F 'chrome.runtime.getManifest().version' osminog-desktop-v3.js
+      - name: Commit polished source
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json OSMINOG_BUILD.json gpt-presence.js RELEASE_NOTES_3.14.5.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md project-log-archive/2026-09-03-3145-legacy-chat-polish.md
+          git commit -m 'Polish legacy provider chat behavior for 3.14.5 [skip ci]'
+          git push origin HEAD:repair/legacy-chat-polish-3.14.5
+      - name: Build package
+        run: |
+          set -euxo pipefail
+          ART='OSMINOG-Chrome-3.14.5-LEGACY-CHAT-POLISH.zip'
+          rm -rf dist && mkdir -p dist/package
+          rsync -a ./ dist/package/ --exclude='.git/' --exclude='.github/' --exclude='dist/' --exclude='tools/' --exclude='docs/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
+          (cd dist/package && zip -qr ../"$ART" .)
+          unzip -t "dist/$ART"
+          SHA=$(sha256sum "dist/$ART" | awk '{print $1}')
+          BYTES=$(stat -c%s "dist/$ART")
+          FILES=$(find dist/package -type f | wc -l | tr -d ' ')
+          printf '%s  %s\n' "$SHA" "$ART" > dist/SHA256.txt
+          { echo 'OSMINOG 3.14.5 LEGACY CHAT POLISH'; echo "source_commit=$(git rev-parse HEAD)"; echo "package=$ART"; echo "sha256=$SHA"; echo "zip_bytes=$BYTES"; echo "package_files=$FILES"; echo 'node_checks=passed'; echo 'manifest_version=3.14.5'; echo 'fixed_identity=passed'; } > dist/BUILD_REPORT.txt
+          cp RELEASE_NOTES_3.14.5.md dist/
+          cat dist/BUILD_REPORT.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.14.5-LEGACY-CHAT-POLISH
+          path: |
+            dist/OSMINOG-Chrome-3.14.5-LEGACY-CHAT-POLISH.zip
+            dist/SHA256.txt
+            dist/BUILD_REPORT.txt
+            dist/RELEASE_NOTES_3.14.5.md
+          compression-level: 0
+          retention-days: 14
