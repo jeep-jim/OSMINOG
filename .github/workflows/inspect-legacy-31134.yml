@@ -1,0 +1,53 @@
+name: Inspect OSMINOG 3.11.34 chat baseline
+
+on:
+  push:
+    branches:
+      - repair/chat-experience-3.14.4
+    paths:
+      - '.github/workflows/inspect-legacy-31134.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct verified 3.11.34 archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p legacy/parts legacy/unpacked legacy/reference
+          base='https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/staging/chrome-extension/3.11.34/parts'
+          for n in 00 01 02 03 04; do curl -fL --retry 3 "$base/part-$n.b64" -o "legacy/parts/part-$n.b64"; done
+          cat legacy/parts/part-*.b64 | tr -d '\r\n' | base64 -d > legacy/OSMINOG-3.11.34.zip
+          test "$(stat -c%s legacy/OSMINOG-3.11.34.zip)" = '351987'
+          test "$(sha256sum legacy/OSMINOG-3.11.34.zip | awk '{print $1}')" = '9bb9c77e1f8ef5a0c566d8e216c93bd3dc8cc95ce1411dff1b3b2184b873eb75'
+          unzip -q legacy/OSMINOG-3.11.34.zip -d legacy/unpacked
+          python - <<'PY'
+          import json
+          m=json.load(open('legacy/unpacked/manifest.json',encoding='utf-8'))
+          assert m['version']=='3.11.34',m['version']
+          print('verified',m['version'])
+          PY
+      - name: Preserve chat and UI reference files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in gpt-presence.js editor.css editor.js editor.html bridge.js background.js; do
+            test -f "legacy/unpacked/$f"
+            cp "legacy/unpacked/$f" "legacy/reference/3.11.34-$f"
+          done
+          {
+            echo '=== 3.11.34 progress/chat markers ==='
+            grep -nE 'activity\(|task-progress|progress|elapsed|remaining|scrollChat|scrollTo|scrollTop|gptPresenceActivity|interfaceTextSize|versionButton' legacy/unpacked/gpt-presence.js legacy/unpacked/editor.css legacy/unpacked/editor.js legacy/unpacked/editor.html | head -n 500 || true
+          } > legacy/reference/markers.txt
+      - name: Upload reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.11.34-CHAT-REFERENCE
+          path: legacy/reference
+          retention-days: 3
