@@ -6,6 +6,7 @@ on:
       - repair/capability-runtime-3.15.0
     paths:
       - '.github/workflows/build-3150.yml'
+      - 'tools/fix_upgrade_3150.py'
   workflow_dispatch:
 
 permissions:
@@ -25,6 +26,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          python3 tools/fix_upgrade_3150.py
           python3 tools/upgrade_interactive_runtime_3150.py
 
       - name: Validate source contracts
@@ -47,6 +49,7 @@ jobs:
           grep -F 'graphics_create' bridge.js
           grep -F 'assets.read' osminog-module-runtime.js
           grep -F 'createFromSpec' osminog-graphics-studio.js
+          grep -F 'bc-workbench-media' editor.js
           grep -F 'Poseidon · только владелец' osminog-access-center.js
           grep -F 'OSMINOG Interactive Workspace Access' background.js
           ! grep -F 'undoLastChange' bridge.js
@@ -57,7 +60,7 @@ jobs:
           set -euxo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add manifest.json OSMINOG_BUILD.json bridge.js osminog-module-runtime.js osminog-graphics-studio.js editor.js osminog-access-center.js gpt-presence.js background.js RELEASE_NOTES_3.15.0.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md
+          git add manifest.json OSMINOG_BUILD.json bridge.js osminog-module-runtime.js osminog-graphics-studio.js editor.js editor.css osminog-access-center.js gpt-presence.js background.js RELEASE_NOTES_3.15.0.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md
           git commit -m 'Release interactive capability runtime 3.15.0 [skip ci]'
           git push origin HEAD:repair/capability-runtime-3.15.0
 
