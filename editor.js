@@ -43,7 +43,7 @@ const state={
   history:[],future:[],space:false,drag:null,resize:null,rotate:null,pan:null,draw:null,vectorDraw:null,vectorAnchorDrag:null,nodeDrag:null,nodeEditId:null,connect:null,marquee:null,selectedConnection:null,
   saveTimer:null,folderHandle:null,jarvisSourceHandle:null,jarvisEnabled:false,activeEditable:null,profile:null,accessToken:null,webSelection:null,webCommitTimer:null,textRange:null,
   createDrag:null,layersOpen:false,lastExternalOpen:{url:"",at:0},emojiCategory:"smileys",emojiQuery:"",buttonState:"normal",toolPresets:{},
-  connectionPreset:{color:"#526fff",width:3,style:"curve",dashed:false,arrow:true},ui:{layersWidth:326,inspectorWidth:360,interfaceTextSize:"normal",oceanShellMigrated:false,oceanDesktopDefaultsV31110:false,threeThemeMigratedV31114:false,interfaceMode:"space",oceanTheme:"day",spaceTheme:"dark"},quickColorKind:"fill",lastSaveError:"",dirty:false,lastSavedAt:0
+  connectionPreset:{color:"#526fff",width:3,style:"curve",dashed:false,arrow:true},ui:{layersWidth:326,inspectorWidth:360,interfaceTextSize:"normal",textSizeDefaultNormalV3144:false,oceanShellMigrated:false,oceanDesktopDefaultsV31110:false,threeThemeMigratedV31114:false,interfaceMode:"space",oceanTheme:"day",spaceTheme:"dark"},quickColorKind:"fill",lastSaveError:"",dirty:false,lastSavedAt:0
 };
 
 function uid(prefix="item"){return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`}
@@ -101,7 +101,7 @@ async function loadState(){
   const primary=stored[STORAGE_KEY]||{},backup=stored[STORAGE_BACKUP_KEY]||{};
   const saved=(Array.isArray(primary.projects)&&primary.projects.length)||!Array.isArray(backup.projects)?primary:backup;
   state.language=LANGS.includes(saved.language)?saved.language:"en";
-  state.projects=(saved.projects||[]).map(normalizeProject);state.activeProject=state.projects.some(p=>p.id===saved.activeProject)?saved.activeProject:(state.projects[0]?.id||null);state.profile=stored.briefCraftProfile||null;state.toolPresets=saved.toolPresets||{};state.connectionPreset={...state.connectionPreset,...saved.connectionPreset};state.ui={...state.ui,...saved.ui};applyWorkspaceOverrides();
+  state.projects=(saved.projects||[]).map(normalizeProject);state.activeProject=state.projects.some(p=>p.id===saved.activeProject)?saved.activeProject:(state.projects[0]?.id||null);state.profile=stored.briefCraftProfile||null;state.toolPresets=saved.toolPresets||{};state.connectionPreset={...state.connectionPreset,...saved.connectionPreset};state.ui={...state.ui,...saved.ui};const needsTextSizeDefaultMigration=!state.ui.textSizeDefaultNormalV3144;if(needsTextSizeDefaultMigration){state.ui.interfaceTextSize="normal";state.ui.textSizeDefaultNormalV3144=true}applyWorkspaceOverrides();
   const legacyTheme=["ocean","dark","light"].includes(saved.theme)?saved.theme:null;
   const legacyMode=saved.ui?.interfaceMode;
   const legacySpace=saved.ui?.spaceTheme;
@@ -115,7 +115,7 @@ async function loadState(){
   state.jarvisEnabled=!!stored.briefCraftJarvisOwnerV1;state.jarvisSourceHandle=await loadPersistentHandle("jarvisSource");state.folderHandle=await loadPersistentHandle("workspace");if(state.folderHandle&&await handlePermission(state.folderHandle,false))await restoreProjectsFromFolder(state.folderHandle);
   applyTheme();applyInterfaceTextSize();applyLanguage();syncProjectFolderButton();
   applyPanelWidths();
-  if(needsThreeThemeMigration)setTimeout(()=>queuePersist(),0);
+  if(needsThreeThemeMigration||needsTextSizeDefaultMigration)setTimeout(()=>queuePersist(),0);
   renderProfile();
   const params=new URLSearchParams(location.search);
   const pendingText=stored.richCraftPendingText;const pendingImage=stored.richCraftPendingImage;
@@ -181,7 +181,7 @@ function showHub(){
 }
 function showApp(){
   if(!Array.isArray(state.projects))state.projects=[];if(!state.activeProject||!project()){const p=defaultProject();state.projects.push(p);state.activeProject=p.id}
-  const welcome=$("#welcome"),app=$("#app");if(welcome)welcome.hidden=true;if(app)app.hidden=false;const p=project();if(!p)return;state.view=clone(p.view||{x:innerWidth/2-6000,y:innerHeight/2-4000,scale:1});
+  const welcome=$("#welcome"),app=$("#app");if(welcome)welcome.hidden=true;if(app)app.hidden=false;renderVersionUI();const p=project();if(!p)return;state.view=clone(p.view||{x:innerWidth/2-6000,y:innerHeight/2-4000,scale:1});
   state.history=[];state.future=[];if(state.mode!=="team")state.mode="brief";setMode(state.mode);renderAll();updateHistoryButtons();queuePersist();updateSaveIndicator();
 }
 function openProject(id){state.activeProject=id;state.selected=[];showApp()}

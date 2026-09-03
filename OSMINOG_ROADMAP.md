@@ -732,3 +732,12 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] Require a real asset object id before such tasks are considered complete.
 - [x] Harden OSMINOG product/UI edit routing to canonical GitHub source; canvas mockups do not count as source edits.
 - [ ] Owner smoke test after update: stopwatch without white shell; red-octopus photo appears as a real image object; one harmless UI source tweak completes through GitHub.
+
+### 3.14.4 chat execution recovery
+- Preserve the proven 3.11.34-era chat feel: one provider conversation, inline moving progress with elapsed time, stable reader-aware scrolling.
+- Never render OSMINOG execution telemetry as a second participant in a provider chat.
+- Compact desktop widgets must close their managed parent and be safely recreatable without stale shells.
+- Explicit internet image placement must end with a real `asset_create` object, not prose.
+- Autonomous retries must stop on repeated no-action/no-tool replies.
+- Version badge must always show the running manifest version from first paint.
+- Default interface text is Normal; Compact, Normal, Large and Extra Large must be visibly distinct.

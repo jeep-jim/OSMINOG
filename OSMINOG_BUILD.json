@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.14.3",
-  "codename": "DESKTOP ACTION RECOVERY",
-  "baseVersion": "3.14.2",
-  "artifact": "OSMINOG-Chrome-3.14.3-DESKTOP-ACTION-RECOVERY.zip",
+  "version": "3.14.4",
+  "codename": "CHAT EXECUTION RECOVERY",
+  "baseVersion": "3.14.3",
+  "artifact": "OSMINOG-Chrome-3.14.4-CHAT-EXECUTION-RECOVERY.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.14.3",
+  "manifestVersion": "3.14.4",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "repaired",
   "binaryInGitHub": false,
-  "notes": "Removes the shell around compact desktop widgets, routes internet image/file placement through web_search/web_fetch to asset_create, and hardens direct source editing for the OSMINOG product UI.",
+  "notes": "Restores single-provider chat progress with elapsed seconds and smart scrolling, fixes compact widget close/recreate lifecycle, adds deterministic web image placement, live version badge refresh, and distinct Normal/Compact interface text sizes.",
   "fileCount": 90
 }
