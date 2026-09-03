@@ -757,3 +757,11 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] Poseidon UI gated by verified write access to private owner repository.
 - [ ] Add dedicated emulator cores/adapters per platform instead of claiming arbitrary binary execution.
 - [ ] Add a real XLSX parser/editor adapter and office document adapters.
+
+
+### 3.15.1 Owner Access Recovery — implemented
+- [x] Owner grant survives transient GitHub/network failure while local token remains present.
+- [x] Fine-grained GitHub token can be connected from Control Center without placing secrets in chat.
+- [x] GitHub/protected services use managed real Chrome tabs rather than blocked iframes.
+- [ ] Replace manual PAT with publisher GitHub App/OAuth flow for production distribution.
+- [ ] Optional explicit local HTTP/SOCKS proxy profile if host networking still differs from system VPN on a specific machine.

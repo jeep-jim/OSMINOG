@@ -2016,3 +2016,7 @@ Owner supplied the 3.11.34-era chat as the visual/behavior reference. Historical
 
 ## 2026-09-03 — 3.15.0 Interactive Capability Runtime
 Owner live-test showed a key architectural issue: one widget could be created successfully, then the same provider would claim on the next command that `module_create` was unavailable. 3.15.0 moves common application mutations into the host, renews the tool lease on every prompt, exposes native editable graphics creation, adds file bytes to sandbox apps, enables selected-canvas audio playback, and locks Poseidon to verified private-repository write access.
+
+
+## 2026-09-03 — 3.15.1 Owner Access Recovery
+Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was temporarily unreachable, and the internal browser incorrectly tried to iframe GitHub. 3.15.1 introduces resilient cached owner verification, direct fine-grained token setup, and protected-site routing through managed real Chrome tabs.

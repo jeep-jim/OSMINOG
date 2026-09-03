@@ -48,9 +48,11 @@
   async function ensureRelayPermission(){const origin=relayOrigin();if(!origin)return false;try{const pattern=origin+"/*";if(await chrome.permissions.contains({origins:[pattern]}))return true;return await chrome.permissions.request({origins:[pattern]})}catch{return false}}
 
   async function loadStore(){
-    const got=await storageGet([STORE_KEY,"briefCraftPendingPatchV1"]);
+    const got=await storageGet([STORE_KEY,"briefCraftPendingPatchV1","briefCraftModulesV1","osminogOwnerGrantV1"]);
     store={...store,...(got[STORE_KEY]||{}),mirrors:{...(got[STORE_KEY]?.mirrors||{})},toolEvents:Array.isArray(got[STORE_KEY]?.toolEvents)?got[STORE_KEY].toolEvents:[]};
     ensureDeviceToken();
+    const ownerToken=String(got.briefCraftModulesV1?.github?.token||"").trim(),ownerGrant=got.osminogOwnerGrantV1||{},ownerAge=Date.now()-Number(ownerGrant.verifiedAt||0);
+    globalThis.OSMINOGOwnerVerified=!!(ownerToken&&ownerGrant.verified===true&&ownerGrant.repo==="jeep-jim/OSMINOG"&&ownerAge>=0&&ownerAge<30*24*60*60*1000);
     if(!store.pendingPatch&&got.briefCraftPendingPatchV1?.patch){store.pendingPatch=got.briefCraftPendingPatchV1.patch;await storageSet({briefCraftPendingPatchV1:null}).catch(()=>{})}
     const access=document.getElementById("liveAiAccess");if(access)access.value=store.access||"readwrite";
     applyLanguage();renderPatch();refreshMirror();renderToolLog();renderRelayHealth();renderConnector();
