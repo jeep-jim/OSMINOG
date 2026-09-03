@@ -782,3 +782,14 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] Проверять обработчики видимых элементов до ответа «готово».
 - [x] Natural autosize + пропорциональный resize без clipping внешним контейнером.
 - [x] Selected assets, capture API и binary fetch для видео, файлов и JS/WASM runtime cores.
+
+### 3.18.0 — PRODUCT CORE RECOVERY
+- [x] Надёжный multi-source updater и честная диагностика проверки обновления.
+- [x] Две явные кнопки AI / Poseidon без permission-костылей для обычной работы.
+- [x] Access = только sharing холста и человеческие роли.
+- [x] Вернуть пользовательский GitHub project storage отдельно от Poseidon.
+- [x] Вернуть Google Drive в основной Connections UI.
+- [x] Добавление любого web-сервиса по URL с реальным favicon.
+- [x] Исправить удаление старых тестовых модулей и пользовательских сервисов.
+- [x] Убрать систематическое прижатие controls/carets к правому краю.
+- [x] Упростить nested containers чата, сохранив Generative App Runtime 3.17.

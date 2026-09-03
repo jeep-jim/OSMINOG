@@ -1,19 +1,19 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.17.0",
-  "codename": "GENERATIVE APP RUNTIME",
-  "baseVersion": "3.16.0",
-  "artifact": "OSMINOG-Chrome-3.17.0-GENERATIVE-APP-RUNTIME.zip",
+  "version": "3.18.0",
+  "codename": "PRODUCT CORE RECOVERY",
+  "baseVersion": "3.17.0",
+  "artifact": "OSMINOG-Chrome-3.18.0-PRODUCT-CORE-RECOVERY.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.17.0",
+  "manifestVersion": "3.18.0",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
-  "ownerRuntime": "repaired",
+  "ownerRuntime": "pending",
   "binaryInGitHub": false,
-  "notes": "Removes hardcoded widget presets. Every app is generated or updated from the user request through a generic sandbox runtime with asset/capture APIs, interactive validation, transparent autosize and proportional widget scaling.",
+  "notes": "Restores reliable multi-source updates, simple AI/Poseidon semantics, sharing-only Access, GitHub/Drive/user-service integrations, deletable test modules and cleaner chat/UI while preserving the generative app runtime.",
   "fileCount": 90,
   "status": "candidate",
-  "versionName": "3.17.0",
-  "build": "3.17.0"
+  "versionName": "3.18.0",
+  "build": "3.18.0"
 }
