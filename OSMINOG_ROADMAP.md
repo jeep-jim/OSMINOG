@@ -741,3 +741,8 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - Autonomous retries must stop on repeated no-action/no-tool replies.
 - Version badge must always show the running manifest version from first paint.
 - Default interface text is Normal; Compact, Normal, Large and Extra Large must be visibly distinct.
+
+### 3.14.5 legacy chat polish
+- Treat the 3.11.34-era provider chat as the interaction baseline: one visible provider speaker, execution telemetry only in the inline progress strip, live elapsed seconds, stable scroll behavior.
+- Migrate old saved OSMINOG progress/runtime cards out of conversation history on first load after update.
+- Preserve all 3.14.4 execution fixes while polishing only chat continuity.

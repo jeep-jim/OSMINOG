@@ -1,16 +1,16 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.14.4",
-  "codename": "CHAT EXECUTION RECOVERY",
-  "baseVersion": "3.14.3",
-  "artifact": "OSMINOG-Chrome-3.14.4-CHAT-EXECUTION-RECOVERY.zip",
+  "version": "3.14.5",
+  "codename": "LEGACY CHAT POLISH",
+  "baseVersion": "3.14.4",
+  "artifact": "OSMINOG-Chrome-3.14.5-LEGACY-CHAT-POLISH.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.14.4",
+  "manifestVersion": "3.14.5",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "repaired",
   "binaryInGitHub": false,
-  "notes": "Restores single-provider chat progress with elapsed seconds and smart scrolling, fixes compact widget close/recreate lifecycle, adds deterministic web image placement, live version badge refresh, and distinct Normal/Compact interface text sizes.",
+  "notes": "Finishes the legacy chat recovery by migrating old OSMINOG telemetry out of saved conversations and preserving the single-provider elapsed progress strip and reader-aware scrolling.",
   "fileCount": 90
 }
