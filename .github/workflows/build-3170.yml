@@ -1,0 +1,149 @@
+name: Build OSMINOG 3.17.0 generative app runtime
+
+on:
+  push:
+    branches:
+      - repair/generative-app-runtime-3.17.0
+    paths:
+      - '.github/workflows/build-3170.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct and apply 3.17.0 source patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          base64 -d < tools/3170/part.000 | gunzip > /tmp/os3170.patch
+          test "$(sha256sum /tmp/os3170.patch | awk '{print $1}')" = '7db6b5b4dd526470afbbe3043d368eb3acdb2b61b41aa65b49453f177402e803'
+          git apply -p1 --check /tmp/os3170.patch
+          git apply -p1 /tmp/os3170.patch
+          cat > RELEASE_NOTES_3.17.0.md <<'MD'
+          # OSMINOG Chrome 3.17.0 — GENERATIVE APP RUNTIME
+
+          This release removes hard-coded stopwatch/calendar/player widget templates and makes arbitrary AI-generated applications a first-class OSMINOG capability.
+
+          - Every app/widget is generated from the user's current request. There are no preset calendar, stopwatch or player HTML implementations.
+          - OSMINOG owns install/update/rollback/testing; the AI owns the requested interface and behavior.
+          - Clicking a generated application focuses it for the chat. Follow-up requests such as «доработай», «почини кнопку», «добавь задержку» update that same application through `module_update`.
+          - App updates are transactional: failed updates roll back to the previous working version.
+          - Sandbox apps expose canvas assets, selected files, capture APIs, storage, browser opening and permission-controlled network fetch.
+          - Visible controls are audited for interaction handlers. An app with dead buttons fails validation instead of being reported as complete.
+          - Compact widgets auto-size to natural content and user resize scales content proportionally instead of clipping it.
+          - Network fetch supports binary/base64 ArrayBuffer responses for browser-compatible JS/WASM runtimes and emulator cores.
+          - App execution responses are deliberately short; intermediate provider prose stays in the activity/progress surface instead of flooding chat.
+
+          The emulator path is a runtime capability, not a claim that every ROM/APK format can execute. Actual emulation requires a compatible browser JS/WASM core for the selected file format.
+          MD
+          cat >> OSMINOG_PROJECT_LOG.md <<'MD'
+
+          ## 2026-09-03 — 3.17.0 GENERATIVE APP RUNTIME
+          Удалены встроенные шаблоны секундомера/календаря/плеера. Любое приложение теперь генерируется ИИ по текущему запросу, а OSMINOG отвечает за установку, проверку интерактивности, транзакционное обновление/rollback, фокус приложения для последующей доработки, доступ к файлам холста, capture API, масштабирование и binary JS/WASM fetch.
+          MD
+          cat >> OSMINOG_ROADMAP.md <<'MD'
+
+          ### 3.17.0 — GENERATIVE APP RUNTIME
+          - [x] Удалить предустановленные HTML-виджеты и semantic preset routing.
+          - [x] Все приложения/виджеты генерировать по текущему запросу пользователя.
+          - [x] Клик по приложению делает его текущим artifact/focus для последующих правок.
+          - [x] Доработка существующего приложения идёт через module_update с rollback при провале теста.
+          - [x] Проверять реальные обработчики видимых кнопок до ответа «готово».
+          - [x] Убрать внешний контейнер/обрезку: natural autosize + пропорциональный widget scaling.
+          - [x] Дать приложениям selected assets, capture API и binary network fetch для файлов/видео/JS/WASM cores.
+          MD
+
+      - name: Validate generative app contracts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json,hashlib,pathlib
+          root=pathlib.Path('.')
+          m=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+          assert m['version']=='3.17.0' and m.get('version_name')=='3.17.0'
+          assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          gpt=(root/'gpt-presence.js').read_text(encoding='utf-8')
+          for bad in ['function directAppKind','function directAppSpec','executeDirectApp(']: assert bad not in gpt, bad
+          assert 'OSMINOG GENERATIVE APP RUNTIME v3' in gpt
+          assert 'ctx.appTarget' in gpt
+          assert 'module_update' in gpt and 'module_create' in gpt
+          studio=(root/'osminog-extension-studio.js').read_text(encoding='utf-8')
+          assert 'compactUtility' not in studio
+          assert 'osminog:extension-focused' in studio
+          runtime=(root/'osminog-module-runtime.js').read_text(encoding='utf-8')
+          for token in ['osminog.module-interactive/v1','osminog.module-viewport/v1','assets.selected','capture.screen']:
+              assert token in runtime, token
+          bg=(root/'background.js').read_text(encoding='utf-8')
+          assert 'responseType' in bg and 'base64' in bg and 'arrayBuffer' in bg
+          bridge=(root/'bridge.js').read_text(encoding='utf-8')
+          assert 'rolledBack:true' in bridge
+          wm=(root/'osminog-window-manager.js').read_text(encoding='utf-8')
+          assert 'lockAspect' in wm and 'aspectRatio' in wm
+          print('3.17 generative app contracts OK')
+          PY
+          for f in background.js bridge.js gpt-presence.js modules.js osminog-extension-studio.js osminog-module-runtime.js osminog-window-manager.js osminog-owner-guard.js; do node --check "$f"; done
+          git diff --check
+
+      - name: Commit synchronized 3.17.0 source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r tools/3170 .github/workflows/build-3170.yml
+          git add -A
+          git commit -m 'Replace preset widgets with generative app runtime in 3.17.0 [skip ci]'
+          git push origin HEAD:repair/generative-app-runtime-3.17.0
+
+      - name: Build verified Chrome package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ARTIFACT='OSMINOG-Chrome-3.17.0-GENERATIVE-APP-RUNTIME.zip'
+          rm -rf dist
+          mkdir -p dist/package
+          rsync -a ./ dist/package/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            --exclude='tools/' \
+            --exclude='docs/' \
+            --exclude='project-log-archive/' \
+            --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' \
+            --exclude='RELEASE_NOTES_*.md'
+          (cd dist/package && zip -qr "../$ARTIFACT" .)
+          unzip -t "dist/$ARTIFACT"
+          python3 - <<'PY'
+          import json,zipfile,hashlib
+          p='dist/OSMINOG-Chrome-3.17.0-GENERATIVE-APP-RUNTIME.zip'
+          with zipfile.ZipFile(p) as z:
+              m=json.loads(z.read('manifest.json'))
+              assert m['version']=='3.17.0' and m['version_name']=='3.17.0'
+              assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+              for f in ['bridge.js','gpt-presence.js','osminog-extension-studio.js','osminog-module-runtime.js','osminog-window-manager.js']:
+                  assert f in z.namelist()
+          PY
+          cp RELEASE_NOTES_3.17.0.md dist/
+          sha256sum "dist/$ARTIFACT"
+          stat -c '%s' "dist/$ARTIFACT"
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.17.0-GENERATIVE-APP-RUNTIME
+          path: |
+            dist/OSMINOG-Chrome-3.17.0-GENERATIVE-APP-RUNTIME.zip
+            dist/RELEASE_NOTES_3.17.0.md
+          retention-days: 14
