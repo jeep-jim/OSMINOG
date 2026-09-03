@@ -1,19 +1,19 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.18.0",
-  "codename": "PRODUCT CORE RECOVERY",
-  "baseVersion": "3.17.0",
-  "artifact": "OSMINOG-Chrome-3.18.0-PRODUCT-CORE-RECOVERY.zip",
+  "version": "3.18.1",
+  "codename": "POSEIDON SOURCE EXECUTOR RECOVERY",
+  "baseVersion": "3.18.0",
+  "artifact": "OSMINOG-Chrome-3.18.1-POSEIDON-SOURCE-EXECUTOR-RECOVERY.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.18.0",
+  "manifestVersion": "3.18.1",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "pending",
   "binaryInGitHub": false,
-  "notes": "Restores reliable multi-source updates, simple AI/Poseidon semantics, sharing-only Access, GitHub/Drive/user-service integrations, deletable test modules and cleaner chat/UI while preserving the generative app runtime.",
+  "notes": "Repairs Owner/Poseidon source execution after unlock: refreshes owner-max context, injects a mandatory source executor contract, retries prose-only source turns, records verified source mutations and never silently drops empty results.",
   "fileCount": 90,
   "status": "candidate",
-  "versionName": "3.18.0",
-  "build": "3.18.0"
+  "versionName": "3.18.1",
+  "build": "3.18.1"
 }
