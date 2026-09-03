@@ -19,7 +19,7 @@ s += '\n/* OSMINOG 3.15.0 · Interactive Capability Runtime */\n.bc-workbench-me
 write('editor.css',s)
 
 '''
-new,n=re.subn(r'# editor: real audio/video workbench \+ explicit binary file lab states\n.*?(?=# owner gate in access center)',replacement,s,flags=re.S)
+new,n=re.subn(r'# editor: real audio/video workbench \+ explicit binary file lab states\n.*?(?=# owner gate in access center)',lambda _m: replacement,s,flags=re.S)
 if n!=1: raise SystemExit(f'editor upgrade block replacement expected 1 got {n}')
 p.write_text(new,encoding='utf-8')
 print('upgrade script normalized')
