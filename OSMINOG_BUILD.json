@@ -1,19 +1,19 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.15.2",
-  "codename": "GITHUB OWNER STATUS SYNC",
-  "baseVersion": "3.15.1",
-  "artifact": "OSMINOG-Chrome-3.14.5-LEGACY-CHAT-POLISH.zip",
+  "version": "3.16.0",
+  "codename": "SIMPLE ACCESS RUNTIME",
+  "baseVersion": "3.15.2",
+  "artifact": "OSMINOG-Chrome-3.16.0-SIMPLE-ACCESS-RUNTIME.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.14.5",
+  "manifestVersion": "3.16.0",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "repaired",
   "binaryInGitHub": false,
-  "notes": "Finishes the legacy chat recovery by migrating old OSMINOG telemetry out of saved conversations and preserving the single-provider elapsed progress strip and reader-aware scrolling.",
+  "notes": "Removes permission-console complexity: workspace capabilities are always available, canvas context is lazy and intent-driven, Access only manages share links/roles, and product-source mutations use just-in-time Google Authenticator Owner Unlock.",
   "fileCount": 90,
   "status": "candidate",
-  "versionName": "3.15.2",
-  "build": "3.15.2"
+  "versionName": "3.16.0",
+  "build": "3.16.0"
 }

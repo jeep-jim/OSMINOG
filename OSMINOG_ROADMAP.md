@@ -766,3 +766,10 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [ ] Replace manual PAT with publisher GitHub App/OAuth flow for production distribution.
 - [ ] Optional explicit local HTTP/SOCKS proxy profile if host networking still differs from system VPN on a specific machine.
 - [x] 3.15.2: unify GitHub token verification across Modules, Control Center, Presence and Poseidon; verify both product repositories before Owner Max.
+
+### 3.16.0 — SIMPLE ACCESS RUNTIME
+- [x] Убрать Poseidon/AI-access переключатели из пользовательского UX.
+- [x] Оставить в «Доступе» только ссылку на холст и view/comment/edit.
+- [x] Сделать рабочие canvas/app/file/graphics/browser capabilities постоянными.
+- [x] Не передавать canvas/project context до явного запроса пользователя или tether/attachment.
+- [x] Защитить только самоизменение продукта через just-in-time Owner Unlock (GitHub credential + TOTP, 15 минут).

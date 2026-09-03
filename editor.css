@@ -2506,3 +2506,38 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 
 /* OSMINOG 3.15.0 · Interactive Capability Runtime */
 .bc-workbench-media{min-height:100%;display:grid;place-items:center;align-content:center;gap:18px;padding:32px}.bc-workbench-media audio{width:min(720px,90%)}.bc-workbench-media video{max-width:min(900px,92%);max-height:68vh;border-radius:18px;background:#000}.bc-file-lab code{display:block;margin-top:10px;padding:8px 10px;border-radius:9px;background:var(--surface);border:1px solid var(--line);font-size:10px;user-select:all}
+
+
+/* OSMINOG 3.16.0 — simple access + just-in-time owner step-up */
+.osminog-access-simple{max-width:min(760px,calc(100vw - 28px));}
+.osminog-access-simple-main{padding:16px;display:block;overflow:auto;}
+.osminog-access-simple .osminog-share-card{padding:20px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--surface) 92%,transparent);}
+.osminog-access-simple .osminog-share-card>small{display:block;font-size:10px;font-weight:850;letter-spacing:.12em;color:var(--muted);margin-bottom:5px;}
+.osminog-access-simple .osminog-share-card>strong{display:block;font-size:18px;margin-bottom:6px;}
+.osminog-access-simple .osminog-share-card>p{margin:0 0 16px;color:var(--muted);max-width:680px;}
+.osminog-access-simple .osminog-sharing-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.osminog-access-simple .osminog-sharing-fields label{display:grid;gap:6px;font-size:11px;font-weight:750;color:var(--muted);}
+.osminog-access-simple select,.osminog-access-simple input{width:100%;min-height:40px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--text);padding:0 11px;}
+.osminog-access-simple .osminog-share-link{display:grid;grid-template-columns:1fr auto;gap:8px;}
+.osminog-access-simple button{min-height:40px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--text);font-weight:800;padding:0 14px;cursor:pointer;}
+.osminog-access-simple .osminog-share-actions{display:flex;align-items:center;gap:12px;margin-top:10px;}
+.osminog-access-simple .osminog-share-actions small{color:var(--muted);}
+.osminog-owner-gate{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:20px;background:rgba(8,11,18,.58);backdrop-filter:blur(10px);}
+.osminog-owner-gate[hidden]{display:none!important;}
+.osminog-owner-card{width:min(520px,calc(100vw - 28px));border:1px solid color-mix(in srgb,var(--line) 80%,white 8%);border-radius:22px;background:var(--surface);color:var(--text);box-shadow:0 26px 80px rgba(0,0,0,.42);padding:18px;}
+.osminog-owner-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px;}
+.osminog-owner-head small{display:block;font-size:9px;font-weight:900;letter-spacing:.14em;color:var(--muted);}
+.osminog-owner-head strong{display:block;font-size:18px;margin-top:3px;}
+.osminog-owner-head button{width:34px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);font-size:19px;cursor:pointer;}
+.osminog-owner-card p{color:var(--muted);line-height:1.5;}
+.osminog-owner-card input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text);padding:0 13px;font:700 16px/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.06em;}
+.osminog-owner-card [data-owner-code]{font-size:24px;text-align:center;letter-spacing:.28em;padding-left:calc(13px + .28em);}
+.osminog-owner-card small{display:block;margin-top:7px;color:var(--muted);line-height:1.45;}
+.osminog-owner-secret{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin:14px 0 4px;}
+.osminog-owner-secret span{grid-column:1/-1;font-size:10px;color:var(--muted);font-weight:850;letter-spacing:.08em;}
+.osminog-owner-secret code{min-height:42px;display:flex;align-items:center;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);padding:8px 11px;font-weight:800;letter-spacing:.06em;}
+.osminog-owner-secret button,.osminog-owner-actions button{min-height:42px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--text);padding:0 14px;font-weight:850;cursor:pointer;}
+.osminog-owner-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.osminog-owner-actions button.primary{background:linear-gradient(135deg,#5d6cff,#9b4dff);border-color:transparent;color:white;}
+.osminog-owner-card output{display:block;min-height:18px;margin-top:10px;color:#ff6b7b;font-size:12px;font-weight:700;}
+@media(max-width:680px){.osminog-access-simple .osminog-sharing-fields{grid-template-columns:1fr}.osminog-access-simple .osminog-share-link{grid-template-columns:1fr}.osminog-owner-card{padding:15px}}
