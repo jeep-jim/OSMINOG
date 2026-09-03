@@ -773,3 +773,12 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] Сделать рабочие canvas/app/file/graphics/browser capabilities постоянными.
 - [x] Не передавать canvas/project context до явного запроса пользователя или tether/attachment.
 - [x] Защитить только самоизменение продукта через just-in-time Owner Unlock (GitHub credential + TOTP, 15 минут).
+
+### 3.17.0 — GENERATIVE APP RUNTIME
+- [x] Удалить preset routing и предустановленные HTML-виджеты.
+- [x] Генерировать любое приложение по текущему запросу пользователя.
+- [x] Фокусировать приложение кликом и дорабатывать через module_update.
+- [x] Rollback при неудачном обновлении.
+- [x] Проверять обработчики видимых элементов до ответа «готово».
+- [x] Natural autosize + пропорциональный resize без clipping внешним контейнером.
+- [x] Selected assets, capture API и binary fetch для видео, файлов и JS/WASM runtime cores.

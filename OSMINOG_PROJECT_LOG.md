@@ -2024,3 +2024,6 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 
 ## 2026-09-03 — 3.16.0 SIMPLE ACCESS RUNTIME
 Удалена permission-console архитектура: рабочие возможности ИИ доступны постоянно, окно «Доступ» оставлено только для ссылки/ролей холста, контекст холста стал intent-driven без preload, а изменение исходников самого OSMINOG переведено на just-in-time Owner Unlock с Google Authenticator-compatible TOTP.
+
+## 2026-09-03 — 3.17.0 GENERATIVE APP RUNTIME
+Удалены встроенные HTML-заготовки секундомера, календаря и плеера. Все приложения теперь генерируются ИИ под текущую задачу; OSMINOG отвечает за установку, проверку интерактивности, transactional update/rollback, фокус приложения для последующей доработки, доступ к файлам/скриншотам, пропорциональное масштабирование и binary JS/WASM fetch.

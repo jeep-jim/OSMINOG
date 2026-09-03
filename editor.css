@@ -2541,3 +2541,5 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 .osminog-owner-actions button.primary{background:linear-gradient(135deg,#5d6cff,#9b4dff);border-color:transparent;color:white;}
 .osminog-owner-card output{display:block;min-height:18px;margin-top:10px;color:#ff6b7b;font-size:12px;font-weight:700;}
 @media(max-width:680px){.osminog-access-simple .osminog-sharing-fields{grid-template-columns:1fr}.osminog-access-simple .osminog-share-link{grid-template-columns:1fr}.osminog-owner-card{padding:15px}}
+
+.gpt-context-chip.module-focus{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 10%,var(--surface));max-width:210px}.gpt-context-chip.module-focus .gpt-context-eye{color:var(--accent)}

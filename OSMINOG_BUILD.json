@@ -1,19 +1,19 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.16.0",
-  "codename": "SIMPLE ACCESS RUNTIME",
-  "baseVersion": "3.15.2",
-  "artifact": "OSMINOG-Chrome-3.16.0-SIMPLE-ACCESS-RUNTIME.zip",
+  "version": "3.17.0",
+  "codename": "GENERATIVE APP RUNTIME",
+  "baseVersion": "3.16.0",
+  "artifact": "OSMINOG-Chrome-3.17.0-GENERATIVE-APP-RUNTIME.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.16.0",
+  "manifestVersion": "3.17.0",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "repaired",
   "binaryInGitHub": false,
-  "notes": "Removes permission-console complexity: workspace capabilities are always available, canvas context is lazy and intent-driven, Access only manages share links/roles, and product-source mutations use just-in-time Google Authenticator Owner Unlock.",
+  "notes": "Removes hardcoded widget presets. Every app is generated or updated from the user request through a generic sandbox runtime with asset/capture APIs, interactive validation, transparent autosize and proportional widget scaling.",
   "fileCount": 90,
   "status": "candidate",
-  "versionName": "3.16.0",
-  "build": "3.16.0"
+  "versionName": "3.17.0",
+  "build": "3.17.0"
 }
