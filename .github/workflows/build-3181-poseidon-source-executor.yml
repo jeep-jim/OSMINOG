@@ -67,12 +67,7 @@ jobs:
           curl -fL --retry 3 -o /tmp/base.zip 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v3.18.0/OSMINOG-Chrome-3.18.0-PRODUCT-CORE-RECOVERY.zip'
           unzip -q /tmp/base.zip -d /tmp/pkg
           cp gpt-presence.js manifest.json OSMINOG_BUILD.json /tmp/pkg/
-          old_key="$(python - <<'PY'
-import json,zipfile
-z=zipfile.ZipFile('/tmp/base.zip')
-print(json.loads(z.read('manifest.json'))['key'])
-PY
-)"
+          old_key="$(python -c 'import json,zipfile;z=zipfile.ZipFile("/tmp/base.zip");print(json.loads(z.read("manifest.json"))["key"])')"
           new_key="$(python -c 'import json;print(json.load(open("manifest.json"))["key"])')"
           test "$old_key" = "$new_key"
           (cd /tmp/pkg && zip -qr "$GITHUB_WORKSPACE/$PACKAGE" .)
