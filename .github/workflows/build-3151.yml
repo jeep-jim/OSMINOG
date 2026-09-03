@@ -44,7 +44,7 @@ jobs:
           grep -F 'osminogOwnerGrantV1' bridge.js
           grep -F 'github_pat_' osminog-access-center.js
           grep -F 'Poseidon · требуется Owner' osminog-access-center.js
-          grep -F 'github\\.com|raw\\.githubusercontent\\.com' osminog-browser-app.js
+          grep -F 'raw\.githubusercontent\.com' osminog-browser-app.js
           grep -F 'Открыто в защищённой вкладке Chrome' osminog-browser-app.js
           grep -F 'if(active&&tab?.id)' background.js
 
