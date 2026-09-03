@@ -765,3 +765,4 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] GitHub/protected services use managed real Chrome tabs rather than blocked iframes.
 - [ ] Replace manual PAT with publisher GitHub App/OAuth flow for production distribution.
 - [ ] Optional explicit local HTTP/SOCKS proxy profile if host networking still differs from system VPN on a specific machine.
+- [x] 3.15.2: unify GitHub token verification across Modules, Control Center, Presence and Poseidon; verify both product repositories before Owner Max.

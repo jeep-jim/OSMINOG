@@ -2020,3 +2020,4 @@ Owner live-test showed a key architectural issue: one widget could be created su
 
 ## 2026-09-03 — 3.15.1 Owner Access Recovery
 Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was temporarily unreachable, and the internal browser incorrectly tried to iframe GitHub. 3.15.1 introduces resilient cached owner verification, direct fine-grained token setup, and protected-site routing through managed real Chrome tabs.
+- 2026-09-03: 3.15.2 synchronizes GitHub account/repository/Owner Max status; private-repo 404 is treated as missing fine-grained repository access, not as a mysterious network failure.
