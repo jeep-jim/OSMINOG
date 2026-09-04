@@ -1,33 +1,30 @@
 from pathlib import Path
-import base64
 import hashlib
 import json
-import re
+import urllib.request
 
 VERSION = '3.19.6'
-ASSET = Path('assets/core/core-hero-3196.webp')
-EXPECTED_SIZE = 1459142
-EXPECTED_SHA = '2dcc954ecb598b067f017c0fca556e38f45cbecaad29595019fc6b0943aaff68'
+ASSET = Path('assets/core/core-hero-3196.png')
+EXPECTED_SIZE = 1796453
+EXPECTED_SHA = '0f3bfa90a683f9efe4ca81f28889bd2b29543b7e52469815dd36a281c843214c'
+SOURCE_URL = 'https://oaisdmntprnortheu.blob.core.windows.net/files/00000000-8a50-81f4-9f55-a641818ab00d/raw?se=2026-09-04T08%3A32%3A48Z&sp=r&sv=2026-02-06&sr=b&scid=01a06b65-b545-735b-ab6b-06df35ad9dad&skoid=0a4a0f0c-99ac-4752-9d87-cfac036fa93f&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-04T06%3A35%3A37Z&ske=2026-09-05T06%3A35%3A37Z&sks=b&skv=2026-02-06&sig=DTBYwO9Fkcm40OR6l4gWXQt%2BAAI/JyKYvoLfJKyXC8M%3D'
 
-# Reconstruct the exact lossless WebP prepared from the owner-provided 1672x941 RGBA source.
-parts = sorted(Path('staging/3.19.6').glob('hero.part-*.b64'))
-if not parts:
-    raise SystemExit('hero chunks missing')
-payload = ''.join(p.read_text(encoding='utf-8').strip() for p in parts)
-data = base64.b64decode(payload, validate=True)
+# Fetch the exact owner-provided 1672x941 RGBA PNG without re-encoding.
+ASSET.parent.mkdir(parents=True, exist_ok=True)
+with urllib.request.urlopen(SOURCE_URL, timeout=60) as r:
+    data = r.read()
 if len(data) != EXPECTED_SIZE:
     raise SystemExit(f'hero size {len(data)} != {EXPECTED_SIZE}')
 sha = hashlib.sha256(data).hexdigest()
 if sha != EXPECTED_SHA:
     raise SystemExit(f'hero sha {sha} != {EXPECTED_SHA}')
-ASSET.parent.mkdir(parents=True, exist_ok=True)
 ASSET.write_bytes(data)
 
 # Replace the old separate low-resolution layers with one exact high-resolution composite.
 html_path = Path('editor.html')
 html = html_path.read_text(encoding='utf-8')
 old = '''        <img class="core-hero-human" src="assets/core/hero-human-3195.webp" alt="" aria-hidden="true">\n        <img class="core-hero-octopus" src="assets/core/hero-octopus-ai-3195.webp" alt="" aria-hidden="true">'''
-new = '''        <img class="core-hero-composite core-hero-composite-back" src="assets/core/core-hero-3196.webp" alt="" aria-hidden="true">\n        <img class="core-hero-composite core-hero-composite-front" src="assets/core/core-hero-3196.webp" alt="" aria-hidden="true">'''
+new = '''        <img class="core-hero-composite core-hero-composite-back" src="assets/core/core-hero-3196.png" alt="" aria-hidden="true">\n        <img class="core-hero-composite core-hero-composite-front" src="assets/core/core-hero-3196.png" alt="" aria-hidden="true">'''
 if old not in html:
     raise SystemExit('3.19.5 hero HTML anchor missing')
 html = html.replace(old, new, 1)
@@ -103,7 +100,7 @@ css = css[:css.index(marker)].rstrip() + r'''
   box-shadow:0 12px 28px rgba(82,111,255,.26),inset 0 1px 0 rgba(255,255,255,.18)!important
 }
 .core-hero-launch .empty-provider-row{
-  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;width:100%!important;margin:0 auto!important
+  display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:10px!important;width:100%!important;margin:0 auto!important
 }
 .core-hero-launch .empty-provider-row>button{
   height:42px!important;min-width:0!important;padding:0 13px!important;border:1px solid var(--line)!important;border-radius:13px!important;
@@ -155,7 +152,7 @@ build.update({
     'artifact': 'OSMINOG-Chrome-3.19.6-CINEMATIC-CORE-HERO.zip',
     'manifestVersion': VERSION,
     'binaryInGitHub': True,
-    'notes': 'Owner-approved high-resolution cinematic startup composition. Exact 1672x941 RGBA source preserved pixel-for-pixel through lossless WebP; real DOM card masks the octopus while the human/leg foreground remains above it; launch controls restyled to the approved compact menu.' ,
+    'notes': 'Owner-approved high-resolution cinematic startup composition. Exact 1672x941 RGBA PNG is preserved byte-for-byte; real DOM card masks the octopus while the human/leg foreground remains above it; launch controls and the five-provider row match the approved compact menu.',
     'release': 'CINEMATIC-CORE-HERO'
 })
 build_path.write_text(json.dumps(build, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
@@ -163,7 +160,7 @@ build_path.write_text(json.dumps(build, ensure_ascii=False, indent=2) + '\n', en
 log_path = Path('OSMINOG_PROJECT_LOG.md')
 if log_path.exists():
     log = log_path.read_text(encoding='utf-8')
-    entry = f'''\n\n## 2026-09-04 — Chrome {VERSION} / Cinematic Core Hero\n- В заставку установлен финальный owner-approved арт из чата: исходник 1672×941 RGBA.\n- Для экономии размера без потери качества исходник перекодирован в lossless WebP; локальная проверка показала полное пиксель-в-пиксель совпадение RGBA с PNG.\n- Один и тот же high-res asset используется двумя слоями: полный back-layer под реальной карточкой и clipped foreground-layer слева, поэтому нога человека лежит поверх меню, а осьминог частично скрывается карточкой.\n- Кнопка закрытия закреплена справа сверху и поднята над декоративными слоями.\n- Кнопки действий и ряд провайдеров приведены к стилю утвержденного макета.\n- Asset SHA-256: `{EXPECTED_SHA}`; размер: {EXPECTED_SIZE} bytes.\n'''
+    entry = f'''\n\n## 2026-09-04 — Chrome {VERSION} / Cinematic Core Hero\n- В заставку установлен финальный owner-approved арт из чата: исходник 1672×941 RGBA PNG.\n- Исходник сохранён байт-в-байт без ресайза и без перекодирования, чтобы не терять качество.\n- Один и тот же high-res asset используется двумя слоями: полный back-layer под реальной карточкой и clipped foreground-layer слева, поэтому нога человека лежит поверх меню, а осьминог частично скрывается карточкой.\n- Кнопка закрытия закреплена справа сверху и поднята над декоративными слоями.\n- Кнопки действий и ряд из пяти AI-провайдеров приведены к стилю утвержденного макета.\n- Asset path: `assets/core/core-hero-3196.png`. SHA-256: `{EXPECTED_SHA}`; размер: {EXPECTED_SIZE} bytes.\n'''
     if f'Chrome {VERSION} / Cinematic Core Hero' not in log:
         log_path.write_text(log.rstrip() + entry + '\n', encoding='utf-8')
 
