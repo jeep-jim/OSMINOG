@@ -13,3 +13,41 @@
 .gpt-resizable-panel .local-ai-messages{border:0!important;background:transparent!important;padding:6px!important}.local-ai-msg.gpt-msg-with-avatar{margin:8px 0!important}.gpt-msg-card{border:0!important;box-shadow:none!important;border-radius:15px!important}.local-ai-msg.gpt-msg-with-avatar.assistant>.gpt-msg-card{background:color-mix(in srgb,var(--surface-2) 86%,transparent)!important}.gpt-presence-shell .local-ai-projectbar{border-color:transparent!important;background:transparent!important}.gpt-presence-shell .gpt-context-tray,.gpt-presence-shell .gpt-attachment-tray{border:0!important;background:transparent!important}.local-ai-compose{border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)!important}.local-ai-activity{border-radius:10px!important;border:0!important}
 html[data-theme="ocean"] .local-ai-msg.gpt-msg-with-avatar.assistant>.gpt-msg-card{background:rgba(6,57,80,.66)!important}html[data-theme="ocean"] .gpt-resizable-panel .local-ai-messages{background:transparent!important}
 @media(max-width:1180px){.topbar{grid-template-columns:minmax(230px,1fr) auto minmax(470px,1fr)!important}.osminog-core-quick{padding:0 9px!important}.osminog-core-quick span:last-child{font-size:10px}.top-actions{gap:5px!important}}
+
+/* OSMINOG 3.19.9 · LIGHT HOVER + LIVE CANVAS COLORS */
+html[data-theme="light"] .soft-btn:hover,
+html[data-theme="light"] .icon-btn:hover,
+html[data-theme="light"] .inspector-mini button:hover,
+html[data-theme="light"] .tool-rail button:hover,
+html[data-theme="light"] .core-hero-launch .empty-launch-actions>button:not(.primary-btn):hover,
+html[data-theme="light"] .core-hero-launch .empty-provider-row>button:hover{
+  color:#18202c!important;
+  background:#e9edf4!important;
+  border-color:#c8d0dc!important
+}
+html[data-theme="light"] .primary-btn:hover,
+html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:hover{color:#fff!important}
+
+html[data-theme="light"] #viewport,
+html[data-theme="dark"] #viewport{background-color:var(--board-bg)!important}
+html[data-theme="light"] #viewport[data-grid="plain"],
+html[data-theme="dark"] #viewport[data-grid="plain"]{background-image:none!important}
+html[data-theme="light"] #viewport[data-grid="dots"],
+html[data-theme="dark"] #viewport[data-grid="dots"]{
+  background-image:radial-gradient(circle,var(--grid-color) 1px,transparent 1.4px)!important;
+  background-size:var(--grid-size) var(--grid-size)!important;
+  background-position:var(--grid-x) var(--grid-y)!important
+}
+html[data-theme="light"] #viewport[data-grid="grid"],
+html[data-theme="dark"] #viewport[data-grid="grid"]{
+  background-image:linear-gradient(to right,var(--grid-color) 1px,transparent 1px),linear-gradient(to bottom,var(--grid-color) 1px,transparent 1px)!important;
+  background-size:var(--grid-size) var(--grid-size)!important;
+  background-position:var(--grid-x) var(--grid-y)!important
+}
+html[data-theme="light"] #viewport[data-grid="both"],
+html[data-theme="dark"] #viewport[data-grid="both"]{
+  background-image:linear-gradient(to right,color-mix(in srgb,var(--grid-color) 44%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in srgb,var(--grid-color) 44%,transparent) 1px,transparent 1px),radial-gradient(circle,var(--grid-color) 1px,transparent 1.4px)!important;
+  background-size:var(--major-grid-size) var(--major-grid-size),var(--major-grid-size) var(--major-grid-size),var(--grid-size) var(--grid-size)!important;
+  background-position:var(--grid-x) var(--grid-y)!important
+}
+

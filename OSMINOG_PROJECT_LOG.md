@@ -2064,3 +2064,30 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 - Для Ocean фон приветственной карточки теперь непрозрачный `#09577c`; скрытый back-layer изображения больше не просвечивает по срезанному контуру.
 - Анимация hero остаётся отключённой; тени, удалённые в 3.19.7, не возвращались.
 - Сетка трёх action-кнопок с иконками и пяти provider-pill сохранена из 3.19.7.
+
+
+---
+
+## 2026-09-04 — OSMINOG 3.19.9 language, providers and canvas-color repair
+
+### Runtime issues reported on 3.19.8
+- Cinematic welcome composition is approved.
+- Welcome title needed to move slightly upward.
+- Title no longer changed with the selected language because fixed English CSS pseudo-content covered the translated DOM title.
+- All five welcome provider pills opened DeepSeek because the handler read `dataset.provider` while markup uses `data-provider-open`.
+- In Light theme, hover could make button labels/icons unreadable.
+- Light/Dark canvas background and grid color controls changed stored values but no longer changed the visible viewport because the final CSS did not consume the runtime canvas variables.
+
+### Changes in 3.19.9
+- Real DOM title is again driven by `syncEmptyHintLanguage()` and remains intentionally split into two lines for EN/RU/DE/ES/JA/ZH.
+- Title moved upward from 50 px to 28 px top margin.
+- Provider pill handler now reads `dataset.providerOpen`; ChatGPT, Claude, Gemini, DeepSeek and Grok are mapped separately and open through OSMINOG Browser Hub when available. No catch-all DeepSeek fallback remains.
+- Light-theme hover contrast is forced readable for soft/icon/mini/tool/welcome controls; primary buttons remain white-on-accent.
+- Final loaded CSS now renders Light/Dark viewport from `--board-bg` and the runtime grid variables, restoring live background/grid color changes.
+- Ocean keeps its dedicated visual theme behavior.
+
+### Verification
+- `node --check editor.js`.
+- `manifest.json` and `OSMINOG_BUILD.json` parse and report 3.19.9.
+- Static checks verify all provider routes and the live canvas CSS variables.
+- Owner runtime verification in Chrome remains required after update.

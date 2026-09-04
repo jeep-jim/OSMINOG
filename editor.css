@@ -2,7 +2,7 @@
 #osminogGraphicsStudio .gfx-panel-resizer.right{right:var(--gfx-inspector-width)!important;transform:translateX(4px)!important}
 @media(max-width:980px){#osminogGraphicsStudio .graphics-studio-shell.graphics-v2{--gfx-layers-width:150px;--gfx-inspector-width:240px}}
 
-/* OSMINOG 3.19.8 · SOLID DOCKED HERO */
+/* OSMINOG 3.19.9 · LOCALIZED DOCKED HERO */
 .core-hero-launch{
   position:absolute!important;
   overflow:visible!important;
@@ -48,10 +48,8 @@
   position:absolute!important;z-index:9!important;top:14px!important;right:14px!important;left:auto!important
 }
 .core-hero-launch .hint-orb,.core-hero-launch .empty-kicker{display:none!important}
-.core-hero-launch h2.core-hero-title{max-width:590px!important;margin:50px auto 12px!important;font-size:0!important;line-height:1!important;color:var(--text)!important}
-.core-hero-launch h2.core-hero-title::before,.core-hero-launch h2.core-hero-title::after{display:block!important;font-size:clamp(30px,3.25vw,44px)!important;line-height:1.04!important;font-weight:800!important;letter-spacing:-.035em!important}
-.core-hero-launch h2.core-hero-title::before{content:"Build the project"}
-.core-hero-launch h2.core-hero-title::after{content:"with your AI team";margin-top:4px}
+.core-hero-launch h2.core-hero-title{max-width:590px!important;margin:28px auto 12px!important;font-size:clamp(30px,3.25vw,44px)!important;line-height:1.04!important;color:var(--text)!important;font-weight:800!important;letter-spacing:-.035em!important}
+.core-hero-launch h2.core-hero-title>span{display:block!important}.core-hero-launch h2.core-hero-title>span+span{margin-top:4px!important}.core-hero-launch h2.core-hero-title::before,.core-hero-launch h2.core-hero-title::after{content:none!important;display:none!important}
 .core-hero-launch p{max-width:600px!important;margin:0 auto 22px!important;font-size:13px!important;line-height:1.55!important}
 .core-hero-launch .empty-launch-actions{
   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important;

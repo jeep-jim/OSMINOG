@@ -806,7 +806,7 @@ function bindUI(){
   $$('[data-mode]').forEach(button=>button.addEventListener("click",()=>setMode(button.dataset.mode)));$$('[data-tool]').forEach(button=>button.addEventListener("click",()=>setTool(button.dataset.tool)));
   $$('[data-create]').forEach(button=>button.addEventListener("click",()=>{const type=button.dataset.create;if(type==="browser"){setMode("browser");const existing=objects().find(o=>o.type==="browser");if(existing){state.selected=[existing.id];focusObject(existing);renderAll()}return}createObject(type)}));
   $("#emptyConnectAi")?.addEventListener("click",async()=>{try{await globalThis.BriefCraftBridge?.open?.();setTimeout(()=>document.querySelector("#gptPresenceSettingsToggle")?.click(),100)}catch{}});
-  $$('[data-provider-open]').forEach(btn=>btn.addEventListener("click",()=>{const p=btn.dataset.provider,url=p==="gpt"?"https://chatgpt.com/":p==="claude"?"https://claude.ai/":p==="gemini"?"https://gemini.google.com/":"https://chat.deepseek.com/";window.open(url,"_blank","noopener")}));
+  $$('[data-provider-open]').forEach(btn=>btn.addEventListener("click",async()=>{const p=btn.dataset.providerOpen,urls={gpt:"https://chatgpt.com/",claude:"https://claude.ai/",gemini:"https://gemini.google.com/",deepseek:"https://chat.deepseek.com/",grok:"https://grok.com/"},url=urls[p];if(!url)return;try{if(globalThis.OSMINOGBrowserHubAPI?.open){await globalThis.OSMINOGBrowserHubAPI.open({provider:p});return}}catch{}window.open(url,"_blank","noopener")}));
   $("#undo").addEventListener("click",undo);$("#redo").addEventListener("click",redo);$("#activity").addEventListener("click",()=>toggle($("#activityPanel")));$("#share").addEventListener("click",async()=>{if(globalThis.BriefCraftBridge?.open){globalThis.BriefCraftBridge.open();return}await navigator.clipboard.writeText(markdownExport());showToast(tr("copiedAi"));logChange(tr("copiedAi"))});$("#exportBtn").addEventListener("click",()=>toggle($("#exportMenu")));$$('[data-export]').forEach(button=>button.addEventListener("click",()=>exportFormat(button.dataset.export)));
   $("#profileButton").addEventListener("click",()=>toggle($("#profileMenu")));$("#welcomeProfile").addEventListener("click",signInGoogle);$("#profileSignIn").addEventListener("click",signInGoogle);$("#profileSignOut").addEventListener("click",signOutGoogle);$("#profileSync").addEventListener("click",syncGoogleDrive);
   const setLayersOpen=open=>{const panel=$("#layersPanel");state.layersOpen=open;panel.hidden=false;requestAnimationFrame(()=>panel.classList.toggle("open",open));$("#layersToggle").classList.toggle("active",open);if(!open)setTimeout(()=>{if(!state.layersOpen)panel.hidden=true},220)};$("#layersToggle").addEventListener("click",()=>setLayersOpen(!state.layersOpen));$("#canvasSettings").addEventListener("click",()=>{setTool("select");clearSelection();$("#inspector").classList.remove("collapsed");renderInspector()});$("#layerSearch").addEventListener("input",renderLayers);$("#groupSelection").addEventListener("click",groupSelection);$("#localFolder").addEventListener("click",chooseFolder);
@@ -1190,7 +1190,19 @@ function syncEmptyHintLanguage(){
   const value=copy||fallback,empty=document.getElementById("emptyHint");
   if(!empty)return;
   const title=empty.querySelector("h2"),body=empty.querySelector("p");
-  if(title)title.textContent=value.title;if(body)body.textContent=value.text;
+  if(title){
+    const titleLines={
+      en:["Build the project","with your AI team"],
+      ru:["Соберите проект","вместе с командой ИИ"],
+      de:["Erstelle das Projekt","mit deinem KI-Team"],
+      es:["Construye el proyecto","con tu equipo de IA"],
+      ja:["AIチームと一緒に","プロジェクトを構築"],
+      zh:["与 AI 团队一起","构建项目"]
+    }[state.language]||[value.title];
+    title.replaceChildren(...titleLines.map(line=>{const span=document.createElement("span");span.textContent=line;return span}));
+    title.setAttribute("aria-label",value.title);
+  }
+  if(body)body.textContent=value.text;
 }
 syncEmptyHintLanguage();
 
