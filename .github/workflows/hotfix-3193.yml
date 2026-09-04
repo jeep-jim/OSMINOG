@@ -1,0 +1,176 @@
+name: OSMINOG 3.19.3 graphics stability hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hotfix-3193.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply 3.19.3 fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          gfx = Path('osminog-graphics-studio.js')
+          s = gfx.read_text(encoding='utf-8')
+          old_fit = 'function fit(){if(!win||!canvas)return;const stage=$(".graphics-studio-stage",win),r=stage.getBoundingClientRect();if(r.width<100||r.height<100)return;const vt=(canvas.viewportTransform||[zoom,0,0,zoom,0,0]).slice();canvas.setDimensions({width:Math.floor(r.width),height:Math.floor(r.height)});canvas.setViewportTransform?.(vt);canvas.requestRenderAll();updateZoomReadout()}'
+          new_fit = 'function fit(){if(!win||!canvas)return;const stage=$(".graphics-studio-stage",win),r=stage.getBoundingClientRect();if(r.width<100||r.height<100)return;const w=Math.floor(r.width),h=Math.floor(r.height),el=canvas.getElement?.(),same=el&&Math.abs((el.width||0)-w)<=1&&Math.abs((el.height||0)-h)<=1;if(same){updateZoomReadout();return}const vt=(canvas.viewportTransform||[zoom,0,0,zoom,0,0]).slice();canvas.setDimensions({width:w,height:h});canvas.setViewportTransform?.(vt);canvas.requestRenderAll();updateZoomReadout()}'
+          if old_fit in s:
+              s = s.replace(old_fit, new_fit, 1)
+          old_ro = 'resizeObserver=new ResizeObserver(fit);resizeObserver.observe($(".graphics-studio-stage",win))'
+          new_ro = 'resizeObserver=new ResizeObserver(()=>{clearTimeout(resizeObserver.__osminogTimer);resizeObserver.__osminogTimer=setTimeout(fit,24)});resizeObserver.observe($(".graphics-studio-stage",win))'
+          if old_ro in s:
+              s = s.replace(old_ro, new_ro, 1)
+          marker = '/* OSMINOG 3.19.3 · studio layout runtime */'
+          if marker not in s:
+              s += r'''
+
+/* OSMINOG 3.19.3 · studio layout runtime */
+(()=>{
+  if(globalThis.__OSMINOG_GFX_LAYOUT_3193__)return;
+  globalThis.__OSMINOG_GFX_LAYOUT_3193__=true;
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  function prepare(){
+    const root=document.getElementById('osminogGraphicsStudio');
+    const shell=root?.querySelector('.graphics-studio-shell.graphics-v2');
+    if(!shell||shell.dataset.layout3193==='1')return;
+    shell.dataset.layout3193='1';
+    const center=shell.querySelector('.graphics-studio-center');
+    const tools=shell.querySelector('.graphics-studio-tools');
+    const inspector=shell.querySelector('.graphics-studio-inspector');
+    const layers=inspector?.querySelector('.graphics-studio-layers');
+    if(layers&&center){
+      layers.classList.add('graphics-studio-layers-panel');
+      shell.insertBefore(layers,center);
+    }
+    if(tools&&center){
+      tools.classList.add('graphics-studio-bottom-tools');
+      center.appendChild(tools);
+    }
+    const make=(side)=>{
+      const el=document.createElement('div');
+      el.className=`gfx-panel-resizer ${side}`;
+      el.title=side==='left'?'Тянуть: ширина слоёв':'Тянуть: ширина свойств';
+      el.addEventListener('pointerdown',event=>{
+        event.preventDefault();event.stopPropagation();
+        const rect=shell.getBoundingClientRect();
+        el.setPointerCapture?.(event.pointerId);
+        const move=e=>{
+          const maxSide=Math.max(120,Math.min(420,rect.width-360));
+          if(side==='left')shell.style.setProperty('--gfx-layers-width',`${clamp(e.clientX-rect.left,120,maxSide)}px`);
+          else shell.style.setProperty('--gfx-inspector-width',`${clamp(rect.right-e.clientX,220,maxSide)}px`);
+          window.dispatchEvent(new Event('resize'));
+        };
+        const up=e=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up)};
+        el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+      });
+      return el;
+    };
+    shell.append(make('left'),make('right'));
+    requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
+  }
+  new MutationObserver(prepare).observe(document.documentElement,{subtree:true,childList:true});
+  document.addEventListener('click',e=>{if(e.target.closest?.('[data-osminog-app="graphics"],#osminogGraphicsStudio'))setTimeout(prepare,0)},true);
+  prepare();
+})();
+'''
+          gfx.write_text(s,encoding='utf-8')
+
+          editor = Path('editor.js')
+          e = editor.read_text(encoding='utf-8')
+          drop_marker = '/* OSMINOG 3.19.3 · native desktop file drop recovery */'
+          if drop_marker not in e:
+              e += r'''
+
+/* OSMINOG 3.19.3 · native desktop file drop recovery */
+(()=>{
+  if(globalThis.__OSMINOG_NATIVE_DROP_3193__)return;
+  globalThis.__OSMINOG_NATIVE_DROP_3193__=true;
+  const isFiles=event=>Array.from(event.dataTransfer?.types||[]).includes('Files');
+  const isCanvasTarget=event=>{
+    const target=event.target;
+    if(target?.closest?.('#osminogGraphicsStudio,.osminog-app-window,.modal,.popover,input,textarea,select'))return false;
+    return !!target?.closest?.('#viewport,#world,.canvas-stage,.workspace-canvas')||target===document.body;
+  };
+  document.addEventListener('dragenter',event=>{if(isFiles(event)&&isCanvasTarget(event))document.documentElement.classList.add('osminog-native-file-drag')},true);
+  document.addEventListener('dragover',event=>{if(!isFiles(event)||!isCanvasTarget(event))return;event.preventDefault();event.dataTransfer.dropEffect='copy';document.documentElement.classList.add('osminog-native-file-drag')},true);
+  document.addEventListener('dragleave',event=>{if(!event.relatedTarget)document.documentElement.classList.remove('osminog-native-file-drag')},true);
+  document.addEventListener('drop',event=>{
+    document.documentElement.classList.remove('osminog-native-file-drag');
+    if(!isFiles(event)||!isCanvasTarget(event))return;
+    const files=[...(event.dataTransfer?.files||[])];
+    if(!files.length)return;
+    event.preventDefault();event.stopPropagation();
+    const point=typeof worldPoint==='function'?worldPoint(event.clientX,event.clientY):null;
+    Promise.resolve(importFiles(files,point,'auto')).then(()=>{renderAll?.();queuePersist?.();showToast?.(state?.language==='ru'?`Добавлено файлов: ${files.length}`:`Added files: ${files.length}`)}).catch(error=>{console.error('OSMINOG native file drop',error);showToast?.(error?.message||String(error))});
+  },true);
+})();
+'''
+          editor.write_text(e,encoding='utf-8')
+
+          css = Path('editor.css')
+          c = css.read_text(encoding='utf-8')
+          css_marker = '/* OSMINOG 3.19.3 · Graphics Studio layout recovery */'
+          if css_marker not in c:
+              c += r'''
+
+/* OSMINOG 3.19.3 · Graphics Studio layout recovery */
+#osminogGraphicsStudio main{min-height:0!important;overflow:hidden!important}
+#osminogGraphicsStudio .graphics-studio-shell.graphics-v2{--gfx-layers-width:180px;--gfx-inspector-width:280px;position:relative!important;display:grid!important;grid-template-columns:var(--gfx-layers-width) minmax(0,1fr) var(--gfx-inspector-width)!important;grid-template-rows:minmax(0,1fr)!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;overflow:hidden!important}
+#osminogGraphicsStudio .graphics-studio-layers-panel{grid-column:1!important;grid-row:1!important;display:flex!important;flex-direction:column!important;min-width:0!important;width:auto!important;height:100%!important;max-height:none!important;margin:0!important;padding:10px!important;overflow:auto!important;border:0!important;border-right:1px solid var(--line)!important;background:var(--surface)!important}
+#osminogGraphicsStudio .graphics-studio-layers-panel>strong{display:block!important;margin:0 0 8px!important;font-size:11px!important}
+#osminogGraphicsStudio .graphics-studio-center{position:relative!important;grid-column:2!important;grid-row:1!important;display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;min-width:0!important;min-height:0!important;width:auto!important;height:100%!important;overflow:hidden!important;padding-bottom:0!important}
+#osminogGraphicsStudio .graphics-studio-toolbar{min-width:0!important;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;scrollbar-width:thin}
+#osminogGraphicsStudio .graphics-studio-stage{position:relative!important;min-width:0!important;min-height:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#fff}
+#osminogGraphicsStudio .graphics-studio-inspector{grid-column:3!important;grid-row:1!important;min-width:0!important;width:auto!important;height:100%!important;max-height:none!important;overflow:auto!important;border-left:1px solid var(--line)!important;background:var(--surface)!important}
+#osminogGraphicsStudio .graphics-studio-bottom-tools{position:absolute!important;z-index:80!important;left:50%!important;right:auto!important;top:auto!important;bottom:12px!important;transform:translateX(-50%)!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;width:auto!important;max-width:calc(100% - 24px)!important;height:48px!important;min-height:48px!important;padding:5px!important;margin:0!important;overflow-x:auto!important;overflow-y:hidden!important;border:1px solid var(--line)!important;border-radius:14px!important;background:color-mix(in srgb,var(--surface) 94%,transparent)!important;box-shadow:0 12px 36px #0003!important;backdrop-filter:blur(16px)!important;scrollbar-width:none}
+#osminogGraphicsStudio .graphics-studio-bottom-tools::-webkit-scrollbar{display:none}
+#osminogGraphicsStudio .graphics-studio-bottom-tools button{display:grid!important;place-items:center!important;flex:0 0 36px!important;width:36px!important;min-width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;margin:0!important;border-radius:9px!important}
+#osminogGraphicsStudio .graphics-studio-bottom-tools button span{display:none!important}
+#osminogGraphicsStudio .graphics-studio-bottom-tools svg{width:17px!important;height:17px!important}
+#osminogGraphicsStudio .graphics-tool-divider{height:26px!important;width:1px!important;flex:0 0 1px!important;margin:0 2px!important}
+#osminogGraphicsStudio .gfx-panel-resizer{position:absolute!important;z-index:95!important;top:0!important;bottom:0!important;width:9px!important;background:transparent!important;cursor:col-resize!important;touch-action:none!important}
+#osminogGraphicsStudio .gfx-panel-resizer:after{content:"";position:absolute;top:0;bottom:0;left:4px;width:1px;background:transparent;transition:.15s}
+#osminogGraphicsStudio .gfx-panel-resizer:hover:after,#osminogGraphicsStudio .gfx-panel-resizer:active:after{background:var(--accent)}
+#osminogGraphicsStudio .gfx-panel-resizer.left{left:var(--gfx-layers-width)!important;transform:translateX(-4px)!important}
+#osminogGraphicsStudio .gfx-panel-resizer.right{right:var(--gfx-inspector-width)!important;transform:translateX(4px)!important}
+html.osminog-native-file-drag #viewport:after{content:"Перетащите файл на холст";position:fixed;z-index:2147483000;inset:88px 80px 70px;border:2px dashed var(--accent);border-radius:20px;background:color-mix(in srgb,var(--accent) 8%,transparent);display:grid;place-items:center;color:var(--accent);font-size:18px;font-weight:800;pointer-events:none;backdrop-filter:blur(3px)}
+@media(max-width:980px){#osminogGraphicsStudio .graphics-studio-shell.graphics-v2{--gfx-layers-width:150px;--gfx-inspector-width:240px}}
+'''
+          css.write_text(c,encoding='utf-8')
+
+          manifest = Path('manifest.json')
+          m=json.loads(manifest.read_text(encoding='utf-8'));m['version']='3.19.3';manifest.write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          build=Path('OSMINOG_BUILD.json')
+          b=json.loads(build.read_text(encoding='utf-8')) if build.exists() else {}
+          b['version']='3.19.3';b['codename']='GRAPHICS STABILITY + NATIVE FILE DROP';b['baseVersion']='3.19.2';build.write_text(json.dumps(b,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          Path('OSMINOG_ROADMAP_3.19.3_STABILITY.md').write_text('''# OSMINOG 3.19.3 — Stability / Native Drop\n\n## Исправлено\n- Graphics Studio больше не держит инструменты слева: панель инструментов переносится вниз, icon-only, подпись по hover.\n- Слои физически вынесены в левую панель, свойства остаются справа.\n- Левая и правая панели получили drag-resizer, чтобы освобождать место холсту.\n- Убрана ResizeObserver-петля: canvas меняет размер только когда геометрия реально изменилась, resize дебаунсится. Это основной hotfix зависаний Graphics Studio.\n- Восстановлен прямой drag & drop любых файлов с компьютера на основной холст через существующий importFiles pipeline.\n- Добавлена визуальная зона drop.\n\n## Проверка\n1. Открыть Graphics Studio, подвигать обе границы панелей, убедиться что центр не перекрывается.\n2. Инструменты находятся снизу, слои слева, свойства справа.\n3. Любое действие в Graphics Studio не запускает бесконечный resize/render loop.\n4. Перетащить PNG/PDF/ZIP/другой файл из Windows на основной холст — объект должен появиться без запрета.\n''',encoding='utf-8')
+          PY
+          node --check osminog-graphics-studio.js
+          node --check editor.js
+          python -m json.tool manifest.json >/dev/null
+          python -m json.tool OSMINOG_BUILD.json >/dev/null
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/hotfix-3193.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'OSMINOG 3.19.3 graphics stability and native file drop [skip ci]'
+          git push origin HEAD:main
