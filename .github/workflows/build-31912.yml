@@ -1,0 +1,87 @@
+name: Sync OSMINOG 3.19.12 Seamless Shared Vision
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-31912.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout canonical source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply cumulative 3.19.12 source upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/upgrade_shared_vision_31912.py .
+          cat > RELEASE_NOTES_3.19.12.md <<'EOF'
+          # OSMINOG 3.19.12 — Seamless Shared Vision
+
+          - one same-revision `osminog.vision_context/v1` path is used by connected provider turns;
+          - external ChatGPT manual canvas requests are preflighted against the live OSMINOG editor before the turn is sent;
+          - `смотри на холст` / `что видишь` can attach the current viewport, selection, tethered object or full overview automatically;
+          - machine context and tool-result hops stay hidden from the visible conversation;
+          - previously-authorized external ChatGPT Presence silently reconnects to an existing tab after reload and never creates a new consumer ChatGPT tab;
+          - 3.19.10 title lift and all 3.19.11 UI fixes remain preserved.
+
+          Runtime owner proof is still required in Chrome after updating: type `смотри на холст` in the attached external ChatGPT tab and verify that the answer uses the live canvas without a manual screenshot upload.
+          EOF
+
+      - name: Validate shared vision contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m['version']=='3.19.12'
+          assert m.get('version_name')=='3.19.12'
+          assert hashlib.sha256(m['key'].encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          PY
+          node --check gpt-presence.js
+          node --check chatgpt-lite-bridge.js
+          node --check background.js
+          node --check bridge.js
+          grep -F 'OSMINOG 3.19.12 · SHARED VISION CONTEXT' gpt-presence.js
+          grep -F 'osminog.vision_context/v1' gpt-presence.js
+          grep -F 'SEAMLESS EXTERNAL VISION PREFLIGHT' chatgpt-lite-bridge.js
+          grep -F 'prepare:true' chatgpt-lite-bridge.js
+          grep -F 'EXTERNAL_AUTO_KEY="osminogExternalPresenceAutoV1"' bridge.js
+          grep -F 'seamlessVision:true' bridge.js
+          grep -F 'visionOnNaturalLanguage:true' bridge.js
+          grep -F 'class="inspector glass collapsed"' editor.html
+          grep -F 'LIGHT PRIMARY HOVER + CLOSED INSPECTOR' osminog-product-core-recovery.css
+          grep -F 'margin-top:-10px!important' editor.css
+          grep -F '## 2026-09-04 — 3.19.12 SEAMLESS SHARED VISION' OSMINOG_PROJECT_LOG.md
+          grep -F '## 3.19.12 — SEAMLESS SHARED VISION' OSMINOG_ROADMAP.md
+          git diff --check
+
+      - name: Commit canonical 3.19.12 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json OSMINOG_BUILD.json editor.html editor.css osminog-product-core-recovery.css gpt-presence.js chatgpt-lite-bridge.js background.js bridge.js OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md RELEASE_NOTES_3.19.12.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'Sync canonical OSMINOG source to 3.19.12 seamless shared vision [skip ci]'
+            git push origin HEAD:main
+          fi
+
+      - name: Verify source after commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(python3 -c 'import json;print(json.load(open("manifest.json"))["version"])')" = '3.19.12'
+          git status --short
