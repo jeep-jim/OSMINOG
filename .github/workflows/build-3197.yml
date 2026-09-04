@@ -1,0 +1,64 @@
+name: OSMINOG 3.19.7 docked core hero
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'staging/3.19.7/ACTIVATE'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply 3.19.7 layout patch
+        run: python scripts/build_3197.py
+
+      - name: Verify docked hero and launch menu
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -f assets/core/core-hero-3196.png
+          test "$(stat -c%s assets/core/core-hero-3196.png)" = "1796453"
+          test "$(sha256sum assets/core/core-hero-3196.png | cut -d' ' -f1)" = "0f3bfa90a683f9efe4ca81f28889bd2b29543b7e52469815dd36a281c843214c"
+          grep -q 'OSMINOG 3.19.7 · DOCKED CORE HERO' editor.css
+          grep -q 'transform:translate(-50%,-50%)' editor.css
+          grep -q 'animation:none!important' editor.css
+          grep -q 'empty-action-icon' editor.html
+          grep -q 'href="#i-folder"' editor.html
+          grep -q 'href="#i-spark"' editor.html
+          grep -q 'data-provider-open="grok"' editor.html
+          grep -q 'grid-template-columns:repeat(5,minmax(0,1fr))' editor.css
+          grep -q 'right:14px!important;left:auto!important' editor.css
+          ! grep -q 'coreHero3196Float' editor.css
+          node --check editor.js
+          python -m json.tool manifest.json >/dev/null
+          python -m json.tool OSMINOG_BUILD.json >/dev/null
+          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version"])')" = "3.19.7"
+          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version_name"])')" = "3.19.7"
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          assert m.get('key'), 'fixed extension key missing'
+          print('FIXED_KEY_OK', len(m['key']))
+          PY
+          echo SOURCE_3197_OK
+
+      - name: Commit 3.19.7 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf staging/3.19.7
+          rm -f .github/workflows/build-3197.yml scripts/build_3197.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'OSMINOG 3.19.7 docked core hero [skip ci]'
+          git push origin HEAD:main
