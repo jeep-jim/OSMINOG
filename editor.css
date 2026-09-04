@@ -2577,3 +2577,27 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 @keyframes osminogSoftTentaclesB{from{transform:rotate(-4deg)}to{transform:rotate(5deg)}}
 @keyframes osminogFloatWork{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
 @media(prefers-reduced-motion:reduce){.agent-wisp::before,.agent-wisp::after,.parallel-agent-ghost[data-mode="work"] .agent-wisp{animation:none!important}}
+
+
+/* OSMINOG 3.19.3 · Graphics Studio layout recovery */
+#osminogGraphicsStudio main{min-height:0!important;overflow:hidden!important}
+#osminogGraphicsStudio .graphics-studio-shell.graphics-v2{--gfx-layers-width:180px;--gfx-inspector-width:280px;position:relative!important;display:grid!important;grid-template-columns:var(--gfx-layers-width) minmax(0,1fr) var(--gfx-inspector-width)!important;grid-template-rows:minmax(0,1fr)!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;overflow:hidden!important}
+#osminogGraphicsStudio .graphics-studio-layers-panel{grid-column:1!important;grid-row:1!important;display:flex!important;flex-direction:column!important;min-width:0!important;width:auto!important;height:100%!important;max-height:none!important;margin:0!important;padding:10px!important;overflow:auto!important;border:0!important;border-right:1px solid var(--line)!important;background:var(--surface)!important}
+#osminogGraphicsStudio .graphics-studio-layers-panel>strong{display:block!important;margin:0 0 8px!important;font-size:11px!important}
+#osminogGraphicsStudio .graphics-studio-center{position:relative!important;grid-column:2!important;grid-row:1!important;display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;min-width:0!important;min-height:0!important;width:auto!important;height:100%!important;overflow:hidden!important}
+#osminogGraphicsStudio .graphics-studio-toolbar{min-width:0!important;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;scrollbar-width:thin}
+#osminogGraphicsStudio .graphics-studio-stage{position:relative!important;min-width:0!important;min-height:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#fff}
+#osminogGraphicsStudio .graphics-studio-inspector{grid-column:3!important;grid-row:1!important;min-width:0!important;width:auto!important;height:100%!important;max-height:none!important;overflow:auto!important;border-left:1px solid var(--line)!important;background:var(--surface)!important}
+#osminogGraphicsStudio .graphics-studio-bottom-tools{position:absolute!important;z-index:80!important;left:50%!important;right:auto!important;top:auto!important;bottom:12px!important;transform:translateX(-50%)!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:4px!important;width:auto!important;max-width:calc(100% - 24px)!important;height:48px!important;min-height:48px!important;padding:5px!important;margin:0!important;overflow-x:auto!important;overflow-y:hidden!important;border:1px solid var(--line)!important;border-radius:14px!important;background:color-mix(in srgb,var(--surface) 94%,transparent)!important;box-shadow:0 12px 36px #0003!important;backdrop-filter:blur(16px)!important;scrollbar-width:none}
+#osminogGraphicsStudio .graphics-studio-bottom-tools::-webkit-scrollbar{display:none}
+#osminogGraphicsStudio .graphics-studio-bottom-tools button{display:grid!important;place-items:center!important;flex:0 0 36px!important;width:36px!important;min-width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;margin:0!important;border-radius:9px!important}
+#osminogGraphicsStudio .graphics-studio-bottom-tools button span{display:none!important}
+#osminogGraphicsStudio .graphics-studio-bottom-tools svg{width:17px!important;height:17px!important}
+#osminogGraphicsStudio .graphics-tool-divider{height:26px!important;width:1px!important;flex:0 0 1px!important;margin:0 2px!important}
+#osminogGraphicsStudio .gfx-panel-resizer{position:absolute!important;z-index:95!important;top:0!important;bottom:0!important;width:9px!important;background:transparent!important;cursor:col-resize!important;touch-action:none!important}
+#osminogGraphicsStudio .gfx-panel-resizer:after{content:"";position:absolute;top:0;bottom:0;left:4px;width:1px;background:transparent;transition:.15s}
+#osminogGraphicsStudio .gfx-panel-resizer:hover:after,#osminogGraphicsStudio .gfx-panel-resizer:active:after{background:var(--accent)}
+#osminogGraphicsStudio .gfx-panel-resizer.left{left:var(--gfx-layers-width)!important;transform:translateX(-4px)!important}
+#osminogGraphicsStudio .gfx-panel-resizer.right{right:var(--gfx-inspector-width)!important;transform:translateX(4px)!important}
+html.osminog-native-file-drag #viewport:after{content:"Перетащите файл на холст";position:fixed;z-index:2147483000;inset:88px 80px 70px;border:2px dashed var(--accent);border-radius:20px;background:color-mix(in srgb,var(--accent) 8%,transparent);display:grid;place-items:center;color:var(--accent);font-size:18px;font-weight:800;pointer-events:none;backdrop-filter:blur(3px)}
+@media(max-width:980px){#osminogGraphicsStudio .graphics-studio-shell.graphics-v2{--gfx-layers-width:150px;--gfx-inspector-width:240px}}

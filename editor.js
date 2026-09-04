@@ -1223,3 +1223,27 @@ globalThis.OSMINOGEditorAPI={
 
 /* OSMINOG 3.11.21: allow dynamic modules (Ocean FX / provider settings) to reuse the canonical smart select. */
 globalThis.OSMINOGUpgradeSelects=upgradeSelects;
+
+
+/* OSMINOG 3.19.3 · native desktop file drop recovery */
+(()=>{
+  if(globalThis.__OSMINOG_NATIVE_DROP_3193__)return;
+  globalThis.__OSMINOG_NATIVE_DROP_3193__=true;
+  const isFiles=event=>Array.from(event.dataTransfer?.types||[]).includes('Files');
+  const isCanvasTarget=event=>{
+    const target=event.target;
+    if(target?.closest?.('#osminogGraphicsStudio,.osminog-app-window,.modal,.popover,input,textarea,select'))return false;
+    return !!target?.closest?.('#viewport,#world,.canvas-stage,.workspace-canvas')||target===document.body;
+  };
+  document.addEventListener('dragenter',event=>{if(isFiles(event)&&isCanvasTarget(event))document.documentElement.classList.add('osminog-native-file-drag')},true);
+  document.addEventListener('dragover',event=>{if(!isFiles(event)||!isCanvasTarget(event))return;event.preventDefault();event.dataTransfer.dropEffect='copy';document.documentElement.classList.add('osminog-native-file-drag')},true);
+  document.addEventListener('dragleave',event=>{if(!event.relatedTarget)document.documentElement.classList.remove('osminog-native-file-drag')},true);
+  document.addEventListener('drop',event=>{
+    document.documentElement.classList.remove('osminog-native-file-drag');
+    if(!isFiles(event)||!isCanvasTarget(event))return;
+    const files=[...(event.dataTransfer?.files||[])];if(!files.length)return;
+    event.preventDefault();event.stopPropagation();
+    const point=typeof worldPoint==='function'?worldPoint(event.clientX,event.clientY):null;
+    Promise.resolve(importFiles(files,point,'auto')).then(()=>{renderAll?.();queuePersist?.();showToast?.(state?.language==='ru'?`Добавлено файлов: ${files.length}`:`Added files: ${files.length}`)}).catch(error=>{console.error('OSMINOG native file drop',error);showToast?.(error?.message||String(error))});
+  },true);
+})();

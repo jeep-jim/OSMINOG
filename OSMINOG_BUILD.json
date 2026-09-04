@@ -1,9 +1,9 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.19.2",
-  "codename": "GRAPHICS STUDIO V2.1 UX",
-  "baseVersion": "3.19.1",
+  "version": "3.19.3",
+  "codename": "GRAPHICS STABILITY + NATIVE FILE DROP",
+  "baseVersion": "3.19.2",
   "artifact": "OSMINOG-Chrome-3.19.2-GRAPHICS-STUDIO-UX-CANVAS-FIX.zip",
   "manifestAtRoot": true,
   "manifestVersion": "3.19.2",
