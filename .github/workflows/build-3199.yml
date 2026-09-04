@@ -1,10 +1,10 @@
-name: OSMINOG 3.19.9 language and canvas fixes
+name: OSMINOG 3.19.9 language canvas provider fixes
 
 on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/build-3199.yml'
+      - 'staging/3.19.9/ACTIVATE'
 
 permissions:
   contents: write
@@ -18,117 +18,45 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply 3.19.9 fixes
+      - name: Apply 3.19.9 source changes
+        run: python scripts/build_3199.py
+
+      - name: Verify source
         shell: bash
         run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import json
-
-          root=Path('.')
-
-          # Restore translated welcome title while preserving the exact two-line composition.
-          p=root/'editor.js'
-          s=p.read_text(encoding='utf-8')
-          old='  if(title)title.textContent=value.title;if(body)body.textContent=value.text;'
-          new='''  if(title){\n    const titleLines={\n      en:["Build the project","with your AI team"],\n      ru:["Соберите проект","вместе с командой ИИ"],\n      de:["Erstelle das Projekt","mit deinem KI-Team"],\n      es:["Construye el proyecto","con tu equipo de IA"],\n      ja:["AIチームと一緒に","プロジェクトを構築"],\n      zh:["与 AI 团队一起","构建项目"]\n    }[state.language]||[value.title];\n    title.replaceChildren(...titleLines.map(line=>{const span=document.createElement("span");span.textContent=line;return span}));\n    title.setAttribute("aria-label",value.title);\n  }\n  if(body)body.textContent=value.text;'''
-          assert old in s, 'syncEmptyHintLanguage target missing'
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
-
-          # Add narrow visual overrides instead of disturbing the approved cinematic composition.
-          p=root/'editor.css'
-          s=p.read_text(encoding='utf-8')
-          patch=r'''
-
-/* OSMINOG 3.19.9 · LANGUAGE + LIGHT HOVER + CANVAS COLOR FIX */
-.core-hero-launch h2.core-hero-title{
-  margin:30px auto 12px!important;
-  font-size:clamp(30px,3.25vw,44px)!important;
-  line-height:1.04!important;
-  font-weight:800!important;
-  letter-spacing:-.035em!important
-}
-.core-hero-launch h2.core-hero-title>span{display:block!important}
-.core-hero-launch h2.core-hero-title>span+span{margin-top:4px!important}
-.core-hero-launch h2.core-hero-title::before,.core-hero-launch h2.core-hero-title::after{content:none!important;display:none!important}
-html[data-theme="light"] .core-hero-launch .empty-launch-actions>button:not(.primary-btn):hover,
-html[data-theme="light"] .core-hero-launch .empty-provider-row>button:hover{
-  color:#18202c!important;
-  background:#e9edf4!important;
-  border-color:#c8d0dc!important
-}
-html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:hover{color:#fff!important}
-html[data-theme="light"] #viewport,
-html[data-theme="dark"] #viewport{
-  background-color:var(--board-bg)!important
-}
-html[data-theme="light"] #viewport[data-grid="plain"],
-html[data-theme="dark"] #viewport[data-grid="plain"]{background-image:none!important}
-html[data-theme="light"] #viewport[data-grid="dots"],
-html[data-theme="dark"] #viewport[data-grid="dots"]{
-  background-image:radial-gradient(circle,var(--grid-color) 1px,transparent 1.4px)!important;
-  background-size:var(--grid-size) var(--grid-size)!important;
-  background-position:var(--grid-x) var(--grid-y)!important
-}
-html[data-theme="light"] #viewport[data-grid="grid"],
-html[data-theme="dark"] #viewport[data-grid="grid"]{
-  background-image:linear-gradient(to right,var(--grid-color) 1px,transparent 1px),linear-gradient(to bottom,var(--grid-color) 1px,transparent 1px)!important;
-  background-size:var(--grid-size) var(--grid-size)!important;
-  background-position:var(--grid-x) var(--grid-y)!important
-}
-html[data-theme="light"] #viewport[data-grid="both"],
-html[data-theme="dark"] #viewport[data-grid="both"]{
-  background-image:linear-gradient(to right,color-mix(in srgb,var(--grid-color) 44%,transparent) 1px,transparent 1px),linear-gradient(to bottom,color-mix(in srgb,var(--grid-color) 44%,transparent) 1px,transparent 1px),radial-gradient(circle,var(--grid-color) 1px,transparent 1.4px)!important;
-  background-size:var(--major-grid-size) var(--major-grid-size),var(--major-grid-size) var(--major-grid-size),var(--grid-size) var(--grid-size)!important;
-  background-position:var(--grid-x) var(--grid-y)!important
-}
-'''
-          if 'OSMINOG 3.19.9 · LANGUAGE + LIGHT HOVER + CANVAS COLOR FIX' not in s:
-              s=s.rstrip()+patch+'\n'
-          p.write_text(s,encoding='utf-8')
-
-          mpath=root/'manifest.json'
-          m=json.loads(mpath.read_text(encoding='utf-8'))
-          assert m.get('version')=='3.19.8', f"unexpected base version {m.get('version')}"
-          m['version']='3.19.9';m['version_name']='3.19.9'
-          mpath.write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-
-          bpath=root/'OSMINOG_BUILD.json'
-          b=json.loads(bpath.read_text(encoding='utf-8'))
-          b.update({
-            'version':'3.19.9','versionName':'3.19.9','build':'3.19.9',
-            'codename':'LANGUAGE CANVAS FIX','baseVersion':'3.19.8',
-            'artifact':'OSMINOG-Chrome-3.19.9-LANG-CANVAS-FIX.zip',
-            'manifestVersion':'3.19.9','release':'LANGUAGE-CANVAS-FIX',
-            'notes':'Welcome title raised and restored to all six workspace languages; light-theme hover contrast fixed; live canvas background and grid color controls restored for Light/Dark.'
-          })
-          bpath.write_text(json.dumps(b,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-
-          log=root/'OSMINOG_PROJECT_LOG.md'
-          log.write_text(log.read_text(encoding='utf-8')+'''\n\n---\n\n## 2026-09-04 — OSMINOG 3.19.9 language, hover and canvas-color repair\n\n### Owner runtime report from 3.19.8\n- Cinematic welcome composition is visually approved.\n- Welcome heading needed to move slightly upward.\n- Heading stopped following the selected workspace language because 3.19.8 rendered fixed English CSS pseudo-content over the translated DOM title.\n- In Light theme, hover state on welcome buttons could make labels unreadable.\n- Canvas background and grid color controls no longer changed the visible workspace because later theme CSS no longer consumed the runtime `--board-bg` / `--grid-color` variables for Light/Dark.\n\n### 3.19.9 changes\n- `syncEmptyHintLanguage()` again owns the real hero title DOM and renders approved two-line localized variants for EN/RU/DE/ES/JA/ZH.\n- Hero title moved upward by 20 px without moving the art or buttons.\n- Fixed English `::before`/`::after` title content is disabled.\n- Light-theme welcome hover states now retain dark readable text; primary CTA remains white.\n- Light/Dark viewport rendering explicitly uses the project `--board-bg`, `--grid-color`, `--grid-size`, `--major-grid-size`, `--grid-x`, and `--grid-y` values, restoring live board/grid color controls.\n- Ocean remains controlled by its dedicated theme and is not changed by this repair.\n\n### Verification\n- JavaScript syntax and JSON parse must pass in CI.\n- Runtime still requires owner verification in Chrome after update.\n''',encoding='utf-8')
-          PY
-
-      - name: Verify 3.19.9 source
-        shell: bash
-        run: |
-          set -euo pipefail
+          set -euxo pipefail
+          grep -q 'OSMINOG 3.19.9 · LOCALIZED DOCKED HERO' editor.css
+          grep -q 'ru:\["Соберите проект","вместе с командой ИИ"\]' editor.js
+          grep -q 'dataset.providerOpen' editor.js
+          grep -q 'grok:"https://grok.com/"' editor.js
+          grep -q 'OSMINOGBrowserHubAPI.open' editor.js
+          ! grep -q 'btn.dataset.provider,url=' editor.js
+          grep -q 'OSMINOG 3.19.9 · LIGHT HOVER + LIVE CANVAS COLORS' osminog-product-core-recovery.css
+          grep -q 'background-color:var(--board-bg)!important' osminog-product-core-recovery.css
+          grep -q 'var(--grid-color)' osminog-product-core-recovery.css
           node --check editor.js
           python -m json.tool manifest.json >/dev/null
           python -m json.tool OSMINOG_BUILD.json >/dev/null
-          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version"])')" = "3.19.9"
-          grep -q 'ru:\["Соберите проект","вместе с командой ИИ"\]' editor.js
-          grep -q 'OSMINOG 3.19.9 · LANGUAGE + LIGHT HOVER + CANVAS COLOR FIX' editor.css
-          grep -q 'background-color:var(--board-bg)!important' editor.css
-          grep -q 'var(--grid-color)' editor.css
+          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version"])')" = '3.19.9'
+          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version_name"])')" = '3.19.9'
+          python - <<'PY'
+          import hashlib,json
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          key=m.get('key') or ''
+          assert key
+          assert hashlib.sha256(key.encode()).hexdigest() == '1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          print('FIXED_IDENTITY_OK')
+          PY
+          echo SOURCE_3199_OK
 
       - name: Commit 3.19.9 source
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/build-3199.yml
+          rm -rf staging/3.19.9
+          rm -f .github/workflows/build-3199.yml scripts/build_3199.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'OSMINOG 3.19.9 language and canvas fixes [skip ci]'
+          git commit -m 'OSMINOG 3.19.9 language canvas provider fixes [skip ci]'
           git push origin HEAD:main
