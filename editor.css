@@ -2543,3 +2543,37 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 @media(max-width:680px){.osminog-access-simple .osminog-sharing-fields{grid-template-columns:1fr}.osminog-access-simple .osminog-share-link{grid-template-columns:1fr}.osminog-owner-card{padding:15px}}
 
 .gpt-context-chip.module-focus{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 10%,var(--surface));max-width:210px}.gpt-context-chip.module-focus .gpt-context-eye{color:var(--accent)}
+
+/* OSMINOG 3.18.2 · EXECUTION CORE + DEVELOPMENT WORKSPACE */
+.osminog-development-workspace{position:fixed;z-index:94;width:min(720px,calc(100vw - 32px));height:min(650px,calc(100vh - 32px));display:flex;flex-direction:column;overflow:hidden}
+.osminog-development-workspace>main{display:flex;flex-direction:column;gap:14px;padding:16px;min-height:0;overflow:auto}
+.dev-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#5b70ff,#8e5cff);color:#fff;font:800 18px/1 ui-monospace,monospace}
+.dev-types{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px}.dev-types button{display:flex;align-items:center;gap:8px;min-height:50px;padding:10px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);text-align:left}.dev-types button b{font-size:20px}.dev-types button.active{border-color:#755cff;box-shadow:0 0 0 2px color-mix(in srgb,#755cff 18%,transparent)}
+.dev-target{display:flex;flex-direction:column;gap:3px;padding:11px 13px;border:1px dashed color-mix(in srgb,#755cff 50%,var(--line));border-radius:13px;background:color-mix(in srgb,var(--surface) 90%,#755cff 10%)}.dev-target strong{font-size:12px}.dev-target span{font-size:10px;color:var(--muted)}
+.dev-brief{display:grid;gap:6px}.dev-brief>span{font-size:10px;font-weight:800;color:var(--muted)}.dev-brief textarea{min-height:130px;resize:vertical;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);padding:12px;font:inherit}
+.dev-actions{display:flex;gap:8px;flex-wrap:wrap}.dev-actions button{padding:10px 13px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);font-weight:800}.dev-actions .primary{margin-left:auto;background:#755cff;border-color:#755cff;color:#fff}.osminog-development-workspace p{margin:0;color:var(--muted);font-size:10px}
+
+/* Smooth living octopus mascot: rounded tentacles replace spike polygons. */
+.ai-canvas-ghost .ai-ghost-wisp::before{content:""!important;display:block!important;position:absolute!important;left:3px!important;right:auto!important;bottom:-17px!important;width:5px!important;height:22px!important;background:var(--ghost-color,#8b5cf6)!important;border-radius:55% 55% 72% 72%!important;clip-path:none!important;box-shadow:6px 2px 0 var(--ghost-color,#8b5cf6),12px 4px 0 var(--ghost-color,#8b5cf6),18px 2px 0 var(--ghost-color,#8b5cf6),24px 4px 0 var(--ghost-color,#8b5cf6),30px 1px 0 var(--ghost-color,#8b5cf6),36px 3px 0 var(--ghost-color,#8b5cf6),42px 1px 0 var(--ghost-color,#8b5cf6)!important;filter:none!important;transform-origin:24px 0;animation:osminogTentacleSway 1.8s ease-in-out infinite!important}
+.agent-wisp::before{content:""!important;position:absolute!important;left:3px!important;bottom:-7px!important;width:4px!important;height:11px!important;border-radius:55% 55% 75% 75%!important;background:var(--wisp)!important;clip-path:none!important;box-shadow:5px 1px 0 var(--wisp),10px 2px 0 var(--wisp),15px 1px 0 var(--wisp)!important;opacity:.9!important;transform-origin:10px 0;animation:osminogTentacleSway 2.1s ease-in-out infinite!important}
+@keyframes osminogTentacleSway{0%,100%{transform:translateY(0) rotate(-4deg) scaleY(1)}50%{transform:translateY(1px) rotate(5deg) scaleY(.92)}}
+.ai-canvas-ghost[data-mode="work"] .ai-ghost-wisp::before{animation-duration:.9s!important}.ai-canvas-ghost[data-mode="inspect"] .ai-ghost-wisp::before{animation-duration:2.35s!important}
+@media(prefers-reduced-motion:reduce){.ai-canvas-ghost .ai-ghost-wisp::before,.agent-wisp::before{animation:none!important}}
+
+
+/* OSMINOG 3.19 CORE RESET */
+.connection-bend-handle{fill:#fff;stroke:#6d7cff;stroke-width:3;cursor:ns-resize;filter:drop-shadow(0 3px 8px #526fff55);pointer-events:all}
+.connection-end-handle{fill:#6d7cff;stroke:#fff;stroke-width:3;cursor:grab;filter:drop-shadow(0 3px 8px #526fff55);pointer-events:all}
+.connection-end-handle:active{cursor:grabbing}
+.connection.selected{filter:drop-shadow(0 0 7px color-mix(in srgb,currentColor 45%,transparent))}
+.core-reset-launch{max-width:720px}.core-reset-launch h2{font-size:clamp(28px,4vw,48px);letter-spacing:-.035em}.core-reset-launch p{max-width:620px;font-size:15px;line-height:1.65}
+.agent-wisp{border-radius:52% 48% 46% 54% / 58% 58% 42% 42%!important;transform:none!important}
+.agent-wisp::before{content:""!important;position:absolute!important;left:4px!important;bottom:-7px!important;width:5px!important;height:10px!important;border-radius:999px!important;background:var(--wisp)!important;clip-path:none!important;box-shadow:5px 1px 0 -1px var(--wisp),10px 2px 0 -1px var(--wisp),15px 1px 0 -1px var(--wisp),20px -1px 0 -1px var(--wisp)!important;transform-origin:12px 0!important;animation:osminogSoftTentacles 2.7s ease-in-out infinite!important}
+.agent-wisp::after{content:""!important;position:absolute!important;left:8px!important;bottom:-7px!important;width:4px!important;height:8px!important;border-radius:999px!important;background:color-mix(in srgb,var(--wisp) 92%,white 8%)!important;clip-path:none!important;box-shadow:9px 1px 0 -1px color-mix(in srgb,var(--wisp) 92%,white 8%)!important;opacity:.95!important;animation:osminogSoftTentaclesB 2.2s ease-in-out infinite alternate!important}
+.agent-wisp b{display:block!important;position:absolute;left:50%;top:15px;width:5px;height:2px;border-radius:999px;background:#17202a99;transform:translateX(-50%)}
+.parallel-agent-ghost .agent-wisp{filter:drop-shadow(0 9px 18px color-mix(in srgb,var(--agent-color) 25%,transparent))}
+.parallel-agent-ghost[data-mode="work"] .agent-wisp{animation:osminogFloatWork 1.5s ease-in-out infinite!important}
+@keyframes osminogSoftTentacles{0%,100%{transform:rotate(3deg) scaleY(.92)}50%{transform:rotate(-4deg) scaleY(1.06)}}
+@keyframes osminogSoftTentaclesB{from{transform:rotate(-4deg)}to{transform:rotate(5deg)}}
+@keyframes osminogFloatWork{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
+@media(prefers-reduced-motion:reduce){.agent-wisp::before,.agent-wisp::after,.parallel-agent-ghost[data-mode="work"] .agent-wisp{animation:none!important}}

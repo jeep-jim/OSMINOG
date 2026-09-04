@@ -27,7 +27,11 @@
   function openTeam(){active.add("team");renderDock();globalThis.OSMINOGTeamAPI?.open?.();setTimeout(()=>{globalThis.OSMINOGWindowManager?.restore?.("team");globalThis.OSMINOGWindowManager?.front?.("team")},0)}
   function openCode(){const el=createWindow("osminogCodeApp","Разработка","code-app",`<div class="osminog-app-actions three"><button data-code-doc>${svg("M5 3h14v18H5zM8 8h8M8 12h8M8 16h5")}<strong>Код и Markdown</strong><small>Редактор документов и исходников проекта</small></button><button data-code-store>${ICONS.modules}<strong>Extension Studio</strong><small>Откройте свой модуль в магазине и нажмите «Редактировать код»</small></button><button data-code-access>${ICONS.code}<strong>GitHub и исходники</strong><small>Права записи и публикации в одном центре</small></button></div>`,{w:720,h:390});el.querySelector("[data-code-doc]").onclick=()=>openManaged("markdown","#markdownStudio",$("#markdownStudioButton"));el.querySelector("[data-code-store]").onclick=openModules;el.querySelector("[data-code-access]").onclick=openAccess}
   const APPS=[
-    {id:"ai",title:"OSMINOG AI",tone:"#20c779",open:openAI},{id:"graphics",title:"Графика",tone:"#9b62ff",open:openGraphics},{id:"text",title:"Текст",tone:"#ff4f9a",open:openText},{id:"browser",title:"Браузер",tone:"#39a8ff",open:openBrowser},{id:"files",title:"Файлы",tone:"#f4ba25",open:openFiles},{id:"modules",title:"Модули",tone:"#ff7a45",open:openModules},{id:"team",title:"Команда",tone:"#27c8bc",open:openTeam},{id:"code",title:"Разработка",tone:"#6d7cff",open:openCode}
+    {id:"ai",title:"ИИ",tone:"#20c779",open:openAI},
+    {id:"graphics",title:"Графика",tone:"#8b5cf6",open:openGraphics},
+    {id:"browser",title:"Браузер",tone:"#39a8ff",open:openBrowser},
+    {id:"files",title:"Файлы",tone:"#f4ba25",open:openFiles},
+    {id:"modules",title:"Модули",tone:"#ff7a45",open:openModules}
   ];
   function renderDock(){globalThis.OSMINOGAppDock?.setGroup?.("core",APPS.map(app=>({id:app.id,title:app.title,tone:app.tone,iconHtml:ICONS[app.id],active:active.has(appToWindow[app.id]),onOpen:app.open})))}
   function syncWindowState(minimized){for(const name of appToWindow?Object.values(appToWindow):[])if(minimized.has(name))active.delete(name);renderDock()}
