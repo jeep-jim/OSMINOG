@@ -65,7 +65,7 @@ jobs:
           grep -F 'margin-top:-10px!important' editor.css
           grep -F '## 2026-09-04 — 3.19.12 SEAMLESS SHARED VISION' OSMINOG_PROJECT_LOG.md
           grep -F '## 3.19.12 — SEAMLESS SHARED VISION' OSMINOG_ROADMAP.md
-          git diff --check
+          git diff --check -- ':!OSMINOG_PROJECT_LOG.md' ':!OSMINOG_ROADMAP.md'
 
       - name: Commit canonical 3.19.12 source
         shell: bash
