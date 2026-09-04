@@ -25,14 +25,16 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          test -f assets/core/core-hero-3196.webp
-          test "$(stat -c%s assets/core/core-hero-3196.webp)" = "1459142"
-          test "$(sha256sum assets/core/core-hero-3196.webp | cut -d' ' -f1)" = "2dcc954ecb598b067f017c0fca556e38f45cbecaad29595019fc6b0943aaff68"
+          test -f assets/core/core-hero-3196.png
+          test "$(stat -c%s assets/core/core-hero-3196.png)" = "1796453"
+          test "$(sha256sum assets/core/core-hero-3196.png | cut -d' ' -f1)" = "0f3bfa90a683f9efe4ca81f28889bd2b29543b7e52469815dd36a281c843214c"
           grep -q 'core-hero-composite-back' editor.html
           grep -q 'core-hero-composite-front' editor.html
+          grep -q 'assets/core/core-hero-3196.png' editor.html
           grep -q 'OSMINOG 3.19.6 · CINEMATIC CORE HERO' editor.css
           grep -q 'right:14px!important;left:auto!important' editor.css
           grep -q 'clip-path:inset(0 64% 0 0)' editor.css
+          grep -q 'grid-template-columns:repeat(5,minmax(0,1fr))' editor.css
           node --check editor.js
           python -m json.tool manifest.json >/dev/null
           python -m json.tool OSMINOG_BUILD.json >/dev/null
