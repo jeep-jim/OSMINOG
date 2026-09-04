@@ -1,0 +1,67 @@
+name: OSMINOG 3.19.8 solid docked hero
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'staging/3.19.8/ACTIVATE'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply 3.19.8 source changes
+        run: python scripts/build_3198.py
+
+      - name: Verify source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          grep -q 'OSMINOG 3.19.8 · SOLID DOCKED HERO' editor.css
+          grep -q 'class="core-hero-title"' editor.html
+          grep -q 'Build the project' editor.html
+          grep -q 'with your AI team' editor.html
+          ! grep -q '<div class="hint-orb"><svg><use href="#i-logo"/></svg></div>' editor.html
+          ! grep -q '<small class="empty-kicker">OSMINOG · CORE</small>' editor.html
+          grep -q 'inset:-12px 0 0' editor.css
+          grep -q 'background:#09577c!important' editor.css
+          grep -q 'backdrop-filter:none!important' editor.css
+          grep -q 'font-size:0!important' editor.css
+          grep -q 'animation:none!important' editor.css
+          grep -q 'repeat(5,minmax(0,1fr))' editor.css
+          grep -q 'empty-action-icon' editor.html
+          grep -q 'data-provider-open="grok"' editor.html
+          node --check editor.js
+          python -m json.tool manifest.json >/dev/null
+          python -m json.tool OSMINOG_BUILD.json >/dev/null
+          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version"])')" = '3.19.8'
+          test "$(python -c 'import json;print(json.load(open("manifest.json"))["version_name"])')" = '3.19.8'
+          python - <<'PY'
+          import hashlib,json
+          m=json.load(open('manifest.json',encoding='utf-8'))
+          key=m.get('key') or ''
+          assert key, 'fixed extension key missing'
+          assert hashlib.sha256(key.encode()).hexdigest() == '1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+          print('FIXED_IDENTITY_OK')
+          PY
+          echo SOURCE_3198_OK
+
+      - name: Commit 3.19.8 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf staging/3.19.8
+          rm -f .github/workflows/build-3198.yml scripts/build_3198.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'OSMINOG 3.19.8 solid docked hero [skip ci]'
+          git push origin HEAD:main
