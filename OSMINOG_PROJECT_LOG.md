@@ -2030,3 +2030,14 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 
 ## 2026-09-03 — 3.18.0 PRODUCT CORE RECOVERY
 После owner-тестов 3.14–3.17 возвращена простая продуктовая модель ранней 3.11: обычная работа ИИ доступна без матрицы permission-переключателей; «Доступ» отвечает только за шаринг холста; AI и Poseidon разведены в две понятные кнопки; пользовательские GitHub/Drive и web-сервисы возвращены как подключения. Updater переведён на три независимых источника и больше не имеет права показывать `up to date`, если канал не был успешно прочитан. Сохранён 3.17 Generative App Runtime.
+
+## 2026-09-04 — Chrome 3.19.5 / Split Core Hero
+- Одобренные human и octopus/AI арты разделены на независимые прозрачные WebP-слои вокруг empty-state карточки.
+- Удалены 3.19.4 banana/stars и старый объединённый hero container; старая `assets/core/core-hero.webp` удалена из сборки.
+- Hero адаптивный и `pointer-events:none`, поэтому реальные кнопки и provider controls остаются интерактивными.
+- Native file-drop recovery 3.19.4 намеренно не менялся.
+- Human SHA-256: `2fdf7dd116cc4d7ad655fe8466937fd1eeb53c4e774aba0e6547908b78d6254b`.
+- Octopus SHA-256: `c212e02dfd2cc8fb29080da447dedb77cabe5ead63410e8968207cf63cb46260`.
+- Автоматическая проверка: целостность WebP, JS syntax, JSON, версия 3.19.5, fixed extension key, hero markers и сохранение native drop guard.
+- Живая проверка интерфейса Chrome остаётся ручной проверкой владельца после обновления.
+
