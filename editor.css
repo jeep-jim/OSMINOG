@@ -48,7 +48,7 @@
   position:absolute!important;z-index:9!important;top:14px!important;right:14px!important;left:auto!important
 }
 .core-hero-launch .hint-orb,.core-hero-launch .empty-kicker{display:none!important}
-.core-hero-launch h2.core-hero-title{max-width:590px!important;margin:28px auto 12px!important;font-size:clamp(30px,3.25vw,44px)!important;line-height:1.04!important;color:var(--text)!important;font-weight:800!important;letter-spacing:-.035em!important}
+.core-hero-launch h2.core-hero-title{max-width:590px!important;margin:-10px auto 12px!important;font-size:clamp(30px,3.25vw,44px)!important;line-height:1.04!important;color:var(--text)!important;font-weight:800!important;letter-spacing:-.035em!important}
 .core-hero-launch h2.core-hero-title>span{display:block!important}.core-hero-launch h2.core-hero-title>span+span{margin-top:4px!important}.core-hero-launch h2.core-hero-title::before,.core-hero-launch h2.core-hero-title::after{content:none!important;display:none!important}
 .core-hero-launch p{max-width:600px!important;margin:0 auto 22px!important;font-size:13px!important;line-height:1.55!important}
 .core-hero-launch .empty-launch-actions{
@@ -110,3 +110,6 @@
 }
 
 html[data-theme="ocean"] .core-hero-launch::after{background:#09577c!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+
+/* OSMINOG 3.19.10 · HERO TITLE LIFT */
+.core-hero-launch h2.core-hero-title{margin-top:-10px!important}

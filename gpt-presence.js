@@ -462,7 +462,34 @@
   async function connect(){activity("Подключаю ChatGPT…");try{const ctx=contextForPrompt(""),direct=await chrome.runtime.sendMessage({type:"BC_LITE_CONNECT_GPT",context:ctx}).catch(error=>({ok:false,error:error?.message||String(error)}));if(direct?.ok){connected=true;gptTransport="direct"}else{const origins=["https://chatgpt.com/*","https://chat.openai.com/*"];let granted=await chrome.permissions.contains({origins}).catch(()=>false);if(!granted)granted=await chrome.permissions.request({origins}).catch(()=>false);if(!granted)throw new Error("Для привязки внешней вкладки ChatGPT нужен доступ к chatgpt.com.");const tab=await chrome.runtime.sendMessage({type:"BC_PROVIDER_CONNECT_TAB",provider:"gpt"}).catch(error=>({ok:false,error:error?.message||String(error)}));if(!tab?.ok)throw new Error(`${direct?.error||"Прямая сессия недоступна"}. ${tab?.error||"Открытая вкладка ChatGPT не подключена"}`);connected=true;gptTransport="tab"}await chrome.storage.local.set({[ENABLE_KEY]:true,osminogGptTransportV1:gptTransport});activity("",false);syncUi();document.dispatchEvent(new CustomEvent("osminog:gpt-connection",{detail:{connected:true,transport:gptTransport}}));return{ok:true,provider:"gpt",mode:gptTransport==="direct"?"direct-session":"attached-tab"}}catch(e){connected=false;activity(e?.message||String(e),true);syncUi();document.dispatchEvent(new CustomEvent("osminog:gpt-connection",{detail:{connected:false,error:e?.message||String(e)}}));return{ok:false,provider:"gpt",error:e?.message||String(e)}}}
   globalThis.OSMINOGConnectDirectChatGPT=connect;
   globalThis.OSMINOGDirectChatGPTStatus=()=>connected;
-  async function maybeVisual(prompt,ctx,pinsOverride=null){if(!ctx?.intent?.visual)return null;try{const pins=Array.isArray(pinsOverride)?pinsOverride:pinnedContexts,pinned=pins[0];const selected=ctx.selectedIds||[];const tool=pinned?"capture_object_image":selected.length?"capture_selection_image":"capture_viewport_image";const args=pinned?{id:pinned.id}:{};if(pinned&&!pinsOverride)ghostLookAt(pinned.id,"Смотрю на закреплённый объект");const r=await B.executeTool?.(tool,args);if(r?.image?.data)return {kind:"image",name:pinned?`${pinned.name||pinned.id}.png`:selected.length?"selection.png":"canvas.png",type:r.image.mimeType||"image/png",size:0,dataUrl:`data:${r.image.mimeType||"image/png"};base64,${r.image.data}`,auto:true}}catch{}return null}
+  /* OSMINOG 3.19.12 · SHARED VISION CONTEXT */
+  async function visionSnapshotForContext(ctx,pinsOverride=null){
+    if(!ctx?.intent?.visual&&!ctx?.intent?.whole)return null;
+    try{
+      const pins=Array.isArray(pinsOverride)?pinsOverride:pinnedContexts,pinned=pins[0],selected=ctx.selectedIds||[];
+      const tool=ctx.intent.whole?"capture_canvas_overview_image":pinned?"capture_object_image":selected.length?"capture_selection_image":"capture_viewport_image";
+      const args=pinned&&!ctx.intent.whole?{id:pinned.id}:{};
+      if(pinned&&!pinsOverride)ghostLookAt(pinned.id,"Смотрю на закреплённый объект");
+      const r=await B.executeTool?.(tool,args);
+      if(!r?.image?.data)return null;
+      const revision=ctx.revision||B.canvasStatus?.()?.revision||0;
+      const image={kind:"image",name:ctx.intent.whole?`canvas-overview-rev-${revision}.png`:pinned?`${pinned.name||pinned.id}.png`:selected.length?`selection-rev-${revision}.png`:`viewport-rev-${revision}.png`,type:r.image.mimeType||"image/png",size:0,dataUrl:`data:${r.image.mimeType||"image/png"};base64,${r.image.data}`,auto:true};
+      ctx.contextPolicy={...(ctx.contextPolicy||{}),preload:true,visionAttached:true};
+      ctx.vision={protocol:"osminog.vision_context/v1",revision,source:ctx.intent.whole?"overview":pinned?"object":selected.length?"selection":"viewport",imageAttached:true,sameRevision:true,instruction:"A fresh OSMINOG canvas image from this exact project revision is attached to this user turn. Treat the image plus projectMap/viewport/selection as one visual source of truth."};
+      return image;
+    }catch{return null}
+  }
+  async function maybeVisual(prompt,ctx,pinsOverride=null){return visionSnapshotForContext(ctx,pinsOverride)}
+  async function prepareExternalVisionTurn(text){
+    const ctx=contextForPrompt(text,activeThread(),pinnedContexts),image=await visionSnapshotForContext(ctx,pinnedContexts);
+    if(ctx?.intent?.canvas&&!ctx.vision){
+      const revision=ctx.revision||B.canvasStatus?.()?.revision||0;
+      ctx.contextPolicy={...(ctx.contextPolicy||{}),preload:true,visionAttached:false};
+      ctx.vision={protocol:"osminog.vision_context/v1",revision,source:"structured",imageAttached:false,sameRevision:true,instruction:"Structured canvas context is attached. If pixel detail is required, request the appropriate capture tool."};
+    }
+    return{ok:true,context:ctx,imageDataUrl:image?.dataUrl||"",imageName:image?.name||"",vision:ctx.vision||null}
+  }
+  globalThis.OSMINOGVisionContext={prepare:prepareExternalVisionTurn};
   async function maybeProjectOverview(ctx){if(ctx?.chat?.kind!=="main"||!ctx.revision||ctx.revision===lastMainOverviewRevision)return null;try{const r=await B.executeTool?.("capture_canvas_overview_image",{});if(r?.image?.data){lastMainOverviewRevision=ctx.revision;return{kind:"image",name:`project-overview-rev-${ctx.revision}.png`,type:r.image.mimeType||"image/png",size:0,dataUrl:`data:${r.image.mimeType||"image/png"};base64,${r.image.data}`,auto:true}}}catch{}return null}
   function pinnedPdfAttachments(pinsOverride=null){const pins=Array.isArray(pinsOverride)?pinsOverride:pinnedContexts,all=globalThis.objects?.()||[],out=[];for(const c of pins){const o=all.find(x=>x.id===c.id);if(o?.type==="file"&&o.mime==="application/pdf"&&String(o.src||"").startsWith("data:application/pdf"))out.push({kind:"pdf",name:o.fileName||o.name||`${o.id}.pdf`,type:"application/pdf",size:o.size||0,dataUrl:o.src,auto:true,objectId:o.id});if(out.length>=4)break}return out}
   function textAttachmentBlock(items){return items.filter(a=>a.kind==="text"&&a.text).map(a=>`\n\n--- Прикреплённый файл: ${a.name} ---\n${a.text}\n--- Конец файла ---`).join("")}
@@ -643,7 +670,7 @@ Previous response excerpt: ${String(lastText||"").slice(0,900)}`;
 
 
   document.addEventListener("osminog:extension-focused",event=>{const d=event.detail||{},t=activeThread();if(!t||!d.id)return;t.lastArtifact={kind:"module",id:d.id,title:d.title||d.id,type:d.type||"app",displayMode:d.displayMode||"window",at:Date.now()};chrome.storage.local.set({[THREADS_KEY()]:threadStore()}).catch(()=>{});renderContextTray()});
-  chrome.runtime.onMessage.addListener((m)=>{if(m?.type==="BC_LITE_FROM_GPT")handleResult(m.payload||{});if(m?.type==="BC_LITE_EXTERNAL_USER"){const t=String(m.payload?.text||"").trim();if(t)add("user",t)}if(m?.type==="BC_PROVIDER_TAB_AVAILABLE"){const p=String(m.provider||"");activity(`${providerLabel(p)} открыт · можно подключить в настройках чата.`,true);if(activeThread()?.provider===p)refreshProviderUi()}if(m?.type==="OSMINOG_SESSION_DISCONNECTED"&&activeThread()?.provider===String(m.provider||"")){const t=activeThread();if(t){t._routeReady=false;t._routeMode="none"}refreshProviderUi();syncUi()}});
+  chrome.runtime.onMessage.addListener((m,_sender,sendResponse)=>{if(m?.type==="BC_LITE_FROM_GPT"){handleResult(m.payload||{});return}if(m?.type==="BC_LITE_EXTERNAL_USER"){const t=String(m.payload?.text||"").trim();if(t)add("user",t);if(m.payload?.prepare===true){prepareExternalVisionTurn(t).then(r=>sendResponse?.(r)).catch(e=>sendResponse?.({ok:false,error:e?.message||String(e)}));return true}return}if(m?.type==="BC_PROVIDER_TAB_AVAILABLE"){const p=String(m.provider||"");activity(`${providerLabel(p)} открыт · можно подключить в настройках чата.`,true);if(activeThread()?.provider===p)refreshProviderUi()}if(m?.type==="OSMINOG_SESSION_DISCONNECTED"&&activeThread()?.provider===String(m.provider||"")){const t=activeThread();if(t){t._routeReady=false;t._routeMode="none"}refreshProviderUi();syncUi()}});
   document.addEventListener("osminog:session-changed",e=>{const provider=String(e.detail?.provider||"");if(activeThread()?.provider===provider)refreshProviderUi()});
   function autoSizeComposer(){const input=q("#gptPresenceInput");if(!input)return;input.style.height="auto";input.style.height=`${Math.max(40,Math.min(150,input.scrollHeight))}px`}
   async function refreshPowerSettings(){try{const got=await chrome.storage.local.get(RESEARCH_KEY);researchEnabled=!!got?.[RESEARCH_KEY]}catch{}const rs=q("#gptResearchState");if(rs)rs.textContent=researchEnabled?"включены":"выключены"}

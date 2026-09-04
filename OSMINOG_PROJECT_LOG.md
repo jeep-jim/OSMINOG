@@ -2091,3 +2091,25 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 - `manifest.json` and `OSMINOG_BUILD.json` parse and report 3.19.9.
 - Static checks verify all provider routes and the live canvas CSS variables.
 - Owner runtime verification in Chrome remains required after update.
+
+---
+
+## 2026-09-04 — 3.19.12 SEAMLESS SHARED VISION
+
+### Requested work
+- Make canvas vision seamless for every connected AI.
+- In an attached external ChatGPT conversation, the owner must be able to type “смотри на холст” and have ChatGPT receive the live OSMINOG canvas without manually sending a screenshot.
+
+### Built changes
+- Added one same-revision `osminog.vision_context/v1` path for provider turns.
+- Visual intent chooses overview / tethered object / selection / current viewport and attaches the fresh image to the same request.
+- External ChatGPT manual sends now pause for an OSMINOG preflight, receive fresh structured canvas context + matching image, then send once.
+- Machine context and tool-result hops are placed in hidden protocol blocks instead of visible chat prose.
+- External Presence now carries a real project revision heartbeat and silently reconnects to an existing ChatGPT tab after prior user authorization; OSMINOG never creates a new consumer ChatGPT tab for this.
+- Existing object IDs, patch validation, provider routing, hero art and 3.19.11 UI fixes are preserved.
+
+### Verification
+- JS syntax and manifest JSON are checked by CI.
+- Public package is published through OSMINOG-Releases with SHA/size verification.
+- Runtime owner test still required: update, keep/attach this ChatGPT tab, then type `смотри на холст`. Expected: normal answer based on the live canvas with no manual screenshot upload.
+

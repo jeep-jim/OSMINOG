@@ -793,3 +793,11 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] Исправить удаление старых тестовых модулей и пользовательских сервисов.
 - [x] Убрать систематическое прижатие controls/carets к правому краю.
 - [x] Упростить nested containers чата, сохранив Generative App Runtime 3.17.
+
+## 3.19.12 — SEAMLESS SHARED VISION
+- [x] Shared same-revision visual context for all OSMINOG provider turns.
+- [x] External ChatGPT Presence preflights natural canvas requests and automatically attaches the fresh canvas image.
+- [x] `смотри на холст` / `что видишь` no longer requires a manual screenshot when Presence is connected.
+- [x] External Presence revision heartbeat fixed; prior-authorized ChatGPT tab reconnects silently if it already exists.
+- [ ] Owner runtime proof in the live ChatGPT tab after updating to 3.19.12.
+

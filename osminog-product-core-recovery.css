@@ -51,3 +51,21 @@ html[data-theme="dark"] #viewport[data-grid="both"]{
   background-position:var(--grid-x) var(--grid-y)!important
 }
 
+/* OSMINOG 3.19.11 · LIGHT PRIMARY HOVER + CLOSED INSPECTOR */
+html[data-theme="light"] .primary-btn:hover,
+html[data-theme="light"] .primary-btn:focus-visible,
+html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:hover,
+html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:focus-visible{
+  color:#fff!important;
+  background:linear-gradient(120deg,#536dff,#7b4dff)!important;
+  border-color:#6c5cff!important;
+  opacity:1!important;
+  -webkit-text-fill-color:#fff!important
+}
+html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:hover svg,
+html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:focus-visible svg{
+  color:#fff!important;
+  stroke:currentColor!important;
+  opacity:1!important
+}
+

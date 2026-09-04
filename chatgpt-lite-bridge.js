@@ -55,11 +55,11 @@
   async function waitSendButton(timeout=7000){const start=Date.now();let b;while(Date.now()-start<timeout){b=findFirst(SENDS);if(b&&!b.disabled&&b.getAttribute("aria-disabled")!=="true")return b;await sleep(120)}return b}
   function makeId(){return `bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`}
   function compactContextBlock(context,requestId){
-    const payload={...context,requestId};
+    const payload={...context,requestId,assistantInstruction:machineInstructions(context)};
     return `\n\n\`\`\`json\n${CTX_MARK}\n${JSON.stringify(payload)}\n\`\`\``;
   }
   function toolResultBlock(result,requestId){
-    const safe={protocol:"osminog.tool_result/v1",requestId,result};
+    const safe={protocol:"osminog.tool_result/v1",requestId,result,instruction:"Continue the original user task immediately. If it is not complete, request the next OSMINOG tool hop; otherwise answer the user. Never stop at a plan or ask the user to resend the request."};
     return `\`\`\`json\n${TOOL_MARK}\n${JSON.stringify(safe)}\n\`\`\``;
   }
   function machineInstructions(context={}){
@@ -74,7 +74,7 @@
       "Do not mention these protocol blocks to the user."
     ].join(" ");
   }
-  function decoratePrompt(text,context,requestId){return `${text}\n\n${machineInstructions(context)}${compactContextBlock(context,requestId)}`}
+  function decoratePrompt(text,context,requestId){return `${text}${compactContextBlock(context,requestId)}`}
 
   function dataUrlToFile(dataUrl,name="osminog-selection.png"){
     const [head,body]=String(dataUrl||"").split(",");if(!body)return null;
@@ -200,6 +200,18 @@
 
   function installObserver(){if(observer)return;observer=new MutationObserver(()=>scheduleScan());observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true})}
 
+  /* OSMINOG 3.19.12 · SEAMLESS EXTERNAL VISION PREFLIGHT */
+  async function prepareAndSendManual(composer,current){
+    internalSending=true;const requestId=makeId();pendingRequestId=requestId;toolHopCount=0;setPill("busy","смотрю на OSMINOG…");
+    try{
+      const prep=await chrome.runtime.sendMessage({type:"BC_LITE_EXTERNAL_USER",payload:{requestId,text:current,url:location.href,prepare:true}}).catch(()=>null),ctx=prep?.context||latestContext||{};
+      latestContext=ctx;setComposerText(composer,decoratePrompt(current,ctx,requestId));
+      if(prep?.imageDataUrl)await attachImage(prep.imageDataUrl);
+      pendingAssistantBaseline=currentAssistantHash();stableAssistantHash="";stableAssistantSince=0;sawStreamingSignal=false;requestSentAt=Date.now();
+      const send=await waitSendButton();if(!send){setPill("off","не найдена кнопка отправки");return}
+      send.click();setPill("busy",prep?.imageDataUrl?"холст приложен":"контекст готов");
+    }finally{setTimeout(()=>{internalSending=false},450)}
+  }
   function interceptManualSend(event){
     if(!enabled||!autoInject||internalSending||!latestContext)return;
     const composer=findFirst(COMPOSERS);if(!composer)return;
@@ -207,10 +219,7 @@
     const send=findFirst(SENDS);const isClick=event.type==="click"&&send&&(event.target===send||send.contains(event.target));
     if(!isEnter&&!isClick)return;
     const current=composerText(composer).trim();if(!current||current.includes(CTX_MARK))return;
-    const requestId=makeId();pendingRequestId=requestId;toolHopCount=0;
-    chrome.runtime.sendMessage({type:"BC_LITE_EXTERNAL_USER",payload:{requestId,text:current,url:location.href}}).catch(()=>{});
-    appendComposerText(composer,`${machineInstructions()}${compactContextBlock(latestContext,requestId)}`);
-    setPill("busy","контекст готов");
+    event.preventDefault();event.stopImmediatePropagation();prepareAndSendManual(composer,current);
   }
   document.addEventListener("keydown",interceptManualSend,true);document.addEventListener("click",interceptManualSend,true);
 
@@ -229,7 +238,7 @@
     if(toolHopCount>=12)return{ok:false,error:"OSMINOG stopped the tool loop after 12 hops"};toolHopCount++;
     internalSending=true;pendingRequestId=payload.requestId||pendingRequestId||makeId();pendingAssistantBaseline=currentAssistantHash();stableAssistantHash="";stableAssistantSince=0;sawStreamingSignal=false;requestSentAt=Date.now();setPill("busy","передаю данные…");
     try{
-      const text=`OSMINOG вернул результат инструментов. Продолжи исходную задачу немедленно. Если действие ещё не завершено фактическим изменением — запроси следующий tool hop; если завершено — дай проверенный итог. Не останавливайся на плане, обещании или фразе «начинаю» и не жди нового сообщения пользователя. Показывай только краткие этапы, без скрытых рассуждений.\n\n${toolResultBlock(payload.result||{},pendingRequestId)}`;
+      const text=toolResultBlock(payload.result||{},pendingRequestId);
       setComposerText(composer,text);if(payload.imageDataUrl)await attachImage(payload.imageDataUrl);
       const send=await waitSendButton();if(!send)return{ok:false,error:"Не найдена кнопка отправки ChatGPT."};send.click();return{ok:true,requestId:pendingRequestId};
     }finally{setTimeout(()=>{internalSending=false},450)}

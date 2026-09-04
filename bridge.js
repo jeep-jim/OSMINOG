@@ -1,6 +1,7 @@
 "use strict";
 (()=>{
   const STORE_KEY="briefCraftPresenceV2";
+  const EXTERNAL_AUTO_KEY="osminogExternalPresenceAutoV1";
   const CFG=globalThis.BRIEFCRAFT_CLOUD_CONFIG||{};
   const I18N={
     ru:{heading:"AI Presence",setupTitle:"Подключить ChatGPT",setupText:"Одно нажатие. Без API‑ключа, отдельной программы и выгрузки холста в чат. OSMINOG держит проект локально и отвечает только на конкретные инструменты ChatGPT.",presence:"OSMINOG подключён",presenceSub:"ChatGPT может запрашивать объекты холста через инструменты. Полная синхронизация не отправляется.",noSelection:"Сейчас на холсте ничего не выделено.",patchApplied:"Правки ИИ применены",patchDismissed:"Правки ИИ отклонены",wrongProject:"Эта правка относится к другому проекту.",unsafePatch:"Правка содержит неподдерживаемые действия.",proposal:"ИИ предлагает изменения",apply:"Применить проверенные правки",dismiss:"Отклонить",connected:"OSMINOG подключён к AI Presence",disconnected:"AI Presence отключён",relayMissing:"Relay ещё не настроен издателем OSMINOG.",relayOffline:"OSMINOG Relay недоступен. Повторяю подключение в фоне.",permissionDenied:"Нужно разрешить доступ только к серверу OSMINOG Relay.",waiting:"Ожидаю запросы ChatGPT",accessReadWrite:"чтение + предложения",accessRead:"только чтение",accessSelection:"только выделение",relayReady:"OSMINOG Relay готов",relayConnecting:"Подключаю OSMINOG…",relayLive:"ChatGPT ↔ OSMINOG готов"},
@@ -49,7 +50,7 @@
   async function ensureRelayPermission(){const origin=relayOrigin();if(!origin)return false;try{const pattern=origin+"/*";if(await chrome.permissions.contains({origins:[pattern]}))return true;return await chrome.permissions.request({origins:[pattern]})}catch{return false}}
 
   async function loadStore(){
-    const got=await storageGet([STORE_KEY,"briefCraftPendingPatchV1","briefCraftModulesV1","osminogOwnerGrantV1"]);
+    const got=await storageGet([STORE_KEY,"briefCraftPendingPatchV1","briefCraftModulesV1","osminogOwnerGrantV1",EXTERNAL_AUTO_KEY]);
     store={...store,...(got[STORE_KEY]||{}),mirrors:{...(got[STORE_KEY]?.mirrors||{})},toolEvents:Array.isArray(got[STORE_KEY]?.toolEvents)?got[STORE_KEY].toolEvents:[]};
     ensureDeviceToken();
     globalThis.OSMINOGOwnerVerified=globalThis.OSMINOGOwnerGuard?.isUnlocked?.()===true;
@@ -58,6 +59,7 @@
     applyLanguage();renderPatch();refreshMirror();renderToolLog();renderRelayHealth();renderConnector();
     // Legacy relay transport is disabled in 3.8 Browser Transport Lite.
     store.connected=false;
+    const ext=got[EXTERNAL_AUTO_KEY]||{};if(ext.enabled)setTimeout(()=>reconnectExternalChatGPT(ext.role||"edit"),260);
   }
   function applyLanguage(){
     const map={bridgeHeading:t("heading"),connectorSetupTitle:t("setupTitle"),connectorSetupText:t("setupText"),bridgeSyncText:t("presence"),bridgeSyncSub:`${t("presenceSub")} · ${accessLabel()}`,bridgePatchTitle:t("proposal"),bridgeDismissPatch:t("dismiss"),bridgeApplyPatch:t("apply")};
@@ -324,9 +326,22 @@
 
 
   let externalPresence={connected:false,role:"view",tabId:null,lastRevision:0,timer:0};
-  function externalContext(){return{protocol:"osminog.browser_presence/v1",connector:{connected:true,automatic:true,canvasContextIncluded:false},capabilities:capabilityManifest(),externalAccess:{role:"edit",canEdit:true,canComment:true,mode:globalThis.OSMINOGOwnerGuard?.isUnlocked?.()===true?"owner-max":"interactive-edit"},contextPolicy:{preload:false,instruction:"Do not assume canvas contents. When the user explicitly asks about the OSMINOG canvas/project/desktop/selection, request canvas_status/get_project_map/get_selection through tools. Until then, no canvas content is attached."},policy:{sourceOfTruth:"OSMINOG canvas",neverInventExistingIds:true,fullBodiesOnRequest:true,editsViaPatch:true,neverClaimEditWithoutPatch:true}}}
+  function externalContext(){
+    const status=canvasStatus?.()||{},revision=status.revision||refreshMirror()?.revision||0;
+    return{protocol:"osminog.browser_presence/v1",project:status.project||null,revision,selectedIds:status.selectedIds||[],view:status.view||null,counts:status.counts||{},connector:{connected:true,automatic:true,canvasContextIncluded:false,seamlessVision:true},capabilities:capabilityManifest(),externalAccess:{role:externalPresence.role||"edit",canEdit:(externalPresence.role||"edit")==="edit",canComment:true,mode:globalThis.OSMINOGOwnerGuard?.isUnlocked?.()===true?"owner-max":"interactive-edit"},contextPolicy:{preload:false,visionOnNaturalLanguage:true,instruction:"Do not guess canvas pixels. For each external user turn OSMINOG performs a preflight. When the request refers to the canvas/project/desktop/selection or asks what you see, use the same-revision structured context and attached OSMINOG vision image. If pixels are still missing, request a capture tool automatically; never ask the user to take a screenshot."},visionPolicy:{protocol:"osminog.vision_context/v1",automatic:true,sameRevision:true,triggers:["look at canvas","what do you see","посмотри на холст","что видишь","смотри на холст"],fallbackTool:"capture_viewport_image"},policy:{sourceOfTruth:"OSMINOG canvas",neverInventExistingIds:true,fullBodiesOnRequest:true,editsViaPatch:true,neverClaimEditWithoutPatch:true}}
+  }
   async function pushExternalContext(force=false){if(!externalPresence.connected)return;const ctx=externalContext();if(!force&&ctx.revision===externalPresence.lastRevision)return;externalPresence.lastRevision=ctx.revision;await chrome.runtime.sendMessage({type:"BC_EXTERNAL_CONTEXT_UPDATE",context:ctx}).catch(()=>{})}
-  async function connectExternalChatGPT(role="edit"){try{const granted=await chrome.permissions.request({origins:["https://chatgpt.com/*","https://chat.openai.com/*"]});if(!granted)return{ok:false,error:"Нужно разрешить OSMINOG доступ к выбранной вкладке ChatGPT."}}catch{}externalPresence.role="edit";const ctx=externalContext(),r=await chrome.runtime.sendMessage({type:"BC_EXTERNAL_CONNECT_CHATGPT",role:externalPresence.role,context:ctx});if(!r?.ok)return r;clearInterval(externalPresence.timer);externalPresence={...externalPresence,connected:true,tabId:r.tabId,lastRevision:ctx.revision};externalPresence.timer=setInterval(()=>pushExternalContext(false),850);const detail={connected:true,role:externalPresence.role,tabId:r.tabId||null};document.dispatchEvent(new CustomEvent("osminog:external-presence",{detail}));return{...r,...detail}}
+  async function activateExternalChatGPT(role="edit",requestPermission=false){
+    const origins=["https://chatgpt.com/*","https://chat.openai.com/*"];let granted=await chrome.permissions.contains({origins}).catch(()=>false);
+    if(!granted&&requestPermission)granted=await chrome.permissions.request({origins}).catch(()=>false);
+    if(!granted)return{ok:false,error:"Нужно один раз разрешить OSMINOG доступ к выбранной вкладке ChatGPT."};
+    externalPresence.role=["view","comment","edit"].includes(role)?role:"edit";const ctx=externalContext(),r=await chrome.runtime.sendMessage({type:"BC_EXTERNAL_CONNECT_CHATGPT",role:externalPresence.role,context:ctx}).catch(e=>({ok:false,error:e?.message||String(e)}));if(!r?.ok)return r;
+    clearInterval(externalPresence.timer);externalPresence={...externalPresence,connected:true,tabId:r.tabId,lastRevision:ctx.revision};externalPresence.timer=setInterval(()=>pushExternalContext(false),850);
+    await storageSet({[EXTERNAL_AUTO_KEY]:{enabled:true,role:externalPresence.role,tabId:r.tabId||null,updated:Date.now()}}).catch(()=>{});
+    const detail={connected:true,role:externalPresence.role,tabId:r.tabId||null};document.dispatchEvent(new CustomEvent("osminog:external-presence",{detail}));return{...r,...detail}
+  }
+  async function reconnectExternalChatGPT(role="edit"){return activateExternalChatGPT(role,false)}
+  async function connectExternalChatGPT(role="edit"){return activateExternalChatGPT(role,true)}
   async function handleExternalAssistant(payload,role){
     if(!payload)return;
     if(payload.request?.calls?.length){
