@@ -72,3 +72,51 @@ body.osminog-connection-compose .canvas-object{cursor:crosshair!important}body.o
 .osminog-extension-window.is-compact-widget.osminog-window-resizing>.osminog-window-resize-handles{opacity:1!important}
 
 .osminog-extension-window.is-module-focus::after{content:"";position:absolute;inset:-4px;border:1px solid color-mix(in srgb,var(--accent) 58%,transparent);border-radius:10px;pointer-events:none;opacity:.5}
+
+/* OSMINOG 3.19.1 — Graphics Studio v2 */
+.graphics-studio-shell.graphics-v2{grid-template-columns:88px minmax(440px,1fr) 310px}
+.graphics-v2 .graphics-studio-tools button{min-height:52px}
+.graphics-v2 .graphics-studio-inspector{gap:8px;padding:11px}
+.graphics-v2 .graphics-studio-inspector details{border:1px solid var(--line);border-radius:11px;background:var(--surface);overflow:hidden}
+.graphics-v2 .graphics-studio-inspector summary{padding:9px 10px;cursor:pointer;font:800 10px/1.2 system-ui;color:var(--text);list-style:none}
+.graphics-v2 .graphics-studio-inspector summary::-webkit-details-marker{display:none}
+.graphics-v2 .graphics-studio-inspector summary::after{content:"⌄";float:right;color:var(--muted)}
+.graphics-v2 .gfx-section{display:grid;gap:8px;padding:2px 10px 10px}
+.graphics-v2 .gfx-section>label{display:grid;grid-template-columns:minmax(82px,1fr) minmax(86px,122px) auto;align-items:center;gap:7px;color:var(--muted);font-size:9px}
+.graphics-v2 .gfx-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 9px 9px}
+.graphics-v2 .gfx-action-grid.tri{grid-template-columns:repeat(3,1fr)}
+.graphics-v2 .gfx-action-grid.compact{padding:8px 0 2px}
+.graphics-v2 .gfx-action-grid button{min-height:31px;padding:0 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:9px;font-weight:750;cursor:pointer}
+.graphics-v2 .gfx-action-grid button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.graphics-v2 .gfx-help{display:block;padding:0 10px 9px;color:var(--muted);font-size:8px;line-height:1.45}
+.graphics-v2 .gfx-layer-row{display:grid;grid-template-columns:minmax(0,1fr) 30px 30px;gap:4px}
+.graphics-v2 .gfx-layer-row>button{min-width:0;height:31px}
+.graphics-v2 .gfx-layer-row>button:first-child span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.graphics-v2-sidecar{margin-top:12px;padding:10px;border:1px solid color-mix(in srgb,#8b5cf6 38%,var(--line));border-radius:12px;background:color-mix(in srgb,#8b5cf6 7%,var(--surface-2))}
+.graphics-v2-sidecar>.section-title{margin:0 0 8px;color:#8b5cf6;font-size:9px;font-weight:900;letter-spacing:.08em}
+.graphics-v2-sidecar>button{width:100%;height:34px;border:0;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-weight:850;cursor:pointer}
+.graphics-v2-sidecar .gv2-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-top:7px}
+.graphics-v2-sidecar .gv2-grid button,.graphics-v2-sidecar .gv2-gradient button{min-height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:8.5px;font-weight:750;cursor:pointer}
+.graphics-v2-sidecar .gv2-gradient{display:grid;grid-template-columns:42px 42px minmax(0,1fr);gap:5px;margin-top:7px}
+.graphics-v2-sidecar .gv2-gradient input{width:42px;height:31px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+@media(max-width:1040px){.graphics-studio-shell.graphics-v2{grid-template-columns:78px minmax(360px,1fr) 260px}}
+
+/* OSMINOG 3.19.2 — Graphics Studio v2.1 UX + round-trip stability */
+.graphics-studio-shell.graphics-v2{position:relative;grid-template-columns:220px minmax(420px,1fr) 310px;grid-template-rows:minmax(0,1fr);padding-bottom:58px}
+.graphics-v2 .graphics-studio-center{grid-column:2;min-width:0;min-height:0}
+.graphics-v2 .graphics-studio-inspector{grid-column:3}
+.graphics-v2 .graphics-studio-layers-panel{grid-column:1;min-width:0;min-height:0;overflow:auto;padding:12px;border-right:1px solid var(--line);background:var(--surface-2)}
+.graphics-v2 .graphics-studio-layers-panel>header{display:grid;gap:2px;margin-bottom:10px;padding:2px 2px 9px;border-bottom:1px solid var(--line)}
+.graphics-v2 .graphics-studio-layers-panel>header strong{font-size:12px}.graphics-v2 .graphics-studio-layers-panel>header small{font-size:8px;color:var(--muted)}
+.graphics-v2 .graphics-studio-layers{min-height:0;border-top:0;padding-top:0}.graphics-v2 .graphics-studio-layers>div{margin-top:0}
+.graphics-v2 .graphics-studio-tools{position:absolute;z-index:15;left:50%;bottom:9px;transform:translateX(-50%);width:auto;max-width:calc(100% - 34px);height:44px;padding:4px 6px;display:flex;align-items:center;gap:3px;overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--surface) 90%,transparent);box-shadow:0 10px 30px #0002;backdrop-filter:blur(16px)}
+.graphics-v2 .graphics-studio-tools button{flex:0 0 34px;width:34px;min-width:34px;min-height:34px!important;height:34px!important;padding:0!important;display:grid;place-items:center;border:0;border-radius:9px;background:transparent;color:var(--muted)}
+.graphics-v2 .graphics-studio-tools button:hover,.graphics-v2 .graphics-studio-tools button.active{background:var(--accent-soft);color:var(--accent)}
+.graphics-v2 .graphics-studio-tools button svg{width:18px;height:18px}.graphics-v2 .graphics-studio-tools button span{display:none!important}
+.graphics-v2 .graphics-studio-tools .graphics-tool-divider{flex:0 0 1px;width:1px;height:22px;margin:0 3px;background:var(--line)}
+.graphics-v2 .graphics-studio-tools .gfx-zoom-readout{flex-basis:48px;width:48px;min-width:48px;font-size:8px;color:var(--text)}.graphics-v2 .gfx-zoom-readout b{font-size:8px}
+.graphics-studio-stage{background:#fff;background-image:none;touch-action:none}
+.graphics-studio-stage.is-transparent{background-color:#fff;background-image:linear-gradient(45deg,#dedede 25%,transparent 25%),linear-gradient(-45deg,#dedede 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#dedede 75%),linear-gradient(-45deg,transparent 75%,#dedede 75%);background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0}
+.graphics-v2 .gfx-document-section .gfx-checkbox-row{grid-template-columns:minmax(82px,1fr) auto!important}.graphics-v2 .gfx-document-section input[type=checkbox]{width:18px;height:18px;min-height:18px}
+.graphics-v2 [data-gfx-action="apply"]:disabled{opacity:.45;cursor:progress}
+@media(max-width:1120px){.graphics-studio-shell.graphics-v2{grid-template-columns:180px minmax(360px,1fr) 260px}.graphics-v2 .graphics-studio-tools{max-width:calc(100% - 20px)}}

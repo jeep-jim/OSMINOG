@@ -18,12 +18,12 @@
   let socket=null,reconnectTimer=0,reconnectAttempt=0,manualDisconnect=false,statusTimer=0;
   const TOOL_GROUPS={
     system:["capabilities","tool_list"],
-    canvas:["canvas_status","list_canvas_objects","get_project_map","get_selection","get_viewport","get_object","get_connections","search_canvas","get_recent_changes","read_object_text","read_code","read_browser_dom","capture_selection_image","capture_object_image","capture_viewport_image","capture_canvas_overview_image","focus_object","propose_canvas_patch","undo_last_change","graphics_status","graphics_create","graphics_open"],
+    canvas:["canvas_status","list_canvas_objects","get_project_map","get_selection","get_viewport","get_object","get_connections","search_canvas","get_recent_changes","read_object_text","read_code","read_browser_dom","capture_selection_image","capture_object_image","capture_viewport_image","capture_canvas_overview_image","focus_object","propose_canvas_patch","undo_last_change","graphics_status","graphics_create","graphics_edit","graphics_open"],
     assets:["read_asset","asset_create"],
     projects:["project_list","project_create","project_switch","project_rename","project_revisions","project_checkpoint","project_restore_revision","project_folder_status","project_folder_list","project_folder_read","project_folder_write"],
     agents:["agent_list","agent_create","agent_update","agent_remove","agent_message"],
     commands:["command_list","command_register","command_remove","command_run"],
-    browser:["browser_tabs","browser_open","browser_close","web_search","web_fetch","web_image_search"],
+    browser:["browser_tabs","browser_open","browser_close","browser_edit_current","browser_extract_current","web_search","web_fetch","web_image_search"],
     documents:["markdown_list","markdown_read","markdown_write"],
     media:["provider_list","provider_open","media_crew"],
     modules:["module_list","module_create","module_update","module_test","module_open","module_remove","module_permissions_revoke"],
@@ -33,7 +33,7 @@
     github:["module_status","github_status","github_list_tree","github_search_code","github_fetch_file","github_compare","github_create_branch","github_commit_files","github_open_pr","github_workflow_runs","github_dispatch_workflow"],
     integrations:["figma_fetch_file"]
   };
-  const MUTATING_TOOLS=new Set(["propose_canvas_patch","undo_last_change","asset_create","project_create","project_switch","project_rename","project_checkpoint","project_restore_revision","project_folder_write","agent_create","agent_update","agent_remove","command_register","command_remove","command_run","module_create","module_update","module_remove","workspace_patch","icon_set","icon_reset","window_focus","window_minimize","window_restore","window_close","write_dev_file","source_publish","release_publish","github_create_branch","github_commit_files","github_open_pr","github_dispatch_workflow"]);
+  const MUTATING_TOOLS=new Set(["propose_canvas_patch","undo_last_change","graphics_create","graphics_edit","asset_create","project_create","project_switch","project_rename","project_checkpoint","project_restore_revision","project_folder_write","agent_create","agent_update","agent_remove","command_register","command_remove","command_run","module_create","module_update","module_remove","workspace_patch","icon_set","icon_reset","window_focus","window_minimize","window_restore","window_close","write_dev_file","source_publish","release_publish","github_create_branch","github_commit_files","github_open_pr","github_dispatch_workflow"]);
   const PRIVILEGED_PRODUCT_TOOLS=new Set(["dev_status","list_dev_files","read_dev_file","write_dev_file","source_publish","release_publish","github_status","github_list_tree","github_search_code","github_fetch_file","github_compare","github_create_branch","github_commit_files","github_open_pr","github_workflow_runs","github_dispatch_workflow"]);
   let externalExecutionRole="";
   function capabilityManifest(){const owner=globalThis.OSMINOGOwnerGuard?.isUnlocked?.()===true,groups=deepClone(TOOL_GROUPS);if(!owner){delete groups.source;delete groups.github}const tools=[...new Set(Object.values(groups).flat())];return{protocol:"osminog.capabilities/v1",mode:owner?"owner-max":"interactive-edit",groups,tools,limits:{callsPerHop:8,toolHops:12,canvasPatchActions:80},safety:{canvasWrites:"local workspace tools are always available; validated osminog.patch/v1 with undo",sourceWrites:"step-up owner authentication appears only when the user asks to change OSMINOG itself",githubWrites:"private product repositories are hidden behind Owner Unlock",commandChanges:"workspace commands are available without a separate access toggle"},runtime:{kind:"chrome-extension",nativeShell:false,generativeMedia:"provider-dependent"}}}
@@ -199,6 +199,8 @@
 
   async function cropVisibleTab(rect,maxWidth=1400,maxHeight=1000){
     const tab=await chrome.tabs.getCurrent();if(!tab)throw new Error("Could not resolve OSMINOG tab");
+    let allUrls=false;try{allUrls=await chrome.permissions.contains({origins:["<all_urls>"]});if(!allUrls)allUrls=await chrome.permissions.request({origins:["<all_urls>"]})}catch{}
+    if(!allUrls)throw new Error("Для снимков холста разреши OSMINOG доступ ко всем сайтам один раз.");
     const dataUrl=await chrome.tabs.captureVisibleTab(tab.windowId,{format:"png"});
     const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=dataUrl});
     const sx=img.naturalWidth/window.innerWidth,sy=img.naturalHeight/window.innerHeight;
@@ -263,6 +265,8 @@
       else if(["module_status","figma_fetch_file","github_status","github_list_tree","github_search_code","github_fetch_file","github_compare","github_create_branch","github_commit_files","github_open_pr","github_dispatch_workflow","github_workflow_runs","github_get_workflow_runs"].includes(name)){const writes=new Set(["github_create_branch","github_commit_files","github_open_pr","github_dispatch_workflow"]),write=writes.has(name);let approved=!write;if(write)approved=await globalThis.OSMINOGConfirmGitHubAction?.(name,args||{});if(write&&!approved){result={error:"GitHub action cancelled by owner"}}else{const safeArgs={...(args||{}),__ownerApproved:approved===true};const r=await chrome.runtime.sendMessage({type:"BC_MODULE_TOOL",name,args:safeArgs});result=r?.ok===false?{error:r.error}:r;}}
       else if(["dev_status","list_dev_files","read_dev_file","write_dev_file","source_publish","release_publish"].includes(name))result=await devTool(name,args);
       else if(name==="browser_tabs")result=await chrome.runtime.sendMessage({type:"OSMINOG_BROWSER_HUB_LIST"});
+      else if(name==="browser_edit_current")result=globalThis.OSMINOGBrowserApp?.applyEdit?.(args)||{error:"Browser Editor target unavailable"};
+      else if(name==="browser_extract_current")result=await globalThis.OSMINOGBrowserApp?.extractSelected?.()||{error:"Browser Editor target unavailable"};
       else if(name==="browser_open")result=await chrome.runtime.sendMessage({type:"OSMINOG_BROWSER_HUB_OPEN",url:String(args.url||""),provider:String(args.provider||""),allowCreate:true});
       else if(name==="browser_close")result=await chrome.runtime.sendMessage({type:"OSMINOG_BROWSER_HUB_CLOSE_TAB",tabId:Number(args.tabId)});
       else if(name==="markdown_list")result=await globalThis.OSMINOGMarkdownAPI?.list?.()||{error:"Markdown Studio unavailable"};
@@ -311,6 +315,7 @@
       else if(name==="graphics_status")result=globalThis.OSMINOGGraphicsStudio?.status?.()||{ok:true,available:!!globalThis.OSMINOGGraphicsStudio,capabilities:["vector","bezier","layers","masks","brushes","opacity","stroke","shapes","gradients","text","images","groups"],editable:true};
       else if(name==="graphics_open"){globalThis.OSMINOGGraphicsStudio?.open?.();result={ok:!!globalThis.OSMINOGGraphicsStudio,opened:!!globalThis.OSMINOGGraphicsStudio}}
       else if(name==="graphics_create")result=globalThis.OSMINOGGraphicsStudio?.createFromSpec?.(args)||{error:"Graphics Studio unavailable"};
+      else if(name==="graphics_edit")result=globalThis.OSMINOGGraphicsStudio?.edit?.(args)||{error:"Graphics Studio unavailable"};
       else result={error:`Unknown OSMINOG tool: ${name}`};
       finishToolEvent(name,result?.error?"error":"done");
       return result;
