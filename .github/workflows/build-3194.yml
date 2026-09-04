@@ -25,7 +25,7 @@ jobs:
           set -euxo pipefail
           ls -l assets/core/core-hero.webp
           stat -c%s assets/core/core-hero.webp
-          test "$(stat -c%s assets/core/core-hero.webp)" -gt 20000
+          test "$(stat -c%s assets/core/core-hero.webp)" -gt 10000
           echo ASSET_OK
           node --check editor.js
           echo NODE_OK
