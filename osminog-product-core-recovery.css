@@ -59,3 +59,13 @@ html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:fo
 .local-ai-msg.gpt-msg-with-avatar.user>.gpt-msg-avatar{grid-column:auto;grid-row:auto}
 .gpt-msg-card>header>time{display:none!important}
 @media(max-width:520px){.gpt-msg-identity{min-width:30px}}
+
+/* 3.20.8: compact bubbles, readable identities and top divider */
+#bridgePanel .local-ai-msg.gpt-msg-with-avatar{width:fit-content!important;max-width:min(96%,960px)!important;box-sizing:border-box}
+#bridgePanel .local-ai-msg.gpt-msg-with-avatar.user{max-width:min(92%,960px)!important}
+#bridgePanel .gpt-msg-avatar{border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important}
+#bridgePanel .local-ai-msg.user>.gpt-msg-identity{background:var(--gpt-user-bg,#6758f5);border-radius:10px;padding-bottom:4px}
+#bridgePanel .local-ai-msg.user>.gpt-msg-identity>time{color:#fff!important;opacity:1!important}
+#bridgePanel .gpt-presence-shell .local-ai-compose{border-top:0!important}
+#bridgePanel .gpt-presence-shell .local-ai-projectbar{border:0!important;border-top:1px solid var(--line)!important;border-radius:0!important}
+.osminog-confirm-layer button[data-confirm-ok].danger{color:#fff!important}

@@ -1,7 +1,7 @@
 "use strict";
 const fs=require("node:fs"),assert=require("node:assert/strict");
 const g=fs.readFileSync("gpt-presence.js","utf8"),b=fs.readFileSync("background.js","utf8"),tab=fs.readFileSync("chatgpt-lite-bridge.js","utf8"),css=fs.readFileSync("osminog-product-core-recovery.css","utf8"),m=require("../manifest.json");
-assert.equal(m.version,"3.20.7");
+assert.ok(["3.20.7","3.20.8"].includes(m.version));
 assert.match(g,/function isGeneratedImageAction/);
 assert.match(g,/if\(edit&&selfProduct\)return"source"/);
 assert.match(g,/execution==="canvas"&&isWebAssetAction/);
