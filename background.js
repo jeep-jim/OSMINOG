@@ -221,18 +221,19 @@ function bcConversationBody(prompt,thread,model,attachments=[]){
   return {action:"next",messages:[message],model:model||"auto",conversation_id:thread.conversationId||null,parent_message_id:thread.parentMessageId||bcUuid(),timezone_offset_min:-new Date().getTimezoneOffset(),history_and_training_disabled:true,suggestions:[],websocket_request_id:bcUuid(),conversation_mode:{kind:"primary_assistant"},supports_buffering:true,force_parallel_switch:"auto",paragen_cot_summary_display_override:"allow"};
 }
 function bcParseSse(text){
-  let answer="",conversationId=null,parentMessageId=null,lastError="";
+  let answer="",conversationId=null,parentMessageId=null,lastError="";const media=[],seenMedia=new Set();
+  const pushMedia=(value,name="generated-image")=>{const src=String(value||"").trim();if(!src||seenMedia.has(src)||!/^data:image\/|^https?:\/\//i.test(src))return;seenMedia.add(src);media.push({kind:"image",name,type:src.match(/^data:([^;,]+)/i)?.[1]||"image/png",dataUrl:src,url:src})};
+  const scanMedia=value=>{if(!value)return;if(typeof value==="string"){pushMedia(value);return}if(Array.isArray(value)){value.forEach(scanMedia);return}if(typeof value!=="object")return;pushMedia(value.data_url||value.dataUrl||value.image_url||value.download_url||value.url||value.src,value.name||value.title||value.alt||"generated-image");for(const [key,nested] of Object.entries(value))if(/image|media|asset|attachment|part/i.test(key))scanMedia(nested)};
   const lines=String(text||"").split(/\r?\n/);
   for(const line of lines){if(!line.startsWith("data:"))continue;const raw=line.slice(5).trim();if(!raw||raw==="[DONE]")continue;let data;try{data=JSON.parse(raw)}catch{continue}
     if(data?.conversation_id)conversationId=data.conversation_id;
     if(data?.error){lastError=typeof data.error==="string"?data.error:(data.error.message||data.error.code||JSON.stringify(data.error));}
     const msg=data?.message;if(!msg)continue;if(msg.id)parentMessageId=msg.id;
     if(msg?.author?.role!=="assistant")continue;
-    const parts=msg?.content?.parts;if(Array.isArray(parts)){
-      const strings=parts.filter(p=>typeof p==="string");if(strings.length)answer=strings.join("\n");
-    }
+    const parts=msg?.content?.parts;if(Array.isArray(parts)){const strings=parts.filter(p=>typeof p==="string");if(strings.length)answer=strings.join("\n");scanMedia(parts)}
+    scanMedia(msg?.metadata)
   }
-  return {answer:answer.trim(),conversationId,parentMessageId,lastError};
+  return {answer:answer.trim(),media:media.slice(0,4),conversationId,parentMessageId,lastError};
 }
 async function bcHideConversation(accessToken,conversationId){
   if(!conversationId)return;
@@ -279,9 +280,9 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
   const parsed=bcParseSse(conv.text);if(parsed.lastError)throw new Error(parsed.lastError);
   if(parsed.conversationId)thread.conversationId=parsed.conversationId;if(parsed.parentMessageId)thread.parentMessageId=parsed.parentMessageId;
   bcHideConversation(session.accessToken,thread.conversationId).catch(()=>{});
-  if(!parsed.answer)throw new Error("GPT ответил без текстового сообщения (SSE пустой)");
+  if(!parsed.answer&&!parsed.media?.length)throw new Error("GPT ответил без текста или изображения (SSE пустой)");
   const payload=bcParseAssistant(parsed.answer);
-  return {ok:true,requestId,payload:{requestId,...payload},diag:{model,endpoint:conv.url?.includes("/f/")?"f/conversation":"conversation",powRequired:!!req.proofofwork?.required,powIterations:pow.iterations,powMs:pow.elapsedMs,powLegacy:pow.legacy,totalMs:Date.now()-started,conversationHidden:true,imageCount:uploadedAttachments.filter(a=>a.is_image).length,attachmentCount:uploadedAttachments.length}};
+  return {ok:true,requestId,payload:{requestId,...payload,images:parsed.media||[],media:parsed.media||[]},diag:{model,endpoint:conv.url?.includes("/f/")?"f/conversation":"conversation",powRequired:!!req.proofofwork?.required,powIterations:pow.iterations,powMs:pow.elapsedMs,powLegacy:pow.legacy,totalMs:Date.now()-started,conversationHidden:true,imageCount:uploadedAttachments.filter(a=>a.is_image).length,attachmentCount:uploadedAttachments.length}};
 }
 
 function bcHtmlDecode(text){return String(text||"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&nbsp;/g," ").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)||32))}
