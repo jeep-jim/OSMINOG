@@ -1,26 +1,28 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.20.3",
-  "codename": "CANVAS DROP AND PRESENCE RECOVERY",
-  "baseVersion": "3.20.1",
-  "artifact": "OSMINOG-Chrome-3.20.3-CANVAS-DROP-PRESENCE-RECOVERY.zip",
+  "version": "3.20.4",
+  "codename": "DOCUMENTS AND CONTEXT CONTROL",
+  "baseVersion": "3.20.3",
+  "artifact": "OSMINOG-Chrome-3.20.4-DOCUMENTS-CONTEXT-CONTROL.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.20.3",
+  "manifestVersion": "3.20.4",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "Pending verification in installed Chrome / Dev Hub with live ChatGPT",
-  "notes": "Repairs inspector observer feedback loop, duplicate native drop, folder-to-canvas handling and restores current ChatGPT connection controls. Browser regression checks use mocked Chrome/provider APIs; live owner verification remains pending.",
+  "notes": "Removable app context, legacy user module deletion, editable notes, PDF/text document editor and shared AI tools. PDF changed pages flatten; no OCR or arbitrary binary/office editor. Chromium uses mocked Chrome/provider APIs. Live owner verification pending.",
   "status": "manual-test",
-  "versionName": "3.20.3",
-  "build": "3.20.3",
+  "versionName": "3.20.4",
+  "build": "3.20.4",
   "channel": "dev",
-  "release": "CANVAS-DROP-PRESENCE-RECOVERY",
+  "release": "DOCUMENTS-CONTEXT-CONTROL",
   "verification": {
     "javascriptSyntax": "passed",
     "chromiumRegression": "passed",
     "transportAndStorage": "mocked Chrome APIs",
     "teamNullResponse": "passed",
-    "liveProvider": "pending"
+    "liveProvider": "pending",
+    "documents": "passed Chromium and independent PDF parser/rendering",
+    "routing": "passed screenshot phrases"
   }
 }
