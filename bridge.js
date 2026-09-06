@@ -20,7 +20,7 @@
   const TOOL_GROUPS={
     system:["capabilities","tool_list"],
     canvas:["canvas_status","list_canvas_objects","get_project_map","get_selection","get_viewport","get_object","get_connections","search_canvas","get_recent_changes","read_object_text","read_code","read_browser_dom","capture_selection_image","capture_object_image","capture_viewport_image","capture_canvas_overview_image","focus_object","propose_canvas_patch","undo_last_change","graphics_status","graphics_create","graphics_edit","graphics_open","animation_status","animation_open","animation_edit"],
-    assets:["read_asset","asset_create"],
+    assets:["chat_history_read","read_asset","asset_create"],
     projects:["project_list","project_create","project_switch","project_rename","project_revisions","project_checkpoint","project_restore_revision","project_folder_status","project_folder_list","project_folder_read","project_folder_write"],
     agents:["agent_list","agent_create","agent_update","agent_remove","agent_message"],
     commands:["command_list","command_register","command_remove","command_run"],
@@ -241,7 +241,8 @@
     try{
       let result;
       if(PRIVILEGED_PRODUCT_TOOLS.has(name)){const guard=globalThis.OSMINOGOwnerGuard;if(!guard){finishToolEvent(name,"error");return{error:"Owner Unlock is unavailable"}}const unlocked=await guard.require(name);if(!unlocked){finishToolEvent(name,"error");return{error:"Owner authorization cancelled"}}globalThis.OSMINOGOwnerVerified=true}
-      if(["user_github_list","user_github_read","user_github_write"].includes(name))result=await globalThis.OSMINOGUserGitHub?.tool?.(name,args);
+      if(name==="chat_history_read")result=await globalThis.OSMINOGChatHistory?.read?.(args);
+      else if(["user_github_list","user_github_read","user_github_write"].includes(name))result=await globalThis.OSMINOGUserGitHub?.tool?.(name,args);
       else if(["drive_list","drive_read","drive_import"].includes(name)){const api=globalThis.OSMINOGDriveAPI;if(!api)throw new Error("Drive API unavailable");result=await api[name.slice(6)](args)}
       else if(name==="browser_load_html")result=await globalThis.OSMINOGBrowserApp?.loadHtml?.(args);
       else if(name==="browser_export")result=await globalThis.OSMINOGBrowserApp?.exportFiles?.(args);

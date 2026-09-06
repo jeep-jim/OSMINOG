@@ -864,3 +864,8 @@ User contract: OSMINOG is a local project memory and shared editable body for AI
 
 Implementation and verified limitations: see RELEASE_NOTES_3.21.0.md. This supersedes older keyword-only context attachment policies for internal agents. The 3.20.9 external DOM privacy containment remains until a separate authenticated project-scoped connector is deployed and tested. No claim of universal external Live Presence or complete Figma-to-application roundtrip.
 
+
+
+## 2026-09-06 — 3.21.1 media/reference and chat performance
+
+Fix attachment handoff from composer to parallel agent; capture selected reference for explicit generation; import returned HTTPS images next to reference; no vector retry after successful image import. Mixed search/generate prompts offer local choice buttons. Render 80 recent messages with earlier-message expansion; keep complete storage and expose scoped chat_history_read. Bound outgoing history to 24000 characters and 40 turns, with retrieval for older messages. Search tries original before thumbnail, with request timeouts. No restored external mirroring and no claim of live generation success. See RELEASE_NOTES_3.21.1.md.
