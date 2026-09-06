@@ -4,6 +4,9 @@
   globalThis.__osminogProviderTabBridgeV5=true;
 
   let provider="",lastAccepted="";
+  let ownedGptRoute="";
+  const isGpt=()=>/^(chatgpt\.com|chat\.openai\.com)$/.test(location.hostname);
+  const route=()=>location.origin+location.pathname;
   const inflight=new Map(),recentPrompts=new Map();
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const clean=value=>String(value||"").replace(/\u200b/g,"").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
@@ -81,6 +84,7 @@
   }
 
   function answerSelectors(){
+    if(isGpt())return ["[data-message-author-role='assistant']"];
     const generic=["[data-message-author-role='assistant']","[data-testid*='assistant']","[role='article']","article","[class*='markdown']","[class*='prose']","[class*='response']","[class*='answer']"];
     if(provider==="deepseek")return[".ds-markdown","[class*='ds-markdown']",...generic];
     if(provider==="claude")return["[data-testid*='assistant']","[class*='font-claude-response']",...generic];
@@ -183,6 +187,7 @@
   }
 
   function rootFreshText(before,prompt,requestId){
+    return ""; // Never export a page or conversation as an assistant response.
     const base=root(),all=clean(base.innerText||base.textContent||""),marker=promptMarker(requestId);if(!all)return"";let value=all;
     if(marker&&value.includes(marker))value=clean(value.slice(value.lastIndexOf(marker)+marker.length));else{const np=clean(prompt),i=np?value.lastIndexOf(np):-1;if(i>=0)value=clean(value.slice(i+np.length))}
     if(!value||value.length<8||boilerplate(value)||uiNoise(value)||before.texts.has(norm(value))||norm(value)===lastAccepted)return"";
@@ -190,13 +195,15 @@
   }
 
   async function waitAnswer(before,prompt,requestId){
-    const started=Date.now();let last="",stableAt=0,anchor=null,wake=null;
+    const started=Date.now(),sentRoute=route();let last="",stableAt=0,anchor=null,wake=null;
     const observer=new MutationObserver(()=>wake?.());
     observer.observe(root(),{childList:true,subtree:true,characterData:true});
     try{
       while(Date.now()-started<150000){
         await Promise.race([sleep(420),new Promise(resolve=>wake=resolve)]);wake=null;
+        if(route()!==sentRoute)throw new Error("OSMINOG privacy: conversation changed; response blocked. Reconnect in a new empty chat.");
         if(!anchor)anchor=findPromptEcho(prompt,requestId);
+        if(isGpt()&&!anchor)continue;
         let best="",score=-Infinity;
         for(const candidate of candidateNodes()){
           const value=freshText(before,candidate,prompt,requestId,anchor);
@@ -257,6 +264,15 @@
   }
 
   async function send(text,requestId="",images=[]){
+    if(isGpt())throw new Error("OSMINOG privacy hotfix: ChatGPT tab transport disabled until isolated sessions are verified. Personal chats will not be used.");
+    if(isGpt()){
+      if(inflight.size)throw new Error("OSMINOG privacy: another request is still active.");
+      if(ownedGptRoute&&ownedGptRoute!==route())throw new Error("OSMINOG privacy: conversation changed. Open a new empty chat and reconnect.");
+      if(!ownedGptRoute){
+        if(document.querySelector("[data-message-author-role],article[data-testid^='conversation-turn']"))throw new Error("OSMINOG privacy: existing personal chat blocked. Open a new empty chat dedicated to OSMINOG.");
+        ownedGptRoute=route();
+      }
+    }
     const input=composer();
     if(!input)throw new Error("Поле ввода не найдено. Открой Google AI Mode/диалог провайдера в служебной вкладке.");
     const before=snapshot();

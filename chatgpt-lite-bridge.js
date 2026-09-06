@@ -180,6 +180,7 @@
   }
   function scheduleScan(delay=420){clearTimeout(scanTimer);scanTimer=setTimeout(scanAssistant,delay)}
   function scanAssistant(){
+    return; // Privacy containment: no export from personal ChatGPT pages.
     hideMachineUserBlocks();
     if(!pendingRequestId){stableAssistantHash="";stableAssistantSince=0;return}
     const roots=assistantRoots();if(!roots.length){scheduleScan();return}
@@ -219,6 +220,7 @@
 
   /* OSMINOG 3.19.12 · SEAMLESS EXTERNAL VISION PREFLIGHT */
   async function prepareAndSendManual(composer,current){
+    return; // Privacy containment: never mirror personal chat messages.
     internalSending=true;const requestId=makeId();pendingRequestId=requestId;toolHopCount=0;setPill("busy","смотрю на OSMINOG…");
     try{
       const prep=await chrome.runtime.sendMessage({type:"BC_LITE_EXTERNAL_USER",payload:{requestId,text:current,url:location.href,prepare:true}}).catch(()=>null),ctx=prep?.context||latestContext||{};
@@ -230,6 +232,7 @@
     }finally{setTimeout(()=>{internalSending=false},450)}
   }
   function interceptManualSend(event){
+    return; // Privacy containment: leave personal ChatGPT sends untouched.
     if(!enabled||!autoInject||internalSending||!latestContext)return;
     const composer=findFirst(COMPOSERS);if(!composer)return;
     const isEnter=event.type==="keydown"&&event.key==="Enter"&&!event.shiftKey;
@@ -241,6 +244,7 @@
   document.addEventListener("keydown",interceptManualSend,true);document.addEventListener("click",interceptManualSend,true);
 
   async function sendInternal(payload){
+    return {ok:false,error:"OSMINOG privacy hotfix: external ChatGPT tab transport disabled."};
     const composer=findFirst(COMPOSERS);if(!composer)return{ok:false,error:"Не найдено поле ввода ChatGPT. Открой обычный чат и повтори."};
     internalSending=true;const requestId=payload.requestId||makeId();pendingRequestId=requestId;toolHopCount=0;pendingAssistantBaseline=currentAssistantHash();stableAssistantHash="";stableAssistantSince=0;sawStreamingSignal=false;requestSentAt=Date.now();setPill("busy","отправляю…");
     try{
@@ -251,6 +255,7 @@
     }finally{setTimeout(()=>{internalSending=false},450)}
   }
   async function sendToolResult(payload){
+    return {ok:false,error:"OSMINOG privacy hotfix: external ChatGPT tab transport disabled."};
     const composer=findFirst(COMPOSERS);if(!composer)return{ok:false,error:"Не найдено поле ввода ChatGPT."};
     if(toolHopCount>=12)return{ok:false,error:"OSMINOG stopped the tool loop after 12 hops"};toolHopCount++;
     internalSending=true;pendingRequestId=payload.requestId||pendingRequestId||makeId();pendingAssistantBaseline=currentAssistantHash();stableAssistantHash="";stableAssistantSince=0;sawStreamingSignal=false;requestSentAt=Date.now();setPill("busy","передаю данные…");

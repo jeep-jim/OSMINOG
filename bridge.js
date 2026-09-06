@@ -416,7 +416,8 @@
     $("#bridgeClose")?.addEventListener("click",close);$("#connectorConnect")?.addEventListener("click",connectCanvas);$("#connectorDisconnect")?.addEventListener("click",disconnectCanvas);$("#connectorSettings")?.addEventListener("click",showAccessSettings);$("#connectorOpenChatGPT")?.addEventListener("click",openChatGPT);$("#connectorDevCopy")?.addEventListener("click",async()=>{const u=$("#connectorDevMcpUrl")?.value||"";if(!u)return;try{await navigator.clipboard.writeText(u);showToast(lang()==="ru"?"Тестовый MCP URL скопирован":"Test MCP URL copied")}catch{}});$("#bridgeApplyPatch")?.addEventListener("click",applyPatch);$("#bridgeDismissPatch")?.addEventListener("click",dismissPatch);
     window.addEventListener("online",()=>{if(store.connected)openSocket()});window.addEventListener("offline",()=>renderRelayHealth("offline"));
   }
-  chrome.runtime.onMessage.addListener((m)=>{if(m?.type==="BC_EXTERNAL_ASSISTANT_RESULT")handleExternalAssistant(m.payload||{},m.role||externalPresence.role)});
+  // External conversation text must never be imported or executed as a patch.
+  // Canvas access continues through the authenticated relay / executeTool.
   globalThis.BriefCraftBridge={open,refreshMirror,canvasStatus,listCanvasObjects,getSelection,getViewport,getObject,getProjectMap,searchCanvas,recentChanges,executeTool,applyPatch,dismissPatch,renderPatch,connectExternalChatGPT,externalPresenceStatus:()=>({connected:externalPresence.connected,role:externalPresence.role,tabId:externalPresence.tabId}),setAccess:()=>{store.access="readwrite";saveStore();applyLanguage();return store.access},getAccess:()=>"readwrite"};
   document.addEventListener("osminog:owner-unlocked",()=>{globalThis.OSMINOGOwnerVerified=true});
   bind();loadStore();

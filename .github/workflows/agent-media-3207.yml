@@ -1,4 +1,4 @@
-name: OSMINOG 3.20.8 combined release candidate
+name: OSMINOG 3.20.9 combined release candidate
 on:
   pull_request:
     paths:
@@ -24,6 +24,7 @@ jobs:
       - run: node --check gpt-presence.js
       - run: node --check chatgpt-lite-bridge.js
       - run: node --check background.js
+      - run: node tests/privacy-no-mirroring.cjs
       - run: node --check osminog-animation-studio.js
       - run: node tests/agent-media-3207.cjs
       - run: node tests/animation-3206.cjs
@@ -31,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-3.20.8-CHAT-POLISH.zip'
+          artifact='OSMINOG-Chrome-3.20.9-PRIVACY-NO-MIRRORING.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ \
             --exclude='.git/' --exclude='.github/' --exclude='artifacts/' \
@@ -42,10 +43,10 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-3.20.8-CHAT-POLISH.zip'
+          path='artifacts/OSMINOG-Chrome-3.20.9-PRIVACY-NO-MIRRORING.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
-              assert m['version']=='3.20.8' and m['version_name']=='3.20.8'
+              assert m['version']=='3.20.9' and m['version_name']=='3.20.9'
               assert m['key']
               for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css'):
                   assert name in z.namelist(), name
@@ -53,8 +54,8 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: OSMINOG-3.20.8-CHAT-POLISH
+          name: OSMINOG-3.20.9-PRIVACY-NO-MIRRORING
           path: |
-            artifacts/OSMINOG-Chrome-3.20.8-CHAT-POLISH.zip
-            RELEASE_NOTES_3.20.8.md
+            artifacts/OSMINOG-Chrome-3.20.9-PRIVACY-NO-MIRRORING.zip
+            RELEASE_NOTES_3.20.9.md
           retention-days: 14
