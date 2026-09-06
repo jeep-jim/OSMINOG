@@ -544,6 +544,11 @@ async function osminogHubConnect(tabId,provider=""){const tab=await chrome.tabs.
 chrome.windows?.onRemoved?.addListener?.(async id=>{const saved=(await chrome.storage.local.get(OSMINOG_BROWSER_HUB_KEY))?.[OSMINOG_BROWSER_HUB_KEY];if(saved?.windowId===id)await chrome.storage.local.remove(OSMINOG_BROWSER_HUB_KEY)});
 chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
   if(!message)return;
+  // Chat transcripts are not a canvas transport. Reject legacy mirroring even
+  // from an already injected bridge; keep the separate canvas relay unchanged.
+  if(["BC_LITE_EXTERNAL_USER","BC_LITE_ASSISTANT_RESULT","BC_EXTERNAL_TOOL_RESULT","BC_EXTERNAL_CONNECT_CHATGPT"].includes(message.type)){
+    sendResponse?.({ok:false,error:"OSMINOG: синхронизация переписки отключена. Для холста используй отдельный коннектор."});return;
+  }
   if(message.type==="BC_PROVIDER_DISCOVER"){(async()=>{try{sendResponse({ok:true,...await bcDiscoverProvider(String(message.provider||""))})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="BC_PROVIDER_CONNECT_TAB"){(async()=>{try{sendResponse(await bcConnectProviderTab(String(message.provider||""),message.tabId||null))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="BC_PROVIDER_CUSTOM_SAVE"){(async()=>{try{const cfg=message.config||{},baseUrl=String(cfg.baseUrl||"").trim(),model=String(cfg.model||"").trim();if(!baseUrl||!model)throw new Error("Base URL и model обязательны");await chrome.storage.local.set({[BC_CUSTOM_PROVIDER_KEY]:{name:String(cfg.name||"Custom AI"),baseUrl,model,apiKey:String(cfg.apiKey||""),systemPrompt:String(cfg.systemPrompt||"")}});sendResponse({ok:true})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
