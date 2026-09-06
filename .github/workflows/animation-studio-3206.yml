@@ -1,0 +1,27 @@
+name: Animation Studio 3.20.6
+on:
+  pull_request:
+    paths:
+      - 'osminog-animation-studio.*'
+      - 'osminog-graphics-studio.js'
+      - 'bridge.js'
+      - 'editor.html'
+      - 'tests/animation-3206.cjs'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check osminog-animation-studio.js
+      - run: node --check osminog-graphics-studio.js
+      - run: node --check bridge.js
+      - run: node tests/animation-3206.cjs
+      - run: python tools/build_3206.py --output-dir artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.20.6
+          path: artifacts/*
