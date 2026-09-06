@@ -403,7 +403,7 @@
     const product=explicitProduct||chatChrome||/(продукт|интерфейс|верстк|в[её]рстк|магазин|шапк|тре[йя]|github|гитхаб|исходник|код\s+продукт)/i.test(v);
     const selfProduct=explicitProduct||chatChrome;
     if(edit&&selfProduct)return"source";
-    if(isWebAssetAction(v)||isGeneratedImageAction(v))return"canvas";
+    if(isWebAssetAction(v)||/(сгенер|генерац|нарис|созда|сдела|отрис|изобраз|generate|draw|create|render)/i.test(v)&&/(арт|иллюстрац|портрет|фото|фотограф|изображ|картин|персонаж|лиц[оа]|image|artwork|illustration|portrait|photo|picture|character)/i.test(v)&&/(рабоч(?:ий|ем)\s+стол|холст|доск|workspace|desktop|canvas|выкин|отдай|полож|помест|добав|place|put|add|import)/i.test(v))return"canvas";
     const appVerb=/(созда|сдела|собер|напиш|реализ|добав|запуст|доработ|поправ|почин|исправ|измени|передел|настро|обнов|build|create|make|implement|fix|update|improve)/i.test(v),appNoun=/(приложени|мини[- ]?приложени|расширени|модул|виджет|плеер|календар|студи|секундомер|таймер|часы|будильник|калькулятор|конвертер|диктофон|заметк|эмулятор|просмотрщик|скриншот|редактор|viewer|todo|to-do|app|extension|module|widget|player|calendar|stopwatch|timer|clock|alarm|calculator|converter|recorder|emulator|viewer|screenshot|notes?)/i.test(v),visualMock=/(макет|рисунк|нарис|схем|wireframe|mockup|sketch)/i.test(v),appBuild=appVerb&&appNoun&&!visualMock;
     if(appFollowup(v,thread)||appBuild&&!selfProduct)return"app";
     if(product&&edit)return"source";
