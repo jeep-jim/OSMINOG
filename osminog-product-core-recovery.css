@@ -46,3 +46,16 @@ html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:fo
   opacity:1!important
 }
 
+
+
+/* OSMINOG 3.20.7 · stable chat footer and timestamps below avatars */
+.gpt-presence-shell{min-height:0!important;height:100%!important;gap:8px!important;overflow:hidden!important}
+.gpt-presence-shell .local-ai-messages{min-height:0!important}
+.gpt-presence-shell .local-ai-compose{flex:0 0 auto!important;margin:0 10px 10px!important;position:relative!important;bottom:auto!important;transform:none!important}
+.gpt-msg-identity{display:flex;flex-direction:column;align-items:center;gap:3px;grid-column:1;grid-row:1;min-width:34px}
+.gpt-msg-identity>time{font-size:7px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.local-ai-msg.gpt-msg-with-avatar.user>.gpt-msg-identity{grid-column:2;grid-row:1}
+.local-ai-msg.gpt-msg-with-avatar.user>.gpt-msg-identity>time{color:var(--muted)}
+.local-ai-msg.gpt-msg-with-avatar.user>.gpt-msg-avatar{grid-column:auto;grid-row:auto}
+.gpt-msg-card>header>time{display:none!important}
+@media(max-width:520px){.gpt-msg-identity{min-width:30px}}
