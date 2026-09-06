@@ -42,6 +42,8 @@ jobs:
           node tests/routing-3204.cjs
       - name: Check text, graphics, transparency and editable roundtrip
         run: node tests/graphics-3205.cjs
+      - name: Check chat layout across themes and widths
+        run: node tests/chat-layout-3208.cjs
       - name: Check retained document editing
         run: node tests/documents-3204.cjs
       - name: Build and verify complete Chrome package
