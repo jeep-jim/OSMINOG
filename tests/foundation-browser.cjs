@@ -15,6 +15,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.locator('[data-web-text]').fill('After manual edit');await page.locator('[data-web-apply]').click();
   const result=await page.evaluate(()=>OSMINOGBrowserApp.exportFiles({path:'exports/test/index.html'}));assert.equal(result.ok,true);
   const saved=await page.evaluate(()=>__writes.at(-1));assert.match(saved.content,/After manual edit/);assert.match(saved.content,/Preserved/);assert.equal(saved.path,'exports/test/index.html');
-  console.log('PASS first-folder onboarding; load HTML, manual inspector edit and exact exported DOM');
+  await page.evaluate(()=>createProject());assert.equal(await page.evaluate(()=>OSMINOGBrowserApp.context()),null);assert.equal((await page.evaluate(()=>OSMINOGBrowserApp.exportFiles())).ok,undefined);
+  console.log('PASS first-folder onboarding; load HTML, manual inspector edit, exported DOM and cross-project isolation');
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
 })().catch(error=>{console.error(error);process.exitCode=1});
