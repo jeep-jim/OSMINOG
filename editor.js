@@ -194,7 +194,7 @@ globalThis.OSMINOGProjectAPI={
   revisions:async(args={})=>{const id=String(args.id||state.activeProject),got=await storageGet(STORAGE_REVISIONS_KEY),list=got[STORAGE_REVISIONS_KEY]?.[id]||[];return list.map(r=>({id:r.id,at:r.at,name:r.project?.name||"",objects:r.project?.objects?.length||0}))},
   checkpoint:async()=>{const payload=persistPayload();await storageSet(payload);await saveProjectRevision(payload,true);return{ok:true,projectId:state.activeProject,at:state.lastRevisionAt}},
   restoreRevision:async(args={})=>{const projectId=String(args.projectId||state.activeProject),revisionId=String(args.revisionId||args.id||""),got=await storageGet(STORAGE_REVISIONS_KEY),revision=(got[STORAGE_REVISIONS_KEY]?.[projectId]||[]).find(r=>r.id===revisionId);if(!revision?.project)return{error:"Revision not found"};const restored=normalizeProject(clone(revision.project)),index=state.projects.findIndex(p=>p.id===projectId);if(index<0)state.projects.unshift(restored);else state.projects[index]=restored;state.activeProject=restored.id;showApp();await persist();return{ok:true,project:{id:restored.id,name:restored.name},revisionId}},
-  importAsset:async(args={})=>{
+  importAsset:async(args={})=>{const assetProjectId=state.activeProject;
     let src=String(args.dataUrl||args.url||"").trim(),mime=String(args.mime||""),size=Number(args.size)||0,fileName=String(args.fileName||args.name||"").trim();
     if(!/^data:/i.test(src)&&!/^https?:\/\//i.test(src))return{error:"Asset requires a data URL or an http(s) URL"};
     if(/^https?:\/\//i.test(src)){
@@ -209,6 +209,7 @@ globalThis.OSMINOGProjectAPI={
       }catch(error){return{error:`Could not save the remote file: ${error?.message||error}`}}
     }
     mime=mime||src.match(/^data:([^;,]+)/i)?.[1]||"application/octet-stream";
+    if(state.activeProject!==assetProjectId)return{error:"Project changed while downloading the asset"};if(args.expectedKind==="image"&&!/^image\//i.test(mime))return{error:"The provider URL did not return an image"};
     const image=/^image\//i.test(mime),type=image?"image":"file",b=viewportCenter(),title=String(args.name||fileName||(image?"Web image":"Web file")).slice(0,160);
     const o=createObject(type,{src,name:title,fileName:String(fileName||title).slice(0,160),mime,size,x:Number.isFinite(Number(args.x))?Number(args.x):b.x-190,y:Number.isFinite(Number(args.y))?Number(args.y):b.y-140,w:Math.max(48,Math.min(4096,Number(args.w)||380)),h:Math.max(48,Math.min(4096,Number(args.h)||280)),radius:0,fillEnabled:false,strokeEnabled:false});
     await flushPersist();return o?{ok:true,embedded:true,transparencyPreserved:image&&/(png|webp|svg)/i.test(mime),object:{id:o.id,type:o.type,name:o.name,mime:o.mime,size:o.size}}:{error:"Asset was not created"}
