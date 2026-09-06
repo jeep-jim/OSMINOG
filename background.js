@@ -291,11 +291,11 @@ async function bcWebSearch(query,limit=8){const url=`https://html.duckduckgo.com
 
 async function bcWebImageSearch(query,limit=6){
   const url=`https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC3&first=1`;
-  const res=await fetch(url,{cache:"no-store",headers:{"accept-language":"ru,en;q=0.8"}});if(!res.ok)throw new Error(`Image search HTTP ${res.status}`);
-  const html=await res.text(),results=[];for(const match of html.matchAll(/<a[^>]+class=["'][^"']*iusc[^"']*["'][^>]+m=["']([^"']+)["']/gi)){
-    let meta;try{meta=JSON.parse(bcHtmlDecode(match[1]))}catch{continue}
-    const candidates=[meta.turl,meta.murl].filter(Boolean);let captured=null;
-    for(const candidate of candidates){try{const r=await fetch(candidate,{cache:"no-store",redirect:"follow"});if(!r.ok)continue;const type=(r.headers.get("content-type")||"").split(";")[0].toLowerCase();if(!type.startsWith("image/"))continue;const buf=await r.arrayBuffer();if(!buf.byteLength||buf.byteLength>12*1024*1024)continue;let binary="";const bytes=new Uint8Array(buf);for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));captured={title:bcHtmlDecode(meta.t||meta.purl||query),sourceUrl:meta.murl||candidate,pageUrl:meta.purl||"",mime:type,size:buf.byteLength,dataUrl:`data:${type};base64,${btoa(binary)}`};break}catch{}}
+  const res=await fetch(url,{signal:AbortSignal.timeout(10000),cache:"no-store",headers:{"accept-language":"ru,en;q=0.8"}});if(!res.ok)throw new Error(`Image search HTTP ${res.status}`);
+  const html=await res.text(),results=[],deadline=Date.now()+18000;let inspected=0;for(const match of html.matchAll(/<a[^>]+class=["'][^"']*iusc[^"']*["'][^>]+m=["']([^"']+)["']/gi)){
+    if(Date.now()>=deadline||++inspected>12)break;let meta;try{meta=JSON.parse(bcHtmlDecode(match[1]))}catch{continue}
+    const candidates=[meta.murl,meta.turl].filter(Boolean);let captured=null;
+    for(const candidate of candidates){try{const r=await fetch(candidate,{signal:AbortSignal.timeout(6000),cache:"no-store",redirect:"follow"});if(!r.ok)continue;const type=(r.headers.get("content-type")||"").split(";")[0].toLowerCase();if(!type.startsWith("image/"))continue;const buf=await r.arrayBuffer();if(!buf.byteLength||buf.byteLength>12*1024*1024)continue;let binary="";const bytes=new Uint8Array(buf);for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));captured={title:bcHtmlDecode(meta.t||meta.purl||query),sourceUrl:meta.murl||candidate,downloadedUrl:candidate,thumbnail:candidate===meta.turl&&candidate!==meta.murl,pageUrl:meta.purl||"",mime:type,size:buf.byteLength,dataUrl:`data:${type};base64,${btoa(binary)}`};break}catch{}}
     if(captured)results.push(captured);if(results.length>=limit)break
   }
   return{ok:true,query,results,source:"Bing Images"}

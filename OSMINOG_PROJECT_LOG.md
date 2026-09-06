@@ -2204,3 +2204,8 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 ## 2026-09-06 — Foundation candidate 3.21.0 / PR 13
 
 Implemented project-scoped local folder memory, removed 140-message retention cutoff, automatic internal project context, user-repository asset tools, Drive text tools, Figma node lookup, browser HTML/manual export. See RELEASE_NOTES_3.21.0.md for bounded behavior. First source CI passed all three workflows at 7b788cad0f831a3a7d27f1229f3e584911487bc7. Added targeted integration tests in follow-up. External Live Presence remains blocked: no configured authenticated relay. No live OAuth/Figma verification. This is not a claim of full product completion.
+
+
+## 2026-09-06 — 3.21.1 media/reference and chat performance
+
+Fix attachment handoff from composer to parallel agent; capture selected reference for explicit generation; import returned HTTPS images next to reference; no vector retry after successful image import. Mixed search/generate prompts offer local choice buttons. Render 80 recent messages with earlier-message expansion; keep complete storage and expose scoped chat_history_read. Bound outgoing history to 24000 characters and 40 turns, with retrieval for older messages. Search tries original before thumbnail, with request timeouts. No restored external mirroring and no claim of live generation success. See RELEASE_NOTES_3.21.1.md.

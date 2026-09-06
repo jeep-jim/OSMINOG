@@ -13,5 +13,5 @@ for(const tool of ['animation_status','animation_open','animation_edit'])assert.
 console.log('animation-3206: ok');
 const presence=fs.readFileSync('gpt-presence.js','utf8');
 assert.ok(presence.includes('await osminogGrantFullAccess()'));
-assert.ok(presence.includes('if(execution==="canvas"&&isWebAssetAction(text))'));
+assert.ok(presence.includes('if(execution==="canvas"&&isWebAssetAction(text)&&directWebAssetSuitable(text))'));
 assert.ok(presence.includes('executeDirectWebAsset(text)'));
