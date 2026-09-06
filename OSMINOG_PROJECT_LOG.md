@@ -2162,3 +2162,10 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 `runtimeVerified: false`: живые провайдеры, Windows Dev Hub и профиль владельца ещё не проверены. Публикация не является доказательством выполнения команд каждым внешним ИИ.
 
 Тесты: tests/routing-3204.cjs, tests/documents-3204.cjs, tests/recovery-3203.cjs, tests/team-null-response-3203.cjs. Сборщик tools/build_3204.py. Продолжать от 3.20.4; следующий шаг — проверка владельцем снятия плашки, удаления старого модуля, заметки, реального PDF и команды живому ИИ. Не маркировать полноценный OCR/office/PDF layout editing завершённым.
+
+
+### Публикация 3.20.4 подтверждена
+- Исходный commit: 0aecf842b11a120eec8d692de05828a7e4d5301b; PR https://github.com/jeep-jim/OSMINOG/pull/7 объединён, merge 61fa0195c277559417197831f65a822a82685060.
+- Релиз: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.20.4 . Пакет OSMINOG-Chrome-3.20.4-DOCUMENTS-CONTEXT-CONTROL.zip, 4061366 байт, SHA-256 5f7a0e98acff7b982abdbeeed7cff21398422bafb94c22aafd5ab9b1a4047b9b.
+- Сверены 104/104 файлов ZIP с деревом исходного коммита. Workflow 34021513923 успешен; опубликованный asset digest и dev feed проверены. Dev latest=3.20.4, runtimeVerified=false.
+- Следующая точка: владелец обновляется штатной кнопкой и проверяет свои файлы/модули и живой ИИ. Неподдержанные OCR, сложная PDF-вёрстка без растеризации и офисные/бинарные адаптеры остаются отдельной работой.
