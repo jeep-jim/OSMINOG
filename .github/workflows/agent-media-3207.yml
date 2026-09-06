@@ -1,4 +1,4 @@
-name: OSMINOG 3.20.7 combined release candidate
+name: OSMINOG 3.20.8 combined release candidate
 on:
   pull_request:
     paths:
@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-3.20.7-ANIMATION-AGENT-MEDIA.zip'
+          artifact='OSMINOG-Chrome-3.20.8-CHAT-POLISH.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ \
             --exclude='.git/' --exclude='.github/' --exclude='artifacts/' \
@@ -42,10 +42,10 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-3.20.7-ANIMATION-AGENT-MEDIA.zip'
+          path='artifacts/OSMINOG-Chrome-3.20.8-CHAT-POLISH.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
-              assert m['version']=='3.20.7' and m['version_name']=='3.20.7'
+              assert m['version']=='3.20.8' and m['version_name']=='3.20.8'
               assert m['key']
               for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css'):
                   assert name in z.namelist(), name
@@ -53,8 +53,8 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: OSMINOG-3.20.7-ANIMATION-AGENT-MEDIA
+          name: OSMINOG-3.20.8-CHAT-POLISH
           path: |
-            artifacts/OSMINOG-Chrome-3.20.7-ANIMATION-AGENT-MEDIA.zip
-            RELEASE_NOTES_3.20.7.md
+            artifacts/OSMINOG-Chrome-3.20.8-CHAT-POLISH.zip
+            RELEASE_NOTES_3.20.8.md
           retention-days: 14
