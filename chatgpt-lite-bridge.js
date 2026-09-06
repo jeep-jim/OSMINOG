@@ -126,6 +126,23 @@
   function hideProtocolBlocks(root){
     for(const {code,text} of protocolObjects(root)){if(text.includes("osminog.request/v1")||text.includes("osminog.patch/v1")){const pre=code.closest("pre");(pre||code).style.display="none"}}
   }
+  async function assistantImages(root){
+    const out=[],seen=new Set();
+    for(const img of [...root.querySelectorAll("img")]){
+      const src=String(img.currentSrc||img.src||"").trim(),w=Number(img.naturalWidth||img.width||0),h=Number(img.naturalHeight||img.height||0);
+      if(!src||seen.has(src)||w<128||h<128||img.closest("button,[data-testid*='avatar'],[class*='avatar']"))continue;
+      seen.add(src);
+      try{
+        if(/^data:image\//i.test(src)){out.push({kind:"image",name:img.alt||"generated-image",type:src.match(/^data:([^;,]+)/i)?.[1]||"image/png",dataUrl:src});continue}
+        if(!/^(blob:|https?:)/i.test(src))continue;
+        const response=await fetch(src,{credentials:"include"});if(!response.ok)continue;const blob=await response.blob();if(!/^image\//i.test(blob.type)||blob.size>24*1024*1024)continue;
+        const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=reject;reader.readAsDataURL(blob)});
+        if(dataUrl)out.push({kind:"image",name:img.alt||"generated-image",type:blob.type||"image/png",size:blob.size,dataUrl})
+      }catch{}
+      if(out.length>=4)break
+    }
+    return out
+  }
   function hideMachineUserBlocks(){
     for(const root of document.querySelectorAll(USERS)){
       for(const {code,text} of protocolObjects(root)){if(text.includes(CTX_MARK)||text.includes(TOOL_MARK)){const pre=code.closest("pre");if(pre)pre.style.display="none";else code.style.display="none"}}
@@ -192,8 +209,8 @@
       if(!request&&text.includes("osminog.request/v1"))request=parseJsonBlock(text,"osminog.request/v1");
       if(!patch&&text.includes("osminog.patch/v1"))patch=parseJsonBlock(text,"osminog.patch/v1");
     }
-    const natural=naturalAssistantText(root);
-    chrome.runtime.sendMessage({type:"BC_LITE_ASSISTANT_RESULT",payload:{requestId:pendingRequestId,text:natural,request,patch,url:location.href}}).catch(()=>{});
+    const natural=naturalAssistantText(root),completedRequestId=pendingRequestId;
+    assistantImages(root).then(images=>chrome.runtime.sendMessage({type:"BC_LITE_ASSISTANT_RESULT",payload:{requestId:completedRequestId,text:natural,request,patch,images,media:images,url:location.href}}).catch(()=>{}));
     if(!request){pendingRequestId="";pendingAssistantBaseline="";toolHopCount=0;}
     setPill(request?"busy":"",request?"читаю холст…":"GPT подключён");
   }
