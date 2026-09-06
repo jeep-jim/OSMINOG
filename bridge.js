@@ -319,7 +319,7 @@
       else if(name==="graphics_status")result=globalThis.OSMINOGGraphicsStudio?.status?.()||{ok:true,available:!!globalThis.OSMINOGGraphicsStudio,capabilities:["vector","bezier","layers","masks","brushes","opacity","stroke","shapes","gradients","text","images","groups"],editable:true};
       else if(name==="graphics_open"){globalThis.OSMINOGGraphicsStudio?.open?.();result={ok:!!globalThis.OSMINOGGraphicsStudio,opened:!!globalThis.OSMINOGGraphicsStudio}}
       else if(name==="graphics_create")result=globalThis.OSMINOGGraphicsStudio?.createFromSpec?.(args)||{error:"Graphics Studio unavailable"};
-      else if(name==="graphics_edit")result=globalThis.OSMINOGGraphicsStudio?.edit?.(args)||{error:"Graphics Studio unavailable"};
+      else if(name==="graphics_edit")result=await globalThis.OSMINOGGraphicsStudio?.edit?.(args)||{error:"Graphics Studio unavailable"};
       else result={error:`Unknown OSMINOG tool: ${name}`};
       finishToolEvent(name,result?.error?"error":"done");
       return result;
