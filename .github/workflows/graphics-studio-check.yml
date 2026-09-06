@@ -40,6 +40,12 @@ jobs:
           node --check bridge.js
           node tests/team-null-response-3203.cjs
           node tests/routing-3204.cjs
+      - name: Check local memory, assets and manual HTML export
+        run: |
+          node tests/foundation-memory.cjs
+          node tests/foundation-assets.cjs
+          node tests/foundation-context.cjs
+          node tests/foundation-browser.cjs
       - name: Check text, graphics, transparency and editable roundtrip
         run: node tests/graphics-3205.cjs
       - name: Check chat layout across themes and widths
@@ -53,3 +59,4 @@ jobs:
         with:
           name: graphics-verification
           path: artifacts/
+

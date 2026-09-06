@@ -1,25 +1,24 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.20.9",
-  "codename": "PRIVACY NO MIRRORING",
-  "baseVersion": "3.20.8",
-  "artifact": "OSMINOG-Chrome-3.20.9-PRIVACY-NO-MIRRORING.zip",
+  "version": "3.21.0",
+  "codename": "LOCAL MEMORY AND ASSETS",
+  "baseVersion": "3.20.9",
+  "artifact": "OSMINOG-Chrome-3.21.0-LOCAL-MEMORY-ASSETS.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.20.9",
+  "manifestVersion": "3.21.0",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "ownerRuntime": "Pending verification in installed Chrome / Dev Hub with live ChatGPT",
-  "notes": "Emergency containment: ChatGPT tab transport and bidirectional transcript mirroring disabled. Canvas relay code retained. Live provider operation unverified.",
+  "notes": "Local folder memory, automatic internal project context, scoped asset tools. External chat Presence remains blocked pending authenticated connector deployment.",
   "status": "candidate",
-  "versionName": "3.20.9",
-  "build": "3.20.9",
+  "versionName": "3.21.0",
+  "build": "3.21.0",
   "channel": "dev",
-  "release": "PRIVACY-NO-MIRRORING",
+  "release": "LOCAL-MEMORY-ASSETS",
   "verification": {
-    "javascriptSyntax": "passed",
-    "privacyRegression": "7 legacy messages rejected",
-    "sourceCI": "3 workflows passed at 90d95c55a9740f6e2b34134265c0f1068bca2083",
-    "liveProvider": "unverified"
+    "liveProvider": "unverified",
+    "browserRegression": "pending",
+    "localMemory": "passed"
   }
 }
