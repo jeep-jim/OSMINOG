@@ -1,0 +1,69 @@
+/* Graphics Studio: tools occupy their own row outside the transparent stage. */
+#osminogGraphicsStudio { color:var(--text); }
+#osminogGraphicsStudio [hidden] { display:none!important; }
+#osminogGraphicsStudio main { min-height:0; overflow:hidden; }
+#osminogGraphicsStudio .graphics-studio-shell {
+  --gfx-layers-width:164px; --gfx-inspector-width:286px;
+  position:relative; display:grid; grid-template-columns:var(--gfx-layers-width) minmax(0,1fr) var(--gfx-inspector-width);
+  grid-template-rows:minmax(0,1fr); width:100%; height:100%; padding:0; min-height:0; overflow:hidden;
+}
+#osminogGraphicsStudio .graphics-studio-center {
+  grid-area:1/2; position:relative; display:grid; grid-template-rows:auto minmax(0,1fr) auto;
+  min-width:0; min-height:0; overflow:hidden;
+}
+#osminogGraphicsStudio .graphics-studio-toolbar { overflow:auto; flex-wrap:wrap; flex:none; padding:8px; gap:5px; }
+#osminogGraphicsStudio .graphics-studio-toolbar button { font-size:11px; padding:0 8px; }
+#osminogGraphicsStudio [data-gfx-status] { flex:1 1 140px; font-size:10px; }
+#osminogGraphicsStudio .graphics-studio-stage { min-width:0; min-height:0; background:#181c23; touch-action:none; }
+#osminogGraphicsStudio .graphics-studio-stage.is-transparent {
+  background-color:#20252e;
+  background-image:conic-gradient(#171b22 25%,transparent 0 50%,#171b22 0 75%,transparent 0);
+  background-size:20px 20px; background-position:0 0;
+}
+#osminogGraphicsStudio .graphics-studio-tools {
+  position:static; transform:none; display:flex; flex-direction:row; justify-content:flex-start; align-items:center;
+  gap:3px; width:100%; height:auto; max-width:none; min-height:72px; margin:0; padding:8px;
+  box-sizing:border-box; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin;
+  border:0; border-top:1px solid var(--line); border-radius:0;
+  background:var(--surface-2); box-shadow:none; backdrop-filter:none;
+}
+#osminogGraphicsStudio .graphics-studio-tools button {
+  flex:0 0 43px; width:43px; min-width:43px; height:48px!important; min-height:48px!important;
+  display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px;
+  color:var(--text); opacity:.88; border-radius:8px;
+}
+#osminogGraphicsStudio .graphics-studio-tools button span { display:block!important; font-size:8px; max-width:43px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#osminogGraphicsStudio .graphics-studio-tools button svg { width:19px; height:19px; }
+#osminogGraphicsStudio .graphics-studio-tools button.active { opacity:1; background:var(--accent-soft); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+#osminogGraphicsStudio .graphics-studio-tools .gfx-zoom-button { flex-basis:28px; width:28px; min-width:28px; }
+#osminogGraphicsStudio .graphics-studio-tools .gfx-zoom-readout { flex-basis:42px; width:42px; min-width:42px; }
+#osminogGraphicsStudio .gfx-zoom-readout b { font-size:10px; }
+#osminogGraphicsStudio .graphics-studio-inspector,
+#osminogGraphicsStudio .graphics-studio-layers-panel { min-width:0; min-height:0; overflow:auto; padding:10px; scrollbar-width:thin; overscroll-behavior:contain; }
+#osminogGraphicsStudio .graphics-studio-layers-panel { grid-area:1/1; background:var(--surface-2); }
+#osminogGraphicsStudio .graphics-studio-inspector { grid-area:1/3; display:flex; flex-direction:column; gap:9px; }
+#osminogGraphicsStudio .graphics-studio-inspector > * { flex:0 0 auto; min-width:0; }
+#osminogGraphicsStudio .graphics-studio-inspector details { height:auto; max-height:none; overflow:visible; }
+#osminogGraphicsStudio .graphics-studio-inspector summary { font-size:11px; padding:11px 10px; }
+#osminogGraphicsStudio .gfx-section { padding:2px 10px 12px; gap:9px; }
+#osminogGraphicsStudio .gfx-section > label { grid-template-columns:86px minmax(0,1fr) auto; font-size:10px; }
+#osminogGraphicsStudio .graphics-studio-inspector :is(input,select,textarea) { min-width:0; max-width:100%; box-sizing:border-box; }
+#osminogGraphicsStudio .graphics-studio-inspector input[type=range] { min-height:24px; height:24px; accent-color:var(--accent); }
+#osminogGraphicsStudio .graphics-studio-inspector output { min-width:28px; font-size:9px; }
+#osminogGraphicsStudio .graphics-studio-geometry { padding:0 10px 10px; }
+#osminogGraphicsStudio .gfx-action-grid button { min-height:34px; font-size:10px; }
+#osminogGraphicsStudio .gfx-section .gfx-wide { grid-template-columns:1fr; }
+#osminogGraphicsStudio textarea { width:100%; min-height:64px; resize:vertical; padding:7px; background:var(--surface); border:1px solid var(--line); border-radius:8px; color:var(--text); font:12px/1.5 system-ui; }
+#osminogGraphicsStudio .gfx-help { font-size:10px; line-height:1.5; }
+#osminogGraphicsStudio button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+#osminogGraphicsStudio button:disabled { opacity:.4; cursor:default; }
+#osminogGraphicsStudio .gfx-panel-resizer { position:absolute; z-index:30; top:0; bottom:0; width:7px; cursor:col-resize; touch-action:none; }
+#osminogGraphicsStudio .gfx-panel-resizer:hover { background:color-mix(in srgb,var(--accent) 35%,transparent); }
+#osminogGraphicsStudio .gfx-panel-resizer.left { left:var(--gfx-layers-width); transform:translateX(-4px); }
+#osminogGraphicsStudio .gfx-panel-resizer.right { right:var(--gfx-inspector-width); transform:translateX(4px); }
+#osminogGraphicsStudio .graphics-studio-shell.hide-layers { --gfx-layers-width:0px!important; }
+#osminogGraphicsStudio .hide-layers :is(.graphics-studio-layers-panel,.gfx-panel-resizer.left) { display:none; }
+#osminogGraphicsStudio .graphics-studio-shell.hide-inspector { --gfx-inspector-width:0px!important; }
+#osminogGraphicsStudio .hide-inspector :is(.graphics-studio-inspector,.gfx-panel-resizer.right) { display:none; }
+.osminog-dock-item[data-dock-key="core:text"]::after { content:"Текст"; position:absolute; bottom:-8px; left:0; right:0; color:var(--text); text-align:center; font:700 10px/1.2 system-ui; }
+.canvas-object [contenteditable][data-placeholder]:empty::before { content:attr(data-placeholder); opacity:.45; pointer-events:none; }

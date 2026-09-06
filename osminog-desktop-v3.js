@@ -29,6 +29,7 @@
   const APPS=[
     {id:"ai",title:"ИИ",tone:"#20c779",open:openAI},
     {id:"graphics",title:"Графика",tone:"#8b5cf6",open:openGraphics},
+    {id:"text",title:"Текст",tone:"#ec397d",open:openText},
     {id:"browser",title:"Браузер",tone:"#39a8ff",open:openBrowser},
     {id:"files",title:"Файлы",tone:"#f4ba25",open:openFiles},
     {id:"modules",title:"Модули",tone:"#ff7a45",open:openModules}
