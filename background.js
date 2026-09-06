@@ -475,9 +475,9 @@ async function bcModuleTool(name,args={}){
   if(name==="module_status")return{ok:true,figma:{connected:!!mods.figma?.connected,name:mods.figma?.name||null},github:{connected:!!github.connected,name:github.name||null,ownerVerified,ownerUser:grant.user||null,writeGateway:"owner-confirmed"},drive:{connected:false,note:"OAuth client configuration required"}};
   if(name==="figma_fetch_file"){
     if(!mods.figma?.token)throw new Error("Figma module not connected");
-    const fileKey=String(args.fileKey||"").trim();if(!fileKey)throw new Error("fileKey required");
-    const depth=Math.max(1,Math.min(4,Number(args.depth)||2)),r=await fetch(`https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}?depth=${depth}`,{headers:{"X-Figma-Token":mods.figma.token}}),raw=await r.text();
-    if(!r.ok)throw new Error(`Figma HTTP ${r.status}: ${raw.slice(0,200)}`);const d=JSON.parse(raw);return{ok:true,name:d.name,lastModified:d.lastModified,version:d.version,document:d.document};
+    let fileKey=String(args.fileKey||"").trim(),nodeId=String(args.nodeId||"").trim();if(args.url){const url=new URL(args.url);if(!/(^|\.)figma\.com$/.test(url.hostname))throw new Error("Expected Figma URL");fileKey=url.pathname.split("/")[2]||fileKey;nodeId=url.searchParams.get("node-id")||nodeId}nodeId=nodeId.replace(/-/g,":");if(!fileKey)throw new Error("fileKey or Figma URL required");
+    const depth=Math.max(1,Math.min(4,Number(args.depth)||2)),r=await fetch(`https://api.figma.com/v1/files/${encodeURIComponent(fileKey)}${nodeId?"/nodes":""}?depth=${depth}${nodeId?"&ids="+encodeURIComponent(nodeId):""}`,{headers:{"X-Figma-Token":mods.figma.token}}),raw=await r.text();
+    if(!r.ok)throw new Error(`Figma HTTP ${r.status}: ${raw.slice(0,200)}`);const d=JSON.parse(raw);return{ok:true,name:d.name,lastModified:d.lastModified,version:d.version,document:d.document,nodes:d.nodes||null,fileKey,nodeId:nodeId||null};
   }
   if(!name.startsWith("github_"))throw new Error(`Unknown module tool: ${name}`);
   if(!github.token)throw new Error("GitHub module not connected");

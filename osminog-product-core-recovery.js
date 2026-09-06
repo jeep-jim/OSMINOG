@@ -26,6 +26,28 @@
   async function refreshConnectionCards(){const gh=await githubState(),ghSt=$("#moduleGitHubUserStatus"),ghBtn=$("#moduleGitHubUserConnect");if(ghSt)ghSt.textContent=gh.connected?`${gh.login||"GitHub"} · ${gh.repo||"выбери repo"}`:"Проекты и репозитории";if(ghBtn)ghBtn.textContent=gh.connected?"Настроить":"Подключить";try{const st=await globalThis.OSMINOGAccountAPI?.status?.(),drive=$("#moduleDriveStatus");if(drive)drive.textContent=st?.signedIn?`${st.profile?.email||st.profile?.name||"Google"} · Drive`:st?.configured?"Google OAuth готов":"Подключить Google Drive"}catch{}}
   function cleanupLegacySystemModules(){const api=globalThis.OSMINOGExtensionStudio;if(!api?.list)return;const stale=api.list().filter(x=>x.system&&!String(x.id||"").startsWith("system."));if(stale.length)document.dispatchEvent(new CustomEvent("osminog:extension-registry-changed"))}
   function install(){ensureHeader();ensureConnections();cleanupLegacySystemModules();refreshHeader();setInterval(refreshHeader,2500);document.addEventListener("osminog:owner-unlocked",refreshHeader);document.addEventListener("osminog:session-changed",refreshHeader);document.addEventListener("osminog:user-github-changed",refreshConnectionCards)}
-  globalThis.OSMINOGUserGitHub={status:githubState,connect:connectUserGitHub,setRepo:setGitHubRepo,sync:syncGitHubProject,load:loadGitHubProject};
+  
+  async function userGitHubTool(name,args={}){
+    const account=await githubState();if(!account.token||!account.repo)throw new Error("Подключите GitHub и выберите репозиторий проекта");
+    const selected=(account.repos||[]).find(r=>r.full_name===account.repo);if(!selected)throw new Error("Выбранный репозиторий не подтверждён подключением");
+    const base=`/repos/${account.repo}`,branch=String(args.ref||selected.default_branch||"main");
+    if(name==="user_github_list")return githubFetch(account.token,`${base}/git/trees/${encodeURIComponent(branch)}?recursive=1`);
+    const path=String(args.path||"");if(!path||path.split(/[\\/]/).some(p=>!p||p==="."||p===".."))throw new Error("Invalid repository path");
+    const endpoint=`${base}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+    if(name==="user_github_read"){
+      const file=await githubFetch(account.token,endpoint+`?ref=${encodeURIComponent(branch)}`);
+      if(file.type!=="file"||file.encoding!=="base64")throw new Error("Use a regular text file supported by GitHub Contents API");
+      const content=new TextDecoder().decode(Uint8Array.from(atob(file.content.replace(/\s/g,"")),c=>c.charCodeAt(0)));
+      const offset=Math.max(0,Number(args.offset)||0),limit=Math.min(250000,Math.max(1,Number(args.max_chars)||50000));
+      return{repo:account.repo,path,sha:file.sha,content:content.slice(offset,offset+limit),totalChars:content.length,hasMore:offset+limit<content.length};
+    }
+    if(name!=="user_github_write")throw new Error("Unknown user GitHub operation");
+    if(typeof args.content!=="string")throw new Error("content required");
+    if(args.sha===undefined)throw new Error("Read first and pass sha; use sha:null only to create a new file");
+    const result=await githubFetch(account.token,endpoint,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:String(args.message||"Update project asset from OSMINOG"),content:enc64(args.content),branch,...(args.sha?{sha:args.sha}:{})})});
+    return{ok:true,repo:account.repo,path,sha:result.content?.sha,commit:result.commit?.sha};
+  }
+
+  globalThis.OSMINOGUserGitHub={tool:userGitHubTool,status:githubState,connect:connectUserGitHub,setRepo:setGitHubRepo,sync:syncGitHubProject,load:loadGitHubProject};
   document.readyState==="loading"?document.addEventListener("DOMContentLoaded",()=>setTimeout(install,350),{once:true}):setTimeout(install,350);
 })();

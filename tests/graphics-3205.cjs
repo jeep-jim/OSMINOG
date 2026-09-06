@@ -16,7 +16,7 @@ const assert=require('assert/strict');
    window.chrome={runtime:{id:'test-osminog',getManifest:()=>manifest,getURL:p=>location.origin+'/'+p,onMessage:event,onConnect:event,lastError:null,sendMessage:async()=>({ok:false,error:'Chrome service mocked for local verification'}),connect:()=>({onMessage:event,onDisconnect:event,postMessage(){}})},storage:{local:storage,sync:storage,onChanged:event},permissions:{contains:async()=>false,request:async()=>false,onAdded:event,onRemoved:event},tabs:{query:async()=>[],onActivated:event,onRemoved:event,onUpdated:event},identity:{getRedirectURL:()=>location.origin+'/auth'},i18n:{getMessage:k=>k}};
    window.confirm=()=>true;
  },JSON.parse(fs.readFileSync(path.join(root,'manifest.json'))));
- await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`,{waitUntil:'load'});
+ await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`,{waitUntil:'load'});await page.evaluate(()=>document.querySelector('#osminogStorageOnboarding')?.close());
  await page.waitForTimeout(1200);
  await page.evaluate(()=>{createProject();sessionStorage.setItem('osminogIntroDismissedV1','1');renderAll()});
  console.log('startup errors',errors);
@@ -97,3 +97,4 @@ const assert=require('assert/strict');
  fs.writeFileSync('artifacts/verification.json',JSON.stringify({checks:'passed',textRead:read,layout:first,brush,grouping,alpha,erased,roundtrip:{created:info.result.created,objects:restored.objects.length,transparent:restored.transparent},compact,errors},null,2));
  await browser.close();server.close();console.log('ALL CHECKS PASSED');
 })().catch(error=>{console.error(error);process.exit(1)});
+

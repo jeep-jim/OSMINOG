@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const memory=require('../osminog-project-memory.js');
+const key='briefCraftGptLiteChat:p1:main',messages=Array.from({length:400},(_,at)=>({id:'m'+at,at,text:'message '+at,role:'user'}));
+const storage={[key]:messages,'briefCraftGptLiteChat:p2:main':[{text:'UNRELATED'}],briefCraftProviderKeysV1:{secret:'SECRET'},osminogUserGitHubV1:{token:'SECRET'}};
+assert.deepEqual(Object.keys(memory.select(storage,['p1'])),[key]);
+assert.equal(memory.select(storage,['p1'])[key].length,400);
+assert.equal(memory.merge({[key]:messages.slice(0,200)},storage,['p1'])[key].length,400);
+assert.equal(memory.merge(storage,storage,['p1'])[key].length,400);
+assert.equal(memory.owns('briefCraftGptLiteChat:p11:main','p1'),false);
+const editor=fs.readFileSync(require.resolve('../editor.js'),'utf8');
+const source=editor.slice(editor.indexOf('let folderWriteQueue='),editor.indexOf('let folderMemoryTimer;'));
+let files=new Map(),events=[],writes=0,active=0,maxActive=0;
+const root={name:'OSMINOG',getDirectoryHandle:async()=>root};
+const state={folderHandle:root,projects:[{id:'p1',name:'one',updated:1}],activeProject:'p1'};
+const sandbox={state,clone:structuredClone,project:()=>state.projects[0],handlePermission:async()=>true,ensureWorkspaceFolderLayout:async()=>{},OSMINOGProjectMemory:memory,chrome:{storage:{local:{get:async()=>storage}}},writeHandleText:async(_,name,text)=>{maxActive=Math.max(maxActive,++active);await new Promise(r=>setTimeout(r,2));files.set(name,text);writes++;active--},safeName:x=>x,document:{dispatchEvent:e=>events.push(e)},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail}},showToast:()=>{}};
+vm.createContext(sandbox);vm.runInContext(source+';globalThis.sync=syncFolder',sandbox);
+(async()=>{
+ await Promise.all([sandbox.sync(),sandbox.sync()]);assert.equal(maxActive,1);assert.equal(writes,4);
+ const backup=JSON.parse(files.get('workspace-memory.json'));assert.equal(backup.memory[key].length,400);assert(!JSON.stringify(backup).includes('SECRET'));assert(!JSON.stringify(backup).includes('UNRELATED'));
+ sandbox.handlePermission=async()=>false;await assert.rejects(sandbox.sync(),/Подтвердите/);assert(state.folderSaveError);assert.equal(events.at(-1).type,'osminog:project-folder-error');
+ sandbox.handlePermission=async()=>true;await sandbox.sync();assert.equal(state.folderSaveError,'');
+ console.log('PASS: 400-message retention, scoped backup/merge, no credentials, serialized writes, permission failure and retry');
+})().catch(e=>{console.error(e);process.exitCode=1});

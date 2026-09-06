@@ -856,3 +856,11 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - Автопубликация по ZIP и ACTIVATE-V2 вызвали два последовательных запуска. Дубликат 34024006195 загрузил тот же проверенный архив, затем получил non-fast-forward при повторном обновлении уже обновлённого feed. Итоговый feed и asset корректны. В следующем релизе с полным ZIP использовать только существующий автоматический dispatch без дополнительного ACTIVATE-V2.
 - Следующая точка: обновиться штатной кнопкой до 3.20.5 и проверить свои подписи/рисунки и живой ИИ в профиле владельца. runtimeVerified=false сохранён.
 
+
+
+## 2026-09-06 — Local memory and asset foundation, 3.21.0 candidate
+
+User contract: OSMINOG is a local project memory and shared editable body for AI. Connecting an AI must automatically make the explicitly connected project available. Conversations must never be mirrored into unrelated provider chats. Local folder comes first; login is separate from file synchronization.
+
+Implementation and verified limitations: see RELEASE_NOTES_3.21.0.md. This supersedes older keyword-only context attachment policies for internal agents. The 3.20.9 external DOM privacy containment remains until a separate authenticated project-scoped connector is deployed and tested. No claim of universal external Live Presence or complete Figma-to-application roundtrip.
+
