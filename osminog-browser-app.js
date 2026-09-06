@@ -45,14 +45,14 @@
   async function loadHtml(args={}){
     if(typeof args.html!=="string"||!args.html.trim())return{error:"html required"};
     ensure();saveSnapshot();const item=tab("https://osminog.local/",{title:args.title||"Макет"});
-    item.snapshot=cleanDocument(args.html,item.url);item.mode="edit";loadSnapshot(true);
+    item.snapshot=cleanDocument(args.html,item.url);item.mode="edit";const ready=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("Предпросмотр не загрузился")),10000);frame().addEventListener("load",()=>{clearTimeout(timer);resolve()},{once:true})});loadSnapshot(true);await ready;
     globalThis.OSMINOGWindowManager?.restore?.("browser-app");globalThis.OSMINOGWindowManager?.front?.("browser-app");
     return{ok:true,id:item.id,title:item.title,editable:true};
   }
   async function exportFiles(args={}){
     saveSnapshot();const item=current();if(!item?.snapshot)return{error:"Откройте редактируемый макет"};
     const api=globalThis.OSMINOGProjectFolderAPI;if(!api)return{error:"Project folder unavailable"};
-    const path=args.path||"exports/layout/index.html",result=await api.write({path,content:item.snapshot});
+    const doc=new DOMParser().parseFromString(item.snapshot,"text/html");doc.querySelectorAll("[data-osminog-editor-ui],#osminog-web-box").forEach(n=>n.remove());if(item.url==="https://osminog.local/")doc.querySelector("base")?.remove();const content="<!doctype html>\n"+doc.documentElement.outerHTML;const path=args.path||"exports/layout/index.html",result=await api.write({path,content});
     if(!result?.ok)return result;
     return{ok:true,files:[{path,size:result.size}],source:"current-edited-DOM",externalAssets:"Linked external assets remain URLs; this export is not an offline asset bundle"};
   }
