@@ -2198,3 +2198,9 @@ Owner live test showed 3.15.0 could drop Owner Max whenever GitHub status was te
 - Автопубликация по ZIP и ACTIVATE-V2 вызвали два последовательных запуска. Дубликат 34024006195 загрузил тот же проверенный архив, затем получил non-fast-forward при повторном обновлении уже обновлённого feed. Итоговый feed и asset корректны. В следующем релизе с полным ZIP использовать только существующий автоматический dispatch без дополнительного ACTIVATE-V2.
 - Следующая точка: обновиться штатной кнопкой до 3.20.5 и проверить свои подписи/рисунки и живой ИИ в профиле владельца. runtimeVerified=false сохранён.
 
+
+
+
+## 2026-09-06 — Foundation candidate 3.21.0 / PR 13
+
+Implemented project-scoped local folder memory, removed 140-message retention cutoff, automatic internal project context, user-repository asset tools, Drive text tools, Figma node lookup, browser HTML/manual export. See RELEASE_NOTES_3.21.0.md for bounded behavior. First source CI passed all three workflows at 7b788cad0f831a3a7d27f1229f3e584911487bc7. Added targeted integration tests in follow-up. External Live Presence remains blocked: no configured authenticated relay. No live OAuth/Figma verification. This is not a claim of full product completion.

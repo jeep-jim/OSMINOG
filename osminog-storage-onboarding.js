@@ -2,7 +2,7 @@
 (()=>{
   let dialog;
   async function check(){
-    const api=globalThis.OSMINOGProjectFolderAPI;if(!api)return;
+    await globalThis.OSMINOGStateReady;const api=globalThis.OSMINOGProjectFolderAPI;if(!api)return;
     const status=await api.status();if(status.connected){dialog?.remove();dialog=null;return}
     if(dialog)return;
     dialog=document.createElement("dialog");dialog.id="osminogStorageOnboarding";
