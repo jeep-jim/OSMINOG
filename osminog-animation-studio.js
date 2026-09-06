@@ -5,8 +5,8 @@
   let panel=null, timer=0, playing=false, playStarted=0, playFrom=0;
   const state={version:1,fps:30,duration:3,loop:true,time:0,tracks:[],selected:null};
   const canvas=()=>globalThis.OSMINOGGraphicsStudio?.canvas?.()||null;
-  const studioObject=id=>canvas()?.getObjects?.().find(o=>String(o.gfxId||o.__gfxId||o.id)===String(id));
-  const objectId=o=>{if(!o)return null;if(!o.gfxId)o.gfxId=`anim-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;return o.gfxId};
+  const studioObject=id=>canvas()?.getObjects?.().find(o=>String(o.studioId||o.gfxId||o.__gfxId||o.id)===String(id));
+  const objectId=o=>{if(!o)return null;if(!o.studioId)o.studioId=`anim-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;return o.studioId};
   const props=o=>({left:+o.left||0,top:+o.top||0,scaleX:+o.scaleX||1,scaleY:+o.scaleY||1,angle:+o.angle||0,opacity:o.opacity==null?1:+o.opacity});
   const ease=(name,t)=>name==="ease-in"?t*t:name==="ease-out"?1-(1-t)*(1-t):name==="ease-in-out"?(t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2):name==="step"?(t<1?0:1):t;
   const interpolate=(a,b,t,easing)=>{t=ease(easing,t);const out={};for(const k of ["left","top","scaleX","scaleY","angle","opacity"])out[k]=(+a[k]||0)+((+b[k]||0)-(+a[k]||0))*t;return out};
