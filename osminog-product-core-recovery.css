@@ -69,3 +69,5 @@ html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:fo
 #bridgePanel .gpt-presence-shell .local-ai-compose{border-top:0!important}
 #bridgePanel .gpt-presence-shell .local-ai-projectbar{border:0!important;border-top:1px solid var(--line)!important;border-radius:0!important}
 .osminog-confirm-layer button[data-confirm-ok].danger{color:#fff!important}
+/* Keep the right-hand owner identity; suppress only the duplicate card label. */
+#bridgePanel .local-ai-msg.user .gpt-msg-card > header { display: none !important; }
