@@ -8,7 +8,12 @@ on:
       - 'editor.html'
       - 'editor.css'
       - 'bridge.js'
+      - 'manifest.json'
+      - 'OSMINOG_BUILD.json'
+      - 'tools/build_3205.py'
+      - 'tools/release-files-3205.json'
       - 'tests/graphics-3205.cjs'
+      - 'tests/documents-3204.cjs'
       - '.github/workflows/graphics-studio-check.yml'
 permissions:
   contents: read
@@ -37,6 +42,8 @@ jobs:
         run: node tests/graphics-3205.cjs
       - name: Check retained document editing
         run: node tests/documents-3204.cjs
+      - name: Build and verify complete Chrome package
+        run: python3 tools/build_3205.py --output-dir artifacts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

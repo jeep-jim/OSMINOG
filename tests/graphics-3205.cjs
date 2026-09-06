@@ -10,12 +10,12 @@ const assert=require('assert/strict');
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(10000);await page.route('https://**',r=>r.abort());
- await page.addInitScript(()=>{
+ await page.addInitScript((manifest)=>{
    const data={};const event={addListener(){},removeListener(){},hasListener(){return false}};
    const storage={get(keys,cb){let r={};if(typeof keys==='string')r={[keys]:data[keys]};else if(Array.isArray(keys))for(const k of keys)r[k]=data[k];else r={...(keys||{}),...data};cb?.(r);return Promise.resolve(r)},set(values,cb){Object.assign(data,values);cb?.();return Promise.resolve()},remove(keys,cb){for(const key of [].concat(keys))delete data[key];cb?.();return Promise.resolve()}};
-   window.chrome={runtime:{id:'test-osminog',getManifest:()=>({version:'3.20.4',manifest_version:3}),getURL:p=>location.origin+'/'+p,onMessage:event,onConnect:event,lastError:null,sendMessage:async()=>({ok:false,error:'Chrome service mocked for local verification'}),connect:()=>({onMessage:event,onDisconnect:event,postMessage(){}})},storage:{local:storage,sync:storage,onChanged:event},permissions:{contains:async()=>false,request:async()=>false,onAdded:event,onRemoved:event},tabs:{query:async()=>[],onActivated:event,onRemoved:event,onUpdated:event},identity:{getRedirectURL:()=>location.origin+'/auth'},i18n:{getMessage:k=>k}};
+   window.chrome={runtime:{id:'test-osminog',getManifest:()=>manifest,getURL:p=>location.origin+'/'+p,onMessage:event,onConnect:event,lastError:null,sendMessage:async()=>({ok:false,error:'Chrome service mocked for local verification'}),connect:()=>({onMessage:event,onDisconnect:event,postMessage(){}})},storage:{local:storage,sync:storage,onChanged:event},permissions:{contains:async()=>false,request:async()=>false,onAdded:event,onRemoved:event},tabs:{query:async()=>[],onActivated:event,onRemoved:event,onUpdated:event},identity:{getRedirectURL:()=>location.origin+'/auth'},i18n:{getMessage:k=>k}};
    window.confirm=()=>true;
- });
+ },JSON.parse(fs.readFileSync(path.join(root,'manifest.json'))));
  await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`,{waitUntil:'load'});
  await page.waitForTimeout(1200);
  await page.evaluate(()=>{createProject();sessionStorage.setItem('osminogIntroDismissedV1','1');renderAll()});
