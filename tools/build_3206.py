@@ -1,11 +1,12 @@
-"""Deterministic OSMINOG 3.20.6 package."""
+"""Deterministic OSMINOG Chrome package (3.20.6+)."""
 from pathlib import Path
 import argparse, hashlib, json, subprocess, zipfile
 root=Path(__file__).resolve().parent.parent
 parser=argparse.ArgumentParser();parser.add_argument('--output-dir',required=True);args=parser.parse_args()
 files=json.loads((root/'tools/release-files-3206.json').read_text())
 manifest=json.loads((root/'manifest.json').read_text());build=json.loads((root/'OSMINOG_BUILD.json').read_text())
-assert manifest['version']==build['version']=='3.20.6'
+assert manifest['version']==build['version']
+assert tuple(map(int,manifest['version'].split('.'))) >= (3,20,6)
 for name in files:
  p=root/name;assert p.is_file(),name
  if p.suffix in ('.js','.mjs'):subprocess.run(['node','--check',str(p)],check=True)
