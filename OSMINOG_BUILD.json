@@ -1,20 +1,26 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.19.12",
-  "codename": "SEAMLESS SHARED VISION",
-  "baseVersion": "3.19.11",
-  "artifact": "OSMINOG-Chrome-3.19.12-SEAMLESS-SHARED-VISION.zip",
+  "version": "3.20.3",
+  "codename": "CANVAS DROP AND PRESENCE RECOVERY",
+  "baseVersion": "3.20.1",
+  "artifact": "OSMINOG-Chrome-3.20.3-CANVAS-DROP-PRESENCE-RECOVERY.zip",
   "manifestAtRoot": true,
-  "manifestVersion": "3.19.12",
+  "manifestVersion": "3.20.3",
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
-  "ownerRuntime": "Poseidon remains owner-only for OSMINOG source changes",
-  "binaryInGitHub": true,
-  "notes": "Same-revision shared Vision Context for all providers and seamless external ChatGPT canvas vision preflight.",
+  "ownerRuntime": "Pending verification in installed Chrome / Dev Hub with live ChatGPT",
+  "notes": "Repairs inspector observer feedback loop, duplicate native drop, folder-to-canvas handling and restores current ChatGPT connection controls. Browser regression checks use mocked Chrome/provider APIs; live owner verification remains pending.",
   "status": "manual-test",
-  "versionName": "3.19.12",
-  "build": "3.19.12",
+  "versionName": "3.20.3",
+  "build": "3.20.3",
   "channel": "dev",
-  "release": "SEAMLESS-SHARED-VISION"
+  "release": "CANVAS-DROP-PRESENCE-RECOVERY",
+  "verification": {
+    "javascriptSyntax": "passed",
+    "chromiumRegression": "passed",
+    "transportAndStorage": "mocked Chrome APIs",
+    "teamNullResponse": "passed",
+    "liveProvider": "pending"
+  }
 }

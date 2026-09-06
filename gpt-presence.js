@@ -724,7 +724,7 @@ Previous response excerpt: ${String(lastText||"").slice(0,900)}`;
     let response=await sendProviderTask(task,prefix+message+textAttachmentBlock(attachments),ctx,images);
     response=await teamDrainToolCalls(task,response,ctx);
     if(options.execute&&response?.ok&&!response.payload?.patch?.actions?.length){
-      for(let attempt=1;attempt<=2&&!response.payload?.patch?.actions?.length;attempt++){
+      for(let attempt=1;attempt<=2&&response?.ok&&!response.payload?.patch?.actions?.length;attempt++){
         const correction=`[OSMINOG TEAM EXECUTION RETRY ${attempt}/2]\nThe previous answer did not contain a usable osminog.patch/v1, so the task is NOT complete.\nOriginal owner mission: ${message}\nUse only IDs present in projectMap/objects/selection. Resolve spatial references from bounds (smallest y = uppermost; largest y = lower; smallest x = left; largest x = right) among relevant visible objects. If you need more detail, request tools first. Then return exactly one valid osminog.patch/v1 JSON machine block with concrete set/create/delete/connect/disconnect actions. For a requested true circle use shapeKind=ellipse and equal w/h while preserving the target center. Do not answer with promises or prose-only completion.`;
         response=await sendProviderTask(task,correction,ctx,attempt===1?images:[]);
         response=await teamDrainToolCalls(task,response,ctx);

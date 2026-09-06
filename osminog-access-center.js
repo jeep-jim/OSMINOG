@@ -1,16 +1,31 @@
 "use strict";
 (()=>{
-  if(globalThis.OSMINOGAccessCenter?.version==="3.18")return;
-  const $=(s,r=document)=>r.querySelector(s);let el=null;
-  const project=()=>globalThis.project?.()||null;
-  function ensureSharing(){const p=project();if(!p)return null;if(!p.sharing||typeof p.sharing!=="object")p.sharing={visibility:"invite",linkRole:"view",token:`share-${Date.now().toString(36)}`,members:[]};if(!p.sharing.token)p.sharing.token=`share-${Date.now().toString(36)}`;return p.sharing}
-  function persist(){globalThis.queuePersist?.();document.dispatchEvent(new CustomEvent("osminog:sharing-changed"))}
-  function shareLink(){const p=project(),s=ensureSharing();return p&&s?`osminog://project/${encodeURIComponent(p.id)}?access=${encodeURIComponent(s.token)}&role=${encodeURIComponent(s.linkRole||"view")}`:""}
-  const icon=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5 13.5 10.5M8.2 15.8l-1.4 1.4a3.5 3.5 0 0 1-5-5l3.1-3.1a3.5 3.5 0 0 1 5 0M15.8 8.2l1.4-1.4a3.5 3.5 0 0 1 5 5l-3.1 3.1a3.5 3.5 0 0 1-5 0"/></svg>`;
-  function ensure(){if(el?.isConnected)return el;el=document.createElement("section");el.id="osminogAccessCenter";el.className="osminog-app-window osminog-access-application osminog-access-318 glass";el.innerHTML=`<header class="osminog-app-window-head"><span class="osminog-app-window-mark">${icon}</span><div><small>OSMINOG · SHARE</small><strong>Поделиться холстом</strong></div></header><main><section class="access318-card"><div class="access318-title"><div><strong data-access-project>Текущий холст</strong><small>Здесь только доступ других людей к проекту.</small></div><label class="access318-switch"><input type="checkbox" data-share-enabled><span></span><b data-share-enabled-label>По приглашению</b></label></div><div class="access318-role"><span>Права по ссылке</span><div><button type="button" data-share-role-btn="view">Просмотр</button><button type="button" data-share-role-btn="comment">Комментарии</button><button type="button" data-share-role-btn="edit">Редактирование</button></div></div><div class="access318-link"><input data-share-link readonly><button type="button" data-share-copy>Копировать</button></div><footer><button type="button" data-share-rotate>Новая ссылка</button><small>ИИ и Poseidon здесь не настраиваются.</small></footer></section></main>`;document.body.append(el);globalThis.OSMINOGWindowManager?.register?.({name:"access-center",el,handle:el.querySelector("header"),title:"Поделиться холстом",icon:"↗",nodeable:false,minW:520,minH:300,defaultW:660,defaultH:350});bind();return el}
-  function render(){ensure();const s=ensureSharing(),p=project();if(!s)return;$('[data-access-project]',el).textContent=p?.name||"Текущий холст";const enabled=s.visibility==="link";$('[data-share-enabled]',el).checked=enabled;$('[data-share-enabled-label]',el).textContent=enabled?"Доступ по ссылке":"По приглашению";$('[data-share-link]',el).value=shareLink();el.querySelectorAll('[data-share-role-btn]').forEach(b=>b.classList.toggle('active',b.dataset.shareRoleBtn===(s.linkRole||'view')))}
-  function bind(){const enabled=$('[data-share-enabled]',el),copy=$('[data-share-copy]',el),rotate=$('[data-share-rotate]',el);enabled.onchange=e=>{const s=ensureSharing();s.visibility=e.target.checked?"link":"invite";persist();render()};el.querySelectorAll('[data-share-role-btn]').forEach(b=>b.onclick=()=>{const s=ensureSharing();s.linkRole=b.dataset.shareRoleBtn;persist();render()});copy.onclick=async()=>{try{await navigator.clipboard.writeText(shareLink());globalThis.showToast?.("Ссылка холста скопирована")}catch{}};rotate.onclick=()=>{const s=ensureSharing();s.token=`share-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;persist();render();globalThis.showToast?.("Создана новая ссылка")}}
-  function open(){ensure();render();globalThis.OSMINOGWindowManager?.restore?.("access-center");globalThis.OSMINOGWindowManager?.front?.("access-center");return el}
-  function route(){const old=$("#collabShare");if(old&&!old.dataset.access318){const fresh=old.cloneNode(true);fresh.dataset.access318="1";old.replaceWith(fresh);fresh.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();open()})}const legacy=$("#collabPopover");if(legacy)legacy.hidden=true}
-  globalThis.OSMINOGAccessCenter={version:"3.18",open,refresh:render,shareLink};route();document.readyState==="loading"?document.addEventListener("DOMContentLoaded",route,{once:true}):setTimeout(route,0);document.addEventListener("osminog:desktop-v3-ready",route);
+  if(globalThis.OSMINOGAccessCenter?.version==="3.20.3")return;
+  const $=s=>document.querySelector(s);
+  // Reuse the original sharing/Presence controls and their existing handlers.
+  // Human sharing and external AI roles remain separate from Owner Unlock.
+  function syncPresence(detail){
+    const status=detail||globalThis.BriefCraftBridge?.externalPresenceStatus?.();
+    if(!status)return;
+    const button=$("#connectExternalChatGpt"),label=$("#externalChatGptState"),role=$("#externalChatGptRole");
+    if(button?.disabled)return;
+    if(status.connected){
+      if(role&&["view","comment","edit"].includes(status.role))role.value=status.role;
+      if(label)label.textContent=`Подключён · ${{view:"Просмотр",comment:"Комментарии",edit:"Редактирование"}[status.role]||status.role}`;
+    }else if(label)label.textContent=status.error||"Не подключён";
+    if(button)button.textContent=status.connected?"Переподключить":"Подключить";
+    $("#collabShare")?.classList.toggle("external-live",!!status.connected);
+  }
+  function open(){globalThis.toggleCollabPopover?.(true);syncPresence();return $("#collabPopover")}
+  function refresh(){globalThis.renderCollab?.();syncPresence()}
+  function route(){
+    const old=$("#collabShare");if(!old||old.dataset.presence3203)return;
+    const button=old.cloneNode(true);button.dataset.presence3203="1";old.replaceWith(button);
+    button.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();globalThis.toggleCollabPopover?.();syncPresence()});
+  }
+  globalThis.OSMINOGAccessCenter={version:"3.20.3",open,refresh,shareLink:()=>globalThis.collabDescriptor?.()||""};
+  document.addEventListener("osminog:external-presence",e=>syncPresence(e.detail));
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")globalThis.toggleCollabPopover?.(false)});
+  document.addEventListener("osminog:desktop-v3-ready",route);
+  route();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",route,{once:true});
 })();
