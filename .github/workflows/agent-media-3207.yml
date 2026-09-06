@@ -1,0 +1,60 @@
+name: OSMINOG 3.20.7 combined release candidate
+on:
+  pull_request:
+    paths:
+      - 'gpt-presence.js'
+      - 'chatgpt-lite-bridge.js'
+      - 'background.js'
+      - 'osminog-product-core-recovery.css'
+      - 'manifest.json'
+      - 'OSMINOG_BUILD.json'
+      - 'osminog-animation-studio.*'
+      - 'tests/agent-media-3207.cjs'
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check gpt-presence.js
+      - run: node --check chatgpt-lite-bridge.js
+      - run: node --check background.js
+      - run: node --check osminog-animation-studio.js
+      - run: node tests/agent-media-3207.cjs
+      - run: node tests/animation-3206.cjs
+      - name: Build verified Chrome ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact='OSMINOG-Chrome-3.20.7-ANIMATION-AGENT-MEDIA.zip'
+          mkdir -p artifacts/package
+          rsync -a ./ artifacts/package/ \
+            --exclude='.git/' --exclude='.github/' --exclude='artifacts/' \
+            --exclude='tools/' --exclude='tests/' --exclude='docs/' \
+            --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' \
+            --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
+          (cd artifacts/package && zip -qr "../$artifact" .)
+          unzip -t "artifacts/$artifact"
+          python3 - <<'PY'
+          import hashlib,json,zipfile
+          path='artifacts/OSMINOG-Chrome-3.20.7-ANIMATION-AGENT-MEDIA.zip'
+          with zipfile.ZipFile(path) as z:
+              m=json.loads(z.read('manifest.json'))
+              assert m['version']=='3.20.7' and m['version_name']=='3.20.7'
+              assert m['key']
+              for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css'):
+                  assert name in z.namelist(), name
+          print(hashlib.sha256(open(path,'rb').read()).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-3.20.7-ANIMATION-AGENT-MEDIA
+          path: |
+            artifacts/OSMINOG-Chrome-3.20.7-ANIMATION-AGENT-MEDIA.zip
+            RELEASE_NOTES_3.20.7.md
+          retention-days: 14
