@@ -801,3 +801,18 @@ Team, GPT, DeepSeek, Google и будущие providers не должны име
 - [x] External Presence revision heartbeat fixed; prior-authorized ChatGPT tab reconnects silently if it already exists.
 - [ ] Owner runtime proof in the live ChatGPT tab after updating to 3.19.12.
 
+
+
+
+## 2026-09-06 — актуальная точка восстановления 3.20.3
+- [x] База сверена с точным публичным пакетом 3.20.1; прежний main расходился с пакетом.
+- [x] Устранён самозапускающийся MutationObserver графического инспектора.
+- [x] Один native import; внутренние MIME-типы не блокируются защитой от native image drag.
+- [x] Перенос внутреннего объекта сохраняет ID, реальные файлы импортируются без preview-обрезки.
+- [x] Восстановлена форма подключения существующего ChatGPT в «Доступе» по скриншоту владельца.
+- [x] Chromium-тест текста: bold/italic, перерисовка и сохранение; тесты внешнего/внутреннего переноса.
+- [x] Null/undefined в Team retry обрабатываются без TypeError.
+- [ ] Владелец проверяет установленный пакет, обновление Dev Hub и живой ChatGPT/Shared Vision.
+- [ ] После живой проверки записать результат отдельно; до этого runtimeVerified=false.
+
+Продолжать от исходников и пакета 3.20.3. Не заменять их незавершённой веткой 3.20.2 и не считать успешную публикацию доказательством живой работы ИИ. Подробности и ограничения тестов — в последней записи OSMINOG_PROJECT_LOG.md.

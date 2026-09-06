@@ -762,7 +762,16 @@ async function moveProjectFolderEntry(args={}){try{const source=await projectEnt
 async function renameProjectFolderEntry(args={}){try{const source=await projectEntryHandle(args.path),targetDir=source.clean.split("/").slice(0,-1).join("/");return await moveProjectFolderEntry({source:source.clean,targetDir,name:safeProjectEntryName(args.name)})}catch(error){return{error:error?.message||String(error)}}}
 async function deleteProjectFolderEntry(args={}){try{const source=await projectEntryHandle(args.path);await source.parent.removeEntry(source.name,{recursive:source.kind==="directory"});document.dispatchEvent(new CustomEvent("osminog:project-folder-synced",{detail:{connected:true,folder:source.root.name,project:project()?{id:project().id,name:project().name}:null}}));return{ok:true,path:source.clean,kind:source.kind}}catch(error){return{error:error?.message||String(error)}}}
 async function importProjectFolderFiles(args={}){try{const root=await projectFolderRoot(false);if(!root)return{error:"Project folder is not connected"};const targetPath=String(args.path||"").replace(/\\/g,"/").replace(/^\/+|\/+$/g,""),dir=targetPath?await projectResolveDir(root,safeProjectPath(targetPath).split("/"),true):root,files=[...(args.files||[])],written=[];for(const file of files){if(!(file instanceof File))continue;const name=await uniqueProjectEntryName(dir,file.name||`file-${Date.now()}`),target=await dir.getFileHandle(name,{create:true}),writer=await target.createWritable();await writer.write(file);await writer.close();written.push(targetPath?`${targetPath}/${name}`:name)}document.dispatchEvent(new CustomEvent("osminog:project-folder-synced",{detail:{connected:true,folder:root.name,project:project()?{id:project().id,name:project().name}:null}}));return{ok:true,count:written.length,files:written}}catch(error){return{error:error?.message||String(error)}}}
-globalThis.OSMINOGProjectFolderAPI={status:projectFolderStatus,choose:chooseFolder,list:listProjectFolder,read:readProjectFolderFile,write:writeProjectFolderFile,mkdir:makeProjectFolderDirectory,move:moveProjectFolderEntry,rename:renameProjectFolderEntry,remove:deleteProjectFolderEntry,importFiles:importProjectFolderFiles,sync:syncFolder};
+// UI-only import reads the original File; tool text previews may be truncated.
+async function importProjectFileToCanvas(args={}){
+  const projectId=state.activeProject;
+  const {handle}=await projectFileHandle(args.path,false);
+  const file=await handle.getFile();
+  if(state.activeProject!==projectId)throw new Error("Холст изменился. Повтори перенос в нужный проект.");
+  await importFiles([file],args.point||viewportCenter(),"auto");
+  return{ok:true,name:file.name,size:file.size};
+}
+globalThis.OSMINOGProjectFolderAPI={status:projectFolderStatus,importToCanvas:importProjectFileToCanvas,choose:chooseFolder,list:listProjectFolder,read:readProjectFolderFile,write:writeProjectFolderFile,mkdir:makeProjectFolderDirectory,move:moveProjectFolderEntry,rename:renameProjectFolderEntry,remove:deleteProjectFolderEntry,importFiles:importProjectFolderFiles,sync:syncFolder};
 globalThis.OSMINOGCanvasObjectAPI={create:createObject,center:viewportCenter};
 
 function showExitDialog(){const d=$("#exitDialog");if(!d)return;const title=$("#exitDialogTitle"),text=$("#exitDialogText"),st=$("#exitSaveStatusTitle"),sub=$("#exitSaveStatusSub");if(title)title.textContent=state.language==="ru"?"Сохранить проект перед выходом?":"Save project before leaving?";if(text)text.textContent=state.language==="ru"?"OSMINOG автоматически сохраняет проект локально. Нажми «Сохранить и выйти», чтобы записать последнюю версию прямо сейчас.":"OSMINOG auto-saves locally. Save the latest version once more before leaving.";if(st)st.textContent=state.folderHandle?(state.language==="ru"?"Локальная папка подключена":"Local folder connected"):(state.language==="ru"?"Локальное сохранение активно":"Local save is active");if(sub)sub.textContent=state.folderHandle?(state.language==="ru"?"Проект также будет записан в подключённую папку.":"The project will also be written to the connected folder."):(state.language==="ru"?"Проект хранится в локальном хранилище OSMINOG.":"The project is stored in OSMINOG local storage.");if(typeof d.showModal==="function")d.showModal();else d.setAttribute("open","")}
@@ -797,6 +806,29 @@ function storyDemoHtml(mode){
 }
 function renderStoryDetails(){const dict=STORY_COPY[state.language]||STORY_COPY.en;$$('.story-card').forEach((card,index)=>{const mode=["brief","code","browser","design"][index],copy=dict[mode];card.dataset.storyMode=mode;let detail=$(".story-detail",card);if(!detail){detail=document.createElement("div");detail.className="story-detail";card.append(detail)}detail.innerHTML=`<button type="button" class="story-close" aria-label="${state.language==="ru"?"Закрыть":"Close"}">×</button><div class="story-detail-copy"><span>0${index+1} · ${mode.toUpperCase()}</span><h2>${copy.title}</h2><p>${copy.text}</p><ol>${copy.steps.map(step=>`<li>${step}</li>`).join("")}</ol><button type="button" class="story-enter">${state.language==="ru"?"Открыть режим":"Open mode"} →</button></div><div class="story-demo story-demo-${mode}">${storyDemoHtml(mode)}</div>`})}
 
+// One native-file consumer. Internal folder drags keep their own move contract.
+function bindNativeCanvasDrop(viewport){
+  let queue=Promise.resolve();
+  const accepts=e=>{
+    const types=Array.from(e.dataTransfer?.types||[]);
+    if(types.includes("application/x-osminog-folder-item"))return false;
+    if(e.target.closest?.(".osminog-windows-explorer,.osminog-win-folder-icon,.osminog-app-window,.side-panel,[contenteditable],textarea,input"))return false;
+    return types.includes("Files")||Number(e.dataTransfer?.files?.length||0)>0;
+  };
+  viewport.addEventListener("dragover",e=>{if(!accepts(e))return;e.preventDefault();e.dataTransfer.dropEffect="copy"});
+  viewport.addEventListener("drop",e=>{
+    if(!accepts(e))return;
+    const files=Array.from(e.dataTransfer?.files||[]);if(!files.length)return;
+    e.preventDefault();e.stopImmediatePropagation();
+    const point=worldPoint(e.clientX,e.clientY),projectId=state.activeProject;
+    queue=queue.then(async()=>{
+      if(state.activeProject!==projectId)throw new Error("Холст изменился. Повтори перенос в нужный проект.");
+      await importFiles(files,point,"auto");
+      showToast(state.language==="ru"?`Добавлено: ${files.length}`:`Added: ${files.length}`);
+    }).catch(error=>{console.error("OSMINOG file drop",error);showToast(error?.message||String(error))});
+  });
+}
+
 function bindUI(){
   bindColorBar();bindPanelResizers();
   const storyModes=["brief","code","browser","design"],storyCards=$$(".story-card"),storyStage=$(".story-stage");renderStoryDetails();const enterStory=index=>{if(!state.projects.length){const p=defaultProject();state.projects.push(p);state.activeProject=p.id}showApp();setMode(storyModes[index])};storyCards.forEach((card,index)=>{card.tabIndex=0;card.setAttribute("role","button");const toggleStory=event=>{if(event?.target.closest(".story-enter")){enterStory(index);return}if(card.classList.contains("expanded")&&!event?.target.closest(".story-close"))return;const opening=!card.classList.contains("expanded");storyCards.forEach(other=>other.classList.remove("expanded"));card.classList.toggle("expanded",opening);storyStage.classList.toggle("has-expanded",opening)};card.addEventListener("click",toggleStory);card.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleStory(e)}})});let storyIndex=0;setInterval(()=>{if(!storyStage.classList.contains("has-expanded")){storyCards.forEach((card,index)=>card.classList.toggle("story-active",index===storyIndex));storyIndex=(storyIndex+1)%storyCards.length}},2700);
@@ -816,9 +848,9 @@ function bindUI(){
   $("#fileInput").addEventListener("change",async e=>{await importFiles([...e.target.files],null,e.target.dataset.importKind||"auto");e.target.value="";delete e.target.dataset.importKind});$("#projectInput").addEventListener("change",async e=>{await importFiles([...e.target.files],null,"project");e.target.value=""});
   $("#capture").addEventListener("click",async()=>{try{const tab=await chrome.tabs.getCurrent();const dataUrl=await chrome.tabs.captureVisibleTab(tab.windowId,{format:"png"});await chrome.storage.local.set({richCraftPendingCapture:dataUrl,richCraftPendingAt:Date.now()});await chrome.runtime.sendMessage({type:"OPEN_SCREENSHOT"})}catch{showToast("Use the extension popup to capture another page")}});
   $("#renameProject").addEventListener("click",()=>{const p=project(),name=prompt(tr("worldName"),p.name);if(name){p.name=name;logChange(`${state.language==="ru"?"Проект переименован":"Renamed world"}: ${name}`);renderAll()}$("#projectPopover").hidden=true});$("#newProject").addEventListener("click",createProject);$("#openProjectFile").addEventListener("click",()=>$("#projectInput").click());$("#saveProjectFile").addEventListener("click",backupProject);
-  const viewport=$("#viewport");viewport.addEventListener("pointerdown",e=>{viewport.focus();if(e.button===1||e.altKey||state.space||state.tool==="hand"){e.preventDefault();startPan(e);return}if(state.tool==="pen"){startInk(e);return}if(state.tool==="vector"){startVectorPoint(e);return}if(e.target===viewport||e.target===$("#world")||e.target===$("#objects")){if(["shape","button"].includes(state.tool)){startCreateObject(state.tool,e);return}if(["brief","text","note","node","code","browser","image","file"].includes(state.tool)){const p=worldPoint(e.clientX,e.clientY);createObject(state.tool,{x:p.x-120,y:p.y-80});return}startMarquee(e)}});
+  const viewport=$("#viewport");bindNativeCanvasDrop(viewport);viewport.addEventListener("pointerdown",e=>{viewport.focus();if(e.button===1||e.altKey||state.space||state.tool==="hand"){e.preventDefault();startPan(e);return}if(state.tool==="pen"){startInk(e);return}if(state.tool==="vector"){startVectorPoint(e);return}if(e.target===viewport||e.target===$("#world")||e.target===$("#objects")){if(["shape","button"].includes(state.tool)){startCreateObject(state.tool,e);return}if(["brief","text","note","node","code","browser","image","file"].includes(state.tool)){const p=worldPoint(e.clientX,e.clientY);createObject(state.tool,{x:p.x-120,y:p.y-80});return}startMarquee(e)}});
   const canvasWheel=e=>{if($("#app").hidden)return;const onCanvas=viewport.contains(e.target);if(e.ctrlKey||e.metaKey){e.preventDefault();e.stopImmediatePropagation();if(onCanvas)zoomAt(e.clientX,e.clientY,state.view.scale*Math.exp(-e.deltaY*.002));return}if(!onCanvas)return;e.preventDefault();e.stopPropagation();if(e.altKey){state.view.x-=(e.deltaY||e.deltaX);applyView();queuePersist()}else{state.view.x-=e.deltaX;state.view.y-=e.deltaY;applyView();queuePersist()}};document.addEventListener("wheel",canvasWheel,{capture:true,passive:false});
-  let nativeDropBusy=false;viewport.addEventListener("dragover",e=>{if(!Array.from(e.dataTransfer?.types||[]).includes("Files"))return;e.preventDefault();e.dataTransfer.dropEffect="copy"});viewport.addEventListener("drop",async e=>{if(!Array.from(e.dataTransfer?.types||[]).includes("Files"))return;e.preventDefault();e.stopPropagation();if(nativeDropBusy)return;const files=[...(e.dataTransfer?.files||[])];if(!files.length)return;nativeDropBusy=true;try{await importFiles(files,worldPoint(e.clientX,e.clientY),"auto");showToast(state.language==="ru"?`Добавлено: ${files.length}`:`Added: ${files.length}`)}catch(error){console.error("OSMINOG file drop",error);showToast(error?.message||String(error))}finally{nativeDropBusy=false}});
+
   document.addEventListener("pointermove",pointerMove);document.addEventListener("pointerup",pointerUp);document.addEventListener("pointercancel",pointerUp);
   document.addEventListener("paste",async e=>{if($("#app").hidden||e.target.closest("input,textarea,[contenteditable]"))return;const file=[...e.clipboardData.files].find(f=>f.type.startsWith("image/"));if(file){await importFiles([file]);return}const text=e.clipboardData.getData("text/plain");if(text)createObject("brief",{title:"Pasted context",text})});
   document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey)document.body.classList.add("canvas-modifier");if((e.ctrlKey||e.metaKey)&&e.code==="KeyZ"){e.preventDefault();e.stopPropagation();e.shiftKey?redo():undo();return}const editable=e.target.matches("input,textarea,[contenteditable]");if(editable)return;if(state.tool==="vector"&&state.vectorDraw&&(e.key==="Enter"||e.key==="Escape")){e.preventDefault();finishVectorDraw(e.key==="Escape");return}if(e.code==="Space"){state.space=true;e.preventDefault()}if(e.key>="1"&&e.key<="5")setMode(["brief","code","browser","design","team"][Number(e.key)-1]);if(e.code==="KeyV")setTool("select");if(e.code==="KeyH")setTool("hand");if(e.code==="KeyT")setTool("text");if(e.code==="KeyN")setTool("note");if(e.code==="KeyR")setTool("shape");if(e.code==="KeyP")setTool("pen");if(e.code==="KeyB")setTool("vector");if((e.ctrlKey||e.metaKey)&&e.code==="KeyD"){e.preventDefault();duplicateSelection()}if((e.ctrlKey||e.metaKey)&&e.code==="KeyG"){e.preventDefault();e.shiftKey?ungroupSelection():groupSelection()}if(["Delete","Backspace"].includes(e.key))deleteSelection();if(e.key==="Escape"){if(state.connect){clearMagneticTarget();state.connect=null;renderConnections()}if(state.nodeEditId){state.nodeEditId=null;renderObjects(true);renderInspector();return}setTool("select");clearSelection()}},true);
@@ -1121,7 +1153,13 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
   const observeRoot=document.getElementById("app")||document.body;
   if(observeRoot)new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node instanceof Element){if(node.matches?.("img")){node.draggable=false;node.setAttribute("draggable","false")}disableNativeImageDrag(node)}}).observe(observeRoot,{childList:true,subtree:true});
   document.addEventListener("dragstart",event=>{if(isCanvasImage(event.target)&&!event.target.closest?.(".ai-context-handle")){event.preventDefault();event.stopImmediatePropagation()}},true);
-  viewport?.addEventListener("drop",event=>{const files=[...(event.dataTransfer?.files||[])];if(!files.length){event.preventDefault();event.stopImmediatePropagation()}},true);
+  viewport?.addEventListener("drop",event=>{
+    const types=Array.from(event.dataTransfer?.types||[]);
+    const internal=["application/x-osminog-folder-item","application/x-briefcraft-chat-thread","application/x-briefcraft-object"];
+    if(types.some(type=>internal.includes(type)))return;
+    if(event.target.closest?.(".osminog-app-window,.osminog-windows-explorer,[contenteditable],textarea,input"))return;
+    if(!event.dataTransfer?.files?.length){event.preventDefault();event.stopImmediatePropagation()}
+  },true);
 
   let nudgeSession=false,nudgeTimer=0;
   document.addEventListener("keydown",event=>{
@@ -1235,5 +1273,3 @@ globalThis.OSMINOGEditorAPI={
 
 /* OSMINOG 3.11.21: allow dynamic modules (Ocean FX / provider settings) to reuse the canonical smart select. */
 globalThis.OSMINOGUpgradeSelects=upgradeSelects;
-
-
