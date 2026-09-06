@@ -28,6 +28,7 @@ const assert=require('assert/strict');
  assert.ok(newText?.id,'text object created');
  const read=await page.evaluate(id=>OSMINOGDocuments.tool('document_read',{id}),newText.id);assert.equal(read.text,'Пояснение для всех ИИ');
  await page.locator('[data-dock-key="core:graphics"]').click();await page.waitForTimeout(300);
+ await page.evaluate(()=>{document.documentElement.dataset.theme='ocean'});
  const first=await page.evaluate(()=>{
    const root=document.querySelector('#osminogGraphicsStudio'),r=s=>root.querySelector(s).getBoundingClientRect().toJSON();
    return{stage:r('.graphics-studio-stage'),tools:r('.graphics-studio-tools'),inspector:r('.graphics-studio-inspector'),details:[...root.querySelectorAll('.graphics-studio-inspector details')].map(d=>({height:d.getBoundingClientRect().height,scroll:d.scrollHeight,open:d.open})),status:OSMINOGGraphicsStudio.status()};
@@ -44,6 +45,10 @@ const assert=require('assert/strict');
  const stage=await page.locator('.graphics-studio-stage').boundingBox();
  await page.mouse.move(stage.x+60,stage.y+70);await page.mouse.down();await page.mouse.move(stage.x+160,stage.y+120,{steps:15});await page.mouse.move(stage.x+230,stage.y+70,{steps:15});await page.mouse.up();
  const paths=await page.evaluate(()=>OSMINOGGraphicsStudio.canvas().getObjects().filter(o=>o.type.toLowerCase()==='path').length);assert.equal(paths,1);
+ // Text can be created by the tool and formatted in the inspector.
+ await page.locator('[data-gfx-tool="text"]').click();await page.mouse.click(stage.x+90,stage.y+190);await page.keyboard.type('Проба текста');await page.keyboard.press('Escape');
+ await page.locator('[data-gfx-prop="fontWeight"]').selectOption('700');
+ assert.equal(await page.evaluate(()=>OSMINOGGraphicsStudio.canvas().getObjects().find(o=>o.type.toLowerCase().includes('text')).fontWeight),700);
  // Group and ungroup uses Fabric 6, with position preservation.
  const grouping=await page.evaluate(async()=>{
    const c=OSMINOGGraphicsStudio.canvas(),a=new fabric.Rect({left:10,top:10,width:30,height:40,fill:'#ff0000'}),b=new fabric.Rect({left:80,top:20,width:40,height:30,fill:'#00ff00'});c.add(a,b);c.setActiveObject(new fabric.ActiveSelection([a,b],{canvas:c}));
@@ -65,6 +70,13 @@ const assert=require('assert/strict');
  await page.locator('[data-gfx-action="undo"]').click();await page.waitForTimeout(150);
  await page.locator('[data-gfx-action="redo"]').click();await page.waitForTimeout(150);
  assert.ok((await page.evaluate(()=>OSMINOGGraphicsStudio.status().document.objects)).length>=3);
+ // Eraser is a true alpha cutout and must survive PNG/desktop roundtrip.
+ await page.locator('[data-gfx-tool="eraser"]').click();
+ const eraserStage=await page.locator('.graphics-studio-stage').boundingBox();
+ await page.mouse.move(eraserStage.x+110,eraserStage.y+105);await page.mouse.down();await page.mouse.move(eraserStage.x+155,eraserStage.y+105,{steps:12});await page.mouse.up();
+ const erased=await page.evaluate(()=>{const c=OSMINOGGraphicsStudio.canvas();return{alpha:c.toCanvasElement(1).getContext('2d').getImageData(125,105,1,1).data[3],last:c.getObjects().at(-1).globalCompositeOperation}});
+ assert.equal(erased.alpha,0);assert.equal(erased.last,'destination-out');
+ const svg=await page.evaluate(()=>BriefCraftBridge.executeTool('graphics_edit',{scope:'studio',action:'export_svg'}));assert.equal(svg.ok,false);assert.ok(svg.error.includes('PNG'));
  // Out-of-view content must survive export; checkerboard must not enter the PNG.
  const info=await page.evaluate(async()=>{
    const c=OSMINOGGraphicsStudio.canvas();c.discardActiveObject();c.setViewportTransform([0.35,0,0,0.35,-180,50]);
@@ -82,6 +94,6 @@ const assert=require('assert/strict');
  assert.ok(compact.toolsY>=compact.stageBottom-1);assert.ok(compact.scrollTop>0);
  await page.screenshot({path:'artifacts/graphics-compact.png'});
  assert.equal(errors.length,0,errors.join('\n'));
- fs.writeFileSync('artifacts/verification.json',JSON.stringify({checks:'passed',textRead:read,layout:first,brush,grouping,alpha,roundtrip:{created:info.result.created,objects:restored.objects.length,transparent:restored.transparent},compact,errors},null,2));
+ fs.writeFileSync('artifacts/verification.json',JSON.stringify({checks:'passed',textRead:read,layout:first,brush,grouping,alpha,erased,roundtrip:{created:info.result.created,objects:restored.objects.length,transparent:restored.transparent},compact,errors},null,2));
  await browser.close();server.close();console.log('ALL CHECKS PASSED');
 })().catch(error=>{console.error(error);process.exit(1)});
