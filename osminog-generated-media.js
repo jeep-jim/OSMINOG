@@ -1,7 +1,7 @@
 "use strict";
 // Parse only the response to the current request; never read a personal tab.
 (()=>{
-  function parseSse(text){
+  function createSseParser(){
     const messages=new Map();let envelope={},conversationId=null,parentMessageId=null,lastError="",imagePending=false,final=false,lastPath="",lastOp="";
     const remember=data=>{
       if(data?.conversation_id)conversationId=data.conversation_id;
@@ -23,7 +23,10 @@
       else node[key]=value;
       return root;
     };
-    for(const line of String(text||"").split(/\r?\n/)){
+    let pending="";
+    function push(chunk,done=false){
+    const lines=(pending+String(chunk||"" )).split(/\r?\n/);pending=done?"":lines.pop();
+    for(const line of lines){
       if(!line.startsWith("data:"))continue;const raw=line.slice(5).trim();if(!raw||raw==="[DONE]")continue;
       let data;try{data=JSON.parse(raw)}catch{continue}
       if(data?.message){envelope=data;remember(data)}
@@ -34,7 +37,9 @@
       }
       else remember(data);
     }
-    const media=[],fileRefs=[],seen=new Set();let answer="";
+    }
+    function result(){
+    const media=[],fileRefs=[],seen=new Set();let answer="";imagePending=false;final=false;
     const add=(value,name="generated-image",mime="image/png")=>{
       if(typeof value!=="string")return;const src=value.trim();
       const ref=src.match(/^(?:file-service|sediment):\/\/([A-Za-z0-9_-]+)$/i);
@@ -68,6 +73,9 @@
     }
     return {answer:answer.trim(),media:media.slice(0,4),fileRefs:fileRefs.slice(0,4),conversationId,parentMessageId,lastError,imagePending,final};
   }
+    return {push,result};
+  }
+  function parseSse(text){const parser=createSseParser();parser.push(text,true);return parser.result()}
   function fromConversation(data,userMessageId){
     const mapping=data?.mapping||{},children=new Map();
     for(const [id,node] of Object.entries(mapping)){const p=node.parent;if(!children.has(p))children.set(p,[]);children.get(p).push(id)}
@@ -92,5 +100,5 @@
     const request=String(context?.intent?.imageGenerationRequest||"").replace(/^\[MEDIA:generate\]\s*/,"");
     return `${request}\n\n[OSMINOG IMAGE GENERATION]\nCreate the requested raster image using image generation. The attached image is the user's visual reference; preserve its character identity and visual style while making the requested change. Return the generated image attachment. OSMINOG places the result beside the reference automatically. If image generation is unavailable in this session, state the actual limitation. A text description is not an image result.`;
   }
-  globalThis.OSMINOGGeneratedMedia={parseSse,fromConversation,resolveFiles,generationPrompt};
+  globalThis.OSMINOGGeneratedMedia={parseSse,createSseParser,fromConversation,resolveFiles,generationPrompt};
 })();

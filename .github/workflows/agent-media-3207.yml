@@ -1,4 +1,4 @@
-name: OSMINOG 3.21.2 combined release candidate
+name: OSMINOG 3.21.3 combined release candidate
 on:
   pull_request:
     paths:
@@ -25,6 +25,7 @@ jobs:
       - run: node --check gpt-presence.js
       - run: node --check chatgpt-lite-bridge.js
       - run: node --check background.js
+      - run: node tests/chat-state-3213.cjs
       - run: node tests/generated-media-3212.cjs
       - run: node tests/media-reference.cjs
       - run: node tests/foundation-memory.cjs
@@ -36,13 +37,14 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
+      - run: node tests/chat-browser-3213.cjs
       - run: node tests/folder-move-3212.cjs
       - run: node tests/foundation-browser.cjs
       - name: Build verified Chrome ZIP
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip'
+          artifact='OSMINOG-Chrome-3.21.3-CHAT-CLEAR-STREAM.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ \
             --exclude='.git/' --exclude='.github/' --exclude='artifacts/' \
@@ -53,10 +55,10 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip'
+          path='artifacts/OSMINOG-Chrome-3.21.3-CHAT-CLEAR-STREAM.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
-              assert m['version']=='3.21.2' and m['version_name']=='3.21.2'
+              assert m['version']=='3.21.3' and m['version_name']=='3.21.3'
               assert m['key']
               for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css','osminog-generated-media.js'):
                   assert name in z.namelist(), name
@@ -65,10 +67,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-3.21.2-FOLDERS-IMAGE-RESULTS
+          name: OSMINOG-3.21.3-CHAT-CLEAR-STREAM
           path: |
-            artifacts/OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip
-            RELEASE_NOTES_3.21.2.md
+            artifacts/OSMINOG-Chrome-3.21.3-CHAT-CLEAR-STREAM.zip
+            RELEASE_NOTES_3.21.3.md
             artifacts/folder-move*.png
+            artifacts/chat-clear-3213.png
           retention-days: 14
 

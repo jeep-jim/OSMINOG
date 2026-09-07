@@ -2218,3 +2218,11 @@ Observed on 3.21.1: moving into a virtual folder retained the same object on the
 Image responses skipped tool-role images, file pointers and delta frames. A dedicated generation prompt and parser now handle these cases, resolve returned file IDs, exclude input references and retain exact download/import errors. External transcript mirroring stays disabled.
 
 Validation: generated-media, media routing, privacy, local-memory and routing tests pass locally. CI must pass pointer drag, eight object types, folder-to-folder moves, restore, Undo/Redo, deletion isolation and persisted reload before packaging. Live provider generation remains unverified.
+
+## 2026-09-07 — 3.21.3: очистка чата и поток ответа
+
+Запрос владельца: объяснить отказ изображения, устранить медленный чат, добавить удаление переписки в настройках. База — main 9da2f7962d206814c89f9318306a4af5361d174d / 3.21.2.
+
+Подтверждено в коде: очистка была только для командного протокола; direct ChatGPT использовал response.text() и показывал ответ после получения целиком. Введены подтверждаемая очистка текущего чата, сохранённая отметка удаления для объединения резервных копий, новый контекст диалога, остановка direct fetch и отбрасывание позднего результата. Добавлен постепенный показ видимого текста через incremental SSE parser; без сохранения каждого фрагмента и перерисовки истории. Сохранены запрет внешнего зеркалирования и предыдущие исправления папок.
+
+Ошибка генерации на скриншоте — реальный текст провайдера о недоступной генерации в этой сессии. Исправление интерфейса не меняет доступность генератора. Live generation не подтверждена. Детали и границы — RELEASE_NOTES_3.21.3.md. Выпуск разрешён только после успешного CI; runtimeVerified=false.

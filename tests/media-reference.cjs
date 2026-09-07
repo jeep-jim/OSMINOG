@@ -12,6 +12,6 @@ const impStart=source.indexOf('async function importGeneratedMedia('),impEnd=sou
  await ctx.importGeneratedMedia([{url:'https://example.com/result.png'}],'pose',{bounds:{x:10,y:20,w:300,h:500}});
  assert.equal(calls[0].args.url,'https://example.com/result.png');assert.equal(calls[0].args.x,342);assert.equal(calls[0].args.y,20);
  ctx.B.executeTool=async()=>({error:'HTTP 403: original unavailable'});const failed=await ctx.importGeneratedMedia([{url:'https://example.com/expired.png'}]);assert.equal(failed.error,'HTTP 403: original unavailable');
- assert.match(source,/pendingAttachments=visible;sendPromptParallel/);assert.match(source,/catch\(e\)\{renderTaskProgress\(task,false\);threadTasks.delete\(thread.id\)/);
+ assert.match(source,/pendingAttachments=visible;sendPromptParallel/);assert.match(source,/renderTaskProgress\(task,false\);threadTasks.delete\(thread.id\)/);
  console.log('PASS same-person generation, mixed-choice routing, HTTPS import beside reference, attachment handoff');
 })().catch(e=>{console.error(e);process.exitCode=1});

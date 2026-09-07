@@ -206,7 +206,7 @@ function bcParseAssistant(raw){
   let text=source;for(const block of [...new Set(machineBlocks)])text=text.replace(block,"");text=text.trim();
   return {text,request,patch};
 }
-function bcThreadKey(context){return `${context?.project?.id||"default"}::${context?.chat?.threadId||"main"}`}
+function bcThreadKey(context){return `${context?.project?.id||"default"}::${context?.chat?.threadId||"main"}::${Number(context?.chat?.historyEpoch)||0}${context?.chat?.kind==="team"?":team:"+(Number(context.chat.teamHistoryEpoch)||0):""}`}
 function bcThread(context){const key=bcThreadKey(context);if(!bcThreads.has(key))bcThreads.set(key,{conversationId:null,parentMessageId:bcUuid()});return bcThreads.get(key)}
 function bcModelFromList(list){
   const slugs=(Array.isArray(list)?list:[]).map(m=>typeof m==="string"?m:(m?.slug||m?.id||"")).filter(Boolean);
@@ -231,20 +231,54 @@ function bcImageSize(bytes,mime){try{if(mime==="image/png"&&bytes.length>=24){co
 async function bcUploadAttachment(accessToken,item){const decoded=bcDecodeDataUrl(item.dataUrl),isImage=["image/png","image/jpeg","image/gif","image/webp"].includes(decoded.mime),isPdf=decoded.mime==="application/pdf";if(!isImage&&!isPdf)throw new Error(`Вложение ${decoded.mime} пока не поддерживается прямой загрузкой`);const size=isImage?bcImageSize(decoded.bytes,decoded.mime):{width:null,height:null};const ext=isPdf?"pdf":(decoded.mime.split("/")[1]||"bin"),name=String(item.name||`briefcraft-${Date.now()}.${ext}`);const create=await bcJsonFetch(BC_FILES_URL,{method:"POST",accessToken,body:{file_name:name,file_size:decoded.bytes.byteLength,use_case:isImage?"multimodal":"my_files",mime_type:decoded.mime,store_in_library:!isImage,library_persistence_mode:!isImage?"opportunistic":undefined}});if(!create.ok)throw new Error(`file create HTTP ${create.httpStatus}: ${create.error||create.bodyHint||"failed"}`);const uploadUrl=create.data?.upload_url,fileId=create.data?.file_id;if(!uploadUrl||!fileId)throw new Error("ChatGPT не вернул upload_url/file_id");const upload=await fetch(uploadUrl,{method:"PUT",body:decoded.bytes,headers:{"content-type":decoded.mime,"x-ms-blob-type":"BlockBlob","x-ms-version":"2020-04-08","accept":"application/json, text/plain, */*"}});if(!upload.ok)throw new Error(`file upload HTTP ${upload.status}`);const fin=await bcJsonFetch(`${BC_FILES_URL}/${fileId}/uploaded`,{method:"POST",accessToken,body:{}});if(!fin.ok)throw new Error(`file finalize HTTP ${fin.httpStatus}`);return {file_id:fileId,file_name:name,file_size:decoded.bytes.byteLength,mime_type:decoded.mime,width:size.width,height:size.height,is_image:isImage}}
 async function bcUploadAttachments(accessToken,items){const out=[];for(const item of (Array.isArray(items)?items:[]).slice(0,6))out.push(await bcUploadAttachment(accessToken,item));return out}
 
-async function bcConversationFetch(accessToken,reqToken,proofToken,body,accountId=""){
+async function bcReadConversationStream(response,onProgress,signal){
+  if(!response.ok||!response.body?.getReader)return response.text();
+  const reader=response.body.getReader(),decoder=new TextDecoder(),parts=[],parser=OSMINOGGeneratedMedia.createSseParser();
+  let lastSent=0,lastText="";
+  const emit=force=>{
+    if(!onProgress||(!force&&Date.now()-lastSent<80))return;
+    const answer=parser.result().answer;
+    if(answer!==lastText){lastText=answer;lastSent=Date.now();onProgress(answer)}
+  };
+  try{
+    while(true){signal?.throwIfAborted();const {done,value}=await reader.read();
+      const chunk=decoder.decode(value||new Uint8Array(),{stream:!done});parts.push(chunk);parser.push(chunk,done);emit(done);
+      if(done)break;
+    }
+  }finally{reader.releaseLock()}
+  return parts.join("");
+}
+async function bcConversationFetch(accessToken,reqToken,proofToken,body,accountId="",onProgress=null,signal=null){
   const headers={accept:"text/event-stream",Authorization:`Bearer ${accessToken}`,"content-type":"application/json","Openai-Sentinel-Chat-Requirements-Token":reqToken,"Openai-Sentinel-Proof-Token":proofToken,"Oai-Language":"ru-RU","Oai-Session-Id":bcUuid(),...(accountId?{"chatgpt-account-id":accountId}:{})};
   let last=null;
   for(const url of BC_CONVERSATION_URLS){
     try{
-      const response=await fetch(url,{method:"POST",credentials:"include",cache:"no-store",redirect:"follow",headers,body:JSON.stringify(body)});
-      const text=await response.text();const result={ok:response.ok,httpStatus:response.status,url,text,bodyHint:response.ok?"":bcErrText(text)};
+      signal?.throwIfAborted();
+      const response=await fetch(url,{method:"POST",credentials:"include",cache:"no-store",redirect:"follow",headers,body:JSON.stringify(body),signal});
+      const text=await bcReadConversationStream(response,onProgress,signal);const result={ok:response.ok,httpStatus:response.status,url,text,bodyHint:response.ok?"":bcErrText(text)};
       if(response.status===404||response.status===405){last=result;continue}
       return result;
-    }catch(error){last={ok:false,httpStatus:0,url,error:error?.message||String(error),text:""}}
+    }catch(error){if(signal?.aborted)throw error;last={ok:false,httpStatus:0,url,error:error?.message||String(error),text:""}}
   }
   return last||{ok:false,httpStatus:0,error:"conversation endpoint unavailable",text:""};
 }
-async function bcSendDirect({text,context,requestId,toolResult,images}){
+const bcActiveChatRequests=new Map();
+async function bcSendDirect(input){
+  const controller=new AbortController(),id=bcUuid();
+  bcActiveChatRequests.set(id,{controller,projectId:input.context?.project?.id||"none",threadId:input.context?.chat?.threadId||"main",kind:input.context?.chat?.kind});
+  try{return await bcSendDirectRequest({...input,signal:controller.signal})}
+  finally{bcActiveChatRequests.delete(id)}
+}
+function bcResetChat(projectId,threadId){
+  for(const request of bcActiveChatRequests.values())if(request.projectId===projectId&&(request.threadId===threadId||(threadId==="main"&&request.kind==="team")))request.controller.abort();
+  const base=`${projectId}::${threadId}`;
+  for(const key of bcThreads.keys())if(key===base||key.startsWith(base+"::"))bcThreads.delete(key);
+  for(const provider of ["gpt","claude","gemini","googleai","deepseek","deepseek-web","custom"]){
+    const base=`${provider}:${projectId}:${threadId}`;
+    for(const key of BC_PROVIDER_HISTORY.keys())if(key===base||key.startsWith(base+":"))BC_PROVIDER_HISTORY.delete(key);
+  }
+}
+async function bcSendDirectRequest({text,context,requestId,toolResult,images,onProgress=null,signal}){
   const started=Date.now();const session=await bcGetSession();if(!session.ok)throw new Error(`ChatGPT session ${session.httpStatus||0}: ${session.error||session.bodyHint||"нет accessToken"}`);
   const models=await bcJsonFetch(BC_MODELS_URL,{accessToken:session.accessToken});const model=bcModelFromList(models.data?.models||[]);
   const requirements=await bcGetRequirements(session.accessToken);if(!requirements.ok)throw new Error(`chat-requirements HTTP ${requirements.httpStatus}: ${requirements.error||requirements.bodyHint||"blocked"}`);
@@ -253,13 +287,14 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
   const dpl=await bcGetDpl();let pow={token:"",iterations:0,elapsedMs:0,legacy:false};
   if(req.proofofwork?.required)pow=await bcSolvePow(req.proofofwork.seed,req.proofofwork.difficulty,dpl,{legacy:false,maxIter:300000});
   const thread=context?.intent?.imageGeneration&&!toolResult?{conversationId:null,parentMessageId:bcUuid()}:bcThread(context);const prompt=context?.intent?.imageGeneration&&!toolResult?OSMINOGGeneratedMedia.generationPrompt(context):toolResult?bcToolPrompt(toolResult,requestId):bcDecoratePrompt(text,context,requestId);const uploadedAttachments=await bcUploadAttachments(session.accessToken,images||[]);const body=bcConversationBody(prompt,thread,model,uploadedAttachments);
-  let conv=await bcConversationFetch(session.accessToken,reqToken,pow.token,body,session.accountId);
+  signal.throwIfAborted();
+  let conv=await bcConversationFetch(session.accessToken,reqToken,pow.token,body,session.accountId,onProgress,signal);
   // One conservative compatibility retry with the legacy fingerprint shape only when
   // Sentinel rejects the modern proof. Both attempts remain Temporary Chat.
   if(!conv.ok&&req.proofofwork?.required&&[401,403].includes(conv.httpStatus)){
     const requirements2=await bcGetRequirements(session.accessToken);const req2=requirements2.data||{};if(requirements2.ok&&req2.token&&!req2.arkose?.required&&req2.proofofwork?.required){
       pow=await bcSolvePow(req2.proofofwork.seed,req2.proofofwork.difficulty,dpl,{legacy:true,maxIter:220000});
-      conv=await bcConversationFetch(session.accessToken,req2.token,pow.token,body,session.accountId);
+      conv=await bcConversationFetch(session.accessToken,req2.token,pow.token,body,session.accountId,onProgress,signal);
     }
   }
   if(!conv.ok)throw new Error(`conversation HTTP ${conv.httpStatus||0}: ${conv.error||conv.bodyHint||"request failed"}`);
@@ -269,6 +304,7 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
     const deadline=Date.now()+120000;
     while(parsed.imagePending&&!parsed.final&&!parsed.media.length&&!parsed.fileRefs.length&&parsed.conversationId&&Date.now()<deadline){
       await new Promise(resolve=>setTimeout(resolve,2500));
+      signal.throwIfAborted();
       const snapshot=await bcJsonFetch(`${BC_BASE}/backend-api/conversation/${encodeURIComponent(parsed.conversationId)}`,{accessToken:session.accessToken,signal:AbortSignal.timeout(15000)});
       if(!snapshot.ok){parsed.mediaError=`Получение результата генерации: HTTP ${snapshot.httpStatus||0}`;break}
       const next=OSMINOGGeneratedMedia.fromConversation(snapshot.data,body.messages[0].id);
@@ -277,6 +313,7 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
     }
   }
   if(parsed.fileRefs?.length)parsed=await OSMINOGGeneratedMedia.resolveFiles(parsed,id=>bcJsonFetch(`${BC_FILES_URL}/${encodeURIComponent(id)}/download`,{accessToken:session.accessToken,signal:AbortSignal.timeout(15000)}),uploadedAttachments.map(a=>a.file_id));
+  signal.throwIfAborted();
   if(parsed.conversationId)thread.conversationId=parsed.conversationId;if(parsed.parentMessageId)thread.parentMessageId=parsed.parentMessageId;
   bcHideConversation(session.accessToken,thread.conversationId).catch(()=>{});
   if(!parsed.answer&&!parsed.media?.length&&!context?.intent?.imageGeneration)throw new Error("GPT ответил без текста или изображения (SSE пустой)");
@@ -304,7 +341,7 @@ async function bcWebFetch(url,maxChars=16000){const res=await fetch(url,{cache:"
 
 const BC_PROVIDER_HISTORY=new Map();
 let bcExternalTabId=null,bcExternalRole="view";
-function bcProviderHistoryKey(context,provider){return `${provider}:${context?.project?.id||"none"}:${context?.chat?.threadId||"main"}`}
+function bcProviderHistoryKey(context,provider){return `${provider}:${context?.project?.id||"none"}:${context?.chat?.threadId||"main"}:${Number(context?.chat?.historyEpoch)||0}${context?.chat?.kind==="team"?":team:"+(Number(context.chat.teamHistoryEpoch)||0):""}`}
 function bcProviderSystem(){return "You are an AI participant inside OSMINOG. Use object IDs and the compact canvas map as ground truth. If you need more canvas data, return one osminog.request/v1 machine JSON block. If the user asks to change the canvas, return osminog.patch/v1. Never invent IDs or claim an edit happened without a patch."}
 async function bcGeminiSend(text,context,apiKey,toolResult=null,requestId=""){if(!apiKey)throw new Error("Gemini API key отсутствует");const key=bcProviderHistoryKey(context,"gemini"),hist=BC_PROVIDER_HISTORY.get(key)||[],rid=requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,prompt=toolResult?bcToolPrompt(toolResult,rid):bcDecoratePrompt(text,context,rid),contents=[...hist.slice(-10),{role:"user",parts:[{text:prompt}]}];const res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({systemInstruction:{parts:[{text:bcProviderSystem()}]},contents,generationConfig:{temperature:.25,maxOutputTokens:8192}})});const raw=await res.text();if(!res.ok)throw new Error(`Gemini HTTP ${res.status}: ${bcErrText(raw)}`);let data;try{data=JSON.parse(raw)}catch{throw new Error("Gemini вернул не-JSON ответ")};const answer=(data.candidates?.[0]?.content?.parts||[]).map(x=>x.text||"").join("\n").trim();if(!answer)throw new Error("Gemini вернул пустой ответ");contents.push({role:"model",parts:[{text:answer}]});BC_PROVIDER_HISTORY.set(key,contents.slice(-12));return{rid,answer}}
 async function bcClaudeSend(text,context,apiKey,toolResult=null,requestId=""){if(!apiKey)throw new Error("Claude API key отсутствует");const key=bcProviderHistoryKey(context,"claude"),hist=BC_PROVIDER_HISTORY.get(key)||[],rid=requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,prompt=toolResult?bcToolPrompt(toolResult,rid):bcDecoratePrompt(text,context,rid),messages=[...hist.slice(-10),{role:"user",content:prompt}];const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:8192,temperature:.2,system:bcProviderSystem(),messages})});const raw=await res.text();if(!res.ok)throw new Error(`Claude HTTP ${res.status}: ${bcErrText(raw)}`);let data;try{data=JSON.parse(raw)}catch{throw new Error("Claude вернул не-JSON ответ")};const answer=(data.content||[]).filter(x=>x.type==="text").map(x=>x.text||"").join("\n").trim();if(!answer)throw new Error("Claude вернул пустой ответ");messages.push({role:"assistant",content:answer});BC_PROVIDER_HISTORY.set(key,messages.slice(-12));return{rid,answer}}
@@ -586,8 +623,16 @@ chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
     (async()=>{try{bcDirectContext=message.context||bcDirectContext;const probe=await bcProbe();sendResponse({ok:!!probe.ok,ready:!!probe.ok,direct:true,probe,error:probe.ok?"":probe.error||`stage ${probe.stage}`})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;
   }
   if(message.type==="BC_LITE_CONTEXT_UPDATE"){bcDirectContext=message.context||bcDirectContext;sendResponse?.({ok:true,direct:true});return;}
+  if(message.type==="BC_CHAT_RESET"){
+    const projectId=String(message.projectId||""),threadId=String(message.threadId||"");
+    if(!projectId||!threadId){sendResponse({ok:false,error:"Project and thread required"});return}
+    bcResetChat(projectId,threadId);sendResponse({ok:true});return;
+  }
   if(message.type==="BC_LITE_SEND_INTERNAL"){
-    (async()=>{try{const p=message.payload||{};const requestId=p.requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const result=await bcSendDirect({text:p.text||"",context:p.context||bcDirectContext||{},requestId,images:p.images||[]});sendResponse(result)}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;
+    (async()=>{try{const p=message.payload||{};const requestId=p.requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const result=await bcSendDirect({text:p.text||"",context:p.context||bcDirectContext||{},requestId,images:p.images||[],onProgress:p.streamToken&&Number.isInteger(_sender.tab?.id)?text=>{
+      if(p.context?.intent?.execution!=="chat")return;
+      chrome.tabs.sendMessage(_sender.tab.id,{type:"BC_CHAT_STREAM",projectId:p.context?.project?.id,threadId:p.context?.chat?.threadId||"main",streamToken:p.streamToken,text}).catch(()=>{});
+    }:null});sendResponse(result)}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;
   }
   if(message.type==="BC_LITE_TOOL_RESULT"){
     (async()=>{try{const p=message.payload||{};const requestId=p.requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;const result=await bcSendDirect({context:p.context||bcDirectContext||{},requestId,toolResult:p.result||{},images:p.imageDataUrl?[{name:"osminog-tool-result.png",type:"image/png",dataUrl:p.imageDataUrl}]:[]});sendResponse(result)}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;
