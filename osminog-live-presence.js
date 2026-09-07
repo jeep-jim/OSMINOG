@@ -8,7 +8,7 @@
   const route=()=>location.origin+location.pathname;
   const visible=el=>!!el&&el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden';
   const first=selectors=>selectors.flatMap(s=>[...document.querySelectorAll(s)]).find(visible);
-  const composer=()=>first(['#prompt-textarea',"[contenteditable='true'][data-lexical-editor]","[contenteditable='true'][role='textbox']",'rich-textarea [contenteditable=true]',"textarea[placeholder]",'textarea']);
+  const composer=()=>first(['#prompt-textarea',"[contenteditable='true'][data-lexical-editor]","[contenteditable='true'][role='textbox']",'rich-textarea [contenteditable=true]','.ProseMirror[contenteditable=true]','main [contenteditable=true]',"textarea[placeholder]",'textarea']);
   const value=el=>el instanceof HTMLTextAreaElement?el.value:el?.innerText||el?.textContent||'';
   function setValue(el,text){
     el.focus();
@@ -16,7 +16,7 @@
     else{const selection=getSelection(),range=document.createRange();range.selectNodeContents(el);selection.removeAllRanges();selection.addRange(range);if(!document.execCommand('insertText',false,text))el.textContent=text}
     el.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true,inputType:'insertText',data:text}));
   }
-  const sendButton=()=>first(["button[data-testid='send-button']","button[aria-label*='Send' i]","button[aria-label*='Отправ' i]","button[aria-label*='Submit' i]","button[data-testid*='send']","button[type='submit']"]);
+  const sendButton=()=>first(["button[data-testid='send-button']","button[aria-label*='Send' i]","button[aria-label*='Отправ' i]","button[aria-label*='Submit' i]",...(config?.provider==='googleai'?["button[aria-label^='Run' i]"]:[]),"button[data-testid*='send']","button[type='submit']"]);
   const streaming=()=>!!first(["button[data-testid='stop-button']","button[aria-label*='Stop generating' i]","button[aria-label*='Stop response' i]","button[aria-label*='Останов' i]","button[aria-label*='Прервать' i]","[data-is-streaming='true']"]);
   const assistantRoots=()=>[...document.querySelectorAll("[data-message-author-role='assistant'],[data-testid*='assistant'],.font-claude-response,model-response,message-content,.ds-markdown,ms-chat-turn[role='assistant'],[data-role='model'],article[data-testid^='conversation-turn']")].filter(el=>!el.closest("[data-message-author-role='user'],.user-query,[data-testid='user-message']")&&!el.querySelector("[data-message-author-role='user']"));
   async function rpc(type,fields={}){
@@ -76,7 +76,7 @@
     if(!enabled()||turn!==item.turn)return;const el=composer();if(!el)return;
     if(value(el).trim()){queuedResult=item;badge('данные готовы — освободи поле и нажми здесь');return}
     queuedResult=null;sending=true;
-    try{const r=item.result;const attached=r.imageDataUrl?await attach(r.imageDataUrl):false;setValue(el,'[OSMINOG TOOL RESULT]\n'+JSON.stringify({protocol:'osminog.tool_result/v1',requestId:turn.id,result:r.result,imageAttached:attached})+'\nContinue the original task using the verified results.');await clickSend();schedule()}catch(e){badge(e.message,true)}finally{sending=false}
+    try{const r=item.result;const attached=r.imageDataUrl?await attach(r.imageDataUrl):false;for(const call of r.result?.calls||[])if(call.result?.imageAttached)call.result.imageAttached=attached;setValue(el,'[OSMINOG TOOL RESULT]\n'+JSON.stringify({protocol:'osminog.tool_result/v1',requestId:turn.id,result:r.result,imageAttached:attached})+'\nContinue the original task using the verified results.');await clickSend();schedule()}catch(e){badge(e.message,true)}finally{sending=false}
   }
   async function imageData(img){
     const src=img.currentSrc||img.src;if(/^data:image\//.test(src))return src;
