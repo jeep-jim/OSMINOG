@@ -1,4 +1,4 @@
-name: OSMINOG 3.21.1 combined release candidate
+name: OSMINOG 3.21.2 combined release candidate
 on:
   pull_request:
     paths:
@@ -16,6 +16,7 @@ on:
 jobs:
   verify-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,41 +25,49 @@ jobs:
       - run: node --check gpt-presence.js
       - run: node --check chatgpt-lite-bridge.js
       - run: node --check background.js
+      - run: node tests/generated-media-3212.cjs
       - run: node tests/media-reference.cjs
       - run: node tests/foundation-memory.cjs
       - run: node tests/privacy-no-mirroring.cjs
       - run: node --check osminog-animation-studio.js
       - run: node tests/agent-media-3207.cjs
       - run: node tests/animation-3206.cjs
+      - name: Install browser test dependency
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - run: node tests/folder-move-3212.cjs
+      - run: node tests/foundation-browser.cjs
       - name: Build verified Chrome ZIP
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-3.21.1-MEDIA-REFERENCE.zip'
+          artifact='OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ \
             --exclude='.git/' --exclude='.github/' --exclude='artifacts/' \
-            --exclude='tools/' --exclude='tests/' --exclude='docs/' \
+            --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' \
             --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' \
             --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-3.21.1-MEDIA-REFERENCE.zip'
+          path='artifacts/OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
-              assert m['version']=='3.21.1' and m['version_name']=='3.21.1'
+              assert m['version']=='3.21.2' and m['version_name']=='3.21.2'
               assert m['key']
-              for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css'):
+              for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css','osminog-generated-media.js'):
                   assert name in z.namelist(), name
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: OSMINOG-3.21.1-MEDIA-REFERENCE
+          name: OSMINOG-3.21.2-FOLDERS-IMAGE-RESULTS
           path: |
-            artifacts/OSMINOG-Chrome-3.21.1-MEDIA-REFERENCE.zip
-            RELEASE_NOTES_3.21.1.md
+            artifacts/OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip
+            RELEASE_NOTES_3.21.2.md
+            artifacts/folder-move-3212.png
           retention-days: 14
 

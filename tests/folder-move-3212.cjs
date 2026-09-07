@@ -1,0 +1,32 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+(async()=>{
+ const root=path.resolve(__dirname,'..'),server=http.createServer((req,res)=>{const name=path.resolve(root,'.'+decodeURIComponent(req.url.split('?')[0]));if(!name.startsWith(root+path.sep))return res.writeHead(403).end();fs.readFile(name,(error,data)=>{if(error)return res.writeHead(404).end();res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':'application/octet-stream');res.end(data)})});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
+ try{
+  browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1000}});page.setDefaultTimeout(15000);await page.route('https://**',route=>route.abort());
+  await page.addInitScript(()=>{const store=JSON.parse(localStorage.getItem('testStorage')||'{}'),event={addListener(){},removeListener(){}};window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'3.21.2'}),onMessage:event,sendMessage:async()=>({ok:false,error:'offline fixture'})},storage:{local:{get:(keys,cb)=>{const value=typeof keys==='string'?{[keys]:store[keys]}:{...store};cb?.(value);return Promise.resolve(value)},set:(v,cb)=>{Object.assign(store,structuredClone(v));localStorage.setItem('testStorage',JSON.stringify(store));cb?.();return Promise.resolve()},remove:async()=>{}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[]},permissions:{contains:async()=>false,request:async()=>false},identity:{getRedirectURL:()=>location.origin+'/oauth'},i18n:{getMessage:()=>''}}});
+  await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);await page.waitForFunction(()=>!!globalThis.OSMINOGWindowsFolders);
+  await page.evaluate(()=>{document.querySelector('#osminogStorageOnboarding')?.close();createProject();project().objects=[];project().connections=[];state.view={x:0,y:0,scale:1};applyView();renderAll();window.OSMINOGConfirm=async()=>true;window.confirm=()=>true});
+  const fixture=await page.evaluate(()=>{const a=OSMINOGWindowsFolders.create({name:'Скрины',screenX:90,screenY:100,rename:false}),b=OSMINOGWindowsFolders.create({name:'Вторая',screenX:280,screenY:100,rename:false});const types=['image','file','text','note','shape','vector','code','browser'];const ids=types.map((type,i)=>createObject(type,{name:'fixture-'+type,x:520+(i%4)*200,y:280+Math.floor(i/4)*200,w:150,h:120,text:'Preserve me',src:type==='image'?'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=':'',code:'<h1>Preserve me</h1>'}).id);project().connections.push({id:'fixture-edge',from:ids[0],to:ids[4]});renderAll();return{a:a.id,b:b.id,ids}});
+  // Real pointer drag of a canvas object into a desktop folder icon.
+  const item=page.locator(`#objects [data-id="${fixture.ids[4]}"]`),target=page.locator(`[data-win-folder-id="${fixture.a}"]`);const from=await item.boundingBox(),to=await target.boundingBox();
+  await page.mouse.move(from.x+from.width/2,from.y+from.height/2);await page.mouse.down();await page.mouse.move(to.x+to.width/2,to.y+to.height/2,{steps:15});await page.mouse.up();
+  await page.waitForFunction(({id,folder})=>objects().find(o=>o.id===id)?.osminogFolderId===folder,{id:fixture.ids[4],folder:fixture.a});assert.equal(await item.count(),0);
+  await page.evaluate(async f=>{state.selected=f.ids.filter(id=>id!==f.ids[4]);await OSMINOGWindowsFolders.acceptCanvasObjects([...state.selected],f.a)},fixture);
+  assert.equal(await page.locator('#objects .canvas-object').count(),0);assert.equal(await page.evaluate(()=>state.selected.length),0);assert.equal(await page.locator('#connections .connection-hit').count(),0);
+  assert.equal(await page.evaluate(()=>objects().length),fixture.ids.length);assert.equal(await page.evaluate(()=>BriefCraftBridge.getViewport().objects.length),0);
+  await page.evaluate(()=>deleteSelection());assert.equal(await page.evaluate(()=>objects().length),fixture.ids.length);
+  await page.evaluate(f=>{OSMINOGWindowsFolders.openVirtual(f.a)},fixture);await page.waitForFunction(n=>document.querySelectorAll('#osminogWindowsExplorerItems [data-item-key^="obj:"]').length===n,fixture.ids.length);
+  await page.evaluate(f=>OSMINOGWindowsFolders.moveObject(f.ids[0],f.b),fixture);assert.equal(await page.evaluate(f=>project().osminogFolders.find(x=>x.id===f.a).members.includes(f.ids[0]),fixture),false);
+  await page.evaluate(f=>OSMINOGWindowsFolders.restoreObject(f.ids[0]),fixture);assert.equal(await page.locator(`#objects [data-id="${fixture.ids[0]}"]`).count(),1);
+  await page.evaluate(()=>undo());assert.equal(await page.locator(`#objects [data-id="${fixture.ids[0]}"]`).count(),0);
+  await page.evaluate(()=>redo());assert.equal(await page.locator(`#objects [data-id="${fixture.ids[0]}"]`).count(),1);
+  await page.evaluate(async f=>{selectObject(f.ids[0]);await deleteSelection();await flushPersist()},fixture);assert.equal(await page.evaluate(()=>objects().length),fixture.ids.length-1);
+  // Simulate an older inconsistent folder index. Migration must keep one owner.
+  await page.evaluate(f=>{const o=objects().find(o=>o.id===f.ids[1]);project().osminogFolders.find(x=>x.id===f.b).members.push(o.id);document.dispatchEvent(new CustomEvent('osminog:project-opened'))},fixture);
+  assert.equal(await page.evaluate(f=>project().osminogFolders.filter(x=>x.members.includes(f.ids[1])).length,fixture),1);
+  await page.evaluate(()=>flushPersist());await page.reload();await page.waitForFunction(()=>!!globalThis.OSMINOGWindowsFolders);assert.equal(await page.locator('#objects .canvas-object').count(),0);assert.equal(await page.evaluate(()=>objects().length),fixture.ids.length-1);
+  fs.mkdirSync('artifacts',{recursive:true});await page.evaluate(f=>{document.querySelector('#osminogStorageOnboarding')?.close();OSMINOGWindowsFolders.openVirtual(f.a)},fixture);await page.screenshot({path:'artifacts/folder-move-3212.png'});
+  console.log('PASS pointer move; eight object types; batch move; no desktop duplicates; selection/delete safety; folder-to-folder; restore; undo/redo; migration; persisted reload');
+ }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
+})().catch(e=>{console.error(e);process.exitCode=1});

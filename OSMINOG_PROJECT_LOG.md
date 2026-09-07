@@ -2209,3 +2209,12 @@ Implemented project-scoped local folder memory, removed 140-message retention cu
 ## 2026-09-06 — 3.21.1 media/reference and chat performance
 
 Fix attachment handoff from composer to parallel agent; capture selected reference for explicit generation; import returned HTTPS images next to reference; no vector retry after successful image import. Mixed search/generate prompts offer local choice buttons. Render 80 recent messages with earlier-message expansion; keep complete storage and expose scoped chat_history_read. Bound outgoing history to 24000 characters and 40 turns, with retrieval for older messages. Search tries original before thumbnail, with request timeouts. No restored external mirroring and no claim of live generation success. See RELEASE_NOTES_3.21.1.md.
+
+
+## 2026-09-07 — 3.21.2: folder ownership and generated file recovery
+
+Observed on 3.21.1: moving into a virtual folder retained the same object on the desktop; deleting it also removed it from the folder. Rendering, selection, links, layers, viewport context and exports now respect folder ownership. Moves clear desktop selection and normalize legacy membership. Object data remains in the project.
+
+Image responses skipped tool-role images, file pointers and delta frames. A dedicated generation prompt and parser now handle these cases, resolve returned file IDs, exclude input references and retain exact download/import errors. External transcript mirroring stays disabled.
+
+Validation: generated-media, media routing, privacy, local-memory and routing tests pass locally. CI must pass pointer drag, eight object types, folder-to-folder moves, restore, Undo/Redo, deletion isolation and persisted reload before packaging. Live provider generation remains unverified.

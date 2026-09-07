@@ -58,9 +58,18 @@
     return f;
   }
   function migrate(){
-    const ids=new Set(foldersNow().map(f=>f.id));
-    for(const f of foldersNow()){ensureFolder(f);if(f.parentId&&!ids.has(f.parentId))f.parentId=null;f.members=f.members.filter(id=>objectsNow().some(o=>o.id===id))}
-    for(const o of objectsNow())if(o.osminogFolderId&&!ids.has(o.osminogFolderId))delete o.osminogFolderId;
+    const folders=foldersNow(),byId=new Map(folders.map(f=>[f.id,f])),owners=new Map();
+    for(const f of folders){ensureFolder(f);if(f.parentId&&!byId.has(f.parentId))f.parentId=null;for(const id of f.members)if(!owners.has(id))owners.set(id,f.id);f.members=[]}
+    for(const o of objectsNow()){
+      const owner=byId.has(o.osminogFolderId)?o.osminogFolderId:owners.get(o.id);
+      if(owner){o.osminogFolderId=owner;byId.get(owner).members.push(o.id)}else delete o.osminogFolderId;
+    }
+    refreshCanvasMembership();
+  }
+  function refreshCanvasMembership(){
+    const st=coreState(),stored=new Set(objectsNow().filter(o=>o.osminogFolderId).map(o=>o.id));
+    if(st){st.selected=(st.selected||[]).filter(id=>!stored.has(id));if(stored.has(st.nodeEditId))st.nodeEditId=null;const c=projectNow()?.connections?.find(c=>c.id===st.selectedConnection);if(c&&(stored.has(c.from)||stored.has(c.to)))st.selectedConnection=null}
+    globalThis.renderObjects?.(true);globalThis.renderConnections?.();globalThis.renderInspector?.();
   }
   function descendant(candidate,parent){let f=folderById(candidate),guard=0;while(f&&guard++<80){if(f.parentId===parent)return true;f=folderById(f.parentId)}return false}
   function folderCount(f){return (f.members?.length||0)+foldersNow().filter(x=>x.parentId===f.id).length}
@@ -72,8 +81,22 @@
   function closeVirtualFolder(id){const f=folderById(id);if(!f)return;f.parentId=null;f.desktopVisible=false;persist();notify(`Папка «${f.name}» сохранена внутри папки проекта`)}
   function showVirtualOnDesktop(id,position={}){const f=folderById(id);if(!f)return false;f.parentId=null;f.desktopVisible=true;const r=viewportRect(),size=desktopSizePx(f.desktopSize);const px=Number(position.screenX),py=Number(position.screenY);f.screenX=clamp(Number.isFinite(px)?px:(Number(f.screenX)||r.width*.5-size/2),8,Math.max(8,r.width-size-10));f.screenY=clamp(Number.isFinite(py)?py:(Number(f.screenY)||r.height*.35),72,Math.max(72,r.height-105));persist();notify(`Папка «${f.name}» возвращена на рабочий стол`);return true}
   function moveVirtualFolder(childId,parentId){if(!childId||childId===parentId||descendant(parentId,childId))return false;const child=folderById(childId),parent=folderById(parentId);if(!child||!parent)return false;child.parentId=parent.id;child.desktopVisible=false;persist();return true}
-  function moveObjectToFolder(objectId,folderId){const o=objectsNow().find(x=>x.id===objectId),target=folderById(folderId);if(!o||!target)return false;const old=folderById(o.osminogFolderId);if(old)old.members=old.members.filter(id=>id!==o.id);o.osminogFolderId=folderId;if(!target.members.includes(o.id))target.members.push(o.id);try{globalThis.renderObjects?.(true);globalThis.renderConnections?.()}catch{}persist();return true}
-  function moveObjectToDesktop(objectId){const o=objectsNow().find(x=>x.id===objectId);if(!o)return;const old=folderById(o.osminogFolderId);if(old)old.members=old.members.filter(id=>id!==o.id);delete o.osminogFolderId;const c=globalThis.viewportCenter?.()||{x:0,y:0};o.x=c.x-(Number(o.w)||240)/2;o.y=c.y-(Number(o.h)||160)/2;try{globalThis.renderObjects?.(true);globalThis.renderConnections?.()}catch{}persist()}
+  function moveObjectsToFolder(objectIds,folderId){
+    const target=folderById(folderId),ids=new Set(objectIds),moving=objectsNow().filter(o=>ids.has(o.id)&&o.osminogFolderId!==folderId);
+    if(!target)return false;if(!moving.length)return objectsNow().some(o=>ids.has(o.id));
+    globalThis.checkpoint?.();const movedIds=new Set(moving.map(o=>o.id));
+    for(const f of foldersNow())f.members=(f.members||[]).filter(id=>!movedIds.has(id));
+    for(const o of moving){o.osminogFolderId=folderId;target.members.push(o.id)}
+    const st=coreState();if(st?.drag?.items?.some(o=>movedIds.has(o.id)))st.drag=null;
+    refreshCanvasMembership();persist();return true;
+  }
+  function moveObjectToFolder(objectId,folderId){return moveObjectsToFolder([objectId],folderId)}
+  function moveObjectToDesktop(objectId){
+    const o=objectsNow().find(x=>x.id===objectId);if(!o)return false;globalThis.checkpoint?.();
+    for(const f of foldersNow())f.members=(f.members||[]).filter(id=>id!==o.id);
+    delete o.osminogFolderId;const c=globalThis.viewportCenter?.()||{x:0,y:0};o.x=c.x-(Number(o.w)||240)/2;o.y=c.y-(Number(o.h)||160)/2;
+    refreshCanvasMembership();persist();return true;
+  }
   function deleteVirtualFolder(id){const f=folderById(id);if(!f)return;for(const child of foldersNow().filter(x=>x.parentId===id)){child.parentId=null;child.desktopVisible=false}for(const objectId of f.members||[])moveObjectToDesktop(objectId);const p=projectNow();p.osminogFolders=foldersNow().filter(x=>x.id!==id);if(active.folderId===id)closeExplorer();persist()}
 
   function ensureDesktopLayer(){const viewport=$("#viewport");if(!viewport)return null;let layer=$("#osminogWindowsDesktopFolders");if(!layer){layer=document.createElement("div");layer.id="osminogWindowsDesktopFolders";layer.className="osminog-windows-desktop-folders";viewport.append(layer)}return layer}
@@ -99,7 +122,7 @@
     el.addEventListener("pointerup",end);el.addEventListener("pointercancel",()=>{folderIconDrag=null;clearDesktopDrop()});
     el.addEventListener("dragover",e=>{if(e.dataTransfer?.types?.includes("application/x-osminog-folder-item")||e.dataTransfer?.files?.length){e.preventDefault();el.classList.add("drop-active")}});
     el.addEventListener("dragleave",()=>el.classList.remove("drop-active"));
-    el.addEventListener("drop",async e=>{e.preventDefault();el.classList.remove("drop-active");await handleDropOnVirtualFolder(e,id())});
+    el.addEventListener("drop",async e=>{e.preventDefault();e.stopPropagation();el.classList.remove("drop-active");await handleDropOnVirtualFolder(e,id())});
   }
   function beginDesktopRename(id){const el=$(`[data-win-folder-id="${CSS.escape(id)}"]`),f=folderById(id);if(!el||!f)return;const old=el.querySelector(".osminog-win-folder-label");if(!old)return;const input=document.createElement("input");input.className="osminog-win-folder-rename";input.value=f.name;old.replaceWith(input);input.focus();input.select();const commit=()=>{f.name=safeName(input.value);persist()};input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();commit()}else if(e.key==="Escape")renderDesktopFolders()});input.addEventListener("blur",commit,{once:true})}
   function highlightDesktopDrop(x,y,exclude){clearDesktopDrop();const target=document.elementsFromPoint(x,y).find(el=>el.classList?.contains("osminog-win-folder-icon")&&el.dataset.winFolderId!==exclude);target?.classList.add("drop-active")}
@@ -272,7 +295,7 @@
     },true);
   }
 
-  function installCanvasObjectDrop(){let drag=null;document.addEventListener("pointerdown",e=>{const el=e.target.closest?.(".canvas-object");if(!el||e.button!==0)return;drag={id:el.dataset.id,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false}},true);document.addEventListener("pointermove",e=>{if(!drag||drag.pointerId!==e.pointerId)return;if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>5)drag.moved=true;if(!drag.moved)return;const target=document.elementsFromPoint(e.clientX,e.clientY).find(el=>el.classList?.contains("osminog-win-folder-icon"));clearDesktopDrop();target?.classList.add("drop-active")},true);document.addEventListener("pointerup",e=>{if(!drag||drag.pointerId!==e.pointerId)return;const stack=document.elementsFromPoint(e.clientX,e.clientY),desktopTarget=stack.find(el=>el.classList?.contains("osminog-win-folder-icon"))?.dataset.winFolderId,explorerItem=stack.find(el=>el?.dataset?.itemKey?.startsWith?.("vf:")),explorer=stack.find(el=>el?.id==="osminogWindowsExplorer"||el?.closest?.("#osminogWindowsExplorer")),explorerTarget=explorerItem?.dataset?.itemKey?.slice(3)||((explorer&&active.kind==="virtual")?active.folderId:null),target=desktopTarget||explorerTarget;if(target&&drag.moved){const picked=Array.isArray(coreState()?.selected)&&coreState().selected.includes(drag.id)?coreState().selected:[drag.id];for(const id of picked)moveObjectToFolder(id,target);if(explorer)loadExplorerItems()}drag=null;clearDesktopDrop()},true);document.addEventListener("pointercancel",()=>{drag=null;clearDesktopDrop()},true)}
+  function installCanvasObjectDrop(){let drag=null;document.addEventListener("pointerdown",e=>{const el=e.target.closest?.(".canvas-object");if(!el||e.button!==0||e.target.closest("button,input,textarea,[contenteditable],.resize-handle,.rotate-handle,.port,.ai-context-handle"))return;drag={id:el.dataset.id,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,moved:false}},true);document.addEventListener("pointermove",e=>{if(!drag||drag.pointerId!==e.pointerId)return;if(Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>5)drag.moved=true;if(!drag.moved)return;const target=document.elementsFromPoint(e.clientX,e.clientY).find(el=>el.classList?.contains("osminog-win-folder-icon"));clearDesktopDrop();target?.classList.add("drop-active")},true);document.addEventListener("pointerup",e=>{if(!drag||drag.pointerId!==e.pointerId)return;const stack=document.elementsFromPoint(e.clientX,e.clientY),desktopTarget=stack.find(el=>el.classList?.contains("osminog-win-folder-icon"))?.dataset.winFolderId,explorerItem=stack.find(el=>el?.dataset?.itemKey?.startsWith?.("vf:")),explorer=stack.find(el=>el?.id==="osminogWindowsExplorer"||el?.closest?.("#osminogWindowsExplorer")),explorerTarget=explorerItem?.dataset?.itemKey?.slice(3)||((explorer&&active.kind==="virtual")?active.folderId:null),target=desktopTarget||explorerTarget;if(target&&drag.moved){const picked=Array.isArray(coreState()?.selected)&&coreState().selected.includes(drag.id)?coreState().selected:[drag.id];moveObjectsToFolder([...picked],target);if(explorer)loadExplorerItems()}drag=null;clearDesktopDrop()},true);document.addEventListener("pointercancel",()=>{drag=null;clearDesktopDrop()},true)}
 
   function removeOldFolderUi(){$("#osminogFolderTray")?.remove();$("#osminogCanvasFolderWindow")?.setAttribute("hidden","");$("#osminogFolderContextMenu")?.setAttribute("hidden","");$("#osminogDesktopFolderWindow")?.setAttribute("hidden","");$$(".osminog-canvas-folder").forEach(el=>el.remove());$("#layerList .osminog-layer-folder-section")?.remove()}
   function wrapRenderLayers(){if(typeof globalThis.renderLayers!=="function"||globalThis.renderLayers.__osminogWinFolders)return;const base=globalThis.renderLayers;let raf=0;const wrapped=function(...args){const out=base.apply(this,args);if(!raf)raf=requestAnimationFrame(()=>{raf=0;removeOldFolderUi();injectLayerControls()});return out};wrapped.__osminogWinFolders=true;globalThis.renderLayers=wrapped}
@@ -284,7 +307,7 @@
     document.addEventListener("osminog:project-folder-ready",async()=>{rootConnected=true;await refreshRootConnection();injectLayerControls();if(!$("#osminogWindowsExplorer")?.hidden)loadExplorerItems()});
     document.addEventListener("osminog:project-folder-synced",()=>{rootConnected=true;applyRootVisibility();if(!$("#osminogWindowsExplorer")?.hidden)loadExplorerItems()});
     window.addEventListener("resize",scheduleUi,{passive:true});
-    const exposed={openRoot:openRootFolder,openVirtual:openVirtualFolder,create:createVirtualFolder,showOnDesktop:showVirtualOnDesktop,closeIntoProject:closeVirtualFolder,list:()=>foldersNow().map(f=>({...f})),root:()=>foldersNow().filter(f=>!f.parentId),rename:(id,name)=>{const f=folderById(id);if(f){f.name=safeName(name);persist()}},moveObject:moveObjectToFolder,moveFolder:moveVirtualFolder,acceptCanvasObjects:async(ids,targetFolderId=null)=>{const target=targetFolderId||((active.kind==="virtual")?active.folderId:null);if(!target)return false;for(const id of Array.isArray(ids)?ids:[])moveObjectToFolder(id,target);await loadExplorerItems();return true},render:renderDesktopFolders};
+    const exposed={openRoot:openRootFolder,openVirtual:openVirtualFolder,create:createVirtualFolder,showOnDesktop:showVirtualOnDesktop,closeIntoProject:closeVirtualFolder,list:()=>foldersNow().map(f=>({...f})),root:()=>foldersNow().filter(f=>!f.parentId),rename:(id,name)=>{const f=folderById(id);if(f){f.name=safeName(name);persist()}},moveObject:moveObjectToFolder,moveFolder:moveVirtualFolder,acceptCanvasObjects:async(ids,targetFolderId=null)=>{const target=targetFolderId||((active.kind==="virtual")?active.folderId:null);if(!target)return false;const moved=moveObjectsToFolder(Array.isArray(ids)?ids:[],target);await loadExplorerItems();return moved},restoreObject:moveObjectToDesktop,render:renderDesktopFolders};
     globalThis.OSMINOGWindowsFolders=exposed;globalThis.OSMINOGCanvasFolders={create:exposed.create,open:exposed.openVirtual,list:exposed.list,root:exposed.root,showOnDesktop:exposed.showOnDesktop,rename:exposed.rename,moveObject:exposed.moveObject,moveFolder:exposed.moveFolder,archive:exposed.closeIntoProject,render:exposed.render};
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
