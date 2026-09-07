@@ -252,7 +252,7 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
   if(req.arkose?.required)throw new Error("Arkose внезапно стал обязателен для этого запроса; отправка остановлена без создания чата.");
   const dpl=await bcGetDpl();let pow={token:"",iterations:0,elapsedMs:0,legacy:false};
   if(req.proofofwork?.required)pow=await bcSolvePow(req.proofofwork.seed,req.proofofwork.difficulty,dpl,{legacy:false,maxIter:300000});
-  const thread=bcThread(context);const prompt=context?.intent?.imageGeneration&&!toolResult?OSMINOGGeneratedMedia.generationPrompt(context):toolResult?bcToolPrompt(toolResult,requestId):bcDecoratePrompt(text,context,requestId);const uploadedAttachments=await bcUploadAttachments(session.accessToken,images||[]);const body=bcConversationBody(prompt,thread,model,uploadedAttachments);
+  const thread=context?.intent?.imageGeneration&&!toolResult?{conversationId:null,parentMessageId:bcUuid()}:bcThread(context);const prompt=context?.intent?.imageGeneration&&!toolResult?OSMINOGGeneratedMedia.generationPrompt(context):toolResult?bcToolPrompt(toolResult,requestId):bcDecoratePrompt(text,context,requestId);const uploadedAttachments=await bcUploadAttachments(session.accessToken,images||[]);const body=bcConversationBody(prompt,thread,model,uploadedAttachments);
   let conv=await bcConversationFetch(session.accessToken,reqToken,pow.token,body,session.accountId);
   // One conservative compatibility retry with the legacy fingerprint shape only when
   // Sentinel rejects the modern proof. Both attempts remain Temporary Chat.
