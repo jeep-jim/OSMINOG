@@ -206,7 +206,7 @@ function bcParseAssistant(raw){
   let text=source;for(const block of [...new Set(machineBlocks)])text=text.replace(block,"");text=text.trim();
   return {text,request,patch};
 }
-function bcThreadKey(context){return `${context?.project?.id||"default"}::${context?.chat?.threadId||"main"}::${Number(context?.chat?.historyEpoch)||0}`}
+function bcThreadKey(context){return `${context?.project?.id||"default"}::${context?.chat?.threadId||"main"}::${Number(context?.chat?.historyEpoch)||0}${context?.chat?.kind==="team"?":team:"+(Number(context.chat.teamHistoryEpoch)||0):""}`}
 function bcThread(context){const key=bcThreadKey(context);if(!bcThreads.has(key))bcThreads.set(key,{conversationId:null,parentMessageId:bcUuid()});return bcThreads.get(key)}
 function bcModelFromList(list){
   const slugs=(Array.isArray(list)?list:[]).map(m=>typeof m==="string"?m:(m?.slug||m?.id||"")).filter(Boolean);
@@ -265,13 +265,12 @@ async function bcConversationFetch(accessToken,reqToken,proofToken,body,accountI
 const bcActiveChatRequests=new Map();
 async function bcSendDirect(input){
   const controller=new AbortController(),id=bcUuid();
-  bcActiveChatRequests.set(id,{controller,projectId:input.context?.project?.id||"none",threadId:input.context?.chat?.threadId||"main"});
+  bcActiveChatRequests.set(id,{controller,projectId:input.context?.project?.id||"none",threadId:input.context?.chat?.threadId||"main",kind:input.context?.chat?.kind});
   try{return await bcSendDirectRequest({...input,signal:controller.signal})}
   finally{bcActiveChatRequests.delete(id)}
 }
 function bcResetChat(projectId,threadId){
-  for(const request of bcActiveChatRequests.values())if(request.projectId===projectId&&request.threadId===threadId)request.controller.abort();
-  const context={project:{id:projectId},chat:{threadId}};
+  for(const request of bcActiveChatRequests.values())if(request.projectId===projectId&&(request.threadId===threadId||(threadId==="main"&&request.kind==="team")))request.controller.abort();
   const base=`${projectId}::${threadId}`;
   for(const key of bcThreads.keys())if(key===base||key.startsWith(base+"::"))bcThreads.delete(key);
   for(const provider of ["gpt","claude","gemini","googleai","deepseek","deepseek-web","custom"]){
@@ -342,7 +341,7 @@ async function bcWebFetch(url,maxChars=16000){const res=await fetch(url,{cache:"
 
 const BC_PROVIDER_HISTORY=new Map();
 let bcExternalTabId=null,bcExternalRole="view";
-function bcProviderHistoryKey(context,provider){return `${provider}:${context?.project?.id||"none"}:${context?.chat?.threadId||"main"}:${Number(context?.chat?.historyEpoch)||0}`}
+function bcProviderHistoryKey(context,provider){return `${provider}:${context?.project?.id||"none"}:${context?.chat?.threadId||"main"}:${Number(context?.chat?.historyEpoch)||0}${context?.chat?.kind==="team"?":team:"+(Number(context.chat.teamHistoryEpoch)||0):""}`}
 function bcProviderSystem(){return "You are an AI participant inside OSMINOG. Use object IDs and the compact canvas map as ground truth. If you need more canvas data, return one osminog.request/v1 machine JSON block. If the user asks to change the canvas, return osminog.patch/v1. Never invent IDs or claim an edit happened without a patch."}
 async function bcGeminiSend(text,context,apiKey,toolResult=null,requestId=""){if(!apiKey)throw new Error("Gemini API key отсутствует");const key=bcProviderHistoryKey(context,"gemini"),hist=BC_PROVIDER_HISTORY.get(key)||[],rid=requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,prompt=toolResult?bcToolPrompt(toolResult,rid):bcDecoratePrompt(text,context,rid),contents=[...hist.slice(-10),{role:"user",parts:[{text:prompt}]}];const res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({systemInstruction:{parts:[{text:bcProviderSystem()}]},contents,generationConfig:{temperature:.25,maxOutputTokens:8192}})});const raw=await res.text();if(!res.ok)throw new Error(`Gemini HTTP ${res.status}: ${bcErrText(raw)}`);let data;try{data=JSON.parse(raw)}catch{throw new Error("Gemini вернул не-JSON ответ")};const answer=(data.candidates?.[0]?.content?.parts||[]).map(x=>x.text||"").join("\n").trim();if(!answer)throw new Error("Gemini вернул пустой ответ");contents.push({role:"model",parts:[{text:answer}]});BC_PROVIDER_HISTORY.set(key,contents.slice(-12));return{rid,answer}}
 async function bcClaudeSend(text,context,apiKey,toolResult=null,requestId=""){if(!apiKey)throw new Error("Claude API key отсутствует");const key=bcProviderHistoryKey(context,"claude"),hist=BC_PROVIDER_HISTORY.get(key)||[],rid=requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,prompt=toolResult?bcToolPrompt(toolResult,rid):bcDecoratePrompt(text,context,rid),messages=[...hist.slice(-10),{role:"user",content:prompt}];const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:8192,temperature:.2,system:bcProviderSystem(),messages})});const raw=await res.text();if(!res.ok)throw new Error(`Claude HTTP ${res.status}: ${bcErrText(raw)}`);let data;try{data=JSON.parse(raw)}catch{throw new Error("Claude вернул не-JSON ответ")};const answer=(data.content||[]).filter(x=>x.type==="text").map(x=>x.text||"").join("\n").trim();if(!answer)throw new Error("Claude вернул пустой ответ");messages.push({role:"assistant",content:answer});BC_PROVIDER_HISTORY.set(key,messages.slice(-12));return{rid,answer}}
