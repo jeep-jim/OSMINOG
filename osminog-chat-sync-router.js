@@ -32,8 +32,8 @@
       const eventId=b.id+':'+m.requestId+':'+role;
       if(b.seen.includes(eventId))return{ok:true,duplicate:true};
       const host=await api.tabs.get(b.editorTabId);if(route(host.url)!==api.runtime.getURL('editor.html'))throw Error('Холст закрыт');
-      const r=await api.tabs.sendMessage(b.editorTabId,{type:'BC_CHAT_SYNC_DELIVER',projectId:b.projectId,threadId:b.threadId,provider:b.provider,epoch:b.epoch,bindingId:b.id,eventId,role,text:String(m.text||'').slice(0,100000)});
-      if(!r?.ok)throw Error(r?.error||'Чат проекта не принял сообщение');
+      let r;try{r=await api.tabs.sendMessage(b.editorTabId,{type:'BC_CHAT_SYNC_DELIVER',projectId:b.projectId,threadId:b.threadId,provider:b.provider,epoch:b.epoch,bindingId:b.id,eventId,role,text:String(m.text||'').slice(0,100000)})}catch(e){b.busy=false;await save();throw e}
+      if(!r?.ok){b.busy=false;await save();throw Error(r?.error||'Чат проекта не принял сообщение')}
       b.seen=[...b.seen.slice(-199),eventId];if(role!=='user')b.busy=false;await save();return{ok:true};
     }
     async function handle(m,s){const key=s.tab?.id||s.url;const run=()=>m.type==='BC_CHAT_SYNC_BIND'?bind(m,s):native(m,s),p=(serial.get(key)||Promise.resolve()).then(run,run);serial.set(key,p.catch(()=>{}));return p}

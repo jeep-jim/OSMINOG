@@ -19,6 +19,10 @@ for(const f of ['osminog-chat-sync.js','osminog-chat-sync-router.js','osminog-mo
  await assert.rejects(()=>router.handle({...event,requestId:'stale'},native()));
  await router.handle({...event,type:'BC_CHAT_SYNC_START',requestId:'r2'},native());tabs[2].url='https://alice.yandex.ru/chat/unrelated';await assert.rejects(()=>router.handle({...event,requestId:'r2',role:'assistant'},native()));
  assert(!messages.some(x=>x.m.text==='PRIVATE OLD HISTORY'));
+ const rebound=await router.handle(bind,editor);await router.handle({type:'BC_CHAT_SYNC_START',bindingId:rebound.bindingId,requestId:'cleared'},native());
+ const deliver=api.tabs.sendMessage;api.tabs.sendMessage=async()=>({ok:false,error:'History cleared'});
+ await assert.rejects(()=>router.handle({...event,bindingId:rebound.bindingId,requestId:'cleared',role:'assistant'},native()));api.tabs.sendMessage=deliver;
+ assert((await router.handle({...bind,context:{project:{id:'p1'},chat:{threadId:'agent1',historyEpoch:5}}},editor)).connected);
  const backup={},storage={get:async()=>backup,set:async x=>Object.assign(backup,x)};
  const bad={id:'system.telegram-bot',title:'OSMINOG Extension',description:'Пользовательский модуль OSMINOG',type:'widget',version:'1.0.0',system:true,html:'<div>user code</div>'},custom={id:'user1',title:'My module',system:true},builtin={id:'system.telegram-bot',title:'Telegram Bot',type:'connector'};
  const migrated=await scope.OSMINOGModuleMigration.migrate([bad,custom],storage);assert.equal(migrated.length,1);assert.equal(migrated[0].id,'user1');assert.deepEqual(backup.osminogRemovedPlaceholderBackup3216.module,bad);assert(scope.OSMINOGModuleMigration.isBuiltin(builtin));assert(!scope.OSMINOGModuleMigration.isBuiltin(bad));assert(!scope.OSMINOGModuleMigration.isBuiltin(custom));
