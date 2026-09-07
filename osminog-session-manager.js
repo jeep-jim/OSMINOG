@@ -33,7 +33,7 @@
     const created=await getOrCreate(id,{active:false,reuse:true,allowCreate:true});
     if(!created?.ok)return created;
     const r=id==="googleai"?await call("BC_GOOGLE_AI_SERVICE_CONNECT"):await call("OSMINOG_SESSION_CONNECT",{provider:id,tabId:created.tabId});
-    if(r?.ok){emit(id,{connected:true,session:r});await refreshCenter(id)}
+    if(r?.ok){emit(id,{connected:true,session:r});await refreshCenter(id);await refreshDock()}
     return r
   }
   async function authorize(id){
@@ -56,7 +56,22 @@
     const hub=await list(),rid=registryId(id),session=hub?.sessions?.[rid]||hub?.sessions?.[id];
     return{ok:true,provider:id,connected:false,ready:false,linked:linked?.linked||session||null,found:linked?.found||null,error:linked?.error||session?.error||"",mode:session?"managed-service":linked?.linked?"linked-not-ready":linked?.found?"open-tab":"none",tabId:session?.tabId||linked?.linked?.tabId||linked?.found?.tabId||null,title:session?.title||linked?.linked?.title||linked?.found?.title||meta(id)?.name||id}
   }
-  async function focus(id){const st=await status(id);if(st?.tabId)return call("OSMINOG_BROWSER_HUB_FOCUS_TAB",{tabId:st.tabId});return authorize(id)}
+  async function focus(id,options={}){
+    id=normalize(id);const st=await status(id);
+    if(st?.connected&&!options.external){await openSettings(id);return{ok:true,provider:id,mode:"osminog-dock"}}
+    if(st?.tabId)return call("OSMINOG_BROWSER_HUB_FOCUS_TAB",{tabId:st.tabId});
+    return authorize(id)
+  }
+
+  async function refreshDock(){
+    const dock=globalThis.OSMINOGAppDock;if(!dock)return;
+    const r=await list().catch(()=>null),sessions=r?.sessions||{};
+    const items=Object.entries(sessions).filter(([,state])=>state?.tabId).map(([id,state])=>{
+      const p=meta(id)||{name:label(id),icon:"AI",tone:"#58c9ff"};
+      return{id:`provider-${normalize(id)}`,title:`${p.name} · ${state.ready?"подключено":"нужен вход"}`,icon:p.icon||"AI",iconSrc:p.iconSrc||"",iconKey:`provider-${normalize(id)}`,tone:p.tone||"#58c9ff",active:!!state.ready,onOpen:()=>openSettings(id)}
+    });
+    dock.setGroup("provider-sessions",items)
+  }
 
   function icon(p){return p?.iconSrc?`<img src="${esc(p.iconSrc)}" alt="${esc(p.name||"AI")}" referrerpolicy="no-referrer"><b hidden>${esc(p?.icon||"AI")}</b>`:`<b>${esc(p?.icon||"AI")}</b>`}
   function activeProvider(){return normalize($("#gptAgentProvider")?.value||"gpt")}
@@ -90,9 +105,11 @@
     $("#bridgeLiveBadge")?.setAttribute("aria-label","Provider status");refreshCenter(sel.value);return true
   }
   let tries=0;const timer=setInterval(()=>{tries++;if(installAgentSettings()||tries>40)clearInterval(timer)},120);
-  chrome.runtime.onMessage.addListener(message=>{if(message?.type!=="OSMINOG_SESSION_DISCONNECTED")return;showReconnect(message.provider,message.reason);emit(message.provider,{connected:false,reason:message.reason});refreshCenter(message.provider)});
-  document.addEventListener("osminog:session-changed",e=>refreshCenter(e.detail?.provider||activeProvider()));
-  globalThis.OSMINOGSessionManager={version:"3.14.3-dev",list,getOrCreate,connect,authorize,status,focus,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
+  chrome.runtime.onMessage.addListener(message=>{if(message?.type!=="OSMINOG_SESSION_DISCONNECTED")return;showReconnect(message.provider,message.reason);emit(message.provider,{connected:false,reason:message.reason});refreshCenter(message.provider);refreshDock()});
+  document.addEventListener("osminog:session-changed",e=>{refreshCenter(e.detail?.provider||activeProvider());refreshDock()});
+  document.addEventListener("osminog:app-dock-ready",refreshDock);
+  globalThis.OSMINOGSessionManager={version:"3.21.7",list,getOrCreate,connect,authorize,status,focus,refreshDock,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
   globalThis.OSMINOGOpenProviderSettings=openSettings;
   document.dispatchEvent(new CustomEvent("osminog:session-manager-ready"));
+  refreshDock();
 })();

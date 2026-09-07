@@ -55,7 +55,7 @@
     const p=providerMeta(id);if(status)status.textContent=`${p.name}: проверяю открытую вкладку…`;
     try{
       const st=await manager()?.status?.(id).catch(()=>null);
-      if(st?.connected){await manager()?.focus?.(id);return}
+      if(st?.connected){await manager()?.focus?.(id,{external:false});return}
       if(id==="custom"){close();globalThis.OSMINOGSetAgentSettingsOpen?.(true);return}
       if(st?.found){const r=await manager()?.connect?.(id);if(!r?.ok)throw new Error(r?.error||"Не удалось подключить вкладку");document.dispatchEvent(new CustomEvent("osminog:session-changed",{detail:{provider:id,connected:true}}));return}
       const opened=await manager()?.authorize?.(id);if(!opened?.ok)throw new Error(opened?.error||"Не удалось открыть сервис");if(status)status.textContent=`${p.name} открыт для входа. После авторизации вернитесь и нажмите «Подключить».`;
