@@ -11,7 +11,7 @@
     if(button?.disabled)return;
     if(status.connected){
       if(role&&["view","comment","edit"].includes(status.role))role.value=status.role;
-      if(label)label.textContent=`Подключён · ${{view:"Просмотр",comment:"Комментарии",edit:"Редактирование"}[status.role]||status.role}`;
+      if(label)label.textContent=`${status.title||status.provider||"Чат ИИ"} · ${{view:"Просмотр",comment:"Комментарии",edit:"Редактирование"}[status.role]||status.role}`;
     }else if(label)label.textContent=status.error||"Не подключён";
     if(button)button.textContent=status.connected?"Переподключить":"Подключить";
     $("#collabShare")?.classList.toggle("external-live",!!status.connected);

@@ -3,6 +3,7 @@
 (()=>{
   const providers={gpt:['chatgpt.com','chat.openai.com'],claude:['claude.ai'],gemini:['gemini.google.com'],googleai:['aistudio.google.com'],deepseek:['chat.deepseek.com']};
   const types=new Set(['BC_PRESENCE_CONNECT','BC_PRESENCE_STATUS','BC_PRESENCE_DISCONNECT','BC_PRESENCE_HELLO','BC_PRESENCE_PREPARE','BC_PRESENCE_TOOLS','BC_PRESENCE_MEDIA']);
+  function promoted(provider,before,after){try{const a=new URL(before),b=new URL(after);if(a.origin!==b.origin)return false;const rules={gpt:[/^\/$/,/^\/c\/[^/]+$/],claude:[/^\/(?:new)?\/?$/,/^\/chat\/[^/]+$/],gemini:[/^\/app\/?$/,/^\/app\/[^/]+$/],googleai:[/^\/prompts\/new_chat\/?$/,/^\/prompts\/(?!new_chat)[^/]+$/],deepseek:[/^\/$/,/^\/a\/chat\/s\/[^/]+$/]};return !!rules[provider]?.[0].test(a.pathname)&&rules[provider][1].test(b.pathname)}catch{return false}}
   function create(api){
     const connections=new Map();let loaded=false,loadPromise;
     const route=url=>{try{const u=new URL(url);return u.protocol+'//'+u.host+u.pathname}catch{return ''}};
@@ -27,7 +28,7 @@
       const next=route(sender.url);
       if(next!==c.route){
         // A newly submitted native ChatGPT chat receives its canonical URL.
-        if(c.provider==='gpt'&&new URL(c.route).pathname==='/'&&/^\/c\/[^/]+$/.test(new URL(next).pathname)&&c.requestId)c.route=next;
+        if(c.requestId&&promoted(c.provider,c.route,next))c.route=next;
         else throw Error('Диалог изменился. Подключи к нему холст заново.');
       }
       if(message.type!=='BC_PRESENCE_HELLO'&&message.connectionId!==c.id)throw Error('Подключение устарело');return c;
@@ -50,7 +51,7 @@
       }
       if(message.type==='BC_PRESENCE_STATUS'){
         const id=await editorTab(message,sender),active=[];
-        for(const c of connections.values())if(c.editorTabId===id&&c.projectId===message.projectId){try{const tab=await api.tabs.get(c.tabId);if(route(tab.url)===c.route)active.push(publicState(c))}catch{}}
+        for(const c of connections.values())if(c.editorTabId===id&&c.projectId===message.projectId){try{const tab=await api.tabs.get(c.tabId);if(c.requestId&&promoted(c.provider,c.route,route(tab.url))){c.route=route(tab.url);await save()}if(route(tab.url)===c.route)active.push(publicState(c))}catch{}}
         return{ok:true,connections:active};
       }
       if(message.type==='BC_PRESENCE_DISCONNECT'){
@@ -59,7 +60,7 @@
         await save();return{ok:true};
       }
       const c=bound(message,sender);
-      if(message.type==='BC_PRESENCE_HELLO'){await relay(c,'status');return{ok:true,...publicState(c)}}
+      if(message.type==='BC_PRESENCE_HELLO'){await save();await relay(c,'status');return{ok:true,...publicState(c)}}
       if(message.type==='BC_PRESENCE_PREPARE'){
         if(!/^[a-zA-Z0-9-]{8,100}$/.test(message.requestId||''))throw Error('Invalid turn ID');
         const r=await relay(c,'context',{vision:message.vision===true});

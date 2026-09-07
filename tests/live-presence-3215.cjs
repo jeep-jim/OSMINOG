@@ -16,6 +16,12 @@ const scope={URL,crypto:require('node:crypto').webcrypto,TextEncoder,Uint8Array}
  assert((await router.handle({type:'BC_PRESENCE_PREPARE',connectionId:other.connectionId,requestId:'turn-abcdef',generation:true},claude)).ok);
  assert(!(await router.handle({...media,connectionId:other.connectionId,requestId:'turn-abcdef'},claude)).ok);
  assert((await router.handle({type:'BC_PRESENCE_DISCONNECT',connectionId:c.connectionId},chat)).ok);assert(!(await router.handle({type:'BC_PRESENCE_HELLO'},chat)).ok);
+ for(const [provider,host,start,end] of [['gpt','chatgpt.com','/','/c/new'],['claude','claude.ai','/new','/chat/new'],['gemini','gemini.google.com','/app','/app/new'],['googleai','aistudio.google.com','/prompts/new_chat','/prompts/new'],['deepseek','chat.deepseek.com','/','/a/chat/s/new']]){
+  tabs[1]={id:2,url:'https://'+host+start,lastAccessed:99};const sender={tab:tabs[1],url:tabs[1].url};const fresh=await router.handle({type:'BC_PRESENCE_CONNECT',projectId:'p1',provider,role:'edit',tabId:2},editor);assert(fresh.ok,fresh.error);
+  assert((await router.handle({type:'BC_PRESENCE_PREPARE',connectionId:fresh.connectionId,requestId:'new-turn-123'},sender)).ok);
+  tabs[1].url='https://'+host+end;sender.url=tabs[1].url;assert((await router.handle({type:'BC_PRESENCE_HELLO'},sender)).ok,provider);
+  sender.url='https://'+host+end+'-other';assert(!(await router.handle({type:'BC_PRESENCE_HELLO'},sender)).ok,provider);
+ }
  const bridge=fs.readFileSync('bridge.js','utf8'),fragment=bridge.slice(bridge.indexOf('  let externalPresence='),bridge.indexOf('  function logToolEvent'));
  let currentProject='p1',mutations=0;const ctx={...scope,document:{addEventListener(){}},chrome:{runtime:{id:'fixture',onMessage:{addListener(){}}}},TOOL_GROUPS:{canvas:['get_project_map','propose_canvas_patch'],agents:['agent_message','agent_list']},project:()=>({id:currentProject}),canvasStatus:()=>({project:{id:currentProject},revision:1,selectedIds:['i']}),getProjectMap:()=>({objects:[{id:'i',text:'project facts'}]}),refreshMirror:()=>({revision:1}),state:{selected:['i']},objects:()=>[{id:'i',type:'image'}],readAsset:async()=>({image:{mimeType:'image/png',data:'AA=='},kind:'asset'}),captureCanvasOverviewImage:()=>{throw Error('reference should use asset bytes')},executeTool:async()=>{mutations++;return{ok:true}}};vm.createContext(ctx);vm.runInContext(fragment+'\nglobalThis.testPresence={presenceOperation,presenceConnections,presenceTools};',ctx);
  ctx.testPresence.presenceConnections.set('grant',{projectId:'p1',role:'view'});

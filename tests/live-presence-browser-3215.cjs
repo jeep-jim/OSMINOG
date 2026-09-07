@@ -10,7 +10,8 @@ const source=fs.readFileSync('osminog-live-presence.js','utf8');
   ['deepseek','chat.deepseek.com','<textarea placeholder="DeepSeek"></textarea>','<div class="ds-markdown">']
  ]){
   const page=await browser.newPage();page.setDefaultTimeout(12000);await page.route('**/*',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><select id="model"><option>native-model</option></select><main><form>'+input+'<input type="file" accept="image/*"><button aria-label="Send" type="submit">Send</button></form><section id="answers"></section></main><style>[contenteditable],textarea{width:600px;min-height:100px;border:1px solid}</style>'}));
-  await page.goto('https://'+host+'/chat/fixture');
+  const paths={gpt:['/','/c/fixture'],claude:['/new','/chat/fixture'],gemini:['/app','/app/fixture'],googleai:['/prompts/new_chat','/prompts/fixture'],deepseek:['/','/a/chat/s/fixture']};
+  await page.goto('https://'+host+paths[provider][0]);
   await page.evaluate(({provider})=>{
    window.__calls=[];window.__submits=[];window.__listeners=[];window.__input=document.querySelector('[contenteditable],textarea');window.__connection={type:'BC_PRESENCE_CONFIG',enabled:true,provider,role:'edit',connectionId:'connection-123',projectId:'p1',route:location.origin+location.pathname};
    window.__read=()=>__input.value??__input.innerText;window.__write=s=>{if('value'in __input)__input.value=s;else __input.textContent=s};
@@ -26,6 +27,7 @@ const source=fs.readFileSync('osminog-live-presence.js','utf8');
   },{provider});
   await page.addScriptTag({content:source});await page.locator('#osminog-canvas-presence').waitFor();
   await page.locator('[contenteditable],textarea').fill('сгенерируй мне такую же PRIVATE DRAFT SENTINEL');await page.locator('button[aria-label=Send]').click();await page.waitForFunction(()=>__submits.length===1);
+  await page.evaluate(path=>history.replaceState({},'',path),paths[provider][1]);
   let result=await page.evaluate(()=>({calls:__calls,submitted:__submits[0],model:document.querySelector('#model').value,files:document.querySelector('input[type=file]').files.length}));
   assert(result.submitted.includes('PRIVATE DRAFT SENTINEL'));assert(result.submitted.includes('PROJECT FACTS'));assert.equal(result.model,'native-model');assert.equal(result.files,1);assert(!JSON.stringify(result.calls).includes('PRIVATE DRAFT SENTINEL'));assert(result.calls.every(c=>c.type.startsWith('BC_PRESENCE_')));
   await page.evaluate(({answer})=>{document.querySelector('#answers').innerHTML=answer+'<pre><code></code></pre></div>';document.querySelector('#answers code').textContent=JSON.stringify({protocol:'osminog.request/v1',requestId:'stale-request',calls:[{tool:'get_object',args:{id:'old'}}]})},{answer});await page.waitForTimeout(950);assert.equal(await page.evaluate(()=>__calls.filter(c=>c.type==='BC_PRESENCE_TOOLS').length),0);
