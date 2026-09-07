@@ -66,6 +66,9 @@
     }catch(e){turn=null;badge(e.message,true)}finally{sending=false}
   }
   function intercept(event){
+    // Bound native chats carry only the exact user/assistant text. Canvas
+    // context belongs to the background agent transport, never this composer.
+    if(document.documentElement.dataset.osminogChatSyncBound)return;
     if(!enabled()||sending||event.isComposing||document.documentElement.dataset.osminogSyncInternal)return;const el=composer();if(!el)return;
     const enter=event.type==='keydown'&&event.key==='Enter'&&!event.shiftKey&&el.contains(event.target),button=sendButton();
     const click=event.type==='click'&&button?.contains(event.target),submit=event.type==='submit'&&event.target.contains(el);

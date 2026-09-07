@@ -322,7 +322,14 @@
   chrome.runtime.onMessage.addListener((message,_sender,reply)=>{
     if(message?.type==='BC_CHAT_SYNC_CONFIG'){
       if((nativePending||internalSending)&&message.binding?.id!==syncBinding?.id){reply({ok:false,error:'Диалог занят'});return}
-      const reset=!syncBinding;if(message.binding?.id!==syncBinding?.id)syncBinding=message.binding||null;else if(syncBinding)syncBinding.route=message.binding.route;reply({ok:true,reset});return;
+      const reset=!syncBinding;
+      if(message.binding?.id!==syncBinding?.id)syncBinding=message.binding||null;
+      else if(syncBinding)syncBinding.route=message.binding.route;
+      // A bound native conversation is a plaintext synchronization channel.
+      // Presence must never rewrite its composer with workspace context.
+      if(syncBinding)document.documentElement.dataset.osminogChatSyncBound=syncBinding.id;
+      else delete document.documentElement.dataset.osminogChatSyncBound;
+      reply({ok:true,reset});return;
     }
     if(message?.type==="BC_PROVIDER_TAB_CONFIG"){
       provider=String(message.provider||provider||"");
