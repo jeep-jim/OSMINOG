@@ -214,7 +214,7 @@ globalThis.OSMINOGProjectAPI={
     if(state.activeProject!==assetProjectId)return{error:"Project changed while downloading the asset"};if(args.expectedKind==="image"&&!/^image\//i.test(mime))return{error:"The provider URL did not return an image"};
     const image=/^image\//i.test(mime),type=image?"image":"file",b=viewportCenter(),title=String(args.name||fileName||(image?"Web image":"Web file")).slice(0,160);
     const o=createObject(type,{src,name:title,fileName:String(fileName||title).slice(0,160),mime,size,x:Number.isFinite(Number(args.x))?Number(args.x):b.x-190,y:Number.isFinite(Number(args.y))?Number(args.y):b.y-140,w:Math.max(48,Math.min(4096,Number(args.w)||380)),h:Math.max(48,Math.min(4096,Number(args.h)||280)),radius:0,fillEnabled:false,strokeEnabled:false});
-    await flushPersist();return o?{ok:true,embedded:true,transparencyPreserved:image&&/(png|webp|svg)/i.test(mime),object:{id:o.id,type:o.type,name:o.name,mime:o.mime,size:o.size}}:{error:"Asset was not created"}
+    await persist();return o?{ok:true,embedded:true,transparencyPreserved:image&&/(png|webp|svg)/i.test(mime),object:{id:o.id,type:o.type,name:o.name,mime:o.mime,size:o.size}}:{error:"Asset was not created"}
   }
 };
 globalThis.OSMINOGProjectCloudAPI={
