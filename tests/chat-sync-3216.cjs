@@ -24,5 +24,10 @@ for(const f of ['osminog-chat-sync.js','osminog-chat-sync-router.js','osminog-mo
  const migrated=await scope.OSMINOGModuleMigration.migrate([bad,custom],storage);assert.equal(migrated.length,1);assert.equal(migrated[0].id,'user1');assert.deepEqual(backup.osminogRemovedPlaceholderBackup3216.module,bad);assert(scope.OSMINOGModuleMigration.isBuiltin(builtin));assert(!scope.OSMINOGModuleMigration.isBuiltin(bad));assert(!scope.OSMINOGModuleMigration.isBuiltin(custom));
  assert.equal((await scope.OSMINOGModuleMigration.migrate([bad,custom],storage)).length,1);
  assert.equal((await scope.OSMINOGModuleMigration.migrate([bad,{...bad,id:'second'}],storage)).length,2);
+ const ui=fs.readFileSync('gpt-presence.js','utf8'),receiverSource=ui.slice(ui.indexOf('  async function receiveSyncedChat('),ui.indexOf('  async function sendMainRequest(')),received=[];
+ const receiver=vm.runInNewContext('('+receiverSource+')',{chrome:{runtime:{id:'fixture'}},threads:[{id:'agent1',provider:'alice',name:'Агент 1'}],projectId:()=> 'p1',historyEpoch:()=>4,syncReceived:new Set(),addToThread:async(...args)=>received.push(args)});
+ const incoming={projectId:'p1',threadId:'agent1',provider:'alice',epoch:4,eventId:'native-1',role:'user',text:'native message'};
+ assert(!(await receiver(incoming,{id:'fixture',tab:{id:2}})).ok);assert(!(await receiver({...incoming,projectId:'other'},{id:'fixture'})).ok);assert(!(await receiver({...incoming,epoch:3},{id:'fixture'})).ok);
+ assert((await receiver(incoming,{id:'fixture'})).ok);assert((await receiver(incoming,{id:'fixture'})).duplicate);assert.equal(received.length,1);assert.equal(received[0][0],'agent1');assert.equal(received[0][4].source,'native-sync');
  console.log('PASS bound bidirectional routing: new Alice URL, no echo duplicates, worker restore, wrong route/project/request blocked; exact placeholder backed up and removed; custom modules unlocked.');
 })().catch(e=>{console.error(e);process.exitCode=1});
