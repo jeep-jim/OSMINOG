@@ -17,5 +17,5 @@ assert(!api.render('`https://example.com`').includes('<a'));assert(!api.render('
 const p=fs.readFileSync('gpt-presence.js','utf8');vm.runInContext(p.split('\n').find(l=>l.includes('function isGeneratedImageAction(')),ctx);
 assert(ctx.isGeneratedImageAction('сгенерируй мне такую же только чтобы он стоял с ноутбуком'));
 assert(ctx.isGeneratedImageAction('сгенерируй такого же персонажа'));
-for(const text of ['сгенерируй SVG такого же человека','не нужно генерировать изображение','найди фото или сгенерируй','создай такой же калькулятор','дай ссылку на генератор'])assert(!ctx.isGeneratedImageAction(text),text);
+for(const text of ['сгенерируй SVG такого же человека','не нужно генерировать изображение','найди фото или сгенерируй','создай такой же калькулятор','сгенерируй такой же текст','generate this code','дай ссылку на генератор'])assert(!ctx.isGeneratedImageAction(text),text);
 console.log('PASS reference generation intent, metadata/delta citations, actual model, safe Markdown and URL rendering, unknown addresses not fabricated');
