@@ -1,3 +1,4 @@
+const projectId=()=>"fixture",historyEpoch=()=>0;
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const src=fs.readFileSync(path.resolve(__dirname,'../gpt-presence.js'),'utf8');
 const fn=src.slice(src.indexOf('  async function osminogTeamAsk('),src.indexOf('  async function osminogTeamApplyPatch('));
