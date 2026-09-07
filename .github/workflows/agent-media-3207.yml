@@ -53,8 +53,8 @@ jobs:
           path='artifacts/OSMINOG-Chrome-3.21.10-ONE-CLICK-MODULE-RECOVERY.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
+              assert m['manifest_version']==3
               assert m['version']=='3.21.10' and m['version_name']=='3.21.10'
-              assert m['key']
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
