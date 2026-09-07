@@ -1,3 +1,7 @@
+# 3.21.6 — native bidirectional chat synchronization
+
+Owner now explicitly requests both directions in the bound conversation, replacing the prior no-mirroring requirement for that connection. Found: first Alice response rejected on canonical chat URL creation; no native manual-turn receiver; legacy custom placeholder locked as system. Added scoped sync channel, current-turn-only import, request/agent/project binding and automatic canvas attachment. Added exact placeholder backup/removal and builtin identity checks. Unit checks pass; browser fixture CI required before publication; authenticated provider runtime remains unverified.
+
 # 3.21.5 — восстановление оригинальных чатов
 
 - Найдено: общий запрет зеркалирования блокировал кнопку Live Presence.

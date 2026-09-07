@@ -1,9 +1,9 @@
 "use strict";
 // Routes project data and explicit tool calls. Never transports conversation text.
 (()=>{
-  const providers={gpt:['chatgpt.com','chat.openai.com'],claude:['claude.ai'],gemini:['gemini.google.com'],googleai:['aistudio.google.com'],deepseek:['chat.deepseek.com']};
+  const providers={gpt:['chatgpt.com','chat.openai.com'],claude:['claude.ai'],gemini:['gemini.google.com'],googleai:['aistudio.google.com','www.google.com','google.com'],deepseek:['chat.deepseek.com'],alice:['alice.yandex.ru']};
   const types=new Set(['BC_PRESENCE_CONNECT','BC_PRESENCE_STATUS','BC_PRESENCE_DISCONNECT','BC_PRESENCE_HELLO','BC_PRESENCE_PREPARE','BC_PRESENCE_TOOLS','BC_PRESENCE_MEDIA']);
-  function promoted(provider,before,after){try{const a=new URL(before),b=new URL(after);if(a.origin!==b.origin)return false;const rules={gpt:[/^\/$/,/^\/c\/[^/]+$/],claude:[/^\/(?:new)?\/?$/,/^\/chat\/[^/]+$/],gemini:[/^\/app\/?$/,/^\/app\/[^/]+$/],googleai:[/^\/prompts\/new_chat\/?$/,/^\/prompts\/(?!new_chat)[^/]+$/],deepseek:[/^\/$/,/^\/a\/chat\/s\/[^/]+$/]};return !!rules[provider]?.[0].test(a.pathname)&&rules[provider][1].test(b.pathname)}catch{return false}}
+  function promoted(provider,before,after){if(globalThis.OSMINOGChatSync)return OSMINOGChatSync.promoted(provider,before,after);try{const a=new URL(before),b=new URL(after);if(a.origin!==b.origin)return false;const rules={gpt:[/^\/$/,/^\/c\/[^/]+$/],claude:[/^\/(?:new)?\/?$/,/^\/chat\/[^/]+$/],gemini:[/^\/app\/?$/,/^\/app\/[^/]+$/],googleai:[/^\/prompts\/new_chat\/?$/,/^\/prompts\/(?!new_chat)[^/]+$/],deepseek:[/^\/$/,/^\/a\/chat\/s\/[^/]+$/]};return !!rules[provider]?.[0].test(a.pathname)&&rules[provider][1].test(b.pathname)}catch{return false}}
   function create(api){
     const connections=new Map();let loaded=false,loadPromise;
     const route=url=>{try{const u=new URL(url);return u.protocol+'//'+u.host+u.pathname}catch{return ''}};
@@ -42,8 +42,8 @@
         if(!tab)throw Error('Открой нужный чат выбранного ИИ. Новые вкладки автоматически не создаются.');
         if(!message.projectId)throw Error('Сначала открой проект');
         const c={id:crypto.randomUUID(),tabId:tab.id,editorTabId:owner,projectId:String(message.projectId),provider,role:['view','comment','edit'].includes(message.role)?message.role:'view',route:route(tab.url),requestId:'',hops:0,mediaIds:[]};
-        if(api.scripting.registerContentScripts){const id='osminog-presence-'+provider,registered=await api.scripting.getRegisteredContentScripts({ids:[id]});if(!registered.length)await api.scripting.registerContentScripts([{id,matches:providers[provider].map(h=>'https://'+h+'/*'),js:['osminog-live-presence.js'],runAt:'document_idle',persistAcrossSessions:true}])}
-        await api.scripting.executeScript({target:{tabId:tab.id},files:['osminog-live-presence.js']});
+        if(api.scripting.registerContentScripts){const id='osminog-presence-'+provider,registered=await api.scripting.getRegisteredContentScripts({ids:[id]});if(!registered.length)await api.scripting.registerContentScripts([{id,matches:providers[provider].map(h=>'https://'+h+'/*'),js:['osminog-chat-sync.js','osminog-live-presence.js'],runAt:'document_idle',persistAcrossSessions:true}])}
+        await api.scripting.executeScript({target:{tabId:tab.id},files:['osminog-chat-sync.js','osminog-live-presence.js']});
         connections.set(tab.id,c);await save();
         const pong=await api.tabs.sendMessage(tab.id,{type:'BC_PRESENCE_CONFIG',...publicState(c)});
         if(!pong?.ok){connections.delete(tab.id);await save();throw Error('Не удалось подключить холст к этой вкладке')}

@@ -2,7 +2,7 @@
 (()=>{
   if(globalThis.__OSMINOG_LIVE_PRESENCE_3215__)return;
   globalThis.__OSMINOG_LIVE_PRESENCE_3215__=true;
-  function promoted(provider,before,after){try{const a=new URL(before),b=new URL(after);if(a.origin!==b.origin)return false;const rules={gpt:[/^\/$/,/^\/c\/[^/]+$/],claude:[/^\/(?:new)?\/?$/,/^\/chat\/[^/]+$/],gemini:[/^\/app\/?$/,/^\/app\/[^/]+$/],googleai:[/^\/prompts\/new_chat\/?$/,/^\/prompts\/(?!new_chat)[^/]+$/],deepseek:[/^\/$/,/^\/a\/chat\/s\/[^/]+$/]};return !!rules[provider]?.[0].test(a.pathname)&&rules[provider][1].test(b.pathname)}catch{return false}}
+  function promoted(provider,before,after){if(globalThis.OSMINOGChatSync)return OSMINOGChatSync.promoted(provider,before,after);try{const a=new URL(before),b=new URL(after);if(a.origin!==b.origin)return false;const rules={gpt:[/^\/$/,/^\/c\/[^/]+$/],claude:[/^\/(?:new)?\/?$/,/^\/chat\/[^/]+$/],gemini:[/^\/app\/?$/,/^\/app\/[^/]+$/],googleai:[/^\/prompts\/new_chat\/?$/,/^\/prompts\/(?!new_chat)[^/]+$/],deepseek:[/^\/$/,/^\/a\/chat\/s\/[^/]+$/]};return !!rules[provider]?.[0].test(a.pathname)&&rules[provider][1].test(b.pathname)}catch{return false}}
   let config=null,turn=null,sending=false,scanTimer=0,queuedResult=null;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const route=()=>location.origin+location.pathname;
@@ -18,7 +18,7 @@
   }
   const sendButton=()=>first(["button[data-testid='send-button']","button[aria-label*='Send' i]","button[aria-label*='Отправ' i]","button[aria-label*='Submit' i]",...(config?.provider==='googleai'?["button[aria-label^='Run' i]"]:[]),"button[data-testid*='send']","button[type='submit']"]);
   const streaming=()=>!!first(["button[data-testid='stop-button']","button[aria-label*='Stop generating' i]","button[aria-label*='Stop response' i]","button[aria-label*='Останов' i]","button[aria-label*='Прервать' i]","[data-is-streaming='true']"]);
-  const assistantRoots=()=>[...document.querySelectorAll("[data-message-author-role='assistant'],[data-testid*='assistant'],.font-claude-response,model-response,message-content,.ds-markdown,ms-chat-turn[role='assistant'],[data-role='model'],article[data-testid^='conversation-turn']")].filter(el=>!el.closest("[data-message-author-role='user'],.user-query,[data-testid='user-message']")&&!el.querySelector("[data-message-author-role='user']"));
+  const assistantRoots=()=>[...document.querySelectorAll("[data-message-author-role='assistant'],[data-testid*='assistant'],.font-claude-response,model-response,message-content,[class*='AssistantMessage'],[class*='assistant-message'],[class*='MessageContent'],.ds-markdown,ms-chat-turn[role='assistant'],[data-role='model'],article[data-testid^='conversation-turn']")].filter(el=>!el.closest("[data-message-author-role='user'],.user-query,[data-testid='user-message']")&&!el.querySelector("[data-message-author-role='user']"));
   async function rpc(type,fields={}){
     let timer;try{return await Promise.race([chrome.runtime.sendMessage({type,connectionId:config?.connectionId,...fields}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Холст не ответил вовремя')),20000)})])}finally{clearTimeout(timer)}
   }
@@ -66,7 +66,7 @@
     }catch(e){turn=null;badge(e.message,true)}finally{sending=false}
   }
   function intercept(event){
-    if(!enabled()||sending||event.isComposing)return;const el=composer();if(!el)return;
+    if(!enabled()||sending||event.isComposing||document.documentElement.dataset.osminogSyncInternal)return;const el=composer();if(!el)return;
     const enter=event.type==='keydown'&&event.key==='Enter'&&!event.shiftKey&&el.contains(event.target),button=sendButton();
     const click=event.type==='click'&&button?.contains(event.target),submit=event.type==='submit'&&event.target.contains(el);
     if(!enter&&!click&&!submit)return;const text=value(el).trim();if(!text)return;

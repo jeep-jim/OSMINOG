@@ -1,17 +1,19 @@
 "use strict";
 (()=>{
-  if(globalThis.__osminogProviderTabBridgeV5)return;
-  globalThis.__osminogProviderTabBridgeV5=true;
+  if(globalThis.__osminogProviderTabBridgeV6)return;
+  globalThis.__osminogProviderTabBridgeV6=true;
 
   let provider="",lastAccepted="";
-  let ownedGptRoute="";
+  let syncBinding=null,internalSending=false,nativePending=false;
+  const syncRoute=()=>OSMINOGChatSync.route(location.href);
+  const syncRpc=(type,fields={})=>chrome.runtime.sendMessage({type,bindingId:syncBinding?.id,...fields});
   const isGpt=()=>/^(chatgpt\.com|chat\.openai\.com)$/.test(location.hostname);
   const route=()=>location.origin+location.pathname;
   const inflight=new Map(),recentPrompts=new Map();
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const clean=value=>String(value||"").replace(/\u200b/g,"").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
   const norm=value=>clean(value).toLowerCase().replace(/\s+/g," ");
-  const textOf=el=>clean(el?.innerText||el?.textContent||"");
+  const textOf=el=>{let text=clean(el?.innerText||el?.textContent||"");for(const a of el?.querySelectorAll?.('a[href]')||[]){const label=clean(a.innerText||a.textContent),url=a.href;if(label&&/^https?:\/\//i.test(url))text=text.replace(label,'['+label.replace(/[\[\]]/g,'')+']('+url.replace(/\(/g,'%28').replace(/\)/g,'%29')+')')}return text};
   const root=()=>document.querySelector("main,[role='main']")||document.body;
   const vis=el=>{try{if(!el||!el.isConnected)return false;const style=getComputedStyle(el),rect=el.getBoundingClientRect();return style.display!=="none"&&style.visibility!=="hidden"&&Number(style.opacity||1)!==0&&rect.width>2&&rect.height>2}catch{return false}};
   function queryAllDeep(selector,start=document){
@@ -26,7 +28,7 @@
 
   function inputSelectors(){
     if(provider==="deepseek")return["textarea[placeholder*='DeepSeek' i]","textarea[placeholder*='Message' i]","textarea","[contenteditable='true'][role='textbox']","[contenteditable='true'][data-lexical-editor='true']"];
-    if(provider==="claude")return["[contenteditable='true'][data-lexical-editor='true']","[contenteditable='true'][role='textbox']","textarea"];
+    if(provider==="claude")return["[contenteditable='true'][data-lexical-editor='true']","[contenteditable='true'][role='textbox']",".ProseMirror[contenteditable=true]","textarea"];
     if(provider==="gemini")return["rich-textarea textarea","div[contenteditable='true'][role='textbox']","textarea"];
     if(provider==="googleai")return[
       "textarea[placeholder*='Ask' i]","textarea[placeholder*='Спрос' i]","textarea[aria-label*='Ask' i]","textarea[aria-label*='Спрос' i]",
@@ -71,7 +73,7 @@
 
   function sendButton(el){
     const area=el.closest("form")||el.parentElement?.parentElement||root();
-    const selectors=["button[type='submit']","button[aria-label*='Send' i]","button[aria-label*='Submit' i]","button[aria-label*='Отправ' i]","button[aria-label*='Ask' i]","button[aria-label*='Search' i]","button[data-testid*='send' i]","button[class*='send' i]"];
+    const selectors=["button[type='submit']","button[aria-label^='Run' i]","button[aria-label*='Send' i]","button[aria-label*='Submit' i]","button[aria-label*='Отправ' i]","button[aria-label*='Ask' i]","button[aria-label*='Search' i]","button[data-testid*='send' i]","button[class*='send' i]"];
     for(const selector of selectors){
       const items=[...queryAllDeep(selector,area),...queryAllDeep(selector)].filter((button,index,list)=>list.indexOf(button)===index).filter(vis).filter(button=>!button.disabled&&button.getAttribute("aria-disabled")!=="true");
       if(items.length)return items.at(-1);
@@ -85,6 +87,7 @@
 
   function answerSelectors(){
     if(isGpt())return ["[data-message-author-role='assistant']"];
+    if(provider==="alice")return ["[data-message-author-role='assistant']","[data-testid*='assistant']","[class*='AssistantMessage']","[class*='assistant-message']","[class*='assistantMessage']","[class*='MessageContent']","[class*='message-content']","[class*='markdown']"];
     const generic=["[data-message-author-role='assistant']","[data-testid*='assistant']","[role='article']","article","[class*='markdown']","[class*='prose']","[class*='response']","[class*='answer']"];
     if(provider==="deepseek")return[".ds-markdown","[class*='ds-markdown']",...generic];
     if(provider==="claude")return["[data-testid*='assistant']","[class*='font-claude-response']",...generic];
@@ -126,10 +129,10 @@
       if(!vis(el)||el.querySelector("textarea,input,[contenteditable='true']"))continue;
       const text=textOf(el),value=norm(text);
       if(!value)continue;
-      const matches=marker?text.includes(marker):(value===np||value.includes(short));
+      const matches=(marker&&text.includes(marker))||value===np||(short&&value.includes(short));
       if(!matches)continue;
       const descendants=el.querySelectorAll("div,section,article,p,span").length,score=text.length+descendants*120;
-      if(score<bestScore){best=el;bestScore=score}
+      if(score<=bestScore){best=el;bestScore=score}
     }
     return best;
   }
@@ -141,7 +144,7 @@
       seen.add(el);
       if(el.querySelector("textarea,input,[contenteditable='true']"))continue;
       const text=textOf(el),rect=el.getBoundingClientRect();
-      if(text.length<8||text.length>100000||rect.width<110||boilerplate(text)||uiNoise(text))continue;
+      if(!text||text.length>100000||rect.width<110)continue;
       const descendants=el.querySelectorAll("div,section,article,p").length;
       const leaf=Math.max(0,12-Math.min(12,descendants));
       out.push({el,text,bottom:rect.bottom,top:rect.top,area:rect.width*rect.height,leaf,order:0});
@@ -176,12 +179,12 @@
       const relation=anchor.compareDocumentPosition(candidate.el);
       if(!(relation&Node.DOCUMENT_POSITION_FOLLOWING)&&!candidate.el.contains(anchor))return"";
     }
-    if(previous===value||before.texts.has(norm(value)))return"";
+    if(previous===value)return"";
     if(previous&&value.startsWith(previous))value=clean(value.slice(previous.length));
     value=stripPrompt(value,prompt,requestId);
-    if(!value||value.length<8||boilerplate(value)||uiNoise(value))return"";
+    if(!value)return"";
     const normalized=norm(value),normalizedPrompt=norm(prompt);
-    if(normalized===normalizedPrompt||normalized===lastAccepted)return"";
+    if(normalized===normalizedPrompt)return"";
     if(normalizedPrompt&&normalized.endsWith(normalizedPrompt)&&normalized.length<normalizedPrompt.length+80)return"";
     return value;
   }
@@ -194,20 +197,20 @@
     const lines=value.split(/\n+/).map(clean).filter(x=>x&&!uiNoise(x)&&!boilerplate(x));return clean(lines.slice(-80).join("\n"));
   }
 
-  async function waitAnswer(before,prompt,requestId){
-    const started=Date.now(),sentRoute=route();let last="",stableAt=0,anchor=null,wake=null;
+  async function waitAnswer(before,prompt,requestId,initialRoute=route()){
+    const started=Date.now();let sentRoute=initialRoute;let last="",stableAt=0,anchor=null,wake=null;
     const observer=new MutationObserver(()=>wake?.());
     observer.observe(root(),{childList:true,subtree:true,characterData:true});
     try{
       while(Date.now()-started<150000){
         await Promise.race([sleep(420),new Promise(resolve=>wake=resolve)]);wake=null;
-        if(route()!==sentRoute)throw new Error("OSMINOG privacy: conversation changed; response blocked. Reconnect in a new empty chat.");
+        if(route()!==sentRoute){if(!OSMINOGChatSync.promoted(provider,sentRoute,route())||!findPromptEcho(prompt,requestId))throw new Error("Открыт другой диалог. Подключи его к нужному чату OSMINOG.");sentRoute=route();if(syncBinding)syncBinding.route=sentRoute;}
         if(!anchor)anchor=findPromptEcho(prompt,requestId);
-        if(isGpt()&&!anchor)continue;
+        if(!anchor)continue;
         let best="",score=-Infinity;
         for(const candidate of candidateNodes()){
           const value=freshText(before,candidate,prompt,requestId,anchor);
-          if(!value)continue;
+          if(!value||(nativePending&&/osminog\.(?:request|tool_result|patch)\/v1/.test(value)))continue;
           const afterBonus=anchor&&candidate.el!==anchor&&(anchor.compareDocumentPosition(candidate.el)&Node.DOCUMENT_POSITION_FOLLOWING)?60:0;
           const scoreNow=afterBonus+candidate.order*1.8+candidate.bottom/1400+candidate.leaf*4+Math.min(4000,value.length)/120;
           if(scoreNow>score){best=value;score=scoreNow}
@@ -216,7 +219,7 @@
         if(best){
           if(norm(best)===norm(last)){
             if(!stableAt)stableAt=Date.now();
-            if(Date.now()-stableAt>1300){lastAccepted=norm(best);return best}
+            if(Date.now()-stableAt>1300&&!queryAllDeep("button[aria-label*='Stop' i],button[aria-label*='Останов' i],[aria-busy='true']").some(vis)){lastAccepted=norm(best);return best}
           }else{last=best;stableAt=Date.now()}
         }
       }
@@ -238,7 +241,7 @@
       const n=norm(c.text),head=answerNorm.slice(0,120);
       return head&&(n.includes(head)||answerNorm.includes(n.slice(0,120)))
     }).map(c=>c.el);
-    const scope=answerNodes.length?answerNodes:[base];
+    const scope=answerNodes;
     for(const host of scope){
       for(const img of host.querySelectorAll?.("img")||[]){
         if(!vis(img))continue;
@@ -252,7 +255,7 @@
     }
     const selectors=["[data-attrid*='weather' i]","[data-attrid*='sports' i]","[data-attrid*='finance' i]","[data-attrid*='local' i]","[data-content-feature]","[role='region']"];
     const seenWidget=new Set();
-    for(const selector of selectors)for(const el of base.querySelectorAll(selector)){
+    for(const host of scope)for(const selector of selectors)for(const el of host.querySelectorAll(selector)){
       if(!vis(el))continue;const text=clean(el.innerText||el.textContent||"");if(text.length<12||text.length>1800)continue;
       const key=norm(text).slice(0,240);if(!key||seenWidget.has(key)||boilerplate(text)||uiNoise(text))continue;
       const promptNorm=norm(prompt);if(promptNorm&&key===promptNorm.slice(0,240))continue;
@@ -264,26 +267,48 @@
   }
 
   async function send(text,requestId="",images=[]){
-    if(isGpt())throw new Error("OSMINOG privacy hotfix: ChatGPT tab transport disabled until isolated sessions are verified. Personal chats will not be used.");
-    if(isGpt()){
-      if(inflight.size)throw new Error("OSMINOG privacy: another request is still active.");
-      if(ownedGptRoute&&ownedGptRoute!==route())throw new Error("OSMINOG privacy: conversation changed. Open a new empty chat and reconnect.");
-      if(!ownedGptRoute){
-        if(document.querySelector("[data-message-author-role],article[data-testid^='conversation-turn']"))throw new Error("OSMINOG privacy: existing personal chat blocked. Open a new empty chat dedicated to OSMINOG.");
-        ownedGptRoute=route();
-      }
-    }
+    if(isGpt()&&!syncBinding)throw new Error("Подключи синхронизацию этого чата в OSMINOG");
+    if(internalSending||nativePending)throw new Error("Дождись текущего ответа в подключённом диалоге");
+    if(syncBinding&&syncBinding.route!==route())throw new Error("Открыт другой диалог. Подключи его отдельно.");
     const input=composer();
     if(!input)throw new Error("Поле ввода не найдено. Открой Google AI Mode/диалог провайдера в служебной вкладке.");
-    const before=snapshot();
-    await uploadImages(images,input);
+    const draft=clean(input.value??input.innerText??input.textContent);
+    if(draft)throw new Error("В оригинальном чате набран текст. Отправь или убери его перед запросом из OSMINOG.");
+    const start=syncBinding?await syncRpc('BC_CHAT_SYNC_START',{requestId}):{ok:true};if(!start?.ok)throw Error(start?.error||'Чат занят');
+    internalSending=true;document.documentElement.dataset.osminogSyncInternal='1';
+    const before=snapshot(),initialRoute=route();
+    try{await uploadImages(images,input);
     setComposer(input,text);
     await sleep(180);
     const button=sendButton(input);
     if(button)button.click();else pressEnter(input);
-    const answer=await waitAnswer(before,text,requestId);
+    const answer=await waitAnswer(before,text,requestId,initialRoute);
     return{answer,...collectRich(answer,text,requestId)};
+    }finally{internalSending=false;delete document.documentElement.dataset.osminogSyncInternal;if(syncBinding)await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'complete',text:''}).catch(()=>{});}
+
   }
+
+  function nativeSend(event){
+    if(!syncBinding||internalSending||nativePending||event.isComposing)return;
+    if(route()!==syncBinding.route)return;
+    const input=composer();if(!input)return;const button=sendButton(input);
+    if(!(event.type==='keydown'&&event.key==='Enter'&&!event.shiftKey&&input.contains(event.target))&&!(event.type==='click'&&button?.contains(event.target))&&!(event.type==='submit'&&event.target.contains(input)))return;
+    const text=clean(input.value??input.innerText??input.textContent);if(!text)return;
+    const before=snapshot(),initialEcho=findPromptEcho(text,''),initialRoute=route(),requestId=crypto.randomUUID(),binding=syncBinding;
+    nativePending=true;
+    (async()=>{try{
+      const start=await syncRpc('BC_CHAT_SYNC_START',{requestId});if(!start?.ok)throw Error(start?.error||'Нет связи с OSMINOG');
+      // Require a real native prompt echo: cancelled sends and draft edits are not imported.
+      for(let i=0;i<100&&(!findPromptEcho(text,'')||findPromptEcho(text,'')===initialEcho);i++)await sleep(100);
+      if(!findPromptEcho(text,'')||findPromptEcho(text,'')===initialEcho)throw Error('Сообщение не отправлено на сайте ИИ');
+      if(syncBinding!==binding)return;
+      const user=await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'user',text});if(!user?.ok)throw Error(user?.error);
+      const answer=await waitAnswer(before,text,'',initialRoute);if(syncBinding!==binding)return;
+      const result=await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'assistant',text:answer});if(!result?.ok)throw Error(result?.error);
+    }catch(e){await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'error',text:'Синхронизация: '+e.message}).catch(()=>{});
+    }finally{nativePending=false}})();
+  }
+  for(const type of ['keydown','click','submit'])document.addEventListener(type,nativeSend,true);
 
   function probe(){
     const input=composer(),candidates=inputSelectors().reduce((sum,selector)=>sum+queryAllDeep(selector).filter(vis).length,0);
@@ -291,6 +316,10 @@
   }
 
   chrome.runtime.onMessage.addListener((message,_sender,reply)=>{
+    if(message?.type==='BC_CHAT_SYNC_CONFIG'){
+      if((nativePending||internalSending)&&message.binding?.id!==syncBinding?.id){reply({ok:false,error:'Диалог занят'});return}
+      const reset=!syncBinding;if(message.binding?.id!==syncBinding?.id)syncBinding=message.binding||null;else if(syncBinding)syncBinding.route=message.binding.route;reply({ok:true,reset});return;
+    }
     if(message?.type==="BC_PROVIDER_TAB_CONFIG"){
       provider=String(message.provider||provider||"");
       document.documentElement.dataset.osminogProvider=provider;
@@ -300,9 +329,9 @@
     if(message?.type==="BC_PROVIDER_TAB_PROBE"){reply(probe());return}
     if(message?.type!=="BC_PROVIDER_TAB_SEND_V4"&&message?.type!=="BC_PROVIDER_TAB_SEND")return;
 
+    if(message.bindingId&&message.bindingId!==syncBinding?.id){reply({ok:false,error:'Чат переподключён другому агенту'});return}
     const requestId=String(message.requestId||`tab-${Date.now()}-${Math.random().toString(36).slice(2,7)}`),text=String(message.text||""),key=norm(text);
-    let task=inflight.get(requestId),recent=recentPrompts.get(key);
-    if(!task&&recent&&Date.now()-recent.at<5000)task=recent.task;
+    let task=inflight.get(requestId);
     if(!task){
       task=send(text,requestId,Array.isArray(message.images)?message.images:[]);
       inflight.set(requestId,task);

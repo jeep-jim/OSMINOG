@@ -337,7 +337,7 @@
 
   let externalPresence={connected:false,role:"view",tabId:null,provider:"gpt",timer:0},presenceEditorTabId=null,presenceQueue=Promise.resolve();
   const presenceConnections=new Map();
-  const PRESENCE_ORIGINS={gpt:["https://chatgpt.com/*","https://chat.openai.com/*"],claude:["https://claude.ai/*"],gemini:["https://gemini.google.com/*"],googleai:["https://aistudio.google.com/*"],deepseek:["https://chat.deepseek.com/*"]};
+  const PRESENCE_ORIGINS={gpt:["https://chatgpt.com/*","https://chat.openai.com/*"],claude:["https://claude.ai/*"],gemini:["https://gemini.google.com/*"],googleai:["https://aistudio.google.com/*","https://www.google.com/*","https://google.com/*"],deepseek:["https://chat.deepseek.com/*"],alice:["https://alice.yandex.ru/*"]};
   function presenceTools(role){const groups=TOOL_GROUPS;return [...new Set([...(groups.canvas||[]),"read_asset","asset_create",...(groups.documents||[]),...(groups.agents||[]),...(groups.modules||[]),...(groups.workspace||[]),"capabilities","tool_list"])].filter(name=>role==="edit"||/^(?:capabilities|tool_list|canvas_status|list_canvas_objects|get_project_map|get_selection|get_viewport|get_object|get_connections|search_canvas|get_recent_changes|read_object_text|read_code|read_browser_dom|capture_selection_image|capture_object_image|capture_viewport_image|capture_canvas_overview_image|graphics_status|animation_status|read_asset|document_read|markdown_list|markdown_read|agent_list|module_list|workspace_read)$/.test(name))}
   function externalContext(role=externalPresence.role){const status=canvasStatus(),map=getProjectMap({limit:200});return{protocol:"osminog.browser_presence/v1",project:status.project,revision:status.revision,selectedIds:status.selectedIds,view:status.view,counts:status.counts,projectMap:map,capabilities:{tools:presenceTools(role),role,transport:"original-chat-canvas",nativeProviderTools:"unchanged"},connector:{connected:true,canvasContextIncluded:true},policy:{currentProjectOnly:true,conversationMirroring:false,neverClaimEditWithoutToolResult:true}}}
   function presenceNotify(detail){externalPresence={...externalPresence,...detail};document.dispatchEvent(new CustomEvent("osminog:external-presence",{detail:{...externalPresence,timer:undefined}}))}
@@ -348,7 +348,7 @@
     const selected=r.connections.find(c=>c.tabId===externalPresence.tabId)||r.connections[0];presenceNotify({connected:true,...selected,error:"",count:r.connections.length});
   }
   async function activateExternalChatGPT(role="edit",requestPermission=false,provider="gpt",tabId=null){
-    const origins=PRESENCE_ORIGINS[provider];if(!origins)return{ok:false,error:"Выбери поддерживаемый ИИ"};
+    let origins=PRESENCE_ORIGINS[provider];if(tabId&&origins){const tab=await chrome.tabs.get(tabId).catch(()=>null);if(tab?.url){const origin=new URL(tab.url).origin+"/*";if(origins.includes(origin))origins=[origin]}}if(!origins)return{ok:false,error:"Выбери поддерживаемый ИИ"};
     let granted=await chrome.permissions.contains({origins}).catch(()=>false);if(!granted&&requestPermission)granted=await chrome.permissions.request({origins}).catch(()=>false);
     if(!granted)return{ok:false,error:"Разреши OSMINOG доступ к вкладке выбранного ИИ"};
     presenceEditorTabId=(await chrome.tabs.getCurrent())?.id;if(presenceEditorTabId==null)return{ok:false,error:"Не найдена вкладка холста"};
@@ -359,7 +359,7 @@
     await storageSet({[EXTERNAL_AUTO_KEY]:{enabled:true,role:r.role,provider,tabId:r.tabId,projectId:project()?.id,updated:Date.now()}});return r;
   }
   async function reconnectExternalChatGPT(role="edit",provider="gpt",tabId=null){return activateExternalChatGPT(role,false,provider,tabId)}
-  async function connectExternalChatGPT(role="edit",provider=document.getElementById("externalAiProvider")?.value||"gpt"){return activateExternalChatGPT(role,true,provider)}
+  async function connectExternalChatGPT(role="edit",provider=document.getElementById("externalAiProvider")?.value||"gpt",tabId=null,requestPermission=true){return activateExternalChatGPT(role,requestPermission,provider,tabId)}
   async function disconnectExternalPresence(){if(presenceEditorTabId!=null)await chrome.runtime.sendMessage({type:"BC_PRESENCE_DISCONNECT",editorTabId:presenceEditorTabId});presenceConnections.clear();clearInterval(externalPresence.timer);await storageSet({[EXTERNAL_AUTO_KEY]:{enabled:false}});presenceNotify({connected:false,error:"Холст отключён от оригинальных чатов"});return{ok:true}}
   async function presenceImage(args={}){
     // Render project data. captureVisibleTab would photograph the original chat instead.

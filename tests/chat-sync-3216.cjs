@@ -1,0 +1,28 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const scope={URL,crypto:require('node:crypto').webcrypto,structuredClone};vm.createContext(scope);
+for(const f of ['osminog-chat-sync.js','osminog-chat-sync-router.js','osminog-module-migration.js'])vm.runInContext(fs.readFileSync(f,'utf8'),scope);
+(async()=>{
+ const saved={},messages=[],tabs={1:{id:1,url:'chrome-extension://fixture/editor.html'},2:{id:2,url:'https://alice.yandex.ru/'}};
+ const api={runtime:{id:'fixture',getURL:p=>'chrome-extension://fixture/'+p},tabs:{get:async id=>tabs[id],sendMessage:async(id,m)=>{messages.push({id,m});return{ok:true}}},storage:{session:{get:async()=>saved,set:async x=>Object.assign(saved,x)}}};
+ const helpers={links:async()=>({alice:{tabId:2}}),matches:(p,url)=>p==='alice'&&new URL(url).hostname==='alice.yandex.ru',inject:async()=>{},transport:p=>p};
+ let router=scope.OSMINOGChatSyncRouter.create(api,helpers);const editor={id:'fixture',url:tabs[1].url,tab:tabs[1]},native=()=>({id:'fixture',url:tabs[2].url,tab:tabs[2]});
+ const bind={type:'BC_CHAT_SYNC_BIND',provider:'alice',context:{project:{id:'p1'},chat:{threadId:'agent1',historyEpoch:4}}};
+ await assert.rejects(()=>router.handle(bind,native()));const b=await router.handle(bind,editor);assert(b.connected);
+ const event={type:'BC_CHAT_SYNC_EVENT',bindingId:b.bindingId,requestId:'r1',role:'user',text:'NEW NATIVE USER'};
+ await assert.rejects(()=>router.handle(event,native()));
+ assert((await router.handle({...event,type:'BC_CHAT_SYNC_START'},native())).ok);
+ await assert.rejects(()=>router.handle({...bind,context:{project:{id:'p2'},chat:{threadId:'agent2'}}},editor));
+ tabs[2].url='https://alice.yandex.ru/chat/created';assert((await router.handle(event,native())).ok);
+ assert((await router.handle(event,native())).duplicate);assert.equal(messages.filter(x=>x.m.type==='BC_CHAT_SYNC_DELIVER').length,1);
+ let delivered=messages.at(-1);assert.equal(delivered.id,1);assert.equal(delivered.m.threadId,'agent1');assert.equal(delivered.m.projectId,'p1');assert.equal(delivered.m.epoch,4);
+ router=scope.OSMINOGChatSyncRouter.create(api,helpers);assert((await router.handle({...event,role:'assistant',text:'NEW ANSWER'},native())).ok);
+ await assert.rejects(()=>router.handle({...event,requestId:'stale'},native()));
+ await router.handle({...event,type:'BC_CHAT_SYNC_START',requestId:'r2'},native());tabs[2].url='https://alice.yandex.ru/chat/unrelated';await assert.rejects(()=>router.handle({...event,requestId:'r2',role:'assistant'},native()));
+ assert(!messages.some(x=>x.m.text==='PRIVATE OLD HISTORY'));
+ const backup={},storage={get:async()=>backup,set:async x=>Object.assign(backup,x)};
+ const bad={id:'system.telegram-bot',title:'OSMINOG Extension',description:'Пользовательский модуль OSMINOG',type:'widget',version:'1.0.0',system:true,html:'<div>user code</div>'},custom={id:'user1',title:'My module',system:true},builtin={id:'system.telegram-bot',title:'Telegram Bot',type:'connector'};
+ const migrated=await scope.OSMINOGModuleMigration.migrate([bad,custom],storage);assert.equal(migrated.length,1);assert.equal(migrated[0].id,'user1');assert.deepEqual(backup.osminogRemovedPlaceholderBackup3216.module,bad);assert(scope.OSMINOGModuleMigration.isBuiltin(builtin));assert(!scope.OSMINOGModuleMigration.isBuiltin(bad));assert(!scope.OSMINOGModuleMigration.isBuiltin(custom));
+ assert.equal((await scope.OSMINOGModuleMigration.migrate([bad,custom],storage)).length,1);
+ assert.equal((await scope.OSMINOGModuleMigration.migrate([bad,{...bad,id:'second'}],storage)).length,2);
+ console.log('PASS bound bidirectional routing: new Alice URL, no echo duplicates, worker restore, wrong route/project/request blocked; exact placeholder backed up and removed; custom modules unlocked.');
+})().catch(e=>{console.error(e);process.exitCode=1});
