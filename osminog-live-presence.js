@@ -1,7 +1,7 @@
 "use strict";
 (()=>{
-  if(globalThis.__OSMINOG_LIVE_PRESENCE_3215__)return;
-  globalThis.__OSMINOG_LIVE_PRESENCE_3215__=true;
+  if(globalThis.__OSMINOG_LIVE_PRESENCE_3216__)return;
+  globalThis.__OSMINOG_LIVE_PRESENCE_3216__=true;
   function promoted(provider,before,after){if(globalThis.OSMINOGChatSync)return OSMINOGChatSync.promoted(provider,before,after);try{const a=new URL(before),b=new URL(after);if(a.origin!==b.origin)return false;const rules={gpt:[/^\/$/,/^\/c\/[^/]+$/],claude:[/^\/(?:new)?\/?$/,/^\/chat\/[^/]+$/],gemini:[/^\/app\/?$/,/^\/app\/[^/]+$/],googleai:[/^\/prompts\/new_chat\/?$/,/^\/prompts\/(?!new_chat)[^/]+$/],deepseek:[/^\/$/,/^\/a\/chat\/s\/[^/]+$/]};return !!rules[provider]?.[0].test(a.pathname)&&rules[provider][1].test(b.pathname)}catch{return false}}
   let config=null,turn=null,sending=false,scanTimer=0,queuedResult=null;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));

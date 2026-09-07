@@ -289,10 +289,14 @@
   }
 
   function nativeSend(event){
-    if(!syncBinding||internalSending||nativePending||event.isComposing)return;
+    if(!syncBinding||event.isComposing)return;
     if(route()!==syncBinding.route)return;
     const input=composer();if(!input)return;const button=sendButton(input);
     if(!(event.type==='keydown'&&event.key==='Enter'&&!event.shiftKey&&input.contains(event.target))&&!(event.type==='click'&&button?.contains(event.target))&&!(event.type==='submit'&&event.target.contains(input)))return;
+    if(internalSending||nativePending){
+      if(event.isTrusted&&event.type!=='submit'){event.preventDefault();event.stopImmediatePropagation();let notice=document.getElementById('osminog-sync-wait');if(!notice){notice=document.createElement('div');notice.id='osminog-sync-wait';notice.style.cssText='position:fixed;right:16px;top:16px;z-index:2147483647;background:#202737;color:white;padding:12px;border-radius:12px;font:13px system-ui';document.documentElement.append(notice)}notice.textContent='OSMINOG: дождись текущего ответа. Набранный текст сохранён.';setTimeout(()=>notice.remove(),4000)}
+      return;
+    }
     const text=clean(input.value??input.innerText??input.textContent);if(!text)return;
     const before=snapshot(),initialEcho=findPromptEcho(text,''),initialRoute=route(),requestId=crypto.randomUUID(),binding=syncBinding;
     nativePending=true;
