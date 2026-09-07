@@ -39,7 +39,7 @@
     }
     }
     function result(){
-    const media=[],fileRefs=[],seen=new Set();let answer="";imagePending=false;final=false;
+    const media=[],fileRefs=[],seen=new Set();let answer="",model="";imagePending=false;final=false;
     const add=(value,name="generated-image",mime="image/png")=>{
       if(typeof value!=="string")return;const src=value.trim();
       const ref=src.match(/^(?:file-service|sediment):\/\/([A-Za-z0-9_-]+)$/i);
@@ -66,12 +66,13 @@
       const parts=msg.content?.parts;
       // Tool text is not a user-facing answer, but its image attachments are results.
       if(msg.author.role==="assistant"&&(!msg.recipient||msg.recipient==="all")&&msg.channel!=="analysis"&&msg.metadata?.channel!=="analysis"){
-        const strings=(Array.isArray(parts)?parts:[]).filter(p=>typeof p==="string");if(strings.length)answer=strings.join("\n");
+        const strings=(Array.isArray(parts)?parts:[]).filter(p=>typeof p==="string");if(strings.length)answer=globalThis.OSMINOGChatContent?.normalize(strings.join("\n"),msg.metadata)??strings.join("\n");
+        if(msg.metadata?.model_slug)model=String(msg.metadata.model_slug);
         if(msg.end_turn===true)final=true;
       }
       scan(msg.content);scan(msg.metadata);
     }
-    return {answer:answer.trim(),media:media.slice(0,4),fileRefs:fileRefs.slice(0,4),conversationId,parentMessageId,lastError,imagePending,final};
+    return {answer:answer.trim(),model,media:media.slice(0,4),fileRefs:fileRefs.slice(0,4),conversationId,parentMessageId,lastError,imagePending,final};
   }
     return {push,result};
   }
@@ -102,3 +103,4 @@
   }
   globalThis.OSMINOGGeneratedMedia={parseSse,createSseParser,fromConversation,resolveFiles,generationPrompt};
 })();
+

@@ -1,4 +1,4 @@
-importScripts("sha3.js", "osminog-generated-media.js");
+importScripts("sha3.js", "osminog-chat-content.js", "osminog-generated-media.js");
 
 const MENU_ID = "briefcraft-open-selection";
 const MENU_TITLES = {
@@ -160,6 +160,7 @@ function bcMachineInstructions(context={}){
     "OSMINOG Browser Presence is connected.",
     "Treat OSMINOG object and connection IDs from the attached compact context as ground truth; never invent an existing ID.",
     "Answer the user's natural-language request normally.",
+    'Workspace tools use a host-executed JSON protocol, not native model function calls. Emit a fenced json block {"protocol":"osminog.request/v1","calls":[{"tool":"agent_list","args":{}}]} to inspect agents; then agent_create or agent_update as needed. Read the returned result before claiming success. Use the same calls/tool/args shape for other advertised tools. For web links return Markdown [title](https://actual-address) using verified URLs; citation IDs are not URLs.',
     `${owner?"You are connected to OSMINOG Owner Max Access.":"You are connected to OSMINOG Interactive Workspace Access. Product source and release mutations are owner-only and must not be claimed unless owner-max is present."} Use osminog.request/v1 tool calls whenever the task needs real project data or an action. You may use up to 8 calls per tool hop and continue through as many as 12 consecutive hops after results. Never stop at a plan, promise, or status message when the user requested an action: continue until a required mutation succeeds or a concrete blocker requires the user. Show only concise progress, not hidden chain-of-thought. Supported interactive tools include canvas read/write, graphics_status/graphics_create/graphics_edit/graphics_open, assets, files, apps/modules, browser, projects, agents and media. Owner-max additionally exposes product source/GitHub release mutation.`,
     "If the user explicitly asks to change the canvas, perform a real mutation in the same execution: use osminog.patch/v1 for editable canvas changes, or asset_create for an original internet image/file. Never say it is done without a successful patch application or asset_create result containing a real object.id. Allowed patch actions: set,create,delete,connect,disconnect. To put a work item on the canvas, create objectType task with title, text, status and agents. Use only IDs present in context/tool results.",
     'For set actions use exactly {op:"set",target:"EXISTING_ID",properties:{...}}. Supported object property names include x,y,w,h,rotation,visible,fill,fill2,fillType,fillMode,fillEnabled,gradientAngle,stroke,strokeWidth,strokeEnabled,opacity,radius,corners,textColor,fontSize,fontWeight,padding,title,text,label,code,url,snapshotHtml,shapeKind,imageFilter,imageFit,imageBlendMode,pathNodes,pathClosed,maskNodes,maskClosed,pdfPage,pdfEdits. Vector pathNodes use normalized 0..1 coordinates and support cubic Bézier handles: {x,y,in:{x,y},out:{x,y}}. Prefer exact numeric values for geometry edits.',
@@ -318,7 +319,7 @@ async function bcSendDirectRequest({text,context,requestId,toolResult,images,onP
   bcHideConversation(session.accessToken,thread.conversationId).catch(()=>{});
   if(!parsed.answer&&!parsed.media?.length&&!context?.intent?.imageGeneration)throw new Error("GPT ответил без текста или изображения (SSE пустой)");
   const payload=bcParseAssistant(parsed.answer);
-  return {ok:true,requestId,payload:{requestId,...payload,images:parsed.media||[],media:parsed.media||[],mediaError:parsed.mediaError||(context?.intent?.imageGeneration&&!parsed.media.length?(parsed.imagePending&&!parsed.final?"Генерация не вернула файл за время ожидания. Повторите запрос позже.":`ChatGPT вернул текст без изображения${parsed.answer?": "+parsed.answer.slice(0,400):". В этой сессии результат генерации не получен."}`):"")},diag:{model,endpoint:conv.url?.includes("/f/")?"f/conversation":"conversation",powRequired:!!req.proofofwork?.required,powIterations:pow.iterations,powMs:pow.elapsedMs,powLegacy:pow.legacy,totalMs:Date.now()-started,conversationHidden:true,imageCount:uploadedAttachments.filter(a=>a.is_image).length,attachmentCount:uploadedAttachments.length}};
+  return {ok:true,requestId,payload:{requestId,...payload,images:parsed.media||[],media:parsed.media||[],mediaError:parsed.mediaError||(context?.intent?.imageGeneration&&!parsed.media.length?(parsed.imagePending&&!parsed.final?"Генерация не вернула файл за время ожидания. Повторите запрос позже.":`ChatGPT вернул текст без изображения${parsed.answer?": "+parsed.answer.slice(0,400):". В этой сессии результат генерации не получен."}`):"")},diag:{model:parsed.model||model,requestedModel:model,endpoint:conv.url?.includes("/f/")?"f/conversation":"conversation",powRequired:!!req.proofofwork?.required,powIterations:pow.iterations,powMs:pow.elapsedMs,powLegacy:pow.legacy,totalMs:Date.now()-started,conversationHidden:true,imageCount:uploadedAttachments.filter(a=>a.is_image).length,attachmentCount:uploadedAttachments.length}};
 }
 
 function bcHtmlDecode(text){return String(text||"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&nbsp;/g," ").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)||32))}
@@ -714,3 +715,4 @@ chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
     }
   }catch{}
 })();
+
