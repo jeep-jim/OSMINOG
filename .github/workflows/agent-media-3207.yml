@@ -63,11 +63,12 @@ jobs:
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: OSMINOG-3.21.2-FOLDERS-IMAGE-RESULTS
           path: |
             artifacts/OSMINOG-Chrome-3.21.2-FOLDERS-IMAGE-RESULTS.zip
             RELEASE_NOTES_3.21.2.md
-            artifacts/folder-move-3212.png
+            artifacts/folder-move*.png
           retention-days: 14
 

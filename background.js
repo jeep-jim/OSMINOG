@@ -74,10 +74,10 @@ async function bcGetSession(){
     return {ok:response.ok&&accessToken.length>40,httpStatus:response.status,accessToken,accountId,hasUser:!!data?.user,data,elapsedMs:Date.now()-started,bodyHint:response.ok?"":bcErrText(text)};
   }catch(error){return {ok:false,httpStatus:0,accessToken:"",accountId:"",elapsedMs:Date.now()-started,error:error?.message||String(error)}}
 }
-async function bcJsonFetch(url,{method="GET",accessToken,body,headers={}}={}){
+async function bcJsonFetch(url,{method="GET",accessToken,body,headers={},signal}={}){
   const started=Date.now();
   try{
-    const response=await fetch(url,{method,credentials:"include",cache:"no-store",redirect:"follow",headers:{accept:"application/json,text/plain,*/*",...(body!==undefined?{"content-type":"application/json"}:{}),...(accessToken?{Authorization:`Bearer ${accessToken}`}:{ }),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const response=await fetch(url,{method,signal,credentials:"include",cache:"no-store",redirect:"follow",headers:{accept:"application/json,text/plain,*/*",...(body!==undefined?{"content-type":"application/json"}:{}),...(accessToken?{Authorization:`Bearer ${accessToken}`}:{ }),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
     const contentType=response.headers.get("content-type")||"";let data=null,text="";
     try{if(contentType.includes("application/json"))data=await response.json();else text=await response.text()}catch{}
     return {ok:response.ok,httpStatus:response.status,data,text,contentType,elapsedMs:Date.now()-started,bodyHint:response.ok?"":bcErrText(text||JSON.stringify(data||{}))};
@@ -269,14 +269,14 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
     const deadline=Date.now()+120000;
     while(parsed.imagePending&&!parsed.final&&!parsed.media.length&&!parsed.fileRefs.length&&parsed.conversationId&&Date.now()<deadline){
       await new Promise(resolve=>setTimeout(resolve,2500));
-      const snapshot=await bcJsonFetch(`${BC_BASE}/backend-api/conversation/${encodeURIComponent(parsed.conversationId)}`,{accessToken:session.accessToken});
+      const snapshot=await bcJsonFetch(`${BC_BASE}/backend-api/conversation/${encodeURIComponent(parsed.conversationId)}`,{accessToken:session.accessToken,signal:AbortSignal.timeout(15000)});
       if(!snapshot.ok){parsed.mediaError=`Получение результата генерации: HTTP ${snapshot.httpStatus||0}`;break}
       const next=OSMINOGGeneratedMedia.fromConversation(snapshot.data,body.messages[0].id);
       parsed={...next,conversationId:parsed.conversationId,imagePending:parsed.imagePending||next.imagePending};
       if(next.lastError)throw new Error(next.lastError);
     }
   }
-  if(parsed.fileRefs?.length)parsed=await OSMINOGGeneratedMedia.resolveFiles(parsed,id=>bcJsonFetch(`${BC_FILES_URL}/${encodeURIComponent(id)}/download`,{accessToken:session.accessToken}),uploadedAttachments.map(a=>a.file_id));
+  if(parsed.fileRefs?.length)parsed=await OSMINOGGeneratedMedia.resolveFiles(parsed,id=>bcJsonFetch(`${BC_FILES_URL}/${encodeURIComponent(id)}/download`,{accessToken:session.accessToken,signal:AbortSignal.timeout(15000)}),uploadedAttachments.map(a=>a.file_id));
   if(parsed.conversationId)thread.conversationId=parsed.conversationId;if(parsed.parentMessageId)thread.parentMessageId=parsed.parentMessageId;
   bcHideConversation(session.accessToken,thread.conversationId).catch(()=>{});
   if(!parsed.answer&&!parsed.media?.length&&!context?.intent?.imageGeneration)throw new Error("GPT ответил без текста или изображения (SSE пустой)");
