@@ -71,3 +71,8 @@ html[data-theme="light"] .core-hero-launch .empty-launch-actions>.primary-btn:fo
 .osminog-confirm-layer button[data-confirm-ok].danger{color:#fff!important}
 /* Keep the right-hand owner identity; suppress only the duplicate card label. */
 #bridgePanel .local-ai-msg.user .gpt-msg-card > header { display: none !important; }
+
+/* Chat links remain visible on dark and light message cards. */
+.gpt-msg-text a{color:inherit;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;overflow-wrap:anywhere}
+.gpt-msg-text a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.gpt-msg-text pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border:1px solid currentColor;border-radius:8px}

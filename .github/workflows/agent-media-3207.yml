@@ -75,6 +75,7 @@ jobs:
             RELEASE_NOTES_3.21.4.md
             artifacts/folder-move*.png
             artifacts/chat-clear-3213.png
+            artifacts/chat-links-3214.png
           retention-days: 14
 
 
