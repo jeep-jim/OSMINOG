@@ -1,4 +1,4 @@
-name: OSMINOG 3.21.6 combined release candidate
+name: OSMINOG 3.21.7 internal provider dock
 on:
   pull_request:
     paths:
@@ -26,6 +26,8 @@ jobs:
       - run: node --check chatgpt-lite-bridge.js
       - run: node --check background.js
       - run: node tests/chat-sync-3216.cjs
+      - run: node tests/chat-sync-plaintext-3217.cjs
+      - run: node tests/provider-dock-3217.cjs
       - run: node tests/live-presence-3215.cjs
       - run: node tests/chat-content-3214.cjs
       - run: node tests/chat-state-3213.cjs
@@ -50,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-3.21.6-BIDIRECTIONAL-CHAT-SYNC.zip'
+          artifact='OSMINOG-Chrome-3.21.7-INTERNAL-PROVIDER-DOCK.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ \
             --exclude='.git/' --exclude='.github/' --exclude='artifacts/' \
@@ -61,10 +63,10 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-3.21.6-BIDIRECTIONAL-CHAT-SYNC.zip'
+          path='artifacts/OSMINOG-Chrome-3.21.7-INTERNAL-PROVIDER-DOCK.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
-              assert m['version']=='3.21.6' and m['version_name']=='3.21.6'
+              assert m['version']=='3.21.7' and m['version_name']=='3.21.7'
               assert m['key']
               for name in ('gpt-presence.js','chatgpt-lite-bridge.js','background.js','osminog-animation-studio.js','osminog-animation-studio.css','osminog-generated-media.js'):
                   assert name in z.namelist(), name
@@ -73,10 +75,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-3.21.6-BIDIRECTIONAL-CHAT-SYNC
+          name: OSMINOG-3.21.7-INTERNAL-PROVIDER-DOCK
           path: |
-            artifacts/OSMINOG-Chrome-3.21.6-BIDIRECTIONAL-CHAT-SYNC.zip
-            RELEASE_NOTES_3.21.6.md
+            artifacts/OSMINOG-Chrome-3.21.7-INTERNAL-PROVIDER-DOCK.zip
+            RELEASE_NOTES_3.21.7.md
             artifacts/folder-move*.png
             artifacts/chat-clear-3213.png
             artifacts/chat-links-3214.png
