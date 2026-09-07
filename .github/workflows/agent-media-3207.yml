@@ -1,4 +1,4 @@
-name: OSMINOG 3.21.8 isolated provider runtime
+name: OSMINOG 3.21.9 one-click provider connect
 on:
   pull_request:
   push:
@@ -17,6 +17,7 @@ jobs:
       - run: node tests/chat-sync-plaintext-3217.cjs
       - run: node tests/provider-dock-3217.cjs
       - run: node tests/provider-session-isolation-3218.cjs
+      - run: node tests/provider-one-click-3219.cjs
       - run: node tests/live-presence-3215.cjs
       - run: node tests/chat-content-3214.cjs
       - run: node tests/chat-state-3213.cjs
@@ -41,25 +42,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-3.21.8-ISOLATED-PROVIDER-RUNTIME.zip'
+          artifact='OSMINOG-Chrome-3.21.9-ONE-CLICK-PROVIDER-CONNECT.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-3.21.8-ISOLATED-PROVIDER-RUNTIME.zip'
+          path='artifacts/OSMINOG-Chrome-3.21.9-ONE-CLICK-PROVIDER-CONNECT.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
-              assert m['version']=='3.21.8' and m['version_name']=='3.21.8'
+              assert m['version']=='3.21.9' and m['version_name']=='3.21.9'
               assert m['key']
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-3.21.8-ISOLATED-PROVIDER-RUNTIME
+          name: OSMINOG-3.21.9-ONE-CLICK-PROVIDER-CONNECT
           path: |
-            artifacts/OSMINOG-Chrome-3.21.8-ISOLATED-PROVIDER-RUNTIME.zip
-            RELEASE_NOTES_3.21.8.md
+            artifacts/OSMINOG-Chrome-3.21.9-ONE-CLICK-PROVIDER-CONNECT.zip
+            RELEASE_NOTES_3.21.9.md
           retention-days: 14

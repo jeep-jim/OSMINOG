@@ -28,7 +28,7 @@
     return [...new Set(ids.filter(Boolean))]
   }
   function card(id,state={}){
-    const p=providerMeta(id),isOn=!!state.connected,isLinked=!isOn&&!!(state.linked||state.tabId),isFound=!!state.found||isLinked,isBusy=busyProvider===normalize(id),action=isOn?"Показать":isFound?"Переподключить":"Открыть для входа";
+    const p=providerMeta(id),isOn=!!state.connected,isLinked=!isOn&&!!(state.linked||state.tabId),isFound=!!state.found||isLinked,isBusy=busyProvider===normalize(id),action=isOn?"Показать":"Подключить";
     return `<article class="browser-hub-provider-card ${isOn?"connected":isLinked?"not-ready":""} ${preferred===normalize(id)?"current":""}" data-provider-card="${esc(normalize(id))}" style="--provider-tone:${esc(p.tone||"#64748b")}"><span class="browser-hub-provider-icon">${icon(p)}</span><div class="browser-hub-provider-copy"><strong>${esc(p.name)}</strong><small>${isOn?"Подключено и проверено":isLinked?esc(state.error||"Вкладка открыта, но чат не готов"):isFound?"Вкладка найдена":esc(p.access||"Готов к подключению")}</small></div><span class="browser-hub-provider-state">${isOn?"On":isLinked?"Не готов":isFound?"Найден":"Off"}</span><button type="button" data-provider-action="${esc(normalize(id))}" ${isBusy?"disabled":""}>${isBusy?"Подождите…":action}</button></article>`
   }
   async function statesFor(ids,sessions={}){
@@ -45,7 +45,7 @@
     if(count)count.textContent=String(onIds.length);
     connected.innerHTML=onIds.length?onIds.map(id=>card(id,states[id])).join(""):'<div class="browser-hub-empty"><strong>Пока ничего не подключено</strong><small>Выберите сервис ниже — OSMINOG сначала найдёт уже открытую вкладку.</small></div>';
     quick.innerHTML=ids.filter(id=>!states[id]?.connected).map(id=>card(id,states[id])).join("")||'<div class="browser-hub-empty"><strong>Все сервисы уже подключены</strong></div>';
-    if(current){const p=preferred&&providerMeta(preferred),st=preferred&&states[normalize(preferred)];current.hidden=!p;current.innerHTML=p?`<span>${icon(p)}</span><div><small>ТЕКУЩИЙ ЧАТ</small><strong>${esc(p.name)}</strong><p>${st?.connected?"Подключение активно. Можно продолжать работу в чате.":st?.found?"Открытая вкладка найдена — осталось подключить её.":"Выберите вход или откройте сервис, затем подключите найденную вкладку."}</p></div><button type="button" data-provider-action="${esc(normalize(preferred))}">${st?.connected?"Показать":st?.found?"Подключить":"Открыть для входа"}</button>`:""}
+    if(current){const p=preferred&&providerMeta(preferred),st=preferred&&states[normalize(preferred)];current.hidden=!p;current.innerHTML=p?`<span>${icon(p)}</span><div><small>ТЕКУЩИЙ ЧАТ</small><strong>${esc(p.name)}</strong><p>${st?.connected?"Подключение активно. Можно продолжать работу в чате.":st?.found?"Авторизованная вкладка найдена. OSMINOG подключит одну внутреннюю сессию.":"OSMINOG проверит вход и подключит одну внутреннюю сессию."}</p></div><button type="button" data-provider-action="${esc(normalize(preferred))}">${st?.connected?"Показать":"Подключить"}</button>`:""}
     bindFallbacks(panel);bindActions(panel);
     if(status)status.textContent=result?.ok===false?(result.error||"Не удалось получить список"):`${onIds.length} подключено · ${ids.length} в быстром доступе`;
   }
@@ -57,8 +57,8 @@
       const st=await manager()?.status?.(id).catch(()=>null);
       if(st?.connected){await manager()?.focus?.(id,{external:false});return}
       if(id==="custom"){close();globalThis.OSMINOGSetAgentSettingsOpen?.(true);return}
-      if(st?.found){const r=await manager()?.connect?.(id);if(!r?.ok)throw new Error(r?.error||"Не удалось подключить вкладку");document.dispatchEvent(new CustomEvent("osminog:session-changed",{detail:{provider:id,connected:true}}));return}
-      const opened=await manager()?.authorize?.(id);if(!opened?.ok)throw new Error(opened?.error||"Не удалось открыть сервис");if(status)status.textContent=`${p.name} открыт для входа. После авторизации вернитесь и нажмите «Подключить».`;
+      const r=await manager()?.connect?.(id);if(r?.ok){document.dispatchEvent(new CustomEvent("osminog:session-changed",{detail:{provider:id,connected:true}}));return}
+      const opened=await manager()?.authorize?.(id);if(!opened?.ok)throw new Error(r?.error||opened?.error||"Не удалось подключить сервис");if(status)status.textContent=`${p.name}: выполните вход в уже открытую сессию, затем нажмите «Подключить».`;
     }catch(error){if(status)status.textContent=error?.message||String(error)}finally{busyProvider="";button.disabled=false;setTimeout(refresh,180)}
   }
   async function open(options={}){

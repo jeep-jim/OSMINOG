@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const bg=fs.readFileSync('background.js','utf8');
 const manifest=JSON.parse(fs.readFileSync('manifest.json','utf8'));
 
-assert.equal(manifest.version,'3.21.8');
+assert.equal(manifest.version,'3.21.9');
 assert.match(bg,/link\?\.managed&&service&&Number\(link\.tabId\)===Number\(service\.id\)/);
 assert.match(bg,/Number\(tab\.windowId\)===Number\(hub\.id\)/);
 assert.match(bg,/Обычный пользовательский чат нельзя назначить фоновой сессией OSMINOG/);

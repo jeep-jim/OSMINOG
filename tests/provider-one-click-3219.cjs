@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const hub=fs.readFileSync('osminog-browser-hub.js','utf8');
+const bg=fs.readFileSync('background.js','utf8');
+assert.doesNotMatch(hub,/Открыть для входа/);
+assert.doesNotMatch(hub,/Переподключить/);
+assert.match(hub,/action=isOn\?"Показать":"Подключить"/);
+assert.match(hub,/const r=await manager\(\)\?\.connect\?\.\(id\)/);
+assert.match(bg,/found=service\|\|await bcFindProviderTab\(provider\)/);
+assert.match(bg,/if\(reuse!==false&&provider&&provider!=="web"\)/);
+console.log('OSMINOG 3.21.9 one-click provider connect: PASS');

@@ -108,7 +108,7 @@
   chrome.runtime.onMessage.addListener(message=>{if(message?.type!=="OSMINOG_SESSION_DISCONNECTED")return;showReconnect(message.provider,message.reason);emit(message.provider,{connected:false,reason:message.reason});refreshCenter(message.provider);refreshDock()});
   document.addEventListener("osminog:session-changed",e=>{refreshCenter(e.detail?.provider||activeProvider());refreshDock()});
   document.addEventListener("osminog:app-dock-ready",refreshDock);
-  globalThis.OSMINOGSessionManager={version:"3.21.8",list,getOrCreate,connect,authorize,status,focus,refreshDock,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
+  globalThis.OSMINOGSessionManager={version:"3.21.9",list,getOrCreate,connect,authorize,status,focus,refreshDock,providers,meta,brainProviders,brainIds:brainIds(),openSettings,openCenter:openSettings,showReconnect,refreshCenter};
   globalThis.OSMINOGOpenProviderSettings=openSettings;
   document.dispatchEvent(new CustomEvent("osminog:session-manager-ready"));
   refreshDock();
