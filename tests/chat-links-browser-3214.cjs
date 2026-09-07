@@ -12,6 +12,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
     __calls.push(m);
     if(m.type==='BC_LITE_CONNECT_GPT')return{ok:true};
     if(m.type==='BC_CHAT_RESET')return{ok:true};
+    if(m.type==='BC_CHAT_SYNC_BIND')return{ok:true,connected:false};
     if(m.type==='BC_LITE_SEND_INTERNAL'){window.__request=m;return new Promise(resolve=>{window.__finishReply=()=>resolve({ok:true,requestId:'fixture',payload:{text:'Готовый ответ **важно** [Studio](https://example.com/studio)'}})})}
     return{ok:false,error:'offline fixture'};
    }},storage:{local:{get:(keys,cb)=>{let value={};if(keys==null)value={...store};else for(const key of typeof keys==='string'?[keys]:Array.isArray(keys)?keys:Object.keys(keys))value[key]=store[key];cb?.(value);return Promise.resolve(structuredClone(value))},set:async(v,cb)=>{const changes={};for(const [key,value] of Object.entries(v)){changes[key]={oldValue:store[key],newValue:value};store[key]=structuredClone(value)}localStorage.setItem('fixture-store',JSON.stringify(store));cb?.();changeListeners.forEach(f=>f(changes,'local'))},remove:async keys=>{for(const key of typeof keys==='string'?[keys]:keys)delete store[key];localStorage.setItem('fixture-store',JSON.stringify(store))}},onChanged:{addListener:f=>changeListeners.push(f)}},tabs:{getCurrent:async()=>({id:1}),query:async()=>[]},permissions:{contains:async()=>true,request:async()=>true},identity:{getRedirectURL:()=>location.origin+'/oauth'},i18n:{getMessage:()=>''}};
