@@ -312,7 +312,7 @@
 
   function probe(){
     const input=composer(),candidates=inputSelectors().reduce((sum,selector)=>sum+queryAllDeep(selector).filter(vis).length,0);
-    return{ok:!!input,provider,title:document.title,url:location.href,composer:input?{tag:input.tagName.toLowerCase(),role:input.getAttribute("role")||"",editable:input.getAttribute("contenteditable")||"",placeholder:input.getAttribute("placeholder")||input.getAttribute("aria-label")||input.getAttribute("data-placeholder")||""}:null,candidates,answers:candidateNodes().length,readyState:document.readyState,bridge:"v5"};
+    return{ok:!!input,provider,title:document.title,url:location.href,composer:input?{tag:input.tagName.toLowerCase(),role:input.getAttribute("role")||"",editable:input.getAttribute("contenteditable")||"",placeholder:input.getAttribute("placeholder")||input.getAttribute("aria-label")||input.getAttribute("data-placeholder")||""}:null,candidates,answers:candidateNodes().length,readyState:document.readyState,bridge:"v6"};
   }
 
   chrome.runtime.onMessage.addListener((message,_sender,reply)=>{
@@ -331,17 +331,17 @@
 
     if(message.bindingId&&message.bindingId!==syncBinding?.id){reply({ok:false,error:'Чат переподключён другому агенту'});return}
     const requestId=String(message.requestId||`tab-${Date.now()}-${Math.random().toString(36).slice(2,7)}`),text=String(message.text||""),key=norm(text);
-    let task=inflight.get(requestId);
+    const cacheKey=requestId+"\u0000"+text;let task=inflight.get(cacheKey);
     if(!task){
       task=send(text,requestId,Array.isArray(message.images)?message.images:[]);
-      inflight.set(requestId,task);
+      inflight.set(cacheKey,task);
       recentPrompts.set(key,{at:Date.now(),task});
     }
     task.then(result=>{const pack=typeof result==="string"?{answer:result}:result||{};reply({ok:true,answer:String(pack.answer||""),media:Array.isArray(pack.media)?pack.media:[],widgets:Array.isArray(pack.widgets)?pack.widgets:[],probe:probe(),requestId})}).catch(error=>reply({ok:false,error:error?.message||String(error),probe:probe(),requestId})).finally(()=>{
-      setTimeout(()=>{if(inflight.get(requestId)===task)inflight.delete(requestId);const latest=recentPrompts.get(key);if(latest?.task===task)recentPrompts.delete(key)},30000);
+      setTimeout(()=>{if(inflight.get(cacheKey)===task)inflight.delete(cacheKey);const latest=recentPrompts.get(key);if(latest?.task===task)recentPrompts.delete(key)},30000);
     });
     return true;
   });
 
-  try{chrome.runtime.sendMessage({type:"BC_PROVIDER_TAB_BRIDGE_READY",provider,url:location.href,title:document.title,bridge:"v5"}).catch(()=>{})}catch{}
+  try{chrome.runtime.sendMessage({type:"BC_PROVIDER_TAB_BRIDGE_READY",provider,url:location.href,title:document.title,bridge:"v6"}).catch(()=>{})}catch{}
 })();
