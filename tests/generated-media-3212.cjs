@@ -1,0 +1,21 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const ctx={structuredClone};vm.createContext(ctx);vm.runInContext(fs.readFileSync('osminog-generated-media.js','utf8'),ctx);
+const api=ctx.OSMINOGGeneratedMedia,sse=(...events)=>events.map(e=>'data: '+JSON.stringify(e)).join('\n')+'\ndata: [DONE]';
+const message=(id,role,parts,extra={})=>({id,author:{role},content:{content_type:'multimodal_text',parts},...extra});
+const reference=message('user-1','user',[{content_type:'image_asset_pointer',asset_pointer:'file-service://reference-file'}]);
+const generated=message('tool-1','tool',[{content_type:'image_asset_pointer',asset_pointer:'sediment://generated-file'}],{author:{role:'tool',name:'image_gen'}});
+const answer=message('answer-1','assistant',['Готово'],{end_turn:true});
+const parsed=api.parseSse(sse({message:reference},{conversation_id:'conv-1',message:generated},{message:answer}));
+assert.equal(parsed.answer,'Готово');assert.equal(parsed.fileRefs.length,1);assert.equal(parsed.fileRefs[0].id,'generated-file');assert.equal(parsed.conversationId,'conv-1');
+const delta=api.parseSse(sse({v:{message:message('a','assistant',['О'])}},{p:'/message/content/parts/0',o:'append',v:'т'},{v:'вет'}));assert.equal(delta.answer,'Ответ');
+const inline=api.parseSse(sse({message:message('t','tool',[{content_type:'image',dataUrl:'data:image/png;base64,AA=='}])}));assert.equal(inline.media.length,1);
+const citations=api.parseSse(sse({message:{...answer,metadata:{url:'https://example.com/article',citations:[{url:'https://example.com/other'}]}}}));assert.equal(citations.media.length,0);
+const current=api.fromConversation({id:'conv-1',mapping:{old:{message:message('old','tool',[{asset_pointer:'file-service://old-file'}])},'user-1':{message:reference,parent:'old'},'tool-1':{message:generated,parent:'user-1'},'answer-1':{message:answer,parent:'tool-1'},other:{message:message('other','tool',[{asset_pointer:'file-service://other-file'}]),parent:'old'}}},'user-1');assert.equal(current.fileRefs.length,1);assert.equal(current.fileRefs[0].id,'generated-file');
+assert.equal(api.fromConversation({mapping:{old:{message:generated}}},'missing-user').fileRefs.length,0);
+(async()=>{
+ const ids=[];const resolved=await api.resolveFiles(parsed,async id=>{ids.push(id);return{ok:true,data:{download_url:'https://images.example/generated.png'}}});assert.equal(ids.join(','),'generated-file');assert.equal(resolved.media.length,1);
+ const blocked=await api.resolveFiles(parsed,async()=>({ok:false,httpStatus:403}));assert.match(blocked.mediaError,/HTTP 403/);assert.equal(blocked.media.length,0);
+ const excluded=await api.resolveFiles(parsed,async()=>{throw Error('must not download reference')},['generated-file']);assert.equal(excluded.media.length,0);assert.equal(excluded.mediaError,'');
+ const prompt=api.generationPrompt({intent:{imageGenerationRequest:'[MEDIA:generate] тот же персонаж стоя'}});assert.match(prompt,/тот же персонаж стоя/);assert.ok(!prompt.includes('osminog.patch/v1'));
+ console.log('PASS tool images, file pointers, SSE deltas, reference exclusion, current-request isolation, download failure, dedicated generation prompt');
+})().catch(e=>{console.error(e);process.exitCode=1});

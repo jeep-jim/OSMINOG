@@ -1,4 +1,4 @@
-importScripts("sha3.js");
+importScripts("sha3.js", "osminog-generated-media.js");
 
 const MENU_ID = "briefcraft-open-selection";
 const MENU_TITLES = {
@@ -74,10 +74,10 @@ async function bcGetSession(){
     return {ok:response.ok&&accessToken.length>40,httpStatus:response.status,accessToken,accountId,hasUser:!!data?.user,data,elapsedMs:Date.now()-started,bodyHint:response.ok?"":bcErrText(text)};
   }catch(error){return {ok:false,httpStatus:0,accessToken:"",accountId:"",elapsedMs:Date.now()-started,error:error?.message||String(error)}}
 }
-async function bcJsonFetch(url,{method="GET",accessToken,body,headers={}}={}){
+async function bcJsonFetch(url,{method="GET",accessToken,body,headers={},signal}={}){
   const started=Date.now();
   try{
-    const response=await fetch(url,{method,credentials:"include",cache:"no-store",redirect:"follow",headers:{accept:"application/json,text/plain,*/*",...(body!==undefined?{"content-type":"application/json"}:{}),...(accessToken?{Authorization:`Bearer ${accessToken}`}:{ }),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const response=await fetch(url,{method,signal,credentials:"include",cache:"no-store",redirect:"follow",headers:{accept:"application/json,text/plain,*/*",...(body!==undefined?{"content-type":"application/json"}:{}),...(accessToken?{Authorization:`Bearer ${accessToken}`}:{ }),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
     const contentType=response.headers.get("content-type")||"";let data=null,text="";
     try{if(contentType.includes("application/json"))data=await response.json();else text=await response.text()}catch{}
     return {ok:response.ok,httpStatus:response.status,data,text,contentType,elapsedMs:Date.now()-started,bodyHint:response.ok?"":bcErrText(text||JSON.stringify(data||{}))};
@@ -220,21 +220,7 @@ function bcConversationBody(prompt,thread,model,attachments=[]){
   if(attachments.length)message.metadata={attachments:attachments.map(a=>({id:a.file_id,mimeType:a.mime_type,name:a.file_name,size:a.file_size,...(a.width&&a.height?{width:a.width,height:a.height}:{})}))};
   return {action:"next",messages:[message],model:model||"auto",conversation_id:thread.conversationId||null,parent_message_id:thread.parentMessageId||bcUuid(),timezone_offset_min:-new Date().getTimezoneOffset(),history_and_training_disabled:true,suggestions:[],websocket_request_id:bcUuid(),conversation_mode:{kind:"primary_assistant"},supports_buffering:true,force_parallel_switch:"auto",paragen_cot_summary_display_override:"allow"};
 }
-function bcParseSse(text){
-  let answer="",conversationId=null,parentMessageId=null,lastError="";const media=[],seenMedia=new Set();
-  const pushMedia=(value,name="generated-image")=>{const src=String(value||"").trim();if(!src||seenMedia.has(src)||!/^data:image\/|^https?:\/\//i.test(src))return;seenMedia.add(src);media.push({kind:"image",name,type:src.match(/^data:([^;,]+)/i)?.[1]||"image/png",dataUrl:src,url:src})};
-  const scanMedia=value=>{if(!value)return;if(typeof value==="string"){pushMedia(value);return}if(Array.isArray(value)){value.forEach(scanMedia);return}if(typeof value!=="object")return;pushMedia(value.data_url||value.dataUrl||value.image_url||value.download_url||value.url||value.src,value.name||value.title||value.alt||"generated-image");for(const [key,nested] of Object.entries(value))if(/image|media|asset|attachment|part/i.test(key))scanMedia(nested)};
-  const lines=String(text||"").split(/\r?\n/);
-  for(const line of lines){if(!line.startsWith("data:"))continue;const raw=line.slice(5).trim();if(!raw||raw==="[DONE]")continue;let data;try{data=JSON.parse(raw)}catch{continue}
-    if(data?.conversation_id)conversationId=data.conversation_id;
-    if(data?.error){lastError=typeof data.error==="string"?data.error:(data.error.message||data.error.code||JSON.stringify(data.error));}
-    const msg=data?.message;if(!msg)continue;if(msg.id)parentMessageId=msg.id;
-    if(msg?.author?.role!=="assistant")continue;
-    const parts=msg?.content?.parts;if(Array.isArray(parts)){const strings=parts.filter(p=>typeof p==="string");if(strings.length)answer=strings.join("\n");scanMedia(parts)}
-    scanMedia(msg?.metadata)
-  }
-  return {answer:answer.trim(),media:media.slice(0,4),conversationId,parentMessageId,lastError};
-}
+function bcParseSse(text){return OSMINOGGeneratedMedia.parseSse(text)}
 async function bcHideConversation(accessToken,conversationId){
   if(!conversationId)return;
   try{await bcJsonFetch(`${BC_BASE}/backend-api/conversation/${conversationId}`,{method:"PATCH",accessToken,body:{is_visible:false}})}catch{}
@@ -266,7 +252,7 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
   if(req.arkose?.required)throw new Error("Arkose внезапно стал обязателен для этого запроса; отправка остановлена без создания чата.");
   const dpl=await bcGetDpl();let pow={token:"",iterations:0,elapsedMs:0,legacy:false};
   if(req.proofofwork?.required)pow=await bcSolvePow(req.proofofwork.seed,req.proofofwork.difficulty,dpl,{legacy:false,maxIter:300000});
-  const thread=bcThread(context);const prompt=toolResult?bcToolPrompt(toolResult,requestId):bcDecoratePrompt(text,context,requestId);const uploadedAttachments=await bcUploadAttachments(session.accessToken,images||[]);const body=bcConversationBody(prompt,thread,model,uploadedAttachments);
+  const thread=context?.intent?.imageGeneration&&!toolResult?{conversationId:null,parentMessageId:bcUuid()}:bcThread(context);const prompt=context?.intent?.imageGeneration&&!toolResult?OSMINOGGeneratedMedia.generationPrompt(context):toolResult?bcToolPrompt(toolResult,requestId):bcDecoratePrompt(text,context,requestId);const uploadedAttachments=await bcUploadAttachments(session.accessToken,images||[]);const body=bcConversationBody(prompt,thread,model,uploadedAttachments);
   let conv=await bcConversationFetch(session.accessToken,reqToken,pow.token,body,session.accountId);
   // One conservative compatibility retry with the legacy fingerprint shape only when
   // Sentinel rejects the modern proof. Both attempts remain Temporary Chat.
@@ -277,12 +263,25 @@ async function bcSendDirect({text,context,requestId,toolResult,images}){
     }
   }
   if(!conv.ok)throw new Error(`conversation HTTP ${conv.httpStatus||0}: ${conv.error||conv.bodyHint||"request failed"}`);
-  const parsed=bcParseSse(conv.text);if(parsed.lastError)throw new Error(parsed.lastError);
+  let parsed=bcParseSse(conv.text);if(parsed.lastError)throw new Error(parsed.lastError);
+  if(context?.intent?.imageGeneration){
+    // The stream may end after handing off to image_gen. Read only this request's descendants.
+    const deadline=Date.now()+120000;
+    while(parsed.imagePending&&!parsed.final&&!parsed.media.length&&!parsed.fileRefs.length&&parsed.conversationId&&Date.now()<deadline){
+      await new Promise(resolve=>setTimeout(resolve,2500));
+      const snapshot=await bcJsonFetch(`${BC_BASE}/backend-api/conversation/${encodeURIComponent(parsed.conversationId)}`,{accessToken:session.accessToken,signal:AbortSignal.timeout(15000)});
+      if(!snapshot.ok){parsed.mediaError=`Получение результата генерации: HTTP ${snapshot.httpStatus||0}`;break}
+      const next=OSMINOGGeneratedMedia.fromConversation(snapshot.data,body.messages[0].id);
+      parsed={...next,conversationId:parsed.conversationId,imagePending:parsed.imagePending||next.imagePending};
+      if(next.lastError)throw new Error(next.lastError);
+    }
+  }
+  if(parsed.fileRefs?.length)parsed=await OSMINOGGeneratedMedia.resolveFiles(parsed,id=>bcJsonFetch(`${BC_FILES_URL}/${encodeURIComponent(id)}/download`,{accessToken:session.accessToken,signal:AbortSignal.timeout(15000)}),uploadedAttachments.map(a=>a.file_id));
   if(parsed.conversationId)thread.conversationId=parsed.conversationId;if(parsed.parentMessageId)thread.parentMessageId=parsed.parentMessageId;
   bcHideConversation(session.accessToken,thread.conversationId).catch(()=>{});
-  if(!parsed.answer&&!parsed.media?.length)throw new Error("GPT ответил без текста или изображения (SSE пустой)");
+  if(!parsed.answer&&!parsed.media?.length&&!context?.intent?.imageGeneration)throw new Error("GPT ответил без текста или изображения (SSE пустой)");
   const payload=bcParseAssistant(parsed.answer);
-  return {ok:true,requestId,payload:{requestId,...payload,images:parsed.media||[],media:parsed.media||[]},diag:{model,endpoint:conv.url?.includes("/f/")?"f/conversation":"conversation",powRequired:!!req.proofofwork?.required,powIterations:pow.iterations,powMs:pow.elapsedMs,powLegacy:pow.legacy,totalMs:Date.now()-started,conversationHidden:true,imageCount:uploadedAttachments.filter(a=>a.is_image).length,attachmentCount:uploadedAttachments.length}};
+  return {ok:true,requestId,payload:{requestId,...payload,images:parsed.media||[],media:parsed.media||[],mediaError:parsed.mediaError||(context?.intent?.imageGeneration&&!parsed.media.length?(parsed.imagePending&&!parsed.final?"Генерация не вернула файл за время ожидания. Повторите запрос позже.":`ChatGPT вернул текст без изображения${parsed.answer?": "+parsed.answer.slice(0,400):". В этой сессии результат генерации не получен."}`):"")},diag:{model,endpoint:conv.url?.includes("/f/")?"f/conversation":"conversation",powRequired:!!req.proofofwork?.required,powIterations:pow.iterations,powMs:pow.elapsedMs,powLegacy:pow.legacy,totalMs:Date.now()-started,conversationHidden:true,imageCount:uploadedAttachments.filter(a=>a.is_image).length,attachmentCount:uploadedAttachments.length}};
 }
 
 function bcHtmlDecode(text){return String(text||"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&nbsp;/g," ").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)||32))}
