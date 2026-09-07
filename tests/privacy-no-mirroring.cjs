@@ -3,7 +3,7 @@ const read=p=>fs.readFileSync(require('node:path').join(__dirname,'..',p),'utf8'
 const background=read('background.js'),presence=read('gpt-presence.js'),bridge=read('bridge.js');
 const start=background.indexOf('chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{');
 const end=background.indexOf('  if(message.type==="BC_PROVIDER_DISCOVER")',start);
-const handler=vm.runInNewContext('(function(message,_sender,sendResponse){'+background.slice(start,end).split('\n').slice(1).join('\n')+'})');
+const handler=vm.runInNewContext('(function(message,_sender,sendResponse){'+background.slice(start,end).split('\n').slice(1).join('\n')+'})',{osminogPresenceRouter:{accepts:()=>false}});
 for(const type of ['BC_LITE_EXTERNAL_USER','BC_LITE_ASSISTANT_RESULT','BC_EXTERNAL_TOOL_RESULT','BC_EXTERNAL_CONNECT_CHATGPT']){
   let result;handler({type,payload:{text:'PRIVATE SENTINEL'}},{tab:{id:1}},r=>result=r);assert.equal(result.ok,false,type);
 }
@@ -19,3 +19,4 @@ const lite=read('chatgpt-lite-bridge.js');
 for(const name of ['scanAssistant','prepareAndSendManual','interceptManualSend','sendInternal','sendToolResult'])assert.match(lite,new RegExp('function '+name+'\\([^)]*\\)\\{\\s*return'));
 assert.match(read('provider-tab-bridge.js'),/async function send\([^)]*\)\{\s*if\(isGpt\(\)\)throw/);
 console.log('PASS: 7 legacy messages rejected; external send/read blocked; canvas relay retained.');
+

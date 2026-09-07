@@ -1,4 +1,4 @@
-importScripts("sha3.js", "osminog-chat-content.js", "osminog-generated-media.js");
+importScripts("sha3.js", "osminog-chat-content.js", "osminog-generated-media.js", "osminog-presence-router.js");
 
 const MENU_ID = "briefcraft-open-selection";
 const MENU_TITLES = {
@@ -579,7 +579,9 @@ async function osminogHubOpen({url="",provider="",active=false,reuse=true,allowC
 async function osminogHubList(){const win=await osminogHubWindow();if(!win)return{ok:true,window:null,tabs:[],sessions:{}};const tabs=await chrome.tabs.query({windowId:win.id}),map=await osminogSessionMap(),byTab=new Map();for(const [provider,state] of Object.entries(map))if(state?.tabId)byTab.set(Number(state.tabId),provider);const live=new Set(tabs.map(t=>Number(t.id))),cleaned={};for(const [provider,state] of Object.entries(map))if(live.has(Number(state?.tabId)))cleaned[provider]=state;if(Object.keys(cleaned).length!==Object.keys(map).length)await osminogSaveSessionMap(cleaned);return{ok:true,window:{id:win.id,state:win.state,focused:win.focused},sessions:cleaned,tabs:tabs.map(t=>({id:t.id,title:t.title||"Новая вкладка",url:t.url||"",status:t.status||"",active:!!t.active,provider:byTab.get(Number(t.id))||bcProviderFromUrl(t.url||"")||"web"}))}}
 async function osminogHubConnect(tabId,provider=""){const tab=await chrome.tabs.get(Number(tabId));provider=osminogProviderKey(provider||bcProviderFromUrl(tab.url||""));if(!provider||provider==="web")return{ok:false,error:"Это обычная веб-вкладка"};return bcConnectProviderTab(provider,tab.id)}
 chrome.windows?.onRemoved?.addListener?.(async id=>{const saved=(await chrome.storage.local.get(OSMINOG_BROWSER_HUB_KEY))?.[OSMINOG_BROWSER_HUB_KEY];if(saved?.windowId===id)await chrome.storage.local.remove(OSMINOG_BROWSER_HUB_KEY)});
+const osminogPresenceRouter=OSMINOGPresenceRouter.create(chrome);
 chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
+  if(osminogPresenceRouter.accepts(message?.type)){osminogPresenceRouter.handle(message,_sender).then(sendResponse);return true;}
   if(!message)return;
   // Chat transcripts are not a canvas transport. Reject legacy mirroring even
   // from an already injected bridge; keep the separate canvas relay unchanged.

@@ -16,6 +16,7 @@
     if(button)button.textContent=status.connected?"Переподключить":"Подключить";
     $("#collabShare")?.classList.toggle("external-live",!!status.connected);
   }
+  function presenceControls(){const row=$(".collab-ai-row");if(!row||$("#disconnectExternalPresence"))return;const b=document.createElement("button");b.id="disconnectExternalPresence";b.textContent="Отключить";b.type="button";b.onclick=()=>globalThis.BriefCraftBridge?.disconnectExternalPresence?.();row.parentElement.append(b);$("#externalChatGptRole")?.addEventListener("change",()=>{if(globalThis.BriefCraftBridge?.externalPresenceStatus?.().connected)$("#connectExternalChatGpt")?.click()})}
   function open(){globalThis.toggleCollabPopover?.(true);syncPresence();return $("#collabPopover")}
   function refresh(){globalThis.renderCollab?.();syncPresence()}
   function route(){
@@ -27,5 +28,5 @@
   document.addEventListener("osminog:external-presence",e=>syncPresence(e.detail));
   document.addEventListener("keydown",e=>{if(e.key==="Escape")globalThis.toggleCollabPopover?.(false)});
   document.addEventListener("osminog:desktop-v3-ready",route);
-  route();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",route,{once:true});
+  presenceControls();route();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",route,{once:true});
 })();
