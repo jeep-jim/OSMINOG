@@ -63,7 +63,7 @@
       if(message.type==='BC_PRESENCE_HELLO'){await save();await relay(c,'status');return{ok:true,...publicState(c)}}
       if(message.type==='BC_PRESENCE_PREPARE'){
         if(!/^[a-zA-Z0-9-]{8,100}$/.test(message.requestId||''))throw Error('Invalid turn ID');
-        const r=await relay(c,'context',{vision:message.vision===true});
+        const r=await relay(c,'context',{vision:message.vision===true,compact:message.compact===true});
         c.targetId=r.context?.selectedIds?.[0]||'';c.requestId=message.requestId;c.generation=message.generation===true;c.hops=0;c.mediaIds=[];await save();return{...r,...publicState(c)};
       }
       if(message.requestId!==c.requestId||!c.requestId)throw Error('Ответ относится к другой задаче');

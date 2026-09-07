@@ -1,51 +1,42 @@
 {
-  "manifest_version": 3,
-  "name": "OSMINOG",
-  "short_name": "OSMINOG",
-  "version": "3.21.10",
-  "description": "__MSG_appDescription__",
-  "default_locale": "en",
-  "minimum_chrome_version": "148",
   "action": {
-    "default_title": "Open OSMINOG",
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
-    }
+    },
+    "default_popup": "popup.html",
+    "default_title": "Open OSMINOG"
   },
   "background": {
     "service_worker": "background.js"
-  },
-  "sandbox": {
-    "pages": [
-      "module-frame.html"
-    ]
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';",
     "sandbox": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'; child-src 'self' https: data: blob:;"
   },
+  "default_locale": "en",
+  "description": "__MSG_appDescription__",
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://uploads.github.com/*",
+    "https://github.com/*",
+    "https://raw.githubusercontent.com/*",
+    "https://www.bing.com/*",
+    "https://*.bing.net/*",
+    "https://cdn.jsdelivr.net/*"
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": [
-    "activeTab",
-    "clipboardWrite",
-    "contextMenus",
-    "unlimitedStorage",
-    "scripting",
-    "storage",
-    "tabs",
-    "identity",
-    "clipboardRead",
-    "nativeMessaging"
-  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAstI7PnHbheHLtFKZ+3khPxma+9VesIOBxZc8mu7VuJE8ahUos0draXfHzjy3F1j/42qXKTl+UgagUEO0sj4MYlKyGPpmD6gLBMKyrItP4Qd6PeowtMcyopOVDUUjZNkCa07B9JQ45xwCd3RaDiS1H+io4uOFEAkKrYdbcyUa8ytbJ1EKS4oMiRvyqJjn3T9GuHA7arMpFRwbyBuE/CNchDQ/hjW7LajfOkzS837twTybFGUp+tQHLbHKH3BMjwDmMKOis09DmAVTy2WH5OINqdq9WC+cgJxV2SQQdCZUK1bZ79/RaQzIsAIFN1w0AF0cme1DYF5+xQY8WHWpMGPXfQIDAQAB",
+  "manifest_version": 3,
+  "minimum_chrome_version": "148",
+  "name": "OSMINOG",
   "optional_host_permissions": [
     "<all_urls>",
     "http://*/*",
@@ -85,15 +76,24 @@
     "https://api.telegram.org/*",
     "https://cdn.jsdelivr.net/*"
   ],
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAstI7PnHbheHLtFKZ+3khPxma+9VesIOBxZc8mu7VuJE8ahUos0draXfHzjy3F1j/42qXKTl+UgagUEO0sj4MYlKyGPpmD6gLBMKyrItP4Qd6PeowtMcyopOVDUUjZNkCa07B9JQ45xwCd3RaDiS1H+io4uOFEAkKrYdbcyUa8ytbJ1EKS4oMiRvyqJjn3T9GuHA7arMpFRwbyBuE/CNchDQ/hjW7LajfOkzS837twTybFGUp+tQHLbHKH3BMjwDmMKOis09DmAVTy2WH5OINqdq9WC+cgJxV2SQQdCZUK1bZ79/RaQzIsAIFN1w0AF0cme1DYF5+xQY8WHWpMGPXfQIDAQAB",
-  "version_name": "3.21.10",
-  "host_permissions": [
-    "https://api.github.com/*",
-    "https://uploads.github.com/*",
-    "https://github.com/*",
-    "https://raw.githubusercontent.com/*",
-    "https://www.bing.com/*",
-    "https://*.bing.net/*",
-    "https://cdn.jsdelivr.net/*"
-  ]
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "contextMenus",
+    "unlimitedStorage",
+    "scripting",
+    "storage",
+    "tabs",
+    "identity",
+    "clipboardRead",
+    "nativeMessaging"
+  ],
+  "sandbox": {
+    "pages": [
+      "module-frame.html"
+    ]
+  },
+  "short_name": "OSMINOG",
+  "version": "3.22.0",
+  "version_name": "3.22.0"
 }

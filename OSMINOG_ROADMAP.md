@@ -1,3 +1,28 @@
+# New product direction — 2026-09-07
+
+User-approved goal: OSMINOG is the shared working environment for a person and an external AI. Preserve the infinite canvas, light/dark themes, one reserve GPT entry and local project folders. Projects must retain source files, editable results and launch/publication information.
+
+## Current repair: 3.22.0
+
+- Implemented: compact metadata instead of full project maps on every message; no automatic screenshots; replace old context blocks; generated-media retry and reused-container handling; await asset persistence.
+- Verified locally: project/role/turn isolation and explicit image reads.
+- Required before publication: browser fixtures in CI, build archive integrity, publication feed verification.
+- Still unverified: live authenticated provider image ingestion on the owner installation.
+
+## Next architecture work (not shipped in 3.22.0)
+
+1. Define a common local project container: sources, assets, canvas layout, revision history and launch settings; migrate without discarding existing data.
+2. Documents: editable source plus PDF output, page operations, image transfer between documents.
+3. Web: executable preview linked to source, element selection, build errors and publication settings.
+4. Design/content: editable layers, visual references, versions and export.
+5. Games: runnable preview, scenes/assets, input and restart loop.
+6. Bots/agents as project artifacts: configuration, test inputs, execution logs and deployment; not an internal multi-model team chat.
+7. Common external-AI operations with scoped reads, mutation receipts and visual verification.
+
+Release rule: do not describe queued/proposed changes as applied or generated images as imported without confirmation. Publish verified artifacts via the existing release registry and update feed; do not weaken updater verification.
+
+---
+
 # 3.21.6 — native bidirectional chat synchronization
 
 Owner now explicitly requests both directions in the bound conversation, replacing the prior no-mirroring requirement for that connection. Found: first Alice response rejected on canonical chat URL creation; no native manual-turn receiver; legacy custom placeholder locked as system. Added scoped sync channel, current-turn-only import, request/agent/project binding and automatic canvas attachment. Added exact placeholder backup/removal and builtin identity checks. Unit checks pass; browser fixture CI required before publication; authenticated provider runtime remains unverified.

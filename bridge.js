@@ -339,7 +339,13 @@
   const presenceConnections=new Map();
   const PRESENCE_ORIGINS={gpt:["https://chatgpt.com/*","https://chat.openai.com/*"],claude:["https://claude.ai/*"],gemini:["https://gemini.google.com/*"],googleai:["https://aistudio.google.com/*","https://www.google.com/*","https://google.com/*"],deepseek:["https://chat.deepseek.com/*"],alice:["https://alice.yandex.ru/*"]};
   function presenceTools(role){const groups=TOOL_GROUPS;return [...new Set([...(groups.canvas||[]),"read_asset","asset_create",...(groups.documents||[]),...(groups.agents||[]),...(groups.modules||[]),...(groups.workspace||[]),"capabilities","tool_list"])].filter(name=>role==="edit"||/^(?:capabilities|tool_list|canvas_status|list_canvas_objects|get_project_map|get_selection|get_viewport|get_object|get_connections|search_canvas|get_recent_changes|read_object_text|read_code|read_browser_dom|capture_selection_image|capture_object_image|capture_viewport_image|capture_canvas_overview_image|graphics_status|animation_status|read_asset|document_read|markdown_list|markdown_read|agent_list|module_list|workspace_read)$/.test(name))}
-  function externalContext(role=externalPresence.role){const status=canvasStatus(),map=getProjectMap({limit:200});return{protocol:"osminog.browser_presence/v1",project:status.project,revision:status.revision,selectedIds:status.selectedIds,view:status.view,counts:status.counts,projectMap:map,capabilities:{tools:presenceTools(role),role,transport:"original-chat-canvas",nativeProviderTools:"unchanged"},connector:{connected:true,canvasContextIncluded:true},policy:{currentProjectOnly:true,conversationMirroring:false,neverClaimEditWithoutToolResult:true}}}
+  function externalContext(role=externalPresence.role,compact=false){
+    const status=canvasStatus();
+    const context={protocol:"osminog.browser_presence/v1",project:status.project,revision:status.revision,selectedIds:status.selectedIds,counts:status.counts,capabilities:{tools:presenceTools(role),role,transport:"original-chat-canvas",nativeProviderTools:"unchanged"},connector:{connected:true,canvasContextIncluded:!compact},policy:{currentProjectOnly:true,conversationMirroring:false,neverClaimEditWithoutToolResult:true}};
+    if(!compact){context.view=status.view;context.projectMap=getProjectMap({limit:200})}
+    else context.instruction="Project metadata only. Read exact objects or request images using tools when necessary.";
+    return context;
+  }
   function presenceNotify(detail){externalPresence={...externalPresence,...detail};document.dispatchEvent(new CustomEvent("osminog:external-presence",{detail:{...externalPresence,timer:undefined}}))}
   async function pushExternalContext(){
     if(!presenceEditorTabId)return;
@@ -372,8 +378,8 @@
     const role=grant.role,allowed=new Set(presenceTools(role)),current=()=>{if(project()?.id!==grant.projectId||presenceConnections.get(m.connectionId)!==grant)throw Error("Проект или подключение изменились")};
     if(m.operation==="status")return{ok:true};
     if(m.operation==="context"){
-      let context=externalContext(role),imageDataUrl="";
-      if(m.vision){for(let i=0;i<2;i++){const before=refreshMirror()?.revision,r=await presenceImage();current();context=externalContext(role);if(before===context.revision){if(r?.image?.data)imageDataUrl=`data:${r.image.mimeType||"image/png"};base64,${r.image.data}`;context.vision={source:r?.kind||"structured",revision:context.revision,error:r?.error||""};break}}}
+      let context=externalContext(role,m.compact===true),imageDataUrl="";
+      if(m.vision){for(let i=0;i<2;i++){const before=refreshMirror()?.revision,r=await presenceImage();current();context=externalContext(role,m.compact===true);if(before===context.revision){if(r?.image?.data)imageDataUrl=`data:${r.image.mimeType||"image/png"};base64,${r.image.data}`;context.vision={source:r?.kind||"structured",revision:context.revision,error:r?.error||""};break}}}
       return{ok:true,context,imageDataUrl};
     }
     if(m.operation==="media"){
