@@ -78,7 +78,7 @@
     return[
       o.type,o.name,Math.round(o.x),Math.round(o.y),Math.round(o.w),Math.round(o.h),Number(o.rotation||0),o.visible!==false,o.osminogFolderId||"",o.group||"",
       o.fill||"",o.fill2||"",o.fillType||"",o.fillEnabled!==false,o.stroke||"",Number(o.strokeWidth||0),o.strokeEnabled!==false,Number(o.opacity??1),Number(o.radius||0),
-      o.textColor||"",o.fontSize||"",o.fontWeight||"",o.padding||"",fastTextSig(o.title),fastTextSig(o.text),fastTextSig(o.label),fastTextSig(o.code),fastTextSig(o.snapshotHtml),o.url||""
+      o.textColor||"",o.fontSize||"",o.fontWeight||"",o.padding||"",fastTextSig(JSON.stringify(o.comments||[])),fastTextSig(o.src),fastTextSig(o.title),fastTextSig(o.text),fastTextSig(o.label),fastTextSig(o.code),fastTextSig(o.snapshotHtml),o.url||""
     ].join("|");
   }
   function connectionFingerprint(c){return[c.from,c.to,c.fromPort||"",c.toPort||"",c.style||"curve",c.color||"",Number(c.width||0),!!c.dashed,c.arrow!==false,Number(c.order||0),fastTextSig(c.label),fastTextSig(c.description)].join("|")}
@@ -109,6 +109,8 @@
     if(o.type==="ink")out.ink={points:Array.isArray(o.points)?o.points.length:0,stroke:o.stroke||null,strokeWidth:Number(o.strokeWidth||0),sample:Array.isArray(o.points)?o.points.slice(0,24).map(p=>({x:Math.round(p.x),y:Math.round(p.y)})):[]};if(o.type==="vector")out.vector={closed:o.pathClosed!==false,nodes:Array.isArray(o.pathNodes)?o.pathNodes.length:0};
     if(o.type==="image")out.asset={kind:"image",name:o.name||"image",embedded:!!o.src,masked:Array.isArray(o.maskNodes)&&o.maskNodes.length>2,liveUri:`osminog://asset/${o.id}`};
     if(o.type==="file")out.asset={kind:"file",name:o.fileName||o.name||"file",mime:o.mime||"",size:o.size||0,liveUri:`osminog://asset/${o.id}`,...(o.mime==="application/pdf"?{pdf:{page:Number(o.pdfPage)||1,edits:Array.isArray(o.pdfEdits)?o.pdfEdits.length:0}}:{})};
+    out.commentCount=Array.isArray(o.comments)?o.comments.length:0;
+    if(o.noteFormat)out.noteFormat=o.noteFormat;
     return out;
   }
   function virtualModuleObjects(){const id="module:google-ai",bridge=globalThis.OSMINOGModuleNodeBridge,nw=bridge?.portPoint?.(id,"nw"),se=bridge?.portPoint?.(id,"se");if(!nw||!se)return[];return[{id,type:"module",name:"Google AI",x:Math.min(nw.x,se.x),y:Math.min(nw.y,se.y),w:Math.max(1,Math.abs(se.x-nw.x)),h:Math.max(1,Math.abs(se.y-nw.y)),rotation:0,visible:true,group:null,text:"OSMINOG Google AI module with eight connection ports"}]}
@@ -122,6 +124,7 @@
     if(o.type==="code")out.editable={code:clip(o.code||"",10000)};
     if(o.type==="browser")out.editable={url:o.url||"",snapshotHtml:clip(o.snapshotHtml||"",10000)};
     if(o.type==="image")out.editable={imageFilter:o.imageFilter||"none",imageFit:o.imageFit||"contain",imageBlendMode:o.imageBlendMode||"normal",maskNodes:Array.isArray(o.maskNodes)?deepClone(o.maskNodes):null,maskClosed:o.maskClosed!==false};if(o.type==="vector")out.editable={pathNodes:Array.isArray(o.pathNodes)?deepClone(o.pathNodes):[],pathClosed:o.pathClosed!==false};if(o.type==="file"&&o.mime==="application/pdf")out.editable={documentRevision:Number(o.documentRevision)||0,readTool:"document_read",editTool:"document_edit",exportTool:"document_export",pageCount:o.documentDraft?.pages?.length||null};
+    out.comments=deepClone(o.comments||[]);
     return out;
   }
   function extractHtmlTitle(html){if(!html)return"";const m=String(html).match(/<title[^>]*>([\s\S]*?)<\/title>/i);return m?m[1].replace(/<[^>]+>/g,"").trim():""}
@@ -472,3 +475,4 @@
   document.addEventListener("osminog:owner-unlocked",()=>{globalThis.OSMINOGOwnerVerified=true});
   bind();loadStore();
 })();
+

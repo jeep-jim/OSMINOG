@@ -1,24 +1,19 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "3.23.0",
-  "codename": "SCOPED CANVAS MEDIA",
-  "baseVersion": "3.21.10",
-  "artifact": "OSMINOG-Chrome-3.22.0-SCOPED-CANVAS-MEDIA.zip",
+  "version": "4.0.0",
+  "versionName": "4.0.0 · Shared Board",
+  "artifact": "OSMINOG-Chrome-4.0.0-SHARED-BOARD.zip",
+  "manifestVersion": "4.0.0",
   "manifestAtRoot": true,
-  "manifestVersion": "3.22.0",
   "fixedManifestKeyPreserved": true,
+  "baseVersion": "3.23.0",
   "runtimeVerified": false,
-  "ownerRuntime": "Pending verification in installed Chrome / Dev Hub with live ChatGPT",
-  "notes": "Compact project metadata by default. No automatic canvas screenshots. Generated images retry transient failures and import before subsequent tool reads. Live authenticated provider verification pending.",
-  "status": "candidate",
-  "versionName": "3.22.0",
-  "build": "3.22.0",
-  "channel": "dev",
-  "release": "INTERNAL-PROVIDER-DOCK",
   "verification": {
-    "liveProvider": "unverified",
-    "browserRegression": "CI gate before release",
-    "localMemory": "passed"
-  }
+    "browserRegression": "passed local Chromium: shared-board-400",
+    "liveProvider": "requires installed owner session",
+    "nativeScreenPicker": "requires owner desktop",
+    "nativeUpdater": "existing protocol retained"
+  },
+  "notes": "Local shared board; docked chat; unified tools; notes and Markdown; screenshot capture, crop and clipboard; object comments and connections. Remote multiuser sync is not enabled."
 }

@@ -193,7 +193,7 @@
   globalThis.OSMINOGUpgradeSelects?.(q("#gptPresenceSettingsPanel"));
   let messengerCenterWidth=700;
   function fitUnifiedPanel(){
-    if(panel.hidden)return;const r=panel.getBoundingClientRect(),maxW=Math.max(320,innerWidth-16),maxH=Math.max(420,innerHeight-80),width=Math.min(Math.max(320,r.width||700),maxW),height=Math.min(Math.max(420,r.height||760),maxH),left=Math.max(8,Math.min(innerWidth-width-8,r.left)),top=Math.max(72,Math.min(innerHeight-height-8,r.top));
+    if(panel.hidden||document.body.dataset.workdesk)return;const r=panel.getBoundingClientRect(),maxW=Math.max(320,innerWidth-16),maxH=Math.max(420,innerHeight-80),width=Math.min(Math.max(320,r.width||700),maxW),height=Math.min(Math.max(420,r.height||760),maxH),left=Math.max(8,Math.min(innerWidth-width-8,r.left)),top=Math.max(72,Math.min(innerHeight-height-8,r.top));
     panel.style.setProperty("width",`${width}px`,"important");panel.style.setProperty("height",`${height}px`,"important");panel.style.left=`${left}px`;panel.style.top=`${top}px`;panel.style.right="auto";
   }
   const setSettingsOpen=open=>{
@@ -940,5 +940,6 @@ Previous response excerpt: ${String(lastText||"").slice(0,900)}`;
   document.dispatchEvent(new CustomEvent("osminog:agents-ready"));
 
 })();
+
 
 
