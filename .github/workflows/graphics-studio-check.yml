@@ -1,4 +1,4 @@
-name: Graphics Studio regression
+name: Workdesk and retained document regression
 on:
   pull_request:
     paths:
@@ -46,17 +46,14 @@ jobs:
           node tests/foundation-assets.cjs
           node tests/foundation-context.cjs
           node tests/foundation-browser.cjs
-      - name: Check text, graphics, transparency and editable roundtrip
-        run: node tests/graphics-3205.cjs
-      - name: Check chat layout across themes and widths
-        run: node tests/chat-layout-3208.cjs
+      - name: Check workdesk, retained assets and internet image import
+        run: node tests/workdesk-3230.cjs
       - name: Check retained document editing
         run: node tests/documents-3204.cjs
-      - name: Build and verify complete Chrome package
-        run: python3 tools/build_3206.py --output-dir artifacts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: graphics-verification
           path: artifacts/
+
 

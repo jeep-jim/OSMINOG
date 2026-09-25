@@ -500,6 +500,7 @@ function createWebOverlay(obj,target){
   updateWebOverlay(target);
 }
 async function bindBrowser(el,obj){
+  if(document.body.dataset.workdesk)return;
   const input=$(".browser-url",el),frame=$("iframe",el),empty=$(".browser-empty",el),editNote=$(".browser-edit-note",el);
   const protectedHost=url=>/(^|\.)(chatgpt\.com|openai\.com|claude\.ai|gemini\.google\.com)$/i.test(new URL(url).hostname);
   const openTab=url=>{obj.url=url;input.value=url;queuePersist();if(openExternalOnce(url)){renderLayers();renderInspector();logChange(`${tr("linked")}: ${new URL(url).hostname}`)}};
