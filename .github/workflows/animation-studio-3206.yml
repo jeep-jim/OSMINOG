@@ -1,4 +1,4 @@
-name: Animation Studio 3.20.6
+name: Retired studio compatibility
 on:
   pull_request:
     paths:
@@ -20,8 +20,3 @@ jobs:
       - run: node --check osminog-graphics-studio.js
       - run: node --check bridge.js
       - run: node tests/animation-3206.cjs
-      - run: python tools/build_3206.py --output-dir artifacts
-      - uses: actions/upload-artifact@v4
-        with:
-          name: OSMINOG-3.20.6
-          path: artifacts/*

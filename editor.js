@@ -172,7 +172,7 @@ function applyLanguage(){
   if(!$("#app").hidden&&project()){renderObjects(true);renderLayers();renderInspector()}syncLayersPolishLanguage();syncLayersMiniRailLanguage();syncEmptyHintLanguage();updateSaveIndicator()
 }
 function cycleLanguage(){const next=LANGS[(LANGS.indexOf(state.language)+1)%LANGS.length];state.language=next;applyLanguage();renderInspector();queuePersist()}
-function toggleTheme(){const order=["light","dark","ocean"],i=order.indexOf(state.theme);state.theme=order[(i+1)%order.length];applyTheme();renderInspector();queuePersist()}
+function toggleTheme(){const order=document.body?.dataset?.workdesk?["light","dark"]:["light","dark","ocean"],i=order.indexOf(state.theme);state.theme=order[(i+1)%order.length];applyTheme();renderInspector();queuePersist()}
 
 function showWelcome(firstRun=false){
   $("#app").hidden=true;$("#welcome").hidden=false;$("#projectHub").hidden=true;$(".welcome-main").hidden=false;const label=$("#enterWorldText");if(label)label.textContent=state.language==="ru"?(state.folderHandle?"Разрешить доступ к папке":"Выбрать папку для проектов"):(state.folderHandle?"Allow workspace folder":"Choose workspace folder");
@@ -228,6 +228,7 @@ function renderProjectGrid(filter=""){
 }
 
 function setMode(mode){
+  if(document.body.dataset.workdesk)mode="brief";
   if(!MODE_LABEL[mode])return;state.mode=mode;if(mode==="team"&&!["select","hand"].includes(state.tool))state.tool="select";document.body.className=`mode-${mode}`;
   $$('[data-mode]').forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));
   $$('[data-tool]').forEach(b=>b.classList.toggle("active",b.dataset.tool===state.tool));
@@ -237,7 +238,7 @@ function setMode(mode){
   $("#inspectorTitle").textContent=selectedObjects()[0]?.name||modeLabel(mode);renderObjects();renderInspector();if(created)focusObject(created);
   document.dispatchEvent(new CustomEvent("osminog:mode-change",{detail:{mode}}));
 }
-function setTool(tool){state.tool=tool;state.quickColorKind=["brief","text","note","node","button"].includes(tool)?"text":["pen","vector"].includes(tool)?"stroke":"fill";if(tool!=="select")state.nodeEditId=null;$$('[data-tool]').forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));$("#viewport").style.cursor=tool==="hand"?"grab":["pen","vector"].includes(tool)?"crosshair":"default";if(!["select","hand"].includes(tool)){state.selected=[];renderObjects();renderLayers()}renderInspector()}
+function setTool(tool){if(document.body.dataset.workdesk&&!["select","hand","text","note","image","file","browser"].includes(tool))tool="select";state.tool=tool;state.quickColorKind=["brief","text","note","node","button"].includes(tool)?"text":["pen","vector"].includes(tool)?"stroke":"fill";if(tool!=="select")state.nodeEditId=null;$$('[data-tool]').forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));$("#viewport").style.cursor=tool==="hand"?"grab":["pen","vector"].includes(tool)?"crosshair":"default";if(!["select","hand"].includes(tool)){state.selected=[];renderObjects();renderLayers()}renderInspector()}
 function worldPoint(clientX,clientY){const rect=$("#viewport").getBoundingClientRect();return{x:(clientX-rect.left-state.view.x)/state.view.scale,y:(clientY-rect.top-state.view.y)/state.view.scale}}
 function viewportCenter(){const r=$("#viewport").getBoundingClientRect();return worldPoint(r.left+r.width/2,r.top+r.height/2)}
 function applyView(){
@@ -414,9 +415,9 @@ function renderObjects(force=false){
 }
 function objectBar(obj,extra=""){return `<header class="object-bar"><i></i><span>${esc(obj.name)}</span>${extra}</header>`}
 function objectHTML(obj){
-  if(obj.type==="brief")return `${objectBar(obj)}<div class="object-content"><h2 contenteditable="true" data-field="title">${obj.titleHtml||esc(obj.title)}</h2><div contenteditable="true" data-field="text">${obj.html||esc(obj.text)}</div></div>`;
-  if(obj.type==="note")return `${objectBar(obj)}<div class="object-content" contenteditable="true" data-field="text">${obj.html||esc(obj.text)}</div>`;
-  if(obj.type==="text")return `<div class="object-content" contenteditable="true" data-field="text">${obj.html||esc(obj.text)}</div>`;
+  if(obj.type==="brief")return `${objectBar(obj)}<div class="object-content"><h2 contenteditable="${document.body.dataset.workdesk?"false":"true"}" data-field="title">${obj.titleHtml||esc(obj.title)}</h2><div contenteditable="${document.body.dataset.workdesk?"false":"true"}" data-field="text">${obj.html||esc(obj.text)}</div></div>`;
+  if(obj.type==="note")return `${objectBar(obj)}<div class="object-content" contenteditable="${document.body.dataset.workdesk?"false":"true"}" data-field="text">${obj.html||esc(obj.text)}</div>`;
+  if(obj.type==="text")return `<div class="object-content" contenteditable="${document.body.dataset.workdesk?"false":"true"}" data-field="text">${obj.html||esc(obj.text)}</div>`;
   if(obj.type==="task"){
     const agents=Array.isArray(obj.agents)&&obj.agents.length?obj.agents:["chatgpt","claude","gemini","deepseek"],defs={gpt:["ChatGPT","icons/providers/openai.svg","#22c55e"],claude:["Claude","icons/providers/claude.svg","#f97316"],gemini:["Gemini","icons/providers/gemini.svg","#8b5cf6"],deepseek:["DeepSeek","icons/providers/deepseek.svg","#38bdf8"],googleai:["Google AI","icons/modules/google.svg","#6366f1"]};
     const orbit=[...agents.slice(0,4).map((id,i)=>({kind:"provider",id,label:defs[id]?.[0]||id,img:defs[id]?.[1],tone:defs[id]?.[2]||"#58d7ff",angle:[210,255,300,345][i]})),{kind:"chat",label:state.language==="ru"?"Чат":"Chat",icon:"i-team",tone:"#8b5cf6",angle:30},{kind:"files",label:state.language==="ru"?"Файлы":"Files",icon:"i-folder",tone:"#38bdf8",angle:75},{kind:"result",label:state.language==="ru"?"Результат":"Result",icon:"i-play",tone:"#22c55e",angle:120}];
@@ -499,6 +500,7 @@ function createWebOverlay(obj,target){
   updateWebOverlay(target);
 }
 async function bindBrowser(el,obj){
+  if(document.body.dataset.workdesk)return;
   const input=$(".browser-url",el),frame=$("iframe",el),empty=$(".browser-empty",el),editNote=$(".browser-edit-note",el);
   const protectedHost=url=>/(^|\.)(chatgpt\.com|openai\.com|claude\.ai|gemini\.google\.com)$/i.test(new URL(url).hostname);
   const openTab=url=>{obj.url=url;input.value=url;queuePersist();if(openExternalOnce(url)){renderLayers();renderInspector();logChange(`${tr("linked")}: ${new URL(url).hostname}`)}};
@@ -1330,3 +1332,4 @@ globalThis.OSMINOGEditorAPI={
 
 /* OSMINOG 3.11.21: allow dynamic modules (Ocean FX / provider settings) to reuse the canonical smart select. */
 globalThis.OSMINOGUpgradeSelects=upgradeSelects;
+
