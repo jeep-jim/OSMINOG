@@ -17,7 +17,7 @@
  else {const p=document.createElement('p');p.textContent='Этот формат открывается внешним приложением. Скачайте исходный файл.';body.append(p)}
  $('#workdeskDownload').hidden=!o.src;$('#workdeskViewer').showModal();}
  async function ask(){await BriefCraftBridge.open();await OSMINOGAgentAPI.pinSelection();$('#gptPresenceInput')?.focus()}
- function addText(){const b=viewportCenter(),o=createObject('note',{name:'Заметка',text:'',w:480,h:320,fontSize:20,fontWeight:400,x:b.x-240,y:b.y-160});open(o.id)}
+ function addText(){const b=viewportCenter(),o=createObject('note',{name:'Заметка',text:'',w:480,h:320,fontSize:20,fontWeight:400,textColor:'#202633',fill:'#fff4ad',x:b.x-240,y:b.y-160});open(o.id)}
  function addLink(){const raw=prompt('Адрес сайта или прямая ссылка на изображение:','https://');if(!raw)return;let url;try{url=new URL(raw);if(!['https:','http:'].includes(url.protocol))throw Error()}catch{showToast('Введите ссылку http или https');return}const b=viewportCenter();createObject('browser',{name:url.hostname,url:url.href,w:480,h:220,x:b.x-240,y:b.y-110});setTool('select')}
  async function importImage(){const url=prompt('Прямая ссылка на изображение (https://…):');if(!url)return;try{const parsed=new URL(url);if(parsed.protocol!=='https:')throw Error('Нужна HTTPS-ссылка');const r=await OSMINOGProjectAPI.importAsset({url,expectedKind:'image',name:parsed.pathname.split('/').pop()||'Изображение из интернета'});if(!r?.ok)throw Error(r?.error||'Не удалось добавить изображение');showToast('Изображение сохранено на холсте')}catch(e){showToast(e.message)}}
  function install(){
@@ -37,6 +37,8 @@
  const oldBrowserMarkup=objectHTML;globalThis.objectHTML=function(o){if(o.type!=='browser')return oldBrowserMarkup(o);const box=document.createElement('div');box.className='workdeskLink';const title=document.createElement('strong');title.textContent=o.name||'Сайт';const url=document.createElement('span');url.textContent=o.url||'';const hint=document.createElement('small');hint.textContent='Двойной клик — открыть ссылку';box.append(title,url,hint);return box.outerHTML};
  renderAll(true);
  }
+ globalThis.OSMINOGOpenConnections=async()=>{await BriefCraftBridge.open();globalThis.OSMINOGSetAgentSettingsOpen?.(true)};
+ globalThis.OSMINOGConfirm=({title='Подтвердить действие',text='',confirmText='Продолжить',cancelText='Отмена'}={})=>new Promise(resolve=>{const d=document.createElement('dialog');d.className='workdeskConfirm';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=text;const no=document.createElement('button');no.dataset.confirmCancel='';no.textContent=cancelText;const yes=document.createElement('button');yes.dataset.confirmOk='';yes.textContent=confirmText;const done=value=>{d.close();d.remove();resolve(value)};no.onclick=()=>done(false);yes.onclick=()=>done(true);d.addEventListener('cancel',e=>{e.preventDefault();done(false)});d.append(h,p,no,yes);document.body.append(d);d.showModal()});
  globalThis.OSMINOGWorkdesk={open,close,save,safeRich,ask};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
