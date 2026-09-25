@@ -265,6 +265,7 @@
         threads=threads.map(t=>{const provider=t.provider||"gpt",role=t.role||"universal",pillVisible=t.pillVisible===true;if(t.id==="main")return {...t,kind:"main",color:providerColor(provider)||t.color||PROVIDER_COLORS.gpt,face:t.face||"wisp-main",provider,role,pillVisible};const i=agentIndex++;return {...t,kind:"agent",color:providerColor(provider)||t.color||AGENT_COLORS[i%AGENT_COLORS.length],face:t.face||AGENT_FACES[i%AGENT_FACES.length],provider,role,pillVisible}});
         activeThreadId=threads.some(t=>t.id===saved.active)?saved.active:"main";
       }
+      if(document.body.dataset.workdesk){activeThreadId="main";const main=threads.find(t=>t.id==="main");if(main){main.provider="gpt";main.name="GPT";main.role="universal";}}
       const markers=await chrome.storage.local.get(threads.map(t=>clearMarkerKey(t.id)));
       for(const t of threads)chatEpochs.set(scopeKey(t.id),Math.max(historyEpoch(t.id),Number(markers[clearMarkerKey(t.id)]?.at)||0));
       chatStyle={...chatStyle,...(x[STYLE_KEY()]||{})};
@@ -354,11 +355,11 @@
     panel.style.setProperty("--agent-color",providerColor(provider));
     if(kicker)kicker.hidden=true;
     if(orb){orb.classList.remove("agent-head-avatar");orb.classList.add("provider-head-avatar");orb.style.setProperty("--agent-color",providerColor(provider));orb.innerHTML=`<img src="${icon}" alt="${esc(pv)}">`}
-    if(heading)heading.textContent=document.body.classList.contains("mode-team")?"Команда":"OSMINOG AI";const bubble=q("#gptPresenceBubble");if(bubble){bubble.style.setProperty("--agent-color",providerColor(provider));const strong=bubble.querySelector("strong");if(strong)strong.textContent="AI"}
+    if(heading)heading.textContent=document.body.dataset.workdesk?"GPT · Помощник проекта":document.body.classList.contains("mode-team")?"Команда":"OSMINOG AI";const bubble=q("#gptPresenceBubble");if(bubble){bubble.style.setProperty("--agent-color",providerColor(provider));const strong=bubble.querySelector("strong");if(strong)strong.textContent="AI"}
   }
   function renderThreadTabs(){
     const root=q("#gptThreadTabs");if(!root)return;threads.forEach(t=>{t.color=providerColor(t.provider||"gpt")});
-    root.innerHTML=threads.map(t=>`<button type="button" class="gpt-thread-tab ${t.id===activeThreadId?"active":""}" data-thread-id="${esc(t.id)}" style="--agent-color:${esc(t.color||"#8b5cf6")}"><span class="gpt-thread-ghost" draggable="true" data-drag-thread="${esc(t.id)}" title="Потяни к объекту на холсте">${wispMarkup("mini")}</span><b>${esc(threadDisplayName(t))}</b>${t.id==="main"&&isTeamMode()?'<span class="provider-badge" style="--provider-color:#8b5cf6">TEAM</span>':providerBadgeMarkup(t.provider||"gpt")}${t.taskBusy?`<span class="agent-task-dot" title="${esc(t.taskStatus||"Работает")}"></span>`:""}${t.kind!=="main"?`<i data-close-thread="${esc(t.id)}">×</i>`:""}</button>`).join("");
+    root.innerHTML=(document.body.dataset.workdesk?threads.filter(t=>t.id==="main"):threads).map(t=>`<button type="button" class="gpt-thread-tab ${t.id===activeThreadId?"active":""}" data-thread-id="${esc(t.id)}" style="--agent-color:${esc(t.color||"#8b5cf6")}"><span class="gpt-thread-ghost" draggable="true" data-drag-thread="${esc(t.id)}" title="Потяни к объекту на холсте">${wispMarkup("mini")}</span><b>${esc(threadDisplayName(t))}</b>${t.id==="main"&&isTeamMode()?'<span class="provider-badge" style="--provider-color:#8b5cf6">TEAM</span>':providerBadgeMarkup(t.provider||"gpt")}${t.taskBusy?`<span class="agent-task-dot" title="${esc(t.taskStatus||"Работает")}"></span>`:""}${t.kind!=="main"?`<i data-close-thread="${esc(t.id)}">×</i>`:""}</button>`).join("");
     root.querySelectorAll("[data-thread-id]").forEach(b=>{b.addEventListener("click",e=>{if(e.target.closest("[data-close-thread],[data-toggle-pill]"))return;switchThread(b.dataset.threadId)});b.addEventListener("dblclick",async e=>{if(e.target.closest("[data-close-thread],[data-toggle-pill]"))return;e.preventDefault();const t=threads.find(x=>x.id===b.dataset.threadId);if(!t)return;const name=prompt("Название агента",t.name);if(name?.trim()){t.name=name.trim().slice(0,40);await chrome.storage.local.set({[THREADS_KEY()]:threadStore()});renderThreadTabs();renderChat();drawAgentTethers()}})});
     root.querySelectorAll("[data-drag-thread]").forEach(g=>g.addEventListener("dragstart",e=>{e.stopPropagation();try{e.dataTransfer.effectAllowed="link";e.dataTransfer.setData("application/x-briefcraft-chat-thread",g.dataset.dragThread)}catch{}document.body.classList.add("dragging-agent-link")}));
     root.querySelectorAll("[data-drag-thread]").forEach(g=>g.addEventListener("dragend",()=>document.body.classList.remove("dragging-agent-link")));
@@ -895,7 +896,7 @@ Previous response excerpt: ${String(lastText||"").slice(0,900)}`;
     list:()=>threads.map(t=>({id:t.id,name:t.name,kind:t.kind,provider:t.provider||"gpt",providerLabel:providerLabel(t.provider||"gpt"),role:t.role||"universal",roleLabel:ROLE_LABELS[t.role||"universal"]||"Универсал",color:providerColor(t.provider||"gpt"),permission:t.permission||"owner"})),
     ask:osminogTeamAsk,applyPatch:osminogTeamApplyPatch,grantFullAccess:osminogGrantFullAccess,
     projectContext:()=>({status:B.canvasStatus?.(),map:B.getProjectMap?.({limit:520}),selection:B.getSelection?.({include_neighbors:true})}),
-    addAgent:createThread,create:apiCreateAgent,update:apiUpdateAgent,remove:apiRemoveAgent,open:()=>B.open?.(),switchThread,
+    addAgent:createThread,create:apiCreateAgent,update:apiUpdateAgent,remove:apiRemoveAgent,open:()=>B.open?.(),pinSelection,switchThread,
     providers:()=>globalThis.OSMINOGProviderRegistry?.list?.()||[],mediaCrew:()=>globalThis.OSMINOGProviderRegistry?.selected?.()||[]
   };
 
@@ -938,4 +939,5 @@ Previous response excerpt: ${String(lastText||"").slice(0,900)}`;
   document.dispatchEvent(new CustomEvent("osminog:agents-ready"));
 
 })();
+
 

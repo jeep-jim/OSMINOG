@@ -1,3 +1,10 @@
+# 2026-09-25 — 3.23.0: рабочий стол проекта
+
+Решение пользователя: убрать перегруженные модули и оставить хранение/просмотр материалов, текст, папки и один GPT. Не удалять старые материалы.
+Реализовано: отключение запуска старых студий/командных оболочек, единая панель действий, окно просмотра и текстового редактирования, прямой импорт картинки по URL, сохранение механизма обновления.
+Проверка выпуска: браузерная проверка текста/просмотра/GPT, сохранности старых данных, интернет-импорта; регрессия папок/памяти/контекстного моста. Живое подключение ChatGPT проверяется отдельно после обновления пользователя.
+Следом: оценить упрощённую сборку с пользователем, проверить реальный перенос результата через GPT. Плагин/MCP и новая пятисценарная платформа остаются отдельными этапами, в этой версии не обещаны.
+
 # New product direction — 2026-09-07
 
 User-approved goal: OSMINOG is the shared working environment for a person and an external AI. Preserve the infinite canvas, light/dark themes, one reserve GPT entry and local project folders. Projects must retain source files, editable results and launch/publication information.
@@ -914,3 +921,4 @@ Observed on 3.21.1: moving into a virtual folder retained the same object on the
 Image responses skipped tool-role images, file pointers and delta frames. A dedicated generation prompt and parser now handle these cases, resolve returned file IDs, exclude input references and retain exact download/import errors. External transcript mirroring stays disabled.
 
 Validation: generated-media, media routing, privacy, local-memory and routing tests pass locally. CI must pass pointer drag, eight object types, folder-to-folder moves, restore, Undo/Redo, deletion isolation and persisted reload before packaging. Live provider generation remains unverified.
+
