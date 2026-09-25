@@ -172,7 +172,7 @@ function applyLanguage(){
   if(!$("#app").hidden&&project()){renderObjects(true);renderLayers();renderInspector()}syncLayersPolishLanguage();syncLayersMiniRailLanguage();syncEmptyHintLanguage();updateSaveIndicator()
 }
 function cycleLanguage(){const next=LANGS[(LANGS.indexOf(state.language)+1)%LANGS.length];state.language=next;applyLanguage();renderInspector();queuePersist()}
-function toggleTheme(){const order=["light","dark","ocean"],i=order.indexOf(state.theme);state.theme=order[(i+1)%order.length];applyTheme();renderInspector();queuePersist()}
+function toggleTheme(){const order=document.body?.dataset?.workdesk?["light","dark"]:["light","dark","ocean"],i=order.indexOf(state.theme);state.theme=order[(i+1)%order.length];applyTheme();renderInspector();queuePersist()}
 
 function showWelcome(firstRun=false){
   $("#app").hidden=true;$("#welcome").hidden=false;$("#projectHub").hidden=true;$(".welcome-main").hidden=false;const label=$("#enterWorldText");if(label)label.textContent=state.language==="ru"?(state.folderHandle?"Разрешить доступ к папке":"Выбрать папку для проектов"):(state.folderHandle?"Allow workspace folder":"Choose workspace folder");
