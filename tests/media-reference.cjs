@@ -3,6 +3,7 @@ const source=fs.readFileSync('gpt-presence.js','utf8');
 const start=source.indexOf('function isGeneratedImageAction('),end=source.indexOf('async function executeDirectWebAsset(',start);
 const ctx={projectId:()=>"p1",viewportCenter:()=>({x:0,y:0}),setTimeout,clearTimeout,Image:class{set src(v){this.naturalWidth=900;this.naturalHeight=600;queueMicrotask(()=>this.onload())}}};vm.createContext(ctx);vm.runInContext(source.slice(start,end),ctx);
 assert.equal(ctx.isGeneratedImageAction('сгенерируй такого же человека только в другой позе'),true);
+assert.equal(ctx.isGeneratedImageAction('нарисуй раскадровку из четырёх кадров'),true);
 const mixed='не надо рисовать, надо найти изображение в интернете и вставить рядом или сгенерировать картинку';
 assert.equal(ctx.isGeneratedImageAction(mixed),false);assert.equal(ctx.isWebAssetAction(mixed),true);assert.equal(ctx.needsMediaChoice(mixed),true);
 assert.equal(ctx.isGeneratedImageAction('[MEDIA:generate] '+mixed),true);assert.equal(ctx.isWebAssetAction('[MEDIA:search] '+mixed),true);
