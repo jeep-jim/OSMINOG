@@ -304,3 +304,9 @@ Bound native chat sync deliberately does not receive composer injection. Presenc
 ## 2026-09-26 · 4.0.5 photo routing regression
 
 User report: «выкинь фото верблюда на оску» fell through to a text-only model refusal. Confirmed code cause: destination matcher did not include выкинь/закинь and required correctly spelled доска/холст even with explicit photo placement. Fixed matcher, query cleanup for this typo, whole-word ambiguity checks (not substring или inside лилии), and team-mode bypass for direct web photos. Added exact-prompt unit and browser regression using real asset import and a mocked search response with text provider offline. Live image-search service and ten-image conversational follow-ups are not claimed validated by this change.
+
+### 4.0.5 — verification and publication
+
+Tested source: `bec36e2dd691f8ec73a048ed9585370d6a81b565`. Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36223995412 . Exact typo command created a real board image with mocked search and text provider offline. Existing workflow regressions passed.
+
+Published: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.5 . Publication succeeded; dev feed active at 4.0.5. ZIP 4154080 bytes; SHA256 `4997b8e93c765545b4e15986458ce53dffbb85f12c87e1abed9aebbb698121a2`; CI package, public release asset digest and feed match. Button updater unchanged. User-device/live-search verification remains outstanding (`runtimeVerified:false`).
