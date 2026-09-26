@@ -314,3 +314,9 @@ Published: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0
 ## 2026-09-26 · 4.0.6 persistent Owner Access
 
 User screenshot identified the Google Authenticator Owner gate. Added a permanent card inside Access with the existing require() flow, current-tab status and explicit lock. Preserved TOTP and 15-minute session; no bypass or authentication weakening. UI explains product-source scope separately from board photo tools. Browser regression covers initial enrollment entry/cancel, incorrect code, real TOTP verification with fixture secret, status and lock. Existing photo test still runs before any Owner unlock. User report of live photo refusal remains unverified; do not claim this entry alone fixes provider execution.
+
+### 4.0.6 — verified publication
+
+Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36224640539 . Tested source `63eed5d7538e797d7d43010d2edb8f3990250ba8`. Browser screenshot inspected; real guard with fixture TOTP passed enrollment entry, cancel, invalid code, successful unlock and manual lock.
+
+Published https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.6 . Publication and registry integrity workflows passed. Dev feed verified active at 4.0.6. Package 4154929 bytes; SHA256 `519e41d6d2a1e89837b61fd8fdbe1764bdb2082f497b557e5deb6e3002312ba0`; CI ZIP, release digest and feed match. Owner guard, photo router and button updater bytes preserved from 4.0.5. Live user-device/provider execution remains unverified.
