@@ -274,3 +274,11 @@ macOS, другие браузеры, облегчённые Android/iOS: чте
 User goal: immediate visual work through the internal chat, preserve existing board and button updates. Restored graphics, animation and team runtimes, provider choices and agent tabs. Fixed ordinary website source-routing and colloquial internet photo import. Added opt-in Images API adapter with reference edits, PNG originals, high quality default, quality/size controls, cancellation and last-result download. Key held only in page memory; API billing separate from ChatGPT; no silent fallback or retry of paid calls. Native ChatGPT route retained.
 
 Tests: image-generation-403.cjs covers actual adapter payloads, reference multipart, errors, credential isolation, cancellation, duplicate prevention and exact reported prompt routing. shared-board-400.cjs now exercises generator settings → internal chat → mocked HTTP → actual board image import as well as the existing module/board/clipboard tests. Browser CI and package verification are release gates. Live user sessions and actual paid model output remain UNVERIFIED, not claimed complete. External chat canvas access still requires working connector tools/context; this development chat has no OSMINOG connector tool exposed.
+
+### 4.0.3 verification and publication
+
+- Source commit: `13a3ccef4fdd3184165168c01cc7a625df6ca40d`. Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36219355925 .
+- Browser fixture verified settings → internal chat → mocked Images API → original PNG board object, plus existing notes, clipboard, crop, widget, provider bridge, chat state and folder regressions. CI screenshot inspected. No live paid API call was performed.
+- Published release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.3 . Registry validation/integrity and publication workflows passed. Dev feed verified active at 4.0.3.
+- ZIP: 4,150,634 bytes; SHA256 `f17489a5e567b24e80079f9edcae7dcc592c1696aec49431e615bc9f96991347`. CI package, release asset digest and dev-feed digest match. Fixed extension identity and button updater are unchanged.
+- `runtimeVerified:false` is deliberate: user device, native ChatGPT image capability and live API model output are not verified. API key required only for the opt-in API path, entered in OSMINOG, never in this chat.
