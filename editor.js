@@ -1285,7 +1285,7 @@ function syncEmptyHintLanguage(){
   }[state.language]||null;
   const fallback={title:(COPY[state.language]||COPY.en).emptyTitle,text:(COPY[state.language]||COPY.en).emptyText};
   const value=copy||fallback,empty=document.getElementById("emptyHint");
-  if(!empty)return;
+  if(!empty||empty.querySelector(".workdeskEmpty"))return;
   const title=empty.querySelector("h2"),body=empty.querySelector("p");
   if(title){
     const titleLines={

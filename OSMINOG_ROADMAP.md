@@ -282,3 +282,12 @@ Tests: image-generation-403.cjs covers actual adapter payloads, reference multip
 - Published release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.3 . Registry validation/integrity and publication workflows passed. Dev feed verified active at 4.0.3.
 - ZIP: 4,150,634 bytes; SHA256 `f17489a5e567b24e80079f9edcae7dcc592c1696aec49431e615bc9f96991347`. CI package, release asset digest and dev-feed digest match. Fixed extension identity and button updater are unchanged.
 - `runtimeVerified:false` is deliberate: user device, native ChatGPT image capability and live API model output are not verified. API key required only for the opt-in API path, entered in OSMINOG, never in this chat.
+
+
+## 2026-09-26 · Product scope reset — 4.0.4
+
+User decision: two primary jobs only: (1) collect anything on infinite project boards and work on it, (2) let the user's external ChatGPT access board context. Other AI providers, paid image APIs, team orchestration and plugin expansion are optional, not release blockers. Do not present mocked provider tests as live availability. User confirmed site creation, web-photo import and file persistence; native generation failed and no API key is available.
+
+Delivered changes: saved sites/layouts entry in top toolbar, in-window HTML/CSS editing, separate persistent visual copies, URL editor access, dismissible welcome, prominent external ChatGPT access, full bounded project map on each connected turn and explicit current-board Markdown fallback. Preserve local originals and button updates.
+
+Release gates: automated regressions and browser flow tests; explicit live external test remains outstanding. Remaining publication work: choose actual distribution accounts/listings and meet store review requirements; GitHub dev feed is not a Chrome Web Store or ChatGPT store publication. Never claim universal editable access to arbitrary protected domains or unlimited AI context.
