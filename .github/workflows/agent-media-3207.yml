@@ -1,4 +1,4 @@
-name: OSMINOG 4.0.5 shared board
+name: OSMINOG 4.0.6 shared board
 on:
   pull_request:
   push:
@@ -46,27 +46,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.5-PHOTO-FIX.zip'
+          artifact='OSMINOG-Chrome-4.0.6-OWNER-ACCESS.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-4.0.5-PHOTO-FIX.zip'
+          path='artifacts/OSMINOG-Chrome-4.0.6-OWNER-ACCESS.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.5' and m['version_name']=='4.0.5 · Photo Fix'
+              assert m['version']=='4.0.6' and m['version_name']=='4.0.6 · Owner Access'
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.5-PHOTO-FIX
+          name: OSMINOG-4.0.6-OWNER-ACCESS
           path: |
-            artifacts/OSMINOG-Chrome-4.0.5-PHOTO-FIX.zip
-            RELEASE_NOTES_4.0.5.md
+            artifacts/OSMINOG-Chrome-4.0.6-OWNER-ACCESS.zip
+            RELEASE_NOTES_4.0.6.md
             artifacts/*.png
           retention-days: 14
 

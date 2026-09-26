@@ -310,3 +310,7 @@ User report: «выкинь фото верблюда на оску» fell throu
 Tested source: `bec36e2dd691f8ec73a048ed9585370d6a81b565`. Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36223995412 . Exact typo command created a real board image with mocked search and text provider offline. Existing workflow regressions passed.
 
 Published: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.5 . Publication succeeded; dev feed active at 4.0.5. ZIP 4154080 bytes; SHA256 `4997b8e93c765545b4e15986458ce53dffbb85f12c87e1abed9aebbb698121a2`; CI package, public release asset digest and feed match. Button updater unchanged. User-device/live-search verification remains outstanding (`runtimeVerified:false`).
+
+## 2026-09-26 · 4.0.6 persistent Owner Access
+
+User screenshot identified the Google Authenticator Owner gate. Added a permanent card inside Access with the existing require() flow, current-tab status and explicit lock. Preserved TOTP and 15-minute session; no bypass or authentication weakening. UI explains product-source scope separately from board photo tools. Browser regression covers initial enrollment entry/cancel, incorrect code, real TOTP verification with fixture secret, status and lock. Existing photo test still runs before any Owner unlock. User report of live photo refusal remains unverified; do not claim this entry alone fixes provider execution.

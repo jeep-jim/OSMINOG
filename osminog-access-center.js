@@ -17,6 +17,27 @@
     $("#collabShare")?.classList.toggle("external-live",!!status.connected);
   }
   function presenceControls(){const row=$(".collab-ai-row");if(!row||$("#disconnectExternalPresence"))return;const b=document.createElement("button");b.id="disconnectExternalPresence";b.textContent="Отключить";b.type="button";b.onclick=()=>globalThis.BriefCraftBridge?.disconnectExternalPresence?.();row.parentElement.append(b);$("#externalChatGptRole")?.addEventListener("change",()=>{if(globalThis.BriefCraftBridge?.externalPresenceStatus?.().connected)$("#connectExternalChatGpt")?.click()})}
+  function syncOwner(){
+    const card=$('#accessOwner');if(!card)return;
+    const guard=globalThis.OSMINOGOwnerGuard,active=guard?.isUnlocked?.()===true;
+    card.querySelector('[data-owner-status]').textContent=active?'Подтверждён в этой вкладке':'Не подтверждён';
+    const button=card.querySelector('[data-access-owner-unlock]');
+    if(!card.dataset.pending)button.disabled=!guard||active;
+    button.textContent=active?'Доступ подтверждён':'Подтвердить через Authenticator';
+    card.querySelector('[data-access-owner-lock]').hidden=!active;
+  }
+  function ownerControls(){
+    const popover=$('#collabPopover');if(!popover||$('#accessOwner'))return;
+    const card=document.createElement('section');card.id='accessOwner';card.className='collab-section';
+    card.innerHTML='<div class="collab-section-title"><span>ПОДТВЕРЖДЕНИЕ ВЛАДЕЛЬЦА</span><small data-owner-status role="status"></small></div><p style="font-size:12px;line-height:1.5">Google Authenticator · доступ на 15 минут в этой вкладке для изменения исходников OSMINOG и его репозиториев. Для работы с файлами и фото на доске это подтверждение не требуется.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="primary-btn" data-access-owner-unlock>Подтвердить через Authenticator</button><button type="button" class="soft-btn" data-access-owner-lock hidden>Закрыть доступ</button></div><small data-access-owner-error role="status"></small>';
+    popover.insertBefore(card,popover.querySelector('.collab-footnote'));
+    card.querySelector('[data-access-owner-unlock]').onclick=async()=>{
+      const button=card.querySelector('[data-access-owner-unlock]'),error=card.querySelector('[data-access-owner-error]');
+      card.dataset.pending='1';button.disabled=true;error.textContent='';
+      try{const guard=globalThis.OSMINOGOwnerGuard;if(!guard)throw new Error('Подтверждение владельца не загрузилось. Перезагрузите вкладку.');const ok=await guard.require('исходники и репозитории OSMINOG');if(!ok)error.textContent='Подтверждение отменено.'}catch(e){error.textContent=e.message||String(e)}finally{delete card.dataset.pending;syncOwner()}
+    };
+    card.querySelector('[data-access-owner-lock]').onclick=()=>{globalThis.OSMINOGOwnerGuard?.lock();syncOwner()};syncOwner();
+  }
   function contextText(){
     const p=globalThis.project?.();if(!p)return 'Откройте доску.';
     const lines=['# Доска: '+p.name,'Снимок контекста: '+new Date().toISOString(),'Это экспорт текущей доски. Он не предоставляет прямой доступ или право изменять файлы. Изображения и бинарные файлы нужно прикрепить отдельно.',''];
@@ -27,15 +48,17 @@
   function exportContext(){
     let dialog=$('#osminogContextExport');if(dialog)dialog.remove();dialog=document.createElement('dialog');dialog.id='osminogContextExport';dialog.className='workdeskConfirm';dialog.style.width='min(700px,90vw)';dialog.style.maxWidth='700px';dialog.innerHTML='<h2>Контекст для внешнего ChatGPT</h2><p>Скопируйте текст в нужный диалог или прикрепите скачанный файл. Это снимок текущей доски, не постоянное подключение. Картинки прикрепляются отдельно.</p><textarea aria-label="Контекст доски" style="width:100%;height:260px;box-sizing:border-box"></textarea><div><button data-copy>Копировать</button><button data-download>Скачать .md</button><button data-close>Закрыть</button></div><p role="status"></p>';dialog.querySelector('textarea').value=contextText();document.body.append(dialog);dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.querySelector('[data-copy]').onclick=async()=>{try{await navigator.clipboard.writeText(dialog.querySelector('textarea').value);dialog.querySelector('[role=status]').textContent='Скопировано. Вставьте в сообщение ChatGPT.'}catch{dialog.querySelector('textarea').select();dialog.querySelector('[role=status]').textContent='Нажмите Ctrl+C для копирования.'}};dialog.querySelector('[data-download]').onclick=()=>{const url=URL.createObjectURL(new Blob([dialog.querySelector('textarea').value],{type:'text/markdown;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='osminog-context.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)};dialog.showModal();
   }
-  function open(){globalThis.toggleCollabPopover?.(true);syncPresence();return $("#collabPopover")}
+  function open(){globalThis.toggleCollabPopover?.(true);ownerControls();syncOwner();syncPresence();return $("#collabPopover")}
   function refresh(){globalThis.renderCollab?.();syncPresence()}
   function route(){
     const old=$("#collabShare");if(!old||old.dataset.presence3203)return;
     const button=old.cloneNode(true);button.dataset.presence3203="1";old.replaceWith(button);
-    button.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();globalThis.toggleCollabPopover?.();syncPresence()});
+    button.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();globalThis.toggleCollabPopover?.();ownerControls();syncOwner();syncPresence()});
   }
   globalThis.OSMINOGAccessCenter={version:"3.20.3",open,refresh,exportContext,contextText,shareLink:()=>globalThis.collabDescriptor?.()||""};
   document.addEventListener("osminog:external-presence",e=>syncPresence(e.detail));
+  document.addEventListener("osminog:owner-unlocked",syncOwner);
+  ownerControls();setInterval(()=>{if(!$('#collabPopover')?.hidden)syncOwner()},1000);
   document.addEventListener("keydown",e=>{if(e.key==="Escape")globalThis.toggleCollabPopover?.(false)});
   document.addEventListener("osminog:desktop-v3-ready",route);
   presenceControls();const section=$(".collab-ai-section");if(section){const b=document.createElement("button");b.type="button";b.textContent="Скопировать / скачать контекст для ChatGPT";b.onclick=exportContext;section.append(b)}route();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",route,{once:true});
