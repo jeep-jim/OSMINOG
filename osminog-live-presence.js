@@ -131,8 +131,8 @@
   }
   function schedule(){if(scanTimer)return;scanTimer=setTimeout(()=>{scanTimer=0;scan().catch(e=>badge(e.message,true))},700)}
   document.addEventListener('load',event=>{if(event.target instanceof HTMLImageElement)schedule()},true);
-  chrome.runtime.onMessage.addListener((m,s,reply)=>{if(m?.type!=='BC_PRESENCE_CONFIG')return;config=m.enabled?{...m}:null;turn=null;queuedResult=null;badge(config?'мост включён · данные по запросу':'холст отключён');reply({ok:true})});
+  chrome.runtime.onMessage.addListener((m,s,reply)=>{if(m?.type!=='BC_PRESENCE_CONFIG')return;if(m.enabled&&document.documentElement.dataset.osminogChatSyncBound){config=null;turn=null;queuedResult=null;const error='Эта вкладка синхронизирована с внутренним чатом. Отключите синхронизацию или выберите другой диалог ChatGPT для подключения холста.';badge(error,true);reply({ok:false,error});return}config=m.enabled?{...m}:null;turn=null;queuedResult=null;badge(config?'мост включён · данные по запросу':'холст отключён');reply({ok:true})});
   for(const type of ['keydown','click','submit'])document.addEventListener(type,intercept,true);
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-  rpc('BC_PRESENCE_HELLO').then(r=>{if(r?.ok&&!config){config=r;badge('мост включён · данные по запросу')}}).catch(()=>{});
+  rpc('BC_PRESENCE_HELLO').then(r=>{if(r?.ok&&!config&&!document.documentElement.dataset.osminogChatSyncBound){config=r;badge('мост включён · данные по запросу')}}).catch(()=>{});
 })();

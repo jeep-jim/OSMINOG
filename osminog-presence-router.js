@@ -46,7 +46,7 @@
         await api.scripting.executeScript({target:{tabId:tab.id},files:['osminog-chat-sync.js','osminog-live-presence.js']});
         connections.set(tab.id,c);await save();
         const pong=await api.tabs.sendMessage(tab.id,{type:'BC_PRESENCE_CONFIG',...publicState(c)});
-        if(!pong?.ok){connections.delete(tab.id);await save();throw Error('Не удалось подключить холст к этой вкладке')}
+        if(!pong?.ok){connections.delete(tab.id);await save();throw Error(pong?.error||'Не удалось подключить холст к этой вкладке')}
         return{ok:true,connected:true,...publicState(c),title:tab.title||provider};
       }
       if(message.type==='BC_PRESENCE_STATUS'){
