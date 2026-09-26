@@ -99,7 +99,7 @@
   }
   function generationPrompt(context){
     const request=String(context?.intent?.imageGenerationRequest||"").replace(/^\[MEDIA:generate\]\s*/,"");
-    return `${request}\n\n[OSMINOG IMAGE GENERATION]\nCreate the requested raster image using image generation. The attached image is the user's visual reference; preserve its character identity and visual style while making the requested change. Return the generated image attachment. OSMINOG places the result beside the reference automatically. If image generation is unavailable in this session, state the actual limitation. A text description is not an image result.`;
+    return `${request}\n\n[OSMINOG IMAGE GENERATION]\nCreate the requested raster image using image generation. The attached image is the user's visual reference; preserve its character identity and visual style while making the requested change. For a storyboard maintain consistent character identity, costumes and environment across the requested frames. A 3D-looking image is a raster concept/render, not a mesh, rig or game-ready 3D asset; never claim otherwise. Use the requested aspect ratio and preserve visual detail. Return the generated image attachments, including all requested frames when supported. OSMINOG places the result beside the reference automatically. If image generation is unavailable in this session, state the actual limitation. A text description is not an image result.`;
   }
   globalThis.OSMINOGGeneratedMedia={parseSse,createSseParser,fromConversation,resolveFiles,generationPrompt};
 })();

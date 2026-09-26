@@ -1,4 +1,4 @@
-name: OSMINOG 4.0.1 shared board
+name: OSMINOG 4.0.2 shared board
 on:
   pull_request:
   push:
@@ -44,27 +44,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.1-HEADER-TOOLS.zip'
+          artifact='OSMINOG-Chrome-4.0.2-VISUAL-RUNTIME.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-4.0.1-HEADER-TOOLS.zip'
+          path='artifacts/OSMINOG-Chrome-4.0.2-VISUAL-RUNTIME.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.1' and m['version_name']=='4.0.1 · Header Tools'
+              assert m['version']=='4.0.2' and m['version_name']=='4.0.2 · Visual Runtime'
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.1-HEADER-TOOLS
+          name: OSMINOG-4.0.2-VISUAL-RUNTIME
           path: |
-            artifacts/OSMINOG-Chrome-4.0.1-HEADER-TOOLS.zip
-            RELEASE_NOTES_4.0.1.md
+            artifacts/OSMINOG-Chrome-4.0.2-VISUAL-RUNTIME.zip
+            RELEASE_NOTES_4.0.2.md
             artifacts/*.png
           retention-days: 14
 

@@ -65,8 +65,14 @@
       if(r.imageDataUrl&&!attached)context.vision.limitation='This page has no accessible image upload input. Only structured canvas data is attached; do not claim pixel vision.';
       // Do not overwrite text typed while the asynchronous canvas read was running.
       if(value(el).trim()!==originalDraft.trim()){turn=null;badge('текст изменён — отправь ещё раз');return}
-      setValue(el,draft+instruction(context,current.id));await clickSend();badge(attached?'холст и изображение переданы':'контекст холста передан');schedule();
-    }catch(e){turn=null;badge(e.message,true)}finally{sending=false}
+      current.context=context;setValue(el,draft+instruction(context,current.id));await clickSend();badge(attached?'холст и изображение переданы':'контекст холста передан');schedule();
+    }catch(e){
+      // Stop intercepting after a failed bridge request. Never auto-send a retry:
+      // the user may have edited the draft or the provider may have accepted it.
+      turn=null;config=null;queuedResult=null;
+      if(value(el)===draft+instruction(current.context||{},current.id))setValue(el,originalDraft);
+      badge('связь потеряна — отправь ещё раз без холста. '+e.message,true);
+    }finally{sending=false}
   }
   function intercept(event){
     // Bound native chats carry only the exact user/assistant text. Canvas
@@ -125,8 +131,8 @@
   }
   function schedule(){if(scanTimer)return;scanTimer=setTimeout(()=>{scanTimer=0;scan().catch(e=>badge(e.message,true))},700)}
   document.addEventListener('load',event=>{if(event.target instanceof HTMLImageElement)schedule()},true);
-  chrome.runtime.onMessage.addListener((m,s,reply)=>{if(m?.type!=='BC_PRESENCE_CONFIG')return;config=m.enabled?{...m}:null;turn=null;queuedResult=null;badge(config?'холст подключён':'холст отключён');reply({ok:true})});
+  chrome.runtime.onMessage.addListener((m,s,reply)=>{if(m?.type!=='BC_PRESENCE_CONFIG')return;config=m.enabled?{...m}:null;turn=null;queuedResult=null;badge(config?'мост включён · данные по запросу':'холст отключён');reply({ok:true})});
   for(const type of ['keydown','click','submit'])document.addEventListener(type,intercept,true);
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-  rpc('BC_PRESENCE_HELLO').then(r=>{if(r?.ok&&!config){config=r;badge('холст подключён')}}).catch(()=>{});
+  rpc('BC_PRESENCE_HELLO').then(r=>{if(r?.ok&&!config){config=r;badge('мост включён · данные по запросу')}}).catch(()=>{});
 })();
