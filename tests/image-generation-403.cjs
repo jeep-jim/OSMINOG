@@ -1,0 +1,21 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+(async()=>{
+const calls=[];let reply={ok:true,json:async()=>({data:[{b64_json:'cG5n'}]})};
+const ctx={setTimeout,clearTimeout,AbortController,FormData,Blob,Uint8Array,atob,chrome:{permissions:{contains:async()=>true}},fetch:async(url,options)=>{calls.push({url,options});return reply}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('osminog-image-generation.js','utf8'),ctx);const api=ctx.OSMINOGImageGeneration;
+await assert.rejects(api.generate('персонаж'),/Подключите/);assert.equal(calls.length,0);
+api.configure({key:'test-secret',enabled:true,quality:'high',size:'1024x1536'});assert(!JSON.stringify(api.status()).includes('test-secret'));
+const images=await api.generate('Нарисуй персонажа');assert.equal(images[0].dataUrl,'data:image/png;base64,cG5n');assert.equal(calls[0].url,'https://api.openai.com/v1/images/generations');
+const body=JSON.parse(calls[0].options.body);assert.equal(body.quality,'high');assert.equal(body.output_format,'png');assert.equal(body.size,'1024x1536');assert(!JSON.stringify(body).includes('test-secret'));assert.equal(calls[0].options.redirect,'error');
+await api.generate('Новая поза',{references:['data:image/png;base64,cG5n']});assert.equal(calls[1].url,'https://api.openai.com/v1/images/edits');assert.equal(calls[1].options.body.getAll('image[]').length,1);
+await assert.rejects(api.generate('bad',{references:['https://untrusted.test/x']}),/Референс/);assert.equal(calls.length,2);
+for(const status of [401,403,429,500]){reply={ok:false,status};await assert.rejects(api.generate('x'),e=>!e.message.includes('test-secret'));assert.equal(api.status().busy,false)}assert.equal(calls.length,6);assert.equal(api.lastResult().length,1);
+ctx.fetch=(url,{signal})=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(Object.assign(Error(),{name:'AbortError'}))));
+const pending=api.generate('cancel');await new Promise(r=>setImmediate(r));await assert.rejects(api.generate('duplicate'),/Предыдущее/);api.cancel();await assert.rejects(pending,/остановлено/);assert.equal(api.status().busy,false);
+api.configure({key:'',enabled:false});assert.equal(api.status().configured,false);
+const source=fs.readFileSync('gpt-presence.js','utf8');const route={activeThread:()=>({}),activeThreadId:'main',pinnedContexts:[],appFollowup:()=>false,activeTargetSnapshot:()=>null,lastModuleArtifact:()=>null,isEditPrompt:()=>true,isActionCommand:()=>false};vm.createContext(route);
+vm.runInContext(source.slice(source.indexOf('function isGeneratedImageAction('),source.indexOf('async function executeDirectWebAsset(')),route);
+vm.runInContext(source.slice(source.indexOf('function executionMode('),source.indexOf('function visualArtifactProfile(')),route);
+assert.equal(route.executionMode('сделай вёрстку сайта доставки цветов'),'app');assert.equal(route.executionMode('создай виджет погоды'),'app');assert.equal(route.executionMode('исправь код OSMINOG'),'source');assert.equal(route.executionMode('нарисуй 3д персонажа для игры'),'canvas');assert.equal(route.isWebAssetAction('фото орла выкинь на холст из интернета'),true);assert.equal(route.webAssetQuery('фото орла выкинь на холст из интернета'),'фото орла');
+console.log('PASS Images API: generation + references + quality + no key leaks + failures + cancellation + no retries; user prompt routing');
+})().catch(e=>{console.error(e);process.exitCode=1});

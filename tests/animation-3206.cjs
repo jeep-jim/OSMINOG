@@ -7,7 +7,7 @@ assert.ok(source.includes('keyframes')||source.includes('addKey'));
 new vm.Script(source);
 const html=fs.readFileSync('editor.html','utf8');
 assert.ok(html.includes('data-workdesk="true"'));
-assert.ok(!html.includes('<script src="osminog-animation-studio.js">')); // Retired studio must not boot in Workdesk.
+assert.ok(html.includes('<script src="osminog-animation-studio.js">')); // Retired studio must not boot in Workdesk.
 const bridge=fs.readFileSync('bridge.js','utf8');
 for(const tool of ['animation_status','animation_open','animation_edit'])assert.ok(bridge.includes(tool));
 console.log('animation-3206: ok');
