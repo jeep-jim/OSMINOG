@@ -17,5 +17,9 @@ const source=fs.readFileSync('gpt-presence.js','utf8');const route={activeThread
 vm.runInContext(source.slice(source.indexOf('function isGeneratedImageAction('),source.indexOf('async function executeDirectWebAsset(')),route);
 vm.runInContext(source.slice(source.indexOf('function executionMode('),source.indexOf('function visualArtifactProfile(')),route);
 assert.equal(route.executionMode('сделай вёрстку сайта доставки цветов'),'app');assert.equal(route.executionMode('создай виджет погоды'),'app');assert.equal(route.executionMode('исправь код OSMINOG'),'source');assert.equal(route.executionMode('нарисуй 3д персонажа для игры'),'canvas');assert.equal(route.isWebAssetAction('фото орла выкинь на холст из интернета'),true);assert.equal(route.webAssetQuery('фото орла выкинь на холст из интернета'),'фото орла');
+for(const prompt of ['выкинь фото верблюда на оску','закинь фото орла','вот фото лилии добавь на доску','выкинь фото верблюда на доску']){assert.equal(route.isWebAssetAction(prompt),true,prompt);assert.equal(route.directWebAssetSuitable(prompt),true,prompt);assert.equal(route.executionMode(prompt),'canvas',prompt)}
+assert.equal(route.webAssetQuery('выкинь фото верблюда на оску'),'фото верблюда');
+assert.equal(route.isWebAssetAction('не добавляй фото на доску'),false);
+assert.equal(route.directWebAssetSuitable('найди фото или нарисуй изображение на холсте'),false);
 console.log('PASS Images API: generation + references + quality + no key leaks + failures + cancellation + no retries; user prompt routing');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -299,3 +299,8 @@ Source: `79b52efd07a5b1bc562845bdbfdc8bc193899e21`. Full CI passed: https://gith
 Published: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.4 . Publication, registry and integrity workflows succeeded. Dev feed verified active at 4.0.4. Package 4154026 bytes, SHA256 `482371851156fe7e327f4b72ae70cd04c1b090ea8d3321edc12f7f29d694d5dd`; CI package, public release digest and feed match. Updater and extension key preserved.
 
 Bound native chat sync deliberately does not receive composer injection. Presence now rejects this conflicting binding with a visible error, instead of claiming success. A live external chat must be connected without this binding. Actual user-session canvas access remains UNVERIFIED (`runtimeVerified:false`); this assistant still has no OSMINOG connector tools exposed. Stores have NOT been submitted/published. Public GitHub release is available.
+
+
+## 2026-09-26 · 4.0.5 photo routing regression
+
+User report: «выкинь фото верблюда на оску» fell through to a text-only model refusal. Confirmed code cause: destination matcher did not include выкинь/закинь and required correctly spelled доска/холст even with explicit photo placement. Fixed matcher, query cleanup for this typo, whole-word ambiguity checks (not substring или inside лилии), and team-mode bypass for direct web photos. Added exact-prompt unit and browser regression using real asset import and a mocked search response with text provider offline. Live image-search service and ten-image conversational follow-ups are not claimed validated by this change.
