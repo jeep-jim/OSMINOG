@@ -291,3 +291,11 @@ User decision: two primary jobs only: (1) collect anything on infinite project b
 Delivered changes: saved sites/layouts entry in top toolbar, in-window HTML/CSS editing, separate persistent visual copies, URL editor access, dismissible welcome, prominent external ChatGPT access, full bounded project map on each connected turn and explicit current-board Markdown fallback. Preserve local originals and button updates.
 
 Release gates: automated regressions and browser flow tests; explicit live external test remains outstanding. Remaining publication work: choose actual distribution accounts/listings and meet store review requirements; GitHub dev feed is not a Chrome Web Store or ChatGPT store publication. Never claim universal editable access to arbitrary protected domains or unlimited AI context.
+
+### 4.0.4 — verification and publication
+
+Source: `79b52efd07a5b1bc562845bdbfdc8bc193899e21`. Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36222720528. Screenshots of welcome and in-window HTML/CSS editor inspected. Editor save/reopen, widget interaction, welcome dismissal, context export and external project-map injection fixtures passed, alongside all existing workflow regressions.
+
+Published: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.4 . Publication, registry and integrity workflows succeeded. Dev feed verified active at 4.0.4. Package 4154026 bytes, SHA256 `482371851156fe7e327f4b72ae70cd04c1b090ea8d3321edc12f7f29d694d5dd`; CI package, public release digest and feed match. Updater and extension key preserved.
+
+Bound native chat sync deliberately does not receive composer injection. Presence now rejects this conflicting binding with a visible error, instead of claiming success. A live external chat must be connected without this binding. Actual user-session canvas access remains UNVERIFIED (`runtimeVerified:false`); this assistant still has no OSMINOG connector tools exposed. Stores have NOT been submitted/published. Public GitHub release is available.
