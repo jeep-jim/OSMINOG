@@ -24,6 +24,7 @@ jobs:
       - run: node tests/chat-state-3213.cjs
       - run: node tests/generated-media-3212.cjs
       - run: node tests/media-reference.cjs
+      - run: node tests/visual-import-402.cjs
       - run: node tests/foundation-memory.cjs
       - run: node tests/privacy-no-mirroring.cjs
       - run: node --check osminog-animation-studio.js
