@@ -1,928 +1,249 @@
-# 2026-09-25 — OSMINOG 4.0.0 Shared Board
+# OSMINOG — продукт, roadmap и проверенное состояние
 
-Владелец разрешил полную переработку вокруг общей локальной доски человека и ИИ. Обновление по кнопке обязательно сохраняется. Реализованы докированный чат, единая панель, блокнот/Markdown, связи, комментарии, захват экрана/окна, обрезка с оригиналом и PNG-буфер. Схема существующих проектов сохранена. Совместный доступ людей и публикация плагина требуют отдельного сервиса; не заявлять их работающими. Подробное состояние и план: docs/SHARED_BOARD_PRODUCT.md; проверки: tests/shared-board-400.cjs; выпуск: RELEASE_NOTES_4.0.0.md.
+Обновлено: 26.09.2026, Asia/Krasnoyarsk. Канонический репозиторий: `jeep-jim/OSMINOG`.
 
-# 2026-09-25 — 3.23.0: рабочий стол проекта
+Этот документ — точка входа в проект для владельца и разработчиков. Он дополняется после каждого этапа. Требования владельца от 26.09.2026 имеют приоритет над прежними предложениями о веб-приложении как основном продукте и об урезании возможностей до файлового стола. Предыдущий roadmap полностью сохранён в [архиве](docs/archive/OSMINOG_ROADMAP.before-2026-09-26.md). Исторический `OSMINOG_PROJECT_LOG.md` не переписывается.
 
-Решение пользователя: убрать перегруженные модули и оставить хранение/просмотр материалов, текст, папки и один GPT. Не удалять старые материалы.
-Реализовано: отключение запуска старых студий/командных оболочек, единая панель действий, окно просмотра и текстового редактирования, прямой импорт картинки по URL, сохранение механизма обновления.
-Проверка выпуска: браузерная проверка текста/просмотра/GPT, сохранности старых данных, интернет-импорта; регрессия папок/памяти/контекстного моста. Живое подключение ChatGPT проверяется отдельно после обновления пользователя.
-Следом: оценить упрощённую сборку с пользователем, проверить реальный перенос результата через GPT. Плагин/MCP и новая пятисценарная платформа остаются отдельными этапами, в этой версии не обещаны.
+## 1. Что строим
 
-# New product direction — 2026-09-07
+**OSMINOG — постоянное визуальное рабочее пространство проекта: человек собирает и редактирует материалы на доске, подключённый ИИ читает разрешённый актуальный контекст и возвращает редактируемые результаты в тот же проект.**
 
-User-approved goal: OSMINOG is the shared working environment for a person and an external AI. Preserve the infinite canvas, light/dark themes, one reserve GPT entry and local project folders. Projects must retain source files, editable results and launch/publication information.
+Понятное объяснение пользователю: «Собери материалы, покажи ИИ нужное, поправь результат и продолжи с этого места в следующем чате».
 
-## Current repair: 3.22.0
+Образ «рабочая ОС для ИИ» допустим как направление, но не означает разработку операционной системы. Предполагаемое отличие, которое ещё нужно проверить на пользователях: быстрый цикл «скриншот/сайт → визуальная правка → понятный ИИ контекст → результат рядом» с локальной работой и выбором поддерживаемого ИИ.
 
-- Implemented: compact metadata instead of full project maps on every message; no automatic screenshots; replace old context blocks; generated-media retry and reused-container handling; await asset persistence.
-- Verified locally: project/role/turn isolation and explicit image reads.
-- Required before publication: browser fixtures in CI, build archive integrity, publication feed verification.
-- Still unverified: live authenticated provider image ingestion on the owner installation.
+**Главный критерий:** свежий чат получает текущие материалы и изменения из выбранной доски, выполняет разрешённую правку, результат действительно появляется на доске, сохраняется после перезапуска и отменяется через Undo. Индикатор соединения и успешная сборка этого не доказывают.
 
-## Next architecture work (not shipped in 3.22.0)
+## 2. Зафиксированные требования владельца
 
-1. Define a common local project container: sources, assets, canvas layout, revision history and launch settings; migrate without discarding existing data.
-2. Documents: editable source plus PDF output, page operations, image transfer between documents.
-3. Web: executable preview linked to source, element selection, build errors and publication settings.
-4. Design/content: editable layers, visual references, versions and export.
-5. Games: runnable preview, scenes/assets, input and restart loop.
-6. Bots/agents as project artifacts: configuration, test inputs, execution logs and deployment; not an internal multi-model team chat.
-7. Common external-AI operations with scoped reads, mutation receipts and visual verification.
+Это требования к продукту, а не перечень уже реализованных функций.
 
-Release rule: do not describe queued/proposed changes as applied or generated images as imported without confirmation. Publish verified artifacts via the existing release registry and update feed; do not weaken updater verification.
+| ID | Требование | Приёмка / смысл |
+|---|---|---|
+| R01 | На холст можно положить любые материалы; внутренний и внешний ИИ получают к ним доступ | Оригиналы сохраняются. Для поддерживаемых форматов доступны содержание и визуальное представление; неподдерживаемый файл хранится как вложение с честным статусом «содержимое не прочитано» |
+| R02 | Редактор поверх изображения: обрезка, стрелки, текст, выделение, маркер | Оригинал неизменен, правки хранятся отдельно и редактируются; экспорт выбранной области в исходных пикселях без дополнительного уменьшения |
+| R03 | Удобные скриншоты экрана, окна и области с последующим редактированием | Системный выбор источника, выбор области, отмена, корректный масштаб при разных DPI, несколько мониторов; после кадра захват останавливается |
+| R04 | Лассо: обвести объект и скопировать силуэт | Ручная маска и прозрачный PNG. Автоматическое выделение человека — отдельное расширение, не обещание ручного лассо |
+| R05 | Чистая доска и масштабирование по образцу Figma | Zoom вокруг указателя, панорамирование, вписать выделение/доску, 100%, клавиатура и тачпад; отсутствие скачков при открытии боковой панели |
+| R06 | Настоящий порядок слоёв | Drag-and-drop в слоях меняет порядок перекрытия; группы, переименование, блокировка и видимость сохраняются; групповое перемещение не ломает связи |
+| R07 | Авторизация и доступ к своим доскам с разных устройств | Войти на втором устройстве, получить синхронизируемые проекты и актуальную ревизию; локальные несинхронизированные доски явно отмечены |
+| R08 | Доступ другому человеку по ссылке | Роли просмотр/комментарии/редактирование; облегчённый браузерный клиент без установки; незалогиненный гость имеет только разрешённые владельцем возможности; отзыв ссылки работает на сервере |
+| R09 | Полноценный блокнот и Markdown | Жирный, курсив, заголовки, списки, цитата, ссылка, вложения, изображения, Undo; редактирование и предпросмотр, автосохранение без потери внешней правки |
+| R10 | Редактируемые ноды и связи | Создание и отсоединение связи, перенос обоих концов между портами/краями объектов; клик по связи открывает цвет, толщину, пунктир, стрелки и подпись; клик по ноде — свойства самой ноды |
+| R11 | Понятные действия выделенного объекта | Компактная панель: открыть редактор, добавить в контекст чата, связать, скопировать, скрыть/свернуть. Закрытие редактора и удаление объекта различаются |
+| R12 | ИИ создаёт результат по референсам рядом | Результат становится объектом/группой проекта с источниками и редактируемыми данными; предпросмотр открывается в боковой вкладке |
+| R13 | Результаты видны в слоях и могут быть скрыты без удаления | Группу можно свернуть в дереве и отдельно скрыть глазиком; скрытие не удаляет объект, исходник и файлы |
+| R14 | Редактирование макета и визуальные правки сайта | Инспектор элемента, текст/стили/блоки, «до/после», описание изменений для ИИ; перенос в исходный репозиторий — отдельная проверяемая операция |
+| R15 | Виджеты и плагины на холсте | Свои инструменты и совместимые внешние MCP/MCP Apps — через проверенные адаптеры; произвольный плагин из каталога ChatGPT автоматически совместимым не считается |
+| R16 | Работа с разными ИИ и возврат результатов | Одна модель проекта, отдельные адаптеры. Для каждого указано, что он читает, что пишет, принимает ли изображения и как авторизуется |
+| R17 | Ctrl+C / Ctrl+V в обе стороны | Текст, HTML и PNG передаются системным буфером в совместимые приложения; между досками сохраняются структура/стили/связи; для неподдерживаемого внешнего формата — явный экспорт файла |
+| R18 | Все инструменты открываются как текущий чат | Единая сворачиваемая боковая область с вкладками «Чат / Текст / Канвас / Плагины»; редакторы не перекрывают доску; на доске можно оставить иконку/карточку инструмента |
+| R19 | Один продукт и ядро на разных платформах | Первый приоритет — Chrome, Windows, плагин ChatGPT; затем macOS, другие браузеры, урезанные Android/iOS; единая модель данных и узнаваемый интерфейс |
+| R20 | Сайт как лендинг, аккаунт и оплата | Не переносить весь продукт в тяжёлую серверную рабочую среду. Для R08 нужен отдельный облегчённый веб-просмотрщик/редактор по ссылке |
+| R21 | Обновление по кнопке | Сохранить действующий Dev Hub и ключ Chrome; установка только полного проверенного пакета, восстановление при сбое; будущие платформы соблюдают правила собственных каналов |
+| R22 | Быстрая работа и сохранность | Не терять существующие доски, оригиналы, историю и связи; измерять скорость на оговорённых нагрузках, не обещать «никогда не тормозит» |
 
----
+Требования о совместном доступе, лассо, плагинах и Windows сохраняются в roadmap, даже когда не входят в ближайший этап.
 
-# 3.21.6 — native bidirectional chat synchronization
+## 3. Интерфейс: единое правило
 
-Owner now explicitly requests both directions in the bound conversation, replacing the prior no-mirroring requirement for that connection. Found: first Alice response rejected on canonical chat URL creation; no native manual-turn receiver; legacy custom placeholder locked as system. Added scoped sync channel, current-turn-only import, request/agent/project binding and automatic canvas attachment. Added exact placeholder backup/removal and builtin identity checks. Unit checks pass; browser fixture CI required before publication; authenticated provider runtime remains unverified.
+- Центр — доска с объектами, группами и иконками инструментов. Слева — сворачиваемые слои. Основные действия — одна компактная панель.
+- Справа — одна докируемая область, меняющая размер доски, с изменяемой шириной и вкладками. Чат, текст, редактор медиа, предпросмотр сайта и плагины используют один механизм открытия.
+- Вкладка «Канвас» справа — редактор/предпросмотр выбранного результата; главная доска остаётся в центре. Не создавать вторую несвязанную копию проекта.
+- Закрытие вкладки сохраняет данные. «Свернуть группу», «скрыть объект», «исключить из контекста ИИ» и «удалить» — разные действия.
+- Глазик управляет видимостью, а не разрешением ИИ читать объект. У контекста ИИ отдельное понятное состояние: выделение/группа/доска и доступные типы данных.
+- Скрытые и закрытые тяжёлые виджеты не продолжают непрерывный рендеринг; состояние сохраняется, предпросмотры загружаются по необходимости.
+- Все нажатия, перетаскивания и клавиатурные действия должны быть доступны без открытия нескольких наложенных окон. Диалоги остаются для подтверждений и системного выбора файлов/экрана.
 
-# 3.21.5 — восстановление оригинальных чатов
+## 4. Архитектура: направление и границы
 
-- Найдено: общий запрет зеркалирования блокировал кнопку Live Presence.
-- Исправлено: отдельный канал контекста текущего проекта и явных команд; пять адаптеров оригинальных чатов, роли и границы задач.
-- Проверить перед выпуском: unit/Chromium и соответствие ZIP исходникам.
-- Остаётся: живая проверка на авторизованных страницах владельца, включая встроенный генератор. Полное равенство внутреннего API и оригинального сайта не заявляется.
+### 4.1. Ядро и оболочки
 
-# OSMINOG — MASTER ROADMAP & LIVE PROJECT STATE
+Предлагаемое разделение, подлежащее проверке до выбора нового фреймворка:
 
-**Дата актуализации:** 2026-08-29  
-**Канонический продукт:** OSMINOG  
-**Домен:** `osminog.red`  
-**Репозиторий:** `jeep-jim/BriefCraft`  
-**Текущая установленная сборка:** **3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner установил; Figma ambience виден, но top/dropdown/chat/settings/brand icons требуют cleanup**  
-**Текущий кандидат:** **3.11.23 AGENT CONNECTION & NODE UX — собран, static checks PASS, owner runtime pending**  
+1. **Общее ядро проекта:** объекты, группы, порядок слоёв, связи и порты, документы, ассеты, аннотации, версии, операции и Undo.
+2. **Общий интерфейс:** доска, слои, выделение, боковые вкладки, редакторы.
+3. **Адаптеры платформ:** файлы, буфер, захват экрана, локальное хранение, запуск, обновление. Chrome и Windows используют одни правила проекта, но разные системные API.
+4. **Доступ ИИ:** разрешённое чтение, выдача медиа, изменение через проверяемые операции, возврат артефактов. Внутренний чат — один клиент этого интерфейса; внешний ChatGPT/MCP — другой.
+5. **Сетевая часть:** аккаунты, права, синхронизация, общие ассеты, приглашения, присутствие участников и MCP endpoint.
 
-> Этот файл — живой мастер-документ проекта. Он отвечает одновременно на три вопроса: **что уже было сделано, что реально есть сейчас и что делаем дальше**. После каждого законченного шага он обновляется в GitHub и синхронно дублируется на холсте OSMINOG объектом **OSMINOG ROADMAP — LIVE**. Исторический `OSMINOG_PROJECT_LOG.md` остаётся append-only журналом и никогда не переписывается.
+Не обещать побайтно одинаковое приложение на всех платформах. Данные, базовое поведение и редакторы общие; возможности захвата/файлов и интерфейс внутри ChatGPT ограничены платформой.
 
----
+Плагин OSMINOG в ChatGPT и плагины внутри OSMINOG — два разных направления интеграции. Плагин ChatGPT представляет тот же проект через доступные инструменты и, при необходимости, облегчённый UI; это не отдельная копия доски.
 
-## 1. Неподвижные правила проекта
+### 4.2. Локальная работа и сетевой доступ
 
-1. Видимое имя продукта — **OSMINOG**. Legacy `BriefCraft/BriefCraft AI/RichCraft` допускаются только во внутренних compatibility identifiers до безопасной миграции.
-2. Временный бренд — простой красный круг `#FF2D2D` + `OSMINOG`. Финальный логотип владелец предоставит позже.
-3. Фиксированный Chrome `manifest.key`, extension ID, `briefCraft...` storage keys, `.briefcraft.json` и внутренние протоколы типа `briefcraft.patch/v1` сохраняются до отдельной протестированной миграции.
-4. GitHub — канонический источник проекта, истории, метаданных релизов и восстановительных точек.
-5. Полная сборка считается сохранённой только когда удалённый бинарный файл реально доступен и его размер + SHA-256 совпадают с локально проверенным артефактом.
-6. Нельзя заявлять функцию «работающей», если она только собрана/статически проверена, но не прошла реальный runtime-test.
-7. Не плодим новые крупные функции, пока существующие подсистемы не сведены в одну понятную архитектуру и не работают согласованно.
-8. Любая правка состояния холста AI-агентом идёт по стабильным object/connection IDs и через валидированный patch, а не через текстовое заявление «я сделал».
+Рендеринг, редакторы и основное хранение выполняются на устройстве. Базовая локальная доска должна работать без сети. Для включённой синхронизации передаются изменения и требуемые ассеты, а не непрерывное видео экрана.
 
----
+Доступ с другого устройства и гостю при выключенном компьютере владельца требует доступной сетевой копии выбранной доски. Одного аккаунта и лендинга недостаточно. Предлагаемый компромисс: локальные проекты + явно включаемая синхронизация/общий доступ + облегчённый веб-клиент. Это не утверждённая схема тарифов.
 
-## 2. Текущий установленный baseline — 3.11.2 PROVIDER / SESSION LAYER
-
-- Владелец установил 3.11.2 и прислал несколько runtime-скриншотов: версия отображается в top bar, Ocean workspace загружается, Search Layer, папки и Media Crew визуально открываются.
-- Это подтверждает загрузку 3.11.2 на реальном Windows/Chrome, но НЕ считается полным regression provider transports, Team execute, Browser Hub, Google multimodal, folders, connections и Presence.
-- 3.11.3 строится поверх этой реальной установленной точки, а 3.10.6 остаётся проверенной восстановительной базой.
-
-### Проверенный восстановительный baseline — 3.10.6 CANVAS CONTROL
-
-Полученный от владельца архив проверен побайтно как точная текущая сборка:
-
-- Файл: `OSMINOG-Chrome-3.10.6-CANVAS-CONTROL-ROOT.zip`
-- Размер: **308710 bytes**
-- SHA-256: `c25b2ecfe0ab668993ba83d525fb867efc0f6161ad17e0f6c7e6019de9984f4c`
-- Файлов: **52**
-- `manifest.json` находится в корне
-- Manifest version: **3.10.6**
-- Manifest name: **OSMINOG**
-- Fixed manifest key: сохранён
-
-Это исходная точка для следующих правок. Никакая более старая ветка/пачка не используется как источник текущего UI.
-
-### Live Presence
-На момент создания этого roadmap прямой OSMINOG Browser Presence реально подключён к текущему ChatGPT:
-
-- Project: `Новый мир`
-- Project ID: `world-mtayth7j-25lhsc`
-- Revision: `117`
-- External role: `edit`
-- AI получает compact project map, viewport, selection, objects/connections и может запрашивать точные тела/DOM/снимки.
-
-**Следующая задача Presence:** расширить единый snapshot с canvas graph до полного runtime/UI state: открытые окна, provider connections, service tabs, активный чат, attachments, выполняемые задачи и состояние Browser Hub.
-
----
-
-## 3. Что такое OSMINOG сейчас
-
-OSMINOG — не «чат с холстом» и уже не просто «Figma для промтов». Это локальная визуальная AI-операционная среда проекта:
-
-- бесконечный canvas как визуальная память;
-- устойчивые objects и groups;
-- nodes/connections как граф контекста и исполнения;
-- главный и специализированные AI-агенты;
-- Team Room с совместным transcript и execution handoff;
-- Provider Registry и Media Crew;
-- внутренние provider/browser sessions;
-- Code + Markdown Studio;
-- реальная локальная папка проекта;
-- виртуальные Windows-подобные папки на рабочем столе;
-- Browser Presence для внешнего AI-партнёра;
-- structured patches для реальных изменений проекта.
-
-Главная продуктовая цель: **человек и подключённые AI-партнёры работают с одним и тем же проектом и буквально “смотрят одними глазами” на одно актуальное состояние.**
-
----
-
-## 4. История уже построенного ядра
-
-### 3.8.x — устойчивое ядро и AI Presence
-- 3.8.8–3.8.10: доказан direct authenticated ChatGPT web-session transport.
-- 3.8.11: multimodal image upload.
-- 3.8.12: object focus + clipboard/drop attachments.
-- 3.8.13: Main + temporary agent chats и tethers.
-- 3.8.14: реальные canvas patches и build-from-brief через code/live preview.
-- 3.8.17: durable save + фиксированный manifest key.
-- 3.8.18: folder-first onboarding, whole-project context, PDF overlay/editing, OWNER device layer.
-- 3.8.19–3.8.24: vector tools, providers, Google AI workspace, browser-tab connection UX.
-- 3.8.25: доказан DeepSeek direct authenticated hidden web-session transport без записи служебных запросов в видимый consumer chat.
-- 3.8.26+: agent relay, ghost/clipboard fixes, observed objects, multi-selection/group frames.
-- 3.8.61+: видимый ребрендинг в OSMINOG.
-- 3.8.62–3.8.64: OSMINOG chat bridge, Google AI service transport, linked module context, 8-port module connections.
-
-### 3.9.x — TEAM OS
-- Общий Team Room вместо изолированных AI-монологов.
-- Council / Review / Execute.
-- 1–6 rounds.
-- Общий transcript.
-- `OSMINOGAgentAPI`, `agent_list`, `agent_message`.
-- Execute требует реальный `briefcraft.patch/v1`.
-- Markdown Studio.
-- Browser Hub / отдельное service window.
-- Shared movable/resizable window manager.
-- Google bridge V4 с freshness/dedupe логикой.
-
-### 3.10.0 — MEDIA CREW
-- Provider Registry: 23 chat/image/video/music/voice сервисов.
-- Media Crew orchestration surface.
-- Team attachments, drag/drop, clipboard/cached screenshot.
-- Desktop-first project folder и безопасные project-folder tools.
-
-### 3.10.1 — DESKTOP STABILITY
-- Team больше не скрывает canvas.
-- Inline thinking/activity strip.
-- Реальная жёлтая project-folder icon на OSMINOG desktop.
-- Explorer реальной папки.
-
-### 3.10.2–3.10.5 — FOLDERS / UX / RECOVERY
-- Telegram-style grouped chat bubbles.
-- Universal Ctrl+V image ingestion.
-- Windows-like virtual folders.
-- 3.10.3 поймал тяжёлый regression: два folder runtime + self-triggering MutationObservers → black screen/high CPU.
-- 3.10.4 оставил один folder engine, убрал polling/observer-loop и восстановил производительность.
-- 3.10.5: collapsed Layers polish, agent show/hide/rename/collapse, draggable Team bubble, Provider Registry search, Store page, interface text-size presets, восстановление любой virtual folder на desktop.
-
-### 3.10.6 — CANVAS CONTROL
-- Окна появляются у последнего owner action point либо по центру, а не в левом верхнем углу.
-- Google получает project map + selection + connections + linked context.
-- Visual questions могут автоматически прикладывать свежий screenshot.
-- Google bridge возвращает rich text/cards/images.
-- Connection inspector: color/width/style/dash/arrow + curvature + curveOffset + disconnect/delete.
-- Explorer image thumbnails.
-- Drag canvas object → folder и folder → canvas.
-
----
-
-## 5. Что доказано runtime, а что ещё нет
-
-### Доказано/подтверждено
-- 3.10.5 запускается у владельца; 3.10.6 установлена как текущая.
-- DeepSeek direct authenticated web-session является доказанным рабочим transport и не должен переписываться без причины.
-- OSMINOG Browser Presence в текущем ChatGPT теперь реально передаёт live project context.
-- 3.10.4 controlled Chromium smoke устранил catastrophic startup loop 3.10.3.
-
-### Требует живой доводки
-- Google AI: изображения из OSMINOG chat → реальный multimodal input.
-- Google AI: один persistent service session вместо новых чатов/дублей.
-- Google AI: один user request → ровно один provider send → один returned answer.
-- Browser Hub / внутренние вкладки как единый session runtime для всех providers и ссылок.
-- Full Team council→execute runtime path.
-- Media Crew autonomous capability parity.
-- Markdown/Code/filesystem единая persistence модель.
-- Полный regression pass folders, themes, connections, windows после 3.10.6.
-
----
-
-# 6. НОВОЕ НАПРАВЛЕНИЕ — OCEAN SHELL
-
-Владелец утвердил полный interface-shell rewrite вокруг глубинной океанской метафоры, при сохранении существующего engine/data model. Каноническая спецификация: `docs/OSMINOG_OCEAN_SHELL.md`. Источник дизайна: Figma `h1aG9cEdviAPA45gygUsB9`, Page 1 / node `0:1`.
-
-Главный принцип: OSMINOG — не canvas с набором постоянно открытых AI-окон, а единая пространственная AI-операционная среда. Холст остаётся памятью/графом проекта; тяжёлые модули переходят в sheets/drawers/focus surfaces, а idle workspace должен оставаться спокойным и незахламлённым.
-
-План релизов оболочки:
-- [x] 3.11.0 OCEAN SHELL ALPHA — owner runtime загрузки подтверждён: Ocean workspace и существующий проект открылись; визуальное направление принято. Полный subsystem regression остаётся открытым.
-  - ZIP: 54 files · 317919 bytes · SHA-256 `f9bad38e1cbca7ad7c8bd3cea739c16deb918bf4241753862e9ac2a7908c2bfd`.
-  - P1–P8 остаются обязательными требованиями следующих 3.11.x миграций, а не отменяются редизайном.
-- [x] 3.11.1 SEARCH LAYER — owner runtime загрузки подтверждён: Search Layer и живой индекс отображаются. Полезная search/index логика сохраняется.
-  - Owner visual feedback: большая dome-like поверхность раскрывалась не так, как исходная Yokkey/OSMINOG 2011 механика; требовалось ощущение, что поверхность выталкивается из постоянной нижней полосы с округлёнными нижними плечами.
-  - Эта геометрия считается отвергнутой и не переносится дальше.
-  - ZIP: 54 files · 323960 bytes · SHA-256 `b5039cc4d903645f2f423e6235abe6d75509d3a1c485dbbc9ae233e9d92a1c0a`.
-- [x] 3.11.2 PROVIDER / SESSION LAYER — candidate собран.
-  - Search emergence: постоянная нижняя Ocean-полоса; глаз остаётся в ней; search surface стартует сжатой в центральном slot и расширяется вверх; нижние плечи и central stem скруглены.
-  - Добавлен единый `OSMINOGSessionManager`: один provider → одна переиспользуемая internal Browser Hub/service session по умолчанию.
-  - Session identity сохраняется; stale tabs очищаются; Provider Registry использует общий Session Manager.
-  - AI chat status унифицирован до `On` / `Off` с точкой; `GPT LIVE` и подобные дубли provider-name убираются.
-  - В неподключённом AI chat появляется сразу видимая кнопка `Подключить`.
-  - Settings становятся full-surface внутри AI-chat вместо выпадающей вниз панели.
-  - Provider brain picker получает реальные иконки; доступны ChatGPT, DeepSeek, Google AI, Gemini, Claude и Custom; полный Provider Registry подключается к тому же settings surface.
-  - Google AI добавлен как agent brain через существующий Google service transport; один service-session переиспользуется.
-  - Google multimodal send теперь fail-closed: если OSMINOG не подтверждает видимое принятие изображения Google-композером, текстовый запрос без картинки не отправляется.
-  - Видимое `Jarvis` переименовано в **Poseidon**; legacy internal/storage aliases сохранены для совместимости.
-  - DeepSeek proven transport намеренно не переписывался.
-  - Candidate ZIP: 55 files · 335371 bytes · SHA-256 `0efec9227915c14178064e17527a0755fc5e42c147871f80ae27b2a0cc1ce1bd`.
-  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.3 BUBBLE EYE / ENVIRONMENT — owner runtime загрузки подтверждён, но нижний eye/dock/search визуально забракован.
-  - Полезные Ocean FX, bubble hover/delete/drag/focus эффекты и desktop-first environment language сохраняются.
-  - Ошибка: глаз был собран как несколько независимых halo/pedestal слоёв; появились артефакты, отдельный полукруг-пьедестал и дублирующая eye-графика внутри Search.
-  - Owner обновил Figma desktop reference: один длинный нижний rail; спящий почти прозрачный глаз с пузырями; hover пробуждает глаз и зрачок следит за мышью; click делает глаз красным; Search поднимается из того же rail.
-  - ZIP: 55 files · 337047 bytes · SHA-256 `797136658d01c5b636f3e79500ddf7c38ad93d9f92c9b7ba2394cbe58ceb2050`.
-- [x] 3.11.4 LIVING EYE DOCK — owner runtime загрузки подтверждён, но interaction снова уточнён по свежему Figma desktop reference.
-  - Один глаз загружается корректно, но постоянный нижний rail в idle не нужен.
-  - Owner требует: idle = только один почти прозрачный глаз; pupil следит за мышью всегда; hover = глаз краснеет/просыпается и из него горизонтально растёт translucent bubble; click = из этого же bubble вверх раскрывается Search.
-  - Bottom canvas toolbar также не должен висеть на пустом холсте — показывать его только при selection/edit context.
-  - ZIP: 55 files · 342950 bytes · SHA-256 `74a9b7a760954785150de8bcaeeadca43fd4818f3659cd32acaa7f40b99ceec2`.
-- [x] 3.11.5 EYE REVEAL — owner runtime загрузки подтверждён.
-  - Idle eye / hover bubble / click-lift направление стало ближе к Figma.
-  - Remaining owner feedback: при открытом Search глаз должен морфиться/уезжать в правую красную кнопку поиска; убрать лишний bright/white search-row эффект и грубый scrollbar; расширить Search и внутренние элементы.
-  - ZIP: 55 files · 344669 bytes · SHA-256 `1473094f457ae801b48d2805e9f712523bc1264dd4df9b73909fa0c8a5d4b11f`.
-- [x] 3.11.6 KRAKEN DRIFT — owner runtime загрузки подтверждён.
-  - Living Eye/Search morph, integrated search row, hidden scrollbar, wider Search and water drift are visible in real Chrome.
-  - Owner changed the first interaction model: approaching the eye must NOT immediately become the Search surface; the eye is Kraken's sensor and first reveals a semicircular launcher of primary functions.
-  - ZIP: 55 files · 348750 bytes · SHA-256 `712ead4d1d5c9643b72fe005247f770634259d25e3cda6519ba37b09628abe21`.
-- [x] 3.11.7 OCEAN ARC LAUNCHER — owner runtime загрузки подтверждён; Kraken radial launcher и Ocean/Space mode-switch реально загружаются в Chrome.
-  - Interface settings now have two first-class modes: **Ocean** and **Space**. Ocean is the active experimental design line; Space preserves the earlier classic OSMINOG interaction model for users who prefer it.
-  - Ocean keeps its own **Day / Night** variants; Space keeps **Light / Dark** variants. Theme toggle changes the variant inside the current mode instead of switching the product between unrelated shells.
-  - Empty-canvas welcome card is session-only onboarding: it has a round close button and, once dismissed, stays hidden until a new tab/browser session. It no longer permanently occupies the canvas.
-  - Kraken Eye uses proximity wake: entering roughly 17% of the viewport-scale wake radius makes the eye wake before direct hover.
-  - First-level Ocean navigation is a semicircular **Kraken radial launcher** with Search, Files, Team, AI, Browser, Media, Code, Settings and Store. Mouse wheel rotates items along the arc.
-  - Search becomes a second-level bubble selected from the Kraken launcher and preserves the 3.11.6 eye→search action morph.
-  - Existing folders/modules/windows open through their existing logic but receive Ocean bubble-entry motion and round close/minimize controls; Space keeps the classic surfaces.
-  - Owner feedback после runtime: Kraken arc direction принят, но reef/lagoon/island Day scene отклонён. Ocean Day возвращается к светлой дневной глубине без острова/пальм; Ocean Night остаётся abyss/bioluminescent depth. Space не получает Ocean ambience.
-  - Search index, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence, water drift and stable project IDs/data are preserved.
-  - Candidate ZIP: 55 files · 354073 bytes · SHA-256 `6bc49dddef6fa5cdd654e3ba81a2f76dc5b6306195b407e53ae222f27f608833`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.8 OCTOPUS WORK STATES — owner runtime загрузки подтверждён.
-  - Ocean Day возвращён к светлой подводной глубине из раннего Ocean Shell: свет сверху, голубая толща, планктон/пузыри; reef/island/palms удалены.
-  - Task execution больше не заставляет agent pill висеть на canvas. Постоянный pill остаётся только при явном linked/pinned context.
-  - Активная задача показывает рабочего осьминога около исследуемого/редактируемого объекта; inspect и work states визуально различаются.
-  - Добавлен live tether от agent chip в chat к активному worker-octopus.
-  - Обычные canvas connections лежат за objects; hover/selected edit временно поднимает connection layer для редактирования.
-  - Kraken Arc Launcher, Search, Provider/Session Manager, Google/DeepSeek, Team, Browser Hub, Media Crew, folders, Presence и stable IDs/data не переписывались.
-  - ZIP: 55 files · 356050 bytes · SHA-256 `1ecfdcbe60f9af341f74ea8e553db56e0235437cecf8d9fe0d6f76880a06345f`.
-- [x] 3.11.9 TASK ORBIT INTRO — owner runtime загрузки подтверждён.
-  - Стих пробуждения полностью удалён из Search.
-  - Стих показывается только при первом раскрытии Kraken Arc в текущей browser/tab session и больше не мешает поиску.
-  - Добавлены локализованные варианты onboarding-текста для RU / EN / DE / ES / JA / ZH.
-  - Kraken Arc получил отдельное действие `Задача`.
-  - Добавлен реальный canvas object `task`: центральная командная задача и orbit bubbles ChatGPT / Claude / Gemini / DeepSeek / Chat / Files / Result.
-  - Orbit actions переиспользуют существующие Provider Registry, Team Room и project-folder runtimes; второго chat/files/provider engine не создаётся.
-  - Double click центральной задачи открывает Team Room и подставляет название задачи в mission input.
-  - Candidate ZIP: 55 files · 356012 bytes · SHA-256 `e547ad48a4f8762a03b8e3c98fd772f63a3f64285cc3b85386269b906cf842d9`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.10 OCEAN DESKTOP SHELL — owner runtime загрузки подтверждён; функциональная идея принята, но обнаружен positioning regression: top-left identity, workspace modes и top-right utilities оставались дочерними legacy glass topbar и поэтому Chrome позиционировал fixed descendants относительно старого containing block.
-  - Ocean получает одноразовую desktop-default миграцию: **Day depth** по умолчанию и **Без сетки** (`plain`) по умолчанию; сетку/точки пользователь может включить вручную.
-  - В Ocean настройки цветов холста/сетки скрыты: палитра принадлежит самой Ocean-сцене; остаются grid selector и собственные Ocean FX. Space сохраняет классические canvas colors.
-  - Верхний центр освобождён: OSMINOG + язык + переключатель Ocean Day/Night вынесены в компактный bubble-cluster слева.
-  - Layers вынесены отдельным пузырём в левом верхнем углу.
-  - `Brief / Code / Browser / Design / Team` перенесены с верхней полосы в вертикальный bubble-rail справа. Неоновые цвета/иконки режимов сохранены.
-  - Hover/click активного режима раскрывает radial sub-tools: Brief → Text/Note/Node/Image/File; Code → Code/Markdown/File/Capture/Browser; Browser → Window/Tabs/Search/File/Capture; Design → Shape/Text/Pen/Vector/Image; Team → Team/Task/AI/Files/Media.
-  - Верхние правые Access / Chat AI / Export и остальные системные действия пока сохранены без функциональной миграции.
-  - Начат переход close/minimize controls к круглым Ocean bubble controls.
-  - Стих первого пробуждения расположен внутри Kraken Arc и не возвращается в Search.
-  - Candidate ZIP: 55 files · 362800 bytes · SHA-256 `ea2b19e22010f8c7ea37b3f7e7c4e4462a22e7b894fd41927dff504c0926fa23`.
-  - Static checks: 21 JS syntax PASS, 9 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.11 SHELL POSITION FIX — owner runtime загрузки подтверждён, но shell layout визуально отклонён.
-  - Portal/containing-block regression исправлен технически: top-right controls снова на месте.
-  - Owner runtime feedback: отдельный identity bubble сверху слева + отдельный mode rail справа + Kraken снизу + legacy rail создают слишком много независимых навигаций и выглядят как перегруженный Flash-era UI.
-  - Этот layout не переносится дальше как основной Ocean shell; полезный portal fix сохраняется.
-  - ZIP: 55 files · 363750 bytes · SHA-256 `cfbd35bdd7297c129e90067d944b20061ded39def29a2c4c3631dc639f2cd674`.
-- [x] 3.11.12 OCEAN DOCK & BUBBLE CONTAINERS — owner runtime загрузки подтверждён, но обнаружен P0 freeze/performance regression.
-  - Нижний dock, linear tool shelf, zoom pill и provider bubble grouping реально загрузились в Chrome.
-  - Owner сообщил о полном зависании вкладки/расширения после работы с новым Ocean shell.
-  - Разбор показал конкретный feedback-loop: bubble-group MutationObserver вызывал `renderGroupBubbles()`, который сам удалял/создавал group DOM и повторно будил observer; одновременно collision resolver запускался каждые 1.1s как O(n²) layout-pass.
-  - Water drift писал `style.translate` каждый animation frame, а глобальные body MutationObserver следили за `style/class`, поэтому drift дополнительно будил дорогие layout/UI sync callbacks практически каждый кадр.
-  - Эта performance-схема запрещена к возврату в следующие версии.
-  - ZIP: 55 files · 369631 bytes · SHA-256 `049aa1245c38495946c8a45eb712205d2f4c1c6a218562da09709d7803644487`.
-- [x] 3.11.13 OCEAN CLARITY & PERFORMANCE — owner runtime загрузки подтверждён.
-  - P0 freeze-path из 3.11.12 убран: self-triggering observer/collision loops сняты.
-  - Owner feedback после реального использования: даже после performance fix отдельная Ocean interaction system остаётся слишком сложной, непредсказуемой и мешает базовой работе; создателю самому трудно понять, где находится привычный инструмент.
-  - Product decision: Kraken Arc / Living Eye launcher / отдельный Ocean dock / tool shelves / bubble-container physics больше НЕ являются основным интерфейсом OSMINOG.
-  - Исторические идеи сохраняются в project log как R&D, но runtime возвращается к одной знакомой рабочей раскладке.
-  - ZIP: 55 files · 372219 bytes · SHA-256 `5d7f279d6b1e63c14bda39031a7b6c969ace7c4d2edc6f8d0db7aba2218073a9`.
-- [x] 3.11.14 THREE THEME RESET — owner runtime загрузки подтверждён, но Ocean theme switch поймал regression.
-  - Product reset верный: Light / Dark / Ocean должны использовать один familiar classic layout.
-  - Runtime bug: после переключения Dark → Ocean владелец получил только синий фон; рабочий UI исчез.
-  - Причина направления hotfix: Ocean всё ещё имел отдельный ambience DOM/stacking path, хотя после reset он уже не должен создавать никакую отдельную оболочку.
-  - ZIP: 55 files · 323979 bytes · SHA-256 `4c0812846e17c0f2d96b795cdf4d22308a68cbe6ac444e2f357e459029661498`.
-- [x] 3.11.15 OCEAN THEME HOTFIX — owner runtime загрузки подтверждён.
-  - Ocean CSS-only theme снова показывает полный рабочий интерфейс; blank-blue regression 3.11.14 устранён.
-  - Light / Dark / Ocean используют один и тот же `#app`, DOM и layout.
-  - ZIP: 55 files · 323297 bytes · SHA-256 `d2130d19f25a15577e7bfbf3b7bec654cd7a1d3bbe4dd6480a5fe49f3bf70ace`.
-- [x] 3.11.16 OCEAN UI POLISH — owner runtime загрузки подтверждён.
-  - Основной classic layout сохранился, Ocean FX и три темы работают.
-  - Owner feedback: Ocean-палитра получилась слишком ярко-бирюзовой и низкоконтрастной по сравнению с Light/Dark; панели и текст плохо считываются.
-  - Layers bubble расположен слишком низко и визуально наезжает на Layers panel; должен жить в самом левом углу шапки.
-  - Zoom в collapsed Inspector был реализован слишком буквально: процент повернут вертикально, а при раскрытии Inspector zoom исчезает.
-  - ZIP: 55 files · 329105 bytes · SHA-256 `c3a32fc2eb2da20cbd9c8c93d752e7920963092246f2a6933691dd721c721177`.
-- [x] 3.11.17 OCEAN CONTRAST & LAYOUT FIX — owner runtime загрузки подтверждён.
-  - Ocean contrast/readability заметно лучше предыдущей washed-cyan версии; основной familiar workspace layout сохранён.
-  - Owner feedback: collapsed Inspector должен быть компактным верхним quick-actions блоком, а zoom — отдельной pill с отступом и той же шириной; при expanded Inspector zoom должен возвращаться в горизонтальную форму.
-  - Collapsed Layers всё ещё визуально показывает содержимое/preview слоя; expanded footer имеет неверную иерархию: большой `+` и маленькая папка вместо широкой локальной папки + маленького `+`.
-  - Ocean top controls местами теряются; нужен единый полупрозрачный substrate без индивидуальных рамок каждого control.
-  - ZIP: 55 files · 324575 bytes · SHA-256 `d8e6b11c692c71e505e5efb2ad16216131477647183f9f0516310279b11f3a32`.
-- [x] 3.11.18 LAYERS & ZOOM POLISH — owner runtime загрузки подтверждён.
-  - Shared Light/Dark/Ocean layout работает, локальная папка и zoom-перестройка загружаются.
-  - Owner feedback: верхние Ocean controls снова воспринимаются как три длинных контейнера вместо отдельных bubble-controls; collapsed Layers всё ещё пропускает реальный thumbnail/preview; zoom collapsed всё ещё визуально слишком длинный.
-  - GPT/ChatGPT окно в Ocean имеет белое/низкоконтрастное поле переписки; Agent Settings полупрозрачны, секции плохо читаются и нижнее содержимое скрывается; scrollbar Inspector/Settings выглядит системно и грубо.
-  - Footer Layers должен быть без разделительных полос и совпадать по высотному ритму с нижним creation toolbar.
-  - ZIP: 55 files · 330638 bytes · SHA-256 `d4314909eb86ca985167cb616cdc7c788a8dccbe501fe70824f76440c740064a`.
-- [x] 3.11.19 OCEAN READABILITY & PANEL CLEANUP — owner runtime загрузки подтверждён.
-  - Читаемость Ocean chat/settings и общий panel cleanup стали заметно лучше; classic shared layout сохранён.
-  - Owner feedback: Figma-набор plankton/sea forms представлен не полностью; формы должны плавно менять направление/вращаться, часть может люминесцировать, а bubbles всегда идут только вверх.
-  - Логотип OSMINOG в Ocean не должен получать собственную подложку; верхние управляющие группы должны использовать тот же glass-material language, что правый quick rail.
-  - Collapsed zoom должен совпадать по ширине/материалу с inspector mini-rail и жить строго внизу, без вытянутой пустой шахты.
-  - В collapsed Layers обнаружен overlap между mini-rail и нижними folder/+ controls; нижние actions также должны иметь тот же button style, что верх rail.
-  - ZIP: 55 files · 332263 bytes · SHA-256 `2b3e46800db9ad8be87dfd73d5c7eda486810b2f2b7a5c402180957f94c634c3`.
-- [x] 3.11.20 FIGMA PLANKTON & RAIL ALIGN — owner runtime загрузки подтверждён; Ocean ambience виден, но во время Team выявлены execution/z-layer/chat-collapse regressions.
-  - Live Figma MCP упёрся в Starter-plan call limit, поэтому формы восстановлены по owner-provided Figma screenshots, без выдумывания нового набора: ring/cell/burst/jelly/microbe/star/spore/propeller/droplet/crescent/diamond + tiny plankton points.
-  - Ocean forms используют только CSS transform/opacity motion: плавно дрейфуют, меняют направление и вращение; часть форм получает мягкую bioluminescence. Никаких requestAnimationFrame/collision loops.
-  - Bubbles отделены в собственный слой и всегда движутся вертикально вверх.
-  - Логотип OSMINOG в Ocean полностью без background/border/shadow. Workspace prefs, mode switch и top actions используют тот же blue-glass material, что боковой quick rail.
-  - Collapsed zoom: 56px, тот же material/width, anchored bottom-right; expanded Inspector сохраняет горизонтальный classic zoom.
-  - Collapsed Layers заканчивается на той же нижней линии, что zoom; mini-rail и folder dock больше не перекрывают друг друга; нижние `+ / folder` имеют тот же rail-button style.
-  - Candidate ZIP: 55 files · 334869 bytes · SHA-256 `b6a36fff232afa0242fbd3add6833213c71d417884437013dc87a918e6509e95`.
-  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.21 UI CLEANUP · BRAND ICONS · CHAT POLISH — candidate собран: убраны shared top containers, dropdowns унифицированы с blur, Layers active = blue/white, Ocean chat/settings очищены, provider branding расширен. ZIP: 56 files · 339311 bytes · SHA-256 `eb1234c27e9cc9131778dae089735678fe9183687a7b77e92747eeef16b22540`. Owner runtime pending.
-- [x] 3.11.22 TEAM EXECUTION & Z-LAYER FIX — candidate собран.
-  - Team execute больше не принимает prose-only completion: отсутствующий patch принудительно запрашивается повторно до двух раз.
-  - Parser принимает `briefcraft.patch/v1` и `briefcraft.request/v1` как в fenced JSON, так и в валидном raw JSON block.
-  - Финальный исполнитель обязан разрешать spatial referents через реальные bounds из projectMap; использовать только существующие IDs.
-  - Если lead не вернул patch, второй выбранный агент становится резервным исполнителем. Если validator отклоняет patch, исполнитель получает фактическую ошибку и делает один corrected-patch pass.
-  - Team workspace поднят над desktop provider shortcuts, но остаётся ниже topbar/Inspector; ярлыки больше не перекрывают командное окно.
-  - Team transcript исключён из generic chat-group collapsing; сообщения имеют auto-height и не схлопываются в полосы.
-  - Candidate ZIP: 56 files · 341171 bytes · SHA-256 `093a4b4faa53b19d6df000208a61481752d9d5768ba4df1ff32f637b75c89412`.
-  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 real duplicate HTML IDs, ZIP integrity PASS. Owner runtime pending.
-- [x] 3.11.23 AGENT CONNECTION & NODE UX — candidate собран.
-  - Agent Settings переведены на responsive container-query layout: при расширении окна секции перестраиваются в 2–3 колонки вместо растягивания в длинную вертикальную ленту.
-  - Единый brain picker строится из полного Provider Registry; ChatGPT / DeepSeek / Google AI / Gemini / Claude / Nano Banana / media services и другие registry providers могут быть выбраны как мозг отдельного агента. Для сервисов без dedicated transport используется experimental generic internal web-session bridge.
-  - `+` в AI-chat больше не клонирует текущего агента автоматически: открывается центрированный provider picker, где можно добавить ещё одного агента того же ИИ либо выбрать другой сервис.
-  - Provider connection переведён на internal-first flow: OSMINOG создаёт/переиспользует одну managed service session в фоне и подключает именно её. Если сервис требует интерактивный login, кнопка `Авторизовать` раскрывает эту же managed session; случайные внешние tabs не создаются.
-  - Persistent agent pills на canvas отключены. Агент постоянно живёт в chat/team chips; на canvas появляются только worker-octopus во время активной задачи. Явные pinned/node links сохраняют tether без desktop capsule.
-  - Node selection автоматически раскрывает Inspector; существующие node-объекты в любое время дают редактировать содержимое и connection preset: color / width / dashed / arrow, при сохранении восьми edge ports.
-  - Все исправления 3.11.22 Team execution / z-layer / transcript входят в сборку.
-  - Candidate ZIP: 56 files · 338860 bytes · SHA-256 `e18c2bee579078a40501c70be2b079509f40a66f6dbd072c00ba495773949296`.
-  - Static checks: 21 JS syntax PASS, 8 JSON parse PASS, 0 duplicate HTML IDs per document, ZIP integrity PASS. Owner runtime pending.
-- [ ] 3.11.24 FUNCTION REGRESSION & PROVIDER WORKFLOW — проверить реальное background connection/auth, generic provider brains, Team execution, Browser/Media/Presence и node editing на живом Chrome runtime.
-
-Обязательные guardrails: progressive disclosure, recognition over recall, знакомые подписи/иконки для базовых действий, keyboard/mouse/touch, reduced-motion/static mode, читаемый contrast/typography, performance budgets и rollback на каждом этапе.
-
-Текущие 8 UX-пунктов владельца НЕ отменяются — они становятся обязательными требованиями миграции в Ocean Shell.
-
-# 7. ТЕКУЩИЙ UX/STABILITY PASS — 8 ОБЯЗАТЕЛЬНЫХ ПУНКТОВ
-
-Ниже — текущие обязательные пункты владельца. Это ближайший рабочий roadmap.
-
-## P1 — Layers / main project folder
-
-- [ ] В **свёрнутом** Layers rail не показывать содержимое слоёв/списки — только section icons.
-- [ ] В **развёрнутом** режиме поменять текущие `+` и folder control местами.
-- [ ] `+` сделать маленькой отдельной кнопкой создания folder/object container.
-- [ ] Рядом — нормальный main-project-folder control: жёлтая folder icon + текст состояния.
-- [ ] Текст зависит от state: `Подключить`, `Открыть`, имя подключённой папки и т.п.
-- [ ] Никакой огромной пустой кнопки `+`.
-
-## P2 — Provider/widget icons слева
-
-- [ ] Превратить текущие provider icons из заготовок в полноценные desktop/widget items.
-- [ ] Multi-select нескольких widgets.
-- [ ] Совместное перемещение выделенных widgets.
-- [ ] Создание пользовательских **прозрачных widget folders/containers** по принципу Android folders.
-- [ ] Drag providers между контейнерами и desktop.
-- [ ] Экономить место без дублирования карточек и панелей.
-
-## P3 — AI chat connection status
-
-- [ ] Убрать `GPT LIVE` и аналогичные дубли названия provider.
-- [ ] Использовать единый статус-компонент: зелёная точка + **On**.
-- [ ] Статус должен выглядеть одинаково в chat header, settings, Provider Registry, Team и Browser/Session Manager.
-
-## P4 — Agent settings / Connect UX / Poseidon
-
-- [ ] Новый agent/chat без соединения сразу показывает заметную кнопку **Подключить**.
-- [ ] Settings не вываливаются вниз поверх чата и не режутся по высоте.
-- [ ] Settings открываются как полноценное состояние/аккордеон окна и занимают рабочую область до Save/Close.
-- [ ] Settings resize по горизонтали и вертикали через общий window system.
-- [ ] Provider chooser показывает реальные provider icons.
-- [ ] Provider chooser использует **один общий Provider Registry**, включая 20+ уже добавленных сервисов.
-- [ ] `Jarvis` полностью переименовать в **Poseidon**.
-- [ ] Poseidon = local device-agent OSMINOG с явными permissions/capabilities.
-- [ ] План Poseidon: mic, voice reply, camera, screen, clipboard, files, browser, local automation, device control.
-- [ ] Возможности, которые Chrome не может безопасно выполнить сам, идут через native companion / Dev Hub / Native Messaging.
-- [ ] Никогда не выдавать скрытый или бессрочный доступ к чувствительным device-функциям без явного разрешения пользователя.
-
-## P5 — Internal Browser / Service Tabs / единая схема соединения
-
-**Главное правило:** всё, что OSMINOG способен открыть внутри себя, **по умолчанию открывается внутри OSMINOG**.
-
-- [ ] Google/DeepSeek/Claude/Gemini/ChatGPT/provider tabs используют единый internal session manager.
-- [ ] Ссылки агентов и reference pages также сначала открываются внутри.
-- [ ] External Chrome tab — только явное действие `Открыть снаружи` или технический fallback.
-- [ ] Убрать дублирование: один provider → один переиспользуемый service session по умолчанию.
-- [ ] Новый provider chat/session создаётся только по явной команде пользователя либо после подтверждённой смерти текущей session.
-- [ ] Вынести нынешний блок `Внутренние вкладки` из вкладки `Браузер`: это не subsection браузера, а инфраструктура всего OSMINOG.
-- [ ] Сделать единый Session Manager доступным из agent settings, Provider Registry, Team, Media Crew и Browser.
-- [ ] Browser Hub должен показывать health/state текущей provider session и уметь reopen/reconnect/restart без создания дублей.
-
-## P6 — Agents → рабочие осьминоги, а не зависшие pills на canvas
-
-- [ ] Не оставлять agent pills постоянно на рабочем столе — они дублируют agents в chat.
-- [ ] Agents постоянно живут чипами в chat/team UI.
-- [ ] На canvas появляется **рабочая осьминожка** только когда агент реально выполняет задачу.
-- [ ] Исключение: пользователь явно закрепил agent/node связь на canvas.
-- [ ] Нить/tether идёт от agent chip к активной рабочей осьминожке.
-- [ ] Study state: осьминожка находится около одного или нескольких исследуемых объектов.
-- [ ] Thinking state: отдельная спокойная анимация размышления.
-- [ ] Build/Design/Code state: рабочая анимация с инструментами/искрами/роль-зависимыми эффектами.
-- [ ] Новая mascot system окончательно становится **octopus state machine**, а не legacy ghost.
-- [ ] Детальную графику/персонажей дорисовать отдельным визуальным проходом после функциональной state machine.
-
-### Connection z-order
-- [ ] Обычные connections рендерятся низко: сразу над background/canvas и **за окнами/widgets**.
-- [ ] Connection не должна перечёркивать поверх рабочие панели.
-- [ ] Только hover/selection/edit конкретной связи временно поднимает её поверх интерфейса для редактирования.
-
-## P7 — Browser redesign
-
-Текущий browser/`AI-пространство` признан прототипом.
-
-- [ ] Переделать в нормальный browser surface.
-- [ ] Tabs.
-- [ ] Address/search bar.
-- [ ] Back/forward/reload.
-- [ ] Internal/external open intent.
-- [ ] Attach current page/result to canvas/context.
-- [ ] Downloads/files → project folder/canvas.
-- [ ] Использовать **тот же Session Manager** из P5, а не вторую реализацию browser tabs.
-- [ ] Отдельный UI/visual pass после стабилизации Provider Sessions.
-
-## P8 — Media Crew UX
-
-- [ ] Убрать `В команду / На стол / Открыть` из каждой provider card.
-- [ ] Card становится selectable tile.
-- [ ] Один или несколько selected providers → единая contextual toolbar сверху.
-- [ ] Общие действия toolbar: `В команду`, `На стол`, `Открыть`.
-- [ ] Batch action применяется ко всему selection.
-- [ ] Capability tags больше не делать россыпью pill-чипов.
-- [ ] Использовать компактную цветную icon + label систему: music/image/video/voice/code/etc.
-- [ ] Search сделать примерно вдвое короче.
-- [ ] `Разработчикам` перенести в одну строку сразу после search.
-- [ ] Developer window = обычное managed window: drag + resize + persisted geometry.
-
----
-
-## 7. Системная архитектура, к которой сводим существующие части
-
-### 7.1 Один Provider Registry
-
-Не должно существовать отдельных несовместимых списков providers в GPT settings, Team, Media Crew и Browser Hub.
-
-`Provider Registry → Provider Identity → Capabilities → Connection/Session → Agent/Team/Media/Browser consumers`
-
-Для каждого provider единообразно храним:
-
-- id;
-- display name/icon/color;
-- category;
-- capabilities;
-- transport type;
-- connection state;
-- authenticated session state;
-- multimodal input/output support;
-- last error/health;
-- Browser Hub session ID;
-- manual-vs-autonomous status.
-
-### 7.2 Один Browser / Service Session Runtime
-
-Ни Google, ни Media Crew, ни Team не создают вкладки самостоятельно.
-
-Все просят у единого менеджера:
-
-`getOrCreateSession(providerId, intent)`
-
-По умолчанию менеджер возвращает существующую live session. Это должно прекратить Google duplicate chats/tabs.
-
-### 7.3 Один Presence / Context Bus
-
-Один проект → один актуальный snapshot → все подключённые AI получают одинаковый контракт.
-
-Canvas context уже работает. Следующий уровень snapshot:
-
-- open managed windows;
-- active app mode;
-- active chat/thread/agent;
-- provider connection states;
-- internal service tabs;
-- current attachments;
-- Team participants/tasks;
-- running agent jobs;
-- local project-folder status;
-- recent UI/runtime changes.
-
-### 7.4 One patch/execution layer
-
-Team, GPT, DeepSeek, Google и будущие providers не должны иметь разные правила записи в проект. Любые canvas mutation проходят один validator/patch layer.
-
----
-
-## 8. Google AI — ближайший технический приоритет
-
-- [ ] Не создавать новый Google AI chat на каждый запрос.
-- [ ] Переиспользовать одну persistent internal Google AI Mode service session.
-- [ ] Один OSMINOG request ID → один send.
-- [ ] Same-query/in-flight dedupe во всех слоях.
-- [ ] Реально загружать attachment image в Google composer; наличие preview в OSMINOG недостаточно.
-- [ ] Проверять успешную загрузку/attachment state до Send.
-- [ ] Возвращать ровно один новый ответ, а не stale greeting/echo.
-- [ ] Возвращать rich cards/images/widgets.
-- [ ] Использовать только concise project context + linked context + необходимый screenshot, не giant Presence dump.
-- [ ] Все Google service tabs находятся во внутреннем Session Manager.
-- [ ] DeepSeek transport при этой работе не менять.
-
----
-
-## 9. GitHub / релизы — модель как у Чернограма
-
-Начиная с этой точки OSMINOG получает понятный release ledger и rolling prerelease, аналогичный подходу `Chernogram Room Alpha`.
-
-### Rolling development release
-
-Канонический тег разработки:
-
-`latest-osminog-dev`
-
-В assets этого prerelease сохраняются реальные версии. Файл каждой версии уникален и не затирает историю.
-
-Пример naming:
-
-- `osminog-chrome-extension-3.10.6.zip`
-- `osminog-windows-X.Y.Z.zip`
-- `osminog-macos-X.Y.Z.zip`
-- `osminog-web-pwa-X.Y.Z.zip`
-- `osminog-android-X.Y.Z.apk`
-- `osminog-ios-X.Y.Z.ipa` / store artifact metadata
-
-### Шесть платформ, которые всегда присутствуют в registry
-
-1. `chrome-extension` — **active development**, сейчас 3.10.6.
-2. `windows` — planned/native shell, ветка уже зарезервирована.
-3. `macos` — planned/native shell.
-4. `web-pwa` — planned.
-5. `android` — planned.
-6. `ios` — planned.
-
-Пока строится Chrome extension, остальные платформы остаются в registry со статусом `planned`, а не изображаются как существующие бинарные сборки.
-
-### Для каждой реальной сборки обязательно
-
-- version;
-- codename;
-- base version;
-- platform;
-- artifact name;
-- byte size;
-- SHA-256;
-- manifest/app version;
-- source/ref info;
-- static-check results;
-- runtime verification state;
-- release notes;
-- rollback/recovery note.
-
-### Recovery rule
-
-- rolling prerelease удобен как каталог разработки;
-- подтверждённый стабильный build дополнительно получает immutable recovery ref/tag;
-- нельзя считать README/build.json заменой полного бинарного архива.
-
----
-
-## 10. Репозиторный технический долг
-
-- [ ] Полный current source tree 3.10.6 должен стать детерминированно воспроизводимым из GitHub.
-- [ ] Создать canonical source directory для Chrome, не жить вечными micro-patches.
-- [ ] Убрать split-brain: старые `CURRENT_STATE.md`, `PROJECT_STATE.md`, `versions/index.json`, старый BriefCraft brand и новый OSMINOG roadmap не должны противоречить друг другу.
-- [ ] Visible `BriefCraft Presence`/`BriefCraft ChatGPT App` в MCP/UI перевести на OSMINOG, оставляя legacy protocol names только внутри совместимости.
-- [ ] Автоматизировать checks: JS syntax, JSON parse, duplicate IDs, forbidden visible legacy brand, missing refs, ZIP integrity, hash/size.
-- [ ] Folder engine regression tests.
-- [ ] Startup/performance smoke gate.
-- [ ] Provider duplicate-session tests.
-- [ ] Google multimodal attachment test.
-- [ ] Connection layering/selection tests.
-- [ ] Window geometry/migration tests.
-
----
-
-## 11. Update architecture
-
-Старый folder-selection Native Messaging updater не возвращаем.
-
-Целевая схема:
-
-- Chrome development → **OSMINOG Dev Hub**.
-- Chrome beta/stable → Chrome Web Store.
-- Windows/macOS → signed native updater.
-- Android/iOS → store-native channels.
-- Web/PWA → atomic deployment + service-worker versioning.
-
-**Окончательное решение после провалов bootstrap 1.1.0/1.1.1:** Dev Hub не должен искать и обновлять произвольную `Load unpacked` папку на Desktop. Он владеет фиксированной dev-папкой `%LOCALAPPDATA%\OSMINOG\Chrome\current`. Один раз пользователь загружает именно её через Chrome `Load unpacked`; после этого все dev-обновления идут по цепочке `OSMINOG button → Dev Hub → GitHub package → SHA/size verify → staging → backup → managed current → chrome.runtime.reload()`. Для production delivery используется Chrome Web Store automatic update, а Dev Hub конечным пользователям не нужен. Подробный контракт: `docs/OSMINOG_UPDATE_ARCHITECTURE.md`.
-
----
-
-## 12. Порядок выполнения от текущей точки
-
-### Этап A — Project discipline / baseline
-- [x] Получен точный текущий ZIP 3.10.6.
-- [x] Проверены размер/hash/file count/manifest.
-- [x] Presence подключён к текущему ChatGPT.
-- [x] Создать этот MASTER ROADMAP в GitHub.
-- [ ] Создать `OSMINOG ROADMAP — LIVE` на canvas.
-- [x] Создать six-platform release registry.
-- [ ] Опубликовать точный 3.10.6 ZIP в rolling GitHub prerelease.
-
-### Этап B — Unified Provider/Session foundation
-- [x] Собран OSMINOG Dev Hub 1.1: CI run `33175649379` success.
-- [x] Подготовлен exact guarded fileset `3.10.6 → 3.10.7`; локально воспроизводит byte-identical 52-file tree.
-- [x] Public dev feed `osminog/channels/dev/chrome-extension.json` указывает на 3.10.7.
-- [x] Runtime 1.1.0: установщик Dev Hub установился, но bootstrap не нашёл текущую unpacked-папку OSMINOG на рабочем столе; рабочая папка не изменена.
-- [x] Исправлен bootstrap 1.1.1: после Chrome Preferences автоматически сканирует прямые папки Windows Desktop; если не найдено — разрешён одноразовый выбор текущей папки OSMINOG с проверкой manifest/key и сохранением пути. Routine updates папку больше не спрашивают.
-- [x] Dev Hub 1.1.1 installer CI run `33177530597` завершён `success`.
-- [x] Runtime 1.1.1: даже после одноразового выбора Desktop-папки bootstrap 3.10.6 → 3.10.7 не завершился; Desktop-path discovery/mutation признан неправильной архитектурой и закрыт.
-- [ ] Managed Dev Channel v2: Dev Hub создаёт и владеет `%LOCALAPPDATA%\OSMINOG\Chrome\current`, скачивает туда канонический baseline и больше никогда не ищет arbitrary Desktop source.
-- [ ] Один раз загрузить managed `current` через Chrome `Load unpacked`, сохранив фиксированный manifest key/extension ID.
-- [ ] После managed bootstrap опубликовать UPDATE PROOF и проверить кнопку OSMINOG без скачивания ZIP, выбора папки и ручной замены файлов.
-- [ ] Production: CI → Chrome Web Store API → review/publish → automatic Chrome update.
-- [ ] P3 unified `● On` state.
-- [ ] P4 Connect/settings redesign.
-- [ ] P5 single internal Session Manager.
-- [ ] Google persistent session + multimodal image transport + dedupe.
-- [ ] Extend Presence to UI/runtime state.
-
-### Этап C — Desktop/workspace cleanup
-- [ ] P1 Layers/folder dock.
-- [ ] P2 widget selection/folders.
-- [ ] P6 active octopus agents + connection z-order.
-- [ ] P8 Media Crew bulk-selection toolbar.
-
-### Этап D — Browser redesign
-- [ ] P7 новый Browser поверх единого Session Manager.
-
-### Этап E — Multi-agent hardening
-- [ ] Object leases.
-- [ ] Per-agent patch preview.
-- [ ] Conflict/merge/rebase UI.
-- [ ] Reusable Team templates.
-
-### Этап F — Poseidon / native device capabilities
-- [ ] Permission model.
-- [ ] Native companion API.
-- [ ] voice/mic.
-- [ ] camera/screen.
-- [ ] device automation.
-- [ ] local-first safety/visibility controls.
-
-### Этап G — Platform expansion
-- [ ] Windows.
-- [ ] macOS.
-- [ ] Web/PWA.
-- [ ] Android.
-- [ ] iOS.
-
----
-
-## 13. Что НЕ делаем сейчас
-
-- Не добавляем ещё один отдельный provider list.
-- Не создаём ещё один browser-tab runtime.
-- Не переписываем доказанный DeepSeek transport во время Google repair.
-- Не плодим новые постоянно висящие agent pills на desktop.
-- Не возвращаем старый updater.
-- Не объявляем web-only Media Crew provider автономным агентом.
-- Не строим новые крупные поверхности до завершения текущего coherence/stability pass.
-
----
-
-## 14. Правило синхронизации GitHub ↔ OSMINOG canvas
-
-После каждого законченного изменения проекта:
-
-1. Обновить этот `OSMINOG_ROADMAP.md`: чекбоксы, Current State, Next Action.
-2. Добавить append-only запись в `OSMINOG_PROJECT_LOG.md` с фактическим результатом.
-3. Обновить canvas object **OSMINOG ROADMAP — LIVE** тем же актуальным содержимым/статусом.
-4. Если сделана сборка — обновить six-platform release registry.
-5. Если создан бинарный artifact — проверить byte size + SHA-256 и только после совпадения считать его сохранённым.
-6. Никогда не заставлять владельца заново пересказывать историю в новом чате.
-
----
-
-## 15. Definition of Done для следующего стабильного прохода
-
-Следующий UX/stability milestone считается готовым, когда:
-
-- Google видит реальную attached screenshot/image;
-- Google не создаёт duplicate chats/sessions;
-- все provider/service links по умолчанию открываются внутри OSMINOG;
-- один Provider Registry используется всеми поверхностями;
-- Connect/settings понятны без захода в скрытые панели;
-- Layers/folder dock соответствует утверждённому UX;
-- Media Crew имеет bulk selection/actions;
-- agents не висят на desktop без работы;
-- рабочие octopus states соответствуют задаче;
-- обычные connections проходят за окнами;
-- Presence видит canvas + UI/runtime state;
-- regression smoke не показывает black-screen/high-CPU loop;
-- полный build сохранён в GitHub release с подтверждённым hash;
-- roadmap и canvas mirror обновлены.
-
----
-
-## 16. Текущая следующая команда
-
-**Сначала закрепить проектную дисциплину и текущую 3.10.6 как реальный GitHub baseline, затем начать Unified Provider/Session foundation.**
-
-Приоритет исполнения после фиксации baseline:
-
-**P3 → P4 → P5 → Google repair → Presence UI/runtime → P1 → P2 → P6 → P8 → P7.**
-
-Это не очередной feature sprint. Это проход, который заставляет уже построенный OSMINOG наконец работать как **одна система**.
-
-
-## 3.14.2 CHAT OWNER RUNTIME RECOVERY
-
-Цель: вернуть единый рабочий контракт «чат → реальный инструмент → проверенная мутация», не откатывая новый UI.
-
-1. Один capability contract для direct ChatGPT, attached Presence и других провайдеров.
-2. Простые пользовательские формулировки про секундомер/таймер/калькулятор/приложение должны создавать настоящий Module Store app с launcher, а не россыпь canvas-кнопок.
-3. Короткие этапы работы видны последовательно в чате; внутренний chain-of-thought не показывается.
-4. «Подключить в фоне» реально создаёт/переиспользует service session. Access Center не подменяет действие подключения.
-5. GitHub/исходники, web_search/web_fetch/asset_create, workspace, modules и project revisions доступны Owner Max чату по одному контракту.
-6. Никаких удалений текущей 3.14.x архитектуры: ремонт идёт поверх, с сохранённой историей и проверяемой веткой.
-
-
-## 3.14.3 — Desktop action recovery (2026-09-03)
-
-- [x] Remove normal app-shell/header from compact sandbox widgets.
-- [x] Force compact utility document background/size to transparent intrinsic content.
-- [x] Route explicit web image/file → desktop/canvas requests into `web_search`/`web_fetch` → `asset_create`.
-- [x] Require a real asset object id before such tasks are considered complete.
-- [x] Harden OSMINOG product/UI edit routing to canonical GitHub source; canvas mockups do not count as source edits.
-- [ ] Owner smoke test after update: stopwatch without white shell; red-octopus photo appears as a real image object; one harmless UI source tweak completes through GitHub.
-
-### 3.14.4 chat execution recovery
-- Preserve the proven 3.11.34-era chat feel: one provider conversation, inline moving progress with elapsed time, stable reader-aware scrolling.
-- Never render OSMINOG execution telemetry as a second participant in a provider chat.
-- Compact desktop widgets must close their managed parent and be safely recreatable without stale shells.
-- Explicit internet image placement must end with a real `asset_create` object, not prose.
-- Autonomous retries must stop on repeated no-action/no-tool replies.
-- Version badge must always show the running manifest version from first paint.
-- Default interface text is Normal; Compact, Normal, Large and Extra Large must be visibly distinct.
-
-### 3.14.5 legacy chat polish
-- Treat the 3.11.34-era provider chat as the interaction baseline: one visible provider speaker, execution telemetry only in the inline progress strip, live elapsed seconds, stable scroll behavior.
-- Migrate old saved OSMINOG progress/runtime cards out of conversation history on first load after update.
-- Preserve all 3.14.4 execution fixes while polishing only chat continuity.
-
-
-## 3.15.0 — Interactive Capability Runtime
-- [x] Host-owned deterministic widget creation for repeated commands.
-- [x] Fresh capability lease per provider prompt.
-- [x] Structured native graphics creation with editable layers/masks/gradients/vectors.
-- [x] Sandbox `assets.read` for file-aware apps and selected-canvas audio player.
-- [x] File Lab states for binary spreadsheets, ROMs and APKs.
-- [x] Poseidon UI gated by verified write access to private owner repository.
-- [ ] Add dedicated emulator cores/adapters per platform instead of claiming arbitrary binary execution.
-- [ ] Add a real XLSX parser/editor adapter and office document adapters.
-
-
-### 3.15.1 Owner Access Recovery — implemented
-- [x] Owner grant survives transient GitHub/network failure while local token remains present.
-- [x] Fine-grained GitHub token can be connected from Control Center without placing secrets in chat.
-- [x] GitHub/protected services use managed real Chrome tabs rather than blocked iframes.
-- [ ] Replace manual PAT with publisher GitHub App/OAuth flow for production distribution.
-- [ ] Optional explicit local HTTP/SOCKS proxy profile if host networking still differs from system VPN on a specific machine.
-- [x] 3.15.2: unify GitHub token verification across Modules, Control Center, Presence and Poseidon; verify both product repositories before Owner Max.
-
-### 3.16.0 — SIMPLE ACCESS RUNTIME
-- [x] Убрать Poseidon/AI-access переключатели из пользовательского UX.
-- [x] Оставить в «Доступе» только ссылку на холст и view/comment/edit.
-- [x] Сделать рабочие canvas/app/file/graphics/browser capabilities постоянными.
-- [x] Не передавать canvas/project context до явного запроса пользователя или tether/attachment.
-- [x] Защитить только самоизменение продукта через just-in-time Owner Unlock (GitHub credential + TOTP, 15 минут).
-
-### 3.17.0 — GENERATIVE APP RUNTIME
-- [x] Удалить preset routing и предустановленные HTML-виджеты.
-- [x] Генерировать любое приложение по текущему запросу пользователя.
-- [x] Фокусировать приложение кликом и дорабатывать через module_update.
-- [x] Rollback при неудачном обновлении.
-- [x] Проверять обработчики видимых элементов до ответа «готово».
-- [x] Natural autosize + пропорциональный resize без clipping внешним контейнером.
-- [x] Selected assets, capture API и binary fetch для видео, файлов и JS/WASM runtime cores.
-
-### 3.18.0 — PRODUCT CORE RECOVERY
-- [x] Надёжный multi-source updater и честная диагностика проверки обновления.
-- [x] Две явные кнопки AI / Poseidon без permission-костылей для обычной работы.
-- [x] Access = только sharing холста и человеческие роли.
-- [x] Вернуть пользовательский GitHub project storage отдельно от Poseidon.
-- [x] Вернуть Google Drive в основной Connections UI.
-- [x] Добавление любого web-сервиса по URL с реальным favicon.
-- [x] Исправить удаление старых тестовых модулей и пользовательских сервисов.
-- [x] Убрать систематическое прижатие controls/carets к правому краю.
-- [x] Упростить nested containers чата, сохранив Generative App Runtime 3.17.
-
-## 3.19.12 — SEAMLESS SHARED VISION
-- [x] Shared same-revision visual context for all OSMINOG provider turns.
-- [x] External ChatGPT Presence preflights natural canvas requests and automatically attaches the fresh canvas image.
-- [x] `смотри на холст` / `что видишь` no longer requires a manual screenshot when Presence is connected.
-- [x] External Presence revision heartbeat fixed; prior-authorized ChatGPT tab reconnects silently if it already exists.
-- [ ] Owner runtime proof in the live ChatGPT tab after updating to 3.19.12.
-
-
-
-
-## 2026-09-06 — актуальная точка восстановления 3.20.3
-- [x] База сверена с точным публичным пакетом 3.20.1; прежний main расходился с пакетом.
-- [x] Устранён самозапускающийся MutationObserver графического инспектора.
-- [x] Один native import; внутренние MIME-типы не блокируются защитой от native image drag.
-- [x] Перенос внутреннего объекта сохраняет ID, реальные файлы импортируются без preview-обрезки.
-- [x] Восстановлена форма подключения существующего ChatGPT в «Доступе» по скриншоту владельца.
-- [x] Chromium-тест текста: bold/italic, перерисовка и сохранение; тесты внешнего/внутреннего переноса.
-- [x] Null/undefined в Team retry обрабатываются без TypeError.
-- [ ] Владелец проверяет установленный пакет, обновление Dev Hub и живой ChatGPT/Shared Vision.
-- [ ] После живой проверки записать результат отдельно; до этого runtimeVerified=false.
-
-Продолжать от исходников и пакета 3.20.3. Не заменять их незавершённой веткой 3.20.2 и не считать успешную публикацию доказательством живой работы ИИ. Подробности и ограничения тестов — в последней записи OSMINOG_PROJECT_LOG.md.
-
-
-## 2026-09-06 — 3.20.4
-- [x] Снимаемый контекст приложения и проверка существования ID.
-- [x] Приоритет выбранного объекта; регрессия на фразах владельца.
-- [x] Удаление старых пользовательских модулей и объектов с подтверждением.
-- [x] Прямое создание текста/записки, панель оформления, чтение ИИ.
-- [x] PDF/text editor, общий document_read/edit/export; реальные экспортированные PDF проверены.
-- [ ] OCR сканов, структурное редактирование сложной PDF-вёрстки без растеризации, интерактивные формы.
-- [ ] Полноценные офисные адаптеры DOCX/XLSX и редакторы других бинарных форматов.
-- [ ] Живые провайдеры и обновление Windows Dev Hub: runtimeVerified=false.
-
-
-
-## 2026-09-06 — 3.20.5: видимый текст и графический редактор
-
-- В нижнем доке возвращён «Текст» с заметной подписью: обычный текст, записка/ТЗ и Markdown. Пояснения на столе доступны общему инструменту чтения ИИ.
-- Панель графических инструментов занимает отдельную строку под холстом. Подписи инструментов видны; панели слоёв и свойств можно скрывать и менять их ширину.
-- Новый рисунок прозрачен по умолчанию. Прозрачность обозначена тёмной шахматной сеткой, которая не попадает в PNG.
-- Правая панель прокручивается: открытые секции не сжимаются и не обрезают поля.
-- Настройки кисти и ластика: размер, сглаживание и непрозрачность. Цвет меняется до рисования. Добавлены клавиши B/E/T/V/R/O/L/P.
-- Удаление светлого фона изображения: порог, мягкость края, возврат исходника и Undo. Светлые детали изображения тоже могут удаляться; это инструмент для светлой бумаги, не универсальное выделение любого фона.
-- Для текста в графическом редакторе доступны содержание, шрифт, размер, жирность, курсив, выравнивание и интервал.
-- Исправлены группировка/разгруппировка Fabric 6 и порядок объектов в Boolean-группах.
-- PNG экспортирует весь рисунок независимо от масштаба и сдвига просмотра; доступен масштаб 1×/2×/3×. Для ластика и составных Boolean-групп SVG явно требует выбрать PNG.
-- «На холст» создаёт отдельное PNG-изображение, сохраняя внутри объекта редактируемый документ со слоями, текстом и кривыми. Выделите его и нажмите «Из выделенного» для продолжения редактирования. Исходный объект не удаляется. Сам скачанный PNG не содержит редактируемых слоёв: они сохраняются в проекте OSMINOG.
-- graphics_status возвращает реальные идентификаторы объектов редактора. graphics_edit ожидает завершения операций и сообщает ошибки выбора/экспорта.
-
-Сборка основана на опубликованном пакете 3.20.4: сверены 104/104 исходных файлов. Проверки UI, пикселей PNG и повторного редактирования выполняются в GitHub Actions; живые провайдеры и Windows Dev Hub владельца не проверяются этим тестом. `runtimeVerified=false` до проверки в установленном профиле владельца.
-
-Исходные изменения: PR #8, fix/graphics-text-3205. Публикация выполняется только после Chromium-регрессии.
-
-### Подтверждённая публикация 3.20.5
-
-- PR #8 объединён: a1859766fdc14a77d24fc261fd408ff3747ad28c. Финальный Chromium/graphics/documents/package workflow 34023839212 прошёл; живой профиль владельца остаётся непроверенным.
-- Релиз: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v3.20.5 . Пакет OSMINOG-Chrome-3.20.5-TEXT-GRAPHICS-STUDIO.zip, 4066856 байт, SHA-256 ea9a8320b8a75219cb7323fe3ec43e787c9ec4345aae3fa55b1286acca86cea9.
-- Сверены 106/106 файлов ZIP с исходным и merge-деревом. CI и локальная сборка совпали побайтово. Публикация 34024001000 успешна; итоговые release asset digest, размер и dev feed latest=3.20.5 проверены после завершения обоих запусков.
-- Автопубликация по ZIP и ACTIVATE-V2 вызвали два последовательных запуска. Дубликат 34024006195 загрузил тот же проверенный архив, затем получил non-fast-forward при повторном обновлении уже обновлённого feed. Итоговый feed и asset корректны. В следующем релизе с полным ZIP использовать только существующий автоматический dispatch без дополнительного ACTIVATE-V2.
-- Следующая точка: обновиться штатной кнопкой до 3.20.5 и проверить свои подписи/рисунки и живой ИИ в профиле владельца. runtimeVerified=false сохранён.
-
-
-
-## 2026-09-06 — Local memory and asset foundation, 3.21.0 candidate
-
-User contract: OSMINOG is a local project memory and shared editable body for AI. Connecting an AI must automatically make the explicitly connected project available. Conversations must never be mirrored into unrelated provider chats. Local folder comes first; login is separate from file synchronization.
-
-Implementation and verified limitations: see RELEASE_NOTES_3.21.0.md. This supersedes older keyword-only context attachment policies for internal agents. The 3.20.9 external DOM privacy containment remains until a separate authenticated project-scoped connector is deployed and tested. No claim of universal external Live Presence or complete Figma-to-application roundtrip.
-
-
-
-## 2026-09-06 — 3.21.1 media/reference and chat performance
-
-Fix attachment handoff from composer to parallel agent; capture selected reference for explicit generation; import returned HTTPS images next to reference; no vector retry after successful image import. Mixed search/generate prompts offer local choice buttons. Render 80 recent messages with earlier-message expansion; keep complete storage and expose scoped chat_history_read. Bound outgoing history to 24000 characters and 40 turns, with retrieval for older messages. Search tries original before thumbnail, with request timeouts. No restored external mirroring and no claim of live generation success. See RELEASE_NOTES_3.21.1.md.
-
-
-## 2026-09-07 — 3.21.2: folder ownership and generated file recovery
-
-Observed on 3.21.1: moving into a virtual folder retained the same object on the desktop; deleting it also removed it from the folder. Rendering, selection, links, layers, viewport context and exports now respect folder ownership. Moves clear desktop selection and normalize legacy membership. Object data remains in the project.
-
-Image responses skipped tool-role images, file pointers and delta frames. A dedicated generation prompt and parser now handle these cases, resolve returned file IDs, exclude input references and retain exact download/import errors. External transcript mirroring stays disabled.
-
-Validation: generated-media, media routing, privacy, local-memory and routing tests pass locally. CI must pass pointer drag, eight object types, folder-to-folder moves, restore, Undo/Redo, deletion isolation and persisted reload before packaging. Live provider generation remains unverified.
+Веб-клиент рисует доску в браузере гостя. Сервер хранит/выдаёт разрешённые данные и синхронизирует изменения. Стоимость зависит от объёма ассетов, трафика, числа совместных сессий и выбранного способа ИИ; размер расходов ещё не измерен.
 
+Перед выбором хостинга измерить: байты проекта, новых ассетов/день, скачивания/день, размер операций, число одновременных подключений и стоимость AI-запросов. Формула оценки: хранение + исходящий трафик + запросы/вычисления + синхронизация + AI, если оплачивается сервисом. Цены и лимиты без замеров не фиксировать.
+
+### 4.3. Что значит «ИИ видит»
+
+- Хранение файла не равно извлечению содержимого, а передача текста не равна передаче изображения.
+- ИИ получает карту доступных объектов, идентификаторы/ревизии и связи. Текст, оригинал/фрагмент изображения и другие материалы читает по необходимости. Не отправлять весь проект при каждом сообщении.
+- Аннотация изображения включает и визуальный результат, и структуру: стрелка/область/текст/привязка к координатам оригинала. ИИ должен понимать, к чему относится замечание.
+- Нужны статусы: подключение; доступен проект; какие объекты/ревизии реально прочитаны; изменение применено или отклонено. Не выдавать доступ к проекту за непрерывное знание его содержимого моделью.
+- Новая сессия получает свежий контекст через тот же проект. При отключённом устройстве и отсутствии сетевой копии отвечает «доска недоступна», не выдумывает прошлое состояние.
+- Правка адресуется конкретным объектам и ожидаемым ревизиям, проходит проверку прав и возвращает фактическую ревизию результата. Повторный запрос не должен дублировать объект.
+- Внешние документы/страницы — данные проекта, а не разрешение менять доступ или выполнять скрытые инструкции.
+
+### 4.4. Чаты и способы подключения
+
+Не смешивать: собственный чат приложения через API провайдера; официальный плагин/MCP в существующем чате; экспериментальную связь с вкладкой сайта через расширение.
+
+Первый поддержанный внешний путь выбирается после проверки реального чтения картинки и обратной записи. Направление — стабильный контракт доступа к доске и официальные интерфейсы там, где они доступны. Текущую связь с вкладкой проверить отдельно: закрытие, новая вкладка, перезапуск браузера, смена аккаунта/чата, отсутствие доступа. Не использовать старый tabId как вечную идентичность.
+
+«Любой ИИ» — долгосрочная цель совместимости. Каждый новый провайдер проходит собственную приёмку. Выбор источника оплаты внутреннего ИИ и способа входа остаётся открытым: не считать подписку на чужой чат бесплатным API для OSMINOG.
+
+### 4.5. Медиа, буфер, сайты и инструменты
+
+**Медиа:** сохранить исходные байты и размеры; обрезку/маску/аннотации хранить отдельно. PNG-экспорт без дополнительного сжатия с потерями не восстанавливает уже потерянные детали источника. Ручное лассо сначала; автоматическая сегментация позднее после проверки качества и ресурсов.
+
+**Буфер:** обычный Ctrl+C должен работать без поиска специальной кнопки. Текст → plain text/HTML; изображение/визуальная группа → PNG; внутри OSMINOG дополнительно структура объектов. Целевое приложение выбирает поддерживаемый формат, поэтому «вставить любой файл в любое поле» не гарантируется. Не затирать обычное копирование выделенного текста внутри редактора. Отдельно проверить Windows clipboard для файлов.
+
+**Визуальная правка сайта:** правка локального отображения/снимка страницы не равна изменению исходников сайта. Сохранять URL, время, исходное/новое значение, привязку элемента, DOM/CSS-контекст и снимок до/после. Для проекта с доступным репозиторием ИИ сопоставляет изменение с компонентом, готовит правку исходников и проверяемый предпросмотр. DOM может не содержать однозначной связи с исходным компонентом.
+
+Нельзя обещать встроенное открытие и редактирование любого сайта: нужны разрешения; фреймы, защищённые страницы и устройство самого сайта ограничивают доступ. Отдельно проверить обычный DOM, SPA, iframe, Shadow DOM и canvas; при неподдерживаемом случае явно показывать режим скриншота/внешней вкладки.
+
+**Инструменты на холсте:** первый вариант — собственные модули на общей модели объектов. Второй — совместимые MCP-инструменты и MCP Apps UI после проверки сервера, авторизации, разрешений и доступных функций. Каталог ChatGPT не считается автоматически переносимой библиотекой всех виджетов. Полный публичный магазин и оплата сторонним разработчикам — отдельный поздний этап.
+
+## 5. Фактическая отправная точка
+
+Проверенный срез исходников: `50f71b7d0a068f243d8f09b93966cd5ac5191db0`, выпуск 4.0.0. Это не подтверждение версии, установленной на компьютере владельца.
+
+| Наблюдение | Основание | Статус |
+|---|---|---|
+| Надёжно удаётся складывать материалы и скачивать их; остальное неудобно/нестабильно | Сообщение владельца 26.09.2026 | Пользовательское свидетельство; основная продуктовая проблема открыта |
+| Пакет 4.0.0 опубликован; SHA-256 `8038725da681de18373deee5c799d889157f3ebb7352470c3145823c09e837b0` | Пакет скачан и сверен 26.09; [выпуск](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.0) | Подтверждена доставка пакета, не работа на ПК владельца |
+| Автотесты сборки прошли, включая shared-board-400 | [CI 36101728016](https://github.com/jeep-jim/OSMINOG/actions/runs/36101728016) | Тестовый Chromium с адаптером Chrome API; не живой ChatGPT |
+| Докированный чат, Markdown, обрезка, PNG-копирование и создание связи присутствуют | `osminog-workdesk.js`, `tests/shared-board-400.cjs` | Частичная реализация; общий новый UX не закрыт |
+| В текущем `renderLayers` есть выбор, имя, видимость и сворачивание групп | `editor.js`, функция `renderLayers` | В прочитанной функции нет перетаскивания порядка слоёв; R06 не принят |
+| Стили связей уже описаны в legacy-инспекторе | `editor.js`, `connectionPresetInspector` и связанные инспекторы | Наличие кода не доказывает доступность/работу в новой оболочке; R10 не принят |
+| PNG копируется отдельной кнопкой, paste принимает изображение/текст | `osminog-workdesk.js: copyImage`, `editor.js: paste` | Сквозной Ctrl+C/Ctrl+V для всех объектов и внешних приложений не принят |
+| Текстовый просмотрщик текущего workdesk открывается отдельным dialog | `osminog-workdesk.js` | R18 о единой области всех инструментов ещё не выполнен |
+| Новая оболочка заменяет browser-объект карточкой ссылки | `osminog-workdesk.js`, обёртка `objectHTML` | Требование полноценного предпросмотра/визуальной правки надо восстановить и проверить |
+| Ошибка `No tab with id` зафиксирована в переданном обсуждении | `os 26.09.pdf`; обращения к `tabs.get` в `osminog-chat-sync-router.js` | Точная причина и исправление ещё не воспроизведены в живой сессии |
+| Синхронизация людей, облачные права и Windows-клиент | Нет подтверждённых end-to-end результатов в этой проверке | Не считать готовыми по названиям модулей или разделам реестра платформ |
+
+В этом этапе выполнены анализ требований, чтение кода и официальных документов. Новые проверки на ПК владельца, двух устройствах, реальном системном буфере и авторизованном ИИ не выполнялись. Никакие пункты ниже не получают статус «проверено» автоматически.
+
+## 6. Проверки до большой переработки — этап P0
+
+Цель: подтвердить рискованные возможности отдельными небольшими испытаниями и зафиксировать интерфейсы. Не переписывать весь продукт ради проверки гипотезы.
+
+| Проверка | Что делаем | Условие успеха | Текущий статус |
+|---|---|---|---|
+| T01: совместимость | Взять резервную копию реальной доски, открыть/сохранить/переоткрыть | Те же объекты, исходные байты, группы и связи; есть проверенный путь назад | Запланировано |
+| T02: внешний ИИ | Скриншот с меткой, текст, файл и связь; прочитать из нового чата; изменить заметку и вернуть результат | Ответ содержит сведения из изображения, а не только имени; правка реально сохранена; Undo возвращает прежнее состояние | Запланировано; live-путь не доказан |
+| T03: переподключение | Закрыть чат/вкладку, перезапустить браузер, переключить проект и аккаунт | Нет записи в чужой проект/чат; понятное восстановление, отсутствие вечной привязки к tabId | Запланировано |
+| T04: системный буфер | Текст/HTML/PNG с прозрачностью/группа: Chrome, внутренний и внешний чат, Windows-приложение, другая доска | Фактическая вставка, ожидаемое качество, структура внутри OSMINOG; ограничения получателя записаны | Запланировано |
+| T05: скриншоты | Экран/окно/область, отмена, несколько мониторов, DPI 100/125/150/200% | Нет смещения обрезки; оригинал сохранён; курсор/область и экспорт соответствуют исходным пикселям | Запланировано; DPI — тестовая матрица, не результат |
+| T06: единое ядро | Открыть одну тестовую доску в Chrome и минимальной Windows-оболочке | Совпадает структура; сохранение/редакторы/буфер проходят; измерены запуск, память, zoom | Запланировано; оболочка ещё не выбрана |
+| T07: сайт → исходники | Изменить кнопку на контролируемом тестовом сайте | Сохранено до/после и точное изменение; ИИ воспроизводит его в исходном проекте; известны неподдерживаемые случаи | Запланировано |
+| T08: общий доступ | Два независимых клиента, роли, отключение, конфликт, отзыв ссылки | Сервер отклоняет запрещённую запись; изменения и ассеты доходят; локальные правки не теряются | Запланировано; нужен тестовый сервис |
+| T09: MCP Apps | Один доступный совместимый инструмент на тестовом холсте | Авторизация, UI и данные результата работают; переносимость подтверждена для этого инструмента | Запланировано; не весь каталог |
+| T10: производительность | Предложенные наборы 100/1000 объектов, 20 больших изображений, один активный предпросмотр | Зафиксированы ПК/разрешение/размеры файлов, время открытия, память и p95 кадра; сравнение до/после | Запланировано; численные бюджеты после baseline |
+
+Первые обязательные эксперименты: T01–T05 и T07. Минимальные T06/T08/T09 нужны для архитектурных решений до обещаний Windows, синхронизации и каталога. Полную реализацию этих подсистем не включать в диагностический этап.
+
+### Формат отчёта о каждом испытании
+
+Дата; версия/коммит; среда; точные действия; ожидаемый/фактический результат; доказательство (видео/скриншот/лог/изменение данных); ограничения; следующий шаг. Статусы: запланировано / реализуется / реализовано без проверки / проверено в тестовой среде / проверено в живом сценарии / заблокировано / отложено.
+
+## 7. Порядок разработки
+
+Сроки и стоимость пока не определены. Приоритет платформ зафиксирован владельцем; порядок технической реализации ниже — предложение для обсуждения. Изменять его только с записью причины.
+
+### P0 — диагностика и архитектурные пробы
+
+Испытания раздела 6, резервная копия, карта существующих механизмов, выбор одного пути связи с ИИ. Результат: воспроизводимый список дефектов, подтверждённые ограничения и границы общего ядра. Никакого обещания нового большого релиза по одному тестовому скриншоту.
+
+### P1 — полезная локальная доска в Chrome
+
+R02/R03/R05/R06/R09/R10/R11/R13/R17/R18/R21/R22. Единые вкладки справа, редакторы без наложения окон, слои с drag-and-drop, ноды/порты/инспектор связи, полноценный текст, исходники медиа, аннотации, буфер. Сначала обычная область и ручные инструменты; лассо — следом внутри медиа-этапа, автоматическое выделение позднее.
+
+Выход: пользователь выполняет «снять → обрезать → отметить стрелкой → написать → скопировать наружу → переоткрыть доску» без обходных действий; исходные данные и Undo сохранены. Параллельно выделять ядро за адаптерами, а не плодить ещё одну оболочку поверх старых.
+
+### P2 — доска и ИИ как единый рабочий цикл
+
+R01/R12/R14/R16. Один доказанный провайдер, доступ по объектам/группам, чтение визуальных правок, возврат редактируемого результата, предпросмотр справа, источник результата и ревизии. Пользователь проверяет сценарий на собственном проекте; затем добавляется второй адаптер, чтобы проверить независимость ядра.
+
+Выход: новый чат получает те же материалы; правка не теряется; результат не является лишь текстовым обещанием. Растровая картинка не выдаётся за макет с редактируемыми элементами. HTML/CSS-результат хранится вместе с исходниками и предпросмотром.
+
+### P3 — Windows и подключение ChatGPT
+
+Windows-клиент использует то же ядро и данные, нормальные файлы/буфер/захват, установку и обновление по кнопке. Выбор технологии — после T06.
+
+Плагин OSMINOG/ChatGPT: минимальный удалённый MCP, связывание аккаунта/устройства/проекта, контролируемое чтение/запись и статус офлайн. Не откладывать пробу MCP до завершения Windows: это один из ранних тестов, полноценный выпуск — после доказательства основного цикла.
+
+Подготовить материалы для публикации в каталоге, проверить домен/личность/доступ и пройти внешнее рассмотрение. Одобрение и дата появления в каталоге заранее не гарантируются. Сетевой сервис включать в оценку затрат.
+
+### P4 — аккаунт, синхронизация и люди
+
+R07/R08: несколько устройств; ссылки с ролями; гостевой веб-клиент без установки; комментарии; курсоры; совместные изменения; восстановление после отключения; отзыв доступа. Курсоры не сохраняются в истории Undo. Офлайн-правки согласуются по выбранной проверенной модели конфликтов.
+
+Показать явно, какие доски только локальные, какие синхронизируются и когда завершена загрузка оригиналов. Гостевую роль ограничивает сервер; отсутствие установки не должно требовать превращать ссылку в небезопасный локальный дескриптор.
+
+### P5 — инструменты на столе и дополнительные платформы
+
+R15: несколько собственных полезных инструментов, затем совместимые внешние MCP Apps. Плагин имеет идентичность, версию, разрешения, команды, UI и типы создаваемых объектов. Ошибка/удаление плагина не уничтожает сохранённые результаты. Публичный магазин рассматривается после подтверждения востребованности этих инструментов.
+
+macOS, другие браузеры, облегчённые Android/iOS: чтение, комментарии, загрузка медиа и ограниченное редактирование на том же проекте; точная матрица определяется после desktop-приёмки.
+
+## 8. Проверка востребованности
+
+Известно со слов владельца: личная потребность в постоянном визуальном контексте и текущие проблемы продукта. Из официальных страниц Miro и AFFiNE видно, что сочетание доски, документов и ИИ уже является продуктовым направлением [S1][S2]. Это рыночный сигнал и наличие конкуренции; не доказательство спроса, выручки или уникальности OSMINOG.
+
+Рабочая гипотеза аудитории: люди, которые согласуют и меняют сайты с ИИ/разработчиком — владельцы небольших проектов, дизайнеры, разработчики и маркетологи. Начинать с визуального ТЗ и правок сайта; исследовательская доска и другие профессии остаются возможным расширением.
+
+Предлагаемый небольшой пилот (ещё не проведён): 5–8 независимых участников, реальные собственные задачи, одна неделя после первого знакомства. Это выбранный размер первичного качественного теста, не статистическое исследование рынка.
+
+Задание: собрать несколько референсов, сделать скриншот, отметить изменение, передать ИИ, получить результат и продолжить на следующий день. Сравнить с привычным способом пользователя. Измерять время, число повторных загрузок/объяснений, ошибки, самостоятельное завершение и добровольное повторное использование. Спрашивать готовность платить только после фактической работы; отдельно учитывать реальные оплаты, если платный пилот будет согласован.
+
+Предложенный сигнал продолжать: большинство проходит основной цикл без помощи и хотя бы 3 участника сами возвращаются с новой задачей. Это внутренний ориентир, а не доказанный отраслевой норматив. Если используют лишь склад файлов — исследовать причину и не расширять магазин/платформы автоматически. Сообщения участникам без отдельного разрешения не отправлялись.
+
+## 9. Реестр решений
+
+| Решение | Статус / основание |
+|---|---|
+| Один продукт и общее ядро | Требование владельца 26.09.2026 |
+| Первые платформы Chrome, Windows, ChatGPT plugin | Требование владельца; календарный порядок уточняется после P0 |
+| Сайт — лендинг, авторизация, оплата | Требование владельца; лёгкий гостевой клиент нужен для требования ссылок |
+| Единые сворачиваемые вкладки справа | Требование владельца; текущий dialog блокнота не является завершением |
+| Все исходные файлы и доски сохраняются | Обязательное ограничение предыдущей работы, подтверждено направлением продукта |
+| Обновление по кнопке сохраняется | Явное требование владельца |
+| Упор на локальную работу, сеть для выбранной синхронизации | Предлагаемое архитектурное решение; точные настройки и тарифы не утверждены |
+| «Любой ИИ / любой плагин / любой сайт» | Цель расширяемости; не безусловное обещание совместимости |
+| Первый сценарий — визуальное ТЗ и правка сайта с ИИ | Предложенный стартовый фокус, не исключение остальных требований |
+| Технология Windows, синхронизация, хостинг, биллинг AI | Открытые решения после испытаний |
+| Финальная монетизация и размер инфраструктуры | Не определены; нужны замеры и пилот |
+
+## 10. Как вести этот документ
+
+1. Начинать новую сессию работы с разделов 1, 2, 5, 6 и 7. Не брать устаревшее состояние из архива за текущее.
+2. Каждую задачу связывать с R-ID и проверкой T-ID. Записывать что изменено, почему, где в коде и как проверено.
+3. Сохранять источник, коммит/PR, версию и ограничения проверки. «Реализовано», «проверено с адаптером» и «принято владельцем» — разные статусы.
+4. Перед выпуском проверять миграцию, сохранение оригиналов и ключа расширения, Undo, изоляцию проектов и канал обновлений. Не отмечать неподтверждённую функцию готовой.
+5. После каждого завершённого этапа обновлять текущий раздел и короткую историю ниже. Старые решения архивировать, не уничтожать.
+6. Копия roadmap на холсте желательна как обычный объект проекта. Канонический файл пока в GitHub; запись на локальную доску владельца в этой сессии не подтверждена. Не заявлять синхронизацию, пока нет результата чтения/записи объекта.
+
+### Журнал текущего направления
+
+- 26.09.2026: требования R01–R22 записаны из сообщения владельца; приоритеты платформ исправлены относительно предыдущего предложения. Составлены P0–P5, матрица T01–T10, ограничения совместимости и план пилота. Выполнен статический просмотр текущего кода и официальных источников. Новые функции не выпущены, живая интеграция не принята.
+
+## 11. Источники и пределы выводов
+
+Проверены 26.09.2026. Страницы продуктов подтверждают заявленные производителями возможности; не подтверждают независимые показатели спроса. Архитектура, этапы и пилот в этом roadmap — наши предложения на основе требований владельца.
+
+- **S1:** Miro Sidekicks — контекст доски и создание результатов на холсте: https://miro.com/ai/sidekicks/
+- **S2:** AFFiNE — документы, доски, AI и local-first: https://affine.pro/
+- **S3:** OpenAI, UI через MCP Apps и совместимые hosts: https://developers.openai.com/plugins/build/chatgpt-ui
+- **S4:** OpenAI, публикация плагина, публичный HTTPS MCP и рассмотрение: https://developers.openai.com/plugins/deploy/submission
+- **S5:** MDN Clipboard API — системный буфер и ограничения доступа/браузеров: https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API
+- **S6:** Chrome content scripts — доступ к DOM и разрешения: https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts
+- **S7:** Документы проекта и код: `manifest.json`, `editor.js`, `osminog-workdesk.js`, `osminog-chat-sync-router.js`, `tests/shared-board-400.cjs`, `docs/SHARED_BOARD_PRODUCT.md` на указанном срезе.
+- **S8:** Сообщение владельца 26.09.2026 с полным перечнем пожеланий и переданный ранее `os 26.09.pdf`. Утверждения из сторонней переписки о причинах ошибок, закрытии продуктов или коммерческом успехе не приняты за проверенные факты.
