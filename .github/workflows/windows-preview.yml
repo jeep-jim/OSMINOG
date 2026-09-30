@@ -1,0 +1,62 @@
+name: Windows desktop compatibility candidate
+on:
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/windows-preview.yml']
+  push:
+    branches: ['desktop/windows-foundation']
+    paths: ['desktop/**', '.github/workflows/windows-preview.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run prepare:board
+      - name: Start real Windows host and verify persistence
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath '.\node_modules\electron\dist\electron.exe' -ArgumentList '.', '--smoke' -PassThru -RedirectStandardOutput smoke.log -RedirectStandardError smoke-errors.log
+          if (-not $process.WaitForExit(90000)) { $process.Kill(); throw 'Desktop smoke timed out' }
+          Get-Content smoke.log
+          Get-Content smoke-errors.log
+          if ($process.ExitCode -ne 0 -or -not (Select-String -Path smoke.log -Pattern DESKTOP_SMOKE_PASS -Quiet)) { throw 'Desktop smoke failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-desktop-smoke
+          path: desktop/smoke*
+          retention-days: 14
+      - run: npm run build:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify packaged application
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath '.\dist\win-unpacked\OSMINOG Preview.exe' -ArgumentList '--smoke' -PassThru -RedirectStandardOutput packaged-smoke.log -RedirectStandardError packaged-smoke-errors.log
+          if (-not $process.WaitForExit(90000)) { $process.Kill(); throw 'Packaged smoke timed out' }
+          Get-Content packaged-smoke.log
+          Get-Content packaged-smoke-errors.log
+          if ($process.ExitCode -ne 0 -or -not (Select-String -Path packaged-smoke.log -Pattern DESKTOP_SMOKE_PASS -Quiet)) { throw 'Packaged smoke failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-desktop-candidate
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.yml
+            desktop/dist/*.blockmap
+            desktop/smoke*.log
+            desktop/smoke*.png
+            desktop/packaged-smoke*.log
+          retention-days: 14

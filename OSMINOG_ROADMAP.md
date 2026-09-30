@@ -320,3 +320,15 @@ User screenshot identified the Google Authenticator Owner gate. Added a permanen
 Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36224640539 . Tested source `63eed5d7538e797d7d43010d2edb8f3990250ba8`. Browser screenshot inspected; real guard with fixture TOTP passed enrollment entry, cancel, invalid code, successful unlock and manual lock.
 
 Published https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.6 . Publication and registry integrity workflows passed. Dev feed verified active at 4.0.6. Package 4154929 bytes; SHA256 `519e41d6d2a1e89837b61fd8fdbe1764bdb2082f497b557e5deb6e3002312ba0`; CI ZIP, release digest and feed match. Owner guard, photo router and button updater bytes preserved from 4.0.5. Live user-device/provider execution remains unverified.
+
+
+## 2026-09-30 — Windows-first product decision
+
+User approved Windows first, shared board format, light/dark themes and mandatory manual version update button. Preserve existing Chrome updater and published feed. Desktop migration isolated in desktop/windows-foundation. First candidate reuses board UI with persistent native storage; it is not a production release. Authentication and cross-device sync require a real identity/storage service; never use public repositories for private board assets. GitHub is for source/releases. Core acceptance: real external AI reads current board, returns an object, and subsequent reads see changes. Guest viewer, comments and presence follow. See desktop/README.md for explicit release gates; no working OAuth/sync/AI or verified installed updater is claimed by this candidate.
+
+
+### Windows preview 0.1.0 — verified foundation, not production
+
+Tested source `1ebafe8f11c48ea9219553eb241273918559afea`. Windows CI succeeded: https://github.com/jeep-jim/OSMINOG/actions/runs/36667054184 . Native host and packaged application both launched; real editor created a text object, saved, switched light/dark and reloaded with state intact. Both theme screenshots inspected; removed browser-only folder onboarding from the generated desktop bundle so native local storage does not leave the board blocked. Storage serialization/backup and corruption tests passed. Locked npm dependency versions and explicit Electron runtime installation are committed.
+
+Candidate installer ZIP: https://github.com/jeep-jim/OSMINOG/actions/runs/36667054184/artifacts/11076950361 (artifact expires 2026-10-14; authenticated repository access required). This is NOT a public production release. Windows installer signing, clean-machine installation, N-to-N+1 button update, Chrome backup migration and full file/clipboard/document regression remain unverified. OAuth registrations, reachable per-user sync storage and external AI read/write are not configured or implemented by this host. Chrome 4.0.6/main and its update feed were not modified. Draft PR: https://github.com/jeep-jim/OSMINOG/pull/19 .

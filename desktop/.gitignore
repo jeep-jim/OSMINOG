@@ -1,0 +1,4 @@
+node_modules/
+board/
+dist/
+smoke*.log
