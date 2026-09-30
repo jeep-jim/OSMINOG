@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
  const native=globalThis.OSMINOGNative;if(!native)throw Error('Native host unavailable');
+ window.addEventListener('load',async()=>{await globalThis.OSMINOGStateReady;if(!state.activeProject)createProject();else showApp()},{once:true});
  const event=()=>({addListener(){},removeListener(){}}),callbacks=new Set();
  native.onChanged((changes,area)=>{for(const callback of callbacks)callback(changes,area)});
  function dual(fn){return(...args)=>{const cb=typeof args.at(-1)==='function'?args.pop():null;const p=Promise.resolve().then(()=>fn(...args));if(cb)p.then(v=>cb(v),error=>{chrome.runtime.lastError={message:error.message};cb();delete chrome.runtime.lastError});return p}}
