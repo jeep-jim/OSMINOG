@@ -1,0 +1,51 @@
+{
+  "name": "osminog-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OSMINOG Windows compatibility candidate \u2014 not a production release",
+  "author": "OSMINOG",
+  "main": "main.cjs",
+  "scripts": {
+    "prepare:board": "node prepare.cjs",
+    "start": "npm run prepare:board && electron .",
+    "test": "node --test contracts.test.cjs",
+    "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "com.osminog.desktop.preview",
+    "productName": "OSMINOG Preview",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "storage.cjs",
+      "board/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "artifactName": "OSMINOG-Preview-${version}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/windows-preview/"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "6.8.10"
+  }
+}
