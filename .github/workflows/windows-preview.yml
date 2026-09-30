@@ -43,4 +43,5 @@ jobs:
             desktop/dist/*.yml
             desktop/dist/*.blockmap
             desktop/smoke*.log
+            desktop/smoke*.png
           retention-days: 14
