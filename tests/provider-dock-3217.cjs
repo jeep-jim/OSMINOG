@@ -2,7 +2,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const read=p=>fs.readFileSync(require('node:path').join(__dirname,'..',p),'utf8');
 const manager=read('osminog-session-manager.js'),hub=read('osminog-browser-hub.js'),background=read('background.js'),manifest=require('../manifest.json');
 
-assert.equal(manifest.version,'4.0.7');
+assert.equal(manifest.version,'4.0.8');
 assert.match(manager,/setGroup\("provider-sessions",items\)/);
 assert.match(manager,/mode:"osminog-dock"/);
 assert.match(manager,/onOpen:\(\)=>openSettings\(id\)/);
