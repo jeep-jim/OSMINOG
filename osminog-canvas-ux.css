@@ -90,6 +90,6 @@ body[data-workdesk].osminog-focus #viewport > :not(#world):not(#marquee) { displ
 
 /* Keep selection controls outside plain text; never cover the insertion caret. */
 body[data-workdesk] .canvas-object[data-type=text] .ai-context-handle,
-body[data-workdesk] .canvas-object[data-type=text] .object-close { top:-36px; }
+body[data-workdesk] .canvas-object[data-type=text] .object-close { top:-36px!important; }
 body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .ai-context-handle,
-body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .object-close { visibility:hidden; }
+body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .object-close { visibility:hidden!important; }

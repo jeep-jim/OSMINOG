@@ -243,7 +243,9 @@
     for(const el of document.querySelectorAll('.canvas-object[data-type=ink]')){
       if(getComputedStyle(el).display==='none')continue;
       const path=el.querySelector('.ink-path');let matrix;try{matrix=path?.getScreenCTM()?.inverse()}catch{continue}if(!matrix)continue;
-      if([[0,0],[-5,0],[5,0],[0,-5],[0,5]].some(([dx,dy])=>path.isPointInStroke(new DOMPoint(e.clientX+dx,e.clientY+dy).matrixTransform(matrix))))hits.push(el.dataset.id);
+      // SVGPoint keeps hit testing compatible with Chromium builds that reject DOMPoint.
+      const point=path.ownerSVGElement?.createSVGPoint();if(!point)continue;
+      if([[0,0],[-5,0],[5,0],[0,-5],[0,5]].some(([dx,dy])=>{point.x=e.clientX+dx;point.y=e.clientY+dy;return path.isPointInStroke(point.matrixTransform(matrix))}))hits.push(el.dataset.id);
     }
     if(!hits.length)return;if(!erasing.changed){checkpoint();erasing.changed=true}
     const ids=new Set(hits);project().objects=objects().filter(o=>!ids.has(o.id));project().connections=project().connections.filter(c=>!ids.has(c.from)&&!ids.has(c.to));
