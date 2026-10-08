@@ -5,6 +5,8 @@ on:
       - 'osminog-graphics-studio*'
       - 'osminog-desktop-v3*'
       - 'osminog-documents*'
+      - 'osminog-canvas-ux*'
+      - 'osminog-workdesk*'
       - 'editor.html'
       - 'editor.css'
       - 'bridge.js'
@@ -14,6 +16,8 @@ on:
       - 'tools/release-files-3206.json'
       - 'tests/graphics-3205.cjs'
       - 'tests/documents-3204.cjs'
+      - 'tests/shared-board-400.cjs'
+      - 'tests/canvas-ux-408.cjs'
       - '.github/workflows/graphics-studio-check.yml'
 permissions:
   contents: read
@@ -46,8 +50,10 @@ jobs:
           node tests/foundation-assets.cjs
           node tests/foundation-context.cjs
           node tests/foundation-browser.cjs
-      - name: Check workdesk, retained assets and internet image import
-        run: node tests/workdesk-3230.cjs
+      - name: Check shared board, retained assets and internet image import
+        run: node tests/shared-board-400.cjs
+      - name: Check inline text and full canvas
+        run: node tests/canvas-ux-408.cjs
       - name: Check retained document editing
         run: node tests/documents-3204.cjs
       - uses: actions/upload-artifact@v4

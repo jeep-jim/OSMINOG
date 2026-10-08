@@ -1,0 +1,95 @@
+/* Canvas UX 4.0.8: one floating dock, plain inline text, reversible UI hiding. */
+:root { --desk-header-height:56px; }
+body[data-workdesk] .topbar {
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-rows:1fr!important;
+}
+body[data-workdesk] .top-actions { grid-column:2!important; grid-row:1!important; }
+body[data-workdesk] #workdeskTools {
+  position:fixed; left:calc((100vw - var(--desk-right)) / 2); right:auto;
+  bottom:max(16px,env(safe-area-inset-bottom)); top:auto;
+  transform:translateX(-50%); z-index:155; display:flex; align-items:center;
+  gap:3px; width:max-content; max-width:calc(100vw - var(--desk-right) - 24px);
+  padding:6px 8px; border:1px solid var(--line,#414752); border-radius:14px;
+  background:var(--desk-panel); box-shadow:0 8px 28px #0003;
+  overflow-x:auto; overflow-y:hidden; scrollbar-width:thin;
+}
+body[data-workdesk] #workdeskTools[hidden],body[data-workdesk] #canvasToolsRestore[hidden] { display:none!important; }
+#workdeskTools button { flex:0 0 36px; width:36px; height:36px; border:0; border-radius:7px; padding:8px; }
+#workdeskTools button.active { background:color-mix(in srgb,var(--accent,#526fff) 18%,transparent); color:var(--text,#edf0f5); }
+#workdeskTools button[aria-pressed=true] { background:color-mix(in srgb,var(--accent,#526fff) 18%,transparent); }
+#workdeskTools button:disabled { opacity:.32; cursor:default; }
+#workdeskTools button svg,#deskMore button svg,#canvasToolsRestore svg,.canvas-text-properties button svg {
+  width:20px; height:20px; flex:0 0 20px; fill:none!important; stroke:currentColor!important;
+  stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;
+}
+#workdeskTools .desk-tool-chevron { display:none!important; }
+.desk-active-dot { display:block; width:5px; height:5px; border-radius:50%; background:var(--accent,#8da1ff); opacity:0; flex:0 0 5px; }
+#workdeskTools .desk-active-dot { position:absolute; bottom:2px; left:calc(50% - 2.5px); }
+#workdeskTools button.active .desk-active-dot,#deskMore .is-current .desk-active-dot { opacity:1; }
+#deskMore button[data-desk] { display:flex; align-items:center; gap:10px; font-weight:400; }
+#deskMore button[data-desk] .desk-active-dot { margin-left:auto; }
+#deskMore button.is-current { background:color-mix(in srgb,var(--accent,#526fff) 13%,transparent); }
+#deskMore { z-index:175; max-height:calc(100dvh - 148px); }
+#canvasColorWrap { position:relative; display:grid; place-items:center; width:34px; height:34px; flex:0 0 34px; margin:0 4px; border-left:1px solid var(--line,#414752); padding-left:7px; box-sizing:content-box; }
+#canvasColor { display:block; box-sizing:border-box; width:26px; height:26px; padding:0; border:1px solid #ffffff40; border-radius:50%; overflow:hidden; background:none; cursor:pointer; }
+#canvasColor::-webkit-color-swatch-wrapper { padding:0; }
+#canvasColor::-webkit-color-swatch { border:0; border-radius:50%; }
+#canvasColor::-moz-color-swatch { border:0; border-radius:50%; }
+#canvasToolsClose { margin-left:4px; border-left:1px solid var(--line,#414752)!important; }
+/* DOM/SVG plane: enlarging logical coordinates does not allocate a bitmap. */
+body[data-workdesk] #world { width:120000px; height:80000px; overflow:visible; }
+body[data-workdesk] #objects,body[data-workdesk] #connections,body[data-workdesk] #ink { overflow:visible; }
+/* Selection still uses ordinary object dimensions; text itself has no card or panel. */
+body[data-workdesk] .canvas-object[data-type=text] .object-content {
+  color:var(--object-text-color); font-size:var(--object-font-size); font-weight:var(--object-font-weight);
+  caret-color:currentColor; user-select:text; cursor:text;
+}
+body[data-workdesk] .canvas-object[data-type=text][data-auto-text] .object-content {
+  display:block; box-sizing:border-box; width:max-content!important; max-width:none!important;
+  height:auto!important; min-width:1em; min-height:1.4em; white-space:pre!important;
+  overflow:visible!important; padding:0!important;
+}
+body[data-workdesk] .canvas-object[data-type=text] [contenteditable=true] {
+  outline:1px solid color-mix(in srgb,var(--accent,#526fff) 40%,transparent);
+  outline-offset:3px;
+}
+.canvas-text-properties { display:grid; gap:16px; }
+.canvas-text-hint { margin:0 0 4px; font:13px/1.5 system-ui; color:var(--text-muted,#9ca6b6); }
+.canvas-text-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+.canvas-text-field { display:flex; flex-direction:column; min-width:0; gap:7px; font:12px/1.4 system-ui; color:var(--text-muted,#9ca6b6); }
+.canvas-text-field input,.canvas-text-field select {
+  box-sizing:border-box; width:100%; min-width:0; height:36px; border:1px solid var(--line,#414752); border-radius:7px;
+  padding:6px 9px; color:var(--text,#edf0f5); background:var(--desk-panel); font:13px system-ui;
+}
+.canvas-text-field input[type=color] { padding:4px; cursor:pointer; }
+.canvas-text-field input:focus-visible,.canvas-text-field select:focus-visible { outline:2px solid var(--accent,#526fff); outline-offset:1px; }
+.canvas-text-properties .soft-btn { display:flex; align-items:center; justify-content:center; gap:8px; }
+/* Do not mutate hidden/open/collapsed states. A second shortcut restores the same UI. */
+body[data-workdesk].osminog-focus { --desk-right:0px!important; --desk-header-height:0px!important; }
+body[data-workdesk].osminog-focus #app > :not(#viewport),
+body[data-workdesk].osminog-focus > :not(#app):not(script):not(style):not(link):not(svg) { display:none!important; }
+body[data-workdesk].osminog-focus #viewport {
+  position:fixed!important; inset:0!important; width:100vw!important; height:100dvh!important; visibility:visible!important;
+}
+body[data-workdesk].osminog-focus #viewport > :not(#world):not(#marquee) { display:none!important; }
+@media(max-width:1100px) {
+  :root { --desk-header-height:56px; }
+  body[data-workdesk] .topbar { grid-template-rows:1fr!important; }
+  body[data-workdesk] .topbar .top-actions { gap:4px; }
+}
+@media(max-width:720px) {
+  body.desk-chat-open #workdeskTools { display:none!important; }
+  body[data-workdesk] #workdeskTools { left:50%; max-width:calc(100vw - 16px); bottom:max(10px,env(safe-area-inset-bottom)); padding:5px; }
+  #workdeskTools button { flex-basis:34px; width:34px; height:34px; }
+  body[data-workdesk] #inspector { max-height:calc(100dvh - 160px); overflow:auto; }
+}
+
+/* Text properties do not need the unrelated vector/gradient sidecar. */
+#inspectorBody:has(.canvas-text-properties) .graphics-v2-sidecar { display:none!important; }
+
+/* Keep selection controls outside plain text; never cover the insertion caret. */
+body[data-workdesk] .canvas-object[data-type=text] .ai-context-handle,
+body[data-workdesk] .canvas-object[data-type=text] .object-close { top:-36px!important; }
+body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .ai-context-handle,
+body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .object-close { visibility:hidden!important; }

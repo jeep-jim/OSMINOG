@@ -1,19 +1,21 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.0",
-  "versionName": "4.0.0 · Shared Board",
-  "artifact": "OSMINOG-Chrome-4.0.0-SHARED-BOARD.zip",
-  "manifestVersion": "4.0.0",
+  "version": "4.0.8",
+  "versionName": "4.0.8 · Canvas Focus",
+  "artifact": "OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip",
+  "deltaArtifact": "OSMINOG-4.0.8-update-from-4.0.7.zip",
+  "manifestVersion": "4.0.8",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "3.23.0",
+  "baseVersion": "4.0.7",
   "runtimeVerified": false,
   "verification": {
-    "browserRegression": "passed local Chromium: shared-board-400",
-    "liveProvider": "requires installed owner session",
+    "browserRegression": "23 checks passed locally in Chromium with fixture Chrome APIs; CI also runs retained shared-board and bridge regressions",
+    "ownerInstallation": "not verified in the owner's installed Chrome extension",
+    "liveProvider": "requires installed owner session; no AI transport changes",
     "nativeScreenPicker": "requires owner desktop",
-    "nativeUpdater": "existing protocol retained"
+    "nativeUpdater": "existing protocol retained; no automatic installation claimed"
   },
-  "notes": "Local shared board; docked chat; unified tools; notes and Markdown; screenshot capture, crop and clipboard; object comments and connections. Remote multiuser sync is not enabled."
+  "notes": "Ctrl+Backslash hides/restores UI without resetting panel states; bottom drawing toolbar; inline text with right-side typography; zoom 0.5%-800%; enlarged DOM/SVG plane. No project schema migration, identity, permission or conversation changes."
 }

@@ -1,4 +1,4 @@
-name: OSMINOG 4.0.7 shared board
+name: OSMINOG 4.0.8 canvas focus
 on:
   pull_request:
   push:
@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
       - run: node --check background.js
+      - run: node --check osminog-workdesk.js
+      - run: node --check osminog-canvas-ux.js
       - run: node tests/chat-sync-3216.cjs
       - run: node tests/chat-sync-plaintext-3217.cjs
       - run: node tests/provider-dock-3217.cjs
@@ -35,6 +37,7 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
           npx playwright install --with-deps chromium
+      - run: node tests/canvas-ux-408.cjs
       - run: node tests/clipboard-407.cjs
       - run: node tests/shared-board-400.cjs
       - run: node tests/chat-sync-browser-3216.cjs
@@ -47,28 +50,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.7-SCREENSHOT-CLIPBOARD.zip'
+          artifact='OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
+          zip -q artifacts/OSMINOG-4.0.8-update-from-4.0.7.zip manifest.json osminog-workdesk.js osminog-canvas-ux.js osminog-canvas-ux.css OSMINOG_BUILD.json RELEASE_NOTES_4.0.8.md
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-4.0.7-SCREENSHOT-CLIPBOARD.zip'
+          path='artifacts/OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.7' and m['version_name']=='4.0.7 · Screenshot Clipboard'
+              assert m['version']=='4.0.8' and m['version_name']=='4.0.8 · Canvas Focus'
+              assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.7-SCREENSHOT-CLIPBOARD
+          name: OSMINOG-4.0.8-CANVAS-FOCUS
           path: |
-            artifacts/OSMINOG-Chrome-4.0.7-SCREENSHOT-CLIPBOARD.zip
-            RELEASE_NOTES_4.0.7.md
+            artifacts/OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip
+            artifacts/OSMINOG-4.0.8-update-from-4.0.7.zip
+            RELEASE_NOTES_4.0.8.md
             artifacts/*.png
+            artifacts/canvas-ux-408-results.json
           retention-days: 14
-
-
