@@ -93,3 +93,8 @@ body[data-workdesk] .canvas-object[data-type=text] .ai-context-handle,
 body[data-workdesk] .canvas-object[data-type=text] .object-close { top:-36px!important; }
 body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .ai-context-handle,
 body[data-workdesk] .canvas-object[data-type=text]:has([contenteditable=true]) .object-close { visibility:hidden!important; }
+
+/* Failed connections must not look like a successful green state. */
+#gptPresenceActivity.agent-error{background:color-mix(in srgb,#cf4343 14%,var(--desk-panel))!important;color:var(--text)!important;border:1px solid #cf434377}
+#gptPresenceActivity.agent-error .local-ai-activity-fill{background:#cf4343!important}
+body[data-workdesk] #bridgePanel.gpt-team-open .bridge-head strong{white-space:normal}

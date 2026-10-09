@@ -1,4 +1,4 @@
-name: OSMINOG 4.0.8 canvas focus
+name: OSMINOG 4.0.9 agent runtime
 on:
   pull_request:
   push:
@@ -15,6 +15,7 @@ jobs:
       - run: node --check background.js
       - run: node --check osminog-workdesk.js
       - run: node --check osminog-canvas-ux.js
+      - run: node tests/agent-session-409.cjs
       - run: node tests/chat-sync-3216.cjs
       - run: node tests/chat-sync-plaintext-3217.cjs
       - run: node tests/provider-dock-3217.cjs
@@ -37,6 +38,7 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
           npx playwright install --with-deps chromium
+      - run: node tests/agent-runtime-browser-409.cjs
       - run: node tests/canvas-ux-408.cjs
       - run: node tests/clipboard-407.cjs
       - run: node tests/shared-board-400.cjs
@@ -50,30 +52,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip'
+          artifact='OSMINOG-Chrome-4.0.9-AGENT-RUNTIME.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
-          zip -q artifacts/OSMINOG-4.0.8-update-from-4.0.7.zip manifest.json osminog-workdesk.js osminog-canvas-ux.js osminog-canvas-ux.css OSMINOG_BUILD.json RELEASE_NOTES_4.0.8.md
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip'
+          path='artifacts/OSMINOG-Chrome-4.0.9-AGENT-RUNTIME.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.8' and m['version_name']=='4.0.8 · Canvas Focus'
+              assert m['version']=='4.0.9' and m['version_name']=='4.0.9 · Agent Runtime'
               assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.8-CANVAS-FOCUS
+          name: OSMINOG-4.0.9-AGENT-RUNTIME
           path: |
-            artifacts/OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip
-            artifacts/OSMINOG-4.0.8-update-from-4.0.7.zip
-            RELEASE_NOTES_4.0.8.md
+            artifacts/OSMINOG-Chrome-4.0.9-AGENT-RUNTIME.zip
+            RELEASE_NOTES_4.0.9.md
             artifacts/*.png
             artifacts/canvas-ux-408-results.json
+            artifacts/agent-runtime-409-results.json
+            artifacts/agent-session-409-results.json
           retention-days: 14

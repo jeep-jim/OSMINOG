@@ -11,7 +11,7 @@
       const ctx=m.context||{},projectId=String(ctx.project?.id||''),threadId=String(ctx.chat?.threadId||'');
       if(!projectId||!threadId)throw Error('Нужны проект и чат');
       const links=await helpers.links(),link=links[m.provider];if(!link?.tabId)return{ok:true,connected:false};
-      const tab=await api.tabs.get(link.tabId);if(!helpers.matches(m.provider,tab.url))throw Error('Открыт другой сервис');
+      const tab=await api.tabs.get(link.tabId).catch(()=>null);if(!tab){bindings.delete(link.tabId);await save();return{ok:true,connected:false,stale:true}}if(!helpers.matches(m.provider,tab.url))throw Error('Открыт другой сервис');
       const editorTabId=s.tab?.id??m.editorTabId,host=await api.tabs.get(editorTabId);if(route(host.url)!==api.runtime.getURL('editor.html'))throw Error('Холст закрыт');
       const old=bindings.get(tab.id),same=old&&old.editorTabId===editorTabId&&old.projectId===projectId&&old.threadId===threadId&&old.epoch===Number(ctx.chat.historyEpoch||0)&&old.provider===m.provider;
       if(old?.busy&&(!same||old.route!==route(tab.url)))throw Error('В этом диалоге ещё выполняется запрос другого агента');

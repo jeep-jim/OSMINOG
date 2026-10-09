@@ -262,7 +262,7 @@
   // One floating toolbar; all lesser-used actions remain in accessible menus.
   for(const button of nav.querySelectorAll('[data-desk-group]')){
     const id=button.dataset.deskGroup;button.innerHTML=icon(id)+'<span class="desk-active-dot" aria-hidden="true"></span>';
-    button.title+=' · другие действия: правая кнопка / удержание';button.setAttribute('aria-haspopup','true');
+    button.title+=' · наведите для меню; удержание на сенсорном экране';button.setAttribute('aria-haspopup','true');
   }
   function addButton(id,label,iconName,action){const b=document.createElement('button');b.type='button';b.id=id;b.title=label;b.setAttribute('aria-label',label);b.innerHTML=icon(iconName);b.addEventListener('click',action);nav.append(b);return b}
   const swatch=document.createElement('label');swatch.id='canvasColorWrap';swatch.title='Цвет активного инструмента';swatch.innerHTML='<input id="canvasColor" type="color" aria-label="Цвет активного инструмента">';nav.append(swatch);

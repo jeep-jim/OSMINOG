@@ -228,8 +228,8 @@ function renderProjectGrid(filter=""){
 }
 
 function setMode(mode){
-  if(document.body.dataset.workdesk)mode="brief";
-  if(!MODE_LABEL[mode])return;state.mode=mode;if(mode==="team"&&!["select","hand"].includes(state.tool))state.tool="select";document.body.className=`mode-${mode}`;
+  if(document.body.dataset.workdesk&&!["brief","team"].includes(mode))mode="brief";
+  if(!MODE_LABEL[mode])return;state.mode=mode;if(mode==="team"&&!["select","hand"].includes(state.tool))state.tool="select";for(const cls of [...document.body.classList])if(cls.startsWith("mode-"))document.body.classList.remove(cls);document.body.classList.add(`mode-${mode}`);
   $$('[data-mode]').forEach(b=>b.classList.toggle("active",b.dataset.mode===mode));
   $$('[data-tool]').forEach(b=>b.classList.toggle("active",b.dataset.tool===state.tool));
   $$('[data-modes]').forEach(b=>b.hidden=false);

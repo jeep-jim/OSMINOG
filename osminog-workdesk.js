@@ -53,14 +53,21 @@
  ['pen','Рисование',[['pen','Карандаш / маркер'],['eraser','Ластик · E'],['vector','Векторное перо'],['graphics','Редактор графики'],['animation','Анимация']]],
  ['capture','Снимки и изображения',[['capture','Снимок экрана / окна'],['paste-image','Вставить изображение из буфера'],['paste-cache','Вставить скриншот из кеша'],['crop','Обрезать выделенное изображение'],['original','Восстановить оригинал'],['copy','Копировать изображение в буфер']]],
  ['code','Сайты и макеты',[['apps','Сохранённые сайты и приложения'],['saved-layouts','Редактируемые копии сайтов'],['browser-editor','Открыть сайт в редакторе'],['edit-layout','Редактировать выделенный макет']]],
- ['more','Дополнительно',[['generate','Генерация изображений · нужен доступ провайдера'],['team','Команда ИИ · экспериментально'],['chat','Внутренний чат'],['providers','Другие ИИ · экспериментально'],['undo','Отменить'],['redo','Повторить'],['context','Скачать контекст в Markdown']]]
+ ['more','Дополнительно',[['generate','Генерация изображений · нужен доступ провайдера'],['team','Групповой чат'],['chat','Внутренний чат'],['providers','Другие ИИ · экспериментально'],['undo','Отменить'],['redo','Повторить'],['context','Скачать контекст в Markdown']]]
  ];
  nav.innerHTML=groups.map(([id,label])=>`<button type="button" data-desk-group="${id}" title="${label}" aria-label="${label}" aria-expanded="false" aria-controls="deskMore">${icons[id]?`<svg viewBox="0 0 24 24" aria-hidden="true">${icons[id]}</svg>`:'<span>•••</span>'}<span class="desk-active-dot" aria-hidden="true"></span></button>`).join('');$('#app').append(nav);
  const more=document.createElement('section');more.id='deskMore';more.hidden=true;more.setAttribute('aria-label','Функции инструмента');$('#app').append(more);
  let expanded=null;
  function dismissTools(restore=false){const button=nav.querySelector(`[data-desk-group="${expanded}"]`);more.hidden=true;expanded=null;nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-expanded','false'));if(restore)button?.focus()}
  function positionTools(){if(more.hidden)return;const button=nav.querySelector(`[data-desk-group="${expanded}"]`);if(!button)return;const r=button.getBoundingClientRect();more.style.left=Math.max(8,Math.min(innerWidth-more.offsetWidth-8,r.left))+'px';more.style.top=Math.max(8,r.top-more.offsetHeight-10)+'px'}
- function showToolMenu(button){const id=button.dataset.deskGroup;if(expanded===id){dismissTools();return}dismissTools();expanded=id;const group=groups.find(g=>g[0]===id);more.innerHTML=`<strong>${group[1]}</strong><div class="desk-tool-actions">${group[2].map(([action,label])=>`<button type="button" data-desk="${action}">${label}</button>`).join('')}</div>`;button.setAttribute('aria-expanded','true');more.hidden=false;globalThis.OSMINOGCanvasUX?.decorateMenu();positionTools();}
+ function showToolMenu(button,toggle=true){const id=button.dataset.deskGroup;if(expanded===id){if(toggle)dismissTools();return}dismissTools();expanded=id;const group=groups.find(g=>g[0]===id);more.innerHTML=`<strong>${group[1]}</strong><div class="desk-tool-actions">${group[2].map(([action,label])=>`<button type="button" data-desk="${action}">${label}</button>`).join('')}</div>`;button.setAttribute('aria-expanded','true');more.hidden=false;globalThis.OSMINOGCanvasUX?.decorateMenu();positionTools();}
+ let hoverTimer=0,hoverClose=0;
+ const cancelHover=()=>{clearTimeout(hoverTimer);clearTimeout(hoverClose)};
+ nav.addEventListener('pointerover',e=>{if(e.pointerType==='touch')return;const b=e.target.closest('[data-desk-group]');if(!b||b.contains(e.relatedTarget))return;cancelHover();hoverTimer=setTimeout(()=>showToolMenu(b,false),180)});
+ nav.addEventListener('pointerleave',()=>{clearTimeout(hoverTimer);hoverClose=setTimeout(()=>{if(!more.matches(':hover'))dismissTools()},280)});
+ more.addEventListener('pointerenter',cancelHover);
+ more.addEventListener('pointerleave',()=>{hoverClose=setTimeout(()=>{if(!nav.matches(':hover'))dismissTools()},280)});
+ nav.addEventListener('pointerdown',cancelHover);window.addEventListener('blur',()=>{cancelHover();dismissTools()});
  const directTools=new Set(['select','hand','text','node','shape','pen']);
  nav.onclick=e=>{const button=e.target.closest('[data-desk-group]');if(!button)return;if(nav.dataset.longPressed){delete nav.dataset.longPressed;return}const tool=button.dataset.deskGroup;if(directTools.has(tool)){dismissTools();setTool(tool);$('#viewport')?.focus({preventScroll:true})}else showToolMenu(button)};
  nav.addEventListener('contextmenu',e=>{const button=e.target.closest('[data-desk-group]');if(!button)return;e.preventDefault();showToolMenu(button)});
@@ -83,7 +90,7 @@
  document.addEventListener('focusout',e=>{if(e.target.matches('.canvas-object [contenteditable=true]')&&e.target.closest('[data-type=note],[data-type=text],[data-type=brief]'))e.target.contentEditable='false'});
  const old=objectHTML;globalThis.objectHTML=function(o){let html;if(o.type==='browser')html=`<div class="workdeskLink"><strong>${escape(o.name||'Сайт')}</strong><span>${escape(o.url||'')}</span><small>Двойной клик — открыть</small></div>`;else if(o.noteFormat==='markdown'&&['note','text'].includes(o.type))html=`<div class="object-content desk-markdown">${markdown(o.text)}</div>`;else html=old(o);if(o.comments?.length)html+=`<aside class="desk-comments" aria-label="Комментарии">${o.comments.map(c=>`<p>${escape(c.text)}</p>`).join('')}</aside>`;return html};
  const empty=$('#emptyHint');if(empty){empty.innerHTML='<div class="workdeskEmpty"><button id="emptyHintClose" type="button" aria-label="Закрыть приветствие">×</button><h1>Всё для проекта — на одной доске</h1><p>Перетащите файлы, вставьте изображение или добавьте заметку. Подключите внешний ChatGPT, чтобы работать с материалами вместе.</p><button id="workdeskEmptyAdd" type="button">Добавить файлы</button></div>';$('#workdeskEmptyAdd').onclick=()=>$('#fileInput').click();$('#emptyHintClose').onclick=()=>{sessionStorage.setItem('osminogIntroDismissedV1','1');empty.hidden=true}}
- const external=document.createElement('button');external.id='workdeskExternalGPT';external.className='soft-btn';external.textContent='Для ChatGPT';external.onclick=()=>OSMINOGAccessCenter.open();$('.top-actions').prepend(external);
+ // External access and Посейдон remain in the single existing Доступ menu.
 
  globalThis.OSMINOGWorkdeskMenus={close:dismissTools,position:positionTools};
  split();renderAll(true);

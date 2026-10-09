@@ -1,0 +1,43 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),passed=[];
+const pass=t=>{passed.push(t);console.log('PASS',t)};
+function fixture(sharedSession={}){
+ const local={briefCraftProviderTabLinksV1:{gpt:{tabId:1962643637,managed:true}},osminogProviderSessionsV1:{gpt:{tabId:1962643637,windowId:999,managed:true}},osminogBrowserHubWindowV1:{windowId:999,managed:true}};
+ const tabs=new Map([[1,{id:1,windowId:1,url:'https://chatgpt.com/c/personal',status:'complete',active:true}]]),wins=new Map([[1,{id:1,type:'normal',tabs:[tabs.get(1)]}]]),sent=[],gets=[];let counter=100,failSend=false;
+ const event=()=>({handlers:[],addListener(f){this.handlers.push(f)},removeListener(f){this.handlers=this.handlers.filter(x=>x!==f)}});
+ const area=obj=>({get:async key=>typeof key==='string'?{[key]:structuredClone(obj[key])}:structuredClone(obj),set:async v=>Object.assign(obj,structuredClone(v)),remove:async key=>{delete obj[key]}});
+ const chrome={runtime:{id:'unit-extension',getURL:p=>'chrome-extension://unit-extension/'+p,onInstalled:event(),onStartup:event(),onMessage:event(),sendMessage:async()=>({ok:true})},storage:{session:area(sharedSession),local:area(local)},contextMenus:{onClicked:event(),removeAll(cb){cb?.()},create(){}},i18n:{getUILanguage:()=> 'ru'},permissions:{contains:async()=>true},scripting:{executeScript:async()=>[],registerContentScripts:async()=>{},getRegisteredContentScripts:async()=>[]},tabs:{
+  onUpdated:event(),onCreated:event(),onRemoved:event(),get:async id=>{gets.push(id);if(!tabs.has(id))throw Error('No tab with id: '+id);return structuredClone(tabs.get(id))},query:async query=>[...tabs.values()].filter(t=>!query.windowId||t.windowId===query.windowId),
+  create:async data=>{const t={id:++counter,windowId:data.windowId||1,url:data.url,status:'complete',active:!!data.active};tabs.set(t.id,t);if(wins.has(t.windowId))wins.get(t.windowId).tabs.push(t);return structuredClone(t)},
+  update:async(id,data)=>{if(!tabs.has(id))throw Error('No tab');Object.assign(tabs.get(id),data);return structuredClone(tabs.get(id))},
+  sendMessage:async(id,m)=>{if(!tabs.has(id))throw Error('No tab with id: '+id);if(m.type==='BC_PROVIDER_TAB_SEND_V4'){sent.push({id,m:structuredClone(m)});if(failSend)throw Error('Port closed');await new Promise(r=>setTimeout(r,1));return{ok:true,answer:'{"text":"ready"}'}}return{ok:true,bridge:'v6',composer:{},requestId:m.requestId}}
+ },windows:{onRemoved:event(),get:async id=>{if(!wins.has(id))throw Error('No window');return structuredClone(wins.get(id))},create:async data=>{const w={id:++counter,type:data.type,state:'minimized',tabs:[]};wins.set(w.id,w);await chrome.tabs.create({windowId:w.id,url:data.url,active:false});return structuredClone(w)},update:async(id,data)=>{Object.assign(wins.get(id),data);return structuredClone(wins.get(id))}},webNavigation:{onCompleted:event()}};
+ const context=vm.createContext({chrome,console,URL,URLSearchParams,TextEncoder,TextDecoder,Uint8Array,ArrayBuffer,AbortController,crypto:crypto.webcrypto,structuredClone,atob,btoa,Blob,Response,Request,Headers,setTimeout,clearTimeout,setInterval:()=>0,clearInterval,fetch:async()=>{throw Error('Unexpected network')}});
+ context.importScripts=(...names)=>names.forEach(n=>vm.runInContext(fs.readFileSync(path.join(root,n),'utf8'),context,{filename:n}));
+ vm.runInContext(fs.readFileSync(path.join(root,'background.js'),'utf8'),context,{filename:'background.js'});
+ return{context,local,session:sharedSession,tabs,wins,sent,gets,fail:()=>{failSend=true}};
+}
+(async()=>{
+ const f=fixture(),c=f.context;const ctx=(pid='board-a',tid='main',kind='chat')=>({project:{id:pid},chat:{threadId:tid,kind,historyEpoch:0},capabilities:{mode:'interactive-edit',tools:['canvas_status','propose_canvas_patch']}});
+ assert.deepEqual(JSON.parse(JSON.stringify(await c.bcProviderLinks())),{});assert.equal(await c.osminogSessionTab('gpt'),null);assert(!f.gets.includes(1962643637));pass('portable local stale IDs are ignored; runtime handles are session-local');
+ await c.bcProviderTabSend('gpt','Add a note',ctx());assert.equal(f.sent.length,1);assert.notEqual(f.sent[0].id,1);assert.match(f.sent[0].m.text,/OSMINOG_CONTEXT_V1/);assert.match(f.sent[0].m.text,/osminog.request\/v1/);assert.equal(f.tabs.get(1).url,'https://chatgpt.com/c/personal');pass('first send creates managed service; personal chat remains untouched; context/protocol included');
+ const first=f.sent[0].id;await c.bcProviderTabSend('gpt','Another question',ctx());assert.equal(f.sent.at(-1).id,first);pass('same project and agent reuse their managed conversation');
+ await c.bcProviderTabSend('gpt','Team contribution',ctx('board-a','main','team'));assert.notEqual(f.sent.at(-1).id,first);const teamTab=f.sent.at(-1).id;
+ await c.bcProviderTabSend('gpt','Other project',ctx('board-b'));assert.notEqual(f.sent.at(-1).id,first);assert.notEqual(f.sent.at(-1).id,teamTab);pass('team, individual and different boards have separate provider conversations');
+ f.tabs.delete(first);await c.bcProviderTabSend('gpt','Recover closed tab',ctx());assert.notEqual(f.sent.at(-1).id,first);assert(!f.gets.includes(1962643637));pass('closed managed tab resolved before sending; no foreign device tab lookup');
+ const scopes=Object.keys(f.session.osminogAgentTabsV1).length;await Promise.all(['a','b','c'].map(t=>c.bcProviderTabSend('claude','Parallel',ctx('board-a',t))));assert.equal(Object.keys(f.session.osminogAgentTabsV1).length,scopes+3);assert.equal(new Set(f.sent.slice(-3).map(s=>s.id)).size,3);pass('parallel agent allocation is serialized without lost scope entries');assert.equal((await c.bcDiscoverProvider('claude')).connected,true);pass('readiness remains connected after switching between several agents of the same provider');
+ const second=fixture();assert.equal(await second.context.osminogHubWindow(),null);assert.deepEqual(JSON.parse(JSON.stringify(await second.context.bcProviderLinks())),{});pass('another browser/device session does not reuse work-computer IDs');
+ const oldLinks=JSON.stringify(f.session.briefCraftProviderTabLinksV1);const restarted=fixture(f.session);assert.equal(JSON.stringify(await restarted.context.bcProviderLinks()),oldLinks);pass('service worker restart can read in-session handles; actual tab ownership is revalidated');
+ const rejected=await c.bcConnectProviderTab('gpt',1,{managed:true});assert.equal(rejected.ok,false);pass('an ordinary user chat cannot be promoted to managed execution');
+ const image='data:image/png;base64,aGVsbG8=';await c.bcProviderSend({provider:'gpt',context:ctx(),imageDataUrl:image,requestId:'round2'}, {calls:[{tool:'read_asset',result:{imageAttached:true}}]});assert.equal(f.sent.at(-1).m.images[0].dataUrl,image);assert.match(f.sent.at(-1).m.text,/OSMINOG_CONTEXT_V1/);pass('image tool result and renewed context forwarded through the tab adapter');
+ const count=f.sent.length;f.fail();await assert.rejects(c.bcProviderTabSend('gpt','Once only',ctx()),/Автоматический повтор отключён/);assert.equal(f.sent.length,count+1);pass('ambiguous reply-port failure is not automatically retried');
+ // Full API adapter payloads, using synthetic responses; no paid network calls.
+ const requests=[];c.fetch=async(url,opts)=>{requests.push({url,body:JSON.parse(opts.body)});return new Response(JSON.stringify(url.includes('anthropic')?{content:[{type:'text',text:'api fixture'}]}:{candidates:[{content:{parts:[{text:'api fixture'}]}}]}),{status:200})};
+ await c.bcProviderSend({provider:'claude',context:ctx('api'),text:'See image',images:[{dataUrl:image}],apiKey:'fixture-not-secret'});assert.equal(requests.at(-1).body.messages.at(-1).content[0].source.data,'aGVsbG8=');
+ await c.bcProviderSend({provider:'gemini',context:ctx('api'),text:'See image',images:[{dataUrl:image}],apiKey:'fixture-not-secret'});assert.equal(requests.at(-1).body.contents.at(-1).parts[0].inline_data.data,'aGVsbG8=');pass('Claude/Gemini API adapters pass image bytes rather than silently dropping them');
+ const old=requests.length;await assert.rejects(c.bcProviderSend({provider:'deepseek',context:ctx('api'),images:[{dataUrl:image}],apiKey:'fixture'}),/не передаёт изображения/);assert.equal(requests.length,old);pass('text-only adapter refuses image requests explicitly without sending a false vision claim');
+ fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/agent-session-409-results.json'),JSON.stringify({passed:passed.length,checks:passed},null,2));
+})().catch(e=>{console.error(e);process.exitCode=1});
+
+require('./patch-outcome-409.cjs');
