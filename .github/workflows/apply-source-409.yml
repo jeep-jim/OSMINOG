@@ -1,0 +1,35 @@
+name: Apply reviewed 4.0.9 source on isolated branch
+on:
+  push:
+    branches: ['codex/agent-runtime-device-409']
+    paths: ['tools/staging-409/APPLY']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 tools/apply_stage_409.py
+      - name: Commit validated source to feature branch only
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'codex/agent-runtime-device-409'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Restore scoped agent runtime, group chat and hover tools (4.0.9)'
+          git push origin HEAD:refs/heads/codex/agent-runtime-device-409
+      - name: Source snapshot for independent regression
+        run: git archive HEAD --format=zip -o /tmp/OSMINOG-409-source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-409-source
+          path: /tmp/OSMINOG-409-source.zip
