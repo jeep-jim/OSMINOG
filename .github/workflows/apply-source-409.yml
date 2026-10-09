@@ -22,6 +22,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'codex/agent-runtime-device-409'
+          # Workflow changes are committed separately through the authorized owner connector.
+          git restore .github/workflows/agent-media-3207.yml
+          rm -rf artifacts
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
