@@ -39,3 +39,5 @@ function fixture(sharedSession={}){
  const old=requests.length;await assert.rejects(c.bcProviderSend({provider:'deepseek',context:ctx('api'),images:[{dataUrl:image}],apiKey:'fixture'}),/не передаёт изображения/);assert.equal(requests.length,old);pass('text-only adapter refuses image requests explicitly without sending a false vision claim');
  fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/agent-session-409-results.json'),JSON.stringify({passed:passed.length,checks:passed},null,2));
 })().catch(e=>{console.error(e);process.exitCode=1});
+
+require('./patch-outcome-409.cjs');
