@@ -17,6 +17,5 @@ assert.ok(!bridge.includes('if(m?.type==="BC_EXTERNAL_ASSISTANT_RESULT")handleEx
 assert.ok(bridge.includes('executeTool'));assert.ok(bridge.includes('function connectCanvas'));
 const lite=read('chatgpt-lite-bridge.js');
 for(const name of ['scanAssistant','prepareAndSendManual','interceptManualSend','sendInternal','sendToolResult'])assert.match(lite,new RegExp('function '+name+'\\([^)]*\\)\\{\\s*return'));
-assert.ok(read('provider-tab-bridge.js').includes('if(isGpt()&&!syncBinding)throw')); 
+assert.ok(read('provider-tab-bridge.js').includes('if(isGpt()&&!syncBinding&&!managedAgentSession)throw')); 
 console.log('PASS: 7 legacy messages rejected; external send/read blocked; canvas relay retained.');
-

@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const src=fs.readFileSync(path.resolve(__dirname,'../gpt-presence.js'),'utf8');
 const fn=src.slice(src.indexOf('  async function osminogTeamAsk('),src.indexOf('  async function osminogTeamApplyPatch('));
 const loadThreads=async()=>{},threads=[{id:'test',provider:'gpt',name:'Test'}],connected=true;
-const pinsForThread=async()=>[],contextForPrompt=()=>({capabilities:{}}),textAttachmentBlock=()=>'',ROLE_LABELS={universal:'test'},providerLabel=()=> 'Test';
+const pinsForThread=async()=>[],contextForPrompt=()=>({capabilities:{tools:[]}}),textAttachmentBlock=()=>'',ROLE_LABELS={universal:'test'},providerLabel=()=> 'Test';
 const teamDrainToolCalls=async(t,r)=>r;
 let responses=[];const sendProviderTask=async()=>responses.shift();
 eval(fn+';globalThis.testTeam=osminogTeamAsk');
