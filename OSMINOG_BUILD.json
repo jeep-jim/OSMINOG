@@ -1,21 +1,18 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.8",
-  "versionName": "4.0.8 · Canvas Focus",
-  "artifact": "OSMINOG-Chrome-4.0.8-CANVAS-FOCUS.zip",
-  "deltaArtifact": "OSMINOG-4.0.8-update-from-4.0.7.zip",
-  "manifestVersion": "4.0.8",
+  "version": "4.0.9",
+  "versionName": "4.0.9 · Agent Runtime",
+  "artifact": "OSMINOG-Chrome-4.0.9-AGENT-RUNTIME.zip",
+  "manifestVersion": "4.0.9",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "4.0.7",
+  "baseVersion": "4.0.8",
   "runtimeVerified": false,
   "verification": {
-    "browserRegression": "23 checks passed locally in Chromium with fixture Chrome APIs; CI also runs retained shared-board and bridge regressions",
-    "ownerInstallation": "not verified in the owner's installed Chrome extension",
-    "liveProvider": "requires installed owner session; no AI transport changes",
-    "nativeScreenPicker": "requires owner desktop",
-    "nativeUpdater": "existing protocol retained; no automatic installation claimed"
+    "browserRegression": "14 browser scenarios passed locally with fixture Chrome APIs and model replies; 14 actual service-worker routing tests passed in a VM. Full CI pending.",
+    "liveProvider": "owner sessions must be verified on the actual devices",
+    "nativeUpdater": "existing channel unchanged"
   },
-  "notes": "Ctrl+Backslash hides/restores UI without resetting panel states; bottom drawing toolbar; inline text with right-side typography; zoom 0.5%-800%; enlarged DOM/SVG plane. No project schema migration, identity, permission or conversation changes."
+  "notes": "Managed device-local agent connections; no automatic personal-chat mirroring; live workspace tools; restored team mode; hover menus; single Access entry. Owner authentication retained."
 }

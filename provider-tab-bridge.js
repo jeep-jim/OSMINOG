@@ -267,7 +267,7 @@
   }
 
   async function send(text,requestId="",images=[]){
-    if(isGpt()&&!syncBinding)throw new Error("Подключи синхронизацию этого чата в OSMINOG");
+    if(isGpt()&&!syncBinding&&!managedAgentSession)throw new Error("Подключи синхронизацию этого чата в OSMINOG");
     if(internalSending||nativePending)throw new Error("Дождись текущего ответа в подключённом диалоге");
     if(syncBinding&&syncBinding.route!==route())throw new Error("Открыт другой диалог. Подключи его отдельно.");
     const input=composer();
@@ -314,15 +314,22 @@
   }
   for(const type of ['keydown','click','submit'])document.addEventListener(type,nativeSend,true);
 
+  let managedAgentSession=false;
   function probe(){
     const input=composer(),candidates=inputSelectors().reduce((sum,selector)=>sum+queryAllDeep(selector).filter(vis).length,0);
     return{ok:!!input,provider,title:document.title,url:location.href,composer:input?{tag:input.tagName.toLowerCase(),role:input.getAttribute("role")||"",editable:input.getAttribute("contenteditable")||"",placeholder:input.getAttribute("placeholder")||input.getAttribute("aria-label")||input.getAttribute("data-placeholder")||""}:null,candidates,answers:candidateNodes().length,readyState:document.readyState,bridge:"v6"};
   }
 
   chrome.runtime.onMessage.addListener((message,_sender,reply)=>{
+    if(message?.type==='BC_PROVIDER_MANAGED_CONFIG'){
+      if(_sender?.id!==chrome.runtime.id||_sender?.tab){reply({ok:false,error:'Only extension background may configure managed execution'});return}
+      if(internalSending||nativePending){reply({ok:false,error:'Служебный чат занят'});return}
+      managedAgentSession=true;syncBinding=null;delete document.documentElement.dataset.osminogChatSyncBound;
+      provider=String(message.provider||provider||'');reply({ok:true,...probe()});return;
+    }
     if(message?.type==='BC_CHAT_SYNC_CONFIG'){
       if((nativePending||internalSending)&&message.binding?.id!==syncBinding?.id){reply({ok:false,error:'Диалог занят'});return}
-      const reset=!syncBinding;
+      managedAgentSession=false;const reset=!syncBinding;
       if(message.binding?.id!==syncBinding?.id)syncBinding=message.binding||null;
       else if(syncBinding)syncBinding.route=message.binding.route;
       // A bound native conversation is a plaintext synchronization channel.
