@@ -320,3 +320,21 @@ User screenshot identified the Google Authenticator Owner gate. Added a permanen
 Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36224640539 . Tested source `63eed5d7538e797d7d43010d2edb8f3990250ba8`. Browser screenshot inspected; real guard with fixture TOTP passed enrollment entry, cancel, invalid code, successful unlock and manual lock.
 
 Published https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.6 . Publication and registry integrity workflows passed. Dev feed verified active at 4.0.6. Package 4154929 bytes; SHA256 `519e41d6d2a1e89837b61fd8fdbe1764bdb2082f497b557e5deb6e3002312ba0`; CI ZIP, release digest and feed match. Owner guard, photo router and button updater bytes preserved from 4.0.5. Live user-device/provider execution remains unverified.
+
+
+## 13.10.2026 — T11: локальный браузер (в работе)
+
+По запросу владельца текущий приоритет — полноценные страницы в Windows, вкладки, 1/2/4 области, локальный холст и выбранный ИИ справа. АвтоЦена отложена. Браузер не использует серверный прокси или облачное хранение Осьминога; сайты и выбранный облачный ИИ всё равно получают обычные сетевые запросы.
+
+Ветка `codex/local-browser-20261013`, Windows Preview 0.2.0: перенесена исходная оболочка из `desktop/windows-foundation`; добавлены WebContentsView, история, разделение, захват на холст, четыре сайта ИИ, явный просмотр/копирование контекста. **Это не завершённый выпуск и не подтверждение работы авторизованных ИИ.** Автоматический доступ ИИ к холсту, возврат действий, Chrome companion и публикация обновлений остаются открытыми. CI включает реальные Windows-вкладки с frame-ancestors none / X-Frame-Options DENY, проектную изоляцию, снимок, переключение холста без перезагрузки. Локально проверены хранение и резервная копия (2 теста). Приёмка пользователя не проводилась.
+
+### T11 — проверка 13.10.2026
+
+PR [#23](https://github.com/jeep-jim/OSMINOG/pull/23). Код `ccaa65bca7b2f8133c8ba49fa873b01059bea35a`. [Windows CI 38420534940](https://github.com/jeep-jim/OSMINOG/actions/runs/38420534940): пройдены реальный запуск/сохранение/перезагрузка, четыре WebContentsView, история, снимок, переключение холста, разделение проектов, NSIS build и запуск упакованного приложения. Дополнительный [CI 38421239724](https://github.com/jeep-jim/OSMINOG/actions/runs/38421239724) проверяет видимость областей и снимает итоговое Windows-окно через desktopCapturer; нативные страницы действительно видны. Регрессия Chrome на первом коммите прошла в CI 38420616538. Источник остаётся приватным.
+
+Статус: браузерное ядро проверено на контролируемых страницах с CSP frame-ancestors none/X-Frame-Options DENY; это не проверка всех сайтов и живой авторизации ИИ. Windows Preview 0.2.0 собран как кандидат в Actions. Автоматическое наблюдение ИИ, операции холста из ответа, перенос проектов Chrome → Windows и расширение-компаньон не завершены. Публичный выпуск и каналы обновления НЕ изменены. Данные сайтов, сессии и проекты — на устройстве; облачный ИИ получает только то, что пользователь передаёт самому провайдеру. Тест авторизованных ИИ требует входа владельца в выбранные сервисы внутри установленной кандидатной версии; доступ к его Windows-сеансам здесь отсутствует.
+
+
+## 13.10.2026, 22:34–22:39 — уточнение владельца и отказ Preview
+
+OSMINOG теперь позиционируется как самостоятельный локальный браузер. Приоритет: настольные версии, затем мобильные. Развитие расширения не обязательно. Текущие задачи и ежедневные записи перенесены в [OSMINOG_BROWSER_ROADMAP.md](OSMINOG_BROWSER_ROADMAP.md); эта история сохраняется. Владелец сообщил отказ браузера/чата/обновления 0.2.0, на скриншоте Untrusted frame. Несмотря на предыдущий CI, пользовательский сценарий НЕ принят. Работа 0.2.1 нацелена на установленную Windows-версию, полноценный нативный чат и обновление по кнопке.
