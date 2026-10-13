@@ -42,7 +42,9 @@
       "page-preload.cjs",
       "release-notes.cjs",
       "control.cjs",
-      "control-smoke.cjs"
+      "control-smoke.cjs",
+      "file-save.cjs",
+      "files-smoke.cjs"
     ],
     "win": {
       "target": "nsis"

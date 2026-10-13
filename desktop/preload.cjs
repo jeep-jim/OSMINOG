@@ -3,6 +3,7 @@ const {contextBridge,ipcRenderer}=require('electron');
 // Only the packaged main frame receives native capabilities. Documents and remote frames do not.
 if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   browser:(action,args)=>ipcRenderer.invoke('browser:command',action,args),
+  saveFile:args=>ipcRenderer.invoke('file:save',args),
   runtime:(message,projectId)=>ipcRenderer.invoke('provider:runtime',message,projectId),
   onProvider:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('provider:open',listener);return()=>ipcRenderer.removeListener('provider:open',listener)},
   onFocus:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('browser:focus',listener);return()=>ipcRenderer.removeListener('browser:focus',listener)},
