@@ -7,6 +7,7 @@ module.exports=async function smoke(win,browser){
  try{
   await win.webContents.executeJavaScript('OSMINOGStateReady');
   await win.webContents.executeJavaScript(`(async()=>{if(!state.activeProject)createProject();await OSMINOGNativeBrowser.open(${JSON.stringify(base+'/first')})})()`);
+  assert.equal(await win.webContents.executeJavaScript("!!document.querySelector('#native-browser .native-chat #bridgePanel')"),true);
   let s=browser.state();assert.equal(s.tabs.length,1);const first=s.tabs[0].id,wc=await ready(first);
   assert.match(await wc.executeJavaScript('document.body.innerText'),/Native browser fixture/);
   assert.equal(await wc.executeJavaScript('typeof require+":"+typeof OSMINOGNative'),'undefined:undefined');
@@ -22,7 +23,7 @@ module.exports=async function smoke(win,browser){
   const composed=sources.find(source=>source.id===win.getMediaSourceId());
   if(!composed||composed.thumbnail.isEmpty())throw Error('Native window screenshot unavailable');
   await fs.writeFile('browser-smoke-native-window.png',composed.thumbnail.toPNG());
-  await win.webContents.executeJavaScript('OSMINOGNativeBrowser.canvas()');await new Promise(r=>setTimeout(r,100));assert.equal(browser.panels.length,0);
+  await win.webContents.executeJavaScript('OSMINOGNativeBrowser.canvas()');await new Promise(r=>setTimeout(r,100));assert.equal(browser.panels.length,0);assert.deepEqual(browser.contextIds,ids);assert.equal(await win.webContents.executeJavaScript("!!document.querySelector('#native-browser #bridgePanel')"),false);
   await win.webContents.executeJavaScript('OSMINOGNativeBrowser.open()');assert.equal(await wc.executeJavaScript('window.fixtureToken'),token);
   await browser.command('navigate',{id:first,url:base+'/second'});assert(wc.navigationHistory.canGoBack());await browser.command('back',{id:first});await ready(first);assert.match(wc.getURL(),/first$/);
   await assert.rejects(browser.command('navigate',{id:first,url:'file:///etc/passwd'}));

@@ -11,7 +11,7 @@ function address(value){
 const readPage=`(()=>{const root=document.body?.cloneNode(true);root?.querySelectorAll('script,style,noscript,input,textarea,select,[contenteditable],iframe').forEach(n=>n.remove());return {url:location.href,title:document.title,text:(root?.innerText||root?.textContent||'').slice(0,24000),selection:String(getSelection()).slice(0,12000)}})()`;
 class BrowserWorkspace{
  constructor(win){
-  this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.ai=null;this.provider='';this.disposed=false;
+  this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
   this.session=session.fromPartition('persist:osminog-browser');
   this.session.setPermissionCheckHandler(()=>false);
@@ -60,7 +60,7 @@ class BrowserWorkspace{
  destroy(t){if(!t)return;this.win.contentView.removeChildView(t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
-   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider=''}this.project=id;this.layout([]);this.emit();return this.state()}
+   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}this.project=id;this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
    case 'open':return this.open(args);
    case 'close':{const t=this.get(args.id);this.tabs.delete(t.id);this.destroy(t);this.emit();return this.state()}
@@ -80,7 +80,7 @@ class BrowserWorkspace{
   }
  }
  layout(panels){
-  this.panels=Array.isArray(panels)?panels.slice(0,5):[];
+  this.panels=Array.isArray(panels)?panels.slice(0,5):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project).map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
   for(const t of [...this.tabs.values(),...this.providers.values()])t.view.setVisible(false);
   const [width,height]=this.win.getContentSize(),seen=new Set();
   for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
