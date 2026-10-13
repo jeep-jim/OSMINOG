@@ -11,6 +11,7 @@
  globalThis.chrome={runtime:{id:'osminog-desktop',getManifest:()=>({name:'OSMINOG',version:native.version}),getURL:p=>new URL(p,location.href).href,onMessage:event(),sendMessage:dual(message=>native.runtime(message,String(globalThis.project?.()?.id||''))),reload:()=>location.reload()},storage:{local:{get:dual(k=>native.get(k)),set:dual(v=>native.set(v)),remove:dual(k=>native.remove(k))},session:{get:dual(()=>({...memory})),set:dual(v=>Object.assign(memory,v)),remove:dual(keys=>{for(const k of [].concat(keys))delete memory[k]})},onChanged:{addListener:cb=>callbacks.add(cb),removeListener:cb=>callbacks.delete(cb)}},tabs:{getCurrent:dual(()=>({id:1,windowId:1,url:location.href})),query:dual(()=>[]),create:dual(({url})=>native.open(url)),sendMessage:dual(unavailable)},permissions:{contains:browserPermission,request:browserPermission},identity:{getRedirectURL:()=>'',launchWebAuthFlow:async()=>{throw Error('Авторизация Windows ещё не настроена')}}};
  // The Chrome updater stays byte-for-byte intact. Windows uses its own installer channel.
  globalThis.OSMINOGFolderUpdater={check:()=>native.checkUpdate(),update:()=>{throw Error('Use Windows update action')}};
- document.addEventListener('DOMContentLoaded',()=>{const notice=document.createElement('div');notice.textContent='OSMINOG Windows Preview · локальные проекты · браузер по кнопке сверху';notice.style.cssText='position:fixed;bottom:8px;left:12px;z-index:9999;padding:6px 10px;border-radius:8px;background:#272b36;color:white;font:12px system-ui;pointer-events:none';document.body.append(notice)});
+
 })();
+
 

@@ -1,6 +1,6 @@
 {
   "name": "osminog-desktop",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "OSMINOG local browser preview",
   "author": "OSMINOG",
@@ -35,7 +35,8 @@
       "provider.cjs",
       "protocol.cjs",
       "provider-smoke.cjs",
-      "update-smoke.cjs"
+      "update-smoke.cjs",
+      "shell-smoke.cjs"
     ],
     "win": {
       "target": "nsis"

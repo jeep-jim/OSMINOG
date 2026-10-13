@@ -6,14 +6,14 @@ module.exports=async function smoke(win,browser){
  async function ready(id){const wc=browser.get(id).view.webContents;if(wc.isLoading())await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Fixture load timed out')),15000);wc.once('did-stop-loading',()=>{clearTimeout(timer);resolve()})});return wc}
  try{
   await win.webContents.executeJavaScript('OSMINOGStateReady');
-  await win.webContents.executeJavaScript(`(async()=>{if(!state.activeProject)createProject();await OSMINOGNativeBrowser.open(${JSON.stringify(base+'/first')})})()`);
+  await win.webContents.executeJavaScript(`(async()=>{createProject();await OSMINOGNativeBrowser.open(${JSON.stringify(base+'/first')})})()`);
   assert.equal(await win.webContents.executeJavaScript("!!document.querySelector('#native-browser .native-chat #bridgePanel')"),true);
   let s=browser.state();assert.equal(s.tabs.length,1);const first=s.tabs[0].id,wc=await ready(first);
   assert.match(await wc.executeJavaScript('document.body.innerText'),/Native browser fixture/);
   assert.equal(await wc.executeJavaScript('typeof require+":"+typeof OSMINOGNative'),'undefined:undefined');
   const token=await wc.executeJavaScript('window.fixtureToken');
   const ids=[first];for(let i=1;i<4;i++){const t=await browser.command('open',{url:base+'/pane-'+i});ids.push(t.id);await ready(t.id)}
-  await win.webContents.executeJavaScript('OSMINOGNativeBrowser.split(4)');
+  await win.webContents.executeJavaScript(`(()=>{OSMINOGNativeBrowser.split(4);const ids=${JSON.stringify(ids)};for(let i=0;i<4;i++){const select=document.querySelectorAll('.native-cell>header select')[i];select.value=ids[i];select.dispatchEvent(new Event('change'))}})()`);
   await new Promise(r=>setTimeout(r,300));assert.equal(browser.panels.filter(p=>ids.includes(p.id)).length,4);
   for(const id of ids){const view=browser.get(id).view;assert(view.getVisible());assert(view.getBounds().width>100);assert(view.getBounds().height>100)}
   const context=await browser.command('context',{ids});assert.equal(context.length,4);assert(context.every(c=>!c.text.includes('private draft')&&!c.text.includes('do-not-share')));
@@ -32,3 +32,4 @@ module.exports=async function smoke(win,browser){
   console.log('BROWSER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
 };
+
