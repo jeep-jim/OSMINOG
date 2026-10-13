@@ -31,7 +31,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   try{await require('./update-smoke.cjs')({app,win,browser,autoUpdater,updates,verify:process.argv.includes('--verify-update-smoke')})}catch(e){console.error(e);app.exit(1)}return;
  }
  if(process.argv.includes('--provider-smoke')){
-  try{await require('./provider-smoke.cjs')(win,browser);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;
+  try{await require('./provider-smoke.cjs')(win,browser,providers);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;
  }
  if(process.argv.includes('--browser-smoke')){
   try{await require('./browser-smoke.cjs')(win,browser);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;
