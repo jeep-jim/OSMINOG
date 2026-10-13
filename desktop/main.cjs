@@ -15,7 +15,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  for(const op of ['get','set','remove'])ipcMain.handle('store:'+op,async(e,arg)=>{trusted(e);const result=await store[op](arg);if(op!=='get')win.webContents.send('store:changed',result);return op==='get'?result:undefined});
  ipcMain.handle('external:open',(e,url)=>{trusted(e);return external(url)});
  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
- win=new BrowserWindow({width:1440,height:960,minWidth:800,minHeight:600,show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
+ win=new BrowserWindow({width:1440,height:960,minWidth:800,minHeight:600,show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(!require('./trust.cjs').sameDocument(url,entry))e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
