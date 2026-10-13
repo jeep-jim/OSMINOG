@@ -23,6 +23,21 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("savedPaneInput.selectionStart"),8);
  console.log('SHELL_INCREMENTAL_METADATA_PASS');
 
+ // Real favicon events update the existing rail item without rebuilding it.
+ browser.get(id).view.webContents.emit('page-favicon-updated',{},['data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4XQAAAAASUVORK5CYII=']);await frame();
+ assert.equal(await run("document.querySelector('.native-tabs .native-tab-mark img')?.getAttribute('src')"),'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4XQAAAAASUVORK5CYII=');
+ // Palette is separate for each theme and persisted through the native store.
+ await run("document.querySelector('#native-browser [data-do=palette]').click()");await frame();assert.equal(browser.panels.length,0);
+ await run("document.querySelector('[data-appearance-theme=dark]').click()");await frame();
+ await run("(()=>{const input=document.querySelector('[data-color=accent]');input.value='#72aaff';input.dispatchEvent(new Event('input',{bubbles:true}))})()");
+ await new Promise(r=>setTimeout(r,250));assert.equal((await browser.store.get('browserAppearance')).browserAppearance.dark.accent,'#72aaff');
+ assert.equal(await run("document.querySelector('#native-browser').style.getPropertyValue('--accent')"),'#72aaff');
+ await run("document.querySelector('[data-appearance-theme=light]').click()");await frame();
+ assert.notEqual(await run("document.querySelector('#native-browser').style.getPropertyValue('--accent')"),'#72aaff');
+ await run("document.querySelector('[data-appearance-theme=dark]').click()");await frame();
+ assert.equal(await run("document.querySelector('#native-browser').style.getPropertyValue('--accent')"),'#72aaff');
+ await run("document.querySelector('[data-do=palette-reset]').click();document.querySelector('.native-palette [data-do=dismiss]').click()");await frame();
+ console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  // All three themes use the existing persisted editor setting.
  for(const theme of ['dark','ocean','light']){await run(`(async()=>{state.theme=${JSON.stringify(theme)};applyTheme();await persist()})()`);await frame();const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1440,height:960}});const source=sources.find(s=>s.id===win.getMediaSourceId());if(!source||source.thumbnail.isEmpty())throw Error('Composed screenshot missing');await fs.writeFile(`shell-smoke-${theme}.png`,source.thumbnail.toPNG())}
  await run("document.querySelector('#native-browser [data-do=theme]').click()");await frame();assert.equal(await run('state.theme'),'dark');
