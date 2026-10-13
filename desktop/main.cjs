@@ -8,7 +8,7 @@ app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.foc
 let win,browser,updates;
 const {autoUpdater}=require('electron-updater');
 const entry=pathToFileURL(path.join(__dirname,'board/editor.html')).href;
-function trusted(event){if(!require('./trust.cjs').trustedFrame(event,win,entry))throw Error('Untrusted frame');}
+function trusted(event){if(!require('./trust.cjs').trustedFrame(event,win,entry)){const frame=event.senderFrame,main=win&&!win.isDestroyed()?win.webContents.mainFrame:null;const reason=!main?'window-closed':!frame||frame.detached?'frame-detached':frame.processId!==main.processId||frame.routingId!==main.routingId?'different-frame':'different-document';throw Error('Untrusted frame: '+reason);}}
 async function external(url){const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password)throw Error('Unsupported link');await shell.openExternal(parsed.href);return{url:parsed.href};}
 if(ownsProfile)app.whenReady().then(async()=>{
  const store=new Store(app.getPath('userData'));
