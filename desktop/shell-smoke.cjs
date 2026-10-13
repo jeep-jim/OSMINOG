@@ -29,7 +29,7 @@ module.exports=async(win,browser)=>{
  await run("document.querySelector('#native-browser [data-do=desk]').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),1);
  await run("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),4);
  await run("document.querySelector('#native-browser [data-do=layers]').click()");await frame();assert.equal(await run("!!document.querySelector('.native-layers #layersPanel')"),true);
- await run("document.querySelector('#native-browser [data-do=files]').click()");await frame();assert.equal(await run("state.ui.layersTab"),'files');
+ await run("document.querySelector('#native-browser [data-do=files]').click()");await frame();assert.equal(await run("state.ui.layersTab"),'files');await fs.writeFile('shell-smoke-files.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('#layersCollapse').click()");await frame();assert.equal(await run("document.querySelector('.native-layers').classList.contains('is-collapsed')"),true);
  await run("document.querySelector('#native-browser [data-do=layers]').click()");
  await run("document.querySelector('#native-browser [data-do=chat]').click()");await frame();assert.equal(await run("document.querySelector('.native-chat').hidden"),false);
