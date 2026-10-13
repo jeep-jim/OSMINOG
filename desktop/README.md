@@ -3,13 +3,13 @@
 Local Windows browser with native Chromium pages and the existing project canvas. Preview releases preserve a separate desktop profile; Chrome projects require an explicit import rather than overwriting the original installation.
 
 ## Included
-- Existing board/editor assets, light/dark themes and existing version/update button.
+- Existing board/editor assets, light/dark/ocean themes and existing version/update button.
 - Isolated application profile; serialized local storage writes with a previous-state backup. Existing Chrome data is not read or overwritten.
 - Sandboxed renderer, no Node in documents, main-frame IPC validation, external HTTP(S) links only.
 - Separate Windows NSIS update adapter: no automatic download/install; explicit button action saves the board first. The Chrome updater source and release feed are unchanged.
 - Windows CI launch/reload persistence test and NSIS candidate build.
 - Preview 0.2.1: native WebContentsView tabs, HTTP(S) navigation/history, resizable 1/2/4 panes, canvas switching without page reload, screenshots into the current project and four provider websites in a right pane.
-- Browser cookies/login sessions remain in the local `persist:osminog-browser` profile. Browser tabs are in memory, not restored after quitting. Boards remain in the local workspace store. No OSMINOG relay/storage server is introduced.
+- Browser cookies/login sessions remain in the local `persist:osminog-browser` profile. In 0.3.0, tab URLs, lanes and stable IDs are restored after quitting; page form drafts are not guaranteed. Boards remain in the local workspace store. No OSMINOG relay/storage server is introduced.
 - Existing project chat is embedded beside native pages. Its native DOM transport sends the current canvas context and the last visible browser panes to the selected provider on an explicit chat request. Provider websites stay in separate project/thread conversations; login is available through the right pane. The existing parser returns replies and supported canvas tool/patch requests to the same project.
 - A clear-history epoch starts a new provider conversation. Pending drafts in provider pages are preserved, not overwritten. Unsupported Chrome-only tools report errors.
 
@@ -41,3 +41,8 @@ Download Windows 0.2.1 from the `windows-v0.2.1` release in OSMINOG-Releases. Th
 Run 38428383806 passed real NSIS installation into a path with Cyrillic and spaces, durable native store IPC, native panes and the internal chat form → IPC → controlled provider page → displayed reply. All four provider adapters were tested with local fixtures. Authenticated provider accounts were not tested. See `../OSMINOG_BROWSER_ROADMAP.md` for the daily incident and delivery log.
 
 Release run 38431251299 passed a real button-driven installed upgrade from 0.2.1 to a disposable 0.2.2 test build, then verified the new version, project text and browser cookie. Only 0.2.1 was published.
+
+
+## Workspace redesign, 0.3.0
+
+Live vertical tabs, docked canvas, 1/2/4 panes, independent right-side site/provider tabs, local layout persistence and an embedded update dialog. The complete legacy editor remains accessible from the tools bar. See `../RELEASE_NOTES_BROWSER_0.3.0.md` and the daily browser roadmap for tested behavior and limits. Windows code build `43162321e0c945feff9aefddccd80b3cc817ea21` passed installed CI `38432873971`.

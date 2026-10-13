@@ -19,3 +19,4 @@ module.exports=async function smoke({app,win,browser,autoUpdater,updates,verify=
  const timer=setInterval(()=>{if(updates.state.phase==='error'){clearInterval(timer);console.error('UPDATE_SMOKE_FAIL '+updates.state.error);app.exit(1)}else if(updates.state.phase==='installing'){clearInterval(timer);console.log('UPDATE_INSTALL_STARTED')}},100);
  setTimeout(()=>{clearInterval(timer);console.error('UPDATE_SMOKE_TIMEOUT');app.exit(1)},90000).unref();
 };
+
