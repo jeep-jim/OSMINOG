@@ -13,16 +13,28 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("document.querySelector('.native-nav').hidden"),true);
  assert.equal(await run("document.querySelectorAll('.native-pane-nav input').length"),1);
  await run('OSMINOGNativeBrowser.split(4)');await frame();
+ // Metadata storms preserve DOM identity, cursor, draft and the canvas parent.
+ await run(`(()=>{globalThis.savedPaneInput=document.querySelector('.native-pane-nav input');globalThis.savedCanvasParent=document.querySelector('#viewport').parentElement;savedPaneInput.focus();savedPaneInput.value='https://draft.invalid/keep';savedPaneInput.setSelectionRange(8,13)})()`);
+ for(let i=0;i<100;i++){browser.get(id).title='Background title '+i;browser.emit()}
+ await frame();
+ assert.equal(await run("document.querySelector('.native-pane-nav input')===savedPaneInput"),true);
+ assert.equal(await run("document.querySelector('#viewport').parentElement===savedCanvasParent"),true);
+ assert.equal(await run("savedPaneInput.value"),'https://draft.invalid/keep');
+ assert.equal(await run("savedPaneInput.selectionStart"),8);
+ console.log('SHELL_INCREMENTAL_METADATA_PASS');
+
  // All three themes use the existing persisted editor setting.
  for(const theme of ['dark','ocean','light']){await run(`(async()=>{state.theme=${JSON.stringify(theme)};applyTheme();await persist()})()`);await frame();const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1440,height:960}});const source=sources.find(s=>s.id===win.getMediaSourceId());if(!source||source.thumbnail.isEmpty())throw Error('Composed screenshot missing');await fs.writeFile(`shell-smoke-${theme}.png`,source.thumbnail.toPNG())}
  await run("document.querySelector('#native-browser [data-do=theme]').click()");await frame();assert.equal(await run('state.theme'),'dark');
  await run("document.querySelector('#native-browser [data-do=desk]').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),1);
  await run("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),4);
  await run("document.querySelector('#native-browser [data-do=layers]').click()");await frame();assert.equal(await run("!!document.querySelector('.native-layers #layersPanel')"),true);
+ await run("document.querySelector('#native-browser [data-do=files]').click()");await frame();assert.equal(await run("state.ui.layersTab"),'files');
+ await run("document.querySelector('#layersCollapse').click()");await frame();assert.equal(await run("document.querySelector('.native-layers').classList.contains('is-collapsed')"),true);
  await run("document.querySelector('#native-browser [data-do=layers]').click()");
  await run("document.querySelector('#native-browser [data-do=chat]').click()");await frame();assert.equal(await run("document.querySelector('.native-chat').hidden"),false);
- await run('OSMINOGNativeBrowser.canvas()');await frame();assert.equal(await run("document.querySelectorAll('#native-browser #viewport').length"),0);assert.equal(await run("document.querySelectorAll('#viewport').length"),1);
- await run('OSMINOGNativeBrowser.open()');await frame();assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
+ await run('OSMINOGNativeBrowser.canvas()');await frame();assert.equal(await run("document.querySelectorAll('#native-browser #viewport').length"),1);assert.equal(await run("document.querySelectorAll('#viewport').length"),1);
+ await run('OSMINOGNativeBrowser.open();OSMINOGNativeBrowser.split(4)');await frame();assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
  win.setSize(900,650);await frame();await fs.writeFile('shell-smoke-compact.png',(await win.webContents.capturePage()).toPNG());assert.equal(await run("(()=>{const r=document.querySelector('#native-browser').getBoundingClientRect();return [...document.querySelectorAll('.native-cell,.native-ai')].some(e=>{const b=e.getBoundingClientRect();return b.right>r.right+1||b.bottom>r.bottom+1})})()"),false);
  await browser.save();const saved=(await browser.store.get('browserSessions')).browserSessions;assert.equal(saved[browser.project].length,2);assert.equal(saved[browser.project][1].lane,'side');
  // Test the actual sandboxed preload and IPC on local responses at provider origins.
@@ -44,6 +56,9 @@ module.exports=async(win,browser)=>{
   await browser.command('context-enable',{id:t.id,enabled:false});
   console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
  }finally{browser.session.protocol.unhandle('https')}
+ const previous=browser.project;
+ await run("document.querySelector('#native-browser [data-do=home]').click()");await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),true);
+ await run(`openProject(${JSON.stringify(previous)})`);await frame();await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),false);
  console.log('SHELL_SMOKE_PASS');
 };
 

@@ -36,3 +36,15 @@ test('project switch while reading rejects stale context',async()=>{
  const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const t=b.open({url:'https://example.com'});b.get(t.id).view.webContents.executeJavaScript=async()=>{await b.command('project',{id:'other'});return{text:'private old project'}};
  await assert.rejects(b.command('context',{all:true}),/Проект изменился/);
 });
+
+test('unchanged layouts do not hide/show views or reset their bounds',async()=>{
+ const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});
+ const t=b.open({url:'https://example.com'}),view=b.get(t.id).view;
+ let visibility=0,bounds=0;const visible=view.setVisible.bind(view),resize=view.setBounds.bind(view);
+ view.setVisible=x=>{visibility++;visible(x)};view.setBounds=x=>{bounds++;resize(x)};
+ const panels=[{id:t.id,x:20,y:40,width:400,height:600}];b.layout(panels);
+ for(let i=0;i<100;i++)b.layout(panels);
+ assert.equal(visibility,1);assert.equal(bounds,1);assert.equal(view.visible,true);
+ b.layout([{...panels[0],width:500}]);assert.equal(visibility,1);assert.equal(bounds,2);
+ b.layout([]);b.layout([]);assert.equal(visibility,2);assert.equal(view.visible,false);
+});

@@ -38,10 +38,10 @@ class BrowserWorkspace{
  async setNetwork(input,persist=true){const config=proxyConfig(input);await this.session.setProxy(config.mode==='fixed_servers'?{mode:config.mode,proxyRules:config.server,proxyBypassRules:'<local>'}:{mode:config.mode});await this.session.closeAllConnections();this.network=config;if(persist&&this.store)await this.store.set({browserNetwork:config});return config}
  async restore(id){if(this.restored.has(id)||!this.store)return;if(!Object.keys(this.snapshots).length)this.snapshots=(await this.store.get('browserSessions')).browserSessions||{};this.restored.add(id);for(const item of this.snapshots[id]||[]){try{const t=this.make(address(item.url),id,!!item.provider);if(typeof item.id==='string'&&/^[a-f0-9-]{36}$/.test(item.id)){if(!item.provider){this.tabs.delete(t.id);this.tabs.set(item.id,t)}t.id=item.id}if(item.provider&&Object.hasOwn(PROVIDERS,item.provider)){t.provider=item.provider;t.thread=item.thread||'main';this.providers.set(JSON.stringify([id,t.provider,t.thread]),t)}else{t.lane=item.lane==='side'?'side':'main'}}catch{}}}
  emit(){if(!this.disposed&&!this.win.isDestroyed())this.win.webContents.send('browser:state',this.state())}
- state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,title:t.title,url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider}}
+ state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,title:t.title,url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider}}
  make(url,project,ai=false){
   const view=new WebContentsView({webPreferences:{session:this.session,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-preload.cjs')}});
-  const t={id:randomUUID(),project,url,title:url,view,loading:true,error:''},wc=view.webContents;
+  const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
   view.setBorderRadius?.(18);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
@@ -74,6 +74,11 @@ class BrowserWorkspace{
    case 'state':return this.state();
    case 'context-enable':{const t=this.get(args.id),url=t.view.webContents.getURL();if(args.enabled&&!providerFor(url))throw Error('Автоконтекст пока поддерживает ChatGPT, Claude, Gemini и DeepSeek');t.contextOrigin=args.enabled?new URL(url).origin:'';t.view.webContents.send('page:context-enabled',!!t.contextOrigin);this.emit();return{enabled:!!t.contextOrigin}}
    case 'network-get':return this.network;
+   case 'network-check':{
+    const provider=Object.hasOwn(PROVIDERS,args.provider)?args.provider:'chatgpt',url=PROVIDERS[provider];
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);const started=Date.now();
+    try{const response=await this.session.fetch(url,{signal:controller.signal,redirect:'follow'});await response.body?.cancel();return{provider,status:response.status,ok:response.ok,elapsed:Date.now()-started,mode:this.network.mode}}catch(e){return{provider,ok:false,error:controller.signal.aborted?'Таймаут подключения (12 секунд)':e.message,elapsed:Date.now()-started,mode:this.network.mode}}finally{clearTimeout(timer)}
+   }
    case 'network-set':return this.setNetwork(args);
    case 'context-sharing':this.contextSharing={includeChats:args.includeChats===true};return this.contextSharing;
    case 'activate-provider':{const t=[...this.providers.values()].find(t=>t.id===args.id&&t.project===this.project);if(!t)throw Error('Диалог не принадлежит проекту');this.ai=t;this.provider=t.provider;this.layout(this.panels);return this.state()}
@@ -104,14 +109,15 @@ class BrowserWorkspace{
  }
  layout(panels){
   this.panels=Array.isArray(panels)?panels.slice(0,5):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
-  for(const t of [...this.tabs.values(),...this.providers.values()])t.view.setVisible(false);
+  const desired=new Map();
   const [width,height]=this.win.getContentSize(),seen=new Set();
   for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
    const {x,y,width:w,height:h}=p;if(![x,y,w,h].every(Number.isFinite)||w<1||h<1)continue;
    const left=Math.max(0,Math.min(width,Math.round(x))),top=Math.max(0,Math.min(height,Math.round(y)));
    const bounds={x:left,y:top,width:Math.max(0,Math.min(width-left,Math.round(w))),height:Math.max(0,Math.min(height-top,Math.round(h)))};
-   if(bounds.width<1||bounds.height<1)continue;t.view.setBounds(bounds);t.view.setVisible(true);
+   if(bounds.width<1||bounds.height<1)continue;desired.set(t,bounds);
   }
+  for(const t of [...this.tabs.values(),...this.providers.values()]){const bounds=desired.get(t),show=!!bounds;if(bounds&&JSON.stringify(bounds)!==JSON.stringify(t.bounds)){t.view.setBounds(bounds);t.bounds=bounds}if(show!==!!t.visible){t.view.setVisible(show);t.visible=show}}
  }
  dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }

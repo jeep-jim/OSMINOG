@@ -31,3 +31,13 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser .native-network label{display:flex;align-items:center;gap:12px}
 #native-browser .native-network input,#native-browser .native-network select{flex:1;min-width:0;background:var(--raised);border-color:var(--stroke)}
 @media(prefers-reduced-motion:reduce){#native-browser .native-cell{transition:none}}
+
+/* Keep the original project accordion, file gallery and collapsed menu behavior. */
+.native-layers{width:300px;max-width:30vw;overflow:hidden}.native-layers.is-collapsed{width:56px}
+#native-browser .native-layers #layersPanel{visibility:visible!important;border-radius:20px!important}
+#native-browser .native-rail-bottom{flex-shrink:0}#native-browser .native-tabs{overscroll-behavior:contain}
+
+/* Desktop uses the original service tabs for sign-in, never the retired relay setup. */
+#native-browser #connectorSetup,#native-browser .connector-pair-box,#native-browser #connectorDevTest{display:none!important}
+#native-browser .local-ai-empty [data-empty-connect]{display:none!important}
+.native-network-result{white-space:pre-wrap}
