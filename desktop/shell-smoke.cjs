@@ -7,6 +7,12 @@ module.exports=async(win,browser)=>{
  await run("OSMINOGNativeBrowser.open('https://example.com/')");await frame();const id=browser.state().tabs[0].id;assert.equal(browser.get(id).lane,'main');assert.equal(await run(`OSMINOGNativeBrowser.state().slots.filter(x=>x===${JSON.stringify(id)}).length`),1);
  await run("OSMINOGNativeBrowser.open('https://example.org/','side')");await frame();assert.equal(browser.state().tabs.filter(t=>t.lane==='side').length,1);
  assert.equal(await run("document.querySelectorAll('.native-tabs .native-tab').length"),1);assert.equal(await run("document.querySelectorAll('.native-ai-tabs .native-tab').length"),1);
+ // Compact pane controls and 3-area geometry are real DOM, not screenshots.
+ await run('OSMINOGNativeBrowser.split(3)');await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),3);
+ assert.equal(await run("(()=>{const c=[...document.querySelectorAll('.native-cell')].map(e=>e.getBoundingClientRect());return c[0].height>c[1].height&&Math.abs(c[1].x-c[2].x)<2&&c[2].y>c[1].y})()"),true);
+ assert.equal(await run("document.querySelector('.native-nav').hidden"),true);
+ assert.equal(await run("document.querySelectorAll('.native-pane-nav input').length"),1);
+ await run('OSMINOGNativeBrowser.split(4)');await frame();
  // All three themes use the existing persisted editor setting.
  for(const theme of ['dark','ocean','light']){await run(`(async()=>{state.theme=${JSON.stringify(theme)};applyTheme();await persist()})()`);await frame();const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1440,height:960}});const source=sources.find(s=>s.id===win.getMediaSourceId());if(!source||source.thumbnail.isEmpty())throw Error('Composed screenshot missing');await fs.writeFile(`shell-smoke-${theme}.png`,source.thumbnail.toPNG())}
  await run("document.querySelector('#native-browser [data-do=theme]').click()");await frame();assert.equal(await run('state.theme'),'dark');
@@ -21,3 +27,4 @@ module.exports=async(win,browser)=>{
  await browser.save();const saved=(await browser.store.get('browserSessions')).browserSessions;assert.equal(saved[browser.project].length,2);assert.equal(saved[browser.project][1].lane,'side');
  console.log('SHELL_SMOKE_PASS');
 };
+

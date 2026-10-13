@@ -8,7 +8,7 @@
   "scripts": {
     "prepare:board": "node prepare.cjs",
     "start": "npm run prepare:board && electron .",
-    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs",
+    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs",
     "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js"
   },
@@ -36,7 +36,10 @@
       "protocol.cjs",
       "provider-smoke.cjs",
       "update-smoke.cjs",
-      "shell-smoke.cjs"
+      "shell-smoke.cjs",
+      "network.cjs",
+      "page-context.cjs",
+      "page-preload.cjs"
     ],
     "win": {
       "target": "nsis"
