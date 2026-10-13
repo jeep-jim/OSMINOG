@@ -39,6 +39,14 @@ jobs:
           Get-Content browser-smoke.log
           Get-Content browser-smoke-errors.log
           if ($process.ExitCode -ne 0 -or -not (Select-String -Path browser-smoke.log -Pattern BROWSER_SMOKE_PASS -Quiet)) { throw 'Native browser smoke failed' }
+      - name: Verify provider DOM transport in native panes
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath '.\node_modules\electron\dist\electron.exe' -ArgumentList '.', '--provider-smoke' -PassThru -RedirectStandardOutput provider-smoke.log -RedirectStandardError provider-smoke-errors.log
+          if (-not $process.WaitForExit(90000)) { $process.Kill(); throw 'Provider smoke timed out' }
+          Get-Content provider-smoke.log
+          Get-Content provider-smoke-errors.log
+          if ($process.ExitCode -ne 0 -or -not (Select-String -Path provider-smoke.log -Pattern PROVIDER_SMOKE_PASS -Quiet)) { throw 'Provider smoke failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -46,6 +54,7 @@ jobs:
           path: |
             desktop/smoke*
             desktop/browser-smoke*
+            desktop/provider-smoke*
           retention-days: 14
       - run: npm run build:win
         env:
@@ -58,6 +67,31 @@ jobs:
           Get-Content packaged-smoke.log
           Get-Content packaged-smoke-errors.log
           if ($process.ExitCode -ne 0 -or -not (Select-String -Path packaged-smoke.log -Pattern DESKTOP_SMOKE_PASS -Quiet)) { throw 'Packaged smoke failed' }
+      - name: Verify installed application with spaces and Unicode in path
+        shell: pwsh
+        run: |
+          $destination = Join-Path $env:LOCALAPPDATA 'Проверка Осьминога\OSMINOG Preview'
+          $installer = Get-ChildItem '.\dist\*.exe' | Select-Object -First 1
+          $setup = Start-Process -FilePath $installer.FullName -ArgumentList '/S', '/currentuser', ('/D=' + $destination) -PassThru -Wait
+          if ($setup.ExitCode -ne 0) { throw 'Installation failed' }
+          $exe = Join-Path $destination 'OSMINOG Preview.exe'
+          if (-not (Test-Path $exe)) { throw 'Installed executable missing' }
+          foreach ($mode in @('smoke','browser-smoke','provider-smoke')) {
+            $out = "installed-$mode.log"; $err = "installed-$mode-errors.log"
+            $process = Start-Process -FilePath $exe -ArgumentList "--$mode" -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            if (-not $process.WaitForExit(90000)) { $process.Kill(); throw "Installed $mode timed out" }
+            Get-Content $out; Get-Content $err
+            if ($process.ExitCode -ne 0 -or -not (Select-String -Path $out -Pattern 'SMOKE_PASS' -Quiet)) { throw "Installed $mode failed" }
+          }
+      - name: Export verified runtime for release assembly
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path runtime -Force | Out-Null
+          Copy-Item 'dist/win-unpacked/resources/app.asar' runtime/
+          Copy-Item 'dist/win-unpacked/resources/app-update.yml' runtime/
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          @{ version=$package.version; electron=$package.devDependencies.electron; builder=$package.devDependencies.'electron-builder'; source=$env:GITHUB_SHA; productName=$package.build.productName; appId=$package.build.appId } | ConvertTo-Json | Set-Content runtime/runtime.json
+          Compress-Archive -Path runtime/* -DestinationPath dist/OSMINOG-Windows-Runtime.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -66,6 +100,8 @@ jobs:
             desktop/dist/*.exe
             desktop/dist/*.yml
             desktop/dist/*.blockmap
+            desktop/dist/OSMINOG-Windows-Runtime.zip
+            desktop/installed-*.log
             desktop/smoke*.log
             desktop/smoke*.png
             desktop/packaged-smoke*.log

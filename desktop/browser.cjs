@@ -11,12 +11,12 @@ function address(value){
 const readPage=`(()=>{const root=document.body?.cloneNode(true);root?.querySelectorAll('script,style,noscript,input,textarea,select,[contenteditable],iframe').forEach(n=>n.remove());return {url:location.href,title:document.title,text:(root?.innerText||root?.textContent||'').slice(0,24000),selection:String(getSelection()).slice(0,12000)}})()`;
 class BrowserWorkspace{
  constructor(win){
-  this.win=win;this.tabs=new Map();this.project='';this.panels=[];this.ai=null;this.provider='';this.disposed=false;
+  this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.ai=null;this.provider='';this.disposed=false;
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
   this.session=session.fromPartition('persist:osminog-browser');
   this.session.setPermissionCheckHandler(()=>false);
   this.session.setPermissionRequestHandler(async(wc,permission,callback,details)=>{
-   const owned=[...this.tabs.values(),this.ai].some(t=>t?.view.webContents===wc);
+   const owned=[...this.tabs.values(),...this.providers.values()].some(t=>t?.view.webContents===wc);
    if(!owned||!['media','geolocation','notifications','clipboard-read'].includes(permission)){callback(false);return}
    try{const origin=new URL(details.requestingUrl||wc.getURL()).origin;
     const r=await dialog.showMessageBox(win,{type:'question',buttons:['Запретить','Разрешить один раз'],defaultId:0,cancelId:0,message:`${origin} запрашивает разрешение: ${permission}`,detail:'Разрешение относится к этой странице на вашем устройстве.'});callback(r.response===1);
@@ -35,7 +35,7 @@ class BrowserWorkspace{
  make(url,project,ai=false){
   const view=new WebContentsView({webPreferences:{session:this.session,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:''},wc=view.webContents;
-  view.setVisible(false);this.win.contentView.addChildView(view);
+  view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{this.open({url:address(next)})}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
@@ -49,11 +49,18 @@ class BrowserWorkspace{
   wc.loadURL(url).catch(e=>{t.error=e.message;this.emit()});return t;
  }
  get(id){const t=this.tabs.get(id);if(!t||t.project!==this.project)throw Error('Вкладка не принадлежит открытому проекту');return t}
+ selectProvider(provider,thread='main'){
+  if(!Object.hasOwn(PROVIDERS,provider)&&provider!=='')throw Error('Неизвестный ИИ');
+  if(!provider){this.ai=null;this.provider='';this.layout(this.panels);this.emit();return null}
+  const key=JSON.stringify([this.project,provider,String(thread).slice(0,200)]);
+  if(!this.providers.has(key)){if(this.providers.size>=20)throw Error('Открыто 20 диалогов. Перезапустите браузер, чтобы освободить память.');const t=this.make(PROVIDERS[provider],this.project,true);t.provider=provider;t.thread=thread;this.providers.set(key,t)}
+  this.ai=this.providers.get(key);this.provider=provider;this.layout(this.panels);this.emit();return this.ai;
+ }
  open({url}){if(!this.project)throw Error('Сначала откройте проект');if(this.tabs.size>=40)throw Error('Открыто 40 вкладок. Закройте лишние.');const t=this.make(address(url),this.project);this.emit();return{id:t.id}}
  destroy(t){if(!t)return;this.win.contentView.removeChildView(t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
-   case 'project':this.project=String(args.id||'').slice(0,200);this.layout([]);this.emit();return this.state();
+   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider=''}this.project=id;this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
    case 'open':return this.open(args);
    case 'close':{const t=this.get(args.id);this.tabs.delete(t.id);this.destroy(t);this.emit();return this.state()}
@@ -61,8 +68,7 @@ class BrowserWorkspace{
    case 'back':case 'forward':case 'reload':{const wc=this.get(args.id).view.webContents,h=wc.navigationHistory;if(action==='reload')wc.reload();else if(action==='back'&&h.canGoBack())h.goBack();else if(action==='forward'&&h.canGoForward())h.goForward();return this.state()}
    case 'layout':this.layout(args.panels);return true;
    case 'provider':{
-    if(!Object.hasOwn(PROVIDERS,args.provider)&&args.provider!=='')throw Error('Неизвестный ИИ');
-    if(args.provider!==this.provider){this.destroy(this.ai);this.provider=args.provider;this.ai=args.provider?this.make(PROVIDERS[args.provider],this.project,true):null}this.layout(this.panels);this.emit();return this.state();
+    this.selectProvider(args.provider,args.thread||'main');return this.state();
    }
    case 'context':{
     const ids=[...new Set(Array.isArray(args.ids)?args.ids:[])].slice(0,4);
@@ -75,7 +81,7 @@ class BrowserWorkspace{
  }
  layout(panels){
   this.panels=Array.isArray(panels)?panels.slice(0,5):[];
-  for(const t of [...this.tabs.values(),this.ai])if(t)t.view.setVisible(false);
+  for(const t of [...this.tabs.values(),...this.providers.values()])t.view.setVisible(false);
   const [width,height]=this.win.getContentSize(),seen=new Set();
   for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
    const {x,y,width:w,height:h}=p;if(![x,y,w,h].every(Number.isFinite)||w<1||h<1)continue;
@@ -84,6 +90,6 @@ class BrowserWorkspace{
    if(bounds.width<1||bounds.height<1)continue;t.view.setBounds(bounds);t.view.setVisible(true);
   }
  }
- dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),this.ai])if(t&&!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.ai=null}
+ dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
