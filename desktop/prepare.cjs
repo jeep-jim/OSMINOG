@@ -10,6 +10,7 @@ for(const file of fs.readdirSync(root,{withFileTypes:true})){
  if(file.isDirectory()&&['vendor','icons','assets','fonts','_locales'].includes(file.name))fs.cpSync(path.join(root,file.name),path.join(out,file.name),{recursive:true});
 }
 fs.copyFileSync(path.join(__dirname,'adapter.js'),path.join(out,'desktop-adapter.js'));
-for(const name of ['browser-ui.js','browser-ui.css','update-ui.js'])fs.copyFileSync(path.join(__dirname,name),path.join(out,name));
-const file=path.join(out,'editor.html');let html=fs.readFileSync(file,'utf8');html=html.replace('<head>','<head><script src="desktop-adapter.js"></script><link rel="stylesheet" href="browser-ui.css">');html=html.replace('<script src="osminog-storage-onboarding.js"></script>','');html=html.replace('</body>','<script src="update-ui.js"></script><script src="browser-ui.js"></script></body>');html=html.replace('<title>OSMINOG — Visual workspace</title>','<title>OSMINOG — браузер</title>');fs.writeFileSync(file,html);
+for(const name of ['browser-ui.js','browser-ui.css','update-ui.js','control-ui.js'])fs.copyFileSync(path.join(__dirname,name),path.join(out,name));
+const file=path.join(out,'editor.html');let html=fs.readFileSync(file,'utf8');html=html.replace('<head>','<head><script src="desktop-adapter.js"></script><link rel="stylesheet" href="browser-ui.css">');html=html.replace('<script src="osminog-storage-onboarding.js"></script>','');html=html.replace('</body>','<script src="update-ui.js"></script><script src="browser-ui.js"></script><script src="control-ui.js"></script></body>');html=html.replace('<title>OSMINOG — Visual workspace</title>','<title>OSMINOG — браузер</title>');fs.writeFileSync(file,html);
+
 

@@ -39,6 +39,13 @@ module.exports=async(win,browser)=>{
  await fs.writeFile('shell-smoke-palette.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('[data-do=palette-reset]').click();document.querySelector('.native-palette [data-do=dismiss]').click()");await frame();
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
+ await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
+ assert.equal(await run("document.querySelector('.native-update').hidden"),false);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Единое рабочее пространство')"),true);
+ assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
+ await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
+
  // All three themes use the existing persisted editor setting.
  for(const theme of ['dark','ocean','light']){await run(`(async()=>{state.theme=${JSON.stringify(theme)};applyTheme();await persist()})()`);await frame();const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1440,height:960}});const source=sources.find(s=>s.id===win.getMediaSourceId());if(!source||source.thumbnail.isEmpty())throw Error('Composed screenshot missing');await fs.writeFile(`shell-smoke-${theme}.png`,source.thumbnail.toPNG())}
  await run("document.querySelector('#native-browser [data-do=theme]').click()");await frame();assert.equal(await run('state.theme'),'dark');
@@ -75,6 +82,7 @@ module.exports=async(win,browser)=>{
  const previous=browser.project;
  await run("document.querySelector('#native-browser [data-do=home]').click()");await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),true);
  await run(`openProject(${JSON.stringify(previous)})`);await frame();await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),false);
+ await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
 };
 

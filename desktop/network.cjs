@@ -7,4 +7,6 @@ function proxyConfig(input={}){
  if(!['http:','https:','socks5:'].includes(url.protocol)||!url.hostname||url.username||url.password||url.pathname&&url.pathname!=='/'||url.search||url.hash)throw Error('Нужен адрес прокси без пароля, пути и параметров');
  return{mode,server:url.origin==='null'?`${url.protocol}//${url.host}`:url.origin};
 }
-module.exports={proxyConfig};
+// Keep the actual Chromium version/platform. Only remove application product tokens.
+function browserUserAgent(value){return String(value||'').replace(/\s(?:Electron|osminog-desktop|OSMINOG-Preview)\/[^\s]+/gi,'')}
+module.exports={proxyConfig,browserUserAgent};

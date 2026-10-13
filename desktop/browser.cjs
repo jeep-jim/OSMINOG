@@ -17,6 +17,7 @@ class BrowserWorkspace{
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
   this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
   this.session=session.fromPartition('persist:osminog-browser');
+  const ua=this.session.getUserAgent?.();if(ua)this.session.setUserAgent(require('./network.cjs').browserUserAgent(ua));
   this.session.setPermissionCheckHandler(()=>false);
   this.session.setPermissionRequestHandler(async(wc,permission,callback,details)=>{
    const owned=[...this.tabs.values(),...this.providers.values()].some(t=>t?.view.webContents===wc);
@@ -45,6 +46,7 @@ class BrowserWorkspace{
   view.setBorderRadius?.(18);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
+  wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame)t.navigationEpoch=(t.navigationEpoch||0)+1});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
