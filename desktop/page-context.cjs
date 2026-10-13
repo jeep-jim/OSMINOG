@@ -1,0 +1,6 @@
+'use strict';
+const PROVIDER_HOSTS={'chatgpt.com':'chatgpt','chat.openai.com':'chatgpt','claude.ai':'claude','gemini.google.com':'gemini','chat.deepseek.com':'deepseek'};
+function providerFor(url){try{return PROVIDER_HOSTS[new URL(url).hostname]||''}catch{return ''}}
+// Remove private input values; expose descriptions of fields so a model can identify a form.
+const readPage=`(()=>{const root=document.body?.cloneNode(true);root?.querySelectorAll('script,style,noscript,input,textarea,select,[contenteditable],iframe,[hidden],[aria-hidden="true"]').forEach(n=>n.remove());return {url:location.href,title:document.title,text:(root?.innerText||root?.textContent||'').slice(0,24000),selection:String(getSelection()).slice(0,12000),fields:Array.from(document.querySelectorAll('input:not([type="password"]):not([type="hidden"]),textarea,select')).slice(0,80).map(n=>({tag:n.tagName.toLowerCase(),type:n.type,name:n.name,label:n.labels?.[0]?.textContent?.trim()||n.getAttribute('aria-label')||n.placeholder||'',required:n.required})),images:Array.from(document.images).filter(n=>n.currentSrc&&/^https?:/.test(n.currentSrc)).slice(0,40).map(n=>({url:n.currentSrc,alt:n.alt,width:n.naturalWidth,height:n.naturalHeight}))}})()`;
+module.exports={providerFor,readPage};
