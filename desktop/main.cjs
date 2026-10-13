@@ -15,7 +15,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  for(const op of ['get','set','remove'])ipcMain.handle('store:'+op,async(e,arg)=>{trusted(e);const result=await store[op](arg);if(op!=='get')win.webContents.send('store:changed',result);return op==='get'?result:undefined});
  ipcMain.handle('external:open',(e,url)=>{trusted(e);return external(url)});
  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
- win=new BrowserWindow({width:1440,height:960,minWidth:800,minHeight:600,show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
+ win=new BrowserWindow({width:1440,height:960,minWidth:800,minHeight:600,show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(!require('./trust.cjs').sameDocument(url,entry))e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win);
@@ -27,6 +27,9 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  await win.loadURL(entry);
+ if(process.argv.includes('--update-smoke')||process.argv.includes('--verify-update-smoke')){
+  try{await require('./update-smoke.cjs')({app,win,browser,autoUpdater,updates,verify:process.argv.includes('--verify-update-smoke')})}catch(e){console.error(e);app.exit(1)}return;
+ }
  if(process.argv.includes('--provider-smoke')){
   try{await require('./provider-smoke.cjs')(win,browser);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;
  }

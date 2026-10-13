@@ -34,7 +34,8 @@
       "updates.cjs",
       "provider.cjs",
       "protocol.cjs",
-      "provider-smoke.cjs"
+      "provider-smoke.cjs",
+      "update-smoke.cjs"
     ],
     "win": {
       "target": "nsis"

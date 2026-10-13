@@ -9,7 +9,7 @@
  async function call(action,args){try{return await native.browser(action,args)}catch(e){status(e.message);throw e}}
  function project(){return String(globalThis.project?.()?.id||'')}
  async function syncProject(){const id=project();if(!id)throw Error('Откройте проект на холсте');if(projectId===id)return;if(pendingProject)await pendingProject;pendingProject=(async()=>{data=await call('project',{id});projectId=id;active='';slots=[];render()})();try{await pendingProject}finally{pendingProject=null}}
- async function open(url){try{await globalThis.OSMINOGStateReady;await syncProject();visible=true;root.hidden=false;launch.hidden=true;if(url||!data.tabs.length){const t=await call('open',{url:url||'https://www.google.com/'});active=t.id;slots[0]=t.id}data=await call('state');render()}catch(e){globalThis.showToast?.(e.message)}}
+ async function open(url){try{await globalThis.OSMINOGStateReady;await syncProject();visible=true;root.hidden=false;launch.hidden=true;if(url){const t=await call('open',{url});active=t.id;slots[0]=t.id}data=await call('state');render()}catch(e){globalThis.showToast?.(e.message)}}
  function layout(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;const panels=visible&&!q('.native-context').hidden?[]:visible?[...root.querySelectorAll('[data-slot]')].filter(el=>el.getClientRects().length&&el.dataset.slot).map(el=>{const r=el.getBoundingClientRect();return{id:el.dataset.slot,x:r.x,y:r.y,width:r.width,height:r.height}}):[];native.browser('layout',{panels}).catch(e=>status(e.message))})}
  function activate(id,index=0){active=id;const old=slots[index],other=slots.indexOf(id);if(other>=0&&other!==index)slots[other]=old;slots[index]=id;render()}
  function render(){

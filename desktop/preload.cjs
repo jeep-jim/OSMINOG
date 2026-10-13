@@ -16,6 +16,6 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   remove:keys=>ipcRenderer.invoke('store:remove',keys),
   open:url=>ipcRenderer.invoke('external:open',url),
   onChanged:callback=>{const listener=(_,changes)=>callback(changes,'local');ipcRenderer.on('store:changed',listener);return()=>ipcRenderer.removeListener('store:changed',listener)},
-  version:'0.2.1'
+  version:process.argv.find(arg=>arg.startsWith('--osminog-version='))?.slice('--osminog-version='.length)||'0.2.1'
 });
 

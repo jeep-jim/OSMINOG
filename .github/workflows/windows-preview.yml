@@ -87,8 +87,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path runtime -Force | Out-Null
-          Copy-Item 'dist/win-unpacked/resources/app.asar' runtime/
-          Copy-Item 'dist/win-unpacked/resources/app-update.yml' runtime/
+          Copy-Item 'dist/win-unpacked/resources' runtime/resources -Recurse
           $package = Get-Content package.json -Raw | ConvertFrom-Json
           @{ version=$package.version; electron=$package.devDependencies.electron; builder=$package.devDependencies.'electron-builder'; source=$env:GITHUB_SHA; productName=$package.build.productName; appId=$package.build.appId } | ConvertTo-Json | Set-Content runtime/runtime.json
           Compress-Archive -Path runtime/* -DestinationPath dist/OSMINOG-Windows-Runtime.zip
