@@ -36,6 +36,7 @@ module.exports=async(win,browser)=>{
  assert.notEqual(await run("document.querySelector('#native-browser').style.getPropertyValue('--accent')"),'#72aaff');
  await run("document.querySelector('[data-appearance-theme=dark]').click()");await frame();
  assert.equal(await run("document.querySelector('#native-browser').style.getPropertyValue('--accent')"),'#72aaff');
+ await fs.writeFile('shell-smoke-palette.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('[data-do=palette-reset]').click();document.querySelector('.native-palette [data-do=dismiss]').click()");await frame();
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  // All three themes use the existing persisted editor setting.

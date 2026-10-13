@@ -48,3 +48,10 @@ test('unchanged layouts do not hide/show views or reset their bounds',async()=>{
  b.layout([{...panels[0],width:500}]);assert.equal(visibility,1);assert.equal(bounds,2);
  b.layout([]);b.layout([]);assert.equal(visibility,2);assert.equal(view.visible,false);
 });
+
+test('late provider requests cannot switch the visible project',async()=>{
+ const {Providers}=require('./provider.cjs');let switches=0;
+ const browser={project:'current-project',command:async()=>{switches++}};
+ const result=await Providers.prototype.runtime.call({browser},{type:'BC_PROVIDER_DISCOVER',provider:'gpt'},'previous-project');
+ assert.equal(result.ok,false);assert.match(result.error,/Проект изменился/);assert.equal(switches,0);assert.equal(browser.project,'current-project');
+});
