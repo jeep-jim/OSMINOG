@@ -42,7 +42,7 @@ class BrowserWorkspace{
  make(url,project,ai=false){
   const view=new WebContentsView({webPreferences:{session:this.session,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:''},wc=view.webContents;
-  view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
+  view.setBorderRadius?.(18);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});

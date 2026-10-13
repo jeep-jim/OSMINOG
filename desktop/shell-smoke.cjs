@@ -25,6 +25,23 @@ module.exports=async(win,browser)=>{
  await run('OSMINOGNativeBrowser.open()');await frame();assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
  win.setSize(900,650);await frame();await fs.writeFile('shell-smoke-compact.png',(await win.webContents.capturePage()).toPNG());assert.equal(await run("(()=>{const r=document.querySelector('#native-browser').getBoundingClientRect();return [...document.querySelectorAll('.native-cell,.native-ai')].some(e=>{const b=e.getBoundingClientRect();return b.right>r.right+1||b.bottom>r.bottom+1})})()"),false);
  await browser.save();const saved=(await browser.store.get('browserSessions')).browserSessions;assert.equal(saved[browser.project].length,2);assert.equal(saved[browser.project][1].lane,'side');
+ // Test the actual sandboxed preload and IPC on local responses at provider origins.
+ // No external account, live AI request or production bypass is involved.
+ await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
+ try{
+  const t=browser.open({url:'https://chatgpt.com/osminog-local-fixture',lane:'side'}),wc=browser.get(t.id).view.webContents;
+  if(wc.isLoading())await new Promise(r=>wc.once('did-finish-load',r));
+  await run(`OSMINOGNativeBrowser.open()`);await frame();
+  browser.layout([{id:t.id,x:100,y:100,width:700,height:500}]);
+  await browser.command('context-enable',{id:t.id,enabled:true});
+  await wc.executeJavaScript(`document.querySelector('textarea').value='Native user prompt';document.querySelector('textarea').focus()`);wc.focus();
+  wc.sendInputEvent({type:'keyDown',keyCode:'Enter'});wc.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+  let sent='';for(let i=0;i<240&&!sent;i++){await new Promise(r=>setTimeout(r,50));sent=await wc.executeJavaScript('window.sent||""')}
+  assert.match(sent,/Native user prompt/);assert.match(sent,/<osminog_context>/);assert.match(sent,/Рабочий стол нового браузера/);
+  assert.equal(await wc.executeJavaScript('typeof window.OSMINOGNative'), 'undefined');
+  await browser.command('context-enable',{id:t.id,enabled:false});
+  console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
+ }finally{browser.session.protocol.unhandle('https')}
  console.log('SHELL_SMOKE_PASS');
 };
 
