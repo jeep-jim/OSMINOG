@@ -41,3 +41,13 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser #connectorSetup,#native-browser .connector-pair-box,#native-browser #connectorDevTest{display:none!important}
 #native-browser .local-ai-empty [data-empty-connect]{display:none!important}
 .native-network-result{white-space:pre-wrap}
+
+/* The address remains usable when the project panel leaves a narrow grid cell. */
+.native-cell{container-type:inline-size}
+@container (max-width:260px){
+ #native-browser .native-cell>header{gap:1px;padding:2px;margin:2px;height:36px}
+ #native-browser .native-pane-picker,#native-browser .native-pane-context,#native-browser .native-pane-capture,
+ #native-browser .native-pane-nav button:nth-child(-n+2){display:none}
+ #native-browser .native-pane-nav input{padding:3px;font-size:10px;min-width:30px}
+ #native-browser .native-pane-full{padding:2px;min-width:24px}
+}
