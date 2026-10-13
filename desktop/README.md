@@ -33,7 +33,7 @@ Source branch: `codex/local-browser-20261013`, PR #23. Windows Actions run 38420
 
 The browser fixture sets both `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. It verifies all four independent pages, navigation history, a PNG capture, unchanged page state across canvas switching, blocked file URLs, project isolation and tab closure. This is controlled-fixture evidence, not universal website compatibility or authenticated AI testing. Public pages may impose their own login, DRM or supported-browser requirements.
 
-Download Windows 0.2.1 from the `windows-v0.2.1` release in OSMINOG-Releases. The `windows-preview/latest.yml` channel is active. A broken 0.2.0 needs one manual repair install without deleting its profile; later releases use the update button. Chrome 4.0.9 remains unchanged. This remains an unsigned preview.
+Download Windows 0.3.0 from the `windows-v0.3.0` release in OSMINOG-Releases. The `windows-preview/latest.yml` channel is active. A broken 0.2.0 needs one manual repair install without deleting its profile; later releases use the update button. Chrome 4.0.9 remains unchanged. This remains an unsigned preview.
 
 
 ## Installed verification, 0.2.1
@@ -46,3 +46,5 @@ Release run 38431251299 passed a real button-driven installed upgrade from 0.2.1
 ## Workspace redesign, 0.3.0
 
 Live vertical tabs, docked canvas, 1/2/4 panes, independent right-side site/provider tabs, local layout persistence and an embedded update dialog. The complete legacy editor remains accessible from the tools bar. See `../RELEASE_NOTES_BROWSER_0.3.0.md` and the daily browser roadmap for tested behavior and limits. Windows code build `43162321e0c945feff9aefddccd80b3cc817ea21` passed installed CI `38432873971`.
+
+Release run 38435400614 passed an installed 0.3.0 → disposable 0.3.1 upgrade with retained project text and cookie, then published only 0.3.0 and updated the Windows channel. Public release: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/windows-v0.3.0 .
