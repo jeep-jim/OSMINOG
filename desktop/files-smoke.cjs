@@ -7,8 +7,9 @@ module.exports=async(win)=>{
  try{
   await run("(()=>{const o=createObject('text',{name:'Chosen object',text:'Selected export only'});state.selected=[o.id];renderInspector();document.querySelector('[data-native-properties]').click()})()");await frame();
   assert.equal(await run("document.querySelector('.native-properties').hidden"),false);
-  assert.equal(await run("!!document.querySelector('.native-properties [data-prop=fontSize]')"),true);
   await fs.writeFile('shell-smoke-properties.png',(await win.webContents.capturePage()).toPNG());
+  const inspectorState=await run("JSON.stringify({selected:state.selected,picked:selectedObjects().map(o=>({id:o.id,type:o.type,name:o.name})),title:document.querySelector('#inspectorTitle').textContent,html:document.querySelector('#inspectorBody').innerHTML.slice(0,7000),parent:document.querySelector('#inspector').parentElement.className})");
+  assert.equal(await run("!!document.querySelector('.native-properties [data-prop=fontSize]')"),true,inspectorState);
   await run("document.querySelector('[data-native-properties]').click();document.querySelector('[data-native-save]').click()");await frame();
   await fs.writeFile('shell-smoke-save-as.png',(await win.webContents.capturePage()).toPNG());
   for(const extension of ['txt','pdf']){
