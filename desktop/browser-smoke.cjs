@@ -14,9 +14,14 @@ module.exports=async function smoke(win,browser){
   const ids=[first];for(let i=1;i<4;i++){const t=await browser.command('open',{url:base+'/pane-'+i});ids.push(t.id);await ready(t.id)}
   await win.webContents.executeJavaScript('OSMINOGNativeBrowser.split(4)');
   await new Promise(r=>setTimeout(r,300));assert.equal(browser.panels.filter(p=>ids.includes(p.id)).length,4);
+  for(const id of ids){const view=browser.get(id).view;assert(view.getVisible());assert(view.getBounds().width>100);assert(view.getBounds().height>100)}
   const context=await browser.command('context',{ids});assert.equal(context.length,4);assert(context.every(c=>!c.text.includes('private draft')&&!c.text.includes('do-not-share')));
   const shot=await browser.command('capture',{id:first});assert.match(shot.src,/^data:image\/png;base64,/);assert(shot.width>10);
   await fs.writeFile('browser-smoke-four.png',(await win.webContents.capturePage()).toPNG());
+  const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1440,height:960}});
+  const composed=sources.find(source=>source.id===win.getMediaSourceId());
+  if(!composed||composed.thumbnail.isEmpty())throw Error('Native window screenshot unavailable');
+  await fs.writeFile('browser-smoke-native-window.png',composed.thumbnail.toPNG());
   await win.webContents.executeJavaScript('OSMINOGNativeBrowser.canvas()');await new Promise(r=>setTimeout(r,100));assert.equal(browser.panels.length,0);
   await win.webContents.executeJavaScript('OSMINOGNativeBrowser.open()');assert.equal(await wc.executeJavaScript('window.fixtureToken'),token);
   await browser.command('navigate',{id:first,url:base+'/second'});assert(wc.navigationHistory.canGoBack());await browser.command('back',{id:first});await ready(first);assert.match(wc.getURL(),/first$/);
