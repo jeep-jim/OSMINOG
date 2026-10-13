@@ -320,3 +320,10 @@ User screenshot identified the Google Authenticator Owner gate. Added a permanen
 Full CI passed: https://github.com/jeep-jim/OSMINOG/actions/runs/36224640539 . Tested source `63eed5d7538e797d7d43010d2edb8f3990250ba8`. Browser screenshot inspected; real guard with fixture TOTP passed enrollment entry, cancel, invalid code, successful unlock and manual lock.
 
 Published https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.6 . Publication and registry integrity workflows passed. Dev feed verified active at 4.0.6. Package 4154929 bytes; SHA256 `519e41d6d2a1e89837b61fd8fdbe1764bdb2082f497b557e5deb6e3002312ba0`; CI ZIP, release digest and feed match. Owner guard, photo router and button updater bytes preserved from 4.0.5. Live user-device/provider execution remains unverified.
+
+
+## 13.10.2026 — T11: локальный браузер (в работе)
+
+По запросу владельца текущий приоритет — полноценные страницы в Windows, вкладки, 1/2/4 области, локальный холст и выбранный ИИ справа. АвтоЦена отложена. Браузер не использует серверный прокси или облачное хранение Осьминога; сайты и выбранный облачный ИИ всё равно получают обычные сетевые запросы.
+
+Ветка `codex/local-browser-20261013`, Windows Preview 0.2.0: перенесена исходная оболочка из `desktop/windows-foundation`; добавлены WebContentsView, история, разделение, захват на холст, четыре сайта ИИ, явный просмотр/копирование контекста. **Это не завершённый выпуск и не подтверждение работы авторизованных ИИ.** Автоматический доступ ИИ к холсту, возврат действий, Chrome companion и публикация обновлений остаются открытыми. CI включает реальные Windows-вкладки с frame-ancestors none / X-Frame-Options DENY, проектную изоляцию, снимок, переключение холста без перезагрузки. Локально проверены хранение и резервная копия (2 теста). Приёмка пользователя не проводилась.
