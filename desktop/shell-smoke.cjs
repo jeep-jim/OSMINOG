@@ -29,14 +29,16 @@ module.exports=async(win,browser)=>{
  // No external account, live AI request or production bypass is involved.
  await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
  try{
-  const t=browser.open({url:'https://chatgpt.com/osminog-local-fixture',lane:'side'}),wc=browser.get(t.id).view.webContents;
+  await run("OSMINOGNativeBrowser.open('https://chatgpt.com/osminog-local-fixture','side')");await frame();
+  const t=browser.state().tabs.find(t=>t.url==='https://chatgpt.com/osminog-local-fixture'),wc=browser.get(t.id).view.webContents;
   if(wc.isLoading())await new Promise(r=>wc.once('did-finish-load',r));
-  await run(`OSMINOGNativeBrowser.open()`);await frame();
-  browser.layout([{id:t.id,x:100,y:100,width:700,height:500}]);
-  await browser.command('context-enable',{id:t.id,enabled:true});
-  await wc.executeJavaScript(`document.querySelector('textarea').value='Native user prompt';document.querySelector('textarea').focus()`);wc.focus();
-  wc.sendInputEvent({type:'keyDown',keyCode:'Enter'});wc.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+  await browser.command('context-enable',{id:t.id,enabled:true});await frame();
+  assert.equal(await run(`OSMINOGNativeBrowser.state().side`),t.id);
+  await wc.executeJavaScript(`document.querySelector('textarea').value='Native user prompt';document.querySelector('textarea').focus()`);win.focus();wc.focus();
+  const point=await wc.executeJavaScript("(()=>{const r=document.querySelector('button').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
+  wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
   let sent='';for(let i=0;i<240&&!sent;i++){await new Promise(r=>setTimeout(r,50));sent=await wc.executeJavaScript('window.sent||""')}
+  if(!sent)console.log('CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({url:location.href,draft:document.querySelector('textarea')?.value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));
   assert.match(sent,/Native user prompt/);assert.match(sent,/<osminog_context>/);assert.match(sent,/Рабочий стол нового браузера/);
   assert.equal(await wc.executeJavaScript('typeof window.OSMINOGNative'), 'undefined');
   await browser.command('context-enable',{id:t.id,enabled:false});

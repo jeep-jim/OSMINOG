@@ -53,6 +53,7 @@ class BrowserWorkspace{
   wc.on('did-stop-loading',()=>{t.loading=false;this.emit()});
   wc.on('did-navigate',()=>{this.emit();this.save()});wc.on('did-navigate-in-page',()=>{this.emit();this.save()});
   wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
+  wc.on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.emit()});
   wc.on('render-process-gone',()=>{t.error='Вкладка остановлена. Нажмите обновить.';this.emit()});
   if(!ai)this.tabs.set(t.id,t);
   wc.loadURL(url).catch(e=>{t.error=e.message;this.emit()});return t;
