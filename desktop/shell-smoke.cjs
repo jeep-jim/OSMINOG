@@ -87,7 +87,7 @@ module.exports=async(win,browser)=>{
   await wc.executeJavaScript("document.querySelectorAll('form span').forEach(s=>document.querySelector('main').append(s));window.sent='';document.querySelector('textarea').value='Second user prompt';document.querySelector('textarea').focus()");
   wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
   for(let i=0;i<240;i++){await new Promise(r=>setTimeout(r,50));if(await wc.executeJavaScript('!!window.sent'))break}
-  assert.equal(await wc.executeJavaScript('window.sent'),'Second user prompt');
+  if(!await wc.executeJavaScript('window.sent'))console.log('SECOND_CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({draft:document.querySelector('textarea').value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));assert.equal(await wc.executeJavaScript('window.sent'),'Second user prompt');
   await browser.command('context-enable',{id:t.id,enabled:false});
   console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
  }finally{browser.session.protocol.unhandle('https')}

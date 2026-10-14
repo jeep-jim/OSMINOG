@@ -36,7 +36,7 @@ if(process.isMainFrame){
   throw Error('Сайт не подтвердил готовность вложения OSMINOG. Сообщение не отправлено; проверьте файл в черновике');
  }
  function sendButton(){return [...document.querySelectorAll('button[data-testid="send-button"],button[aria-label*="Send" i],button[aria-label*="Отправ" i],button[type="submit"]')].filter(el=>el.getBoundingClientRect().width>0&&el.getBoundingClientRect().height>0&&!el.disabled).at(-1)}
- function notice(text){let el=document.getElementById('osminog-context-status');if(!el){el=document.createElement('div');el.id='osminog-context-status';el.style.cssText='position:fixed;bottom:12px;left:12px;z-index:2147483647;max-width:420px;padding:10px 14px;border-radius:14px;background:#172d35;color:#e5f9fc;font:13px system-ui;box-shadow:0 4px 24px #0004';document.documentElement.append(el)}el.textContent=text;setTimeout(()=>el.remove(),6000)}
+ function notice(text){let el=document.getElementById('osminog-context-status');if(!el){el=document.createElement('div');el.id='osminog-context-status';el.style.cssText='pointer-events:none;position:fixed;bottom:12px;left:12px;z-index:2147483647;max-width:420px;padding:10px 14px;border-radius:14px;background:#172d35;color:#e5f9fc;font:13px system-ui;box-shadow:0 4px 24px #0004';document.documentElement.append(el)}el.textContent=text;setTimeout(()=>el.remove(),6000)}
  async function beforeSend(event){
   if(!enabled||!event.isTrusted||event.isComposing||!hosts.has(location.hostname))return;
   const input=composer();if(!input)return;const b=sendButton();
