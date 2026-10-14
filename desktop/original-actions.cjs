@@ -22,7 +22,7 @@ class OriginalActions{
    this.status('ИИ: подключаю исполнение, читаю актуальные вкладки и доску…');
    for(let hop=0;hop<16;hop++){
     guard();const canvasState=await host('globalThis.OSMINOGDirectCanvas.snapshot()');guard();
-    const context={project:{id:t.project},chat:{threadId:t.thread},execution:{task:text,instructions,tools:['browser_tabs','browser_context','browser_open','browser_read','browser_act',...workspaceTools],history:t.history}};
+    const context={project:{id:t.project},chat:{threadId:t.thread},execution:{task:text,instructions,tools:['browser_tabs','browser_context','browser_open','browser_read','browser_act',...workspaceTools],history:t.history.map(h=>({results:h.results.map(r=>({tool:r.tool,ok:r.result?.ok,error:r.result?.error,completed:r.result?.completed,createdIds:r.result?.createdIds}))}))}};
     const response=await this.providers.runtime({type:result?'BC_PROVIDER_TOOL_RESULT':'BC_PROVIDER_SEND',provider,payload:{text,context,result,images,requestId:randomUUID()}},t.project);guard();
     t.route=tab.view.webContents.getURL().split('?')[0];
     if(!response?.ok)throw Error(response?.error||'Служебное соединение ИИ не ответило');
