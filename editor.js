@@ -1222,7 +1222,7 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
 
   let nudgeSession=false,nudgeTimer=0;
   document.addEventListener("keydown",event=>{
-    if(document.getElementById("app")?.hidden||!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(event.key)||isEditableTarget(event.target)||event.target.closest('[role="separator"]'))return;
+    if(document.getElementById("app")?.hidden||!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(event.key)||isEditableTarget(event.target)||event.target.closest('[role="separator"],#native-browser .native-tools,#deskMore,.native-create-menu'))return;
     if(!Array.isArray(state.selected)||!state.selected.length||state.selectedConnection||state.nodeDrag||state.vectorAnchorDrag||state.connect)return;
     event.preventDefault();event.stopImmediatePropagation();
     if(!nudgeSession){checkpoint();nudgeSession=true}
