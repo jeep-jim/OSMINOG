@@ -6,6 +6,7 @@ if(process.isMainFrame){
  // No observer on ordinary websites or frames. Website script cannot forge isTrusted.
  if(['chatgpt.com','chat.openai.com','claude.ai','gemini.google.com','chat.deepseek.com'].includes(location.hostname)){
   let last='',at=0;
+  const notify=text=>{if(last===text&&Date.now()-at<1500)return;last=text;at=Date.now();ipcRenderer.send('page:user-send',{text})};
   const sent=e=>{
    if(!e.isTrusted||e.isComposing)return;
    const fields=[...document.querySelectorAll('textarea,[contenteditable="true"]')].filter(n=>n.getBoundingClientRect().width>100);
@@ -13,8 +14,9 @@ if(process.isMainFrame){
    const button=e.target.closest?.('button,[role="button"]');
    const label=button&&[button.type,button.getAttribute('aria-label'),button.getAttribute('data-testid'),button.className].join(' ');
    const match=e.type==='keydown'?e.key==='Enter'&&!e.shiftKey&&(input===e.target||input.contains(e.target)):e.type==='submit'?e.target.contains(input):button&&/submit|send|отправ/i.test(label||'');
-   if(!match)return;const text=String(input.value??input.innerText??input.textContent??'').trim().slice(0,12000);if(!text)return;
-   if(last===text&&Date.now()-at<1500)return;last=text;at=Date.now();ipcRenderer.send('page:user-send',{text});
+   const text=String(input.value??input.innerText??input.textContent??'').trim().slice(0,12000);if(!text)return;
+   if(!match){if(e.type==='click'&&button)setTimeout(()=>{if(input.isConnected!==false&&!String(input.value??input.innerText??input.textContent??'').trim())notify(text)},50);return}
+   notify(text);
   };
   for(const type of ['keydown','click','submit'])document.addEventListener(type,sent,true);
  }

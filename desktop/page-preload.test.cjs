@@ -17,3 +17,9 @@ test('provider send observation preserves original text and never cancels or rep
  const event={type:'keydown',isTrusted:true,key:'Enter',target:input,preventDefault(){throw Error('Send cancelled')},stopImmediatePropagation(){throw Error('Send intercepted')}};
  handlers.keydown({...event,isTrusted:false});assert.equal(messages.length,0);handlers.keydown(event);handlers.keydown(event);assert.equal(messages.length,1);assert.equal(messages[0].name,'page:user-send');assert.equal(messages[0].args.text,'Моя команда');assert.equal(input.value,'Моя команда');
 });
+test('unlabelled provider send button is observed only after the site clears its composer',()=>{
+ const handlers={},messages=[],timers=[],input={value:'Нажми',getBoundingClientRect:()=>({width:400,bottom:700}),contains:()=>false},button={getAttribute:()=>'',className:'ds-icon-button'};
+ vm.runInNewContext(fs.readFileSync(require.resolve('./page-preload.cjs'),'utf8'),{require:()=>({ipcRenderer:{send:(name,args)=>messages.push({name,args})}}),process:{isMainFrame:true},location:{hostname:'chat.deepseek.com'},document:{addEventListener:(name,fn)=>handlers[name]=fn,querySelectorAll:()=>[input]},Date,setTimeout:fn=>timers.push(fn)});
+ const event={type:'click',isTrusted:true,target:{closest:()=>button}};
+ handlers.click(event);timers.shift()();assert.equal(messages.length,0);assert.equal(input.value,'Нажми');handlers.click(event);input.value='';timers.shift()();assert.equal(messages.length,1);assert.equal(messages[0].args.text,'Нажми');
+});
