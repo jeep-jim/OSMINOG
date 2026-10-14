@@ -18,7 +18,7 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser .native-cell{border-radius:26px;transition:border-color .18s,box-shadow .18s}
 #native-browser .native-cell.is-active{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
 #native-browser .native-cell>header{height:40px;margin:2px 5px;padding:3px 6px}
-#native-browser .native-pane-picker{flex:0 0 26px;width:26px;padding:2px;font-size:0!important}
+#native-browser .native-pane-picker{flex:0 0 26px;width:26px;padding:2px;font-size:18px!important}
 #native-browser .native-pane-nav{display:flex;align-items:center;gap:1px;flex:1;min-width:0}
 #native-browser .native-pane-nav input{min-width:0;flex:1;font-size:11px;color:var(--quiet);text-overflow:ellipsis}
 #native-browser .native-pane-nav input:focus{background:var(--raised);color:var(--fg)}
@@ -203,3 +203,13 @@ html[data-native-desktop] #native-browser :is(#viewport,#layersPanel,#inspector,
 @media(max-width:1100px){#native-browser .native-tools button{min-width:25px;width:27px}#native-browser .native-top{padding:8px 6px;gap:3px}.native-top-actions [data-do=save]{font-size:11px!important}.native-top-actions{gap:0}#native-browser .native-brand [data-do=palette]{display:none}}
 
 #native-browser .native-scroll{overflow-x:hidden;scrollbar-gutter:stable}
+
+#native-browser .native-pane-menu{inset:auto;width:min(360px,calc(100% - 16px));max-height:calc(100% - 16px);padding:14px;gap:10px;border-radius:14px;box-sizing:border-box}
+#native-browser .native-pane-options{display:flex;flex-direction:column;gap:4px;overflow-y:auto;min-height:0}
+#native-browser .native-pane-options button{display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;align-items:center;text-align:left;padding:10px;border-radius:9px;width:100%;background:transparent!important}
+#native-browser .native-pane-options button[aria-pressed=true],#native-browser .native-pane-options button:hover{background:var(--raised)!important}
+#native-browser .native-pane-options i{font-style:normal;text-align:center}
+#native-browser .native-pane-options span{min-width:0;display:grid;gap:4px}
+#native-browser .native-pane-options strong,#native-browser .native-pane-options small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#native-browser .native-pane-options small{color:var(--quiet);font-size:12px}
+#native-browser .native-pane-add{flex-shrink:0;text-align:left;border-top:1px solid var(--stroke);padding:10px}
