@@ -7,6 +7,9 @@ class AgentTools{
  async run(name,args={}){
   const t=this.target(args.id),wc=t.view.webContents;
   if(name==='browser_read'){
+   const initialProject=this.browser.project;
+   if(!t.visible){await this.browser.win.webContents.executeJavaScript(`OSMINOGNativeBrowser.revealTab(${JSON.stringify(t.id)})`);for(let i=0;i<40&&!t.visible;i++)await new Promise(r=>setTimeout(r,50));if(this.browser.project!==initialProject)throw Error('Проект изменился');if(!t.visible)throw Error('Не удалось показать вкладку для управления')}
+
    const project=this.browser.project,url=wc.getURL(),navigationEpoch=t.navigationEpoch||0,bounds={width:t.bounds?.width,height:t.bounds?.height};
    const page=await wc.executeJavaScript(readPage);
    const image=t.visible&&bounds.width>0&&bounds.height>0?await wc.capturePage():null;
