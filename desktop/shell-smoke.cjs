@@ -49,12 +49,12 @@ module.exports=async(win,browser)=>{
  // All three themes use the existing persisted editor setting.
  for(const theme of ['dark','ocean','light']){await run(`(async()=>{state.theme=${JSON.stringify(theme)};applyTheme();await persist()})()`);await frame();const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1440,height:960}});const source=sources.find(s=>s.id===win.getMediaSourceId());if(!source||source.thumbnail.isEmpty())throw Error('Composed screenshot missing');await fs.writeFile(`shell-smoke-${theme}.png`,source.thumbnail.toPNG())}
  await run("document.querySelector('#native-browser [data-do=theme]').click()");await frame();assert.equal(await run('state.theme'),'dark');
- await run("document.querySelector('#native-browser [data-do=desk]').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),1);
+ await run("OSMINOGNativeBrowser.canvas()");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),1);
  await run("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),4);
- await run("document.querySelector('#native-browser [data-do=layers]').click()");await frame();assert.equal(await run("!!document.querySelector('.native-layers #layersPanel')"),true);
- await run("document.querySelector('#native-browser [data-do=files]').click()");await frame();assert.equal(await run("state.ui.layersTab"),'files');await fs.writeFile('shell-smoke-files.png',(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('#native-browser [data-do=files]').click()");await frame();assert.equal(await run("!!document.querySelector('.native-layers #layersPanel')"),true);
+ assert.equal(await run("state.ui.layersTab"),'files');await fs.writeFile('shell-smoke-files.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('#layersCollapse').click()");await frame();assert.equal(await run("document.querySelector('.native-layers').classList.contains('is-collapsed')"),true);
- await run("document.querySelector('#native-browser [data-do=layers]').click()");
+ await run("document.querySelector('#native-browser [data-do=files]').click()");
  await run("document.querySelector('#native-browser [data-do=chat]').click()");await frame();assert.equal(await run("document.querySelector('.native-chat').hidden"),false);
  await run('OSMINOGNativeBrowser.canvas()');await frame();assert.equal(await run("document.querySelectorAll('#native-browser #viewport').length"),1);assert.equal(await run("document.querySelectorAll('#viewport').length"),1);
  await run('OSMINOGNativeBrowser.open();OSMINOGNativeBrowser.split(4)');await frame();assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
@@ -82,8 +82,18 @@ module.exports=async(win,browser)=>{
  const previous=browser.project;
  await run("document.querySelector('#native-browser [data-do=home]').click()");await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),true);
  await run(`openProject(${JSON.stringify(previous)})`);await frame();await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),false);
+ await run("(()=>{document.querySelector('[data-do=new-desktop]').click();document.querySelector('.native-desktop-dialog form').requestSubmit();createObject('text',{name:'Second desktop',text:'Only N2'});})()");await frame();
+ assert.equal(await run("project().desktops.length"),2);
+ assert.equal(await run("desktopObjects().some(o=>o.name==='Shell test')"),false);
+ assert.equal(await run("markdownExport({all:true}).includes('Рабочий стол нового браузера')&&markdownExport({all:true}).includes('Only N2')"),true);
+ await run("OSMINOGNativeBrowser.switchDesktop('main')");await frame();
+ assert.equal(await run("desktopObjects().some(o=>o.name==='Shell test')"),true);
+ assert.equal(await run("desktopObjects().some(o=>o.name==='Second desktop')"),false);
+ assert.equal(await run("!!document.querySelector('.native-ai-footer [data-do=stop-ai]')"),true);
+ console.log('DESKTOP_TABS_AND_FULL_CONTEXT_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
 };
+
 

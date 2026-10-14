@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 module.exports=async function smoke(win,browser){
- const server=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html','Content-Security-Policy':"frame-ancestors 'none'",'X-Frame-Options':'DENY'});res.end(`<title>Native ${req.url}</title><h1>Native browser fixture ${req.url}</h1><input type="password" value="do-not-share"><textarea>private draft</textarea><a href="/second">Next</a><script>window.fixtureToken=Math.random()</script>`)});
+ const server=http.createServer((req,res)=>{if(req.url==='/media.png'){res.writeHead(200,{'Content-Type':'image/png'});res.end(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4XQAAAAASUVORK5CYII=','base64'));return}res.writeHead(200,{'Content-Type':'text/html','Content-Security-Policy':"frame-ancestors 'none'",'X-Frame-Options':'DENY'});res.end(`<title>Native ${req.url}</title><h1>Native browser fixture ${req.url}</h1><input type="password" value="do-not-share"><textarea>private draft</textarea><a href="/second">Next</a><script>window.fixtureToken=Math.random()</script>`)});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base=`http://127.0.0.1:${server.address().port}`;
  async function ready(id){const wc=browser.get(id).view.webContents;if(wc.isLoading())await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Fixture load timed out')),15000);wc.once('did-stop-loading',()=>{clearTimeout(timer);resolve()})});return wc}
  try{
@@ -11,9 +11,11 @@ module.exports=async function smoke(win,browser){
   let s=browser.state();assert.equal(s.tabs.length,1);const first=s.tabs[0].id,wc=await ready(first);
   assert.match(await wc.executeJavaScript('document.body.innerText'),/Native browser fixture/);
   assert.equal(await wc.executeJavaScript('typeof require+":"+typeof OSMINOGNative'),'undefined:undefined');
+  const media=await browser.command('media-read',{id:first,url:base+'/media.png'});assert.equal(media.mime,'image/png');assert(media.src.startsWith('data:image/png;base64,'));
+  win.webContents.send('browser:media',{id:first,url:base+'/media.png',project:browser.project,destination:'canvas'});let imported=false;for(let i=0;i<40&&!imported;i++){await new Promise(r=>setTimeout(r,50));imported=await win.webContents.executeJavaScript("objects().some(o=>o.fileName==='media.png'&&o.type==='image'&&o.src.startsWith('data:image/png;base64,'))")}assert(imported);console.log('NATIVE_MEDIA_TO_CANVAS_PASS');
   const token=await wc.executeJavaScript('window.fixtureToken');
   const ids=[first];for(let i=1;i<4;i++){const t=await browser.command('open',{url:base+'/pane-'+i});ids.push(t.id);await ready(t.id)}
-  await win.webContents.executeJavaScript(`(()=>{OSMINOGNativeBrowser.split(4);const ids=${JSON.stringify(ids)};for(let i=0;i<4;i++){const select=document.querySelectorAll('.native-cell>header select')[i];select.value=ids[i];select.dispatchEvent(new Event('change'))}})()`);
+  await win.webContents.executeJavaScript(`(()=>{OSMINOGNativeBrowser.split(4);const ids=${JSON.stringify(ids)};for(let i=0;i<4;i++){OSMINOGNativeBrowser.assignTab(ids[i],i)}})()`);
   await new Promise(r=>setTimeout(r,300));assert.equal(browser.panels.filter(p=>ids.includes(p.id)).length,4);
   for(const id of ids){const view=browser.get(id).view;assert(view.getVisible());assert(view.getBounds().width>100);assert(view.getBounds().height>100)}
   const context=await browser.command('context',{ids});assert.equal(context.length,4);assert(context.every(c=>!c.text.includes('private draft')&&!c.text.includes('do-not-share')));
@@ -32,5 +34,6 @@ module.exports=async function smoke(win,browser){
   console.log('BROWSER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
 };
+
 
 

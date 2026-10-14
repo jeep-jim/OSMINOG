@@ -5,12 +5,12 @@ module.exports=async(win)=>{
  const run=s=>win.webContents.executeJavaScript(s),frame=()=>run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
  dialog.showSaveDialog=async(_win,options)=>{destination=path.join(dir,options.defaultPath);return{canceled,filePath:destination}};
  try{
-  await run("(()=>{const o=createObject('text',{name:'Chosen object',text:'Selected export only'});state.selected=[o.id];renderInspector();document.querySelector('[data-native-properties]').click()})()");await frame();
+  await run("(()=>{const o=createObject('text',{name:'Chosen object',text:'Selected export only'});state.selected=[o.id];renderInspector();document.querySelector('[data-do=properties]').click()})()");await frame();
   assert.equal(await run("document.querySelector('.native-properties').hidden"),false);
   await fs.writeFile('shell-smoke-properties.png',(await win.webContents.capturePage()).toPNG());
   await run("(()=>{const field=document.querySelector('.native-properties [data-canvas-text-prop=fontSize]');if(!field)throw Error('Text size control missing');field.value='31';field.dispatchEvent(new Event('input',{bubbles:true}))})()");
   assert.equal(await run("selectedObjects()[0].fontSize"),31);
-  await run("document.querySelector('[data-native-properties]').click();document.querySelector('[data-native-save]').click()");await frame();
+  await run("document.querySelector('[data-do=properties]').click();document.querySelector('[data-native-save]').click()");await frame();
   await fs.writeFile('shell-smoke-save-as.png',(await win.webContents.capturePage()).toPNG());
   for(const extension of ['txt','pdf']){
    await run(`(()=>{document.querySelector('[data-file-name]').value='Проверка ${extension}';document.querySelector('[data-file-format]').value='${extension}';document.querySelector('[data-file-save]').click()})()`);
@@ -22,3 +22,4 @@ module.exports=async(win)=>{
   console.log('SELECTED_SAVE_AS_AND_PROPERTIES_SMOKE_PASS');
  }finally{dialog.showSaveDialog=original;await fs.rm(dir,{recursive:true,force:true})}
 };
+

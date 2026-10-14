@@ -1,5 +1,5 @@
 'use strict';
-const {WebContentsView,session,dialog,clipboard}=require('electron');
+const {WebContentsView,session,dialog,clipboard,Menu}=require('electron');
 const {randomUUID}=require('node:crypto');
 const PROVIDERS={chatgpt:'https://chatgpt.com/',claude:'https://claude.ai/',gemini:'https://gemini.google.com/',deepseek:'https://chat.deepseek.com/'};
 function address(value){
@@ -48,6 +48,7 @@ class BrowserWorkspace{
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame)t.navigationEpoch=(t.navigationEpoch||0)+1});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
+  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project||!params.srcURL)return;const url=params.srcURL;Menu.buildFromTemplate([{label:'Добавить медиа на рабочий стол',click:()=>this.win.webContents.send('browser:media',{id:t.id,url,project:t.project,destination:'canvas'})},{label:'Прикрепить изображение к чату справа',enabled:params.mediaType==='image',click:()=>this.win.webContents.send('browser:media',{id:t.id,url,project:t.project,destination:'chat'})}]).popup({window:this.win})});
   wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
@@ -105,6 +106,7 @@ class BrowserWorkspace{
     }
     if(this.project!==expected)throw Error('Проект изменился во время чтения');return result;
    }
+   case 'media-read':return require('./media.cjs').readMedia(this,args.id,args.url);
    case 'capture':{const t=this.get(args.id),img=await t.view.webContents.capturePage();return{url:t.view.webContents.getURL(),title:t.title,src:img.toDataURL(),...img.getSize()}}
    case 'copy-context':{if(typeof args.text!=='string'||args.text.length>150000)throw Error('Слишком большой контекст');clipboard.writeText(args.text);return true}
    default:throw Error('Неизвестное действие браузера');
@@ -125,5 +127,6 @@ class BrowserWorkspace{
  dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
+
 
 

@@ -344,6 +344,7 @@
       reply({ok:true,...probe()});
       return;
     }
+    if(message?.type==="BC_PROVIDER_TAB_ATTACH"){if(_sender?.id!==chrome.runtime.id||_sender?.tab||internalSending||nativePending){reply({ok:false,error:'Диалог занят или отправитель не разрешён'});return}uploadImages(Array.isArray(message.images)?message.images:[],composer()).then(reply).catch(e=>reply({ok:false,error:e.message}));return true}
     if(message?.type==="BC_PROVIDER_TAB_PROBE"){reply(probe());return}
     if(message?.type!=="BC_PROVIDER_TAB_SEND_V4"&&message?.type!=="BC_PROVIDER_TAB_SEND")return;
 

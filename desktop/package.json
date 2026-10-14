@@ -1,6 +1,6 @@
 {
   "name": "osminog-desktop",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "OSMINOG local browser preview",
   "author": "OSMINOG",
@@ -8,7 +8,7 @@
   "scripts": {
     "prepare:board": "node prepare.cjs",
     "start": "npm run prepare:board && electron .",
-    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs control.test.cjs",
+    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs control.test.cjs media.test.cjs",
     "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js"
   },
@@ -44,16 +44,22 @@
       "control.cjs",
       "control-smoke.cjs",
       "file-save.cjs",
-      "files-smoke.cjs"
+      "files-smoke.cjs",
+      "icons/**/*",
+      "media.cjs"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "icons/osminog-eye.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "icons/osminog-eye.ico",
+      "uninstallerIcon": "icons/osminog-eye.ico",
+      "installerHeaderIcon": "icons/osminog-eye.ico"
     },
     "artifactName": "OSMINOG-Preview-${version}-${arch}.${ext}",
     "publish": [

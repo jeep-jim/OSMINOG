@@ -4,6 +4,7 @@ const normalize=p=>p==='gpt'?'chatgpt':p;
 const origins={chatgpt:['https://chatgpt.com','https://chat.openai.com'],claude:['https://claude.ai'],gemini:['https://gemini.google.com'],deepseek:['https://chat.deepseek.com']};
 class Providers{
  constructor(browser,{fixtureOrigin}={}){this.browser=browser;this.fixtureOrigin=fixtureOrigin;this.busy=new Set();this.epoch=0;this.protocol=require('./protocol.cjs');this.source=fs.readFileSync(path.join(__dirname,'board/osminog-chat-sync.js'),'utf8')+'\n'+fs.readFileSync(path.join(__dirname,'board/provider-tab-bridge.js'),'utf8')}
+ async attach(args){const tab=this.browser.get(args.id),provider=require('./page-context.cjs').providerFor(tab.view.webContents.getURL());if(!provider)throw Error('Выберите поддерживаемый оригинальный чат');if(this.busy.has(provider))throw Error('ИИ занят, дождитесь ответа');const image=args.image;if(!image||typeof image.src!=='string'||image.src.length>45*1024*1024||!/^data:image\/(png|jpeg|webp|gif|avif);base64,/.test(image.src))throw Error('Нужно изображение до 32 МБ');this.busy.add(provider);try{const r=await this.dispatch({...tab,provider},{type:'BC_PROVIDER_TAB_ATTACH',images:[{name:String(image.name||'image.png').slice(0,160),type:image.mime,dataUrl:image.src}]});if(!r?.ok||r.unconfirmed)throw Error(r?.error||'Сайт не подтвердил вложение. Проверьте его в чате.');return r}finally{this.busy.delete(provider)}}
  async stop(){this.epoch++;let clicked=0;const allowed=[...this.browser.tabs.values(),...this.browser.providers.values()].filter(t=>t.project===this.browser.project&&require('./page-context.cjs').providerFor(t.view.webContents.getURL()));for(const t of allowed){t.view.webContents.send('page:cancel');try{clicked+=await t.view.webContents.executeJavaScript(`(()=>{const buttons=[...document.querySelectorAll('button[data-testid="stop-button"],button[aria-label*="Stop generating" i],button[aria-label*="Stop response" i],button[aria-label*="Остановить" i],button[aria-label="Stop" i]')];const b=buttons.find(b=>b.getBoundingClientRect().width>0&&!b.disabled);if(b){b.click();return 1}return 0})()`)}catch{}}return{clicked,checked:allowed.length}}
  async dispatch(tab,message){
   const wc=tab.view.webContents,url=new URL(wc.getURL());
@@ -53,4 +54,5 @@ class Providers{
  }
 }
 module.exports={Providers};
+
 
