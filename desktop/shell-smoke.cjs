@@ -93,8 +93,9 @@ module.exports=async(win,browser)=>{
  }finally{browser.session.protocol.unhandle('https')}
 
  // Original submenus remain functional in the header; documents are editable and persisted.
+ win.focus();win.webContents.focus();await frame();
  await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
- assert.equal(await run("document.querySelector('#deskMore').hidden"),false);await fs.writeFile('shell-smoke-tool-menu.png',(await win.webContents.capturePage()).toPNG());
+ console.log('TOOL_MENU_STATE',await run("JSON.stringify({hidden:document.querySelector('#deskMore').hidden,parent:document.querySelector('#deskMore').parentElement.id,api:typeof OSMINOGWorkdeskMenus?.open,focus:document.activeElement?.outerHTML?.slice(0,160),nativeTools:document.querySelectorAll('[data-native-group]').length})"));assert.equal(await run("document.querySelector('#deskMore').hidden"),false);await fs.writeFile('shell-smoke-tool-menu.png',(await win.webContents.capturePage()).toPNG());
  assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
  assert.equal(browser.panels.length,0);
  const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
