@@ -98,6 +98,13 @@ module.exports=async(win,browser)=>{
  await run("OSMINOGNativeBrowser.split(4)");
  for(let i=0;i<6;i++)await run(`OSMINOGNativeBrowser.open('https://example.com/extra-${i}')`);
  await frame();assert((await run("document.querySelectorAll('.native-cell').length"))>4);
+ await run("document.querySelector('.native-pane-picker').click()");await frame();
+ assert.equal(browser.panels.length,0);
+ assert(await run("(()=>{const m=document.querySelector('.native-pane-menu');return m.getBoundingClientRect().width>=280&&m.innerText.includes('example.com')&&m.querySelectorAll('[aria-pressed=true]').length===1})()"));
+ await run("document.querySelector('.native-pane-options button[aria-pressed=false]:last-child').click()");await frame();
+ assert(await run("document.querySelector('.native-pane-menu').hidden"));assert(browser.panels.length>0);
+ console.log('READABLE_TILE_PICKER_PASS');
+
  assert(await run("(()=>{const e=document.querySelector('.native-scroll');return e.scrollHeight>e.clientHeight})()"));
  await run("(()=>{const e=document.querySelector('.native-scroll');e.scrollTop=e.scrollHeight})()");await frame();
  assert(browser.panels.every(p=>!p.clip||p.clip.height>0));
