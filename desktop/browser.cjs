@@ -117,6 +117,7 @@ class BrowserWorkspace{
   }
  }
  layout(panels){
+  if(this.disposed||this.win.isDestroyed())return;
   this.panels=Array.isArray(panels)?panels.slice(0,100):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
   const desired=new Map();
   const [width,height]=this.win.getContentSize(),seen=new Set();
