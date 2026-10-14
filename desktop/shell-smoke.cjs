@@ -104,12 +104,13 @@ module.exports=async(win,browser)=>{
  assert.equal(await run('objects().length'),beforeDocs+1);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
  await run("document.querySelector('#workdeskText').value='Native Markdown content';document.querySelector('#workdeskText').dispatchEvent(new Event('input',{bubbles:true}));OSMINOGWorkdesk.close()");await frame();
  assert.equal(await run("objects().some(o=>o.text==='Native Markdown content'&&o.noteFormat==='markdown')"),true);
+ await run('globalThis.beforeCreateView={...state.view};state.view.x+=10000;state.view.y+=10000;applyView()');await frame();
  const pointCreate=await run("(()=>{const r=document.querySelector('.native-canvas #viewport').getBoundingClientRect();return{x:Math.round(r.x+20),y:Math.round(r.y+20)}})()");
  win.webContents.sendInputEvent({type:'mouseDown',...pointCreate,button:'right',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...pointCreate,button:'right',clickCount:1});await new Promise(r=>setTimeout(r,160));await frame();
  assert.equal(await run("document.querySelector('.native-create-menu').hidden"),false);await fs.writeFile('shell-smoke-create-menu.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('[data-native-create=note]').click()");await frame();
  assert.equal(await run('objects().length'),beforeDocs+2);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
- await run("OSMINOGWorkdesk.close()");await frame();
+ await run("OSMINOGWorkdesk.close()");await run('state.view=beforeCreateView;applyView()');await frame();
  assert.equal(await run("document.querySelectorAll('.native-tile > .native-tool-rail').length"),0);
  console.log('HEADER_TOOL_MENUS_AND_RIGHT_CLICK_DOCUMENTS_PASS');
  const previous=browser.project;
