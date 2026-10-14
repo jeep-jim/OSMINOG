@@ -47,6 +47,14 @@ jobs:
           Get-Content provider-smoke.log
           Get-Content provider-smoke-errors.log
           if ($process.ExitCode -ne 0 -or -not (Select-String -Path provider-smoke.log -Pattern PROVIDER_SMOKE_PASS -Quiet)) { throw 'Provider smoke failed' }
+      - name: Verify extension session transport and native actions
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath '.\node_modules\electron\dist\electron.exe' -ArgumentList '.', '--session-smoke' -PassThru -RedirectStandardOutput session-smoke.log -RedirectStandardError session-smoke-errors.log
+          if (-not $process.WaitForExit(90000)) { $process.Kill(); throw 'Session smoke timed out' }
+          Get-Content session-smoke.log
+          Get-Content session-smoke-errors.log
+          if ($process.ExitCode -ne 0 -or -not (Select-String -Path session-smoke.log -Pattern EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS -Quiet)) { throw 'Session smoke failed' }
       - name: Verify redesigned shell on real Windows host
         shell: pwsh
         run: |
@@ -65,6 +73,7 @@ jobs:
             desktop/browser-smoke*
             desktop/provider-smoke*
             desktop/shell-smoke*
+            desktop/session-smoke*
           retention-days: 14
       - run: npm run build:win
         env:
@@ -86,13 +95,18 @@ jobs:
           if ($setup.ExitCode -ne 0) { throw 'Installation failed' }
           $exe = Join-Path $destination 'OSMINOG Preview.exe'
           if (-not (Test-Path $exe)) { throw 'Installed executable missing' }
-          foreach ($mode in @('smoke','browser-smoke','provider-smoke','shell-smoke')) {
+          foreach ($mode in @('smoke','browser-smoke','provider-smoke','shell-smoke','session-smoke')) {
             $out = "installed-$mode.log"; $err = "installed-$mode-errors.log"
             $process = Start-Process -FilePath $exe -ArgumentList "--$mode" -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
             if (-not $process.WaitForExit(90000)) { $process.Kill(); throw "Installed $mode timed out" }
             Get-Content $out; Get-Content $err
             if ($process.ExitCode -ne 0 -or -not (Select-String -Path $out -Pattern 'SMOKE_PASS' -Quiet)) { throw "Installed $mode failed" }
           }
+      - name: Verify ordinary installed startup without test flags
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:LOCALAPPDATA 'Проверка Осьминога\OSMINOG Preview\OSMINOG Preview.exe'
+          ./verify-normal-launch.ps1 -Executable $exe
       - name: Export verified runtime for release assembly
         shell: pwsh
         run: |
