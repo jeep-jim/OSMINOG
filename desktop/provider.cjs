@@ -59,11 +59,12 @@ class Providers{
   const internalPayload={...payload,...(type.endsWith('TOOL_RESULT')?{}:{result:undefined})};
   this.busy.add(provider);
   try{
-   let result;
+   let result,nativeError='';
    if(!this.fixtureOrigin){
     const keys=(await this.browser.store.get('briefCraftProviderKeysV1')).briefCraftProviderKeysV1||{};
     if(!internalPayload.apiKey)internalPayload.apiKey=keys[provider]||'';
-    result=await this.transport.send(provider,internalPayload,enriched,requestId,this.find(provider));
+    try{result=await this.transport.send(provider,internalPayload,enriched,requestId,this.find(provider));if(result?.ok===false){nativeError=result.error||'Сессионный транспорт не ответил';result=null}}
+    catch(e){if(epoch!==this.epoch||this.browser.project!==projectId)throw e;nativeError=String(e.message||e)}
    }
    if(!result){
     // Separate managed conversation, never a tab from browser.tabs or the user's original chat.
@@ -75,7 +76,7 @@ class Providers{
     if(payload.imageDataUrl)images.push({name:'tool-result.png',dataUrl:payload.imageDataUrl});
     const reply=await this.dispatch(tab,{type:'BC_PROVIDER_TAB_SEND_V4',text,requestId,images});
     if(!reply?.ok)throw Error(reply?.error||'ИИ не вернул ответ');
-    result={ok:true,requestId,payload:{requestId,...this.protocol.bcParseAssistant(reply.answer),media:reply.media||[],widgets:reply.widgets||[]},diag:{provider,mode:'managed-service'}};
+    result={ok:true,requestId,payload:{requestId,...this.protocol.bcParseAssistant(reply.answer),media:reply.media||[],widgets:reply.widgets||[]},diag:{provider,mode:'managed-service',...(nativeError?{nativeError}: {})}};
    }
    if(epoch!==this.epoch||this.browser.project!==projectId)throw Error('Ответ отменён или проект изменился');
    return result;
