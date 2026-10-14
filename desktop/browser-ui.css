@@ -113,3 +113,8 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser .native-cell [data-do=properties]{margin-left:auto}
 #native-browser .native-canvas>.native-layers.is-collapsed{width:56px}
 #native-browser .native-canvas>.native-layers[hidden]{display:none!important}
+@container (min-width:111px){.native-rail-top [data-do=new]:after{content:' Новая вкладка';font-size:var(--ui-font)}}
+#native-browser .native-tab-label{font-size:calc(var(--ui-font) - 1px)}
+#native-browser .native-top button{min-height:var(--ui-control)}
+#native-browser .native-control .native-task-consent{display:flex;align-items:flex-start;gap:10px;padding:12px;background:var(--raised);border-radius:12px}
+#native-browser .native-control .native-task-consent input{flex:none;min-height:20px}

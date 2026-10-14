@@ -56,6 +56,7 @@ jobs:
           Get-Content shell-smoke-errors.log
           if ($process.ExitCode -ne 0 -or -not (Select-String -Path shell-smoke.log -Pattern SHELL_SMOKE_PASS -Quiet)) { throw 'Shell smoke failed' }
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: windows-desktop-smoke
@@ -101,6 +102,7 @@ jobs:
           @{ version=$package.version; electron=$package.devDependencies.electron; builder=$package.devDependencies.'electron-builder'; source=$env:GITHUB_SHA; productName=$package.build.productName; appId=$package.build.appId } | ConvertTo-Json | Set-Content runtime/runtime.json
           Compress-Archive -Path runtime/* -DestinationPath dist/OSMINOG-Windows-Runtime.zip
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with:
           name: windows-desktop-candidate
@@ -114,5 +116,6 @@ jobs:
             desktop/smoke*.png
             desktop/packaged-smoke*.log
           retention-days: 14
+
 
 
