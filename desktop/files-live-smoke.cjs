@@ -17,10 +17,11 @@ module.exports=async(win,browser,pdfBytes)=>{
   await run("document.querySelector('#osminogOfficeViewer').close()");
  }
  require('electron').clipboard.clear();
+ const clipboardService=require('./file-clipboard.cjs'),copy=clipboardService.copyFiles;let copied;clipboardService.copyFiles=async(...args)=>{try{copied=await copy(...args);return copied}catch(e){copied={error:e.message};throw e}};
  // Copy the selected XLSX with actual keyboard input, paste into a separate Chromium page.
  await run("document.activeElement?.blur();getSelection().removeAllRanges();document.body.tabIndex=-1;document.body.focus()");win.webContents.focus();
  win.webContents.sendInputEvent({type:'keyDown',keyCode:'C',modifiers:['control']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'C',modifiers:['control']});
- for(let i=0;i<100;i++){if(require('electron').clipboard.availableFormats().some(x=>/FileName|DropFiles|CF_HDROP/i.test(x)))break;await pause()}
+ for(let i=0;i<150&&!copied;i++)await pause();clipboardService.copyFiles=copy;assert.equal(copied?.ok,true,JSON.stringify(copied)||'Ctrl+C did not invoke file copy');
  await run("OSMINOGNativeBrowser.open('https://clipboard.example/','side')");
  const tab=[...browser.tabs.values()].find(t=>t.url.includes('clipboard.example')),wc=tab.view.webContents;
  for(let i=0;i<100&&wc.isLoading();i++)await pause();

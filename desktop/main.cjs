@@ -82,7 +82,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.on('page:user-send',(e,payload)=>{try{const tab=pageSender(e),text=String(payload?.text||'').slice(0,12000);void originalActions.observe(tab,text)}catch{}});
 
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.
- ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='presence-update')return browser.context.update(args.board);if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
+ ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='presence-update')return args?.board?.project===browser.project?browser.context.update(args.board):{ok:false,stale:true};if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
  win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));
