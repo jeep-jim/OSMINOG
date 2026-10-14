@@ -144,7 +144,9 @@ module.exports=async(win,browser)=>{
  assert(await run("(()=>{const a=document.querySelector('.native-top').getBoundingClientRect(),b=document.querySelector('.native-tools').getBoundingClientRect();return Math.abs(a.x+a.width/2-b.x-b.width/2)<2})()"));
  assert.equal(await run("getComputedStyle(document.querySelector('#app')).display"),'none');
  await run("document.querySelector('.native-tile-resize-xy').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))");await frame();
- assert(await run("(()=>{const a=document.querySelector('.native-tile').getBoundingClientRect(),b=document.querySelector('.native-grid').getBoundingClientRect(),n=document.querySelectorAll('.native-tile')[1]?.getBoundingClientRect();return Math.abs(a.width-b.width)<2&&Math.abs(a.height-document.querySelector('.native-scroll').clientHeight)<2&&(!n||n.top>a.bottom)})()"));
+ const tileGeometry=await run("(()=>{const a=document.querySelector('.native-tile').getBoundingClientRect(),b=document.querySelector('.native-grid').getBoundingClientRect(),n=document.querySelectorAll('.native-tile')[1]?.getBoundingClientRect();return {tileWidth:a.width,gridWidth:b.width,tileHeight:a.height,availableHeight:document.querySelector('.native-scroll').clientHeight,bottom:a.bottom,nextTop:n?.top}})()");
+ console.log('ADAPTIVE_TILE_GEOMETRY',JSON.stringify(tileGeometry));
+ assert(Math.abs(tileGeometry.tileWidth-tileGeometry.gridWidth)<2&&Math.abs(tileGeometry.tileHeight-tileGeometry.availableHeight)<2&&(tileGeometry.nextTop===undefined||tileGeometry.nextTop>tileGeometry.bottom),JSON.stringify(tileGeometry));
  console.log('EXTERNAL_TOOL_DOCK_AND_ADAPTIVE_TILES_PASS');
  console.log('CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS');
  await require('./files-smoke.cjs')(win,browser);
