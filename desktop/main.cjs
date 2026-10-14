@@ -17,6 +17,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const store=new Store(app.getPath('userData'));
  for(const op of ['get','set','remove'])ipcMain.handle('store:'+op,async(e,arg)=>{trusted(e);const result=await store[op](arg);if(op!=='get')win.webContents.send('store:changed',result);return op==='get'?result:undefined});
  ipcMain.handle('external:open',(e,url)=>{trusted(e);return external(url)});
+ for(const [channel,method] of [['file:copy','copyFiles'],['file:open','openFile']])ipcMain.handle(channel,(e,args)=>{trusted(e);return require('./file-clipboard.cjs')[method](args)});
+ ipcMain.handle('file:office',(e,file)=>{trusted(e);return require('./office.cjs').read(file)});
  ipcMain.handle('file:save',(e,args)=>{trusted(e);return require('./file-save.cjs').saveFile(win,args)});
  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
  const shellIcon=require('./windows-identity.cjs').installIdentity({app,shell});
@@ -27,6 +29,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(!require('./trust.cjs').sameDocument(url,entry))e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
+ browser.context=new (require('./browser-context.cjs').BrowserContext)(browser);browser.context.start();win.on('closed',()=>browser.context.stop());
  await browser.initNetwork();
  const providers=new (require('./provider.cjs').Providers)(browser);
  const control=new (require('./control.cjs').Control)(browser,providers);
@@ -54,11 +57,11 @@ if(ownsProfile)app.whenReady().then(async()=>{
   const canvasState=await win.webContents.executeJavaScript('globalThis.OSMINOGDirectCanvas.snapshot()');
   if(before!==canvasState)throw Error('Холст изменился во время чтения; повторите отправку');
   const images=[];
-  if(board?.rect?.width>0&&board.rect.height>0){const image=await win.webContents.capturePage(board.rect);if(!image.isEmpty())images.push({name:'OSMINOG-canvas.png',dataUrl:image.resize({width:Math.min(1600,image.getSize().width)}).toDataURL()})}
+  if(board?.rect?.width>0&&board.rect.height>0){const image=await win.webContents.capturePage(board.rect).catch(()=>null);if(image&&!image.isEmpty())images.push({name:'OSMINOG-canvas.png',dataUrl:image.resize({width:Math.min(1600,image.getSize().width)}).toDataURL()})}
   for(const page of pages){
    if(images.length>=5)break;
    const target=browser.get(page.id);if(!target.visible||target.view.webContents.getURL()!==page.url)continue;
-   const shot=await target.view.webContents.capturePage();if(shot.isEmpty())continue;
+   const shot=await target.view.webContents.capturePage().catch(()=>null);if(!shot||shot.isEmpty())continue;
    const name='OSMINOG-tab-'+page.id+'.png';page.screenshot=name;page.screenshotSize={width:target.bounds.width,height:target.bounds.height};
    images.push({name,dataUrl:shot.resize(page.screenshotSize).toDataURL()});
   }
@@ -79,7 +82,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.on('page:user-send',(e,payload)=>{try{const tab=pageSender(e),text=String(payload?.text||'').slice(0,12000);void originalActions.observe(tab,text)}catch{}});
 
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.
- ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
+ ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='presence-update')return browser.context.update(args.board);if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
  win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));

@@ -12,7 +12,7 @@ module.exports=async(win,browser,providers)=>{
   if(p.includes('chat-requirements'))return json({token:'fixture'});
   if(p==='/backend-api/files')return json({file_id:'fixture-file',upload_url:'https://chatgpt.com/fixture-upload'});
   if(p.endsWith('/conversation')&&req.method==='POST'){
-   const body=await req.json(),prompt=body.messages[0].content.parts.at(-1);turns++;
+   const body=await req.json(),prompt=body.messages[0].content.parts.at(-1);turns++;assert.match(prompt,/osminog.browser-context\/v2/,'Session transport must receive the shared context');
    let answer;
    if(turns===1)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Тест доски',actions:[{op:'create',objectType:'text',properties:{name:'Session-created text',text:'Транспорт расширения',x:400,y:300,w:240,h:90}}]};
    else if(turns===2)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};

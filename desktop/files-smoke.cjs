@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
-module.exports=async(win)=>{
+module.exports=async(win,browser)=>{
  const {dialog}=require('electron'),original=dialog.showSaveDialog,dir=await fs.mkdtemp(path.join(os.tmpdir(),'osminog-export-'));let destination='',canceled=false;
  const run=s=>win.webContents.executeJavaScript(s),frame=()=>run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
  dialog.showSaveDialog=async(_win,options)=>{destination=path.join(dir,options.defaultPath);return{canceled,filePath:destination}};
@@ -20,6 +20,7 @@ module.exports=async(win)=>{
   canceled=true;await run("document.querySelector('[data-file-save]').click()");await new Promise(r=>setTimeout(r,150));assert.equal(await run("document.querySelector('[data-file-status]').textContent"),'Сохранение отменено.');
   await run("document.querySelector('[data-close-save]').click()");await frame();
   console.log('SELECTED_SAVE_AS_AND_PROPERTIES_SMOKE_PASS');
+  await require('./files-live-smoke.cjs')(win,browser,await fs.readFile(destination));
  }finally{dialog.showSaveDialog=original;await fs.rm(dir,{recursive:true,force:true})}
 };
 
