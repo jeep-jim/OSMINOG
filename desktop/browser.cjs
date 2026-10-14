@@ -48,7 +48,7 @@ class BrowserWorkspace{
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame)t.navigationEpoch=(t.navigationEpoch||0)+1});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
-  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project||!params.srcURL)return;const url=params.srcURL;Menu.buildFromTemplate([{label:'Добавить медиа на рабочий стол',click:()=>this.win.webContents.send('browser:media',{id:t.id,url,project:t.project,destination:'canvas'})},{label:'Прикрепить изображение к чату справа',enabled:params.mediaType==='image',click:()=>this.win.webContents.send('browser:media',{id:t.id,url,project:t.project,destination:'chat'})}]).popup({window:this.win})});
+  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project)return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
   wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});

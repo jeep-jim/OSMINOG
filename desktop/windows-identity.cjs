@@ -5,7 +5,7 @@ function installIdentity({app,shell,platform=process.platform,executable=process
  const source=path.join(__dirname,'icons',platform==='win32'?'osminog-eye.ico':'osminog-eye.png');
  if(platform!=='win32')return source;
  // Windows shell reads icons outside app.asar; refresh only shortcuts targeting this executable.
- const icon=path.join(app.getPath('userData'),'osminog-taskbar.ico');fs.copyFileSync(source,icon);
+ const icon=path.join(app.getPath('userData'),'osminog-taskbar.ico');try{fs.mkdirSync(path.dirname(icon),{recursive:true});fs.copyFileSync(source,icon)}catch{return source}
  app.setAppUserModelId(APP_ID);
  const directories=[app.getPath('desktop'),path.join(app.getPath('appData'),'Microsoft/Windows/Start Menu/Programs'),path.join(app.getPath('appData'),'Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar')];
  const expected=path.resolve(executable).toLowerCase();

@@ -1,11 +1,13 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu}=require('electron');
+const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu,dialog}=require('electron');
 const path=require('node:path'),{pathToFileURL}=require('node:url'),{Store}=require('./storage.cjs');
 app.setName('OSMINOG Preview');
 if(process.platform==='win32')app.setAppUserModelId('com.osminog.desktop.preview');
+const startup=require('./startup.cjs').startup({app,dialog});
+const showWindow=require('./startup.cjs').showWindow;
 const ownsProfile=app.requestSingleInstanceLock();
 if(!ownsProfile)app.quit();
-app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus()}});
+app.on('second-instance',()=>{showWindow(win)});
 let win,browser,updates,tray;
 const {autoUpdater}=require('electron-updater');
 const entry=pathToFileURL(path.join(__dirname,'board/editor.html')).href;
@@ -18,9 +20,10 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('file:save',(e,args)=>{trusted(e);return require('./file-save.cjs').saveFile(win,args)});
  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
  const shellIcon=require('./windows-identity.cjs').installIdentity({app,shell});
- win=new BrowserWindow({icon:shellIcon,width:1440,height:960,minWidth:800,minHeight:600,show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
- if(process.platform==='win32')require('./windows-identity.cjs').applyTaskbar(win,shellIcon);
- if(!process.argv.some(a=>a.includes('smoke'))){tray=new Tray(shellIcon);tray.setToolTip('OSMINOG');const show=()=>{if(!win.isDestroyed()){win.show();if(win.isMinimized())win.restore();win.focus()}};tray.on('click',show);tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Осьминог',click:show},{type:'separator'},{label:'Выйти',click:()=>app.quit()}]));}
+ win=new BrowserWindow({icon:shellIcon,width:1440,height:960,minWidth:800,minHeight:600,show:true,backgroundColor:'#111722',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
+ if(process.platform==='win32'){try{require('./windows-identity.cjs').applyTaskbar(win,shellIcon)}catch(e){startup.log('TASKBAR_WARNING',e)}}
+ if(!process.argv.some(a=>a.includes('smoke'))){try{tray=new Tray(shellIcon);tray.setToolTip('OSMINOG');const show=()=>{if(!win.isDestroyed()){win.show();if(win.isMinimized())win.restore();win.focus()}};tray.on('click',show);tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Осьминог',click:show},{type:'separator'},{label:'Выйти',click:()=>app.quit()}]));}catch(e){startup.log('TRAY_WARNING',e)}}
+ win.webContents.on('context-menu',(_event,p)=>{if(!p.isEditable&&!p.linkURL&&!p.srcURL&&!p.selectionText)return;const items=require('./context-menu.cjs').template(win.webContents,p,{clipboard:require('electron').clipboard,open:url=>browser.open({url})});Menu.buildFromTemplate(items).popup({window:win})});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(!require('./trust.cjs').sameDocument(url,entry))e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
@@ -28,6 +31,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const providers=new (require('./provider.cjs').Providers)(browser);
  const control=new (require('./control.cjs').Control)(browser,providers);
  browser.control=control;
+ const agentTools=new (require('./agent-tools.cjs').AgentTools)(browser,control);browser.agentTools=agentTools;
  ipcMain.handle('provider:runtime',async(e,message,projectId)=>{trusted(e);try{return await providers.runtime(message,String(projectId||''))}catch(error){return{ok:false,error:error.message}}});
  updates=new (require('./updates.cjs').Updates)({updater:autoUpdater,version:app.getVersion(),packaged:app.isPackaged,save:async()=>{await win.webContents.executeJavaScript('persist()');await browser.save();await browser.saveQueue;await store.queue;await store.read()},emit:state=>{if(!win.isDestroyed())win.webContents.send('update:state',state)}});
  for(const action of ['check','download','install'])ipcMain.handle('update:'+action,e=>{trusted(e);return updates[action]()});
@@ -64,12 +68,17 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const direct=new (require('./direct-chat.cjs').DirectChat)(browser,providers,control,captureWorkspace);
  browser.direct=direct;
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.
- ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){direct.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
+ ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
+ win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
+ win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));
  await win.loadURL(entry);
+ await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>{if(document.documentElement.classList.contains('native-ready'))return resolve(true);if(Date.now()-started>30000)return reject(Error('Интерфейс не завершил запуск за 30 секунд'));setTimeout(check,100)};check()})");
+ showWindow(win);startup.log('OSMINOG_READY '+app.getVersion());
  if(process.argv.includes('--update-smoke')||process.argv.includes('--verify-update-smoke')){
   try{await require('./update-smoke.cjs')({app,win,browser,autoUpdater,updates,verify:process.argv.includes('--verify-update-smoke')})}catch(e){console.error(e);app.exit(1)}return;
  }
+ if(process.argv.includes('--session-smoke')){try{await require('./session-smoke.cjs')(win,browser,providers);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;}
  if(process.argv.includes('--shell-smoke')){try{await require('./shell-smoke.cjs')(win,browser);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;}
  if(process.argv.includes('--provider-smoke')){
   try{await require('./provider-smoke.cjs')(win,browser,providers);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;
@@ -95,7 +104,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
    console.log('DESKTOP_SMOKE_PASS');app.exit(0);
   }catch(e){console.error(e);app.exit(1)}
  }
-});
+}).catch(startup.fail);
 app.on('window-all-closed',()=>app.quit());
 
 

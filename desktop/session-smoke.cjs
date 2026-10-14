@@ -1,0 +1,41 @@
+'use strict';
+const assert=require('node:assert/strict');
+module.exports=async(win,browser,providers)=>{
+ const run=code=>win.webContents.executeJavaScript(code),sleep=ms=>new Promise(r=>setTimeout(r,ms));let turns=0,targetId='',actionSnapshot='';
+ const json=data=>new Response(JSON.stringify(data),{headers:{'content-type':'application/json'}});
+ await browser.session.protocol.handle('https',async req=>{
+  const u=new URL(req.url),p=u.pathname;
+  if(u.hostname==='example.com')return new Response('<html><meta charset="utf-8"><body style="margin:0"><input aria-label="Город" style="width:200px;height:50px"></body></html>',{headers:{'content-type':'text/html; charset=utf-8'}});
+  if(p==='/api/auth/session')return json({accessToken:'fixture-token-'.repeat(5),user:{id:'fixture'}});
+  if(p==='/backend-api/models')return json({models:[{slug:'auto'}]});
+  if(p.includes('chat-requirements'))return json({token:'fixture'});
+  if(p==='/backend-api/files')return json({file_id:'fixture-file',upload_url:'https://chatgpt.com/fixture-upload'});
+  if(p.endsWith('/conversation')&&req.method==='POST'){
+   const body=await req.json(),prompt=body.messages[0].content.parts.at(-1);turns++;
+   let answer;
+   if(turns===1)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Тест доски',actions:[{op:'create',objectType:'text',properties:{name:'Session-created text',text:'Транспорт расширения',x:400,y:300,w:240,h:90}}]};
+   else if(turns===2)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};
+   else if(turns===3){actionSnapshot=prompt.match(/"snapshot"\s*:\s*"([a-f0-9-]+)"/)?.[1];assert(actionSnapshot,'Tool result did not contain fresh tab snapshot');answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot:actionSnapshot,actions:[{type:'click',x:20,y:20},{type:'type',text:'Омск'}]}}]}}
+   else answer='Город изменён. Результат инструмента получен.';
+   return new Response('data: '+JSON.stringify({conversation_id:'fixture-session',message:{id:'reply-'+turns,author:{role:'assistant'},status:'finished_successfully',content:{content_type:'text',parts:[typeof answer==='string'?answer:JSON.stringify(answer)]}}})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
+  }
+  if(p==='/')return new Response('<html data-build="fixture"></html>');
+  return json({});
+ });
+ try{
+  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});
+  await run("OSMINOGNativeBrowser.open('https://example.com/')");await sleep(300);const target=[...browser.tabs.values()].find(t=>t.view.webContents.getURL()==='https://example.com/');targetId=target.id;
+  await run("OSMINOGNativeBrowser.split(2)");await run("document.querySelector('#native-browser [data-do=chat]').click()");await sleep(250);
+  const connected=await run('OSMINOGConnectDirectChatGPT()');assert(connected.ok,JSON.stringify(connected));
+  async function send(text){await run(`document.querySelector('#gptPresenceApply').value='direct';document.querySelector('#gptPresenceInput').value=${JSON.stringify(text)};document.querySelector('#gptPresenceForm').requestSubmit()`)}
+  await send('Создай текст на доске');
+  for(let i=0;i<200&&!(await run("objects().some(o=>o.name==='Session-created text')"));i++)await sleep(100);
+  assert.equal(await run("objects().some(o=>o.name==='Session-created text')"),true,await run("document.querySelector('#gptPresenceMessages').innerText"));assert.equal(turns,1);
+  await sleep(400);await send('Поменяй город в открытой вкладке на Омск');
+  for(let i=0;i<200&&(await target.view.webContents.executeJavaScript("document.querySelector('input').value"))!=='Омск';i++)await sleep(100);
+  assert.equal(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),'Омск',await run("document.querySelector('#gptPresenceMessages').innerText"));
+  await assert.rejects(browser.agentTools.run('browser_act',{id:targetId,snapshot:actionSnapshot,actions:[{type:'type',text:'duplicate'}]}),/свежий/);
+  const transcript=await run("document.querySelector('#gptPresenceMessages').innerText");assert(!transcript.includes('OSMINOG_CONTEXT_V1'));assert.equal([...browser.tabs.values()].filter(t=>t.view.webContents.getURL().includes('chatgpt.com')).length,0);
+  console.log('EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS');
+ }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
+};
