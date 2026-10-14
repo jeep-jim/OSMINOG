@@ -11,11 +11,13 @@
  const groups={select:'select',hand:'hand',text:'text',note:'text',node:'node',shape:'shape',pen:'pen',image:'files'};
  function show(button){mount();const group=button.dataset.nativeGroup||groups[button.dataset.toolNative];if(group)globalThis.OSMINOGWorkdeskMenus?.open(group,button);shell.layout()}
  tools.addEventListener('pointerover',e=>{const b=e.target.closest('button');if(!b||b.contains(e.relatedTarget)||e.pointerType==='touch')return;clearTimeout(timer);timer=setTimeout(()=>show(b),220)});
- tools.addEventListener('pointerleave',()=>clearTimeout(timer));
+ tools.addEventListener('pointerleave',()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!menu?.matches(':hover')&&!tools.matches(':hover'))globalThis.OSMINOGWorkdeskMenus?.close()},280)});
+ menu?.addEventListener('pointerenter',()=>clearTimeout(timer));
  tools.addEventListener('contextmenu',e=>{const b=e.target.closest('button');if(b){e.preventDefault();show(b)}});
  tools.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){const b=e.target.closest('button');if(b){e.preventDefault();show(b);menu?.querySelector('button')?.focus()}}});
- tools.addEventListener('click',e=>{clearTimeout(timer);const b=e.target.closest('[data-native-group]');if(b)show(b)});
- document.addEventListener('pointerdown',e=>{if(!tools.contains(e.target)&&!menu?.contains(e.target))globalThis.OSMINOGWorkdeskMenus?.close()},true);
+ tools.addEventListener('click',e=>{clearTimeout(timer);const b=e.target.closest('button');if(!b)return;if(b.dataset.nativeGroup){if(!menu.hidden&&menu.dataset.nativeAnchor===b.dataset.nativeGroup)globalThis.OSMINOGWorkdeskMenus?.close();else{show(b);menu.dataset.nativeAnchor=b.dataset.nativeGroup}}else globalThis.OSMINOGWorkdeskMenus?.close()});
+ window.addEventListener('blur',()=>{clearTimeout(timer);globalThis.OSMINOGWorkdeskMenus?.close()});
+ document.addEventListener('pointerdown',e=>{clearTimeout(timer);if(!tools.contains(e.target)&&!menu?.contains(e.target))globalThis.OSMINOGWorkdeskMenus?.close()},true);
  
  const create=document.createElement('section');create.className='native-create-menu native-context';create.hidden=true;create.setAttribute('role','menu');create.setAttribute('aria-label','Создать на рабочем столе');
  create.innerHTML='<strong>Создать</strong>'+[['text','Текст на холсте'],['note','Блокнот (.txt)'],['markdown','Markdown (.md)'],['folder','Новая папка'],['files','Файлы с устройства']].map(([id,label])=>`<button type="button" role="menuitem" data-native-create="${id}">${label}</button>`).join('');root.append(create);

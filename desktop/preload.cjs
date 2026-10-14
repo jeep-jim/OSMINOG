@@ -9,6 +9,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   onProvider:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('provider:open',listener);return()=>ipcRenderer.removeListener('provider:open',listener)},
   onFocus:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('browser:focus',listener);return()=>ipcRenderer.removeListener('browser:focus',listener)},
   onBrowser:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('browser:state',listener);return()=>ipcRenderer.removeListener('browser:state',listener)},
+  onTaskStatus:callback=>{const listener=(_,text)=>callback(text);ipcRenderer.on('browser:task-status',listener);return()=>ipcRenderer.removeListener('browser:task-status',listener)},
   checkUpdate:()=>ipcRenderer.invoke('update:check'),
   updateState:()=>ipcRenderer.invoke('update:state'),
   onUpdate:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('update:state',listener);return()=>ipcRenderer.removeListener('update:state',listener)},
