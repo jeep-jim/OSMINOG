@@ -107,3 +107,9 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser .native-ai-footer button{min-height:32px;border-radius:9px;background:var(--raised);padding:6px 10px}
 #native-browser .native-ai-footer [data-do=stop-ai]{font-weight:600;color:var(--fg)!important}
 #native-browser .native-context [data-do=copy],#native-browser .native-new form button{background:var(--raised)!important;color:var(--fg)!important}
+
+#native-browser .native-desktops{display:flex;flex:1;min-width:0;overflow:auto;scrollbar-width:thin;gap:4px}
+#native-browser .native-desktops button{white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis;padding:5px 9px;flex-shrink:0}
+#native-browser .native-cell [data-do=properties]{margin-left:auto}
+#native-browser .native-canvas>.native-layers.is-collapsed{width:56px}
+#native-browser .native-canvas>.native-layers[hidden]{display:none!important}

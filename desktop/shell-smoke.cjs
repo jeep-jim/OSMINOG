@@ -82,6 +82,15 @@ module.exports=async(win,browser)=>{
  const previous=browser.project;
  await run("document.querySelector('#native-browser [data-do=home]').click()");await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),true);
  await run(`openProject(${JSON.stringify(previous)})`);await frame();await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),false);
+ await run("(()=>{document.querySelector('[data-do=new-desktop]').click();document.querySelector('.native-desktop-dialog form').requestSubmit();createObject('text',{name:'Second desktop',text:'Only N2'});})()");await frame();
+ assert.equal(await run("project().desktops.length"),2);
+ assert.equal(await run("desktopObjects().some(o=>o.name==='Shell test')"),false);
+ assert.equal(await run("markdownExport({all:true}).includes('Рабочий стол нового браузера')&&markdownExport({all:true}).includes('Only N2')"),true);
+ await run("OSMINOGNativeBrowser.switchDesktop('main')");await frame();
+ assert.equal(await run("desktopObjects().some(o=>o.name==='Shell test')"),true);
+ assert.equal(await run("desktopObjects().some(o=>o.name==='Second desktop')"),false);
+ assert.equal(await run("!!document.querySelector('.native-ai-footer [data-do=stop-ai]')"),true);
+ console.log('DESKTOP_TABS_AND_FULL_CONTEXT_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
