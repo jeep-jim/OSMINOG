@@ -1,4 +1,5 @@
 'use strict';
+require('./build-icons.cjs');
 const fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'..'),out=path.join(__dirname,'board');
 const background=fs.readFileSync(path.join(root,'background.js'),'utf8'),start=background.indexOf('function bcMachineInstructions('),end=background.indexOf('function bcThreadKey(');
@@ -12,5 +13,6 @@ for(const file of fs.readdirSync(root,{withFileTypes:true})){
 fs.copyFileSync(path.join(__dirname,'adapter.js'),path.join(out,'desktop-adapter.js'));
 for(const name of ['browser-ui.js','browser-ui.css','update-ui.js','control-ui.js','files-ui.js'])fs.copyFileSync(path.join(__dirname,name),path.join(out,name));
 const file=path.join(out,'editor.html');let html=fs.readFileSync(file,'utf8');html=html.replace('<head>','<head><script src="desktop-adapter.js"></script><link rel="stylesheet" href="browser-ui.css">');html=html.replace('<script src="osminog-storage-onboarding.js"></script>','');html=html.replace('</body>','<script src="update-ui.js"></script><script src="browser-ui.js"></script><script src="control-ui.js"></script><script src="files-ui.js"></script></body>');html=html.replace('<title>OSMINOG — Visual workspace</title>','<title>OSMINOG — браузер</title>');fs.writeFileSync(file,html);
+
 
 

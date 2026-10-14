@@ -44,16 +44,21 @@
       "control.cjs",
       "control-smoke.cjs",
       "file-save.cjs",
-      "files-smoke.cjs"
+      "files-smoke.cjs",
+      "icons/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "icons/osminog-eye.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "icons/osminog-eye.ico",
+      "uninstallerIcon": "icons/osminog-eye.ico",
+      "installerHeaderIcon": "icons/osminog-eye.ico"
     },
     "artifactName": "OSMINOG-Preview-${version}-${arch}.${ext}",
     "publish": [

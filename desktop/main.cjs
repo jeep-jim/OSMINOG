@@ -1,11 +1,12 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,shell,session}=require('electron');
+const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu}=require('electron');
 const path=require('node:path'),{pathToFileURL}=require('node:url'),{Store}=require('./storage.cjs');
 app.setName('OSMINOG Preview');
+if(process.platform==='win32')app.setAppUserModelId('com.osminog.desktop.preview');
 const ownsProfile=app.requestSingleInstanceLock();
 if(!ownsProfile)app.quit();
 app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus()}});
-let win,browser,updates;
+let win,browser,updates,tray;
 const {autoUpdater}=require('electron-updater');
 const entry=pathToFileURL(path.join(__dirname,'board/editor.html')).href;
 function trusted(event){if(!require('./trust.cjs').trustedFrame(event,win,entry)){const frame=event.senderFrame,main=win&&!win.isDestroyed()?win.webContents.mainFrame:null;const reason=!main?'window-closed':!frame||frame.detached?'frame-detached':frame.processId!==main.processId||frame.routingId!==main.routingId?'different-frame':'different-document';throw Error('Untrusted frame: '+reason);}}
@@ -16,7 +17,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('external:open',(e,url)=>{trusted(e);return external(url)});
  ipcMain.handle('file:save',(e,args)=>{trusted(e);return require('./file-save.cjs').saveFile(win,args)});
  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
- win=new BrowserWindow({width:1440,height:960,minWidth:800,minHeight:600,show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
+ win=new BrowserWindow({icon:path.join(__dirname,'icons/osminog-eye.png'),width:1440,height:960,minWidth:800,minHeight:600,show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
+ if(!process.argv.some(a=>a.includes('smoke'))){tray=new Tray(path.join(__dirname,'icons/osminog-eye.png'));tray.setToolTip('OSMINOG');const show=()=>{if(!win.isDestroyed()){win.show();if(win.isMinimized())win.restore();win.focus()}};tray.on('click',show);tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Осьминог',click:show},{type:'separator'},{label:'Выйти',click:()=>app.quit()}]));}
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(!require('./trust.cjs').sameDocument(url,entry))e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
@@ -71,6 +73,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  }
 });
 app.on('window-all-closed',()=>app.quit());
+
 
 
 
