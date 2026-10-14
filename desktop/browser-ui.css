@@ -120,3 +120,5 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser .native-control .native-task-consent input{flex:none;min-height:20px}
 
 .native-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:3px}.native-grid{height:100%;flex:none}.native-cell>header[draggable=true]{cursor:grab}.native-pane-context[aria-pressed=true]{color:var(--accent)!important;background:var(--raised)!important}.native-preview{display:block;width:100%;height:100px;object-fit:cover;border-radius:10px}.native-tabs.show-thumbnails .native-tab{display:flex;flex-wrap:wrap}.native-tabs.show-thumbnails .native-tab>button:first-child{flex:1}.native-tabs.show-thumbnails .native-tab-label{display:block}.native-pane-context svg,.native-cell>header button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6}
+
+.native-ai-footer [data-do=connect-context]{display:none!important}
