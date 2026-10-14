@@ -112,7 +112,7 @@ await page.waitForFunction(n=>objects().length>n,before);
  assert.equal(await page.locator('.native-properties').evaluate(e=>!!e.closest('.native-cell')),false);
  await page.locator('[data-panel-native=canvas]').click();
  const scrollable=page.locator('#inspectorBody');
- await page.setViewportSize({width:1600,height:650});
+ await page.setViewportSize({width:1600,height:650});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
  assert.ok(await scrollable.evaluate(e=>e.scrollHeight>e.clientHeight+20));
  const sr=await scrollable.boundingBox();await page.mouse.move(sr.x+sr.width/2,sr.y+sr.height/2);await page.mouse.wheel(0,550);await page.waitForFunction(()=>document.querySelector('#inspectorBody').scrollTop>30);
  await page.locator('[data-panel-native=history]').click();assert.equal(await page.locator('.native-properties #activityPanel').isVisible(),true);
@@ -139,6 +139,11 @@ await page.waitForFunction(n=>objects().length>n,before);
  await tile.locator('.native-tile-resize-x').dblclick();await page.setViewportSize({width:1400,height:850});await page.waitForFunction(()=>Math.abs(document.querySelector('.native-tile').getBoundingClientRect().width-document.querySelector('.native-grid').clientWidth)<2);
  assert.ok(Math.abs((await tile.boundingBox()).width-(await page.locator('.native-grid').boundingBox()).width)<2);
  await page.screenshot({path:'shell-adaptive-036.png'});
+ // A right-column tile snaps at the visible edge without dragging beyond the window.
+ await page.evaluate(()=>OSMINOGNativeBrowser.split(4));
+ const rightTile=page.locator('.native-tile').nth(1),edge=await rightTile.locator('.native-tile-resize-x').boundingBox(),edgeArea=await page.locator('.native-scroll').boundingBox();
+ await page.mouse.move(edge.x+1,edge.y+30);await page.mouse.down();await page.mouse.move(edgeArea.x+edgeArea.width+4,edge.y+30,{steps:5});await page.mouse.up();
+ assert.ok(Math.abs((await rightTile.boundingBox()).width-(await page.locator('.native-grid').boundingBox()).width)<2);
  // A newly opened tool stays outside the desktop after it moves to another tile.
  await page.evaluate(()=>OSMINOGNativeBrowser.split(2));await page.locator('[data-tool-native=shape]').click();await page.screenshot({path:'shell-dock-036.png'});assert.ok((await page.locator('#viewport').boundingBox()).width>250);
  const relevant=errors.filter(e=>!/fabric|PDFLib|fontkit/.test(e));assert.deepEqual(relevant,[]);console.log('SHELL_UI_PASS');
