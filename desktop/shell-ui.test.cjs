@@ -56,6 +56,55 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.ok(await page.locator('.native-resize-y').count()>1);
  await page.locator('.native-resize-y').nth(1).focus();await page.keyboard.press('ArrowDown');
  await page.screenshot({path:'shell-tiles-fixed.png'});
+ // 0.3.5: empty cells stay removed; the final empty state can be cleared too.
+ await page.evaluate(()=>OSMINOGNativeBrowser.split(4));
+ await page.evaluate(async()=>{for(const t of [...OSMINOGNativeBrowser.state().data.tabs])await OSMINOGNative.browser('close',{id:t.id})});
+ const emptyCount=await page.locator('.native-empty-close').count();assert.ok(emptyCount>0);
+ for(let i=0;i<emptyCount;i++)await page.locator('.native-empty-close').first().click();
+ assert.equal(await page.locator('.native-cell').count(),1);
+ await page.evaluate(()=>OSMINOGNativeBrowser.open());assert.equal(await page.locator('.native-empty-close').count(),0);
+ await page.locator('.native-pane-full').click();
+ assert.ok((await page.locator('#viewport').boundingBox()).height>600,'Expanded canvas must have a real height');
+ assert.equal(await page.locator('.native-tabs [data-tab-id="@canvas"] .native-logo').count(),0);
+ // Check tools by actual mouse input, not just API-created objects.
+ for(const tool of ['text','note','node','shape','pen']){
+  await page.locator(`[data-tool-native="${tool}"]`).click();
+  assert.equal(await page.evaluate(()=>state.tool),tool);
+  await page.evaluate(i=>{state.view={x:-20000-i*3000,y:-20000,scale:1};applyView()},['text','note','node','shape','pen'].indexOf(tool));
+  const view=await page.locator('#viewport').boundingBox(),before=await page.evaluate(()=>objects().length);
+  const x=view.x+view.width/2,y=view.y+view.height/2;
+  await page.mouse.move(x,y);await page.mouse.down();
+  if(tool==='shape'||tool==='pen')await page.mouse.move(x+85,y+65,{steps:8});
+  await page.mouse.up();
+await page.waitForFunction(n=>objects().length>n,before);
+  assert.equal(await page.evaluate(()=>objects().at(-1).type),tool==='pen'?'ink':tool);if(tool==='text')await page.keyboard.type('Text input works');
+  const canvas=await page.locator('.native-canvas').boundingBox(),panel=await page.locator('.native-properties').boundingBox();
+  assert.ok(panel.x>=canvas.x+canvas.width-1&&Math.abs(panel.y-canvas.y)<2,'Properties must be adjacent to the canvas');
+ }
+ await page.locator('[data-tool-native="hand"]').click();const panBefore=await page.evaluate(()=>({...state.view}));
+ let v=await page.locator('#viewport').boundingBox();await page.mouse.move(v.x+40,v.y+70);await page.mouse.down();await page.mouse.move(v.x+100,v.y+115,{steps:5});await page.mouse.up();assert.ok((await page.evaluate(()=>state.view.x))>panBefore.x+30);
+ await page.locator('[data-tool-native="select"]').click();assert.equal(await page.evaluate(()=>state.tool),'select');
+ // Image tool uses the real local file input and creates a local image object.
+ await page.locator('[data-tool-native="image"]').click();const beforeImage=await page.evaluate(()=>objects().length);
+ await page.locator('#fileInput').setInputFiles({name:'fixture.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=','base64')});
+ await page.waitForFunction(n=>objects().length>n,beforeImage);assert.equal(await page.evaluate(()=>objects().at(-1).type),'image');
+ // Properties follow the canvas even when a webpage is placed to its left.
+ await page.keyboard.press('Escape');await page.evaluate(()=>OSMINOGNativeBrowser.split(2));await page.evaluate(()=>OSMINOGNativeBrowser.open('https://example.com/tool-neighbor'));
+ await page.locator('.native-cell[data-pane-id="@canvas"] > header').dragTo(page.locator('.native-cell').nth(1));
+ await page.locator('[data-tool-native="shape"]').click();
+ const localDock=await page.locator('.native-properties').evaluate(e=>e.closest('.native-cell').dataset.paneId);assert.equal(localDock,'@canvas');
+ const dockRect=await page.locator('.native-properties').boundingBox(),canvasRect=await page.locator('.native-canvas').boundingBox();assert.ok(Math.abs(dockRect.x-canvasRect.x-canvasRect.width)<2);
+ // Home hides every canvas drawing layer, and opening the project preserves its data.
+ const savedProject=await page.evaluate(()=>project().id),savedCount=await page.evaluate(()=>objects().length);
+ await page.locator('.native-top [data-do=home]').click();await page.waitForFunction(()=>document.querySelector('#native-browser').hidden);
+ for(const selector of ['#viewport','#objects','#connections','#ink'])assert.equal(await page.locator(selector).isVisible(),false);
+ await page.screenshot({path:'shell-home-035.png'});
+ await page.evaluate(id=>openProject(id),savedProject);await page.waitForFunction(()=>OSMINOGNativeBrowser.state().visible);
+ assert.equal(await page.evaluate(()=>objects().length),savedCount);
+ // Top action row, labelled layouts, and a persistent eye mascot replace the download arrow.
+ await page.locator('[data-do=layouts]').click();assert.equal(await page.locator('.native-layout-options strong').count(),4);await page.screenshot({path:'shell-layouts-035.png'});await page.locator('.native-layout-menu [data-do=dismiss]').click();
+ await page.locator('[data-do=updates]').click();const updateButton=await page.locator('[data-do=update-run]').boundingBox(),notes=await page.locator('.native-release').boundingBox();assert.ok(updateButton.y<notes.y);assert.equal(await page.locator('.native-update-symbol .native-logo').count(),1);await page.screenshot({path:'shell-updates-035.png'});await page.locator('.native-update [data-do=dismiss]').first().click();
+ await page.locator('.native-cell[data-pane-id="@canvas"] .native-pane-full').click();await page.evaluate(()=>fitToContent());await page.locator('#canvasBoardColor').fill('#aabbcc');assert.equal(await page.locator('#viewport').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(170, 187, 204)');await page.screenshot({path:'shell-canvas-035.png'});
  const relevant=errors.filter(e=>!/fabric|PDFLib|fontkit/.test(e));assert.deepEqual(relevant,[]);console.log('SHELL_UI_PASS');
  }finally{await browser.close();server.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
