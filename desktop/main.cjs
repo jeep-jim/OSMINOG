@@ -63,9 +63,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  }
  const direct=new (require('./direct-chat.cjs').DirectChat)(browser,providers,control,captureWorkspace);
  browser.direct=direct;
- ipcMain.handle('page:context',(e,args)=>direct.begin(pageSender(e),args?.prompt));
- ipcMain.handle('page:sent',(e,args)=>direct.start(pageSender(e),args?.turn));
- ipcMain.on('page:aborted',(e,args)=>{try{const tab=pageSender(e);if(direct.turn?.source===tab.id&&direct.turn?.id===args?.turn)direct.stop()}catch{}});
+ // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.
  ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){direct.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  await win.loadURL(entry);

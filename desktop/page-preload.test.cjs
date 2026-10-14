@@ -1,24 +1,13 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
-function fixture(){
- const handlers={},ipc={},sent=[],files=[],notified=[];let attachmentName="";let resolveContext,invokeCount=0;
- class TextArea{get value(){return this.text||''}set value(v){this.text=v}focus(){}dispatchEvent(){}contains(target){return target===this}getBoundingClientRect(){return{width:300,height:60,bottom:800}}}
- const input=new TextArea();input.isConnected=true;input.value='Проверь вкладки';
- const send={getBoundingClientRect:()=>({width:30,height:30}),contains:t=>t===send,click:()=>sent.push(input.value)};
- const upload={disabled:false,accept:'.txt',dispatchEvent(){attachmentName=this.files[0].name;files.push(this.files[0])}};
- const chip={getBoundingClientRect:()=>({width:200,height:30}),getAttribute:()=>attachmentName,childElementCount:0};
- const document={addEventListener:(type,cb)=>handlers[type]=cb,querySelectorAll:selector=>selector.startsWith('input[type=')?[upload]:selector.startsWith('[title]')?[chip]:selector.startsWith('[role=')?[]:selector.startsWith('button')?[send]:[input],getElementById:()=>null,createElement:()=>({style:{},remove(){}}),documentElement:{append(){}}};
- const context={require:()=>({ipcRenderer:{on:(type,cb)=>ipc[type]=cb,send:(...args)=>notified.push(args),invoke:(name,args)=>{if(name==='page:sent'){notified.push([name,args]);return Promise.resolve({started:true})}invokeCount++;return new Promise(r=>resolveContext=r)}}}),process:{isMainFrame:true},document,location:{hostname:'chatgpt.com',href:'https://chatgpt.com/c/test'},HTMLTextAreaElement:TextArea,InputEvent:class{},Event:class{},File:class{constructor(parts,name){this.text=parts.join('');this.name=name}},DataTransfer:class{constructor(){this.files=[];this.items={add:file=>this.files.push(file)}}},KeyboardEvent:class{},Date:{now:(()=>{let t=0;return()=>t+=400})()},setTimeout:(f,ms)=>ms===150?setTimeout(f,0):0,console};
- vm.runInNewContext(fs.readFileSync(require.resolve('./page-preload.cjs'),'utf8'),context);
- function event(trusted=true){return{type:'keydown',key:'Enter',isTrusted:trusted,target:input,preventDefault(){this.prevented=true},stopImmediatePropagation(){}}}
- return{input,context,sent,files,notified,handlers,removeAttachment:()=>attachmentName="",disableUpload:()=>upload.disabled=true,enable:value=>ipc['page:context-enabled']({},value),cancel:()=>ipc['page:cancel'](),fire:e=>handlers.keydown(e),event,resolve:value=>resolveContext(value),calls:()=>invokeCount};
-}
-test('original chat is untouched without opt-in or on script-generated events',async()=>{const f=fixture();await f.fire(f.event());assert.equal(f.calls(),0);f.enable(true);await f.fire(f.event(false));assert.equal(f.calls(),0);assert.equal(f.input.value,'Проверь вкладки')});
-test('fresh context is attached as a file without changing message text',async()=>{const f=fixture();f.enable(true);const first=f.fire(f.event());assert.equal(f.calls(),1);f.resolve('fresh page');await first;assert.equal(f.sent[0],'Проверь вкладки');assert.equal(f.files[0].text,'fresh page');assert.match(f.files[0].name,/^OSMINOG-context-/);f.removeAttachment();const second=f.fire(f.event());f.resolve('new page');await second;assert.equal(f.sent[1],'Проверь вкладки');assert.equal(f.files.at(-1).text,'new page')});
-test('unsupported upload keeps original draft and does not silently send without context',async()=>{const f=fixture();f.enable(true);f.disableUpload();const p=f.fire(f.event());f.resolve('private context');await p;assert.deepEqual(f.sent,[]);assert.equal(f.input.value,'Проверь вкладки')});
-test('a retained context attachment cannot be duplicated by retrying',async()=>{const f=fixture();f.enable(true);const p=f.fire(f.event());f.resolve('first');await p;const p2=f.fire(f.event());f.resolve('second');await p2;assert.equal(f.sent.length,1);assert.equal(f.files.length,2)});
-test('editing while context loads preserves the new draft and never sends it',async()=>{const f=fixture();f.enable(true);const pending=f.fire(f.event());f.input.value='Changed by user';f.resolve('private context');await pending;assert.equal(f.input.value,'Changed by user');assert.deepEqual(f.sent,[])});
-test('Stop or disconnect during context fetch prevents late submission',async()=>{for(const stop of [f=>f.cancel(),f=>f.enable(false)]){const f=fixture();f.enable(true);const pending=f.fire(f.event());stop(f);f.resolve('context');await pending;assert.deepEqual(f.sent,[]);assert.equal(f.input.value,'Проверь вкладки')}});
-
-test('one trusted send hands the same turn to the action loop without a second click',async()=>{const f=fixture();f.enable(true);const p=f.fire(f.event());f.resolve({turn:'turn-one',text:'context',images:[]});await p;assert.equal(f.sent.length,1);assert.deepEqual(f.notified.map(x=>[x[0],x[1].turn]),[['page:sent','turn-one']]);assert.equal(f.handlers.submit,undefined)});
-test('changed draft aborts its prepared action turn',async()=>{const f=fixture();f.enable(true);const p=f.fire(f.event());f.input.value='new';f.resolve({turn:'cancelled',text:'context',images:[]});await p;assert.equal(f.sent.length,0);assert.equal(f.notified[0][0],'page:aborted')});
+test('original chat send is never intercepted, even by legacy context-enable messages',()=>{
+ const listeners=[],ipc=[];
+ vm.runInNewContext(fs.readFileSync(require.resolve('./page-preload.cjs'),'utf8'),{
+  require:()=>({ipcRenderer:{on:(...args)=>ipc.push(args),send(){throw Error('Unexpected IPC')},invoke(){throw Error('Unexpected context request')}}}),
+  process:{isMainFrame:true},document:{addEventListener:(type)=>listeners.push(type),querySelectorAll(){throw Error('Must not read or rewrite composer')}}
+ });
+ assert.deepEqual(listeners,['dragstart']);assert.deepEqual(ipc,[]);
+});
+test('subframes do not install handlers',()=>{
+ vm.runInNewContext(fs.readFileSync(require.resolve('./page-preload.cjs'),'utf8'),{require:()=>({ipcRenderer:{}}),process:{isMainFrame:false},document:{addEventListener(){throw Error('Subframe handler')}}});
+});

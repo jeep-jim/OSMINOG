@@ -13,6 +13,7 @@ module.exports=async function smoke(win,browser,liveProvider){
    assert.equal(await tab.view.webContents.executeJavaScript('typeof OSMINOGNative'),'undefined');
    const probe=await provider.probe(name);assert(probe.ok,JSON.stringify(probe));
    const r=await provider.runtime({type:'BC_PROVIDER_SEND',payload:{provider:name,text:'Test native round trip',context:{project:{id:project},chat:{threadId:'main'}}}},project);
+   assert.equal(await tab.view.webContents.executeJavaScript("document.querySelector('#messages p').textContent"),'Test native round trip');
    assert(r.ok);assert.equal(r.payload.text,'Verified native reply: /'+name);assert.equal(await tab.view.webContents.executeJavaScript('window.sent'),1);
    await tab.view.webContents.executeJavaScript("document.querySelector('textarea').value='unsent draft'");
    await assert.rejects(provider.runtime({type:'BC_PROVIDER_SEND',payload:{provider:name,text:'Must not replace draft',context:{project:{id:project},chat:{threadId:'main'}}}},project),/набран текст/);
@@ -35,6 +36,7 @@ module.exports=async function smoke(win,browser,liveProvider){
   while(Date.now()<deadline){displayed=await win.webContents.executeJavaScript("document.querySelector('#native-browser #gptPresenceMessages')?.innerText.includes('Verified native reply: /chatgpt')||false");if(displayed)break;await new Promise(r=>setTimeout(r,250))}
   assert(displayed,'Reply did not reach the internal chat form');
   assert.equal(await gpt.view.webContents.executeJavaScript('window.sent'),2);
+  assert.equal(await gpt.view.webContents.executeJavaScript("document.querySelector('#messages p:last-of-type').textContent"),'Привет');
   console.log('PROVIDER_FORM_SMOKE_PASS');
   console.log('PROVIDER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
