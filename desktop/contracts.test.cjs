@@ -2,3 +2,11 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 test('durable serialized writes, defaults, deletion and readable backup',async()=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'osminog-'));try{const s=new Store(dir);await Promise.all([s.set({a:1}),s.set({b:2})]);assert.deepEqual(await new Store(dir).get(null),{a:1,b:2});await s.remove('a');assert.deepEqual(await s.get({a:3,b:0}),{a:3,b:2});assert.deepEqual(JSON.parse(await fs.readFile(path.join(dir,'workspace.json.bak'),'utf8')),{a:1,b:2})}finally{await fs.rm(dir,{recursive:true,force:true})}});
 test('corruption never silently resets a workspace',async()=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'osminog-'));try{await fs.writeFile(path.join(dir,'workspace.json'),'broken');const s=new Store(dir);await assert.rejects(s.set({a:1}));assert.equal(await fs.readFile(path.join(dir,'workspace.json'),'utf8'),'broken')}finally{await fs.rm(dir,{recursive:true,force:true})}});
 
+test('Windows identity repairs only shortcuts targeting this executable',async()=>{
+ require('./build-icons.cjs');const {installIdentity,applyTaskbar,APP_ID}=require('./windows-identity.cjs');const dir=await fs.mkdtemp(path.join(os.tmpdir(),'osminog-identity-'));
+ try{const folders={userData:path.join(dir,'profile'),desktop:path.join(dir,'desktop'),appData:path.join(dir,'roaming')};for(const p of Object.values(folders))await fs.mkdir(p,{recursive:true});const own=path.join(folders.desktop,'OSMINOG.lnk'),other=path.join(folders.desktop,'Other.lnk');await fs.writeFile(own,'fixture');await fs.writeFile(other,'fixture');const exe=path.join(dir,'OSMINOG.exe'),writes=[];let details;
+  const icon=installIdentity({platform:'win32',executable:exe,app:{getPath:k=>folders[k],setAppUserModelId:id=>assert.equal(id,APP_ID)},shell:{readShortcutLink:f=>({target:f===own?exe:path.join(dir,'Other.exe')}),writeShortcutLink:(...args)=>writes.push(args)}});
+  applyTaskbar({setAppDetails:d=>details=d,setIcon:i=>assert.equal(i,icon)},icon,exe);
+  assert.equal(writes.length,1);assert.equal(writes[0][0],own);assert.equal(writes[0][1],'update');assert.equal(writes[0][2].appUserModelId,APP_ID);assert.equal(details.appIconPath,icon);assert.equal(details.relaunchCommand,`"${exe}"`);assert.ok((await fs.stat(icon)).size>1000);
+ }finally{await fs.rm(dir,{recursive:true,force:true})}
+});
