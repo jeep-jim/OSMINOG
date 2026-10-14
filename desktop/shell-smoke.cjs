@@ -44,7 +44,7 @@ module.exports=async(win,browser)=>{
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
  assert.equal(await run("document.querySelector('.native-update').hidden"),false);
- assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.4')"),true);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.5')"),true);
  assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
  await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
@@ -121,6 +121,24 @@ module.exports=async(win,browser)=>{
  await run("document.querySelector('.native-tabs [data-tab-id=\"@canvas\"] > button').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas #viewport').length"),1);
  assert(await run("markdownExport({all:true}).includes('Рабочий стол нового браузера')"));
  console.log('TILE_RESIZE_CLOSE_COLLAPSE_PASS');
+ // Expanded canvas must render actual content, and its inspector follows the canvas tile.
+ await run("OSMINOGNativeBrowser.canvas()");await frame();
+ assert((await run("document.querySelector('#viewport').getBoundingClientRect().height"))>400);
+ await run("fitToContent()");await frame();
+ assert(await run("(()=>{const r=document.querySelector('#viewport').getBoundingClientRect();return [...document.querySelectorAll('#objects .canvas-object')].some(e=>{const b=e.getBoundingClientRect();return b.width>1&&b.height>1&&b.right>r.left&&b.left<r.right&&b.bottom>r.top&&b.top<r.bottom})})()"));
+ await run("document.querySelector('[data-tool-native=shape]').click()");await frame();
+ assert.equal(await run("document.querySelector('.native-properties').closest('.native-cell').dataset.paneId"),'@canvas');
+ assert(await run("(()=>{const a=document.querySelector('.native-canvas').getBoundingClientRect(),b=document.querySelector('.native-properties').getBoundingClientRect();return Math.abs(a.right-b.left)<2&&Math.abs(a.top-b.top)<2})()"));
+ await run("document.querySelector('[data-tool-native=select]').click()");await frame();
+ await run("OSMINOGNativeBrowser.split(4)");await frame();
+ const beforeEmpty=await run("document.querySelectorAll('.native-empty-close').length");
+ if(beforeEmpty){await run("document.querySelector('.native-empty-close').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-empty-close').length"),beforeEmpty-1)}
+ await run("document.querySelector('[data-do=layouts]').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-layout-options strong').length"),4);
+ await run("document.querySelector('.native-layout-menu [data-do=dismiss]').click()");await frame();
+ const homeProject=browser.project;await run("document.querySelector('.native-top [data-do=home]').click()");await frame();
+ assert(await run("['viewport','world','objects','connections','ink'].every(id=>document.getElementById(id).getClientRects().length===0)"));
+ await run(`openProject(${JSON.stringify(homeProject)})`);await frame();await frame();
+ console.log('CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
