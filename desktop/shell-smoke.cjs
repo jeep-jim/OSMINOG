@@ -73,6 +73,11 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
  assert.equal(browser.panels.length,0);
  const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
+ const hover=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
+ win.webContents.sendInputEvent({type:'mouseMove',...hover});await new Promise(r=>setTimeout(r,300));
+ win.webContents.sendInputEvent({type:'mouseMove',x:4,y:300});await new Promise(r=>setTimeout(r,450));
+ assert.equal(await run("document.querySelector('#deskMore').hidden"),true);
+ await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
  const beforeDocs=await run('objects().length');
  await run("document.querySelector('#deskMore [data-desk=markdown]').click()");await frame();
  assert.equal(await run('objects().length'),beforeDocs+1);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);

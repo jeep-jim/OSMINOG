@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 module.exports=async(win,browser)=>{
  const run=code=>win.webContents.executeJavaScript(code),sleep=ms=>new Promise(r=>setTimeout(r,ms));
- const html=`<html><body><main><div id="history"></div><form onsubmit="return false" style="position:fixed;bottom:0;background:white;width:100%"><input type="file" accept=".txt,.png" multiple><textarea style="width:200px;height:70px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="width:50px;height:35px">Send</button></form></main><script>
+ const html=`<html><head><meta charset="utf-8"></head><body><main><div id="history"></div><form onsubmit="return false" style="position:fixed;bottom:0;background:white;width:100%"><input type="file" accept=".txt,.png" multiple><textarea style="width:200px;height:70px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="width:50px;height:35px">Send</button></form></main><script>
  const form=document.querySelector('form'),upload=document.querySelector('input'),input=document.querySelector('textarea'),button=document.querySelector('button');window.sent=[];
  upload.onchange=()=>{window.contextFile=upload.files[0];for(const f of upload.files){const s=document.createElement('span');s.textContent=f.name;form.append(s)}};
  button.onclick=async()=>{const text=input.value;if(!text)return;const data=JSON.parse(await window.contextFile.text());window.lastContext=data;window.sent.push(text);input.value='';form.querySelectorAll('span').forEach(s=>s.remove());const user=document.createElement('div');user.dataset.messageAuthorRole='user';user.textContent=text;historyEl().append(user);const response=document.createElement('div');response.dataset.messageAuthorRole='assistant';response.style.width='220px';
@@ -13,7 +13,7 @@ module.exports=async(win,browser)=>{
  response.textContent=actions.length?JSON.stringify({protocol:'osminog.direct/v1',requestId:data.requestId,summary:'Проверка прямого действия',actions}):'Готово. Результат выполнения проверен '+window.sent.length;historyEl().append(response);
  };function historyEl(){return document.querySelector('#history')}
  </script></body></html>`;
- await browser.session.protocol.handle('https',request=>new Response(new URL(request.url).hostname==='example.com'?'<html><body><input aria-label="Город" style="width:200px;height:40px"></body></html>':html,{headers:{'Content-Type':'text/html'}}));
+ await browser.session.protocol.handle('https',request=>new Response(new URL(request.url).hostname==='example.com'?'<html><body><input aria-label="Город" style="width:200px;height:40px"></body></html>':html,{headers:{'Content-Type':'text/html; charset=utf-8'}}));
  try{
   const target=[...browser.tabs.values()].find(t=>t.view.webContents.getURL()==='https://example.com/');await target.view.webContents.reload();
   for(let i=0;i<100&&target.loading;i++)await sleep(30);

@@ -42,8 +42,7 @@ if(process.isMainFrame){
   const input=composer();if(!input)return;const b=sendButton();
   const enter=event.type==='keydown'&&event.key==='Enter'&&!event.shiftKey&&input.contains(event.target);
   const click=event.type==='click'&&b?.contains(event.target);
-  const submit=event.type==='submit'&&event.target.contains(input);
-  if(!enter&&!click&&!submit)return;
+  if(!enter&&!click)return;
   event.preventDefault();event.stopImmediatePropagation();if(pending)return;
   const original=draft(input);if(!original.trim())return;
   const href=location.href,turn=epoch;let activeTurn;pending=true;
@@ -57,5 +56,5 @@ if(process.isMainFrame){
    if(activeTurn)await ipcRenderer.invoke('page:sent',{turn:activeTurn});
   }catch(e){if(activeTurn)ipcRenderer.send('page:aborted',{turn:activeTurn});notice('OSMINOG: '+e.message)}finally{pending=false}
  }
- for(const type of ['keydown','click','submit'])document.addEventListener(type,beforeSend,true);
+ for(const type of ['keydown','click'])document.addEventListener(type,beforeSend,true);
 }
