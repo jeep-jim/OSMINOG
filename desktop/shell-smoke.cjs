@@ -104,6 +104,23 @@ module.exports=async(win,browser)=>{
  await run("(()=>{document.querySelector('.native-scroll').scrollTop=0;const cells=[...document.querySelectorAll('.native-cell')];const from=cells.find(c=>c.dataset.paneId==='@canvas');const target=cells.find(c=>c!==from);globalThis.expectedCanvasSlot=Number(target.dataset.dropIndex);const dt=new DataTransfer();from.querySelector('header').dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()");await frame();
  assert(await run("OSMINOGNativeBrowser.state().slots[expectedCanvasSlot]==='@canvas'"));
  console.log('SCROLLING_TILES_AND_CANVAS_DRAG_PASS');
+ // Regressions from 0.3.3: native pages track resized rows, and both close controls destroy them.
+ const width=await run("document.querySelector('.native-cell').getBoundingClientRect().width");
+ await run("document.querySelector('.native-resize-x').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");await frame();
+ assert((await run("document.querySelector('.native-cell').getBoundingClientRect().width"))>width);
+ const height=await run("document.querySelector('.native-cell').getBoundingClientRect().height");
+ await run("document.querySelector('.native-resize-y').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
+ assert((await run("document.querySelector('.native-cell').getBoundingClientRect().height"))>height);
+ const closed=await run("(()=>{const c=document.querySelector('.native-cell:has(.native-pane-close)'),id=c.dataset.paneId;c.querySelector('.native-pane-close').click();return id})()");await frame();
+ assert(!browser.state().tabs.some(t=>t.id===closed));assert.equal(await run(`document.querySelectorAll('[data-tab-id="${closed}"]').length`),0);
+ const closedRail=await run("(()=>{const c=document.querySelector('.native-tabs .native-tab:has(.native-tab-close)'),id=c.dataset.tabId;c.querySelector('.native-tab-close').click();return id})()");await frame();
+ assert(!browser.state().tabs.some(t=>t.id===closedRail));assert.equal(await run(`document.querySelectorAll('[data-pane-id="${closedRail}"]').length`),0);
+ await run("document.querySelector('.native-canvas-collapse').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas').length"),0);
+ await new Promise(r=>setTimeout(r,250));assert.equal((await browser.store.get('browserShell')).browserShell[browser.project].canvasHidden,true);
+ await run("OSMINOGNativeBrowser.open()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas').length"),0);
+ await run("document.querySelector('.native-tabs [data-tab-id=\"@canvas\"] > button').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas #viewport').length"),1);
+ assert(await run("markdownExport({all:true}).includes('Рабочий стол нового браузера')"));
+ console.log('TILE_RESIZE_CLOSE_COLLAPSE_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
