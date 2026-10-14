@@ -36,6 +36,7 @@ module.exports=async function smoke(win,browser,liveProvider){
   while(Date.now()<deadline){displayed=await win.webContents.executeJavaScript("document.querySelector('#native-browser #gptPresenceMessages')?.innerText.includes('Verified native reply: /chatgpt')||false");if(displayed)break;await new Promise(r=>setTimeout(r,250))}
   assert(displayed,'Reply did not reach the internal chat form');
   assert.equal(await gpt.view.webContents.executeJavaScript('window.sent'),2);
+  assert.equal(await gpt.view.webContents.executeJavaScript("document.querySelector('#messages p:last-of-type').textContent"),'Привет');
   console.log('PROVIDER_FORM_SMOKE_PASS');
   console.log('PROVIDER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
