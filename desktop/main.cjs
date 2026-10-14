@@ -67,8 +67,19 @@ if(ownsProfile)app.whenReady().then(async()=>{
  }
  const direct=new (require('./direct-chat.cjs').DirectChat)(browser,providers,control,captureWorkspace);
  browser.direct=direct;
+ const originalActions=new (require('./original-actions.cjs').OriginalActions)(browser,providers,{
+  status:text=>{if(!win.isDestroyed())win.webContents.send('browser:task-status',text)},
+  confirm:async proposal=>{
+   const targets=proposal.targets.slice(0,8);
+   const response=await dialog.showMessageBox(win,{type:'question',title:'OSMINOG — выполнить команды чата',message:proposal.summary.slice(0,400),detail:'Выберите вкладку и подтвердите эти действия. Координаты получены из ответа чата; проверьте, что они относятся к нужной странице.\n\n'+proposal.actions.map((a,i)=>`${i+1}. ${JSON.stringify(a).slice(0,200)}`).join('\n')+'\n\n'+targets.map((t,i)=>`${i+1}. ${t.title} — ${t.url}`).join('\n'),buttons:['Отмена',...targets.map(t=>'Выполнить: '+String(t.title||t.url).slice(0,65))],defaultId:0,cancelId:0,noLink:true});
+   return response.response>0?{id:targets[response.response-1].id}:null;
+  }
+ });
+ browser.originalActions=originalActions;
+ ipcMain.on('page:user-send',(e,payload)=>{try{const tab=pageSender(e),text=String(payload?.text||'').slice(0,12000);void originalActions.observe(tab,text)}catch{}});
+
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.
- ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
+ ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
  win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));

@@ -12,10 +12,10 @@ class AgentTools{
 
    const project=this.browser.project,url=wc.getURL(),navigationEpoch=t.navigationEpoch||0,bounds={width:t.bounds?.width,height:t.bounds?.height};
    const page=await wc.executeJavaScript(readPage);
-   const image=t.visible&&bounds.width>0&&bounds.height>0?await wc.capturePage():null;
+   let image=null,imageError='';if(t.visible&&bounds.width>0&&bounds.height>0){try{image=await wc.capturePage(undefined,{stayAwake:true})}catch(e){imageError=String(e.message||e)}}
    if(this.browser.project!==project||wc.getURL()!==url||(t.navigationEpoch||0)!==navigationEpoch)throw Error('Страница изменилась во время чтения');
    const token=randomUUID();this.snapshots.set(token,{project,target:t.id,url,navigationEpoch,size:bounds,expires:Date.now()+120000});while(this.snapshots.size>64)this.snapshots.delete(this.snapshots.keys().next().value);
-   return{ok:true,id:t.id,snapshot:token,visible:t.visible,size:bounds,page,...(image&&!image.isEmpty()?{image:{mimeType:'image/png',data:image.resize(bounds).toPNG().toString('base64')}}:{})};
+   return{ok:true,id:t.id,snapshot:token,visible:t.visible,size:bounds,page,...(imageError?{imageError}:{}),...(image&&!image.isEmpty()?{image:{mimeType:'image/png',data:image.resize(bounds).toPNG().toString('base64')}}:{})};
   }
   if(name!=='browser_act')throw Error('Неизвестный инструмент вкладки');
   const snapshot=this.snapshots.get(args.snapshot);this.snapshots.delete(args.snapshot);
