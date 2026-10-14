@@ -44,7 +44,7 @@ module.exports=async(win,browser)=>{
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
  assert.equal(await run("document.querySelector('.native-update').hidden"),false);
- assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.7')"),true);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.8')"),true);
  assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
  await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
@@ -64,33 +64,7 @@ module.exports=async(win,browser)=>{
  win.setSize(900,650);await frame();await fs.writeFile('shell-smoke-compact.png',(await win.webContents.capturePage()).toPNG());assert.equal(await run("(()=>{const r=document.querySelector('#native-browser').getBoundingClientRect();return [...document.querySelectorAll('.native-scroll,.native-ai')].some(e=>{const b=e.getBoundingClientRect();return b.right>r.right+1||b.bottom>r.bottom+1})})()"),false);
  await browser.save();const saved=(await browser.store.get('browserSessions')).browserSessions;assert.equal(saved[browser.project].length,2);assert.equal(saved[browser.project][1].lane,'side');
  browser.session.protocol.unhandle('https');
- // Test the actual sandboxed preload and IPC on local responses at provider origins.
- // No external account, live AI request or production bypass is involved.
- await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><input type="file" accept=".txt,.png" multiple onchange="window.contextFile=this.files[0];for(const f of this.files){const s=document.createElement('span');s.textContent=f.name;document.querySelector('form').append(s)}"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
- try{
-  await run("OSMINOGNativeBrowser.open('https://chatgpt.com/osminog-local-fixture','side')");await frame();
-  const t=browser.state().tabs.find(t=>t.url==='https://chatgpt.com/osminog-local-fixture'),wc=browser.get(t.id).view.webContents;
-  if(wc.isLoading())await new Promise(r=>wc.once('did-finish-load',r));
-  await browser.command('context-scope',{ids:['@canvas']});await browser.command('context-enable',{id:t.id,enabled:true});await frame();
-  assert.equal(await run(`OSMINOGNativeBrowser.state().side`),t.id);
-  await wc.executeJavaScript(`document.querySelector('textarea').value='Native user prompt';document.querySelector('textarea').focus()`);win.focus();wc.focus();
-  const point=await wc.executeJavaScript("(()=>{const r=document.querySelector('button').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
-  wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
-  let sent='';for(let i=0;i<240&&!sent;i++){await new Promise(r=>setTimeout(r,50));sent=await wc.executeJavaScript('window.sent||""')}
-  if(!sent)console.log('CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({url:location.href,draft:document.querySelector('textarea')?.value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));
-  assert.equal(sent,'Native user prompt');assert.match(await wc.executeJavaScript('window.contextFile.text()'),/Рабочий стол нового браузера/);
-  assert.equal(await wc.executeJavaScript('typeof window.OSMINOGNative'), 'undefined');
-  const snapshot=JSON.parse(await wc.executeJavaScript('window.contextFile.text()'));assert.equal(snapshot.schema,'osminog.browser-context/v1');
-  assert.ok(Array.isArray(snapshot.canvasObjects));
-  if(snapshot.canvasImageAttached)assert.equal(await wc.executeJavaScript("[...document.querySelector('input').files].filter(f=>f.type==='image/png').length"),1);
-  // A file chip in previous conversation history must not block the next message.
-  await wc.executeJavaScript("document.querySelectorAll('form span').forEach(s=>document.querySelector('main').append(s));window.sent='';document.querySelector('textarea').value='Second user prompt';document.querySelector('textarea').focus()");
-  wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
-  for(let i=0;i<240;i++){await new Promise(r=>setTimeout(r,50));if(await wc.executeJavaScript('!!window.sent'))break}
-  if(!await wc.executeJavaScript('window.sent'))console.log('SECOND_CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({draft:document.querySelector('textarea').value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));assert.equal(await wc.executeJavaScript('window.sent'),'Second user prompt');
-  await browser.command('context-enable',{id:t.id,enabled:false});
-  console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
- }finally{browser.session.protocol.unhandle('https')}
+ await require('./direct-smoke.cjs')(win,browser);
 
  // Original submenus remain functional in the header; documents are editable and persisted.
  win.focus();win.webContents.focus();await frame();

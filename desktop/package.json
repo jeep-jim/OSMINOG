@@ -1,6 +1,6 @@
 {
   "name": "osminog-desktop",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "private": true,
   "description": "OSMINOG local browser preview",
   "author": "OSMINOG",
@@ -8,7 +8,7 @@
   "scripts": {
     "prepare:board": "node prepare.cjs",
     "start": "npm run prepare:board && electron .",
-    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs control.test.cjs media.test.cjs",
+    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs",
     "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js"
   },
@@ -48,7 +48,9 @@
       "files-smoke.cjs",
       "icons/**/*",
       "media.cjs",
-      "control-plan.cjs"
+      "control-plan.cjs",
+      "direct-chat.cjs",
+      "direct-smoke.cjs"
     ],
     "win": {
       "target": "nsis",

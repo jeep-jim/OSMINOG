@@ -15,7 +15,7 @@ if(process.isMainFrame){
  function fileInput(){return [...document.querySelectorAll('input[type="file"]')].find(el=>!el.disabled&&(!el.accept||el.accept.split(',').some(v=>['*','*/*','.txt','text/plain','text/*'].includes(v.trim().toLowerCase()))))}
  async function attachContext(context,valid){
   if(lastAttachment&&attachmentVisible(lastAttachment))throw Error('Удалите предыдущее вложение OSMINOG перед повторной отправкой, чтобы не смешивать снимки');
-  const input=fileInput();if(!input)throw Error('Откройте прикрепление файлов в этом чате и повторите отправку. Текст сообщения не изменён');
+  let input=fileInput();if(!input){const attach=[...document.querySelectorAll('button')].find(b=>/^(attach|add files|upload|прикрепить|добавить файлы)/i.test(b.getAttribute('aria-label')||b.title||''));attach?.click();for(let i=0;i<10&&!input;i++){await new Promise(r=>setTimeout(r,150));valid();input=fileInput()}}if(!input)throw Error('Не удалось автоматически прикрепить контекст в этом чате. Черновик сохранён');
   const name='OSMINOG-context-'+Date.now()+'.txt',transfer=new DataTransfer();
   transfer.items.add(new File([typeof context==='string'?context:context.text],name,{type:'text/plain'}));
   const names=[name];
@@ -46,16 +46,16 @@ if(process.isMainFrame){
   if(!enter&&!click&&!submit)return;
   event.preventDefault();event.stopImmediatePropagation();if(pending)return;
   const original=draft(input);if(!original.trim())return;
-  const href=location.href,turn=epoch;pending=true;
+  const href=location.href,turn=epoch;let activeTurn;pending=true;
   try{
-   const context=await ipcRenderer.invoke('page:context');
+   const context=await ipcRenderer.invoke('page:context',{prompt:original});activeTurn=context.turn;
    if(!enabled||turn!==epoch||location.href!==href||!input.isConnected||draft(input)!==original)throw Error('Черновик или диалог изменился; отправка отменена');
    const valid=()=>{if(!enabled||turn!==epoch||location.href!==href||!input.isConnected||draft(input)!==original)throw Error('Черновик или подключение изменились; отправка отменена')};
    await attachContext(context,valid);valid();
    const send=sendButton();if(!send)throw Error('Кнопка отправки не распознана. Вложение оставлено в черновике');
    send.click();
-   notice('Контекст выбранных источников прикреплён отдельным файлом');
-  }catch(e){notice('OSMINOG: '+e.message)}finally{pending=false}
+   if(activeTurn)await ipcRenderer.invoke('page:sent',{turn:activeTurn});
+  }catch(e){if(activeTurn)ipcRenderer.send('page:aborted',{turn:activeTurn});notice('OSMINOG: '+e.message)}finally{pending=false}
  }
  for(const type of ['keydown','click','submit'])document.addEventListener(type,beforeSend,true);
 }

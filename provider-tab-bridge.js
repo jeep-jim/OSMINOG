@@ -9,7 +9,7 @@
   const syncRpc=(type,fields={})=>chrome.runtime.sendMessage({type,bindingId:syncBinding?.id,...fields});
   const isGpt=()=>/^(chatgpt\.com|chat\.openai\.com)$/.test(location.hostname);
   const route=()=>location.origin+location.pathname;
-  const inflight=new Map(),recentPrompts=new Map();
+  const inflight=new Map(),recentPrompts=new Map(),directWatches=new Map();
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const clean=value=>String(value||"").replace(/\u200b/g,"").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
   const norm=value=>clean(value).toLowerCase().replace(/\s+/g," ");
@@ -217,7 +217,7 @@
           const scoreNow=afterBonus+candidate.order*1.8+candidate.bottom/1400+candidate.leaf*4+Math.min(4000,value.length)/120;
           if(scoreNow>score){best=value;score=scoreNow}
         }
-        if(!best&&responseFormat!=="osminog-control")best=rootFreshText(before,prompt,requestId);
+        if(!best&&responseFormat!=="osminog-control"&&responseFormat!=="osminog-direct")best=rootFreshText(before,prompt,requestId);
         if(best){
           if(norm(best)===norm(last)){
             if(!stableAt)stableAt=Date.now();
@@ -236,6 +236,21 @@
     const started=Date.now();while(Date.now()-started<6000){await sleep(220);const signal=imageAttachmentSignal();const named=names.some(name=>{const token=name.toLowerCase();return [...document.querySelectorAll("[aria-label],[title],span,div")].some(el=>vis(el)&&String(el.getAttribute("aria-label")||el.getAttribute("title")||el.textContent||"").toLowerCase().includes(token))});if(signal>before||named)return{ok:true,count:dt.files.length,method}}
     if(provider==="googleai")throw new Error("Google AI не подтвердил прикрепление изображения. Запрос не отправлен без картинки.");return{ok:true,count:dt.files.length,method,unconfirmed:true}}
 
+
+  async function uploadDirectAttachments(items,input){
+    if(!items.length)return;
+    let upload=queryAllDeep('input[type="file"]').find(e=>!e.disabled&&(!e.accept||/text|\.txt|\*/i.test(e.accept)));
+    if(!upload){const button=queryAllDeep('button').find(b=>vis(b)&&/^(attach|add files|upload|прикрепить|добавить файлы)/i.test(b.getAttribute('aria-label')||b.title||''));button?.click();for(let i=0;i<10&&!upload;i++){await sleep(150);upload=queryAllDeep('input[type="file"]').find(e=>!e.disabled&&(!e.accept||/text|\.txt|\*/i.test(e.accept)))}}
+    if(!upload||items.length>1&&!upload.multiple)throw Error('Чат не предоставляет подходящее прикрепление файлов');
+    const dt=new DataTransfer(),names=[];
+    for(const item of items){const f=dataUrlFile(item.dataUrl,item.name,item.type);if(!f)throw Error('Не удалось подготовить контекст');dt.items.add(f);names.push(f.name)}
+    upload.files=dt.files;upload.dispatchEvent(new Event('input',{bubbles:true,composed:true}));upload.dispatchEvent(new Event('change',{bubbles:true,composed:true}));
+    const deadline=Date.now()+15000;let ready=0;
+    while(Date.now()<deadline){await sleep(150);const scope=input.closest('form')||input.parentElement?.parentElement||document;
+      const found=names.every(name=>[...scope.querySelectorAll('[title],[aria-label],span,p,div')].some(el=>vis(el)&&[el.title,el.getAttribute('aria-label'),el.childElementCount===0?el.textContent:''].some(t=>String(t||'').includes(name))));
+      if(found&&sendButton(input)&&!queryAllDeep('[role="progressbar"],[aria-busy="true"]').some(vis)){if(!ready)ready=Date.now();if(Date.now()-ready>=600)return}else ready=0;
+    }throw Error('Чат не подтвердил готовность вложений; продолжение не отправлено');
+  }
 
   function collectRich(answer,prompt,requestId){
     const answerNorm=norm(answer),base=root(),media=[],seenMedia=new Set(),widgets=[];
@@ -268,7 +283,7 @@
     return{media,widgets}
   }
 
-  async function send(text,requestId="",images=[],responseFormat=""){
+  async function send(text,requestId="",images=[],responseFormat="",strictAttachments=false){
     if(isGpt()&&!syncBinding&&!managedAgentSession)throw new Error("Подключи синхронизацию этого чата в OSMINOG");
     if(internalSending||nativePending)throw new Error("Дождись текущего ответа в подключённом диалоге");
     if(syncBinding&&syncBinding.route!==route())throw new Error("Открыт другой диалог. Подключи его отдельно.");
@@ -279,7 +294,7 @@
     const start=syncBinding?await syncRpc('BC_CHAT_SYNC_START',{requestId}):{ok:true};if(!start?.ok)throw Error(start?.error||'Чат занят');
     internalSending=true;document.documentElement.dataset.osminogSyncInternal='1';
     const before=snapshot(),initialRoute=route(),generation=cancelEpoch;
-    try{await uploadImages(images,input);if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
+    try{if(strictAttachments)await uploadDirectAttachments(images,input);else await uploadImages(images,input);if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
     setComposer(input,text);
     await sleep(180);
     const button=sendButton(input);
@@ -348,6 +363,15 @@
     }
     if(message?.type==="BC_PROVIDER_TAB_CANCEL"&&_sender?.id===chrome.runtime.id&&!_sender?.tab){cancelEpoch++;reply({ok:true});return}
     if(message?.type==="BC_PROVIDER_TAB_ATTACH"){if(_sender?.id!==chrome.runtime.id||_sender?.tab||internalSending||nativePending){reply({ok:false,error:'Диалог занят или отправитель не разрешён'});return}uploadImages(Array.isArray(message.images)?message.images:[],composer()).then(reply).catch(e=>reply({ok:false,error:e.message}));return true}
+    if(message?.type==='BC_PROVIDER_DIRECT_PREPARE'){
+      if(_sender?.id!==chrome.runtime.id||_sender?.tab||!managedAgentSession||internalSending||nativePending){reply({ok:false,error:'Чат занят'});return}
+      directWatches.clear();directWatches.set(message.requestId,{before:snapshot(),prompt:String(message.text||''),route:route(),generation:cancelEpoch});reply({ok:true});return;
+    }
+    if(message?.type==='BC_PROVIDER_DIRECT_WAIT'){
+      if(_sender?.id!==chrome.runtime.id||_sender?.tab||!managedAgentSession){reply({ok:false,error:'Источник не разрешён'});return}
+      const w=directWatches.get(message.requestId);directWatches.delete(message.requestId);if(!w){reply({ok:false,error:'Запрос уже обработан'});return}
+      waitAnswer(w.before,w.prompt,'',w.route,'osminog-direct',w.generation).then(answer=>reply({ok:true,answer})).catch(e=>reply({ok:false,error:e.message}));return true;
+    }
     if(message?.type==="BC_PROVIDER_TAB_PROBE"){reply(probe());return}
     if(message?.type!=="BC_PROVIDER_TAB_SEND_V4"&&message?.type!=="BC_PROVIDER_TAB_SEND")return;
 
@@ -355,7 +379,7 @@
     const requestId=String(message.requestId||`tab-${Date.now()}-${Math.random().toString(36).slice(2,7)}`),text=String(message.text||""),key=norm(text);
     const cacheKey=requestId+"\u0000"+text;let task=inflight.get(cacheKey);
     if(!task){
-      task=send(text,requestId,Array.isArray(message.images)?message.images:[],message.responseFormat||"");
+      task=send(text,requestId,Array.isArray(message.images)?message.images:[],message.responseFormat||"",message.strictAttachments===true);
       inflight.set(cacheKey,task);
       recentPrompts.set(key,{at:Date.now(),task});
     }

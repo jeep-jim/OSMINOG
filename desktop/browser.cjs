@@ -53,7 +53,7 @@ class BrowserWorkspace{
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
   wc.on('did-start-loading',()=>{t.loading=true;t.error='';this.emit()});
-  wc.on('did-finish-load',()=>{const origin=new URL(wc.getURL()).origin;if(this.contextScope?.length&&providerFor(wc.getURL()))t.contextOrigin=origin;wc.send('page:context-enabled',!!t.contextOrigin&&t.contextOrigin===origin)});
+  wc.on('did-finish-load',()=>{const origin=new URL(wc.getURL()).origin;if(providerFor(wc.getURL()))t.contextOrigin=origin;wc.send('page:context-enabled',!!t.contextOrigin&&t.contextOrigin===origin)});
   wc.on('did-stop-loading',()=>{t.loading=false;this.emit()});
   wc.on('did-navigate',()=>{t.favicon='';this.emit();this.save()});wc.on('did-navigate-in-page',()=>{this.emit();this.save()});
   wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
@@ -101,7 +101,7 @@ class BrowserWorkspace{
    case 'context':{
     const expected=this.project;
     const all=[...this.tabs.values(),...this.providers.values()].filter(t=>t.project===expected);
-    const selected=args.all?all.filter(t=>t.id!==args.excludeId&&(this.contextScope?this.contextScope.includes(t.id):(args.includeChats===true||(!t.provider&&!providerFor(t.view.webContents.getURL()||t.url))))):[...new Set(Array.isArray(args.ids)?args.ids:[])].map(id=>this.get(id));
+    const selected=args.all?all.filter(t=>t.id!==args.excludeId&&(!args.automatic&&this.contextScope?this.contextScope.includes(t.id):(args.includeChats===true||(!t.provider&&!providerFor(t.view.webContents.getURL()||t.url))))):[...new Set(Array.isArray(args.ids)?args.ids:[])].map(id=>this.get(id));
     let budget=120000;const deadline=Date.now()+10000,result=[];
     for(const t of selected){if(this.project!==expected)throw Error('Проект изменился во время чтения');const url=t.view.webContents.getURL();if(!/^https?:/.test(url)){result.push({id:t.id,url,error:'Страница ещё не загружена'});continue}
      if(budget<=0||Date.now()>=deadline){result.push({id:t.id,url,title:t.title,truncated:true,text:''});continue}
