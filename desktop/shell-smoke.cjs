@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 module.exports=async(win,browser)=>{
- await browser.session.protocol.handle('https',()=>new Response('<html><title>Native shell fixture</title><body><h1>Native page fixture</h1><p>Stable page for layout checks.</p></body></html>',{headers:{'Content-Type':'text/html'}}));
+ await browser.session.protocol.handle('https',()=>new Response('<html><link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="><title>Native shell fixture</title><body><h1>Native page fixture</h1><p>Stable page for layout checks.</p></body></html>',{headers:{'Content-Type':'text/html'}}));
  const run=code=>win.webContents.executeJavaScript(code),frame=()=>run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
  await run('OSMINOGStateReady');await run('(async()=>{createProject();await OSMINOGNativeBrowser.open();const p=viewportCenter();OSMINOGEditorAPI.create("text",{name:"Shell test",text:"Рабочий стол нового браузера",x:p.x-110,y:p.y-45,w:220,h:90,fill:"#96a3bc",fontSize:18})})()');await frame();
  assert.equal(await run("document.querySelectorAll('.native-cell').length"),4);assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
