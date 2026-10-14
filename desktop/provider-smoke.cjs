@@ -13,6 +13,7 @@ module.exports=async function smoke(win,browser,liveProvider){
    assert.equal(await tab.view.webContents.executeJavaScript('typeof OSMINOGNative'),'undefined');
    const probe=await provider.probe(name);assert(probe.ok,JSON.stringify(probe));
    const r=await provider.runtime({type:'BC_PROVIDER_SEND',payload:{provider:name,text:'Test native round trip',context:{project:{id:project},chat:{threadId:'main'}}}},project);
+   assert.equal(await tab.view.webContents.executeJavaScript("document.querySelector('#messages p').textContent"),'Test native round trip');
    assert(r.ok);assert.equal(r.payload.text,'Verified native reply: /'+name);assert.equal(await tab.view.webContents.executeJavaScript('window.sent'),1);
    await tab.view.webContents.executeJavaScript("document.querySelector('textarea').value='unsent draft'");
    await assert.rejects(provider.runtime({type:'BC_PROVIDER_SEND',payload:{provider:name,text:'Must not replace draft',context:{project:{id:project},chat:{threadId:'main'}}}},project),/набран текст/);

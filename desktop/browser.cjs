@@ -53,7 +53,6 @@ class BrowserWorkspace{
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
   wc.on('did-start-loading',()=>{t.loading=true;t.error='';this.emit()});
-  wc.on('did-finish-load',()=>{const origin=new URL(wc.getURL()).origin;if(providerFor(wc.getURL()))t.contextOrigin=origin;wc.send('page:context-enabled',!!t.contextOrigin&&t.contextOrigin===origin)});
   wc.on('did-stop-loading',()=>{t.loading=false;this.emit()});
   wc.on('did-navigate',()=>{t.favicon='';this.emit();this.save()});wc.on('did-navigate-in-page',()=>{this.emit();this.save()});
   wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
@@ -79,7 +78,7 @@ class BrowserWorkspace{
    case 'context-scope':{this.contextScope=[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];return{ids:this.contextScope}}
    case 'move-lane':{const t=this.get(args.id);if(t.provider){const entry=[...this.providers.entries()].find(([,v])=>v===t);this.providers.delete(entry[0]);this.tabs.set(t.id,t);if(this.ai===t)this.ai=null;delete t.provider;delete t.thread}t.lane=args.lane==='side'?'side':'main';this.save();this.emit();return this.state()}
    case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};const img=await t.view.webContents.capturePage();t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
-   case 'context-enable':{const t=this.get(args.id),url=t.view.webContents.getURL();if(args.enabled&&!providerFor(url))throw Error('Автоконтекст пока поддерживает ChatGPT, Claude, Gemini и DeepSeek');t.contextOrigin=args.enabled?new URL(url).origin:'';t.view.webContents.send('page:context-enabled',!!t.contextOrigin);this.emit();return{enabled:!!t.contextOrigin}}
+   case 'context-enable':return{enabled:false,reason:'Original chats send only user content'};
    case 'network-get':return this.network;
    case 'network-check':{
     const provider=Object.hasOwn(PROVIDERS,args.provider)?args.provider:'chatgpt',url=PROVIDERS[provider];

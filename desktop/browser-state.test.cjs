@@ -27,10 +27,10 @@ test('fresh context includes hidden main tabs, isolates projects, and only share
 });
 test('provider tabs navigate in place and normal pages cannot enable the original-chat connector',async()=>{
  const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const ai=b.selectProvider('chatgpt','peer'),wc=ai.view.webContents;wc.send=()=>{};
- await b.command('context-enable',{id:ai.id,enabled:true});assert.equal(ai.contextOrigin,'https://chatgpt.com');
+ await b.command('context-enable',{id:ai.id,enabled:true});assert.equal(ai.contextOrigin,undefined);
  await b.command('navigate',{id:ai.id,url:'https://example.com'});assert.equal(b.get(ai.id).view.webContents,wc);
- await assert.rejects(b.command('context-enable',{id:ai.id,enabled:true}),/поддерживает/);
- await b.command('context-enable',{id:ai.id,enabled:false});assert.equal(ai.contextOrigin,'');
+ assert.equal((await b.command('context-enable',{id:ai.id,enabled:true})).enabled,false);
+ await b.command('context-enable',{id:ai.id,enabled:false});assert.equal(ai.contextOrigin,undefined);
 });
 test('project switch while reading rejects stale context',async()=>{
  const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const t=b.open({url:'https://example.com'});b.get(t.id).view.webContents.executeJavaScript=async()=>{await b.command('project',{id:'other'});return{text:'private old project'}};
