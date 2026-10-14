@@ -212,3 +212,9 @@ html[data-native-desktop] #native-browser :is(#viewport,#layersPanel,#inspector,
 #native-browser .native-pane-options strong,#native-browser .native-pane-options small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #native-browser .native-pane-options small{color:var(--quiet);font-size:12px}
 #native-browser .native-pane-add{flex-shrink:0;text-align:left;border-top:1px solid var(--stroke);padding:10px}
+/* Original tool menus are portalled out of the hidden legacy application. */
+#native-browser #deskMore{position:fixed;z-index:500;max-height:calc(100vh - 90px);overflow:auto;background:var(--surface);color:var(--fg);border:1px solid var(--stroke);border-radius:12px;box-shadow:0 12px 32px #0003}
+#native-browser #deskMore button{color:var(--fg);font-size:var(--ui-font);text-align:left;min-height:36px}
+#native-browser .native-tools{max-width:46vw;overflow-x:auto;scrollbar-width:thin}
+#native-browser .native-create-menu{inset:auto;width:240px;padding:10px;gap:4px;border-radius:12px}
+#native-browser .native-create-menu button{text-align:left;width:100%;padding:9px}

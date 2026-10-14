@@ -57,10 +57,10 @@
  ];
  nav.innerHTML=groups.map(([id,label])=>`<button type="button" data-desk-group="${id}" title="${label}" aria-label="${label}" aria-expanded="false" aria-controls="deskMore">${icons[id]?`<svg viewBox="0 0 24 24" aria-hidden="true">${icons[id]}</svg>`:'<span>•••</span>'}<span class="desk-active-dot" aria-hidden="true"></span></button>`).join('');$('#app').append(nav);
  const more=document.createElement('section');more.id='deskMore';more.hidden=true;more.setAttribute('aria-label','Функции инструмента');$('#app').append(more);
- let expanded=null;
+ let expanded=null,externalAnchor=null;
  function dismissTools(restore=false){const button=nav.querySelector(`[data-desk-group="${expanded}"]`);more.hidden=true;expanded=null;nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-expanded','false'));if(restore)button?.focus()}
- function positionTools(){if(more.hidden)return;const button=nav.querySelector(`[data-desk-group="${expanded}"]`);if(!button)return;const r=button.getBoundingClientRect();more.style.left=Math.max(8,Math.min(innerWidth-more.offsetWidth-8,r.left))+'px';more.style.top=Math.max(8,r.top-more.offsetHeight-10)+'px'}
- function showToolMenu(button,toggle=true){const id=button.dataset.deskGroup;if(expanded===id){if(toggle)dismissTools();return}dismissTools();expanded=id;const group=groups.find(g=>g[0]===id);more.innerHTML=`<strong>${group[1]}</strong><div class="desk-tool-actions">${group[2].map(([action,label])=>`<button type="button" data-desk="${action}">${label}</button>`).join('')}</div>`;button.setAttribute('aria-expanded','true');more.hidden=false;globalThis.OSMINOGCanvasUX?.decorateMenu();positionTools();}
+ function positionTools(){if(more.hidden)return;const button=externalAnchor||nav.querySelector(`[data-desk-group="${expanded}"]`);if(!button)return;const r=button.getBoundingClientRect();more.style.left=Math.max(8,Math.min(innerWidth-more.offsetWidth-8,r.left))+'px';more.style.top=Math.max(8,Math.min(innerHeight-more.offsetHeight-8,externalAnchor?r.bottom+8:r.top-more.offsetHeight-10))+'px'}
+ function showToolMenu(button,toggle=true){const id=button.dataset.deskGroup;if(expanded===id){if(toggle)dismissTools();return}dismissTools();expanded=id;const group=groups.find(g=>g[0]===id);more.innerHTML=`<strong>${group[1]}</strong><div class="desk-tool-actions">${group[2].filter(([action])=>!globalThis.OSMINOGNative||!['graphics','browser-editor','edit-layout','legacy-md'].includes(action)).map(([action,label])=>`<button type="button" data-desk="${action}">${label}</button>`).join('')}</div>`;button.setAttribute('aria-expanded','true');more.hidden=false;globalThis.OSMINOGCanvasUX?.decorateMenu();positionTools();}
  let hoverTimer=0,hoverClose=0;
  const cancelHover=()=>{clearTimeout(hoverTimer);clearTimeout(hoverClose)};
  nav.addEventListener('pointerover',e=>{if(e.pointerType==='touch')return;const b=e.target.closest('[data-desk-group]');if(!b||b.contains(e.relatedTarget))return;cancelHover();hoverTimer=setTimeout(()=>showToolMenu(b,false),180)});
@@ -92,7 +92,7 @@
  const empty=$('#emptyHint');if(empty){empty.innerHTML='<div class="workdeskEmpty"><button id="emptyHintClose" type="button" aria-label="Закрыть приветствие">×</button><h1>Всё для проекта — на одной доске</h1><p>Перетащите файлы, вставьте изображение или добавьте заметку. Подключите внешний ChatGPT, чтобы работать с материалами вместе.</p><button id="workdeskEmptyAdd" type="button">Добавить файлы</button></div>';$('#workdeskEmptyAdd').onclick=()=>$('#fileInput').click();$('#emptyHintClose').onclick=()=>{sessionStorage.setItem('osminogIntroDismissedV1','1');empty.hidden=true}}
  // External access and Посейдон remain in the single existing Доступ menu.
 
- globalThis.OSMINOGWorkdeskMenus={close:dismissTools,position:positionTools};
+ globalThis.OSMINOGWorkdeskMenus={close:dismissTools,position:positionTools,open:(group,anchor)=>{const button=nav.querySelector(`[data-desk-group="${group}"]`);if(!button)return;externalAnchor=anchor||null;showToolMenu(button,false)},run:id=>action({target:{closest:()=>({dataset:{desk:id}})}})};
  split();renderAll(true);
  const uxStyle=document.createElement('link');uxStyle.rel='stylesheet';uxStyle.href='osminog-canvas-ux.css';document.head.append(uxStyle);
  const uxScript=document.createElement('script');uxScript.src='osminog-canvas-ux.js';uxScript.onerror=()=>showToast('Не загрузились инструменты доски. Обновите расширение полностью.');document.body.append(uxScript);

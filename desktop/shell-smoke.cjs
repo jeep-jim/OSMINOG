@@ -83,6 +83,26 @@ module.exports=async(win,browser)=>{
   await browser.command('context-enable',{id:t.id,enabled:false});
   console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
  }finally{browser.session.protocol.unhandle('https')}
+
+ // Original submenus remain functional in the header; documents are editable and persisted.
+ await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
+ assert.equal(await run("document.querySelector('#deskMore').hidden"),false);
+ assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
+ assert.equal(browser.panels.length,0);
+ const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
+ const beforeDocs=await run('objects().length');
+ await run("document.querySelector('#deskMore [data-desk=markdown]').click()");await frame();
+ assert.equal(await run('objects().length'),beforeDocs+1);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
+ await run("document.querySelector('#workdeskText').value='Native Markdown content';document.querySelector('#workdeskText').dispatchEvent(new Event('input',{bubbles:true}));OSMINOGWorkdesk.close()");await frame();
+ assert.equal(await run("objects().some(o=>o.text==='Native Markdown content'&&o.noteFormat==='markdown')"),true);
+ const pointCreate=await run("(()=>{const r=document.querySelector('.native-canvas #viewport').getBoundingClientRect();return{x:Math.round(r.x+20),y:Math.round(r.y+20)}})()");
+ win.webContents.sendInputEvent({type:'mouseDown',...pointCreate,button:'right',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...pointCreate,button:'right',clickCount:1});await new Promise(r=>setTimeout(r,160));await frame();
+ assert.equal(await run("document.querySelector('.native-create-menu').hidden"),false);
+ await run("document.querySelector('[data-native-create=note]').click()");await frame();
+ assert.equal(await run('objects().length'),beforeDocs+2);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
+ await run("OSMINOGWorkdesk.close()");await frame();
+ assert.equal(await run("document.querySelectorAll('.native-tile > .native-tool-rail').length"),0);
+ console.log('HEADER_TOOL_MENUS_AND_RIGHT_CLICK_DOCUMENTS_PASS');
  const previous=browser.project;
  await run("document.querySelector('#native-browser [data-do=home]').click()");await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),true);
  await run(`openProject(${JSON.stringify(previous)})`);await frame();await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),false);
