@@ -13,6 +13,7 @@ module.exports=function extractControlPlan(value){
     start=i;break;
    }
   }
+  if(depth>0)return null;
  }
  return plans.length===1?plans[0]:null;
 };
