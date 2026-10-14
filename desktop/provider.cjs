@@ -27,7 +27,7 @@ class Providers{
   await wc.executeJavaScriptInIsolatedWorld(1001,[{code:`__osminogNativeDispatch(${JSON.stringify({type:'BC_PROVIDER_MANAGED_CONFIG',provider:tab.provider==='chatgpt'?'gpt':tab.provider})})`}]);
   return wc.executeJavaScriptInIsolatedWorld(1001,[{code:`__osminogNativeDispatch(${JSON.stringify(message)})`}]);
  }
- find(provider){return this.browser.ai?.provider===provider&&this.browser.ai.project===this.browser.project?this.browser.ai:[...this.browser.providers.values()].find(t=>t.provider===provider&&t.project===this.browser.project)}
+ find(provider){const ordinary=[...(this.browser.tabs?.values()||[])].find(t=>t.project===this.browser.project&&!t.view.webContents.isDestroyed?.()&&require('./page-context.cjs').providerFor(t.view.webContents.getURL())===provider);if(ordinary)return{...ordinary,provider};return this.browser.ai?.provider===provider&&this.browser.ai.project===this.browser.project?this.browser.ai:[...this.browser.providers.values()].find(t=>t.provider===provider&&t.project===this.browser.project)}
  async probe(provider){const tab=this.find(provider);if(!this.fixtureOrigin){const keys=(await this.browser.store.get('briefCraftProviderKeysV1')).briefCraftProviderKeysV1||{};if(keys[provider])return{ok:true,connected:true,ready:true,mode:'api'};if(provider==='chatgpt'||provider==='deepseek'){const r=await this.transport.probe(provider,tab);if(r)return r}}if(!tab)return{ok:false,connected:false,ready:false,needsAuth:true,error:'Откройте выбранный ИИ в браузере и войдите в аккаунт'};try{const probe=await this.dispatch(tab,{type:'BC_PROVIDER_TAB_PROBE'});return{ok:!!probe.ok,connected:!!probe.ok,ready:!!probe.ok,tabId:tab.id,title:tab.title,probe,linked:{tabId:tab.id,title:tab.title,probe},error:probe.ok?'':'Войдите в ИИ в правой области браузера'}}catch(e){return{ok:false,connected:false,ready:false,needsAuth:true,error:e.message,tabId:tab.id}}}
  async runtime(message,projectId){
   const type=String(message?.type||''),payload=message?.payload||{},provider=normalize(message.provider||payload.provider||'gpt');
@@ -67,7 +67,7 @@ class Providers{
    }
    if(!result){
     // Separate managed conversation, never a tab from browser.tabs or the user's original chat.
-    const tab=this.browser.selectProvider(provider,thread);
+    const tab=this.browser.selectProvider(provider,thread,{background:!!context.execution});
     if(tab.loading)await new Promise((resolve,reject)=>{const wc=tab.view.webContents;const done=()=>{clearTimeout(timer);resolve()};const timer=setTimeout(()=>{wc.removeListener('did-stop-loading',done);reject(Error('Служебный чат не загрузился. Откройте подключение ИИ и войдите в аккаунт.'))},30000);wc.once('did-stop-loading',done)});
     if(epoch!==this.epoch||this.browser.project!==projectId)throw Error('Отправка отменена');
     const text=this.protocol.bcDecoratePrompt(type.endsWith('TOOL_RESULT')?this.protocol.bcToolPrompt(payload.result,requestId):payload.text,enriched,requestId);
