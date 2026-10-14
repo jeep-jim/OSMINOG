@@ -1,6 +1,6 @@
 {
   "name": "osminog-desktop",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "OSMINOG local browser preview",
   "author": "OSMINOG",
@@ -46,7 +46,8 @@
       "file-save.cjs",
       "files-smoke.cjs",
       "icons/**/*",
-      "media.cjs"
+      "media.cjs",
+      "control-plan.cjs"
     ],
     "win": {
       "target": "nsis",

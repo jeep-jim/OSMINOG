@@ -1,5 +1,5 @@
 'use strict';
-const {WebContentsView,session,dialog,clipboard,Menu}=require('electron');
+const {WebContentsView,View,session,dialog,clipboard,Menu}=require('electron');
 const {randomUUID}=require('node:crypto');
 const PROVIDERS={chatgpt:'https://chatgpt.com/',claude:'https://claude.ai/',gemini:'https://gemini.google.com/',deepseek:'https://chat.deepseek.com/'};
 function address(value){
@@ -15,7 +15,7 @@ class BrowserWorkspace{
  constructor(win,store){
   this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
-  this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
+  this.contextScope=null;this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
   this.session=session.fromPartition('persist:osminog-browser');
   const ua=this.session.getUserAgent?.();if(ua)this.session.setUserAgent(require('./network.cjs').browserUserAgent(ua));
   this.session.setPermissionCheckHandler(()=>false);
@@ -39,7 +39,7 @@ class BrowserWorkspace{
  async setNetwork(input,persist=true){const config=proxyConfig(input);await this.session.setProxy(config.mode==='fixed_servers'?{mode:config.mode,proxyRules:config.server,proxyBypassRules:'<local>'}:{mode:config.mode});await this.session.closeAllConnections();this.network=config;if(persist&&this.store)await this.store.set({browserNetwork:config});return config}
  async restore(id){if(this.restored.has(id)||!this.store)return;if(!Object.keys(this.snapshots).length)this.snapshots=(await this.store.get('browserSessions')).browserSessions||{};this.restored.add(id);for(const item of this.snapshots[id]||[]){try{const t=this.make(address(item.url),id,!!item.provider);if(typeof item.id==='string'&&/^[a-f0-9-]{36}$/.test(item.id)){if(!item.provider){this.tabs.delete(t.id);this.tabs.set(item.id,t)}t.id=item.id}if(item.provider&&Object.hasOwn(PROVIDERS,item.provider)){t.provider=item.provider;t.thread=item.thread||'main';this.providers.set(JSON.stringify([id,t.provider,t.thread]),t)}else{t.lane=item.lane==='side'?'side':'main'}}catch{}}}
  emit(){if(!this.disposed&&!this.win.isDestroyed())this.win.webContents.send('browser:state',this.state())}
- state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider}}
+ state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope}}
  make(url,project,ai=false){
   const view=new WebContentsView({webPreferences:{session:this.session,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
@@ -53,7 +53,7 @@ class BrowserWorkspace{
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
   wc.on('did-start-loading',()=>{t.loading=true;t.error='';this.emit()});
-  wc.on('did-finish-load',()=>{const origin=new URL(wc.getURL()).origin;wc.send('page:context-enabled',!!t.contextOrigin&&t.contextOrigin===origin)});
+  wc.on('did-finish-load',()=>{const origin=new URL(wc.getURL()).origin;if(this.contextScope?.length&&providerFor(wc.getURL()))t.contextOrigin=origin;wc.send('page:context-enabled',!!t.contextOrigin&&t.contextOrigin===origin)});
   wc.on('did-stop-loading',()=>{t.loading=false;this.emit()});
   wc.on('did-navigate',()=>{t.favicon='';this.emit();this.save()});wc.on('did-navigate-in-page',()=>{this.emit();this.save()});
   wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
@@ -71,11 +71,14 @@ class BrowserWorkspace{
   this.ai=this.providers.get(key);this.provider=provider;this.save();this.layout(this.panels);this.emit();return this.ai;
  }
  open({url,lane}){if(!this.project)throw Error('Сначала откройте проект');const t=this.make(address(url),this.project);t.lane=lane==='side'?'side':'main';this.save();this.emit();return{id:t.id}}
- destroy(t){if(!t)return;this.win.contentView.removeChildView(t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
+ destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
-   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
+   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project)this.contextScope=null;this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
+   case 'context-scope':{this.contextScope=[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];return{ids:this.contextScope}}
+   case 'move-lane':{const t=this.get(args.id);if(t.provider){const entry=[...this.providers.entries()].find(([,v])=>v===t);this.providers.delete(entry[0]);this.tabs.set(t.id,t);if(this.ai===t)this.ai=null;delete t.provider;delete t.thread}t.lane=args.lane==='side'?'side':'main';this.save();this.emit();return this.state()}
+   case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};const img=await t.view.webContents.capturePage();t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
    case 'context-enable':{const t=this.get(args.id),url=t.view.webContents.getURL();if(args.enabled&&!providerFor(url))throw Error('Автоконтекст пока поддерживает ChatGPT, Claude, Gemini и DeepSeek');t.contextOrigin=args.enabled?new URL(url).origin:'';t.view.webContents.send('page:context-enabled',!!t.contextOrigin);this.emit();return{enabled:!!t.contextOrigin}}
    case 'network-get':return this.network;
    case 'network-check':{
@@ -98,7 +101,7 @@ class BrowserWorkspace{
    case 'context':{
     const expected=this.project;
     const all=[...this.tabs.values(),...this.providers.values()].filter(t=>t.project===expected);
-    const selected=args.all?all.filter(t=>t.id!==args.excludeId&&(args.includeChats===true||(!t.provider&&!providerFor(t.view.webContents.getURL()||t.url)))):[...new Set(Array.isArray(args.ids)?args.ids:[])].map(id=>this.get(id));
+    const selected=args.all?all.filter(t=>t.id!==args.excludeId&&(this.contextScope?this.contextScope.includes(t.id):(args.includeChats===true||(!t.provider&&!providerFor(t.view.webContents.getURL()||t.url))))):[...new Set(Array.isArray(args.ids)?args.ids:[])].map(id=>this.get(id));
     let budget=120000;const deadline=Date.now()+10000,result=[];
     for(const t of selected){if(this.project!==expected)throw Error('Проект изменился во время чтения');const url=t.view.webContents.getURL();if(!/^https?:/.test(url)){result.push({id:t.id,url,error:'Страница ещё не загружена'});continue}
      if(budget<=0||Date.now()>=deadline){result.push({id:t.id,url,title:t.title,truncated:true,text:''});continue}
@@ -106,6 +109,7 @@ class BrowserWorkspace{
     }
     if(this.project!==expected)throw Error('Проект изменился во время чтения');return result;
    }
+   case 'drag-read':{const d=this.dragTransfer;this.dragTransfer=null;if(!d||Date.now()-d.at>60000||d.project!==this.project)throw Error('Начните перенос из открытой вкладки заново');const t=this.get(d.id);if(t.view.webContents.getURL()!==d.source||t.navigationEpoch!==d.epoch)throw Error('Источник изменился');return d.url?require('./media.cjs').readMedia(this,d.id,d.url):{project:d.project,text:d.text,mime:'text/plain',name:'Выделенный текст'}}
    case 'media-read':return require('./media.cjs').readMedia(this,args.id,args.url);
    case 'capture':{const t=this.get(args.id),img=await t.view.webContents.capturePage();return{url:t.view.webContents.getURL(),title:t.title,src:img.toDataURL(),...img.getSize()}}
    case 'copy-context':{if(typeof args.text!=='string'||args.text.length>150000)throw Error('Слишком большой контекст');clipboard.writeText(args.text);return true}
@@ -113,16 +117,31 @@ class BrowserWorkspace{
   }
  }
  layout(panels){
-  this.panels=Array.isArray(panels)?panels.slice(0,5):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
+  this.panels=Array.isArray(panels)?panels.slice(0,100):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
   const desired=new Map();
   const [width,height]=this.win.getContentSize(),seen=new Set();
   for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
    const {x,y,width:w,height:h}=p;if(![x,y,w,h].every(Number.isFinite)||w<1||h<1)continue;
-   const left=Math.max(0,Math.min(width,Math.round(x))),top=Math.max(0,Math.min(height,Math.round(y)));
-   const bounds={x:left,y:top,width:Math.max(0,Math.min(width-left,Math.round(w))),height:Math.max(0,Math.min(height-top,Math.round(h)))};
-   if(bounds.width<1||bounds.height<1)continue;desired.set(t,bounds);
+   const bounds={x:Math.round(x),y:Math.round(y),width:Math.round(w),height:Math.round(h)};
+   const clip=p.clip;
+   let left=Math.max(0,bounds.x),top=Math.max(0,bounds.y),right=Math.min(width,bounds.x+bounds.width),bottom=Math.min(height,bounds.y+bounds.height);
+   if(clip&&[clip.x,clip.y,clip.width,clip.height].every(Number.isFinite)){left=Math.max(left,Math.round(clip.x));top=Math.max(top,Math.round(clip.y));right=Math.min(right,Math.round(clip.x+clip.width));bottom=Math.min(bottom,Math.round(clip.y+clip.height));}
+   if(right<=left||bottom<=top)continue;
+   const clipped={x:left,y:top,width:right-left,height:bottom-top};
+   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip});
   }
-  for(const t of [...this.tabs.values(),...this.providers.values()]){const bounds=desired.get(t),show=!!bounds;if(bounds&&JSON.stringify(bounds)!==JSON.stringify(t.bounds)){t.view.setBounds(bounds);t.bounds=bounds}if(show!==!!t.visible){t.view.setVisible(show);t.visible=show}}
+  for(const t of [...this.tabs.values(),...this.providers.values()]){
+   const next=desired.get(t),show=!!next;
+   if(next){const {bounds,clipped,wrap}=next;
+    if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(18);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
+    const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
+    const parentBounds=t.clipView?clipped:null;
+    const signature=JSON.stringify([viewBounds,parentBounds]);
+    if(signature!==t.layoutSignature){if(t.clipView)t.clipView.setBounds(parentBounds);t.view.setBounds(viewBounds);t.layoutSignature=signature}t.bounds=bounds;
+   }
+   if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
+  }
+
  }
  dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }

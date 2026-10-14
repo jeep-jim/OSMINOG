@@ -6,7 +6,7 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("document.querySelectorAll('.native-cell').length"),4);assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
  await run("OSMINOGNativeBrowser.open('https://example.com/')");await frame();const id=browser.state().tabs[0].id;assert.equal(browser.get(id).lane,'main');assert.equal(await run(`OSMINOGNativeBrowser.state().slots.filter(x=>x===${JSON.stringify(id)}).length`),1);
  await run("OSMINOGNativeBrowser.open('https://example.org/','side')");await frame();assert.equal(browser.state().tabs.filter(t=>t.lane==='side').length,1);
- assert.equal(await run("document.querySelectorAll('.native-tabs .native-tab').length"),1);assert.equal(await run("document.querySelectorAll('.native-ai-tabs .native-tab').length"),1);
+ assert.equal(await run("document.querySelectorAll('.native-tabs .native-tab').length"),2);assert.equal(await run("document.querySelectorAll('.native-ai-tabs .native-tab').length"),1);
  // Compact pane controls and 3-area geometry are real DOM, not screenshots.
  await run('OSMINOGNativeBrowser.split(3)');await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),3);
  assert.equal(await run("(()=>{const c=[...document.querySelectorAll('.native-cell')].map(e=>e.getBoundingClientRect());return c[0].height>c[1].height&&Math.abs(c[1].x-c[2].x)<2&&c[2].y>c[1].y})()"),true);
@@ -23,6 +23,7 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("savedPaneInput.selectionStart"),8);
  console.log('SHELL_INCREMENTAL_METADATA_PASS');
 
+ const wc=browser.get(id).view.webContents;if(wc.isLoadingMainFrame())await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Fixture page load timeout')),30000);wc.once('did-stop-loading',()=>{clearTimeout(timer);resolve()})});
  // Real favicon events update the existing rail item without rebuilding it.
  browser.get(id).view.webContents.emit('page-favicon-updated',{},['data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4XQAAAAASUVORK5CYII=']);await frame();
  assert.equal(await run("document.querySelector('.native-tabs .native-tab-mark img')?.getAttribute('src')"),'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4XQAAAAASUVORK5CYII=');
@@ -91,6 +92,15 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("desktopObjects().some(o=>o.name==='Second desktop')"),false);
  assert.equal(await run("!!document.querySelector('.native-ai-footer [data-do=stop-ai]')"),true);
  console.log('DESKTOP_TABS_AND_FULL_CONTEXT_PASS');
+ await run("OSMINOGNativeBrowser.split(4)");
+ for(let i=0;i<6;i++)await run(`OSMINOGNativeBrowser.open('https://example.com/extra-${i}')`);
+ await frame();assert((await run("document.querySelectorAll('.native-cell').length"))>4);
+ assert(await run("(()=>{const e=document.querySelector('.native-scroll');return e.scrollHeight>e.clientHeight})()"));
+ await run("(()=>{const e=document.querySelector('.native-scroll');e.scrollTop=e.scrollHeight})()");await frame();
+ assert(browser.panels.every(p=>!p.clip||p.clip.height>0));
+ await run("(()=>{document.querySelector('.native-scroll').scrollTop=0;const cells=[...document.querySelectorAll('.native-cell')];const from=cells.find(c=>c.dataset.paneId==='@canvas');const target=cells.find(c=>c!==from);globalThis.expectedCanvasSlot=Number(target.dataset.dropIndex);const dt=new DataTransfer();from.querySelector('header').dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()");await frame();
+ assert(await run("OSMINOGNativeBrowser.state().slots[expectedCanvasSlot]==='@canvas'"));
+ console.log('SCROLLING_TILES_AND_CANVAS_DRAG_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');

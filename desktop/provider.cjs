@@ -10,7 +10,7 @@ class Providers{
   const wc=tab.view.webContents,url=new URL(wc.getURL());
   if(!origins[tab.provider]?.includes(url.origin)&&url.origin!==this.fixtureOrigin)throw Error('Войдите в выбранный ИИ в правой области браузера, затем повторите подключение');
   // Provider DOM adapter lives in an isolated world, with no filesystem, Node or IPC API.
-  const init=`if(!globalThis.__osminogNativeDispatch){(()=>{const handlers=[];const chrome={runtime:{id:'osminog-native-provider',onMessage:{addListener:f=>handlers.push(f)},sendMessage:async()=>({ok:false,error:'Native transcript mirroring is disabled'})}};${this.source}\nglobalThis.__osminogNativeDispatch=message=>new Promise(resolve=>{for(const handler of handlers){const result=handler(message,{id:chrome.runtime.id},resolve);if(result===true)return}});})()} `;
+  const init=`globalThis.OSMINOGExtractControlPlan=${require('./control-plan.cjs').toString()};if(!globalThis.__osminogNativeDispatch){(()=>{const handlers=[];const chrome={runtime:{id:'osminog-native-provider',onMessage:{addListener:f=>handlers.push(f)},sendMessage:async()=>({ok:false,error:'Native transcript mirroring is disabled'})}};${this.source}\nglobalThis.__osminogNativeDispatch=message=>new Promise(resolve=>{for(const handler of handlers){const result=handler(message,{id:chrome.runtime.id},resolve);if(result===true)return}});})()} `;
   await wc.executeJavaScriptInIsolatedWorld(1001,[{code:init}]);
   await wc.executeJavaScriptInIsolatedWorld(1001,[{code:`__osminogNativeDispatch(${JSON.stringify({type:'BC_PROVIDER_MANAGED_CONFIG',provider:tab.provider==='chatgpt'?'gpt':tab.provider})})`}]);
   return wc.executeJavaScriptInIsolatedWorld(1001,[{code:`__osminogNativeDispatch(${JSON.stringify(message)})`}]);
