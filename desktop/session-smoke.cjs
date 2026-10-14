@@ -6,6 +6,7 @@ module.exports=async(win,browser,providers)=>{
  await browser.session.protocol.handle('https',async req=>{
   const u=new URL(req.url),p=u.pathname;
   if(u.hostname==='example.com')return new Response('<html><meta charset="utf-8"><body style="margin:0"><input aria-label="Город" style="width:200px;height:50px"></body></html>',{headers:{'content-type':'text/html; charset=utf-8'}});
+  if(u.hostname==='chatgpt.com'&&p==='/original')return new Response(`<html><meta charset="utf-8"><body><main id="messages"></main><form style="position:fixed;bottom:20px;width:90%"><textarea aria-label="Message" style="width:95%;height:80px"></textarea><button type="submit">Send</button></form><script>window.sent=[];const form=document.querySelector('form'),input=document.querySelector('textarea');input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}};form.onsubmit=e=>{e.preventDefault();const text=input.value;sent.push(text);input.value='';const user=document.createElement('div');user.dataset.messageAuthorRole='user';user.textContent=text;messages.append(user);setTimeout(()=>{const reply=document.createElement('div');reply.dataset.messageAuthorRole='assistant';reply.textContent=JSON.stringify({summary:'Ввод в поле',actions:[{type:'click',x:20,y:20},{type:'type',text:' из обычного чата'}]});messages.append(reply)},700)};</script></body></html>`,{headers:{'content-type':'text/html; charset=utf-8'}});
   if(p==='/api/auth/session')return json({accessToken:'fixture-token-'.repeat(5),user:{id:'fixture'}});
   if(p==='/backend-api/models')return json({models:[{slug:'auto'}]});
   if(p.includes('chat-requirements'))return json({token:'fixture'});
@@ -36,6 +37,17 @@ module.exports=async(win,browser,providers)=>{
   assert.equal(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),'Омск',await run("document.querySelector('#gptPresenceMessages').innerText"));
   await assert.rejects(browser.agentTools.run('browser_act',{id:targetId,snapshot:actionSnapshot,actions:[{type:'type',text:'duplicate'}]}),/свежий/);
   const transcript=await run("document.querySelector('#gptPresenceMessages').innerText");assert(!transcript.includes('OSMINOG_CONTEXT_V1'));assert.equal([...browser.tabs.values()].filter(t=>!previous.has(t.id)&&t.view.webContents.getURL().includes('chatgpt.com')).length,0);
-  console.log('EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS');console.log('SESSION_SMOKE_PASS');
+  console.log('EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS');
+  let approvals=0;const confirm=browser.originalActions.confirm;browser.originalActions.confirm=async proposal=>{approvals++;assert.equal(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),'Омск');assert(proposal.targets.some(t=>t.id===targetId));return{id:targetId}};
+  try{
+   const ids=new Set(browser.tabs.keys());await run("OSMINOGNativeBrowser.open('https://chatgpt.com/original','side')");const source=[...browser.tabs.values()].find(t=>!ids.has(t.id));assert(source);
+   for(let i=0;i<100&&source.loading;i++)await sleep(50);await sleep(300);const wc=source.view.webContents;
+   await wc.executeJavaScript("document.querySelector('textarea').focus()");wc.focus();await wc.insertText('Заполни поле');wc.sendInputEvent({type:'keyDown',keyCode:'Enter'});wc.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+   for(let i=0;i<200&&(await target.view.webContents.executeJavaScript("document.querySelector('input').value"))==='Омск';i++)await sleep(100);
+   assert.equal(approvals,1,'Ordinary chat must request exactly one confirmation');assert.match(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),/из обычного чата/);
+   assert.deepEqual(await wc.executeJavaScript('window.sent'),['Заполни поле']);assert.equal(await wc.executeJavaScript("document.querySelectorAll('input[type=file]').length"),0);
+   console.log('ORIGINAL_CHAT_ONE_CONFIRMATION_NO_CONTEXT_PASS');
+  }finally{browser.originalActions.stop();browser.originalActions.confirm=confirm}
+  console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };
