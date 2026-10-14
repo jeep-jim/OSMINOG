@@ -3,7 +3,7 @@
   if(globalThis.__osminogProviderTabBridgeV6)return;
   globalThis.__osminogProviderTabBridgeV6=true;
 
-  let provider="",lastAccepted="";
+  let provider="",lastAccepted="",cancelEpoch=0;
   let syncBinding=null,internalSending=false,nativePending=false;
   const syncRoute=()=>OSMINOGChatSync.route(location.href);
   const syncRpc=(type,fields={})=>chrome.runtime.sendMessage({type,bindingId:syncBinding?.id,...fields});
@@ -197,25 +197,27 @@
     const lines=value.split(/\n+/).map(clean).filter(x=>x&&!uiNoise(x)&&!boilerplate(x));return clean(lines.slice(-80).join("\n"));
   }
 
-  async function waitAnswer(before,prompt,requestId,initialRoute=route()){
+  async function waitAnswer(before,prompt,requestId,initialRoute=route(),responseFormat="",generation=cancelEpoch){
     const started=Date.now();let sentRoute=initialRoute;let last="",stableAt=0,anchor=null,wake=null;
     const observer=new MutationObserver(()=>wake?.());
     observer.observe(root(),{childList:true,subtree:true,characterData:true});
     try{
       while(Date.now()-started<150000){
+        if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
         await Promise.race([sleep(420),new Promise(resolve=>wake=resolve)]);wake=null;
         if(route()!==sentRoute){if(!OSMINOGChatSync.promoted(provider,sentRoute,route())||!findPromptEcho(prompt,requestId))throw new Error("Открыт другой диалог. Подключи его к нужному чату OSMINOG.");sentRoute=route();if(syncBinding)syncBinding.route=sentRoute;}
         if(!anchor)anchor=findPromptEcho(prompt,requestId);
         if(!anchor)continue;
         let best="",score=-Infinity;
         for(const candidate of candidateNodes()){
-          const value=freshText(before,candidate,prompt,requestId,anchor);
+          let value=freshText(before,candidate,prompt,requestId,anchor);
+          if(responseFormat==="osminog-control"){value=globalThis.OSMINOGExtractControlPlan?.(value)||"";}
           if(!value||(nativePending&&/osminog\.(?:request|tool_result|patch)\/v1/.test(value)))continue;
           const afterBonus=anchor&&candidate.el!==anchor&&(anchor.compareDocumentPosition(candidate.el)&Node.DOCUMENT_POSITION_FOLLOWING)?60:0;
           const scoreNow=afterBonus+candidate.order*1.8+candidate.bottom/1400+candidate.leaf*4+Math.min(4000,value.length)/120;
           if(scoreNow>score){best=value;score=scoreNow}
         }
-        if(!best)best=rootFreshText(before,prompt,requestId);
+        if(!best&&responseFormat!=="osminog-control")best=rootFreshText(before,prompt,requestId);
         if(best){
           if(norm(best)===norm(last)){
             if(!stableAt)stableAt=Date.now();
@@ -266,7 +268,7 @@
     return{media,widgets}
   }
 
-  async function send(text,requestId="",images=[]){
+  async function send(text,requestId="",images=[],responseFormat=""){
     if(isGpt()&&!syncBinding&&!managedAgentSession)throw new Error("Подключи синхронизацию этого чата в OSMINOG");
     if(internalSending||nativePending)throw new Error("Дождись текущего ответа в подключённом диалоге");
     if(syncBinding&&syncBinding.route!==route())throw new Error("Открыт другой диалог. Подключи его отдельно.");
@@ -276,13 +278,13 @@
     if(draft)throw new Error("В оригинальном чате набран текст. Отправь или убери его перед запросом из OSMINOG.");
     const start=syncBinding?await syncRpc('BC_CHAT_SYNC_START',{requestId}):{ok:true};if(!start?.ok)throw Error(start?.error||'Чат занят');
     internalSending=true;document.documentElement.dataset.osminogSyncInternal='1';
-    const before=snapshot(),initialRoute=route();
-    try{await uploadImages(images,input);
+    const before=snapshot(),initialRoute=route(),generation=cancelEpoch;
+    try{await uploadImages(images,input);if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
     setComposer(input,text);
     await sleep(180);
     const button=sendButton(input);
     if(button)button.click();else pressEnter(input);
-    const answer=await waitAnswer(before,text,requestId,initialRoute);
+    const answer=await waitAnswer(before,text,requestId,initialRoute,responseFormat,generation);
     return{answer,...collectRich(answer,text,requestId)};
     }finally{internalSending=false;delete document.documentElement.dataset.osminogSyncInternal;if(syncBinding)await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'complete',text:''}).catch(()=>{});}
 
@@ -344,6 +346,7 @@
       reply({ok:true,...probe()});
       return;
     }
+    if(message?.type==="BC_PROVIDER_TAB_CANCEL"&&_sender?.id===chrome.runtime.id&&!_sender?.tab){cancelEpoch++;reply({ok:true});return}
     if(message?.type==="BC_PROVIDER_TAB_ATTACH"){if(_sender?.id!==chrome.runtime.id||_sender?.tab||internalSending||nativePending){reply({ok:false,error:'Диалог занят или отправитель не разрешён'});return}uploadImages(Array.isArray(message.images)?message.images:[],composer()).then(reply).catch(e=>reply({ok:false,error:e.message}));return true}
     if(message?.type==="BC_PROVIDER_TAB_PROBE"){reply(probe());return}
     if(message?.type!=="BC_PROVIDER_TAB_SEND_V4"&&message?.type!=="BC_PROVIDER_TAB_SEND")return;
@@ -352,7 +355,7 @@
     const requestId=String(message.requestId||`tab-${Date.now()}-${Math.random().toString(36).slice(2,7)}`),text=String(message.text||""),key=norm(text);
     const cacheKey=requestId+"\u0000"+text;let task=inflight.get(cacheKey);
     if(!task){
-      task=send(text,requestId,Array.isArray(message.images)?message.images:[]);
+      task=send(text,requestId,Array.isArray(message.images)?message.images:[],message.responseFormat||"");
       inflight.set(cacheKey,task);
       recentPrompts.set(key,{at:Date.now(),task});
     }

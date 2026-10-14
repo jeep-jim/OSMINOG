@@ -1,8 +1,8 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),Module=require('node:module'),{EventEmitter}=require('node:events');
 const load=Module._load;
-class View{constructor(){this.webContents=new EventEmitter();Object.assign(this.webContents,{navigationHistory:{canGoBack:()=>false,canGoForward:()=>false},setWindowOpenHandler(){},loadURL:async url=>{this.url=url},getURL:()=>this.url,isDestroyed:()=>false,close:()=>{this.closed=true},executeJavaScript:async()=>({text:'page'})});}setBounds(x){this.bounds=x}setVisible(x){this.visible=x}}
-Module._load=function(id,...args){if(id==='electron')return{WebContentsView:View,session:{fromPartition:()=>({setPermissionCheckHandler(){},setPermissionRequestHandler(){},on(){}})},clipboard:{writeText(){}},dialog:{}};return load.call(this,id,...args)};
+class View{constructor(){this.webContents=new EventEmitter();Object.assign(this.webContents,{navigationHistory:{canGoBack:()=>false,canGoForward:()=>false},setWindowOpenHandler(){},loadURL:async url=>{this.url=url},getURL:()=>this.url,isDestroyed:()=>false,close:()=>{this.closed=true},executeJavaScript:async()=>({text:'page'})});}addChildView(){}removeChildView(){}setBounds(x){this.bounds=x}setVisible(x){this.visible=x}}
+Module._load=function(id,...args){if(id==='electron')return{View,WebContentsView:View,session:{fromPartition:()=>({setPermissionCheckHandler(){},setPermissionRequestHandler(){},on(){}})},clipboard:{writeText(){}},dialog:{}};return load.call(this,id,...args)};
 const {BrowserWorkspace,address}=require('./browser.cjs');Module._load=load;
 const host=()=>Object.assign(new EventEmitter(),{webContents:Object.assign(new EventEmitter(),{send(){}}),contentView:{addChildView(){},removeChildView(){}},isDestroyed:()=>false,getContentSize:()=>[1440,900]});
 const storage=()=>{let data={};return{get:async()=>structuredClone(data),set:async x=>Object.assign(data,structuredClone(x))}};
@@ -55,3 +55,6 @@ test('late provider requests cannot switch the visible project',async()=>{
  const result=await Providers.prototype.runtime.call({browser},{type:'BC_PROVIDER_DISCOVER',provider:'gpt'},'previous-project');
  assert.equal(result.ok,false);assert.match(result.error,/Проект изменился/);assert.equal(switches,0);assert.equal(browser.project,'current-project');
 });
+
+test('eye scope excludes unselected pages and includes explicitly selected peer chat',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'}),peer=b.open({url:'https://chat.deepseek.com/'});await b.command('context-scope',{ids:[peer.id,'@canvas']});assert.deepEqual((await b.command('context',{all:true})).map(x=>x.id),[peer.id]);await b.command('context-scope',{ids:[]});assert.deepEqual(await b.command('context',{all:true}),[])});
+test('scroll clips native content without resizing its document',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'});b.layout([{id:a.id,x:100,y:-100,width:500,height:600,clip:{x:100,y:80,width:500,height:420}}]);const t=b.get(a.id);assert.deepEqual(t.view.bounds,{x:0,y:-180,width:500,height:600});assert.deepEqual(t.clipView.bounds,{x:100,y:80,width:500,height:420});b.layout([]);assert.equal(t.clipView.visible,false)});
