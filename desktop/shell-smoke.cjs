@@ -44,7 +44,7 @@ module.exports=async(win,browser)=>{
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
  assert.equal(await run("document.querySelector('.native-update').hidden"),false);
- assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.5')"),true);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.6')"),true);
  assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
  await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
@@ -127,8 +127,8 @@ module.exports=async(win,browser)=>{
  await run("fitToContent()");await frame();
  assert(await run("(()=>{const r=document.querySelector('#viewport').getBoundingClientRect();return [...document.querySelectorAll('#objects .canvas-object')].some(e=>{const b=e.getBoundingClientRect();return b.width>1&&b.height>1&&b.right>r.left&&b.left<r.right&&b.bottom>r.top&&b.top<r.bottom})})()"));
  await run("document.querySelector('[data-tool-native=shape]').click()");await frame();
- assert.equal(await run("document.querySelector('.native-properties').closest('.native-cell').dataset.paneId"),'@canvas');
- assert(await run("(()=>{const a=document.querySelector('.native-canvas').getBoundingClientRect(),b=document.querySelector('.native-properties').getBoundingClientRect();return Math.abs(a.right-b.left)<2&&Math.abs(a.top-b.top)<2})()"));
+ assert.equal(await run("document.querySelector('.native-properties').closest('.native-tile').dataset.paneId"),'@canvas');
+ assert(await run("(()=>{const a=document.querySelector('.native-canvas').getBoundingClientRect(),b=document.querySelector('.native-properties').getBoundingClientRect();return b.left>a.right&&b.top<a.top})()"));
  await run("document.querySelector('[data-tool-native=select]').click()");await frame();
  await run("OSMINOGNativeBrowser.split(4)");await frame();
  const beforeEmpty=await run("document.querySelectorAll('.native-empty-close').length");
@@ -138,6 +138,14 @@ module.exports=async(win,browser)=>{
  const homeProject=browser.project;await run("document.querySelector('.native-top [data-do=home]').click()");await frame();
  assert(await run("['viewport','world','objects','connections','ink'].every(id=>document.getElementById(id).getClientRects().length===0)"));
  await run(`openProject(${JSON.stringify(homeProject)})`);await frame();await frame();
+
+ await run("OSMINOGNativeBrowser.split(4)");await frame();
+ assert(await run("document.querySelectorAll('.native-tools button span').length===0"));
+ assert(await run("(()=>{const a=document.querySelector('.native-top').getBoundingClientRect(),b=document.querySelector('.native-tools').getBoundingClientRect();return Math.abs(a.x+a.width/2-b.x-b.width/2)<2})()"));
+ assert.equal(await run("getComputedStyle(document.querySelector('#app')).display"),'none');
+ await run("document.querySelector('.native-tile-resize-xy').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))");await frame();
+ assert(await run("(()=>{const a=document.querySelector('.native-tile').getBoundingClientRect(),b=document.querySelector('.native-grid').getBoundingClientRect(),n=document.querySelectorAll('.native-tile')[1]?.getBoundingClientRect();return Math.abs(a.width-b.width)<2&&Math.abs(a.height-document.querySelector('.native-scroll').clientHeight)<2&&(!n||n.top>a.bottom)})()"));
+ console.log('EXTERNAL_TOOL_DOCK_AND_ADAPTIVE_TILES_PASS');
  console.log('CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
