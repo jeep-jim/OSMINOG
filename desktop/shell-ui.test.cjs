@@ -11,6 +11,18 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  await page.evaluate(()=>{OSMINOGEditorAPI.create('text',{name:'Рабочий план',text:'Новый браузер для работы\nХолст · вкладки · ИИ',x:6050,y:4100,w:420,h:180});return OSMINOGNativeBrowser.open('https://example.com/')});
  await page.evaluate(()=>OSMINOGNativeBrowser.open('https://developer.mozilla.org/'));await page.evaluate(()=>OSMINOGNativeBrowser.openProvider('chatgpt'));
  assert.equal(await page.locator('.native-cell').count(),4);assert.equal(await page.locator('.native-canvas #viewport').count(),1);assert.equal(await page.locator('.native-tabs .native-tab').count(),3);assert.equal(await page.locator('.native-ai-tabs .native-tab').count(),1);
+ // The tile picker must show readable titles and safely cover native web views.
+ const originalPane=await page.locator('.native-cell:has(.native-pane-picker)').first().getAttribute('data-pane-id');
+ await page.locator('.native-pane-picker').first().click();await page.waitForFunction(()=>testPanels.length===0);
+ assert(await page.locator('.native-pane-menu').evaluate(e=>e.getBoundingClientRect().width>=280));
+ await page.screenshot({path:'shell-picker-036.png'});
+ assert.match(await page.locator('.native-pane-options').innerText(),/example.com/);
+ assert.equal(await page.locator('.native-pane-options [aria-pressed=true]').count(),1);
+ await page.locator('.native-pane-options button').filter({hasText:'developer.mozilla.org'}).click();
+ assert.equal(await page.locator('.native-pane-menu').isVisible(),false);
+ assert.notEqual(await page.locator('.native-cell:has(.native-pane-picker)').first().getAttribute('data-pane-id'),originalPane);
+ await page.locator('.native-pane-picker').first().click();await page.keyboard.press('Escape');await page.waitForFunction(()=>testPanels.length>0);
+ await page.locator('.native-pane-picker').first().click();await page.locator('.native-top').click({position:{x:1,y:1}});assert.equal(await page.locator('.native-pane-menu').isVisible(),false);
  await page.locator('[data-do=theme]').click();await page.locator('[data-do=theme]').click();await page.locator('[data-do=theme]').click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
  await page.screenshot({path:'shell-dark.png'});
  await page.locator('.native-ai-footer [data-do=context]').click();await page.locator('.native-context').first().waitFor({state:'visible'});await page.waitForFunction(()=>testPanels.length===0);assert.match(await page.locator('.native-context textarea[aria-label="Контекст для передачи ИИ"]').inputValue(),/Рабочий план/);await page.locator('[data-do=copy]').click();assert.match(await page.evaluate(()=>testCopied),/Fixture body/);
