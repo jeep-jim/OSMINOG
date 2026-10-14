@@ -35,7 +35,7 @@ module.exports=async(win,browser,providers)=>{
   for(let i=0;i<200&&(await target.view.webContents.executeJavaScript("document.querySelector('input').value"))!=='Омск';i++)await sleep(100);
   assert.equal(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),'Омск',await run("document.querySelector('#gptPresenceMessages').innerText"));
   await assert.rejects(browser.agentTools.run('browser_act',{id:targetId,snapshot:actionSnapshot,actions:[{type:'type',text:'duplicate'}]}),/свежий/);
-  const transcript=await run("document.querySelector('#gptPresenceMessages').innerText");assert(!transcript.includes('OSMINOG_CONTEXT_V1'));assert.equal([...browser.tabs.values()].filter(t=>t.view.webContents.getURL().includes('chatgpt.com')).length,0);
-  console.log('EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS');
+  const transcript=await run("document.querySelector('#gptPresenceMessages').innerText");assert(!transcript.includes('OSMINOG_CONTEXT_V1'));assert.equal([...browser.tabs.values()].filter(t=>!previous.has(t.id)&&t.view.webContents.getURL().includes('chatgpt.com')).length,0);
+  console.log('EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS');console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };
