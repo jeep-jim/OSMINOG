@@ -117,6 +117,8 @@ await page.waitForFunction(n=>objects().length>n,before);
  await page.locator('[data-do=layouts]').click();assert.equal(await page.locator('.native-layout-options strong').count(),4);await page.screenshot({path:'shell-layouts-035.png'});await page.locator('.native-layout-menu [data-do=dismiss]').click();
  await page.locator('[data-do=updates]').click();const updateButton=await page.locator('[data-do=update-run]').boundingBox(),notes=await page.locator('.native-release').boundingBox();assert.ok(updateButton.y<notes.y);assert.equal(await page.locator('.native-update-symbol .native-logo').count(),1);await page.screenshot({path:'shell-updates-035.png'});await page.locator('.native-update [data-do=dismiss]').first().click();
  await page.locator('.native-cell[data-pane-id="@canvas"] .native-pane-full').click();await page.evaluate(()=>fitToContent());await page.locator('#canvasBoardColor').fill('#aabbcc');assert.equal(await page.locator('#viewport').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(170, 187, 204)');await page.screenshot({path:'shell-canvas-035.png'});
+ assert.equal(await page.locator('.native-tile > .native-tool-rail').count(),0);
+ assert.equal(await page.locator('.native-rail-top [data-do=new]').evaluate(e=>getComputedStyle(e,'::after').content),'none');
  // 0.3.6: tools are centered icons, docks are outside the canvas and scroll independently.
  const toolbar=await page.locator('.native-tools').boundingBox(),header=await page.locator('.native-top').boundingBox();
  assert.ok(Math.abs(toolbar.x+toolbar.width/2-header.x-header.width/2)<2);

@@ -44,7 +44,7 @@ module.exports=async(win,browser)=>{
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
  assert.equal(await run("document.querySelector('.native-update').hidden"),false);
- assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.6')"),true);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.7')"),true);
  assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
  await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
@@ -66,7 +66,7 @@ module.exports=async(win,browser)=>{
  browser.session.protocol.unhandle('https');
  // Test the actual sandboxed preload and IPC on local responses at provider origins.
  // No external account, live AI request or production bypass is involved.
- await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
+ await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><input type="file" accept=".txt,.png" multiple onchange="window.contextFile=this.files[0];for(const f of this.files){const s=document.createElement('span');s.textContent=f.name;document.querySelector('form').append(s)}"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
  try{
   await run("OSMINOGNativeBrowser.open('https://chatgpt.com/osminog-local-fixture','side')");await frame();
   const t=browser.state().tabs.find(t=>t.url==='https://chatgpt.com/osminog-local-fixture'),wc=browser.get(t.id).view.webContents;
@@ -78,7 +78,7 @@ module.exports=async(win,browser)=>{
   wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
   let sent='';for(let i=0;i<240&&!sent;i++){await new Promise(r=>setTimeout(r,50));sent=await wc.executeJavaScript('window.sent||""')}
   if(!sent)console.log('CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({url:location.href,draft:document.querySelector('textarea')?.value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));
-  assert.match(sent,/Native user prompt/);assert.match(sent,/<osminog_context>/);assert.match(sent,/Рабочий стол нового браузера/);
+  assert.equal(sent,'Native user prompt');assert.match(await wc.executeJavaScript('window.contextFile.text()'),/Рабочий стол нового браузера/);
   assert.equal(await wc.executeJavaScript('typeof window.OSMINOGNative'), 'undefined');
   await browser.command('context-enable',{id:t.id,enabled:false});
   console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
