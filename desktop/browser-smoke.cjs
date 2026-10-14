@@ -13,6 +13,13 @@ module.exports=async function smoke(win,browser){
   assert.equal(await wc.executeJavaScript('typeof require+":"+typeof OSMINOGNative'),'undefined:undefined');
   const media=await browser.command('media-read',{id:first,url:base+'/media.png'});assert.equal(media.mime,'image/png');assert(media.src.startsWith('data:image/png;base64,'));
   win.webContents.send('browser:media',{id:first,url:base+'/media.png',project:browser.project,destination:'canvas'});let imported=false;for(let i=0;i<40&&!imported;i++){await new Promise(r=>setTimeout(r,50));imported=await win.webContents.executeJavaScript("objects().some(o=>o.fileName==='media.png'&&o.type==='image'&&o.src.startsWith('data:image/png;base64,'))")}assert(imported);console.log('NATIVE_MEDIA_TO_CANVAS_PASS');
+  const dragToken=require('node:crypto').randomUUID(),beforeDrop=await win.webContents.executeJavaScript('objects().length');
+  browser.dragTransfer={id:first,url:base+'/media.png',text:'',token:dragToken,source:wc.getURL(),project:browser.project,at:Date.now(),epoch:browser.get(first).navigationEpoch};
+  win.webContents.send('browser:media',{destination:'drag',id:first,token:dragToken,project:browser.project});
+  await new Promise(r=>setTimeout(r,100));
+  await win.webContents.executeJavaScript(`(()=>{const dt=new DataTransfer();dt.setData('application/x-osminog-page-drag',${JSON.stringify(dragToken)});document.querySelector('.native-canvas #viewport').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt,clientX:200,clientY:200}))})()`);
+  for(let i=0;i<40&&(await win.webContents.executeJavaScript('objects().length'))===beforeDrop;i++)await new Promise(r=>setTimeout(r,50));
+  assert.equal(await win.webContents.executeJavaScript('objects().length'),beforeDrop+1);assert.equal(browser.dragTransfer,null);console.log('NATIVE_DRAG_DROP_IMPORT_PASS');
   const token=await wc.executeJavaScript('window.fixtureToken');
   const ids=[first];for(let i=1;i<4;i++){const t=await browser.command('open',{url:base+'/pane-'+i});ids.push(t.id);await ready(t.id)}
   await win.webContents.executeJavaScript(`(()=>{OSMINOGNativeBrowser.split(4);const ids=${JSON.stringify(ids)};for(let i=0;i<4;i++){OSMINOGNativeBrowser.assignTab(ids[i],i)}})()`);

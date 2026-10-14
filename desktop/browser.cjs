@@ -109,7 +109,7 @@ class BrowserWorkspace{
     }
     if(this.project!==expected)throw Error('Проект изменился во время чтения');return result;
    }
-   case 'drag-read':{const d=this.dragTransfer;this.dragTransfer=null;if(!d||Date.now()-d.at>60000||d.project!==this.project)throw Error('Начните перенос из открытой вкладки заново');const t=this.get(d.id);if(t.view.webContents.getURL()!==d.source||t.navigationEpoch!==d.epoch)throw Error('Источник изменился');return d.url?require('./media.cjs').readMedia(this,d.id,d.url):{project:d.project,text:d.text,mime:'text/plain',name:'Выделенный текст'}}
+   case 'drag-read':{const d=this.dragTransfer;this.dragTransfer=null;if(!d||args.token!==d.token||Date.now()-d.at>60000||d.project!==this.project)throw Error('Начните перенос из открытой вкладки заново');const t=this.get(d.id);if(t.view.webContents.getURL()!==d.source||t.navigationEpoch!==d.epoch)throw Error('Источник изменился');return d.url?require('./media.cjs').readMedia(this,d.id,d.url):{project:d.project,text:d.text,mime:'text/plain',name:'Выделенный текст'}}
    case 'media-read':return require('./media.cjs').readMedia(this,args.id,args.url);
    case 'capture':{const t=this.get(args.id),img=await t.view.webContents.capturePage();return{url:t.view.webContents.getURL(),title:t.title,src:img.toDataURL(),...img.getSize()}}
    case 'copy-context':{if(typeof args.text!=='string'||args.text.length>150000)throw Error('Слишком большой контекст');clipboard.writeText(args.text);return true}
