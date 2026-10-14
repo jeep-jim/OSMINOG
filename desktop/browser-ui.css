@@ -222,3 +222,15 @@ body.native-shell-open :is(#bcObjectContextMenu,#osminogWindowsFolderMenu,#osmin
 
 #native-browser .native-tools #canvasColorWrap{position:relative;display:flex;align-items:center;flex:0 0 30px;width:30px;height:32px;padding:3px;margin:0}
 #native-browser .native-tools #canvasColor{position:static;width:24px;min-width:24px;min-height:24px;height:24px;padding:0;border:0;opacity:1;cursor:pointer}
+.native-pane-picker svg{width:20px;height:20px;display:block}
+#osminogDocumentEditor,.bc-file-workbench{z-index:2147483000!important}
+#osminogOfficeViewer{width:min(1100px,92vw);height:85vh;padding:20px;border:1px solid #8b97ab;border-radius:14px;background:#fff;color:#202633}
+#osminogOfficeViewer::backdrop{background:#10182888}
+#osminogOfficeViewer header{display:flex;gap:12px;align-items:center;position:sticky;top:0;background:inherit}
+#osminogOfficeViewer header strong{flex:1}#osminogOfficeViewer button{padding:8px 12px;cursor:pointer}
+#osminogOfficeViewer article{overflow:auto;max-height:calc(85vh - 130px);padding:16px}
+#osminogOfficeViewer table{border-collapse:collapse}#osminogOfficeViewer td{border:1px solid #ccd3df;padding:5px 9px;min-width:80px;white-space:pre-wrap}
+#osminogOfficeViewer nav{display:flex;gap:6px;margin-bottom:12px}
+#osminogOfficeViewer{font:14px/1.5 system-ui,sans-serif}
+#osminogOfficeViewer button{color:#202633;background:#eef2f7;border:1px solid #cbd3df;border-radius:8px;font:inherit}
+#osminogOfficeViewer button:hover{background:#e1e8f3}#osminogOfficeViewer button:focus-visible{outline:2px solid #526fff;outline-offset:2px}

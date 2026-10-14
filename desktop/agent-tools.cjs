@@ -5,6 +5,7 @@ class AgentTools{
  stop(){this.snapshots.clear();this.control.stop()}
  target(id){const t=this.browser.get(String(id));if(providerFor(t.view.webContents.getURL()))throw Error('Инструмент вкладок не управляет чатом ИИ');return t}
  async run(name,args={}){
+  if(name==='browser_context')return{ok:true,context:await this.browser.context.refresh()};
   const t=this.target(args.id),wc=t.view.webContents;
   if(name==='browser_read'){
    const initialProject=this.browser.project;
@@ -24,7 +25,7 @@ class AgentTools{
   if(this.control.busy||this.control.task?.plan)throw Error('Управление вкладкой уже выполняется');
   const plan=parsePlan(JSON.stringify({summary:'Действие из внутреннего чата',actions:args.actions}));
   const task={id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
-  try{return{ok:true,...await this.control.approve({id:task.id,approval:task.approval})}}finally{if(this.control.task===task)this.control.task=null}
+  try{const result={ok:true,...await this.control.approve({id:task.id,approval:task.approval})};this.browser.context?.record(name,result);return result}finally{if(this.control.task===task)this.control.task=null}
  }
 }
 module.exports={AgentTools};

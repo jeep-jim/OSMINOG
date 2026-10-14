@@ -24,7 +24,7 @@
     projects:["project_list","project_create","project_switch","project_rename","project_revisions","project_checkpoint","project_restore_revision","project_folder_status","project_folder_list","project_folder_read","project_folder_write"],
     agents:["agent_list","agent_create","agent_update","agent_remove","agent_message"],
     commands:["command_list","command_register","command_remove","command_run"],
-    browser:["browser_read","browser_act","browser_tabs","browser_open","browser_close","browser_edit_current","browser_extract_current","web_search","web_fetch","web_image_search"],
+    browser:["browser_context","browser_read","browser_act","browser_tabs","browser_open","browser_close","browser_edit_current","browser_extract_current","web_search","web_fetch","web_image_search"],
     documents:["document_read","document_edit","document_export","markdown_list","markdown_read","markdown_write"],
     media:["provider_list","provider_open","media_crew"],
     modules:["module_list","module_create","module_update","module_test","module_open","module_remove","module_permissions_revoke"],
@@ -260,7 +260,7 @@
     try{
       let result;
       if(PRIVILEGED_PRODUCT_TOOLS.has(name)){const guard=globalThis.OSMINOGOwnerGuard;if(!guard){finishToolEvent(name,"error");return{error:"Owner Unlock is unavailable"}}const unlocked=await guard.require(name);if(!unlocked){finishToolEvent(name,"error");return{error:"Owner authorization cancelled"}}globalThis.OSMINOGOwnerVerified=true}
-      if(globalThis.OSMINOGNative&&["browser_read","browser_act"].includes(name))result=await OSMINOGNative.browser("agent-tool",{name,args});
+      if(globalThis.OSMINOGNative&&["browser_context","browser_read","browser_act"].includes(name))result=await OSMINOGNative.browser("agent-tool",{name,args});
       else if(name==="chat_history_read")result=await globalThis.OSMINOGChatHistory?.read?.(args);
       else if(["user_github_list","user_github_read","user_github_write"].includes(name))result=await globalThis.OSMINOGUserGitHub?.tool?.(name,args);
       else if(["drive_list","drive_read","drive_import"].includes(name)){const api=globalThis.OSMINOGDriveAPI;if(!api)throw new Error("Drive API unavailable");result=await api[name.slice(6)](args)}
