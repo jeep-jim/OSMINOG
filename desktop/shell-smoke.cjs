@@ -44,7 +44,7 @@ module.exports=async(win,browser)=>{
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
  assert.equal(await run("document.querySelector('.native-update').hidden"),false);
- assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.6')"),true);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.7')"),true);
  assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
  await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
@@ -66,7 +66,7 @@ module.exports=async(win,browser)=>{
  browser.session.protocol.unhandle('https');
  // Test the actual sandboxed preload and IPC on local responses at provider origins.
  // No external account, live AI request or production bypass is involved.
- await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
+ await browser.session.protocol.handle('https',()=>new Response(`<html><body><main><h1>Fresh native connector fixture</h1><form onsubmit="return false"><input type="file" accept=".txt,.png" multiple onchange="window.contextFile=this.files[0];for(const f of this.files){const s=document.createElement('span');s.textContent=f.name;document.querySelector('form').append(s)}"><textarea style="width:400px;height:100px;position:fixed;bottom:80px" aria-label="Message"></textarea><button type="button" aria-label="Send" style="position:fixed;bottom:30px;width:32px;height:32px" onclick="window.sent=document.querySelector('textarea').value">Go</button></form></main></body></html>`,{headers:{'Content-Type':'text/html'}}));
  try{
   await run("OSMINOGNativeBrowser.open('https://chatgpt.com/osminog-local-fixture','side')");await frame();
   const t=browser.state().tabs.find(t=>t.url==='https://chatgpt.com/osminog-local-fixture'),wc=browser.get(t.id).view.webContents;
@@ -78,11 +78,41 @@ module.exports=async(win,browser)=>{
   wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
   let sent='';for(let i=0;i<240&&!sent;i++){await new Promise(r=>setTimeout(r,50));sent=await wc.executeJavaScript('window.sent||""')}
   if(!sent)console.log('CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({url:location.href,draft:document.querySelector('textarea')?.value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));
-  assert.match(sent,/Native user prompt/);assert.match(sent,/<osminog_context>/);assert.match(sent,/Рабочий стол нового браузера/);
+  assert.equal(sent,'Native user prompt');assert.match(await wc.executeJavaScript('window.contextFile.text()'),/Рабочий стол нового браузера/);
   assert.equal(await wc.executeJavaScript('typeof window.OSMINOGNative'), 'undefined');
+  const snapshot=JSON.parse(await wc.executeJavaScript('window.contextFile.text()'));assert.equal(snapshot.schema,'osminog.browser-context/v1');
+  assert.ok(Array.isArray(snapshot.canvasObjects));
+  if(snapshot.canvasImageAttached)assert.equal(await wc.executeJavaScript("[...document.querySelector('input').files].filter(f=>f.type==='image/png').length"),1);
+  // A file chip in previous conversation history must not block the next message.
+  await wc.executeJavaScript("document.querySelectorAll('form span').forEach(s=>document.querySelector('main').append(s));window.sent='';document.querySelector('textarea').value='Second user prompt';document.querySelector('textarea').focus()");
+  wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
+  for(let i=0;i<240;i++){await new Promise(r=>setTimeout(r,50));if(await wc.executeJavaScript('!!window.sent'))break}
+  if(!await wc.executeJavaScript('window.sent'))console.log('SECOND_CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({draft:document.querySelector('textarea').value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));assert.equal(await wc.executeJavaScript('window.sent'),'Second user prompt');
   await browser.command('context-enable',{id:t.id,enabled:false});
   console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
  }finally{browser.session.protocol.unhandle('https')}
+
+ // Original submenus remain functional in the header; documents are editable and persisted.
+ win.focus();win.webContents.focus();await frame();
+ await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
+ console.log('TOOL_MENU_STATE',await run("JSON.stringify({hidden:document.querySelector('#deskMore').hidden,parent:document.querySelector('#deskMore').parentElement.id,api:typeof OSMINOGWorkdeskMenus?.open,focus:document.activeElement?.outerHTML?.slice(0,160),nativeTools:document.querySelectorAll('[data-native-group]').length})"));assert.equal(await run("document.querySelector('#deskMore').hidden"),false);await fs.writeFile('shell-smoke-tool-menu.png',(await win.webContents.capturePage()).toPNG());
+ assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
+ assert.equal(browser.panels.length,0);
+ const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
+ const beforeDocs=await run('objects().length');
+ await run("document.querySelector('#deskMore [data-desk=markdown]').click()");await frame();
+ assert.equal(await run('objects().length'),beforeDocs+1);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
+ await run("document.querySelector('#workdeskText').value='Native Markdown content';document.querySelector('#workdeskText').dispatchEvent(new Event('input',{bubbles:true}));OSMINOGWorkdesk.close()");await frame();
+ assert.equal(await run("objects().some(o=>o.text==='Native Markdown content'&&o.noteFormat==='markdown')"),true);
+ await run('globalThis.beforeCreateView={...state.view};state.view.x+=10000;state.view.y+=10000;applyView()');await frame();
+ const pointCreate=await run("(()=>{const r=document.querySelector('.native-canvas #viewport').getBoundingClientRect();return{x:Math.round(r.x+20),y:Math.round(r.y+20)}})()");
+ win.webContents.sendInputEvent({type:'mouseDown',...pointCreate,button:'right',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...pointCreate,button:'right',clickCount:1});await new Promise(r=>setTimeout(r,160));await frame();
+ assert.equal(await run("document.querySelector('.native-create-menu').hidden"),false);await fs.writeFile('shell-smoke-create-menu.png',(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('[data-native-create=note]').click()");await frame();
+ assert.equal(await run('objects().length'),beforeDocs+2);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
+ await run("OSMINOGWorkdesk.close()");await run('state.view=beforeCreateView;applyView()');await frame();
+ assert.equal(await run("document.querySelectorAll('.native-tile > .native-tool-rail').length"),0);
+ console.log('HEADER_TOOL_MENUS_AND_RIGHT_CLICK_DOCUMENTS_PASS');
  const previous=browser.project;
  await run("document.querySelector('#native-browser [data-do=home]').click()");await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),true);
  await run(`openProject(${JSON.stringify(previous)})`);await frame();await frame();assert.equal(await run("document.querySelector('#native-browser').hidden"),false);

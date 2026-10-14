@@ -113,7 +113,6 @@ html[data-theme=ocean] #native-browser{--shell:#081f2c;--surface:#0d2b3b;--raise
 #native-browser .native-cell [data-do=properties]{margin-left:auto}
 #native-browser .native-canvas>.native-layers.is-collapsed{width:56px}
 #native-browser .native-canvas>.native-layers[hidden]{display:none!important}
-@container (min-width:111px){.native-rail-top [data-do=new]:after{content:' Новая вкладка';font-size:var(--ui-font)}}
 #native-browser .native-tab-label{font-size:calc(var(--ui-font) - 1px)}
 #native-browser .native-top button{min-height:var(--ui-control)}
 #native-browser .native-control .native-task-consent{display:flex;align-items:flex-start;gap:10px;padding:12px;background:var(--raised);border-radius:12px}
@@ -180,7 +179,7 @@ html[data-native-desktop] #native-browser :is(#viewport,#layersPanel,#inspector,
 .native-top-actions{grid-column:3;display:flex;align-items:center;justify-content:flex-end;gap:3px;min-width:0}
 .native-tile{position:relative;display:flex;min-width:0;min-height:0;gap:8px}
 .native-tile>.native-cell{flex:1;min-width:0;min-height:0}
-.native-tool-rail{display:flex;flex-direction:column;flex:none;width:34px;gap:5px;padding:5px 0;background:var(--surface);border:1px solid var(--stroke);border-radius:12px}
+.native-tool-rail{display:flex;flex-direction:row;flex:none;gap:5px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--stroke)}
 #native-browser .native-tool-rail button{padding:5px 2px;min-width:0}
 #native-browser .native-tile>.native-properties{position:relative;inset:auto;display:flex;flex-direction:column;flex:0 0 clamp(200px,34%,280px);width:280px;min-width:0;height:100%;overflow:hidden;border:1px solid var(--stroke);border-radius:16px;background:var(--surface)}
 #native-browser .native-properties #inspector{flex:1;min-height:0!important;height:0!important;overflow:hidden;border-radius:0!important}
@@ -213,3 +212,13 @@ html[data-native-desktop] #native-browser :is(#viewport,#layersPanel,#inspector,
 #native-browser .native-pane-options strong,#native-browser .native-pane-options small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #native-browser .native-pane-options small{color:var(--quiet);font-size:12px}
 #native-browser .native-pane-add{flex-shrink:0;text-align:left;border-top:1px solid var(--stroke);padding:10px}
+/* Original tool menus are portalled out of the hidden legacy application. */
+#native-browser #deskMore{position:fixed;z-index:500;max-height:calc(100vh - 90px);overflow:auto;background:var(--surface);color:var(--fg);border:1px solid var(--stroke);border-radius:12px;box-shadow:0 12px 32px #0003}
+#native-browser #deskMore button{color:var(--fg);font-size:var(--ui-font);text-align:left;min-height:36px}
+#native-browser .native-tools{max-width:46vw;overflow-x:auto;scrollbar-width:thin}
+#native-browser .native-create-menu{inset:auto;width:240px;padding:10px;gap:4px;border-radius:12px}
+#native-browser .native-create-menu button{text-align:left;width:100%;padding:9px}
+body.native-shell-open :is(#bcObjectContextMenu,#osminogWindowsFolderMenu,#osminogWindowsExplorer,#osminogDocumentEditor,#osminogTextFormatBar){z-index:100500!important}
+
+#native-browser .native-tools #canvasColorWrap{position:relative;display:flex;align-items:center;flex:0 0 30px;width:30px;height:32px;padding:3px;margin:0}
+#native-browser .native-tools #canvasColor{position:static;width:24px;min-width:24px;min-height:24px;height:24px;padding:0;border:0;opacity:1;cursor:pointer}
