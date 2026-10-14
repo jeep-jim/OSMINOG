@@ -5,7 +5,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 (async()=>{
  const server=http.createServer((req,res)=>{const f=path.join(__dirname,'board',decodeURIComponent(req.url.split('?')[0]));try{res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html'})[path.extname(f)]||'application/octet-stream');res.end(fs.readFileSync(f))}catch{res.writeHead(404);res.end()}});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_EXECUTABLE,args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1600,height:980}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.addInitScript(()=>{const mem={};let notify=()=>{},project='',tabs=[],sessions=[],activeProvider='';const state=()=>({project,tabs,sessions,activeProvider});globalThis.OSMINOGNative={version:'0.3.0',onChanged(){},onBrowser:f=>notify=f,onProvider(){},onUpdate(){},updateState:async()=>({phase:'idle',currentVersion:'0.3.0'}),get:async k=>typeof k==='string'?{[k]:mem[k]}:Array.isArray(k)?Object.fromEntries(k.map(k=>[k,mem[k]])):{...k,...mem},set:async x=>Object.assign(mem,x),remove:async()=>{},runtime:async()=>({ok:false,error:'Fixture transport'}),open:async()=>{},browser:async(action,a={})=>{if(action==='project')project=a.id;if(action==='state'||action==='project')return state();if(action==='layout'){globalThis.testPanels=a.panels;return true}if(action==='open'){const t={id:crypto.randomUUID(),url:a.url,title:new URL(a.url).hostname,lane:a.lane};tabs.push(t);notify(state());return{id:t.id}}if(action==='close'){tabs=tabs.filter(t=>t.id!==a.id);notify(state());return state()}if(action==='provider'){const t={id:crypto.randomUUID(),url:'https://'+a.provider+'.com/',title:a.provider,session:true,provider:a.provider};sessions.push(t);activeProvider=t.id;notify(state());return state()}if(action==='activate-provider'){activeProvider=a.id;return state()}if(action==='close-provider'){sessions=sessions.filter(t=>t.id!==a.id);notify(state());return state()}if(action==='context')return (a.ids||tabs.map(t=>t.id)).map(id=>({id,title:'Fixture page',url:'https://example.com/',text:'Fixture body'}));if(action==='copy-context'){globalThis.testCopied=a.text;return true}return state()}}});
+ await page.addInitScript(()=>{const mem={};globalThis.testMemory=mem;let notify=()=>{},project='',tabs=[],sessions=[],activeProvider='';const state=()=>({project,tabs,sessions,activeProvider});globalThis.OSMINOGNative={version:'0.3.0',onChanged(){},onBrowser:f=>notify=f,onProvider(){},onUpdate(){},updateState:async()=>({phase:'idle',currentVersion:'0.3.0'}),get:async k=>typeof k==='string'?{[k]:mem[k]}:Array.isArray(k)?Object.fromEntries(k.map(k=>[k,mem[k]])):{...k,...mem},set:async x=>Object.assign(mem,x),remove:async()=>{},runtime:async()=>({ok:false,error:'Fixture transport'}),open:async()=>{},browser:async(action,a={})=>{if(action==='project')project=a.id;if(action==='state'||action==='project')return state();if(action==='layout'){globalThis.testPanels=a.panels;return true}if(action==='open'){const t={id:crypto.randomUUID(),url:a.url,title:new URL(a.url).hostname,lane:a.lane};tabs.push(t);notify(state());return{id:t.id}}if(action==='close'){tabs=tabs.filter(t=>t.id!==a.id);notify(state());return state()}if(action==='provider'){const t={id:crypto.randomUUID(),url:'https://'+a.provider+'.com/',title:a.provider,session:true,provider:a.provider};sessions.push(t);activeProvider=t.id;notify(state());return state()}if(action==='activate-provider'){activeProvider=a.id;return state()}if(action==='close-provider'){sessions=sessions.filter(t=>t.id!==a.id);notify(state());return state()}if(action==='context')return (a.ids||tabs.map(t=>t.id)).map(id=>({id,title:'Fixture page',url:'https://example.com/',text:'Fixture body'}));if(action==='copy-context'){globalThis.testCopied=a.text;return true}return state()}}});
  try{
  await page.goto('http://127.0.0.1:'+server.address().port+'/editor.html');await page.waitForFunction(()=>globalThis.OSMINOGNativeBrowser?.state().visible);await page.locator('#native-browser').waitFor({state:'visible'});
  await page.evaluate(()=>{OSMINOGEditorAPI.create('text',{name:'Рабочий план',text:'Новый браузер для работы\nХолст · вкладки · ИИ',x:6050,y:4100,w:420,h:180});return OSMINOGNativeBrowser.open('https://example.com/')});
@@ -13,13 +13,49 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  assert.equal(await page.locator('.native-cell').count(),4);assert.equal(await page.locator('.native-canvas #viewport').count(),1);assert.equal(await page.locator('.native-tabs .native-tab').count(),3);assert.equal(await page.locator('.native-ai-tabs .native-tab').count(),1);
  await page.locator('[data-do=theme]').click();await page.locator('[data-do=theme]').click();await page.locator('[data-do=theme]').click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
  await page.screenshot({path:'shell-dark.png'});
- await page.locator('.native-ai-footer [data-do=context]').click();await page.locator('.native-context').first().waitFor({state:'visible'});assert.equal(await page.evaluate(()=>testPanels.length),0);assert.match(await page.locator('.native-context textarea[aria-label="Контекст для передачи ИИ"]').inputValue(),/Рабочий план/);await page.locator('[data-do=copy]').click();assert.match(await page.evaluate(()=>testCopied),/Fixture body/);
- await page.locator('.native-cell>header button').last().click();assert.equal(await page.locator('.native-cell').count(),1);await page.keyboard.press('Escape');assert.equal(await page.locator('.native-cell').count(),4);
+ await page.locator('.native-ai-footer [data-do=context]').click();await page.locator('.native-context').first().waitFor({state:'visible'});await page.waitForFunction(()=>testPanels.length===0);assert.match(await page.locator('.native-context textarea[aria-label="Контекст для передачи ИИ"]').inputValue(),/Рабочий план/);await page.locator('[data-do=copy]').click();assert.match(await page.evaluate(()=>testCopied),/Fixture body/);
+ await page.locator('.native-pane-full').last().click();assert.equal(await page.locator('.native-cell').count(),1);await page.keyboard.press('Escape');assert.equal(await page.locator('.native-cell').count(),4);
  await page.locator('[data-do=files]').click();assert.equal(await page.locator('.native-layers #layersPanel').count(),1);await page.locator('[data-do=files]').click();
  await page.locator('[data-do=chat]').click();assert.equal(await page.locator('.native-chat').isVisible(),true);
  await page.evaluate(()=>OSMINOGNativeBrowser.canvas());assert.equal(await page.locator('#native-browser #viewport').count(),1);assert.equal(await page.locator('#viewport').count(),1);await page.evaluate(()=>OSMINOGNativeBrowser.open());assert.equal(await page.locator('.native-canvas #viewport').count(),1);
  await page.locator('[data-do=theme]').click();await page.screenshot({path:'shell-ocean.png'});await page.locator('[data-do=theme]').click();await page.screenshot({path:'shell-light.png'});
  await page.setViewportSize({width:900,height:650});await page.screenshot({path:'shell-compact.png'});const overflow=await page.evaluate(()=>{const r=document.querySelector('#native-browser').getBoundingClientRect();return [...document.querySelectorAll('.native-scroll,.native-ai')].some(e=>{const b=e.getBoundingClientRect();return b.right>r.right+1||b.bottom>r.bottom+1})});assert.equal(overflow,false);
+ // Regression: resizing remains available when central tabs extend beyond four tiles.
+ await page.setViewportSize({width:1600,height:980});await page.keyboard.press('Escape');
+ for(let i=0;i<5;i++)await page.evaluate(i=>OSMINOGNativeBrowser.open('https://example.com/extra-'+i),i);
+ const cells=page.locator('.native-cell'),beforeWidth=(await cells.first().boundingBox()).width;
+ const divider=page.locator('.native-resize-x');await divider.focus();await page.keyboard.press('ArrowRight');
+ assert.ok((await cells.first().boundingBox()).width>beforeWidth+10);
+ const grip=await divider.boundingBox();await page.mouse.move(grip.x+grip.width/2,grip.y+30);await page.mouse.down();await page.mouse.move(grip.x+65,grip.y+30);await page.mouse.up();
+ assert.ok((await cells.first().boundingBox()).width>beforeWidth+40);
+ const heights=await cells.evaluateAll(es=>es.map(e=>e.getBoundingClientRect().height));
+ const rowGrip=page.locator('.native-resize-y').first(),r=await rowGrip.boundingBox();
+ await page.mouse.move(r.x+35,r.y+r.height/2);await page.mouse.down();await page.mouse.move(r.x+35,r.y+65);await page.mouse.up();
+ assert.ok((await cells.first().boundingBox()).height>heights[0]+40);
+ assert.ok(Math.abs((await cells.nth(4).boundingBox()).height-heights[4])<2);
+ await page.evaluate(()=>OSMINOGNativeBrowser.open());assert.ok((await cells.first().boundingBox()).height>heights[0]+40);
+ // Both close controls remove the same live tab, list item, and tile without a blank hole.
+ const firstId=await page.locator('.native-cell[data-pane-id]:has(.native-pane-close)').first().getAttribute('data-pane-id');
+ await page.locator(`.native-tabs [data-tab-id="${firstId}"]`).hover();await page.locator(`.native-tabs [data-tab-id="${firstId}"] .native-tab-close`).click();
+ await page.waitForFunction(id=>!OSMINOGNativeBrowser.state().data.tabs.some(t=>t.id===id),firstId);
+ assert.equal(await page.locator(`.native-cell[data-pane-id="${firstId}"]`).count(),0);
+ const second=page.locator('.native-cell:has(.native-pane-close)').first(),secondId=await second.getAttribute('data-pane-id');await second.locator('.native-pane-close').click();
+ await page.waitForFunction(id=>!OSMINOGNativeBrowser.state().data.tabs.some(t=>t.id===id),secondId);
+ assert.equal(await page.locator(`.native-tabs [data-tab-id="${secondId}"]`).count(),0);
+ assert.equal(await page.locator('.native-cell[data-pane-id=""]').count(),0);
+ // Collapse preserves the exact canvas and its contents; reopening does not displace another tab.
+ const tabIds=await page.evaluate(()=>{globalThis.originalViewport=document.querySelector('#viewport');return OSMINOGNativeBrowser.state().data.tabs.map(t=>t.id)});
+ await page.locator('.native-canvas-collapse').click();assert.equal(await page.locator('.native-canvas').count(),0);
+ await page.evaluate(()=>OSMINOGNativeBrowser.open());assert.equal(await page.locator('.native-canvas').count(),0);
+ await page.waitForFunction(()=>Object.values(testMemory.browserShell||{}).some(p=>p.canvasHidden&&p.rowHeights[4]?.length));
+ await page.locator('.native-tabs [data-tab-id="@canvas"] > button').click();assert.equal(await page.locator('.native-canvas #viewport').count(),1);
+ assert.equal(await page.evaluate(()=>originalViewport===document.querySelector('#viewport')),true);
+ assert.deepEqual(await page.evaluate(()=>OSMINOGNativeBrowser.state().data.tabs.map(t=>t.id)),tabIds);
+ // Resizing a lower row in the asymmetric 3-pane layout spans both columns.
+ await page.evaluate(()=>OSMINOGNativeBrowser.split(3));assert.equal(await page.locator('.native-resize-spanned').count(),1);
+ assert.ok(await page.locator('.native-resize-y').count()>1);
+ await page.locator('.native-resize-y').nth(1).focus();await page.keyboard.press('ArrowDown');
+ await page.screenshot({path:'shell-tiles-fixed.png'});
  const relevant=errors.filter(e=>!/fabric|PDFLib|fontkit/.test(e));assert.deepEqual(relevant,[]);console.log('SHELL_UI_PASS');
  }finally{await browser.close();server.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

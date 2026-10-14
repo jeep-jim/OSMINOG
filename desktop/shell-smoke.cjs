@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 module.exports=async(win,browser)=>{
- await browser.session.protocol.handle('https',()=>new Response('<html><title>Native shell fixture</title><body><h1>Native page fixture</h1><p>Stable page for layout checks.</p></body></html>',{headers:{'Content-Type':'text/html'}}));
+ await browser.session.protocol.handle('https',()=>new Response('<html><link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="><title>Native shell fixture</title><body><h1>Native page fixture</h1><p>Stable page for layout checks.</p></body></html>',{headers:{'Content-Type':'text/html'}}));
  const run=code=>win.webContents.executeJavaScript(code),frame=()=>run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
  await run('OSMINOGStateReady');await run('(async()=>{createProject();await OSMINOGNativeBrowser.open();const p=viewportCenter();OSMINOGEditorAPI.create("text",{name:"Shell test",text:"Рабочий стол нового браузера",x:p.x-110,y:p.y-45,w:220,h:90,fill:"#96a3bc",fontSize:18})})()');await frame();
  assert.equal(await run("document.querySelectorAll('.native-cell').length"),4);assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
@@ -44,7 +44,7 @@ module.exports=async(win,browser)=>{
  console.log('SHELL_PALETTE_AND_FAVICON_PASS');
  await run("document.querySelector('#native-browser [data-do=updates]').click()");await frame();
  assert.equal(await run("document.querySelector('.native-update').hidden"),false);
- assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.3')"),true);
+ assert.equal(await run("document.querySelector('.native-release-notes').textContent.includes('Новое в 0.3.4')"),true);
  assert.equal(await run("document.querySelector('.native-update').getBoundingClientRect().height < innerHeight-20"),true);
  await fs.writeFile('shell-smoke-updates.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update [data-do=dismiss]').click()");await frame();
@@ -104,6 +104,23 @@ module.exports=async(win,browser)=>{
  await run("(()=>{document.querySelector('.native-scroll').scrollTop=0;const cells=[...document.querySelectorAll('.native-cell')];const from=cells.find(c=>c.dataset.paneId==='@canvas');const target=cells.find(c=>c!==from);globalThis.expectedCanvasSlot=Number(target.dataset.dropIndex);const dt=new DataTransfer();from.querySelector('header').dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()");await frame();
  assert(await run("OSMINOGNativeBrowser.state().slots[expectedCanvasSlot]==='@canvas'"));
  console.log('SCROLLING_TILES_AND_CANVAS_DRAG_PASS');
+ // Regressions from 0.3.3: native pages track resized rows, and both close controls destroy them.
+ const width=await run("document.querySelector('.native-cell').getBoundingClientRect().width");
+ await run("document.querySelector('.native-resize-x').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");await frame();
+ assert((await run("document.querySelector('.native-cell').getBoundingClientRect().width"))>width);
+ const height=await run("document.querySelector('.native-cell').getBoundingClientRect().height");
+ await run("document.querySelector('.native-resize-y').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
+ assert((await run("document.querySelector('.native-cell').getBoundingClientRect().height"))>height);
+ const closed=await run("(()=>{const c=document.querySelector('.native-cell:has(.native-pane-close)'),id=c.dataset.paneId;c.querySelector('.native-pane-close').click();return id})()");await frame();
+ assert(!browser.state().tabs.some(t=>t.id===closed));assert.equal(await run(`document.querySelectorAll('[data-tab-id="${closed}"]').length`),0);
+ const closedRail=await run("(()=>{const c=document.querySelector('.native-tabs .native-tab:has(.native-tab-close)'),id=c.dataset.tabId;c.querySelector('.native-tab-close').click();return id})()");await frame();
+ assert(!browser.state().tabs.some(t=>t.id===closedRail));assert.equal(await run(`document.querySelectorAll('[data-pane-id="${closedRail}"]').length`),0);
+ await run("document.querySelector('.native-canvas-collapse').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas').length"),0);
+ await new Promise(r=>setTimeout(r,250));assert.equal((await browser.store.get('browserShell')).browserShell[browser.project].canvasHidden,true);
+ await run("OSMINOGNativeBrowser.open()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas').length"),0);
+ await run("document.querySelector('.native-tabs [data-tab-id=\"@canvas\"] > button').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas #viewport').length"),1);
+ assert(await run("markdownExport({all:true}).includes('Рабочий стол нового браузера')"));
+ console.log('TILE_RESIZE_CLOSE_COLLAPSE_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
