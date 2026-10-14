@@ -218,3 +218,4 @@ html[data-native-desktop] #native-browser :is(#viewport,#layersPanel,#inspector,
 #native-browser .native-tools{max-width:46vw;overflow-x:auto;scrollbar-width:thin}
 #native-browser .native-create-menu{inset:auto;width:240px;padding:10px;gap:4px;border-radius:12px}
 #native-browser .native-create-menu button{text-align:left;width:100%;padding:9px}
+body.native-shell-open :is(#bcObjectContextMenu,#osminogWindowsFolderMenu,#osminogWindowsExplorer,#osminogDocumentEditor,#osminogTextFormatBar){z-index:100500!important}

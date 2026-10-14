@@ -80,13 +80,21 @@ module.exports=async(win,browser)=>{
   if(!sent)console.log('CONTEXT_FAILURE',await wc.executeJavaScript("JSON.stringify({url:location.href,draft:document.querySelector('textarea')?.value,notice:document.getElementById('osminog-context-status')?.textContent,focus:document.hasFocus()})"));
   assert.equal(sent,'Native user prompt');assert.match(await wc.executeJavaScript('window.contextFile.text()'),/Рабочий стол нового браузера/);
   assert.equal(await wc.executeJavaScript('typeof window.OSMINOGNative'), 'undefined');
+  const snapshot=JSON.parse(await wc.executeJavaScript('window.contextFile.text()'));assert.equal(snapshot.schema,'osminog.browser-context/v1');
+  assert.ok(Array.isArray(snapshot.canvasObjects));
+  if(snapshot.canvasImageAttached)assert.equal(await wc.executeJavaScript("[...document.querySelector('input').files].filter(f=>f.type==='image/png').length"),1);
+  // A file chip in previous conversation history must not block the next message.
+  await wc.executeJavaScript("document.querySelectorAll('form span').forEach(s=>document.querySelector('main').append(s));window.sent='';document.querySelector('textarea').value='Second user prompt';document.querySelector('textarea').focus()");
+  wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
+  for(let i=0;i<240;i++){await new Promise(r=>setTimeout(r,50));if(await wc.executeJavaScript('!!window.sent'))break}
+  assert.equal(await wc.executeJavaScript('window.sent'),'Second user prompt');
   await browser.command('context-enable',{id:t.id,enabled:false});
   console.log('ORIGINAL_CONTEXT_NATIVE_SMOKE_PASS');
  }finally{browser.session.protocol.unhandle('https')}
 
  // Original submenus remain functional in the header; documents are editable and persisted.
  await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
- assert.equal(await run("document.querySelector('#deskMore').hidden"),false);
+ assert.equal(await run("document.querySelector('#deskMore').hidden"),false);await fs.writeFile('shell-smoke-tool-menu.png',(await win.webContents.capturePage()).toPNG());
  assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
  assert.equal(browser.panels.length,0);
  const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
@@ -97,7 +105,7 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("objects().some(o=>o.text==='Native Markdown content'&&o.noteFormat==='markdown')"),true);
  const pointCreate=await run("(()=>{const r=document.querySelector('.native-canvas #viewport').getBoundingClientRect();return{x:Math.round(r.x+20),y:Math.round(r.y+20)}})()");
  win.webContents.sendInputEvent({type:'mouseDown',...pointCreate,button:'right',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...pointCreate,button:'right',clickCount:1});await new Promise(r=>setTimeout(r,160));await frame();
- assert.equal(await run("document.querySelector('.native-create-menu').hidden"),false);
+ assert.equal(await run("document.querySelector('.native-create-menu').hidden"),false);await fs.writeFile('shell-smoke-create-menu.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('[data-native-create=note]').click()");await frame();
  assert.equal(await run('objects().length'),beforeDocs+2);assert.equal(await run("document.querySelector('#workdeskViewer').open"),true);
  await run("OSMINOGWorkdesk.close()");await frame();
