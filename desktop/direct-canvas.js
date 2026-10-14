@@ -1,5 +1,6 @@
 'use strict';
 (()=>{
+ globalThis.BriefCraftBridge?.setAccess();
  // Only installed in the trusted local shell, never in external WebContents.
  const snapshot=async()=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({project:globalThis.project?.()?.id,objects:globalThis.objects?.(),connections:globalThis.project?.()?.connections||[]})))),b=>b.toString(16).padStart(2,'0')).join('');
  globalThis.OSMINOGDirectCanvas=Object.freeze({snapshot,apply:async p=>{

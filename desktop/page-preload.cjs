@@ -22,7 +22,7 @@ if(process.isMainFrame){
   for(const image of context.images||[]){
    if(!input.multiple)throw Error('Этот чат не принимает несколько файлов вместе. Сообщение не отправлено');
    const [header,data]=image.dataUrl.split(',');if(!/^data:image\/png;base64$/.test(header))throw Error('Не удалось подготовить снимок холста');
-   const bytes=Uint8Array.from(atob(data),c=>c.charCodeAt(0)),imageName=name.replace('.txt','-canvas.png');
+   const bytes=Uint8Array.from(atob(data),c=>c.charCodeAt(0)),imageName=name.replace('.txt','-')+String(image.name||'canvas.png').replace(/[^a-zA-Z0-9_.-]/g,'_');
    transfer.items.add(new File([bytes],imageName,{type:'image/png'}));names.push(imageName);
   }
   valid();input.files=transfer.files;lastAttachment=name;

@@ -295,6 +295,7 @@
     internalSending=true;document.documentElement.dataset.osminogSyncInternal='1';
     const before=snapshot(),initialRoute=route(),generation=cancelEpoch;
     try{if(strictAttachments)await uploadDirectAttachments(images,input);else await uploadImages(images,input);if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
+    if(strictAttachments&&clean(input.value??input.innerText??input.textContent))throw Error('В чате появился новый черновик. Он сохранён; продолжение остановлено.');
     setComposer(input,text);
     await sleep(180);
     const button=sendButton(input);

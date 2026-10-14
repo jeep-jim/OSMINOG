@@ -51,6 +51,13 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(before!==canvasState)throw Error('Холст изменился во время чтения; повторите отправку');
   const images=[];
   if(board?.rect?.width>0&&board.rect.height>0){const image=await win.webContents.capturePage(board.rect);if(!image.isEmpty())images.push({name:'OSMINOG-canvas.png',dataUrl:image.resize({width:Math.min(1600,image.getSize().width)}).toDataURL()})}
+  for(const page of pages){
+   if(images.length>=5)break;
+   const target=browser.get(page.id);if(!target.visible||target.view.webContents.getURL()!==page.url)continue;
+   const shot=await target.view.webContents.capturePage();if(shot.isEmpty())continue;
+   const name='OSMINOG-tab-'+page.id+'.png';page.screenshot=name;page.screenshotSize={width:target.bounds.width,height:target.bounds.height};
+   images.push({name,dataUrl:shot.resize(page.screenshotSize).toDataURL()});
+  }
   if(browser.project!==expected||tab.project!==expected)throw Error('Проект изменился');
   return {schema:'osminog.browser-context/v1',project:expected,capturedAt:new Date().toISOString(),canvas:board.map,viewport:board.viewport,canvasObjects:board.objects,canvasState,canvasImageAttached:images.length>0,pages,images};
  }

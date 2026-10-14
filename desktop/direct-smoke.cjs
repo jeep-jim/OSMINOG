@@ -29,7 +29,7 @@ module.exports=async(win,browser)=>{
    wc.sendInputEvent({type:'mouseDown',...point,button:'left',clickCount:1});wc.sendInputEvent({type:'mouseUp',...point,button:'left',clickCount:1});
    for(let i=0;i<400;i++){await sleep(50);if(await wc.executeJavaScript(`window.sent.length>=${expected}`)&&!browser.direct.turn)break}
    const state=await wc.executeJavaScript("({sent:window.sent,notice:document.getElementById('osminog-context-status')?.textContent})");
-   if(state.sent.length!==expected||browser.direct.turn)console.log('DIRECT_CHAT_FAILURE',state,await run("document.querySelector('.native-status').textContent"));
+   if(state.sent.length!==expected||browser.direct.turn)console.log('DIRECT_CHAT_FAILURE',state,{stage:browser.direct.turn?.stage,reply:browser.direct.turn?.lastReply,result:browser.direct.turn?.lastResults,error:browser.direct.lastError},await wc.executeJavaScript("document.querySelector('#history').innerText"),await run("document.querySelector('.native-status').textContent"));
    assert.equal(state.sent.length,expected);assert.equal(browser.direct.turn,null);assert.equal(state.sent[expected-2],text);
   }
   await send('Создай текст напрямую',2);

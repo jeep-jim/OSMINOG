@@ -211,6 +211,7 @@
   
   const current=byId.get(active);if(current?.error||selected?.error)status(current?.error||selected?.error);
  }
+ native.onTaskStatus?.(status);
  native.onBrowser(next=>{if(next.project===projectId){data=next;if(topology()!==structure)render();else refreshMetadata()}});q('.native-scroll').addEventListener('scroll',layout,{passive:true});new ResizeObserver(()=>{sizeGrid();layout()}).observe(q('.native-scroll'));new ResizeObserver(layout).observe(root);window.addEventListener('resize',layout);
  native.onProvider?.(async({provider})=>{await open();data=await call('state');side=data.activeProvider;render()});
  document.addEventListener('keydown',e=>{if(!visible)return;if(e.key==='Escape'){if(root.querySelector('.native-context:not([hidden]),.native-new:not([hidden])'))dismiss();else if(focus>=0){focus=-1;render()}return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'){e.preventDefault();const input=root.querySelector('.native-cell.is-active .native-pane-nav input')||root.querySelector('.native-pane-nav input')||q('.native-side-nav input');input.focus();input.select()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='t'){e.preventDefault();newDialog(e.shiftKey?'side':'main')}});
