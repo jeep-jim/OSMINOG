@@ -7,6 +7,21 @@ if(process.isMainFrame){
  if(['chatgpt.com','chat.openai.com','claude.ai','gemini.google.com','chat.deepseek.com'].includes(location.hostname)){
   let last='',at=0;
   const notify=text=>{if(last===text&&Date.now()-at<1500)return;last=text;at=Date.now();ipcRenderer.send('page:user-send',{text})};
+  let pending=null;
+  const acceptedSend=(input,text)=>{
+   if(pending?.input===input&&pending.text===text)return;
+   const ticket={input,text,attempts:0};pending=ticket;
+   const check=()=>{
+    if(pending!==ticket)return;
+    if(input.isConnected===false){pending=null;return}
+    const current=String(input.value??input.innerText??input.textContent??'').trim();
+    if(!current){pending=null;notify(text);return}
+    if(current!==text||++ticket.attempts>=40){pending=null;return}
+    setTimeout(check,50);
+   };
+   // Capture phase precedes the site's send handler. Never start a second request here.
+   setTimeout(check,50);
+  };
   const sent=e=>{
    if(!e.isTrusted||e.isComposing)return;
    const fields=[...document.querySelectorAll('textarea,[contenteditable="true"]')].filter(n=>n.getBoundingClientRect().width>100);
@@ -15,8 +30,7 @@ if(process.isMainFrame){
    const label=button&&[button.type,button.getAttribute('aria-label'),button.getAttribute('data-testid'),button.className].join(' ');
    const match=e.type==='keydown'?e.key==='Enter'&&!e.shiftKey&&(input===e.target||input.contains(e.target)):e.type==='submit'?e.target.contains(input):button&&/submit|send|отправ/i.test(label||'');
    const text=String(input.value??input.innerText??input.textContent??'').trim().slice(0,12000);if(!text)return;
-   if(!match){if(e.type==='click'&&button)setTimeout(()=>{if(input.isConnected!==false&&!String(input.value??input.innerText??input.textContent??'').trim())notify(text)},50);return}
-   notify(text);
+   if(match||(e.type==='click'&&button))acceptedSend(input,text);
   };
   for(const type of ['keydown','click','submit'])document.addEventListener(type,sent,true);
  }
