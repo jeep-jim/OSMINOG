@@ -554,3 +554,10 @@ Runtime 4808955 байт, SHA-256 `7c80eed586bb1c24e202f7cdfcec31403eb0bd6bc51dc
 - Current desktop provider runtime falls back to a managed service conversation when direct transport is unavailable/fails, then dispatches BC_PROVIDER_TAB_SEND_V4. The screenshot therefore identifies a missing service composer, but does not identify why direct transport failed or why the composer was absent. Earlier screenshot's Server is temporarily unavailable is a separate observed failure; do not conflate them.
 - The visible assistant's explanation about a stale snapshot is model-generated commentary, not a measured trace; treat as unverified. No conclusion that live context capture is broken solely from this prose.
 - No diagnostic JSON attached yet. Request the already installed 4.0.6 report after reproducing failure (gear → Save diagnostics); no additional release or reinstall needed to collect it. Connectivity/action issue remains OPEN. No speculative authentication/proxy changes.
+
+
+### 2026-10-15 13:27 Asia/Krasnoyarsk — user reports replies resumed on 4.0.6
+
+- User reports DeepSeek started replying again, cause unknown. Inspected image(20261015-062717).png: version 4.0.6; previous «тут?» has «Check network and retry.», subsequent «((» has a visible assistant reply. Host footer also shows «Ответ исполнителя: I'm ready to help…» referring to the same input. This is evidence of a successful ordinary reply and a service response at this moment, not of completed workspace actions or durable connectivity.
+- No new runtime was published between the preceding failure report and this recovery; do not attribute recovery to an unverified fix, network route, session refresh or provider outage. Root cause remains undetermined; no diagnostic JSON received.
+- Existing assistant text about stale screenshots remains unverified commentary. Live context freshness and actual board/tab actions still require a concrete read/act/verify task. Suggested next check: create a red circle on OSMINOG's own canvas from the ordinary chat and verify the object visibly appears, not only a textual claim.
