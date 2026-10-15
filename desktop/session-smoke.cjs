@@ -60,6 +60,8 @@ module.exports=async(win,browser,providers)=>{
   console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');
   const panel=browser.selectProvider('chatgpt','visible-panel-regression');
   await panel.view.webContents.loadURL('https://chatgpt.com/original');await sleep(300);
+  await run(`document.querySelector('[data-tab-id="${panel.id}"] button').click()`);await sleep(300);
+  assert(panel.visible,'Provider panel must be visible before native input');
   const panelWC=panel.view.webContents;
   await panelWC.executeJavaScript("document.querySelector('textarea').focus()");panelWC.focus();
   await panelWC.insertText('Заполни поле из панели ИИ');panelWC.sendInputEvent({type:'keyDown',keyCode:'Enter'});panelWC.sendInputEvent({type:'keyUp',keyCode:'Enter'});
