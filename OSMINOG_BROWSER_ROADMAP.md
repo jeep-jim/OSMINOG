@@ -545,3 +545,12 @@ Runtime 4808955 байт, SHA-256 `7c80eed586bb1c24e202f7cdfcec31403eb0bd6bc51dc
 - Release workflow 38684945864 succeeded with real 4.0.5 → 4.0.6 update/retained data; UPDATE_INSTALL_STARTED and INSTALLED_UPDATE_SMOKE_PASS 4.0.6 verified.
 - Published installer 115203587 bytes, SHA-256 cd2424215efe17621a7602eddca2aa707fe94c5df39bdc21e4e3ec34f77446e6. Immutable release assets, windows.json and public latest.yml verified for version 4.0.6.
 - Investigation remains OPEN. Next evidence: user updates, reproduces failed send on workplace PC, then Settings → Save diagnostics and attaches JSON. No claim of repaired live connectivity; no local workplace traces available yet.
+
+
+### 2026-10-15 13:17 Asia/Krasnoyarsk — screenshots after update to 4.0.6
+
+- Inspected image(20261015-061703).png and image(20261015-061730).png. User confirms earlier DeepSeek replies; screenshots visibly contain prior assistant responses/plans. They do not date those replies or independently prove that suggested clicks executed. Second screenshot shows installed version 4.0.6.
+- New concrete evidence: bottom host status says «Не выполнено: Поле ввода не найдено. Открой Google AI Mode/диалог провайдера в служебной вкладке.» while DeepSeek is selected. Located exact string in provider-tab-bridge.js send(): it is shared across providers and follows composer() returning null. The string is not evidence of routing DeepSeek to Google.
+- Current desktop provider runtime falls back to a managed service conversation when direct transport is unavailable/fails, then dispatches BC_PROVIDER_TAB_SEND_V4. The screenshot therefore identifies a missing service composer, but does not identify why direct transport failed or why the composer was absent. Earlier screenshot's Server is temporarily unavailable is a separate observed failure; do not conflate them.
+- The visible assistant's explanation about a stale snapshot is model-generated commentary, not a measured trace; treat as unverified. No conclusion that live context capture is broken solely from this prose.
+- No diagnostic JSON attached yet. Request the already installed 4.0.6 report after reproducing failure (gear → Save diagnostics); no additional release or reinstall needed to collect it. Connectivity/action issue remains OPEN. No speculative authentication/proxy changes.
