@@ -234,3 +234,6 @@ body.native-shell-open :is(#bcObjectContextMenu,#osminogWindowsFolderMenu,#osmin
 #osminogOfficeViewer{font:14px/1.5 system-ui,sans-serif}
 #osminogOfficeViewer button{color:#202633;background:#eef2f7;border:1px solid #cbd3df;border-radius:8px;font:inherit}
 #osminogOfficeViewer button:hover{background:#e1e8f3}#osminogOfficeViewer button:focus-visible{outline:2px solid #526fff;outline-offset:2px}
+
+/* Native project chat uses the existing signed-in website session. */
+html[data-native-desktop] #gptProviderApiFallback,html[data-native-desktop] #gptCustomProviderBox,html[data-native-desktop] #gptAgentProvider option[value=custom],html[data-native-desktop] #gptAgentProvider option[value=googleai]{display:none!important}

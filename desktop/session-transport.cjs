@@ -19,8 +19,7 @@ class SessionTransport{
   const result=payload.result,images=[...(payload.images||[])];if(payload.imageDataUrl)images.push({name:'tool-result.png',dataUrl:payload.imageDataUrl});
   if(provider==='chatgpt')return this.api.gpt({text:payload.text||'',context,requestId,toolResult:result,images});
   let got;
-  if(payload.apiKey&&this.api.api[provider]){if(provider==='deepseek'&&images.length)throw Error('DeepSeek API в этом адаптере поддерживает текст. Изображения не отправлены.');got=await this.api.api[provider](payload.text||'',context,payload.apiKey,result,requestId,images)}
-  else if(provider==='deepseek'&&tab){if(images.length)return null; /* Image turns use the managed provider adapter. */got=await this.api.deep(tab.id,payload.text||'',context,result,requestId)}
+  if(provider==='deepseek'&&tab){if(images.length)return null; /* Image turns use the managed provider adapter. */got=await this.api.deep(tab.id,payload.text||'',context,result,requestId)}
   else return null;
   return{ok:true,requestId,payload:{requestId,...this.api.parse(got.answer)},diag:{provider,mode:got.mode||'api'}};
  }

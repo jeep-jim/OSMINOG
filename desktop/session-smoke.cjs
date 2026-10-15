@@ -1,10 +1,12 @@
 'use strict';
 const assert=require('node:assert/strict');
 module.exports=async(win,browser,providers)=>{
- const run=code=>win.webContents.executeJavaScript(code),sleep=ms=>new Promise(r=>setTimeout(r,ms));let turns=0,ordinaryTurns=0,targetId='',actionSnapshot='';
+ const run=code=>win.webContents.executeJavaScript(code),sleep=ms=>new Promise(r=>setTimeout(r,ms));let turns=0,ordinaryTurns=0,webImageRequests=0,targetId='',actionSnapshot='';
  const json=data=>new Response(JSON.stringify(data),{headers:{'content-type':'application/json'}});
  await browser.session.protocol.handle('https',async req=>{
   const u=new URL(req.url),p=u.pathname;
+  if(u.hostname==='www.bing.com'&&p==='/images/search'){webImageRequests++;const meta=JSON.stringify({murl:'https://images.example.com/camel.png',purl:'https://example.com/camel',t:'Fixture camel image'}).replaceAll('"','&quot;');return new Response(`<a class="iusc" m="${meta}"></a>`,{headers:{'content-type':'text/html'}})}
+  if(u.hostname==='images.example.com'){const png=require('electron').nativeImage.createFromBitmap(Buffer.alloc(16*16*4,255),{width:16,height:16}).toPNG();return new Response(png,{headers:{'content-type':'image/png'}})}
   if(u.hostname==='example.com')return new Response('<html><meta charset="utf-8"><body style="margin:0"><input aria-label="Город" style="width:200px;height:50px"><button style="position:absolute;left:0;top:80px;width:100px;height:40px" onclick="document.body.dataset.theme=String.fromCharCode(108,105,103,104,116)">Theme</button></body></html>',{headers:{'content-type':'text/html; charset=utf-8'}});
   if(u.hostname==='chatgpt.com'&&p==='/original')return new Response(`<html><meta charset="utf-8"><body><main id="messages"></main><form style="position:fixed;bottom:20px;width:90%"><textarea aria-label="Message" style="width:95%;height:80px"></textarea><button type="submit">Send</button></form><script>window.sent=[];const form=document.querySelector('form'),input=document.querySelector('textarea');input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}};form.onsubmit=e=>{e.preventDefault();const text=input.value;sent.push(text);input.value='';const user=document.createElement('div');user.dataset.messageAuthorRole='user';user.textContent=text;messages.append(user);setTimeout(()=>{const reply=document.createElement('div');reply.dataset.messageAuthorRole='assistant';reply.textContent=JSON.stringify({summary:'Ввод в поле',actions:[{type:'click',x:20,y:20},{type:'type',text:' из обычного чата'}]});messages.append(reply)},700)};</script></body></html>`,{headers:{'content-type':'text/html; charset=utf-8'}});
   if(p==='/api/v0/users/current')return new Response('fixture unavailable',{status:503});
@@ -38,6 +40,15 @@ module.exports=async(win,browser,providers)=>{
   await run("OSMINOGNativeBrowser.split(2)");await run(`OSMINOGNativeBrowser.assignTab(${JSON.stringify(targetId)},1)`);await run("document.querySelector('#native-browser [data-do=chat]').click()");await sleep(250);
   assert(target.visible,"Fixture target must be visible");const connected=await run('OSMINOGConnectDirectChatGPT()');assert(connected.ok,JSON.stringify(connected));
   async function send(text){await run(`document.querySelector('#gptPresenceApply').value='direct';document.querySelector('#gptPresenceInput').value=${JSON.stringify(text)};document.querySelector('#gptPresenceForm').requestSubmit()`)}
+  const beforeImages=await run("objects().filter(o=>o.type==='image').length");
+  await send('Фото верблюда закинь на холст из интернета');
+  for(let i=0;i<200&&(await run("objects().filter(o=>o.type==='image').length"))===beforeImages;i++)await sleep(100);
+  assert.equal(await run("objects().filter(o=>o.type==='image').length"),beforeImages+1,'Internal chat must import real image bytes through the web asset path');
+  assert.equal(webImageRequests,1);assert.equal(turns,0,'Direct web asset import does not need a model request');
+  assert(await run("objects().some(o=>o.type==='image'&&String(o.src).startsWith('data:image/'))"));
+  assert.equal(await run("getComputedStyle(document.querySelector('#gptProviderApiFallback')).display"),'none');
+  console.log('INTERNAL_CHAT_WEB_IMAGE_PERMISSION_AND_IMPORT_PASS');
+  await sleep(400);
   await send('Создай текст на доске');
   for(let i=0;i<200&&!(await run("objects().some(o=>o.name==='Session-created text')"));i++)await sleep(100);
   assert.equal(await run("objects().some(o=>o.name==='Session-created text')"),true,await run("document.querySelector('#gptPresenceMessages').innerText"));assert.equal(turns,1);
