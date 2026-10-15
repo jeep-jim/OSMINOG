@@ -18,6 +18,8 @@ class BrowserWorkspace{
   this.contextScope=null;this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
   this.session=session.fromPartition('persist:osminog-browser');
   const ua=this.session.getUserAgent?.();if(ua)this.session.setUserAgent(require('./network.cjs').browserUserAgent(ua));
+  this.connectionDiagnostics=new (require('./connection-diagnostics.cjs').ConnectionDiagnostics)({channel:id=>{const t=[...this.tabs.values(),...this.providers.values()].find(t=>t.view.webContents.id===id);return t?(t.ephemeral?'service-tab':'user-tab'):'session-or-worker'}});
+  this.connectionDiagnostics.attach(this.session);
   this.session.setPermissionCheckHandler(()=>false);
   this.session.setPermissionRequestHandler(async(wc,permission,callback,details)=>{
    const owned=[...this.tabs.values(),...this.providers.values()].some(t=>t?.view.webContents===wc);
@@ -82,6 +84,11 @@ class BrowserWorkspace{
    case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};const img=await t.view.webContents.capturePage();t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
    case 'context-enable':return{enabled:false,reason:'Original chats send only user content'};
    case 'network-get':return this.network;
+   case 'network-report':{
+    const routes={};for(const [provider,url] of Object.entries(PROVIDERS)){try{let timer;const route=await Promise.race([this.session.resolveProxy(url),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),2000)})]).finally(()=>clearTimeout(timer));routes[provider]=[...new Set(route.split(';').map(x=>x.trim().split(/\s+/)[0]).filter(x=>['DIRECT','PROXY','HTTPS','SOCKS','SOCKS4','SOCKS5'].includes(x)))];}catch{routes[provider]=['unavailable']}}
+    const report={schema:'osminog-connection-report/v1',createdAt:new Date().toISOString(),version:require('./package.json').version,platform:process.platform,electron:process.versions.electron,chromium:process.versions.chrome,networkMode:this.network.mode,routes,...this.connectionDiagnostics.snapshot(),note:'Local metadata only. HTTP 200 does not establish successful model response. No message text, headers, cookies, tokens, query strings or conversation IDs are collected.'};
+    const result=await dialog.showSaveDialog(this.win,{title:'Сохранить диагностику подключения',defaultPath:'OSMINOG-connection-'+require('./package.json').version+'.json',filters:[{name:'JSON',extensions:['json']}]});if(result.canceled||!result.filePath)return{canceled:true};await require('node:fs/promises').writeFile(result.filePath,JSON.stringify(report,null,2)+'\n','utf8');return{ok:true};
+   }
    case 'network-check':{
     const provider=Object.hasOwn(PROVIDERS,args.provider)?args.provider:'chatgpt',url=PROVIDERS[provider];
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);const started=Date.now();

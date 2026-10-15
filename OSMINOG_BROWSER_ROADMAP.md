@@ -525,3 +525,13 @@ Runtime 4808955 байт, SHA-256 `7c80eed586bb1c24e202f7cdfcec31403eb0bd6bc51dc
 - Release workflow 38683062095 succeeded, including real 4.0.4 → 4.0.5 upgrade and retained local data: UPDATE_INSTALL_STARTED / INSTALLED_UPDATE_SMOKE_PASS 4.0.5.
 - Published windows-v4.0.5 installer: 115202065 bytes, SHA-256 cd965e5b717715de0e1da3db47635083b512a40754612ee22c53f39da91f91a0. Release asset, channels/dev/windows.json and public windows-preview/latest.yml agree on 4.0.5 and immutable installer URL.
 - Live ChatGPT/DeepSeek account availability is not certified by fixture tests; user will verify their live chats after button update. This release does not assert that upstream connection/server errors are resolved.
+
+
+## 2026-10-15 — Investigation of workplace PC connection failure after 4.0.5
+
+- User reports home PC worked yesterday, workplace PC fails today. Screenshot image(20261015-045520).png shows loaded DeepSeek conversation and “Server is temporarily unavailable” after “ты тут?”. Screenshot alone does not identify HTTP status or responsible component. Live workplace request logs are not accessible from this development environment.
+- Inspected desktop network configuration, persistent session, page preload, provider transport and original-chat executor. Existing network-check requests only provider homepage, which does not establish chat completion connectivity. All provider views use persist:osminog-browser. No evidence yet proving a proxy, provider outage or account issue.
+- Confirmed original-chat observer starts a separate execution request after composer clears; overlap with the site's own request remains a hypothesis requiring timing evidence, not a diagnosed cause. No speculative change to authentication, proxy, TLS or execution permissions made.
+- Prepared 4.0.6 diagnostic release: passive Electron webRequest send/response/completed/error events, bounded in-memory metadata; distinguish user-tab, service-tab and session-or-worker requests; executor start/fallback/complete/failed markers. No body/header/cookie/token, query string, arbitrary path or conversation ID retained. Unknown endpoints are labelled other.
+- Added Settings → Save diagnostics export with app/engine versions and resolved proxy route types (no proxy host/credentials); local save dialog, no automatic upload. HTTP 200 explicitly is not proof of model success.
+- Local suite: 74 tests pass, including lifecycle/error reporting, redaction and bounded storage. Added Windows native HTTP 503 fixture assertion and UI presence check; CI pending. Need user reproduction and exported report on workplace PC before concluding the cause.
