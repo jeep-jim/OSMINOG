@@ -58,6 +58,15 @@ module.exports=async(win,browser,providers)=>{
   for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(100);
   assert.equal(browser.originalActions.active,null);assert.equal(ordinaryTurns,7);
   console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');
+  const panel=browser.selectProvider('chatgpt','visible-panel-regression');
+  await panel.view.webContents.loadURL('https://chatgpt.com/original');await sleep(300);
+  const panelWC=panel.view.webContents;
+  await panelWC.executeJavaScript("document.querySelector('textarea').focus()");panelWC.focus();
+  await panelWC.insertText('Заполни поле из панели ИИ');panelWC.sendInputEvent({type:'keyDown',keyCode:'Enter'});panelWC.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+  for(let i=0;i<100&&ordinaryTurns<8;i++)await sleep(100);
+  assert.equal(ordinaryTurns,8,'Visible provider panel must reach the workspace executor');
+  assert.deepEqual(await panelWC.executeJavaScript('window.sent'),['Заполни поле из панели ИИ']);
+  console.log('PROVIDER_PANEL_USER_SEND_EXECUTOR_PASS');
   console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };

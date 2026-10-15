@@ -17,3 +17,18 @@ test('Stop and project changes during planning prevent mutation',async()=>{for(c
 test('canvas patches use guarded local executor and return actual result before completion',async()=>{const f=fixture([{patch:{summary:'Круг',actions:[{op:'create',objectType:'shape',properties:{shapeKind:'ellipse',fill:'#f00'}}]}},{text:'Круг создан'}]);await f.observer.observe(f.source,'Нарисуй круг');assert(f.host.some(s=>s.includes('"expected":"canvas-revision"')));assert.deepEqual(f.messages[1].payload.result.results[0].result.createdIds,['circle'])});
 test('plain conversation does not cause actions; privileged and unknown tools are rejected',async()=>{for(const reply of [{text:'Привет!'},request('github_commit_files',{files:[]}),request('javascript',{code:'bad()'})]){const f=fixture([reply]);await f.observer.observe(f.source,'Привет');assert.equal(f.calls.length,0);assert(!f.host.some(s=>s.includes('executeTool')))}});
 test('double-send deduplicates even after completed turn',async()=>{const f=fixture([{text:'Привет'}]);await f.observer.observe(f.source,'Привет');await f.observer.observe(f.source,'Привет');assert.equal(f.messages.length,1)});
+
+test('visible provider panel sends start execution; ephemeral, foreign and detached chats cannot',async()=>{
+ const f=fixture([request('browser_read',{id:'page'}),{text:'Проверено'}]);
+ f.browser.tabs.delete(f.source.id);f.browser.providers.set('p:deepseek:main',f.source);
+ await f.observer.observe(f.source,'Проверь страницу');
+ assert.equal(f.calls[0].name,'browser_read');assert.equal(f.messages.length,2);
+ for(const kind of ['ephemeral','foreign','detached']){
+  const g=fixture([{patch:{actions:[{op:'create'}]}}]);g.browser.tabs.delete(g.source.id);
+  if(kind!=='detached')g.browser.providers.set('service',g.source);
+  if(kind==='ephemeral')g.source.ephemeral=true;
+  if(kind==='foreign')g.source.project='other';
+  await g.observer.observe(g.source,'Нарисуй круг');
+  assert.equal(g.messages.length,0);assert.equal(g.host.length,0);
+ }
+});

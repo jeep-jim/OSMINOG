@@ -9,6 +9,9 @@ class OriginalActions{
  constructor(browser,providers,{status=()=>{}}={}){Object.assign(this,{browser,providers,status});this.turns=new Map();this.epoch=0;this.active=null;this.recent=new Map()}
  stop(){this.epoch++;this.turns.clear();this.active=null}
  async observe(tab,text){
+  // Visible provider panels are user chats too. Hidden execution sessions must never recurse.
+  const registered=this.browser.tabs.get(tab.id)===tab||[...this.browser.providers.values()].includes(tab);
+  if(!registered||tab.ephemeral||tab.project!==this.browser.project||tab.view.webContents.isDestroyed())return;
   const provider=providerFor(tab.view.webContents.getURL());text=String(text||'').trim();if(!provider||!text)return;
   const last=this.recent.get(tab.id);if(last?.text===text&&Date.now()-last.at<1500)return;
   this.recent.set(tab.id,{text,at:Date.now()});while(this.recent.size>100)this.recent.delete(this.recent.keys().next().value);
