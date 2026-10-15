@@ -234,3 +234,5 @@ body.native-shell-open :is(#bcObjectContextMenu,#osminogWindowsFolderMenu,#osmin
 #osminogOfficeViewer{font:14px/1.5 system-ui,sans-serif}
 #osminogOfficeViewer button{color:#202633;background:#eef2f7;border:1px solid #cbd3df;border-radius:8px;font:inherit}
 #osminogOfficeViewer button:hover{background:#e1e8f3}#osminogOfficeViewer button:focus-visible{outline:2px solid #526fff;outline-offset:2px}
+
+#native-browser .native-connection-status{margin:0 8px 6px;text-align:left;padding:6px 10px;font-size:11px;color:var(--quiet);border:1px solid var(--stroke);border-radius:8px;white-space:normal;flex-shrink:0}#native-browser .native-connection{overflow:auto;max-height:calc(100% - 40px)}.native-connection-actions{display:flex;flex-wrap:wrap;gap:8px}.native-connection p{line-height:1.6}

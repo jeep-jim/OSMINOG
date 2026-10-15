@@ -85,6 +85,13 @@ module.exports=async(win,browser,providers)=>{
    const page=await invoke('browser_read',{id:targetId});await invoke('browser_act',{id:targetId,snapshot:page.snapshot,actions:[{type:'click',x:20,y:20},{type:'type',text:' MCP'}]});assert.match(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),/MCP/);
    assert(await run("!!document.querySelector('[data-do=mcp-start]')"));console.log('MCP_NATIVE_CANVAS_AND_BROWSER_PASS');
   }finally{await mcp.stop()}
+  await run("document.querySelector('[data-do=ai-connection]').click()");
+  await run("new Promise(r=>setTimeout(r,150))");
+  assert(await run("!document.querySelector('.native-connection').hidden"));
+  assert(await run("(()=>{const select=document.querySelector('.native-connection-provider');select.value='deepseek';select.dispatchEvent(new Event('change'));return document.querySelector('.native-connection [data-do=mcp-start]').disabled&&document.querySelector('.native-connection-help').textContent.includes('не реализовано')})()"));
+  assert(await run("(()=>{const select=document.querySelector('.native-connection-provider');select.value='gemini';select.dispatchEvent(new Event('change'));return !document.querySelector('.native-connection [data-do=mcp-start]').disabled&&document.querySelector('.native-connection-help').textContent.includes('Connected Apps')})()"));
+  assert.equal(mcp.status().conversationVerified,false);
+  console.log('CONNECTION_STATUS_AND_PROVIDER_GUIDANCE_PASS');
   console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };

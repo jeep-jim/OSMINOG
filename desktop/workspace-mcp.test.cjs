@@ -18,3 +18,18 @@ test('origin, capability and size boundaries; stop invalidates pending work',asy
  assert.equal((await fetch(m.url,{method:'POST',headers:{'content-type':'application/json'},body:'x'.repeat(300000)})).status,413);
  let release;f.browser.context.refresh=()=>new Promise(r=>release=r);const call=m.call('workspace_read',{});await new Promise(r=>setImmediate(r));await m.stop();release({});await assert.rejects(call,/остановлено/);
  }finally{await m.stop()}});
+test('connection status never equates server startup or another provider with a connected conversation',async()=>{
+ const f=fixture(),m=new WorkspaceMcp(f.browser);
+ assert.equal(m.status().stage,'off');assert.equal(m.status().conversationVerified,false);
+ await assert.rejects(m.start({provider:'deepseek'}),/не реализовано/);
+ await m.start({provider:'gemini'});
+ try{
+  assert.equal(m.status().stage,'waiting');assert.equal(m.handles('gemini'),true);assert.equal(m.handles('chatgpt'),false);assert.equal(m.handles('deepseek'),false);
+  await m.rpc({jsonrpc:'2.0',id:1,method:'initialize'});assert.equal(m.status().stage,'waiting');
+  await m.call('workspace_read',{});assert.equal(m.status().stage,'read-confirmed');assert.ok(m.status().lastRead.at);assert.equal(m.status().conversationVerified,false);
+  await assert.rejects(m.call('canvas_apply',{snapshot:'invalid',actions:[]}),/свежий/);assert.equal(m.status().stage,'error');
+  f.browser.project='other';assert.equal(m.status().stage,'project-changed');assert.equal(m.status().lastRead,null);assert.equal(m.handles('gemini'),false);
+  await assert.rejects(m.start({provider:'gemini'}),/отключите/);
+ }finally{await m.stop()}
+ assert.equal(m.status().lastRead,null);assert.equal(m.status().stage,'off');assert.equal(m.handles('gemini'),false);
+});

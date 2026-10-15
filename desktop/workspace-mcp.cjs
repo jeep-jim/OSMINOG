@@ -10,14 +10,15 @@ const tools=[
  {name:'canvas_apply',description:'Apply user-requested local canvas edits against the exact snapshot from workspace_read. Actions use op create/set/delete/connect/disconnect; create needs objectType and properties (e.g. shape with shapeKind ellipse, fill #ff0000, x,y,w,h). Read again to verify.',inputSchema:{...schema({snapshot:string,actions:{type:'array',minItems:1,maxItems:80,items:{type:'object'}}}),required:['snapshot','actions']},annotations:{readOnlyHint:false,destructiveHint:true,idempotentHint:false,openWorldHint:false}}
 ];
 class WorkspaceMcp{
- constructor(browser){this.browser=browser;this.server=null;this.canvas=new Map();this.busy=false;this.generation=0;this.lastCall=null}
- status(){return{running:!!this.server,project:this.project||'',lastCall:this.lastCall}}
- async start(){if(this.server)return this.status();if(!this.browser.project)throw Error('Сначала откройте проект');this.project=this.browser.project;this.generation++;this.endpoint='/mcp/'+randomBytes(32).toString('hex');
+ constructor(browser){this.browser=browser;this.server=null;this.canvas=new Map();this.busy=false;this.generation=0;this.lastCall=null;this.lastRead=null;this.lastError=null;this.provider='chatgpt'}
+ status(){const current=!!this.server&&this.project===this.browser.project;return{running:!!this.server,project:this.project||'',provider:this.provider,stage:!this.server?'off':!current?'project-changed':this.lastError?'error':this.lastRead?'read-confirmed':'waiting',lastCall:current?this.lastCall:null,lastRead:current?this.lastRead:null,lastError:current?this.lastError:null,conversationVerified:false}}
+ handles(provider){return !!this.server&&this.project===this.browser.project&&this.provider===provider}
+ async start({provider='chatgpt'}={}){if(!['chatgpt','gemini','claude'].includes(provider))throw Error('Прямое подключение этого веб-чата пока не реализовано');if(this.server){if(this.project!==this.browser.project||this.provider!==provider)throw Error('Сначала отключите прежнее подключение');return this.status()}this.provider=provider;this.lastRead=null;this.lastError=null;if(!this.browser.project)throw Error('Сначала откройте проект');this.project=this.browser.project;this.generation++;this.endpoint='/mcp/'+randomBytes(32).toString('hex');
   this.server=http.createServer((req,res)=>this.handle(req,res).catch(()=>{if(!res.headersSent)res.writeHead(500);res.end()}));this.server.requestTimeout=15000;this.server.headersTimeout=10000;
   try{await new Promise((resolve,reject)=>{this.server.once('error',reject);this.server.listen(0,'127.0.0.1',resolve)})}catch(e){this.server=null;throw e}
   this.url='http://127.0.0.1:'+this.server.address().port+this.endpoint;return this.status();
  }
- async stop(){this.generation++;this.canvas.clear();this.lastCall=null;this.url='';const server=this.server;this.server=null;if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}}
+ async stop(){this.generation++;this.canvas.clear();this.lastCall=null;this.lastRead=null;this.lastError=null;this.url='';const server=this.server;this.server=null;if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}}
  guard(generation){if(!this.server||this.generation!==generation||this.browser.project!==this.project)throw Error('Подключение остановлено или проект изменился. Подключите текущий проект заново.')}
  async call(name,args){const generation=this.generation;this.guard(generation);if(this.busy)throw Error('Предыдущий инструмент ещё выполняется');if(!args||typeof args!=='object'||Array.isArray(args))throw Error('Неверные аргументы');this.busy=true;
   const host=code=>this.browser.win.webContents.executeJavaScript(code);
@@ -34,9 +35,9 @@ class WorkspaceMcp{
     if(!Array.isArray(args.actions)||!args.actions.length||args.actions.length>80)throw Error('Нужно от 1 до 80 действий');
     this.guard(generation);result=await host(`globalThis.OSMINOGDirectCanvas.apply(${JSON.stringify({project:this.project,expected:snapshot.state,summary:'Правка из подключённого чата',actions:args.actions})})`);
    }else throw Error('Неизвестный инструмент');
-   this.guard(generation);this.lastCall={tool:name,at:new Date().toISOString(),ok:result?.ok!==false};
+   this.guard(generation);this.lastCall={tool:name,at:new Date().toISOString(),ok:result?.ok!==false};this.lastError=result?.ok===false?{at:this.lastCall.at,tool:name}:null;if(name==='workspace_read'&&result?.ok!==false)this.lastRead={at:this.lastCall.at,tabs:(result.context?.tabs||[]).length,pages:(result.context?.dom||[]).length};
    const {image,...data}=result;return{content:[{type:'text',text:JSON.stringify(data)},...(image?.data?[{type:'image',mimeType:image.mimeType,data:image.data}]:[])],isError:result?.ok===false};
-  }finally{this.busy=false}
+  }catch(e){if(this.generation===generation)this.lastError={at:new Date().toISOString(),tool:tools.some(t=>t.name===name)?name:'unknown'};throw e}finally{this.busy=false}
  }
  async rpc(m){if(!m||m.jsonrpc!=='2.0'||typeof m.method!=='string')return{jsonrpc:'2.0',id:m?.id??null,error:{code:-32600,message:'Invalid Request'}};if(m.id===undefined)return null;
   const reply=result=>({jsonrpc:'2.0',id:m.id,result});
