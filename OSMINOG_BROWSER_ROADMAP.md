@@ -535,3 +535,13 @@ Runtime 4808955 байт, SHA-256 `7c80eed586bb1c24e202f7cdfcec31403eb0bd6bc51dc
 - Prepared 4.0.6 diagnostic release: passive Electron webRequest send/response/completed/error events, bounded in-memory metadata; distinguish user-tab, service-tab and session-or-worker requests; executor start/fallback/complete/failed markers. No body/header/cookie/token, query string, arbitrary path or conversation ID retained. Unknown endpoints are labelled other.
 - Added Settings → Save diagnostics export with app/engine versions and resolved proxy route types (no proxy host/credentials); local save dialog, no automatic upload. HTTP 200 explicitly is not proof of model success.
 - Local suite: 74 tests pass, including lifecycle/error reporting, redaction and bounded storage. Added Windows native HTTP 503 fixture assertion and UI presence check; CI pending. Need user reproduction and exported report on workplace PC before concluding the cause.
+
+
+### 2026-10-15 — 4.0.6 diagnostic release verified and published
+
+- PR #40 merged as 8f1e452b1f1210b7c2bdee818dd6bb863a40482b. desktop/network.cjs diff against 0.3.9 (ab3e5d6) is empty; this does not rule out other regressions or device-specific causes.
+- Windows CI 38684314913 and agent runtime CI 38684314843 succeeded. Native/installed session smoke includes CONNECTION_DIAGNOSTICS_NATIVE_PASS, verifying user-tab HTTP 503 metadata and query-secret exclusion, plus preserved automatic canvas/tab actions and visible provider panel execution.
+- Runtime source 67a9e910f932932ec0082efc3c9b39677b0c83c8 matches merged tree 26ce10a680b5fd1b9002b83bb79cbfbb4dcb0784. Runtime 4811257 bytes, SHA-256 2407ab8f27f14397ad947cb3c9f64d0058137e3c1dd398a6da11349d453529c7. All 72 staged blob digests matched.
+- Release workflow 38684945864 succeeded with real 4.0.5 → 4.0.6 update/retained data; UPDATE_INSTALL_STARTED and INSTALLED_UPDATE_SMOKE_PASS 4.0.6 verified.
+- Published installer 115203587 bytes, SHA-256 cd2424215efe17621a7602eddca2aa707fe94c5df39bdc21e4e3ec34f77446e6. Immutable release assets, windows.json and public latest.yml verified for version 4.0.6.
+- Investigation remains OPEN. Next evidence: user updates, reproduces failed send on workplace PC, then Settings → Save diagnostics and attaches JSON. No claim of repaired live connectivity; no local workplace traces available yet.
