@@ -1,0 +1,5 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+function permissions(){const context=vm.createContext({OSMINOGNative:{onChanged(){}},window:{addEventListener(){}},URL,location:{href:'file:///board/editor.html'}});vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'adapter.js'),'utf8'),context);return context.chrome.permissions}
+test('native internal chat permits web image/research origins before tool dispatch',async()=>{const p=permissions();for(const origins of [['https://*/*'],['http://*/*','https://*/*'],['https://images.example.com/*'],['https://chatgpt.com/*']]){assert.equal(await p.request({origins}),true);assert.equal(await p.contains({origins}),true)}});
+test('native HTTP permission compatibility grants no filesystem or Chrome privileged permissions',async()=>{const p=permissions();for(const origins of [['file:///*'],['chrome://*/*'],['<all_urls>'],['javascript:alert(1)'],[null]])assert.equal(await p.request({origins}),false);assert.equal(await p.request({permissions:['debugger']}),false)});

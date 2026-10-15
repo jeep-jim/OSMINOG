@@ -24,3 +24,4 @@ test('failed session and page checks never claim a connected provider',async()=>
  const {provider}=fixture();provider.browser.ai={id:'visible',provider:'chatgpt',project:'p'};provider._transport.probe=async()=>({ok:false,error:'HTTP 401'});provider.dispatch=async()=>({ok:false});
  const result=await provider.probe('chatgpt');assert.equal(result.ok,false);assert.equal(result.ready,false);
 });
+test('internal desktop chat never uses stored or supplied model API keys',async()=>{const {provider,sent}=fixture();provider.browser.store.get=async()=>{throw Error('API key storage must not be read')};await provider.runtime({type:'BC_PROVIDER_SEND',provider:'deepseek',payload:{apiKey:'must-not-send',text:'Прочитай проект',context:{project:{id:'p'}}}},'p');assert.equal(sent[0][1].apiKey,undefined)});
