@@ -77,6 +77,14 @@ module.exports=async(win,browser,providers)=>{
   assert(diagnostics.events.some(e=>e.channel==='executor'&&e.stage==='start'));
   assert(await run("!!document.querySelector('[data-do=network-report]')"));
   console.log('CONNECTION_DIAGNOSTICS_NATIVE_PASS');
+  const mcp=browser.mcp;await mcp.start();
+  try{
+   const invoke=async(name,args={})=>{const response=await fetch(mcp.url,{method:'POST',headers:{'content-type':'application/json',accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})});assert.equal(response.status,200);const result=(await response.json()).result;assert(!result.isError,JSON.stringify(result));return JSON.parse(result.content[0].text)};
+   const workspace=await invoke('workspace_read');assert.equal(workspace.context.project,browser.project);assert(workspace.context.tabs.some(t=>t.id===targetId));
+   const applied=await invoke('canvas_apply',{snapshot:workspace.canvasSnapshot,actions:[{op:'create',objectType:'shape',properties:{name:'MCP-created circle',shapeKind:'ellipse',fill:'#ff0000',x:150,y:150,w:100,h:100}}]});assert(applied.ok);assert(await run("objects().some(o=>o.name==='MCP-created circle'&&o.fill==='#ff0000')"));
+   const page=await invoke('browser_read',{id:targetId});await invoke('browser_act',{id:targetId,snapshot:page.snapshot,actions:[{type:'click',x:20,y:20},{type:'type',text:' MCP'}]});assert.match(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),/MCP/);
+   assert(await run("!!document.querySelector('[data-do=mcp-start]')"));console.log('MCP_NATIVE_CANVAS_AND_BROWSER_PASS');
+  }finally{await mcp.stop()}
   console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };
