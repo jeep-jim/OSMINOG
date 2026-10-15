@@ -500,3 +500,10 @@ PR [#37](https://github.com/jeep-jim/OSMINOG/pull/37), merge `98a74c57d53c9eb4b6
 Runtime 4808955 байт, SHA-256 `7c80eed586bb1c24e202f7cdfcec31403eb0bd6bc51dc337380b228b0ad58697`, source `ea699fa82346f816532f3c1caabb7bf4f0ed645e`. Дерево runtime source и merge одинаковое: `3538845a03e379c46511bba05b253279242a1e00`. ZIP артефакта 120242184 байт, SHA-256 `0f2484a0ebcd8cd6b6c121daab08134657c24e026c126875f3aad3b8cc8c0fdb`; 38 staging blobs сверены по Git SHA.
 
 Публичный установщик: [OSMINOG-Preview-4.0.3-x64.exe](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/windows-v4.0.3/OSMINOG-Preview-4.0.3-x64.exe), 115201976 байт, SHA-256 `ee3c41c85c464ed6232d4015c2aa5483e5677fe2a3ee60d1cf737f491e88b4a7`. Release CI [38604508223](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/38604508223) успешен. Реальное обновление опубликованной 4.0.2 → 4.0.3 сохранило тестовый проект и cookie (`UPDATE_INSTALL_STARTED`, `INSTALLED_UPDATE_SMOKE_PASS 4.0.3`). Проверены release asset и Windows feed: версия, URL, размер и SHA-256 совпадают. Живые аккаунты владельца и реальная Figma по-прежнему не сертифицированы fixture-проверками.
+
+
+## 2026-10-15 — исправление маршрута отправки из панели ИИ
+
+На скриншоте Windows 4.0.3 DeepSeek показывает `Server is temporarily unavailable`; причина отказа сервиса на устройстве пользователя не установлена. Отдельно найдена ошибка хоста: обработчик page:user-send допускал только browser.tabs, пропуская видимые диалоги browser.providers. Теперь оба вида пользовательских вкладок доходят до исполнителя; скрытые ephemeral-сессии, чужой проект и удалённые вкладки отклоняются до чтения контекста. Проверка главного фрейма и источника IPC сохранена.
+
+12 целевых unit-тестов успешны, включая новую регрессию панели провайдера и запрет рекурсии служебных сессий. Добавлен Windows smoke с настоящим Enter в панели ИИ. Его CI, установка новой Windows-версии и живой DeepSeek ещё не проверены; это не запись об устранении ошибки сервера провайдера.
