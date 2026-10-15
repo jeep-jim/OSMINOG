@@ -515,3 +515,13 @@ Runtime 4808955 байт, SHA-256 `7c80eed586bb1c24e202f7cdfcec31403eb0bd6bc51dc
 - Release CI 38678510675 успешен. Реальное обновление опубликованной 4.0.3 → 4.0.4 сохранило тестовый проект и cookie: UPDATE_INSTALL_STARTED, INSTALLED_UPDATE_SMOKE_PASS 4.0.4.
 - Опубликован windows-v4.0.4: OSMINOG-Preview-4.0.4-x64.exe, 115201908 байт, SHA-256 87a3437ea3c78d754896c2adfcd94efe4082fda37c2badd8e1dff56362aad4b2. Windows dev feed и публичный windows-preview/latest.yml проверены: версия 4.0.4, адрес установщика и размер совпадают.
 - Живой DeepSeek на устройстве владельца не проверен; ошибка Server is temporarily unavailable не объявляется устранённой. Следующий шаг владельца — штатное обновление кнопкой версии до 4.0.4 и проверка команды в своей сессии.
+
+
+## 2026-10-15 — Windows 4.0.5 published and updater verified
+
+- PR #39 merged as ae7fec3e3bec726f8895906b4851d70f45880c13: restore DOM readiness fallback after failed/throwing session probe; notify executor only after website composer accepts send, deduplicating and rejecting unchanged/edited drafts. Private context and visible-provider execution preserved.
+- Final source Windows CI 38682464681 and agent runtime CI 38682464662 passed. Installed session markers include ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS and PROVIDER_PANEL_USER_SEND_EXECUTOR_PASS.
+- Runtime source 4ffc0d46756700aaf8b58db2c03fb394aaf089dd has the same tree ba80411a88e7b8064c96b7088b742476fa38bfd8 as merged source. Runtime ZIP 4809070 bytes, SHA-256 f48b9252716e3d804e1917ef613b21a70eceb0cae333286b232dc8bc3e153693; all 72 staged blob hashes verified.
+- Release workflow 38683062095 succeeded, including real 4.0.4 → 4.0.5 upgrade and retained local data: UPDATE_INSTALL_STARTED / INSTALLED_UPDATE_SMOKE_PASS 4.0.5.
+- Published windows-v4.0.5 installer: 115202065 bytes, SHA-256 cd965e5b717715de0e1da3db47635083b512a40754612ee22c53f39da91f91a0. Release asset, channels/dev/windows.json and public windows-preview/latest.yml agree on 4.0.5 and immutable installer URL.
+- Live ChatGPT/DeepSeek account availability is not certified by fixture tests; user will verify their live chats after button update. This release does not assert that upstream connection/server errors are resolved.
