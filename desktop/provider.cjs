@@ -64,6 +64,7 @@ class Providers{
   const internalPayload={...payload,...(type.endsWith('TOOL_RESULT')?{}:{result:undefined})};
   this.busy.add(provider);
   try{
+   this.browser.connectionDiagnostics?.service(provider,'start');
    let result,nativeError='';
    if(!this.fixtureOrigin){
     const keys=(await this.browser.store.get('briefCraftProviderKeysV1')).briefCraftProviderKeysV1||{};
@@ -72,6 +73,7 @@ class Providers{
     catch(e){if(epoch!==this.epoch||this.browser.project!==projectId)throw e;nativeError=String(e.message||e)}
    }
    if(!result){
+    if(nativeError)this.browser.connectionDiagnostics?.service(provider,'fallback',nativeError);
     // Separate managed conversation, never a tab from browser.tabs or the user's original chat.
     const tab=this.browser.selectProvider(provider,thread,{background:!!context.execution});
     if(tab.loading)await new Promise((resolve,reject)=>{const wc=tab.view.webContents;const done=()=>{clearTimeout(timer);resolve()};const timer=setTimeout(()=>{wc.removeListener('did-stop-loading',done);reject(Error('Служебный чат не загрузился. Откройте подключение ИИ и войдите в аккаунт.'))},30000);wc.once('did-stop-loading',done)});
@@ -84,8 +86,9 @@ class Providers{
     result={ok:true,requestId,payload:{requestId,...this.protocol.bcParseAssistant(reply.answer),media:reply.media||[],widgets:reply.widgets||[]},diag:{provider,mode:'managed-service',...(nativeError?{nativeError}: {})}};
    }
    if(epoch!==this.epoch||this.browser.project!==projectId)throw Error('Ответ отменён или проект изменился');
+   this.browser.connectionDiagnostics?.service(provider,'complete');
    return result;
-  }finally{this.busy.delete(provider)}
+  }catch(e){this.browser.connectionDiagnostics?.service(provider,'failed',e.message);throw e}finally{this.busy.delete(provider)}
  }
 }
 module.exports={Providers};

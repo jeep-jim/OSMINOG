@@ -7,6 +7,7 @@ module.exports=async(win,browser,providers)=>{
   const u=new URL(req.url),p=u.pathname;
   if(u.hostname==='example.com')return new Response('<html><meta charset="utf-8"><body style="margin:0"><input aria-label="Город" style="width:200px;height:50px"><button style="position:absolute;left:0;top:80px;width:100px;height:40px" onclick="document.body.dataset.theme=String.fromCharCode(108,105,103,104,116)">Theme</button></body></html>',{headers:{'content-type':'text/html; charset=utf-8'}});
   if(u.hostname==='chatgpt.com'&&p==='/original')return new Response(`<html><meta charset="utf-8"><body><main id="messages"></main><form style="position:fixed;bottom:20px;width:90%"><textarea aria-label="Message" style="width:95%;height:80px"></textarea><button type="submit">Send</button></form><script>window.sent=[];const form=document.querySelector('form'),input=document.querySelector('textarea');input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}};form.onsubmit=e=>{e.preventDefault();const text=input.value;sent.push(text);input.value='';const user=document.createElement('div');user.dataset.messageAuthorRole='user';user.textContent=text;messages.append(user);setTimeout(()=>{const reply=document.createElement('div');reply.dataset.messageAuthorRole='assistant';reply.textContent=JSON.stringify({summary:'Ввод в поле',actions:[{type:'click',x:20,y:20},{type:'type',text:' из обычного чата'}]});messages.append(reply)},700)};</script></body></html>`,{headers:{'content-type':'text/html; charset=utf-8'}});
+  if(p==='/api/v0/users/current')return new Response('fixture unavailable',{status:503});
   if(p==='/api/auth/session')return json({accessToken:'fixture-token-'.repeat(5),user:{id:'fixture'}});
   if(p==='/backend-api/models')return json({models:[{slug:'auto'}]});
   if(p.includes('chat-requirements'))return json({token:'fixture'});
@@ -69,6 +70,13 @@ module.exports=async(win,browser,providers)=>{
   assert.equal(ordinaryTurns,8,'Visible provider panel must reach the workspace executor');
   assert.deepEqual(await panelWC.executeJavaScript('window.sent'),['Заполни поле из панели ИИ']);
   console.log('PROVIDER_PANEL_USER_SEND_EXECUTOR_PASS');
+  await panelWC.executeJavaScript("fetch('/api/v0/users/current?secret=DIAGNOSTIC_SECRET').then(r=>r.text())");await sleep(300);
+  const diagnostics=browser.connectionDiagnostics.snapshot();
+  assert(diagnostics.events.some(e=>e.endpoint==='/api/v0/users/current'&&e.status===503&&e.channel==='user-tab'),'Native request failure must appear in diagnostics');
+  assert(!JSON.stringify(diagnostics).includes('DIAGNOSTIC_SECRET'));
+  assert(diagnostics.events.some(e=>e.channel==='executor'&&e.stage==='start'));
+  assert(await run("!!document.querySelector('[data-do=network-report]')"));
+  console.log('CONNECTION_DIAGNOSTICS_NATIVE_PASS');
   console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };
