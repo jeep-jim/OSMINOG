@@ -32,3 +32,10 @@ test('visible provider panel sends start execution; ephemeral, foreign and detac
   assert.equal(g.messages.length,0);assert.equal(g.host.length,0);
  }
 });
+
+test('post-action observation token is usable on the next model hop',async()=>{
+ const f=fixture([request('browser_read',{id:'page'}),request('browser_act',{id:'page',snapshot:'fresh',actions:[{type:'click',x:1,y:1}]}),request('browser_act',{id:'page',snapshot:'after',actions:[{type:'type',text:'Honda'}]}),{text:'Проверено'}]);
+ const original=f.browser.agentTools.run;f.browser.agentTools.run=async(name,args)=>{const r=await original(name,args);return name==='browser_act'?{...r,observation:{snapshot:'after',page:{title:'Changed'}},image:{mimeType:'image/png',data:'image-bytes'}}:r};
+ await f.observer.observe(f.source,'Заполни');assert.equal(f.calls.filter(c=>c.name==='browser_act').length,2);
+ assert.equal(f.messages[2].payload.result.results[0].result.observation.page.title,'Changed');assert.equal(f.messages[2].payload.images.length,1);assert(!JSON.stringify(f.messages[2].payload.result).includes('image-bytes'));
+});

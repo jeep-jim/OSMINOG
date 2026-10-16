@@ -19,15 +19,17 @@ module.exports=async(win,browser,providers)=>{
    let answer;
    if(prompt.includes('"threadId":"workspace:')){
     ordinaryTurns++;assert.match(prompt,/Заполни поле/);
-    if(ordinaryTurns===1||ordinaryTurns===3||ordinaryTurns===5)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};
-    else if(ordinaryTurns===2){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:20},{type:'type',text:' из обычного чата'}]}}]}}
+    if(ordinaryTurns===1||ordinaryTurns===5)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};
+    else if(ordinaryTurns===2){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:20}]}}]}}
+    else if(ordinaryTurns===3){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'type',text:' из обычного чата'}]}}]}}
     else if(ordinaryTurns===4){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:100}]}}]}}
     else if(ordinaryTurns===6)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Круг из обычного чата',actions:[{op:'create',objectType:'shape',properties:{name:'Ordinary-chat circle',shapeKind:'ellipse',fill:'#ff0000',x:100,y:100,w:100,h:100}}]};
     else answer='Ввод и круг проверены.';
    }
    else if(turns===1)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Тест доски',actions:[{op:'create',objectType:'text',properties:{name:'Session-created text',text:'Транспорт расширения',x:400,y:300,w:240,h:90}}]};
    else if(turns===2)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};
-   else if(turns===3){actionSnapshot=prompt.match(/"snapshot"\s*:\s*"([a-f0-9-]+)"/)?.[1];assert(actionSnapshot,'Tool result did not contain fresh tab snapshot');answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot:actionSnapshot,actions:[{type:'click',x:20,y:20},{type:'type',text:'Омск'}]}}]}}
+   else if(turns===3){actionSnapshot=prompt.match(/"snapshot"\s*:\s*"([a-f0-9-]+)"/)?.[1];assert(actionSnapshot,'Tool result did not contain fresh tab snapshot');answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot:actionSnapshot,actions:[{type:'click',x:20,y:20}]}}]}}
+   else if(turns===4){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'type',text:'Омск'}]}}]}}
    else answer='Город изменён. Результат инструмента получен.';
    return new Response('data: '+JSON.stringify({conversation_id:'fixture-session',message:{id:'reply-'+turns,author:{role:'assistant'},status:'finished_successfully',content:{content_type:'text',parts:[typeof answer==='string'?answer:JSON.stringify(answer)]}}})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
   }
