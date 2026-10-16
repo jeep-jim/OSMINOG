@@ -31,7 +31,7 @@ module.exports=async function smoke(win,browser,liveProvider){
   const gpt=[...browser.providers.values()].find(t=>t.provider==='chatgpt');
   await gpt.view.webContents.executeJavaScript("document.querySelector('textarea').value=''");
   browser.ai=gpt;browser.provider='chatgpt';
-  const ipcReply=await win.webContents.executeJavaScript(`OSMINOGNative.runtime({type:'BC_PROVIDER_SEND',provider:'chatgpt',payload:{text:'Привет',context:{project:{id:${JSON.stringify(project)}},chat:{threadId:'main'}}}})`);
+  const ipcReply=await win.webContents.executeJavaScript(`OSMINOGNative.runtime({type:'BC_PROVIDER_SEND',provider:'chatgpt',payload:{text:'Привет',context:{project:{id:${JSON.stringify(project)}},chat:{threadId:'main'}}}},${JSON.stringify(project)})`);
   assert(ipcReply.ok,JSON.stringify(ipcReply));assert.equal(ipcReply.payload.text,'Verified native reply: /chatgpt');
   assert.equal(await gpt.view.webContents.executeJavaScript('window.sent'),2);
   assert.match(await gpt.view.webContents.executeJavaScript("document.querySelector('#messages p:last-of-type').textContent"),/^Привет/);
