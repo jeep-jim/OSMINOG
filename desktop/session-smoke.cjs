@@ -35,7 +35,7 @@ module.exports=async(win,browser,providers)=>{
   return json({});
  });
  try{
-  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});
+  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});await browser.command('context-scope',{all:true});
   const previous=new Set(browser.tabs.keys());await run("OSMINOGNativeBrowser.open('https://example.com/')");await sleep(300);const target=[...browser.tabs.values()].find(t=>!previous.has(t.id));assert(target);targetId=target.id;
   await run("OSMINOGNativeBrowser.split(2)");await run(`OSMINOGNativeBrowser.assignTab(${JSON.stringify(targetId)},1)`);await run("document.querySelector('#native-browser [data-do=chat]').click()");await sleep(250);
   assert(target.visible,"Fixture target must be visible");const connected=await run('OSMINOGConnectDirectChatGPT()');assert(connected.ok,JSON.stringify(connected));

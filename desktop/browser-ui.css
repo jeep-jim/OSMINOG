@@ -237,3 +237,9 @@ body.native-shell-open :is(#bcObjectContextMenu,#osminogWindowsFolderMenu,#osmin
 
 /* Native project chat uses the existing signed-in website session. */
 html[data-native-desktop] #gptProviderApiFallback,html[data-native-desktop] #gptCustomProviderBox,html[data-native-desktop] #gptAgentProvider option[value=custom],html[data-native-desktop] #gptAgentProvider option[value=googleai]{display:none!important}
+
+/* Legacy extension chat is not part of the desktop browser. */
+body.native-desktop #bridgePanel,body.native-desktop #gptPresenceBubble{display:none!important}
+#native-browser .native-eye[aria-pressed="true"]{color:var(--accent);background:var(--raised)}
+
+.native-connection-state{margin:0;padding:8px 12px;font-size:11px;color:var(--quiet);border-top:1px solid var(--stroke)}
