@@ -93,6 +93,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   status:text=>{if(!win.isDestroyed())win.webContents.send('browser:task-status',text)}
  });
  browser.originalActions=originalActions;
+ ipcMain.on('page:pointer',(e,payload)=>{try{const tab=pageSender(e);require('./pointer-context.cjs').update(browser,tab,payload)}catch{}});
  ipcMain.on('page:user-send',(e,payload)=>{try{const tab=pageSender(e),text=String(payload?.text||'').slice(0,12000);void originalActions.observe(tab,text)}catch{}});
 
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.

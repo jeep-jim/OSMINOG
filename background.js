@@ -419,6 +419,8 @@ async function bcDeepSeekDirectTabSend(text,context,toolResult=null,requestId=""
   const current=bcDecoratePrompt(toolResult?bcToolPrompt(toolResult,rid):text,context,rid),memoryInput=toolResult?"[OSMINOG tool result delivered]":String(text||"").slice(0,2200);
   const prompt=[bcProviderSystem(),...hist.slice(-4).map(x=>`${x.role==='assistant'?'ASSISTANT':'USER'}:\n${String(x.content||"").slice(0,2600)}`),`USER:\n${current}`].join("\n\n");
   const exec=await chrome.scripting.executeScript({target:{tabId:tab.id},world:"MAIN",func:async(prompt)=>{
+    const deadline=AbortSignal.timeout(60000),nativeFetch=globalThis.fetch.bind(globalThis);
+    const fetch=(url,options={})=>nativeFetch(url,{...options,signal:deadline});
     const record=v=>v&&typeof v==="object"&&!Array.isArray(v);
     const rawToken=localStorage.getItem("userToken")||"";let token="";
     if(rawToken){try{const parsed=JSON.parse(rawToken);token=record(parsed)&&typeof parsed.value==="string"?parsed.value:typeof parsed==="string"?parsed:rawToken}catch{token=rawToken}}
@@ -451,7 +453,7 @@ async function bcDeepSeekDirectTabSend(text,context,toolResult=null,requestId=""
       const ans=await solveChallenge(challenge);const proof={algorithm:ans.algorithm,challenge:ans.challenge,salt:ans.salt,answer:ans.answer,signature:ans.signature,target_path:targetPath};const bytes=new TextEncoder().encode(JSON.stringify(proof));let bin="";for(const b of bytes)bin+=String.fromCharCode(b);const powHeader=btoa(bin);
       const sr=await fetch("/api/v0/chat_session/create",{method:"POST",headers,body:JSON.stringify({character_id:null})}),sj=await sr.json();sessionId=sj?.data?.biz_data?.chat_session?.id||"";if(!sr.ok||!sessionId)throw new Error("DeepSeek session create: "+JSON.stringify(sj).slice(0,300));
       const rr=await fetch(targetPath,{method:"POST",headers:{...headers,accept:"text/event-stream","x-ds-pow-response":powHeader},body:JSON.stringify({chat_session_id:sessionId,parent_message_id:null,model_type:"default",prompt,ref_file_ids:[],thinking_enabled:false,search_enabled:false,action:null,preempt:false})});const raw=await rr.text();if(!rr.ok)throw new Error(`DeepSeek completion HTTP ${rr.status}: ${raw.slice(0,300)}`);const answer=parseSse(raw);if(!answer)throw new Error("DeepSeek direct stream вернулся без текста");return{ok:true,answer,sessionId};
-    }finally{if(sessionId){try{await fetch("/api/v0/chat_session/delete",{method:"POST",headers,body:JSON.stringify({chat_session_id:sessionId})})}catch{}}}
+    }finally{if(sessionId){try{await nativeFetch("/api/v0/chat_session/delete",{method:"POST",headers,body:JSON.stringify({chat_session_id:sessionId}),signal:AbortSignal.timeout(3000)})}catch{}}}
   },args:[prompt]}).catch(e=>[{result:{ok:false,error:e?.message||String(e)}}]);
   const r=exec?.[0]?.result;if(!r?.ok)throw new Error(r?.error||"DeepSeek direct web-session failed");
   const answer=String(r.answer||"").trim();BC_PROVIDER_HISTORY.set(key,[...hist,{role:"user",content:memoryInput},{role:"assistant",content:answer.slice(0,5000)}].slice(-8));

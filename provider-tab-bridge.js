@@ -299,10 +299,13 @@
     setComposer(input,text);
     await sleep(180);
     const button=sendButton(input);
-    if(button)button.click();else pressEnter(input);
+    if(nativeSubmit){const r=button?.getBoundingClientRect();globalThis.__osminogSubmitIntent={requestId,kind:button?'click':'enter',x:r?r.x+r.width/2:0,y:r?r.y+r.height/2:0};}else if(button)button.click();else pressEnter(input);
+    const ackStart=Date.now();let acknowledged=false;
+    while(Date.now()-ackStart<8000){if(generation!==cancelEpoch)throw Error('Управление остановлено пользователем');if(findPromptEcho(text,requestId)){acknowledged=true;break}await sleep(160)}
+    if(!acknowledged)throw Error('SEND_NOT_CONFIRMED: сайт ИИ не подтвердил отправку команды. Повторная отправка не выполнялась.');
     const answer=await waitAnswer(before,text,requestId,initialRoute,responseFormat,generation);
     return{answer,...collectRich(answer,text,requestId)};
-    }finally{internalSending=false;delete document.documentElement.dataset.osminogSyncInternal;if(syncBinding)await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'complete',text:''}).catch(()=>{});}
+    }finally{delete globalThis.__osminogSubmitIntent;internalSending=false;delete document.documentElement.dataset.osminogSyncInternal;if(syncBinding)await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'complete',text:''}).catch(()=>{});}
 
   }
 
@@ -332,7 +335,7 @@
   }
   for(const type of ['keydown','click','submit'])document.addEventListener(type,nativeSend,true);
 
-  let managedAgentSession=false;
+  let managedAgentSession=false,nativeSubmit=false;
   function probe(){
     const input=composer(),candidates=inputSelectors().reduce((sum,selector)=>sum+queryAllDeep(selector).filter(vis).length,0);
     return{ok:!!input,provider,title:document.title,url:location.href,composer:input?{tag:input.tagName.toLowerCase(),role:input.getAttribute("role")||"",editable:input.getAttribute("contenteditable")||"",placeholder:input.getAttribute("placeholder")||input.getAttribute("aria-label")||input.getAttribute("data-placeholder")||""}:null,candidates,answers:candidateNodes().length,readyState:document.readyState,bridge:"v6"};
@@ -342,7 +345,7 @@
     if(message?.type==='BC_PROVIDER_MANAGED_CONFIG'){
       if(_sender?.id!==chrome.runtime.id||_sender?.tab){reply({ok:false,error:'Only extension background may configure managed execution'});return}
       if(internalSending||nativePending){reply({ok:false,error:'Служебный чат занят'});return}
-      managedAgentSession=true;syncBinding=null;delete document.documentElement.dataset.osminogChatSyncBound;
+      managedAgentSession=true;nativeSubmit=message.nativeSubmit===true;syncBinding=null;delete document.documentElement.dataset.osminogChatSyncBound;
       provider=String(message.provider||provider||'');reply({ok:true,...probe()});return;
     }
     if(message?.type==='BC_CHAT_SYNC_CONFIG'){

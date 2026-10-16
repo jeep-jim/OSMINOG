@@ -2,6 +2,9 @@
 // Observe real user sends without cancelling, modifying or repeating them.
 const {ipcRenderer}=require('electron');
 if(process.isMainFrame){
+ let pointerEnabled=false;
+ if(typeof installOsminogPointer==='function'){const pointer=installOsminogPointer({surface:()=>true,enabled:()=>pointerEnabled,send:payload=>ipcRenderer.send('page:pointer',payload)});ipcRenderer.on('osminog.pointer.mode',(_e,on)=>{pointerEnabled=!!on;pointer.reset()})}
+
  document.addEventListener('dragstart',event=>{if(!event.isTrusted)return;const image=event.target.closest?.('img,video,audio');const url=image?.currentSrc||image?.src||'';const text=url?'':String(getSelection()).slice(0,100000);if(url||text){const token=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');event.dataTransfer?.setData('application/x-osminog-page-drag',token);ipcRenderer.send('page:drag',{url,text,token})}},true);
  // No observer on ordinary websites or frames. Website script cannot forge isTrusted.
  if(['chatgpt.com','chat.openai.com','claude.ai','gemini.google.com','chat.deepseek.com'].includes(location.hostname)){

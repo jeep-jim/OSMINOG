@@ -43,19 +43,19 @@ class BrowserWorkspace{
  emit(){if(!this.disposed&&!this.win.isDestroyed())this.win.webContents.send('browser:state',this.state())}
  state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
  make(url,project,ai=false,{background=false}={}){
-  const view=new WebContentsView({webPreferences:{session:this.session,backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-preload.cjs')}});
+  const view=new WebContentsView({webPreferences:{session:this.session,backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
   view.setBorderRadius?.(18);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
-  wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame)t.navigationEpoch=(t.navigationEpoch||0)+1});
+  wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame){t.navigationEpoch=(t.navigationEpoch||0)+1;if(this.pointerTarget?.id===t.id)this.pointerTarget=null}});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
-  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project)return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
+  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project||this.pointerEnabled&&!providerFor(wc.getURL()))return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
   wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
   wc.on('did-start-loading',()=>{t.loading=true;t.error='';this.emit()});
-  wc.on('did-stop-loading',()=>{t.loading=false;this.emit()});
+  wc.on('did-stop-loading',()=>{wc.send('osminog.pointer.mode',!!this.pointerEnabled&&!providerFor(wc.getURL()));t.loading=false;this.emit()});
   wc.on('did-navigate',()=>{t.favicon='';this.emit();this.save()});wc.on('did-navigate-in-page',()=>{this.emit();this.save()});
   wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
   wc.on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.emit()});
@@ -77,8 +77,12 @@ class BrowserWorkspace{
  destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
-   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project){this.contextScopes.set(this.project,this.contextScope);this.contextScope=this.contextScopes.has(id)?this.contextScopes.get(id):null;this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate()}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
+   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project){this.contextScopes.set(this.project,this.contextScope);this.contextScope=this.contextScopes.has(id)?this.contextScopes.get(id):null;this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();this.pointerTarget=null;this.pointerEnabled=false}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
+   case 'pointer-mode':{this.pointerEnabled=!!args.enabled;this.pointerTarget=null;this.pointerCursor=null;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.send('osminog.pointer.mode',this.pointerEnabled&&t.project===this.project&&!providerFor(t.view.webContents.getURL()));return{enabled:this.pointerEnabled}}
+   case 'pointer-canvas':return require('./pointer-context.cjs').update(this,null,args);
+   case 'window-capture':{const image=await require('./capture-window.cjs').captureWindow(this.win);return{src:image.toDataURL(),...image.getSize()}}
+
    case 'context-scope':{this.contextScope=args.all===true?null:[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();return{ids:this.contextScope}}
    case 'move-lane':{const t=this.get(args.id);if(t.provider){const entry=[...this.providers.entries()].find(([,v])=>v===t);this.providers.delete(entry[0]);this.tabs.set(t.id,t);if(this.ai===t)this.ai=null;delete t.provider;delete t.thread}t.lane=args.lane==='side'?'side':'main';this.save();this.emit();return this.state()}
    case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};const img=await t.view.webContents.capturePage();t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
