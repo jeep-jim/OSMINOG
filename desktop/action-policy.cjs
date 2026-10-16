@@ -9,7 +9,7 @@ function classify(a,n){
  if(a.type==='scroll')return safe();
  if(!n)return block('Не удалось определить цель действия');
  const label=[n.label,n.name,n.autocomplete,n.href].join(' ').toLowerCase();
- if(n.type==='password'||/password|current-password|new-password|token|токен|cvv|card.number|номер.карты|one-time-code|cc-number|cc-csc|парол|плат[её]ж|оплат|удал|delete|erase|pay now|confirm payment|\/delete|\/remove|\/payment/.test(label))return block('Пароли, платёжные данные и удаление не выполняются автопилотом');
+ if(n.type==='password'||/password|current-password|new-password|token|токен|cvv|\bcard\b|card.number|номер.карты|one-time-code|cc-number|cc-csc|парол|плат[её]ж|оплат|удал|delete|erase|pay now|confirm payment|\/delete|\/remove|\/payment/.test(label))return block('Пароли, платёжные данные и удаление не выполняются автопилотом');
  if(n.sensitiveForm&&(a.type==='click'||a.type==='key'&&a.key==='Enter'))return block('Форма содержит пароль, токен или платёжные поля');
  if(n.disabled)return block('Элемент отключён');
  if(a.type==='key'){
@@ -24,7 +24,7 @@ function classify(a,n){
  if(/купить|заказать|отправ|опублик|сохран|buy|purchase|checkout|submit|send|publish|save/.test(label)||(n.type==='submit'&&n.form))return warn('Подтвердите отправку или изменение данных');
  if(['input','textarea','select'].includes(n.tag)||n.editable)return safe();
  if(n.tag==='a'&&/^https?:|^\/|^#/.test(n.href))return safe();
- if(/тема|светл|тёмн|темн|поиск|найти|theme|light mode|dark mode|search/.test(label))return safe();
+ if(/тема|светл|тёмн|темн|поиск|найти|фильтр|сортир|filter|sort|theme|light mode|dark mode|search/.test(label))return safe();
  return warn('Назначение элемента не определено: проверьте действие');
 }
 async function confirm(browser,a,n,risk){
