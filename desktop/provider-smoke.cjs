@@ -26,18 +26,17 @@ module.exports=async function smoke(win,browser,liveProvider){
   const plan=await provider.dispatch(deep,{type:'BC_PROVIDER_TAB_SEND_V4',text:'Control JSON fixture',requestId:'control-fixture',responseFormat:'osminog-control'});
   assert(plan.ok,plan.error);assert.equal(JSON.parse(plan.answer).actions[0].text,'1499');assert(Date.now()-started>=2300);assert.equal(await deep.view.webContents.executeJavaScript('window.sent'),before+1);
   console.log('DEEPSEEK_REASONING_THEN_JSON_SINGLE_SEND_PASS');
-  // Exercise the actual renderer form, IPC handler and displayed reply, not only the adapter.
+  // The desktop no longer mounts an internal chat. Verify the retained IPC transport directly.
   liveProvider.fixtureOrigin=base;
   const gpt=[...browser.providers.values()].find(t=>t.provider==='chatgpt');
   await gpt.view.webContents.executeJavaScript("document.querySelector('textarea').value=''");
   browser.ai=gpt;browser.provider='chatgpt';
-  await win.webContents.executeJavaScript("(async()=>{await OSMINOGNativeBrowser.open();await OSMINOGOpenUnifiedChat({team:false});const r=await OSMINOGConnectDirectChatGPT();if(!r.ok)throw Error(r.error);document.querySelector('#gptPresenceInput').value='Привет';document.querySelector('#gptPresenceForm').requestSubmit()})()");
-  const deadline=Date.now()+45000;let displayed=false;
-  while(Date.now()<deadline){displayed=await win.webContents.executeJavaScript("document.querySelector('#native-browser #gptPresenceMessages')?.innerText.includes('Verified native reply: /chatgpt')||false");if(displayed)break;await new Promise(r=>setTimeout(r,250))}
-  assert(displayed,'Reply did not reach the internal chat form');
+  const ipcReply=await win.webContents.executeJavaScript(`OSMINOGNative.runtime({type:'BC_PROVIDER_SEND',provider:'chatgpt',payload:{text:'Привет',context:{project:{id:${JSON.stringify(project)}},chat:{threadId:'main'}}}},${JSON.stringify(project)})`);
+  assert(ipcReply.ok,JSON.stringify(ipcReply));assert.equal(ipcReply.payload.text,'Verified native reply: /chatgpt');
   assert.equal(await gpt.view.webContents.executeJavaScript('window.sent'),2);
   assert.match(await gpt.view.webContents.executeJavaScript("document.querySelector('#messages p:last-of-type').textContent"),/^Привет/);
-  console.log('PROVIDER_FORM_SMOKE_PASS');
+  assert.equal(await win.webContents.executeJavaScript("document.querySelector('#native-browser .native-chat')===null"),true);
+  console.log('PROVIDER_IPC_WITHOUT_INTERNAL_CHAT_PASS');
   console.log('PROVIDER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
 };

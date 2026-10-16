@@ -19,7 +19,7 @@ test('tab changes preserve live view identity; validates URLs and clamps native 
 test('fresh context includes hidden main tabs, isolates projects, and only shares peer AI with explicit scope',async()=>{
  const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});
  const a=b.open({url:'https://example.com'}),hidden=b.open({url:'https://example.org'}),ai=b.selectProvider('chatgpt','peer'),ordinaryAI=b.open({url:'https://claude.ai','lane':'side'});
- let text='first';b.get(hidden.id).view.webContents.executeJavaScript=async()=>({text});
+ await b.command('context-scope',{all:true});let text='first';b.get(hidden.id).view.webContents.executeJavaScript=async()=>({text});
  b.layout([{id:a.id,x:0,y:0,width:100,height:100}]);
  let pages=await b.command('context',{all:true});assert.deepEqual(pages.map(p=>p.id),[a.id,hidden.id]);assert.equal(pages[1].text,'first');text='changed';pages=await b.command('context',{all:true});assert.equal(pages[1].text,'changed');
  pages=await b.command('context',{all:true,includeChats:true,excludeId:ai.id});assert.equal(pages.some(p=>p.id===ordinaryAI.id),true);assert.equal(pages.some(p=>p.id===ai.id),false);
@@ -34,7 +34,7 @@ test('provider tabs navigate in place and normal pages cannot enable the origina
 });
 test('project switch while reading rejects stale context',async()=>{
  const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const t=b.open({url:'https://example.com'});b.get(t.id).view.webContents.executeJavaScript=async()=>{await b.command('project',{id:'other'});return{text:'private old project'}};
- await assert.rejects(b.command('context',{all:true}),/Проект изменился/);
+ await b.command('context-scope',{all:true});await assert.rejects(b.command('context',{all:true}),/Проект.*изменился/);
 });
 
 test('unchanged layouts do not hide/show views or reset their bounds',async()=>{
@@ -56,7 +56,9 @@ test('late provider requests cannot switch the visible project',async()=>{
  assert.equal(result.ok,false);assert.match(result.error,/Проект изменился/);assert.equal(switches,0);assert.equal(browser.project,'current-project');
 });
 
-test('eye scope excludes unselected pages and includes explicitly selected peer chat',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'}),peer=b.open({url:'https://chat.deepseek.com/'});await b.command('context-scope',{ids:[peer.id,'@canvas']});assert.deepEqual((await b.command('context',{all:true})).map(x=>x.id),[peer.id]);await b.command('context-scope',{ids:[]});assert.deepEqual(await b.command('context',{all:true}),[])});
+test('eye scope excludes unselected pages and includes explicitly selected peer chat',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'}),peer=b.open({url:'https://chat.deepseek.com/'});await b.command('context-scope',{ids:[peer.id,'@canvas']});assert.deepEqual((await b.command('context',{all:true,includeChats:true})).map(x=>x.id),[peer.id]);await b.command('context-scope',{ids:[]});assert.deepEqual(await b.command('context',{all:true}),[])});
 test('scroll clips native content without resizing its document',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'});b.layout([{id:a.id,x:100,y:-100,width:500,height:600,clip:{x:100,y:80,width:500,height:420}}]);const t=b.get(a.id);assert.deepEqual(t.view.bounds,{x:0,y:-180,width:500,height:600});assert.deepEqual(t.clipView.bounds,{x:100,y:80,width:500,height:420});b.layout([]);assert.equal(t.clipView.visible,false)});
 
 test('background execution sessions never replace visible AI, persist or appear as duplicate tabs',async()=>{const store=storage(),b=new BrowserWorkspace(host(),store);await b.command('project',{id:'work'});const visible=b.selectProvider('chatgpt','main'),service=b.selectProvider('claude','workspace:turn',{background:true});assert.equal(b.ai,visible);assert.equal(service.visible,false);assert.equal(b.state().sessions.length,1);await b.save();assert.equal((await store.get()).browserSessions.work.length,1);b.releaseService('workspace:turn');assert(service.view.closed);assert.equal(b.providers.size,1)});
+
+test('automatic reads respect scope and all-session access resets with project',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'});assert.deepEqual(await b.command('context',{all:true,automatic:true}),[]);await b.command('context-scope',{ids:[a.id]});assert.deepEqual((await b.command('context',{all:true,automatic:true})).map(x=>x.id),[a.id]);await b.command('context-scope',{all:true});const next=b.open({url:'https://example.org'});assert.equal((await b.command('context',{all:true,automatic:true})).length,2);await b.command('project',{id:'other'});assert.deepEqual(b.contextScope,[]);});

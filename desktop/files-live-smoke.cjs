@@ -29,6 +29,8 @@ module.exports=async(win,browser,pdfBytes)=>{
  wc.focus();wc.sendInputEvent({type:'keyDown',keyCode:'V',modifiers:['control']});wc.sendInputEvent({type:'keyUp',keyCode:'V',modifiers:['control']});
  let pasted=[];for(let i=0;i<100;i++){pasted=await wc.executeJavaScript('window.pasted');if(pasted.length)break;await pause()}
  assert.equal(pasted[0]?.name,'Проверка.xlsx');assert.deepEqual(Buffer.from(pasted[0].bytes),Buffer.from(fixtures.xlsx,'base64'));
+ await browser.command('context-scope',{ids:[]});assert.deepEqual((await browser.context.refresh()).canvas,{});
+ await browser.command('context-scope',{ids:['@canvas',tab.id]});
  const board=await run('OSMINOGCollectBrowserContext()');browser.context.update(board);const context=await browser.context.refresh();assert(context.canvas.objects.some(o=>o.fileName==='Проверка.xlsx'));assert(context.tabs.some(t=>t.id===tab.id));assert(!JSON.stringify(context).includes(fixtures.xlsx));
  console.log('OFFICE_VIEWERS_NATIVE_FILE_COPY_AND_LIVE_CONTEXT_PASS');
  await browser.command('close',{id:tab.id});

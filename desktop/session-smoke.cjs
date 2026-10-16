@@ -35,9 +35,9 @@ module.exports=async(win,browser,providers)=>{
   return json({});
  });
  try{
-  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});
+  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});await browser.command('context-scope',{all:true});
   const previous=new Set(browser.tabs.keys());await run("OSMINOGNativeBrowser.open('https://example.com/')");await sleep(300);const target=[...browser.tabs.values()].find(t=>!previous.has(t.id));assert(target);targetId=target.id;
-  await run("OSMINOGNativeBrowser.split(2)");await run(`OSMINOGNativeBrowser.assignTab(${JSON.stringify(targetId)},1)`);await run("document.querySelector('#native-browser [data-do=chat]').click()");await sleep(250);
+  await run("OSMINOGNativeBrowser.split(2)");await run(`OSMINOGNativeBrowser.assignTab(${JSON.stringify(targetId)},1)`);await run("OSMINOGOpenUnifiedChat({team:false})");await sleep(250);
   assert(target.visible,"Fixture target must be visible");const connected=await run('OSMINOGConnectDirectChatGPT()');assert(connected.ok,JSON.stringify(connected));
   async function send(text){await run(`document.querySelector('#gptPresenceApply').value='direct';document.querySelector('#gptPresenceInput').value=${JSON.stringify(text)};document.querySelector('#gptPresenceForm').requestSubmit()`)}
   const beforeImages=await run("objects().filter(o=>o.type==='image').length");
@@ -51,12 +51,12 @@ module.exports=async(win,browser,providers)=>{
   await sleep(400);
   await send('Создай текст на доске');
   for(let i=0;i<200&&!(await run("objects().some(o=>o.name==='Session-created text')"));i++)await sleep(100);
-  assert.equal(await run("objects().some(o=>o.name==='Session-created text')"),true,await run("document.querySelector('#gptPresenceMessages').innerText"));assert.equal(turns,1);
+  assert.equal(await run("objects().some(o=>o.name==='Session-created text')"),true,await run("document.querySelector('#gptPresenceMessages').textContent"));assert.equal(turns,1);
   await sleep(400);await send('Поменяй город в открытой вкладке на Омск');
   for(let i=0;i<200&&(await target.view.webContents.executeJavaScript("document.querySelector('input').value"))!=='Омск';i++)await sleep(100);
-  assert.equal(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),'Омск',await run("document.querySelector('#gptPresenceMessages').innerText"));
+  assert.equal(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),'Омск',await run("document.querySelector('#gptPresenceMessages').textContent"));
   await assert.rejects(browser.agentTools.run('browser_act',{id:targetId,snapshot:actionSnapshot,actions:[{type:'type',text:'duplicate'}]}),/свежий/);
-  const transcript=await run("document.querySelector('#gptPresenceMessages').innerText");assert(!transcript.includes('OSMINOG_CONTEXT_V1'));assert.equal([...browser.tabs.values()].filter(t=>!previous.has(t.id)&&t.view.webContents.getURL().includes('chatgpt.com')).length,0);
+  const transcript=await run("document.querySelector('#gptPresenceMessages').textContent");assert(!transcript.includes('OSMINOG_CONTEXT_V1'));assert.equal([...browser.tabs.values()].filter(t=>!previous.has(t.id)&&t.view.webContents.getURL().includes('chatgpt.com')).length,0);
   console.log('EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS');
   for(let i=0;i<100&&providers.busy.size;i++)await sleep(50);
   const ids=new Set(browser.tabs.keys());await run("OSMINOGNativeBrowser.open('https://chatgpt.com/original','side')");const source=[...browser.tabs.values()].find(t=>!ids.has(t.id));assert(source);

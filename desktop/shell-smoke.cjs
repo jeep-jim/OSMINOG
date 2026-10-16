@@ -58,7 +58,15 @@ module.exports=async(win,browser)=>{
  assert.equal(await run("state.ui.layersTab"),'files');await fs.writeFile('shell-smoke-files.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('#layersCollapse').click()");await frame();assert.equal(await run("document.querySelector('.native-layers').classList.contains('is-collapsed')"),true);
  await run("document.querySelector('#native-browser [data-do=files]').click()");
- await run("document.querySelector('#native-browser [data-do=chat]').click()");await frame();assert.equal(await run("document.querySelector('.native-chat').hidden"),false);
+ assert.equal(await run("document.querySelector('#native-browser [data-do=chat]')===null"),true);
+ assert.equal(await run("getComputedStyle(document.querySelector('#bridgePanel')).display"),'none');
+ await run("document.querySelector('#native-browser [data-do=context]').click()");await frame();
+ assert.equal(await run("document.querySelector('.native-access').hidden"),false);
+ await run("document.querySelector('[data-do=allow-all]').click()");await frame();assert.equal(browser.contextScope,null);
+ await run("document.querySelector('[data-do=deny-all]').click()");await frame();assert.deepEqual(browser.contextScope,[]);
+ assert.equal(await run("document.querySelector('.native-access textarea')===null"),true);
+ await run("document.querySelector('.native-access [data-do=dismiss]').click()");await frame();
+ console.log('BROWSER_ONLY_SHELL_AND_SESSION_SCOPE_PASS');
  await run('OSMINOGNativeBrowser.canvas()');await frame();assert.equal(await run("document.querySelectorAll('#native-browser #viewport').length"),1);assert.equal(await run("document.querySelectorAll('#viewport').length"),1);
  await run('OSMINOGNativeBrowser.open();OSMINOGNativeBrowser.split(4)');await frame();assert.equal(await run("!!document.querySelector('.native-canvas #viewport')"),true);
  win.setSize(900,650);await frame();await fs.writeFile('shell-smoke-compact.png',(await win.webContents.capturePage()).toPNG());assert.equal(await run("(()=>{const r=document.querySelector('#native-browser').getBoundingClientRect();return [...document.querySelectorAll('.native-scroll,.native-ai')].some(e=>{const b=e.getBoundingClientRect();return b.right>r.right+1||b.bottom>r.bottom+1})})()"),false);

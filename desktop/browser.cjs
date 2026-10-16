@@ -15,7 +15,7 @@ class BrowserWorkspace{
  constructor(win,store){
   this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
-  this.contextScope=null;this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
+  this.contextScope=[];this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
   this.session=session.fromPartition('persist:osminog-browser');
   const ua=this.session.getUserAgent?.();if(ua)this.session.setUserAgent(require('./network.cjs').browserUserAgent(ua));
   this.connectionDiagnostics=new (require('./connection-diagnostics.cjs').ConnectionDiagnostics)({channel:id=>{const t=[...this.tabs.values(),...this.providers.values()].find(t=>t.view.webContents.id===id);return t?(t.ephemeral?'service-tab':'user-tab'):'session-or-worker'}});
@@ -77,9 +77,9 @@ class BrowserWorkspace{
  destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
-   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project)this.contextScope=null;this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
+   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project)this.contextScope=[];this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
-   case 'context-scope':{this.contextScope=[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];return{ids:this.contextScope}}
+   case 'context-scope':{this.contextScope=args.all===true?null:[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();return{ids:this.contextScope}}
    case 'move-lane':{const t=this.get(args.id);if(t.provider){const entry=[...this.providers.entries()].find(([,v])=>v===t);this.providers.delete(entry[0]);this.tabs.set(t.id,t);if(this.ai===t)this.ai=null;delete t.provider;delete t.thread}t.lane=args.lane==='side'?'side':'main';this.save();this.emit();return this.state()}
    case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};const img=await t.view.webContents.capturePage();t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
    case 'context-enable':return{enabled:false,reason:'Original chats send only user content'};
@@ -107,15 +107,16 @@ class BrowserWorkspace{
     this.selectProvider(args.provider,args.thread||'main');return this.state();
    }
    case 'context':{
-    const expected=this.project;
+    const expected=this.project,revision=this.contextRevision||0;
     const all=[...this.tabs.values(),...this.providers.values()].filter(t=>t.project===expected);
-    const selected=args.all?all.filter(t=>t.id!==args.excludeId&&(!args.automatic&&this.contextScope?this.contextScope.includes(t.id):(args.includeChats===true||(!t.provider&&!providerFor(t.view.webContents.getURL()||t.url))))):[...new Set(Array.isArray(args.ids)?args.ids:[])].map(id=>this.get(id));
+    const candidates=args.all?all:[...new Set(Array.isArray(args.ids)?args.ids:[])].map(id=>this.get(id));
+    const selected=candidates.filter(t=>t.id!==args.excludeId&&(!this.contextScope||this.contextScope.includes(t.id))&&(args.includeChats===true||(!t.provider&&!providerFor(t.view.webContents.getURL()||t.url))));
     let budget=120000;const deadline=Date.now()+10000,result=[];
-    for(const t of selected){if(this.project!==expected)throw Error('Проект изменился во время чтения');const url=t.view.webContents.getURL();if(!/^https?:/.test(url)){result.push({id:t.id,url,error:'Страница ещё не загружена'});continue}
+    for(const t of selected){if(this.project!==expected||revision!==(this.contextRevision||0))throw Error('Проект или доступ изменился во время чтения');const url=t.view.webContents.getURL();if(!/^https?:/.test(url)){result.push({id:t.id,url,error:'Страница ещё не загружена'});continue}
      if(budget<=0||Date.now()>=deadline){result.push({id:t.id,url,title:t.title,truncated:true,text:''});continue}
-     let timer;try{const page=await Promise.race([t.view.webContents.executeJavaScript(readPage),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Таймаут чтения страницы')),Math.min(4000,Math.max(1,deadline-Date.now())))})]);if(this.project!==expected)throw Error('Проект изменился во время чтения');if(t.view.webContents.getURL()!==url){result.push({id:t.id,url,error:'Страница изменилась во время чтения'});continue}const text=String(page.text||'').slice(0,budget);budget-=text.length;result.push({id:t.id,...page,text,truncated:text.length<String(page.text||'').length,capturedAt:new Date().toISOString()})}catch(e){result.push({id:t.id,url,error:e.message})}finally{clearTimeout(timer)}
+     let timer;try{const page=await Promise.race([t.view.webContents.executeJavaScript(readPage),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Таймаут чтения страницы')),Math.min(4000,Math.max(1,deadline-Date.now())))})]);if(this.project!==expected||revision!==(this.contextRevision||0))throw Error('Проект или доступ изменился во время чтения');if(t.view.webContents.getURL()!==url){result.push({id:t.id,url,error:'Страница изменилась во время чтения'});continue}const text=String(page.text||'').slice(0,budget);budget-=text.length;result.push({id:t.id,...page,text,truncated:text.length<String(page.text||'').length,capturedAt:new Date().toISOString()})}catch(e){result.push({id:t.id,url,error:e.message})}finally{clearTimeout(timer)}
     }
-    if(this.project!==expected)throw Error('Проект изменился во время чтения');return result;
+    if(this.project!==expected||revision!==(this.contextRevision||0))throw Error('Проект или доступ изменился во время чтения');return result;
    }
    case 'drag-read':{const d=this.dragTransfer;this.dragTransfer=null;if(!d||args.token!==d.token||Date.now()-d.at>60000||d.project!==this.project)throw Error('Начните перенос из открытой вкладки заново');const t=this.get(d.id);if(t.view.webContents.getURL()!==d.source||t.navigationEpoch!==d.epoch)throw Error('Источник изменился');return d.url?require('./media.cjs').readMedia(this,d.id,d.url):{project:d.project,text:d.text,mime:'text/plain',name:'Выделенный текст'}}
    case 'media-read':return require('./media.cjs').readMedia(this,args.id,args.url);
