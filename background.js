@@ -131,6 +131,12 @@ async function bcProbe(){
   return {ok:session.ok&&models.ok&&requirements.ok&&!!reqToken,stage:!models.ok?"models":(!requirements.ok?"requirements":(!reqToken?"requirements-token":"ready")),httpStatus:session.httpStatus,modelsStatus:models.httpStatus,modelCount:list.length,modelSlugs:list.slice(0,20).map(m=>m?.slug||m?.id||m?.title).filter(Boolean),requirementsStatus:requirements.httpStatus,hasRequirementsToken:!!reqToken,proofOfWorkRequired:!!req.proofofwork?.required,proofDifficulty:req.proofofwork?.difficulty||null,arkoseRequired:!!req.arkose?.required,websocket:/shared_websocket/i.test(JSON.stringify(accountCheck.data||{})),elapsedMs:Date.now()-total,error:(!models.ok?(models.error||models.bodyHint):(!requirements.ok?(requirements.error||requirements.bodyHint):""))||""};
 }
 function bcMachineInstructions(context={}){
+  if(context?.execution)return [
+    'OSMINOG workspace executor. Return a machine JSON block for every tool step, not a plan or promise. Host tools are advertised in execution.tools; these are not native vendor function calls.',
+    'Use {"protocol":"osminog.request/v1","calls":[{"tool":"browser_read","args":{"id":"TAB_ID"}}]}. Read first, wait for the result, then use its snapshot in browser_act with exactly one action. Never guess tab IDs or snapshot tokens.',
+    String(context.execution.instructions||''),
+    'When tools return an error, inspect the reason and replan using fresh state. Do not repeat a blocked action. Only give a final natural-language summary after inspecting tool results, or explain the concrete blocker. For a conversational request that needs no action, answer normally.'
+  ].join(' ');
   const mode=context?.intent?.execution||(context?.intent?.edit?"canvas":"chat");
   if(mode==="app")return [
     "OSMINOG Workspace App Runtime is active.",

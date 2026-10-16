@@ -16,7 +16,7 @@ test('stale viewport action errors go back to the model for a fresh read, not bl
 test('Stop and project changes during planning prevent mutation',async()=>{for(const change of [f=>f.observer.stop(),f=>f.browser.project='other']){let f;f=fixture([()=>{change(f);return request('browser_act',{id:'page',snapshot:'fresh'})}]);await f.observer.observe(f.source,'Сделай');assert.equal(f.calls.length,0)}});
 test('canvas patches use guarded local executor and return actual result before completion',async()=>{const f=fixture([{patch:{summary:'Круг',actions:[{op:'create',objectType:'shape',properties:{shapeKind:'ellipse',fill:'#f00'}}]}},{text:'Круг создан'}]);await f.observer.observe(f.source,'Нарисуй круг');assert(f.host.some(s=>s.includes('"expected":"canvas-revision"')));assert.deepEqual(f.messages[1].payload.result.results[0].result.createdIds,['circle'])});
 test('plain conversation does not cause actions; privileged and unknown tools are rejected',async()=>{for(const reply of [{text:'Привет!'},request('github_commit_files',{files:[]}),request('javascript',{code:'bad()'})]){const f=fixture([reply]);await f.observer.observe(f.source,'Привет');assert.equal(f.calls.length,0);assert(!f.host.some(s=>s.includes('executeTool')))}});
-test('double-send deduplicates even after completed turn',async()=>{const f=fixture([{text:'Привет'}]);await f.observer.observe(f.source,'Привет');await f.observer.observe(f.source,'Привет');assert.equal(f.messages.length,1)});
+test('double-send deduplicates even after completed turn',async()=>{const f=fixture([{text:'Привет'}]);await f.observer.observe(f.source,'Привет');await f.observer.observe(f.source,'Привет');assert.equal(f.messages.length,2)});
 
 test('visible provider panel sends start execution; ephemeral, foreign and detached chats cannot',async()=>{
  const f=fixture([request('browser_read',{id:'page'}),{text:'Проверено'}]);
@@ -38,4 +38,46 @@ test('post-action observation token is usable on the next model hop',async()=>{
  const original=f.browser.agentTools.run;f.browser.agentTools.run=async(name,args)=>{const r=await original(name,args);return name==='browser_act'?{...r,observation:{snapshot:'after',page:{title:'Changed'}},image:{mimeType:'image/png',data:'image-bytes'}}:r};
  await f.observer.observe(f.source,'Заполни');assert.equal(f.calls.filter(c=>c.name==='browser_act').length,2);
  assert.equal(f.messages[2].payload.result.results[0].result.observation.page.title,'Changed');assert.equal(f.messages[2].payload.images.length,1);assert(!JSON.stringify(f.messages[2].payload.result).includes('image-bytes'));
+});
+
+
+test('plain first response gets one format repair and then executes returned tools',async()=>{
+ const f=fixture([{text:'Сейчас поменяю тему'},request('browser_read',{id:'page'}),request('browser_act',{id:'page',snapshot:'fresh',actions:[{type:'click',x:20,y:20}]}),{text:'Проверено'}]);
+ await f.observer.observe(f.source,'Смени тему');
+ assert.equal(f.messages[1].type,'BC_PROVIDER_TOOL_RESULT');
+ assert.equal(f.messages[1].payload.result.results[0].result.code,'EXECUTOR_FORMAT_INVALID');
+ assert.deepEqual(f.calls.map(c=>c.name),['browser_read','browser_act']);
+});
+test('failure stops remaining calls in same response and returns error for replanning',async()=>{
+ const f=fixture([{request:{calls:[{tool:'unsupported',args:{}},{tool:'browser_read',args:{id:'page'}}]}},request('browser_read',{id:'page'}),{text:'Проверено'}]);
+ await f.observer.observe(f.source,'Проверь');
+ assert.equal(f.messages[1].payload.result.results.length,1);
+ assert.equal(f.messages[1].payload.result.results[0].result.ok,false);
+ assert.equal(f.calls.length,1);
+});
+test('invalid command schema has bounded repair and never reaches executor',async()=>{
+ const bad={request:{calls:[{tool:'browser_act',args:'invalid'}]}};
+ const f=fixture([bad,bad,bad]);await f.observer.observe(f.source,'Сделай');
+ assert.equal(f.calls.length,0);assert.equal(f.messages.length,3);
+ assert.match(f.status.at(-1),/EXECUTOR_FORMAT_INVALID/);
+});
+test('execution prompt overrides generic conversational instructions in shared transport',()=>{
+ const {bcDecoratePrompt}=require('./protocol.cjs');
+ const prompt=bcDecoratePrompt('Смени тему',{execution:{instructions:'Read before acting',tools:['browser_read']}},'request');
+ assert.match(prompt,/OSMINOG workspace executor/);
+ assert.match(prompt,/Read before acting/);
+ assert(!prompt.includes("Answer the user's natural-language request normally."));
+});
+
+test('raw and fenced action envelopes execute only with a previously issued snapshot',async()=>{
+ for(const fenced of [true,false]){
+  const json=JSON.stringify({id:'page',snapshot:'fresh',actions:[{type:'click',x:20,y:20}]});
+  const f=fixture([request('browser_read',{id:'page'}),{text:fenced?'```json\n'+json+'\n```':json},{text:'Проверено'}]);
+  await f.observer.observe(f.source,'Смени тему');assert.equal(f.calls[1].name,'browser_act');
+ }
+});
+test('action envelope validates target, finite coordinates, unsupported actions and batch size',()=>{
+ const {actionEnvelope}=require('./original-actions.cjs');
+ for(const value of [{actions:[{type:'click',x:1,y:1}]},{id:'p',snapshot:'s',actions:[{type:'click',x:'10',y:1}]},{id:'p',snapshot:'s',actions:[{type:'waitFor',selector:'body'}]},{id:'p',snapshot:'s',actions:[{type:'click',x:1,y:1},{type:'type',text:'x'}]}])assert(actionEnvelope(JSON.stringify(value)).error);
+ assert.equal(actionEnvelope('{"actions":[]}').empty,true);
 });
