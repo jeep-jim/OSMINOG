@@ -1,0 +1,563 @@
+﻿2026-10-16T09:04:06.0731252Z Current runner version: '2.337.0'
+2026-10-16T09:04:06.0757079Z ##[group]Runner Image Provisioner
+2026-10-16T09:04:06.0757896Z Hosted Compute Agent
+2026-10-16T09:04:06.0758498Z Version: 20261002.596
+2026-10-16T09:04:06.0759131Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+2026-10-16T09:04:06.0760427Z Build Date: 2026-10-02T22:28:27Z
+2026-10-16T09:04:06.0761097Z Worker ID: {d550c07c-67b3-42ff-a6bf-cb11037bbc83}
+2026-10-16T09:04:06.0761828Z Region: westcentralus
+2026-10-16T09:04:06.0762404Z Cloud: Azure
+2026-10-16T09:04:06.0762895Z ##[endgroup]
+2026-10-16T09:04:06.0764280Z ##[group]Operating System
+2026-10-16T09:04:06.0765336Z Microsoft Windows Server 2025
+2026-10-16T09:04:06.0766049Z 10.0.26100
+2026-10-16T09:04:06.0766705Z Datacenter
+2026-10-16T09:04:06.0767210Z ##[endgroup]
+2026-10-16T09:04:06.0767724Z ##[group]Runner Image
+2026-10-16T09:04:06.0768305Z Image: windows-2025-vs2026
+2026-10-16T09:04:06.0768886Z Version: 20261007.264.1
+2026-10-16T09:04:06.0770361Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261007.264/images/windows/Windows2025-VS2026-Readme.md
+2026-10-16T09:04:06.0771995Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261007.264
+2026-10-16T09:04:06.0773013Z ##[endgroup]
+2026-10-16T09:04:06.0774045Z ##[group]GITHUB_TOKEN Permissions
+2026-10-16T09:04:06.0775959Z Contents: write
+2026-10-16T09:04:06.0776499Z Metadata: read
+2026-10-16T09:04:06.0777052Z ##[endgroup]
+2026-10-16T09:04:06.0779027Z Secret source: Actions
+2026-10-16T09:04:06.0779908Z Cache mode: write
+2026-10-16T09:04:06.0780593Z Prepare workflow directory
+2026-10-16T09:04:06.1319257Z Prepare all required actions
+2026-10-16T09:04:06.1371021Z Getting action download info
+2026-10-16T09:04:06.4447987Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-16T09:04:06.5678037Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-16T09:04:06.7300575Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-16T09:04:07.0659968Z Complete job name: windows
+2026-10-16T09:04:07.1997411Z ##[group]Run actions/checkout@v4
+2026-10-16T09:04:07.1998540Z with:
+2026-10-16T09:04:07.1998929Z   fetch-depth: 0
+2026-10-16T09:04:07.1999365Z   repository: jeep-jim/OSMINOG-Releases
+2026-10-16T09:04:07.2003418Z   token: ***
+2026-10-16T09:04:07.2003820Z   ssh-strict: true
+2026-10-16T09:04:07.2004222Z   ssh-user: git
+2026-10-16T09:04:07.2004628Z   persist-credentials: true
+2026-10-16T09:04:07.2005566Z   clean: true
+2026-10-16T09:04:07.2005977Z   sparse-checkout-cone-mode: true
+2026-10-16T09:04:07.2006461Z   fetch-tags: false
+2026-10-16T09:04:07.2006864Z   show-progress: true
+2026-10-16T09:04:07.2007289Z   lfs: false
+2026-10-16T09:04:07.2007671Z   submodules: false
+2026-10-16T09:04:07.2008077Z   set-safe-directory: true
+2026-10-16T09:04:07.2008544Z   allow-unsafe-pr-checkout: false
+2026-10-16T09:04:07.2009305Z env:
+2026-10-16T09:04:07.2013154Z   GH_TOKEN: ***
+2026-10-16T09:04:07.2013559Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-16T09:04:07.2014077Z ##[endgroup]
+2026-10-16T09:04:07.3447995Z Syncing repository: jeep-jim/OSMINOG-Releases
+2026-10-16T09:04:07.3449759Z ##[group]Getting Git version info
+2026-10-16T09:04:07.3450438Z Working directory is 'D:\a\OSMINOG-Releases\OSMINOG-Releases'
+2026-10-16T09:04:07.4369326Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-16T09:04:07.7688038Z git version 2.56.0.windows.2
+2026-10-16T09:04:07.7739732Z ##[endgroup]
+2026-10-16T09:04:07.7757699Z Temporarily overriding HOME='D:\a\_temp\39449493-7bde-4e49-a0b7-d96036b2c87a' before making global git config changes
+2026-10-16T09:04:07.7759508Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-16T09:04:07.7769163Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\OSMINOG-Releases\OSMINOG-Releases
+2026-10-16T09:04:07.8437512Z Deleting the contents of 'D:\a\OSMINOG-Releases\OSMINOG-Releases'
+2026-10-16T09:04:07.8443912Z ##[group]Initializing the repository
+2026-10-16T09:04:07.8453241Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\OSMINOG-Releases\OSMINOG-Releases
+2026-10-16T09:04:07.9325036Z Initialized empty Git repository in D:/a/OSMINOG-Releases/OSMINOG-Releases/.git/
+2026-10-16T09:04:07.9379741Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/jeep-jim/OSMINOG-Releases
+2026-10-16T09:04:08.0096875Z ##[endgroup]
+2026-10-16T09:04:08.0098329Z ##[group]Disabling automatic garbage collection
+2026-10-16T09:04:08.0105838Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-16T09:04:08.0485490Z ##[endgroup]
+2026-10-16T09:04:08.0487301Z ##[group]Setting up auth
+2026-10-16T09:04:08.0497822Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-16T09:04:08.0886808Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-16T09:04:09.4794797Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-16T09:04:09.5172509Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-16T09:04:10.0897170Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-16T09:04:10.1286755Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-16T09:04:10.6601193Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-16T09:04:10.7003542Z ##[endgroup]
+2026-10-16T09:04:10.7004325Z ##[group]Fetching the repository
+2026-10-16T09:04:10.7026197Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-10-16T09:04:16.4387742Z From https://github.com/jeep-jim/OSMINOG-Releases
+2026-10-16T09:04:16.4388776Z  * [new branch]      codex/3.11.52-workspace-app-runtime -> origin/codex/3.11.52-workspace-app-runtime
+2026-10-16T09:04:16.4389739Z  * [new branch]      fix/3.11.53-package-integrity -> origin/fix/3.11.53-package-integrity
+2026-10-16T09:04:16.4390418Z  * [new branch]      main                   -> origin/main
+2026-10-16T09:04:16.4391210Z  * [new branch]      release/3.11.51-autonomous-self-build -> origin/release/3.11.51-autonomous-self-build
+2026-10-16T09:04:16.4392336Z  * [new branch]      release/3.11.53-native-workspace-apps -> origin/release/3.11.53-native-workspace-apps
+2026-10-16T09:04:16.4393577Z  * [new tag]         android-v0.1.0-preview -> android-v0.1.0-preview
+2026-10-16T09:04:16.4394273Z  * [new tag]         chrome-v3.11.40        -> chrome-v3.11.40
+2026-10-16T09:04:16.4394866Z  * [new tag]         chrome-v3.11.41        -> chrome-v3.11.41
+2026-10-16T09:04:16.4395442Z  * [new tag]         chrome-v3.11.42        -> chrome-v3.11.42
+2026-10-16T09:04:16.4396108Z  * [new tag]         chrome-v3.11.43        -> chrome-v3.11.43
+2026-10-16T09:04:16.4396638Z  * [new tag]         chrome-v3.11.44        -> chrome-v3.11.44
+2026-10-16T09:04:16.4397188Z  * [new tag]         chrome-v3.11.45        -> chrome-v3.11.45
+2026-10-16T09:04:16.4397702Z  * [new tag]         chrome-v3.11.46        -> chrome-v3.11.46
+2026-10-16T09:04:16.4398210Z  * [new tag]         chrome-v3.11.47        -> chrome-v3.11.47
+2026-10-16T09:04:16.4398736Z  * [new tag]         chrome-v3.11.48        -> chrome-v3.11.48
+2026-10-16T09:04:16.4399365Z  * [new tag]         chrome-v3.11.49        -> chrome-v3.11.49
+2026-10-16T09:04:16.4400741Z  * [new tag]         chrome-v3.11.50        -> chrome-v3.11.50
+2026-10-16T09:04:16.4401104Z  * [new tag]         chrome-v3.11.51        -> chrome-v3.11.51
+2026-10-16T09:04:16.4401433Z  * [new tag]         chrome-v3.11.52        -> chrome-v3.11.52
+2026-10-16T09:04:16.4401774Z  * [new tag]         chrome-v3.11.53        -> chrome-v3.11.53
+2026-10-16T09:04:16.4402132Z  * [new tag]         chrome-v3.11.54        -> chrome-v3.11.54
+2026-10-16T09:04:16.4402535Z  * [new tag]         chrome-v3.11.55        -> chrome-v3.11.55
+2026-10-16T09:04:16.4402868Z  * [new tag]         chrome-v3.11.56        -> chrome-v3.11.56
+2026-10-16T09:04:16.4403187Z  * [new tag]         chrome-v3.11.57        -> chrome-v3.11.57
+2026-10-16T09:04:16.4403521Z  * [new tag]         chrome-v3.12.0         -> chrome-v3.12.0
+2026-10-16T09:04:16.4403912Z  * [new tag]         chrome-v3.12.1         -> chrome-v3.12.1
+2026-10-16T09:04:16.4404260Z  * [new tag]         chrome-v3.12.2         -> chrome-v3.12.2
+2026-10-16T09:04:16.4404584Z  * [new tag]         chrome-v3.12.3         -> chrome-v3.12.3
+2026-10-16T09:04:16.4404900Z  * [new tag]         chrome-v3.12.4         -> chrome-v3.12.4
+2026-10-16T09:04:16.4405209Z  * [new tag]         chrome-v3.13.0         -> chrome-v3.13.0
+2026-10-16T09:04:16.4405517Z  * [new tag]         chrome-v3.13.1         -> chrome-v3.13.1
+2026-10-16T09:04:16.4405821Z  * [new tag]         chrome-v3.13.2         -> chrome-v3.13.2
+2026-10-16T09:04:16.4406149Z  * [new tag]         chrome-v3.13.3         -> chrome-v3.13.3
+2026-10-16T09:04:16.4406513Z  * [new tag]         chrome-v3.14.0         -> chrome-v3.14.0
+2026-10-16T09:04:16.4406822Z  * [new tag]         chrome-v3.14.1         -> chrome-v3.14.1
+2026-10-16T09:04:16.4407126Z  * [new tag]         chrome-v3.14.2         -> chrome-v3.14.2
+2026-10-16T09:04:16.4407433Z  * [new tag]         chrome-v3.14.3         -> chrome-v3.14.3
+2026-10-16T09:04:16.4407752Z  * [new tag]         chrome-v3.14.4         -> chrome-v3.14.4
+2026-10-16T09:04:16.4408062Z  * [new tag]         chrome-v3.14.5         -> chrome-v3.14.5
+2026-10-16T09:04:16.4408872Z  * [new tag]         chrome-v3.15.0         -> chrome-v3.15.0
+2026-10-16T09:04:16.4409191Z  * [new tag]         chrome-v3.15.1         -> chrome-v3.15.1
+2026-10-16T09:04:16.4409502Z  * [new tag]         chrome-v3.15.2         -> chrome-v3.15.2
+2026-10-16T09:04:16.4409811Z  * [new tag]         chrome-v3.16.0         -> chrome-v3.16.0
+2026-10-16T09:04:16.4410121Z  * [new tag]         chrome-v3.17.0         -> chrome-v3.17.0
+2026-10-16T09:04:16.4410502Z  * [new tag]         chrome-v3.18.0         -> chrome-v3.18.0
+2026-10-16T09:04:16.4411007Z  * [new tag]         chrome-v3.18.1         -> chrome-v3.18.1
+2026-10-16T09:04:16.4411551Z  * [new tag]         chrome-v3.19.10        -> chrome-v3.19.10
+2026-10-16T09:04:16.4412073Z  * [new tag]         chrome-v3.19.11        -> chrome-v3.19.11
+2026-10-16T09:04:16.4412568Z  * [new tag]         chrome-v3.19.12        -> chrome-v3.19.12
+2026-10-16T09:04:16.4413392Z  * [new tag]         chrome-v3.19.2         -> chrome-v3.19.2
+2026-10-16T09:04:16.4413904Z  * [new tag]         chrome-v3.19.3         -> chrome-v3.19.3
+2026-10-16T09:04:16.4414381Z  * [new tag]         chrome-v3.19.5         -> chrome-v3.19.5
+2026-10-16T09:04:16.4414872Z  * [new tag]         chrome-v3.19.6         -> chrome-v3.19.6
+2026-10-16T09:04:16.4415361Z  * [new tag]         chrome-v3.19.7         -> chrome-v3.19.7
+2026-10-16T09:04:16.4415832Z  * [new tag]         chrome-v3.19.8         -> chrome-v3.19.8
+2026-10-16T09:04:16.4416303Z  * [new tag]         chrome-v3.19.9         -> chrome-v3.19.9
+2026-10-16T09:04:16.4416800Z  * [new tag]         chrome-v3.20.0         -> chrome-v3.20.0
+2026-10-16T09:04:16.4417295Z  * [new tag]         chrome-v3.20.1         -> chrome-v3.20.1
+2026-10-16T09:04:16.4417796Z  * [new tag]         chrome-v3.20.3         -> chrome-v3.20.3
+2026-10-16T09:04:16.4418310Z  * [new tag]         chrome-v3.20.4         -> chrome-v3.20.4
+2026-10-16T09:04:16.4419082Z  * [new tag]         chrome-v3.20.5         -> chrome-v3.20.5
+2026-10-16T09:04:16.4419650Z  * [new tag]         chrome-v3.20.7         -> chrome-v3.20.7
+2026-10-16T09:04:16.4420173Z  * [new tag]         chrome-v3.20.8         -> chrome-v3.20.8
+2026-10-16T09:04:16.4420698Z  * [new tag]         chrome-v3.20.9         -> chrome-v3.20.9
+2026-10-16T09:04:16.4421233Z  * [new tag]         chrome-v3.21.0         -> chrome-v3.21.0
+2026-10-16T09:04:16.4421768Z  * [new tag]         chrome-v3.21.1         -> chrome-v3.21.1
+2026-10-16T09:04:16.4422290Z  * [new tag]         chrome-v3.21.2         -> chrome-v3.21.2
+2026-10-16T09:04:16.4422834Z  * [new tag]         chrome-v3.21.3         -> chrome-v3.21.3
+2026-10-16T09:04:16.4423359Z  * [new tag]         chrome-v3.21.4         -> chrome-v3.21.4
+2026-10-16T09:04:16.4423896Z  * [new tag]         chrome-v3.21.5         -> chrome-v3.21.5
+2026-10-16T09:04:16.4424419Z  * [new tag]         chrome-v3.21.6         -> chrome-v3.21.6
+2026-10-16T09:04:16.4424936Z  * [new tag]         chrome-v3.21.7         -> chrome-v3.21.7
+2026-10-16T09:04:16.4425458Z  * [new tag]         chrome-v3.21.8         -> chrome-v3.21.8
+2026-10-16T09:04:16.4425987Z  * [new tag]         chrome-v3.22.0         -> chrome-v3.22.0
+2026-10-16T09:04:16.4426531Z  * [new tag]         chrome-v3.23.0         -> chrome-v3.23.0
+2026-10-16T09:04:16.4427090Z  * [new tag]         chrome-v4.0.0          -> chrome-v4.0.0
+2026-10-16T09:04:16.4427626Z  * [new tag]         chrome-v4.0.1          -> chrome-v4.0.1
+2026-10-16T09:04:16.4428125Z  * [new tag]         chrome-v4.0.2          -> chrome-v4.0.2
+2026-10-16T09:04:16.4428647Z  * [new tag]         chrome-v4.0.3          -> chrome-v4.0.3
+2026-10-16T09:04:16.4429152Z  * [new tag]         chrome-v4.0.4          -> chrome-v4.0.4
+2026-10-16T09:04:16.4429650Z  * [new tag]         chrome-v4.0.5          -> chrome-v4.0.5
+2026-10-16T09:04:16.4430145Z  * [new tag]         chrome-v4.0.6          -> chrome-v4.0.6
+2026-10-16T09:04:16.4431053Z  * [new tag]         chrome-v4.0.7          -> chrome-v4.0.7
+2026-10-16T09:04:16.4431865Z  * [new tag]         chrome-v4.0.8          -> chrome-v4.0.8
+2026-10-16T09:04:16.4432643Z  * [new tag]         chrome-v4.0.9          -> chrome-v4.0.9
+2026-10-16T09:04:16.4433230Z  * [new tag]         windows-preview        -> windows-preview
+2026-10-16T09:04:16.4433785Z  * [new tag]         windows-v0.2.1         -> windows-v0.2.1
+2026-10-16T09:04:16.4434311Z  * [new tag]         windows-v0.3.0         -> windows-v0.3.0
+2026-10-16T09:04:16.4434826Z  * [new tag]         windows-v0.3.1         -> windows-v0.3.1
+2026-10-16T09:04:16.4435330Z  * [new tag]         windows-v0.3.2         -> windows-v0.3.2
+2026-10-16T09:04:16.4435816Z  * [new tag]         windows-v0.3.3         -> windows-v0.3.3
+2026-10-16T09:04:16.4436340Z  * [new tag]         windows-v0.3.4         -> windows-v0.3.4
+2026-10-16T09:04:16.4436849Z  * [new tag]         windows-v0.3.5         -> windows-v0.3.5
+2026-10-16T09:04:16.4519661Z  * [new tag]         windows-v0.3.6         -> windows-v0.3.6
+2026-10-16T09:04:16.4520486Z  * [new tag]         windows-v0.3.7         -> windows-v0.3.7
+2026-10-16T09:04:16.4521070Z  * [new tag]         windows-v0.3.8         -> windows-v0.3.8
+2026-10-16T09:04:16.4521601Z  * [new tag]         windows-v0.3.9         -> windows-v0.3.9
+2026-10-16T09:04:16.4522087Z  * [new tag]         windows-v4.0.0         -> windows-v4.0.0
+2026-10-16T09:04:16.4522559Z  * [new tag]         windows-v4.0.1         -> windows-v4.0.1
+2026-10-16T09:04:16.4523049Z  * [new tag]         windows-v4.0.10        -> windows-v4.0.10
+2026-10-16T09:04:16.4523555Z  * [new tag]         windows-v4.0.11        -> windows-v4.0.11
+2026-10-16T09:04:16.4524068Z  * [new tag]         windows-v4.0.12        -> windows-v4.0.12
+2026-10-16T09:04:16.4524574Z  * [new tag]         windows-v4.0.13        -> windows-v4.0.13
+2026-10-16T09:04:16.4525084Z  * [new tag]         windows-v4.0.14        -> windows-v4.0.14
+2026-10-16T09:04:16.4525593Z  * [new tag]         windows-v4.0.2         -> windows-v4.0.2
+2026-10-16T09:04:16.4526392Z  * [new tag]         windows-v4.0.3         -> windows-v4.0.3
+2026-10-16T09:04:16.4526930Z  * [new tag]         windows-v4.0.4         -> windows-v4.0.4
+2026-10-16T09:04:16.4527455Z  * [new tag]         windows-v4.0.5         -> windows-v4.0.5
+2026-10-16T09:04:16.4527994Z  * [new tag]         windows-v4.0.6         -> windows-v4.0.6
+2026-10-16T09:04:16.4528544Z  * [new tag]         windows-v4.0.7         -> windows-v4.0.7
+2026-10-16T09:04:16.4529110Z  * [new tag]         windows-v4.0.8         -> windows-v4.0.8
+2026-10-16T09:04:16.4529672Z  * [new tag]         windows-v4.0.9         -> windows-v4.0.9
+2026-10-16T09:04:16.4531157Z [command]"C:\Program Files\Git\bin\git.exe" branch --list --remote origin/main
+2026-10-16T09:04:16.4922649Z   origin/main
+2026-10-16T09:04:16.4965537Z [command]"C:\Program Files\Git\bin\git.exe" rev-parse refs/remotes/origin/main
+2026-10-16T09:04:16.5343230Z b5ccb244eab26f04a08a34b38ce8e0b363489428
+2026-10-16T09:04:16.5375035Z ##[endgroup]
+2026-10-16T09:04:16.5375413Z ##[group]Determining the checkout info
+2026-10-16T09:04:16.5377136Z ##[endgroup]
+2026-10-16T09:04:16.5386451Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-16T09:04:16.5831440Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-16T09:04:16.6193738Z ##[group]Checking out the ref
+2026-10-16T09:04:16.6202735Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-10-16T09:04:17.6832788Z Updating files:  23% (617/2638)
+2026-10-16T09:04:17.7019601Z Updating files:  24% (634/2638)
+2026-10-16T09:04:17.7194785Z Updating files:  25% (660/2638)
+2026-10-16T09:04:17.7454423Z Updating files:  26% (686/2638)
+2026-10-16T09:04:17.7649778Z Updating files:  27% (713/2638)
+2026-10-16T09:04:17.7921883Z Updating files:  28% (739/2638)
+2026-10-16T09:04:17.8229867Z Updating files:  29% (766/2638)
+2026-10-16T09:04:17.8463955Z Updating files:  30% (792/2638)
+2026-10-16T09:04:17.8707070Z Updating files:  31% (818/2638)
+2026-10-16T09:04:17.8916076Z Updating files:  32% (845/2638)
+2026-10-16T09:04:17.9108321Z Updating files:  33% (871/2638)
+2026-10-16T09:04:17.9305506Z Updating files:  34% (897/2638)
+2026-10-16T09:04:17.9463934Z Updating files:  35% (924/2638)
+2026-10-16T09:04:17.9637723Z Updating files:  36% (950/2638)
+2026-10-16T09:04:18.0012212Z Updating files:  37% (977/2638)
+2026-10-16T09:04:18.0218416Z Updating files:  38% (1003/2638)
+2026-10-16T09:04:18.0612299Z Updating files:  39% (1029/2638)
+2026-10-16T09:04:18.0818315Z Updating files:  40% (1056/2638)
+2026-10-16T09:04:18.1013386Z Updating files:  41% (1082/2638)
+2026-10-16T09:04:18.1194169Z Updating files:  42% (1108/2638)
+2026-10-16T09:04:18.1398369Z Updating files:  43% (1135/2638)
+2026-10-16T09:04:18.1561133Z Updating files:  44% (1161/2638)
+2026-10-16T09:04:18.1732898Z Updating files:  45% (1188/2638)
+2026-10-16T09:04:18.1935603Z Updating files:  46% (1214/2638)
+2026-10-16T09:04:18.2127911Z Updating files:  47% (1240/2638)
+2026-10-16T09:04:18.2336611Z Updating files:  48% (1267/2638)
+2026-10-16T09:04:18.2477908Z Updating files:  49% (1293/2638)
+2026-10-16T09:04:18.2636648Z Updating files:  50% (1319/2638)
+2026-10-16T09:04:18.2759137Z Updating files:  51% (1346/2638)
+2026-10-16T09:04:18.2890975Z Updating files:  52% (1372/2638)
+2026-10-16T09:04:18.3017778Z Updating files:  53% (1399/2638)
+2026-10-16T09:04:18.3278907Z Updating files:  54% (1425/2638)
+2026-10-16T09:04:18.3608628Z Updating files:  55% (1451/2638)
+2026-10-16T09:04:18.3926885Z Updating files:  56% (1478/2638)
+2026-10-16T09:04:18.4279394Z Updating files:  57% (1504/2638)
+2026-10-16T09:04:18.4646730Z Updating files:  58% (1531/2638)
+2026-10-16T09:04:18.4969695Z Updating files:  59% (1557/2638)
+2026-10-16T09:04:18.5282123Z Updating files:  60% (1583/2638)
+2026-10-16T09:04:18.5582228Z Updating files:  61% (1610/2638)
+2026-10-16T09:04:18.5823037Z Updating files:  62% (1636/2638)
+2026-10-16T09:04:18.6112794Z Updating files:  63% (1662/2638)
+2026-10-16T09:04:18.6309273Z Updating files:  64% (1689/2638)
+2026-10-16T09:04:18.6509202Z Updating files:  65% (1715/2638)
+2026-10-16T09:04:18.6681871Z Updating files:  66% (1742/2638)
+2026-10-16T09:04:18.6734444Z Updating files:  67% (1768/2638)
+2026-10-16T09:04:18.6876324Z Updating files:  67% (1773/2638)
+2026-10-16T09:04:18.7071822Z Updating files:  68% (1794/2638)
+2026-10-16T09:04:18.7267055Z Updating files:  69% (1821/2638)
+2026-10-16T09:04:18.7470505Z Updating files:  70% (1847/2638)
+2026-10-16T09:04:18.7660278Z Updating files:  71% (1873/2638)
+2026-10-16T09:04:18.7822288Z Updating files:  72% (1900/2638)
+2026-10-16T09:04:18.8001764Z Updating files:  73% (1926/2638)
+2026-10-16T09:04:18.8187320Z Updating files:  74% (1953/2638)
+2026-10-16T09:04:18.8376542Z Updating files:  75% (1979/2638)
+2026-10-16T09:04:18.8580466Z Updating files:  76% (2005/2638)
+2026-10-16T09:04:18.8761858Z Updating files:  77% (2032/2638)
+2026-10-16T09:04:18.8963208Z Updating files:  78% (2058/2638)
+2026-10-16T09:04:18.9153234Z Updating files:  79% (2085/2638)
+2026-10-16T09:04:18.9434492Z Updating files:  80% (2111/2638)
+2026-10-16T09:04:18.9778473Z Updating files:  81% (2137/2638)
+2026-10-16T09:04:19.0087380Z Updating files:  82% (2164/2638)
+2026-10-16T09:04:19.0230026Z Updating files:  83% (2190/2638)
+2026-10-16T09:04:19.0399847Z Updating files:  84% (2216/2638)
+2026-10-16T09:04:19.0584373Z Updating files:  85% (2243/2638)
+2026-10-16T09:04:19.0704602Z Updating files:  86% (2269/2638)
+2026-10-16T09:04:19.0895227Z Updating files:  87% (2296/2638)
+2026-10-16T09:04:19.1079852Z Updating files:  88% (2322/2638)
+2026-10-16T09:04:19.1194215Z Updating files:  89% (2348/2638)
+2026-10-16T09:04:19.1387634Z Updating files:  90% (2375/2638)
+2026-10-16T09:04:19.1565840Z Updating files:  91% (2401/2638)
+2026-10-16T09:04:19.1749060Z Updating files:  92% (2427/2638)
+2026-10-16T09:04:19.1938399Z Updating files:  93% (2454/2638)
+2026-10-16T09:04:19.2073403Z Updating files:  94% (2480/2638)
+2026-10-16T09:04:19.2231896Z Updating files:  95% (2507/2638)
+2026-10-16T09:04:19.2409805Z Updating files:  96% (2533/2638)
+2026-10-16T09:04:19.2585812Z Updating files:  97% (2559/2638)
+2026-10-16T09:04:19.2763873Z Updating files:  98% (2586/2638)
+2026-10-16T09:04:19.2919895Z Updating files:  99% (2612/2638)
+2026-10-16T09:04:19.2920278Z Updating files: 100% (2638/2638)
+2026-10-16T09:04:19.2920643Z Updating files: 100% (2638/2638), done.
+2026-10-16T09:04:19.3072871Z Switched to a new branch 'main'
+2026-10-16T09:04:19.3134037Z branch 'main' set up to track 'origin/main'.
+2026-10-16T09:04:19.3452421Z ##[endgroup]
+2026-10-16T09:04:19.3949805Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-16T09:04:19.4293595Z b5ccb244eab26f04a08a34b38ce8e0b363489428
+2026-10-16T09:04:19.4743466Z ##[group]Run actions/setup-node@v4
+2026-10-16T09:04:19.4743806Z with:
+2026-10-16T09:04:19.4744000Z   node-version: 22
+2026-10-16T09:04:19.4744568Z   always-auth: false
+2026-10-16T09:04:19.4744810Z   check-latest: false
+2026-10-16T09:04:19.4747289Z   token: ***
+2026-10-16T09:04:19.4747475Z env:
+2026-10-16T09:04:19.4749859Z   GH_TOKEN: ***
+2026-10-16T09:04:19.4750069Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-16T09:04:19.4750313Z ##[endgroup]
+2026-10-16T09:04:19.6573579Z Found in cache @ C:\hostedtoolcache\windows\node\22.23.3\x64
+2026-10-16T09:04:19.6580532Z (node:2020) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-16T09:04:19.6581230Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-16T09:04:19.6584024Z ##[group]Environment details
+2026-10-16T09:04:24.0681464Z node: v22.23.3
+2026-10-16T09:04:24.0681724Z npm: 10.9.9
+2026-10-16T09:04:24.0682199Z yarn: 1.22.22
+2026-10-16T09:04:24.0683358Z ##[endgroup]
+2026-10-16T09:04:24.0987771Z ##[group]Run ./tools/assemble-windows.ps1
+2026-10-16T09:04:24.0988205Z [36;1m./tools/assemble-windows.ps1[0m
+2026-10-16T09:04:24.1638266Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-16T09:04:24.1638647Z env:
+2026-10-16T09:04:24.1641237Z   GH_TOKEN: ***
+2026-10-16T09:04:24.1641457Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-16T09:04:24.1641712Z ##[endgroup]
+2026-10-16T09:04:39.7115259Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-10-16T09:04:40.6166476Z npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+2026-10-16T09:04:40.8609549Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-16T09:04:41.4532992Z npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-10-16T09:04:41.9132735Z npm warn deprecated rcedit@5.0.2: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-10-16T09:04:43.8817605Z 
+2026-10-16T09:04:43.8818496Z added 284 packages in 15s
+2026-10-16T09:04:48.5539811Z EXECUTABLE_RED_EYE_ICON_PASS
+2026-10-16T09:04:50.0259260Z   • electron-builder  version=26.15.3 os=10.0.26100
+2026-10-16T09:04:50.0357219Z   • loaded configuration  file=D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\builder.json
+2026-10-16T09:04:51.0752620Z   • building        target=nsis file=dist\OSMINOG-Preview-4.0.15-x64.exe archs=x64 oneClick=false perMachine=false
+2026-10-16T09:04:51.2385988Z   • downloaded      label=nsis-3.0.4.1.7z progress=100%
+2026-10-16T09:04:51.4644034Z   • downloaded      label=7zip-win-x64.tar.gz progress=100%
+2026-10-16T09:04:52.1776195Z   • signing with signtool.exe  path=app\resources\elevate.exe
+2026-10-16T09:05:34.7979549Z   • downloaded      label=nsis-resources-3.4.1.7z progress=100%
+2026-10-16T09:05:36.3589349Z   • signing with signtool.exe  path=dist\OSMINOG-Preview-4.0.15-x64.__uninstaller.exe
+2026-10-16T09:05:37.9130481Z   • signing with signtool.exe  path=dist\OSMINOG-Preview-4.0.15-x64.exe
+2026-10-16T09:05:37.9133269Z   • building block map  blockMapFile=dist\OSMINOG-Preview-4.0.15-x64.exe.blockmap
+2026-10-16T09:05:46.1539876Z 
+2026-10-16T09:05:46.1541677Z DESKTOP_SMOKE_PASS
+2026-10-16T09:05:46.1547385Z 2026-10-16T09:05:42.864Z START 4.0.15
+2026-10-16T09:05:46.1547987Z 2026-10-16T09:05:44.797Z OSMINOG_READY 4.0.15
+2026-10-16T09:05:46.1549061Z Error occurred in handler for 'browser:command': Error: Untrusted frame: window-closed
+2026-10-16T09:05:46.1551256Z     at trusted (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:14:360)
+2026-10-16T09:05:46.1552946Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:53
+2026-10-16T09:05:46.1554031Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:05:46.1554696Z     at Session.emit (node:events:514:28)
+2026-10-16T09:05:48.4587565Z 
+2026-10-16T09:05:48.4588395Z NATIVE_MEDIA_TO_CANVAS_PASS
+2026-10-16T09:05:48.4590315Z NATIVE_DRAG_DROP_IMPORT_PASS
+2026-10-16T09:05:48.4590728Z BROWSER_SMOKE_PASS
+2026-10-16T09:05:48.4595852Z 2026-10-16T09:05:46.226Z START 4.0.15
+2026-10-16T09:05:48.4597022Z 2026-10-16T09:05:46.859Z OSMINOG_READY 4.0.15
+2026-10-16T09:05:48.4598468Z Error occurred in handler for 'browser:command': Error: Untrusted frame: window-closed
+2026-10-16T09:05:48.4600104Z     at trusted (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:14:360)
+2026-10-16T09:05:48.4604829Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:53
+2026-10-16T09:05:48.4605953Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:05:48.4606913Z     at Session.emit (node:events:514:28)
+2026-10-16T09:05:48.4607669Z Error occurred in handler for 'store:set': Error: Untrusted frame: window-closed
+2026-10-16T09:05:48.4608690Z     at trusted (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:14:360)
+2026-10-16T09:05:48.4609762Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:18:83
+2026-10-16T09:05:48.4610689Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:05:48.4611313Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:23.1207611Z 
+2026-10-16T09:06:23.1208947Z DEEPSEEK_REASONING_THEN_JSON_SINGLE_SEND_PASS
+2026-10-16T09:06:23.1209606Z PROVIDER_IPC_WITHOUT_INTERNAL_CHAT_PASS
+2026-10-16T09:06:23.1210129Z HIDDEN_SERVICE_CONFIRMED_SINGLE_SUBMIT_PASS
+2026-10-16T09:06:23.1211742Z HIDDEN_SERVICE_IMAGE_REPLY_PASS
+2026-10-16T09:06:23.1212203Z UNCONFIRMED_SEND_FAILS_WITHOUT_RETRY_PASS
+2026-10-16T09:06:23.1213191Z PROVIDER_SMOKE_PASS
+2026-10-16T09:06:23.1219575Z 2026-10-16T09:05:48.541Z START 4.0.15
+2026-10-16T09:06:23.1220214Z 2026-10-16T09:05:49.223Z OSMINOG_READY 4.0.15
+2026-10-16T09:06:23.1222104Z (node:7960) electron: Failed to load URL: http://127.0.0.1:57430/first with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:23.1223314Z (Use `OSMINOG Preview --trace-warnings ...` to show where the warning was created)
+2026-10-16T09:06:23.1224491Z (node:7960) electron: Failed to load URL: http://127.0.0.1:57430/pane-1 with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:23.1225688Z (node:7960) electron: Failed to load URL: http://127.0.0.1:57430/pane-2 with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:23.1226905Z (node:7960) electron: Failed to load URL: http://127.0.0.1:57430/pane-3 with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:23.1228103Z Error occurred in handler for 'store:set': Error: Untrusted frame: window-closed
+2026-10-16T09:06:23.1229621Z     at trusted (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:14:360)
+2026-10-16T09:06:23.1230872Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:18:83
+2026-10-16T09:06:23.1231826Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:23.1232499Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.6628261Z 
+2026-10-16T09:06:39.6629413Z SHELL_TAB_HIT_TARGETS_PASS
+2026-10-16T09:06:39.6630078Z SHELL_INCREMENTAL_METADATA_PASS
+2026-10-16T09:06:39.6630707Z SHELL_PALETTE_AND_FAVICON_PASS
+2026-10-16T09:06:39.6631324Z BROWSER_ONLY_SHELL_AND_SESSION_SCOPE_PASS
+2026-10-16T09:06:39.6631899Z CLEAN_CHAT_NO_CONTEXT_ATTACHMENTS_PASS
+2026-10-16T09:06:39.6634752Z TOOL_MENU_STATE {"hidden":false,"parent":"native-browser","api":"function","focus":"<button type=\"button\" data-desk=\"text\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 5h14M12 5v14M8 19h8\"></path></svg>Текст на х","nativeTools":3}
+2026-10-16T09:06:39.6637082Z HEADER_TOOL_MENUS_AND_RIGHT_CLICK_DOCUMENTS_PASS
+2026-10-16T09:06:39.6637791Z DESKTOP_TABS_AND_FULL_CONTEXT_PASS
+2026-10-16T09:06:39.6638309Z READABLE_TILE_PICKER_PASS
+2026-10-16T09:06:39.6639079Z SCROLLING_TILES_AND_CANVAS_DRAG_PASS
+2026-10-16T09:06:39.6639621Z TILE_RESIZE_CLOSE_COLLAPSE_PASS
+2026-10-16T09:06:39.6641160Z ADAPTIVE_TILE_GEOMETRY {"tileWidth":959,"gridWidth":959,"tileHeight":822,"availableHeight":822,"bottom":893,"nextTop":71}
+2026-10-16T09:06:39.6642188Z CANVAS_LOCAL_TOOLBAR_PASS
+2026-10-16T09:06:39.6642860Z INDEPENDENT_WINDOW_POSITION_SIZE_AND_POINTER_SWITCH_PASS
+2026-10-16T09:06:39.6643590Z CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS
+2026-10-16T09:06:39.6644156Z INNER_EYELID_BLINK_PASS
+2026-10-16T09:06:39.6644700Z WORKSPACE_FILE_CANVAS_TEAM_TOOLS_PASS
+2026-10-16T09:06:39.6645288Z NATIVE_POINTER_REGION_CAPTURE_CLEAR_PASS
+2026-10-16T09:06:39.6647154Z WINDOW_SCREENSHOT_AND_RECORDING_PASS
+2026-10-16T09:06:39.6647884Z SELECTED_SAVE_AS_AND_PROPERTIES_SMOKE_PASS
+2026-10-16T09:06:39.6648814Z OFFICE_VIEWERS_NATIVE_FILE_COPY_AND_LIVE_CONTEXT_PASS
+2026-10-16T09:06:39.6649450Z CONTROL_NATIVE_INPUT_AND_CANVAS_SMOKE_PASS
+2026-10-16T09:06:39.6649927Z SHELL_SMOKE_PASS
+2026-10-16T09:06:39.6650457Z 2026-10-16T09:06:23.199Z START 4.0.15
+2026-10-16T09:06:39.6651057Z 2026-10-16T09:06:23.949Z OSMINOG_READY 4.0.15
+2026-10-16T09:06:39.6652197Z (node:6756) electron: Failed to load URL: http://127.0.0.1:60991/chatgpt with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6653444Z (Use `OSMINOG Preview --trace-warnings ...` to show where the warning was created)
+2026-10-16T09:06:39.6654753Z (node:6756) electron: Failed to load URL: http://127.0.0.1:60991/claude with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6656085Z (node:6756) electron: Failed to load URL: http://127.0.0.1:57430/first with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6657476Z (node:6756) electron: Failed to load URL: http://127.0.0.1:57430/pane-1 with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6658842Z (node:6756) electron: Failed to load URL: http://127.0.0.1:60991/gemini with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6660604Z (node:6756) electron: Failed to load URL: http://127.0.0.1:57430/pane-2 with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6661945Z (node:6756) electron: Failed to load URL: http://127.0.0.1:57430/pane-3 with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6663339Z (node:6756) electron: Failed to load URL: http://127.0.0.1:60991/deepseek with error: ERR_CONNECTION_REFUSED
+2026-10-16T09:06:39.6664856Z Error occurred in handler for 'browser:command': Error: Неизвестное действие браузера
+2026-10-16T09:06:39.6666331Z     at BrowserWorkspace.command (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\browser.cjs:129:18)
+2026-10-16T09:06:39.6667888Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:853
+2026-10-16T09:06:39.6669043Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:39.6669932Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.6671038Z Error occurred in handler for 'browser:command': Error: Неизвестное действие браузера
+2026-10-16T09:06:39.6672512Z     at BrowserWorkspace.command (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\browser.cjs:129:18)
+2026-10-16T09:06:39.6674136Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:853
+2026-10-16T09:06:39.6675297Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:39.6676129Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.6677440Z Error occurred in handler for 'browser:command': Error: Неизвестное действие браузера
+2026-10-16T09:06:39.6678967Z     at BrowserWorkspace.command (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\browser.cjs:129:18)
+2026-10-16T09:06:39.6681080Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:853
+2026-10-16T09:06:39.6682308Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:39.6683054Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.6684171Z Error occurred in handler for 'browser:command': Error: Неизвестное действие браузера
+2026-10-16T09:06:39.6685612Z     at BrowserWorkspace.command (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\browser.cjs:129:18)
+2026-10-16T09:06:39.6687149Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:853
+2026-10-16T09:06:39.6688394Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:39.6689203Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.6690585Z Error occurred in handler for 'browser:command': Error: Неизвестное действие браузера
+2026-10-16T09:06:39.6692121Z     at BrowserWorkspace.command (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\browser.cjs:129:18)
+2026-10-16T09:06:39.6694907Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:100:853
+2026-10-16T09:06:39.6696108Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:39.6696923Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.6700507Z (node:6756) electron: Failed to load URL: https://clipboard.example/ with error: ERR_NAME_NOT_RESOLVED
+2026-10-16T09:06:39.6701815Z Error occurred in handler for 'store:set': Error: Untrusted frame: window-closed
+2026-10-16T09:06:39.6703037Z     at trusted (D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:14:360)
+2026-10-16T09:06:39.6705142Z     at D:\a\OSMINOG-Releases\OSMINOG-Releases\windows-build\app\resources\app.asar\main.cjs:18:83
+2026-10-16T09:06:39.6706096Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:06:39.6706590Z     at Session.emit (node:events:514:28)
+2026-10-16T09:06:39.7232884Z ##[group]Run ./tools/test-windows-update.ps1
+2026-10-16T09:06:39.7233774Z [36;1m./tools/test-windows-update.ps1[0m
+2026-10-16T09:06:39.7308306Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-16T09:06:39.7308734Z env:
+2026-10-16T09:06:39.7311308Z   GH_TOKEN: ***
+2026-10-16T09:06:39.7311602Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-16T09:06:39.7311963Z ##[endgroup]
+2026-10-16T09:07:03.5530290Z 
+2026-10-16T09:07:03.5534521Z Checking for update
+2026-10-16T09:07:03.5536584Z Generated new staging user ID: 9a5a8d6f-75be-5836-8e08-e08b93bd031c
+2026-10-16T09:07:03.5538277Z Found version 4.0.15 (url: OSMINOG-Preview-4.0.15-x64.exe)
+2026-10-16T09:07:03.5540242Z Downloading update from OSMINOG-Preview-4.0.15-x64.exe
+2026-10-16T09:07:03.5541593Z updater cache dir: C:\Users\runneradmin\AppData\Local\osminog-desktop-updater
+2026-10-16T09:07:03.5544393Z Download block maps (old: "http://127.0.0.1:18891/OSMINOG-Preview-4.0.14-x64.exe.blockmap", new: http://127.0.0.1:18891/OSMINOG-Preview-4.0.15-x64.exe.blockmap)
+2026-10-16T09:07:03.5546329Z New version 4.0.15 has been downloaded to C:\Users\runneradmin\AppData\Local\osminog-desktop-updater\pending\OSMINOG-Preview-4.0.15-x64.exe
+2026-10-16T09:07:03.5547388Z UPDATE_INSTALL_STARTED
+2026-10-16T09:07:03.5547829Z Install on explicit quitAndInstall
+2026-10-16T09:07:03.5548392Z Install: isSilent: true, isForceRunAfter: true
+2026-10-16T09:07:03.5549783Z Executing: C:\Users\runneradmin\AppData\Local\osminog-desktop-updater\pending\OSMINOG-Preview-4.0.15-x64.exe with args: --updated,/S,--force-run
+2026-10-16T09:07:03.5556429Z 2026-10-16T09:06:58.511Z START 4.0.14
+2026-10-16T09:07:03.5557817Z 2026-10-16T09:07:00.129Z OSMINOG_READY 4.0.14
+2026-10-16T09:07:03.5560297Z disableWebInstaller is set to false, you should set it to true if you do not plan on using a web installer. This will default to true in a future version.
+2026-10-16T09:07:03.5562342Z Cannot download differentially, fallback to full download: Error: Cannot download "http://127.0.0.1/OSMINOG-Preview-4.0.14-x64.exe.blockmap", status 404: File not found
+2026-10-16T09:07:03.5564896Z     at ClientRequest.<anonymous> (C:\Users\runneradmin\AppData\Local\Проверка обновления\OSMINOG Preview\resources\app.asar\node_modules\builder-util-runtime\out\httpExecutor.js:245:34)
+2026-10-16T09:07:03.5566243Z     at ClientRequest.emit (node:events:514:28)
+2026-10-16T09:07:03.5567040Z     at SimpleURLLoaderWrapper.<anonymous> (node:electron/js2c/browser_init:1:137559)
+2026-10-16T09:07:03.5567921Z     at SimpleURLLoaderWrapper.emit (node:events:514:28)
+2026-10-16T09:07:19.9619068Z 
+2026-10-16T09:07:19.9620465Z INSTALLED_UPDATE_SMOKE_PASS 4.0.15
+2026-10-16T09:07:19.9626633Z 2026-10-16T09:07:16.440Z START 4.0.15
+2026-10-16T09:07:19.9627636Z 2026-10-16T09:07:17.976Z OSMINOG_READY 4.0.15
+2026-10-16T09:07:19.9629185Z Error occurred in handler for 'store:set': Error: Untrusted frame: window-closed
+2026-10-16T09:07:19.9631455Z     at trusted (C:\Users\runneradmin\AppData\Local\Проверка обновления\OSMINOG Preview\resources\app.asar\main.cjs:14:360)
+2026-10-16T09:07:19.9633758Z     at C:\Users\runneradmin\AppData\Local\Проверка обновления\OSMINOG Preview\resources\app.asar\main.cjs:18:83
+2026-10-16T09:07:19.9634831Z     at Session.<anonymous> (node:electron/js2c/browser_init:1:118964)
+2026-10-16T09:07:19.9635466Z     at Session.emit (node:events:514:28)
+2026-10-16T09:07:20.0668659Z ##[group]Run ./tools/publish-windows.ps1
+2026-10-16T09:07:20.0669380Z [36;1m./tools/publish-windows.ps1[0m
+2026-10-16T09:07:20.0811814Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-16T09:07:20.0812390Z env:
+2026-10-16T09:07:20.0817185Z   GH_TOKEN: ***
+2026-10-16T09:07:20.0817623Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-16T09:07:20.0818058Z ##[endgroup]
+2026-10-16T09:07:41.3541694Z https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/windows-v4.0.15
+2026-10-16T09:07:44.9162350Z [main 9c64fe2] Publish verified Windows browser 4.0.15 and activate button update channel
+2026-10-16T09:07:44.9163937Z  3 files changed, 29 insertions(+), 17 deletions(-)
+2026-10-16T09:07:44.9165321Z  create mode 100644 platforms/windows/releases/4.0.15/release.json
+2026-10-16T09:07:44.9166157Z  delete mode 100644 staging/windows/4.0.15/ASSEMBLE
+2026-10-16T09:07:45.3722271Z From https://github.com/jeep-jim/OSMINOG-Releases
+2026-10-16T09:07:45.3723170Z  * branch            main       -> FETCH_HEAD
+2026-10-16T09:07:45.4092018Z Current branch main is up to date.
+2026-10-16T09:07:46.9786709Z To https://github.com/jeep-jim/OSMINOG-Releases
+2026-10-16T09:07:46.9787341Z    b5ccb24..9c64fe2  HEAD -> main
+2026-10-16T09:07:47.0384924Z ##[group]Run actions/upload-artifact@v4
+2026-10-16T09:07:47.0385290Z with:
+2026-10-16T09:07:47.0385503Z   name: windows-release-verification
+2026-10-16T09:07:47.0386111Z   path: windows-build/*.log
+windows-build/*.png
+windows-build/dist/*.exe
+windows-build/dist/*.yml
+windows-build/dist/*.blockmap
+
+2026-10-16T09:07:47.0386686Z   retention-days: 14
+2026-10-16T09:07:47.0386920Z   if-no-files-found: warn
+2026-10-16T09:07:47.0387145Z   compression-level: 6
+2026-10-16T09:07:47.0387352Z   overwrite: false
+2026-10-16T09:07:47.0387553Z   include-hidden-files: false
+2026-10-16T09:07:47.0387772Z env:
+2026-10-16T09:07:47.0390248Z   GH_TOKEN: ***
+2026-10-16T09:07:47.0390474Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-16T09:07:47.0390732Z ##[endgroup]
+2026-10-16T09:07:47.2380196Z (node:2228) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-16T09:07:47.2381718Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-16T09:07:47.2631606Z With the provided path, there will be 38 files uploaded
+2026-10-16T09:07:47.2637676Z Artifact name is valid!
+2026-10-16T09:07:47.2639241Z Root directory input is valid!
+2026-10-16T09:07:47.6000943Z Beginning upload of artifact content to blob storage
+2026-10-16T09:07:47.8983327Z (node:2228) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-16T09:07:48.7125801Z Uploaded bytes 8388608
+2026-10-16T09:07:49.0714139Z Uploaded bytes 16777216
+2026-10-16T09:07:49.0797436Z Uploaded bytes 25165824
+2026-10-16T09:07:49.5143686Z Uploaded bytes 33554432
+2026-10-16T09:07:49.5204158Z Uploaded bytes 41943040
+2026-10-16T09:07:49.8060276Z Uploaded bytes 50331648
+2026-10-16T09:07:50.0312157Z Uploaded bytes 58720256
+2026-10-16T09:07:50.0576185Z Uploaded bytes 67108864
+2026-10-16T09:07:50.4037877Z Uploaded bytes 75497472
+2026-10-16T09:07:50.7186343Z Uploaded bytes 83886080
+2026-10-16T09:07:50.8253799Z Uploaded bytes 92274688
+2026-10-16T09:07:51.1475999Z Uploaded bytes 100663296
+2026-10-16T09:07:51.4338894Z Uploaded bytes 109051904
+2026-10-16T09:07:51.6660879Z Uploaded bytes 117440512
+2026-10-16T09:07:51.7203055Z Uploaded bytes 117645573
+2026-10-16T09:07:51.7784850Z Finished uploading artifact content to blob storage!
+2026-10-16T09:07:51.7788907Z SHA256 digest of uploaded artifact zip is 82de067a728f1d6f1637c6c2f341fa965ffa669b0e93993f3af965585fc1f8e5
+2026-10-16T09:07:51.7791617Z Finalizing artifact upload
+2026-10-16T09:07:52.0671752Z Artifact windows-release-verification.zip successfully finalized. Artifact ID 12036760714
+2026-10-16T09:07:52.0673047Z Artifact windows-release-verification has been successfully uploaded! Final size is 117645573 bytes. Artifact ID is 12036760714
+2026-10-16T09:07:52.0684955Z Artifact download URL: https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/38877897227/artifacts/12036760714
+2026-10-16T09:07:52.1046967Z Post job cleanup.
+2026-10-16T09:07:52.2583315Z (node:4520) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-16T09:07:52.2584711Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-16T09:07:52.2915322Z Post job cleanup.
+2026-10-16T09:07:52.4818363Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-16T09:07:52.5198014Z git version 2.56.0.windows.2
+2026-10-16T09:07:52.5275728Z Temporarily overriding HOME='D:\a\_temp\9d894603-101f-43d3-ab40-02c8b7682099' before making global git config changes
+2026-10-16T09:07:52.5277111Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-16T09:07:52.5287704Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\OSMINOG-Releases\OSMINOG-Releases
+2026-10-16T09:07:52.5693737Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-16T09:07:52.6100224Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-16T09:07:53.1739668Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-16T09:07:53.2074813Z http.https://github.com/.extraheader
+2026-10-16T09:07:53.2121085Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-16T09:07:53.2500274Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-16T09:07:53.8273223Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-16T09:07:53.8659707Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-16T09:07:54.4309029Z Cleaning up orphan processes
+2026-10-16T09:07:54.4921395Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
