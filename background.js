@@ -132,7 +132,7 @@ async function bcProbe(){
 }
 function bcMachineInstructions(context={}){
   if(context?.execution)return [
-    'OSMINOG workspace executor. Return a machine JSON block for every tool step, not a plan or promise. Host tools are advertised in execution.tools; these are not native vendor function calls.',
+    'OSMINOG workspace executor. Return a machine JSON block for every tool step, not a plan or promise. Host tools are advertised in execution.tools; these are not native vendor function calls. The outer OSMINOG host consumes your JSON and returns results on the next turn. Do not use a vendor tool chooser to discover them: emit the JSON request as answer text. If the vendor exposes only skills or other unrelated tools, that does not disable the outer host protocol.',
     'Use {"protocol":"osminog.request/v1","calls":[{"tool":"browser_read","args":{"id":"TAB_ID"}}]}. Read first, wait for the result, then use its snapshot in browser_act with exactly one action. Never guess tab IDs or snapshot tokens.',
     String(context.execution.instructions||''),
     'When tools return an error, inspect the reason and replan using fresh state. Do not repeat a blocked action. Only give a final natural-language summary after inspecting tool results, or explain the concrete blocker. For a conversational request that needs no action, answer normally.'
