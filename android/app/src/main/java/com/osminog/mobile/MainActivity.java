@@ -21,7 +21,7 @@ public class MainActivity extends Activity {
  final ArrayList<WebView> tabs=new ArrayList<>();
  final ExecutorService io=Executors.newSingleThreadExecutor();
  WebView board,active; FrameLayout surface; EditText address; TextView status; LinearLayout tabBar;
- ValueCallback<Uri[]> fileCallback; WebView chooserOwner; String chooserOrigin; String queuedFile,queuedOrigin; boolean boardReady=false;
+ ValueCallback<Uri[]> fileCallback; WebView chooserOwner; String chooserOrigin; String queuedFile,queuedOrigin; boolean boardReady=false,sharedIntentConsumed=false;
  android.content.SharedPreferences prefs;
  int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
  @Override public void onCreate(Bundle state){super.onCreate(state);prefs=getSharedPreferences("workspace",MODE_PRIVATE);
@@ -70,8 +70,8 @@ public class MainActivity extends Activity {
  @Override public void onBackPressed(){back();}
  void pick(int request){Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,request==PICK_BOARD);try{startActivityForResult(intent,request);}catch(Exception e){finishChooser(null);status.setText("На устройстве нет выбора файлов");}}
  @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null){if(request==PICK_CHAT)finishChooser(null);return;}ArrayList<Uri> uris=new ArrayList<>();if(data.getClipData()!=null)for(int i=0;i<data.getClipData().getItemCount();i++)uris.add(data.getClipData().getItemAt(i).getUri());else if(data.getData()!=null)uris.add(data.getData());if(request==PICK_CHAT){finishChooser(uris.toArray(new Uri[0]));return;}for(Uri uri:uris)importUri(uri);}
- void handleSharedIntent(){Intent intent=getIntent();if(intent==null)return;String action=intent.getAction();if(Intent.ACTION_SEND.equals(action)){Uri uri=intent.getParcelableExtra(Intent.EXTRA_STREAM);if(uri!=null)importUri(uri);}else if(Intent.ACTION_SEND_MULTIPLE.equals(action)){ArrayList<Uri> uris=intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);if(uris!=null)for(Uri uri:uris)importUri(uri);}setIntent(new Intent());}
- @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(boardReady)handleSharedIntent();}
+ void handleSharedIntent(){Intent intent=getIntent();if(intent==null||sharedIntentConsumed)return;sharedIntentConsumed=true;String action=intent.getAction();if(Intent.ACTION_SEND.equals(action)){Uri uri=intent.getParcelableExtra(Intent.EXTRA_STREAM);if(uri!=null)importUri(uri);}else if(Intent.ACTION_SEND_MULTIPLE.equals(action)){ArrayList<Uri> uris=intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);if(uris!=null)for(Uri uri:uris)importUri(uri);}}
+ @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);sharedIntentConsumed=false;if(boardReady)handleSharedIntent();}
  JSONArray files(){try{return new JSONArray(prefs.getString("files","[]"));}catch(Exception e){return new JSONArray();}}
  JSONObject file(String id)throws Exception{JSONArray a=files();for(int i=0;i<a.length();i++)if(id.equals(a.getJSONObject(i).getString("id")))return a.getJSONObject(i);throw new IOException("Файл не найден");}
  void importUri(Uri uri){if(!"content".equals(uri.getScheme())){status.setText("Выберите файл через системное меню");return;}status.setText("Добавляю файл на стол…");io.execute(()->{File out=null;try{
@@ -94,5 +94,5 @@ public class MainActivity extends Activity {
   case "share":String fid=m.getString("id");Intent send=new Intent(Intent.ACTION_SEND).setType(file(fid).getString("mime")).putExtra(Intent.EXTRA_STREAM,fileUri(fid)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(Intent.createChooser(send,"Передать файл"));break;
   default:throw new IOException("Неизвестная команда");
  }}
- @Override protected void onDestroy(){finishChooser(null);io.shutdown();for(WebView w:tabs)w.destroy();if(board!=null)board.destroy();super.onDestroy();}
+ @Override protected void onDestroy(){finishChooser(null);io.shutdown();if(surface!=null)surface.removeAllViews();for(WebView w:tabs)w.destroy();if(board!=null)board.destroy();super.onDestroy();}
 }

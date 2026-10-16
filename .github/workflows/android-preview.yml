@@ -33,7 +33,14 @@ jobs:
           arch: x86_64
           profile: pixel_6
           working-directory: android
-          script: gradle :app:connectedDebugAndroidTest
+          script: |
+            gradle :app:connectedDebugAndroidTest
+            adb shell am start -n com.osminog.mobile.preview/com.osminog.mobile.MainActivity
+            sleep 3
+            adb shell screencap -p /sdcard/osminog-phone.png
+            mkdir -p dist
+            adb pull /sdcard/osminog-phone.png dist/osminog-phone.png
+            adb logcat -d > dist/android-logcat.txt
       - name: Package preview
         run: |
           mkdir -p android/dist
