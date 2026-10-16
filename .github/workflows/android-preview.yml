@@ -21,7 +21,7 @@ jobs:
           gradle-version: '8.9'
       - name: Build and lint
         working-directory: android
-        run: gradle :app:assembleDebug :app:lintDebug :app:assembleDebugAndroidTest
+        run: gradle :app:assembleDebug :app:assembleRelease :app:lintDebug :app:assembleDebugAndroidTest
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -45,7 +45,8 @@ jobs:
       - name: Package preview
         run: |
           mkdir -p android/dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/dist/OSMINOG-Android-0.1.0-preview.apk
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk android/dist/OSMINOG-Android-0.1.0-preview-unsigned.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" android/dist/apksigner.jar
           sha256sum android/dist/*.apk > android/dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         if: always()
