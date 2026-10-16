@@ -628,3 +628,21 @@ Release APK подписан постоянным приватным ключо�
 
 Публикация Android: https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/38836650370 — success. Подпись v2/v3 проверена; именно подписанный release APK установлен и запущен на эмуляторе API35 (Success, Status: ok, процесс жив). GitHub release asset проверен по размеру 1725236 и SHA-256 a64b822df87695fe408ae1b8443b07941900223241bb3bfeb9e22fc057853820.
 APK: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/android-v0.1.0-preview/OSMINOG-Android-0.1.0-preview.apk
+
+
+## 16 октября 2026 — Windows 4.0.9, убрать глаза и наложение крестика
+
+Запрос владельца: удалить глаза из вкладок; крестик перекрывал иконку и приводил к случайному закрытию вместо выбора. Вложение image(20261016-020043).png просмотрено: стрелки указывают на глаза бокового списка, также они присутствовали в заголовках плиток.
+
+Удалены per-tab/per-pane кнопки контекста и их обработчики; закрытие вынесено из absolute-позиционирования в отдельную flex-область справа. Минимальная ширина боковой панели 80px, подпись обрезается внутри кнопки выбора. Общая панель источников на сессию и проверки доступа сохранены. Логотип приложения и управление видимостью объектов холста к этому запросу не относятся и не менялись.
+
+PR45 https://github.com/jeep-jim/OSMINOG/pull/45 merged. Head 9ca655fa9039cb2e6241e6c0fb78bb3d95fa1742; main 720962029ab7915dc1cf0cb5e06ad89e834a2c7c; tree c9cb47e47853a53b0386a56e858bb02a171977fb совпадает с runtime source 6aefa13c0a61240c606360ccde12ebe9391d7b9f.
+CI https://github.com/jeep-jim/OSMINOG/actions/runs/38838457718 — success: 80 unit-тестов, Windows shell, сборка, установка, обычный запуск. Agent CI 38838457848 — success.
+Новая проверка SHELL_TAB_HIT_TARGETS_PASS подтверждает непересекающиеся области выбора/закрытия при ширине 80 и 220px, включая elementFromPoint по центру иконки и крестика. Скриншот shell-smoke-light.png просмотрен: кнопки разделены, глаза вкладок/заголовков удалены.
+Runtime ZIP 4812069 bytes, SHA-256 85ae56439c76664129c6d51b19f580cfa39502098122bf02e778bc8da36f3d80.
+
+Это исправление интерфейса. Универсальное подключение инструментов к тому же оригинальному ИИ-диалогу по-прежнему не завершено; удаление глаз не означает исправление этой архитектурной задачи. Android этим выпуском не изменялся.
+
+Публикация https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/38839183980 — success, attempt 2. Первый прогон остановился на 15-секундном тайм-ауте PowerShell SetFileDropList при файловом smoke-тесте; повтор того же пакета без изменения/отключения проверок прошёл. Причина единичного тайм-аута не установлена. Пройдены SHELL_TAB_HIT_TARGETS_PASS, OFFICE_VIEWERS_NATIVE_FILE_COPY_AND_LIVE_CONTEXT_PASS и INSTALLED_UPDATE_SMOKE_PASS 4.0.9.
+Опубликован установщик 115204379 bytes, SHA-256 0e8533b52964631b89ad722bda2416fb75e7fa2edd2476b378d4da45ea479d6a. Проверены release asset и channels/dev/windows.json с версией 4.0.9.
+https://github.com/jeep-jim/OSMINOG-Releases/releases/download/windows-v4.0.9/OSMINOG-Preview-4.0.9-x64.exe
