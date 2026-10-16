@@ -82,13 +82,13 @@ module.exports=async(win,browser)=>{
  browser.session.protocol.unhandle('https');
  await require('./direct-smoke.cjs')(win,browser);
 
- // Original submenus remain functional in the header; documents are editable and persisted.
- win.focus();win.webContents.focus();await frame();
+ // Canvas-local submenus appear after selecting the desktop; documents remain editable.
+ win.focus();win.webContents.focus();await run("OSMINOGNativeBrowser.canvas()");await frame();
  await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
  console.log('TOOL_MENU_STATE',await run("JSON.stringify({hidden:document.querySelector('#deskMore').hidden,parent:document.querySelector('#deskMore').parentElement.id,api:typeof OSMINOGWorkdeskMenus?.open,focus:document.activeElement?.outerHTML?.slice(0,160),nativeTools:document.querySelectorAll('[data-native-group]').length})"));assert.equal(await run("document.querySelector('#deskMore').hidden"),false);await fs.writeFile('shell-smoke-tool-menu.png',(await win.webContents.capturePage()).toPNG());
  assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
  assert.equal(browser.panels.length,0);
- const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
+ const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top,menuBottom:m.bottom,toolTop:r.top}})()");assert.ok(toolRect.menuBottom<=toolRect.toolTop||toolRect.top>=toolRect.bottom);
  const hover=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
  win.webContents.sendInputEvent({type:'mouseMove',...hover});await new Promise(r=>setTimeout(r,300));
  win.webContents.sendInputEvent({type:'mouseMove',x:4,y:300});await new Promise(r=>setTimeout(r,450));
