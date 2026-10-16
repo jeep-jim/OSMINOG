@@ -2,6 +2,7 @@
 // Only the trusted host can create a task or approve its proposed actions.
 const {randomUUID}=require('node:crypto');
 const {providerFor,readPage}=require('./page-context.cjs');
+const actionPolicy=require('./action-policy.cjs');
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const keys=new Set(['Enter','Tab','Escape','Backspace','Delete','Left','Right','Up','Down','Home','End','PageUp','PageDown','Space']);
 function parsePlan(answer){
@@ -21,10 +22,10 @@ function parsePlan(answer){
  })};
 }
 class Control{
- constructor(browser,providers){this.browser=browser;this.providers=providers;this.task=null;this.busy=false}
+ constructor(browser,providers,{confirmAction=actionPolicy.confirm}={}){this.confirmAction=confirmAction;this.browser=browser;this.providers=providers;this.task=null;this.busy=false}
  stop(){this.task=null;return{stopped:true}}
  guard(task,{visible=false}={}){
-  if(this.task!==task||Date.now()>task.expires||this.browser.project!==task.project)throw Error('Управление остановлено или проект изменился');
+  if(this.task!==task||Date.now()>task.expires||this.browser.project!==task.project||(task.autoExecute&&task.contextRevision!==(this.browser.contextRevision||0)))throw Error('Управление остановлено или проект изменился');
   const source=this.browser.get(task.source),target=this.browser.get(task.target);
   if(new URL(source.view.webContents.getURL()).origin!==new URL(task.sourceURL).origin||target.view.webContents.getURL()!==task.targetURL||(target.navigationEpoch||0)!==task.navigationEpoch)throw Error('Адрес или документ изменился. Передайте управление заново.');
   if(target.view.webContents.isDestroyed()||target.loading)throw Error('Целевая страница перезагружается или закрыта');
@@ -77,6 +78,19 @@ class Control{
    for(const a of actions){
     this.guard(task,{visible:true});
     if(target.bounds.width!==task.size.width||target.bounds.height!==task.size.height)throw Error('Размер вкладки изменился; продолжение остановлено');
+    if(task.autoExecute){
+     const inspect=()=>wc.executeJavaScript(actionPolicy.inspectTarget(a));
+     const targetInfo=await inspect();this.guard(task,{visible:true});
+     const risk=actionPolicy.classify(a,targetInfo);
+     if(risk.level==='block')throw Error(risk.reason);
+     if(risk.level==='warn'){
+      if(!await this.confirmAction(this.browser,a,targetInfo,risk))throw Error('Действие отменено пользователем');
+      this.guard(task,{visible:true});
+      if(JSON.stringify(await inspect())!==JSON.stringify(targetInfo))throw Error('Цель изменилась после подтверждения');
+      this.guard(task,{visible:true});
+     }
+     if(target.bounds.width!==task.size.width||target.bounds.height!==task.size.height)throw Error('Размер вкладки изменился');
+    }
     if(a.type==='type')await wc.insertText(a.text);
     if(a.type==='key'){wc.sendInputEvent({type:'keyDown',keyCode:a.key,modifiers:a.modifiers});wc.sendInputEvent({type:'keyUp',keyCode:a.key,modifiers:a.modifiers})}
     if(a.type==='scroll')wc.sendInputEvent({type:'mouseWheel',...point(a.x,a.y),deltaX:a.deltaX,deltaY:a.deltaY});
