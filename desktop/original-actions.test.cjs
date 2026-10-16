@@ -81,3 +81,29 @@ test('action envelope validates target, finite coordinates, unsupported actions 
  for(const value of [{actions:[{type:'click',x:1,y:1}]},{id:'p',snapshot:'s',actions:[{type:'click',x:'10',y:1}]},{id:'p',snapshot:'s',actions:[{type:'waitFor',selector:'body'}]},{id:'p',snapshot:'s',actions:[{type:'click',x:1,y:1},{type:'type',text:'x'}]}])assert(actionEnvelope(JSON.stringify(value)).error);
  assert.equal(actionEnvelope('{"actions":[]}').empty,true);
 });
+
+test('follow-up receives recent owner turns but another route never inherits them',async()=>{
+ const f=fixture([{text:'Принято'},{text:'Принято'}]);await f.observer.observe(f.source,'Найди Honda');
+ await f.observer.observe(f.source,'Теперь открой');
+ assert(f.messages.at(-1).payload.context.execution.conversation.some(x=>x.text==='Найди Honda'));
+ f.source.view.webContents.getURL=()=> 'https://chat.deepseek.com/a/chat/other';
+ await f.observer.observe(f.source,'Продолжай');
+ assert(!f.messages.at(-1).payload.context.execution.conversation.some(x=>x.text==='Найди Honda'));
+});
+test('source conversation reference reaches execution without writing to the visible chat',async()=>{
+ const f=fixture([{text:'Принято'},{text:'Принято'}]);f.source.view.webContents.executeJavaScript=async()=> 'Ранее владелец просил нарисовать круг';
+ await f.observer.observe(f.source,'Продолжи');assert.match(f.messages[0].payload.context.execution.sourceTranscript,/круг/);
+});
+test('workspace error-only result is returned as failure and stops later calls',async()=>{
+ const f=fixture([{request:{calls:[{tool:'asset_create',args:{url:'https://example.com/a.png'}},{tool:'browser_read',args:{id:'page'}}]}},{text:'Не удалось'}]);
+ f.browser.win.webContents.executeJavaScript=async code=>code.includes('executeTool')?{error:'Download failed'}:'canvas-revision';
+ await f.observer.observe(f.source,'Добавь фото');assert.equal(f.calls.length,0);assert.equal(f.messages[1].payload.result.results[0].result.ok,false);
+});
+
+test('image search bytes stay in host and assetRef imports the exact downloaded image',async()=>{
+ const image='data:image/png;base64,REAL_BYTES';let ref='',imported='';
+ const f=fixture([request('web_image_search',{query:'camel'}),()=>request('asset_create',{assetRef:ref}),{text:'Фото добавлено'}]);
+ const runtime=f.observer.providers.runtime;f.observer.providers.runtime=async(m,p)=>{if(m.payload.result?.results?.[0]?.tool==='web_image_search'){ref=m.payload.result.results[0].result.results[0].assetRef;assert(ref);assert(!JSON.stringify(m).includes('REAL_BYTES'))}return runtime(m,p)};
+ f.browser.win.webContents.executeJavaScript=async code=>{if(code.includes('"web_image_search"'))return{ok:true,results:[{dataUrl:image,mime:'image/png',title:'Camel'}]};if(code.includes('"asset_create"')){imported=code;return{ok:true,object:{id:'saved-image'}}}return'canvas-revision'};
+ await f.observer.observe(f.source,'Фото верблюда на холст');assert(imported.includes(image));assert.equal(f.messages[2].payload.result.results[0].result.object.id,'saved-image');
+});

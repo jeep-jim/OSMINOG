@@ -37,6 +37,13 @@ module.exports=async function smoke(win,browser,liveProvider){
   assert.match(await gpt.view.webContents.executeJavaScript("document.querySelector('#messages p:last-of-type').textContent"),/^Привет/);
   assert.equal(await win.webContents.executeJavaScript("document.querySelector('#native-browser .native-chat')===null"),true);
   console.log('PROVIDER_IPC_WITHOUT_INTERNAL_CHAT_PASS');
+  const hidden=browser.make(base+'/hidden-deepseek',project,true,{background:true});hidden.provider='deepseek';hidden.thread='hidden-regression';hidden.ephemeral=true;browser.providers.set(JSON.stringify([project,'deepseek',hidden.thread]),hidden);
+  for(let i=0;i<100&&hidden.loading;i++)await new Promise(r=>setTimeout(r,50));
+  assert.equal(hidden.view.webContents.getLastWebPreferences().backgroundThrottling,false);
+  await hidden.view.webContents.executeJavaScript(`const file=document.createElement('input');file.type='file';file.accept='image/*';file.onchange=()=>{const label=document.createElement('span');label.textContent=file.files[0].name;document.body.append(label)};document.body.append(file);void 0`);
+  const hiddenReply=await provider.runtime({type:'BC_PROVIDER_SEND',provider:'deepseek',payload:{text:'Read image in service',images:[{name:'fixture-screen.png',dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII='}],context:{project:{id:project},chat:{threadId:hidden.thread},execution:{task:'Read image'}}}},project);
+  assert(hiddenReply.ok);assert.match(hiddenReply.payload.text,/hidden-deepseek/);assert.equal(await hidden.view.webContents.executeJavaScript('window.sent'),1);
+  console.log('HIDDEN_SERVICE_IMAGE_REPLY_PASS');
   console.log('PROVIDER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
 };

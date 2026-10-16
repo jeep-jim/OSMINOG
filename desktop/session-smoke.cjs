@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 module.exports=async(win,browser,providers)=>{
- const run=code=>win.webContents.executeJavaScript(code),sleep=ms=>new Promise(r=>setTimeout(r,ms));let turns=0,ordinaryTurns=0,webImageRequests=0,targetId='',actionSnapshot='';
+ const run=code=>win.webContents.executeJavaScript(code),sleep=ms=>new Promise(r=>setTimeout(r,ms));let turns=0,ordinaryTurns=0,webImageRequests=0,photoTurns=0,targetId='',actionSnapshot='';
  const json=data=>new Response(JSON.stringify(data),{headers:{'content-type':'application/json'}});
  await browser.session.protocol.handle('https',async req=>{
   const u=new URL(req.url),p=u.pathname;
@@ -17,7 +17,13 @@ module.exports=async(win,browser,providers)=>{
   if(p.endsWith('/conversation')&&req.method==='POST'){
    const body=await req.json(),prompt=body.messages[0].content.parts.at(-1);turns++;assert.match(prompt,/osminog.browser-context\/v2/,'Session transport must receive the shared context');
    let answer;
-   if(prompt.includes('"threadId":"workspace:')){
+   if(prompt.includes('Фото из обычного чата на холст')&&prompt.includes('\"threadId\":\"workspace:')){
+    photoTurns++;
+    if(photoTurns===1)answer={protocol:'osminog.request/v1',calls:[{tool:'web_image_search',args:{query:'camel',limit:1}}]};
+    else if(photoTurns===2){assert(!prompt.includes('data:image/png;base64,'),'Image bytes must stay in host');const assetRef=[...prompt.matchAll(/"assetRef"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(assetRef);answer={protocol:'osminog.request/v1',calls:[{tool:'asset_create',args:{assetRef,name:'Original chat imported photo'}}]};}
+    else answer='Фото добавлено на холст';
+   }
+   else if(prompt.includes('\"threadId\":\"workspace:')){
     ordinaryTurns++;assert.match(prompt,/Заполни поле/);
     if(ordinaryTurns===1||ordinaryTurns===5)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};
     else if(ordinaryTurns===2){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:20}]}}]}}
@@ -86,6 +92,13 @@ module.exports=async(win,browser,providers)=>{
   assert.match(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),/после коррекции/);
   assert.deepEqual(await panelWC.executeJavaScript('window.sent'),['Заполни поле из панели ИИ']);
   console.log('PROVIDER_PANEL_USER_SEND_EXECUTOR_PASS');
+  for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(50);
+  await panelWC.executeJavaScript("document.querySelector('textarea').focus()");panelWC.focus();await panelWC.insertText('Фото из обычного чата на холст');panelWC.sendInputEvent({type:'keyDown',keyCode:'Enter'});panelWC.sendInputEvent({type:'keyUp',keyCode:'Enter'});
+  for(let i=0;i<200&&!(await run("objects().some(o=>o.name==='Original chat imported photo')"));i++)await sleep(100);
+  assert(await run("objects().some(o=>o.name==='Original chat imported photo'&&o.type==='image'&&o.src.startsWith('data:image/png;base64,'))"));
+  for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(50);
+  assert.equal(photoTurns,3);assert.equal(await panelWC.executeJavaScript("document.querySelector('[data-osminog-progress]').textContent.includes('Фото добавлено')"),true);
+  console.log('ORIGINAL_CHAT_WEB_IMAGE_IMPORT_PASS');
   await panelWC.executeJavaScript("fetch('/api/v0/users/current?secret=DIAGNOSTIC_SECRET').then(r=>r.text())");await sleep(300);
   const diagnostics=browser.connectionDiagnostics.snapshot();
   assert(diagnostics.events.some(e=>e.endpoint==='/api/v0/users/current'&&e.status===503&&e.channel==='user-tab'),'Native request failure must appear in diagnostics');

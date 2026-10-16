@@ -12,3 +12,15 @@ test('closed sources cannot be read and changed access invalidates existing acti
 test('autopilot returns observed state and fresh token after every action',async()=>{const f=fixture(),r=await f.agent.run('browser_read',{id:'tab'});const result=await f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[{type:'type',text:'Honda'}]});assert(result.observation.snapshot);assert.notEqual(result.observation.snapshot,r.snapshot);assert.equal(result.verificationRequired,true);await f.agent.run('browser_act',{id:'tab',snapshot:result.observation.snapshot,actions:[{type:'type',text:' Fit'}]});assert.equal(f.calls.length,2)});
 test('autopilot rejects blind batches before input',async()=>{const f=fixture(),r=await f.agent.run('browser_read',{id:'tab'});await assert.rejects(f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[{type:'click',x:1,y:1},{type:'type',text:'x'}]}),/одно действие/);assert.equal(f.calls.length,0)});
 test('failed action returns error and observation for replanning',async()=>{const f=fixture(),r=await f.agent.run('browser_read',{id:'tab'});f.agent.control.approve=async()=>{throw Error('Element disappeared')};const result=await f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[{type:'type',text:'x'}]});assert.equal(result.ok,false);assert.match(result.error,/disappeared/);assert(result.observation.snapshot)});
+
+test('DOM-only reads and action feedback do not force image transport for normal pages',async()=>{
+ const f=fixture();let captures=0;f.t.view.webContents.capturePage=async()=>{captures++;return{isEmpty:()=>true}};
+ const r=await f.agent.run('browser_read',{id:'tab',includeScreenshot:false});
+ await f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[{type:'type',text:'Honda'}]});
+ assert.equal(captures,0);
+ await f.agent.run('browser_read',{id:'tab',includeScreenshot:true});assert.equal(captures,1);
+});
+test('canvas reading retains screenshots even in DOM-first executor mode',async()=>{
+ const f=fixture();let captures=0;f.t.view.webContents.executeJavaScript=async()=>({canvases:[{w:500,h:300}]});f.t.view.webContents.capturePage=async()=>{captures++;return{isEmpty:()=>true}};
+ await f.agent.run('browser_read',{id:'tab',includeScreenshot:false});assert.equal(captures,1);
+});

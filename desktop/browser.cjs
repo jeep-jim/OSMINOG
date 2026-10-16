@@ -42,8 +42,8 @@ class BrowserWorkspace{
  async restore(id){if(this.restored.has(id)||!this.store)return;if(!Object.keys(this.snapshots).length)this.snapshots=(await this.store.get('browserSessions')).browserSessions||{};this.restored.add(id);for(const item of this.snapshots[id]||[]){try{const t=this.make(address(item.url),id,!!item.provider);if(typeof item.id==='string'&&/^[a-f0-9-]{36}$/.test(item.id)){if(!item.provider){this.tabs.delete(t.id);this.tabs.set(item.id,t)}t.id=item.id}if(item.provider&&Object.hasOwn(PROVIDERS,item.provider)){t.provider=item.provider;t.thread=item.thread||'main';this.providers.set(JSON.stringify([id,t.provider,t.thread]),t)}else{t.lane=item.lane==='side'?'side':'main'}}catch{}}}
  emit(){if(!this.disposed&&!this.win.isDestroyed())this.win.webContents.send('browser:state',this.state())}
  state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
- make(url,project,ai=false){
-  const view=new WebContentsView({webPreferences:{session:this.session,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-preload.cjs')}});
+ make(url,project,ai=false,{background=false}={}){
+  const view=new WebContentsView({webPreferences:{session:this.session,backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
   view.setBorderRadius?.(18);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
@@ -68,7 +68,7 @@ class BrowserWorkspace{
   if(!Object.hasOwn(PROVIDERS,provider)&&provider!=='')throw Error('Неизвестный ИИ');
   if(!provider){this.ai=null;this.provider='';this.layout(this.panels);this.emit();return null}
   const key=JSON.stringify([this.project,provider,String(thread).slice(0,200)]);
-  if(!this.providers.has(key)){const t=this.make(PROVIDERS[provider],this.project,true);t.provider=provider;t.thread=thread;t.ephemeral=background;this.providers.set(key,t)}
+  if(!this.providers.has(key)){const t=this.make(PROVIDERS[provider],this.project,true,{background});t.provider=provider;t.thread=thread;t.ephemeral=background;this.providers.set(key,t)}
   if(background)return this.providers.get(key);
   this.ai=this.providers.get(key);this.provider=provider;this.save();this.layout(this.panels);this.emit();return this.ai;
  }
