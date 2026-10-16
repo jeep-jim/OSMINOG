@@ -49,7 +49,12 @@ module.exports=async(win,browser,providers)=>{
   const previous=new Set(browser.tabs.keys());await run("OSMINOGNativeBrowser.open('https://example.com/')");await sleep(300);const target=[...browser.tabs.values()].find(t=>!previous.has(t.id));assert(target);targetId=target.id;
   await run("OSMINOGNativeBrowser.split(2)");await run(`OSMINOGNativeBrowser.assignTab(${JSON.stringify(targetId)},1)`);await run("OSMINOGOpenUnifiedChat({team:false})");await sleep(250);
   assert(target.visible,"Fixture target must be visible");const connected=await run('OSMINOGConnectDirectChatGPT()');assert(connected.ok,JSON.stringify(connected));
-  async function send(text){await run(`document.querySelector('#gptPresenceApply').value='direct';document.querySelector('#gptPresenceInput').value=${JSON.stringify(text)};document.querySelector('#gptPresenceForm').requestSubmit()`)}
+  async function send(text){
+   // A canvas mutation can precede the final chat response. Wait for the prior
+   // task to finish instead of racing a fixed 400 ms delay on installed builds.
+   for(let i=0;i<200&&await run("!!document.querySelector('.gpt-thread-tab.active .agent-task-dot')");i++)await sleep(50);
+   assert.equal(await run("!!document.querySelector('.gpt-thread-tab.active .agent-task-dot')"),false,'Previous chat task did not finish before next request');
+   await run(`document.querySelector('#gptPresenceApply').value='direct';document.querySelector('#gptPresenceInput').value=${JSON.stringify(text)};document.querySelector('#gptPresenceForm').requestSubmit()`)}
   const beforeImages=await run("objects().filter(o=>o.type==='image').length");
   await send('Фото верблюда закинь на холст из интернета');
   for(let i=0;i<200&&(await run("objects().filter(o=>o.type==='image').length"))===beforeImages;i++)await sleep(100);

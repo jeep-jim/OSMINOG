@@ -274,3 +274,5 @@ body.native-desktop.native-team-open #bridgePanel:not([hidden]){display:flex!imp
 #native-browser .native-canvas>.native-tools{display:none!important}#native-browser .canvas-engaged .native-canvas>.native-tools{display:flex!important}
 
 #native-browser .native-window-grip{display:grid;place-items:center;flex:none;width:20px;align-self:stretch;color:var(--quiet);cursor:move;user-select:none;font-size:20px}
+
+#native-browser .native-canvas>.native-tools{justify-content:safe center;background:var(--surface);border-color:var(--stroke)}
