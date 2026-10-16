@@ -8,6 +8,14 @@ module.exports=async(win,browser)=>{
  await run("OSMINOGNativeBrowser.open('https://example.com/')");await frame();const id=browser.state().tabs[0].id;assert.equal(browser.get(id).lane,'main');assert.equal(await run(`OSMINOGNativeBrowser.state().slots.filter(x=>x===${JSON.stringify(id)}).length`),1);
  await run("OSMINOGNativeBrowser.open('https://example.org/','side')");await frame();assert.equal(browser.state().tabs.filter(t=>t.lane==='side').length,1);
  assert.equal(await run("document.querySelectorAll('.native-tabs .native-tab').length"),2);assert.equal(await run("document.querySelectorAll('.native-ai-tabs .native-tab').length"),1);
+ // Tab activation and close have separate hit targets, including the narrow rail.
+ assert.equal(await run("document.querySelectorAll('#native-browser .native-eye').length"),0);
+ for(const width of [80,220]){
+  await run(`document.querySelector('#native-browser').style.setProperty('--rail-width','${width}px')`);await frame();
+  assert.equal(await run(`(()=>{const tabs=[...document.querySelectorAll('.native-tabs .native-tab,.native-ai-tabs .native-tab')];return tabs.every(t=>{const close=t.querySelector('.native-tab-close');if(!close)return true;const select=t.firstElementChild,a=select.getBoundingClientRect(),b=close.getBoundingClientRect(),m=select.querySelector('.native-tab-mark').getBoundingClientRect();return a.right<=b.left+.5&&m.left>=a.left&&m.right<=a.right+.5&&document.elementFromPoint(m.x+m.width/2,m.y+m.height/2)?.closest('button')===select&&document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)?.closest('button')===close})})()`),true,`Separate tab hit targets at rail width ${width}`);
+ }
+ await run("document.querySelector('#native-browser').style.setProperty('--rail-width','80px')");await frame();
+ console.log('SHELL_TAB_HIT_TARGETS_PASS');
  // Compact pane controls and 3-area geometry are real DOM, not screenshots.
  await run('OSMINOGNativeBrowser.split(3)');await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),3);
  assert.equal(await run("(()=>{const c=[...document.querySelectorAll('.native-cell')].map(e=>e.getBoundingClientRect());return c[0].height>c[1].height&&Math.abs(c[1].x-c[2].x)<2&&c[2].y>c[1].y})()"),true);
