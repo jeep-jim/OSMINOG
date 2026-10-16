@@ -37,6 +37,7 @@ class Providers{
  async runtime(message,projectId){
   const type=String(message?.type||''),payload=message?.payload||{},provider=normalize(message.provider||payload.provider||'gpt');
   if(!projectId||this.browser.project!==projectId)return{ok:false,error:'Проект изменился'};
+  if(['BC_MODULE_TOOL','BC_MODULE_TEST'].includes(type)){try{this.modules||=new (require('./module-transport.cjs').ModuleTransport)(this.browser);return await this.modules.handle(message,projectId)}catch(e){return{ok:false,error:e.message}}}
   if(type==='OSMINOG_BROWSER_HUB_LIST')return{ok:true,tabs:[...this.browser.tabs.values()].filter(t=>t.project===projectId).map(t=>({id:t.id,title:t.title,url:t.view.webContents.getURL(),visible:t.visible}))};
   if(type==='OSMINOG_BROWSER_HUB_OPEN'&&message.url)return{ok:true,...this.browser.open({url:message.url})};
   if(type==='OSMINOG_BROWSER_HUB_CLOSE_TAB')return this.browser.command('close',{id:String(message.tabId)});

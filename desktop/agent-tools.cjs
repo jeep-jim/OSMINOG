@@ -3,7 +3,7 @@ const {randomUUID}=require('node:crypto'),{readPage,providerFor}=require('./page
 class AgentTools{
  constructor(browser,control){this.browser=browser;this.control=control;this.snapshots=new Map()}
  stop(){this.snapshots.clear();this.control.stop()}
- target(id){if(this.browser.contextScope&&!this.browser.contextScope.includes(String(id)))throw Error('Источник закрыт: включите глаз для вкладки');const t=this.browser.get(String(id));if(providerFor(t.view.webContents.getURL()))throw Error('Инструмент вкладок не управляет чатом ИИ');return t}
+ target(id){if(this.browser.contextScope&&!this.browser.contextScope.includes(String(id)))throw Error('Источник закрыт: разрешите вкладку в настройках контекста');const t=this.browser.get(String(id));if(providerFor(t.view.webContents.getURL()))throw Error('Инструмент вкладок не управляет чатом ИИ');return t}
  async run(name,args={}){
   if(name==='browser_context')return{ok:true,context:await this.browser.context.refresh()};
   const t=this.target(args.id),wc=t.view.webContents;

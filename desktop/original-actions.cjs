@@ -36,7 +36,7 @@ class OriginalActions{
     if(p.patch&&calls?.length)throw Error('ИИ смешал правку и запрос инструментов; действия не применены');
     result={results:[]};images=[];
     if(p.patch){
-     if(!canvasAllowed)throw Error('Холст закрыт: включите глаз для рабочего стола');
+     if(!canvasAllowed)throw Error('Холст закрыт: разрешите рабочий стол в настройках контекста');
      guard();const patch={project:t.project,expected:canvasState,summary:p.patch.summary||'Правка из чата',actions:p.patch.actions};
      if(p.patch.projectId&&p.patch.projectId!==t.project)throw Error('Правка относится к другому проекту');
      const applied=await host(`globalThis.OSMINOGDirectCanvas.apply(${JSON.stringify(patch)})`);guard();result.results.push({tool:'canvas_patch',result:applied});if(applied?.ok)mutations++;
@@ -57,7 +57,7 @@ class OriginalActions{
         if(acted||!available.has(args.snapshot))throw Error('Сначала получите browser_read отдельным шагом; используйте его snapshot');
         acted=true;available.delete(args.snapshot);t.tokens.delete(args.snapshot);
         value=await this.browser.agentTools.run(name,args);if(value?.ok)mutations++;
-       }else if(workspaceTools.has(name)){if(!canvasAllowed)throw Error('Холст закрыт: включите глаз для рабочего стола');value=await host(`globalThis.project?.()?.id===${JSON.stringify(t.project)}?globalThis.BriefCraftBridge.executeTool(${JSON.stringify(name)},${JSON.stringify(args)}):({ok:false,error:'Проект изменился'})`);}
+       }else if(workspaceTools.has(name)){if(!canvasAllowed)throw Error('Холст закрыт: разрешите рабочий стол в настройках контекста');value=await host(`globalThis.project?.()?.id===${JSON.stringify(t.project)}?globalThis.BriefCraftBridge.executeTool(${JSON.stringify(name)},${JSON.stringify(args)}):({ok:false,error:'Проект изменился'})`);}
        else throw Error('Инструмент недоступен в исполнителе обычного чата: '+name);
       }catch(e){value={ok:false,error:e.message}}
       guard();if(value?.image?.data){images.push({name:'workspace-'+hop+'.png',dataUrl:'data:'+value.image.mimeType+';base64,'+value.image.data});value={...value,image:{attached:true,mimeType:value.image.mimeType}}}

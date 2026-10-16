@@ -15,7 +15,7 @@ class BrowserWorkspace{
  constructor(win,store){
   this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
-  this.contextScope=[];this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
+  this.contextScope=null;this.contextScopes=new Map();this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
   this.session=session.fromPartition('persist:osminog-browser');
   const ua=this.session.getUserAgent?.();if(ua)this.session.setUserAgent(require('./network.cjs').browserUserAgent(ua));
   this.connectionDiagnostics=new (require('./connection-diagnostics.cjs').ConnectionDiagnostics)({channel:id=>{const t=[...this.tabs.values(),...this.providers.values()].find(t=>t.view.webContents.id===id);return t?(t.ephemeral?'service-tab':'user-tab'):'session-or-worker'}});
@@ -77,7 +77,7 @@ class BrowserWorkspace{
  destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
-   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project)this.contextScope=[];this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
+   case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project){this.contextScopes.set(this.project,this.contextScope);this.contextScope=this.contextScopes.has(id)?this.contextScopes.get(id):null;this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate()}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
    case 'context-scope':{this.contextScope=args.all===true?null:[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();return{ids:this.contextScope}}
    case 'move-lane':{const t=this.get(args.id);if(t.provider){const entry=[...this.providers.entries()].find(([,v])=>v===t);this.providers.delete(entry[0]);this.tabs.set(t.id,t);if(this.ai===t)this.ai=null;delete t.provider;delete t.thread}t.lane=args.lane==='side'?'side':'main';this.save();this.emit();return this.state()}
