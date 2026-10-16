@@ -885,3 +885,14 @@ browser_act принимает ровно одно действие. После 
 Изменения: открытие кнопки прикрепления при отсутствии поля, input accept с расширениями .png/.jpg и MIME, HTTPS-превью в области composer, проверка всех новых вложений относительно состояния до загрузки, ожидание окончания progress/aria-busy до 20 секунд, повторный поиск composer после загрузки. История переписки и старые изображения не подтверждают новое вложение. При отказе обязательный снимок не пропускается молча; ошибка содержит этап ATTACHMENT_NOT_READY/REJECTED. Контекст не вставляется в видимый исходный чат.
 
 Локально 126 unit-тестов прошли. Добавлены Windows-сценарии ленивого поля, HTTPS-превью, задержки загрузки и замены textarea, а также отказа при старом превью/имени файла в истории. Ожидаются Windows CI и проверка установленного обновления. Работа живых аккаунтов отдельно пока не подтверждена.
+
+### 16 октября 2026 — опубликовано 4.0.16
+
+- PR57 объединён коммитом 97196567decaadd7fa25614a7614818adc17c6ba; проверенная ветка 46dd5d21103c93bd8142ef4b96a6a3e52bb37f94.
+- Windows CI 38917426805, job 117028385990 — success; Agent CI 38917426998 — success. 126 unit-тестов. Установленная копия подтвердила LAZY_INPUT_REMOTE_PREVIEW_REMOUNT_AND_UPLOAD_READY_PASS и STALE_TRANSCRIPT_AND_PREVIEW_CANNOT_CONFIRM_UPLOAD_PASS; ordinary startup и остальные сценарии исполнителя/холста/файлов также прошли.
+- Runtime source 4638361c3bbf72660a9567d24f2fecd00a317d3d совпадает с merge по 417 blob-файлам; runtime 4838349 bytes, SHA256 8ed357a3ffece7f8fab9130f3f4a57577b1d1b85703682ee5eacb9351bb3ab7f. Архив CI проверен: 3bcc092bcd55399ac43c3691ac85ae1f9b54404e44d8f38953e81b8b4ba99b87.
+- Release staging ba344b83c75d7201f14699d06081edc74f0ded2c; release run 38918641216, job 117032531312 — success. UPDATE_INSTALL_STARTED и INSTALLED_UPDATE_SMOKE_PASS 4.0.16: обновление с 4.0.15, проект и cookies сохранены.
+- Установщик: 115227134 bytes, SHA256 8fb3b7dea8dade7c9f8dff521511d1e887cb2739b9f0fbc40310f965fe5e6a7b.
+- https://github.com/jeep-jim/OSMINOG-Releases/releases/download/windows-v4.0.16/OSMINOG-Preview-4.0.16-x64.exe
+- channels/dev/windows.json и публичный latest.yml переключены на 4.0.16. Проверочные материалы: docs/verification/4.0.16/.
+- Исправлен механизм подтверждения вложений; не утверждается, что проверен живой аккаунт со скриншота. Валидация выполнена на контролируемых страницах в настоящем Windows Electron. Обязательное изображение при неподтверждённой загрузке не пропускается и команда без него не отправляется.
