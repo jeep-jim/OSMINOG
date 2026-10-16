@@ -1,5 +1,5 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu,dialog}=require('electron');
+const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu,dialog,nativeTheme}=require('electron');
 const path=require('node:path'),{pathToFileURL}=require('node:url'),{Store}=require('./storage.cjs');
 app.setName('OSMINOG Preview');
 if(process.platform==='win32')app.setAppUserModelId('com.osminog.desktop.preview');
@@ -21,6 +21,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('file:office',(e,file)=>{trusted(e);return require('./office.cjs').read(file)});
  ipcMain.handle('file:save',(e,args)=>{trusted(e);return require('./file-save.cjs').saveFile(win,args)});
  session.defaultSession.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
+ // Keep the native frame and system menus dark, including on light Windows desktops.
+ nativeTheme.themeSource='dark';
  const shellIcon=require('./windows-identity.cjs').installIdentity({app,shell});
  win=new BrowserWindow({icon:shellIcon,width:1440,height:960,minWidth:800,minHeight:600,show:true,backgroundColor:'#111722',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
  if(process.platform==='win32'){try{require('./windows-identity.cjs').applyTaskbar(win,shellIcon)}catch(e){startup.log('TASKBAR_WARNING',e)}}

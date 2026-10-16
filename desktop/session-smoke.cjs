@@ -24,6 +24,8 @@ module.exports=async(win,browser,providers)=>{
     else if(ordinaryTurns===3){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'type',text:' из обычного чата'}]}}]}}
     else if(ordinaryTurns===4){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:100}]}}]}}
     else if(ordinaryTurns===6)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Круг из обычного чата',actions:[{op:'create',objectType:'shape',properties:{name:'Ordinary-chat circle',shapeKind:'ellipse',fill:'#ff0000',x:100,y:100,w:100,h:100}}]};
+    else if(ordinaryTurns===9){assert.match(prompt,/EXECUTOR_FORMAT_INVALID/);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};}
+    else if(ordinaryTurns===10||ordinaryTurns===11){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={id:targetId,snapshot,actions:[ordinaryTurns===10?{type:'click',x:20,y:20}:{type:'type',text:' после коррекции'}]};}
     else answer='Ввод и круг проверены.';
    }
    else if(turns===1)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Тест доски',actions:[{op:'create',objectType:'text',properties:{name:'Session-created text',text:'Транспорт расширения',x:400,y:300,w:240,h:90}}]};
@@ -79,8 +81,9 @@ module.exports=async(win,browser,providers)=>{
   const panelWC=panel.view.webContents;
   await panelWC.executeJavaScript("document.querySelector('textarea').focus()");panelWC.focus();
   await panelWC.insertText('Заполни поле из панели ИИ');panelWC.sendInputEvent({type:'keyDown',keyCode:'Enter'});panelWC.sendInputEvent({type:'keyUp',keyCode:'Enter'});
-  for(let i=0;i<100&&ordinaryTurns<8;i++)await sleep(100);
-  assert.equal(ordinaryTurns,8,'Visible provider panel must reach the workspace executor');
+  for(let i=0;i<100&&ordinaryTurns<12;i++)await sleep(100);
+  assert.equal(ordinaryTurns,12,'Provider panel must repair prose then read/click/type/verify');
+  assert.match(await target.view.webContents.executeJavaScript("document.querySelector('input').value"),/после коррекции/);
   assert.deepEqual(await panelWC.executeJavaScript('window.sent'),['Заполни поле из панели ИИ']);
   console.log('PROVIDER_PANEL_USER_SEND_EXECUTOR_PASS');
   await panelWC.executeJavaScript("fetch('/api/v0/users/current?secret=DIAGNOSTIC_SECRET').then(r=>r.text())");await sleep(300);
