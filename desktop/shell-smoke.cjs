@@ -133,8 +133,11 @@ module.exports=async(win,browser)=>{
  assert(await run("(()=>{const e=document.querySelector('.native-scroll');return e.scrollHeight>e.clientHeight})()"));
  await run("(()=>{const e=document.querySelector('.native-scroll');e.scrollTop=e.scrollHeight})()");await frame();
  assert(browser.panels.every(p=>!p.clip||p.clip.height>0));
- await run("(()=>{document.querySelector('.native-scroll').scrollTop=0;const cells=[...document.querySelectorAll('.native-cell')];const from=cells.find(c=>c.dataset.paneId==='@canvas');const target=cells.find(c=>c!==from);globalThis.expectedCanvasSlot=Number(target.dataset.dropIndex);const dt=new DataTransfer();from.querySelector('header').dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()");await frame();
- assert(await run("OSMINOGNativeBrowser.state().slots[expectedCanvasSlot]==='@canvas'"));
+ await run("document.querySelector('.native-tabs [data-tab-id=\"@canvas\"] > button').click()");await frame();
+ const canvasBefore=await run("(()=>{const r=document.querySelector('.native-cell[data-pane-id=\"@canvas\"]').parentElement.getBoundingClientRect();return{x:r.x,y:r.y}})()");
+ const grip=await run("(()=>{const r=document.querySelector('.native-cell[data-pane-id=\"@canvas\"] .native-window-grip').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
+ win.webContents.sendInputEvent({type:'mouseDown',button:'left',...grip,clickCount:1});win.webContents.sendInputEvent({type:'mouseMove',x:grip.x+50,y:grip.y+50,modifiers:['leftbuttondown']});win.webContents.sendInputEvent({type:'mouseUp',button:'left',x:grip.x+50,y:grip.y+50,clickCount:1});await frame();
+ const canvasAfter=await run("(()=>{const r=document.querySelector('.native-cell[data-pane-id=\"@canvas\"]').parentElement.getBoundingClientRect();return{x:r.x,y:r.y}})()");assert(Math.abs(canvasAfter.x-canvasBefore.x-50)<2&&Math.abs(canvasAfter.y-canvasBefore.y-50)<2,JSON.stringify({canvasBefore,canvasAfter}));
  console.log('SCROLLING_TILES_AND_CANVAS_DRAG_PASS');
  // Regressions from 0.3.3: native pages track resized rows, and both close controls destroy them.
  const width=await run("document.querySelector('.native-cell').getBoundingClientRect().width");
@@ -207,6 +210,7 @@ module.exports=async(win,browser)=>{
  console.log('WORKSPACE_FILE_CANVAS_TEAM_TOOLS_PASS');
 
  // Trusted native pointer gesture crosses the preload/IPC boundary on a real page.
+ await browser.session.protocol.handle('https',()=>new Response('<html><body><h1>Pointer target</h1><p>Region for native selection.</p></body></html>',{headers:{'Content-Type':'text/html'}}));
  const target=browser.open({url:'https://example.com/pointer-415'});for(let i=0;i<100&&browser.get(target.id).loading;i++)await new Promise(r=>setTimeout(r,30));
  await run(`OSMINOGNativeBrowser.revealTab(${JSON.stringify(target.id)})`);await frame();
  await browser.command('pointer-mode',{enabled:true});const pointerWC=browser.get(target.id).view.webContents;
@@ -218,7 +222,7 @@ module.exports=async(win,browser)=>{
  await browser.command('pointer-mode',{enabled:false});console.log('NATIVE_POINTER_REGION_CAPTURE_CLEAR_PASS');
  await run("document.querySelector('[data-do=project-shot]').click()");for(let i=0;i<60;i++){if(await run("objects().some(o=>o.name==='Снимок окна')"))break;await new Promise(r=>setTimeout(r,100))}assert(await run("objects().some(o=>o.name==='Снимок окна')"));
  await run("document.querySelector('[data-do=record-screen]').click()");for(let i=0;i<60;i++){if(await run("document.querySelector('[data-do=record-screen]').getAttribute('aria-pressed')==='true'"))break;await new Promise(r=>setTimeout(r,100))}assert(await run("document.querySelector('[data-do=record-screen]').getAttribute('aria-pressed')==='true'"));await new Promise(r=>setTimeout(r,1200));await run("document.querySelector('[data-do=record-screen]').click()");for(let i=0;i<60;i++){if(await run("objects().some(o=>o.mime==='video/webm')"))break;await new Promise(r=>setTimeout(r,100))}assert(await run("objects().some(o=>o.mime==='video/webm'&&o.src.startsWith('data:video/webm'))"));
- console.log('WINDOW_SCREENSHOT_AND_RECORDING_PASS');
+ console.log('WINDOW_SCREENSHOT_AND_RECORDING_PASS');browser.session.protocol.unhandle('https');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
