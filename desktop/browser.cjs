@@ -85,7 +85,7 @@ class BrowserWorkspace{
 
    case 'context-scope':{this.contextScope=args.all===true?null:[...new Set((args.ids||[]).filter(id=>id==='@canvas'||[...this.tabs.values(),...this.providers.values()].some(t=>t.id===id&&t.project===this.project)))];this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();return{ids:this.contextScope}}
    case 'move-lane':{const t=this.get(args.id);if(t.provider){const entry=[...this.providers.entries()].find(([,v])=>v===t);this.providers.delete(entry[0]);this.tabs.set(t.id,t);if(this.ai===t)this.ai=null;delete t.provider;delete t.thread}t.lane=args.lane==='side'?'side':'main';this.save();this.emit();return this.state()}
-   case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};const img=await t.view.webContents.capturePage();t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
+   case 'thumbnail':{const t=this.get(args.id);const now=Date.now();if(!t.visible||t.loading)return{src:t.thumbnail||''};if(t.thumbnail&&now-t.thumbnailAt<15000)return{src:t.thumbnail};let img;try{img=await t.view.webContents.capturePage()}catch{return{src:t.thumbnail||''}}t.thumbnail=img.resize({width:240}).toDataURL();t.thumbnailAt=now;return{src:t.thumbnail}}
    case 'context-enable':return{enabled:false,reason:'Original chats send only user content'};
    case 'network-get':return this.network;
    case 'network-report':{
