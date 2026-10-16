@@ -6,8 +6,8 @@ const instructions=`Execute the user's workspace request using the host tools. T
 Use {"protocol":"osminog.request/v1","calls":[{"tool":"browser_read","args":{"id":"actual tab id"}}]}. Read before acting. browser_act requires the exact snapshot token from browser_read in THIS task and actions click(x,y,count), type(text), key(key,modifiers), scroll(x,y,deltaX,deltaY), drag(x,y,toX,toY). Coordinates are LOCAL VIEWPORT pixels, never the whole desktop. Use current element bounds; never guess from an earlier width. After a click that changes the page, read again before deciding the next step. Send exactly ONE action per browser_act. Its result contains observation: a new page snapshot. Inspect this before choosing the next action; native input delivery is not proof that the requested change happened. Use the observation snapshot for the next action. Enter/Space and submission/publication ask for native confirmation; passwords, payments and deletion are blocked. A stale snapshot/error means read again, not repeat blindly. Browser tools: browser_tabs {}, browser_context {}, browser_open {url}, browser_read {id}, browser_act {id,snapshot,actions}. Never control an AI chat.
 For local canvas edits return {"protocol":"osminog.patch/v1","summary":"...","actions":[{"op":"create","objectType":"shape","properties":{"x":100,"y":100,"w":100,"h":100,"shapeKind":"ellipse","fill":"#ff0000"}}]}; the host validates the project and canvas revision and applies it automatically. Widgets use module_create {id,name,runtime:'sandbox',html:'complete standalone HTML with inline CSS and JS',width:400,height:300}; modules run in the existing sandbox. Other local tools use their existing workspace tool contract. File tools: writeFile {name,content,mime?,encoding?:utf-8|base64} creates an embedded file ON THE BOARD, never an arbitrary OS path; readFile {id,include_data?} reads a board file. Canvas tools: canvas.create {type,properties}, canvas.duplicate {id,dx?,dy?}, canvas.move {id,x,y}. Team tools: agent.say {agentId?,message} appends to the local team room; agent.ask {agentId,message} asks a configured agent and records its real reply. Use agent_list to discover IDs. Only tools in execution.tools are available. Report a concise result after successful tool results; if unavailable explain the exact error.`;
 class OriginalActions{
- constructor(browser,providers,{status=()=>{}}={}){Object.assign(this,{browser,providers,status});this.turns=new Map();this.epoch=0;this.active=null;this.recent=new Map()}
- stop(){this.epoch++;this.turns.clear();this.active=null}
+ constructor(browser,providers,{status=()=>{}}={}){Object.assign(this,{browser,providers,status});this.turns=new Map();this.epoch=0;this.active=null;this.recent=new Map();this.orchestrator=browser.orchestrator||new (require('./orchestrator.cjs').Orchestrator)()}
+ stop(){this.orchestrator.cancelAll();this.epoch++;this.turns.clear();this.active=null}
  async observe(tab,text){
   // Visible provider panels are user chats too. Hidden execution sessions must never recurse.
   const registered=this.browser.tabs.get(tab.id)===tab||[...this.browser.providers.values()].includes(tab);
@@ -22,24 +22,25 @@ class OriginalActions{
   t.thread='workspace:'+tab.id+':'+t.id;const initialRoute=tab.view.webContents.getURL().split('?')[0];if(/\/(?:c|chat)\/[^/]+/.test(new URL(initialRoute).pathname))t.route=initialRoute;this.active=t;this.turns.set(tab.id,t);
   const guard=()=>{if(revision!==(this.browser.contextRevision||0)||this.active!==t||this.epoch!==t.epoch||Date.now()>t.expires||this.browser.project!==t.project||tab.project!==t.project||tab.view.webContents.isDestroyed()||new URL(tab.view.webContents.getURL()).origin!==t.origin||(t.route&&tab.view.webContents.getURL().split('?')[0]!==t.route))throw Error('Задача отменена: чат или проект изменился')};
   const host=code=>this.browser.win.webContents.executeJavaScript(code);
+  const session=this.orchestrator.begin({id:t.id,project:t.project,source:tab.id,guard});
   let result,images=[],mutations=0;
   try{
    this.status('ИИ: подключаю исполнение, читаю актуальные вкладки и доску…');
    for(let hop=0;hop<16;hop++){
     guard();const canvasAllowed=!this.browser.contextScope||this.browser.contextScope.includes('@canvas');const canvasState=canvasAllowed?await host('globalThis.OSMINOGDirectCanvas.snapshot()'):null;guard();
-    const context={project:{id:t.project},chat:{threadId:t.thread},execution:{autoExecute:true,task:text,instructions,tools:['browser_tabs','browser_context','browser_open','browser_read','browser_act',...workspaceTools],history:t.history.map(h=>({results:h.results.map(r=>({tool:r.tool,ok:r.result?.ok,error:r.result?.error,completed:r.result?.completed,createdIds:r.result?.createdIds}))}))}};
+    const context={project:{id:t.project},chat:{threadId:t.thread},execution:{autoExecute:session.autoExecute,task:text,instructions,tools:['browser_tabs','browser_context','browser_open','browser_switch','browser_read','browser_act',...workspaceTools],history:t.history.map(h=>({results:h.results.map(r=>({tool:r.tool,ok:r.result?.ok,error:r.result?.error,completed:r.result?.completed,createdIds:r.result?.createdIds}))}))}};
     const response=await this.providers.runtime({type:result?'BC_PROVIDER_TOOL_RESULT':'BC_PROVIDER_SEND',provider,payload:{text,context,result,images,requestId:randomUUID()}},t.project);guard();
     t.route=tab.view.webContents.getURL().split('?')[0];
     if(!response?.ok)throw Error(response?.error||'Служебное соединение ИИ не ответило');
     const p=response.payload||{},calls=p.request?.calls;
-    if(!p.patch&&!calls?.length){this.status((mutations?'Результат выполнения: ':'Ответ исполнителя: ')+String(p.text||'ИИ не вернул действий.').slice(0,1500));return}
+    if(!p.patch&&!calls?.length){this.orchestrator.finish(t.id);this.status((mutations?'Результат выполнения: ':'Ответ исполнителя: ')+String(p.text||'ИИ не вернул действий.').slice(0,1500));return}
     if(p.patch&&calls?.length)throw Error('ИИ смешал правку и запрос инструментов; действия не применены');
     result={results:[]};images=[];
     if(p.patch){
      if(!canvasAllowed)throw Error('Холст закрыт: разрешите рабочий стол в настройках контекста');
      guard();const patch={project:t.project,expected:canvasState,summary:p.patch.summary||'Правка из чата',actions:p.patch.actions};
      if(p.patch.projectId&&p.patch.projectId!==t.project)throw Error('Правка относится к другому проекту');
-     const applied=await host(`globalThis.OSMINOGDirectCanvas.apply(${JSON.stringify(patch)})`);guard();result.results.push({tool:'canvas_patch',result:applied});if(applied?.ok)mutations++;
+     const batch=await this.orchestrator.dispatch({sessionId:t.id,actions:[{tool:'canvas_patch'}]},async()=>{if(!session.autoExecute&&!await require('./action-policy.cjs').confirm(this.browser,{type:'canvas_patch'},{label:'Правка холста'},{reason:'Подтвердите правку холста'}))return{ok:false,error:'Отменено пользователем'};guard();return host(`globalThis.OSMINOGDirectCanvas.apply(${JSON.stringify(patch)})`)});const applied=batch.results[0].result;guard();result.results.push({tool:'canvas_patch',result:applied});if(applied?.ok)mutations++;
     }else{
      if(!Array.isArray(calls)||calls.length>8)throw Error('ИИ запросил слишком много инструментов за шаг');
      // Browser actions must be planned only AFTER a read result was returned to the model.
@@ -47,18 +48,22 @@ class OriginalActions{
      for(const call of calls){
       guard();const name=call?.tool,args=call?.args||{};let value;
       try{
+       const batch=await this.orchestrator.dispatch({sessionId:t.id,actions:[{tool:name,args}]},async()=>{
        if(!args||typeof args!=='object'||Array.isArray(args))throw Error('Неверные аргументы инструмента');
        this.status(`ИИ: шаг ${hop+1} — ${name}`);
+       if(!session.autoExecute&&['browser_open','browser_switch','writeFile','canvas.create','canvas.duplicate','canvas.move','agent.say','agent.ask','asset_create','module_create','module_update','document_edit','document_export','graphics_create','graphics_edit'].includes(name)){if(!await require('./action-policy.cjs').confirm(this.browser,{type:name},{label:name},{reason:'Автопилот выключен: подтвердите действие'}))return{ok:false,error:'Отменено пользователем'};guard()}
        if(name==='browser_tabs')value={tabs:[...this.browser.tabs.values()].filter(x=>x.project===t.project&&(!this.browser.contextScope||this.browser.contextScope.includes(x.id))&&!providerFor(x.view.webContents.getURL())).map(x=>({id:x.id,title:x.title,url:x.view.webContents.getURL(),visible:x.visible}))};
-       else if(name==='browser_context')value=await this.browser.agentTools.run(name,args);
+       else if(name==='browser_context')value=await this.browser.agentTools.run(name,args,{autoExecute:session.autoExecute});
        else if(name==='browser_open'){if(providerFor(args.url))throw Error('Исполнитель не открывает чаты ИИ');value=await this.browser.command('open',{url:args.url});}
-       else if(name==='browser_read'){value=await this.browser.agentTools.run(name,args);if(value.snapshot)t.tokens.add(value.snapshot)}
+       else if(name==='browser_switch'){value=await this.browser.agentTools.run('browser_read',args);if(value.snapshot)t.tokens.add(value.snapshot)}
+       else if(name==='browser_read'){value=await this.browser.agentTools.run(name,args,{autoExecute:session.autoExecute});if(value.snapshot)t.tokens.add(value.snapshot)}
        else if(name==='browser_act'){
         if(acted||!available.has(args.snapshot))throw Error('Сначала получите browser_read отдельным шагом; используйте его snapshot');
         acted=true;available.delete(args.snapshot);t.tokens.delete(args.snapshot);
-        value=await this.browser.agentTools.run(name,args);if(value?.observation?.snapshot)t.tokens.add(value.observation.snapshot);if(value?.ok)mutations++;
+        value=await this.browser.agentTools.run(name,args,{autoExecute:session.autoExecute});if(value?.observation?.snapshot)t.tokens.add(value.observation.snapshot);if(value?.ok)mutations++;
        }else if(workspaceTools.has(name)){if(!canvasAllowed)throw Error('Холст закрыт: разрешите рабочий стол в настройках контекста');value=await host(`globalThis.project?.()?.id===${JSON.stringify(t.project)}?globalThis.BriefCraftBridge.executeTool(${JSON.stringify(name)},${JSON.stringify(args)}):({ok:false,error:'Проект изменился'})`);}
        else throw Error('Инструмент недоступен в исполнителе обычного чата: '+name);
+       return value;});value=batch.results[0].result;
       }catch(e){value={ok:false,error:e.message}}
       guard();if(value?.observation?.image?.data){const im=value.observation.image;images.push({name:'after-action-'+hop+'.png',dataUrl:'data:'+im.mimeType+';base64,'+im.data});value={...value,observation:{...value.observation,image:{attached:true,mimeType:im.mimeType}}}}
       if(value?.image?.data){images.push({name:'workspace-'+hop+'.png',dataUrl:'data:'+value.image.mimeType+';base64,'+value.image.data});value={...value,image:{attached:true,mimeType:value.image.mimeType}}}
@@ -68,8 +73,8 @@ class OriginalActions{
     // Keep results with the original task even for providers that create a fresh service session per hop.
     t.history.push(result);if(t.history.length>8)t.history.shift();
    }
-   this.status('Достигнут предел 16 шагов. Задача остановлена; результат не объявлен готовым.');
-  }catch(e){if(this.active===t&&this.epoch===t.epoch)this.status('Не выполнено: '+e.message)}finally{this.browser.releaseService?.(t.thread);if(this.turns.get(tab.id)===t)this.turns.delete(tab.id);if(this.active===t)this.active=null}
+   this.orchestrator.finish(t.id,'Достигнут предел шагов');this.status('Достигнут предел 16 шагов. Задача остановлена; результат не объявлен готовым.');
+  }catch(e){this.orchestrator.finish(t.id,e.message);if(this.active===t&&this.epoch===t.epoch)this.status('Не выполнено: '+e.message)}finally{this.browser.releaseService?.(t.thread);if(this.turns.get(tab.id)===t)this.turns.delete(tab.id);if(this.active===t)this.active=null}
  }
 }
 module.exports={OriginalActions};

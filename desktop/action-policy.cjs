@@ -2,18 +2,20 @@
 // Classification uses the live hit target, never a model-supplied risk label.
 function inspectTarget(action){
  const x=JSON.stringify(action);
- return `(()=>{const a=${x};let n=a.type==='click'||a.type==='drag'?document.elementFromPoint(a.x,a.y):document.activeElement;if(!n)return null;n=n.closest('button,a,input,textarea,select,[role="button"],[contenteditable="true"]')||n;const f=n.form||n.closest('form');return{tag:n.tagName?.toLowerCase(),type:n.type||'',role:n.getAttribute('role')||'',label:(n.getAttribute('aria-label')||n.labels?.[0]?.textContent||n.textContent||'').trim().slice(0,300),name:n.name||'',autocomplete:n.autocomplete||'',editable:n.isContentEditable,href:n.getAttribute('href')||'',bounds:(()=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}})(),form:!!f,search:!!f&&(f.getAttribute('role')==='search'||!!f.querySelector('input[type="search"]')),disabled:!!n.disabled}})()`;
+ return `(()=>{const a=${x};let n=a.type==='click'||a.type==='drag'?document.elementFromPoint(a.x,a.y):document.activeElement;if(!n)return null;n=n.closest('button,a,input,textarea,select,[role="button"],[contenteditable="true"]')||n;const f=n.form||n.closest('form');return{tag:n.tagName?.toLowerCase(),type:n.type||'',role:n.getAttribute('role')||'',label:(n.getAttribute('aria-label')||n.labels?.[0]?.textContent||n.textContent||'').trim().slice(0,300),name:n.name||'',autocomplete:n.autocomplete||'',editable:n.isContentEditable,href:n.getAttribute('href')||'',bounds:(()=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}})(),sensitiveForm:!!f&&!!f.querySelector('input[type="password"],input[type="card"],input[type="cvv"],input[autocomplete^="cc-"],input[name*="cvv" i],input[name*="card" i],input[name*="token" i]'),form:!!f,search:!!f&&(f.getAttribute('role')==='search'||!!f.querySelector('input[type="search"]')),disabled:!!n.disabled}})()`;
 }
 function classify(a,n){
  const block=reason=>({level:'block',reason}),warn=reason=>({level:'warn',reason}),safe=()=>({level:'safe'});
  if(a.type==='scroll')return safe();
  if(!n)return block('Не удалось определить цель действия');
  const label=[n.label,n.name,n.autocomplete,n.href].join(' ').toLowerCase();
- if(n.type==='password'||/password|current-password|new-password|one-time-code|cc-number|cc-csc|парол|плат[её]ж|оплат|удал|delete|erase|pay now|confirm payment|\/delete|\/remove|\/payment/.test(label))return block('Пароли, платёжные данные и удаление не выполняются автопилотом');
+ if(n.type==='password'||/password|current-password|new-password|token|токен|cvv|card.number|номер.карты|one-time-code|cc-number|cc-csc|парол|плат[её]ж|оплат|удал|delete|erase|pay now|confirm payment|\/delete|\/remove|\/payment/.test(label))return block('Пароли, платёжные данные и удаление не выполняются автопилотом');
+ if(n.sensitiveForm&&(a.type==='click'||a.type==='key'&&a.key==='Enter'))return block('Форма содержит пароль, токен или платёжные поля');
  if(n.disabled)return block('Элемент отключён');
  if(a.type==='key'){
   if(a.modifiers?.length&&!(a.modifiers.length===1&&a.modifiers[0]==='control'&&/^[acv]$/i.test(a.key)))return block('Сочетание клавиш недоступно автопилоту');
   if(a.key==='Delete')return block('Удаление клавишей не выполняется автоматически');
+  if(a.key==='Enter'&&n.search&&!n.sensitiveForm)return safe();
   if(['Enter','Space'].includes(a.key))return warn('Клавиша может отправить форму или активировать кнопку');
   return ['input','textarea'].includes(n.tag)||n.editable||['Tab','Escape','Left','Right','Up','Down','Home','End','PageUp','PageDown'].includes(a.key)?safe():warn('Клавиша вне текстового поля может вызвать команду сайта');
  }

@@ -74,6 +74,8 @@ jobs:
             desktop/provider-smoke*
             desktop/shell-smoke*
             desktop/session-smoke*
+            desktop/orchestrator-progress.png
+            desktop/logs/orchestrator.log
           retention-days: 14
       - run: npm run build:win
         env:
@@ -126,6 +128,8 @@ jobs:
             desktop/dist/*.blockmap
             desktop/dist/OSMINOG-Windows-Runtime.zip
             desktop/installed-*.log
+            desktop/orchestrator-progress.png
+            desktop/logs/orchestrator.log
             desktop/smoke*.log
             desktop/smoke*.png
             desktop/packaged-smoke*.log
