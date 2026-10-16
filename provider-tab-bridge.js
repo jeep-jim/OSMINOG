@@ -264,7 +264,7 @@
       await sleep(150);const live=composer()||host;last=attachmentState(attachmentScope(live),names);
       if(last.error)throw Error('ATTACHMENT_REJECTED: '+last.error.slice(0,240));
       const added=last.previews.filter(src=>!before.previews.includes(src)).length;
-      const named=last.names.length===names.length&&last.names.some(name=>!before.names.includes(name));
+      const named=last.names.length===names.length&&names.every(name=>!before.names.includes(name));
       // A changed FileList alone is not evidence. Require all new previews or file
       // labels in the composer, finished upload and a stable ready state.
       if(!last.busy&&(added>=names.length||named)){if(!readyAt)readyAt=Date.now();if(Date.now()-readyAt>=600)return{ok:true,count:dt.files.length,method}}else readyAt=0;
