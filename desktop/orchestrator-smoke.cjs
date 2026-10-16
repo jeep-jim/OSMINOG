@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 module.exports=async(browser,source,target)=>{
  const o=browser.orchestrator,tools=browser.agentTools,wc=target.view.webContents;
  const confirm=browser.control.confirmAction;let confirmations=0;
- const run=async(label,fn)=>{const s=o.begin({project:browser.project,source:source.id,guard:()=>{assert.equal(browser.project,target.project)}});try{await fn(s);o.finish(s.id);console.log('ORCHESTRATOR_ACCEPTANCE_PASS '+label)}catch(e){o.finish(s.id,e.message);console.error('ORCHESTRATOR_ACCEPTANCE_FAIL '+label,e.stack);throw e}};
+ const run=async(label,fn)=>{const s=o.begin({project:browser.project,source:source.id,guard:()=>{assert.equal(browser.project,target.project)}});try{await fn(s);await o.log(s,'acceptance.'+label,{ok:true},Date.now()-s.startedAt);o.finish(s.id);console.log('ORCHESTRATOR_ACCEPTANCE_PASS '+label)}catch(e){await o.log(s,'acceptance.'+label,{ok:false,code:'ACCEPTANCE_FAILED'},Date.now()-s.startedAt);o.finish(s.id,e.message);console.error('ORCHESTRATOR_ACCEPTANCE_FAIL '+label,e.stack);throw e}};
  const step=async(s,action)=>{const read=await tools.run('browser_read',{id:target.id});return o.dispatch({sessionId:s.id,actions:[{tool:'browser_act',args:{id:target.id,snapshot:read.snapshot,actions:[action]}}]})};
  const xy=async selector=>wc.executeJavaScript(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);
  try{
@@ -17,6 +17,7 @@ module.exports=async(browser,source,target)=>{
   await run('6 queue failure and alternative',async s=>{const r=await tools.run('browser_read',{id:target.id});const batch=await o.dispatch({sessionId:s.id,actions:[{tool:'browser_act',args:{id:target.id,snapshot:r.snapshot,actions:[{type:'click',x:9999,y:9999}]}},{tool:'browser_read',args:{id:target.id}}]});assert.equal(batch.ok,false);assert.equal(batch.results.length,1);assert(batch.nextSnapshot);assert((await step(s,{type:'click',...await xy('#search')})).ok)});
   await o.logQueue;fs.mkdirSync('logs',{recursive:true});fs.copyFileSync(o.logFile,path.join('logs','orchestrator.log'));
   // Capture the native progress surface, not a fabricated mockup.
+  await browser.win.webContents.executeJavaScript(`OSMINOGNativeBrowser.revealTab(${JSON.stringify(source.id)})`);
   await source.view.webContents.executeJavaScript("new Promise(r=>setTimeout(r,100))");
   fs.writeFileSync('orchestrator-progress.png',(await source.view.webContents.capturePage()).toPNG());
  }finally{browser.control.confirmAction=confirm}
