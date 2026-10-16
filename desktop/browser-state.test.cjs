@@ -61,4 +61,12 @@ test('scroll clips native content without resizing its document',async()=>{const
 
 test('background execution sessions never replace visible AI, persist or appear as duplicate tabs',async()=>{const store=storage(),b=new BrowserWorkspace(host(),store);await b.command('project',{id:'work'});const visible=b.selectProvider('chatgpt','main'),service=b.selectProvider('claude','workspace:turn',{background:true});assert.equal(b.ai,visible);assert.equal(service.visible,false);assert.equal(b.state().sessions.length,1);await b.save();assert.equal((await store.get()).browserSessions.work.length,1);b.releaseService('workspace:turn');assert(service.view.closed);assert.equal(b.providers.size,1)});
 
-test('automatic reads respect scope and all-session access resets with project',async()=>{const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'});assert.deepEqual(await b.command('context',{all:true,automatic:true}),[]);await b.command('context-scope',{ids:[a.id]});assert.deepEqual((await b.command('context',{all:true,automatic:true})).map(x=>x.id),[a.id]);await b.command('context-scope',{all:true});const next=b.open({url:'https://example.org'});assert.equal((await b.command('context',{all:true,automatic:true})).length,2);await b.command('project',{id:'other'});assert.deepEqual(b.contextScope,[]);});
+test('workspace context is available by default; explicit revocation survives project switches',async()=>{
+ const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});const a=b.open({url:'https://example.com'});
+ assert.equal(b.contextScope,null);assert.deepEqual((await b.command('context',{all:true,automatic:true})).map(x=>x.id),[a.id]);
+ await b.command('context-scope',{ids:[]});assert.deepEqual(await b.command('context',{all:true,automatic:true}),[]);
+ const revision=b.contextRevision;await b.command('project',{id:'other'});assert.equal(b.contextScope,null);assert(b.contextRevision>revision);assert.deepEqual(await b.command('context',{all:true}),[]);
+ await b.command('project',{id:'work'});assert.deepEqual(b.contextScope,[]);assert.deepEqual(await b.command('context',{all:true}),[]);
+ await b.command('context-scope',{all:true});b.open({url:'https://example.org'});assert.equal((await b.command('context',{all:true})).length,2);
+ await b.command('project',{id:'other'});await b.command('project',{id:'work'});assert.equal(b.contextScope,null);
+});
