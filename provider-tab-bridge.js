@@ -236,7 +236,8 @@
     const previews=queryAllDeep('img,[style*="background-image"]',scope).filter(vis).map(el=>el.currentSrc||el.src||el.style.backgroundImage).filter(Boolean);
     const labels=queryAllDeep('[aria-label],[title],span,p,div',scope).filter(vis).flatMap(el=>[el.getAttribute('aria-label'),el.title,el.childElementCount===0?el.textContent:'']).filter(Boolean);
     const found=names.filter(name=>labels.some(label=>String(label).toLowerCase().includes(name.toLowerCase())));
-    const busy=queryAllDeep('[role="progressbar"],[aria-busy="true"],[data-state="uploading"]',scope).some(vis);
+    const busySelector='[role="progressbar"],[aria-busy="true"],[data-state="uploading"]';
+    const busy=(scope.matches(busySelector)&&vis(scope))||queryAllDeep(busySelector,scope).some(vis);
     const error=queryAllDeep('[role="alert"],[data-state="error"]',scope).filter(vis).map(el=>textOf(el)).find(t=>/upload|attach|file|image|загруз|прикреп|файл|изображ/i.test(t))||'';
     return{previews,names:found,busy,error};
   }
