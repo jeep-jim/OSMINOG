@@ -92,7 +92,7 @@ class Control{
      if(target.bounds.width!==task.size.width||target.bounds.height!==task.size.height)throw Error('Размер вкладки изменился');
     }
     if(a.type==='type')await wc.insertText(a.text);
-    if(a.type==='key'){wc.sendInputEvent({type:'keyDown',keyCode:a.key,modifiers:a.modifiers});wc.sendInputEvent({type:'keyUp',keyCode:a.key,modifiers:a.modifiers})}
+    if(a.type==='key'){wc.sendInputEvent({type:'keyDown',keyCode:a.key,modifiers:a.modifiers});if(a.key==='Enter'&&!a.modifiers.length)wc.sendInputEvent({type:'char',keyCode:'Enter'});wc.sendInputEvent({type:'keyUp',keyCode:a.key,modifiers:a.modifiers})}
     if(a.type==='scroll')wc.sendInputEvent({type:'mouseWheel',...point(a.x,a.y),deltaX:a.deltaX,deltaY:a.deltaY});
     if(a.type==='click'){for(let c=1;c<=a.count;c++){wc.sendInputEvent({type:'mouseDown',...point(a.x,a.y),button:'left',clickCount:c});wc.sendInputEvent({type:'mouseUp',...point(a.x,a.y),button:'left',clickCount:c})}}
     if(a.type==='drag'){
