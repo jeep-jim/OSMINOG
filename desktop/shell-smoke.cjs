@@ -184,11 +184,18 @@ module.exports=async(win,browser)=>{
  // Eyelids clip the pupil; the surrounding icon never scales during a blink.
  await run("document.querySelector('.native-update').hidden=false");await frame();
  const eye=await run(`(()=>{const e=document.querySelector('.native-update-symbol .native-logo'),r=e.getBoundingClientRect();const a=e.getAnimations({subtree:true}).find(a=>a.animationName==='native-eye-blink');if(!a)throw Error('Blink animation missing');a.pause();a.currentTime=Number(a.effect.getTiming().duration)*.465;return{width:r.width,height:r.height}})()`);await frame();
- const closed=await run(`(()=>{const e=document.querySelector('.native-update-symbol .native-logo'),r=e.getBoundingClientRect();return{width:r.width,height:r.height,transform:getComputedStyle(e).transform,clip:getComputedStyle(e,'::before').clipPath,pupil:getComputedStyle(e,'::before').backgroundImage}})()`);
- assert.equal(closed.width,eye.width);assert.equal(closed.height,eye.height);assert.equal(closed.transform,'none');assert.match(closed.clip,/47%/);assert.match(closed.pupil,/radial-gradient/);
+ const blinkClosed=await run(`(()=>{const e=document.querySelector('.native-update-symbol .native-logo'),r=e.getBoundingClientRect();return{width:r.width,height:r.height,transform:getComputedStyle(e).transform,clip:getComputedStyle(e,'::before').clipPath,pupil:getComputedStyle(e,'::before').backgroundImage}})()`);
+ assert.equal(blinkClosed.width,eye.width);assert.equal(blinkClosed.height,eye.height);assert.equal(blinkClosed.transform,'none');assert.match(blinkClosed.clip,/47%/);assert.match(blinkClosed.pupil,/radial-gradient/);
  await fs.writeFile('update-eye-closed.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-update').hidden=true;document.querySelector('.native-update-symbol .native-logo').getAnimations({subtree:true}).forEach(a=>a.play())");await frame();
  console.log('INNER_EYELID_BLINK_PASS');
+ const toolResult=await run(`(async()=>{const B=BriefCraftBridge;const file=await B.executeTool('writeFile',{name:'smoke-кириллица.txt',content:'Привет 🐙'});if(!file.ok)throw Error(JSON.stringify(file));const read=await B.executeTool('readFile',{id:file.object.id});const before=new Set(objects().map(o=>o.id));const created=await B.executeTool('canvas.create',{type:'shape',properties:{x:10,y:20,w:40,h:40,fill:'#ff0000'}});if(!created.ok)throw Error(JSON.stringify(created));const shape=objects().find(o=>!before.has(o.id));const copy=await B.executeTool('canvas.duplicate',{id:shape.id,dx:80,dy:0});if(!copy.ok)throw Error(JSON.stringify(copy));const moved=await B.executeTool('canvas.move',{id:shape.id,x:200,y:300});const said=await B.executeTool('agent.say',{message:'Проверка истории команды'});return{read:read.content,shape:{x:shape.x,y:shape.y},copied:objects().some(o=>o.id!==shape.id&&o.type==='shape'&&o.x===90&&o.y===20),moved:moved.ok,said:said.ok,recorded:OSMINOGTeamAPI.transcript().some(m=>m.id===said.messageId)}})()`);
+ assert.equal(toolResult.read,'Привет 🐙');assert.deepEqual(toolResult.shape,{x:200,y:300});assert(toolResult.copied&&toolResult.moved&&toolResult.said&&toolResult.recorded);
+ await run("document.querySelector('[data-do=team]').click()");await frame();await frame();
+ assert.equal(await run("getComputedStyle(document.querySelector('#bridgePanel')).display!=='none'&&!document.querySelector('#bridgePanel').hidden"),true);
+ await run("document.querySelector('#bridgeClose').click()");await frame();
+ console.log('WORKSPACE_FILE_CANVAS_TEAM_TOOLS_PASS');
+
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
