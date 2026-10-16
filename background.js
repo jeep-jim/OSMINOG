@@ -416,7 +416,7 @@ async function bcDeepSeekDirectTabSend(text,context,toolResult=null,requestId=""
   if(!tab)throw new Error("DeepSeek: подключённая вкладка не найдена");
   const rid=requestId||`bc-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
   const key=bcProviderHistoryKey(context,"deepseek-web"),hist=BC_PROVIDER_HISTORY.get(key)||[];
-  const current=toolResult?bcToolPrompt(toolResult,rid):bcDecoratePrompt(text,context,rid),memoryInput=toolResult?"[OSMINOG tool result delivered]":String(text||"").slice(0,2200);
+  const current=bcDecoratePrompt(toolResult?bcToolPrompt(toolResult,rid):text,context,rid),memoryInput=toolResult?"[OSMINOG tool result delivered]":String(text||"").slice(0,2200);
   const prompt=[bcProviderSystem(),...hist.slice(-4).map(x=>`${x.role==='assistant'?'ASSISTANT':'USER'}:\n${String(x.content||"").slice(0,2600)}`),`USER:\n${current}`].join("\n\n");
   const exec=await chrome.scripting.executeScript({target:{tabId:tab.id},world:"MAIN",func:async(prompt)=>{
     const record=v=>v&&typeof v==="object"&&!Array.isArray(v);

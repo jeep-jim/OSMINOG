@@ -7,3 +7,12 @@ test('extension session transport authenticates, sends structured context and pa
 });
 
 test('DeepSeek image turns select the managed adapter instead of failing on automatic context images',async()=>{const t=new SessionTransport({session:{getUserAgent:()=>''}},{fetch:async()=>{throw Error('Unexpected direct request')}});assert.equal(await t.send('deepseek',{text:'Сделай',images:[{dataUrl:'data:image/png;base64,eA=='}]},{project:{id:'p'}},'req',{id:'deep'}),null);t.stop()});
+
+test('DeepSeek fresh service session retains execution instructions and current context after tool feedback',async()=>{
+ const scripts=[];
+ const tab={id:'deep',view:{webContents:{getURL:()=> 'https://chat.deepseek.com/',executeJavaScriptInIsolatedWorld:async(_world,entries)=>{scripts.push(entries[0].code);return{ok:true,answer:'done'}}}}};
+ const t=new SessionTransport({session:{getUserAgent:()=>''},get:id=>{assert.equal(id,'deep');return tab}});
+ const context={project:{id:'p'},chat:{threadId:'task'},execution:{task:'Смени тему',instructions:'UNIQUE_EXECUTOR_INSTRUCTION',tools:['browser_read']},browserContext:{tabs:[{id:'page'}]}};
+ await t.send('deepseek',{text:'Смени тему',result:{results:[{tool:'browser_read',result:{snapshot:'fresh-token'}}]}},context,'req',tab);
+ assert.match(scripts[0],/UNIQUE_EXECUTOR_INSTRUCTION/);assert.match(scripts[0],/browserContext/);assert.match(scripts[0],/fresh-token/);assert.match(scripts[0],/OSMINOG workspace executor/);t.stop();
+});
