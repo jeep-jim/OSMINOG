@@ -153,12 +153,12 @@ body.native-desktop #app[hidden],body.native-desktop:not(.native-shell-open) :is
 #native-browser .native-context>footer{padding:0 0 12px;border-bottom:1px solid var(--stroke);flex-shrink:0;flex-wrap:wrap}
 #native-browser .native-update{gap:14px;max-height:calc(100% - 50px)}
 #native-browser .native-update-symbol{position:relative;overflow:visible;background:var(--raised);width:64px;height:64px;border-radius:22px}
-#native-browser .native-update-symbol .native-logo{width:42px;height:36px;animation:native-eye-blink 4s infinite;transform-origin:center}
+#native-browser .native-update-symbol .native-logo{width:42px;height:36px;animation:none;transform:none}
 .native-update-symbol i{position:absolute;width:5px;height:5px;background:var(--quiet);border-radius:50%;left:50%;top:50%;opacity:0}
-.native-update-symbol:is([data-phase=checking],[data-phase=downloading],[data-phase=installing]) .native-logo{animation:native-eye-blink 2.8s infinite,native-eye-color 5s linear infinite}
+.native-update-symbol:is([data-phase=checking],[data-phase=downloading],[data-phase=installing]) .native-logo{animation:native-eye-color 5s linear infinite}
 .native-update-symbol:is([data-phase=checking],[data-phase=downloading],[data-phase=installing]) i{opacity:.8;animation:native-eye-orbit 2.4s linear infinite}
 .native-update-symbol i:nth-of-type(2){animation-delay:-.8s!important}.native-update-symbol i:nth-of-type(3){animation-delay:-1.6s!important}
-@keyframes native-eye-blink{0%,43%,49%,100%{transform:scaleY(1)}46%{transform:scaleY(.12)}}
+@keyframes native-eye-blink{0%,43%,50%,100%{clip-path:inset(0 round 10px)}46%,47%{clip-path:inset(47% 0 round 10px)}}
 @keyframes native-eye-color{to{filter:hue-rotate(360deg)}}
 @keyframes native-eye-orbit{from{transform:rotate(0deg) translateX(34px)}to{transform:rotate(360deg) translateX(34px)}}
 @media(prefers-reduced-motion:reduce){#native-browser .native-update-symbol *{animation:none!important}}
@@ -166,7 +166,10 @@ body.native-desktop #app[hidden],body.native-desktop:not(.native-shell-open) :is
 #native-browser .native-workspace{position:relative;isolation:isolate;z-index:0}
 #native-browser .native-properties{isolation:isolate}
 
-#native-browser .native-update-symbol .native-logo:before{inset:8px 7px;border-radius:10px}#native-browser .native-update-symbol .native-logo:after{inset:16px 15px;border-radius:5px}
+#native-browser .native-update-symbol .native-logo:before{inset:8px 7px;border-radius:50%;background:radial-gradient(circle at center,#792525 0 4px,#ff2929 4.5px);animation:native-eye-blink 4s ease-in-out infinite}
+#native-browser .native-update-symbol .native-logo:after{display:none}
+#native-browser .native-update-symbol:is([data-phase=checking],[data-phase=downloading],[data-phase=installing]) .native-logo:before{animation-duration:2.8s}
+@media(prefers-reduced-motion:reduce){#native-browser .native-update-symbol .native-logo:before{animation:none!important}}
 
 /* Desktop 0.3.6: one toolbar, external tool dock, layers on the left. */
 html[data-native-desktop] #app{display:none!important}

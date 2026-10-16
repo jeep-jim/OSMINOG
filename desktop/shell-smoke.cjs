@@ -181,6 +181,14 @@ module.exports=async(win,browser)=>{
  assert(Math.abs(tileGeometry.tileWidth-tileGeometry.gridWidth)<2&&Math.abs(tileGeometry.tileHeight-tileGeometry.availableHeight)<2&&(tileGeometry.nextTop===undefined||tileGeometry.nextTop>tileGeometry.bottom),JSON.stringify(tileGeometry));
  console.log('EXTERNAL_TOOL_DOCK_AND_ADAPTIVE_TILES_PASS');
  console.log('CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS');
+ // Eyelids clip the pupil; the surrounding icon never scales during a blink.
+ await run("document.querySelector('.native-update').hidden=false");await frame();
+ const eye=await run(`(()=>{const e=document.querySelector('.native-update-symbol .native-logo'),r=e.getBoundingClientRect();const a=e.getAnimations({subtree:true}).find(a=>a.animationName==='native-eye-blink');if(!a)throw Error('Blink animation missing');a.pause();a.currentTime=Number(a.effect.getTiming().duration)*.465;return{width:r.width,height:r.height}})()`);await frame();
+ const closed=await run(`(()=>{const e=document.querySelector('.native-update-symbol .native-logo'),r=e.getBoundingClientRect();return{width:r.width,height:r.height,transform:getComputedStyle(e).transform,clip:getComputedStyle(e,'::before').clipPath,pupil:getComputedStyle(e,'::before').backgroundImage}})()`);
+ assert.equal(closed.width,eye.width);assert.equal(closed.height,eye.height);assert.equal(closed.transform,'none');assert.match(closed.clip,/47%/);assert.match(closed.pupil,/radial-gradient/);
+ await fs.writeFile('update-eye-closed.png',(await win.webContents.capturePage()).toPNG());
+ await run("document.querySelector('.native-update').hidden=true;document.querySelector('.native-update-symbol .native-logo').getAnimations({subtree:true}).forEach(a=>a.play())");await frame();
+ console.log('INNER_EYELID_BLINK_PASS');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
