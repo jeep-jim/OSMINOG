@@ -1,58 +1,62 @@
-{"timestamp":"2026-10-16T06:52:52.530Z","sessionId":"7f3aaff8-e0ff-47da-8606-4158fa19381a","action":"browser_read","result":true,"duration":15,"error":null}
-{"timestamp":"2026-10-16T06:52:52.786Z","sessionId":"7f3aaff8-e0ff-47da-8606-4158fa19381a","action":"browser_act","result":true,"duration":169,"error":null}
-{"timestamp":"2026-10-16T06:52:52.965Z","sessionId":"7f3aaff8-e0ff-47da-8606-4158fa19381a","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:52:53.143Z","sessionId":"7f3aaff8-e0ff-47da-8606-4158fa19381a","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:52:53.164Z","sessionId":"7f3aaff8-e0ff-47da-8606-4158fa19381a","action":"browser_read","result":true,"duration":6,"error":null}
-{"timestamp":"2026-10-16T06:52:53.207Z","sessionId":"7f3aaff8-e0ff-47da-8606-4158fa19381a","action":"canvas_patch","result":true,"duration":30,"error":null}
-{"timestamp":"2026-10-16T06:52:54.047Z","sessionId":"02a22316-98b0-4b7a-adb3-46a9b3c96c94","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
-{"timestamp":"2026-10-16T06:52:54.077Z","sessionId":"02a22316-98b0-4b7a-adb3-46a9b3c96c94","action":"browser_read","result":true,"duration":19,"error":null}
-{"timestamp":"2026-10-16T06:52:54.258Z","sessionId":"02a22316-98b0-4b7a-adb3-46a9b3c96c94","action":"browser_act","result":true,"duration":167,"error":null}
-{"timestamp":"2026-10-16T06:52:54.437Z","sessionId":"02a22316-98b0-4b7a-adb3-46a9b3c96c94","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:52:54.971Z","sessionId":"1da8574a-0a98-48a7-9059-11b00cfd0c58","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:52:54.973Z","sessionId":"1da8574a-0a98-48a7-9059-11b00cfd0c58","action":"acceptance.1 theme (native fixture)","result":true,"duration":177,"error":null}
-{"timestamp":"2026-10-16T06:52:55.143Z","sessionId":"d1149163-0451-4aa9-87aa-fc52d84be957","action":"browser_act","result":true,"duration":164,"error":null}
-{"timestamp":"2026-10-16T06:52:55.315Z","sessionId":"d1149163-0451-4aa9-87aa-fc52d84be957","action":"browser_act","result":true,"duration":167,"error":null}
-{"timestamp":"2026-10-16T06:52:55.317Z","sessionId":"d1149163-0451-4aa9-87aa-fc52d84be957","action":"acceptance.2 search text (native fixture)","result":true,"duration":343,"error":null}
-{"timestamp":"2026-10-16T06:52:55.486Z","sessionId":"a658e461-a5d3-4c09-b149-75e62d51f10b","action":"browser_act","result":true,"duration":164,"error":null}
-{"timestamp":"2026-10-16T06:52:55.659Z","sessionId":"a658e461-a5d3-4c09-b149-75e62d51f10b","action":"browser_act","result":true,"duration":167,"error":null}
-{"timestamp":"2026-10-16T06:52:55.829Z","sessionId":"a658e461-a5d3-4c09-b149-75e62d51f10b","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:52:55.835Z","sessionId":"a658e461-a5d3-4c09-b149-75e62d51f10b","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":517,"error":null}
-{"timestamp":"2026-10-16T06:52:56.021Z","sessionId":"61570529-58e8-443a-bf23-984126328141","action":"browser_act","result":true,"duration":169,"error":null}
-{"timestamp":"2026-10-16T06:52:56.207Z","sessionId":"61570529-58e8-443a-bf23-984126328141","action":"browser_act","result":true,"duration":167,"error":null}
-{"timestamp":"2026-10-16T06:52:56.226Z","sessionId":"61570529-58e8-443a-bf23-984126328141","action":"browser_act","result":false,"duration":12,"error":"USER_CANCELLED"}
-{"timestamp":"2026-10-16T06:52:56.228Z","sessionId":"61570529-58e8-443a-bf23-984126328141","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":392,"error":null}
-{"timestamp":"2026-10-16T06:52:56.258Z","sessionId":"fbb79047-6c23-4d9c-92b7-a13e0bafe76c","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
-{"timestamp":"2026-10-16T06:52:56.292Z","sessionId":"fbb79047-6c23-4d9c-92b7-a13e0bafe76c","action":"browser_act","result":false,"duration":11,"error":"BLOCKED_BY_RULE"}
-{"timestamp":"2026-10-16T06:52:56.293Z","sessionId":"fbb79047-6c23-4d9c-92b7-a13e0bafe76c","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":64,"error":null}
-{"timestamp":"2026-10-16T06:52:56.318Z","sessionId":"54fa91c2-c39d-44bf-ae9c-1e92d288e3b5","action":"browser_act","result":false,"duration":15,"error":"ACTION_FAILED"}
-{"timestamp":"2026-10-16T06:52:56.518Z","sessionId":"54fa91c2-c39d-44bf-ae9c-1e92d288e3b5","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:52:56.520Z","sessionId":"54fa91c2-c39d-44bf-ae9c-1e92d288e3b5","action":"acceptance.6 queue failure and alternative","result":true,"duration":226,"error":null}
-{"timestamp":"2026-10-16T06:54:58.823Z","sessionId":"e56b8637-5678-4b7f-88a0-5381920bb2a6","action":"browser_read","result":true,"duration":18,"error":null}
-{"timestamp":"2026-10-16T06:54:59.023Z","sessionId":"e56b8637-5678-4b7f-88a0-5381920bb2a6","action":"browser_act","result":true,"duration":178,"error":null}
-{"timestamp":"2026-10-16T06:54:59.210Z","sessionId":"e56b8637-5678-4b7f-88a0-5381920bb2a6","action":"browser_act","result":true,"duration":171,"error":null}
-{"timestamp":"2026-10-16T06:54:59.390Z","sessionId":"e56b8637-5678-4b7f-88a0-5381920bb2a6","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:54:59.416Z","sessionId":"e56b8637-5678-4b7f-88a0-5381920bb2a6","action":"browser_read","result":true,"duration":10,"error":null}
-{"timestamp":"2026-10-16T06:54:59.526Z","sessionId":"e56b8637-5678-4b7f-88a0-5381920bb2a6","action":"canvas_patch","result":true,"duration":95,"error":null}
-{"timestamp":"2026-10-16T06:55:00.307Z","sessionId":"a0fe334a-85c9-406e-8856-42974890f4ff","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
-{"timestamp":"2026-10-16T06:55:00.340Z","sessionId":"a0fe334a-85c9-406e-8856-42974890f4ff","action":"browser_read","result":true,"duration":20,"error":null}
-{"timestamp":"2026-10-16T06:55:00.524Z","sessionId":"a0fe334a-85c9-406e-8856-42974890f4ff","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:55:00.703Z","sessionId":"a0fe334a-85c9-406e-8856-42974890f4ff","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:55:01.225Z","sessionId":"b582a19c-a1fd-44d6-8286-ea1dc909e529","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:55:01.227Z","sessionId":"b582a19c-a1fd-44d6-8286-ea1dc909e529","action":"acceptance.1 theme (native fixture)","result":true,"duration":177,"error":null}
-{"timestamp":"2026-10-16T06:55:01.410Z","sessionId":"9451e149-cce1-4351-91a8-ebef8717d2a5","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:55:01.580Z","sessionId":"9451e149-cce1-4351-91a8-ebef8717d2a5","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:55:01.582Z","sessionId":"9451e149-cce1-4351-91a8-ebef8717d2a5","action":"acceptance.2 search text (native fixture)","result":true,"duration":354,"error":null}
-{"timestamp":"2026-10-16T06:55:01.754Z","sessionId":"fbb991dd-ec5e-45fd-9d3d-32012fc241c0","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:55:01.926Z","sessionId":"fbb991dd-ec5e-45fd-9d3d-32012fc241c0","action":"browser_act","result":true,"duration":167,"error":null}
-{"timestamp":"2026-10-16T06:55:02.097Z","sessionId":"fbb991dd-ec5e-45fd-9d3d-32012fc241c0","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:55:02.103Z","sessionId":"fbb991dd-ec5e-45fd-9d3d-32012fc241c0","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":520,"error":null}
-{"timestamp":"2026-10-16T06:55:02.286Z","sessionId":"fa07fed1-df3e-4b95-bd08-0ce3a00db5fc","action":"browser_act","result":true,"duration":165,"error":null}
-{"timestamp":"2026-10-16T06:55:02.458Z","sessionId":"fa07fed1-df3e-4b95-bd08-0ce3a00db5fc","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:55:02.478Z","sessionId":"fa07fed1-df3e-4b95-bd08-0ce3a00db5fc","action":"browser_act","result":false,"duration":14,"error":"USER_CANCELLED"}
-{"timestamp":"2026-10-16T06:55:02.480Z","sessionId":"fa07fed1-df3e-4b95-bd08-0ce3a00db5fc","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":376,"error":null}
-{"timestamp":"2026-10-16T06:55:02.510Z","sessionId":"8f101ef5-503f-4910-ba6a-78c4e373e3f6","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
-{"timestamp":"2026-10-16T06:55:02.541Z","sessionId":"8f101ef5-503f-4910-ba6a-78c4e373e3f6","action":"browser_act","result":false,"duration":11,"error":"BLOCKED_BY_RULE"}
-{"timestamp":"2026-10-16T06:55:02.542Z","sessionId":"8f101ef5-503f-4910-ba6a-78c4e373e3f6","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":61,"error":null}
-{"timestamp":"2026-10-16T06:55:02.572Z","sessionId":"bbffb10b-df80-4a94-b63f-1a8213e86c46","action":"browser_act","result":false,"duration":15,"error":"ACTION_FAILED"}
-{"timestamp":"2026-10-16T06:55:02.755Z","sessionId":"bbffb10b-df80-4a94-b63f-1a8213e86c46","action":"browser_act","result":true,"duration":166,"error":null}
-{"timestamp":"2026-10-16T06:55:02.757Z","sessionId":"bbffb10b-df80-4a94-b63f-1a8213e86c46","action":"acceptance.6 queue failure and alternative","result":true,"duration":214,"error":null}
+{"timestamp":"2026-10-16T07:30:26.908Z","sessionId":"39858b9f-2044-472f-84b6-5f3444c2bc9a","action":"browser_read","result":true,"duration":1,"error":null}
+{"timestamp":"2026-10-16T07:30:27.088Z","sessionId":"39858b9f-2044-472f-84b6-5f3444c2bc9a","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T07:30:27.267Z","sessionId":"39858b9f-2044-472f-84b6-5f3444c2bc9a","action":"browser_act","result":true,"duration":163,"error":null}
+{"timestamp":"2026-10-16T07:30:27.441Z","sessionId":"39858b9f-2044-472f-84b6-5f3444c2bc9a","action":"browser_act","result":true,"duration":162,"error":null}
+{"timestamp":"2026-10-16T07:30:27.456Z","sessionId":"39858b9f-2044-472f-84b6-5f3444c2bc9a","action":"browser_read","result":true,"duration":1,"error":null}
+{"timestamp":"2026-10-16T07:30:27.511Z","sessionId":"39858b9f-2044-472f-84b6-5f3444c2bc9a","action":"canvas_patch","result":true,"duration":43,"error":null}
+{"timestamp":"2026-10-16T07:30:28.355Z","sessionId":"82ff46f9-40ff-4830-a9a2-44e094e42367","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
+{"timestamp":"2026-10-16T07:30:28.368Z","sessionId":"82ff46f9-40ff-4830-a9a2-44e094e42367","action":"browser_read","result":true,"duration":1,"error":null}
+{"timestamp":"2026-10-16T07:30:28.545Z","sessionId":"82ff46f9-40ff-4830-a9a2-44e094e42367","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T07:30:28.721Z","sessionId":"82ff46f9-40ff-4830-a9a2-44e094e42367","action":"browser_act","result":true,"duration":163,"error":null}
+{"timestamp":"2026-10-16T07:30:28.867Z","sessionId":"9d728584-6709-4095-9014-c41c2d7ca71a","action":"web_image_search","result":true,"duration":8,"error":null}
+{"timestamp":"2026-10-16T07:30:28.903Z","sessionId":"9d728584-6709-4095-9014-c41c2d7ca71a","action":"asset_create","result":true,"duration":23,"error":null}
+{"timestamp":"2026-10-16T07:30:29.447Z","sessionId":"768fa908-5859-4e2e-a408-cff210043c28","action":"browser_act","result":true,"duration":171,"error":null}
+{"timestamp":"2026-10-16T07:30:29.449Z","sessionId":"768fa908-5859-4e2e-a408-cff210043c28","action":"acceptance.1 theme (native fixture)","result":true,"duration":191,"error":null}
+{"timestamp":"2026-10-16T07:30:29.630Z","sessionId":"e0b8f455-2d15-4cf4-a23f-338f630ed110","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T07:30:29.817Z","sessionId":"e0b8f455-2d15-4cf4-a23f-338f630ed110","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:30:29.819Z","sessionId":"e0b8f455-2d15-4cf4-a23f-338f630ed110","action":"acceptance.2 search text (native fixture)","result":true,"duration":369,"error":null}
+{"timestamp":"2026-10-16T07:30:29.992Z","sessionId":"eb0c347c-5bfd-459b-825e-7f076a45c8de","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T07:30:30.176Z","sessionId":"eb0c347c-5bfd-459b-825e-7f076a45c8de","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:30:30.364Z","sessionId":"eb0c347c-5bfd-459b-825e-7f076a45c8de","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T07:30:30.371Z","sessionId":"eb0c347c-5bfd-459b-825e-7f076a45c8de","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":550,"error":null}
+{"timestamp":"2026-10-16T07:30:30.552Z","sessionId":"09481fcc-e47d-4eb6-b1ba-63768dfc0ab8","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:30:30.739Z","sessionId":"09481fcc-e47d-4eb6-b1ba-63768dfc0ab8","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T07:30:30.774Z","sessionId":"09481fcc-e47d-4eb6-b1ba-63768dfc0ab8","action":"browser_act","result":false,"duration":15,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-16T07:30:30.776Z","sessionId":"09481fcc-e47d-4eb6-b1ba-63768dfc0ab8","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":403,"error":null}
+{"timestamp":"2026-10-16T07:30:30.804Z","sessionId":"87357781-3bf7-4879-9779-dc7bc255d2e5","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T07:30:30.841Z","sessionId":"87357781-3bf7-4879-9779-dc7bc255d2e5","action":"browser_act","result":false,"duration":10,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T07:30:30.843Z","sessionId":"87357781-3bf7-4879-9779-dc7bc255d2e5","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":66,"error":null}
+{"timestamp":"2026-10-16T07:30:30.882Z","sessionId":"5c38f5eb-d7bd-412f-a2bd-0d9397ad97e6","action":"browser_act","result":false,"duration":15,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-16T07:30:31.066Z","sessionId":"5c38f5eb-d7bd-412f-a2bd-0d9397ad97e6","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:30:31.067Z","sessionId":"5c38f5eb-d7bd-412f-a2bd-0d9397ad97e6","action":"acceptance.6 queue failure and alternative","result":true,"duration":222,"error":null}
+{"timestamp":"2026-10-16T07:33:00.036Z","sessionId":"aa57db89-70cc-4e33-a927-63fcb22b61e1","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-16T07:33:00.216Z","sessionId":"aa57db89-70cc-4e33-a927-63fcb22b61e1","action":"browser_act","result":true,"duration":165,"error":null}
+{"timestamp":"2026-10-16T07:33:00.395Z","sessionId":"aa57db89-70cc-4e33-a927-63fcb22b61e1","action":"browser_act","result":true,"duration":164,"error":null}
+{"timestamp":"2026-10-16T07:33:00.573Z","sessionId":"aa57db89-70cc-4e33-a927-63fcb22b61e1","action":"browser_act","result":true,"duration":163,"error":null}
+{"timestamp":"2026-10-16T07:33:00.589Z","sessionId":"aa57db89-70cc-4e33-a927-63fcb22b61e1","action":"browser_read","result":true,"duration":0,"error":null}
+{"timestamp":"2026-10-16T07:33:00.732Z","sessionId":"aa57db89-70cc-4e33-a927-63fcb22b61e1","action":"canvas_patch","result":true,"duration":128,"error":null}
+{"timestamp":"2026-10-16T07:33:01.563Z","sessionId":"37120309-6649-4fc3-901e-01c06efdfbef","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
+{"timestamp":"2026-10-16T07:33:01.580Z","sessionId":"37120309-6649-4fc3-901e-01c06efdfbef","action":"browser_read","result":true,"duration":1,"error":null}
+{"timestamp":"2026-10-16T07:33:01.759Z","sessionId":"37120309-6649-4fc3-901e-01c06efdfbef","action":"browser_act","result":true,"duration":164,"error":null}
+{"timestamp":"2026-10-16T07:33:01.937Z","sessionId":"37120309-6649-4fc3-901e-01c06efdfbef","action":"browser_act","result":true,"duration":164,"error":null}
+{"timestamp":"2026-10-16T07:33:02.089Z","sessionId":"eb9f0f24-28b1-4408-be26-ebf07786c710","action":"web_image_search","result":true,"duration":10,"error":null}
+{"timestamp":"2026-10-16T07:33:02.179Z","sessionId":"eb9f0f24-28b1-4408-be26-ebf07786c710","action":"asset_create","result":true,"duration":63,"error":null}
+{"timestamp":"2026-10-16T07:33:02.709Z","sessionId":"511d45d6-cac0-4671-abfb-937b1a26707e","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-16T07:33:02.711Z","sessionId":"511d45d6-cac0-4671-abfb-937b1a26707e","action":"acceptance.1 theme (native fixture)","result":true,"duration":190,"error":null}
+{"timestamp":"2026-10-16T07:33:02.894Z","sessionId":"2f5c9800-a364-44b9-8d96-da3fdf8bdcd3","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:33:03.069Z","sessionId":"2f5c9800-a364-44b9-8d96-da3fdf8bdcd3","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:33:03.071Z","sessionId":"2f5c9800-a364-44b9-8d96-da3fdf8bdcd3","action":"acceptance.2 search text (native fixture)","result":true,"duration":358,"error":null}
+{"timestamp":"2026-10-16T07:33:03.253Z","sessionId":"4bc714cb-627e-4c74-9e8d-e0544e38a31b","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T07:33:03.427Z","sessionId":"4bc714cb-627e-4c74-9e8d-e0544e38a31b","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:33:03.612Z","sessionId":"4bc714cb-627e-4c74-9e8d-e0544e38a31b","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T07:33:03.619Z","sessionId":"4bc714cb-627e-4c74-9e8d-e0544e38a31b","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":547,"error":null}
+{"timestamp":"2026-10-16T07:33:03.801Z","sessionId":"f6e179d5-b732-4584-afcb-fb9445fc1654","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:33:03.989Z","sessionId":"f6e179d5-b732-4584-afcb-fb9445fc1654","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:33:04.022Z","sessionId":"f6e179d5-b732-4584-afcb-fb9445fc1654","action":"browser_act","result":false,"duration":13,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-16T07:33:04.024Z","sessionId":"f6e179d5-b732-4584-afcb-fb9445fc1654","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":403,"error":null}
+{"timestamp":"2026-10-16T07:33:04.054Z","sessionId":"f08d7ec4-0720-45bb-916d-9ea02fa23a94","action":"browser_act","result":false,"duration":14,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T07:33:04.083Z","sessionId":"f08d7ec4-0720-45bb-916d-9ea02fa23a94","action":"browser_act","result":false,"duration":6,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T07:33:04.085Z","sessionId":"f08d7ec4-0720-45bb-916d-9ea02fa23a94","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":59,"error":null}
+{"timestamp":"2026-10-16T07:33:04.117Z","sessionId":"509620f9-d2a4-4458-9768-f4a260dc253c","action":"browser_act","result":false,"duration":14,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-16T07:33:04.303Z","sessionId":"509620f9-d2a4-4458-9768-f4a260dc253c","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T07:33:04.305Z","sessionId":"509620f9-d2a4-4458-9768-f4a260dc253c","action":"acceptance.6 queue failure and alternative","result":true,"duration":218,"error":null}

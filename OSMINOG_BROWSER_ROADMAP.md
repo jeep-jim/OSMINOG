@@ -843,3 +843,17 @@ browser_act принимает ровно одно действие. После 
 Изменения: DOM-first только для исполнителя обычного чата; видимые canvas автоматически требуют снимка, includeScreenshot:true сохраняет явный запрос. При обратной связи сохраняется выбранный режим. Читаются значения несекретных полей для проверки фактического ввода. Контекст включает ограниченный фрагмент исходного чата как недоверенную ссылочную информацию и недавние команды (в памяти, изоляция по проекту/вкладке/маршруту/ревизии доступа). Ошибки workspace {error} больше не трактуются как успех. Результаты поиска изображений остаются в памяти хоста; asset_create принимает проверенный assetRef текущей задачи. Фоновая служебная вкладка отключает backgroundThrottling. Неподтверждённое прикрепление снимка останавливает отправку. В статусе отображаются этапы и итог исполнителя, а не неподтверждённое общее состояние подключения.
 
 Локально 122 unit-теста пройдены. Добавлены Windows-сценарии импорта скачанной картинки из обычного чата и ответа скрытой служебной вкладки с вложением. Пока Windows-кандидат не проверен и не опубликован. Исходный облачный диалог по-прежнему не получил vendor-native tools; работа живого аккаунта DeepSeek/Figma не подтверждена. Не объявлять эти пункты закрытыми по fixture-проверкам.
+
+
+### 16 октября 2026 — опубликовано 4.0.14
+
+- PR55 объединён: 78c2b63a67a5c45fed50797cdb4365d5469fec5b; проверенная ветка f1a1d371fca7255941705ab43b40f0bc6eb37bfe.
+- Windows CI 38867511910, job 116863639739 и Agent CI 38867512156 — success. 122 unit-теста. Установленная копия: HIDDEN_SERVICE_IMAGE_REPLY_PASS, ORIGINAL_CHAT_WEB_IMAGE_IMPORT_PASS, шесть ORCHESTRATOR_ACCEPTANCE_PASS. Это контролируемые страницы и ответы, не живые аккаунты.
+- Логи: logs/orchestrator.log, docs/verification/4.0.14/installed-session-smoke.log и installed-provider-smoke.log; orchestrator-progress.png — реальный снимок тестового чата.
+- Первый Windows run 38867266193 остановился в desktop/provider-smoke.cjs:42:10: AssertionError actual undefined, expected false. getLastWebPreferences() не возвращал backgroundThrottling; проверка исправлена на getBackgroundThrottling(). Повторный полный CI успешен.
+- Runtime source ed08c5d8a59af183d07dae2aed0b0866ab16a639 совпадает с merge по всем 399 blob-файлам. Runtime 4829341 bytes, SHA256 78e40b80caded289b5cd50193a8c69bc51f5776b1b7b05cfbab3686d325f9f12. Архив CI проверен по SHA256 8099f46d683fec98d1aae06144b652d1421d90aceabcd755e68ad741692ef8f0.
+- Release staging 3c4ed2545d27a09cfd828529aa655bfefd443e38; публикация 38868690085, job 116867390586 — success. UPDATE_INSTALL_STARTED и INSTALLED_UPDATE_SMOKE_PASS 4.0.14: обновление с 4.0.13, сохранение проекта и cookie. В тестовом локальном feed старый blockmap дал 404; updater штатно скачал полный установщик и завершил обновление.
+- Установщик 115218993 bytes, SHA256 5111d32a4e509750336f518ae6d0e664a7024d24f5fef8bdf4d1c39ecf150318.
+- Ссылка: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/windows-v4.0.14/OSMINOG-Preview-4.0.14-x64.exe
+- channels/dev/windows.json и публичный latest.yml переключены на 4.0.14.
+- Не закрыто: vendor-native tools в исходном облачном диалоге и подтверждение живых DeepSeek/GPT/Claude/Figma. Контекст и выполнение обслуживает отдельный исполнитель; исходное сообщение не переписывается, API-ключи не добавлялись. Fixture-тесты не означают универсальное управление из любого веб-чата.
