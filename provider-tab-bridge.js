@@ -230,11 +230,47 @@
   }
 
   function dataUrlFile(dataUrl,name="screenshot.png",type="image/png"){try{const [head,payload]=String(dataUrl||"").split(","),mime=head.match(/^data:([^;]+)/i)?.[1]||type,binary=head.includes(";base64")?atob(payload):decodeURIComponent(payload),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new File([bytes],name,{type:mime})}catch{return null}}
-  function imageAttachmentSignal(){let count=0;for(const img of queryAllDeep("img")){if(!vis(img))continue;const src=String(img.currentSrc||img.src||"");if(/^blob:|^data:image\//i.test(src))count++}for(const el of queryAllDeep("[style*='blob:'],[style*='data:image']"))if(vis(el))count++;return count}
-  async function uploadImages(images=[],target=null){if(!images.length)return{ok:true,count:0};const dt=new DataTransfer(),names=[];for(const item of images.slice(0,6)){const name=item.name||`screenshot-${Date.now()}.png`,file=dataUrlFile(item.dataUrl||item.previewDataUrl,name,item.type||"image/png");if(file){dt.items.add(file);names.push(name)}}if(!dt.files.length)throw new Error("OSMINOG не смог подготовить изображение для отправки.");const before=imageAttachmentSignal(),fileInputs=queryAllDeep('input[type="file"]');let input=fileInputs.find(el=>!el.disabled&&/image|\*/i.test(el.accept||"*"))||fileInputs[0],method="file";if(input){try{input.files=dt.files;input.dispatchEvent(new Event("input",{bubbles:true,composed:true}));input.dispatchEvent(new Event("change",{bubbles:true,composed:true}))}catch{input=null}}
-    if(!input){method="paste";const host=target||composer();if(!host)throw new Error("Поле для изображения не найдено.");const evt=new Event("paste",{bubbles:true,cancelable:true});try{Object.defineProperty(evt,"clipboardData",{value:dt})}catch{}host.dispatchEvent(evt)}
-    const started=Date.now();while(Date.now()-started<6000){await sleep(220);const signal=imageAttachmentSignal();const named=names.some(name=>{const token=name.toLowerCase();return [...document.querySelectorAll("[aria-label],[title],span,div")].some(el=>vis(el)&&String(el.getAttribute("aria-label")||el.getAttribute("title")||el.textContent||"").toLowerCase().includes(token))});if(signal>before||named)return{ok:true,count:dt.files.length,method}}
-    if(provider==="googleai")throw new Error("Google AI не подтвердил прикрепление изображения. Запрос не отправлен без картинки.");return{ok:true,count:dt.files.length,method,unconfirmed:true}}
+  function attachmentScope(target){return target.closest('form,[data-type="unified-composer"],[data-testid*="composer"],[class*="composer"]')||target.parentElement?.parentElement||target.parentElement}
+  function attachmentState(scope,names){
+    if(!scope)return{previews:[],names:[],busy:false,error:''};
+    const previews=queryAllDeep('img,[style*="background-image"]',scope).filter(vis).map(el=>el.currentSrc||el.src||el.style.backgroundImage).filter(Boolean);
+    const labels=queryAllDeep('[aria-label],[title],span,p,div',scope).filter(vis).flatMap(el=>[el.getAttribute('aria-label'),el.title,el.childElementCount===0?el.textContent:'']).filter(Boolean);
+    const found=names.filter(name=>labels.some(label=>String(label).toLowerCase().includes(name.toLowerCase())));
+    const busy=queryAllDeep('[role="progressbar"],[aria-busy="true"],[data-state="uploading"]',scope).some(vis);
+    const error=queryAllDeep('[role="alert"],[data-state="error"]',scope).filter(vis).map(el=>textOf(el)).find(t=>/upload|attach|file|image|загруз|прикреп|файл|изображ/i.test(t))||'';
+    return{previews,names:found,busy,error};
+  }
+  function imageFileInput(){return queryAllDeep('input[type="file"]').find(el=>!el.disabled&&(!el.accept||/image\/|\*|\.(png|jpe?g|webp|gif|avif)(?:[,\s]|$)/i.test(el.accept)))}
+  async function uploadImages(images=[],target=null){
+    if(!images.length)return{ok:true,count:0};
+    const host=target||composer();if(!host)throw Error('ATTACHMENT_COMPOSER_MISSING: поле для изображения не найдено');
+    const generation=cancelEpoch,dt=new DataTransfer(),names=[];
+    for(const item of images.slice(0,6)){const file=dataUrlFile(item.dataUrl||item.previewDataUrl,item.name||`screenshot-${names.length+1}.png`,item.type||'image/png');if(!file)throw Error('ATTACHMENT_INVALID: не удалось подготовить изображение');dt.items.add(file);names.push(file.name)}
+    const before=attachmentState(attachmentScope(host),names);let input=imageFileInput(),method='file';
+    if(!input){
+      // Modern composers create the upload input only after opening their + menu.
+      const menu=queryAllDeep('button,[role="button"]',attachmentScope(host)).find(el=>vis(el)&&!el.disabled&&(el.getAttribute('data-testid')==='composer-plus-btn'||/attach|upload|add files|add photos|добавить.*(файл|фото)|прикреп/i.test(el.getAttribute('aria-label')||el.title||'')));
+      if(menu){menu.click();for(let i=0;i<10&&!input;i++){await sleep(100);input=imageFileInput()}}
+    }
+    if(input){
+      if(dt.files.length>1&&!input.multiple)throw Error('ATTACHMENT_MULTIPLE_UNSUPPORTED: сайт принимает только один файл');
+      input.files=dt.files;input.dispatchEvent(new Event('input',{bubbles:true,composed:true}));input.dispatchEvent(new Event('change',{bubbles:true,composed:true}));
+    }else{
+      method='paste';host.focus();const event=new ClipboardEvent('paste',{bubbles:true,composed:true,cancelable:true,clipboardData:dt});host.dispatchEvent(event);
+    }
+    const started=Date.now();let readyAt=0,last=before;
+    while(Date.now()-started<20000){
+      if(generation!==cancelEpoch)throw Error('Управление остановлено пользователем');
+      await sleep(150);const live=composer()||host;last=attachmentState(attachmentScope(live),names);
+      if(last.error)throw Error('ATTACHMENT_REJECTED: '+last.error.slice(0,240));
+      const added=last.previews.filter(src=>!before.previews.includes(src)).length;
+      const named=last.names.length===names.length&&last.names.some(name=>!before.names.includes(name));
+      // A changed FileList alone is not evidence. Require all new previews or file
+      // labels in the composer, finished upload and a stable ready state.
+      if(!last.busy&&(added>=names.length||named)){if(!readyAt)readyAt=Date.now();if(Date.now()-readyAt>=600)return{ok:true,count:dt.files.length,method}}else readyAt=0;
+    }
+    throw Error(`ATTACHMENT_NOT_READY: сайт не подтвердил готовность ${names.length} изображений (способ: ${method}, новых превью: ${last.previews.filter(src=>!before.previews.includes(src)).length}, загрузка: ${last.busy?'идёт':'не обнаружена'}). Команда не отправлена.`);
+  }
 
 
   async function uploadDirectAttachments(items,input){
@@ -287,7 +323,7 @@
     if(isGpt()&&!syncBinding&&!managedAgentSession)throw new Error("Подключи синхронизацию этого чата в OSMINOG");
     if(internalSending||nativePending)throw new Error("Дождись текущего ответа в подключённом диалоге");
     if(syncBinding&&syncBinding.route!==route())throw new Error("Открыт другой диалог. Подключи его отдельно.");
-    const input=composer();
+    let input=composer();
     if(!input)throw new Error("Поле ввода не найдено. Открой Google AI Mode/диалог провайдера в служебной вкладке.");
     const draft=clean(input.value??input.innerText??input.textContent);
     if(draft)throw new Error("В оригинальном чате набран текст. Отправь или убери его перед запросом из OSMINOG.");
@@ -295,7 +331,8 @@
     internalSending=true;document.documentElement.dataset.osminogSyncInternal='1';
     const before=snapshot(),initialRoute=route(),generation=cancelEpoch;
     try{if(strictAttachments)await uploadDirectAttachments(images,input);else{const uploaded=await uploadImages(images,input);if(uploaded?.unconfirmed)throw Error('Сайт ИИ не подтвердил загрузку снимка. Команда не отправлена без изображения.')}if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
-    if(strictAttachments&&clean(input.value??input.innerText??input.textContent))throw Error('В чате появился новый черновик. Он сохранён; продолжение остановлено.');
+    input=composer();if(!input)throw Error('ATTACHMENT_COMPOSER_MISSING: поле ввода исчезло после загрузки');
+    if(clean(input.value??input.innerText??input.textContent))throw Error('В чате появился новый черновик. Он сохранён; продолжение остановлено.');
     setComposer(input,text);
     await sleep(180);
     const button=sendButton(input);
