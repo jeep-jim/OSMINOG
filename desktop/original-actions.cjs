@@ -6,7 +6,7 @@ function actionEnvelope(text){
  if(source.startsWith('{'))blocks.push(source);
  for(const block of blocks){let v;try{v=JSON.parse(block)}catch{continue}
   if(!v||!Array.isArray(v.actions))continue;
-  if(!v.actions.length)return{empty:true};
+  if(!v.actions.length)return{empty:true,summary:typeof v.summary==='string'?v.summary:'Новых действий нет'};
   if(v.actions.length!==1||typeof v.id!=='string'||typeof v.snapshot!=='string')return{error:'Нужны id вкладки и snapshot из browser_read, затем ровно одно действие. После результата спланируй следующий шаг.'};
   const a=v.actions[0],finite=(...keys)=>keys.every(k=>typeof a?.[k]==='number'&&Number.isFinite(a[k]));
   const valid=a&&((a.type==='click'&&finite('x','y')&&(a.count===undefined||[1,2,3].includes(a.count)))||(a.type==='type'&&typeof a.text==='string'&&a.text.length<=100000)||(a.type==='key'&&typeof a.key==='string')||(a.type==='scroll'&&finite('x','y','deltaX','deltaY'))||(a.type==='drag'&&finite('x','y','toX','toY')));
@@ -53,7 +53,7 @@ class OriginalActions{
     t.route=tab.view.webContents.getURL().split('?')[0];
     if(!response?.ok)throw Error(response?.error||'Служебное соединение ИИ не ответило');
     const p={...(response.payload||{})},envelope=!p.request&&!p.patch?actionEnvelope(p.text):null;
-    if(envelope?.request)p.request=envelope.request;
+    if(envelope?.request)p.request=envelope.request;if(envelope?.empty)p.text=envelope.summary;
     const calls=p.request?.calls;
     const invalidRequest=p.request&&(!Array.isArray(calls)||!calls.length||calls.length>8||calls.some(c=>!c||typeof c.tool!=='string'||!c.args||typeof c.args!=='object'||Array.isArray(c.args)));
     if(envelope?.error||invalidRequest||(!envelope?.empty&&!p.patch&&!calls?.length&&!t.history.length&&formatRepairs===0)){
