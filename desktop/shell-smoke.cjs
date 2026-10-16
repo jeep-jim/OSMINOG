@@ -145,8 +145,8 @@ module.exports=async(win,browser)=>{
  assert((await run("document.querySelector('.native-cell').getBoundingClientRect().height"))>height);
  const closed=await run("(()=>{const c=document.querySelector('.native-cell:has(.native-pane-close)'),id=c.dataset.paneId;c.querySelector('.native-pane-close').click();return id})()");await frame();
  assert(!browser.state().tabs.some(t=>t.id===closed));assert.equal(await run(`document.querySelectorAll('[data-tab-id="${closed}"]').length`),0);
- const closedRail=await run("(()=>{const c=document.querySelector('.native-tabs .native-tab:has(.native-tab-close)'),id=c.dataset.tabId;c.querySelector('.native-tab-close').click();return id})()");await frame();
- assert(!browser.state().tabs.some(t=>t.id===closedRail));assert.equal(await run(`document.querySelectorAll('[data-pane-id="${closedRail}"]').length`),0);
+ assert.equal(await run("document.querySelectorAll('.native-tabs .native-tab-close').length"),0,'Left tabs must not have close buttons');
+
  await run("document.querySelector('.native-canvas-collapse').click()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas').length"),0);
  await new Promise(r=>setTimeout(r,250));assert.equal((await browser.store.get('browserShell')).browserShell[browser.project].canvasHidden,true);
  await run("OSMINOGNativeBrowser.open()");await frame();assert.equal(await run("document.querySelectorAll('.native-canvas').length"),0);

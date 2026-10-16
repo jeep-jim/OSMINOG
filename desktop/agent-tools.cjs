@@ -1,10 +1,10 @@
 'use strict';
 const {randomUUID}=require('node:crypto'),{readPage,providerFor}=require('./page-context.cjs'),{parsePlan}=require('./control.cjs');
 class AgentTools{
- constructor(browser,control){this.browser=browser;this.control=control;this.snapshots=new Map();this.autoExecute=true}
+ constructor(browser,control){this.browser=browser;this.control=control;this.snapshots=new Map();this.autoExecute=false}
  stop(){this.snapshots.clear();this.control.stop()}
  target(id){if(this.browser.contextScope&&!this.browser.contextScope.includes(String(id)))throw Error('Источник закрыт: разрешите вкладку в настройках контекста');const t=this.browser.get(String(id));if(providerFor(t.view.webContents.getURL()))throw Error('Инструмент вкладок не управляет чатом ИИ');return t}
- async run(name,args={}){
+ async run(name,args={},options={}){
   if(name==='browser_context')return{ok:true,context:await this.browser.context.refresh()};
   const t=this.target(args.id),wc=t.view.webContents;
   if(name==='browser_read'){
@@ -28,10 +28,10 @@ class AgentTools{
   if(this.control.busy||this.control.task?.plan)throw Error('Управление вкладкой уже выполняется');
   const plan=parsePlan(JSON.stringify({summary:'Действие из внутреннего чата',actions:args.actions}));
   if(plan.actions.length!==1)throw Error('Автопилот выполняет одно действие за шаг; после него возвращает свежий снимок');
-  const task={autoExecute:this.autoExecute,contextRevision:snapshot.revision,id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
+  const task={autoExecute:true,manualConfirm:options.autoExecute!==true,contextRevision:snapshot.revision,id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
   let result;
   try{result={ok:true,...await this.control.approve({id:task.id,approval:task.approval})}}
-  catch(e){result={ok:false,error:e.message}}
+  catch(e){result={ok:false,error:e.message,code:e.code||'ACTION_FAILED',stack:e.stack}}
   finally{if(this.control.task===task)this.control.task=null}
   // Return observed state even after a failed action. Input delivery is not task success.
   if(snapshot.project!==this.browser.project||snapshot.revision!==(this.browser.contextRevision||0))throw Error('Проект или доступ изменился');

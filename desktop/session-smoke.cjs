@@ -37,7 +37,7 @@ module.exports=async(win,browser,providers)=>{
   return json({});
  });
  try{
-  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});await browser.command('context-scope',{all:true});
+  await run('OSMINOGStateReady');await run("(project()||createProject())");await browser.command('project',{id:await run('project().id')});await browser.command('context-scope',{all:true});browser.orchestrator.configure(browser.project,true);
   const previous=new Set(browser.tabs.keys());await run("OSMINOGNativeBrowser.open('https://example.com/')");await sleep(300);const target=[...browser.tabs.values()].find(t=>!previous.has(t.id));assert(target);targetId=target.id;
   await run("OSMINOGNativeBrowser.split(2)");await run(`OSMINOGNativeBrowser.assignTab(${JSON.stringify(targetId)},1)`);await run("OSMINOGOpenUnifiedChat({team:false})");await sleep(250);
   assert(target.visible,"Fixture target must be visible");const connected=await run('OSMINOGConnectDirectChatGPT()');assert(connected.ok,JSON.stringify(connected));
@@ -71,7 +71,7 @@ module.exports=async(win,browser,providers)=>{
   assert.deepEqual(await wc.executeJavaScript('window.sent'),['Заполни поле, смени тему и нарисуй круг на доске']);assert.equal(await wc.executeJavaScript("document.querySelectorAll('input[type=file]').length"),0);
   for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(100);
   assert.equal(browser.originalActions.active,null);assert.equal(ordinaryTurns,7);
-  console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');
+  assert.equal(await wc.executeJavaScript("document.querySelector('[data-osminog-progress]')?.dataset.status"),'done');require('node:fs').writeFileSync('orchestrator-progress.png',(await wc.capturePage()).toPNG());console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');
   const panel=browser.selectProvider('chatgpt','visible-panel-regression');
   await panel.view.webContents.loadURL('https://chatgpt.com/original');await sleep(300);
   await run(`document.querySelector('[data-tab-id="${panel.id}"] button').click()`);await sleep(300);
@@ -90,6 +90,7 @@ module.exports=async(win,browser,providers)=>{
   assert(diagnostics.events.some(e=>e.channel==='executor'&&e.stage==='start'));
   assert(await run("!!document.querySelector('[data-do=network-report]')"));
   console.log('CONNECTION_DIAGNOSTICS_NATIVE_PASS');
+  await require('./orchestrator-smoke.cjs')(browser,source,target);
   console.log('SESSION_SMOKE_PASS');
  }finally{await providers.stop();browser.agentTools.stop();browser.session.protocol.unhandle('https')}
 };

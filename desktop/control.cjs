@@ -82,9 +82,9 @@ class Control{
      const inspect=()=>wc.executeJavaScript(actionPolicy.inspectTarget(a));
      const targetInfo=await inspect();this.guard(task,{visible:true});
      const risk=actionPolicy.classify(a,targetInfo);
-     if(risk.level==='block')throw Error(risk.reason);
-     if(risk.level==='warn'){
-      if(!await this.confirmAction(this.browser,a,targetInfo,risk))throw Error('Действие отменено пользователем');
+     if(risk.level==='block')throw Object.assign(Error(risk.reason),{code:targetInfo?'BLOCKED_BY_RULE':'ELEMENT_NOT_FOUND'});
+     if(risk.level==='warn'||task.manualConfirm){
+      if(!await this.confirmAction(this.browser,a,targetInfo,risk.level==='safe'?{reason:'Автопилот выключен: подтвердите действие'}:risk))throw Object.assign(Error('Действие отменено пользователем'),{code:'USER_CANCELLED'});
       this.guard(task,{visible:true});
       if(JSON.stringify(await inspect())!==JSON.stringify(targetInfo))throw Error('Цель изменилась после подтверждения');
       this.guard(task,{visible:true});
@@ -92,7 +92,7 @@ class Control{
      if(target.bounds.width!==task.size.width||target.bounds.height!==task.size.height)throw Error('Размер вкладки изменился');
     }
     if(a.type==='type')await wc.insertText(a.text);
-    if(a.type==='key'){wc.sendInputEvent({type:'keyDown',keyCode:a.key,modifiers:a.modifiers});wc.sendInputEvent({type:'keyUp',keyCode:a.key,modifiers:a.modifiers})}
+    if(a.type==='key'){wc.sendInputEvent({type:'keyDown',keyCode:a.key,modifiers:a.modifiers});if(a.key==='Enter'&&!a.modifiers.length)wc.sendInputEvent({type:'char',keyCode:'Enter'});wc.sendInputEvent({type:'keyUp',keyCode:a.key,modifiers:a.modifiers})}
     if(a.type==='scroll')wc.sendInputEvent({type:'mouseWheel',...point(a.x,a.y),deltaX:a.deltaX,deltaY:a.deltaY});
     if(a.type==='click'){for(let c=1;c<=a.count;c++){wc.sendInputEvent({type:'mouseDown',...point(a.x,a.y),button:'left',clickCount:c});wc.sendInputEvent({type:'mouseUp',...point(a.x,a.y),button:'left',clickCount:c})}}
     if(a.type==='drag'){
@@ -104,7 +104,7 @@ class Control{
    }
    this.guard(task);task.history.push({actions,completed});
    return{id:task.id,completed,canContinue:true};
-  }catch(e){if(this.task===task)this.task=null;throw Error(`Выполнено ${completed} из ${actions.length}. ${e.message}`)}finally{if(held&&!wc.isDestroyed())wc.sendInputEvent({type:'mouseUp',...held,button:'left',clickCount:1});this.busy=false}
+  }catch(e){if(this.task===task)this.task=null;throw Object.assign(Error(`Выполнено ${completed} из ${actions.length}. ${e.message}`),{code:e.code||'ACTION_FAILED',cause:e})}finally{if(held&&!wc.isDestroyed())wc.sendInputEvent({type:'mouseUp',...held,button:'left',clickCount:1});this.busy=false}
  }
  async command(action,args={}){
   if(action==='stop')return this.stop();

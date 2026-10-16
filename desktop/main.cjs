@@ -70,6 +70,23 @@ if(ownsProfile)app.whenReady().then(async()=>{
  }
  const direct=new (require('./direct-chat.cjs').DirectChat)(browser,providers,control,captureWorkspace);
  browser.direct=direct;
+ const orchestrator=new (require('./orchestrator.cjs').Orchestrator)({
+  logFile:path.join(app.getPath('userData'),'logs','orchestrator.log'),
+  execute:async(a,s)=>{
+   const name=({openTab:'browser_open',switchTab:'browser_switch'})[a.type]||a.tool||a.type;
+   const args=a.args||a;
+   if(['browser_read','browser_act','browser_context'].includes(name))return agentTools.run(name,args,{autoExecute:s.autoExecute});
+   if(['click','type','scroll','key','drag'].includes(name))return agentTools.run('browser_act',{id:args.id,snapshot:args.snapshot,actions:[args]},{autoExecute:s.autoExecute});
+   if(['browser_open','browser_switch'].includes(name)){
+    if(!s.autoExecute&&!await require('./action-policy.cjs').confirm(browser,{type:name},{label:name},{reason:'Автопилот выключен: подтвердите действие'}))return{ok:false,error:'Отменено пользователем',code:'USER_CANCELLED'};
+    s.guard();if(name==='browser_switch')return agentTools.run('browser_read',{id:args.id});
+    if(require('./page-context.cjs').providerFor(args.url))throw Error('Исполнитель не управляет чатами ИИ');return browser.command('open',{url:args.url});
+   }
+   throw Object.assign(Error('Инструмент IPC недоступен: '+String(name)),{code:'BLOCKED_BY_RULE'});
+  },
+  emit:state=>{if(!win.isDestroyed())win.webContents.send('osminog.chat.progress',state);const source=[...browser.tabs.values(),...browser.providers.values()].find(t=>t.id===state.source);if(source&&!source.view.webContents.isDestroyed())source.view.webContents.send('osminog.chat.progress',state)}
+ });browser.orchestrator=orchestrator;
+ ipcMain.handle('osminog.chat.actions',(e,payload)=>{trusted(e);return orchestrator.dispatch(payload)});
  const originalActions=new (require('./original-actions.cjs').OriginalActions)(browser,providers,{
   status:text=>{if(!win.isDestroyed())win.webContents.send('browser:task-status',text)}
  });
@@ -77,7 +94,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.on('page:user-send',(e,payload)=>{try{const tab=pageSender(e),text=String(payload?.text||'').slice(0,12000);void originalActions.observe(tab,text)}catch{}});
 
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.
- ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='presence-update')return args?.board?.project===browser.project?browser.context.update(args.board):{ok:false,stale:true};if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args);if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
+ ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='autopilot-config')return orchestrator.configure(browser.project,args.autoExecute);if(action==='autopilot-state')return{autoExecute:orchestrator.settings.get(browser.project)===true};if(action==='presence-update')return args?.board?.project===browser.project?browser.context.update(args.board):{ok:false,stale:true};if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args,{autoExecute:orchestrator.settings.get(browser.project)===true});if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
  win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));
