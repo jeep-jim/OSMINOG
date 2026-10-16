@@ -41,3 +41,12 @@ await OSMINOGNative.chatActions({
 ## Проверки
 
 `cd desktop && npm test`. Windows CI выполняет `--session-smoke`, включая orchestrator-smoke.cjs, затем повторяет его в установленной копии. Артефакты: logs/orchestrator.log, orchestrator-progress.png, installed-session-smoke.log. Все шесть сценариев используют контролируемую страницу; пять объявлений и цены явно синтетические. Решение нативного диалога в сценарии отмены подменено тестом; исполнение поля, клик, DOM, снимки и IPC — реальные Electron-компоненты.
+
+
+## Проверенный кандидат 4.0.12
+
+Коммит сборки: ab203bd2f25c34a4c1fa883c850f1593fdee0256; merge PR52: c1d40f24e4c82138d6c19276347b0a21b58a4417. Windows CI: https://github.com/jeep-jim/OSMINOG/actions/runs/38859773938 — success, 109 тестов и все шесть сценариев до/после установки.
+
+Журнал приёмки в репозитории: [logs/orchestrator.log](../logs/orchestrator.log). Это тестовый журнал с синтетическими сценариями, не журнал пользовательского компьютера. [Прогон установленной копии](verification/4.0.12/installed-session-smoke.log), [реальный снимок тестового чата](verification/4.0.12/orchestrator-progress.png).
+
+Для обычной Windows-установки с именем приложения OSMINOG Preview журнал находится в `%APPDATA%\OSMINOG Preview\logs\orchestrator.log`; программный источник пути — `app.getPath("userData")`.

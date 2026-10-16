@@ -1,0 +1,50 @@
+{"timestamp":"2026-10-16T06:12:27.487Z","sessionId":"97e9e754-d5f7-44e9-adf0-2c8f319f2d77","action":"browser_read","result":true,"duration":15,"error":null}
+{"timestamp":"2026-10-16T06:12:27.757Z","sessionId":"97e9e754-d5f7-44e9-adf0-2c8f319f2d77","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T06:12:27.943Z","sessionId":"97e9e754-d5f7-44e9-adf0-2c8f319f2d77","action":"browser_act","result":true,"duration":170,"error":null}
+{"timestamp":"2026-10-16T06:12:28.133Z","sessionId":"97e9e754-d5f7-44e9-adf0-2c8f319f2d77","action":"browser_act","result":true,"duration":173,"error":null}
+{"timestamp":"2026-10-16T06:12:28.168Z","sessionId":"97e9e754-d5f7-44e9-adf0-2c8f319f2d77","action":"browser_read","result":true,"duration":15,"error":null}
+{"timestamp":"2026-10-16T06:12:28.226Z","sessionId":"97e9e754-d5f7-44e9-adf0-2c8f319f2d77","action":"canvas_patch","result":true,"duration":41,"error":null}
+{"timestamp":"2026-10-16T06:12:29.575Z","sessionId":"ec38891f-0fb2-4ee0-96d8-09cca1975b04","action":"browser_act","result":true,"duration":173,"error":null}
+{"timestamp":"2026-10-16T06:12:29.577Z","sessionId":"ec38891f-0fb2-4ee0-96d8-09cca1975b04","action":"acceptance.1 theme (native fixture)","result":true,"duration":190,"error":null}
+{"timestamp":"2026-10-16T06:12:29.757Z","sessionId":"3e8dd6ef-3847-4972-8538-9fe9956cc7fc","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:12:29.932Z","sessionId":"3e8dd6ef-3847-4972-8538-9fe9956cc7fc","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-16T06:12:29.934Z","sessionId":"3e8dd6ef-3847-4972-8538-9fe9956cc7fc","action":"acceptance.2 search text (native fixture)","result":true,"duration":356,"error":null}
+{"timestamp":"2026-10-16T06:12:30.116Z","sessionId":"e71b7e83-bc61-4e20-9f02-545527836789","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T06:12:30.292Z","sessionId":"e71b7e83-bc61-4e20-9f02-545527836789","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-16T06:12:30.477Z","sessionId":"e71b7e83-bc61-4e20-9f02-545527836789","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T06:12:30.496Z","sessionId":"e71b7e83-bc61-4e20-9f02-545527836789","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":561,"error":null}
+{"timestamp":"2026-10-16T06:12:30.677Z","sessionId":"84dc774a-3d63-49d8-940d-aaf54a7a5af5","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T06:12:30.868Z","sessionId":"84dc774a-3d63-49d8-940d-aaf54a7a5af5","action":"browser_act","result":true,"duration":183,"error":null}
+{"timestamp":"2026-10-16T06:12:30.903Z","sessionId":"84dc774a-3d63-49d8-940d-aaf54a7a5af5","action":"browser_act","result":false,"duration":15,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-16T06:12:30.905Z","sessionId":"84dc774a-3d63-49d8-940d-aaf54a7a5af5","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":408,"error":null}
+{"timestamp":"2026-10-16T06:12:30.933Z","sessionId":"ea136768-2e29-452b-8e92-523638b28816","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T06:12:30.969Z","sessionId":"ea136768-2e29-452b-8e92-523638b28816","action":"browser_act","result":false,"duration":12,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T06:12:30.970Z","sessionId":"ea136768-2e29-452b-8e92-523638b28816","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":64,"error":null}
+{"timestamp":"2026-10-16T06:12:31.011Z","sessionId":"b062f821-0283-4cc2-9438-4b9426efaf51","action":"browser_act","result":false,"duration":17,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-16T06:12:31.194Z","sessionId":"b062f821-0283-4cc2-9438-4b9426efaf51","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T06:12:31.196Z","sessionId":"b062f821-0283-4cc2-9438-4b9426efaf51","action":"acceptance.6 queue failure and alternative","result":true,"duration":224,"error":null}
+{"timestamp":"2026-10-16T06:14:49.897Z","sessionId":"5094fcfd-2432-4da9-8918-35f99a6f2ec7","action":"browser_read","result":true,"duration":23,"error":null}
+{"timestamp":"2026-10-16T06:14:50.103Z","sessionId":"5094fcfd-2432-4da9-8918-35f99a6f2ec7","action":"browser_act","result":true,"duration":178,"error":null}
+{"timestamp":"2026-10-16T06:14:50.305Z","sessionId":"5094fcfd-2432-4da9-8918-35f99a6f2ec7","action":"browser_act","result":true,"duration":183,"error":null}
+{"timestamp":"2026-10-16T06:14:50.492Z","sessionId":"5094fcfd-2432-4da9-8918-35f99a6f2ec7","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:50.528Z","sessionId":"5094fcfd-2432-4da9-8918-35f99a6f2ec7","action":"browser_read","result":true,"duration":16,"error":null}
+{"timestamp":"2026-10-16T06:14:50.666Z","sessionId":"5094fcfd-2432-4da9-8918-35f99a6f2ec7","action":"canvas_patch","result":true,"duration":118,"error":null}
+{"timestamp":"2026-10-16T06:14:52.009Z","sessionId":"eae871d2-7b07-4ca4-812f-2fb0240b854b","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-16T06:14:52.012Z","sessionId":"eae871d2-7b07-4ca4-812f-2fb0240b854b","action":"acceptance.1 theme (native fixture)","result":true,"duration":186,"error":null}
+{"timestamp":"2026-10-16T06:14:52.195Z","sessionId":"3be20d2d-bcab-486c-9085-49ad126c44d1","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:52.369Z","sessionId":"3be20d2d-bcab-486c-9085-49ad126c44d1","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:52.371Z","sessionId":"3be20d2d-bcab-486c-9085-49ad126c44d1","action":"acceptance.2 search text (native fixture)","result":true,"duration":358,"error":null}
+{"timestamp":"2026-10-16T06:14:52.554Z","sessionId":"be9ed545-a314-4a26-bfa2-a455e12b72fa","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:52.728Z","sessionId":"be9ed545-a314-4a26-bfa2-a455e12b72fa","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:52.914Z","sessionId":"be9ed545-a314-4a26-bfa2-a455e12b72fa","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-16T06:14:52.921Z","sessionId":"be9ed545-a314-4a26-bfa2-a455e12b72fa","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":548,"error":null}
+{"timestamp":"2026-10-16T06:14:53.102Z","sessionId":"27359af8-3527-4249-ae19-14d9cae4c72e","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:53.276Z","sessionId":"27359af8-3527-4249-ae19-14d9cae4c72e","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-16T06:14:53.308Z","sessionId":"27359af8-3527-4249-ae19-14d9cae4c72e","action":"browser_act","result":false,"duration":13,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-16T06:14:53.315Z","sessionId":"27359af8-3527-4249-ae19-14d9cae4c72e","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":393,"error":null}
+{"timestamp":"2026-10-16T06:14:53.356Z","sessionId":"b4dc316b-274a-4dbd-aab9-f532e78fd581","action":"browser_act","result":false,"duration":16,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T06:14:53.387Z","sessionId":"b4dc316b-274a-4dbd-aab9-f532e78fd581","action":"browser_act","result":false,"duration":14,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-16T06:14:53.389Z","sessionId":"b4dc316b-274a-4dbd-aab9-f532e78fd581","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":64,"error":null}
+{"timestamp":"2026-10-16T06:14:53.418Z","sessionId":"0f181914-f5f5-4ff6-8cca-1318aa137c82","action":"browser_act","result":false,"duration":14,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-16T06:14:53.600Z","sessionId":"0f181914-f5f5-4ff6-8cca-1318aa137c82","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-16T06:14:53.602Z","sessionId":"0f181914-f5f5-4ff6-8cca-1318aa137c82","action":"acceptance.6 queue failure and alternative","result":true,"duration":211,"error":null}
