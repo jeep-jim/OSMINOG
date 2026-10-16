@@ -42,9 +42,9 @@ if(ownsProfile)app.whenReady().then(async()=>{
  for(const action of ['check','download','install'])ipcMain.handle('update:'+action,e=>{trusted(e);return updates[action]()});
  ipcMain.handle('update:state',e=>{trusted(e);return{...updates.state}});
  ipcMain.on('page:drag',(e,payload)=>{const t=[...browser.tabs.values(),...browser.providers.values()].find(t=>t.view.webContents===e.sender);const f=e.senderFrame,m=e.sender.mainFrame;if(!t||t.project!==browser.project||!f||f.processId!==m.processId||f.routingId!==m.routingId)return;const url=String(payload?.url||'').slice(0,45000000),text=String(payload?.text||'').slice(0,100000);const token=String(payload?.token||'');if(!/^[a-f0-9-]{32,36}$/.test(token))return;browser.dragTransfer={id:t.id,url,text,token,source:t.view.webContents.getURL(),project:browser.project,at:Date.now(),epoch:t.navigationEpoch};win.webContents.send('browser:media',{destination:'drag',id:t.id,token,project:browser.project})});
- function pageSender(e){
+ function pageSender(e,chatOnly=true){
   const tab=[...browser.tabs.values(),...browser.providers.values()].find(t=>t.view.webContents===e.sender),frame=e.senderFrame,main=e.sender.mainFrame;
-  if(!tab||tab.project!==browser.project||!frame||frame.processId!==main.processId||frame.routingId!==main.routingId||!require('./page-context.cjs').providerFor(e.sender.getURL()))throw Error('Неизвестный источник чата');
+  if(!tab||tab.project!==browser.project||!frame||frame.processId!==main.processId||frame.routingId!==main.routingId||chatOnly&&!require('./page-context.cjs').providerFor(e.sender.getURL()))throw Error('Неизвестный источник чата');
   return tab;
  }
  async function captureWorkspace(tab){
@@ -93,6 +93,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   status:text=>{if(!win.isDestroyed())win.webContents.send('browser:task-status',text)}
  });
  browser.originalActions=originalActions;
+ ipcMain.on('page:pointer',(e,payload)=>{try{const tab=pageSender(e,false);require('./pointer-context.cjs').update(browser,tab,payload)}catch{}});
  ipcMain.on('page:user-send',(e,payload)=>{try{const tab=pageSender(e),text=String(payload?.text||'').slice(0,12000);void originalActions.observe(tab,text)}catch{}});
 
  // No page:context/page:sent IPC: original chats must not start attachment or feedback loops.

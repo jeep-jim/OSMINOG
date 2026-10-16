@@ -43,7 +43,11 @@ module.exports=async function smoke(win,browser,liveProvider){
   await hidden.view.webContents.executeJavaScript(`const file=document.createElement('input');file.type='file';file.accept='image/*';file.onchange=()=>{const label=document.createElement('span');label.textContent=file.files[0].name;document.body.append(label)};document.body.append(file);void 0`);
   const hiddenReply=await provider.runtime({type:'BC_PROVIDER_SEND',provider:'deepseek',payload:{text:'Read image in service',images:[{name:'fixture-screen.png',dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII='}],context:{project:{id:project},chat:{threadId:hidden.thread},execution:{task:'Read image'}}}},project);
   assert(hiddenReply.ok);assert.match(hiddenReply.payload.text,/hidden-deepseek/);assert.equal(await hidden.view.webContents.executeJavaScript('window.sent'),1);
+  assert.equal(await hidden.view.webContents.executeJavaScript("document.querySelector('textarea').value"),'');console.log('HIDDEN_SERVICE_CONFIRMED_SINGLE_SUBMIT_PASS');
   console.log('HIDDEN_SERVICE_IMAGE_REPLY_PASS');
+  await hidden.view.webContents.executeJavaScript("document.querySelector('form').onsubmit=e=>{e.preventDefault();window.unsentAttempts=(window.unsentAttempts||0)+1};void 0");
+  await assert.rejects(provider.runtime({type:'BC_PROVIDER_SEND',provider:'deepseek',payload:{text:'No send acknowledgement',context:{project:{id:project},chat:{threadId:hidden.thread},execution:{task:'No send acknowledgement'}}}},project),/SEND_NOT_CONFIRMED/);
+  assert.equal(await hidden.view.webContents.executeJavaScript('window.unsentAttempts'),1);console.log('UNCONFIRMED_SEND_FAILS_WITHOUT_RETRY_PASS');
   console.log('PROVIDER_SMOKE_PASS');
  }finally{await new Promise(r=>server.close(r))}
 };

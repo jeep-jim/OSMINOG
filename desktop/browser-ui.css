@@ -252,3 +252,27 @@ body.native-desktop.native-team-open #bridgePanel:not([hidden]){display:flex!imp
 
 /* Only the eyelid and pupil blink; the header-shaped silhouette stays still. */
 @keyframes native-pupil-blink{0%,43%,50%,100%{transform:scaleY(1)}46%,47%{transform:scaleY(0)}}
+
+/* 4.0.15: independent windows and canvas-local tools. */
+#native-browser .native-scroll{overflow:auto}
+#native-browser .native-grid{position:relative}
+#native-browser .native-window-handle{cursor:move;touch-action:none;min-height:42px;padding-left:16px}
+#native-browser .native-pane-nav{margin-right:24px}
+#native-browser .native-canvas{position:relative}
+#native-browser .native-canvas>.native-tools{position:absolute;left:8px;right:8px;bottom:10px;top:auto;transform:none;width:auto;max-width:calc(100% - 16px);overflow-x:auto;display:none;z-index:15;justify-content:center;background:var(--native-surface,#232e3e);border:1px solid var(--native-stroke,#46576e);border-radius:12px}
+#native-browser .canvas-engaged .native-canvas>.native-tools{display:flex}
+#native-browser .native-presence-tools{display:flex;gap:6px;margin:auto}
+#native-browser [data-do=ai-pointer][aria-pressed=true]{color:#35d0c1;box-shadow:0 0 0 2px #35d0c1;animation:osminogPointerPulse 1.4s ease-in-out infinite}
+#native-browser [data-do=record-screen][aria-pressed=true]{color:#ff5266;animation:osminogPointerPulse 1s ease-in-out infinite}
+@keyframes osminogPointerPulse{50%{box-shadow:0 0 0 6px #35d0c133}}
+@media(prefers-reduced-motion:reduce){#native-browser [aria-pressed=true]{animation:none!important}}
+
+#native-browser>.native-tools{display:none!important}
+
+#native-browser .native-slot{background-position:top left;background-size:100% auto;background-repeat:no-repeat}
+
+#native-browser .native-canvas>.native-tools{display:none!important}#native-browser .canvas-engaged .native-canvas>.native-tools{display:flex!important}
+
+#native-browser .native-window-grip{display:grid;place-items:center;flex:none;width:20px;align-self:stretch;color:var(--quiet);cursor:move;user-select:none;font-size:20px}
+
+#native-browser .native-canvas>.native-tools{justify-content:safe center;background:var(--surface);border-color:var(--stroke)}

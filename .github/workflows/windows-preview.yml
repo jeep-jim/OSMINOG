@@ -22,7 +22,8 @@ jobs:
           node-version: '22'
       - run: npm ci
       - run: npm test
-      - run: npm run prepare:board
+      - id: prepare
+        run: npm run prepare:board
       - name: Start real Windows host and verify persistence
         shell: pwsh
         run: |
@@ -56,6 +57,7 @@ jobs:
           Get-Content session-smoke-errors.log
           if ($process.ExitCode -ne 0 -or -not (Select-String -Path session-smoke.log -Pattern EXTENSION_SESSION_CANVAS_AND_TAB_ACTIONS_PASS -Quiet)) { throw 'Session smoke failed' }
       - name: Verify redesigned shell on real Windows host
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         shell: pwsh
         run: |
           $process = Start-Process -FilePath '.\node_modules\electron\dist\electron.exe' -ArgumentList '.', '--shell-smoke' -PassThru -RedirectStandardOutput shell-smoke.log -RedirectStandardError shell-smoke-errors.log

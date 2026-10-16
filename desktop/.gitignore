@@ -5,3 +5,5 @@ runtime/
 protocol.cjs
 *smoke*.png
 *smoke*.log
+
+page-pointer-preload.cjs

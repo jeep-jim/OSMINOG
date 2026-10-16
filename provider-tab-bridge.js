@@ -73,7 +73,7 @@
 
   function sendButton(el){
     const area=el.closest("form")||el.parentElement?.parentElement||root();
-    const selectors=["button[type='submit']","button[aria-label^='Run' i]","button[aria-label*='Send' i]","button[aria-label*='Submit' i]","button[aria-label*='Отправ' i]","button[aria-label*='Ask' i]","button[aria-label*='Search' i]","button[data-testid*='send' i]","button[class*='send' i]"];
+    const selectors=["button[type='submit']","[role='button'][aria-label*='Send' i]","[role='button'][aria-label*='Отправ' i]","[role='button'][data-testid*='send' i]","button[aria-label^='Run' i]","button[aria-label*='Send' i]","button[aria-label*='Submit' i]","button[aria-label*='Отправ' i]","button[aria-label*='Ask' i]","button[aria-label*='Search' i]","button[data-testid*='send' i]","button[class*='send' i]"];
     for(const selector of selectors){
       const items=[...queryAllDeep(selector,area),...queryAllDeep(selector)].filter((button,index,list)=>list.indexOf(button)===index).filter(vis).filter(button=>!button.disabled&&button.getAttribute("aria-disabled")!=="true");
       if(items.length)return items.at(-1);
@@ -300,6 +300,9 @@
     await sleep(180);
     const button=sendButton(input);
     if(button)button.click();else pressEnter(input);
+    const ackStart=Date.now();let acknowledged=false;
+    while(Date.now()-ackStart<8000){if(generation!==cancelEpoch)throw Error('Управление остановлено пользователем');if(findPromptEcho(text,requestId)){acknowledged=true;break}await sleep(160)}
+    if(!acknowledged)throw Error('SEND_NOT_CONFIRMED: сайт ИИ не подтвердил отправку команды. Повторная отправка не выполнялась.');
     const answer=await waitAnswer(before,text,requestId,initialRoute,responseFormat,generation);
     return{answer,...collectRich(answer,text,requestId)};
     }finally{internalSending=false;delete document.documentElement.dataset.osminogSyncInternal;if(syncBinding)await syncRpc('BC_CHAT_SYNC_EVENT',{requestId,role:'complete',text:''}).catch(()=>{});}

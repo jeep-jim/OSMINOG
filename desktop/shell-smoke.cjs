@@ -82,13 +82,13 @@ module.exports=async(win,browser)=>{
  browser.session.protocol.unhandle('https');
  await require('./direct-smoke.cjs')(win,browser);
 
- // Original submenus remain functional in the header; documents are editable and persisted.
- win.focus();win.webContents.focus();await frame();
+ // Canvas-local submenus appear after selecting the desktop; documents remain editable.
+ win.focus();win.webContents.focus();await run("OSMINOGNativeBrowser.canvas()");await frame();
  await run("document.querySelector('[data-tool-native=text]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
  console.log('TOOL_MENU_STATE',await run("JSON.stringify({hidden:document.querySelector('#deskMore').hidden,parent:document.querySelector('#deskMore').parentElement.id,api:typeof OSMINOGWorkdeskMenus?.open,focus:document.activeElement?.outerHTML?.slice(0,160),nativeTools:document.querySelectorAll('[data-native-group]').length})"));assert.equal(await run("document.querySelector('#deskMore').hidden"),false);await fs.writeFile('shell-smoke-tool-menu.png',(await win.webContents.capturePage()).toPNG());
  assert.equal(await run("document.querySelector('#deskMore').parentElement.id"),'native-browser');
  assert.equal(browser.panels.length,0);
- const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top}})()");assert.ok(toolRect.top>=toolRect.bottom);
+ const toolRect=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect(),m=document.querySelector('#deskMore').getBoundingClientRect();return{bottom:r.bottom,top:m.top,menuBottom:m.bottom,toolTop:r.top}})()");assert.ok(toolRect.menuBottom<=toolRect.toolTop||toolRect.top>=toolRect.bottom);
  const hover=await run("(()=>{const r=document.querySelector('[data-tool-native=text]').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
  win.webContents.sendInputEvent({type:'mouseMove',...hover});await new Promise(r=>setTimeout(r,300));
  win.webContents.sendInputEvent({type:'mouseMove',x:4,y:300});await new Promise(r=>setTimeout(r,450));
@@ -133,15 +133,18 @@ module.exports=async(win,browser)=>{
  assert(await run("(()=>{const e=document.querySelector('.native-scroll');return e.scrollHeight>e.clientHeight})()"));
  await run("(()=>{const e=document.querySelector('.native-scroll');e.scrollTop=e.scrollHeight})()");await frame();
  assert(browser.panels.every(p=>!p.clip||p.clip.height>0));
- await run("(()=>{document.querySelector('.native-scroll').scrollTop=0;const cells=[...document.querySelectorAll('.native-cell')];const from=cells.find(c=>c.dataset.paneId==='@canvas');const target=cells.find(c=>c!==from);globalThis.expectedCanvasSlot=Number(target.dataset.dropIndex);const dt=new DataTransfer();from.querySelector('header').dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));})()");await frame();
- assert(await run("OSMINOGNativeBrowser.state().slots[expectedCanvasSlot]==='@canvas'"));
+ await run("document.querySelector('.native-tabs [data-tab-id=\"@canvas\"] > button').click()");await frame();
+ const canvasBefore=await run("(()=>{const r=document.querySelector('.native-cell[data-pane-id=\"@canvas\"]').parentElement.getBoundingClientRect();return{x:r.x,y:r.y}})()");
+ const grip=await run("(()=>{const r=document.querySelector('.native-cell[data-pane-id=\"@canvas\"] .native-window-grip').getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()");
+ win.webContents.sendInputEvent({type:'mouseDown',button:'left',...grip,clickCount:1});win.webContents.sendInputEvent({type:'mouseMove',x:grip.x+50,y:grip.y+50,modifiers:['leftbuttondown']});win.webContents.sendInputEvent({type:'mouseUp',button:'left',x:grip.x+50,y:grip.y+50,clickCount:1});await frame();
+ const canvasAfter=await run("(()=>{const r=document.querySelector('.native-cell[data-pane-id=\"@canvas\"]').parentElement.getBoundingClientRect();return{x:r.x,y:r.y}})()");assert(Math.abs(canvasAfter.x-canvasBefore.x-50)<2&&Math.abs(canvasAfter.y-canvasBefore.y-50)<2,JSON.stringify({canvasBefore,canvasAfter}));
  console.log('SCROLLING_TILES_AND_CANVAS_DRAG_PASS');
  // Regressions from 0.3.3: native pages track resized rows, and both close controls destroy them.
  const width=await run("document.querySelector('.native-cell').getBoundingClientRect().width");
- await run("document.querySelector('.native-resize-x').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");await frame();
+ await run("document.querySelector('.native-tile-resize-x').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");await frame();
  assert((await run("document.querySelector('.native-cell').getBoundingClientRect().width"))>width);
  const height=await run("document.querySelector('.native-cell').getBoundingClientRect().height");
- await run("document.querySelector('.native-resize-y').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
+ await run("document.querySelector('.native-tile-resize-y').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))");await frame();
  assert((await run("document.querySelector('.native-cell').getBoundingClientRect().height"))>height);
  const closed=await run("(()=>{const c=document.querySelector('.native-cell:has(.native-pane-close)'),id=c.dataset.paneId;c.querySelector('.native-pane-close').click();return id})()");await frame();
  assert(!browser.state().tabs.some(t=>t.id===closed));assert.equal(await run(`document.querySelectorAll('[data-tab-id="${closed}"]').length`),0);
@@ -173,13 +176,20 @@ module.exports=async(win,browser)=>{
 
  await run("OSMINOGNativeBrowser.split(4)");await frame();
  assert(await run("document.querySelectorAll('.native-tools button span').length===0"));
- assert(await run("(()=>{const a=document.querySelector('.native-top').getBoundingClientRect(),b=document.querySelector('.native-tools').getBoundingClientRect();return Math.abs(a.x+a.width/2-b.x-b.width/2)<2})()"));
+ assert(await run("(()=>{const tools=document.querySelector('.native-tools');return !!tools.closest('.native-canvas')&&!document.querySelector('.native-top .native-tools')})()"));
  assert.equal(await run("getComputedStyle(document.querySelector('#app')).display"),'none');
  await run("document.querySelector('.native-tile-resize-xy').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))");await frame();
  const tileGeometry=await run("(()=>{const a=document.querySelector('.native-tile').getBoundingClientRect(),b=document.querySelector('.native-grid').getBoundingClientRect(),n=document.querySelectorAll('.native-tile')[1]?.getBoundingClientRect();return {tileWidth:a.width,gridWidth:b.width,tileHeight:a.height,availableHeight:document.querySelector('.native-scroll').clientHeight,bottom:a.bottom,nextTop:n?.top}})()");
  console.log('ADAPTIVE_TILE_GEOMETRY',JSON.stringify(tileGeometry));
- assert(Math.abs(tileGeometry.tileWidth-tileGeometry.gridWidth)<2&&Math.abs(tileGeometry.tileHeight-tileGeometry.availableHeight)<2&&(tileGeometry.nextTop===undefined||tileGeometry.nextTop>tileGeometry.bottom),JSON.stringify(tileGeometry));
- console.log('EXTERNAL_TOOL_DOCK_AND_ADAPTIVE_TILES_PASS');
+ assert(Math.abs(tileGeometry.tileWidth-tileGeometry.gridWidth)<2&&Math.abs(tileGeometry.tileHeight-tileGeometry.availableHeight)<2,JSON.stringify(tileGeometry));
+ console.log('CANVAS_LOCAL_TOOLBAR_PASS');
+ await run("OSMINOGNativeBrowser.split(4)");await frame();
+ const unchanged=await run("[...document.querySelectorAll('.native-tile')].slice(1).map(e=>{const r=e.getBoundingClientRect();return[r.x,r.y,r.width,r.height]})");
+ await run("document.querySelector('.native-tile-resize-y').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));document.querySelector('.native-window-handle').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");await frame();
+ assert.deepEqual(await run("[...document.querySelectorAll('.native-tile')].slice(1).map(e=>{const r=e.getBoundingClientRect();return[r.x,r.y,r.width,r.height]})"),unchanged);
+ await run("document.querySelector('[data-do=ai-pointer]').click()");await frame();assert.equal(browser.pointerEnabled,true);
+ await run("document.querySelector('[data-do=ai-pointer]').click()");await frame();assert.equal(browser.pointerEnabled,false);
+ console.log('INDEPENDENT_WINDOW_POSITION_SIZE_AND_POINTER_SWITCH_PASS');
  console.log('CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS');
  win.webContents.debugger.attach('1.3');await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
  // Eyelids clip the pupil; the surrounding icon never scales during a blink.
@@ -199,6 +209,20 @@ module.exports=async(win,browser)=>{
  await run("document.querySelector('#bridgeClose').click()");await frame();
  console.log('WORKSPACE_FILE_CANVAS_TEAM_TOOLS_PASS');
 
+ // Trusted native pointer gesture crosses the preload/IPC boundary on a real page.
+ await browser.session.protocol.handle('https',()=>new Response('<html><body><h1>Pointer target</h1><p>Region for native selection.</p></body></html>',{headers:{'Content-Type':'text/html'}}));
+ const target=browser.open({url:'https://example.com/pointer-415'});for(let i=0;i<100&&browser.get(target.id).loading;i++)await new Promise(r=>setTimeout(r,30));
+ await run(`OSMINOGNativeBrowser.revealTab(${JSON.stringify(target.id)})`);await frame();
+ await browser.command('pointer-mode',{enabled:true});const pointerWC=browser.get(target.id).view.webContents;
+ pointerWC.sendInputEvent({type:'mouseDown',button:'right',x:20,y:30,clickCount:1});pointerWC.sendInputEvent({type:'mouseMove',x:140,y:110,modifiers:['rightButtonDown']});pointerWC.sendInputEvent({type:'mouseUp',button:'right',x:140,y:110,clickCount:1});
+ for(let i=0;i<30&&!browser.pointerTarget?.region;i++)await new Promise(r=>setTimeout(r,50));
+ assert.equal(browser.pointerTarget?.id,target.id);assert.equal(browser.pointerTarget.region.width,120);assert.equal(browser.pointerTarget.region.height,80);
+ assert((await require('./pointer-context.cjs').capture(browser)).dataUrl.startsWith('data:image/png'));
+ pointerWC.sendInputEvent({type:'mouseDown',button:'left',x:60,y:60,clickCount:1});pointerWC.sendInputEvent({type:'mouseUp',button:'left',x:60,y:60,clickCount:1});await new Promise(r=>setTimeout(r,100));assert.equal(browser.pointerTarget.region,null);
+ await browser.command('pointer-mode',{enabled:false});console.log('NATIVE_POINTER_REGION_CAPTURE_CLEAR_PASS');
+ await run("document.querySelector('[data-do=project-shot]').click()");for(let i=0;i<60;i++){if(await run("objects().some(o=>o.name==='Снимок окна')"))break;await new Promise(r=>setTimeout(r,100))}assert(await run("objects().some(o=>o.name==='Снимок окна')"));
+ await run("document.querySelector('[data-do=record-screen]').click()");for(let i=0;i<60;i++){if(await run("document.querySelector('[data-do=record-screen]').getAttribute('aria-pressed')==='true'"))break;await new Promise(r=>setTimeout(r,100))}assert(await run("document.querySelector('[data-do=record-screen]').getAttribute('aria-pressed')==='true'"));await new Promise(r=>setTimeout(r,1200));await run("document.querySelector('[data-do=record-screen]').click()");for(let i=0;i<60;i++){if(await run("objects().some(o=>o.mime==='video/webm')"))break;await new Promise(r=>setTimeout(r,100))}assert(await run("objects().some(o=>o.mime==='video/webm'&&o.src.startsWith('data:video/webm'))"));
+ console.log('WINDOW_SCREENSHOT_AND_RECORDING_PASS');browser.session.protocol.unhandle('https');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
  console.log('SHELL_SMOKE_PASS');
