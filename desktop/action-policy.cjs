@@ -19,7 +19,7 @@ function classify(a,n){
  }
  if(a.type==='type')return ['input','textarea'].includes(n.tag)||n.editable?safe():warn('Ввод вне распознанного текстового поля');
  if(a.type==='drag')return warn('Перетаскивание может изменить данные');
- if(/купить|заказать|отправ|опублик|сохран|buy|purchase|checkout|submit|send|publish|save/.test(label)||n.type==='submit')return warn('Подтвердите отправку или изменение данных');
+ if(/купить|заказать|отправ|опублик|сохран|buy|purchase|checkout|submit|send|publish|save/.test(label)||(n.type==='submit'&&n.form))return warn('Подтвердите отправку или изменение данных');
  if(['input','textarea','select'].includes(n.tag)||n.editable)return safe();
  if(n.tag==='a'&&/^https?:|^\/|^#/.test(n.href))return safe();
  if(/тема|светл|тёмн|темн|поиск|найти|theme|light mode|dark mode|search/.test(label))return safe();
