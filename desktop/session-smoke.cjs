@@ -52,8 +52,8 @@ module.exports=async(win,browser,providers)=>{
   async function send(text){
    // A canvas mutation can precede the final chat response. Wait for the prior
    // task to finish instead of racing a fixed 400 ms delay on installed builds.
-   for(let i=0;i<200&&await run("!!document.querySelector('.gpt-thread-tab.active .agent-task-dot')");i++)await sleep(50);
-   assert.equal(await run("!!document.querySelector('.gpt-thread-tab.active .agent-task-dot')"),false,'Previous chat task did not finish before next request');
+   for(let i=0;i<200&&await run("OSMINOGUnifiedChatCore.status().busy");i++)await sleep(50);
+   assert.equal(await run("OSMINOGUnifiedChatCore.status().busy"),false,'Previous chat task did not finish before next request');
    await run(`document.querySelector('#gptPresenceApply').value='direct';document.querySelector('#gptPresenceInput').value=${JSON.stringify(text)};document.querySelector('#gptPresenceForm').requestSubmit()`)}
   const beforeImages=await run("objects().filter(o=>o.type==='image').length");
   await send('Фото верблюда закинь на холст из интернета');
