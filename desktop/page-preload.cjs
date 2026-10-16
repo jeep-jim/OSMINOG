@@ -8,15 +8,20 @@ if(process.isMainFrame){
   let last='',at=0;
   const notify=text=>{if(last===text&&Date.now()-at<1500)return;last=text;at=Date.now();ipcRenderer.send('page:user-send',{text})};
   let pending=null;
-  const acceptedSend=(input,text)=>{
+  const userTurns=()=>[...document.querySelectorAll('[data-message-author-role="user"],.user-message,[data-testid="user-message"],user-query')];
+  const turnText=n=>String(n.innerText??n.textContent??'').trim();
+  const acceptedSend=(input,text,knownSend)=>{
    if(pending?.input===input&&pending.text===text)return;
-   const ticket={input,text,attempts:0};pending=ticket;
+   const ticket={input,text,attempts:0,before:new Set(userTurns())};pending=ticket;
    const check=()=>{
     if(pending!==ticket)return;
-    if(input.isConnected===false){pending=null;return}
+    // A remounted composer alone is not proof: the user may have changed chats.
+    // Require a newly rendered user turn when the input disappeared or a button
+    // has no send semantics. Existing transcript matches must never count.
+    const posted=userTurns().some(n=>!ticket.before.has(n)&&turnText(n)===text);
     const current=String(input.value??input.innerText??input.textContent??'').trim();
-    if(!current){pending=null;notify(text);return}
-    if(current!==text||++ticket.attempts>=40){pending=null;return}
+    if(posted||(knownSend&&input.isConnected!==false&&!current)){pending=null;notify(text);return}
+    if((input.isConnected!==false&&current&&current!==text)||++ticket.attempts>=100){pending=null;return}
     setTimeout(check,50);
    };
    // Capture phase precedes the site's send handler. Never start a second request here.
@@ -30,7 +35,7 @@ if(process.isMainFrame){
    const label=button&&[button.type,button.getAttribute('aria-label'),button.getAttribute('data-testid'),button.className].join(' ');
    const match=e.type==='keydown'?e.key==='Enter'&&!e.shiftKey&&(input===e.target||input.contains(e.target)):e.type==='submit'?e.target.contains(input):button&&/submit|send|отправ/i.test(label||'');
    const text=String(input.value??input.innerText??input.textContent??'').trim().slice(0,12000);if(!text)return;
-   if(match||(e.type==='click'&&button))acceptedSend(input,text);
+   if(match||(e.type==='click'&&button))acceptedSend(input,text,!!match);
   };
   for(const type of ['keydown','click','submit'])document.addEventListener(type,sent,true);
  }
