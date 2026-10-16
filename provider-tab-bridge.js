@@ -294,7 +294,7 @@
     const start=syncBinding?await syncRpc('BC_CHAT_SYNC_START',{requestId}):{ok:true};if(!start?.ok)throw Error(start?.error||'Чат занят');
     internalSending=true;document.documentElement.dataset.osminogSyncInternal='1';
     const before=snapshot(),initialRoute=route(),generation=cancelEpoch;
-    try{if(strictAttachments)await uploadDirectAttachments(images,input);else await uploadImages(images,input);if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
+    try{if(strictAttachments)await uploadDirectAttachments(images,input);else{const uploaded=await uploadImages(images,input);if(uploaded?.unconfirmed)throw Error('Сайт ИИ не подтвердил загрузку снимка. Команда не отправлена без изображения.')}if(generation!==cancelEpoch)throw Error("Управление остановлено пользователем");
     if(strictAttachments&&clean(input.value??input.innerText??input.textContent))throw Error('В чате появился новый черновик. Он сохранён; продолжение остановлено.');
     setComposer(input,text);
     await sleep(180);

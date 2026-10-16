@@ -57,6 +57,8 @@ class Providers{
   if(this.busy.has(provider))throw Error('Дождитесь ответа выбранного ИИ');
   const context=payload.context||{},thread=String(context.chat?.threadId||'main')+(context.chat?.historyEpoch?':'+Number(context.chat.historyEpoch):'');
   const requestId=String(payload.requestId||randomUUID()),epoch=this.epoch;
+  const stage=name=>message.onStage?.(name);
+  stage('context');
   let liveContext;
   if(this.browser.context){const board=await this.browser.win.webContents.executeJavaScript('globalThis.OSMINOGCollectBrowserContext?.()');if(board)this.browser.context.update(board);liveContext=await this.browser.context.refresh()}
   const pages=liveContext?.dom||await this.browser.command('context',{all:true,automatic:true,includeChats:false});
@@ -68,18 +70,20 @@ class Providers{
    this.browser.connectionDiagnostics?.service(provider,'start');
    let result,nativeError='';
    if(!this.fixtureOrigin){
-    try{result=await this.transport.send(provider,internalPayload,enriched,requestId,this.find(provider));if(result?.ok===false){nativeError=result.error||'Сессионный транспорт не ответил';result=null}}
+    try{stage('session');result=await this.transport.send(provider,internalPayload,enriched,requestId,this.find(provider));if(result?.ok===false){nativeError=result.error||'Сессионный транспорт не ответил';result=null}}
     catch(e){if(epoch!==this.epoch||this.browser.project!==projectId)throw e;nativeError=String(e.message||e)}
    }
    if(!result){
     if(nativeError)this.browser.connectionDiagnostics?.service(provider,'fallback',nativeError);
     // Separate managed conversation, never a tab from browser.tabs or the user's original chat.
+    stage('service-loading');
     const tab=this.browser.selectProvider(provider,thread,{background:!!context.execution});
     if(tab.loading)await new Promise((resolve,reject)=>{const wc=tab.view.webContents;const done=()=>{clearTimeout(timer);resolve()};const timer=setTimeout(()=>{wc.removeListener('did-stop-loading',done);reject(Error('Служебный чат не загрузился. Откройте подключение ИИ и войдите в аккаунт.'))},30000);wc.once('did-stop-loading',done)});
     if(epoch!==this.epoch||this.browser.project!==projectId)throw Error('Отправка отменена');
     const text=this.protocol.bcDecoratePrompt(type.endsWith('TOOL_RESULT')?this.protocol.bcToolPrompt(payload.result,requestId):payload.text,enriched,requestId);
     const images=Array.isArray(payload.images)?payload.images.slice(0,6):[];
     if(payload.imageDataUrl)images.push({name:'tool-result.png',dataUrl:payload.imageDataUrl});
+    stage('service-response');
     const reply=await this.dispatch(tab,{type:'BC_PROVIDER_TAB_SEND_V4',text,requestId,images});
     if(!reply?.ok)throw Error(reply?.error||'ИИ не вернул ответ');
     result={ok:true,requestId,payload:{requestId,...this.protocol.bcParseAssistant(reply.answer),media:reply.media||[],widgets:reply.widgets||[]},diag:{provider,mode:'managed-service',...(nativeError?{nativeError}: {})}};

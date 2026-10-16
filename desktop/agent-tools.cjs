@@ -16,9 +16,10 @@ class AgentTools{
    if(revision!==(this.browser.contextRevision||0)||this.browser.project!==initialProject)throw Error('Проект или доступ изменился');
    const project=this.browser.project,url=wc.getURL(),navigationEpoch=t.navigationEpoch||0,bounds={width:t.bounds?.width,height:t.bounds?.height};
    const page=await wc.executeJavaScript(readPage);
-   let image=null,imageError='';if(t.visible&&bounds.width>0&&bounds.height>0){try{image=await wc.capturePage(undefined,{stayAwake:true})}catch(e){imageError=String(e.message||e)}}
+   const includeScreenshot=args.includeScreenshot!==false||page.canvases?.length>0;
+   let image=null,imageError='';if(includeScreenshot&&t.visible&&bounds.width>0&&bounds.height>0){try{image=await wc.capturePage(undefined,{stayAwake:true})}catch(e){imageError=String(e.message||e)}}
    if(revision!==(this.browser.contextRevision||0)||this.browser.project!==project||wc.getURL()!==url||(t.navigationEpoch||0)!==navigationEpoch)throw Error('Страница изменилась во время чтения');
-   const token=randomUUID();this.snapshots.set(token,{revision,project,target:t.id,url,navigationEpoch,size:bounds,expires:Date.now()+120000});while(this.snapshots.size>64)this.snapshots.delete(this.snapshots.keys().next().value);
+   const token=randomUUID();this.snapshots.set(token,{revision,project,target:t.id,url,navigationEpoch,size:bounds,includeScreenshot,expires:Date.now()+120000});while(this.snapshots.size>64)this.snapshots.delete(this.snapshots.keys().next().value);
    return{ok:true,id:t.id,snapshot:token,visible:t.visible,size:bounds,page,...(imageError?{imageError}:{}),...(image&&!image.isEmpty()?{image:{mimeType:'image/png',data:image.resize(bounds).toPNG().toString('base64')}}:{})};
   }
   if(name!=='browser_act')throw Error('Неизвестный инструмент вкладки');
@@ -36,7 +37,7 @@ class AgentTools{
   // Return observed state even after a failed action. Input delivery is not task success.
   if(snapshot.project!==this.browser.project||snapshot.revision!==(this.browser.contextRevision||0))throw Error('Проект или доступ изменился');
   try{
-   const after=await this.run('browser_read',{id:t.id});
+   const after=await this.run('browser_read',{id:t.id,includeScreenshot:snapshot.includeScreenshot});
    result={...result,observation:{...after,image:undefined},...(after.image?{image:after.image}:{}),verificationRequired:true};
   }catch(e){result.observationError=e.message;result.verificationRequired=true}
   this.browser.context?.record(name,{ok:result.ok,completed:result.completed,error:result.error});return result
