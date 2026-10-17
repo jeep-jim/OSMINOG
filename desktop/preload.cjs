@@ -3,6 +3,8 @@ const {contextBridge,ipcRenderer}=require('electron');
 // Only the packaged main frame receives native capabilities. Documents and remote frames do not.
 if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   agentRuntime:true,
+  mcp:(action,client)=>ipcRenderer.invoke('mcp:command',action,client),
+  onMCP:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('mcp:state',listener);return()=>ipcRenderer.removeListener('mcp:state',listener)},
   chatActions:payload=>ipcRenderer.invoke('osminog.chat.actions',payload),
   onChain:callback=>{const listener=(_,state)=>callback(state);ipcRenderer.on('osminog.chat.progress',listener);return()=>ipcRenderer.removeListener('osminog.chat.progress',listener)},
   copyFiles:files=>ipcRenderer.invoke('file:copy',files),

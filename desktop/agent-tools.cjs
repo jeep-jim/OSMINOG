@@ -39,7 +39,7 @@ class AgentTools{
   }
   const plan=parsePlan(JSON.stringify({summary:'Действие из внутреннего чата',actions}));
   if(plan.actions.length!==1)throw Error('Автопилот выполняет одно действие за шаг; после него возвращает свежий снимок');
-  const task={elementRef,autoExecute:true,manualConfirm:options.autoExecute!==true,contextRevision:snapshot.revision,id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
+  const task={externalGuard:options.guard,elementRef,autoExecute:true,manualConfirm:options.autoExecute!==true,contextRevision:snapshot.revision,id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
   let result;
   try{result={ok:true,...await this.control.approve({id:task.id,approval:task.approval})}}
   catch(e){result={ok:false,error:e.message,code:e.code||'ACTION_FAILED',stack:e.stack}}

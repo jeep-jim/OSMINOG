@@ -25,6 +25,7 @@ class Control{
  constructor(browser,providers,{confirmAction=actionPolicy.confirm}={}){this.confirmAction=confirmAction;this.browser=browser;this.providers=providers;this.task=null;this.busy=false}
  stop(){this.task=null;return{stopped:true}}
  guard(task,{visible=false}={}){
+  task.externalGuard?.();
   if(this.task!==task||Date.now()>task.expires||this.browser.project!==task.project||(task.autoExecute&&task.contextRevision!==(this.browser.contextRevision||0)))throw Error('Управление остановлено или проект изменился');
   const source=this.browser.get(task.source),target=this.browser.get(task.target);
   if(new URL(source.view.webContents.getURL()).origin!==new URL(task.sourceURL).origin||target.view.webContents.getURL()!==task.targetURL||(target.navigationEpoch||0)!==task.navigationEpoch)throw Error('Адрес или документ изменился. Передайте управление заново.');
