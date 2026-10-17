@@ -1,0 +1,26 @@
+2026-10-17T05:27:08.3619983Z   • building        target=nsis file=dist\OSMINOG-Preview-4.0.21-x64.exe archs=x64 oneClick=false perMachine=false
+2026-10-17T05:27:41.1322892Z   • signing with signtool.exe  path=dist\OSMINOG-Preview-4.0.21-x64.__uninstaller.exe
+2026-10-17T05:27:42.3514815Z   • signing with signtool.exe  path=dist\OSMINOG-Preview-4.0.21-x64.exe
+2026-10-17T05:27:42.3517907Z   • building block map  blockMapFile=dist\OSMINOG-Preview-4.0.21-x64.exe.blockmap
+2026-10-17T05:27:47.4161991Z 2026-10-17T05:27:45.268Z START 4.0.21
+2026-10-17T05:27:47.4162339Z 2026-10-17T05:27:46.745Z OSMINOG_READY 4.0.21
+2026-10-17T05:27:49.4922769Z 2026-10-17T05:27:47.472Z START 4.0.21
+2026-10-17T05:27:49.4923485Z 2026-10-17T05:27:47.997Z OSMINOG_READY 4.0.21
+2026-10-17T05:28:48.8733082Z 2026-10-17T05:27:49.549Z START 4.0.21
+2026-10-17T05:28:48.8733368Z 2026-10-17T05:27:50.151Z OSMINOG_READY 4.0.21
+2026-10-17T05:29:04.6760974Z 2026-10-17T05:28:48.928Z START 4.0.21
+2026-10-17T05:29:04.6761325Z 2026-10-17T05:28:49.506Z OSMINOG_READY 4.0.21
+2026-10-17T05:29:24.3371917Z Found version 4.0.21 (url: OSMINOG-Preview-4.0.21-x64.exe)
+2026-10-17T05:29:24.3372600Z Downloading update from OSMINOG-Preview-4.0.21-x64.exe
+2026-10-17T05:29:24.3375780Z Download block maps (old: "http://127.0.0.1:18891/OSMINOG-Preview-4.0.20-x64.exe.blockmap", new: http://127.0.0.1:18891/OSMINOG-Preview-4.0.21-x64.exe.blockmap)
+2026-10-17T05:29:24.3376862Z New version 4.0.21 has been downloaded to C:\Users\runneradmin\AppData\Local\osminog-desktop-updater\pending\OSMINOG-Preview-4.0.21-x64.exe
+2026-10-17T05:29:24.3377464Z UPDATE_INSTALL_STARTED
+2026-10-17T05:29:24.3378805Z Executing: C:\Users\runneradmin\AppData\Local\osminog-desktop-updater\pending\OSMINOG-Preview-4.0.21-x64.exe with args: --updated,/S,--force-run
+2026-10-17T05:29:36.1223467Z INSTALLED_UPDATE_SMOKE_PASS 4.0.21
+2026-10-17T05:29:36.1226751Z 2026-10-17T05:29:35.288Z START 4.0.21
+2026-10-17T05:29:36.1227718Z 2026-10-17T05:29:35.930Z OSMINOG_READY 4.0.21
+2026-10-17T05:29:48.0988840Z https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/windows-v4.0.21
+2026-10-17T05:29:51.1266786Z [main 8f6ee41] Publish verified Windows browser 4.0.21 and activate button update channel
+2026-10-17T05:29:51.1267601Z  create mode 100644 platforms/windows/releases/4.0.21/release.json
+2026-10-17T05:29:51.1267881Z  delete mode 100644 staging/windows/4.0.21/ASSEMBLE
+2026-10-17T05:29:56.0068195Z SHA256 digest of uploaded artifact zip is 01a5e24ce2216fa7bed0290982a968224bc61fe36f40cd4f7d45aa1c929de79c
