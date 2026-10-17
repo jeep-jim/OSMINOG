@@ -57,7 +57,7 @@
 #native-browser .native-code>.code-header{height:58px;min-height:58px;padding:10px 16px}
 #native-browser .code-header>strong{font-size:15px;font-weight:600}
 #native-browser .code-commands button{gap:7px;padding-inline:12px}
-#native-browser .code-commands [data-run]{background:var(--accent);color:white}
+#native-browser .code-commands [data-run]{background:var(--accent)!important;color:white!important}
 #native-browser .code-status{padding-left:16px}
 #native-browser .code-explorer{background:#242426;border-color:#343436}
 #native-browser .code-explorer>header{padding:12px 14px}
