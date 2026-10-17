@@ -14,3 +14,10 @@ Tools: browser_tabs/context/open/read/act/navigate; canvas_inspect/create/move/d
 Tests: socket authentication and protocol lifecycle, malformed input, scope revocation, concurrent calls; installed-app stdio process performs read, click/type on an HTTP fixture, creates a canvas shape and file. These validate the bridge, not a live account/model in Codex or Claude Code. Screenshots and CI evidence are attached after verification.
 
 Local sandbox does not permit listening on Unix sockets (EPERM); socket tests are therefore run on the Windows CI host. Existing control/action tests pass locally. No bypass of local sandbox restrictions is used.
+
+## Verified Windows evidence
+
+Source PR65 merged as bb09a9f69028f7fb77e35aca1349c80cb2faeeb4. Windows run 39027542687: 157 tests passed. Both unpackaged and installed Electron ran the independent stdio helper and reported INSTALLED_MCP_STDIO_DOM_TYPE_CANVAS_FILE_PASS and MCP_DISABLE_PASS. Agent regression run 39027542760 passed. Picker and connection-dialog screenshots inspected; no overlap in the tested layout. Runtime 362cc708390091c71d181480e81f897ad2189c8a matches all 478 merged source blobs.
+
+![Agent picker](agent-picker.png)
+![Connection setup](agent-connect.png)

@@ -1,0 +1,35 @@
+
+SHELL_TAB_HIT_TARGETS_PASS
+SHELL_INCREMENTAL_METADATA_PASS
+SHELL_PALETTE_AND_FAVICON_PASS
+BROWSER_ONLY_SHELL_AND_SESSION_SCOPE_PASS
+CLEAN_CHAT_NO_CONTEXT_ATTACHMENTS_PASS
+TOOL_MENU_STATE {"hidden":false,"parent":"native-browser","api":"function","focus":"<button type=\"button\" data-desk=\"text\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 5h14M12 5v14M8 19h8\"></path></svg>Текст на х","nativeTools":3}
+HEADER_TOOL_MENUS_AND_RIGHT_CLICK_DOCUMENTS_PASS
+DESKTOP_TABS_AND_FULL_CONTEXT_PASS
+READABLE_TILE_PICKER_PASS
+SCROLLING_TILES_AND_CANVAS_DRAG_PASS
+TILE_RESIZE_CLOSE_COLLAPSE_PASS
+ADAPTIVE_TILE_GEOMETRY {"tileWidth":956,"gridWidth":956,"tileHeight":822,"availableHeight":822,"bottom":893,"nextTop":-1597}
+CANVAS_LOCAL_TOOLBAR_PASS
+SNAP_LAYOUT_NO_OVERLAP_OR_HORIZONTAL_OVERFLOW_PASS
+INDEPENDENT_WINDOW_POSITION_SIZE_AND_POINTER_SWITCH_PASS
+CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS
+INNER_EYELID_BLINK_PASS
+WORKSPACE_FILE_CANVAS_TEAM_TOOLS_PASS
+NATIVE_POINTER_REGION_CAPTURE_CLEAR_PASS
+REGION_ANNOTATION_PNG_WITHOUT_BOARD_IMPORT_PASS
+WINDOW_SCREENSHOT_AND_RECORDING_PASS
+SELECTED_SAVE_AS_AND_PROPERTIES_SMOKE_PASS
+LAZY_PDF_EXPORT_PASS
+OFFICE_VIEWERS_NATIVE_FILE_COPY_AND_LIVE_CONTEXT_PASS
+CONTROL_NATIVE_INPUT_AND_CANVAS_SMOKE_PASS
+LAYOUT_CLOSE_FILL_CENTRAL_RESIZE_RAIL_NAVIGATION_PASS
+CODE_CENTER_DRAG_ALIGNED_HEADER_MINIMIZE_RESTORE_PASS
+ADDRESS_HISTORY_RELOAD_PASS
+CODE_PREVIEW_SAVE_AND_PERSISTED_LANGUAGE_PASS
+WELCOME_FIELD_AND_CODE_SPLIT_PERSISTENCE_PASS
+RESOURCE_REPORT_PASS {"at":"2026-10-17T11:10:15.380Z","processes":[{"pid":1544,"type":"Browser","labels":["Browser"],"workingSetKB":234848,"privateKB":184812,"cpuPercent":0},{"pid":2980,"type":"GPU","labels":["GPU"],"workingSetKB":157244,"privateKB":30916,"cpuPercent":0},{"pid":4472,"type":"Utility","labels":["Network Service"],"workingSetKB":60544,"privateKB":16692,"cpuPercent":0},{"pid":8444,"type":"Tab","labels":["Оболочка / холст"],"workingSetKB":409792,"privateKB":184072,"cpuPercent":0},{"pid":7388,"type":"Tab","labels":["Фоновая вкладка: www.figma.com"],"workingSetKB":87756,"privateKB":25620,"cpuPercent":0},{"pid":9228,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":93776,"privateKB":22812,"cpuPercent":0},{"pid":3644,"type":"Tab","labels":["Фоновая вкладка: example.org"],"workingSetKB":94080,"privateKB":23036,"cpuPercent":0},{"pid":7104,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":96744,"privateKB":25792,"cpuPercent":0},{"pid":8828,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":100796,"privateKB":26620,"cpuPercent":0},{"pid":6316,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":103484,"privateKB":26748,"cpuPercent":0},{"pid":2924,"type":"Tab","labels":["Фоновая вкладка: 127.0.0.1","Фоновая вкладка: layout-1.example.com","Фоновая вкладка: layout-2.example.com","Фоновая вкладка: layout-3.example.com"],"workingSetKB":117500,"privateKB":41152,"cpuPercent":0},{"pid":2556,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":103784,"privateKB":25180,"cpuPercent":0},{"pid":1264,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":103700,"privateKB":25040,"cpuPercent":0},{"pid":1136,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":103932,"privateKB":25468,"cpuPercent":0},{"pid":9528,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":103896,"privateKB":25324,"cpuPercent":0},{"pid":2696,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":103800,"privateKB":25884,"cpuPercent":0},{"pid":6840,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":106136,"privateKB":24236,"cpuPercent":0},{"pid":6920,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":111544,"privateKB":23508,"cpuPercent":0},{"pid":6480,"type":"Tab","labels":["Фоновая вкладка: example.org"],"workingSetKB":115940,"privateKB":27904,"cpuPercent":0},{"pid":3548,"type":"Tab","labels":["Tab"],"workingSetKB":117996,"privateKB":27700,"cpuPercent":0}],"totalWorkingSetKB":2527292,"note":"Рабочий набор процессов может включать общие страницы памяти. Это не точный аналог столбца памяти Диспетчера задач. CPU — среднее между запросами; первый замер не является интервалом простоя."}
+INSTALLED_MCP_STDIO_DOM_TYPE_CANVAS_FILE_PASS
+MCP_DISABLE_PASS
+SHELL_SMOKE_PASS
