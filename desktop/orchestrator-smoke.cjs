@@ -33,6 +33,24 @@ module.exports=async(browser,source,target)=>{
    // Recover with a fresh read, just as the model must after stale-element feedback.
    assert((await step(s,{type:'click',...await xy('#search')})).ok);
   });
+  await run('8 search submit without confirmation (native fixture)',async s=>{
+   const before=confirmations;
+   await wc.executeJavaScript(`const f=document.querySelector('form[role=search]');f.removeAttribute('role');f.method='get';f.action='/search';f.querySelector('input').type='text';f.querySelector('input').name='q';f.querySelector('button').textContent='Поиск';document.querySelector('#results').hidden=true`);
+   assert((await step(s,{type:'click',...await xy('form[action="/search"] button')})).ok);
+   assert.equal(await wc.executeJavaScript("document.querySelector('#results').hidden"),false);assert.equal(confirmations,before);
+  });
+  await run('9 canvas copy paste and observed IDs (native fixture)',async s=>{
+   const result=await browser.win.webContents.executeJavaScript(`(async()=>{const t=OSMINOGWorkspaceTools;const made=await t.run('canvas.create',{type:'shape',properties:{name:'Copy-paste fixture',x:10,y:20,w:60,h:40,fill:'#f00'}});if(!made.ok)throw Error(made.error);const id=made.createdIds[0];await t.run('canvas.copy',{ids:[id]});const pasted=await t.run('canvas.paste',{dx:100,dy:200});return{source:id,pasted}})()`);
+   assert(result.pasted.ok);const id=result.pasted.createdIds[0];assert.notEqual(id,result.source);const observed=result.pasted.observation.objects.find(o=>o.id===id);assert(observed);assert.equal(observed.x,110);assert.equal(observed.y,220);
+  });
+  await run('10 Figma canvas shortcuts and drag without confirmation (synthetic editor)',async s=>{
+   const before=confirmations;
+   await wc.loadURL('https://www.figma.com/design/osminog-fixture');
+   await wc.executeJavaScript(`document.body.innerHTML='<canvas width="500" height="300" tabindex="0"></canvas>';document.body.style.margin='0';window.fixtureKeys=[];window.fixtureDraws=0;document.body.onkeydown=e=>fixtureKeys.push(e.key);const c=document.querySelector('canvas');c.onpointerup=()=>{fixtureDraws++;c.getContext('2d').fillRect(20,20,50,50)};c.focus()`);
+   assert((await step(s,{type:'key',key:'r'})).ok);
+   assert((await step(s,{type:'drag',x:30,y:30,toX:100,toY:100})).ok);
+   assert((await wc.executeJavaScript('fixtureKeys')).includes('r'));assert.equal(await wc.executeJavaScript('fixtureDraws'),1);assert.equal(confirmations,before);
+  });
   await o.logQueue;fs.mkdirSync('logs',{recursive:true});fs.copyFileSync(o.logFile,path.join('logs','orchestrator.log'));
   // Capture the native progress surface, not a fabricated mockup.
   await browser.win.webContents.executeJavaScript(`OSMINOGNativeBrowser.revealTab(${JSON.stringify(source.id)})`);
