@@ -16,6 +16,10 @@ module.exports=async(win,browser)=>{
  }
  await run("document.querySelector('#native-browser').style.setProperty('--rail-width','80px')");await frame();
  console.log('SHELL_TAB_HIT_TARGETS_PASS');
+ for(const width of [900,1200,1440]){win.setSize(width,900);await frame();assert(await run("(()=>{const a=document.querySelector('.native-brand').getBoundingClientRect(),b=document.querySelector('.native-presence-tools').getBoundingClientRect(),c=document.querySelector('.native-top-actions').getBoundingClientRect();return a.right<=b.left+1&&(b.bottom<=c.top+1||b.right<=c.left+1)&&c.right<=innerWidth})()"),'Header controls never overlap at '+width)}
+ assert(await run("document.querySelector('[data-do=rail] .shell-icon')!==null"));
+ await fs.writeFile('shell-smoke-polished-shell.png',(await win.webContents.capturePage()).toPNG());console.log('POLISHED_SHELL_HEADER_NO_OVERLAP_PASS');
+
  // Compact pane controls and 3-area geometry are real DOM, not screenshots.
  await run('OSMINOGNativeBrowser.split(3)');await frame();assert.equal(await run("document.querySelectorAll('.native-cell').length"),3);
  assert.equal(await run("(()=>{const c=[...document.querySelectorAll('.native-cell')].map(e=>e.getBoundingClientRect());return c[0].height>c[1].height&&Math.abs(c[1].x-c[2].x)<2&&c[2].y>c[1].y})()"),true);
@@ -287,6 +291,25 @@ module.exports=async(win,browser)=>{
  await fs.writeFile('shell-smoke-code-project.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('.native-code [data-minimize]').click()");await frame();await run('OSMINOGCodeWorkspace.open()');await frame();assert(codeChat.visible);assert.equal(codeChat.view.webContents.id,codeChatWC);
  await run('OSMINOGCodeWorkspace.close()');await fs.rm(codeRoot,{recursive:true,force:true});console.log('CODE_FOLDER_TREE_EDIT_SAVE_PREVIEW_CHAT_VISIBLE_PASS');
+ // Visible CodeMirror editing and fenced HTML preview, not just textarea parsing.
+ await run('OSMINOGCodeWorkspace.open()');await frame();
+ await run("document.querySelector('.native-code [data-new]').click()");await frame();
+ const game='<html><body><canvas id="game" width="240" height="160"></canvas><script>const ctx=document.querySelector("canvas").getContext("2d");ctx.fillStyle="lime";ctx.fillRect(30,40,20,20);parent.postMessage("FENCED_GAME_STARTED","*")</script></body></html>';
+ require('electron').clipboard.writeText('```html\n'+game+'\n```');
+ await run("document.querySelector('.native-code .cm-content').focus()");
+ win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['control']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['control']});
+ win.webContents.sendInputEvent({type:'keyDown',keyCode:'V',modifiers:['control']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'V',modifiers:['control']});
+ for(let i=0;i<80&&!(await run("document.querySelector('.native-code textarea').value.includes('FENCED_GAME_STARTED')"));i++)await new Promise(r=>setTimeout(r,25));
+ assert.equal((await run("document.querySelector('.native-code textarea').value")).trim(),game);
+ await run(`globalThis.fencedGame=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Fenced game timeout')),5000);const listener=e=>{if(e.source===document.querySelector('.native-code iframe').contentWindow&&e.data==='FENCED_GAME_STARTED'){clearTimeout(timer);removeEventListener('message',listener);resolve(true)}};addEventListener('message',listener)});document.querySelector('.native-code [data-run]').click()`);assert(await run('fencedGame'));await frame();
+ assert(await run("(()=>{const spans=[...document.querySelectorAll('.native-code .cm-line span')];return new Set(spans.map(x=>getComputedStyle(x).color)).size>=3})()"),'Syntax highlighting must have several rendered colors');
+ await fs.writeFile('shell-smoke-colored-editor.png',(await win.webContents.capturePage()).toPNG());
+ await run(`document.querySelector('.native-code textarea').value=${JSON.stringify('import json\nfrom http.server import HTTPServer\nclass Bridge:\n    def snapshot(self):\n        return "<html><h1>Тестовая страница</h1></html>"')};document.querySelector('.native-code textarea').dispatchEvent(new Event('input'));document.querySelector('.native-code [data-run]').click()`);await frame();
+ assert(await run("document.querySelector('.native-code iframe').hidden&&document.querySelector('.code-preview-note').textContent.includes('Python')&&document.querySelector('.code-language-badge').textContent==='Python'"));
+ await fs.writeFile('shell-smoke-python-detected.png',(await win.webContents.capturePage()).toPNG());
+ await run(`document.querySelector('.native-code textarea').value='<html><script>throw new Error("VISIBLE_PREVIEW_ERROR")</script></html>';document.querySelector('.native-code textarea').dispatchEvent(new Event('input'));document.querySelector('.native-code [data-run]').click()`);
+ for(let i=0;i<80&&!(await run("document.querySelector('.code-preview-note')?.textContent.includes('VISIBLE_PREVIEW_ERROR')"));i++)await new Promise(r=>setTimeout(r,25));
+ assert(await run("document.querySelector('.code-preview-note').textContent.includes('VISIBLE_PREVIEW_ERROR')"));await run('OSMINOGCodeWorkspace.close()');console.log('CODEMIRROR_COLORS_NATIVE_PASTE_GAME_PYTHON_ERROR_PASS');
  const savedSplit=await run("OSMINOGNative.get('nativeCodeSplit').then(p=>p.nativeCodeSplit)");
  await run("OSMINOGWelcome.apply('en')");await new Promise(r=>{win.webContents.once('did-finish-load',r);win.reload()});await run('OSMINOGStateReady');await run('OSMINOGWelcomeReady');assert.equal(await run("document.querySelector('.native-language').value"),'en');assert.equal(await run("!!document.querySelector('#native-welcome')"),false);await run('OSMINOGAddressSuggestions.ready');assert(await run("OSMINOGAddressSuggestions.suggest('history.example').includes('https://history.example.com/remember')"));console.log('ADDRESS_HISTORY_RELOAD_PASS');await run("OSMINOGWelcome.apply('ru')");console.log('CODE_PREVIEW_SAVE_AND_PERSISTED_LANGUAGE_PASS');
  await run('OSMINOGCodeWorkspace.open()');await frame();assert.equal(await run("Number(document.querySelector('.code-divider').getAttribute('aria-valuenow'))"),Math.round(savedSplit*100));await run('OSMINOGCodeWorkspace.close()');

@@ -1,6 +1,6 @@
 {
   "name": "osminog-desktop",
-  "version": "4.0.25",
+  "version": "4.0.26",
   "private": true,
   "description": "OSMINOG local browser preview",
   "author": "OSMINOG",
@@ -8,14 +8,22 @@
   "scripts": {
     "prepare:board": "node prepare.cjs",
     "start": "npm run prepare:board && electron .",
-    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs provider-clean.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs startup.test.cjs context-menu.test.cjs session-transport.test.cjs agent-tools.test.cjs original-actions.test.cjs file-clipboard.test.cjs office.test.cjs browser-context.test.cjs connection-diagnostics.test.cjs adapter.test.cjs module-transport.test.cjs workspace-tools.test.cjs action-policy.test.cjs orchestrator.test.cjs pointer-context.test.cjs element-refs.test.cjs tile-layout.test.cjs mcp-host.test.cjs code-project.test.cjs",
+    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs provider-clean.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs startup.test.cjs context-menu.test.cjs session-transport.test.cjs agent-tools.test.cjs original-actions.test.cjs file-clipboard.test.cjs office.test.cjs browser-context.test.cjs connection-diagnostics.test.cjs adapter.test.cjs module-transport.test.cjs workspace-tools.test.cjs action-policy.test.cjs orchestrator.test.cjs pointer-context.test.cjs element-refs.test.cjs tile-layout.test.cjs mcp-host.test.cjs code-project.test.cjs code-format.test.cjs",
     "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js",
     "pretest": "node prepare.cjs"
   },
   "devDependencies": {
+    "@codemirror/lang-css": "6.3.1",
+    "@codemirror/lang-html": "6.4.12",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/theme-one-dark": "6.1.3",
+    "codemirror": "6.0.2",
     "electron": "44.5.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2"
   },
   "build": {
     "appId": "com.osminog.desktop.preview",
