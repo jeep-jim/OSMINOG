@@ -1,6 +1,7 @@
 'use strict';
 const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu,dialog,nativeTheme}=require('electron');
 const path=require('node:path'),{pathToFileURL}=require('node:url'),{Store}=require('./storage.cjs');
+require('electron').protocol.registerSchemesAsPrivileged([{scheme:'osminog-code',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 app.setName('OSMINOG Preview');
 if(process.platform==='win32')app.setAppUserModelId('com.osminog.desktop.preview');
 const startup=require('./startup.cjs').startup({app,dialog});
@@ -15,6 +16,15 @@ function trusted(event){if(!require('./trust.cjs').trustedFrame(event,win,entry)
 async function external(url){const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password)throw Error('Unsupported link');await shell.openExternal(parsed.href);return{url:parsed.href};}
 if(ownsProfile)app.whenReady().then(async()=>{
  const store=new Store(app.getPath('userData'));
+ const codeProject=new (require('./code-project.cjs').CodeProject)();
+ require('electron').protocol.handle('osminog-code',request=>codeProject.response(request.url));
+ ipcMain.handle('code:project',async(e,action,args={})=>{trusted(e);
+  if(action==='open'){let folder=args.folder;if(!folder){const r=await dialog.showOpenDialog(win,{title:'Открыть папку проекта',properties:['openDirectory']});if(r.canceled)return null;folder=r.filePaths[0]}return codeProject.open(folder)}
+  if(action==='list')return codeProject.list(args.path);
+  if(action==='read')return codeProject.read(args.path);
+  if(action==='save')return codeProject.save(args.path,args.text,args.hash);
+  throw Error('Неизвестная операция проекта');
+ });
  for(const op of ['get','set','remove'])ipcMain.handle('store:'+op,async(e,arg)=>{trusted(e);const result=await store[op](arg);if(op!=='get')win.webContents.send('store:changed',result);return op==='get'?result:undefined});
  ipcMain.handle('external:open',(e,url)=>{trusted(e);return external(url)});
  for(const [channel,method] of [['file:copy','copyFiles'],['file:open','openFile']])ipcMain.handle(channel,(e,args)=>{trusted(e);return require('./file-clipboard.cjs')[method](args)});

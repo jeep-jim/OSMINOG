@@ -70,3 +70,9 @@ test('workspace context is available by default; explicit revocation survives pr
  await b.command('context-scope',{all:true});b.open({url:'https://example.org'});assert.equal((await b.command('context',{all:true})).length,2);
  await b.command('project',{id:'other'});await b.command('project',{id:'work'});assert.equal(b.contextScope,null);
 });
+
+test('code iframe navigation leaves native chat visible; host navigation hides it',async()=>{
+ const win=host(),b=new BrowserWorkspace(win,storage());await b.command('project',{id:'work'});const t=b.open({url:'https://example.com',lane:'side'});b.layout([{id:t.id,x:900,y:100,width:400,height:600}]);
+ win.webContents.emit('did-start-navigation',{},'osminog-code://project/index.html',false,false);win.webContents.emit('did-start-loading');assert.equal(b.get(t.id).view.visible,true);
+ win.webContents.emit('did-start-navigation',{},'file:///editor.html',false,true);assert.equal(b.get(t.id).view.visible,false);
+});

@@ -33,7 +33,8 @@ class BrowserWorkspace{
    item.setSaveDialogOptions({title:'Сохранить файл на устройстве'});
   });
   win.on('resize',()=>this.layout(this.panels));
-  win.webContents.on('did-start-loading',()=>this.layout([]));
+  // Loading a code-preview iframe must not hide the separate native chat views.
+  win.webContents.on('did-start-navigation',(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.layout([])});
   win.on('closed',()=>this.dispose());
  }
  save(){if(!this.store)return;for(const id of this.restored)this.snapshots[id]=[...this.tabs.values(),...this.providers.values()].filter(t=>t.project===id&&!t.ephemeral).map(t=>({id:t.id,url:t.view.webContents.getURL()||t.url,lane:t.lane||'main',provider:t.provider,thread:t.thread}));const snapshot=JSON.parse(JSON.stringify(this.snapshots));this.saveQueue=this.saveQueue.catch(()=>{}).then(()=>this.store.set({browserSessions:snapshot}));this.saveQueue.catch(e=>{if(!this.disposed)this.win.webContents.send('browser:error',e.message)});return this.saveQueue}
