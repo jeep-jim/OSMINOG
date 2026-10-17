@@ -189,6 +189,10 @@ module.exports=async(win,browser)=>{
  assert.deepEqual(await run("[...document.querySelectorAll('.native-tile')].slice(1).map(e=>{const r=e.getBoundingClientRect();return[r.x,r.y,r.width,r.height]})"),unchanged);
  await run("document.querySelector('[data-do=ai-pointer]').click()");await frame();assert.equal(browser.pointerEnabled,true);
  await run("document.querySelector('[data-do=ai-pointer]').click()");await frame();assert.equal(browser.pointerEnabled,false);
+ const rectangles=await run("[...document.querySelectorAll('.native-tile')].map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}})");
+ for(let i=0;i<rectangles.length;i++)for(let j=i+1;j<rectangles.length;j++){const a=rectangles[i],b=rectangles[j];assert(!(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y),JSON.stringify({a,b}));}
+ assert.equal(await run("document.querySelector('.native-scroll').scrollWidth<=document.querySelector('.native-scroll').clientWidth+1"),true);
+ console.log('SNAP_LAYOUT_NO_OVERLAP_OR_HORIZONTAL_OVERFLOW_PASS');
  console.log('INDEPENDENT_WINDOW_POSITION_SIZE_AND_POINTER_SWITCH_PASS');
  console.log('CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS');
  win.webContents.debugger.attach('1.3');await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});

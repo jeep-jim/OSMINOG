@@ -11,7 +11,8 @@ class BrowserContext{
  snapshot(){this.sync();const state=this.browser.state(),allowed=id=>!this.browser.contextScope||this.browser.contextScope.includes(id),board=allowed('@canvas')?this.board:{},tabs=[...(state.tabs||[]),...(state.sessions||[])].filter(t=>allowed(t.id)),active=tabs.find(t=>t.id===board.activeTab)||tabs.find(t=>this.browser.tabs?.get(t.id)?.visible||t.visible),page=this.pages.find(p=>p.id===active?.id);
   return{schema:'osminog.browser-context/v2',project:this.project,updatedAt:this.updatedAt,url:page?.url||active?.url||'',title:page?.title||active?.title||'',tabs,dom:this.pages.filter(p=>allowed(p.id)),screenshot:{mode:'on-demand',tool:'browser_read',reason:'Fresh image and action token are captured when requested'},selection:board.selection||[],cursor:this.browser.pointerEnabled?this.browser.pointerCursor||null:null,pointing:require('./pointer-context.cjs').current(this.browser),canvas:board.canvas||{},actions:this.actions};
  }
- start(){if(this.timer)return;this.timer=setInterval(()=>this.refresh().catch(()=>{}),2000);this.timer.unref?.()}
+ // Metadata stays live through state(); full DOM is read explicitly before each executor turn/action.
+ start(){this.sync()}
  stop(){clearInterval(this.timer);this.timer=null}
 }
 module.exports={BrowserContext};
