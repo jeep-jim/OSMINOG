@@ -1,6 +1,6 @@
 {
   "name": "osminog-desktop",
-  "version": "4.0.23",
+  "version": "4.0.24",
   "private": true,
   "description": "OSMINOG local browser preview",
   "author": "OSMINOG",
@@ -8,7 +8,7 @@
   "scripts": {
     "prepare:board": "node prepare.cjs",
     "start": "npm run prepare:board && electron .",
-    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs provider-clean.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs startup.test.cjs context-menu.test.cjs session-transport.test.cjs agent-tools.test.cjs original-actions.test.cjs file-clipboard.test.cjs office.test.cjs browser-context.test.cjs connection-diagnostics.test.cjs adapter.test.cjs module-transport.test.cjs workspace-tools.test.cjs action-policy.test.cjs orchestrator.test.cjs pointer-context.test.cjs element-refs.test.cjs tile-layout.test.cjs",
+    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs provider-clean.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs startup.test.cjs context-menu.test.cjs session-transport.test.cjs agent-tools.test.cjs original-actions.test.cjs file-clipboard.test.cjs office.test.cjs browser-context.test.cjs connection-diagnostics.test.cjs adapter.test.cjs module-transport.test.cjs workspace-tools.test.cjs action-policy.test.cjs orchestrator.test.cjs pointer-context.test.cjs element-refs.test.cjs tile-layout.test.cjs mcp-host.test.cjs",
     "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js",
     "pretest": "node prepare.cjs"
@@ -71,7 +71,10 @@
       "pointer-context.cjs",
       "capture-window.cjs",
       "element-refs.cjs",
-      "resources.cjs"
+      "resources.cjs",
+      "mcp-host.cjs",
+      "mcp-stdio.cjs",
+      "mcp-smoke.cjs"
     ],
     "win": {
       "target": "nsis",

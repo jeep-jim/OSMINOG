@@ -36,7 +36,7 @@ class OriginalActions{
   const revision=this.browser.contextRevision||0;
   const last=this.recent.get(tab.id);if(last?.text===text&&Date.now()-last.at<1500)return;
   this.recent.set(tab.id,{text,at:Date.now()});while(this.recent.size>100)this.recent.delete(this.recent.keys().next().value);
-  if(this.active){this.status('Задача ещё выполняется. Дождитесь результата или нажмите «Стоп ИИ».');return}
+  if(this.active||this.browser.mcp?.busy){this.status('Задача ещё выполняется. Дождитесь результата или нажмите «Стоп ИИ».');return}
   const t={id:randomUUID(),text,epoch:this.epoch,project:this.browser.project,origin:new URL(tab.view.webContents.getURL()).origin,expires:Date.now()+15*60000,tokens:new Set(),assets:new Map(),history:[]};
   const conversationKey=JSON.stringify([t.project,tab.id,tab.view.webContents.getURL().split('?')[0],revision]);
   const previous=this.conversations.get(conversationKey);t.conversation=previous&&Date.now()-previous.at<30*60000?previous.turns.slice(-6):[];
