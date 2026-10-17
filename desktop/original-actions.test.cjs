@@ -113,3 +113,16 @@ test('navigation acts on the requested tab and returns fresh observation',async(
  const navigation=[];f.browser.agentTools.target=id=>{assert.equal(id,'page')};f.browser.command=async(name,args)=>navigation.push({name,args});
  await f.observer.observe(f.source,'Открой поиск в этой вкладке');assert.equal(navigation[0].name,'navigate');assert.equal(f.calls[0].name,'browser_read');assert.equal(f.messages[1].payload.result.results[0].result.snapshot,'fresh');
 });
+
+test('opening a tab counts as execution and returns a usable observed token without a manual read',async()=>{
+ const f=fixture([request('browser_open',{url:'https://example.com/'}),request('browser_act',{id:'new-page',snapshot:'fresh',actions:[{type:'click',x:20,y:20}]}),{text:'Проверено'}]);
+ f.browser.command=async(name,args)=>{assert.equal(name,'open');return{id:'new-page'}};
+ await f.observer.observe(f.source,'Открой сайт и нажми поиск');
+ assert.deepEqual(f.calls.map(c=>c.name),['browser_read','browser_act']);
+ assert.equal(f.messages[1].payload.result.results[0].result.observation.snapshot,'fresh');
+ assert.equal(f.messages[2].payload.context.execution.history[0].results[0].id,'new-page');
+ assert.equal([...f.observer.orchestrator.sessions.values()][0].status,'done');
+});
+test('a task can continue beyond sixteen observed model turns',async()=>{
+ const f=fixture([...Array.from({length:18},()=>request('browser_read',{id:'page'})),{text:'Проверил все шаги'}]);await f.observer.observe(f.source,'Проверь страницы');assert.equal(f.messages.length,19);assert.match(f.status.at(-1),/Проверил все шаги/);
+});

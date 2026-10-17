@@ -1,0 +1,8 @@
+{
+  "fixture": "16 MiB embedded asset + small prefs; 50 repeated prefs reads",
+  "baselineMilliseconds": 1403,
+  "cachedMilliseconds": 10,
+  "retainedCacheBytes": 74,
+  "cacheContainsProject": false,
+  "note": "Synthetic local storage benchmark; not total browser CPU/RAM or user workload."
+}

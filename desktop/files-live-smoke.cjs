@@ -3,9 +3,11 @@ const fixtures={"docx": "UEsDBBQAAAAIAGVITl306AV6XQAAAH0AAAARAAAAd29yZC9kb2N1bWV
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 module.exports=async(win,browser,pdfBytes)=>{
  const run=s=>win.webContents.executeJavaScript(s),pause=()=>new Promise(r=>setTimeout(r,100));
+ assert.equal(await run('typeof PDFLib'),'undefined');
  await run(`(()=>{const o=createObject('file',{name:'Проверка.pdf',fileName:'Проверка.pdf',mime:'application/pdf',src:'data:application/pdf;base64,${pdfBytes.toString('base64')}'});OSMINOGWorkdesk.open(o.id)})()`);
  let pdfStatus='';for(let i=0;i<150;i++){pdfStatus=await run("document.querySelector('#osminogDocumentEditor [data-doc-status]')?.textContent||''");if(pdfStatus.includes('ревизия'))break;await pause()}
  assert.match(pdfStatus,/ревизия/);assert.equal([...browser.tabs.values()].some(t=>t.visible),false);
+ const exported=await run("OSMINOGDocuments.tool('document_export',{id:document.querySelector('#osminogDocumentEditor').dataset.id})");assert.equal(exported.ok,true,exported.error);assert.match(exported.dataUrl,/^data:application\/pdf/);console.log('LAZY_PDF_EXPORT_PASS');
  await fs.writeFile('shell-smoke-pdf.png',(await win.webContents.capturePage()).toPNG());
  await run("document.querySelector('[data-doc-close]').click()");
  for(const kind of ['docx','xlsx']){
