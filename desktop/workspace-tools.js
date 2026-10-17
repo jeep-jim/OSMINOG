@@ -1,7 +1,7 @@
 'use strict';
 (function(root){
- const names=['readFile','writeFile','canvas.create','canvas.duplicate','canvas.move','agent.say','agent.ask'];
- function create(env){let asking=false;return{names,async run(name,args={}){
+ const names=['readFile','writeFile','canvas.create','canvas.duplicate','canvas.move','canvas.copy','canvas.paste','canvas.inspect','agent.say','agent.ask'];
+ function create(env){let asking=false,clipboard=null;return{names,async run(name,args={}){
   if(!names.includes(name))throw Error('Unknown workspace tool');
   if(!args||typeof args!=='object'||Array.isArray(args))throw Error('Expected tool arguments');
   const project=env.project();if(!project)throw Error('Откройте проект');
@@ -10,8 +10,25 @@
   const check=async()=>{const current=await env.scope();guard();if(current.revision!==access.revision||JSON.stringify(current.ids)!==JSON.stringify(access.ids))throw Error('Доступ к контексту изменился')};
   const objects=()=>env.objects();
   const object=id=>{const o=objects().find(o=>o.id===id);if(!o)throw Error('Объект не найден в текущем проекте');return o};
-  const apply=async actions=>{const expected=await env.snapshot();await check();const result=await env.apply({project,expected,summary:name,actions});guard();return result};
+  const observe=async(ids=[])=>{const revision=await env.snapshot();await check();return{project,revision,total:objects().length,objects:[...objects().filter(o=>ids.includes(o.id)),...objects().filter(o=>!ids.includes(o.id))].slice(0,200).map(o=>({id:o.id,type:o.type,name:o.name,fileName:o.fileName,x:o.x,y:o.y,w:o.w,h:o.h,text:String(o.text||'').slice(0,500)}))}};
+  const apply=async actions=>{const expected=await env.snapshot();await check();const result=await env.apply({project,expected,summary:name,actions});guard();return{...result,observation:await observe([...(result.createdIds||[]),...actions.map(a=>a.target).filter(Boolean)])}};
   const number=value=>{if(typeof value!=='number'||!Number.isFinite(value)||Math.abs(value)>1000000)throw Error('Нужна конечная координата');return value};
+  if(name==='canvas.inspect')return{ok:true,...await observe()};
+  if(name==='canvas.copy'){
+   const ids=Array.isArray(args.ids)?args.ids:[args.id];if(!ids.length||ids.length>40||ids.some(id=>typeof id!=='string'))throw Error('Укажите от 1 до 40 id объектов');
+   const copied=[...new Set(ids)].map(id=>structuredClone(object(id)));
+   if(JSON.stringify(copied).length>16*1024*1024)throw Error('Копия превышает 16 МиБ');
+   await check();clipboard={project,revision:access.revision,objects:copied};return{ok:true,copied:copied.map(o=>({id:o.id,type:o.type,name:o.name})),clipboard:'project-local'};
+  }
+  if(name==='canvas.paste'){
+   if(!clipboard||clipboard.project!==project||clipboard.revision!==access.revision)throw Error('Сначала скопируйте объекты в этом проекте');
+   const dx=args.dx===undefined?24:number(args.dx),dy=args.dy===undefined?24:number(args.dy),actions=[];
+   // Files use asset import in canvas.duplicate; do not partially paste a mixed batch.
+   if(clipboard.objects.length===1&&clipboard.objects[0].type==='file'){const o=clipboard.objects[0];await check();const result=await env.importAsset({dataUrl:o.src,name:o.name,fileName:o.fileName,mime:o.mime,size:o.size,x:number(o.x||0)+dx,y:number(o.y||0)+dy,w:o.w,h:o.h});guard();return{...result,observation:await observe([result.object?.id])}}
+   if(clipboard.objects.some(o=>o.type==='file'))throw Error('Файлы дублируются через canvas.duplicate; вставка набора поддерживает объекты макета и изображения');
+   for(const o of clipboard.objects){const properties=structuredClone(o);delete properties.id;delete properties.group;properties.x=number(o.x)+dx;properties.y=number(o.y)+dy;actions.push({op:'create',objectType:o.type,properties})}
+   return apply(actions);
+  }
   if(name==='readFile'){
    const matches=args.id?[object(String(args.id))]:objects().filter(o=>(o.fileName||o.name)===args.name&&['file','image'].includes(o.type));
    if(matches.length!==1)throw Error('Укажите id файла с доски: имя не найдено или неоднозначно');

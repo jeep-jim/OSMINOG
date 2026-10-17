@@ -107,3 +107,9 @@ test('image search bytes stay in host and assetRef imports the exact downloaded 
  f.browser.win.webContents.executeJavaScript=async code=>{if(code.includes('"web_image_search"'))return{ok:true,results:[{dataUrl:image,mime:'image/png',title:'Camel'}]};if(code.includes('"asset_create"')){imported=code;return{ok:true,object:{id:'saved-image'}}}return'canvas-revision'};
  await f.observer.observe(f.source,'Фото верблюда на холст');assert(imported.includes(image));assert.equal(f.messages[2].payload.result.results[0].result.object.id,'saved-image');
 });
+
+test('navigation acts on the requested tab and returns fresh observation',async()=>{
+ const f=fixture([request('browser_navigate',{id:'page',url:'https://example.com/search'}),{text:'Проверено'}]);
+ const navigation=[];f.browser.agentTools.target=id=>{assert.equal(id,'page')};f.browser.command=async(name,args)=>navigation.push({name,args});
+ await f.observer.observe(f.source,'Открой поиск в этой вкладке');assert.equal(navigation[0].name,'navigate');assert.equal(f.calls[0].name,'browser_read');assert.equal(f.messages[1].payload.result.results[0].result.snapshot,'fresh');
+});
