@@ -69,3 +69,6 @@
 @media(max-width:1200px){#native-browser .native-top{gap:8px;padding-inline:10px}#native-browser .native-top-actions button{padding-inline:7px;font-size:11px}#native-browser .native-presence-tools{gap:0}}
 @media(max-width:960px){#native-browser .native-top{grid-template-columns:auto 1fr;height:auto;min-height:68px;gap:6px}#native-browser .native-presence-tools{grid-column:2;grid-row:1;justify-self:end;margin:0}#native-browser .native-top-actions{grid-column:1/-1;grid-row:2;justify-content:flex-end}#native-browser .native-workspace{padding-top:8px}}
 @media(prefers-reduced-motion:reduce){#native-browser button{transition:none}}
+/* Keep command centers aligned when the toolbar overflows horizontally. */
+#native-browser .code-commands{height:36px;min-height:36px;scrollbar-width:none}
+#native-browser .code-commands::-webkit-scrollbar{display:none}
