@@ -1,0 +1,70 @@
+{"timestamp":"2026-10-17T02:37:15.446Z","sessionId":"c6c133ed-3e94-4be3-8ef7-d20c55d5dea8","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-17T02:37:15.629Z","sessionId":"c6c133ed-3e94-4be3-8ef7-d20c55d5dea8","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:37:15.808Z","sessionId":"c6c133ed-3e94-4be3-8ef7-d20c55d5dea8","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-17T02:37:15.987Z","sessionId":"c6c133ed-3e94-4be3-8ef7-d20c55d5dea8","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-17T02:37:16.002Z","sessionId":"c6c133ed-3e94-4be3-8ef7-d20c55d5dea8","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-17T02:37:16.056Z","sessionId":"c6c133ed-3e94-4be3-8ef7-d20c55d5dea8","action":"canvas_patch","result":true,"duration":42,"error":null}
+{"timestamp":"2026-10-17T02:37:16.885Z","sessionId":"c1dea2d8-360c-42ff-b003-73ecb595fe70","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
+{"timestamp":"2026-10-17T02:37:16.900Z","sessionId":"c1dea2d8-360c-42ff-b003-73ecb595fe70","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-17T02:37:17.081Z","sessionId":"c1dea2d8-360c-42ff-b003-73ecb595fe70","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:37:17.264Z","sessionId":"c1dea2d8-360c-42ff-b003-73ecb595fe70","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T02:37:17.399Z","sessionId":"b87969a8-d2c6-4653-853c-c1be1299066f","action":"web_image_search","result":true,"duration":5,"error":null}
+{"timestamp":"2026-10-17T02:37:17.436Z","sessionId":"b87969a8-d2c6-4653-853c-c1be1299066f","action":"asset_create","result":true,"duration":25,"error":null}
+{"timestamp":"2026-10-17T02:37:17.979Z","sessionId":"24b309f8-e816-475d-a5fe-aecfacd0e4a1","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:37:17.981Z","sessionId":"24b309f8-e816-475d-a5fe-aecfacd0e4a1","action":"acceptance.1 theme (native fixture)","result":true,"duration":192,"error":null}
+{"timestamp":"2026-10-17T02:37:18.166Z","sessionId":"731ccad8-ccf4-4640-a9cd-56f54fb27889","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:37:18.353Z","sessionId":"731ccad8-ccf4-4640-a9cd-56f54fb27889","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:37:18.356Z","sessionId":"731ccad8-ccf4-4640-a9cd-56f54fb27889","action":"acceptance.2 search text (native fixture)","result":true,"duration":373,"error":null}
+{"timestamp":"2026-10-17T02:37:18.542Z","sessionId":"98de809d-2f11-4c63-9c12-9c95d39a5b98","action":"browser_act","result":true,"duration":170,"error":null}
+{"timestamp":"2026-10-17T02:37:18.730Z","sessionId":"98de809d-2f11-4c63-9c12-9c95d39a5b98","action":"browser_act","result":true,"duration":170,"error":null}
+{"timestamp":"2026-10-17T02:37:18.915Z","sessionId":"98de809d-2f11-4c63-9c12-9c95d39a5b98","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:37:18.923Z","sessionId":"98de809d-2f11-4c63-9c12-9c95d39a5b98","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":566,"error":null}
+{"timestamp":"2026-10-17T02:37:19.104Z","sessionId":"13f333b9-7b3a-47d7-9a3e-710d2d5d0c1c","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:37:19.293Z","sessionId":"13f333b9-7b3a-47d7-9a3e-710d2d5d0c1c","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:37:19.325Z","sessionId":"13f333b9-7b3a-47d7-9a3e-710d2d5d0c1c","action":"browser_act","result":false,"duration":15,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-17T02:37:19.327Z","sessionId":"13f333b9-7b3a-47d7-9a3e-710d2d5d0c1c","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":402,"error":null}
+{"timestamp":"2026-10-17T02:37:19.357Z","sessionId":"070e6b21-78de-4e6a-b48d-8ce21be71acd","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-17T02:37:19.390Z","sessionId":"070e6b21-78de-4e6a-b48d-8ce21be71acd","action":"browser_act","result":false,"duration":11,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-17T02:37:19.391Z","sessionId":"070e6b21-78de-4e6a-b48d-8ce21be71acd","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":62,"error":null}
+{"timestamp":"2026-10-17T02:37:19.416Z","sessionId":"05aedba2-b707-432a-9dca-b98bd7a3f5cc","action":"browser_act","result":false,"duration":15,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-17T02:37:19.600Z","sessionId":"05aedba2-b707-432a-9dca-b98bd7a3f5cc","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T02:37:19.601Z","sessionId":"05aedba2-b707-432a-9dca-b98bd7a3f5cc","action":"acceptance.6 queue failure and alternative","result":true,"duration":207,"error":null}
+{"timestamp":"2026-10-17T02:37:19.771Z","sessionId":"852ee816-0845-4c9b-a053-0a9d27c24657","action":"browser_act","result":true,"duration":165,"error":null}
+{"timestamp":"2026-10-17T02:37:19.776Z","sessionId":"852ee816-0845-4c9b-a053-0a9d27c24657","action":"browser_act","result":false,"duration":1,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-17T02:37:19.963Z","sessionId":"852ee816-0845-4c9b-a053-0a9d27c24657","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T02:37:19.965Z","sessionId":"852ee816-0845-4c9b-a053-0a9d27c24657","action":"acceptance.7 live DOM references follow layout and reject replacements","result":true,"duration":362,"error":null}
+{"timestamp":"2026-10-17T02:40:51.715Z","sessionId":"6c35b28e-d303-4a96-a726-7d0b0efc5f64","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-17T02:40:51.946Z","sessionId":"6c35b28e-d303-4a96-a726-7d0b0efc5f64","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:40:52.167Z","sessionId":"6c35b28e-d303-4a96-a726-7d0b0efc5f64","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:40:52.375Z","sessionId":"6c35b28e-d303-4a96-a726-7d0b0efc5f64","action":"browser_act","result":true,"duration":165,"error":null}
+{"timestamp":"2026-10-17T02:40:52.436Z","sessionId":"6c35b28e-d303-4a96-a726-7d0b0efc5f64","action":"browser_read","result":true,"duration":1,"error":null}
+{"timestamp":"2026-10-17T02:40:53.689Z","sessionId":"6c35b28e-d303-4a96-a726-7d0b0efc5f64","action":"canvas_patch","result":true,"duration":1195,"error":null}
+{"timestamp":"2026-10-17T02:40:54.558Z","sessionId":"77104caa-2fd2-4f09-a3b3-a186d4ba3832","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
+{"timestamp":"2026-10-17T02:40:54.583Z","sessionId":"77104caa-2fd2-4f09-a3b3-a186d4ba3832","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-17T02:40:54.772Z","sessionId":"77104caa-2fd2-4f09-a3b3-a186d4ba3832","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-17T02:40:54.959Z","sessionId":"77104caa-2fd2-4f09-a3b3-a186d4ba3832","action":"browser_act","result":true,"duration":165,"error":null}
+{"timestamp":"2026-10-17T02:40:55.071Z","sessionId":"6b77159f-79fd-4ac2-aef9-89771fc90a56","action":"web_image_search","result":true,"duration":7,"error":null}
+{"timestamp":"2026-10-17T02:40:55.529Z","sessionId":"6b77159f-79fd-4ac2-aef9-89771fc90a56","action":"asset_create","result":true,"duration":400,"error":null}
+{"timestamp":"2026-10-17T02:40:56.121Z","sessionId":"2af310dd-d269-43eb-8dd7-38a4470b6d3f","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:40:56.123Z","sessionId":"2af310dd-d269-43eb-8dd7-38a4470b6d3f","action":"acceptance.1 theme (native fixture)","result":true,"duration":184,"error":null}
+{"timestamp":"2026-10-17T02:40:56.305Z","sessionId":"3741cf35-67f3-4e77-8876-7559a28babf7","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T02:40:56.494Z","sessionId":"3741cf35-67f3-4e77-8876-7559a28babf7","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:40:56.496Z","sessionId":"3741cf35-67f3-4e77-8876-7559a28babf7","action":"acceptance.2 search text (native fixture)","result":true,"duration":371,"error":null}
+{"timestamp":"2026-10-17T02:40:56.680Z","sessionId":"2019d311-083c-411b-b32a-702edb7241b4","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:40:56.869Z","sessionId":"2019d311-083c-411b-b32a-702edb7241b4","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T02:40:57.056Z","sessionId":"2019d311-083c-411b-b32a-702edb7241b4","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:40:57.076Z","sessionId":"2019d311-083c-411b-b32a-702edb7241b4","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":578,"error":null}
+{"timestamp":"2026-10-17T02:40:57.262Z","sessionId":"f3c68afe-dcc9-4795-b5a5-6bc106556460","action":"browser_act","result":true,"duration":170,"error":null}
+{"timestamp":"2026-10-17T02:40:57.446Z","sessionId":"f3c68afe-dcc9-4795-b5a5-6bc106556460","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:40:57.482Z","sessionId":"f3c68afe-dcc9-4795-b5a5-6bc106556460","action":"browser_act","result":false,"duration":15,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-17T02:40:57.484Z","sessionId":"f3c68afe-dcc9-4795-b5a5-6bc106556460","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":407,"error":null}
+{"timestamp":"2026-10-17T02:40:57.512Z","sessionId":"f85e4b57-29b0-4e5b-875e-3d71db8007bf","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-17T02:40:57.543Z","sessionId":"f85e4b57-29b0-4e5b-875e-3d71db8007bf","action":"browser_act","result":false,"duration":11,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-17T02:40:57.545Z","sessionId":"f85e4b57-29b0-4e5b-875e-3d71db8007bf","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":60,"error":null}
+{"timestamp":"2026-10-17T02:40:57.575Z","sessionId":"eea0f89e-932c-4316-9259-b2411ddbe704","action":"browser_act","result":false,"duration":15,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-17T02:40:57.758Z","sessionId":"eea0f89e-932c-4316-9259-b2411ddbe704","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T02:40:57.760Z","sessionId":"eea0f89e-932c-4316-9259-b2411ddbe704","action":"acceptance.6 queue failure and alternative","result":true,"duration":213,"error":null}
+{"timestamp":"2026-10-17T02:40:57.928Z","sessionId":"fc86c300-09da-4a71-a48d-c967dc649e54","action":"browser_act","result":true,"duration":163,"error":null}
+{"timestamp":"2026-10-17T02:40:57.933Z","sessionId":"fc86c300-09da-4a71-a48d-c967dc649e54","action":"browser_act","result":false,"duration":1,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-17T02:40:58.121Z","sessionId":"fc86c300-09da-4a71-a48d-c967dc649e54","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T02:40:58.122Z","sessionId":"fc86c300-09da-4a71-a48d-c967dc649e54","action":"acceptance.7 live DOM references follow layout and reject replacements","result":true,"duration":360,"error":null}
