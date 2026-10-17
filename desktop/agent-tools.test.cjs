@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),{AgentTools}=require('./agent-tools.cjs');
-function fixture(){const t={id:'tab',project:'p',navigationEpoch:1,visible:false,bounds:{width:600,height:400},view:{webContents:{getURL:()=> 'https://example.com/',executeJavaScript:async()=>({title:'Fixture'}),capturePage:async()=>({isEmpty:()=>true})}}},browser={project:'p',get:()=>t,win:{webContents:{executeJavaScript:async()=>{t.visible=true}}}},calls=[],control={busy:false,task:null,stop(){this.task=null},async approve(){calls.push(this.task.plan);return{completed:1}}};return{t,browser,calls,agent:new AgentTools(browser,control)}}
+function fixture(){const t={id:'tab',project:'p',navigationEpoch:1,visible:false,bounds:{width:600,height:400},view:{webContents:{getURL:()=> 'https://example.com/',executeJavaScript:async()=>({title:'Fixture'}),executeJavaScriptInIsolatedWorld:async()=>[],capturePage:async()=>({isEmpty:()=>true})}}},browser={project:'p',get:()=>t,win:{webContents:{executeJavaScript:async()=>{t.visible=true}}}},calls=[],control={busy:false,task:null,stop(){this.task=null},async approve(){calls.push(this.task.plan);return{completed:1}}};return{t,browser,calls,agent:new AgentTools(browser,control)}}
 test('browser actions consume exactly one current snapshot',async()=>{const f=fixture(),read=await f.agent.run('browser_read',{id:'tab'});f.t.visible=true;const args={id:'tab',snapshot:read.snapshot,actions:[{type:'type',text:'Омск'}]};assert.equal((await f.agent.run('browser_act',args)).completed,1);await assert.rejects(f.agent.run('browser_act',args),/свежий/);assert.equal(f.calls.length,1)});
 test('navigation, project switch and Stop invalidate tab actions',async()=>{for(const change of [f=>f.t.navigationEpoch++,f=>f.browser.project='other',f=>f.agent.stop()]){const f=fixture(),r=await f.agent.run('browser_read',{id:'tab'});f.t.visible=true;change(f);await assert.rejects(f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[]}),/свежий/);assert.equal(f.calls.length,0)}});
 
@@ -23,4 +23,17 @@ test('DOM-only reads and action feedback do not force image transport for normal
 test('canvas reading retains screenshots even in DOM-first executor mode',async()=>{
  const f=fixture();let captures=0;f.t.view.webContents.executeJavaScript=async()=>({canvases:[{w:500,h:300}]});f.t.view.webContents.capturePage=async()=>{captures++;return{isEmpty:()=>true}};
  await f.agent.run('browser_read',{id:'tab',includeScreenshot:false});assert.equal(captures,1);
+});
+
+test('ref action resolves current node coordinates and binds final input check',async()=>{
+ const f=fixture();f.t.view.webContents.executeJavaScriptInIsolatedWorld=async(world,scripts)=>scripts[0].code.includes('function collect')?[{ref:'e1'}]:{ok:true,x:100,y:50};
+ const r=await f.agent.run('browser_read',{id:'tab',includeScreenshot:false});assert.equal(r.page.elements[0].ref,'e1');
+ let bound;f.agent.control.approve=async()=>{bound=f.agent.control.task;return{completed:1}};
+ await f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[{type:'click',ref:'e1'}]});
+ assert.equal(bound.plan.actions[0].x,100);assert.equal(bound.elementRef.snapshot,r.snapshot);
+});
+test('stale ref never reaches native input',async()=>{
+ const f=fixture(),r=await f.agent.run('browser_read',{id:'tab'});
+ f.t.view.webContents.executeJavaScriptInIsolatedWorld=async()=>({ok:false,error:'ELEMENT_STALE'});
+ await assert.rejects(f.agent.run('browser_act',{id:'tab',snapshot:r.snapshot,actions:[{type:'click',ref:'e1'}]}),/ELEMENT_STALE/);assert.equal(f.calls.length,0);
 });

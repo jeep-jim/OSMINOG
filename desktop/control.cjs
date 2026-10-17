@@ -91,6 +91,12 @@ class Control{
      }
      if(target.bounds.width!==task.size.width||target.bounds.height!==task.size.height)throw Error('Размер вкладки изменился');
     }
+    if(task.elementRef){
+     const e=task.elementRef,now=await require('./element-refs.cjs').locate(wc,e.snapshot,e.ref,e.kind);
+     this.guard(task,{visible:true});
+     if(!now.ok)throw Error(now.error);
+     if(a.type==='click'&&(now.x!==a.x||now.y!==a.y))throw Error('ELEMENT_MOVED: цель сдвинулась после проверки; запросите свежий снимок');
+    }
     if(a.type==='type')await wc.insertText(a.text);
     if(a.type==='key'){wc.sendInputEvent({type:'keyDown',keyCode:a.key,modifiers:a.modifiers});if(a.key==='Enter'&&!a.modifiers.length)wc.sendInputEvent({type:'char',keyCode:'Enter'});wc.sendInputEvent({type:'keyUp',keyCode:a.key,modifiers:a.modifiers})}
     if(a.type==='scroll')wc.sendInputEvent({type:'mouseWheel',...point(a.x,a.y),deltaX:a.deltaX,deltaY:a.deltaY});
