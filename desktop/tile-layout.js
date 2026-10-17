@@ -22,5 +22,11 @@
   }
   return items.map(item=>result.get(item.key));
  }
- return{arrange,overlap,gap};
+ function resize(rect,w,h,others,width){
+  w=Math.max(Math.min(220,width),Math.min(width-rect.x,w));h=Math.max(160,h);
+  for(const o of others)if(o.x>=rect.x+rect.w-.1&&rect.y<o.y+o.h+gap&&rect.y+rect.h+gap>o.y)w=Math.min(w,Math.max(rect.w,o.x-rect.x-gap));
+  for(const o of others)if(o.y>=rect.y+rect.h-.1&&rect.x<o.x+o.w+gap&&rect.x+w+gap>o.x)h=Math.min(h,Math.max(rect.h,o.y-rect.y-gap));
+  return{w,h};
+ }
+ return{arrange,resize,overlap,gap};
 });
