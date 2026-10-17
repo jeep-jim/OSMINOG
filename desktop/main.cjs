@@ -102,6 +102,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
  win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));
  await win.loadURL(entry);
+ if(process.argv.some(a=>a.includes('smoke')))await win.webContents.executeJavaScript("(async()=>{for(let i=0;i<100&&!document.querySelector('#native-welcome button');i++){if((await OSMINOGNative.get('nativeLocale')).nativeLocale)return;await new Promise(r=>setTimeout(r,20))}document.querySelector('#native-welcome button')?.click();await globalThis.OSMINOGWelcomeReady})()");
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>{if(document.documentElement.classList.contains('native-ready'))return resolve(true);if(Date.now()-started>30000)return reject(Error('Интерфейс не завершил запуск за 30 секунд'));setTimeout(check,100)};check()})");
  showWindow(win);startup.log('OSMINOG_READY '+app.getVersion());
  if(process.argv.includes('--update-smoke')||process.argv.includes('--verify-update-smoke')){
