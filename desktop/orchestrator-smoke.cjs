@@ -18,6 +18,21 @@ module.exports=async(browser,source,target)=>{
   await run('4 fill without submitting; native approval boundary',async s=>{await step(s,{type:'click',...await xy('#mass')});await step(s,{type:'type',text:'2815'});assert.equal(await wc.executeJavaScript("document.querySelector('#mass').value"),'2815');assert.notEqual(await wc.executeJavaScript('document.body.dataset.submitted'),'yes');browser.control.confirmAction=async()=>{confirmations++;return false};const r=await step(s,{type:'click',...await xy('#submit')});assert.equal(r.ok,false);assert.equal(confirmations,1);assert.notEqual(await wc.executeJavaScript('document.body.dataset.submitted'),'yes')});
   await run('5 password and sensitive submission blocked',async s=>{const r=await step(s,{type:'click',...await xy('#password')});assert.equal(r.ok,false);assert.match(r.results[0].result.error,/Пароли|пароль/);assert.equal(await wc.executeJavaScript("document.querySelector('#password').value"),'');assert.equal((await step(s,{type:'click',...await xy('#sensitive')})).ok,false);assert.equal(confirmations,1)});
   await run('6 queue failure and alternative',async s=>{const r=await tools.run('browser_read',{id:target.id});const batch=await dispatch({sessionId:s.id,actions:[{tool:'browser_act',args:{id:target.id,snapshot:r.snapshot,actions:[{type:'click',x:9999,y:9999}]}},{tool:'browser_read',args:{id:target.id}}]});assert.equal(batch.ok,false);assert.equal(batch.results.length,1);assert(batch.nextSnapshot);assert((await step(s,{type:'click',...await xy('#search')})).ok)});
+  await run('7 live DOM references follow layout and reject replacements',async s=>{
+   let r=await tools.run('browser_read',{id:target.id,includeScreenshot:false});
+   const ref=r.page.elements.find(e=>e.label==='Light mode').ref;
+   assert.equal(await wc.executeJavaScript('typeof globalThis.__osminogElements'),'undefined');
+   await wc.executeJavaScript("document.querySelector('#theme').style.marginLeft='150px';document.body.dataset.theme='dark'");
+   const action=await dispatch({sessionId:s.id,actions:[{tool:'browser_act',args:{id:target.id,snapshot:r.snapshot,actions:[{type:'click',ref}]}}]});
+   assert.equal(action.ok,true);assert.equal(await wc.executeJavaScript('document.body.dataset.theme'),'light');
+   r=await tools.run('browser_read',{id:target.id,includeScreenshot:false});
+   const old=r.page.elements.find(e=>e.label==='Light mode').ref;
+   await wc.executeJavaScript("document.querySelector('#theme').replaceWith(document.querySelector('#theme').cloneNode(true))");
+   const stale=await dispatch({sessionId:s.id,actions:[{tool:'browser_act',args:{id:target.id,snapshot:r.snapshot,actions:[{type:'click',ref:old}]}}]});
+   assert.equal(stale.ok,false);assert.match(stale.results[0].result.error,/ELEMENT_STALE/);
+   // Recover with a fresh read, just as the model must after stale-element feedback.
+   assert((await step(s,{type:'click',...await xy('#search')})).ok);
+  });
   await o.logQueue;fs.mkdirSync('logs',{recursive:true});fs.copyFileSync(o.logFile,path.join('logs','orchestrator.log'));
   // Capture the native progress surface, not a fabricated mockup.
   await browser.win.webContents.executeJavaScript(`OSMINOGNativeBrowser.revealTab(${JSON.stringify(source.id)})`);

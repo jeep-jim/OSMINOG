@@ -1,4 +1,5 @@
 'use strict';
+const elementRefs=require('./element-refs.cjs');
 const {randomUUID}=require('node:crypto'),{readPage,providerFor}=require('./page-context.cjs'),{parsePlan}=require('./control.cjs');
 class AgentTools{
  constructor(browser,control){this.browser=browser;this.control=control;this.snapshots=new Map();this.autoExecute=false}
@@ -15,11 +16,13 @@ class AgentTools{
    if(t.loading)throw Error('Страница ещё загружается; запросите browser_read повторно');
    if(revision!==(this.browser.contextRevision||0)||this.browser.project!==initialProject)throw Error('Проект или доступ изменился');
    const project=this.browser.project,url=wc.getURL(),navigationEpoch=t.navigationEpoch||0,bounds={width:t.bounds?.width,height:t.bounds?.height};
+   const token=randomUUID();
    const page=await wc.executeJavaScript(readPage);
+   page.elements=await elementRefs.read(wc,token);
    const includeScreenshot=args.includeScreenshot!==false||page.canvases?.length>0;
    let image=null,imageError='';if(includeScreenshot&&t.visible&&bounds.width>0&&bounds.height>0){try{image=await wc.capturePage(undefined,{stayAwake:true})}catch(e){imageError=String(e.message||e)}}
    if(revision!==(this.browser.contextRevision||0)||this.browser.project!==project||wc.getURL()!==url||(t.navigationEpoch||0)!==navigationEpoch)throw Error('Страница изменилась во время чтения');
-   const token=randomUUID();this.snapshots.set(token,{revision,project,target:t.id,url,navigationEpoch,size:bounds,includeScreenshot,expires:Date.now()+120000});while(this.snapshots.size>64)this.snapshots.delete(this.snapshots.keys().next().value);
+   this.snapshots.set(token,{revision,project,target:t.id,url,navigationEpoch,size:bounds,includeScreenshot,expires:Date.now()+120000});while(this.snapshots.size>64)this.snapshots.delete(this.snapshots.keys().next().value);
    return{ok:true,id:t.id,snapshot:token,visible:t.visible,size:bounds,page,...(imageError?{imageError}:{}),...(image&&!image.isEmpty()?{image:{mimeType:'image/png',data:image.resize(bounds).toPNG().toString('base64')}}:{})};
   }
   if(name!=='browser_act')throw Error('Неизвестный инструмент вкладки');
@@ -27,9 +30,16 @@ class AgentTools{
   if(!snapshot||snapshot.revision!==(this.browser.contextRevision||0)||snapshot.project!==this.browser.project||snapshot.target!==t.id||snapshot.url!==wc.getURL()||snapshot.navigationEpoch!==(t.navigationEpoch||0)||snapshot.expires<Date.now())throw Error('Нужен свежий browser_read перед действием');
   if(!t.visible||snapshot.size.width!==t.bounds.width||snapshot.size.height!==t.bounds.height)throw Error('Покажите вкладку и получите свежий снимок после изменения размера');
   if(this.control.busy||this.control.task?.plan)throw Error('Управление вкладкой уже выполняется');
-  const plan=parsePlan(JSON.stringify({summary:'Действие из внутреннего чата',actions:args.actions}));
+  let actions=args.actions,elementRef=null;
+  if(Array.isArray(actions)&&actions.length===1&&actions[0]?.ref!==undefined){
+   const a=actions[0];if(typeof a.ref!=='string'||!['click','type'].includes(a.type))throw Error('ref поддерживается только для click/type');
+   const located=await elementRefs.locate(wc,args.snapshot,a.ref,a.type);
+   if(!located.ok)throw Error(located.error);
+   elementRef={snapshot:args.snapshot,ref:a.ref,kind:a.type};actions=[{...a,...(a.type==='click'?{x:located.x,y:located.y}:{})}];
+  }
+  const plan=parsePlan(JSON.stringify({summary:'Действие из внутреннего чата',actions}));
   if(plan.actions.length!==1)throw Error('Автопилот выполняет одно действие за шаг; после него возвращает свежий снимок');
-  const task={autoExecute:true,manualConfirm:options.autoExecute!==true,contextRevision:snapshot.revision,id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
+  const task={elementRef,autoExecute:true,manualConfirm:options.autoExecute!==true,contextRevision:snapshot.revision,id:randomUUID(),approval:randomUUID(),project:snapshot.project,source:t.id,target:t.id,sourceURL:snapshot.url,targetURL:snapshot.url,navigationEpoch:snapshot.navigationEpoch,expires:snapshot.expires,size:snapshot.size,plan,history:[]};this.control.task=task;
   let result;
   try{result={ok:true,...await this.control.approve({id:task.id,approval:task.approval})}}
   catch(e){result={ok:false,error:e.message,code:e.code||'ACTION_FAILED',stack:e.stack}}

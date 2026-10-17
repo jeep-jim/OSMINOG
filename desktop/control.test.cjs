@@ -25,3 +25,12 @@ test('autopilot asks once for submit and obeys cancellation',async()=>{for(const
 test('context revoked during confirmation prevents execution',async()=>{const s=await autoSetup({tag:'button',type:'submit',form:true});s.control.confirmAction=async()=>{s.browser.contextRevision=1;return true};await assert.rejects(s.control.approve(s.p),/остановлено/);assert.equal(s.events.length,0)});
 test('autoExecute off asks even for a safe field, on runs without confirmation',async()=>{for(const manual of [true,false]){let asks=0;const s=await autoSetup({tag:'input',type:'search'},async()=>{asks++;return true});s.control.task.manualConfirm=manual;await s.control.approve(s.p);assert.equal(asks,manual?1:0)}});
 test('Enter sends the character event needed by native form submission',async()=>{const s=setup([{type:'key',key:'Enter'}]);const p=await s.control.start({source:'source',target:'target',prompt:'Search'});await s.control.approve(p);assert.deepEqual(s.events.map(e=>e.type),['keyDown','char','keyUp'])});
+
+test('ref revalidation after confirmation prevents input into moved or replaced targets',async()=>{
+ for(const located of [{ok:false,error:'ELEMENT_STALE'},{ok:true,x:99,y:20}]){
+  const s=await autoSetup({tag:'button',type:'submit',label:'Send'},async()=>true);
+  s.control.task.elementRef={snapshot:'s',ref:'e1',kind:'click'};
+  s.target.view.webContents.executeJavaScriptInIsolatedWorld=async()=>located;
+  await assert.rejects(s.control.approve(s.p),/ELEMENT_STALE|ELEMENT_MOVED/);assert.equal(s.events.length,0);
+ }
+});
