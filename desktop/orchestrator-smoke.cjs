@@ -30,6 +30,8 @@ module.exports=async(browser,source,target)=>{
    await wc.executeJavaScript("document.querySelector('#theme').replaceWith(document.querySelector('#theme').cloneNode(true))");
    const stale=await dispatch({sessionId:s.id,actions:[{tool:'browser_act',args:{id:target.id,snapshot:r.snapshot,actions:[{type:'click',ref:old}]}}]});
    assert.equal(stale.ok,false);assert.match(stale.results[0].result.error,/ELEMENT_STALE/);
+   // Recover with a fresh read, just as the model must after stale-element feedback.
+   assert((await step(s,{type:'click',...await xy('#search')})).ok);
   });
   await o.logQueue;fs.mkdirSync('logs',{recursive:true});fs.copyFileSync(o.logFile,path.join('logs','orchestrator.log'));
   // Capture the native progress surface, not a fabricated mockup.
