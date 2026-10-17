@@ -239,11 +239,30 @@ module.exports=async(win,browser)=>{
  console.log('WINDOW_SCREENSHOT_AND_RECORDING_PASS');browser.session.protocol.unhandle('https');
  await require('./files-smoke.cjs')(win,browser);
  await require('./control-smoke.cjs')(win,browser);
+ // Additional same-release layout regressions, isolated from existing project checks.
+ await run('createProject();OSMINOGNativeBrowser.open()');await frame();
+ for(let i=0;i<4;i++)await run(`OSMINOGNativeBrowser.open('https://layout-${i}.example.com/')`);
+ await run('OSMINOGNativeBrowser.split(4)');await frame();
+ assert(await run("!!document.querySelector('.native-shared-x')&&!!document.querySelector('.native-shared-y')"));
+ const firstWidth=await run("document.querySelector('.native-tile').offsetWidth");
+ await run("document.querySelector('.native-shared-x').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");await frame();
+ assert((await run("document.querySelector('.native-tile').offsetWidth"))>firstWidth);
+ await run('OSMINOGNativeBrowser.split(4)');await frame();
+ const vacancy=await run("(()=>{const tiles=[...document.querySelectorAll('.native-tile')],a=tiles[1],b=tiles[3];globalThis.fillTarget=b.dataset.paneId;return {id:a.dataset.paneId,y:a.offsetTop}})()");
+ await run(`document.querySelector('[data-pane-id="${vacancy.id}"] .native-pane-close').click()`);
+ for(let i=0;i<40&&browser.state().tabs.some(t=>t.id===vacancy.id);i++)await new Promise(r=>setTimeout(r,25));await frame();
+ assert.equal(await run("[...document.querySelectorAll('.native-tile')].find(t=>t.dataset.paneId===fillTarget).offsetTop"),vacancy.y);
+ await run("globalThis.navTarget=[...document.querySelectorAll('.native-tile')].sort((a,b)=>b.offsetTop-a.offsetTop)[0].dataset.paneId;document.querySelector('.native-scroll').scrollTop=0;document.querySelector('.native-tabs [data-tab-id=\"'+navTarget+'\"] > button').click()");await frame();
+ assert(await run("(()=>{const tile=[...document.querySelectorAll('.native-tile')].find(t=>t.dataset.paneId===navTarget),scroll=document.querySelector('.native-scroll');return tile.getBoundingClientRect().top<scroll.getBoundingClientRect().bottom&&scroll.scrollTop>0})()"));
+ await run('OSMINOGAddressSuggestions.ready');assert(await run("OSMINOGAddressSuggestions.suggest('fig').some(url=>url.includes('figma.com'))"));
+ await run("OSMINOGAddressSuggestions.remember('https://history.example.com/remember')");
+ assert(await run("[...document.querySelectorAll('.native-pane-nav input')].every(el=>el.getAttribute('list')==='native-address-suggestions')"));
+ console.log('LAYOUT_CLOSE_FILL_CENTRAL_RESIZE_RAIL_NAVIGATION_PASS');
  await run("document.querySelector('[data-do=code]').click()");await frame();await frame();assert(await run("!!document.querySelector('.native-code:not([hidden])')"));
  const code='<html><body style="background:#18314a;color:white;font:24px system-ui"><h1>Code preview fixture</h1><script>parent.postMessage("CODE_PREVIEW_EXECUTED","*")</script></body></html>';
  await run(`document.querySelector('.native-code textarea').value=${JSON.stringify(code)};document.querySelector('.native-code textarea').dispatchEvent(new Event('input'));window.codePreviewResult=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Preview did not execute')),5000);const listener=e=>{if(e.source===document.querySelector('.native-code iframe').contentWindow&&e.data==='CODE_PREVIEW_EXECUTED'){clearTimeout(timer);removeEventListener('message',listener);resolve(true)}};addEventListener('message',listener)});document.querySelector('.native-code [data-run]').click()`);assert(await run('codePreviewResult'));
  await run("document.querySelector('.native-code [data-save]').onclick()");assert(await run("OSMINOGExtensionStudio.list().some(m=>OSMINOGExtensionStudio.get(m.id)?.html.includes('Code preview fixture'))"));await fs.writeFile('shell-smoke-code.png',(await win.webContents.capturePage()).toPNG());await run('OSMINOGCodeWorkspace.close()');
- await run("OSMINOGWelcome.apply('en')");await new Promise(r=>{win.webContents.once('did-finish-load',r);win.reload()});await run('OSMINOGStateReady');await run('OSMINOGWelcomeReady');assert.equal(await run("document.querySelector('.native-language').value"),'en');assert.equal(await run("!!document.querySelector('#native-welcome')"),false);await run("OSMINOGWelcome.apply('ru')");console.log('CODE_PREVIEW_SAVE_AND_PERSISTED_LANGUAGE_PASS');
+ await run("OSMINOGWelcome.apply('en')");await new Promise(r=>{win.webContents.once('did-finish-load',r);win.reload()});await run('OSMINOGStateReady');await run('OSMINOGWelcomeReady');assert.equal(await run("document.querySelector('.native-language').value"),'en');assert.equal(await run("!!document.querySelector('#native-welcome')"),false);await run('OSMINOGAddressSuggestions.ready');assert(await run("OSMINOGAddressSuggestions.suggest('history.example').includes('https://history.example.com/remember')"));console.log('ADDRESS_HISTORY_RELOAD_PASS');await run("OSMINOGWelcome.apply('ru')");console.log('CODE_PREVIEW_SAVE_AND_PERSISTED_LANGUAGE_PASS');
  console.log('SHELL_SMOKE_PASS');
 };
 

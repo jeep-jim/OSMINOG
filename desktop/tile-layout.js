@@ -28,5 +28,17 @@
   for(const o of others)if(o.y>=rect.y+rect.h-.1&&rect.x<o.x+o.w+gap&&rect.x+w+gap>o.x)h=Math.min(h,Math.max(rect.h,o.y-rect.y-gap));
   return{w,h};
  }
- return{arrange,resize,overlap,gap};
+ function removeAndFill(items,key){
+  const result=items.filter(r=>r.key!==key).map(r=>({...r}));let vacancy=items.find(r=>r.key===key);const moved=new Set();
+  while(vacancy){const next=result.filter(r=>!moved.has(r.key)&&r.y>=vacancy.y+vacancy.h-.1&&Math.abs(r.x-vacancy.x)<1&&Math.abs(r.w-vacancy.w)<1).sort((a,b)=>a.y-b.y)[0];if(!next)break;
+   const fitted={...next,x:vacancy.x,y:vacancy.y,w:vacancy.w,h:vacancy.h};if(result.some(r=>r!==next&&overlap(fitted,r)))break;vacancy={...next};Object.assign(next,fitted);moved.add(next.key);
+  }return result;
+ }
+ function sharedResize(items,aKey,bKey,axis,delta){
+  const out=items.map(r=>({...r})),a=out.find(r=>r.key===aKey),b=out.find(r=>r.key===bKey);if(!a||!b)return out;
+  const size=axis==='x'?'w':'h',pos=axis==='x'?'x':'y',min=axis==='x'?220:160;
+  delta=Math.max(min-a[size],Math.min(b[size]-min,delta));a[size]+=delta;b[size]-=delta;b[pos]+=delta;
+  if(out.some((r,i)=>out.slice(i+1).some(o=>overlap(r,o))))return items.map(r=>({...r}));return out;
+ }
+ return{arrange,resize,overlap,gap,removeAndFill,sharedResize};
 });
