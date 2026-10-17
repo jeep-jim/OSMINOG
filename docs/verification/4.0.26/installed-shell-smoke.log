@@ -1,0 +1,39 @@
+
+SHELL_TAB_HIT_TARGETS_PASS
+POLISHED_SHELL_HEADER_NO_OVERLAP_PASS
+SHELL_INCREMENTAL_METADATA_PASS
+SHELL_PALETTE_AND_FAVICON_PASS
+BROWSER_ONLY_SHELL_AND_SESSION_SCOPE_PASS
+CLEAN_CHAT_NO_CONTEXT_ATTACHMENTS_PASS
+TOOL_MENU_STATE {"hidden":false,"parent":"native-browser","api":"function","focus":"<button type=\"button\" data-desk=\"text\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 5h14M12 5v14M8 19h8\"></path></svg>Текст на х","nativeTools":3}
+HEADER_TOOL_MENUS_AND_RIGHT_CLICK_DOCUMENTS_PASS
+DESKTOP_TABS_AND_FULL_CONTEXT_PASS
+READABLE_TILE_PICKER_PASS
+SCROLLING_TILES_AND_CANVAS_DRAG_PASS
+TILE_RESIZE_CLOSE_COLLAPSE_PASS
+ADAPTIVE_TILE_GEOMETRY {"tileWidth":954,"gridWidth":954,"tileHeight":809,"availableHeight":809,"bottom":890,"nextTop":-1561}
+CANVAS_LOCAL_TOOLBAR_PASS
+SNAP_LAYOUT_NO_OVERLAP_OR_HORIZONTAL_OVERFLOW_PASS
+INDEPENDENT_WINDOW_POSITION_SIZE_AND_POINTER_SWITCH_PASS
+CANVAS_FULLSCREEN_LOCAL_DOCK_AND_HOME_PASS
+INNER_EYELID_BLINK_PASS
+WORKSPACE_FILE_CANVAS_TEAM_TOOLS_PASS
+NATIVE_POINTER_REGION_CAPTURE_CLEAR_PASS
+REGION_ANNOTATION_PNG_WITHOUT_BOARD_IMPORT_PASS
+WINDOW_SCREENSHOT_AND_RECORDING_PASS
+SELECTED_SAVE_AS_AND_PROPERTIES_SMOKE_PASS
+LAZY_PDF_EXPORT_PASS
+OFFICE_VIEWERS_NATIVE_FILE_COPY_AND_LIVE_CONTEXT_PASS
+CONTROL_NATIVE_INPUT_AND_CANVAS_SMOKE_PASS
+LAYOUT_CLOSE_FILL_CENTRAL_RESIZE_RAIL_NAVIGATION_PASS
+CODE_HEADER_GEOMETRY [{"text":"КодОткрыть папкуПоследня","rect":{"x":91,"y":82,"width":970,"height":58,"top":82,"right":1061,"bottom":140,"left":91}},{"text":"Код","rect":{"x":107,"y":92.5,"width":26.015625,"height":36,"top":92.5,"right":133.015625,"bottom":128.5,"left":107}},{"text":"Открыть папку","rect":{"x":147.015625,"y":92.5,"width":106.28125,"height":36,"top":92.5,"right":253.296875,"bottom":128.5,"left":147.015625}},{"text":"Последняя папка","rect":{"x":259.296875,"y":92.5,"width":120.484375,"height":36,"top":92.5,"right":379.78125,"bottom":128.5,"left":259.296875}},{"text":"Новый HTML-проектКод 2:1","rect":{"x":385.78125,"y":92.5,"width":200,"height":36,"top":92.5,"right":585.78125,"bottom":128.5,"left":385.78125}},{"text":"Новый","rect":{"x":591.78125,"y":92.5,"width":58.515625,"height":36,"top":92.5,"right":650.296875,"bottom":128.5,"left":591.78125}},{"text":"Сохранить","rect":{"x":656.296875,"y":92.5,"width":80.84375,"height":36,"top":92.5,"right":737.140625,"bottom":128.5,"left":656.296875}},{"text":"Запустить","rect":{"x":743.140625,"y":92.5,"width":101.203125,"height":36,"top":92.5,"right":844.34375,"bottom":128.5,"left":743.140625}},{"text":"Скачать файл","rect":{"x":850.34375,"y":92.5,"width":98.46875,"height":36,"top":92.5,"right":948.8125,"bottom":128.5,"left":850.34375}},{"text":"","rect":{"x":969,"y":92.5,"width":36,"height":36,"top":92.5,"right":1005,"bottom":128.5,"left":969}},{"text":"","rect":{"x":1009,"y":92.5,"width":36,"height":36,"top":92.5,"right":1045,"bottom":128.5,"left":1009}}]
+CODE_CENTER_DRAG_ALIGNED_HEADER_MINIMIZE_RESTORE_PASS
+CODE_FOLDER_TREE_EDIT_SAVE_PREVIEW_CHAT_VISIBLE_PASS
+CODEMIRROR_COLORS_NATIVE_PASTE_GAME_PYTHON_ERROR_PASS
+ADDRESS_HISTORY_RELOAD_PASS
+CODE_PREVIEW_SAVE_AND_PERSISTED_LANGUAGE_PASS
+WELCOME_FIELD_AND_CODE_SPLIT_PERSISTENCE_PASS
+RESOURCE_REPORT_PASS {"at":"2026-10-17T14:15:59.047Z","processes":[{"pid":2716,"type":"Browser","labels":["Browser"],"workingSetKB":246144,"privateKB":196180,"cpuPercent":0},{"pid":1580,"type":"GPU","labels":["GPU"],"workingSetKB":137260,"privateKB":25960,"cpuPercent":0},{"pid":9444,"type":"Utility","labels":["Network Service"],"workingSetKB":59776,"privateKB":16420,"cpuPercent":0},{"pid":8032,"type":"Tab","labels":["Оболочка / холст"],"workingSetKB":435740,"privateKB":229344,"cpuPercent":0},{"pid":4432,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":97192,"privateKB":25804,"cpuPercent":0},{"pid":2016,"type":"Tab","labels":["Фоновая вкладка: example.org"],"workingSetKB":94628,"privateKB":23204,"cpuPercent":0},{"pid":6880,"type":"Tab","labels":["Фоновая вкладка: 127.0.0.1","Видимая вкладка: layout-1.example.com","Видимая вкладка: layout-2.example.com","Видимая вкладка: layout-3.example.com"],"workingSetKB":115588,"privateKB":42124,"cpuPercent":0},{"pid":8116,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":99724,"privateKB":24216,"cpuPercent":0},{"pid":4160,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":102556,"privateKB":25216,"cpuPercent":0},{"pid":2984,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":102432,"privateKB":25020,"cpuPercent":0},{"pid":6316,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":102804,"privateKB":25260,"cpuPercent":0},{"pid":4668,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":102616,"privateKB":25040,"cpuPercent":0},{"pid":3824,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":102628,"privateKB":25148,"cpuPercent":0},{"pid":5524,"type":"Tab","labels":["Фоновая вкладка: example.com"],"workingSetKB":104612,"privateKB":24444,"cpuPercent":0},{"pid":9040,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":109900,"privateKB":23336,"cpuPercent":0},{"pid":5140,"type":"Tab","labels":["Фоновая вкладка: example.org"],"workingSetKB":109896,"privateKB":23312,"cpuPercent":0},{"pid":6528,"type":"Tab","labels":["Фоновая вкладка: chatgpt.com"],"workingSetKB":110480,"privateKB":23792,"cpuPercent":0},{"pid":2468,"type":"Tab","labels":["Фоновая вкладка: example.org"],"workingSetKB":111952,"privateKB":25412,"cpuPercent":0},{"pid":6280,"type":"Tab","labels":["Видимая вкладка: example.org"],"workingSetKB":118148,"privateKB":27880,"cpuPercent":0},{"pid":1880,"type":"Tab","labels":["Tab"],"workingSetKB":118084,"privateKB":28796,"cpuPercent":0}],"totalWorkingSetKB":2582160,"note":"Рабочий набор процессов может включать общие страницы памяти. Это не точный аналог столбца памяти Диспетчера задач. CPU — среднее между запросами; первый замер не является интервалом простоя."}
+INSTALLED_MCP_STDIO_DOM_TYPE_CANVAS_FILE_PASS
+MCP_DISABLE_PASS
+SHELL_SMOKE_PASS

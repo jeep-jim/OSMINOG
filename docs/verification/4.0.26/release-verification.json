@@ -1,0 +1,17 @@
+{
+  "version": "4.0.26",
+  "sourceMerge": "83e5b7321248387c47a1c3efdc984c8d24381260",
+  "candidateSource": "47a156f0932a444fb07105cafaf9005939398471",
+  "sourceTree": "01991f4e1a20bf5e34f28ed5b8da78477e1a1000",
+  "windowsRun": 39039653696,
+  "agentRun": 39039653701,
+  "releaseRun": 39040381792,
+  "windowsTests": 163,
+  "runtimeSize": 5100908,
+  "runtimeSha256": "3694dd43f5adcb32bfcdc48c7a199ed98cda580097d1af8d4bc52a6d51fae666",
+  "published": true,
+  "installerSize": 115437891,
+  "installerSha256": "ab4abdcaf1802a9f29add65c9aca8a57bfd90357c8608b089e5f967f15fa6cef",
+  "updateInstallPass": true,
+  "feedVersion": "4.0.26"
+}
