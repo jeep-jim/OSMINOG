@@ -275,6 +275,7 @@ module.exports=async(win,browser)=>{
  for(let i=0;i<100&&!(await run("!!document.querySelector('#native-welcome select')"));i++)await new Promise(r=>setTimeout(r,20));await frame();
  assert(await run("(()=>{const label=document.querySelector('#native-welcome label'),caption=label.querySelector('span').getBoundingClientRect(),select=label.querySelector('select').getBoundingClientRect(),hint=document.querySelector('.welcome-hint').getBoundingClientRect();return select.top>=caption.bottom+8&&select.width>=label.clientWidth-2&&hint.top>=select.bottom+10})()"));
  await fs.writeFile('shell-smoke-welcome-field.png',(await win.webContents.capturePage()).toPNG());await run("document.querySelector('#native-welcome button').click();OSMINOGWelcomeReady");console.log('WELCOME_FIELD_AND_CODE_SPLIT_PERSISTENCE_PASS');
+ const resources=await run("OSMINOGNative.browser('resource-report')");assert(resources.processes.length>0);assert(resources.totalWorkingSetKB>0);assert(await run("!!document.querySelector('[data-do=resources]')"));console.log('RESOURCE_REPORT_PASS',JSON.stringify(resources));
  console.log('SHELL_SMOKE_PASS');
 };
 

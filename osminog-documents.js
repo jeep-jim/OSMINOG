@@ -31,7 +31,18 @@
   async function renderPage(o,pn,scale=1.4){const d=await draft(o),spec=d.pages[pn-1],p=await(await pdf(o)).getPage(spec.sourcePage),vp=p.getViewport({scale}),canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);if(canvas.width*canvas.height>24000000)throw Error('Страница слишком велика для безопасного рендеринга');const ctx=canvas.getContext('2d');await p.render({canvasContext:ctx,viewport:vp}).promise;
     for(const e of spec.edits||[])if(e.op==='replace_text'){ctx.fillStyle='#fff';ctx.fillRect((e.x-1)*scale,(e.y-1)*scale,(e.width+2)*scale,(e.height+3)*scale)}return{canvas,spec,width:vp.width/scale,height:vp.height/scale};
   }
-  async function exportPdf(args){const o=asset(args.id);if(!isPdf(o))return{ok:true,id:o.id,dataUrl:o.src,revision:revision(o)};const rev=revision(o),projectId=project().id,d=await draft(o),{PDFDocument,rgb,degrees}=PDFLib,out=await PDFDocument.load(await bytes(source(o)));out.registerFontkit(fontkit);const font=await out.embedFont(await bytes(chrome.runtime.getURL('vendor/pdf/DejaVuSans.ttf')),{subset:true}),originalPages=out.getPages().slice();
+  let exportLibraries;
+  async function loadExportLibraries(){
+    if(globalThis.PDFLib&&globalThis.fontkit)return;
+    if(!exportLibraries)exportLibraries=(async()=>{
+      for(const [name,file] of [['PDFLib','pdf-lib.min.js'],['fontkit','fontkit.umd.min.js']]){
+        if(globalThis[name])continue;
+        await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=chrome.runtime.getURL('vendor/pdf/'+file);script.onload=()=>{script.remove();globalThis[name]?resolve():reject(Error('PDF library missing: '+name))};script.onerror=()=>{script.remove();reject(Error('Не удалось загрузить PDF: '+name))};document.head.append(script)});
+      }
+    })().catch(error=>{exportLibraries=null;throw error});
+    return exportLibraries;
+  }
+  async function exportPdf(args){const o=asset(args.id);if(!isPdf(o))return{ok:true,id:o.id,dataUrl:o.src,revision:revision(o)};await loadExportLibraries();const rev=revision(o),projectId=project().id,d=await draft(o),{PDFDocument,rgb,degrees}=PDFLib,out=await PDFDocument.load(await bytes(source(o)));out.registerFontkit(fontkit);const font=await out.embedFont(await bytes(chrome.runtime.getURL('vendor/pdf/DejaVuSans.ttf')),{subset:true}),originalPages=out.getPages().slice();
     // Keep the source document/catalog, including form fields on unchanged pages.
     if(out.getForm().getFields().length&&(d.pages.length!==originalPages.length||d.pages.some((p,i)=>p.edits.length||p.rotation||p.sourcePage!==i+1)))throw Error('PDF с интерактивными формами: правка текста пока не поддерживается. Исходник сохранён.');
     while(out.getPageCount())out.removePage(0);

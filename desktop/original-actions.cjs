@@ -52,9 +52,9 @@ class OriginalActions{
    // Read only the source conversation as reference; it cannot grant tool permissions.
    if(tab.view.webContents.executeJavaScript){t.sourceTranscript=await tab.view.webContents.executeJavaScript(`(()=>{const root=(document.querySelector('main,[role=main]')||document.body)?.cloneNode(true);root?.querySelectorAll('script,style,input,textarea,nav,header,[contenteditable],[data-osminog-progress]').forEach(n=>n.remove());return String(root?.textContent||'').slice(-12000)})()`);guard()}
 
-   for(let hop=0;hop<16;hop++){
+   for(let hop=0;hop<32;hop++){
     guard();const canvasAllowed=!this.browser.contextScope||this.browser.contextScope.includes('@canvas');const canvasState=canvasAllowed?await host('globalThis.OSMINOGDirectCanvas.snapshot()'):null;guard();
-    const context={project:{id:t.project},chat:{threadId:t.thread},execution:{sourceTranscript:t.sourceTranscript,conversation:t.conversation,autoExecute:session.autoExecute,task:text,instructions,tools:['browser_tabs','browser_context','browser_open','browser_switch','browser_navigate','browser_back','browser_forward','browser_reload','browser_read','browser_act',...workspaceTools],history:t.history.map(h=>({results:h.results.map(r=>({tool:r.tool,ok:r.result?.ok,error:r.result?.error,completed:r.result?.completed,createdIds:r.result?.createdIds}))}))}};
+    const context={project:{id:t.project},chat:{threadId:t.thread},execution:{sourceTranscript:t.sourceTranscript,conversation:t.conversation,autoExecute:session.autoExecute,task:text,instructions,tools:['browser_tabs','browser_context','browser_open','browser_switch','browser_navigate','browser_back','browser_forward','browser_reload','browser_read','browser_act',...workspaceTools],history:t.history.map(h=>({results:h.results.map(r=>({tool:r.tool,ok:r.result?.ok,error:r.result?.error,completed:r.result?.completed,id:r.result?.id,snapshot:r.result?.observation?.snapshot||r.result?.snapshot,createdIds:r.result?.createdIds}))}))}};
     const response=await this.providers.runtime({onStage:stage=>{guard();session.stage=stage;this.orchestrator.publish(session)},type:result?'BC_PROVIDER_TOOL_RESULT':'BC_PROVIDER_SEND',provider,payload:{text,context,result,images,requestId:randomUUID()}},t.project);guard();
     t.route=tab.view.webContents.getURL().split('?')[0];
     if(!response?.ok)throw Error(response?.error||'Служебное соединение ИИ не ответило');
@@ -92,7 +92,7 @@ class OriginalActions{
        if(!session.autoExecute&&['browser_open','browser_switch','browser_navigate','browser_back','browser_forward','browser_reload','writeFile','canvas.create','canvas.duplicate','canvas.move','canvas.paste','agent.say','agent.ask','asset_create','module_create','module_update','document_edit','document_export','graphics_create','graphics_edit'].includes(name)){if(!await require('./action-policy.cjs').confirm(this.browser,{type:name},{label:name},{reason:'Автопилот выключен: подтвердите действие'}))return{ok:false,error:'Отменено пользователем'};guard()}
        if(name==='browser_tabs')value={tabs:[...this.browser.tabs.values()].filter(x=>x.project===t.project&&(!this.browser.contextScope||this.browser.contextScope.includes(x.id))&&!providerFor(x.view.webContents.getURL())).map(x=>({id:x.id,title:x.title,url:x.view.webContents.getURL(),visible:x.visible}))};
        else if(name==='browser_context')value=await this.browser.agentTools.run(name,args,{autoExecute:session.autoExecute});
-       else if(name==='browser_open'){if(providerFor(args.url))throw Error('Исполнитель не открывает чаты ИИ');value=await this.browser.command('open',{url:args.url});}
+       else if(name==='browser_open'){if(providerFor(args.url))throw Error('Исполнитель не открывает чаты ИИ');value=await this.browser.command('open',{url:args.url});mutations++;try{const observation=await this.browser.agentTools.run('browser_read',{id:value.id,includeScreenshot:false});guard();if(observation.snapshot)t.tokens.add(observation.snapshot);value={...value,ok:true,observation}}catch(error){value={...value,ok:true,observationError:error.message,verificationRequired:true}}}
        else if(['browser_navigate','browser_back','browser_forward','browser_reload'].includes(name)){this.browser.agentTools.target(args.id);if(name==='browser_navigate'&&providerFor(args.url))throw Error('Исполнитель не управляет чатом ИИ');await this.browser.command(name.slice(8),args);guard();value=await this.browser.agentTools.run('browser_read',{id:args.id,includeScreenshot:false});if(value.snapshot)t.tokens.add(value.snapshot);mutations++;}
        else if(name==='browser_switch'){value=await this.browser.agentTools.run('browser_read',args);if(value.snapshot)t.tokens.add(value.snapshot)}
        else if(name==='browser_read'){value=await this.browser.agentTools.run(name,{includeScreenshot:false,...args},{autoExecute:session.autoExecute});if(value.snapshot)t.tokens.add(value.snapshot)}
@@ -116,7 +116,7 @@ class OriginalActions{
     // Keep results with the original task even for providers that create a fresh service session per hop.
     t.history.push(result);if(t.history.length>8)t.history.shift();
    }
-   this.orchestrator.finish(t.id,'Достигнут предел шагов');this.status('Достигнут предел 16 шагов. Задача остановлена; результат не объявлен готовым.');
+   this.orchestrator.finish(t.id,'Достигнут предел шагов');this.status('Достигнут предел 32 шагов. Задача остановлена; результат не объявлен готовым.');
   }catch(e){this.orchestrator.finish(t.id,e.message);if(this.active===t&&this.epoch===t.epoch)this.status('Не выполнено: '+e.message)}finally{this.browser.releaseService?.(t.thread);if(this.turns.get(tab.id)===t)this.turns.delete(tab.id);if(this.active===t)this.active=null}
  }
 }
