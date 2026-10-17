@@ -26,12 +26,12 @@ module.exports=async(win,browser,providers)=>{
    else if(prompt.includes('\"threadId\":\"workspace:')){
     ordinaryTurns++;assert.match(prompt,/Заполни поле/);
     if(ordinaryTurns===1||ordinaryTurns===5)answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};
-    else if(ordinaryTurns===2){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:20}]}}]}}
-    else if(ordinaryTurns===3){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'type',text:' из обычного чата'}]}}]}}
-    else if(ordinaryTurns===4){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',x:20,y:100}]}}]}}
+    else if(ordinaryTurns===2){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',ref:'e1'}]}}]}}
+    else if(ordinaryTurns===3){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'type',ref:'e1',text:' из обычного чата'}]}}]}}
+    else if(ordinaryTurns===4){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_act',args:{id:targetId,snapshot,actions:[{type:'click',ref:'e2'}]}}]}}
     else if(ordinaryTurns===6)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Круг из обычного чата',actions:[{op:'create',objectType:'shape',properties:{name:'Ordinary-chat circle',shapeKind:'ellipse',fill:'#ff0000',x:100,y:100,w:100,h:100}}]};
     else if(ordinaryTurns===9){assert.match(prompt,/EXECUTOR_FORMAT_INVALID/);answer={protocol:'osminog.request/v1',calls:[{tool:'browser_read',args:{id:targetId}}]};}
-    else if(ordinaryTurns===10||ordinaryTurns===11){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={id:targetId,snapshot,actions:[ordinaryTurns===10?{type:'click',x:20,y:20}:{type:'type',text:' после коррекции'}]};}
+    else if(ordinaryTurns===10||ordinaryTurns===11){const snapshot=[...prompt.matchAll(/"snapshot"\s*:\s*"([a-f0-9-]+)"/g)].at(-1)?.[1];assert(snapshot);answer={id:targetId,snapshot,actions:[ordinaryTurns===10?{type:'click',ref:'e1'}:{type:'type',ref:'e1',text:' после коррекции'}]};}
     else answer='Ввод и круг проверены.';
    }
    else if(turns===1)answer={protocol:'osminog.patch/v1',projectId:browser.project,summary:'Тест доски',actions:[{op:'create',objectType:'text',properties:{name:'Session-created text',text:'Транспорт расширения',x:400,y:300,w:240,h:90}}]};
@@ -84,7 +84,7 @@ module.exports=async(win,browser,providers)=>{
   assert.deepEqual(await wc.executeJavaScript('window.sent'),['Заполни поле, смени тему и нарисуй круг на доске']);assert.equal(await wc.executeJavaScript("document.querySelectorAll('input[type=file]').length"),0);
   for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(100);
   assert.equal(browser.originalActions.active,null);assert.equal(ordinaryTurns,7);
-  assert.equal(await wc.executeJavaScript("document.querySelector('[data-osminog-progress]')?.dataset.status"),'done');require('node:fs').writeFileSync('orchestrator-progress.png',(await wc.capturePage()).toPNG());console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');
+  assert.equal(await wc.executeJavaScript("document.querySelector('[data-osminog-progress]')?.dataset.status"),'done');require('node:fs').writeFileSync('orchestrator-progress.png',(await wc.capturePage()).toPNG());console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');console.log('ORIGINAL_CHAT_LIVE_ELEMENT_REFS_PASS');
   const panel=browser.selectProvider('chatgpt','visible-panel-regression');
   await panel.view.webContents.loadURL('https://chatgpt.com/original');await sleep(300);
   await run(`document.querySelector('[data-tab-id="${panel.id}"] button').click()`);await sleep(300);
