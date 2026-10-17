@@ -1,0 +1,41 @@
+{"timestamp":"2026-10-17T04:03:51.287Z","sessionId":"22cd6ed3-d7b4-40bf-964c-4f7b387a82a7","action":"browser_read","result":true,"duration":3,"error":null}
+{"timestamp":"2026-10-17T04:03:51.468Z","sessionId":"22cd6ed3-d7b4-40bf-964c-4f7b387a82a7","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T04:03:51.646Z","sessionId":"22cd6ed3-d7b4-40bf-964c-4f7b387a82a7","action":"browser_act","result":true,"duration":166,"error":null}
+{"timestamp":"2026-10-17T04:03:51.823Z","sessionId":"22cd6ed3-d7b4-40bf-964c-4f7b387a82a7","action":"browser_act","result":true,"duration":165,"error":null}
+{"timestamp":"2026-10-17T04:03:51.838Z","sessionId":"22cd6ed3-d7b4-40bf-964c-4f7b387a82a7","action":"browser_read","result":true,"duration":1,"error":null}
+{"timestamp":"2026-10-17T04:03:51.906Z","sessionId":"22cd6ed3-d7b4-40bf-964c-4f7b387a82a7","action":"canvas_patch","result":true,"duration":52,"error":null}
+{"timestamp":"2026-10-17T04:03:52.780Z","sessionId":"22134878-d14b-4670-833d-da28f643968a","action":"executor_format","result":false,"duration":0,"error":"EXECUTOR_FORMAT_INVALID"}
+{"timestamp":"2026-10-17T04:03:52.796Z","sessionId":"22134878-d14b-4670-833d-da28f643968a","action":"browser_read","result":true,"duration":2,"error":null}
+{"timestamp":"2026-10-17T04:03:52.976Z","sessionId":"22134878-d14b-4670-833d-da28f643968a","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:53.159Z","sessionId":"22134878-d14b-4670-833d-da28f643968a","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:53.294Z","sessionId":"3819a40a-5afe-43d2-ac7e-56c3f498c200","action":"web_image_search","result":true,"duration":7,"error":null}
+{"timestamp":"2026-10-17T04:03:53.333Z","sessionId":"3819a40a-5afe-43d2-ac7e-56c3f498c200","action":"asset_create","result":true,"duration":26,"error":null}
+{"timestamp":"2026-10-17T04:03:53.876Z","sessionId":"ac1c26d5-8ab1-4009-837b-552169ea04aa","action":"browser_act","result":true,"duration":170,"error":null}
+{"timestamp":"2026-10-17T04:03:53.878Z","sessionId":"ac1c26d5-8ab1-4009-837b-552169ea04aa","action":"acceptance.1 theme (native fixture)","result":true,"duration":191,"error":null}
+{"timestamp":"2026-10-17T04:03:54.061Z","sessionId":"2c06f463-7c9a-4929-b3d0-e90f1a845671","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:54.248Z","sessionId":"2c06f463-7c9a-4929-b3d0-e90f1a845671","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:54.251Z","sessionId":"2c06f463-7c9a-4929-b3d0-e90f1a845671","action":"acceptance.2 search text (native fixture)","result":true,"duration":371,"error":null}
+{"timestamp":"2026-10-17T04:03:54.434Z","sessionId":"42efcd63-dc9c-4f34-9fe7-82f33cdb25a0","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T04:03:54.613Z","sessionId":"42efcd63-dc9c-4f34-9fe7-82f33cdb25a0","action":"browser_act","result":true,"duration":171,"error":null}
+{"timestamp":"2026-10-17T04:03:54.796Z","sessionId":"42efcd63-dc9c-4f34-9fe7-82f33cdb25a0","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T04:03:54.815Z","sessionId":"42efcd63-dc9c-4f34-9fe7-82f33cdb25a0","action":"acceptance.3 five listings (fixture data, not live search)","result":true,"duration":563,"error":null}
+{"timestamp":"2026-10-17T04:03:55.000Z","sessionId":"da9f5b91-9225-4191-9e5d-3f9cd8aa0c73","action":"browser_act","result":true,"duration":169,"error":null}
+{"timestamp":"2026-10-17T04:03:55.187Z","sessionId":"da9f5b91-9225-4191-9e5d-3f9cd8aa0c73","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:55.220Z","sessionId":"da9f5b91-9225-4191-9e5d-3f9cd8aa0c73","action":"browser_act","result":false,"duration":14,"error":"USER_CANCELLED"}
+{"timestamp":"2026-10-17T04:03:55.222Z","sessionId":"da9f5b91-9225-4191-9e5d-3f9cd8aa0c73","action":"acceptance.4 fill without submitting; native approval boundary","result":true,"duration":405,"error":null}
+{"timestamp":"2026-10-17T04:03:55.252Z","sessionId":"4b3d5bc5-b1b8-48f8-99f3-ad8cc1957203","action":"browser_act","result":false,"duration":15,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-17T04:03:55.292Z","sessionId":"4b3d5bc5-b1b8-48f8-99f3-ad8cc1957203","action":"browser_act","result":false,"duration":7,"error":"BLOCKED_BY_RULE"}
+{"timestamp":"2026-10-17T04:03:55.295Z","sessionId":"4b3d5bc5-b1b8-48f8-99f3-ad8cc1957203","action":"acceptance.5 password and sensitive submission blocked","result":true,"duration":72,"error":null}
+{"timestamp":"2026-10-17T04:03:55.328Z","sessionId":"16adcaea-23a7-4a43-a08a-2161fdfc0a80","action":"browser_act","result":false,"duration":15,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-17T04:03:55.511Z","sessionId":"16adcaea-23a7-4a43-a08a-2161fdfc0a80","action":"browser_act","result":true,"duration":167,"error":null}
+{"timestamp":"2026-10-17T04:03:55.513Z","sessionId":"16adcaea-23a7-4a43-a08a-2161fdfc0a80","action":"acceptance.6 queue failure and alternative","result":true,"duration":217,"error":null}
+{"timestamp":"2026-10-17T04:03:55.680Z","sessionId":"33c5b63e-a97d-45b6-8972-344a8a1215d6","action":"browser_act","result":true,"duration":163,"error":null}
+{"timestamp":"2026-10-17T04:03:55.685Z","sessionId":"33c5b63e-a97d-45b6-8972-344a8a1215d6","action":"browser_act","result":false,"duration":0,"error":"ACTION_FAILED"}
+{"timestamp":"2026-10-17T04:03:55.875Z","sessionId":"33c5b63e-a97d-45b6-8972-344a8a1215d6","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:55.877Z","sessionId":"33c5b63e-a97d-45b6-8972-344a8a1215d6","action":"acceptance.7 live DOM references follow layout and reject replacements","result":true,"duration":362,"error":null}
+{"timestamp":"2026-10-17T04:03:56.061Z","sessionId":"b2d75b29-0bbd-4fd7-a61c-dde25466bd5e","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:56.078Z","sessionId":"b2d75b29-0bbd-4fd7-a61c-dde25466bd5e","action":"acceptance.8 search submit without confirmation (native fixture)","result":true,"duration":200,"error":null}
+{"timestamp":"2026-10-17T04:03:56.161Z","sessionId":"7af6f6bb-5af5-4e48-944d-445c21bf47ae","action":"acceptance.9 canvas copy paste and observed IDs (native fixture)","result":true,"duration":81,"error":null}
+{"timestamp":"2026-10-17T04:03:56.423Z","sessionId":"8772df0a-76fe-44e9-a84b-03267deb3ab2","action":"browser_act","result":true,"duration":168,"error":null}
+{"timestamp":"2026-10-17T04:03:56.933Z","sessionId":"8772df0a-76fe-44e9-a84b-03267deb3ab2","action":"browser_act","result":true,"duration":493,"error":null}
+{"timestamp":"2026-10-17T04:03:56.936Z","sessionId":"8772df0a-76fe-44e9-a84b-03267deb3ab2","action":"acceptance.10 Figma canvas shortcuts and drag without confirmation (synthetic ed","result":true,"duration":774,"error":null}
