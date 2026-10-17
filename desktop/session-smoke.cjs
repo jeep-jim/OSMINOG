@@ -84,7 +84,7 @@ module.exports=async(win,browser,providers)=>{
   assert.deepEqual(await wc.executeJavaScript('window.sent'),['Заполни поле, смени тему и нарисуй круг на доске']);assert.equal(await wc.executeJavaScript("document.querySelectorAll('input[type=file]').length"),0);
   for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(100);
   assert.equal(browser.originalActions.active,null);assert.equal(ordinaryTurns,7);
-  assert.equal(await wc.executeJavaScript("document.querySelector('[data-osminog-progress]')?.dataset.status"),'done');require('node:fs').writeFileSync('orchestrator-progress.png',(await wc.capturePage()).toPNG());console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');console.log('ORIGINAL_CHAT_LIVE_ELEMENT_REFS_PASS');
+  assert.equal(await run("document.querySelector('.native-connection-state').dataset.status"),'done');require('node:fs').writeFileSync('orchestrator-progress.png',(await win.webContents.capturePage()).toPNG());console.log('ORIGINAL_CHAT_AUTOMATIC_PRIVATE_READ_ACT_VERIFY_CANVAS_PASS');console.log('ORIGINAL_CHAT_LIVE_ELEMENT_REFS_PASS');
   const panel=browser.selectProvider('chatgpt','visible-panel-regression');
   await panel.view.webContents.loadURL('https://chatgpt.com/original');await sleep(300);
   await run(`document.querySelector('[data-tab-id="${panel.id}"] button').click()`);await sleep(300);
@@ -102,7 +102,7 @@ module.exports=async(win,browser,providers)=>{
   for(let i=0;i<200&&!(await run("objects().some(o=>o.name==='Original chat imported photo')"));i++)await sleep(100);
   assert(await run("objects().some(o=>o.name==='Original chat imported photo'&&o.type==='image'&&o.src.startsWith('data:image/png;base64,'))"));
   for(let i=0;i<100&&browser.originalActions.active;i++)await sleep(50);
-  assert.equal(photoTurns,3);assert.equal(await panelWC.executeJavaScript("document.querySelector('[data-osminog-progress]').textContent.includes('Фото добавлено')"),true);
+  assert.equal(photoTurns,3);assert.equal(await run("document.querySelector('.native-connection-state').textContent.includes('Фото добавлено')"),true);
   console.log('ORIGINAL_CHAT_WEB_IMAGE_IMPORT_PASS');
   await panelWC.executeJavaScript("fetch('/api/v0/users/current?secret=DIAGNOSTIC_SECRET').then(r=>r.text())");await sleep(300);
   const diagnostics=browser.connectionDiagnostics.snapshot();

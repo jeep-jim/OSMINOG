@@ -246,7 +246,7 @@ html[data-native-desktop] #gptProviderApiFallback,html[data-native-desktop] #gpt
 body.native-desktop #bridgePanel,body.native-desktop #gptPresenceBubble{display:none!important}
 
 
-.native-connection-state{margin:0;padding:8px 12px;font-size:11px;color:var(--quiet);border-top:1px solid var(--stroke)}
+.native-connection-state{margin:0;padding:8px 12px;font-size:11px;color:var(--quiet);border-top:1px solid var(--stroke);flex:0 0 auto;max-height:min(110px,20vh);overflow:auto;overflow-wrap:anywhere;white-space:pre-wrap;user-select:text}
 
 body.native-desktop.native-team-open #bridgePanel:not([hidden]){display:flex!important;position:fixed!important;left:16px!important;top:76px!important;width:calc(100vw - 32px)!important;height:calc(100vh - 92px)!important;max-width:none!important;max-height:none!important;z-index:100600!important}
 
