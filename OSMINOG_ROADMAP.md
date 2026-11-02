@@ -1,3 +1,21 @@
+# 2026-11-02 — 4.0.17 Canvas Tools: inline photo editing and right-edge chat
+
+The owner rejected the separate Quick Photo dialog, duplicated overflow tools and group chats. This supersedes the 4.0.16 modal workflow below.
+
+- Photo selection/lasso/color wand, alpha deletion, crop, brush, eraser, eyedropper and tone adjustment run directly on the selected image in the main canvas. Completed pixel actions persist through the normal project store; original image bytes remain preserved. Photo keyboard shortcuts and zoomed canvas coordinates are tested.
+- One magic-hat entry replaces the More menu. The top “Обработать” button, duplicate stroke eraser and color swatch are removed. Properties and active tool settings live in the right inspector.
+- Chat starts at the top of the extension and occupies its right edge. Header controls and inspector stay to its left. On narrow screens <=700 px chat uses the whole width.
+- Group runtime osminog-team.js and group UI/settings are removed; individual agent/provider tabs and saved project content remain. Legacy team mode maps to the normal workspace.
+- Source PR https://github.com/jeep-jim/OSMINOG/pull/75 ; head bd5582cd7f3dd5c10c2472314106c8550477d9c9 ; merge 0deb390979963955778753a42d804efb22877dfd.
+- All final CI workflows passed: runtime/photo/browser https://github.com/jeep-jim/OSMINOG/actions/runs/41489700672 ; retained workspace/document https://github.com/jeep-jim/OSMINOG/actions/runs/41489700622 ; retired compatibility https://github.com/jeep-jim/OSMINOG/actions/runs/41489700689 .
+- Manually verified the actual extension UI in a local browser fixture: main-canvas color selection, deletion to transparency, full-height chat, header boundary, magic-hat menu and right inspector.
+- Full package OSMINOG-Chrome-4.0.17-CANVAS-TOOLS.zip: 4250741 bytes, SHA-256 f2d06f4bf94335517e27a09835dcfad8cc3fa924516250d9af2aa8a892dd5b76. Verified stable extension key, matching source files and absence of removed group/animation runtime files.
+- Update uses the existing version button. Pixel tools support one selected image up to 16 MP and color-based selection, not subject recognition. User-device behavior and external provider sessions are not certified by fixture tests; runtimeVerified remains false.
+
+---
+
+Publication verified: https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41490718930 . Dev feed version/hash/size and public release asset digest all match the verified package.
+
 # 2026-11-02 — 4.0.16 Quick Photo: simplified workspace
 
 The owner rejected the Space universe and Character Room directions and requested core Photoshop-like editing with less clutter. These supersede the 4.0.14/4.0.15 feature plans below.
