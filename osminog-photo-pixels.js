@@ -1,0 +1,10 @@
+/* Pure pixel operations shared by the quick editor and its tests. */
+(function(root){'use strict';
+function wand(image,x,y,tolerance=24,contiguous=true){const {width:w,height:h,data:d}=image,n=w*h,mask=new Uint8Array(n);x=Math.floor(x);y=Math.floor(y);if(x<0||y<0||x>=w||y>=h)return mask;const seed=(y*w+x)*4,t=Math.max(0,Math.min(255,tolerance));const matches=i=>{const k=i*4;if(d[seed+3]===0)return d[k+3]===0;if(!d[k+3])return false;return Math.max(Math.abs(d[k]-d[seed]),Math.abs(d[k+1]-d[seed+1]),Math.abs(d[k+2]-d[seed+2]),Math.abs(d[k+3]-d[seed+3]))<=t};
+if(!contiguous){for(let i=0;i<n;i++)if(matches(i))mask[i]=1;return mask}const seen=new Uint8Array(n),queue=new Int32Array(n);let head=0,tail=1;queue[0]=y*w+x;seen[queue[0]]=1;while(head<tail){const i=queue[head++];if(!matches(i))continue;mask[i]=1;const col=i%w;for(const j of [col?i-1:-1,col<w-1?i+1:-1,i>=w?i-w:-1,i+w<n?i+w:-1])if(j>=0&&!seen[j]){seen[j]=1;queue[tail++]=j}}return mask}
+function bounds(mask,w,h){let x1=w,y1=h,x2=-1,y2=-1;for(let i=0;i<mask.length;i++)if(mask[i]){const x=i%w,y=Math.floor(i/w);x1=Math.min(x1,x);x2=Math.max(x2,x);y1=Math.min(y1,y);y2=Math.max(y2,y)}return x2<0?null:{x:x1,y:y1,w:x2-x1+1,h:y2-y1+1}}
+function combine(a,b,mode='replace'){if(!a||mode==='replace')return b;const out=new Uint8Array(b.length);for(let i=0;i<b.length;i++)out[i]=mode==='subtract'?(a[i]&&!b[i]?1:0):(a[i]||b[i]?1:0);return out}
+function clear(image,mask,invert=false){if(!mask)return false;for(let i=0;i<mask.length;i++)if(invert?!mask[i]:mask[i])image.data[i*4+3]=0;return true}
+function adjust(image,brightness,contrast,mask){const b=Math.max(-100,Math.min(100,brightness))*2.55,c=Math.max(-100,Math.min(100,contrast))*2.55,f=(259*(c+255))/(255*(259-c));for(let i=0;i<image.width*image.height;i++){if(mask&&!mask[i])continue;for(let k=0;k<3;k++)image.data[i*4+k]=Math.round(Math.max(0,Math.min(255,f*(image.data[i*4+k]-128)+128+b)))}return image}
+const api={wand,bounds,combine,clear,adjust};root.OSMINOGPhotoPixels=api;if(typeof module!=='undefined')module.exports=api;
+})(globalThis);
