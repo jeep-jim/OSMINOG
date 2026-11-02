@@ -98,6 +98,6 @@
  }
  globalThis.OSMINOGOpenConnections=async()=>{await BriefCraftBridge.open();globalThis.OSMINOGSetAgentSettingsOpen?.(true)};
  globalThis.OSMINOGConfirm=({title='Подтвердить действие',text='',confirmText='Продолжить',cancelText='Отмена'}={})=>new Promise(resolve=>{const d=document.createElement('dialog');d.className='workdeskConfirm';const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=text;const no=document.createElement('button');no.textContent=cancelText;no.dataset.confirmCancel='';const yes=document.createElement('button');yes.textContent=confirmText;yes.dataset.confirmOk='';const done=value=>{d.close();d.remove();resolve(value)};no.onclick=()=>done(false);yes.onclick=()=>done(true);d.addEventListener('cancel',e=>{e.preventDefault();done(false)});d.append(h,p,no,yes);document.body.append(d);d.showModal()});
- globalThis.OSMINOGWorkdesk={open,close,save,safeRich,markdown,ask,addText,captureScreen,cropImage,copyImage,pasteClipboard,pasteCachedImage,connectSelected,exportContext};
+ globalThis.OSMINOGWorkdesk={open,close,save,safeRich,markdown,ask,addText,captureScreen,cropImage:()=>globalThis.OSMINOGPhotoEditor.open({tool:"crop"}),copyImage,pasteClipboard,pasteCachedImage,connectSelected,exportContext};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
