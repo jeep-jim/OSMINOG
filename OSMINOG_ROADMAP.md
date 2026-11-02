@@ -1,3 +1,20 @@
+# 2026-11-02 — 4.0.16 Quick Photo: simplified workspace
+
+The owner rejected the Space universe and Character Room directions and requested core Photoshop-like editing with less clutter. These supersede the 4.0.14/4.0.15 feature plans below.
+
+- Removed the Space, Character Room and Animation Studio runtime files and entrypoints. Existing workspace projects and historical payloads are preserved; no project-data migration deletes user content.
+- Added Quick Photo through «Обработать»: rectangle/lasso, color-based magic wand (contiguous/global), alpha deletion/keep/invert, crop preserving placement and pixel scale, brush/eraser/eyedropper, brightness/contrast, rotate/flip, bounded undo, PNG and explicit replace/copy. Vector elements can become raster copies while the original stays intact. Processing is local; 16 MP input limit. This is not AI subject segmentation.
+- Layers now reflect actual stacking rather than regrouped ordering, with fixed thumbnails, rename, search, visibility, arrow and drag reorder. Retained vector editing and core canvas/files/notes/links/chat workflows.
+- Source PR: https://github.com/jeep-jim/OSMINOG/pull/74
+- Source head: 8d5927969fb3824030d978e5089d209fca56fa72; merged source: d6257f476137c58e0d5c44f255b1be4277f73a85.
+- All final checks passed: Quick Photo and existing runtime/browser regressions https://github.com/jeep-jim/OSMINOG/actions/runs/41464518006 ; retained workspace/document regressions https://github.com/jeep-jim/OSMINOG/actions/runs/41464518168 ; removal compatibility https://github.com/jeep-jim/OSMINOG/actions/runs/41464518288 .
+- Full verified package: OSMINOG-Chrome-4.0.16-QUICK-PHOTO.zip (4262438 bytes); SHA-256 19218c598f3dd851c1cfa9d016a895c5c0d208e4950175ded8616f30f710a313.
+- User updates through the existing version button. Installed user-device behavior is not yet verified; runtimeVerified remains false. Browser tests use controlled fixtures and do not certify all external provider sessions.
+
+---
+
+Publication verified: https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41465313351 . Signed dev feed and public asset both match 4.0.16, byte size and SHA-256.
+
 # OSMINOG — продукт, roadmap и проверенное состояние
 
 
