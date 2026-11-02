@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict'),M=require('../osminog-space-model.js');
+const a=M.clean({title:'Самокат',topic:'mobility',intent:'team',tags:'электроника'}),b=M.clean({title:'Плата',topic:'mobility',intent:'help',tags:'электроника'});
+assert.equal(M.related(a,b).score,8);assert.equal(M.related(a,b).reasons.length,3);
+assert.equal(M.clean({url:'javascript:alert(1)',notes:[{text:'hello',token:'secret'}],token:'secret'}).url,'');
+assert(!JSON.stringify(M.clean({token:'secret'})).includes('secret'));
+assert.equal(M.decodeIssue({state:'open',body:'bad'}),null);
+assert.equal(M.decodeIssue({state:'closed',body:'```osminog-world\n{}\n```'}),null);
+assert.equal(M.clean({notes:Array.from({length:50},()=>({text:'x'}))}).notes.length,24);
+const url=new URL(M.issueUrl(a));assert.equal(url.origin,'https://github.com');assert.match(url.searchParams.get('body'),/osminog.world\/v1/);
+console.log('PASS Space schema, matching reasons, explicit publication and URL handling');
