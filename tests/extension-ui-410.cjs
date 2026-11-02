@@ -16,6 +16,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  if(process.env.OFFLINE_TEST_ORIGIN){await page.route('https://osminog.test/**',async r=>{const f=path.resolve(root,'.'+new URL(r.request().url()).pathname);if(!f.startsWith(root+path.sep)||!fs.existsSync(f))return r.fulfill({status:404,body:''});return r.fulfill({contentType:({'.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml','.png':'image/png'})[path.extname(f)]||'application/octet-stream',headers:{'Access-Control-Allow-Origin':'*'},body:fs.readFileSync(f)})});await page.evaluate(init);await page.setContent(fs.readFileSync(path.join(root,'editor.html'),'utf8').replace('<head>','<head><base href="https://osminog.test/">'));}else await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);await page.waitForFunction(()=>window.OSMINOGAgentAPI&&window.OSMINOGTeamAPI&&window.OSMINOGCanvasUX);
 
  await page.evaluate(async()=>{await OSMINOGStateReady;document.querySelector('#osminogStorageOnboarding')?.close();createProject();await OSMINOGAgentAPI.ready();document.querySelector('#osminogStorageOnboarding')?.close();sessionStorage.setItem('osminogIntroDismissedV1','1');state.view={x:0,y:0,scale:1};renderAll(true);BriefCraftBridge.open()});
+ assert.equal(await page.locator('#saveNow').count(),0);
+ const saved=await page.evaluate(()=>{const o=createObject('text',{text:'Autosave survives reload',x:120,y:120});queuePersist();return {id:o.id,project:state.activeProject}});
+ await page.waitForFunction(()=>!state.dirty&&state.lastSavedAt>0);
+ await page.reload();await page.waitForFunction(()=>window.OSMINOGAgentAPI&&window.OSMINOGCanvasUX);
+ await page.evaluate(async id=>{await OSMINOGStateReady;document.querySelector('#osminogStorageOnboarding')?.close();openProject(id);await OSMINOGAgentAPI.ready();BriefCraftBridge.open()},saved.project);
+ assert.equal(await page.evaluate(id=>objects().find(o=>o.id===id)?.text,saved.id),'Autosave survives reload');
+ pass('Save button absent and automatic persistence survives reload');
  assert.equal(await page.locator('.top-left > :first-child').getAttribute('id'),'layersToggle');
  assert.match(await page.locator('.osminog-header-mark').first().evaluate(el=>getComputedStyle(el).backgroundImage),/osminog-mark.svg/);pass('layers first and shared Windows eye in header');
  const id=await page.evaluate(()=>{const o=createObject('image',{name:'Square source',x:100,y:120,w:300,h:180,radius:24,corners:{tl:24,tr:24,br:24,bl:24},src:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180"><rect width="300" height="180" fill="tomato"/></svg>')});state.selected=[o.id];renderAll(true);return o.id});
