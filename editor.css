@@ -571,7 +571,7 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .parallel-agent-ghost>span,.parallel-agent-ghost>small{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* OSMINOG 3.8.62 · temporary plain red-circle brand mark */
-.osminog-header-mark{display:inline-block;width:22px;height:22px;min-width:22px;border-radius:50%;background:#ff2d2d;flex:0 0 auto}.brand.compact .osminog-header-mark{width:24px;height:24px;min-width:24px}@media(max-width:1280px){.brand.compact .osminog-header-mark{width:26px;height:26px;min-width:26px}}
+.osminog-header-mark{display:inline-block;width:22px;height:22px;min-width:22px;border-radius:0;background:transparent url("brand/osminog-mark.svg") center/contain no-repeat;flex:0 0 auto}.brand.compact .osminog-header-mark{width:24px;height:24px;min-width:24px}@media(max-width:1280px){.brand.compact .osminog-header-mark{width:26px;height:26px;min-width:26px}}
 
 
 /* OSMINOG 3.8.63 · native Google AI chat surface (isolated from the consumer tab) */
@@ -2606,3 +2606,4 @@ html[data-theme="ocean"] .core-hero-launch::after{background:#09577c!important;b
 
 /* OSMINOG 3.19.10 · HERO TITLE LIFT */
 .core-hero-launch h2.core-hero-title{margin-top:-10px!important}
+
