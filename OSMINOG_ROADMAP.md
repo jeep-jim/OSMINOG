@@ -346,3 +346,10 @@ Owner resumed extension work with five specific fixes. Images render without rou
 
 Local checks passed: extension-ui-410 (UI tab creation, isolated histories, page reload preserving active agent/provider, image Delete/Undo and header); agent-session-409; agent-runtime-browser-409; shared-board-400. Browser/provider checks use fixtures, not authenticated owner accounts. Delivery is tracked in the Chrome 4.0.10 PR and its GitHub Actions package; no claim of installation on the owner's PC.
 
+
+
+### 2026-11-02 — 4.0.10 published to the existing update button
+
+Owner clarified: deliver extension releases through the existing version/update button; do not substitute manual ZIP installation. A completed build/PR is not completed delivery. Preserve this requirement for subsequent releases.
+
+PR #68 merged as b9a4055d32dbdfefedf60cd1dd68f451c3de54b3. The exact tested CI ZIP (4253099 bytes, SHA-256 028b22b3d308b890c06ac0c407c22dec10cc7b2a951541b1118472ec72b4c1e0) was archived and published via the existing registry publisher. Publication run https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41395816783 succeeded, as did registry validation/integrity. GitHub API and raw dev feed independently return 4.0.10; release asset size/digest match. User action: Check again, then update in OSMINOG. No manual download/reinstallation required. Installation on the owner's PC remains unobserved.
