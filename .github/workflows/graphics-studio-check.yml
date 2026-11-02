@@ -37,8 +37,8 @@ jobs:
       - name: Check syntax and retained routing behavior
         run: |
           node --check osminog-graphics-studio.js
-          node --check osminog-animation-studio.js
-          node tests/animation-3206.cjs
+          node --check osminog-photo-editor.js
+          node tests/retired-features-416.cjs
           node --check osminog-desktop-v3.js
           node --check osminog-documents.js
           node --check bridge.js

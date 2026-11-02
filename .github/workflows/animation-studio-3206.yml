@@ -6,7 +6,7 @@ on:
       - 'osminog-graphics-studio.js'
       - 'bridge.js'
       - 'editor.html'
-      - 'tests/animation-3206.cjs'
+      - 'tests/retired-features-416.cjs'
   workflow_dispatch:
 jobs:
   verify:
@@ -16,7 +16,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check osminog-animation-studio.js
       - run: node --check osminog-graphics-studio.js
       - run: node --check bridge.js
-      - run: node tests/animation-3206.cjs
+      - run: node tests/retired-features-416.cjs
