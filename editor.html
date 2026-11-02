@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="osminog-image-generation.css">
 <link rel="stylesheet" href="osminog-workdesk.css">
 
-<link rel="stylesheet" href="osminog-photo-editor.css">
+<link rel="stylesheet" href="osminog-photo-editor.css"><link rel="stylesheet" href="osminog-inspector.css">
 </head>
 <body data-workdesk="true">
   <svg class="svg-sprite" aria-hidden="true">
@@ -118,7 +118,6 @@
         <button data-mode="code"><svg><use href="#i-code"/></svg><span data-i18n="code">Code</span></button>
         <button data-mode="browser"><svg><use href="#i-browser"/></svg><span data-i18n="browser">Browser</span></button>
         <button data-mode="design"><svg><use href="#i-design"/></svg><span data-i18n="design">Design</span></button>
-        <button data-mode="team"><svg><use href="#i-team"/></svg><span data-i18n="team">Команда</span></button>
       </nav>
       <div class="top-actions"><button id="canvasSettings" class="icon-btn" data-tip="canvasSettings"><svg><use href="#i-settings"/></svg></button><button id="exitApp" class="icon-btn exit-app-btn" title="Сохранить и выйти"><svg><use href="#i-exit"/></svg></button><button id="modulesButton" class="icon-btn modules-button" title="Модули"><svg class="modules-puzzle" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="bcModuleGrad" x1="2" y1="22" x2="22" y2="2"><stop stop-color="#4285F4"/><stop offset=".34" stop-color="#A259FF"/><stop offset=".68" stop-color="#F24E1E"/><stop offset="1" stop-color="#0ACF83"/></linearGradient></defs><path d="M8.5 3.5h3.1a2.7 2.7 0 1 1 4.8 0H20v5.1a2.7 2.7 0 1 0 0 4.8V20h-5.1a2.7 2.7 0 1 0-4.8 0H4v-5.4a2.7 2.7 0 1 1 0-4.8V3.5z" fill="none" stroke="url(#bcModuleGrad)" stroke-width="2.15" stroke-linejoin="round"/></svg></button><button id="collabShare" class="soft-btn collab-share" title="Доступ к полотну"><svg><use href="#i-link"/></svg><span>Доступ</span></button><button id="share" class="soft-btn ai-share" hidden aria-hidden="true"><span class="online-dot"></span><span data-i18n="aiAccess">AI access</span></button><button id="profileButton" class="profile-btn" title="Sign in"><span>G</span></button><button id="exportBtn" class="primary-btn"><span data-i18n="export">Export</span><svg><use href="#i-export"/></svg></button></div>
     </header>
@@ -171,40 +170,6 @@
         <div class="empty-provider-row"><button data-provider-open="gpt"><img src="icons/providers/openai.svg" alt="">ChatGPT</button><button data-provider-open="claude"><img src="icons/providers/claude.svg" alt="">Claude</button><button data-provider-open="gemini"><img src="icons/providers/gemini.svg" alt="">Gemini</button><button data-provider-open="deepseek"><img src="icons/providers/deepseek.svg" alt="">DeepSeek</button><button data-provider-open="grok"><span class="empty-provider-grok-mark" aria-hidden="true">X</span>Grok</button></div>
       </div>
 
-      <section id="teamWorkspace" class="team-workspace" hidden aria-label="Командный чат ИИ">
-        <div class="team-shell">
-          <header class="team-head">
-            <div><small>OSMINOG · TEAM OS</small><h2>Командный чат</h2><p>Агенты обсуждают задачу, используют команды проекта и передают результат исполнителю.</p></div>
-            <div class="team-head-actions"><span id="teamAccessBadge" class="team-access-badge">ПОЛНЫЙ ПРОЕКТ</span><button id="teamMediaCatalog" type="button" class="soft-btn">Медиа‑ИИ</button><button id="teamRefreshAgents" type="button" class="soft-btn">Обновить агентов</button><button id="teamMinimize" type="button" class="icon-btn" title="Свернуть командный чат в трей"><svg><use href="#i-minus"/></svg></button></div>
-          </header>
-          <div class="team-layout">
-            <aside class="team-sidebar">
-              <div class="team-section-title"><span>УЧАСТНИКИ</span><button id="teamSelectAll" type="button">Все</button></div>
-              <div id="teamAgentList" class="team-agent-list"></div>
-              <label class="team-field"><span>РЕЖИМ</span><select id="teamRunMode"><option value="execute">Обсудить и сделать</option><option value="council">Совет без правок</option><option value="review">Проверить проект</option></select></label>
-              <label class="team-field"><span>КРУГОВ ОБСУЖДЕНИЯ</span><input id="teamRounds" type="number" min="1" max="6" value="2"></label>
-              <label class="team-field"><span>ДЛИНА ОТВЕТА</span><select id="teamReplyLength"><option value="80">Коротко · до 80 слов</option><option value="180" selected>Обычно · до 180 слов</option><option value="350">Подробно · до 350 слов</option><option value="700">Максимально · до 700 слов</option></select></label>
-              <label class="team-field"><span>ЛИМИТ ВРЕМЕНИ</span><select id="teamTimeout"><option value="2">2 минуты</option><option value="5" selected>5 минут</option><option value="10">10 минут</option><option value="0">Без лимита</option></select></label>
-              <label class="team-toggle"><input id="teamFinalSummary" type="checkbox" checked><span>Собрать общий итог после обсуждения</span></label>
-              <label class="team-toggle"><input id="teamAutoApply" type="checkbox" checked><span>Автоприменять проверенный патч</span></label>
-              <label class="team-toggle"><input id="teamFullAccess" type="checkbox" checked><span>Полный доступ всем агентам</span></label>
-              <div class="team-media-crew"><div class="team-section-title"><span>МЕДИА‑КОМАНДА</span><button id="teamMediaCatalogInline" type="button">Каталог</button></div><div id="providerCrewList" class="team-media-crew-list"><small>Добавь генераторы изображений, видео, музыки и голоса.</small></div></div>
-              <div class="team-command-help"><strong>Команды</strong><code>/plan</code><code>/do</code><code>/review</code><code>/stop</code><code>/clear</code><code>/browser</code><code>/md</code><code>/media</code></div>
-            </aside>
-            <main class="team-room">
-              <div id="teamTranscript" class="team-transcript"><div class="team-empty"><b>Собери команду и поставь задачу.</b><span>Каждый агент получает карту проекта, инструменты чтения, браузера, кода и право вернуть реальный patch.</span></div></div>
-              <div id="teamProgress" class="team-progress" hidden><span></span><small>Команда работает…</small></div>
-              <form id="teamMissionForm" class="team-composer">
-                <div id="teamAttachmentTray" class="team-attachment-tray" hidden></div>
-                <div class="team-composer-input"><button id="teamAttach" type="button" title="Добавить изображение, PDF или текст">+</button><textarea id="teamMission" rows="3" placeholder="Например: обсудите интерфейс, распределите работу и исправьте выбранный блок на холсте"></textarea></div>
-                <div><span id="teamComposerHint">Ctrl+V вставляет скриншот · выбранные медиа‑ИИ доступны как инструменты</span><button id="teamStop" type="button" class="soft-btn" disabled>Стоп</button><button id="teamClear" type="button" class="soft-btn">Очистить</button><button id="teamStart" type="submit" class="primary-btn">Запустить команду</button></div>
-                <input id="teamFileInput" type="file" hidden multiple accept="image/*,.pdf,.txt,.md,.json,.js,.ts,.css,.html">
-              </form>
-            </main>
-          </div>
-        </div>
-      </section>
-      <button id="teamTrayBubble" class="team-tray-bubble" type="button" hidden title="Открыть командный чат"><svg><use href="#i-team"/></svg><span><strong>Команда</strong><small id="teamTrayStatus">свёрнута</small></span><b id="teamTrayCount">0</b></button>
       <button id="osminogDesktopFolderIcon" class="osminog-desktop-folder-icon" type="button" hidden aria-label="Папка проекта OSMINOG" title="Двойной клик — открыть папку проекта">
         <span class="osminog-folder-glyph" aria-hidden="true"></span><strong id="osminogDesktopFolderLabel">OSMINOG</strong><small id="osminogDesktopFolderMeta">Папка проекта</small>
       </button>
@@ -425,8 +390,8 @@
   </main>
   <script src="cloud-config.js"></script><script src="osminog-folder-updater.js"></script><script src="osminog-project-memory.js"></script><script src="editor.js"></script><script src="osminog-icon-registry.js"></script><script src="osminog-owner-guard.js"></script><script src="bridge.js"></script>
 <script src="osminog-chat-content.js"></script><script src="gpt-presence.js"></script><script src="osminog-command-registry.js"></script><script src="osminog-markdown.js"></script><script src="osminog-browser-hub.js"></script><script src="osminog-provider-registry.js"></script><script src="osminog-session-manager.js"></script><script src="osminog-unified-chat.js"></script><script src="osminog-window-manager.js"></script><script src="osminog-module-migration.js"></script><script src="osminog-module-runtime.js"></script><script src="osminog-native-module-runtime.js"></script><script src="osminog-extension-studio.js"></script><script src="osminog-browser-app.js"></script><script src="osminog-access-center.js"></script><script src="osminog-chat-bridge.js"></script><script src="osminog-chat-ux-lite.js"></script><script src="osminog-windows-folders.js"></script><script src="osminog-documents.js"></script>
-<script src="vendor/fabric.min.js"></script><script src="osminog-graphics-studio.js"></script><script src="osminog-team.js"></script><script src="osminog-image-generation.js"></script><script src="osminog-image-generation-ui.js"></script>
-<script src="osminog-storage-onboarding.js"></script><script src="osminog-workdesk.js"></script><script src="osminog-photo-pixels.js"></script><script src="osminog-photo-editor.js"></script><script src="osminog-essential-ui.js"></script></body>
+<script src="vendor/fabric.min.js"></script><script src="osminog-graphics-studio.js"></script><script src="osminog-image-generation.js"></script><script src="osminog-image-generation-ui.js"></script>
+<script src="osminog-storage-onboarding.js"></script><script src="osminog-workdesk.js"></script><script src="osminog-photo-pixels.js"></script><script src="osminog-photo-editor.js"></script><script src="osminog-essential-ui.js"></script><script src="osminog-inspector.js"></script></body>
 </html>
 
 

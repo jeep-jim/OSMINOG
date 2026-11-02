@@ -109,7 +109,6 @@
   function installPanelControls(){
     panel.classList.add("gpt-resizable-panel");const head=panel.querySelector(".bridge-head");if(!head)return;head.classList.add("gpt-presence-drag-handle");
     const actions=head.querySelector(".bridge-head-actions"),close=q("#bridgeClose");
-    if(actions&&!q("#gptPresenceTeamToggle",actions)){const team=document.createElement("button");team.id="gptPresenceTeamToggle";team.type="button";team.className="icon-btn gpt-team-toggle";team.title="Команда";team.innerHTML='<svg><use href="#i-team"/></svg>';actions.insertBefore(team,close||null);team.addEventListener("click",e=>{e.stopPropagation();const on=document.body.classList.contains("mode-team");document.querySelector(`[data-mode="${on?"brief":"team"}"]`)?.click()})}
     if(actions&&!q("#gptPresenceSettingsToggle",actions)){const gear=document.createElement("button");gear.id="gptPresenceSettingsToggle";gear.type="button";gear.className="icon-btn";gear.title="Настройки ИИ";gear.innerHTML='<svg><use href="#i-settings"/></svg>';actions.insertBefore(gear,close||null);gear.addEventListener("click",e=>{e.stopPropagation();const box=q("#gptPresenceSettingsPanel");setSettingsOpen(box?.hidden!==false)})}
     if(actions&&!q("#gptPresenceMinimize",actions)){const min=document.createElement("button");min.id="gptPresenceMinimize";min.type="button";min.className="icon-btn";min.title="Свернуть чат";min.innerHTML='<svg><use href="#i-minus"/></svg>';actions.insertBefore(min,close||null);min.addEventListener("click",e=>{e.stopPropagation();panel.hidden=true;ensureBubble().hidden=false;drawAgentTethers()})}
     if(close&&!close.dataset.gptPresenceBound){close.dataset.gptPresenceBound="1";close.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();setSettingsOpen(false);toggleAddAgentPicker(false);panel.hidden=true;ensureBubble().hidden=false;const svg=q("#gptAgentTethers");if(svg)svg.hidden=true})}
@@ -128,25 +127,7 @@
   body.innerHTML=`<div class="local-ai-shell gpt-presence-shell">
     <div id="gptPresenceSettingsPanel" class="gpt-settings-popover" hidden>
       <div class="gpt-settings-title"><div><small id="gptSettingsKicker">OSMINOG · ИИ</small><strong id="gptSettingsHeading">Агент и подключения</strong></div><button id="gptSettingsClose" class="icon-btn"><svg><use href="#i-close"/></svg></button></div>
-      <section id="gptTeamSettingsPanel" class="gpt-team-settings" hidden>
-        <div class="gpt-team-control-status"><span></span><div><small>СОСТОЯНИЕ КОМАНДЫ</small><strong id="gptTeamSettingsStatus">Готова к задаче</strong><p id="gptTeamSettingsStatusNote">Настройки применяются к следующему запуску.</p></div></div>
-        <button id="gptTeamSettingsStop" type="button" class="gpt-team-stop" disabled><svg><use href="#i-close"/></svg><span><strong>Остановить команду</strong><small>Текущий ответ будет отброшен, новые агенты не запустятся</small></span></button>
-        <div class="gpt-team-settings-card"><header><span>УЧАСТНИКИ</span><button id="gptTeamSettingsAll" type="button">Выбрать всех</button></header><div id="gptTeamSettingsAgents" class="gpt-team-settings-agents"></div></div>
-        <div class="gpt-team-settings-grid">
-          <label><span>РЕЖИМ РАБОТЫ</span><select id="gptTeamSettingsMode"><option value="execute">Обсудить и выполнить</option><option value="council">Только обсудить</option><option value="review">Проверить проект</option></select></label>
-          <label><span>КРУГОВ</span><select id="gptTeamSettingsRounds"><option value="1">1 круг</option><option value="2">2 круга</option><option value="3">3 круга</option><option value="4">4 круга</option><option value="5">5 кругов</option><option value="6">6 кругов</option></select></label>
-          <label><span>ДЛИНА ОТВЕТА</span><select id="gptTeamSettingsLength"><option value="80">Коротко · 80 слов</option><option value="180">Обычно · 180 слов</option><option value="350">Подробно · 350 слов</option><option value="700">Максимум · 700 слов</option></select></label>
-          <label><span>ОБЩИЙ ЛИМИТ</span><select id="gptTeamSettingsTimeout"><option value="2">2 минуты</option><option value="5">5 минут</option><option value="10">10 минут</option><option value="0">Без лимита</option></select></label>
-        </div>
-        <div class="gpt-team-settings-card gpt-team-switches">
-          <label><input id="gptTeamSettingsSummary" type="checkbox"><span><strong>Общий итог</strong><small>Ведущий соберёт вывод после обсуждения</small></span></label>
-          <label><input id="gptTeamSettingsAutoApply" type="checkbox"><span><strong>Автоприменение</strong><small>Применять только проверенный patch в режиме выполнения</small></span></label>
-          <label><input id="gptTeamSettingsFullAccess" type="checkbox"><span><strong>Полный проект</strong><small>Холст, файлы, браузер, код и команды</small></span></label>
-        </div>
-        <div id="gptTeamSettingsEstimate" class="gpt-team-estimate"><strong>До 0 ответов</strong><small>Выбери участников команды</small></div>
-        <div class="gpt-team-settings-actions"><button id="gptTeamSettingsDefaults" type="button" class="soft-btn">По умолчанию</button><button id="gptTeamSettingsClear" type="button" class="soft-btn">Очистить общий чат</button></div>
-        <small class="gpt-team-settings-footnote">Изменения сохраняются для текущего проекта. Во время запущенного цикла состав и лимиты блокируются.</small>
-      </section>
+
       <div id="gptAgentSettingsContent" class="gpt-agent-settings-content">
       <div class="gpt-presence-status" id="gptPresenceStatus"><span></span><div><strong>Коннектор OSMINOG</strong><small>Работает автоматически. Холст не добавляется в запрос, пока пользователь явно не попросит работать с холстом, проектом или выделенным объектом.</small></div></div>
       <div class="local-ai-settings"><label class="field"><span>ИЗМЕНЕНИЯ</span><select id="gptPresenceApply"><option value="review">Показывать перед применением</option><option value="direct" selected>Применять мои прямые команды</option></select></label></div>
@@ -182,12 +163,11 @@
   function installUnifiedMessengerLayout(){
     const shell=q(".gpt-presence-shell",body),settings=q("#gptPresenceSettingsPanel",shell);if(!shell||!settings)return{};
     shell.classList.add("gpt-messenger-shell");
-    const left=document.createElement("aside");left.id="gptUnifiedTeamPane";left.className="gpt-messenger-team-pane";left.hidden=true;left.innerHTML=`<header class="gpt-messenger-side-head"><div><small>OSMINOG · КОМАНДА</small><strong>Чаты команды</strong></div><button id="gptTeamPaneClose" type="button" class="icon-btn" title="Закрыть командное меню"><svg><use href="#i-close"/></svg></button></header><div class="gpt-messenger-team-tools"><button id="gptMessengerAddAgent" type="button" class="soft-btn">+ Добавить агента</button></div><nav id="gptMessengerThreadList" class="gpt-messenger-thread-list" aria-label="Командные чаты"></nav><footer class="gpt-messenger-team-footer"><strong>Командный режим</strong><small>Сообщение из центра получают выбранные агенты. Ответы остаются в этом же проектном чате.</small></footer>`;
     const center=document.createElement("main");center.id="gptUnifiedChatCenter";center.className="gpt-messenger-chat-center";
     const right=document.createElement("aside");right.id="gptUnifiedSettingsPane";right.className="gpt-messenger-settings-pane";right.hidden=true;
     for(const child of [...shell.children])if(child!==settings)center.append(child);
-    right.append(settings);shell.replaceChildren(left,center,right);
-    return{left,center,right}
+    right.append(settings);shell.replaceChildren(center,right);
+    return{center,right}
   }
   const unifiedLayout=installUnifiedMessengerLayout();
   globalThis.OSMINOGUpgradeSelects?.(q("#gptPresenceSettingsPanel"));
@@ -921,7 +901,7 @@ Previous response excerpt: ${String(lastText||"").slice(0,900)}`;
   globalThis.OSMINOGUnifiedChatCore={status:()=>({busy:busy||threadTasks.has(activeThreadId),threadId:activeThreadId,projectId:projectId()}),append:(m={})=>document.dispatchEvent(new CustomEvent("osminog:team-message",{detail:m})),clearTeam:()=>document.dispatchEvent(new CustomEvent("osminog:team-clear")),open:(options={})=>globalThis.OSMINOGOpenUnifiedChat?.(options),settings:setSettingsOpen};
   function syncUnifiedMode(){const on=document.body.classList.contains("mode-team"),left=q("#gptUnifiedTeamPane"),input=q("#gptPresenceInput");if(left)left.hidden=!on;panel.classList.toggle("gpt-team-open",on);if(input)input.placeholder=on?(activeThreadId==="main"?"Поставь задачу всей команде…":`Личный чат: ${activeThread()?.name||"агент"}…`):"Напиши ИИ, что сделать…";renderThreadTabs();if(on){panel.hidden=false;ensureBubble().hidden=true}syncSettingsSurface();fitUnifiedPanel();updateActiveAgentIdentity()}
   q("#gptTeamPaneClose")?.addEventListener("click",()=>document.querySelector('[data-mode="brief"]')?.click());q("#gptMessengerAddAgent")?.addEventListener("click",()=>toggleAddAgentPicker(true));document.addEventListener("osminog:mode-change",syncUnifiedMode);let resizeFrame=0;window.addEventListener("resize",()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>fitUnifiedPanel())},{passive:true});
-  globalThis.OSMINOGOpenUnifiedChat=async(options={})=>{const messages=q("#gptPresenceMessages");if(messages)messages.style.visibility="hidden";if(options.team&&!document.body.classList.contains("mode-team"))document.querySelector('[data-mode="team"]')?.click();ensureBubble().hidden=true;panel.hidden=false;await loadThreads();if(options.team&&activeThreadId!=="main")await switchThread("main");syncUnifiedMode();await loadChat();syncUi();fitUnifiedPanel()};
+  globalThis.OSMINOGOpenUnifiedChat=async(options={})=>{options={...options,team:false};const messages=q("#gptPresenceMessages");if(messages)messages.style.visibility="hidden";if(options.team&&!document.body.classList.contains("mode-team"))document.querySelector('[data-mode="team"]')?.click();ensureBubble().hidden=true;panel.hidden=false;await loadThreads();if(options.team&&activeThreadId!=="main")await switchThread("main");syncUnifiedMode();await loadChat();syncUi();fitUnifiedPanel()};
   document.addEventListener("osminog:project-folder-ready",async()=>{await loadThreads();await loadChat();syncUi()});
   installAttachmentUi();installAgentLinkDrag();installEmojiUi();
   setInterval(()=>{if(document.visibilityState==="visible"&&!panel.hidden)drawAgentTethers()},1400);
