@@ -73,11 +73,6 @@
     });
     $('#canvasEraser')?.setAttribute('aria-pressed',String(state.tool==='eraser'));
     $('#canvasUndo').disabled=!state.history.length; $('#canvasRedo').disabled=!state.future.length;
-    const picked=selectedObjects()[0],kind=picked?.type==='text'||state.tool==='text'?'textColor':
-      ['pen','eraser','vector'].includes(state.tool)||picked?.type==='ink'?'stroke':'fill';
-    const source=picked||state.toolPresets[state.tool]||{};
-    $('#canvasColor').value=validColor(source[kind],kind==='textColor'&&state.theme!=='light'?'#edf0f5':'#ff2d2d');
-    $('#canvasColor').dataset.kind=kind;
     decorateMenu();
   }
   // Same core tool state for toolbar clicks, keyboard shortcuts and inspector updates.
@@ -269,11 +264,6 @@
     button.title+=' · наведите для меню; удержание на сенсорном экране';button.setAttribute('aria-haspopup','true');
   }
   function addButton(id,label,iconName,action){const b=document.createElement('button');b.type='button';b.id=id;b.title=label;b.setAttribute('aria-label',label);b.innerHTML=icon(iconName);b.addEventListener('click',action);nav.append(b);return b}
-  const swatch=document.createElement('label');swatch.id='canvasColorWrap';swatch.title='Цвет активного инструмента';swatch.innerHTML='<input id="canvasColor" type="color" aria-label="Цвет активного инструмента">';nav.append(swatch);
-  let colorCheckpoint=false;
-  $('#canvasColor').addEventListener('pointerdown',()=>{colorCheckpoint=false});
-  $('#canvasColor').addEventListener('input',e=>{const key=e.target.dataset.kind,picked=selectedObjects();if(picked.length){if(!colorCheckpoint){checkpoint();colorCheckpoint=true}for(const o of picked){o[key]=e.target.value;if(key==='textColor')o.textColorMode='custom'}renderObjects()}else{state.toolPresets[state.tool]=state.toolPresets[state.tool]||{};state.toolPresets[state.tool][key]=e.target.value;if(key==='textColor')state.toolPresets[state.tool].textColorMode='custom'}queuePersist()});
-
   addButton('canvasUndo','Отменить · Ctrl + Z','undo',()=>undo());
   addButton('canvasRedo','Повторить · Ctrl + Shift + Z','redo',()=>redo());
   const restore=document.createElement('button');restore.id='canvasToolsRestore';restore.type='button';restore.className='icon-btn';restore.title='Показать инструменты';restore.setAttribute('aria-label',restore.title);restore.innerHTML=icon('tools');restore.hidden=true;$('.top-actions').prepend(restore);
