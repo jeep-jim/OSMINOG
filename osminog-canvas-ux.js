@@ -32,6 +32,9 @@
     undo:'<path d="m9 4-5 5 5 5M4 9h10a6 6 0 0 1 0 12"/>',
     redo:'<path d="m15 4 5 5-5 5m5-5H10a6 6 0 0 0 0 12"/>',
     code:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18m-13 4-3 3 3 3m8-6 3 3-3 3"/>',
+    magic:'<path d="m6 16 5-14 7 14Z"/><ellipse cx="12" cy="18" rx="10" ry="3"/><path d="m17 2 1-2 1 2 2 1-2 1-1 2-1-2-2-1Z"/>',
+    lasso:'<path d="M8 17c-9-2-7-13 4-13s13 11 3 13H8c-3 0-3 5 0 5 2 0 3-2 1-4"/>',
+    picker:'<path d="m15 3 6 6-3 3-6-6zM14 8 4 18v3h3L17 11"/>',
     more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     fit:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     zoomIn:'<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6m-3-3v6"/>',
@@ -47,7 +50,7 @@
     download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>'
   };
   const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.settings}</svg>`;
-  const aliases = {'legacy-md':'markdown',files:'file',folders:'folder',graphics:'image',animation:'play',
+  const aliases = {'photo-rect':'shape','photo-lasso':'lasso','photo-wand':'sparkle','photo-crop':'crop','photo-eraser':'eraser','photo-brush':'pen','photo-picker':'picker','photo-adjust':'settings','legacy-md':'markdown',files:'file',folders:'folder',graphics:'image',animation:'play',
     generate:'sparkle',ask:'sparkle',properties:'settings',overview:'fit',zoomLabel:'fit',
     original:'undo','paste-image':'paste','paste-cache':'paste',chat:'comment',providers:'team',
     apps:'code','saved-layouts':'code','browser-editor':'code','edit-layout':'code',context:'download'};
@@ -269,7 +272,7 @@
   let colorCheckpoint=false;
   $('#canvasColor').addEventListener('pointerdown',()=>{colorCheckpoint=false});
   $('#canvasColor').addEventListener('input',e=>{const key=e.target.dataset.kind,picked=selectedObjects();if(picked.length){if(!colorCheckpoint){checkpoint();colorCheckpoint=true}for(const o of picked){o[key]=e.target.value;if(key==='textColor')o.textColorMode='custom'}renderObjects()}else{state.toolPresets[state.tool]=state.toolPresets[state.tool]||{};state.toolPresets[state.tool][key]=e.target.value;if(key==='textColor')state.toolPresets[state.tool].textColorMode='custom'}queuePersist()});
-  addButton('canvasEraser','Ластик · E','eraser',()=>setTool('eraser'));
+
   addButton('canvasUndo','Отменить · Ctrl + Z','undo',()=>undo());
   addButton('canvasRedo','Повторить · Ctrl + Shift + Z','redo',()=>redo());
   const restore=document.createElement('button');restore.id='canvasToolsRestore';restore.type='button';restore.className='icon-btn';restore.title='Показать инструменты';restore.setAttribute('aria-label',restore.title);restore.innerHTML=icon('tools');restore.hidden=true;$('.top-actions').prepend(restore);
