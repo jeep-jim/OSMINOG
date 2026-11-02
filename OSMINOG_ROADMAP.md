@@ -353,3 +353,14 @@ Local checks passed: extension-ui-410 (UI tab creation, isolated histories, page
 Owner clarified: deliver extension releases through the existing version/update button; do not substitute manual ZIP installation. A completed build/PR is not completed delivery. Preserve this requirement for subsequent releases.
 
 PR #68 merged as b9a4055d32dbdfefedf60cd1dd68f451c3de54b3. The exact tested CI ZIP (4253099 bytes, SHA-256 028b22b3d308b890c06ac0c407c22dec10cc7b2a951541b1118472ec72b4c1e0) was archived and published via the existing registry publisher. Publication run https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41395816783 succeeded, as did registry validation/integrity. GitHub API and raw dev feed independently return 4.0.10; release asset size/digest match. User action: Check again, then update in OSMINOG. No manual download/reinstallation required. Installation on the owner's PC remains unobserved.
+
+
+## 2026-11-02 — Chrome 4.0.11: development from OSMINOG
+
+User goal: develop OSMINOG from its own internal AI chat (real GitHub source reads, edits, branches, commits, PRs and CI), then install through the existing update button. Do not substitute manual ZIP installation.
+
+Released PR #69; source 686ca310fc785e71307dd1c82ff4c8dbca263a61, merge a83908d6ee66e8c16eda14d0b34ce2f2f7949b62. Fixed saved-token owner-grant refresh, reconnect with Authenticator preserved, paged UTF-8 file/tree reads, exact-fragment edits with mandatory original SHA for existing files, commit read-back, structured GitHub errors, discussion/action classification, and GitHub-first source instructions without a required local folder. Invalid updater-folder handles are cleared for reselection.
+
+Verification: gateway and owner tests with synthetic GitHub responses; browser owner test verifies offline rejection and successful grant; full Chrome CI https://github.com/jeep-jim/OSMINOG/actions/runs/41419147125, workdesk CI 41419147202, retired compatibility 41419147247 passed. Publication https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41419739652 succeeded. Public feed and release asset agree: 4.0.11, 4255509 bytes, SHA-256 99c280d60e635d0e72c901193b6914d1b58eea062e91dba98c84ae0bf26871ce.
+
+Limit: no live access to the user's installed GitHub token/internal chat. Post-update owner connection, real internal-chat mutation and applicable token permissions must still be verified on that installation; runtimeVerified remains false. Do not claim dispatch equals completed publication or a commit equals installed code. Existing internal gateway writes on osminog-ai/* branches; do not claim unrestricted autonomous merge/release support.
