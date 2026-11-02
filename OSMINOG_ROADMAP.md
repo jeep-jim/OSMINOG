@@ -338,3 +338,11 @@ PR [#23](https://github.com/jeep-jim/OSMINOG/pull/23). Код `ccaa65bca7b2f8133
 ## 13.10.2026, 22:34–22:39 — уточнение владельца и отказ Preview
 
 OSMINOG теперь позиционируется как самостоятельный локальный браузер. Приоритет: настольные версии, затем мобильные. Развитие расширения не обязательно. Текущие задачи и ежедневные записи перенесены в [OSMINOG_BROWSER_ROADMAP.md](OSMINOG_BROWSER_ROADMAP.md); эта история сохраняется. Владелец сообщил отказ браузера/чата/обновления 0.2.0, на скриншоте Untrusted frame. Несмотря на предыдущий CI, пользовательский сценарий НЕ принят. Работа 0.2.1 нацелена на установленную Windows-версию, полноценный нативный чат и обновление по кнопке.
+
+
+## 2026-11-02 — Chrome 4.0.10: targeted canvas and chat cleanup
+
+Owner resumed extension work with five specific fixes. Images render without rounded corners or delete-cross overlays; keyboard deletion and Undo remain. Header Layers is first. The Windows eye replaces the red-dot brand, and chat-tab octopuses use symmetric SVG geometry. Fixed workdesk-only filtering that hid every non-main tab and removed the load-time forced reset to main/GPT. Existing project data, permissions, extension identity and updater are preserved. Browser 4.0.26 features are not removed or redesigned.
+
+Local checks passed: extension-ui-410 (UI tab creation, isolated histories, page reload preserving active agent/provider, image Delete/Undo and header); agent-session-409; agent-runtime-browser-409; shared-board-400. Browser/provider checks use fixtures, not authenticated owner accounts. Delivery is tracked in the Chrome 4.0.10 PR and its GitHub Actions package; no claim of installation on the owner's PC.
+

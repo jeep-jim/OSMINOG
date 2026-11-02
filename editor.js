@@ -337,7 +337,7 @@ function objectDefaults(type){
   if(type==="shape")return{...base,name:ru?"Прямоугольник":"Rectangle",w:220,h:160,fill:"#8b6cff",radius:26,shapeKind:"rectangle"};
   if(type==="vector")return{...base,name:ru?"Векторный контур":"Vector path",w:260,h:220,fill:"#8b6cff",stroke:"#2b2f3a",strokeWidth:2,radius:0,pathClosed:true,pathNodes:[{x:.15,y:.8},{x:.5,y:.15},{x:.85,y:.8}]};
   if(type==="button")return{...base,name:ru?"Кнопка":"Button",w:190,h:56,fill:"#365dfb",fill2:"#8b5cf6",radius:14,corners:{tl:14,tr:14,br:14,bl:14},stroke:"#2849ce",strokeWidth:1,label:ru?"Нажмите":"Click me",textColor:"#ffffff",fontSize:16,fontWeight:700,action:"none",actionValue:"",animation:"lift",states:{hover:{fill:"#274bd7",scale:1.03},pressed:{fill:"#1f3aa9",scale:.98}}};
-  if(type==="image")return{...base,name:ru?"Изображение":"Image",w:380,h:280,src:""};
+  if(type==="image")return{...base,name:ru?"Изображение":"Image",w:380,h:280,src:"",radius:0,corners:{tl:0,tr:0,br:0,bl:0}};
   if(type==="file")return{...base,name:ru?"Файл":"File",w:360,h:150,mime:"application/octet-stream",size:0,fileName:"",src:"",fill:"#ffffff",pdfPage:1,pdfEdits:[]};
   if(type==="code")return{...base,name:ru?"Живой код":"Live code",w:720,h:430,code:'<!doctype html>\n<html>\n<head>\n<style>\n body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui;background:#f4f7ff}\n .card{padding:40px;border-radius:24px;background:white;box-shadow:0 24px 70px #18304c22}\n button{border:0;border-radius:12px;padding:13px 18px;background:#365dfb;color:white;font-weight:700}\n</style>\n</head>\n<body>\n <main class="card">\n  <h1>Build something beautiful.</h1>\n  <p>Edit the code on the left. The result updates here.</p>\n  <button onclick="this.textContent=\'It works!\'">Test interaction</button>\n </main>\n</body>\n</html>'};
   if(type==="browser")return{...base,name:tr("aiBrowser"),w:900,h:580,url:"",tabs:[{id:uid("tab"),title:"New tab",url:""}],activeTab:null,screenLocked:false};
@@ -363,7 +363,7 @@ function updateHistoryButtons(){if($("#undo"))$("#undo").disabled=!state.history
 
 function renderAll(forceObjects=false){const p=project();if(!p)return;safeSetText("#projectTitle",p.name);safeSetText("#layersProjectName",p.name);renderObjects(forceObjects);renderConnections();renderInk();renderLayers();renderInspector();updateActivity();applyView();const empty=$("#emptyHint");if(empty)empty.hidden=objects().length>0||sessionStorage.getItem("osminogIntroDismissedV1")==="1"}
 function objectBackground(obj){if(obj.themeSurface&&obj.fillMode!=="custom")return"var(--object-surface)";if(obj.fillEnabled===false||obj.fill==="transparent")return"transparent";return obj.fillType==="gradient"?`linear-gradient(${Number(obj.gradientAngle)||135}deg,${obj.fill||"#365dfb"},${obj.fill2||"#8b5cf6"})`:(obj.fill||"transparent")}
-function cornerRadius(obj){if(obj.shapeKind==="ellipse")return"50%";const c=obj.corners||{tl:obj.radius??18,tr:obj.radius??18,br:obj.radius??18,bl:obj.radius??18};return`${c.tl}px ${c.tr}px ${c.br}px ${c.bl}px`}
+function cornerRadius(obj){if(obj.type==="image")return "0px";if(obj.shapeKind==="ellipse")return"50%";const c=obj.corners||{tl:obj.radius??18,tr:obj.radius??18,br:obj.radius??18,bl:obj.radius??18};return`${c.tl}px ${c.tr}px ${c.br}px ${c.bl}px`}
 
 function clamp01(v){return Math.max(0,Math.min(1,Number(v)||0))}
 function vectorPointPx(obj,n){return{x:clamp01(n.x)*Math.max(1,obj.w),y:clamp01(n.y)*Math.max(1,obj.h)}}
@@ -404,7 +404,7 @@ function updateObjectElement(el,obj){
   if(obj.type==="ink"){const line=$(".ink-path",el);if(line){line.setAttribute("d",inkPathD(obj));line.style.stroke=obj.stroke||"#20252e";line.style.strokeWidth=Math.max(1,(obj.strokeWidth||3)*1000/Math.max(obj.w,obj.h))}}
 }
 function buildObjectElement(obj){
-  const el=document.createElement("article"),handles=["nw","n","ne","e","se","s","sw","w"].map(dir=>`<span class="resize-handle resize-${dir}" data-resize="${dir}"></span>`).join(""),ports=["nw","n","ne","e","se","s","sw","w"].map(dir=>`<span class="port ${dir}" data-port="${dir}"></span>`).join("");el.innerHTML=`${objectHTML(obj)}<span class="ai-context-handle" draggable="true" title="${state.language==="ru"?"Связать с ИИ":"Attach to AI"}"><svg><use href="#i-eye"/></svg></span><button class="object-close" type="button" title="${tr("delete")}"><svg><use href="#i-close"/></svg></button>${handles}<span class="rotate-handle" title="${tr("rotation")}"></span>${ports}`;updateObjectElement(el,obj);bindObject(el,obj);return el
+  const el=document.createElement("article"),handles=["nw","n","ne","e","se","s","sw","w"].map(dir=>`<span class="resize-handle resize-${dir}" data-resize="${dir}"></span>`).join(""),ports=["nw","n","ne","e","se","s","sw","w"].map(dir=>`<span class="port ${dir}" data-port="${dir}"></span>`).join("");el.innerHTML=`${objectHTML(obj)}<span class="ai-context-handle" draggable="true" title="${state.language==="ru"?"Связать с ИИ":"Attach to AI"}"><svg><use href="#i-eye"/></svg></span>${obj.type==="image"?"":`<button class="object-close" type="button" title="${tr("delete")}"><svg><use href="#i-close"/></svg></button>`}${handles}<span class="rotate-handle" title="${tr("rotation")}"></span>${ports}`;updateObjectElement(el,obj);bindObject(el,obj);return el
 }
 function renderObjects(force=false){
   const root=$("#objects"),live=new Map($$(".canvas-object",root).map(el=>[el.dataset.id,el]));
@@ -1332,5 +1332,6 @@ globalThis.OSMINOGEditorAPI={
 
 /* OSMINOG 3.11.21: allow dynamic modules (Ocean FX / provider settings) to reuse the canonical smart select. */
 globalThis.OSMINOGUpgradeSelects=upgradeSelects;
+
 
 
