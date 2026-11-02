@@ -1,4 +1,4 @@
-name: OSMINOG 4.0.13 agent runtime
+name: OSMINOG 4.0.14 agent runtime
 on:
   pull_request:
   push:
@@ -40,6 +40,8 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
           npx playwright install --with-deps chromium
+      - run: node tests/space-model-414.cjs
+      - run: node tests/space-414.cjs
       - run: node tests/extension-ui-410.cjs
       - run: node tests/source-chat-412.cjs
       - run: node tests/agent-runtime-browser-409.cjs
@@ -56,28 +58,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.13-CANVAS-AUTOSAVE.zip'
+          artifact='OSMINOG-Chrome-4.0.14-SPACE-WORLDS.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='desktop/' --exclude='android/' --exclude='versions/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           (cd artifacts/package && zip -qr "../$artifact" .)
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-4.0.13-CANVAS-AUTOSAVE.zip'
+          path='artifacts/OSMINOG-Chrome-4.0.14-SPACE-WORLDS.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.13' and m['version_name']=='4.0.13 · Canvas Autosave'
+              assert m['version']=='4.0.14' and m['version_name']=='4.0.14 · Space Worlds'
               assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.13-CANVAS-AUTOSAVE
+          name: OSMINOG-4.0.14-SPACE-WORLDS
           path: |
-            artifacts/OSMINOG-Chrome-4.0.13-CANVAS-AUTOSAVE.zip
-            RELEASE_NOTES_4.0.13.md
+            artifacts/OSMINOG-Chrome-4.0.14-SPACE-WORLDS.zip
+            RELEASE_NOTES_4.0.14.md
             artifacts/*.png
             artifacts/canvas-ux-408-results.json
             artifacts/agent-runtime-409-results.json
