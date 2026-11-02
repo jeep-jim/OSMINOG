@@ -67,7 +67,9 @@ jobs:
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.17' and m['version_name']=='4.0.17 · Quick Photo'
+              assert m['version']=='4.0.17' and m['version_name']=='4.0.17 · Canvas Tools'
+              assert 'osminog-team.js' not in z.namelist()
+              assert 'osminog-inspector.js' in z.namelist() and 'osminog-inspector.css' in z.namelist()
               assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
           print(hashlib.sha256(open(path,'rb').read()).hexdigest())
           PY

@@ -143,6 +143,7 @@
       e.preventDefault();e.stopImmediatePropagation();e.target.blur();setTool('select');viewport.focus({preventScroll:true});return;
     }
     if(editing(e.target)||e.ctrlKey||e.metaKey||e.altKey||document.querySelector('dialog[open]'))return;
+    if(globalThis.OSMINOGPhotoEditor?.active())return;
     if(e.code==='KeyE'){e.preventDefault();e.stopImmediatePropagation();setTool('eraser')}
     if(e.shiftKey&&e.code==='Digit1'){e.preventDefault();e.stopImmediatePropagation();fitToContent()}
   },true);
