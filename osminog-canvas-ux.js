@@ -50,22 +50,23 @@
     download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>'
   };
   const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.settings}</svg>`;
+  Object.assign(paths,OSMINOGIcons.paths);paths['shape-rectangle']=paths.square;paths['shape-ellipse']=paths.circle;paths['shape-triangle']=paths.triangle;
   const aliases = {'photo-rect':'shape','photo-lasso':'lasso','photo-wand':'sparkle','photo-crop':'crop','photo-eraser':'eraser','photo-brush':'pen','photo-picker':'picker','photo-adjust':'settings','legacy-md':'markdown',files:'file',folders:'folder',graphics:'image',animation:'play',
     generate:'sparkle',ask:'sparkle',properties:'settings',overview:'fit',zoomLabel:'fit',
     original:'undo','paste-image':'paste','paste-cache':'paste',chat:'comment',providers:'team',
     apps:'code','saved-layouts':'code','browser-editor':'code','edit-layout':'code',context:'download'};
   function decorateMenu() {
     for (const button of $('#deskMore').querySelectorAll('[data-desk]')) {
-      const action=button.dataset.desk;
+      const action=button.dataset.desk;const current=action===state.tool||(state.tool==='shape'&&action==='shape-'+toolPreset('shape').shapeKind);
       if (!button.querySelector('svg')) button.insertAdjacentHTML('afterbegin', icon(aliases[action]||action));
-      button.classList.toggle('is-current',action===state.tool);
-      button.setAttribute('aria-pressed',String(action===state.tool));
+      button.classList.toggle('is-current',current);
+      button.setAttribute('aria-pressed',String(current));
       if (!button.querySelector('.desk-active-dot')) button.insertAdjacentHTML('beforeend','<span class="desk-active-dot" aria-hidden="true"></span>');
     }
   }
   function syncTools() {
     nav.querySelectorAll('[data-desk-group]').forEach(button=>{
-      const group=button.dataset.deskGroup;
+      const group=button.dataset.deskGroup;if(group==='shape'){const svg=button.querySelector('svg');if(svg)svg.innerHTML=paths['shape-'+toolPreset('shape').shapeKind]||paths.square;}
       const active=group===state.tool || (group==='pen'&&['vector','eraser'].includes(state.tool)) ||
         (group==='text'&&['note','brief'].includes(state.tool));
       button.classList.toggle('active',active);
@@ -201,14 +202,14 @@
   function textInspector(o,isPreset){
     const root=$('#inspectorBody');$('#inspectorTitle').textContent=isPreset?'Текст':o.name||'Текст';
     const field=(key,label,type='text',value=o[key]??'')=>`<label class="canvas-text-field">${label}<input data-canvas-text-prop="${key}" type="${type}" value="${esc(value)}" ${textProperties[key]?`min="${textProperties[key][0]}" max="${textProperties[key][1]}" step="${key==='lineHeight'?'.1':'1'}"`:''}></label>`;
-    root.innerHTML=`<section class="canvas-text-properties"><p class="canvas-text-hint">${isPreset?'Нажмите на доску и пишите. Без карточки и блокнота.':'Текст на холсте · двойной клик для редактирования'}</p>
+    root.innerHTML=`<section class="canvas-text-properties">
       <label class="canvas-text-field">Шрифт<select data-canvas-text-prop="fontFamily" data-native><option value="Arial, sans-serif">Arial</option><option value="system-ui, sans-serif">Системный</option><option value="Georgia, serif">Georgia</option><option value="Verdana, sans-serif">Verdana</option><option value="monospace">Моноширинный</option></select></label>
       <div class="canvas-text-grid">${field('fontSize','Размер','number',o.fontSize||24)}${field('lineHeight','Интервал','number',o.lineHeight||1.4)}</div>
       <div class="canvas-text-grid"><label class="canvas-text-field">Начертание<select data-native data-canvas-text-prop="fontWeight"><option value="400">Обычный</option><option value="500">Средний</option><option value="600">Полужирный</option><option value="700">Жирный</option><option value="800">Очень жирный</option></select></label>
       <label class="canvas-text-field">Стиль<select data-native data-canvas-text-prop="fontStyle"><option value="normal">Прямой</option><option value="italic">Курсив</option></select></label></div>
       ${field('textColor','Цвет текста','color',validColor(o.textColor,state.theme==='light'?'#202633':'#edf0f5'))}
       <label class="canvas-text-field">Выравнивание<select data-native data-canvas-text-prop="textAlign"><option value="left">По левому краю</option><option value="center">По центру</option><option value="right">По правому краю</option></select></label>
-      ${isPreset?'':`<div class="canvas-text-grid">${field('x','X','number',o.x)}${field('y','Y','number',o.y)}</div><button type="button" class="soft-btn" id="canvasTextDuplicate">${icon('copy')}Дублировать текст</button>`}</section>`;
+      ${isPreset?'':`<div class="canvas-text-grid">${field('x','X','number',Math.round(o.x*100)/100)}${field('y','Y','number',Math.round(o.y*100)/100)}</div><button type="button" class="soft-btn" id="canvasTextDuplicate">${icon('copy')}Дублировать текст</button>`}</section>`;
     for(const input of root.querySelectorAll('[data-canvas-text-prop]')){
       const key=input.dataset.canvasTextProp;if(input.tagName==='SELECT')input.value=String(o[key]??{fontFamily:'Arial, sans-serif',fontWeight:400,fontStyle:'normal',textAlign:'left'}[key]);
       input.addEventListener('focus',()=>{if(!isPreset)checkpoint()},{once:true});

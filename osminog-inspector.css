@@ -28,3 +28,65 @@ body.unified-inspector.inspector-hidden.desk-chat-open{--desk-right:calc(var(--d
 body[data-workdesk].unified-inspector #inspectorCollapse{display:inline-flex!important;flex-shrink:0}
 body.unified-inspector #inspector .panel-head>div{min-width:0}
 body.unified-inspector #inspectorTitle{max-width:190px}
+
+/* Compact property system: shared rows, icon controls and flat sections. */
+body.unified-inspector{--ui-width:280px;--ui-accent:#0c8ce9;--ui-focus:#0c8ce922}
+body.unified-inspector #inspector .panel-head{padding:10px 12px!important;min-height:48px}
+body.unified-inspector #inspector .panel-head small{display:none}
+body.unified-inspector #inspectorTitle{font-size:12px!important;font-weight:600;max-width:170px}
+body.unified-inspector #inspectorBody{font-size:12px;scrollbar-width:thin}
+body.unified-inspector .ui-section{padding:12px;border-bottom:1px solid var(--ui-line)}
+body.unified-inspector .ui-section h3{font-size:11px;line-height:18px;margin:0 0 8px;font-weight:600;letter-spacing:0;text-transform:none}
+body.unified-inspector .ui-grid{gap:6px}
+body.unified-inspector .ui-value{height:30px;box-sizing:border-box;padding:4px 7px;border-radius:4px;margin:4px 0}
+body.unified-inspector .ui-value span{font-size:11px;max-width:85px}
+body.unified-inspector .ui-value:focus-within{border-color:var(--ui-accent)}
+body.unified-inspector .ui-value input{height:20px;font-size:11px;appearance:textfield}
+body.unified-inspector .ui-name{height:30px;padding:5px 7px!important;border-radius:4px!important;font-size:11px!important}
+body.unified-inspector .ui-paint{display:flex;align-items:center;gap:6px;height:32px;margin:4px 0;min-width:0}
+body.unified-inspector .ui-paint input[type=color]{flex:0 0 26px;width:26px!important;height:26px!important;padding:0!important;border:1px solid var(--ui-line)!important;background:transparent!important;border-radius:4px;cursor:pointer}
+body.unified-inspector .ui-paint input::-webkit-color-swatch-wrapper{padding:3px}
+body.unified-inspector .ui-paint input::-webkit-color-swatch{border:0;border-radius:2px}
+body.unified-inspector .ui-paint .ui-hex{flex:1;min-width:0;width:60px;height:28px;padding:4px 6px;border:1px solid transparent;background:var(--ui-input);color:var(--ui-text);border-radius:4px;font:11px ui-monospace,monospace}
+body.unified-inspector .ui-paint .ui-hex:focus{outline:1px solid var(--ui-accent)}
+body.unified-inspector .ui-icon,body.unified-inspector #inlinePhotoSettings .ui-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px!important;min-width:30px;height:30px;padding:6px!important;margin:0;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--ui-text);cursor:pointer}
+body.unified-inspector .ui-icon svg{width:18px;height:18px;flex-shrink:0}
+body.unified-inspector .ui-icon:hover{background:var(--ui-input)}
+body.unified-inspector .ui-icon:focus-visible{outline:2px solid var(--ui-accent);outline-offset:1px}
+body.unified-inspector .ui-icon[aria-pressed=true]{background:var(--ui-focus);color:var(--ui-accent)}
+body.unified-inspector .ui-segments{display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin:4px 0 8px;padding:2px;background:var(--ui-input);border-radius:5px;width:fit-content;max-width:100%}
+body.unified-inspector .ui-caption{font-size:10px;color:var(--ui-muted)}
+body.unified-inspector .ui-section>button{border-radius:4px;font-size:11px;padding:6px}
+body.unified-inspector #inspector .mode-help{display:none!important}
+body.unified-inspector #inspector .section-title{font-size:11px;letter-spacing:0;padding:12px 12px 6px;text-transform:none}
+body.unified-inspector #inspector .field-grid{padding:0 12px;gap:6px!important}
+body.unified-inspector #inspector .field label{font-size:10px;margin-bottom:4px}
+body.unified-inspector #inspector .field input,body.unified-inspector #inspector .field select{height:30px;min-height:30px;padding:4px 6px;border-radius:4px;font-size:11px}
+body.unified-inspector #inspector .paint-card{margin:0;padding:10px 12px;border:0;border-top:1px solid var(--ui-line);border-radius:0;background:transparent;box-shadow:none}
+body.unified-inspector #inspector .canvas-text-properties{padding:12px;gap:8px}
+body.unified-inspector #inspector .canvas-text-field{gap:4px;font-size:10px;color:var(--ui-muted)}
+body.unified-inspector #inspector .canvas-text-field input,body.unified-inspector #inspector .canvas-text-field select{height:30px;min-height:30px;padding:4px 7px;border-radius:4px;font-size:11px;border:1px solid transparent;color:var(--ui-text)}
+body.unified-inspector #inspector .canvas-text-grid{gap:6px}
+body.unified-inspector #inlinePhotoSettings{padding:0 12px 12px;font-size:11px}
+body.unified-inspector #inlinePhotoSettings section{padding:12px 0}
+body.unified-inspector #inlinePhotoSettings h3{font-size:11px;margin:0 0 8px}
+body.unified-inspector #inlinePhotoSettings label{font-size:11px;margin:8px 0}
+body.unified-inspector #inlinePhotoSettings .ip-hint{font-size:10px!important;line-height:1.5}
+body.unified-inspector #inlinePhotoSettings .ip-heading{padding:10px 0;border-bottom:1px solid var(--ui-line)}
+body.unified-inspector #inlinePhotoSettings .ip-heading strong{font-size:11px}
+body.unified-inspector #inlinePhotoSettings .ip-actions{display:flex;gap:4px;flex-wrap:wrap}
+body.unified-inspector #inlinePhotoSettings button{font-size:11px;border-radius:4px;padding:5px 7px}
+body.unified-inspector #inlinePhotoSettings input[type=range]{accent-color:var(--ui-accent)}
+body.unified-inspector #inlinePhotoSettings .ip-actions .ui-icon{background:var(--ui-input)}
+body.unified-inspector #inlinePhotoSettings .ip-actions .ui-icon:hover{background:var(--ui-focus);color:var(--ui-accent)}
+body.unified-inspector #workdeskTools{gap:2px!important;padding:5px!important;border-radius:10px!important}
+body.unified-inspector #workdeskTools [data-desk-group]{position:relative;width:34px;height:34px;border-radius:5px!important}
+body.unified-inspector #workdeskTools [data-desk-group] svg{width:19px;height:19px}
+body.unified-inspector #workdeskTools [data-desk-group].active{background:var(--ui-accent)!important;color:white!important}
+body.unified-inspector #deskMore{padding:6px!important;border-radius:8px!important;min-width:218px;background:var(--ui-bg)!important;color:var(--ui-text)!important;border:1px solid var(--ui-line)!important;box-shadow:0 6px 24px #0003!important}
+body.unified-inspector #deskMore>strong{display:block;padding:5px 8px;font-size:10px!important;color:var(--ui-muted)}
+body.unified-inspector #deskMore [data-desk]{display:flex!important;align-items:center;gap:10px;min-height:30px!important;padding:5px 8px!important;border-radius:4px!important;font:11px/1.4 system-ui!important;color:var(--ui-text)}
+body.unified-inspector #deskMore [data-desk] svg{width:16px!important;height:16px!important;flex:0 0 16px}
+body.unified-inspector #deskMore [data-desk].is-current{background:var(--ui-accent)!important;color:#fff!important}
+body.unified-inspector #deskMore [data-desk]:hover{background:var(--ui-focus)}
+body.unified-inspector #inspector .ui-value:has([data-edit=opacity]){grid-column:auto}
