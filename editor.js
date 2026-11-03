@@ -253,7 +253,7 @@ function applyCanvasStyle(){
   if(!viewport)return;
   const scale=state.view.scale||1,size=Math.max(8,Math.min(160,Number(c.size)||24))*scale,major=size*5;
   const color=validColor(state.theme!=="light"?c.gridColorDark:c.gridColorLight,state.theme!=="light"?"#4a5262":"#c8ceda");
-  const rawBoard=validColor(state.theme!=="light"?c.boardDark:c.boardLight,state.theme!=="light"?"#171a20":"#DEE2E7"),legacyLightBoard=["#f7f8fb","#f7f9fc","#ffffff","#fff"].includes(String(rawBoard).toLowerCase()),board=state.theme==="light"&&legacyLightBoard?"#DEE2E7":rawBoard;
+  const rawBoard=validColor(state.theme!=="light"?c.boardDark:c.boardLight,state.theme!=="light"?"#171a20":"#DEE2E7"),legacyLightBoard=["#f7f8fb","#f7f9fc","#ffffff","#fff"].includes(String(rawBoard).toLowerCase()),board=rawBoard;
   const mode=["dots","grid","both","plain"].includes(c.grid)?c.grid:"dots";
   viewport.dataset.grid=mode;
   viewport.style.setProperty("--board-bg",board);
