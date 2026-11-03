@@ -19,7 +19,7 @@ function bind(o,refresh,isPreset){
  root.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>change(b.dataset.toggle,o[b.dataset.toggle]===false));
  root.querySelectorAll('[data-fill-type]').forEach(b=>b.onclick=()=>change('fillType',b.dataset.fillType));
 }
-function render(){panel.classList.remove('collapsed');if(globalThis.OSMINOGPhotoEditor?.sync())return;root.hidden=false;
+function render(){if(!project()){root.innerHTML='';return}panel.classList.remove('collapsed');if(globalThis.OSMINOGPhotoEditor?.sync())return;root.hidden=false;
  if(state.selectedConnection){base();return}
  const items=selectedObjects(),preset=!items.length&&!['select','hand'].includes(state.tool);
  if(!items.length&&!preset){canvas();return}
@@ -29,11 +29,11 @@ function render(){panel.classList.remove('collapsed');if(globalThis.OSMINOGPhoto
  const names={image:'Изображение',shape:'Фигура',text:'Текст',note:'Заметка',vector:'Контур',node:'Нода',ink:'Рисунок',pen:'Карандаш',brief:'Документ'};
  title.textContent=(names[type]||'Объект')+(preset?' · новый':'');
  let html=preset?'':section('Слой',`<input class="ui-name" aria-label="Название объекта" data-edit="name" value="${esc(o.name)}">`)+section('Положение',`<div class="ui-grid">${numeric(o,'x','X',null,null,.01)}${numeric(o,'y','Y',null,null,.01)}${numeric(o,'rotation','Поворот',-360,360,.1)}</div>`)+section('Размер',`<div class="ui-grid">${numeric(o,'w','W',1,50000,.01)}${numeric(o,'h','H',1,50000,.01)}</div>`);
- html+=section('Внешний вид',`<div class="ui-grid">${numeric(o,'opacity','Непрозр. %',0,100)}${!['ink','pen','vector','text'].includes(type)&&o.shapeKind!=='ellipse'?numeric(o,'radius','Радиус',0,500):''}</div>`);
+ html+=section('Внешний вид',`<div class="ui-grid">${numeric(o,'opacity','Непрозр. %',0,100)}${!['ink','pen','vector','text','image'].includes(type)&&o.shapeKind!=='ellipse'?numeric(o,'radius','Радиус',0,500):''}</div>`);
  if(['shape','vector','note','node','brief','ink','pen'].includes(type))html+=paint(o,['ink','pen'].includes(type));
  if(['note','brief','node'].includes(type))html+=section('Текст',`<div class="ui-grid">${numeric(o,'fontSize','Кегль',8,200)}${numeric(o,'padding','Отступ',0,180)}</div>`+color(o,'textColor','Цвет текста','#202633'));
  if(type==='node'&&preset){html+=section('Связи',connectionPresetInspector())}
- if(type==='image')html+=section('Обработка',`<div class="ui-segments">${[['rect','square-dashed','Выделение'],['lasso','lasso','Лассо'],['wand','wand-sparkles','Волшебная палочка'],['crop','crop','Обрезка'],['eraser','eraser','Ластик'],['brush','brush','Кисть'],['picker','pipette','Пипетка']].map(([t,i,l])=>button(i,l,`data-photo="${t}"`)).join('')}</div>`);
+
  if(type==='vector'&&!preset)html+=section('Контур','<button data-nodes>Редактировать узлы</button>');
  root.innerHTML=html;bind(o,()=>{renderAll(true);queuePersist()},preset);
  root.querySelectorAll('[data-photo]').forEach(b=>b.onclick=()=>OSMINOGPhotoEditor.open({tool:b.dataset.photo}));
@@ -59,6 +59,6 @@ document.addEventListener('click',e=>{
 const collapse=document.querySelector('#inspectorCollapse');collapse.title='Скрыть настройки';collapse.setAttribute('aria-label','Скрыть настройки');
 const oldApply=applyView;globalThis.applyView=function(){oldApply();OSMINOGPhotoEditor.sync()};
 document.addEventListener('osminog:mode-change',()=>{document.body.classList.remove('mode-team')});
-const canvasButton=document.createElement('button');canvasButton.className='ui-icon';canvasButton.title='Настройки холста';canvasButton.setAttribute('aria-label','Настройки холста');canvasButton.innerHTML=icon('grid-2x2');canvasButton.onclick=()=>{OSMINOGPhotoEditor.close();state.selected=[];state.selectedConnection=null;setTool('select');OSMINOGInspector.show();renderAll()};document.querySelector('#inspector .panel-head').insertBefore(canvasButton,collapse);
+const canvasButton=document.createElement('button');canvasButton.className='ui-icon';canvasButton.title='Настройки холста';canvasButton.setAttribute('aria-label','Настройки холста');canvasButton.innerHTML=icon('grid-2x2');canvasButton.onclick=()=>{OSMINOGPhotoEditor.close();state.selected=[];state.selectedConnection=null;setTool('select');OSMINOGInspector.show();renderAll(true)};document.querySelector('#inspector .panel-head').insertBefore(canvasButton,collapse);
 syncVisibility();render();
 })();
