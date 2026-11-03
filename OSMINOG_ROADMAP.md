@@ -1,3 +1,18 @@
+# 2026-11-03 — 4.0.19: restore canvas controls and compact properties
+
+Owner rejected bulky tool panels and missing canvas controls. Restored all canonical grid modes (plain/dots/grid/both), spacing, grid color and light/dark background colors; explicit white stays white. Shape selection is now an SVG icon toolbar menu with hover and keyboard navigation. Property sections share compact rows, editable HEX, percentage opacity, gradients, individual corners and ink stroke controls. Local Lucide subset includes license notices. Existing inline photo editing, panel visibility, autosave, layers and individual chat remain.
+
+Fixed null-project initialization and menu arrow keys nudging selected objects. New browser regression verifies canvas settings after reload, shape presets/menu, ink styling and coordinate precision, panel visibility and keyboard isolation. Light/dark UI visually checked in managed preview.
+
+- Source PR: https://github.com/jeep-jim/OSMINOG/pull/77
+- Tested head: 07cee72eabf51411f9b1c8487d8dee5a2ba42265; merge: 9c82f315fdb4888c8bbded346d0dd561bae061a6.
+- Runtime/build: https://github.com/jeep-jim/OSMINOG/actions/runs/41572965796 — success.
+- Retained workdesk/documents: https://github.com/jeep-jim/OSMINOG/actions/runs/41572965770 — success.
+- Retired-feature compatibility: https://github.com/jeep-jim/OSMINOG/actions/runs/41572965828 — success.
+- ZIP: 4257623 bytes; SHA256 a175b13b7fecb51dacffd7b93d6be057bc723b356303f2a5f05964935e1d5485. Manifest/key and changed runtime files verified byte-for-byte.
+- Publication: https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41573454803 — successful retry after first attempt timed out waiting for raw feed cache propagation. Public tag chrome-v4.0.19 and dev feed version/size/hash match the tested ZIP.
+- Install via existing version/update button. No claim that the owner's installed runtime has already updated; runtimeVerified remains false.
+
 # 2026-11-03 — 4.0.18: user-controlled inspector visibility
 
 The owner reported that the right settings panel could not be hidden through its icon. 4.0.17 forced the inspector visible on every render and removed the collapse control.
