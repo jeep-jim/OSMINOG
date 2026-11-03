@@ -30,12 +30,14 @@ function render(){if(!project()){root.innerHTML='';return}panel.classList.remove
  title.textContent=(names[type]||'Объект')+(preset?' · новый':'');
  let html=preset?'':section('Слой',`<input class="ui-name" aria-label="Название объекта" data-edit="name" value="${esc(o.name)}">`)+section('Положение',`<div class="ui-grid">${numeric(o,'x','X',null,null,.01)}${numeric(o,'y','Y',null,null,.01)}${numeric(o,'rotation','Поворот',-360,360,.1)}</div>`)+section('Размер',`<div class="ui-grid">${numeric(o,'w','W',1,50000,.01)}${numeric(o,'h','H',1,50000,.01)}</div>`);
  html+=section('Внешний вид',`<div class="ui-grid">${numeric(o,'opacity','Непрозр. %',0,100)}${!['ink','pen','vector','text','image'].includes(type)&&o.shapeKind!=='ellipse'?numeric(o,'radius','Радиус',0,500):''}</div>`);
+ if(type==='shape'&&o.shapeKind!=='ellipse')html+=section('Углы',`<div class="ui-grid">${['tl','tr','bl','br'].map((k,i)=>`<label class="ui-value" title="${['Верхний левый','Верхний правый','Нижний левый','Нижний правый'][i]}"><span>${['↖','↗','↙','↘'][i]}</span><input type="number" min="0" max="500" aria-label="${['Верхний левый угол','Верхний правый угол','Нижний левый угол','Нижний правый угол'][i]}" data-corner="${k}" value="${round(o.corners?.[k]??o.radius??0)}"></label>`).join('')}</div>`);
  if(['shape','vector','note','node','brief','ink','pen'].includes(type))html+=paint(o,['ink','pen'].includes(type));
  if(['note','brief','node'].includes(type))html+=section('Текст',`<div class="ui-grid">${numeric(o,'fontSize','Кегль',8,200)}${numeric(o,'padding','Отступ',0,180)}</div>`+color(o,'textColor','Цвет текста','#202633'));
  if(type==='node'&&preset){html+=section('Связи',connectionPresetInspector())}
 
  if(type==='vector'&&!preset)html+=section('Контур','<button data-nodes>Редактировать узлы</button>');
  root.innerHTML=html;bind(o,()=>{renderAll(true);queuePersist()},preset);
+ root.querySelectorAll('[data-corner]').forEach(input=>input.onchange=()=>{if(input.value===''||!Number.isFinite(Number(input.value)))return;if(!preset)checkpoint();o.corners={tl:o.radius||0,tr:o.radius||0,bl:o.radius||0,br:o.radius||0,...o.corners,[input.dataset.corner]:Math.max(0,Math.min(500,Number(input.value)))};o.cornersLinked=false;renderAll(true);queuePersist()});
  root.querySelectorAll('[data-photo]').forEach(b=>b.onclick=()=>OSMINOGPhotoEditor.open({tool:b.dataset.photo}));
  root.querySelector('[data-nodes]')?.addEventListener('click',()=>{state.nodeEditId=o.id;renderAll(true)});
  root.querySelectorAll('[data-connection-preset]').forEach(input=>input.onchange=()=>{const k=input.dataset.connectionPreset;state.connectionPreset[k]=k==='width'?Number(input.value):['dashed','arrow'].includes(k)?input.value==='true':input.value;queuePersist()});

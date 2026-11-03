@@ -20,8 +20,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 
 
  await page.evaluate(()=>{state.language='ru';state.theme='light';applyTheme();state.selected=[];setTool('select');OSMINOGInspector.show();renderAll(true)});
- for(const mode of ['dots','grid','both','plain']){await page.locator(`[data-grid=${mode}]`).click();assert.equal(await page.locator('#viewport').getAttribute('data-grid'),mode)}
- await page.locator('[data-grid=grid]').click();await page.locator('[data-edit=size]').fill('40');await page.locator('[data-edit=size]').press('Tab');assert.equal(await page.evaluate(()=>project().canvas.size),40);
+ for(const mode of ['dots','grid','both','plain']){await page.locator(`button[data-grid=${mode}]`).click();assert.equal(await page.locator('#viewport').getAttribute('data-grid'),mode)}
+ await page.locator('button[data-grid=grid]').click();await page.locator('[data-edit=size]').fill('40');await page.locator('[data-edit=size]').press('Tab');assert.equal(await page.evaluate(()=>project().canvas.size),40);
  await page.locator('[data-hex=boardLight]').first().fill('FFFFFF');await page.locator('[data-hex=boardLight]').first().press('Tab');assert.equal(await page.evaluate(()=>project().canvas.boardLight.toUpperCase()),'#FFFFFF');assert.equal(await page.locator('#viewport').evaluate(el=>el.style.getPropertyValue('--board-bg').toUpperCase()),'#FFFFFF');
  await page.locator('[data-hex=gridColorLight]').fill('AACCDD');await page.locator('[data-hex=gridColorLight]').press('Tab');assert.equal(await page.evaluate(()=>project().canvas.gridColorLight.toUpperCase()),'#AACCDD');pass('all grid modes, spacing and genuine white background edit canonical canvas state');
  await page.screenshot({path:'artifacts/inspector-419-canvas.png'});
@@ -33,7 +33,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
  assert.equal(await page.locator('[data-edit=x]').inputValue(),'123.12');assert.equal(await page.evaluate(id=>objects().find(o=>o.id===id).x,id),123.123456);
  await page.locator('[data-edit=strokeWidth]').fill('7');await page.locator('[data-edit=strokeWidth]').press('Tab');await page.locator('[data-hex=stroke]').fill('FF2200');await page.locator('[data-hex=stroke]').press('Tab');assert.equal(await page.evaluate(id=>objects().find(o=>o.id===id).strokeWidth,id),7);assert.equal(await page.locator('.ink-path').first().evaluate(e=>e.style.stroke),'rgb(255, 34, 0)');
  await page.screenshot({path:'artifacts/inspector-419-ink.png'});await page.locator('#inspectorCollapse').click();assert.equal(await page.locator('#inspector').isVisible(),false);await page.locator('#canvasSettings').click();assert.equal(await page.locator('#inspector').isVisible(),true);pass('selected ink stroke edits render, precision is retained, panel closes and reopens');
- await page.getByRole('button',{name:'Настройки холста',exact:true}).click();assert.equal(await page.locator('[data-grid=grid]').getAttribute('aria-pressed'),'true');
+ await page.getByRole('button',{name:'Настройки холста',exact:true}).click();assert.equal(await page.locator('button[data-grid=grid]').getAttribute('aria-pressed'),'true');
  await page.evaluate(()=>{state.theme='dark';applyTheme();renderInspector()});await page.screenshot({path:'artifacts/inspector-419-dark.png'});assert.equal(await page.locator('[data-edit=boardDark]').count(),2);assert.deepEqual(errors,[]);pass('canvas shortcut and independent dark background settings');
+ await page.waitForTimeout(1000);await page.reload();await page.waitForFunction(()=>window.OSMINOGCanvasUX&&project());assert.equal(await page.evaluate(()=>project().canvas.size),40);assert.equal(await page.evaluate(()=>project().canvas.grid),'grid');assert.equal(await page.evaluate(()=>project().canvas.boardLight.toUpperCase()),'#FFFFFF');pass('grid and background survive reload');
  }catch(e){console.error(e);process.exitCode=1}finally{await browser?.close();await new Promise(r=>server.close(r))}
 })();
