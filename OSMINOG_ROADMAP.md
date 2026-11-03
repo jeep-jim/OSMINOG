@@ -1,3 +1,18 @@
+# 2026-11-03 — 4.0.18: user-controlled inspector visibility
+
+The owner reported that the right settings panel could not be hidden through its icon. 4.0.17 forced the inspector visible on every render and removed the collapse control.
+
+- The header gear now toggles visibility. During inline photo editing the magic hat toggles the same panel. The panel close control is restored.
+- Hidden settings release their canvas width while the chat stays in place. Renders no longer reopen the panel. Tool state, image bytes, mask and history are not reset by visibility changes. Explicit photo tool selection opens its settings; the visibility preference is stored locally.
+- Source PR https://github.com/jeep-jim/OSMINOG/pull/76 ; head b066e0c5f0d3640ea6e89fd356d6b4d9cfca58af ; merge f335c322d0ed142c055a372a255e1ba161b6711a.
+- Both final CI suites passed: runtime/build https://github.com/jeep-jim/OSMINOG/actions/runs/41568163069 and retained workspace/document https://github.com/jeep-jim/OSMINOG/actions/runs/41568163070 .
+- New browser regression checks gear/hat/close controls, rerender stability, canvas width reclamation, unchanged image bytes and chat geometry. Existing pixel editing, undo, layer and individual-agent regressions remain green.
+- Verified package: 4251272 bytes; SHA-256 2765745a58ec2e4e090f0fc6262a3634c1397dfa14234c051a4c716a676273de. Stable extension key and changed runtime files verified against source. User-device behavior awaits confirmation after updating through the existing button; runtimeVerified remains false.
+
+---
+
+Publication verified: https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/41568671528 . Dev feed version/hash/size and public release asset digest match the verified package.
+
 # 2026-11-02 — 4.0.17 Canvas Tools: inline photo editing and right-edge chat
 
 The owner rejected the separate Quick Photo dialog, duplicated overflow tools and group chats. This supersedes the 4.0.16 modal workflow below.
