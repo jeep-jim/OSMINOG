@@ -19,9 +19,23 @@ function render(){panel.classList.remove('collapsed');if(globalThis.OSMINOGPhoto
  root.querySelector('[data-nodes]')?.addEventListener('click',()=>{state.nodeEditId=o.id;renderAll(true)});
 }
 globalThis.renderInspector=render;
-document.body.classList.add('unified-inspector');panel.classList.remove('collapsed');document.querySelector('#inspectorCollapse').hidden=true;document.querySelector('#inspector .inspector-mini')?.remove();document.querySelector('#inspector .panel-resizer')?.remove();
-// Keep settings in the fixed right rail; a chat opens next to it.
+document.body.classList.add('unified-inspector');panel.classList.remove('collapsed');document.querySelector('#inspectorCollapse').hidden=false;document.querySelector('#inspector .inspector-mini')?.remove();document.querySelector('#inspector .panel-resizer')?.remove();
+// Visibility is a user choice, independent of inspector rendering and photo edits.
+const visibilityKey='osminogInspectorVisible';
+let visible=localStorage.getItem(visibilityKey)!=='false';
+function syncVisibility(){
+ document.body.classList.toggle('inspector-hidden',!visible);
+ const button=document.querySelector('#canvasSettings');button.setAttribute('aria-expanded',String(visible));button.setAttribute('aria-controls','inspector');button.title=visible?'Скрыть настройки':'Показать настройки';button.setAttribute('aria-label',button.title);
+}
+function setVisible(value){visible=!!value;localStorage.setItem(visibilityKey,String(visible));syncVisibility();applyView();return visible}
+globalThis.OSMINOGInspector={show:()=>setVisible(true),hide:()=>setVisible(false),toggle:()=>setVisible(!visible),isVisible:()=>visible};
+document.addEventListener('click',e=>{
+ const button=e.target.closest?.('#canvasSettings,#inspectorCollapse,[data-desk-group="magic"]');if(!button)return;
+ if(button.dataset.deskGroup==='magic'&&!globalThis.OSMINOGPhotoEditor?.active())return;
+ e.preventDefault();e.stopImmediatePropagation();OSMINOGWorkdeskMenus?.close();OSMINOGInspector.toggle();
+},true);
+const collapse=document.querySelector('#inspectorCollapse');collapse.title='Скрыть настройки';collapse.setAttribute('aria-label','Скрыть настройки');
 const oldApply=applyView;globalThis.applyView=function(){oldApply();OSMINOGPhotoEditor.sync()};
 document.addEventListener('osminog:mode-change',()=>{document.body.classList.remove('mode-team')});
-render();
+syncVisibility();render();
 })();

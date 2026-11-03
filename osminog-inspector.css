@@ -20,3 +20,11 @@ body.unified-inspector :is(#collabPopover,#profileMenu,#updatePopover,#exportMen
 body.unified-inspector.desk-chat-open :is(#collabPopover,#profileMenu,#exportMenu,#canvasSettingsPanel){right:calc(var(--desk-chat-width) + 16px)!important;max-width:calc(100vw - var(--desk-chat-width) - 24px)!important}
 
 body.unified-inspector .canvas-text-properties{padding:16px;gap:12px}body.unified-inspector .canvas-text-field input,body.unified-inspector .canvas-text-field select{background:var(--ui-input);border:1px solid var(--ui-line);border-radius:6px;font-size:12px;min-height:34px;color:var(--ui-text)}body.unified-inspector #inspector{max-height:none!important}body.unified-inspector .ui-value:has([data-edit=opacity]){grid-column:1/-1}
+
+/* Hidden properties release their space without changing chat or pixel-edit state. */
+body[data-workdesk].unified-inspector.inspector-hidden #inspector{display:none!important}
+body.unified-inspector.inspector-hidden{--desk-right:0px}
+body.unified-inspector.inspector-hidden.desk-chat-open{--desk-right:calc(var(--desk-chat-width) + 7px)}
+body[data-workdesk].unified-inspector #inspectorCollapse{display:inline-flex!important;flex-shrink:0}
+body.unified-inspector #inspector .panel-head>div{min-width:0}
+body.unified-inspector #inspectorTitle{max-width:190px}
