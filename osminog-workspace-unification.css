@@ -25,3 +25,5 @@ body.osminog-browser-mode #osminogBrowserApp .osminog-browser-workspace{min-heig
 .update-release-notes{margin-top:12px;padding:12px 14px;border:1px solid var(--border,rgba(127,127,127,.2));border-radius:12px;max-height:240px;overflow:auto}
 .update-release-notes strong{display:block;margin-bottom:8px}.update-release-notes ul{margin:0;padding-left:20px}.update-release-notes li{margin:6px 0;line-height:1.45}
 @media(max-width:760px){body.desk-chat-open #workdeskViewer,body.desk-chat-open #osminogWindowsExplorer{right:0!important}body.osminog-browser-mode.desk-chat-open #osminogBrowserApp{right:0!important;bottom:42vh!important}#workdeskViewer{width:100vw!important}}
+
+#inlinePhotoSettings{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(420px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:100130!important;overflow:auto!important}body.desk-chat-open #inlinePhotoSettings{right:var(--desk-chat-width,420px)!important}
