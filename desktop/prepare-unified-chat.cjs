@@ -35,8 +35,12 @@ function appendTeamMessage(message = {}) {
 function prepareUnifiedChat(source) {
   const event = /^  document\.addEventListener\("osminog:team-message",event=>\{[^\n]+\}\);$/m;
   const append = 'append:(m={})=>document.dispatchEvent(new CustomEvent("osminog:team-message",{detail:m}))';
-  if (!event.test(source) || !source.includes(append)) throw Error('Unified chat integration contract changed');
+  const core = 'globalThis.OSMINOGUnifiedChatCore={';
+  if (!event.test(source) || !source.includes(append) || !source.includes(core)) throw Error('Unified chat integration contract changed');
   return source.replace(event, appendTeamMessage.toString() + '\n  document.addEventListener("osminog:team-message",event=>{appendTeamMessage(event.detail||{}).catch(error=>activity(error.message,true))});')
-    .replace(append, 'append:appendTeamMessage');
+    .replace(append, 'append:appendTeamMessage')
+    // The native shell still uses the legacy name for open(). Both names refer
+    // to the one shared chat; no retired team panel or storage is reintroduced.
+    .replace(core, 'globalThis.OSMINOGTeamAPI=globalThis.OSMINOGUnifiedChatCore={');
 }
 module.exports = {prepareUnifiedChat, appendTeamMessage};

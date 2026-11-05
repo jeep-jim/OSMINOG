@@ -29,6 +29,9 @@ test('queued or in-flight messages never cross a project switch or history clear
 test('explicit foreign project fails before appending',()=>{const f=fixture();assert.throws(()=>f.run({text:'private',projectId:'other'}),/Project changed/);assert.equal(Object.keys(f.data).length,0)});
 test('native integration replacement fails closed if the shared contract changes',()=>{
   assert.throws(()=>prepareUnifiedChat(''),/contract/);
-  const source='  document.addEventListener("osminog:team-message",event=>{old()});\nconst core={append:(m={})=>document.dispatchEvent(new CustomEvent("osminog:team-message",{detail:m}))};';
+  const source='  document.addEventListener("osminog:team-message",event=>{old()});\nglobalThis.OSMINOGUnifiedChatCore={append:(m={})=>document.dispatchEvent(new CustomEvent("osminog:team-message",{detail:m})),open:()=>"opened"};';
   const out=prepareUnifiedChat(source);assert(out.includes('append:appendTeamMessage'));assert(!out.includes('old()'));
+  const context={document:{addEventListener:()=>{}}};vm.runInNewContext(out,context);
+  assert.equal(context.OSMINOGTeamAPI,context.OSMINOGUnifiedChatCore);
+  assert.equal(context.OSMINOGTeamAPI.open(),'opened');
 });
