@@ -1,4 +1,5 @@
 name: OSMINOG 4.0.22 workspace unification
+# Includes workspace panel stacking, direct folder open, crop handles and browser-save regressions.
 on:
   pull_request:
   push:
