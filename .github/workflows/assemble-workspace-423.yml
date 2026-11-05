@@ -24,6 +24,14 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/apply-workspace-423.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('osminog-library.js')
+          s=p.read_text()
+          old="count+')''}"
+          assert s.count(old)==1, 'Bulk-delete label splice changed'
+          p.write_text(s.replace(old,"count+')'}"))
+          PY
           for file in editor.js osminog-workspace-polish.js osminog-library.js osminog-essential-ui.js osminog-windows-folders.js osminog-workdesk.js osminog-native-module-runtime.js osminog-extension-studio.js gpt-presence.js osminog-release-notes.js tests/workspace-423.cjs; do node --check "$file"; done
           git diff --check
       - name: Commit canonical source and remove one-time assembly machinery
