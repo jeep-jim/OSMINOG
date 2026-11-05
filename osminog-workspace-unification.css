@@ -1,9 +1,9 @@
 /* OSMINOG 4.0.22 workspace consolidation */
-#workdeskViewer{position:fixed!important;inset:72px 0 0 auto!important;margin:0!important;width:min(560px,calc(100vw - 20px))!important;max-width:none!important;height:auto!important;max-height:none!important;min-height:0!important;border-radius:0!important;resize:both!important;overflow:hidden!important;z-index:100120!important;box-shadow:-18px 0 48px #0002!important}
+#workdeskViewer{position:fixed!important;inset:72px 0 0 auto!important;margin:0!important;width:min(560px,calc(100vw - 20px))!important;max-width:none!important;height:auto!important;max-height:none!important;min-height:0!important;border-radius:0!important;resize:both!important;overflow:hidden!important;z-index:var(--osminog-panel-z,100120)!important;box-shadow:-18px 0 48px #0002!important}
 body.desk-chat-open #workdeskViewer{right:var(--desk-chat-width,420px)!important}
 #workdeskViewerBody{min-height:0!important;overflow:auto!important;resize:both!important;max-height:calc(100vh - 190px)!important}
 #workdeskViewerBody textarea,#workdeskViewerBody [contenteditable=true]{min-width:100%;min-height:260px;resize:both!important;overflow:auto!important;box-sizing:border-box}
-#osminogWindowsExplorer{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(520px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;resize:both!important;z-index:100110!important}
+#osminogWindowsExplorer{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(520px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;resize:both!important;z-index:var(--osminog-panel-z,100110)!important}
 body.desk-chat-open #osminogWindowsExplorer{right:var(--desk-chat-width,420px)!important}
 #osminogWindowsExplorerPreview{overflow:auto;min-height:0}
 .osminog-win-preview-image{display:block;max-width:100%;max-height:48vh;object-fit:contain;margin:12px auto}
@@ -26,6 +26,6 @@ body.osminog-browser-mode #osminogBrowserApp .osminog-browser-workspace{min-heig
 .update-release-notes strong{display:block;margin-bottom:8px}.update-release-notes ul{margin:0;padding-left:20px}.update-release-notes li{margin:6px 0;line-height:1.45}
 @media(max-width:760px){body.desk-chat-open #workdeskViewer,body.desk-chat-open #osminogWindowsExplorer{right:0!important}body.osminog-browser-mode.desk-chat-open #osminogBrowserApp{right:0!important;bottom:42vh!important}#workdeskViewer{width:100vw!important}}
 
-#inlinePhotoSettings{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(420px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:100130!important;overflow:auto!important}body.desk-chat-open #inlinePhotoSettings{right:var(--desk-chat-width,420px)!important}
+#inlinePhotoSettings{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(420px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:var(--osminog-panel-z,100130)!important;overflow:auto!important}body.desk-chat-open #inlinePhotoSettings{right:var(--desk-chat-width,420px)!important}
 
-#osminogLibrary{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(520px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:100115!important;overflow:auto!important}body.desk-chat-open #osminogLibrary{right:var(--desk-chat-width,420px)!important}
+#osminogLibrary{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(520px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:var(--osminog-panel-z,100115)!important;overflow:auto!important}body.desk-chat-open #osminogLibrary{right:var(--desk-chat-width,420px)!important}
