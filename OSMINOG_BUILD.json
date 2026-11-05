@@ -1,18 +1,19 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.9",
-  "versionName": "4.0.9 · Agent Runtime",
-  "artifact": "OSMINOG-Chrome-4.0.9-AGENT-RUNTIME.zip",
-  "manifestVersion": "4.0.9",
+  "version": "4.0.21",
+  "versionName": "4.0.21 · Clipboard Recovery",
+  "artifact": "OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip",
+  "manifestVersion": "4.0.21",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "4.0.8",
+  "baseVersion": "4.0.20",
   "runtimeVerified": false,
   "verification": {
-    "browserRegression": "14 browser scenarios passed locally with fixture Chrome APIs and model replies; 14 actual service-worker routing tests passed in a VM. Full CI pending.",
-    "liveProvider": "owner sessions must be verified on the actual devices",
-    "nativeUpdater": "existing channel unchanged"
+    "collectorRuntime": "Awaited image reads, durable acknowledgement, retry, root/folder targets and pause/lifecycle races pass local regression tests.",
+    "fullExtension": "Build gate: tests/clipboard-extension-421.cjs uses the full extension with real Chrome storage, offscreen and clipboard APIs; see the associated CI run for results.",
+    "ownerWindows": "Not tested on the owner device.",
+    "imageImport": "tests/clipboard-library-421.cjs passed locally: queued PNG, real Ctrl+V, failed save/ack retry, bad-entry isolation, desk destination and open-folder refresh. The same test reproduced the reported ReferenceError against unchanged 4.0.20."
   },
-  "notes": "Managed device-local agent connections; no automatic personal-chat mirroring; live workspace tools; restored team mode; hover menus; single Access entry. Owner authentication retained."
+  "notes": "Repairs image import from the clipboard queue and manual paste, adds an explicit desk/folder destination, retains failed queue entries for retry."
 }

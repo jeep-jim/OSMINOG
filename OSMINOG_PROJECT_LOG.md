@@ -2245,3 +2245,14 @@ Preview 0.2.0 прошёл контролируемые тесты WebContentsVi
 ## 2026-10-14 — OSMINOG Browser 0.3.0 по новому макету
 
 PR #24 объединён в main. Новый интерфейс: активные вкладки слева, 1/2/4 области и редактируемый холст, минивкладки ИИ/сайтов справа, три темы, сохранение расположения и адресов, встроенное окно обновления. Полный прежний редактор сохранён. Windows CI 38432873971 прошёл установленную проверку; release CI 38435400614 — реальное обновление N→N+1 с сохранением текста и cookie. Опубликован Windows Preview 0.3.0; канал кнопки версии активен. Исправлены гонка готовности тестового HTTP-сервера, чтение YAML ответа и поля реестра Windows. Все детали, контрольная сумма, ссылки и ограничения — в OSMINOG_BROWSER_ROADMAP.md. Совместная работа по ссылке, постоянный внешний AI-доступ и живые аккаунты ещё не подтверждены.
+
+
+## 2026-11-05 — Chrome extension 4.0.21: clipboard recovery candidate
+
+**Starting state:** main `9543f4c3846a1af3284654939e3c3be88bce7b69`, Chrome 4.0.20. Owner reported an empty capture folder and `loadImage is not defined` during manual image paste. `osminog-library.js` called a helper private to Workdesk; both queue import and manual paste traversed this failing path.
+
+**Change:** local image decoding in the importer, explicit desk/folder destination, retained retry/acknowledgement, per-item error handling, serialized collector configuration/lifecycle and recovery of the existing queue. Fixed extension key and persisted user-data keys remain unchanged.
+
+**Validation:** collector runtime fixtures and existing clipboard regression pass locally. Added full-extension clipboard test as a required CI step; do not infer it passed from this candidate entry. Scope and reproducible commands: `docs/verification/chrome-4.0.21/README.md`. No owner Windows test is claimed.
+
+**Next action:** run the full-extension and existing CI gates, resolve any failure, deliver the verified 4.0.21 ZIP and record the exact source/artifact/publication results. This entry concerns the Chrome extension, not Windows Browser 4.0.21 from October.

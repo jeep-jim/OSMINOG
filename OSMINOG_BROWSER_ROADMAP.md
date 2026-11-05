@@ -1080,3 +1080,14 @@ PR66 объединён: 13d8100ecfd3b574cb0424ef3fe8316f87dbd7ba. Windows 39029
 PR67 объединён: 83e5b7321248387c47a1c3efdc984c8d24381260. Windows 39039653696: 163 теста, установленный редактор, цветной синтаксис, настоящая вставка HTML, Python/error feedback, папка проекта и живой чат; шапка 900/1200/1440 px без перекрытий. Agent 39039653701 успешен. Исправлен сдвиг кнопок из-за горизонтального scrollbar. Тест сворачивания ждёт первой загрузки, чтобы отличать её от повторной навигации.
 
 Release 39040381792: обновление поверх предыдущей версии успешно (UPDATE_INSTALL_STARTED, INSTALLED_UPDATE_SMOKE_PASS 4.0.26). Канал кнопки обновления активен на 4.0.26. Установщик 115437891 байт, SHA-256 ab4abdcaf1802a9f29add65c9aca8a57bfd90357c8608b089e5f967f15fa6cef. Исходный runtime соответствует объединённому дереву 01991f4e1a20bf5e34f28ed5b8da78477e1a1000. Снимки, инструкция и логи: docs/verification/4.0.26/. Реальные учётные записи GPT/DeepSeek и исходник игры со скриншота не выдаются за проверенные.
+
+
+## 2026-11-05 — Chrome extension 4.0.21: clipboard recovery candidate
+
+**Starting state:** main `9543f4c3846a1af3284654939e3c3be88bce7b69`, Chrome 4.0.20. Owner reported an empty capture folder and `loadImage is not defined` during manual image paste. `osminog-library.js` called a helper private to Workdesk; both queue import and manual paste traversed this failing path.
+
+**Change:** local image decoding in the importer, explicit desk/folder destination, retained retry/acknowledgement, per-item error handling, serialized collector configuration/lifecycle and recovery of the existing queue. Fixed extension key and persisted user-data keys remain unchanged.
+
+**Validation:** collector runtime fixtures and existing clipboard regression pass locally. Added full-extension clipboard test as a required CI step; do not infer it passed from this candidate entry. Scope and reproducible commands: `docs/verification/chrome-4.0.21/README.md`. No owner Windows test is claimed.
+
+**Next action:** run the full-extension and existing CI gates, resolve any failure, deliver the verified 4.0.21 ZIP and record the exact source/artifact/publication results. This entry concerns the Chrome extension, not Windows Browser 4.0.21 from October.
