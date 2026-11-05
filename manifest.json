@@ -17,7 +17,7 @@
     "sandbox": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'; child-src 'self' https: data: blob:;"
   },
   "default_locale": "en",
-  "description": "__MSG_appDescription__",
+  "description": "Visual project workspace with clipboard capture, folders, image tools and AI collaboration.",
   "host_permissions": [
     "https://api.github.com/*",
     "https://uploads.github.com/*",
@@ -96,6 +96,5 @@
   },
   "short_name": "OSMINOG",
   "version": "4.0.22",
-  "version_name": "4.0.22 · Workspace Unification",
   "version_name": "4.0.21 · Clipboard Recovery"
 }
