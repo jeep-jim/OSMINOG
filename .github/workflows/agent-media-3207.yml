@@ -20,6 +20,7 @@ jobs:
       - run: node --check osminog-library.js
       - run: node --check osminog-windows-folders.js
       - run: node tests/collector-runtime-421.cjs
+      - run: node tests/storage-load-421.cjs
       - run: node tests/github-gateway-411.cjs
       - run: node tests/owner-access-411.cjs
       - run: node tests/agent-session-409.cjs

@@ -6,12 +6,13 @@ The owner supplied a screenshot from Chrome extension 4.0.20 showing an enabled 
 
 ## Regression gates
 
+- `node tests/storage-load-421.cjs`: checks the real storage helper against Chrome's asynchronous callback contract. A callback-style `get` returns `undefined`; this must not resolve an empty workspace before the callback. Storage errors must remain errors.
 - `node tests/collector-runtime-421.cjs`: deterministic runtime fixtures verify awaited image decoding/acknowledgement, retry after a changed clipboard, baseline skip, durable deduplication, desk/folder routing and pause/create races. These fixtures do not establish operating-system clipboard behavior.
 - `node tests/clipboard-library-421.cjs`: complete editor with real browser clipboard and fault-injected storage; checks queued image recovery, native Ctrl+V, per-item isolation, visible pending errors, persist/acknowledgement failures, arrivals during drain, and live folder refresh with search/scroll retained. Passed locally.
 - `xvfb-run -a node tests/clipboard-extension-421.cjs`: loads the complete extension with its actual manifest and fixed key. A separate HTTPS-origin fixture tab writes to the real browser clipboard while the editor is unfocused. Actual extension APIs are used for offscreen, messages and storage. Checks image pixels/dimensions, fixed-folder and desk-root destinations, native Ctrl+V, pause, retained bad entries, a legacy queued screenshot, persisted reload and a full browser/service-worker restart.
 - Existing `tests/clipboard-407.cjs` and `tests/library-420.cjs` remain in CI to check prior manual paste/copy, search/date and OCR behavior.
 
-The full-extension test is required before packaging. A definition of a test is not evidence it passed; consult the linked PR/build logs for the run result.
+The full-extension test is required before packaging. It uses Playwright's public CDP connection with `noDefaults: true`, so its hidden/unfocused editor assertions use native tab focus rather than Playwright focus emulation. It selects the extension service worker by the ID derived from the retained manifest key. A definition of a test is not evidence it passed; consult the linked PR/build logs for the run result.
 
 ## Local evidence and limits
 

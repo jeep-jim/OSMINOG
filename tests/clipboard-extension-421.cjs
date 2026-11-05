@@ -179,11 +179,19 @@ async function snapshot() {
   if (!editor || editor.isClosed()) return null;
   return editor.evaluate(async ({KEY, PREFIX}) => {
     const storage = await chrome.storage.local.get(null);
+    const summarize = projects => Array.isArray(projects) ? projects.map(p => ({
+      id: p.id, objectCount: p.objects?.length,
+      imageIds: (p.objects || []).filter(o => o.type === 'image').map(o => o.id),
+      captures: (p.objects || []).filter(o => o.captureId).map(o =>
+        ({id: o.id, captureId: o.captureId, type: o.type, folderId: o.osminogFolderId}))
+    })) : null;
     return {config: storage[KEY], toast: document.querySelector('#toast')?.textContent,
       queue: Object.entries(storage).filter(([k]) => k.startsWith(PREFIX)).map(([key, v]) =>
         ({key, id: v.id, kind: v.kind, projectId: v.projectId, folderId: v.folderId})),
-      projects: state.projects.map(p => ({id: p.id, captures: p.objects.filter(o => o.captureId).map(o =>
-        ({id: o.id, captureId: o.captureId, type: o.type, folderId: o.osminogFolderId}))}))};
+      activeProject: state.activeProject, lastSaveError: state.lastSaveError,
+      projects: summarize(state.projects),
+      persisted: Object.fromEntries(['briefCraftStudioV2', 'briefCraftStudioV2Backup'].map(key =>
+        [key, {activeProject: storage[key]?.activeProject, projects: summarize(storage[key]?.projects)}]))};
   }, {KEY, PREFIX});
 }
 
@@ -301,6 +309,14 @@ async function snapshot() {
     record('pause stops collection; an unrelated malformed pending capture does not block native image paste or get discarded');
 
     // A queue entry left by 4.0.20 must be imported after upgrading/reloading.
+    // Observe the real save completing; do not call persist() to repair a missed
+    // manual-paste save. This separates save failure from reload failure.
+    await editor.waitForFunction(async ({ids, manualId}) => {
+      const saved = (await chrome.storage.local.get('briefCraftStudioV2')).briefCraftStudioV2;
+      return saved?.projects.some(p => p.id === ids.target) &&
+        saved.projects.find(p => p.id === ids.other)?.objects.some(o => o.id === manualId);
+    }, {ids, manualId: second.id}, {timeout: 10000, polling: 100});
+    record('both desks and the latest manual image are present in native storage before reload');
     await editor.evaluate(async ({ids, src}) => {
       await chrome.storage.local.set({'osminogCapture:legacy-qa': {
         id: 'legacy-qa', hash: 'legacy-fixture', at: Date.now(), kind: 'image', value: src,
@@ -308,6 +324,8 @@ async function snapshot() {
       }});
     }, {ids, src: imageData});
     await editor.reload(); await ready();
+    assert.equal(await editor.evaluate(ids => [ids.target, ids.other].every(id => state.projects.some(p => p.id === id)), ids), true,
+      'Editor reload must restore both previously persisted projects');
     const recovered = await waitForCapture(ids.target, {id: 'legacy-qa'});
     await assertImage(recovered);
     assert.equal(recovered.osminogFolderId, ids.folder);

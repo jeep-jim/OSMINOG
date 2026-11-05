@@ -62,7 +62,17 @@ function desktopObjects(){return objects().filter(isObjectOnDesktop)}
 function selectedObjects(){const ids=new Set(state.selected);return desktopObjects().filter(o=>ids.has(o.id))}
 function esc(value){return String(value??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function safeSetText(selector,value){const el=$(selector);if(el)el.textContent=value}
-function storageGet(key){return new Promise(resolve=>globalThis.chrome?.storage?.local?.get(key,v=>resolve(v||{}))||resolve({}))}
+function storageGet(key){
+  return new Promise((resolve,reject)=>{
+    const local=globalThis.chrome?.storage?.local;
+    if(typeof local?.get!=="function"){resolve({});return}
+    const result=local.get(key,value=>{
+      const error=globalThis.chrome?.runtime?.lastError;
+      if(error)reject(new Error(error.message||"Storage read failed"));else resolve(value||{});
+    });
+    if(result&&typeof result.then==="function")result.then(value=>resolve(value||{}),reject);
+  });
+}
 function storageSet(value){return new Promise((resolve,reject)=>{if(!globalThis.chrome?.storage?.local){resolve();return}chrome.storage.local.set(value,()=>{const error=chrome.runtime?.lastError;if(error)reject(new Error(error.message));else resolve()})})}
 const HANDLE_DB="briefCraftHandlesV1",HANDLE_STORE="handles";
 function handleDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(HANDLE_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(HANDLE_STORE))req.result.createObjectStore(HANDLE_STORE)};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}

@@ -10,10 +10,11 @@
   "baseVersion": "4.0.20",
   "runtimeVerified": false,
   "verification": {
-    "collectorRuntime": "Awaited image reads, durable acknowledgement, retry, root/folder targets and pause/lifecycle races pass local regression tests.",
+    "collectorRuntime": "Awaited image reads, durable acknowledgement, transient retry, permanent rejection recovery, root/folder targets and pause/lifecycle races pass local regression tests.",
     "fullExtension": "Build gate: tests/clipboard-extension-421.cjs uses the full extension with real Chrome storage, offscreen and clipboard APIs; see the associated CI run for results.",
     "ownerWindows": "Not tested on the owner device.",
-    "imageImport": "tests/clipboard-library-421.cjs passed locally: queued PNG, real Ctrl+V, failed save/ack retry, bad-entry isolation, desk destination and open-folder refresh. The same test reproduced the reported ReferenceError against unchanged 4.0.20."
+    "imageImport": "tests/clipboard-library-421.cjs passed locally: queued PNG, real Ctrl+V, failed save/ack retry, bad-entry isolation, desk destination and open-folder refresh. The same test reproduced the reported ReferenceError against unchanged 4.0.20.",
+    "storageLoad": "Build gate: tests/storage-load-421.cjs verifies asynchronous Chrome callback reads, missing-API fallback and storage error propagation; native extension regression checks reload and browser restart."
   },
-  "notes": "Repairs image import from the clipboard queue and manual paste, adds an explicit desk/folder destination, retains failed queue entries for retry."
+  "notes": "Repairs image import from the clipboard queue and manual paste, awaits persisted workspace reads on reload, adds an explicit desk/folder destination, and retains failed queue entries for retry."
 }
