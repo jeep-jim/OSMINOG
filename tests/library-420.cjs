@@ -18,7 +18,7 @@ await page.evaluate(ids=>openProject(ids.p),ids);
 assert.equal(await page.evaluate(()=>OSMINOGLibrary.reuseCapture('text','Аптека Новокузнецк 123')),true);
 assert.equal(await page.evaluate(()=>objects().find(o=>o.captureId==='one').osminogFolderId),undefined);
 // Real local OCR, not a mocked recognizer.
-const recognized=await page.evaluate(async()=>{const c=document.createElement('canvas');c.width=900;c.height=180;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,900,180);x.fillStyle='black';x.font='48px Arial';x.fillText('OSMINOG INVOICE 72849',30,100);return OSMINOGLibrary.extract({type:'image',src:c.toDataURL()})});
+const recognized=await page.evaluate(async()=>{const c=document.createElement('canvas');c.width=900;c.height=180;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,900,180);x.fillStyle='black';x.font='48px Arial';x.fillText('OSMINOG INVOICE 72849',30,100);window.__ocrImage=c.toDataURL();return OSMINOGLibrary.extract({type:'image',src:window.__ocrImage})});
 assert.match(recognized,/72849/);assert.match(recognized,/OSMINOG/);
-assert.deepEqual(errors,[]);console.log('PASS fixed destination across desks, idempotent import, search and dates, explicit paste dedupe, hidden unconfigured account, actual local OCR');
+await page.evaluate(()=>{const o=createObject('image',{src:window.__ocrImage,name:'Счёт поставщика',w:600,h:120});o.searchIndex={text:'OSMINOG INVOICE 72849'};OSMINOGLibrary.open('search')});await page.locator('[data-query]').fill('72849');await page.screenshot({path:'artifacts/library-420.png'});assert.deepEqual(errors,[]);console.log('PASS fixed destination across desks, idempotent import, search and dates, explicit paste dedupe, hidden unconfigured account, actual local OCR');
 }finally{await browser?.close();await new Promise(r=>server.close(r))}})().catch(e=>{console.error(e);process.exit(1)});

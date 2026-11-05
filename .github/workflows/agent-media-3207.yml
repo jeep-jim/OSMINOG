@@ -36,7 +36,7 @@ jobs:
       - run: node tests/agent-media-3207.cjs
       - name: Install browser test dependency
         run: |
-          npm install --no-save --package-lock=false playwright@1.51.1
+          npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
       - run: python3 tools/prepare_ocr.py
       - run: node tests/library-420.cjs
