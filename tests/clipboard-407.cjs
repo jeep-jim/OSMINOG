@@ -4,7 +4,7 @@ try{fs.mkdirSync('artifacts',{recursive:true});browser=await chromium.launch({he
 await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);await page.waitForFunction(()=>!!window.OSMINOGWorkdesk);await page.evaluate(async()=>{document.querySelector('#osminogStorageOnboarding')?.close();await OSMINOGStateReady;createProject();document.querySelector('#osminogStorageOnboarding')?.close()});await page.waitForTimeout(600);
 await page.context().grantPermissions(['clipboard-read','clipboard-write']);
 const image=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=317;c.height=193;const ctx=c.getContext('2d');ctx.fillStyle='#f02663';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#12a7ce';ctx.fillRect(100,40,50,50);const src=c.toDataURL('image/png');window.__store.briefCraftLastCachedImage=src;return src});
-async function tool(id){await page.locator('[data-desk-group=capture]').click();await page.locator(`#deskMore [data-desk="${id}"]`).click()}
+async function tool(id){await page.locator('[data-desk-group=magic]').click();await page.locator(`#deskMore [data-desk="${id}"]`).click()}
 await tool('paste-cache');await page.waitForFunction(()=>objects().some(o=>o.src===window.__store.briefCraftLastCachedImage));
 assert.equal(await page.evaluate(()=>objects().filter(o=>o.type==='image').length),1);
 assert.equal(await page.evaluate(()=>objects().find(o=>o.type==='image').src),image);

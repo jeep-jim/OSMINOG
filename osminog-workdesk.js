@@ -46,7 +46,7 @@
   ['select','Выбор',[['select','Курсор выделения · V']]],
   ['hand','Рука',[['hand','Перемещение холста · H']]],
   ['shape','Фигуры',[['shape-rectangle','Квадрат'],['shape-ellipse','Круг']]],
-  ['magic','Ещё',[['pen','Маркер / свободная линия · M'],['eraser','Ластик штрихов · E'],['photo-rect','Выделение'],['photo-lasso','Лассо'],['photo-wand','Волшебная палочка'],['photo-crop','Обрезка'],['photo-eraser','Ластик изображения'],['photo-brush','Кисть изображения'],['photo-picker','Пипетка']]],
+  ['magic','Ещё',[['pen','Маркер / свободная линия · M'],['eraser','Ластик штрихов · E'],['paste-image','Вставить изображение из буфера'],['paste-cache','Вставить сохранённый скриншот'],['copy','Копировать изображение'],['photo-rect','Выделение'],['photo-lasso','Лассо'],['photo-wand','Волшебная палочка'],['photo-crop','Обрезка'],['photo-eraser','Ластик изображения'],['photo-brush','Кисть изображения'],['photo-picker','Пипетка']]],
   ['capture','Скриншот',[['capture','Снять скриншот и выделить область']]]
   ];
  nav.innerHTML=groups.map(([id,label])=>`<button type="button" data-desk-group="${id}" title="${label}" aria-label="${label}" aria-expanded="false" aria-controls="deskMore">${icons[id]?`<svg viewBox="0 0 24 24" aria-hidden="true">${icons[id]}</svg>`:'<span>•••</span>'}<span class="desk-active-dot" aria-hidden="true"></span></button>`).join('');$('#app').append(nav);
