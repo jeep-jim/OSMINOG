@@ -57,10 +57,10 @@
 
   async function accept(message) {
     const kind = message.kind;
-    if (!['text', 'image'].includes(kind)) throw Error('Неподдерживаемый материал в буфере');
+    if (!['text', 'image'].includes(kind)) return {ok: false, retryable: false, error: 'Неподдерживаемый материал в буфере'};
     const value = String(message.value || '');
-    if (!value || value.length > 24000000) throw Error('Материал слишком большой (лимит 18 МБ)');
-    if (kind === 'image' && !/^data:image\/(png|jpeg|webp|gif|bmp);base64,/i.test(value)) throw Error('Неподдерживаемое изображение в буфере');
+    if (!value || value.length > 24000000) return {ok: false, retryable: false, error: 'Материал слишком большой (лимит 18 МБ)'};
+    if (kind === 'image' && !/^data:image\/(png|jpeg|webp|gif|bmp);base64,/i.test(value)) return {ok: false, retryable: false, error: 'Неподдерживаемое изображение в буфере'};
     const bytes = new TextEncoder().encode(kind + '\n' + value);
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
     const cfg = await config();

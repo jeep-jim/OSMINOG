@@ -3,7 +3,7 @@
 // Offscreen documents cannot be focused. With clipboardRead, the paste command
 // supplies the OS clipboard to this editable element without focusing a tab.
 const sink = document.querySelector('#clipboard');
-let busy = false, baseline = true, last = '', pasteTask = null, retry = null, reportedError = '';
+let busy = false, baseline = true, last = '', pasteTask = null, retry = null, rejected = null, reportedError = '';
 
 function dataURL(file) {
   return new Promise((resolve, reject) => {
@@ -41,12 +41,20 @@ async function ingest(capture) {
     last = signature;
     return;
   }
-  if (signature === last) return;
+  if (signature === rejected?.signature) throw Error(rejected.error);
+  if (signature === last) {rejected = null; return;}
   retry = capture;
   const result = await chrome.runtime.sendMessage({type: 'OSMINOG_COLLECTOR_CAPTURE', ...capture});
-  if (!result?.ok) throw Error(result?.error || 'Сборщик не подтвердил сохранение. Повторяем попытку.');
+  if (!result?.ok) {
+    const error = result?.error || 'Сборщик не подтвердил сохранение. Повторяем попытку.';
+    // Invalid data cannot succeed on retry. Keep its error visible while letting
+    // the next clipboard value through; all transport/storage failures still retry.
+    if (result?.retryable === false) {retry = null; rejected = {signature, error};}
+    throw Error(error);
+  }
   last = signature;
   retry = null;
+  rejected = null;
 }
 
 async function report(error) {
@@ -73,7 +81,7 @@ async function tick() {
     const capture = pasteTask ? await pasteTask : null;
     if (capture) await ingest(capture);
     else baseline = false;
-    await report(null);
+    if (!rejected) await report(null);
   } catch (error) {
     await report(error);
   } finally {

@@ -12,7 +12,7 @@ const deferred = () => {
   return {promise, resolve};
 };
 
-function collectorFixture(initial) {
+function collectorFixture(initial, transport) {
   let clipboard = initial, poll, pasteListener, allowed = true, readGate, sendGate, failNext = false;
   const sent = [], acknowledged = [], errors = [];
   let reads = 0;
@@ -46,10 +46,15 @@ function collectorFixture(initial) {
     navigator: {clipboard: {read: () => {throw Error('Unfocused navigator.clipboard must not be used');}}},
     chrome: {runtime: {sendMessage: async message => {
       sent.push({...message});
-      if (message.type === 'OSMINOG_COLLECTOR_ERROR') {errors.push(message.error); return {ok: true};}
+      if (message.type === 'OSMINOG_COLLECTOR_ERROR') {errors.push(message.error); return transport ? transport(message) : {ok: true};}
       assert.equal(message.type, 'OSMINOG_COLLECTOR_CAPTURE');
       if (sendGate) await sendGate.promise;
       if (failNext) {failNext = false; return {ok: false, error: 'storage temporarily unavailable'};}
+      if (transport) {
+        const result = await transport(message);
+        if (result?.ok) acknowledged.push({...message});
+        return result;
+      }
       acknowledged.push({...message});
       return {ok: true};
     }}},
@@ -165,6 +170,39 @@ function backgroundFixture() {
   await empty.poll();
   assert.equal(empty.acknowledged.length, 1, 'the first screenshot after enabling over an empty clipboard must be saved');
 
+  // Exercise the actual collector/background response contract: permanent
+  // validation failures must not block newer clipboard data as storage retries do.
+  const validating = backgroundFixture();
+  await validating.configure({enabled: true, projectId: 'validation-desk', folderId: null});
+  const validated = collectorFixture(null, message => validating.message(message.type, message));
+  await settle();
+  for (const [invalid, expectedError] of [
+    [{kind: 'image', value: 'data:image/svg+xml;base64,AAAA'}, /Неподдерживаемое изображение/],
+    [{kind: 'text', value: 'x'.repeat(24000001)}, /слишком большой/]
+  ]) {
+    const attempts = () => validated.sent.filter(message => message.type === 'OSMINOG_COLLECTOR_CAPTURE').length;
+    const beforeAttempts = attempts(), beforeCaptures = validating.captures().length;
+    validated.setClipboard(invalid);
+    await validated.poll();
+    assert.match(validating.store.osminogCollectorV1.error, expectedError);
+    await validated.poll();
+    validated.setClipboard(null);
+    await validated.poll();
+    assert.equal(attempts(), beforeAttempts + 1, 'an unchanged permanently rejected capture must not be resent');
+    assert.equal(validating.captures().length, beforeCaptures, 'invalid data must not enter the durable queue');
+    assert.match(validating.store.osminogCollectorV1.error, expectedError, 'an empty clipboard must not erase the validation error');
+    const value = 'small copy after rejection ' + beforeCaptures;
+    validated.setClipboard({kind: 'text', value});
+    await validated.poll();
+    assert.equal(validating.captures().at(-1).value, value, 'the next valid copy must proceed after permanent rejection');
+    assert.equal(validating.store.osminogCollectorV1.error, '');
+  }
+  for (const invalid of [{kind: 'file', value: 'unsupported'}, {kind: 'text', value: ''}]) {
+    const result = await validating.message('OSMINOG_COLLECTOR_CAPTURE', invalid);
+    assert.equal(result.ok, false);
+    assert.equal(result.retryable, false, 'all explicit validation failures are permanent');
+  }
+
   const background = backgroundFixture();
   await settle();
   const capture = value => background.message('OSMINOG_COLLECTOR_CAPTURE', {kind: 'text', value});
@@ -183,7 +221,9 @@ function backgroundFixture() {
 
   background.failNextWrite();
   const beforeHash = background.store.osminogCollectorV1.lastHash;
-  assert.equal((await capture('retry after storage failure')).ok, false);
+  const failedWrite = await capture('retry after storage failure');
+  assert.equal(failedWrite.ok, false);
+  assert.notEqual(failedWrite.retryable, false, 'storage failures must remain retryable');
   assert.equal(background.store.osminogCollectorV1.lastHash, beforeHash, 'a failed queue write must not advance dedupe');
   assert.equal((await capture('retry after storage failure')).ok, true);
   assert.equal(background.captures().length, 3);
@@ -208,5 +248,5 @@ function backgroundFixture() {
   assert.equal(racing.closes(), 1);
   assert.equal(racing.contexts.length, 0, 'pause during document creation must not leave a live collector');
 
-  console.log('PASS collector: awaited image decoding and acknowledgement; retained retry; empty baseline; recovery; desk/folder targets; durable dedupe; concurrent pause; sender checks; offscreen lifecycle race');
+  console.log('PASS collector: awaited image decoding and acknowledgement; retained transient retry; permanent rejection recovery; empty baseline; recovery; desk/folder targets; durable dedupe; concurrent pause; sender checks; offscreen lifecycle race');
 })().catch(error => {console.error(error); process.exitCode = 1;});
