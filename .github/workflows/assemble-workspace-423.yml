@@ -34,14 +34,17 @@ jobs:
           PY
           for file in editor.js osminog-workspace-polish.js osminog-library.js osminog-essential-ui.js osminog-windows-folders.js osminog-workdesk.js osminog-native-module-runtime.js osminog-extension-studio.js gpt-presence.js osminog-release-notes.js tests/workspace-423.cjs; do node --check "$file"; done
           git diff --check
-      - name: Commit canonical source and remove one-time assembly machinery
+      - name: Commit canonical product source only
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add editor.html editor.js osminog-library.js osminog-essential-ui.js osminog-windows-folders.js osminog-workdesk.js osminog-native-module-runtime.js osminog-extension-studio.js gpt-presence.js manifest.json OSMINOG_BUILD.json osminog-release-notes.js RELEASE_NOTES_CHROME_4.0.23.md .github/workflows/agent-media-3207.yml
-          git rm tools/apply-workspace-423.py .github/workflows/assemble-workspace-423.yml
+          # This token has contents permission only. The connected GitHub tool
+          # applies the reviewed workflow update separately before PR checks.
+          git restore .github/workflows/agent-media-3207.yml
+          git add editor.html editor.js osminog-library.js osminog-essential-ui.js osminog-windows-folders.js osminog-workdesk.js osminog-native-module-runtime.js osminog-extension-studio.js gpt-presence.js manifest.json OSMINOG_BUILD.json osminog-release-notes.js RELEASE_NOTES_CHROME_4.0.23.md
+          git rm tools/apply-workspace-423.py
           git commit -m 'Finalize Chrome 4.0.23 folders, search, retained materials and living lens'
           git push origin HEAD:refs/heads/fix/workspace-polish-4.0.23
           echo "Source commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
