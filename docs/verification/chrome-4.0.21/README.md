@@ -21,3 +21,15 @@ The end-to-end scenario uses one editor tab, reusing that tab when Chrome restor
 The collector runtime regression and existing HTTP-fixture clipboard regression passed locally. Running the new importer regression against the unchanged 4.0.20 ZIP reproduced `loadImage is not defined` from both the queued PNG importer and an actual Ctrl+V event, with no image created and the queue retained. The HTTP fixture uses real clipboard bytes but fixture Chrome APIs, so it is not the full extension test. A full local Chrome process cannot run in the supplied container because its process-singleton socket is denied. The full-extension regression therefore runs on the existing Linux GitHub Actions runner with Xvfb and Chromium.
 
 This is not a test on the owner's Windows installation, Windows Snipping Tool, external accounts, cloud sync or the owner-device update-button transition. Polling observes the current clipboard at 1.5-second intervals and cannot guarantee intermediate copies replaced between polls. Existing extension identity/storage keys are unchanged.
+
+
+## Published artifact and evidence
+
+- [PR runtime/build 42006617269](https://github.com/jeep-jim/OSMINOG/actions/runs/42006617269): **success**, including all native clipboard assertions and ZIP packaging.
+- [Workdesk/document regression 42006617233](https://github.com/jeep-jim/OSMINOG/actions/runs/42006617233): **success**.
+- Candidate `fbb2e1416dbf05c407ee83cb31589dae8c71581c` and merge `5aeb71b3a56258d34dbdbc488a042b65360135d2` have the same tree `93137712502d84ce5417983d37044d53bbc87612`.
+- Artifact ID `13405301415`; inner ZIP `OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip`, 9400407 bytes, SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`. Delivered without repackaging.
+- [Publisher 42007754782](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/42007754782): **success**. [Public release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.21) and dev feed refer to the identical size and digest.
+
+The native log records Chrome 151.0.7922.34, the stable extension ID, a truly hidden/unfocused editor, and a restored single editor tab after browser restart. A later main run completed all nine functional assertions but returned exit 1 during final cleanup; its artifact was not used. The test-only cleanup correction waits for process closure, retries temporary-profile removal and logs final errors, with overall PASS emitted after cleanup.
+

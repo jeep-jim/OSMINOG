@@ -1091,3 +1091,13 @@ Release 39040381792: обновление поверх предыдущей ве
 **Validation:** collector runtime fixtures and existing clipboard regression pass locally. Added full-extension clipboard test as a required CI step; do not infer it passed from this candidate entry. Scope and reproducible commands: `docs/verification/chrome-4.0.21/README.md`. No owner Windows test is claimed.
 
 **Next action:** run the full-extension and existing CI gates, resolve any failure, deliver the verified 4.0.21 ZIP and record the exact source/artifact/publication results. This entry concerns the Chrome extension, not Windows Browser 4.0.21 from October.
+
+
+## 2026-11-05 — Chrome 4.0.21: выпуск исправления буфера
+
+Выпущен [Chrome extension 4.0.21](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.21); dev feed кнопки обновления содержит 4.0.21 с 2026-11-05T10:05:34Z. Исправлены общий импорт PNG/ручной Ctrl+V, ожидание callback чтения проектов, маршрутизация в выбранный стол/папку, обновление открытой папки и повторная доставка при ошибках. Очередь 4.0.20 и постоянный ключ расширения сохранены.
+
+[PR #79](https://github.com/jeep-jim/OSMINOG/pull/79) объединён: `5aeb71b3a56258d34dbdbc488a042b65360135d2`. [Полная сборка 42006617269](https://github.com/jeep-jim/OSMINOG/actions/runs/42006617269) и [публикация 42007754782](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/42007754782) — success. Реальный Chrome проверил автосбор при неактивном редакторе, Ctrl+V, сохранение/reload и перезапуск браузера. Повторный main-run прошёл native-проверки, но упал при завершении fixture; очистка теста исправлена отдельно от продукта, ZIP не перепаковывался.
+
+Архив `OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip`: 9400407 байт, SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`. Полные ссылки, источник, ограничения и результат — в последней записи OSMINOG_PROJECT_LOG.md и `docs/verification/chrome-4.0.21/README.md`. На Windows владельца запуск не подтверждался; опрос 1,5 секунды, один редактор в автоматическом сценарии. Windows-канал и АвтоЦена не изменены.
+

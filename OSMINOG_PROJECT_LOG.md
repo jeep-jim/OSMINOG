@@ -2256,3 +2256,21 @@ PR #24 объединён в main. Новый интерфейс: активны
 **Validation:** collector runtime fixtures and existing clipboard regression pass locally. Added full-extension clipboard test as a required CI step; do not infer it passed from this candidate entry. Scope and reproducible commands: `docs/verification/chrome-4.0.21/README.md`. No owner Windows test is claimed.
 
 **Next action:** run the full-extension and existing CI gates, resolve any failure, deliver the verified 4.0.21 ZIP and record the exact source/artifact/publication results. This entry concerns the Chrome extension, not Windows Browser 4.0.21 from October.
+
+
+## 2026-11-05 — Chrome extension 4.0.21 выпущен: сохранение скриншотов и восстановление проектов
+
+**Результат:** опубликован [OSMINOG Chrome 4.0.21](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.21) и обновлён dev-канал кнопки версии. Время публикации feed: `2026-11-05T10:05:34Z`. Это выпуск Chrome extension; Windows Browser и АвтоЦена не публиковались.
+
+**Исправлено:** недоступный `loadImage` при импорте очереди и Ctrl+V; чтение `chrome.storage.local.get` больше не завершает Promise пустым объектом раньше callback. Выбранный стол/папка сохраняются при переключении стола, открытая папка обновляет содержимое и счётчик. Временные ошибки сохраняют повторную доставку; постоянный отказ валидации не блокирует следующие копирования. ACK очереди выполняется после сохранения проекта. Прежний ключ расширения, разрешения и ключи пользовательских данных сохранены.
+
+**Проверено:** [полный PR runtime/build 42006617269](https://github.com/jeep-jim/OSMINOG/actions/runs/42006617269) и [Workdesk/document regression 42006617233](https://github.com/jeep-jim/OSMINOG/actions/runs/42006617233) — success. Настоящий Chrome 151.0.7922.34 под Linux/Xvfb подтвердил PNG/текст из системного буфера при скрытой неактивной вкладке редактора, назначение папки/стола, Ctrl+V, размеры/пиксели изображения, счётчик папки, сохранение очереди, reload и полный перезапуск браузера. Исходная 4.0.20 воспроизвела ReferenceError и преждевременный пустой результат storageGet в отдельных регрессиях.
+
+**Происхождение:** [PR #79](https://github.com/jeep-jim/OSMINOG/pull/79), кандидат `fbb2e1416dbf05c407ee83cb31589dae8c71581c`, merge `5aeb71b3a56258d34dbdbc488a042b65360135d2`; одинаковое дерево `93137712502d84ce5417983d37044d53bbc87612`. CI artifact `13405301415`; внутренний ZIP выдан без перепаковки.
+
+**Пакет:** `OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip`, **9400407 байт**, SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`. Проверены CRC ZIP, корневой manifest 4.0.21, прежний ключ/разрешения и побайтовое соответствие изменённых программных файлов исходникам. [Publisher 42007754782](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/42007754782), проверки registry и dispatch — success. Asset digest и размер dev feed совпадают с этим ZIP; registry upload commit `429ad4f1ad89e96c4713e18c6142d28f72be2f8c`.
+
+**Границы:** запуск на устройстве владельца Windows и одновременное редактирование в нескольких вкладках не подтверждались. Опрос буфера — 1,5 секунды; промежуточное содержимое, заменённое между опросами, не гарантируется. При закрытом редакторе материалы остаются в очереди до открытия. Поддерживаются текст и изображения, назначение — стол/папка OSMINOG.
+
+**Служебная проверка после merge:** main run `42007264543` повторил все девять native-сценариев успешно, затем завершился exit 1 после сообщения PASS. Прежний catch скрыл тип ошибки; точная причина по этому логу не установлена. Исправлена только очистка native fixture: ожидание фактического закрытия Chromium до отключения транспорта, повторное удаление временного профиля и вывод исключения; общий PASS перенесён после cleanup. Продуктовый код и опубликованный ZIP не менялись. Для выпуска использован полностью успешный PR artifact, указанный выше.
+

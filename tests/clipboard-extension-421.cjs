@@ -20,7 +20,7 @@ const extensionManifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.j
 assert.ok(extensionManifest.key, 'The extension must retain its stable manifest public key');
 const expectedExtensionId = createHash('sha256').update(Buffer.from(extensionManifest.key, 'base64'))
   .digest('hex').slice(0, 32).replace(/[0-9a-f]/g, digit => String.fromCharCode(97 + parseInt(digit, 16)));
-let context, editor, writer, extensionId, browser, browserProcess;
+let context, editor, writer, extensionId, browser, browserProcess, browserProcessClosed;
 const errors = [], checks = [];
 const record = label => { checks.push(label); console.log('PASS ' + label); };
 
@@ -37,6 +37,7 @@ async function launch() {
     ...(process.env.TEST_HEADLESS === '1' ? ['--headless=new'] : []), 'about:blank'
   ], {stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe']});
   browserProcess = child;
+  browserProcessClosed = new Promise(resolve => child.once('close', resolve));
   let pending = '', stderr = '', exited = false;
   const transport = {
     open() {if (exited) transport.onclose?.(stderr || 'Chromium exited before CDP connected');},
@@ -92,18 +93,34 @@ async function launch() {
 }
 
 async function closeBrowser() {
-  const current = browser, child = browserProcess;
-  context = null; browser = null; browserProcess = null;
-  if (current?.isConnected()) {
-    const session = await current.newBrowserCDPSession();
-    await session.send('Browser.close').catch(() => {});
-  }
-  await current?.close().catch(() => {});
-  if (child && child.exitCode === null && child.signalCode === null) {
-    await new Promise(resolve => {
-      const timer = setTimeout(() => {child.kill('SIGKILL'); resolve();}, 3000);
-      child.once('exit', () => {clearTimeout(timer); resolve();});
-    });
+  const current = browser, child = browserProcess, closed = browserProcessClosed;
+  context = null; browser = null; browserProcess = null; browserProcessClosed = null;
+  try {
+    if (current?.isConnected()) {
+      // The browser may disconnect between isConnected() and session creation.
+      try {await (await current.newBrowserCDPSession()).send('Browser.close');} catch {}
+    }
+    if (child && closed) {
+      const waitForClose = async timeout => {
+        let timer;
+        try {
+          return await Promise.race([closed.then(() => true), new Promise(resolve => {
+            timer = setTimeout(() => resolve(false), timeout);
+          })]);
+        } finally {clearTimeout(timer);}
+      };
+      // Keep CDP connected while Chrome flushes its profile. Disconnecting first
+      // invokes transport.close() and can terminate Chrome during that flush.
+      if (!await waitForClose(3000)) {
+        child.kill('SIGTERM');
+        if (!await waitForClose(1000)) {
+          child.kill('SIGKILL');
+          if (!await waitForClose(3000)) throw Error('Test Chromium did not close after SIGKILL');
+        }
+      }
+    }
+  } finally {
+    await current?.close().catch(() => {});
   }
 }
 
@@ -373,13 +390,13 @@ async function snapshot() {
     await editor.bringToFront();
     await editor.evaluate(ids => {openProject(ids.target); OSMINOGWindowsFolders.openVirtual(ids.folder);}, ids);
     await editor.screenshot({path: path.resolve('artifacts/clipboard-extension-421.png')});
-    console.log(JSON.stringify({result: 'CLIPBOARD_EXTENSION_421_PASS',checks, manifest: JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version}));
   } catch (error) {
     console.error('CLIPBOARD_EXTENSION_421_FAILURE', error);
     console.error('STATE', JSON.stringify(await snapshot().catch(() => null)));
     throw error;
   } finally {
     await closeBrowser();
-    fs.rmSync(profile, {recursive: true, force: true});
+    await fs.promises.rm(profile, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
   }
-})().catch(() => {process.exitCode = 1;});
+  console.log(JSON.stringify({result: 'CLIPBOARD_EXTENSION_421_PASS',checks, manifest: JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version}));
+})().catch(error => {console.error('CLIPBOARD_EXTENSION_421_FINAL_FAILURE', error); process.exitCode = 1;});
