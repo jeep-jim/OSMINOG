@@ -9,12 +9,17 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawn} = require('node:child_process');
+const {createHash} = require('node:crypto');
 
 const root = path.resolve(process.env.OSMINOG_EXTENSION_ROOT || path.join(__dirname, '..'));
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'osminog-clipboard-e2e-'));
 const writerOrigin = 'https://clipboard-fixture.osminog.test';
 const KEY = 'osminogCollectorV1', PREFIX = 'osminogCapture:';
 const imageSpec = {width: 223, height: 151, corner: [12, 100, 200, 255]};
+const extensionManifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+assert.ok(extensionManifest.key, 'The extension must retain its stable manifest public key');
+const expectedExtensionId = createHash('sha256').update(Buffer.from(extensionManifest.key, 'base64'))
+  .digest('hex').slice(0, 32).replace(/[0-9a-f]/g, digit => String.fromCharCode(97 + parseInt(digit, 16)));
 let context, editor, writer, extensionId, browser, browserProcess;
 const errors = [], checks = [];
 const record = label => { checks.push(label); console.log('PASS ' + label); };
@@ -59,7 +64,9 @@ async function launch() {
     body: '<!doctype html><meta charset="utf-8"><title>External clipboard fixture</title><textarea id="external-editor"></textarea>'
   }));
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], {origin: writerOrigin});
-  const sw = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout: 20000});
+  const backgroundURL = `chrome-extension://${expectedExtensionId}/${extensionManifest.background.service_worker}`;
+  const sw = context.serviceWorkers().find(worker => worker.url() === backgroundURL) ||
+    await context.waitForEvent('serviceworker', {predicate: worker => worker.url() === backgroundURL, timeout: 20000});
   extensionId = new URL(sw.url()).host;
   editor = await context.newPage();
   editor.on('pageerror', error => errors.push(error.message));
