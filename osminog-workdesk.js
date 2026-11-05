@@ -20,7 +20,7 @@
  else if(o.type==='browser'||o.url){const a=document.createElement('a');const url=o.url||o.src;if(/^https?:\/\//i.test(url||'')){a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Открыть '+url;body.append(a)}}
  else if(/^text\//.test(o.mime||'')&&o.src){const pre=document.createElement('pre');pre.textContent='Загрузка…';body.append(pre);try{pre.textContent=(await(await fetch(o.src)).text()).slice(0,200000)}catch{pre.textContent='Не удалось прочитать файл'}}
  else {body.textContent='Скачайте оригинал, чтобы открыть этот формат во внешнем приложении.'}
- $('#workdeskDownload').hidden=!o.src&&!text;$('#workdeskViewer').showModal();$('#workdeskText')?.focus();}
+ $('#workdeskDownload').hidden=!o.src&&!text;$('#workdeskViewer').showModal();globalThis.OSMINOGPanelStack?.activate?.($('#workdeskViewer'));$('#workdeskText')?.focus();}
  async function ask(){await BriefCraftBridge.open();if(state.selected.length)await OSMINOGAgentAPI.pinSelection();$('#gptPresenceInput')?.focus()}
  function addText(format='plain'){const b=viewportCenter(),o=createObject('note',{name:format==='markdown'?'Документ.md':'Заметка',noteFormat:format,text:'',w:440,h:300,fontSize:18,fontWeight:400,textColor:'#202633',fill:format==='markdown'?'#f1f4fa':'#fff4bd',x:b.x-220,y:b.y-150});setTool('select');open(o.id);return o}
  function addLink(){const raw=prompt('Адрес сайта:','https://');if(!raw)return;try{const u=new URL(raw);if(!['https:','http:'].includes(u.protocol))throw Error();const b=viewportCenter();createObject('browser',{name:u.hostname,url:u.href,w:440,h:180,x:b.x-220,y:b.y-90});setTool('select')}catch{showToast('Введите ссылку http или https')}}
