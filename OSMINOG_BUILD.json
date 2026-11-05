@@ -1,20 +1,18 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.21",
-  "versionName": "4.0.21 · Clipboard Recovery",
-  "artifact": "OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip",
-  "manifestVersion": "4.0.21",
+  "version": "4.0.22",
+  "versionName": "4.0.22 · Workspace Unification",
+  "artifact": "OSMINOG-Chrome-4.0.22-WORKSPACE-FIX.zip",
+  "manifestVersion": "4.0.22",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "4.0.20",
+  "baseVersion": "4.0.21",
   "runtimeVerified": false,
   "verification": {
-    "collectorRuntime": "Awaited image reads, durable acknowledgement, transient retry, permanent rejection recovery, root/folder targets and pause/lifecycle races pass local regression tests.",
-    "fullExtension": "Build gate: tests/clipboard-extension-421.cjs uses the full extension with real Chrome storage, offscreen and clipboard APIs; see the associated CI run for results.",
-    "ownerWindows": "Not tested on the owner device.",
-    "imageImport": "tests/clipboard-library-421.cjs passed locally: queued PNG, real Ctrl+V, failed save/ack retry, bad-entry isolation, desk destination and open-folder refresh. The same test reproduced the reported ReferenceError against unchanged 4.0.20.",
-    "storageLoad": "Build gate: tests/storage-load-421.cjs verifies asynchronous Chrome callback reads, missing-API fallback and storage error propagation; native extension regression checks reload and browser restart."
+    "fullExtension": "The release workflow must pass the real Chrome extension clipboard, storage, reload and browser-restart gates before packaging.",
+    "workspace": "Library, folders, photo editor, panel stacking, canvas and chat regression gates run before packaging.",
+    "ownerWindows": "Not tested on the owner device. Native desktop compatibility is verified separately by the Windows workflow."
   },
-  "notes": "Repairs image import from the clipboard queue and manual paste, awaits persisted workspace reads on reload, adds an explicit desk/folder destination, and retains failed queue entries for retry."
+  "notes": "Workspace persistence, folders tab, confirmed bulk deletion and Undo, keyboard confirmation, compact dock and full screenshot editor."
 }
