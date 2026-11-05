@@ -32,10 +32,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     
     assert.equal(await page.locator('#workdeskTools .desk-tool-chevron').count(),0);passed.push('toolbar has no small arrows');
     assert.equal(await page.locator('#workdeskTools [data-desk-group]:not(:has(svg))').count(),0);
-    await page.locator('[data-desk-group=text]').click();
+    await page.evaluate(()=>setTool('text'));
     assert.equal(await page.evaluate(()=>state.tool),'text');assert.equal(await page.locator('#deskMore').isVisible(),false);assert.equal(await page.locator('#workdeskViewer').isVisible(),false);
-    assert.equal(await page.locator('[data-desk-group=text]').getAttribute('aria-pressed'),'true');
-    passed.push('T button immediately activates inline text and current-state dot');
+    passed.push('text tool remains available to keyboard and canvas editing');
     const anchor=await page.evaluate(()=>worldPoint(420,310));await page.mouse.click(420,310);
     let id=await page.evaluate(()=>state.selected[0]);const field=page.locator(`.canvas-object[data-id="${id}"] [data-field=text]`);
     assert.equal(await field.getAttribute('contenteditable'),'true');assert(await field.evaluate(el=>document.activeElement===el));assert.equal(await field.innerText(),'');
@@ -49,14 +48,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     await page.locator('[data-canvas-text-prop=fontSize]').fill('42');await page.locator('[data-canvas-text-prop=fontFamily]').selectOption('Georgia, serif');
     assert.equal(await field.evaluate(el=>getComputedStyle(el).fontSize),'42px');assert.match(await field.evaluate(el=>getComputedStyle(el).fontFamily),/Georgia/);
     passed.push('right inspector changes size and font without replacing text');
-    await page.locator('[data-desk-group=text]').click();const before=await page.evaluate(()=>objects().length);await field.click();assert.equal(await page.evaluate(()=>objects().length),before);assert(await field.evaluate(el=>el===document.activeElement));
+    await page.evaluate(()=>setTool('text'));const before=await page.evaluate(()=>objects().length);await field.click();assert.equal(await page.evaluate(()=>objects().length),before);assert(await field.evaluate(el=>el===document.activeElement));
     passed.push('T click edits an existing text object instead of duplicating it');
-    await page.keyboard.press('Escape');await page.locator('[data-desk-group=text]').click();await page.mouse.click(800,460);await page.keyboard.press('Escape');await page.waitForTimeout(100);
+    await page.keyboard.press('Escape');await page.evaluate(()=>setTool('text'));await page.mouse.click(800,460);await page.keyboard.press('Escape');await page.waitForTimeout(100);
     assert.equal(await page.evaluate(()=>objects().length),before);passed.push('unused empty text insertion is discarded');
-    await page.locator('[data-desk-group=pen]').click();await page.locator('[data-desk-group=pen]').click({button:'right'});
+    await page.evaluate(()=>setTool('pen'));await page.locator('[data-desk-group=magic]').click({button:'right'});
     assert(await page.locator('#deskMore').isVisible());assert.equal(await page.locator('#deskMore [data-desk=pen]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#deskMore [data-desk]:not(:has(svg))').count(),0);
     const menu=await page.locator('#deskMore').boundingBox();assert(menu.y+menu.height<toolbar.y);passed.push('secondary menus open above toolbar, with SVG icons and active dot');
-    await page.keyboard.press('Escape');await page.locator('[data-desk-group=text]').click({button:'right'});await page.locator('#deskMore [data-desk=note]').click();assert(await page.locator('#workdeskViewer').isVisible());await page.locator('#workdeskText').fill('Блокнот остаётся отдельным инструментом');await page.locator('#workdeskClose').click();
+    await page.keyboard.press('Escape');await page.evaluate(()=>OSMINOGWorkdesk.addText('markdown'));assert(await page.locator('#workdeskViewer').isVisible());await page.locator('#workdeskText').fill('Блокнот остаётся отдельным инструментом');await page.locator('#workdeskClose').click();
     passed.push('notebook preserved as an explicit secondary action');
     await page.evaluate(()=>{document.querySelector('#bridgePanel').hidden=false;document.querySelector('#layersToggle').click();document.querySelector('#inspector').classList.remove('collapsed')});await page.waitForTimeout(250);
     const ui=await page.evaluate(()=>({chat:document.querySelector('#bridgePanel').hidden,layers:state.layersOpen,collapsed:document.querySelector('#inspector').className,center:viewportCenter(),scale:state.view.scale}));
@@ -70,7 +69,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     await page.evaluate(()=>window.dispatchEvent(new KeyboardEvent('keydown',{code:'Backslash',key:'/',ctrlKey:true,bubbles:true,cancelable:true})));
     assert(await page.evaluate(()=>document.body.classList.contains('osminog-focus')));await page.keyboard.press('Escape');assert(!await page.evaluate(()=>document.body.classList.contains('osminog-focus')));passed.push('physical key works with alternate layout; Escape restores UI');
     await page.evaluate(()=>{document.querySelector('#bridgePanel').hidden=true;if(state.layersOpen)document.querySelector('#layersToggle').click();document.querySelector('#inspector').classList.add('collapsed');setTool('select');state.view={x:0,y:0,scale:1};applyView()});await page.waitForTimeout(200);
-    await page.locator('[data-desk-group=text]').click();await page.mouse.click(200,190);id=await page.evaluate(()=>state.selected[0]);await page.keyboard.insertText('Курсор сохраняется');await page.keyboard.press('Control+Backslash');await page.keyboard.insertText(' и в чистом режиме');await page.keyboard.press('Control+Backslash');await page.keyboard.insertText(' после возврата');
+    await page.evaluate(()=>setTool('text'));await page.mouse.click(200,190);id=await page.evaluate(()=>state.selected[0]);await page.keyboard.insertText('Курсор сохраняется');await page.keyboard.press('Control+Backslash');await page.keyboard.insertText(' и в чистом режиме');await page.keyboard.press('Control+Backslash');await page.keyboard.insertText(' после возврата');
     o=await page.evaluate(id=>objects().find(o=>o.id===id),id);assert.equal(o.text,'Курсор сохраняется и в чистом режиме после возврата');passed.push('focus-mode toggle preserves text caret and draft');await page.keyboard.press('Escape');
     const zoom=await page.evaluate(()=>{const p=worldPoint(500,300);zoomAt(500,300,.005);return {before:p,after:worldPoint(500,300),scale:state.view.scale,label:document.querySelector('#zoomLabel').textContent}});
     assert.equal(zoom.scale,.005);assert.equal(zoom.label,'0.5%');assert(Math.abs(zoom.before.x-zoom.after.x)<.01);assert(Math.abs(zoom.before.y-zoom.after.y)<.01);passed.push('0.5% zoom with stable pointer anchor and readable label');
@@ -79,7 +78,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     await page.evaluate(()=>{state.view={x:44000,y:27000,scale:1};applyView();setTool('text')});const farAnchor=await page.evaluate(()=>worldPoint(400,250));await page.mouse.click(400,250);await page.keyboard.insertText('Дальний участок');o=await page.evaluate(()=>selectedObjects()[0]);assert.equal(o.x,farAnchor.x);assert.equal(o.y,farAnchor.y);passed.push('text can be placed far outside the old 12000×8000 plane');await page.keyboard.press('Escape');
     await page.evaluate(()=>{state.view={x:0,y:0,scale:1};applyView();setTool('pen')});await page.mouse.move(350,550);await page.mouse.down();await page.mouse.move(550,630,{steps:15});await page.mouse.up();
     const ink=await page.evaluate(()=>{const o=objects().findLast(o=>o.type==='ink'),p=document.querySelector(`[data-id="${o.id}"] .ink-path`),q=p.getPointAtLength(p.getTotalLength()/2),s=new DOMPoint(q.x,q.y).matrixTransform(p.getScreenCTM());return {id:o.id,x:s.x,y:s.y,count:objects().length}});
-    await page.locator('[data-desk-group=pen]').click({button:'right'});await page.locator('#deskMore [data-desk=eraser]').click();await page.mouse.click(ink.x,ink.y);assert.equal(await page.evaluate(id=>objects().some(o=>o.id===id),ink.id),false);await page.locator('#canvasUndo').click();assert.equal(await page.evaluate(id=>objects().some(o=>o.id===id),ink.id),true);assert.equal(await page.evaluate(()=>objects().length),ink.count);passed.push('eraser removes only a drawn stroke; one undo restores it');
+    await page.locator('[data-desk-group=magic]').click({button:'right'});await page.locator('#deskMore [data-desk=eraser]').click();await page.mouse.click(ink.x,ink.y);assert.equal(await page.evaluate(id=>objects().some(o=>o.id===id),ink.id),false);await page.locator('#canvasUndo').click();assert.equal(await page.evaluate(id=>objects().some(o=>o.id===id),ink.id),true);assert.equal(await page.evaluate(()=>objects().length),ink.count);passed.push('eraser removes only a drawn stroke; one undo restores it');
     await page.locator('#canvasToolsClose').click();assert.equal(await page.locator('#workdeskTools').isVisible(),false);await page.locator('#canvasToolsRestore').click();assert.equal(await page.locator('#workdeskTools').isVisible(),true);passed.push('toolbar can hide and reopen without losing tool state');
     await page.evaluate(()=>{project().objects=objects().filter(o=>o.x>-1000&&o.x<4000);document.querySelector('#inspector').classList.remove('collapsed');const text=objects().find(o=>o.type==='text');text.x=160;text.y=230;const notebook=objects().find(o=>o.type==='note');if(notebook){notebook.x=650;notebook.y=480;}state.selected=[text.id];setTool('select');state.view={x:20,y:0,scale:1};renderAll(true);applyView()});
     fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});

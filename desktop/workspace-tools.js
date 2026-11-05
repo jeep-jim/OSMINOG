@@ -23,7 +23,6 @@
   if(name==='canvas.paste'){
    if(!clipboard||clipboard.project!==project||clipboard.revision!==access.revision)throw Error('Сначала скопируйте объекты в этом проекте');
    const dx=args.dx===undefined?24:number(args.dx),dy=args.dy===undefined?24:number(args.dy),actions=[];
-   // Files use asset import in canvas.duplicate; do not partially paste a mixed batch.
    if(clipboard.objects.length===1&&clipboard.objects[0].type==='file'){const o=clipboard.objects[0];await check();const result=await env.importAsset({dataUrl:o.src,name:o.name,fileName:o.fileName,mime:o.mime,size:o.size,x:number(o.x||0)+dx,y:number(o.y||0)+dy,w:o.w,h:o.h});guard();return{...result,observation:await observe([result.object?.id])}}
    if(clipboard.objects.some(o=>o.type==='file'))throw Error('Файлы дублируются через canvas.duplicate; вставка набора поддерживает объекты макета и изображения');
    for(const o of clipboard.objects){const properties=structuredClone(o);delete properties.id;delete properties.group;properties.x=number(o.x)+dx;properties.y=number(o.y)+dy;actions.push({op:'create',objectType:o.type,properties})}
@@ -58,5 +57,5 @@
   asking=true;try{const r=await env.ask(String(args.agentId||'main'),message,{fullProject:true,execute:false,mode:'council'});guard();if(!r?.ok)throw Error(r?.error||'Агент не ответил');await env.say({agentId:r.thread.id,message:r.text,projectId:project});guard();return r}finally{asking=false}
  }}}
  if(typeof module!=='undefined'&&module.exports)module.exports={create,names};
- else root.OSMINOGWorkspaceTools=create({project:()=>root.project?.()?.id,objects:()=>root.objects?.()||[],scope:async()=>{const s=await root.OSMINOGNative.browser('state');if(s.project!==root.project?.()?.id)throw Error('Проект изменился');return {ids:s.contextScope,revision:s.contextRevision}},snapshot:()=>root.OSMINOGDirectCanvas.snapshot(),apply:p=>root.OSMINOGDirectCanvas.apply(p),read:a=>root.BriefCraftBridge.executeTool('read_asset',a),importAsset:a=>root.OSMINOGProjectAPI.importAsset(a),say:a=>root.OSMINOGTeamAPI.say(a),ask:(...a)=>root.OSMINOGAgentAPI.ask(...a)});
+ else root.OSMINOGWorkspaceTools=create({project:()=>root.project?.()?.id,objects:()=>root.objects?.()||[],scope:async()=>{const s=await root.OSMINOGNative.browser('state');if(s.project!==root.project?.()?.id)throw Error('Проект изменился');return {ids:s.contextScope,revision:s.contextRevision}},snapshot:()=>root.OSMINOGDirectCanvas.snapshot(),apply:p=>root.OSMINOGDirectCanvas.apply(p),read:a=>root.BriefCraftBridge.executeTool('read_asset',a),importAsset:a=>root.OSMINOGProjectAPI.importAsset(a),say:a=>root.OSMINOGUnifiedChatCore.append({text:a.message,name:'OSMINOG',projectId:a.projectId}),ask:(...a)=>root.OSMINOGAgentAPI.ask(...a)});
 })(globalThis);

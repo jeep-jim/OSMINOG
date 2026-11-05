@@ -80,6 +80,7 @@ class BrowserWorkspace{
   switch(action){
    case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project){this.contextScopes.set(this.project,this.contextScope);this.contextScope=this.contextScopes.has(id)?this.contextScopes.get(id):null;this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();this.pointerTarget=null;this.pointerEnabled=false}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
    case 'state':return this.state();
+   case 'save':await this.save();await this.saveQueue;return{ok:true,project:this.project};
    case 'pointer-mode':{this.pointerEnabled=!!args.enabled;this.pointerTarget=null;this.pointerCursor=null;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.send('osminog.pointer.mode',this.pointerEnabled&&t.project===this.project&&!providerFor(t.view.webContents.getURL()));return{enabled:this.pointerEnabled}}
    case 'pointer-canvas':return require('./pointer-context.cjs').update(this,null,args);
    case 'window-capture':{const image=await require('./capture-window.cjs').captureWindow(this.win);return{src:image.toDataURL(),...image.getSize()}}
