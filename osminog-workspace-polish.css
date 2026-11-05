@@ -1,0 +1,68 @@
+/* Workspace 4.0.23: folders are first-class content, not unstyled buttons. */
+#layerList.bc-folders-gallery{display:flex;flex-direction:column;gap:7px;padding:8px 10px 18px;align-content:start}
+.bc-folders-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;padding:3px 2px;color:var(--muted);font:600 11px/1.4 system-ui}
+.bc-folders-toolbar strong{font-weight:600}
+.bc-folders-toolbar button{display:grid;place-items:center;flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:9px;color:var(--accent);background:var(--surface);cursor:pointer;font:600 20px/1 system-ui}
+.bc-folder-row{display:grid;grid-template-columns:32px minmax(0,1fr) 14px;align-items:center;gap:10px;width:100%;min-height:62px;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);text-align:left;cursor:pointer;box-shadow:0 2px 6px #00000003;transition:background .15s,border-color .15s}
+.bc-folder-row:hover,.bc-folder-row:focus-visible{background:var(--surface-2);border-color:var(--accent)}
+.bc-folder-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bc-folder-row>span:nth-child(2){min-width:0}.bc-folder-row b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 13px/1.45 system-ui}
+.bc-folder-row small{display:block;margin-top:4px;color:var(--muted);font:11px/1.4 system-ui}
+.bc-folder-row>i{font:20px system-ui;color:var(--muted);font-style:normal}
+.bc-folder-glyph{position:relative;display:block;width:30px;height:23px;border:1px solid #cf962e;border-radius:5px;background:linear-gradient(#ffe39b,#ffc54d);color:transparent;font-size:0;box-shadow:inset 0 1px #ffffff90}
+.bc-folder-glyph:before{content:'';position:absolute;left:1px;top:-5px;width:15px;height:6px;border:1px solid #cf962e;border-bottom:0;border-radius:4px 5px 0 0;background:#ffe39b}
+.bc-folder-row[data-capture=true]{border-color:color-mix(in srgb,#219c76 34%,var(--line));background:color-mix(in srgb,#22c58b 5%,var(--surface))}
+.bc-folder-row[data-capture=true] .bc-folder-glyph{border-color:#218f72;background:linear-gradient(#9ce8ce,#35bf93)}
+.bc-folder-row[data-capture=true] .bc-folder-glyph:before{border-color:#218f72;background:#9ce8ce}
+.bc-folder-row[data-capture=true] small{color:var(--text)}
+.cl-stored-heading{margin:16px 4px 7px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font:600 11px/1.4 system-ui}
+#layerList .cl-stored{display:grid;grid-template-columns:28px minmax(0,1fr) 22px!important;gap:8px;align-items:center;width:100%;min-height:48px;padding:8px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+#layerList .cl-stored:hover{background:var(--surface-2);border-color:var(--line)}
+#layerList .cl-stored .cl-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cl-stored .cl-open{font-size:17px;color:var(--muted)}
+/* Counters remain legible even for small desktop folder icons. */
+.osminog-win-folder-icon{overflow:visible!important;min-height:105px!important}
+.osminog-win-folder-icon>small{display:block!important;font:700 12px/1.5 system-ui!important;min-width:27px;padding:1px 7px;border-radius:8px;background:var(--surface);color:var(--text)!important;border:1px solid var(--line);white-space:nowrap}
+.osminog-win-folder-icon>strong{font-size:11px!important;line-height:1.4!important}
+.osminog-win-folder-icon[data-capture=true] .osminog-win-folder-glyph{border-color:#218f72;background:linear-gradient(160deg,#b0f0da,#3bc798 65%,#1ba87d)}
+.osminog-win-folder-icon[data-capture=true] .osminog-win-folder-glyph:before{border-color:#218f72;background:linear-gradient(#c5f5e5,#77d9b7)}
+.osminog-win-folder-icon[data-capture=true] .osminog-win-folder-glyph:after{background:#edfff580}
+.osminog-win-folder-icon[data-capture=true]>small{color:#127a5c!important;background:#e1f9ef;border-color:#95dcc2}
+/* Attach search to the real header edge, and keep selection actions visible. */
+html:not([data-native-desktop]) #osminogLibrary{top:var(--workspace-top,56px)!important;right:0!important;bottom:0!important;width:min(480px,100vw)!important;max-height:none!important;border-radius:0!important;overflow:hidden!important;box-shadow:-12px 0 40px #00000012!important}
+#osminogLibrary>header{flex:none;min-height:62px;box-sizing:border-box;padding:12px 16px;gap:12px;background:var(--surface,#fff)}
+#osminogLibrary header strong{min-width:0;font-size:14px}.lib-header-actions{display:flex;align-items:center;gap:8px;flex:none}
+#osminogLibrary [data-close]{display:grid;place-items:center;width:32px;height:32px;padding:0;border-radius:9px;font-size:19px}
+#osminogLibrary [data-delete-selected]{display:flex;align-items:center;gap:7px;min-height:32px;padding:6px 10px;color:#cf3446;border-color:#cf344640;border-radius:9px;background:#cf34460a;font-weight:600;font-size:12px;white-space:nowrap}
+#osminogLibrary [data-delete-selected]:disabled{opacity:.4;cursor:default}#osminogLibrary [data-delete-selected] svg{width:15px;height:15px;flex:none}
+#osminogLibrary .lib-body{min-height:0;overflow:auto;flex:1;display:flex;flex-direction:column;gap:12px;padding:16px}
+#osminogLibrary .lib-body>*{flex-shrink:0}#osminogLibrary input[type=checkbox]{width:16px;height:16px;min-width:16px;margin:0;accent-color:var(--accent,#526fff);cursor:pointer}
+#osminogLibrary .lib-bulk-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px}
+#osminogLibrary .lib-bulk-bar label{display:flex;align-items:center;gap:8px;cursor:pointer}#osminogLibrary [data-selected-count]{color:var(--muted);white-space:nowrap}
+#osminogLibrary .lib-card{position:relative;box-sizing:border-box;display:grid;grid-template-columns:20px minmax(0,1fr);column-gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+#osminogLibrary .lib-card>*{grid-column:2;min-width:0}#osminogLibrary .lib-card>.lib-card-select{grid-column:1;grid-row:1/7;display:flex;align-items:flex-start;padding-top:2px}
+#osminogLibrary .lib-card strong{font-size:12px;overflow-wrap:anywhere}#osminogLibrary .lib-card small{line-height:1.5}#osminogLibrary .lib-card p{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted)}
+#osminogLibrary [data-reindex]{font-size:11px;padding:5px 8px;border:0;color:var(--muted);align-self:flex-start}
+#osminogLibrary details{font-size:12px}#osminogLibrary details[open]>.lib-filters{margin-top:10px}
+/* Documents are centered windows again. Native desktop keeps its own layout. */
+html:not([data-native-desktop]) #workdeskViewer,html:not([data-native-desktop]) #osminogWindowsExplorer,html:not([data-native-desktop]) #osminogDocumentEditor{position:fixed!important;inset:calc(var(--workspace-top,56px) + 24px) 24px 32px 24px!important;margin:auto!important;width:min(980px,calc(100vw - 48px))!important;height:min(760px,calc(100dvh - var(--workspace-top,56px) - 56px))!important;min-height:240px!important;max-height:none!important;max-width:none!important;transform:none!important;border-radius:16px!important;box-shadow:0 24px 90px #0004!important}
+html:not([data-native-desktop]) #workdeskViewerBody{resize:none!important;max-height:none!important;min-height:0!important;flex:1}
+html:not([data-native-desktop]) #workdeskViewerBody textarea{min-width:0!important;resize:none!important;min-height:0!important;flex:1}
+html:not([data-native-desktop]) #osminogWindowsExplorer .osminog-windows-explorer-body{min-height:0;flex:1}
+/* Legacy links use paired theme colors, not the old browser object's white fill. */
+html:not([data-native-desktop]) .canvas-object .desk-link-card{padding:16px;display:flex;flex-direction:column;gap:10px;overflow:auto;height:100%;box-sizing:border-box;background:var(--surface,#fff);color:var(--text,#172033);font:13px/1.5 system-ui;text-align:left}
+html:not([data-native-desktop]) .desk-link-card strong{font:600 14px/1.45 system-ui;color:var(--text,#172033);overflow-wrap:anywhere}
+html:not([data-native-desktop]) .desk-link-card span{font:12px/1.5 system-ui;color:var(--text,#172033);overflow-wrap:anywhere}
+html:not([data-native-desktop]) .desk-link-card button{align-self:flex-start;max-width:100%;padding:7px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2,#f3f5fa);color:var(--text,#172033);font:600 12px/1.4 system-ui;cursor:pointer}
+html:not([data-native-desktop]) .desk-link-card button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.desk-link-card a{color:var(--accent);overflow-wrap:anywhere;text-decoration:underline}
+/* A living OSMINOG lens: the original ghost still moves, but has no tentacles. */
+html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp{position:relative!important;width:62px!important;height:49px!important;border-radius:52% 48% 50% 50%!important;background:radial-gradient(ellipse at 30% 18%,#ff989b 0%,#ff5158 28%,#ed2b3a 64%,#b61427 100%)!important;border:1px solid #ff7b8280!important;box-shadow:inset 0 2px 2px #ffffff60,inset 0 -3px 6px #650d2640,0 8px 20px #cc263b26!important;filter:none!important;animation:osminogLensFloat 3.2s ease-in-out infinite!important}
+html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp::before{content:''!important;display:block!important;position:absolute!important;inset:14px 8px auto!important;width:auto!important;height:22px!important;border-radius:999px!important;background:linear-gradient(#481620,#251219)!important;box-shadow:inset 0 2px 5px #0007,0 1px #ffafb750!important;clip-path:none!important;opacity:1!important;filter:none!important;transform-origin:center!important;animation:osminogLensBlink 6.6s ease-in-out infinite!important}
+html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp::after{content:''!important;display:block!important;position:absolute!important;inset:5px auto auto 13px!important;width:19px!important;height:5px!important;border-radius:50%!important;background:#ffffff45!important;box-shadow:none!important;clip-path:none!important;animation:none!important;transform:rotate(-13deg)!important;opacity:1!important}
+html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp i:first-child{position:absolute!important;z-index:2!important;top:22px!important;left:22px!important;right:auto!important;width:18px!important;height:6px!important;border-radius:999px!important;background:#ff6a72!important;box-shadow:0 0 7px #ff536840!important;transform:translate(var(--eye-x,0px),var(--eye-y,0px))!important;transition:transform .28s ease!important;animation:osminogPupilBlink 6.6s ease-in-out infinite!important}
+html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp i:nth-child(2),html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp b{display:none!important}
+@keyframes osminogLensFloat{0%,100%{transform:translateY(0) rotate(var(--eye-tilt,0deg))}50%{transform:translateY(-4px) rotate(var(--eye-tilt,0deg))}}
+@keyframes osminogLensBlink{0%,44%,48%,100%{transform:scaleY(1)}46%{transform:scaleY(.08)}}
+@keyframes osminogPupilBlink{0%,44%,48%,100%{opacity:1}46%{opacity:0}}
+@media(prefers-reduced-motion:reduce){html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp,html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp:before,html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp i:first-child{animation:none!important;transition:none!important}}
+@media(max-width:640px){html:not([data-native-desktop]) #workdeskViewer,html:not([data-native-desktop]) #osminogWindowsExplorer,html:not([data-native-desktop]) #osminogDocumentEditor{inset:calc(var(--workspace-top,56px) + 8px) 8px 8px!important;width:calc(100vw - 16px)!important;height:calc(100dvh - var(--workspace-top,56px) - 16px)!important;border-radius:12px!important}#osminogLibrary>header{padding:10px 12px;gap:6px}#osminogLibrary header strong{font-size:13px}#osminogLibrary .lib-body{padding:12px}}

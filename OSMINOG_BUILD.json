@@ -1,13 +1,13 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.22",
-  "versionName": "4.0.22 · Workspace Unification",
-  "artifact": "OSMINOG-Chrome-4.0.22-WORKSPACE-FIX.zip",
-  "manifestVersion": "4.0.22",
+  "version": "4.0.23",
+  "versionName": "4.0.23 · Workspace Polish",
+  "artifact": "OSMINOG-Chrome-4.0.23-WORKSPACE-POLISH.zip",
+  "manifestVersion": "4.0.23",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "4.0.21",
+  "baseVersion": "4.0.22",
   "runtimeVerified": false,
   "verification": {
     "fullExtension": "The release workflow must pass the real Chrome extension clipboard, storage, reload and browser-restart gates before packaging.",

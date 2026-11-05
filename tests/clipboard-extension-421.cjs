@@ -298,7 +298,11 @@ async function snapshot() {
     const live = await waitForCapture(ids.target, {text: 'Live folder update 97101'});
     await editor.locator(`#osminogWindowsExplorerItems [data-item-key="obj:${live.id}"]`).waitFor({state: 'visible'});
     assert.equal(await editor.locator('#osminogWindowsExplorerStatus').textContent(), '3 элемент(а)');
-    assert.equal(await editor.locator(`[data-win-folder-id="${ids.folder}"] small`).textContent(), '3 элемент(а)');
+    // 4.0.23 presents a readable numeric badge beneath the desktop folder name.
+    // Keep the exact count and visible-label assertions, not the retired caption.
+    const folderBadge = editor.locator(`[data-win-folder-id="${ids.folder}"] small`);
+    assert.equal(await folderBadge.textContent(), '3');
+    assert.equal(await folderBadge.isVisible(), true, 'The live numeric folder count must be visible');
     record('an already-open destination folder and its desktop item counter refresh after automatic import');
     await editor.bringToFront();
     await editor.locator('#osminogWindowsExplorerClose').click();
