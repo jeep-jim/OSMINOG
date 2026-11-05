@@ -1,3 +1,4 @@
+importScripts("osminog-collector-background.js");
 importScripts("sha3.js", "osminog-chat-content.js", "osminog-generated-media.js", "osminog-presence-router.js", "osminog-chat-sync.js", "osminog-chat-sync-router.js");
 
 const MENU_ID = "briefcraft-open-selection";
