@@ -990,6 +990,7 @@ function syncLayersPolishLanguage(){
   const tabs=[...document.querySelectorAll("#layersPanel .panel-tabs button")];
   if(tabs[0])tabs[0].innerHTML=`<span class="bc-section-icon">${bcSectionIcon("layers")}</span><span>${esc(tr("layers"))}</span>`;
   if(tabs[1])tabs[1].innerHTML=`<span class="bc-section-icon">${bcSectionIcon("files")}</span><span>${esc(tr("files"))}</span>`;
+  if(tabs[2])tabs[2].innerHTML=`<span class="bc-section-icon">${bcSectionIcon("project")}</span><span>${state.language==="ru"?"Папки":({en:"Folders",de:"Ordner",es:"Carpetas",ja:"フォルダー",zh:"文件夹"}[state.language]||"Folders")}</span>`;
   const projectLabel=document.querySelector("#layersPanel .panel-head small[data-i18n=project]");if(projectLabel)projectLabel.innerHTML=`<span class="bc-section-icon bc-section-icon-small">${bcSectionIcon("project")}</span><span>${esc(tr("project"))}</span>`;
 }
 setTimeout(syncLayersPolishLanguage,0);
@@ -1167,11 +1168,25 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     root.innerHTML=items.length?items.map(o=>`<button class="bc-file-tile${state.selected.includes(o.id)?" selected":""}" type="button" data-file-id="${o.id}"><span class="bc-file-tile-preview">${fileIcon(o)}</span><span class="bc-file-tile-name">${esc(o.fileName||o.name)}</span></button>`).join(""):`<div class="bc-files-empty">${text("На холсте пока нет файлов и медиа","No files or media on this canvas yet")}</div>`;
     root.querySelectorAll("[data-file-id]").forEach(btn=>{const o=objects().find(x=>x.id===btn.dataset.fileId);btn.addEventListener("click",e=>{if(!o)return;selectObject(o.id,!!(e.ctrlKey||e.metaKey||e.shiftKey),true)});btn.addEventListener("dblclick",()=>o&&(o.type==="image"?focusObject(o):openFileWorkbench(o)))})
   }
+  function renderFoldersGallery(){
+    const root=document.getElementById("layerList"),search=document.getElementById("layerSearch");if(!root)return;
+    root.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");root.classList.add("bc-folders-gallery");
+    const q=(search?.value||"").trim().toLocaleLowerCase(),folders=globalThis.OSMINOGWindowsFolders?.list?.()||[],ordered=[];
+    const visit=(parentId=null,depth=0)=>folders.filter(f=>(f.parentId||null)===parentId).sort((a,b)=>String(a.name).localeCompare(String(b.name))).forEach(f=>{ordered.push({...f,_depth:depth});visit(f.id,depth+1)});visit();
+    const items=ordered.filter(f=>!q||String(f.name||"").toLocaleLowerCase().includes(q));
+    root.innerHTML='<div class="bc-folders-toolbar"><strong>'+(state.language==="ru"?"Папки проекта":"Project folders")+'</strong><button type="button" data-folder-create>＋ '+(state.language==="ru"?"Новая папка":"New folder")+'</button></div>'+
+      (items.length?items.map(f=>'<button type="button" class="bc-folder-row" data-folder-open="'+esc(f.id)+'" style="--folder-depth:'+Math.min(5,f._depth)+'"><span class="bc-folder-glyph">▰</span><span><b>'+esc(f.name)+'</b><small>'+Number(f.members?.length||0)+' · '+(state.language==="ru"?"элементов":"items")+'</small></span><i>›</i></button>').join(""):'<div class="bc-files-empty">'+(state.language==="ru"?"Папок пока нет. Создай первую.":"No folders yet. Create your first folder.")+'</div>');
+    root.querySelector("[data-folder-create]")?.addEventListener("click",()=>{const name=prompt(state.language==="ru"?"Название папки":"Folder name",state.language==="ru"?"Новая папка":"New folder");if(!name?.trim())return;globalThis.OSMINOGWindowsFolders?.create?.({name:name.trim(),parentId:null,desktopVisible:false,rename:false});renderFoldersGallery();queuePersist()});
+    root.querySelectorAll("[data-folder-open]").forEach(b=>b.addEventListener("click",()=>globalThis.OSMINOGWindowsFolders?.openVirtual?.(b.dataset.folderOpen)));
+  }
   const baseRenderLayers=renderLayers;
-  renderLayers=function(){const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]],search=document.getElementById("layerSearch"),root=document.getElementById("layerList");if(state.ui?.layersTab==="files"){root?.classList.remove("observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===1));if(search)search.placeholder=text("Поиск файлов","Search files");renderFilesGallery();return}root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===0));if(search)search.placeholder=tr("searchLayers");baseRenderLayers()};
+  renderLayers=function(){const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]],search=document.getElementById("layerSearch"),root=document.getElementById("layerList");
+    if(state.ui?.layersTab==="folders"){root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===2));if(search)search.placeholder=state.language==="ru"?"Поиск папок":"Search folders";renderFoldersGallery();return}
+    if(state.ui?.layersTab==="files"){root?.classList.remove("observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===1));if(search)search.placeholder=text("Поиск файлов","Search files");renderFilesGallery();return}
+    root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===0));if(search)search.placeholder=tr("searchLayers");baseRenderLayers()};
   const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]];
-  tabs[0]?.addEventListener("click",()=>{state.ui.layersTab="layers";queuePersist();renderLayers()});tabs[1]?.addEventListener("click",()=>{state.ui.layersTab="files";queuePersist();renderLayers()});
-  document.getElementById("layerSearch")?.addEventListener("input",()=>{if(state.ui?.layersTab==="files")renderFilesGallery()});
+  tabs[0]?.addEventListener("click",()=>{state.ui.layersTab="layers";queuePersist();renderLayers()});tabs[1]?.addEventListener("click",()=>{state.ui.layersTab="files";queuePersist();renderLayers()});tabs[2]?.addEventListener("click",()=>{state.ui.layersTab="folders";queuePersist();renderLayers()});
+  document.getElementById("layerSearch")?.addEventListener("input",()=>{if(state.ui?.layersTab==="files")renderFilesGallery();if(state.ui?.layersTab==="folders")renderFoldersGallery()});
 
   function fileInspectorHTML(obj){
     const k=kindOf(obj),name=esc(obj.fileName||obj.name),raw=dataText(obj.src);let body="";
