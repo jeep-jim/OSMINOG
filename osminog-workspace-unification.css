@@ -29,3 +29,8 @@ body.osminog-browser-mode #osminogBrowserApp .osminog-browser-workspace{min-heig
 #inlinePhotoSettings{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(420px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:var(--osminog-panel-z,100130)!important;overflow:auto!important}body.desk-chat-open #inlinePhotoSettings{right:var(--desk-chat-width,420px)!important}
 
 #osminogLibrary{position:fixed!important;top:72px!important;right:0!important;bottom:0!important;left:auto!important;width:min(520px,calc(100vw - 20px))!important;height:auto!important;max-height:none!important;border-radius:0!important;z-index:var(--osminog-panel-z,100115)!important;overflow:auto!important}body.desk-chat-open #osminogLibrary{right:var(--desk-chat-width,420px)!important}
+
+/* Bottom dock stays visible; only the original pencil restore button moves to the header when hidden. */
+body[data-workdesk] .topbar #workdeskTools{position:fixed!important;top:auto!important;bottom:14px!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;grid-column:auto!important;grid-row:auto!important;justify-self:auto!important;max-width:calc(100vw - 24px)!important;z-index:180!important}
+body[data-workdesk].desk-chat-open .topbar #workdeskTools{left:calc((100vw - var(--desk-chat-width,420px))/2)!important}
+body[data-workdesk] #workdeskTools button{width:38px!important;height:38px!important;min-width:38px!important;flex:0 0 38px!important;padding:0!important;display:grid!important;place-items:center!important}
