@@ -13,7 +13,7 @@
     "service_worker": "background.js"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';",
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
     "sandbox": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'; child-src 'self' https: data: blob:;"
   },
   "default_locale": "en",
@@ -86,7 +86,8 @@
     "tabs",
     "identity",
     "clipboardRead",
-    "nativeMessaging"
+    "nativeMessaging",
+    "offscreen"
   ],
   "sandbox": {
     "pages": [
@@ -94,6 +95,6 @@
     ]
   },
   "short_name": "OSMINOG",
-  "version": "4.0.19",
-  "version_name": "4.0.19 · Canvas Tools"
+  "version": "4.0.20",
+  "version_name": "4.0.20 · Capture and Search"
 }

@@ -1,0 +1,24 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+(async()=>{const root=path.resolve(__dirname,'..'),server=http.createServer((req,res)=>{const name=path.resolve(root,'.'+decodeURIComponent(req.url.split('?')[0]));if(!name.startsWith(root+path.sep))return res.writeHead(403).end();fs.readFile(name,(e,data)=>{if(e)return res.writeHead(404).end();res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':name.endsWith('.svg')?'image/svg+xml':name.endsWith('.png')?'image/png':'application/octet-stream');res.end(data)})});await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
+try{fs.mkdirSync('artifacts',{recursive:true});browser=await chromium.launch({headless:true,...(process.env.TEST_CHROMIUM?{executablePath:process.env.TEST_CHROMIUM}:{})});const context=await browser.newContext({viewport:{width:1440,height:1000}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});await page.route('https://**',r=>r.abort());await page.addInitScript(()=>{if(window!==window.top)return;const store=JSON.parse(sessionStorage.getItem('testStore')||'{}'),event={addListener(){},removeListener(){}};window.__store=store;window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.6'}),onMessage:event,sendMessage:async()=>({ok:false,error:'offline fixture'})},storage:{local:{get:(keys,cb)=>{const v=typeof keys==='string'?{[keys]:store[keys]}:{...store};cb?.(v);return Promise.resolve(v)},set:(v,cb)=>{Object.assign(store,structuredClone(v));cb?.();return Promise.resolve()},remove:async key=>{delete store[key]}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[],create:async x=>{window.__opened=x.url}},permissions:{contains:async()=>true,request:async()=>true},identity:{getRedirectURL:()=>location.origin+'/oauth'},i18n:{getMessage:()=>''}}});
+await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);await page.waitForFunction(()=>!!window.OSMINOGWorkdesk);await page.evaluate(async()=>{document.querySelector('#osminogStorageOnboarding')?.close();await OSMINOGStateReady;createProject();document.querySelector('#osminogStorageOnboarding')?.close()});await page.waitForTimeout(600);
+
+await page.waitForSelector('#librarySearch');
+assert.equal(await page.locator('#projectMenu').isVisible(),false);
+assert.equal(await page.locator('#profileButton').isVisible(),false);
+const ids=await page.evaluate(async()=>{const p=project(),folder=OSMINOGWindowsFolders.create({name:'Inbox',rename:false});const p2=defaultProject('Other');state.projects.push(p2);return {p:p.id,f:folder.id,p2:p2.id}});
+await page.evaluate(async ids=>{await chrome.storage.local.set({'osminogCapture:one':{id:'one',at:Date.now(),kind:'text',value:'Аптека Новокузнецк 123',projectId:ids.p,folderId:ids.f}});openProject(ids.p2);await OSMINOGLibrary.drain()},ids);
+assert.equal(await page.evaluate(ids=>state.projects.find(p=>p.id===ids.p).objects.filter(o=>o.captureId==='one').length,ids),1);
+await page.evaluate(()=>OSMINOGLibrary.drain());
+assert.equal(await page.evaluate(ids=>state.projects.find(p=>p.id===ids.p).objects.filter(o=>o.captureId==='one').length,ids),1);
+await page.locator('#librarySearch').click();await page.locator('[data-scope]').selectOption('all');await page.locator('[data-query]').fill('Аптека');assert.equal(await page.locator('.lib-card').count(),1);
+await page.locator('#osminogLibrary summary').click();await page.locator('[data-from]').fill('2099-01-01');assert.equal(await page.locator('.lib-card').count(),0);await page.locator('[data-reset]').click();assert.equal(await page.locator('.lib-card').count(),1);
+await page.locator('#osminogLibrary [data-close]').click();
+await page.evaluate(ids=>openProject(ids.p),ids);
+assert.equal(await page.evaluate(()=>OSMINOGLibrary.reuseCapture('text','Аптека Новокузнецк 123')),true);
+assert.equal(await page.evaluate(()=>objects().find(o=>o.captureId==='one').osminogFolderId),undefined);
+// Real local OCR, not a mocked recognizer.
+const recognized=await page.evaluate(async()=>{const c=document.createElement('canvas');c.width=900;c.height=180;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,900,180);x.fillStyle='black';x.font='48px Arial';x.fillText('OSMINOG INVOICE 72849',30,100);return OSMINOGLibrary.extract({type:'image',src:c.toDataURL()})});
+assert.match(recognized,/72849/);assert.match(recognized,/OSMINOG/);
+assert.deepEqual(errors,[]);console.log('PASS fixed destination across desks, idempotent import, search and dates, explicit paste dedupe, hidden unconfigured account, actual local OCR');
+}finally{await browser?.close();await new Promise(r=>server.close(r))}})().catch(e=>{console.error(e);process.exit(1)});
