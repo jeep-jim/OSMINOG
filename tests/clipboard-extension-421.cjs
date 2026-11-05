@@ -68,12 +68,26 @@ async function launch() {
   const sw = context.serviceWorkers().find(worker => worker.url() === backgroundURL) ||
     await context.waitForEvent('serviceworker', {predicate: worker => worker.url() === backgroundURL, timeout: 20000});
   extensionId = new URL(sw.url()).host;
-  editor = await context.newPage();
+  const editorURL = `chrome-extension://${extensionId}/editor.html`;
+  const isEditorURL = url => url === editorURL || url.startsWith(editorURL + '?') || url.startsWith(editorURL + '#');
+  console.log('Pages on browser startup ' + JSON.stringify(context.pages().map(page => page.url())));
+  // Native Chrome can restore the previous editor on restart. Reuse it so the
+  // fixture still observes the single editor that imports and acknowledges the
+  // queue, rather than silently introducing a second, independently loaded desk.
+  editor = context.pages().find(page => isEditorURL(page.url()));
+  const restoredEditor = !!editor;
+  if (!editor) editor = await context.newPage();
   editor.on('pageerror', error => errors.push(error.message));
-  await editor.goto(`chrome-extension://${extensionId}/editor.html`);
+  if (restoredEditor) await editor.waitForLoadState('domcontentloaded');
+  else await editor.goto(editorURL);
   await ready();
-  writer = await context.newPage();
+  writer = context.pages().find(page => page.url().startsWith(writerOrigin + '/')) || await context.newPage();
   await writer.goto(writerOrigin + '/');
+  const editorTabs = await editor.evaluate(async editorURL => (await chrome.tabs.query({})).filter(tab =>
+    tab.url === editorURL || tab.url?.startsWith(editorURL + '?') || tab.url?.startsWith(editorURL + '#'))
+    .map(tab => ({id: tab.id, url: tab.url})), editorURL);
+  assert.equal(editorTabs.length, 1, 'The native restart fixture must have exactly one editor tab');
+  console.log('Editor tab ' + JSON.stringify({restored: restoredEditor, tabs: editorTabs}));
   console.log('Browser ' + (context.browser()?.version() || await editor.evaluate(() => navigator.userAgent)) + '; extension ' + extensionId);
 }
 
@@ -186,6 +200,7 @@ async function snapshot() {
         ({id: o.id, captureId: o.captureId, type: o.type, folderId: o.osminogFolderId}))
     })) : null;
     return {config: storage[KEY], toast: document.querySelector('#toast')?.textContent,
+      tabs: (await chrome.tabs.query({})).map(tab => ({id: tab.id, url: tab.url, active: tab.active})),
       queue: Object.entries(storage).filter(([k]) => k.startsWith(PREFIX)).map(([key, v]) =>
         ({key, id: v.id, kind: v.kind, projectId: v.projectId, folderId: v.folderId})),
       activeProject: state.activeProject, lastSaveError: state.lastSaveError,

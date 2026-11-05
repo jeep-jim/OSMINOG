@@ -14,6 +14,8 @@ The owner supplied a screenshot from Chrome extension 4.0.20 showing an enabled 
 
 The full-extension test is required before packaging. It uses Playwright's public CDP connection with `noDefaults: true`, so its hidden/unfocused editor assertions use native tab focus rather than Playwright focus emulation. It selects the extension service worker by the ID derived from the retained manifest key. A definition of a test is not evidence it passed; consult the linked PR/build logs for the run result.
 
+The end-to-end scenario uses one editor tab, reusing that tab when Chrome restores it after restart. The test asserts this through the native tabs API. It does not verify concurrent editing in several editor tabs.
+
 ## Local evidence and limits
 
 The collector runtime regression and existing HTTP-fixture clipboard regression passed locally. Running the new importer regression against the unchanged 4.0.20 ZIP reproduced `loadImage is not defined` from both the queued PNG importer and an actual Ctrl+V event, with no image created and the queue retained. The HTTP fixture uses real clipboard bytes but fixture Chrome APIs, so it is not the full extension test. A full local Chrome process cannot run in the supplied container because its process-singleton socket is denied. The full-extension regression therefore runs on the existing Linux GitHub Actions runner with Xvfb and Chromium.
