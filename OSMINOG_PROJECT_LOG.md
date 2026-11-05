@@ -2274,3 +2274,7 @@ PR #24 объединён в main. Новый интерфейс: активны
 
 **Служебная проверка после merge:** main run `42007264543` повторил все девять native-сценариев успешно, затем завершился exit 1 после сообщения PASS. Прежний catch скрыл тип ошибки; точная причина по этому логу не установлена. Исправлена только очистка native fixture: ожидание фактического закрытия Chromium до отключения транспорта, повторное удаление временного профиля и вывод исключения; общий PASS перенесён после cleanup. Продуктовый код и опубликованный ZIP не менялись. Для выпуска использован полностью успешный PR artifact, указанный выше.
 
+
+**Final verification / 2026-11-05:** [main runtime/build 42009411240](https://github.com/jeep-jim/OSMINOG/actions/runs/42009411240) on `74d77cd9902adc48400ba1fb4d9e42b50fc3666d` completed **success**, including native clipboard scenarios, browser cleanup and verified ZIP packaging. No failed steps remain. The published ZIP remains the immutable artifact from successful PR build 42006617269, with SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`.
+
+

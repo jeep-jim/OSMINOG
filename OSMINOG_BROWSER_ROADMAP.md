@@ -1101,3 +1101,7 @@ Release 39040381792: обновление поверх предыдущей ве
 
 Архив `OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip`: 9400407 байт, SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`. Полные ссылки, источник, ограничения и результат — в последней записи OSMINOG_PROJECT_LOG.md и `docs/verification/chrome-4.0.21/README.md`. На Windows владельца запуск не подтверждался; опрос 1,5 секунды, один редактор в автоматическом сценарии. Windows-канал и АвтоЦена не изменены.
 
+
+**Final verification / 2026-11-05:** [main runtime/build 42009411240](https://github.com/jeep-jim/OSMINOG/actions/runs/42009411240) on `74d77cd9902adc48400ba1fb4d9e42b50fc3666d` completed **success**, including native clipboard scenarios, browser cleanup and verified ZIP packaging. No failed steps remain. The published ZIP remains the immutable artifact from successful PR build 42006617269, with SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`.
+
+

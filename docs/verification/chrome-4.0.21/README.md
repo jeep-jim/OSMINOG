@@ -33,3 +33,7 @@ This is not a test on the owner's Windows installation, Windows Snipping Tool, e
 
 The native log records Chrome 151.0.7922.34, the stable extension ID, a truly hidden/unfocused editor, and a restored single editor tab after browser restart. A later main run completed all nine functional assertions but returned exit 1 during final cleanup; its artifact was not used. The test-only cleanup correction waits for process closure, retries temporary-profile removal and logs final errors, with overall PASS emitted after cleanup.
 
+
+**Final verification / 2026-11-05:** [main runtime/build 42009411240](https://github.com/jeep-jim/OSMINOG/actions/runs/42009411240) on `74d77cd9902adc48400ba1fb4d9e42b50fc3666d` completed **success**, including native clipboard scenarios, browser cleanup and verified ZIP packaging. No failed steps remain. The published ZIP remains the immutable artifact from successful PR build 42006617269, with SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`.
+
+
