@@ -75,7 +75,7 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,zipfile
-          path='artifacts/OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip'
+          path='artifacts/OSMINOG-Chrome-4.0.22-WORKSPACE-FIX.zip'
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               assert m['manifest_version']==3
@@ -90,7 +90,7 @@ jobs:
         with:
           name: OSMINOG-4.0.22-WORKSPACE-FIX
           path: |
-            artifacts/OSMINOG-Chrome-4.0.21-CLIPBOARD-FIX.zip
+            artifacts/OSMINOG-Chrome-4.0.22-WORKSPACE-FIX.zip
             RELEASE_NOTES_CHROME_4.0.22.md
             artifacts/*.png
             artifacts/canvas-ux-408-results.json
