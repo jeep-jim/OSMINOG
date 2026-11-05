@@ -48,7 +48,13 @@ html:not([data-native-desktop]) #workdeskViewer,html:not([data-native-desktop]) 
 html:not([data-native-desktop]) #workdeskViewerBody{resize:none!important;max-height:none!important;min-height:0!important;flex:1}
 html:not([data-native-desktop]) #workdeskViewerBody textarea{min-width:0!important;resize:none!important;min-height:0!important;flex:1}
 html:not([data-native-desktop]) #osminogWindowsExplorer .osminog-windows-explorer-body{min-height:0;flex:1}
-.desk-link-card{padding:24px;display:flex;flex-direction:column;gap:14px;overflow:auto;height:100%;box-sizing:border-box}.desk-link-card a{color:var(--accent);overflow-wrap:anywhere;text-decoration:underline}
+/* Legacy links use paired theme colors, not the old browser object's white fill. */
+html:not([data-native-desktop]) .canvas-object .desk-link-card{padding:16px;display:flex;flex-direction:column;gap:10px;overflow:auto;height:100%;box-sizing:border-box;background:var(--surface,#fff);color:var(--text,#172033);font:13px/1.5 system-ui;text-align:left}
+html:not([data-native-desktop]) .desk-link-card strong{font:600 14px/1.45 system-ui;color:var(--text,#172033);overflow-wrap:anywhere}
+html:not([data-native-desktop]) .desk-link-card span{font:12px/1.5 system-ui;color:var(--muted,#5b6476);overflow-wrap:anywhere}
+html:not([data-native-desktop]) .desk-link-card button{align-self:flex-start;max-width:100%;padding:7px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2,#f3f5fa);color:var(--text,#172033);font:600 12px/1.4 system-ui;cursor:pointer}
+html:not([data-native-desktop]) .desk-link-card button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.desk-link-card a{color:var(--accent);overflow-wrap:anywhere;text-decoration:underline}
 /* A living OSMINOG lens: the original ghost still moves, but has no tentacles. */
 html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp{position:relative!important;width:62px!important;height:49px!important;border-radius:52% 48% 50% 50%!important;background:radial-gradient(ellipse at 30% 18%,#ff989b 0%,#ff5158 28%,#ed2b3a 64%,#b61427 100%)!important;border:1px solid #ff7b8280!important;box-shadow:inset 0 2px 2px #ffffff60,inset 0 -3px 6px #650d2640,0 8px 20px #cc263b26!important;filter:none!important;animation:osminogLensFloat 3.2s ease-in-out infinite!important}
 html:not([data-native-desktop]) .ai-canvas-ghost .ai-ghost-wisp::before{content:''!important;display:block!important;position:absolute!important;inset:14px 8px auto!important;width:auto!important;height:22px!important;border-radius:999px!important;background:linear-gradient(#481620,#251219)!important;box-shadow:inset 0 2px 5px #0007,0 1px #ffafb750!important;clip-path:none!important;opacity:1!important;filter:none!important;transform-origin:center!important;animation:osminogLensBlink 6.6s ease-in-out infinite!important}

@@ -68,6 +68,18 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const legacy=await page.evaluate(()=>{const o=createObject('browser',{name:'Сохранённая ссылка',url:'https://example.com/material',x:400,y:500,w:350,h:180});renderAll(true);return o.id});
   assert.equal(await page.locator(`.canvas-object[data-id="${legacy}"] iframe`).count(),0);await page.locator(`.canvas-object[data-id="${legacy}"] [data-open-saved-link]`).click();assert.equal(await page.evaluate(()=>window.__opened),'https://example.com/material');
   assert.equal(await page.evaluate(async()=>{try{await OSMINOGWorkspacePolish.openExternal('javascript:alert(1)');return false}catch{return true}}),true);check('legacy browser data becomes a safe external link, never an embedded browser');
+  // Read computed colors after both themes: an old browser object's white fill
+  // must not leave the retained link text white-on-white in the dark workspace.
+  for(const theme of ['light','dark']){
+   await page.evaluate(theme=>{state.theme=theme;applyTheme()},theme);
+   const colors=await page.locator(`.canvas-object[data-id="${legacy}"] .desk-link-card`).evaluate(el=>{
+    const c=getComputedStyle(el),title=getComputedStyle(el.querySelector('strong')),url=getComputedStyle(el.querySelector('span'));
+    return{background:c.backgroundColor,title:title.color,url:url.color};
+   });
+   const luminance=value=>{const numbers=value.match(/[\d.]+/g).map(Number);assert(numbers.length>=3,'Expected opaque RGB color: '+value);if(numbers.length>3)assert.equal(numbers[3],1,'Expected opaque background/text');return numbers.slice(0,3).map(x=>{x/=255;return x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4)}).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0)};
+   const bg=luminance(colors.background);for(const name of ['title','url']){const fg=luminance(colors[name]);assert((Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05)>=4.5,theme+' link contrast '+JSON.stringify(colors))}
+  }
+  check('retained external links have readable text and URL contrast in light and dark themes');
   await page.evaluate(()=>{state.theme='dark';applyTheme();const g=document.createElement('div');g.className='ai-canvas-ghost active';g.id='workspace-test-eye';g.style.cssText='opacity:1;visibility:visible;transform:translate3d(900px,600px,0);';g.innerHTML='<div class="ai-ghost-wisp"><i></i><i></i><b></b></div><small>Готовлю ответ</small>';document.body.append(g);OSMINOGWorkspacePolish.pointEye(g,100,100);OSMINOGWorkspacePolish.pointEye(g,140,112)});
   assert.equal(await page.locator('#workspace-test-eye').evaluate(el=>el.style.getPropertyValue('--eye-x')),'7px');
   assert.equal(await page.locator('#workspace-test-eye .ai-ghost-wisp b').evaluate(el=>getComputedStyle(el).display),'none');
