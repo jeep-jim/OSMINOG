@@ -8,7 +8,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  try{
   fs.mkdirSync('artifacts',{recursive:true});
   browser=await chromium.launch({headless:true,...(process.env.TEST_CHROMIUM?{executablePath:process.env.TEST_CHROMIUM}:{})});
-  const context=await browser.newContext({viewport:{width:1440,height:1000}});page=await context.newPage();
+  const context=await browser.newContext({viewport:{width:1440,height:1000}});page=await context.newPage();page.setDefaultTimeout(15000);
   page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR',e.message)});await page.route('https://**',route=>route.abort());
   await page.addInitScript(()=>{if(window!==window.top)return;const store={},listeners=[],event={addListener(){},removeListener(){}};window.__store=store;
    window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.23'}),onMessage:event,sendMessage:async()=>({ok:false,error:'offline fixture'})},storage:{local:{get:(keys,cb)=>{const v=typeof keys==='string'?{[keys]:structuredClone(store[keys])}:{...structuredClone(store)};cb?.(v);return Promise.resolve(v)},set:(values,cb)=>{const changes={};for(const [key,value] of Object.entries(values)){if(JSON.stringify(value)!==JSON.stringify(store[key]))changes[key]={oldValue:structuredClone(store[key]),newValue:structuredClone(value)};store[key]=structuredClone(value)}cb?.();if(Object.keys(changes).length)queueMicrotask(()=>listeners.forEach(fn=>fn(changes,'local')));return Promise.resolve()},remove:async key=>{delete store[key]}},onChanged:{addListener:fn=>listeners.push(fn),removeListener:fn=>{const i=listeners.indexOf(fn);if(i>=0)listeners.splice(i,1)}}},tabs:{getCurrent:async()=>({id:1}),query:async()=>[],create:async x=>{window.__opened=x.url;return{id:2,...x}}},permissions:{contains:async()=>true,request:async()=>true},identity:{getRedirectURL:()=>location.origin+'/oauth'},i18n:{getMessage:()=>''}};
@@ -34,6 +34,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   for(const selector of ['#workspaceBrowserMode','[data-mode="browser"]','[data-tool="browser"]','#libraryCalendar'])assert.equal(await page.locator(selector).count(),0,selector);
   assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp),'undefined');
   assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),0);check('retired browser and redundant calendar are absent from Chrome runtime');
+  // A fresh workspace starts with Layers closed. Exercise its actual UI opener.
+  await page.locator('#layersToggle').click();await page.waitForSelector('#layersPanel.open');
   await page.waitForSelector(`[data-stored-id="${ids.brief}"]`);assert.equal(await page.locator('#layerList .cl-stored').count(),4);
   await page.locator('#layerSearch').fill('Встреча');assert.equal(await page.locator('#layerList .clean-layer[data-id]').count(),1);await page.locator('#layerSearch').fill('');check('canvas text content and folder-stored text/files appear in Layers without moving objects');
   await page.locator('#layersPanel .panel-tabs button').nth(2).click();assert.equal(await page.locator('.bc-folder-row').count(),3);
