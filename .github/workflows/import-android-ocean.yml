@@ -1,0 +1,57 @@
+name: Import verified Android ocean sources
+on:
+  push:
+    branches: ['feat/android-ocean-0.2.0']
+    paths: ['.delivery/android-ocean/**', '.github/workflows/import-android-ocean.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: import-android-ocean-020
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify and import exact tested source bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,io,pathlib,tarfile
+          root=pathlib.Path('.delivery/android-ocean')
+          expected=[f'part-{i:03}.bin' for i in range(7)]
+          assert sorted(p.name for p in root.iterdir())==expected
+          raw=b''.join((root/name).read_bytes() for name in expected)
+          assert len(raw)==46912
+          assert hashlib.sha256(raw).hexdigest()=='aa23ace3f27ce86b8dd7fe143047411731d84b5776494eeb4c78cd38d4868093'
+          with tarfile.open(fileobj=io.BytesIO(raw),mode='r:xz') as archive:
+              members=archive.getmembers()
+              assert sum(m.size for m in members)<2000000
+              for m in members:
+                  p=pathlib.PurePosixPath(m.name)
+                  assert m.isfile() and not p.is_absolute() and '..' not in p.parts
+                  assert m.name.startswith('android-vision/') or m.name=='.github/workflows/android-vision.yml'
+                  target=pathlib.Path(m.name)
+                  target.parent.mkdir(parents=True,exist_ok=True)
+                  target.write_bytes(archive.extractfile(m).read())
+              print('Verified source files:',len(members))
+          PY
+          node --check android-vision/app/src/main/assets/app.js
+          node --check android-vision/app/src/main/assets/provider.js
+          python3 android-vision/tools/check-assets.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add android-vision .github/workflows/android-vision.yml
+          git rm -r .delivery/android-ocean
+          git rm .github/workflows/import-android-ocean.yml
+          git commit -m 'Android Vision 0.2.0: original ocean design and native-clock chat transport'
+          git push origin HEAD:refs/heads/feat/android-ocean-0.2.0
+          gh workflow run android-vision.yml --ref feat/android-ocean-0.2.0
