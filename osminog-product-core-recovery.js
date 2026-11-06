@@ -25,7 +25,7 @@
   }
   async function refreshConnectionCards(){const gh=await githubState(),ghSt=$("#moduleGitHubUserStatus"),ghBtn=$("#moduleGitHubUserConnect");if(ghSt)ghSt.textContent=gh.connected?`${gh.login||"GitHub"} · ${gh.repo||"выбери repo"}`:"Проекты и репозитории";if(ghBtn)ghBtn.textContent=gh.connected?"Настроить":"Подключить";try{const st=await globalThis.OSMINOGAccountAPI?.status?.(),drive=$("#moduleDriveStatus");if(drive)drive.textContent=st?.signedIn?`${st.profile?.email||st.profile?.name||"Google"} · Drive`:st?.configured?"Google OAuth готов":"Подключить Google Drive"}catch{}}
   function cleanupLegacySystemModules(){const api=globalThis.OSMINOGExtensionStudio;if(!api?.list)return;const stale=api.list().filter(x=>x.system&&!String(x.id||"").startsWith("system."));if(stale.length)document.dispatchEvent(new CustomEvent("osminog:extension-registry-changed"))}
-  function install(){ensureHeader();ensureConnections();cleanupLegacySystemModules();refreshHeader();setInterval(refreshHeader,2500);document.addEventListener("osminog:owner-unlocked",refreshHeader);document.addEventListener("osminog:session-changed",refreshHeader);document.addEventListener("osminog:user-github-changed",refreshConnectionCards)}
+  function install(){ensureHeader();ensureConnections();cleanupLegacySystemModules();refreshHeader();document.addEventListener("osminog:owner-unlocked",refreshHeader);document.addEventListener("osminog:session-changed",refreshHeader);document.addEventListener("osminog:user-github-changed",refreshConnectionCards)}
   
   async function userGitHubTool(name,args={}){
     const account=await githubState();if(!account.token||!account.repo)throw new Error("Подключите GitHub и выберите репозиторий проекта");

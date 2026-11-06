@@ -3,6 +3,7 @@
 // Offscreen documents cannot be focused. With clipboardRead, the paste command
 // supplies the OS clipboard to this editable element without focusing a tab.
 const sink = document.querySelector('#clipboard');
+let again=false;
 let busy = false, baseline = true, last = '', pasteTask = null, retry = null, rejected = null, reportedError = '';
 
 function dataURL(file) {
@@ -12,6 +13,17 @@ function dataURL(file) {
     reader.onerror = () => reject(reader.error || Error('Не удалось прочитать скриншот'));
     reader.readAsDataURL(file);
   });
+}
+
+async function readImage(file) {
+  // Compare clipboard bytes before allocating a base64 string for a PNG we
+  // already saved. Keep only its digest after acknowledgement.
+  if (!file.arrayBuffer) return {kind: 'image', value: await dataURL(file)};
+  const bytes = await file.arrayBuffer();
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const signature = file.type + ':' + Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+  if (baseline || signature === last || signature === rejected?.signature) return {kind: 'image', signature};
+  return {kind: 'image', signature, value: await dataURL(file)};
 }
 
 sink.addEventListener('paste', event => {
@@ -30,12 +42,12 @@ sink.addEventListener('paste', event => {
   // Keep the actual File while the paste event is alive; reading its bytes and
   // delivering the capture must finish before another polling pass starts.
   pasteTask = file
-    ? dataURL(file).then(value => ({kind: 'image', value}))
+    ? readImage(file)
     : Promise.resolve(text ? {kind: 'text', value: text} : null);
 });
 
 async function ingest(capture) {
-  const signature = capture.kind + '\n' + capture.value;
+  const signature = capture.signature || capture.kind + '\n' + capture.value;
   if (baseline) {
     baseline = false;
     last = signature;
@@ -44,7 +56,7 @@ async function ingest(capture) {
   if (signature === rejected?.signature) throw Error(rejected.error);
   if (signature === last) {rejected = null; return;}
   retry = capture;
-  const result = await chrome.runtime.sendMessage({type: 'OSMINOG_COLLECTOR_CAPTURE', ...capture});
+  const result = await chrome.runtime.sendMessage({type: 'OSMINOG_COLLECTOR_CAPTURE', kind: capture.kind, value: capture.value});
   if (!result?.ok) {
     const error = result?.error || 'Сборщик не подтвердил сохранение. Повторяем попытку.';
     // Invalid data cannot succeed on retry. Keep its error visible while letting
@@ -87,8 +99,22 @@ async function tick() {
   } finally {
     sink.replaceChildren();
     busy = false;
+    if(again){again=false;queueMicrotask(tick)}
   }
 }
 
+// A focused editor can receive clipboardchange. While it holds this short
+// lease the offscreen page reads only on a change, a retry, or a focus handoff.
+let eventLeaseUntil=0;
+chrome.runtime.onMessage?.addListener((msg,sender)=>{
+ if(msg?.type!=='OSMINOG_CLIPBOARD_ACTIVITY'||sender.id!==chrome.runtime.id)return;
+ if(sender.url?.split(/[?#]/)[0]!==chrome.runtime.getURL('editor.html'))return;
+ const now=Date.now(),wasPolling=now>=eventLeaseUntil;
+ if(msg.action==='release'){eventLeaseUntil=0;tick();return}
+ if(msg.action==='lease'||msg.action==='change'){
+  eventLeaseUntil=now+6000;
+  if(wasPolling||msg.action==='change'){if(busy)again=true;else tick()}
+ }
+});
 tick();
-setInterval(tick, 1500);
+setInterval(()=>{if(retry||reportedError||Date.now()>=eventLeaseUntil)return tick()},1500);

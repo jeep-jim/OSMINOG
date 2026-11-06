@@ -94,13 +94,14 @@
   function bindSessionActions(){/* Keep gpt-presence direct connect/authorize listeners. Access Center must not hijack them. */}
   function installAgentSettings(){
     const panel=$("#gptPresenceSettingsPanel"),sel=$("#gptAgentProvider");if(!panel||!sel)return false;
-    const brains=brainProviders();sel.innerHTML=brains.map(p=>`<option value="${esc(p.brainId||p.id)}">${esc(p.name)}</option>`).join("");
+    const current=sel.value;
+    const brains=brainProviders().filter(p=>p.category==="chat"||p.id==="custom"||(p.brainId||p.id)===current);
+    sel.innerHTML=brains.map(p=>`<option value="${esc(p.brainId||p.id)}">${esc(p.name)}</option>`).join("");
+    if(brains.some(p=>(p.brainId||p.id)===current))sel.value=current;
     $("#gptProviderBrandGrid")?.remove();$("#osminogBrainPicker")?.remove();$("#osminogSettingsProviderTools")?.remove();
-    const providerLabel=sel.closest("label");providerLabel?.classList.add("gpt-native-provider-select");
-    const picker=document.createElement("div");picker.id="osminogBrainPicker";picker.className="osminog-brain-picker";picker.innerHTML=`<div class="osminog-brain-picker-head"><span>МОЗГ АГЕНТА</span><small>Выбери ИИ для этого чата. OSMINOG держит одну фоновую авторизованную service session для каждого сервиса и переиспользует её.</small></div><div class="osminog-brain-picker-grid">${brains.map(p=>`<button type="button" data-brain="${esc(p.brainId||p.id)}" title="${esc(p.name)}" style="--provider-tone:${esc(p.tone||"#58c9ff")}">${icon(p)}<span>${esc(p.name)}</span><i></i></button>`).join("")}</div>`;providerLabel?.before(picker);
-    picker.querySelectorAll("img").forEach(img=>img.addEventListener("error",()=>{img.hidden=true;if(img.nextElementSibling)img.nextElementSibling.hidden=false},{once:true}));
-    function syncBrain(){picker.querySelectorAll("[data-brain]").forEach(b=>b.classList.toggle("active",b.dataset.brain===sel.value))}
-    picker.querySelectorAll("[data-brain]").forEach(b=>b.addEventListener("click",()=>{sel.value=b.dataset.brain;sel.dispatchEvent(new Event("change",{bubbles:true}));syncBrain()}));sel.addEventListener("change",()=>{syncBrain();refreshCenter(sel.value)});syncBrain();
+    const providerLabel=sel.closest("label");providerLabel?.classList.remove("gpt-native-provider-select");
+    if(providerLabel){providerLabel.hidden=false;providerLabel.style.display="grid";}
+    sel.addEventListener("change",()=>refreshCenter(sel.value));
     const row=$("#gptProviderConnectRow");if(row){row.classList.remove("osminog-session-center");row.classList.add("osminog-connection-launch");$("#osminogSessionCenterHead",row)?.remove();$("#osminogSessionConnectedList",row)?.remove();const connectBtn=$("#gptProviderTabConnect",row),authBtn=$("#gptProviderAuthorize",row),state=$("#gptProviderTabState",row);if(connectBtn){connectBtn.hidden=false;connectBtn.textContent="Подключить в фоне"}if(authBtn)authBtn.hidden=false;if(state)state.textContent="Подключённые сервисы и быстрый доступ открываются в отдельном адаптивном окне.";bindSessionActions(row)}
     $("#bridgeLiveBadge")?.setAttribute("aria-label","Provider status");refreshCenter(sel.value);return true
   }

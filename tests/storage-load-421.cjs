@@ -25,19 +25,28 @@ function actualFunction(name) {
         id: 'capture-legacy', captureId: 'legacy', type: 'image',
         src: 'data:image/png;base64,c2F2ZWQ=', osminogFolderId: 'inbox', capturedAt: 1700000000000
       }], osminogFolders: [{id: 'inbox', name: 'Inbox', members: ['capture-legacy']}]},
-      {id: 'other', name: 'Active desk', objects: [{id: 'manual', type: 'brief', text: 'Saved manual paste'}]}]
+      {id: 'other', name: 'Active desk', objects: [{id: 'manual', type: 'brief', text: 'Saved manual paste'}]},
+      {id: 'deleted', name: 'Old snapshot must not resurrect this desk', objects: []}]
     },
-    briefCraftStudioV2Backup: {projects: [{id: 'older-backup', objects: []}]}
+    briefCraftStudioV2Backup: {projects: [{id: 'older-backup', objects: []}]},
+    osminogTrashIndex: {deleted: {purged: true}}
   };
   const reads = [], writes = [];
   const chrome = {
     runtime: {}, storage: {local: {get(keys, callback) {
+      // Trash uses Chrome's Promise overload; the editor loader still exercises
+      // the delayed callback overload rather than pretending an empty read.
+      if (typeof callback !== 'function') {
+        const names = Array.isArray(keys) ? keys : [keys];
+        return Promise.resolve(Object.fromEntries(names.map(key => [key, structuredClone(saved[key])])));
+      }
       reads.push({keys, callback});
-      return undefined; // Real Chrome callback overload: delivery happens later.
+      return undefined;
     }}}
   };
   const context = vm.createContext({
     chrome, URLSearchParams, location: {search: ''}, innerWidth: 1440, innerHeight: 1000,
+    navigator: {locks: {request: async (_name, task) => task()}}, trashIndex: {},
     STORAGE_KEY: 'briefCraftStudioV2', STORAGE_BACKUP_KEY: 'briefCraftStudioV2Backup', LANGS: ['en', 'ru'],
     state: {projects: [], activeProject: null, ui: {}, connectionPreset: {}, view: {x: 0, y: 0, scale: 1}},
     loadPersistentHandle: async () => null,
@@ -45,6 +54,8 @@ function actualFunction(name) {
     syncProjectFolderButton() {}, applyPanelWidths() {}, renderProfile() {}, showWelcome() {},
     setTimeout(callback) {writes.push(callback); return writes.length;}, queuePersist() {writes.push('persist');}
   });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'osminog-project-trash.js'), 'utf8'), context,
+    {filename: 'osminog-project-trash.js'});
   vm.runInContext(['storageGet', 'uid', 'clone', 'project', 'defaultProject', 'normalizeProject', 'loadState', 'persistPayload']
     .map(actualFunction).join('\n'), context, {filename});
 
@@ -59,6 +70,7 @@ function actualFunction(name) {
   await loading;
   const restored = JSON.parse(JSON.stringify(vm.runInContext('persistPayload().briefCraftStudioV2', context)));
   assert.deepEqual(restored.projects.map(p => p.id), ['target', 'other']);
+  assert.equal(restored.projects.some(p => p.id === 'deleted'), false, 'trash tombstones filter stale workspace copies');
   assert.equal(restored.activeProject, 'other');
   assert.equal(restored.language, 'ru');
   assert.equal(restored.theme, 'light');
@@ -85,5 +97,5 @@ function actualFunction(name) {
   assert.deepEqual(JSON.parse(JSON.stringify(await vm.runInContext("storageGet('missing')", context))), {});
   context.chrome = undefined;
   assert.deepEqual(JSON.parse(JSON.stringify(await vm.runInContext("storageGet('missing')", context))), {});
-  console.log('PASS async Chrome callback waits; real loadState restores projects, images, folder membership and manual paste; read errors reject; Promise adapters and missing API fallback work.');
+  console.log('PASS async Chrome callback waits; real loadState restores projects, images, folder membership and manual paste; trash tombstones suppress stale copies; read errors reject; Promise adapters and missing API fallback work.');
 })().catch(error => {console.error(error); process.exit(1);});

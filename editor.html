@@ -84,28 +84,14 @@
     </header>
     <main class="welcome-main">
       <div class="welcome-copy">
-        <span class="eyebrow" data-i18n="eyebrow">THE SHARED SPACE BETWEEN YOU AND AI</span>
-        <h1 data-i18n="hero">Turn scattered context into something AI can truly understand.</h1>
-        <p data-i18n="heroSub">Briefs, code, websites and design live together on one visual map — always current, always explainable.</p>
-        <div class="welcome-cta">
-          <button id="enterWorld" class="primary-btn"><svg><use href="#i-folder"/></svg><span id="enterWorldText">Choose workspace folder</span><svg><use href="#i-arrow"/></svg></button>
-          <button id="showProjects" class="soft-btn" data-i18n="projects">Your projects</button>
-        </div>
-        <div class="trust-row"><span data-i18n="local">Local-first</span><i></i><span data-i18n="noAnalytics">No analytics</span><i></i><span data-i18n="oneCanvas">One infinite canvas</span></div>
+        <h1 data-desk-copy="hero"></h1><p data-desk-copy="sub"></p>
+        <div class="welcome-cta"><button id="enterWorld" class="primary-btn"><svg><use href="#i-folder"/></svg><span id="enterWorldText"></span></button><button id="showProjects" class="soft-btn" data-desk-copy="projects"></button></div>
       </div>
-      <div class="story-stage" aria-label="Animated OSMINOG overview">
-        <div class="story-glow"></div>
-        <article class="story-card brief-card"><small data-i18n="storyBrief">01 · BRIEF</small><h3 data-i18n="storyGoal">Show the goal</h3><p data-i18n="storyGoalSub">Notes, screenshots and references.</p><div class="brief-lines"><i></i><i></i></div><span class="story-dot dot-a"></span></article>
-        <article class="story-card code-card"><small data-i18n="storyCode">02 · CODE</small><div class="code-lines"><i></i><i></i><i></i><i></i></div><span class="story-dot dot-b"></span></article>
-        <article class="story-card browser-card"><small data-i18n="storyLive">03 · LIVE</small><div class="mini-tabs"><i></i><i></i><i></i></div><div class="mini-site"><b data-i18n="storyResult">See the real result</b><span></span><span></span></div><span class="story-dot dot-c"></span></article>
-        <article class="story-card design-card"><small data-i18n="storyDesign">04 · DESIGN</small><div class="mini-shape"></div><div class="mini-inspector"><i></i><i></i><i></i></div><span class="story-dot dot-d"></span></article>
-        <svg class="story-links" viewBox="0 0 620 570" preserveAspectRatio="none" aria-hidden="true"><path d="M230 160 C280 110 325 112 375 164"/><path d="M460 208 C550 220 555 275 528 326"/><path d="M405 430 C345 475 270 470 220 407"/></svg>
-        <div class="orbit-chip chip-one" data-i18n="exactContext">Exact context</div><div class="orbit-chip chip-two" data-i18n="liveChange">Live change</div><div class="orbit-chip chip-three" data-i18n="readyAi">Ready for AI</div>
-      </div>
+      <section class="desk-sample"><header><i></i><strong data-desk-copy="desk"></strong></header><div class="desk-sample-body"><div class="sample-folder"><svg><use href="#i-folder"/></svg><strong data-desk-copy="inbox"></strong></div><div class="sample-note"><b data-desk-copy="notes"></b><i></i><i></i></div><div class="sample-image"><div class="sample-window"><i></i><i></i><i></i></div><b data-desk-copy="shots"></b></div></div></section>
     </main>
     <section id="projectHub" class="project-hub" hidden>
       <div class="hub-head"><div><span class="eyebrow">OSMINOG</span><h2 data-i18n="yourProjects">Your visual AI projects</h2></div><button id="newProjectHome" class="primary-btn"><svg><use href="#i-plus"/></svg><span data-i18n="newProject">New project</span></button></div>
-      <label class="search-field"><svg><use href="#i-search"/></svg><input id="projectSearch" placeholder="Search projects" data-i18n-placeholder="searchProjects"></label>
+      <div class="hub-controls"><label class="search-field"><svg><use href="#i-search"/></svg><input id="projectSearch" placeholder="Search projects" data-i18n-placeholder="searchProjects"></label><button type="button" id="trashToggle" class="soft-btn">Корзина</button></div>
       <div id="projectGrid" class="project-grid"></div>
     </section>
   </section>
@@ -379,11 +365,11 @@
     <input id="fileInput" type="file" hidden multiple>
     <input id="projectInput" type="file" hidden accept=".json,.briefcraft">
   </main>
-  <link rel="stylesheet" href="osminog-workspace-unification.css"><script src="cloud-config.js"></script><script src="osminog-release-notes.js"></script><script src="osminog-panel-stack.js"></script><script src="osminog-folder-updater.js"></script><script src="osminog-project-memory.js"></script><script src="osminog-io-budget.js"></script>
-<script src="editor.js"></script><script src="osminog-icon-registry.js"></script><script src="osminog-owner-guard.js"></script><script src="bridge.js"></script>
+  <link rel="stylesheet" href="osminog-workspace-unification.css"><script src="cloud-config.js"></script><script src="osminog-release-notes.js"></script><script src="osminog-panel-stack.js"></script><script src="osminog-folder-updater.js"></script><script src="osminog-project-memory.js"></script><script src="osminog-io-budget.js"></script><script src="osminog-item-edits.js"></script><script src="osminog-workspace-language.js"></script>
+<script src="osminog-project-trash.js"></script><script src="editor.js"></script><script src="osminog-icon-registry.js"></script><script src="osminog-owner-guard.js"></script><script src="bridge.js"></script>
 <script src="osminog-chat-content.js"></script><script src="gpt-presence.js"></script><script src="osminog-command-registry.js"></script><script src="osminog-markdown.js"></script><script src="osminog-browser-hub.js"></script><script src="osminog-provider-registry.js"></script><script src="osminog-session-manager.js"></script><script src="osminog-unified-chat.js"></script><script src="osminog-window-manager.js"></script><script src="osminog-module-migration.js"></script><script src="osminog-module-runtime.js"></script><script src="osminog-native-module-runtime.js"></script><script src="osminog-extension-studio.js"></script><script src="osminog-access-center.js"></script><script src="osminog-chat-bridge.js"></script><script src="osminog-chat-ux-lite.js"></script><script src="osminog-windows-folders.js"></script><script src="osminog-documents.js"></script>
 <script src="vendor/fabric.min.js"></script><script src="osminog-graphics-studio.js"></script><script src="osminog-image-generation.js"></script><script src="osminog-image-generation-ui.js"></script>
-<script src="osminog-storage-onboarding.js"></script><script src="osminog-icons.js"></script><script src="osminog-workdesk.js"></script><script src="osminog-photo-pixels.js"></script><script src="osminog-photo-editor.js"></script><script src="osminog-essential-ui.js"></script><script src="osminog-inspector.js"></script><script src="vendor/ocr/tesseract.min.js"></script><script src="osminog-library.js"></script><link rel="stylesheet" href="osminog-workspace-polish.css"><script src="osminog-workspace-polish.js"></script></body>
+<script src="osminog-storage-onboarding.js"></script><script src="osminog-icons.js"></script><script src="osminog-workdesk.js"></script><script src="osminog-photo-pixels.js"></script><script src="osminog-photo-editor.js"></script><script src="osminog-essential-ui.js"></script><script src="osminog-inspector.js"></script><script src="osminog-library.js"></script><link rel="stylesheet" href="osminog-workspace-polish.css"><script src="osminog-workspace-polish.js"></script></body>
 </html>
 
 

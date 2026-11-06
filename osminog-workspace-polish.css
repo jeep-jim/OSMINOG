@@ -73,3 +73,27 @@ html:not([data-native-desktop]):not([data-workspace-hidden=true]) .ai-canvas-gho
 .cl-stored-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 8px;color:var(--muted);font:12px system-ui}
 .cl-stored-pages button{width:32px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer}.cl-stored-pages button:disabled{opacity:.35;cursor:default}
 @media(max-width:640px){html:not([data-native-desktop]) #workdeskViewer,html:not([data-native-desktop]) #osminogWindowsExplorer,html:not([data-native-desktop]) #osminogDocumentEditor{inset:calc(var(--workspace-top,56px) + 8px) 8px 8px!important;width:calc(100vw - 16px)!important;height:calc(100dvh - var(--workspace-top,56px) - 16px)!important;border-radius:12px!important}#osminogLibrary>header{padding:10px 12px;gap:6px}#osminogLibrary header strong{font-size:13px}#osminogLibrary .lib-body{padding:12px}}
+.welcome .welcome-main {align-items:center;gap:clamp(24px,5vw,80px)}
+.welcome-copy h1[data-desk-copy] {font-size:clamp(40px,4.9vw,76px);line-height:1.04;letter-spacing:-.05em;max-width:14ch;text-wrap:balance}
+.welcome-copy p[data-desk-copy] {max-width:48ch;font-size:clamp(17px,1.4vw,21px);line-height:1.55}
+.desk-sample {overflow:hidden;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--text);box-shadow:0 14px 40px #14182418}
+.desk-sample header {display:flex;gap:12px;align-items:center;padding:18px 24px;border-bottom:1px solid var(--line);font:600 16px system-ui}
+.desk-sample header i {width:14px;height:14px;border-radius:5px;background:#5975ed}
+.desk-sample-body {position:relative;min-height:320px;background-color:var(--surface-2);background-image:radial-gradient(#8992a63b 1px,transparent 1px);background-size:17px 17px}
+.sample-folder,.sample-note,.sample-image {position:absolute;font:600 15px system-ui}
+.sample-folder{top:16%;left:10%;display:grid;gap:5px;justify-items:center}.sample-folder svg{width:60px;height:50px;fill:#68ccb1;stroke:#299b7d}
+.sample-note,.sample-image{padding:16px;border-radius:10px}.sample-note{right:9%;top:15%;width:40%;height:28%;color:#4d412f;background:#f1dfac;transform:rotate(3deg)}.sample-note i{display:block;margin-top:10px;height:3px;width:83%;background:#ab965b}.sample-note i:last-child{width:53%}
+.sample-image{bottom:9%;left:22%;width:46%;background:var(--surface);border:1px solid var(--line);transform:rotate(-2deg)}.sample-window{height:64px;display:flex;gap:6px;align-items:flex-end;padding:10px;margin-bottom:8px;background:#dce4fa;border-radius:4px}.sample-window i{flex:1;height:55%;background:#6a83cb}.sample-window i:nth-child(2){height:82%}.sample-window i:nth-child(3){height:68%}
+@media(max-width:760px){.welcome .welcome-main{display:flex;flex-direction:column;align-items:stretch}.desk-sample-body{min-height:230px}}
+.project-font-control{display:grid;grid-template-columns:1fr auto;gap:8px;padding:14px;font-size:var(--osminog-ui-body)}.project-font-control input{grid-column:1;grid-row:2;min-width:0}.project-font-control output{grid-column:2;grid-row:2}
+html[data-ui-text-size] :is(#layersPanel,#osminogLibrary,#inspector,#workdeskViewer,#osminogWindowsExplorer) :is(label,button,select,input,.cl-title,.ui-caption,.ui-section h3){font-size:var(--osminog-ui-small)!important}
+html[data-ui-text-size] :is(#layersPanel,#osminogLibrary,#inspector,#workdeskViewer,#osminogWindowsExplorer) :is(small,.cl-hint,.cl-stored-heading){font-size:var(--osminog-ui-caption)!important}
+#layerList img.cl-thumb{object-fit:contain;width:28px;height:28px}
+#osminogStorageOnboarding button{margin:4px 8px 0 0;padding:9px 14px;border:1px solid var(--line);border-radius:8px;color:inherit;background:var(--surface)}
+html[data-ui-text-size] :is(#app .topbar,#layersPanel,#inspector,#osminogWindowsExplorer,#osminogLibrary,#workdeskViewer,.workdeskConfirm,.project-hub){font-size:var(--osminog-ui-body)}
+html[data-ui-text-size] :is(#app .topbar,#osminogWindowsExplorer,#osminogLibrary,#layersPanel,#inspector) :is(button,select,input,label,p,strong,b,h3,[role=status]){font-size:var(--osminog-ui-small)!important;line-height:1.35}
+html[data-ui-text-size] :is(#osminogWindowsExplorer footer span,#osminogWindowsExplorer small,.osminog-win-item-size,.osminog-win-item-date,.osminog-win-folder-icon small,.project-card-meta small){font-size:var(--osminog-ui-caption)!important;line-height:1.3}
+html[data-ui-text-size] :is(.osminog-win-folder-label,.project-card-meta strong,#osminogWindowsExplorerTitle){font-size:var(--osminog-ui-small)!important;line-height:1.3}
+#osminogWindowsExplorer footer{height:auto;min-height:2.2em;gap:1em;flex-wrap:wrap;padding:6px 14px}
+#osminogWindowsExplorer footer span{white-space:normal}.osminog-win-folder-label{max-width:100%;overflow-wrap:anywhere}
+#osminogDesktopFolderIcon[hidden]{display:none!important}

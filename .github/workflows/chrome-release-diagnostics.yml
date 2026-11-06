@@ -1,0 +1,24 @@
+name: Chrome release regression diagnostics
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-save --package-lock=false playwright@1.62.1 && npx playwright install --with-deps chromium
+      - run: python3 tools/prepare_ocr.py
+      - name: Collect all existing browser regressions without hiding failures
+        run: xvfb-run -a python3 tests/release-diagnostics.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chrome-release-diagnostics
+          path: artifacts/diagnostics/
+          retention-days: 7

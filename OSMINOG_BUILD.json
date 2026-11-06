@@ -1,18 +1,17 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.25",
-  "versionName": "4.0.25 · I/O Recovery",
-  "artifact": "OSMINOG-Chrome-4.0.25-IO-RECOVERY.zip",
-  "manifestVersion": "4.0.25",
+  "version": "4.0.28",
+  "versionName": "4.0.28",
+  "baseVersion": "4.0.27",
+  "artifact": "OSMINOG-Chrome-4.0.28.zip",
+  "manifestVersion": "4.0.28",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "4.0.24",
   "runtimeVerified": false,
   "verification": {
-    "fullExtension": "The release workflow must pass the real Chrome extension clipboard, storage, reload and browser-restart gates before packaging.",
-    "workspace": "Large-archive rendering budget, pagination, full-text search, hidden layers, Undo and eye animation gates run before packaging.",
-    "ownerWindows": "Not tested on the owner device. Native desktop compatibility is verified separately by the Windows workflow."
-  },
-  "notes": "Coalesced directory reads and saves; clipboard status does not reload disk folders; acknowledged editor reopening after update. No owner-device crash reproduction claimed."
+    "fullExtension": "Chrome clipboard, storage, directory-I/O and reload gates must pass before packaging.",
+    "projectTrash": "Separate real-extension gate verifies cancellation, move, reload, restore, purge, expiry and popup inbox.",
+    "ownerWindows": "Not tested on the owner's personal device. Native Windows compatibility is verified separately."
+  }
 }

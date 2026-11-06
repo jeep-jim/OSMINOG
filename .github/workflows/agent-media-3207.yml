@@ -1,5 +1,5 @@
-name: OSMINOG 4.0.25 I/O recovery
-# Directory read storms, coalesced persistence and acknowledged editor reload.
+name: OSMINOG Chrome 4.0.28 verified package
+# Preserve all existing regression gates; package only their successful output.
 on:
   pull_request:
   push:
@@ -22,6 +22,7 @@ jobs:
       - run: node --check osminog-windows-folders.js
       - run: node --check osminog-workspace-polish.js
       - run: node --check osminog-update-recovery.js
+      - run: node --check osminog-project-trash.js && node --check osminog-today.js && node --check osminog-item-edits.js
       - run: node --test tests/io-budget-425.cjs tests/update-recovery-425.cjs
       - run: node tests/collector-runtime-421.cjs
       - run: node tests/storage-load-421.cjs
@@ -71,21 +72,23 @@ jobs:
       - run: node tests/chat-links-browser-3214.cjs
       - run: node tests/folder-move-3212.cjs
       - run: node tests/foundation-browser.cjs
+      - run: node tests/legacy-store-retired.cjs
       - name: Build verified Chrome ZIP
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.25-IO-RECOVERY.zip'
+          artifact='OSMINOG-Chrome-4.0.28.zip'
           mkdir -p artifacts/package
-          rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='desktop/' --exclude='osminog-browser-app.js' --exclude='android/' --exclude='versions/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='logs/' --exclude='*.log' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
+          rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='desktop/' --exclude='osminog-browser-app.js' --exclude='android/' --exclude='versions/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='logs/' --exclude='*.log' --exclude='test-results/' --exclude='__pycache__/' --exclude='*.pyc' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           python3 - <<'PY'
           import json,os,pathlib
           root=pathlib.Path('artifacts/package')
           manifest=json.loads((root/'manifest.json').read_text())
           path=root/'OSMINOG_BUILD.json'
           metadata=json.loads(path.read_text())
-          assert metadata['version']==metadata['manifestVersion']==manifest['version']=='4.0.25'
+          assert metadata['version']==metadata['manifestVersion']==manifest['version']=='4.0.28'
           assert metadata['versionName']==manifest['version_name']
+          assert metadata['artifact']=='OSMINOG-Chrome-4.0.28.zip'
           metadata.update(runtimeVerified=True,sourceCommit=os.environ['GITHUB_SHA'],verificationRun=f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           path.write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n')
           PY
@@ -93,33 +96,38 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,pathlib,zipfile
-          path=pathlib.Path('artifacts/OSMINOG-Chrome-4.0.25-IO-RECOVERY.zip')
+          path=pathlib.Path('artifacts/OSMINOG-Chrome-4.0.28.zip')
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               b=json.loads(z.read('OSMINOG_BUILD.json'))
               assert m['manifest_version']==3
-              assert m['version']=='4.0.25' and m['version_name']=='4.0.25 · I/O Recovery'
+              assert m['version']==m['version_name']=='4.0.28'
               assert b['version']==b['manifestVersion']==m['version'] and b['runtimeVerified'] is True
-              assert m.get('key')
-              assert not any(n.startswith('logs/') or n.endswith('.log') for n in z.namelist())
+              assert hashlib.sha256(m.get('key','').encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
+              assert not any(n.startswith(('logs/','test-results/')) or n.endswith('.log') for n in z.namelist())
               assert 'osminog-team.js' not in z.namelist()
               assert 'osminog-browser-app.js' not in z.namelist()
               assert 'osminog-workspace-polish.js' in z.namelist() and 'osminog-workspace-polish.css' in z.namelist()
               assert 'osminog-inspector.js' in z.namelist() and 'osminog-inspector.css' in z.namelist()
               assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
               assert 'osminog-io-budget.js' in z.namelist() and 'osminog-update-recovery.js' in z.namelist()
+              assert all(n in z.namelist() for n in ('osminog-project-trash.js','osminog-today.js','osminog-item-edits.js'))
           digest=hashlib.sha256(path.read_bytes()).hexdigest()
           path.with_suffix('.zip.sha256').write_text(digest+'  '+path.name+'\n')
-          print(digest)
+          print(json.dumps({'artifact':path.name,'size':path.stat().st_size,'sha256':digest}))
           PY
+      - name: Preserve exact tracked source for diagnosing a failed gate
+        if: failure()
+        run: mkdir -p artifacts && git archive --format=zip HEAD -o artifacts/diagnostics-source.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.25-IO-RECOVERY
+          name: OSMINOG-4.0.28-VERIFIED
           path: |
-            artifacts/OSMINOG-Chrome-4.0.25-IO-RECOVERY.zip
-            artifacts/OSMINOG-Chrome-4.0.25-IO-RECOVERY.zip.sha256
-            RELEASE_NOTES_CHROME_4.0.25.md
+            artifacts/OSMINOG-Chrome-4.0.28.zip
+            artifacts/OSMINOG-Chrome-4.0.28.zip.sha256
+            RELEASE_NOTES_CHROME_4.0.28.md
+            artifacts/diagnostics-source.zip
             artifacts/*.png
             artifacts/workspace-423-results.json
             artifacts/workspace-424-results.json

@@ -32,7 +32,6 @@
     {id:"text",title:"Текст",tone:"#ec397d",open:openText},
     {id:"browser",title:"Браузер",tone:"#39a8ff",open:openBrowser},
     {id:"files",title:"Файлы",tone:"#f4ba25",open:openFiles},
-    {id:"modules",title:"Модули",tone:"#ff7a45",open:openModules}
   ];
   function renderDock(){globalThis.OSMINOGAppDock?.setGroup?.("core",APPS.map(app=>({id:app.id,title:app.title,tone:app.tone,iconHtml:ICONS[app.id],active:active.has(appToWindow[app.id]),onOpen:app.open})))}
   function syncWindowState(minimized){for(const name of appToWindow?Object.values(appToWindow):[])if(minimized.has(name))active.delete(name);renderDock()}
