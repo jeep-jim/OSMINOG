@@ -1,4 +1,4 @@
-# OSMINOG Vision · Android 0.2.0 (experimental)
+# OSMINOG Vision · Android 0.2.1 (experimental)
 
 A separate Android product, not a replacement for OSMINOG Chrome or Android file-board preview.
 Only chat, Android speech input/output, a foreground camera session and signed APK updates.
@@ -30,7 +30,11 @@ Emulator instrumentation tests cover local shell, real WebView composer/attachme
 no remote native bridge, rejection of unfinished drafts, updater URL guard, native camera capture and lifecycle stop.
 The first APK must remain labelled experimental until tested with the owner's actual provider account and phone.
 
-## 0.2.0 — Original ocean design, native-clock transport
+## 0.2.1 — Background provider warmup, full-screen ocean and reliable attachments
+
+The selected provider WebView is loaded behind the shell at startup and rechecked on resume; an already authenticated provider can connect without tapping the eye or opening its page. First-time sign-in still requires the user to open the provider page and authenticate normally. The eye's sleeping state does not disable the provider connection.
+
+The shell now occupies the full available app width. Keyboard IME side insets no longer squeeze the scene into a narrow column; focus indicators no longer draw bright rectangular borders around the composer. Plankton elements receive independent multi-point drift paths instead of a single back-and-forth translation. Provider composer and attachment detection now traverse open shadow roots and confirm new image previews/labels after upload before sending the question. Camera startup is guarded against duplicate open callbacks.
 
 The owner supplied Untitled.fig and its SVG export. The native file was decoded locally;
 original vector paths, gradient matrices, fills, layers and dimensions were extracted.
