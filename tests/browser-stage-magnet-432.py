@@ -79,8 +79,9 @@ try:
     editor.evaluate('(url)=>OSMINOGWebWorkspace.open(url)',url+'?second')
    second=second.value;second.get_by_role('heading',name='Real Chrome page').wait_for()
    eventually(lambda:len(worker.evaluate(get_state,parent['id'])['pages'])==2,'Second popup did not register')
-   assert worker.evaluate('(id)=>chrome.windows.get(id)',window_id)['state']=='minimized'
+   eventually(lambda:worker.evaluate('(id)=>chrome.windows.get(id)',window_id)['state']=='minimized','Inactive popup did not minimize')
    editor.locator('#osminogBrowserApp [data-web-tab]').first.click()
+   eventually(lambda:worker.evaluate(get_state,parent['id'])['windowId']==window_id,'First popup did not reactivate')
    expect(stage.locator('#entry')).to_have_value('Retain my page state')
    assert stage.evaluate('sessionStorage.visits')=='1','Switching tab reloaded the page'
    # Preserve a new-window POST/auth context. Never close/recreate it merely to fit the frame.
@@ -105,7 +106,7 @@ try:
    assert editor.evaluate('()=>project().objects.some(o=>o.type==="image"&&o.name==="Fixture media")')
    editor.evaluate('()=>window.dispatchEvent(new Event("resize"))');editor.wait_for_timeout(300)
    assert worker.evaluate(get_state,parent['id'])['visible'] is False
-   assert worker.evaluate('(id)=>chrome.windows.get(id)',window_id)['state']=='minimized'
+   eventually(lambda:worker.evaluate('(id)=>chrome.windows.get(id)',window_id)['state']=='minimized','Editor did not keep popup minimized')
    # An unrelated normal Chrome tab cannot be closed through this controller.
    foreign=ctx.new_page();foreign.goto(origin+'/foreign')
    foreign_id=worker.evaluate('(url)=>chrome.tabs.query({url})',foreign.url)[0]['id']
