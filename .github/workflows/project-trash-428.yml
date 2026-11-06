@@ -10,6 +10,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Retain exact tracked source for release audit
+        run: git archive --format=zip HEAD --output=source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-source-${{ github.sha }}
+          path: source.zip
+          retention-days: 3
       - run: pip install playwright
       - run: python -m playwright install --with-deps chromium
       - run: xvfb-run -a python tests/project-trash-428.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: project-trash-browser-diagnostics
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 3
