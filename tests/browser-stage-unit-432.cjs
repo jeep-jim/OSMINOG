@@ -52,9 +52,15 @@ test('auth/new-window contexts are never moved, duplicated or removed',async()=>
  await x.fire('created',child);await x.fire('updated',99,{status:'complete'},child);
  assert.equal(x.tabs.has(99),true);assert.equal(x.calls.length,0);
 });
-test('switching away hides popup; closing owner detaches without destroying pages',async()=>{
- const x=setup(),r=await x.send('OPEN',{url,geometry});await x.fire('activated',{tabId:2,windowId:10});
- assert.equal(x.windows.get(r.windowId).state,'minimized');await x.fire('removedTab',1,{windowId:10});
+test('switching editor tabs and minimizing the parent do not hide the site popup',async()=>{
+ const x=setup(),r=await x.send('OPEN',{url,geometry});
+ await x.fire('activated',{tabId:2,windowId:10});
+ assert.equal(x.windows.get(r.windowId).state,'normal');
+ assert.equal(x.store.osminogWebStagesV2[1].visible,true);
+ await x.fire('bounds',{id:10,state:'minimized'});
+ assert.equal(x.windows.get(r.windowId).state,'normal');
+ assert.equal(x.store.osminogWebStagesV2[1].visible,true);
+ await x.fire('removedTab',1,{windowId:10});
  assert.equal(x.tabs.has(r.tabId),true);assert.equal(x.windows.has(r.windowId),true);
  assert.equal(x.store.osminogWebStagesV2[1],undefined);
 });
