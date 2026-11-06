@@ -13,7 +13,7 @@
     "fullExtension":"Existing Chrome clipboard, storage, directory I/O, reload and retained UI gates remain mandatory before packaging.",
     "projectTrash":"Separate real-extension gate covers deletion, restore, expiry and inbox.",
     "ownerWindows":"Not tested on the owner's computer. Separate Windows app is unchanged.",
-    "webStage":"Experimental independent Chrome popup positioned at the workspace frame. Direct popup tabs, state retention, resizing without focus theft and non-destructive external POST/auth windows are tested on local fixtures. No always-on-top or WebContents embedding is claimed.",
+    "webStage":"Experimental independent Chrome popup per logical workspace tab, positioned at the workspace frame. Switching retains document state; inactive windows minimize. Geometry changes do not steal focus. Native new-window POST/auth pages remain separate and untouched. No always-on-top or WebContents embedding is claimed.",
     "mediaTransfer":"Image import from an explicitly authorized editable page copy is tested; live provider media is not claimed.",
     "ownerAuth":"Authenticator bytes must match 90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41."
   }

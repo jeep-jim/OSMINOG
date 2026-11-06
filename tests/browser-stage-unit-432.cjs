@@ -27,12 +27,13 @@ test('validated source, URL, geometry and foreign tab ownership',async()=>{
  assert.equal((await x.send('OPEN',{url,geometry:{...geometry,width:1}})).ok,false);
  assert.equal(x.calls.filter(c=>c[0]==='createWindow').length,0);
  const r=await x.send('OPEN',{url,geometry});assert.equal(r.ok,true);assert.equal(r.displayVerified,false);
+ assert.equal((await x.send('HIDE',{parentTabId:2})).ok,false);
  assert.equal((await x.send('CLOSE_TAB',{tabId:2})).ok,false);assert.equal(x.tabs.has(2),true);
  assert.equal((await x.send('HISTORY',{tabId:2,direction:-1})).ok,false);
 });
-test('single popup under concurrent opens; tab switching retains URL/document',async()=>{
+test('one popup per logical tab; switching retains URL/document',async()=>{
  const x=setup();const [a,b]=await Promise.all([x.send('OPEN',{url,geometry}),x.send('OPEN',{url:url+'second',geometry})]);
- assert.equal(a.windowId,b.windowId);assert.equal(x.calls.filter(c=>c[0]==='createWindow').length,1);
+ assert.notEqual(a.windowId,b.windowId);assert.equal(x.calls.filter(c=>c[0]==='createWindow').length,2);assert.equal(x.windows.get(a.windowId).state,'minimized');
  x.calls.length=0;await x.send('OPEN',{url,geometry,tabId:a.tabId});
  assert.equal(x.calls.some(c=>c[0]==='updateTab'&&Object.hasOwn(c[2],'url')),false);
  await x.send('HISTORY',{tabId:a.tabId,direction:-1});assert.equal(x.calls.some(c=>c[0]==='back'),true);

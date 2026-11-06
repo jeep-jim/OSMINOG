@@ -70,15 +70,16 @@ try:
    window_id=s['windowId']
    def matched_bounds():
     g=editor.evaluate('()=>OSMINOGWebWorkspace.geometry()')
-    w=worker.evaluate('(id)=>chrome.windows.get(id)',window_id)
+    w=worker.evaluate('(id)=>chrome.windows.get(id)',worker.evaluate(get_state,parent['id'])['windowId'])
     return all(abs(g[k]-w[k])<=3 for k in ['left','top','width','height'])
    eventually(matched_bounds,'Popup does not fit its frame')
    assert editor.locator('#osminogBrowserApp [data-browser-url]').evaluate('(e)=>e.getBoundingClientRect().width')<500
-   # The plus creates a real tab DIRECTLY in the popup. No unsupported tabs.move.
+   # Each logical tab owns a real popup; only the selected window stays at the frame.
    with ctx.expect_page() as second:
     editor.evaluate('(url)=>OSMINOGWebWorkspace.open(url)',url+'?second')
    second=second.value;second.get_by_role('heading',name='Real Chrome page').wait_for()
-   eventually(lambda:len(worker.evaluate('(id)=>chrome.tabs.query({windowId:id})',window_id))==2,'Plus did not create popup tab')
+   eventually(lambda:len(worker.evaluate(get_state,parent['id'])['pages'])==2,'Second popup did not register')
+   assert worker.evaluate('(id)=>chrome.windows.get(id)',window_id)['state']=='minimized'
    editor.locator('#osminogBrowserApp [data-web-tab]').first.click()
    expect(stage.locator('#entry')).to_have_value('Retain my page state')
    assert stage.evaluate('sessionStorage.visits')=='1','Switching tab reloaded the page'
@@ -88,7 +89,7 @@ try:
    child=child.value;child.get_by_role('heading',name='Login result').wait_for()
    expect(child.locator('p')).to_have_text('state=keep-form-state')
    assert not child.is_closed()
-   assert len(worker.evaluate('(id)=>chrome.tabs.query({windowId:id})',window_id))==2
+   assert len(worker.evaluate(get_state,parent['id'])['pages'])==2
    child.close()
    editor.bring_to_front();editor.locator('#workspaceDeskToggle').click()
    eventually(matched_bounds,'Split did not resize real popup')
@@ -120,7 +121,7 @@ try:
    assert hashlib.sha256((source/'osminog-owner-guard.js').read_bytes()).hexdigest()=='90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41'
    assert errors==[],errors
    editor.screenshot(path=str(ROOT/'artifacts/browser-stage-432.png'),full_page=True)
-   print('PASS real popup with frame-denied page; direct tabs; no reload; preserved POST/login window; scoped commands; resizing without focus theft; media import; hidden state; desktop toggle; unchanged Authenticator',flush=True)
+   print('PASS real popup with frame-denied page; logical popup tabs; no reload; preserved POST/login window; scoped commands; resizing without focus theft; media import; hidden state; desktop toggle; unchanged Authenticator',flush=True)
   except Exception:
    if editor:
     print('PAGE_ERRORS',errors,flush=True)
