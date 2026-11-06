@@ -8,7 +8,7 @@ class Handler(SimpleHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_GET(self):
   if self.path.startswith('/fixture'):
-   self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(b'<html><body><h1>BrowserApp fixture</h1><button onclick="this.textContent=\\'Working\\'">Test action</button></body></html>');return
+   self.send_response(200);self.send_header("Content-Type","text/html");self.end_headers();self.wfile.write(b"""<html><body><h1>BrowserApp fixture</h1><button onclick="this.textContent='Working'">Test action</button></body></html>""");return
   super().do_GET()
 fixture="""(() => {if(window!==window.top)return;const store={osminogDisplayPrefs:{language:'ru',theme:'light'},osminogCollectorV1:{enabled:false}};const event={addListener(){},removeListener(){}};window.__calls=[];window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.30'}),onMessage:event,sendMessage:async m=>{__calls.push(m);return{ok:true,tabId:987}}},storage:{local:{get:(k,cb)=>{const v=typeof k==='string'?{[k]:store[k]}:{...store};cb?.(v);return Promise.resolve(v)},set:(v,cb)=>{Object.assign(store,structuredClone(v));cb?.();return Promise.resolve()},remove:async k=>{delete store[k]}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[],create:async args=>{__calls.push({external:args});return{id:2}}},permissions:{contains:async()=>false,request:async()=>false},identity:{getRedirectURL:()=>''},i18n:{getMessage:()=>''}};})();"""
 errors=[]
