@@ -88,7 +88,8 @@
     "identity",
     "clipboardRead",
     "nativeMessaging",
-    "offscreen"
+    "offscreen",
+    "windows"
   ],
   "sandbox": {
     "pages": [
@@ -96,6 +97,6 @@
     ]
   },
   "short_name": "OSMINOG",
-  "version": "4.0.31",
-  "version_name": "4.0.31"
+  "version": "4.0.32",
+  "version_name": "4.0.32"
 }

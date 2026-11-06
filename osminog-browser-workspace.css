@@ -35,3 +35,8 @@ html body[data-workdesk][data-web-workspace=split]:not(.native-desktop) #workdes
 #osminogBrowserApp [data-web-media]{background:var(--accent-soft,#ecebff);color:var(--accent,#6657e8);font-weight:650}#osminogBrowserApp [data-web-media]:disabled{opacity:.6;cursor:wait}
 
 #osminogBrowserApp .osminog-browser-toolbar [data-browser-edit]{display:inline-flex!important}
+
+#osminogBrowserApp .osminog-browser-canvas{position:relative;overflow:hidden;border:1px solid var(--ow-line,#d5dbe5);box-sizing:border-box;background:#f5f7fb}
+#osminogBrowserApp:not(.editing) .osminog-browser-canvas>iframe[data-browser-frame]{pointer-events:none!important}
+#osminogBrowserApp .osminog-browser-canvas>iframe[data-browser-frame]{background:#f5f7fb}
+#osminogBrowserApp .osminog-browser-canvas:has(iframe[srcdoc*="Живая страница закреплена"])::after{content:"";position:absolute;inset:0;border:2px solid var(--accent,#7567ff);pointer-events:none;z-index:4;box-sizing:border-box}

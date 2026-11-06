@@ -1,11 +1,11 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.31",
-  "versionName": "4.0.31",
-  "baseVersion": "4.0.30",
-  "artifact": "OSMINOG-Chrome-4.0.31.zip",
-  "manifestVersion": "4.0.31",
+  "version": "4.0.32",
+  "versionName": "4.0.32",
+  "baseVersion": "4.0.31",
+  "artifact": "OSMINOG-Chrome-4.0.32.zip",
+  "manifestVersion": "4.0.32",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
@@ -14,6 +14,7 @@
     "projectTrash": "Separate real-extension gate verifies cancellation, move, reload, restore, purge, expiry and popup inbox.",
     "ownerWindows": "Not tested on the owner's personal device. Native Windows compatibility is verified separately.",
     "webWorkspace": "Restore original BrowserApp/window manager, compact tabs, bounded address toolbar, docked full-width/split layout and managed Chrome tabs for protected sites. CSP/X-Frame-Options remain enforced.",
-    "mediaTransfer": "Selected image/video/audio/background media in editable BrowserApp snapshots can be imported into the active project via asset_create. Remote URLs require explicit host permission; protected Chrome tabs are not falsely reported as DOM-readable."
+    "mediaTransfer": "Selected image/video/audio/background media in editable BrowserApp snapshots can be imported into the active project via asset_create. Remote URLs require explicit host permission; protected Chrome tabs are not falsely reported as DOM-readable.",
+    "webStage": "Real Chrome popup window magnetized over BrowserApp canvas, follows resize and parent window bounds, uses same Chrome profile/auth/VPN/extensions. Iframe is inert placeholder only."
   }
 }
