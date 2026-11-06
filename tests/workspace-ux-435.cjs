@@ -53,6 +53,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
    return out;
   });
   for(const [lang,label]of Object.entries({de:'Papierkorb',es:'Papelera',ja:'ゴミ箱',zh:'回收站'}))assert(langs[lang].includes(label),JSON.stringify(langs));
+  const trashTitles=await page.evaluate(()=>{const expected={de:'Projekt-Papierkorb',es:'Papelera de proyectos',ja:'プロジェクトのゴミ箱',zh:'项目回收站'},out={};for(const [lang]of Object.entries(expected)){state.language=lang;applyLanguage();showHub();document.querySelector('#trashToggle').click();out[lang]=document.querySelector('#projectHub h2').textContent;document.querySelector('#trashToggle').click()}return out});
+  for(const [lang,label]of Object.entries({de:'Projekt-Papierkorb',es:'Papelera de proyectos',ja:'プロジェクトのゴミ箱',zh:'项目回收站'}))assert.equal(trashTitles[lang],label,JSON.stringify(trashTitles));
   const preview=await page.locator('#projectGrid .project-card').first().evaluate(el=>({images:el.querySelectorAll('.project-mini-image img').length,lazy:el.querySelector('.project-mini-image img')?.loading}));
   assert(preview.images<=1,JSON.stringify(preview));if(preview.images)assert.equal(preview.lazy,'lazy');check('project hub actions translate in German, Spanish, Japanese and Chinese; each project preview loads at most one lazy image');
   assert.deepEqual(errors,[]);fs.mkdirSync('artifacts',{recursive:true});fs.writeFileSync('artifacts/workspace-ux-435-results.json',JSON.stringify({passed,errors,layout,grid,churn,langs,preview},null,2));
