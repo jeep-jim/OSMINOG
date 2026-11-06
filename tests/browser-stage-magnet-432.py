@@ -110,7 +110,7 @@ try:
    assert worker.evaluate(get_state,parent['id'])['visible'] is True
    worker.evaluate('(id)=>chrome.tabs.remove(id)',other['id'])
    # The non-working layout control is removed from the UI; the supported internal media workflow remains.
-   await editor.evaluate('async()=>OSMINOGBrowserApp.edit()')
+   editor.evaluate('()=>OSMINOGBrowserApp.edit()')
    editor.frame_locator('#osminogBrowserApp iframe').locator('img[alt="Fixture media"]').click()
    editor.locator('[data-web-media]').click()
    expect(editor.locator('[data-browser-message]')).to_contain_text('Медиа добавлено')
