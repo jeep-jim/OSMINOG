@@ -75,7 +75,7 @@ function collectorFixture(initial, transport) {
 function backgroundFixture() {
   const KEY = 'osminogCollectorV1', store = {[KEY]: {enabled: false}};
   const listeners = [], changes = [], contexts = [];
-  let createGate, creates = 0, closes = 0, writeFailure = false;
+  let createGate, creates = 0, closes = 0, writeFailure = false, keyEnumerations = 0;
   const chrome = {
     runtime: {
       id: 'fixture', getURL: name => 'chrome-extension://fixture/' + name,
@@ -85,7 +85,12 @@ function backgroundFixture() {
     },
     storage: {
       local: {
-        get: async key => key === null ? structuredClone(store) : {[key]: structuredClone(store[key])},
+        get: async keys => {
+          if (keys == null) return structuredClone(store);
+          const names = Array.isArray(keys) ? keys : [keys];
+          return Object.fromEntries(names.map(key => [key, structuredClone(store[key])]));
+        },
+        getKeys: async () => {keyEnumerations++; return Object.keys(store);},
         set: async values => {
           if (writeFailure && Object.keys(values).some(key => key.startsWith('osminogCapture:'))) {
             writeFailure = false;
@@ -114,7 +119,12 @@ function backgroundFixture() {
     }
   };
   const context = {chrome, crypto: webcrypto, TextEncoder, Uint8Array, Date, console};
-  vm.runInNewContext(fs.readFileSync(path.join(root, 'osminog-collector-background.js'), 'utf8'), context);
+  // Match background.js import order: the collector calls the daily-counter
+  // migration helper on the first capture of an older installation.
+  vm.createContext(context);
+  for (const source of ['osminog-today.js', 'osminog-collector-background.js']) {
+    vm.runInContext(fs.readFileSync(path.join(root, source), 'utf8'), context, {filename: source});
+  }
   const sender = name => ({id: chrome.runtime.id, url: chrome.runtime.getURL(name)});
   const message = (type, values = {}, from = 'collector.html') => new Promise(resolve => {
     let pending = false;
@@ -125,7 +135,7 @@ function backgroundFixture() {
     store, contexts, chrome, message,
     configure: patch => message('OSMINOG_COLLECTOR_CONFIGURE', {patch}, 'editor.html'),
     captures: () => Object.entries(store).filter(([key]) => key.startsWith('osminogCapture:')).map(([, value]) => value),
-    creates: () => creates, closes: () => closes,
+    creates: () => creates, closes: () => closes, keyEnumerations: () => keyEnumerations,
     holdCreate() {createGate = deferred(); return createGate;},
     failNextWrite() {writeFailure = true;}
   };
@@ -214,6 +224,7 @@ function backgroundFixture() {
   assert.equal(background.captures()[0].folderId, null);
   assert.equal((await capture('on the desk')).duplicate, true);
   assert.equal(background.captures().length, 1);
+  assert.equal(background.store.osminogToday.count, 1, 'a duplicate must not increase today count');
   await background.configure({projectId: 'desk-two', folderId: 'inbox'});
   await capture('in a folder');
   assert.equal(background.captures()[1].folderId, 'inbox');
@@ -221,12 +232,16 @@ function backgroundFixture() {
 
   background.failNextWrite();
   const beforeHash = background.store.osminogCollectorV1.lastHash;
+  const beforeToday = structuredClone(background.store.osminogToday);
   const failedWrite = await capture('retry after storage failure');
   assert.equal(failedWrite.ok, false);
+  assert.deepEqual(background.store.osminogToday, beforeToday, 'a failed write must not advance today count');
   assert.notEqual(failedWrite.retryable, false, 'storage failures must remain retryable');
   assert.equal(background.store.osminogCollectorV1.lastHash, beforeHash, 'a failed queue write must not advance dedupe');
   assert.equal((await capture('retry after storage failure')).ok, true);
   assert.equal(background.captures().length, 3);
+  assert.equal(background.store.osminogToday.count, 3, 'a successful retry increments today count once');
+  assert.equal(background.keyEnumerations(), 1, 'normal captures must not rescan the archive');
 
   const pendingCapture = capture('copy concurrent with pause');
   const paused = background.configure({enabled: false});
@@ -247,6 +262,34 @@ function backgroundFixture() {
   assert.equal(racing.creates(), 1);
   assert.equal(racing.closes(), 1);
   assert.equal(racing.contexts.length, 0, 'pause during document creation must not leave a live collector');
+
+  // Migration counts unique captures once across saved projects and the queue.
+  const legacy = backgroundFixture(), now = Date.now(), yesterday = now - 86400000;
+  await legacy.chrome.storage.local.set({
+    briefCraftStudioV2: {projects: [{id: 'legacy', objects: [
+      {captureId: 'shared', capturedAt: now},
+      {captureId: 'old', capturedAt: yesterday}
+    ]}]},
+    'osminogCapture:shared': {id: 'shared', at: now},
+    'osminogCapture:pending': {id: 'pending', at: now},
+    'osminogCapture:old': {id: 'old', at: yesterday}
+  });
+  await legacy.configure({enabled: true, projectId: 'legacy'});
+  const captureLegacy = value => legacy.message('OSMINOG_COLLECTOR_CAPTURE', {kind: 'text', value});
+  assert.equal((await captureLegacy('new after migration')).ok, true);
+  assert.equal(legacy.store.osminogToday.count, 3, 'migration deduplicates saved and queued captures');
+  assert.equal(legacy.keyEnumerations(), 1);
+  await captureLegacy('another capture');
+  assert.equal(legacy.store.osminogToday.count, 4);
+  assert.equal(legacy.keyEnumerations(), 1, 'initialized counter must avoid rescanning stored projects');
+  await legacy.chrome.storage.local.set({osminogToday: {
+    day: new Date(yesterday).toLocaleDateString('en-CA'), count: 900
+  }});
+  await captureLegacy('first capture of a new day');
+  assert.equal(legacy.store.osminogToday.count, 1, 'a new local day resets the daily counter');
+  assert.equal(legacy.store.osminogToday.day, new Date(now).toLocaleDateString('en-CA'));
+  assert.equal(legacy.keyEnumerations(), 1, 'day rollover must not reload the archive');
+  console.log('PASS daily counter: dedupe, failed-write atomicity, retry, migration, local-day rollover and no repeated scan');
 
   console.log('PASS collector: awaited image decoding and acknowledgement; retained transient retry; permanent rejection recovery; empty baseline; recovery; desk/folder targets; durable dedupe; concurrent pause; sender checks; offscreen lifecycle race');
 })().catch(error => {console.error(error); process.exitCode = 1;});
