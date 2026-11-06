@@ -2,7 +2,7 @@
 (() => {
  const $=s=>document.querySelector(s),send=(type,extra={})=>chrome.runtime.sendMessage({type,...extra});
  for(const id of ["browserHub","browserHubButton","osminogWebWorkspace","owDeskDivider"])document.getElementById(id)?.remove();
- async function connections(){await globalThis.BriefCraftBridge?.open?.();globalThis.OSMINOGSetAgentSettingsOpen?.(true);return{ok:true,mode:"chat-settings",popup:false}}
+ async function connections(){await globalThis.BriefCraftBridge?.open?.();globalThis.OSMINOGSetAgentSettingsOpen?.(true);return {ok: true, mode: 'chat-settings', popup: false};}
  let app=null,divider=null,globe=null,monitor=null,mode="desk",ratio=.5,raf=0,drag=null;
  const projectId=()=>String(globalThis.project?.()?.id||""),ru=()=>typeof state==="undefined"||state.language==="ru",label=(r,e)=>ru()?r:e;
  const getApp=()=>globalThis.OSMINOGBrowserApp;
