@@ -40,7 +40,7 @@ try:
     assert abs(win["left"]-expected["left"])<=3 and abs(win["top"]-expected["top"])<=3,(win,expected)
     assert abs(win["width"]-expected["width"])<=3 and abs(win["height"]-expected["height"])<=3,(win,expected)
     with ctx.expect_page() as second:stage.get_by_role("link",name="Next page").click()
-    next_page=second.value;next_page.get_by_role("heading",name="Second real tab page").wait_for()
+    next_page=second.value;next_page.wait_for_load_state("domcontentloaded");assert next_page.url.endswith("/fixture-next"),("target=_blank page did not route into the floating window",next_page.url);next_page.get_by_role("heading",name="Second real tab page").wait_for()
     editor.wait_for_function("()=>document.querySelectorAll('#osminogBrowserApp [data-web-tab]').length>=2")
     editor.screenshot(path=str(ROOT/"artifacts/browser-stage-magnet-432.png"),full_page=True)
     print("PASS actual Chrome popup page, same-profile tab, live interaction, magnetized canvas bounds and target=_blank tab routing")

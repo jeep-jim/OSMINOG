@@ -89,7 +89,8 @@
     "clipboardRead",
     "nativeMessaging",
     "offscreen",
-    "windows"
+    "windows",
+    "webNavigation"
   ],
   "sandbox": {
     "pages": [
