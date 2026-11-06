@@ -49,6 +49,10 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
+      - name: Verify workspace browser and common header geometry
+        run: |
+          python3 -m pip install playwright==1.62.0
+          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" xvfb-run -a python3 tests/browser-workspace-429.py
       - run: python3 tools/prepare_ocr.py
       - run: node tests/workspace-423.cjs
       - run: node tests/workspace-performance-424.cjs
@@ -73,10 +77,6 @@ jobs:
       - run: node tests/folder-move-3212.cjs
       - run: node tests/foundation-browser.cjs
       - run: node tests/legacy-store-retired.cjs
-      - name: Verify workspace browser and common header geometry
-        run: |
-          python3 -m pip install playwright==1.62.1
-          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" python3 tests/browser-workspace-429.py
       - name: Verify unchanged owner authentication
         run: |
           echo '90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41  osminog-owner-guard.js' | sha256sum -c -

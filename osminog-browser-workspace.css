@@ -4,7 +4,7 @@ html[data-theme=light] body[data-workdesk]:not(.native-desktop){--ow-line:#d5dbe
 html body[data-workdesk]:not(.native-desktop) #app{background:var(--ow-base)}
 html body[data-workdesk]:not(.native-desktop) .topbar{right:var(--desk-right)!important;width:auto!important;max-width:none!important;border-bottom:1px solid var(--ow-line)!important;box-shadow:none!important;box-sizing:border-box!important}
 html body[data-workdesk]:not(.native-desktop) #bridgePanel:not([hidden]){top:0!important}
-html body[data-workdesk]:not(.native-desktop) #bridgePanel>.bridge-head{height:var(--desk-header-height)!important;min-height:var(--desk-header-height)!important;max-height:var(--desk-header-height)!important;flex:0 0 var(--desk-header-height)!important;box-sizing:border-box!important;padding:7px 12px!important;border-bottom:1px solid var(--ow-line)!important;align-items:center!important}
+html body[data-workdesk]:not(.native-desktop) #bridgePanel>.bridge-head{height:var(--desk-header-height)!important;min-height:var(--desk-header-height)!important;max-height:var(--desk-header-height)!important;flex:0 0 var(--desk-header-height)!important;box-sizing:border-box!important;padding:7px 12px!important;border-radius:0!important;border-bottom:1px solid var(--ow-line)!important;align-items:center!important}
 html body[data-workdesk]:not(.native-desktop) #deskDivider{top:0!important;background:var(--ow-line)!important}
 html body[data-workdesk]:not(.native-desktop) #viewport{border:0!important;box-shadow:none!important}
 html body[data-workdesk]:not(.native-desktop) .topbar .top-actions{flex-wrap:nowrap!important;gap:6px!important}
@@ -26,7 +26,8 @@ html body[data-workdesk]:not(.native-desktop) .topbar .top-actions{flex-wrap:now
 #osminogWebWorkspace .ow-frames{position:relative;flex:1;min-height:0;background:var(--ow-base)}
 #osminogWebWorkspace iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
 #osminogWebWorkspace iframe[hidden]{display:none}
-#osminogWebWorkspace .ow-notice{margin:0;padding:5px 10px;border-top:1px solid var(--ow-line);font:12px/1.4 system-ui;color:var(--muted)}
+#osminogWebWorkspace .ow-footer{display:flex;align-items:center;gap:8px;padding:4px 8px;border-top:1px solid var(--ow-line)}
+#osminogWebWorkspace .ow-notice{flex:1;margin:0;padding:2px;font:12px/1.4 system-ui;color:var(--muted)}
 #owDeskDivider{position:fixed;top:var(--ow-top,56px);bottom:0;left:var(--ow-cut);width:6px;z-index:122;background:var(--ow-line);cursor:col-resize;touch-action:none}
 #owDeskDivider:hover,#owDeskDivider:focus-visible{background:var(--accent);outline:none}
 body.ow-resizing{user-select:none;cursor:col-resize}body.ow-resizing iframe{pointer-events:none!important}

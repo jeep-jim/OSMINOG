@@ -169,7 +169,12 @@
     form.append(address,go);form.onsubmit=e=>{e.preventDefault();try{const url=safeUrl(address.value),tab=tabs.find(t=>t.id===active);if(!tab)return void openUrl(url).catch(report);frameMap.get(tab.id)?.remove();frameMap.delete(tab.id);tab.url=url;tab.loaded=false;select(tab.id)}catch(err){report(err)}};
     header.append(tabsBar,add,domain,button('×',label('Показать только стол','Show desk only'),()=>setMode('desk')));
     frames=document.createElement('div');frames.className='ow-frames';notice=document.createElement('p');notice.className='ow-notice';notice.setAttribute('role','status');notice.textContent=label('Встроенный просмотр · ограничения сайтов сохраняются.','Embedded preview · website restrictions remain in effect.');
-    pane.append(header,form,frames,notice);$('#app').append(pane);
+    const footer=document.createElement('footer');footer.className='ow-footer';
+    const external=button('↗',label('Открыть исходный адрес в обычной вкладке','Open the requested address in a regular tab'),async()=>{
+      const tab=tabs.find(t=>t.id===active);if(!tab?.url)return;
+      try{await chrome.tabs.create({url:safeUrl(tab.url),active:true})}catch(error){report(error)}
+    });external.id='owOpenExternal';footer.append(notice,external);
+    pane.append(header,form,frames,footer);$('#app').append(pane);
     divider=document.createElement('div');divider.id='owDeskDivider';divider.hidden=true;divider.tabIndex=0;divider.role='separator';divider.setAttribute('aria-orientation','vertical');divider.setAttribute('aria-label',label('Ширина стола и браузера','Desk and browser width'));divider.setAttribute('aria-valuemin','20');divider.setAttribute('aria-valuemax','80');$('#app').append(divider);
     planet=headerButton('workspaceWebToggle','globe',label('Браузер','Browser'),async()=>{await loaded;if(mode!=='desk')setMode('desk');else if(active){setMode('browser');select(active)}else newTab()});
     monitor=headerButton('workspaceDeskToggle','desk',label('Стол рядом с браузером','Desk beside browser'),async()=>{await loaded;if(mode==='desk'){if(active){setMode('split');select(active)}}else setMode(mode==='split'?'browser':'split')});
@@ -199,7 +204,7 @@
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
   });
   const previous=globalThis.OSMINOGWorkspaceTools;
-  const names=['browser_open','browser_tabs','browser_close','browser_read','browser_act'];
+  const names=['browser_open','browser_tabs','browser_context','browser_close','browser_read','browser_act'];
   globalThis.OSMINOGWorkspaceTools={names:[...new Set([...(previous?.names||[]),...names])],async run(name,args){
     if(!names.includes(name))return previous.run(name,args);
     await ready;await loaded;
