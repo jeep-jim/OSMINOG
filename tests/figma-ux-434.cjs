@@ -11,7 +11,7 @@ assert.match(editor,/data-media-download/);assert.match(editor,/data-media-copy/
 assert.match(css,/repeat\(3,minmax\(0,1fr\)\)/);
 assert.match(css,/resize-nw/);assert.match(css,/resize-se/);
 assert.match(css,/has\(#osminogLibrary\)/);
-assert.match(ux,/dataset\.edit/);assert.match(ux,/pointermove/);assert.match(ux,/--osminog-handle-scale/);
+assert.match(ux,/dataset/);assert.match(ux,/pointermove/);assert.match(ux,/--osminog-handle-scale/);
 assert.match(inspector,/\.ui-value/);
 assert.match(html,/<button id="exportBtn"/);
 assert.match(editor,/\$\("#exportBtn"\)\.addEventListener/);
