@@ -1327,7 +1327,7 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     root.classList.add("files-gallery");
     const q=(search?.value||"").trim().toLocaleLowerCase();
     const items=[...desktopObjects()].filter(o=>o.visible!==false&&(o.type==="image"||o.type==="file")&&String(o.name||o.fileName||"").toLocaleLowerCase().includes(q));
-    const same=filesGalleryQuery===q&&items.length===filesGallerySnapshot.length&&items.every((o,i)=>{
+    const same=root.dataset.galleryMode==="files"&&filesGalleryQuery===q&&items.length===filesGallerySnapshot.length&&items.every((o,i)=>{
       const prev=filesGallerySnapshot[i];return prev&&prev.id===o.id&&prev.type===o.type&&prev.name===o.name&&prev.fileName===o.fileName&&prev.src===o.src&&prev.mime===o.mime&&prev.revision===(o.documentRevision||0);
     });
     if(same){
@@ -1340,7 +1340,7 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
       root.querySelectorAll("[data-file-id]").forEach(btn=>btn.classList.toggle("selected",state.selected.includes(btn.dataset.fileId)));
       return;
     }
-    filesGalleryObserver?.disconnect();filesGalleryQuery=q;filesGalleryPage=0;filesGalleryLanguage=state.language;
+    filesGalleryObserver?.disconnect();filesGalleryQuery=q;filesGalleryPage=0;filesGalleryLanguage=state.language;root.dataset.galleryMode="files";
     filesGallerySnapshot=items.map(o=>({id:o.id,type:o.type,name:o.name,fileName:o.fileName,src:o.src,mime:o.mime,revision:o.documentRevision||0}));
     root.replaceChildren();
     if(!items.length){root.innerHTML='<div class="bc-files-empty">'+text("На текущем столе пока нет файлов и изображений","No files or images on this desk yet")+'</div>';return}
@@ -1379,7 +1379,7 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
   function renderFoldersGallery(){
     const root=document.getElementById("layerList"),search=document.getElementById("layerSearch");if(!root)return;
     root.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");root.classList.add("bc-folders-gallery");
-    const q=(search?.value||"").trim().toLocaleLowerCase(),folders=globalThis.OSMINOGWindowsFolders?.list?.()||[],ordered=[],seen=new Set();
+    root.dataset.galleryMode="folders";const q=(search?.value||"").trim().toLocaleLowerCase(),folders=globalThis.OSMINOGWindowsFolders?.list?.()||[],ordered=[],seen=new Set();
     const visit=(parentId=null,depth=0)=>folders.filter(f=>(f.parentId||null)===parentId&&!seen.has(f.id)).sort((a,b)=>String(a.name).localeCompare(String(b.name))).forEach(f=>{seen.add(f.id);ordered.push({...f,_depth:depth});visit(f.id,depth+1)});visit();
     const items=ordered.filter(f=>!q||String(f.name||"").toLocaleLowerCase().includes(q));
     root.innerHTML='<div class="bc-folders-toolbar"><strong>'+text("Папки проекта","Project folders")+'</strong><button type="button" data-folder-create title="'+text("Новая папка","New folder")+'" aria-label="'+text("Новая папка","New folder")+'">＋</button></div>'+
@@ -1389,9 +1389,9 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
   }
   const baseRenderLayers=renderLayers;
   renderLayers=function(){const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]],search=document.getElementById("layerSearch"),root=document.getElementById("layerList");
-    if(state.ui?.layersTab==="folders"){root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===2));if(search)search.placeholder=text("Поиск папок","Search folders");renderFoldersGallery();return}
+    if(state.ui?.layersTab==="folders"){if(root)root.dataset.galleryMode="folders";root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===2));if(search)search.placeholder=text("Поиск папок","Search folders");renderFoldersGallery();return}
     if(state.ui?.layersTab==="files"){root?.classList.remove("observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===1));if(search)search.placeholder=text("Поиск файлов","Search files");renderFilesGallery();return}
-    root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===0));if(search)search.placeholder=tr("searchLayers");baseRenderLayers()};
+    if(root)root.dataset.galleryMode="layers";root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===0));if(search)search.placeholder=tr("searchLayers");baseRenderLayers()};
   const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]];
   tabs[0]?.addEventListener("click",()=>{state.ui.layersTab="layers";queuePersist();renderLayers()});tabs[1]?.addEventListener("click",()=>{state.ui.layersTab="files";queuePersist();renderLayers()});tabs[2]?.addEventListener("click",()=>{state.ui.layersTab="folders";queuePersist();renderLayers()});
   document.getElementById("layerSearch")?.addEventListener("input",()=>{if(state.ui?.layersTab==="files")renderFilesGallery();if(state.ui?.layersTab==="folders")renderFoldersGallery()});
