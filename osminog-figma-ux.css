@@ -1,41 +1,43 @@
-/* OSMINOG 4.0.34 · Figma-like canvas and docked side panels */
-:root{--osminog-library-width:min(440px,36vw)}
-/* Search/capture drawer gets its own column to the right of chat. */
-body[data-workdesk]:has(#osminogLibrary){--desk-right:calc(var(--ui-width,280px) + var(--osminog-library-width) + 7px)}
-body.unified-inspector.inspector-hidden:has(#osminogLibrary){--desk-right:calc(var(--osminog-library-width) + 7px)}
-body[data-workdesk]:has(#bridgePanel:not([hidden])):has(#osminogLibrary){--desk-right:calc(var(--ui-width,280px) + var(--desk-chat-width) + var(--osminog-library-width) + 14px)}
-body.unified-inspector.inspector-hidden:has(#bridgePanel:not([hidden])):has(#osminogLibrary){--desk-right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)}
+/* OSMINOG 4.0.35 · left-side library dock, stable canvas and lower-cost media previews */
+:root{--osminog-library-width:min(400px,32vw)}
+/* The saved-materials library sits immediately LEFT of the chat, never after it. */
+body[data-workdesk]:has(#osminogLibrary){--desk-right:var(--osminog-library-width)}
+body[data-workdesk].desk-chat-open:has(#osminogLibrary){--desk-right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)}
 body[data-workdesk]:has(#osminogLibrary) #osminogLibrary{
-  position:fixed!important;top:var(--desk-header-height,56px)!important;right:0!important;bottom:0!important;
-  left:auto!important;width:var(--osminog-library-width)!important;max-width:var(--osminog-library-width)!important;
+  position:fixed!important;top:var(--desk-header-height,56px)!important;right:0!important;left:auto!important;bottom:0!important;
+  width:var(--osminog-library-width)!important;max-width:var(--osminog-library-width)!important;
   height:auto!important;max-height:none!important;border-radius:0!important;border:0!important;
   border-left:1px solid var(--ui-line,var(--line))!important;box-shadow:none!important;z-index:190!important;
 }
-body[data-workdesk]:has(#osminogLibrary) #bridgePanel:not([hidden]){
-  right:var(--osminog-library-width)!important;width:var(--desk-chat-width)!important;
+body[data-workdesk].desk-chat-open:has(#osminogLibrary) #osminogLibrary{
+  right:var(--desk-chat-width)!important;border-left:0!important;border-right:1px solid var(--ui-line,var(--line))!important;
 }
+body[data-workdesk] #bridgePanel:not([hidden]){right:0!important;width:var(--desk-chat-width)!important}
+body[data-workdesk]:has(#osminogLibrary) #bridgePanel:not([hidden]){right:0!important;width:var(--desk-chat-width)!important}
 body[data-workdesk].unified-inspector:has(#osminogLibrary) #inspector{
   right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)!important;
+  max-width:calc(100vw - var(--desk-chat-width) - var(--osminog-library-width) - 24px)!important;
 }
-body[data-workdesk]:has(#osminogLibrary) #deskDivider{
-  right:calc(var(--desk-chat-width) + var(--osminog-library-width))!important;
-}
+body[data-workdesk]:has(#osminogLibrary) #deskDivider{right:calc(var(--desk-chat-width) + var(--osminog-library-width))!important}
 body[data-workdesk].unified-inspector:has(#osminogLibrary) .topbar{
-  width:calc(100% - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
-  max-width:calc(100% - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
+  width:calc(100% - var(--ui-width,280px) - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
+  max-width:calc(100% - var(--ui-width,280px) - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
 }
 body[data-workdesk]:has(#osminogLibrary) #workdeskTools{
   left:calc((100vw - var(--desk-right))/2)!important;
   max-width:calc(100vw - var(--desk-right) - 24px)!important;
 }
+#osminogLibrary{font-size:14px}
+#osminogLibrary>header{min-height:64px!important;padding:12px 16px!important}
+#osminogLibrary>header strong{font-size:15px!important}
 #osminogLibrary .lib-body{min-height:0}
 #osminogLibrary .lib-results{grid-template-columns:minmax(0,1fr)}
 @media(max-width:1100px){
-  :root{--osminog-library-width:min(380px,38vw)}
+  :root{--osminog-library-width:min(360px,34vw)}
 }
 @media(max-width:720px){
   body[data-workdesk]:has(#osminogLibrary) #bridgePanel:not([hidden]){display:none!important}
-  body[data-workdesk]:has(#osminogLibrary) #osminogLibrary{width:100vw!important;max-width:100vw!important}
+  body[data-workdesk]:has(#osminogLibrary) #osminogLibrary{right:0!important;width:100vw!important;max-width:100vw!important}
 }
 
 /* Selection handles stay the same physical size at every canvas zoom. */
@@ -67,19 +69,19 @@ body.unified-inspector #inspector .ui-value:hover{border-color:color-mix(in srgb
 body.unified-inspector #inspector .ui-paint{padding:2px 0}
 body.unified-inspector #inspector .ui-hex{font-variant-numeric:tabular-nums}
 
-/* File gallery: preview first, no redundant file-type captions. */
+/* File gallery: two roomy columns, lazy previews and explicit pagination. */
 #layerList.files-gallery{
-  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  gap:7px!important;padding:8px!important;align-content:start
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:12px!important;padding:12px!important;align-content:start
 }
 #layerList.files-gallery .bc-file-tile{
-  display:block!important;position:relative;min-width:0;aspect-ratio:1.08/1;
-  padding:3px!important;border-radius:9px!important;overflow:hidden!important;
+  display:block!important;position:relative;min-width:0;min-height:148px;aspect-ratio:1.35/1;
+  padding:4px!important;border-radius:11px!important;overflow:hidden!important;
   background:var(--surface-2);border:1px solid var(--line);box-shadow:none!important
 }
 #layerList.files-gallery .bc-file-tile-preview{
-  position:absolute;inset:3px!important;height:auto!important;min-height:0!important;
-  border-radius:6px!important;background:var(--surface)!important;display:grid;place-items:center
+  position:absolute;inset:4px!important;height:auto!important;min-height:0!important;
+  border-radius:7px!important;background:var(--surface)!important;display:grid;place-items:center
 }
 #layerList.files-gallery .bc-file-tile-preview>img,
 #layerList.files-gallery .bc-file-tile-preview>video{
@@ -87,9 +89,46 @@ body.unified-inspector #inspector .ui-hex{font-variant-numeric:tabular-nums}
   object-fit:contain!important;display:block;background:transparent
 }
 #layerList.files-gallery .bc-file-tile-name{display:none!important}
-#layerList.files-gallery .bc-gallery-file-icon{width:100%;height:100%;border:0;border-radius:6px;font-size:clamp(11px,1vw,17px)}
+#layerList.files-gallery .bc-gallery-file-icon{width:100%;height:100%;border:0;border-radius:7px;font-size:clamp(13px,1.1vw,18px)}
 #layerList.files-gallery .bc-file-tile:hover .bc-file-tile-preview{background:var(--accent-soft)!important}
 #layerList.files-gallery .bc-file-tile.selected{outline:2px solid var(--accent);outline-offset:1px}
+#layerList.files-gallery .bc-files-more{
+  grid-column:1/-1;min-height:42px;margin:2px 0 8px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface-2);color:var(--text);font:600 13px system-ui
+}
+#layerList.files-gallery .bc-files-more:hover{border-color:var(--accent);background:var(--accent-soft)}
+
+/* Project hub: give the title, actions, search and cards their own breathing room. */
+.project-hub{width:min(1220px,calc(100% - 64px))!important;margin:58px auto!important;padding-bottom:72px!important}
+.hub-head{align-items:center!important;gap:24px!important;margin:0 0 22px!important}
+.hub-head h2{font-size:clamp(32px,2.4vw,40px)!important;line-height:1.12!important;margin:12px 0 0!important;letter-spacing:-.035em}
+#newProjectHome{height:48px!important;min-width:164px;flex:none;margin-left:18px}
+.hub-controls{display:grid;grid-template-columns:minmax(240px,1fr) auto;align-items:center;gap:14px;margin:0 0 22px}
+.hub-controls .search-field{width:min(680px,100%)!important;height:48px!important;margin:0!important}
+#trashToggle{min-height:44px;white-space:nowrap}
+.project-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:20px!important}
+.project-card{padding:14px!important;border-radius:22px!important;min-width:0}
+.project-preview{height:170px!important;border-radius:15px!important;overflow:hidden}
+.project-card-meta{padding:14px 6px 6px!important}
+.project-card-meta strong{font-size:15px!important;line-height:1.35}
+.project-card-meta small{font-size:12px!important;line-height:1.4}
+.project-mini-image img{width:100%;height:100%;object-fit:cover}
+.project-tile{position:relative;min-width:0}
+.project-remove{z-index:4}
+@media(max-width:1000px){
+  .project-hub{width:calc(100% - 40px)!important;margin:42px auto!important}
+  .project-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:620px){
+  .project-hub{width:calc(100% - 28px)!important;margin:30px auto!important}
+  .hub-head{align-items:flex-start!important;flex-direction:column;gap:14px!important}
+  #newProjectHome{margin:0!important;width:100%}
+  .hub-controls{grid-template-columns:minmax(0,1fr);gap:9px}
+  .hub-controls .search-field{width:100%!important}
+  #trashToggle{justify-self:start}
+  .project-grid{grid-template-columns:1fr!important;gap:14px!important}
+  .project-preview{height:190px!important}
+}
 
 /* Full-size material preview and its action bar. */
 .osminog-media-preview{
@@ -118,10 +157,9 @@ body.unified-inspector #inspector .ui-hex{font-variant-numeric:tabular-nums}
 .osminog-media-preview footer button{min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:11px system-ui}
 .osminog-media-preview footer button:hover{border-color:var(--ui-accent);background:var(--ui-focus)}
 @media(max-width:720px){
+  #layerList.files-gallery{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .osminog-media-preview{padding:8px}
   .osminog-media-preview .media-preview-card{width:calc(100vw - 16px);height:calc(100dvh - 16px);margin:0;grid-template-rows:54px minmax(0,1fr) auto}
   .osminog-media-preview footer{justify-content:center;padding:8px;gap:5px}
   .osminog-media-preview footer button{flex:1 1 30%;padding:0 6px}
 }
-
-@media(max-width:720px){#layerList.files-gallery{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
