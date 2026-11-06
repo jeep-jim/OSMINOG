@@ -18,6 +18,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('nod
  try{
   fs.mkdirSync('artifacts',{recursive:true});
   context=await chromium.launchPersistentContext(profile,{headless:false,...(process.env.TEST_CHROMIUM?{executablePath:process.env.TEST_CHROMIUM}:{}),ignoreDefaultArgs:['--disable-extensions'],args:['--no-sandbox',`--disable-extensions-except=${root}`,`--load-extension=${root}`],viewport:{width:1440,height:1000}});
+  // Match an ordinary unpacked installation: use Chrome's actual Developer mode
+  // UI in this disposable profile. Otherwise Chrome disables the extension on
+  // runtime.reload with unsupportedDeveloperExtension, before any app code runs.
+  const manager=await context.newPage();await manager.goto('chrome://extensions');
+  const toggle=manager.locator('#devMode');await toggle.waitFor();
+  if(!await toggle.evaluate(el=>el.checked))await toggle.click();
+  assert.equal(await toggle.evaluate(el=>el.checked),true,'Unpacked reload requires the normal Developer mode setting');
+  await manager.close();
   context.pages().forEach(attach);context.on('page',attach);
   context.on('serviceworker',worker=>{lifecycle.push({event:'serviceworker',url:worker.url()});worker.evaluate(()=>{globalThis.__recoveryEvents=[];chrome.runtime.onMessage.addListener((m,s)=>{if(m?.type==='OSMINOG_EDITOR_READY')__recoveryEvents.push({type:m.type,version:m.version,senderId:s.id,senderUrl:s.url})});const warn=console.warn;console.warn=(...args)=>{__recoveryEvents.push({warning:args.map(String).join(' ')});warn(...args)}}).catch(e=>lifecycle.push({event:'worker-observation-error',error:e.message}))});
   await context.route('https://**',route=>route.abort());
