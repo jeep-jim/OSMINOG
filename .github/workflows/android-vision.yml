@@ -1,0 +1,71 @@
+name: Android Vision focused build
+on:
+  push:
+    branches: ['feat/android-vision-20261106']
+    paths: ['android-vision/**', '.github/workflows/android-vision.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-vision-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Validate mobile scripts
+        run: |
+          node --check android-vision/app/src/main/assets/app.js
+          node --check android-vision/app/src/main/assets/provider.js
+      - name: Build APKs and lint
+        working-directory: android-vision
+        run: gradle :app:assembleDebug :app:assembleRelease :app:lintDebug :app:assembleDebugAndroidTest
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated -camera-front emulated
+          working-directory: android-vision
+          script: |
+            gradle :app:connectedDebugAndroidTest
+            adb shell pm clear com.osminog.vision
+            adb shell am start -n com.osminog.vision/.MainActivity
+            sleep 3
+            mkdir -p dist
+            adb shell screencap -p /sdcard/vision.png
+            adb pull /sdcard/vision.png dist/vision.png
+      - name: Retain unsigned release and signing verifier
+        if: always()
+        run: |
+          mkdir -p android-vision/dist
+          if test -f android-vision/app/build/outputs/apk/release/app-release-unsigned.apk; then
+            cp android-vision/app/build/outputs/apk/release/app-release-unsigned.apk android-vision/dist/OSMINOG-Vision-0.1.0-unsigned.apk
+            sha256sum android-vision/dist/*.apk > android-vision/dist/SHA256SUMS.txt
+          fi
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" android-vision/dist/apksigner.jar
+          cp "$ANDROID_HOME/platforms/android-35/android.jar" android-vision/dist/android.jar
+          git archive --format=zip HEAD android-vision .github/workflows/android-vision.yml > android-vision/dist/source.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OSMINOG-Vision-Android-0.1.0-verification
+          path: |
+            android-vision/dist/
+            android-vision/app/build/reports/
+            android-vision/app/build/outputs/androidTest-results/
+          retention-days: 14

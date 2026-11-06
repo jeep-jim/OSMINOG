@@ -1,0 +1,31 @@
+# OSMINOG Vision · Android 0.1.0 (experimental)
+
+A separate Android product, not a replacement for OSMINOG Chrome or Android file-board preview.
+Only chat, Android speech input/output, a foreground camera session and signed APK updates.
+Application ID: `com.osminog.vision`. No API key required: the user signs into the provider's real website.
+The mobile DOM adapter is adapted from `provider-tab-bridge.js` (composer selectors, image upload confirmation,
+new-message extraction). There is no private API, cookie extraction, native bridge on remote pages or login bypass.
+If a provider blocks embedded-browser login, that provider cannot be connected by this transport.
+
+## Honest capability boundary
+The app displays a live camera preview. On each user question while the camera is enabled, it attaches
+one fresh JPEG to the existing chat. This is frame-assisted conversation, NOT a realtime audiovisual model
+connection. It speaks final responses with Android TTS, using turn-based speech recognition. Tap the microphone
+to interrupt spoken output. Accounts, site changes, upload support/limits and Android speech services can affect
+operation. No claim of testing real owner accounts is made from fixtures. There is no automatic identification
+of people, background recording, file collection, cloud library or desktop canvas in this APK.
+
+History is app-local, without Android backup; submitted text/images go to the chosen provider. Android speech
+services may use the network. Camera/audio are stopped on Activity pause. Captured frames are not written to disk.
+
+## Updates
+Menu → Обновить онлайн. Fixed HTTPS feed: `channels/android-vision/dev.json` in OSMINOG-Releases.
+Verify size, SHA-256, application ID, increasing versionCode and installed signing certificate BEFORE asking
+Android to install. The installation still needs Android user confirmation. Only a complete signed APK is used.
+Private signing material must never enter Git or CI logs. Unsigned CI artifacts are not installable releases.
+
+## Build and verification
+JDK 17; Gradle 8.9; SDK 35. `gradle :app:assembleDebug :app:assembleRelease :app:lintDebug :app:assembleDebugAndroidTest`.
+Emulator instrumentation tests cover local shell, real WebView composer/attachment/response with a fixture,
+no remote native bridge, rejection of unfinished drafts, updater URL guard, native camera capture and lifecycle stop.
+The first APK must remain labelled experimental until tested with the owner's actual provider account and phone.
