@@ -243,7 +243,7 @@ globalThis.OSMINOGProjectCloudAPI={
   snapshot:()=>{const p=project();return p?{format:"osminog-project-cloud/v1",exportedAt:Date.now(),project:clone(p),theme:state.theme,language:state.language}:null},
   import:async payload=>{const raw=payload?.project||payload;if(!raw?.objects)return{error:"Cloud project is invalid"};if(trashIndex[raw.id])return{error:"Project was deleted"};const incoming=normalizeProject(clone(raw)),index=state.projects.findIndex(p=>p.id===incoming.id);if(index>=0){const local=state.projects[index];if(Number(local.updated||0)>Number(incoming.updated||0))return{ok:true,skipped:true,reason:"local-newer",project:{id:local.id,name:local.name}};state.projects[index]=incoming}else state.projects.unshift(incoming);state.activeProject=incoming.id;state.selected=[];showApp();await persist();return{ok:true,project:{id:incoming.id,name:incoming.name}}}
 };
-const hubText = (ru,en) => state.language === 'ru' ? ru : en;
+const hubText = (ru,en,de,es,ja,zh) => ({ru,en,de:de||en,es:es||en,ja:ja||en,zh:zh||en}[state.language]||en);
 function actionButton(label, callback, className='soft-btn'){
   const button=document.createElement('button');
   button.type='button';button.className=className;button.textContent=label;
@@ -254,9 +254,9 @@ async function projectAction(action,id,p){
   const name=p?.name||trashIndex[id]?.name;
   const move=action==='move';
   if(action!=='restore'){
-    const title=move?hubText('Переместить в корзину?','Move to trash?'):hubText('Удалить навсегда?','Delete permanently?');
-    const detail=move?hubText('Можно восстановить в течение 7 дней.','You can restore it for 7 days.'):hubText('Восстановление из корзины станет недоступно.','Recovery from trash will no longer be possible.');
-    if(!await OSMINOGConfirm({title,text:name+' · '+detail,confirmText:move?hubText('В корзину','Move to trash'):hubText('Удалить навсегда','Delete permanently'),cancelText:hubText('Отмена','Cancel'),danger:true}))return;
+    const title=move?hubText('Переместить в корзину?','Move to trash?','In den Papierkorb verschieben?','¿Mover a la papelera?','ゴミ箱に移動しますか？','移至回收站？'):hubText('Удалить навсегда?','Delete permanently?','Endgültig löschen?','¿Eliminar permanentemente?','完全に削除しますか？','永久删除？');
+    const detail=move?hubText('Можно восстановить в течение 7 дней.','You can restore it for 7 days.','Du kannst es innerhalb von 7 Tagen wiederherstellen.','Puedes restaurarlo durante 7 días.','7日以内に復元できます。','可在 7 天内恢复。'):hubText('Восстановление из корзины станет недоступно.','Recovery from trash will no longer be possible.','Eine Wiederherstellung ist danach nicht mehr möglich.','Ya no se podrá recuperar.','ゴミ箱から復元できなくなります。','之后将无法恢复。');
+    if(!await OSMINOGConfirm({title,text:name+' · '+detail,confirmText:move?hubText('В корзину','Move to trash','In den Papierkorb','Mover a la papelera','ゴミ箱へ移動','移至回收站'):hubText('Удалить навсегда','Delete permanently','Endgültig löschen','Eliminar permanentemente','完全に削除','永久删除'),cancelText:hubText('Отмена','Cancel','Abbrechen','Cancelar','キャンセル','取消'),danger:true}))return;
   }
   await OSMINOGTrash.change(action,id,p);
   trashIndex=await OSMINOGTrash.read();
@@ -277,7 +277,7 @@ chrome.storage.onChanged.addListener((changes,area)=>{
 function renderProjectGrid(filter=$("#projectSearch").value){
   const grid=$("#projectGrid");grid.replaceChildren();
   const entries=Object.entries(trashIndex).filter(([,e])=>e.expires>Date.now());
-  $("#trashToggle").textContent=viewingTrash?hubText('К проектам','Back to projects'):hubText('Корзина','Trash')+' · '+entries.length;
+  $("#trashToggle").textContent=viewingTrash?hubText('К проектам','Back to projects','Zu den Projekten','Volver a proyectos','プロジェクトに戻る','返回项目'):hubText('Корзина','Trash','Papierkorb','Papelera','ゴミ箱','回收站')+' · '+entries.length;
   $("#newProjectHome").hidden=viewingTrash;
   $("#projectHub h2").textContent=viewingTrash?hubText('Корзина проектов','Project trash'):tr('yourProjects');
   const match=name=>name.toLocaleLowerCase().includes(filter.toLocaleLowerCase());
@@ -286,8 +286,8 @@ function renderProjectGrid(filter=$("#projectSearch").value){
       if(!match(e.name))continue;
       const card=document.createElement('article');card.className='trash-card';
       const title=document.createElement('strong'),date=document.createElement('small'),actions=document.createElement('div');
-      title.textContent=e.name;date.textContent=hubText('Хранится до ','Kept until ')+new Date(e.expires).toLocaleString(state.language);
-      actions.append(actionButton(hubText('Восстановить','Restore'),()=>projectAction('restore',id)),actionButton(hubText('Удалить навсегда','Delete permanently'),()=>projectAction('purge',id),'soft-btn purge'));
+      title.textContent=e.name;date.textContent=hubText('Хранится до ','Kept until ','Aufbewahrt bis ','Se conserva hasta ','保管期限：','保留至 ')+new Date(e.expires).toLocaleString(state.language);
+      actions.append(actionButton(hubText('Восстановить','Restore','Wiederherstellen','Restaurar','復元','恢复'),()=>projectAction('restore',id)),actionButton(hubText('Удалить навсегда','Delete permanently','Endgültig löschen','Eliminar permanentemente','完全に削除','永久删除'),()=>projectAction('purge',id),'soft-btn purge'));
       card.append(title,date,actions);grid.append(card);
     }
   } else for(const p of state.projects.filter(p=>!trashIndex[p.id]&&match(p.name))){
@@ -295,10 +295,10 @@ function renderProjectGrid(filter=$("#projectSearch").value){
     const card=actionButton('',()=>openProject(p.id),'project-card');
     card.innerHTML=`${projectPreviewMarkup(p)}<div class="project-card-meta"><strong>${esc(p.name)}</strong><small>${p.objects.length} ${tr("objects")} · ${new Date(p.updated).toLocaleDateString()}</small></div>`;
     const remove=actionButton('×',()=>projectAction('move',p.id,p),'project-remove');
-    remove.title=hubText('Переместить в корзину','Move to trash')+' · '+p.name;
+    remove.title=hubText('Переместить в корзину','Move to trash','In den Papierkorb verschieben','Mover a la papelera','ゴミ箱に移動','移至回收站')+' · '+p.name;
     remove.setAttribute('aria-label',remove.title);wrap.append(card,remove);grid.append(wrap);
   }
-  if(!grid.childElementCount)grid.textContent=viewingTrash?hubText('Корзина пуста','Trash is empty'):tr('noProjects');
+  if(!grid.childElementCount)grid.textContent=viewingTrash?hubText('Корзина пуста','Trash is empty','Der Papierkorb ist leer','La papelera está vacía','ゴミ箱は空です','回收站为空'):tr('noProjects');
 }
 
 function setMode(mode){
@@ -1095,9 +1095,10 @@ setTimeout(syncLayersPolishLanguage,0);
 /* Microfix 3.8.38: cleaner group/export state + Figma-style object context menu + project arrow placement */
 function syncExportAvailability(){
   const btn=document.getElementById("exportBtn");if(!btn)return;
-  const active=Array.isArray(state.selected)&&state.selected.length>0;
-  btn.disabled=!active;btn.setAttribute("aria-disabled",active?"false":"true");
-  if(!active){const menu=document.getElementById("exportMenu");if(menu)menu.hidden=true}
+  const available=!!project()&&exportObjects().length>0;
+  btn.disabled=!available;btn.setAttribute("aria-disabled",available?"false":"true");
+  btn.title=available?tr("export"):(state.language==="ru"?"Сначала добавьте материалы на текущий стол":"Add content to the current desk first");
+  if(!available){const menu=document.getElementById("exportMenu");if(menu)menu.hidden=true}
 }
 function bcContextLabel(key){
   const dict={
@@ -1186,13 +1187,24 @@ setTimeout(syncExportAvailability,0);
 
 /* Microfix 3.8.40: autosave-first navigation, real project thumbnails, clean file/image objects, 8 connection ports, Layers mini rail, module/chat polish */
 function projectPreviewMarkup(p){
-  const list=(Array.isArray(p?.objects)?p.objects:[]).filter(o=>o&&o.visible!==false&&Number.isFinite(Number(o.x))&&Number.isFinite(Number(o.y))).slice(-48);
+  const desktop=String(p?.activeDesktop||"main");
+  const all=(Array.isArray(p?.objects)?p.objects:[]).filter(o=>o&&o.visible!==false&&!o.osminogFolderId&&(o.osminogDesktopId||"main")===desktop&&Number.isFinite(Number(o.x))&&Number.isFinite(Number(o.y)));
+  const list=all.slice(-16);
   if(!list.length)return '<div class="project-preview project-preview-live project-preview-empty"><span></span></div>';
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   list.forEach(o=>{minX=Math.min(minX,Number(o.x)||0);minY=Math.min(minY,Number(o.y)||0);maxX=Math.max(maxX,(Number(o.x)||0)+Math.max(20,Number(o.w)||80));maxY=Math.max(maxY,(Number(o.y)||0)+Math.max(20,Number(o.h)||60))});
   const bw=Math.max(1,maxX-minX),bh=Math.max(1,maxY-minY),pad=Math.max(18,Math.max(bw,bh)*.07),x0=minX-pad,y0=minY-pad,ww=bw+pad*2,hh=bh+pad*2;
-  const nodes=list.map(o=>{const left=((Number(o.x)-x0)/ww)*100,top=((Number(o.y)-y0)/hh)*100,w=(Math.max(20,Number(o.w)||80)/ww)*100,h=(Math.max(20,Number(o.h)||60)/hh)*100,style=`left:${left.toFixed(2)}%;top:${top.toFixed(2)}%;width:${Math.max(.8,w).toFixed(2)}%;height:${Math.max(.8,h).toFixed(2)}%;transform:rotate(${Number(o.rotation)||0}deg)`;if(o.type==="image"&&o.src)return `<span class="project-mini project-mini-image" style="${style}"><img src="${esc(o.src)}" alt=""></span>`;if(o.type==="text"||o.type==="brief"||o.type==="note"||o.type==="node")return `<span class="project-mini project-mini-text" style="${style};--mini-fill:${validColor(o.fill,"#262d3a")}"></span>`;if(o.type==="code"||o.type==="browser")return `<span class="project-mini project-mini-dark" style="${style}"></span>`;if(o.type==="file")return `<span class="project-mini project-mini-file" style="${style}">${bcFileShortLabel(o)}</span>`;return `<span class="project-mini project-mini-shape" style="${style};--mini-fill:${validColor(o.fill,"#8b5cf6")};--mini-stroke:${validColor(o.stroke,"#6e7df2")}"></span>`}).join("");
-  return `<div class="project-preview project-preview-live">${nodes}</div>`;
+  let imageUsed=false;
+  const nodes=list.map(o=>{
+    const left=((Number(o.x)-x0)/ww)*100,top=((Number(o.y)-y0)/hh)*100,w=(Math.max(20,Number(o.w)||80)/ww)*100,h=(Math.max(20,Number(o.h)||60)/hh)*100;
+    const style='left:'+left.toFixed(2)+'%;top:'+top.toFixed(2)+'%;width:'+Math.max(.8,w).toFixed(2)+'%;height:'+Math.max(.8,h).toFixed(2)+'%;transform:rotate('+(Number(o.rotation)||0)+'deg)';
+    if(o.type==="image"&&o.src&&!imageUsed){imageUsed=true;return '<span class="project-mini project-mini-image" style="'+style+'"><img loading="lazy" decoding="async" fetchpriority="low" src="'+esc(o.src)+'" alt=""></span>'}
+    if(o.type==="text"||o.type==="brief"||o.type==="note"||o.type==="node")return '<span class="project-mini project-mini-text" style="'+style+';--mini-fill:'+validColor(o.fill,"#262d3a")+'"></span>';
+    if(o.type==="code"||o.type==="browser")return '<span class="project-mini project-mini-dark" style="'+style+'"></span>';
+    if(o.type==="file")return '<span class="project-mini project-mini-file" style="'+style+'">'+bcFileShortLabel(o)+'</span>';
+    return '<span class="project-mini project-mini-shape" style="'+style+';--mini-fill:'+validColor(o.fill,"#8b5cf6")+';--mini-stroke:'+validColor(o.stroke,"#6e7df2")+'"></span>';
+  }).join("");
+  return '<div class="project-preview project-preview-live">'+nodes+'</div>';
 }
 function bcImageNaturalSize(src){return new Promise(resolve=>{const img=new Image();img.onload=()=>resolve({w:img.naturalWidth||380,h:img.naturalHeight||280});img.onerror=()=>resolve({w:380,h:280});img.src=src})}
 function bcFileShortLabel(obj){const name=String(obj?.fileName||obj?.name||"FILE"),ext=(name.split(".").pop()||"").toUpperCase().slice(0,4),mime=String(obj?.mime||"");if(mime==="application/pdf")return"PDF";if(mime.startsWith("audio/"))return"♪";if(mime.startsWith("video/"))return"▶";if(/zip|rar|7z|tar|gzip/.test(mime)||/\.(zip|rar|7z|tar|gz)$/i.test(name))return"ZIP";if(/spreadsheet|excel|csv/.test(mime)||/\.(xls|xlsx|csv)$/i.test(name))return"XLS";if(/word|document|text/.test(mime)||/\.(doc|docx|txt|rtf|md)$/i.test(name))return ext||"TXT";return ext||"FILE"}
@@ -1257,47 +1269,54 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     return s.split(/\n{2,}/).map(x=>/^<(h\d|ul|pre)/.test(x)?x:`<p>${x.replace(/\n/g,"<br>")}</p>`).join("")
   }
   function tablePreview(textValue,sep){const rows=String(textValue||"").split(/\r?\n/).filter(Boolean).slice(0,18).map(r=>r.split(sep).slice(0,8));return`<div class="bc-table-preview"><table>${rows.map((r,i)=>`<tr>${r.map(c=>`<${i?"td":"th"}>${esc(c)}</${i?"td":"th"}>`).join("")}</tr>`).join("")}</table></div>`}
-  function fileIcon(obj){const k=kindOf(obj),label=bcFileShortLabel?.(obj)||extOf(obj).toUpperCase()||"FILE";if(k==="image"&&obj.src)return`<img src="${esc(obj.src)}" alt="">`;if(k==="video"&&obj.src)return`<video src="${esc(obj.src)}" muted preload="metadata"></video>`;if(k==="audio")return`<span class="bc-gallery-file-icon bc-kind-${k}">♫</span>`;return`<span class="bc-gallery-file-icon bc-kind-${k}">${esc(label)}</span>`}
-  function openMediaPreview(obj){
-    if(!obj)return;document.querySelector(".osminog-media-preview")?.remove();
-    const overlay=document.createElement("section");overlay.className="osminog-media-preview";overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-label",obj.name||obj.fileName||"Предпросмотр");
-    const title=OSMINOGWorkspaceLanguage.captureCaption(obj,"name")||obj.fileName||"Материал";
-    const src=esc(obj.src||obj.dataUrl||obj.previewDataUrl||""),mime=String(obj.mime||"").toLowerCase();
-    const media=obj.type==="image"||mime.startsWith("image/")?`<img class="media-preview-image" src="${src}" alt="${esc(title)}">`:mime.startsWith("video/")?`<video class="media-preview-image" src="${src}" controls></video>`:mime.startsWith("audio/")?`<audio src="${src}" controls></audio>`:mime==="application/pdf"&&src?`<iframe class="file-preview" src="${src}#page=${Math.max(1,Number(obj.pdfPage)||1)}&toolbar=0&navpanes=0"></iframe>`:`<div class="media-preview-empty">${esc(obj.type||"Файл")}</div>`;
-    overlay.innerHTML=`<div class="media-preview-card"><header><div><strong>${esc(title)}</strong><small>${esc(obj.mime||obj.type||"Материал")} · ${formatBytes(obj.size||0)}</small></div><button type="button" data-media-close aria-label="Закрыть">×</button></header><main>${media}</main><footer><button type="button" data-media-canvas>На холст</button>${obj.type==="file"?'<button type="button" data-media-open>Открыть файл</button>':""}<button type="button" data-media-download>Скачать</button><button type="button" data-media-copy>Копировать</button><button type="button" data-media-properties>Свойства</button></footer></div>`;
-    document.body.append(overlay);globalThis.OSMINOGPanelStack?.activate?.(overlay);
-    const close=()=>{overlay.remove();document.removeEventListener("keydown",escPreview)};const escPreview=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",escPreview);overlay.querySelector("[data-media-close]").onclick=close;overlay.addEventListener("pointerdown",e=>{if(e.target===overlay)close()});
-    overlay.querySelector("[data-media-canvas]").onclick=()=>{close();selectObject(obj.id,false,true);focusObject(obj);renderInspector()};
-    overlay.querySelector("[data-media-open]")?.addEventListener("click",()=>{close();openFileWorkbench(obj)});
-    overlay.querySelector("[data-media-properties]").onclick=()=>{close();selectObject(obj.id,false,true);focusObject(obj);globalThis.OSMINOGInspector?.show?.();renderInspector()};
-    overlay.querySelector("[data-media-download]").onclick=()=>{const url=obj.src||obj.dataUrl||obj.previewDataUrl;if(!url){showToast("У материала нет файла для скачивания");return}const a=document.createElement("a");a.href=url;a.download=obj.fileName||obj.name||"osminog-file";a.rel="noopener";document.body.append(a);a.click();a.remove()};
-    overlay.querySelector("[data-media-copy]").onclick=async()=>{const url=obj.src||obj.dataUrl||obj.previewDataUrl;try{if(obj.type==="image"&&url){const response=await fetch(url);const blob=await response.blob();if(!blob.type.startsWith("image/"))throw Error("Не изображение");await navigator.clipboard.write([new ClipboardItem({[blob.type]:blob})])}else await navigator.clipboard.writeText(url||obj.text||obj.name||"");showToast("Скопировано")}catch{try{await navigator.clipboard.writeText(url||obj.name||"");showToast("Ссылка скопирована")}catch{showToast("Не удалось скопировать материал")}}};
+  function fileIcon(obj){
+    const k=kindOf(obj),label=bcFileShortLabel?.(obj)||extOf(obj).toUpperCase()||"FILE";
+    if(k==="image"&&obj.src)return '<img loading="lazy" decoding="async" fetchpriority="low" src="'+esc(obj.src)+'" alt="">';
+    if(k==="video"&&obj.src)return '<video preload="none" src="'+esc(obj.src)+'" muted playsinline></video>';
+    if(k==="audio")return '<span class="bc-gallery-file-icon bc-kind-'+k+'">♫</span>';
+    return '<span class="bc-gallery-file-icon bc-kind-'+k+'">'+esc(label)+'</span>';
   }
+  let filesGallerySnapshot=[],filesGalleryQuery="",filesGalleryPage=0;
+  const FILES_GALLERY_PAGE_SIZE=36;
   function renderFilesGallery(){
-    const root=document.getElementById("layerList"),search=document.getElementById("layerSearch");if(!root)return;root.classList.add("files-gallery");
-    const q=(search?.value||"").trim().toLowerCase(),items=[...objects()].reverse().filter(o=>o.visible!==false&&(o.type==="image"||o.type==="file")&&String(o.name||o.fileName||"").toLowerCase().includes(q));
-    root.innerHTML=items.length?items.map(o=>`<button class="bc-file-tile${state.selected.includes(o.id)?" selected":""}" type="button" data-file-id="${o.id}" title="${esc(o.fileName||o.name||"Материал")}" aria-label="Предпросмотр: ${esc(o.fileName||o.name||"Материал")}"><span class="bc-file-tile-preview">${fileIcon(o)}</span></button>`).join(""):`<div class="bc-files-empty">${text("На холсте пока нет файлов и медиа","No files or media on this canvas yet")}</div>`;
-    root.querySelectorAll("[data-file-id]").forEach(btn=>{const o=objects().find(x=>x.id===btn.dataset.fileId);btn.addEventListener("click",e=>{if(!o)return;if(e.ctrlKey||e.metaKey||e.shiftKey){selectObject(o.id,true,true);return}openMediaPreview(o)})})
-  }
-  function renderFoldersGallery(){
     const root=document.getElementById("layerList"),search=document.getElementById("layerSearch");if(!root)return;
-    root.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");root.classList.add("bc-folders-gallery");
-    const q=(search?.value||"").trim().toLocaleLowerCase(),folders=globalThis.OSMINOGWindowsFolders?.list?.()||[],ordered=[],seen=new Set();
-    const visit=(parentId=null,depth=0)=>folders.filter(f=>(f.parentId||null)===parentId&&!seen.has(f.id)).sort((a,b)=>String(a.name).localeCompare(String(b.name))).forEach(f=>{seen.add(f.id);ordered.push({...f,_depth:depth});visit(f.id,depth+1)});visit();
-    const items=ordered.filter(f=>!q||String(f.name||"").toLocaleLowerCase().includes(q));
-    root.innerHTML='<div class="bc-folders-toolbar"><strong>'+(state.language==="ru"?"Папки проекта":"Project folders")+'</strong><button type="button" data-folder-create title="Новая папка" aria-label="Новая папка">＋</button></div>'+
-      (items.length?items.map(f=>'<button type="button" class="bc-folder-row" data-folder-open="'+esc(f.id)+'" data-capture="'+!!globalThis.OSMINOGWorkspacePolish?.captureFolder(f)+'" style="padding-left:'+(10+Math.min(5,f._depth)*14)+'px"><span class="bc-folder-glyph">▰</span><span><b>'+esc(f.name)+'</b><small>'+Number(globalThis.OSMINOGWorkspacePolish?.folderCount(f)??f.members?.length??0)+' · '+(state.language==="ru"?"элементов":"items")+'</small></span><i>›</i></button>').join(""):'<div class="bc-files-empty">'+(state.language==="ru"?"Папок пока нет. Создай первую.":"No folders yet. Create your first folder.")+'</div>');
-    root.querySelector("[data-folder-create]")?.addEventListener("click",()=>{const name=prompt(state.language==="ru"?"Название папки":"Folder name",state.language==="ru"?"Новая папка":"New folder");if(!name?.trim())return;globalThis.OSMINOGWindowsFolders?.create?.({name:name.trim(),parentId:null,desktopVisible:false,rename:false});renderFoldersGallery();queuePersist()});
-    root.querySelectorAll("[data-folder-open]").forEach(b=>b.addEventListener("click",()=>globalThis.OSMINOGWindowsFolders?.openVirtual?.(b.dataset.folderOpen)));
+    root.classList.add("files-gallery");
+    const q=(search?.value||"").trim().toLocaleLowerCase();
+    const items=[...desktopObjects()].filter(o=>o.visible!==false&&(o.type==="image"||o.type==="file")&&String(o.name||o.fileName||"").toLocaleLowerCase().includes(q));
+    const same=filesGalleryQuery===q&&items.length===filesGallerySnapshot.length&&items.every((o,i)=>{
+      const prev=filesGallerySnapshot[i];return prev&&prev.id===o.id&&prev.name===o.name&&prev.fileName===o.fileName&&prev.src===o.src&&prev.mime===o.mime&&prev.revision===(o.documentRevision||0);
+    });
+    if(same){
+      root.querySelectorAll("[data-file-id]").forEach(btn=>btn.classList.toggle("selected",state.selected.includes(btn.dataset.fileId)));
+      return;
+    }
+    filesGalleryQuery=q;filesGalleryPage=0;
+    filesGallerySnapshot=items.map(o=>({id:o.id,name:o.name,fileName:o.fileName,src:o.src,mime:o.mime,revision:o.documentRevision||0}));
+    root.replaceChildren();
+    if(!items.length){root.innerHTML='<div class="bc-files-empty">'+text("На текущем столе пока нет файлов и изображений","No files or images on this desk yet")+'</div>';return}
+    const addBatch=(from,to)=>{
+      const fragment=document.createDocumentFragment();
+      for(const obj of items.slice(from,to)){
+        const btn=document.createElement("button");btn.type="button";btn.className="bc-file-tile"+(state.selected.includes(obj.id)?" selected":"");btn.dataset.fileId=obj.id;
+        btn.title=obj.fileName||obj.name||"Материал";btn.setAttribute("aria-label",text("Предпросмотр: ","Preview: ")+(obj.fileName||obj.name||""));
+        const preview=document.createElement("span");preview.className="bc-file-tile-preview";preview.innerHTML=fileIcon(obj);btn.append(preview);
+        btn.addEventListener("click",e=>{if(e.ctrlKey||e.metaKey||e.shiftKey){selectObject(obj.id,true,true);return}openMediaPreview(obj)});
+        fragment.append(btn);
+      }
+      root.append(fragment);
+    };
+    const updateMore=()=>{
+      root.querySelector("[data-files-more]")?.remove();
+      const shown=Math.min(items.length,(filesGalleryPage+1)*FILES_GALLERY_PAGE_SIZE);
+      if(shown<items.length){
+        const more=document.createElement("button");more.type="button";more.dataset.filesMore="1";more.className="bc-files-more";
+        more.textContent=text("Показать ещё","Show more")+" · "+(items.length-shown);
+        more.addEventListener("click",()=>{more.remove();filesGalleryPage++;const start=filesGalleryPage*FILES_GALLERY_PAGE_SIZE;addBatch(start,Math.min(items.length,start+FILES_GALLERY_PAGE_SIZE));updateMore()});
+        root.append(more);
+      }
+    };
+    addBatch(0,Math.min(items.length,FILES_GALLERY_PAGE_SIZE));updateMore();
   }
-  const baseRenderLayers=renderLayers;
-  renderLayers=function(){const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]],search=document.getElementById("layerSearch"),root=document.getElementById("layerList");
-    if(state.ui?.layersTab==="folders"){root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===2));if(search)search.placeholder=state.language==="ru"?"Поиск папок":"Search folders";renderFoldersGallery();return}
-    if(state.ui?.layersTab==="files"){root?.classList.remove("observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===1));if(search)search.placeholder=text("Поиск файлов","Search files");renderFilesGallery();return}
-    root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===0));if(search)search.placeholder=tr("searchLayers");baseRenderLayers()};
-  const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]];
-  tabs[0]?.addEventListener("click",()=>{state.ui.layersTab="layers";queuePersist();renderLayers()});tabs[1]?.addEventListener("click",()=>{state.ui.layersTab="files";queuePersist();renderLayers()});tabs[2]?.addEventListener("click",()=>{state.ui.layersTab="folders";queuePersist();renderLayers()});
-  document.getElementById("layerSearch")?.addEventListener("input",()=>{if(state.ui?.layersTab==="files")renderFilesGallery();if(state.ui?.layersTab==="folders")renderFoldersGallery()});
 
   function fileInspectorHTML(obj){
     const k=kindOf(obj),name=esc(obj.fileName||obj.name),raw=dataText(obj.src);let body="";
