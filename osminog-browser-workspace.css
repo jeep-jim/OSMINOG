@@ -25,3 +25,9 @@ body.ow-resizing{user-select:none;cursor:col-resize}body.ow-resizing iframe{poin
 #osminogBrowserApp .osminog-window-shelf{margin-left:auto!important}
 #osminogBrowserApp .osminog-window-resize-handles{display:none!important}
 @media(max-width:720px){#owDeskDivider{display:none!important}#osminogBrowserApp .osminog-browser-toolbar input[data-browser-url]{flex:1!important;width:auto!important}}
+
+/* The canvas occupies only the left half when BrowserApp is docked beside it. */
+html body[data-workdesk][data-web-workspace=browser]:not(.native-desktop) #viewport{visibility:hidden!important}
+html body[data-workdesk][data-web-workspace=split]:not(.native-desktop) #viewport{right:auto!important;width:var(--ow-cut)!important;visibility:visible!important}
+html body[data-workdesk][data-web-workspace=browser]:not(.native-desktop) #workdeskTools{display:none!important}
+html body[data-workdesk][data-web-workspace=split]:not(.native-desktop) #workdeskTools{left:calc(var(--ow-cut)/2)!important;max-width:calc(var(--ow-cut) - 24px)!important}
