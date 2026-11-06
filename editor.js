@@ -1332,7 +1332,7 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     });
     if(same){
       if(filesGalleryLanguage!==state.language){
-        root.querySelectorAll("[data-file-id]").forEach(btn=>btn.setAttribute("aria-label",text("Предпросмотр: ","Preview: ")+(items.find(o=>o.id===btn.dataset.fileId)?.fileName||items.find(o=>o.id===btn.dataset.fileId)?.name||"")));
+        root.querySelectorAll("[data-file-id]").forEach(btn=>btn.setAttribute("aria-label",text("Предпросмотр: ","Preview: ")+(btn.title||"")));
         const more=root.querySelector("[data-files-more]");if(more)more.textContent=text("Показать ещё","Show more")+" · "+Math.max(0,items.length-(filesGalleryPage+1)*FILES_GALLERY_PAGE_SIZE);
         const empty=root.querySelector(".bc-files-empty");if(empty)empty.textContent=text("На текущем столе пока нет файлов и изображений","No files or images on this desk yet");
         filesGalleryLanguage=state.language;
