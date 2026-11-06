@@ -17,7 +17,7 @@ body[data-workdesk].unified-inspector:has(#osminogLibrary) #inspector{
 body[data-workdesk]:has(#osminogLibrary) #deskDivider{
   right:calc(var(--desk-chat-width) + var(--osminog-library-width))!important;
 }
-body[data-workdesk]:has(#osminogLibrary) .topbar{
+body[data-workdesk].unified-inspector:has(#osminogLibrary) .topbar{
   width:calc(100% - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
   max-width:calc(100% - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
 }
