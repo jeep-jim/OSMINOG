@@ -230,6 +230,9 @@ async function snapshot() {
 (async () => {
   try {
     await launch();
+    // This scenario explicitly enables capture. Pause BEFORE project creation:
+    // new desks now initialize their Inbox and collector asynchronously.
+    await configure({enabled: false});
     const ids = await editor.evaluate(async () => {
       state.language = 'ru';
       createProject(); document.querySelector('#osminogStorageOnboarding')?.close();
@@ -256,6 +259,8 @@ async function snapshot() {
       const open = document.querySelector('#osminogLibrary [data-open-folder]');
       return open && !open.disabled;
     }, null, {polling: 100});
+    assert.equal(await editor.evaluate(async()=>((await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1||{}).enabled),false,'fixture remains paused until the enable control');
+    assert.equal(await captureCount(ids.target),0,'baseline cannot be captured while paused');
     await editor.locator('#osminogLibrary [data-enabled]').check();
     await editor.waitForFunction(async () => (await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']})).length === 1, null, {polling: 100});
     await editor.locator('#osminogLibrary [data-close]').click();
@@ -299,7 +304,7 @@ async function snapshot() {
     await nativeCopyText('Live folder update 97101');
     const live = await waitForCapture(ids.target, {text: 'Live folder update 97101'});
     await editor.locator(`#osminogWindowsExplorerItems [data-item-key="obj:${live.id}"]`).waitFor({state: 'visible'});
-    assert.equal(await editor.locator('#osminogWindowsExplorerStatus').textContent(), '3 элемент(а)');
+    assert.equal(await editor.locator('#osminogWindowsExplorerStatus').textContent(), 'Элементы: 3');
     // 4.0.23 presents a readable numeric badge beneath the desktop folder name.
     // Keep the exact count and visible-label assertions, not the retired caption.
     const folderBadge = editor.locator(`[data-win-folder-id="${ids.folder}"] small`);
@@ -369,10 +374,12 @@ async function snapshot() {
     assert.equal(recovered.osminogFolderId, ids.folder);
     await editor.waitForFunction(async () => !(await chrome.storage.local.get('osminogCapture:legacy-qa'))['osminogCapture:legacy-qa'], null, {polling: 100});
     const persisted = await editor.evaluate(async id => {
-      const v = (await chrome.storage.local.get('briefCraftStudioV2')).briefCraftStudioV2;
-      return v.projects.find(p => p.id === id).objects.filter(o => o.captureId === 'legacy-qa').length;
+      const saved = await chrome.storage.local.get(null);
+      const v = saved.briefCraftStudioV2;
+      const journal = Object.entries(saved).filter(([key,e])=>key.startsWith('osminogItemEdit:')&&e.projectId===id&&e.kind==='capture').map(([,e])=>e.object);
+      return new Set([...v.projects.find(p=>p.id===id).objects,...journal].filter(o=>o.captureId==='legacy-qa').map(o=>o.id)).size;
     }, ids.target);
-    assert.equal(persisted, 1, 'Queue acknowledgement requires a persisted project record');
+    assert.equal(persisted, 1, 'Queue acknowledgement requires exactly one durable snapshot or replayable journal object');
     assert.equal(await editor.evaluate(id => objects().some(o => o.id === id), second.id), true, 'Manual paste must survive editor reload');
     record('pending 4.0.20 screenshot recovery and both automatic/manual images survive editor reload with one persisted object per capture');
 
@@ -405,4 +412,4 @@ async function snapshot() {
     await fs.promises.rm(profile, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
   }
   console.log(JSON.stringify({result: 'CLIPBOARD_EXTENSION_421_PASS',checks, manifest: JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version}));
-})().catch(error => {console.error('CLIPBOARD_EXTENSION_421_FINAL_FAILURE', error); process.exitCode = 1;});
+})().catch(error => {console.error(error); process.exitCode = 1;});

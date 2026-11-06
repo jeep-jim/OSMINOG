@@ -5,9 +5,10 @@ await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);await p
 await page.context().grantPermissions(['clipboard-read','clipboard-write']);
 const image=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=317;c.height=193;const ctx=c.getContext('2d');ctx.fillStyle='#f02663';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#12a7ce';ctx.fillRect(100,40,50,50);const src=c.toDataURL('image/png');window.__store.briefCraftLastCachedImage=src;return src});
 async function tool(id){await page.locator('[data-desk-group=magic]').click({button:'right'});await page.locator(`#deskMore [data-desk="${id}"]`).click()}
-assert.equal(await page.locator('[data-desk=\"paste-cache\"]').count(),0);await page.evaluate(async src=>navigator.clipboard.write([new ClipboardItem({'image/png':await(await fetch(src)).blob()})]),image);await tool('paste-image');await page.waitForFunction(()=>objects().some(o=>o.src===window.__store.briefCraftLastCachedImage));
+assert.equal(await page.locator('[data-desk="paste-cache"]').count(),0);await page.evaluate(async src=>navigator.clipboard.write([new ClipboardItem({'image/png':await(await fetch(src)).blob()})]),image);await tool('paste-image');await page.waitForFunction(()=>objects().some(o=>o.type==='image'));
 assert.equal(await page.evaluate(()=>objects().filter(o=>o.type==='image').length),1);
-assert.equal(await page.evaluate(()=>objects().find(o=>o.type==='image').src),image);
+// Chrome may re-encode PNG on clipboard write. Verify pixels, not compression bytes.
+assert.deepEqual(await page.evaluate(async()=>{const o=objects().find(o=>o.type==='image'),im=await createImageBitmap(await(await fetch(o.src)).blob());const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const ctx=c.getContext('2d');ctx.drawImage(im,0,0);const result={w:im.width,h:im.height,corner:[...ctx.getImageData(1,1,1,1).data],center:[...ctx.getImageData(110,50,1,1).data]};im.close();return result}),{w:317,h:193,corner:[240,38,99,255],center:[18,167,206,255]});
 await page.locator('#viewport').focus();await page.keyboard.press('Control+c');
 await page.waitForFunction(()=>document.querySelector('#toast')?.textContent.includes('Скопировано'));
 // Real browser clipboard, no clipboard mocks. A second page represents an external chat.
