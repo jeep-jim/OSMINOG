@@ -43,7 +43,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
    return{mutations,same:first===root.querySelector('.bc-file-tile')};
   });
   assert.equal(churn.mutations,0,JSON.stringify(churn));assert.equal(churn.same,true);check('120 unchanged Layers redraws do not rebuild the file gallery or reload image elements');
-  const exportState=await page.evaluate(()=>{state.selected=[];renderInspector();return{disabled:document.querySelector('#exportBtn').disabled,count:OSMINOGEditorAPI.selected().length}});
+  const exportState=await page.evaluate(()=>{state.selected=[];renderInspector();return{disabled:document.querySelector('#exportBtn').disabled,count:state.selected.length}});
   assert.equal(exportState.disabled,false,JSON.stringify(exportState));await page.locator('#exportBtn').click();assert.equal(await page.locator('#exportMenu').evaluate(el=>el.hidden),false);await page.locator('#exportBtn').click();check('Export remains available without a selection and opens the existing format menu for current-desk content');
   const layout=await page.evaluate(()=>{
    document.body.dataset.workdesk='true';document.body.classList.add('desk-chat-open','unified-inspector');
