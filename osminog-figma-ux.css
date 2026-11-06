@@ -171,3 +171,20 @@ body.unified-inspector #inspector .ui-hex{font-variant-numeric:tabular-nums}
   .osminog-media-preview footer{justify-content:center;padding:8px;gap:5px}
   .osminog-media-preview footer button{flex:1 1 30%;padding:0 6px}
 }
+
+/* Restore readable default scale across the workspace and assistant conversation. */
+body[data-workdesk] #bridgePanel{font-size:14px!important}
+body[data-workdesk] #bridgePanel .live-ai-message{font-size:13px!important;line-height:1.65!important;padding:12px 14px!important}
+body[data-workdesk] #bridgePanel .live-ai-message.system{font-size:11px!important;line-height:1.5!important}
+body[data-workdesk] #bridgePanel .bridge-session-meta,
+body[data-workdesk] #bridgePanel .live-ai-presence-line small{font-size:10px!important}
+body[data-workdesk] #bridgePanel .live-ai-input,
+body[data-workdesk] #bridgePanel .live-ai-input textarea,
+body[data-workdesk] #bridgePanel .live-ai-composer input{font-size:14px!important}
+body[data-workdesk] #layersPanel .panel-head strong{font-size:15px!important}
+body[data-workdesk] #layersPanel .panel-tabs button{font-size:13px!important}
+body[data-workdesk] #layersPanel .panel-search input{font-size:13px!important}
+body[data-workdesk] #osminogLibrary{font-size:14px!important}
+body[data-workdesk] #osminogLibrary input,
+body[data-workdesk] #osminogLibrary select,
+body[data-workdesk] #osminogLibrary button{font-size:13px}
