@@ -1,11 +1,11 @@
 {
   "product":"OSMINOG",
   "platform":"chrome-extension",
-  "version":"4.0.33",
-  "versionName":"4.0.33",
-  "baseVersion":"4.0.32",
-  "artifact":"OSMINOG-Chrome-4.0.33.zip",
-  "manifestVersion":"4.0.33",
+  "version":"4.0.34",
+  "versionName":"4.0.34",
+  "baseVersion":"4.0.33",
+  "artifact":"OSMINOG-Chrome-4.0.34.zip",
+  "manifestVersion":"4.0.34",
   "manifestAtRoot":true,
   "fixedManifestKeyPreserved":true,
   "runtimeVerified":false,
@@ -13,7 +13,8 @@
     "fullExtension":"Existing Chrome clipboard, storage, directory I/O, reload and retained UI gates remain mandatory before packaging.",
     "projectTrash":"Separate real-extension gate covers deletion, restore, expiry and inbox.",
     "ownerWindows":"Not tested on the owner's computer. Separate Windows app is unchanged.",
-    "webStage":"Experimental independent Chrome popup per logical workspace tab, positioned at the workspace frame with the native Chrome titlebar reserved inside the frame. Switching retains document state; inactive windows remain open when the parent tab changes; only switching logical OSMINOG site tabs minimizes the unselected popup. Geometry changes do not steal focus. Native new-window POST/auth pages remain separate and untouched. No always-on-top or WebContents embedding is claimed; Chrome/OS may still place the popup behind the parent when another surface is focused.",
+    "webStage":"Experimental independent Chrome popup per logical workspace tab, positioned at the workspace frame with native Chrome titlebar reserved inside the frame. Switching retains document state; inactive windows remain open when the parent tab changes; only switching logical OSMINOG site tabs minimizes the unselected popup. Geometry changes do not steal focus. Native new-window POST/auth pages remain separate and untouched. No always-on-top or WebContents embedding is claimed; Chrome/OS may still place the popup behind the parent when another surface is focused.",
+    "figmaUx":"Four zoom-stable corner resize handles, Ctrl/Command aspect-ratio lock for shape creation and object resizing, drag-scrub numeric properties, docked library drawer to the right of chat, three-column full-preview files gallery and single-click media preview with canvas/download/copy actions. Export remains available because selected-object export is implemented.",
     "mediaTransfer":"Image import from an explicitly authorized editable page copy is tested; live provider media is not claimed.",
     "ownerAuth":"Authenticator bytes must match 90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41."
   }
