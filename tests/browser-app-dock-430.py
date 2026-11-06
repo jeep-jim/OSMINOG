@@ -20,7 +20,7 @@ try:
   browser=p.chromium.launch(**opts);page=browser.new_page(viewport={'width':1600,'height':1000},locale='ru-RU');page.set_default_timeout(12000);page.on('pageerror',lambda e:errors.append(str(e)));page.add_init_script(fixture)
   page.goto(f'http://127.0.0.1:{server.server_port}/editor.html')
   page.evaluate("""async()=>{await OSMINOGStateReady;document.querySelector('#osminogStorageOnboarding')?.remove();createProject();document.querySelector('#osminogStorageOnboarding')?.remove();await OSMINOGBrowserHubReady;await BriefCraftBridge.open();await new Promise(r=>setTimeout(r,100));document.querySelector('#osminogStorageOnboarding')?.remove();document.querySelector('#osminogStorageOnboarding')?.remove()}""")
-  page.wait_for_timeout(400);page.evaluate("()=>document.querySelector('#osminogStorageOnboarding')?.remove()");await page.wait_for_function('()=>typeof OSMINOGBrowserApp?.open===\"function\"');assert page.locator('#osminogWebWorkspace').count()==0
+  page.wait_for_timeout(400);page.evaluate("()=>document.querySelector('#osminogStorageOnboarding')?.remove()");page.wait_for_function('()=>typeof OSMINOGBrowserApp?.open===\"function\"');assert page.locator('#osminogWebWorkspace').count()==0
   url=f'http://127.0.0.1:{server.server_port}/fixture'
   opened=page.evaluate('(url)=>OSMINOGWorkspaceTools.run("browser_open",{url})',url);assert opened['ok'] and opened['mode']=='browser-app-window',opened
   app=page.locator('#osminogBrowserApp');expect(app).to_be_visible()
