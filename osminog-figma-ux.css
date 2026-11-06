@@ -188,3 +188,13 @@ body[data-workdesk] #osminogLibrary{font-size:14px!important}
 body[data-workdesk] #osminogLibrary input,
 body[data-workdesk] #osminogLibrary select,
 body[data-workdesk] #osminogLibrary button{font-size:13px}
+
+/* The current messenger uses GPT message classes, not the retired live-ai-message names. */
+body[data-workdesk] #bridgePanel .gpt-msg-text{font-size:13px!important;line-height:1.65!important}
+body[data-workdesk] #bridgePanel .gpt-msg-card>header strong{font-size:12px!important}
+body[data-workdesk] #bridgePanel .gpt-msg-card>header i{font-size:9px!important}
+body[data-workdesk] #bridgePanel .gpt-msg-card>header time{font-size:9px!important}
+body[data-workdesk] #bridgePanel .gpt-composer-frame textarea,
+body[data-workdesk] #bridgePanel #chatInput,
+body[data-workdesk] #bridgePanel .gpt-composer-frame input{font-size:14px!important}
+body[data-workdesk] #bridgePanel .local-ai-projectbar{font-size:13px!important}
