@@ -19,7 +19,7 @@ public class VisionTest {
   assertEquals("true",eval(a.shell,"document.documentElement.scrollWidth<=innerWidth"));
   assertEquals("true",eval(a.shell,"(()=>{const s=document.getElementById('scene'),r=s.getBoundingClientRect();return Math.abs(r.left)<1&&Math.abs(r.width-innerWidth)<1&&getComputedStyle(s).borderRadius==='0px'})()"));
   assertEquals("true",eval(a.shell,"(()=>{const e=document.getElementById('text');e.focus();const ok=getComputedStyle(e).outlineStyle==='none';e.blur();return ok})()"));
-  ui(()->{assertEquals(0,a.root.getPaddingLeft());assertEquals(0,a.root.getPaddingRight());assertEquals(a.getResources().getDisplayMetrics().widthPixels,a.root.getWidth());});
+  ui(()->{assertEquals(0,a.root.getPaddingLeft());assertEquals(0,a.root.getPaddingRight());assertEquals(a.getResources().getDisplayMetrics().widthPixels,a.root.getWidth());assertEquals(a.root.getWidth(),a.shell.getWidth());});
   screenshot("vision-home");
   touch("menu");
   until(()->"true".equals(eval(a.shell,"(()=>{const e=document.getElementById('settings'),r=e.getBoundingClientRect();return !e.hidden&&getComputedStyle(e).opacity==='1'&&r.width>200&&r.height>100&&!!document.elementFromPoint(r.x+r.width/2,r.y+30)?.closest('#settings')})()")));
