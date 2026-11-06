@@ -807,25 +807,6 @@ chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
   return true;
 });
 
-/* Microfix 3.8.33: reopen OSMINOG editor after extension reload/update */
-(async()=>{
-  const KEY="briefCraftReopenAfterUpdateV1";
-  try{
-    const got=await chrome.storage.local.get(KEY),req=got?.[KEY];
-    if(!req)return;
-    const at=Number(req.at||0);
-    if(!at||Date.now()-at>120000){await chrome.storage.local.remove(KEY);return}
-    await chrome.storage.local.remove(KEY);
-    await new Promise(r=>setTimeout(r,350));
-    const editorUrl=chrome.runtime.getURL(String(req.url||"editor.html").replace(/^\/+/,""));
-    const tabs=await chrome.tabs.query({});
-    const existing=tabs.find(t=>typeof t.url==="string"&&t.url.startsWith(chrome.runtime.getURL("editor.html")));
-    if(existing?.id){
-      await chrome.tabs.update(existing.id,{active:true});
-      if(existing.windowId!=null)try{await chrome.windows.update(existing.windowId,{focused:true})}catch{}
-    }else{
-      await chrome.tabs.create({url:editorUrl,active:true});
-    }
-  }catch{}
-})();
+/* Update/reload handoff is confirmed by the new editor, not a disappearing old tab. */
+importScripts("osminog-update-recovery.js");
 
