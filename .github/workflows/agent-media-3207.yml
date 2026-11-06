@@ -52,7 +52,7 @@ jobs:
       - name: Verify workspace browser and common header geometry
         run: |
           python3 -m pip install playwright==1.62.0
-          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" xvfb-run -a python3 tests/browser-stage-magnet-432.py
+          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" xvfb-run -s "-screen 0 1920x1200x24" -a python3 tests/browser-stage-magnet-432.py
       - run: python3 tools/prepare_ocr.py
       - run: node tests/workspace-423.cjs
       - run: node tests/workspace-performance-424.cjs
