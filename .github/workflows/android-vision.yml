@@ -1,7 +1,7 @@
 name: Android Vision focused build
 on:
   push:
-    branches: ['main', 'feat/android-vision-20261106']
+    branches: ['main', 'feat/android-vision-20261106', 'feature/vision-figma-mobile-ui']
     paths: ['android-vision/**', '.github/workflows/android-vision.yml']
   workflow_dispatch:
 permissions:
