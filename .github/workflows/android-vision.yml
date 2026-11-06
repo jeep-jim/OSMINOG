@@ -45,12 +45,28 @@ jobs:
           script: |
             gradle :app:connectedDebugAndroidTest
             adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.osminog.vision
             adb shell pm clear com.osminog.vision
-            adb shell am start -n com.osminog.vision/.MainActivity
-            sleep 3
+            adb shell am start -S -n com.osminog.vision/.MainActivity
             mkdir -p dist
-            adb shell screencap -p /sdcard/vision.png
-            adb pull /sdcard/vision.png dist/vision.png
+            ready=0
+            for attempt in $(seq 1 30); do
+              adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+              if adb shell cat /sdcard/window.xml 2>/dev/null | grep -q 'Я рядом'; then
+                ready=1
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then
+              adb logcat -d > dist/android-startup-logcat.txt
+              adb shell screencap -p /sdcard/vision-startup-failed.png
+              adb pull /sdcard/vision-startup-failed.png dist/vision-startup-failed.png
+              echo 'OSMINOG Vision did not render its expected first screen after a clean force-stop launch.'
+              exit 1
+            fi
+            adb exec-out screencap -p > dist/vision.png
+            adb logcat -d > dist/android-startup-logcat.txt
       - name: Retain unsigned release and signing verifier
         if: always()
         run: |
