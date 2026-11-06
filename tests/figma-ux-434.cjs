@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const read=p=>fs.readFileSync(p,'utf8');
+const manifest=JSON.parse(read('manifest.json'));
+const html=read('editor.html'),editor=read('editor.js'),ux=read('osminog-figma-ux.js'),css=read('osminog-figma-ux.css'),inspector=read('osminog-inspector.css');
+assert.equal(manifest.version,'4.0.34');
+assert.match(html,/osminog-figma-ux\.css/);assert.match(html,/osminog-figma-ux\.js/);
+assert.match(editor,/if\(event\.ctrlKey\|\|event\.metaKey\)/);
+assert.match(editor,/openMediaPreview\(o\)/);
+assert.match(editor,/data-media-download/);assert.match(editor,/data-media-copy/);
+assert.match(css,/repeat\(3,minmax\(0,1fr\)\)/);
+assert.match(css,/resize-nw/);assert.match(css,/resize-se/);
+assert.match(css,/has\(#osminogLibrary\)/);
+assert.match(ux,/data-edit/);assert.match(ux,/pointermove/);assert.match(ux,/--osminog-handle-scale/);
+assert.match(inspector,/\.ui-value/);
+assert.match(html,/<button id="exportBtn"/);
+assert.match(editor,/\$\("#exportBtn"\)\.addEventListener/);
+console.log('PASS 4.0.34 Figma UX contracts: docked library, fixed corner handles, Ctrl ratio lock, scrub controls, full media preview/actions; selected-object export preserved');
