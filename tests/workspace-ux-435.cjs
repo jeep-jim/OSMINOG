@@ -30,6 +30,10 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   const grid=await page.locator('#layerList').evaluate(el=>({columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,firstHeight:el.querySelector('.bc-file-tile').getBoundingClientRect().height,lazy:el.querySelector('.bc-file-tile img')?.loading}));
   assert.equal(grid.columns,2,JSON.stringify(grid));assert(grid.firstHeight>=148,JSON.stringify(grid));assert.equal(grid.lazy,'lazy',JSON.stringify(grid));
   await page.locator('[data-files-more]').click();assert.equal(await page.locator('.bc-file-tile').count(),40);check('roomy two-column gallery, lazy thumbnails, 36-item paging and current-desk-only media');
+  await page.locator('.bc-file-tile').first().click();await page.waitForSelector('.osminog-media-preview');
+  const previewActions=await page.locator('.osminog-media-preview footer button').allTextContents();
+  for(const label of ['Add to canvas','Download','Copy','Properties','Close'])assert(previewActions.includes(label),JSON.stringify(previewActions));
+  await page.locator('.osminog-media-preview header button').click();check('single-click media preview opens a full modal with canvas, download, copy and properties actions');
   const churn=await page.evaluate(()=>{
    const root=document.querySelector('#layerList');let mutations=0;const observer=new MutationObserver(records=>mutations+=records.length);observer.observe(root,{childList:true,subtree:true});
    const first=root.querySelector('.bc-file-tile');for(let i=0;i<120;i++)renderLayers();observer.disconnect();
