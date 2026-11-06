@@ -7,6 +7,10 @@ on:
       - 'osminog-workspace-polish.*'
       - 'bridge.js'
       - 'editor.html'
+      - 'manifest.json'
+      - 'OSMINOG_BUILD.json'
+      - 'osminog-browser-hub.js'
+      - 'osminog-browser-workspace.css'
       - 'tests/retired-features-416.cjs'
       - '.github/workflows/animation-studio-3206.yml'
   workflow_dispatch:

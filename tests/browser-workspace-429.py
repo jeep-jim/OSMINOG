@@ -8,6 +8,7 @@ import os
 
 root=Path(__file__).resolve().parents[1]
 os.chdir(root)
+(root/'artifacts').mkdir(exist_ok=True)
 class Handler(SimpleHTTPRequestHandler):
     def log_message(self,*args): pass
     def do_GET(self):
@@ -17,12 +18,12 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
 threading.Thread(target=server.serve_forever,daemon=True).start()
-fixture="""() => {
+fixture="""(() => {
 if(window!==window.top)return;
 const store={osminogDisplayPrefs:{language:'ru',theme:'light'},osminogCollectorV1:{enabled:false}};
 const event={addListener(){},removeListener(){}};window.__store=store;window.__calls=[];
 window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.29'}),onMessage:event,sendMessage:async m=>{__calls.push(m);return{ok:false,error:'fixture offline'}}},storage:{local:{get:(k,cb)=>{const v=typeof k==='string'?{[k]:store[k]}:{...store};cb?.(v);return Promise.resolve(v)},set:(v,cb)=>{Object.assign(store,structuredClone(v));cb?.();return Promise.resolve()},remove:async k=>{delete store[k]}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[],create:async args=>{__calls.push({external:args});return{id:2}}},permissions:{contains:async()=>false,request:async()=>false},identity:{getRedirectURL:()=>''},i18n:{getMessage:()=>''}};
-}"""
+})();"""
 errors=[]
 try:
     with sync_playwright() as p:
@@ -76,7 +77,6 @@ try:
         page.evaluate('(id)=>openProject(id)',current);page.wait_for_timeout(150)
         assert page.locator('#osminogWebWorkspace iframe').count()==0,'Do not load saved sites on project switch'
         page.locator('#workspaceWebToggle').click();page.wait_for_timeout(100)
-        # The last selected blank tab is restored; select the stored website explicitly.
         page.locator('#osminogWebWorkspace [role=tab]').first.click()
         page.locator('#workdeskGPT').click();page.wait_for_timeout(100)
         page.screenshot(path=str(root/'artifacts/browser-workspace-429-light.png'),full_page=True)
