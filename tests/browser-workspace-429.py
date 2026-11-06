@@ -29,7 +29,7 @@ fixture="""(() => {
 if(window!==window.top)return;
 const store={osminogDisplayPrefs:{language:'ru',theme:'light'},osminogCollectorV1:{enabled:false}};
 const event={addListener(){},removeListener(){}};window.__store=store;window.__calls=[];
-window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.29'}),onMessage:event,sendMessage:async m=>{__calls.push(m);return{ok:false,error:'fixture offline'}}},storage:{local:{get:(k,cb)=>{const v=typeof k==='string'?{[k]:store[k]}:{...store};cb?.(v);return Promise.resolve(v)},set:(v,cb)=>{Object.assign(store,structuredClone(v));cb?.();return Promise.resolve()},remove:async k=>{delete store[k]}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[],create:async args=>{__calls.push({external:args});return{id:2}}},permissions:{contains:async()=>false,request:async()=>false},identity:{getRedirectURL:()=>''},i18n:{getMessage:()=>''}};
+window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.30'}),onMessage:event,sendMessage:async m=>{__calls.push(m);return{ok:false,error:'fixture offline'}}},storage:{local:{get:(k,cb)=>{const v=typeof k==='string'?{[k]:store[k]}:{...store};cb?.(v);return Promise.resolve(v)},set:(v,cb)=>{Object.assign(store,structuredClone(v));cb?.();return Promise.resolve()},remove:async k=>{delete store[k]}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[],create:async args=>{__calls.push({external:args});return{id:2}}},permissions:{contains:async()=>false,request:async()=>false},identity:{getRedirectURL:()=>''},i18n:{getMessage:()=>''}};
 })();"""
 errors=[]
 try:
@@ -47,8 +47,8 @@ try:
             page.evaluate("""async()=>{await OSMINOGStateReady;document.querySelector('#osminogStorageOnboarding')?.close();createProject();document.querySelector('#osminogStorageOnboarding')?.close();await OSMINOGWebWorkspace.ready;await BriefCraftBridge.open()}""")
             page.wait_for_timeout(600)
             assert page.locator('#browserHub').count()==0
-            notes=page.evaluate('''()=>{let root=document.getElementById('updateReleaseNotes');if(!root){root=document.createElement('section');root.id='updateReleaseNotes';root.hidden=true;document.body.append(root)}OSMINOGReleaseNotes.render('4.0.29',null);const current=root.textContent;OSMINOGReleaseNotes.render('9.9.9',null);const unknown=root.textContent;return{current,unknown}}''')
-            assert 'Общая шапка и веб-область · v4.0.29' in notes['current'],notes
+            notes=page.evaluate('''()=>{let root=document.getElementById('updateReleaseNotes');if(!root){root=document.createElement('section');root.id='updateReleaseNotes';root.hidden=true;document.body.append(root)}OSMINOGReleaseNotes.render('4.0.30',null);const current=root.textContent;OSMINOGReleaseNotes.render('9.9.9',null);const unknown=root.textContent;return{current,unknown}}''')
+            assert 'Общая шапка и веб-область · v4.0.30' in notes['current'],notes
             assert notes['unknown']=='Обновление OSMINOG · v9.9.9',notes
             page.evaluate('()=>OSMINOGBrowserHubAPI.open({provider:"gpt"})')
             assert page.locator('#browserHub').count()==0

@@ -32,8 +32,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   });
   await page.waitForFunction(id=>OSMINOGLibrary.destination().folderId===id,ids.shots);
   for(const selector of ['#workspaceBrowserMode','[data-mode="browser"]','[data-tool="browser"]','#libraryCalendar'])assert.equal(await page.locator(selector).count(),0,selector);
-  assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp),'undefined');
-  assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),0);check('retired browser and redundant calendar are absent from Chrome runtime');
+  assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp?.open),'function');
+  assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),1);check('restored BrowserApp loads once; retired canvas browser mode and redundant calendar remain absent');
   // A fresh workspace starts with Layers closed. Exercise its actual UI opener.
   await page.locator('#layersToggle').click();await page.waitForSelector('#layersPanel.open');
   await page.waitForSelector(`[data-stored-id="${ids.brief}"]`);assert.equal(await page.locator('#layerList .cl-stored').count(),4);
@@ -54,7 +54,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.locator('[data-kind]').selectOption('media');await page.locator('[data-select-all]').check();assert(await page.locator('[data-delete-selected]').isEnabled());
   await page.screenshot({path:'artifacts/workspace-423-search-light.png'});check('header-aligned search, header deletion and text/media/file filtering');
   await page.locator('[data-delete-selected]').click();await page.locator('.workdeskConfirm [data-confirm-cancel]').click();assert.equal(await page.locator('.lib-card').count(),2);
-  await page.locator('[data-delete-selected]').click();await page.locator('.workdeskConfirm [data-confirm-cancel]').focus();await page.keyboard.press('ArrowRight');await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelectorAll('.lib-card').length===0);
+  await page.locator('[data-delete-selected]').click();await page.locator('.workdeskConfirm [data-confirm-cancel]').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.evaluate(()=>document.activeElement.matches('.workdeskConfirm [data-confirm-ok]')),true,'ArrowRight must move confirmation focus from Cancel to Delete');await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelectorAll('.lib-card').length===0);
   await page.waitForFunction(id=>document.querySelector(`.osminog-win-folder-icon[data-win-folder-id="${id}"]>small`)?.textContent==='0',ids.shots);
   await page.locator('#osminogLibrary [data-close]').click();await page.evaluate(()=>document.querySelector('#undo').click());
   await page.waitForFunction(id=>document.querySelector(`.osminog-win-folder-icon[data-win-folder-id="${id}"]>small`)?.textContent==='2',ids.shots);check('cancel, keyboard-confirmed bulk deletion, Undo and live folder counters');
