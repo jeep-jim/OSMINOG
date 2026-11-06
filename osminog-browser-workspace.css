@@ -33,3 +33,5 @@ html body[data-workdesk][data-web-workspace=browser]:not(.native-desktop) #workd
 html body[data-workdesk][data-web-workspace=split]:not(.native-desktop) #workdeskTools{left:calc(var(--ow-cut)/2)!important;max-width:calc(var(--ow-cut) - 24px)!important}
 
 #osminogBrowserApp [data-web-media]{background:var(--accent-soft,#ecebff);color:var(--accent,#6657e8);font-weight:650}#osminogBrowserApp [data-web-media]:disabled{opacity:.6;cursor:wait}
+
+#osminogBrowserApp .osminog-browser-toolbar [data-browser-edit]{display:inline-flex!important}
