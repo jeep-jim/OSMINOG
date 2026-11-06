@@ -1,0 +1,41 @@
+/* Chrome workspace only. Native desktop owns its WebContentsViews and layout. */
+html body[data-workdesk]:not(.native-desktop){--ow-line:#39414f;--ow-base:#212836}
+html[data-theme=light] body[data-workdesk]:not(.native-desktop){--ow-line:#d5dbe5;--ow-base:#e7ebf2}
+html body[data-workdesk]:not(.native-desktop) #app{background:var(--ow-base)}
+html body[data-workdesk]:not(.native-desktop) .topbar{right:var(--desk-right)!important;width:auto!important;max-width:none!important;border-bottom:1px solid var(--ow-line)!important;box-shadow:none!important;box-sizing:border-box!important}
+html body[data-workdesk]:not(.native-desktop) #bridgePanel:not([hidden]){top:0!important}
+html body[data-workdesk]:not(.native-desktop) #bridgePanel>.bridge-head{height:var(--desk-header-height)!important;min-height:var(--desk-header-height)!important;max-height:var(--desk-header-height)!important;flex:0 0 var(--desk-header-height)!important;box-sizing:border-box!important;padding:7px 12px!important;border-radius:0!important;border-bottom:1px solid var(--ow-line)!important;align-items:center!important}
+html body[data-workdesk]:not(.native-desktop) #deskDivider{top:0!important;background:var(--ow-line)!important}
+html body[data-workdesk]:not(.native-desktop) #viewport{border:0!important;box-shadow:none!important}
+html body[data-workdesk]:not(.native-desktop) .topbar .top-actions{flex-wrap:nowrap!important;gap:6px!important}
+.ow-header-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ow-header-button[aria-pressed=true]{background:var(--accent-soft,#7970ff20)!important;color:var(--accent,#7f70ff)!important}
+#osminogWebWorkspace{position:fixed;top:var(--ow-top,56px);right:var(--ow-right,0px);bottom:0;display:flex;flex-direction:column;min-width:0;background:var(--desk-panel,#fff);color:var(--text);z-index:100;border:0;border-top:0;box-sizing:border-box}
+#osminogWebWorkspace[hidden],#owDeskDivider[hidden]{display:none!important}
+#osminogWebWorkspace>header{display:flex;align-items:center;gap:6px;min-height:40px;padding:4px 8px;border-bottom:1px solid var(--ow-line);box-sizing:border-box}
+#osminogWebWorkspace nav{display:flex;align-items:center;gap:4px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:thin}
+#osminogWebWorkspace button{height:30px;min-width:30px;flex-shrink:0;border:1px solid var(--ow-line);border-radius:7px;background:var(--surface-2);color:inherit;padding:3px 8px;font:13px system-ui;cursor:pointer}
+#osminogWebWorkspace button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.ow-tab{display:flex;align-items:center;border-radius:8px;background:var(--surface-2);min-width:0;flex:0 0 auto;max-width:220px}
+.ow-tab.active{background:var(--accent-soft,#7970ff20);color:var(--accent)}
+#osminogWebWorkspace .ow-tab button{border:0;background:none;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#owDomain{font:12px system-ui;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#osminogWebWorkspace[data-narrow=true] #owDomain{display:none}
+#osminogWebWorkspace>form{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid var(--ow-line);margin:0}
+#owAddress{flex:1;min-width:0;height:30px;box-sizing:border-box;font:13px system-ui;padding:5px 9px;border:1px solid var(--ow-line);border-radius:7px;color:var(--text);background:var(--surface-2)}
+#osminogWebWorkspace .ow-frames{position:relative;flex:1;min-height:0;background:var(--ow-base)}
+#osminogWebWorkspace iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+#osminogWebWorkspace iframe[hidden]{display:none}
+#osminogWebWorkspace .ow-footer{display:flex;align-items:center;gap:8px;padding:4px 8px;border-top:1px solid var(--ow-line)}
+#osminogWebWorkspace .ow-notice{flex:1;margin:0;padding:2px;font:12px/1.4 system-ui;color:var(--muted)}
+#owDeskDivider{position:fixed;top:var(--ow-top,56px);bottom:0;left:var(--ow-cut);width:6px;z-index:122;background:var(--ow-line);cursor:col-resize;touch-action:none}
+#owDeskDivider:hover,#owDeskDivider:focus-visible{background:var(--accent);outline:none}
+body.ow-resizing{user-select:none;cursor:col-resize}body.ow-resizing iframe{pointer-events:none!important}
+html body[data-workdesk][data-web-workspace=browser]:not(.native-desktop) #viewport{visibility:hidden}
+html body[data-workdesk][data-web-workspace-split=true]:not(.native-desktop) #viewport{right:auto!important;width:var(--ow-cut)!important;visibility:visible}
+html body[data-workdesk][data-web-workspace=browser]:not(.native-desktop) #workdeskTools{display:none!important}
+html body[data-workdesk][data-web-workspace-split=true]:not(.native-desktop) #workdeskTools{left:var(--ow-desk-center)!important;max-width:calc(var(--ow-cut) - 20px)!important}
+@media(max-width:720px){html body[data-workdesk]:not(.native-desktop) .topbar{right:0!important}body.desk-chat-open #osminogWebWorkspace,body.desk-chat-open #owDeskDivider{display:none!important}html body[data-workdesk]:not(.native-desktop) #bridgePanel:not([hidden]){top:var(--desk-header-height)!important}html body[data-workdesk]:not(.native-desktop) #deskDivider{display:none!important}}
+@media(max-width:1000px){html body[data-workdesk]:not(.native-desktop) .topbar .workspace-brand-name{display:none!important}}
+
+html body[data-workdesk][data-web-workspace=split][data-web-workspace-split=false]:not(.native-desktop) #workdeskTools{display:none!important}

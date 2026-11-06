@@ -1,17 +1,18 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.28",
-  "versionName": "4.0.28",
-  "baseVersion": "4.0.27",
-  "artifact": "OSMINOG-Chrome-4.0.28.zip",
-  "manifestVersion": "4.0.28",
+  "version": "4.0.29",
+  "versionName": "4.0.29",
+  "baseVersion": "4.0.28",
+  "artifact": "OSMINOG-Chrome-4.0.29.zip",
+  "manifestVersion": "4.0.29",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "verification": {
     "fullExtension": "Chrome clipboard, storage, directory-I/O and reload gates must pass before packaging.",
     "projectTrash": "Separate real-extension gate verifies cancellation, move, reload, restore, purge, expiry and popup inbox.",
-    "ownerWindows": "Not tested on the owner's personal device. Native Windows compatibility is verified separately."
+    "ownerWindows": "Not tested on the owner's personal device. Native Windows compatibility is verified separately.",
+    "webWorkspace": "Shared header geometry, safe frame navigation, native-session isolation, project isolation and pane resizing. Protected website embedding and native browser control are NOT claimed."
   }
 }
