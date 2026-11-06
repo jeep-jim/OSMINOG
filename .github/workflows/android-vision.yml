@@ -53,7 +53,7 @@ jobs:
           sha256sum dist/*.apk > dist/SHA256SUMS.txt
           git rev-parse HEAD > dist/source-commit.txt
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" dist/apksigner.jar
-          git archive --format=zip HEAD android-vision > dist/source.zip
+          git -C .. archive --format=zip HEAD android-vision > dist/source.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:
