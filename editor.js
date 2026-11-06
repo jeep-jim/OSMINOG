@@ -1376,6 +1376,26 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     };
     addBatch(0,Math.min(items.length,FILES_GALLERY_PAGE_SIZE));updateMore();
   }
+  function renderFoldersGallery(){
+    const root=document.getElementById("layerList"),search=document.getElementById("layerSearch");if(!root)return;
+    root.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");root.classList.add("bc-folders-gallery");
+    const q=(search?.value||"").trim().toLocaleLowerCase(),folders=globalThis.OSMINOGWindowsFolders?.list?.()||[],ordered=[],seen=new Set();
+    const visit=(parentId=null,depth=0)=>folders.filter(f=>(f.parentId||null)===parentId&&!seen.has(f.id)).sort((a,b)=>String(a.name).localeCompare(String(b.name))).forEach(f=>{seen.add(f.id);ordered.push({...f,_depth:depth});visit(f.id,depth+1)});visit();
+    const items=ordered.filter(f=>!q||String(f.name||"").toLocaleLowerCase().includes(q));
+    root.innerHTML='<div class="bc-folders-toolbar"><strong>'+text("Папки проекта","Project folders")+'</strong><button type="button" data-folder-create title="'+text("Новая папка","New folder")+'" aria-label="'+text("Новая папка","New folder")+'">＋</button></div>'+
+      (items.length?items.map(f=>'<button type="button" class="bc-folder-row" data-folder-open="'+esc(f.id)+'" data-capture="'+!!globalThis.OSMINOGWorkspacePolish?.captureFolder(f)+'" style="padding-left:'+(10+Math.min(5,f._depth)*14)+'px"><span class="bc-folder-glyph">▰</span><span><b>'+esc(f.name)+'</b><small>'+Number(globalThis.OSMINOGWorkspacePolish?.folderCount(f)??f.members?.length??0)+' · '+text("элементов","items")+'</small></span><i>›</i></button>').join(""):'<div class="bc-files-empty">'+text("Папок пока нет. Создай первую.","No folders yet. Create your first folder.")+'</div>');
+    root.querySelector("[data-folder-create]")?.addEventListener("click",()=>{const name=prompt(text("Название папки","Folder name"),text("Новая папка","New folder"));if(!name?.trim())return;globalThis.OSMINOGWindowsFolders?.create?.({name:name.trim(),parentId:null,desktopVisible:false,rename:false});renderFoldersGallery();queuePersist()});
+    root.querySelectorAll("[data-folder-open]").forEach(b=>b.addEventListener("click",()=>globalThis.OSMINOGWindowsFolders?.openVirtual?.(b.dataset.folderOpen)));
+  }
+  const baseRenderLayers=renderLayers;
+  renderLayers=function(){const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]],search=document.getElementById("layerSearch"),root=document.getElementById("layerList");
+    if(state.ui?.layersTab==="folders"){root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards");tabs.forEach((b,i)=>b.classList.toggle("active",i===2));if(search)search.placeholder=text("Поиск папок","Search folders");renderFoldersGallery();return}
+    if(state.ui?.layersTab==="files"){root?.classList.remove("observed-gallery","bc-observed-list","bc-layer-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===1));if(search)search.placeholder=text("Поиск файлов","Search files");renderFilesGallery();return}
+    root?.classList.remove("files-gallery","observed-gallery","bc-observed-list","bc-layer-cards","bc-folders-gallery");tabs.forEach((b,i)=>b.classList.toggle("active",i===0));if(search)search.placeholder=tr("searchLayers");baseRenderLayers()};
+  const panel=document.getElementById("layersPanel"),tabs=[...panel?.querySelectorAll(".panel-tabs button")||[]];
+  tabs[0]?.addEventListener("click",()=>{state.ui.layersTab="layers";queuePersist();renderLayers()});tabs[1]?.addEventListener("click",()=>{state.ui.layersTab="files";queuePersist();renderLayers()});tabs[2]?.addEventListener("click",()=>{state.ui.layersTab="folders";queuePersist();renderLayers()});
+  document.getElementById("layerSearch")?.addEventListener("input",()=>{if(state.ui?.layersTab==="files")renderFilesGallery();if(state.ui?.layersTab==="folders")renderFoldersGallery()});
+
   function fileInspectorHTML(obj){
     const k=kindOf(obj),name=esc(obj.fileName||obj.name),raw=dataText(obj.src);let body="";
     if(k==="json"){let v=raw;try{v=JSON.stringify(JSON.parse(raw),null,2)}catch{}body=`<pre class="bc-file-code"><code>${escLines(v)}</code></pre>`}
