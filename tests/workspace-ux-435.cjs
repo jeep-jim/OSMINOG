@@ -32,10 +32,11 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.evaluate(()=>{state.language='de';applyLanguage()});assert((await page.locator('[data-files-more]').textContent()).includes('Mehr anzeigen'));
   await page.evaluate(()=>{state.language='en';applyLanguage()});assert((await page.locator('[data-files-more]').textContent()).includes('Show more'));check('gallery controls refresh translations without recreating the image cards');
   await page.locator('[data-files-more]').click();assert.equal(await page.locator('.bc-file-tile').count(),40);check('roomy two-column gallery, lazy thumbnails, 36-item paging and current-desk-only media');
+  await page.evaluate(()=>{state.language='de';applyLanguage()});
   await page.locator('.bc-file-tile').first().click();await page.waitForSelector('.osminog-media-preview');
   const previewActions=await page.locator('.osminog-media-preview footer button').allTextContents();
-  for(const label of ['Add to canvas','Download','Copy','Properties','Close'])assert(previewActions.includes(label),JSON.stringify(previewActions));
-  await page.locator('.osminog-media-preview header button').click();check('single-click media preview opens a full modal with canvas, download, copy and properties actions');
+  for(const label of ['Zur Arbeitsfläche','Herunterladen','Kopieren','Eigenschaften','Schließen'])assert(previewActions.includes(label),JSON.stringify(previewActions));
+  await page.locator('.osminog-media-preview header button').click();await page.evaluate(()=>{state.language='en';applyLanguage()});check('single-click media preview opens a full modal with localized canvas, download, copy and properties actions');
   const churn=await page.evaluate(()=>{
    const root=document.querySelector('#layerList');let mutations=0;const observer=new MutationObserver(records=>mutations+=records.length);observer.observe(root,{childList:true,subtree:true});
    const first=root.querySelector('.bc-file-tile');for(let i=0;i<120;i++)renderLayers();observer.disconnect();
