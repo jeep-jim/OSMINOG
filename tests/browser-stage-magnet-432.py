@@ -7,10 +7,10 @@ ROOT=Path(__file__).resolve().parents[1];(ROOT/"artifacts").mkdir(exist_ok=True)
 class Handler(SimpleHTTPRequestHandler):
  def log_message(self,*args):pass
  def do_GET(self):
-  if self.path.startswith("/fixture"):
-   self.send_response(200);self.send_header("Content-Type","text/html");self.end_headers();self.wfile.write(b"""<!doctype html><html><body><h1>Real Chrome stage fixture</h1><a target="_blank" href="/fixture-next">Next page</a><button onclick="this.textContent='Page is interactive'">Click test</button></body></html>""");return
   if self.path.startswith("/fixture-next"):
    self.send_response(200);self.send_header("Content-Type","text/html");self.end_headers();self.wfile.write(b"<h1>Second real tab page</h1>");return
+  if self.path.startswith("/fixture"):
+   self.send_response(200);self.send_header("Content-Type","text/html");self.end_headers();self.wfile.write(b"""<!doctype html><html><body><h1>Real Chrome stage fixture</h1><a target="_blank" href="/fixture-next">Next page</a><button onclick="this.textContent='Page is interactive'">Click test</button></body></html>""");return
   super().do_GET()
 server=ThreadingHTTPServer(("127.0.0.1",0),Handler);threading.Thread(target=server.serve_forever,daemon=True).start()
 try:
