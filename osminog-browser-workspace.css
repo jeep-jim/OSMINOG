@@ -8,9 +8,6 @@ html body[data-workdesk]:not(.native-desktop) #bridgePanel>.bridge-head{height:5
 #owDeskDivider:hover,#owDeskDivider:focus-visible{background:var(--accent,#7c6cff);outline:none}
 body.ow-resizing{user-select:none;cursor:col-resize}body.ow-resizing iframe{pointer-events:none!important}
 #osminogBrowserApp[data-osminog-docked="1"]{position:fixed!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;border-radius:0!important;box-shadow:none!important;z-index:110!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;border:0!important;border-left:1px solid var(--ow-line)!important}
-#osminogBrowserApp .osminog-app-window-head{height:34px!important;min-height:34px!important;padding:3px 8px!important;gap:7px!important;border-radius:0!important;cursor:default!important}
-#osminogBrowserApp .osminog-app-window-head>div small{display:none!important}
-#osminogBrowserApp .osminog-app-window-head>div strong{font-size:12px!important}
 #osminogBrowserApp main{display:flex!important;flex-direction:column!important;min-height:0!important;flex:1!important;overflow:hidden!important}
 #osminogBrowserApp .osminog-browser-tabs{display:flex!important;align-items:center!important;gap:4px!important;min-height:32px!important;height:32px!important;padding:2px 6px!important;overflow-x:auto!important;overflow-y:hidden!important;flex:0 0 32px!important}
 #osminogBrowserApp .osminog-browser-tabs>button{height:26px!important;max-width:180px!important;min-width:64px!important;flex:0 1 auto!important}
@@ -19,6 +16,7 @@ body.ow-resizing{user-select:none;cursor:col-resize}body.ow-resizing iframe{poin
 #osminogBrowserApp .osminog-browser-toolbar input[data-browser-url]{width:min(34vw,360px)!important;max-width:360px!important;min-width:100px!important;flex:0 1 260px!important;height:26px!important}
 #osminogBrowserApp .osminog-browser-toolbar button{height:26px!important;min-width:26px!important;padding:2px 7px!important;font-size:12px!important;flex:0 0 auto!important}
 #osminogBrowserApp .osminog-browser-toolbar [data-browser-code],#osminogBrowserApp .osminog-browser-toolbar [data-browser-export],#osminogBrowserApp .osminog-browser-toolbar [data-browser-asset]{display:none!important}
+#osminogBrowserApp .osminog-stage-titlebar-slot{display:block!important;flex:0 0 34px!important;height:34px!important;min-height:34px!important;background:transparent!important;pointer-events:none!important}
 #osminogBrowserApp .osminog-browser-workspace{display:flex!important;flex:1!important;min-height:0!important;overflow:hidden!important}
 #osminogBrowserApp .osminog-browser-canvas{display:flex!important;flex:1!important;min-width:0!important;min-height:0!important;position:relative;overflow:hidden;border:1px solid var(--ow-line,#d5dbe5);box-sizing:border-box;background:#f5f7fb}
 #osminogBrowserApp [data-browser-frame]{display:block!important;flex:1!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important;background:#f5f7fb}
@@ -31,7 +29,6 @@ html body[data-workdesk][data-web-workspace=browser]:not(.native-desktop) #workd
 html body[data-workdesk][data-web-workspace=split]:not(.native-desktop) #workdeskTools{left:calc(var(--ow-cut)/2)!important;max-width:calc(var(--ow-cut) - 24px)!important}
 #osminogBrowserApp [data-web-media]{background:var(--accent-soft,#ecebff);color:var(--accent,#6657e8);font-weight:650}
 #osminogBrowserApp [data-web-media]:disabled{opacity:.6;cursor:wait}
-#osminogBrowserApp .osminog-browser-toolbar [data-browser-edit]{display:inline-flex!important}
 #osminogBrowserApp:not(.editing) .osminog-browser-canvas>iframe[data-browser-frame]{pointer-events:none!important}
 #osminogBrowserApp .osminog-browser-canvas:has(iframe[srcdoc*="Живая страница закреплена"])::after{content:"";position:absolute;inset:0;border:2px solid var(--accent,#7567ff);pointer-events:none;z-index:4;box-sizing:border-box}
 body[data-web-workspace=desk] #osminogBrowserApp[data-osminog-docked="1"],#osminogBrowserApp[hidden]{display:none!important}

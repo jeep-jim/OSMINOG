@@ -13,9 +13,10 @@
  const getApp=()=>globalThis.OSMINOGBrowserApp;
  function isLive(){return mode!=="desk"&&app&&!app.hidden&&getApp()?.context?.()?.mode==="live"}
  function stageGeometry(){
-  dockApp();const canvas=app?.querySelector(".osminog-browser-canvas");if(!canvas)return null;
-  const r=canvas.getBoundingClientRect(),side=Math.max(0,(outerWidth-innerWidth*zoom)/2),top=Math.max(0,outerHeight-innerHeight*zoom-side);
-  return{left:Math.round(screenX+side+r.left*zoom),top:Math.round(screenY+top+r.top*zoom),width:Math.round(r.width*zoom),height:Math.round(r.height*zoom)};
+  dockApp();const canvas=app?.querySelector(".osminog-browser-canvas"),slot=app?.querySelector(".osminog-stage-titlebar-slot");if(!canvas||!slot)return null;
+  const r=canvas.getBoundingClientRect(),h=slot.getBoundingClientRect(),side=Math.max(0,(outerWidth-innerWidth*zoom)/2),top=Math.max(0,outerHeight-innerHeight*zoom-side);
+  // The popup's native titlebar occupies the reserved slot; its webpage starts exactly at the canvas.
+  return{left:Math.round(screenX+side+r.left*zoom),top:Math.round(screenY+top+h.top*zoom),width:Math.round(r.width*zoom),height:Math.round((r.bottom-h.top)*zoom)};
  }
  function syncStageBounds(){
   clearTimeout(boundsTimer);boundsTimer=setTimeout(async()=>{

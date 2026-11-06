@@ -73,6 +73,12 @@ try:
     w=worker.evaluate('(id)=>chrome.windows.get(id)',worker.evaluate(get_state,parent['id'])['windowId'])
     return all(abs(g[k]-w[k])<=3 for k in ['left','top','width','height'])
    eventually(matched_bounds,'Popup does not fit its frame')
+   assert editor.locator('#osminogBrowserApp .osminog-app-window-head').count()==0
+   assert editor.locator('#osminogBrowserApp [data-browser-go],#osminogBrowserApp [data-browser-edit]').count()==0
+   slot=editor.locator('#osminogBrowserApp .osminog-stage-titlebar-slot').bounding_box()
+   canvas=editor.locator('#osminogBrowserApp .osminog-browser-canvas').bounding_box()
+   g=editor.evaluate('()=>OSMINOGWebWorkspace.geometry()')
+   assert abs(g['height']-(canvas['y']+canvas['height']-slot['y']))<=3
    assert editor.locator('#osminogBrowserApp [data-browser-url]').evaluate('(e)=>e.getBoundingClientRect().width')<500
    # Each logical tab owns a real popup; only the selected window stays at the frame.
    with ctx.expect_page() as second:
@@ -98,8 +104,13 @@ try:
    editor.bring_to_front();editor.locator('#owDeskDivider').focus();editor.keyboard.press('ArrowRight')
    eventually(matched_bounds,'Keyboard resize did not update real popup')
    assert worker.evaluate('(id)=>chrome.windows.get(id)',parent['windowId'])['focused'] is True
-   # Local snapshot and media import still work; layout must not re-show the hidden popup.
-   editor.locator('[data-browser-edit]').click()
+   # Activating another editor-window tab must not auto-minimize the floating site window.
+   other=worker.evaluate('(id)=>chrome.tabs.create({windowId:id,url:"about:blank"})',parent['windowId'])
+   eventually(lambda:worker.evaluate('(id)=>chrome.windows.get(id)',window_id)['state']=='normal','Site popup was minimized on editor tab switch')
+   assert worker.evaluate(get_state,parent['id'])['visible'] is True
+   worker.evaluate('(id)=>chrome.tabs.remove(id)',other['id'])
+   # The non-working layout control is removed from the UI; the supported internal media workflow remains.
+   editor.evaluate('()=>OSMINOGBrowserApp.edit()')
    editor.frame_locator('#osminogBrowserApp iframe').locator('img[alt="Fixture media"]').click()
    editor.locator('[data-web-media]').click()
    expect(editor.locator('[data-browser-message]')).to_contain_text('Медиа добавлено')
