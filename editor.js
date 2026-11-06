@@ -279,7 +279,7 @@ function renderProjectGrid(filter=$("#projectSearch").value){
   const entries=Object.entries(trashIndex).filter(([,e])=>e.expires>Date.now());
   $("#trashToggle").textContent=viewingTrash?hubText('К проектам','Back to projects','Zu den Projekten','Volver a proyectos','プロジェクトに戻る','返回项目'):hubText('Корзина','Trash','Papierkorb','Papelera','ゴミ箱','回收站')+' · '+entries.length;
   $("#newProjectHome").hidden=viewingTrash;
-  $("#projectHub h2").textContent=viewingTrash?hubText('Корзина проектов','Project trash'):tr('yourProjects');
+  $("#projectHub h2").textContent=viewingTrash?hubText('Корзина проектов','Project trash','Projekt-Papierkorb','Papelera de proyectos','プロジェクトのゴミ箱','项目回收站'):tr('yourProjects');
   const match=name=>name.toLocaleLowerCase().includes(filter.toLocaleLowerCase());
   if(viewingTrash){
     for(const [id,e] of entries.sort((a,b)=>b[1].expires-a[1].expires)){
