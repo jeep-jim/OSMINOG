@@ -1,4 +1,57 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta name="color-scheme" content="dark"><title>OSMINOG Vision</title><link rel="stylesheet" href="app.css"></head><body>
-<header><div class="wordmark"><span class="brand-mark">◉</span><div>OSMINOG<small>VISION</small></div></div><button id="connect" class="connection"><i></i><span>Подключить ИИ</span><b>⌄</b></button><button id="menu" class="icon" aria-label="Настройки">⋯</button></header>
-<main id="main"><section id="hero"><div id="eye" aria-label="Глаз OSMINOG"><div class="mantle"><div class="iris"><div class="pupil"></div><i class="glint"></i></div></div><div class="aura"></div></div><h1>Я рядом.</h1><p id="intro">Поговорим. Покажи мне свой мир.</p><div id="cameraSlot" hidden></div><div class="session"><span id="dot"></span><span id="status" role="status" aria-live="polite">Чат · голос · зрение</span></div><button id="flip" hidden>↺ Сменить камеру</button></section><section id="messages" aria-label="Переписка" aria-live="polite"></section></main>
-<div id="notice" role="status" hidden></div><footer><div class="tools"><button id="voice" class="tool"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg><span>Разговор</span></button><button id="camera" class="tool"><svg viewBox="0 0 24 24"><path d="M3 6h4l2-3h6l2 3h4v15H3Z"/><circle cx="12" cy="13" r="4"/></svg><span>Показать мир</span></button><button id="stop" class="tool stop" hidden><span class="square"></span><span>Завершить</span></button></div><form id="composer"><textarea id="text" placeholder="Скажи или напиши…" rows="1" maxlength="12000" aria-label="Сообщение"></textarea><button id="send" type="submit" aria-label="Отправить">↑</button></form><p class="privacy" id="privacy">История на устройстве · сеанс под твоим контролем</p></footer><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1265b3">
+<meta name="color-scheme" content="dark">
+<title>OSMINOG Vision</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="ocean" aria-hidden="true"></div>
+<div id="particles" aria-hidden="true"></div>
+<header>
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 256 256" role="img" aria-label="OSMINOG">
+      <rect x="16" y="36" width="224" height="184" rx="92" fill="#792525"/>
+      <rect x="64" y="88" width="128" height="80" rx="40" fill="#ff2929"/>
+      <rect x="96" y="117" width="64" height="22" rx="11" fill="#792525"/>
+    </svg>
+    <div class="wordmark">OSMINOG<small>VISION</small></div>
+  </div>
+  <button id="connect" class="connection" type="button" aria-label="Подключить ИИ"><i></i><span>Подключить ИИ</span><b>⌄</b></button>
+  <button id="menu" class="menu" type="button" aria-label="Меню">•••</button>
+</header>
+<main id="main">
+  <section id="hero" aria-label="Сеанс OSMINOG">
+    <div class="hero-orbit" aria-hidden="true"><img id="heroPlankton" alt=""></div>
+    <div class="session"><span id="dot"></span><span id="status" role="status" aria-live="polite">Чат · голос · зрение</span></div>
+    <div id="cameraSlot" hidden></div>
+    <button id="flip" hidden type="button">↺ Сменить камеру</button>
+  </section>
+  <section id="messages" aria-label="Переписка" aria-live="polite"></section>
+</main>
+<div id="notice" role="status" aria-live="polite" hidden></div>
+<footer>
+  <form id="composer">
+    <button id="voice" class="tool" type="button" aria-label="Разговор" title="Голосовой разговор">
+      <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>
+    </button>
+    <button id="camera" class="tool" type="button" aria-label="Показать мир" title="Показать мир">
+      <svg viewBox="0 0 24 24"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg>
+    </button>
+    <button id="stop" class="tool stop" type="button" aria-label="Завершить сеанс" title="Завершить сеанс" hidden>
+      <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3"/></svg>
+    </button>
+    <textarea id="text" placeholder="Скажи или напиши…" rows="1" maxlength="12000" aria-label="Сообщение"></textarea>
+    <button id="send" type="submit" aria-label="Отправить">
+      <svg viewBox="0 0 256 256" aria-hidden="true"><rect x="16" y="36" width="224" height="184" rx="92" fill="#792525"/><rect x="64" y="88" width="128" height="80" rx="40" fill="#ff2929"/><rect x="96" y="117" width="64" height="22" rx="11" fill="#792525"/></svg>
+    </button>
+  </form>
+  <p class="privacy" id="privacy">История на устройстве · сеанс под твоим контролем</p>
+</footer>
+<script src="figma-assets.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
