@@ -9,7 +9,7 @@ assert.match(css,/desk-chat-width/);assert.match(css,/right:var\(--desk-chat-wid
 assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 assert.match(css,/min-height:148px/);assert.match(css,/bc-files-more/);
 assert.match(css,/\.project-hub/);assert.match(css,/\.hub-controls/);
-assert.match(editor,/const FILES_GALLERY_PAGE_SIZE=36/);
+assert.match(editor,/FILES_GALLERY_PAGE_SIZE=36/);
 assert.match(editor,/\[\.\.\.desktopObjects\(\)\]/);
 assert.match(editor,/filesGallerySnapshot/);
 assert.match(editor,/loading="lazy" decoding="async" fetchpriority="low"/);
