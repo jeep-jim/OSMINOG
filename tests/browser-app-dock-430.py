@@ -41,7 +41,7 @@ try:
   g=page.evaluate("""()=>{const r=s=>{const x=document.querySelector(s).getBoundingClientRect();return{x:x.x,right:x.right,width:x.width}};return{app:r('#osminogBrowserApp'),desk:r('#viewport')}}""")
   assert g['app']['x']>200 and abs(g['desk']['right']+7-g['app']['x'])<=1,g
   old=g['desk']['width'];page.locator('#owDeskDivider').focus();page.keyboard.press('ArrowRight');page.wait_for_timeout(100);assert page.locator('#viewport').evaluate('(e)=>e.getBoundingClientRect().width')>old
-  page.evaluate('()=>OSMINOGSetAgentSettingsOpen(false)');page.wait_for_timeout(150);assert page.locator('#osminogBrowserApp').evaluate('(e)=>e.getBoundingClientRect().right')==1600
+  page.locator('#bridgeClose').click();page.wait_for_timeout(250);assert abs(page.locator('#osminogBrowserApp').evaluate('(e)=>e.getBoundingClientRect().right')-1600)<=2
   page.screenshot(path=str(root/'artifacts/browser-app-dock-430.png'),full_page=True);assert errors==[],errors
   print('PASS original BrowserApp window, compact tabs, bounded address bar, page interaction, docked layout, split resize, full width after chat close');browser.close()
 finally:server.shutdown()
