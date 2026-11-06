@@ -4,7 +4,7 @@ import json
 import threading
 import tempfile
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 import os
 
 root=Path(__file__).resolve().parents[1]
@@ -47,6 +47,9 @@ try:
             page.evaluate("""async()=>{await OSMINOGStateReady;document.querySelector('#osminogStorageOnboarding')?.close();createProject();document.querySelector('#osminogStorageOnboarding')?.close();await OSMINOGWebWorkspace.ready;await BriefCraftBridge.open()}""")
             page.wait_for_timeout(600)
             assert page.locator('#browserHub').count()==0
+            notes=page.evaluate('''()=>{let root=document.getElementById('updateReleaseNotes');if(!root){root=document.createElement('section');root.id='updateReleaseNotes';root.hidden=true;document.body.append(root)}OSMINOGReleaseNotes.render('4.0.29',null);const current=root.textContent;OSMINOGReleaseNotes.render('9.9.9',null);const unknown=root.textContent;return{current,unknown}}''')
+            assert 'Общая шапка и веб-область · v4.0.29' in notes['current'],notes
+            assert notes['unknown']=='Обновление OSMINOG · v9.9.9',notes
             page.evaluate('()=>OSMINOGBrowserHubAPI.open({provider:"gpt"})')
             assert page.locator('#browserHub').count()==0
             page.evaluate('()=>OSMINOGSetAgentSettingsOpen(false)')
@@ -76,7 +79,7 @@ try:
             g=page.evaluate(get_geom);assert g['web']['right']==1600,g
             page.locator('#workspaceDeskToggle').click();page.wait_for_timeout(100)
             g=page.evaluate(get_geom);assert g['web']['x']==0 and g['web']['width']==1600,g
-            page.locator('#owNewTab').click();assert page.locator('#owAddress').is_focused()
+            page.locator('#owNewTab').click();expect(page.locator('#owAddress')).to_be_focused()
             page.locator('#owAddress').fill('javascript:alert(1)');page.locator('#owAddress').press('Enter')
             assert 'HTTP(S)' in page.locator('.ow-notice').inner_text()
             assert page.locator('#osminogWebWorkspace iframe').count()==1
