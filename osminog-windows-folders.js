@@ -28,7 +28,8 @@
   let rootHidden=false;
   let active={kind:"root",path:"",folderId:null};
   let explorerItems=[];
-  const thumbnailCache=new Map();
+  const thumbnailCache=new Map(),thumbnailPending=new Map();
+  const thumbnailKey=item=>pid()+":"+item.key+":"+(item.modified||0);
   let selectedItemKey="";
   let searchText="";
   let renderTimer=0;
@@ -229,18 +230,47 @@
   }
   function goBack(){goUp()}
   function goUp(){if(active.kind==="root"){if(active.path)openRootFolder(parentPath(active.path));else closeExplorer()}else{const f=folderById(active.folderId);if(f?.parentId)openVirtualFolder(f.parentId);else openRootFolder("")}}
-  async function loadExplorerItems(){const box=$("#osminogWindowsExplorerItems");if(!box)return;box.innerHTML='<div class="osminog-win-empty">Загрузка…</div>';let items=[];if(active.kind==="root"){
-      if(!active.path){items.push(...foldersNow().filter(f=>!f.parentId&&!f.desktopVisible).map(f=>({key:`vf:${f.id}`,kind:"virtual-folder",name:f.name,folderId:f.id,type:"Папка холста",modified:f.createdAt||0,count:folderCount(f)})))}
-      const result=await api()?.list?.({path:active.path,depth:0,max:500,include_meta:true});if(result?.entries)items.push(...result.entries.map(entry=>({key:`fs:${entry.path}`,kind:entry.kind==="directory"?"real-folder":"real-file",name:baseName(entry.path),path:entry.path,type:entry.type||entry.kind,size:entry.size||0,modified:entry.modified||0})))
-    }else{const f=folderById(active.folderId);if(f){items.push(...foldersNow().filter(x=>x.parentId===f.id).map(x=>({key:`vf:${x.id}`,kind:"virtual-folder",name:x.name,folderId:x.id,type:"Папка холста",modified:x.createdAt||0,count:folderCount(x)})));items.push(...(f.members||[]).map(id=>objectsNow().find(o=>o.id===id)).filter(Boolean).map(o=>({key:`obj:${o.id}`,kind:"object",name:o.name||o.id,objectId:o.id,type:o.type||"object",modified:o.updated||0,previewSrc:o.type==="image"?(o.src||o.dataUrl||o.previewDataUrl||""):""})))}}
-    explorerItems=items;renderExplorerItems();
+  let explorerLoad=null,explorerReload=false,explorerLocation="";
+  const locationKey=()=>JSON.stringify([pid(),active.kind,active.path,active.folderId]);
+  function loadExplorerItems(){
+    explorerReload=true;if(explorerLoad)return explorerLoad;
+    explorerLoad=Promise.resolve().then(async()=>{
+      while(explorerReload){
+        explorerReload=false;const box=$("#osminogWindowsExplorerItems"),win=$("#osminogWindowsExplorer");if(!box||!win||win.hidden)return;
+        const location=locationKey(),where={...active},p=projectNow(),folders=p?.osminogFolders||[],objects=p?.objects||[];
+        if(explorerLocation!==location){box.innerHTML='<div class="osminog-win-empty">Загрузка…</div>';explorerLocation=location}
+        let items=[];
+        try{
+          const counts=new Map();for(const o of objects)if(o.osminogFolderId)counts.set(o.osminogFolderId,(counts.get(o.osminogFolderId)||0)+1);for(const f of folders)if(f.parentId)counts.set(f.parentId,(counts.get(f.parentId)||0)+1);
+          const folderItem=f=>({key:`vf:${f.id}`,kind:"virtual-folder",name:f.name,folderId:f.id,type:"Папка холста",modified:f.createdAt||0,count:counts.get(f.id)||0});
+          if(where.kind==="root"){
+            if(!where.path)items.push(...folders.filter(f=>!f.parentId&&!f.desktopVisible).map(folderItem));
+            const result=await api()?.list?.({path:where.path,depth:0,max:500,include_meta:true});
+            if(result?.error)throw Error(result.error);
+            if(result?.entries)items.push(...result.entries.map(entry=>({key:`fs:${entry.path}`,kind:entry.kind==="directory"?"real-folder":"real-file",name:baseName(entry.path),path:entry.path,type:entry.type||entry.kind,size:entry.size||0,modified:entry.modified||0})));
+          }else{
+            items.push(...folders.filter(f=>f.parentId===where.folderId).map(folderItem));
+            items.push(...objects.filter(o=>o.osminogFolderId===where.folderId).map(o=>({key:`obj:${o.id}`,kind:"object",name:o.name||o.id,objectId:o.id,type:o.type||"object",modified:o.updated||0,previewSrc:o.type==="image"?(o.src||o.dataUrl||o.previewDataUrl||""):""})));
+          }
+          if(location!==locationKey()||win.hidden)continue;
+          explorerItems=items;renderExplorerItems();
+        }catch(error){if(location===locationKey()&&!win.hidden){explorerItems=[];box.replaceChildren();const notice=document.createElement('div');notice.className='osminog-win-empty';notice.textContent='Не удалось открыть папку: '+(error.message||error);box.append(notice);$("#osminogWindowsExplorerStatus").textContent='Ошибка чтения папки';explorerLocation=''}}
+      }
+    }).finally(()=>{explorerLoad=null});return explorerLoad;
   }
   function sortItems(items,prefs){return items.slice().sort((a,b)=>{const ad=a.kind.includes("folder"),bd=b.kind.includes("folder");if(ad!==bd)return ad?-1:1;if(prefs.sort==="type")return String(a.type).localeCompare(String(b.type),"ru")||a.name.localeCompare(b.name,"ru");if(prefs.sort==="modified")return Number(b.modified||0)-Number(a.modified||0)||a.name.localeCompare(b.name,"ru");return a.name.localeCompare(b.name,"ru")})}
-  function itemIcon(item){const thumb=item.previewSrc||thumbnailCache.get(item.key);if(thumb)return`<span class="osminog-win-thumb"><img src="${esc(thumb)}" alt="${esc(item.name||"preview")}"></span>`;if(item.kind.includes("folder"))return folderGlyph();if(item.kind==="object"){const map={image:"🖼️",file:"📄",code:"🧩",brief:"📋",text:"T",note:"📝",shape:"▰",vector:"✒️",browser:"🌐",button:"▣",node:"◉",ink:"✏️"};return`<span class="osminog-win-file-glyph">${map[item.type]||"◻"}</span>`}const type=String(item.type||"");return`<span class="osminog-win-file-glyph">${type.startsWith("image/")?"🖼️":type.startsWith("video/")?"🎬":type.startsWith("audio/")?"🎵":/pdf/i.test(type)?"📕":"📄"}</span>`}
+  function itemIcon(item){const thumb=item.previewSrc||thumbnailCache.get(thumbnailKey(item));if(thumb)return`<span class="osminog-win-thumb"><img src="${esc(thumb)}" alt="${esc(item.name||"preview")}"></span>`;if(item.kind.includes("folder"))return folderGlyph();if(item.kind==="object"){const map={image:"🖼️",file:"📄",code:"🧩",brief:"📋",text:"T",note:"📝",shape:"▰",vector:"✒️",browser:"🌐",button:"▣",node:"◉",ink:"✏️"};return`<span class="osminog-win-file-glyph">${map[item.type]||"◻"}</span>`}const type=String(item.type||"");return`<span class="osminog-win-file-glyph">${type.startsWith("image/")?"🖼️":type.startsWith("video/")?"🎬":type.startsWith("audio/")?"🎵":/pdf/i.test(type)?"📕":"📄"}</span>`}
   async function hydrateExplorerThumbnails(items){
-    const targets=(items||[]).filter(item=>item.kind==="real-file"&&String(item.type||"").startsWith("image/")&&!thumbnailCache.has(item.key)).slice(0,24);
-    await Promise.all(targets.map(async item=>{try{const read=await api()?.read?.({path:item.path,include_data:true,max_mb:4,max_chars:0});if(read?.kind==="image"&&read.dataUrl)thumbnailCache.set(item.key,read.dataUrl)}catch{}}));
-    if(targets.some(item=>thumbnailCache.has(item.key))){const box=$("#osminogWindowsExplorerItems");if(box&&!box.dataset.thumbRefresh){box.dataset.thumbRefresh="1";requestAnimationFrame(()=>{delete box.dataset.thumbRefresh;renderExplorerItems()})}}
+    const location=locationKey(),targets=(items||[]).filter(item=>item.kind==="real-file"&&String(item.type||"").startsWith("image/")).slice(0,24).filter(item=>!thumbnailCache.has(thumbnailKey(item)));
+    let changed=false;
+    // No 24-wide burst of full image reads for every folder refresh.
+    for(const item of targets){
+      const win=$("#osminogWindowsExplorer");if(location!==locationKey()||!win||win.hidden)break;
+      const key=thumbnailKey(item);if(thumbnailCache.has(key))continue;let task=thumbnailPending.get(key);
+      if(!task){task=(async()=>{try{const read=await api()?.read?.({path:item.path,include_data:true,max_mb:4,max_chars:0});if(read?.kind!=="image"||!read.dataUrl)return;const bitmap=await createImageBitmap(await(await fetch(read.dataUrl)).blob(),{resizeWidth:256,resizeHeight:192,resizeQuality:'low'});try{const canvas=document.createElement('canvas');canvas.width=256;canvas.height=192;canvas.getContext('2d').drawImage(bitmap,0,0);thumbnailCache.set(key,canvas.toDataURL('image/webp',.7));while(thumbnailCache.size>32)thumbnailCache.delete(thumbnailCache.keys().next().value)}finally{bitmap.close()}}catch{}})().finally(()=>thumbnailPending.delete(key));thumbnailPending.set(key,task)}
+      await task;changed=changed||thumbnailCache.has(key);
+    }
+    if(changed&&location===locationKey()&&!$("#osminogWindowsExplorer")?.hidden){const box=$("#osminogWindowsExplorerItems");if(box&&!box.dataset.thumbRefresh){box.dataset.thumbRefresh="1";requestAnimationFrame(()=>{delete box.dataset.thumbRefresh;if(location===locationKey())renderExplorerItems()})}}
   }
   function renderExplorerItems(){const box=$("#osminogWindowsExplorerItems");if(!box)return;const p=currentPrefs(),q=searchText.trim().toLowerCase(),items=sortItems(explorerItems.filter(i=>!q||i.name.toLowerCase().includes(q)),p);box.className=`osminog-windows-explorer-items view-${p.viewMode||"tiles"} size-${p.contentSize||"medium"}`;box.innerHTML=items.map(item=>`<article class="osminog-windows-explorer-item ${esc(item.kind)}${selectedItemKey===item.key?" selected":""}" data-item-key="${esc(item.key)}" draggable="true">${itemIcon(item)}<div class="osminog-win-item-copy">${renameState===item.key?`<input class="osminog-win-item-rename" value="${esc(item.name)}" maxlength="180">`:`<strong class="osminog-win-item-name">${esc(item.name)}</strong>`}<small>${esc(item.type||"")}</small></div><span class="osminog-win-item-size">${item.size?formatSize(item.size):item.count!=null?`${item.count} эл.`:""}</span><span class="osminog-win-item-date">${item.modified?new Date(item.modified).toLocaleDateString():""}</span>${item.kind==="virtual-folder"?`<button type="button" class="osminog-win-item-desktop" data-item-desktop="${esc(item.folderId)}" title="Вернуть папку на рабочий стол" aria-label="Вернуть папку на рабочий стол">↗</button>`:""}</article>`).join("")||'<div class="osminog-win-empty">Ничего не найдено</div>';$("#osminogWindowsExplorerStatus").textContent=`${items.length} элемент(а)`;bindExplorerItems();hydrateExplorerThumbnails(items).catch(()=>{});if(renameState)queueMicrotask(()=>{const input=box.querySelector(".osminog-win-item-rename");input?.focus();input?.select()})}
   function formatSize(n){n=Number(n)||0;return n<1024?`${n} Б`:n<1048576?`${(n/1024).toFixed(1)} КБ`:`${(n/1048576).toFixed(1)} МБ`}
