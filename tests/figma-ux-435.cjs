@@ -12,7 +12,7 @@ assert.match(css,/\.project-hub/);assert.match(css,/\.hub-controls/);
 assert.match(editor,/FILES_GALLERY_PAGE_SIZE=36/);
 assert.match(editor,/\[\.\.\.desktopObjects\(\)\]/);
 assert.match(editor,/filesGallerySnapshot/);assert.match(editor,/filesGalleryLanguage/);
-assert.match(editor,/function openMediaPreview/);assert.match(editor,/const UX_TEXT=/);
+assert.match(editor,/function openMediaPreview/);assert.match(editor,/const UX_TEXT=/);assert.match(editor,/function renderFoldersGallery/);assert.match(editor,/renderFilesGallery\(\);/);assert.match(editor,/state\.ui\?\.layersTab===\"folders\"/);
 assert.match(editor,/loading="lazy" decoding="async" fetchpriority="low"/);
 assert.match(editor,/list=all\.slice\(-16\)/);
 assert.match(editor,/let imageUsed=false/);
