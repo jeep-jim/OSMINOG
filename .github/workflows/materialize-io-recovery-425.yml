@@ -1,0 +1,48 @@
+name: Materialize reviewed I/O recovery sources
+on:
+  push:
+    branches: [fix/io-recovery-4.0.25]
+    paths: ['.github/workflows/materialize-io-recovery-425.yml']
+permissions:
+  contents: write
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: '${{ github.sha }}'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Apply previously checksum-verified assembly instructions
+        run: |
+          python3 - <<'PY'
+          import pathlib,subprocess
+          source=pathlib.Path('.github/workflows/assemble-io-recovery-425.yml').read_text()
+          start=source.index("          python3 - <<'PY'\n")
+          end=source.index('\n          PY',start)+len('\n          PY')
+          script='\n'.join(line[10:] for line in source[start:end].splitlines())
+          subprocess.run(['bash','-e','-c',script],check=True)
+          PY
+          # Workflow configuration will be updated by the authorized repository connector.
+          git restore .github/workflows/agent-media-3207.yml
+          node --check editor.js
+          node --check background.js
+          node --check osminog-windows-folders.js
+          node --check osminog-library.js
+          node --test tests/io-budget-425.cjs tests/update-recovery-425.cjs
+      - name: Commit runtime and retained tests only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm tools/io-recovery-425-seed.b64
+          git add editor.html editor.js background.js osminog-library.js osminog-windows-folders.js osminog-folder-updater.js osminog-io-budget.js osminog-update-recovery.js manifest.json OSMINOG_BUILD.json osminog-release-notes.js RELEASE_NOTES_CHROME_4.0.25.md tests/ desktop/workspace-tools.test.cjs
+          git commit -m 'Fix directory read storms and retain acknowledged editor restart after updates'
+          git push origin HEAD:fix/io-recovery-4.0.25
+          mkdir -p artifacts
+          git archive --format=zip HEAD -o artifacts/OSMINOG-425-reviewed-source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSMINOG-425-reviewed-source
+          path: artifacts/OSMINOG-425-reviewed-source.zip
+          retention-days: 7
