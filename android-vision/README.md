@@ -1,4 +1,4 @@
-# OSMINOG Vision · Android 0.2.0 (experimental)
+# OSMINOG Vision · Android 0.2.1 (experimental)
 
 A separate Android product, not a replacement for OSMINOG Chrome or Android file-board preview.
 Only chat, Android speech input/output, a foreground camera session and signed APK updates.
@@ -30,7 +30,7 @@ Emulator instrumentation tests cover local shell, real WebView composer/attachme
 no remote native bridge, rejection of unfinished drafts, updater URL guard, native camera capture and lifecycle stop.
 The first APK must remain labelled experimental until tested with the owner's actual provider account and phone.
 
-## 0.2.0 — Original ocean design, native-clock transport
+## 0.2.1 — Original ocean design, native-clock transport
 
 The owner supplied Untitled.fig and its SVG export. The native file was decoded locally;
 original vector paths, gradient matrices, fills, layers and dimensions were extracted.
