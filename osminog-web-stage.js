@@ -125,9 +125,9 @@
   chrome.tabs.onActivated.addListener(event(async info => {
     const s=forWindow(info.windowId);
     if(s){if(s.windowId===info.windowId){s.activeTabId=info.tabId;await save();const t=await chrome.tabs.get(info.tabId);await emit(s,{type:PREFIX+'TAB_UPDATED',tabId:t.id,url:t.url||'',title:t.title||'',active:true})}return}
-    for (const item of Object.values(states)) if (item.parentWindowId===info.windowId && item.parentTabId!==info.tabId && item.visible) {
-      item.visible=false;await save();for(const id of Object.values(item.pages))await chrome.windows.update(id,{state:'minimized'}).catch(()=>{});
-    }
+    // Keep the site window alive when the user switches to another tab in the editor's Chrome window.
+    // Chrome may place it behind the parent; the explicit "bring back" control can raise it without
+    // destroying the page or its form state. Do not mark it hidden or minimize it here.
   }));
   async function forget(s,id){
     if(!s.pages[id])return;delete s.pages[id];
@@ -142,8 +142,8 @@
   }));
   chrome.windows.onBoundsChanged.addListener(event(async w => {
     for (const s of Object.values(states)) if (s.parentWindowId===w.id) {
-      if (w.state==='minimized') {s.visible=false;await save();for(const id of Object.values(s.pages))await chrome.windows.update(id,{state:'minimized'}).catch(()=>{})}
-      else await emit(s,{type:PREFIX+'PARENT_BOUNDS'});
+      // Parent minimize/restore must not destroy or auto-minimize the independent site window.
+      if (w.state!=='minimized') await emit(s,{type:PREFIX+'PARENT_BOUNDS'});
     }
   }));
   chrome.windows.onRemoved.addListener(event(async id=>{
