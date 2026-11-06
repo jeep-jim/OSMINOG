@@ -3,7 +3,7 @@
  if(globalThis.OSMINOGFigmaUX)return;
  const $=s=>document.querySelector(s);
  function syncHandleScale(){
-  const scale=Math.max(.02,Number(globalThis.state?.view?.scale)||1);
+  const scale=Math.max(.02,Number(typeof state!=='undefined'?state.view?.scale:1)||1);
   $('#world')?.style.setProperty('--osminog-handle-scale',String(Math.min(50,1/scale)));
  }
  const originalApply=globalThis.applyView;
@@ -38,7 +38,7 @@
   else if(connectionProp&&globalThis.state?.selectedConnection){
    const c=globalThis.project?.()?.connections?.find(x=>x.id===state.selectedConnection);
    if(c){c[connectionProp]=value;globalThis.renderConnections?.();changed=true}
-  }else if(connectionPreset&&globalThis.state?.connectionPreset){
+  }else if(connectionPreset&&typeof state!=='undefined'&&state.connectionPreset){
    state.connectionPreset[connectionPreset]=value;globalThis.renderConnections?.();changed=true
   }
   if(!changed)return false;
@@ -59,7 +59,7 @@
     const dx=e.clientX-drag.x;if(!drag.active&&Math.abs(dx)<3)return;
     if(!drag.active){drag.active=true;globalThis.checkpoint?.();input.classList.add('is-scrubbing');input.setPointerCapture?.(e.pointerId);e.preventDefault()}
     e.preventDefault();
-    const multiplier=e.shiftKey?.1:e.altKey?10:1;
+    const multiplier=e.shiftKey?0.1:e.altKey?10:1;
     const value=Math.max(min,Math.min(max,drag.start+dx*step*multiplier));
     input.value=String(Math.round(value*1000)/1000);
     drag.changed=applyScrubValue(input,Number(input.value))||drag.changed;
