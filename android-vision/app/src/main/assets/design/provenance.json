@@ -1,0 +1,31 @@
+{
+  "source": "User-supplied Untitled.fig and Untitled.zip",
+  "figSha256": "83d87f813cc63bbb88c7f3774d16b1df17339262995e90bf267b61cc6d70aac6",
+  "files": {
+    "Vector-3.svg": "08ec380f2544281cd39337c0199859b4e4a2c5598d6e64f477b28b204c32645e",
+    "Union.svg": "0d2842dad154bb0036f49437be466ecc5911c6e02565b8f9dec45c252060f203",
+    "Group 27.svg": "986af988531fc7c270fa28a1c6a751c3164b5309b712312d04533e8063507073",
+    "bubble-avatar.svg": "398cc02f684a860e2c74878fe8e237f130bacc6ed9412541950a25b0a1d2052b",
+    "Group 29.svg": "2a90fede60cb2ad606fa5482c58331fcb5435dd884c87e43834cfce2222c09f9",
+    "Group 28.svg": "7f17923bce6a3aa6df133a3ee5c4a62cb700e04368e3e2350ffecdbbb804b3d4",
+    "wordmark.svg": "7568b94376a1ffb4c2c8ffdff4fef03edf4ef3f87d2f3123e25a0d962b3cb3e2",
+    "Vector-2.svg": "c23c2002a9ef9766f145714e522def163a9f144c9aa49aa9a245b2f987ae7f05",
+    "Vector-1.svg": "26ad31502a36c5250879568d8b7d681fb96238dfaaf7d6aecc232dcbafae1c60",
+    "Polygon 2.svg": "8bbca660d2f85942599735e8b27194ba69800c204045ed2b315e06093f14bebc",
+    "Group 26.svg": "804e69efeb5e006e732085698908f78ca6450882c63f168ce8cae4d4c54e4f0c",
+    "Star 34.svg": "368bb53812820ff40ed6811b3fa6f7c7bc1d3a8c524848a2f5c9fb6655b990a7",
+    "Group 30.svg": "f72395d803e4db35304e6fe94f80416b0fdc27e576489daa0316a42013baf63c",
+    "background.svg": "9eaef67d4fce3b55540f344266487292ad225887d6f9ac41210dcd1ccb473070",
+    "eye-original.svg": "feafc059a3abbb1ac1fcad70e9cbc8a5221a647ecf72c61fc3373f4e5fdbc398",
+    "star-active.svg": "aac8eacd801c05bf133ef17ac3e38a9ba3ea2aea96c163f5cf56c6443908376f",
+    "Vector.svg": "3ac1e36425e9b7503e3651dc739e215764b76df1eea17e912bde374cb66e5e91",
+    "Star 35.svg": "944db2610096f89da782c2a6c81489cbf3d4b094f49ff4c355b1f5c205878fe6",
+    "star-idle.svg": "b97e37886f94f8094032e69416ec41f7982cbf674aa11cf54c47bb8214ff8012",
+    "bubble.svg": "253cdc20f90b6654e050351c1fde6e047240af324bc9fd2c41ed1b7db39fd048"
+  },
+  "canvas": {
+    "width": 390,
+    "height": 844
+  },
+  "motion": "No timeline in supplied file. State-driven motion follows the owner specification."
+}
