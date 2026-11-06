@@ -1306,7 +1306,7 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     close.addEventListener("click",dismiss);document.addEventListener("keydown",onKey,true);document.body.append(overlay);close.focus();
   }
   globalThis.openMediaPreview=openMediaPreview;
-  let filesGallerySnapshot=[],filesGalleryQuery="",filesGalleryPage=0,filesGalleryObserver=null,filesGalleryObserverRoot=null;
+  let filesGallerySnapshot=[],filesGalleryQuery="",filesGalleryPage=0,filesGalleryObserver=null,filesGalleryObserverRoot=null,filesGalleryLanguage="";
   const filesGallerySources=new WeakMap(),FILES_GALLERY_PAGE_SIZE=36;
   function observeFilePreview(media,src,root){
     if(!src)return;
@@ -1331,10 +1331,16 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
       const prev=filesGallerySnapshot[i];return prev&&prev.id===o.id&&prev.type===o.type&&prev.name===o.name&&prev.fileName===o.fileName&&prev.src===o.src&&prev.mime===o.mime&&prev.revision===(o.documentRevision||0);
     });
     if(same){
+      if(filesGalleryLanguage!==state.language){
+        root.querySelectorAll("[data-file-id]").forEach(btn=>btn.setAttribute("aria-label",text("Предпросмотр: ","Preview: ")+(items.find(o=>o.id===btn.dataset.fileId)?.fileName||items.find(o=>o.id===btn.dataset.fileId)?.name||"")));
+        const more=root.querySelector("[data-files-more]");if(more)more.textContent=text("Показать ещё","Show more")+" · "+Math.max(0,items.length-(filesGalleryPage+1)*FILES_GALLERY_PAGE_SIZE);
+        const empty=root.querySelector(".bc-files-empty");if(empty)empty.textContent=text("На текущем столе пока нет файлов и изображений","No files or images on this desk yet");
+        filesGalleryLanguage=state.language;
+      }
       root.querySelectorAll("[data-file-id]").forEach(btn=>btn.classList.toggle("selected",state.selected.includes(btn.dataset.fileId)));
       return;
     }
-    filesGalleryObserver?.disconnect();filesGalleryQuery=q;filesGalleryPage=0;
+    filesGalleryObserver?.disconnect();filesGalleryQuery=q;filesGalleryPage=0;filesGalleryLanguage=state.language;
     filesGallerySnapshot=items.map(o=>({id:o.id,type:o.type,name:o.name,fileName:o.fileName,src:o.src,mime:o.mime,revision:o.documentRevision||0}));
     root.replaceChildren();
     if(!items.length){root.innerHTML='<div class="bc-files-empty">'+text("На текущем столе пока нет файлов и изображений","No files or images on this desk yet")+'</div>';return}
