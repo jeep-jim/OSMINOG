@@ -1,11 +1,13 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const read=p=>fs.readFileSync(require('node:path').join(__dirname,'..',p),'utf8');
 const manager=read('osminog-session-manager.js'),hub=read('osminog-browser-hub.js'),background=read('background.js'),manifest=require('../manifest.json');
-assert.equal(manifest.version,'4.0.28');
+assert.equal(manifest.version,require('../OSMINOG_BUILD.json').manifestVersion);
 assert.match(manager,/setGroup\("provider-sessions",items\)/);
 assert.match(manager,/mode:"osminog-dock"/);
 assert.match(manager,/onOpen:\(\)=>openSettings\(id\)/);
-assert.match(hub,/focus\?\.\(id,\{external:false\}\)/);
+assert.match(hub,/mode: 'chat-settings', popup: false/);
+assert.match(hub,/OSMINOGSetAgentSettingsOpen\?\.\(true\)/);
+assert.doesNotMatch(hub,/chrome\.windows\.create/);
 assert.match(background,/type:"popup",width:920,height:760/);
 assert.match(background,/state:"minimized",focused:false/);
 assert.match(background,/osminogConnectExisting[^{]+\{provider=osminogProviderKey\(provider\);const tab=/);
