@@ -1,7 +1,6 @@
 name: Chrome project trash and inbox
 on:
-  push:
-    branches: [chrome-4.0.28-trash]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
