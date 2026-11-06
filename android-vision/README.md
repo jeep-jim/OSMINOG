@@ -1,4 +1,4 @@
-# OSMINOG Vision · Android 0.1.0 (experimental)
+# OSMINOG Vision · Android 0.2.0 (experimental)
 
 A separate Android product, not a replacement for OSMINOG Chrome or Android file-board preview.
 Only chat, Android speech input/output, a foreground camera session and signed APK updates.
@@ -29,3 +29,24 @@ JDK 17; Gradle 8.9; SDK 35. `gradle :app:assembleDebug :app:assembleRelease :app
 Emulator instrumentation tests cover local shell, real WebView composer/attachment/response with a fixture,
 no remote native bridge, rejection of unfinished drafts, updater URL guard, native camera capture and lifecycle stop.
 The first APK must remain labelled experimental until tested with the owner's actual provider account and phone.
+
+## 0.2.0 — Original ocean design, native-clock transport
+
+The owner supplied Untitled.fig and its SVG export. The native file was decoded locally;
+original vector paths, gradient matrices, fills, layers and dimensions were extracted.
+The 13 exported plankton SVGs are unchanged. `assets/design/provenance.json` records hashes.
+No animation timeline existed in this file. Drift, sleep and activity transitions implement
+owner-described behavior; do not call their timing an extracted Figma animation.
+
+The clean home screen contains the original star menu, wordmark, ocean, plankton,
+chat and bottom eye. Tap the eye to start/stop voice, send composed text, interrupt
+speech, or stop an active request; hold to end a session. Camera, provider login,
+updates, privacy, history clearing and motion preferences are in the star menu.
+
+Provider transport is driven by Android Handler polling instead of timer loops in
+the covered provider WebView. Return events use the trusted local shell document,
+not a potentially stale message port. External drafts are preserved; app-owned drafts
+are scoped. Replies are correlated to one request and never fabricated. Provider reload
+recovery does not re-submit the question. Histories are separated by provider and
+previous local history is retained. Website changes, login policies and account limits
+remain external dependencies; fixtures do not certify live account operation.
