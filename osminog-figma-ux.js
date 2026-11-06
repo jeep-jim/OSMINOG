@@ -35,7 +35,7 @@
    else obj.corners[corner]=value;
    obj.cornersLinked=obj.cornersLinked!==false;changed=true;
   }else if(buttonProp&&obj){obj[buttonProp]=value;changed=true}
-  else if(connectionProp&&globalThis.state?.selectedConnection){
+  else if(connectionProp&&typeof state!=='undefined'&&state.selectedConnection){
    const c=globalThis.project?.()?.connections?.find(x=>x.id===state.selectedConnection);
    if(c){c[connectionProp]=value;globalThis.renderConnections?.();changed=true}
   }else if(connectionPreset&&typeof state!=='undefined'&&state.connectionPreset){
