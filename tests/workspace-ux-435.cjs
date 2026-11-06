@@ -29,6 +29,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   assert.equal(await page.locator('[data-file-id="folder-image"]').count(),0,'folder assets must remain in their folder');
   const grid=await page.locator('#layerList').evaluate(el=>({columns:getComputedStyle(el).gridTemplateColumns.split(' ').length,firstHeight:el.querySelector('.bc-file-tile').getBoundingClientRect().height,lazy:el.querySelector('.bc-file-tile img')?.loading}));
   assert.equal(grid.columns,2,JSON.stringify(grid));assert(grid.firstHeight>=148,JSON.stringify(grid));assert.equal(grid.lazy,'lazy',JSON.stringify(grid));
+  await page.evaluate(()=>{state.language='de';applyLanguage()});assert((await page.locator('[data-files-more]').textContent()).includes('Mehr anzeigen'));
+  await page.evaluate(()=>{state.language='en';applyLanguage()});assert((await page.locator('[data-files-more]').textContent()).includes('Show more'));check('gallery controls refresh translations without recreating the image cards');
   await page.locator('[data-files-more]').click();assert.equal(await page.locator('.bc-file-tile').count(),40);check('roomy two-column gallery, lazy thumbnails, 36-item paging and current-desk-only media');
   await page.locator('.bc-file-tile').first().click();await page.waitForSelector('.osminog-media-preview');
   const previewActions=await page.locator('.osminog-media-preview footer button').allTextContents();
