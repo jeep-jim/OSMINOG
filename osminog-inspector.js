@@ -46,7 +46,8 @@ function render(){if(!project()){root.innerHTML='';return}panel.classList.remove
  root.querySelector('[data-nodes]')?.addEventListener('click',()=>{state.nodeEditId=o.id;renderAll(true)});
  root.querySelectorAll('[data-connection-preset]').forEach(input=>input.onchange=()=>{const k=input.dataset.connectionPreset;state.connectionPreset[k]=k==='width'?Number(input.value):['dashed','arrow'].includes(k)?input.value==='true':input.value;queuePersist()});
 }
-globalThis.renderInspector=render;
+const renderWithExportSync=render;
+globalThis.renderInspector=function(...args){const result=renderWithExportSync.apply(this,args);globalThis.syncExportAvailability?.();return result};
 document.body.classList.add('unified-inspector');panel.classList.remove('collapsed');document.querySelector('#inspectorCollapse').hidden=false;document.querySelector('#inspector .inspector-mini')?.remove();document.querySelector('#inspector .panel-resizer')?.remove();
 // Visibility is a user choice, independent of inspector rendering and photo edits.
 const visibilityKey='osminogInspectorVisible';
