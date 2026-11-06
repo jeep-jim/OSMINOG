@@ -27,6 +27,26 @@ jobs:
         run: |
           node --check android-vision/app/src/main/assets/app.js
           node --check android-vision/app/src/main/assets/provider.js
+      - name: Detect configured Android signing secrets (names only)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          OSMINOG_ANDROID_KEYSTORE_B64: ${{ secrets.OSMINOG_ANDROID_KEYSTORE_B64 }}
+          OSMINOG_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.OSMINOG_ANDROID_KEYSTORE_PASSWORD }}
+          OSMINOG_ANDROID_KEY_ALIAS: ${{ secrets.OSMINOG_ANDROID_KEY_ALIAS }}
+          OSMINOG_ANDROID_KEY_PASSWORD: ${{ secrets.OSMINOG_ANDROID_KEY_PASSWORD }}
+          OSMINOG_ANDROID_SIGNING_KEYSTORE_B64: ${{ secrets.OSMINOG_ANDROID_SIGNING_KEYSTORE_B64 }}
+          OSMINOG_ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.OSMINOG_ANDROID_SIGNING_STORE_PASSWORD }}
+          OSMINOG_ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.OSMINOG_ANDROID_SIGNING_KEY_ALIAS }}
+          OSMINOG_ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.OSMINOG_ANDROID_SIGNING_KEY_PASSWORD }}
+          OSMINOG_RELEASE_SIGNING_KEY_B64: ${{ secrets.OSMINOG_RELEASE_SIGNING_KEY_B64 }}
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD OSMINOG_ANDROID_KEYSTORE_B64 OSMINOG_ANDROID_KEYSTORE_PASSWORD OSMINOG_ANDROID_KEY_ALIAS OSMINOG_ANDROID_KEY_PASSWORD OSMINOG_ANDROID_SIGNING_KEYSTORE_B64 OSMINOG_ANDROID_SIGNING_STORE_PASSWORD OSMINOG_ANDROID_SIGNING_KEY_ALIAS OSMINOG_ANDROID_SIGNING_KEY_PASSWORD OSMINOG_RELEASE_SIGNING_KEY_B64; do
+            eval "value=\${$name}"
+            if [ -n "$value" ]; then echo "$name=present"; else echo "$name=missing"; fi
+          done
       - name: Build APKs and lint
         working-directory: android-vision
         run: gradle :app:assembleDebug :app:assembleRelease :app:lintDebug :app:assembleDebugAndroidTest
