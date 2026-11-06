@@ -4,9 +4,11 @@ on:
     paths:
       - 'osminog-animation-studio.*'
       - 'osminog-graphics-studio.js'
+      - 'osminog-workspace-polish.*'
       - 'bridge.js'
       - 'editor.html'
       - 'tests/retired-features-416.cjs'
+      - '.github/workflows/animation-studio-3206.yml'
   workflow_dispatch:
 jobs:
   verify:

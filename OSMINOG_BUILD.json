@@ -1,18 +1,18 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.23",
-  "versionName": "4.0.23 · Workspace Polish",
-  "artifact": "OSMINOG-Chrome-4.0.23-WORKSPACE-POLISH.zip",
-  "manifestVersion": "4.0.23",
+  "version": "4.0.24",
+  "versionName": "4.0.24 · Performance Hotfix",
+  "artifact": "OSMINOG-Chrome-4.0.24-PERFORMANCE-FIX.zip",
+  "manifestVersion": "4.0.24",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
-  "baseVersion": "4.0.22",
+  "baseVersion": "4.0.23",
   "runtimeVerified": false,
   "verification": {
     "fullExtension": "The release workflow must pass the real Chrome extension clipboard, storage, reload and browser-restart gates before packaging.",
-    "workspace": "Library, folders, photo editor, panel stacking, canvas and chat regression gates run before packaging.",
+    "workspace": "Large-archive rendering budget, pagination, full-text search, hidden layers, Undo and eye animation gates run before packaging.",
     "ownerWindows": "Not tested on the owner device. Native desktop compatibility is verified separately by the Windows workflow."
   },
-  "notes": "Workspace persistence, folders tab, confirmed bulk deletion and Undo, keyboard confirmation, compact dock and full screenshot editor."
+  "notes": "Bounded stored Layers, unchanged-DOM caching, live counters and revised octopus pupil. No user-data migration."
 }
