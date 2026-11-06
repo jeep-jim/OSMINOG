@@ -1,0 +1,122 @@
+/* OSMINOG 4.0.34 · Figma-like canvas and docked side panels */
+:root{--osminog-library-width:min(440px,36vw)}
+/* Search/capture drawer gets its own column to the right of chat. */
+body[data-workdesk]:has(#osminogLibrary){--desk-right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)}
+body[data-workdesk]:has(#osminogLibrary) #osminogLibrary{
+  position:fixed!important;top:var(--desk-header-height,56px)!important;right:0!important;bottom:0!important;
+  left:auto!important;width:var(--osminog-library-width)!important;max-width:var(--osminog-library-width)!important;
+  height:auto!important;max-height:none!important;border-radius:0!important;border:0!important;
+  border-left:1px solid var(--ui-line,var(--line))!important;box-shadow:none!important;z-index:190!important;
+}
+body[data-workdesk]:has(#osminogLibrary) #bridgePanel:not([hidden]){
+  right:var(--osminog-library-width)!important;width:var(--desk-chat-width)!important;
+}
+body[data-workdesk].unified-inspector:has(#osminogLibrary) #inspector{
+  right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)!important;
+}
+body[data-workdesk]:has(#osminogLibrary) #deskDivider{
+  right:calc(var(--desk-chat-width) + var(--osminog-library-width))!important;
+}
+body[data-workdesk]:has(#osminogLibrary) .topbar{
+  width:calc(100% - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
+  max-width:calc(100% - var(--desk-chat-width) - var(--osminog-library-width) - 7px)!important;
+}
+body[data-workdesk]:has(#osminogLibrary) #workdeskTools{
+  left:calc((100vw - var(--desk-right))/2)!important;
+  max-width:calc(100vw - var(--desk-right) - 24px)!important;
+}
+#osminogLibrary .lib-body{min-height:0}
+#osminogLibrary .lib-results{grid-template-columns:minmax(0,1fr)}
+@media(max-width:1100px){
+  :root{--osminog-library-width:min(380px,38vw)}
+}
+@media(max-width:720px){
+  body[data-workdesk]:has(#osminogLibrary) #bridgePanel:not([hidden]){display:none!important}
+  body[data-workdesk]:has(#osminogLibrary) #osminogLibrary{width:100vw!important;max-width:100vw!important}
+}
+
+/* Selection handles stay the same physical size at every canvas zoom. */
+#objects .resize-handle.resize-n,#objects .resize-handle.resize-e,
+#objects .resize-handle.resize-s,#objects .resize-handle.resize-w{display:none!important}
+#objects .canvas-object.selected>.resize-handle{
+  width:8px!important;height:8px!important;min-width:8px!important;min-height:8px!important;
+  border:1.5px solid #fff!important;border-radius:2px!important;opacity:1!important;
+  box-shadow:0 0 0 1px var(--ui-accent,#0c8ce9),0 1px 3px #0003!important;
+  transform:scale(var(--osminog-handle-scale,1))!important;transform-origin:center!important;
+}
+#objects .canvas-object.selected>.resize-nw{left:-4px!important;top:-4px!important;right:auto!important;bottom:auto!important;cursor:nwse-resize}
+#objects .canvas-object.selected>.resize-ne{right:-4px!important;top:-4px!important;left:auto!important;bottom:auto!important;cursor:nesw-resize}
+#objects .canvas-object.selected>.resize-se{right:-4px!important;bottom:-4px!important;left:auto!important;top:auto!important;cursor:nwse-resize}
+#objects .canvas-object.selected>.resize-sw{left:-4px!important;bottom:-4px!important;right:auto!important;top:auto!important;cursor:nesw-resize}
+
+/* Compact Figma-style numeric controls with horizontal scrubbing. */
+body.unified-inspector #inspector .ui-value input[type=number],
+body.unified-inspector #inspector input[data-prop][type=number]{
+  cursor:ew-resize;user-select:none;font-variant-numeric:tabular-nums
+}
+body.unified-inspector #inspector .ui-value:has(input.is-scrubbing),
+body.unified-inspector #inspector .field:has(input.is-scrubbing){background:var(--ui-focus)!important;border-color:var(--ui-accent)!important}
+body.unified-inspector #inspector input.is-scrubbing{cursor:ew-resize!important;user-select:none!important}
+body.unified-inspector #inspector .ui-section{padding:11px 12px}
+body.unified-inspector #inspector .ui-section h3{display:flex;align-items:center;min-height:22px}
+body.unified-inspector #inspector .ui-value{background:var(--ui-input);border-color:var(--ui-line)}
+body.unified-inspector #inspector .ui-value:hover{border-color:color-mix(in srgb,var(--ui-accent) 45%,var(--ui-line))}
+body.unified-inspector #inspector .ui-paint{padding:2px 0}
+body.unified-inspector #inspector .ui-hex{font-variant-numeric:tabular-nums}
+
+/* File gallery: preview first, no redundant file-type captions. */
+#layerList.files-gallery{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:7px!important;padding:8px!important;align-content:start
+}
+#layerList.files-gallery .bc-file-tile{
+  display:block!important;position:relative;min-width:0;aspect-ratio:1.08/1;
+  padding:3px!important;border-radius:9px!important;overflow:hidden!important;
+  background:var(--surface-2);border:1px solid var(--line);box-shadow:none!important
+}
+#layerList.files-gallery .bc-file-tile-preview{
+  position:absolute;inset:3px!important;height:auto!important;min-height:0!important;
+  border-radius:6px!important;background:var(--surface)!important;display:grid;place-items:center
+}
+#layerList.files-gallery .bc-file-tile-preview>img,
+#layerList.files-gallery .bc-file-tile-preview>video{
+  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  object-fit:contain!important;display:block;background:transparent
+}
+#layerList.files-gallery .bc-file-tile-name{display:none!important}
+#layerList.files-gallery .bc-gallery-file-icon{width:100%;height:100%;border:0;border-radius:6px;font-size:clamp(11px,1vw,17px)}
+#layerList.files-gallery .bc-file-tile:hover .bc-file-tile-preview{background:var(--accent-soft)!important}
+#layerList.files-gallery .bc-file-tile.selected{outline:2px solid var(--accent);outline-offset:1px}
+
+/* Full-size material preview and its action bar. */
+.osminog-media-preview{
+  position:fixed;z-index:100120;inset:0;display:grid;place-items:center;
+  background:#10151d66;backdrop-filter:blur(5px);padding:20px
+}
+.osminog-media-preview[hidden]{display:none}
+.osminog-media-preview .media-preview-card{
+  width:min(980px,calc(100vw - var(--desk-right,0px) - 40px));height:min(780px,84vh);
+  margin-left:calc(var(--desk-right,0px)/-2);display:grid;grid-template-rows:58px minmax(0,1fr) 58px;
+  overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);
+  color:var(--text);box-shadow:0 24px 80px #0005
+}
+.osminog-media-preview header,.osminog-media-preview footer{
+  display:flex;align-items:center;gap:8px;padding:0 14px;background:var(--surface-2)
+}
+.osminog-media-preview header{justify-content:space-between;border-bottom:1px solid var(--line)}
+.osminog-media-preview header>div{min-width:0;display:grid;gap:2px}
+.osminog-media-preview header strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.osminog-media-preview header small{font-size:10px;color:var(--muted)}
+.osminog-media-preview header button{width:32px;height:32px;border:0;border-radius:7px;background:transparent;color:var(--text);font-size:22px}
+.osminog-media-preview main{min-height:0;display:grid;place-items:center;overflow:auto;padding:14px;background:var(--surface)}
+.osminog-media-preview .media-preview-image{display:block;max-width:100%;max-height:100%;object-fit:contain}
+.osminog-media-preview .file-preview{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
+.osminog-media-preview footer{justify-content:flex-end;border-top:1px solid var(--line);flex-wrap:wrap}
+.osminog-media-preview footer button{min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:11px system-ui}
+.osminog-media-preview footer button:hover{border-color:var(--ui-accent);background:var(--ui-focus)}
+@media(max-width:720px){
+  .osminog-media-preview{padding:8px}
+  .osminog-media-preview .media-preview-card{width:calc(100vw - 16px);height:calc(100dvh - 16px);margin:0;grid-template-rows:54px minmax(0,1fr) auto}
+  .osminog-media-preview footer{justify-content:center;padding:8px;gap:5px}
+  .osminog-media-preview footer button{flex:1 1 30%;padding:0 6px}
+}
