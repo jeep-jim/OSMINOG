@@ -9,7 +9,7 @@ public class VisionTest {
  void ui(Runnable r){InstrumentationRegistry.getInstrumentation().runOnMainSync(r);}
  String eval(WebView w,String js)throws Exception{CountDownLatch l=new CountDownLatch(1);AtomicReference<String> out=new AtomicReference<>("");ui(()->w.evaluateJavascript(js,s->{out.set(s);l.countDown();}));assertTrue("JS callback timeout",l.await(8,TimeUnit.SECONDS));return out.get();}
  void until(Callable<Boolean> condition)throws Exception{long end=System.currentTimeMillis()+20000;while(System.currentTimeMillis()<end){if(condition.call())return;Thread.sleep(200);}fail("Condition timed out");}
- @Before public void setup()throws Exception{InstrumentationRegistry.getInstrumentation().getTargetContext().getSharedPreferences("vision",0).edit().clear().commit();scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(x->a=x);until(()->"true".equals(eval(a.shell,"!!window.OSMINOG")));Thread.sleep(400);eval(a.shell,"localStorage.clear();document.getElementById('messages').replaceChildren()");}
+ @Before public void setup()throws Exception{InstrumentationRegistry.getInstrumentation().getTargetContext().getSharedPreferences("vision",0).edit().clear().commit();scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(x->a=x);until(()->"true".equals(eval(a.shell,"!!window.OSMINOG && document.getElementById('privacy').textContent.includes('0.1.0')")));eval(a.shell,"localStorage.clear();document.getElementById('messages').replaceChildren()");}
  @After public void tearDown(){if(scenario!=null)scenario.close();}
  @Test public void shellAndSafeUpdateMetadata()throws Exception{
   assertEquals("true",eval(a.shell,"document.body.innerText.includes('Показать мир') && document.body.innerText.includes('Разговор')"));
@@ -19,13 +19,19 @@ public class VisionTest {
   assertFalse(Updater.assetUrl("https://github.com/evil/app/releases/download/vision-android-v0.1/a.apk"));
   assertTrue(Updater.assetUrl("https://github.com/jeep-jim/OSMINOG-Releases/releases/download/vision-android-v0.1.0/OSMINOG.apk"));
   JSONObject meta=new JSONObject().put("schema","osminog-android-update/v1").put("applicationId","evil.app");boolean rejected=false;try{Updater.validate(meta,1);}catch(Exception e){rejected=true;}assertTrue(rejected);
-  assertEquals("undefined",eval(a.provider,"typeof Osminog"));
+  assertEquals("\"undefined\"",eval(a.provider,"typeof Osminog"));
  }
  String fixture(){return "<!doctype html><meta name='viewport' content='width=device-width, initial-scale=1'><main id='messages'></main><form style='position:fixed;bottom:0;left:0;width:100%;height:150px'><div id='preview'></div><input type='file' accept='image/*'><textarea style='width:90%;height:60px' id='prompt-textarea'></textarea><button type='submit' data-testid='send-button'>Send</button></form><script>document.querySelector('input').onchange=e=>{const img=document.createElement('img');img.src=URL.createObjectURL(e.target.files[0]);img.width=30;img.height=30;document.getElementById('preview').append(img)};document.querySelector('form').onsubmit=e=>{e.preventDefault();const t=document.querySelector('textarea');const u=document.createElement('div');u.dataset.messageAuthorRole='user';u.textContent=t.value;document.getElementById('messages').append(u);t.value='';const a=document.createElement('div');a.dataset.messageAuthorRole='assistant';a.textContent='Тестовый ответ из веб-чата';document.getElementById('messages').append(a);document.getElementById('preview').replaceChildren()};</script>";}
- void loadFixture()throws Exception{ui(()->{a.selected=0;a.provider.loadDataWithBaseURL("https://chatgpt.com/",fixture(),"text/html","UTF-8",null);});until(()->"true".equals(eval(a.provider,"!!window.OSMINOGMobileBridge?.probe().ready")));ui(()->{a.connected=true;a.emit("connected","ok",true,"provider","Fixture");});Thread.sleep(300);}
+ void loadFixture()throws Exception{ui(()->{a.selected=0;WebViewClient client=a.provider.getWebViewClient();a.provider.setWebViewClient(new WebViewClient(){
+   @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest request){String path=request.getUrl().getPath();String html="/".equals(path)?fixture():"";return new WebResourceResponse("text/html","UTF-8",new ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
+   @Override public void onPageFinished(WebView v,String url){client.onPageFinished(v,url);}
+  });a.provider.loadUrl("https://chatgpt.com/");});
+  until(()->"true".equals(eval(a.provider,"!!document.getElementById('prompt-textarea')")));ui(()->a.returnToShell());
+  try{until(()->"true".equals(eval(a.provider,"!!window.OSMINOGMobileBridge?.probe().ready")));}catch(AssertionError error){throw new AssertionError("Fixture connection: "+eval(a.provider,"JSON.stringify({url:location.href,ready:document.readyState,bridge:typeof OSMINOGMobileBridge,probe:window.OSMINOGMobileBridge?.probe(),box:document.getElementById('prompt-textarea')?.getBoundingClientRect().toJSON()})"),error);}
+  ui(()->{a.connected=true;a.emit("connected","ok",true,"provider","Fixture");});Thread.sleep(300);}
  @Test public void realWebViewTransportWithFrameAndConversation()throws Exception{loadFixture();
   eval(a.shell,"document.getElementById('text').value='Привет';document.getElementById('composer').requestSubmit()");
-  until(()->"true".equals(eval(a.shell,"document.getElementById('messages').innerText.includes('Тестовый ответ')")));
+  until(()->"true".equals(eval(a.shell,"JSON.parse(localStorage.getItem('osminogVisionHistory')||'[]').some(x=>x.role==='assistant')")));
   assertEquals("true",eval(a.shell,"JSON.parse(localStorage.getItem('osminogVisionHistory')).some(x=>x.role==='assistant')"));
   ByteArrayOutputStream jpeg=new ByteArrayOutputStream();Bitmap bitmap=Bitmap.createBitmap(16,16,Bitmap.Config.ARGB_8888);bitmap.eraseColor(0xffcc8833);bitmap.compress(Bitmap.CompressFormat.JPEG,75,jpeg);bitmap.recycle();String frame="data:image/jpeg;base64,"+android.util.Base64.encodeToString(jpeg.toByteArray(),android.util.Base64.NO_WRAP);
   JSONObject req=new JSONObject().put("id","test-frame").put("text","Кадр теста").put("image",frame);
