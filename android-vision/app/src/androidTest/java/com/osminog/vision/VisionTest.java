@@ -12,8 +12,9 @@ public class VisionTest {
  @Before public void setup()throws Exception{InstrumentationRegistry.getInstrumentation().getTargetContext().getSharedPreferences("vision",0).edit().clear().commit();scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(x->a=x);until(()->"true".equals(eval(a.shell,"!!window.OSMINOG && document.getElementById('privacy').textContent.includes('0.1.0')")));eval(a.shell,"localStorage.clear();document.getElementById('messages').replaceChildren()");}
  @After public void tearDown(){if(scenario!=null)scenario.close();}
  @Test public void shellAndSafeUpdateMetadata()throws Exception{
-  assertEquals("true",eval(a.shell,"document.body.innerText.includes('Показать мир') && document.body.innerText.includes('Разговор')"));
-  assertEquals("true",eval(a.shell,"document.querySelectorAll('textarea').length===1 && !document.body.innerText.includes('Столы')"));
+  assertEquals("true",eval(a.shell,"document.getElementById('camera').getAttribute('aria-label')==='Показать мир' && document.getElementById('voice').getAttribute('aria-label')==='Включить разговор'"));
+  assertEquals("true",eval(a.shell,"document.querySelectorAll('textarea').length===1 && !!document.getElementById('ocean') && !!window.OSMINOG_FIGMA_ASSETS?.jellyfish && document.querySelector('.brand-mark rect[fill=\"#ff2929\"]')!==null"));
+  assertEquals("true",eval(a.shell,"getComputedStyle(document.getElementById('ocean')).backgroundImage.includes('radial-gradient')"));
   assertFalse(Updater.assetUrl("http://github.com/jeep-jim/OSMINOG-Releases/releases/download/vision-android-v0.1/a.apk"));
   assertFalse(Updater.assetUrl("https://github.com.evil.invalid/jeep-jim/OSMINOG-Releases/releases/download/vision-android-v0.1/a.apk"));
   assertFalse(Updater.assetUrl("https://github.com/evil/app/releases/download/vision-android-v0.1/a.apk"));
