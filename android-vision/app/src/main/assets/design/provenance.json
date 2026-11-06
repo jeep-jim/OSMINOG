@@ -27,5 +27,11 @@
     "width": 390,
     "height": 844
   },
-  "motion": "No timeline in supplied file. State-driven motion follows the owner specification."
+  "motion": "No timeline in supplied file. State-driven motion follows the owner specification.",
+  "derivedAssets": {
+    "background-fullscreen.svg": {
+      "derivedFrom": "background.svg",
+      "description": "Original gradient preserved; only the 32px rounded frame path was replaced with a full-bleed rectangle for Android edge-to-edge layout."
+    }
+  }
 }
