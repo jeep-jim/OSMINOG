@@ -1,0 +1,45 @@
+name: Apply reviewed Chrome 4.0.28 final delta
+on:
+  push:
+    branches: [chrome-4.0.28-trash]
+    paths: ['tools/finalize-chrome-428.py', '.github/workflows/finalize-chrome-428.yml']
+permissions:
+  contents: write
+concurrency:
+  group: chrome-428-reviewed-delta
+  cancel-in-progress: false
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Refuse to overwrite concurrent source changes
+        run: |
+          git diff --exit-code 217e7780c1b9039ecd8680ccc9e295aef045589c HEAD -- . ':!tools/finalize-chrome-428.py' ':!.github/workflows/finalize-chrome-428.yml'
+      - name: Apply the exact reviewed replacements and verify syntax
+        run: |
+          python3 tools/finalize-chrome-428.py
+          node --check osminog-provider-registry.js
+          node --check osminog-session-manager.js
+          node --check osminog-desktop-v3.js
+          node --check osminog-library.js
+          for file in tests/*.cjs; do node --check "$file"; done
+          node --test tests/owner-totp-enrollment.cjs
+          node tests/owner-access-411.cjs
+          node tests/storage-load-421.cjs
+          node tests/collector-runtime-421.cjs
+      - name: Commit isolated candidate without modifying the release or PR branch
+        run: |
+          git diff --exit-code -- osminog-owner-guard.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/agent-media-3207.yml osminog-desktop-v3.js osminog-library.js osminog-provider-registry.js osminog-session-manager.js tests/
+          git diff --cached --stat
+          git commit -m 'Retire legacy store, retain owner auth and align full 4.0.28 regression fixtures'
+          git push origin HEAD:refs/heads/release/chrome-428-finalized-20261106
+          git rev-parse HEAD
