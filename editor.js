@@ -1271,27 +1271,40 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
   function tablePreview(textValue,sep){const rows=String(textValue||"").split(/\r?\n/).filter(Boolean).slice(0,18).map(r=>r.split(sep).slice(0,8));return`<div class="bc-table-preview"><table>${rows.map((r,i)=>`<tr>${r.map(c=>`<${i?"td":"th"}>${esc(c)}</${i?"td":"th"}>`).join("")}</tr>`).join("")}</table></div>`}
   function fileIcon(obj){
     const k=kindOf(obj),label=bcFileShortLabel?.(obj)||extOf(obj).toUpperCase()||"FILE";
-    if(k==="image"&&obj.src)return '<img loading="lazy" decoding="async" fetchpriority="low" src="'+esc(obj.src)+'" alt="">';
-    if(k==="video"&&obj.src)return '<video preload="none" src="'+esc(obj.src)+'" muted playsinline></video>';
     if(k==="audio")return '<span class="bc-gallery-file-icon bc-kind-'+k+'">♫</span>';
-    return '<span class="bc-gallery-file-icon bc-kind-'+k+'">'+esc(label)+'</span>';
+    if(k==="video")return '<span class="bc-gallery-file-icon bc-kind-video">▶</span>';
+    return '<span class="bc-gallery-file-icon bc-kind-'+k+'">'+esc(label||"FILE")+'</span>';
   }
-  let filesGallerySnapshot=[],filesGalleryQuery="",filesGalleryPage=0;
-  const FILES_GALLERY_PAGE_SIZE=36;
+  let filesGallerySnapshot=[],filesGalleryQuery="",filesGalleryPage=0,filesGalleryObserver=null,filesGalleryObserverRoot=null;
+  const filesGallerySources=new WeakMap(),FILES_GALLERY_PAGE_SIZE=36;
+  function observeFilePreview(media,src,root){
+    if(!src)return;
+    if(typeof IntersectionObserver!=="function"){media.src=src;return}
+    if(!filesGalleryObserver||filesGalleryObserverRoot!==root){
+      filesGalleryObserver?.disconnect();filesGalleryObserverRoot=root;
+      filesGalleryObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{
+        if(!entry.isIntersecting)return;
+        const node=entry.target,source=filesGallerySources.get(node);
+        if(source){node.src=source;filesGallerySources.delete(node)}
+        filesGalleryObserver.unobserve(node);
+      }),{root,rootMargin:"220px 0px",threshold:0});
+    }
+    filesGallerySources.set(media,src);filesGalleryObserver.observe(media);
+  }
   function renderFilesGallery(){
     const root=document.getElementById("layerList"),search=document.getElementById("layerSearch");if(!root)return;
     root.classList.add("files-gallery");
     const q=(search?.value||"").trim().toLocaleLowerCase();
     const items=[...desktopObjects()].filter(o=>o.visible!==false&&(o.type==="image"||o.type==="file")&&String(o.name||o.fileName||"").toLocaleLowerCase().includes(q));
     const same=filesGalleryQuery===q&&items.length===filesGallerySnapshot.length&&items.every((o,i)=>{
-      const prev=filesGallerySnapshot[i];return prev&&prev.id===o.id&&prev.name===o.name&&prev.fileName===o.fileName&&prev.src===o.src&&prev.mime===o.mime&&prev.revision===(o.documentRevision||0);
+      const prev=filesGallerySnapshot[i];return prev&&prev.id===o.id&&prev.type===o.type&&prev.name===o.name&&prev.fileName===o.fileName&&prev.src===o.src&&prev.mime===o.mime&&prev.revision===(o.documentRevision||0);
     });
     if(same){
       root.querySelectorAll("[data-file-id]").forEach(btn=>btn.classList.toggle("selected",state.selected.includes(btn.dataset.fileId)));
       return;
     }
-    filesGalleryQuery=q;filesGalleryPage=0;
-    filesGallerySnapshot=items.map(o=>({id:o.id,name:o.name,fileName:o.fileName,src:o.src,mime:o.mime,revision:o.documentRevision||0}));
+    filesGalleryObserver?.disconnect();filesGalleryQuery=q;filesGalleryPage=0;
+    filesGallerySnapshot=items.map(o=>({id:o.id,type:o.type,name:o.name,fileName:o.fileName,src:o.src,mime:o.mime,revision:o.documentRevision||0}));
     root.replaceChildren();
     if(!items.length){root.innerHTML='<div class="bc-files-empty">'+text("На текущем столе пока нет файлов и изображений","No files or images on this desk yet")+'</div>';return}
     const addBatch=(from,to)=>{
@@ -1299,7 +1312,16 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
       for(const obj of items.slice(from,to)){
         const btn=document.createElement("button");btn.type="button";btn.className="bc-file-tile"+(state.selected.includes(obj.id)?" selected":"");btn.dataset.fileId=obj.id;
         btn.title=obj.fileName||obj.name||"Материал";btn.setAttribute("aria-label",text("Предпросмотр: ","Preview: ")+(obj.fileName||obj.name||""));
-        const preview=document.createElement("span");preview.className="bc-file-tile-preview";preview.innerHTML=fileIcon(obj);btn.append(preview);
+        const preview=document.createElement("span");preview.className="bc-file-tile-preview";
+        const kind=kindOf(obj);
+        if(obj.src&&(kind==="image"||kind==="video")){
+          const media=document.createElement(kind==="video"?"video":"img");
+          media.className=kind==="video"?"bc-file-preview-video":"bc-file-preview-image";
+          if(kind==="image"){media.alt="";media.loading="lazy";media.decoding="async";media.fetchPriority="low"}
+          else{media.muted=true;media.playsInline=true;media.preload="none"}
+          preview.append(media);observeFilePreview(media,obj.src,root);
+        }else preview.innerHTML=fileIcon(obj);
+        btn.append(preview);
         btn.addEventListener("click",e=>{if(e.ctrlKey||e.metaKey||e.shiftKey){selectObject(obj.id,true,true);return}openMediaPreview(obj)});
         fragment.append(btn);
       }
@@ -1317,7 +1339,6 @@ function bcExpandLayersFromRail(action){const panel=document.getElementById("lay
     };
     addBatch(0,Math.min(items.length,FILES_GALLERY_PAGE_SIZE));updateMore();
   }
-
   function fileInspectorHTML(obj){
     const k=kindOf(obj),name=esc(obj.fileName||obj.name),raw=dataText(obj.src);let body="";
     if(k==="json"){let v=raw;try{v=JSON.stringify(JSON.parse(raw),null,2)}catch{}body=`<pre class="bc-file-code"><code>${escLines(v)}</code></pre>`}
