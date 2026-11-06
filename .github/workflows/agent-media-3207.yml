@@ -146,6 +146,8 @@ jobs:
             artifacts/*.png
             artifacts/workspace-423-results.json
             artifacts/workspace-424-results.json
+            artifacts/workspace-ux-435-results.json
+            artifacts/workspace-ux-435-failure.png
             artifacts/io-extension-425-results.json
             artifacts/canvas-ux-408-results.json
             artifacts/agent-runtime-409-results.json
