@@ -714,7 +714,21 @@ chrome.windows?.onRemoved?.addListener?.(async id=>{const saved=(await bcRuntime
 
 chrome.windows?.onBoundsChanged?.addListener?.(async win=>{const state=await osminogWebStageState().catch(()=>null);if(state&&Number(state.parentWindowId)===Number(win.id)&&state.parentTabId)chrome.tabs.sendMessage(Number(state.parentTabId),{type:"OSMINOG_WEB_STAGE_PARENT_BOUNDS"}).catch(()=>{})});
 chrome.windows?.onRemoved?.addListener?.(async id=>{const state=await osminogWebStageState().catch(()=>null);if(state?.windowId===id)await bcRuntimeStorage().remove(OSMINOG_WEB_STAGE_KEY)});
-chrome.tabs?.onUpdated?.addListener?.(async(tabId,change,tab)=>{const state=await osminogWebStageState().catch(()=>null);if(!state||Number(tab?.windowId)!==Number(state.windowId))return;if(change.status==="complete"||change.title||change.url){if(tab.active){state.activeTabId=tabId;state.url=tab.url||state.url;await bcRuntimeStorage().set({[OSMINOG_WEB_STAGE_KEY]:state})}if(state.parentTabId)chrome.tabs.sendMessage(Number(state.parentTabId),{type:"OSMINOG_WEB_STAGE_TAB_UPDATED",tabId,url:tab.url||"",title:tab.title||"",active:!!tab.active}).catch(()=>{})}});
+chrome.tabs?.onUpdated?.addListener?.(async(tabId,change,tab)=>{
+ const state=await osminogWebStageState().catch(()=>null);if(!state||!tab)return;
+ let current=tab;
+ if(Number(current.windowId)!==Number(state.windowId)&&current.openerTabId){
+  const opener=await chrome.tabs.get(Number(current.openerTabId)).catch(()=>null);
+  if(opener&&Number(opener.windowId)===Number(state.windowId)){
+   try{await chrome.tabs.move(tabId,{windowId:state.windowId,index:-1});current=await chrome.tabs.get(tabId);await chrome.windows.update(state.windowId,{state:"normal",focused:true})}catch{}
+  }
+ }
+ if(Number(current.windowId)!==Number(state.windowId))return;
+ if(change.status==="complete"||change.title||change.url){
+  if(current.active){state.activeTabId=tabId;state.url=current.url||state.url;await bcRuntimeStorage().set({[OSMINOG_WEB_STAGE_KEY]:state})}
+  if(state.parentTabId)chrome.tabs.sendMessage(Number(state.parentTabId),{type:"OSMINOG_WEB_STAGE_TAB_UPDATED",tabId,url:current.url||"",title:current.title||"",active:!!current.active}).catch(()=>{});
+ }
+});
 chrome.tabs?.onActivated?.addListener?.(async info=>{const state=await osminogWebStageState().catch(()=>null);if(!state||Number(info.windowId)!==Number(state.windowId))return;const tab=await chrome.tabs.get(info.tabId).catch(()=>null);if(!tab)return;state.activeTabId=tab.id;state.url=tab.url||state.url;await bcRuntimeStorage().set({[OSMINOG_WEB_STAGE_KEY]:state});if(state.parentTabId)chrome.tabs.sendMessage(Number(state.parentTabId),{type:"OSMINOG_WEB_STAGE_TAB_UPDATED",tabId:tab.id,url:tab.url||"",title:tab.title||"",active:true}).catch(()=>{})});
 
 chrome.webNavigation?.onCreatedNavigationTarget?.addListener?.(async details=>{
