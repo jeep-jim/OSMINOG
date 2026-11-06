@@ -72,6 +72,7 @@ jobs:
       - run: node tests/chat-links-browser-3214.cjs
       - run: node tests/folder-move-3212.cjs
       - run: node tests/foundation-browser.cjs
+      - run: node tests/legacy-store-retired.cjs
       - name: Build verified Chrome ZIP
         shell: bash
         run: |

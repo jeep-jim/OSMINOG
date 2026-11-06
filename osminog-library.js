@@ -49,6 +49,7 @@ if(item.kind==='image'){
  let size=null;
  if(item.value.startsWith('data:image/png;base64,')){
   const header=atob(item.value.slice(22,54));
+  if(header.slice(0,8)!=='\x89PNG\r\n\x1a\n'||header.slice(12,16)!=='IHDR')throw Error('Повреждён заголовок PNG');
   if(header.slice(12,16)==='IHDR'){
    const n=i=>header.charCodeAt(i)*16777216+header.charCodeAt(i+1)*65536+header.charCodeAt(i+2)*256+header.charCodeAt(i+3);
    if(n(16)>0&&n(20)>0)size={w:n(16),h:n(20)};

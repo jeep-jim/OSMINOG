@@ -30,9 +30,14 @@ const http = require('node:http');
     await page.route('https://**', route => route.abort());
     await page.addInitScript(() => {
       if (window !== window.top) return;
-      const store = {}, event = {addListener() {}, removeListener() {}};
+      const store = {osminogDisplayPrefs:{language:'ru',theme:'dark'},osminogCollectorV1:{enabled:false}}, event = {addListener() {}, removeListener() {}};
       window.__store = store;
       window.__ignored = [];
+      window.__durableCaptures=()=>{
+        const byId=new Map((store.briefCraftStudioV2?.projects||[]).flatMap(p=>p.objects||[]).map(o=>[o.id,o]));
+        for(const [key,e] of Object.entries(store))if(key.startsWith('osminogItemEdit:')&&e.kind==='capture')byId.set(e.object.id,e.object);
+        return [...byId.values()];
+      };
       window.__failWorkspaceSave = false;
       window.__failRemove = false;
       window.chrome = {
@@ -58,7 +63,7 @@ const http = require('node:http');
               const copy = structuredClone(v); cb?.(copy); return Promise.resolve(copy);
             },
             set: (values, cb) => {
-              if (window.__failWorkspaceSave && Object.hasOwn(values, 'briefCraftStudioV2')) {
+              if (window.__failWorkspaceSave && (Object.hasOwn(values, 'briefCraftStudioV2') || Object.keys(values).some(key=>key.startsWith('osminogItemEdit:')))) {
                 if (cb) {
                   chrome.runtime.lastError = {message: 'Simulated storage failure'};
                   cb(); delete chrome.runtime.lastError; return Promise.resolve();
@@ -67,7 +72,7 @@ const http = require('node:http');
               }
               Object.assign(store, structuredClone(values)); cb?.(); return Promise.resolve();
             },
-            remove: async key => {if (window.__failRemove) throw Error('Simulated queue ACK failure'); delete store[key];}
+            remove: async key => {if (window.__failRemove) throw Error('Simulated queue ACK failure'); for(const k of [].concat(key))delete store[k];}
           }, onChanged: event
         },
         tabs: {getCurrent: async () => ({id: 1}), query: async () => [], create: async () => {}},
@@ -83,7 +88,7 @@ const http = require('node:http');
       createProject(); state.language = 'ru';
       document.querySelector('#osminogStorageOnboarding')?.close();
       // OCR is independent of this regression; keep its automatic work bounded.
-      Tesseract.createWorker = async () => ({recognize: async () => ({data: {text: ''}})});
+      globalThis.Tesseract = {createWorker: async () => ({recognize: async () => ({data: {text: ''}})})};
       clearTimeout(state.saveTimer); await persist();
     });
     const fixture = await page.evaluate(async () => {
@@ -185,10 +190,15 @@ const http = require('node:http');
     }, fixture);
     assert.equal(await page.evaluate(() => objects().filter(o => o.captureId === 'retry').length), 1);
     assert.equal(await page.evaluate(() => !!__store['osminogCapture:retry']), true);
-    assert.equal(await page.evaluate(() => __store.briefCraftStudioV2.projects.flatMap(p => p.objects).some(o => o.captureId === 'retry')), false);
+    assert.equal(await page.evaluate(() => __durableCaptures().some(o => o.captureId === 'retry')), false);
     await page.evaluate(async () => {window.__failWorkspaceSave = false; await OSMINOGLibrary.drain();});
     assert.equal(await page.evaluate(() => !!__store['osminogCapture:retry']), false);
-    assert.equal(await page.evaluate(() => __store.briefCraftStudioV2.projects.flatMap(p => p.objects).filter(o => o.captureId === 'retry').length), 1);
+    assert.equal(await page.evaluate(() => __durableCaptures().filter(o => o.captureId === 'retry').length), 1);
+    await page.evaluate(async f=>{
+      project().objects=project().objects.filter(o=>o.captureId!=='retry');delete project().savedItemEdits?.['capture-retry'];
+      await OSMINOGItemEdits.restore(null);
+    },fixture);
+    assert.equal(await page.evaluate(()=>objects().filter(o=>o.captureId==='retry').length),1,'durable journal must replay after loss of the in-memory object');
     // A queue-remove failure after a successful save must also retry without duplicates.
     await page.evaluate(async f => {
       await chrome.storage.local.set({'osminogCapture:ack': {id: 'ack', kind: 'text', value: 'ACK retry stays singular', projectId: f.projectId, folderId: f.folderId, at: Date.now()}});

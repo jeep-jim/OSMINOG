@@ -45,6 +45,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     await page.waitForTimeout(500);assert.equal(await page.evaluate(id=>__store[STORAGE_KEY].projects.find(p=>p.id===state.activeProject).objects.find(o=>o.id===id).text,id),o.text);
     passed.push('text saved through original project persistence');
     await page.keyboard.press('Escape');assert.equal(await field.getAttribute('contenteditable'),'false');
+    await page.locator('#canvasSettings').click();
+    assert.equal(await page.locator('#inspector').isVisible(),true);
     await page.locator('[data-canvas-text-prop=fontSize]').fill('42');await page.locator('[data-canvas-text-prop=fontFamily]').selectOption('Georgia, serif');
     assert.equal(await field.evaluate(el=>getComputedStyle(el).fontSize),'42px');assert.match(await field.evaluate(el=>getComputedStyle(el).fontFamily),/Georgia/);
     passed.push('right inspector changes size and font without replacing text');

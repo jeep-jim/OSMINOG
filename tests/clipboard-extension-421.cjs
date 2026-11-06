@@ -239,6 +239,8 @@ async function snapshot() {
       await persist();
       return {target: target.id, folder: folder.id, other: other.id};
     });
+    await editor.evaluate(async()=>{await chrome.runtime.sendMessage({type:'OSMINOG_COLLECTOR_CONFIGURE',patch:{enabled:false}})});
+    await editor.waitForFunction(async()=>!(await chrome.runtime.getContexts({contextTypes:['OFFSCREEN_DOCUMENT']})).length);
     await nativeCopyText('pre-existing clipboard baseline');
 
     // Use the real settings UI for the existing saved-folder destination.
