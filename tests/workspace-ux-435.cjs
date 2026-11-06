@@ -6,6 +6,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser,page;
  const passed=[],check=s=>{passed.push(s);console.log('PASS '+s)};
  try{
+  fs.mkdirSync('artifacts',{recursive:true});
   browser=await chromium.launch({headless:true,...(process.env.TEST_CHROMIUM?{executablePath:process.env.TEST_CHROMIUM}:{})});
   const context=await browser.newContext({viewport:{width:1440,height:1000}});page=await context.newPage();page.setDefaultTimeout(15000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://**',r=>r.abort());
