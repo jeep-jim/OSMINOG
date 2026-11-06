@@ -31,6 +31,7 @@
     const f=frame();f.dataset.projectId=t.projectId;f.dataset.tabId=t.id;f.removeAttribute("src");
     f.srcdoc='<!doctype html><meta charset="utf-8"><style>html,body{margin:0;min-height:100%;font:13px system-ui;color:#667085;background:#f5f7fb}body{display:grid;place-items:center;text-align:center;padding:24px;box-sizing:border-box}main{max-width:440px}b{display:block;color:#344054;font-size:16px;margin-bottom:8px}</style><main><b>Живая страница закреплена в рамке OSMINOG</b>Настоящая вкладка Chrome располагается поверх этой области. Она использует твой профиль, авторизацию, VPN и установленные расширения.</main>';
     message("Закрепляю настоящую вкладку Chrome над рабочей областью…");
+    await new Promise(resolve=>requestAnimationFrame(()=>resolve()));
     const geometry=globalThis.OSMINOGWebWorkspace?.geometry?.()||null;
     const parent=await chrome.tabs.getCurrent().catch(()=>null);
     const r=await chrome.runtime.sendMessage({type:"OSMINOG_WEB_STAGE_OPEN",url:t.url,tabId:t.managedTabId||null,geometry,parentTabId:parent?.id??null,parentWindowId:parent?.windowId??null}).catch(e=>({ok:false,error:e?.message||String(e)}));
