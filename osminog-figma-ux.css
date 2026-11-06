@@ -1,8 +1,10 @@
 /* OSMINOG 4.0.34 · Figma-like canvas and docked side panels */
 :root{--osminog-library-width:min(440px,36vw)}
 /* Search/capture drawer gets its own column to the right of chat. */
-body[data-workdesk]:has(#osminogLibrary){--desk-right:calc(var(--osminog-library-width) + 7px)}
-body[data-workdesk]:has(#bridgePanel:not([hidden])):has(#osminogLibrary){--desk-right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)}
+body[data-workdesk]:has(#osminogLibrary){--desk-right:calc(var(--ui-width,280px) + var(--osminog-library-width) + 7px)}
+body.unified-inspector.inspector-hidden:has(#osminogLibrary){--desk-right:calc(var(--osminog-library-width) + 7px)}
+body[data-workdesk]:has(#bridgePanel:not([hidden])):has(#osminogLibrary){--desk-right:calc(var(--ui-width,280px) + var(--desk-chat-width) + var(--osminog-library-width) + 14px)}
+body.unified-inspector.inspector-hidden:has(#bridgePanel:not([hidden])):has(#osminogLibrary){--desk-right:calc(var(--desk-chat-width) + var(--osminog-library-width) + 7px)}
 body[data-workdesk]:has(#osminogLibrary) #osminogLibrary{
   position:fixed!important;top:var(--desk-header-height,56px)!important;right:0!important;bottom:0!important;
   left:auto!important;width:var(--osminog-library-width)!important;max-width:var(--osminog-library-width)!important;
