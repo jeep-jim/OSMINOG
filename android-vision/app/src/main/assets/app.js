@@ -18,18 +18,18 @@ function buildOcean(){
  for(const [kind,x,y,w,h,duration,delay] of items){
   const el=document.createElement('span');el.className='particle '+(kind==='bubble'?'bubble':kind==='spark'?'spark':kind);
   el.style.left=x+'%';el.style.top=y+'%';el.style.width=w+'px';el.style.height=h+'px';el.style.setProperty('--duration',duration+'s');el.style.setProperty('--delay',(-delay)+'s');
-  if(kind==='jelly'&&assets.jellyfish){const img=document.createElement('img');img.src=assets.jellyfish;img.alt='';el.append(img);}
-  if(kind==='blob'&&assets.plankton){const img=document.createElement('img');img.src=assets.plankton;img.alt='';el.append(img);}
+  if(kind==='jelly'&&assets.jellyfish){const img=document.createElement('img');img.src=assets.jellyfish;img.alt='';img.onerror=()=>img.remove();el.append(img);}
+  if(kind==='blob'&&assets.plankton){const img=document.createElement('img');img.src=assets.plankton;img.alt='';img.onerror=()=>img.remove();el.append(img);}
   layer.append(el);
  }
- const hero=$('heroPlankton');if(hero&&assets.plankton)hero.src=assets.plankton;
+ const hero=$('heroPlankton');if(hero&&assets.plankton){hero.src=assets.plankton;hero.onerror=()=>hero.remove();}
 }
 function add(role,text,persist=true){
  const n=document.createElement('div');n.className='message '+role;
  let target;
  if(role==='assistant'){
   const avatar=document.createElement('div');avatar.className='avatar';
-  if(assets.plankton){const img=document.createElement('img');img.src=assets.plankton;img.alt='';avatar.append(img);}
+  if(assets.plankton){const img=document.createElement('img');img.src=assets.plankton;img.alt='';img.onerror=()=>img.remove();avatar.append(img);}
   const bubble=document.createElement('div');bubble.className='bubble';
   const t=document.createElement('span');t.textContent=text;bubble.append(t);n.append(avatar,bubble);target=t;
  }else{
