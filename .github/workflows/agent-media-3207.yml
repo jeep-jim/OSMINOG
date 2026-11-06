@@ -1,4 +1,4 @@
-name: OSMINOG Chrome 4.0.31 verified package
+name: OSMINOG Chrome 4.0.32 verified package
 # Preserve all existing regression gates; package only their successful output.
 on:
   pull_request:
@@ -49,10 +49,11 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
+          sudo apt-get install --no-install-recommends -y openbox
       - name: Verify workspace browser and common header geometry
         run: |
           python3 -m pip install playwright==1.62.0
-          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" xvfb-run -a python3 tests/browser-app-dock-430.py
+          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" xvfb-run -s "-screen 0 1920x1200x24" -a bash tests/run-browser-stage-432.sh
       - run: python3 tools/prepare_ocr.py
       - run: node tests/workspace-423.cjs
       - run: node tests/workspace-performance-424.cjs
@@ -85,7 +86,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact='OSMINOG-Chrome-4.0.31.zip'
+          artifact='OSMINOG-Chrome-4.0.32.zip'
           mkdir -p artifacts/package
           rsync -a ./ artifacts/package/ --exclude='.git/' --exclude='.github/' --exclude='artifacts/' --exclude='desktop/' --exclude='android/' --exclude='versions/' --exclude='tools/' --exclude='tests/' --exclude='docs/' --exclude='node_modules/' --exclude='project-log-archive/' --exclude='logs/' --exclude='*.log' --exclude='test-results/' --exclude='__pycache__/' --exclude='*.pyc' --exclude='OSMINOG_PROJECT_LOG.md' --exclude='OSMINOG_ROADMAP.md' --exclude='RELEASE_NOTES_*.md'
           python3 - <<'PY'
@@ -94,9 +95,9 @@ jobs:
           manifest=json.loads((root/'manifest.json').read_text())
           path=root/'OSMINOG_BUILD.json'
           metadata=json.loads(path.read_text())
-          assert metadata['version']==metadata['manifestVersion']==manifest['version']=='4.0.31'
+          assert metadata['version']==metadata['manifestVersion']==manifest['version']=='4.0.32'
           assert metadata['versionName']==manifest['version_name']
-          assert metadata['artifact']=='OSMINOG-Chrome-4.0.31.zip'
+          assert metadata['artifact']=='OSMINOG-Chrome-4.0.32.zip'
           metadata.update(runtimeVerified=True,sourceCommit=os.environ['GITHUB_SHA'],verificationRun=f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           path.write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n')
           PY
@@ -104,17 +105,19 @@ jobs:
           unzip -t "artifacts/$artifact"
           python3 - <<'PY'
           import hashlib,json,pathlib,zipfile
-          path=pathlib.Path('artifacts/OSMINOG-Chrome-4.0.31.zip')
+          path=pathlib.Path('artifacts/OSMINOG-Chrome-4.0.32.zip')
           with zipfile.ZipFile(path) as z:
               m=json.loads(z.read('manifest.json'))
               b=json.loads(z.read('OSMINOG_BUILD.json'))
               assert m['manifest_version']==3
-              assert m['version']==m['version_name']=='4.0.31'
+              assert m['version']==m['version_name']=='4.0.32'
               assert b['version']==b['manifestVersion']==m['version'] and b['runtimeVerified'] is True
               assert hashlib.sha256(m.get('key','').encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
               assert not any(n.startswith(('logs/','test-results/')) or n.endswith('.log') for n in z.namelist())
               assert 'osminog-team.js' not in z.namelist()
               assert 'osminog-browser-app.js' in z.namelist()
+              assert m['background']['service_worker']=='background-service.js'
+              assert 'background-service.js' in z.namelist() and 'osminog-web-stage.js' in z.namelist()
               assert 'osminog-workspace-polish.js' in z.namelist() and 'osminog-workspace-polish.css' in z.namelist()
               assert 'osminog-inspector.js' in z.namelist() and 'osminog-inspector.css' in z.namelist()
               assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
@@ -130,11 +133,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.31-VERIFIED
+          name: OSMINOG-4.0.32-VERIFIED
           path: |
-            artifacts/OSMINOG-Chrome-4.0.31.zip
-            artifacts/OSMINOG-Chrome-4.0.31.zip.sha256
-            RELEASE_NOTES_CHROME_4.0.31.md
+            artifacts/OSMINOG-Chrome-4.0.32.zip
+            artifacts/OSMINOG-Chrome-4.0.32.zip.sha256
+            RELEASE_NOTES_CHROME_4.0.32.md
             artifacts/diagnostics-source.zip
             artifacts/*.png
             artifacts/workspace-423-results.json
