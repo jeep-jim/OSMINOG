@@ -1,7 +1,7 @@
 name: Android Vision focused build
 on:
   push:
-    branches: ['main', 'feat/android-ocean-*']
+    branches: ['main', 'feat/android-ocean-*', 'fix/android-vision-*']
     paths: ['android-vision/**', '.github/workflows/android-vision.yml']
   workflow_dispatch:
 permissions:
