@@ -9,7 +9,7 @@
   const current=()=>projectTabs().find(x=>x.id===activeId)||projectTabs()[0]||null;
   const normalize=value=>{const v=String(value||"").trim();if(!v)return"https://www.google.com/";if(/^https?:\/\//i.test(v))return v;return v.includes(".")&&!/\s/.test(v)?`https://${v}`:`https://www.google.com/search?q=${encodeURIComponent(v)}`};
   const host=url=>{try{return new URL(url).hostname}catch{return url}};
-  const protectedHost=url=>{try{return/(^|\.)(github\.com|raw\.githubusercontent\.com|chatgpt\.com|openai\.com|claude\.ai|gemini\.google\.com|chat\.deepseek\.com)$/i.test(new URL(url).hostname)}catch{return false}};
+  const protectedHost=url=>{try{return/(^|\.)(github\.com|raw\.githubusercontent\.com|chatgpt\.com|openai\.com|claude\.ai|gemini\.google\.com|chat\.deepseek\.com|figma\.com)$/i.test(new URL(url).hostname)}catch{return false}};
   const originPermission=async url=>{try{const origin=new URL(url).origin+"/*";if(await chrome.permissions.contains({origins:[origin]}))return true;return await chrome.permissions.request({origins:[origin]})}catch{return false}};
   function tab(url="https://www.google.com/",opts={}){const item={projectId:projectKey(),id:`web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`,url:normalize(url),title:opts.title||host(normalize(url))||"Новая вкладка",provider:opts.provider||"",mode:"live",snapshot:"",dirty:false,managedTabId:null};tabs.push(item);activeId=item.id;return item}
   function ensure(){
