@@ -1100,6 +1100,7 @@ function syncExportAvailability(){
   btn.title=available?tr("export"):(state.language==="ru"?"Сначала добавьте материалы на текущий стол":"Add content to the current desk first");
   if(!available){const menu=document.getElementById("exportMenu");if(menu)menu.hidden=true}
 }
+globalThis.syncExportAvailability=syncExportAvailability;
 function bcContextLabel(key){
   const dict={
     en:{properties:"Properties",group:"Group",ungroup:"Ungroup",duplicate:"Duplicate",delete:"Delete"},
