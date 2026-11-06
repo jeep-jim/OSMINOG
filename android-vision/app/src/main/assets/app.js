@@ -13,12 +13,14 @@ function buildOcean(){
   ['bubble',15,62,16,16,18,17],['spark',20,39,28,28,22,20],['jelly',78,51,22,44,25,22],
   ['bubble',82,74,24,24,20,18],['blob',47,78,42,18,24,19],['spark',90,29,22,22,18,18],
   ['bubble',62,18,12,12,21,20],['bubble',29,83,8,8,17,18],['jelly',25,47,16,34,27,23],
-  ['spark',66,67,34,34,26,22],['bubble',7,29,9,9,16,16],['blob',89,88,34,14,22,20]
+  ['spark',66,67,34,34,26,22],['star',73,36,28,32,23,20],['bubble',7,29,9,9,16,16],['blob',89,88,34,14,22,20]
  ];
  for(const [kind,x,y,w,h,duration,delay] of items){
   const el=document.createElement('span');el.className='particle '+(kind==='bubble'?'bubble':kind==='spark'?'spark':kind);
   el.style.left=x+'%';el.style.top=y+'%';el.style.width=w+'px';el.style.height=h+'px';el.style.setProperty('--duration',duration+'s');el.style.setProperty('--delay',(-delay)+'s');
   if(kind==='jelly'&&assets.jellyfish){const img=document.createElement('img');img.src=assets.jellyfish;img.alt='';img.onerror=()=>img.remove();el.append(img);}
+  if(kind==='spark'&&assets.sparkle){const img=document.createElement('img');img.src=assets.sparkle;img.alt='';img.onerror=()=>img.remove();el.append(img);}
+  if(kind==='star'&&assets.starfish){const img=document.createElement('img');img.src=assets.starfish;img.alt='';img.onerror=()=>img.remove();el.append(img);}
   if(kind==='blob'&&assets.plankton){const img=document.createElement('img');img.src=assets.plankton;img.alt='';img.onerror=()=>img.remove();el.append(img);}
   layer.append(el);
  }
