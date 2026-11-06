@@ -8,6 +8,10 @@ for name,sha in meta['files'].items():
  tree=ET.fromstring(f.read_bytes())
  assert tree.tag.endswith('svg'),name
  assert not tree.findall('.//{http://www.w3.org/2000/svg}script'),name
+derived=root/'design/background-fullscreen.svg'
+assert derived.is_file(),'background-fullscreen.svg'
+tree=ET.fromstring(derived.read_bytes())
+assert tree.tag.endswith('svg') and not tree.findall('.//{http://www.w3.org/2000/svg}script')
 for name in ['app.js','app.css','index.html','provider.js']:
  data=(root/name).read_text()
  assert 'https://www.figma.com/api' not in data,name
