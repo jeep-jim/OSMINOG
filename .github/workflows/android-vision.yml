@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: android-vision-${{ github.ref }}
+  group: android-vision-${{ github.run_id }}
   cancel-in-progress: false
 jobs:
   build-test:
