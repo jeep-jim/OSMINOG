@@ -36,7 +36,7 @@ try:
     assert editor.locator("#osminogBrowserApp [data-browser-tabs] [data-web-tab]").count()==1
     assert editor.locator("#osminogBrowserApp [data-browser-url]").evaluate("(e)=>e.getBoundingClientRect().width")<500
     expected=editor.evaluate("""()=>{const r=document.querySelector('#osminogBrowserApp .osminog-browser-canvas').getBoundingClientRect();return{left:Math.round(screenX+Math.max(0,outerWidth-innerWidth)+r.left-8),top:Math.round(screenY+Math.max(0,outerHeight-innerHeight)+r.top-32),width:Math.round(r.width+16),height:Math.round(r.height+40)}}""")
-    win=worker.evaluate("""async()=>{const s=(await chrome.storage.local.get('osminogWebStageWindowV1')).osminogWebStageWindowV1;return await chrome.windows.get(s.windowId)}""")
+    win=worker.evaluate("""async()=>{const s=(await chrome.storage.session.get('osminogWebStageWindowV1')).osminogWebStageWindowV1;return await chrome.windows.get(s.windowId)}""")
     assert abs(win["left"]-expected["left"])<=3 and abs(win["top"]-expected["top"])<=3,(win,expected)
     assert abs(win["width"]-expected["width"])<=3 and abs(win["height"]-expected["height"])<=3,(win,expected)
     with ctx.expect_page() as second:stage.get_by_role("link",name="Next page").click()
