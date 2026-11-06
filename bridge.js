@@ -60,7 +60,7 @@
     globalThis.OSMINOGOwnerVerified=globalThis.OSMINOGOwnerGuard?.isUnlocked?.()===true;
     if(!store.pendingPatch&&got.briefCraftPendingPatchV1?.patch){store.pendingPatch=got.briefCraftPendingPatchV1.patch;await storageSet({briefCraftPendingPatchV1:null}).catch(()=>{})}
     store.access="readwrite";
-    applyLanguage();renderPatch();refreshMirror();renderToolLog();renderRelayHealth();renderConnector();
+    applyLanguage();renderPatch();renderToolLog();renderRelayHealth();renderConnector();
     // Legacy relay transport is disabled in 3.8 Browser Transport Lite.
     store.connected=false;
     const ext=got[EXTERNAL_AUTO_KEY]||{};if(ext.enabled&&(!ext.projectId||ext.projectId===project()?.id))setTimeout(()=>reconnectExternalChatGPT(ext.role||"edit",ext.provider||"gpt",ext.tabId||null),260);

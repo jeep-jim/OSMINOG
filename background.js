@@ -1,4 +1,13 @@
-importScripts("osminog-collector-background.js");
+importScripts("osminog-today.js", "osminog-project-trash.js", "osminog-collector-background.js");
+const trashAlarm = "osminogTrashExpiry";
+async function scheduleTrashExpiry(){
+  const deadlines = Object.values(await OSMINOGTrash.read()).map(e=>e.expires).filter(Boolean);
+  if(deadlines.length) await chrome.alarms.create(trashAlarm,{when:Math.max(Date.now()+1000, Math.min(...deadlines))});
+  else await chrome.alarms.clear(trashAlarm);
+}
+chrome.alarms.onAlarm.addListener(alarm=>{if(alarm.name===trashAlarm) OSMINOGTrash.sweep().then(scheduleTrashExpiry)});
+chrome.storage.onChanged.addListener((changes,area)=>{if(area==="local"&&changes[OSMINOGTrash.indexKey]) scheduleTrashExpiry()});
+scheduleTrashExpiry();
 importScripts("sha3.js", "osminog-chat-content.js", "osminog-generated-media.js", "osminog-presence-router.js", "osminog-chat-sync.js", "osminog-chat-sync-router.js");
 
 const MENU_ID = "briefcraft-open-selection";

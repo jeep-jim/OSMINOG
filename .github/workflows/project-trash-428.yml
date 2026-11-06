@@ -1,0 +1,16 @@
+name: Chrome project trash and inbox
+on:
+  push:
+    branches: [chrome-4.0.28-trash]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: xvfb-run -a python tests/project-trash-428.py

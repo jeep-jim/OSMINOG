@@ -37,3 +37,22 @@ body[data-workdesk] #workdeskTools button{width:38px!important;height:38px!impor
 /* The desktop app retains its original header toolbar; the compact bottom dock is for the Chrome extension workspace. */
 body.native-desktop .topbar #workdeskTools{position:static!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;transform:none!important;grid-column:2!important;grid-row:1!important;justify-self:center!important;max-width:100%!important;z-index:auto!important}
 body.native-desktop.desk-chat-open .topbar #workdeskTools{left:auto!important}
+
+#workdeskViewer {box-sizing:border-box;max-width:100vw;max-height:100vh}
+#workdeskFormat {flex-wrap:wrap}
+.note-grip {position:absolute;z-index:4;touch-action:none}
+.note-grip.n,.note-grip.s {left:8px;right:8px;height:6px;cursor:ns-resize}
+.note-grip.e,.note-grip.w {top:8px;bottom:8px;width:6px;cursor:ew-resize}
+.note-grip.n,.note-grip.ne,.note-grip.nw {top:0}
+.note-grip.s,.note-grip.se,.note-grip.sw {bottom:0}
+.note-grip.w,.note-grip.nw,.note-grip.sw {left:0}
+.note-grip.e,.note-grip.ne,.note-grip.se {right:0}
+.note-grip:is(.ne,.nw,.se,.sw){width:9px;height:9px;cursor:nwse-resize}
+.note-grip:is(.ne,.sw){cursor:nesw-resize}
+
+select:not([multiple]):not([size]):not(.native-select-hidden){
+ appearance:none!important;padding-inline-end:32px!important;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m2 2 4 4 4-4' fill='none' stroke='%23828a99' stroke-width='1.6'/%3E%3C/svg%3E")!important;
+ background-position:right 12px center!important;background-size:12px 8px!important;background-repeat:no-repeat!important
+}
+.smart-select-trigger {padding-inline-end:14px!important;column-gap:10px}

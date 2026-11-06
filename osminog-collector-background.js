@@ -39,6 +39,7 @@
   async function configure(patch) {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw Error('Некорректные настройки сбора');
     const cfg = await config(), next = {...cfg};
+    if ('followDesk' in patch) next.followDesk=patch.followDesk===true;
     if ('enabled' in patch) next.enabled = patch.enabled === true;
     if ('projectId' in patch) next.projectId = String(patch.projectId || '');
     if ('folderId' in patch) next.folderId = patch.folderId ? String(patch.folderId) : null;
@@ -55,6 +56,12 @@
     return {ok: true, config: await config()};
   }
 
+  async function nextTodayCount(at) {
+    const day = new Date(at).toLocaleDateString('en-CA');
+    const counter = (await chrome.storage.local.get('osminogToday')).osminogToday;
+    if(counter) return (counter.day === day ? counter.count : 0) + 1;
+    return (await osminogInitialTodayCount(day)) + 1;
+  }
   async function accept(message) {
     const kind = message.kind;
     if (!['text', 'image'].includes(kind)) return {ok: false, retryable: false, error: 'Неподдерживаемый материал в буфере'};
@@ -73,6 +80,7 @@
     const id = crypto.randomUUID(), at = Date.now();
     await chrome.storage.local.set({
       [PREFIX + id]: {id, hash, at, kind, value, projectId: cfg.projectId, folderId: cfg.folderId || null},
+      osminogToday: {day:new Date(at).toLocaleDateString('en-CA'),count:await nextTodayCount(at)},
       [KEY]: {...cfg, lastHash: hash, lastCapture: at, error: ''}
     });
     return {ok: true, id};

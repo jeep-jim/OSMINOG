@@ -17,7 +17,7 @@
   const p=globalThis.project?.();if(!p||!f)return 0;
   return (p.objects||[]).filter(o=>o.osminogFolderId===f.id).length+(p.osminogFolders||[]).filter(x=>x.parentId===f.id).length;
  }
- function captureFolder(f){const p=globalThis.project?.(),cfg=globalThis.OSMINOGLibrary?.destination?.();return !!p&&!!f&&cfg?.projectId===p.id&&cfg?.folderId===f.id}
+ function captureFolder(f){const p=globalThis.project?.(),cfg=globalThis.OSMINOGLibrary?.destination?.();return !!p&&!!f&&(p.defaultInboxId===f.id||cfg?.projectId===p.id&&cfg?.folderId===f.id)}
  async function openExternal(value){const url=new URL(String(value||''));if(!['https:','http:'].includes(url.protocol))throw Error('Поддерживаются ссылки HTTP и HTTPS');if(globalThis.chrome?.tabs?.create)return chrome.tabs.create({url:url.href});window.open(url.href,'_blank','noopener,noreferrer');return{ok:true}}
  // Only a bounded page of stored materials enters the live DOM. Search still
  // covers every stored item; pagination never deletes or migrates user data.
@@ -28,27 +28,33 @@
   const scope=p.id+':'+(p.activeDesktop||'main');
   if(storedPage.scope!==scope||storedPage.query!==query)storedPage={scope,query,index:0};
   const folders=new Map((p.osminogFolders||[]).map(f=>[f.id,f]));
-  const list=(p.objects||[]).filter(o=>o.osminogFolderId&&folders.has(o.osminogFolderId)&&(o.osminogDesktopId||'main')===(p.activeDesktop||'main')&&
+  const list=(p.objects||[]).filter(o=>(folders.has(o.osminogFolderId)||(!o.osminogFolderId&&o.captureId))&&(o.osminogDesktopId||'main')===(p.activeDesktop||'main')&&
    (!query||[o.name,o.fileName,o.text,o.title].some(v=>typeof v==='string'&&v.toLocaleLowerCase().includes(query))));
+  list.sort((a,b)=>(b.capturedAt||b.createdAt||0)-(a.capturedAt||a.createdAt||0));
   if(!list.length){storedPage.index=0;return}
+  if(storedPage.newest&&storedPage.newest!==list[0].id)storedPage.index=0;
+  storedPage.newest=list[0].id;
   const pages=Math.ceil(list.length/STORED_PAGE_SIZE);storedPage.index=Math.min(storedPage.index,pages-1);
-  const heading=document.createElement('div');heading.className='cl-stored-heading';heading.textContent=state.language==='ru'?'В папках · '+list.length:'In folders · '+list.length;root.append(heading);
-  const fragment=document.createDocumentFragment();
+  const heading=document.createElement('div');heading.className='cl-stored-heading';heading.textContent=OSMINOGWorkspaceLanguage.text('saved')+' · '+list.length;
+  const fragment=document.createDocumentFragment();fragment.append(heading);
   for(const o of list.slice(storedPage.index*STORED_PAGE_SIZE,(storedPage.index+1)*STORED_PAGE_SIZE)){
    const f=folders.get(o.osminogFolderId);
    const row=document.createElement('button');row.type='button';row.className='clean-layer cl-stored';row.dataset.storedId=o.id;
-   const thumb=document.createElement('span');thumb.className='cl-thumb';thumb.textContent=materialKind(o)==='text'?'T':o.type==='image'?'▧':'▤';
-   const title=document.createElement('span');title.className='cl-title';title.append(document.createTextNode(o.name||o.fileName||o.title||String(o.text||'').slice(0,60)||'Материал'));
-   const sub=document.createElement('small');sub.textContent=f.name;title.append(sub);const arrow=document.createElement('span');arrow.className='cl-open';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');
-   row.append(thumb,title,arrow);row.title=(state.language==='ru'?'Открыть из папки «':'Open from folder “')+f.name+'”';
-   row.onclick=()=>globalThis.OSMINOGWindowsFolders?.openObject?.(o.id);fragment.append(row);
+   const preview=o.type==='image'&&o.src;
+   const thumb=document.createElement(preview?'img':'span');thumb.className='cl-thumb';
+   if(preview){thumb.alt='';thumb.loading='lazy';thumb.decoding='async';thumb.src=o.src}
+   else thumb.textContent=materialKind(o)==='text'?'T':'▤';
+   const title=document.createElement('span');title.className='cl-title';title.append(document.createTextNode(OSMINOGWorkspaceLanguage.captureCaption(o,'name')||o.fileName||o.title||String(o.text||'').slice(0,60)||'Материал'));
+   const sub=document.createElement('small');sub.textContent=f?.name||(OSMINOGWorkspaceLanguage.text('onDesk'));title.append(sub);const arrow=document.createElement('span');arrow.className='cl-open';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');
+   row.append(thumb,title,arrow);row.title=f?OSMINOGWorkspaceLanguage.label('Открыть из папки')+' · '+f.name:o.name;
+   row.onclick=()=>{if(f)globalThis.OSMINOGWindowsFolders?.openObject?.(o.id);else{selectObject(o.id,false);focusObject(o)}};fragment.append(row);
   }
-  root.append(fragment);
   if(pages>1){
    const nav=document.createElement('nav');nav.className='cl-stored-pages';nav.setAttribute('aria-label',state.language==='ru'?'Страницы материалов':'Material pages');
    for(const [direction,label] of [[-1,'←'],[1,'→']]){const button=document.createElement('button');button.type='button';button.textContent=label;button.dataset.storedPage=String(direction);button.disabled=direction<0?storedPage.index===0:storedPage.index===pages-1;button.setAttribute('aria-label',direction<0?'Previous page':'Next page');button.onclick=()=>{storedPage.index+=direction;globalThis.renderLayers?.();root.scrollTop=0};nav.append(button);if(direction<0){const text=document.createElement('span');text.textContent=(storedPage.index+1)+' / '+pages;nav.append(text)}}
-   root.append(nav);
+   fragment.append(nav);
   }
+  root.prepend(fragment);
  }
  // Compare small presentation fields, not JSON/string hashes of complete images
  // and note bodies. Identical redraw requests must preserve existing DOM nodes.
@@ -63,7 +69,7 @@
    const keys=[p,p?.id,p?.activeDesktop,state.language,state.ui?.layerPreviews,q,storedPage.index,cfg?.projectId,cfg?.folderId,(state.selected||[]).length,...(state.selected||[]),(p?.groups||[]).length,(p?.osminogFolders||[]).length,(p?.objects||[]).length];
    for(const g of p?.groups||[])keys.push(g,g.id,g.name,g.collapsed);
    for(const f of p?.osminogFolders||[])keys.push(f,f.id,f.name,f.parentId,f.desktopVisible);
-   for(const o of p?.objects||[])keys.push(o,o.id,o.type,o.mime,o.name,o.fileName,o.title,o.group,o.visible,o.osminogFolderId,o.osminogDesktopId,
+   for(const o of p?.objects||[])keys.push(o,o.id,o.capturedAt,o.createdAt,o.type,o.mime,o.name,o.fileName,o.title,o.group,o.visible,o.osminogFolderId,o.osminogDesktopId,
     q?o.text:(!o.name&&!o.fileName&&!o.title?String(o.text||'').slice(0,60):null),o.type==='image'&&!o.osminogFolderId?o.src:null);
    return keys;
   };
@@ -72,7 +78,7 @@
    if(state.ui?.layersTab&&state.ui.layersTab!=='layers'){previous=null;return base.apply(this,args)}
    if(previous&&(panel.hidden||!panel.classList.contains('open'))){dirty=true;refreshCounters();return}
    const next=snapshot();
-   if(!dirty&&previous&&first===root.firstChild&&last===root.lastChild&&children===root.childElementCount&&!root.querySelector('input')&&next.length===previous.length&&next.every((v,i)=>v===previous[i])){refreshCounters();return;}
+   if(!dirty&&previous&&first===root.firstChild&&last===root.lastChild&&children===root.childElementCount&&!root.querySelector('input')&&next.length===previous.length&&next.every((v,i)=>v===previous[i])){return;}
    rendering=true;try{const result=base.apply(this,args);previous=next;dirty=false;first=root.firstChild;last=root.lastChild;children=root.childElementCount;return result}finally{rendering=false}
   };
   const observer=new MutationObserver(()=>{if(dirty&&!panel.hidden&&panel.classList.contains('open'))globalThis.renderLayers()});
