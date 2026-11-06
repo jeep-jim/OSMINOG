@@ -18,7 +18,7 @@ body.ow-resizing{user-select:none;cursor:col-resize}body.ow-resizing iframe{poin
 #osminogBrowserApp .osminog-browser-toolbar{display:flex!important;align-items:center!important;gap:4px!important;min-height:34px!important;height:34px!important;padding:3px 7px!important;flex:0 0 34px!important;overflow:hidden!important}
 #osminogBrowserApp .osminog-browser-toolbar input[data-browser-url]{width:min(34vw,360px)!important;max-width:360px!important;min-width:100px!important;flex:0 1 260px!important;height:26px!important}
 #osminogBrowserApp .osminog-browser-toolbar button{height:26px!important;min-width:26px!important;padding:2px 7px!important;font-size:12px!important;flex:0 0 auto!important}
-#osminogBrowserApp .osminog-browser-toolbar [data-browser-code],#osminogBrowserApp .osminog-browser-toolbar [data-browser-export],#osminogBrowserApp .osminog-browser-toolbar [data-browser-asset]{display:none!important}
+#osminogBrowserApp .osminog-browser-toolbar [data-browser-edit],#osminogBrowserApp .osminog-browser-toolbar [data-browser-code],#osminogBrowserApp .osminog-browser-toolbar [data-browser-export],#osminogBrowserApp .osminog-browser-toolbar [data-browser-asset]{display:none!important}
 #osminogBrowserApp .osminog-browser-workspace{display:flex!important;flex:1!important;min-height:0!important;overflow:hidden!important}
 #osminogBrowserApp .osminog-browser-canvas{display:flex!important;flex:1!important;min-width:0!important;min-height:0!important}
 #osminogBrowserApp [data-browser-frame]{display:block!important;flex:1!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
