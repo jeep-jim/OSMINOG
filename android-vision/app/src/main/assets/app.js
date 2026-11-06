@@ -106,3 +106,4 @@ window.addEventListener('message',e=>{
  send('ready');
 });
 buildOcean();
+controls();
