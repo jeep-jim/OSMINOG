@@ -5,9 +5,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('ocean',ROOT/'services/intent-ocean/server.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 out=ROOT/'artifacts/ocean';out.mkdir(parents=True,exist_ok=True)
 def capture(page,name):
- # Do not accept a screenshot taken at opacity=0 during the entrance animation.
- # Waiting for real final opacity verifies ordinary behavior; screenshot mode
- # only freezes the decorative infinite drift for a reproducible capture.
+ # Wait for actual fully-visible messages; only freeze decorative drift for capture.
  page.wait_for_function("Array.from(document.querySelectorAll('#messages article')).every(n=>Number(getComputedStyle(n).opacity)>=0.99)")
  page.screenshot(path=str(out/name),animations='disabled')
 with tempfile.TemporaryDirectory() as d:
@@ -26,7 +24,6 @@ with tempfile.TemporaryDirectory() as d:
     page.locator('#login').fill('user'+str(i));page.locator('#password').fill('pilot-test-password');page.locator('#name').fill(['Анна · тест','Борис · тест'][i]);page.locator('#invite').fill(code)
     page.locator('#authSubmit').click();expect(page.locator('#profile')).not_to_be_visible()
    a,b=pages
-   b.locatorator if False else None
    b.locator('#text').fill('Продаю шапку ушанку');b.locator('#kind').select_option('offer');b.locator('#audience').select_option('ocean');b.locator('#eye').click();expect(b.locator('#messages article')).to_have_count(1)
    a.locator('#text').fill('Ищу шапку ушанку');a.locator('#kind').select_option('seek');a.locator('#audience').select_option('ocean');a.locator('#eye').click();expect(a.locator('#messages article')).to_have_count(1)
    a.locator('#text').fill('Этот черновик не публиковать');capture(a,'home.png')
