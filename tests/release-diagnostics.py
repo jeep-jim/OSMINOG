@@ -20,9 +20,12 @@ for workflow in ('agent-media-3207.yml', 'graphics-studio-check.yml'):
 results = []
 for name in files:
     started = time.monotonic()
+    # This gate writes the full native extension package several times; each
+    # phase has its own bounded wait. Other browser regressions keep 110 seconds.
+    timeout = 360 if name == 'tests/update-extension-437.cjs' else 110
     try:
         proc = subprocess.run(['node', name], cwd=root, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, text=True, timeout=110)
+                              stderr=subprocess.STDOUT, text=True, timeout=timeout)
         code, log = proc.returncode, proc.stdout
     except subprocess.TimeoutExpired as exc:
         raw = exc.stdout or ''

@@ -13,6 +13,7 @@
  */
 'use strict';
 
+process.env.DEBUG = [process.env.DEBUG, 'pw:browser'].filter(Boolean).join(',');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -161,6 +162,7 @@ function observe(page) {
   });
   page.on('console', message => {
     if (message.type() === 'warning') lifecycle.push({event: 'warning', url: page.url(), text: message.text().slice(0, 400)});
+    if (message.text().startsWith('UPDATE437_HANDOFF ')) lifecycle.push({event: 'handoff-storage', text: message.text().slice(18), at: Date.now()});
   });
 }
 
@@ -409,7 +411,34 @@ async function diagnostics() {
     catch (error) { item.error = error.message; }
     workers.push(item);
   }
-  return {pages, workers, contextClosed};
+  const disk = {};
+  try {
+    const raw = fs.readFileSync(path.join(installed, 'manifest.json'));
+    const current = JSON.parse(raw.toString());
+    disk.manifest = {version: current.version, bytes: raw.length, sha256: createHash('sha256').update(raw).digest('hex')};
+    const pending = path.join(installed, '.osminog-update.pending.json');
+    disk.pending = fs.existsSync(pending) ? fs.readFileSync(pending, 'utf8').slice(0, 8192) : null;
+    disk.packageMismatches = (feedPackage?.entries || []).flatMap(([name, expected]) => {
+      try { return fs.readFileSync(path.join(installed, name)).equals(expected) ? [] : [name]; }
+      catch (error) { return [`${name}: ${error.code}`]; }
+    });
+  } catch (error) { disk.error = error.message; }
+  let extensionManager;
+  if (context && !contextClosed) {
+    try {
+      const manager = await context.newPage(); await manager.goto('chrome://extensions');
+      extensionManager = await manager.evaluate(() => new Promise(resolve => {
+        if (!chrome.developerPrivate?.getExtensionsInfo) return resolve({error: 'Developer diagnostics API unavailable', text: document.body.innerText});
+        chrome.developerPrivate.getExtensionsInfo({includeDisabled: true, includeTerminated: true}, extensions => resolve({
+          error: chrome.runtime.lastError?.message,
+          extensions: extensions?.map(item => ({id: item.id, name: item.name, state: item.state, location: item.location,
+            path: item.path, disableReasons: item.disableReasons, manifestErrors: item.manifestErrors, runtimeErrors: item.runtimeErrors}))
+        }));
+      }));
+      await manager.close();
+    } catch (error) { extensionManager = {error: error.message}; }
+  }
+  return {pages, workers, contextClosed, disk, extensionManager};
 }
 
 async function main() {
@@ -427,21 +456,25 @@ async function main() {
   const consent = {[`${origin},*`]: {setting: 1,
     last_modified: String(BigInt(Date.now()) * 1000n + 11644473600000000n)}};
   fs.writeFileSync(path.join(profile, 'Default', 'Preferences'), JSON.stringify({
-    profile: {content_settings: {exceptions: {file_system_read_guard: consent, file_system_write_guard: consent}}},
-    extensions: {ui: {developer_mode: true}}
+    profile: {content_settings: {exceptions: {file_system_read_guard: consent, file_system_write_guard: consent}}}
   }));
   feedPackage = makePackage(nextVersion(1));
   context = await chromium.launchPersistentContext(profile, {
     headless: process.env.TEST_HEADLESS === '1',
     executablePath: process.env.TEST_CHROMIUM || chromium.executablePath(),
     ignoreDefaultArgs: ['--disable-extensions'],
-    args: ['--no-sandbox', '--disable-dev-shm-usage', `--disable-extensions-except=${installed}`, `--load-extension=${installed}`],
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging=stderr', `--disable-extensions-except=${installed}`, `--load-extension=${installed}`],
     viewport: {width: 1440, height: 1000}
   });
   context.setDefaultTimeout(15000);
   context.on('close', () => { if (!closing) contextClosed = true; });
   context.pages().forEach(observe); context.on('page', observe);
   context.on('serviceworker', worker => lifecycle.push({event: 'service-worker', url: worker.url(), at: Date.now()}));
+  // Observe native worker failures from an unrelated tab which survives reload.
+  const workerMonitor = await context.newCDPSession(context.pages()[0]);
+  workerMonitor.on('ServiceWorker.workerErrorReported', event => lifecycle.push({event: 'worker-error', detail: event, at: Date.now()}));
+  workerMonitor.on('ServiceWorker.workerVersionUpdated', event => lifecycle.push({event: 'worker-version', detail: event, at: Date.now()}));
+  await workerMonitor.send('ServiceWorker.enable');
   // A protocol-only glob such as 'https://**' is normalized as a hostname and
   // gains a trailing slash. RegExp matches the full feed/package paths too.
   await context.route(/^https?:\/\//, async route => {
@@ -468,8 +501,15 @@ async function main() {
   // extension reload. Keep this separate from any extension application code.
   const manager = await context.newPage(); await manager.goto('chrome://extensions');
   const toggle = manager.locator('#devMode'); await toggle.waitFor();
-  if (!await toggle.evaluate(el => el.checked)) await toggle.click();
+  const initiallyEnabled = await toggle.evaluate(el => el.checked);
+  if (initiallyEnabled) await toggle.click();
+  await toggle.click();
+  report.developerModeSetup = {initiallyEnabled, clicked: true};
   assert.equal(await toggle.evaluate(el => el.checked), true);
+  report.developerModeSetup.profile = await manager.evaluate(() => new Promise(resolve => {
+    if (!chrome.developerPrivate?.getProfileConfiguration) return resolve(null);
+    chrome.developerPrivate.getProfileConfiguration(configuration => resolve(configuration));
+  }));
   await manager.close();
   await recoveryPageStartup();
   await nativeFolderSetup();
@@ -479,6 +519,9 @@ async function main() {
   await sentinel.locator('#draft').fill(sentinelText);
   await sentinel.evaluate(epoch => { window.fixtureEpoch = epoch; localStorage.setItem('survive-update', epoch); }, sentinelEpoch);
   editor = await context.newPage(); await editor.goto(editorURL + '?view=desk'); await ready(editor);
+  await editor.evaluate(key => chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[key]) console.info('UPDATE437_HANDOFF ' + JSON.stringify(changes[key]));
+  }), pendingKey);
   ids = await editor.evaluate(async retainedText => {
     createProject(); document.querySelector('#osminogStorageOnboarding')?.close();
     const p = project(); p.name = 'Native update regression'; p.objects = []; p.osminogFolders = [];
