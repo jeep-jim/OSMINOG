@@ -53,6 +53,12 @@ function closeUpdate(){$('updateSheet').hidden=true;$('sheetShade').hidden=true;
 function openUpdate(m){$('updateTitle').textContent='OSMINOG Vision '+String(m.versionName||'');$('updateNotes').textContent=String(m.notes||'Доступно обновление OSMINOG Vision.');$('updateSize').textContent=m.sizeLabel||'';$('updateProgress').hidden=true;$('updateNow').disabled=false;$('updateNow').textContent='Обновить';$('updateSheet').hidden=false;$('sheetShade').hidden=false;}
 function openProviderPicker(){const names=['ChatGPT','Gemini','Claude','DeepSeek','Алиса'];$('providerOptions').replaceChildren();names.forEach((name,index)=>{const b=document.createElement('button');b.type='button';b.textContent=name;const mark=document.createElement('span');mark.textContent=String(index)===providerKey?'●':'○';b.append(mark);b.onclick=()=>{closeProviderPicker();emit('selectProvider',{index});};$('providerOptions').append(b);});$('providerSheet').hidden=false;}
 function closeProviderPicker(){$('providerSheet').hidden=true;}
+function openConsent(){$('consentSheet').hidden=false;}
+function closeConsent(){ $('consentSheet').hidden=true; }
+function openInstallPermission(){$('installPermissionSheet').hidden=false;}
+function closeInstallPermission(){$('installPermissionSheet').hidden=true;}
+$('consentAccept').onclick=()=>{closeConsent();emit('grantConsent');};$('consentCancel').onclick=()=>{closeConsent();emit('denyConsent');};
+$('installPermissionLater').onclick=closeInstallPermission;$('installPermissionOpen').onclick=()=>{closeInstallPermission();emit('openInstallSettings');};
 $('closeUpdate').onclick=closeUpdate;$('updateLater').onclick=closeUpdate;$('sheetShade').onclick=closeUpdate;
 $('updateNow').onclick=()=>{$('updateNow').disabled=true;$('updateNow').textContent='Подготавливаю…';$('updateProgress').hidden=false;emit('downloadUpdate');};
 $('closeProviderSheet').onclick=closeProviderPicker;$('providerSheet').onclick=e=>{if(e.target===$('providerSheet'))closeProviderPicker();};
@@ -75,6 +81,8 @@ window.OSMINOG={receive(m){switch(m.type){case'hello':version=m.version||version
  case'updateProgress':$('updateProgress').hidden=false;$('updateNow').textContent=m.message||'Проверяю APK…';break;
  case'updateReady':$('updateProgress').hidden=true;$('updateNow').disabled=false;$('updateNow').textContent='Открыть установщик';break;
  case'providerPicker':openProviderPicker();break;
+ case'consentRequired':openConsent();break;
+ case'installPermissionRequired':openInstallPermission();break;
  case'paused':paused=true;pauseSwimming();voice=false;camera=false;finish();state('sleeping');controls();break;
  case'resumed':paused=false;resumeSwimming();controls();wake();break;
  case'clear':history=[];histories[selectedHistory]=[];save();renderHistory(selectedHistory);state('sleeping');break;
