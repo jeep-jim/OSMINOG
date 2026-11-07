@@ -1,0 +1,28 @@
+name: osminog-ocean
+services:
+  ocean:
+    image: ${OSMINOG_IMAGE:?Set the tested immutable image tag or digest}
+    container_name: osminog-ocean
+    ports: ['127.0.0.1:3081:8080']
+    volumes: ['/opt/osminog/data:/data']
+    environment:
+      OSMINOG_ORIGIN: https://osminog.red
+      OSMINOG_DB: /data/ocean.sqlite3
+      OSMINOG_CONTAINER: '1'
+    user: '10001:10001'
+    read_only: true
+    tmpfs: ['/tmp:size=32m,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: '0.50'
+    pids_limit: 64
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '2'}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; r=urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8080/healthz',headers={'Host':'osminog.red'}),timeout=3); assert r.status==200"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
