@@ -40,7 +40,9 @@ public class LauncherTest {
   catch(AssertionError e){throw new AssertionError("Native input state: "+eval(a.provider,"JSON.stringify({state:OSMINOGMobileBridge.snapshot(),draft:document.getElementById('prompt-textarea').innerText,model,trusted,sent,focused:document.activeElement?.id})"),e);}
   assertEquals("1",eval(a.provider,"sent"));assertEquals("true",eval(a.provider,"trusted>0"));
   assertEquals("true",eval(a.provider,"document.querySelector('[data-message-author-role=user]').textContent==='Ну как ты?\\nТут?'"));
-  assertEquals("true",eval(a.shell,"document.getElementById('connectionStatus').textContent.includes('обмен сообщениями проверен')"));
+  // A partial answer is not a verified completed exchange; wait for completion.
+  until(()->"true".equals(eval(a.shell,"document.getElementById('connectionStatus').textContent.includes('обмен сообщениями проверен')&&document.querySelector('.message.assistant')?.dataset.streaming!=='true'")));
+  assertTrue(a.transportVerified);
   assertEquals(android.view.View.VISIBLE,a.shell.getVisibility());
  }
  @Test public void externalDraftIsNotOverwrittenAndLocalQuestionIsRestored()throws Exception{
