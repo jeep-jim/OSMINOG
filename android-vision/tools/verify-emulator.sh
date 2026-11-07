@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "$(dirname "$0")/.."
 mkdir -p dist
 cleanup() {
   adb logcat -d > dist/android-logcat.txt || true
-  for name in vision-home vision-menu vision-conversation; do
+  for name in vision-home vision-menu vision-conversation vision-notice vision-update; do
     adb pull "/sdcard/$name.png" "dist/$name.png" || true
   done
 }
@@ -12,10 +13,11 @@ gradle :app:connectedDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am force-stop com.osminog.vision
 adb shell pm clear com.osminog.vision
+adb shell rm -f /sdcard/vision-window.xml
 adb shell am start -S -W -n com.osminog.vision/.MainActivity
 ready=0
-for attempt in $(seq 1 30); do
-  adb shell uiautomator dump /sdcard/vision-window.xml >/dev/null 2>&1 || true
+for attempt in $(seq 1 6); do
+  timeout 12s adb shell uiautomator dump /sdcard/vision-window.xml >/dev/null 2>&1 || true
   if adb shell cat /sdcard/vision-window.xml 2>/dev/null | grep -q 'Меню OSMINOG'; then ready=1; break; fi
   sleep 1
 done
