@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(require('node:path').join(__dirname,'../osminog-workspace-polish.js'),'utf8');
+let callback;const observed=new Set(),panel={hidden:false,classList:{contains:()=>open}},root={};let open=false;
+const state={ui:{layerPreviews:true}};
+const context=vm.createContext({Map,state,document:{hidden:false,querySelector:s=>s==='#layersPanel'?panel:root},IntersectionObserver:class{constructor(fn){callback=fn}observe(img){observed.add(img)}unobserve(img){observed.delete(img)}}});
+vm.runInContext(source.slice(source.indexOf(' const storedPreviewSources='),source.indexOf(' let storedPage=')),context);
+const images=Array.from({length:80},()=>({isConnected:true,getAttribute(k){return this[k]},removeAttribute(k){delete this[k]}}));
+context.images=images;vm.runInContext("images.forEach((img,i)=>observeStoredPreview(img,'data:image/png;base64,source'+i))",context);
+assert(images.every(img=>!img.src),'registration must not load an original');
+callback(images.map(target=>({target,isIntersecting:true})));assert(images.every(img=>!img.src),'closed panel must not load');
+open=true;callback(images.map((target,i)=>({target,isIntersecting:i<8})));assert.equal(images.filter(img=>img.src).length,8);
+callback(images.map((target,i)=>({target,isIntersecting:i>=8&&i<16})));assert.equal(images.filter(img=>img.src).length,8);assert(!images[0].src,'scrolled-away original released');
+state.ui.layerPreviews=false;callback(images.map(target=>({target,isIntersecting:true})));assert(images.every(img=>!img.src));
+vm.runInContext('releaseStoredPreviews()',context);assert.equal(observed.size,0);
+console.log('PASS 80 archive thumbnails: no hidden originals, eight visible only, offscreen release, preview preference, observer cleanup');

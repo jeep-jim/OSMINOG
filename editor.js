@@ -133,7 +133,7 @@ async function loadState(){
   const restored438=await globalThis.OSMINOGRestore438?.afterLoad(state);
   if(restored438?.changed){state.view=clone(project()?.view||state.view);await persist()}
   applyTheme();applyInterfaceTextSize();applyLanguage();if(!stored.osminogDisplayPrefs)globalThis.chrome?.storage?.local?.set?.({osminogDisplayPrefs:{language:state.language,theme:state.theme}});syncProjectFolderButton();
-  applyPanelWidths();
+  applyPanelWidths(true);
   if(needsThreeThemeMigration||needsTextSizeDefaultMigration)setTimeout(()=>queuePersist(),0);
   renderProfile();
   const params=new URLSearchParams(location.search);
@@ -391,19 +391,30 @@ function applyCanvasStyle(){
   viewport.style.removeProperty("background-position");
   renderColorBar();
 }
-function applyPanelWidths(){
+function applyPanelWidths(restore=false){
+  if(restore)try{
+    const saved=JSON.parse(localStorage.getItem("osminogPanelWidthsV1")||"null");
+    for(const key of ["layersWidth","inspectorWidth"])if(Number.isFinite(saved?.[key]))state.ui[key]=saved[key];
+  }catch{}
+
   state.ui.layersWidth=Math.max(260,Math.min(640,Number(state.ui.layersWidth)||326));
   state.ui.inspectorWidth=Math.max(300,Math.min(640,Number(state.ui.inspectorWidth)||360));
   document.documentElement.style.setProperty("--layers-width",`${state.ui.layersWidth}px`);
   document.documentElement.style.setProperty("--inspector-width",`${state.ui.inspectorWidth}px`)
 }
+function savePanelWidths(){
+  // Panel geometry is a preference, not a project/media edit.
+  try{localStorage.setItem("osminogPanelWidthsV1",JSON.stringify({layersWidth:state.ui.layersWidth,inspectorWidth:state.ui.inspectorWidth}))}
+  catch(error){showToast(state.language==="ru"?"Не удалось сохранить ширину панели":"Could not save panel width")}
+}
 function bindPanelResizers(){
+  applyPanelWidths(true);
   $$('[data-resize-panel]').forEach(handle=>handle.addEventListener("pointerdown",event=>{
     if(event.button!==0)return;event.preventDefault();event.stopPropagation();
     const target=handle.dataset.resizePanel,key=target==="layersPanel"?"layersWidth":"inspectorWidth",direction=target==="layersPanel"?1:-1,startX=event.clientX,startWidth=state.ui[key];
     document.body.classList.add("resizing-panel");handle.setPointerCapture?.(event.pointerId);
     const move=moveEvent=>{state.ui[key]=Math.max(key==="layersWidth"?260:300,Math.min(640,startWidth+(moveEvent.clientX-startX)*direction));applyPanelWidths()};
-    const stop=()=>{document.body.classList.remove("resizing-panel");document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",stop);document.removeEventListener("pointercancel",stop);queuePersist()};
+    const stop=()=>{document.body.classList.remove("resizing-panel");document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",stop);document.removeEventListener("pointercancel",stop);savePanelWidths()};
     document.addEventListener("pointermove",move);document.addEventListener("pointerup",stop);document.addEventListener("pointercancel",stop)
   }))
 }

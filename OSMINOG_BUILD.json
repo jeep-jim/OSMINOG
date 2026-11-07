@@ -1,12 +1,12 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.39",
-  "versionName": "4.0.39",
-  "manifestVersion": "4.0.39",
-  "baseVersion": "4.0.38",
+  "version": "4.0.40",
+  "versionName": "4.0.40",
+  "manifestVersion": "4.0.40",
+  "baseVersion": "4.0.39",
   "workspaceBaseline": "4.0.37",
-  "artifact": "OSMINOG-Chrome-4.0.39.zip",
+  "artifact": "OSMINOG-Chrome-4.0.40.zip",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
@@ -23,5 +23,6 @@
     "update": "Native directory writes and three reload/repair scenarios",
     "ciScope": "Linux Chromium; exact runtime recorded in browser reports",
     "ownerWindowsVerified": false
-  }
+  },
+  "performanceReference": "3cdc60a (Chrome manifest 4.0.20)"
 }

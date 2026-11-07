@@ -1,4 +1,4 @@
-"""Build the complete 4.0.37 Chrome runtime with the 4.0.39 fixes.
+"""Build the complete 4.0.37 Chrome runtime with the 4.0.40 fixes.
 
 Only the reviewed allowlist is packaged. A source checkout may also contain
 Android sources, historical builds and tests, none of which is runtime content.
@@ -14,7 +14,7 @@ root = Path(__file__).resolve().parents[1]
 files = json.loads((root / 'tools/release-files-439.json').read_text())
 manifest = json.loads((root / 'manifest.json').read_text())
 build = json.loads((root / 'OSMINOG_BUILD.json').read_text())
-assert manifest['version'] == manifest['version_name'] == build['version'] == build['manifestVersion'] == build['versionName'] == '4.0.39'
+assert manifest['version'] == manifest['version_name'] == build['version'] == build['manifestVersion'] == build['versionName'] == '4.0.40'
 assert hashlib.sha256(manifest['key'].encode()).hexdigest() == '1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
 for name, expected in {
     'osminog-owner-guard.js': '90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41',

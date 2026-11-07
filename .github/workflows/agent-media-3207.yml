@@ -1,4 +1,4 @@
-name: OSMINOG Chrome 4.0.39 verified full workspace
+name: OSMINOG Chrome 4.0.40 verified full workspace
 on:
   pull_request:
     branches: [main]
@@ -17,6 +17,8 @@ jobs:
         with: {node-version: '22'}
       - name: Check full workspace and unchanged updater contracts
         run: |
+          node tests/layer-preview-budget-440.cjs
+          node tests/panel-width-persistence.cjs
           node --check editor.js
           node --check background.js
           node --check collector.js
@@ -95,8 +97,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.39-VERIFIED
+          name: OSMINOG-4.0.40-VERIFIED
           retention-days: 14
           path: |
             artifacts/
-            RELEASE_NOTES_CHROME_4.0.39.md
+            RELEASE_NOTES_CHROME_4.0.40.md
