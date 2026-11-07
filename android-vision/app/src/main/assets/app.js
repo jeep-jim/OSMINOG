@@ -1,7 +1,7 @@
 'use strict';
 // Local shell only. No remote scripts, no fictitious assistant replies.
 const $=id=>document.getElementById(id);
-let port=null,connected=false,voice=false,camera=false,busy=false,turnId='',replyNode=null,providerName='ChatGPT',providerKey='0',version='0.2.1',sleepTimer=0,watchdog=0,history=[];
+let port=null,connected=false,voice=false,camera=false,busy=false,turnId='',replyNode=null,providerName='ChatGPT',providerKey='0',version='0.2.2',sleepTimer=0,watchdog=0,history=[];
 let selectedHistory='0',menuOpen=false,paused=false,lastError='',noticeTimer=0;
 const STORE='osminogVisionHistoryV2',LEGACY='osminogVisionHistory';
 let histories={};try{histories=JSON.parse(localStorage.getItem(STORE)||'{}');if(!histories||Array.isArray(histories))histories={};}catch{histories={}}
@@ -14,7 +14,9 @@ for(let i=0;i<20;i++){const b=document.createElement('i');b.className='bubble';b
 function emit(type,data={}){if(!port){notice('Приложение ещё подключается. Повтори действие.');return false;}try{port.postMessage(JSON.stringify({type,...data}));return true;}catch{notice('Связь с приложением прервалась. Открой приложение заново.');return false;}}
 function save(){histories[selectedHistory]=history.slice(-100);try{localStorage.setItem(STORE,JSON.stringify(histories));}catch{notice('Не удалось сохранить историю на устройстве.');}}
 function state(kind,text=''){document.body.dataset.state=kind;$('status').textContent=text||({sleeping:'Глаз отдыхает',idle:'Готов к разговору',listening:'Слушаю',thinking:'Жду ответ ИИ',speaking:'Говорю',error:'Не удалось завершить запрос',camera:'Камера включена'}[kind]||'');const label=busy?'Остановить ожидание ответа':kind==='speaking'?'Перебить ответ':$('text').value.trim()?'Отправить сообщение':voice?'Выключить микрофон':'Начать разговор';$('eye').setAttribute('aria-label',label);}
-function wake(){if(paused)return;clearTimeout(sleepTimer);if(document.body.dataset.state==='sleeping')state('idle');sleepTimer=setTimeout(()=>{if(!busy&&!voice&&!camera&&!menuOpen&&!$('text').value.trim()&&document.activeElement!==$('text')){document.body.classList.remove('typing');state('sleeping');layout();}},30000);}
+function wake(){if(paused)return;clearTimeout(sleepTimer);if(document.body.dataset.state==='sleeping')state('idle');sleepTimer=setTimeout(()=>{if(!busy&&!voice&&!camera&&!menuOpen&&!$('text').value.trim()){document.body.classList.remove('typing');state('sleeping');layout();}},30000);}
+function sleepEye(){if(busy||voice||camera||menuOpen||$('text').value.trim())return;clearTimeout(sleepTimer);document.body.classList.remove('typing');state('sleeping');layout();}
+function trackCaret(){const e=$('text'),v=e.value||'',pos=e.selectionStart||0,ratio=v.length?pos/v.length:0;const x=Math.max(-7,Math.min(7,(ratio-.5)*14));$('eye').style.setProperty('--pupil-x',x.toFixed(1)+'px');$('eye').style.setProperty('--pupil-y','0px');}
 function notice(text='',action=''){clearTimeout(noticeTimer);$('noticeText').textContent=text;$('notice').hidden=!text;$('noticeAction').hidden=!action;$('noticeAction').dataset.action=action;lastError=text;layout();}
 function setMenu(on){menuOpen=on;$('settings').hidden=!on;$('shade').hidden=!on;$('menu').setAttribute('aria-expanded',String(on));if(on){wake();$('connectionStatus').textContent=connected?`${providerName} · подключён`: `${providerName} · требуется подключение`;$('closeMenu').focus();}else $('menu').focus();layout();}
 function controls(){document.body.classList.toggle('camera',camera);document.body.classList.toggle('paused',paused);$('cameraArea').hidden=!camera;$('flipMenu').hidden=!camera;$('voiceValue').textContent=voice?'Включён':'Выключен';$('cameraValue').textContent=camera?'Включено':'Выключено';$('providerName').textContent=providerName;$('version').textContent=version;layout();}
@@ -27,24 +29,32 @@ function finish(){clearTimeout(watchdog);busy=false;turnId='';replyNode=null;con
 function failure(text,id){if(id&&id!==turnId)return;const sent=turnId;const node=Array.from($('messages').children).find(x=>x.dataset.id===sent&&x.classList.contains('user'));if(node){node.classList.remove('pending');node.classList.add('failed');}finish();state('error');notice(text,'openProvider');}
 function stop(){emit('stop');const old=turnId;voice=false;camera=false;finish();state('idle','Сеанс завершён');controls();if(old){const p=Array.from($('messages').children).find(x=>x.dataset.id===old&&x.classList.contains('user'));p?.classList.remove('pending');}}
 function ask(value){const text=String(value||'').trim();if(!text||busy)return false;if(!connected){notice('Подключи свой ИИ через звезду. Текст сохранён.');emit('connect');return false;}const id='m-'+Date.now();if(!emit('ask',{id,text,withCamera:camera}))return false;notice();busy=true;turnId=id;replyNode=null;const n=message('user',text,id,true);n.classList.add('pending');state('thinking');controls();watchdog=setTimeout(()=>{if(turnId===id){emit('cancelRequest');failure('ИИ не ответил вовремя. Открой чат сервиса: запрос мог быть отправлен. Повторно автоматически не отправляю.',id);}},190000);return true;}
-$('composer').onsubmit=e=>{e.preventDefault();if(ask($('text').value)){$('text').value='';$('text').style.height='50px';}};
-$('text').oninput=()=>{wake();document.body.classList.add('typing');$('text').style.height='50px';$('text').style.height=Math.min(126,$('text').scrollHeight)+'px';state(busy?'thinking':voice?'listening':'idle');layout();};
-$('text').onfocus=()=>{wake();document.body.classList.add('typing');layout();};$('text').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('composer').requestSubmit();}};
+$('composer').onsubmit=e=>{e.preventDefault();if(ask($('text').value)){$('text').value='';$('text').style.height='50px';document.body.classList.remove('typing');$('eye').style.setProperty('--pupil-x','0px');}};
+$('text').oninput=()=>{const has=!!$('text').value.trim();document.body.classList.toggle('typing',has);$('text').style.height='50px';$('text').style.height=Math.min(126,$('text').scrollHeight)+'px';state(busy?'thinking':voice?'listening':has?'typing':connected?'idle':'sleeping');trackCaret();if(has)wake();layout();};
+$('text').onfocus=()=>{if($('text').value.trim()){document.body.classList.add('typing');state('typing');}layout();};$('text').onkeyup=trackCaret;$('text').onclick=trackCaret;$('text').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('composer').requestSubmit();}};
 let held=false,pressTimer=0;
-$('eye').onpointerdown=e=>{held=false;pressTimer=setTimeout(()=>{held=true;stop();},600);$('eye').setPointerCapture(e.pointerId);};
+$('eye').onpointerdown=e=>{wake();held=false;pressTimer=setTimeout(()=>{held=true;stop();},600);$('eye').setPointerCapture(e.pointerId);};
 $('eye').onpointermove=e=>{const r=$('eye').getBoundingClientRect();$('eye').style.setProperty('--pupil-x',Math.max(-4,Math.min(4,(e.clientX-r.left-r.width/2)/8))+'px');$('eye').style.setProperty('--pupil-y',Math.max(-2,Math.min(2,(e.clientY-r.top-r.height/2)/10))+'px');};
 function release(){clearTimeout(pressTimer);$('eye').style.setProperty('--pupil-x','0px');$('eye').style.setProperty('--pupil-y','0px');}
 $('eye').onpointerup=release;$('eye').onpointercancel=()=>{held=true;release();};
 $('eye').oncontextmenu=e=>e.preventDefault();
 $('eye').onclick=()=>{if(held){held=false;return;}wake();if(busy){stop();return;}if(document.body.dataset.state==='speaking'){emit('interrupt');return;}if($('text').value.trim()){$('composer').requestSubmit();return;}if(!connected){emit('connect');return;}emit(voice?'voiceOff':'voiceOn');};
+$('scene').addEventListener('pointerdown',e=>{if(e.target.closest('#eye,#menu,#composer,#settings,#notice,#updateSheet,#providerSheet,button,.message,#cameraArea'))return;sleepEye();},{passive:true});
 $('menu').onclick=()=>setMenu(!menuOpen);$('closeMenu').onclick=() =>setMenu(false);$('shade').onclick=()=>setMenu(false);$('dismiss').onclick=()=>notice();$('noticeAction').onclick=()=>emit($('noticeAction').dataset.action);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');let motion=true;try{motion=localStorage.getItem('osminogMotion')!=='off';}catch{}
 function applyMotion(){document.body.classList.toggle('motion-off',!motion||reduced.matches);$('motionValue').textContent=motion&&!reduced.matches?'Включены':'Выключены';}applyMotion();reduced.addEventListener?.('change',applyMotion);
 $('settings').onclick=e=>{const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(a==='motion'){motion=!motion;try{localStorage.setItem('osminogMotion',motion?'on':'off');}catch{}applyMotion();return;}setMenu(false);if(a==='voiceToggle')emit(voice?'voiceOff':'voiceOn');else if(a==='cameraToggle')emit(camera?'cameraOff':'cameraOn');else if(a==='stop')stop();else if(a==='help')notice('Глаз: касание — разговор; с текстом — отправка; во время ответа — остановка. Удержание — завершить сеанс. Камера и остальные функции — в звезде.');else emit(a);};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menuOpen){e.preventDefault();setMenu(false);}if(e.key==='Tab'&&menuOpen){const buttons=[...$('settings').querySelectorAll('button:not([hidden])')];const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
-$('main').addEventListener('scroll',layout,{passive:true});window.addEventListener('resize',layout);document.addEventListener('pointerdown',wake,{passive:true});document.addEventListener('visibilitychange',()=>{document.body.classList.toggle('paused',document.hidden||paused);});
+function closeUpdate(){$('updateSheet').hidden=true;$('sheetShade').hidden=true;}
+function openUpdate(m){$('updateTitle').textContent='OSMINOG Vision '+String(m.versionName||'');$('updateNotes').textContent=String(m.notes||'Доступно обновление OSMINOG Vision.');$('updateSize').textContent=m.sizeLabel||'';$('updateProgress').hidden=true;$('updateNow').disabled=false;$('updateNow').textContent='Обновить';$('updateSheet').hidden=false;$('sheetShade').hidden=false;}
+function openProviderPicker(){const names=['ChatGPT','Gemini','Claude','DeepSeek','Алиса'];$('providerOptions').replaceChildren();names.forEach((name,index)=>{const b=document.createElement('button');b.type='button';b.textContent=name;const mark=document.createElement('span');mark.textContent=String(index)===providerKey?'●':'○';b.append(mark);b.onclick=()=>{closeProviderPicker();emit('selectProvider',{index});};$('providerOptions').append(b);});$('providerSheet').hidden=false;}
+function closeProviderPicker(){$('providerSheet').hidden=true;}
+$('closeUpdate').onclick=closeUpdate;$('updateLater').onclick=closeUpdate;$('sheetShade').onclick=closeUpdate;
+$('updateNow').onclick=()=>{$('updateNow').disabled=true;$('updateNow').textContent='Подготавливаю…';$('updateProgress').hidden=false;emit('downloadUpdate');};
+$('closeProviderSheet').onclick=closeProviderPicker;$('providerSheet').onclick=e=>{if(e.target===$('providerSheet'))closeProviderPicker();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(menuOpen){e.preventDefault();setMenu(false);}if(!$('updateSheet').hidden)closeUpdate();if(!$('providerSheet').hidden)closeProviderPicker();}if(e.key==='Tab'&&menuOpen){const buttons=[...$('settings').querySelectorAll('button:not([hidden])')];const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
+$('main').addEventListener('scroll',layout,{passive:true});window.addEventListener('resize',layout);document.addEventListener('visibilitychange',()=>{document.body.classList.toggle('paused',document.hidden||paused);});
 window.OSMINOG={receive(m){switch(m.type){case'hello':version=m.version||version;providerKey=String(m.providerId??0);providerName=m.provider||providerName;if(!busy)renderHistory(providerKey);controls();break;
- case'connected':{const next=String(m.providerId??providerKey);if(next!==providerKey){providerKey=next;finish();renderHistory(providerKey);}connected=!!m.ok;providerName=m.provider||providerName;$('connectionStatus').textContent=connected?`${providerName} · подключён`:`${providerName} · требуется вход`;if(!busy&&!voice&&!camera)state(history.length?'idle':'sleeping');if(m.message)notice(m.message);controls();break;}
+ case'connected':{const next=String(m.providerId??providerKey);if(next!==providerKey){providerKey=next;finish();renderHistory(providerKey);}connected=!!m.ok;providerName=m.provider||providerName;$('connectionStatus').textContent=connected?providerName+' · готов к отправке':m.stage==='checking'?providerName+' · подключаюсь…':providerName+' · требуется вход';if(!busy&&!voice&&!camera)state(history.length?'idle':'sleeping');if(m.message)notice(m.message);controls();break;}
  case'voice':voice=!!m.on;if(!busy)state(voice?'listening':camera?'camera':'idle');controls();break;
  case'camera':camera=!!m.on;if(!busy&&!voice)state(camera?'camera':'idle');controls();scroll(true);break;
  case'listening':if(voice&&!busy)state('listening');break;
@@ -56,6 +66,10 @@ window.OSMINOG={receive(m){switch(m.type){case'hello':version=m.version||version
  case'speaking':state('speaking');break;
  case'error':failure(m.message||'Не удалось получить ответ.',m.id);break;
  case'notice':notice(m.message,m.action||'');break;
+ case'updateAvailable':openUpdate(m);break;
+ case'updateProgress':$('updateProgress').hidden=false;$('updateNow').textContent=m.message||'Проверяю APK…';break;
+ case'updateReady':$('updateProgress').hidden=true;$('updateNow').disabled=false;$('updateNow').textContent='Открыть установщик';break;
+ case'providerPicker':openProviderPicker();break;
  case'paused':paused=true;voice=false;camera=false;finish();state('sleeping');controls();break;
  case'resumed':paused=false;controls();wake();break;
  case'clear':history=[];histories[selectedHistory]=[];save();renderHistory(selectedHistory);state('sleeping');break;
