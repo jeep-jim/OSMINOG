@@ -32,8 +32,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   });
   await page.waitForFunction(id=>OSMINOGLibrary.destination().folderId===id,ids.shots);
   for(const selector of ['#workspaceBrowserMode','[data-mode="browser"]','[data-tool="browser"]','#libraryCalendar'])assert.equal(await page.locator(selector).count(),0,selector);
-  assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp?.open),'function');
-  assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),1);check('restored BrowserApp loads once; retired canvas browser mode and redundant calendar remain absent');
+  assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp),'undefined');
+  assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),0);check('embedded BrowserApp is fully absent; retired canvas browser mode and redundant calendar remain absent');
   // A fresh workspace starts with Layers closed. Exercise its actual UI opener.
   await page.locator('#layersToggle').click();await page.waitForSelector('#layersPanel.open');
   await page.waitForSelector(`[data-stored-id="${ids.brief}"]`);assert.equal(await page.locator('#layerList .cl-stored').count(),4);
