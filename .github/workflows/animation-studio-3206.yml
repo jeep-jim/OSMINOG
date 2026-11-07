@@ -1,27 +1,24 @@
-name: Retired studio compatibility
+name: Retired tool package boundary
 on:
   pull_request:
-    paths:
-      - 'osminog-animation-studio.*'
-      - 'osminog-graphics-studio.js'
-      - 'osminog-workspace-polish.*'
-      - 'bridge.js'
-      - 'editor.html'
-      - 'manifest.json'
-      - 'OSMINOG_BUILD.json'
-      - 'osminog-browser-hub.js'
-      - 'osminog-browser-workspace.css'
-      - 'tests/retired-features-416.cjs'
-      - '.github/workflows/animation-studio-3206.yml'
+    branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: node --check osminog-graphics-studio.js
-      - run: node --check bridge.js
-      - run: node tests/retired-features-416.cjs
+        with: {node-version: '22'}
+      - name: Ensure removed tools cannot load from the new package
+        run: node tests/lite-package-438.cjs
+      - name: Check retained chat rendering and transcript isolation
+        run: |
+          node tests/chat-content-3214.cjs
+          node tests/chat-sync-plaintext-3217.cjs
+          node tests/privacy-no-mirroring.cjs
+      - name: Verify canonical owner identity
+        run: node --test tests/owner-totp-enrollment.cjs

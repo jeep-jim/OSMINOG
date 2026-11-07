@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),read=file=>fs.readFileSync(path.join(root,file),'utf8'),files=JSON.parse(read('tools/release-files-core.json')),manifest=JSON.parse(read('manifest.json'));
+const sha=data=>crypto.createHash('sha256').update(data).digest('hex');
+assert.equal(manifest.version,'4.0.38');assert.equal(manifest.version_name,manifest.version);
+assert.equal(sha(manifest.key),'1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e');
+assert.equal(sha(fs.readFileSync(path.join(root,'osminog-owner-guard.js'))),'90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41');
+for(const file of files)assert(fs.existsSync(path.join(root,file)),file);
+assert.equal(files.length,new Set(files).size);
+for(const retired of ['gpt-presence.js','bridge.js','osminog-documents.js','osminog-photo-editor.js','osminog-graphics-studio.js','osminog-library.js','osminog-module-runtime.js','osminog-extension-studio.js','screenshot.html','screenshot.js','module-frame.html','vendor/fabric.min.js'])assert(!files.includes(retired),retired+' must not be shipped');
+assert(!files.some(file=>/^(vendor\/|assets\/|modules\/|android\/|desktop\/|logs\/|tests\/|tools\/)/.test(file)));
+assert.equal(manifest.sandbox,undefined);assert(!manifest.permissions.includes('nativeMessaging'));assert(!manifest.permissions.includes('identity'));assert(!manifest.permissions.includes('contextMenus'));
+assert(manifest.permissions.includes('offscreen')&&manifest.permissions.includes('clipboardRead')&&manifest.permissions.includes('unlimitedStorage'));
+const html=read('editor.html'),scripts=[...html.matchAll(/<script\s+src="([^"]+)"/g)].map(m=>m[1]);
+assert.deepEqual(scripts,['osminog-core-store.js','osminog-owner-guard.js','osminog-chat-content.js','osminog-core-chat.js','osminog-folder-updater.js','osminog-update-handoff.js','editor.js']);
+for(const file of scripts)assert(files.includes(file));
+const runtime=read('editor.js');assert(!runtime.includes('briefCraftStudioV2'));assert(!runtime.includes('get(null)'));assert(!runtime.includes('setInterval('));
+const popup=read('popup.js');assert(!popup.includes('briefCraftStudioV2'));assert(!popup.includes('captureVisibleTab'));
+const background=read('background.js');assert(!background.includes('scheduleTrashExpiry'));assert(!background.includes('importScripts("osminog-today.js"'));assert(background.includes('osminog-core-store.js'));
+for(const file of files.filter(f=>/\.(html|js)$/.test(f))){const source=read(file);if(file.endsWith('.html'))for(const m of source.matchAll(/(?:src|href)="([^"#:]+\.(?:js|css|png|svg))"/g))assert(files.includes(m[1]),`${file} references unpackaged ${m[1]}`)}
+console.log('PASS minimal explicit package, retained identity/authentication, no removed tool runtimes or monolithic editor storage reads');

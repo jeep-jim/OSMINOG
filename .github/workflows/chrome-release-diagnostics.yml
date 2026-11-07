@@ -7,18 +7,24 @@ permissions:
 jobs:
   diagnostics:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - run: npm install --no-save --package-lock=false playwright@1.62.1 && npx playwright install --with-deps chromium
-      - run: python3 tools/prepare_ocr.py
-      - run: node tools/build-updater-recovery.cjs
-      - name: Collect all existing browser regressions without hiding failures
-        run: xvfb-run -a python3 tests/release-diagnostics.py
+      - name: Retained backend protocol and session isolation
+        run: |
+          node tests/provider-session-isolation-3218.cjs
+          node tests/provider-one-click-3219.cjs
+          node tests/live-presence-3215.cjs
+          node tests/chat-sync-3216.cjs
+          node tests/generated-media-3212.cjs
+          node tests/core-chat-438.cjs
+      - name: Preserve reviewed source for diagnostics
+        if: failure()
+        run: mkdir -p artifacts/diagnostics && git archive --format=zip HEAD -o artifacts/diagnostics/source.zip
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: chrome-release-diagnostics
           path: artifacts/diagnostics/

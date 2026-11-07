@@ -45,10 +45,6 @@ const publicArchive = {
   size: 9526265,
   sha256: '3c71da62b7556d6cbf281441f311494957ae14108f46e9c2baa61c79a138da9b'
 };
-const excluded = new Set([
-  '.git', '.github', 'artifacts', 'desktop', 'android', 'versions', 'tools', 'tests',
-  'docs', 'node_modules', 'project-log-archive', 'logs', 'test-results', '__pycache__'
-]);
 const runtimeFiles = [];
 const checks = [], lifecycle = [], pageErrors = [];
 const networkFixture = {feedResponses: 0, packageResponses: 0, aborted: 0, publicArchiveRequests: 0, packageOrigins: []};
@@ -72,18 +68,17 @@ const record = label => { checks.push(label); console.log('PASS ' + label); };
 const isEditor = url => url === editorURL || url.startsWith(editorURL + '?') || url.startsWith(editorURL + '#');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function copyRuntime(dir = root, prefix = '') {
-  for (const entry of fs.readdirSync(dir, {withFileTypes: true}).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (excluded.has(entry.name) || entry.name.endsWith('.log') || entry.name.endsWith('.pyc') ||
-        entry.name.startsWith('RELEASE_NOTES_') || ['OSMINOG_PROJECT_LOG.md', 'OSMINOG_ROADMAP.md'].includes(entry.name)) continue;
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) copyRuntime(path.join(dir, entry.name), rel);
-    else if (entry.isFile()) {
-      fs.mkdirSync(path.dirname(path.join(installed, rel)), {recursive: true});
-      fs.copyFileSync(path.join(dir, entry.name), path.join(installed, rel));
-      runtimeFiles.push(rel);
-    }
+function copyRuntime() {
+  const allowlist = JSON.parse(fs.readFileSync(path.join(root, 'tools/release-files-core.json'), 'utf8'));
+  assert.equal(new Set(allowlist).size, allowlist.length);
+  for (const rel of [...allowlist].sort()) {
+    assert(!path.isAbsolute(rel) && !rel.split('/').includes('..'));
+    fs.mkdirSync(path.dirname(path.join(installed, rel)), {recursive: true});
+    fs.copyFileSync(path.join(root, rel), path.join(installed, rel));
+    runtimeFiles.push(rel);
   }
+  report.runtime = {files: runtimeFiles.length, allowlistSha256: createHash('sha256')
+    .update(fs.readFileSync(path.join(root, 'tools/release-files-core.json'))).digest('hex')};
 }
 
 // Generate normal deflated ZIP records, including CRC, without a network ZIP
@@ -174,11 +169,9 @@ function observe(page) {
 }
 
 async function ready(page) {
-  await page.waitForFunction(() => !!globalThis.OSMINOGFolderUpdater && !!globalThis.OSMINOGStateReady);
-  await page.evaluate(async () => {
-    await OSMINOGStateReady;
-    document.querySelector('#osminogStorageOnboarding')?.close();
-  });
+  await page.waitForFunction(() => !!globalThis.OSMINOGFolderUpdater && !!globalThis.OSMINOGCoreApp?.ready &&
+    document.querySelector('#startupStatus')?.hidden, null, {timeout: 90000});
+  await page.evaluate(() => OSMINOGCoreApp.ready);
 }
 
 async function nativeFolderSetup() {
@@ -359,20 +352,22 @@ async function installWithRecoveryPage(version) {
 }
 
 async function persistedSnapshot(page) {
-  return page.evaluate(async ({projectId, noteId, folderId, key}) => {
-    await OSMINOGStateReady;
-    const stored = await chrome.storage.local.get(['briefCraftStudioV2', 'update437Sentinel', key]);
-    const p = stored.briefCraftStudioV2?.projects?.find(p => p.id === projectId);
+  return page.evaluate(async ({projectId, noteId, fileId, folderId, key}) => {
+    await OSMINOGCoreApp.ready;
+    const stored = await chrome.storage.local.get(['update437Sentinel', key]);
+    const p = await OSMINOGCoreStore.getDesk(projectId);
+    const note = await OSMINOGCoreStore.getItem(noteId), file = await OSMINOGCoreStore.getItem(fileId);
     return {
       version: chrome.runtime.getManifest().version,
       projectName: p?.name,
-      text: p?.objects?.find(o => o.id === noteId)?.text,
-      noteFolder: p?.objects?.find(o => o.id === noteId)?.osminogFolderId,
-      folderMembers: p?.osminogFolders?.find(f => f.id === folderId)?.members,
+      text: note?.text,
+      blobText: file?.assetId ? await (await OSMINOGCoreStore.getBlob(file.assetId)).text() : null,
+      noteFolder: note?.folderId,
+      folderMembers: p?.folders?.find(f => f.id === folderId)?.members,
       marker: stored[key] || null,
       sentinel: stored.update437Sentinel
     };
-  }, {projectId: ids.project, noteId: ids.note, folderId: ids.folder, key: pendingKey});
+  }, {projectId: ids.project, noteId: ids.note, fileId: ids.file, folderId: ids.folder, key: pendingKey});
 }
 
 async function waitForUpdatedEditor(version) {
@@ -384,8 +379,9 @@ async function waitForUpdatedEditor(version) {
       if (candidate.isClosed() || !isEditor(candidate.url())) continue;
       try {
         const state = await candidate.evaluate(async ({version, key}) => {
-          if (!globalThis.chrome?.runtime?.id || !globalThis.OSMINOGStateReady) return {ready: false};
-          await OSMINOGStateReady;
+          if (!globalThis.chrome?.runtime?.id || !globalThis.OSMINOGCoreApp?.ready || !document.querySelector('#startupStatus')?.hidden)
+            return {ready: false, startup: document.querySelector('#startupStatus')?.textContent};
+          await OSMINOGCoreApp.ready;
           return {
             ready: chrome.runtime.getManifest().version === version && !(await chrome.storage.local.get(key))[key],
             version: chrome.runtime.getManifest().version,
@@ -410,6 +406,7 @@ async function assertUpdated(version, previousDownloads, expectedDownloads = 1) 
   assert.equal(context.pages().filter(page => !page.isClosed() && isEditor(page.url())).length, 1, 'A reload must reopen exactly one editor');
   const saved = await persistedSnapshot(editor);
   assert.equal(saved.version, version); assert.equal(saved.text, retainedText);
+  assert.equal(saved.blobText, 'Native update blob sentinel Δ438');
   assert.equal(saved.noteFolder, ids.folder); assert(saved.folderMembers?.includes(ids.note));
   assert.equal(saved.projectName, 'Native update regression');
   assert.equal(saved.sentinel, ids.sentinel); assert.equal(saved.marker, null);
@@ -451,7 +448,7 @@ async function assertUpdated(version, previousDownloads, expectedDownloads = 1) 
 
 async function clickUpdateWithDuplicateAttempt(version) {
   feedPackage = makePackage(version);
-  await editor.evaluate(() => { showApp(true); document.querySelector('#osminogStorageOnboarding')?.close(); });
+  await editor.evaluate(() => OSMINOGCoreApp.flush());
   await editor.locator('#versionButton').click();
   await editor.waitForFunction(version => !document.querySelector('#oneClickUpdate').disabled &&
     document.querySelector('#updateStatusText').textContent.includes(version), version);
@@ -608,6 +605,8 @@ async function main() {
   await manager.close();
   await recoveryPageStartup();
   await nativeFolderSetup();
+  const setupWorker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+  await setupWorker.evaluate(() => chrome.storage.local.set({osminogCollectorV1: {enabled: false}}));
 
   sentinel = await context.newPage(); await sentinel.goto(sentinelOrigin + '/');
   const sentinelEpoch = randomUUID();
@@ -618,15 +617,16 @@ async function main() {
     if (area === 'local' && changes[key]) console.info('UPDATE437_HANDOFF ' + JSON.stringify(changes[key]));
   }), pendingKey);
   ids = await editor.evaluate(async retainedText => {
-    createProject(); document.querySelector('#osminogStorageOnboarding')?.close();
-    const p = project(); p.name = 'Native update regression'; p.objects = []; p.osminogFolders = [];
-    const folder = OSMINOGWindowsFolders.create({name: 'Retained folder', rename: false});
-    const note = createObject('brief', {name: 'Retained note', text: retainedText});
-    note.osminogFolderId = folder.id; folder.members.push(note.id);
+    const id = crypto.randomUUID(), noteId = crypto.randomUUID(), fileId = crypto.randomUUID();
+    const folder = {id: crypto.randomUUID(), name: 'Retained folder', members: [noteId, fileId]};
+    const p = await OSMINOGCoreStore.saveDesk({id, name: 'Native update regression', folders: [folder], view: {x: 0, y: 0, scale: 1}});
+    const note = await OSMINOGCoreStore.putItem({id: noteId, deskId: id, folderId: folder.id, type: 'text', name: 'Retained note', text: retainedText, x: 40, y: 50, w: 280, h: 200});
+    const file = await OSMINOGCoreStore.putItem({id: fileId, deskId: id, folderId: folder.id, type: 'file', name: 'Retained blob',
+      blob: new Blob(['Native update blob sentinel Δ438'], {type: 'text/plain'}), x: 360, y: 50, w: 240, h: 180});
     const marker = crypto.randomUUID();
     await chrome.storage.local.set({update437Sentinel: marker, osminogCollectorV1: {enabled: false, projectId: p.id, folderId: folder.id, error: ''}});
-    clearTimeout(state.saveTimer); await persist();
-    return {project: p.id, note: note.id, folder: folder.id, sentinel: marker};
+    await OSMINOGCoreApp.openDesk(p.id); await OSMINOGCoreApp.flush();
+    return {project: p.id, note: note.id, file: file.id, folder: folder.id, sentinel: marker};
   }, retainedText);
 
   await editor.evaluate(async ({key, from, to}) => {
@@ -655,7 +655,7 @@ async function main() {
     if (!popupEditor) await delay(50);
   }
   assert(popupEditor, 'Chrome did not open the disposable popup'); await ready(popupEditor);
-  await popupEditor.evaluate(async id => { openProject(id); clearTimeout(state.saveTimer); await persist(); }, ids.project);
+  await popupEditor.evaluate(async id => { await OSMINOGCoreApp.openDesk(id); await OSMINOGCoreApp.flush(); }, ids.project);
   for (const page of context.pages()) if (page !== popupEditor && !page.isClosed()) await page.close();
   editor = popupEditor;
   const windows = await editor.evaluate(() => chrome.windows.getAll());
@@ -679,7 +679,7 @@ async function main() {
   assert.equal(disk, nextVersion(3), 'A newly opened popup must read the repaired manifest before runtime.reload');
   await repairedPopup.waitForFunction(version => document.documentElement.dataset.pendingUpdate === version, nextVersion(3));
   assert.equal(await repairedPopup.locator('#today').isDisabled(), true);
-  assert.equal(await repairedPopup.locator('#screenshot').isDisabled(), true);
+  assert.equal(await repairedPopup.locator('#screenshot').count(), 0, 'The Lite popup does not retain the removed screenshot tool');
   assert.match(await repairedPopup.locator('#open').innerText(), /Finish update|Завершить обновление/);
   const downloadsBeforeBootstrap = packageRequests;
   await repairedPopup.locator('#open').click();
