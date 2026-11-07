@@ -17,12 +17,14 @@ async function poll(page, predicate, timeout = 15000) {
     fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({manifest_version: 3, name: 'OSMINOG capture test', version: '1.0',
       permissions: ['storage', 'offscreen', 'clipboardRead', 'clipboardWrite'], background: {service_worker: 'service.js'}}));
     fs.writeFileSync(path.join(dir, 'service.js'), "importScripts('osminog-capture-store.js','osminog-today.js','osminog-collector-background.js');");
-    fs.writeFileSync(path.join(dir, 'test.html'), '<!doctype html><title>Clipboard fixture</title><body>Native clipboard fixture<script src="osminog-capture-store.js"></script></body>');
+    // Configuration is accepted only from the real editor route. Keep the
+    // fixture on that route so this exercises the production sender guard.
+    fs.writeFileSync(path.join(dir, 'editor.html'), '<!doctype html><title>Clipboard fixture</title><body>Native clipboard fixture<script src="osminog-capture-store.js"></script></body>');
     context = await chromium.launchPersistentContext(profile, {headless: false, channel: 'chromium', ignoreDefaultArgs: ['--disable-extensions'],
       ...(process.env.TEST_CHROMIUM ? {executablePath: process.env.TEST_CHROMIUM} : {}),
       args: ['--no-sandbox', `--disable-extensions-except=${dir}`, `--load-extension=${dir}`]});
     const sw = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
-    const id = new URL(sw.url()).host, page = await context.newPage(); await page.goto(`chrome-extension://${id}/test.html`);
+    const id = new URL(sw.url()).host, page = await context.newPage(); await page.goto(`chrome-extension://${id}/editor.html`);
     await page.evaluate(async () => {
       await navigator.clipboard.writeText('baseline');
       const result = await chrome.runtime.sendMessage({type: 'OSMINOG_COLLECTOR_CONFIGURE', patch: {enabled: true, projectId: 'p1', folderId: 'f1'}});

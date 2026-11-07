@@ -94,7 +94,7 @@
     const r=viewport.getBoundingClientRect(),p=worldPoint(clientX,clientY);
     state.view.scale=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,newScale));
     state.view.x=clientX-r.left-p.x*state.view.scale; state.view.y=clientY-r.top-p.y*state.view.scale;
-    applyView();queuePersist();
+    applyView();queueViewPersist();
   };
   globalThis.fitToContent=function(){
     const all=desktopObjects().filter(o=>o.visible!==false&&[o.x,o.y,o.w,o.h].every(Number.isFinite));
@@ -113,7 +113,7 @@
     const width=Math.max(80,r.width-left-right),height=Math.max(80,r.height-140);
     state.view.scale=Math.max(MIN_ZOOM,Math.min(1.25,width/Math.max(1,x2-x1),height/Math.max(1,y2-y1)));
     state.view.x=left+width/2-(x1+x2)/2*state.view.scale;state.view.y=40+height/2-(y1+y2)/2*state.view.scale;
-    applyView();queuePersist();
+    applyView();queueViewPersist();
   };
   const baseApplyView=globalThis.applyView;
   globalThis.applyView=function(){baseApplyView();const p=state.view.scale*100;$('#zoomLabel').textContent=(p<1?p.toFixed(2).replace(/0$/,''):p<10?p.toFixed(1).replace(/\.0$/,''):Math.round(p))+'%';};
@@ -124,7 +124,7 @@
     const center=viewportCenter();globalThis.OSMINOGWorkdeskMenus?.close();closeSmartSelects();
     document.body.classList.toggle('osminog-focus',value);
     const r=viewport.getBoundingClientRect();state.view.x=r.width/2-center.x*state.view.scale;state.view.y=r.height/2-center.y*state.view.scale;
-    applyView();queuePersist();return document.body.classList.contains('osminog-focus');
+    applyView();queueViewPersist();return document.body.classList.contains('osminog-focus');
   }
   function editing(target){return !!target?.isContentEditable||!!target?.closest?.('input,textarea,select,[contenteditable=true]')}
   window.addEventListener('keydown',e=>{

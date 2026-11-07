@@ -89,7 +89,9 @@ jobs:
         run: python3 tools/build-restored-439.py
       - name: Retain exact source on failure
         if: failure()
-        run: git archive --format=zip HEAD --output=artifacts/OSMINOG-source.zip
+        run: |
+          mkdir -p artifacts
+          git archive --format=zip HEAD --output=artifacts/OSMINOG-source.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:

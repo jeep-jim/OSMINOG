@@ -130,6 +130,12 @@
   async function mergeObject(core, item, previous) {
     const archived = await detail(core, item.detailBlobId);
     const original = {...archived, ...previous};
+    // A retry may start after the workspace committed but before chat restore
+    // completed. Keep an already removed rich-text field removed; otherwise
+    // the immutable archive would hide the new plain text on that second pass.
+    for (const [field, saved] of [['html', 'osminogRestore438OriginalHtml'], ['titleHtml', 'osminogRestore438OriginalTitleHtml']]) {
+      if (previous && Object.hasOwn(previous, saved) && !Object.hasOwn(previous, field)) delete original[field];
+    }
     const type = item.legacySource && original.type ? original.type : item.type === 'text' ? 'brief' : item.type || original.type || 'brief';
     const object = {...newObject(type), ...original, type, id: String(previous?.id || item.sourceId || item.id)};
     for (const key of ['name', 'title', 'fileName', 'mime', 'size', 'x', 'y', 'w', 'h', 'rotation', 'captureId', 'captureHash', 'capturedAt', 'createdAt']) {

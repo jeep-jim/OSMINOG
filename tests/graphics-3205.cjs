@@ -16,18 +16,20 @@ const assert=require('assert/strict');
    window.chrome={runtime:{id:'test-osminog',getManifest:()=>manifest,getURL:p=>location.origin+'/'+p,onMessage:event,onConnect:event,lastError:null,sendMessage:async()=>({ok:false,error:'Chrome service mocked for local verification'}),connect:()=>({onMessage:event,onDisconnect:event,postMessage(){}})},storage:{local:storage,sync:storage,onChanged:event},permissions:{contains:async()=>false,request:async()=>false,onAdded:event,onRemoved:event},tabs:{query:async()=>[],onActivated:event,onRemoved:event,onUpdated:event},identity:{getRedirectURL:()=>location.origin+'/auth'},i18n:{getMessage:k=>k}};
    window.confirm=()=>true;
  },JSON.parse(fs.readFileSync(path.join(root,'manifest.json'))));
- await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`,{waitUntil:'load'});await page.evaluate(()=>document.querySelector('#osminogStorageOnboarding')?.close());
- await page.waitForTimeout(1200);
- await page.evaluate(()=>{createProject();sessionStorage.setItem('osminogIntroDismissedV1','1');renderAll()});
+ await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`,{waitUntil:'load'});
+ await page.waitForFunction(()=>window.OSMINOGEditorAPI&&window.OSMINOGCanvasUX&&window.OSMINOGGraphicsStudio);
+ await page.evaluate(async()=>{await OSMINOGStateReady;document.querySelector('#osminogStorageOnboarding')?.close();createProject();sessionStorage.setItem('osminogIntroDismissedV1','1');renderAll()});
  console.log('startup errors',errors);
  console.log('ready',await page.evaluate(()=>({canvas:!!window.OSMINOGEditorAPI,graphics:!!window.OSMINOGGraphicsStudio,apps:window.OSMINOGDesktopV3?.apps()})));
- const textButton=page.locator('[data-dock-key="core:text"]');await textButton.click();
- await page.locator('[data-new-text]').click();
- const field=page.locator('.canvas-object [contenteditable][data-placeholder]');await field.fill('Пояснение для всех ИИ');
+ // The restored 4.0.37 canvas creates inline text through its existing T shortcut.
+ await page.locator('#viewport').focus();await page.keyboard.press('t');
+ await page.locator('#viewport').click({position:{x:120,y:120}});
+ const field=page.locator('.canvas-object[data-type="text"] [data-field="text"][contenteditable="true"]');await field.fill('Пояснение для всех ИИ');
  const newText=await page.evaluate(()=>objects().find(o=>o.text==='Пояснение для всех ИИ'));
  assert.ok(newText?.id,'text object created');
  const read=await page.evaluate(id=>OSMINOGDocuments.tool('document_read',{id}),newText.id);assert.equal(read.text,'Пояснение для всех ИИ');
- await page.locator('[data-dock-key="core:graphics"]').click();await page.waitForTimeout(300);
+ // Graphics Studio retains its public launcher; the removed DesktopV3 dock is not loaded.
+ await field.blur();await page.evaluate(()=>OSMINOGGraphicsStudio.open());await page.waitForTimeout(300);
  await page.evaluate(()=>{document.documentElement.dataset.theme='ocean'});
  const first=await page.evaluate(()=>{
    const root=document.querySelector('#osminogGraphicsStudio'),r=s=>root.querySelector(s).getBoundingClientRect().toJSON();

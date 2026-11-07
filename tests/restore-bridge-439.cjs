@@ -182,11 +182,15 @@ async function fixture() {
     const retried = await page.evaluate(async () => {
       const result = await OSMINOGRestore438.beforeLoad();
       return {result, originals: await OSMINOGRestore438.__test.original('briefCraftStudioV2'), chat: values['briefCraftGptLiteChat:desk:main'],
+        note: values.briefCraftStudioV2.projects.find(p => p.id === 'desk').objects.find(o => o.id === 'note'),
         ids: values.briefCraftStudioV2.projects.flatMap(p => p.objects.map(o => p.id + ':' + o.id))};
     });
     assert.equal(retried.result.status, 'done'); assert.deepEqual(retried.originals.value, original.briefCraftStudioV2);
     assert.equal(new Set(retried.ids).size, retried.ids.length); assert.equal(retried.chat.filter(value => value?.id === 'new-message').length, 1);
     assert.equal(retried.chat.filter(value => value === 'repeated no-id body').length, 3);
+    assert.equal(retried.note.html, undefined, 'interruption retry must not restore archived HTML over edited Lite text');
+    assert.equal(retried.note.osminogRestore438OriginalHtml, '<b>old text</b>');
+    assert(retried.note.text.startsWith('edited in 4.0.38 '));
     console.log('PASS interrupted workspace→chat restoration resumes without overwriting originals or duplicating objects/messages');
     await f.close();
   }

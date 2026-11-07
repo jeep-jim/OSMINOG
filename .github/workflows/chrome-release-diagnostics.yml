@@ -27,5 +27,8 @@ jobs:
         if: always()
         with:
           name: chrome-release-diagnostics
-          path: artifacts/diagnostics/
+          path: |
+            artifacts/diagnostics/
+            artifacts/*439*
+            artifacts/update*437*
           retention-days: 7

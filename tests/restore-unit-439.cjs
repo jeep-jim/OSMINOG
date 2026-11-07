@@ -31,6 +31,27 @@ test('unchanged legacy-only HTML and original tool type are not flattened by can
   assert.equal(merged.type, 'note'); assert.equal(merged.html, original.html); assert.equal(merged.titleHtml, original.titleHtml);
   assert.equal(merged.fill, '#ffaa00');
 });
+test('retry after a committed workspace does not reintroduce obsolete HTML from the immutable detail archive', async () => {
+  const original = {id: 'note', type: 'note', text: 'old text', html: '<b>old text</b>', title: 'old title', titleHtml: '<i>old title</i>', custom: {kept: true}};
+  const archived = {...original}; delete archived.text;
+  const archive = new Blob([JSON.stringify(archived)], {type: 'application/json'});
+  const db = {objectStoreNames: {contains: () => false}, transaction() {
+    const tx = {abort() {}, objectStore() { return {get() {
+      const req = {};
+      setImmediate(() => { req.result = {blob: archive}; req.onsuccess(); setImmediate(() => tx.oncomplete?.()); });
+      return req;
+    }}; }};
+    return tx;
+  }};
+  const item = {id: 'note', type: 'text', legacySource: 'workspace:desk', detailBlobId: 'legacy-detail:note', text: 'new text', title: 'new title'};
+  const first = await T.mergeObject(db, item, original), retried = await T.mergeObject(db, item, first);
+  assert.equal(retried.text, 'new text'); assert.equal(retried.title, 'new title');
+  assert.equal(retried.html, undefined); assert.equal(retried.titleHtml, undefined);
+  assert.equal(retried.osminogRestore438OriginalHtml, '<b>old text</b>'); assert.equal(retried.osminogRestore438OriginalTitleHtml, '<i>old title</i>');
+  assert.deepEqual(plain(retried.custom), {kept: true}); assert.deepEqual(JSON.parse(await archive.text()), archived);
+  const restyled = await T.mergeObject(db, item, {...retried, html: '<em>new text</em>'});
+  assert.equal(restyled.html, '<em>new text</em>', 'a deliberately present new rich-text field is retained');
+});
 test('bounded binary conversion preserves every byte across base64 chunk boundaries', async () => {
   const bytes = Uint8Array.from({length: 200003}, (_, i) => i % 251), blob = new Blob([bytes], {type: 'application/octet-stream'});
   const value = await T.dataURL(blob);

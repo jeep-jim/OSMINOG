@@ -226,10 +226,18 @@ function sameRects(before, after, label) {
     for (const key of ['x', 'y', 'width', 'height']) assert(Math.abs(a[key] - b[key]) < .6, `${label} shifts ${key}: ${a[key]} → ${b[key]}`);
 }
 async function settle() { await editor.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); }
+async function closePanels() {
+  await editor.evaluate(() => {
+    OSMINOGLibrary.close(); document.querySelector('#bridgeClose').click();
+    if (state.layersOpen) document.querySelector('#layersToggle').click();
+    OSMINOGInspector.hide();
+  });
+  await editor.locator('#layersPanel').waitFor({state: 'hidden'});
+}
 async function geometryAssertions() {
   for (const width of [1440, 1024]) {
     await editor.setViewportSize({width, height: 1000});
-    await editor.evaluate(() => { OSMINOGLibrary.close(); BriefCraftBridge.close(); setLayersOpen(false); document.querySelector('#inspector').classList.add('collapsed'); });
+    await closePanels();
     await settle(); const baseline = await headerRects();
     const transitions = ['#workdeskGPT', '#librarySearch', '#libraryCapture', '#canvasSettings', '#layersToggle'];
     for (const selector of transitions) {
@@ -246,7 +254,7 @@ async function geometryAssertions() {
     report.geometry.push({width, controls: baseline.buttons.length, header: baseline.header, transitions});
   }
   await editor.setViewportSize({width: 1440, height: 1000});
-  await editor.evaluate(() => { OSMINOGLibrary.close(); BriefCraftBridge.close(); setLayersOpen(false); document.querySelector('#inspector').classList.add('collapsed'); });
+  await closePanels();
   record('all original header controls keep their rectangles through chat, search, capture, inspector and Layers transitions at 1440px and 1024px');
 }
 async function viewportSnapshot(label) {
@@ -302,6 +310,8 @@ async function canvasAssertions() {
 
   await editor.evaluate(id => { openProject(id); const object = objects().find(o => o.id === 'restore439-note'); selectObject(object.id); focusObject(object); }, existingDesk);
   await settle(); await delay(600);
+  await waitForAsync(editor, () => !state.dirty && !persistPending, null,
+    {message: 'The existing project-open autosave finishes before measuring pointer-only writes'});
   await monitor.evaluate(() => { storageWrites.length = 0; });
   const before = await editor.evaluate(() => ({object: {...objects().find(o => o.id === 'restore439-note')}, view: {...state.view}}));
   const target = editor.locator('#objects .canvas-object[data-id="restore439-note"] .object-bar'); await target.waitFor();
@@ -327,6 +337,24 @@ async function canvasAssertions() {
     return Object.entries(all).some(([key, value]) => key.startsWith('osminogItemEdit:') && value.kind === 'view' && value.projectId === project().id &&
       value.view?.x === state.view.x && value.view?.y === state.view.y && value.view?.scale === state.view.scale);
   }, before.view, {message: 'Native pan view journal commits'});
+  const runtimeViews = await editor.evaluate(() => {
+    restore439InteractionMetrics.phases.push({name: 'runtime zoom, fit and focus mode', at: performance.now()});
+    const before = {...state.view}, rect = document.querySelector('#viewport').getBoundingClientRect();
+    // These names are the final installed functions, including canvas-ux's
+    // overrides. Testing the earlier editor.js definitions would miss them.
+    globalThis.zoomAt(rect.x + rect.width / 2, rect.y + rect.height / 2, before.scale * 1.15);
+    const zoom = {...state.view}; globalThis.fitToContent(); const fit = {...state.view};
+    const focusEntered = OSMINOGCanvasUX.focusMode(true), focus = {...state.view};
+    const focusExited = OSMINOGCanvasUX.focusMode(false), after = {...state.view};
+    return {before, zoom, fit, focus, after, focusEntered, focusExited};
+  });
+  assert.notEqual(runtimeViews.zoom.scale, runtimeViews.before.scale, 'The final runtime zoom override must execute');
+  assert.equal(runtimeViews.focusEntered, true); assert.equal(runtimeViews.focusExited, false);
+  await waitForAsync(editor, async () => {
+    const all = await chrome.storage.local.get(null);
+    return Object.entries(all).some(([key, value]) => key.startsWith('osminogItemEdit:') && value.kind === 'view' && value.projectId === project().id &&
+      value.view?.x === state.view.x && value.view?.y === state.view.y && value.view?.scale === state.view.scale);
+  }, null, {message: 'Final runtime zoom/fit/focus view commits through a metadata journal'});
   const expectedView = await editor.evaluate(() => ({...state.view}));
   const writes = await monitor.evaluate(() => storageWrites.slice());
   assert.deepEqual(writes.filter(value => /^(?:briefCraftStudioV2(?:Backup)?|osminogProjectRevisionsV1)$/.test(value.key)), [], 'Pointer movement writes only small journals, never a complete workspace snapshot');
@@ -336,7 +364,7 @@ async function canvasAssertions() {
     cancelAnimationFrame(metrics.frame);
     if (metrics.observer) { metrics.longTasks.push(...metrics.observer.takeRecords().map(entry => ({startTime: entry.startTime, duration: entry.duration}))); metrics.observer.disconnect(); }
     const sorted = [...metrics.intervals].sort((a, b) => a - b);
-    return {scope: 'existing focus, desk switch, pointer drag and pan sequence; excludes migration and the 60-redraw stress loop',
+    return {scope: 'focus, desk switch, pointer drag, pan and runtime zoom/fit/focus sequence; excludes migration and the 60-redraw stress loop',
       durationMs: performance.now() - metrics.startedAt, frameIntervalsMs: metrics.intervals, frames: sorted.length,
       p95Ms: sorted[Math.ceil(sorted.length * .95) - 1], maxMs: sorted.at(-1),
       longTaskSupported: metrics.longTaskSupported, longTaskCount: metrics.longTasks.length,
@@ -350,8 +378,8 @@ async function canvasAssertions() {
   const restored = await editor.evaluate(id => { openProject(id); return {object: {...objects().find(o => o.id === 'restore439-note')}, view: {...state.view}}; }, existingDesk);
   assert.equal(restored.object.x, moved.x); assert.equal(restored.object.y, moved.y);
   for (const key of ['x', 'y', 'scale']) assert.equal(restored.view[key], expectedView[key], 'Reload restores view.' + key);
-  report.pointer = {hit, from: {x: before.object.x, y: before.object.y}, to: {x: moved.x, y: moved.y}, expectedView, restoredView: restored.view, writes};
-  record('native card drag and canvas pan commit only metadata journals and restore exact positions after reload');
+  report.pointer = {hit, from: {x: before.object.x, y: before.object.y}, to: {x: moved.x, y: moved.y}, runtimeViews, expectedView, restoredView: restored.view, writes};
+  record('native drag/pan and final runtime zoom/fit/focus functions commit only metadata journals and restore exact positions after reload');
 }
 async function clipboardAssertions() {
   const baseline = `restore439-baseline-${Date.now()}`, text = `restore439-clipboard-${Date.now()}`;

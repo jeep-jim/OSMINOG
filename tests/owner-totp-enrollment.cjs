@@ -58,7 +58,12 @@ test('reject extra digits rather than silently truncate; allow grouped paste',as
 });
 test('closing during GitHub verification cannot unlock later',async()=>{
   const gate=deferred(),secret='JBSWY3DPEHPK3PXP',f=fixture({[MODULE]:{github:{token:'fixture-token'}},[AUTH]:{totpSecret:secret}},{github:()=>gate.promise}),pending=f.guard.require();await ready(f);
-  f.node('[data-owner-code]').value=otp(secret);const submitted=f.node('[data-owner-submit]').onclick();for(let i=0;i<100&&f.checks()===0;i++)await turn();assert.equal(f.checks(),1);f.node('[data-owner-cancel]').onclick();assert.equal(await pending,false);gate.resolve({ok:true,owner:{ok:true}});await submitted;assert.equal(f.guard.isUnlocked(),false);
+  f.node('[data-owner-code]').value=otp(secret);const submitted=f.node('[data-owner-submit]').onclick();
+  // The real WebCrypto verifier runs asynchronously. A fixed number of event
+  // loop turns can finish before its worker completes on a busy CI runner.
+  const deadline=Date.now()+5000;
+  while(f.checks()===0&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(f.checks(),1);f.node('[data-owner-cancel]').onclick();assert.equal(await pending,false);gate.resolve({ok:true,owner:{ok:true}});await submitted;assert.equal(f.guard.isUnlocked(),false);
 });
 test('cancel during initial storage/GitHub work closes all callers',async()=>{
   const delayed=deferred(),f=fixture(undefined,{read:()=>delayed.promise}),a=f.guard.require(),b=f.guard.require();

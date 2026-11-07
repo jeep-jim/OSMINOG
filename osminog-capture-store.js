@@ -79,7 +79,7 @@
     }
     const entry = {id, at, kind, projectId: input.projectId, folderId: input.folderId || null,
       hash: input.hash || await hash(body.blob || new Blob([body.value], {type: 'text/plain'})),
-      fileName: String(input.fileName || ''), mime: body.blob?.type || 'text/plain', size: body.blob?.size || body.value.length};
+      fileName: String(input.fileName || ''), mime: body.blob?.type || 'text/plain', size: body.blob?.size ?? body.value.length};
     const result = await transaction(['entries', 'bodies', 'meta'], 'readwrite', async tx => {
       const entries = tx.objectStore('entries'), previous = await request(entries.get(id));
       if (previous) return {ok: true, duplicate: true, entry: previous};
