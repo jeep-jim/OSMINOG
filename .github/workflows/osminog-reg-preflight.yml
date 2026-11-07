@@ -1,0 +1,69 @@
+name: OSMINOG REG — isolated access check
+on:
+  push:
+    branches: ['feat/intent-ocean-pilot-20261107']
+    paths: ['.github/workflows/osminog-reg-preflight.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: osminog-reg-preflight
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: osminog-reg
+    steps:
+      - name: Require OSMINOG-owned configuration
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            printf '%s\n' '## REG access not configured' 'Missing: OSMINOG_REG_SSH_KEY in OSMINOG / osminog-reg.' 'No SSH connection was attempted. No deployment or DNS changes.' 'Do not copy credentials from another project.' >> "$GITHUB_STEP_SUMMARY"
+            echo '::error title=OSMINOG access missing::OSMINOG_REG_SSH_KEY is not available to this OSMINOG workflow. Provision a dedicated restricted SSH account/key, not another project credential.'
+            exit 1
+          fi
+          user=${SSH_USER:-osminog}
+          if [[ ! "$user" =~ ^osminog([_-][a-z0-9_-]+)?$ ]]; then
+            echo '::error::Only a dedicated osminog service account is accepted; root and unrelated users are rejected.'
+            exit 1
+          fi
+      - name: Read-only resource and application-path check
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          ssh-keygen -y -f "$key" >/dev/null
+          # Public REG host identity recorded for this owner; never accept a replacement automatically.
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          user=${SSH_USER:-osminog}
+          ssh -i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=2 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" \
+            "$user@151.248.113.177" 'sh -s' <<'REMOTE'
+          set -eu
+          test "$(id -u)" -ne 0
+          echo 'OSMINOG_READONLY_BEGIN'
+          date -u +%Y-%m-%dT%H:%M:%SZ
+          echo '-- CPU count / load --'; getconf _NPROCESSORS_ONLN; uptime
+          echo '-- memory MiB --'; free -m
+          echo '-- root disk MiB --'; df -Pm /
+          echo '-- OSMINOG path --'
+          if test -d /opt/osminog; then
+            test -w /opt/osminog && echo OSMINOG_PATH_WRITABLE || echo OSMINOG_PATH_NOT_WRITABLE
+          else echo OSMINOG_PATH_NOT_PROVISIONED; fi
+          echo '-- reserved application port --'; ss -ltn '( sport = :3081 )'
+          echo 'OSMINOG_READONLY_END'
+          REMOTE
+          printf '%s\n' '## OSMINOG REG read-only check completed' 'No installation, files written on host, service changes or DNS changes.' >> "$GITHUB_STEP_SUMMARY"
