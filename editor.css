@@ -1981,7 +1981,7 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 /* OSMINOG 3.11.41 — one canvas, one permanent tool shelf. */
 .topbar{grid-template-columns:minmax(280px,1fr) minmax(420px,1fr)!important}
 .tool-rail #markdownStudioButton{--tool-color:#7c8799}
-.tool-rail #browserHubButton{--tool-color:#7c8799}
+
 @media(max-width:1280px){.topbar{grid-template-columns:minmax(230px,1fr) minmax(330px,1fr)!important}}
 @media(max-width:1020px){.topbar{grid-template-columns:1fr auto!important}}
 /* Reliable edge resizing for the AI chat. Handles live INSIDE the frame so they
