@@ -934,9 +934,54 @@ const BRIEFCRAFT_NATIVE_UPDATER=globalThis.BRIEFCRAFT_CLOUD_CONFIG?.nativeUpdate
 function compareVersions(a,b){const A=String(a||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0),B=String(b||"").replace(/^v/,"").split(".").map(x=>Number.parseInt(x,10)||0);for(let i=0;i<Math.max(A.length,B.length);i++){const d=(A[i]||0)-(B[i]||0);if(d)return d>0?1:-1}return 0}
 function renderVersionUI(){const v=chrome.runtime.getManifest().version,b=$("#versionButton"),c=$("#updateCurrentVersion"),status=$("#updateStatusText"),sub=$("#updateStatusSub"),btn=$("#oneClickUpdate");if(b)b.textContent=`v${v}`;if(c)c.textContent=`v${v}`;if(status)status.textContent=state.language==="ru"?"Проверяю обновления…":"Checking for updates…";if(sub)sub.textContent=state.language==="ru"?"Сверяю несколько независимых источников канала обновлений.":"Checking multiple independent update-feed sources.";if(btn){btn.disabled=true;btn.textContent=state.language==="ru"?"Проверяю…":"Checking…"}}
 function folderUpdater(){const updater=globalThis.OSMINOGFolderUpdater;if(!updater)throw new Error(state.language==="ru"?"Модуль обновления ещё загружается. Повтори через секунду.":"The updater is still loading. Retry in a second.");return updater}
-let updatePreflight=null,updateCheckSerial=0;
-async function refreshUpdateAvailability(){const serial=++updateCheckSerial,statusEl=$("#updateStatusText"),sub=$("#updateStatusSub"),btn=$("#oneClickUpdate"),chip=$("#versionButton"),v=chrome.runtime.getManifest().version,set=(title,message,button,disabled=false)=>{if(serial!==updateCheckSerial)return;if(statusEl)statusEl.textContent=title;if(sub)sub.textContent=message;if(btn){btn.textContent=button;btn.disabled=disabled}};renderVersionUI();try{const result=await folderUpdater().check();if(serial!==updateCheckSerial)return null;updatePreflight=result;globalThis.OSMINOGReleaseNotes?.render?.(result.latestVersion,result.latest?.releaseNotes||result.latest?.notes||result.latest?.changelog);if(result?.available){chip?.classList.add("update-available");set(state.language==="ru"?`Доступна v${result.latestVersion}`:`v${result.latestVersion} available`,state.language==="ru"?`Текущая v${v} · источник: ${result.source||"public feed"}`:`Current v${v} · source: ${result.source||"public feed"}`,state.language==="ru"?"Обновить сейчас":"Update now",false)}else{chip?.classList.remove("update-available");set(state.language==="ru"?`v${v} · актуальная версия`:`v${v} · up to date`,result?.message|| (state.language==="ru"?"Новых сборок нет.":"No newer build is published."),state.language==="ru"?"Проверить снова":"Check again",false)}return result}catch(error){updatePreflight=null;chip?.classList.remove("update-available");set(state.language==="ru"?"Не удалось проверить обновления":"Update check failed",error?.message||String(error),state.language==="ru"?"Повторить проверку":"Retry check",false);return null}}
-async function oneClickUpdate(){const statusEl=$("#updateStatusText"),sub=$("#updateStatusSub"),btn=$("#oneClickUpdate"),v=chrome.runtime.getManifest().version,set=(title,message,button,disabled=true)=>{if(statusEl)statusEl.textContent=title;if(sub)sub.textContent=message;if(btn){btn.textContent=button;btn.disabled=disabled}};try{let preflight=updatePreflight;if(!preflight||!preflight.available){preflight=await refreshUpdateAvailability();if(!preflight?.available)return}set(state.language==="ru"?`Готовлю обновление до v${preflight.latestVersion}`:`Preparing v${preflight.latestVersion}`,state.language==="ru"?"В первый раз Chrome попросит выбрать папку установленного OSMINOG. После этого она запоминается.":"On first use Chrome asks for the installed OSMINOG folder and remembers it.",state.language==="ru"?"Обновляю…":"Updating…");await persist();const result=await folderUpdater().update({preflight,onStatus:event=>{const pct=Math.max(0,Math.min(100,Number(event?.progress)||0)),title=event?.message||"Обновляю…";set(title,state.language==="ru"?`Проверка пакета, резервная копия и установка · ${pct}%`:`Package verification, backup and install · ${pct}%`,state.language==="ru"?"Обновляю…":"Updating…")}});if(!result?.updated){updatePreflight=null;await refreshUpdateAvailability();return}if(statusEl)statusEl.textContent=state.language==="ru"?`Установлено v${result.currentVersion}`:`Installed v${result.currentVersion}`;if(sub)sub.textContent=state.language==="ru"?"Перезапускаю OSMINOG…":"Reloading OSMINOG…";await chrome.storage.local.set({briefCraftReopenAfterUpdateV1:{at:Date.now(),url:"editor.html"}});setTimeout(()=>chrome.runtime.reload(),650)}catch(error){updatePreflight=null;set(state.language==="ru"?"Обновление не выполнено":"Update failed",error?.message||String(error),state.language==="ru"?"Повторить":"Retry",false)}}
+let updatePreflight=null,updateCheckSerial=0,updateBusy=false;
+async function refreshUpdateAvailability(){if(updateBusy)return updatePreflight;const serial=++updateCheckSerial,statusEl=$("#updateStatusText"),sub=$("#updateStatusSub"),btn=$("#oneClickUpdate"),chip=$("#versionButton"),v=chrome.runtime.getManifest().version,set=(title,message,button,disabled=false)=>{if(serial!==updateCheckSerial)return;if(statusEl)statusEl.textContent=title;if(sub)sub.textContent=message;if(btn){btn.textContent=button;btn.disabled=disabled}};renderVersionUI();try{const result=await folderUpdater().check();if(serial!==updateCheckSerial)return null;updatePreflight=result;globalThis.OSMINOGReleaseNotes?.render?.(result.latestVersion,result.latest?.releaseNotes||result.latest?.notes||result.latest?.changelog);if(result?.available){chip?.classList.add("update-available");set(state.language==="ru"?`Доступна v${result.latestVersion}`:`v${result.latestVersion} available`,state.language==="ru"?`Текущая v${v} · источник: ${result.source||"public feed"}`:`Current v${v} · source: ${result.source||"public feed"}`,state.language==="ru"?"Обновить сейчас":"Update now",false)}else{chip?.classList.remove("update-available");set(state.language==="ru"?`v${v} · актуальная версия`:`v${v} · up to date`,result?.message|| (state.language==="ru"?"Новых сборок нет.":"No newer build is published."),state.language==="ru"?"Проверить снова":"Check again",false)}return result}catch(error){updatePreflight=null;chip?.classList.remove("update-available");set(state.language==="ru"?"Не удалось проверить обновления":"Update check failed",error?.message||String(error),state.language==="ru"?"Повторить проверку":"Retry check",false);return null}}
+async function oneClickUpdate(){
+  if(updateBusy)return;
+  const statusEl=$("#updateStatusText"),sub=$("#updateStatusSub"),btn=$("#oneClickUpdate"),
+    current=chrome.runtime.getManifest().version,ru=state.language==="ru";
+  const set=(title,message,button,disabled=true)=>{
+    if(statusEl)statusEl.textContent=title;if(sub)sub.textContent=message;
+    if(btn){btn.textContent=button;btn.disabled=disabled}
+  };
+  let reloading=false;
+  try{
+    // Lock before the first await: a second click cannot enqueue another save/install.
+    updateBusy=true;
+    ++updateCheckSerial;
+    set(ru?"Проверяю обновление…":"Checking update…","",ru?"Подождите…":"Please wait…");
+    let preflight=updatePreflight;
+    if(!preflight?.available){preflight=await folderUpdater().check();updatePreflight=preflight}
+    if(!preflight?.available){
+      set(preflight?.message||(ru?"Новых сборок нет":"No newer build"),"",ru?"Проверить снова":"Check again",false);
+      return;
+    }
+    if(preflight.latest?.minUpdaterVersion&&compareVersions(folderUpdater().version||"1.0.0",preflight.latest.minUpdaterVersion)<0){
+      throw new Error(ru?"Сначала требуется восстановить модуль обновления.":"The update module needs recovery first.");
+    }
+    set(ru?`Готовлю обновление до v${preflight.latestVersion}`:`Preparing v${preflight.latestVersion}`,
+      ru?"Сохраняю текущий стол…":"Saving the current desk…",ru?"Обновляю…":"Updating…");
+    clearTimeout(state.saveTimer);
+    await persist();
+    const result=await folderUpdater().update({preflight,onStatus:event=>{
+      const pct=Math.max(0,Math.min(100,Number(event?.progress)||0));
+      set(event?.message||(ru?"Обновляю…":"Updating…"),`${pct}%`,ru?"Обновляю…":"Updating…");
+    }});
+    if(!result?.updated){updatePreflight=null;set(result?.message||"", "",ru?"Проверить снова":"Check again",false);return}
+    if(state.dirty)await persist();
+    set(ru?`Файлы v${result.currentVersion} проверены`:`v${result.currentVersion} files verified`,
+      ru?"Перезапускаю расширение…":"Reloading the extension…",ru?"Завершаю…":"Finishing…");
+    // Prepare an ordinary tab and persist the exact target version before unloading.
+    // A failed handoff leaves this editor open; it never falls back to a blind reload.
+    await globalThis.OSMINOGUpdateHandoff.prepare({from:current,to:result.currentVersion});
+    reloading=true;
+    chrome.runtime.reload();
+  }catch(error){
+    updatePreflight=null;
+    set(ru?"Обновление не завершено":"Update not completed",error?.message||String(error),ru?"Проверить состояние":"Check status",false);
+  }finally{if(!reloading)updateBusy=false}
+}
+
 function toggleUpdatePopover(force){const pop=$("#updatePopover");if(!pop)return;pop.hidden=typeof force==="boolean"?!force:!pop.hidden;if(!pop.hidden)refreshUpdateAvailability()}
 function toggle(el){el.hidden=!el.hidden}
 function renderProfile(){const p=state.profile,avatar=p?.picture?`<img src="${esc(p.picture)}" alt="">`:"G";["#profileButton","#welcomeProfile"].forEach(id=>{const button=$(id);if(button)button.innerHTML=p?.picture?`<img src="${esc(p.picture)}" alt="${esc(p.name||"")}">`:`<span>${p?(p.name||"G").charAt(0).toUpperCase():"G"}</span>`});const pa=$("#profileAvatar");if(pa)pa.innerHTML=avatar;if($("#profileName"))$("#profileName").textContent=p?.name||(state.language==="ru"?"Аккаунт Google":"Google account");if($("#profileEmail"))$("#profileEmail").textContent=p?.email||tr("profileLocal");if($("#profileSignIn"))$("#profileSignIn").hidden=!!p;if($("#profileSync"))$("#profileSync").hidden=!p;if($("#profileSignOut"))$("#profileSignOut").hidden=!p}

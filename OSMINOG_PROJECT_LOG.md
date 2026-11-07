@@ -2278,3 +2278,18 @@ PR #24 объединён в main. Новый интерфейс: активны
 **Final verification / 2026-11-05:** [main runtime/build 42009411240](https://github.com/jeep-jim/OSMINOG/actions/runs/42009411240) on `74d77cd9902adc48400ba1fb4d9e42b50fc3666d` completed **success**, including native clipboard scenarios, browser cleanup and verified ZIP packaging. No failed steps remain. The published ZIP remains the immutable artifact from successful PR build 42006617269, with SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`.
 
 
+
+
+## 2026-11-07 — Chrome 4.0.37: recovery from browser closures during Update (candidate)
+
+**Starting state:** source main `d5b5da4a0dd5ec7f307f2c019736a44a4ec4dfe5`, published Chrome 4.0.36. The owner reported three browser closures after pressing Update and explicitly refused another attempt with the same mechanism. Source inspection confirms the folder updater recursively snapshots all installation-folder descendants into ArrayBuffers, then writes one large IndexedDB value while holding the entire decompressed ZIP. This is a concrete unbounded-memory defect, not proof of the owner's exact crash cause.
+
+**Requested work:** rework the update mechanism and its first migration, preserve the existing extension identity, projects, Owner Authenticator and button workflow. Do not tell the owner to retry the old updater as a test.
+
+**Candidate changes:** bounded package-only per-file backup and durable transaction recovery, exclusive installation, stricter ZIP validation and network limits; normal-tab guard plus target-version acknowledgement for extension reload; no blind reload on failure. A self-contained one-time recovery page uses the new updater for the first transition. A fresh toolbar popup detects the newer disk manifest and finishes the handoff without running the old installer. This fresh-resource bootstrap requires its own real Chromium gate.
+
+**Verification so far:** local handoff/recovery, I/O budget and Owner Authenticator tests pass; owner-guard SHA256 remains `90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41`. Local Chromium cannot start in this executor because socket creation is blocked. Required CI includes real native-folder writes, complete package N→N+1, unrelated-tab and persisted-project preservation, last-popup-only reload, and the external-repair popup probe. No CI or publication success is claimed by this candidate entry.
+
+**Delivery:** normal package-only publication cannot repair the code already executing in an old installation. Require updater `2.0.0` in the feed before promoting this candidate. The recovery page must be built from the same reviewed source and verified before distribution. Do not claim remote changes updated the owner's installed extension. CI result is `ciVerified`; `runtimeVerified` remains false until a real owner-device outcome is observed.
+
+**Next action:** complete and review the bounded updater and recovery artifact, pass all old and new gates, update the existing registry importer/feed version contract, publish only the immutable verified candidate, then append exact checks, hashes, release URLs and remaining delivery limits here.

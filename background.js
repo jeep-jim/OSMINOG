@@ -817,5 +817,5 @@ chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
 });
 
 /* Update/reload handoff is confirmed by the new editor, not a disappearing old tab. */
-importScripts("osminog-update-recovery.js");
+importScripts("osminog-update-handoff.js", "osminog-update-recovery.js");
 

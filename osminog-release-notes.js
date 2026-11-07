@@ -1,5 +1,9 @@
 (()=>{'use strict';
 const catalog={
+'4.0.37':{
+ru:{title:'Восстановление обновлений',items:['Резервная копия включает только заменяемые файлы программы; папка больше не загружается целиком в память.','Обновление защищено от повторного запуска и восстанавливает предыдущие файлы при ошибке записи.','Новая версия подтверждает запуск до удаления временной вкладки перезапуска.','Для старого неисправного обновлятора предусмотрена отдельная кнопка восстановления.']},
+en:{title:'Update recovery',items:['Only replaced program files are backed up; the whole folder is no longer loaded into memory.','Concurrent installs are blocked and failed writes restore the previous files.','The target version acknowledges startup before the temporary reload tab is removed.','A separate recovery button handles the initial transition from the old updater.']}
+},
 '4.0.29':{
 ru:{title:'Общая шапка и веб-область',items:['Шапки стола и чата выровнены, граница светлой темы серая.','Удалено всплывающее окно подключений; настройки ИИ остаются в чате.','Глобус открывает веб-просмотр, монитор добавляет стол рядом; ширина регулируется разделителем.','Сайты с запретом встраивания требуют обычной вкладки или нативного браузера. Исправление Authenticator сохранено.']},
 en:{title:'Aligned headers and web workspace',items:['Desk and chat headers align; the light-theme divider is gray.','The floating connections popup is removed; AI settings remain in chat.','Use the globe for web preview and the monitor for an adjustable desk split.','Sites that block framing require a regular tab or native browser. The Authenticator fix is preserved.']}

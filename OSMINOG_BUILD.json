@@ -1,22 +1,25 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.36",
-  "versionName": "4.0.36",
-  "baseVersion": "4.0.35",
-  "artifact": "OSMINOG-Chrome-4.0.36.zip",
-  "manifestVersion": "4.0.36",
+  "version": "4.0.37",
+  "versionName": "4.0.37",
+  "baseVersion": "4.0.36",
+  "artifact": "OSMINOG-Chrome-4.0.37.zip",
+  "manifestVersion": "4.0.37",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
   "verification": {
     "fullExtension": "All retained Chrome runtime, storage, clipboard, folders, chat, provider, Owner Auth and browser-retirement gates must pass before packaging.",
     "projectTrash": "Separate real-extension gate covers deletion, restore, expiry and inbox.",
-    "ownerWindows": "Not tested on the owner's computer. Do not claim runtime verified until owner accepts the update.",
+    "ownerWindows": "Owner reported three browser closures while attempting 4.0.36. Exact crash cause is not established without owner diagnostics. This candidate has not been run on the owner computer.",
     "figmaUx": "Saved-material library docks immediately left of the chat; two-column 148px minimum lazy gallery with 36-item paging and current-desk scoping; unchanged gallery DOM is reused; project previews use at most one lazy image; home hub spacing and six-language trash actions are restored; Export is enabled whenever current-desk content can be exported. Messenger message text and composer sizes are increased for readable desktop use; actual unified-chat classes are targeted.",
     "mediaTransfer": "Image import from an explicitly authorized editable page copy is tested; live provider media is not claimed.",
     "ownerAuth": "Authenticator bytes must match 90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41.",
     "stabilityBaseline": "Owner-confirmed last stable Chrome version 4.0.20; source commit e0e9917451ea0553be0126c8f5e068e599fd8928. Synthetic folder-count regression covers 60 folders / 2,400 objects; user-device performance and p95 baseline comparison still require owner acceptance.",
-    "embeddedBrowser": "Removed from Chrome extension. Provider connection settings and independently managed AI provider sessions are retained."
-  }
+    "embeddedBrowser": "Removed from Chrome extension. Provider connection settings and independently managed AI provider sessions are retained.",
+    "updater": "Bounded package-path backup, durable rollback journal, ZIP validation, exclusive install and version-bound browser-preserving reload; required real Chromium native-folder update and recovery bootstrap gates."
+  },
+  "ciVerified": false,
+  "updaterVersion": "2.0.0"
 }

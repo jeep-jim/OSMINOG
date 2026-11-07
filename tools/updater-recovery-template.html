@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-__OSMINOG_SCRIPT_CSP_HASH__'; style-src 'unsafe-inline'; connect-src https://api.github.com https://raw.githubusercontent.com https://github.com https://release-assets.githubusercontent.com https://objects.githubusercontent.com https://cdn.jsdelivr.net; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="color-scheme" content="dark light">
+  <title>OSMINOG — восстановление обновления</title>
+  <style>
+    :root { color-scheme:dark; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#10171d; color:#eaf2f5; line-height:1.55; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:42px 20px; }
+    main { max-width:760px; margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:10px; font-size:16px; font-weight:750; letter-spacing:.1em; margin:0 0 24px; }
+    .mark { width:15px; height:15px; background:#ee4b53; border-radius:50%; }
+    h1 { font-size:clamp(28px,4.5vw,39px); line-height:1.15; margin:0 0 18px; letter-spacing:-.025em; }
+    .lead { font-size:18px; color:#c8d8df; margin:0 0 28px; }
+    .card { border:1px solid #354751; border-radius:18px; background:#17232c; padding:25px; margin:20px 0; }
+    h2 { font-size:21px; line-height:1.3; margin:0 0 13px; }
+    p { margin:10px 0; }
+    .muted { color:#b0c4cf; font-size:15px; }
+    button { appearance:none; font:inherit; font-weight:650; line-height:1.3; border:1px solid #527484; border-radius:11px; background:#243b47; color:#edf8ff; padding:13px 18px; cursor:pointer; min-height:50px; }
+    button.primary { color:#06202a; background:#8bd7e9; border-color:#8bd7e9; }
+    button:hover:enabled { filter:brightness(1.12); }
+    button:focus-visible { outline:3px solid #ffd57b; outline-offset:4px; }
+    button:disabled { cursor:default; opacity:.43; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin:19px 0 5px; }
+    dl { display:grid; grid-template-columns:max-content 1fr; gap:7px 20px; margin:18px 0 0; }
+    dt { color:#b0c4cf; } dd { margin:0; overflow-wrap:anywhere; }
+    code { font-size:.95em; background:#0e1920; border-radius:5px; padding:2px 5px; overflow-wrap:anywhere; }
+    .state-title { font-size:18px; font-weight:650; margin:0; }
+    .state-detail { white-space:pre-wrap; overflow-wrap:anywhere; }
+    .state[data-kind="error"] { border-color:#e88787; }
+    .state[data-kind="error"] .state-title { color:#ffb8b8; }
+    .state[data-kind="success"] { border-color:#6dc7a9; }
+    .state[data-kind="success"] .state-title { color:#a5eed5; }
+    progress { width:100%; height:14px; margin:18px 0 6px; accent-color:#8bd7e9; }
+    .history { font-size:14px; color:#aac4d0; max-height:154px; overflow:auto; padding-left:23px; margin:14px 0 0; }
+    .history li { margin:5px 0; overflow-wrap:anywhere; }
+    .next { border-top:1px solid #39505a; margin-top:20px; padding-top:17px; }
+    .next ol { padding-left:24px; } .next li { margin:10px 0; }
+    .footnote { font-size:14px; color:#9db5c0; margin-top:24px; }
+    [hidden] { display:none!important; }
+    @media(max-width:520px) { body { padding:26px 14px; } .card { padding:20px; } button { width:100%; } dl { grid-template-columns:1fr; gap:2px; } dd { margin-bottom:9px; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><span class="mark" aria-hidden="true"></span>OSMINOG</div>
+  <h1>Восстановить обновление</h1>
+  <p class="lead">Разовый помощник после сбоя кнопки обновления. Выберите установленный OSMINOG и запустите исправление. Скачивать и распаковывать ZIP вручную не нужно.</p>
+
+  <section class="card" aria-labelledby="folderHeading">
+    <h2 id="folderHeading">1. Выберите установленное расширение</h2>
+    <p>Нужна именно папка, из которой Chrome загружает OSMINOG. В ней находится файл <code>manifest.json</code>.</p>
+    <p class="muted">Название и постоянный ключ расширения проверяются до установки.</p>
+    <div class="actions"><button type="button" id="chooseFolder">Выбрать папку OSMINOG</button></div>
+    <dl id="folderDetails" hidden>
+      <dt>Выбранная папка</dt><dd id="folderName"></dd>
+      <dt>Версия в папке</dt><dd id="installedVersion"></dd>
+      <dt>Исправленная версия</dt><dd id="targetVersion"></dd>
+    </dl>
+  </section>
+
+  <section class="card" aria-labelledby="installHeading">
+    <h2 id="installHeading">2. Установите исправление</h2>
+    <p>Помощник проверит пакет обновления и выполнит установку с резервной копией изменяемых файлов. Дождитесь результата на этой странице.</p>
+    <div class="actions"><button type="button" class="primary" id="installUpdate" disabled>Установить исправление</button></div>
+  </section>
+
+  <section class="card state" id="statusPanel" data-kind="idle" aria-label="Ход восстановления">
+    <div role="status" aria-live="polite" aria-atomic="true">
+      <p class="state-title" id="statusTitle">Готов к выбору папки</p>
+      <p class="state-detail muted" id="statusDetail">После установки потребуется перезагрузить только расширение OSMINOG.</p>
+    </div>
+    <progress id="progress" max="100" value="0" aria-label="Ход установки" hidden></progress>
+    <ol class="history" id="history" aria-label="Этапы установки" hidden></ol>
+    <div class="next" id="nextSteps" hidden>
+      <h2>Вернитесь в OSMINOG</h2>
+      <ol>
+        <li>Откройте значок OSMINOG на панели расширений Chrome.</li>
+        <li>Если появилась кнопка <strong>«Завершить обновление»</strong>, нажмите её.</li>
+      </ol>
+      <p class="muted">Если Chrome продолжает показывать старое меню без этой кнопки: введите <code>chrome://extensions</code> в адресной строке и нажмите круговую стрелку на карточке OSMINOG. Удалять и заново добавлять расширение не нужно.</p>
+    </div>
+  </section>
+  <p class="footnote">Помощник сам не закрывает браузер и не перезапускает расширение. Версия исправления: <span id="helperVersion"></span>.</p>
+  <noscript><p>Для восстановления нужен JavaScript. Откройте этот файл в обычном окне Chrome.</p></noscript>
+</main>
+<script>
+(() => {
+  'use strict';
+  const configuration = __OSMINOG_RECOVERY_CONFIG_JSON__;
+  const element = id => document.getElementById(id);
+  const chooseButton = element('chooseFolder');
+  const installButton = element('installUpdate');
+  let selectedFolder = null;
+  let selectedManifest = null;
+  let preflight = null;
+  let busy = false;
+  let lastStage = '';
+  let lastPaint = 0;
+  let pendingPaint = null;
+  let paintTimer = null;
+  const metadata = new Map();
+  const metadataKeys = new Set(['briefCraftReopenAfterUpdateV1']);
+  const versionPattern = /^\d+(?:\.\d+){2,3}$/;
+  const compareVersions = (a, b) => {
+    const left = String(a).split('.').map(Number), right = String(b).split('.').map(Number);
+    for (let index = 0; index < Math.max(left.length, right.length); index++) {
+      const difference = (left[index] || 0) - (right[index] || 0);
+      if (difference) return Math.sign(difference);
+    }
+    return 0;
+  };
+  const setStatus = (title, detail, kind = 'idle') => {
+    element('statusTitle').textContent = title;
+    element('statusDetail').textContent = detail || '';
+    element('statusPanel').dataset.kind = kind;
+  };
+  const setBusy = value => {
+    busy = value;
+    chooseButton.disabled = value;
+    installButton.disabled = value || !selectedFolder || !preflight?.available;
+  };
+  const rememberStage = event => {
+    const stage = String(event?.stage || '');
+    if (!stage || stage === lastStage) return;
+    lastStage = stage;
+    const item = document.createElement('li');
+    item.textContent = String(event?.message || stage).slice(0,240);
+    const history = element('history');
+    history.append(item);
+    while (history.children.length > 12) history.firstElementChild.remove();
+    history.hidden = false;
+  };
+  const paintStatus = () => {
+    paintTimer = null;
+    if (!pendingPaint) return;
+    const event = pendingPaint;
+    pendingPaint = null;
+    lastPaint = Date.now();
+    const progress = Math.max(0,Math.min(100,Number(event.progress) || 0));
+    element('progress').hidden = false;
+    element('progress').value = progress;
+    setStatus(String(event.message || 'Выполняю установку…'), 'Оставьте эту страницу открытой до завершения.');
+  };
+  const onStatus = event => {
+    rememberStage(event);
+    pendingPaint = event;
+    if (Date.now() - lastPaint >= 100) {
+      clearTimeout(paintTimer);
+      paintStatus();
+    } else if (!paintTimer) {
+      paintTimer = setTimeout(paintStatus,100);
+    }
+  };
+  const stopProgressUpdates = () => {
+    clearTimeout(paintTimer);
+    paintTimer = null;
+    pendingPaint = null;
+  };
+  const errorText = error => String(error?.message || error || 'Неизвестная ошибка.').slice(0,2000);
+  const requireMetadataKey = key => {
+    if (!metadataKeys.has(key)) throw new Error('Recovery storage is limited to update metadata.');
+  };
+  // This page has its own origin and cannot read the extension's user storage.
+  // The shim exposes only the selected folder's manifest and an in-memory
+  // update marker for compatibility. No reload, tabs or windows API is exposed.
+  const chromeShim = Object.freeze({
+    runtime: Object.freeze({
+      getManifest: () => ({
+        name: configuration.product,
+        key: configuration.manifestKey,
+        manifest_version: configuration.manifestVersion,
+        version: selectedManifest?.version || '0.0.0',
+      }),
+    }),
+    storage: Object.freeze({local: Object.freeze({
+      async get(keys) {
+        const wanted = typeof keys === 'string' ? [keys] : Array.isArray(keys) ? keys : Object.keys(keys || {});
+        const result = {};
+        for (const key of wanted) { requireMetadataKey(key); if (metadata.has(key)) result[key] = metadata.get(key); }
+        return result;
+      },
+      async set(values) {
+        if (JSON.stringify(values).length > 8192) throw new Error('Recovery metadata is too large.');
+        for (const key of Object.keys(values)) requireMetadataKey(key);
+        for (const [key,value] of Object.entries(values)) metadata.set(key,value);
+      },
+      async remove(keys) {
+        for (const key of typeof keys === 'string' ? [keys] : keys) { requireMetadataKey(key); metadata.delete(key); }
+      },
+    })}),
+  });
+  if (globalThis.chrome?.runtime?.id) {
+    setStatus('Откройте помощник отдельным файлом', 'Помощник восстановления не запускается внутри расширения.', 'error');
+    chooseButton.disabled = true;
+    return;
+  }
+  globalThis.chrome = chromeShim;
+
+__OSMINOG_FOLDER_UPDATER_SOURCE__
+
+  const updater = globalThis.OSMINOGFolderUpdater;
+  element('helperVersion').textContent = configuration.minimumPackageVersion;
+  const supportError = !globalThis.isSecureContext
+    ? 'Откройте скачанный HTML-файл напрямую в Chrome. Обычная HTTP-страница не даёт доступа к папке.'
+    : typeof globalThis.showDirectoryPicker !== 'function'
+      ? 'В этом окне недоступен выбор папки. Откройте HTML-файл в обычном настольном Chrome, без режима инкогнито.'
+      : !navigator.locks || !globalThis.indexedDB || !globalThis.crypto?.subtle || typeof DecompressionStream !== 'function'
+        ? 'В этом браузере недоступны необходимые средства безопасной установки. Откройте файл в актуальном настольном Chrome.'
+        : !updater || !versionPattern.test(String(updater.version || '')) || compareVersions(updater.version,configuration.minimumUpdaterVersion) < 0
+          ? 'Помощник собран без исправленного механизма обновления. Установка остановлена.'
+          : '';
+  if (supportError) {
+    setStatus('Установка пока недоступна',supportError,'error');
+    chooseButton.disabled = true;
+    return;
+  }
+  async function readSelectedManifest(handle) {
+    const file = await (await handle.getFileHandle('manifest.json')).getFile();
+    if (file.size > 256 * 1024) throw new Error('Файл manifest.json слишком большой. Проверьте выбранную папку.');
+    const value = JSON.parse(await file.text());
+    if (value.name !== configuration.product || value.key !== configuration.manifestKey ||
+        value.manifest_version !== configuration.manifestVersion || !versionPattern.test(String(value.version || ''))) {
+      throw new Error('Эта папка не соответствует установленному OSMINOG с постоянным ключом. Выберите папку расширения.');
+    }
+    return value;
+  }
+  function checkRepairRelease(result) {
+    const latest = result?.latest;
+    if (!latest || !versionPattern.test(String(latest.version || '')) ||
+        compareVersions(latest.version,configuration.minimumPackageVersion) < 0) {
+      throw new Error('В канале ещё нет исправленной версии ' + configuration.minimumPackageVersion + ' или новее. Установка не начата.');
+    }
+    return latest;
+  }
+  function showFolder() {
+    element('folderName').textContent = selectedFolder?.name || 'OSMINOG';
+    element('installedVersion').textContent = selectedManifest?.version || '';
+    element('folderDetails').hidden = false;
+  }
+  function showRestartInstructions(title,detail) {
+    stopProgressUpdates();
+    setStatus(title,detail,'success');
+    element('nextSteps').hidden = false;
+    preflight = null;
+    installButton.disabled = true;
+  }
+  chooseButton.addEventListener('click',async () => {
+    if (busy) return;
+    setBusy(true);
+    preflight = null;
+    element('nextSteps').hidden = true;
+    element('progress').hidden = true;
+    try {
+      // selectFolder owns validation, permission and persistence of the handle
+      // in this page's updater IndexedDB. No extension-origin handle is read.
+      setStatus('Выберите установленный OSMINOG','Chrome запросит доступ к папке расширения.');
+      const diagnostic = await updater.diagnostics();
+      if (!diagnostic?.pending) await updater.forgetFolder();
+      else {
+        if (!versionPattern.test(String(diagnostic.pending.from || ''))) throw new Error('Запись незавершённой установки содержит некорректную исходную версию.');
+        selectedManifest = {version:diagnostic.pending.from};
+        setStatus('Восстанавливаю незавершённую установку','Использую папку предыдущей попытки, чтобы сохранить возможность восстановления.');
+      }
+      selectedFolder = await updater.selectFolder();
+      if (!diagnostic?.pending) selectedManifest = await readSelectedManifest(selectedFolder);
+      await updater.recover({prompt:false,onStatus});
+      selectedManifest = await readSelectedManifest(selectedFolder);
+      showFolder();
+      setStatus('Проверяю исправление','Сверяю опубликованный пакет обновления.');
+      preflight = await updater.check();
+      const latest = checkRepairRelease(preflight);
+      element('targetVersion').textContent = latest.version;
+      stopProgressUpdates();
+      if (!preflight.available) {
+        showRestartInstructions('В этой папке уже версия ' + selectedManifest.version,
+          'Если открытый OSMINOG показывает более старую версию, перезагрузите только расширение.');
+      } else {
+        setStatus('Исправление готово к установке', 'Переход ' + selectedManifest.version + ' → ' + latest.version + '. Нажмите «Установить исправление».');
+      }
+    } catch (error) {
+      stopProgressUpdates();
+      preflight = null;
+      if (error?.name === 'AbortError') setStatus('Выбор отменён','Установка не запускалась.');
+      else setStatus('Не удалось подготовить исправление',errorText(error),'error');
+    } finally {
+      setBusy(false);
+    }
+  });
+  installButton.addEventListener('click',async () => {
+    if (busy || !selectedFolder || !preflight?.available) return;
+    setBusy(true);
+    element('nextSteps').hidden = true;
+    try {
+      // Refresh the feed at the actual install click; do not rely on a cached
+      // availability result or allow an older package to restore updater v1.
+      selectedManifest = await readSelectedManifest(selectedFolder);
+      preflight = await updater.check();
+      checkRepairRelease(preflight);
+      const result = await updater.update({preflight,onStatus});
+      if (!result?.ok || !result.updated) throw new Error(result?.message || 'Установка не была завершена.');
+      selectedManifest = await readSelectedManifest(selectedFolder);
+      if (selectedManifest.version !== result.currentVersion ||
+          compareVersions(selectedManifest.version,configuration.minimumPackageVersion) < 0) {
+        throw new Error('Проверка версии в папке после установки не пройдена.');
+      }
+      showFolder();
+      element('progress').value = 100;
+      showRestartInstructions('Файлы OSMINOG ' + selectedManifest.version + ' установлены',
+        'Пакет записан и проверен. Теперь нужно загрузить новую версию расширения в Chrome.');
+    } catch (error) {
+      stopProgressUpdates();
+      preflight = null;
+      setStatus('Восстановление не завершено',errorText(error),'error');
+    } finally {
+      setBusy(false);
+    }
+  });
+  window.addEventListener('beforeunload',event => {
+    if (busy) { event.preventDefault(); event.returnValue = ''; }
+  });
+})();
+</script>
+</body>
+</html>
