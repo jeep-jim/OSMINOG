@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
  WebView shell,provider; WebMessagePort port; LinearLayout providerPanel; FrameLayout root; TextureView preview;
  EyeCamera eye; SpeechRecognizer recognizer; TextToSpeech tts; Updater updater; android.content.SharedPreferences prefs;
  boolean foreground=false,connected=false,voice=false,camera=false,front=false,listening=false,speaking=false,ttsReady=false;
- int selected=0,permissionAction=0,resumeAction=0,epoch=0,probeEpoch=0,voiceErrors=0,bridgeMisses=0; String currentRequest="",partial=""; boolean frameSent=false,requestSent=false,enterSent=false;
+ int selected=0,permissionAction=0,resumeAction=0,epoch=0,probeEpoch=0,voiceErrors=0,bridgeMisses=0; float safeTop=0,safeBottom=0; String currentRequest="",partial=""; boolean frameSent=false,requestSent=false,enterSent=false;
  ValueCallback<Uri[]> fileCallback;
  int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
  @Override public void onCreate(Bundle saved){super.onCreate(saved);if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);else getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);if(Build.VERSION.SDK_INT>=29){getWindow().setStatusBarContrastEnforced(false);getWindow().setNavigationBarContrastEnforced(false);}prefs=getSharedPreferences("vision",MODE_PRIVATE);selected=Math.max(0,Math.min(NAMES.length-1,prefs.getInt("provider",0)));
@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
  }
  boolean chatOrigin(String url){try{Uri u=Uri.parse(url);return "https".equals(u.getScheme())&&Objects.equals(u.getHost(),Uri.parse(URLS[selected]).getHost())&&(u.getPort()==-1||u.getPort()==443);}catch(Exception e){return false;}}
  String asset(String name){try(InputStream in=getAssets().open(name);ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);return out.toString("UTF-8");}catch(Exception e){return "";}}
- void applyInsets(float top,float bottom){if(shell==null||isDestroyed())return;String js="document.documentElement.style.setProperty('--safe-top',"+JSONObject.quote(top+"px")+");document.documentElement.style.setProperty('--safe-bottom',"+JSONObject.quote(bottom+"px")+");";shell.evaluateJavascript(js,null);}
+ void applyInsets(float top,float bottom){safeTop=top;safeBottom=bottom;if(shell==null||isDestroyed())return;String js="document.documentElement.style.setProperty('--safe-top',"+JSONObject.quote(top+"px")+");document.documentElement.style.setProperty('--safe-bottom',"+JSONObject.quote(bottom+"px")+");";shell.evaluateJavascript(js,null);}
  void ensureProviderLoaded(){if(prefs.getBoolean("disableProviderWarmupForTest",false))return;provider.setVisibility(View.VISIBLE);provider.onResume();provider.resumeTimers();String url=provider.getUrl();if(url==null||url.equals("about:blank")){url=prefs.getString("url"+selected,URLS[selected]);if(!chatOrigin(url))url=URLS[selected];provider.loadUrl(url);}else if(chatOrigin(url))inject();}
  void inject(){if(!chatOrigin(provider.getUrl()))return;final int chosen=selected;provider.evaluateJavascript(asset("provider.js"),v->{if(chosen==selected)probe(0);});}
  void probe(int attempt){if(attempt==0)probeEpoch++;probeStep(attempt,selected,probeEpoch);}
@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
  void notice(String text){emit("notice","message",text);}
  void error(String text){String id=currentRequest;currentRequest="";voiceOff();emit("error","id",id,"message",text);}
  void command(JSONObject m)throws Exception{if(!foreground&&!m.optString("type").equals("ready"))return;switch(m.getString("type")){
-  case "ready":emit("hello","version",version(),"providerId",selected,"provider",NAMES[selected]);emit("resumed");emit("connected","ok",connected,"provider",NAMES[selected],"providerId",selected,"stage",connected?"ready":"checking");ensureProviderLoaded();applyInsets(0,0);break;
+  case "ready":emit("hello","version",version(),"providerId",selected,"provider",NAMES[selected]);emit("resumed");emit("connected","ok",connected,"provider",NAMES[selected],"providerId",selected,"stage",connected?"ready":"checking");ensureProviderLoaded();applyInsets(safeTop,safeBottom);break;
   case "connect":emit("providerPicker");break;
   case "selectProvider":chooseProvider(m.optInt("index",-1));break;
   case "downloadUpdate":if(updater!=null)updater.downloadAvailable();break;
