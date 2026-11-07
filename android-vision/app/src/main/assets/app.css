@@ -23,7 +23,7 @@ body[data-state=thinking]{--eye-fill:#b34273}body[data-state=thinking] .eye-body
 body.paused *,body.motion-off #plankton *,body.motion-off #bubbles *{animation-play-state:paused!important}body.motion-off #bubbles{display:none}body.has-chat .plankton{opacity:.45}body[data-state=sleeping] .plankton{animation-duration:var(--duration,32s)}
 @media(max-width:340px){#menu{left:10px}header{height:96px}.wordmark{top:46px}.message{font-size:14px}nav button{font-size:13px}}
 @media(max-height:530px){header{height:64px}#menu{top:-6px;transform:scale(.72);transform-origin:50% 50%}.wordmark{top:25px}#settings{top:62px;max-height:calc(100% - 78px)}#cameraSlot{height:120px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}#bubbles{display:none}}
+@media(prefers-reduced-motion:reduce){.notice-creature,.sheet-creature{animation:none!important}}
 
 /* 0.2.2: true edge-to-edge ocean; safe areas affect controls, never the backdrop. */
 :root{--safe-top:0px;--safe-bottom:0px}
@@ -81,3 +81,8 @@ body[data-state=camera]{--eye-fill:#7fc8e8}
 /* Dynamic plankton is animated in independent, randomized swimming segments by app.js. */
 .plankton{animation:none!important;will-change:transform}
 @media(prefers-reduced-motion:reduce){.plankton{animation:none!important}.notice-creature,.sheet-creature{animation:none!important}}
+
+/* Remove WebView and Android focus rectangles from all touch controls. */
+button:focus,button:focus-visible,textarea:focus,textarea:focus-visible,#composer:focus-within{outline:none!important;outline-color:transparent!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}
+textarea{-webkit-appearance:none;appearance:none;border:0!important;background:transparent!important}
+body[data-state=listening] .eye-body{animation:none;box-shadow:0 0 12px rgba(99,200,243,.24)}
