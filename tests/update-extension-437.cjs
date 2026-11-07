@@ -43,6 +43,7 @@ const excluded = new Set([
 ]);
 const runtimeFiles = [];
 const checks = [], lifecycle = [], pageErrors = [];
+const networkFixture = {feedResponses: 0, packageResponses: 0, aborted: 0};
 const report = {
   scope: 'candidate updater in real Chromium; disposable native extension folder',
   legacyUpdaterExecuted: false,
@@ -52,6 +53,7 @@ const report = {
   checks,
   lifecycle,
   pageErrors,
+  networkFixture,
   updates: []
 };
 let context, editor, sentinel, feedPackage, packageGate, closing = false, contextClosed = false;
@@ -260,12 +262,12 @@ async function recoveryPageStartup() {
       source: release.source
     };
   });
+  report.recoveryPageStartup = {...result, releaseNetworkFixture: true, folderSelectionExercised: false};
   assert.equal(result.protocol, 'file:');
   assert.equal(result.secureContext, true); assert.equal(result.directoryPicker, true);
   assert.equal(result.updaterVersion, '2.0.0'); assert.equal(result.runningVersion, '0.0.0');
   assert.equal(result.emptyRecovery, true, 'File-origin Web Lock and IndexedDB must be usable, not only exposed');
   assert.equal(result.available, true); assert.equal(result.releaseVersion, feedPackage.version);
-  report.recoveryPageStartup = {...result, releaseNetworkFixture: true, folderSelectionExercised: false};
   await helper.close();
   record('standalone file:// recovery executes under its real CSP and uses Web Locks, IndexedDB and the fixture feed');
 }
@@ -440,21 +442,26 @@ async function main() {
   context.on('close', () => { if (!closing) contextClosed = true; });
   context.pages().forEach(observe); context.on('page', observe);
   context.on('serviceworker', worker => lifecycle.push({event: 'service-worker', url: worker.url(), at: Date.now()}));
-  await context.route('https://**', async route => {
+  // A protocol-only glob such as 'https://**' is normalized as a hostname and
+  // gains a trailing slash. RegExp matches the full feed/package paths too.
+  await context.route(/^https?:\/\//, async route => {
     const url = new URL(route.request().url());
     if (url.origin === sentinelOrigin) return route.fulfill({contentType: 'text/html', body: '<!doctype html><title>Unrelated unsaved work</title><textarea id="draft"></textarea>'});
     if (url.pathname.endsWith('/channels/dev/chrome-extension.json')) {
+      networkFixture.feedResponses++;
       const data = JSON.stringify(feed());
       return route.fulfill({contentType: 'application/json', headers: {'access-control-allow-origin': '*'}, body: url.hostname === 'api.github.com'
         ? JSON.stringify({content: Buffer.from(data).toString('base64'), encoding: 'base64'}) : data});
     }
     if (url.pathname.endsWith('/' + feedPackage.name)) {
       packageRequests++;
+      networkFixture.packageResponses++;
       const selected = feedPackage;
       const gate = packageGate;
       if (gate) await gate;
       return route.fulfill({contentType: 'application/zip', headers: {'access-control-allow-origin': '*'}, body: selected.body});
     }
+    networkFixture.aborted++;
     return route.abort();
   });
   // Use the actual Chrome setting so runtime.reload remains a supported unpacked
