@@ -1,5 +1,5 @@
 /* Geometry, gradients and assets extracted from the owner's 390 × 844 Figma file. */
-:root{color-scheme:dark;font-family:Inter,Roboto,system-ui,sans-serif;font-weight:300;color:rgba(255,255,255,.74);background:#00396f;font-synthesis:none;--eye-fill:#ff2d2d;--eye-dark:#792525;--eye-x:50%;--eye-y:calc(100% - 34px)}
+:root{color-scheme:dark;font-family:Inter,Roboto,system-ui,sans-serif;font-weight:300;color:rgba(255,255,255,.74);background:#00396f;font-synthesis:none;--eye-fill:rgba(220,244,255,.13);--eye-dark:#792525;--eye-x:50%;--eye-y:calc(100% - 34px)}
 *{box-sizing:border-box}html,body{width:100%;height:100%;min-width:0;margin:0;overflow:hidden}button,textarea{font:inherit}button{border:0;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}button:focus-visible,textarea:focus-visible{outline:none}button:focus-visible .eye-body{box-shadow:0 0 0 5px rgba(175,225,255,.22)}#menu:focus-visible{filter:drop-shadow(0 0 5px rgba(175,225,255,.38))}#closeMenu:focus-visible{color:#fff}nav button:focus-visible{background:rgba(255,255,255,.09);border-radius:10px}button:disabled{opacity:.45}[hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 #scene{width:100%;height:100%;min-width:0;min-height:0;isolation:isolate;position:relative;display:flex;flex-direction:column;overflow:hidden;background:#00396f;border-radius:0}
 #ocean{position:absolute;inset:0;z-index:-2;overflow:hidden;border-radius:0;pointer-events:none;background:url('design/background-fullscreen.svg') center/100% 100% no-repeat}
@@ -23,4 +23,71 @@ body[data-state=thinking]{--eye-fill:#b34273}body[data-state=thinking] .eye-body
 body.paused *,body.motion-off #plankton *,body.motion-off #bubbles *{animation-play-state:paused!important}body.motion-off #bubbles{display:none}body.has-chat .plankton{opacity:.45}body[data-state=sleeping] .plankton{animation-duration:var(--duration,32s)}
 @media(max-width:340px){#menu{left:10px}header{height:96px}.wordmark{top:46px}.message{font-size:14px}nav button{font-size:13px}}
 @media(max-height:530px){header{height:64px}#menu{top:-6px;transform:scale(.72);transform-origin:50% 50%}.wordmark{top:25px}#settings{top:62px;max-height:calc(100% - 78px)}#cameraSlot{height:120px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}#bubbles{display:none}}
+@media(prefers-reduced-motion:reduce){.notice-creature,.sheet-creature{animation:none!important}}
+
+/* 0.2.2: true edge-to-edge ocean; safe areas affect controls, never the backdrop. */
+:root{--safe-top:0px;--safe-bottom:0px}
+html,body{position:fixed;inset:0;width:100%;height:100%;min-height:100%;padding:0;margin:0}
+#scene{position:fixed;inset:0;width:100vw;height:100%;min-height:100dvh;max-width:none;border:0;border-radius:0;margin:0;padding:0}
+#ocean{position:fixed;inset:0;width:100vw;height:100%;min-height:100dvh;border:0;border-radius:0;background:#00396f url('design/background-fullscreen.svg') center center/100% 100% no-repeat}
+header{height:calc(112px + var(--safe-top));padding-top:var(--safe-top)}
+#menu{top:calc(var(--safe-top) + 18px)}
+.wordmark{top:calc(var(--safe-top) + 49px)}
+#main{padding-left:8px;padding-right:8px}
+#dock{padding-bottom:calc(8px + var(--safe-bottom))}
+#composer{max-width:none}
+body[data-state=sleeping],body[data-state=idle]{--eye-fill:rgba(220,244,255,.13)}
+body[data-state=typing]{--eye-fill:#ff3038}
+body[data-state=typing] .eye-body{animation:typingBlink 3.7s ease-in-out infinite;box-shadow:0 0 14px rgba(255,48,56,.24)}
+body[data-state=typing] .eye-pupil{width:17px;height:6px}
+body[data-state=listening]{--eye-fill:#63c8f3}
+body[data-state=thinking]{--eye-fill:#9b8af1}
+body[data-state=speaking]{--eye-fill:#69d5ca}
+body[data-state=error]{--eye-fill:#e6a86b}
+body[data-state=camera]{--eye-fill:#7fc8e8}
+@keyframes typingBlink{0%,46%,50%,100%{transform:scaleY(1)}48%{transform:scaleY(.18)}}
+#eye:focus,#eye:focus-visible,#menu:focus,#menu:focus-visible,#closeMenu:focus,#closeMenu:focus-visible,nav button:focus,nav button:focus-visible,#dismiss:focus,#dismiss:focus-visible,#noticeAction:focus,#noticeAction:focus-visible,textarea:focus,textarea:focus-visible{outline:0!important;box-shadow:none!important}
+#eye:focus-visible .eye-body{box-shadow:0 0 0 3px rgba(185,230,255,.18)!important}
+#notice{display:flex;align-items:center;gap:0;width:min(88vw,390px);margin:0 14px 12px auto;padding:0;background:none;border:0;box-shadow:none;position:relative;min-height:58px;z-index:5}
+.notice-creature{position:absolute;left:-27px;bottom:0;width:46px;height:46px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(104,232,255,.8));animation:creatureGlow 2.8s ease-in-out infinite}
+.notice-bubble{margin-left:10px;width:100%;padding:13px 36px 13px 17px;border:1px solid rgba(132,220,255,.32);border-radius:22px 22px 6px 22px;background:linear-gradient(135deg,rgba(14,89,146,.92),rgba(3,47,91,.94));box-shadow:0 0 26px rgba(56,174,255,.16),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(18px);font-size:13px;line-height:1.48;color:rgba(232,248,255,.88);animation:appear .24s ease-out}
+#dismiss{position:absolute;right:3px;top:4px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.07);font-size:21px}
+#noticeAction{display:inline-flex;align-items:center;margin-top:9px;padding:7px 13px;min-height:32px;border-radius:18px;background:rgba(120,205,255,.14);border:1px solid rgba(160,225,255,.18);font-size:12px;color:#e7f7ff}
+@keyframes creatureGlow{50%{filter:drop-shadow(0 0 19px rgba(104,232,255,1));transform:translateY(-3px)}}
+#sheetShade,#providerSheet{position:fixed;inset:0;z-index:12;background:rgba(0,24,53,.34);backdrop-filter:blur(16px)}
+#updateSheet{position:fixed;inset:0;z-index:13;display:flex;align-items:center;justify-content:center;padding:calc(20px + var(--safe-top)) 18px calc(20px + var(--safe-bottom));}
+.sheet-creature{position:absolute;top:calc(50% - 170px);width:110px;height:110px;filter:drop-shadow(0 0 28px rgba(99,226,255,.8));opacity:.95;animation:creatureGlow 2.6s ease-in-out infinite}
+.sheet-creature img{width:100%;height:100%;object-fit:contain}
+.sheet-card,.provider-sheet-card{position:relative;width:min(100%,440px);max-height:82%;overflow:auto;padding:28px 23px 22px;border:1px solid rgba(160,225,255,.28);border-radius:28px;background:linear-gradient(145deg,rgba(14,91,148,.96),rgba(3,47,88,.97));box-shadow:0 24px 70px rgba(0,18,46,.42),inset 0 1px rgba(255,255,255,.1);backdrop-filter:blur(26px)}
+.sheet-close{position:absolute;right:13px;top:12px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.08);font-size:25px}
+.sheet-kicker{font-size:10px;letter-spacing:2.4px;color:#9edfff;margin-bottom:13px}
+.sheet-card h2,.provider-sheet-card h2{margin:0 35px 12px 0;font-size:23px;font-weight:400;color:#f1faff}
+.sheet-card p{margin:0;color:rgba(230,246,255,.78);font-size:13px;line-height:1.55;max-height:35vh;overflow:auto}
+.update-meta{display:flex;flex-direction:column;gap:5px;margin-top:16px;color:rgba(210,239,255,.6);font-size:11px}
+.sheet-actions{display:flex;gap:10px;margin-top:22px}
+.sheet-actions button{min-height:48px;flex:1;border-radius:18px;font-size:14px}
+.sheet-primary{background:linear-gradient(135deg,#ff4a4f,#c82c43);color:white;box-shadow:0 6px 20px rgba(255,48,64,.18)}
+.sheet-secondary{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+.update-progress{height:5px;margin-top:18px;border-radius:8px;background:rgba(255,255,255,.13);overflow:hidden}
+.update-progress i{display:block;width:35%;height:100%;border-radius:8px;background:#8de7ff;animation:progressDrift 1.1s ease-in-out infinite alternate}
+@keyframes progressDrift{to{transform:translateX(185%)}}
+.provider-sheet-card{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);margin:auto}
+#providerOptions{display:flex;flex-direction:column;gap:7px;margin-top:17px}
+#providerOptions button{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:14px 15px;border-radius:16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);min-height:48px}
+#providerOptions button:active{background:rgba(112,211,255,.18)}
+@media(max-width:340px){.sheet-card,.provider-sheet-card{padding:24px 17px 18px}#notice{width:90vw}}
+@media(prefers-reduced-motion:reduce){.notice-creature,.sheet-creature{animation:none}}
+
+/* Dynamic plankton is animated in independent, randomized swimming segments by app.js. */
+.plankton{animation:none!important;will-change:transform}
+@media(prefers-reduced-motion:reduce){.plankton{animation:none!important}.notice-creature,.sheet-creature{animation:none!important}}
+
+/* Remove WebView and Android focus rectangles from all touch controls. */
+button:focus,button:focus-visible,textarea:focus,textarea:focus-visible,#composer:focus-within{outline:none!important;outline-color:transparent!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}
+textarea{-webkit-appearance:none;appearance:none;border:0!important;background:transparent!important}
+body[data-state=listening] .eye-body{animation:none;box-shadow:0 0 12px rgba(99,200,243,.24)}
+
+.system-sheet{position:fixed;inset:0;z-index:14;display:flex;align-items:center;justify-content:center;padding:calc(20px + var(--safe-top)) 18px calc(20px + var(--safe-bottom));background:rgba(0,24,53,.42);backdrop-filter:blur(16px)}
+.system-sheet .sheet-card{max-height:82%;overflow:auto}
+
+#clearSheet,#privacySheet{z-index:15}

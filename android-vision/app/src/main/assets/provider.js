@@ -3,7 +3,7 @@
  * snapshot() advances a synchronous state machine: no hidden-WebView timer dependency.
  */
 (()=>{'use strict';
-if(window.OSMINOGMobileBridge?.version==='0.2.1')return;
+if(window.OSMINOGMobileBridge?.version==='0.2.2')return;
 const host=location.hostname,kind=({'chatgpt.com':'gpt','gemini.google.com':'gemini','claude.ai':'claude','chat.deepseek.com':'deepseek','alice.yandex.ru':'alice'})[host];if(!kind)return;
 const STORE='osminog-mobile-pending-v2',OWNED='osminog-mobile-owned-draft-v2';
 let job=null,result={state:'idle',ready:false},lastDiagnostic='';
@@ -16,6 +16,9 @@ function composer(){const selectors=kind==='gpt'?['#prompt-textarea','[contented
 const draft=e=>clean(e?.value??e?.innerText??e?.textContent);
 function scope(e){return e.closest('form,[data-type="unified-composer"],[data-testid*="composer"],[class*="composer"],[class*="chat-input"]')||e.parentElement?.parentElement||e.parentElement||document.body;}
 function sendButton(e){const ss=['button[data-testid="send-button"]','[data-testid="send-button"]','button[aria-label*="Send" i]','button[aria-label*="Отправ" i]','[role="button"][aria-label*="Send" i]','[role="button"][aria-label*="Отправ" i]','button[title*="Send" i]','button[title*="Отправ" i]','button.send-button','button[type="submit"]'];for(const s of ss){const found=allDeep(s,scope(e)).concat(allDeep(s)).find(b=>rendered(b)&&!b.disabled&&b.getAttribute('aria-disabled')!=='true'&&!b.closest('aside,header,nav'));if(found)return found;}return null;}
+function submitFallback(e){const form=e?.closest('form');if(form){try{if(typeof form.requestSubmit==='function'){form.requestSubmit();return'requestSubmit';}form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));return'submit-event';}catch{}}
+ try{e.focus();e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));e.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));return'enter-event';}catch{return'none';}}
+
 function stopButton(){return all('button[data-testid="stop-button"],button[aria-label="Stop generating"],button[aria-label="Остановить генерацию"],button[aria-label="Stop response"],button[aria-label="Остановить ответ"],button.stop-button').find(rendered);}
 function generating(){return !!stopButton()||all('[data-is-streaming="true"],[data-streaming="true"]').some(rendered);}
 function textOf(n){if(!n)return'';const c=n.cloneNode(true);c.querySelectorAll('button,svg,script,style,[aria-hidden="true"],.sr-only,[class*="copy-button"]').forEach(x=>x.remove());return clean(c.innerText||c.textContent).slice(0,50000);}
@@ -34,7 +37,7 @@ function imageFile(data){if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(da
 function start(req){if(!req||typeof req.id!=='string'||typeof req.text!=='string'||req.text.length>15000)return false;if(job&& !['done','error','cancelled'].includes(result.state))return false;
  const e=composer();result={id:req.id,state:'preparing',text:'',frameAccepted:false,sent:false};if(!e){fail('Войди в аккаунт и открой чат сервиса.','not-ready');return true;}if(generating()){fail('Сервис ещё отвечает на предыдущий вопрос.','generating');return true;}
  const existing=draft(e),owned=load(OWNED);if(existing&&(!owned||existing!==owned.text||owned.host!==host)){fail('В сервисе есть неотправленный текст. Открой чат и отправь или очисти черновик. Я его не удаляю.','draft');return true;}
- const before=answers();job={id:req.id,marker:req.text.match(/\[OSMINOG:[^\]]+\]/)?.[0]||req.text.slice(0,100),text:req.text,image:req.image||'',route:location.pathname,started:Date.now(),phase:'prepare',beforeNodes:new Set(before),beforeHashes:new Set(before.map(x=>hash(textOf(x)))),submitted:false,stable:'',stableSince:0,frameReadyAt:0,enterRequested:false};return true;}
+ const before=answers();job={id:req.id,marker:req.text.match(/\u2063OSMINOG:[^\u2063]+\u2063/)?.[0]||req.text.slice(0,100),text:req.text,image:req.image||'',route:location.pathname,started:Date.now(),phase:'prepare',beforeNodes:new Set(before),beforeHashes:new Set(before.map(x=>hash(textOf(x)))),submitted:false,stable:'',stableSince:0,frameReadyAt:0,enterRequested:false};return true;}
 function restore(){const p=load(STORE);if(!p||Date.now()-p.started>180000){store(STORE,null);return;}job={...p,phase:'waiting',text:'',image:'',beforeNodes:new Set(),beforeHashes:new Set(p.beforeHashes||[]),stable:'',stableSince:0,restored:true};result={id:p.id,state:'waiting',text:'',sent:true,frameAccepted:!!p.frameAccepted};}
 function tick(){if(!job)return result;if(location.hostname!==host)return fail('Сервис сменил адрес. Сеанс остановлен.','origin');const now=Date.now();if(now-job.started>175000)return fail('Время ожидания истекло. Проверь ответ в чате сервиса; повторно вопрос не отправлялся.','timeout');let e=composer();
  if(job.phase==='prepare'){
@@ -53,17 +56,18 @@ function tick(){if(!job)return result;if(location.hostname!==host)return fail('�
   if(!e)return fail('Поле ввода недоступно.','composer');const old=draft(e),owned=load(OWNED);if(old&&(!owned||old!==owned.text))return fail('Черновик в сервисе изменился. Проверь его перед отправкой.','draft');setText(e,job.text);store(OWNED,{host,text:job.text,id:job.id});job.phase='submit';job.phaseAt=now;return result;
  }
  if(job.phase==='submit'){
-  if(!e)return fail('Поле ввода исчезло перед отправкой.','composer');if(draft(e)!==clean(job.text))return fail('Сервис не принял текст в поле ввода. Черновик сохранён.','composer');const button=sendButton(e);if(!button&&now-job.phaseAt<1800)return result;job.submitted=true;job.phase='waiting';job.phaseAt=now;result.state='waiting';persist();if(button)button.click();else{e.focus();job.enterRequested=true;result.nativeAction='enter';}return result;
+  if(!e)return fail('Поле ввода исчезло перед отправкой.','composer');if(draft(e)!==clean(job.text))return fail('Сервис не принял текст в поле ввода. Черновик сохранён.','composer');const button=sendButton(e);if(!button&&now-job.phaseAt<1800)return result;job.submitted=true;job.phase='waiting';job.phaseAt=now;job.fallbackAttempted=false;result.state='waiting';persist();if(button)button.click();else submitFallback(e);return result;
  }
  if(job.phase==='waiting'){
   if(result.nativeAction)delete result.nativeAction;
   const anchor=echo(job.marker);if(anchor){result.sent=true;store(OWNED,null);}const route=location.pathname;if(route!==job.route&&!anchor&&!['/','/app','/new','/a/chat','/chat'].includes(job.route)&&!job.restored)return fail('Открыт другой чат. Ответы не будут смешаны.','route');
   const candidates=answers().filter(n=>anchor?!!(anchor.compareDocumentPosition(n)&Node.DOCUMENT_POSITION_FOLLOWING):!job.restored&&!job.beforeNodes.has(n)&&!job.beforeHashes.has(hash(textOf(n))));const n=candidates[candidates.length-1],text=textOf(n);
   if(text&&text!==job.text&&(!job.beforeHashes.has(hash(text))||anchor)){result.sent=true;result.text=text;result.state='answering';if(text!==job.stable){job.stable=text;job.stableSince=now;}if(!generating()&&now-job.stableSince>=2600){result.state='done';store(STORE,null);store(OWNED,null);job=null;return result;}}
-  if(!anchor&&!text&&e&&draft(e)===clean(job.text)&&now-job.phaseAt>14000)return fail('Сервис не отправил подготовленный вопрос. Открой чат — текст остался в поле ввода.','not-sent');
+  if(!anchor&&!text&&e&&draft(e)===clean(job.text)&&!generating()&&now-job.phaseAt>2200&&!job.fallbackAttempted){job.fallbackAttempted=true;const button=sendButton(e);if(button)button.click();else submitFallback(e);job.fallbackAt=now;}
+   if(!anchor&&!text&&e&&draft(e)===clean(job.text)&&now-job.phaseAt>14000)return fail('Сервис не подтвердил отправку вопроса. Черновик сохранён, автоматически повторять его не буду. Проверь чат сервиса.','not-sent');
  }
  return result;
 }
 restore();
-window.OSMINOGMobileBridge={version:'0.2.1',probe:()=>({ready:!!composer(),kind,hasDraft:!!draft(composer()),generating:generating()}),start,snapshot:()=>{try{return tick()}catch(e){return fail('Не удалось прочитать ответ сервиса. Открой чат.','adapter')}},cancel(){const e=composer(),owned=load(OWNED);if(e&&owned&&owned.host===host&&draft(e)===owned.text)setText(e,'');const stop=stopButton();if(stop)stop.click();job=null;store(STORE,null);store(OWNED,null);result={state:'cancelled'};},diagnostics:()=>({version:'0.2.1',kind,state:result.state,code:lastDiagnostic,composer:!!composer(),answerNodes:answers().length,hasDraft:!!draft(composer())})};
+window.OSMINOGMobileBridge={version:'0.2.2',probe:()=>{const e=composer();return{ready:!!e&&!!(sendButton(e)||e.closest('form')||e.isContentEditable),kind,hasDraft:!!draft(e),generating:generating(),canSubmit:!!e&&!!(sendButton(e)||e.closest('form')||e.isContentEditable)}},start,snapshot:()=>{try{return tick()}catch(e){return fail('Не удалось прочитать ответ сервиса. Открой чат.','adapter')}},cancel(){const e=composer(),owned=load(OWNED);if(e&&owned&&owned.host===host&&draft(e)===owned.text)setText(e,'');const stop=stopButton();if(stop)stop.click();job=null;store(STORE,null);store(OWNED,null);result={state:'cancelled'};},diagnostics:()=>({version:'0.2.2',kind,state:result.state,code:lastDiagnostic,composer:!!composer(),answerNodes:answers().length,hasDraft:!!draft(composer())})};
 })();
