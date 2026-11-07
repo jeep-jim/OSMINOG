@@ -38,7 +38,9 @@ final class ForegroundTransport {
   // The real chat stays active until the reply completes. Do not pretend the
   // hidden site's field is a live connection or dispatch a second question.
   a.providerPanel.setVisibility(View.VISIBLE);a.provider.setVisibility(View.VISIBLE);
-  a.shell.setVisibility(View.INVISIBLE);a.preview.setVisibility(View.GONE);status.setVisibility(View.VISIBLE);
+  a.shell.setVisibility(View.INVISIBLE);status.setVisibility(View.VISIBLE);
+  // Do not hide/destroy an enabled camera TextureView before eye.frame():
+  // SurfaceTexture destruction closes the camera and aborts the pending frame.
   a.provider.onResume();a.provider.resumeTimers();a.provider.requestFocus();
   stage("loading","Проверяю чат. Вопрос ещё не отправлен.");a.ensureProviderLoaded();
   a.handler.postDelayed(()->{if(valid(token,epoch))fail(id,"renderer_timeout","Страница чата не ответила. Вопрос не отправлен. Открой диагностику подключения в звезде.");},32000);
