@@ -3,7 +3,7 @@
   if(globalThis.__osminogWindowManagerV3)return;
   globalThis.__osminogWindowManagerV3=true;
   const STORAGE_KEY="osminogWindowManagerV3",dirs=["n","e","s","w","ne","se","sw","nw"],windows=new Map();
-  const CORE_WINDOWS=new Set(["ai-chat","graphics-app","text-app","browser-app","files","module-store","team","code-app","browser-hub","markdown","modules","store-developer","google-ai","access-center","extension-studio"]);
+  const CORE_WINDOWS=new Set(["ai-chat","graphics-app","text-app","files","module-store","team","code-app","markdown","modules","store-developer","google-ai","access-center","extension-studio"]);
   let state={},saveTimer=0,z=30000,lastAction={x:innerWidth/2,y:innerHeight/2,at:0};
   const $=(s,r=document)=>typeof s==="string"?r.querySelector(s):s;
   const projectKey=()=>globalThis.project?.()?.id||"global";
@@ -40,7 +40,7 @@
   async function install(){try{state=(await chrome.storage.local.get(STORAGE_KEY))?.[STORAGE_KEY]||{}}catch{state={}}[
     {name:"ai-chat",target:"#bridgePanel",handle:"#bridgePanel .bridge-head",title:"OSMINOG AI",icon:"AI",kind:"chat",nodeable:false,minW:400,minH:430,defaultW:560,defaultH:690},
     {name:"team",target:"#teamWorkspace .team-shell",handle:"#teamWorkspace .team-head",title:"Команда",icon:"◎",nodeable:false,minW:560,minH:480,defaultW:760,defaultH:620},
-    {name:"browser-hub",target:"#browserHub",handle:"#browserHub .browser-hub-head",title:"Браузер",icon:"⌕",nodeable:true,minW:620,minH:430,defaultW:880,defaultH:640},
+    
     {name:"markdown",target:"#markdownStudio",handle:"#markdownStudio .markdown-head",title:"Текст и документы",icon:"T",nodeable:false,minW:620,minH:420},
     {name:"modules",target:"#modulesPopover",handle:"#modulesPopover .modules-head",title:"Подключения",icon:"◇",nodeable:false,minW:560,minH:420,defaultW:820,defaultH:620},
     {name:"module-store",target:"#providerRegistry",handle:"#providerRegistry .provider-registry-head",title:"Модули",icon:"▦",nodeable:false,minW:760,minH:520,defaultW:1080,defaultH:720},

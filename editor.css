@@ -41,11 +41,9 @@ html[data-theme=dark]{color-scheme:dark;--bg:#101216;--board:#151820;--surface:#
 @media(max-width:1280px){.topbar{grid-template-columns:minmax(230px,1fr) auto minmax(330px,1fr)}.brand.compact span,.ai-share span:last-child,.top-actions .profile-btn{display:none}.mode-switch button{padding:0 9px}.inspector{width:330px}.welcome-main{grid-template-columns:minmax(380px,.8fr) minmax(540px,1.2fr);gap:34px}.welcome-copy h1{font-size:clamp(48px,5.3vw,68px)}}
 @media(max-width:1020px){.welcome-main{display:block;padding-top:72px}.welcome-copy{max-width:720px;margin:auto}.story-stage{max-width:720px;margin:55px auto 0}.topbar{grid-template-columns:1fr auto}.mode-switch{position:absolute;left:50%;top:70px;transform:translateX(-50%)}.top-actions{grid-column:2}.workspace-prefs,.top-actions .icon-btn:nth-of-type(2),.top-actions .icon-btn:nth-of-type(5){display:none}.inspector{width:310px}.tool-rail{max-width:calc(100vw - 150px);overflow-x:auto}.project-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.welcome-nav{width:calc(100% - 16px);top:8px;margin-top:8px}.welcome-actions .soft-btn,.welcome-actions .profile-btn{display:none}.welcome-actions .smart-select{width:112px}.welcome-main{width:calc(100% - 28px);padding-top:64px}.welcome-copy h1{font-size:43px}.welcome-copy>p{font-size:16px}.story-stage{display:none}.project-grid{grid-template-columns:1fr}.topbar{left:6px;right:6px;top:6px}.top-actions .ai-share,.top-actions .primary-btn{display:none}.mode-switch button span,.mode-switch kbd{display:none}.mode-switch{top:68px}.layers-panel{width:min(326px,88vw)}.inspector{width:min(340px,88vw);right:6px}.bottom-dock{right:8px}.tool-rail{left:8px;right:8px;transform:none;max-width:none;overflow-x:auto;justify-content:flex-start}.trust-row{flex-wrap:wrap}}
-
 /* OSMINOG Bridge 3.2 */
 .bridge-panel{position:absolute;z-index:260;top:82px;right:122px;width:430px;max-height:calc(100vh - 104px);border:1px solid var(--line);border-radius:22px;background:color-mix(in srgb,var(--surface) 94%,transparent);box-shadow:0 30px 90px rgba(10,14,24,.28);overflow:hidden}.bridge-panel[hidden]{display:none}.bridge-head{height:68px;padding:0 14px 0 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.bridge-title,.bridge-head-actions,.bridge-session,.bridge-sync-line,.bridge-bottom-actions,.bridge-patch-head,.bridge-patch-actions{display:flex;align-items:center}.bridge-title{gap:11px}.bridge-title small,.bridge-session small,.bridge-patch-head small{display:block;color:var(--muted);font-size:9px;letter-spacing:.12em}.bridge-title strong,.bridge-session strong,.bridge-patch-head strong{display:block;margin-top:3px;font-size:13px}.bridge-orb{width:35px;height:35px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#536cff,#8b5cf6);color:white;font:700 10px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;box-shadow:0 8px 22px #526fff33}.bridge-head-actions{gap:8px}.bridge-live-badge{height:22px;padding:0 9px;border-radius:999px;display:grid;place-items:center;font:700 9px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;letter-spacing:.08em}.bridge-live-badge.offline{background:var(--surface-2);color:var(--muted)}.bridge-live-badge.online{background:color-mix(in srgb,var(--green) 15%,transparent);color:var(--green);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--green) 28%,transparent)}.bridge-body{padding:13px;overflow:auto;max-height:calc(100vh - 172px)}.bridge-consent{padding:6px}.bridge-consent>strong{display:block;font-size:16px}.bridge-consent>p{margin:8px 0 14px;color:var(--muted);font-size:11px;line-height:1.55}.bridge-targets{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.bridge-target{min-height:56px;padding:8px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2);text-align:left}.bridge-target b,.bridge-target small{display:block}.bridge-target b{font-size:12px}.bridge-target small{margin-top:4px;color:var(--muted);font-size:9px}.bridge-target.active{border-color:color-mix(in srgb,var(--accent) 52%,var(--line));background:var(--accent-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 10%,transparent)}.bridge-connect{width:100%;height:43px;margin-top:10px}.bridge-privacy-note{display:block;margin:8px 4px 0;color:var(--muted);font-size:9px;line-height:1.4}.bridge-session{justify-content:space-between;padding:9px 10px 11px}.bridge-session-meta{display:flex;gap:6px}.bridge-session-meta span{padding:5px 7px;border-radius:8px;background:var(--surface-2);color:var(--muted);font:9px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}.bridge-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.bridge-action{min-height:68px;padding:11px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);text-align:left;transition:.16s ease}.bridge-action:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}.bridge-action b,.bridge-action span{display:block}.bridge-action b{font-size:12px}.bridge-action span{margin-top:5px;color:var(--muted);font-size:9px;line-height:1.35}.bridge-action.primary{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 18%,var(--surface)),color-mix(in srgb,#8b5cf6 14%,var(--surface)));border-color:color-mix(in srgb,var(--accent) 36%,var(--line))}.bridge-options{margin-top:9px;padding:9px 10px;border:1px solid var(--line);border-radius:13px;background:var(--surface);display:grid;gap:7px}.bridge-options label{display:flex;align-items:center;gap:8px;font-size:10px}.bridge-options input{accent-color:var(--accent)}.bridge-sync-line{gap:10px;margin-top:9px;padding:10px;border-radius:13px;background:color-mix(in srgb,var(--green) 6%,var(--surface-2));border:1px solid color-mix(in srgb,var(--green) 15%,var(--line))}.bridge-pulse{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px color-mix(in srgb,var(--green) 12%,transparent)}.bridge-sync-line strong,.bridge-sync-line small{display:block}.bridge-sync-line strong{font-size:10px}.bridge-sync-line small{margin-top:3px;color:var(--muted);font-size:9px}.bridge-patch-box{margin-top:9px;border:1px solid color-mix(in srgb,#8b5cf6 36%,var(--line));border-radius:15px;background:color-mix(in srgb,#8b5cf6 6%,var(--surface));overflow:hidden}.bridge-patch-head{justify-content:space-between;padding:11px 12px;border-bottom:1px solid var(--line)}.bridge-patch-head>span{min-width:27px;height:27px;border-radius:9px;background:#8b5cf622;color:#8b5cf6;display:grid;place-items:center;font:700 10px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}.bridge-patch-list{max-height:180px;overflow:auto;padding:6px}.bridge-patch-row{width:100%;min-height:38px;padding:6px 8px;border:0;border-radius:9px;background:transparent;display:grid;grid-template-columns:24px 1fr;align-items:center;text-align:left}.bridge-patch-row:hover{background:var(--surface-2)}.bridge-patch-row span{width:21px;height:21px;border-radius:7px;background:var(--surface);display:grid;place-items:center;color:var(--muted);font:9px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}.bridge-patch-row strong{font-size:9px;font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bridge-patch-actions{gap:7px;padding:8px;border-top:1px solid var(--line)}.bridge-patch-actions button{flex:1}.bridge-bottom-actions{gap:7px;margin-top:9px}.bridge-bottom-actions button{flex:1}.danger-soft{color:#ef4c76!important}.ai-share.bridge-connected{border-color:color-mix(in srgb,var(--green) 30%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 7%,transparent)}
 @media(max-width:820px){.bridge-panel{left:8px;right:8px;top:78px;width:auto}.bridge-actions-grid{grid-template-columns:1fr 1fr}}
-
 /* OSMINOG 3.3.0 · Live AI Presence */
 .live-ai-panel{width:520px;right:96px;max-height:calc(100vh - 98px)}
 .live-ai-panel .bridge-body{max-height:calc(100vh - 166px)}
@@ -79,7 +77,6 @@ html[data-theme=dark]{color-scheme:dark;--bg:#101216;--board:#151820;--surface:#
 .live-ai-panel .bridge-patch-list{max-height:130px}
 .live-ai-panel .bridge-live-badge.thinking{background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 24%,transparent)}
 @media(max-width:820px){.live-ai-panel{left:8px;right:8px;top:78px;width:auto}.live-ai-row{display:block}.access-field{width:auto}.live-ai-messages{max-height:42vh}}
-
 /* OSMINOG 3.4 Connector */
 .connector-health-card{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin:4px 0 12px;padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2)}
 .connector-health-card strong,.connector-health-card small{display:block}.connector-health-card strong{font-size:10px}.connector-health-card small{margin-top:3px;color:var(--muted);font-size:9px;line-height:1.35}
@@ -90,7 +87,6 @@ html[data-theme=dark]{color-scheme:dark;--bg:#101216;--board:#151820;--surface:#
 /* OSMINOG 3.5 — One-click AI Presence */
 .oneclick-card{grid-template-columns:auto 1fr!important;margin-top:10px!important}.oneclick-card .compact-btn{display:none}.oneclick-connect{height:48px!important;font-weight:800!important}.connector-pair-box{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;margin:10px 0;padding:12px;border:1px solid color-mix(in srgb,var(--green) 20%,var(--line));border-radius:14px;background:color-mix(in srgb,var(--green) 5%,var(--surface-2))}.connector-pair-icon{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--green) 14%,var(--surface));color:var(--green);font:800 15px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}.connector-pair-box small,.connector-pair-box strong{display:block}.connector-pair-box small{color:var(--muted);font-size:8px;letter-spacing:.1em}.connector-pair-box strong{margin-top:3px;font-size:11px}.connector-pair-box p{margin:4px 0 0;color:var(--muted);font-size:9px;line-height:1.35}.connector-pair-box button{white-space:nowrap}.connector-workspace{min-height:430px!important}
 .connector-dev-test{margin:8px 0;padding:10px;border:1px dashed color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent) 4%,var(--surface));}.connector-dev-test>div>small,.connector-dev-test>div>strong{display:block}.connector-dev-test>div>small{color:var(--muted);font-size:8px;letter-spacing:.1em}.connector-dev-test>div>strong{margin-top:3px;font-size:10px}.connector-dev-row{display:grid!important;grid-template-columns:1fr auto;gap:7px;margin-top:8px}.connector-dev-row input{min-width:0;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text);font:8px ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}.connector-dev-test>small{display:block;margin-top:7px;color:var(--muted);font-size:8px;line-height:1.35}
-
 /* OSMINOG 3.6 — local AI Presence */
 .local-ai-shell{display:flex;flex-direction:column;gap:12px;min-height:620px;height:min(76vh,820px)}
 .local-ai-topline{display:flex;align-items:center;justify-content:space-between;gap:12px}.local-ai-presence{display:flex;gap:11px;align-items:flex-start}.local-ai-presence small,.local-ai-projectbar{font-size:10px;letter-spacing:.11em;color:var(--muted)}.local-ai-presence strong{display:block;font-size:15px;margin-top:2px}.local-ai-presence p{margin:3px 0 0;font-size:11px;color:var(--muted);max-width:390px;line-height:1.35}.local-ai-dot{width:10px;height:10px;margin-top:5px;border-radius:50%;background:#27d39a;box-shadow:0 0 0 5px rgba(39,211,154,.10)}
@@ -103,7 +99,6 @@ html[data-theme=dark]{color-scheme:dark;--bg:#101216;--board:#151820;--surface:#
 .gpt-presence-status>span{width:9px;height:9px;border-radius:50%;background:#687189;box-shadow:0 0 0 4px rgba(104,113,137,.10)}
 .gpt-presence-status.online>span{background:#27d39a;box-shadow:0 0 0 5px rgba(39,211,154,.10)}
 .gpt-presence-status strong,.gpt-presence-status small{display:block}.gpt-presence-status strong{font-size:11px}.gpt-presence-status small{margin-top:3px;font-size:10px;color:var(--muted);line-height:1.35}
-
 /* OSMINOG 3.8.1 · movable/collapsible GPT Presence panel */
 .gpt-presence-drag-handle{cursor:grab;user-select:none;touch-action:none}
 .gpt-presence-moving .gpt-presence-drag-handle{cursor:grabbing}
@@ -113,8 +108,6 @@ html[data-theme=dark]{color-scheme:dark;--bg:#101216;--board:#151820;--surface:#
 .gpt-presence-bubble:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent) 62%,var(--line))}
 .gpt-presence-bubble-dot{width:9px;height:9px;border-radius:50%;background:#27d39a;box-shadow:0 0 0 5px rgba(39,211,154,.10)}
 .gpt-presence-bubble strong{font-size:11px}.gpt-presence-bubble small{color:var(--muted);font-size:9px}
-
-
 /* OSMINOG 3.8.13 · Chat workspace, focus context, ghost, save/exit, attachments */
 .brand>svg,.hint-orb svg,.bridge-orb svg,.gpt-bubble-logo{stroke:none!important;fill:none!important;padding:0!important;background:transparent!important}
 .brand>svg{width:34px;height:40px}.brand.compact>svg{width:30px;height:38px}.hint-orb svg{width:34px;height:43px}.bridge-orb{background:color-mix(in srgb,#EEBF26 13%,var(--surface))!important}.bridge-orb svg{width:23px;height:29px}
@@ -135,8 +128,6 @@ html[data-theme=dark]{color-scheme:dark;--bg:#101216;--board:#151820;--surface:#
 .gpt-msg-attachments{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}.gpt-msg-attachment{padding:4px 7px;border-radius:8px;background:rgba(255,255,255,.10);font-size:9px}.local-ai-msg.assistant .gpt-msg-attachment{background:var(--surface-2)}
 .gpt-presence-bubble{touch-action:none;user-select:none;min-width:102px;padding:0 12px 0 9px}.gpt-bubble-logo{width:22px!important;height:28px!important}.gpt-presence-bubble-dot{width:7px;height:7px;box-shadow:0 0 0 3px rgba(39,211,154,.10)}
 @media(max-width:620px){.gpt-resizable-panel{resize:none!important;left:8px!important;right:8px!important;top:78px!important;width:auto!important;height:calc(100vh - 86px)!important;max-height:none!important}.local-ai-compose{grid-template-columns:auto minmax(0,1fr) auto}.gpt-compose-tools{gap:3px}.gpt-compose-icon{width:34px;height:38px}.local-ai-compose .primary-btn{min-width:82px;padding:0 11px}}
-
-
 /* 3.8.13 UX pass — system typography, save/exit, AI focus context */
 body,button,input,textarea,select{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif}
 .save-state-btn{height:40px;padding:0 12px;gap:7px;color:var(--green);border-color:color-mix(in srgb,var(--green) 24%,var(--line));background:color-mix(in srgb,var(--green) 5%,var(--surface))}.save-state-btn svg{width:16px;height:16px}.save-state-btn.dirty{color:var(--yellow);border-color:color-mix(in srgb,var(--yellow) 35%,var(--line));background:color-mix(in srgb,var(--yellow) 7%,var(--surface))}.save-state-btn.error{color:var(--red);border-color:color-mix(in srgb,var(--red) 35%,var(--line))}.exit-app-btn{color:var(--muted)}.exit-app-btn:hover{color:var(--red);border-color:color-mix(in srgb,var(--red) 35%,var(--line));background:color-mix(in srgb,var(--red) 6%,var(--surface))}
@@ -147,7 +138,6 @@ body,button,input,textarea,select{font-family:ui-sans-serif,-apple-system,BlinkM
 .gpt-attachment-chip.image{min-width:145px;max-width:230px}.gpt-attachment-chip.image>img{width:48px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}.gpt-msg-attachments{align-items:flex-start}.gpt-msg-image{margin:5px 0 0;max-width:min(320px,100%);overflow:hidden;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.12)}.gpt-msg-image img{display:block;width:100%;max-height:220px;object-fit:contain;background:rgba(0,0,0,.18)}.gpt-msg-image figcaption{padding:5px 7px;font-size:8px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ai-canvas-ghost{position:fixed;z-index:260;left:0;top:0;width:72px;height:92px;pointer-events:none;opacity:0;transform:translate3d(-120px,-120px,0);transition:transform .82s cubic-bezier(.22,.9,.3,1.08),opacity .25s ease;filter:drop-shadow(0 15px 24px rgba(98,64,210,.28))}.ai-canvas-ghost.active{opacity:1}.ai-ghost-cloud{position:relative;width:66px;height:62px;border-radius:52% 48% 46% 54% / 49% 52% 48% 51%;background:linear-gradient(145deg,#b78cff 0%,#7c5cff 54%,#6044d8 100%);animation:aiGhostFloat 1.75s ease-in-out infinite;box-shadow:inset 0 6px 14px rgba(255,255,255,.2)}.ai-ghost-cloud:before,.ai-ghost-cloud:after{content:"";position:absolute;bottom:-12px;width:25px;height:27px;background:#6548df;border-radius:0 0 80% 80%}.ai-ghost-cloud:before{left:5px;transform:rotate(20deg)}.ai-ghost-cloud:after{right:5px;transform:rotate(-20deg)}.ai-ghost-cloud .eye{position:absolute;z-index:3;top:22px;width:12px;height:15px;border-radius:50%;background:white}.ai-ghost-cloud .eye:after{content:"";position:absolute;width:5px;height:7px;left:4px;top:5px;border-radius:50%;background:#28203d}.ai-ghost-cloud .eye.a{left:18px}.ai-ghost-cloud .eye.b{right:18px}.ai-ghost-cloud>span{position:absolute;z-index:3;left:29px;top:42px;width:9px;height:4px;border-bottom:2px solid rgba(38,28,66,.7);border-radius:50%}.ai-canvas-ghost>small{position:absolute;left:50%;top:70px;transform:translateX(-50%);max-width:150px;width:max-content;padding:4px 7px;border:1px solid color-mix(in srgb,#9b7cff 38%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--text);font-size:8px;box-shadow:0 6px 20px rgba(0,0,0,.16)}@keyframes aiGhostFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-7px) rotate(2deg)}}
 @media(max-width:1100px){.save-state-btn span{display:none}.save-state-btn{width:40px;padding:0}.exit-app-btn{display:none}}
-
 /* OSMINOG 3.8.13 — agent threads, tethers, editable chat palette */
 .gpt-resizable-panel{background:var(--gpt-panel-bg,var(--surface))!important}
 .gpt-presence-shell .local-ai-messages{background:color-mix(in srgb,var(--gpt-panel-bg,var(--surface)) 88%,var(--surface-2))!important;border-color:color-mix(in srgb,var(--line) 82%,transparent)!important}
@@ -170,7 +160,6 @@ body,button,input,textarea,select{font-family:ui-sans-serif,-apple-system,BlinkM
 .ai-ghost-cloud{background:linear-gradient(145deg,color-mix(in srgb,var(--ghost-color,#8b5cf6) 62%,white) 0%,var(--ghost-color,#8b5cf6) 56%,color-mix(in srgb,var(--ghost-color,#8b5cf6) 76%,black) 100%)!important}.ai-ghost-cloud:before,.ai-ghost-cloud:after{background:color-mix(in srgb,var(--ghost-color,#8b5cf6) 84%,black)!important}.ai-canvas-ghost{filter:drop-shadow(0 15px 24px color-mix(in srgb,var(--ghost-color,#8b5cf6) 32%,transparent))!important}.gpt-context-eye{background:var(--agent-color,#8b5cf6)!important}.gpt-context-chip{border-color:color-mix(in srgb,var(--agent-color,#8b5cf6) 36%,var(--line))!important;background:color-mix(in srgb,var(--agent-color,#8b5cf6) 8%,var(--surface-2))!important}
 html:not([data-theme=dark]) .gpt-presence-status{background:var(--surface-2)!important}.gpt-settings-popover{background:color-mix(in srgb,var(--surface) 98%,transparent)!important}.gpt-presence-shell .local-ai-projectbar{background:color-mix(in srgb,var(--surface-2) 92%,transparent)!important}
 .dragging-agent-link .canvas-object{transition:outline .12s,filter .12s}.canvas-object.agent-link-target{outline:3px dashed var(--agent-color,#8b5cf6)!important;outline-offset:8px!important;filter:drop-shadow(0 0 14px color-mix(in srgb,var(--agent-color,#8b5cf6) 48%,transparent))!important}.gpt-thread-ghost[draggable=true]{cursor:grab}.gpt-thread-ghost[draggable=true]:active{cursor:grabbing}
-
 /* OSMINOG 3.8.15 · stable agent tethers, edge resize, live edit composer */
 .gpt-resizable-panel{resize:none!important;overflow:visible!important}
 .gpt-panel-resize-handle{position:absolute;z-index:390;display:block;touch-action:none;background:transparent}
@@ -181,14 +170,11 @@ html:not([data-theme=dark]) .gpt-presence-status{background:var(--surface-2)!imp
 .gpt-panel-resize-ne,.gpt-panel-resize-nw,.gpt-panel-resize-se,.gpt-panel-resize-sw{width:17px;height:17px;z-index:391}
 .gpt-panel-resize-ne{right:-6px;top:-6px;cursor:nesw-resize}.gpt-panel-resize-nw{left:-6px;top:-6px;cursor:nwse-resize}.gpt-panel-resize-se{right:-6px;bottom:-6px;cursor:nwse-resize}.gpt-panel-resize-sw{left:-6px;bottom:-6px;cursor:nesw-resize}
 .gpt-panel-resizing{transition:none!important;user-select:none}
-
 .agent-head-avatar{overflow:hidden!important;display:grid!important;place-items:center!important;background:color-mix(in srgb,var(--agent-color,#EEBF26) 18%,var(--surface-2))!important;border:1px solid color-mix(in srgb,var(--agent-color,#EEBF26) 50%,var(--line))!important;color:var(--agent-color,#EEBF26)!important;box-shadow:0 5px 18px color-mix(in srgb,var(--agent-color,#EEBF26) 18%,transparent)!important}
 .agent-head-avatar>span{font:800 9px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:-.08em;white-space:nowrap;transform:scale(.88)}
 .gpt-thread-ghost{min-width:29px;width:auto;padding:0 4px;font-size:8px!important;letter-spacing:-.08em;white-space:nowrap}
-
 .gpt-agent-tethers path{stroke-width:2.2;stroke-dasharray:10 9;opacity:.42;animation:none!important;transition:d .22s ease,opacity .18s ease}
 .gpt-agent-tethers circle{transition:cx .22s ease,cy .22s ease}.gpt-agent-tethers .gpt-tether-port{fill:var(--tether-color,#8b5cf6);stroke:color-mix(in srgb,var(--surface) 82%,transparent);stroke-width:2.5;opacity:.95}
-
 .local-ai-compose{display:block!important;margin:0!important}
 .gpt-composer-frame{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:end;gap:4px;min-height:56px;padding:6px;border:1px solid var(--line);border-radius:18px;background:var(--gpt-composer-bg,var(--surface));box-shadow:0 8px 24px rgba(0,0,0,.08);transition:border-color .15s,box-shadow .15s}
 .gpt-composer-frame:focus-within{border-color:color-mix(in srgb,var(--agent-color,#8b5cf6) 55%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--agent-color,#8b5cf6) 10%,transparent)}
@@ -198,17 +184,12 @@ html:not([data-theme=dark]) .gpt-presence-status{background:var(--surface-2)!imp
 .gpt-composer-frame textarea{min-height:42px!important;max-height:210px!important;height:46px;resize:vertical!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:10px 8px 7px!important;line-height:1.45!important;overflow:auto}
 .gpt-send-arrow{width:40px;height:40px;margin:0 1px 1px 2px;border:0;border-radius:13px;background:var(--agent-color,#8b5cf6);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 7px 18px color-mix(in srgb,var(--agent-color,#8b5cf6) 25%,transparent);transition:transform .14s,filter .14s}
 .gpt-send-arrow:hover{filter:brightness(1.08);transform:translateY(-1px)}.gpt-send-arrow:active{transform:translateY(0) scale(.96)}.gpt-send-arrow svg{width:18px;height:18px;transform:rotate(-90deg)}
-
 .ai-canvas-ghost{transition:transform 1.28s cubic-bezier(.22,.78,.26,1),opacity .32s ease!important;will-change:transform,opacity}.ai-canvas-ghost.active{opacity:.96!important}.ai-ghost-cloud{animation:aiGhostFloat 2.35s ease-in-out infinite!important}
-
 .shape-object[data-shape-kind="triangle"]>.object-content{display:block!important;position:absolute;inset:0;height:100%!important;overflow:visible!important;background:var(--shape-bg,#8b6cff);clip-path:polygon(50% 0%,100% 100%,0% 100%);filter:drop-shadow(0 6px 10px rgba(0,0,0,.08));pointer-events:none}
-
 html[data-theme="light"] .gpt-presence-shell{color:#172033}.gpt-presence-shell .local-ai-messages{scroll-behavior:smooth}
 html[data-theme="light"] .gpt-composer-frame{background:var(--gpt-composer-bg,#fff);border-color:#dce2ea;box-shadow:0 8px 20px rgba(24,38,63,.07)}
 html[data-theme="light"] .local-ai-msg.assistant{color:#202735}html[data-theme="light"] .local-ai-msg.user{color:#fff}
-
 @media(max-width:620px){.gpt-panel-resize-handle{display:none!important}.gpt-composer-frame{grid-template-columns:auto minmax(0,1fr) auto}.gpt-thread-ghost{min-width:26px}.agent-head-avatar>span{font-size:8px}}
-
 /* 3.8.15 — vector tools, restrained agent wisps, compact composer */
 .vector-content{position:absolute;inset:0;overflow:visible!important;padding:0!important}
 .vector-object-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:auto}
@@ -222,7 +203,6 @@ html[data-theme="light"] .local-ai-msg.assistant{color:#202735}html[data-theme="
 .vector-draft{vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
 .vector-draft-nodes circle{fill:#fff;stroke:#526fff;stroke-width:2;vector-effect:non-scaling-stroke}
 .full-btn{width:100%;justify-content:center;margin:6px 0 10px}
-
 /* Same restrained wisp identity in header, tabs and canvas. */
 .agent-head-avatar{width:40px!important;height:40px!important;border-radius:13px!important;padding:0!important}
 .agent-wisp{--wisp:var(--agent-color,#8b5cf6);position:relative;display:inline-block;width:28px;height:24px;border-radius:52% 48% 58% 42% / 52% 46% 54% 48%;background:linear-gradient(145deg,color-mix(in srgb,var(--wisp) 72%,white 28%),var(--wisp));box-shadow:inset 0 1px 0 #ffffff55,0 4px 12px color-mix(in srgb,var(--wisp) 25%,transparent);transform:rotate(-4deg)}
@@ -232,7 +212,6 @@ html[data-theme="light"] .local-ai-msg.assistant{color:#202735}html[data-theme="
 .agent-wisp.mini{width:21px;height:18px}.agent-wisp.mini i{top:7px;width:3px;height:3.5px}.agent-wisp.mini i:first-child{left:6px}.agent-wisp.mini i:nth-child(2){right:6px}.agent-wisp.mini:after{bottom:-3px;height:7px}
 .agent-wisp.head{width:27px;height:23px}
 .gpt-thread-ghost{display:grid!important;place-items:center!important;min-width:27px!important;width:27px!important;height:24px!important;padding:0!important;color:inherit!important;background:transparent!important}
-
 .ai-canvas-ghost{width:54px!important;height:72px!important;filter:drop-shadow(0 12px 20px color-mix(in srgb,var(--ghost-color,#8b5cf6) 28%,transparent))!important;transition:transform 1.6s cubic-bezier(.22,.72,.24,1),opacity .28s ease!important}
 .ai-ghost-wisp{position:relative;width:48px;height:42px;border-radius:52% 48% 58% 42% / 52% 46% 54% 48%;background:linear-gradient(145deg,color-mix(in srgb,var(--ghost-color,#8b5cf6) 68%,white 32%),var(--ghost-color,#8b5cf6));box-shadow:inset 0 2px 0 #ffffff55,0 10px 24px color-mix(in srgb,var(--ghost-color,#8b5cf6) 22%,transparent);animation:aiWispFloat 3.4s ease-in-out infinite}
 .ai-ghost-wisp:after{content:"";position:absolute;left:7px;right:5px;bottom:-7px;height:14px;background:var(--ghost-color,#8b5cf6);clip-path:polygon(0 0,20% 100%,45% 24%,70% 92%,100% 0);opacity:.86}
@@ -241,7 +220,6 @@ html[data-theme="light"] .local-ai-msg.assistant{color:#202735}html[data-theme="
 .ai-canvas-ghost>small{top:50px!important;font-size:9px!important;padding:4px 8px!important;white-space:nowrap;opacity:.88}
 @keyframes aiWispFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-4px) rotate(2deg)}}
 .ai-ghost-cloud{display:none!important}
-
 /* Composer behaves like one compact control: tools + text + send all centered. */
 .gpt-compose-shell{padding-bottom:2px}
 .gpt-composer-frame{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;align-items:center!important;gap:3px!important;min-height:52px!important;padding:5px 6px!important;border-radius:17px!important}
@@ -251,10 +229,7 @@ html[data-theme="light"] .local-ai-msg.assistant{color:#202735}html[data-theme="
 .gpt-send-arrow{align-self:center!important;width:38px!important;height:38px!important;margin:0!important;border-radius:12px!important;transform:none!important}
 .gpt-send-arrow:hover{transform:translateY(-1px)!important}.gpt-send-arrow:active{transform:scale(.96)!important}.gpt-send-arrow svg{width:17px!important;height:17px!important;transform:rotate(-90deg)!important}
 .local-ai-compose{padding:0!important}
-
 html[data-theme="light"] .vector-node-layer>b{box-shadow:0 0 0 1px #2f3b56,0 3px 9px #17305a22}
-
-
 /* 3.8.16 — agent work/build state + live asset runtime */
 .ai-canvas-ghost[data-mode="work"] .ai-ghost-wisp{animation:aiWispWork 1.8s ease-in-out infinite;filter:saturate(1.08)}
 .ai-ghost-tools{position:absolute;z-index:8;left:25px;top:23px;width:43px;height:36px;opacity:0;transform:translateY(5px) scale(.92);transition:opacity .2s ease,transform .2s ease;pointer-events:none}
@@ -285,15 +260,11 @@ html[data-theme="light"] .vector-node-layer>b{box-shadow:0 0 0 1px #2f3b56,0 3px
 .gpt-attachment-chip.pdf>b{display:grid;place-items:center;min-width:30px;height:24px;border-radius:6px;background:#ef444420;color:#ef4444;font:800 9px/1 system-ui}
 /* 3.8.18 — research + owner Jarvis controls */
 .gpt-power-settings{display:grid;gap:7px;padding:9px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--surface-2) 76%,transparent)}.gpt-power-settings>span{font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--muted)}.gpt-power-settings>button{display:flex;align-items:center;justify-content:space-between;gap:10px}.gpt-power-settings button small{color:var(--muted)}.gpt-owner-box{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:7px;border-top:1px solid var(--line)}.gpt-owner-box>div,.gpt-owner-box>small{grid-column:1/-1}.gpt-owner-box>div{display:grid;gap:2px}.gpt-owner-box b{font-size:10px;color:#EEBF26}.gpt-owner-box small{font-size:9px;color:var(--muted);line-height:1.35}
-
-
 /* 3.8.19 — editor precision + update UI */
 .version-chip{height:30px;padding:0 9px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--surface-2) 86%,transparent);color:var(--muted);font:700 9px/1 ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer}.version-chip:hover{color:var(--text);border-color:color-mix(in srgb,var(--accent) 42%,var(--line))}
 .update-popover{position:absolute;z-index:90;left:112px;top:58px;width:min(390px,calc(100vw - 30px));padding:12px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface) 98%,transparent);box-shadow:0 26px 80px #0006;backdrop-filter:blur(20px)}.update-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.update-head small,.update-head strong{display:block}.update-head small{font-size:8px;letter-spacing:.12em;color:#EEBF26}.update-head strong{margin-top:3px;font-size:14px}.update-status-card{display:grid;gap:3px;margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}.update-status-card span,.update-status-card small{font-size:9px;color:var(--muted)}.update-status-card b{font-size:11px}.update-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.update-actions button{height:34px}.update-note{margin:9px 2px 0;color:var(--muted);font-size:9px;line-height:1.45}
 .vector-hit-path{pointer-events:stroke;cursor:move;vector-effect:non-scaling-stroke}.vector-object-path{stroke-linecap:round;stroke-linejoin:round}.vector-handle-line{display:block;height:1px;background:color-mix(in srgb,var(--agent-color,#8b5cf6) 70%,#fff);transform-origin:0 50%;pointer-events:none;opacity:.75}.vector-node-layer>b{width:11px;height:11px}.vector-control{width:9px;height:9px}
 .ink-object .object-content{height:100%!important;overflow:visible!important}.ink-object.selected,.vector-object.selected{outline:none!important}.ink-object-svg{overflow:visible}.ink-object-svg .ink-path{fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-
-
 /* 3.8.20 — collaboration / live presence */
 .collab-share{gap:6px}.collab-share svg{width:14px;height:14px}.collab-share.external-live{border-color:#35d49a88;box-shadow:0 0 0 3px #35d49a10}.collab-popover{position:absolute;z-index:96;right:178px;top:58px;width:min(520px,calc(100vw - 30px));padding:13px;border:1px solid var(--line);border-radius:17px;background:color-mix(in srgb,var(--surface) 98%,transparent);box-shadow:0 28px 90px #0007;backdrop-filter:blur(22px)}.collab-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.collab-head small,.collab-head strong{display:block}.collab-head small{font-size:8px;letter-spacing:.12em;color:#35d49a}.collab-head strong{margin-top:3px;font-size:14px}.collab-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.collab-mode-grid label{display:grid;gap:5px;min-width:0}.collab-mode-grid span,.collab-section-title>span{font-size:8px;font-weight:850;letter-spacing:.09em;color:var(--muted)}.collab-mode-grid select,.collab-invite-row input,.collab-invite-row select,.collab-ai-row select,.collab-link-row input{height:34px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text);padding:0 9px;min-width:0}.collab-link-row{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}.collab-link-row button{height:34px}.collab-section{display:grid;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.collab-section-title{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}.collab-section-title small,.collab-footnote{font-size:8.5px;line-height:1.4;color:var(--muted)}.collab-invite-row{display:grid;grid-template-columns:1fr 126px auto;gap:6px}.collab-invite-row button{height:34px}.collab-members{display:grid;gap:5px}.collab-member{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--surface-2) 76%,transparent)}.collab-avatar{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#526fff,#8b5cf6);color:#fff;font-size:9px;font-weight:850;box-shadow:0 5px 13px #0002}.collab-avatar.ai{background:linear-gradient(145deg,#EEBF26,#8b5cf6)}.collab-member strong,.collab-ai-row strong{font-size:10px}.collab-member small,.collab-ai-row small{display:block;font-size:8.5px;color:var(--muted)}.collab-member select{height:28px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:9px}.collab-member button{width:27px;height:27px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--muted)}.collab-ai-row{display:grid;grid-template-columns:auto 1fr 126px auto;align-items:center;gap:8px}.collab-ai-row button{height:34px}.collab-footnote{display:block;margin-top:9px}
 /* code/browser zoom shields + split */
@@ -311,14 +282,11 @@ html[data-theme="light"] .vector-node-layer>b{box-shadow:0 0 0 1px #2f3b56,0 3px
 .agent-task-dot{width:7px;height:7px;border-radius:50%;background:var(--agent-color);box-shadow:0 0 0 4px color-mix(in srgb,var(--agent-color) 18%,transparent);animation:agentTaskPulse 1.2s ease-in-out infinite}.gpt-thread-tab.agent-working .agent-task-dot{display:inline-block}@keyframes agentTaskPulse{50%{transform:scale(.65);opacity:.45}}
 .parallel-agent-ghost{position:absolute;z-index:42;display:flex;align-items:center;gap:6px;pointer-events:none;opacity:0;transition:opacity .25s,transform .8s cubic-bezier(.2,.7,.2,1);transform-origin:0 0;color:var(--agent-color);filter:drop-shadow(0 8px 18px color-mix(in srgb,var(--agent-color) 28%,transparent))}.parallel-agent-ghost.active{opacity:1}.parallel-agent-ghost .agent-wisp{width:34px;height:30px;background:color-mix(in srgb,var(--agent-color) 22%,#111 45%);border:1px solid color-mix(in srgb,var(--agent-color) 72%,#fff 8%)}.parallel-agent-ghost>span{font-size:11px;font-weight:800;color:var(--agent-color);background:color-mix(in srgb,#0e1118 82%,transparent);padding:4px 7px;border-radius:999px}.parallel-agent-ghost>small{font-size:10px;color:#cbd5e1;background:rgba(14,17,24,.78);padding:3px 6px;border-radius:999px}.parallel-agent-ghost[data-mode="work"] .agent-wisp{animation:agentWispWork .8s ease-in-out infinite alternate}.parallel-tools{font-style:normal;font-size:15px;animation:agentToolWork .55s ease-in-out infinite alternate}@keyframes agentWispWork{to{transform:translateY(-3px) rotate(-2deg)}}@keyframes agentToolWork{to{transform:rotate(22deg)}}
 .gpt-provider-settings label{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:8px}.gpt-provider-settings select{width:100%}
-
 /* 3.8.22 Google AI module widget */
 .google-ai-widget{position:fixed;right:24px;top:86px;width:min(520px,calc(100vw - 32px));height:min(720px,calc(100vh - 110px));min-width:360px;min-height:430px;z-index:1250;border-radius:22px;padding:0;display:flex;flex-direction:column;gap:0;overflow:hidden;resize:both;background:#202124;color:#e8eaed;border:1px solid #3c4043;box-shadow:0 24px 70px rgba(0,0,0,.38)}
 .google-ai-widget[hidden]{display:none}.google-ai-head{flex:0 0 auto;padding:13px 14px;border-bottom:1px solid #34373b;background:#202124;cursor:move}.google-ai-head strong{font-size:14px}.google-ai-head small{color:#9aa0a6}.google-mode-select{margin-left:auto;background:#292a2d;color:#e8eaed;border:1px solid #3c4043;border-radius:999px;padding:7px 10px;font:inherit}.google-g-mark{font-family:Arial,sans-serif!important;font-weight:800!important;background:conic-gradient(from 25deg,#4285f4 0 25%,#34a853 25% 45%,#fbbc05 45% 65%,#ea4335 65% 82%,#4285f4 82%)!important;color:transparent!important;-webkit-background-clip:text!important;background-clip:text!important;box-shadow:none!important;font-size:22px}.module-logo.google.google-g-mark{background-color:#fff!important;border-radius:50%;color:transparent!important}.google-ai-conversation{flex:1;overflow:auto;padding:18px 22px 12px;display:flex;flex-direction:column;gap:18px}.google-ai-welcome{margin:auto;text-align:center;max-width:360px}.google-ai-welcome[hidden]{display:none}.google-ai-welcome h2{font-size:29px;font-weight:500;letter-spacing:-.03em;margin:12px 0 8px}.google-ai-welcome p{color:#9aa0a6;font-size:12px}.google-ai-orb{margin:auto;width:42px;height:42px;display:grid;place-items:center;font:bold 28px Arial;background:conic-gradient(#4285f4,#34a853,#fbbc05,#ea4335,#4285f4);color:transparent;-webkit-background-clip:text;background-clip:text}.google-ai-turn{max-width:92%;font-size:14px;line-height:1.55}.google-ai-turn.user{align-self:flex-end;background:#303134;border-radius:18px 18px 4px 18px;padding:11px 14px}.google-ai-turn.assistant{align-self:flex-start;padding:2px 0}.google-ai-turn-role{font-size:10px;color:#9aa0a6;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}.google-ai-turn-text{white-space:normal}.google-ai-sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.google-ai-sources a{display:flex;align-items:center;gap:6px;text-decoration:none;color:#bdc1c6;border:1px solid #3c4043;border-radius:999px;padding:5px 8px;max-width:220px}.google-ai-sources b{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#303134;font-size:10px}.google-ai-sources span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}.google-ai-composer{margin:10px 18px 12px;border:1px solid #5f6368;border-radius:26px;min-height:58px;display:flex;align-items:flex-end;gap:8px;padding:8px 9px;background:#303134}.google-ai-composer:focus-within{border-color:#8ab4f8}.google-ai-composer textarea{flex:1;resize:none;max-height:150px;min-height:40px;border:0!important;outline:0;background:transparent!important;color:#e8eaed!important;padding:10px 4px!important;font:inherit}.google-ai-plus,.google-ai-send{border:0;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:23px;cursor:pointer}.google-ai-plus{background:#3c4043;color:#e8eaed}.google-ai-send{background:#8ab4f8;color:#202124;font-size:20px}.google-ai-footer{display:flex;align-items:center;gap:9px;padding:0 18px 14px;color:#9aa0a6;font-size:10px}.google-ai-footer>span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.google-ai-footer .text-btn{border:0;background:transparent;color:#8ab4f8;padding:4px;cursor:pointer;font-size:10px}.google-ai-footer .connected{color:#81c995}.module-widget-bubble{position:fixed;right:28px;top:120px;width:48px;height:48px;border:1px solid var(--line);border-radius:15px;background:var(--panel);z-index:1249;box-shadow:0 12px 32px rgba(0,0,0,.24);cursor:grab;display:grid;place-items:center}.module-widget-bubble[hidden]{display:none}.module-widget-bubble .google-g-mark{font-size:28px}.module-card[data-module="search"] .module-logo.google{background:#fff}.quick-search-results{display:none!important}
 /* 3.8.23 provider connect + launch polish */
 .empty-launch{width:min(720px,78vw);padding:28px 32px;border:1px solid color-mix(in srgb,var(--line) 82%,transparent);border-radius:30px;background:color-mix(in srgb,var(--surface) 86%,transparent);backdrop-filter:blur(18px);box-shadow:0 24px 80px #0004}.empty-launch .hint-orb{margin-bottom:12px}.empty-kicker{display:block;margin-bottom:8px;color:var(--accent);font-weight:800;letter-spacing:.16em}.empty-launch h2{font-size:34px}.empty-launch p{max-width:570px}.empty-launch-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.empty-provider-row{margin-top:16px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.empty-provider-row button{height:38px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--text);display:flex;align-items:center;gap:7px;font-weight:700}.empty-provider-row img{width:22px;height:22px;border-radius:7px}.module-logo{overflow:hidden;padding:0!important;background:transparent!important}.module-logo img,.google-g-mark img{display:block;width:100%;height:100%;object-fit:contain}.google-widget-bubble .google-g-mark{width:100%;height:100%;display:block}.google-widget-bubble .google-g-mark img{width:100%;height:100%;border-radius:inherit}.gpt-provider-connect-row{display:grid;gap:6px;margin-top:8px}.gpt-provider-connect-row .primary-btn{width:100%;height:38px}.gpt-provider-connect-row small{color:var(--muted);font-size:10px;line-height:1.35}.gpt-provider-api-fallback{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:8px;background:color-mix(in srgb,var(--surface-2) 76%,transparent)}.gpt-provider-api-fallback summary{cursor:pointer;color:var(--muted);font-size:10px;font-weight:700}.gpt-provider-api-fallback[open] summary{margin-bottom:8px}.gpt-custom-provider{display:grid;gap:7px;margin-top:8px}.gpt-custom-provider input,.gpt-custom-provider textarea{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:9px 10px;outline:0}.gpt-custom-provider textarea{resize:vertical;min-height:64px}.provider-tab-connected{box-shadow:inset 0 0 0 1px #22c55e88!important}.provider-tab-beta{color:#f59e0b!important}
-
-
 /* 3.8.24 — provider bridge polish, responsive header, Google AI theme, single updater */
 .modules-puzzle{width:22px;height:22px;display:block;filter:drop-shadow(0 0 7px color-mix(in srgb,#8b5cf6 35%,transparent))}.modules-button{border-color:color-mix(in srgb,#8b5cf6 28%,var(--line))!important;background:linear-gradient(var(--surface),var(--surface)) padding-box,linear-gradient(135deg,#4285F4,#A259FF,#F24E1E,#0ACF83) border-box!important;border:1px solid transparent!important}.modules-button:hover{box-shadow:0 0 0 3px color-mix(in srgb,#8b5cf6 12%,transparent)}
 .update-actions.one-click{grid-template-columns:1fr}.update-actions.one-click .primary-btn{width:100%;height:40px}
@@ -328,7 +296,6 @@ html[data-theme="light"] .vector-node-layer>b{box-shadow:0 0 0 1px #2f3b56,0 3px
 html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134;--gai-surface2:#2a2b2f;--gai-line:#3c4043;--gai-text:#e8eaed;--gai-muted:#9aa0a6;--gai-accent:#8ab4f8}.google-ai-widget .quick-search-meta{color:var(--gai-muted)!important}
 @media(max-width:1500px){.topbar{grid-template-columns:minmax(220px,auto) minmax(210px,1fr) auto;gap:6px}.top-actions{gap:4px}.mode-switch{justify-self:center}.mode-switch button{width:40px;padding:0;justify-content:center}.mode-switch button span,.mode-switch kbd{display:none}.save-state-btn span,.collab-share span,.ai-share span:last-child{display:none}.save-state-btn,.collab-share,.ai-share{width:40px!important;min-width:40px!important;padding:0!important}.top-actions .primary-btn{padding:0 11px}.project-pill{max-width:145px}.brand.compact span{display:none}}
 @media(max-width:1180px){.topbar{grid-template-columns:auto 1fr auto}.workspace-prefs{display:none}.top-actions .profile-btn{display:none}.top-actions .primary-btn span{display:none}.top-actions .primary-btn{width:40px;padding:0}.mode-switch{position:static;transform:none}.project-pill{max-width:120px}}
-
 /* OSMINOG 3.8.26 · calmer agent mascots, provider-true colors */
 .agent-wisp{
   --wisp:var(--agent-color,#8b5cf6);
@@ -372,19 +339,16 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 }
 .ai-ghost-wisp i{background:#11151d!important;box-shadow:0 0 0 1px #ffffff99!important}
 .ai-canvas-ghost{filter:drop-shadow(0 12px 22px color-mix(in srgb,var(--ghost-color,#8b5cf6) 34%,transparent))!important}
-
 /* Microfix: active chat header shows provider identity only */
 .bridge-title .provider-head-avatar{width:35px;height:35px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--surface-2) 88%,transparent);border:1px solid color-mix(in srgb,var(--agent-color,#8b5cf6) 36%,var(--line));box-shadow:none;padding:6px;overflow:hidden}
 .bridge-title .provider-head-avatar img{display:block;width:100%;height:100%;object-fit:contain}
 .bridge-title small[hidden]{display:none!important}
 .bridge-title:has(.provider-head-avatar) strong{margin-top:0;font-size:14px;font-weight:800}
-
 /* Microfix 3.8.34: one baseline for every header dropdown/popover */
 :root{--bc-header-menu-top:68px}
 #projectPopover.popover,.profile-menu,.export-menu,.activity-panel,.collab-popover,.modules-popover,.update-popover{top:var(--bc-header-menu-top)!important}
 .update-popover,.modules-popover{max-height:calc(100vh - 84px)!important}
 @media(max-width:900px){:root{--bc-header-menu-top:64px}}
-
 /* Microfix 3.8.35: Layers becomes the project/navigation home */
 #projectMenu{display:none!important}
 .layers-panel{top:82px!important}
@@ -409,7 +373,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .layer-thumb-code,.layer-thumb-browser{background:linear-gradient(135deg,#111827,#283244)}
 .layer-thumb-vector,.layer-thumb-ink{background:linear-gradient(135deg,transparent 42%,var(--layer-thumb-stroke,#8b5cf6) 44% 56%,transparent 58%)}
 .layer-row:has(.layer-thumb){min-height:44px}
-
 /* Microfix 3.8.36: project actions are a flat list, not a card */
 .layers-panel #projectPopover.layers-project-accordion{border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;margin:0 12px!important;padding:2px 0 8px!important}
 .layers-panel #projectPopover.layers-project-accordion>button{display:flex!important;align-items:center!important;gap:9px!important;width:100%;min-height:34px;padding:0 6px!important;border:0!important;border-radius:7px!important;background:transparent!important;text-align:left;color:var(--text);font-size:11px}
@@ -419,7 +382,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .layers-panel #projectPopover.layers-project-accordion>button:hover .project-action-icon{color:var(--text)}
 .layers-project-divider{height:1px!important;margin:7px 0 3px!important;background:var(--line)!important}
 .layers-preview-setting{padding-left:6px!important;padding-right:6px!important}
-
 /* Microfix 3.8.37: thumbnails are cropped, never stretched; section/action icons are real inline SVG */
 .layer-row .layer-thumb{flex:0 0 36px!important;width:36px!important;min-width:36px!important;max-width:36px!important;height:28px!important;min-height:28px!important;aspect-ratio:9/7!important;border-radius:6px!important;overflow:hidden!important;align-self:center!important;box-sizing:border-box!important}
 .layer-row .layer-thumb img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;display:block!important}
@@ -434,7 +396,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 #layersPanel .panel-head small[data-i18n=project]{display:flex!important;align-items:center!important;gap:5px!important}
 .bc-section-icon-small{width:13px;height:13px;flex-basis:13px}
 .bc-section-icon-small svg{width:12px!important;height:12px!important}
-
 /* Microfix 3.8.38: project arrow before title; no Layers group button; export only lights up with selection */
 .layers-project-titlebox{grid-template-columns:18px minmax(0,1fr)!important;column-gap:4px!important}
 .layers-project-titlebox>small{grid-column:1/3!important}
@@ -449,7 +410,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .bc-object-context-menu button:hover{background:var(--surface-2)}
 .bc-object-context-menu button.danger{color:#ef5b68}
 .bc-context-separator{height:1px;background:var(--line);margin:4px 5px;display:block}
-
 /* Microfix 3.8.39: clickable project title + Figma-like Layers collapse rail */
 .layers-project-titlebox{cursor:pointer!important;border-radius:8px!important;padding:2px 3px!important;margin:-2px -3px!important}
 .layers-project-titlebox:hover{background:color-mix(in srgb,var(--surface-2) 70%,transparent)!important}
@@ -462,7 +422,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 #layersCollapse svg{transition:transform .18s ease!important;transform:rotate(180deg)!important}
 .layers-panel.collapsed #layersCollapse svg{transform:rotate(0deg)!important}
 #layersCollapse{display:grid!important;place-items:center!important}
-
 /* Microfix 3.8.40: autosave-first chrome + real project/file thumbnails + compact Layers rail + clean module button */
 #saveNow,#exitApp{display:none!important}
 .project-preview-live{overflow:hidden!important;position:relative!important;isolation:isolate!important}
@@ -495,7 +454,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .modules-button{border:1px solid var(--line)!important;background:var(--surface)!important;box-shadow:none!important}
 .modules-button:hover{border-color:var(--line-strong)!important;background:var(--surface-2)!important;box-shadow:none!important}
 .modules-puzzle{filter:none!important}
-
 /* Microfix 3.8.41: Files gallery, content inspector, code workspace, compact browser, inline snip */
 .files-gallery{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px!important;padding:4px 10px 14px!important;align-content:start}
 .bc-file-tile{min-width:0;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:7px;display:grid;gap:7px;text-align:left;color:var(--text);cursor:pointer}
@@ -520,10 +478,8 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .bc-browser-shell{font-size:11px}.bc-browser-chrome{min-height:38px!important;padding:5px 6px!important;gap:5px!important}.bc-browser-chrome input{height:28px!important;font-size:10px!important;padding:0 9px!important}.bc-browser-chrome>div{gap:3px!important}.bc-browser-chrome button{height:28px!important;min-width:28px!important;padding:0 8px!important;font-size:10px!important;border-radius:7px!important}.bc-browser-chrome .browser-design,.bc-browser-chrome .browser-code,.bc-browser-chrome .browser-open{width:28px!important;padding:0!important}.bc-browser-chrome svg{width:13px!important;height:13px!important}.bc-browser-empty{max-width:470px!important}.bc-browser-empty b{font-size:17px!important}.bc-browser-empty span{font-size:11px!important;line-height:1.55!important}.bc-browser-empty .ai-shortcuts button{font-size:10px!important;padding:7px 10px!important}
 .bc-snip-overlay{position:fixed;z-index:2147483647;inset:0;cursor:crosshair;background:#06080c22}.bc-snip-tip{position:fixed;left:50%;top:18px;translate:-50% 0;padding:8px 12px;border-radius:9px;background:#111827;color:white;font:12px system-ui;box-shadow:0 8px 30px #0005}.bc-snip-box{position:fixed;border:2px solid #6f7fff;background:#6f7fff12;box-shadow:0 0 0 9999px #0005;pointer-events:none}
 #capture svg{fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important}
-
 /* Microfix 3.8.42: OSMINOG owns image movement; disable browser-native image dragging */
 .canvas-object img,.files-gallery img,.project-preview img{-webkit-user-drag:none!important;user-select:none!important}
-
 /* 3.8.43 — group/selection frame */
 .bc-multi-selection-frame{position:absolute;z-index:170;box-sizing:border-box;border:1.5px solid #6f7cff;pointer-events:none;filter:drop-shadow(0 0 5px rgba(88,110,255,.18))}
 .bc-multi-selection-frame.is-group{border-color:#9a6cff}
@@ -545,9 +501,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .gpt-context-tray{position:relative!important;display:flex!important;align-items:center!important;gap:5px!important;min-width:0!important;padding:4px 0!important;overflow:visible!important}.gpt-context-tray[hidden]{display:none!important}.gpt-context-strip{display:flex;gap:5px;min-width:0;overflow:hidden;mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent 100%);-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent 100%);flex:1}.gpt-context-chip.compact{flex:0 0 auto;width:134px;max-width:134px;height:34px;min-height:34px;padding:3px 5px!important;display:grid!important;grid-template-columns:25px minmax(0,1fr) 18px!important;align-items:center!important;gap:5px!important;overflow:hidden!important;border-radius:8px!important}.gpt-context-chip.compact>img{width:25px;height:25px;object-fit:cover;border-radius:5px}.gpt-context-chip.compact .gpt-context-eye{width:25px;height:25px;display:grid;place-items:center}.gpt-context-chip.compact strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px!important}.gpt-context-chip.compact button{width:18px!important;height:18px!important;padding:0!important}.gpt-context-expand{width:30px;height:30px;flex:0 0 30px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--muted);display:grid;place-items:center}.gpt-context-expand svg{width:12px;height:12px;transform:rotate(-90deg);transition:transform .16s}.gpt-context-tray.expanded .gpt-context-expand svg{transform:rotate(90deg)}.gpt-context-expanded{display:none;position:absolute;left:0;right:0;bottom:43px;z-index:30;max-height:260px;overflow:auto;padding:8px;background:var(--gpt-panel-bg,var(--surface));border:1px solid var(--line);border-radius:12px;box-shadow:0 -18px 42px rgba(0,0,0,.28);grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.gpt-context-tray.expanded .gpt-context-expanded{display:grid}.gpt-context-card{min-width:0;height:58px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text);display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:7px;text-align:left;padding:6px}.gpt-context-card img,.gpt-context-card-icon{width:42px;height:42px;border-radius:7px;object-fit:cover;background:var(--surface);display:grid;place-items:center;font-size:8px;font-weight:800}.gpt-context-card span:last-child{min-width:0}.gpt-context-card strong,.gpt-context-card small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gpt-context-card strong{font-size:10px}.gpt-context-card small{font-size:8px;color:var(--muted);margin-top:3px}
 /* agent elapsed / estimated progress */
 .ai-task-progress{position:fixed;z-index:9950;width:164px;height:24px;pointer-events:none;border-radius:8px;background:color-mix(in srgb,var(--surface) 78%,transparent);border:1px solid color-mix(in srgb,var(--task-color,#8b5cf6) 34%,var(--line));box-shadow:0 8px 28px rgba(0,0,0,.18);overflow:hidden;backdrop-filter:blur(8px);transition:opacity .45s,transform .45s}.ai-task-progress>span{position:absolute;inset:0 auto 0 0;width:var(--task-pct,6%);background:linear-gradient(90deg,color-mix(in srgb,var(--task-color,#8b5cf6) 18%,transparent),color-mix(in srgb,var(--task-color,#8b5cf6) 48%,transparent));transition:width .28s ease}.ai-task-progress>small{position:relative;z-index:1;height:100%;display:flex;align-items:center;padding:0 8px;color:var(--text);font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ai-task-progress.done{opacity:0;transform:translateY(-4px)}
-
-
-
 /* 3.8.58 — restore compact list UX and anchor AI helpers to real canvas objects */
 #layerList.bc-layer-list{display:block!important;grid-template-columns:none!important;gap:0!important;padding:2px 9px!important}
 #layerList.bc-layer-list>.layer-row{display:flex!important;width:100%!important;box-sizing:border-box!important;min-height:44px!important;margin:0 0 2px!important}
@@ -569,11 +522,8 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .gpt-agent-pill:active{cursor:grabbing!important}
 .parallel-agent-ghost{max-width:260px}
 .parallel-agent-ghost>span,.parallel-agent-ghost>small{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
 /* OSMINOG 3.8.62 · temporary plain red-circle brand mark */
 .osminog-header-mark{display:inline-block;width:22px;height:22px;min-width:22px;border-radius:0;background:transparent url("brand/osminog-mark.svg") center/contain no-repeat;flex:0 0 auto}.brand.compact .osminog-header-mark{width:24px;height:24px;min-width:24px}@media(max-width:1280px){.brand.compact .osminog-header-mark{width:26px;height:26px;min-width:26px}}
-
-
 /* OSMINOG 3.8.63 · native Google AI chat surface (isolated from the consumer tab) */
 .osminog-google-chat{position:fixed;right:24px;top:86px;width:min(520px,calc(100vw - 32px));height:min(720px,calc(100vh - 110px));min-width:360px;min-height:430px;z-index:1250;border-radius:16px!important;padding:0!important;display:flex;flex-direction:column;overflow:hidden;resize:both;background:#0f111a!important;color:#fff!important;border:1px solid rgba(255,255,255,.07)!important;box-shadow:0 18px 56px rgba(0,0,0,.58)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 .osminog-google-chat[hidden]{display:none!important}
@@ -586,7 +536,6 @@ html[data-theme="dark"] .google-ai-widget{--gai-bg:#202124;--gai-surface:#303134
 .osminog-google-chat__composer{flex:0 0 auto;margin:0 13px 11px;padding:9px 10px;display:flex;align-items:flex-end;gap:8px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.065);border-radius:12px}.osminog-google-chat__composer:focus-within{border-color:rgba(108,92,231,.52);box-shadow:0 0 10px rgba(108,92,231,.1)}.osminog-google-chat__composer textarea{flex:1;min-height:32px;max-height:140px;resize:none;border:0!important;outline:0!important;background:transparent!important;color:#fff!important;padding:7px 4px!important;font:12.5px/1.45 inherit}.osminog-google-chat__composer textarea::placeholder{color:#777d8d}.osminog-google-chat__attach,.osminog-google-chat__send{width:32px;height:32px;border:0;border-radius:9px;display:grid;place-items:center;cursor:pointer;flex:0 0 auto}.osminog-google-chat__attach{background:rgba(255,255,255,.045);color:#bbc0ce;font-size:18px}.osminog-google-chat__attach:hover{background:rgba(255,255,255,.09);color:#fff}.osminog-google-chat__send{background:#6c5ce7;color:#fff}.osminog-google-chat__send:hover{background:#7d6df3;box-shadow:0 0 12px rgba(108,92,231,.35)}.osminog-google-chat__send:disabled{opacity:.45;cursor:wait}.osminog-google-chat__send svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .osminog-google-chat__footer{display:flex;align-items:center;gap:8px;padding:0 14px 12px;color:#747b8d;font-size:9.5px}.osminog-google-chat__footer>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.osminog-google-chat__footer button{border:0;background:transparent;color:#9d91ff;cursor:pointer;font-size:9.5px;padding:3px}.osminog-google-chat__footer button.connected{color:#00d99b}.osminog-google-chat__footer button:disabled{opacity:.5}
 @keyframes osminogGoogleIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}@keyframes osminogGooglePulse{50%{opacity:.35}}@keyframes osminogGoogleDots{to{background-position:6px 0}}
-
 /* OSMINOG 3.8.64 · Google AI: one mode, theme-aware panel, 8 node ports and 8 resize handles */
 .osminog-google-chat{resize:none!important;min-width:320px!important;min-height:360px!important;max-width:none!important;max-height:none!important}
 .osminog-google-chat__nodes{margin-left:auto;height:30px;padding:0 11px;border:1px solid rgba(108,92,231,.26);border-radius:9px;background:rgba(108,92,231,.08);color:#c8c1ff;font:650 10px/1 inherit;cursor:pointer;white-space:nowrap}
@@ -617,17 +566,11 @@ html[data-theme="light"] .osminog-google-chat__composer textarea{color:#172033!i
 html[data-theme="light"] .osminog-google-chat__attach{background:#f0f2f6;color:#626d80}html[data-theme="light"] .osminog-google-chat__attach:hover{background:#e6e9f0;color:#172033}
 html[data-theme="light"] .osminog-google-chat__footer{color:#788295}html[data-theme="light"] .osminog-google-chat__footer button{color:#5e50cf}
 html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-color:#d7d0ff;color:#51449f}
-
-
 /* OSMINOG 3.9.0 TEAM OS */
 .mode-team #world,.mode-team #marquee,.mode-team #emptyHint{visibility:hidden;pointer-events:none}.mode-team #teamWorkspace{display:block}.team-workspace[hidden]{display:none!important}.team-workspace{position:absolute;inset:0;z-index:45;padding:22px;overflow:auto;background:radial-gradient(circle at 18% 8%,color-mix(in srgb,var(--accent) 11%,transparent),transparent 42%),var(--board-bg,var(--bg));color:var(--text)}
 .team-shell{min-height:100%;max-width:1480px;margin:0 auto;border:1px solid var(--line);border-radius:24px;background:color-mix(in srgb,var(--surface) 93%,transparent);box-shadow:0 22px 70px #0003;overflow:hidden}.team-head{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 78%,transparent)}.team-head small{font-size:9px;letter-spacing:.16em;color:var(--accent);font-weight:900}.team-head h2{margin:4px 0 2px;font-size:23px}.team-head p{margin:0;color:var(--muted);font-size:12px}.team-head-actions{display:flex;align-items:center;gap:8px}.team-access-badge{padding:7px 10px;border-radius:999px;border:1px solid color-mix(in srgb,#22c55e 48%,var(--line));background:color-mix(in srgb,#22c55e 10%,var(--surface));color:#16a34a;font:800 9px/1 ui-monospace,monospace}.team-layout{display:grid;grid-template-columns:290px 1fr;min-height:620px}.team-sidebar{padding:16px;border-right:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 66%,transparent);display:flex;flex-direction:column;gap:12px}.team-section-title{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:9px;font-weight:900;letter-spacing:.12em}.team-section-title button{border:0;background:none;color:var(--accent);font-weight:800;cursor:pointer}.team-agent-list{display:grid;gap:7px;max-height:275px;overflow:auto}.team-agent{--agent-color:#8b5cf6;display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer}.team-agent.active{border-color:color-mix(in srgb,var(--agent-color) 58%,var(--line));box-shadow:inset 3px 0 0 var(--agent-color)}.team-agent input{accent-color:var(--agent-color)}.team-agent-avatar{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--agent-color) 15%,var(--surface));color:var(--agent-color);font-weight:900}.team-agent strong,.team-agent small{display:block}.team-agent strong{font-size:11px}.team-agent small{font-size:8px;color:var(--muted);margin-top:2px}.team-provider{font:800 7px/1 ui-monospace,monospace;color:var(--agent-color)}.team-field{display:grid;gap:5px}.team-field>span{font-size:8px;color:var(--muted);font-weight:850;letter-spacing:.1em}.team-field select,.team-field input{height:36px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);padding:0 9px}.team-toggle{display:flex;gap:8px;align-items:center;font-size:10px;color:var(--text)}.team-toggle input{accent-color:var(--accent)}.team-command-help{margin-top:auto;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);display:flex;gap:5px;flex-wrap:wrap}.team-command-help strong{width:100%;font-size:9px}.team-command-help code{font-size:8px;padding:3px 5px;border-radius:5px;background:var(--surface-2);color:var(--accent)}.team-room{min-width:0;display:flex;flex-direction:column;background:var(--surface)}.team-transcript{flex:1;min-height:420px;padding:20px;overflow:auto;display:flex;flex-direction:column;gap:12px;background:radial-gradient(circle at 90% 5%,color-mix(in srgb,var(--accent) 5%,transparent),transparent 50%)}.team-empty{margin:auto;text-align:center;max-width:460px;color:var(--muted)}.team-empty b,.team-empty span{display:block}.team-empty b{font-size:18px;color:var(--text);margin-bottom:7px}.team-msg{--agent-color:#8b5cf6;max-width:82%;display:grid;grid-template-columns:30px 1fr;gap:9px;align-self:flex-start}.team-msg.user,.team-msg.system{grid-template-columns:1fr;align-self:stretch;max-width:none}.team-msg-avatar{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--agent-color) 15%,var(--surface-2));color:var(--agent-color);font-weight:900}.team-msg-body{padding:11px 13px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2);white-space:pre-wrap;line-height:1.5;font-size:12px}.team-msg-body header{display:flex;justify-content:space-between;gap:12px;margin-bottom:5px}.team-msg-body header strong{color:var(--agent-color)}.team-msg-body header small{color:var(--muted)}.team-msg.user .team-msg-body{background:linear-gradient(135deg,#6c5ce7,#5948ce);color:#fff;border:0}.team-msg.system .team-msg-body{background:color-mix(in srgb,#22c55e 8%,var(--surface));border-color:color-mix(in srgb,#22c55e 30%,var(--line))}.team-progress{height:32px;padding:0 18px;display:flex;align-items:center;gap:9px;border-top:1px solid var(--line);color:var(--muted);font-size:9px}.team-progress span{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 16%,transparent);animation:teamPulse 1s infinite}.team-composer{padding:14px;border-top:1px solid var(--line);background:var(--surface-2)}.team-composer textarea{width:100%;min-height:76px;max-height:180px;resize:vertical;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);padding:12px;outline:none}.team-composer textarea:focus{border-color:color-mix(in srgb,var(--accent) 58%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 10%,transparent)}.team-composer>div{display:flex;justify-content:flex-end;gap:7px;margin-top:8px}@keyframes teamPulse{50%{transform:scale(.65);opacity:.45}}
-
 .markdown-studio{position:fixed;z-index:1320;left:max(12px,calc(var(--sidebar-w,260px) + 18px));right:max(12px,calc(var(--inspector-w,300px) + 18px));top:84px;bottom:24px;display:flex;flex-direction:column;overflow:hidden;border-radius:18px!important;background:var(--surface)!important}.markdown-studio[hidden]{display:none!important}.markdown-head{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}.markdown-head small,.markdown-head strong{display:block}.markdown-head small{font-size:8px;color:var(--accent);letter-spacing:.13em}.markdown-head strong{font-size:14px}.markdown-head>div:last-child{display:flex;gap:7px}.markdown-toolbar{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--surface)}.markdown-toolbar input{min-width:140px;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);padding:0 9px}.markdown-toolbar button{height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);padding:0 9px;cursor:pointer}.markdown-toolbar span{margin-left:auto;color:var(--muted);font-size:9px}.markdown-split{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr}.markdown-split textarea{min-width:0;resize:none;border:0;border-right:1px solid var(--line);outline:0;background:#111827;color:#dbeafe;padding:18px;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}.markdown-preview{overflow:auto;padding:24px;background:var(--surface);color:var(--text);line-height:1.65}.markdown-preview h1,.markdown-preview h2,.markdown-preview h3{margin:1.15em 0 .55em}.markdown-preview h1{font-size:30px}.markdown-preview h2{font-size:23px;border-bottom:1px solid var(--line);padding-bottom:7px}.markdown-preview h3{font-size:18px}.markdown-preview code{padding:2px 5px;border-radius:5px;background:var(--surface-2);font-family:ui-monospace,monospace}.markdown-preview pre{overflow:auto;padding:14px;border:1px solid var(--line);border-radius:12px;background:#0f172a;color:#dbeafe}.markdown-preview blockquote{margin:1em 0;padding:8px 14px;border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--surface-2));color:var(--muted)}.markdown-preview table{border-collapse:collapse;width:100%}.markdown-preview th,.markdown-preview td{border:1px solid var(--line);padding:7px 9px;text-align:left}.markdown-preview a{color:var(--accent)}
-
-.browser-hub{position:fixed;z-index:1320;left:50%;top:88px;transform:translateX(-50%);width:min(900px,calc(100vw - 40px));max-height:calc(100vh - 112px);overflow:auto;border-radius:18px!important;padding:0!important;background:var(--surface)!important}.browser-hub[hidden]{display:none!important}.browser-hub-head{display:flex;justify-content:space-between;gap:16px;padding:16px;border-bottom:1px solid var(--line);background:var(--surface-2)}.browser-hub-head small,.browser-hub-head strong,.browser-hub-head p{display:block;margin:0}.browser-hub-head small{font-size:8px;letter-spacing:.13em;color:var(--accent)}.browser-hub-head strong{font-size:16px;margin:3px 0}.browser-hub-head p{font-size:10px;color:var(--muted)}.browser-hub-quick{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px}.browser-hub-quick button{height:38px;display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);padding:0 11px;cursor:pointer}.browser-hub-quick img{width:20px;height:20px}.browser-hub-form{display:grid;grid-template-columns:1fr auto;gap:8px;padding:0 14px 12px}.browser-hub-form input{height:40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);padding:0 11px}.browser-hub-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 14px;border-block:1px solid var(--line);background:var(--surface-2)}.browser-hub-actions span{margin-left:auto;color:var(--muted);font-size:9px}.browser-hub-tabs{padding:12px 14px 16px;display:grid;gap:8px}.browser-hub-tab{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}.browser-hub-tab-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--surface);font-weight:900;color:var(--accent)}.browser-hub-tab strong,.browser-hub-tab small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.browser-hub-tab strong{font-size:11px}.browser-hub-tab small{font-size:8px;color:var(--muted);margin-top:3px}.browser-hub-tab-actions{display:flex;gap:5px}.browser-hub-tab-actions button{height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:9px;padding:0 8px;cursor:pointer}
 @media(max-width:900px){.team-layout{grid-template-columns:1fr}.team-sidebar{border-right:0;border-bottom:1px solid var(--line)}.team-agent-list{grid-template-columns:repeat(2,minmax(0,1fr))}.markdown-studio{left:8px;right:8px}.markdown-split{grid-template-columns:1fr}.markdown-preview{display:none}}
-
 /* OSMINOG 3.9.1 · universal movable/resizable windows */
 .osminog-managed-window{box-sizing:border-box!important;min-width:0;min-height:0;isolation:isolate}
 .osminog-window-drag-handle{cursor:move!important;user-select:none}
@@ -637,12 +580,9 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-window-resize-handles>.n{left:14px;right:14px;top:-5px;height:10px;cursor:n-resize}.osminog-window-resize-handles>.s{left:14px;right:14px;bottom:-5px;height:10px;cursor:s-resize}.osminog-window-resize-handles>.e{top:14px;bottom:14px;right:-5px;width:10px;cursor:e-resize}.osminog-window-resize-handles>.w{top:14px;bottom:14px;left:-5px;width:10px;cursor:w-resize}
 .osminog-window-resize-handles>.ne,.osminog-window-resize-handles>.nw,.osminog-window-resize-handles>.se,.osminog-window-resize-handles>.sw{width:16px;height:16px}.osminog-window-resize-handles>.ne{right:-6px;top:-6px;cursor:ne-resize}.osminog-window-resize-handles>.nw{left:-6px;top:-6px;cursor:nw-resize}.osminog-window-resize-handles>.se{right:-6px;bottom:-6px;cursor:se-resize}.osminog-window-resize-handles>.sw{left:-6px;bottom:-6px;cursor:sw-resize}
 .team-shell.osminog-managed-window{display:flex;flex-direction:column;overflow:hidden;z-index:80}.team-shell.osminog-managed-window .team-layout{flex:1;min-height:0}.team-shell.osminog-managed-window .team-room,.team-shell.osminog-managed-window .team-sidebar{min-height:0}.team-shell.osminog-managed-window .team-transcript{min-height:0}
-.browser-hub.osminog-managed-window,.markdown-studio.osminog-managed-window,.modules-popover.osminog-managed-window{overflow:hidden}.browser-hub.osminog-managed-window .browser-hub-tabs{max-height:calc(100% - 220px);overflow:auto}.markdown-studio.osminog-managed-window .markdown-split{min-height:0}.modules-popover.osminog-managed-window{overflow:auto}
 .team-msg-avatar img,.team-agent-avatar img{display:block;width:18px;height:18px;object-fit:contain}.team-msg-avatar.osminog-avatar,.team-agent-avatar.osminog-avatar{overflow:hidden}.team-msg.system .team-msg-avatar,.team-msg.user .team-msg-avatar{display:grid}
 .team-msg.user,.team-msg.system{grid-template-columns:30px 1fr}.team-msg.user .team-msg-avatar{background:color-mix(in srgb,#6c5ce7 14%,var(--surface-2));color:#6c5ce7}.team-msg.system .team-msg-avatar{background:color-mix(in srgb,#ff2d2d 12%,var(--surface-2))}.osminog-system-dot{width:13px;height:13px;border-radius:50%;background:#ff2d2d;box-shadow:0 0 0 4px color-mix(in srgb,#ff2d2d 15%,transparent)}
 .team-msg.user,.team-msg.system{grid-template-columns:30px 1fr}.team-msg.user .team-msg-avatar{background:color-mix(in srgb,#6c5ce7 14%,var(--surface-2));color:#6c5ce7}.team-msg.system .team-msg-avatar{background:color-mix(in srgb,#ff2d2d 12%,var(--surface-2))}.osminog-system-dot{width:13px;height:13px;border-radius:50%;background:#ff2d2d;box-shadow:0 0 0 4px color-mix(in srgb,#ff2d2d 15%,transparent)}
-
-
 /* OSMINOG 3.10.0 · Media Crew, team tray and media messages */
 .team-head-actions{align-items:center}.team-tray-bubble{position:fixed;z-index:1360;right:22px;bottom:78px;display:flex;align-items:center;gap:9px;min-width:146px;height:48px;padding:0 12px;border:1px solid color-mix(in srgb,var(--accent) 36%,var(--line));border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 14px 36px rgba(15,23,42,.22);cursor:pointer}.team-tray-bubble[hidden]{display:none!important}.team-tray-bubble svg{width:20px;height:20px;color:var(--accent)}.team-tray-bubble span{display:grid;text-align:left}.team-tray-bubble strong{font-size:11px}.team-tray-bubble small{font-size:8px;color:var(--muted)}.team-tray-bubble b{margin-left:auto;min-width:20px;height:20px;padding:0 5px;border-radius:999px;display:grid;place-items:center;background:var(--accent);color:white;font-size:8px}
 .team-media-crew{margin-top:12px}.team-media-crew-list{display:flex;flex-wrap:wrap;gap:5px;max-height:126px;overflow:auto}.team-media-crew-list>small{font-size:8px;color:var(--muted);line-height:1.45}.team-media-crew-list button{display:flex;align-items:center;gap:5px;max-width:100%;height:28px;padding:0 7px;border:1px solid color-mix(in srgb,var(--provider-tone) 28%,var(--line));border-radius:8px;background:color-mix(in srgb,var(--provider-tone) 7%,var(--surface-2));color:var(--text);cursor:pointer}.team-media-crew-list button b{width:17px;height:17px;border-radius:5px;display:grid;place-items:center;background:var(--provider-tone);color:white;font-size:7px}.team-media-crew-list button span{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.team-media-crew-list button i{font-style:normal;color:var(--muted)}
@@ -652,8 +592,6 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .provider-registry-launch{width:calc(100% - 28px);margin:0 14px 12px;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px 11px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 9%,var(--surface-2)),var(--surface-2));color:var(--text);cursor:pointer;text-align:left}.provider-registry-launch>span{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent);color:white}.provider-registry-launch div{display:grid}.provider-registry-launch strong{font-size:10px}.provider-registry-launch small{font-size:8px;color:var(--muted)}.provider-registry-launch>b{font-size:8px;color:var(--accent)}
 .provider-registry{position:fixed;z-index:1365;left:50%;top:82px;transform:translateX(-50%);width:min(1040px,calc(100vw - 34px));height:min(760px,calc(100vh - 104px));padding:0!important;border-radius:18px!important;background:var(--surface)!important;overflow:hidden;display:flex;flex-direction:column}.provider-registry[hidden]{display:none!important}.provider-registry-head{display:flex;justify-content:space-between;gap:18px;padding:16px;border-bottom:1px solid var(--line);background:var(--surface-2)}.provider-registry-head small,.provider-registry-head strong,.provider-registry-head p{display:block;margin:0}.provider-registry-head small{font-size:8px;letter-spacing:.13em;color:var(--accent)}.provider-registry-head strong{font-size:16px;margin:3px 0}.provider-registry-head p{max-width:740px;font-size:9px;line-height:1.45;color:var(--muted)}.provider-registry-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line)}.provider-registry-filters button{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2);color:var(--text);font-size:8px;cursor:pointer}.provider-registry-filters button.active{background:var(--accent);border-color:var(--accent);color:#fff}.provider-registry-filters span{margin-left:auto;font-size:8px;color:var(--muted)}
 .provider-registry-grid{flex:1;min-height:0;overflow:auto;padding:13px;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:9px}.provider-registry-card{display:grid;grid-template-columns:42px minmax(0,1fr);gap:9px;padding:10px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2)}.provider-registry-card.selected{border-color:color-mix(in srgb,var(--provider-tone) 52%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--provider-tone) 16%,transparent)}.provider-registry-icon{grid-row:1/3;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--provider-tone);color:white;font-weight:900;font-size:12px}.provider-registry-copy{min-width:0}.provider-registry-copy strong,.provider-registry-copy small{display:block}.provider-registry-copy strong{font-size:11px}.provider-registry-copy small{font-size:8px;color:var(--muted);margin-top:2px}.provider-registry-copy div{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}.provider-registry-copy div span{padding:3px 6px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:7px;color:var(--muted)}.provider-registry-actions{grid-column:2;display:flex;gap:5px}.provider-registry-actions button{height:28px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:8px;padding:0 8px;cursor:pointer}.provider-registry-actions button:first-child{color:var(--provider-tone);border-color:color-mix(in srgb,var(--provider-tone) 34%,var(--line))}.provider-registry.osminog-managed-window{transform:none!important}
-
-
 /* OSMINOG 3.10.1 · DESKTOP STABILITY */
 /* Team is a movable window above the living canvas, never a mode that erases the desktop. */
 .mode-team #world,.mode-team #marquee,.mode-team #emptyHint{visibility:visible!important;pointer-events:auto!important}
@@ -661,14 +599,12 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .mode-team #teamWorkspace .team-shell{pointer-events:auto!important}
 .team-workspace{overflow:visible!important;background:transparent!important}
 .team-shell{min-height:500px}
-
 /* Agent progress belongs to the purple status strip inside the active chat. */
 .local-ai-activity{position:relative;isolation:isolate;min-height:30px;display:flex;align-items:center;overflow:hidden;padding:0 10px!important;border-radius:10px;background:color-mix(in srgb,var(--activity-color,#8b5cf6) 13%,var(--surface-2))!important;color:var(--text)!important;border:1px solid color-mix(in srgb,var(--activity-color,#8b5cf6) 28%,var(--line));font-size:10px!important}
 .local-ai-activity[hidden]{display:none!important}
 .local-ai-activity .local-ai-activity-fill{position:absolute;z-index:-1;inset:0 auto 0 0;width:var(--activity-pct,8%);background:linear-gradient(90deg,color-mix(in srgb,var(--activity-color,#8b5cf6) 16%,transparent),color-mix(in srgb,var(--activity-color,#8b5cf6) 48%,transparent));transition:width .28s ease}
 .local-ai-activity>small{position:relative;display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 9px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace}
 .ai-task-progress{display:none!important}
-
 /* Yellow project folder on the OSMINOG desktop. */
 .osminog-desktop-folder-icon{position:absolute;z-index:47;left:72px;top:116px;width:112px;min-height:104px;border:0;background:transparent;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;padding:5px;border-radius:14px;cursor:default;user-select:none;touch-action:none;text-align:center}
 .osminog-desktop-folder-icon[hidden]{display:none!important}
@@ -693,9 +629,7 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-desktop-folder-preview{min-width:0;overflow:auto;padding:15px;background:var(--surface);display:flex;flex-direction:column;gap:11px}.osminog-desktop-folder-preview h3{margin:0;font-size:14px}.osminog-desktop-folder-preview p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}.osminog-desktop-folder-preview img,.osminog-desktop-folder-preview video{max-width:100%;max-height:320px;object-fit:contain;border-radius:10px;background:#0001;border:1px solid var(--line)}.osminog-desktop-folder-preview audio{width:100%}.osminog-desktop-folder-preview pre{margin:0;max-height:380px;overflow:auto;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);font:10px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.osminog-desktop-folder-preview-actions{display:flex;gap:7px;flex-wrap:wrap}.osminog-desktop-folder-preview-actions button{height:32px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text);padding:0 11px;cursor:pointer;font-size:10px}.osminog-desktop-folder-preview-actions button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .osminog-desktop-folder-empty{grid-column:1/-1;margin:auto;color:var(--muted);text-align:center;font-size:11px;padding:40px}
 @media(max-width:860px){.osminog-desktop-folder-window{min-width:360px}.osminog-desktop-folder-body{grid-template-columns:1fr}.osminog-desktop-folder-grid{border-right:0;border-bottom:1px solid var(--line);max-height:52%}}
-
 /* OSMINOG 3.10.2 · FOLDERS & CHAT UX */
-
 /* Clean collapsed Layers rail: no cards, labels or footer can protrude. */
 .layers-panel.collapsed{
   width:56px!important;min-width:56px!important;max-width:56px!important;
@@ -709,7 +643,6 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .layers-panel.collapsed .layers-mini-rail button{width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;padding:0!important;margin:0!important;border-radius:11px!important;overflow:hidden!important}
 .layers-panel.collapsed .layers-mini-rail svg{width:17px!important;height:17px!important;display:block!important}
 .layers-panel.collapsed .layers-project-titlebox,.layers-panel.collapsed .project-popover,.layers-panel.collapsed .layer-group,.layers-panel.collapsed .layer-row{display:none!important}
-
 /* Canvas folder tray. */
 .osminog-folder-tray{position:absolute;z-index:74;left:12px;bottom:10px;max-width:calc(100% - 24px);height:44px;display:flex;align-items:center;gap:6px;padding:4px 5px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--surface) 92%,transparent);box-shadow:0 12px 36px #0004;backdrop-filter:blur(16px);transform:scale(var(--world-inverse-scale,1));transform-origin:left bottom}
 .osminog-folder-tray-items{display:flex;align-items:center;gap:5px;min-width:0;max-width:min(540px,55vw);overflow:auto;scrollbar-width:none}.osminog-folder-tray-items::-webkit-scrollbar{display:none}
@@ -720,7 +653,6 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-folder-tray-add{width:34px;height:34px;border-radius:9px!important;background:var(--accent)!important;color:#fff!important;font-size:18px!important;flex:0 0 auto}
 .osminog-mini-folder-glyph{position:relative;display:inline-block;width:22px;height:16px;border-radius:3px 4px 4px 4px;background:linear-gradient(#ffe476,#f5b927);border:1px solid #b87908;box-shadow:inset 0 1px #fff7;flex:0 0 auto}
 .osminog-mini-folder-glyph:before{content:"";position:absolute;left:2px;top:-5px;width:10px;height:6px;border:1px solid #b87908;border-bottom:0;border-radius:3px 3px 0 0;background:#ffd65c}
-
 /* Windows-like virtual folders on the canvas. */
 .osminog-canvas-folder{position:absolute;z-index:46;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;padding:7px 5px 5px;border:1px solid transparent;border-radius:14px;background:transparent;color:var(--text);cursor:default;user-select:none;touch-action:none;text-align:center;transform-origin:center;transition:background .16s,border-color .16s,box-shadow .16s,filter .16s}
 .osminog-canvas-folder:hover,.osminog-canvas-folder.selected{background:color-mix(in srgb,var(--accent) 10%,transparent);border-color:color-mix(in srgb,var(--accent) 36%,transparent);box-shadow:0 8px 24px #0002}
@@ -737,11 +669,9 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-object-in-folder{display:none!important}
 @keyframes osminogFolderCatch{from{transform:scale(.98)}to{transform:scale(1.035)}}
 @keyframes osminogNameBlink{50%{caret-color:transparent}}
-
 /* Root project folder can be minimized into the tray. */
 .osminog-desktop-folder-icon{overflow:visible!important}
 .osminog-root-folder-close{right:3px;top:2px}
-
 /* Folder context menu and real folder contents window. */
 .osminog-folder-context-menu{position:fixed;z-index:4000;width:205px;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 20px 60px #0007;display:grid;gap:2px}
 .osminog-folder-context-menu[hidden]{display:none!important}.osminog-folder-context-menu button{height:34px;border:0;border-radius:8px;background:transparent;color:var(--text);text-align:left;padding:0 10px;cursor:pointer;font-size:11px}.osminog-folder-context-menu button:hover{background:var(--surface-2)}.osminog-folder-context-menu button.danger{color:#ef4444}
@@ -752,10 +682,8 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-folder-window-item{position:relative;min-height:118px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 7px;text-align:center}.osminog-folder-window-item:hover{background:var(--surface);border-color:var(--line)}.osminog-folder-window-item>span:not(.osminog-mini-folder-glyph){font-size:30px}.osminog-folder-window-item .osminog-mini-folder-glyph{width:48px;height:34px;margin-top:8px}.osminog-folder-window-item strong{font-size:10px;overflow-wrap:anywhere}.osminog-folder-window-item small{font-size:8px;color:var(--muted)}.osminog-folder-window-item button{margin-top:auto;height:27px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:9px;cursor:pointer}.osminog-folder-window-item button:hover{border-color:var(--accent)}
 .osminog-canvas-folder-empty{grid-column:1/-1;margin:auto;padding:50px;color:var(--muted);font-size:11px;text-align:center}.osminog-canvas-folder-drop-hint{height:34px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:9px}
 .osminog-folder-window-resize{position:absolute;z-index:20}.osminog-folder-window-resize.n,.osminog-folder-window-resize.s{left:12px;right:12px;height:8px;cursor:ns-resize}.osminog-folder-window-resize.n{top:-4px}.osminog-folder-window-resize.s{bottom:-4px}.osminog-folder-window-resize.e,.osminog-folder-window-resize.w{top:12px;bottom:12px;width:8px;cursor:ew-resize}.osminog-folder-window-resize.e{right:-4px}.osminog-folder-window-resize.w{left:-4px}.osminog-folder-window-resize.ne,.osminog-folder-window-resize.nw,.osminog-folder-window-resize.se,.osminog-folder-window-resize.sw{width:14px;height:14px}.osminog-folder-window-resize.ne{right:-5px;top:-5px;cursor:nesw-resize}.osminog-folder-window-resize.nw{left:-5px;top:-5px;cursor:nwse-resize}.osminog-folder-window-resize.se{right:-5px;bottom:-5px;cursor:nwse-resize}.osminog-folder-window-resize.sw{left:-5px;bottom:-5px;cursor:nesw-resize}
-
 /* Folder rows in Layers and Files stay visible even when a folder is minimized. */
 .osminog-layer-folder-section{margin:6px 0 9px;padding:6px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--surface-2) 72%,transparent);display:grid;gap:4px}.osminog-layer-folder-section>header{height:25px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;color:var(--muted);font:800 8px/1 ui-monospace,monospace;letter-spacing:.12em}.osminog-layer-folder-section>header button{width:24px;height:24px;border:0;border-radius:7px;background:var(--surface);color:var(--accent);cursor:pointer}.osminog-layer-folder-row{height:36px;border:0;border-radius:9px;background:transparent;color:var(--text);display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:7px;padding:0 7px;cursor:pointer;text-align:left}.osminog-layer-folder-row:hover{background:var(--surface)}.osminog-layer-folder-row.minimized{opacity:.72}.osminog-layer-folder-row strong{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.osminog-layer-folder-row small{font-size:8px;color:var(--muted)}
-
 /* Universal chat bubble layout. Long URLs and code never escape a bubble. */
 .local-ai-msg,.google-ai-turn,.team-msg{min-width:0!important}
 .local-ai-msg>div,.google-ai-turn-text,.google-ai-turn-wrap,.team-msg-body,.team-msg-body>div{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
@@ -763,25 +691,20 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .local-ai-messages,.osminog-google-chat__messages,.team-transcript{gap:12px!important}
 .local-ai-msg.chat-group-middle,.local-ai-msg.chat-group-last,.google-ai-turn.chat-group-middle,.google-ai-turn.chat-group-last,.team-msg.chat-group-middle,.team-msg.chat-group-last{margin-top:-8px!important}
 .local-ai-msg.chat-group-middle>small,.local-ai-msg.chat-group-last>small,.team-msg.chat-group-middle header,.team-msg.chat-group-last header{display:none!important}
-
 /* Telegram-like grouped corners: right = owner, left = assistant. */
 .local-ai-msg[data-chat-side="right"].chat-group-single,.local-ai-msg[data-chat-side="right"].chat-group-last{border-radius:18px 7px 18px 18px!important}.local-ai-msg[data-chat-side="right"].chat-group-first{border-radius:18px 18px 7px 18px!important}.local-ai-msg[data-chat-side="right"].chat-group-middle{border-radius:18px 7px 7px 18px!important}
 .local-ai-msg[data-chat-side="left"].chat-group-single,.local-ai-msg[data-chat-side="left"].chat-group-last{border-radius:7px 18px 18px 18px!important}.local-ai-msg[data-chat-side="left"].chat-group-first{border-radius:18px 18px 18px 7px!important}.local-ai-msg[data-chat-side="left"].chat-group-middle{border-radius:7px 18px 18px 7px!important}
 .google-ai-turn[data-chat-side="right"] .google-ai-turn-text,.team-msg[data-chat-side="right"] .team-msg-body{border-radius:18px 7px 18px 18px!important}.google-ai-turn[data-chat-side="right"].chat-group-first .google-ai-turn-text,.team-msg[data-chat-side="right"].chat-group-first .team-msg-body{border-radius:18px 18px 7px 18px!important}.google-ai-turn[data-chat-side="right"].chat-group-middle .google-ai-turn-text,.team-msg[data-chat-side="right"].chat-group-middle .team-msg-body{border-radius:18px 7px 7px 18px!important}
 .google-ai-turn[data-chat-side="left"] .google-ai-turn-text,.team-msg[data-chat-side="left"] .team-msg-body{border-radius:7px 18px 18px 18px!important}.google-ai-turn[data-chat-side="left"].chat-group-first .google-ai-turn-text,.team-msg[data-chat-side="left"].chat-group-first .team-msg-body{border-radius:18px 18px 18px 7px!important}.google-ai-turn[data-chat-side="left"].chat-group-middle .google-ai-turn-text,.team-msg[data-chat-side="left"].chat-group-middle .team-msg-body{border-radius:7px 18px 18px 7px!important}
 .team-msg.user{align-self:flex-end!important;max-width:82%!important;grid-template-columns:1fr!important}.team-msg.user .team-msg-avatar{display:none!important}.team-msg.system{max-width:92%!important;align-self:center!important}
-
 /* Google screenshot attachments. */
 .osminog-google-chat__chip.image{padding-left:4px!important}.osminog-google-chat__chip.image img{width:28px;height:28px;border-radius:7px;object-fit:cover;border:1px solid rgba(255,255,255,.1)}
 .google-ai-turn-media-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:7px;margin-top:8px}.google-ai-turn-media{margin:0;min-width:0}.google-ai-turn-media img{display:block;width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0002}.google-ai-turn-media figcaption{font-size:8px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
 /* Pinned agent always arrives beside its focused object and remains visually discoverable. */
 .gpt-agent-pill.active{animation:osminogAgentArrive .34s cubic-bezier(.2,.9,.2,1)}
 .gpt-agent-tethers path{filter:drop-shadow(0 0 4px color-mix(in srgb,var(--tether-color) 50%,transparent))}
 @keyframes osminogAgentArrive{0%{opacity:.15;transform:scale(.6) translateY(12px)}70%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}
-
 @media(max-width:760px){.osminog-canvas-folder-window{min-width:340px}.osminog-folder-tray-items{max-width:45vw}.osminog-canvas-folder-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}}
-
 /* OSMINOG 3.10.2 final UX guards */
 .osminog-folder-tray{transform:none!important}
 .osminog-folder-window-name-input{width:min(116px,100%);height:28px;border:1px solid color-mix(in srgb,var(--accent) 62%,var(--line));border-radius:8px;background:var(--surface);color:var(--text);padding:0 7px;text-align:center;font:700 10px/1 inherit;outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
@@ -792,12 +715,10 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .layers-panel.collapsed .layers-mini-rail{box-sizing:border-box!important;flex:1 1 auto!important;justify-content:flex-start!important}
 .layers-panel.collapsed .layers-mini-rail>*{flex:0 0 38px!important}
 .layers-panel.collapsed .layers-mini-rail button>*{pointer-events:none}
-
 /* Bubble overflow and grouped-avatar finishing pass. */
 .gpt-msg-attachments,.gpt-msg-attachment,.gpt-msg-image{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}.gpt-msg-image{margin:7px 0 0}.gpt-msg-image img{display:block;max-width:100%;height:auto;object-fit:contain}
 .google-ai-turn.chat-group-middle .google-ai-turn-avatar,.google-ai-turn.chat-group-last .google-ai-turn-avatar,.team-msg.chat-group-middle .team-msg-avatar,.team-msg.chat-group-last .team-msg-avatar{visibility:hidden!important}
 .osminog-folder-window-item.renaming{border-color:color-mix(in srgb,var(--accent) 48%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
-
 /* OSMINOG 3.10.3 — WINDOWS FOLDER SYSTEM */
 #osminogFolderTray{display:none!important}
 .osminog-desktop-folder-layer{position:absolute;inset:0;z-index:48;pointer-events:none;overflow:hidden}
@@ -811,7 +732,6 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-canvas-folder>strong{display:block;width:100%;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;line-height:1.2;text-shadow:0 1px 1px var(--board-bg)}
 .osminog-canvas-folder>small{font-size:8px;color:var(--muted);white-space:nowrap}
 .osminog-canvas-folder-close{right:0;top:0}.osminog-root-folder-close{right:3px;top:2px}
-
 .osminog-folder-dock{display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:7px;padding:7px 8px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--surface-2) 82%,transparent)}
 .osminog-folder-dock>button{height:38px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer}
 #osminogFolderDockRoot{min-width:0;display:flex;align-items:center;gap:8px;padding:0 9px;text-align:left}
@@ -820,10 +740,8 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 #osminogFolderDockAdd{font-size:20px;color:var(--accent);font-weight:700}#osminogFolderDockAdd:hover,#osminogFolderDockRoot:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
 .osminog-folder-dock .osminog-mini-folder-glyph{width:26px;height:19px;flex:0 0 auto}
 .layers-panel.collapsed .osminog-folder-dock{display:none!important}
-
 .osminog-layer-folder-row{padding-left:calc(7px + var(--depth,0)*14px)}
 .osminog-layer-folder-row.on-desktop:after{content:"";width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e}
-
 .osminog-canvas-folder-window{width:min(940px,calc(100vw - 40px));height:min(650px,calc(100vh - 120px));min-width:520px;min-height:340px}
 .osminog-canvas-folder-head nav{display:flex;align-items:center;gap:6px}.osminog-canvas-folder-head nav button:disabled{opacity:.48;cursor:default}
 .osminog-canvas-folder-toolbar{height:46px;display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--surface)}
@@ -844,7 +762,6 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-canvas-folder-grid.size-small .osminog-folder-window-item{font-size:.88em}.osminog-canvas-folder-grid.size-small .osminog-mini-folder-glyph{width:34px;height:24px}.osminog-canvas-folder-grid.size-large .osminog-mini-folder-glyph{width:60px;height:42px}.osminog-canvas-folder-grid.size-large .osminog-folder-window-item>span:not(.osminog-mini-folder-glyph){font-size:38px}
 .osminog-folder-inline-rename,.osminog-folder-entry-rename{width:min(180px,100%);height:27px;border:1px solid var(--accent);border-radius:7px;background:var(--surface);color:var(--text);padding:0 6px;font:700 10px/1 inherit;outline:none;text-align:center}
 .osminog-canvas-folder-grid.drop-active,.osminog-desktop-folder-grid.drop-active{box-shadow:inset 0 0 0 2px #22c55e;background:color-mix(in srgb,#22c55e 5%,var(--surface))}
-
 .osminog-desktop-folder-toolbar{height:auto!important;min-height:44px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 10px!important}
 .osminog-desktop-folder-toolbar>button,.osminog-desktop-folder-toolbar>select{height:31px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);padding:0 8px;font-size:9px}
 .osminog-desktop-folder-toolbar .osminog-desktop-folder-breadcrumb{flex:1;min-width:130px}
@@ -857,11 +774,9 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-folder-entry.dragging{opacity:.42}.osminog-folder-entry strong{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.osminog-folder-entry button{height:24px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);color:var(--text);font-size:8px;cursor:pointer}
 .osminog-folder-entry.on-desktop:after{content:"";position:absolute;right:7px;top:7px;width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e}
 .osminog-desktop-folder-grid.size-small .osminog-folder-entry{min-height:76px}.osminog-desktop-folder-grid.size-small .entry-icon{transform:scale(.78)}.osminog-desktop-folder-grid.size-large .osminog-folder-entry{min-height:126px}.osminog-desktop-folder-grid.size-large .entry-icon{transform:scale(1.24)}
-
 @media(max-width:900px){.osminog-canvas-folder-window{min-width:380px}.osminog-canvas-folder-toolbar{height:auto;flex-wrap:wrap}.osminog-folder-search{max-width:none;flex:1}.osminog-desktop-folder-body{grid-template-columns:1fr!important}.osminog-desktop-folder-preview{display:none}}
 .osminog-desktop-folder-icon.size-small{width:84px;min-height:78px}.osminog-desktop-folder-icon.size-small .osminog-folder-glyph{width:50px;height:36px}.osminog-desktop-folder-icon.size-small strong{font-size:9px}.osminog-desktop-folder-icon.size-small small{display:none}
 .osminog-desktop-folder-icon.size-large{width:142px;min-height:128px}.osminog-desktop-folder-icon.size-large .osminog-folder-glyph{width:88px;height:63px}.osminog-desktop-folder-icon.size-large strong{font-size:12px}.osminog-desktop-folder-icon.size-large small{font-size:9px}
-
 /* OSMINOG 3.10.3 · WINDOWS FOLDERS */
 #osminogFolderTray,#osminogCanvasFolderWindow,#osminogFolderContextMenu,#osminogDesktopFolderWindow,#layerList>.osminog-layer-folder-section,#world>.osminog-canvas-folder{display:none!important}
 .osminog-windows-desktop-folders{position:absolute;z-index:48;inset:0;overflow:hidden;pointer-events:none;contain:layout paint style}
@@ -880,14 +795,12 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-win-folder-icon[data-size="small"]{width:66px;min-height:66px}.osminog-win-folder-icon[data-size="small"] .osminog-win-folder-glyph{width:47px;height:33px}.osminog-win-folder-icon[data-size="small"] .osminog-win-folder-glyph:before{top:-9px;width:23px;height:13px}.osminog-win-folder-icon[data-size="small"] .osminog-win-folder-glyph:after{top:6px;height:6px}.osminog-win-folder-icon[data-size="small"]>strong{font-size:8px}.osminog-win-folder-icon[data-size="small"]>small{display:none}
 .osminog-win-folder-icon[data-size="large"]{width:116px;min-height:112px}.osminog-win-folder-icon[data-size="large"] .osminog-win-folder-glyph{width:84px;height:60px}.osminog-win-folder-icon[data-size="large"] .osminog-win-folder-glyph:before{top:-14px;width:40px;height:20px}.osminog-win-folder-icon[data-size="large"]>strong{font-size:12px}.osminog-win-folder-icon[data-size="large"]>small{font-size:9px}
 .osminog-desktop-folder-icon{transform:none!important;transform-origin:center!important}.osminog-desktop-folder-icon[data-size="small"]{width:84px;min-height:79px}.osminog-desktop-folder-icon[data-size="small"] .osminog-folder-glyph{width:50px;height:36px}.osminog-desktop-folder-icon[data-size="small"] strong{font-size:9px}.osminog-desktop-folder-icon[data-size="small"] small{display:none}.osminog-desktop-folder-icon[data-size="large"]{width:142px;min-height:128px}.osminog-desktop-folder-icon[data-size="large"] .osminog-folder-glyph{width:88px;height:63px}.osminog-desktop-folder-icon[data-size="large"] strong{font-size:12px}.osminog-desktop-folder-icon[data-size="large"] small{font-size:9px}
-
 .osminog-win-layer-folders{margin:5px 0 9px;padding:6px;border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--surface-2) 78%,transparent);display:grid;gap:5px;overflow:hidden}
 .osminog-win-layer-folders>header{height:27px;display:flex;align-items:center;justify-content:space-between;padding:0 3px 0 5px;color:var(--muted);font:800 8px/1 ui-monospace,monospace;letter-spacing:.13em}
 .osminog-win-layer-folders>header button{width:25px;height:25px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:7px;background:var(--surface);color:var(--accent);cursor:pointer;font:800 17px/1 inherit}
 .osminog-win-layer-folders>header button:hover{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
 .osminog-win-layer-root{height:40px;border:0;border-radius:9px;background:transparent;color:var(--text);display:grid;grid-template-columns:25px minmax(0,1fr) auto;align-items:center;gap:8px;padding:0 7px;text-align:left;cursor:pointer}
 .osminog-win-layer-root:hover{background:var(--surface)}.osminog-win-layer-root strong{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.osminog-win-layer-root small{font-size:8px;color:var(--muted);white-space:nowrap}.osminog-win-layer-root .osminog-mini-folder-glyph{width:22px;height:16px}
-
 .osminog-windows-explorer{position:fixed;z-index:1320;left:clamp(18px,12vw,250px);top:96px;width:min(940px,calc(100vw - 42px));height:min(650px,calc(100vh - 126px));min-width:560px;min-height:390px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:17px;background:color-mix(in srgb,var(--surface) 97%,transparent);color:var(--text);box-shadow:0 26px 88px #0008;backdrop-filter:blur(18px);isolation:isolate}
 .osminog-windows-explorer[hidden]{display:none!important}
 .osminog-windows-explorer-head{height:61px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);cursor:move;user-select:none;flex:0 0 auto}
@@ -917,13 +830,10 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-windows-folder-menu{position:fixed;z-index:99999;width:215px;padding:6px;border:1px solid var(--line);border-radius:11px;background:var(--surface);box-shadow:0 18px 50px #0007;display:grid;gap:3px}.osminog-windows-folder-menu[hidden]{display:none!important}.osminog-windows-folder-menu button{height:32px;border:0;border-radius:7px;background:transparent;color:var(--text);padding:0 9px;text-align:left;cursor:pointer;font-size:10px}.osminog-windows-folder-menu button:hover{background:var(--surface-2)}.osminog-windows-folder-menu button.danger{color:#ef4444}
 @media(max-width:900px){.osminog-windows-explorer{min-width:360px}.osminog-windows-explorer-body{grid-template-columns:1fr}.osminog-windows-explorer-preview{display:none}.osminog-windows-explorer-search{width:170px}.osminog-windows-explorer-toolbar select{max-width:105px}}
 @media(max-width:620px){.osminog-windows-explorer{left:8px!important;top:74px!important;width:calc(100vw - 16px)!important;height:calc(100vh - 82px)!important;min-width:0;min-height:0}.osminog-windows-explorer-toolbar{flex-wrap:wrap}.osminog-windows-explorer-breadcrumb{order:2;flex-basis:100%}.osminog-windows-explorer-search{flex:1}.osminog-windows-explorer-actions button:not(#osminogWindowsExplorerClose){display:none}.osminog-windows-explorer-items.view-tiles{grid-template-columns:1fr}}
-
-
 /* OSMINOG 3.10.5 — desktop UI, store, agent visibility and readable typography */
 #localFolder{display:none!important}
 .osminog-desktop-folder-icon{cursor:grab!important;pointer-events:auto!important;z-index:55!important}
 .osminog-desktop-folder-icon:active{cursor:grabbing!important}
-
 /* Layers: section icons only when collapsed, project folder + add at the bottom. */
 .layers-panel{display:flex!important;flex-direction:column!important}
 .layers-panel .layer-list{flex:1 1 auto;min-height:0}
@@ -937,23 +847,19 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .layers-panel.collapsed #osminogFolderDockRoot .osminog-mini-folder-glyph{width:25px!important;height:18px!important;margin:0!important}
 .layers-panel.collapsed .panel-footer{display:none!important}
 .layers-panel.collapsed .layers-mini-rail [data-mini="folder"]{display:none!important}
-
 /* 4 px between consecutive bubbles of the same participant; 12 px between authors. */
 .local-ai-messages,.osminog-google-chat__messages,.team-transcript{gap:0!important}
 .local-ai-msg,.google-ai-turn,.team-msg{margin-top:12px!important}
 .local-ai-msg:first-child,.google-ai-turn:first-child,.team-msg:first-child{margin-top:0!important}
 .local-ai-msg.chat-same-prev,.google-ai-turn.chat-same-prev,.team-msg.chat-same-prev{margin-top:4px!important}
 .local-ai-msg.chat-group-middle,.local-ai-msg.chat-group-last,.google-ai-turn.chat-group-middle,.google-ai-turn.chat-group-last,.team-msg.chat-group-middle,.team-msg.chat-group-last{margin-top:4px!important}
-
 /* Agent visibility control in chat tabs. */
 .agent-pill-visibility{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;color:var(--muted);font-size:12px;line-height:1;cursor:pointer;flex:0 0 auto}
 .agent-pill-visibility:hover,.agent-pill-visibility.visible{background:color-mix(in srgb,var(--agent-color) 16%,transparent);color:var(--agent-color)}
 .gpt-agent-pill{pointer-events:auto!important}
-
 /* Team tray is draggable and remains fully usable at any screen edge. */
 .team-tray-bubble{cursor:grab!important;touch-action:none!important;max-width:min(240px,calc(100vw - 16px))!important}
 .team-tray-bubble:active{cursor:grabbing!important}
-
 /* Provider catalog search, larger identity marks and desktop shortcuts. */
 .provider-registry-head-actions{display:flex;align-items:flex-start;gap:8px;flex:0 0 auto}
 .provider-developer-link{height:34px!important;padding:0 12px!important;font-size:10px!important;white-space:nowrap}
@@ -974,23 +880,20 @@ html[data-theme="light"] .osminog-google-chat__chip{background:#f0edff;border-co
 .osminog-provider-shortcut{position:absolute;pointer-events:auto;width:88px;min-height:86px;border:1px solid transparent;border-radius:13px;background:transparent;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;cursor:grab;touch-action:none;user-select:none}
 .osminog-provider-shortcut:hover{background:color-mix(in srgb,var(--provider-tone) 12%,var(--surface));border-color:color-mix(in srgb,var(--provider-tone) 42%,var(--line));box-shadow:0 10px 28px #0003}
 .osminog-provider-shortcut:active{cursor:grabbing}.osminog-provider-shortcut>span{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:var(--provider-tone);color:#fff;font-weight:900}.osminog-provider-shortcut>span img{width:30px;height:30px;object-fit:contain}.osminog-provider-shortcut strong{font-size:9px;max-width:78px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.osminog-provider-shortcut>i{position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:#ef4444;color:#fff;font-style:normal;opacity:0;transform:scale(.8)}.osminog-provider-shortcut:hover>i{opacity:1;transform:scale(1)}
-
 /* Separate OSMINOG Store developer page. */
 .osminog-store-developer{position:fixed;z-index:1420;left:50%;top:68px;transform:translateX(-50%);width:min(1120px,calc(100vw - 32px));height:min(820px,calc(100vh - 88px));padding:0!important;border-radius:18px!important;background:var(--surface)!important;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 90px #0008}
 .osminog-store-developer[hidden]{display:none!important}.osminog-store-head{display:flex;justify-content:space-between;gap:18px;padding:18px 20px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,var(--surface-2)),var(--surface-2))}.osminog-store-head small,.osminog-store-head strong,.osminog-store-head p{display:block;margin:0}.osminog-store-head small{font-size:9px;letter-spacing:.14em;color:var(--accent)}.osminog-store-head strong{font-size:19px;margin:4px 0}.osminog-store-head p{font-size:11px;color:var(--muted)}
 .osminog-store-body{flex:1;overflow:auto;padding:22px;display:grid;gap:22px}.osminog-store-body section{border:1px solid var(--line);border-radius:16px;padding:18px;background:var(--surface-2)}.osminog-store-body h2{font-size:16px;margin:0 0 14px}.osminog-store-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.osminog-store-grid article{min-height:110px;border:1px solid var(--line);border-radius:13px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:7px}.osminog-store-grid b{font-size:13px}.osminog-store-grid span,.osminog-store-body li{font-size:11px;line-height:1.5;color:var(--muted)}.osminog-store-body ol{display:grid;gap:8px;margin:0;padding-left:22px}.osminog-store-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.osminog-store-flow span{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:11px;font-weight:700}.osminog-store-flow i{color:var(--accent)}.osminog-store-body pre{margin:16px 0 0;padding:14px;border-radius:12px;background:#0d1117;color:#d8dee9;overflow:auto;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
-
 /* Global interface text-size presets. */
 html{--osminog-ui-caption:9px;--osminog-ui-small:11px;--osminog-ui-body:13px;--osminog-ui-title:16px}
 html[data-ui-text-size="compact"]{--osminog-ui-caption:8px;--osminog-ui-small:10px;--osminog-ui-body:12px;--osminog-ui-title:15px}
 html[data-ui-text-size="large"]{--osminog-ui-caption:11px;--osminog-ui-small:13px;--osminog-ui-body:15px;--osminog-ui-title:18px}
 html[data-ui-text-size="xlarge"]{--osminog-ui-caption:12px;--osminog-ui-small:15px;--osminog-ui-body:17px;--osminog-ui-title:21px}
-html[data-ui-text-size="large"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(button,input,textarea,select,label),html[data-ui-text-size="xlarge"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(button,input,textarea,select,label){font-size:var(--osminog-ui-small)!important}
-html[data-ui-text-size="large"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(p,.layer-row,.local-ai-msg,.google-ai-turn,.team-msg-body),html[data-ui-text-size="xlarge"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(p,.layer-row,.local-ai-msg,.google-ai-turn,.team-msg-body){font-size:var(--osminog-ui-body)!important}
-html[data-ui-text-size="large"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small,html[data-ui-text-size="xlarge"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small{font-size:var(--osminog-ui-caption)!important}
+html[data-ui-text-size="large"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(button,input,textarea,select,label),html[data-ui-text-size="xlarge"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(button,input,textarea,select,label){font-size:var(--osminog-ui-small)!important}
+html[data-ui-text-size="large"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(p,.layer-row,.local-ai-msg,.google-ai-turn,.team-msg-body),html[data-ui-text-size="xlarge"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(p,.layer-row,.local-ai-msg,.google-ai-turn,.team-msg-body){font-size:var(--osminog-ui-body)!important}
+html[data-ui-text-size="large"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small,html[data-ui-text-size="xlarge"] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small{font-size:var(--osminog-ui-caption)!important}
 html[data-ui-text-size="large"] :is(.provider-registry-head,.osminog-store-head,.panel-head,.bridge-head,.team-head) strong,html[data-ui-text-size="xlarge"] :is(.provider-registry-head,.osminog-store-head,.panel-head,.bridge-head,.team-head) strong{font-size:var(--osminog-ui-title)!important}
 @media(max-width:820px){.provider-registry-filters{grid-template-columns:1fr!important}.provider-registry-filters>span{justify-self:start}.osminog-store-grid{grid-template-columns:1fr 1fr}}
-
 /* 3.10.5 agent desktop controls */
 .gpt-agent-pill.collapsed{width:38px!important;min-width:38px!important;height:38px!important;padding:4px!important;border-radius:50%!important;gap:0!important;overflow:visible!important}
 .gpt-agent-pill.collapsed strong,.gpt-agent-pill.collapsed small{display:none!important}
@@ -998,15 +901,12 @@ html[data-ui-text-size="large"] :is(.provider-registry-head,.osminog-store-head,
 .osminog-agent-pill-menu{position:fixed;z-index:1900;width:182px;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 18px 52px #0008;display:grid;gap:3px}
 .osminog-agent-pill-menu button{height:34px;border:0;border-radius:8px;background:transparent;color:var(--text);text-align:left;padding:0 10px;font:600 11px/1 inherit;cursor:pointer}
 .osminog-agent-pill-menu button:hover{background:var(--surface-2);color:var(--accent)}
-
 /* 3.10.5: every virtual folder can be restored to the desktop from any explorer level. */
 .osminog-windows-explorer-item.virtual-folder{padding-right:36px}
 .osminog-win-item-desktop{position:absolute;z-index:3;right:6px;top:6px;width:25px;height:25px;border:1px solid var(--line);border-radius:7px;background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--muted);display:grid;place-items:center;padding:0;font:800 14px/1 system-ui;cursor:pointer;opacity:0;transform:translateY(-2px);transition:opacity .14s,transform .14s,background .14s,color .14s,border-color .14s}
 .osminog-windows-explorer-item.virtual-folder:hover .osminog-win-item-desktop,.osminog-windows-explorer-item.virtual-folder:focus-within .osminog-win-item-desktop,.osminog-win-item-desktop:focus-visible{opacity:1;transform:none}
 .osminog-win-item-desktop:hover,.osminog-win-item-desktop:focus-visible{background:var(--accent);border-color:var(--accent);color:#fff;outline:none}
 .view-details .osminog-windows-explorer-item.virtual-folder{padding-right:38px}
-
-
 /* OSMINOG 3.10.6 · rich Google results + Windows thumbnails + connection editing */
 .google-ai-turn.assistant{padding-left:0!important}
 .google-ai-turn-avatar{display:none!important}
@@ -1023,7 +923,6 @@ html[data-ui-text-size="large"] :is(.provider-registry-head,.osminog-store-head,
 .osminog-windows-explorer-items.view-details .osminog-win-thumb,.osminog-windows-explorer-items.view-list .osminog-win-thumb{--folder-thumb-size:34px}
 .connection-hit{cursor:pointer;pointer-events:stroke}
 .connection.selected{filter:drop-shadow(0 0 5px currentColor)}
-
 /* ================================================================
    OSMINOG 3.11.8 · OCTOPUS WORK STATES
    Worker mascots are octopuses; persistent agent pills are link-only.
@@ -1038,7 +937,6 @@ html[data-ui-mode="ocean"] #connections .connection-hit{pointer-events:stroke}
 html[data-ui-mode="ocean"] #connections .connection{opacity:.58;transition:opacity .15s,filter .15s}
 html[data-ui-mode="ocean"] #connections .connection.selected,
 html[data-ui-mode="ocean"] #connections:has(.connection-hit:hover) .connection{opacity:1;filter:drop-shadow(0 0 7px currentColor)}
-
 /* Shared mini octopus used in chat chips and task workers. */
 html[data-ui-mode="ocean"] .agent-wisp{
   width:30px;height:23px;border-radius:55% 45% 50% 50%/60% 60% 40% 40%;
@@ -1050,7 +948,6 @@ html[data-ui-mode="ocean"] .agent-wisp::after{display:none}
 html[data-ui-mode="ocean"] .agent-wisp i{top:8px;width:4px;height:5px;background:#0b1722;box-shadow:0 0 0 1px #ffffff55}
 html[data-ui-mode="ocean"] .agent-wisp i:first-child{left:8px}html[data-ui-mode="ocean"] .agent-wisp i:nth-child(2){right:8px}
 html[data-ui-mode="ocean"] .agent-wisp.mini{width:23px;height:18px}.agent-wisp.mini::before{bottom:-7px;height:11px}
-
 /* Main worker octopus: only appears during actual agent execution. */
 html[data-ui-mode="ocean"] .ai-canvas-ghost{width:72px!important;height:84px!important;filter:drop-shadow(0 16px 25px color-mix(in srgb,var(--ghost-color,#8b5cf6) 28%,transparent))!important}
 html[data-ui-mode="ocean"] .ai-ghost-wisp{
@@ -1070,18 +967,15 @@ html[data-ui-mode="ocean"] .ai-canvas-ghost[data-role="design"] .ai-ghost-wisp{f
 html[data-ui-mode="ocean"] .ai-canvas-ghost[data-role="code"] .ai-ghost-tools{filter:hue-rotate(170deg)}
 @keyframes osminogOctopusInspect{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-7px) rotate(2deg)}}
 @keyframes osminogOctopusWork{0%,100%{transform:translateY(0) scale(1) rotate(-2deg)}45%{transform:translateY(-3px) scale(1.035) rotate(2deg)}65%{transform:translateY(-1px) scale(.99) rotate(-1deg)}}
-
 /* Parallel worker octopuses keep the same living language. */
 html[data-ui-mode="ocean"] .parallel-agent-ghost .agent-wisp.parallel{width:38px;height:29px}
 html[data-ui-mode="ocean"] .parallel-agent-ghost .agent-wisp.parallel::before{bottom:-12px;height:17px}
-
 @media(prefers-reduced-motion:reduce){html[data-ui-mode="ocean"] .ai-ghost-wisp,html[data-ui-mode="ocean"] .agent-wisp{animation:none!important}}
 .gpt-worker-tethers{position:fixed;inset:0;width:100vw;height:100vh;z-index:150;pointer-events:none;overflow:visible}
 .gpt-worker-tethers path{fill:none;stroke:var(--tether-color,#64d7ff);stroke-width:1.7;stroke-linecap:round;opacity:.42;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--tether-color,#64d7ff) 35%,transparent));stroke-dasharray:5 8;animation:osminogWorkerFlow 2.4s linear infinite}
 .gpt-worker-tethers circle{fill:var(--tether-color,#64d7ff);opacity:.72;filter:drop-shadow(0 0 5px var(--tether-color,#64d7ff))}
 @keyframes osminogWorkerFlow{to{stroke-dashoffset:-26}}
 @media(prefers-reduced-motion:reduce){.gpt-worker-tethers path{animation:none!important}}
-
 /* OSMINOG 3.11.17 — common workspace polish and stable utility placement. */
 .topbar.glass{
   background:transparent!important;
@@ -1144,7 +1038,6 @@ html[data-ui-mode="ocean"] .parallel-agent-ghost .agent-wisp.parallel::before{bo
 .zoom-controls.osminog-zoom-pill #zoomLabel:hover{background:var(--accent-soft)!important;color:var(--accent)!important}
 /* Keep zoom left of an expanded inspector without hiding it. JS updates the exact offset for resized inspectors. */
 @media(max-width:720px){.topbar{left:58px!important}.zoom-controls.osminog-zoom-pill{right:8px!important}}
-
 /* OSMINOG 3.11.18 — panel/zoom/layers usability pass. */
 /* Collapsed inspector is a compact quick-actions pill, not a full-height empty rail. */
 .inspector.collapsed{
@@ -1159,7 +1052,6 @@ html[data-ui-mode="ocean"] .parallel-agent-ghost .agent-wisp.parallel::before{bo
   min-height:0!important;
   padding-bottom:9px!important;
 }
-
 /* Zoom adapts to inspector state. Expanded inspector => classic horizontal zoom.
    Collapsed inspector => separate vertical pill below the quick-actions pill, same width. */
 .zoom-controls.osminog-zoom-pill.with-expanded-inspector{
@@ -1195,7 +1087,6 @@ html[data-ui-mode="ocean"] .parallel-agent-ghost .agent-wisp.parallel::before{bo
 .zoom-controls.osminog-zoom-pill.with-collapsed-inspector #zoomLabel{
   line-height:34px!important;text-align:center!important;writing-mode:horizontal-tb!important;transform:none!important;
 }
-
 /* Collapsed Layers contains navigation controls only — never real layer/file rows or previews. */
 .layers-panel.collapsed .layer-list,
 .layers-panel.collapsed .layer-row,
@@ -1209,14 +1100,12 @@ html[data-ui-mode="ocean"] .parallel-agent-ghost .agent-wisp.parallel::before{bo
 }
 .layers-panel.collapsed{overflow:hidden!important}
 .layers-panel.collapsed .layers-mini-rail{overflow:hidden!important}
-
 /* Expanded Layers footer: local project folder is the wide primary action; + is the small action. */
 .layers-panel:not(.collapsed) .osminog-folder-dock{
   grid-template-columns:minmax(0,1fr) 38px!important;
 }
 .layers-panel:not(.collapsed) #osminogFolderDockRoot{grid-column:1!important;grid-row:1!important}
 .layers-panel:not(.collapsed) #osminogFolderDockAdd{grid-column:2!important;grid-row:1!important;width:38px!important;min-width:38px!important}
-
 /* Ocean top controls: one consistent translucent light substrate per logical group,
    with no individual outlines fighting the water background. */
 html[data-theme="ocean"] .top-left,
@@ -1248,9 +1137,7 @@ html[data-theme="ocean"] .mode-switch button.active{
 }
 /* Preserve the intentional primary Export treatment. */
 html[data-theme="ocean"] #exportBtn{background:linear-gradient(120deg,#4bbce8,#756ff0)!important}
-
 /* OSMINOG 3.11.19 — readability / panel cleanup over the single shared workspace layout. */
-
 /* 1) Top controls: no long group containers. Each control is its own bubble in Ocean. */
 html[data-theme="ocean"] .top-left,
 html[data-theme="ocean"] .mode-switch,
@@ -1294,7 +1181,6 @@ html[data-theme="ocean"] #exportBtn{
   background:linear-gradient(120deg,#4bbce8,#756ff0)!important;
   box-shadow:0 10px 24px rgba(24,86,151,.22)!important;
 }
-
 /* 2) Collapsed Layers is navigation-only. Absolutely no object/file thumbnails or rendered rows. */
 .layers-panel.collapsed .layer-list,
 .layers-panel.collapsed #layerList,
@@ -1315,7 +1201,6 @@ html[data-theme="ocean"] #exportBtn{
   display:none!important;
 }
 .layers-panel.collapsed .layers-mini-rail img{display:none!important}
-
 /* 3) Layers folder dock: no separator bars; align to the 54px creation-tool rhythm. */
 .osminog-folder-dock{
   min-height:54px!important;
@@ -1335,7 +1220,6 @@ html[data-theme="ocean"] #exportBtn{
 }
 .layers-panel:not(.collapsed) .osminog-folder-dock{border-top:0!important}
 .layers-panel:not(.collapsed) .panel-footer{border-top:0!important}
-
 /* 4) Zoom: compact when Inspector is collapsed; classic horizontal when it is open. */
 .zoom-controls.osminog-zoom-pill.with-collapsed-inspector{
   width:56px!important;
@@ -1358,25 +1242,23 @@ html[data-theme="ocean"] #exportBtn{
   min-height:44px!important;
   padding:4px!important;
 }
-
 /* 5) Unified, subtle scrollbars across all themes. */
-:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.browser-hub,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list){
+:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list){
   scrollbar-width:thin;
   scrollbar-color:color-mix(in srgb,var(--muted) 48%,transparent) transparent;
 }
-:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.browser-hub,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar{width:8px;height:8px}
-:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.browser-hub,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar-track{background:transparent}
-:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.browser-hub,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar-thumb{
+:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar{width:8px;height:8px}
+:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar-track{background:transparent}
+:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar-thumb{
   border:2px solid transparent;
   border-radius:999px;
   background:color-mix(in srgb,var(--muted) 52%,transparent);
   background-clip:content-box;
 }
-:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.browser-hub,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar-thumb:hover{
+:is(.inspector-body,.layer-list,.bridge-body,.local-ai-messages,.gpt-settings-popover,.osminog-google-chat__messages,.team-transcript,.provider-registry,.markdown-studio,.osminog-windows-explorer-body,.osminog-desktop-folder-body,.activity-list)::-webkit-scrollbar-thumb:hover{
   background:color-mix(in srgb,var(--accent) 62%,var(--muted));
   background-clip:content-box;
 }
-
 /* 6) Ocean chat/settings: readable blue glass, no white conversation sheet. */
 html[data-theme="ocean"] .bridge-panel.gpt-resizable-panel{
   background:rgba(5,46,70,.84)!important;
@@ -1416,7 +1298,6 @@ html[data-theme="ocean"] .gpt-presence-shell .local-ai-compose textarea{
   color:#fff!important;
 }
 html[data-theme="ocean"] .gpt-presence-shell .local-ai-compose textarea::placeholder{color:#aacbd8!important}
-
 /* Settings is a real full-surface state inside the chat body: opaque enough, structured, scrollable. */
 .gpt-resizable-panel .gpt-settings-popover{
   left:0!important;
@@ -1471,7 +1352,6 @@ html[data-theme="ocean"] .gpt-settings-popover :is(select,input,textarea){
   border-color:rgba(214,243,252,.18)!important;
 }
 @media(max-width:520px){.gpt-settings-popover .local-ai-settings{grid-template-columns:1fr!important}}
-
 /* OSMINOG 3.11.20 — top rail / zoom / collapsed Layers alignment. */
 /* Ocean top groups reuse the same glass language as the side quick rail; the logo itself remains naked. */
 html[data-theme="ocean"] .brand.compact{
@@ -1497,7 +1377,6 @@ html[data-theme="ocean"] .mode-switch button:hover,
 html[data-theme="ocean"] .top-actions :is(.icon-btn,.soft-btn,.profile-btn):hover{background:rgba(255,255,255,.09)!important}
 html[data-theme="ocean"] .mode-switch button.active{background:rgba(255,255,255,.12)!important;box-shadow:inset 0 0 0 1px rgba(232,250,255,.08)!important}
 html[data-theme="ocean"] #exportBtn{background:linear-gradient(120deg,#4bbce8,#756ff0)!important}
-
 /* Right collapsed rail and zoom are sibling pills with identical width/material. Zoom stays at the bottom. */
 .inspector.collapsed{width:56px!important;min-width:56px!important}
 .zoom-controls.osminog-zoom-pill.with-collapsed-inspector{
@@ -1512,7 +1391,6 @@ html[data-theme="ocean"] .zoom-controls.osminog-zoom-pill.with-collapsed-inspect
   backdrop-filter:blur(32px) saturate(1.10)!important;-webkit-backdrop-filter:blur(32px) saturate(1.10)!important
 }
 .zoom-controls.osminog-zoom-pill.with-collapsed-inspector :is(.icon-btn,#zoomLabel){width:46px!important;min-width:46px!important}
-
 /* Expanded and collapsed Layers keep the same 14px workspace edge gap. */
 .layers-panel:not(.collapsed){bottom:14px!important;box-sizing:border-box!important}
 /* Collapsed Layers ends at the same bottom line as the zoom pill. No overlap between mini rail and footer controls. */
@@ -1532,8 +1410,6 @@ html[data-theme="ocean"] .zoom-controls.osminog-zoom-pill.with-collapsed-inspect
 .layers-panel.collapsed #osminogFolderDockRoot:hover{background:var(--surface-2)!important;color:var(--text)!important}
 html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockAdd:hover,
 html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockRoot:hover{background:rgba(255,255,255,.09)!important}
-
-
 /* OSMINOG 3.11.21 — topbar, dropdown, chat and brand-logo cleanup. */
 html[data-theme="ocean"] #goHome.brand.compact,
 html[data-theme="ocean"] #goHome.brand.compact:hover{
@@ -1684,12 +1560,10 @@ html[data-theme="ocean"] .gpt-attachment-chip{border-radius:12px!important}
 }
 .agent-provider-badge.logo img{width:12px!important;height:12px!important;object-fit:contain!important;display:block}
 .provider-head-avatar img{width:20px;height:20px;object-fit:contain}
-
 /* ======================================================================
    OSMINOG 3.11.21 · UI CLEANUP / BRAND ICONS / CHAT POLISH
    Single familiar workspace layout. Ocean is visual treatment only.
    ====================================================================== */
-
 /* Top: no group containers. Every action is its own bubble; brand remains naked. */
 html[data-theme="ocean"] .top-left,
 html[data-theme="ocean"] .workspace-prefs,
@@ -1732,7 +1606,6 @@ html[data-theme="ocean"] .mode-switch button.active{
   box-shadow:0 8px 22px rgba(28,86,220,.22)!important;
 }
 html[data-theme="ocean"] #exportBtn{background:linear-gradient(120deg,#4bbce8,#756ff0)!important;border:0!important}
-
 /* Layers: selected = blue bubble + white mark, no ambiguous muted active state. */
 #layersToggle.active,
 .layers-toggle-left.active,
@@ -1743,7 +1616,6 @@ html[data-theme="ocean"] #exportBtn{background:linear-gradient(120deg,#4bbce8,#7
   box-shadow:0 9px 24px rgba(47,121,255,.28)!important;
 }
 #layersToggle.active svg,.layers-toggle-left.active svg,.layers-floating-bubble.active svg{color:#fff!important;stroke:#fff!important}
-
 /* One dropdown language everywhere: solid enough to read, glass enough to belong. */
 .smart-select-menu{
   background:color-mix(in srgb,var(--surface) 94%,#0f1825 6%)!important;
@@ -1774,7 +1646,6 @@ html[data-theme="ocean"] .ocean-fx-selects .smart-select-trigger{
 }
 .ocean-fx-selects .smart-select{min-width:96px;width:112px;flex:0 0 auto}
 .ocean-fx-selects .smart-select-trigger{height:32px!important}
-
 /* GPT/chat: kill white patches and sharp nested surfaces; keep the window one continuous glass object. */
 .gpt-resizable-panel{border-radius:22px!important}
 .gpt-resizable-panel .bridge-head{border-radius:22px 22px 0 0!important}
@@ -1826,7 +1697,6 @@ html[data-theme="ocean"] .gpt-presence-shell .local-ai-msg.assistant{
   background:rgba(205,241,252,.10)!important;
   border:1px solid rgba(221,248,255,.12)!important;
 }
-
 /* GPT Settings: predictable cards, provider logos, no translucent mush. */
 .gpt-provider-brand-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin:2px 0 4px}
 .gpt-provider-brand-grid button{height:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);display:grid;place-items:center;padding:7px;cursor:pointer;transition:.15s}
@@ -1845,22 +1715,16 @@ html[data-theme="ocean"] .gpt-settings-popover :is(.gpt-color-settings,.gpt-powe
 }
 html[data-theme="ocean"] .gpt-settings-popover details summary{color:#f0f9fc!important}
 html[data-theme="ocean"] .gpt-settings-popover :is(input,textarea){background:rgba(3,42,62,.78)!important;border-color:rgba(220,248,255,.16)!important;color:#fff!important}
-
 /* Brand imagery: fit genuine/local provider marks cleanly inside catalog, shortcuts, team and browser hub. */
-.provider-registry-icon img,.team-media-crew-list img,.osminog-provider-shortcut img,.browser-hub-tab-icon img{display:block;max-width:100%;max-height:100%;object-fit:contain}
-.browser-hub-tab-icon{display:grid!important;place-items:center!important;overflow:hidden!important}
-.browser-hub-tab-icon img{width:22px!important;height:22px!important}
+.provider-registry-icon img,.team-media-crew-list img,.osminog-provider-shortcut img,-tab-icon img{display:block;max-width:100%;max-height:100%;object-fit:contain}
 .provider-registry-icon b{font-size:13px}
-
 /* Clean side-rail footer rhythm. No separators, no pseudo full-height shafts. */
 .layers-panel.collapsed .osminog-folder-dock{border:0!important;background:transparent!important}
 .layers-panel.collapsed #osminogFolderDockAdd,
 .layers-panel.collapsed #osminogFolderDockRoot{border:1px solid color-mix(in srgb,var(--line) 70%,transparent)!important;background:var(--surface-glass)!important}
 html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockAdd,
 html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockRoot{background:rgba(5,60,88,.66)!important;border-color:rgba(216,245,253,.10)!important;backdrop-filter:blur(22px)!important}
-
 @media(max-width:760px){.gpt-provider-brand-grid{grid-template-columns:repeat(3,1fr)}}
-
 /* ================================================================
    OSMINOG 3.11.22 · TEAM EXECUTION & Z-LAYER FIX
    Team is a focus window above desktop shortcuts; transcript bubbles
@@ -1905,7 +1769,6 @@ html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockRoot{backgrou
 #teamTranscript>.team-msg.user{align-self:flex-end!important;max-width:82%!important;grid-template-columns:1fr!important}
 #teamTranscript>.team-msg.user .team-msg-avatar{display:none!important}
 #teamTranscript>.team-msg.system{max-width:92%!important;align-self:center!important}
-
 /* ================================================================
    OSMINOG 3.11.23 · AGENT CONNECTION & NODE UX
    Responsive agent settings, internal service sessions, explicit add-agent picker,
@@ -1953,7 +1816,6 @@ html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockRoot{backgrou
   .gpt-settings-popover .gpt-settings-connect{grid-column:3/4!important}
   .gpt-settings-popover .local-ai-settings{grid-column:1/3!important}
 }
-
 /* One brain picker only. All registry services can be chosen as an agent brain. */
 .gpt-provider-brand-grid,#osminogSettingsProviderTools{display:none!important}
 .osminog-brain-picker{display:grid;gap:8px;margin:3px 0 8px;min-width:0}
@@ -1970,7 +1832,6 @@ html[data-theme="ocean"] .layers-panel.collapsed #osminogFolderDockRoot{backgrou
 .osminog-brain-picker-grid button.active>i{background:#34d399;box-shadow:0 0 0 3px #34d3991f}
 html[data-theme="ocean"] .osminog-brain-picker-grid button{background:rgba(6,58,84,.82)!important;border-color:rgba(219,247,255,.14)!important;backdrop-filter:blur(20px)!important}
 html[data-theme="ocean"] .osminog-brain-picker-grid button.active{background:rgba(54,112,160,.42)!important;border-color:var(--provider-tone,#6ed8ff)!important}
-
 .gpt-provider-settings{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px!important}
 .gpt-provider-settings>span,.gpt-provider-settings>.osminog-brain-picker,.gpt-provider-settings>.gpt-provider-connect-row,.gpt-provider-settings>details,.gpt-provider-settings>.gpt-custom-provider,.gpt-provider-settings>.gpt-provider-note{grid-column:1/-1!important}
 .gpt-provider-settings>label{min-width:0!important}
@@ -1979,7 +1840,6 @@ html[data-theme="ocean"] .osminog-brain-picker-grid button.active{background:rgb
 .gpt-provider-connect-actions button{min-width:0;height:38px!important}
 .gpt-provider-connect-row>small{font-size:9px!important;line-height:1.4!important;color:var(--muted)!important}
 html[data-theme="ocean"] .gpt-provider-connect-row{background:rgba(6,57,83,.80)!important;border-color:rgba(219,247,255,.14)!important;backdrop-filter:blur(22px)!important}
-
 /* Explicit add-agent picker shown by + instead of silently cloning the current provider. */
 .gpt-add-agent-picker{position:absolute;z-index:115;left:50%;top:48px;transform:translateX(-50%);width:min(94%,590px);max-height:min(70%,560px);padding:10px;border:1px solid var(--line);border-radius:17px;background:color-mix(in srgb,var(--surface) 96%,transparent);box-shadow:0 24px 70px rgba(0,0,0,.34);backdrop-filter:blur(30px) saturate(1.08);-webkit-backdrop-filter:blur(30px) saturate(1.08);display:flex;flex-direction:column;gap:9px;overflow:hidden}
 .gpt-add-agent-picker[hidden]{display:none!important}
@@ -1994,7 +1854,6 @@ html[data-theme="ocean"] .gpt-provider-connect-row{background:rgba(6,57,83,.80)!
 .gpt-add-agent-note{font-size:8px;line-height:1.4;color:var(--muted);padding:0 3px 2px}
 html[data-theme="ocean"] .gpt-add-agent-picker{background:rgba(3,43,65,.96)!important;border-color:rgba(220,248,255,.17)!important}
 html[data-theme="ocean"] .gpt-add-agent-grid button{background:rgba(6,58,84,.84)!important;border-color:rgba(220,248,255,.13)!important}
-
 /* Persistent desktop agent capsules are retired. Chat chips + worker octopuses are canonical. */
 .gpt-agent-pill{display:none!important}
 .agent-pill-visibility{display:none!important}
@@ -2004,12 +1863,10 @@ html[data-theme="ocean"] .gpt-add-agent-grid button{background:rgba(6,58,84,.84)
 .ai-canvas-ghost .ai-ghost-wisp::before{content:""!important;display:block!important;position:absolute!important;left:4px!important;right:4px!important;bottom:-20px!important;height:27px!important;background:var(--ghost-color,#8b5cf6)!important;clip-path:polygon(0 0,9% 91%,19% 19%,30% 100%,41% 24%,51% 94%,62% 17%,73% 100%,84% 21%,93% 88%,100% 0)!important;opacity:.91!important;filter:drop-shadow(0 3px 2px rgba(0,0,0,.13))!important}
 .ai-canvas-ghost .ai-ghost-wisp::after{display:none!important}
 .ai-canvas-ghost>small{top:68px!important}
-
 /* Node objects are always editable by selection; inspector owns their connection tools. */
 .canvas-object[data-type="node"].selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 42%,transparent),var(--shadow-sm)!important}
 .node-edit-hint{display:grid;gap:7px;padding:9px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .node-edit-hint strong{font-size:11px}.node-edit-hint span{font-size:9px;color:var(--muted);line-height:1.45}
-
 @media(max-width:620px){
   .gpt-resizable-panel{min-width:0!important;width:calc(100vw - 16px)!important;height:calc(100vh - 86px)!important}
   .gpt-provider-settings{grid-template-columns:1fr!important}
@@ -2018,15 +1875,12 @@ html[data-theme="ocean"] .gpt-add-agent-grid button{background:rgba(6,58,84,.84)
   .gpt-provider-connect-actions{grid-template-columns:1fr}
   .gpt-add-agent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-
-
 /* OSMINOG 3.11.24 — SETTINGS CLOSE HOTFIX
    3.11.23 adaptive grid used display:grid!important and overrode the hidden attribute.
    Hidden is authoritative for all full-surface settings/pickers. */
 .gpt-settings-popover[hidden],
 #gptPresenceSettingsPanel[hidden],
 #gptAddAgentPicker[hidden]{display:none!important}
-
 /* OSMINOG 3.11.25 — CHAT TABS RESTORE
    Restore the proven project-thread runtime. The + control only chooses the provider;
    creating a tab never depends on connection state. */
@@ -2059,7 +1913,6 @@ html[data-theme="ocean"] .gpt-add-agent-picker{
   .gpt-add-agent-picker{min-width:0!important;width:calc(100vw - 24px)!important;left:12px!important;right:auto!important}
   .gpt-add-agent-other{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-
 /* ================================================================
    OSMINOG 3.11.26 · CHAT CORE REBUILD
    Stable thread lifecycle + messenger reactions + history actions in bottom rail.
@@ -2068,7 +1921,6 @@ html[data-theme="ocean"] .gpt-add-agent-picker{
 .tool-rail .tool-history-action:hover{background:color-mix(in srgb,var(--tool-color) 16%,transparent)!important}
 .tool-rail .tool-history-action.activity-btn span{right:-5px!important;top:-7px!important;border-color:var(--surface)!important}
 .tool-rail .rail-sep-history{margin-left:7px!important}
-
 /* Chat message reactions: hidden until hover/focus; chosen reactions stay visible below the bubble. */
 .local-ai-msg,.team-msg-body{position:relative!important}
 .osminog-msg-react-bar{
@@ -2090,32 +1942,26 @@ html[data-theme="ocean"] .gpt-add-agent-picker{
 html[data-theme="ocean"] .osminog-msg-react-bar{background:rgba(4,44,66,.94)!important;border-color:rgba(220,248,255,.16)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important}
 html[data-theme="ocean"] .osminog-msg-react-bar button:hover,html[data-theme="ocean"] .osminog-msg-react-bar button.active{background:rgba(255,255,255,.10)!important}
 html[data-theme="ocean"] .osminog-msg-reactions button{background:rgba(8,67,95,.74)!important;border-color:rgba(220,248,255,.13)!important}
-
 /* Thread bar must remain clickable and never sit under transient surfaces. */
 .gpt-threadbar{position:relative!important;z-index:24!important;overflow:visible!important}
 .gpt-thread-tabs{pointer-events:auto!important}
 .gpt-thread-tab,.gpt-thread-add,#gptQuickConnect{pointer-events:auto!important}
 .gpt-add-agent-picker{z-index:2200!important}
-
 /* The main close/minimize/settings actions always remain on top of the chat surface. */
 .gpt-resizable-panel .bridge-head{position:relative!important;z-index:80!important}
 .gpt-resizable-panel .bridge-head-actions{position:relative!important;z-index:81!important;pointer-events:auto!important}
 .gpt-resizable-panel .bridge-head-actions button{pointer-events:auto!important}
-
 /* Team reactions stay inside the actual message body and never affect transcript sizing. */
 #teamTranscript .team-msg-body{padding-bottom:8px!important}
 #teamTranscript .team-react-bar{right:6px;top:-14px}
 #teamTranscript .team-reactions{margin-top:8px}
-
-
 /* =========================================================
    OSMINOG 3.11.27 · LIGHT THEME CONTRAST + CHAT EDGE RESIZE
    ========================================================= */
 html[data-theme="light"] body{background:#DEE2E7!important}
 html[data-theme="light"] #viewport{background-color:#DEE2E7}
 /* Keep the familiar white/light surfaces, but separate them from the canvas. */
-html[data-theme="light"] :is(.topbar,.layers-panel,.inspector,.bridge-panel,.team-shell,.modules-popover,.provider-registry,.browser-hub,.markdown-studio){box-shadow:0 12px 38px rgba(65,78,96,.10)}
-
+html[data-theme="light"] :is(.topbar,.layers-panel,.inspector,.bridge-panel,.team-shell,.modules-popover,.provider-registry,.markdown-studio){box-shadow:0 12px 38px rgba(65,78,96,.10)}
 /* OSMINOG 3.11.43 · Unified AI Sessions
    Provider pages are attached only when already open. Chat stays in OSMINOG. */
 .osminog-session-center{gap:9px!important;padding:11px!important;background:color-mix(in srgb,var(--surface-2) 90%,transparent)!important}
@@ -2132,14 +1978,12 @@ html[data-theme="light"] :is(.topbar,.layers-panel,.inspector,.bridge-panel,.tea
 .osminog-session-reconnect strong,.osminog-session-reconnect small{display:block}.osminog-session-reconnect strong{font-size:11px}.osminog-session-reconnect small{margin-top:3px;color:var(--muted);font-size:8px}.osminog-session-reconnect button{height:34px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);font-size:9px;padding:0 10px;cursor:pointer}.osminog-session-reconnect [data-session-reconnect]{border-color:color-mix(in srgb,var(--accent) 42%,var(--line));background:var(--accent);color:#fff}.osminog-session-reconnect [data-session-dismiss]{width:28px;padding:0;color:var(--muted)}
 html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!important}html[data-theme="ocean"] .osminog-session-reconnect{background:rgba(4,43,64,.96)!important;border-color:rgba(245,158,11,.42)!important}
 @media(max-width:620px){.osminog-session-reconnect{grid-template-columns:34px minmax(0,1fr) 26px}.osminog-session-reconnect [data-session-reconnect]{grid-column:1/-1;width:100%}}
-
 /* OSMINOG 3.11.41 — one canvas, one permanent tool shelf. */
 .topbar{grid-template-columns:minmax(280px,1fr) minmax(420px,1fr)!important}
 .tool-rail #markdownStudioButton{--tool-color:#7c8799}
-.tool-rail #browserHubButton{--tool-color:#7c8799}
+
 @media(max-width:1280px){.topbar{grid-template-columns:minmax(230px,1fr) minmax(330px,1fr)!important}}
 @media(max-width:1020px){.topbar{grid-template-columns:1fr auto!important}}
-
 /* Reliable edge resizing for the AI chat. Handles live INSIDE the frame so they
    cannot be clipped by parent stacking/overflow rules. */
 .gpt-resizable-panel{min-width:380px!important;max-width:calc(100vw - 16px)!important}
@@ -2153,8 +1997,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 .gpt-resizable-panel .gpt-panel-resize-ne,.gpt-resizable-panel .gpt-panel-resize-nw,.gpt-resizable-panel .gpt-panel-resize-se,.gpt-resizable-panel .gpt-panel-resize-sw{width:22px!important;height:22px!important}
 .gpt-resizable-panel .gpt-panel-resize-ne{right:0!important;top:0!important}.gpt-resizable-panel .gpt-panel-resize-nw{left:0!important;top:0!important}.gpt-resizable-panel .gpt-panel-resize-se{right:0!important;bottom:0!important}.gpt-resizable-panel .gpt-panel-resize-sw{left:0!important;bottom:0!important}
 .gpt-panel-resizing{will-change:left,top,width,height}
-
-
 /* =========================================================
    OSMINOG 3.11.29 · CHAT FRAME RESIZE HOTFIX
    ========================================================= */
@@ -2180,8 +2022,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 .team-shell.osminog-managed-window .team-head{flex:0 0 auto}
 .team-shell.osminog-managed-window .team-layout{flex:1}
 @media(max-width:760px){.team-shell.osminog-managed-window .team-layout{grid-template-columns:180px minmax(0,1fr)!important}.team-shell.osminog-managed-window .team-head p{display:none}}
-
-
 /* =========================================================
    OSMINOG 3.11.30 · CHAT RESIZE ROOT FIX
    The responsive Settings pass must never hard-lock window geometry.
@@ -2191,7 +2031,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
   width:min(700px,calc(100vw - 32px));
   height:min(820px,calc(100vh - 96px));
 }
-
 /* =====================================================================
    OSMINOG 3.11.37 · ONE MESSENGER — STABLE THREE-PANE LAYOUT
    One window only: team chats left, active chat center, settings right.
@@ -2200,7 +2039,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
    ===================================================================== */
 #teamWorkspace,#teamTrayBubble{display:none!important}
 .mode-team #world,.mode-team #marquee,.mode-team #emptyHint{visibility:visible!important;pointer-events:auto!important}
-
 #bridgePanel.gpt-resizable-panel{
   min-width:560px!important;
   max-width:calc(100vw - 16px)!important;
@@ -2227,7 +2065,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 #bridgePanel.gpt-team-open .gpt-messenger-shell{grid-template-columns:260px minmax(420px,1fr)}
 #bridgePanel.gpt-settings-open .gpt-messenger-shell{grid-template-columns:minmax(420px,1fr) 360px}
 #bridgePanel.gpt-team-open.gpt-settings-open .gpt-messenger-shell{grid-template-columns:260px minmax(420px,1fr) 360px}
-
 .gpt-messenger-team-pane,.gpt-messenger-settings-pane,.gpt-messenger-chat-center{
   min-width:0!important;
   min-height:0!important;
@@ -2263,7 +2100,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 .gpt-messenger-chat-center>.gpt-compose-shell{flex:0 0 auto;min-width:0}
 .gpt-messenger-chat-center>#gptPresenceMessages{flex:1 1 auto;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important}
 .mode-team .gpt-messenger-chat-center>.gpt-threadbar{display:none!important}
-
 .gpt-messenger-side-head{
   height:58px;flex:0 0 58px;display:flex;align-items:center;justify-content:space-between;
   gap:10px;padding:0 10px 0 14px;border-bottom:1px solid var(--line);box-sizing:border-box
@@ -2288,7 +2124,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 .gpt-messenger-thread .agent-task-dot{position:static!important;justify-self:end}
 .gpt-messenger-team-footer{flex:0 0 auto;display:grid;gap:4px;margin:0 10px 10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .gpt-messenger-team-footer strong{font-size:9px}.gpt-messenger-team-footer small{font-size:8px;line-height:1.45;color:var(--muted)}
-
 /* Settings are a real right column, never a popup laid over the conversation. */
 .gpt-messenger-settings-pane>#gptPresenceSettingsPanel,
 .gpt-messenger-settings-pane>.gpt-settings-popover{
@@ -2322,7 +2157,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 .gpt-messenger-settings-pane .local-ai-settings{grid-template-columns:1fr!important}
 .gpt-messenger-settings-pane .osminog-brain-picker-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;max-height:none!important}
 .gpt-messenger-settings-pane .gpt-color-settings>div{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-
 /* 3.11.46 — dedicated controls for the shared Team room. */
 .gpt-agent-settings-content{display:flex;flex-direction:column;gap:10px;min-width:0}
 .gpt-agent-settings-content[hidden],.gpt-team-settings[hidden]{display:none!important}
@@ -2340,7 +2174,6 @@ html[data-theme="ocean"] .osminog-session-center{background:rgba(6,57,83,.82)!im
 .gpt-team-settings[data-running="true"] :is(.gpt-team-settings-agents,.gpt-team-settings-grid,.gpt-team-switches,.gpt-team-settings-actions){opacity:.5;pointer-events:none}
 html[data-theme="ocean"] .gpt-team-settings :is(.gpt-team-settings-card,.gpt-team-control-status,.gpt-team-estimate){background:rgba(5,54,78,.84)!important;border-color:rgba(218,246,253,.14)!important}
 @media(max-width:420px){.gpt-team-settings-grid{grid-template-columns:1fr}.gpt-team-settings-actions{grid-template-columns:1fr}}
-
 /* 3.11.47 — visible authorship and live Team writing state. */
 .local-ai-activity.team-live-activity{display:grid!important;grid-template-columns:38px minmax(0,1fr) auto auto;grid-template-rows:auto 6px;align-items:center;gap:5px 9px;min-height:68px!important;padding:9px 11px!important;border-radius:14px!important;background:color-mix(in srgb,var(--activity-color,#8b5cf6) 10%,var(--surface-2))!important;border-color:color-mix(in srgb,var(--activity-color,#8b5cf6) 48%,var(--line))!important;box-shadow:0 10px 28px color-mix(in srgb,var(--activity-color,#8b5cf6) 12%,transparent)}
 .team-live-avatar{grid-row:1;width:38px;height:38px;display:grid;place-items:center;padding:8px;box-sizing:border-box;border-radius:12px;background:color-mix(in srgb,var(--activity-color,#8b5cf6) 15%,var(--surface));border:1px solid color-mix(in srgb,var(--activity-color,#8b5cf6) 45%,var(--line));box-shadow:0 0 0 4px color-mix(in srgb,var(--activity-color,#8b5cf6) 10%,transparent)}.team-live-avatar img{display:block;width:100%;height:100%;object-fit:contain}
@@ -2354,7 +2187,6 @@ html[data-theme="ocean"] .gpt-team-settings :is(.gpt-team-settings-card,.gpt-tea
 .gpt-msg-card{position:relative;min-width:0;padding:10px 12px;border:1px solid color-mix(in srgb,var(--message-color,#8b5cf6) 22%,var(--line));border-radius:14px;background:var(--gpt-assistant-bg,var(--surface-2));color:var(--text)}.source-team .gpt-msg-card{border-left:3px solid var(--message-color,#8b5cf6)}.gpt-msg-card>header{display:flex;align-items:center;gap:6px;min-width:0;margin-bottom:7px}.gpt-msg-card>header strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gpt-msg-card>header i{flex:0 0 auto;padding:2px 6px;border-radius:99px;background:color-mix(in srgb,var(--message-color,#8b5cf6) 12%,transparent);color:var(--message-color,#8b5cf6);font-size:7px;font-style:normal;font-weight:850}.gpt-msg-card>header time{margin-left:auto;color:var(--muted);font-size:7px;font-variant-numeric:tabular-nums}.user .gpt-msg-card>header i,.user .gpt-msg-card>header time{color:rgba(255,255,255,.72)}.gpt-msg-text{font-size:12px;line-height:1.5;overflow-wrap:anywhere}.local-ai-msg.gpt-msg-with-avatar:hover .osminog-msg-react-bar,.local-ai-msg.gpt-msg-with-avatar:focus-within .osminog-msg-react-bar{opacity:1;pointer-events:auto;transform:none}
 html[data-theme="ocean"] .local-ai-activity.team-live-activity{background:color-mix(in srgb,var(--activity-color,#8b5cf6) 15%,rgba(3,49,72,.94))!important}html[data-theme="ocean"] .gpt-msg-card{background:rgba(7,62,88,.86)!important;border-color:color-mix(in srgb,var(--message-color,#8b5cf6) 32%,rgba(220,248,255,.14))!important}html[data-theme="ocean"] .local-ai-msg.gpt-msg-with-avatar.user>.gpt-msg-card{background:var(--gpt-user-bg,#6758f5)!important}
 @media(max-width:520px){.local-ai-activity.team-live-activity{grid-template-columns:34px minmax(0,1fr) auto}.team-live-percent{display:none}.team-live-copy strong i{display:block;margin:2px 0 0}.local-ai-msg.gpt-msg-with-avatar{grid-template-columns:30px minmax(0,1fr);gap:6px;max-width:100%!important}.local-ai-msg.gpt-msg-with-avatar.user{grid-template-columns:minmax(0,1fr) 30px}.gpt-msg-avatar{width:30px;height:30px}.gpt-msg-text{font-size:11px}}
-
 .gpt-github-settings{display:grid;gap:9px;padding:10px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2)}
 .gpt-github-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .gpt-github-title span,.gpt-github-repo>span{display:block;font-size:8px;font-weight:900;letter-spacing:.11em;color:var(--muted)}
@@ -2363,11 +2195,9 @@ html[data-theme="ocean"] .local-ai-activity.team-live-activity{background:color-
 .gpt-github-actions,.gpt-github-token{display:grid;grid-template-columns:1fr auto;gap:7px}.gpt-github-actions button,.gpt-github-token button{min-width:0}
 .gpt-github-settings>small{font-size:8px;line-height:1.45;color:var(--muted)}
 .gpt-github-token[hidden]{display:none!important}
-
 html[data-theme="ocean"] .gpt-messenger-team-pane,
 html[data-theme="ocean"] .gpt-messenger-settings-pane{background:rgba(3,45,68,.88)!important;border-color:rgba(218,246,253,.15)!important;backdrop-filter:blur(26px)}
 html[data-theme="ocean"] .gpt-messenger-thread.active{background:color-mix(in srgb,var(--agent-color) 20%,rgba(4,48,71,.92))!important}
-
 @media(max-width:1050px){
   #bridgePanel.gpt-team-open.gpt-settings-open .gpt-messenger-shell{grid-template-columns:220px minmax(360px,1fr) 320px}
 }
@@ -2377,7 +2207,6 @@ html[data-theme="ocean"] .gpt-messenger-thread.active{background:color-mix(in sr
   .gpt-messenger-team-pane,.gpt-messenger-settings-pane{position:absolute;top:0;bottom:0;z-index:20;width:min(330px,86%);box-shadow:0 18px 48px rgba(0,0,0,.34)}
   .gpt-messenger-team-pane{left:0}.gpt-messenger-settings-pane{right:0}
 }
-
 /* OSMINOG 3.11.38 — Ocean topbar buttons match Layers pill */
 html[data-theme="ocean"] .top-left>:is(.version-chip,.project-pill,#layersToggle),
 html[data-theme="ocean"] .workspace-prefs :is(.smart-select-trigger,select,.icon-btn),
@@ -2415,8 +2244,6 @@ html[data-theme="ocean"] #layersToggle.active svg{
   color:inherit!important;
   stroke:currentColor!important;
 }
-
-
 /* =====================================================================
    OSMINOG 3.11.40 · OCEAN CENTRAL CHAT COLOR
    The unified messenger center must never inherit the light-theme white
@@ -2442,7 +2269,6 @@ html[data-theme="ocean"] #bridgePanel .gpt-messenger-chat-center .gpt-composer-f
   background:rgba(5,58,84,.94)!important;
   border-color:rgba(222,248,255,.17)!important;
 }
-
 /* =====================================================================
    OSMINOG 3.11.44 · CONNECTION CENTER + RESPONSIVE CHAT REPAIR
    ===================================================================== */
@@ -2452,28 +2278,10 @@ html[data-theme="ocean"] #bridgePanel .gpt-messenger-chat-center .gpt-composer-f
 .gpt-provider-connect-row.osminog-connection-launch #gptProviderTabConnect{display:flex!important;width:100%!important;min-height:44px!important;align-items:center!important;justify-content:center!important;border-radius:13px!important;background:linear-gradient(135deg,#6578ff,#a45cff)!important;color:#fff!important;font-weight:850!important;box-shadow:0 10px 26px rgba(91,86,235,.22)!important}
 .gpt-provider-connect-row.osminog-connection-launch #gptProviderAuthorize{display:none!important}
 .gpt-provider-connect-row.osminog-connection-launch>small{display:block!important;margin-top:7px!important;text-align:center!important}
-
 .local-ai-empty .gpt-empty-connect{width:min(390px,88%);min-height:86px;margin-top:26px;padding:0 24px;border:1px solid color-mix(in srgb,var(--accent) 68%,var(--line));border-radius:20px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 92%,#5865f2),#a855f7);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;box-shadow:0 18px 48px color-mix(in srgb,var(--accent) 23%,transparent);transition:transform .16s ease,box-shadow .16s ease}
 .local-ai-empty .gpt-empty-connect:hover{transform:translateY(-2px);box-shadow:0 22px 58px color-mix(in srgb,var(--accent) 32%,transparent)}
 .local-ai-empty .gpt-empty-connect>span{font-size:17px;font-weight:900;color:#fff}.local-ai-empty .gpt-empty-connect>small{font-size:9px;color:rgba(255,255,255,.76)}
 .local-ai-empty .gpt-empty-connect[hidden]{display:none!important}
-
-.browser-hub.osminog-ai-connections{width:min(920px,calc(100vw - 28px));max-width:calc(100vw - 16px);min-width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 88px);display:flex;flex-direction:column;overflow:auto!important;border-radius:22px!important;box-shadow:0 28px 90px rgba(0,0,0,.42)!important}
-.browser-hub.osminog-ai-connections[hidden]{display:none!important}
-.osminog-ai-connections .browser-hub-head{position:sticky;top:0;z-index:5;align-items:flex-start;padding:18px 20px;background:color-mix(in srgb,var(--surface-2) 94%,transparent);backdrop-filter:blur(24px)}
-.osminog-ai-connections .browser-hub-head strong{font-size:19px}.osminog-ai-connections .browser-hub-head p{margin-top:4px;line-height:1.45}
-.browser-hub-current{margin:14px 16px 4px;padding:13px;display:grid;grid-template-columns:46px minmax(0,1fr) auto;align-items:center;gap:12px;border:1px solid color-mix(in srgb,var(--accent) 42%,var(--line));border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,var(--surface-2)),var(--surface-2))}
-.browser-hub-current[hidden]{display:none!important}.browser-hub-current>span{width:46px;height:46px;padding:9px;box-sizing:border-box;display:grid;place-items:center;border-radius:13px;background:var(--surface);border:1px solid var(--line)}.browser-hub-current img{width:100%;height:100%;object-fit:contain}.browser-hub-current small,.browser-hub-current strong,.browser-hub-current p{display:block;margin:0}.browser-hub-current small{font-size:7px;letter-spacing:.12em;color:var(--accent);font-weight:900}.browser-hub-current strong{margin-top:3px;font-size:14px}.browser-hub-current p{margin-top:3px;color:var(--muted);font-size:9px}.browser-hub-current>button{height:38px;padding:0 14px;border:0;border-radius:11px;background:var(--accent);color:#fff;font-weight:800;cursor:pointer}
-.browser-hub-provider-section{padding:12px 16px 4px}.browser-hub-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}.browser-hub-section-title strong,.browser-hub-section-title small{display:block}.browser-hub-section-title strong{font-size:12px}.browser-hub-section-title small{margin-top:3px;color:var(--muted);font-size:8px}.browser-hub-section-title>span{min-width:26px;height:26px;padding:0 8px;display:grid;place-items:center;border-radius:999px;background:color-mix(in srgb,#22c55e 12%,var(--surface-2));border:1px solid color-mix(in srgb,#22c55e 36%,var(--line));color:#22c55e;font-size:9px;font-weight:900}
-.browser-hub-provider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px}
-.browser-hub-provider-card{position:relative;min-width:0;display:grid;grid-template-columns:40px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;gap:4px 10px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);transition:.15s}.browser-hub-provider-card.current{border-color:color-mix(in srgb,var(--provider-tone) 58%,var(--line));box-shadow:inset 3px 0 0 var(--provider-tone)}.browser-hub-provider-card.connected{border-color:color-mix(in srgb,#22c55e 40%,var(--line));background:color-mix(in srgb,#22c55e 7%,var(--surface-2))}
-.browser-hub-provider-card.not-ready{border-color:color-mix(in srgb,#f59e0b 45%,var(--line));background:color-mix(in srgb,#f59e0b 8%,var(--surface-2))}
-.browser-hub-provider-icon{grid-row:1/3;width:40px;height:40px;padding:8px;box-sizing:border-box;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--provider-tone) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--provider-tone) 30%,var(--line));overflow:hidden}.browser-hub-provider-icon img{display:block;width:100%;height:100%;object-fit:contain}.browser-hub-provider-copy{min-width:0}.browser-hub-provider-copy strong,.browser-hub-provider-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.browser-hub-provider-copy strong{font-size:11px}.browser-hub-provider-copy small{margin-top:2px;font-size:8px;color:var(--muted)}
-.browser-hub-provider-state{position:absolute;right:9px;top:8px;font-size:7px;font-weight:900;color:var(--muted)}.browser-hub-provider-card.connected .browser-hub-provider-state{color:#22c55e}.browser-hub-provider-card.not-ready .browser-hub-provider-state{color:#f59e0b}.browser-hub-provider-card>button{grid-column:2/4;height:31px;border:1px solid color-mix(in srgb,var(--provider-tone) 38%,var(--line));border-radius:9px;background:color-mix(in srgb,var(--provider-tone) 9%,var(--surface));color:var(--text);font-size:9px;font-weight:800;cursor:pointer}.browser-hub-provider-card.connected>button{border-color:color-mix(in srgb,#22c55e 36%,var(--line));background:color-mix(in srgb,#22c55e 10%,var(--surface))}.browser-hub-provider-card.not-ready>button{border-color:color-mix(in srgb,#f59e0b 42%,var(--line));background:color-mix(in srgb,#f59e0b 10%,var(--surface))}
-.browser-hub-empty{grid-column:1/-1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;border:1px dashed var(--line);border-radius:13px;color:var(--muted);text-align:center}.browser-hub-empty strong{font-size:10px;color:var(--text)}.browser-hub-empty small{margin-top:3px;font-size:8px}
-.browser-hub-custom{margin:12px 16px 4px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2)}.browser-hub-custom summary{padding:11px 13px;cursor:pointer;font-size:9px;font-weight:800;color:var(--muted)}.browser-hub-custom .browser-hub-form{padding:0 10px 10px}.osminog-ai-connections .browser-hub-actions{margin-top:8px;padding:11px 16px;position:sticky;bottom:0;z-index:4;background:color-mix(in srgb,var(--surface-2) 94%,transparent);backdrop-filter:blur(22px)}
-html[data-theme="ocean"] .browser-hub.osminog-ai-connections{background:rgba(3,43,65,.97)!important}html[data-theme="ocean"] .browser-hub-provider-card,html[data-theme="ocean"] .browser-hub-custom{background:rgba(6,57,83,.86)!important;border-color:rgba(219,247,255,.14)!important}
-
 #bridgePanel.gpt-team-open .gpt-messenger-shell{grid-template-columns:clamp(210px,28%,260px) minmax(0,1fr)}
 #bridgePanel.gpt-settings-open .gpt-messenger-shell{grid-template-columns:minmax(0,1fr) clamp(300px,36%,360px)}
 #bridgePanel.gpt-team-open.gpt-settings-open .gpt-messenger-shell{grid-template-columns:clamp(200px,24%,250px) minmax(0,1fr) clamp(300px,34%,350px)}
@@ -2483,31 +2291,23 @@ html[data-theme="ocean"] .browser-hub.osminog-ai-connections{background:rgba(3,4
   .gpt-messenger-team-pane{left:0}.gpt-messenger-settings-pane{right:0}
 }
 @media(max-width:640px){
-  .browser-hub.osminog-ai-connections{left:8px!important;right:8px!important;top:70px!important;transform:none!important;width:calc(100vw - 16px)!important;min-width:0!important;max-height:calc(100vh - 78px)!important;border-radius:17px!important}
-  .browser-hub-provider-grid{grid-template-columns:1fr}.browser-hub-current{grid-template-columns:40px minmax(0,1fr)}.browser-hub-current>button{grid-column:1/-1;width:100%}.browser-hub-section-title{align-items:flex-end}.browser-hub-section-title .soft-btn{height:31px!important;padding:0 8px!important}
   .local-ai-empty .gpt-empty-connect{min-height:72px;margin-top:18px;border-radius:16px}.local-ai-empty .gpt-empty-connect>span{font-size:14px}
 }
-
 /* First-class custom extensions: launchers are not canvas objects. */
 .osminog-extension-launcher{position:absolute;z-index:24;width:112px;height:132px;padding:5px 6px;border:0;background:transparent;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:9px;cursor:grab;pointer-events:auto}.osminog-extension-launcher>span{width:76px;height:76px;display:grid;place-items:center;border-radius:23px;background:linear-gradient(145deg,#755cff 0%,#576cf8 48%,#18c992 100%);border:1px solid rgba(255,255,255,.26);box-shadow:0 14px 30px rgba(53,83,239,.34);color:#fff;font:900 34px/1 system-ui}.osminog-extension-launcher>strong{max-width:108px;color:var(--text);font:750 12px/1.25 system-ui;text-align:center;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.osminog-extension-launcher:hover>span{transform:translateY(-4px) scale(1.04)}.osminog-extension-launcher>i{position:absolute;right:8px;top:2px;display:none;width:22px;height:22px;border-radius:50%;place-items:center;background:#d9364b;color:#fff;border:2px solid var(--surface);font:900 13px/1 system-ui;font-style:normal}.osminog-extension-launcher:hover>i{display:grid}
 .osminog-extension-window{position:fixed;z-index:10020;left:50%;top:50%;transform:translate(-50%,-50%);width:min(900px,82vw);height:min(680px,78vh);min-width:0;min-height:0;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}.osminog-extension-window.osminog-extension-app,.osminog-extension-window.osminog-extension-connector{overflow:hidden;border:1px solid #45516a;border-radius:18px;background:#111722;box-shadow:0 30px 90px #000a;resize:both}.osminog-extension-window>iframe{display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:auto}.osminog-extension-controls{position:absolute;z-index:3;right:-8px;top:-12px;display:flex;gap:4px;opacity:0;transform:translateY(3px);transition:.14s;pointer-events:none}.osminog-extension-window:hover>.osminog-extension-controls,.osminog-extension-window:focus-within>.osminog-extension-controls{opacity:1;transform:none;pointer-events:auto}.osminog-extension-controls button{width:26px;height:26px;padding:0;display:grid;place-items:center;border:1px solid #526078;border-radius:9px;background:#202a39;color:#edf3ff;box-shadow:0 5px 15px #0007;font:800 11px system-ui;cursor:pointer}.osminog-extension-controls button:hover{background:#34435b}.osminog-extension-controls [data-ext-drag]{cursor:grab}.osminog-extension-controls [data-ext-close]{background:#b92f43;border-color:#d74b5e}.osminog-extension-app>.osminog-extension-controls,.osminog-extension-connector>.osminog-extension-controls{right:8px;top:8px}
 .osminog-extension-studio{position:fixed;z-index:10040;inset:7vh 8vw;display:grid;grid-template-columns:1fr 180px;grid-template-rows:auto auto 1fr auto;gap:12px;padding:16px;border:1px solid var(--line-strong);border-radius:20px;background:var(--surface);box-shadow:0 30px 100px #000b}.osminog-extension-studio>header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}.osminog-extension-studio>header div{display:grid}.osminog-extension-studio>header small{color:var(--accent);font-size:9px;font-weight:900;letter-spacing:.1em}.osminog-extension-studio>header button{border:0;background:transparent;color:var(--text);font-size:22px}.osminog-extension-studio label{display:grid;gap:5px;color:var(--muted);font-size:10px}.osminog-extension-studio input,.osminog-extension-studio select,.osminog-extension-studio textarea{border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--text);padding:10px}.osminog-extension-studio .studio-code{grid-column:1/-1;min-height:0}.osminog-extension-studio textarea{height:100%;min-height:300px;resize:none;font:12px/1.5 ui-monospace,monospace}.osminog-extension-studio>footer{grid-column:1/-1;display:flex;justify-content:space-between}.osminog-extension-studio>footer button{height:40px;padding:0 16px;border:0;border-radius:11px;background:var(--accent);color:#fff;font-weight:800}.osminog-extension-studio>footer .danger{background:#ef4444;color:#fff!important}
-
 /* Workspace applications: desktop icon plus a clean internal app window. */
 .desktop-launcher-object{background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}.desktop-launcher-object>.ai-context-handle,.desktop-launcher-object>.object-close{opacity:0}.desktop-launcher-object:hover>.ai-context-handle,.desktop-launcher-object.selected>.ai-context-handle,.desktop-launcher-object:hover>.object-close,.desktop-launcher-object.selected>.object-close{opacity:1}.desktop-launcher-content{width:100%;height:100%;overflow:visible}.desktop-app-launcher{width:100%;height:100%;padding:5px 6px;border:0;background:transparent;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:9px;cursor:pointer}.desktop-app-launcher>span{width:76px;height:76px;display:grid;place-items:center;border-radius:23px;background:linear-gradient(145deg,#755cff 0%,#576cf8 48%,#18c992 100%);border:1px solid rgba(255,255,255,.26);box-shadow:0 14px 30px rgba(53,83,239,.34),inset 0 1px 0 rgba(255,255,255,.3);color:white;font:900 34px/1 system-ui;transition:transform .16s,filter .16s,box-shadow .16s}.desktop-app-launcher>strong{max-width:108px;color:var(--text);font:750 12px/1.25 system-ui;text-align:center;text-shadow:0 1px 6px var(--board);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.desktop-app-launcher:hover>span{transform:translateY(-4px) scale(1.04);filter:saturate(1.12);box-shadow:0 19px 38px rgba(53,83,239,.42),inset 0 1px 0 rgba(255,255,255,.34)}.desktop-app-launcher:active>span{transform:translateY(0) scale(.97)}
 .workspace-app-object{overflow:hidden!important;background:#111722!important;border:1px solid #45516a!important;border-radius:18px!important;box-shadow:0 30px 80px rgba(0,0,0,.48)!important}.workspace-app-object>.object-close{display:none!important}.workspace-app-bar{height:46px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#202a39,#18212e);border-bottom:1px solid #39465b;cursor:grab}.workspace-app-brand{min-width:0;display:flex;align-items:center;gap:9px}.workspace-app-brand>span{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(145deg,#755cff,#18c992);color:white;font:900 14px system-ui;box-shadow:0 5px 14px rgba(64,86,240,.3)}.workspace-app-brand>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f4f7ff;font:750 12px system-ui}.workspace-app-actions{display:flex;gap:6px}.workspace-app-actions button,.app-preview-toggle{height:27px;padding:0 9px;border:1px solid #46536a;border-radius:8px;background:#263145;color:#dce6f8;font:700 10px system-ui}.workspace-app-actions button:hover,.app-preview-toggle:hover{background:#35435c}.workspace-app-frame{height:calc(100% - 46px);background:#fff}.workspace-app-frame iframe{display:block;width:100%;height:100%;border:0;background:#fff}
-
 /* 3.14.4 — all interface text presets apply their variables consistently. */
-html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(button,input,textarea,select,label){font-size:var(--osminog-ui-small)!important}
-html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(p,.layer-row,.local-ai-msg,.gpt-msg-text,.google-ai-turn,.team-msg-body){font-size:var(--osminog-ui-body)!important}
-html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.browser-hub,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small{font-size:var(--osminog-ui-caption)!important}
+html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(button,input,textarea,select,label){font-size:var(--osminog-ui-small)!important}
+html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) :is(p,.layer-row,.local-ai-msg,.gpt-msg-text,.google-ai-turn,.team-msg-body){font-size:var(--osminog-ui-body)!important}
+html[data-ui-text-size] :is(.topbar,.side-panel,.inspector,.tool-rail,.modules-popover,.provider-registry,.team-shell,.markdown-studio,.osminog-windows-explorer,.gpt-resizable-panel,.osminog-google-chat) small{font-size:var(--osminog-ui-caption)!important}
 html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-head,.bridge-head,.team-head) strong{font-size:var(--osminog-ui-title)!important}
 .local-ai-activity.task-progress-active>small{font-variant-numeric:tabular-nums;letter-spacing:.01em}.local-ai-activity.task-progress-active{min-height:32px!important}
-
 /* OSMINOG 3.15.0 · Interactive Capability Runtime */
 .bc-workbench-media{min-height:100%;display:grid;place-items:center;align-content:center;gap:18px;padding:32px}.bc-workbench-media audio{width:min(720px,90%)}.bc-workbench-media video{max-width:min(900px,92%);max-height:68vh;border-radius:18px;background:#000}.bc-file-lab code{display:block;margin-top:10px;padding:8px 10px;border-radius:9px;background:var(--surface);border:1px solid var(--line);font-size:10px;user-select:all}
-
-
 /* OSMINOG 3.16.0 — simple access + just-in-time owner step-up */
 .osminog-access-simple{max-width:min(760px,calc(100vw - 28px));}
 .osminog-access-simple-main{padding:16px;display:block;overflow:auto;}
@@ -2541,9 +2341,7 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 .osminog-owner-actions button.primary{background:linear-gradient(135deg,#5d6cff,#9b4dff);border-color:transparent;color:white;}
 .osminog-owner-card output{display:block;min-height:18px;margin-top:10px;color:#ff6b7b;font-size:12px;font-weight:700;}
 @media(max-width:680px){.osminog-access-simple .osminog-sharing-fields{grid-template-columns:1fr}.osminog-access-simple .osminog-share-link{grid-template-columns:1fr}.osminog-owner-card{padding:15px}}
-
 .gpt-context-chip.module-focus{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 10%,var(--surface));max-width:210px}.gpt-context-chip.module-focus .gpt-context-eye{color:var(--accent)}
-
 /* OSMINOG 3.18.2 · EXECUTION CORE + DEVELOPMENT WORKSPACE */
 .osminog-development-workspace{position:fixed;z-index:94;width:min(720px,calc(100vw - 32px));height:min(650px,calc(100vh - 32px));display:flex;flex-direction:column;overflow:hidden}
 .osminog-development-workspace>main{display:flex;flex-direction:column;gap:14px;padding:16px;min-height:0;overflow:auto}
@@ -2552,15 +2350,12 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 .dev-target{display:flex;flex-direction:column;gap:3px;padding:11px 13px;border:1px dashed color-mix(in srgb,#755cff 50%,var(--line));border-radius:13px;background:color-mix(in srgb,var(--surface) 90%,#755cff 10%)}.dev-target strong{font-size:12px}.dev-target span{font-size:10px;color:var(--muted)}
 .dev-brief{display:grid;gap:6px}.dev-brief>span{font-size:10px;font-weight:800;color:var(--muted)}.dev-brief textarea{min-height:130px;resize:vertical;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);padding:12px;font:inherit}
 .dev-actions{display:flex;gap:8px;flex-wrap:wrap}.dev-actions button{padding:10px 13px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);font-weight:800}.dev-actions .primary{margin-left:auto;background:#755cff;border-color:#755cff;color:#fff}.osminog-development-workspace p{margin:0;color:var(--muted);font-size:10px}
-
 /* Smooth living octopus mascot: rounded tentacles replace spike polygons. */
 .ai-canvas-ghost .ai-ghost-wisp::before{content:""!important;display:block!important;position:absolute!important;left:3px!important;right:auto!important;bottom:-17px!important;width:5px!important;height:22px!important;background:var(--ghost-color,#8b5cf6)!important;border-radius:55% 55% 72% 72%!important;clip-path:none!important;box-shadow:6px 2px 0 var(--ghost-color,#8b5cf6),12px 4px 0 var(--ghost-color,#8b5cf6),18px 2px 0 var(--ghost-color,#8b5cf6),24px 4px 0 var(--ghost-color,#8b5cf6),30px 1px 0 var(--ghost-color,#8b5cf6),36px 3px 0 var(--ghost-color,#8b5cf6),42px 1px 0 var(--ghost-color,#8b5cf6)!important;filter:none!important;transform-origin:24px 0;animation:osminogTentacleSway 1.8s ease-in-out infinite!important}
 .agent-wisp::before{content:""!important;position:absolute!important;left:3px!important;bottom:-7px!important;width:4px!important;height:11px!important;border-radius:55% 55% 75% 75%!important;background:var(--wisp)!important;clip-path:none!important;box-shadow:5px 1px 0 var(--wisp),10px 2px 0 var(--wisp),15px 1px 0 var(--wisp)!important;opacity:.9!important;transform-origin:10px 0;animation:osminogTentacleSway 2.1s ease-in-out infinite!important}
 @keyframes osminogTentacleSway{0%,100%{transform:translateY(0) rotate(-4deg) scaleY(1)}50%{transform:translateY(1px) rotate(5deg) scaleY(.92)}}
 .ai-canvas-ghost[data-mode="work"] .ai-ghost-wisp::before{animation-duration:.9s!important}.ai-canvas-ghost[data-mode="inspect"] .ai-ghost-wisp::before{animation-duration:2.35s!important}
 @media(prefers-reduced-motion:reduce){.ai-canvas-ghost .ai-ghost-wisp::before,.agent-wisp::before{animation:none!important}}
-
-
 /* OSMINOG 3.19 CORE RESET */
 .connection-bend-handle{fill:#fff;stroke:#6d7cff;stroke-width:3;cursor:ns-resize;filter:drop-shadow(0 3px 8px #526fff55);pointer-events:all}
 .connection-end-handle{fill:#6d7cff;stroke:#fff;stroke-width:3;cursor:grab;filter:drop-shadow(0 3px 8px #526fff55);pointer-events:all}
@@ -2577,8 +2372,6 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 @keyframes osminogSoftTentaclesB{from{transform:rotate(-4deg)}to{transform:rotate(5deg)}}
 @keyframes osminogFloatWork{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
 @media(prefers-reduced-motion:reduce){.agent-wisp::before,.agent-wisp::after,.parallel-agent-ghost[data-mode="work"] .agent-wisp{animation:none!important}}
-
-
 /* OSMINOG 3.19.9 · LOCALIZED DOCKED HERO */
 .core-hero-launch{position:absolute!important;overflow:visible!important;isolation:isolate!important;width:min(680px,68vw)!important;max-width:680px!important;margin-top:174px!important;padding:38px 36px 28px!important;border:0!important;border-radius:28px!important;background:transparent!important;box-shadow:none!important;text-align:center!important}
 .core-hero-launch::before{content:"";position:absolute;z-index:0;left:50%;top:-390px;width:min(1240px,96vw);height:690px;transform:translateX(-50%);background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 15%,transparent) 0,transparent 68%);filter:blur(22px);pointer-events:none}
@@ -2594,7 +2387,6 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 @media(max-width:1100px){.core-hero-launch{width:min(620px,72vw)!important;margin-top:150px!important;padding:34px 30px 26px!important}.core-hero-composite{width:min(1040px,96vw)!important;transform:translate(-50%,-49%)!important}.core-hero-composite-front{clip-path:inset(0 63% 0 0)}.core-hero-launch .empty-launch-actions{gap:12px!important}}
 @media(max-width:820px){.core-hero-launch{width:min(560px,82vw)!important;margin-top:122px!important;padding:30px 24px 24px!important}.core-hero-composite{width:min(850px,110vw)!important;transform:translate(-50%,-48%)!important}.core-hero-composite-front{clip-path:inset(0 62% 0 0)}.core-hero-launch .empty-launch-actions{grid-template-columns:1fr!important;gap:8px!important}.core-hero-launch .empty-launch-actions>button{height:46px!important;padding:0 15px!important}.core-hero-launch .empty-provider-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}}
 @media(max-height:760px) and (min-width:821px){.core-hero-launch{margin-top:120px!important;transform:translate(-50%,-43%)!important}.core-hero-composite{width:min(1040px,90vw)!important;transform:translate(-50%,-49%)!important}}
-
 /* OSMINOG 3.19.8 · release-safe final welcome overrides */
 .core-hero-launch::after{inset:-12px 0 0!important;box-shadow:none!important}
 .core-hero-composite,.core-hero-composite-front{filter:none!important;animation:none!important;will-change:auto!important}
@@ -2603,8 +2395,6 @@ html[data-ui-text-size] :is(.provider-registry-head,.osminog-store-head,.panel-h
 .core-hero-launch h2.core-hero-title>span{display:block!important}.core-hero-launch h2.core-hero-title>span+span{margin-top:4px!important}.core-hero-launch h2.core-hero-title::before,.core-hero-launch h2.core-hero-title::after{content:none!important;display:none!important}
 .core-hero-launch .empty-launch-actions>button,.core-hero-launch .empty-provider-row>button{box-shadow:none!important}
 html[data-theme="ocean"] .core-hero-launch::after{background:#09577c!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-
 /* OSMINOG 3.19.10 · HERO TITLE LIFT */
 .core-hero-launch h2.core-hero-title{margin-top:-10px!important}
-
 .hub-controls{display:flex;align-items:center;gap:16px;margin-bottom:18px}.hub-controls .search-field{margin:0;flex:1}.project-tile{position:relative;min-width:0}.project-tile .project-card{width:100%;height:100%}.project-tile .project-card-meta{padding-right:48px}.project-remove{position:absolute;bottom:8px;right:8px;width:32px;height:32px;border-radius:9px;border:0;color:#f16d75;background:var(--panel,#20242d);font:600 22px/1 system-ui;opacity:0;cursor:pointer}.project-tile:hover .project-remove,.project-tile:focus-within .project-remove{opacity:1}.project-remove:hover{background:#812d36;color:white}@media(hover:none){.project-remove{opacity:1}}.trash-card{border:1px solid var(--line);background:var(--panel);padding:18px;border-radius:16px;display:grid;gap:12px}.trash-card small{color:var(--muted)}.trash-card div{display:flex;flex-wrap:wrap;gap:8px}.trash-card .purge{color:#e86672}

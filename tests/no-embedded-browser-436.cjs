@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const read=p=>fs.readFileSync(p,'utf8'),exists=p=>fs.existsSync(p);
+const html=read('editor.html'),worker=read('background-service.js'),bg=read('background.js'),hub=read('osminog-provider-connections.js');
+for(const file of ['osminog-browser-app.js','osminog-browser-hub.js','osminog-web-stage.js','osminog-browser-workspace.css'])assert.equal(exists(file),false,file+' must be retired');
+for(const term of ['browserHubButton','id="browserHub"','osminog-browser-app.js','osminog-browser-hub.js','OSMINOGWebWorkspace'])assert(!html.includes(term),'editor.html still contains '+term);
+assert.match(html,/osminog-provider-connections\.js/);
+assert.doesNotMatch(worker,/osminog-web-stage\.js|OSMINOG_WEB_STAGE_/);
+assert.doesNotMatch(bg,/browser_read|browser_act|browser_open|browser_tabs|browser_context|browser_close/);
+assert.match(hub,/OSMINOGProviderConnections/);assert.match(hub,/BriefCraftBridge\?\.open/);assert.match(hub,/OSMINOGSetAgentSettingsOpen/);
+assert.match(read('editor.js'),/OSMINOGProviderConnections\?\.open/);
+assert.match(read('osminog-session-manager.js'),/OSMINOGProviderConnections\?\.open/);
+assert.match(read('osminog-provider-registry.js'),/OSMINOGProviderConnections\?\.open/);
+assert.doesNotMatch(read('osminog-window-manager.js'),/"browser-app"|"browser-hub"/);
+assert.match(read('manifest.json'),/permissions/);
+console.log('PASS embedded browser app, web-stage, navigation tools and browser UI are absent; AI provider connection settings remain available through the separate provider bridge');

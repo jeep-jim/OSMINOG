@@ -1,11 +1,11 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const hub=fs.readFileSync('osminog-browser-hub.js','utf8');
+const hub=fs.readFileSync('osminog-provider-connections.js','utf8');
 const bg=fs.readFileSync('background.js','utf8');
 const chat=fs.readFileSync('gpt-presence.js','utf8');
 const manager=fs.readFileSync('osminog-session-manager.js','utf8');
-// The popup is retired; connection actions remain in the existing chat settings.
-assert.match(hub,/mode: 'chat-settings', popup: false/);
+// The embedded browser hub is retired; provider login sessions remain separately managed.
+assert.match(hub,/mode:'chat-settings'/);
 assert.match(hub,/OSMINOGSetAgentSettingsOpen\?\.\(true\)/);
 assert.match(chat,/OSMINOGSessionManager\?\.connect\?\.\(provider\)/);
 assert.match(chat,/OSMINOGSessionManager\?\.authorize\?\.\(provider\)/);

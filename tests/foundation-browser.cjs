@@ -16,11 +16,10 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.evaluate(()=>{createProject();renderAll()});
   await page.evaluate(async()=>{const id=project().id;await chrome.storage.local.set({[`briefCraftGptLiteChat:${id}:main`]:Array.from({length:300},(_,i)=>({id:'m'+i,role:'user',text:'history '+i,at:i}))});await BriefCraftBridge.open()});assert.equal(await page.locator('#gptPresenceMessages .local-ai-msg').count(),80);await page.getByRole('button',{name:/Показать предыдущие сообщения/}).click();assert.equal(await page.locator('#gptPresenceMessages .local-ai-msg').count(),160);
   await page.evaluate(async()=>{const key=`briefCraftGptLiteChat:${project().id}:main`;await chrome.storage.local.set({[key]:[{id:'choice',role:'assistant',source:'media-choice',text:'найди изображение или сгенерируй картинку'}]});await BriefCraftBridge.open()});await page.getByRole('button',{name:'Найти в интернете',exact:true}).waitFor({state:'visible'});assert.equal(await page.getByRole('button',{name:'Найти в интернете',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Сгенерировать',exact:true}).count(),1);
-  // The original BrowserApp is restored as a managed window; old canvas browser
-  // embed entrypoints remain retired and stored links stay project-scoped.
-  assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp?.open),'function');
+  // Embedded browsing is retired. Existing saved links remain safe external links.
+  assert.equal(await page.evaluate(()=>typeof OSMINOGBrowserApp),'undefined');
   assert.equal(await page.evaluate(()=>typeof OSMINOGWindowManager?.register),'function');
-  assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),1);
+  assert.equal(await page.locator('script[src="osminog-browser-app.js"]').count(),0);
   assert.equal(await page.locator('#workspaceBrowserMode,[data-mode="browser"],[data-tool="browser"]').count(),0);
   for(const name of ['browser_load_html','browser_export','browser_edit_current','browser_extract_current'])assert.equal(await page.evaluate(name=>OSMINOGToolEnabled(name),name),false);
   const stored=await page.evaluate(async()=>{document.querySelector('#bridgePanel').hidden=true;const p=project();p.browserDocuments=[{id:'retained-html',title:'Previous document',html:'<h1>Preserved HTML</h1>',css:'h1{color:red}'}];const o=createObject('browser',{name:'Previous link',url:'https://example.com/retained',x:250,y:120,w:360,h:180});await persist();renderAll(true);return{project:p.id,object:o.id,documents:JSON.stringify(p.browserDocuments)}});
