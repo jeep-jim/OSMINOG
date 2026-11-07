@@ -222,8 +222,11 @@ async function headerRects() {
 }
 function sameRects(before, after, label) {
   assert.deepEqual(after.buttons.map(b => b.id), before.buttons.map(b => b.id), label + ' retains the header controls');
-  for (const [a, b] of [[before.header, after.header], ...before.buttons.map((item, i) => [item.rect, after.buttons[i].rect])])
-    for (const key of ['x', 'y', 'width', 'height']) assert(Math.abs(a[key] - b[key]) < .6, `${label} shifts ${key}: ${a[key]} → ${b[key]}`);
+  const controls = [{id: 'osminogWorkspaceHeader', before: before.header, after: after.header},
+    ...before.buttons.map((item, i) => ({id: item.id, before: item.rect, after: after.buttons[i].rect}))];
+  for (const control of controls) for (const key of ['x', 'y', 'width', 'height'])
+    assert(Math.abs(control.before[key] - control.after[key]) < .6,
+      `${label}: ${control.id} shifts ${key}: ${control.before[key]} → ${control.after[key]}; before=${JSON.stringify(control.before)}; after=${JSON.stringify(control.after)}`);
 }
 async function settle() { await editor.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); }
 async function closePanels() {
@@ -240,8 +243,12 @@ async function geometryAssertions() {
     await closePanels();
     await settle(); const baseline = await headerRects();
     const transitions = ['#workdeskGPT', '#librarySearch', '#libraryCapture', '#canvasSettings', '#layersToggle'];
+    const evidence = {width, controls: baseline.buttons.length, header: baseline.header, baseline, transitions, observations: []};
+    report.geometry.push(evidence);
     for (const selector of transitions) {
-      await editor.locator(selector).click(); await settle(); sameRects(baseline, await headerRects(), `${width}px ${selector}`);
+      await editor.locator(selector).click(); await settle(); const after = await headerRects();
+      evidence.observations.push({selector, after});
+      sameRects(baseline, after, `${width}px ${selector}`);
       const layout = await editor.evaluate(() => {
         const header = document.querySelector('#osminogWorkspaceHeader').getBoundingClientRect();
         const visible = el => el && !el.hidden && !el.classList.contains('collapsed') && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height;
@@ -251,7 +258,6 @@ async function geometryAssertions() {
       for (const panel of layout.panels) assert(panel.rect.top >= layout.header.bottom - 1, `${width}px ${panel.id} must begin below the header`);
     }
     await editor.screenshot({path: path.join(artifacts, `restore-workspace-439-panels-${width}.png`)});
-    report.geometry.push({width, controls: baseline.buttons.length, header: baseline.header, transitions});
   }
   await editor.setViewportSize({width: 1440, height: 1000});
   await closePanels();
@@ -469,8 +475,8 @@ async function main() {
 main().catch(async error => {
   report.ok = false; report.error = error.stack || String(error); report.contextClosed = contextClosed;
   try { report.storageWrites = await monitor?.evaluate(() => window.storageWrites || []); } catch {}
-  try { if (editor && !editor.isClosed()) { report.state = await editor.evaluate(() => ({url: location.href, active: globalThis.state?.activeProject,
-    view: globalThis.state?.view, projects: globalThis.state?.projects?.map(p => ({id: p.id, objects: p.objects?.length})), body: document.body.innerText.slice(-5000)}));
+  try { if (editor && !editor.isClosed()) { report.state = await editor.evaluate(() => ({url: location.href, active: typeof state === 'object' ? state.activeProject : null,
+    view: typeof state === 'object' ? state.view : null, projects: typeof state === 'object' ? state.projects?.map(p => ({id: p.id, objects: p.objects?.length})) : null, body: document.body.innerText.slice(-5000)}));
     await editor.screenshot({path: path.join(artifacts, 'restore-workspace-439-failure.png')}); } } catch {}
   console.error('RESTORE439_DIAGNOSTICS', JSON.stringify(report)); process.exitCode = 1;
 }).finally(async () => {

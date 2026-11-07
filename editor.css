@@ -2410,6 +2410,11 @@ html body[data-workdesk]:not(.native-desktop) #app > #osminogWorkspaceHeader{
   grid-template-rows:1fr!important;
   visibility:visible!important;overflow:visible!important;
 }
+/* The shared hover/active button styles lift controls by 1px. Header controls
+   keep their positions; existing color, border and background feedback stays. */
+html body[data-workdesk]:not(.native-desktop) #app > #osminogWorkspaceHeader button{
+  transform:none!important;translate:none!important;
+}
 html body[data-workdesk]:not(.native-desktop) #app > #bridgePanel:not([hidden]){
   top:var(--desk-header-height,56px)!important;
   height:calc(100dvh - var(--desk-header-height,56px))!important;
