@@ -49,6 +49,23 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
   await page.waitForFunction(selector=>document.querySelector(selector)?.textContent==='1199',badge);
   await page.evaluate(()=>document.querySelector('#undo').click());await page.waitForFunction(selector=>document.querySelector(selector)?.textContent==='1200',badge);
   await page.locator('#layersToggle').click();await page.waitForSelector('#layersPanel.open');assert.match(await page.locator('.cl-stored-heading').textContent(),/1200/);check('hidden Layers do not block live folder counters or Undo; reopening shows current state');
+  await page.locator('#layersToggle').click();await page.waitForTimeout(250);
+  await page.evaluate(()=>{
+   const p=project(),f=p.osminogFolders[0],c=document.createElement('canvas');c.width=3840;c.height=2160;
+   const x=c.getContext('2d');x.fillStyle='#526fff';x.fillRect(0,0,c.width,c.height);
+   const src=c.toDataURL('image/png');c.width=c.height=0;
+   for(let i=0;i<80;i++)p.objects.push({...objectDefaults('image'),id:'large-preview-'+i,name:'Large screenshot '+i,src:src+'#'+i,w:480,h:270,osminogFolderId:f.id,capturedAt:Date.now()+i});
+   state.ui.layerPreviews=true;renderLayers();
+  });
+  assert.equal(await page.locator('.cl-stored img[src]').count(),0,'closed archive must not attach original image URLs');
+  await page.locator('#layersToggle').click();await page.waitForSelector('#layersPanel.open');
+  await page.waitForFunction(()=>document.querySelectorAll('.cl-stored img[src]').length>0);
+  const previewCount=await page.locator('.cl-stored img[src]').count();assert(previewCount<20,'only visible rows may load originals: '+previewCount);
+  await page.locator('#layersToggle').click();await page.waitForFunction(()=>document.querySelectorAll('.cl-stored img[src]').length===0);
+  await page.locator('#layersToggle').click();await page.waitForFunction(()=>document.querySelectorAll('.cl-stored img[src]').length>0);
+  await page.evaluate(()=>{state.ui.layerPreviews=false;renderLayers()});assert.equal(await page.locator('.cl-stored img').count(),0);
+  await page.locator('#layersToggle').click();
+  check('80 4K archive image URLs: closed panel loads none, open panel loads only visible rows, close releases sources, reopen and preview switch work');
   await page.evaluate(()=>{const g=document.createElement('div');g.id='perf-eye';g.className='ai-canvas-ghost active';g.style.transform='translate3d(780px,420px,0)';g.innerHTML='<div class="ai-ghost-wisp"><i></i><i></i><b></b></div><small>Готовлю ответ</small>';document.body.append(g);OSMINOGWorkspacePolish.pointEye(g,100,100);OSMINOGWorkspacePolish.pointEye(g,130,110)});
   assert.notEqual(await page.locator('#perf-eye i').first().evaluate(el=>getComputedStyle(el).clipPath),'none');assert.equal(await page.locator('#perf-eye').evaluate(el=>getComputedStyle(el).filter),'none');
   await page.screenshot({path:'artifacts/workspace-424-performance-eye.png'});

@@ -22,6 +22,30 @@
  // Only a bounded page of stored materials enters the live DOM. Search still
  // covers every stored item; pagination never deletes or migrates user data.
  const STORED_PAGE_SIZE=80;
+ // Do not let hidden/offscreen archive rows decode original screenshots.
+ // The baseline preview preference applies to stored materials as well.
+ const storedPreviewSources=new Map();
+ let storedPreviewObserver;
+ function observeStoredPreview(image,src){
+  if(typeof IntersectionObserver!=='function')return;
+  if(!storedPreviewObserver)storedPreviewObserver=new IntersectionObserver(entries=>{
+   const panel=document.querySelector('#layersPanel');
+   for(const entry of entries){
+    const img=entry.target,source=storedPreviewSources.get(img);
+    if(!img.isConnected){storedPreviewObserver.unobserve(img);storedPreviewSources.delete(img);continue}
+    if(entry.isIntersecting&&!document.hidden&&!panel?.hidden&&panel?.classList.contains('open')&&state.ui?.layerPreviews){
+     if(source&&img.getAttribute('src')!==source)img.src=source;
+    }else img.removeAttribute('src');
+   }
+  },{root:document.querySelector('#layerList'),rootMargin:'0px',threshold:0});
+  storedPreviewSources.set(image,src);storedPreviewObserver.observe(image);
+ }
+ function releaseStoredPreviews(){
+  for(const image of storedPreviewSources.keys()){
+   image.removeAttribute('src');storedPreviewObserver?.unobserve(image);
+  }
+  storedPreviewSources.clear();
+ }
  let storedPage={scope:'',query:'',index:0};
  function appendStoredLayers(root,query){
   const p=globalThis.project?.();if(!p)return;
@@ -40,9 +64,9 @@
   for(const o of list.slice(storedPage.index*STORED_PAGE_SIZE,(storedPage.index+1)*STORED_PAGE_SIZE)){
    const f=folders.get(o.osminogFolderId);
    const row=document.createElement('button');row.type='button';row.className='clean-layer cl-stored';row.dataset.storedId=o.id;
-   const preview=o.type==='image'&&o.src;
+   const preview=state.ui?.layerPreviews&&o.type==='image'&&o.src;
    const thumb=document.createElement(preview?'img':'span');thumb.className='cl-thumb';
-   if(preview){thumb.alt='';thumb.loading='lazy';thumb.decoding='async';thumb.src=o.src}
+   if(preview){thumb.alt='';thumb.decoding='async';observeStoredPreview(thumb,o.src)}
    else thumb.textContent=materialKind(o)==='text'?'T':'▤';
    const title=document.createElement('span');title.className='cl-title';title.append(document.createTextNode(OSMINOGWorkspaceLanguage.captureCaption(o,'name')||o.fileName||o.title||String(o.text||'').slice(0,60)||'Материал'));
    const sub=document.createElement('small');sub.textContent=f?.name||(OSMINOGWorkspaceLanguage.text('onDesk'));title.append(sub);const arrow=document.createElement('span');arrow.className='cl-open';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');
@@ -75,13 +99,13 @@
   };
   globalThis.renderLayers=function(...args){
    if(rendering)return;
-   if(state.ui?.layersTab&&state.ui.layersTab!=='layers'){previous=null;return base.apply(this,args)}
-   if(previous&&(panel.hidden||!panel.classList.contains('open'))){dirty=true;refreshCounters();return}
+   if(state.ui?.layersTab&&state.ui.layersTab!=='layers'){previous=null;releaseStoredPreviews();return base.apply(this,args)}
+   if(panel.hidden||!panel.classList.contains('open')){dirty=true;refreshCounters();return}
    const next=snapshot();
    if(!dirty&&previous&&first===root.firstChild&&last===root.lastChild&&children===root.childElementCount&&!root.querySelector('input')&&next.length===previous.length&&next.every((v,i)=>v===previous[i])){return;}
-   rendering=true;try{const result=base.apply(this,args);previous=next;dirty=false;first=root.firstChild;last=root.lastChild;children=root.childElementCount;return result}finally{rendering=false}
+   rendering=true;try{releaseStoredPreviews();const result=base.apply(this,args);previous=next;dirty=false;first=root.firstChild;last=root.lastChild;children=root.childElementCount;return result}finally{rendering=false}
   };
-  const observer=new MutationObserver(()=>{if(dirty&&!panel.hidden&&panel.classList.contains('open'))globalThis.renderLayers()});
+  const observer=new MutationObserver(()=>{if(panel.hidden||!panel.classList.contains('open')){releaseStoredPreviews();dirty=true}else if(dirty)globalThis.renderLayers()});
   observer.observe(panel,{attributes:true,attributeFilter:['hidden','class']});
  }
  function headerEdge(){const bar=document.querySelector('#app .topbar'),r=bar?.getBoundingClientRect();if(r&&r.height>0){const value=Math.round(r.bottom)+'px';if(document.documentElement.style.getPropertyValue('--workspace-top')!==value)document.documentElement.style.setProperty('--workspace-top',value)}}
