@@ -512,3 +512,8 @@ Owner priority: fast automatic background clipboard collection and search; minim
 ## 2026-11-07 — Lightweight core 4.0.38 publication complete
 
 Chrome PR 101 merged; all 5 final-head workflows passed. The exact 165,998-byte / 49-file CI package and matching 65,468-byte recovery helper published as chrome-v4.0.38 and verified in the active dev feed. Retained scope is desks/canvas, background clipboard, search, right chat and access. Native migration/media/header/clipboard/chat/update checks passed; original user data and Owner Authenticator are preserved. Per-item writes, viewport culling and isolated legacy-chat/search/preview workers replace the former full-workspace persistence and eager heavy tools. runtimeVerified remains false; no owner Windows measurement or universal stability guarantee is inferred from CI. Main publication evidence is appended to OSMINOG_PROJECT_LOG.md.
+
+
+## 2026-11-07 — Restore the full workspace after owner rejection of4.0.38
+
+The owner superseded the Lite scope: restore the exact interface and capabilities of4.0.37, retain targeted speed/update fixes, and preserve any materials already created in4.0.38. Candidate4.0.39 keeps the complete147-file Chrome runtime baseline, with fixed header, viewport-only DOM, small pan/move/capture writes and a guarded data bridge. No redesign or removal of old tools is authorized by this follow-up. Publish only after native restoration, clipboard, retained-tool and updater gates pass; exact evidence belongs in the append-only project log. Owner-device runtime acceptance remains unverified.

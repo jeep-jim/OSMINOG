@@ -2,29 +2,29 @@ name: Chrome release regression diagnostics
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   diagnostics:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Retained backend protocol and session isolation
+      - name: Install the pinned browser test dependency
         run: |
-          node tests/provider-session-isolation-3218.cjs
-          node tests/provider-one-click-3219.cjs
-          node tests/live-presence-3215.cjs
-          node tests/chat-sync-3216.cjs
-          node tests/generated-media-3212.cjs
-          node tests/core-chat-438.cjs
-      - name: Preserve reviewed source for diagnostics
-        if: failure()
-        run: mkdir -p artifacts/diagnostics && git archive --format=zip HEAD -o artifacts/diagnostics/source.zip
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Prepare local OCR and standalone recovery
+        run: |
+          python3 tools/prepare_ocr.py
+          node tools/build-updater-recovery.cjs
+      - name: Collect every retained browser regression without hiding failures
+        run: xvfb-run -a python3 tests/release-diagnostics.py
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: chrome-release-diagnostics
           path: artifacts/diagnostics/

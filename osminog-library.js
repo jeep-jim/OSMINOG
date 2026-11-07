@@ -40,11 +40,32 @@ function results(){if(!panel||mode==='capture')return;const root=panel,q=root.qu
 // This module is a separate closure from Workdesk: image decoding must be local.
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image(),timer=setTimeout(()=>finish(Error('Истекло время чтения изображения')),10000);function finish(error){clearTimeout(timer);img.onload=img.onerror=null;error?reject(error):resolve(img)}img.crossOrigin='anonymous';img.onload=()=>finish(img.naturalWidth&&img.naturalHeight?null:Error('Получено пустое изображение'));img.onerror=()=>finish(Error('Не удалось прочитать изображение'));img.src=src})}
 function capturePosition(p,w,h){const view=p.id===project()?.id?state.view:p.view||{x:0,y:0,scale:1},r=$('#viewport').getBoundingClientRect(),scale=Number(view.scale)||1,center=p.id===project()?.id?viewportCenter():{x:(r.width/2-(Number(view.x)||0))/scale,y:(r.height/2-(Number(view.y)||0))/scale},offset=p.objects.filter(o=>o.captureId&&!o.osminogFolderId).length%8*24;return{x:center.x-w/2+offset,y:center.y-h/2+offset}}
-async function importPendingCaptures(){const values=await OSMINOGIOBudget.selectedStorage(chrome.storage.local,k=>k.startsWith(PREFIX)),entries=Object.entries(values);queuePending=entries.length;importErrors=[];let changed=false;const accepted=[],destinations=new Set();
-for(const [key,item] of entries){try{
-if(!item||typeof item.id!=='string'||!item.id||!['image','text'].includes(item.kind)||typeof item.value!=='string'||!item.value)throw Error('Повреждён материал в очереди');
+async function* pendingCaptureEntries(){
+ const storage=chrome.storage.local;
+ const legacy=typeof storage.getKeys==='function'?(await storage.getKeys()).filter(key=>key.startsWith(PREFIX)):Object.keys(await OSMINOGIOBudget.selectedStorage(storage,key=>key.startsWith(PREFIX)));
+ const queue=globalThis.OSMINOGCaptureStore;
+ queuePending=legacy.length+(queue?await queue.count():0);
+ for(const key of legacy)yield{key,legacy:true};
+ if(!queue)return;
+ let after=null;
+ while(true){
+  const page=await queue.list({limit:32,after});if(!page.length)return;
+  for(const meta of page)yield{key:meta.id,meta,legacy:false};
+  const last=page[page.length-1];after={at:last.at,id:last.id};
+ }
+}
+async function acknowledgeCapture(entry){
+ if(entry.legacy)await chrome.storage.local.remove(entry.key);else await OSMINOGCaptureStore.ack(entry.key);
+ queuePending=Math.max(0,queuePending-1);
+}
+async function importPendingCaptures(){importErrors=[];let changed=false;const destinations=new Set();
+for await(const entry of pendingCaptureEntries()){try{
+const item=entry.legacy?(await chrome.storage.local.get(entry.key))[entry.key]:await OSMINOGCaptureStore.read(entry.key);
+if(!item){await acknowledgeCapture(entry);continue}
+if(entry.legacy&&await globalThis.OSMINOGRestore438?.skipLegacyCapture(item)){await acknowledgeCapture(entry);changed=true;continue}
+if(typeof item.id!=='string'||!item.id||!['image','text','file'].includes(item.kind)||typeof item.value!=='string'||!item.value)throw Error('Повреждён материал в очереди');
 const p=state.projects.find(p=>p.id===item.projectId),f=item.folderId?p?.osminogFolders?.find(f=>f.id===item.folderId):null;if(!p)throw Error('Стол для сохранения не найден');if(item.folderId&&!f)throw Error('Папка для сохранения не найдена');
-if(!p.objects.some(o=>o.captureId===item.id)){const props=item.kind==='image'?{src:item.value,name:t('screen'),w:480,h:320,fillEnabled:false,strokeEnabled:false}:{title:t('text'),text:item.value,name:item.value.slice(0,60)};
+if(!p.objects.some(o=>o.captureId===item.id)){const props=item.kind==='image'?{src:item.value,name:item.fileName||t('screen'),w:480,h:320,fillEnabled:false,strokeEnabled:false}:item.kind==='file'?{src:item.value,name:item.fileName||'Файл',fileName:item.fileName||'Файл',mime:item.mime||'application/octet-stream',size:item.size||0}:{title:t('text'),text:item.value,name:item.value.slice(0,60)};
 if(item.kind==='image'){
  let size=null;
  if(item.value.startsWith('data:image/png;base64,')){
@@ -59,19 +80,17 @@ if(item.kind==='image'){
  if(size){const scale=Math.min(1,560/size.w,420/size.h);props.w=size.w*scale;props.h=size.h*scale}
  else props.needsCaptureSize=true;
 }
-const defaults=objectDefaults(item.kind==='image'?'image':'brief'),o={...defaults,...props,id:'capture-'+item.id,osminogDesktopId:p.activeDesktop||'main',...(f?{osminogFolderId:f.id}:{}),captureId:item.id,captureHash:item.hash,capturedAt:item.at,createdAt:item.at,updated:item.at,radius:0,...(f?{x:0,y:0}:capturePosition(p,props.w||defaults.w,props.h||defaults.h))};
+const defaults=objectDefaults(item.kind==='image'?'image':item.kind==='file'?'file':'brief'),o={...defaults,...props,id:'capture-'+item.id,osminogDesktopId:p.activeDesktop||'main',...(f?{osminogFolderId:f.id}:{}),captureId:item.id,captureHash:item.hash,capturedAt:item.at,createdAt:item.at,updated:item.at,radius:0,...(f?{x:0,y:0}:capturePosition(p,props.w||defaults.w,props.h||defaults.h))};
 p.objects.push(o);if(f){f.members=f.members||[];if(!f.members.includes(o.id))f.members.push(o.id)}p.updated=Date.now();changed=true}
 // Even a previously created in-memory object may not have reached storage.
 // Keep the queue entry until persist succeeds; retrying reuses captureId.
 const object=p.objects.find(o=>o.captureId===item.id);
-await OSMINOGItemEdits.save(p,{kind:'capture',object});accepted.push(key);if(p===project())destinations.add(f?.id||'');
-if(p===project()&&!object.osminogFolderId&&isObjectOnDesktop(object)){
- const root=document.getElementById('objects');
- if(!Array.from(root.children).some(el=>el.dataset.id===object.id))root.append(buildObjectElement(object));
-}
+await OSMINOGItemEdits.save(p,{kind:'capture',object});await acknowledgeCapture(entry);changed=true;if(p===project())destinations.add(f?.id||'');
+// Reconcile the viewport once after the import batch. Direct appends here
+// would mount every distant capture and bypass the canvas DOM budget.
 
 }catch(e){importErrors.push('Не удалось сохранить материал: '+String(e?.message||e))}}
-if(accepted.length){await chrome.storage.local.remove(accepted);queuePending-=accepted.length;changed=true}renderCaptureStatus();if(changed){if(destinations.size){renderLayers();if(objects().length)document.getElementById('emptyHint').hidden=true;OSMINOGWindowsFolders.captureAdded(destinations)}results()}return{pending:queuePending,errors:[...importErrors]}}
+renderCaptureStatus();if(changed){if(destinations.size){renderObjects();renderLayers();if(objects().length)document.getElementById('emptyHint').hidden=true;OSMINOGWindowsFolders.captureAdded(destinations)}results()}return{pending:queuePending,errors:[...importErrors]}}
 async function drain(){if(!globalThis.OSMINOGWindowsFolders||!project())return;if(draining){drainAgain=true;return draining}draining=navigator.locks.request('osminog-capture-import',{ifAvailable:true},async lock=>{if(!lock)return;let result;do{drainAgain=false;result=await importPendingCaptures()}while(drainAgain);return result}).catch(e=>{importErrors=['Не удалось прочитать очередь: '+String(e?.message||e)];renderCaptureStatus();return{pending:queuePending,errors:[...importErrors]}}).finally(()=>draining=null);return draining}
 let ocrScript;
 async function ocr(src){
@@ -130,6 +149,7 @@ document.addEventListener('osminog:project-opened',()=>ensureInbox().catch(e=>sh
 await enterDesk();useClipboardEvents();await chrome.storage.local.remove(['briefCraftLastCachedImage','briefCraftLastCachedImageAt']);const actions=$('.top-actions');if(!actions)return;for(const [id,label,name,which] of [['librarySearch',t('search'),'search','search'],['libraryCapture',t('capture'),'clipboard','capture']]){const b=document.createElement('button');b.id=id;b.className='icon-btn';b.title=label;b.setAttribute('aria-label',label);b.innerHTML=icon(name);b.onclick=()=>panel&&mode===which?close():open(which);actions.prepend(b)}await refreshConfig();const account=chrome.identity?await globalThis.OSMINOGAccountAPI?.status?.():null;if(!account?.configured){$('#profileButton')?.setAttribute('hidden','');$('#welcomeProfile')?.setAttribute('hidden','')}
 const originalCreate=globalThis.createObject;globalThis.createObject=function(type,props={}){return originalCreate(type,{createdAt:Date.now(),...props})};
 chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[KEY])refreshConfig();if(Object.entries(changes).some(([k,c])=>k.startsWith(PREFIX)&&c.newValue))drain().catch(console.error)});
+globalThis.OSMINOGCaptureStore?.subscribe(change=>{if(change.type==='added')drain().catch(console.error)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});setInterval(()=>{if(queuePending||importErrors.length)drain().catch(console.error)},10000);document.addEventListener('osminog:project-opened',()=>drain().catch(console.error));drain().catch(console.error);
 }
 async function rememberPaste(kind,value){await chrome.runtime.sendMessage({type:'OSMINOG_COLLECTOR_IGNORE',kind,value}).catch(()=>{})}

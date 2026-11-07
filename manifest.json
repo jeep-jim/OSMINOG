@@ -13,15 +13,18 @@
     "service_worker": "background-service.js"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+    "sandbox": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'; child-src 'self' https: data: blob:;"
   },
   "default_locale": "en",
-  "description": "Fast local clipboard collection, infinite desks, search and connected AI chat.",
+  "description": "Visual project workspace with clipboard capture, folders, image tools and AI collaboration.",
   "host_permissions": [
     "https://api.github.com/*",
     "https://uploads.github.com/*",
     "https://github.com/*",
     "https://raw.githubusercontent.com/*",
+    "https://www.bing.com/*",
+    "https://*.bing.net/*",
     "https://cdn.jsdelivr.net/*"
   ],
   "icons": {
@@ -50,25 +53,49 @@
     "https://google.com/*",
     "https://www.deepseek.com/*",
     "https://www.google.com/*",
+    "https://designer.microsoft.com/*",
+    "https://firefly.adobe.com/*",
+    "https://app.leonardo.ai/*",
+    "https://ideogram.ai/*",
+    "https://www.krea.ai/*",
+    "https://platform.stability.ai/*",
+    "https://app.runwayml.com/*",
+    "https://app.heygen.com/*",
+    "https://suno.com/*",
+    "https://www.udio.com/*",
+    "https://elevenlabs.io/*",
     "https://alice.yandex.ru/*",
+    "https://pixlr.com/*",
+    "https://dream-machine.lumalabs.ai/*",
+    "https://pika.art/*",
+    "https://www.canva.com/*",
     "https://api.github.com/*",
     "https://uploads.github.com/*",
     "https://github.com/*",
     "https://raw.githubusercontent.com/*",
+    "https://api.telegram.org/*",
     "https://cdn.jsdelivr.net/*"
   ],
   "permissions": [
     "alarms",
     "activeTab",
     "clipboardWrite",
+    "contextMenus",
     "unlimitedStorage",
     "scripting",
     "storage",
     "tabs",
+    "identity",
     "clipboardRead",
+    "nativeMessaging",
     "offscreen"
   ],
+  "sandbox": {
+    "pages": [
+      "module-frame.html"
+    ]
+  },
   "short_name": "OSMINOG",
-  "version": "4.0.38",
-  "version_name": "4.0.38"
+  "version": "4.0.39",
+  "version_name": "4.0.39"
 }

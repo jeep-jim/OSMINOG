@@ -1,7 +1,7 @@
-name: OSMINOG Chrome 4.0.38 verified lightweight package
-# Owner explicitly retired other tools. Gates cover the retained core and native updater.
+name: OSMINOG Chrome 4.0.39 verified full workspace
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -10,59 +10,91 @@ permissions:
 jobs:
   verify-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Validate retained runtime and package boundary
+      - name: Check full workspace and unchanged updater contracts
         run: |
-          node --check background.js
           node --check editor.js
+          node --check background.js
           node --check collector.js
-          node --check osminog-core-store.js
-          node --check osminog-core-chat.js
-          node --check osminog-core-media-worker.js
-          node --check osminog-core-search-worker.js
-          node --check osminog-collector-background.js
-          node tests/lite-package-438.cjs
-      - name: Verify retained updater, recovery and owner authentication
-        run: |
-          node --test tests/folder-updater-437.cjs tests/update-handoff-437.cjs tests/update-recovery-425.cjs tests/owner-totp-enrollment.cjs
-          node tests/owner-access-411.cjs
+          node --test tests/io-budget-425.cjs tests/update-recovery-425.cjs tests/folder-updater-437.cjs tests/update-handoff-437.cjs tests/owner-totp-enrollment.cjs tests/canvas-budget-439.cjs tests/persistence-439.cjs tests/collector-439.cjs tests/restore-unit-439.cjs
+          node tests/figma-ux-435.cjs
+          node tests/no-embedded-browser-436.cjs
+          node tests/storage-load-421.cjs
           node tests/github-gateway-411.cjs
-          node tests/core-chat-438.cjs
-          node --test tests/core-collector-438.cjs
-      - name: Install pinned Chromium test runtime
+          node tests/owner-access-411.cjs
+          node tests/agent-session-409.cjs
+          node tests/chat-sync-3216.cjs
+          node tests/chat-sync-plaintext-3217.cjs
+          node tests/provider-dock-3217.cjs
+          node tests/provider-session-isolation-3218.cjs
+          node tests/provider-one-click-3219.cjs
+          node tests/module-app-contract-3220.cjs
+          node tests/live-presence-3215.cjs
+          node tests/chat-content-3214.cjs
+          node tests/chat-state-3213.cjs
+          node tests/generated-media-3212.cjs
+          node tests/media-reference.cjs
+          node tests/visual-import-402.cjs
+          node tests/image-generation-403.cjs
+          node tests/foundation-memory.cjs
+          node tests/privacy-no-mirroring.cjs
+          node tests/agent-media-3207.cjs
+      - name: Install the pinned browser test dependency
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
-      - run: node tools/build-updater-recovery.cjs
-      - name: Verify native extension migration, bounded canvas, header and background clipboard
-        run: xvfb-run -a node tests/lite-core-438.cjs
-      - name: Verify native folder updates and browser-preserving reload
+      - name: Prepare verified local OCR and standalone recovery
+        run: |
+          python3 tools/prepare_ocr.py
+          node tools/build-updater-recovery.cjs
+          node tests/restored-package-439.cjs
+      - name: Verify restored native workspace, 4.0.38 data and clipboard
+        run: xvfb-run -a node tests/restore-workspace-439.cjs
+      - name: Verify native update, last-window reload and standalone repair
         run: xvfb-run -a node tests/update-extension-437.cjs
-      - name: Build only the verified lightweight runtime
+      - name: Verify retained browser behavior
+        run: |
+          node tests/workspace-423.cjs
+          node tests/workspace-performance-424.cjs
+          node tests/folder-count-performance-436.cjs
+          node tests/workspace-ux-435.cjs
+          node tests/library-420.cjs
+          node tests/clipboard-library-421.cjs
+          node tests/photo-pixels-416.cjs
+          node tests/photo-417.cjs
+          node tests/inspector-419.cjs
+          node tests/extension-ui-410.cjs
+          node tests/source-chat-412.cjs
+          node tests/agent-runtime-browser-409.cjs
+          node tests/canvas-ux-408.cjs
+          node tests/clipboard-407.cjs
+          node tests/shared-board-400.cjs
+          node tests/chat-sync-browser-3216.cjs
+          node tests/live-presence-browser-3215.cjs
+          node tests/chat-browser-3213.cjs
+          node tests/chat-links-browser-3214.cjs
+          node tests/folder-move-3212.cjs
+          node tests/foundation-browser.cjs
+          node tests/legacy-store-retired.cjs
+          xvfb-run -a node tests/collector-extension-420.cjs
+          xvfb-run -a node tests/clipboard-extension-421.cjs
+          xvfb-run -a node tests/io-extension-425.cjs
+      - name: Build the complete reviewed Chrome package
         env:
           SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 tools/build-core-438.py
-      - name: Preserve exact tracked source after a failed gate
+        run: python3 tools/build-restored-439.py
+      - name: Retain exact source on failure
         if: failure()
-        run: mkdir -p artifacts && git archive --format=zip HEAD -o artifacts/diagnostics-source.zip
+        run: git archive --format=zip HEAD --output=artifacts/OSMINOG-source.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.38-VERIFIED
-          path: |
-            artifacts/OSMINOG-Chrome-4.0.38.zip
-            artifacts/OSMINOG-Chrome-4.0.38.zip.sha256
-            artifacts/OSMINOG-Update-Recovery.html
-            artifacts/OSMINOG-Update-Recovery.html.sha256
-            artifacts/core-package-438.json
-            artifacts/*438*.json
-            artifacts/*438*.png
-            artifacts/update-extension-437-results.json
-            artifacts/update-extension-437-failure.png
-            artifacts/diagnostics-source.zip
-            RELEASE_NOTES_CHROME_4.0.38.md
+          name: OSMINOG-4.0.39-VERIFIED
           retention-days: 14
+          path: |
+            artifacts/
+            RELEASE_NOTES_CHROME_4.0.39.md
