@@ -57,12 +57,15 @@ function openConsent(){$('consentSheet').hidden=false;}
 function closeConsent(){ $('consentSheet').hidden=true; }
 function openInstallPermission(){closeUpdate();$('installPermissionSheet').hidden=false;}
 function closeInstallPermission(){$('installPermissionSheet').hidden=true;}
+function openClearSheet(){$('clearSheet').hidden=false;}function closeClearSheet(){$('clearSheet').hidden=true;}
+function openPrivacySheet(){$('privacySheet').hidden=false;}function closePrivacySheet(){$('privacySheet').hidden=true;}
+$('clearCancel').onclick=closeClearSheet;$('clearConfirm').onclick=()=>{closeClearSheet();emit('clearConfirmed');};$('privacyClose').onclick=closePrivacySheet;
 $('consentAccept').onclick=()=>{closeConsent();emit('grantConsent');};$('consentCancel').onclick=()=>{closeConsent();emit('denyConsent');};
 $('installPermissionLater').onclick=closeInstallPermission;$('installPermissionOpen').onclick=()=>{closeInstallPermission();emit('openInstallSettings');};
 $('closeUpdate').onclick=closeUpdate;$('updateLater').onclick=closeUpdate;$('sheetShade').onclick=closeUpdate;
 $('updateNow').onclick=()=>{$('updateNow').disabled=true;$('updateNow').textContent='Подготавливаю…';$('updateProgress').hidden=false;emit('downloadUpdate');};
 $('closeProviderSheet').onclick=closeProviderPicker;$('providerSheet').onclick=e=>{if(e.target===$('providerSheet'))closeProviderPicker();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(menuOpen){e.preventDefault();setMenu(false);}if(!$('updateSheet').hidden)closeUpdate();if(!$('providerSheet').hidden)closeProviderPicker();}if(e.key==='Tab'&&menuOpen){const buttons=[...$('settings').querySelectorAll('button:not([hidden])')];const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(menuOpen){e.preventDefault();setMenu(false);}if(!$('updateSheet').hidden)closeUpdate();if(!$('providerSheet').hidden)closeProviderPicker();if(!$('consentSheet').hidden)closeConsent();if(!$('installPermissionSheet').hidden)closeInstallPermission();if(!$('clearSheet').hidden)closeClearSheet();if(!$('privacySheet').hidden)closePrivacySheet();}if(e.key==='Tab'&&menuOpen){const buttons=[...$('settings').querySelectorAll('button:not([hidden])')];const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
 $('main').addEventListener('scroll',layout,{passive:true});window.addEventListener('resize',layout);document.addEventListener('visibilitychange',()=>{document.body.classList.toggle('paused',document.hidden||paused);if(document.hidden)pauseSwimming();else resumeSwimming();});
 window.OSMINOG={receive(m){switch(m.type){case'hello':version=m.version||version;providerKey=String(m.providerId??0);providerName=m.provider||providerName;if(!busy)renderHistory(providerKey);controls();break;
  case'connected':{const next=String(m.providerId??providerKey);if(next!==providerKey){providerKey=next;finish();renderHistory(providerKey);}connected=!!m.ok;providerName=m.provider||providerName;$('connectionStatus').textContent=connected?providerName+' · готов к отправке':m.stage==='checking'?providerName+' · подключаюсь…':providerName+' · требуется вход';if(!busy&&!voice&&!camera)state(history.length?'idle':'sleeping');if(m.message)notice(m.message);controls();break;}
@@ -83,6 +86,8 @@ window.OSMINOG={receive(m){switch(m.type){case'hello':version=m.version||version
  case'providerPicker':openProviderPicker();break;
  case'consentRequired':openConsent();break;
  case'installPermissionRequired':openInstallPermission();break;
+ case'clearConfirm':openClearSheet();break;
+ case'privacyInfo':openPrivacySheet();break;
  case'paused':paused=true;pauseSwimming();voice=false;camera=false;finish();state('sleeping');controls();break;
  case'resumed':paused=false;resumeSwimming();controls();wake();break;
  case'clear':history=[];histories[selectedHistory]=[];save();renderHistory(selectedHistory);state('sleeping');break;
