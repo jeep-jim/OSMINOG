@@ -2424,3 +2424,7 @@ html body[data-workdesk]:not(.native-desktop) #app > #deskDivider{
   top:var(--desk-header-height,56px)!important;
 }
 .hub-controls{display:flex;align-items:center;gap:16px;margin-bottom:18px}.hub-controls .search-field{margin:0;flex:1}.project-tile{position:relative;min-width:0}.project-tile .project-card{width:100%;height:100%}.project-tile .project-card-meta{padding-right:48px}.project-remove{position:absolute;bottom:8px;right:8px;width:32px;height:32px;border-radius:9px;border:0;color:#f16d75;background:var(--panel,#20242d);font:600 22px/1 system-ui;opacity:0;cursor:pointer}.project-tile:hover .project-remove,.project-tile:focus-within .project-remove{opacity:1}.project-remove:hover{background:#812d36;color:white}@media(hover:none){.project-remove{opacity:1}}.trash-card{border:1px solid var(--line);background:var(--panel);padding:18px;border-radius:16px;display:grid;gap:12px}.trash-card small{color:var(--muted)}.trash-card div{display:flex;flex-wrap:wrap;gap:8px}.trash-card .purge{color:#e86672}
+
+/* The resize preview never changes panel layout or canvas dimensions. */
+.panel-width-guide{position:fixed;top:0;bottom:0;width:2px;background:#8d9cff;z-index:2147483647;pointer-events:none;contain:strict;will-change:transform}
+.panel-resizer{touch-action:none}

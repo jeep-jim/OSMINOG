@@ -349,6 +349,42 @@ async function viewportSnapshot(label) {
     renderedImagePixels: value.images.reduce((sum, image) => sum + image.width * image.height, 0)});
   return value;
 }
+async function panelDragAssertions() {
+  await editor.setViewportSize({width:1440,height:1000});
+  await closePanels();
+  await editor.evaluate(id => {openProject(id);state.view={x:0,y:0,scale:1};clearSelection();renderAll(true)},stressDesk);
+  await settle();
+  report.panelDrags=[];
+  for(const item of [
+    {open:'#layersToggle',handle:'[data-resize-panel="layersPanel"]',panel:'#layersPanel',delta:80},
+    {open:'#workdeskGPT',handle:'#deskDivider',panel:'#bridgePanel',delta:-100}
+  ]) {
+    await editor.locator(item.open).click();await settle();await delay(300);
+    const handle=editor.locator(item.handle),box=await handle.boundingBox();assert(box);
+    const x=box.x+box.width/2,y=box.y+Math.min(120,box.height/2);
+    const snapshot=()=>editor.evaluate(selector=>{
+      const rect=id=>{const r=document.querySelector(id).getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}};
+      return{panel:rect(selector),viewport:rect('#viewport'),world:document.querySelector('#world').style.transform,
+        images:[...document.querySelectorAll('#objects img')].map(el=>el.currentSrc),
+        widths:localStorage.getItem('osminogPanelWidthsV1'),chat:localStorage.getItem('osminogChatWidth')};
+    },item.panel);
+    await editor.evaluate(()=>Promise.all([...document.querySelectorAll('#objects img')].map(img=>img.decode().catch(()=>{}))));
+    const before=await snapshot();
+    await editor.mouse.move(x,y);await editor.mouse.down();
+    for(let cycle=0;cycle<3;cycle++){
+      await editor.mouse.move(x+item.delta,y,{steps:40});await settle();
+      assert.deepEqual(await snapshot(),before,'panel/canvas/media/storage stationary during drag');
+      await editor.mouse.move(x-item.delta/2,y,{steps:40});await settle();
+      assert.deepEqual(await snapshot(),before,'reverse drag keeps layout stationary');
+    }
+    await editor.mouse.move(x+item.delta,y,{steps:20});await editor.mouse.up();await settle();await delay(300);
+    const after=await snapshot();assert(Math.abs(after.panel.width-before.panel.width-100*(item.panel==='#bridgePanel')-80*(item.panel==='#layersPanel'))<1);
+    assert.equal(await editor.locator('.panel-width-guide').count(),0);
+    report.panelDrags.push({panel:item.panel,pointerSteps:260,before,after});
+    await closePanels();await settle();
+  }
+  record('native mouse drags both sidebar and chat divider on 2400-object desktop: layout, canvas transform, image sources and preferences stay unchanged until pointerup; width commits once');
+}
 async function canvasAssertions() {
   await editor.evaluate(id => { openProject(id); state.view = {x: 0, y: 0, scale: 1}; clearSelection(); renderAll(true); }, stressDesk);
   await viewportSnapshot('initial');
@@ -561,7 +597,7 @@ async function main() {
   record('the original Workdesk shell and all retained tool modules load in the real extension');
   await readableNoteAssertions(newDesk, 'restore439-new-note', 'New note restored from 4.0.38');
   await navigationAssertions();
-  await geometryAssertions(); await canvasAssertions(); await clipboardAssertions();
+  await geometryAssertions(); await panelDragAssertions(); await canvasAssertions(); await clipboardAssertions();
   assert.deepEqual(await sourceDigest(), report.sourceBefore, 'Normal restored use leaves the 4.0.38 source databases untouched');
   assert.equal(contextClosed, false); assert.deepEqual(crashes, []); assert.deepEqual(workerErrors, []); assert.deepEqual(errors, []);
   await editor.screenshot({path: path.join(artifacts, 'restore-workspace-439.png')}); report.ok = true;

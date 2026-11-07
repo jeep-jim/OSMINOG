@@ -29,7 +29,7 @@ for (const name of files) {
 for (const name of ['osminog-restore-438.js', 'osminog-capture-store.js']) assert(listed.has(name), name);
 const manifest = JSON.parse(read('manifest.json'));
 const build = JSON.parse(read('OSMINOG_BUILD.json'));
-assert.equal(manifest.version, '4.0.40');
+assert.equal(manifest.version, '4.0.41');
 assert.equal(manifest.version_name, manifest.version);
 assert.equal(build.version, manifest.version);
 assert.equal(build.runtimeVerified, false);
