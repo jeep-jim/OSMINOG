@@ -55,7 +55,7 @@ function openProviderPicker(){const names=['ChatGPT','Gemini','Claude','DeepSeek
 function closeProviderPicker(){$('providerSheet').hidden=true;}
 function openConsent(){$('consentSheet').hidden=false;}
 function closeConsent(){ $('consentSheet').hidden=true; }
-function openInstallPermission(){$('installPermissionSheet').hidden=false;}
+function openInstallPermission(){closeUpdate();$('installPermissionSheet').hidden=false;}
 function closeInstallPermission(){$('installPermissionSheet').hidden=true;}
 $('consentAccept').onclick=()=>{closeConsent();emit('grantConsent');};$('consentCancel').onclick=()=>{closeConsent();emit('denyConsent');};
 $('installPermissionLater').onclick=closeInstallPermission;$('installPermissionOpen').onclick=()=>{closeInstallPermission();emit('openInstallSettings');};
@@ -78,7 +78,7 @@ window.OSMINOG={receive(m){switch(m.type){case'hello':version=m.version||version
  case'error':failure(m.message||'Не удалось получить ответ.',m.id);break;
  case'notice':notice(m.message,m.action||'');break;
  case'updateAvailable':openUpdate(m);break;
- case'updateProgress':$('updateProgress').hidden=false;$('updateNow').textContent=m.message||'Проверяю APK…';break;
+ case'updateProgress':$('updateProgress').hidden=false;$('updateNow').disabled=false;if(String(m.message||'').startsWith('Не удалось')){$('updateNow').textContent='Повторить';}else{$('updateNow').textContent=m.message||'Проверяю APK…';}break;
  case'updateReady':$('updateProgress').hidden=true;$('updateNow').disabled=false;$('updateNow').textContent='Открыть установщик';break;
  case'providerPicker':openProviderPicker();break;
  case'consentRequired':openConsent();break;
