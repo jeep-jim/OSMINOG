@@ -77,3 +77,7 @@ body[data-state=camera]{--eye-fill:#7fc8e8}
 #providerOptions button:active{background:rgba(112,211,255,.18)}
 @media(max-width:340px){.sheet-card,.provider-sheet-card{padding:24px 17px 18px}#notice{width:90vw}}
 @media(prefers-reduced-motion:reduce){.notice-creature,.sheet-creature{animation:none}}
+
+/* Dynamic plankton is animated in independent, randomized swimming segments by app.js. */
+.plankton{animation:none!important;will-change:transform}
+@media(prefers-reduced-motion:reduce){.plankton{animation:none!important}.notice-creature,.sheet-creature{animation:none!important}}
