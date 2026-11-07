@@ -1,5 +1,5 @@
 """Real local HTTP backend + two independent browser contexts; no mocked APIs."""
-import importlib.util,json,os,pathlib,sys,tempfile,threading
+import importlib.util,json,os,pathlib,re,sys,tempfile,threading
 from playwright.sync_api import sync_playwright,expect
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('ocean',ROOT/'services/intent-ocean/server.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
@@ -80,7 +80,29 @@ with tempfile.TemporaryDirectory() as d:
    a.go_back();expect(a.locator('#text')).to_have_value('Черновик только для этой беседы')
    a.go_back();expect(a.locator('.thread-item')).to_have_count(1)
    a.go_back();expect(a.locator('#text')).to_have_value('Следующий черновик не стирать')
+   # Multiple independently registered participants, not hard-coded frontend placeholders.
+   for i in range(4):
+    ctx=browser.new_context();contexts.append(ctx)
+    r=ctx.request.post(url+'/api/register',headers={'Origin':url},data={'login':'layoutuser'+str(i),'password':'layout-test-password','name':'Участник теста '+str(i+1),'invite':code})
+    assert r.ok,r.text()
+    auth=r.json();headers={'Origin':url,'X-CSRF-Token':auth['csrf']}
+    assert ctx.request.post(url+'/api/profile',headers=headers,data={'name':'Участник теста '+str(i+1),'avatar':['jelly','star','plankton','jelly'][i]}).ok
+    r=ctx.request.post(url+'/api/intents',headers=headers,data={'text':['Продаю белую ушанку','Шью ушанки на заказ','Есть детская ушанка','Отдам старую ушанку'][i],'kind':'offer','audience':'ocean','nonce':'layout-'+str(i),'hours':24,'files':[]})
+    assert r.ok,r.text()
+   a.locator('#messages .orb').first.click();expect(a.locator('.match')).to_have_count(5)
+   for orb in a.locator('.open-match').all():
+    expect(orb).to_have_css('background-image',re.compile('bubble-avatar'))
+   for width,height in [(320,640),(390,844),(768,1024),(1440,900)]:
+    a.set_viewport_size({'width':width,'height':height})
+    capture(a,'magnet-'+str(width)+'.png')
+    boxes=[x.bounding_box() for x in a.locator('.open-match').all()]
+    for box in boxes:
+     assert box and box['width']>=44 and box['height']>=44,box
+     assert box['x']>=0 and box['x']+box['width']<=width+1,box
+    for i,x in enumerate(boxes):
+     for y in boxes[i+1:]:
+      assert x['x']+x['width']<=y['x'] or y['x']+y['width']<=x['x'] or x['y']+x['height']<=y['y'] or y['y']+y['height']<=x['y'],(x,y)
    assert not errors,errors
-   report={'passed':True,'backend':'real local HTTP + SQLite','participants':2,'checks':['registration','intent publish','lexical attraction','private thread two-way message','draft return','four viewport geometries','XSS rendered as text','link attachment','completed visible entrance transitions','read-only preview without empty conversation','private draft attachment retained','browser forward/back route','in-flight acknowledgement preserves newer draft','conversation drafts isolated'],'errors':errors,'not_verified':['real phone','public host','push','semantic AI','signed APK upgrade']}
+   report={'passed':True,'backend':'real local HTTP + SQLite','participants':6,'checks':['registration','intent publish','lexical attraction','private thread two-way message','draft return','four viewport geometries','XSS rendered as text','link attachment','completed visible entrance transitions','read-only preview without empty conversation','private draft attachment retained','browser forward/back route','in-flight acknowledgement preserves newer draft','conversation drafts isolated','five real-account matches','bubble background retained','nonoverlapping touch targets at four widths'],'errors':errors,'not_verified':['real phone','public host','push','semantic AI','signed APK upgrade']}
    (out/'browser-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2));print(json.dumps(report,ensure_ascii=False));browser.close()
  finally:server.shutdown();server.server_close();thread.join();ocean.db.close()
