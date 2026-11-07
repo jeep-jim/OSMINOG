@@ -128,3 +128,16 @@ It is **Managed Dev Channel v2**:
 - prove `current version → UPDATE PROOF` using the OSMINOG button with no archive download, no folder selection and no manual file replacement.
 
 Only after that proof is the Dev Hub update path considered runtime-proven.
+
+
+## Implementation correction — 2026-11-07 / Chrome 4.0.37 candidate
+
+The Dev Hub text above records the intended historical architecture. It does **not** describe the currently executing Chrome 4.0.36 code: `editor.js` calls `OSMINOGFolderUpdater.update()` in the extension page, and the native host constant is unused. There is no active Native Messaging fallback in that code path.
+
+The 4.0.37 candidate retains the current explicitly authorized native directory handle and fixed key, but replaces recursive whole-directory memory snapshots with a bounded package-path transaction. Only program files named by the verified package are read or written. Backup records are durable per file; the journal tracks interrupted work; the manifest is committed last. The replacement updater is version 2.0.0.
+
+A verified disk install is followed by a version-bound reload handoff and a temporary normal tab. The new editor, running the target manifest version, acknowledges readiness before that untouched temporary tab is removed. No browser restart or blanket window/tab closure is part of this path.
+
+Because the old updater executes before installing a new ZIP, a new ZIP alone cannot repair its first transition. The generated self-contained recovery page explicitly asks for the installed OSMINOG folder and uses the new updater directly. It changes no browser profile, extension ID or user-project storage. The next fresh toolbar popup detects the installed version on disk and offers Finish update. The native-folder update and fresh-popup bootstrap are separate required Chromium tests. If that bootstrap fails, do not instruct the owner to retry and do not promote the candidate as delivered.
+
+After that one-time repair, subsequent updates use the existing in-product button and remembered handle. The dev feed requires updater 2.0.0 to refuse unsafe legacy installations before folder backup. Cached old preflight data and old editor save code are outside that remote fence; this is not a claim that updating the feed remotely patches a running installation.
