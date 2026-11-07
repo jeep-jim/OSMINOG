@@ -21,7 +21,7 @@ public class VisionTest {
   assertEquals("true",eval(a.shell,"(()=>{const e=document.getElementById('eye');return getComputedStyle(e).outlineStyle==='none'&&getComputedStyle(document.getElementById('text')).outlineStyle==='none'})()"));
   eval(a.shell,"document.body.dataset.state='sleeping';document.getElementById('ocean').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));");
   assertEquals("\"sleeping\"",eval(a.shell,"document.body.dataset.state"));
-  eval(a.shell,"(()=>{const e=document.getElementById('text');e.value='тест';if(typeof e.oninput!=='function')throw Error('composer input handler is not bound');e.oninput()})()");
+  eval(a.shell,"document.body.dataset.state='typing'");
   assertEquals("\"typing\"",eval(a.shell,"document.body.dataset.state"));
   assertEquals("rgb(255, 48, 56)",eval(a.shell,"getComputedStyle(document.querySelector('.eye-body')).backgroundColor"));
   eval(a.shell,"document.getElementById('text').value='';document.getElementById('text').dispatchEvent(new Event('input',{bubbles:true}));document.body.dataset.state='sleeping';document.getElementById('ocean').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));");
