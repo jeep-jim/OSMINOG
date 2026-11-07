@@ -75,7 +75,7 @@
 
   function icon(p){return p?.iconSrc?`<img src="${esc(p.iconSrc)}" alt="${esc(p.name||"AI")}" referrerpolicy="no-referrer"><b hidden>${esc(p?.icon||"AI")}</b>`:`<b>${esc(p?.icon||"AI")}</b>`}
   function activeProvider(){return normalize($("#gptAgentProvider")?.value||"gpt")}
-  async function openSettings(id=""){return globalThis.OSMINOGBrowserHubAPI?.open?.({provider:normalize(id)})}
+  async function openSettings(id=""){return globalThis.OSMINOGProviderConnections?.open?.({provider:normalize(id)})}
   function showReconnect(id,reason="closed"){
     id=normalize(id);const previous=$("#osminogSessionReconnectToast");if(previous?.dataset.provider===id)return;previous?.remove();
     const p=meta(id)||{name:label(id),icon:"AI"},toast=document.createElement("aside");toast.id="osminogSessionReconnectToast";toast.className="osminog-session-reconnect";toast.dataset.provider=id;toast.setAttribute("role","alert");toast.innerHTML=`<span class="osminog-session-reconnect-icon">${icon(p)}</span><div><strong>${esc(label(id))} отключён</strong><small>${reason==="navigated"?"Вкладка ушла с сайта сервиса.":"Связанная вкладка закрыта."}</small></div><button type="button" data-session-reconnect>Подключить ${esc(label(id))}</button><button type="button" data-session-dismiss aria-label="Закрыть">×</button>`;
