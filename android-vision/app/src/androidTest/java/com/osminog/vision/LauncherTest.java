@@ -13,13 +13,13 @@ import org.junit.*;
 
 /** Regression for the owner's 0.2.2 composer failure, not a live account test. */
 public class LauncherTest {
- ActivityScenario<MainActivity> scenario;MainActivity a;
+ ActivityScenario<ReliableActivity> scenario;ReliableActivity a;
  void ui(Runnable r){InstrumentationRegistry.getInstrumentation().runOnMainSync(r);}
  String eval(WebView w,String script)throws Exception{CountDownLatch done=new CountDownLatch(1);AtomicReference<String> value=new AtomicReference<>();ui(()->w.evaluateJavascript(script,x->{value.set(x);done.countDown();}));assertTrue(done.await(8,TimeUnit.SECONDS));return value.get();}
  void until(Callable<Boolean> check)throws Exception{long end=SystemClock.uptimeMillis()+25000;while(SystemClock.uptimeMillis()<end){if(check.call())return;Thread.sleep(200);}fail("Condition timed out");}
  @Before public void setup()throws Exception{
   InstrumentationRegistry.getInstrumentation().getTargetContext().getSharedPreferences("vision",0).edit().clear().putBoolean("disableProviderWarmupForTest",true).commit();
-  scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(x->a=x);
+  scenario=ActivityScenario.launch(ReliableActivity.class);scenario.onActivity(x->a=x);
   until(()->"true".equals(eval(a.shell,"!!window.OSMINOG?.nativeReady")));
   eval(a.shell,"localStorage.setItem('osminogMotion','off');document.body.classList.add('motion-off');OSMINOG.receive({type:'clear'})");
  }
