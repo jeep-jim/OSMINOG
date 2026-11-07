@@ -344,7 +344,7 @@ async function installWithRecoveryPage(version) {
   helperPackageFallback = false;
   const origins = networkFixture.packageOrigins.slice(originsBefore);
   assert.deepEqual(origins, ['https://github.com', 'https://raw.githubusercontent.com'],
-    'File-origin update must reject the primary response without ACAO and use exactly one raw fallback');
+    'File-origin update must recover from the primary network failure with exactly one raw fallback');
   assert.equal(packageRequests - before, 2, 'One helper installation uses one failed primary and one verified fallback');
   assert.equal(JSON.parse(fs.readFileSync(path.join(installed, 'manifest.json'), 'utf8')).version, version);
   assert.equal(fs.existsSync(path.join(installed, '.osminog-update.pending.json')), false);
@@ -582,9 +582,10 @@ async function main() {
       const gate = packageGate;
       if (gate) await gate;
       if (helperPackageFallback && url.hostname === 'github.com') {
-        // GitHub's release-asset response has no ACAO. Exercise actual browser
-        // CORS rejection, then the updater's CORS-enabled immutable raw mirror.
-        return route.fulfill({contentType: 'application/zip', body: selected.body});
+        // Playwright's fulfill path supplies CORS support, so it cannot model a
+        // missing-ACAO response. Exercise a concrete primary transport failure;
+        // the separate unmocked raw-archive probe checks real file-origin CORS.
+        return route.abort('failed');
       }
       return route.fulfill({contentType: 'application/zip', headers: {'access-control-allow-origin': '*'}, body: selected.body});
     }
