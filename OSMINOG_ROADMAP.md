@@ -508,3 +508,7 @@ Deliver through the existing update button. The owner's token is already renewed
 ## 2026-11-07 — Chrome lightweight core reset (4.0.38 candidate)
 
 Owner priority: fast automatic background clipboard collection and search; minimal canvas/desks, chat and access. Replace whole-workspace mutation snapshots and eager editor/tool loading with per-item binary storage, bounded visible rendering and isolated search/preview workers. Preserve legacy materials and Owner Authenticator. New release requires actual Chromium migration, clipboard-with-editor-closed, fixed-header, large-workspace and native-update gates. Owner Windows performance is not inferred from CI; runtimeVerified remains false. Removed tool features are outside the current Chrome product scope.
+
+## 2026-11-07 — Lightweight core 4.0.38 publication complete
+
+Chrome PR 101 merged; all 5 final-head workflows passed. The exact 165,998-byte / 49-file CI package and matching 65,468-byte recovery helper published as chrome-v4.0.38 and verified in the active dev feed. Retained scope is desks/canvas, background clipboard, search, right chat and access. Native migration/media/header/clipboard/chat/update checks passed; original user data and Owner Authenticator are preserved. Per-item writes, viewport culling and isolated legacy-chat/search/preview workers replace the former full-workspace persistence and eager heavy tools. runtimeVerified remains false; no owner Windows measurement or universal stability guarantee is inferred from CI. Main publication evidence is appended to OSMINOG_PROJECT_LOG.md.
