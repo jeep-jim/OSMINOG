@@ -76,8 +76,9 @@ public class MainActivity extends Activity {
   case "denyConsent":pendingConsentAction=null;break;
   case "openProvider":openProvider();break;
   case "update":stopSession();updater.check();break;
-  case "clear":new AlertDialog.Builder(this).setMessage("Удалить переписку этого провайдера на устройстве? История на сайте сервиса не удаляется.").setPositiveButton("Удалить",(d,i)->emit("clear")).setNegativeButton("Отмена",null).show();break;
-  case "privacy":new AlertDialog.Builder(this).setTitle("Данные и сеанс").setMessage("История хранится в приложении. Отправленные тексты и кадры получает выбранный ИИ-сервис. Речь обрабатывает Android; его речевой сервис может использовать интернет. При каждом вопросе с включённой камерой отправляется один свежий кадр, не непрерывное видео. Камера и микрофон выключаются при сворачивании. Пароли вводятся только на сайте выбранного сервиса.").setPositiveButton("Понятно",null).show();break;
+  case "clear":emit("clearConfirm");break;
+  case "clearConfirmed":emit("clear");break;
+  case "privacy":emit("privacyInfo");break;
   case "cancelRequest":cancelRequest();break;
   case "voiceOn":withConsent(()->permission(1));break;
   case "voiceOff":voiceOff();break;
