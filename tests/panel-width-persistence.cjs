@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../editor.js'),'utf8');
-const region=source.slice(source.indexOf('function applyPanelWidths(){'),source.indexOf('function colorTarget(){'));
+const region=source.slice(source.indexOf('function applyPanelWidths('),source.indexOf('function colorTarget(){'));
 const storage=new Map(),listeners=new Map(),handles=[];let fullSaves=0,writes=0;
 const state={language:'ru',ui:{layersWidth:326,inspectorWidth:360},projects:[]};
 // Touching project data is forbidden for a panel preference operation.
@@ -15,7 +15,7 @@ vm.runInContext(region,ctx);vm.runInContext('bindPanelResizers()',ctx);
 handles[0]({button:0,clientX:100,pointerId:1,preventDefault(){},stopPropagation(){}});
 for(let i=0;i<500;i++)listeners.get('pointermove')({clientX:100+i});
 assert.equal(writes,0);listeners.get('pointerup')();assert.equal(writes,1);assert.equal(fullSaves,0);assert.equal(state.ui.layersWidth,640);
-state.ui.layersWidth=260;vm.runInContext('bindPanelResizers()',ctx);assert.equal(state.ui.layersWidth,640);
+state.ui.layersWidth=260;vm.runInContext('applyPanelWidths(true)',ctx);assert.equal(state.ui.layersWidth,640,'preference wins over stale project snapshot after load');
 storage.set('osminogPanelWidthsV1','{"layersWidth":99999,"inspectorWidth":-10}');vm.runInContext('bindPanelResizers()',ctx);assert.equal(state.ui.layersWidth,640);assert.equal(state.ui.inspectorWidth,300);
 storage.set('osminogPanelWidthsV1','broken');assert.doesNotThrow(()=>vm.runInContext('bindPanelResizers()',ctx));
 assert.equal(listeners.size,0);

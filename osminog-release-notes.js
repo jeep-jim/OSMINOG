@@ -1,5 +1,9 @@
 (()=>{'use strict';
 const catalog={
+'4.0.40':{
+ru:{title:'Нагрузка холста и боковых панелей',items:['Закрытая панель слоёв не загружает изображения архива. Миниатюры подчиняются настройке превью и загружаются только у видимых строк.','Изменение ширины меню сохраняет только размеры, без полной перезаписи проектов и резервных копий.','Сохранены текущие инструменты, чат, фоновые сохранения и оригиналы файлов.']},
+en:{title:'Canvas and sidebar workload',items:['Closed Layers do not load archive images. Thumbnails follow the preview preference and load only for visible rows.','Sidebar resizing saves only widths, without rewriting projects and backups.','Current tools, chat, background capture and original files are retained.']}
+},
 '4.0.37':{
 ru:{title:'Восстановление обновлений',items:['Резервная копия включает только заменяемые файлы программы; папка больше не загружается целиком в память.','Обновление защищено от повторного запуска и восстанавливает предыдущие файлы при ошибке записи.','Новая версия подтверждает запуск до удаления временной вкладки перезапуска.','Для старого неисправного обновлятора предусмотрена отдельная кнопка восстановления.']},
 en:{title:'Update recovery',items:['Only replaced program files are backed up; the whole folder is no longer loaded into memory.','Concurrent installs are blocked and failed writes restore the previous files.','The target version acknowledges startup before the temporary reload tab is removed.','A separate recovery button handles the initial transition from the old updater.']}
