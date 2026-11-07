@@ -1,3 +1,19 @@
+# 2026-11-07 — Stability-first reset, browser removal and Free/Pro requirements
+
+Owner reports that 4.0.20 was the last stable version on their machine; all later versions have been persistently freezing. Treat 4.0.20 as the user-confirmed comparison point, then locate and verify its exact source commit/package before changing runtime code. This is not yet an independently measured baseline.
+
+**Hard release gate:** no new OSMINOG build is considered complete or published until performance is restored and the owner accepts it on their computer. CI passing alone is insufficient. See docs/STABILITY_RECOVERY_AND_BROWSER_REMOVAL.md.
+
+Owner explicitly cancelled the built-in universal browser. Remove its app/window, tabs, URL/navigation UI, web-stage/popup, embedded page editor, browser AI commands, related listeners/observers/timers and runtime wiring. Do not merely hide the button. Preserve independent AI-provider sessions/chat, Owner Access, GitHub access, screenshots, file import, projects and ordinary external links. Keep the old browser roadmap as historical archive, marked cancelled; do not delete its history.
+
+**Owner-approved pricing requirements (not yet implemented):**
+- Free: maximum 3 active desks and 100 successfully saved screenshots per account per day.
+- Pro: $6.99/month, unlimited active desks and no Free daily screenshot cap (subject to anti-abuse safeguards).
+- On downgrade, never delete desks or project data: allow the owner to choose up to 3 active desks; other desks become read-only/archive until Pro is restored. Preserve view/export/delete.
+- Pro candidates: cross-device sync, backups/version history, OCR and content search, bulk export/organization, workspace templates; later optional shared links/comments and cost-controlled AI features. Team tier is future-only.
+- Customer subscription identity is separate from Owner Authenticator/GitHub credentials. Payment provider is not chosen. Free quota is account-wide; sync is opt-in and a Pro feature, not forced cloud upload.
+- Implement entitlements/billing only after P0 stability is accepted. Detailed contract: docs/PRODUCT_TIERS_AND_PRO_SUBSCRIPTION.md.
+
 # 2026-11-03 — 4.0.19: restore canvas controls and compact properties
 
 Owner rejected bulky tool panels and missing canvas controls. Restored all canonical grid modes (plain/dots/grid/both), spacing, grid color and light/dark background colors; explicit white stays white. Shape selection is now an SVG icon toolbar menu with hover and keyboard navigation. Property sections share compact rows, editable HEX, percentage opacity, gradients, individual corners and ink stroke controls. Local Lucide subset includes license notices. Existing inline photo editing, panel visibility, autosave, layers and individual chat remain.
