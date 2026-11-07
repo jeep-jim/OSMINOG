@@ -64,6 +64,8 @@
 .core-access-section:last-child{border-bottom:0;padding-bottom:0}
 .core-access-section h3{font-size:14px;margin:0;font-weight:650}
 .core-access-note{font-size:12px;color:var(--muted);line-height:1.5;margin:0;overflow-wrap:anywhere}
+.core-access-error{padding:10px 12px;color:#f59b9b;border:1px solid #93414c;background:var(--surface);border-radius:8px;font-size:12px;overflow-wrap:anywhere}
+.core-access-error[hidden]{display:none}
 .core-access-fields{display:grid;gap:8px}
 .core-access-section select,.core-access-section input{width:100%;min-width:0}
 .core-access-section [hidden]{display:none!important}

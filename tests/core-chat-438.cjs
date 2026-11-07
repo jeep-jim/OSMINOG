@@ -58,7 +58,7 @@ test('backend execution contract overrides legacy instructions with exact tools 
   const contract = core.executionContract('edit'), serialized = JSON.stringify(contract);
   assert.deepEqual(contract.tools, core.allowedTools('edit'));
   assert.deepEqual(contract.limits, {callsPerStep: 8, steps: 6, objectsPerRead: 80, textCharsPerRead: 8000,
-    patchActions: 20, createdTextChars: 30000, automaticImages: false});
+    patchActions: 20, createdTextChars: 30000, resultCharsPerCall: 24000, resultCharsPerStep: 48000, automaticImages: false});
   for (const retired of ['agent_create', 'graphics_create', 'asset_create', 'browser_open', 'module_create', 'source_publish', 'github_commit_files'])
     assert.equal(serialized.includes(retired), false);
   assert.match(contract.instructions, /NOT an applied change/);
@@ -67,6 +67,46 @@ test('backend execution contract overrides legacy instructions with exact tools 
   assert.equal(external.tools.includes('chat_history_read'), false);
   assert.equal(external.tools.includes('propose_canvas_patch'), false);
   assert.equal(external.limits.steps, 12);
+});
+
+test('eight individually bounded tool reads also respect the aggregate 48000-character budget', () => {
+  let budget = 48000; const returned = [];
+  for (let index = 0; index < 8; index++) {
+    const result = core.boundedToolResult({ok: true, text: 'x'.repeat(8000)}, budget - (7 - index) * 256);
+    budget -= result.characters; returned.push(result.value);
+  }
+  assert.ok(budget >= 0); assert.ok(returned.some(result => result.ok === false));
+  assert.ok(returned.reduce((sum, result) => sum + JSON.stringify(result).length, 0) <= 48000);
+  const huge = core.boundedToolResult({objects: Array.from({length: 80}, () => ({text: 'x'.repeat(1000)}))});
+  assert.equal(huge.value.ok, false); assert.match(huge.value.error, /следующую страницу/);
+});
+
+test('editor history migration passes only staging tickets and reuses completed worker imports', async () => {
+  const calls = [], migrated = new Map(); let workerCount = 0;
+  const native = {getMeta: async (scope, thread) => migrated.get(scope + ':' + thread),
+    ensure() { throw Error('Legacy data must never be hydrated in the editor'); }, close: async () => {}, page: async () => ({rows: []})};
+  const chrome = {runtime: {getURL: path => path, sendMessage: async message => {
+    calls.push(message); return {ok: true, staged: message.keys, transferId: 'ticket-1'};
+  }}};
+  function workerFactory() {
+    workerCount++; const worker = {terminated: false, terminate() { this.terminated = true; }, postMessage(data) {
+      if (data.type === 'ensure') { this.job = data; queueMicrotask(() => this.onmessage({data: {type: 'stage', id: data.id, token: 'stage-1',
+        keys: ['briefCraftGptLiteChat:' + data.scope + ':' + data.thread, 'briefCraftGptLiteChat:' + data.scope]}})); }
+      if (data.type === 'staged') {
+        assert.deepEqual(data.response, {ok: true, error: '', transferId: 'ticket-1', staged: ['briefCraftGptLiteChat:p:main', 'briefCraftGptLiteChat:p']});
+        const meta = {scope: this.job.scope, thread: this.job.thread, legacyDone: true, nextSeq: 100};
+        migrated.set(this.job.scope + ':' + this.job.thread, meta);
+        queueMicrotask(() => this.onmessage({data: {type: 'complete', id: this.job.id, meta}}));
+      }
+    }}; return worker;
+  }
+  const history = core.createBrowserHistory({chrome, nativeHistory: native, workerFactory});
+  assert.equal((await history.ensure('p', 'main')).nextSeq, 100);
+  assert.equal((await history.ensure('p', 'main')).nextSeq, 100);
+  assert.equal(workerCount, 1); assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0], {type: 'OSMINOG_CORE_CHAT_LEGACY_READ', scope: 'p', thread: 'main',
+    keys: ['briefCraftGptLiteChat:p:main', 'briefCraftGptLiteChat:p']});
+  assert.ok(JSON.stringify(calls).length < 250); await history.close();
 });
 
 test('tool IDs cannot read objects from a different desk even if storage knows them', async () => {
@@ -125,6 +165,12 @@ test('patch rejects unsafe or unsupported fields, types, coordinates and cross-d
 
 test('external canvas access never receives internal chat history', async () => {
   const f = fixture(); await assert.rejects(f.tools.execute('chat_history_read', {}, {...f.scope, external: true}), /не передаётся/);
+});
+
+test('text-only custom adapter rejects image reads before loading the original', async () => {
+  const f = fixture();
+  await assert.rejects(f.tools.execute('read_asset', {id: 'file-a'}, {...f.scope, provider: 'custom'}), /только текст.*не отправлено/);
+  assert.equal(f.calls.some(call => call[0] === 'getItem'), false);
 });
 
 test('late replies are rejected after cancellation, thread switch, history clear or a new task', () => {

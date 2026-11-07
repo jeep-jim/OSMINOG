@@ -30,6 +30,7 @@
   "osminog-chat-sync-router.js",
   "osminog-chat-sync.js",
   "osminog-collector-background.js",
+  "osminog-core-chat-worker.js",
   "osminog-core-chat.css",
   "osminog-core-chat.js",
   "osminog-core-media-worker.js",

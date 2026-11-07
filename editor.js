@@ -8,6 +8,7 @@
   const metrics = {renderCount:0,persistCount:0};
   let viewDirty=false, chatReady=false;
   let canvasSize = {width:1,height:1}, frame=0, viewTimer, searchTimer, toastTimer, changeTimer, gesture, space=false;
+  let subscribed=false;
   let openSerial=0, searchSerial=0, searchPage=0, collectorConfig={}, collectorBusy=false, searchRows=[], migrationTimer;
   let searchWorker=null, searchRequest=0;const searchWaiters=new Map();
   let modalItem=null, modalURL=null, previewWorker=null, imageDebounce, isReady=false, starting=false, updateBusy=false, updatePreflight=null;
@@ -57,7 +58,7 @@
     if(node.dataset.content===signature)return;node.dataset.content=signature;node.replaceChildren();
     if(isImage(item)){const img=document.createElement('img');img.className='item-image';img.alt='';img.decoding='async';img.draggable=false;node.append(img)}
     else if(item.text){const content=document.createElement('div');content.className='item-text';content.textContent=item.text.slice(0,1200);node.append(content)}
-    else{const content=document.createElement('div');content.className='item-file';const glyph=document.createElement('span');glyph.className='file-glyph';glyph.textContent=iconFor(item);const name=document.createElement('span');name.textContent=item.mime||item.type||'Материал';content.append(glyph,name);node.append(content)}
+    else{const content=document.createElement('div');content.className='item-file';const glyph=document.createElement('span');glyph.className='file-glyph';glyph.textContent=iconFor(item);const name=document.createElement('span');name.textContent=item.fileName?.split('.').pop()?.toUpperCase()|| (item.assetId?'Сохранённый файл':'Сохранённый материал');content.append(glyph,name);node.append(content)}
     const label=document.createElement('div');label.className='item-label';label.textContent=item.name||item.title||'Материал';node.append(label);
   }
   function renderConnections(visible){
@@ -181,7 +182,7 @@
   async function drop(event){event.preventDefault();if(!isReady)return;try{const bounds=$('canvas').getBoundingClientRect(),x=(event.clientX-bounds.left-state.view.x)/state.view.scale,y=(event.clientY-bounds.top-state.view.y)/state.view.scale;let offset=0;for(const file of event.dataTransfer.files){await createItem({name:file.name,fileName:file.name,type:file.type.startsWith('image/')?'image':'file',blob:file,mime:file.type,x:x+offset,y:y+offset,w:320,h:240});offset+=24}if(!event.dataTransfer.files.length){const text=event.dataTransfer.getData('text/plain');if(text)await createItem({type:'text',name:text.slice(0,70),text,x,y,w:320,h:220})}}catch(error){fail(error)}}
   async function checkUpdate(){if(updateBusy)return;const button=$('oneClickUpdate');button.disabled=true;$('updateStatusText').textContent='Проверяю обновления…';$('updateStatusSub').textContent='';try{updatePreflight=await globalThis.OSMINOGFolderUpdater.check();$('updateStatusText').textContent=updatePreflight.available?`Доступна версия ${updatePreflight.latestVersion}`:`Установлена версия ${chrome.runtime.getManifest().version}`;$('updateStatusSub').textContent=updatePreflight.message||'';button.textContent=updatePreflight.available?'Обновить сейчас':'Проверить снова'}catch(error){updatePreflight=null;$('updateStatusText').textContent='Не удалось проверить обновление';$('updateStatusSub').textContent=error.message;button.textContent='Повторить проверку'}finally{button.disabled=false}}
   async function installUpdate(){if(updateBusy)return;if(!updatePreflight?.available)return checkUpdate();updateBusy=true;const button=$('oneClickUpdate');button.disabled=true;button.textContent='Обновляю…';try{await flushWrites();const result=await globalThis.OSMINOGFolderUpdater.update({preflight:updatePreflight,onStatus:event=>{$('updateStatusText').textContent=event.message||'Обновляю…';$('updateStatusSub').textContent=Math.round(number(event.progress))+'%'}});if(!result.updated){updatePreflight=null;throw Error(result.message||'Обновление не установлено')}await flushWrites();await globalThis.OSMINOGUpdateHandoff.prepare({from:chrome.runtime.getManifest().version,to:result.currentVersion});chrome.runtime.reload()}catch(error){$('updateStatusText').textContent='Обновление не завершено';$('updateStatusSub').textContent=error.message;button.textContent='Проверить состояние';button.disabled=false;updateBusy=false;updatePreflight=null}}
-  let resolveReady,rejectReady;const ready=new Promise((resolve,reject)=>{resolveReady=resolve;rejectReady=reject});ready.catch(()=>{});
+  let resolveReady;const ready=new Promise(resolve=>{resolveReady=resolve});
   const api={getDeskId:()=>state.desk?.id,getDesk:async()=>state.desk,listItems:()=>[...state.items.values()],getItem:id=>store.getItem(id),getBlob:id=>store.getBlob(id),search:(q,opts)=>store.search(q,opts),createItem,patchItem,deleteItem,focusItem,selectedIds:()=>[...state.selected],getView:()=>({...state.view}),revision:()=>state.revision,onDeskChange:fn=>{deskListeners.add(fn);return()=>deskListeners.delete(fn)}};
   globalThis.OSMINOGCoreApp={...api,ready,items:()=>[...state.items.values()],view:()=>({...state.view}),openDesk,togglePanel,stats:()=>({...metrics,visibleNodes:nodes.size,imageUrls:previews.size,pendingImages:pendingImages.size,totalItems:state.items.size}),flush:flushWrites};
   globalThis.OSMINOGStateReady=ready;
@@ -197,13 +198,13 @@
       }
       await refreshDesks();const prefs=await chrome.storage.local.get(['osminogCoreUiV1','osminogDisplayPrefs']);
       const legacyPrefs=await store.getMeta('legacy-workspace');const persisted=prefs.osminogCoreUiV1?.activeDesk||legacyPrefs?.activeProject;const selected=state.desks.find(d=>d.id===persisted)||state.desks.find(d=>d.id===collectorConfig.projectId)||state.desks[0];if(!selected)throw Error('Не найден стол');
+      if(!subscribed){store.subscribe(event=>{if(event.type==='items')for(const id of event.ids||[])changes.add(id);if(event.type==='desks')fullRefresh=true;if(isReady){clearTimeout(changeTimer);changeTimer=setTimeout(()=>applyChanges().catch(fail),35)}});subscribed=true}
       await openDesk(selected.id);
-      await globalThis.OSMINOGCoreChat?.init?.({root:$('coreChat'),accessRoot:$('coreAccess'),api});chatReady=true;
+      chatReady=true;Promise.resolve(globalThis.OSMINOGCoreChat?.init?.({root:$('coreChat'),accessRoot:$('coreAccess'),api})).catch(error=>toast('История чата: '+error.message));
       const query=new URLSearchParams(location.search);if(query.get('view')==='inbox'){state.folder=collectorConfig.folderId||'*';renderScopes();updateCount();fitCanvas();togglePanel('search',true)}
-      store.subscribe(event=>{if(event.type==='items')for(const id of event.ids||[])changes.add(id);if(event.type==='desks')fullRefresh=true;clearTimeout(changeTimer);changeTimer=setTimeout(()=>applyChanges().catch(fail),35)});
-      isReady=true;$('startupStatus').hidden=true;$('saveStatus').textContent='Сохранено на устройстве';resolveReady(globalThis.OSMINOGCoreApp);schedule();
+      isReady=true;$('startupStatus').hidden=true;$('saveStatus').textContent='Сохранено на устройстве';resolveReady(globalThis.OSMINOGCoreApp);schedule();if(changes.size||fullRefresh)applyChanges().catch(fail);
       message({type:'OSMINOG_EDITOR_READY',version:chrome.runtime.getManifest().version}).catch(()=>{});
-    }catch(error){console.error(error);$('startupDetail').textContent=error.message||String(error);$('startupRetry').hidden=false;rejectReady(error)}finally{starting=false}
+    }catch(error){console.error(error);$('startupDetail').textContent=error.message||String(error);$('startupRetry').hidden=false}finally{starting=false}
   }
   bindUI();const version=chrome.runtime.getManifest().version;$('versionButton').textContent='v'+version;$('updateCurrentVersion').textContent='v'+version;start();
 })();

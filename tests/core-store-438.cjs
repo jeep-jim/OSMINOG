@@ -119,6 +119,26 @@ async function fixture(data) {
     assert.deepEqual(pageResult.first, pageResult.all.slice(0, 3)); assert.deepEqual(pageResult.second, pageResult.all.slice(3, 6));
     assert.equal(pageResult.duplicate, true); assert.equal(pageResult.retry.text, 'live a'); assert.notEqual(pageResult.a.x, pageResult.b.x);
     console.log('PASS fast metadata pagination and capture retry without duplicates or overlapping grid positions');
+    const transfers = await page.evaluate(async () => {
+      const S = OSMINOGCoreStore, key = 'briefCraftGptLiteChat:desk:main';
+      const first = crypto.randomUUID(), second = crypto.randomUUID(), other = crypto.randomUUID();
+      await S.stageLegacy({[key]: [{text: 'abandoned old transfer', attachments: ['x'.repeat(100000)]}]}, {transferId: first, scopeKey: 'desk/main'});
+      const get = IDBObjectStore.prototype.get, payloadReads = [];
+      IDBObjectStore.prototype.get = function(key) { if (typeof key === 'string' && key.startsWith('legacy-transfer:')) payloadReads.push(key); return get.call(this, key); };
+      try {
+        await S.stageLegacy({[key]: [{text: 'current'}]}, {transferId: second, scopeKey: 'desk/main'});
+        await S.stageLegacy({[key]: [{text: 'another reader'}]}, {transferId: other, scopeKey: 'another/main'});
+      } finally { IDBObjectStore.prototype.get = get; }
+      let oldRejected = false;
+      try { await S.consumeLegacy([key], {transferId: first}); } catch { oldRejected = true; }
+      const current = await S.consumeLegacy([key], {transferId: second});
+      const independent = await S.consumeLegacy([key], {transferId: other});
+      let twiceRejected = false; try { await S.consumeLegacy([key], {transferId: second}); } catch { twiceRejected = true; }
+      return {payloadReads, oldRejected, twiceRejected, current: current[key], independent: independent[key]};
+    });
+    assert.deepEqual(transfers.payloadReads, []); assert(transfers.oldRejected); assert(transfers.twiceRejected);
+    assert.deepEqual(transfers.current, [{text: 'current'}]); assert.deepEqual(transfers.independent, [{text: 'another reader'}]);
+    console.log('PASS unique chat transfer tickets isolate readers and clean abandoned data without hydrating it in the editor');
     await f.close();
   }
   {

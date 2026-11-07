@@ -6,7 +6,7 @@ const sink = document.querySelector('#clipboard');
 const MAX_FILE_BYTES = 32 * 1024 * 1024, MAX_BATCH_BYTES = 256 * 1024 * 1024;
 const MAX_FILES = 256, MAX_TEXT_CHARS = 4 * 1024 * 1024, COMPARE_CHUNK = 65536;
 let config = {}, migrated = false, busy = false, again = false, baseline = true;
-let pasteTask = null, retry = null, last = null, reportedError = '', timer = 0, eventLeaseUntil = 0;
+let pasteTask = null, retry = null, last = null, reportedError = '', timer = 0, eventLeaseUntil = 0, bootstrapTask = null;
 
 function permanent(message) { const error = Error(message); error.retryable = false; return error; }
 async function digest(blob) {
@@ -144,8 +144,32 @@ function applyConfig(next) {
   timer = setInterval(() => { if (retry || reportedError || Date.now() >= eventLeaseUntil) tick(); }, 1500);
   if (!wasEnabled) tick();
 }
-chrome.runtime.onMessage.addListener((message, sender) => {
+function bootstrap() {
+  if (migrated) return {started: Promise.resolve({ok: true})};
+  if (bootstrapTask) return bootstrapTask;
+  let acknowledge;
+  const started = new Promise(resolve => { acknowledge = resolve; });
+  const done = (async () => {
+    try {
+      // The trigger is acknowledged only after the running state commits, so
+      // a retry cannot immediately return the previous error to the editor.
+      await OSMINOGCoreStore.init({migrate: true, onProgress(progress) {
+        if (progress.status === 'running') acknowledge({ok: true});
+      }});
+      const response = await chrome.runtime.sendMessage({type: 'OSMINOG_CORE_MIGRATED'});
+      if (!response?.ok) throw Error(response?.error || 'Не удалось подготовить сбор материалов');
+      migrated = true; config = {}; applyConfig(response.config); acknowledge({ok: true});
+    } catch (error) {
+      acknowledge({ok: false, error: String(error.message || error)});
+      await report(error);
+    }
+  })().finally(() => { bootstrapTask = null; });
+  bootstrapTask = {started, done};
+  return bootstrapTask;
+}
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return;
+  if (message.type === 'OSMINOG_CORE_MIGRATE' && !sender.tab) { bootstrap().started.then(reply); return true; }
   if (message.type === 'OSMINOG_CORE_CAPTURE_CONFIG' && !sender.tab) { applyConfig(message.config); return; }
   if (message.type !== 'OSMINOG_CLIPBOARD_ACTIVITY' || sender.url?.split(/[?#]/)[0] !== chrome.runtime.getURL('editor.html')) return;
   const wasPolling = Date.now() >= eventLeaseUntil;
@@ -155,12 +179,4 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     if (wasPolling || message.action === 'change') tick();
   }
 });
-(async () => {
-  try {
-    await OSMINOGCoreStore.init({migrate: true});
-    migrated = true;
-    const response = await chrome.runtime.sendMessage({type: 'OSMINOG_CORE_MIGRATED'});
-    if (!response?.ok) throw Error(response?.error || 'Не удалось подготовить сбор материалов');
-    config = {}; applyConfig(response.config);
-  } catch (error) { await report(error); }
-})();
+bootstrap();

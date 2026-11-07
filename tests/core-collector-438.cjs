@@ -8,10 +8,10 @@ const {webcrypto} = require('node:crypto');
 const source = fs.readFileSync(path.join(__dirname, '..', 'collector.js'), 'utf8');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return {promise, resolve}; };
-function fixture(initial = {text: 'old clipboard'}) {
+function fixture(initial = {text: 'old clipboard'}, options = {}) {
   let clipboard = initial, paste, interval, readCount = 0, gate, failId = null;
   const messages = [], stored = new Map(), blobs = new Map(), attempts = [], digests = [], notifications = [], runtimeListeners = [];
-  let active = 0, peak = 0;
+  let active = 0, peak = 0, initCount = 0;
   const sink = {addEventListener(type, fn) { assert.equal(type, 'paste'); paste = fn; }, focus() {}, replaceChildren() {}};
   const context = vm.createContext({console, Blob, Uint8Array, DataView, Promise, Object, Array, String, Number, Date, performance,
     setTimeout, clearTimeout, queueMicrotask, setInterval(fn) { interval = fn; return 1; }, clearInterval() { interval = null; },
@@ -32,7 +32,11 @@ function fixture(initial = {text: 'old clipboard'}) {
         return {ok: true};
       }}},
     OSMINOGCoreStore: {
-      init: async () => ({status: 'done'}), getBlob: async id => blobs.get(id),
+      init: async initOptions => {
+        initCount++;
+        if (options.initialize) await options.initialize(initOptions, initCount);
+        return {status: 'done'};
+      }, getBlob: async id => blobs.get(id),
       capture: async input => {
         active++; peak = Math.max(peak, active); attempts.push(input.captureId);
         try {
@@ -47,9 +51,11 @@ function fixture(initial = {text: 'old clipboard'}) {
   });
   vm.runInContext(source, context, {filename: 'collector.js'});
   return {context, messages, stored, blobs, attempts, digests, notifications,
-    setClipboard(value) { clipboard = value; }, poll: () => interval?.(), reads: () => readCount, peak: () => peak,
+    setClipboard(value) { clipboard = value; }, poll: () => interval?.(), reads: () => readCount, peak: () => peak, initCount: () => initCount,
     hold() { gate = deferred(); gate.entered = deferred(); return gate; }, release() { gate.resolve(); gate = null; }, failFile(suffix) { failId = suffix; },
     async idle() { for (let n = 0; n < 200; n++) { await settle(); if (vm.runInContext('!busy && migrated', context)) return; } throw Error('Collector did not settle'); },
+    async bootIdle() { for (let n = 0; n < 200; n++) { await settle(); if (vm.runInContext('!bootstrapTask', context)) return; } throw Error('Migration did not settle'); },
+    migrate() { return new Promise(resolve => { for (const listener of runtimeListeners) listener({type: 'OSMINOG_CORE_MIGRATE'}, {id: 'fixture'}, resolve); }); },
     configure(config) { for (const listener of runtimeListeners) listener({type: 'OSMINOG_CORE_CAPTURE_CONFIG', config}, {id: 'fixture'}); }
   };
 }
@@ -85,4 +91,22 @@ test('pause stops clipboard reads; fresh enable uses a baseline; later captures 
   f.configure({enabled: false, projectId: 'desk'}); const before = f.reads(); f.poll(); await settle(); assert.equal(f.reads(), before);
   f.setClipboard({text: 'copied while paused'}); f.configure({enabled: true, projectId: 'desk'}); await f.idle(); assert.equal(f.stored.size, 0);
   f.setClipboard({text: 'copied after enabling'}); f.poll(); await f.idle(); assert.equal(f.stored.size, 1);
+});
+test('migration retries after an error, remains singleflight, and never restarts a completed collector', async () => {
+  const gate = deferred(), entered = deferred();
+  const f = fixture(undefined, {async initialize(options, attempt) {
+    if (attempt === 1) throw Error('Transient migration failure');
+    entered.resolve(); await gate.promise;
+    options.onProgress({status: 'running'});
+  }});
+  await f.bootIdle(); assert.equal(f.initCount(), 1); assert.equal(f.reads(), 0);
+  assert(f.messages.some(message => message.error === 'Transient migration failure'));
+  let acknowledged = false;
+  const first = f.migrate().then(reply => { acknowledged = true; return reply; }), second = f.migrate();
+  await entered.promise; await settle(); assert.equal(f.initCount(), 2); assert.equal(acknowledged, false);
+  gate.resolve(); const replies = await Promise.all([first, second]);
+  assert(replies.every(reply => reply.ok)); await f.idle(); await f.bootIdle();
+  const reads = f.reads(); await f.migrate(); await settle();
+  assert.equal(f.initCount(), 2); assert.equal(f.reads(), reads, 'completed collector keeps its current clipboard baseline');
+  f.setClipboard({text: 'captured after retry'}); f.poll(); await f.idle(); assert.equal(f.stored.size, 1);
 });

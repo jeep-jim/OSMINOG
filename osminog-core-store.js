@@ -70,24 +70,61 @@
   }
   const read = (store, key) => transaction([store], 'readonly', tx => request(tx.objectStore(store).get(key)));
   const writeMeta = (key, value) => transaction(['meta'], 'readwrite', tx => request(tx.objectStore('meta').put(value, key)));
-  async function stageLegacy(values) {
+  const TRANSFER_TICKET = 'legacy-transfer-ticket:', TRANSFER_POINTER = 'legacy-transfer-pending:';
+  const transferSlot = (key, id) => 'legacy-transfer:' + (id ? id + ':' : '') + key;
+  async function removeTransfer(meta, ticket, id) {
+    for (const key of ticket?.keys || []) await request(meta.delete(transferSlot(key, id)));
+    if (ticket?.pointer) {
+      const pointer = await request(meta.get(ticket.pointer));
+      if (pointer?.transferId === id) await request(meta.delete(ticket.pointer));
+    }
+    await request(meta.delete(TRANSFER_TICKET + id));
+  }
+  async function stageLegacy(values, options = {}) {
     const keys = Object.keys(values);
+    if (options.transferId) {
+      const id = String(options.transferId), pointer = TRANSFER_POINTER + String(options.scopeKey || id);
+      if (!/^[a-f0-9-]{36}$/.test(id)) throw Error('Неверный идентификатор переноса');
+      await transaction(['meta'], 'readwrite', async tx => {
+        const meta = tx.objectStore('meta');
+        // These cursor keys point only to small tickets, never chat arrays.
+        const tickets = await request(meta.getAllKeys(IDBKeyRange.bound(TRANSFER_TICKET, TRANSFER_TICKET + '\uffff')));
+        for (const key of tickets) {
+          const ticket = await request(meta.get(key));
+          if (ticket && now() - ticket.at > 600000) await removeTransfer(meta, ticket, key.slice(TRANSFER_TICKET.length));
+        }
+        const previous = await request(meta.get(pointer));
+        if (previous?.transferId) {
+          const old = await request(meta.get(TRANSFER_TICKET + previous.transferId));
+          if (old) await removeTransfer(meta, old, previous.transferId);
+        }
+        for (const key of keys) await request(meta.put(values[key], transferSlot(key, id)));
+        await request(meta.put({keys, pointer, at: now()}, TRANSFER_TICKET + id));
+        await request(meta.put({transferId: id}, pointer));
+      });
+      for (const key of keys) values[key] = null;
+      return keys;
+    }
     // A fixed slot per source cannot accumulate abandoned copies after a crash.
     // Unlike runtime JSON messages, IndexedDB can persist a large structured
     // value without serializing the whole old workspace to a message string.
     for (const key of keys) {
-      await writeMeta('legacy-transfer:' + key, values[key]);
+      await writeMeta(transferSlot(key), values[key]);
       values[key] = null;
     }
     return keys;
   }
-  async function consumeLegacy(keys) {
+  async function consumeLegacy(keys, options = {}) {
     return transaction(['meta'], 'readwrite', async tx => {
       const meta = tx.objectStore('meta'), values = {};
+      const id = options.transferId ? String(options.transferId) : '';
+      const ticket = id ? await request(meta.get(TRANSFER_TICKET + id)) : null;
+      if (id && (!ticket || keys.length !== ticket.keys.length || keys.some(key => !ticket.keys.includes(key)))) throw Error('Перенос переписки истёк. Откройте чат ещё раз.');
       for (const key of keys) {
-        const slot = 'legacy-transfer:' + key;
+        const slot = transferSlot(key, id);
         values[key] = await request(meta.get(slot)); await request(meta.delete(slot));
       }
+      if (id) await removeTransfer(meta, ticket, id);
       return values;
     });
   }
@@ -465,6 +502,6 @@
     return migrating;
   }
   globalThis.OSMINOGCoreStore = {init, ready: () => init(), desks, saveDesk, getDesk, listItems, getItem, getMetadata: id => read('items', String(id)), putItem, patchItem, deleteItem,
-    getBlob, putBlob, search, stats, capture, subscribe, getMeta: key => read('meta', key), stageLegacy,
+    getBlob, putBlob, search, stats, capture, subscribe, getMeta: key => read('meta', key), stageLegacy, consumeLegacy,
     __test: {DB_NAME, DB_VERSION, dataURLBlob, validWorkspace, migrateLegacy, TEXT_PREVIEW}};
 })();

@@ -142,6 +142,52 @@
     return {ensure, page, append, body, getMeta, async close() { (await dbPromise)?.close(); dbPromise = null; }};
   }
 
+  function createBrowserHistory({chrome = global.chrome, nativeHistory,
+    workerFactory = () => new global.Worker(chrome.runtime.getURL('osminog-core-chat-worker.js'))} = {}) {
+    const history = nativeHistory || createHistory({storage: {get() { throw Error('Старая история переносится только в рабочем потоке'); }}});
+    let queue = Promise.resolve(), active = null, closed = false;
+    function migrate(scope, thread) {
+      return new Promise((resolve, reject) => {
+        const worker = workerFactory(), id = uuid(), primary = CHAT_PREFIX + scope + ':' + thread;
+        const expected = thread === 'main' ? [primary, CHAT_PREFIX + scope] : [primary]; let finished = false;
+        const finish = (error, value) => {
+          if (finished) return; finished = true; worker.terminate(); if (active?.worker === worker) active = null;
+          if (error) reject(error); else resolve(value);
+        };
+        active = {worker, stop: () => finish(Error('Окно чата закрыто'))};
+        worker.onerror = event => { event.preventDefault?.(); finish(Error(event.message || 'Не удалось перенести историю в рабочем потоке')); };
+        worker.onmessage = async ({data}) => {
+          if (finished || data?.id !== id) return;
+          if (data.type === 'complete') { finish(null, data.meta); return; }
+          if (data.type === 'error') { finish(Error(data.error || 'Не удалось перенести историю')); return; }
+          if (data.type !== 'stage') return;
+          if (!Array.isArray(data.keys) || data.keys.length !== expected.length || data.keys.some((key, index) => key !== expected[index])) {
+            finish(Error('Рабочий поток запросил неверный источник истории')); return;
+          }
+          // Only a small ticket crosses the UI. Large legacy arrays travel from
+          // the service worker to shared IndexedDB, then directly to this worker.
+          let response;
+          try { response = await chrome.runtime.sendMessage({type: 'OSMINOG_CORE_CHAT_LEGACY_READ', scope, thread, keys: data.keys}); }
+          catch (error) { response = {ok: false, error: error.message}; }
+          if (!finished) worker.postMessage({type: 'staged', id, token: data.token,
+            response: {ok: response?.ok === true, error: clip(response?.error, 400), transferId: response?.transferId, staged: response?.staged}});
+        };
+        worker.postMessage({type: 'ensure', id, scope, thread});
+      });
+    }
+    function ensure(scope, thread) {
+      // One worker at a time in this editor; its per-thread Web Lock also
+      // serializes the stage/consume/import sequence against other editor tabs.
+      const work = queue.catch(() => {}).then(async () => {
+        if (closed) throw Error('Окно чата закрыто');
+        const meta = await history.getMeta(scope, thread); if (closed) throw Error('Окно чата закрыто');
+        return meta?.legacyDone ? meta : migrate(scope, thread);
+      });
+      queue = work; return work;
+    }
+    return {...history, ensure, async close() { closed = true; active?.stop(); await history.close(); }};
+  }
+
   function objectPreview(item) {
     const result = {};
     for (const key of ['id', 'deskId', 'type', 'name', 'title', 'fileName', 'mime', 'folderId', 'desktopId']) {
@@ -151,10 +197,16 @@
     result.textPreview = clip(item?.text, 400); return result;
   }
   function allowedTools(role) { return role === 'edit' ? [...READ_TOOLS, ...EDIT_TOOLS] : READ_TOOLS.slice(); }
+  function boundedToolResult(value, budget = 24000) {
+    const limit = Math.max(256, Math.min(24000, budget)), serialized = JSON.stringify(value);
+    if (serialized.length <= limit) return {value, characters: serialized.length};
+    const error = {ok: false, error: 'Результат слишком велик. Уменьши limit или max_chars и запроси следующую страницу.'};
+    return {value: error, characters: JSON.stringify(error).length};
+  }
   function executionContract(role, external = false) {
     return {mode: 'core-canvas', tools: allowedTools(role).filter(name => !external || name !== 'chat_history_read'),
       limits: {callsPerStep: 8, steps: external ? 12 : 6, objectsPerRead: 80, textCharsPerRead: 8000, patchActions: 20,
-        createdTextChars: 30000, automaticImages: false},
+        createdTextChars: 30000, resultCharsPerCall: 24000, resultCharsPerStep: 48000, automaticImages: false},
       instructions: [
         'Only execution.tools are available. For conversation, answer normally. Use a tool only when the user asks for canvas data or an action.',
         'Call format: {"protocol":"osminog.request/v1","calls":[{"tool":"read_object_text","args":{"id":"EXISTING_ID","offset":0,"max_chars":8000}}]}. At most 8 calls per step.',
@@ -222,6 +274,7 @@
       }
       if (name === 'get_object') return {ok: true, object: objectPreview(await member(args.id, scope))};
       if (name === 'read_asset') {
+        if (scope.provider === 'custom') throw Error('Адаптер «Другой API» передаёт только текст. Изображение не отправлено.');
         const item = await member(args.id, scope);
         if (!item.assetId) throw Error('У объекта нет отдельного файла');
         if (!readImage) return {ok: true, object: objectPreview(item), note: 'Файл можно открыть на холсте'};
@@ -263,7 +316,7 @@
   }
 
   function createApplication({root, accessRoot, api, chrome = global.chrome, document = global.document,
-    history = createHistory(), now = Date.now}) {
+    history = createBrowserHistory({chrome}), now = Date.now}) {
     if (!root || !accessRoot || !api) throw Error('Нет контейнера чата или API стола');
     const state = {scope: '', deskId: '', thread: 'main', epoch: 0, disposed: false, threads: [], meta: {}, rows: [],
       before: null, next: null, hasMore: false, loading: false, serial: 0, transport: 'direct', proposal: null};
@@ -314,7 +367,11 @@
     ui.thread.addEventListener('change', () => chooseThread(ui.thread.value).catch(error => status(error.message, true)));
     ui.provider.addEventListener('change', () => changeProvider(ui.provider.value).catch(error => status(error.message, true)));
 
-    function status(text, error = false) { ui.status.textContent = text; ui.status.classList.toggle('error', error); }
+    function status(text, error = false) {
+      ui.status.textContent = text; ui.status.classList.toggle('error', error);
+      const accessError = accessRoot.querySelector('[data-core-access-error]');
+      if (error && accessError && accessRoot.closest('dialog')?.open) { accessError.hidden = false; accessError.textContent = text; }
+    }
     function controls() {
       const busy = !!fence.active;
       ui.send.disabled = busy || state.loading; ui.input.disabled = state.loading;
@@ -538,14 +595,19 @@
           const calls = payload.request?.calls;
           if (!Array.isArray(calls) || !calls.length) { final = payload; break; }
           if (calls.length > 8) throw Error('ИИ запросил слишком много действий за один шаг');
-          result = {calls: [], imageDataUrl: ''};
-          for (const call of calls) {
-            requireTask(task); let value;
-            try { value = await tools.execute(String(call.tool || ''), call.args || {}, task); }
+          result = {calls: [], imageDataUrl: ''}; let resultBudget = 48000 - calls.length * 160;
+          for (const [index, call] of calls.entries()) {
+            requireTask(task); let value; const toolName = clip(call.tool, 80);
+            try {
+              if (typeof call.tool !== 'string' || call.tool.length > 80) throw Error('Неверное имя инструмента');
+              if (toolName === 'read_asset' && result.imageDataUrl) throw Error('За один шаг можно прочитать только одно изображение');
+              value = await tools.execute(toolName, call.args || {}, task);
+            }
             catch (error) { requireTask(task); value = {ok: false, error: error.message}; }
             requireTask(task);
             if (value.imageDataUrl) { if (!result.imageDataUrl) result.imageDataUrl = value.imageDataUrl; delete value.imageDataUrl; }
-            result.calls.push({tool: call.tool, result: value});
+            const bounded = boundedToolResult(value, resultBudget - (calls.length - index - 1) * 256); resultBudget -= bounded.characters;
+            result.calls.push({tool: toolName, result: bounded.value});
           }
           outgoing = ''; task.textNode.textContent = 'Проверяем данные холста…';
         }
@@ -568,6 +630,7 @@
     }
     async function openAccess() {
       const scope = state.scope; accessRoot.replaceChildren();
+      accessRoot.append(node('p', {class: 'core-access-error', role: 'alert', hidden: true, 'data-core-access-error': ''}));
       const internal = node('section', {class: 'core-access-section'}); internal.append(node('h3', {}, 'ИИ в правом чате'));
       const internalProvider = select(providerOptions, 'ИИ для настроек'); internalProvider.value = provider();
       const key = node('input', {type: 'password', autocomplete: 'off', placeholder: 'API key', 'aria-label': 'API key'});
@@ -668,13 +731,18 @@
       if (message.operation === 'context') return {ok: true, context: await context(scope, {external: true, compact: message.compact === true})};
       if (message.operation !== 'tools') throw Error('Автоматический импорт медиа отключён в облегчённом холсте');
       if (!Array.isArray(message.calls) || message.calls.length > 8 || !message.calls.length) throw Error('Допускается от 1 до 8 вызовов');
-      const calls = []; let imageDataUrl = '';
-      for (const call of message.calls) {
-        tools.assert(scope); let result;
-        try { result = await tools.execute(String(call.tool || ''), call.args || {}, scope); }
+      const calls = []; let imageDataUrl = '', resultBudget = 48000 - message.calls.length * 160;
+      for (const [index, call] of message.calls.entries()) {
+        tools.assert(scope); let result; const toolName = clip(call.tool, 80);
+        try {
+          if (typeof call.tool !== 'string' || call.tool.length > 80) throw Error('Неверное имя инструмента');
+          if (toolName === 'read_asset' && imageDataUrl) throw Error('За один шаг можно прочитать только одно изображение');
+          result = await tools.execute(toolName, call.args || {}, scope);
+        }
         catch (error) { tools.assert(scope); result = {ok: false, error: error.message}; }
         tools.assert(scope); if (result.imageDataUrl) { if (!imageDataUrl) imageDataUrl = result.imageDataUrl; delete result.imageDataUrl; }
-        calls.push({tool: call.tool, result});
+        const bounded = boundedToolResult(result, resultBudget - (message.calls.length - index - 1) * 256); resultBudget -= bounded.characters;
+        calls.push({tool: toolName, result: bounded.value});
       }
       return {ok: true, result: {calls}, imageDataUrl};
     }
@@ -702,7 +770,7 @@
       channel.onmessage = event => { if (event.data?.scope === state.scope && event.data?.thread === state.thread && !fence.active && !state.loading)
         loadPage(state.before).catch(error => status(error.message, true)); };
     }
-    return {refreshDesk, openAccess, sendPrompt, async dispose() {
+    return {refreshDesk, async openAccess() { try { await openAccess(); } catch (error) { status(error.message, true); throw error; } }, sendPrompt, async dispose() {
       if (state.disposed) return; stop(); state.disposed = true; ++state.serial; ++requestSerial; grants.clear(); channel?.close();
       chrome.runtime.onMessage.removeListener(runtimeListener); chrome.storage.onChanged.removeListener(storageListener);
       document.removeEventListener('osminog:owner-unlocked', updateOwner); await history.close();
@@ -711,7 +779,7 @@
   }
   let application;
   const exported = {DB_NAME, PAGE_SIZE, PREVIEW_CHARS, previewOf, conversationOf, objectPreview, normalizedPatch,
-    allowedTools, executionContract, createHistory, createTools, createTaskFence, createApplication,
+    allowedTools, boundedToolResult, executionContract, createHistory, createBrowserHistory, createTools, createTaskFence, createApplication,
     async init(options) { await application?.dispose(); application = createApplication(options); await application.refreshDesk(); return application; },
     refreshDesk: () => application?.refreshDesk(), openAccess: () => application?.openAccess(), dispose: () => application?.dispose(), diagnostics: () => application?.diagnostics()};
   global.OSMINOGCoreChat = exported;

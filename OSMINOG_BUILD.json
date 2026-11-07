@@ -16,7 +16,7 @@
     "scope": "Infinite canvas, desks, background clipboard collection, saved-material search, right-side chat and access. Removed editors, OCR, graphics/document/media studios, module runtime, browser widgets and workspace export are not packaged.",
     "storage": "Original legacy keys remain read-only. Resumable migration copies materials into per-item IndexedDB records and binary Blobs, including folders, links, unknown legacy details and soft-deleted desks.",
     "rendering": "Viewport-culling maximum160 canvas nodes and48 active thumbnail URLs; serial preview worker edge512; coordinate writes after completed drag and small debounced view writes.",
-    "chat": "Legacy history retained without rewriting it; new messages stored individually; current thread is paged.",
+    "chat": "Legacy history and attachments migrate in a dedicated Worker using small stage tickets; editor reads only bounded previews. New messages stored individually, current thread paged.",
     "header": "Fixed full-width header independent of panels; real extension rectangle checks at1440 and1024 pixels.",
     "collector": "Offscreen collection persists directly to IndexedDB without editor or base64 storage queue; one in-flight paste/hash/write operation.",
     "ownerAuth": "Authenticator bytes must match90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41; fixed manifest key retained.",

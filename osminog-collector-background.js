@@ -6,11 +6,22 @@
   const editorURL = chrome.runtime.getURL('editor.html');
   const allowedLegacy = key => ['briefCraftStudioV2', 'briefCraftStudioV2Backup', 'osminogTrashIndex'].includes(key) ||
     /^(osminogItemEdit:|osminogCapture:|osminogTrashProject:)/.test(key);
-  let lifecycleTask, configTask = Promise.resolve();
+  let lifecycleTask, configTask = Promise.resolve(), chatTransferTask = Promise.resolve();
   const config = async () => (await chrome.storage.local.get(KEY))[KEY] || {};
   const isEditor = sender => sender.url?.split(/[?#]/)[0] === editorURL;
   const isCollector = sender => sender.url === url;
   const enqueue = work => (configTask = configTask.catch(() => {}).then(work));
+  const enqueueChatTransfer = work => (chatTransferTask = chatTransferTask.catch(() => {}).then(work));
+  async function stageChat(message) {
+    const {scope, thread, keys} = message;
+    if (typeof scope !== 'string' || !scope || scope.length > 1024 || typeof thread !== 'string' || !thread || thread.length > 512) throw Error('Неверный адрес переписки');
+    const allowed = ['briefCraftGptLiteChat:' + scope + ':' + thread];
+    if (thread === 'main') allowed.push('briefCraftGptLiteChat:' + scope);
+    if (!Array.isArray(keys) || !keys.length || keys.length > allowed.length || new Set(keys).size !== keys.length || keys.some(key => !allowed.includes(key))) throw Error('Недопустимый источник переписки');
+    const values = await chrome.storage.local.get(keys), transferId = crypto.randomUUID();
+    const staged = await OSMINOGCoreStore.stageLegacy(Object.fromEntries(keys.map(key => [key, values[key]])), {transferId, scopeKey: JSON.stringify([scope, thread])});
+    return {ok: true, transferId, staged};
+  }
   async function ensureOffscreen() {
     if (lifecycleTask) return lifecycleTask;
     lifecycleTask = (async () => {
@@ -24,6 +35,12 @@
   async function status() {
     const [stats, settings] = await Promise.all([OSMINOGCoreStore.stats(), config()]);
     return {ok: true, migration: stats.migration, stats, config: settings};
+  }
+  async function initialize() {
+    await ensureOffscreen();
+    const response = await chrome.runtime.sendMessage({type: 'OSMINOG_CORE_MIGRATE'});
+    if (!response?.ok) throw Error(response?.error || 'Не удалось начать перенос материалов');
+    return status();
   }
   async function setError(message) {
     const cfg = await config(), error = String(message || '').slice(0, 240);
@@ -75,11 +92,12 @@
     if (sender.id !== chrome.runtime.id || !raw || typeof raw.type !== 'string') return;
     const message = {...raw, type: raw.type.replace(/^BC_COLLECTOR_/, 'OSMINOG_COLLECTOR_')};
     let task;
-    if (message.type === 'OSMINOG_CORE_INIT' && isEditor(sender)) task = ensureOffscreen().then(status);
+    if (message.type === 'OSMINOG_CORE_INIT' && isEditor(sender)) task = initialize();
     else if (message.type === 'OSMINOG_CORE_STATUS') task = status();
     else if (message.type === 'OSMINOG_COLLECTOR_STATUS') task = config();
     else if (message.type === 'OSMINOG_COLLECTOR_CONFIGURE' && isEditor(sender)) task = enqueue(() => configure(message.patch));
     else if (message.type === 'OSMINOG_COLLECTOR_START' && isEditor(sender)) task = ensureOffscreen().then(() => ({ok: true}));
+    else if (message.type === 'OSMINOG_CORE_CHAT_LEGACY_READ' && isEditor(sender)) task = enqueueChatTransfer(() => stageChat(message));
     else if (message.type === 'OSMINOG_CORE_LEGACY_READ' && isCollector(sender)) {
       const keys = message.keys;
       task = Array.isArray(keys) && keys.length <= 3 && keys.every(key => typeof key === 'string' && allowedLegacy(key))

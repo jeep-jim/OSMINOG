@@ -29,14 +29,14 @@ const origin = `chrome-extension://${extensionId}`;
 const legacyDesk = 'lite438-legacy', stressDesk = 'lite438-stress', trashDesk = 'lite438-trash';
 const sourceSize = {width: 1024, height: 768};
 const sourceImageCount = 240, stressItemCount = 2400;
-const checks = [], errors = [], crashes = [], workerErrors = [];
+const checks = [], errors = [], crashes = [], workerErrors = [], forbiddenEditorReads = [];
 const report = {
   scope: 'real unpacked Chromium extension, native IndexedDB and system clipboard',
   ownerWindowsTested: false,
   version: manifest.version,
   platform: {os: os.platform(), release: os.release(), arch: os.arch(), runner: process.env.RUNNER_OS || null},
   fixture: {stressItemCount, uniqueSourceImages: sourceImageCount, sourceSize, folders: 60},
-  checks, errors, crashes, workerErrors,
+  checks, errors, crashes, workerErrors, forbiddenEditorReads,
   geometry: [], media: [], timings: {}
 };
 let context, editor, monitor, closing = false, contextClosed = false;
@@ -44,6 +44,20 @@ let context, editor, monitor, closing = false, contextClosed = false;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const record = label => { checks.push(label); console.log('PASS ' + label); };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Playwright 1.62.1's waitForFunction tests its predicate result before awaiting
+// it. A Promise resolving false is therefore truthy and is not polled again.
+// Native IndexedDB/Chrome API conditions must be awaited and checked in Node.
+async function waitForAsync(page, predicate, argument, {timeout = 30000, message = 'Asynchronous browser condition'} = {}) {
+  const deadline = Date.now() + timeout;
+  let last;
+  do {
+    last = await page.evaluate(predicate, argument);
+    if (last === true) return;
+    await delay(50);
+  } while (Date.now() < deadline);
+  throw Error(`${message} did not become true within ${timeout} ms; last value: ${JSON.stringify(last)}`);
+}
 
 const crcTable = Uint32Array.from({length: 256}, (_, value) => {
   for (let bit = 0; bit < 8; bit++) value = (value & 1) ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
@@ -115,9 +129,11 @@ function legacyFixture() {
         }))}
     ]
   };
+  const largeAttachment = 'data:application/octet-stream;base64,' + Buffer.alloc(256 * 1024, 67).toString('base64');
   const chat = Array.from({length: 123}, (_, index) => ({id: `legacy438-chat-${index}`, role: index % 2 ? 'assistant' : 'user',
     text: `Retained conversation ${index}`, at: at + index,
-    ...(index === 122 ? {attachments: [{name: 'preserved-reference.txt', mime: 'text/plain', customField: 'keep'}]} : {})}));
+    ...([0, 61, 122].includes(index) ? {attachments: [{name: `preserved-reference-${index}.bin`, mime: 'application/octet-stream',
+      size: 256 * 1024, dataUrl: largeAttachment, customField: 'keep', nestedMetadata: {index, retained: true}}]} : {})}));
   const values = {
     briefCraftStudioV2: primary,
     briefCraftStudioV2Backup: JSON.parse(JSON.stringify(primary)),
@@ -147,6 +163,7 @@ function observePage(page) {
   page.on('crash', () => crashes.push({url: page.url(), at: Date.now()}));
   page.on('console', message => {
     if (/OSMINOG preview worker:/.test(message.text())) workerErrors.push({url: page.url(), message: message.text()});
+    if (message.text().startsWith('LITE438_FORBIDDEN_READ ')) forbiddenEditorReads.push(JSON.parse(message.text().slice('LITE438_FORBIDDEN_READ '.length)));
   });
 }
 async function ready(page) {
@@ -340,26 +357,37 @@ async function canvasAssertions() {
   const during = await editor.evaluate(() => lite438Probe.idbWrites.filter(write => write.store === 'items'));
   assert.equal(during.length, 0, 'Pointer movement must not persist a full item on every event');
   await editor.mouse.up();
-  await editor.waitForFunction(async ({x, y}) => { const item = await OSMINOGCoreStore.getItem('legacy438-note'); return item.x !== x && item.y !== y; }, {x: before.x, y: before.y});
+  await waitForAsync(editor, async ({x, y}) => { const item = await OSMINOGCoreStore.getItem('legacy438-note'); return item.x !== x && item.y !== y; },
+    {x: before.x, y: before.y}, {message: 'One completed item drag is committed'});
   const moved = await editor.evaluate(() => OSMINOGCoreStore.getItem('legacy438-note'));
   const after = await editor.evaluate(() => lite438Probe.idbWrites.filter(write => write.store === 'items'));
   assert.equal(after.length, 1, 'One completed drag commits one item metadata change');
   const panBox = await editor.locator('#canvas').boundingBox();
   const viewBefore = await editor.evaluate(() => OSMINOGCoreApp.view());
   await editor.mouse.move(panBox.x + panBox.width - 40, panBox.y + panBox.height - 40);
+  const wheelTarget = await editor.evaluate(({x, y}) => { const node = document.elementFromPoint(x, y); return {id: node?.id, tag: node?.tagName, className: node?.getAttribute('class')}; },
+    {x: panBox.x + panBox.width - 40, y: panBox.y + panBox.height - 40});
   await editor.mouse.wheel(140, 110);
-  await editor.waitForFunction(async ({id, previous}) => {
+  await waitForAsync(editor, async ({id, previous}) => {
     const view = OSMINOGCoreApp.view(), saved = (await OSMINOGCoreStore.getDesk(id)).view;
     return (view.x !== previous.x || view.y !== previous.y) && !!saved && Math.abs(view.x - saved.x) < .01 && Math.abs(view.y - saved.y) < .01;
-  }, {id: legacyDesk, previous: viewBefore});
+  }, {id: legacyDesk, previous: viewBefore}, {message: 'Debounced wheel view equals committed desk view'});
   const persistedView = await editor.evaluate(() => OSMINOGCoreApp.view());
   assert(persistedView.x !== viewBefore.x || persistedView.y !== viewBefore.y, 'Wheel input must pan the canvas');
+  const viewSnapshot = () => editor.evaluate(async id => ({url: location.href, deskId: OSMINOGCoreApp.getDeskId(),
+    view: OSMINOGCoreApp.view(), stored: (await OSMINOGCoreStore.getDesk(id)).view,
+    writes: lite438Probe.idbWrites.filter(write => write.store === 'desks')}), legacyDesk);
+  report.viewPersistence = {viewBefore, wheelTarget, expected: persistedView, beforeReload: await viewSnapshot(),
+    observedBySeparatePage: await monitor.evaluate(async id => (await OSMINOGCoreStore.getDesk(id)).view, legacyDesk)};
   await editor.reload(); await ready(editor);
+  report.viewPersistence.afterReady = await viewSnapshot();
   await editor.evaluate(id => OSMINOGCoreApp.openDesk(id), legacyDesk);
+  report.viewPersistence.afterOpenDesk = await viewSnapshot();
   const reloaded = await editor.evaluate(async () => ({item: await OSMINOGCoreStore.getItem('legacy438-note'), view: OSMINOGCoreApp.view()}));
   assert.equal(reloaded.item.x, moved.x); assert.equal(reloaded.item.y, moved.y);
   assert.equal(reloaded.item.text, fixture.longText);
-  for (const key of ['x', 'y', 'scale']) assert(Math.abs(reloaded.view[key] - persistedView[key]) < .01, `Reload retains view.${key}`);
+  for (const key of ['x', 'y', 'scale']) assert(Math.abs(reloaded.view[key] - persistedView[key]) < .01,
+    `Reload retains view.${key}: expected ${persistedView[key]}, actual ${reloaded.view[key]}; ${JSON.stringify(report.viewPersistence)}`);
   record('2400-item canvas keeps bounded DOM/media, responds during pan/focus cycles, and persists one drag plus the viewport across reload');
 }
 
@@ -385,6 +413,7 @@ async function searchAndChatAssertions() {
   const resultCount = await editor.locator('#searchResults .search-result').count();
   assert(resultCount <= 200, 'Large search results must remain paged/bounded');
   await editor.evaluate(async id => { OSMINOGCoreApp.togglePanel('search', false); await OSMINOGCoreApp.openDesk(id); OSMINOGCoreApp.togglePanel('chat', true); }, legacyDesk);
+  await editor.waitForFunction(id => { const chat = globalThis.OSMINOGCoreChat?.diagnostics?.(); return chat?.loaded && chat.scope === id; }, legacyDesk);
   await editor.waitForFunction(() => document.querySelector('#coreChat')?.textContent.includes('Retained conversation 122'));
   const chatBefore = await editor.locator('#coreChat .core-chat-message').count();
   assert(chatBefore > 0 && chatBefore <= 40, 'Chat history renders a bounded message window');
@@ -392,18 +421,21 @@ async function searchAndChatAssertions() {
     const db = await new Promise((resolve, reject) => { const request = indexedDB.open('osminog-core-chat-v1', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     const read = (name, key) => new Promise((resolve, reject) => { const store = db.transaction(name, 'readonly').objectStore(name);
       const request = key === undefined ? store.getAll() : store.get(key); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-    try { const [messages, firstBody, lastBody] = await Promise.all([read('messages'), read('bodies', [scope, 'main', 0]), read('bodies', [scope, 'main', last])]);
-      return {messages, firstBody, lastBody}; }
+    try { const [messages, firstBody, middleBody, lastBody] = await Promise.all([read('messages'), read('bodies', [scope, 'main', 0]), read('bodies', [scope, 'main', 61]), read('bodies', [scope, 'main', last])]);
+      return {messages, firstBody, middleBody, lastBody}; }
     finally { db.close(); }
   }, {scope: legacyDesk, last: fixture.chat.length - 1});
   assert.equal(storedHistory.messages.filter(message => /^legacy438-chat-/.test(message.id || '')).length, fixture.chat.length,
     'Paging must not discard older imported chat messages');
-  assert.deepEqual(storedHistory.firstBody, fixture.chat[0]); assert.deepEqual(storedHistory.lastBody, fixture.chat.at(-1));
+  assert.deepEqual(storedHistory.firstBody, fixture.chat[0]); assert.deepEqual(storedHistory.middleBody, fixture.chat[61]);
+  assert.deepEqual(storedHistory.lastBody, fixture.chat.at(-1));
   await editor.reload(); await ready(editor);
   await editor.evaluate(async id => { await OSMINOGCoreApp.openDesk(id); OSMINOGCoreApp.togglePanel('chat', true); }, legacyDesk);
+  await editor.waitForFunction(id => { const chat = globalThis.OSMINOGCoreChat?.diagnostics?.(); return chat?.loaded && chat.scope === id; }, legacyDesk);
   await editor.waitForFunction(() => document.querySelector('#coreChat')?.textContent.includes('Retained conversation 122'));
   assert((await editor.locator('#coreChat .core-chat-message').count()) <= 40);
-  report.searchAndChat = {boundedResults: resultCount, renderedMessages: chatBefore, importedMessages: fixture.chat.length};
+  report.searchAndChat = {boundedResults: resultCount, renderedMessages: chatBefore, importedMessages: fixture.chat.length,
+    preservedLargeAttachments: 3, bytesPerAttachment: 256 * 1024};
   record('actual search finds retained OCR/full records across desks and chat history survives migration/reload with bounded message DOM');
 }
 
@@ -425,8 +457,8 @@ async function clipboardAssertions() {
   const beforeStats = await monitor.evaluate(() => OSMINOGCoreStore.stats());
   const began = Date.now();
   await monitor.evaluate(value => navigator.clipboard.writeText(value), text);
-  await monitor.waitForFunction(async ({text, id}) => (await OSMINOGCoreStore.search(text, {deskId: id})).length === 1,
-    {text, id: legacyDesk}, {timeout: 20000});
+  await waitForAsync(monitor, async ({text, id}) => (await OSMINOGCoreStore.search(text, {deskId: id})).length === 1,
+    {text, id: legacyDesk}, {timeout: 20000, message: 'Native clipboard text is durably captured'});
   await monitor.evaluate(value => navigator.clipboard.writeText(value), text);
   await delay(2000);
   const capturedText = await monitor.evaluate(async ({text, baseline, id}) => ({
@@ -444,8 +476,9 @@ async function clipboardAssertions() {
     await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
     return {width: 80, height: 60, pixelHash};
   });
-  await monitor.waitForFunction(async ({id, began}) => (await OSMINOGCoreStore.listItems(id, {limit: 200}))
-    .some(item => item.type === 'image' && item.captureId && item.capturedAt >= began), {id: legacyDesk, began}, {timeout: 20000});
+  await waitForAsync(monitor, async ({id, began}) => (await OSMINOGCoreStore.listItems(id, {limit: 200}))
+    .some(item => item.type === 'image' && item.captureId && item.capturedAt >= began), {id: legacyDesk, began},
+    {timeout: 20000, message: 'Native clipboard image is durably captured'});
   const capturedImage = await monitor.evaluate(async ({id, began}) => {
     const item = (await OSMINOGCoreStore.listItems(id, {limit: 200})).find(item => item.type === 'image' && item.captureId && item.capturedAt >= began);
     const blob = await OSMINOGCoreStore.getBlob(item.assetId), bitmap = await createImageBitmap(blob);
@@ -462,7 +495,8 @@ async function clipboardAssertions() {
   assert.equal(afterStats.captures - beforeStats.captures, 2, 'One text and one image produce exactly two durable captures');
   editor = await openEditor(); await editor.evaluate(id => OSMINOGCoreApp.openDesk(id), legacyDesk);
   await editor.locator('#captureToggle').click();
-  await monitor.waitForFunction(async () => !(await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1?.enabled);
+  await waitForAsync(monitor, async () => !(await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1?.enabled,
+    undefined, {message: 'The capture pause button persists disabled configuration'});
   const paused = `native438-paused-${Date.now()}`;
   await monitor.bringToFront(); await monitor.locator('#focus').click();
   await monitor.evaluate(value => navigator.clipboard.writeText(value), paused); await delay(2200);
@@ -502,9 +536,24 @@ async function main() {
     }
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args) {
-      if (['items', 'desks'].includes(this.name)) probe.idbWrites.push({store: this.name, id: args[0]?.id, at: performance.now()});
+      if (['items', 'desks'].includes(this.name)) probe.idbWrites.push({store: this.name, id: args[0]?.id, at: performance.now(),
+        ...(this.name === 'desks' ? {view: args[0]?.view && {...args[0].view}, caller: new Error().stack?.split('\n').slice(1, 5).join('\n')} : {})});
       return Reflect.apply(put, this, args);
     };
+    const local = globalThis.chrome?.storage?.local;
+    if (local && location.pathname === '/editor.html') {
+      const get = local.get;
+      probe.storageReadCalls = 0;
+      local.get = function (keys, ...rest) {
+        probe.storageReadCalls++;
+        const names = keys == null ? ['*'] : Array.isArray(keys) ? keys : typeof keys === 'string' ? [keys] : Object.keys(keys);
+        const forbidden = names.filter(key => key === '*' || /^briefCraftStudioV2(?:Backup)?$/.test(key) || key.startsWith('briefCraftGptLiteChat:'));
+        if (forbidden.length) console.info('LITE438_FORBIDDEN_READ ' + JSON.stringify({url: location.href, keys: forbidden,
+          caller: new Error().stack?.split('\n').slice(1, 5).join('\n')}));
+        return Reflect.apply(get, this, [keys, ...rest]);
+      };
+      probe.storageReadInstrumentationInstalled = local.get !== get;
+    }
     const create = URL.createObjectURL, revoke = URL.revokeObjectURL;
     URL.createObjectURL = function (...args) { const url = Reflect.apply(create, this, args); probe.liveURLs.add(url); return url; };
     URL.revokeObjectURL = function (url) { probe.liveURLs.delete(url); return Reflect.apply(revoke, this, [url]); };
@@ -538,6 +587,10 @@ async function main() {
   await canvasAssertions();
   await searchAndChatAssertions();
   await clipboardAssertions();
+  report.editorStorageReadProbe = await editor.evaluate(() => ({installed: lite438Probe.storageReadInstrumentationInstalled, calls: lite438Probe.storageReadCalls}));
+  assert.equal(report.editorStorageReadProbe.installed, true, 'The read observer must wrap the real Chrome storage API');
+  assert(report.editorStorageReadProbe.calls > 0, 'The read observer must actually observe editor configuration reads');
+  assert.deepEqual(forbiddenEditorReads, [], 'The editor must not receive legacy workspace/chat arrays, including their full attachment payloads');
   assert.deepEqual(await protectedDigest(), originalDigest, 'Migration and normal use must leave every legacy source key byte-equivalent');
   const storageEvents = await monitor.evaluate(() => lite438StorageEvents);
   const protectedWrites = storageEvents.filter(event => fixture.protectedKeys.includes(event.key) || /^(briefCraftStudio|osminogItemEdit:|osminogCapture:|osminogTrashProject:)/.test(event.key));
