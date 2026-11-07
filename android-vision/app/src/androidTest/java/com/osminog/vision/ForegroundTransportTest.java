@@ -17,6 +17,7 @@ import org.junit.*;
 public class ForegroundTransportTest {
  ActivityScenario<ReliableActivity> scenario;ReliableActivity a;
  void ui(Runnable r){InstrumentationRegistry.getInstrumentation().runOnMainSync(r);}
+ String report(){AtomicReference<String> value=new AtomicReference<>();ui(()->value.set(a.foregroundTransport.report()));return value.get();}
  String eval(WebView w,String script)throws Exception{CountDownLatch done=new CountDownLatch(1);AtomicReference<String> value=new AtomicReference<>();ui(()->w.evaluateJavascript(script,x->{value.set(x);done.countDown();}));assertTrue(done.await(8,TimeUnit.SECONDS));return value.get();}
  void until(Callable<Boolean> check)throws Exception{long end=SystemClock.uptimeMillis()+25000;while(SystemClock.uptimeMillis()<end){if(check.call())return;Thread.sleep(200);}fail("Condition timed out");}
  @Before public void setup()throws Exception{
@@ -42,8 +43,8 @@ public class ForegroundTransportTest {
   assertEquals("true",eval(a.provider,"trustedInput>0&&trustedClick===1"));
   until(()->a.transportVerified&&a.shell.getVisibility()==View.VISIBLE);
   assertEquals("true",eval(a.shell,"document.querySelector('.message.assistant').textContent.includes('Ответ на')"));
-  assertFalse(a.foregroundTransport.report().contains("Тут?"));
-  assertFalse(a.foregroundTransport.report().contains("Проверка"));
+  assertFalse(report().contains("Тут?"));
+  assertFalse(report().contains("Проверка"));
   Thread.sleep(700);assertEquals("1",eval(a.provider,"sent"));
  }
  @Test public void cancelBeforeEditorDoesNotSubmitLater()throws Exception{
@@ -69,7 +70,7 @@ public class ForegroundTransportTest {
    if(MainActivity.decode(raw).optBoolean("ready"))break;Thread.sleep(800);
   }
   System.out.println("LIVE_PUBLIC_PAGE_READ_ONLY_NOT_ACCOUNT_VERIFICATION "+raw);
-  System.out.println(a.foregroundTransport.report());
+  System.out.println(report());
   try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(a.getExternalFilesDir(null),"live-public-probe.json"))){out.write(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));}
   assertFalse(a.requestSent);assertTrue(a.currentRequest.isEmpty());
  }
