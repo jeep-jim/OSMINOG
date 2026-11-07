@@ -21,5 +21,5 @@ assert.match(editor,/const hubText = \(ru,en,de,es,ja,zh\)/);
 assert.match(editor,/exportObjects\(\)\.length>0/);
 assert.match(editor,/globalThis\.syncExportAvailability=syncExportAvailability/);assert.match(inspector,/globalThis\.syncExportAvailability\?\.\(\)/);
 assert.match(workflow,/tests\/workspace-ux-435\.cjs/);
-assert.match(workflow,/OSMINOG-Chrome-4\.0\.35\.zip/);
-console.log('PASS 4.0.35 workspace contracts: library left of chat, two-column lazy paged gallery, no cross-desk media, stable gallery DOM, translated hub, export without selection');
+assert.match(workflow,/OSMINOG-Chrome-4\.0\.36\.zip/);
+console.log('PASS 4.0.36 workspace contracts: library left of chat, two-column lazy paged gallery, no cross-desk media, stable gallery DOM, translated hub, export without selection');
