@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const read=p=>fs.readFileSync(p,'utf8');
 const manifest=JSON.parse(read('manifest.json')),build=JSON.parse(read('OSMINOG_BUILD.json'));
 const html=read('editor.html'),editor=read('editor.js'),inspector=read('osminog-inspector.js'),css=read('osminog-figma-ux.css'),workflow=read('.github/workflows/agent-media-3207.yml');
-assert.equal(manifest.version,'4.0.35');assert.equal(build.version,'4.0.35');assert.equal(build.manifestVersion,'4.0.35');
+assert.equal(manifest.version,'4.0.36');assert.equal(build.version,'4.0.36');assert.equal(build.manifestVersion,'4.0.36');
 assert.match(html,/osminog-figma-ux\.css/);assert.match(html,/osminog-figma-ux\.js/);
 assert.match(css,/desk-chat-width/);assert.match(css,/right:var\(--desk-chat-width\)!important/);
 assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
