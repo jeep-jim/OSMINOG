@@ -254,6 +254,38 @@ async function readableNoteAssertions(deskId, objectId, label) {
   assert.equal(await editor.evaluate(() => state.theme), initialTheme, label + ' restores the initial theme');
   record(label + ' has visible, nonempty text matching the active dark and light theme');
 }
+async function navigationAssertions() {
+  await waitForAsync(editor, () => !state.dirty && !persistPending, null,
+    {message: 'Any existing dirty save finishes before the pure navigation check'});
+  const latestNavigation = () => monitor.evaluate(async () => {
+    const keys = (await chrome.storage.local.getKeys()).filter(key => key.startsWith('osminogItemEdit:'));
+    const values = Object.values(await chrome.storage.local.get(keys));
+    return values.filter(value => value?.kind === 'navigation').sort((a, b) => b.navigationOrder - a.navigationOrder)[0] || null;
+  });
+  let lastOrder = (await latestNavigation())?.navigationOrder || 0;
+  await monitor.evaluate(() => { storageWrites.length = 0; });
+  report.navigation = {steps: [], writes: []};
+  for (const id of [existingDesk, newDesk]) {
+    const stateAfter = await editor.evaluate(async id => {
+      openProject(id); await OSMINOGItemEdits.flush();
+      return {activeProject: state.activeProject, dirty: !!state.dirty, saving: !!persistPending};
+    }, id);
+    const journal = await latestNavigation();
+    report.navigation.steps.push({target: id, state: stateAfter, journal});
+    assert.equal(stateAfter.activeProject, id); assert.equal(stateAfter.dirty, false); assert.equal(stateAfter.saving, false);
+    assert.equal(journal?.kind, 'navigation'); assert.equal(journal?.projectId, id); assert.equal(journal?.activeProject, id);
+    assert(Number.isInteger(journal.navigationOrder) && journal.navigationOrder > lastOrder, 'Navigation commits a newer ordered record');
+    assert(JSON.stringify(journal).length < 1024, 'Navigation persists only a small metadata record');
+    lastOrder = journal.navigationOrder;
+  }
+  report.navigation.writes = await monitor.evaluate(() => storageWrites.slice());
+  assert.deepEqual(report.navigation.writes.filter(value => /^(?:briefCraftStudioV2(?:Backup)?|osminogProjectRevisionsV1)$/.test(value.key)), [],
+    'Pure desk navigation never writes a complete workspace snapshot, backup or revision');
+  await editor.reload(); await ready(editor);
+  report.navigation.restoredActiveProject = await editor.evaluate(() => state.activeProject);
+  assert.equal(report.navigation.restoredActiveProject, newDesk, 'Reload restores the journal-selected desk without explicitly opening it');
+  record('pure desk navigation writes only small ordered journals and restores the selected desk on reload');
+}
 async function headerRects() {
   return editor.evaluate(() => {
     const header = document.querySelector('#osminogWorkspaceHeader');
@@ -336,12 +368,24 @@ async function canvasAssertions() {
   // Measure ordinary interactions separately from migration and the deliberately
   // synchronous redraw stress above. Keep raw intervals for reproducible p95.
   await editor.evaluate(() => {
-    const metrics = window.restore439InteractionMetrics = {startedAt: performance.now(), intervals: [], longTasks: [], phases: [],
-      longTaskSupported: PerformanceObserver.supportedEntryTypes.includes('longtask'), frame: 0, previous: null};
+    const metrics = window.restore439InteractionMetrics = {startedAt: performance.now(), intervals: [], longTasks: [], longAnimationFrames: [], phases: [],
+      longTaskSupported: PerformanceObserver.supportedEntryTypes.includes('longtask'),
+      longAnimationFrameSupported: PerformanceObserver.supportedEntryTypes.includes('long-animation-frame'), frame: 0, previous: null};
     const observe = entries => metrics.longTasks.push(...entries.map(entry => ({startTime: entry.startTime, duration: entry.duration})));
     if (metrics.longTaskSupported) {
       metrics.observer = new PerformanceObserver(list => observe(list.getEntries()));
       metrics.observer.observe({type: 'longtask', buffered: false});
+    }
+    if (metrics.longAnimationFrameSupported) {
+      metrics.recordLongAnimationFrames = entries => metrics.longAnimationFrames.push(...entries.map(entry => ({
+        startTime: entry.startTime, atMs: entry.startTime - metrics.startedAt, duration: entry.duration,
+        blockingDuration: entry.blockingDuration, renderStart: entry.renderStart, styleAndLayoutStart: entry.styleAndLayoutStart,
+        scripts: [...entry.scripts].map(script => ({startTime: script.startTime, duration: script.duration,
+          invoker: script.invoker, invokerType: script.invokerType, sourceURL: script.sourceURL,
+          sourceFunctionName: script.sourceFunctionName, forcedStyleAndLayoutDuration: script.forcedStyleAndLayoutDuration}))
+      })));
+      metrics.frameObserver = new PerformanceObserver(list => metrics.recordLongAnimationFrames(list.getEntries()));
+      metrics.frameObserver.observe({type: 'long-animation-frame', buffered: false});
     }
     const tick = timestamp => { if (metrics.previous !== null) metrics.intervals.push(timestamp - metrics.previous);
       metrics.previous = timestamp; metrics.frame = requestAnimationFrame(tick); };
@@ -411,22 +455,27 @@ async function canvasAssertions() {
     const metrics = restore439InteractionMetrics;
     cancelAnimationFrame(metrics.frame);
     if (metrics.observer) { metrics.longTasks.push(...metrics.observer.takeRecords().map(entry => ({startTime: entry.startTime, duration: entry.duration}))); metrics.observer.disconnect(); }
+    if (metrics.frameObserver) { metrics.recordLongAnimationFrames(metrics.frameObserver.takeRecords()); metrics.frameObserver.disconnect(); }
     const sorted = [...metrics.intervals].sort((a, b) => a - b);
     return {scope: 'focus, desk switch, pointer drag, pan and runtime zoom/fit/focus sequence; excludes migration and the 60-redraw stress loop',
       durationMs: performance.now() - metrics.startedAt, frameIntervalsMs: metrics.intervals, frames: sorted.length,
       p95Ms: sorted[Math.ceil(sorted.length * .95) - 1], maxMs: sorted.at(-1),
       longTaskSupported: metrics.longTaskSupported, longTaskCount: metrics.longTasks.length,
       longTaskMaxMs: Math.max(0, ...metrics.longTasks.map(entry => entry.duration)), longTasks: metrics.longTasks,
+      longAnimationFrameSupported: metrics.longAnimationFrameSupported, longAnimationFrameCount: metrics.longAnimationFrames.length,
+      longAnimationFrames: metrics.longAnimationFrames,
       phases: metrics.phases.map(phase => ({name: phase.name, atMs: phase.at - metrics.startedAt})), ciP95ThresholdMs: 50};
   });
   assert.equal(report.interaction.longTaskSupported, true, 'This Chromium gate must expose Long Task observations');
   assert(report.interaction.p95Ms < 50, 'Interaction frame p95 must remain below 50 ms in this CI fixture: ' + JSON.stringify(report.interaction));
   record(`native interaction timing: ${report.interaction.frames} frame intervals, p95 ${report.interaction.p95Ms.toFixed(1)} ms, max ${report.interaction.maxMs.toFixed(1)} ms, ${report.interaction.longTaskCount} long tasks`);
   await editor.reload(); await ready(editor);
+  const restoredActiveProject = await editor.evaluate(() => state.activeProject);
+  assert.equal(restoredActiveProject, existingDesk, 'Pointer sequence reload restores the selected desk before any explicit openProject');
   const restored = await editor.evaluate(id => { openProject(id); return {object: {...objects().find(o => o.id === 'restore439-note')}, view: {...state.view}}; }, existingDesk);
   assert.equal(restored.object.x, moved.x); assert.equal(restored.object.y, moved.y);
   for (const key of ['x', 'y', 'scale']) assert.equal(restored.view[key], expectedView[key], 'Reload restores view.' + key);
-  report.pointer = {hit, from: {x: before.object.x, y: before.object.y}, to: {x: moved.x, y: moved.y}, runtimeViews, expectedView, restoredView: restored.view, writes};
+  report.pointer = {hit, from: {x: before.object.x, y: before.object.y}, to: {x: moved.x, y: moved.y}, runtimeViews, expectedView, restoredView: restored.view, restoredActiveProject, writes};
   record('native drag/pan and final runtime zoom/fit/focus functions commit only metadata journals and restore exact positions after reload');
 }
 async function clipboardAssertions() {
@@ -511,6 +560,7 @@ async function main() {
   assert(tools.scripts >= 46); report.tools = tools;
   record('the original Workdesk shell and all retained tool modules load in the real extension');
   await readableNoteAssertions(newDesk, 'restore439-new-note', 'New note restored from 4.0.38');
+  await navigationAssertions();
   await geometryAssertions(); await canvasAssertions(); await clipboardAssertions();
   assert.deepEqual(await sourceDigest(), report.sourceBefore, 'Normal restored use leaves the 4.0.38 source databases untouched');
   assert.equal(contextClosed, false); assert.deepEqual(crashes, []); assert.deepEqual(workerErrors, []); assert.deepEqual(errors, []);

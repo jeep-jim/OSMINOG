@@ -249,12 +249,19 @@ function showApp(restoring=false){applyInterfaceTextSize();
   const welcome=$("#welcome"),app=$("#app");if(welcome)welcome.hidden=true;if(app)app.hidden=false;renderVersionUI();const p=project();if(!p)return;state.view=clone(p.view||{x:innerWidth/2-6000,y:innerHeight/2-4000,scale:1});
   state.history=[];state.future=[];if(state.mode!=="team")state.mode="brief";setMode(state.mode);renderAll();updateHistoryButtons();document.dispatchEvent(new Event("osminog:project-opened"));if(!restoring)queuePersist();updateSaveIndicator();
 }
-function openProject(id){state.activeProject=id;state.selected=[];showApp()}
+function openProject(id){
+  if(!state.projects.some(p=>p.id===id))return false;
+  state.activeProject=id;state.selected=[];showApp(true);
+  // Selecting an existing desk changes only navigation. Keep pending content
+  // saves intact, but do not archive the whole media workspace for this click.
+  OSMINOGItemEdits.saveNavigation(id).catch(()=>queuePersist());
+  return true;
+}
 function createProject(){const p=defaultProject(state.language==="ru"?"Новый мир":"Untitled world");state.projects.unshift(p);state.activeProject=p.id;showApp();logChange("New world created");flushPersist();return p}
 globalThis.OSMINOGProjectAPI={
   list:()=>state.projects.map(p=>({id:p.id,name:p.name,updated:Number(p.updated)||0,objects:Array.isArray(p.objects)?p.objects.length:0,connections:Array.isArray(p.connections)?p.connections.length:0,active:p.id===state.activeProject})),
   create:async(args={})=>{const p=defaultProject(String(args.name||"").trim()||(state.language==="ru"?"Новый проект":"New project"));state.projects.unshift(p);state.activeProject=p.id;state.selected=[];showApp();logChange(`Project created: ${p.name}`);await flushPersist();return{ok:true,project:{id:p.id,name:p.name}}},
-  switch:async(args={})=>{const id=String(args.id||"");if(!state.projects.some(p=>p.id===id))return{error:`Project ${id} does not exist`};openProject(id);await flushPersist();return{ok:true,project:{id:project().id,name:project().name}}},
+  switch:async(args={})=>{const id=String(args.id||"");if(!state.projects.some(p=>p.id===id))return{error:`Project ${id} does not exist`};openProject(id);await saveBeforeReload();return{ok:true,project:{id:project().id,name:project().name}}},
   rename:async(args={})=>{const p=state.projects.find(x=>x.id===String(args.id||state.activeProject));if(!p)return{error:"Project does not exist"};const name=String(args.name||"").trim().slice(0,120);if(!name)return{error:"Project name is required"};p.name=name;p.updated=Date.now();renderAll();await flushPersist();return{ok:true,project:{id:p.id,name:p.name}}},
   revisions:async(args={})=>{const id=String(args.id||state.activeProject),got=await storageGet(STORAGE_REVISIONS_KEY),list=got[STORAGE_REVISIONS_KEY]?.[id]||[];return list.map(r=>({id:r.id,at:r.at,name:r.project?.name||"",objects:r.project?.objects?.length||0}))},
   checkpoint:async()=>{const payload=persistPayload();await storageSet(payload);await saveProjectRevision(payload,true);return{ok:true,projectId:state.activeProject,at:state.lastRevisionAt}},

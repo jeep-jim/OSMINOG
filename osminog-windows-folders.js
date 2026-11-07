@@ -116,8 +116,15 @@
     for(const f of visible){
       const x=clamp(Number(f.screenX)||80,6,Math.max(6,r.width-desktopSizePx(f.desktopSize)-10)),y=clamp(Number(f.screenY)||120,66,Math.max(66,r.height-105));
       let el=layer.querySelector(`[data-win-folder-id="${CSS.escape(f.id)}"]`);if(!el){el=document.createElement("div");el.className="osminog-win-folder-icon";el.dataset.winFolderId=f.id;el.tabIndex=0;el.innerHTML=`<button type="button" class="osminog-win-folder-close" title="Закрыть и сохранить внутри папки проекта">×</button>${folderGlyph()}<strong class="osminog-win-folder-label"></strong><small></small>`;layer.append(el);bindDesktopFolder(el)}
-      const count=counts.get(f.id)||0,small=el.querySelector("small");
-      el.dataset.size=f.desktopSize;el.dataset.capture=String(!!globalThis.OSMINOGWorkspacePolish?.captureFolder(f));el.style.left=`${x}px`;el.style.top=`${y}px`;el.querySelector(".osminog-win-folder-label").textContent=f.name;small.textContent=String(count);small.setAttribute("aria-label",`Элементов: ${count}`);
+      const count=counts.get(f.id)||0,small=el.querySelector("small"),label=el.querySelector(".osminog-win-folder-label"),size=String(f.desktopSize),capture=String(!!globalThis.OSMINOGWorkspacePolish?.captureFolder(f)),left=`${x}px`,top=`${y}px`,countText=String(count),countLabel=`Элементов: ${count}`;
+      // Selection redraws still refresh counts, but unchanged folders keep their text nodes and attributes.
+      if(el.dataset.size!==size)el.dataset.size=size;
+      if(el.dataset.capture!==capture)el.dataset.capture=capture;
+      if(el.style.left!==left)el.style.left=left;
+      if(el.style.top!==top)el.style.top=top;
+      if(label.textContent!==f.name)label.textContent=f.name;
+      if(small.textContent!==countText)small.textContent=countText;
+      if(small.getAttribute("aria-label")!==countLabel)small.setAttribute("aria-label",countLabel);
     }
     layer.querySelectorAll("[data-win-folder-id]").forEach(el=>{if(!wanted.has(el.dataset.winFolderId))el.remove()});applyRootIconSize();
   }
@@ -152,7 +159,7 @@
     icon.addEventListener("pointerdown",e=>{if(e.button!==0||e.target.closest(".osminog-win-root-close"))return;const r=icon.getBoundingClientRect();drag={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top,sx:e.clientX,sy:e.clientY};moved=false;document.addEventListener("pointermove",move,true);document.addEventListener("pointerup",end,true);document.addEventListener("pointercancel",end,true);e.preventDefault();e.stopImmediatePropagation()},true);
     icon.addEventListener("dblclick",e=>{if(icon.dataset.dragMoved==="1")return;e.preventDefault();e.stopImmediatePropagation();openRootFolder()},true);
   }
-  function applyRootIconSize(){const icon=$("#osminogDesktopFolderIcon");if(!icon)return;const size=settings().desktopSize||"medium";icon.dataset.size=size}
+  function applyRootIconSize(){const icon=$("#osminogDesktopFolderIcon");if(!icon)return;const size=String(settings().desktopSize||"medium");if(icon.dataset.size!==size)icon.dataset.size=size}
   function applyRootVisibility(){const icon=$("#osminogDesktopFolderIcon");if(!icon)return;icon.hidden=!rootConnected||rootHidden;icon.dataset.userMinimized=rootHidden?"1":"0";const label=$("#osminogDesktopFolderLabel"),meta=$("#osminogDesktopFolderMeta");if(label)label.textContent=rootFolderName||"OSMINOG";if(meta)meta.textContent="Папка проекта";applyRootIconSize()}
   async function refreshRootConnection(){try{const status=await api()?.status?.();rootConnected=!!status?.connected;rootFolderName=status?.folder||"OSMINOG"}catch{rootConnected=false;rootFolderName="OSMINOG"}applyRootVisibility();return rootConnected}
   async function restoreRootFolder(){rootHidden=false;await chrome.storage.local.set({[ROOT_HIDDEN_KEY()]:false});applyRootVisibility();injectLayerControls()}
@@ -184,10 +191,12 @@
       const footer=panel.querySelector(".panel-footer");if(footer&&dock.nextElementSibling!==footer)footer.insertAdjacentElement("beforebegin",dock);
     }
     const count=foldersNow().filter(f=>!f.parentId&&!f.desktopVisible).length,root=dock.querySelector("#osminogFolderDockRoot"),small=root?.querySelector("small"),strong=root?.querySelector("strong");
-    root?.classList.toggle("minimized",false);root?.classList.toggle("disconnected",!rootConnected);
-    if(root)root.title=rootConnected?`Открыть локальную папку проекта: ${rootFolderName||"OSMINOG"}`:"Подключить локальную папку проекта";
-    if(strong)strong.textContent=rootConnected?(rootFolderName||"OSMINOG"):OSMINOGWorkspaceLanguage.label('Локальная папка');
-    if(small)small.textContent=rootConnected?`${count} ${OSMINOGWorkspaceLanguage.label('внутри')}`:OSMINOGWorkspaceLanguage.label('подключить');
+    if(root?.classList.contains("minimized"))root.classList.remove("minimized");
+    if(root&&root.classList.contains("disconnected")!==!rootConnected)root.classList.toggle("disconnected",!rootConnected);
+    const title=rootConnected?`Открыть локальную папку проекта: ${rootFolderName||"OSMINOG"}`:"Подключить локальную папку проекта",name=rootConnected?(rootFolderName||"OSMINOG"):OSMINOGWorkspaceLanguage.label('Локальная папка'),meta=rootConnected?`${count} ${OSMINOGWorkspaceLanguage.label('внутри')}`:OSMINOGWorkspaceLanguage.label('подключить');
+    if(root&&root.title!==title)root.title=title;
+    if(strong&&strong.textContent!==name)strong.textContent=name;
+    if(small&&small.textContent!==meta)small.textContent=meta;
   }
 
   function ensureExplorer(){
