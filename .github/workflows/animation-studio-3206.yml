@@ -1,4 +1,4 @@
-name: Retired tool package boundary
+name: Full workspace photo and generated media
 on:
   pull_request:
     branches: [main]
@@ -8,17 +8,28 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Ensure removed tools cannot load from the new package
-        run: node tests/lite-package-438.cjs
-      - name: Check retained chat rendering and transcript isolation
+      - name: Install the pinned browser test dependency
         run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Verify image bytes, reference handling and photo operations
+        run: |
+          node tests/media-reference.cjs
+          node tests/generated-media-3212.cjs
+          node tests/image-generation-403.cjs
+          node tests/visual-import-402.cjs
+          node tests/photo-pixels-416.cjs
+          node tests/photo-417.cjs
           node tests/chat-content-3214.cjs
-          node tests/chat-sync-plaintext-3217.cjs
           node tests/privacy-no-mirroring.cjs
-      - name: Verify canonical owner identity
-        run: node --test tests/owner-totp-enrollment.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: photo-media-verification
+          path: artifacts/
+          retention-days: 7

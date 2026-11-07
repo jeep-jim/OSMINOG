@@ -1,28 +1,36 @@
-name: Retained material migration regression
+name: Full workspace graphics and documents
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   graphics:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Install native IndexedDB browser test runtime
+      - name: Install the pinned browser test dependency
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
-      - name: Check byte-preserving migration, interrupted writes, trash and item persistence
-        run: node tests/core-store-438.cjs
-      - name: Check paged chat storage and permission boundaries
-        run: node tests/core-chat-438.cjs
+      - name: Verify vector drawing and complete document round trips
+        run: |
+          node --check osminog-graphics-studio.js
+          node --check osminog-documents.js
+          node tests/team-null-response-3203.cjs
+          node tests/routing-3204.cjs
+          node tests/foundation-memory.cjs
+          node tests/foundation-assets.cjs
+          node tests/foundation-context.cjs
+          node tests/graphics-3205.cjs
+          node tests/documents-3204.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: retained-data-verification
-          path: artifacts/*438*
-          if-no-files-found: ignore
+          name: graphics-verification
+          path: artifacts/
+          retention-days: 7

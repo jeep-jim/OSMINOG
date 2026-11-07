@@ -24,6 +24,16 @@ let context, editor, writer, extensionId, browser, browserProcess, browserProces
 const errors = [], checks = [];
 const record = label => { checks.push(label); console.log('PASS ' + label); };
 
+async function waitForAsync(page, predicate, argument, {timeout = 30000, polling = 100} = {}) {
+  // Do not pass async predicates to Playwright waitForFunction: a Promise that
+  // later resolves false must not be mistaken for a satisfied condition.
+  const deadline = Date.now() + timeout;
+  let last;
+  do { last = await page.evaluate(predicate, argument); if (last === true) return; await new Promise(resolve => setTimeout(resolve, polling)); }
+  while (Date.now() < deadline);
+  throw Error('Native asynchronous clipboard condition timed out: ' + JSON.stringify(last));
+}
+
 async function launch() {
   // launchPersistentContext enables focus emulation on every page. A second
   // CDP session cannot release the first session's visibility override. The
@@ -203,7 +213,8 @@ async function captureCount(projectId) {
 }
 
 async function queueKeys() {
-  return editor.evaluate(async prefix => Object.keys(await chrome.storage.local.get(null)).filter(k => k.startsWith(prefix)), PREFIX);
+  return editor.evaluate(async prefix => [...Object.keys(await chrome.storage.local.get(null)).filter(k => k.startsWith(prefix)),
+    ...(await OSMINOGCaptureStore.list({limit: 128})).map(entry => 'idb:' + entry.id)], PREFIX);
 }
 
 async function snapshot() {
@@ -220,6 +231,7 @@ async function snapshot() {
       tabs: (await chrome.tabs.query({})).map(tab => ({id: tab.id, url: tab.url, active: tab.active})),
       queue: Object.entries(storage).filter(([k]) => k.startsWith(PREFIX)).map(([key, v]) =>
         ({key, id: v.id, kind: v.kind, projectId: v.projectId, folderId: v.folderId})),
+      durableQueue: await OSMINOGCaptureStore.list({limit: 128}),
       activeProject: state.activeProject, lastSaveError: state.lastSaveError,
       projects: summarize(state.projects),
       persisted: Object.fromEntries(['briefCraftStudioV2', 'briefCraftStudioV2Backup'].map(key =>
@@ -243,7 +255,7 @@ async function snapshot() {
       return {target: target.id, folder: folder.id, other: other.id};
     });
     await editor.evaluate(async()=>{await chrome.runtime.sendMessage({type:'OSMINOG_COLLECTOR_CONFIGURE',patch:{enabled:false}})});
-    await editor.waitForFunction(async()=>!(await chrome.runtime.getContexts({contextTypes:['OFFSCREEN_DOCUMENT']})).length);
+    await waitForAsync(editor, async()=>(await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1?.enabled===false);
     await nativeCopyText('pre-existing clipboard baseline');
 
     // Use the real settings UI for the existing saved-folder destination.
@@ -251,7 +263,7 @@ async function snapshot() {
     await editor.locator('#libraryCapture').click();
     await editor.locator('#osminogLibrary [data-folder]').selectOption(ids.folder);
     await editor.locator('#osminogLibrary [data-destination]').click();
-    await editor.waitForFunction(async ids => {
+    await waitForAsync(editor, async ids => {
       const v = (await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1;
       return v?.projectId === ids.target && v?.folderId === ids.folder;
     }, ids, {polling: 100});
@@ -262,7 +274,7 @@ async function snapshot() {
     assert.equal(await editor.evaluate(async()=>((await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1||{}).enabled),false,'fixture remains paused until the enable control');
     assert.equal(await captureCount(ids.target),0,'baseline cannot be captured while paused');
     await editor.locator('#osminogLibrary [data-enabled]').check();
-    await editor.waitForFunction(async () => (await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']})).length === 1, null, {polling: 100});
+    await waitForAsync(editor, async () => (await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']})).length === 1, null, {polling: 100});
     await editor.locator('#osminogLibrary [data-close]').click();
     await editor.evaluate(async id => {openProject(id); await persist();}, ids.other);
     await activateWriter();
@@ -281,7 +293,7 @@ async function snapshot() {
     assert.equal(imageCapture.osminogFolderId, ids.folder);
     assert.equal(await editor.evaluate(id => project().id === id, ids.other), true, 'Collecting must not switch the active desk');
     assert.equal(await captureCount(ids.other), 0, 'Automatic collection must keep the chosen destination');
-    await editor.waitForFunction(async () => !Object.keys(await chrome.storage.local.get(null)).some(k => k.startsWith('osminogCapture:')), null, {polling: 100});
+    await waitForAsync(editor, async () => (await OSMINOGCaptureStore.count()) === 0 && !Object.keys(await chrome.storage.local.get(null)).some(k => k.startsWith('osminogCapture:')), null, {polling: 100});
     await writer.waitForTimeout(3200);
     assert.equal(await captureCount(ids.target), 2, 'Repeated polls must not duplicate clipboard items');
     record('external text and PNG reach the chosen folder while another desk and another tab are active; dimensions, pixels and dedupe verified');
@@ -324,7 +336,7 @@ async function snapshot() {
     record('the chosen desk root accepts automatic capture independently of the active desk');
 
     await configure({enabled: false});
-    await editor.waitForFunction(async () => (await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']})).length === 0, null, {polling: 100});
+    await waitForAsync(editor, async () => (await chrome.storage.local.get('osminogCollectorV1')).osminogCollectorV1?.enabled === false, null, {polling: 100});
     const beforePause = await captureCount(ids.target);
     await nativeCopyText('Paused collector must not capture');
     await writer.waitForTimeout(1800);
@@ -354,7 +366,7 @@ async function snapshot() {
     // A queue entry left by 4.0.20 must be imported after upgrading/reloading.
     // Observe the real save completing; do not call persist() to repair a missed
     // manual-paste save. This separates save failure from reload failure.
-    await editor.waitForFunction(async ({ids, manualId}) => {
+    await waitForAsync(editor, async ({ids, manualId}) => {
       const saved = (await chrome.storage.local.get('briefCraftStudioV2')).briefCraftStudioV2;
       return saved?.projects.some(p => p.id === ids.target) &&
         saved.projects.find(p => p.id === ids.other)?.objects.some(o => o.id === manualId);
@@ -372,7 +384,7 @@ async function snapshot() {
     const recovered = await waitForCapture(ids.target, {id: 'legacy-qa'});
     await assertImage(recovered);
     assert.equal(recovered.osminogFolderId, ids.folder);
-    await editor.waitForFunction(async () => !(await chrome.storage.local.get('osminogCapture:legacy-qa'))['osminogCapture:legacy-qa'], null, {polling: 100});
+    await waitForAsync(editor, async () => !(await chrome.storage.local.get('osminogCapture:legacy-qa'))['osminogCapture:legacy-qa'], null, {polling: 100});
     const persisted = await editor.evaluate(async id => {
       const saved = await chrome.storage.local.get(null);
       const v = saved.briefCraftStudioV2;
@@ -389,7 +401,7 @@ async function snapshot() {
     await editor.evaluate(() => persist());
     await closeBrowser();
     await launch();
-    await editor.waitForFunction(async () => (await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']})).length === 1, null, {polling: 100});
+    await waitForAsync(editor, async () => (await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']})).length === 1, null, {polling: 100});
     await activateWriter(); await writer.waitForTimeout(1800);
     await nativeCopyText('After full browser and worker restart 62019');
     const resumed = await waitForCapture(ids.target, {text: 'After full browser and worker restart 62019'});

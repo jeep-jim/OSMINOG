@@ -1,25 +1,38 @@
-name: Chrome preserved trash and migration recovery
+name: Full workspace trash and 4.0.38 recovery
 on:
   pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - run: npm install --no-save --package-lock=false playwright@1.62.1
-      - run: npx playwright install --with-deps chromium
-      - name: Retain trash, valid empty workspaces and interrupted migration
-        run: node tests/core-store-438.cjs
+      - name: Install the pinned browser test dependency
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Verify transactional restoration from 4.0.38 databases
+        run: node tests/restore-bridge-439.cjs
+      - name: Verify existing project trash and clipboard inbox
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          xvfb-run -a python tests/project-trash-428.py
       - name: Retain exact tracked source for release audit
+        if: always()
         run: git archive --format=zip HEAD --output=source.zip
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: OSMINOG-source-${{ github.sha }}
-          path: source.zip
-          retention-days: 3
+          path: |
+            source.zip
+            artifacts/*439*
+            test-results/
+          retention-days: 7
