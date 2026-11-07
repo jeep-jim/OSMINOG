@@ -1,0 +1,43 @@
+{
+  "version": "4.0.40",
+  "sourceHead": "d8389dec31493a4bf00c9581a68760848cb32383",
+  "sourceMerge": "7f4fee4814824bea2a79de4e0bfc38c76a5756bb",
+  "sourceTree": "170bc503f127ae14056820e21d21cc9dc8e4906f",
+  "ciRuns": [
+    42367850304,
+    42367850305,
+    42367850721,
+    42367850270,
+    42367850306
+  ],
+  "artifactId": 13571984752,
+  "outerSha256": "c41c86ca7270689d090f5d26c1e002f0db02e1c303bbbcfde1113c37850263fa",
+  "package": {
+    "version": "4.0.40",
+    "kind": "full-package",
+    "packageUrl": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v4.0.40/OSMINOG-Chrome-4.0.40.zip",
+    "size": 9332590,
+    "sha256": "35713f54ee2623132fd4b2bcbb180109b737abd84bd48443de1958b14edfeb56",
+    "manifestVersion": "4.0.40",
+    "fixedExtensionKeyRequired": true,
+    "minDevHubVersion": "2.0.0",
+    "minUpdaterVersion": "2.0.0",
+    "runtimeVerified": false,
+    "ciVerified": true,
+    "notesUrl": "https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/chrome-extension/releases/4.0.40/README.md",
+    "publishedAt": "2026-11-07T11:30:48Z",
+    "recovery": {
+      "filename": "OSMINOG-Update-Recovery.html",
+      "size": 65468,
+      "sha256": "c1eb3207ebb195a004d3ae65a1170cc3bb9456fdeaeb2cf456220a6ca537e096",
+      "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/chrome-v4.0.40/OSMINOG-Update-Recovery.html"
+    }
+  },
+  "publicRelease": "https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/chrome-v4.0.40",
+  "importRun": 42368435199,
+  "publisherRun": 42368460268,
+  "sourceAndArchiveAudit": "All 150 runtime resources compared against reviewed source or pinned OCR; fixed identity, auth and updater unchanged; merge tree exactly matches tested tree.",
+  "baselineCorrection": "Chrome manifest at e0e9917 is 4.0.9. Comparison uses 3cdc60a, with Chrome manifest 4.0.20. No separately published Chrome 4.0.20 archive found in current registry.",
+  "validation": "All five head checks passed. 80 4K archive image URL visibility and close/reopen tests passed; 120 identical redraw requests 28.5ms in the mock-storage rendering fixture. Actual native extension storage, clipboard, data recovery and updater tests also passed.",
+  "limits": "Owner Windows runtime not observed. Root cause of all reported Chrome exits not proven. RuntimeVerified remains false."
+}
