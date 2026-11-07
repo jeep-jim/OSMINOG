@@ -16,6 +16,7 @@ jobs:
       - run: node --check background.js
       - run: node --check osminog-figma-ux.js && node --check editor.js
       - run: node tests/figma-ux-435.cjs
+      - run: node tests/no-embedded-browser-436.cjs
       - run: node --check osminog-workdesk.js
       - run: node --check osminog-canvas-ux.js
       - run: node --check collector.js
@@ -47,15 +48,10 @@ jobs:
       - run: node tests/foundation-memory.cjs
       - run: node tests/privacy-no-mirroring.cjs
       - run: node tests/agent-media-3207.cjs
-      - name: Install browser test dependency
+      - name: Install Playwright for extension UI regression tests
         run: |
           npm install --no-save --package-lock=false playwright@1.62.1
           npx playwright install --with-deps chromium
-          sudo apt-get install --no-install-recommends -y openbox
-      - name: Verify workspace browser and common header geometry
-        run: |
-          python3 -m pip install playwright==1.62.0
-          TEST_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" xvfb-run -s "-screen 0 1920x1200x24" -a bash tests/run-browser-stage-432.sh
       - run: python3 tools/prepare_ocr.py
       - run: node tests/workspace-423.cjs
       - run: node tests/workspace-performance-424.cjs
@@ -119,10 +115,14 @@ jobs:
               assert hashlib.sha256(m.get('key','').encode()).hexdigest()=='1ddb8d87f3a6f6cb38a229bd81ba8076d1d37d3ba6b8a15b2a91129d4904012e'
               assert not any(n.startswith(('logs/','test-results/')) or n.endswith('.log') for n in z.namelist())
               assert 'osminog-team.js' not in z.namelist()
-              assert 'osminog-browser-app.js' in z.namelist()
+              assert 'osminog-browser-app.js' not in z.namelist()
+              assert 'osminog-browser-hub.js' not in z.namelist()
+              assert 'osminog-web-stage.js' not in z.namelist()
+              assert 'osminog-browser-workspace.css' not in z.namelist()
+              assert 'osminog-provider-connections.js' in z.namelist()
               assert 'osminog-figma-ux.js' in z.namelist() and 'osminog-figma-ux.css' in z.namelist()
               assert m['background']['service_worker']=='background-service.js'
-              assert 'background-service.js' in z.namelist() and 'osminog-web-stage.js' in z.namelist()
+              assert 'background-service.js' in z.namelist()
               assert 'osminog-workspace-polish.js' in z.namelist() and 'osminog-workspace-polish.css' in z.namelist()
               assert 'osminog-inspector.js' in z.namelist() and 'osminog-inspector.css' in z.namelist()
               assert 'osminog-canvas-ux.js' in z.namelist() and 'osminog-canvas-ux.css' in z.namelist()
