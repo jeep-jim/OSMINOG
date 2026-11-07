@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from PIL import Image, ImageOps
 
-VERSION = '0.3.0-pilot.1'
+VERSION = '0.3.0-pilot.2'
 MAX_BODY = 3_000_000
 Image.MAX_IMAGE_PIXELS = 16_000_000
 KINDS = {'seek', 'offer', 'discuss', 'together'}
@@ -160,6 +160,11 @@ class Ocean:
             iid=uid();self.db.execute('INSERT INTO intents(id,owner,text,kind,audience,created,expires,nonce) VALUES(?,?,?,?,?,?,?,?)',(iid,u,text,kind,audience,now(),now()+hours*3600,nonce))
             for name,mime,blob in normalized: self.db.execute('INSERT INTO attachments VALUES(?,?,?,?,?,?)',(uid(),u,iid,name,mime,blob))
             return self.pack(self.intent(iid))
+        read_match=re.fullmatch(r'/api/intents/([a-f0-9]{32})',path)
+        if read_match and method=='GET':
+            intent=self.intent(read_match[1])
+            require(self.visible(intent,u),404,'Намерение недоступно')
+            return self.pack(intent)
         match=re.fullmatch(r'/api/intents/([a-f0-9]{32})/(close|matches)',path)
         if match:
             intent=self.intent(match[1]);require(intent is not None and intent['owner']==u,404,'Намерение недоступно')

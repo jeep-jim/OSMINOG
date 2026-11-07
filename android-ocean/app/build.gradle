@@ -6,8 +6,8 @@ android {
   applicationId 'com.osminog.vision'
   minSdk 26
   targetSdk 35
-  versionCode 7
-  versionName '0.3.0-pilot.1'
+  versionCode 8
+  versionName '0.3.0-pilot.2'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  sourceSets { main { assets.srcDirs = ['../../mobile-web'] } }
