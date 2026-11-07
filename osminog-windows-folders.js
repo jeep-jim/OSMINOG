@@ -105,11 +105,19 @@
   function folderGlyph(){return '<span class="osminog-win-folder-glyph" aria-hidden="true"><i></i></span>'}
   function desktopSizePx(size){return size==="small"?66:size==="large"?116:90}
   function renderDesktopFolders(){
-    const layer=ensureDesktopLayer();if(!layer)return;const r=viewportRect();if(!r.width||!r.height)return;const visible=foldersNow().filter(f=>!f.parentId&&f.desktopVisible).map(ensureFolder);const wanted=new Set(visible.map(f=>f.id));
+    const layer=ensureDesktopLayer();if(!layer)return;const r=viewportRect();if(!r.width||!r.height)return;
+    // One linear pass per render. The previous implementation called folderCount()
+    // twice for every visible folder; each call rescanned every project object and folder.
+    // With F folders and N objects that made ordinary canvas redraws O(F*N).
+    const folders=foldersNow(),counts=new Map();
+    for(const o of objectsNow()){const id=o.osminogFolderId;if(id)counts.set(id,(counts.get(id)||0)+1)}
+    for(const child of folders){if(child.parentId)counts.set(child.parentId,(counts.get(child.parentId)||0)+1)}
+    const visible=folders.filter(f=>!f.parentId&&f.desktopVisible).map(ensureFolder),wanted=new Set(visible.map(f=>f.id));
     for(const f of visible){
       const x=clamp(Number(f.screenX)||80,6,Math.max(6,r.width-desktopSizePx(f.desktopSize)-10)),y=clamp(Number(f.screenY)||120,66,Math.max(66,r.height-105));
       let el=layer.querySelector(`[data-win-folder-id="${CSS.escape(f.id)}"]`);if(!el){el=document.createElement("div");el.className="osminog-win-folder-icon";el.dataset.winFolderId=f.id;el.tabIndex=0;el.innerHTML=`<button type="button" class="osminog-win-folder-close" title="Закрыть и сохранить внутри папки проекта">×</button>${folderGlyph()}<strong class="osminog-win-folder-label"></strong><small></small>`;layer.append(el);bindDesktopFolder(el)}
-      el.dataset.size=f.desktopSize;el.dataset.capture=String(!!globalThis.OSMINOGWorkspacePolish?.captureFolder(f));el.style.left=`${x}px`;el.style.top=`${y}px`;el.querySelector(".osminog-win-folder-label").textContent=f.name;el.querySelector("small").textContent=String(folderCount(f));el.querySelector("small").setAttribute("aria-label",`Элементов: ${folderCount(f)}`);
+      const count=counts.get(f.id)||0,small=el.querySelector("small");
+      el.dataset.size=f.desktopSize;el.dataset.capture=String(!!globalThis.OSMINOGWorkspacePolish?.captureFolder(f));el.style.left=`${x}px`;el.style.top=`${y}px`;el.querySelector(".osminog-win-folder-label").textContent=f.name;small.textContent=String(count);small.setAttribute("aria-label",`Элементов: ${count}`);
     }
     layer.querySelectorAll("[data-win-folder-id]").forEach(el=>{if(!wanted.has(el.dataset.winFolderId))el.remove()});applyRootIconSize();
   }
