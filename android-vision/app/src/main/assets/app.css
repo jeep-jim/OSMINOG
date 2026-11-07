@@ -86,3 +86,6 @@ body[data-state=camera]{--eye-fill:#7fc8e8}
 button:focus,button:focus-visible,textarea:focus,textarea:focus-visible,#composer:focus-within{outline:none!important;outline-color:transparent!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}
 textarea{-webkit-appearance:none;appearance:none;border:0!important;background:transparent!important}
 body[data-state=listening] .eye-body{animation:none;box-shadow:0 0 12px rgba(99,200,243,.24)}
+
+.system-sheet{position:fixed;inset:0;z-index:14;display:flex;align-items:center;justify-content:center;padding:calc(20px + var(--safe-top)) 18px calc(20px + var(--safe-bottom));background:rgba(0,24,53,.42);backdrop-filter:blur(16px)}
+.system-sheet .sheet-card{max-height:82%;overflow:auto}
