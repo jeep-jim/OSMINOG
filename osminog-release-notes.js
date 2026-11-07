@@ -1,5 +1,9 @@
 (()=>{'use strict';
 const catalog={
+'4.0.41':{
+ru:{title:'Изменение ширины без перерисовки во время движения',items:['При перетаскивании границы меню и чата движется только линия. Размер применяется после отпускания мыши.','Отмена жеста, потеря захвата и переключение окна не меняют размеры.','Изменение ширины не перезаписывает проекты и изображения.']},
+en:{title:'Deferred sidebar and chat resizing',items:['Dragging a sidebar or chat boundary moves only a guide. Width is applied on release.','Cancellation, lost capture and window blur discard the pending width.','Resizing does not rewrite projects or images.']}
+},
 '4.0.40':{
 ru:{title:'Нагрузка холста и боковых панелей',items:['Закрытая панель слоёв не загружает изображения архива. Миниатюры подчиняются настройке превью и загружаются только у видимых строк.','Изменение ширины меню сохраняет только размеры, без полной перезаписи проектов и резервных копий.','Сохранены текущие инструменты, чат, фоновые сохранения и оригиналы файлов.']},
 en:{title:'Canvas and sidebar workload',items:['Closed Layers do not load archive images. Thumbnails follow the preview preference and load only for visible rows.','Sidebar resizing saves only widths, without rewriting projects and backups.','Current tools, chat, background capture and original files are retained.']}

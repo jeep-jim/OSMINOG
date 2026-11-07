@@ -407,15 +407,45 @@ function savePanelWidths(){
   try{localStorage.setItem("osminogPanelWidthsV1",JSON.stringify({layersWidth:state.ui.layersWidth,inspectorWidth:state.ui.inspectorWidth}))}
   catch(error){showToast(state.language==="ru"?"Не удалось сохранить ширину панели":"Could not save panel width")}
 }
+// Keep the media canvas and panel contents stationary during pointer movement.
+// Only this narrow, isolated guide moves; commit geometry once on pointerup.
+let activePanelWidthDrag=null;
+function beginPanelWidthDrag(event,{handle,startWidth,minWidth,maxWidth,direction,onCommit}){
+  if(event.button!==0||event.isPrimary===false)return;
+  activePanelWidthDrag?.();
+  event.preventDefault();event.stopPropagation();
+  const pointerId=event.pointerId,startX=event.clientX;
+  let pending=startWidth,frame=0,finished=false;
+  const guide=document.createElement("div");guide.className="panel-width-guide";
+  guide.setAttribute("aria-hidden","true");guide.style.left=`${startX}px`;
+  document.body.append(guide);document.body.classList.add("resizing-panel");
+  const matches=e=>e.pointerId===pointerId;
+  const update=e=>{pending=Math.max(minWidth,Math.min(maxWidth,startWidth+(e.clientX-startX)*direction))};
+  const move=e=>{if(!matches(e))return;update(e);if(!frame)frame=requestAnimationFrame(()=>{
+    frame=0;guide.style.transform=`translateX(${(pending-startWidth)*direction}px)`;
+  })};
+  const finish=(commit,e)=>{
+    if(finished||(e&&e.type!=="blur"&&!matches(e)))return;
+    finished=true;if(frame)cancelAnimationFrame(frame);
+    document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);
+    document.removeEventListener("pointercancel",cancel);handle.removeEventListener("lostpointercapture",cancel);
+    window.removeEventListener("blur",cancel);guide.remove();document.body.classList.remove("resizing-panel");
+    activePanelWidthDrag=null;
+    if(handle.hasPointerCapture?.(pointerId))handle.releasePointerCapture(pointerId);
+    if(commit){if(Number.isFinite(e?.clientX))update(e);if(pending!==startWidth)onCommit(pending)}
+  };
+  const up=e=>finish(true,e),cancel=e=>finish(false,e);
+  activePanelWidthDrag=()=>finish(false);
+  document.addEventListener("pointermove",move);document.addEventListener("pointerup",up);
+  document.addEventListener("pointercancel",cancel);handle.addEventListener("lostpointercapture",cancel);
+  window.addEventListener("blur",cancel);handle.setPointerCapture?.(pointerId);
+}
 function bindPanelResizers(){
   applyPanelWidths(true);
   $$('[data-resize-panel]').forEach(handle=>handle.addEventListener("pointerdown",event=>{
-    if(event.button!==0)return;event.preventDefault();event.stopPropagation();
-    const target=handle.dataset.resizePanel,key=target==="layersPanel"?"layersWidth":"inspectorWidth",direction=target==="layersPanel"?1:-1,startX=event.clientX,startWidth=state.ui[key];
-    document.body.classList.add("resizing-panel");handle.setPointerCapture?.(event.pointerId);
-    const move=moveEvent=>{state.ui[key]=Math.max(key==="layersWidth"?260:300,Math.min(640,startWidth+(moveEvent.clientX-startX)*direction));applyPanelWidths()};
-    const stop=()=>{document.body.classList.remove("resizing-panel");document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",stop);document.removeEventListener("pointercancel",stop);savePanelWidths()};
-    document.addEventListener("pointermove",move);document.addEventListener("pointerup",stop);document.addEventListener("pointercancel",stop)
+    const key=handle.dataset.resizePanel==="layersPanel"?"layersWidth":"inspectorWidth";
+    beginPanelWidthDrag(event,{handle,startWidth:state.ui[key],minWidth:key==="layersWidth"?260:300,maxWidth:640,
+      direction:key==="layersWidth"?1:-1,onCommit:width=>{state.ui[key]=width;applyPanelWidths();savePanelWidths()}})
   }))
 }
 function colorTarget(){

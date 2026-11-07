@@ -1,4 +1,4 @@
-name: OSMINOG Chrome 4.0.40 verified full workspace
+name: OSMINOG Chrome 4.0.41 verified full workspace
 on:
   pull_request:
     branches: [main]
@@ -97,8 +97,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-4.0.40-VERIFIED
+          name: OSMINOG-4.0.41-VERIFIED
           retention-days: 14
           path: |
             artifacts/
-            RELEASE_NOTES_CHROME_4.0.40.md
+            RELEASE_NOTES_CHROME_4.0.41.md
