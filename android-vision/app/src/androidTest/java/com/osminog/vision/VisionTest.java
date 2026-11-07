@@ -23,7 +23,10 @@ public class VisionTest {
   assertEquals("\"sleeping\"",eval(a.shell,"document.body.dataset.state"));
   eval(a.shell,"document.getElementById('text').value='тест';document.getElementById('text').dispatchEvent(new Event('input',{bubbles:true}));");
   assertEquals("\"typing\"",eval(a.shell,"document.body.dataset.state"));
-  assertEquals("true",eval(a.shell,"(()=>{const s=document.getElementById('scene'),r=s.getBoundingClientRect();return Math.abs(r.left)<1&&Math.abs(r.width-innerWidth)<1&&getComputedStyle(s).borderRadius==='0px'})()"));
+  assertEquals("rgb(255, 48, 56)",eval(a.shell,"getComputedStyle(document.querySelector('.eye-body')).backgroundColor"));
+  eval(a.shell,"document.getElementById('text').value='';document.getElementById('text').dispatchEvent(new Event('input',{bubbles:true}));document.body.dataset.state='sleeping';document.getElementById('ocean').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));");
+  assertEquals("\"sleeping\"",eval(a.shell,"document.body.dataset.state"));
+  assertEquals("true",eval(a.shell,"(()=>{const s=document.getElementById('scene'),r=s.getBoundingClientRect(),o=document.getElementById('ocean').getBoundingClientRect();return Math.abs(r.left)<1&&Math.abs(r.width-innerWidth)<1&&Math.abs(r.height-innerHeight)<2&&Math.abs(o.width-innerWidth)<1&&getComputedStyle(s).borderRadius==='0px'})()"));
   assertEquals("true",eval(a.shell,"(()=>{const e=document.getElementById('text');e.focus();const ok=getComputedStyle(e).outlineStyle==='none';e.blur();return ok})()"));
   ui(()->{assertEquals(0,a.root.getPaddingLeft());assertEquals(0,a.root.getPaddingRight());assertEquals(a.getResources().getDisplayMetrics().widthPixels,a.root.getWidth());assertEquals(a.root.getWidth(),a.shell.getWidth());});
   screenshot("vision-home");
