@@ -1,9 +1,9 @@
-/* OSMINOG 0.2.3: foreground, native-clock-driven DOM adapter.
+/* OSMINOG 0.2.4: foreground, native-clock-driven DOM adapter.
  * No private provider APIs, cookie access, credentials, or remote native bridge.
  * snapshot() advances a synchronous state machine: no hidden-WebView timer dependency.
  */
 (()=>{'use strict';
-if(window.OSMINOGMobileBridge?.version==='0.2.3')return;
+if(window.OSMINOGMobileBridge?.version==='0.2.4')return;
 const config=window.__OSMINOGProviderConfig;delete window.__OSMINOGProviderConfig;
 const host=location.hostname,origin=location.origin,kind=({'chatgpt.com':'gpt','gemini.google.com':'gemini','claude.ai':'claude','chat.deepseek.com':'deepseek','alice.yandex.ru':'alice','grok.com':'grok'})[host]||(config?.origin===origin?'custom':'');if(!kind||location.protocol!=='https:')return;
 const STORE='osminog-mobile-pending-v2',OWNED='osminog-mobile-owned-draft-v2';
@@ -60,6 +60,13 @@ function prepareNative(id,action){
   if(job.submitted||current&&current!==clean(job.text))return {ok:false};
   selectEditor(e);return {ok:true,text:job.text};
  }
+ if(action==='enter'&&config?.nativeTap&&sendButton(e)&&!job.submitted&&current===clean(job.text)){
+  const b=sendButton(e);if(!b)return {ok:false};const r=b.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+  const hit=document.elementFromPoint(x,y);
+  if(x<0||y<0||x>=innerWidth||y>=innerHeight||!hit||!(hit===b||b.contains(hit)))return {ok:false};
+  job.submitted=true;job.phase='waiting';job.phaseAt=Date.now();result.state='waiting';persist();
+  return {ok:true,tap:true,x,y,viewportWidth:innerWidth,viewportHeight:innerHeight};
+ }
  if(action==='enter'&&!job.submitted&&current===clean(job.text)){
   e.focus({preventScroll:true});job.submitted=true;job.phase='waiting';job.phaseAt=Date.now();result.state='waiting';persist();return {ok:true};
  }
@@ -91,7 +98,9 @@ function tick(){if(!job)return result;if(location.origin!==origin)return fail('�
   if(!e)return fail('Поле ввода исчезло при загрузке кадра.','frame');const a=attachments(e,[job.file.name]);if(a.error)return fail('Сервис отклонил кадр: '+a.error.slice(0,180),'frame');const added=a.previews.filter(src=>!job.beforeAttachment.previews.includes(src)).length;const named=a.names.includes(job.file.name)&&!job.beforeAttachment.names.includes(job.file.name);const confirmed=!a.busy&&(added>0||named);if(confirmed){if(!job.frameReadyAt)job.frameReadyAt=now;if(now-job.frameReadyAt>600){result.frameAccepted=true;job.file=null;job.phase='compose';}}else job.frameReadyAt=0;if(now-job.phaseAt>25000)return fail('Сервис не подтвердил загрузку кадра. Вопрос не отправлен.','frame');if(job.phase==='upload')return result;
  }
  if(job.phase==='compose'){
-  if(!e)return fail('Поле ввода недоступно.','composer');const old=draft(e),owned=load(OWNED);if(old&&(!owned||old!==clean(owned.text)))return fail('Черновик в сервисе изменился. Проверь его перед отправкой.','draft');setText(e,job.text);store(OWNED,{host,text:job.text,id:job.id});job.phase='submit';job.phaseAt=now;return result;
+  if(!e)return fail('Поле ввода недоступно.','composer');const old=draft(e),owned=load(OWNED);if(old&&(!owned||old!==clean(owned.text)))return fail('Черновик в сервисе изменился. Проверь его перед отправкой.','draft');store(OWNED,{host,text:job.text,id:job.id});job.phase='submit';job.phaseAt=now;
+  if(config?.nativeInput){job.nativeInputRequested=true;result.nativeAction='insertText';}else setText(e,job.text);
+  return result;
  }
  if(job.phase==='submit'){
   if(!e)return fail('Поле ввода исчезло перед отправкой. Текст сохранён в OSMINOG.','composer');
@@ -108,6 +117,11 @@ function tick(){if(!job)return result;if(location.origin!==origin)return fail('�
   if(!job.inputStableAt){job.inputStableAt=now;return result;}
   if(now-job.inputStableAt<300)return result;
   const button=sendButton(e),form=e.closest('form');
+  if(config?.nativeTap){
+   if(button){button.scrollIntoView({block:'nearest',inline:'nearest'});result.nativeAction='enter';return result;}
+   if(now-job.phaseAt<1800)return result;
+   result.nativeAction='enter';return result;
+  }
   if(!button&&!form){result.nativeAction='enter';return result;}
   job.submitted=true;job.phase='waiting';job.phaseAt=now;result.state='waiting';persist();
   if(button)button.click();else submitFallback(e);return result;
@@ -121,5 +135,5 @@ function tick(){if(!job)return result;if(location.origin!==origin)return fail('�
  return result;
 }
 restore();
-window.OSMINOGMobileBridge={version:'0.2.3',prepareNative,nativeResult,probe:()=>{const e=composer();return{ready:!!e,verified,kind,hasDraft:!!draft(e),generating:generating(),canSubmit:!!e}},start,snapshot:()=>{try{return tick()}catch(e){return fail('Не удалось прочитать ответ сервиса. Открой чат.','adapter')}},cancel(){const e=composer(),owned=load(OWNED);if(e&&owned&&owned.host===host&&draft(e)===owned.text)setText(e,'');const stop=job?.submitted?stopButton():null;if(stop)stop.click();job=null;store(STORE,null);store(OWNED,null);result={state:'cancelled'};},diagnostics:()=>({version:'0.2.3',kind,state:result.state,code:lastDiagnostic,composer:!!composer(),answerNodes:answers().length,hasDraft:!!draft(composer())})};
+window.OSMINOGMobileBridge={version:'0.2.4',prepareNative,nativeResult,probe:()=>{const e=composer();return{ready:!!e,verified,kind,hasDraft:!!draft(e),generating:generating(),canSubmit:!!e}},start,snapshot:()=>{try{return tick()}catch(e){return fail('Не удалось прочитать ответ сервиса. Открой чат.','adapter')}},cancel(){const e=composer(),owned=load(OWNED);if(e&&owned&&owned.host===host&&draft(e)===owned.text)setText(e,'');const stop=job?.submitted?stopButton():null;if(stop)stop.click();job=null;store(STORE,null);store(OWNED,null);result={state:'cancelled'};},diagnostics:()=>({version:'0.2.4',kind,state:result.state,code:lastDiagnostic,composer:!!composer(),answerNodes:answers().length,hasDraft:!!draft(composer())})};
 })();

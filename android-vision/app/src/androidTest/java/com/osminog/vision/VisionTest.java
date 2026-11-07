@@ -5,16 +5,16 @@ import org.junit.*;import org.junit.runner.RunWith;import org.json.*;import java
 import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class VisionTest {
- MainActivity a;ActivityScenario<MainActivity> scenario;
+ ReliableActivity a;ActivityScenario<ReliableActivity> scenario;
  void ui(Runnable r){InstrumentationRegistry.getInstrumentation().runOnMainSync(r);}
  String eval(WebView w,String js)throws Exception{CountDownLatch l=new CountDownLatch(1);AtomicReference<String> out=new AtomicReference<>("");ui(()->w.evaluateJavascript(js,s->{out.set(s);l.countDown();}));assertTrue("JS callback timeout",l.await(8,TimeUnit.SECONDS));return out.get();}
  void until(Callable<Boolean> condition)throws Exception{long end=System.currentTimeMillis()+20000;while(System.currentTimeMillis()<end){if(condition.call())return;Thread.sleep(200);}fail("Condition timed out");}
  @Before public void setup()throws Exception{
   InstrumentationRegistry.getInstrumentation().getTargetContext().getSharedPreferences("vision",0).edit().clear().putBoolean("disableProviderWarmupForTest",true).commit();
-  scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(x->a=x);
+  scenario=ActivityScenario.launch(ReliableActivity.class);scenario.onActivity(x->a=x);
   until(()->"true".equals(eval(a.shell,"!!window.OSMINOG?.nativeReady")));
   eval(a.shell,"window.__previousTestDocument=true;localStorage.clear();localStorage.setItem('osminogMotion','off');location.reload()");
-  until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.3'")));
+  until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.4'")));
   Thread.sleep(300);eval(a.shell,"OSMINOG.receive({type:'clear'})");
  }
  @After public void tearDown(){if(scenario!=null)scenario.close();}
@@ -55,8 +55,8 @@ public class VisionTest {
   eval(a.shell,"OSMINOG.receive({type:'notice',message:'Сообщение системы',action:'openProvider'})");
   assertEquals("true",eval(a.shell,"!document.getElementById('notice').hidden&&!!document.querySelector('.notice-creature')&&getComputedStyle(document.getElementById('notice')).backgroundColor==='rgba(0, 0, 0, 0)'"));
   screenshot("vision-notice");
-  eval(a.shell,"OSMINOG.receive({type:'updateAvailable',versionName:'0.2.3',notes:'Проверка формы обновления',sizeLabel:'100 КБ'})");
-  until(()->"true".equals(eval(a.shell,"!document.getElementById('updateSheet').hidden&&document.getElementById('updateTitle').textContent==='OSMINOG Vision 0.2.3'")));
+  eval(a.shell,"OSMINOG.receive({type:'updateAvailable',versionName:'0.2.4',notes:'Проверка формы обновления',sizeLabel:'100 КБ'})");
+  until(()->"true".equals(eval(a.shell,"!document.getElementById('updateSheet').hidden&&document.getElementById('updateTitle').textContent==='OSMINOG Vision 0.2.4'")));
   screenshot("vision-update");touch("closeUpdate");
   until(()->"true".equals(eval(a.shell,"document.getElementById('updateSheet').hidden")));
  }
@@ -75,6 +75,9 @@ public class VisionTest {
   screenshot("vision-conversation");
   ByteArrayOutputStream jpeg=new ByteArrayOutputStream();Bitmap bitmap=Bitmap.createBitmap(16,16,Bitmap.Config.ARGB_8888);bitmap.eraseColor(0xffcc8833);bitmap.compress(Bitmap.CompressFormat.JPEG,75,jpeg);bitmap.recycle();String frame="data:image/jpeg;base64,"+android.util.Base64.encodeToString(jpeg.toByteArray(),android.util.Base64.NO_WRAP);
   JSONObject req=new JSONObject().put("id","test-frame").put("text","Кадр теста").put("image",frame);
+  // This part isolates attachment confirmation in the standalone DOM adapter;
+  // native trusted input/submission is covered by ForegroundTransportTest.
+  eval(a.provider,"delete window.OSMINOGMobileBridge;window.__OSMINOGProviderConfig={origin:location.origin};"+a.asset("provider.js"));
   assertEquals("true",eval(a.provider,"window.OSMINOGMobileBridge.start("+req+")"));
   until(()->"true".equals(eval(a.provider,"window.OSMINOGMobileBridge.snapshot().state==='done'")));
   assertEquals("true",eval(a.provider,"window.OSMINOGMobileBridge.snapshot().frameAccepted"));
