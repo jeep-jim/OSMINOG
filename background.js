@@ -1,49 +1,17 @@
-importScripts("osminog-today.js", "osminog-project-trash.js", "osminog-collector-background.js");
-const trashAlarm = "osminogTrashExpiry";
-async function scheduleTrashExpiry(){
-  const deadlines = Object.values(await OSMINOGTrash.read()).map(e=>e.expires).filter(Boolean);
-  if(deadlines.length) await chrome.alarms.create(trashAlarm,{when:Math.max(Date.now()+1000, Math.min(...deadlines))});
-  else await chrome.alarms.clear(trashAlarm);
-}
-chrome.alarms.onAlarm.addListener(alarm=>{if(alarm.name===trashAlarm) OSMINOGTrash.sweep().then(scheduleTrashExpiry)});
-chrome.storage.onChanged.addListener((changes,area)=>{if(area==="local"&&changes[OSMINOGTrash.indexKey]) scheduleTrashExpiry()});
-scheduleTrashExpiry();
+/* OSMINOG Lite: collection is independent of the editor; old expiry sweeps are retired. */
+importScripts("osminog-core-store.js", "osminog-collector-background.js");
+chrome.alarms.clear("osminogTrashExpiry").catch(() => {});
 importScripts("sha3.js", "osminog-chat-content.js", "osminog-generated-media.js", "osminog-presence-router.js", "osminog-chat-sync.js", "osminog-chat-sync-router.js");
-
-const MENU_ID = "briefcraft-open-selection";
-const MENU_TITLES = {
-  en:"Add selected text to OSMINOG",
-  ru:"Добавить выделенный текст в OSMINOG",
-  de:"Markierten Text zu OSMINOG hinzufügen",
-  es:"Añadir texto seleccionado a OSMINOG",
-  ja:"選択したテキストをOSMINOGに追加",
-  zh:"将所选文字添加到 OSMINOG"
-};
-function currentLanguage() {
-  const value = (chrome.i18n.getUILanguage?.() || "en").toLowerCase();
-  return ["ru","de","es","ja","zh"].find((code) => value.startsWith(code)) || "en";
-}
-function createContextMenu() {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({id:MENU_ID,title:MENU_TITLES[currentLanguage()],contexts:["selection"]});
-  });
-}
-chrome.runtime.onInstalled.addListener(createContextMenu);
-chrome.runtime.onStartup.addListener(createContextMenu);
-chrome.contextMenus.onClicked.addListener(async(info) => {
-  if (info.menuItemId !== MENU_ID) return;
-  await chrome.storage.local.set({richCraftPendingText:info.selectionText || "",richCraftPendingAt:Date.now()});
-  await chrome.tabs.create({url:chrome.runtime.getURL("editor.html?import=selection")});
-});
-chrome.runtime.onMessage.addListener((message,_sender,sendResponse) => {
-  if (!message) return;
-  if (["OPEN_EDITOR","OPEN_SCREENSHOT"].includes(message.type)) {
-    const page = message.type === "OPEN_SCREENSHOT" ? "screenshot.html" : "editor.html";
-    chrome.tabs.create({url:chrome.runtime.getURL(message.query ? page + "?" + message.query : page)})
-      .then(() => sendResponse({ok:true}))
-      .catch((error) => sendResponse({ok:false,error:error.message}));
-    return true;
-  }
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || message?.type !== "OPEN_EDITOR") return;
+  const url = chrome.runtime.getURL("editor.html") + (message.query === "view=inbox" ? "?view=inbox" : "?view=desk");
+  chrome.tabs.query({}).then(async tabs => {
+    const existing = tabs.find(tab => tab.url?.split(/[?#]/)[0] === chrome.runtime.getURL("editor.html"));
+    if (existing) { await chrome.tabs.update(existing.id, {active:true, ...(message.query === "view=inbox" ? {url} : {})}); await chrome.windows.update(existing.windowId,{focused:true}); }
+    else await chrome.tabs.create({url});
+    reply({ok:true});
+  }).catch(error => reply({ok:false,error:error.message}));
+  return true;
 });
 
 // OSMINOG 3.8.18 · full project memory + PDF + owner Jarvis.
@@ -720,28 +688,28 @@ chrome.runtime.onMessage.addListener((message,_sender,sendResponse)=>{
   if(message.type==="BC_PROVIDER_TOOL_RESULT"){(async()=>{try{const q=message.payload||{};sendResponse(await bcProviderSend(q,q.result||{}))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="BC_LITE_EXTERNAL_USER"&&_sender?.tab?.id&&_sender.tab.id===bcExternalTabId){(async()=>{try{const prep=await chrome.runtime.sendMessage({type:"BC_LITE_EXTERNAL_USER",payload:{...(message.payload||{}),prepare:true}}).catch(()=>null);sendResponse?.(prep&&typeof prep==="object"?prep:{ok:true})}catch(e){sendResponse?.({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="BC_LITE_ASSISTANT_RESULT"&&_sender?.tab?.id&&_sender.tab.id===bcExternalTabId){chrome.runtime.sendMessage({type:"BC_EXTERNAL_ASSISTANT_RESULT",payload:message.payload||{},role:bcExternalRole}).catch(()=>{});sendResponse?.({ok:true});return;}
-  if(message.type==="BC_MODULE_TOOL"){(async()=>{try{sendResponse(await bcModuleTool(String(message.name||""),message.args||{}))}catch(e){sendResponse({ok:false,error:e?.message||String(e),code:e?.code||"github_tool_failed",status:e?.status||null,hint:e?.hint||null})}})();return true;}
-  if(message.type==="OSMINOG_MODULE_FETCH"){(async()=>{try{const url=new URL(String(message.url||""));if(!/^https?:$/.test(url.protocol))throw new Error("Unsupported network protocol");const options=message.options||{},method=["GET","POST","PUT","PATCH","DELETE"].includes(String(options.method||"GET"))?String(options.method||"GET"):"GET",headers={};for(const [k,v] of Object.entries(options.headers||{}))if(!/^(cookie|host|origin|referer|content-length)$/i.test(k))headers[k]=String(v);const response=await fetch(url.href,{method,headers,body:["GET","HEAD"].includes(method)?undefined:(options.body??undefined),credentials:"omit",redirect:"follow"}),responseType=String(options.responseType||"text").toLowerCase();if(["arraybuffer","binary","base64"].includes(responseType)){const buf=await response.arrayBuffer();if(buf.byteLength>32*1024*1024)throw new Error("Module binary response exceeds 32 MB");const bytes=new Uint8Array(buf);let raw="";for(let i=0;i<bytes.length;i+=0x8000)raw+=String.fromCharCode(...bytes.subarray(i,i+0x8000));sendResponse({ok:response.ok,status:response.status,binary:true,base64:btoa(raw),mime:response.headers.get("content-type")||"application/octet-stream",size:bytes.length,error:response.ok?"":`HTTP ${response.status}`});return}const raw=await response.text();let data;try{data=JSON.parse(raw)}catch{data=raw.slice(0,2_000_000)}sendResponse({ok:response.ok,status:response.status,data,mime:response.headers.get("content-type")||"",error:response.ok?"":`HTTP ${response.status}`})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
+  // BC_MODULE_TOOL retired from the lightweight extension.
+  // OSMINOG_MODULE_FETCH retired from the lightweight extension.
   if(message.type==="BC_MODULE_TEST"){(async()=>{try{const kind=String(message.module||""),token=String(message.token||"").trim();if(!token)throw new Error("Token пустой");if(kind==="figma"){const r=await fetch("https://api.figma.com/v1/me",{headers:{"X-Figma-Token":token}}),raw=await r.text();if(!r.ok)throw new Error(`Figma HTTP ${r.status}: ${raw.slice(0,180)}`);const d=JSON.parse(raw);sendResponse({ok:true,name:d.handle||d.email||"Figma"});return}if(kind==="github"){const headers={Authorization:`Bearer ${token}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},request=async url=>{const r=await fetch(url,{headers}),raw=await r.text();let data=null;try{data=raw?JSON.parse(raw):null}catch{data=raw}return{ok:r.ok,status:r.status,data,raw}};const user=await request("https://api.github.com/user");if(!user.ok)throw new Error(`GitHub account HTTP ${user.status}: ${typeof user.data==="string"?user.data.slice(0,180):user.data?.message||user.raw.slice(0,180)}`);const repos=["jeep-jim/OSMINOG","jeep-jim/OSMINOG-Releases"],checks=[];for(const repo of repos){const rr=await request(`https://api.github.com/repos/${repo}`);if(rr.status===404){checks.push({repo,visible:false,write:false,status:404});continue}if(!rr.ok)throw new Error(`GitHub ${repo} HTTP ${rr.status}: ${typeof rr.data==="string"?rr.data.slice(0,180):rr.data?.message||rr.raw.slice(0,180)}`);const p=rr.data?.permissions||{},write=!!(p.admin||p.maintain||p.push);checks.push({repo,visible:true,write,status:rr.status,permissions:p,private:!!rr.data?.private})}const missing=checks.filter(x=>!x.visible),readonly=checks.filter(x=>x.visible&&!x.write),ownerOk=!missing.length&&!readonly.length;if(!ownerOk){const code=missing.length?"repo_access":"repo_write",detail=missing.length?`Токен GitHub работает, но не видит: ${missing.map(x=>x.repo).join(", ")}. В fine-grained token открой Repository access → Only select repositories и добавь OSMINOG + OSMINOG-Releases.`:`Токен видит репозитории, но не имеет записи: ${readonly.map(x=>x.repo).join(", ")}. Нужен Contents: Read and write.`;sendResponse({ok:false,accountOk:true,name:user.data?.login||user.data?.name||"GitHub",code,error:detail,owner:{ok:false,checks}});return}sendResponse({ok:true,accountOk:true,name:user.data?.login||user.data?.name||"GitHub",owner:{ok:true,checks,repositories:repos}});return}if(kind==="gemini"){const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?key="+encodeURIComponent(token)),raw=await r.text();if(!r.ok)throw new Error(`Gemini HTTP ${r.status}: ${raw.slice(0,180)}`);sendResponse({ok:true,name:"Google AI · Gemini"});return}throw new Error("Unsupported module") }catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_LIST"){(async()=>{try{sendResponse(await osminogHubList())}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
+  // OSMINOG_BROWSER_HUB_LIST retired from the lightweight extension.
   if(message.type==="OSMINOG_SESSION_GET_OR_CREATE"){(async()=>{try{sendResponse(await osminogHubOpen({url:message.url,provider:message.provider,active:!!message.active,reuse:message.reuse!==false,allowCreate:message.allowCreate!==false}))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="OSMINOG_SESSION_CONNECT_EXISTING"){(async()=>{try{sendResponse(await osminogConnectExisting(String(message.provider||""),message.tabId||null))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="OSMINOG_SESSION_AUTHORIZE"){(async()=>{try{sendResponse(await osminogAuthorizeProvider(String(message.provider||"")))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="OSMINOG_SESSION_CONNECT"){(async()=>{try{sendResponse(await osminogHubConnect(Number(message.tabId),String(message.provider||"")))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="OSMINOG_SESSION_LIST"){(async()=>{try{sendResponse(await osminogSessionList())}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_OPEN"){(async()=>{try{sendResponse(await osminogHubOpen({url:message.url,provider:message.provider,active:message.active===true,reuse:message.reuse!==false,allowCreate:message.allowCreate!==false}))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_SHOW"){(async()=>{try{const w=await osminogHubWindow();if(!w)throw new Error("Служебное окно ещё не создано");await chrome.windows.update(w.id,{state:"normal",focused:true});sendResponse({ok:true})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_HIDE"){(async()=>{try{const w=await osminogHubWindow();if(w)await chrome.windows.update(w.id,{state:"minimized",focused:false});sendResponse({ok:true})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_FOCUS_TAB"){(async()=>{try{const tab=await chrome.tabs.get(Number(message.tabId));await chrome.windows.update(tab.windowId,{state:"normal",focused:true});await chrome.tabs.update(tab.id,{active:true});sendResponse({ok:true})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_CLOSE_TAB"){(async()=>{try{await chrome.tabs.remove(Number(message.tabId));sendResponse({ok:true})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="OSMINOG_BROWSER_HUB_CONNECT"){(async()=>{try{sendResponse(await osminogHubConnect(message.tabId,message.provider||""))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
+  // OSMINOG_BROWSER_HUB_OPEN retired from the lightweight extension.
+  // OSMINOG_BROWSER_HUB_SHOW retired from the lightweight extension.
+  // OSMINOG_BROWSER_HUB_HIDE retired from the lightweight extension.
+  // OSMINOG_BROWSER_HUB_FOCUS_TAB retired from the lightweight extension.
+  // OSMINOG_BROWSER_HUB_CLOSE_TAB retired from the lightweight extension.
+  // OSMINOG_BROWSER_HUB_CONNECT retired from the lightweight extension.
   if(message.type==="BC_GOOGLE_AI_SERVICE_STATUS"){(async()=>sendResponse({ok:true,...await bcGoogleServiceState()}))();return true;}
   if(message.type==="BC_GOOGLE_AI_SERVICE_CONNECT"){(async()=>{try{sendResponse(await bcEnsureGoogleServiceTab({allowCreate:true}))}catch(e){sendResponse({ok:false,error:e?.message||String(e),tabId:e?.tabId||null})}})();return true;}
   if(message.type==="BC_GOOGLE_AI_SERVICE_OPEN"){(async()=>{try{const st=await bcGoogleServiceState();if(!st.tabId)throw new Error("Служебная вкладка ещё не создана");await chrome.tabs.update(st.tabId,{active:true});if(st.windowId!=null)await chrome.windows.update(st.windowId,{focused:true}).catch(()=>{});sendResponse({ok:true})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
   if(message.type==="BC_GOOGLE_AI_SEND"){(async()=>{try{sendResponse(await bcGoogleAiWidgetSend(message.query||"",{requestId:message.requestId,canvasContext:message.canvasContext||{},images:Array.isArray(message.images)?message.images:[]}))}catch(e){sendResponse({ok:false,error:e?.message||String(e),tabId:e?.tabId||null})}})();return true;}
-  if(message.type==="BC_WEB_SEARCH"){(async()=>{try{sendResponse(await bcWebSearch(String(message.query||""),Math.max(1,Math.min(10,Number(message.limit)||8))))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="BC_WEB_IMAGE_SEARCH"){(async()=>{try{sendResponse(await bcWebImageSearch(String(message.query||""),Math.max(1,Math.min(10,Number(message.limit)||6))))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
-  if(message.type==="BC_WEB_FETCH"){(async()=>{try{sendResponse(await bcWebFetch(String(message.url||""),Math.max(1000,Math.min(30000,Number(message.maxChars)||16000))))}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;}
+  // BC_WEB_SEARCH retired from the lightweight extension.
+  // BC_WEB_IMAGE_SEARCH retired from the lightweight extension.
+  // BC_WEB_FETCH retired from the lightweight extension.
   if(message.type==="BC_LITE_CONNECT_GPT"){
     (async()=>{try{bcDirectContext=message.context||bcDirectContext;const probe=await bcProbe();sendResponse({ok:!!probe.ok,ready:!!probe.ok,direct:true,probe,error:probe.ok?"":probe.error||`stage ${probe.stage}`})}catch(e){sendResponse({ok:false,error:e?.message||String(e)})}})();return true;
   }

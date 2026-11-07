@@ -1,25 +1,26 @@
 {
   "product": "OSMINOG",
   "platform": "chrome-extension",
-  "version": "4.0.37",
-  "versionName": "4.0.37",
-  "baseVersion": "4.0.36",
-  "artifact": "OSMINOG-Chrome-4.0.37.zip",
-  "manifestVersion": "4.0.37",
+  "version": "4.0.38",
+  "versionName": "4.0.38",
+  "baseVersion": "4.0.37",
+  "artifact": "OSMINOG-Chrome-4.0.38.zip",
+  "manifestVersion": "4.0.38",
   "manifestAtRoot": true,
   "fixedManifestKeyPreserved": true,
   "runtimeVerified": false,
-  "verification": {
-    "fullExtension": "All retained Chrome runtime, storage, clipboard, folders, chat, provider, Owner Auth and browser-retirement gates must pass before packaging.",
-    "projectTrash": "Separate real-extension gate covers deletion, restore, expiry and inbox.",
-    "ownerWindows": "Owner reported three browser closures while attempting 4.0.36. Exact crash cause is not established without owner diagnostics. This candidate has not been run on the owner computer.",
-    "figmaUx": "Saved-material library docks immediately left of the chat; two-column 148px minimum lazy gallery with 36-item paging and current-desk scoping; unchanged gallery DOM is reused; project previews use at most one lazy image; home hub spacing and six-language trash actions are restored; Export is enabled whenever current-desk content can be exported. Messenger message text and composer sizes are increased for readable desktop use; actual unified-chat classes are targeted.",
-    "mediaTransfer": "Image import from an explicitly authorized editable page copy is tested; live provider media is not claimed.",
-    "ownerAuth": "Authenticator bytes must match 90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41.",
-    "stabilityBaseline": "Owner-confirmed last stable Chrome version 4.0.20; source commit e0e9917451ea0553be0126c8f5e068e599fd8928. Synthetic folder-count regression covers 60 folders / 2,400 objects; user-device performance and p95 baseline comparison still require owner acceptance.",
-    "embeddedBrowser": "Removed from Chrome extension. Provider connection settings and independently managed AI provider sessions are retained.",
-    "updater": "Bounded package-path backup, durable rollback journal, ZIP validation, exclusive install and version-bound browser-preserving reload; required real Chromium native-folder update and recovery bootstrap gates."
-  },
   "ciVerified": false,
-  "updaterVersion": "2.0.0"
+  "updaterVersion": "2.0.0",
+  "profile": "light-core",
+  "verification": {
+    "scope": "Infinite canvas, desks, background clipboard collection, saved-material search, right-side chat and access. Removed editors, OCR, graphics/document/media studios, module runtime, browser widgets and workspace export are not packaged.",
+    "storage": "Original legacy keys remain read-only. Resumable migration copies materials into per-item IndexedDB records and binary Blobs, including folders, links, unknown legacy details and soft-deleted desks.",
+    "rendering": "Viewport-culling maximum160 canvas nodes and48 active thumbnail URLs; serial preview worker edge512; coordinate writes after completed drag and small debounced view writes.",
+    "chat": "Legacy history retained without rewriting it; new messages stored individually; current thread is paged.",
+    "header": "Fixed full-width header independent of panels; real extension rectangle checks at1440 and1024 pixels.",
+    "collector": "Offscreen collection persists directly to IndexedDB without editor or base64 storage queue; one in-flight paste/hash/write operation.",
+    "ownerAuth": "Authenticator bytes must match90dc411113966db05adc323c56d5311aa830af8c11c4d6dcf959aa32008dab41; fixed manifest key retained.",
+    "updater": "Retained bounded updater2.0.0 and native browser-preserving reload. Current candidate must pass actual extension update and recovery tests.",
+    "ownerWindows": "Owner reported freezing/closure on4.0.37. No crash dump or direct measurement from that Windows browser is available; this build is not declared owner-runtime verified."
+  }
 }
