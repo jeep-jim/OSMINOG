@@ -44,7 +44,7 @@ function release(){clearTimeout(pressTimer);$('eye').style.setProperty('--pupil-
 $('eye').onpointerup=release;$('eye').onpointercancel=()=>{held=true;release();};
 $('eye').oncontextmenu=e=>e.preventDefault();
 $('eye').onclick=()=>{if(held){held=false;return;}wake();if(busy){stop();return;}if(document.body.dataset.state==='speaking'){emit('interrupt');return;}if($('text').value.trim()){$('composer').requestSubmit();return;}if(!connected){emit('connect');return;}emit(voice?'voiceOff':'voiceOn');};
-$('scene').addEventListener('pointerdown',e=>{if(e.target.closest('#eye,#menu,#composer,#settings,#notice,#updateSheet,#providerSheet,button,.message,#cameraArea'))return;sleepEye();},{passive:true});
+$('scene').addEventListener('pointerdown',e=>{if(e.target.closest('#eye,#menu,#composer,#settings,#notice,#updateSheet,#providerSheet,#clearSheet,#privacySheet,#consentSheet,#installPermissionSheet,button,.message,#cameraArea'))return;sleepEye();},{passive:true});
 $('menu').onclick=()=>setMenu(!menuOpen);$('closeMenu').onclick=() =>setMenu(false);$('shade').onclick=()=>setMenu(false);$('dismiss').onclick=()=>notice();$('noticeAction').onclick=()=>emit($('noticeAction').dataset.action);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');let motion=true;try{motion=localStorage.getItem('osminogMotion')!=='off';}catch{}
 function applyMotion(){document.body.classList.toggle('motion-off',!motion);$('motionValue').textContent=motion?'Включены':'Выключены';if(motion)startSwimming();else stopSwimming();}applyMotion();reduced.addEventListener?.('change',applyMotion);
