@@ -5,8 +5,10 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('ocean',ROOT/'services/intent-ocean/server.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 out=ROOT/'artifacts/ocean';out.mkdir(parents=True,exist_ok=True)
 def capture(page,name):
- # Wait for actual fully-visible messages; only freeze decorative drift for capture.
- page.wait_for_function("Array.from(document.querySelectorAll('#messages article')).every(n=>Number(getComputedStyle(n).opacity)>=0.99)")
+ # Locator assertions do not require enabling unsafe-eval in the real app CSP.
+ # Verify actual final opacity before freezing decorative drift for capture.
+ for article in page.locator('#messages article:not(.closed)').all():
+  expect(article).to_have_css('opacity','1')
  page.screenshot(path=str(out/name),animations='disabled')
 with tempfile.TemporaryDirectory() as d:
  ocean=m.Ocean(d+'/db.sqlite',ROOT/'mobile-web','http://127.0.0.1:1',True)
