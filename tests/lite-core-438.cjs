@@ -352,8 +352,14 @@ async function canvasAssertions() {
   const before = await editor.evaluate(() => OSMINOGCoreStore.getItem('legacy438-note'));
   await editor.evaluate(() => { lite438Probe.idbWrites = []; });
   const box = await note.boundingBox();
-  await editor.mouse.move(box.x + 20, box.y + 20); await editor.mouse.down();
-  await editor.mouse.move(box.x + 110, box.y + 85, {steps: 24});
+  // The retained capture overlaps this note's upper text. Drag its exposed
+  // bottom label, and prove the actual native hit target before sending input.
+  const start = {x: box.x + 20, y: box.y + box.height - 15};
+  const hit = await editor.evaluate(({x, y}) => document.elementFromPoint(x, y)?.closest('.canvas-item')?.dataset.id, start);
+  report.drag = {id: 'legacy438-note', before: {x: before.x, y: before.y}, pointer: start, hit};
+  assert.equal(hit, 'legacy438-note', 'The drag must hit the retained note rather than an overlapping fixture card');
+  await editor.mouse.move(start.x, start.y); await editor.mouse.down();
+  await editor.mouse.move(start.x + 90, start.y + 65, {steps: 24});
   const during = await editor.evaluate(() => lite438Probe.idbWrites.filter(write => write.store === 'items'));
   assert.equal(during.length, 0, 'Pointer movement must not persist a full item on every event');
   await editor.mouse.up();
@@ -362,6 +368,8 @@ async function canvasAssertions() {
   const moved = await editor.evaluate(() => OSMINOGCoreStore.getItem('legacy438-note'));
   const after = await editor.evaluate(() => lite438Probe.idbWrites.filter(write => write.store === 'items'));
   assert.equal(after.length, 1, 'One completed drag commits one item metadata change');
+  assert.equal(after[0].id, 'legacy438-note', 'The committed item must be the card that received the pointer');
+  report.drag.after = {x: moved.x, y: moved.y}; report.drag.itemCommits = after;
   const panBox = await editor.locator('#canvas').boundingBox();
   const viewBefore = await editor.evaluate(() => OSMINOGCoreApp.view());
   await editor.mouse.move(panBox.x + panBox.width - 40, panBox.y + panBox.height - 40);
