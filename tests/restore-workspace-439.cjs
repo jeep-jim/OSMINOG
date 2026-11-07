@@ -31,7 +31,7 @@ const checks = [], errors = [], crashes = [], workerErrors = [];
 const report = {version: manifest.version, scope: 'full unpacked extension with real storage, 4.0.38 recovery and native clipboard',
   ownerWindowsTested: false, platform: {os: os.platform(), release: os.release(), arch: os.arch(), runner: process.env.RUNNER_OS || null},
   fixture: {objectCount, uniqueImages: sourceCount, sourceSize, folders: 60}, checks, errors, crashes, workerErrors,
-  geometry: [], viewport: []};
+  geometry: [], viewport: [], readability: []};
 let context, editor, monitor, closing = false, contextClosed = false;
 const record = label => { checks.push(label); console.log('PASS ' + label); };
 
@@ -211,6 +211,48 @@ async function recoveryAssertions() {
   assert.deepEqual(await sourceDigest(), report.sourceBefore, 'Restoring must not mutate either 4.0.38 source database');
   report.recovery = {...saved, note: {id: saved.note.id, type: saved.note.type, textLength: saved.note.text.length, x: saved.note.x, y: saved.note.y}, chat: {messages: saved.chat.length, exactBodies: true}};
   record('4.0.38 edits, deletions, new desks, exact media and chat bodies recover into the full workspace; source databases remain unchanged');
+}
+async function readableNoteAssertions(deskId, objectId, label) {
+  const initialTheme = await editor.evaluate(() => state.theme);
+  const observation = {label, deskId, objectId, initialTheme, themes: []};
+  report.readability.push(observation);
+  try {
+    await editor.evaluate(({deskId, objectId}) => {
+      if (project()?.id !== deskId) openProject(deskId);
+      const object = objects().find(item => item.id === objectId);
+      if (!object) throw Error('Missing readability fixture: ' + objectId);
+      selectObject(objectId); focusObject(object);
+    }, {deskId, objectId});
+    for (const theme of ['dark', 'light']) {
+      await editor.evaluate(theme => { state.theme = theme; applyTheme(); renderAll(true); }, theme);
+      await settle();
+      const measured = await editor.evaluate(objectId => {
+        const body = document.querySelector('.canvas-object[data-id="' + CSS.escape(objectId) + '"] [data-field="text"]');
+        if (!body) throw Error('Missing rendered note body: ' + objectId);
+        const probe = document.createElement('span');
+        probe.style.cssText = 'position:fixed;left:-10000px;color:var(--text)!important';
+        document.body.appendChild(probe);
+        const expectedColor = getComputedStyle(probe).color;
+        probe.remove();
+        const style = getComputedStyle(body), rect = body.getBoundingClientRect();
+        return {theme: document.documentElement.dataset.theme, textLength: body.textContent.trim().length,
+          color: style.color, expectedColor, opacity: style.opacity,
+          visible: rect.width > 0 && rect.height > 0 && style.visibility === 'visible' && style.display !== 'none'};
+      }, objectId);
+      observation.themes.push(measured);
+      assert.equal(measured.theme, theme, label + ' applies the requested theme');
+      assert(measured.textLength > 0, label + ' renders nonempty body text');
+      assert.equal(measured.visible, true, label + ' renders a visible body');
+      assert.equal(measured.color, measured.expectedColor, label + ' body follows --text in ' + theme + ' theme');
+    }
+    assert.notEqual(observation.themes[0].expectedColor, observation.themes[1].expectedColor,
+      label + ' exercises distinct dark and light text colors');
+  } finally {
+    await editor.evaluate(theme => { state.theme = theme; applyTheme(); renderAll(true); }, initialTheme);
+    await settle();
+  }
+  assert.equal(await editor.evaluate(() => state.theme), initialTheme, label + ' restores the initial theme');
+  record(label + ' has visible, nonempty text matching the active dark and light theme');
 }
 async function headerRects() {
   return editor.evaluate(() => {
@@ -421,7 +463,7 @@ async function clipboardAssertions() {
     const blob = await (await fetch(image.src)).blob(), bitmap = await createImageBitmap(blob), canvas = document.createElement('canvas');
     canvas.width = bitmap.width; canvas.height = bitmap.height; const ctx = canvas.getContext('2d'); ctx.drawImage(bitmap, 0, 0); bitmap.close();
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    return {matches: matches.length, baseline: p.objects.some(o => o.text === baseline), width: canvas.width, height: canvas.height,
+    return {matches: matches.length, textId: matches[0]?.id, baseline: p.objects.some(o => o.text === baseline), width: canvas.width, height: canvas.height,
       pixelHash: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', pixels)), b => b.toString(16).padStart(2, '0')).join('')};
   }, {text, baseline});
   assert.equal(saved.matches, 1); assert.equal(saved.baseline, false); assert.equal(saved.width, expectedImage.width);
@@ -436,6 +478,7 @@ async function clipboardAssertions() {
   assert.equal(await editor.evaluate(text => state.projects.some(p => p.objects.some(o => o.text === text)), pausedText), false);
   report.clipboard = {nativeClipboard: true, editorClosedDuringCapture: true, capturedText: saved.matches, exactImagePixels: saved.pixelHash, baselineSkipped: !saved.baseline};
   record('real text and PNG copies are captured once with the editor closed, retain exact pixels, import on reopen and pause prevents new captures');
+  await readableNoteAssertions(newDesk, saved.textId, 'New clipboard note');
 }
 async function main() {
   fs.mkdirSync(artifacts, {recursive: true}); fs.mkdirSync(installed, {recursive: true});
@@ -467,6 +510,7 @@ async function main() {
   assert.equal(tools.workdesk, 'true'); assert.equal(tools.markdown, true); assert.equal(tools.layers, true);
   assert(tools.scripts >= 46); report.tools = tools;
   record('the original Workdesk shell and all retained tool modules load in the real extension');
+  await readableNoteAssertions(newDesk, 'restore439-new-note', 'New note restored from 4.0.38');
   await geometryAssertions(); await canvasAssertions(); await clipboardAssertions();
   assert.deepEqual(await sourceDigest(), report.sourceBefore, 'Normal restored use leaves the 4.0.38 source databases untouched');
   assert.equal(contextClosed, false); assert.deepEqual(crashes, []); assert.deepEqual(workerErrors, []); assert.deepEqual(errors, []);

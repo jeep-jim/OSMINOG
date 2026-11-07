@@ -65,7 +65,7 @@ if(!item){await acknowledgeCapture(entry);continue}
 if(entry.legacy&&await globalThis.OSMINOGRestore438?.skipLegacyCapture(item)){await acknowledgeCapture(entry);changed=true;continue}
 if(typeof item.id!=='string'||!item.id||!['image','text','file'].includes(item.kind)||typeof item.value!=='string'||!item.value)throw Error('Повреждён материал в очереди');
 const p=state.projects.find(p=>p.id===item.projectId),f=item.folderId?p?.osminogFolders?.find(f=>f.id===item.folderId):null;if(!p)throw Error('Стол для сохранения не найден');if(item.folderId&&!f)throw Error('Папка для сохранения не найдена');
-if(!p.objects.some(o=>o.captureId===item.id)){const props=item.kind==='image'?{src:item.value,name:item.fileName||t('screen'),w:480,h:320,fillEnabled:false,strokeEnabled:false}:item.kind==='file'?{src:item.value,name:item.fileName||'Файл',fileName:item.fileName||'Файл',mime:item.mime||'application/octet-stream',size:item.size||0}:{title:t('text'),text:item.value,name:item.value.slice(0,60)};
+if(!p.objects.some(o=>o.captureId===item.id)){const props=item.kind==='image'?{src:item.value,name:item.fileName||t('screen'),w:480,h:320,fillEnabled:false,strokeEnabled:false}:item.kind==='file'?{src:item.value,name:item.fileName||'Файл',fileName:item.fileName||'Файл',mime:item.mime||'application/octet-stream',size:item.size||0}:{title:t('text'),text:item.value,name:item.value.slice(0,60),textColor:null};
 if(item.kind==='image'){
  let size=null;
  if(item.value.startsWith('data:image/png;base64,')){

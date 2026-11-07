@@ -137,7 +137,11 @@
       if (previous && Object.hasOwn(previous, saved) && !Object.hasOwn(previous, field)) delete original[field];
     }
     const type = item.legacySource && original.type ? original.type : item.type === 'text' ? 'brief' : item.type || original.type || 'brief';
-    const object = {...newObject(type), ...original, type, id: String(previous?.id || item.sourceId || item.id)};
+    const defaults = newObject(type);
+    // Newly created Lite text has no fixed canvas styling. Follow the theme
+    // surface while retaining every explicit color and legacy background.
+    if (!item.legacySource && type === 'brief' && original.themeSurface !== false && original.fillMode !== 'custom' && !Object.hasOwn(original, 'textColor')) defaults.textColor = null;
+    const object = {...defaults, ...original, type, id: String(previous?.id || item.sourceId || item.id)};
     for (const key of ['name', 'title', 'fileName', 'mime', 'size', 'x', 'y', 'w', 'h', 'rotation', 'captureId', 'captureHash', 'capturedAt', 'createdAt']) {
       if (Object.hasOwn(item, key) && item[key] !== undefined) object[key] = item[key];
     }

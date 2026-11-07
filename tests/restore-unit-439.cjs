@@ -9,6 +9,23 @@ const context = vm.createContext({console, Blob, Uint8Array, TextEncoder, crypto
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'osminog-restore-438.js'), 'utf8'), context);
 const T = context.OSMINOGRestore438.__test, core = {objectStoreNames: {contains: () => false}};
 const plain = value => JSON.parse(JSON.stringify(value));
+test('only new Lite theme briefs inherit the theme text color; existing styles and custom backgrounds remain intact', async () => {
+  const item = {id: 'new-text', type: 'text', text: 'Created in 4.0.38'};
+  const created = await T.mergeObject(core, item);
+  assert.equal(created.type, 'brief'); assert.equal(created.themeSurface, true); assert.equal(created.textColor, null);
+  const existing = {id: 'styled', type: 'brief', themeSurface: true, textColor: '#202633', fill: '#ffffff'};
+  const legacy = await T.mergeObject(core, {...item, id: 'styled', legacySource: 'workspace:desk'}, existing);
+  assert.equal(legacy.textColor, '#202633'); assert.equal(legacy.fill, '#ffffff');
+  const explicit = await T.mergeObject(core, item, {textColor: '#f7a912'});
+  assert.equal(explicit.textColor, '#f7a912');
+  const custom = await T.mergeObject(core, item, {fillMode: 'custom', fill: '#ffffff'});
+  assert.equal(custom.textColor, '#202633'); assert.equal(custom.fill, '#ffffff');
+  const fixed = await T.mergeObject(core, item, {themeSurface: false, fill: '#ffffff'});
+  assert.equal(fixed.textColor, '#202633'); assert.equal(fixed.themeSurface, false);
+  const unstyledLegacy = await T.mergeObject(core, {...item, legacySource: 'workspace:desk'}, {type: 'brief'});
+  assert.equal(unstyledLegacy.textColor, '#202633');
+  assert.equal(existing.textColor, '#202633', 'original source style is not changed');
+});
 test('Lite text edits replace obsolete rich HTML while preserving its original and all unknown style data', async () => {
   const original = {id: 'note', type: 'note', html: '<b>old body</b>', titleHtml: '<i>old title</i>', custom: {nested: 17}};
   const merged = await T.mergeObject(core, {id: 'note', legacySource: 'workspace:desk', type: 'text', text: 'edited in 4.0.38', title: 'new title'}, original);
