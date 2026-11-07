@@ -59,6 +59,7 @@ jobs:
       - run: python3 tools/prepare_ocr.py
       - run: node tests/workspace-423.cjs
       - run: node tests/workspace-performance-424.cjs
+      - run: node tests/folder-count-performance-436.cjs
       - run: node tests/workspace-ux-435.cjs
       - run: node tests/library-420.cjs
       - run: node tests/clipboard-library-421.cjs
@@ -146,6 +147,8 @@ jobs:
             artifacts/*.png
             artifacts/workspace-423-results.json
             artifacts/workspace-424-results.json
+            artifacts/folder-count-436-results.json
+            artifacts/folder-count-436-failure.png
             artifacts/workspace-ux-435-results.json
             artifacts/workspace-ux-435-failure.png
             artifacts/io-extension-425-results.json
