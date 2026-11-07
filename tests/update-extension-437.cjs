@@ -7,8 +7,10 @@
  * The selected directory is a disposable copy of the complete extension. CDP
  * supplies a native directory drag/drop; Chrome creates and serializes the real
  * FileSystemDirectoryHandle. No filesystem, storage or reload API is replaced.
- * A final probe simulates an external repair by replacing this disposable copy
- * from Node, then tests whether a newly opened popup loads the new on-disk code.
+ * The recovery HTML receives another native drop handle through a consent-only
+ * showDirectoryPicker fixture; its real choose/install handlers write the files.
+ * The native picker dialog itself is not exercised. A separate read-only probe
+ * fetches one pinned public ZIP to verify the helper's real file-origin CORS path.
  * This does not certify the old updater or the owner's Windows installation.
  */
 'use strict';
@@ -38,13 +40,18 @@ const pendingKey = 'briefCraftReopenAfterUpdateV1';
 const sentinelOrigin = 'https://update-sentinel.osminog.test';
 const sentinelText = 'Unsaved browser work must survive the OSMINOG update.';
 const retainedText = 'This note and its folder must survive every update.';
+const publicArchive = {
+  url: 'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/13c19d72cbbf4ed83c168e7d39a91e3df879942f/platforms/chrome-extension/releases/4.0.36/OSMINOG-Chrome-4.0.36.zip',
+  size: 9526265,
+  sha256: '3c71da62b7556d6cbf281441f311494957ae14108f46e9c2baa61c79a138da9b'
+};
 const excluded = new Set([
   '.git', '.github', 'artifacts', 'desktop', 'android', 'versions', 'tools', 'tests',
   'docs', 'node_modules', 'project-log-archive', 'logs', 'test-results', '__pycache__'
 ]);
 const runtimeFiles = [];
 const checks = [], lifecycle = [], pageErrors = [];
-const networkFixture = {feedResponses: 0, packageResponses: 0, aborted: 0};
+const networkFixture = {feedResponses: 0, packageResponses: 0, aborted: 0, publicArchiveRequests: 0, packageOrigins: []};
 const report = {
   scope: 'candidate updater in real Chromium; disposable native extension folder',
   legacyUpdaterExecuted: false,
@@ -57,7 +64,7 @@ const report = {
   networkFixture,
   updates: []
 };
-let context, editor, sentinel, feedPackage, packageGate, closing = false, contextClosed = false;
+let context, editor, sentinel, feedPackage, packageGate, closing = false, contextClosed = false, helperPackageFallback = false;
 let packageRequests = 0;
 let ids;
 
@@ -176,7 +183,7 @@ async function ready(page) {
 
 async function nativeFolderSetup() {
   const setup = await context.newPage();
-  await setup.goto(`${origin}/__update-test-setup.html`);
+  await setup.goto(`${origin}/update-test-setup.html`);
   await setup.evaluate(() => {
     globalThis.fixtureDrop = {pending: true};
     addEventListener('dragover', event => event.preventDefault());
@@ -236,6 +243,7 @@ async function nativeFolderSetup() {
   fs.unlinkSync(path.join(installed, '__native-write-probe.txt'));
   report.directoryHandle = outcome;
   await cdp.detach(); await setup.close();
+  fs.unlinkSync(path.join(installed, 'update-test-setup.html'));
   record('Chrome grants and persists a native handle to the disposable installed directory');
 }
 
@@ -272,6 +280,82 @@ async function recoveryPageStartup() {
   assert.equal(result.available, true); assert.equal(result.releaseVersion, feedPackage.version);
   await helper.close();
   record('standalone file:// recovery executes under its real CSP and uses Web Locks, IndexedDB and the fixture feed');
+}
+
+async function installWithRecoveryPage(version) {
+  feedPackage = makePackage(version);
+  const helper = await context.newPage();
+  await helper.goto(pathToFileURL(path.join(root, 'artifacts', 'OSMINOG-Update-Recovery.html')).href);
+  await helper.waitForFunction(() => !!globalThis.OSMINOGFolderUpdater);
+  const live = await helper.evaluate(async archive => {
+    const bytes = await OSMINOGFolderUpdater.__test.fetchBytes(archive.url, {limit: archive.size, timeout: 60000});
+    return {bytes: bytes.byteLength, sha256: await OSMINOGFolderUpdater.__test.sha256(bytes)};
+  }, publicArchive);
+  report.publicArchiveProbe = {...live, url: publicArchive.url, source: 'real network; immutable registry commit', installed: false};
+  assert.equal(live.bytes, publicArchive.size); assert.equal(live.sha256, publicArchive.sha256);
+  record('file:// recovery reads the real pinned public raw ZIP under CSP and verifies its exact size/SHA-256');
+
+  await helper.evaluate(() => {
+    globalThis.fixtureDrop = {pending: true};
+    addEventListener('dragover', event => event.preventDefault());
+    addEventListener('drop', async event => {
+      event.preventDefault();
+      try {
+        const pending = event.dataTransfer.items[0].getAsFileSystemHandle();
+        const handle = await pending;
+        if (!(handle instanceof FileSystemDirectoryHandle)) throw Error('Recovery fixture needs a native directory handle');
+        const read = await handle.queryPermission({mode: 'read'});
+        const write = await handle.queryPermission({mode: 'readwrite'});
+        if (read !== 'granted' || write !== 'granted') throw Error(`Recovery directory consent failed: ${read}/${write}`);
+        globalThis.fixturePickerCalls = 0;
+        // Replace only native-dialog selection. The returned handle, subsequent
+        // permission queries and every read/write/IDB operation remain native.
+        globalThis.showDirectoryPicker = async () => { fixturePickerCalls++; return handle; };
+        globalThis.fixtureDrop = {pending: false, native: true, name: handle.name, read, write};
+      } catch (error) { globalThis.fixtureDrop = {pending: false, error: error.message}; }
+    }, {once: true});
+  });
+  const cdp = await context.newCDPSession(helper);
+  const data = {items: [], files: [installed], dragOperationsMask: 1};
+  for (const type of ['dragEnter', 'dragOver', 'drop']) await cdp.send('Input.dispatchDragEvent', {type, x: 160, y: 160, data});
+  await helper.waitForFunction(() => !fixtureDrop.pending);
+  const handle = await helper.evaluate(() => fixtureDrop);
+  assert.equal(handle.error, undefined, handle.error); assert.equal(handle.native, true);
+  await cdp.detach();
+  await helper.locator('#chooseFolder').click();
+  await helper.waitForFunction(version => document.querySelector('#targetVersion').textContent === version &&
+    !document.querySelector('#installUpdate').disabled, version);
+  assert.equal(await helper.evaluate(() => fixturePickerCalls), 1);
+  const before = packageRequests, originsBefore = networkFixture.packageOrigins.length;
+  let unblock;
+  packageGate = new Promise(resolve => { unblock = resolve; });
+  helperPackageFallback = true;
+  await helper.locator('#installUpdate').click({clickCount: 2, delay: 20});
+  const downloadDeadline = Date.now() + 15000;
+  while (packageRequests === before && Date.now() < downloadDeadline) await delay(50);
+  assert.equal(packageRequests, before + 1);
+  assert.equal(await helper.locator('#installUpdate').isDisabled(), true);
+  await helper.locator('#installUpdate').evaluate(button => button.click());
+  unblock(); packageGate = null;
+  await helper.waitForFunction(() => ['success', 'error'].includes(document.querySelector('#statusPanel').dataset.kind), null, {timeout: 150000});
+  assert.equal(await helper.locator('#statusPanel').getAttribute('data-kind'), 'success',
+    await helper.locator('#statusDetail').innerText());
+  assert.equal(await helper.locator('#nextSteps').isVisible(), true);
+  helperPackageFallback = false;
+  const origins = networkFixture.packageOrigins.slice(originsBefore);
+  assert.deepEqual(origins, ['https://github.com', 'https://raw.githubusercontent.com'],
+    'File-origin update must reject the primary response without ACAO and use exactly one raw fallback');
+  assert.equal(packageRequests - before, 2, 'One helper installation uses one failed primary and one verified fallback');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(installed, 'manifest.json'), 'utf8')).version, version);
+  assert.equal(fs.existsSync(path.join(installed, '.osminog-update.pending.json')), false);
+  const diagnostics = await helper.evaluate(() => OSMINOGFolderUpdater.diagnostics());
+  assert.equal(diagnostics.pending, null); assert.equal(diagnostics.installed.to, version);
+  assert.equal(await editor.evaluate(() => chrome.runtime.getManifest().version), nextVersion(2),
+    'The helper must not reload the extension on its own');
+  report.helperInstall = {version, handle, diagnostics, packageOrigins: origins, nativePickerDialogExercised: false};
+  await helper.screenshot({path: path.join(artifacts, 'update-recovery-437.png')});
+  await helper.close();
+  record('real recovery choose/install UI updates native files from file:// with raw fallback and no automatic extension reload');
 }
 
 async function persistedSnapshot(page) {
@@ -398,6 +482,8 @@ async function diagnostics() {
         pending: globalThis.chrome?.storage?.local ? (await chrome.storage.local.get(key))[key] : null,
         status: document.querySelector('#updateStatusText')?.textContent,
         detail: document.querySelector('#updateStatusSub')?.textContent,
+        recoveryStatus: document.querySelector('#statusTitle')?.textContent,
+        recoveryDetail: document.querySelector('#statusDetail')?.textContent,
         updater: globalThis.OSMINOGFolderUpdater?.diagnostics ? await OSMINOGFolderUpdater.diagnostics() : null
       }), pendingKey);
       if (isEditor(page.url())) await page.screenshot({path: path.join(artifacts, 'update-extension-437-failure.png')});
@@ -444,17 +530,18 @@ async function diagnostics() {
 async function main() {
   fs.mkdirSync(artifacts, {recursive: true});
   copyRuntime();
-  fs.writeFileSync(path.join(installed, '__update-test-setup.html'), '<!doctype html><meta charset="utf-8"><title>Native updater directory fixture</title><p>Disposable fixture directory drop target</p>');
+  fs.writeFileSync(path.join(installed, 'update-test-setup.html'), '<!doctype html><meta charset="utf-8"><title>Native updater directory fixture</title><p>Disposable fixture directory drop target</p>');
   fs.mkdirSync(path.join(installed, 'user-documents'));
   fs.writeFileSync(path.join(installed, 'user-documents', 'keep.txt'), 'not an extension file');
   const sparse = fs.openSync(path.join(installed, 'user-documents', 'large-sparse.bin'), 'w');
   fs.ftruncateSync(sparse, 256 * 1024 * 1024); fs.closeSync(sparse);
   fs.mkdirSync(path.join(profile, 'Default'), {recursive: true});
-  // Pre-authorize only this fixture extension origin in the disposable profile.
+  // Pre-authorize directory consent for the extension and local helper only in
+  // this disposable profile. The actual native handles still come from a drop.
   // Chrome supports ALLOW for per-origin file-system guards, but not as their
   // global default. No existing browser profile or its permissions is changed.
-  const consent = {[`${origin},*`]: {setting: 1,
-    last_modified: String(BigInt(Date.now()) * 1000n + 11644473600000000n)}};
+  const permissionSetting = {setting: 1, last_modified: String(BigInt(Date.now()) * 1000n + 11644473600000000n)};
+  const consent = {[`${origin},*`]: permissionSetting, 'file:///*,*': permissionSetting};
   fs.writeFileSync(path.join(profile, 'Default', 'Preferences'), JSON.stringify({
     profile: {content_settings: {exceptions: {file_system_read_guard: consent, file_system_write_guard: consent}}}
   }));
@@ -479,6 +566,7 @@ async function main() {
   // gains a trailing slash. RegExp matches the full feed/package paths too.
   await context.route(/^https?:\/\//, async route => {
     const url = new URL(route.request().url());
+    if (url.href === publicArchive.url) { networkFixture.publicArchiveRequests++; return route.continue(); }
     if (url.origin === sentinelOrigin) return route.fulfill({contentType: 'text/html', body: '<!doctype html><title>Unrelated unsaved work</title><textarea id="draft"></textarea>'});
     if (url.pathname.endsWith('/channels/dev/chrome-extension.json')) {
       networkFixture.feedResponses++;
@@ -489,9 +577,15 @@ async function main() {
     if (url.pathname.endsWith('/' + feedPackage.name)) {
       packageRequests++;
       networkFixture.packageResponses++;
+      networkFixture.packageOrigins.push(url.origin);
       const selected = feedPackage;
       const gate = packageGate;
       if (gate) await gate;
+      if (helperPackageFallback && url.hostname === 'github.com') {
+        // GitHub's release-asset response has no ACAO. Exercise actual browser
+        // CORS rejection, then the updater's CORS-enabled immutable raw mirror.
+        return route.fulfill({contentType: 'application/zip', body: selected.body});
+      }
       return route.fulfill({contentType: 'application/zip', headers: {'access-control-allow-origin': '*'}, body: selected.body});
     }
     networkFixture.aborted++;
@@ -569,21 +663,15 @@ async function main() {
   assert.equal(contextClosed, false);
   record('updating from the only remaining popup keeps Chrome alive and restores exactly one editor');
 
-  // Bootstrap/cache probe: code loaded by the old popup is definitely different.
-  // Node stands in for an already completed external repair here; it is not the
-  // mechanism used by the two product-button installation scenarios above.
+  // Bootstrap/cache fixture: the popup code loaded before external repair is
+  // deliberately different. The real helper UI performs the complete repair.
   fs.writeFileSync(path.join(installed, 'popup.html'), '<!doctype html><title>Legacy popup fixture</title><script src="popup.js"></script>');
   fs.writeFileSync(path.join(installed, 'popup.js'), 'document.documentElement.dataset.legacyPopupFixture="loaded";');
   const legacyPopup = await context.newPage(); await legacyPopup.goto(popupURL);
   await legacyPopup.waitForFunction(() => document.documentElement.dataset.legacyPopupFixture === 'loaded');
   assert.equal(await legacyPopup.evaluate(() => chrome.runtime.getManifest().version), nextVersion(2));
   await legacyPopup.close();
-  feedPackage = makePackage(nextVersion(3));
-  for (const [name, bytes] of feedPackage.entries) {
-    if (name === 'manifest.json') continue;
-    fs.writeFileSync(path.join(installed, name), bytes);
-  }
-  fs.writeFileSync(path.join(installed, 'manifest.json'), feedPackage.entries.find(([name]) => name === 'manifest.json')[1]);
+  await installWithRecoveryPage(nextVersion(3));
   const repairedPopup = await context.newPage(); await repairedPopup.goto(popupURL);
   assert.equal(await repairedPopup.evaluate(() => chrome.runtime.getManifest().version), nextVersion(2), 'Disk repair must not silently reload the extension');
   const disk = await repairedPopup.evaluate(async () => (await (await fetch(chrome.runtime.getURL('manifest.json'), {cache: 'no-store'})).json()).version);
@@ -596,7 +684,8 @@ async function main() {
   await repairedPopup.locator('#open').click();
   await assertUpdated(nextVersion(3), downloadsBeforeBootstrap, 0);
   record('a newly opened popup loads repaired on-disk code and completes the update without the legacy updater');
-  report.bootstrap = {diskVersionBeforeReload: disk, runtimeVersionBeforeReload: nextVersion(2), simulatedExternalFileReplacement: true};
+  report.bootstrap = {diskVersionBeforeReload: disk, runtimeVersionBeforeReload: nextVersion(2),
+    externalInstallation: 'real recovery HTML choose/install UI with native directory handle', nativePickerDialogExercised: false};
 
   assert.deepEqual(pageErrors, [], 'Extension pages must not throw unhandled errors during update/recovery');
   await editor.screenshot({path: path.join(artifacts, 'update-extension-437.png')});
