@@ -1,3 +1,11 @@
+# Архивное направление — встроенный браузер отменён владельцем 07.11.2026
+
+**Статус: RETIRED / НЕ РАЗРАБАТЫВАТЬ.** Владелец отменил встроенный универсальный браузер OSMINOG и потребовал удалить его из Chrome-расширения, а не просто скрыть интерфейс. Это решение supersedes all earlier browser roadmap entries below; they are retained only as historical context.
+
+Удаляются browser app, web-stage/popup, навигация/URL UI, page editor, browser automation tools and their runtime wiring. Independent AI provider sessions and provider connection settings remain; ordinary external links may open in the user's regular Chrome. Project data is not deleted. Do not reintroduce the browser without a new explicit request.
+
+---
+
 # OSMINOG — браузер: roadmap и ежедневный журнал
 
 Главный файл текущей разработки. В начале работы читать актуальное состояние и последние записи; после работы дописывать результат, проверку и точку продолжения. Даты — Asia/Krasnoyarsk. Старые записи не переписывать; исправления оформлять следующей записью.
