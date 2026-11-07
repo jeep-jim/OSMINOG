@@ -3,7 +3,7 @@
   if(globalThis.__osminogWindowManagerV3)return;
   globalThis.__osminogWindowManagerV3=true;
   const STORAGE_KEY="osminogWindowManagerV3",dirs=["n","e","s","w","ne","se","sw","nw"],windows=new Map();
-  const CORE_WINDOWS=new Set(["ai-chat","graphics-app","text-app","browser-app","files","module-store","team","code-app","browser-hub","markdown","modules","store-developer","google-ai","access-center","extension-studio"]);
+  const CORE_WINDOWS=new Set(["ai-chat","graphics-app","text-app","files","module-store","team","code-app","markdown","modules","store-developer","google-ai","access-center","extension-studio"]);
   let state={},saveTimer=0,z=30000,lastAction={x:innerWidth/2,y:innerHeight/2,at:0};
   const $=(s,r=document)=>typeof s==="string"?r.querySelector(s):s;
   const projectKey=()=>globalThis.project?.()?.id||"global";
