@@ -14,7 +14,7 @@ public class VisionTest {
   scenario=ActivityScenario.launch(MainActivity.class);scenario.onActivity(x->a=x);
   until(()->"true".equals(eval(a.shell,"!!window.OSMINOG?.nativeReady")));
   eval(a.shell,"window.__previousTestDocument=true;localStorage.clear();localStorage.setItem('osminogMotion','off');location.reload()");
-  until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.2'")));
+  until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.3'")));
   Thread.sleep(300);eval(a.shell,"OSMINOG.receive({type:'clear'})");
  }
  @After public void tearDown(){if(scenario!=null)scenario.close();}
