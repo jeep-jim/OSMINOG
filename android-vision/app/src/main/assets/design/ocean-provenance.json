@@ -1,0 +1,19 @@
+{
+  "source": "Untitled (2).fig",
+  "sha256": "49bdfce4541efa70547af5ae8d6bed1cc6e59c176de832ff1f73523ba60b10c6",
+  "node": "1018:1336",
+  "commandsBlob": 409,
+  "files": {
+    "ocean-compass.svg": "d44886620f3495e55cc60018a14cd3e3926968d9fe1db654c38ef8b063c823c3"
+  },
+  "frames": [
+    "1017:993",
+    "1018:1286",
+    "1017:994",
+    "1017:1074"
+  ],
+  "referenceSize": [
+    390,
+    844
+  ]
+}
