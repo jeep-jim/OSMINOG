@@ -481,7 +481,61 @@ window.addEventListener('message',e => {
     $('update').onclick = () => window.OceanPort.postMessage(JSON.stringify({type:'checkUpdate'}));
   }
 });
+
+/* Welcome language and theme preferences. The splash is shown once per install. */
+const welcomeCopy = {
+ ru:{lines:['Разбуди меня от сна','просто потянув тачскрин','я подниму с морского дна','то, что скрывает глубина'],hint:'Потяни экран, чтобы войти',label:'Выбери язык'},
+ en:{lines:['Wake me from my sleep','with a gentle swipe','I will rise from the ocean floor','what the deep keeps hidden'],hint:'Swipe to enter',label:'Choose your language'},
+ zh:{lines:['唤醒沉睡中的我','只需轻轻滑动屏幕','我将从海底升起','带来深海隐藏的一切'],hint:'滑动屏幕进入',label:'选择语言'},
+ ja:{lines:['眠る私を目覚めさせて','画面をそっとなぞって','海の底からすくい上げる','深海に隠されたものを'],hint:'スワイプして始める',label:'言語を選択'},
+ ko:{lines:['잠든 나를 깨워 줘','화면을 살며시 쓸어 올려','바다 깊은 곳에서 건져 올릴게','깊은 곳에 숨겨진 것들을'],hint:'밀어서 시작하기',label:'언어 선택'},
+ ar:{lines:['أيقظني من سباتي','بتمريرة لطيفة على الشاشة','سأصعد من قاع البحر','بما تخفيه الأعماق'],hint:'اسحب للدخول',label:'اختر لغتك'},
+ es:{lines:['Despiértame de mi sueño','con un suave deslizamiento','subiré desde el fondo del mar','lo que esconde la profundidad'],hint:'Desliza para entrar',label:'Elige tu idioma'},
+ pt:{lines:['Desperta-me do meu sono','com um leve movimento na tela','vou subir do fundo do mar','o que a profundidade esconde'],hint:'Deslize para entrar',label:'Escolha seu idioma'},
+ de:{lines:['Weck mich aus dem Schlaf','mit einer sanften Wischbewegung','ich steige vom Meeresgrund empor','was die Tiefe verborgen hält'],hint:'Wischen zum Eintreten',label:'Sprache auswählen'},
+ fr:{lines:['Réveille-moi de mon sommeil','d’un simple glissement','je remonterai des fonds marins','ce que les profondeurs cachent'],hint:'Glissez pour entrer',label:'Choisissez votre langue'}
+};
+function applyOceanTheme(theme){
+  const selected=theme==='blue'?'blue':'dark';
+  document.body.classList.toggle('theme-dark',selected==='dark');
+  document.body.dataset.theme=selected;
+  try{localStorage.setItem('ocean:theme',selected);}catch{}
+  const choice=$('themeChoice');if(choice)choice.value=selected;
+  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=selected==='dark'?'#071522':'#064579';
+}
+function setWelcomeLanguage(code){
+  const selected=welcomeCopy[code]?code:'en',copy=welcomeCopy[selected];
+  $('splashPoem').replaceChildren(...copy.lines.map((line,i)=>{const p=el('p','',line);p.style.animationDelay=(i*.55)+'s';return p;}));
+  $('splashPoem').lang=selected;$('splashPoem').dir=selected==='ar'?'rtl':'auto';
+  $('splashHint').textContent=copy.hint;$('languageLabel').textContent=copy.label;
+  document.documentElement.lang=selected;
+  try{localStorage.setItem('ocean:language',selected);}catch{}
+}
+function wakeOcean(){
+  if(!$('splash')||$('splash').classList.contains('leaving'))return;
+  try{localStorage.setItem('ocean:onboarded','1');}catch{}
+  $('splash').classList.add('leaving');document.body.classList.remove('splash-active');
+  setTimeout(()=>$('splash')?.remove(),950);
+}
+function initWelcome(){
+  let language='en',theme='dark',onboarded=false;
+  try{language=localStorage.getItem('ocean:language')||'en';theme=localStorage.getItem('ocean:theme')||'dark';onboarded=localStorage.getItem('ocean:onboarded')==='1';}catch{}
+  $('welcomeLanguage').value=welcomeCopy[language]?language:'en';setWelcomeLanguage($('welcomeLanguage').value);
+  $('welcomeLanguage').addEventListener('change',()=>setWelcomeLanguage($('welcomeLanguage').value));
+  applyOceanTheme(theme);
+  $('themeChoice')?.addEventListener('change',()=>applyOceanTheme($('themeChoice').value));
+  if(onboarded){$('splash').remove();return;}
+  document.body.classList.add('splash-active');
+  $('splashWake').addEventListener('click',wakeOcean);
+  let start=null;
+  $('splash').addEventListener('pointerdown',e=>{if(e.target.closest('select,button'))return;start={x:e.clientX,y:e.clientY};});
+  $('splash').addEventListener('pointerup',e=>{if(!start)return;const dy=start.y-e.clientY,dx=Math.abs(start.x-e.clientX);start=null;if(Math.abs(dy)>62&&dx<90)wakeOcean();});
+  $('splash').addEventListener('pointercancel',()=>start=null);
+}
+
 async function boot() {
+  initWelcome();
+  applyOceanTheme((()=>{try{return localStorage.getItem('ocean:theme')||'dark';}catch{return 'dark';}})());
   profile(); renderHome(); restoreDraft(); resetRoute();
   try {
     const s = await api('/api/session'); state.user = s.user; state.csrf = s.csrf; state.intelligence = s.intelligence || 'disabled'; state.session++;
