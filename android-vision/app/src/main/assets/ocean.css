@@ -6,3 +6,5 @@
 
 /* Infinite coordinate surface: pointer drag changes only one transform. */
 .ocean-field{display:block;position:relative;overflow:hidden;padding:0;touch-action:none;cursor:grab}.ocean-field:active{cursor:grabbing}.ocean-canvas{position:absolute;left:50%;top:45%;width:0;height:0;transform-origin:0 0}.thought-bubble{position:absolute;margin:-59px;cursor:pointer}.ocean-empty{position:absolute;top:40%;left:24px;right:24px;margin:0 auto;pointer-events:none}.ocean-empty button{pointer-events:auto}.card-open .ocean-empty{display:none}
+
+.thread-open .ocean-card{display:flex;flex-direction:column}.thread-open #discussion{display:flex;flex-direction:column;flex:1;min-height:180px}.thread-open #discussion>small{order:1;margin-bottom:12px}.thread-open #replyDraft{order:2;margin-top:auto;flex:none;position:relative;width:100%;opacity:1;pointer-events:auto;background:#c8e6ff26!important;min-height:50px;padding:15px}.thread-open .card-author{flex:none}.thread-open #cardText,.thread-open .card-media{flex:none}

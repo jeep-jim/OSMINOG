@@ -20,7 +20,7 @@ n=0
 for p in files:
  r=E.parse(p).getroot();n+=int(r.attrib['tests'])
  assert all(int(r.attrib.get(k,0))==0 for k in ('failures','errors','skipped')),p
-assert n>=28,n
+assert n>=29,n
 print('PERSONAL_MENU_TESTS_PASS',n)
 PY
 timeout 30s adb install -r app/build/outputs/apk/debug/app-debug.apk
