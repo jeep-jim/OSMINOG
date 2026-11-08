@@ -1,7 +1,7 @@
 'use strict';
-// OSMINOG 0.2.7: personal local space, no provider websites or fabricated replies.
+// OSMINOG 0.2.8: personal local space, no provider websites or fabricated replies.
 const $=id=>document.getElementById(id),STORE='osminogPersonalOceanV1';
-let port=null,menuOpen=false,paused=false,voice=false,cameraStream=null,cameraGeneration=0;
+let port=null,menuOpen=false,paused=false,voice=false,voiceSession=null,cameraStream=null,cameraGeneration=0;
 let selectedId=null,pendingFile=null,holdTimer=0,held=false,holdOrigin=null,cameraBusy=false;
 let motion=true,settingsExpanded=true,locale='ru',records=[];
 const preferences={name:'Планктон',avatar:'Vector.svg',photo:''};
@@ -17,7 +17,7 @@ function uid(){return globalThis.crypto?.randomUUID?.()||('m-'+Date.now()+'-'+Ma
 function state(kind){document.body.dataset.state=kind;const map={sleeping:'rgba(220,244,255,.13)',idle:'rgba(220,244,255,.13)',typing:'#ff3038',listening:'#63c8f3',error:'#e6a86b'};$('eye').style.setProperty('--eye-fill',map[kind]||map.idle);}
 function saveRecords(next){if(!persist(STORE,next))return false;records=next;return true;}
 function draftSave(){persist('osminogPersonalDraft',$('text').value);}
-function typing(){const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(input.value.trim()?'typing':voice?'listening':'sleeping');$('eye').setAttribute('aria-label',input.value.trim()?'Отправить личное сообщение':'Голосовой ввод');}
+function typing(){const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(voice?'listening':input.value.trim()?'typing':'sleeping');$('eye').setAttribute('aria-label',voice?'Завершить голосовой ввод':input.value.trim()?'Отправить личное сообщение':'Голосовой ввод');}
 function imageFor(avatar){return 'design/'+encodeURIComponent(avatar||'Vector.svg');}
 function renderAttachment(file,container){if(!file)return;if(file.type?.startsWith('image/')&&/^data:image\/(jpeg|png);base64,/.test(file.data||'')){const img=node('img','attachment-image');img.src=file.data;img.alt=file.name||'Вложение';container.append(img);}else if(file.name)container.append(node('small','attachment-link',file.name));}
 function render(){const list=$('messages');list.replaceChildren();document.body.classList.toggle('has-chat',records.length>0);
@@ -50,7 +50,7 @@ function confirmAction(title,text,action){$('confirmTitle').textContent=title;$(
 $('confirmCancel').onclick=()=>$('confirmDialog').close();$('editMessage').onclick=()=>{const r=selected();if(!r)return;$('actions').close();$('editText').value=r.text;$('editDialog').showModal();};
 $('saveEdit').onclick=()=>{const text=$('editText').value.trim();if(!text){notice('Сообщение не может быть пустым.');return;}if(saveRecords(records.map(r=>r.id===selectedId?{...r,text}:r))){$('editDialog').close();render();}};
 $('deleteMessage').onclick=()=>{$('actions').close();confirmAction('Удалить сообщение?','Удалится только эта личная запись на устройстве.',()=>{try{localStorage.removeItem('osminogReplyDraft:'+selectedId);}catch{notice('Не удалось удалить черновик ответа. Повтори удаление.');return false;}if(!saveRecords(records.filter(r=>r.id!==selectedId)))return false;render();});};
-function releaseIntent(id=null){const r=id?records.find(x=>x.id===id):null,text=(r?.text??$('text').value).trim();if(!text&&!pendingFile){notice('Сначала напиши намерение или добавь файл.');return;}if(!r&&records.length>=300){notice('Сначала удали ненужные локальные записи.');return;}
+function releaseIntent(id=null){const r=id?records.find(x=>x.id===id):null,text=(r?.text??$('text').value).trim();if(!text&&!(r?.file??pendingFile)){notice('Сначала напиши намерение или добавь файл.');return;}if(!r&&records.length>=300){notice('Сначала удали ненужные локальные записи.');return;}
  confirmAction('Выпустить в океан','Общий океан ещё не подключён. Можно сохранить это как личный черновик намерения. Другие люди его пока не увидят.',()=>{let next;if(r)next=records.map(x=>x.id===id?{...x,intent:true}:x);else next=[...records,{id:uid(),role:'user',text,intent:true,file:pendingFile,created:Date.now()}];if(!saveRecords(next))return false;if(!r){$('text').value='';pendingFile=null;attachmentPreview();draftSave();typing();}render();notice('Черновик намерения сохранён. В океан не опубликован.');return true;});
 }
 $('publishMessage').onclick=()=>{$('actions').close();releaseIntent(selectedId);};
@@ -58,8 +58,8 @@ $('attach').addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.but
 function clearHold(){clearTimeout(holdTimer);$('attach').classList.remove('holding');}
 $('attach').addEventListener('pointermove',e=>{if(holdOrigin&&Math.hypot(e.clientX-holdOrigin.x,e.clientY-holdOrigin.y)>16){clearHold();held=true;}});$('attach').addEventListener('pointerup',()=>{clearHold();holdOrigin=null;});$('attach').addEventListener('pointercancel',()=>{clearHold();held=true;holdOrigin=null;});
 $('attach').onclick=e=>{if(held){e.preventDefault();held=false;return;}$('attachmentDialog').showModal();};$('attach').addEventListener('contextmenu',e=>e.preventDefault());
-function ask(text){text=String(text||'').trim();if(!text&&!pendingFile)return false;if(records.length>=300){notice('Слишком много локальных записей. Удали ненужные перед отправкой.');return false;}const id=uid(),record={id,role:'user',text,created:Date.now(),file:pendingFile};if(!saveRecords([...records,record]))return false;pendingFile=null;attachmentPreview();render();emit('ask',{id,text,withCamera:!!record.file?.type?.startsWith('image/')});notice('Сообщение сохранено на устройстве. Внутренний ИИ ещё не подключён.');return true;}
-$('composer').onsubmit=e=>{e.preventDefault();if(!$('text').value.trim()&&!pendingFile){if(voice)stopVoice();else emit('voice',{language:locale});return;}if(ask($('text').value)){$('text').value='';draftSave();typing();}};$('text').oninput=()=>{draftSave();typing();};$('dismiss').onclick=()=>notice();
+function ask(text){text=String(text||'').trim();if(!text&&!pendingFile)return false;if(records.length>=300){notice('Слишком много локальных записей. Удали ненужные перед отправкой.');return false;}const id=uid(),record={id,role:'user',text,created:Date.now(),file:pendingFile};if(!saveRecords([...records,record]))return false;pendingFile=null;attachmentPreview();render();emit('ask',{id,text,withCamera:(Array.isArray(record.file)?record.file:[record.file]).some(f=>f?.type?.startsWith('image/'))});notice('Сообщение сохранено на устройстве. Внутренний ИИ ещё не подключён.');return true;}
+$('composer').onsubmit=e=>{e.preventDefault();if(voice){emit('finishVoice',{session:voiceSession?.id});return;}if(!$('text').value.trim()&&!pendingFile){startVoice();return;}if(ask($('text').value)){$('text').value='';draftSave();typing();}};$('text').oninput=()=>{draftSave();typing();};$('dismiss').onclick=()=>notice();
 for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>b.closest('dialog').close();
 async function imageData(file,size=1024){if(!file.type.startsWith('image/'))throw Error('Выбери изображение');const url=URL.createObjectURL(file);try{const img=new Image();img.src=url;await img.decode();const c=document.createElement('canvas'),scale=Math.min(1,size/Math.max(img.width,img.height));c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.78);}finally{URL.revokeObjectURL(url);}}
 $('avatarInput').onchange=async()=>{try{const f=$('avatarInput').files[0];if(!f)return;const photo=await imageData(f,256);if(persist('osminogProfileV1',{...preferences,photo})){preferences.photo=photo;renderProfile();render();}}catch(e){notice(e.message);}finally{$('avatarInput').value='';}};
@@ -70,7 +70,19 @@ function stopCamera(){cameraGeneration++;cameraBusy=false;if(cameraStream)camera
 async function startCamera(){if(cameraBusy)return;cameraBusy=true;const gen=++cameraGeneration;try{if(!navigator.mediaDevices?.getUserMedia)throw Error('Камера недоступна');const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});if(paused||document.hidden||gen!==cameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}cameraStream=stream;$('cameraVideo').srcObject=stream;$('cameraArea').hidden=false;$('cameraToggle').setAttribute('aria-checked','true');document.body.classList.add('camera');notice('Камера показывает изображение только тебе. Анализ ИИ пока не подключён.');}catch(e){notice('Камера не открылась: '+e.message);stopCamera();}finally{cameraBusy=false;}}
 $('cameraToggle').onclick=()=>{if(cameraStream||cameraBusy)stopCamera();else{setMenu(false);startCamera();}};$('openCamera').onclick=()=>{$('attachmentDialog').close();startCamera();};
 $('captureFrame').onclick=()=>{const v=$('cameraVideo');if(!v.videoWidth){notice('Камера ещё не готова.');return;}const c=document.createElement('canvas'),s=Math.min(1,1024/v.videoWidth);c.width=Math.round(v.videoWidth*s);c.height=Math.round(v.videoHeight*s);c.getContext('2d').drawImage(v,0,0,c.width,c.height);pendingFile={name:'Кадр камеры',type:'image/jpeg',data:c.toDataURL('image/jpeg',.78)};attachmentPreview();stopCamera();};
-function stopVoice(){if(voice)emit('stopVoice');voice=false;typing();}
+function startVoice(){
+ if(voice)return;
+ voiceSession={id:uid(),used:false};voice=true;typing();
+ if(!emit('voice',{language:locale,session:voiceSession.id})){voice=false;voiceSession=null;typing();}
+}
+function stopVoice(){if(voiceSession)emit('stopVoice');voice=false;voiceSession=null;$('voiceChoice')?.close();typing();}
+const voiceChoice=node('dialog');voiceChoice.id='voiceChoice';
+voiceChoice.append(node('h2','','Системный голосовой ввод'),node('p','','Локальное распознавание недоступно. Системный сервис Android может передавать звук своему провайдеру. Работа без сети зависит от установленного сервиса. Использовать его для этой записи?'));
+const voiceCancel=node('button','','Отмена'),voiceAccept=node('button','','Использовать');voiceAccept.id='voiceAccept';voiceCancel.id='voiceCancel';voiceChoice.append(voiceCancel,voiceAccept);document.body.append(voiceChoice);
+voiceCancel.onclick=()=>stopVoice();voiceChoice.addEventListener('cancel',()=>stopVoice());
+voiceChoice.addEventListener('close',()=>{if(voiceChoice.dataset.accepted!=='yes'&&voiceSession)stopVoice();voiceChoice.dataset.accepted='';});
+voiceAccept.onclick=()=>{voiceChoice.dataset.accepted='yes';voiceChoice.close();if(voiceSession)emit('voiceSystem',{session:voiceSession.id});};
+const dictateButton=node('button','','Голосовой ввод');dictateButton.id='dictateButton';dictateButton.type='button';$('pickFile').after(dictateButton);dictateButton.onclick=()=>{$('attachmentDialog').close();startVoice();};
 $('updateButton').onclick=()=>emit('checkUpdate');$('updateNow').onclick=()=>emit('downloadUpdate');$('installPermissionOpen').onclick=()=>emit('installSettings');
 $('legacyButton').onclick=()=>{const target=$('legacyMessages');target.replaceChildren();const h=read('osminogVisionHistoryV2',{});let count=0;if(h&&typeof h==='object')for(const entries of Object.values(h)){if(!Array.isArray(entries))continue;for(const item of entries){if(typeof item?.text!=='string')continue;target.append(node('article','',item.text));count++;}}if(!count){const h=read('osminogVisionHistory',[]);if(Array.isArray(h))for(const item of h){if(typeof item?.text==='string'){target.append(node('article','',item.text));count++;}}}if(!count)target.append(node('p','','Сохранённых прежних сообщений нет.'));$('legacyDialog').showModal();};
 const swimmers=[],particles=[['Group 26.svg',81,25,23,22],['Group 28.svg',8,74,34,33],['Vector.svg',64,60,52,21],['Vector-3.svg',14,43,42,42],['Group 29.svg',79,18,30,60],['Polygon 2.svg',73,46,42,37],['Star 35.svg',87,79,37,37],['Vector-1.svg',57,49,28,24]];
@@ -79,10 +91,15 @@ function swim(s){if(!motion||paused||document.hidden||menuOpen)return;const x=(M
 function refreshMotion(){const run=motion&&!paused&&!document.hidden&&!menuOpen&&!matchMedia('(prefers-reduced-motion: reduce)').matches;document.body.classList.toggle('motion-off',!run);for(const s of swimmers){if(run){if(s.animation)s.animation.play();else swim(s);}else s.animation?.pause();}$('motionToggle').setAttribute('aria-checked',String(motion));}
 $('motionToggle').onclick=()=>{motion=!motion;try{localStorage.setItem('osminogMotion',motion?'on':'off');}catch{}refreshMotion();};
 window.OSMINOG={nativeReady:false,receive(event){if(!event||typeof event.type!=='string')return;switch(event.type){
- case 'init':this.nativeReady=true;$('version').textContent=event.version||'0.2.7';break;
+ case 'init':this.nativeReady=true;$('version').textContent=event.version||'0.2.8';break;
  case 'notice':case 'error':notice(event.message||'Сервис недоступен');break;
- case 'voice':voice=!!event.on;typing();break;
- case 'transcript':if(typeof event.text==='string'){$('text').value=event.text.slice(0,12000);draftSave();typing();}break;
+ case 'voice':if(voiceSession&&event.session===voiceSession.id){voice=!!event.on;if(!voice)voiceSession=null;typing();}break;
+ case 'voiceChoice':if(voiceSession&&event.session===voiceSession.id){voice=true;typing();if(!$('voiceChoice').open)$('voiceChoice').showModal();}break;
+ case 'transcript':if(voiceSession&&!voiceSession.used&&event.session===voiceSession.id&&typeof event.text==='string'){
+ voiceSession.used=true;const input=$('text'),words=event.text.trim(),before=input.value;
+ if(words){const separator=before&&!/\s$/.test(before)?' ':'';const next=before+separator+words;
+ if(next.length>12000){notice('Распознанный текст не помещается в сообщение. Сократи черновик и повтори.');}else{input.value=next;draftSave();typing();}}
+ }break;
  case 'paused':paused=!!event.value;if(paused){draftSave();clearHold();stopCamera();voice=false;typing();}refreshMotion();break;
  case 'updateAvailable':$('updateTitle').textContent='OSMINOG '+event.versionName;$('updateNotes').textContent=event.notes||'';$('updateSize').textContent=event.sizeLabel||'';$('updateProgress').textContent='';$('updateNow').disabled=false;$('updateDialog').showModal();break;
  case 'updateProgress':$('updateProgress').textContent=event.message||'';$('updateNow').disabled=true;break;
