@@ -34,3 +34,7 @@ for name in ['ocean.js','ocean.css','media.js']:
  assert '/assets/'+name in code, 'Native asset allowlist missing '+name
 
 assert hashlib.sha256((root.parent/"res/drawable/eye.xml").read_bytes()).hexdigest()=="a1e00f74137cd11872329c354d0d6e93969377ad1747a050e0f41660e427aa52", "Original launcher eye changed"
+
+latest=json.loads((root/"design/latest-local-design.json").read_text())
+for name,sha in latest["files"].items():
+ assert hashlib.sha256((root/"design"/name).read_bytes()).hexdigest()==sha,name
