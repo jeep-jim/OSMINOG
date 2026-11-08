@@ -14,10 +14,20 @@ public class VisionTest {
   scenario=ActivityScenario.launch(ReliableActivity.class);scenario.onActivity(x->a=x);
   until(()->"true".equals(eval(a.shell,"!!window.OSMINOG?.nativeReady")));
   eval(a.shell,"window.__previousTestDocument=true;localStorage.clear();localStorage.setItem('osminogMotion','off');location.reload()");
-  until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.4'")));
+  until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.5'")));
+  assertEquals("true",eval(a.shell,"!!document.getElementById('welcomeScreen')&&document.querySelectorAll('#welcomeLanguage option').length===10&&document.getElementById('welcomePoem').innerText.includes('Разбуди меня от сна')"));
+  eval(a.shell,"document.getElementById('welcomeLanguage').value='ru';document.getElementById('welcomeLanguage').dispatchEvent(new Event('change'));document.getElementById('welcomeWake').click()");
+  until(()->"true".equals(eval(a.shell,"!document.getElementById('welcomeScreen')")));
   Thread.sleep(300);eval(a.shell,"OSMINOG.receive({type:'clear'})");
  }
  @After public void tearDown(){if(scenario!=null)scenario.close();}
+ @Test public void darkAndBlueOceanThemesCanBeSwitched()throws Exception{
+  assertEquals("true",eval(a.shell,"document.body.classList.contains('theme-dark')"));
+  eval(a.shell,"document.getElementById('menu').click();document.querySelector('[data-action=theme]').click()");
+  assertEquals("true",eval(a.shell,"!document.body.classList.contains('theme-dark')&&document.getElementById('themeValue').textContent==='Голубая'"));
+  eval(a.shell,"document.getElementById('menu').click();document.querySelector('[data-action=theme]').click()");
+  assertEquals("true",eval(a.shell,"document.body.classList.contains('theme-dark')"));
+ }
  @Test public void backgroundProviderIsWarmedWithoutEyeTap()throws Exception{
   ui(()->{a.prefs.edit().putBoolean("disableProviderWarmupForTest",false).commit();a.provider.setWebViewClient(new WebViewClient(){@Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest request){return new WebResourceResponse("text/html","UTF-8",new ByteArrayInputStream(fixture().getBytes(java.nio.charset.StandardCharsets.UTF_8)));}});a.ensureProviderLoaded();assertEquals("https://chatgpt.com/",a.provider.getUrl());assertEquals(android.view.View.VISIBLE,a.provider.getVisibility());assertEquals(android.view.View.VISIBLE,a.shell.getVisibility());});
   assertEquals("\"sleeping\"",eval(a.shell,"document.body.dataset.state"));
