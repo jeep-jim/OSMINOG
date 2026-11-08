@@ -519,7 +519,7 @@ function wakeOcean(){
 }
 function initWelcome(){
   let language='en',theme='dark',onboarded=false;
-  try{language=localStorage.getItem('ocean:language')||'en';theme=localStorage.getItem('ocean:theme')||'dark';onboarded=localStorage.getItem('ocean:onboarded')==='1';}catch{}
+  try{language=localStorage.getItem('ocean:language')||((navigator.language||'en').split('-')[0]);theme=localStorage.getItem('ocean:theme')||'dark';onboarded=localStorage.getItem('ocean:onboarded')==='1';}catch{}
   $('welcomeLanguage').value=welcomeCopy[language]?language:'en';setWelcomeLanguage($('welcomeLanguage').value);
   $('welcomeLanguage').addEventListener('change',()=>setWelcomeLanguage($('welcomeLanguage').value));
   applyOceanTheme(theme);
