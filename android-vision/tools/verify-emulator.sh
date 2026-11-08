@@ -5,7 +5,7 @@ mkdir -p dist
 cleanup() {
   timeout 12s adb logcat -d > dist/android-logcat.txt || true
   timeout 12s adb shell dumpsys activity activities > dist/activity-state.txt || true
-  for name in vision-home vision-menu vision-menu-collapsed vision-menu-blue vision-ocean vision-ocean-card vision-ocean-thread vision-attachments vision-language; do
+  for name in vision-home vision-menu vision-menu-collapsed vision-menu-blue vision-ocean vision-ocean-card vision-ocean-thread vision-attachments vision-language vision-voice-choice vision-comment-edit; do
     timeout 12s adb pull "/sdcard/$name.png" "dist/$name.png" || true
   done
 }
