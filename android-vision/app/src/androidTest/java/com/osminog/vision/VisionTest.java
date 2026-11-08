@@ -15,7 +15,7 @@ public class VisionTest {
   until(()->"true".equals(eval(a.shell,"!!window.OSMINOG?.nativeReady")));
   eval(a.shell,"window.__previousTestDocument=true;localStorage.clear();localStorage.setItem('osminogMotion','off');location.reload()");
   until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.5'")));
-  assertEquals("true",eval(a.shell,"!!document.getElementById('welcomeScreen')&&document.querySelectorAll('#welcomeLanguage option').length===10&&document.getElementById('welcomePoem').innerText.includes('Разбуди меня от сна')"));
+  assertEquals("true",eval(a.shell,"!!document.getElementById('welcomeScreen')&&document.querySelectorAll('#welcomeLanguage option').length===10&&document.getElementById('welcomePoem').textContent.includes('Разбуди меня от сна')"));
   eval(a.shell,"document.getElementById('welcomeLanguage').value='ru';document.getElementById('welcomeLanguage').dispatchEvent(new Event('change'));document.getElementById('welcomeWake').click()");
   until(()->"true".equals(eval(a.shell,"!document.getElementById('welcomeScreen')")));
   Thread.sleep(300);eval(a.shell,"OSMINOG.receive({type:'clear'})");
