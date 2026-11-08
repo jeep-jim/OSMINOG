@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory() as d:
    pages=[x.new_page() for x in contexts];errors=[]
    for page in pages:page.on('pageerror',lambda e:errors.append(str(e)))
    for i,page in enumerate(pages):
-    page.goto(url);page.locator('#star').click();page.locator('#toggleRegister').click()
+    page.goto(url);expect(page.locator('#splash')).to_be_visible();page.locator('#welcomeLanguage').select_option('ru');expect(page.locator('#splashPoem')).to_contain_text('Разбуди меня от сна');page.locator('#splashWake').click();expect(page.locator('#splash')).to_have_class('splash-screen leaving');page.locator('#star').click();page.locator('#toggleRegister').click()
     page.locator('#login').fill('user'+str(i));page.locator('#password').fill('pilot-test-password');page.locator('#name').fill(['Анна · тест','Борис · тест'][i]);page.locator('#invite').fill(code)
     page.locator('#authSubmit').click();expect(page.locator('#profile')).not_to_be_visible()
    a,b=pages
