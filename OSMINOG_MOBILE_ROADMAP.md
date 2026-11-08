@@ -262,3 +262,10 @@ PWA: manifest, устанавливаемая оболочка, HTTPS, конт�
 
 
 **Текущий статус 2026-11-08:** PR #106 — https://github.com/jeep-jim/OSMINOG/pull/106, ветка feat/android-ocean-welcome-20261108, head 9eb0d43e32e52b1d6a2299638a94563f34a7e9fa. В CI 42449776118 проверки ресурсов/скриптов, сборка и lint завершены SUCCESS; Android emulator test ещё IN_PROGRESS на последнем чтении. APK не подписан, release feed не менялся. В OSMINOG-Releases подготовлен только release.json 0.2.5 без PUBLISH-READY, поэтому публикация не запускается до зелёного эмулятора и подтверждения обновления поверх 0.2.4 прежним сертификатом.
+
+
+### 2026-11-08 — диагностика post-test cold-launch CI
+
+Подтверждено по артефакту CI 42449776118: Android instrumentation suite прошёл 16/16 (failures=0, errors=0, skipped=0); сборка и lint также SUCCESS. Финальный статус workflow был FAILURE не из-за OSMINOG: после холодного старта поверх welcome-заставки эмулятор показал системный диалог `Quickstep isn't responding` (Android launcher), UIAutomator из-за него видел только системный package android и не мог найти старый accessibility label «Меню OSMINOG» на новом welcome overlay. Скриншот артефакта показывает, что тёмная заставка действительно отображалась, приложение не упало; ANR относится к Quickstep launcher.
+
+Исправление в ветке: `android-vision/tools/verify-emulator.sh` больше не требует старый label меню на экране welcome; проверяет активное окно пакета com.osminog.vision. При наличии именно диалога Quickstep ANR тест нажимает Wait и повторяет проверку. Диалог ANR самого OSMINOG никогда не закрывается и считается провалом. Новый CI 42451476565 запущен. До полного зелёного source CI и release pipeline (подпись, проверка 0.2.4→0.2.5, readback) не публиковать APK и не менять dev feed.
