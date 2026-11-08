@@ -49,7 +49,7 @@ final class VoiceInput {
     public void onEvent(int e,Bundle b){}
    });
    armTimeout(15000,token);
-   engine.start(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(RecognizerIntent.EXTRA_LANGUAGE,language).putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true).putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1));
+   engine.start(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(RecognizerIntent.EXTRA_LANGUAGE,language).putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,local).putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1));
   }catch(RuntimeException e){if(local)offerSystem();else fail("Не удалось запустить системный голосовой ввод. Проверь сервис распознавания и разрешение микрофона в Android.");}
  }
  void finish(String id){if(!active||!session.equals(id)||engine==null||finishing)return;finishing=true;event("voice","on",true,"state","processing");armTimeout(15000,generation);try{engine.finish();}catch(RuntimeException e){fail("Не удалось завершить распознавание. Текст в поле сохранён.");}}

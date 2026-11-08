@@ -77,7 +77,7 @@ function startVoice(){
 }
 function stopVoice(){if(voiceSession)emit('stopVoice');voice=false;voiceSession=null;$('voiceChoice')?.close();typing();}
 const voiceChoice=node('dialog');voiceChoice.id='voiceChoice';
-voiceChoice.append(node('h2','','Системный голосовой ввод'),node('p','','Локальное распознавание недоступно. Системный сервис Android может передавать звук своему провайдеру. OSMINOG попросит офлайн-режим, но сервис может его не поддерживать. Использовать его для этой записи?'));
+voiceChoice.append(node('h2','','Системный голосовой ввод'),node('p','','Локальное распознавание недоступно. Системный сервис Android может передавать звук своему провайдеру. Работа без сети зависит от установленного сервиса. Использовать его для этой записи?'));
 const voiceCancel=node('button','','Отмена'),voiceAccept=node('button','','Использовать');voiceAccept.id='voiceAccept';voiceCancel.id='voiceCancel';voiceChoice.append(voiceCancel,voiceAccept);document.body.append(voiceChoice);
 voiceCancel.onclick=()=>stopVoice();voiceChoice.addEventListener('cancel',()=>stopVoice());
 voiceChoice.addEventListener('close',()=>{if(voiceChoice.dataset.accepted!=='yes'&&voiceSession)stopVoice();voiceChoice.dataset.accepted='';});
