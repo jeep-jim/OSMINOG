@@ -279,3 +279,16 @@ PWA: manifest, устанавливаемая оболочка, HTTPS, конт�
 Source CI 42451792356 завершился SUCCESS: 16/16 instrumentation tests, build, lint, cold launch and APK artifact. Release pipeline 42452242951 успешно проверил source pin, пересобрал release, подписал APK тем же сертификатом, проверил чистый запуск и установку 0.2.4 → 0.2.5. В дампах `dumpsys package` подтверждены одинаковый `firstInstallTime` (2026-11-08 05:56:04), версия до 0.2.4/code 6, после 0.2.5/code 7; холодный запуск после обновления прошёл.
 
 Единственная причина FAIL публикационного workflow — ошибка самого Python-проверяющего скрипта: строка `versionCode=7 minSdk=26 targetSdk=35` содержит несколько полей, а helper сравнивал весь хвост после `versionCode=` со строкой `7`. Исправлено чтение токенов в `tools/verify-android-vision-release.sh`; повторный publish workflow 42452775131 queued. APK не опубликован, feed не изменён до повторного прохождения всех gates.
+
+
+## 2026-11-08 — Vision 0.2.5 опубликован
+
+**Статус: RELEASED.** PR #106 (https://github.com/jeep-jim/OSMINOG/pull/106) merged via squash; merge commit `bb0e283f5e48ddbb2f9a8ecd46fb92a128ef0b4d`. Источник релиза — проверенный source commit `14305342c2ef6efa75c5add1046ef452140317e5`, CI run `42451792356` SUCCESS (16/16 instrumentation tests; build/lint and cold-launch verification green).
+
+**Релиз:** GitHub release `vision-android-v0.2.5` published successfully. APK `OSMINOG-Vision-0.2.5.apk`, size 109,068 bytes, SHA-256 `886b56b98e50d5a9053781aee85616e8391bf89c10ae4be8dd71a98b3a330d28`. Signature certificate SHA-256 matches installed application: `d0f552cda0525bb67de53c8dabd5452f3ad84afe5f0bc2746d506f310f4497bf`. Android emulator verified clean launch, 0.2.4 installed, in-place 0.2.4/code 6 → 0.2.5/code 7 upgrade, unchanged `firstInstallTime` (2026-11-08 06:03:59), and post-upgrade cold launch. Instrumentation tests 16/16 passed.
+
+**Update feed:** `channels/android-vision/dev.json` advanced to versionCode 7 / versionName 0.2.5; direct GitHub readback confirms APK URL, size, SHA-256, signer and source commit. Feed commit `a3a22bf86fa221052c32a4f350c6ba4787e87ea2`.
+
+**Workflow note:** release run `42452775131` published the immutable release successfully, but its final feed-push step hit a Git conflict because `PUBLISH-READY` was concurrently edited. The feed was then committed directly with the exact verified metadata and read back successfully. No downgrade or unverified feed was published. The release marker should be retired after this record to avoid accidental repeat publishing.
+
+**Welcome scope:** the new dark ocean welcome appears on first launch after upgrade, with 10 language choices, animated poem, bubbles, swipe/eye wake; theme toggle switches dark/blue. This is not a full translation of every app screen. Existing Vision AI chat, voice, camera, local histories and update flow were not replaced by the intention-ocean pilot.
