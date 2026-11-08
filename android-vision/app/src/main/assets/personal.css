@@ -33,3 +33,7 @@ dialog{border:0;box-shadow:none;background:#226297f5;border-radius:30px}dialog i
 .chevron,.section-arrow{transform:rotate(180deg)}#settingsToggle[aria-expanded=false] .chevron,.section-heading[aria-expanded=false] .section-arrow{transform:none}#avatarCarousel{padding:0 calc(50% - 24px)}#avatarCarousel button,#avatarCarousel button.selected{flex:0 0 48px;width:48px;height:70px;padding:0;position:relative;background:none;transform:scale(.5);overflow:visible}#avatarCarousel button.selected{transform:scale(1)}#avatarCarousel button img{width:45px;height:45px;margin:auto;position:relative;z-index:1}#avatarCarousel button.selected:before{content:"";position:absolute;width:64px;height:64px;left:-8px;top:3px;background:url("design/bubble-avatar.svg") center/contain no-repeat}
 
 .setting-row{font-size:14px;line-height:17px;font-weight:300;color:#ffffff80}body.theme-dark #settingsBlock .setting-row{color:#ffffff80}#settingsBlock{margin:0 14px}.setting-row{padding-left:0;padding-right:0;gap:20px}.switch{width:40px;height:22px}.switch:after{width:15px;height:12px;top:5px}.setting-row[aria-checked=true] .switch:after{transform:translateX(17px)}#profileName{font-size:14px}.section-heading{font-size:14px}.intent-row .intent-label{font-size:12px}
+
+#avatarCarousel img[src$="/Vector.svg"],.thought-bubble>img[src$="/Vector.svg"]{transform:rotate(30deg)}.message .avatar img[src$="/Vector.svg"]{transform:rotate(30deg)!important}
+
+#profilePhotoButton{display:none}#avatarCarousel button{opacity:.65}#avatarCarousel button.selected{opacity:1}#profileName{margin-top:4px}
