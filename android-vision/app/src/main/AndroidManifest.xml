@@ -5,13 +5,10 @@
  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
  <uses-feature android:name="android.hardware.camera.any" android:required="false"/>
  <uses-feature android:name="android.hardware.microphone" android:required="false"/>
- <queries><intent><action android:name="android.speech.RecognitionService"/></intent><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent><intent><action android:name="android.intent.action.VIEW"/><data android:mimeType="application/vnd.android.package-archive"/></intent></queries>
- <application android:theme="@style/AppTheme" android:label="OSMINOG Vision" android:icon="@drawable/eye" android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
-  <activity android:name=".ReliableActivity" android:exported="false" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden">
-  </activity>
-  <activity-alias android:name=".MainActivity" android:targetActivity=".ReliableActivity" android:exported="true">
-   <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
-  </activity-alias>
+ <queries><intent><action android:name="android.speech.RecognitionService"/></intent><intent><action android:name="android.intent.action.VIEW"/><data android:mimeType="application/vnd.android.package-archive"/></intent></queries>
+ <application android:theme="@style/AppTheme" android:label="OSMINOG" android:icon="@drawable/eye" android:roundIcon="@drawable/eye" android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
+  <activity android:name=".ReliableActivity" android:exported="false" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden"/>
+  <activity-alias android:name=".MainActivity" android:targetActivity=".ReliableActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity-alias>
   <provider android:name=".UpdateProvider" android:authorities="${applicationId}.updates" android:exported="false" android:grantUriPermissions="true"/>
  </application>
 </manifest>

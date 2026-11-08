@@ -5,14 +5,16 @@ meta=json.loads((root/'design/provenance.json').read_text())
 for name,sha in meta['files'].items():
  f=root/'design'/name
  assert f.is_file() and hashlib.sha256(f.read_bytes()).hexdigest()==sha,name
- tree=ET.fromstring(f.read_bytes())
- assert tree.tag.endswith('svg'),name
+ tree=ET.fromstring(f.read_bytes());assert tree.tag.endswith('svg'),name
  assert not tree.findall('.//{http://www.w3.org/2000/svg}script'),name
-derived=root/'design/background-fullscreen.svg'
-assert derived.is_file(),'background-fullscreen.svg'
-tree=ET.fromstring(derived.read_bytes())
-assert tree.tag.endswith('svg') and not tree.findall('.//{http://www.w3.org/2000/svg}script')
-for name in ['app.js','app.css','index.html','provider.js']:
- data=(root/name).read_text()
- assert 'https://www.figma.com/api' not in data,name
-print('ORIGINAL_DESIGN_ASSETS_PASS',len(meta['files']))
+derived=root/'design/background-fullscreen.svg';assert derived.is_file()
+tree=ET.fromstring(derived.read_bytes());assert tree.tag.endswith('svg') and not tree.findall('.//{http://www.w3.org/2000/svg}script')
+for name in ['app.js','app.css','index.html','intent.css','ambience.js']:
+ data=(root/name).read_text();assert 'https://www.figma.com/api' not in data,name
+for old in ['provider.js','foreground-shell.js']:
+ assert not (root/old).exists(), 'Retired provider code must not be packaged: '+old
+for name in ['app.js','ambience.js','index.html']:
+ text=(root/name).read_text()
+ for forbidden in ['chatgpt.com','chat.deepseek.com','openProvider','OSMINOGMobileBridge']:
+  assert forbidden not in text,(name,forbidden)
+print('ORIGINAL_DESIGN_ASSETS_AND_PROVIDER_REMOVAL_PASS',len(meta['files']))
