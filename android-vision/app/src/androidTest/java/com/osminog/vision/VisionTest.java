@@ -15,9 +15,10 @@ public class VisionTest {
   until(()->"true".equals(eval(a.shell,"!!window.OSMINOG?.nativeReady")));
   eval(a.shell,"window.__previousTestDocument=true;localStorage.clear();localStorage.setItem('osminogMotion','off');location.reload()");
   until(()->"true".equals(eval(a.shell,"!window.__previousTestDocument&&!!window.OSMINOG?.nativeReady&&document.getElementById('version').textContent==='0.2.5'")));
+  eval(a.shell,"document.getElementById('welcomeLanguage').value='ru';document.getElementById('welcomeLanguage').dispatchEvent(new Event('change'))");
   String welcomeState=eval(a.shell,"JSON.stringify({screen:!!document.getElementById('welcomeScreen'),languages:document.querySelectorAll('#welcomeLanguage option').length,poem:!!document.getElementById('welcomePoem')&&document.getElementById('welcomePoem').textContent.includes('Разбуди меня от сна'),welcomed:localStorage.getItem('osminogWelcomed')})");
   assertTrue("Welcome screen not ready: "+welcomeState,welcomeState.contains("\\\"screen\\\":true")&&welcomeState.contains("\\\"languages\\\":10")&&welcomeState.contains("\\\"poem\\\":true"));
-  eval(a.shell,"document.getElementById('welcomeLanguage').value='ru';document.getElementById('welcomeLanguage').dispatchEvent(new Event('change'));document.getElementById('welcomeWake').click()");
+  eval(a.shell,"document.getElementById('welcomeWake').click()");
   until(()->"true".equals(eval(a.shell,"!document.getElementById('welcomeScreen')")));
   Thread.sleep(300);eval(a.shell,"OSMINOG.receive({type:'clear'})");
  }
