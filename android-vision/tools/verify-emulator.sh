@@ -16,9 +16,9 @@ timeout 12s adb shell am force-stop com.osminog.vision
 timeout 12s adb shell pm clear com.osminog.vision
 timeout 20s adb shell am start -S -W -n com.osminog.vision/.MainActivity
 ready=0
-for attempt in $(seq 1 8); do
-  timeout 4s adb shell rm -f /sdcard/vision-window.xml || true
-  if timeout 6s adb shell uiautomator dump /sdcard/vision-window.xml > "dist/cold-start-$attempt.log" 2>&1 &&
+for attempt in $(seq 1 3); do
+  timeout 3s adb shell rm -f /sdcard/vision-window.xml || true
+  if timeout 5s adb shell uiautomator dump /sdcard/vision-window.xml > "dist/cold-start-$attempt.log" 2>&1 &&
      timeout 4s adb pull /sdcard/vision-window.xml "dist/cold-start-$attempt.xml" >> "dist/cold-start-$attempt.log" 2>&1; then
     state=$(python3 - "dist/cold-start-$attempt.xml" <<'XML'
 import sys,xml.etree.ElementTree as ET
