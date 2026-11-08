@@ -272,3 +272,10 @@ PWA: manifest, устанавливаемая оболочка, HTTPS, конт�
 
 
 **CI follow-up 2026-11-08:** first recovery implementation on commit 1dc9353 was too slow under an ANR dialog because UIAutomator commands had long per-attempt timeouts. Bounded the cold-launch recovery to 8 attempts with 4–6 second command timeouts and 1-second wait after the single verified Quickstep Wait action. Latest source head is 14305342c2ef6efa75c5add1046ef452140317e5; CI 42451792356 queued. Existing run 42451476565 was still in progress at last check. Do not mark release ready until a complete green run exists.
+
+
+### 2026-11-08 — выпуск 0.2.5: первая release-проверка и исправление тестового парсера
+
+Source CI 42451792356 завершился SUCCESS: 16/16 instrumentation tests, build, lint, cold launch and APK artifact. Release pipeline 42452242951 успешно проверил source pin, пересобрал release, подписал APK тем же сертификатом, проверил чистый запуск и установку 0.2.4 → 0.2.5. В дампах `dumpsys package` подтверждены одинаковый `firstInstallTime` (2026-11-08 05:56:04), версия до 0.2.4/code 6, после 0.2.5/code 7; холодный запуск после обновления прошёл.
+
+Единственная причина FAIL публикационного workflow — ошибка самого Python-проверяющего скрипта: строка `versionCode=7 minSdk=26 targetSdk=35` содержит несколько полей, а helper сравнивал весь хвост после `versionCode=` со строкой `7`. Исправлено чтение токенов в `tools/verify-android-vision-release.sh`; повторный publish workflow 42452775131 queued. APK не опубликован, feed не изменён до повторного прохождения всех gates.
