@@ -125,7 +125,7 @@ body[data-state=listening] .eye-body{animation:none;box-shadow:0 0 12px rgba(99,
 @keyframes welcome-rise{0%{transform:translateY(0) scale(.65);opacity:0}15%{opacity:.45}85%{opacity:.22}100%{transform:translateY(-65vh) scale(1.15);opacity:0}}
 @keyframes welcome-breathe{0%,100%{box-shadow:0 0 24px #80c8ff08;transform:translateX(-50%) scale(1)}50%{box-shadow:0 0 34px #80c8ff20;transform:translateX(-50%) scale(1.035)}}
 body.theme-dark #scene{background:#071522}
-body.theme-dark #ocean{filter:brightness(.43) saturate(.72)}
+body.theme-dark #ocean{background-color:#071522;background-blend-mode:multiply}
 body.theme-dark #settings{background:#0b2032f5;border-color:#bfe8ff20}
 body.theme-dark #settings nav button{border-bottom-color:#ffffff12}
 @media(max-height:650px){.welcome-language{margin-top:clamp(50px,15vh,105px)}.welcome-poem{margin-top:clamp(30px,6vh,52px)}.welcome-header{height:102px}}
