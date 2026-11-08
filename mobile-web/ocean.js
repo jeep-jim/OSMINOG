@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const assets = {plankton: 'Group 26.svg', jelly: 'Group 27.svg', star: 'Star 35.svg'};
 const state = {
-  user: null, csrf: null, intents: [], view: 'home', intent: null, thread: null,
+  user: null, csrf: null, intelligence: 'disabled', intents: [], view: 'home', intent: null, thread: null,
   source: null, busy: false, register: false, file: null, fileUrl: null,
   nonce: null, camera: null, cameraGeneration: 0, homeScroll: null,
   noticeTimer: null, request: 0, lastMessages: '', draftScope: 'home',
@@ -113,6 +113,10 @@ function profile() {
   $('authForm').hidden = yes; $('profileForm').hidden = !yes;
   if (yes) { $('profileName').value = state.user.name; $('avatar').value = state.user.avatar; }
   $('welcomeLogin').hidden = yes;
+  $('aiConsent').checked = !!state.user?.ai_consent;
+  $('aiStatus').textContent = state.intelligence === 'configured'
+    ? 'Подключение настроено; успешный ответ REG ещё проверяется при подборе.'
+    : 'ИИ пока не подключён. Доступен обычный подбор по словам.';
 }
 function layout() {
   const home = state.view === 'home', conversation = ['thread', 'preview'].includes(state.view);
@@ -184,9 +188,16 @@ async function magnet(item, push = true) {
   $('messages').replaceChildren(el('p','empty','Ищем намерения…')); if (push) pushRoute();
   const controller = new AbortController(); state.matchController = controller;
   try {
-    const data = await api('/api/intents/' + item.id + '/matches', {signal:controller.signal});
+    const useAI = state.intelligence === 'configured' && state.user?.ai_consent && item.audience === 'ocean';
+    const data = await api('/api/intents/' + item.id + '/matches', {signal:controller.signal,
+      ...(useAI ? {method:'POST',body:{intelligence:'reg'}} : {})});
     if (request !== state.request) return;
     $('messages').replaceChildren();
+    $('viewHint').textContent = data.mode === 'reg_ai'
+      ? 'ИИ REG проверил часть активных намерений; возможны ошибки'
+      : data.ai_state && !['not_requested','consent_required','disabled'].includes(data.ai_state)
+        ? 'ИИ недоступен или достигнут лимит · подбор по словам'
+        : 'Нажми на пузырь · подбор по словам';
     const anchor = el('div','magnet-anchor');
     const source = bubble(state.user?.avatar,'Твоё намерение'); source.disabled = true;
     anchor.append(source, el('small','','Твоё намерение')); $('messages').append(anchor);
@@ -344,7 +355,7 @@ $('authForm').onsubmit = async e => {
   const guest = readDraft(draftKey('home','guest'));
   try {
     const data = await api(state.register ? '/api/register' : '/api/login',{method:'POST',body:{login:$('login').value,password:$('password').value,name:$('name').value,invite:$('invite').value}});
-    state.user = data.user; state.csrf = data.csrf; state.session++; state.homeScroll = null;
+    state.user = data.user; state.csrf = data.csrf; state.intelligence = data.intelligence || 'disabled'; state.session++; state.homeScroll = null;
     $('password').value = ''; $('invite').value = ''; $('profile').close();
     // Carry a just-written guest draft into a new account, never publish it automatically.
     if (state.register && guest.text && !readDraft(draftKey('home')).text) {
@@ -359,8 +370,8 @@ $('authForm').onsubmit = async e => {
 $('profileForm').onsubmit = async e => {
   e.preventDefault();
   try {
-    await api('/api/profile',{method:'POST',body:{name:$('profileName').value,avatar:$('avatar').value}});
-    state.user.name = $('profileName').value; state.user.avatar = $('avatar').value;
+    await api('/api/profile',{method:'POST',body:{name:$('profileName').value,avatar:$('avatar').value,ai_consent:$('aiConsent').checked}});
+    state.user.name = $('profileName').value; state.user.avatar = $('avatar').value; state.user.ai_consent = $('aiConsent').checked;
     $('profile').close(); await loadHome();
   } catch(e) { say(e); }
 };
@@ -473,7 +484,7 @@ window.addEventListener('message',e => {
 async function boot() {
   profile(); renderHome(); restoreDraft(); resetRoute();
   try {
-    const s = await api('/api/session'); state.user = s.user; state.csrf = s.csrf; state.session++;
+    const s = await api('/api/session'); state.user = s.user; state.csrf = s.csrf; state.intelligence = s.intelligence || 'disabled'; state.session++;
     profile(); restoreDraft(); resetRoute(); if (state.user) await loadHome();
   } catch { notice('Сервер океана ещё не доступен. Это интерфейс пилота; сообщения не отправляются.'); }
 }

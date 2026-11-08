@@ -1,5 +1,5 @@
 'use strict';
-const CACHE='osminog-ocean-shell-0.3.0-pilot.2';
+const CACHE='osminog-ocean-shell-0.3.0-pilot.3';
 const SHELL=['/','/index.html','/ocean.css','/ocean.js','/manifest.webmanifest','/icon-192.png','/icon-512.png','/design/background-fullscreen.svg','/design/star-idle.svg','/design/wordmark.svg','/design/bubble-avatar.svg','/design/eye-original.svg','/design/Group%2026.svg','/design/Group%2027.svg','/design/Group%2028.svg','/design/Group%2029.svg','/design/Group%2030.svg','/design/Star%2035.svg','/design/Vector.svg','/design/Vector-1.svg'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL))));
 // No skipWaiting: do not force-reload a chat or replace a draft while typing.

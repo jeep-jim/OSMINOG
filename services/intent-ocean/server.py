@@ -1,4 +1,4 @@
-"""OSMINOG intention ocean: invitation-only, single-node pilot, no external AI.
+"""OSMINOG intention ocean: invitation-only, single-node pilot, optional opt-in REG intelligence.
 
 Run behind the supplied TLS reverse proxy. SQLite is deliberately bounded for
 this pilot; this is not a multi-worker/distributed production architecture.
@@ -10,8 +10,11 @@ from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from PIL import Image, ImageOps
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from reg_ai import Matcher
 
-VERSION = '0.3.0-pilot.2'
+VERSION = '0.3.0-pilot.3'
 MAX_BODY = 3_000_000
 Image.MAX_IMAGE_PIXELS = 16_000_000
 KINDS = {'seek', 'offer', 'discuss', 'together'}
@@ -62,7 +65,7 @@ def normalize_file(value):
     return name, mime, data
 
 class Ocean:
-    def __init__(self, db_path, web_root, origin='https://osminog.red', local=False):
+    def __init__(self, db_path, web_root, origin='https://osminog.red', local=False, intelligence=None):
         self.web_root = Path(web_root).resolve(); self.origin = origin; self.local = local
         require(origin == 'https://osminog.red' or (local and origin.startswith('http://127.0.0.1:')), 500, 'Недопустимый origin')
         self.lock = threading.RLock(); self.auth_limit = threading.Semaphore(2)
@@ -82,6 +85,10 @@ class Ocean:
           CREATE INDEX IF NOT EXISTS intent_owner ON intents(owner,created);
           CREATE INDEX IF NOT EXISTS message_thread ON messages(thread,created);
         ''')
+        if 'ai_consent' not in {x[1] for x in self.rows('PRAGMA table_info(users)')}:
+            self.db.execute('ALTER TABLE users ADD COLUMN ai_consent INTEGER NOT NULL DEFAULT 0')
+            self.db.commit()
+        self.intelligence = intelligence or Matcher(str(db_path) + '.ai.sqlite3')
         self.limits = defaultdict(deque)
     def limit(self, key, amount, seconds=60):
         t = time.monotonic(); q = self.limits[key]
@@ -98,7 +105,7 @@ class Ocean:
     def row(self, sql, args=()): return self.db.execute(sql,args).fetchone()
     def rows(self, sql, args=()): return self.db.execute(sql,args).fetchall()
     def blocked(self, a,b): return bool(self.row('SELECT 1 FROM blocks WHERE (owner=? AND target=?) OR (owner=? AND target=?)',(a,b,b,a)))
-    def profile(self, user): return {'id':user['id'],'name':user['name'],'avatar':user['avatar']}
+    def profile(self, user): return {'id':user['id'],'name':user['name'],'avatar':user['avatar'],'ai_consent':bool(user['ai_consent'])}
     def session(self, token):
         return self.row('SELECT u.*,s.csrf FROM sessions s JOIN users u ON u.id=s.user WHERE s.hash=? AND s.expires>?',(digest(token),now())) if token else None
     def auth(self, action, data, ip):
@@ -128,20 +135,81 @@ class Ocean:
         return intent and (intent['owner']==user or (intent['audience']=='ocean' and not intent['closed'] and intent['expires']>now() and not self.blocked(user,intent['owner'])))
     def intent(self, iid): return self.row('SELECT i.*,u.name,u.avatar FROM intents i JOIN users u ON u.id=i.owner WHERE i.id=?',(iid,))
     def pack(self, intent):
-        obj=dict(intent); obj.pop('nonce',None)
+        obj=dict(intent); obj.pop('nonce',None); obj.pop('ai_consent',None)
         obj['attachments']=[dict(x) for x in self.rows('SELECT id,name,mime FROM attachments WHERE intent=?',(intent['id'],))]
         return obj
     def thread(self, tid, user):
         thread=self.row('SELECT * FROM threads WHERE id=? AND (a=? OR b=?)',(tid,user,user))
         require(thread is not None and not self.blocked(thread['a'],thread['b']),404,'Беседа недоступна')
         return thread
+    def available_candidates(self, u):
+        # Authorization is applied before any text can be selected for the provider.
+        return [dict(x) for x in self.rows("SELECT i.*,u.name,u.avatar,u.ai_consent FROM intents i JOIN users u ON u.id=i.owner WHERE i.owner!=? AND audience='ocean' AND closed=0 AND expires>? ORDER BY i.created DESC,i.rowid DESC",(u,now())) if not self.blocked(u,x['owner'])]
+
+    def lexical_matches(self, intent, u):
+        needle=tokens(intent['text']); result=[]
+        for x in self.available_candidates(u):
+            shared=needle & tokens(x['text'])
+            if not shared: continue
+            complement={intent['kind'],x['kind']}=={'seek','offer'}
+            obj=self.pack(x); obj['score']=len(shared)+(2 if complement else 0)
+            obj['reason']=('Встречные намерения; ' if complement else 'Похожая тема; ')+'совпали слова: '+', '.join(sorted(shared))
+            result.append(obj)
+        result.sort(key=lambda x:(-x['score'],-x['created']))
+        return result[:12]
+
+    def matching(self, token, iid, use_ai=False):
+        # Network I/O MUST be outside the main database lock: slow inference must
+        # never stop chat, logout, consent revocation or blocking another person.
+        with self.lock:
+            user=self.session(token);require(user is not None,401,'Войди в свой океан')
+            u=user['id'];self.limit('user:'+u,90)
+            source=self.intent(iid);require(source is not None and source['owner']==u,404,'Намерение недоступно')
+            require(not source['closed'] and source['expires']>now(),409,'Намерение уже завершено')
+            permitted=use_ai and bool(user['ai_consent']) and source['audience']=='ocean'
+            candidates=[x for x in self.available_candidates(u) if x['ai_consent']] if permitted else []
+            # Bound pilot discovery: 12 best lexical candidates plus recent ones,
+            # including candidates without shared words. Not a full semantic index.
+            needle=tokens(source['text'])
+            ordered=sorted(candidates,key=lambda x:-len(needle & tokens(x['text'])))
+            preferred=ordered[:12]
+            candidate_ids={x['id'] for x in preferred}
+            batch=preferred+[x for x in candidates if x['id'] not in candidate_ids]
+            snapshot=dict(source)
+        result=self.intelligence.rank(u+':'+iid,snapshot,batch) if permitted else {'state':'not_requested' if not use_ai else 'consent_required','ids':[],'cached':False}
+        with self.lock:
+            user=self.session(token);require(user is not None and user['id']==u,401,'Войди в свой океан')
+            source=self.intent(iid)
+            require(source is not None and source['owner']==u and not source['closed'] and source['expires']>now(),409,'Намерение уже завершено')
+            fallback=self.lexical_matches(source,u)
+            consent_still_valid=bool(user['ai_consent']) and source['audience']=='ocean' and source['text']==snapshot['text'] and source['kind']==snapshot['kind']
+            if result['state']!='ok' or not consent_still_valid:
+                return {'mode':'lexical','ai_state':result['state'] if consent_still_valid or not permitted else 'consent_required','items':fallback}
+            fresh={x['id']:x for x in self.available_candidates(u) if x['ai_consent']}
+            original={x['id']:x for x in batch}
+            matches=[]
+            for mid,score in result['ids']:
+                x=fresh.get(mid);before=original.get(mid)
+                if not x or not before or x['text']!=before['text'] or x['kind']!=before['kind']: continue
+                obj=self.pack(x);obj['score']=score
+                complement={source['kind'],x['kind']}=={'seek','offer'}
+                obj['reason']='ИИ REG: '+('встречные намерения' if complement else 'близкая тема; не обязательно встречное предложение')
+                obj['match_method']='reg_ai';matches.append(obj)
+            chosen={x['id'] for x in matches}
+            for obj in fallback:
+                if obj['id'] not in chosen and len(matches)<12:
+                    obj['match_method']='lexical';matches.append(obj)
+            return {'mode':'reg_ai','ai_state':'ok','cached':result['cached'],'scope':'bounded_candidates','items':matches[:12]}
+
     def api(self, method, path, query, data, user, token):
         u=user['id']; self.limit('user:'+u,90)
         if method=='POST' and path=='/api/logout':
             self.db.execute('DELETE FROM sessions WHERE hash=?',(digest(token),)); return {'ok':True}
         if path=='/api/profile' and method=='POST':
             avatar=data.get('avatar','plankton'); require(avatar in {'plankton','jelly','star'})
-            self.db.execute('UPDATE users SET name=?,avatar=? WHERE id=?',(clean(data.get('name'),48),avatar,u)); return {'ok':True}
+            consent=data.get('ai_consent',bool(user['ai_consent']))
+            require(type(consent) is bool,400,'Некорректное разрешение ИИ')
+            self.db.execute('UPDATE users SET name=?,avatar=?,ai_consent=? WHERE id=?',(clean(data.get('name'),48),avatar,int(consent),u)); return {'ok':True}
         if path=='/api/intents' and method=='GET':
             return {'items':[self.pack(x) for x in self.rows('SELECT i.*,u.name,u.avatar FROM intents i JOIN users u ON u.id=i.owner WHERE i.owner=? ORDER BY i.created DESC,i.rowid DESC LIMIT 200',(u,))][::-1]}
         if path=='/api/intents' and method=='POST':
@@ -172,18 +240,7 @@ class Ocean:
                 self.db.execute('UPDATE intents SET closed=1 WHERE id=?',(intent['id'],)); return {'ok':True}
             require(match[2]=='matches' and method=='GET',405)
             require(not intent['closed'] and intent['expires']>now(),409,'Намерение уже завершено')
-            needle=tokens(intent['text']); matches=[]
-            # Bounded pilot (100 users × at most 20 active). Filter access before ranking.
-            for x in self.rows("SELECT i.*,u.name,u.avatar FROM intents i JOIN users u ON u.id=i.owner WHERE i.owner!=? AND audience='ocean' AND closed=0 AND expires>?",(u,now())):
-                if self.blocked(u,x['owner']): continue
-                shared=needle & tokens(x['text'])
-                if not shared: continue
-                complement={intent['kind'],x['kind']}=={'seek','offer'}
-                obj=self.pack(x); obj['score']=len(shared)+(2 if complement else 0)
-                obj['reason']=('Встречные намерения; ' if complement else 'Похожая тема; ')+ 'совпали слова: '+', '.join(sorted(shared))
-                matches.append(obj)
-            matches.sort(key=lambda x:(-x['score'],-x['created']))
-            return {'mode':'lexical','items':matches[:12]}
+            return {'mode':'lexical','items':self.lexical_matches(intent,u)}
         if path=='/api/threads' and method=='GET':
             items=[]
             for t in self.rows('SELECT t.*,i.text,u.name FROM threads t JOIN intents i ON i.id=t.intent JOIN users u ON u.id=CASE WHEN t.a=? THEN t.b ELSE t.a END WHERE t.a=? OR t.b=? ORDER BY t.created DESC LIMIT 100',(u,u,u)):
@@ -239,7 +296,7 @@ def handler(ocean):
                 require(len(self.path)<=2048,414)
                 host=self.headers.get('Host','').split(':')[0]
                 require(host in ({'127.0.0.1','localhost'} if ocean.local else {'osminog.red'}),421,'Неверный домен')
-                if self.command=='GET' and path=='/healthz':return self.reply(200,{'ok':True,'version':VERSION,'matching':'lexical','pilot':True})
+                if self.command=='GET' and path=='/healthz':return self.reply(200,{'ok':True,'version':VERSION,'matching':'lexical','intelligence':ocean.intelligence.status,'pilot':True})
                 if not path.startswith('/api/'):
                     require(self.command in {'GET','HEAD'},405)
                     relative=urllib.parse.unquote(path).lstrip('/') or 'index.html'
@@ -253,16 +310,27 @@ def handler(ocean):
                     raw=self.rfile.read(length);require(len(raw)==length,400)
                     data=json.loads(raw);require(isinstance(data,dict))
                 jar=cookies.SimpleCookie();jar.load(self.headers.get('Cookie',''));token=jar['ocean_session'].value if 'ocean_session' in jar else ''
+                match_request=re.fullmatch(r'/api/intents/([a-f0-9]{32})/matches',path)
+                if match_request and self.command in {'GET','POST'}:
+                    # GET is always free lexical matching. Paid inference is an
+                    # explicit same-origin CSRF-protected POST, never a prefetch.
+                    if self.command=='POST':
+                        with ocean.lock:
+                            auth=ocean.session(token);require(auth is not None,401,'Войди в свой океан')
+                            require(hmac.compare_digest(self.headers.get('X-CSRF-Token',''),auth['csrf']),403,'Обнови страницу и повтори')
+                            require(data=={'intelligence':'reg'},400,'Некорректный режим подбора')
+                    return self.reply(200,ocean.matching(token,match_request[1],self.command=='POST'))
                 with ocean.lock, ocean.db:
                     if path in {'/api/login','/api/register'} and self.command=='POST':
                         # Only trust the sanitized X-Real-IP emitted by the localhost proxy.
                         ip=self.headers.get('X-Real-IP',self.client_address[0]) if self.client_address[0]=='127.0.0.1' else self.client_address[0]
                         result,token=ocean.auth(path.rsplit('/',1)[1],data,ip)
                         ocean.db.commit()
+                        result['intelligence']=ocean.intelligence.status
                         return self.reply(200,result,extra={'Set-Cookie':self.cookie(token)})
                     user=ocean.session(token)
                     if path=='/api/session' and self.command=='GET':
-                        return self.reply(200,{'user':ocean.profile(user) if user else None,'csrf':user['csrf'] if user else None,'version':VERSION})
+                        return self.reply(200,{'user':ocean.profile(user) if user else None,'csrf':user['csrf'] if user else None,'version':VERSION,'intelligence':ocean.intelligence.status})
                     require(user is not None,401,'Войди в свой океан')
                     if self.command=='POST': require(hmac.compare_digest(self.headers.get('X-CSRF-Token',''),user['csrf']),403,'Обнови страницу и повтори')
                     match=re.fullmatch(r'/api/files/([a-f0-9]{32})',path)
