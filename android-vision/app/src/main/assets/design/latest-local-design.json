@@ -1,0 +1,26 @@
+{
+  "source": "Untitled (3).fig",
+  "sha256": "2eec999375995c32b2abcf615050f1832129cb74064a75c0f752416ebca663f0",
+  "decodedNodes": 867,
+  "frames": [
+    "1017:993",
+    "1018:1286",
+    "1017:994",
+    "1017:1074"
+  ],
+  "originalEyeSourceCommit": "14305342c2ef6efa75c5add1046ef452140317e5",
+  "note": "Local file decoded with kiwi-schema. Existing exported original character and background assets retained; no cloud Figma dependency.",
+  "files": {
+    "menu-theme.svg": "592e5d85e8e1c1bf2ccc544262a65b3b7e3cad565c7d65ddb9ea5715973ff491",
+    "menu-world.svg": "a996fc95a1dc81555ac3794e4a9e12fe9a8e276d1a1e41cddea8f5eaa54e1fda",
+    "menu-update.svg": "a6ad4b9603c044946ea2dae4f779389bad9fa881c9818fc1489e01416af1562d",
+    "menu-language.svg": "867d8dc5acbef0cc1d857310d6ba2de607bd41fa47354862e645b6f7834ee0ea",
+    "menu-chevron.svg": "92d4971ee683fd4e3981a45c4f32167f3a9f57ed6467a229c066e5dafe0e04ec"
+  },
+  "font": {
+    "family": "Inter",
+    "source": "https://github.com/rsms/inter/blob/master/docs/font-files/InterVariable.woff2",
+    "license": "SIL Open Font License 1.1 (fonts/OFL.txt)",
+    "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3"
+  }
+}
