@@ -17,17 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+        with: {distribution: temurin, java-version: '17'}
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+        with: {gradle-version: '8.9'}
       - name: Validate mobile scripts and original design assets
         run: |
           node --check android-vision/app/src/main/assets/app.js
-          node --check android-vision/app/src/main/assets/provider.js
-          node --check android-vision/app/src/main/assets/foreground-shell.js
+          node --check android-vision/app/src/main/assets/ambience.js
           python3 android-vision/tools/check-assets.py
       - name: Build and lint
         working-directory: android-vision
@@ -50,7 +46,7 @@ jobs:
         working-directory: android-vision
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/OSMINOG-Vision-0.2.4-unsigned.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/OSMINOG-Vision-0.2.6-unsigned.apk
           sha256sum dist/*.apk > dist/SHA256SUMS.txt
           git rev-parse HEAD > dist/source-commit.txt
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" dist/apksigner.jar
@@ -58,7 +54,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-Vision-Android-0.2.4-verification
+          name: OSMINOG-Vision-Android-0.2.6-verification
           path: |
             android-vision/dist/
             android-vision/app/build/reports/
