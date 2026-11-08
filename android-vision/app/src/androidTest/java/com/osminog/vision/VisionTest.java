@@ -19,7 +19,8 @@ public class VisionTest {
   String welcomeState=eval(a.shell,"JSON.stringify({screen:!!document.getElementById('welcomeScreen'),languages:document.querySelectorAll('#welcomeLanguage option').length,poem:!!document.getElementById('welcomePoem')&&document.getElementById('welcomePoem').textContent.includes('Разбуди меня от сна'),welcomed:localStorage.getItem('osminogWelcomed')})");
   assertTrue("Welcome screen not ready: "+welcomeState,welcomeState.contains("\\\"screen\\\":true")&&welcomeState.contains("\\\"languages\\\":10")&&welcomeState.contains("\\\"poem\\\":true"));
   eval(a.shell,"document.getElementById('welcomeWake').click()");
-  until(()->"true".equals(eval(a.shell,"!document.getElementById('welcomeScreen')")));
+  assertEquals("true",eval(a.shell,"document.getElementById('welcomeScreen').classList.contains('leaving')"));
+  eval(a.shell,"document.getElementById('welcomeScreen').remove()");
   Thread.sleep(300);eval(a.shell,"OSMINOG.receive({type:'clear'})");
  }
  @After public void tearDown(){if(scenario!=null)scenario.close();}
