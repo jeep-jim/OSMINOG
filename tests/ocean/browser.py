@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory() as d:
    pages=[x.new_page() for x in contexts];errors=[]
    for page in pages:page.on('pageerror',lambda e:errors.append(str(e)))
    for i,page in enumerate(pages):
-    page.goto(url);expect(page.locator('#splash')).to_be_visible();page.locator('#welcomeLanguage').select_option('ru');expect(page.locator('#splashPoem')).to_contain_text('Разбуди меня от сна');page.locator('#splashWake').click();expect(page.locator('#splash')).to_have_class('splash-screen leaving');page.locator('#star').click();page.locator('#toggleRegister').click()
+    page.goto(url);expect(page.locator('#splash')).to_be_visible();page.locator('#welcomeLanguage').select_option('ru');expect(page.locator('#splashPoem')).to_contain_text('Разбуди меня от сна');expect(page.locator('#splashPoem p').nth(3)).to_have_css('opacity','1');page.screenshot(path=str(out/'welcome-dark.png'),animations='disabled');page.mouse.move(190,620);page.mouse.down();page.mouse.move(190,490,steps=8);page.mouse.up();expect(page.locator('#splash')).to_have_class('splash-screen leaving');page.locator('#splash').wait_for(state='detached');page.locator('#star').click();page.locator('#toggleRegister').click()
     page.locator('#login').fill('user'+str(i));page.locator('#password').fill('pilot-test-password');page.locator('#name').fill(['Анна · тест','Борис · тест'][i]);page.locator('#invite').fill(code)
     page.locator('#authSubmit').click();expect(page.locator('#profile')).not_to_be_visible()
    a,b=pages
@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory() as d:
     assert boxes['a']['right']<=boxes['c']['left'],boxes
     assert boxes['c']['right']<=width+1 and boxes['c']['bottom']<=height+1,boxes
     assert boxes['scroll']<=width,boxes
-   a.set_viewport_size({'width':390,'height':844});a.locator('#star').click();capture(a,'profile.png');a.locator('#profile [data-close]').click()
+   a.set_viewport_size({'width':390,'height':844});a.locator('#star').click();a.locator('#themeChoice').select_option('blue');assert not a.locator('body').evaluate("e=>e.classList.contains('theme-dark')");a.locator('#themeChoice').select_option('dark');assert a.locator('body').evaluate("e=>e.classList.contains('theme-dark')");capture(a,'profile.png');a.locator('#profile [data-close]').click()
    a.locator('#text').fill('<img src=x onerror=alert(1)>');a.locator('#eye').click();expect(a.locator('#messages article')).to_have_count(2)
    assert a.locator('#messages .text img').count()==0
    a.locator('#attach').click();expect(a.locator('#attachments')).to_be_visible();a.locator('#link').fill('https://example.com/item');a.locator('#addLink').click();expect(a.locator('#text')).to_have_value('https://example.com/item')
