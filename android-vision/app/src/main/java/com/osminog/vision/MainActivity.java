@@ -21,11 +21,11 @@ public class MainActivity extends Activity {
  final Handler handler=new Handler(Looper.getMainLooper());
  WebView shell; FrameLayout root; WebMessagePort port; Updater updater;
  boolean foreground=false, listening=false; float safeTop=0,safeBottom=0,safeLeft=0,safeRight=0;
- SpeechRecognizer recognizer; PermissionRequest cameraPermission; ValueCallback<Uri[]> fileCallback;
+ VoiceInput voiceInput; boolean voicePermissionPending=false,voiceResumePending=false; String voiceSession=""; PermissionRequest cameraPermission; ValueCallback<Uri[]> fileCallback;
  String speechLanguage="ru"; android.content.SharedPreferences prefs;
  int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
  @Override public void onCreate(Bundle saved){
-  super.onCreate(saved);prefs=getSharedPreferences("vision",MODE_PRIVATE);configureSystemBars();
+  super.onCreate(saved);voiceInput=new VoiceInput(this::emit,VoiceInput.androidFactory(this),handler);prefs=getSharedPreferences("vision",MODE_PRIVATE);configureSystemBars();
   root=new FrameLayout(this);root.setBackgroundColor(0xff00396f);shell=new WebView(this);shell.setBackgroundColor(Color.TRANSPARENT);
   root.addView(shell,new FrameLayout.LayoutParams(-1,-1));setContentView(root);
   root.setOnApplyWindowInsetsListener((v,i)->{
@@ -56,12 +56,14 @@ public class MainActivity extends Activity {
  static WebResourceResponse blocked(){return new WebResourceResponse("text/plain","UTF-8",404,"Not found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
  void configureSystemBars(){Window w=getWindow();if(Build.VERSION.SDK_INT>=30)w.setDecorFitsSystemWindows(false);w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);w.setStatusBarColor(Color.TRANSPARENT);w.setNavigationBarColor(Color.TRANSPARENT);if(Build.VERSION.SDK_INT>=29){w.setStatusBarContrastEnforced(false);w.setNavigationBarContrastEnforced(false);}}
  void applyInsets(float top,float bottom){safeTop=top;safeBottom=bottom;if(shell==null||isDestroyed())return;String js="if(document.documentElement){let s=document.documentElement.style;s.setProperty('--safe-top',"+JSONObject.quote(top+"px")+");s.setProperty('--safe-bottom',"+JSONObject.quote(bottom+"px")+");s.setProperty('--safe-left',"+JSONObject.quote(safeLeft+"px")+");s.setProperty('--safe-right',"+JSONObject.quote(safeRight+"px")+");}";shell.evaluateJavascript(js,null);}
- String version(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){return "0.2.7";}}
+ String version(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){return "0.2.8";}}
  void command(JSONObject c){switch(c.optString("type")){
   case "ready":emit("init","version",version(),"brainReady",false,"oceanReady",false);applyInsets(safeTop,safeBottom);break;
   case "ask":emit("error","id",c.optString("id"),"message","Личная запись сохранена. Внутренний ИИ OSMINOG ещё не подключён к серверу.");break;
   case "openLink":try{Uri u=Uri.parse(c.optString("url"));if(("https".equals(u.getScheme())||"http".equals(u.getScheme()))&&u.getHost()!=null&&u.getUserInfo()==null)startActivity(new Intent(Intent.ACTION_VIEW,u).addCategory(Intent.CATEGORY_BROWSABLE));else notice("Некорректная ссылка");}catch(Exception e){notice("Не удалось открыть ссылку");}break;
-  case "voice":speechLanguage=c.optString("language","ru");startVoice();break;
+  case "voice":speechLanguage=c.optString("language","ru");voiceSession=c.optString("session");startVoice();break;
+  case "voiceSystem":if(foreground)voiceInput.chooseSystem(c.optString("session"));break;
+  case "finishVoice":voiceInput.finish(c.optString("session"));break;
   case "stopVoice":stopVoice();break;
   case "checkUpdate":updater.check();break;
   case "downloadUpdate":updater.downloadAvailable();break;
@@ -70,12 +72,16 @@ public class MainActivity extends Activity {
  }}
  void emit(String type,Object... values){try{JSONObject data=new JSONObject().put("type",type);for(int i=0;i+1<values.length;i+=2)data.put(String.valueOf(values[i]),values[i+1]);String js="window.OSMINOG?.receive("+data+")";runOnUiThread(()->{if(shell!=null&&!isDestroyed()&&HOME.equals(shell.getUrl()))shell.evaluateJavascript(js,null);});}catch(JSONException ignored){}}
  void notice(String message){emit("notice","message",message);}
- void startVoice(){if(!foreground)return;if(Build.VERSION.SDK_INT<31||!SpeechRecognizer.isOnDeviceRecognitionAvailable(this)){notice("Локальный голосовой ввод недоступен на этом устройстве. Используй микрофон клавиатуры.");return;}if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},61);return;}stopVoice();recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(this);recognizer.setRecognitionListener(new RecognitionListener(){public void onReadyForSpeech(Bundle b){listening=true;emit("voice","on",true);}public void onBeginningOfSpeech(){}public void onRmsChanged(float f){}public void onBufferReceived(byte[] b){}public void onEndOfSpeech(){}public void onError(int e){stopVoice();notice("Голос не распознан. Можно повторить или написать текст.");}public void onResults(Bundle b){ArrayList<String> lines=b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);stopVoice();if(lines!=null&&!lines.isEmpty())emit("transcript","text",lines.get(0));}public void onPartialResults(Bundle b){}public void onEvent(int a,Bundle b){}});Intent in=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM).putExtra(RecognizerIntent.EXTRA_LANGUAGE,speechLanguage).putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true);try{recognizer.startListening(in);}catch(Exception e){stopVoice();notice("Голосовой ввод не запустился");}}
- void stopVoice(){listening=false;if(recognizer!=null){recognizer.cancel();recognizer.destroy();recognizer=null;}emit("voice","on",false);}
- @Override public void onRequestPermissionsResult(int code,String[] p,int[] grants){super.onRequestPermissionsResult(code,p,grants);boolean yes=grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED;if(code==60&&cameraPermission!=null){PermissionRequest r=cameraPermission;cameraPermission=null;if(foreground&&yes)r.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});else r.deny();}if(code==61&&yes&&foreground)startVoice();}
+ void startVoice(){
+  if(!foreground)return;
+  if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){if(!voicePermissionPending){voicePermissionPending=true;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},61);}return;}
+  voiceInput.start(voiceSession,speechLanguage);
+ }
+ void stopVoice(){voiceResumePending=false;if(voiceInput!=null)voiceInput.cancel();}
+ @Override public void onRequestPermissionsResult(int code,String[] p,int[] grants){super.onRequestPermissionsResult(code,p,grants);boolean yes=grants.length>0&&grants[0]==PackageManager.PERMISSION_GRANTED;if(code==60&&cameraPermission!=null){PermissionRequest r=cameraPermission;cameraPermission=null;if(foreground&&yes)r.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});else r.deny();}if(code==61){voicePermissionPending=false;if(yes){voiceResumePending=true;if(foreground){voiceResumePending=false;startVoice();}}else{emit("voice","session",voiceSession,"on",false);notice("Микрофон не разрешён. Его можно включить в настройках приложения Android.");}}}
  @Override protected void onActivityResult(int r,int result,Intent data){super.onActivityResult(r,result,data);if(r==50&&fileCallback!=null){fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result,data));fileCallback=null;}}
  @Override public void onBackPressed(){if(shell==null){super.onBackPressed();return;}shell.evaluateJavascript("window.OSMINOG?.back()===true",value->{if(!"true".equals(value))MainActivity.super.onBackPressed();});}
- @Override protected void onResume(){super.onResume();foreground=true;configureSystemBars();if(shell!=null){shell.onResume();root.requestApplyInsets();emit("paused","value",false);}if(updater!=null)updater.resume();}
+ @Override protected void onResume(){super.onResume();foreground=true;configureSystemBars();if(shell!=null){shell.onResume();root.requestApplyInsets();emit("paused","value",false);}if(updater!=null)updater.resume();if(voiceResumePending){voiceResumePending=false;startVoice();}}
  @Override protected void onPause(){foreground=false;stopVoice();if(cameraPermission!=null){cameraPermission.deny();cameraPermission=null;}if(shell!=null){shell.evaluateJavascript("document.querySelectorAll('video,audio').forEach(v=>{v.pause();v.srcObject?.getTracks().forEach(t=>t.stop());v.srcObject=null;});window.OSMINOG?.receive({type:'paused',value:true})",null);shell.onPause();}super.onPause();}
  @Override protected void onDestroy(){stopVoice();if(fileCallback!=null)fileCallback.onReceiveValue(null);if(cameraPermission!=null)cameraPermission.deny();if(updater!=null)updater.close();if(port!=null)port.close();if(shell!=null){root.removeView(shell);shell.destroy();shell=null;}super.onDestroy();}
 }
