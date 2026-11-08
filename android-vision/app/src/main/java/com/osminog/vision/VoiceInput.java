@@ -19,7 +19,8 @@ final class VoiceInput {
   public boolean local(){return Build.VERSION.SDK_INT>=31&&SpeechRecognizer.isOnDeviceRecognitionAvailable(context);}
   public boolean system(){return SpeechRecognizer.isRecognitionAvailable(context);}
   public Engine create(boolean local,RecognitionListener listener){
-   SpeechRecognizer r=local?SpeechRecognizer.createOnDeviceSpeechRecognizer(context):SpeechRecognizer.createSpeechRecognizer(context);
+   SpeechRecognizer r;
+   if(local){if(Build.VERSION.SDK_INT<31)throw new IllegalStateException("On-device service requires API 31");r=SpeechRecognizer.createOnDeviceSpeechRecognizer(context);}else r=SpeechRecognizer.createSpeechRecognizer(context);
    r.setRecognitionListener(listener);
    return new Engine(){public void start(Intent i){r.startListening(i);}public void finish(){r.stopListening();}public void close(){r.cancel();r.destroy();}};
   }

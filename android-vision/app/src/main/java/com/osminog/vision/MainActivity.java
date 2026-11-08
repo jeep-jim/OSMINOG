@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
   case "voice":speechLanguage=c.optString("language","ru");voiceSession=c.optString("session");startVoice();break;
   case "voiceSystem":if(foreground)voiceInput.chooseSystem(c.optString("session"));break;
   case "finishVoice":voiceInput.finish(c.optString("session"));break;
-  case "stopVoice":stopVoice();break;
+  case "stopVoice":voiceSession="";stopVoice();break;
   case "checkUpdate":updater.check();break;
   case "downloadUpdate":updater.downloadAvailable();break;
   case "installSettings":updater.openInstallSettings();break;
@@ -73,7 +73,7 @@ public class MainActivity extends Activity {
  void emit(String type,Object... values){try{JSONObject data=new JSONObject().put("type",type);for(int i=0;i+1<values.length;i+=2)data.put(String.valueOf(values[i]),values[i+1]);String js="window.OSMINOG?.receive("+data+")";runOnUiThread(()->{if(shell!=null&&!isDestroyed()&&HOME.equals(shell.getUrl()))shell.evaluateJavascript(js,null);});}catch(JSONException ignored){}}
  void notice(String message){emit("notice","message",message);}
  void startVoice(){
-  if(!foreground)return;
+  if(!foreground||voiceSession.isEmpty())return;
   if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){if(!voicePermissionPending){voicePermissionPending=true;requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},61);}return;}
   voiceInput.start(voiceSession,speechLanguage);
  }
