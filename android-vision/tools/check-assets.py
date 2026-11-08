@@ -12,7 +12,13 @@ derived=root/'design/background-fullscreen.svg'
 assert derived.is_file(),'background-fullscreen.svg'
 tree=ET.fromstring(derived.read_bytes())
 assert tree.tag.endswith('svg') and not tree.findall('.//{http://www.w3.org/2000/svg}script')
-for name in ['app.js','app.css','index.html','provider.js']:
+for name in ['app.js','app.css','personal.css','index.html']:
  data=(root/name).read_text()
  assert 'https://www.figma.com/api' not in data,name
+assert not (root/'provider.js').exists()
+assert not (root/'foreground-shell.js').exists()
+java=root.parent/'java/com/osminog/vision/MainActivity.java'
+code=java.read_text()
+assert 'provider.loadUrl' not in code and 'new WebView(this)' in code
+assert '--safe-bottom' in (root/'personal.css').read_text()
 print('ORIGINAL_DESIGN_ASSETS_PASS',len(meta['files']))
