@@ -29,3 +29,6 @@ for name,sha in extra['files'].items():
 for name in ['ocean.js','ocean.css']:
  assert (root/name).is_file(),name
 print('LOCAL_FIGMA_OCEAN_ASSETS_PASS')
+
+for name in ['ocean.js','ocean.css']:
+ assert '/assets/'+name in code, 'Native asset allowlist missing '+name

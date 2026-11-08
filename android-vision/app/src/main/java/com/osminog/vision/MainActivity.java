@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
   CookieManager.getInstance().setAcceptThirdPartyCookies(shell,false);
   shell.setWebViewClient(new WebViewClient(){
    @Override public WebResourceResponse shouldInterceptRequest(WebView v,WebResourceRequest r){
-    String path=r.getUrl().getPath();if(!trusted(r.getUrl().toString())||path==null||!(Arrays.asList("/assets/index.html","/assets/app.js","/assets/app.css","/assets/personal.css").contains(path)||path.matches("/assets/design/[A-Za-z0-9 _-]+\\.svg")))return blocked();
+    String path=r.getUrl().getPath();if(!trusted(r.getUrl().toString())||path==null||!(Arrays.asList("/assets/index.html","/assets/app.js","/assets/app.css","/assets/personal.css","/assets/ocean.js","/assets/ocean.css").contains(path)||path.matches("/assets/design/[A-Za-z0-9 _-]+\\.svg")))return blocked();
     try{String mime=path.endsWith(".js")?"text/javascript":path.endsWith(".css")?"text/css":path.endsWith(".svg")?"image/svg+xml":"text/html";Map<String,String> h=new HashMap<>();h.put("Content-Security-Policy","default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'");h.put("Cache-Control","no-store");return new WebResourceResponse(mime,"UTF-8",200,"OK",h,getAssets().open(path.substring(8)));}catch(IOException e){return blocked();}
    }
    @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){return !HOME.equals(r.getUrl().toString());}
