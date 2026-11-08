@@ -23,6 +23,7 @@ jobs:
       - name: Validate private mobile scripts and original design assets
         run: |
           node --check android-vision/app/src/main/assets/app.js
+          node --check android-vision/app/src/main/assets/ocean.js
           python3 android-vision/tools/check-assets.py
           bash -n android-vision/tools/verify-emulator.sh
       - name: Build and lint

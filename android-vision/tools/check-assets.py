@@ -22,3 +22,10 @@ code=java.read_text()
 assert 'provider.loadUrl' not in code and 'new WebView(this)' in code
 assert '--safe-bottom' in (root/'personal.css').read_text()
 print('ORIGINAL_DESIGN_ASSETS_PASS',len(meta['files']))
+
+extra=json.loads((root/'design/ocean-provenance.json').read_text())
+for name,sha in extra['files'].items():
+ assert hashlib.sha256((root/'design'/name).read_bytes()).hexdigest()==sha,name
+for name in ['ocean.js','ocean.css']:
+ assert (root/name).is_file(),name
+print('LOCAL_FIGMA_OCEAN_ASSETS_PASS')
