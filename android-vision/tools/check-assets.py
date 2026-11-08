@@ -26,9 +26,11 @@ print('ORIGINAL_DESIGN_ASSETS_PASS',len(meta['files']))
 extra=json.loads((root/'design/ocean-provenance.json').read_text())
 for name,sha in extra['files'].items():
  assert hashlib.sha256((root/'design'/name).read_bytes()).hexdigest()==sha,name
-for name in ['ocean.js','ocean.css']:
+for name in ['ocean.js','ocean.css','media.js']:
  assert (root/name).is_file(),name
 print('LOCAL_FIGMA_OCEAN_ASSETS_PASS')
 
-for name in ['ocean.js','ocean.css']:
+for name in ['ocean.js','ocean.css','media.js']:
  assert '/assets/'+name in code, 'Native asset allowlist missing '+name
+
+assert hashlib.sha256((root.parent/"res/drawable/eye.xml").read_bytes()).hexdigest()=="a1e00f74137cd11872329c354d0d6e93969377ad1747a050e0f41660e427aa52", "Original launcher eye changed"

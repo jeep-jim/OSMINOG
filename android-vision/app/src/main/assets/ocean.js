@@ -46,7 +46,12 @@
  function back(){if(!active)return false;if(expanded){saveReply();expanded=false;root.classList.remove('thread-open');$('discussion').hidden=true;$('cardExpand').hidden=false;$('cardHandle').setAttribute('aria-label','Раскрыть обсуждение');return true;}if(cardId){closeCard();return true;}close();return true;}
  compass.onclick=()=>active?close():open();$('oceanBack').onclick=back;$('cardClose').onclick=closeCard;$('cardExpand').onclick=expand;$('cardHandle').onclick=()=>{if(swiped){swiped=false;return;}expanded?back():expand();};$('replyDraft').oninput=saveReply;
  $('oceanSearch').onsubmit=e=>{e.preventDefault();closeCard();document.activeElement?.blur();refresh();};$('oceanQuery').oninput=()=>{if(cardId)closeCard();else refresh();};
- let sheetGesture=null,swiped=false;$('cardHandle').addEventListener('pointerdown',e=>{sheetGesture=e.clientY;swiped=false;$('cardHandle').setPointerCapture?.(e.pointerId);});$('cardHandle').addEventListener('pointerup',e=>{if(sheetGesture===null)return;const dy=e.clientY-sheetGesture;sheetGesture=null;if(Math.abs(dy)>55){swiped=true;if(dy>0)back();else expand();}});$('cardHandle').addEventListener('pointercancel',()=>sheetGesture=null);
+ let sheetGesture=null,swiped=false;
+ $('cardHandle').addEventListener('pointerdown',e=>{sheetGesture={y:e.clientY,height:$('oceanCard').getBoundingClientRect().height,expanded};swiped=false;try{$('cardHandle').setPointerCapture(e.pointerId);}catch{}});
+ $('cardHandle').addEventListener('pointermove',e=>{if(!sheetGesture)return;const dy=e.clientY-sheetGesture.y;if(Math.abs(dy)>6){swiped=true;const max=root.clientHeight-120;const height=Math.max(90,Math.min(max,sheetGesture.height-dy));$('oceanCard').style.maxHeight=height+'px';$('oceanCard').style.height=height+'px';$('oceanCard').style.flex='none';}});
+ function endSheet(e,cancelled=false){if(!sheetGesture)return;const dy=e.clientY-sheetGesture.y,wasExpanded=sheetGesture.expanded;sheetGesture=null;$('oceanCard').style.maxHeight='';$('oceanCard').style.height='';$('oceanCard').style.flex='';if(cancelled)return;if(Math.abs(dy)>55){swiped=true;if(dy>0){if(wasExpanded)back();else closeCard();}else expand();}}
+ $('cardHandle').addEventListener('pointerup',e=>endSheet(e));$('cardHandle').addEventListener('pointercancel',e=>endSheet(e,true));
+
  document.addEventListener('visibilitychange',()=>{if(document.hidden){saveReply();cancelHold();cancelAnimationFrame(inertia);pointers.clear();gesture=null;}});window.addEventListener('pagehide',saveReply);
  window.OceanUI={open,close,back,preview(id){open(true);openCard(id);},get active(){return active;}};
 })();
