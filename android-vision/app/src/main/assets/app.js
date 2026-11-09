@@ -1,5 +1,5 @@
 'use strict';
-// OSMINOG 0.2.8: personal local space, no provider websites or fabricated replies.
+// OSMINOG 0.2.9: personal local space, no provider websites or fabricated replies.
 const $=id=>document.getElementById(id),STORE='osminogPersonalOceanV1';
 let port=null,menuOpen=false,paused=false,voice=false,voiceSession=null,cameraStream=null,cameraGeneration=0;
 let selectedId=null,pendingFile=null,holdTimer=0,held=false,holdOrigin=null,cameraBusy=false;
@@ -23,7 +23,7 @@ function renderAttachment(file,container){if(!file)return;if(file.type?.startsWi
 function render(){const list=$('messages');list.replaceChildren();document.body.classList.toggle('has-chat',records.length>0);
  for(const r of records){const article=node('article','message '+r.role);article.dataset.id=r.id;
   if(r.role==='user'){const b=node('button','avatar');b.setAttribute('aria-label','Действия с сообщением');const img=node('img');img.src=preferences.photo||imageFor(preferences.avatar);img.alt='';img.style.cssText=preferences.photo?'width:28px;height:28px;left:6px;top:6px;object-fit:cover;border-radius:50%;transform:none':'width:28px;height:28px;left:6px;top:6px;object-fit:contain;transform:rotate(-35deg)';b.append(img);b.onclick=()=>messageActions(r.id);article.append(b);}
-  const body=node('span','body',r.text);if(typeof linkText==='function')linkText(body,r.text);renderAttachment(r.file,body);if(r.intent)body.append(node('small','message-status','Черновик намерения · не опубликован'));article.append(body);list.append(article);
+  const body=node('div','body'),copy=node('div','message-copy',r.text);if(typeof linkText==='function')linkText(copy,r.text);body.append(copy);const media=node('div','message-media');renderAttachment(r.file,media);if(media.childNodes.length)body.append(media);if(r.intent)body.append(node('small','message-status','Черновик намерения · не опубликован'));article.append(body);list.append(article);
  }renderIntentions();requestAnimationFrame(()=>{$('main').scrollTop=$('main').scrollHeight;});
 }
 function renderIntentions(){const rows=$('intentionsList');rows.replaceChildren();const intents=records.filter(r=>r.intent);$('intentionsCount').textContent=String(intents.length);if(!intents.length)rows.append(node('p','empty-menu','Здесь появятся твои намерения'));for(const r of intents){const b=node('button','intent-row');b.append(node('span','mini-orb'),node('span','intent-label',r.text),node('span','intent-count',String(read('osminogReplies:'+r.id,[]).length)));b.title='Черновик · не опубликован';b.onclick=()=>{setMenu(false);window.OceanUI?.preview(r.id);};rows.append(b);}}
@@ -43,7 +43,7 @@ function renderProfile(){
  for(const asset of avatars){const b=node('button',asset===preferences.avatar?'selected':'');b.setAttribute('aria-label',asset===preferences.avatar?'Выбранный планктон; нажать — выбрать фото':'Выбрать планктон');const img=node('img');img.src=imageFor(asset);img.alt='';b.append(img);b.onclick=()=>{if(asset===preferences.avatar){$('avatarInput').click();return;}const next={...preferences,avatar:asset,photo:''};if(persist('osminogProfileV1',next)){Object.assign(preferences,next);renderProfile();render();}};strip.append(b);}
  $('profileAvatar').replaceChildren();if(preferences.photo){const img=node('img');img.src=preferences.photo;img.alt='Моё фото';$('profileAvatar').append(img);}$('profilePhotoButton').classList.toggle('photo-present',!!preferences.photo);
 }
-$('profilePhotoButton').onclick=()=>$('avatarInput').click();$('profileName').onchange=()=>{const name=$('profileName').value.trim().slice(0,40)||'Планктон';if(persist('osminogProfileV1',{...preferences,name}))preferences.name=name;};
+$('profilePhotoButton').onclick=()=>$('avatarInput').click();$('profileName').oninput=$('profileName').onchange=()=>{const name=$('profileName').value.trim().slice(0,40)||'Планктон';if(persist('osminogProfileV1',{...preferences,name,updated:Date.now()}))preferences.name=name;};
 function selected(){return records.find(r=>r.id===selectedId);}
 function messageActions(id){if(!records.some(r=>r.id===id&&r.role==='user'))return;selectedId=id;$('actionText').textContent=selected().text;$('actions').showModal();}
 function confirmAction(title,text,action){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('confirmYes').onclick=()=>{if(action()!==false)$('confirmDialog').close();};$('confirmDialog').showModal();}
@@ -91,9 +91,9 @@ function swim(s){if(!motion||paused||document.hidden||menuOpen)return;const x=(M
 function refreshMotion(){const run=motion&&!paused&&!document.hidden&&!menuOpen&&!matchMedia('(prefers-reduced-motion: reduce)').matches;document.body.classList.toggle('motion-off',!run);for(const s of swimmers){if(run){if(s.animation)s.animation.play();else swim(s);}else s.animation?.pause();}$('motionToggle').setAttribute('aria-checked',String(motion));}
 $('motionToggle').onclick=()=>{motion=!motion;try{localStorage.setItem('osminogMotion',motion?'on':'off');}catch{}refreshMotion();};
 window.OSMINOG={nativeReady:false,receive(event){if(!event||typeof event.type!=='string')return;switch(event.type){
- case 'init':this.nativeReady=true;$('version').textContent=event.version||'0.2.8';break;
+ case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);$('version').textContent=event.version||'0.2.9';break;
  case 'notice':case 'error':notice(event.message||'Сервис недоступен');break;
- case 'voice':if(voiceSession&&event.session===voiceSession.id){voice=!!event.on;if(!voice)voiceSession=null;typing();}break;
+ case 'voice':if(voiceSession&&event.session===voiceSession.id){voice=!!event.on;if(!voice){voiceSession=null;$('voiceChoice')?.close();}typing();}break;
  case 'voiceChoice':if(voiceSession&&event.session===voiceSession.id){voice=true;typing();if(!$('voiceChoice').open)$('voiceChoice').showModal();}break;
  case 'transcript':if(voiceSession&&!voiceSession.used&&event.session===voiceSession.id&&typeof event.text==='string'){
  voiceSession.used=true;const input=$('text'),words=event.text.trim(),before=input.value;
@@ -122,10 +122,10 @@ pt:{lines:['Desperta-me do meu sono','com um leve movimento na tela','vou subir 
 de:{lines:['Weck mich aus dem Schlaf','mit einer sanften Wischbewegung','ich steige vom Meeresgrund empor','was die Tiefe verborgen hält'],hint:'Wischen zum Eintreten',label:'Sprache auswählen'},
 fr:{lines:['Réveille-moi de mon sommeil','d’un simple glissement','je remonterai des fonds marins','ce que les profondeurs cachent'],hint:'Glissez pour entrer',label:'Choisissez votre langue'}
 };
-function applyOceanTheme(theme){const dark=theme==='dark';$('themeToggle').setAttribute('aria-checked',String(dark));document.body.classList.toggle('theme-dark',dark);try{localStorage.setItem('osminogTheme',dark?'dark':'blue');}catch{}}
+function applyOceanTheme(theme){const classic=theme==='classic',dark=theme==='dark';document.body.classList.toggle('theme-classic',classic);$('themeToggle').setAttribute('aria-checked',String(dark));document.body.classList.toggle('theme-dark',dark);try{localStorage.setItem('osminogTheme',classic?'classic':dark?'dark':'blue');}catch{}}
 function setWelcomeLanguage(code){const lang=welcomeCopy[code]?code:'ru',copy=welcomeCopy[lang];$('welcomePoem')?.replaceChildren(...copy.lines.map(line=>{const p=document.createElement('p');p.textContent=line;return p;}));if($('welcomePoem')){$('welcomePoem').lang=lang;$('welcomePoem').dir=lang==='ar'?'rtl':'auto';$('welcomeHint').textContent=copy.hint;$('welcomeLanguageLabel').textContent=copy.label;}locale=lang;document.documentElement.lang='ru';$('languageCode').textContent=lang.toUpperCase()+' →';try{localStorage.setItem('osminogLanguage',lang);}catch{}}
 function wakeWelcome(){const screen=$('welcomeScreen');if(!screen||screen.classList.contains('leaving'))return;try{localStorage.setItem('osminogWelcomed','1');}catch{}screen.classList.add('leaving');setTimeout(()=>screen.remove(),900);}
 function initWelcome(){let lang='ru',theme='dark',done=false;try{lang=localStorage.getItem('osminogLanguage')||((navigator.language||'ru').split('-')[0]);theme=localStorage.getItem('osminogTheme')||'dark';done=localStorage.getItem('osminogWelcomed')==='1';}catch{}$('welcomeLanguage').value=welcomeCopy[lang]?lang:'ru';setWelcomeLanguage($('welcomeLanguage').value);$('welcomeLanguage').addEventListener('change',()=>setWelcomeLanguage($('welcomeLanguage').value));applyOceanTheme(theme);if(done){$('welcomeScreen').remove();return;}let start=null;$('welcomeWake').addEventListener('click',wakeWelcome);$('welcomeScreen').addEventListener('pointerdown',e=>{if(e.target.closest('select,button'))return;start={x:e.clientX,y:e.clientY};});$('welcomeScreen').addEventListener('pointerup',e=>{if(!start)return;const dy=start.y-e.clientY,dx=Math.abs(start.x-e.clientX);start=null;if(Math.abs(dy)>62&&dx<90)wakeWelcome();});$('welcomeScreen').addEventListener('pointercancel',()=>start=null);}
 $('themeToggle').onclick=()=>applyOceanTheme(document.body.classList.contains('theme-dark')?'blue':'dark');$('languageChoice').replaceChildren(...Array.from($('welcomeLanguage').options).map(o=>o.cloneNode(true)));
 $('languageButton').onclick=()=>{$('languageChoice').value=locale;$('languageDialog').showModal();};$('saveLanguage').onclick=()=>{locale=$('languageChoice').value;try{localStorage.setItem('osminogLanguage',locale);}catch{}$('languageCode').textContent=locale.toUpperCase()+' →';$('languageDialog').close();};
-initWelcome();collapseSettings(settingsExpanded);renderProfile();render();$('text').value=read('osminogPersonalDraft','');typing();refreshMotion();
+const welcomeTemplate=$('welcomeScreen').outerHTML;initWelcome();collapseSettings(settingsExpanded);renderProfile();render();$('text').value=read('osminogPersonalDraft','');typing();refreshMotion();
