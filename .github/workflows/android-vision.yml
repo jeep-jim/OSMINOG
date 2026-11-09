@@ -25,6 +25,7 @@ jobs:
           node --check android-vision/app/src/main/assets/app.js
           node --check android-vision/app/src/main/assets/ocean.js
           node --check android-vision/app/src/main/assets/media.js
+          node --check android-vision/app/src/main/assets/experience.js
           python3 android-vision/tools/check-assets.py
           bash -n android-vision/tools/verify-emulator.sh
       - name: Build and lint
@@ -48,7 +49,7 @@ jobs:
         working-directory: android-vision
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/OSMINOG-Vision-0.2.8-unsigned.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/OSMINOG-Vision-0.2.9-unsigned.apk
           sha256sum dist/*.apk > dist/SHA256SUMS.txt
           git rev-parse HEAD > dist/source-commit.txt
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" dist/apksigner.jar
@@ -56,7 +57,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-Vision-Android-0.2.8-verification
+          name: OSMINOG-Vision-Android-0.2.9-verification
           path: |
             android-vision/dist/
             android-vision/app/build/reports/
