@@ -65,5 +65,6 @@
  window.addEventListener('resize',()=>{if(cardId)sheetLayout();});
 
  document.addEventListener('visibilitychange',()=>{if(document.hidden){saveReply();cancelHold();cancelAnimationFrame(inertia);pointers.clear();gesture=null;}});window.addEventListener('pagehide',saveReply);
- window.OceanUI={open,close,back,preview(id){open(true);openCard(id);},get active(){return active;}};
+ function sync(){if(!active)return;if(cardId){if(!current()||current().resolved){closeCard();return;}const id=cardId,wasExpanded=expanded;openCard(id);if(wasExpanded)expand();}else refresh();}
+ window.OceanUI={open,close,back,sync,preview(id){open(true);openCard(id);},get active(){return active;}};
 })();
