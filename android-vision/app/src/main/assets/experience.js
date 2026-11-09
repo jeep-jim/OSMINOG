@@ -11,9 +11,14 @@ for(const text of [tr('Скажи, чего хочешь сейчас. Выпу�
 const replay=node('button','primary-action',tr('Посмотреть вступление'));replay.id='replayWelcome';about.append(replay);
 function showWelcome(){stopCamera();stopVoice();draftSave();for(const d of document.querySelectorAll('dialog[open]'))d.close();window.OceanUI?.close();setMenu(false);$('welcomeScreen')?.remove();localStorage.removeItem('osminogWelcomed');document.body.insertAdjacentHTML('afterbegin',welcomeTemplate);initWelcome();}
 replay.onclick=showWelcome;menuAction('aboutButton',tr('О проекте и знакомство'),()=>about.showModal());
-const themePanel=node('div','theme-options');themePanel.id='themeOptions';
-for(const [key,label] of [['blue',tr('Океан')],['dark',tr('Глубина')],['classic',tr('Классика')]]){const b=node('button','',label);b.dataset.theme=key;b.type='button';b.onclick=()=>{applyOceanTheme(key);themePanel.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));};themePanel.append(b);}
-$('themeToggle').after(themePanel);themePanel.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.theme===(localStorage.getItem('osminogTheme')||'dark'))));
+const themePanel=node('span','theme-swatches');themePanel.id='themeOptions';
+const oldThemeRow=$('themeToggle'),themeRow=node('div','setting-row');themeRow.id='themeToggle';themeRow.setAttribute('role','group');themeRow.setAttribute('aria-label',tr('Тема'));themeRow.replaceChildren(...oldThemeRow.childNodes);oldThemeRow.replaceWith(themeRow);
+const themeLabel=$('themeToggle').querySelector('span');themeLabel.id='themeLabel';$('themeToggle').querySelector('.switch').remove();
+$('themeToggle').removeAttribute('role');$('themeToggle').removeAttribute('aria-checked');
+// The outer row cycles palettes; each swatch also selects a palette directly.
+for(const [key,label] of [['classic',tr('Свет')],['blue',tr('Океан')],['dark',tr('Глубина')]]){const b=node('button','theme-swatch');b.type='button';b.dataset.theme=key;b.setAttribute('role','button');b.tabIndex=0;b.setAttribute('aria-label',label);const choose=e=>{e.stopPropagation();applyOceanTheme(key);};b.onclick=choose;b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose(e);}};themePanel.append(b);}
+$('themeToggle').append(themePanel);const originalTheme=applyOceanTheme;applyOceanTheme=function(key){originalTheme(key);themeLabel.textContent=tr('Тема')+' → '+tr(key==='dark'?'Глубина':key==='classic'?'Свет':'Океан');for(const b of themePanel.children)b.setAttribute('aria-pressed',String(b.dataset.theme===key));};
+$('themeToggle').onclick=()=>{const key=localStorage.getItem('osminogTheme')||'blue';applyOceanTheme(key==='blue'?'dark':key==='dark'?'classic':'blue');};applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');
 const profilePage=makeDialog('personProfile',tr('Мой профиль'));profilePage.classList.add('profile-page');
 function showProfile(){profilePage.querySelectorAll('.profile-content').forEach(x=>x.remove());const content=node('div','profile-content');const image=node('img','person-photo');image.src=preferences.photo||imageFor(preferences.avatar);image.alt=tr('Фото профиля');image.classList.toggle('is-character',!preferences.photo);const pick=node('button','profile-photo-action');pick.type='button';pick.append(image,node('span','',tr('Изменить фото')));pick.onclick=()=>$('avatarInput').click();content.append(pick);
  const label=node('label','',tr('Имя')),input=node('input');input.id='personName';input.value=preferences.name;input.maxLength=40;input.oninput=()=>{const next={...preferences,name:input.value.slice(0,40)};if(persist('osminogProfileV1',next))$('profileName').value=next.name;};label.append(input);content.append(label);
@@ -25,7 +30,23 @@ const avatarChanged=$('avatarInput').onchange;$('avatarInput').onchange=async()=
 menuAction('exitButton',tr('Выйти в приветствие'),()=>confirmAction(tr('Выйти?'),tr('Вернёмся к знакомству. Твой профиль, черновики и файлы останутся на этом устройстве.'),()=>{showWelcome();return true;}));
 const emptyGuide=node('section','empty-guide');emptyGuide.id='emptyGuide';emptyGuide.append(node('h2','',tr('Что ты ищешь сейчас?')),node('p','',tr('Напиши мысль или нажми на глаз, чтобы сказать её голосом.')));
 const openOcean=node('button','primary-action',tr('Открыть океан'));openOcean.id='emptyOcean';openOcean.onclick=()=>OceanUI.open();emptyGuide.append(openOcean,node('small','',tr('Обычная отправка — личная запись. Удержание пузыря слева — отдельное действие для мысли.')));$('main').prepend(emptyGuide);
-const priorRender=render;render=function(){priorRender();emptyGuide.hidden=records.length>0;window.OceanUI?.sync();};render();
+const priorRender=render;render=function(){priorRender();emptyGuide.hidden=true;window.OceanUI?.sync();};render();
+// Local character preferences are independent of the person's name/photo.
+const characterDefaults={name:tr('Планктон'),color:'#b6ddf4',size:100,speed:50,movement:true};
+function characterSettings(){return {...characterDefaults,...preferences.character};}
+function paintCharacter(){if(!$('characterName'))return;const c=characterSettings();document.documentElement.style.setProperty('--character-color',c.color);document.documentElement.style.setProperty('--character-size',String(c.size/100));$('characterName').value=c.name;for(const img of $('avatarCarousel').querySelectorAll('img')){img.style.filter='drop-shadow(0 0 4px '+c.color+')';img.style.scale=String(c.size/100);}document.body.dataset.characterMovement=String(c.movement);document.documentElement.style.setProperty('--character-speed',(100-c.speed)*.08+2+'s');}
+const characterPage=makeDialog('characterProfile',tr('Мой ИИ-персонаж'));characterPage.classList.add('character-page');
+const characterName=node('input');characterName.id='characterName';characterName.maxLength=40;characterName.setAttribute('aria-label',tr('Имя персонажа'));$('profileName').hidden=true;$('profileName').after(characterName);characterName.oninput=()=>{const c={...characterSettings(),name:characterName.value.slice(0,40)};persist('osminogProfileV1',{...preferences,character:c});};
+function saveCharacter(change){if(persist('osminogProfileV1',{...preferences,character:{...characterSettings(),...change}}))paintCharacter();}
+function showCharacter(){characterPage.querySelector('.character-content')?.remove();const content=node('div','character-content'),c=characterSettings(),preview=node('img','character-preview');preview.src=imageFor(preferences.avatar);preview.alt='';preview.style.filter='drop-shadow(0 0 8px '+c.color+')';preview.style.scale=String(c.size/100);content.append(preview);
+ function field(title,input){const label=node('label','',tr(title));label.append(input);content.append(label);}
+ const name=node('input');name.id='characterEditName';name.value=c.name;name.maxLength=40;name.oninput=()=>saveCharacter({name:name.value.slice(0,40)});field('Имя персонажа',name);
+ const color=node('input');color.type='color';color.id='characterColor';color.value=c.color;color.oninput=()=>{saveCharacter({color:color.value});preview.style.filter='drop-shadow(0 0 8px '+color.value+')';};field('Цвет',color);
+ for(const [key,title,min,max] of [['size','Размер',70,130],['speed','Скорость',0,100]]){const input=node('input');input.type='range';input.id='character'+key;input.min=min;input.max=max;input.value=c[key];input.oninput=()=>{saveCharacter({[key]:Number(input.value)});preview.style.scale=String(characterSettings().size/100);};field(title,input);}
+ const movement=node('input');movement.id='characterMovement';movement.type='checkbox';movement.checked=c.movement;movement.onchange=()=>saveCharacter({movement:movement.checked});field('Анимация персонажа',movement);
+ content.append(node('p','profile-local',tr('Внешность и движение сохраняются на устройстве. Самостоятельный поиск появится после подключения сервера.')));characterPage.append(content);characterPage.showModal();}
+const currentProfileRender=renderProfile;renderProfile=function(){currentProfileRender();paintCharacter();};
+$('avatarCarousel').addEventListener('click',e=>{const b=e.target.closest('button.selected');if(b)showCharacter();});paintCharacter();
 // Backdrop dismissal only when the gesture both begins and ends outside the sheet.
 function decorateDialog(d){if(d.dataset.dismissReady)return;d.dataset.dismissReady='yes';let outside=false;const isOutside=e=>{const r=d.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;};d.addEventListener('pointerdown',e=>outside=e.target===d&&isOutside(e));d.addEventListener('click',e=>{if(outside&&e.target===d&&isOutside(e))d.close();outside=false;});}
 document.querySelectorAll('dialog').forEach(d=>{decorateDialog(d);if(d.classList.contains('media-viewer'))return;const grip=node('div','sheet-drag-handle');grip.setAttribute('aria-hidden','true');d.prepend(grip);let drag=null;d.addEventListener('pointerdown',e=>{const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.top+36)return;drag={id:e.pointerId,y:e.clientY};try{d.setPointerCapture(e.pointerId);}catch{}});d.addEventListener('pointermove',e=>{if(drag&&drag.id===e.pointerId){e.preventDefault();d.style.transform='translateY('+Math.max(0,e.clientY-drag.y)+'px)';}});d.addEventListener('pointerup',e=>{if(!drag)return;const close=e.clientY-drag.y>80;drag=null;d.style.transform='';if(close)d.close();});d.addEventListener('pointercancel',()=>{drag=null;d.style.transform='';});d.addEventListener('close',()=>{drag=null;d.style.transform='';});});
@@ -35,7 +56,7 @@ const priorActions=messageActions;messageActions=function(id){priorActions(id);r
 if(window.OSMINOG?.nativeReady)emit('ready');
 
 // The character and the human profile have independent identity.
-const characterCaption=node('p','character-caption',tr('Мой ИИ-персонаж'));characterCaption.id='characterCaption';$('avatarCarousel').before(characterCaption);
+const characterCaption=node('p','character-caption',tr('Создать организм личного помощника'));characterCaption.id='characterCaption';$('avatarCarousel').before(characterCaption);
 $('avatarCarousel').setAttribute('aria-label',tr('Выбрать ИИ-персонажа'));
 // Read caret geometry in a hidden mirror, not by guessing from total text length.
 const caretMirror=node('div');caretMirror.setAttribute('aria-hidden','true');caretMirror.style.cssText='position:fixed;visibility:hidden;pointer-events:none;white-space:pre-wrap;overflow-wrap:break-word;left:-20000px;top:0';document.body.append(caretMirror);
@@ -47,7 +68,7 @@ document.addEventListener('selectionchange',()=>{const pair=eyeFields.find(([inp
 // Screen navigation leaves canvas panning, carousel and sheet gestures intact.
 let screenSwipe=null;
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;if(document.querySelector('dialog[open]')||$('welcomeScreen')||e.target.closest('input,textarea,button,a,select,#avatarCarousel,#oceanField,#oceanCard'))return;screenSwipe={id:e.pointerId,x:e.clientX,y:e.clientY};});
-document.addEventListener('pointerup',e=>{const start=screenSwipe;screenSwipe=null;if(!start||start.id!==e.pointerId)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;if(Math.abs(dx)<80||Math.abs(dx)<Math.abs(dy)*1.8)return;if(dx<0)setMenu(true);else OceanUI.open();});
+document.addEventListener('pointerup',e=>{const start=screenSwipe;screenSwipe=null;if(!start||start.id!==e.pointerId)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;if(Math.abs(dx)<80||Math.abs(dx)<Math.abs(dy)*1.8)return;if(dx<0)setMenu(true);else {setMenu(false);OceanUI.open();}});
 document.addEventListener('pointercancel',()=>screenSwipe=null);
 
 I18N.restoreView();
