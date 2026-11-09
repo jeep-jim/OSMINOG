@@ -1,7 +1,7 @@
 name: OSMINOG connection configuration readiness
 on:
   push:
-    branches: ['fix/android-vision-029-experience', 'fix/android-vision-0210-character']
+    branches: ['fix/android-vision-029-experience', 'fix/android-vision-0210-character', 'fix/android-vision-0211-design']
     paths: ['.github/workflows/osminog-config-readiness.yml']
   workflow_dispatch:
 permissions:
@@ -16,13 +16,17 @@ jobs:
         env:
           REG_SSH: ${{ secrets.OSMINOG_REG_SSH_KEY }}
           REG_AI: ${{ secrets.OSMINOG_REG_AI_API_KEY }}
+          AI_BASE_URL: ${{ vars.OSMINOG_REG_AI_BASE_URL }}
+          AI_HOST: ${{ vars.OSMINOG_REG_AI_HOST }}
+          AI_MODEL: ${{ vars.OSMINOG_REG_AI_MODEL }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
           OCEAN_URL: ${{ vars.OSMINOG_OCEAN_URL }}
           GOOGLE_CLIENT: ${{ vars.OSMINOG_GOOGLE_WEB_CLIENT_ID }}
           TELEGRAM_CLIENT: ${{ vars.OSMINOG_TELEGRAM_CLIENT_ID }}
         run: |
           python3 - <<'PY'
           import os
-          names={'REG_SSH':'OSMINOG_REG_SSH_KEY','REG_AI':'OSMINOG_REG_AI_API_KEY','OCEAN_URL':'OSMINOG_OCEAN_URL','GOOGLE_CLIENT':'OSMINOG_GOOGLE_WEB_CLIENT_ID','TELEGRAM_CLIENT':'OSMINOG_TELEGRAM_CLIENT_ID'}
+          names={'REG_SSH':'OSMINOG_REG_SSH_KEY','REG_AI':'OSMINOG_REG_AI_API_KEY','AI_BASE_URL':'OSMINOG_REG_AI_BASE_URL','AI_HOST':'OSMINOG_REG_AI_HOST','AI_MODEL':'OSMINOG_REG_AI_MODEL','SSH_USER':'OSMINOG_REG_SSH_USER','OCEAN_URL':'OSMINOG_OCEAN_URL','GOOGLE_CLIENT':'OSMINOG_GOOGLE_WEB_CLIENT_ID','TELEGRAM_CLIENT':'OSMINOG_TELEGRAM_CLIENT_ID'}
           lines=['OSMINOG / osminog-reg configuration availability (no network connection):']
           for key,name in names.items(): lines.append(name+': '+('PRESENT' if os.environ.get(key) else 'NOT_AVAILABLE'))
           lines.append('Presence does not prove endpoint health, client registration or successful authentication.')

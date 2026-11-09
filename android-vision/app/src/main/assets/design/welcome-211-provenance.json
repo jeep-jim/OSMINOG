@@ -1,0 +1,36 @@
+{
+  "source": "Untitled (4).fig",
+  "sha256": "e5fa8640c785825fb5aaca4770cb89ee6083843eb2059706b9d9eb732dd5b384",
+  "frame": "1009:113",
+  "base": {
+    "width": 390,
+    "height": 844
+  },
+  "geometry": {
+    "languageCenter": [
+      164,
+      208,
+      64,
+      64
+    ],
+    "languageField": [
+      39,
+      302,
+      314,
+      50
+    ],
+    "poem": [
+      44,
+      403,
+      306,
+      164
+    ],
+    "eye": [
+      161,
+      736,
+      70,
+      50
+    ]
+  },
+  "reuse": "Original project SVGs and Inter; no sample people seeded"
+}
