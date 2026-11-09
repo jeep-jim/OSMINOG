@@ -151,7 +151,7 @@
   paintAgent();
   if(!OceanUI.active){visited=false;speech.hidden=true;if(pending?.mode==='explore')finish();return;}
   if(targetId)moveTo(targetId);else if(!agent.style.left){agent.style.left='90px';agent.style.top='-80px';}
-  if(!visited){visited=true;if(consent===true&&records.some(r=>r.intent&&!r.resolved)&&!pending)request('explore');}
+  if(!visited&&OceanUI.thoughts.some(r=>r.intent&&!r.resolved)){visited=true;if(consent===true&&!pending)request('explore');}
  }
  window.CharacterAI={send,cameraChanged,oceanChanged,get busy(){return !!pending;},get ready(){return ready;},get visionReady(){return visionReady;}};
  updateStatus();render();
