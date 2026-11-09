@@ -28,7 +28,7 @@ public final class VisionTestRunner extends AndroidJUnitRunner {
      @Override public void onPageFinished(WebView view, String url) {
       if (finished) return;
       finished = true;
-      view.evaluateJavascript("localStorage.setItem('osminogMotion','off');localStorage.getItem('osminogMotion')", value -> {
+      view.evaluateJavascript("localStorage.setItem('osminogAIConsent','false');localStorage.setItem('osminogMotion','off');localStorage.getItem('osminogMotion')", value -> {
        if (!"\"off\"".equals(value)) failure.set(new AssertionError("Cannot initialize test motion preference"));
        view.destroy();
        done.countDown();

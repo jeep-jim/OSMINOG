@@ -1,8 +1,8 @@
 'use strict';
-// OSMINOG 0.2.12: personal local space, no provider websites or fabricated replies.
+// OSMINOG 0.2.13: personal local space, no provider websites or fabricated replies.
 const $=id=>document.getElementById(id),STORE='osminogPersonalOceanV1';
 let port=null,menuOpen=false,paused=false,voice=false,voiceSession=null,cameraStream=null,cameraGeneration=0;
-let selectedId=null,pendingFile=null,holdTimer=0,held=false,holdOrigin=null,cameraBusy=false;
+let selectedId=null,pendingFile=null,holdTimer=0,held=false,holdOrigin=null,cameraBusy=false,cameraFacing='environment';
 let motion=true,settingsExpanded=true,locale='ru',records=[];
 const preferences={name:tr('Планктон'),avatar:'Vector.svg',photo:''};
 function read(key,fallback){try{return JSON.parse(localStorage.getItem(key)||'null')??fallback;}catch{return fallback;}}
@@ -19,7 +19,7 @@ function setEyeVisualState(eye,kind){eye.dataset.eyeState=kind;eye.style.setProp
 function state(kind){document.body.dataset.state=kind;$('eye').style.setProperty('--eye-fill',eyeColors[kind]||eyeColors.idle);setEyeVisualState($('eye'),kind);}
 function saveRecords(next){if(!persist(STORE,next))return false;records=next;return true;}
 function draftSave(){persist('osminogPersonalDraft',$('text').value);}
-function typing(){window.followCaret?.();const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(voice?'listening':input.value.trim()?'typing':'sleeping');$('eye').setAttribute('aria-label',voice?tr('Завершить голосовой ввод'):input.value.trim()?tr('Отправить личное сообщение'):tr('Голосовой ввод'));}
+function typing(){window.followCaret?.();const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(voice?'listening':input.value.trim()?'typing':window.CharacterAI?.busy?'thinking':'sleeping');$('eye').setAttribute('aria-label',voice?tr('Завершить голосовой ввод'):input.value.trim()?tr('Отправить личное сообщение'):tr('Голосовой ввод'));}
 function imageFor(avatar){return 'design/'+encodeURIComponent(avatar||'Vector.svg');}
 function renderAttachment(file,container){if(!file)return;if(file.type?.startsWith('image/')&&/^data:image\/(jpeg|png);base64,/.test(file.data||'')){const img=node('img','attachment-image');img.src=file.data;img.alt=file.name||tr('Вложение');container.append(img);}else if(file.name)container.append(node('small','attachment-link',file.name));}
 function render(){const list=$('messages');list.replaceChildren();document.body.classList.toggle('has-chat',records.length>0);
@@ -60,7 +60,7 @@ $('attach').addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.but
 function clearHold(){clearTimeout(holdTimer);$('attach').classList.remove('holding');}
 $('attach').addEventListener('pointermove',e=>{if(holdOrigin&&Math.hypot(e.clientX-holdOrigin.x,e.clientY-holdOrigin.y)>16){clearHold();held=true;}});$('attach').addEventListener('pointerup',()=>{clearHold();holdOrigin=null;});$('attach').addEventListener('pointercancel',()=>{clearHold();held=true;holdOrigin=null;});
 $('attach').onclick=e=>{if(held){e.preventDefault();held=false;return;}$('attachmentDialog').showModal();};$('attach').addEventListener('contextmenu',e=>e.preventDefault());
-function ask(text){text=String(text||'').trim();if(!text&&!pendingFile)return false;if(records.length>=300){notice(tr('Слишком много локальных записей. Удали ненужные перед отправкой.'));return false;}const id=uid(),record={id,role:'user',text,created:Date.now(),file:pendingFile};if(!saveRecords([...records,record]))return false;pendingFile=null;attachmentPreview();render();emit('ask',{id,text,withCamera:(Array.isArray(record.file)?record.file:[record.file]).some(f=>f?.type?.startsWith('image/'))});notice(tr('Сообщение сохранено на устройстве. Внутренний ИИ ещё не подключён.'));return true;}
+function ask(text){text=String(text||'').trim();if(!text&&!pendingFile)return false;if(records.length>=300){notice(tr('Слишком много локальных записей. Удали ненужные перед отправкой.'));return false;}const id=uid(),record={id,role:'user',text,created:Date.now(),file:pendingFile};if(!saveRecords([...records,record]))return false;pendingFile=null;attachmentPreview();render();window.CharacterAI?.send(record);return true;}
 $('composer').onsubmit=e=>{e.preventDefault();if(voice){emit('finishVoice',{session:voiceSession?.id});return;}if(!$('text').value.trim()&&!pendingFile){startVoice();return;}if(ask($('text').value)){$('text').value='';draftSave();typing();}};$('text').oninput=()=>{draftSave();typing();};$('dismiss').onclick=()=>notice();
 for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>b.closest('dialog').close();
 async function imageData(file,size=1024){if(!file.type.startsWith('image/'))throw Error(tr('Выбери изображение'));const url=URL.createObjectURL(file);try{const img=new Image();img.src=url;await img.decode();const c=document.createElement('canvas'),scale=Math.min(1,size/Math.max(img.width,img.height));c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.78);}finally{URL.revokeObjectURL(url);}}
@@ -69,7 +69,20 @@ function attachmentPreview(){const box=$('attachmentPreview');box.replaceChildre
 $('pickPhoto').onclick=()=>{$('fileInput').accept='image/jpeg,image/png';$('fileInput').click();};$('pickFile').onclick=()=>{$('fileInput').accept='application/pdf,text/plain';$('fileInput').click();};
 $('attachLink').onclick=()=>{try{const u=new URL($('linkInput').value);if(u.protocol!=='https:'||u.username||u.password)throw Error(tr('Нужна обычная HTTPS-ссылка'));const text=$('text').value+($('text').value?'\n':'')+u.href;if(text.length>12000)throw Error(tr('Слишком длинное сообщение'));$('text').value=text;$('linkInput').value='';draftSave();typing();$('attachmentDialog').close();}catch(e){notice(e.message);}};
 function stopCamera(){cameraGeneration++;cameraBusy=false;if(cameraStream)cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;$('cameraVideo').srcObject=null;$('cameraArea').hidden=true;$('cameraToggle').setAttribute('aria-checked','false');document.body.classList.remove('camera');}
-async function startCamera(){if(cameraBusy)return;cameraBusy=true;const gen=++cameraGeneration;try{if(!navigator.mediaDevices?.getUserMedia)throw Error(tr('Камера недоступна'));const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});if(paused||document.hidden||gen!==cameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}cameraStream=stream;$('cameraVideo').srcObject=stream;$('cameraArea').hidden=false;$('cameraToggle').setAttribute('aria-checked','true');document.body.classList.add('camera');notice(tr('Камера показывает изображение только тебе. Анализ ИИ пока не подключён.'));}catch(e){notice(tr('Камера не открылась: ')+e.message);stopCamera();}finally{cameraBusy=false;}}
+async function startCamera(facing=cameraFacing,switching=false){
+ if(cameraBusy)return;cameraBusy=true;const gen=++cameraGeneration,previous=cameraFacing;
+ const release=()=>{cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;$('cameraVideo').srcObject=null;};
+ const acquire=mode=>navigator.mediaDevices.getUserMedia({video:{facingMode:switching?{exact:mode}:{ideal:mode},width:{ideal:960},height:{ideal:720}},audio:false});
+ try{if(!navigator.mediaDevices?.getUserMedia)throw Error(tr('Камера недоступна'));release();let stream;
+  try{stream=await acquire(facing);}catch(error){if(!switching||gen!==cameraGeneration)throw error;facing=previous;stream=await acquire(previous);notice(tr('Другая камера недоступна. Оставлена прежняя.'));}
+  if(paused||document.hidden||gen!==cameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}
+  cameraStream=stream;cameraFacing=stream.getVideoTracks()[0]?.getSettings?.().facingMode||facing;$('cameraVideo').srcObject=stream;$('cameraVideo').style.transform=cameraFacing==='user'?'scaleX(-1)':'';$('cameraArea').hidden=false;$('cameraToggle').setAttribute('aria-checked','true');document.body.classList.add('camera');$('cameraVideo').play().catch(()=>{});window.CharacterAI?.cameraChanged();
+ }catch(e){if(gen===cameraGeneration){notice(tr('Камера не открылась: ')+e.message);stopCamera();}}
+ finally{if(gen===cameraGeneration)cameraBusy=false;}
+}
+$('cameraSwitch').onclick=()=>startCamera(cameraFacing==='user'?'environment':'user',true);
+$('cameraSwitch').onpointerdown=e=>e.preventDefault();
+$('cameraClose').onclick=stopCamera;
 $('cameraToggle').onclick=()=>{if(cameraStream||cameraBusy)stopCamera();else{setMenu(false);startCamera();}};$('openCamera').onclick=()=>{$('attachmentDialog').close();startCamera();};
 $('captureFrame').onclick=()=>{const v=$('cameraVideo');if(!v.videoWidth){notice(tr('Камера ещё не готова.'));return;}const c=document.createElement('canvas'),s=Math.min(1,1024/v.videoWidth);c.width=Math.round(v.videoWidth*s);c.height=Math.round(v.videoHeight*s);c.getContext('2d').drawImage(v,0,0,c.width,c.height);pendingFile={name:tr('Кадр камеры'),type:'image/jpeg',data:c.toDataURL('image/jpeg',.78)};attachmentPreview();stopCamera();};
 function startVoice(){
@@ -93,7 +106,7 @@ function swim(s){if(!motion||paused||document.hidden||menuOpen)return;const x=(M
 function refreshMotion(){const run=motion&&!paused&&!document.hidden&&!menuOpen&&!matchMedia('(prefers-reduced-motion: reduce)').matches;document.body.classList.toggle('motion-off',!run);for(const s of swimmers){if(run){if(s.animation)s.animation.play();else swim(s);}else s.animation?.pause();}$('motionToggle').setAttribute('aria-checked',String(motion));}
 $('motionToggle').onclick=()=>{motion=!motion;try{localStorage.setItem('osminogMotion',motion?'on':'off');}catch{}refreshMotion();};
 window.OSMINOG={nativeReady:false,receive(event){if(!event||typeof event.type!=='string')return;switch(event.type){
- case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');$('version').textContent=event.version||'0.2.12';break;
+ case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');$('version').textContent=event.version||'0.2.13';break;
  case 'notice':case 'error':notice(I18N.native(event.message)||tr('Сервис недоступен'));break;
  case 'voice':if(voiceSession&&event.session===voiceSession.id){voice=!!event.on;if(!voice){voiceSession=null;$('voiceChoice')?.close();}typing();}break;
  case 'voiceChoice':if(voiceSession&&event.session===voiceSession.id){voice=true;typing();if(!$('voiceChoice').open)$('voiceChoice').showModal();}break;

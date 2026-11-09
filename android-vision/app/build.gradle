@@ -6,8 +6,8 @@ android {
   applicationId 'com.osminog.vision'
   minSdk 26
   targetSdk 35
-  versionCode 14
-  versionName '0.2.12'
+  versionCode 15
+  versionName '0.2.13'
   testInstrumentationRunner 'com.osminog.vision.VisionTestRunner'
  }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
