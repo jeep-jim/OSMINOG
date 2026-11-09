@@ -8,7 +8,18 @@ for program in getent useradd runuser ssh-keygen install stat grep; do command -
 app=/opt/osminog
 account=osminog
 sshdir=$app/.ssh
-private=$sshdir/github_actions
+public_key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHmOeVQS8c1oEyigVCkV/H8RHpLouXU004FZMP00XBZV osminog-actions'
+if [[ $# -gt 0 ]]; then
+  [[ $# == 2 && $1 == --public-key-file && -f $2 ]] || fail 'OSMINOG_PUBLIC_KEY_ARGUMENT_INVALID'
+  public_key=$(cat "$2")
+fi
+[[ "$public_key" != *$'\n'* ]] || fail 'OSMINOG_PUBLIC_KEY_MULTILINE'
+read -r algorithm public_value _ <<< "$public_key"
+[[ $algorithm == ssh-ed25519 && $public_value =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || fail 'OSMINOG_PUBLIC_KEY_FORMAT_INVALID'
+public_temp=$(mktemp /tmp/osminog-public.XXXXXX)
+trap 'rm -f "$public_temp"' EXIT
+printf '%s %s osminog-actions\n' "$algorithm" "$public_value" > "$public_temp"
+ssh-keygen -lf "$public_temp" >/dev/null || fail 'OSMINOG_PUBLIC_KEY_INVALID'
 [[ ! -L "$app" ]] || fail 'OSMINOG_PATH_IS_SYMLINK'
 if getent passwd "$account" >/dev/null; then
   record=$(getent passwd "$account")
@@ -20,30 +31,17 @@ else
   [[ ! -e "$app" ]] || fail 'OSMINOG_PATH_EXISTS_WITHOUT_ACCOUNT'
   useradd --create-home --home-dir "$app" --shell /bin/bash --user-group "$account"
 fi
-for path in "$sshdir" "$private" "$private.pub" "$sshdir/authorized_keys"; do
+for path in "$sshdir" "$sshdir/authorized_keys"; do
   [[ ! -L "$path" ]] || fail 'OSMINOG_SSH_PATH_IS_SYMLINK'
 done
+[[ ! -e "$sshdir/authorized_keys" || -f "$sshdir/authorized_keys" ]] || fail 'OSMINOG_AUTHORIZED_KEYS_NOT_FILE'
 install -d -m 700 -o "$account" -g "$account" "$sshdir"
-if [[ ! -e "$private" ]]; then
-  [[ ! -e "$private.pub" ]] || fail 'OSMINOG_PUBLIC_KEY_EXISTS_WITHOUT_PRIVATE'
-  runuser -u "$account" -- sh -c 'umask 077; exec ssh-keygen -q -t ed25519 -N "" -C osminog-actions -f "$1"' sh "$private"
-fi
-[[ -f "$private" && -f "$private.pub" ]] || fail 'OSMINOG_KEY_PAIR_INCOMPLETE'
-chown "$account:$account" "$private" "$private.pub"
-chmod 600 "$private"
-chmod 644 "$private.pub"
-# Check the pair without printing private material or changing an existing key.
-public_from_private=$(runuser -u "$account" -- ssh-keygen -y -P '' -f "$private")
-read -r algorithm public_value _ < "$private.pub"
-read -r derived_algorithm derived_value _ <<< "$public_from_private"
-[[ "$derived_algorithm $derived_value" == "$algorithm $public_value" && $algorithm == ssh-ed25519 ]] || fail 'OSMINOG_KEY_PAIR_INVALID'
 authorized=$sshdir/authorized_keys
 touch "$authorized"
 if ! grep -Fq "$algorithm $public_value" "$authorized"; then
   printf 'restrict %s %s osminog-actions\n' "$algorithm" "$public_value" >> "$authorized"
 fi
-chown "$account:$account" "$private" "$private.pub" "$authorized"
-chmod 600 "$private" "$authorized"
-chmod 644 "$private.pub"
-printf '%s\n' 'OSMINOG_ACCESS_CREATED' 'User: osminog' 'Path: /opt/osminog' 'SSH private key file: /opt/osminog/.ssh/github_actions'
-ssh-keygen -lf "$private.pub"
+chown "$account:$account" "$authorized"
+chmod 600 "$authorized"
+printf '%s\n' 'OSMINOG_ACCESS_CREATED' 'User: osminog' 'Path: /opt/osminog'
+ssh-keygen -lf "$public_temp"
