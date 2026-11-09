@@ -1,0 +1,19 @@
+name: OSMINOG dedicated access bootstrap verification
+on:
+  push:
+    branches: ['fix/android-vision-0212-contrast']
+    paths: ['infra/osminog-access/**', 'tests/osminog-access/**', '.github/workflows/osminog-access-bootstrap-test.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test accounts and keys only on disposable GitHub runner
+        run: |
+          bash -n infra/osminog-access/bootstrap.sh
+          bash -n tests/osminog-access/verify.sh
+          sudo --preserve-env=GITHUB_ACTIONS bash tests/osminog-access/verify.sh
