@@ -5,7 +5,7 @@ mkdir -p dist
 cleanup() {
   timeout 12s adb logcat -d > dist/android-logcat.txt || true
   timeout 12s adb shell dumpsys activity activities > dist/activity-state.txt || true
-  for name in vision-home vision-menu vision-menu-collapsed vision-menu-blue vision-ocean vision-ocean-card vision-ocean-thread vision-attachments vision-language vision-voice-choice vision-comment-edit vision-classic vision-welcome-replay vision-profile vision-message-photo; do
+  for name in vision-home vision-menu vision-menu-collapsed vision-menu-blue vision-ocean vision-ocean-card vision-ocean-thread vision-attachments vision-language vision-voice-choice vision-comment-edit vision-classic vision-language-english vision-language-arabic vision-welcome-replay vision-profile vision-message-photo; do
     timeout 12s adb pull "/sdcard/$name.png" "dist/$name.png" || true
   done
 }
@@ -67,7 +67,7 @@ timeout 30s adb install -r app/build/outputs/apk/debug/app-debug.apk
 assert_cold_launch instrumentation-bootstrap
 
 
-timeout --kill-after=20s 360s gradle :app:connectedDebugAndroidTest
+timeout --kill-after=20s 900s gradle :app:connectedDebugAndroidTest
 python3 - <<'PY'
 from pathlib import Path
 import xml.etree.ElementTree as E
@@ -77,7 +77,7 @@ n=0
 for p in files:
  r=E.parse(p).getroot();n+=int(r.attrib['tests'])
  assert all(int(r.attrib.get(k,0))==0 for k in ('failures','errors','skipped')),p
-assert n>=63,n
+assert n>=70,n
 print('PERSONAL_MENU_TESTS_PASS',n)
 PY
 timeout 30s adb install -r app/build/outputs/apk/debug/app-debug.apk
