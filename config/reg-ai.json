@@ -1,0 +1,7 @@
+{
+  "base_url": "https://ai.reg.cloud/v1",
+  "host": "ai.reg.cloud",
+  "model": "qwen-3.8-flash-next",
+  "source": "REG API instructions supplied by owner on 2026-11-09",
+  "max_probe_tokens": 256
+}

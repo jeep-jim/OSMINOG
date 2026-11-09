@@ -1,5 +1,5 @@
 'use strict';
-// OSMINOG 0.2.11: personal local space, no provider websites or fabricated replies.
+// OSMINOG 0.2.12: personal local space, no provider websites or fabricated replies.
 const $=id=>document.getElementById(id),STORE='osminogPersonalOceanV1';
 let port=null,menuOpen=false,paused=false,voice=false,voiceSession=null,cameraStream=null,cameraGeneration=0;
 let selectedId=null,pendingFile=null,holdTimer=0,held=false,holdOrigin=null,cameraBusy=false;
@@ -14,7 +14,9 @@ function node(tag,cls,text){const e=document.createElement(tag);if(['input','tex
 function notice(text=''){$('noticeText').textContent=text;$('notice').hidden=!text;}
 function emit(type,data={}){if(!port){notice(tr('Связь с Android ещё не готова. Повтори действие.'));return false;}try{port.postMessage(JSON.stringify({type,...data}));return true;}catch{notice(tr('Связь с Android прервалась. Запись сохранена локально.'));return false;}}
 function uid(){return globalThis.crypto?.randomUUID?.()||('m-'+Date.now()+'-'+Math.random().toString(16).slice(2));}
-function state(kind){document.body.dataset.state=kind;const map={sleeping:'rgba(220,244,255,.13)',idle:'rgba(220,244,255,.13)',typing:'#ff3038',listening:'#63c8f3',error:'#e6a86b'};$('eye').style.setProperty('--eye-fill',map[kind]||map.idle);}
+const eyeColors={sleeping:'rgba(220,244,255,.13)',idle:'rgba(220,244,255,.13)',typing:'#ff3038',thinking:'#efc45b',listening:'#b497ec',error:'#e6a86b',speaking:'#80d4ca'};
+function setEyeVisualState(eye,kind){eye.dataset.eyeState=kind;eye.style.setProperty('--eye-tone',eyeColors[kind]||eyeColors.idle);}
+function state(kind){document.body.dataset.state=kind;$('eye').style.setProperty('--eye-fill',eyeColors[kind]||eyeColors.idle);setEyeVisualState($('eye'),kind);}
 function saveRecords(next){if(!persist(STORE,next))return false;records=next;return true;}
 function draftSave(){persist('osminogPersonalDraft',$('text').value);}
 function typing(){window.followCaret?.();const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(voice?'listening':input.value.trim()?'typing':'sleeping');$('eye').setAttribute('aria-label',voice?tr('Завершить голосовой ввод'):input.value.trim()?tr('Отправить личное сообщение'):tr('Голосовой ввод'));}
@@ -91,7 +93,7 @@ function swim(s){if(!motion||paused||document.hidden||menuOpen)return;const x=(M
 function refreshMotion(){const run=motion&&!paused&&!document.hidden&&!menuOpen&&!matchMedia('(prefers-reduced-motion: reduce)').matches;document.body.classList.toggle('motion-off',!run);for(const s of swimmers){if(run){if(s.animation)s.animation.play();else swim(s);}else s.animation?.pause();}$('motionToggle').setAttribute('aria-checked',String(motion));}
 $('motionToggle').onclick=()=>{motion=!motion;try{localStorage.setItem('osminogMotion',motion?'on':'off');}catch{}refreshMotion();};
 window.OSMINOG={nativeReady:false,receive(event){if(!event||typeof event.type!=='string')return;switch(event.type){
- case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');$('version').textContent=event.version||'0.2.11';break;
+ case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');$('version').textContent=event.version||'0.2.12';break;
  case 'notice':case 'error':notice(I18N.native(event.message)||tr('Сервис недоступен'));break;
  case 'voice':if(voiceSession&&event.session===voiceSession.id){voice=!!event.on;if(!voice){voiceSession=null;$('voiceChoice')?.close();}typing();}break;
  case 'voiceChoice':if(voiceSession&&event.session===voiceSession.id){voice=true;typing();if(!$('voiceChoice').open)$('voiceChoice').showModal();}break;
