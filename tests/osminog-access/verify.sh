@@ -2,15 +2,18 @@
 # Disposable GitHub runner only. Never run these account fixtures on a real VM.
 set -euo pipefail
 [[ ${GITHUB_ACTIONS:-} == true && $(id -u) == 0 ]] || { echo 'DISPOSABLE_GITHUB_RUNNER_REQUIRED' >&2; exit 1; }
-script=$(realpath infra/osminog-access/bootstrap.sh)
+script=$(mktemp /tmp/osminog-access-test.XXXXXX)
+install -m 644 infra/osminog-access/bootstrap.sh "$script"
 ! getent passwd osminog >/dev/null
 [[ ! -e /opt/osminog ]]
 cleanup(){
+ rm -f "$script"
  if getent passwd osminog >/dev/null; then usermod -d /opt/osminog osminog || true; userdel -r osminog || true; fi
  [[ ! -e /opt/osminog ]] || rm -rf /opt/osminog
 }
 trap cleanup EXIT
-if runuser -u nobody -- bash "$script"; then exit 1; fi
+if error=$(runuser -u nobody -- bash "$script" 2>&1); then exit 1; fi
+[[ "$error" == OSMINOG_SETUP_NEEDS_ROOT_CONSOLE ]]
 mkdir /opt/osminog
 if bash "$script"; then exit 1; fi
 ! getent passwd osminog >/dev/null

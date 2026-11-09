@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run once by the owner in the REG console. Only OSMINOG account/path are changed.
 set -euo pipefail
+umask 077
 fail(){ printf '%s\n' "$1" >&2; exit 1; }
 [[ $(id -u) == 0 ]] || fail 'OSMINOG_SETUP_NEEDS_ROOT_CONSOLE'
 for program in getent useradd runuser ssh-keygen install stat grep; do command -v "$program" >/dev/null || fail "OSMINOG_SETUP_MISSING_$program"; done
@@ -25,9 +26,12 @@ done
 install -d -m 700 -o "$account" -g "$account" "$sshdir"
 if [[ ! -e "$private" ]]; then
   [[ ! -e "$private.pub" ]] || fail 'OSMINOG_PUBLIC_KEY_EXISTS_WITHOUT_PRIVATE'
-  runuser -u "$account" -- ssh-keygen -q -t ed25519 -N '' -C osminog-actions -f "$private"
+  runuser -u "$account" -- sh -c 'umask 077; exec ssh-keygen -q -t ed25519 -N "" -C osminog-actions -f "$1"' sh "$private"
 fi
 [[ -f "$private" && -f "$private.pub" ]] || fail 'OSMINOG_KEY_PAIR_INCOMPLETE'
+chown "$account:$account" "$private" "$private.pub"
+chmod 600 "$private"
+chmod 644 "$private.pub"
 # Check the pair without printing private material or changing an existing key.
 public_from_private=$(runuser -u "$account" -- ssh-keygen -y -P '' -f "$private")
 read -r algorithm public_value _ < "$private.pub"
