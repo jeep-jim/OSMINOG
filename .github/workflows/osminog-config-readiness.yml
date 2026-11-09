@@ -1,0 +1,31 @@
+name: OSMINOG connection configuration readiness
+on:
+  push:
+    branches: ['fix/android-vision-029-experience']
+    paths: ['.github/workflows/osminog-config-readiness.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    environment: osminog-reg
+    steps:
+      - name: Report presence only, without connecting or exposing values
+        env:
+          REG_SSH: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          REG_AI: ${{ secrets.OSMINOG_REG_AI_API_KEY }}
+          OCEAN_URL: ${{ vars.OSMINOG_OCEAN_URL }}
+          GOOGLE_CLIENT: ${{ vars.OSMINOG_GOOGLE_WEB_CLIENT_ID }}
+          TELEGRAM_CLIENT: ${{ vars.OSMINOG_TELEGRAM_CLIENT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os
+          names={'REG_SSH':'OSMINOG_REG_SSH_KEY','REG_AI':'OSMINOG_REG_AI_API_KEY','OCEAN_URL':'OSMINOG_OCEAN_URL','GOOGLE_CLIENT':'OSMINOG_GOOGLE_WEB_CLIENT_ID','TELEGRAM_CLIENT':'OSMINOG_TELEGRAM_CLIENT_ID'}
+          lines=['OSMINOG / osminog-reg configuration availability (no network connection):']
+          for key,name in names.items(): lines.append(name+': '+('PRESENT' if os.environ.get(key) else 'NOT_AVAILABLE'))
+          lines.append('Presence does not prove endpoint health, client registration or successful authentication.')
+          print('\n'.join(lines))
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write('\n\n'.join(lines)+'\n')
+          PY
