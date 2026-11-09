@@ -4,7 +4,7 @@
  let consent=read('osminogAIConsent',null),pending=null,ready=false,visionReady=false,visited=false,targetId=null;
  let timeout=0,consentAction=null;
  const consentDialog=makeDialog('characterConsent',tr('Включить ИИ-персонажа'));
- consentDialog.append(node('p','',tr('Для ответа REG получит сообщение, до 12 последних реплик и выбранные мысли. Если камера включена или прикреплено фото — один уменьшенный кадр. Видео непрерывно не передаётся. История и оригиналы остаются на устройстве; сервис Осьминога не сохраняет содержание.')));
+ consentDialog.append(node('p','',tr('Для ответа REG получит сообщение, до 12 последних реплик и выбранные мысли. Если камера включена или прикреплено фото — один уменьшенный кадр. Видео непрерывно не передаётся. Личная история и оригиналы остаются на устройстве; сервис Осьминога не сохраняет личный чат. Публикация в общий океан подтверждается отдельно.')));
  const accept=node('button','',tr('Включить')),decline=node('button','',tr('Пока без ИИ'));
  accept.id='characterAccept';decline.id='characterDecline';consentDialog.append(accept,decline);
  const toggle=menuAction('characterToggle',tr('ИИ-персонаж'),()=>{
@@ -17,7 +17,7 @@
  consentDialog.addEventListener('close',()=>{consentAction=null;});
  function updateStatus(){
   toggle.setAttribute('aria-checked',String(consent===true));
-  $('brainStatus').textContent=consent!==true?tr('Личный чат с ИИ выключен. Записи остаются на устройстве.'):ready?tr('ИИ-персонаж подключён. Мысли в океане пока только на устройстве.'):tr('ИИ-персонаж включён. Соединение проверяется при отправке.');
+  $('brainStatus').textContent=consent!==true?tr('Личный чат с ИИ выключен. Записи остаются на устройстве.'):ready?tr('ИИ-персонаж подключён.'):tr('ИИ-персонаж включён. Соединение проверяется при отправке.');
   cameraChanged();
  }
  function cameraChanged(){
@@ -48,7 +48,7 @@
    budget-=text.length;history.unshift({role:r.role,text});if(budget<=0)break;
   }
   // Only thoughts explicitly present in the current local ocean. No archive import.
-  const thoughts=records.filter(r=>r.intent&&!r.resolved&&r.role==='user').slice(-12).map(r=>({id:r.id,text:r.text.slice(0,120)}));
+  const thoughts=(window.SharedOcean?SharedOcean.all():records).filter(r=>r.intent&&!r.resolved&&r.role==='user').slice(-12).map(r=>({id:r.id,text:r.text.slice(0,120)}));
   return {history,thoughts};
  }
  async function frame(record){
@@ -112,7 +112,7 @@
    if(event.type==='characterError'){notice(tr(errors[event.code]||'Не удалось получить ответ. Запись сохранена — можно повторить.'));render();return;}
    if(typeof event.reply!=='string'||!event.reply.trim()){notice(tr('Не удалось получить ответ. Запись сохранена — можно повторить.'));render();return;}
    ready=true;visionReady||=!!event.visionUsed;updateStatus();
-   const validTarget=typeof event.targetId==='string'&&p.thoughts.some(t=>t.id===event.targetId)&&records.some(r=>r.id===event.targetId&&r.intent&&!r.resolved);
+   const validTarget=typeof event.targetId==='string'&&p.thoughts.some(t=>t.id===event.targetId)&&OceanUI.thoughts.some(r=>r.id===event.targetId&&r.intent&&!r.resolved);
    if(p.mode==='chat'){
     if(!records.some(r=>r.replyTo===p.recordId))saveRecords([...records,{id:uid(),role:'assistant',text:event.reply.slice(0,4000),replyTo:p.recordId,created:Date.now(),visionUsed:!!event.visionUsed}]);
     render();
@@ -126,7 +126,7 @@
  };
  const agent=node('button');agent.id='characterAgent';agent.type='button';agent.setAttribute('aria-label',tr('Мой ИИ-персонаж'));agent.append(node('img'));
  for(const type of ['pointerdown','pointerup'])agent.addEventListener(type,e=>e.stopPropagation());
- agent.onclick=()=>{if(targetId&&records.some(r=>r.id===targetId&&r.intent&&!r.resolved))OceanUI.preview(targetId);else explore();};
+ agent.onclick=()=>{if(targetId&&OceanUI.thoughts.some(r=>r.id===targetId&&r.intent&&!r.resolved))OceanUI.preview(targetId);else explore();};
  const exploreButton=node('button','',tr('Исследовать мысль'));exploreButton.id='characterExplore';exploreButton.type='button';exploreButton.onclick=explore;
  const speech=node('aside');speech.id='characterSpeech';speech.hidden=true;speech.setAttribute('role','status');
  const speechText=node('span');speech.append(speechText);const speechClose=node('button','','×');speechClose.id='characterSpeechClose';speechClose.setAttribute('aria-label',tr('Закрыть'));speechClose.onclick=()=>speech.hidden=true;speech.append(speechClose);
@@ -151,7 +151,7 @@
   paintAgent();
   if(!OceanUI.active){visited=false;speech.hidden=true;if(pending?.mode==='explore')finish();return;}
   if(targetId)moveTo(targetId);else if(!agent.style.left){agent.style.left='90px';agent.style.top='-80px';}
-  if(!visited){visited=true;if(consent===true&&records.some(r=>r.intent&&!r.resolved)&&!pending)request('explore');}
+  if(!visited&&OceanUI.thoughts.some(r=>r.intent&&!r.resolved)){visited=true;if(consent===true&&!pending)request('explore');}
  }
  window.CharacterAI={send,cameraChanged,oceanChanged,get busy(){return !!pending;},get ready(){return ready;},get visionReady(){return visionReady;}};
  updateStatus();render();

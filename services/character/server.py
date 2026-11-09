@@ -1,8 +1,4 @@
-"""OSMINOG's bounded, private, stateless REG gateway.
-
-Only anonymous session hashes and quota counters persist. Messages, images,
-thoughts, model replies and IP addresses are never written to disk or logs.
-"""
+"""Private REG gateway and explicitly published, bounded public ocean."""
 import base64
 import hashlib
 import hmac
@@ -197,7 +193,7 @@ class Quotas:
     def session(self, ip):
         now=int(time.time()); day=now//86400
         with self.lock, self.db:
-            self.db.execute('DELETE FROM sessions WHERE created < ?',(now-30*86400,))
+            # Device credentials persist so published ownership survives idle periods.
             if self.db.execute('SELECT count(*) FROM sessions').fetchone()[0]>=2000:
                 raise ApiError('capacity',503)
             self._take([(f'register:{self.hash(ip)}:day:{day}',10,(day+1)*86400), (f'register:minute:{now//60}',10,now+120)])
@@ -211,7 +207,7 @@ class Quotas:
         digest=self.hash(token)
         with self.lock:
             row=self.db.execute('SELECT created FROM sessions WHERE token=?',(digest,)).fetchone()
-        if not row or row[0]<time.time()-30*86400:
+        if not row:
             raise ApiError('unauthorized',401)
         return digest
 
@@ -223,10 +219,88 @@ class Quotas:
         with self.lock,self.db: self._take(limits)
 
 
+
+class Ocean:
+    """Public text only. Device ownership is checked for every mutation."""
+    def __init__(self, directory):
+        self.db=sqlite3.connect(Path(directory)/'ocean.sqlite',check_same_thread=False)
+        self.db.row_factory=sqlite3.Row
+        self.lock=threading.Lock()
+        self.db.executescript("""
+        PRAGMA foreign_keys=ON;
+        CREATE TABLE IF NOT EXISTS thoughts(id TEXT PRIMARY KEY,owner TEXT,local TEXT,text TEXT,name TEXT,avatar TEXT,created INTEGER,UNIQUE(owner,local));
+        CREATE TABLE IF NOT EXISTS replies(id TEXT PRIMARY KEY,thought TEXT REFERENCES thoughts(id) ON DELETE CASCADE,owner TEXT,local TEXT,text TEXT,name TEXT,created INTEGER,UNIQUE(owner,local));
+        CREATE TABLE IF NOT EXISTS blocks(owner TEXT,target TEXT,PRIMARY KEY(owner,target));
+        CREATE TABLE IF NOT EXISTS reports(owner TEXT,thought TEXT REFERENCES thoughts(id) ON DELETE CASCADE,created INTEGER,PRIMARY KEY(owner,thought));
+        """)
+        self.db.commit()
+    def visible(self, owner, target):
+        return not self.db.execute('SELECT 1 FROM blocks WHERE (owner=? AND target=?) OR (owner=? AND target=?)',(owner,target,target,owner)).fetchone()
+    def thought(self, owner, ident):
+        row=self.db.execute('SELECT * FROM thoughts WHERE id=?',(ident,)).fetchone()
+        if not row or not self.visible(owner,row['owner']): raise ApiError('not_found',404)
+        return row
+    def export(self,row,owner):
+        return {k:row[k] for k in ('id','text','name','created')} | {'mine':row['owner']==owner}
+    def handle(self,owner,body):
+        if not isinstance(body,dict): raise ApiError('invalid_request')
+        action=body.get('action')
+        now=int(time.time()*1000)
+        with self.lock,self.db:
+            self.db.execute('DELETE FROM thoughts WHERE created<?',(now-14*86400000,))
+            if action=='list':
+                query=checked_text(body.get('query',''),1000).casefold()
+                result=[]
+                for row in self.db.execute('SELECT * FROM thoughts ORDER BY created DESC LIMIT 1000'):
+                    if self.visible(owner,row['owner']) and query in row['text'].casefold():
+                        result.append(self.export(row,owner)|{'avatar':row['avatar']})
+                    if len(result)==40: break
+                return {'items':result}
+            if action=='publish':
+                if body.get('consent') is not True: raise ApiError('consent_required')
+                text=checked_text(body.get('text'),2000,False)
+                name=checked_text(body.get('name','Планктон'),40)
+                local=body.get('local',''); avatar=body.get('avatar','Vector.svg')
+                if not isinstance(local,str) or not ID_RE.fullmatch(local): raise ApiError('invalid_id')
+                if not isinstance(avatar,str) or not re.fullmatch(r'[A-Za-z0-9 _-]{1,70}\.svg',avatar): raise ApiError('invalid_avatar')
+                old=self.db.execute('SELECT * FROM thoughts WHERE owner=? AND local=?',(owner,local)).fetchone()
+                if old: return {'item':self.export(old,owner)|{'avatar':old['avatar']}}
+                if self.db.execute('SELECT count(*) FROM thoughts WHERE owner=?',(owner,)).fetchone()[0]>=30 or self.db.execute('SELECT count(*) FROM thoughts').fetchone()[0]>=1000: raise ApiError('capacity',429)
+                ident='o_'+secrets.token_urlsafe(16)
+                self.db.execute('INSERT INTO thoughts VALUES(?,?,?,?,?,?,?)',(ident,owner,local,text,name,avatar,now))
+                return {'item':self.export(self.thought(owner,ident),owner)|{'avatar':avatar}}
+            row=self.thought(owner,body.get('thought',''))
+            ident=row['id']
+            if action=='thread':
+                replies=[self.export(r,owner) for r in self.db.execute('SELECT * FROM replies WHERE thought=? ORDER BY created',(ident,)) if self.visible(owner,r['owner'])]
+                return {'item':self.export(row,owner)|{'avatar':row['avatar']},'replies':replies}
+            if action=='reply':
+                text=checked_text(body.get('text'),2000,False);name=checked_text(body.get('name','Планктон'),40)
+                local=body.get('local','')
+                if not isinstance(local,str) or not ID_RE.fullmatch(local): raise ApiError('invalid_id')
+                old=self.db.execute('SELECT id FROM replies WHERE owner=? AND local=?',(owner,local)).fetchone()
+                if not old:
+                    if self.db.execute('SELECT count(*) FROM replies WHERE thought=?',(ident,)).fetchone()[0]>=100: raise ApiError('capacity',429)
+                    self.db.execute('INSERT INTO replies VALUES(?,?,?,?,?,?,?)',('r_'+secrets.token_urlsafe(16),ident,owner,local,text,name,now))
+                return {'ok':True}
+            if action=='delete':
+                if row['owner']!=owner: raise ApiError('forbidden',403)
+                self.db.execute('DELETE FROM thoughts WHERE id=?',(ident,));return {'ok':True}
+            if action=='deleteReply':
+                reply=self.db.execute('SELECT * FROM replies WHERE id=? AND thought=?',(body.get('reply'),ident)).fetchone()
+                if not reply or reply['owner']!=owner: raise ApiError('forbidden',403)
+                self.db.execute('DELETE FROM replies WHERE id=?',(reply['id'],));return {'ok':True}
+            if action in ('block','report'):
+                if row['owner']==owner: raise ApiError('invalid_request')
+                if action=='report': self.db.execute('INSERT OR IGNORE INTO reports VALUES(?,?,?)',(owner,ident,now))
+                self.db.execute('INSERT OR IGNORE INTO blocks VALUES(?,?)',(owner,row['owner']))
+                return {'ok':True}
+            raise ApiError('invalid_action')
+
 class Server(socketserver.ThreadingMixIn,http.server.HTTPServer):
     daemon_threads=True; request_queue_size=16; allow_reuse_address=True
     def __init__(self,address,context,key,directory):
-        self.context=context; self.key=key; self.quota=Quotas(directory)
+        self.context=context; self.key=key; self.quota=Quotas(directory); self.ocean=Ocean(directory)
         self.slots=threading.BoundedSemaphore(12); self.models=threading.BoundedSemaphore(2)
         super().__init__(address,Handler)
     def process_request(self,request,client_address):
@@ -252,12 +326,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header('Content-Length',str(len(data))); self.send_header('Cache-Control','no-store')
         self.send_header('X-Content-Type-Options','nosniff'); self.end_headers(); self.wfile.write(data)
     def do_GET(self):
-        if self.path=='/health': self.send(200,{'ok':True,'service':'osminog-character','version':'0.2.13','vision':bool(VISION_MODEL),'storesContent':False})
+        if self.path=='/health': self.send(200,{'ok':True,'service':'osminog-character','version':'0.2.14','vision':bool(VISION_MODEL),'storesContent':True,'storesPrivateChat':False,'ocean':True})
         else: self.send(404,{'error':'not_found'})
     def do_POST(self):
         acquired=False
         try:
-            if self.path not in ('/v1/session','/v1/chat'): raise ApiError('not_found',404)
+            if self.path not in ('/v1/session','/v1/chat','/v1/ocean'): raise ApiError('not_found',404)
             if self.headers.get('Transfer-Encoding') or self.headers.get_content_type()!='application/json': raise ApiError('invalid_request')
             try: size=int(self.headers.get('Content-Length','-1'))
             except ValueError: raise ApiError('invalid_length') from None
@@ -267,12 +341,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             raw=self.rfile.read(size)
             if len(raw)!=size: raise ApiError('incomplete_body')
             digest=None
-            if self.path=='/v1/chat': digest=self.server.quota.authorize(self.headers.get('Authorization','').removeprefix('Bearer '))
+            if self.path!='/v1/session': digest=self.server.quota.authorize(self.headers.get('Authorization','').removeprefix('Bearer '))
             try: body=json.loads(raw)
             except (ValueError,UnicodeError): raise ApiError('invalid_json') from None
             if self.path=='/v1/session':
                 if body!={'protocol':1}: raise ApiError('invalid_protocol')
                 self.send(201,{'token':self.server.quota.session(self.client_address[0])}); return
+            if self.path=='/v1/ocean':
+                now=int(time.time())
+                with self.server.quota.lock,self.server.quota.db:
+                    self.server.quota._take([(f'ocean:{digest}:minute:{now//60}',60,now+120)])
+                self.send(200,self.server.ocean.handle(digest,body)); return
             data=validate_request(body)
             acquired=self.server.models.acquire(False)
             if not acquired: raise ApiError('busy',429)

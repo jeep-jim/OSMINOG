@@ -1,5 +1,5 @@
 'use strict';
-// OSMINOG 0.2.13: personal local space, no provider websites or fabricated replies.
+// OSMINOG 0.2.14: personal local space, no provider websites or fabricated replies.
 const $=id=>document.getElementById(id),STORE='osminogPersonalOceanV1';
 let port=null,menuOpen=false,paused=false,voice=false,voiceSession=null,cameraStream=null,cameraGeneration=0;
 let selectedId=null,pendingFile=null,holdTimer=0,held=false,holdOrigin=null,cameraBusy=false,cameraFacing='environment';
@@ -25,7 +25,7 @@ function renderAttachment(file,container){if(!file)return;if(file.type?.startsWi
 function render(){const list=$('messages');list.replaceChildren();document.body.classList.toggle('has-chat',records.length>0);
  for(const r of records){const article=node('article','message '+r.role);article.dataset.id=r.id;
   if(r.role==='user'){const b=node('button','avatar');b.setAttribute('aria-label',tr('Действия с сообщением'));const img=node('img');img.src=preferences.photo||imageFor(preferences.avatar);img.alt='';img.style.cssText=preferences.photo?'width:28px;height:28px;left:6px;top:6px;object-fit:cover;border-radius:50%;transform:none':'width:28px;height:28px;left:6px;top:6px;object-fit:contain;transform:rotate(-35deg)';b.append(img);b.onclick=()=>messageActions(r.id);article.append(b);}
-  const body=node('div','body'),copy=node('div','message-copy',r.text);if(typeof linkText==='function')linkText(copy,r.text);body.append(copy);const media=node('div','message-media');renderAttachment(r.file,media);if(media.childNodes.length)body.append(media);if(r.intent)body.append(node('small','message-status',r.resolved?tr('Мысль завершена'):tr('Черновик мысли · не опубликован')));article.append(body);list.append(article);
+  const body=node('div','body'),copy=node('div','message-copy',r.text);if(typeof linkText==='function')linkText(copy,r.text);body.append(copy);const media=node('div','message-media');renderAttachment(r.file,media);if(media.childNodes.length)body.append(media);if(r.intent)body.append(node('small','message-status',r.resolved?tr('Мысль завершена'):r.oceanId?tr("Опубликовано в общем океане"):tr('Черновик мысли · не опубликован')));article.append(body);list.append(article);
  }renderIntentions();requestAnimationFrame(()=>{$('main').scrollTop=$('main').scrollHeight;});
 }
 function renderIntentions(){const rows=$('intentionsList');rows.replaceChildren();const intents=records.filter(r=>r.intent);$('intentionsCount').textContent=String(intents.length);if(!intents.length)rows.append(node('p','empty-menu',tr('Здесь появятся твои мысли')));for(const r of intents){const b=node('button','intent-row');b.append(node('span','mini-orb'),node('span','intent-label',r.text),node('span','intent-count',String(read('osminogReplies:'+r.id,[]).length)));b.title=r.resolved?tr('Решено'):tr('Черновик · не опубликован');if(r.resolved){b.classList.add('intent-resolved');b.querySelector('.intent-count').textContent='✓';}b.onclick=()=>{setMenu(false);window.OceanUI?.preview(r.id);};rows.append(b);}}
@@ -106,7 +106,7 @@ function swim(s){if(!motion||paused||document.hidden||menuOpen)return;const x=(M
 function refreshMotion(){const run=motion&&!paused&&!document.hidden&&!menuOpen&&!matchMedia('(prefers-reduced-motion: reduce)').matches;document.body.classList.toggle('motion-off',!run);for(const s of swimmers){if(run){if(s.animation)s.animation.play();else swim(s);}else s.animation?.pause();}$('motionToggle').setAttribute('aria-checked',String(motion));}
 $('motionToggle').onclick=()=>{motion=!motion;try{localStorage.setItem('osminogMotion',motion?'on':'off');}catch{}refreshMotion();};
 window.OSMINOG={nativeReady:false,receive(event){if(!event||typeof event.type!=='string')return;switch(event.type){
- case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');$('version').textContent=event.version||'0.2.13';break;
+ case 'init':this.nativeReady=true;window.restoreNativeProfile?.(event.profile);applyOceanTheme(localStorage.getItem('osminogTheme')||'blue');$('version').textContent=event.version||'0.2.14';break;
  case 'notice':case 'error':notice(I18N.native(event.message)||tr('Сервис недоступен'));break;
  case 'voice':if(voiceSession&&event.session===voiceSession.id){voice=!!event.on;if(!voice){voiceSession=null;$('voiceChoice')?.close();}typing();}break;
  case 'voiceChoice':if(voiceSession&&event.session===voiceSession.id){voice=true;typing();if(!$('voiceChoice').open)$('voiceChoice').showModal();}break;
