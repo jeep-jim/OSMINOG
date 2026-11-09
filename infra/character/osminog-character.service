@@ -1,0 +1,30 @@
+[Unit]
+Description=OSMINOG private character gateway
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/osminog/character/current
+ExecStart=/usr/bin/python3 -I -B /opt/osminog/character/current/server.py
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryMax=256M
+MemorySwapMax=0
+CPUQuota=25%
+TasksMax=32
+LimitNOFILE=128
+LimitFSIZE=16777216
+LimitCORE=0
+Nice=10
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=default.target

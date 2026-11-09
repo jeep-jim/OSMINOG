@@ -1,0 +1,57 @@
+name: OSMINOG character — test and own-user deploy
+on:
+  push:
+    branches: ['codex/vision-character-0213']
+    paths: ['services/character/**', 'infra/character/**', '.github/workflows/osminog-character.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: osminog-character-deploy
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s services/character -p 'test_*.py'
+      - run: bash -n infra/character/deploy.sh
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy only the bounded dedicated character service
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          REG_API_KEY: ${{ secrets.OSMINOG_REG_AI_API_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY" && test -n "$REG_API_KEY"
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "umask 077; mkdir -p /opt/osminog/character/releases/$GITHUB_SHA /opt/osminog/character/secrets; test ! -L /opt/osminog/character"
+          printf '%s' "$REG_API_KEY" | ssh "${ssh_args[@]}" osminog@151.248.113.177 'umask 077; cat > /opt/osminog/character/secrets/reg-api-key.new; mv /opt/osminog/character/secrets/reg-api-key.new /opt/osminog/character/secrets/reg-api-key'
+          unset REG_API_KEY
+          tar -czf - -C services/character server.py -C ../../infra/character osminog-character.service deploy.sh | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/character/releases/$GITHUB_SHA"
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash /opt/osminog/character/releases/$GITHUB_SHA/deploy.sh $GITHUB_SHA"
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 'cat /opt/osminog/character/tls/server.crt' > character-server.crt
+      - name: Verify public TLS endpoint and real model without personal data
+        run: python3 services/character/smoke.py character-server.crt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OSMINOG-character-public-certificate
+          path: character-server.crt
+          retention-days: 30
