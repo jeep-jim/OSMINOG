@@ -31,6 +31,6 @@ const priorRender=render;render=function(){priorRender();emptyGuide.hidden=recor
 function decorateDialog(d){if(d.dataset.dismissReady)return;d.dataset.dismissReady='yes';let outside=false;const isOutside=e=>{const r=d.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;};d.addEventListener('pointerdown',e=>outside=e.target===d&&isOutside(e));d.addEventListener('click',e=>{if(outside&&e.target===d&&isOutside(e))d.close();outside=false;});}
 document.querySelectorAll('dialog').forEach(decorateDialog);
 const resolved=node('button','','Намерение решено');resolved.id='resolveIntent';$('publishMessage').after(resolved);resolved.onclick=()=>{const r=selected();if(!r?.intent)return;confirmAction('Завершить намерение?','Оно исчезнет из актуального океана. Запись и файлы останутся у тебя до удаления.',()=>{if(!saveRecords(records.map(x=>x.id===r.id?{...x,resolved:true,resolvedAt:Date.now()}:x)))return false;$('actions').close();render();if(OceanUI.active){OceanUI.close();OceanUI.open();}return true;});};
-const priorActions=messageActions;messageActions=function(id){priorActions(id);resolved.hidden=!selected()?.intent||!!selected()?.resolved;};
+const priorActions=messageActions;messageActions=function(id){priorActions(id);resolved.hidden=!selected()?.intent||!!selected()?.resolved;if(selected()?.resolved)$('publishMessage').hidden=true;};
 
 if(window.OSMINOG?.nativeReady)emit('ready');

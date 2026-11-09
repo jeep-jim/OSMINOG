@@ -22,7 +22,7 @@ public class MainActivity extends Activity {
  WebView shell; FrameLayout root; WebMessagePort port; Updater updater;
  boolean foreground=false, listening=false; float safeTop=0,safeBottom=0,safeLeft=0,safeRight=0;
  VoiceInput voiceInput; boolean voicePermissionPending=false,voiceResumePending=false; String voiceSession=""; PermissionRequest cameraPermission; ValueCallback<Uri[]> fileCallback;
- String speechLanguage="ru"; android.content.SharedPreferences prefs;
+ boolean lightSystemBars=false; String speechLanguage="ru"; android.content.SharedPreferences prefs;
  int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
  @Override public void onCreate(Bundle saved){
   super.onCreate(saved);voiceInput=new VoiceInput(this::emit,VoiceInput.androidFactory(this),handler);prefs=getSharedPreferences("vision",MODE_PRIVATE);configureSystemBars();
@@ -54,13 +54,14 @@ public class MainActivity extends Activity {
  }
  static boolean trusted(String value){try{Uri u=Uri.parse(value);return "https".equals(u.getScheme())&&"appassets.androidplatform.net".equals(u.getHost())&&u.getUserInfo()==null&&(u.getPort()==-1||u.getPort()==443);}catch(Exception e){return false;}}
  static WebResourceResponse blocked(){return new WebResourceResponse("text/plain","UTF-8",404,"Not found",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
- void configureSystemBars(){Window w=getWindow();if(Build.VERSION.SDK_INT>=30)w.setDecorFitsSystemWindows(false);w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);w.setStatusBarColor(Color.TRANSPARENT);w.setNavigationBarColor(Color.TRANSPARENT);if(Build.VERSION.SDK_INT>=29){w.setStatusBarContrastEnforced(false);w.setNavigationBarContrastEnforced(false);}}
+ void configureSystemBars(){Window w=getWindow();if(Build.VERSION.SDK_INT>=30)w.setDecorFitsSystemWindows(false);w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|(lightSystemBars?View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR:0));w.setStatusBarColor(Color.TRANSPARENT);w.setNavigationBarColor(Color.TRANSPARENT);if(Build.VERSION.SDK_INT>=29){w.setStatusBarContrastEnforced(false);w.setNavigationBarContrastEnforced(false);}}
  void applyInsets(float top,float bottom){safeTop=top;safeBottom=bottom;if(shell==null||isDestroyed())return;String js="if(document.documentElement){let s=document.documentElement.style;s.setProperty('--safe-top',"+JSONObject.quote(top+"px")+");s.setProperty('--safe-bottom',"+JSONObject.quote(bottom+"px")+");s.setProperty('--safe-left',"+JSONObject.quote(safeLeft+"px")+");s.setProperty('--safe-right',"+JSONObject.quote(safeRight+"px")+");}";shell.evaluateJavascript(js,null);}
  String version(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){return "0.2.9";}}
  JSONObject savedProfile(){try{return new JSONObject(prefs.getString("profileBackup","{}"));}catch(JSONException e){return new JSONObject();}}
  void saveProfile(JSONObject source){if(source==null)return;String name=source.optString("name"),about=source.optString("about"),photo=source.optString("photo"),avatar=source.optString("avatar","Vector.svg");if(name.length()>40||about.length()>240||photo.length()>240000||(!photo.isEmpty()&&!photo.matches("data:image/(jpeg|png);base64,[A-Za-z0-9+/=]+"))||!avatar.matches("[A-Za-z0-9 _-]+\\.svg"))return;try{JSONObject profile=new JSONObject().put("name",name).put("about",about).put("photo",photo).put("avatar",avatar).put("updated",Math.min(System.currentTimeMillis(),Math.max(0,source.optLong("updated"))));prefs.edit().putString("profileBackup",profile.toString()).apply();}catch(JSONException ignored){}}
  void command(JSONObject c){switch(c.optString("type")){
   case "ready":emit("init","version",version(),"brainReady",false,"oceanReady",false,"profile",savedProfile());applyInsets(safeTop,safeBottom);break;
+  case "theme":lightSystemBars=c.optBoolean("light",false);configureSystemBars();break;
   case "saveProfile":saveProfile(c.optJSONObject("profile"));break;
   case "ask":emit("error","id",c.optString("id"),"message","Личная запись сохранена. Внутренний ИИ OSMINOG ещё не подключён к серверу.");break;
   case "openLink":try{Uri u=Uri.parse(c.optString("url"));if(("https".equals(u.getScheme())||"http".equals(u.getScheme()))&&u.getHost()!=null&&u.getUserInfo()==null)startActivity(new Intent(Intent.ACTION_VIEW,u).addCategory(Intent.CATEGORY_BROWSABLE));else notice("Некорректная ссылка");}catch(Exception e){notice("Не удалось открыть ссылку");}break;
