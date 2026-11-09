@@ -27,6 +27,7 @@ jobs:
           node --check android-vision/app/src/main/assets/media.js
           node --check android-vision/app/src/main/assets/experience.js
           python3 android-vision/tools/build-i18n.py
+          node android-vision/tools/check-i18n.cjs
           git diff --exit-code android-vision/app/src/main/assets/i18n.js
           node --check android-vision/app/src/main/assets/i18n.js
           python3 android-vision/tools/check-assets.py

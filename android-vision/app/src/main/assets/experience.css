@@ -46,3 +46,7 @@ body[data-state=typing] .eye-pupil{animation:pupilBlink 4.2s ease-in-out infinit
 .character-caption{text-align:center;font-size:12px;opacity:.65;margin:8px 0}
 
 .search-eye:after{display:none}.search-eye .eye-iris{width:40px;height:22px}.eye-typing .eye-pupil{animation:pupilBlink 4.2s ease-in-out infinite}@media(prefers-reduced-motion:reduce){.eye-typing .eye-pupil{animation:none}}
+/* Keep grayscale on the image, independent of camera depth blur on its parent. */
+body.theme-classic #plankton .plankton img,body.theme-classic #avatarCarousel button.selected:before,body.theme-classic .mini-orb{filter:grayscale(1) brightness(.55)}
+body.theme-classic .intent-count,body.theme-classic .section-heading>span:last-child,body.theme-classic #actionText,body.theme-classic #captureFrame,body.theme-classic .card-author>button,body.theme-classic .discussion-status,body.theme-classic .reply-author small,body.theme-classic .attachment-link,body.theme-classic .message-url{color:#111}
+body.theme-classic .card-handle span{background:#5556}body.theme-classic dialog select option{background:#fff;color:#111}

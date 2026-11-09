@@ -1,0 +1,6 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const source=fs.readFileSync(path.join(__dirname,'../app/src/main/assets/i18n.js'),'utf8');
+const langs=['ru','en','zh','ja','ko','ar','es','pt','de','fr'];
+for(const lang of langs){const data=new Map([['osminogLanguage',lang]]),context={navigator:{language:lang},localStorage:{getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},document:{documentElement:{},body:{querySelectorAll:()=>[]},createTreeWalker:()=>({nextNode:()=>false})},NodeFilter:{SHOW_TEXT:4}};vm.createContext(context);vm.runInContext(source+`;globalThis.api=I18N`,context);assert.equal(context.api.language,lang);assert.equal(context.document.documentElement.lang,lang);for(const key of context.api.keys)assert(context.api.has(key,lang),`${lang}: ${key}`);assert.equal(context.api.text('USER_TEXT_UNCHANGED'),'USER_TEXT_UNCHANGED');const prefix=context.api.native('Не удалось обновить: Контрольная сумма не совпала');assert.equal(prefix,context.api.text('Не удалось обновить: ')+context.api.text('Контрольная сумма не совпала'));if(lang!=='ru')assert(!/[А-Яа-я]/.test(prefix),prefix);assert.equal(context.api.native('470.0 КБ'),'470.0 '+(lang==='ru'?'КБ':'KB'));}
+console.log('I18N_RUNTIME_PASS: ten languages, native error composition, unknown-content preservation');
