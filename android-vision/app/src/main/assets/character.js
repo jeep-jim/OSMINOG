@@ -32,7 +32,7 @@
    if(record.role==='assistant'){
     article.prepend(avatar());article.querySelector('.body').prepend(node('small','character-name',characterSettings().name));
    }else if(!record.intent&&!records.some(r=>r.replyTo===record.id)){
-    const b=node('button','character-retry',pending?.id===record.id?tr('Отвечает…'):tr('Получить ответ'));
+    const b=node('button','character-retry',pending?.recordId===record.id?tr('Отвечает…'):tr('Получить ответ'));
     b.type='button';b.disabled=!!pending;b.onclick=()=>send(record,true);article.append(b);
    }
   }
@@ -79,14 +79,14 @@
  async function request(mode,record=null){
   if(pending){notice(tr('Дождись ответа персонажа.'));return;}
   if(!window.OSMINOG.nativeReady){notice(tr('Связь с Android ещё не готова. Повтори действие.'));return;}
-  const id=mode==='chat'?record.id:uid(),inputs=context(record);
+  const id=uid(),inputs=context(record);
   if(mode==='explore'&&!inputs.thoughts.length){say(tr('Сохрани мысль в океане — и исследуем её вместе.'));return;}
-  const request={id,mode,recordText:record?.text,thoughts:inputs.thoughts};pending=request;
+  const request={id,mode,recordId:record?.id,recordText:record?.text,thoughts:inputs.thoughts};pending=request;
   agent.dataset.busy='true';exploreButton.disabled=true;typing();render();notice();
   try{
    const image=mode==='chat'?await frame(record):'';
    if(pending!==request||consent!==true)return;
-   if(record&&!records.some(r=>r.id===id&&r.text===request.recordText)){finish();render();return;}
+   if(record&&!records.some(r=>r.id===request.recordId&&r.text===request.recordText)){finish();render();return;}
    if(image.length>400100)throw Error();
    const payload={id,mode,consent:true,visionConsent:!!image,image,text:record?.text||tr('Исследуй одну из моих мыслей и предложи, с чего начать.'),characterName:characterSettings().name,...inputs};
    if(!emit('askCharacter',payload)){finish();render();return;}
@@ -108,13 +108,13 @@
    const p=pending;if(!p||event.id!==p.id)return;
    finish();
    if(consent!==true)return;
-   if(p.mode==='chat'&&!records.some(r=>r.id===p.id&&r.text===p.recordText)){render();return;}
+   if(p.mode==='chat'&&!records.some(r=>r.id===p.recordId&&r.text===p.recordText)){render();return;}
    if(event.type==='characterError'){notice(tr(errors[event.code]||'Не удалось получить ответ. Запись сохранена — можно повторить.'));render();return;}
    if(typeof event.reply!=='string'||!event.reply.trim()){notice(tr('Не удалось получить ответ. Запись сохранена — можно повторить.'));render();return;}
    ready=true;visionReady||=!!event.visionUsed;updateStatus();
    const validTarget=typeof event.targetId==='string'&&p.thoughts.some(t=>t.id===event.targetId)&&records.some(r=>r.id===event.targetId&&r.intent&&!r.resolved);
    if(p.mode==='chat'){
-    if(!records.some(r=>r.replyTo===p.id))saveRecords([...records,{id:uid(),role:'assistant',text:event.reply.slice(0,4000),replyTo:p.id,created:Date.now(),visionUsed:!!event.visionUsed}]);
+    if(!records.some(r=>r.replyTo===p.recordId))saveRecords([...records,{id:uid(),role:'assistant',text:event.reply.slice(0,4000),replyTo:p.recordId,created:Date.now(),visionUsed:!!event.visionUsed}]);
     render();
    }else if(OceanUI.active){say(event.reply.slice(0,4000));}
    if(validTarget){targetId=event.targetId;moveTo(targetId);}
@@ -149,7 +149,7 @@
  function explore(){if(consent!==true){permit(()=>request('explore'));return;}request('explore');}
  function oceanChanged(){
   paintAgent();
-  if(!OceanUI.active){visited=false;speech.hidden=true;return;}
+  if(!OceanUI.active){visited=false;speech.hidden=true;if(pending?.mode==='explore')finish();return;}
   if(targetId)moveTo(targetId);else if(!agent.style.left){agent.style.left='90px';agent.style.top='-80px';}
   if(!visited){visited=true;if(consent===true&&records.some(r=>r.intent&&!r.resolved)&&!pending)request('explore');}
  }

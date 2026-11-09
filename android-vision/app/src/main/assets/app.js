@@ -76,7 +76,7 @@ async function startCamera(facing=cameraFacing,switching=false){
  try{if(!navigator.mediaDevices?.getUserMedia)throw Error(tr('Камера недоступна'));release();let stream;
   try{stream=await acquire(facing);}catch(error){if(!switching||gen!==cameraGeneration)throw error;facing=previous;stream=await acquire(previous);notice(tr('Другая камера недоступна. Оставлена прежняя.'));}
   if(paused||document.hidden||gen!==cameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}
-  cameraStream=stream;cameraFacing=stream.getVideoTracks()[0]?.getSettings?.().facingMode||facing;$('cameraVideo').srcObject=stream;$('cameraVideo').style.transform=cameraFacing==='user'?'scaleX(-1)':'';$('cameraArea').hidden=false;$('cameraToggle').setAttribute('aria-checked','true');document.body.classList.add('camera');$('cameraVideo').play().catch(()=>{});window.CharacterAI?.cameraChanged();
+  cameraStream=stream;for(const track of stream.getTracks())track.onended=()=>{if(cameraStream===stream)stopCamera();};cameraFacing=stream.getVideoTracks()[0]?.getSettings?.().facingMode||facing;$('cameraVideo').srcObject=stream;$('cameraVideo').style.transform=cameraFacing==='user'?'scaleX(-1)':'';$('cameraArea').hidden=false;$('cameraToggle').setAttribute('aria-checked','true');document.body.classList.add('camera');$('cameraVideo').play().catch(()=>{});window.CharacterAI?.cameraChanged();
  }catch(e){if(gen===cameraGeneration){notice(tr('Камера не открылась: ')+e.message);stopCamera();}}
  finally{if(gen===cameraGeneration)cameraBusy=false;}
 }

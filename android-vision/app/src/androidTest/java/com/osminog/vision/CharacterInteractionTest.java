@@ -53,6 +53,15 @@ public class CharacterInteractionTest {
   ui.run("OSMINOG.receive({type:'characterReply',id:fixtureRequests[1].id,reply:'Тестовая ошибка выбора',targetId:'invented-thought'})");
   ui.ok("$('characterAgent').dataset.targetId==='fixture-thought'&&document.querySelectorAll('.thought-bubble').length===1");
  }
+ @Test public void retriedMessageIgnoresPreviousRequestNonce()throws Exception{
+  enableMock();ui.run("ask('Тестовый вопрос для повтора')");
+  OceanMenuTest.until(()->"true".equals(OceanMenuTest.js(ui.a.shell,"fixtureRequests.length===1")));
+  ui.run("$('characterToggle').click();$('characterToggle').click();$('characterAccept').click();CharacterAI.send(records[0],true)");
+  OceanMenuTest.until(()->"true".equals(OceanMenuTest.js(ui.a.shell,"fixtureRequests.length===2")));
+  ui.ok("fixtureRequests[0].id!==fixtureRequests[1].id");
+  ui.run("OSMINOG.receive({type:'characterReply',id:fixtureRequests[0].id,reply:'Устаревший ответ'})");ui.ok("records.length===1&&CharacterAI.busy");
+  ui.run("OSMINOG.receive({type:'characterReply',id:fixtureRequests[1].id,reply:'Актуальный тестовый ответ'})");ui.ok("records.length===2&&records[1].text==='Актуальный тестовый ответ'");
+ }
  @Test public void ordinaryTextHasNoCameraOrPrivateArchive()throws Exception{
   enableMock();ui.run("localStorage.setItem('osminogLegacyArchive',JSON.stringify([{text:'secret-archive-fixture'}]));ask('Обычный тестовый текст')");
   OceanMenuTest.until(()->"true".equals(OceanMenuTest.js(ui.a.shell,"fixtureRequests.length===1")));
