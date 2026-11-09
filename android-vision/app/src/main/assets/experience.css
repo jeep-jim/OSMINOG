@@ -39,9 +39,9 @@ body[data-state=typing] .eye-body{animation:none;box-shadow:none}
 .eye-pupil{position:relative;transform:none!important;width:18px!important;height:4px!important;border-radius:50%;background:#190909}
 .eye-pupil:before,.eye-pupil:after{content:"";position:absolute;top:-2px;width:8px;height:8px;border-radius:50%;background:inherit}
 .eye-pupil:before{left:-1px}.eye-pupil:after{right:-1px}
-body[data-state=typing] .eye-pupil{animation:pupilBlink 4.2s ease-in-out infinite}
+body[data-state=typing] #eye .eye-pupil{animation:pupilBlink 4.2s ease-in-out infinite}
 @keyframes pupilBlink{0%,43%,49%,100%{scale:1 1}46%{scale:1 .12}}
-@media(prefers-reduced-motion:reduce){body[data-state=typing] .eye-pupil{animation:none}.eye-iris{transition:none}}
+@media(prefers-reduced-motion:reduce){body[data-state=typing] #eye .eye-pupil{animation:none}.eye-iris{transition:none}}
 #main{touch-action:pan-y}#settings{touch-action:pan-y}
 .character-caption{text-align:center;font-size:12px;opacity:.65;margin:8px 0}
 
