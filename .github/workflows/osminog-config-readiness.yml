@@ -1,7 +1,7 @@
 name: OSMINOG connection configuration readiness
 on:
   push:
-    branches: ['fix/android-vision-029-experience']
+    branches: ['fix/android-vision-029-experience', 'fix/android-vision-0210-character']
     paths: ['.github/workflows/osminog-config-readiness.yml']
   workflow_dispatch:
 permissions:
