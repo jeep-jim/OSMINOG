@@ -21,11 +21,13 @@ def synthetic_png():
 
 def main():
     config = load_config()
+    # Separate vision route discovered from the connected REG catalog.
+    config['model'] = 'qwen3.6-27b'
     key = os.environ.get('OSMINOG_REG_AI_API_KEY','').strip()
     if not key: raise ValueError('REG_API_KEY_NOT_AVAILABLE')
     content = [{'type':'text','text':'Describe the single colored shape in this image using exactly two English words: color and shape.'},
                {'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(synthetic_png()).decode()}}]
-    body = {'model':config['model'],'messages':[{'role':'user','content':content}], 'max_tokens':256, 'temperature':0.1}
+    body = {'model':config['model'],'messages':[{'role':'user','content':content}], 'max_tokens':768, 'temperature':0.1}
     req = urllib.request.Request(config['base_url']+'/chat/completions',data=json.dumps(body).encode(),headers={'Authorization':'Bearer '+key,'Content-Type':'application/json'},method='POST')
     try:
         with urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect()).open(req,timeout=45) as response:

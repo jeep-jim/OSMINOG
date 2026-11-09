@@ -78,7 +78,6 @@ jobs:
           echo '-- own bounded unit probe --'
           systemd-run --user --quiet --wait --pipe --unit=osminog-capability-check -p MemoryMax=256M -p CPUQuota=25% -p TasksMax=16 -p NoNewPrivileges=yes /bin/sh -c 'cat /proc/self/cgroup; grep -E "^(NoNewPrivs|Seccomp):" /proc/self/status; for f in memory.max cpu.max pids.max; do cat "/sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/$f"; done' || true
           echo '-- dedicated service persistence --'
-          loginctl enable-linger osminog 2>&1 || true
           loginctl show-user osminog -p Linger
           echo '-- own user namespace capability --' 
           unshare --user --map-root-user --mount /bin/true 2>&1 || true
@@ -92,4 +91,4 @@ jobs:
       - name: Verify synthetic image interpretation by selected REG model
         env:
           OSMINOG_REG_AI_API_KEY: ${{ secrets.OSMINOG_REG_AI_API_KEY }}
-        run: python3 tools/reg-ai/model-catalog.py
+        run: python3 tools/reg-ai/vision-probe.py
