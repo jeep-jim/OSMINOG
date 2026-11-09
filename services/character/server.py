@@ -262,11 +262,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             try: size=int(self.headers.get('Content-Length','-1'))
             except ValueError: raise ApiError('invalid_length') from None
             if size<0 or size>BODY_LIMIT: raise ApiError('body_too_large',413)
-            # Authentication precedes reading large messages or invoking a paid model.
-            digest=None
-            if self.path=='/v1/chat': digest=self.server.quota.authorize(self.headers.get('Authorization','').removeprefix('Bearer '))
+            # Drain the bounded TLS body before returning 401, so closing the
+            # connection with unread application data cannot erase the response.
             raw=self.rfile.read(size)
             if len(raw)!=size: raise ApiError('incomplete_body')
+            digest=None
+            if self.path=='/v1/chat': digest=self.server.quota.authorize(self.headers.get('Authorization','').removeprefix('Bearer '))
             try: body=json.loads(raw)
             except (ValueError,UnicodeError): raise ApiError('invalid_json') from None
             if self.path=='/v1/session':
