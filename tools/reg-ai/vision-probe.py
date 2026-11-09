@@ -35,7 +35,12 @@ def main():
         print(json.dumps({'status':'REG_VISION_PASS' if passed else 'REG_VISION_UNCONFIRMED','model':config['model'],'syntheticAnswer':answer[:120],'usage':data.get('usage',{})}))
         return 0 if passed else 1
     except urllib.error.HTTPError as e:
-        print('REG_VISION_HTTP_'+str(e.code)); return 1
+        raw = e.read(4096).decode('utf-8','replace').replace(key,'[REDACTED]')
+        try:
+            err = json.loads(raw).get('error',{})
+            detail = err.get('message',err) if isinstance(err,dict) else err
+        except Exception: detail = 'Non-JSON error'
+        print(json.dumps({'status':'REG_VISION_HTTP_'+str(e.code),'detail':str(detail)[:600]})); return 1
     except Exception:
         print('REG_VISION_PROTOCOL_OR_NETWORK_FAILED'); return 1
 

@@ -75,7 +75,11 @@ jobs:
           cat /proc/self/cgroup
           test -f /sys/fs/cgroup/cgroup.controllers && cat /sys/fs/cgroup/cgroup.controllers
           for f in /etc/subuid /etc/subgid; do test ! -r "$f" || awk -F: '$1=="osminog" {print FILENAME ": " $0}' "$f"; done
-          echo '-- own domain DNS --'
+          echo '-- own bounded unit probe --'
+          systemd-run --user --quiet --wait --pipe --unit=osminog-capability-check -p MemoryMax=256M -p CPUQuota=25% -p TasksMax=16 -p NoNewPrivileges=yes /bin/sh -c 'cat /proc/self/cgroup; grep -E "^(NoNewPrivs|Seccomp):" /proc/self/status; for f in memory.max cpu.max pids.max; do cat "/sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/$f"; done' || true
+          echo '-- own user namespace capability --'
+          unshare --user --map-root-user --mount /bin/true 2>&1 || true
+          echo '-- own domain DNS --' 
           getent ahostsv4 osminog.red || true
           getent ahostsv4 api.osminog.red || true
           echo 'OSMINOG_READONLY_END' 
