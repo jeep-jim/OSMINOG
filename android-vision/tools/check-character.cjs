@@ -7,7 +7,7 @@ const server=http.createServer((req,res)=>{try{const u=new URL(req.url,'http://l
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;const errors=[];
  try{
-  browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'no-preference'});
+  browser=await chromium.launch({executablePath:process.env.OSMINOG_TEST_CHROMIUM||undefined,headless:true});const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'no-preference'});
   await page.addInitScript(()=>{localStorage.setItem('osminogLanguage','ru');localStorage.setItem('osminogAIConsent','true');localStorage.setItem('osminogWelcomed','true');});
   page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:'+server.address().port);
   await page.evaluate(()=>{

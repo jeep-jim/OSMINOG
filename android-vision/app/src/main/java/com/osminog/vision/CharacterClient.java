@@ -33,7 +33,7 @@ final class CharacterClient implements AutoCloseable {
  }
  CharacterClient(SharedPreferences prefs,Sink sink,Transport transport){this.prefs=prefs;this.sink=sink;this.transport=transport;}
  private JSONObject network(Context context,String path,JSONObject body,String token)throws Exception{
-  if(!path.equals("/health")&&!path.equals("/v1/session")&&!path.equals("/v1/chat"))throw new Rejected("invalid_request");
+  if(!path.equals("/health")&&!path.equals("/v1/session")&&!path.equals("/v1/chat")&&!path.equals("/v1/ocean"))throw new Rejected("invalid_request");
   KeyStore trust=KeyStore.getInstance(KeyStore.getDefaultType());trust.load(null);
   try(InputStream in=context.getResources().openRawResource(R.raw.character_server)){
    trust.setCertificateEntry("osminog-character",CertificateFactory.getInstance("X.509").generateCertificate(in));
@@ -53,11 +53,26 @@ final class CharacterClient implements AutoCloseable {
    InputStream source=status>=400?connection.getErrorStream():connection.getInputStream();
    if(source==null)throw new Rejected("connection_failed");
    ByteArrayOutputStream result=new ByteArrayOutputStream();
-   try(InputStream in=source){byte[] buffer=new byte[2048];int n;while((n=in.read(buffer))!=-1){if(result.size()+n>24000)throw new Rejected("invalid_reply");result.write(buffer,0,n);}}
+   try(InputStream in=source){byte[] buffer=new byte[2048];int n;while((n=in.read(buffer))!=-1){if(result.size()+n>900000)throw new Rejected("invalid_reply");result.write(buffer,0,n);}}
    JSONObject json=new JSONObject(result.toString("UTF-8"));
    if(status<200||status>=300)throw new Rejected(json.optString("error","connection_failed"));
    return json;
   }finally{connection.disconnect();if(current==connection)current=null;}
+ }
+ private final AtomicBoolean oceanBusy=new AtomicBoolean(false);
+ void ocean(JSONObject request){
+  String id=request.optString("id");
+  if(closed||!id.matches("[A-Za-z0-9_-]{1,80}"))return;
+  if(!oceanBusy.compareAndSet(false,true)){sink.emit("oceanError","id",id,"code","busy");return;}
+  worker.execute(()->{try{
+   String token=prefs.getString("token","");
+   if(token.isEmpty()){token=transport.request("/v1/session",new JSONObject().put("protocol",1),null).getString("token");if(!token.matches("[A-Za-z0-9_-]{43}"))throw new Rejected("invalid_reply");prefs.edit().putString("token",token).apply();}
+   JSONObject reply=transport.request("/v1/ocean",request,token);
+   if(!closed)sink.emit("oceanReply","id",id,"data",reply);
+  }catch(Rejected e){if(!closed)sink.emit("oceanError","id",id,"code",e.code);}
+   catch(Exception e){if(!closed)sink.emit("oceanError","id",id,"code","connection_failed");}
+   finally{oceanBusy.set(false);}
+  });
  }
  void check(){if(closed||busy.get())return;worker.execute(()->{try{JSONObject health=transport.request("/health",null,null);if(!closed)sink.emit("characterReady","ready",health.optBoolean("ok"),"vision",health.optBoolean("vision"));}catch(Exception e){if(!closed)sink.emit("characterReady","ready",false,"vision",false);}});}
  void ask(JSONObject request){

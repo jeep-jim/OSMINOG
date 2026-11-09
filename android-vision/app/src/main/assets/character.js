@@ -17,7 +17,7 @@
  consentDialog.addEventListener('close',()=>{consentAction=null;});
  function updateStatus(){
   toggle.setAttribute('aria-checked',String(consent===true));
-  $('brainStatus').textContent=consent!==true?tr('Личный чат с ИИ выключен. Записи остаются на устройстве.'):ready?tr('ИИ-персонаж подключён. Мысли в океане пока только на устройстве.'):tr('ИИ-персонаж включён. Соединение проверяется при отправке.');
+  $('brainStatus').textContent=consent!==true?tr('Личный чат с ИИ выключен. Записи остаются на устройстве.'):ready?tr('ИИ-персонаж подключён.'):tr('ИИ-персонаж включён. Соединение проверяется при отправке.');
   cameraChanged();
  }
  function cameraChanged(){
@@ -48,7 +48,7 @@
    budget-=text.length;history.unshift({role:r.role,text});if(budget<=0)break;
   }
   // Only thoughts explicitly present in the current local ocean. No archive import.
-  const thoughts=records.filter(r=>r.intent&&!r.resolved&&r.role==='user').slice(-12).map(r=>({id:r.id,text:r.text.slice(0,120)}));
+  const thoughts=(window.SharedOcean?SharedOcean.all():records).filter(r=>r.intent&&!r.resolved&&r.role==='user').slice(-12).map(r=>({id:r.id,text:r.text.slice(0,120)}));
   return {history,thoughts};
  }
  async function frame(record){
@@ -112,7 +112,7 @@
    if(event.type==='characterError'){notice(tr(errors[event.code]||'Не удалось получить ответ. Запись сохранена — можно повторить.'));render();return;}
    if(typeof event.reply!=='string'||!event.reply.trim()){notice(tr('Не удалось получить ответ. Запись сохранена — можно повторить.'));render();return;}
    ready=true;visionReady||=!!event.visionUsed;updateStatus();
-   const validTarget=typeof event.targetId==='string'&&p.thoughts.some(t=>t.id===event.targetId)&&records.some(r=>r.id===event.targetId&&r.intent&&!r.resolved);
+   const validTarget=typeof event.targetId==='string'&&p.thoughts.some(t=>t.id===event.targetId)&&OceanUI.thoughts.some(r=>r.id===event.targetId&&r.intent&&!r.resolved);
    if(p.mode==='chat'){
     if(!records.some(r=>r.replyTo===p.recordId))saveRecords([...records,{id:uid(),role:'assistant',text:event.reply.slice(0,4000),replyTo:p.recordId,created:Date.now(),visionUsed:!!event.visionUsed}]);
     render();
@@ -126,7 +126,7 @@
  };
  const agent=node('button');agent.id='characterAgent';agent.type='button';agent.setAttribute('aria-label',tr('Мой ИИ-персонаж'));agent.append(node('img'));
  for(const type of ['pointerdown','pointerup'])agent.addEventListener(type,e=>e.stopPropagation());
- agent.onclick=()=>{if(targetId&&records.some(r=>r.id===targetId&&r.intent&&!r.resolved))OceanUI.preview(targetId);else explore();};
+ agent.onclick=()=>{if(targetId&&OceanUI.thoughts.some(r=>r.id===targetId&&r.intent&&!r.resolved))OceanUI.preview(targetId);else explore();};
  const exploreButton=node('button','',tr('Исследовать мысль'));exploreButton.id='characterExplore';exploreButton.type='button';exploreButton.onclick=explore;
  const speech=node('aside');speech.id='characterSpeech';speech.hidden=true;speech.setAttribute('role','status');
  const speechText=node('span');speech.append(speechText);const speechClose=node('button','','×');speechClose.id='characterSpeechClose';speechClose.setAttribute('aria-label',tr('Закрыть'));speechClose.onclick=()=>speech.hidden=true;speech.append(speechClose);

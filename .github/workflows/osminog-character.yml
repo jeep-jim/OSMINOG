@@ -1,7 +1,7 @@
 name: OSMINOG character — test and own-user deploy
 on:
   push:
-    branches: ['codex/vision-character-0213']
+    branches: ['fix/android-vision-ocean-0214']
     paths: ['services/character/**', 'infra/character/**', '.github/workflows/osminog-character.yml']
   workflow_dispatch:
 permissions:
@@ -49,6 +49,8 @@ jobs:
           ssh "${ssh_args[@]}" osminog@151.248.113.177 'cat /opt/osminog/character/tls/server.crt' > character-server.crt
       - name: Verify public TLS endpoint and real model without personal data
         run: python3 services/character/smoke.py character-server.crt
+      - name: Verify two public ocean devices and deletion
+        run: python3 services/character/ocean_smoke.py character-server.crt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
