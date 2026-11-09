@@ -17,7 +17,7 @@ function uid(){return globalThis.crypto?.randomUUID?.()||('m-'+Date.now()+'-'+Ma
 function state(kind){document.body.dataset.state=kind;const map={sleeping:'rgba(220,244,255,.13)',idle:'rgba(220,244,255,.13)',typing:'#ff3038',listening:'#63c8f3',error:'#e6a86b'};$('eye').style.setProperty('--eye-fill',map[kind]||map.idle);}
 function saveRecords(next){if(!persist(STORE,next))return false;records=next;return true;}
 function draftSave(){persist('osminogPersonalDraft',$('text').value);}
-function typing(){const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(voice?'listening':input.value.trim()?'typing':'sleeping');$('eye').setAttribute('aria-label',voice?tr('Завершить голосовой ввод'):input.value.trim()?tr('Отправить личное сообщение'):tr('Голосовой ввод'));}
+function typing(){window.followCaret?.();const input=$('text');input.style.height='50px';input.style.height=Math.min(130,Math.max(50,input.scrollHeight))+'px';state(voice?'listening':input.value.trim()?'typing':'sleeping');$('eye').setAttribute('aria-label',voice?tr('Завершить голосовой ввод'):input.value.trim()?tr('Отправить личное сообщение'):tr('Голосовой ввод'));}
 function imageFor(avatar){return 'design/'+encodeURIComponent(avatar||'Vector.svg');}
 function renderAttachment(file,container){if(!file)return;if(file.type?.startsWith('image/')&&/^data:image\/(jpeg|png);base64,/.test(file.data||'')){const img=node('img','attachment-image');img.src=file.data;img.alt=file.name||tr('Вложение');container.append(img);}else if(file.name)container.append(node('small','attachment-link',file.name));}
 function render(){const list=$('messages');list.replaceChildren();document.body.classList.toggle('has-chat',records.length>0);
