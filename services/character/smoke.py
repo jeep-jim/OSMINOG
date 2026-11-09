@@ -8,7 +8,7 @@ def get(path,body=None,token=None):
     if token: headers['Authorization']='Bearer '+token
     req=urllib.request.Request(base+path,data=None if body is None else json.dumps(body).encode(),headers=headers)
     with urllib.request.urlopen(req,context=ctx,timeout=55) as r: return json.load(r)
-health=get('/health');assert health['ok'] and health['storesContent'] is False
+health=get('/health');assert health['ok'] and health['storesPrivateChat'] is False and health['ocean'] is True
 try: get('/v1/chat',{'text':'Unauthorized synthetic test'})
 except urllib.error.HTTPError as e: assert e.code==401
 else: raise AssertionError('Unauthenticated request accepted')

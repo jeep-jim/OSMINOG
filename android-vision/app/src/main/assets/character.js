@@ -4,7 +4,7 @@
  let consent=read('osminogAIConsent',null),pending=null,ready=false,visionReady=false,visited=false,targetId=null;
  let timeout=0,consentAction=null;
  const consentDialog=makeDialog('characterConsent',tr('Включить ИИ-персонажа'));
- consentDialog.append(node('p','',tr('Для ответа REG получит сообщение, до 12 последних реплик и выбранные мысли. Если камера включена или прикреплено фото — один уменьшенный кадр. Видео непрерывно не передаётся. История и оригиналы остаются на устройстве; сервис Осьминога не сохраняет содержание.')));
+ consentDialog.append(node('p','',tr('Для ответа REG получит сообщение, до 12 последних реплик и выбранные мысли. Если камера включена или прикреплено фото — один уменьшенный кадр. Видео непрерывно не передаётся. Личная история и оригиналы остаются на устройстве; сервис Осьминога не сохраняет личный чат. Публикация в общий океан подтверждается отдельно.')));
  const accept=node('button','',tr('Включить')),decline=node('button','',tr('Пока без ИИ'));
  accept.id='characterAccept';decline.id='characterDecline';consentDialog.append(accept,decline);
  const toggle=menuAction('characterToggle',tr('ИИ-персонаж'),()=>{
