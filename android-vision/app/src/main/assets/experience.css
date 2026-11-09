@@ -14,3 +14,11 @@ body.theme-classic{color:#171717;background:white;--sheet-surface:#fff;--surface
 
 /* Rectangle 153 in local Untitled (3).fig: white fill at 20% opacity. */
 .ocean-card,.thread-open .ocean-card{background:#ffffff33!important}.thread-open .ocean-field{visibility:hidden}.theme-classic .ocean-card{background:#fff!important}
+
+.person-photo.is-character{object-fit:contain;padding:16px;background:url('design/bubble-avatar.svg') center/contain no-repeat}.card-author img.is-character,.thread-person img.is-character{object-fit:contain;padding:8px;background:url('design/bubble-avatar.svg') center/contain no-repeat;border:0}dialog input::placeholder{color:inherit;opacity:.5}
+
+dialog:not(.media-viewer){overscroll-behavior:contain}dialog:not(.media-viewer)::before{touch-action:none}
+
+dialog:not(.media-viewer)::before{display:none}.sheet-drag-handle{height:22px;margin:-10px 0 8px;display:grid;place-items:center;touch-action:none}.sheet-drag-handle::after{content:'';width:30px;height:4px;border-radius:4px;background:currentColor;opacity:.35}
+body.theme-classic .welcome-screen,body.theme-classic .welcome-water{background:#fff;color:#171717}body.theme-classic .welcome-poem p,body.theme-classic .welcome-hint{color:#555}body.theme-classic .welcome-start{background:#222;color:white}body.theme-classic .welcome-about{color:#171717}body.theme-classic .welcome-particles{display:none}
+body:not(.theme-classic) .thought-bubble .bubble-label{display:none}body:has(.thread-open):not(.menu-open) #plankton,body:has(.thread-open):not(.menu-open) #bubbles{visibility:hidden}
