@@ -54,7 +54,7 @@ jobs:
         working-directory: android-vision
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/OSMINOG-Vision-0.2.11-unsigned.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk dist/OSMINOG-Vision-0.2.12-unsigned.apk
           sha256sum dist/*.apk > dist/SHA256SUMS.txt
           git rev-parse HEAD > dist/source-commit.txt
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" dist/apksigner.jar
@@ -62,9 +62,30 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: OSMINOG-Vision-Android-0.2.11-verification
+          name: OSMINOG-Vision-Android-0.2.12-verification
           path: |
             android-vision/dist/
             android-vision/app/build/reports/
             android-vision/app/build/outputs/androidTest-results/
+          retention-days: 14
+
+  motion-and-palettes:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip android]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install existing project browser test dependency
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Verify actual motion in normal and reduced-motion modes
+        run: node android-vision/tools/check-motion.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OSMINOG-Vision-motion-and-palettes
+          path: android-vision/motion-verification/
           retention-days: 14

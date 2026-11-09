@@ -1,0 +1,24 @@
+name: OSMINOG REG model connection
+on:
+  push:
+    branches: ['fix/android-vision-0212-contrast']
+    paths: ['config/reg-ai.json', 'tools/reg-ai/**', 'tests/reg-ai/**', '.github/workflows/osminog-reg-ai-connect.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: osminog-reg-model-connection
+  cancel-in-progress: false
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate bounded probe without network
+        run: python3 -m unittest discover -s tests/reg-ai
+      - name: One synthetic request to the owner-selected REG model
+        env:
+          OSMINOG_REG_AI_API_KEY: ${{ secrets.OSMINOG_REG_AI_API_KEY }}
+        run: python3 tools/reg-ai/probe.py

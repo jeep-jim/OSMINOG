@@ -8,9 +8,6 @@ https://github.com/jeep-jim/OSMINOG/settings/environments
 | Тип | Имя | Содержимое |
 | --- | --- | --- |
 | Secret | OSMINOG_REG_AI_API_KEY | Отдельный API-ключ ИИ REG для OSMINOG |
-| Variable | OSMINOG_REG_AI_BASE_URL | Точный base URL из инструкции выбранной модели |
-| Variable | OSMINOG_REG_AI_HOST | Точный hostname этого URL |
-| Variable | OSMINOG_REG_AI_MODEL | Точный model ID из инструкции |
 | Secret | OSMINOG_REG_SSH_KEY | Приватный SSH-ключ отдельного ограниченного пользователя OSMINOG |
 | Variable | OSMINOG_REG_SSH_USER | Имя пользователя osminog или osminog-* / osminog_* |
 | Variable | OSMINOG_OCEAN_URL | HTTPS URL собственного сервиса после его установки и проверки |
@@ -28,3 +25,11 @@ API-параметры без ключа можно прислать из REG �
 5. Подключает личный разговор, память и самостоятельный поиск персонажа отдельными этапами. Нынешний REG-адаптер ранжирования из PR #105 их не реализует.
 
 Google/Telegram client IDs понадобятся для соответствующего способа входа; это отдельная конфигурация, не условие первого синтетического вызова REG. Значения и успешность регистрации сейчас не подтверждены.
+
+## Уточнение 09.11.2026 — инструкция получена
+
+Владелец прислал инструкцию REG: base URL `https://ai.reg.cloud/v1`, host `ai.reg.cloud`, model `qwen-3.8-flash-next`, Chat Completions с Bearer ключом. Параметры сохранены в `config/reg-ai.json`; просить вводить их в GitHub Variables больше не нужно.
+
+Первый шаг владельца в открытой форме REG: название `osminog`, срок оставить как выбран, нажать создание; REG выдаст сам ключ. Далее GitHub / OSMINOG / environment osminog-reg → Add environment secret → Name `OSMINOG_REG_AI_API_KEY`, Value — выданная REG строка → зелёная Add secret. Скриншот заполненной формы до нажатия Add secret ещё не подтверждает сохранение.
+
+`OSMINOG REG model connection` выполняет ровно один синтетический запрос с ограничением 256 выходных токенов. Он не печатает ключ/ответ и не передаёт личные сообщения. Успех подтверждает ответ REG из GitHub Actions, а не установку сервиса на VM или подключение Android-чата. Для установки остаётся отдельный SSH-доступ OSMINOG; он не заменяется API-ключом.
