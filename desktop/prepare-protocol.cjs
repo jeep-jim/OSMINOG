@@ -8,4 +8,4 @@ fs.writeFileSync(path.join(__dirname,'protocol.cjs'),"'use strict';\n"+backgroun
 const runtimeChat=path.join(__dirname,'runtime-chat');
 fs.mkdirSync(runtimeChat,{recursive:true});
 fs.writeFileSync(path.join(runtimeChat,'background.js'),background);
-for(const file of ['sha3.js','osminog-generated-media.js'])fs.copyFileSync(path.join(__dirname,'..',file),path.join(runtimeChat,file));
+for(const file of ['sha3.js','osminog-generated-media.js','osminog-chat-sync.js','provider-tab-bridge.js'])fs.copyFileSync(path.join(__dirname,'..',file),path.join(runtimeChat,file));
