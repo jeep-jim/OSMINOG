@@ -8,6 +8,7 @@ test('Trader OS shell is lightweight, branded and exposes trading, AI and wallet
  for(const id of ['grid','tabstrip','ai-panel','wallet-panel','update-dialog','update-progress'])assert.match(html,new RegExp(`id="${id}"`));
  for(const layout of ['1','2','4','6'])assert.match(css,new RegExp(`data-layout="${layout}"`));
  assert.match(js,/context-scope/);assert.match(js,/Trader OS холст отключён/);
+ assert.match(js,/document\.querySelector\('dialog\[open\]'\)/);assert.match(js,/native\.browser\('layout',\{panels:\[\]\}\)/);assert.match(js,/addEventListener\('close',requestLayout\)/);
  assert.match(js,/native\.checkUpdate\(\)/);assert.match(js,/native\.downloadUpdate\(\)/);assert.match(js,/native\.installUpdate\(\)/);assert.match(js,/native\.onUpdate/);
  assert.match(css,/\[hidden\]\{display:none!important\}/);assert.match(css,/data-theme="light"/);assert.match(html,/class="brand-version"/);assert.match(html,/id="theme-button"/);assert.match(html,/id="language-dialog"/);assert.match(html,/id="help-dialog"/);
  assert.match(i18n,/54 locales/);assert.match(i18n,/const catalogs=\{en,ru,de,es,fr,pt,ar,zh,ja,ko\}/);assert.match(js,/traderPreferences/);assert.match(js,/helpSeenV501/);

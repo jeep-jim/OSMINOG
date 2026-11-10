@@ -2,8 +2,8 @@
 (()=>{
  const preview=new URLSearchParams(location.search).has('preview');
  const previewState={tabs:[],sessions:[],project:'trader-os-main'};let previewListener=()=>{};
- const previewUpdate={phase:'idle',currentVersion:'5.0.1',latestVersion:'5.0.1',percent:0,error:'',available:false,releaseNotes:'Trader OS 5.0.1'};
- const previewNative={version:'5.0.1',onBrowser:callback=>{previewListener=callback},onFocus:()=>{},onUpdate:()=>()=>{},updateState:async()=>previewUpdate,checkUpdate:async()=>Object.assign(previewUpdate,{phase:'current'}),downloadUpdate:async()=>previewUpdate,installUpdate:async()=>previewUpdate,get:async()=>({}),set:async()=>{},setTheme:async()=>{},wallet:async action=>action==='list'?[]:{},browser:async(action,args={})=>{
+ const previewUpdate={phase:'idle',currentVersion:'5.0.2',latestVersion:'5.0.2',percent:0,error:'',available:false,releaseNotes:'Trader OS 5.0.2'};
+ const previewNative={version:'5.0.2',onBrowser:callback=>{previewListener=callback},onFocus:()=>{},onUpdate:()=>()=>{},updateState:async()=>previewUpdate,checkUpdate:async()=>Object.assign(previewUpdate,{phase:'current'}),downloadUpdate:async()=>previewUpdate,installUpdate:async()=>previewUpdate,get:async()=>({}),set:async()=>{},setTheme:async()=>{},wallet:async action=>action==='list'?[]:{},browser:async(action,args={})=>{
   if(action==='project')return previewState;
   if(action==='open'){const id='preview-'+(previewState.tabs.length+1),url=String(args.url||'');previewState.tabs.push({id,url,title:url.includes('tradingview')?'BTCUSDT · TradingView':'Crypto Market · CoinGlass',favicon:'',loading:false});queueMicrotask(()=>previewListener(structuredClone(previewState)));return{id}}
   if(action==='close'){previewState.tabs=previewState.tabs.filter(t=>t.id!==args.id);queueMicrotask(()=>previewListener(structuredClone(previewState)));return previewState}
@@ -66,18 +66,28 @@
  }
  let layoutFrame=0;
  function requestLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=requestAnimationFrame(async()=>{
+  // WebContentsView is always composited above the renderer DOM. Hide every
+  // native webpage while a shell-owned modal is open so the dialog remains
+  // visible and receives all pointer/keyboard input.
+  if(document.querySelector('dialog[open]')){try{await native.browser('layout',{panels:[]})}catch(e){setStatus(e.message)}return}
   const panels=[];
   for(const slot of document.querySelectorAll('.native-slot[data-slot]')){const r=slot.getBoundingClientRect();if(r.width>2&&r.height>2)panels.push({id:slot.dataset.slot,x:r.x,y:r.y,width:r.width,height:r.height})}
   if(model.aiOpen&&!model.walletOpen&&model.provider){const r=$('#ai-slot').getBoundingClientRect();if(r.width>2&&r.height>2)panels.push({id:'ai',x:r.x,y:r.y,width:r.width,height:r.height})}
   try{await native.browser('layout',{panels})}catch(e){setStatus(e.message)}
  })}
+ async function openDialog(dialog,focusSelector=''){
+  // Hide native pages before showing the modal; otherwise TradingView/Binance
+  // can cover it and the modal backdrop makes the entire shell appear frozen.
+  cancelAnimationFrame(layoutFrame);await native.browser('layout',{panels:[]});dialog.showModal();
+  if(focusSelector)setTimeout(()=>$(focusSelector)?.focus(),0);
+ }
  async function syncContext(){const ids=visibleTabs();await native.browser('context-scope',{ids});$('#context-state').textContent=`AI: ${ids.length} вкладк${ids.length===1?'а':'и'}`}
  async function openPage(value){
   try{const result=await native.browser('open',{url:value,lane:'main'});model.active=result.id;const empty=model.slots.findIndex(id=>!tab(id));if(empty>=0)model.slots[empty]=result.id;else model.slots.unshift(result.id);setStatus('Вкладка открыта');await syncContext()}
   catch(e){setStatus(e.message)}
  }
  async function selectProvider(provider){try{model.provider=provider;await native.browser('provider',{provider,thread:'trader-main'});model.aiOpen=true;model.walletOpen=false;renderAI();renderWallet();setStatus(provider==='deepseek'?'DeepSeek открыт':'GPT открыт')}catch(e){setStatus(e.message)}}
- function showNewTab(){const d=$('#new-tab-dialog');d.showModal();setTimeout(()=>$('#new-tab-input').focus(),0)}
+ async function showNewTab(){await openDialog($('#new-tab-dialog'),'#new-tab-input')}
  async function action(name){
   if(name==='new-tab')return showNewTab();
   if(name==='layout'){const i=layoutOrder.indexOf(model.layout);model.layout=layoutOrder[(i+1)%layoutOrder.length];renderGrid();await syncContext();return}
@@ -86,10 +96,10 @@
   if(name==='wallet'){model.walletOpen=!model.walletOpen;if(model.walletOpen)model.aiOpen=false;renderWallet();renderAI();return}
   if(name==='close-wallet'){model.walletOpen=false;model.aiOpen=true;renderWallet();renderAI();return}
   if(name==='theme'){model.theme=model.theme==='dark'?'light':'dark';applyPreferences();await savePreferences({theme:model.theme});return}
-  if(name==='language'){renderLanguages();const d=$('#language-dialog');d.showModal();setTimeout(()=>$('#language-search').focus(),0);return}
-  if(name==='help'){$('#help-dialog').showModal();await savePreferences({helpSeenV501:true});return}
+  if(name==='language'){renderLanguages();await openDialog($('#language-dialog'),'#language-search');return}
+  if(name==='help'){await openDialog($('#help-dialog'));await savePreferences({helpSeenV501:true});return}
   if(name==='back'||name==='reload'){if(model.active)await native.browser(name,{id:model.active});return}
-  if(name==='updates'){const d=$('#update-dialog');model.update=await native.updateState();renderUpdate();d.showModal();model.update=await native.checkUpdate();renderUpdate();return}
+  if(name==='updates'){const d=$('#update-dialog');model.update=await native.updateState();renderUpdate();await openDialog(d);model.update=await native.checkUpdate();renderUpdate();return}
   if(name==='update-check'){model.update=await native.checkUpdate();renderUpdate();return}
   if(name==='update-download'){model.update=await native.downloadUpdate();renderUpdate();return}
   if(name==='update-install'){model.update=await native.installUpdate();renderUpdate();return}
@@ -112,10 +122,11 @@
  $('#new-tab-form').addEventListener('submit',async e=>{e.preventDefault();const value=$('#new-tab-input').value.trim();if(value){await openPage(value);$('#new-tab-input').value='';$('#new-tab-dialog').close()}});
  $('#wallet-form').addEventListener('submit',async e=>{e.preventDefault();try{model.watch=await native.wallet('add-watch',{address:$('#wallet-address').value.trim(),label:$('#wallet-label').value.trim()});$('#wallet-address').value='';$('#wallet-label').value='';renderWallet();setStatus(t('addAddress'))}catch(error){setStatus(error.message)}});
  $('#language-search').addEventListener('input',e=>renderLanguages(e.target.value));
+ document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',requestLayout));
  native.onBrowser(state=>{model.state=state;render()});native.onFocus(({id})=>{if(model.state.tabs.some(t=>t.id===id)){model.active=id;renderTabs()}});native.onUpdate(state=>{model.update=state;renderUpdate()});window.addEventListener('resize',requestLayout);new ResizeObserver(requestLayout).observe(document.body);
  setInterval(()=>{$('#clock').textContent=new Intl.DateTimeFormat(model.locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())},1000);
  // Compatibility contract for the existing bounded browser/AI bridge. Trader OS has no canvas.
  globalThis.OSMINOGDirectCanvas=Object.freeze({snapshot:()=>JSON.stringify({project,kind:'trader-os',tabs:visibleTabs()}),apply:async()=>({ok:false,error:'В Trader OS холст отключён'})});
  globalThis.OSMINOGCollectBrowserContext=()=>({project,activeTab:model.active,selection:[],canvas:{kind:'trader-os',objects:[]}});
- (async()=>{try{const saved=await native.get('traderPreferences');model.preferences=saved.traderPreferences||{};model.locale=model.preferences.locale||((navigator.language||'ru').toLowerCase().startsWith('ru')?'ru':'en');model.theme=model.preferences.theme||'dark';applyPreferences();$('#version').textContent=native.version;model.update=await native.updateState();renderUpdate();model.watch=await native.wallet('list');model.state=await native.browser('project',{id:project});reconcile();if(!model.state.tabs.length&&!native.smoke){await openPage('https://www.tradingview.com/chart/');await openPage('https://www.coinglass.com/')}else{model.active=model.state.tabs[0]?.id||''}render();await syncContext();setStatus(t('ready'));document.documentElement.dataset.traderReady='true';if(!native.smoke&&!model.preferences.helpSeenV501){$('#help-dialog').showModal();await savePreferences({helpSeenV501:true})}}catch(e){setStatus(e.message);document.documentElement.dataset.traderReady='error'}})();
+ (async()=>{try{const saved=await native.get('traderPreferences');model.preferences=saved.traderPreferences||{};model.locale=model.preferences.locale||((navigator.language||'ru').toLowerCase().startsWith('ru')?'ru':'en');model.theme=model.preferences.theme||'dark';applyPreferences();$('#version').textContent=native.version;model.update=await native.updateState();renderUpdate();model.watch=await native.wallet('list');model.state=await native.browser('project',{id:project});reconcile();if(!model.state.tabs.length&&!native.smoke){await openPage('https://www.tradingview.com/chart/');await openPage('https://www.coinglass.com/')}else{model.active=model.state.tabs[0]?.id||''}render();await syncContext();setStatus(t('ready'));document.documentElement.dataset.traderReady='true';if(!native.smoke&&!model.preferences.helpSeenV501){await openDialog($('#help-dialog'));await savePreferences({helpSeenV501:true})}}catch(e){setStatus(e.message);document.documentElement.dataset.traderReady='error'}})();
 })();

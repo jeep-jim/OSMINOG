@@ -145,6 +145,16 @@ if(ownsProfile)app.whenReady().then(async()=>{
   try{
    await win.webContents.executeJavaScript("(async()=>{await OSMINOGNative.set({nativeIpcSmoke:'actual-host-storage'});if((await OSMINOGNative.get('nativeIpcSmoke')).nativeIpcSmoke!=='actual-host-storage')throw Error('Native IPC storage failed')})()");
    if((await store.get('nativeIpcSmoke')).nativeIpcSmoke!=='actual-host-storage')throw Error('Host storage write missing');
+   const waitFor=async(predicate,message)=>{for(let i=0;i<120;i++){if(await predicate())return;await new Promise(r=>setTimeout(r,50))}throw Error(message)};
+   const modalTabs=[await browser.command('open',{url:'https://example.com/trader-modal-a'}),await browser.command('open',{url:'https://example.com/trader-modal-b'})];
+   await waitFor(()=>Promise.resolve(browser.panels.filter(p=>modalTabs.some(t=>t.id===p.id)).length===2),'Trader pages were not placed before modal test');
+   await win.webContents.executeJavaScript("document.querySelector('[data-action=help]').click()");
+   await waitFor(async()=>await win.webContents.executeJavaScript("document.querySelector('#help-dialog').open")&&browser.panels.length===0,'Trader modal did not hide native pages');
+   if(modalTabs.some(({id})=>browser.get(id).view.getVisible()))throw Error('Native page remained visible above Trader modal');
+   await win.webContents.executeJavaScript("document.querySelector('#help-dialog').close()");
+   await waitFor(()=>Promise.resolve(browser.panels.filter(p=>modalTabs.some(t=>t.id===p.id)).length===2&&modalTabs.every(({id})=>browser.get(id).view.getVisible())),'Trader pages did not return after modal close');
+   for(const {id} of modalTabs)await browser.command('close',{id});
+   console.log('TRADER_MODAL_NATIVE_VIEWS_PASS');
    const shell=await win.webContents.executeJavaScript("({title:document.title,brand:document.querySelector('.brand')?.innerText,grid:document.querySelectorAll('.tile').length,wallet:!!document.querySelector('#wallet-panel')})");
    if(shell.title!=='Trader OS'||!shell.brand.includes('Trader')||shell.grid<1||!shell.wallet)throw Error('Trader shell contract failed');
    const fs=require('node:fs/promises');
