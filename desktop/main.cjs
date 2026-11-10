@@ -2,7 +2,7 @@
 const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu,dialog,nativeTheme}=require('electron');
 const path=require('node:path'),{pathToFileURL}=require('node:url'),{Store}=require('./storage.cjs');
 require('electron').protocol.registerSchemesAsPrivileged([{scheme:'osminog-code',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
-app.setName('OSMINOG Preview');
+app.setName('Trader OS');
 if(process.platform==='win32')app.setAppUserModelId('com.osminog.desktop.preview');
 const startup=require('./startup.cjs').startup({app,dialog});
 const showWindow=require('./startup.cjs').showWindow;
@@ -11,11 +11,12 @@ if(!ownsProfile)app.quit();
 app.on('second-instance',()=>{showWindow(win)});
 let win,browser,updates,tray;
 const {autoUpdater}=require('electron-updater');
-const entry=pathToFileURL(path.join(__dirname,'board/editor.html')).href;
+const entry=pathToFileURL(path.join(__dirname,'trader/index.html')).href;
 function trusted(event){if(!require('./trust.cjs').trustedFrame(event,win,entry)){const frame=event.senderFrame,main=win&&!win.isDestroyed()?win.webContents.mainFrame:null;const reason=!main?'window-closed':!frame||frame.detached?'frame-detached':frame.processId!==main.processId||frame.routingId!==main.routingId?'different-frame':'different-document';throw Error('Untrusted frame: '+reason);}}
 async function external(url){const parsed=new URL(url);if(!['https:','http:'].includes(parsed.protocol)||parsed.username||parsed.password)throw Error('Unsupported link');await shell.openExternal(parsed.href);return{url:parsed.href};}
 if(ownsProfile)app.whenReady().then(async()=>{
  const store=new Store(app.getPath('userData'));
+ const wallet=new (require('./wallet-vault.cjs').WalletVault)(store);
  const codeProject=new (require('./code-project.cjs').CodeProject)();
  require('electron').protocol.handle('osminog-code',request=>codeProject.response(request.url));
  ipcMain.handle('code:project',async(e,action,args={})=>{trusted(e);
@@ -26,6 +27,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   throw Error('Неизвестная операция проекта');
  });
  for(const op of ['get','set','remove'])ipcMain.handle('store:'+op,async(e,arg)=>{trusted(e);const result=await store[op](arg);if(op!=='get')win.webContents.send('store:changed',result);return op==='get'?result:undefined});
+ ipcMain.handle('wallet:command',(e,action,args)=>{trusted(e);return wallet.command(action,args)});
  ipcMain.handle('external:open',(e,url)=>{trusted(e);return external(url)});
  for(const [channel,method] of [['file:copy','copyFiles'],['file:open','openFile']])ipcMain.handle(channel,(e,args)=>{trusted(e);return require('./file-clipboard.cjs')[method](args)});
  ipcMain.handle('file:office',(e,file)=>{trusted(e);return require('./office.cjs').read(file)});
@@ -34,9 +36,9 @@ if(ownsProfile)app.whenReady().then(async()=>{
  // Keep the native frame and system menus dark, including on light Windows desktops.
  nativeTheme.themeSource='dark';
  const shellIcon=require('./windows-identity.cjs').installIdentity({app,shell});
- win=new BrowserWindow({icon:shellIcon,width:1440,height:960,minWidth:800,minHeight:600,show:true,backgroundColor:'#111722',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion()],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
+ win=new BrowserWindow({icon:shellIcon,width:1440,height:960,minWidth:800,minHeight:600,show:true,backgroundColor:'#090b0e',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),additionalArguments:['--osminog-version='+app.getVersion(),...(process.argv.some(a=>a.includes('smoke'))?['--trader-smoke=true']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webviewTag:false}});
  if(process.platform==='win32'){try{require('./windows-identity.cjs').applyTaskbar(win,shellIcon)}catch(e){startup.log('TASKBAR_WARNING',e)}}
- if(!process.argv.some(a=>a.includes('smoke'))){try{tray=new Tray(shellIcon);tray.setToolTip('OSMINOG');const show=()=>{if(!win.isDestroyed()){win.show();if(win.isMinimized())win.restore();win.focus()}};tray.on('click',show);tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Осьминог',click:show},{type:'separator'},{label:'Выйти',click:()=>app.quit()}]));}catch(e){startup.log('TRAY_WARNING',e)}}
+ if(!process.argv.some(a=>a.includes('smoke'))){try{tray=new Tray(shellIcon);tray.setToolTip('Trader OS');const show=()=>{if(!win.isDestroyed()){win.show();if(win.isMinimized())win.restore();win.focus()}};tray.on('click',show);tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Trader OS',click:show},{type:'separator'},{label:'Выйти',click:()=>app.quit()}]));}catch(e){startup.log('TRAY_WARNING',e)}}
  win.webContents.on('context-menu',(_event,p)=>{if(!p.isEditable&&!p.linkURL&&!p.srcURL&&!p.selectionText)return;const items=require('./context-menu.cjs').template(win.webContents,p,{clipboard:require('electron').clipboard,open:url=>browser.open({url})});Menu.buildFromTemplate(items).popup({window:win})});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(!require('./trust.cjs').sameDocument(url,entry))e.preventDefault()});
@@ -69,12 +71,12 @@ if(ownsProfile)app.whenReady().then(async()=>{
   const canvasState=await win.webContents.executeJavaScript('globalThis.OSMINOGDirectCanvas.snapshot()');
   if(before!==canvasState)throw Error('Холст изменился во время чтения; повторите отправку');
   const images=[];
-  if(board?.rect?.width>0&&board.rect.height>0){const image=await win.webContents.capturePage(board.rect).catch(()=>null);if(image&&!image.isEmpty())images.push({name:'OSMINOG-canvas.png',dataUrl:image.resize({width:Math.min(1600,image.getSize().width)}).toDataURL()})}
+  if(board?.rect?.width>0&&board.rect.height>0){const image=await win.webContents.capturePage(board.rect).catch(()=>null);if(image&&!image.isEmpty())images.push({name:'Trader-OS-workspace.png',dataUrl:image.resize({width:Math.min(1600,image.getSize().width)}).toDataURL()})}
   for(const page of pages){
    if(images.length>=5)break;
    const target=browser.get(page.id);if(!target.visible||target.view.webContents.getURL()!==page.url)continue;
    const shot=await target.view.webContents.capturePage().catch(()=>null);if(!shot||shot.isEmpty())continue;
-   const name='OSMINOG-tab-'+page.id+'.png';page.screenshot=name;page.screenshotSize={width:target.bounds.width,height:target.bounds.height};
+   const name='Trader-OS-tab-'+page.id+'.png';page.screenshot=name;page.screenshotSize={width:target.bounds.width,height:target.bounds.height};
    images.push({name,dataUrl:shot.resize(page.screenshotSize).toDataURL()});
   }
   if(browser.project!==expected||tab.project!==expected)throw Error('Проект изменился');
@@ -116,14 +118,13 @@ if(ownsProfile)app.whenReady().then(async()=>{
    return JSON.stringify({mcpServers:{osminog:{type:'stdio',...entry}}},null,2);
   }throw Error('Unknown MCP operation');
  });
- ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='resource-report')return require('./resources.cjs').report(app,win,browser);if(action==='resource-dialog'){const r=require('./resources.cjs');return dialog.showMessageBox(win,{type:'info',title:'Ресурсы Осьминога',message:'Память и процессы',detail:r.format(r.report(app,win,browser)),buttons:['Закрыть']})}if(action==='autopilot-config')return orchestrator.configure(browser.project,args.autoExecute);if(action==='autopilot-state')return{autoExecute:orchestrator.settings.get(browser.project)===true};if(action==='presence-update')return args?.board?.project===browser.project?browser.context.update(args.board):{ok:false,stale:true};if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args,{autoExecute:orchestrator.settings.get(browser.project)===true});if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){mcp.disable().catch(()=>{});originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
+ ipcMain.handle('browser:command',(e,action,args)=>{trusted(e);if(action==='resource-report')return require('./resources.cjs').report(app,win,browser);if(action==='resource-dialog'){const r=require('./resources.cjs');return dialog.showMessageBox(win,{type:'info',title:'Ресурсы Trader OS',message:'Память и процессы',detail:r.format(r.report(app,win,browser)),buttons:['Закрыть']})}if(action==='autopilot-config')return orchestrator.configure(browser.project,args.autoExecute);if(action==='autopilot-state')return{autoExecute:orchestrator.settings.get(browser.project)===true};if(action==='presence-update')return args?.board?.project===browser.project?browser.context.update(args.board):{ok:false,stale:true};if(action==='presence-read')return browser.context.refresh();if(action==='agent-tool')return agentTools.run(args.name,args.args,{autoExecute:orchestrator.settings.get(browser.project)===true});if(action==='media-attach'){return providers.attach(args)}if(action==='stop-ai'){mcp.disable().catch(()=>{});originalActions.stop();direct.stop();agentTools.stop();control.stop();return providers.stop()}if(action.startsWith('control-'))return control.command(action.slice(8),args);return browser.command(action,args)});
  win.once('ready-to-show',()=>win.show());
  win.webContents.on('preload-error',(_event,_file,error)=>startup.fail(error));
  win.webContents.on('render-process-gone',(_event,details)=>startup.fail(Error('Окно браузера остановилось: '+details.reason)));
  await win.loadURL(entry);
- if(process.argv.some(a=>a.includes('smoke')))await win.webContents.executeJavaScript("(async()=>{for(let i=0;i<100&&!document.querySelector('#native-welcome button');i++){if((await OSMINOGNative.get('nativeLocale')).nativeLocale)return;await new Promise(r=>setTimeout(r,20))}document.querySelector('#native-welcome button')?.click();await globalThis.OSMINOGWelcomeReady})()");
- await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>{if(document.documentElement.classList.contains('native-ready'))return resolve(true);if(Date.now()-started>30000)return reject(Error('Интерфейс не завершил запуск за 30 секунд'));setTimeout(check,100)};check()})");
- showWindow(win);startup.log('OSMINOG_READY '+app.getVersion());
+ await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>{if(document.documentElement.dataset.traderReady==='true')return resolve(true);if(Date.now()-started>30000)return reject(Error('Интерфейс не завершил запуск за 30 секунд'));setTimeout(check,100)};check()})");
+ showWindow(win);startup.log('TRADER_OS_READY '+app.getVersion());
  if(process.argv.includes('--update-smoke')||process.argv.includes('--verify-update-smoke')){
   try{await require('./update-smoke.cjs')({app,win,browser,autoUpdater,updates,verify:process.argv.includes('--verify-update-smoke')})}catch(e){console.error(e);app.exit(1)}return;
  }
@@ -137,20 +138,15 @@ if(ownsProfile)app.whenReady().then(async()=>{
  }
  if(process.argv.includes('--smoke')){
   try{
-   await win.webContents.executeJavaScript('OSMINOGStateReady');
    await win.webContents.executeJavaScript("(async()=>{await OSMINOGNative.set({nativeIpcSmoke:'actual-host-storage'});if((await OSMINOGNative.get('nativeIpcSmoke')).nativeIpcSmoke!=='actual-host-storage')throw Error('Native IPC storage failed')})()");
    if((await store.get('nativeIpcSmoke')).nativeIpcSmoke!=='actual-host-storage')throw Error('Host storage write missing');
-   await win.webContents.executeJavaScript(`(async()=>{document.querySelector('#osminogStorageOnboarding')?.close();createProject();createObject('text',{name:'Native smoke',text:'Windows persistence'});state.theme='light';applyTheme();await persist();if(!document.querySelector('#versionButton'))throw Error('Update button missing')})()`);
-   await win.webContents.executeJavaScript("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))");
+   const shell=await win.webContents.executeJavaScript("({title:document.title,brand:document.querySelector('.brand')?.innerText,grid:document.querySelectorAll('.tile').length,wallet:!!document.querySelector('#wallet-panel')})");
+   if(shell.title!=='Trader OS'||!shell.brand.includes('Trader')||shell.grid<1||!shell.wallet)throw Error('Trader shell contract failed');
    const fs=require('node:fs/promises');
-   await fs.writeFile('smoke-light.png',(await win.webContents.capturePage()).toPNG());
-   await win.webContents.executeJavaScript("(async()=>{toggleTheme();await persist();if(state.theme!=='dark')throw Error('Dark theme not reached')})()");
-   await win.webContents.executeJavaScript("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))");
-   await fs.writeFile('smoke-dark.png',(await win.webContents.capturePage()).toPNG());
+   await fs.writeFile('trader-os-smoke.png',(await win.webContents.capturePage()).toPNG());
    await new Promise(r=>{win.webContents.once('did-finish-load',r);win.reload()});
-   await win.webContents.executeJavaScript('OSMINOGStateReady');
-   const found=await win.webContents.executeJavaScript("state.theme==='dark'&&objects().some(o=>o.name==='Native smoke')");if(!found)throw Error('Persistence failed');
-   console.log('DESKTOP_SMOKE_PASS');app.exit(0);
+   await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>document.documentElement.dataset.traderReady==='true'?resolve():Date.now()-started>30000?reject(Error('Trader reload timeout')):setTimeout(check,100);check()})");
+   console.log('TRADER_OS_SMOKE_PASS');app.exit(0);
   }catch(e){console.error(e);app.exit(1)}
  }
 }).catch(startup.fail);
