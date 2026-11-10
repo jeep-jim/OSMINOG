@@ -1,0 +1,61 @@
+name: Light storage 5.0.0 extension and desktop
+on:
+  pull_request:
+    paths: ['light/**', '.github/workflows/light-storage.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-save --package-lock=false fake-indexeddb@6.2.4 playwright@1.62.1
+      - run: npx playwright install --with-deps chromium
+      - run: node --test light/tests/store.cjs
+      - run: python3 -c "import zipfile; z=zipfile.ZipFile('artifacts/light-test.zip'); assert z.testzip() is None"
+      - run: python3 light/build.py
+        env:
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: xvfb-run -a node light/tests/browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OSMINOG-Light-5.0.0-extension
+          path: |
+            artifacts/OSMINOG-Chrome-5.0.0.zip
+            artifacts/light-browser-results.json
+            artifacts/light-workspace.png
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: light/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: npm install --package-lock=false
+      - run: npm run smoke
+      - if: runner.os == 'Windows'
+        run: npm run build:win
+      - if: runner.os == 'macOS'
+        run: npm run build:mac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OSMINOG-Light-5.0.0-${{ runner.os }}
+          path: |
+            light/desktop/dist/*.exe
+            light/desktop/dist/*.dmg
+            light/desktop/dist/*.zip
