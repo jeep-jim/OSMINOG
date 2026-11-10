@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self'; script-src 'self'">
+  <title>Trader OS</title>
+  <link rel="stylesheet" href="trader.css">
+</head>
+<body>
+  <div id="app" class="app" data-layout="2">
+    <header class="topbar">
+      <button class="brand" type="button" data-action="home" aria-label="Trader OS">
+        <img class="brand-mark" src="../icons/trader-os.svg" alt="">
+        <span>Trader <strong>OS</strong></span>
+      </button>
+
+      <nav class="workspace-tabs" aria-label="Рабочие пространства">
+        <button class="workspace-tab active" type="button">Рынок</button>
+        <button class="workspace-tab" type="button" disabled>Скальпинг</button>
+        <button class="workspace-tab" type="button" disabled>Новости</button>
+      </nav>
+
+      <form class="address" id="address-form">
+        <button type="button" data-action="back" aria-label="Назад">←</button>
+        <button type="button" data-action="reload" aria-label="Обновить">↻</button>
+        <input id="address-input" autocomplete="off" spellcheck="false" aria-label="Адрес или поиск" placeholder="Адрес, биржа или тикер">
+        <button type="submit" aria-label="Открыть">↵</button>
+      </form>
+
+      <div class="top-actions">
+        <button type="button" class="layout-button" data-action="layout" aria-label="Раскладка"><span class="grid-icon">▦</span><span id="layout-label">2</span></button>
+        <button type="button" data-action="ai" class="active">AI</button>
+        <button type="button" data-action="wallet" class="wallet-button"><span>◇</span> Wallet</button>
+        <button type="button" data-action="updates" class="version">v<span id="version"></span></button>
+      </div>
+    </header>
+
+    <div class="body">
+      <aside class="marketbar">
+        <div class="marketbar-head">
+          <strong>WATCHLIST</strong>
+          <button type="button" data-action="add-symbol" aria-label="Добавить тикер">+</button>
+        </div>
+        <div class="watchlist" id="watchlist">
+          <button type="button" data-symbol="BTCUSDT"><span>BTC</span><small>USDT</small></button>
+          <button type="button" data-symbol="ETHUSDT"><span>ETH</span><small>USDT</small></button>
+          <button type="button" data-symbol="SOLUSDT"><span>SOL</span><small>USDT</small></button>
+          <button type="button" data-symbol="EURUSD"><span>EUR</span><small>USD</small></button>
+          <button type="button" data-symbol="XAUUSD"><span>XAU</span><small>USD</small></button>
+        </div>
+        <div class="marketbar-spacer"></div>
+        <button class="rail-action" type="button" data-action="new-tab" title="Новая вкладка">＋</button>
+        <button class="rail-action" type="button" data-action="settings" title="Настройки">⚙</button>
+      </aside>
+
+      <main class="terminal">
+        <nav class="tabstrip" id="tabstrip" aria-label="Открытые вкладки"></nav>
+        <section class="grid" id="grid" aria-label="Торговые окна"></section>
+        <footer class="statusbar">
+          <span class="connection-dot"></span>
+          <span id="status">Локальная сессия</span>
+          <span class="status-spacer"></span>
+          <span id="context-state">AI: видимые вкладки</span>
+          <span id="clock"></span>
+        </footer>
+      </main>
+
+      <aside class="sidepanel" id="ai-panel">
+        <header class="panel-head">
+          <div>
+            <strong>TRADER AI</strong>
+            <small>контекст выбранных вкладок</small>
+          </div>
+          <button type="button" data-action="close-ai" aria-label="Закрыть AI">×</button>
+        </header>
+        <div class="ai-toolbar">
+          <button type="button" data-provider="chatgpt" class="active">GPT</button>
+          <button type="button" data-provider="deepseek">DeepSeek</button>
+          <button type="button" data-action="context">Контекст</button>
+        </div>
+        <div class="ai-slot" id="ai-slot">
+          <div class="panel-empty" id="ai-empty">
+            <span class="pulse"></span>
+            <h2>Анализ рынка</h2>
+            <p>Выберите GPT или DeepSeek. Ассистент получает только разрешённые вкладки, без паролей, cookies и ключей кошелька.</p>
+            <button type="button" data-provider="chatgpt">Открыть GPT</button>
+          </div>
+        </div>
+        <footer class="ai-actions">
+          <button type="button" data-prompt="Проанализируй текущий график и перечисли риски">График</button>
+          <button type="button" data-prompt="Сравни открытые торговые вкладки">Сравнить</button>
+          <button type="button" data-prompt="Построй бычий, базовый и медвежий сценарии">Сценарии</button>
+        </footer>
+      </aside>
+
+      <aside class="sidepanel wallet-panel" id="wallet-panel" hidden>
+        <header class="panel-head">
+          <div>
+            <strong>WEB3 WALLET</strong>
+            <small>изолированное локальное хранилище</small>
+          </div>
+          <button type="button" data-action="close-wallet" aria-label="Закрыть кошелёк">×</button>
+        </header>
+        <section class="wallet-locked">
+          <div class="wallet-glyph" aria-hidden="true">◇</div>
+          <h2>Кошелёк заблокирован</h2>
+          <p>Сайты и AI не получают seed-фразу, приватные ключи или право подписи.</p>
+          <button class="primary" type="button" data-action="wallet-create" disabled>Создать локальный кошелёк</button>
+          <button type="button" data-action="wallet-watch">Добавить адрес для наблюдения</button>
+          <small class="security-note">Подписание будет включено только через проверенный криптографический модуль. Текущая основа не сохраняет приватные ключи.</small>
+        </section>
+        <section class="wallet-list">
+          <header><strong>НАБЛЮДАЕМЫЕ АДРЕСА</strong></header>
+          <div id="wallet-accounts" class="wallet-accounts"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <dialog id="new-tab-dialog">
+    <form method="dialog" id="new-tab-form">
+      <header><strong>Новая торговая вкладка</strong><button value="cancel" aria-label="Закрыть">×</button></header>
+      <input id="new-tab-input" autocomplete="off" placeholder="tradingview.com или поисковый запрос">
+      <div class="quick-sites">
+        <button type="button" data-url="https://www.tradingview.com/chart/">TradingView</button>
+        <button type="button" data-url="https://www.binance.com/en/trade/BTC_USDT">Binance</button>
+        <button type="button" data-url="https://www.coinglass.com/">CoinGlass</button>
+        <button type="button" data-url="https://www.investing.com/economic-calendar/">Calendar</button>
+      </div>
+      <footer><button value="cancel">Отмена</button><button class="primary" value="default">Открыть</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="wallet-dialog">
+    <form method="dialog" id="wallet-form">
+      <header><strong>Адрес для наблюдения</strong><button value="cancel" aria-label="Закрыть">×</button></header>
+      <input id="wallet-address" autocomplete="off" spellcheck="false" placeholder="0x…">
+      <input id="wallet-label" autocomplete="off" placeholder="Название (необязательно)">
+      <p class="dialog-note">Адрес сохраняется локально. Приватный ключ не запрашивается.</p>
+      <footer><button value="cancel">Отмена</button><button class="primary" value="default">Добавить</button></footer>
+    </form>
+  </dialog>
+
+  <script src="trader.js"></script>
+</body>
+</html>
