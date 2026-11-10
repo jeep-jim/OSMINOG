@@ -12,10 +12,10 @@ for n in files:
 shutil.copy2(root/'light/editor.html',out/'editor.html')
 for n in ['osminog-folder-updater.js','osminog-update-handoff.js','osminog-update-recovery.js','osminog-owner-guard.js']:
  if n in ['osminog-update-handoff.js','osminog-update-recovery.js']:
-  (out/n).write_text((root/n).read_text().replace('chrome.storage.local','globalThis.LightUpdateState'))
+  (out/n).write_text((root/n).read_text(encoding='utf-8').replace('chrome.storage.local','globalThis.LightUpdateState'),encoding='utf-8')
  else:shutil.copy2(root/n,out/n)
 if not desktop:
- manifest=json.loads((root/'manifest.json').read_text())
+ manifest=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
  manifest.update(version='5.0.0',version_name='5.0.0',description='Local text, screenshots and media storage. GPT and DeepSeek only.',background={'service_worker':'light/background.js'},action={'default_title':'OSMINOG — открыть материалы','default_icon':manifest['icons']},permissions=['storage','unlimitedStorage','clipboardRead','clipboardWrite','offscreen','alarms','tabs'],host_permissions=['https://api.github.com/*','https://github.com/*','https://raw.githubusercontent.com/*','https://objects.githubusercontent.com/*','https://release-assets.githubusercontent.com/*','https://cdn.jsdelivr.net/*'],optional_host_permissions=['https://api.openai.com/*','https://api.deepseek.com/*'],content_security_policy={'extension_pages':"script-src 'self'; object-src 'none';"})
  for k in ['sandbox','default_locale']:manifest.pop(k,None)
  (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
