@@ -17,6 +17,8 @@ jobs:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -79,7 +81,8 @@ jobs:
           New-Item -ItemType Directory -Path runtime -Force | Out-Null
           Copy-Item 'dist/win-unpacked/resources' runtime/resources -Recurse
           $package = Get-Content package.json -Raw | ConvertFrom-Json
-          @{ version=$package.version; electron=$package.devDependencies.electron; builder=$package.devDependencies.'electron-builder'; source=$env:GITHUB_SHA; productName=$package.build.productName; appId=$package.build.appId } | ConvertTo-Json | Set-Content runtime/runtime.json
+          $source = (git rev-parse HEAD).Trim()
+          @{ version=$package.version; electron=$package.devDependencies.electron; builder=$package.devDependencies.'electron-builder'; source=$source; productName=$package.build.productName; appId=$package.build.appId } | ConvertTo-Json | Set-Content runtime/runtime.json
           Compress-Archive -Path runtime/* -DestinationPath dist/Trader-OS-Windows-Runtime.zip
       - uses: actions/upload-artifact@v4
         continue-on-error: true
