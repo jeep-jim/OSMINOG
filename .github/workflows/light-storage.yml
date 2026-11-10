@@ -27,6 +27,7 @@ jobs:
           name: OSMINOG-Light-5.0.0-extension
           path: |
             artifacts/OSMINOG-Chrome-5.0.0.zip
+            artifacts/OSMINOG-Update-Recovery.html
             artifacts/light-browser-results.json
             artifacts/light-workspace.png
   windows-extension:

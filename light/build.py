@@ -1,5 +1,5 @@
 from pathlib import Path
-import json,shutil,sys,zipfile,hashlib,os
+import json,shutil,sys,zipfile,hashlib,os,tempfile,subprocess
 root=Path(__file__).resolve().parents[1]
 desktop='--desktop' in sys.argv
 out=root/'light/desktop/app' if desktop else root/'artifacts/light-extension'
@@ -26,3 +26,11 @@ if not desktop:
   for p in sorted(out.rglob('*')):
    if p.is_file():z.write(p,p.relative_to(out))
  print(json.dumps({'file':archive.name,'bytes':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'files':len([p for p in out.rglob('*') if p.is_file()])}))
+
+if not desktop:
+ with tempfile.TemporaryDirectory() as td:
+  recovery_root=Path(td);(recovery_root/'tools').mkdir()
+  for n in ['build-updater-recovery.cjs','updater-recovery-template.html']:shutil.copy2(root/'tools'/n,recovery_root/'tools'/n)
+  shutil.copy2(out/'manifest.json',recovery_root/'manifest.json')
+  shutil.copy2(root/'osminog-folder-updater.js',recovery_root/'osminog-folder-updater.js')
+  subprocess.run(['node',str(recovery_root/'tools/build-updater-recovery.cjs'),str(root/'artifacts/OSMINOG-Update-Recovery.html')],check=True)
