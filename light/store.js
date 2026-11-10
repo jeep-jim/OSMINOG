@@ -1,7 +1,7 @@
 /* Bounded local storage: card metadata and original bytes never share a record. */
 (()=>{'use strict';
 const NAME='osminog-light-v1',CELL=512,MAX_FILE=32*1024*1024,MAX_TEXT=1024*1024;
-let opening;const bus=typeof BroadcastChannel==='function'?new BroadcastChannel(NAME):null;
+let opening,previewSerial=Promise.resolve();const bus=typeof BroadcastChannel==='function'?new BroadcastChannel(NAME):null;
 const req=r=>new Promise((resolve,reject)=>{r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
 function open(){return opening||=(new Promise((resolve,reject)=>{const r=indexedDB.open(NAME,1);r.onupgradeneeded=()=>{const d=r.result,c=d.createObjectStore('cards',{keyPath:'id'});c.createIndex('grid',['desk','cx','cy']);c.createIndex('desk',['desk','at','id']);d.createObjectStore('files');d.createObjectStore('desks',{keyPath:'id'});d.createObjectStore('prefs')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>{opening=null;reject(r.error)}}))}
 async function tx(names,mode,fn){const t=(await open()).transaction(names,mode),done=new Promise((r,j)=>{t.oncomplete=r;t.onabort=t.onerror=()=>j(t.error||Error('Не удалось сохранить'))});done.catch(()=>{});try{const v=await fn(t);await done;return v}catch(e){try{t.abort()}catch{}await done.catch(()=>{});throw e}}
@@ -24,6 +24,9 @@ async function add({desk='inbox',name='',text,blob,id=crypto.randomUUID(),x,y,le
  if(!isText&&!blob)throw Error('Нет содержимого');
  const body=isText?new Blob([String(text)],{type:'text/plain;charset=utf-8'}):blob;
  const p=await entitlement(),at=Date.now(),image=mime.startsWith('image/');
+ if(await card(id))return id;
+ if(image&&!legacy&&(await pref('usage:'+month())||0)>=p.screenshots)throw Object.assign(Error('Достигнут лимит Free: 100 изображений в месяц.'),{code:'MONTHLY_LIMIT'});
+ let thumb=null;if(image&&globalThis.LightMedia){const decode=async()=>{try{return await LightMedia.preview(body)}catch{return null}};if(globalThis.navigator?.locks)thumb=await navigator.locks.request('osminog-light-image-decode',decode);else{const run=previewSerial.then(decode);previewSerial=run.catch(()=>null);thumb=await run}}
  const result=await tx(['cards','files','prefs','desks'],'readwrite',async t=>{
   const c=t.objectStore('cards'),f=t.objectStore('files'),s=t.objectStore('prefs');
   if(await req(c.get(id)))return id;if(!await req(t.objectStore('desks').get(desk)))throw Error('Стол не найден');
@@ -32,7 +35,7 @@ async function add({desk='inbox',name='',text,blob,id=crypto.randomUUID(),x,y,le
   const ordinal=await req(s.get('position:'+desk))||0;
   x=Number.isFinite(x)?x:ordinal%6*300;y=Number.isFinite(y)?y:Math.floor(ordinal/6)*250;
   const row={id,desk,name:String(name|| (isText?String(text).slice(0,70):'Изображение')).slice(0,160),preview:isText?String(text).slice(0,512):'',mime,kind:kind||(isText?'text':image?'image':'file'),size:body.size,at,x,y,cx:Math.floor(x/CELL),cy:Math.floor(y/CELL)};
-  await req(f.put(body,id));await req(c.put(row));await req(s.put(ordinal+1,'position:'+desk));
+  await req(f.put(body,id));if(thumb)await req(f.put(thumb,'thumb:'+id));await req(c.put(row));await req(s.put(ordinal+1,'position:'+desk));
   if(image&&!legacy)await req(s.put(usage+1,key));return id;
  });changed();return result;
 }
