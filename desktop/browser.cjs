@@ -46,7 +46,7 @@ class BrowserWorkspace{
  make(url,project,ai=false,{background=false}={}){
   const view=new WebContentsView({webPreferences:{session:this.session,backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
-  view.setBorderRadius?.(18);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
+  view.setBorderRadius?.(0);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame){t.navigationEpoch=(t.navigationEpoch||0)+1;if(this.pointerTarget?.id===t.id)this.pointerTarget=null}});
@@ -93,7 +93,7 @@ class BrowserWorkspace{
    case 'network-report':{
     const routes={};for(const [provider,url] of Object.entries(PROVIDERS)){try{let timer;const route=await Promise.race([this.session.resolveProxy(url),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),2000)})]).finally(()=>clearTimeout(timer));routes[provider]=[...new Set(route.split(';').map(x=>x.trim().split(/\s+/)[0]).filter(x=>['DIRECT','PROXY','HTTPS','SOCKS','SOCKS4','SOCKS5'].includes(x)))];}catch{routes[provider]=['unavailable']}}
     const report={schema:'osminog-connection-report/v1',createdAt:new Date().toISOString(),version:require('./package.json').version,platform:process.platform,electron:process.versions.electron,chromium:process.versions.chrome,networkMode:this.network.mode,routes,...this.connectionDiagnostics.snapshot(),note:'Local metadata only. HTTP 200 does not establish successful model response. No message text, headers, cookies, tokens, query strings or conversation IDs are collected.'};
-    const result=await dialog.showSaveDialog(this.win,{title:'Сохранить диагностику подключения',defaultPath:'OSMINOG-connection-'+require('./package.json').version+'.json',filters:[{name:'JSON',extensions:['json']}]});if(result.canceled||!result.filePath)return{canceled:true};await require('node:fs/promises').writeFile(result.filePath,JSON.stringify(report,null,2)+'\n','utf8');return{ok:true};
+    const result=await dialog.showSaveDialog(this.win,{title:'Сохранить диагностику подключения',defaultPath:'Trader-OS-connection-'+require('./package.json').version+'.json',filters:[{name:'JSON',extensions:['json']}]});if(result.canceled||!result.filePath)return{canceled:true};await require('node:fs/promises').writeFile(result.filePath,JSON.stringify(report,null,2)+'\n','utf8');return{ok:true};
    }
    case 'network-check':{
     const provider=Object.hasOwn(PROVIDERS,args.provider)?args.provider:'chatgpt',url=PROVIDERS[provider];
@@ -149,7 +149,7 @@ class BrowserWorkspace{
   for(const t of [...this.tabs.values(),...this.providers.values()]){
    const next=desired.get(t),show=!!next;
    if(next){const {bounds,clipped,wrap}=next;
-    if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(18);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
+    if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
     const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;
     const signature=JSON.stringify([viewBounds,parentBounds]);
