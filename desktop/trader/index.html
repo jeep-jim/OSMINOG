@@ -11,36 +11,41 @@
 <body>
   <div id="app" class="app" data-layout="2">
     <header class="topbar">
-      <button class="brand" type="button" data-action="home" aria-label="Trader OS">
+      <div class="brand" aria-label="Trader OS">
         <img class="brand-mark" src="../icons/trader-os.svg" alt="Trader OS">
-        <span>Trader <strong>OS</strong></span>
-      </button>
+        <span class="brand-copy"><span>Trader <strong>OS</strong></span><button type="button" data-action="updates" class="brand-version" title="Проверить обновления">v<span id="version"></span> · <span data-i18n="update">обновить</span></button></span>
+      </div>
+
+      <div class="brand-tools">
+        <button type="button" data-action="theme" id="theme-button" title="Сменить тему" aria-label="Сменить тему">◐</button>
+        <button type="button" data-action="language" id="language-button" title="Язык интерфейса" aria-label="Язык интерфейса"><span class="language-icon">文</span><b id="language-code">RU</b></button>
+        <button type="button" data-action="help" title="Как пользоваться" aria-label="Как пользоваться">?</button>
+      </div>
 
       <nav class="workspace-tabs" aria-label="Рабочие пространства">
-        <button class="workspace-tab active" type="button">Рынок</button>
-        <button class="workspace-tab" type="button" disabled>Скальпинг</button>
-        <button class="workspace-tab" type="button" disabled>Новости</button>
+        <button class="workspace-tab active" type="button" data-i18n="market">Рынок</button>
+        <button class="workspace-tab" type="button" disabled data-i18n="scalping">Скальпинг</button>
+        <button class="workspace-tab" type="button" disabled data-i18n="news">Новости</button>
       </nav>
 
       <form class="address" id="address-form">
         <button type="button" data-action="back" aria-label="Назад">←</button>
         <button type="button" data-action="reload" aria-label="Обновить">↻</button>
-        <input id="address-input" autocomplete="off" spellcheck="false" aria-label="Адрес или поиск" placeholder="Адрес, биржа или тикер">
+        <input id="address-input" autocomplete="off" spellcheck="false" aria-label="Адрес или поиск" placeholder="Адрес, биржа или тикер" data-i18n-placeholder="addressPlaceholder">
         <button type="submit" aria-label="Открыть">↵</button>
       </form>
 
       <div class="top-actions">
         <button type="button" class="layout-button" data-action="layout" aria-label="Раскладка"><span class="grid-icon">▦</span><span id="layout-label">2</span></button>
         <button type="button" data-action="ai" class="active">AI</button>
-        <button type="button" data-action="wallet" class="wallet-button"><span>◇</span> Wallet</button>
-        <button type="button" data-action="updates" class="version">v<span id="version"></span></button>
+        <button type="button" data-action="wallet" class="wallet-button"><span>◇</span> <span data-i18n="wallet">Wallet</span></button>
       </div>
     </header>
 
     <div class="body">
       <aside class="marketbar">
         <div class="marketbar-head">
-          <strong>WATCHLIST</strong>
+          <strong data-i18n="watchlist">WATCHLIST</strong>
           <button type="button" data-action="add-symbol" aria-label="Добавить тикер">+</button>
         </div>
         <div class="watchlist" id="watchlist">
@@ -71,48 +76,51 @@
         <header class="panel-head">
           <div>
             <strong>TRADER AI</strong>
-            <small>контекст выбранных вкладок</small>
+            <small data-i18n="aiContext">контекст выбранных вкладок</small>
           </div>
           <button type="button" data-action="close-ai" aria-label="Закрыть AI">×</button>
         </header>
         <div class="ai-toolbar">
           <button type="button" data-provider="chatgpt" class="active">GPT</button>
           <button type="button" data-provider="deepseek">DeepSeek</button>
-          <button type="button" data-action="context">Контекст</button>
+          <button type="button" data-action="context" data-i18n="context">Контекст</button>
         </div>
         <div class="ai-slot" id="ai-slot">
           <div class="panel-empty" id="ai-empty">
             <span class="pulse"></span>
-            <h2>Анализ рынка</h2>
-            <p>Выберите GPT или DeepSeek. Ассистент получает только разрешённые вкладки, без паролей, cookies и ключей кошелька.</p>
-            <button type="button" data-provider="chatgpt">Открыть GPT</button>
+            <h2 data-i18n="marketAnalysis">Анализ рынка</h2>
+            <p data-i18n="aiPrivacy">Выберите GPT или DeepSeek. Ассистент получает только разрешённые вкладки, без паролей, cookies и ключей кошелька.</p>
+            <button type="button" data-provider="chatgpt" data-i18n="openGPT">Открыть GPT</button>
           </div>
         </div>
         <footer class="ai-actions">
-          <button type="button" data-prompt="Проанализируй текущий график и перечисли риски">График</button>
-          <button type="button" data-prompt="Сравни открытые торговые вкладки">Сравнить</button>
-          <button type="button" data-prompt="Построй бычий, базовый и медвежий сценарии">Сценарии</button>
+          <button type="button" data-prompt="Проанализируй текущий график и перечисли риски" data-i18n="chart">График</button>
+          <button type="button" data-prompt="Сравни открытые торговые вкладки" data-i18n="compare">Сравнить</button>
+          <button type="button" data-prompt="Построй бычий, базовый и медвежий сценарии" data-i18n="scenarios">Сценарии</button>
         </footer>
       </aside>
 
       <aside class="sidepanel wallet-panel" id="wallet-panel" hidden>
         <header class="panel-head">
           <div>
-            <strong>WEB3 WALLET</strong>
-            <small>изолированное локальное хранилище</small>
+            <strong>WEB3</strong>
+            <small data-i18n="watchOnly">безопасное наблюдение</small>
           </div>
           <button type="button" data-action="close-wallet" aria-label="Закрыть кошелёк">×</button>
         </header>
         <section class="wallet-locked">
           <div class="wallet-glyph" aria-hidden="true">◇</div>
-          <h2>Кошелёк заблокирован</h2>
-          <p>Сайты и AI не получают seed-фразу, приватные ключи или право подписи.</p>
-          <button class="primary" type="button" data-action="wallet-create" disabled>Создать локальный кошелёк</button>
-          <button type="button" data-action="wallet-watch">Добавить адрес для наблюдения</button>
-          <small class="security-note">Подписание будет включено только через проверенный криптографический модуль. Текущая основа не сохраняет приватные ключи.</small>
+          <h2 data-i18n="publicWallet">Публичный адрес</h2>
+          <p data-i18n="walletExplain">Добавьте публичный EVM-адрес 0x… для наблюдения. Trader OS не запрашивает и не хранит seed-фразу или приватный ключ.</p>
+          <form id="wallet-form" class="wallet-form">
+            <input id="wallet-address" autocomplete="off" spellcheck="false" placeholder="0x…" aria-label="EVM address">
+            <input id="wallet-label" autocomplete="off" placeholder="Название (необязательно)" data-i18n-placeholder="optionalName">
+            <button class="primary" type="submit" data-i18n="addAddress">Добавить адрес</button>
+          </form>
+          <small class="security-note" data-i18n="walletBoundary">Это режим наблюдения, а не кошелёк для подписи и отправки транзакций.</small>
         </section>
         <section class="wallet-list">
-          <header><strong>НАБЛЮДАЕМЫЕ АДРЕСА</strong></header>
+          <header><strong data-i18n="watchedAddresses">НАБЛЮДАЕМЫЕ АДРЕСА</strong></header>
           <div id="wallet-accounts" class="wallet-accounts"></div>
         </section>
       </aside>
@@ -121,7 +129,7 @@
 
   <dialog id="new-tab-dialog">
     <form method="dialog" id="new-tab-form">
-      <header><strong>Новая торговая вкладка</strong><button value="cancel" aria-label="Закрыть">×</button></header>
+      <header><strong data-i18n="newTab">Новая торговая вкладка</strong><button value="cancel" aria-label="Закрыть">×</button></header>
       <input id="new-tab-input" autocomplete="off" placeholder="tradingview.com или поисковый запрос">
       <div class="quick-sites">
         <button type="button" data-url="https://www.tradingview.com/chart/">TradingView</button>
@@ -129,42 +137,60 @@
         <button type="button" data-url="https://www.coinglass.com/">CoinGlass</button>
         <button type="button" data-url="https://www.investing.com/economic-calendar/">Calendar</button>
       </div>
-      <footer><button value="cancel">Отмена</button><button class="primary" value="default">Открыть</button></footer>
+      <footer><button value="cancel" data-i18n="cancel">Отмена</button><button class="primary" value="default" data-i18n="open">Открыть</button></footer>
     </form>
   </dialog>
 
-  <dialog id="wallet-dialog">
-    <form method="dialog" id="wallet-form">
-      <header><strong>Адрес для наблюдения</strong><button value="cancel" aria-label="Закрыть">×</button></header>
-      <input id="wallet-address" autocomplete="off" spellcheck="false" placeholder="0x…">
-      <input id="wallet-label" autocomplete="off" placeholder="Название (необязательно)">
-      <p class="dialog-note">Адрес сохраняется локально. Приватный ключ не запрашивается.</p>
-      <footer><button value="cancel">Отмена</button><button class="primary" value="default">Добавить</button></footer>
+  <dialog id="language-dialog" class="language-dialog">
+    <form method="dialog">
+      <header><div><strong data-i18n="languageTitle">Язык интерфейса</strong><small id="language-summary">54 locale · 10 complete translations</small></div><button value="cancel" aria-label="Закрыть">×</button></header>
+      <input id="language-search" autocomplete="off" placeholder="Найти язык или страну" data-i18n-placeholder="languageSearch">
+      <div id="language-list" class="language-list"></div>
+      <footer><button value="cancel" data-i18n="close">Закрыть</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="help-dialog" class="help-dialog">
+    <form method="dialog">
+      <header><strong data-i18n="helpTitle">Как пользоваться Trader OS</strong><button value="cancel" aria-label="Закрыть">×</button></header>
+      <section class="help-content">
+        <p data-i18n="helpIntro">Trader OS — локальный торговый браузер: несколько графиков и бирж в одном окне, AI рядом и безопасное наблюдение за Web3-адресами.</p>
+        <ol>
+          <li data-i18n="help1">Введите сайт, биржу или тикер в верхнюю строку либо нажмите «+».</li>
+          <li data-i18n="help2">Кнопка раскладки переключает 1, 2, 4 и 6 одновременно видимых вкладок.</li>
+          <li data-i18n="help3">Откройте GPT или DeepSeek справа. AI получает контекст только видимых разрешённых вкладок.</li>
+          <li data-i18n="help4">В Web3 добавляйте только публичные EVM-адреса. Приватные ключи здесь не используются.</li>
+          <li data-i18n="help5">Для новой версии нажмите номер версии под логотипом.</li>
+        </ol>
+        <p class="help-note" data-i18n="themeNote">Светлая тема меняет оболочку Trader OS. Открытые сайты используют собственные настройки темы.</p>
+      </section>
+      <footer><button class="primary" value="cancel" data-i18n="understood">Понятно</button></footer>
     </form>
   </dialog>
 
   <dialog id="update-dialog" class="update-dialog">
     <form method="dialog">
-      <header><strong>Обновление Trader OS</strong><button value="cancel" aria-label="Закрыть">×</button></header>
+      <header><strong data-i18n="updateTitle">Обновление Trader OS</strong><button value="cancel" aria-label="Закрыть">×</button></header>
       <section class="update-content">
         <div class="update-versions">
-          <span>Установлена <strong id="update-current">—</strong></span>
-          <span>Доступна <strong id="update-latest">—</strong></span>
+          <span><span data-i18n="installed">Установлена</span> <strong id="update-current">—</strong></span>
+          <span><span data-i18n="available">Доступна</span> <strong id="update-latest">—</strong></span>
         </div>
         <p id="update-status" class="update-status">Готово к проверке</p>
         <progress id="update-progress" max="100" value="0" hidden></progress>
         <pre id="update-notes" class="update-notes"></pre>
-        <p class="dialog-note">Проверка и установка запускаются только вручную. Настройки, вкладки и локальные данные сохраняются.</p>
+        <p class="dialog-note" data-i18n="updateManual">Проверка и установка запускаются только вручную. Настройки, вкладки и локальные данные сохраняются.</p>
       </section>
       <footer>
-        <button type="button" data-action="update-check" id="update-check">Проверить</button>
-        <button type="button" data-action="update-download" id="update-download" class="primary" hidden>Скачать</button>
-        <button type="button" data-action="update-install" id="update-install" class="primary" hidden>Установить и перезапустить</button>
-        <button value="cancel">Закрыть</button>
+        <button type="button" data-action="update-check" id="update-check" data-i18n="check">Проверить</button>
+        <button type="button" data-action="update-download" id="update-download" class="primary" hidden data-i18n="download">Скачать</button>
+        <button type="button" data-action="update-install" id="update-install" class="primary" hidden data-i18n="install">Установить и перезапустить</button>
+        <button value="cancel" data-i18n="close">Закрыть</button>
       </footer>
     </form>
   </dialog>
 
+  <script src="i18n.js"></script>
   <script src="trader.js"></script>
 </body>
 </html>

@@ -28,6 +28,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   installUpdate:()=>ipcRenderer.invoke('update:install'),
   get:keys=>ipcRenderer.invoke('store:get',keys),
   set:values=>ipcRenderer.invoke('store:set',values),
+  setTheme:theme=>ipcRenderer.invoke('window:theme',theme),
   remove:keys=>ipcRenderer.invoke('store:remove',keys),
   open:url=>ipcRenderer.invoke('external:open',url),
   onChanged:callback=>{const listener=(_,changes)=>callback(changes,'local');ipcRenderer.on('store:changed',listener);return()=>ipcRenderer.removeListener('store:changed',listener)},
