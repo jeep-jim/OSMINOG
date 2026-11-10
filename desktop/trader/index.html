@@ -143,6 +143,28 @@
     </form>
   </dialog>
 
+  <dialog id="update-dialog" class="update-dialog">
+    <form method="dialog">
+      <header><strong>Обновление Trader OS</strong><button value="cancel" aria-label="Закрыть">×</button></header>
+      <section class="update-content">
+        <div class="update-versions">
+          <span>Установлена <strong id="update-current">—</strong></span>
+          <span>Доступна <strong id="update-latest">—</strong></span>
+        </div>
+        <p id="update-status" class="update-status">Готово к проверке</p>
+        <progress id="update-progress" max="100" value="0" hidden></progress>
+        <pre id="update-notes" class="update-notes"></pre>
+        <p class="dialog-note">Проверка и установка запускаются только вручную. Настройки, вкладки и локальные данные сохраняются.</p>
+      </section>
+      <footer>
+        <button type="button" data-action="update-check" id="update-check">Проверить</button>
+        <button type="button" data-action="update-download" id="update-download" class="primary" hidden>Скачать</button>
+        <button type="button" data-action="update-install" id="update-install" class="primary" hidden>Установить и перезапустить</button>
+        <button value="cancel">Закрыть</button>
+      </footer>
+    </form>
+  </dialog>
+
   <script src="trader.js"></script>
 </body>
 </html>

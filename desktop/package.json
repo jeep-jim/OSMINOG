@@ -1,6 +1,6 @@
 {
   "name": "trader-os-desktop",
-  "version": "5.0.0-alpha.1",
+  "version": "5.0.0",
   "private": true,
   "description": "Trader OS local-first trading browser preview",
   "author": "Trader OS",

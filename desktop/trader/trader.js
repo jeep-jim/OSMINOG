@@ -2,7 +2,8 @@
 (()=>{
  const preview=new URLSearchParams(location.search).has('preview');
  const previewState={tabs:[],sessions:[],project:'trader-os-main'};let previewListener=()=>{};
- const previewNative={version:'5.0.0-alpha.1',onBrowser:callback=>{previewListener=callback},onFocus:()=>{},get:async()=>({}),set:async()=>{},wallet:async action=>action==='list'?[]:{},browser:async(action,args={})=>{
+ const previewUpdate={phase:'idle',currentVersion:'5.0.0',latestVersion:'5.0.0',percent:0,error:'',available:false,releaseNotes:'Trader OS 5.0.0'};
+ const previewNative={version:'5.0.0',onBrowser:callback=>{previewListener=callback},onFocus:()=>{},onUpdate:()=>()=>{},updateState:async()=>previewUpdate,checkUpdate:async()=>Object.assign(previewUpdate,{phase:'current'}),downloadUpdate:async()=>previewUpdate,installUpdate:async()=>previewUpdate,get:async()=>({}),set:async()=>{},wallet:async action=>action==='list'?[]:{},browser:async(action,args={})=>{
   if(action==='project')return previewState;
   if(action==='open'){const id='preview-'+(previewState.tabs.length+1),url=String(args.url||'');previewState.tabs.push({id,url,title:url.includes('tradingview')?'BTCUSDT · TradingView':'Crypto Market · CoinGlass',favicon:'',loading:false});queueMicrotask(()=>previewListener(structuredClone(previewState)));return{id}}
   if(action==='close'){previewState.tabs=previewState.tabs.filter(t=>t.id!==args.id);queueMicrotask(()=>previewListener(structuredClone(previewState)));return previewState}
@@ -11,7 +12,7 @@
  const native=globalThis.OSMINOGNative||(preview?previewNative:null);if(!native){document.body.textContent='Trader OS native host unavailable';return}
  const $=s=>document.querySelector(s),app=$('#app'),body=$('.body'),grid=$('#grid'),tabstrip=$('#tabstrip'),status=$('#status');
  const project='trader-os-main';
- const model={state:{tabs:[],sessions:[]},layout:2,slots:[],active:'',aiOpen:true,walletOpen:false,provider:'',watch:[]};
+ const model={state:{tabs:[],sessions:[]},layout:2,slots:[],active:'',aiOpen:true,walletOpen:false,provider:'',watch:[],update:{phase:'idle',currentVersion:native.version,latestVersion:native.version,percent:0,releaseNotes:''}};
  const layoutOrder=[1,2,4,6];
  const setStatus=text=>{status.textContent=String(text||'')};
  const escape=s=>String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -46,6 +47,12 @@
   const box=$('#wallet-accounts');box.innerHTML=model.watch.length?model.watch.map((w,i)=>`<div class="wallet-account"><strong>${escape(w.label||'Wallet '+(i+1))}</strong><code>${escape(w.address)}</code><button type="button" data-wallet-remove="${i}" aria-label="Удалить">×</button></div>`).join(''):'<p class="security-note">Адреса не добавлены.</p>';
   requestLayout();
  }
+ function renderUpdate(){
+  const s=model.update||{},phase=s.phase||'idle',labels={idle:'Готово к проверке',checking:'Проверяем канал обновлений…',available:`Доступна версия ${s.latestVersion||''}`,current:'Установлена актуальная версия',downloading:`Скачивание: ${Math.round(Number(s.percent)||0)}%`,ready:'Обновление скачано и проверено',installing:'Сохраняем данные и перезапускаем Trader OS…',error:s.error||'Не удалось проверить обновления'};
+  $('#update-current').textContent=s.currentVersion||native.version;$('#update-latest').textContent=s.latestVersion||s.currentVersion||native.version;$('#update-status').textContent=labels[phase]||phase;
+  const progress=$('#update-progress');progress.hidden=phase!=='downloading';progress.value=Math.max(0,Math.min(100,Number(s.percent)||0));$('#update-notes').textContent=s.releaseNotes||'Описание версии появится после проверки.';
+  $('#update-check').hidden=!['idle','current','error'].includes(phase);$('#update-check').disabled=phase==='checking';$('#update-download').hidden=phase!=='available';$('#update-install').hidden=phase!=='ready';
+ }
  function render(){reconcile();renderTabs();renderGrid();renderAI();renderWallet();}
  let layoutFrame=0;
  function requestLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=requestAnimationFrame(async()=>{
@@ -70,7 +77,10 @@
   if(name==='close-wallet'){model.walletOpen=false;model.aiOpen=true;renderWallet();renderAI();return}
   if(name==='wallet-watch'){const d=$('#wallet-dialog');d.showModal();setTimeout(()=>$('#wallet-address').focus(),0);return}
   if(name==='back'||name==='reload'){if(model.active)await native.browser(name,{id:model.active});return}
-  if(name==='updates'){setStatus('Обновления Trader OS будут доступны после выпуска кандидата');return}
+  if(name==='updates'){const d=$('#update-dialog');model.update=await native.updateState();renderUpdate();d.showModal();model.update=await native.checkUpdate();renderUpdate();return}
+  if(name==='update-check'){model.update=await native.checkUpdate();renderUpdate();return}
+  if(name==='update-download'){model.update=await native.downloadUpdate();renderUpdate();return}
+  if(name==='update-install'){model.update=await native.installUpdate();renderUpdate();return}
   if(name==='settings'){setStatus('Настройки будут перенесены в компактную панель Trader OS');return}
   if(name==='add-symbol'){setStatus('Подключение рыночного фида — следующий модуль');return}
   if(name==='context'){await syncContext();setStatus('AI получает только вкладки, видимые в текущей раскладке');return}
@@ -88,10 +98,10 @@
  $('#address-form').addEventListener('submit',async e=>{e.preventDefault();const value=$('#address-input').value.trim();if(!value)return;const target=tab(model.active);try{if(target)await native.browser('navigate',{id:target.id,url:value});else await openPage(value);$('#address-input').select()}catch(error){setStatus(error.message)}});
  $('#new-tab-form').addEventListener('submit',async e=>{e.preventDefault();const value=$('#new-tab-input').value.trim();if(value){await openPage(value);$('#new-tab-input').value='';$('#new-tab-dialog').close()}});
  $('#wallet-form').addEventListener('submit',async e=>{e.preventDefault();try{model.watch=await native.wallet('add-watch',{address:$('#wallet-address').value.trim(),label:$('#wallet-label').value.trim()});$('#wallet-address').value='';$('#wallet-label').value='';$('#wallet-dialog').close();renderWallet();setStatus('Адрес добавлен локально')}catch(error){setStatus(error.message)}});
- native.onBrowser(state=>{model.state=state;render()});native.onFocus(({id})=>{if(model.state.tabs.some(t=>t.id===id)){model.active=id;renderTabs()}});window.addEventListener('resize',requestLayout);new ResizeObserver(requestLayout).observe(document.body);
+ native.onBrowser(state=>{model.state=state;render()});native.onFocus(({id})=>{if(model.state.tabs.some(t=>t.id===id)){model.active=id;renderTabs()}});native.onUpdate(state=>{model.update=state;renderUpdate()});window.addEventListener('resize',requestLayout);new ResizeObserver(requestLayout).observe(document.body);
  setInterval(()=>{$('#clock').textContent=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())},1000);
  // Compatibility contract for the existing bounded browser/AI bridge. Trader OS has no canvas.
  globalThis.OSMINOGDirectCanvas=Object.freeze({snapshot:()=>JSON.stringify({project,kind:'trader-os',tabs:visibleTabs()}),apply:async()=>({ok:false,error:'В Trader OS холст отключён'})});
  globalThis.OSMINOGCollectBrowserContext=()=>({project,activeTab:model.active,selection:[],canvas:{kind:'trader-os',objects:[]}});
- (async()=>{try{$('#version').textContent=native.version;model.watch=await native.wallet('list');model.state=await native.browser('project',{id:project});reconcile();if(!model.state.tabs.length&&!native.smoke){await openPage('https://www.tradingview.com/chart/');await openPage('https://www.coinglass.com/')}else{model.active=model.state.tabs[0]?.id||''}render();await syncContext();setStatus('Trader OS готов');document.documentElement.dataset.traderReady='true'}catch(e){setStatus(e.message);document.documentElement.dataset.traderReady='error'}})();
+ (async()=>{try{$('#version').textContent=native.version;model.update=await native.updateState();renderUpdate();model.watch=await native.wallet('list');model.state=await native.browser('project',{id:project});reconcile();if(!model.state.tabs.length&&!native.smoke){await openPage('https://www.tradingview.com/chart/');await openPage('https://www.coinglass.com/')}else{model.active=model.state.tabs[0]?.id||''}render();await syncContext();setStatus('Trader OS готов');document.documentElement.dataset.traderReady='true'}catch(e){setStatus(e.message);document.documentElement.dataset.traderReady='error'}})();
 })();

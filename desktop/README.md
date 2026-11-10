@@ -5,7 +5,7 @@ local-first Chromium trading workspace with compact 1/2/4/6 site layouts, a
 bounded AI context bridge and an isolated Web3 wallet surface. The previous
 canvas-first desktop shell is not loaded by the new entry point.
 
-The first foundation build is `5.0.0-alpha.1`. Signing is intentionally disabled
+The first public Trader OS build is `5.0.0`. Signing is intentionally disabled
 until an audited wallet engine is connected; the current wallet boundary stores
 only validated public watch addresses and rejects seed phrases, private keys,
 signing and transfers. Existing application/profile identifiers remain stable for
