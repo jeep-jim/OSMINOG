@@ -1,4 +1,4 @@
-importScripts('store.js','../osminog-update-handoff.js','../osminog-update-recovery.js');
+importScripts('store.js','update-state.js','../osminog-update-handoff.js','../osminog-update-recovery.js');
 let lifecycle=Promise.resolve();
 function sync(){lifecycle=lifecycle.catch(()=>{}).then(async()=>{await LightStore.init();const enabled=await LightStore.pref('capture'),exists=await chrome.offscreen.hasDocument();if(enabled&&!exists)await chrome.offscreen.createDocument({url:'light/collector.html',reasons:['CLIPBOARD'],justification:'Сохранение скопированного текста и PNG по включённому пользователем автосбору'});if(!enabled&&exists)await chrome.offscreen.closeDocument()});return lifecycle}
 async function open(){const url=chrome.runtime.getURL('editor.html'),tabs=await chrome.tabs.query({url});if(tabs[0])await chrome.tabs.update(tabs[0].id,{active:true});else await chrome.tabs.create({url})}

@@ -1,6 +1,6 @@
 # OSMINOG Light 5.0.0 candidate
 
-The owner's 2026-11-10 request supersedes the previous full-tool Chrome scope. This is an independent minimal runtime, not a stylesheet hiding the old app. `python3 light/build.py` packages only 21 reviewed files and the unchanged folder-update/handoff/recovery and owner-identity resource. No old editor, creative tools, embedded AI browser, autonomous agent, OCR engine or other providers are loaded. Android/ocean and previous archives are untouched.
+The owner's 2026-11-10 request supersedes the previous full-tool Chrome scope. This is an independent minimal runtime, not a stylesheet hiding the old app. `python3 light/build.py` packages only the minimal runtime and folder-update/owner-identity resources. No old editor, creative tools, embedded AI browser, autonomous agent, OCR engine or other providers are loaded. Android/ocean and previous archives are untouched. Handoff/recovery use the same protocol with a build-time storage adapter: new markers are in IDB; old Chrome markers are read by exact key and acknowledged in IDB without modifying the old Chrome store.
 
 ## Bounded storage and rendering
 
@@ -12,7 +12,7 @@ GPT/DeepSeek open in a separate system-browser tab. Optional in-app API requests
 
 ## Existing data
 
-Explicit import reads prior per-item IndexedDB stores one record at a time and keeps the sources. The monolithic `briefCraftStudioV2` snapshot is read only after `getBytesInUse` confirms at most 16 MiB; larger snapshots are left intact with a visible block. No prior full editor is launched to migrate. Large snapshot recovery, unsupported historical creative objects, old per-item editing journals, and cross-install desktop transfer need separate acceptance before claiming complete archive migration. Never delete the old extension/profile to install this candidate. The candidate does not silently present unimported content as an empty legacy archive.
+Explicit import reads prior per-item IndexedDB stores one record at a time and keeps the sources. The monolithic `briefCraftStudioV2` snapshot is never read, even to measure its size. Chromium SettingsStorageQuotaEnforcer::GetBytesInUse calls LazyCalculateUsage, which delegates a full-store Get. Therefore this API is not a safe preflight limit. Snapshot import remains explicitly unavailable; per-item IDB import is separate. No prior full editor is launched to migrate. Large snapshot recovery, unsupported historical creative objects, old per-item editing journals, and cross-install desktop transfer need separate acceptance before claiming complete archive migration. Never delete the old extension/profile to install this candidate. The candidate does not silently present unimported content as an empty legacy archive.
 
 ## Desktop
 
