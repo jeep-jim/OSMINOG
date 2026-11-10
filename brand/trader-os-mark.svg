@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">Trader OS</title>
+  <desc id="description">Angular market gateway with a candlestick letter T</desc>
+  <rect x="12" y="12" width="232" height="232" rx="42" fill="#0b0f15"/>
+  <path d="M128 22 234 128 128 234 22 128Z" fill="none" stroke="#5d7cff" stroke-width="12"/>
+  <path d="M66 70h124v32h-44v92h-36v-92H66Z" fill="#f4f7fb"/>
+  <path d="M85 128v43M74 146h22" stroke="#12c99b" stroke-width="8"/>
+  <path d="M174 116v43M163 134h22" stroke="#ff5e67" stroke-width="8"/>
+</svg>
