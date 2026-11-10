@@ -1,4 +1,28 @@
-# OSMINOG Browser — Windows Preview
+# Trader OS — trading browser preview
+
+Trader OS is the active Windows desktop direction as of 2026-11-10. It is a
+local-first Chromium trading workspace with compact 1/2/4/6 site layouts, a
+bounded AI context bridge and an isolated Web3 wallet surface. The previous
+canvas-first desktop shell is not loaded by the new entry point.
+
+The first foundation build is `5.0.0-alpha.1`. Signing is intentionally disabled
+until an audited wallet engine is connected; the current wallet boundary stores
+only validated public watch addresses and rejects seed phrases, private keys,
+signing and transfers. Existing application/profile identifiers remain stable for
+upgrade and login-session continuity. No release is published automatically.
+
+## Foundation scope
+
+- Linear dark terminal UI with no infinite canvas or editing tools.
+- Native Chromium tabs in 1, 2, 4 or 6 simultaneous panes.
+- TradingView and CoinGlass starter tabs, quick links for Binance and an economic calendar.
+- Right-side GPT/DeepSeek web chat using the existing bounded tab-context bridge.
+- AI scope is limited to tabs visible in the current layout.
+- Watch-only EVM address list behind a host-owned wallet IPC boundary.
+- Windows product title, tray and installer name changed to Trader OS.
+- The legacy board/editor bundle is not prepared or packaged by the Trader OS runtime.
+
+## Historical desktop notes
 
 Local Windows browser with native Chromium pages and the existing project canvas. Preview releases preserve a separate desktop profile; Chrome projects require an explicit import rather than overwriting the original installation.
 
