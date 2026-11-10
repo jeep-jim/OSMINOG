@@ -1,5 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
+// Release gate drives the installed Trader OS controls from the public previous version.
 module.exports=async function smoke({app,win,browser,autoUpdater,updates,store,verify=false}){
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>document.documentElement.dataset.traderReady==='true'?resolve(true):document.documentElement.dataset.traderReady==='error'?reject(Error('Trader OS update verification failed to start')):Date.now()-started>30000?reject(Error('Trader OS update verification readiness timed out')):setTimeout(check,100);check()})");
  const expected=process.argv.find(a=>a.startsWith('--expect-version='))?.split('=')[1];
