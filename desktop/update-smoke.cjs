@@ -1,11 +1,11 @@
 'use strict';
 const assert=require('node:assert/strict');
-module.exports=async function smoke({app,win,browser,autoUpdater,updates,verify=false}){
+module.exports=async function smoke({app,win,browser,autoUpdater,updates,store,verify=false}){
  await win.webContents.executeJavaScript('OSMINOGStateReady');
  const expected=process.argv.find(a=>a.startsWith('--expect-version='))?.split('=')[1];
  if(verify){
   assert.equal(app.getVersion(),expected);
-  const saved=await win.webContents.executeJavaScript("(async()=>{const v=await OSMINOGNative.get('osminogUpdateSentinel');return v.osminogUpdateSentinel?.value==='keep-this-project'})()");assert(saved,'Local profile data was lost during update');
+  const saved=await store.get('osminogUpdateSentinel');assert.equal(saved.osminogUpdateSentinel?.value,'keep-this-project','Local profile data was lost during update');
   const cookies=await browser.session.cookies.get({url:'http://127.0.0.1',name:'osminog-update-sentinel'});assert.equal(cookies[0]?.value,'keep-local-login');
   console.log('INSTALLED_UPDATE_SMOKE_PASS '+app.getVersion());app.exit(0);return;
  }
