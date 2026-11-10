@@ -38,6 +38,7 @@
       "storage.cjs",
       "wallet-vault.cjs",
       "trader/**/*",
+      "runtime-chat/**/*",
       "package.json",
       "browser.cjs",
       "windows-identity.cjs",
