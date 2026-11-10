@@ -3,7 +3,11 @@ const {app,BrowserWindow,ipcMain,shell,session,Tray,Menu,dialog,nativeTheme}=req
 const path=require('node:path'),{pathToFileURL}=require('node:url'),{Store}=require('./storage.cjs');
 require('electron').protocol.registerSchemesAsPrivileged([{scheme:'osminog-code',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 app.setName('Trader OS');
-if(process.platform==='win32')app.setAppUserModelId('com.osminog.desktop.preview');
+if(process.platform==='win32'){
+ // Keep the existing roaming profile while the visible product name changes.
+ app.setPath('userData',path.join(app.getPath('appData'),'OSMINOG Preview'));
+ app.setAppUserModelId('com.osminog.desktop.preview');
+}
 const startup=require('./startup.cjs').startup({app,dialog});
 const showWindow=require('./startup.cjs').showWindow;
 const ownsProfile=app.requestSingleInstanceLock();
@@ -126,7 +130,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>{if(document.documentElement.dataset.traderReady==='true')return resolve(true);if(Date.now()-started>30000)return reject(Error('Интерфейс не завершил запуск за 30 секунд'));setTimeout(check,100)};check()})");
  showWindow(win);startup.log('TRADER_OS_READY '+app.getVersion());
  if(process.argv.includes('--update-smoke')||process.argv.includes('--verify-update-smoke')){
-  try{await require('./update-smoke.cjs')({app,win,browser,autoUpdater,updates,verify:process.argv.includes('--verify-update-smoke')})}catch(e){console.error(e);app.exit(1)}return;
+  try{await require('./update-smoke.cjs')({app,win,browser,autoUpdater,updates,store,verify:process.argv.includes('--verify-update-smoke')})}catch(e){console.error(e);app.exit(1)}return;
  }
  if(process.argv.includes('--session-smoke')){try{await require('./session-smoke.cjs')(win,browser,providers);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;}
  if(process.argv.includes('--shell-smoke')){try{await require('./shell-smoke.cjs')(win,browser);app.exit(0)}catch(e){console.error(e);app.exit(1)}return;}

@@ -9,6 +9,7 @@ test('Trader OS shell is lightweight, branded and exposes trading, AI and wallet
  for(const layout of ['1','2','4','6'])assert.match(css,new RegExp(`data-layout="${layout}"`));
  assert.match(js,/context-scope/);assert.match(js,/Trader OS холст отключён/);
  assert.match(js,/native\.checkUpdate\(\)/);assert.match(js,/native\.downloadUpdate\(\)/);assert.match(js,/native\.installUpdate\(\)/);assert.match(js,/native\.onUpdate/);
+ assert.match(fs.readFileSync(path.join(__dirname,'main.cjs'),'utf8'),/setPath\('userData',path\.join\(app\.getPath\('appData'\),'OSMINOG Preview'\)\)/);
  assert.match(html,/rel="icon"[^>]+trader-os\.svg/);assert.match(mark,/#55D48F/);assert.match(mark,/#F9697C/);assert.doesNotMatch(mark,/#5d7cff/i);
  assert.equal(pkg.build.productName,'Trader OS');assert(pkg.build.files.includes('trader/**/*'));assert(pkg.build.files.includes('wallet-vault.cjs'));
 });
