@@ -1,7 +1,8 @@
 'use strict';
 const assert=require('node:assert/strict');
 module.exports=async function smoke({app,win,browser,autoUpdater,updates,store,verify=false}){
- await win.webContents.executeJavaScript('OSMINOGStateReady');
+ if(verify)await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{const started=Date.now();const check=()=>document.documentElement.dataset.traderReady==='true'?resolve(true):Date.now()-started>30000?reject(Error('Trader OS update verification readiness timed out')):setTimeout(check,100);check()})");
+ else await win.webContents.executeJavaScript('OSMINOGStateReady');
  const expected=process.argv.find(a=>a.startsWith('--expect-version='))?.split('=')[1];
  if(verify){
   assert.equal(app.getVersion(),expected);
