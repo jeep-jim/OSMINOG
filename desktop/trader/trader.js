@@ -2,20 +2,21 @@
 (()=>{
  const preview=new URLSearchParams(location.search).has('preview');
  const previewState={tabs:[],sessions:[],project:'trader-os-main'};let previewListener=()=>{};
- const previewUpdate={phase:'idle',currentVersion:'5.0.0',latestVersion:'5.0.0',percent:0,error:'',available:false,releaseNotes:'Trader OS 5.0.0'};
- const previewNative={version:'5.0.0',onBrowser:callback=>{previewListener=callback},onFocus:()=>{},onUpdate:()=>()=>{},updateState:async()=>previewUpdate,checkUpdate:async()=>Object.assign(previewUpdate,{phase:'current'}),downloadUpdate:async()=>previewUpdate,installUpdate:async()=>previewUpdate,get:async()=>({}),set:async()=>{},wallet:async action=>action==='list'?[]:{},browser:async(action,args={})=>{
+ const previewUpdate={phase:'idle',currentVersion:'5.0.1',latestVersion:'5.0.1',percent:0,error:'',available:false,releaseNotes:'Trader OS 5.0.1'};
+ const previewNative={version:'5.0.1',onBrowser:callback=>{previewListener=callback},onFocus:()=>{},onUpdate:()=>()=>{},updateState:async()=>previewUpdate,checkUpdate:async()=>Object.assign(previewUpdate,{phase:'current'}),downloadUpdate:async()=>previewUpdate,installUpdate:async()=>previewUpdate,get:async()=>({}),set:async()=>{},setTheme:async()=>{},wallet:async action=>action==='list'?[]:{},browser:async(action,args={})=>{
   if(action==='project')return previewState;
   if(action==='open'){const id='preview-'+(previewState.tabs.length+1),url=String(args.url||'');previewState.tabs.push({id,url,title:url.includes('tradingview')?'BTCUSDT · TradingView':'Crypto Market · CoinGlass',favicon:'',loading:false});queueMicrotask(()=>previewListener(structuredClone(previewState)));return{id}}
   if(action==='close'){previewState.tabs=previewState.tabs.filter(t=>t.id!==args.id);queueMicrotask(()=>previewListener(structuredClone(previewState)));return previewState}
   return action==='state'?previewState:true;
  }};
  const native=globalThis.OSMINOGNative||(preview?previewNative:null);if(!native){document.body.textContent='Trader OS native host unavailable';return}
- const $=s=>document.querySelector(s),app=$('#app'),body=$('.body'),grid=$('#grid'),tabstrip=$('#tabstrip'),status=$('#status');
+ const $=s=>document.querySelector(s),app=$('#app'),body=$('.body'),grid=$('#grid'),tabstrip=$('#tabstrip'),status=$('#status'),i18n=globalThis.TraderI18n;
  const project='trader-os-main';
- const model={state:{tabs:[],sessions:[]},layout:2,slots:[],active:'',aiOpen:true,walletOpen:false,provider:'',watch:[],update:{phase:'idle',currentVersion:native.version,latestVersion:native.version,percent:0,releaseNotes:''}};
+ const model={state:{tabs:[],sessions:[]},layout:2,slots:[],active:'',aiOpen:true,walletOpen:false,provider:'',watch:[],locale:'ru',theme:'dark',preferences:{},update:{phase:'idle',currentVersion:native.version,latestVersion:native.version,percent:0,releaseNotes:''}};
  const layoutOrder=[1,2,4,6];
  const setStatus=text=>{status.textContent=String(text||'')};
  const escape=s=>String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+ const t=key=>i18n.t(model.locale,key);
  const visibleTabs=()=>model.slots.slice(0,model.layout).filter(id=>model.state.tabs.some(t=>t.id===id));
  const tab=id=>model.state.tabs.find(t=>t.id===id);
  function reconcile(){
@@ -24,14 +25,14 @@
   if(!ids.has(model.active))model.active=model.slots[0]||'';
  }
  function renderTabs(){
-  tabstrip.innerHTML=model.state.tabs.map(t=>`<button class="tab ${t.id===model.active?'active':''}" type="button" data-tab="${t.id}" title="${escape(t.url)}">${t.favicon?`<img src="${escape(t.favicon)}" alt="">`:'<i class="fallback-icon"></i>'}<span class="tab-title">${escape(t.title||t.url)}</span><span class="tab-close" data-close="${t.id}" title="Закрыть">×</span></button>`).join('')+'<button class="new-tab" type="button" data-action="new-tab" title="Новая вкладка">+</button>';
+  tabstrip.innerHTML=model.state.tabs.map(item=>`<button class="tab ${item.id===model.active?'active':''}" type="button" data-tab="${item.id}" title="${escape(item.url)}">${item.favicon?`<img src="${escape(item.favicon)}" alt="">`:'<i class="fallback-icon"></i>'}<span class="tab-title">${escape(item.title||item.url)}</span><span class="tab-close" data-close="${item.id}" title="${escape(t('close'))}">×</span></button>`).join('')+`<button class="new-tab" type="button" data-action="new-tab" title="${escape(t('newTab'))}">+</button>`;
  }
  function renderGrid(){
   app.dataset.layout=String(model.layout);$('#layout-label').textContent=String(model.layout);grid.innerHTML='';
   for(let i=0;i<model.layout;i++){
-   const id=model.slots[i]||'',t=tab(id),tile=document.createElement('article');tile.className='tile';tile.dataset.index=String(i);
-   if(t){tile.innerHTML=`<div class="tile-head"><span>${escape(t.title||t.url)}</span><b>${t.loading?'LOADING':'LIVE'}</b></div><div class="native-slot" data-slot="${t.id}"></div>`;}
-   else tile.innerHTML='<div class="tile-empty"><strong>Свободное торговое окно</strong><button type="button" data-action="new-tab">Открыть сайт</button></div>';
+   const id=model.slots[i]||'',item=tab(id),tile=document.createElement('article');tile.className='tile';tile.dataset.index=String(i);
+   if(item){tile.innerHTML=`<div class="tile-head"><span>${escape(item.title||item.url)}</span><b>${item.loading?t('loading'):t('live')}</b></div><div class="native-slot" data-slot="${item.id}"></div>`;}
+   else tile.innerHTML=`<div class="tile-empty"><strong>${escape(t('freeWindow'))}</strong><button type="button" data-action="new-tab">${escape(t('openSite'))}</button></div>`;
    grid.append(tile);
   }
   requestLayout();
@@ -44,7 +45,7 @@
  }
  function renderWallet(){
   $('#wallet-panel').hidden=!model.walletOpen;body.classList.toggle('wallet-open',model.walletOpen);
-  const box=$('#wallet-accounts');box.innerHTML=model.watch.length?model.watch.map((w,i)=>`<div class="wallet-account"><strong>${escape(w.label||'Wallet '+(i+1))}</strong><code>${escape(w.address)}</code><button type="button" data-wallet-remove="${i}" aria-label="Удалить">×</button></div>`).join(''):'<p class="security-note">Адреса не добавлены.</p>';
+  const box=$('#wallet-accounts');box.innerHTML=model.watch.length?model.watch.map((w,i)=>`<div class="wallet-account"><strong>${escape(w.label||'Wallet '+(i+1))}</strong><code>${escape(w.address)}</code><button type="button" data-wallet-remove="${i}" aria-label="${escape(t('close'))}">×</button></div>`).join(''):`<p class="security-note">${escape(t('noAddresses'))}</p>`;
   requestLayout();
  }
  function renderUpdate(){
@@ -54,6 +55,15 @@
   $('#update-check').hidden=!['idle','current','error'].includes(phase);$('#update-check').disabled=phase==='checking';$('#update-download').hidden=phase!=='available';$('#update-install').hidden=phase!=='ready';
  }
  function render(){reconcile();renderTabs();renderGrid();renderAI();renderWallet();}
+ async function savePreferences(values={}){Object.assign(model.preferences,values);await native.set({traderPreferences:model.preferences})}
+ function applyPreferences(){
+  document.documentElement.dataset.theme=model.theme;i18n.apply(model.locale);$('#language-code').textContent=model.locale.toUpperCase().replace('-','·');$('#language-summary').textContent=t('summary');
+  const themeButton=$('#theme-button');themeButton.title=model.theme==='dark'?t('themeLight'):t('themeDark');themeButton.setAttribute('aria-label',themeButton.title);native.setTheme?.(model.theme).catch(()=>{});
+ }
+ function renderLanguages(query=''){
+  const needle=String(query).trim().toLocaleLowerCase(model.locale),box=$('#language-list');box.innerHTML='';
+  for(const item of i18n.locales){const names=i18n.display(item,model.locale),text=`${item.code} ${names.language} ${names.region}`.toLocaleLowerCase(model.locale);if(needle&&!text.includes(needle))continue;const complete=i18n.fullLocale(item.code),button=document.createElement('button');button.type='button';button.className=`language-option ${complete?'complete':''} ${item.code===model.locale?'active':''}`;button.dataset.locale=item.code;button.innerHTML=`<strong>${escape(item.code.toUpperCase())}</strong><span><b>${escape(names.language)}</b><small>${escape(names.region)}</small></span><em>${escape(complete?t('complete'):t('fallback'))}</em>`;box.append(button)}
+ }
  let layoutFrame=0;
  function requestLayout(){cancelAnimationFrame(layoutFrame);layoutFrame=requestAnimationFrame(async()=>{
   const panels=[];
@@ -75,7 +85,9 @@
   if(name==='close-ai'){model.aiOpen=false;renderAI();return}
   if(name==='wallet'){model.walletOpen=!model.walletOpen;if(model.walletOpen)model.aiOpen=false;renderWallet();renderAI();return}
   if(name==='close-wallet'){model.walletOpen=false;model.aiOpen=true;renderWallet();renderAI();return}
-  if(name==='wallet-watch'){const d=$('#wallet-dialog');d.showModal();setTimeout(()=>$('#wallet-address').focus(),0);return}
+  if(name==='theme'){model.theme=model.theme==='dark'?'light':'dark';applyPreferences();await savePreferences({theme:model.theme});return}
+  if(name==='language'){renderLanguages();const d=$('#language-dialog');d.showModal();setTimeout(()=>$('#language-search').focus(),0);return}
+  if(name==='help'){$('#help-dialog').showModal();await savePreferences({helpSeenV501:true});return}
   if(name==='back'||name==='reload'){if(model.active)await native.browser(name,{id:model.active});return}
   if(name==='updates'){const d=$('#update-dialog');model.update=await native.updateState();renderUpdate();d.showModal();model.update=await native.checkUpdate();renderUpdate();return}
   if(name==='update-check'){model.update=await native.checkUpdate();renderUpdate();return}
@@ -86,6 +98,7 @@
   if(name==='context'){await syncContext();setStatus('AI получает только вкладки, видимые в текущей раскладке');return}
  }
  document.addEventListener('click',async event=>{
+  const language=event.target.closest('[data-locale]');if(language){model.locale=language.dataset.locale;applyPreferences();render();renderUpdate();await savePreferences({locale:model.locale});$('#language-dialog').close();return}
   const provider=event.target.closest('[data-provider]');if(provider){await selectProvider(provider.dataset.provider);return}
   const close=event.target.closest('[data-close]');if(close){event.stopPropagation();try{await native.browser('close',{id:close.dataset.close})}catch(e){setStatus(e.message)}return}
   const t=event.target.closest('[data-tab]');if(t){model.active=t.dataset.tab;const current=model.slots.indexOf(model.active);if(current>=model.layout){const old=model.slots[0];model.slots[0]=model.active;model.slots[current]=old}render();await syncContext();return}
@@ -97,11 +110,12 @@
  });
  $('#address-form').addEventListener('submit',async e=>{e.preventDefault();const value=$('#address-input').value.trim();if(!value)return;const target=tab(model.active);try{if(target)await native.browser('navigate',{id:target.id,url:value});else await openPage(value);$('#address-input').select()}catch(error){setStatus(error.message)}});
  $('#new-tab-form').addEventListener('submit',async e=>{e.preventDefault();const value=$('#new-tab-input').value.trim();if(value){await openPage(value);$('#new-tab-input').value='';$('#new-tab-dialog').close()}});
- $('#wallet-form').addEventListener('submit',async e=>{e.preventDefault();try{model.watch=await native.wallet('add-watch',{address:$('#wallet-address').value.trim(),label:$('#wallet-label').value.trim()});$('#wallet-address').value='';$('#wallet-label').value='';$('#wallet-dialog').close();renderWallet();setStatus('Адрес добавлен локально')}catch(error){setStatus(error.message)}});
+ $('#wallet-form').addEventListener('submit',async e=>{e.preventDefault();try{model.watch=await native.wallet('add-watch',{address:$('#wallet-address').value.trim(),label:$('#wallet-label').value.trim()});$('#wallet-address').value='';$('#wallet-label').value='';renderWallet();setStatus(t('addAddress'))}catch(error){setStatus(error.message)}});
+ $('#language-search').addEventListener('input',e=>renderLanguages(e.target.value));
  native.onBrowser(state=>{model.state=state;render()});native.onFocus(({id})=>{if(model.state.tabs.some(t=>t.id===id)){model.active=id;renderTabs()}});native.onUpdate(state=>{model.update=state;renderUpdate()});window.addEventListener('resize',requestLayout);new ResizeObserver(requestLayout).observe(document.body);
- setInterval(()=>{$('#clock').textContent=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())},1000);
+ setInterval(()=>{$('#clock').textContent=new Intl.DateTimeFormat(model.locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())},1000);
  // Compatibility contract for the existing bounded browser/AI bridge. Trader OS has no canvas.
  globalThis.OSMINOGDirectCanvas=Object.freeze({snapshot:()=>JSON.stringify({project,kind:'trader-os',tabs:visibleTabs()}),apply:async()=>({ok:false,error:'В Trader OS холст отключён'})});
  globalThis.OSMINOGCollectBrowserContext=()=>({project,activeTab:model.active,selection:[],canvas:{kind:'trader-os',objects:[]}});
- (async()=>{try{$('#version').textContent=native.version;model.update=await native.updateState();renderUpdate();model.watch=await native.wallet('list');model.state=await native.browser('project',{id:project});reconcile();if(!model.state.tabs.length&&!native.smoke){await openPage('https://www.tradingview.com/chart/');await openPage('https://www.coinglass.com/')}else{model.active=model.state.tabs[0]?.id||''}render();await syncContext();setStatus('Trader OS готов');document.documentElement.dataset.traderReady='true'}catch(e){setStatus(e.message);document.documentElement.dataset.traderReady='error'}})();
+ (async()=>{try{const saved=await native.get('traderPreferences');model.preferences=saved.traderPreferences||{};model.locale=model.preferences.locale||((navigator.language||'ru').toLowerCase().startsWith('ru')?'ru':'en');model.theme=model.preferences.theme||'dark';applyPreferences();$('#version').textContent=native.version;model.update=await native.updateState();renderUpdate();model.watch=await native.wallet('list');model.state=await native.browser('project',{id:project});reconcile();if(!model.state.tabs.length&&!native.smoke){await openPage('https://www.tradingview.com/chart/');await openPage('https://www.coinglass.com/')}else{model.active=model.state.tabs[0]?.id||''}render();await syncContext();setStatus(t('ready'));document.documentElement.dataset.traderReady='true';if(!native.smoke&&!model.preferences.helpSeenV501){$('#help-dialog').showModal();await savePreferences({helpSeenV501:true})}}catch(e){setStatus(e.message);document.documentElement.dataset.traderReady='error'}})();
 })();

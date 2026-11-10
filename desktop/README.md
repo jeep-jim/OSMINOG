@@ -5,7 +5,7 @@ local-first Chromium trading workspace with compact 1/2/4/6 site layouts, a
 bounded AI context bridge and an isolated Web3 wallet surface. The previous
 canvas-first desktop shell is not loaded by the new entry point.
 
-The first public Trader OS build is `5.0.0`. Signing is intentionally disabled
+The first public Trader OS build is `5.0.0`; the active interface release is `5.0.1`. Signing is intentionally disabled
 until an audited wallet engine is connected; the current wallet boundary stores
 only validated public watch addresses and rejects seed phrases, private keys,
 signing and transfers. Existing application/profile identifiers remain stable for
@@ -27,7 +27,7 @@ upgrade and login-session continuity. No release is published automatically.
 Local Windows browser with native Chromium pages and the existing project canvas. Preview releases preserve a separate desktop profile; Chrome projects require an explicit import rather than overwriting the original installation.
 
 ## Included
-- Existing board/editor assets, light/dark/ocean themes and existing version/update button.
+- Existing board/editor assets and ocean themes. Trader OS now has its own light/dark shell themes and version/update button.
 - Isolated application profile; serialized local storage writes with a previous-state backup. Existing Chrome data is not read or overwritten.
 - Sandboxed renderer, no Node in documents, main-frame IPC validation, external HTTP(S) links only.
 - Separate Windows NSIS update adapter: no automatic download/install; explicit button action saves the board first. The Chrome updater source and release feed are unchanged.
