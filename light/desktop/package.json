@@ -1,0 +1,6 @@
+{
+ "name":"osminog-light-desktop","version":"5.0.0","private":true,"description":"Local text and media storage","author":"OSMINOG","main":"main.cjs",
+ "scripts":{"prepare:app":"node prepare.cjs","start":"npm run prepare:app && electron .","smoke":"npm run prepare:app && electron . --smoke","build:win":"npm run prepare:app && electron-builder --win nsis --x64 --publish never","build:mac":"npm run prepare:app && electron-builder --mac dmg zip --universal --publish never"},
+ "devDependencies":{"electron":"44.5.0","electron-builder":"26.15.3"},
+ "build":{"appId":"com.osminog.light","productName":"OSMINOG Light","directories":{"output":"dist"},"files":["main.cjs","preload.cjs","app/**/*","package.json"],"asar":true,"artifactName":"OSMINOG-Light-${version}-${os}-${arch}.${ext}","win":{"target":"nsis"},"nsis":{"oneClick":false,"perMachine":false,"allowToChangeInstallationDirectory":true,"deleteAppDataOnUninstall":false},"mac":{"category":"public.app-category.productivity","hardenedRuntime":true,"target":["dmg","zip"],"identity":null}}
+}

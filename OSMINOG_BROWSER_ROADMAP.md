@@ -1113,3 +1113,8 @@ Release 39040381792: обновление поверх предыдущей ве
 **Final verification / 2026-11-05:** [main runtime/build 42009411240](https://github.com/jeep-jim/OSMINOG/actions/runs/42009411240) on `74d77cd9902adc48400ba1fb4d9e42b50fc3666d` completed **success**, including native clipboard scenarios, browser cleanup and verified ZIP packaging. No failed steps remain. The published ZIP remains the immutable artifact from successful PR build 42006617269, with SHA-256 `f0872c6f35f128956f9a55571cd0541cc86195bb152560b6a7b165919e7c2a1a`.
 
 
+
+
+## 2026-11-10 — owner authorizes lightweight storage reset
+
+After another browser termination report the owner explicitly supersedes the full-workspace restoration requirement. Chrome and new Windows/macOS packages shall contain only lightweight text/media collection, bounded canvas layout, complete text view/edit, media viewing and GPT/DeepSeek connection. Remove agent execution, embedded browsers, other AI providers and heavy creative tools from shipped runtime. Preserve existing archives; never auto-load a large legacy snapshot. Prepare Free 100 screenshots/month and Pro entitlements/archive export without taking payments. Desktop and extension are selectable future landing-page downloads, not the separate mobile ocean product. Record actual memory/test/build results; do not certify owner-device stability from Linux CI.

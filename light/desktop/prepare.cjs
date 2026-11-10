@@ -1,0 +1,1 @@
+const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');const root=path.resolve(__dirname,'../..');cp.execFileSync('python3',[path.join(root,'light/build.py'),'--desktop'],{cwd:root,stdio:'inherit'});

@@ -1,0 +1,11 @@
+/* Explicit, restartable imports. Never delete a source record or read an unbounded snapshot. */
+(()=>{'use strict';
+const request=r=>new Promise((a,b)=>{r.onsuccess=()=>a(r.result);r.onerror=()=>b(r.error)});
+async function existing(name){const names=await indexedDB.databases();if(!names.some(d=>d.name===name))return null;return request(indexedDB.open(name))}
+async function* records(db,store){if(!db?.objectStoreNames.contains(store))return;let after;for(;;){const t=db.transaction(store),r=t.objectStore(store).openCursor(after===undefined?undefined:IDBKeyRange.lowerBound(after,true));const c=await request(r);if(!c)return;after=c.key;yield c.value;await new Promise(r=>setTimeout(r,0))}}
+async function read(db,store,id){if(!db?.objectStoreNames.contains(store))return;return request(db.transaction(store).objectStore(store).get(id))}
+async function migrate(progress){let n=0;const idmap=new Map();const desk=async(id,name)=>{id=String(id||'legacy');if(!idmap.has(id)){await LightStore.createDesk(name||'Прежние материалы',id,true);idmap.set(id,true)}return id};
+ const core=await existing('osminog-core-v1');if(core)try{for await(const d of records(core,'desks'))await desk(d.id,d.name);for await(const c of records(core,'items')){if(c.deletedAt)continue;const body=c.assetId?(await read(core,'blobs',c.assetId))?.blob:null;let text=c.text;if(c.textBlobId){const b=(await read(core,'blobs',c.textBlobId))?.blob;if(b&&b.size<=LightStore.MAX_TEXT*4)text=await b.text()}await LightStore.add({id:'core:'+c.id,desk:await desk(c.deskId),name:c.name,...(body?{blob:body}:{text:text||''}),x:c.x,y:c.y,legacy:true});progress('Перенесено: '+(++n))}}finally{core.close()}
+ const queue=await existing('osminog-capture-queue-v2');if(queue)try{for await(const c of records(queue,'entries')){const body=await read(queue,'bodies',c.id);if(!body)continue;const blob=body instanceof Blob?body:body.blob;if(!blob&&c.kind!=='text')continue;await LightStore.add({id:'queue:'+c.id,desk:await desk(c.projectId),name:c.name||c.fileName,...(c.kind==='text'?{text:body.value||''}:{blob}),legacy:true});progress('Перенесено: '+(++n))}}finally{queue.close()}
+ progress('Перенесено отдельных материалов: '+n+'. Исходники сохранены. Старый общий снимок не прочитан: для него нужен отдельный перенос.');return{count:n,snapshotDeferred:true};}
+globalThis.LightMigrate={migrate};})();
