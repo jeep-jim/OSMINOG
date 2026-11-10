@@ -1,17 +1,18 @@
 {
-  "name": "osminog-desktop",
-  "version": "4.0.26",
+  "name": "trader-os-desktop",
+  "version": "5.0.0",
   "private": true,
-  "description": "OSMINOG local browser preview",
-  "author": "OSMINOG",
+  "description": "Trader OS local-first trading browser preview",
+  "author": "Trader OS",
   "main": "main.cjs",
   "scripts": {
     "prepare:board": "node prepare.cjs",
-    "start": "npm run prepare:board && electron .",
-    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs provider-clean.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs startup.test.cjs context-menu.test.cjs session-transport.test.cjs agent-tools.test.cjs original-actions.test.cjs file-clipboard.test.cjs office.test.cjs browser-context.test.cjs connection-diagnostics.test.cjs adapter.test.cjs module-transport.test.cjs workspace-tools.test.cjs action-policy.test.cjs orchestrator.test.cjs pointer-context.test.cjs element-refs.test.cjs tile-layout.test.cjs mcp-host.test.cjs code-project.test.cjs code-format.test.cjs",
-    "build:win": "npm run prepare:board && electron-builder --win nsis --x64 --publish never",
+    "prepare:runtime": "node prepare-protocol.cjs",
+    "start": "npm run prepare:runtime && electron .",
+    "test": "node --test contracts.test.cjs trust.test.cjs updates.test.cjs browser-state.test.cjs network.test.cjs page-preload.test.cjs provider-clean.test.cjs control.test.cjs media.test.cjs direct-chat.test.cjs startup.test.cjs context-menu.test.cjs session-transport.test.cjs agent-tools.test.cjs original-actions.test.cjs file-clipboard.test.cjs office.test.cjs browser-context.test.cjs connection-diagnostics.test.cjs adapter.test.cjs module-transport.test.cjs workspace-tools.test.cjs action-policy.test.cjs orchestrator.test.cjs pointer-context.test.cjs element-refs.test.cjs tile-layout.test.cjs mcp-host.test.cjs code-project.test.cjs code-format.test.cjs wallet-vault.test.cjs trader-shell.test.cjs",
+    "build:win": "npm run prepare:runtime && electron-builder --win nsis --x64 --publish never",
     "postinstall": "node node_modules/electron/install.js",
-    "pretest": "node prepare.cjs"
+    "pretest": "node prepare-protocol.cjs"
   },
   "devDependencies": {
     "@codemirror/lang-css": "6.3.1",
@@ -27,7 +28,7 @@
   },
   "build": {
     "appId": "com.osminog.desktop.preview",
-    "productName": "OSMINOG Preview",
+    "productName": "Trader OS",
     "directories": {
       "output": "dist"
     },
@@ -35,7 +36,9 @@
       "main.cjs",
       "preload.cjs",
       "storage.cjs",
-      "board/**/*",
+      "wallet-vault.cjs",
+      "trader/**/*",
+      "runtime-chat/**/*",
       "package.json",
       "browser.cjs",
       "windows-identity.cjs",
@@ -87,18 +90,18 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "icons/osminog-eye.ico"
+      "icon": "icons/trader-os.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
-      "installerIcon": "icons/osminog-eye.ico",
-      "uninstallerIcon": "icons/osminog-eye.ico",
-      "installerHeaderIcon": "icons/osminog-eye.ico"
+      "installerIcon": "icons/trader-os.ico",
+      "uninstallerIcon": "icons/trader-os.ico",
+      "installerHeaderIcon": "icons/trader-os.ico"
     },
-    "artifactName": "OSMINOG-Preview-${version}-${arch}.${ext}",
+    "artifactName": "Trader-OS-${version}-${arch}.${ext}",
     "publish": [
       {
         "provider": "generic",

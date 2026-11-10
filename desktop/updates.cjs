@@ -17,7 +17,7 @@ class Updates {
   this.set({phase:'checking',error:'',percent:0,available:false});
   const result=await this.updater.checkForUpdates();if(!result)throw Error('Канал обновления не ответил');
   const info=result.updateInfo||{},available=!!result.isUpdateAvailable;
-  return this.set({phase:available?'available':'current',available,latestVersion:info.version||this.version,source:'OSMINOG Windows Preview',releaseName:String(info.releaseName||'Что нового').slice(0,200),releaseDate:String(info.releaseDate||'').slice(0,60),releaseNotes:notes(info.releaseNotes)||(available?'Описание этой версии не опубликовано.':require('./release-notes.cjs').notes)});
+  return this.set({phase:available?'available':'current',available,latestVersion:info.version||this.version,source:'Trader OS Windows',releaseName:String(info.releaseName||'Что нового').slice(0,200),releaseDate:String(info.releaseDate||'').slice(0,60),releaseNotes:notes(info.releaseNotes)||(available?'Описание этой версии не опубликовано.':require('./release-notes.cjs').notes)});
  })}
  download(){return this.single(async()=>{
   if(this.state.phase==='ready')return{...this.state};

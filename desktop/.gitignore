@@ -1,6 +1,8 @@
 node_modules/
 board/
 dist/
+icons/
+runtime-chat/
 runtime/
 protocol.cjs
 *smoke*.png

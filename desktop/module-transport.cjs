@@ -7,7 +7,7 @@ class ModuleTransport{
  constructor(browser,{fetch,confirm,source}={}){
   this.scope=new (require('node:async_hooks').AsyncLocalStorage)();this.browser=browser;this.fetch=fetch||((url,options)=>browser.session.fetch(url,options));
   this.confirm=confirm|| (async details=>{const r=await require('electron').dialog.showMessageBox(browser.win,{type:'question',buttons:['Отмена','Разрешить изменение'],defaultId:0,cancelId:0,title:'Посейдон · GitHub',message:'Разрешить эти изменения?',detail:details});return r.response===1});
-  source=source||fs.readFileSync(path.join(__dirname,'board/background.js'),'utf8');const start=source.indexOf('async function bcModuleTool('),end=source.indexOf('const OSMINOG_BROWSER_HUB_KEY=',start);if(start<0||end<start)throw Error('Module transport source boundaries changed');
+  source=source||fs.readFileSync(path.join(__dirname,'runtime-chat/background.js'),'utf8');const start=source.indexOf('async function bcModuleTool('),end=source.indexOf('const OSMINOG_BROWSER_HUB_KEY=',start);if(start<0||end<start)throw Error('Module transport source boundaries changed');
   const context=vm.createContext({fetch:(url,options)=>this.request(url,options),crypto:require('node:crypto').webcrypto,URL,URLSearchParams,TextEncoder,TextDecoder,atob,btoa,chrome:{storage:{local:{get:keys=>browser.store.get(keys)}}}});
   vm.runInContext(source.slice(start,end)+'\nglobalThis.moduleTool=bcModuleTool',context,{filename:'bundled-module-transport.js'});this.tool=context.moduleTool;this.busy=false;
  }

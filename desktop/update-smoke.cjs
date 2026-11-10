@@ -5,7 +5,7 @@ module.exports=async function smoke({app,win,browser,autoUpdater,updates,verify=
  const expected=process.argv.find(a=>a.startsWith('--expect-version='))?.split('=')[1];
  if(verify){
   assert.equal(app.getVersion(),expected);
-  const saved=await win.webContents.executeJavaScript("(async()=>{const v=await OSMINOGNative.get('osminogUpdateSentinel');if(v.osminogUpdateSentinel?.value!=='keep-this-project')return false;return state.projects.some(p=>p.objects?.some(o=>o.id===v.osminogUpdateSentinel.objectId&&o.text==='Update must preserve this text'))})()");assert(saved,'Project object was lost during update');
+  const saved=await win.webContents.executeJavaScript("(async()=>{const v=await OSMINOGNative.get('osminogUpdateSentinel');return v.osminogUpdateSentinel?.value==='keep-this-project'})()");assert(saved,'Local profile data was lost during update');
   const cookies=await browser.session.cookies.get({url:'http://127.0.0.1',name:'osminog-update-sentinel'});assert.equal(cookies[0]?.value,'keep-local-login');
   console.log('INSTALLED_UPDATE_SMOKE_PASS '+app.getVersion());app.exit(0);return;
  }

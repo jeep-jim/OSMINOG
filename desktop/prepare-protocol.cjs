@@ -1,0 +1,11 @@
+'use strict';
+require('./build-icons.cjs');
+const fs=require('node:fs'),path=require('node:path');
+const background=fs.readFileSync(path.join(__dirname,'..','background.js'),'utf8');
+const start=background.indexOf('function bcMachineInstructions('),end=background.indexOf('function bcThreadKey(');
+if(start<0||end<start)throw Error('Shared chat protocol boundaries changed');
+fs.writeFileSync(path.join(__dirname,'protocol.cjs'),"'use strict';\n"+background.slice(start,end)+'\nmodule.exports={bcDecoratePrompt,bcToolPrompt,bcParseAssistant};\n');
+const runtimeChat=path.join(__dirname,'runtime-chat');
+fs.mkdirSync(runtimeChat,{recursive:true});
+fs.writeFileSync(path.join(runtimeChat,'background.js'),background);
+for(const file of ['sha3.js','osminog-generated-media.js','osminog-chat-sync.js','provider-tab-bridge.js'])fs.copyFileSync(path.join(__dirname,'..',file),path.join(runtimeChat,file));

@@ -12,6 +12,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   copyFiles:files=>ipcRenderer.invoke('file:copy',files),
   openFile:file=>ipcRenderer.invoke('file:open',file),
   officeFile:file=>ipcRenderer.invoke('file:office',file),
+  wallet:(action,args)=>ipcRenderer.invoke('wallet:command',action,args),
   browser:(action,args)=>ipcRenderer.invoke('browser:command',action,args),
   saveFile:args=>ipcRenderer.invoke('file:save',args),
   runtime:(message,projectId)=>ipcRenderer.invoke('provider:runtime',message,projectId),
@@ -30,6 +31,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('OSMINOGNative',{
   remove:keys=>ipcRenderer.invoke('store:remove',keys),
   open:url=>ipcRenderer.invoke('external:open',url),
   onChanged:callback=>{const listener=(_,changes)=>callback(changes,'local');ipcRenderer.on('store:changed',listener);return()=>ipcRenderer.removeListener('store:changed',listener)},
+  smoke:process.argv.includes('--trader-smoke=true'),
   version:process.argv.find(arg=>arg.startsWith('--osminog-version='))?.slice('--osminog-version='.length)||'0.2.1'
 });
 
