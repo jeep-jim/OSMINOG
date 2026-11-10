@@ -51,6 +51,23 @@ jobs:
         run: npm run build:win
       - if: runner.os == 'macOS'
         run: npm run build:mac
+      - name: Launch the installed Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem dist/*.exe | Select-Object -First 1).FullName
+          $destination = Join-Path $env:RUNNER_TEMP 'osminog-light-installed'
+          $install = Start-Process -FilePath $installer -ArgumentList @('/S', "/D=$destination") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed: $($install.ExitCode)" }
+          $binary = Join-Path $destination 'OSMINOG Light.exe'
+          $process = Start-Process -FilePath $binary -ArgumentList '--smoke' -Wait -PassThru -RedirectStandardOutput native-installed.log -RedirectStandardError native-installed-errors.log
+          Get-Content native-installed.log
+          Get-Content native-installed-errors.log
+          if ($process.ExitCode -ne 0) { throw "Installed app failed: $($process.ExitCode)" }
+          if (-not (Select-String -Path native-installed.log -Pattern 'LIGHT_NATIVE_PASS' -Quiet)) { throw 'Missing native success marker' }
+      - name: Launch universal macOS application
+        if: runner.os == 'macOS'
+        run: '"dist/mac-universal/OSMINOG Light.app/Contents/MacOS/OSMINOG Light" --smoke'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
