@@ -1,0 +1,7 @@
+// Browser-test adapter only. Not packaged into or loaded by the extension.
+(() => {
+ const event=()=>({addListener(){},removeListener(){},hasListener(){return false}});
+ const done=(value,cb)=>{if(typeof cb==='function')queueMicrotask(()=>cb(value));return Promise.resolve(value)};
+ const area=prefix=>({get(keys,cb){const all=JSON.parse(localStorage.getItem(prefix)||'{}');let out={};if(keys==null)out=all;else if(typeof keys==='string')out={[keys]:all[keys]};else if(Array.isArray(keys))for(const k of keys)out[k]=all[k];else for(const[k,v]of Object.entries(keys))out[k]=all[k]??v;return done(out,cb)},set(values,cb){localStorage.setItem(prefix,JSON.stringify({...JSON.parse(localStorage.getItem(prefix)||'{}'),...values}));return done(undefined,cb)},remove(keys,cb){const all=JSON.parse(localStorage.getItem(prefix)||'{}');for(const k of Array.isArray(keys)?keys:[keys])delete all[k];localStorage.setItem(prefix,JSON.stringify(all));return done(undefined,cb)}});
+ globalThis.chrome={runtime:{id:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',getURL:p=>location.origin+'/'+p,getManifest:()=>({version:'4.0.7'}),onMessage:event(),onConnect:event(),sendMessage:async()=>({ok:false,error:'NOT_AVAILABLE_IN_BROWSER_TEST'}),sendNativeMessage:async()=>({ok:false}),lastError:null},storage:{local:area('test_local'),session:area('test_session'),onChanged:event()},tabs:{getCurrent:async()=>({id:1,url:location.href}),query:async()=>[],create:async()=>({id:2})},permissions:{contains:async()=>true,request:async()=>true},identity:{getProfileUserInfo:(p,cb)=>done({},cb)}};
+})();
