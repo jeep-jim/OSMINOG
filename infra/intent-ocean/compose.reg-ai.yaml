@@ -1,0 +1,16 @@
+# Explicit opt-in overlay. Base compose has no model key and makes no AI calls.
+# Use only AFTER confirming the exact endpoint/model in the REG console and
+# provisioning this application's OWN secrets. Never store the key in this file.
+services:
+  ocean:
+    environment:
+      OSMINOG_REG_AI_ENABLED: '1'
+      OSMINOG_REG_AI_BASE_URL: ${OSMINOG_REG_AI_BASE_URL:?Copy the exact REG API base URL}
+      OSMINOG_REG_AI_HOST: ${OSMINOG_REG_AI_HOST:?Pin the host from the verified REG instructions}
+      OSMINOG_REG_AI_MODEL: ${OSMINOG_REG_AI_MODEL:?Copy the exact REG model identifier}
+      OSMINOG_REG_AI_API_KEY_FILE: /run/secrets/osminog_reg_ai_api_key
+    secrets:
+      - osminog_reg_ai_api_key
+secrets:
+  osminog_reg_ai_api_key:
+    file: /opt/osminog/secrets/reg-ai.key
