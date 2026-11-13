@@ -1,7 +1,10 @@
 'use strict';
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
-const RELEASE_URL = 'https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/macos-v5.0.2-arm64';
+const RELEASE_URL = 'https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/macos-v5.0.3-arm64';
+// Derive layout from actual panel visibility. Keep the narrow-window overlay rule intact.
+const MAC_STYLE = `.topbar{padding-left:90px!important;padding-right:12px!important}
+@media(min-width:821px){.body:not(:has(> .sidepanel:not([hidden]))){grid-template-columns:var(--rail) minmax(0,1fr)!important}}`;
 const SCRIPTS = Object.freeze({
   newTab: `document.querySelector('[data-action="new-tab"]')?.click()`,
   address: `(()=>{const e=document.querySelector('#address-input');e?.focus();e?.select()})()`,
@@ -19,9 +22,8 @@ function menuTemplate({invoke,download}) {
   ];
 }
 function install(electron) {
-  const {app,BrowserWindow,Menu,shell}=electron;
+  const {app,Menu,shell}=electron;
   if(process.platform!=='darwin')throw Error('The macOS entry point requires macOS');
-  // An explicit, stable Mac profile. Never touch Windows, Chrome or Safari profiles.
   app.setPath('userData',path.join(app.getPath('appData'),'Trader OS'));
   if(process.env.CI && process.env.TRADER_MAC_TEST_PROFILE){
     if(!path.isAbsolute(process.env.TRADER_MAC_TEST_PROFILE))throw Error('CI profile must be absolute');
@@ -41,7 +43,7 @@ function install(electron) {
     win.on('close',event=>{if(!quitting){event.preventDefault();win.hide()}});
     win.webContents.on('did-finish-load',()=>{
       if(!isShell(win))return;
-      void win.webContents.insertCSS('.topbar{padding-left:90px!important;padding-right:12px!important}').catch(error=>console.error('MAC_CHROME_ERROR',error.message));
+      void win.webContents.insertCSS(MAC_STYLE).then(()=>win.webContents.executeJavaScript("window.dispatchEvent(new Event('resize'))")).catch(error=>console.error('MAC_CHROME_ERROR',error.message));
     });
   });
   app.whenReady().then(()=>{
@@ -49,4 +51,4 @@ function install(electron) {
   });
   return {getWindow:()=>mainWindow,isShell,invoke};
 }
-module.exports={install,menuTemplate,SCRIPTS,RELEASE_URL};
+module.exports={install,menuTemplate,SCRIPTS,RELEASE_URL,MAC_STYLE};

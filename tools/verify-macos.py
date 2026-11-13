@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Exercise the copied, packaged Mac application without touching a real profile."""
-import os, pathlib, subprocess, sys, time
+"""Exercise the copied Mac app and all AI-close layouts in an isolated CI profile."""
+import os, pathlib, plistlib, subprocess, sys, time
 exe=pathlib.Path(sys.argv[1]).resolve()
 if not exe.is_file(): raise SystemExit('Packaged executable missing')
+with (exe.parents[1]/'Info.plist').open('rb') as f: version=plistlib.load(f)['CFBundleShortVersionString']
+if version!='5.0.3': raise SystemExit('Wrong Mac version: '+version)
 root=pathlib.Path(os.environ['RUNNER_TEMP'])/'trader-mac-test-profiles'
 root.mkdir(exist_ok=True)
-def run(mode,profile,marker):
+def run(mode,profile,markers):
     env={**os.environ,'TRADER_MAC_TEST_PROFILE':str(root/profile),'CI':'true'}
-    result=subprocess.run([str(exe),mode],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
+    result=subprocess.run([str(exe),mode],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
     pathlib.Path(mode.lstrip('-')+'.log').write_text(result.stdout)
     print(result.stdout,flush=True)
-    if result.returncode or marker not in result.stdout: raise SystemExit('Packaged verification failed: '+mode)
-run('--smoke','core','TRADER_OS_SMOKE_PASS')
-run('--mac-smoke-write','persistent','MAC_ARM64_SMOKE_PASS')
-run('--mac-smoke-read','persistent','MAC_PROFILE_RESTART_PASS')
+    if result.returncode or any(marker not in result.stdout for marker in markers): raise SystemExit('Packaged verification failed: '+mode)
+run('--smoke','core',['TRADER_OS_SMOKE_PASS'])
+run('--mac-smoke-write','persistent',['MAC_ARM64_SMOKE_PASS','MAC_FULLWIDTH_SMOKE_PASS','MAC_FULLWIDTH_NO_RELOAD_PASS'])
+run('--mac-smoke-read','persistent',['MAC_PROFILE_RESTART_PASS'])
 profile=root/'ordinary'
 env={**os.environ,'TRADER_MAC_TEST_PROFILE':str(profile),'CI':'true'}
 with open('mac-normal-launch.log','w') as log:
@@ -23,7 +25,7 @@ with open('mac-normal-launch.log','w') as log:
         for _ in range(300):
             if process.poll() is not None: raise RuntimeError('Ordinary app exited before ready')
             startup=profile/'startup.log'
-            if startup.exists() and 'TRADER_OS_READY 5.0.2' in startup.read_text(): ready=True;break
+            if startup.exists() and ('TRADER_OS_READY '+version) in startup.read_text(): ready=True;break
             time.sleep(.1)
         if not ready: raise RuntimeError('Ordinary launch readiness timed out')
         time.sleep(3)
