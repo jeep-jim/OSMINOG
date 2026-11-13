@@ -17,13 +17,12 @@ module.exports=async({app,win,browser,store})=>{
    assert.equal((await js('QuadroNative.wallet("list")'))[0]?.address,'0x1111111111111111111111111111111111111111');
    console.log('QUADRO_PROFILE_COOKIE_WALLET_RESTART_PASS');
   }else{
-   // Legacy-profile values are never removed by the new name or shell.
    await store.set({macPortPersistence:'actual-legacy-mac-profile',traderWalletWatch:[{address:'0x1111111111111111111111111111111111111111',label:'Migration fixture'}]});
    server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Quadro fixture '+req.url+'</title><h1>Локальная проверка браузера</h1><input id="kept" value="retained"><script>globalThis.loadedOnce=Math.random()</script>')});
    await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
    for(let i=0;i<6;i++)await js(`QuadroTest.openPage(${JSON.stringify(url+'/pane/'+i)})`);
    await until(()=>[...browser.tabs.values()].filter(t=>t.lane!=='side').every(t=>!t.loading),'fixture loads');
-   const originals=new Map();for(const t of browser.tabs.values())originals.set(t.id,{wc:t.view.webContents.id,value:await t.view.webContents.executeJavaScript('globalThis.loadedOnce')});
+   const originals=new Map();for(const t of browser.tabs.values()){assert.equal(t.error,'','Guest page/preload error');originals.set(t.id,{wc:t.view.webContents.id,value:await t.view.webContents.executeJavaScript('globalThis.loadedOnce')})}
    async function geometry(n,full){
     await until(()=>browser.panels.filter(p=>browser.tabs.get(p.id)?.lane!=='side').length===n,'native panel count');await sleep(100);
     const boxes=await js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:QuadroTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);
@@ -38,18 +37,18 @@ module.exports=async({app,win,browser,store})=>{
    await drag('.divider[data-axis=y]',0,100);assert.ok(await js('QuadroTest.model.tree.a.ratio')>.55);await geometry(4,true);
    console.log('QUADRO_REAL_HORIZONTAL_VERTICAL_DRAG_PASS');
    await js(`QuadroTest.openAI(${JSON.stringify(url+'/custom-ai')})`);await until(()=>browser.panels.length===5,'custom AI webpage');
-   const aiId=await js('QuadroTest.model.aiId');assert.ok(browser.get(aiId).view.webContents.getURL().endsWith('/custom-ai'));
+   const aiId=await js('QuadroTest.model.aiId');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/custom-ai')&&!browser.get(aiId).loading,'custom AI navigation completion');assert.equal(browser.get(aiId).error,'');
    await drag('#ai-divider',-140,0);assert.ok(await js('QuadroTest.model.aiWidth')>400);await geometry(4,false);
    await js('document.querySelector("[data-action=close-ai]").click()');await until(()=>!browser.get(aiId).visible,'hidden AI');await geometry(4,true);
    await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'AI returns');await geometry(4,false);
    for(const [id,old] of originals){const t=browser.get(id);assert.equal(t.view.webContents.id,old.wc);assert.equal(await t.view.webContents.executeJavaScript('globalThis.loadedOnce'),old.value);assert.equal(await t.view.webContents.executeJavaScript('document.querySelector("#kept").value'),'retained')}
    console.log('QUADRO_CUSTOM_AI_RESIZE_NO_RELOAD_PASS');
    for(const theme of ['light','dark']){await js(`QuadroTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .toolbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(c.backgroundColor);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x>=4.5),theme+' contrast '+ratios)}
-   await js('QuadroTest.setTheme("light")');await fs.writeFile('quadro-light-smoke.png',(await win.webContents.capturePage()).toPNG());await js('QuadroTest.setTheme("dark")');await fs.writeFile('quadro-dark-smoke.png',(await win.webContents.capturePage()).toPNG());
+   await js('QuadroTest.setTheme("light")');await fs.writeFile('quadro-light-smoke.png',(await win.capturePage()).toPNG());await js('QuadroTest.setTheme("dark")');await fs.writeFile('quadro-dark-smoke.png',(await win.capturePage()).toPNG());
    console.log('QUADRO_LIGHT_DARK_CONTRAST_PASS');
    win.close();await sleep(100);assert.equal(win.isDestroyed(),false);assert.equal(win.isVisible(),false);app.emit('activate');await sleep(100);assert.equal(win.isVisible(),true);
    await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await store.queue;
   }
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
- }catch(error){console.error(error);await fs.writeFile('quadro-failure.png',(await win.webContents.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
+ }catch(error){console.error(error);console.error('QUADRO_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('quadro-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
 };
