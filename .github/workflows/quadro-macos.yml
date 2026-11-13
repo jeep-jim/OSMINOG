@@ -1,0 +1,72 @@
+name: Quadro Browser macOS arm64
+on:
+  push:
+    branches: ['codex/quadro-browser-20261113']
+    paths: ['desktop/quadro/**','desktop/quadro-*','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
+  pull_request:
+    paths: ['desktop/quadro/**','desktop/quadro-*','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quadro-arm64:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: test "$(uname -m)" = arm64
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high --json > quadro-audit.json
+      - run: npm test
+      - run: node --test quadro.test.cjs
+      - run: npm run prepare:runtime
+      - run: node quadro-icon.cjs
+      - name: Build native Quadro DMG and ZIP
+        run: npx electron-builder --config quadro-build.cjs --mac dmg zip --arm64 --publish never
+      - name: Verify actual installed app, resizers, AI URL and saved profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="dist-quadro/mac-arm64/Quadro Browser.app"
+          test "$(lipo -archs "$APP/Contents/MacOS/Quadro Browser")" = arm64
+          codesign --verify --deep --strict "$APP"
+          INSTALL="$RUNNER_TEMP/Проверка Quadro/Quadro Browser.app"
+          mkdir -p "$(dirname "$INSTALL")"
+          ditto "$APP" "$INSTALL"
+          python3 ../tools/quadro-verify.py "$INSTALL/Contents/MacOS/Quadro Browser"
+      - name: Bind release bytes to verified source
+        run: |
+          (cd dist-quadro && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
+          node - <<'NODE'
+          const fs=require('fs'),cp=require('child_process');
+          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.0',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,tests:['unit','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch']},null,2)+'\n');
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadro-arm64-candidate
+          path: |
+            desktop/dist-quadro/*.dmg
+            desktop/dist-quadro/*.zip
+            desktop/dist-quadro/SHA256SUMS.txt
+            desktop/dist-quadro/quadro-build.json
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quadro-arm64-verification
+          path: |
+            desktop/quadro-*.log
+            desktop/quadro-*.png
+            desktop/quadro-audit.json
+          retention-days: 14
