@@ -1,13 +1,12 @@
 'use strict';
 const base=require('./package.json').build;
-// Separate config: never publish to, or rewrite, the Windows update feed.
 const {win,nsis,publish,...shared}=base;
 module.exports={
   ...shared,
   extends:null,
   directories:{...base.directories,output:'dist-mac'},
-  extraMetadata:{main:'mac-main.cjs'},
-  files:[...base.files,'mac-main.cjs','mac-platform.cjs','mac-smoke.cjs','mac-updates.cjs'],
+  extraMetadata:{main:'mac-main.cjs',version:'5.0.3'},
+  files:[...base.files,'mac-main.cjs','mac-platform.cjs','mac-smoke.cjs','mac-layout-smoke.cjs','mac-updates.cjs'],
   artifactName:'Trader-OS-${version}-mac-${arch}.${ext}',
   publish:null,
   mac:{
