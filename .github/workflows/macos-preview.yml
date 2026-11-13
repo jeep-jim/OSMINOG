@@ -1,0 +1,76 @@
+name: macOS Apple Silicon browser candidate
+on:
+  push:
+    branches: ['codex/macos-arm64-20261113']
+    paths: ['desktop/**', 'tools/verify-macos.py', '.github/workflows/macos-preview.yml']
+  pull_request:
+    paths: ['desktop/mac-*', 'desktop/updates.cjs', 'tools/verify-macos.py', '.github/workflows/macos-preview.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos-arm64:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require native Apple Silicon runner
+        run: test "$(uname -m)" = arm64
+      - run: npm ci
+      - run: npm test
+      - run: node --test mac-preview.test.cjs
+      - run: npm run prepare:runtime
+      - name: Build Mac icon from the existing vector geometry
+        run: node -e "require('fs').writeFileSync('icons/trader-os-mac.png',require('./build-icons.cjs').png(1024))"
+      - name: Build ad-hoc signed arm64 DMG and ZIP
+        run: npx electron-builder --config mac-build.cjs --mac dmg zip --arm64 --publish never
+      - name: Verify architecture, signature and installed application
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="dist-mac/mac-arm64/Trader OS.app"
+          test -d "$APP"
+          test "$(lipo -archs "$APP/Contents/MacOS/Trader OS")" = arm64
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          INSTALL="$RUNNER_TEMP/Проверка Mac/Trader OS.app"
+          mkdir -p "$(dirname "$INSTALL")"
+          ditto "$APP" "$INSTALL"
+          python3 ../tools/verify-macos.py "$INSTALL/Contents/MacOS/Trader OS"
+      - name: Write checksum and source provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist-mac && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
+          node - <<'NODE'
+          const fs=require('fs'),cp=require('child_process'),pkg=require('./package.json');
+          fs.writeFileSync('dist-mac/macos-build.json',JSON.stringify({version:pkg.version,source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,electron:pkg.devDependencies.electron,notarized:false,signing:'ad-hoc',tests:['unit','packaged-core','native-navigation','clipboard','dock-reopen','profile-restart','ordinary-launch']},null,2)+'\n');
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-candidate
+          path: |
+            desktop/dist-mac/*.dmg
+            desktop/dist-mac/*.zip
+            desktop/dist-mac/SHA256SUMS.txt
+            desktop/dist-mac/macos-build.json
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-arm64-verification
+          path: |
+            desktop/*smoke*.log
+            desktop/*smoke*.png
+            desktop/mac-normal-launch.log
+          retention-days: 14
