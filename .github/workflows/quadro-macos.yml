@@ -1,7 +1,7 @@
 name: Quadro Browser macOS arm64
 on:
   push:
-    branches: ['codex/quadro-browser-20261113']
+    branches: ['codex/quadro-browser-20261113','codex/quadro-compact-20261113']
     paths: ['desktop/quadro/**','desktop/quadro-*','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
   pull_request:
     paths: ['desktop/quadro/**','desktop/quadro-*','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high --json > quadro-audit.json
       - run: npm test
-      - run: node --test quadro.test.cjs
+      - run: node --test quadro.test.cjs quadro-lifecycle.test.cjs
       - run: npm run prepare:runtime
       - run: node quadro-icon.cjs
       - name: Build native Quadro DMG and ZIP
@@ -49,7 +49,7 @@ jobs:
           (cd dist-quadro && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
           node - <<'NODE'
           const fs=require('fs'),cp=require('child_process');
-          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.0',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,tests:['unit','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch']},null,2)+'\n');
+          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.1',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,tests:['unit','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch','compact-one-row','shared-address','normal-close','fullscreen-close','fullscreen-quit']},null,2)+'\n');
           NODE
       - uses: actions/upload-artifact@v4
         with:

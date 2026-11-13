@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.0');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.1');
   assert.equal(await js('document.title'),'Quadro Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -43,10 +43,10 @@ module.exports=async({app,win,browser,store})=>{
    await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'AI returns');await geometry(4,false);
    for(const [id,old] of originals){const t=browser.get(id);assert.equal(t.view.webContents.id,old.wc);assert.equal(await t.view.webContents.executeJavaScript('globalThis.loadedOnce'),old.value);assert.equal(await t.view.webContents.executeJavaScript('document.querySelector("#kept").value'),'retained')}
    console.log('QUADRO_CUSTOM_AI_RESIZE_NO_RELOAD_PASS');
-   for(const theme of ['light','dark']){await js(`QuadroTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .toolbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(c.backgroundColor);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x>=4.5),theme+' contrast '+ratios)}
+   for(const theme of ['light','dark']){await js(`QuadroTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .navigation button, #new-tab, #statusbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(c.backgroundColor);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x>=4.5),theme+' contrast '+ratios)}
    await js('QuadroTest.setTheme("light")');await fs.writeFile('quadro-light-smoke.png',(await win.capturePage()).toPNG());await js('QuadroTest.setTheme("dark")');await fs.writeFile('quadro-dark-smoke.png',(await win.capturePage()).toPNG());
    console.log('QUADRO_LIGHT_DARK_CONTRAST_PASS');
-   win.close();await sleep(100);assert.equal(win.isDestroyed(),false);assert.equal(win.isVisible(),false);app.emit('activate');await sleep(100);assert.equal(win.isVisible(),true);
+   await require('./quadro-compact-smoke.cjs')({win,browser});
    await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await store.queue;
   }
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
