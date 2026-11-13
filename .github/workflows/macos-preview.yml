@@ -17,6 +17,8 @@ jobs:
         working-directory: desktop
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Ad-hoc identity '-' only. No certificate, signing secret or write token is supplied.
+      CSC_FOR_PULL_REQUEST: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +29,8 @@ jobs:
       - name: Require native Apple Silicon runner
         run: test "$(uname -m)" = arm64
       - run: npm ci
+      - name: Audit packaged production dependencies
+        run: npm audit --omit=dev --audit-level=high --json > mac-production-audit.json
       - run: npm test
       - run: node --test mac-preview.test.cjs
       - run: npm run prepare:runtime
@@ -73,4 +77,5 @@ jobs:
             desktop/*smoke*.log
             desktop/*smoke*.png
             desktop/mac-normal-launch.log
+            desktop/mac-production-audit.json
           retention-days: 14
