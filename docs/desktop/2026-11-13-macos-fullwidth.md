@@ -11,3 +11,14 @@
 Предыдущая Mac5.0.2 прошла source runs43398398474/43398409996, а release run43398829975 прошёл установку из DMG, но публикация остановилась на HTTP404 при чтении ещё чернового релиза по тегу. Не выдавать эту сборку за опубликованную. Для5.0.3 проверять черновой release по его числовому ID, сверять удалённые SHA-256 и лишь затем открывать публикацию. Старый черновик не перезаписывать.
 
 Ограничения сохраняются: подпись ad-hoc, без Developer ID/notarization, ручное обновление. CI не равен запуску на Mac владельца и не подтверждает авторизацию в сторонних сервисах.
+
+## Фактический результат — опубликовано 13.11.2026 в 09:21:07 UTC
+
+- Source: bf4b8d6198a47e5108ed8698f8bf694682eaf6a6; PR129 объединён merge0b7cf340987a011fc59cd8d53d8966c7b8ce87b5.
+- Native arm64 source run https://github.com/jeep-jim/OSMINOG/actions/runs/43399939933 — SUCCESS; повторная PR-проверка43399984786 — SUCCESS. Пройдены сборка DMG/ZIP, codesign verify, production audit gate и тесты установленного приложения, включая полную ширину 1/2/4/6, оба способа закрытия, reopen и отсутствие reload страниц. Windows compatibility43399984779 — SUCCESS, без публикации Windows.
+- Release PR15 объединён. Финальный run https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/43400390354 — SUCCESS: проверены точный source и артефакт, установка из настоящего DMG, ZIP и подпись, все native тесты повторно, затем удалённые размеры/SHA-256 и публикация через числовой release ID.
+- Публичный release444033618: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/macos-v5.0.3-arm64 . Повторное чтение API подтвердило draft=false, prerelease=true и наличие всех четырёх uploaded assets.
+- Установщик: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/macos-v5.0.3-arm64/Trader-OS-5.0.3-mac-arm64.dmg — 128242569 байт; SHA-256 f59effae77a20757666caa2a70850f9a91f8c1e90adb7e0c05dba1965b8c6193.
+- ZIP: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/macos-v5.0.3-arm64/Trader-OS-5.0.3-mac-arm64.zip — 128320323 байт; SHA-256 cfd54d9b891f0235f8abe559eb209c2bb704ff71db2f6fe58ba2498d8a1a489c.
+
+Следующая точка: установка владельцем на M1 Pro. Не утверждать, что она уже выполнена. Developer ID, notarization и автоматический Mac updater не настроены; установленный preview обновлять вручную. Другие проекты и опубликованные платформенные каналы не трогались.
