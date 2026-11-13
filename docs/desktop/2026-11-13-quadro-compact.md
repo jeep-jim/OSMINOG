@@ -11,3 +11,22 @@
 Техническое основание: https://www.electronjs.org/docs/latest/tutorial/custom-title-bar (customButtonsOnHover); https://www.electronjs.org/docs/latest/api/base-window#setfullscreenflag (асинхронный leave-full-screen). customButtonsOnHover помечен Electron как experimental; итог проверять в упакованном Mac-приложении.
 
 Работа только в OSMINOG/OSMINOG-Releases, без АвтоЦены/Windows/Chrome/Android. Mac appId и старый путь профиля сохраняются. Версия 6.0.1, отдельный Quadro update channel; подпись ad-hoc, без Developer ID/notarization. Обновление из 6.0.0 по кнопке скачивает и проверяет DMG, перенос приложения в «Программы» остаётся ручным.
+
+## Подтверждённый результат — 13 ноября 2026
+
+Выпуск 6.0.1 опубликован. История промежуточных проверок и найденной гонки восстановления сохранена в docs/desktop/2026-11-13-quadro-init-race.md. До загрузки сохранённых настроек renderer теперь не записывает значения по умолчанию; поздний старт восстановленной страницы не сбрасывает раскладку.
+
+Проверенный исходный commit: `399e23531c87c3f1558aa2e7e9c7a0596da15a11`. Source PR131 объединён merge-коммитом `0626594c65d43174b0f2b52e0d7f36ad11da1279`. Все восемь связанных PR workflows завершились success; Windows/старый Mac/Chrome проверялись на совместимость, но их новые версии не публиковались.
+
+Нативный source run https://github.com/jeep-jim/OSMINOG/actions/runs/43439817725 — SUCCESS. Скачаны и проверены журналы artifact14045742590. Пройдены геометрия одной строки и нижних кнопок, общий адрес после фокуса страницы, 1/2/4/6 native-плиток, реальные перетаскивания разделителей и ширины ИИ, отсутствие reload, контраст, cookies/публичные адреса/раскладка после restart с принудительным ранним событием и задержкой init450ms. Скриншоты light/dark просмотрены; capturePage показывает оболочку, а отображение native страниц проверялось отдельно по webContents/границам/содержимому, не имитировалось изображением.
+
+Реальные отдельные процессы normal close, fullscreen close, quit и fullscreen-quit завершились успешно. В обоих полноэкранных сценариях журналы содержат последовательность QUADRO_NATIVE_FULLSCREEN_ENTERED → QUADRO_EXIT_SAVED → QUADRO_LEFT_FULLSCREEN → QUADRO_WINDOW_CLOSED → QUADRO_APP_QUIT. Последнее изменение настроек перед закрытием сохранено. Это тестовая машина Apple Silicon, не наблюдение за Mac владельца.
+
+Release PR17 объединён в `0bf28b2dbe04d8f2b0f9fcbb048717fe46084204`. Финальный run https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/43441310388 — SUCCESS: exact source/artifact, установка из настоящего DMG, ARM64/ad-hoc signature, совпадение ZIP/ASAR, повтор native проверок, удалённые SHA-256/размеры и публикация. Дополнительный public update discovery от версии6.0.0 тоже SUCCESS: существующий код обновления видит доступную6.0.1 без GitHub токена.
+
+API повторно подтвердил публичный release444317602: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.1-arm64 — draft=false, prerelease=true, published_at=2026-11-13T14:18:58Z, четыре uploaded assets.
+
+- DMG: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.1-arm64/Quadro-Browser-6.0.1-mac-arm64.dmg ; 128236824 байт; SHA-256 `b1985b90c79d78b18b3360b9e1898608ab459d8f96b3967cc2ba9b078d50be5e`.
+- ZIP: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.1-arm64/Quadro-Browser-6.0.1-mac-arm64.zip ; 128323837 байт; SHA-256 `ab4272303fcb7e17bceac7d00a4430492953dd04a0120f82c1dc96db1ba60f78`.
+
+Владелец обновляется из6.0.0: «Обновить» → «Скачать обновление» → «Открыть установщик», затем полностью завершает старую версию через Cmd+Q и заменяет приложение в «Программах». Папку профиля не удалять. Автоматическая замена, Apple notarization/Developer ID и фактическое применение обновления на Mac владельца не заявляются. В новой версии красная кнопка завершает приложение, а не скрывает его; настройки находятся по кнопке Quadro снизу слева, выход/полный экран/обновление — снизу справа.
