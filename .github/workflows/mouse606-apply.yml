@@ -1,0 +1,58 @@
+name: Apply reviewed Mouse Browser 606 changes
+on:
+  push:
+    branches: ['codex/mouse-browser-606-native-menu']
+    paths: ['.github/workflows/mouse606-apply.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/mouse-browser-606-native-menu
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact reviewed transport before execution
+        run: |
+          python3 - <<'PY'
+          import base64,zlib,hashlib,pathlib
+          expected={'01':'ce6978403c267ae0348b8618b37fb464b550eff1820d17d999f65209b325794a','02':'f0318f711731e04f2ecfabeaaa4287260b3c34c1c7e3b603b691b2afbbe98d87','03':'324a23c61543e1b7f4e503641d44175edf79decefc44cc574fd20f60ecba323b','04':'444c214e81b14ef51a06c2420c7d8f20cf432a8e3bddbdfece1c72022601530d','05':'a317dc95a2b5cfa3bcca24545d185dae4ba55ae5a01415ea2ba234c56ad629eb','06a':'fd09f19b6aa684d2dcef3fa47711325c1abd9c87e00d114a27e1583957c17fad','06b':'8afc24aaa3eab4111871f8166d21292ecd670198ca558e09d3f0d8e1da9e74bb','06c':'502f96fea4c0cfb6b09422d2bb951ed8622d205f04b915fd144fc31b11948520'}
+          parts=[];bad=[]
+          for name,digest in expected.items():
+              value=''.join(pathlib.Path('.github/mouse606/'+name+'.b64').read_text().split())
+              if name=='03':value=value.replace('FpZZUyu','FpZUyu')
+              actual=hashlib.sha256(value.encode()).hexdigest()
+              print(name,len(value),actual)
+              if actual!=digest:bad.append(name)
+              parts.append(value)
+          if bad:raise SystemExit('Transport mismatch: '+','.join(bad))
+          payload=zlib.decompress(base64.b64decode(''.join(parts),validate=True))
+          assert hashlib.sha256(payload).hexdigest()=='3965638eb4be857e09ef5c67c12ae2db5f5bfa82829b61fa8bf3d0176d7e4d49'
+          pathlib.Path('/tmp/mouse606-apply.py').write_bytes(payload)
+          PY
+          python3 /tmp/mouse606-apply.py
+      - name: Generate exact source mouse assets and run unit regressions
+        working-directory: desktop
+        run: |
+          node quadro-icon.cjs
+          node --test mouse-606.test.cjs quadro.test.cjs quadro-polish.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs quadro-global-capture.test.cjs
+      - name: Commit reviewed scope only and remove preparation helpers
+        run: |
+          rm -rf .github/mouse606
+          rm -f .github/mouse606-part-1.b64 .github/workflows/mouse606-apply.yml .github/workflows/mouse-606-source.yml
+          git add -A -- desktop tools/quadro-verify.py docs/desktop/2026-11-14-mouse-browser-606.md OSMINOG_BROWSER_ROADMAP.md .github
+          git add -f desktop/quadro/brand.png desktop/quadro/brand-dark.png desktop/quadro/mouse-original.png desktop/icons/mouse-browser-light.png desktop/icons/mouse-browser-dark.png
+          python3 - <<'PY'
+          import subprocess
+          names=subprocess.check_output(['git','diff','--cached','--name-only']).decode().splitlines()
+          for p in names:
+              assert p.startswith(('desktop/quadro','desktop/mouse-','desktop/icons/mouse-browser-','.github/mouse606','.github/workflows/mouse606-','.github/workflows/mouse-606-','.github/workflows/quadro-macos.yml')) or p in ['tools/quadro-verify.py','docs/desktop/2026-11-14-mouse-browser-606.md','OSMINOG_BROWSER_ROADMAP.md'],p
+          print('MOUSE_SCOPE_CHECK_PASS',len(names))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Implement Mouse Browser with owner mouse, native Apple menu and compact provider toolbar'
+          git push origin HEAD:codex/mouse-browser-606-native-menu
