@@ -2,9 +2,9 @@ name: Mouse Browser macOS arm64
 on:
   push:
     branches: ['codex/quadro-browser-20261113','codex/quadro-compact-20261113','codex/quadro-602-controls-capture','codex/quadro-603-browser-basics','codex/quadro-604-overlays-start','codex/quadro-605-mac-library-wallet','codex/mouse-browser-606-native-menu']
-    paths: ['desktop/mouse-*','desktop/quadro/**','desktop/quadro-*','desktop/quadro-wallet-deps/**','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
+    paths: ['desktop/browser.cjs','desktop/mouse-*','desktop/quadro/**','desktop/quadro-*','desktop/quadro-wallet-deps/**','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
   pull_request:
-    paths: ['desktop/mouse-*','desktop/quadro/**','desktop/quadro-*','desktop/quadro-wallet-deps/**','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
+    paths: ['desktop/browser.cjs','desktop/mouse-*','desktop/quadro/**','desktop/quadro-*','desktop/quadro-wallet-deps/**','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,14 +30,14 @@ jobs:
       - run: npm ci --prefix quadro-wallet-deps --ignore-scripts
       - run: npm audit --prefix quadro-wallet-deps --omit=dev --audit-level=high --json > quadro-wallet-audit.json
       - run: npm test
-      - run: node --test quadro.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs quadro-polish.test.cjs quadro-web3.test.cjs quadro-global-capture.test.cjs mouse-606.test.cjs
+      - run: node --test quadro.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs quadro-polish.test.cjs quadro-web3.test.cjs quadro-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs
       - run: npm run prepare:runtime
       - name: Bundle isolated wallet crypto (no dependency changes to Windows)
         run: node -e "require('esbuild').buildSync({entryPoints:['quadro-web3-core.cjs'],bundle:true,platform:'node',format:'cjs',target:'node22',outfile:'quadro-web3-runtime.cjs',legalComments:'eof'})"
       - run: node mouse-native-build.cjs
       - run: node quadro-icon.cjs
       - name: Verify owner-supplied mouse source and both app themes
-        run: node --test mouse-606.test.cjs
+        run: node --test mouse-606.test.cjs mouse-private.test.cjs
       - name: Build native Mouse DMG and ZIP
         run: npx electron-builder --config quadro-build.cjs --mac dmg zip --arm64 --publish never
       - name: Verify installed app, screenshots, controls and saved profile
@@ -56,7 +56,7 @@ jobs:
           (cd dist-quadro && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
           node - <<'NODE'
           const fs=require('fs'),cp=require('child_process');
-          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.6',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,wallet:{network:'sepolia-only',audited:false,liveBroadcastTested:false},globalCapture:{shortcut:'Control+A',requiresScreenPermission:true,worksOnlyWhileRunning:true},productName:'Mouse Browser',tests:['native-apple-menu-preserved','owner-mouse-icon','compact-ai-provider-icons','right-library-sidebar','glass-spacing','monochrome-icon-contrast','dynamic-menu-reveal','encrypted-wallet-signatures','origin-approval-boundary','global-shortcut-registration','background-capture-editor','permission-denial','overlay-lifetime-race','all-footer-modals','native-select-replacement','visual-bookmarks','custom-background','real-recent-sites','start-page-restart','unit','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch','per-pane-address','permanent-controls','favicon','ru-en','capture-region-annotations','capture-clipboard-png','control-a-vs-command-a','fullscreen-no-empty-band','history','local-address-suggestions','downloads-pause-resume','screenshot-x-real-click','normal-close','fullscreen-close','fullscreen-quit']},null,2)+'\n');
+          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.6',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,wallet:{network:'sepolia-only',audited:false,liveBroadcastTested:false},globalCapture:{shortcut:'Control+A',requiresScreenPermission:true,worksOnlyWhileRunning:true},productName:'Mouse Browser',tests:['private-memory-isolation','private-cleanup-disk-scan','private-mascot-glasses','start-control-contrast','capture-success-feedback','native-apple-menu-preserved','owner-mouse-icon','compact-ai-provider-icons','right-library-sidebar','glass-spacing','monochrome-icon-contrast','dynamic-menu-reveal','encrypted-wallet-signatures','origin-approval-boundary','global-shortcut-registration','background-capture-editor','permission-denial','overlay-lifetime-race','all-footer-modals','native-select-replacement','visual-bookmarks','custom-background','real-recent-sites','start-page-restart','unit','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch','per-pane-address','permanent-controls','favicon','ru-en','capture-region-annotations','capture-clipboard-png','control-a-vs-command-a','fullscreen-no-empty-band','history','local-address-suggestions','downloads-pause-resume','screenshot-x-real-click','normal-close','fullscreen-close','fullscreen-quit']},null,2)+'\n');
           NODE
       - uses: actions/upload-artifact@v4
         with:
