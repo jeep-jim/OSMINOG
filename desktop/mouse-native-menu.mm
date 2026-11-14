@@ -6,7 +6,7 @@
 #include <cmath>
 static __weak NSWindow* mouseWindow=nil;
 static NSMutableArray* observers;
-static BOOL hasSaved=NO,menuHeld=NO,titleMaskSaved=NO,hadTitled=NO,leavingFullscreen=NO;
+static BOOL hasSaved=NO,menuHeld=NO;
 static NSApplicationPresentationOptions savedOptions,hoverOptions;
 static NSWindow* windowFrom(napi_env env,napi_value v){
  void* data=nullptr;size_t size=0;bool isBuffer=false;
@@ -14,32 +14,18 @@ static NSWindow* windowFrom(napi_env env,napi_value v){
  void* p=nullptr;memcpy(&p,data,sizeof(void*));NSView* view=(__bridge NSView*)p;return view.window;
 }
 static bool fullscreen(){return mouseWindow&&(mouseWindow.styleMask&NSWindowStyleMaskFullScreen);}
+static void windowCorners(){NSView* root=mouseWindow.contentView.superview?:mouseWindow.contentView;root.wantsLayer=YES;root.layer.cornerRadius=fullscreen()?0:12;root.layer.masksToBounds=YES;}
 static void restoreHover(){
  if(!menuHeld)return;menuHeld=NO;
  @try{NSApp.presentationOptions=hoverOptions;}@catch(NSException* e){NSLog(@"Mouse menu restore rejected: %@",e.name);}
 }
-static void removeFullscreenTitle(){
- if(!fullscreen()||leavingFullscreen)return;
- // Electron's frameless rounded window still carries Titled. AppKit creates an
- // empty fullscreen title strip for it. Remove only that public style bit after
- // the transition; preserve FullScreen and restore Titled before exit.
- if(!titleMaskSaved){hadTitled=(mouseWindow.styleMask&NSWindowStyleMaskTitled)!=0;titleMaskSaved=YES;}
- if(mouseWindow.styleMask&NSWindowStyleMaskTitled)mouseWindow.styleMask=mouseWindow.styleMask&~NSWindowStyleMaskTitled;
-}
-static void restoreTitle(){
- if(!titleMaskSaved)return;
- if(hadTitled&&!(mouseWindow.styleMask&NSWindowStyleMaskTitled))mouseWindow.styleMask=mouseWindow.styleMask|NSWindowStyleMaskTitled;
- titleMaskSaved=NO;
-}
 static void ensureSystemMenu(){
- if(!fullscreen()||leavingFullscreen)return;
+ if(!fullscreen())return;
  NSApplicationPresentationOptions p=NSApp.presentationOptions;
  const bool wasHidden=(p&NSApplicationPresentationHideMenuBar)!=0;
  p&=~(NSApplicationPresentationHideMenuBar|NSApplicationPresentationDisableAppleMenu);
  if(wasHidden){p|=NSApplicationPresentationAutoHideMenuBar;if(!(p&NSApplicationPresentationHideDock))p|=NSApplicationPresentationAutoHideDock;}
- mouseWindow.level=NSNormalWindowLevel;
- mouseWindow.titleVisibility=NSWindowTitleHidden;mouseWindow.titlebarAppearsTransparent=YES;mouseWindow.titlebarSeparatorStyle=NSTitlebarSeparatorStyleNone;
- removeFullscreenTitle();
+ mouseWindow.level=NSNormalWindowLevel;windowCorners();
  if(p!=NSApp.presentationOptions)@try{NSApp.presentationOptions=p;}@catch(NSException* e){NSLog(@"Mouse menu presentation rejected: %@",e.name);}
 }
 static void boolean(napi_env e,napi_value o,const char* k,bool x){napi_value v;napi_get_boolean(e,x,&v);napi_set_named_property(e,o,k,v);}
@@ -59,22 +45,21 @@ static napi_value install(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);
  if(!NSThread.isMainThread||n!=1){napi_throw_error(e,nullptr,"Main UI thread and native handle required");return nullptr;}
  NSWindow* w=windowFrom(e,args[0]);if(!w){napi_throw_error(e,nullptr,"Invalid native window");return nullptr;}
- mouseWindow=w;observers=[NSMutableArray new];w.titleVisibility=NSWindowTitleHidden;w.titlebarAppearsTransparent=YES;w.titlebarSeparatorStyle=NSTitlebarSeparatorStyleNone;
+ mouseWindow=w;observers=[NSMutableArray new];windowCorners();
  NSNotificationCenter* c=NSNotificationCenter.defaultCenter;
- [observers addObject:[c addObserverForName:NSWindowWillEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){leavingFullscreen=NO;savedOptions=NSApp.presentationOptions;hasSaved=YES;}]];
+ [observers addObject:[c addObserverForName:NSWindowWillEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){savedOptions=NSApp.presentationOptions;hasSaved=YES;}]];
  [observers addObject:[c addObserverForName:NSWindowDidEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){dispatch_async(dispatch_get_main_queue(),^{ensureSystemMenu();});}]];
  [observers addObject:[c addObserverForName:NSWindowDidBecomeKeyNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){ensureSystemMenu();}]];
- [observers addObject:[c addObserverForName:NSWindowWillExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){leavingFullscreen=YES;restoreHover();restoreTitle();}]];
- [observers addObject:[c addObserverForName:NSWindowDidExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){menuHeld=NO;restoreTitle();leavingFullscreen=NO;if(hasSaved){@try{NSApp.presentationOptions=savedOptions;}@catch(NSException* e){}hasSaved=NO;}}]];
+ [observers addObject:[c addObserverForName:NSWindowWillExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){restoreHover();}]];
+ [observers addObject:[c addObserverForName:NSWindowDidExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){menuHeld=NO;windowCorners();if(hasSaved){@try{NSApp.presentationOptions=savedOptions;}@catch(NSException* e){}hasSaved=NO;}}]];
  [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
  return state(e,info);
 }
 static napi_value reveal(napi_env e,napi_callback_info info){
- if(fullscreen()&&NSApp.active&&!leavingFullscreen){
+ if(fullscreen()&&NSApp.active){
   ensureSystemMenu();
   if(!menuHeld){
    hoverOptions=NSApp.presentationOptions;
-   // App-local temporary presentation, never a write to user defaults.
    auto p=NSApp.currentSystemPresentationOptions;
    p&=~(NSApplicationPresentationHideMenuBar|NSApplicationPresentationAutoHideMenuBar|NSApplicationPresentationAutoHideToolbar|NSApplicationPresentationDisableAppleMenu);
    @try{NSApp.presentationOptions=p;menuHeld=YES;}@catch(NSException* ex){NSLog(@"Mouse menu reveal rejected: %@",ex.name);}
