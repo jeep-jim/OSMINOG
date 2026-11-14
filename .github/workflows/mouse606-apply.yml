@@ -39,17 +39,18 @@ jobs:
         run: |
           node quadro-icon.cjs
           node --test mouse-606.test.cjs quadro.test.cjs quadro-polish.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs quadro-global-capture.test.cjs
-      - name: Commit reviewed scope only and remove preparation helpers
+      - name: Commit source only without changing workflows
         run: |
+          git restore --worktree -- .github/workflows
           rm -rf .github/mouse606
-          rm -f .github/mouse606-part-1.b64 .github/workflows/mouse606-apply.yml .github/workflows/mouse-606-source.yml
-          git add -A -- desktop tools/quadro-verify.py docs/desktop/2026-11-14-mouse-browser-606.md OSMINOG_BROWSER_ROADMAP.md .github
+          rm -f .github/mouse606-part-1.b64
+          git add -A -- desktop tools/quadro-verify.py docs/desktop/2026-11-14-mouse-browser-606.md OSMINOG_BROWSER_ROADMAP.md .github/mouse606 .github/mouse606-part-1.b64
           git add -f desktop/quadro/brand.png desktop/quadro/brand-dark.png desktop/quadro/mouse-original.png desktop/icons/mouse-browser-light.png desktop/icons/mouse-browser-dark.png
           python3 - <<'PY'
           import subprocess
           names=subprocess.check_output(['git','diff','--cached','--name-only']).decode().splitlines()
           for p in names:
-              assert p.startswith(('desktop/quadro','desktop/mouse-','desktop/icons/mouse-browser-','.github/mouse606','.github/workflows/mouse606-','.github/workflows/mouse-606-','.github/workflows/quadro-macos.yml')) or p in ['tools/quadro-verify.py','docs/desktop/2026-11-14-mouse-browser-606.md','OSMINOG_BROWSER_ROADMAP.md'],p
+              assert p.startswith(('desktop/quadro','desktop/mouse-','desktop/icons/mouse-browser-','.github/mouse606')) or p in ['tools/quadro-verify.py','docs/desktop/2026-11-14-mouse-browser-606.md','OSMINOG_BROWSER_ROADMAP.md'],p
           print('MOUSE_SCOPE_CHECK_PASS',len(names))
           PY
           git config user.name 'github-actions[bot]'
