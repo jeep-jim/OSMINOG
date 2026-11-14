@@ -1,0 +1,21 @@
+name: Quadro 603 source snapshot
+on:
+  push:
+    branches: [codex/quadro-603-browser-basics]
+    paths: ['.github/workflows/quadro-603-snapshot.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8199ff6717e838e838da4a5374e02a38c230b6ac
+          persist-credentials: false
+      - run: git archive --format=zip -o quadro-source.zip HEAD desktop tools/quadro-verify.py .github/workflows/quadro-macos.yml AGENTS.md OSMINOG_BROWSER_ROADMAP.md OSMINOG_ROADMAP.md OSMINOG_PROJECT_LOG.md docs/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadro-603-source
+          path: quadro-source.zip
+          retention-days: 1
