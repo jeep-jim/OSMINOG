@@ -12,7 +12,6 @@ module.exports=async({app,win,browser})=>{
  await js(`QuadroTest.openAI(${JSON.stringify(ai.url)})`);await sleep(200);
  const r=await js(`(()=>{const p=document.querySelector('#ai-panel').getBoundingClientRect(),h=document.querySelector('.ai-controls').getBoundingClientRect(),v=document.querySelector('#ai-slot').getBoundingClientRect(),i=document.querySelector('#ai-provider-icon').getBoundingClientRect(),n=document.querySelector('#ai-select').getBoundingClientRect();return{top:p.top,head:h.height,slot:v.top,iconLeft:i.left,nameLeft:n.left,headCount:document.querySelectorAll('#ai-panel>.ai-controls').length,extra:!!document.querySelector('#ai-panel>.ai-head')}})()`);
  assert.equal(r.head,34);assert.equal(r.slot-r.top,34);assert.equal(r.headCount,1);assert.equal(r.extra,false);assert.ok(r.iconLeft>=r.nameLeft);
- // Existing service favicon is reused in its selector and chooser without reloading guest content.
  const epoch=ai.navigationEpoch||0,wc=ai.view.webContents.id;
  await until(()=>js(`document.querySelector('#ai-provider-icon').src.startsWith('data:image/')`),'actual provider favicon');
  for(const theme of ['light','dark']){
@@ -23,19 +22,22 @@ module.exports=async({app,win,browser})=>{
  assert.equal(ai.navigationEpoch||0,epoch);assert.equal(ai.view.webContents.id,wc);
  console.log('MOUSE_COMPACT_AI_PROVIDER_ICON_AND_EXACT_BRAND_PASS');
  await js(`QuadroTest.setTheme(${JSON.stringify(previous.theme)})`);if(!previous.aiOpen)await js('QuadroTest.action("close-ai")');
- // Exercise the genuine Cocoa menu reveal, not a mock DOM menu.
  if(!win.isFullScreen())await new Promise(resolve=>{win.once('enter-full-screen',resolve);win.setFullScreen(true)});
- win.focus();await sleep(150);const d=screen.getDisplayMatching(win.getBounds());
- win.quadroChromeGuard.setTestPoint({x:d.bounds.x+d.bounds.width-120,y:d.bounds.y+1});
- await until(()=>win.quadroChromeGuard.nativeState().menuVisible,'real Apple menu visible');
- const visible=win.quadroChromeGuard.nativeState();assert.equal(visible.appleMenuDisabled,false);assert.equal(visible.menuHidden,false);assert.equal(visible.windowLevel,0);
+ app.focus({steal:true});win.show();win.focus();win.webContents.focus();await sleep(250);
+ console.log('MOUSE_NATIVE_MENU_BEFORE',JSON.stringify(win.quadroChromeGuard.nativeState()));
+ const d=screen.getDisplayMatching(win.getBounds());win.quadroChromeGuard.setTestPoint({x:d.bounds.x+d.bounds.width-120,y:d.bounds.y+1});
+ try{await until(()=>win.quadroChromeGuard.nativeState().menuVisible,'real Apple menu visible');}catch(error){console.error('MOUSE_NATIVE_MENU_FAILURE',JSON.stringify(win.quadroChromeGuard.nativeState()));throw error;}
+ const visible=win.quadroChromeGuard.nativeState();console.log('MOUSE_NATIVE_MENU_VISIBLE',JSON.stringify(visible));assert.equal(visible.appleMenuDisabled,false);assert.equal(visible.menuHidden,false);assert.equal(visible.windowLevel,0);
  win.quadroChromeGuard.sample();await sleep(200);
  assert.ok(Math.abs(await js('document.querySelector(".toolbar").getBoundingClientRect().height')-(40+visible.inset))<=2);
  if(systemPreferences.getMediaAccessStatus('screen')==='granted'){
   const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:d.size.width,height:d.size.height}});const image=sources.find(x=>String(x.display_id)===String(d.id))?.thumbnail;
   if(image&&!image.isEmpty())await fs.writeFile('mouse-606-system-menu.png',image.toPNG());
  }
+ win.quadroChromeGuard.setTestPoint({x:d.bounds.x+d.bounds.width/2,y:d.bounds.y+d.bounds.height/2});win.focus();
+ await until(()=>!win.quadroChromeGuard.nativeState().held,'hover presentation restored away from menu');
  await require('./quadro-lifecycle.cjs').leaveFullscreen(win);win.quadroChromeGuard.setTestPoint(null);await sleep(200);
  assert.equal(await js('document.querySelector(".toolbar").getBoundingClientRect().height'),40);
+ assert.equal(win.quadroChromeGuard.nativeState().held,false);
  console.log('MOUSE_NATIVE_APPLE_MENU_AVAILABLE_NO_EXTRA_TITLE_BAND_PASS');
 };
