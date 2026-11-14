@@ -26,8 +26,10 @@ module.exports=async({app,win,browser,libraryService})=>{
   win.webContents.sendInputEvent({type:'keyDown',keyCode:'Return'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Return'});
   await until(()=>js('!document.querySelector("#address-suggestions").matches(":popover-open")'),'suggestion accepted');
   await click('#history-button');await until(()=>js('document.querySelector("#library-dialog").open'),'history UI');assert.ok(await js('document.querySelector("#library-rows").textContent.includes("visited-alpha")'));await click('#library-close');
+  await until(()=>js('!document.querySelector("#library-dialog").open'),'history sidebar closed');
+  await until(()=>[...browser.tabs.values()].some(t=>t.visible&&t.lane!=='side'&&!t.view.webContents.isDestroyed()),'native page restored after history close');
   console.log('QUADRO_HISTORY_BOOKMARKS_ADDRESS_SUGGESTIONS_PASS');
-  const page=[...browser.tabs.values()].find(t=>t.visible&&t.lane!=='side');page.view.webContents.downloadURL(root+'/download');
+  const page=[...browser.tabs.values()].find(t=>t.visible&&t.lane!=='side');assert.ok(page,'download starts from a restored live webpage');page.view.webContents.downloadURL(root+'/download');
   await until(()=>lib.data.downloads.some(x=>x.state==='progressing'&&x.received>0),'real download progress');const id=lib.data.downloads[0].id;
   await js(`QuadroNative.library('download',{id:${JSON.stringify(id)},action:'pause'})`);assert.equal(lib.data.downloads[0].state,'paused');
   await js(`QuadroNative.library('download',{id:${JSON.stringify(id)},action:'resume'})`);await until(()=>lib.data.downloads.find(x=>x.id===id)?.state==='completed','real download completed');
