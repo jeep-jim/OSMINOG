@@ -1,10 +1,10 @@
 'use strict';
-globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale})=>{
+globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale,onSidebar})=>{
  const $=s=>document.querySelector(s),make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const tr=(ru,en)=>locale()==='en'?en:ru;
- const d=make('dialog','library-dialog');d.id='library-dialog';
+ const d=make('dialog','library-dialog');d.id='library-dialog';d.dataset.nonmodal='true';d.setAttribute('aria-label','Библиотека');
  d.innerHTML='<header><strong id="library-title">История</strong><button type="button" id="library-close" aria-label="Закрыть">×</button></header><nav class="library-tabs"><button data-library="history">История</button><button data-library="searches">Поиск</button><button data-library="bookmarks">Закладки</button><button data-library="downloads">Загрузки</button></nav><div class="library-search"><input id="library-query" placeholder="Поиск в списке" autocomplete="off"><button id="library-clear">Очистить</button></div><div id="library-rows"></div><footer><span id="library-count"></span><button id="library-more" hidden>Показать ещё</button></footer>';
- document.body.append(d);let kind='history',limit=100,generation=0;
+ document.querySelector('#workspace').append(d);let kind='history',limit=100,generation=0;
  const run=fn=>Promise.resolve().then(fn).catch(e=>status(e.message));
  const button=(label,fn,cls)=>{const b=make('button',cls,label);b.type='button';b.onclick=()=>run(fn);return b};
  const bytes=n=>!n?'0 B':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
@@ -16,7 +16,7 @@ globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale
    const date=new Intl.DateTimeFormat(locale(),{year:'numeric',month:'long',day:'numeric'}).format(new Date(item.at));if(date!==day){day=date;list.append(make('h3','library-day',day))}
    const row=make('article','library-row');row.dataset.id=item.id;const body=make('div','library-body'),actions=make('div','library-actions');
    const title=item.title||item.query||item.filename||item.url;
-   const label=kind==='downloads'?make('strong','library-name',title):button(title,async()=>{d.close();restore();await openPage(item.url||item.query)},'library-name');body.append(label);
+   const label=kind==='downloads'?make('strong','library-name',title):button(title,async()=>{await openPage(item.url||item.query);restore()},'library-name');body.append(label);
    if(kind==='downloads'){
     const state={completed:tr('Готово','Complete'),paused:tr('Пауза','Paused'),progressing:tr('Скачивается','Downloading'),cancelled:tr('Отменено','Cancelled'),interrupted:tr('Прервано','Interrupted')}[item.state]||item.state;
     body.append(make('small','library-detail',state+' · '+bytes(item.received)+(item.total?' / '+bytes(item.total):'')));
@@ -29,8 +29,8 @@ globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale
   }
   $('#library-count').textContent=rows.length+' / '+total;$('#library-more').hidden=rows.length>=total;
  }
- async function open(value){hideHints();kind=value;limit=100;$('#library-query').value='';await show(d);await render();$('#library-query').focus()}
- $('#library-close').onclick=()=>d.close();d.addEventListener('close',()=>{generation++;hideHints();restore()});
+ async function open(value){hideHints();kind=value;limit=100;$('#library-query').value='';if(!d.open)d.show();onSidebar(true);restore();await render();$('#library-query').focus()}
+ $('#library-close').onclick=()=>d.close();d.addEventListener('close',()=>{generation++;onSidebar(false);hideHints();restore()});
  d.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>run(()=>{kind=b.dataset.library;limit=100;return render()}));
  $('#library-query').oninput=()=>{limit=100;void run(render)};$('#library-more').onclick=()=>{limit+=100;void run(render)};
  $('#library-clear').onclick=()=>run(async()=>{await N.library('clear',{kind});await render()});
@@ -57,5 +57,5 @@ globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale
  }
  document.addEventListener('pointerdown',e=>{if(anchor&&e.target!==anchor&&!pop.contains(e.target))hideHints()});window.addEventListener('resize',hideHints);
  async function action(name){if(names[name])return open(name);if(name==='bookmark'){const t=selected();if(!t||t.internal){status(tr('Сначала откройте сайт','Open a site first'));return}await N.library('bookmark',{id:t.id});status(tr('Добавлено в закладки','Bookmark saved'));return}if(name==='reopen'){const item=await N.library('reopen');if(item)await openPage(item.url);else status(tr('Нет закрытых вкладок','No recently closed tabs'));return}}
- return{action,bind,hideHints,bounds,open,render};
+ return{action,bind,hideHints,bounds,open,render,close:()=>{if(d.open)d.close()},isOpen:()=>d.open};
 };

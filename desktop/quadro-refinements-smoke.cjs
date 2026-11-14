@@ -15,8 +15,8 @@ module.exports=async({win,browser,store})=>{
  await js('QuadroTest.setLocale("en")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=wallet]").textContent'),'Wallet');
  await js('QuadroTest.setLocale("ru")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=wallet]").textContent'),'Кошелёк');
  console.log('QUADRO_FAVICONS_PNG_SVG_LOCALE_PASS');
- page.view.webContents.focus();page.view.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['control']});page.view.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['control']});
- await until(()=>js('QuadroTest.capture.isOpen()'),'Control+A screenshot');assert.ok(browser.panels.length===0,'Native pages hidden behind editor');
+ await click('#screenshot-button');
+ await until(()=>js('QuadroTest.capture.isOpen()'),'browser camera screenshot');assert.ok(browser.panels.length===0,'Native pages hidden behind editor');
  assert.ok(await js('QuadroTest.capture.test.getFull().width>800'));
  const fullPixel=await js(`(()=>{const f=QuadroTest.capture.test.getFull(),r=document.querySelector('.pane .page-slot').getBoundingClientRect(),s=f.width/innerWidth;return Array.from(f.getContext('2d').getImageData(Math.round((r.x+r.width-12)*s),Math.round((r.y+12)*s),1,1).data)})()`);
  assert.ok(fullPixel.slice(0,3).every(n=>n>245),'Actual white fixture pixels included');
@@ -37,7 +37,7 @@ module.exports=async({win,browser,store})=>{
  await click('.pane.active input');await js('document.querySelector(".pane.active input").value="select-all-test"');
  win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});await sleep(100);
  assert.equal(await js('QuadroTest.capture.isOpen()'),false);assert.equal(await js('document.activeElement.selectionStart'),0);assert.equal(await js('document.activeElement.selectionEnd'),15);
- console.log('QUADRO_CONTROL_A_VS_COMMAND_A_PASS');
+ console.log('QUADRO_BROWSER_CAMERA_VS_COMMAND_A_PASS');
  await click('[data-window=zoom]');await until(()=>win.isFullScreen(),'green control enters fullscreen');await sleep(800);
  await click('[data-window=zoom]');await until(()=>!win.isFullScreen(),'green control exits fullscreen');await sleep(800);
  await click('[data-window=minimize]');await until(()=>win.isMinimized(),'yellow control minimizes');win.restore();win.show();win.focus();await sleep(300);

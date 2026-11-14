@@ -1,7 +1,7 @@
 'use strict';
 globalThis.createQuadroOverlays=({N,restore,error})=>{
  const held=new Set();let sequence=0,last=false;
- const active=()=>held.size>0||!!document.querySelector('dialog[open]');
+ const active=()=>held.size>0||!!document.querySelector('dialog[open]:not([data-nonmodal])');
  function publish(force=false){const blocked=active();if(!force&&blocked===last)return Promise.resolve();last=blocked;return N.overlay({sequence:++sequence,blocked}).catch(e=>{error(e.message);throw e;});}
  function bind(d){if(d.dataset.overlayBound)return;d.dataset.overlayBound='true';
   d.addEventListener('close',()=>{held.delete(d);void publish(true).then(restore).catch(()=>{});});

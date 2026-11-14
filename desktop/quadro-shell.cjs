@@ -23,12 +23,19 @@ async function boundedBody(response,limit){
  try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>limit)throw Error('Icon too large');parts.push(Buffer.from(value))}}finally{await reader.cancel().catch(()=>{})}
  return Buffer.concat(parts);
 }
-function install({win,browser,ipcMain,trusted,send}){
+async function exportPNG(action,args,parent){
+  const data=pngBuffer(args.src),image=nativeImage.createFromBuffer(data);if(image.isEmpty())throw Error('Invalid PNG pixels');
+  // Electron44 uses asynchronous MIME ClipboardItems, not removed writeImage().
+  if(action==='copy'){await clipboard.write([new ClipboardItem({'image/png':new Blob([new Uint8Array(data)],{type:'image/png'})})]);return{ok:true}}
+  const result=await dialog.showSaveDialog(parent,{title:'Сохранить скриншот',defaultPath:'Quadro-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png',filters:[{name:'PNG',extensions:['png']}],properties:['showOverwriteConfirmation']});
+  if(result.canceled||!result.filePath)return{canceled:true};
+  await fs.writeFile(result.filePath,data);return{ok:true};
+}
+function install({win,browser,ipcMain,trusted,send,test=false,captureScreen}){
  let captureBusy=false;const icons=new Map();
  win.setWindowButtonVisibility(false);
- const chrome=()=>({fullscreen:win.isFullScreen(),inset:0}); // No permanent gap for the transient system menu.
- const emit=()=>{if(!win.isDestroyed())win.webContents.send('quadro:chrome',chrome())};
- for(const name of ['enter-full-screen','leave-full-screen','maximize','unmaximize','resize'])win.on(name,emit);
+ const chromeGuard=require('./quadro-mac-chrome.cjs').install(win,{test});
+ const chrome=chromeGuard.state;win.quadroChromeGuard=chromeGuard;
  ipcMain.handle('quadro:chrome',e=>{trusted(e);return chrome()});
  ipcMain.handle('quadro:favicon',async(e,id)=>{
   trusted(e);const t=browser.get(id);let url;
@@ -65,17 +72,12 @@ function install({win,browser,ipcMain,trusted,send}){
   trusted(e);
   if(action==='browser'||action==='screen')return capture(action);
   if(action!=='save'&&action!=='copy')throw Error('Unsupported screenshot action');
-  const data=pngBuffer(args.src),image=nativeImage.createFromBuffer(data);if(image.isEmpty())throw Error('Invalid PNG pixels');
-  // Electron44 uses asynchronous MIME ClipboardItems, not removed writeImage().
-  if(action==='copy'){await clipboard.write([new ClipboardItem({'image/png':new Blob([new Uint8Array(data)],{type:'image/png'})})]);return{ok:true}}
-  const result=await dialog.showSaveDialog(win,{title:'Сохранить скриншот',defaultPath:'Quadro-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png',filters:[{name:'PNG',extensions:['png']}],properties:['showOverwriteConfirmation']});
-  if(result.canceled||!result.filePath)return{canceled:true};
-  await fs.writeFile(result.filePath,data);return{ok:true};
+  return exportPNG(action,args,win);
  });
  const isA=input=>input.code==='KeyA'||String(input.key).toLowerCase()==='a';
  const shortcut=(event,input)=>{
   if(input.type==='keyDown'&&input.control&&!input.meta&&!input.alt&&!input.shift&&isA(input)){
-   event.preventDefault();if(!input.isAutoRepeat)send('screenshot');
+   event.preventDefault();if(!input.isAutoRepeat){if(captureScreen)void captureScreen();else send('screenshot');}
   }
  };
  // Explicit standard editing for the trusted shell, including focus returning from a dialog.
@@ -86,4 +88,4 @@ function install({win,browser,ipcMain,trusted,send}){
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);t.view.webContents.on('before-input-event',shortcut);return t};
  return{capture,chrome};
 }
-module.exports={install,pngBuffer};
+module.exports={install,pngBuffer,exportPNG};

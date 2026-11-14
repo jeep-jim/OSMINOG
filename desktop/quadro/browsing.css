@@ -1,6 +1,5 @@
 /* Keep two distinct control groups and use the space between them, not a blank top band. */
-body{--chrome-inset:0px!important;grid-template-rows:40px minmax(0,1fr) 28px}
-.toolbar{padding-top:4px!important}.traffic-space{top:0!important}
+body{grid-template-rows:calc(40px + var(--chrome-inset,0px)) minmax(0,1fr) 28px}
 body:has(dialog[open]) .toolbar,body:has(.address-suggestions:popover-open) .toolbar{ -webkit-app-region:no-drag }
 dialog,dialog *,[popover],[popover] *{-webkit-app-region:no-drag}
 #capture-close{width:32px;min-width:32px;height:28px;min-height:28px;position:relative;z-index:2;pointer-events:auto;flex:none}

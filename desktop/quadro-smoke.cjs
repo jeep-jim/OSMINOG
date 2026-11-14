@@ -2,11 +2,11 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let n=0;n<200;n++){if(await check())return;await sleep(75)}throw Error('Timed out: '+label)}
-module.exports=async({app,win,browser,store,libraryService,overlayGate,startService})=>{
+module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.4');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.5');
   assert.equal(await js('document.title'),'Quadro Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -16,6 +16,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    assert.equal((await store.get('macPortPersistence')).macPortPersistence,'actual-legacy-mac-profile');
    assert.equal((await js('QuadroNative.wallet("list")'))[0]?.address,'0x1111111111111111111111111111111111111111');
    assert.ok(libraryService.library.data.bookmarks.some(x=>x.title==='Library persistence fixture'));assert.ok(libraryService.library.data.searches.some(x=>x.query==='quadro persistent search'));console.log('QUADRO_LIBRARY_RESTART_PASS');assert.ok(startService.tabs.size>=1,'internal start tab restored');assert.equal(startService.getPreferences().background,'custom');assert.ok(libraryService.library.data.bookmarks.some(x=>x.title==='Visual bookmark fixture'));console.log('QUADRO_START_PAGE_RESTART_PASS');
+   assert.equal(web3Service.vault.state().exists,true);assert.equal(web3Service.vault.state().locked,true);assert.equal(web3Service.vault.state().backedUp,true);console.log('QUADRO_ENCRYPTED_WALLET_LOCKED_RESTART_PASS');
    console.log('QUADRO_PROFILE_COOKIE_WALLET_RESTART_PASS');
   }else{
    await store.set({macPortPersistence:'actual-legacy-mac-profile',traderWalletWatch:[{address:'0x1111111111111111111111111111111111111111',label:'Migration fixture'}]});
@@ -44,13 +45,16 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'AI returns');await geometry(4,false);
    for(const [id,old] of originals){const t=browser.get(id);assert.equal(t.view.webContents.id,old.wc);assert.equal(await t.view.webContents.executeJavaScript('globalThis.loadedOnce'),old.value);assert.equal(await t.view.webContents.executeJavaScript('document.querySelector("#kept").value'),'retained')}
    console.log('QUADRO_CUSTOM_AI_RESIZE_NO_RELOAD_PASS');
-   for(const theme of ['light','dark']){await js(`QuadroTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .navigation button, #new-tab, #statusbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(c.backgroundColor);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x>=4.5),theme+' contrast '+ratios)}
+   for(const theme of ['light','dark']){await js(`QuadroTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .navigation button, #new-tab, #statusbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(getComputedStyle(document.documentElement).getPropertyValue('--panel'));return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x>=4.5),theme+' contrast '+ratios)}
    await js('QuadroTest.setTheme("light")');await fs.writeFile('quadro-light-smoke.png',(await win.capturePage()).toPNG());await js('QuadroTest.setTheme("dark")');await fs.writeFile('quadro-dark-smoke.png',(await win.capturePage()).toPNG());
    console.log('QUADRO_LIGHT_DARK_CONTRAST_PASS');
    await require('./quadro-compact-smoke.cjs')({win,browser});
    await require('./quadro-refinements-smoke.cjs')({win,browser,store});
-   await require('./quadro-basics-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService});
-   await require('./quadro-start-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService});
+   await require('./quadro-basics-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture});
+   await require('./quadro-start-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture});
+   await require('./quadro-polish-smoke.cjs')({win,browser,overlayGate});
+   await require('./quadro-web3-smoke.cjs')({app,win,browser,web3Service});
+   await require('./quadro-global-capture-smoke.cjs')({app,win,browser,globalCapture});
    await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
