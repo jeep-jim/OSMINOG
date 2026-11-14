@@ -1,0 +1,33 @@
+name: Quadro 605 wallet dependency lock
+on:
+  push:
+    branches: [codex/quadro-605-mac-library-wallet]
+    paths: [.github/workflows/quadro-605-deps.yml]
+permissions:
+  contents: write
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Lock isolated exact dependency and audit
+        run: |
+          npm install --prefix desktop/quadro-wallet-deps --package-lock-only --ignore-scripts
+          npm ci --prefix desktop/quadro-wallet-deps --ignore-scripts
+          npm audit --prefix desktop/quadro-wallet-deps --omit=dev --audit-level=high
+          git add desktop/quadro-wallet-deps/package-lock.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Lock isolated ethers 6.17.0 dependency for Quadro wallet'
+          git push origin HEAD:codex/quadro-605-mac-library-wallet
+          tar -czf quadro-wallet-deps.tar.gz desktop/quadro-wallet-deps
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadro-wallet-deps
+          path: quadro-wallet-deps.tar.gz
+          retention-days: 1
