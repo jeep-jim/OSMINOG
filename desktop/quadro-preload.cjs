@@ -6,6 +6,8 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('QuadroNative',Object.fre
  test:process.argv.includes('--quadro-test'),
  init:()=>ipcRenderer.invoke('quadro:init'),save:p=>ipcRenderer.invoke('quadro:save',p),
  browser:(action,args)=>ipcRenderer.invoke('quadro:browser',action,args),theme:t=>ipcRenderer.invoke('quadro:theme',t),
+ capture:(action,args)=>ipcRenderer.invoke('quadro:capture',action,args),
+ favicon:id=>ipcRenderer.invoke('quadro:favicon',id),chrome:()=>ipcRenderer.invoke('quadro:chrome'),onChrome:cb=>on('quadro:chrome',cb),
  window:action=>ipcRenderer.invoke('quadro:window',action),
  wallet:(action,args)=>ipcRenderer.invoke('quadro:wallet',action,args),update:action=>ipcRenderer.invoke('quadro:update',action),
  onState:cb=>on('browser:state',cb),onFocus:cb=>on('browser:focus',cb),onError:cb=>on('browser:error',cb),

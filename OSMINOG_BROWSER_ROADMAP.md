@@ -1148,3 +1148,8 @@ Release 39040381792: обновление поверх предыдущей ве
 ## 2026-11-10 — owner authorizes lightweight storage reset
 
 After another browser termination report the owner explicitly supersedes the full-workspace restoration requirement. Chrome and new Windows/macOS packages shall contain only lightweight text/media collection, bounded canvas layout, complete text view/edit, media viewing and GPT/DeepSeek connection. Remove agent execution, embedded browsers, other AI providers and heavy creative tools from shipped runtime. Preserve existing archives; never auto-load a large legacy snapshot. Prepare Free 100 screenshots/month and Pro entitlements/archive export without taking payments. Desktop and extension are selectable future landing-page downloads, not the separate mobile ocean product. Record actual memory/test/build results; do not certify owner-device stability from Linux CI.
+
+
+## 2026-11-14 — Quadro: управление, favicon и скриншоты
+
+Новое поручение владельца и границы реализации: [дополнение](docs/desktop/2026-11-14-quadro-controls-capture.md). Прежняя иконка обязательна; Mac-only, сохранение профиля, локальный захват по Control+A. Результаты CI/публикации записываются после фактической проверки.
