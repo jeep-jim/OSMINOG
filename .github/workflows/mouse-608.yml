@@ -1,0 +1,24 @@
+name: Mouse 6.0.8 verification
+on:
+  push:
+    branches: ['codex/mouse-608-usability']
+    paths: ['.github/workflows/mouse-608.yml', 'desktop/**', 'tools/mouse-608*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export exact tracked source for local review
+        run: |
+          git archive --format=zip HEAD desktop tools AGENTS.md OSMINOG_BROWSER_ROADMAP.md OSMINOG_ROADMAP.md OSMINOG_PROJECT_LOG.md docs/desktop docs/mobile/2026-11-07-project-isolation.md .github/workflows > mouse-source.zip
+          git rev-parse HEAD > source-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse-608-source
+          path: |
+            mouse-source.zip
+            source-sha.txt
+          retention-days: 7
