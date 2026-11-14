@@ -1,0 +1,18 @@
+name: Quadro source snapshot
+on:
+  push:
+    branches: [codex/quadro-602-controls-capture]
+    paths: [.github/workflows/quadro-source-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git archive --format=tar.gz -o quadro-source.tar.gz HEAD desktop tools .github AGENTS.md OSMINOG_BROWSER_ROADMAP.md OSMINOG_ROADMAP.md OSMINOG_PROJECT_LOG.md docs/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadro-source-snapshot
+          path: quadro-source.tar.gz
+          retention-days: 1
