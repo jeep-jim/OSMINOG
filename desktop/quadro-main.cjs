@@ -10,7 +10,7 @@ if(test)app.setPath('userData',process.env.QUADRO_TEST_PROFILE);
 fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'quadro-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
-let win,browser,store,exitController,libraryService;
+let win,browser,store,exitController,libraryService,overlayGate,startService;
 const entry=pathToFileURL(path.join(__dirname,'quadro/index.html')).href;
 function show(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus()}
 function trusted(e){if(!require('./trust.cjs').trustedFrame(e,win,entry))throw Error('Untrusted frame')}
@@ -46,11 +46,14 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
+ overlayGate=new (require('./quadro-overlays.cjs').OverlayGate)(browser,win);
+ ipcMain.handle('quadro:overlay',(e,state)=>{trusted(e);return overlayGate.set(state)});
  await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
  require('./quadro-shell.cjs').install({win,browser,ipcMain,trusted,send});
  libraryService=await require('./quadro-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
+ startService=await require('./quadro-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  const updates=new (require('./quadro-update.cjs').QuadroUpdates)({app,shell,emit:state=>{if(!win.isDestroyed())win.webContents.send('quadro:update-state',state)}});
  const escapeFullscreen=(event,input)=>{if(input.type==='keyDown'&&input.key==='Escape'&&win.isFullScreen()){event.preventDefault();win.setFullScreen(false)}};
  // The shell handles Escape itself: a modal closes before fullscreen exits.
@@ -69,6 +72,6 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.loadURL(entry);show();
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Quadro UI failed to start'))}},100)})");
  log('QUADRO_READY '+app.getVersion());
- if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService});
+ if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService});
  if(test&&process.argv.some(x=>x.startsWith('--quadro-close-test=')))await require('./quadro-close-smoke.cjs')({app,win,store,log});
 }).catch(error=>{log('STARTUP_FAILED '+error.stack);if(!test)dialog.showErrorBox('Quadro Browser — ошибка запуска','Локальные данные не удалены.\n'+error.message+'\nЖурнал: '+logFile);app.exit(1)});

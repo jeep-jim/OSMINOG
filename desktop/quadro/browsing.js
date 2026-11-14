@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createQuadroBrowsing=({N,openPage,selected,hide,restore,status,locale})=>{
+globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale})=>{
  const $=s=>document.querySelector(s),make=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const tr=(ru,en)=>locale()==='en'?en:ru;
  const d=make('dialog','library-dialog');d.id='library-dialog';
@@ -29,7 +29,7 @@ globalThis.createQuadroBrowsing=({N,openPage,selected,hide,restore,status,locale
   }
   $('#library-count').textContent=rows.length+' / '+total;$('#library-more').hidden=rows.length>=total;
  }
- async function open(value){hideHints();kind=value;limit=100;$('#library-query').value='';await hide();if(!d.open)d.showModal();await render();$('#library-query').focus()}
+ async function open(value){hideHints();kind=value;limit=100;$('#library-query').value='';await show(d);await render();$('#library-query').focus()}
  $('#library-close').onclick=()=>d.close();d.addEventListener('close',()=>{generation++;hideHints();restore()});
  d.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>run(()=>{kind=b.dataset.library;limit=100;return render()}));
  $('#library-query').oninput=()=>{limit=100;void run(render)};$('#library-more').onclick=()=>{limit+=100;void run(render)};
@@ -56,6 +56,6 @@ globalThis.createQuadroBrowsing=({N,openPage,selected,hide,restore,status,locale
   input.form?.addEventListener('submit',()=>hideHints());
  }
  document.addEventListener('pointerdown',e=>{if(anchor&&e.target!==anchor&&!pop.contains(e.target))hideHints()});window.addEventListener('resize',hideHints);
- async function action(name){if(names[name])return open(name);if(name==='bookmark'){const t=selected();if(!t){status(tr('Сначала откройте сайт','Open a site first'));return}await N.library('bookmark',{id:t.id});status(tr('Добавлено в закладки','Bookmark saved'));return}if(name==='reopen'){const item=await N.library('reopen');if(item)await openPage(item.url);else status(tr('Нет закрытых вкладок','No recently closed tabs'));return}}
+ async function action(name){if(names[name])return open(name);if(name==='bookmark'){const t=selected();if(!t||t.internal){status(tr('Сначала откройте сайт','Open a site first'));return}await N.library('bookmark',{id:t.id});status(tr('Добавлено в закладки','Bookmark saved'));return}if(name==='reopen'){const item=await N.library('reopen');if(item)await openPage(item.url);else status(tr('Нет закрытых вкладок','No recently closed tabs'));return}}
  return{action,bind,hideHints,bounds,open,render};
 };
