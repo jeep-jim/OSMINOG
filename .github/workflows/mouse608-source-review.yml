@@ -1,0 +1,23 @@
+name: Mouse 608 exact source review
+on:
+  push:
+    branches: [codex/mouse-608-owner-fixes]
+    paths: ['.github/workflows/mouse608-source-review.yml']
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export tracked source only, no credentials or user profile
+        run: |
+          git archive --format=tar HEAD desktop tools .github/workflows AGENTS.md OSMINOG_BROWSER_ROADMAP.md OSMINOG_ROADMAP.md OSMINOG_PROJECT_LOG.md docs/desktop > mouse608-source.tar
+          git rev-parse HEAD > mouse608-source.sha
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse608-source
+          path: |
+            mouse608-source.tar
+            mouse608-source.sha
+          retention-days: 2
