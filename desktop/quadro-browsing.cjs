@@ -5,7 +5,7 @@ const path=require('node:path'),fs=require('node:fs/promises');
 async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=false}){
  const library=await new Library(store).init(),live=new Map(),retryURLs=new Set();
  let timer;const notify=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!win.isDestroyed())win.webContents.send('quadro:library-changed')},120);timer.unref?.()};
- const attach=t=>{const wc=t.view.webContents;const visit=()=>{if(t.lane==='side'||t.provider)return;library.visit(wc.getURL(),wc.getTitle())};wc.on('did-navigate',visit);wc.on('did-navigate-in-page',(_e,_u,main)=>{if(main)visit()});wc.on('page-title-updated',(_e,title)=>library.title(wc.getURL(),title));};
+ const attach=t=>{const wc=t.view.webContents;const visit=()=>{if(t.lane==='side'||t.provider)return;library.visit(wc.getURL(),wc.getTitle());notify()};wc.on('did-navigate',visit);wc.on('did-navigate-in-page',(_e,_u,main)=>{if(main)visit()});wc.on('page-title-updated',(_e,title)=>library.title(wc.getURL(),title));};
  for(const t of browser.tabs.values())attach(t);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);attach(t);return t};
  const command=browser.command.bind(browser);browser.command=async(action,args={})=>{

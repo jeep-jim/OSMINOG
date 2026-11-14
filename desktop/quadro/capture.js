@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createQuadroCapture=({N,hide,restore,locale})=>{
+globalThis.createQuadroCapture=({N,show,restore,locale})=>{
  const d=document.createElement('dialog');d.id='capture-dialog';d.innerHTML=`<header><strong data-i18n>Скриншот</strong><span id="capture-status" role="status"></span><button type="button" id="capture-close" title="Закрыть · Esc" aria-label="Закрыть скриншот">×</button></header><div class="capture-tools"><button data-tool="select" title="Выделить заново">▧</button><button data-tool="arrow" title="Стрелка">↗</button><button data-tool="line" title="Линия">╱</button><button data-tool="text" title="Текст">T</button><button data-tool="ellipse" title="Круг">○</button><button data-tool="rect" title="Прямоугольник">□</button><button data-tool="pencil" title="Карандаш">✎</button><button data-tool="marker" title="Маркер">▰</button><input id="capture-color" type="color" value="#ee364b" title="Цвет"><input id="capture-width" type="range" min="1" max="16" value="3" title="Толщина"><input id="capture-text" placeholder="Текст подписи" maxlength="500" aria-label="Текст подписи"><input id="capture-font" type="number" min="12" max="96" value="24" title="Размер текста"><button id="capture-undo" title="Отменить">↶</button><button id="capture-redo" title="Повторить">↷</button><button id="capture-all">Весь снимок</button><button id="capture-copy">Копировать</button><button id="capture-save" class="primary">Сохранить PNG</button></div><div class="capture-stage"><canvas id="capture-canvas" tabindex="0" aria-label="Выделение и разметка снимка"></canvas></div><footer><span>Выделите область мышью. Затем выберите инструмент. Снимки никуда не отправляются.</span></footer>`;
  document.body.append(d);const $=s=>d.querySelector(s),c=$('#capture-canvas'),ctx=c.getContext('2d');
  let full,base,ops=[],redo=[],current=null,start=null,tool='select',busy=false,opened=false;
@@ -34,7 +34,7 @@ globalThis.createQuadroCapture=({N,hide,restore,locale})=>{
  d.addEventListener('keydown',e=>{if(e.metaKey&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'#capture-redo':'#capture-undo').click()}});
  async function open(kind='browser'){
   if(busy||opened)return;busy=true;
-  try{const data=await N.capture(kind);full=await compose(data);await hide();opened=true;d.showModal();reset();globalThis.QuadroLocale?.apply(locale());c.focus()}
+  try{const data=await N.capture(kind);full=await compose(data);await show(d);opened=true;reset();globalThis.QuadroLocale?.apply(locale());c.focus()}
   finally{busy=false}
  }
  // Browser-region capture only. Closing never starts a second capture or a permission request.
