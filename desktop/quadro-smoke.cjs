@@ -2,11 +2,11 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let n=0;n<200;n++){if(await check())return;await sleep(75)}throw Error('Timed out: '+label)}
-module.exports=async({app,win,browser,store})=>{
+module.exports=async({app,win,browser,store,libraryService})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.2');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.3');
   assert.equal(await js('document.title'),'Quadro Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -15,6 +15,7 @@ module.exports=async({app,win,browser,store})=>{
    assert.equal((await browser.session.cookies.get({url:'https://example.com/',name:'quadro-persistence'}))[0]?.value,'retained');
    assert.equal((await store.get('macPortPersistence')).macPortPersistence,'actual-legacy-mac-profile');
    assert.equal((await js('QuadroNative.wallet("list")'))[0]?.address,'0x1111111111111111111111111111111111111111');
+   assert.ok(libraryService.library.data.bookmarks.some(x=>x.title==='Library persistence fixture'));assert.ok(libraryService.library.data.searches.some(x=>x.query==='quadro persistent search'));console.log('QUADRO_LIBRARY_RESTART_PASS');
    console.log('QUADRO_PROFILE_COOKIE_WALLET_RESTART_PASS');
   }else{
    await store.set({macPortPersistence:'actual-legacy-mac-profile',traderWalletWatch:[{address:'0x1111111111111111111111111111111111111111',label:'Migration fixture'}]});
@@ -48,7 +49,8 @@ module.exports=async({app,win,browser,store})=>{
    console.log('QUADRO_LIGHT_DARK_CONTRAST_PASS');
    await require('./quadro-compact-smoke.cjs')({win,browser});
    await require('./quadro-refinements-smoke.cjs')({win,browser,store});
-   await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await store.queue;
+   await require('./quadro-basics-smoke.cjs')({app,win,browser,store,libraryService});
+   await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('QUADRO_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('quadro-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}

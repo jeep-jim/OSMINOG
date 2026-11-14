@@ -26,7 +26,7 @@ async function boundedBody(response,limit){
 function install({win,browser,ipcMain,trusted,send}){
  let captureBusy=false;const icons=new Map();
  win.setWindowButtonVisibility(false);
- const chrome=()=>{const d=screen.getDisplayMatching(win.getBounds());return{fullscreen:win.isFullScreen(),inset:win.isFullScreen()?Math.min(64,Math.max(32,d.workArea.y-d.bounds.y+8)):0}};
+ const chrome=()=>({fullscreen:win.isFullScreen(),inset:0}); // No permanent gap for the transient system menu.
  const emit=()=>{if(!win.isDestroyed())win.webContents.send('quadro:chrome',chrome())};
  for(const name of ['enter-full-screen','leave-full-screen','maximize','unmaximize','resize'])win.on(name,emit);
  ipcMain.handle('quadro:chrome',e=>{trusted(e);return chrome()});
