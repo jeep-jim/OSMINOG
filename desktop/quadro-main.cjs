@@ -22,12 +22,15 @@ if(ownsProfile)app.whenReady().then(async()=>{
  store=new (require('./storage.cjs').Store)(app.getPath('userData'));
  const wallet=new (require('./wallet-vault.cjs').WalletVault)(store);
  nativeTheme.themeSource='light';
- const updateDock=()=>{let dark=false;try{dark=systemPreferences.getUserDefault('AppleInterfaceStyle','string')==='Dark';}catch{}app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+(dark?'dark':'light')+'.png'));};updateDock();
- const themeSubscription=systemPreferences.subscribeNotification('AppleInterfaceThemeChangedNotification',updateDock);app.on('will-quit',()=>systemPreferences.unsubscribeNotification(themeSubscription));
+ // The selected browser appearance owns the Dock artwork too. Never read a
+ // separate global dark-mode preference after the user explicitly chose light.
+ const updateDock=()=>{const theme=nativeTheme.shouldUseDarkColors?'dark':'light';app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+theme+'.png'));updateDock.appliedTheme=theme;};updateDock();
+ nativeTheme.on('updated',updateDock);app.on('will-quit',()=>nativeTheme.removeListener('updated',updateDock));
  // Create genuinely untitled from the outset: roundedCorners=true otherwise
  // retains AppKit Titled even for frame:false and creates a fullscreen blank bar.
  // The native module rounds the normal root view, without changing style masks.
  win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:false,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'quadro-preload.cjs'),additionalArguments:['--quadro-version='+app.getVersion(),...(test?['--quadro-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
+ if(test)win.mouseDockThemeForTest=()=>updateDock.appliedTheme;
  exitController=require('./quadro-lifecycle.cjs').install({app,win,log,onError:error=>{if(!test)dialog.showErrorBox('Mouse Browser — данные не сохранены','Браузер оставлен открытым. Повторите выход после устранения ошибки: '+error.message)},flush:async()=>{
   if(win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');
   if(privateMode?.current)await privateMode.dispose();
@@ -74,7 +77,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('quadro:save',async(e,p)=>{trusted(e);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid preferences');const value={tree:require('./quadro/layout.js').validate(p.tree),slots:p.slots,active:p.active,theme:p.theme,locale:p.locale==='en'?'en':'ru',libraryWidth:Math.max(300,Math.min(1600,Number(p.libraryWidth)||380)),aiOpen:p.aiOpen===true,aiWidth:Number(p.aiWidth)||360,aiId:p.aiId,aiSites:p.aiSites,aiSessions:p.aiSessions};await store.set({quadroPreferences:value});return true});
  ipcMain.handle('quadro:browser',(e,action,args={})=>{trusted(e);if(!allowed.has(action))throw Error('Unsupported browser action');return browser.command(action,args)});
  ipcMain.handle('quadro:window',(e,action)=>{trusted(e);if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./quadro-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
- ipcMain.handle('quadro:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
+ ipcMain.handle('quadro:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('quadro:wallet',async(e,action,args)=>{trusted(e);try{return await wallet.command(action,args)}catch(error){throw Error(error.message.replaceAll('Trader OS','Mouse Browser'))}});
  ipcMain.handle('quadro:update',(e,action)=>{trusted(e);if(!['check','download','open'].includes(action))throw Error('Unsupported update action');return updates.run(action)});
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,test});

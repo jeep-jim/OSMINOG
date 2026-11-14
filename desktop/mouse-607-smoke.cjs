@@ -25,8 +25,21 @@ module.exports=async({app,win})=>{
  const svg=await fs.readFile(path.join(__dirname,'quadro/mouse-private.svg'),'utf8');
  assert.match(svg,/<g id="mouse-approved-left" transform="translate\(44 0\) scale\(-1 1\)">/);
  assert.equal((svg.match(/id="mouse-approved-left"/g)||[]).length,1);
- const pixels=await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=44;c.height=60;const x=c.getContext('2d');x.drawImage(i,0,0);resolve([...x.getImageData(0,58,44,1).data])};i.onerror=reject;i.src='mouse-private.svg'})`);
- assert.ok(pixels[3]>250&&pixels[43*4+3]===0,'rendered incognito tail must end left');
+ const artwork=await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=44;c.height=60;const x=c.getContext('2d');x.drawImage(i,0,0);resolve({pixels:[...x.getImageData(0,0,44,60).data],png:c.toDataURL('image/png')})};i.onerror=reject;i.src='mouse-private.svg'})`);
+ const at=(x,y)=>artwork.pixels.slice((y*44+x)*4,(y*44+x)*4+4);
+ assert.deepEqual(at(0,58),[119,119,119,255],'incognito mascot is gray, not white; tail ends left');
+ assert.equal(at(43,58)[3],0);
+ assert.deepEqual(at(43,16),[0,0,0,255],'reference glasses have a black right arm');
+ assert.deepEqual(at(15,16),[255,255,255,255],'reference glasses retain white pixel highlights');
+ await fs.writeFile('mouse-607-incognito-artwork.png',Buffer.from(artwork.png.split(',')[1],'base64'));
+ const js=s=>win.webContents.executeJavaScript(s),previous=await js('QuadroTest.model.theme');
+ try{
+  for(const theme of ['light','dark','light']){
+   await js(`QuadroNative.theme('${theme}')`);
+   assert.equal(win.mouseDockThemeForTest(),theme,'Dock must use the selected browser appearance');
+  }
+ }finally{await js(`QuadroNative.theme(${JSON.stringify(previous)})`);}
+ console.log('MOUSE_607_GRAY_REFERENCE_GLASSES_AND_MATCHING_DOCK_THEME_PASS');
  const contents=path.dirname(path.dirname(process.execPath));
  let icon=execFileSync('/usr/libexec/PlistBuddy',['-c','Print :CFBundleIconFile',path.join(contents,'Info.plist')],{encoding:'utf8'}).trim();
  assert.ok(icon&&!icon.includes('/'));if(!icon.endsWith('.icns'))icon+='.icns';
