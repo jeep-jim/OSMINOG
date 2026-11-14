@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.1');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.2');
   assert.equal(await js('document.title'),'Quadro Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -18,7 +18,7 @@ module.exports=async({app,win,browser,store})=>{
    console.log('QUADRO_PROFILE_COOKIE_WALLET_RESTART_PASS');
   }else{
    await store.set({macPortPersistence:'actual-legacy-mac-profile',traderWalletWatch:[{address:'0x1111111111111111111111111111111111111111',label:'Migration fixture'}]});
-   server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Quadro fixture '+req.url+'</title><h1>Локальная проверка браузера</h1><input id="kept" value="retained"><script>globalThis.loadedOnce=Math.random()</script>')});
+   server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.setHeader('Content-Type','image/png');require('node:fs').createReadStream(require('node:path').join(__dirname,'quadro/brand.png')).pipe(res);return}res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Quadro fixture '+req.url+'</title><h1>Локальная проверка браузера</h1><input id="kept" value="retained"><script>globalThis.loadedOnce=Math.random()</script>')});
    await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
    for(let i=0;i<6;i++)await js(`QuadroTest.openPage(${JSON.stringify(url+'/pane/'+i)})`);
    await until(()=>[...browser.tabs.values()].filter(t=>t.lane!=='side').every(t=>!t.loading),'fixture loads');
@@ -47,6 +47,7 @@ module.exports=async({app,win,browser,store})=>{
    await js('QuadroTest.setTheme("light")');await fs.writeFile('quadro-light-smoke.png',(await win.capturePage()).toPNG());await js('QuadroTest.setTheme("dark")');await fs.writeFile('quadro-dark-smoke.png',(await win.capturePage()).toPNG());
    console.log('QUADRO_LIGHT_DARK_CONTRAST_PASS');
    await require('./quadro-compact-smoke.cjs')({win,browser});
+   await require('./quadro-refinements-smoke.cjs')({win,browser,store});
    await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await store.queue;
   }
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);

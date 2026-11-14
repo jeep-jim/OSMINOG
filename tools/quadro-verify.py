@@ -15,7 +15,7 @@ with open('quadro-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'quadro-startup.log'
-   if f.exists() and 'QUADRO_READY 6.0.1' in f.read_text():break
+   if f.exists() and 'QUADRO_READY 6.0.2' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
