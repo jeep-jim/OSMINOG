@@ -1,0 +1,15 @@
+.brand img,.mouse-mascot,.favicon.mouse-logo{image-rendering:pixelated;object-fit:contain}
+:root[data-theme=dark] .brand img,:root[data-theme=dark] .mouse-mascot,:root[data-theme=dark] .favicon.mouse-logo{filter:invert(1)}
+.mouse-mascot{width:34px;height:44px;flex:none}.mouse-loading{display:flex;gap:12px;align-items:center}.mouse-loading p{margin:0}
+.mouse-mascot[data-busy=true]{animation:mouse-busy .7s steps(2,end) infinite}
+@keyframes mouse-busy{50%{transform:translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){.mouse-mascot[data-busy=true]{animation:none}}
+#ai-panel>.ai-head{display:none}
+#ai-panel>.ai-controls{display:flex;align-items:center;height:34px;min-height:34px;padding:3px 5px;gap:4px;border-bottom:1px solid var(--line)}
+.ai-provider{position:relative;display:flex;align-items:center;flex:1;min-width:0}
+.ai-provider>.favicon{position:absolute;left:6px;z-index:1;width:17px;height:17px;margin:0;pointer-events:none}
+.ai-provider #ai-select{width:100%;min-width:0;height:27px;min-height:27px;padding:3px 20px 3px 29px;font-size:12px}
+#ai-panel>.ai-controls>button{width:27px;height:27px;min-height:27px;padding:0;flex:none;display:grid;place-items:center}
+#choice-dialog .provider-option{display:flex;align-items:center;gap:9px;text-align:left}
+#choice-dialog .provider-option .favicon{width:18px;height:18px;margin:0}
+#ai-slot .empty h2{display:none}

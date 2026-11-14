@@ -52,7 +52,7 @@ function install({win,browser,ipcMain,trusted,send,test=false,captureScreen}){
   if(captureBusy)throw Error('Скриншот уже создаётся');captureBusy=true;
   try{
    if(kind==='screen'){
-    if(['denied','restricted'].includes(systemPreferences.getMediaAccessStatus('screen')))throw Error('Разрешите Quadro Browser запись экрана в настройках macOS. Снимок области браузера доступен без этого разрешения.');
+    if(['denied','restricted'].includes(systemPreferences.getMediaAccessStatus('screen')))throw Error('Разрешите Mouse Browser запись экрана в настройках macOS. Снимок области браузера доступен без этого разрешения.');
     const d=screen.getDisplayMatching(win.getBounds()),s=Math.min(d.scaleFactor,8192/Math.max(d.size.width,d.size.height));
     const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(d.size.width*s),height:Math.round(d.size.height*s)},fetchWindowIcons:false});
     const source=sources.find(x=>String(x.display_id)===String(d.id));

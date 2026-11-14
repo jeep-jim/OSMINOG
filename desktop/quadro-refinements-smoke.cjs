@@ -48,6 +48,6 @@ module.exports=async({win,browser,store})=>{
  await windowClick('[data-window=minimize]','minimize');assert.equal(win.isMinimized(),true);win.restore();win.show();win.focus();await sleep(300);
  console.log('QUADRO_REAL_GLASS_BUTTON_CLICK_PASS');
  await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('fullscreen timeout')),10000);win.once('enter-full-screen',()=>{clearTimeout(timeout);resolve()});win.setFullScreen(true)});await sleep(150);
- const y=await js("document.querySelector('.traffic-space button').getBoundingClientRect().y");assert.ok(y>=0&&y<40,'No artificial fullscreen header gap');assert.equal(await js("document.querySelector('.toolbar').getBoundingClientRect().height"),40);
+ const native=win.quadroChromeGuard.nativeState();win.quadroChromeGuard.sample();await sleep(200);const y=await js("document.querySelector('.traffic-space button').getBoundingClientRect().y");assert.ok(y>=native.inset&&y<native.inset+40,'Only real system menu may inset controls');assert.equal(await js("document.querySelector('.toolbar').getBoundingClientRect().height"),40+native.inset);
  await require('./quadro-lifecycle.cjs').leaveFullscreen(win);await sleep(200);console.log('QUADRO_FULLSCREEN_NO_EMPTY_BAND_PASS');
 };

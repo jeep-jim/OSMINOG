@@ -53,8 +53,8 @@ class GlobalCapture {
   this.publish();
  }
  async explainPermission(){
-  this.lastError='Для снимка других приложений разрешите Quadro Browser запись экрана в настройках macOS. После выдачи разрешения может понадобиться перезапуск Quadro.';this.publish();
-  const options={type:'info',title:'Quadro — скриншот экрана',message:'Нужно разрешение macOS на запись экрана',detail:this.lastError,buttons:['Отмена','Открыть настройки macOS'],defaultId:0,cancelId:0,noLink:true};
+  this.lastError='Для снимка других приложений разрешите Mouse Browser запись экрана в настройках macOS. После выдачи разрешения может понадобиться перезапуск Mouse Browser.';this.publish();
+  const options={type:'info',title:'Mouse Browser — скриншот экрана',message:'Нужно разрешение macOS на запись экрана',detail:this.lastError,buttons:['Отмена','Открыть настройки macOS'],defaultId:0,cancelId:0,noLink:true};
   const result=await this.e.dialog.showMessageBox(options);
   if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
  }
@@ -83,12 +83,12 @@ class GlobalCapture {
   }catch(error){
    this.pending=null;this.lastError=String(error.message||'Не удалось создать скриншот').slice(0,500);
    if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
-   if(!this.test)await this.e.dialog.showMessageBox({type:'error',title:'Quadro — скриншот',message:'Не удалось открыть снимок',detail:this.lastError,buttons:['Закрыть']});
+   if(!this.test)await this.e.dialog.showMessageBox({type:'error',title:'Mouse Browser — скриншот',message:'Не удалось открыть снимок',detail:this.lastError,buttons:['Закрыть']});
   }finally{this.busy=false;this.publish();}
  }
  async openEditor(display){
   const b=display.workArea;
-  const editor=new this.e.BrowserWindow({title:'Quadro — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:true,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'quadro-capture-preload.cjs'),additionalArguments:[`--quadro-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--quadro-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
+  const editor=new this.e.BrowserWindow({title:'Mouse Browser — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:true,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'quadro-capture-preload.cjs'),additionalArguments:[`--quadro-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--quadro-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
   this.editor=editor;
   editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
   editor.webContents.setWindowOpenHandler(()=>({action:'deny'}));

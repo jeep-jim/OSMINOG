@@ -6,8 +6,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Quadro Browser');assert.equal(app.getVersion(),'6.0.5');
-  assert.equal(await js('document.title'),'Quadro Browser');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.6');
+  assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
    assert.equal(saved.tree.axis,'x');assert.ok(saved.tree.ratio>.55);assert.ok(saved.aiWidth>400);
@@ -57,6 +57,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await require('./quadro-global-capture-smoke.cjs')({app,win,browser,globalCapture});
    await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
+  if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture});
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('QUADRO_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('quadro-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
 };

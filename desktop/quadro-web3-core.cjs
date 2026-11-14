@@ -42,7 +42,7 @@ class ProviderEngine{
   const interactive=['eth_requestAccounts','personal_sign','eth_signTypedData_v4','eth_sendTransaction','wallet_switchEthereumChain'];
   if(this.pending&&interactive.includes(method))throw fail(-32002,'Дождитесь текущего подтверждения');
   const reads=new Set(['eth_blockNumber','eth_getBalance','eth_getTransactionCount','eth_getCode','eth_call','eth_estimateGas','eth_gasPrice','eth_getTransactionByHash','eth_getTransactionReceipt','eth_getBlockByNumber']);
-  if(!interactive.includes(method)&&!reads.has(method))throw fail(4200,'Этот метод не поддерживается Quadro Wallet');
+  if(!interactive.includes(method)&&!reads.has(method))throw fail(4200,'Этот метод не поддерживается Mouse Wallet');
   if(reads.has(method)){if(!this.grants.has(origin))throw fail(4100,'Сначала подключите сайт');return this.checkedRPC(method,params);}
   this.pending=true;
   try{
@@ -50,7 +50,7 @@ class ProviderEngine{
    if(!this.vault.meta.backedUp)throw fail(4100,'Сначала сохраните зашифрованную резервную копию');
    const guard=()=>{context.assert();if(method!=='eth_requestAccounts'&&!this.grants.has(origin))throw fail(4100,'Доступ сайта отозван');if(generation!==this.vault.generation||this.vault.key()!==wallet)throw fail(4100,'Кошелёк заблокирован или изменился');};
    const confirm=async(title,detail)=>{guard();const ok=await this.approve({origin,title,detail,address:wallet.address});guard();if(!ok)throw fail(4001,'Запрос отклонён пользователем');this.vault.touch();};
-   if(method==='eth_requestAccounts'){if(!this.grants.has(origin)){await confirm('Подключить сайт к Quadro Wallet?', 'Сайт получит публичный адрес. Подписи и транзакции подтверждаются отдельно. Только тестовая сеть Sepolia.');this.grants.add(origin);this.changed();}return[wallet.address];}
+   if(method==='eth_requestAccounts'){if(!this.grants.has(origin)){await confirm('Подключить сайт к Mouse Wallet?', 'Сайт получит публичный адрес. Подписи и транзакции подтверждаются отдельно. Только тестовая сеть Sepolia.');this.grants.add(origin);this.changed();}return[wallet.address];}
    if(!this.grants.has(origin))throw fail(4100,'Сайт не подключён');
    if(method==='wallet_switchEthereumChain'){if(params[0]?.chainId!==CHAIN_HEX)throw fail(4902,'Первый выпуск поддерживает только Sepolia');return null;}
    if(method==='personal_sign'){

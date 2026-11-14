@@ -8,7 +8,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('QuadroNative',Object.fre
  browser:(action,args)=>ipcRenderer.invoke('quadro:browser',action,args),theme:t=>ipcRenderer.invoke('quadro:theme',t),
  globalCapture:(action,args)=>ipcRenderer.invoke('quadro:global-capture-admin',action,args),onGlobalCapture:cb=>on('quadro:global-capture-state',cb),
  capture:(action,args)=>ipcRenderer.invoke('quadro:capture',action,args),
- favicon:id=>ipcRenderer.invoke('quadro:favicon',id),chrome:()=>ipcRenderer.invoke('quadro:chrome'),onChrome:cb=>on('quadro:chrome',cb),
+ aiIcon:args=>ipcRenderer.invoke('mouse:ai-icon',args),favicon:id=>ipcRenderer.invoke('quadro:favicon',id),chrome:()=>ipcRenderer.invoke('quadro:chrome'),onChrome:cb=>on('quadro:chrome',cb),
  library:(action,args)=>ipcRenderer.invoke('quadro:library',action,args),onLibrary:cb=>on('quadro:library-changed',cb),
  overlay:state=>ipcRenderer.invoke('quadro:overlay',state),
  start:(action,args)=>ipcRenderer.invoke('quadro:start',action,args),onStart:cb=>on('quadro:start-changed',cb),
