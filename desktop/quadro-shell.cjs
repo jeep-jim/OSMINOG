@@ -72,11 +72,15 @@ function install({win,browser,ipcMain,trusted,send}){
   if(result.canceled||!result.filePath)return{canceled:true};
   await fs.writeFile(result.filePath,data);return{ok:true};
  });
+ const isA=input=>input.code==='KeyA'||String(input.key).toLowerCase()==='a';
  const shortcut=(event,input)=>{
-  if(input.type==='keyDown'&&input.control&&!input.meta&&!input.alt&&!input.shift&&String(input.key).toLowerCase()==='a'){
+  if(input.type==='keyDown'&&input.control&&!input.meta&&!input.alt&&!input.shift&&isA(input)){
    event.preventDefault();if(!input.isAutoRepeat)send('screenshot');
   }
  };
+ // Explicit standard editing for the trusted shell, including focus returning from a dialog.
+ // Guest Cmd+A handlers remain untouched; only Ctrl+A invokes the screenshot command there.
+ win.webContents.on('before-input-event',(event,input)=>{if(input.type==='keyDown'&&input.meta&&!input.control&&!input.alt&&!input.shift&&isA(input)){event.preventDefault();win.webContents.selectAll()}});
  win.webContents.on('before-input-event',shortcut);
  for(const t of [...browser.tabs.values(),...browser.providers.values()])t.view.webContents.on('before-input-event',shortcut);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);t.view.webContents.on('before-input-event',shortcut);return t};
