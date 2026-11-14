@@ -7,7 +7,7 @@
 :root .home-page .favorite-edit:hover{background:#dfe7f3!important}
 :root .home-page .home-customize,:root .home-page .home-more{color:#fff!important;background:#182336d9!important;border:1px solid #bcc8dc99!important}
 :root .home-page .home-site-icon .favicon{filter:none!important}
-.private-welcome{display:none}.private-mascot{width:88px;height:120px;image-rendering:pixelated;filter:none!important;object-fit:contain}
+.private-welcome{display:none}.private-mascot{width:94px;height:128px;image-rendering:pixelated;filter:none!important;object-fit:contain}
 :root[data-private=true] .private-welcome{display:block;max-width:650px;margin-bottom:24px}
 :root[data-private=true] .home-page{--home-ink:#f5f1ff;background:radial-gradient(ellipse at 65% 10%,#352d50,transparent 70%),#171822!important;color:#f5f1ff}
 .private-welcome h1{font-size:26px;margin:12px 0}.private-welcome p{line-height:1.55;max-width:620px}.private-welcome .private-note{color:#bfc2d4;font-size:12px}
