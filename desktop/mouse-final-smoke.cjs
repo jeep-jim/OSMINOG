@@ -1,11 +1,10 @@
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs/promises');
+const assert=require('node:assert/strict');
 module.exports=async({win})=>{
  const js=s=>win.webContents.executeJavaScript(s);
- const previous=await js('JSON.parse(JSON.stringify({tree:QuadroTest.model.tree,slots:QuadroTest.model.slots,active:QuadroTest.model.active}))');
+ const previous=await js('JSON.parse(JSON.stringify({tree:QuadroTest.model.tree,slots:QuadroTest.model.slots,active:QuadroTest.model.active,theme:QuadroTest.model.theme,aiOpen:QuadroTest.model.aiOpen}))');
  await js('QuadroTest.changeLayout(1);QuadroTest.action("new-tab")');
  await new Promise(r=>setTimeout(r,300));
- // Bookmark fixture ensures the ellipsis control exists even in an empty profile.
  await js('QuadroNative.start("bookmark",{url:"https://example.com/mouse-contrast",title:"Contrast fixture"}).then(()=>QuadroTest.home.refresh())');
  for(const theme of ['dark','light']){
   await js(`QuadroTest.setTheme('${theme}')`);
@@ -17,6 +16,8 @@ module.exports=async({win})=>{
  assert.match(await js('document.querySelector("#capture-status").textContent'),/Снимок готов/);
  assert.ok(await js('QuadroTest.capture.test.getCanvas().width')>1);
  await js('document.querySelector("#capture-close").click()');
- await js(`Object.assign(QuadroTest.model,${JSON.stringify(previous)});QuadroTest.renderTree();QuadroTest.applySide()`);
+ await js(`Object.assign(QuadroTest.model,${JSON.stringify(previous)});QuadroTest.setTheme(${JSON.stringify(previous.theme)});QuadroTest.renderTree();QuadroTest.applySide();QuadroFlush()`);
+ const stored=await js('QuadroNative.init().then(x=>x.preferences.tree)');
+ assert.deepEqual(stored,previous.tree,'The new contrast probe must not overwrite the earlier drag/restart fixture');
  console.log('MOUSE_START_BUTTON_DARK_LIGHT_CONTRAST_CAPTURE_FEEDBACK_PASS');
 };
