@@ -1,0 +1,21 @@
+name: Mouse 606 pinned source snapshot
+on:
+  push:
+    branches: ['codex/mouse-browser-606-native-menu']
+    paths: ['.github/workflows/mouse-606-source.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 23a50032361c52041e08050c138e85f407b62696
+          persist-credentials: false
+      - run: tar -czf /tmp/mouse-606-source.tar.gz AGENTS.md OSMINOG_BROWSER_ROADMAP.md OSMINOG_ROADMAP.md OSMINOG_PROJECT_LOG.md desktop tools docs .github/workflows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse-606-source
+          path: /tmp/mouse-606-source.tar.gz
+          retention-days: 1
