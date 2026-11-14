@@ -99,7 +99,7 @@ class GlobalCapture {
   editor.on('closed',()=>{this.pending=null;if(this.editor===editor)this.editor=null;if(process.platform==='darwin'&&!this.main.isDestroyed())this.app.setActivationPolicy('regular');});
   await editor.loadURL(this.editorEntry);
   await editor.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{if(document.documentElement.dataset.captureReady==='true'){clearInterval(t);resolve()}else if(document.documentElement.dataset.captureReady==='error'||++n>100){clearInterval(t);reject(Error('Не удалось подготовить редактор скриншота'))}},50)})`);
-  if(!editor.isDestroyed()){editor.show();editor.focus();}
+  if(!editor.isDestroyed()){editor.show();editor.focus();await editor.webContents.executeJavaScript('globalThis.MouseCaptureFeedback?.()');}
  }
  dispose(){
   if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);this.registered=false;

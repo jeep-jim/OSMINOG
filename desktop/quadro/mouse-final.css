@@ -1,0 +1,20 @@
+
+/* Start-page controls own both foreground AND surface; later glass rules must not
+   put dark arrows on dark buttons. Favor readable surfaces in either app theme. */
+:root .home-page .home-search button{color:#17283c!important;background:#e7ecf3!important;border:1px solid #b8c5d6!important;min-width:28px;font-weight:700}
+:root .home-page .home-search button:hover{background:#d3deeb!important}
+:root .home-page .favorite-edit{color:#17283c!important;background:#f3f6fb!important;border:1px solid #a7b4c8!important;font-size:17px;font-weight:700;box-shadow:0 2px 7px #0003}
+:root .home-page .favorite-edit:hover{background:#dfe7f3!important}
+:root .home-page .home-customize,:root .home-page .home-more{color:#fff!important;background:#182336d9!important;border:1px solid #bcc8dc99!important}
+:root .home-page .home-site-icon .favicon{filter:none!important}
+.private-welcome{display:none}.private-mascot{width:88px;height:120px;image-rendering:pixelated;filter:none!important;object-fit:contain}
+:root[data-private=true] .private-welcome{display:block;max-width:650px;margin-bottom:24px}
+:root[data-private=true] .home-page{--home-ink:#f5f1ff;background:radial-gradient(ellipse at 65% 10%,#352d50,transparent 70%),#171822!important;color:#f5f1ff}
+.private-welcome h1{font-size:26px;margin:12px 0}.private-welcome p{line-height:1.55;max-width:620px}.private-welcome .private-note{color:#bfc2d4;font-size:12px}
+:root[data-private=true] [data-action=wallet],:root[data-private=true] [data-action=updates],:root[data-private=true] .home-welcome,:root[data-private=true] .home-recent{display:none!important}
+:root[data-private=true] #private-button{color:#fff;background:#5b477f;border-radius:6px}
+.capture-stage{position:relative}.capture-stage.capture-flash:after{content:'';position:absolute;inset:0;pointer-events:none;background:white;animation:mouse-shutter .38s ease-out both;z-index:5}
+@keyframes mouse-shutter{0%{opacity:.75}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.capture-stage.capture-flash:after{animation:none;opacity:0}.capture-stage.capture-flash{outline:3px solid #8cb4e9;outline-offset:-3px}}
+
+.private-logo{filter:none!important;image-rendering:pixelated}

@@ -31,14 +31,14 @@ async function exportPNG(action,args,parent){
   if(result.canceled||!result.filePath)return{canceled:true};
   await fs.writeFile(result.filePath,data);return{ok:true};
 }
-function install({win,browser,ipcMain,trusted,send,test=false,captureScreen}){
+function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reuseChrome=null}){
  let captureBusy=false;const icons=new Map();
  win.setWindowButtonVisibility(false);
- const chromeGuard=require('./quadro-mac-chrome.cjs').install(win,{test});
+ const chromeGuard=reuseChrome||require('./quadro-mac-chrome.cjs').install(win,{test});
  const chrome=chromeGuard.state;win.quadroChromeGuard=chromeGuard;
  ipcMain.handle('quadro:chrome',e=>{trusted(e);return chrome()});
  ipcMain.handle('quadro:favicon',async(e,id)=>{
-  trusted(e);const t=browser.get(id);let url;
+  trusted(e);let t;try{t=browser.get(id);}catch{return '';}let url;
   if(t.favicon?.startsWith('data:')){const match=/^data:(image\/(?:png|jpeg|x-icon|vnd.microsoft.icon|svg\+xml));base64,([a-zA-Z0-9+/=]+)$/.exec(t.favicon);return match&&match[2].length<=175000?faviconData(Buffer.from(match[2],'base64'),match[1],nativeImage):''}
   try{url=new URL(t.favicon||'/favicon.ico',t.view.webContents.getURL());if(!['https:','http:'].includes(url.protocol)||url.username||url.password)return ''}catch{return ''}
   const key=url.href,cached=icons.get(key);if(cached&&Date.now()-cached.at<300000)return cached.result;
@@ -82,8 +82,8 @@ function install({win,browser,ipcMain,trusted,send,test=false,captureScreen}){
  };
  // Explicit standard editing for the trusted shell, including focus returning from a dialog.
  // Guest Cmd+A handlers remain untouched; only Ctrl+A invokes the screenshot command there.
- win.webContents.on('before-input-event',(event,input)=>{if(input.type==='keyDown'&&input.meta&&!input.control&&!input.alt&&!input.shift&&isA(input)){event.preventDefault();win.webContents.selectAll()}});
- win.webContents.on('before-input-event',shortcut);
+ if(!reuseChrome)win.webContents.on('before-input-event',(event,input)=>{if(input.type==='keyDown'&&input.meta&&!input.control&&!input.alt&&!input.shift&&isA(input)){event.preventDefault();win.webContents.selectAll()}});
+ if(!reuseChrome)win.webContents.on('before-input-event',shortcut);
  for(const t of [...browser.tabs.values(),...browser.providers.values()])t.view.webContents.on('before-input-event',shortcut);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);t.view.webContents.on('before-input-event',shortcut);return t};
  return{capture,chrome};

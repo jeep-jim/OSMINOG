@@ -4,7 +4,7 @@ const on=(channel,callback)=>{const listener=(_event,data)=>callback(data);ipcRe
 if(process.isMainFrame)contextBridge.exposeInMainWorld('QuadroNative',Object.freeze({
  version:process.argv.find(x=>x.startsWith('--quadro-version='))?.slice(17)||'6.0.0',
  test:process.argv.includes('--quadro-test'),
- init:()=>ipcRenderer.invoke('quadro:init'),save:p=>ipcRenderer.invoke('quadro:save',p),
+ privacy:()=>ipcRenderer.invoke('quadro:privacy'),init:()=>ipcRenderer.invoke('quadro:init'),save:p=>ipcRenderer.invoke('quadro:save',p),
  browser:(action,args)=>ipcRenderer.invoke('quadro:browser',action,args),theme:t=>ipcRenderer.invoke('quadro:theme',t),
  globalCapture:(action,args)=>ipcRenderer.invoke('quadro:global-capture-admin',action,args),onGlobalCapture:cb=>on('quadro:global-capture-state',cb),
  capture:(action,args)=>ipcRenderer.invoke('quadro:capture',action,args),

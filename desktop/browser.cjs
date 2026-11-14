@@ -12,14 +12,14 @@ const {readPage,providerFor}=require('./page-context.cjs');
 const {proxyConfig}=require('./network.cjs');
 const path=require('node:path');
 class BrowserWorkspace{
- constructor(win,store){
-  this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
+ constructor(win,store,options={}){
+  this.privateMode=options.privateMode===true;this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
   // Browser profile remains on this device; no proxy, sync endpoint or screen relay.
   this.contextScope=null;this.contextScopes=new Map();this.contextSharing={includeChats:false};this.network={mode:'system',server:''};
-  this.session=session.fromPartition('persist:osminog-browser');
+  this.session=options.session||session.fromPartition('persist:osminog-browser');
   const ua=this.session.getUserAgent?.();if(ua)this.session.setUserAgent(require('./network.cjs').browserUserAgent(ua));
   this.connectionDiagnostics=new (require('./connection-diagnostics.cjs').ConnectionDiagnostics)({channel:id=>{const t=[...this.tabs.values(),...this.providers.values()].find(t=>t.view.webContents.id===id);return t?(t.ephemeral?'service-tab':'user-tab'):'session-or-worker'}});
-  this.connectionDiagnostics.attach(this.session);
+  if(!options.privateMode)this.connectionDiagnostics.attach(this.session);
   this.session.setPermissionCheckHandler(()=>false);
   this.session.setPermissionRequestHandler(async(wc,permission,callback,details)=>{
    const owned=[...this.tabs.values(),...this.providers.values()].some(t=>t?.view.webContents===wc);
@@ -44,7 +44,7 @@ class BrowserWorkspace{
  emit(){if(!this.disposed&&!this.win.isDestroyed())this.win.webContents.send('browser:state',this.state())}
  state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
  make(url,project,ai=false,{background=false}={}){
-  const view=new WebContentsView({webPreferences:{session:this.session,backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
+  const view=new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
   view.setBorderRadius?.(0);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});

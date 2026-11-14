@@ -1,7 +1,7 @@
 'use strict';
 // A page receives only EIP-1193 envelopes and events. No administrative IPC or keys.
 const {contextBridge,ipcRenderer,webFrame}=require('electron');
-if(process.isMainFrame&&(location.protocol==='https:'||(location.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(location.hostname)))){
+if(!process.argv.includes('--mouse-private-page')&&process.isMainFrame&&(location.protocol==='https:'||(location.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(location.hostname)))){
  const listeners=new Map();let connected=false;
  const transport=Object.freeze({isConnected:()=>connected,
   request:async payload=>{

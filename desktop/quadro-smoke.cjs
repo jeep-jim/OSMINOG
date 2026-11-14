@@ -58,6 +58,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await store.set({quadroPersistence:'quadro-6'});await browser.session.cookies.set({url:'https://example.com/',name:'quadro-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('QuadroTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
   if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture});
+  if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-final-smoke.cjs')({win});
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('QUADRO_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('quadro-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
 };
