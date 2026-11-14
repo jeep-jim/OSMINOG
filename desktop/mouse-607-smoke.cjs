@@ -27,7 +27,7 @@ module.exports=async({app,win})=>{
  assert.equal((svg.match(/id="mouse-approved-left"/g)||[]).length,1);
  const artwork=await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=47;c.height=64;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(i,0,0);resolve({pixels:[...x.getImageData(0,0,47,64).data],png:c.toDataURL('image/png')})};i.onerror=reject;i.src='mouse-private.svg'})`);
  const at=(x,y)=>artwork.pixels.slice((y*47+x)*4,(y*47+x)*4+4);
- assert.deepEqual(at(0,63),[119,119,119,255],'incognito mascot is gray, not white; tail ends left');
+ assert.deepEqual(at(0,58),[255,255,255,255],'owner now requires white mascot; tail ends left');
  assert.equal(at(46,63)[3],0);
  assert.deepEqual(at(46,17),[0,0,0,255],'reference glasses have an opaque black right arm');
  assert.deepEqual(at(16,17),[255,255,255,255],'reference glasses retain white pixel highlights');
@@ -37,10 +37,10 @@ module.exports=async({app,win})=>{
  try{
   for(const theme of ['light','dark','light']){
    await js(`QuadroNative.theme('${theme}')`);
-   assert.equal(win.mouseDockThemeForTest(),theme,'Dock must use the selected browser appearance');
+   assert.equal(win.mouseDockThemeForTest(),'light','Dock must remain black on white in every theme');
   }
  }finally{await js(`QuadroNative.theme(${JSON.stringify(previous)})`);}
- console.log('MOUSE_607_GRAY_REFERENCE_GLASSES_AND_MATCHING_DOCK_THEME_PASS');
+ console.log('MOUSE_608_WHITE_SQUARE_PIXELS_AND_FIXED_DOCK_PASS');
  const contents=path.dirname(path.dirname(process.execPath));
  let icon=execFileSync('/usr/libexec/PlistBuddy',['-c','Print :CFBundleIconFile',path.join(contents,'Info.plist')],{encoding:'utf8'}).trim();
  assert.ok(icon&&!icon.includes('/'));if(!icon.endsWith('.icns'))icon+='.icns';

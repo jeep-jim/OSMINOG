@@ -10,6 +10,7 @@ if(test)app.setPath('userData',process.env.QUADRO_TEST_PROFILE);
 fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'quadro-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
+let paneFocus;
 let win,browser,store,exitController,libraryService,overlayGate,startService,web3Service,globalCapture,privateMode;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'quadro/index.html')).href;
@@ -22,9 +23,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  store=new (require('./storage.cjs').Store)(app.getPath('userData'));
  const wallet=new (require('./wallet-vault.cjs').WalletVault)(store);
  nativeTheme.themeSource='light';
- // The selected browser appearance owns the Dock artwork too. Never read a
- // separate global dark-mode preference after the user explicitly chose light.
- const updateDock=()=>{const theme=nativeTheme.shouldUseDarkColors?'dark':'light';app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+theme+'.png'));updateDock.appliedTheme=theme;};updateDock();
+ // Owner requirement: Dock always uses the black mouse on white, irrespective of theme.
+ const updateDock=()=>{const theme='light';app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+theme+'.png'));updateDock.appliedTheme=theme;};updateDock();
  nativeTheme.on('updated',updateDock);app.on('will-quit',()=>nativeTheme.removeListener('updated',updateDock));
  // Create genuinely untitled from the outset: roundedCorners=true otherwise
  // retains AppKit Titled even for frame:false and creates a fullscreen blank bar.
@@ -41,6 +41,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win.on('closed',()=>log('QUADRO_WINDOW_CLOSED'));
  app.on('will-quit',()=>log('QUADRO_APP_QUIT'));
  win.on('leave-full-screen',()=>log('QUADRO_LEFT_FULLSCREEN'));
+ paneFocus=new (require('./mouse-pane-focus.cjs').PaneFocus)({win,restore:()=>{if(!win.isDestroyed())win.webContents.send('quadro:menu','restore-pane')}});
  const send=name=>{show();if(win.webContents.getURL()===entry)win.webContents.send('quadro:menu',name)};
  Menu.setApplicationMenu(Menu.buildFromTemplate([
   {label:'Mouse Browser',submenu:[{role:'about'},{label:'Проверить обновление…',click:()=>send('updates')},{type:'separator'},{role:'services'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},
@@ -67,8 +68,9 @@ if(ownsProfile)app.whenReady().then(async()=>{
  libraryService=await require('./quadro-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
  startService=await require('./quadro-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
- const updates=new (require('./quadro-update.cjs').QuadroUpdates)({app,shell,emit:state=>{if(!win.isDestroyed())win.webContents.send('quadro:update-state',state)}});
- const escapeFullscreen=(event,input)=>{if(input.type==='keyDown'&&input.key==='Escape'&&win.isFullScreen()){event.preventDefault();win.setFullScreen(false)}};
+ const installer=new (require('./mouse-install-update.cjs').MacInstaller)({app,quit:()=>exitController.request(),test});
+ const updates=new (require('./quadro-update.cjs').QuadroUpdates)({app,shell,installer,emit:state=>{if(!win.isDestroyed())win.webContents.send('quadro:update-state',state)}});
+ const escapeFullscreen=(event,input)=>{if(input.type==='keyDown'&&input.key==='Escape'){if(paneFocus.active){event.preventDefault();paneFocus.leave();return}if(win.isFullScreen()){event.preventDefault();win.setFullScreen(false)}}};
  // The shell handles Escape itself: a modal closes before fullscreen exits.
  for(const t of [...browser.tabs.values(),...browser.providers.values()])t.view.webContents.on('before-input-event',escapeFullscreen);
  const makePage=browser.make.bind(browser);browser.make=(...args)=>{const page=makePage(...args);page.view.webContents.on('before-input-event',escapeFullscreen);return page};
@@ -76,10 +78,10 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('quadro:init',async e=>{trusted(e);const data=await store.get(['quadroPreferences','traderPreferences']);const initial={state:browser.state(),preferences:data.quadroPreferences||{theme:data.traderPreferences?.theme||'light'}};if(test&&process.argv.includes('--quadro-init-race')){win.webContents.send('browser:state',browser.state());await new Promise(resolve=>setTimeout(resolve,450));}return initial});
  ipcMain.handle('quadro:save',async(e,p)=>{trusted(e);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid preferences');const value={tree:require('./quadro/layout.js').validate(p.tree),slots:p.slots,active:p.active,theme:p.theme,locale:p.locale==='en'?'en':'ru',libraryWidth:Math.max(300,Math.min(1600,Number(p.libraryWidth)||380)),aiOpen:p.aiOpen===true,aiWidth:Number(p.aiWidth)||360,aiId:p.aiId,aiSites:p.aiSites,aiSessions:p.aiSessions};await store.set({quadroPreferences:value});return true});
  ipcMain.handle('quadro:browser',(e,action,args={})=>{trusted(e);if(!allowed.has(action))throw Error('Unsupported browser action');return browser.command(action,args)});
- ipcMain.handle('quadro:window',(e,action)=>{trusted(e);if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./quadro-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
+ ipcMain.handle('quadro:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./quadro-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('quadro:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('quadro:wallet',async(e,action,args)=>{trusted(e);try{return await wallet.command(action,args)}catch(error){throw Error(error.message.replaceAll('Trader OS','Mouse Browser'))}});
- ipcMain.handle('quadro:update',(e,action)=>{trusted(e);if(!['check','download','open'].includes(action))throw Error('Unsupported update action');return updates.run(action)});
+ ipcMain.handle('quadro:update',(e,action)=>{trusted(e);if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');return updates.run(action)});
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,test});
  ipcMain.handle('quadro:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(()=>{if(!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через ⌘Q и повторите.')}));return true;});
  win.webContents.on('preload-error',(_e,_p,error)=>log('PRELOAD_ERROR '+error.message));
@@ -87,7 +89,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.loadURL(entry);show();
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Quadro UI failed to start'))}},100)})");
  log('QUADRO_READY '+app.getVersion());
- if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture});
+ await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
+ if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture,paneFocus});
  if(test&&(process.argv.includes('--mouse-private-smoke')||process.argv.includes('--mouse-private-close')))await require('./mouse-private-smoke.cjs')({app,win,browser,store,privateMode,ipcRouter});
  if(test&&process.argv.some(x=>x.startsWith('--quadro-close-test=')))await require('./quadro-close-smoke.cjs')({app,win,store,log});
 }).catch(error=>{log('STARTUP_FAILED '+error.stack);if(!test)dialog.showErrorBox('Mouse Browser — ошибка запуска','Локальные данные не удалены.\n'+error.message+'\nЖурнал: '+logFile);app.exit(1)});
