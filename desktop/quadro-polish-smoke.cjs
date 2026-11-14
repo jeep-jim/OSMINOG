@@ -10,10 +10,12 @@ module.exports=async({win,browser,overlayGate})=>{
  for(const name of ['history','bookmarks','downloads']){
   await js(`QuadroTest.action('${name}')`);await until(()=>js('document.querySelector("#library-dialog").open'),'sidebar '+name);
   assert.equal(overlayGate.blocked,false);assert.equal(await js('document.querySelector("#library-dialog").matches(":modal")'),false);
+  await until(async()=>{const x=await js('document.querySelector("#library-dialog").getBoundingClientRect().x');return browser.panels.length>0&&browser.panels.every(p=>p.x+p.width<=x+2)},'native sidebar geometry committed');
   const rect=await js('(()=>{const r=document.querySelector("#library-dialog").getBoundingClientRect();return{x:r.x,right:r.right,width:r.width,height:r.height}})()');
   assert.ok(Math.abs(rect.right-await js('innerWidth'))<2);assert.ok(rect.height>500);
   await until(()=>browser.panels.length>0,'live pages beside sidebar');
   for(const p of browser.panels)assert.ok(p.x+p.width<=rect.x+2,'Native pages cannot cover the library');
+  for(const t of browser.tabs.values())if(t.visible){const r=(t.clipView||t.view).getBounds();assert.ok(r.x+r.width<=rect.x+2,'Actual native child must remain left of sidebar');}
   await click('#library-close');await until(()=>js('!document.querySelector("#library-dialog").open'),'sidebar closed');
  }
  await js('QuadroTest.action("downloads")');await until(()=>js('document.querySelector("#library-dialog").open'),'resize sidebar');
