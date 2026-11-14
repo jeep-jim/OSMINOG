@@ -29,7 +29,7 @@ globalThis.createQuadroBrowsing=({N,openPage,selected,show,restore,status,locale
   }
   $('#library-count').textContent=rows.length+' / '+total;$('#library-more').hidden=rows.length>=total;
  }
- async function open(value){hideHints();kind=value;limit=100;$('#library-query').value='';if(!d.open)d.show();onSidebar(true);restore();await render();$('#library-query').focus()}
+ async function open(value){hideHints();kind=value;limit=100;$('#library-query').value='';if(!d.open){await N.browser('layout',{panels:[]});d.show();}onSidebar(true);restore();await render();$('#library-query').focus()}
  $('#library-close').onclick=()=>d.close();d.addEventListener('close',()=>{generation++;onSidebar(false);hideHints();restore()});
  d.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>run(()=>{kind=b.dataset.library;limit=100;return render()}));
  $('#library-query').oninput=()=>{limit=100;void run(render)};$('#library-more').onclick=()=>{limit+=100;void run(render)};
