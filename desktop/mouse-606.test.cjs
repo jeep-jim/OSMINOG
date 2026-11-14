@@ -26,3 +26,9 @@ test('new updater recognizes both Mouse filename and legacy compatible Quadro al
  assert.match(selectRelease([{tag_name:tag,assets:[asset('Quadro-Browser'),asset('Mouse-Browser')]}],'6.0.5').name,/^Mouse/);
  assert.match(selectRelease([{tag_name:tag,assets:[asset('Quadro-Browser')]}],'6.0.5').name,/^Quadro/);
 });
+test('screen capture preserves regular Mac application and Dock/menu policy',()=>{
+ const code=fs.readFileSync('quadro-global-capture.cjs','utf8');
+ assert.match(code,/skipTaskbar:false/);assert.doesNotMatch(code,/skipTaskbar:true/);
+ assert.match(code,/skipTransformProcessType:true/);assert.match(code,/setActivationPolicy\('regular'\)/);
+ assert.doesNotMatch(code,/setActivationPolicy\('accessory'\)|dock\.hide/);
+});

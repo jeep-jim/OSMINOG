@@ -76,7 +76,7 @@ class GlobalCapture {
   if(this.editor&&!this.editor.isDestroyed()){this.editor.show();this.editor.focus();return;}
   if(this.busy)return;this.busy=true;
   try{
-   // Select the display containing the pointer BEFORE any Quadro window moves focus.
+   // Select the display containing the pointer BEFORE any Mouse window moves focus.
    const display=this.e.screen.getDisplayNearestPoint(this.e.screen.getCursorScreenPoint());
    const frame=this.test&&this.testFrame?this.testFrame:await this.acquire(display);
    if(!frame)return;this.pending=frame;await this.openEditor(display);this.lastError='';
@@ -87,13 +87,16 @@ class GlobalCapture {
   }finally{this.busy=false;this.publish();}
  }
  async openEditor(display){
+  // This remains a normal browser app, never a menu-less UIElement helper.
+  if(process.platform==='darwin')this.app.setActivationPolicy('regular');
   const b=display.workArea;
-  const editor=new this.e.BrowserWindow({title:'Mouse Browser — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:true,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'quadro-capture-preload.cjs'),additionalArguments:[`--quadro-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--quadro-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
+  const editor=new this.e.BrowserWindow({title:'Mouse Browser — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:false,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'quadro-capture-preload.cjs'),additionalArguments:[`--quadro-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--quadro-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
   this.editor=editor;
-  editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
+  editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true,skipTransformProcessType:true});
+  if(process.platform==='darwin')this.app.setActivationPolicy('regular');
   editor.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   editor.webContents.on('will-navigate',(e,url)=>{if(url!==this.editorEntry)e.preventDefault();});
-  editor.on('closed',()=>{this.pending=null;if(this.editor===editor)this.editor=null;});
+  editor.on('closed',()=>{this.pending=null;if(this.editor===editor)this.editor=null;if(process.platform==='darwin'&&!this.main.isDestroyed())this.app.setActivationPolicy('regular');});
   await editor.loadURL(this.editorEntry);
   await editor.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{if(document.documentElement.dataset.captureReady==='true'){clearInterval(t);resolve()}else if(document.documentElement.dataset.captureReady==='error'||++n>100){clearInterval(t);reject(Error('Не удалось подготовить редактор скриншота'))}},50)})`);
   if(!editor.isDestroyed()){editor.show();editor.focus();}

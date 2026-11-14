@@ -5,6 +5,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<240;n++){if(await fn())return;await sleep(60)}throw Error('Timed out '+label);}
 module.exports=async({app,win,browser,globalCapture})=>{
  const js=s=>win.webContents.executeJavaScript(s);
+ const regular=()=>assert.equal(win.quadroChromeGuard.nativeState().activationPolicy,0,'screen editor must never demote browser to menu-less accessory app');regular();
  assert.equal(globalCapture.registered,true);assert.equal(globalShortcut.isRegistered('Control+A'),true);
  const png=await js(`(()=>{const c=document.createElement('canvas');c.width=960;c.height=640;const x=c.getContext('2d');x.fillStyle='#fafafa';x.fillRect(0,0,960,640);x.fillStyle='#267c61';x.fillRect(40,40,300,240);x.fillStyle='#e9ab34';x.fillRect(430,160,380,310);x.fillStyle='#111';x.font='32px sans-serif';x.fillText('Global screenshot fixture',70,560);return c.toDataURL('image/png')})()`);
  globalCapture.testFrame={base:png,width:960,height:640,layers:[],kind:'screen'};
@@ -12,8 +13,8 @@ module.exports=async({app,win,browser,globalCapture})=>{
  page.view.webContents.focus();page.view.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['control']});page.view.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['control']});
  await until(()=>globalCapture.editor&&!globalCapture.busy,'Ctrl+A independent editor');
  assert.equal(await globalCapture.editor.webContents.executeJavaScript('document.documentElement.dataset.captureReady'),'true');
- assert.equal(await js('QuadroTest.capture.isOpen()'),false,'Global screen editor is separate from browser snapshot');
- globalCapture.editor.close();await until(()=>!globalCapture.editor,'close first global editor');
+ regular();assert.equal(await js('QuadroTest.capture.isOpen()'),false,'Global screen editor is separate from browser snapshot');
+ globalCapture.editor.close();await until(()=>!globalCapture.editor,'close first global editor');regular();
  // Validate the background/minimized lifecycle independently of TCC availability.
  // Test frame is explicitly synthetic. It must not be called a captured Mac screen.
  win.hide();await globalCapture.request();await until(()=>globalCapture.editor&&!globalCapture.busy,'editor while browser hidden');assert.equal(win.isVisible(),false);
@@ -29,7 +30,8 @@ module.exports=async({app,win,browser,globalCapture})=>{
  const copied=Buffer.from(await(await item.getType('image/png')).arrayBuffer());assert.ok(nativeImage.createFromBuffer(copied).toBitmap().equals(nativeImage.createFromDataURL(data).toBitmap()));
  const save=dialog.showSaveDialog,file=path.join(app.getPath('userData'),'global-capture-fixture.png');dialog.showSaveDialog=async()=>({canceled:false,filePath:file});try{await click('#capture-save');await until(async()=>{try{return(await fs.stat(file)).size>0}catch{return false;}},'global PNG save');}finally{dialog.showSaveDialog=save;}
  assert.equal(await fs.readFile(file,'base64'),data.split(',')[1]);await fs.writeFile('quadro-605-global-editor.png',(await editor.capturePage()).toPNG());
- await click('#capture-close');await until(()=>!globalCapture.editor,'real X closes isolated editor');assert.equal(globalCapture.pending,null);assert.equal(win.isVisible(),false);
+ await click('#capture-close');await until(()=>!globalCapture.editor,'real X closes isolated editor');assert.equal(globalCapture.pending,null);assert.equal(win.isVisible(),false);regular();
+ console.log('MOUSE_SYSTEM_MENU_REGULAR_POLICY_SURVIVES_SCREENSHOT_PASS');
  console.log('QUADRO_GLOBAL_SHORTCUT_REGISTERED_BACKGROUND_EDITOR_CROP_PNG_PASS');
  // A real native display capture can only be validated with existing TCC consent.
  globalCapture.testFrame=null;
