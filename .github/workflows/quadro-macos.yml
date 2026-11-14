@@ -1,7 +1,7 @@
 name: Quadro Browser macOS arm64
 on:
   push:
-    branches: ['codex/quadro-browser-20261113','codex/quadro-compact-20261113','codex/quadro-602-controls-capture','codex/quadro-603-browser-basics']
+    branches: ['codex/quadro-browser-20261113','codex/quadro-compact-20261113','codex/quadro-602-controls-capture','codex/quadro-603-browser-basics','codex/quadro-604-overlays-start']
     paths: ['desktop/quadro/**','desktop/quadro-*','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
   pull_request:
     paths: ['desktop/quadro/**','desktop/quadro-*','desktop/quadro.test.cjs','tools/quadro-verify.py','.github/workflows/quadro-macos.yml']
@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high --json > quadro-audit.json
       - run: npm test
-      - run: node --test quadro.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs
+      - run: node --test quadro.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs
       - run: npm run prepare:runtime
       - run: node quadro-icon.cjs
       - name: Verify exact original icon artwork
@@ -51,7 +51,7 @@ jobs:
           (cd dist-quadro && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
           node - <<'NODE'
           const fs=require('fs'),cp=require('child_process');
-          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.3',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,tests:['unit','original-icon','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch','per-pane-address','permanent-controls','favicon','ru-en','capture-region-annotations','capture-clipboard-png','control-a-vs-command-a','fullscreen-no-empty-band','history','local-address-suggestions','downloads-pause-resume','screenshot-x-real-click','normal-close','fullscreen-close','fullscreen-quit']},null,2)+'\n');
+          fs.writeFileSync('dist-quadro/quadro-build.json',JSON.stringify({version:'6.0.4',source:cp.execSync('git rev-parse HEAD').toString().trim(),runId:process.env.GITHUB_RUN_ID,arch:process.arch,platform:process.platform,signing:'ad-hoc',notarized:false,tests:['overlay-lifetime-race','all-footer-modals','native-select-replacement','visual-bookmarks','custom-background','real-recent-sites','start-page-restart','unit','original-icon','native-geometry','pointer-resize-both-axes','ai-custom-url','ai-width','no-reload','light-dark-contrast','profile-cookie-wallet-restart','ordinary-launch','per-pane-address','permanent-controls','favicon','ru-en','capture-region-annotations','capture-clipboard-png','control-a-vs-command-a','fullscreen-no-empty-band','history','local-address-suggestions','downloads-pause-resume','screenshot-x-real-click','normal-close','fullscreen-close','fullscreen-quit']},null,2)+'\n');
           NODE
       - uses: actions/upload-artifact@v4
         with:
