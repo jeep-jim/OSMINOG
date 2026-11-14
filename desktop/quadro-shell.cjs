@@ -2,6 +2,7 @@
 // Privileged operations stay in the host. Webpages never receive this bridge.
 const {desktopCapturer,screen,systemPreferences,nativeImage,clipboard,ClipboardItem,dialog}=require('electron');
 const fs=require('node:fs/promises');
+const {faviconData}=require('./quadro/favicon.js');
 const LIMIT=32*1024*1024;
 function pngBuffer(src){
  if(typeof src!=='string'||src.length>LIMIT*1.4||!src.startsWith('data:image/png;base64,'))throw Error('Expected a bounded PNG image');
@@ -31,14 +32,13 @@ function install({win,browser,ipcMain,trusted,send}){
  ipcMain.handle('quadro:chrome',e=>{trusted(e);return chrome()});
  ipcMain.handle('quadro:favicon',async(e,id)=>{
   trusted(e);const t=browser.get(id);let url;
+  if(t.favicon?.startsWith('data:')){const match=/^data:(image\/(?:png|jpeg|x-icon|vnd.microsoft.icon|svg\+xml));base64,([a-zA-Z0-9+/=]+)$/.exec(t.favicon);return match&&match[2].length<=175000?faviconData(Buffer.from(match[2],'base64'),match[1],nativeImage):''}
   try{url=new URL(t.favicon||'/favicon.ico',t.view.webContents.getURL());if(!['https:','http:'].includes(url.protocol)||url.username||url.password)return ''}catch{return ''}
   const key=url.href,cached=icons.get(key);if(cached&&Date.now()-cached.at<300000)return cached.result;
   if(icons.size>=100)icons.delete(icons.keys().next().value);
   const result=(async()=>{try{
    const response=await browser.session.fetch(key,{signal:AbortSignal.timeout(4000)});
-   const image=nativeImage.createFromBuffer(await boundedBody(response,128*1024));
-   const size=image.getSize();if(image.isEmpty()||size.width>1024||size.height>1024)return '';
-   return image.resize({width:20,height:20}).toDataURL();
+   return faviconData(await boundedBody(response,128*1024),response.headers.get('content-type'),nativeImage);
   }catch{return ''}})();icons.set(key,{at:Date.now(),result});return result;
  });
  async function capture(kind){
@@ -53,7 +53,6 @@ function install({win,browser,ipcMain,trusted,send}){
     return{base:imageData(source.thumbnail),width:d.size.width,height:d.size.height,layers:[],kind};
    }
    const [width,height]=win.getContentSize(),base=imageData(await win.capturePage()),layers=[];
-   // Native WebContentsViews are composed explicitly; shell-only captures lose their pixels.
    for(const t of [...browser.tabs.values(),...browser.providers.values()]){
     if(!t.visible||t.view.webContents.isDestroyed())continue;
     const bounds=t.bounds;if(!bounds)continue;
@@ -67,7 +66,7 @@ function install({win,browser,ipcMain,trusted,send}){
   if(action==='browser'||action==='screen')return capture(action);
   if(action!=='save'&&action!=='copy')throw Error('Unsupported screenshot action');
   const data=pngBuffer(args.src),image=nativeImage.createFromBuffer(data);if(image.isEmpty())throw Error('Invalid PNG pixels');
-  // Electron 44 uses asynchronous MIME ClipboardItems, not removed writeImage().
+  // Electron44 uses asynchronous MIME ClipboardItems, not removed writeImage().
   if(action==='copy'){await clipboard.write([new ClipboardItem({'image/png':new Blob([new Uint8Array(data)],{type:'image/png'})})]);return{ok:true}}
   const result=await dialog.showSaveDialog(win,{title:'Сохранить скриншот',defaultPath:'Quadro-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png',filters:[{name:'PNG',extensions:['png']}],properties:['showOverwriteConfirmation']});
   if(result.canceled||!result.filePath)return{canceled:true};
