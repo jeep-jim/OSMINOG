@@ -15,7 +15,7 @@ module.exports=async({app,win,browser,web3Service})=>{
  const save=dialog.showSaveDialog;dialog.showSaveDialog=async()=>({canceled:false,filePath:file});
  try{await click('#web3-backup');await until(()=>vault.state().backedUp,'encrypted wallet backup');}finally{dialog.showSaveDialog=save;}
  assert.equal(await fs.readFile(file,'utf8'),data);await click('#web3-close');
- const server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Web3 local test</title><h1>Wallet integration fixture</h1><iframe src="/child"></iframe>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end(req.url==='/child'?'<html><body>Unprivileged child frame</body></html>':'<!doctype html><title>Web3 local test</title><h1>Wallet integration fixture</h1><iframe src="/child"></iframe>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const address=vault.state().address,url='http://127.0.0.1:'+server.address().port+'/dapp';
  let approves=0;const approve=engine.approve;engine.approve=async info=>{assert.equal(info.origin,new URL(url).origin);approves++;return true;};
  try{
