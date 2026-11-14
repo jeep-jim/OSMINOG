@@ -8,11 +8,19 @@ function pixels(size,{dark=false,app=false}={}){
   const i=(y*size+x)*4;
   if(app){const qx=Math.abs(x-size/2)/(size*.44),qy=Math.abs(y-size/2)/(size*.44);if(qx**5+qy**5<=1){const v=dark?29:241;data[i]=data[i+1]=data[i+2]=v;data[i+3]=255;}}
   const sx=Math.floor((x-left)/scale),sy=Math.floor((y-top)/scale);
-  if(sx>=0&&sx<brand.width&&sy>=0&&sy<brand.height&&brand.pixels[sy][sx]==='1'){const v=dark?255:0;data[i]=data[i+1]=data[i+2]=v;data[i+3]=255;}
+  if(sx>=0&&sx<brand.width&&sy>=0&&sy<brand.height&&brand.pixels[sy][brand.width-1-sx]==='1'){const v=dark?255:0;data[i]=data[i+1]=data[i+2]=v;data[i+3]=255;}
  }
  return data;
 }
 function png(size,options){const raw=pixels(size,options),scan=Buffer.alloc((size*4+1)*size),head=Buffer.alloc(13);for(let y=0;y<size;y++)raw.copy(scan,y*(size*4+1)+1,y*size*4,(y+1)*size*4);head.writeUInt32BE(size);head.writeUInt32BE(size,4);head[8]=8;head[9]=6;return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',head),chunk('IDAT',zlib.deflateSync(scan)),chunk('IEND',Buffer.alloc(0))]);}
+// Owner correction: the approved reference curls the tail LEFT. Preserve the
+// original source bytes, applying one horizontal reflection to every output.
+function orientPrivateSVG(svg){
+ const marker='id="mouse-approved-left"';
+ if(svg.includes(marker))return svg;
+ if(!svg.includes('viewBox="0 0 44 60"')||!svg.endsWith('</svg>'))throw Error('Unexpected private mascot source');
+ return svg.replace(/(<svg[^>]*>)/, '$1<g id="mouse-approved-left" transform="translate(44 0) scale(-1 1)">').replace(/<\/svg>$/, '</g></svg>');
+}
 function build(){
  const original=Buffer.from(brand.sourcePNG,'base64');if(crypto.createHash('sha256').update(original).digest('hex')!==brand.sourceSHA256)throw Error('Owner mouse source hash mismatch');
  fs.mkdirSync(path.join(__dirname,'icons'),{recursive:true});
@@ -20,5 +28,7 @@ function build(){
  fs.writeFileSync(path.join(__dirname,'quadro/brand.png'),png(64));
  fs.writeFileSync(path.join(__dirname,'quadro/brand-dark.png'),png(64,{dark:true}));
  fs.writeFileSync(path.join(__dirname,'quadro/mouse-original.png'),original);
+ const privatePath=path.join(__dirname,'quadro/mouse-private.svg');
+ fs.writeFileSync(privatePath,orientPrivateSVG(fs.readFileSync(privatePath,'utf8')));
 }
-if(require.main===module)build();module.exports={png,pixels,build};
+if(require.main===module)build();module.exports={png,pixels,build,orientPrivateSVG};

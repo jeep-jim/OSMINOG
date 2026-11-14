@@ -4,6 +4,7 @@ const {Menu,screen,desktopCapturer,systemPreferences}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let i=0;i<150;i++){if(await check())return;await sleep(80);}throw Error('Timed out: '+label);}
 module.exports=async({app,win,browser})=>{
+ await require('./mouse-607-smoke.cjs')({app,win});
  const js=s=>win.webContents.executeJavaScript(s);
  assert.equal(app.getName(),'Mouse Browser');assert.equal(Menu.getApplicationMenu().items[0].label,'Mouse Browser');assert.equal(win.isKiosk(),false);assert.equal(win.isAlwaysOnTop(),false);
  const s=win.quadroChromeGuard.nativeState();assert.equal(s.attached,true);assert.equal(s.activationPolicy,0);assert.equal(s.menuHidden,false);assert.equal(s.appleMenuDisabled,false);assert.ok(s.mainMenuItems>=5);
