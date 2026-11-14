@@ -1,0 +1,21 @@
+name: Snapshot current Mouse sources for owner UI and privacy fixes
+on:
+  push:
+    branches: ['codex/mouse-browser-606-native-menu']
+    paths: ['.github/workflows/mouse606-ui-source.yml']
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 47a83ed28a91f8804d58708bbed10be99e514906
+          persist-credentials: false
+      - run: git archive --format=tar.gz --output=mouse606-ui-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse606-ui-source
+          path: mouse606-ui-source.tar.gz
+          retention-days: 1
