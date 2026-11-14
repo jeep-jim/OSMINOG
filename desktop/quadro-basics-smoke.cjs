@@ -20,7 +20,10 @@ module.exports=async({app,win,browser,libraryService})=>{
   await until(()=>js('document.querySelector("#address-suggestions").matches(":popover-open")'),'address suggestion popup');
   assert.ok(await js('document.querySelector("#address-suggestions").textContent.includes("visited-alpha")'));
   await until(()=>browser.panels.some(p=>p.clip),'native pages clipped below suggestions');
-  win.webContents.sendInputEvent({type:'keyDown',keyCode:'ArrowDown'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'ArrowDown'});win.webContents.sendInputEvent({type:'keyDown',keyCode:'Return'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Return'});
+  // sendInputEvent requires Accelerator key codes (Down), not DOM names (ArrowDown).
+  win.webContents.sendInputEvent({type:'keyDown',keyCode:'Down'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Down'});
+  await until(()=>js('!!document.querySelector("#address-suggestions [aria-selected=true]")'),'keyboard suggestion selected');
+  win.webContents.sendInputEvent({type:'keyDown',keyCode:'Return'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Return'});
   await until(()=>js('!document.querySelector("#address-suggestions").matches(":popover-open")'),'suggestion accepted');
   await click('#history-button');await until(()=>js('document.querySelector("#library-dialog").open'),'history UI');assert.ok(await js('document.querySelector("#library-rows").textContent.includes("visited-alpha")'));await click('#library-close');
   console.log('QUADRO_HISTORY_BOOKMARKS_ADDRESS_SUGGESTIONS_PASS');
