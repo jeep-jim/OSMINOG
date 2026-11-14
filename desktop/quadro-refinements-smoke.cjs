@@ -33,16 +33,16 @@ module.exports=async({win,browser,store})=>{
  dialog.showSaveDialog=async()=>({canceled:false,filePath:file});try{await js('QuadroTest.capture.test.exportImage("save")')}finally{dialog.showSaveDialog=original}
  assert.ok((await fs.readFile(file)).equals(Buffer.from(png.split(',')[1],'base64')));await fs.writeFile('quadro-screenshot-editor.png',(await win.capturePage()).toPNG());
  console.log('QUADRO_CAPTURE_REGION_TOOLS_CLIPBOARD_SAVE_PASS');
- await js('document.querySelector("#capture-close").click()');await until(()=>browser.panels.length>1,'native panes restored');
+ await click('#capture-close');await until(()=>browser.panels.length>1,'native panes restored');
  await click('.pane.active input');await js('document.querySelector(".pane.active input").value="select-all-test"');
  win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});await sleep(100);
  assert.equal(await js('QuadroTest.capture.isOpen()'),false);assert.equal(await js('document.activeElement.selectionStart'),0);assert.equal(await js('document.activeElement.selectionEnd'),15);
  console.log('QUADRO_CONTROL_A_VS_COMMAND_A_PASS');
- await click('[data-window=zoom]');await until(()=>win.isMaximized(),'green control maximizes');assert.equal(win.isFullScreen(),false);
- await click('[data-window=zoom]');await until(()=>!win.isMaximized(),'green control restores');
+ await click('[data-window=zoom]');await until(()=>win.isFullScreen(),'green control enters fullscreen');await sleep(800);
+ await click('[data-window=zoom]');await until(()=>!win.isFullScreen(),'green control exits fullscreen');await sleep(800);
  await click('[data-window=minimize]');await until(()=>win.isMinimized(),'yellow control minimizes');win.restore();win.show();win.focus();await sleep(300);
  console.log('QUADRO_REAL_GLASS_BUTTON_CLICK_PASS');
  await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('fullscreen timeout')),10000);win.once('enter-full-screen',()=>{clearTimeout(timeout);resolve()});win.setFullScreen(true)});await sleep(150);
- const y=await js("document.querySelector('.traffic-space button').getBoundingClientRect().y");assert.ok(y>=32,'Dots below macOS menu overlay');
- await require('./quadro-lifecycle.cjs').leaveFullscreen(win);await sleep(200);console.log('QUADRO_FULLSCREEN_CONTROL_SAFE_INSET_PASS');
+ const y=await js("document.querySelector('.traffic-space button').getBoundingClientRect().y");assert.ok(y>=0&&y<40,'No artificial fullscreen header gap');assert.equal(await js("document.querySelector('.toolbar').getBoundingClientRect().height"),40);
+ await require('./quadro-lifecycle.cjs').leaveFullscreen(win);await sleep(200);console.log('QUADRO_FULLSCREEN_NO_EMPTY_BAND_PASS');
 };
