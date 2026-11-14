@@ -6,7 +6,7 @@ const START='quadro://start';
 const BACKGROUNDS=new Set(['dusk','sea','aurora','plain','custom']);
 function recentSites(history,limit=12){const seen=new Set(),out=[];for(const item of history){const url=webURL(item.url);if(!url)continue;const host=new URL(url).origin;if(seen.has(host))continue;seen.add(host);out.push({id:item.id,url,title:item.title||new URL(url).hostname});if(out.length===limit)break;}return out;}
 function bookmarkURL(value){const input=String(value||'').trim();if(!input||input.length>8192||/\s/.test(input))throw Error('Укажите адрес сайта');const url=webURL(/^[a-z][a-z\d+.-]*:/i.test(input)?input:'https://'+input);if(!url)throw Error('Нужен адрес HTTP или HTTPS без пароля');return url;}
-async function install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test=false}){
+async function install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test=false,privateMode=false}){
  const {nativeImage}=require('electron'),{faviconData}=require('./quadro/favicon.js'),library=libraryService.library;
  const saved=await store.get(['quadroStartTabs','quadroStartPage']);
  const tabs=new Map((Array.isArray(saved.quadroStartTabs)?saved.quadroStartTabs:[]).filter(t=>t&&/^[a-f0-9-]{36}$/.test(t.id)).map(t=>[t.id,{id:t.id}]));
@@ -39,6 +39,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
   const task=(async()=>{inFlight++;try{const r=await browser.session.fetch(key,{credentials:'omit',signal:AbortSignal.timeout(3500)});if(!r.ok||Number(r.headers.get('content-length'))>131072)return '';const reader=r.body.getReader(),chunks=[];let size=0;try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>131072)return '';chunks.push(Buffer.from(value));}}finally{await reader.cancel().catch(()=>{});}return faviconData(Buffer.concat(chunks),r.headers.get('content-type'),nativeImage);}catch{return '';}finally{inFlight--;}})();icons.set(key,task);return task;
  }
  async function setBackground(file){
+  if(privateMode)throw Error('Собственный фон меняется только в обычном режиме');
   const stat=await fs.stat(file);if(!stat.isFile()||stat.size>20*1024*1024)throw Error('Изображение должно быть не больше 20 МБ');
   if(!/\.(png|jpe?g|webp)$/i.test(file))throw Error('Выберите PNG, JPEG или WebP');
   const image=nativeImage.createFromPath(file),size=image.getSize();if(image.isEmpty()||size.width*size.height>40000000)throw Error('Изображение недоступно или слишком большое');
@@ -62,6 +63,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
    if(typeof args.showRecent==='boolean')preferences.showRecent=args.showRecent;await persist();notify();return true;
   }
   if(action==='background'){
+   if(privateMode)throw Error('Собственный фон меняется только в обычном режиме');
    const result=await dialog.showOpenDialog(win,{title:'Фон новой вкладки',properties:['openFile'],filters:[{name:'Изображения',extensions:['png','jpg','jpeg','webp']}]});
    if(result.canceled||!result.filePaths[0])return{canceled:true};return setBackground(result.filePaths[0]);
   }

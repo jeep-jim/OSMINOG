@@ -25,6 +25,7 @@ globalThis.createQuadroOverlays=({N,restore,error})=>{
  async function choose(select){
   if(select.disabled||chooser.open)return;anchor=select;chooser.replaceChildren();
   for(const option of select.options){if(option.hidden)continue;const b=document.createElement('button');b.type='button';b.textContent=option.textContent;b.disabled=option.disabled;b.dataset.value=option.value;b.setAttribute('role','option');b.setAttribute('aria-selected',String(option.selected));
+   if(select.id==='ai-select'){b.classList.add('provider-option');const text=document.createElement('span');text.textContent=option.textContent;b.replaceChildren();const icon=document.createElement('img');icon.className='favicon';icon.alt='';icon.src='globe.svg';b.append(icon,text);globalThis.MouseAIIcons?.apply(icon,option.value);}
    b.onclick=()=>{select.value=option.value;chooser.close();select.dispatchEvent(new Event('change',{bubbles:true}));};chooser.append(b);
   }
   const r=select.getBoundingClientRect(),width=Math.min(innerWidth-24,Math.max(160,r.width)),height=Math.min(320,chooser.children.length*32+12,innerHeight-24);

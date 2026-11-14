@@ -37,12 +37,10 @@ module.exports=async({win,browser,overlayGate})=>{
  console.log('QUADRO_DARK_MONOCHROME_ICON_GLASS_SPACING_PASS');
  await js('QuadroTest.setTheme("dark")');
  win.setFullScreen(true);await until(()=>win.isFullScreen(),'fullscreen');await sleep(900);
- const d=screen.getDisplayMatching(win.getBounds());const g=win.quadroChromeGuard;
- g.setTestPoint({x:d.bounds.x+120,y:d.bounds.y+1});await sleep(140);
- assert.ok(await js('document.querySelector(".traffic-space button").getBoundingClientRect().y')>=54);
- assert.ok(await js('document.querySelector("#tabstrip").getBoundingClientRect().top')>=54);
- g.setTestPoint({x:d.bounds.x+500,y:d.bounds.y+400});g.sample(undefined,Date.now()+3000);await sleep(120);
- assert.equal(await js('document.querySelector(".toolbar").getBoundingClientRect().height'),40);
+ const g=win.quadroChromeGuard,native=g.nativeState();
+ assert.equal(native.menuHidden,false);assert.equal(native.appleMenuDisabled,false);assert.ok(native.mainMenuItems>=5);
+ g.sample();await sleep(200);
+ const measured=g.nativeState();assert.ok(Math.abs((await js('document.querySelector(".toolbar").getBoundingClientRect().height'))-(40+measured.inset))<=2);
  await require('./quadro-lifecycle.cjs').leaveFullscreen(win);await sleep(700);
  console.log('QUADRO_DYNAMIC_MENU_REVEAL_NO_PERMANENT_BAND_PASS');
  await js('QuadroTest.action("bookmarks")');await sleep(150);await fs.writeFile('quadro-605-sidebar-dark.png',(await win.capturePage()).toPNG());await click('#library-close');

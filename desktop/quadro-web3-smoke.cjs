@@ -30,7 +30,7 @@ module.exports=async({app,win,browser,web3Service})=>{
   const signature=await page.executeJavaScript(`ethereum.request({method:'personal_sign',params:['0x71756164726f',${JSON.stringify(address)}]})`);assert.match(signature,/^0x[0-9a-f]{130}$/i);assert.equal(approves,2);
   assert.equal(await page.executeJavaScript('ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x1"}]}).then(()=>0,e=>e.code)'),4902);
   assert.equal(await page.executeJavaScript('ethereum.request({method:"eth_sign",params:[]}).then(()=>0,e=>e.code)'),4200);
-  const announced=await page.executeJavaScript(`new Promise(resolve=>{window.addEventListener('eip6963:announceProvider',e=>resolve(e.detail.info.name),{once:true});window.dispatchEvent(new Event('eip6963:requestProvider'));setTimeout(()=>resolve('missing'),2000)})`);assert.ok(announced.includes('Quadro'));
+  const announced=await page.executeJavaScript(`new Promise(resolve=>{window.addEventListener('eip6963:announceProvider',e=>resolve(e.detail.info.name),{once:true});window.dispatchEvent(new Event('eip6963:requestProvider'));setTimeout(()=>resolve('missing'),2000)})`);assert.equal(announced,'Mouse Wallet · Sepolia');
   engine.lock();assert.deepEqual(await page.executeJavaScript('ethereum.request({method:"eth_accounts"})'),[]);
   console.log('QUADRO_WEB3_ENCRYPTED_VAULT_DAPP_ORIGIN_APPROVAL_SIGN_TESTNET_PASS');
  }finally{engine.approve=approve;engine.lock();await new Promise(r=>server.close(r));}

@@ -53,8 +53,8 @@ class GlobalCapture {
   this.publish();
  }
  async explainPermission(){
-  this.lastError='Для снимка других приложений разрешите Quadro Browser запись экрана в настройках macOS. После выдачи разрешения может понадобиться перезапуск Quadro.';this.publish();
-  const options={type:'info',title:'Quadro — скриншот экрана',message:'Нужно разрешение macOS на запись экрана',detail:this.lastError,buttons:['Отмена','Открыть настройки macOS'],defaultId:0,cancelId:0,noLink:true};
+  this.lastError='Для снимка других приложений разрешите Mouse Browser запись экрана в настройках macOS. После выдачи разрешения может понадобиться перезапуск Mouse Browser.';this.publish();
+  const options={type:'info',title:'Mouse Browser — скриншот экрана',message:'Нужно разрешение macOS на запись экрана',detail:this.lastError,buttons:['Отмена','Открыть настройки macOS'],defaultId:0,cancelId:0,noLink:true};
   const result=await this.e.dialog.showMessageBox(options);
   if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
  }
@@ -76,27 +76,30 @@ class GlobalCapture {
   if(this.editor&&!this.editor.isDestroyed()){this.editor.show();this.editor.focus();return;}
   if(this.busy)return;this.busy=true;
   try{
-   // Select the display containing the pointer BEFORE any Quadro window moves focus.
+   // Select the display containing the pointer BEFORE any Mouse window moves focus.
    const display=this.e.screen.getDisplayNearestPoint(this.e.screen.getCursorScreenPoint());
    const frame=this.test&&this.testFrame?this.testFrame:await this.acquire(display);
    if(!frame)return;this.pending=frame;await this.openEditor(display);this.lastError='';
   }catch(error){
    this.pending=null;this.lastError=String(error.message||'Не удалось создать скриншот').slice(0,500);
    if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
-   if(!this.test)await this.e.dialog.showMessageBox({type:'error',title:'Quadro — скриншот',message:'Не удалось открыть снимок',detail:this.lastError,buttons:['Закрыть']});
+   if(!this.test)await this.e.dialog.showMessageBox({type:'error',title:'Mouse Browser — скриншот',message:'Не удалось открыть снимок',detail:this.lastError,buttons:['Закрыть']});
   }finally{this.busy=false;this.publish();}
  }
  async openEditor(display){
+  // This remains a normal browser app, never a menu-less UIElement helper.
+  if(process.platform==='darwin')this.app.setActivationPolicy('regular');
   const b=display.workArea;
-  const editor=new this.e.BrowserWindow({title:'Quadro — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:true,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'quadro-capture-preload.cjs'),additionalArguments:[`--quadro-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--quadro-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
+  const editor=new this.e.BrowserWindow({title:'Mouse Browser — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:false,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'quadro-capture-preload.cjs'),additionalArguments:[`--quadro-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--quadro-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
   this.editor=editor;
-  editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
+  editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true,skipTransformProcessType:true});
+  if(process.platform==='darwin')this.app.setActivationPolicy('regular');
   editor.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   editor.webContents.on('will-navigate',(e,url)=>{if(url!==this.editorEntry)e.preventDefault();});
-  editor.on('closed',()=>{this.pending=null;if(this.editor===editor)this.editor=null;});
+  editor.on('closed',()=>{this.pending=null;if(this.editor===editor)this.editor=null;if(process.platform==='darwin'&&!this.main.isDestroyed())this.app.setActivationPolicy('regular');});
   await editor.loadURL(this.editorEntry);
   await editor.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{if(document.documentElement.dataset.captureReady==='true'){clearInterval(t);resolve()}else if(document.documentElement.dataset.captureReady==='error'||++n>100){clearInterval(t);reject(Error('Не удалось подготовить редактор скриншота'))}},50)})`);
-  if(!editor.isDestroyed()){editor.show();editor.focus();}
+  if(!editor.isDestroyed()){editor.show();editor.focus();await editor.webContents.executeJavaScript('globalThis.MouseCaptureFeedback?.()');}
  }
  dispose(){
   if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);this.registered=false;

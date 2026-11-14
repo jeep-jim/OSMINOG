@@ -1,7 +1,7 @@
 'use strict';
 // A page receives only EIP-1193 envelopes and events. No administrative IPC or keys.
 const {contextBridge,ipcRenderer,webFrame}=require('electron');
-if(process.isMainFrame&&(location.protocol==='https:'||(location.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(location.hostname)))){
+if(!process.argv.includes('--mouse-private-page')&&process.isMainFrame&&(location.protocol==='https:'||(location.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(location.hostname)))){
  const listeners=new Map();let connected=false;
  const transport=Object.freeze({isConnected:()=>connected,
   request:async payload=>{
@@ -28,7 +28,7 @@ if(process.isMainFrame&&(location.protocol==='https:'||(location.protocol==='htt
    on:(event,fn)=>transport.on(event,fn),removeListener:(event,fn)=>transport.removeListener(event,fn)
   });
   if(!window.ethereum)Object.defineProperty(window,'ethereum',{value:provider,configurable:false,writable:false});
-  const info=Object.freeze({uuid:'15181e54-1a65-46c8-b663-9dfd2f802c64',name:'Quadro Wallet · Sepolia',rdns:'browser.quadro.wallet',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="%2348ce8c"/><path d="M16 18h32v28H16z" fill="%23fff"/></svg>'});
+  const info=Object.freeze({uuid:'15181e54-1a65-46c8-b663-9dfd2f802c64',name:'Mouse Wallet · Sepolia',rdns:'browser.quadro.wallet',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="%2348ce8c"/><path d="M16 18h32v28H16z" fill="%23fff"/></svg>'});
   const send=()=>window.dispatchEvent(new CustomEvent('eip6963:announceProvider',{detail:Object.freeze({info,provider})}));
   window.addEventListener('eip6963:requestProvider',send);send();
  })()`).catch(()=>{});

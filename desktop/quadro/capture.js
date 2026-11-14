@@ -32,13 +32,14 @@ globalThis.createQuadroCapture=({N,show,restore,locale})=>{
  d.addEventListener('cancel',e=>{e.preventDefault();d.close()});
  d.addEventListener('close',()=>{opened=false;full=null;base=null;ops=[];redo=[];start=null;current=null;c.width=1;c.height=1;restore()});
  d.addEventListener('keydown',e=>{if(e.metaKey&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'#capture-redo':'#capture-undo').click()}});
+ function feedback(){d.dataset.captured='true';const stage=d.querySelector('.capture-stage');stage.classList.remove('capture-flash');void stage.offsetWidth;stage.classList.add('capture-flash');status('Снимок готов — выделите область');setTimeout(()=>stage.classList.remove('capture-flash'),420);}
  async function open(kind='browser'){
   if(busy||opened)return;busy=true;
-  try{const data=await N.capture(kind);full=await compose(data);await show(d);opened=true;reset();globalThis.QuadroLocale?.apply(locale());c.focus()}
+  try{const data=await N.capture(kind);full=await compose(data);await show(d);opened=true;reset();globalThis.QuadroLocale?.apply(locale());c.focus();if(kind!=='initial')feedback()}
   finally{busy=false}
  }
  // Browser-region capture only. Closing never starts a second capture or a permission request.
- const api={open,isOpen:()=>opened};
+ const api={open,feedback,isOpen:()=>opened};
  if(N.test)api.test={compose,crop,render,getCanvas:()=>c,getOps:()=>ops,getFull:()=>full,selectTool,exportImage};
  return api;
 };

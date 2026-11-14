@@ -15,7 +15,7 @@ with open('quadro-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'quadro-startup.log'
-   if f.exists() and 'QUADRO_READY 6.0.5' in f.read_text():break
+   if f.exists() and 'QUADRO_READY 6.0.6' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -38,3 +38,13 @@ for mode in ['normal','fullscreen','quit','fullscreen-quit']:
  saved=json.loads((profile/'workspace.json').read_text())['quadroPreferences']
  if saved['aiWidth']!=419 or saved['theme']!='light':raise SystemExit('Last preference not flushed on close')
  print('QUADRO_CLOSE_'+mode.upper().replace('-','_')+'_PASS',flush=True)
+
+# Separate ephemeral-mode profile, separate process, genuine close/quit cleanup.
+for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLEANUP_NORMAL_UNCHANGED_PASS'),('--mouse-private-close','QUADRO_APP_QUIT')]:
+ profile=root/('private-'+mode.lstrip('-'))
+ env={**os.environ,'CI':'true','QUADRO_TEST_PROFILE':str(profile)}
+ r=subprocess.run([str(exe),mode],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=120)
+ pathlib.Path('quadro-'+mode.lstrip('-')+'.log').write_text(r.stdout);print(r.stdout,flush=True)
+ if r.returncode or marker not in r.stdout:raise SystemExit('Private session verification failed: '+mode)
+ if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
+ print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)

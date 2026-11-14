@@ -13,7 +13,7 @@ async function install({app,win,browser,trusted,test=false}){
   const data=JSON.parse(text);if(data.error)throw Object.assign(Error('RPC отклонил операцию. Проверьте сеть, баланс и данные.'),{code:-32603});if(!Object.hasOwn(data,'result'))throw Error('Invalid RPC result');return data.result;
  }
  engine=new ProviderEngine({vault,rpc,changed:sendState,approve:async({origin,title,detail,address})=>{
-  if(win.isDestroyed())return false;const r=await dialog.showMessageBox(win,{type:'warning',title:'Quadro Wallet · Sepolia',message:title,detail:'Сайт: '+origin+'\nВаш адрес: '+address+'\n\n'+detail,buttons:['Отклонить','Подтвердить'],defaultId:0,cancelId:0,noLink:true});return r.response===1;
+  if(win.isDestroyed())return false;const r=await dialog.showMessageBox(win,{type:'warning',title:'Mouse Wallet · Sepolia',message:title,detail:'Сайт: '+origin+'\nВаш адрес: '+address+'\n\n'+detail,buttons:['Отклонить','Подтвердить'],defaultId:0,cancelId:0,noLink:true});return r.response===1;
  }});
  const rates=new Map();
  function requestContext(e){
