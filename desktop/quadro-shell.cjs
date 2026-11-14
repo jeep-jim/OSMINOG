@@ -1,6 +1,6 @@
 'use strict';
 // Privileged operations stay in the host. Webpages never receive this bridge.
-const {desktopCapturer,screen,systemPreferences,nativeImage,clipboard,dialog}=require('electron');
+const {desktopCapturer,screen,systemPreferences,nativeImage,clipboard,ClipboardItem,dialog}=require('electron');
 const fs=require('node:fs/promises');
 const LIMIT=32*1024*1024;
 function pngBuffer(src){
@@ -67,7 +67,8 @@ function install({win,browser,ipcMain,trusted,send}){
   if(action==='browser'||action==='screen')return capture(action);
   if(action!=='save'&&action!=='copy')throw Error('Unsupported screenshot action');
   const data=pngBuffer(args.src),image=nativeImage.createFromBuffer(data);if(image.isEmpty())throw Error('Invalid PNG pixels');
-  if(action==='copy'){clipboard.writeImage(image);return{ok:true}}
+  // Electron 44 uses asynchronous MIME ClipboardItems, not removed writeImage().
+  if(action==='copy'){await clipboard.write([new ClipboardItem({'image/png':new Blob([new Uint8Array(data)],{type:'image/png'})})]);return{ok:true}}
   const result=await dialog.showSaveDialog(win,{title:'Сохранить скриншот',defaultPath:'Quadro-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png',filters:[{name:'PNG',extensions:['png']}],properties:['showOverwriteConfirmation']});
   if(result.canceled||!result.filePath)return{canceled:true};
   await fs.writeFile(result.filePath,data);return{ok:true};

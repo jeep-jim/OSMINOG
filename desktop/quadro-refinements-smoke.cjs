@@ -15,6 +15,9 @@ module.exports=async({win,browser,store})=>{
  await until(()=>js('QuadroTest.capture.isOpen()'),'Control+A screenshot');
  assert.ok(browser.panels.length===0,'Native pages hidden behind editor');
  assert.ok(await js('QuadroTest.capture.test.getFull().width>800'));
+ // A screenshot must contain the real rendered page, not a blank shell tile.
+ const fullPixel=await js(`(()=>{const f=QuadroTest.capture.test.getFull(),r=document.querySelector('.pane .page-slot').getBoundingClientRect(),s=f.width/innerWidth;return Array.from(f.getContext('2d').getImageData(Math.round((r.x+r.width-12)*s),Math.round((r.y+12)*s),1,1).data)})()`);
+ assert.ok(fullPixel.slice(0,3).every(n=>n>245),'Actual white fixture pixels included');
  async function drag(ax,ay,bx,by){const r=await js(`(()=>{const r=document.querySelector('#capture-canvas').getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}})()`);const point=(x,y)=>({x:Math.round(r.x+x*r.w),y:Math.round(r.y+y*r.h)});const a=point(ax,ay),b=point(bx,by);win.webContents.sendInputEvent({type:'mouseMove',...a});win.webContents.sendInputEvent({type:'mouseDown',...a,button:'left',clickCount:1});await sleep(60);win.webContents.sendInputEvent({type:'mouseMove',...b,button:'left'});await sleep(80);win.webContents.sendInputEvent({type:'mouseUp',...b,button:'left',clickCount:1});await sleep(100)}
  const full=await js('QuadroTest.capture.test.getFull().width');await drag(.07,.08,.9,.9);assert.ok(await js('QuadroTest.capture.test.getCanvas().width')<full);
  for(const tool of ['arrow','line','rect','ellipse','pencil','marker']){await js(`document.querySelector('[data-tool=${tool}]').click()`);await drag(.15,.18,.65,.65)}
@@ -22,7 +25,10 @@ module.exports=async({win,browser,store})=>{
  assert.equal(await js('QuadroTest.capture.test.getOps().length'),7);
  await js('document.querySelector("#capture-undo").click()');assert.equal(await js('QuadroTest.capture.test.getOps().length'),6);await js('document.querySelector("#capture-redo").click()');assert.equal(await js('QuadroTest.capture.test.getOps().length'),7);
  const png=await js('QuadroTest.capture.test.getCanvas().toDataURL("image/png")');
- await js('QuadroTest.capture.test.exportImage("copy")');assert.ok(clipboard.readImage().getBitmap().equals(nativeImage.createFromDataURL(png).getBitmap()));
+ await js('QuadroTest.capture.test.exportImage("copy")');
+ const items=await clipboard.read(),item=items.find(x=>x.types.includes('image/png'));assert.ok(item,'PNG image is in actual system clipboard');
+ const copied=Buffer.from(await(await item.getType('image/png')).arrayBuffer());
+ assert.ok(nativeImage.createFromBuffer(copied).toBitmap().equals(nativeImage.createFromDataURL(png).toBitmap()));
  const file=path.join(app.getPath('userData'),'screenshot-native-test.png'),original=dialog.showSaveDialog;
  dialog.showSaveDialog=async()=>({canceled:false,filePath:file});try{await js('QuadroTest.capture.test.exportImage("save")')}finally{dialog.showSaveDialog=original}
  assert.ok((await fs.readFile(file)).equals(Buffer.from(png.split(',')[1],'base64')));
