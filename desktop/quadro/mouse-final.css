@@ -18,3 +18,7 @@
 @media(prefers-reduced-motion:reduce){.capture-stage.capture-flash:after{animation:none;opacity:0}.capture-stage.capture-flash{outline:3px solid #8cb4e9;outline-offset:-3px}}
 
 .private-logo{filter:none!important;image-rendering:pixelated}
+
+/* A focused pane never rewrites saved split ratios or side-panel preferences. */
+body.pane-focused #library-dialog,body.pane-focused #library-divider,body.pane-focused #ai-panel,body.pane-focused #ai-divider{display:none!important}
+body.pane-focused [data-pane-action=split-x],body.pane-focused [data-pane-action=split-y],body.pane-focused [data-pane-action=remove]{display:none}

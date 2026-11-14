@@ -15,7 +15,7 @@ with open('quadro-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'quadro-startup.log'
-   if f.exists() and 'QUADRO_READY 6.0.7' in f.read_text():break
+   if f.exists() and 'QUADRO_READY 6.0.8' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -25,7 +25,6 @@ with open('quadro-normal-launch.log','w') as log:
   p.terminate()
   try:p.wait(timeout=10)
   except subprocess.TimeoutExpired:p.kill();p.wait()
-# Exercise the actual application close handler, not SIGTERM or app.exit.
 import json
 for mode in ['normal','fullscreen','quit','fullscreen-quit']:
  profile=root/('close-'+mode)
@@ -38,8 +37,6 @@ for mode in ['normal','fullscreen','quit','fullscreen-quit']:
  saved=json.loads((profile/'workspace.json').read_text())['quadroPreferences']
  if saved['aiWidth']!=419 or saved['theme']!='light':raise SystemExit('Last preference not flushed on close')
  print('QUADRO_CLOSE_'+mode.upper().replace('-','_')+'_PASS',flush=True)
-
-# Separate ephemeral-mode profile, separate process, genuine close/quit cleanup.
 for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLEANUP_NORMAL_UNCHANGED_PASS'),('--mouse-private-close','QUADRO_APP_QUIT')]:
  profile=root/('private-'+mode.lstrip('-'))
  env={**os.environ,'CI':'true','QUADRO_TEST_PROFILE':str(profile)}
@@ -48,3 +45,9 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if r.returncode or marker not in r.stdout:raise SystemExit('Private session verification failed: '+mode)
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
+# Actual older app replacement, verified new startup and a preserved runner profile.
+candidates=[pathlib.Path('dist-quadro/Mouse-Browser-6.0.8-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.8-mac-arm64.dmg')]
+dmg=next((p.resolve() for p in candidates if p.is_file()),None)
+installer=pathlib.Path('mouse-install-update.cjs').resolve()
+if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')
+subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-update-verify.py')),str(dmg),str(installer)],check=True,timeout=360)
