@@ -38,9 +38,14 @@ module.exports=async({win,browser,store})=>{
  win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});await sleep(100);
  assert.equal(await js('QuadroTest.capture.isOpen()'),false);assert.equal(await js('document.activeElement.selectionStart'),0);assert.equal(await js('document.activeElement.selectionEnd'),15);
  console.log('QUADRO_BROWSER_CAMERA_VS_COMMAND_A_PASS');
- await click('[data-window=zoom]');await until(()=>win.isFullScreen(),'green control enters fullscreen');await sleep(800);
- await click('[data-window=zoom]');await until(()=>!win.isFullScreen(),'green control exits fullscreen');await sleep(800);
- await click('[data-window=minimize]');await until(()=>win.isMinimized(),'yellow control minimizes');win.restore();win.show();win.focus();await sleep(300);
+ async function windowClick(selector,event){
+  let timer,listener;
+  const settled=new Promise((resolve,reject)=>{listener=()=>{clearTimeout(timer);resolve()};win.once(event,listener);timer=setTimeout(()=>{win.removeListener(event,listener);reject(Error('Timed out actual window event '+event))},12000)});
+  await click(selector);await settled;await sleep(500);
+ }
+ await windowClick('[data-window=zoom]','enter-full-screen');assert.equal(win.isFullScreen(),true);
+ await windowClick('[data-window=zoom]','leave-full-screen');assert.equal(win.isFullScreen(),false);
+ await windowClick('[data-window=minimize]','minimize');assert.equal(win.isMinimized(),true);win.restore();win.show();win.focus();await sleep(300);
  console.log('QUADRO_REAL_GLASS_BUTTON_CLICK_PASS');
  await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('fullscreen timeout')),10000);win.once('enter-full-screen',()=>{clearTimeout(timeout);resolve()});win.setFullScreen(true)});await sleep(150);
  const y=await js("document.querySelector('.traffic-space button').getBoundingClientRect().y");assert.ok(y>=0&&y<40,'No artificial fullscreen header gap');assert.equal(await js("document.querySelector('.toolbar').getBoundingClientRect().height"),40);
