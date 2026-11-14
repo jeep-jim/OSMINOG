@@ -1,0 +1,30 @@
+name: Prepare reviewed Quadro overlay and start-page integration
+on:
+  push:
+    branches: [codex/quadro-604-overlays-start]
+    paths: [tools/quadro604_prepare.py,.github/workflows/quadro-604-prepare.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: '${{ github.sha }}'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: |
+          python3 tools/quadro604_prepare.py
+          python3 - <<'PY'
+          import subprocess
+          paths=subprocess.check_output(['git','diff','--name-only']).decode().splitlines()
+          assert all(p.startswith(('desktop/quadro','tools/quadro-verify.py','OSMINOG_BROWSER_ROADMAP.md')) for p in paths),paths
+          PY
+          cd desktop
+          node --test quadro.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs
+          cd ..
+          git add desktop/quadro* tools/quadro-verify.py OSMINOG_BROWSER_ROADMAP.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate persistent native overlay barrier and local visual start page'
+          git push origin HEAD:codex/quadro-604-overlays-start
