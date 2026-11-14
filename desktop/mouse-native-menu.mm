@@ -2,6 +2,8 @@
 #import <CoreGraphics/CoreGraphics.h>
 #include <node_api.h>
 #include <cstring>
+#include <cstdlib>
+#include <cmath>
 static __weak NSWindow* mouseWindow=nil;
 static NSMutableArray* observers;
 static BOOL hasSaved=NO,menuHeld=NO;
@@ -69,8 +71,18 @@ static napi_value reveal(napi_env e,napi_callback_info info){
  return state(e,info);
 }
 static napi_value release(napi_env e,napi_callback_info info){restoreHover();return state(e,info);}
+// CI-only native pointer movement. Never exposed through IPC/preload or normal UI.
+static napi_value testPointer(napi_env e,napi_callback_info info){
+ const char* ci=std::getenv("CI");
+ if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("QUADRO_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--quadro-smoke-write"]){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
+ size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
+ if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid pointer probe");return nullptr;}
+ CGPoint point=CGPointMake(x,y);CGError result=CGWarpMouseCursorPosition(point);
+ CGEventRef event=CGEventCreateMouseEvent(nullptr,kCGEventMouseMoved,point,kCGMouseButtonLeft);if(event){CGEventPost(kCGHIDEventTap,event);CFRelease(event);}
+ napi_value o;napi_create_object(e,&o);number(e,o,"warpResult",result);boolean(e,o,"postAccess",CGPreflightPostEventAccess());return o;
+}
 static napi_value init(napi_env e,napi_value exports){
- napi_property_descriptor d[]={{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0}};
- napi_define_properties(e,exports,4,d);return exports;
+ napi_property_descriptor d[]={{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0}};
+ napi_define_properties(e,exports,5,d);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)
