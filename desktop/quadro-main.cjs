@@ -23,7 +23,10 @@ if(ownsProfile)app.whenReady().then(async()=>{
  nativeTheme.themeSource='light';
  const updateDock=()=>{let dark=false;try{dark=systemPreferences.getUserDefault('AppleInterfaceStyle','string')==='Dark';}catch{}app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+(dark?'dark':'light')+'.png'));};updateDock();
  const themeSubscription=systemPreferences.subscribeNotification('AppleInterfaceThemeChangedNotification',updateDock);app.on('will-quit',()=>systemPreferences.unsubscribeNotification(themeSubscription));
- win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',titleBarStyle:'hidden',kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'quadro-preload.cjs'),additionalArguments:['--quadro-version='+app.getVersion(),...(test?['--quadro-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
+ // Our permanent glass dots and toolbar already provide all window controls.
+ // A hidden native title bar still slides over them in fullscreen: omit it entirely,
+ // without disabling the independent macOS Apple menu or native fullscreen Spaces.
+ win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'quadro-preload.cjs'),additionalArguments:['--quadro-version='+app.getVersion(),...(test?['--quadro-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
  exitController=require('./quadro-lifecycle.cjs').install({app,win,log,onError:error=>{if(!test)dialog.showErrorBox('Mouse Browser — данные не сохранены','Браузер оставлен открытым. Повторите выход после устранения ошибки: '+error.message)},flush:async()=>{
   if(win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');
   if(browser){await browser.save();await browser.saveQueue;await browser.session.cookies.flushStore();browser.session.flushStorageData();}

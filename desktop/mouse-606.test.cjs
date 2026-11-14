@@ -11,6 +11,7 @@ test('exact supplied mouse source, no generated replacement or cross artwork',()
 test('Mouse product preserves profile/appID while changing all shipped app artwork',()=>{
  const c=require('./quadro-build.cjs');assert.equal(c.productName,'Mouse Browser');assert.equal(c.extraMetadata.version,'6.0.6');assert.equal(c.appId,require('./package.json').build.appId);assert.match(c.artifactName,/^Mouse-Browser-/);assert.equal(c.mac.icon,'icons/mouse-browser-light.png');assert.ok(c.files.includes('mouse-native-menu.node'));
  const main=fs.readFileSync('quadro-main.cjs','utf8');assert.match(main,/app\.setPath\('userData',path.join\(app.getPath\('appData'\),'Trader OS'\)\)/);assert.match(main,/app\.setName\('Mouse Browser'\)/);assert.doesNotMatch(main,/kiosk:true|simpleFullscreen:true|alwaysOnTop:true/);
+ assert.match(main,/frame:false,fullscreenable:true/);assert.doesNotMatch(main,/titleBarStyle:'hidden'/);
 });
 test('single compact AI toolbar, icons precede provider names, no assistant label',()=>{
  const html=fs.readFileSync('quadro/index.html','utf8'),over=fs.readFileSync('quadro/overlays.js','utf8');
