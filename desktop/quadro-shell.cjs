@@ -1,0 +1,85 @@
+'use strict';
+// Privileged operations stay in the host. Webpages never receive this bridge.
+const {desktopCapturer,screen,systemPreferences,nativeImage,clipboard,dialog}=require('electron');
+const fs=require('node:fs/promises');
+const LIMIT=32*1024*1024;
+function pngBuffer(src){
+ if(typeof src!=='string'||src.length>LIMIT*1.4||!src.startsWith('data:image/png;base64,'))throw Error('Expected a bounded PNG image');
+ const data=Buffer.from(src.slice(22),'base64');
+ if(data.length<24||data.length>LIMIT||data.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')throw Error('Invalid PNG');
+ const w=data.readUInt32BE(16),h=data.readUInt32BE(20);
+ if(!w||!h||w>8192||h>8192||w*h>40000000)throw Error('Image is too large');
+ return data;
+}
+function imageData(image){
+ if(image.isEmpty())throw Error('Не удалось получить изображение');
+ const data=image.toPNG();pngBuffer('data:image/png;base64,'+data.toString('base64'));
+ return 'data:image/png;base64,'+data.toString('base64');
+}
+async function boundedBody(response,limit){
+ if(!response.ok||Number(response.headers.get('content-length'))>limit)throw Error('Icon unavailable');
+ const reader=response.body.getReader(),parts=[];let total=0;
+ try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>limit)throw Error('Icon too large');parts.push(Buffer.from(value))}}finally{await reader.cancel().catch(()=>{})}
+ return Buffer.concat(parts);
+}
+function install({win,browser,ipcMain,trusted,send}){
+ let captureBusy=false;const icons=new Map();
+ win.setWindowButtonVisibility(false);
+ const chrome=()=>{const d=screen.getDisplayMatching(win.getBounds());return{fullscreen:win.isFullScreen(),inset:win.isFullScreen()?Math.min(64,Math.max(32,d.workArea.y-d.bounds.y+8)):0}};
+ const emit=()=>{if(!win.isDestroyed())win.webContents.send('quadro:chrome',chrome())};
+ for(const name of ['enter-full-screen','leave-full-screen','maximize','unmaximize','resize'])win.on(name,emit);
+ ipcMain.handle('quadro:chrome',e=>{trusted(e);return chrome()});
+ ipcMain.handle('quadro:favicon',async(e,id)=>{
+  trusted(e);const t=browser.get(id);let url;
+  try{url=new URL(t.favicon||'/favicon.ico',t.view.webContents.getURL());if(!['https:','http:'].includes(url.protocol)||url.username||url.password)return ''}catch{return ''}
+  const key=url.href,cached=icons.get(key);if(cached&&Date.now()-cached.at<300000)return cached.result;
+  if(icons.size>=100)icons.delete(icons.keys().next().value);
+  const result=(async()=>{try{
+   const response=await browser.session.fetch(key,{signal:AbortSignal.timeout(4000)});
+   const image=nativeImage.createFromBuffer(await boundedBody(response,128*1024));
+   const size=image.getSize();if(image.isEmpty()||size.width>1024||size.height>1024)return '';
+   return image.resize({width:20,height:20}).toDataURL();
+  }catch{return ''}})();icons.set(key,{at:Date.now(),result});return result;
+ });
+ async function capture(kind){
+  if(captureBusy)throw Error('Скриншот уже создаётся');captureBusy=true;
+  try{
+   if(kind==='screen'){
+    if(['denied','restricted'].includes(systemPreferences.getMediaAccessStatus('screen')))throw Error('Разрешите Quadro Browser запись экрана в настройках macOS. Снимок области браузера доступен без этого разрешения.');
+    const d=screen.getDisplayMatching(win.getBounds()),s=Math.min(d.scaleFactor,8192/Math.max(d.size.width,d.size.height));
+    const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(d.size.width*s),height:Math.round(d.size.height*s)},fetchWindowIcons:false});
+    const source=sources.find(x=>String(x.display_id)===String(d.id));
+    if(!source||source.thumbnail.isEmpty())throw Error('Экран недоступен. Проверьте разрешение записи экрана macOS.');
+    return{base:imageData(source.thumbnail),width:d.size.width,height:d.size.height,layers:[],kind};
+   }
+   const [width,height]=win.getContentSize(),base=imageData(await win.capturePage()),layers=[];
+   // Native WebContentsViews are composed explicitly; shell-only captures lose their pixels.
+   for(const t of [...browser.tabs.values(),...browser.providers.values()]){
+    if(!t.visible||t.view.webContents.isDestroyed())continue;
+    const bounds=t.bounds;if(!bounds)continue;
+    layers.push({src:imageData(await t.view.webContents.capturePage()),...bounds});
+   }
+   return{base,width,height,layers,kind:'browser'};
+  }finally{captureBusy=false}
+ }
+ ipcMain.handle('quadro:capture',async(e,action,args={})=>{
+  trusted(e);
+  if(action==='browser'||action==='screen')return capture(action);
+  if(action!=='save'&&action!=='copy')throw Error('Unsupported screenshot action');
+  const data=pngBuffer(args.src),image=nativeImage.createFromBuffer(data);if(image.isEmpty())throw Error('Invalid PNG pixels');
+  if(action==='copy'){clipboard.writeImage(image);return{ok:true}}
+  const result=await dialog.showSaveDialog(win,{title:'Сохранить скриншот',defaultPath:'Quadro-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png',filters:[{name:'PNG',extensions:['png']}],properties:['showOverwriteConfirmation']});
+  if(result.canceled||!result.filePath)return{canceled:true};
+  await fs.writeFile(result.filePath,data);return{ok:true};
+ });
+ const shortcut=(event,input)=>{
+  if(input.type==='keyDown'&&input.control&&!input.meta&&!input.alt&&!input.shift&&String(input.key).toLowerCase()==='a'){
+   event.preventDefault();if(!input.isAutoRepeat)send('screenshot');
+  }
+ };
+ win.webContents.on('before-input-event',shortcut);
+ for(const t of [...browser.tabs.values(),...browser.providers.values()])t.view.webContents.on('before-input-event',shortcut);
+ const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);t.view.webContents.on('before-input-event',shortcut);return t};
+ return{capture,chrome};
+}
+module.exports={install,pngBuffer};
