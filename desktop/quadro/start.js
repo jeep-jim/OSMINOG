@@ -23,7 +23,7 @@ globalThis.createQuadroStart=({N,overlays,navigate,locale,status})=>{
  const icons=new Map(),iconQueue=[];let running=0;
  function queueIcon(item,box){
   const initial=(new URL(item.url).hostname.replace(/^www\./,'')[0]||'').toUpperCase();box.textContent=initial;
-  const apply=src=>{if(!src||!box.isConnected)return;const image=make('img');image.alt='';image.src=src;box.replaceChildren(image);};
+  const apply=src=>{if(!src||!box.isConnected)return;const image=make('img');image.alt='';globalThis.QuadroIcons.watch(image);image.src=src;box.replaceChildren(image);};
   if(icons.has(item.url)){icons.get(item.url).then(apply);return;}
   let resolve;const promise=new Promise(r=>resolve=r);if(icons.size>600)icons.delete(icons.keys().next().value);icons.set(item.url,promise);promise.then(apply);
   iconQueue.push(async()=>{try{resolve(await N.start('icon',{url:item.url}));}catch{resolve('');}});pump();

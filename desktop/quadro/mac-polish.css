@@ -1,0 +1,24 @@
+/* Restrained glass surfaces; contrast comes from opaque text, not backdrop pixels. */
+:root{--glass:color-mix(in srgb,var(--panel) 86%,transparent);--glass-edge:color-mix(in srgb,var(--muted) 28%,transparent);--glass-shine:#ffffff90}
+:root[data-theme=dark]{--glass:color-mix(in srgb,var(--panel) 85%,transparent);--glass-shine:#ffffff18}
+button,select{background:linear-gradient(160deg,color-mix(in srgb,var(--panel) 88%,white),var(--glass));border:1px solid var(--glass-edge);box-shadow:inset 0 1px 0 var(--glass-shine),0 1px 3px #0000000c;backdrop-filter:blur(14px) saturate(1.15);-webkit-backdrop-filter:blur(14px) saturate(1.15)}
+:root[data-theme=dark] button,:root[data-theme=dark] select{background:linear-gradient(160deg,color-mix(in srgb,var(--panel) 95%,white),var(--glass))}
+button:hover{background:var(--hover)}button.primary{background:var(--accent);color:var(--accent-text)}
+.dialog-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:0 0 14px}.dialog-actions button{margin:0}
+.dialog-content>button{margin:0 8px 10px 0}dialog{background:var(--glass);backdrop-filter:blur(22px) saturate(1.15);-webkit-backdrop-filter:blur(22px) saturate(1.15);border-color:var(--glass-edge)}
+#statusbar button,#statusbar select,.pane-head button{background:var(--glass);box-shadow:inset 0 1px 0 var(--glass-shine);border-color:transparent}
+.tab-title,.tab-close,.library-name,.favorite-open,.recent-open{background:transparent!important;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.traffic-space button{background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 90%,white),color-mix(in srgb,var(--line) 68%,transparent));border-radius:50%}
+:root[data-theme=dark] img[data-ink=dark]{filter:invert(1)}:root[data-theme=light] img[data-ink=light]{filter:invert(1)}
+#library-dialog{position:static;inset:auto;flex:none;margin:0;width:380px;max-width:calc(100vw - 280px);height:100%;max-height:none;border:0;border-left:1px solid var(--line);border-radius:0;box-shadow:none;background:var(--glass);overflow:hidden;align-self:stretch}
+#library-dialog:not([open]){display:none}#library-dialog[open]{display:flex;flex-direction:column;animation:library-in .16s ease-out}
+#library-dialog>header{height:38px;flex:none;padding:5px 10px}.library-tabs{padding:9px 10px;gap:5px;flex-wrap:wrap}.library-tabs button{font-size:11px;min-height:26px;padding:4px 7px}.library-search{padding:0 10px 10px;min-width:0}.library-search input{min-width:0;width:0}.library-search button{font-size:11px}
+#library-rows{padding:0 10px}.library-row{flex-wrap:wrap;gap:6px}.library-actions{flex-wrap:wrap;max-width:100%}.library-body{min-width:150px}.library-actions button{min-height:25px}.library-dialog footer{gap:8px;padding:10px;font-size:11px}
+.library-detail{user-select:text}.library-name{text-wrap:nowrap}#library-close{width:28px;height:28px;min-height:28px}
+@keyframes library-in{from{opacity:.4;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){#library-dialog[open]{animation:none}}
+
+:root[data-theme] button.primary{background:var(--accent);color:var(--accent-text)}
+#web3-dialog{width:min(590px,calc(100vw - 40px))}#web3-dialog .dialog-content{display:flex;flex-direction:column;gap:12px}#web3-dialog form{gap:10px}#web3-dialog label{margin:0}#web3-dialog code{overflow-wrap:anywhere;font-size:12px;user-select:all}#web3-dialog h3{font-size:13px;margin:0 0 8px}.wallet-warning{border:1px solid var(--glass-edge);padding:10px;border-radius:10px;margin:0;color:var(--text);font-size:12px}#web3-error{color:var(--text);font-size:12px}.wallet-accept{display:flex!important;flex-direction:row!important;align-items:flex-start;font-size:12px;gap:8px!important}.wallet-accept input{width:16px!important;flex:none}#web3-rpc-form{margin:10px 0}#web3-sites{font-size:12px;overflow-wrap:anywhere}#web3-sites .wallet-row{justify-content:space-between}#web3-dialog .hint{margin:0}
+
+.global-capture-settings{padding-top:12px;border-top:1px solid var(--line)}.global-capture-settings h3{font-size:14px;margin:0 0 10px}.global-capture-enable{display:flex;align-items:center;gap:9px}.global-capture-enable input{width:16px;height:16px}.global-capture-settings p{font-size:12px;line-height:1.5}.global-capture-settings .dialog-actions{margin-bottom:6px}

@@ -10,7 +10,7 @@ if(test)app.setPath('userData',process.env.QUADRO_TEST_PROFILE);
 fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'quadro-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
-let win,browser,store,exitController,libraryService,overlayGate,startService;
+let win,browser,store,exitController,libraryService,overlayGate,startService,web3Service,globalCapture;
 const entry=pathToFileURL(path.join(__dirname,'quadro/index.html')).href;
 function show(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus()}
 function trusted(e){if(!require('./trust.cjs').trustedFrame(e,win,entry))throw Error('Untrusted frame')}
@@ -34,7 +34,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const send=name=>{show();if(win.webContents.getURL()===entry)win.webContents.send('quadro:menu',name)};
  Menu.setApplicationMenu(Menu.buildFromTemplate([
   {label:'Quadro Browser',submenu:[{role:'about'},{label:'Проверить обновление…',click:()=>send('updates')},{type:'separator'},{role:'services'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},
-  {label:'Файл',submenu:[{label:'Скриншот',accelerator:'Control+A',click:()=>send('screenshot')},{label:'Новая вкладка',accelerator:'Cmd+T',click:()=>send('new-tab')},{label:'Адрес страницы',accelerator:'Cmd+L',click:()=>send('address')},{label:'Вернуть закрытую вкладку',accelerator:'Cmd+Shift+T',click:()=>send('reopen')},{label:'Новое окно в раскладке',accelerator:'Cmd+Alt+T',click:()=>send('split-x')},{label:'Закрыть вкладку',accelerator:'Cmd+W',click:()=>send('close-tab')}]},
+  {label:'Файл',submenu:[{label:'Скриншот экрана Mac · ⌃A',click:()=>void globalCapture?.request()},{label:'Скриншот окон браузера',click:()=>send('screenshot')},{label:'Новая вкладка',accelerator:'Cmd+T',click:()=>send('new-tab')},{label:'Адрес страницы',accelerator:'Cmd+L',click:()=>send('address')},{label:'Вернуть закрытую вкладку',accelerator:'Cmd+Shift+T',click:()=>send('reopen')},{label:'Новое окно в раскладке',accelerator:'Cmd+Alt+T',click:()=>send('split-x')},{label:'Закрыть вкладку',accelerator:'Cmd+W',click:()=>send('close-tab')}]},
   {label:'Правка',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'pasteAndMatchStyle'},{role:'selectAll'}]},
   {label:'Вид',submenu:[{label:'Обновить страницу',accelerator:'Cmd+R',click:()=>send('reload')},{label:'Показать / скрыть ИИ',accelerator:'Cmd+Shift+I',click:()=>send('ai')},{label:'Сменить тему',click:()=>send('theme')},{type:'separator'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{type:'separator'},{role:'togglefullscreen'}]},
   {label:'История',submenu:[{label:'Показать историю',accelerator:'Cmd+Y',click:()=>send('history')},{label:'Сохранённые запросы',click:()=>send('searches')},{label:'Закладки',accelerator:'Cmd+Alt+B',click:()=>send('bookmarks')},{label:'Добавить закладку',accelerator:'Cmd+D',click:()=>send('bookmark')},{label:'Загрузки',accelerator:'Cmd+Shift+J',click:()=>send('downloads')}]},
@@ -48,10 +48,12 @@ if(ownsProfile)app.whenReady().then(async()=>{
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
  overlayGate=new (require('./quadro-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('quadro:overlay',(e,state)=>{trusted(e);return overlayGate.set(state)});
+ web3Service=await require('./quadro-web3.cjs').install({app,win,browser,trusted,test});
  await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
- require('./quadro-shell.cjs').install({win,browser,ipcMain,trusted,send});
+ globalCapture=await new (require('./quadro-global-capture.cjs').GlobalCapture)({electron:require('electron'),app,mainWindow:win,store,trusted,entryDirectory:__dirname,test}).init();
+ require('./quadro-shell.cjs').install({win,browser,ipcMain,trusted,send,test,captureScreen:()=>globalCapture.request()});
  libraryService=await require('./quadro-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
  startService=await require('./quadro-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  const updates=new (require('./quadro-update.cjs').QuadroUpdates)({app,shell,emit:state=>{if(!win.isDestroyed())win.webContents.send('quadro:update-state',state)}});
@@ -61,7 +63,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const makePage=browser.make.bind(browser);browser.make=(...args)=>{const page=makePage(...args);page.view.webContents.on('before-input-event',escapeFullscreen);return page};
  const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
  ipcMain.handle('quadro:init',async e=>{trusted(e);const data=await store.get(['quadroPreferences','traderPreferences']);const initial={state:browser.state(),preferences:data.quadroPreferences||{theme:data.traderPreferences?.theme||'light'}};if(test&&process.argv.includes('--quadro-init-race')){win.webContents.send('browser:state',browser.state());await new Promise(resolve=>setTimeout(resolve,450));}return initial});
- ipcMain.handle('quadro:save',async(e,p)=>{trusted(e);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid preferences');const value={tree:require('./quadro/layout.js').validate(p.tree),slots:p.slots,active:p.active,theme:p.theme,locale:p.locale==='en'?'en':'ru',aiOpen:p.aiOpen===true,aiWidth:Number(p.aiWidth)||360,aiId:p.aiId,aiSites:p.aiSites,aiSessions:p.aiSessions};await store.set({quadroPreferences:value});return true});
+ ipcMain.handle('quadro:save',async(e,p)=>{trusted(e);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid preferences');const value={tree:require('./quadro/layout.js').validate(p.tree),slots:p.slots,active:p.active,theme:p.theme,locale:p.locale==='en'?'en':'ru',libraryWidth:Math.max(300,Math.min(1600,Number(p.libraryWidth)||380)),aiOpen:p.aiOpen===true,aiWidth:Number(p.aiWidth)||360,aiId:p.aiId,aiSites:p.aiSites,aiSessions:p.aiSessions};await store.set({quadroPreferences:value});return true});
  ipcMain.handle('quadro:browser',(e,action,args={})=>{trusted(e);if(!allowed.has(action))throw Error('Unsupported browser action');return browser.command(action,args)});
  ipcMain.handle('quadro:window',(e,action)=>{trusted(e);if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./quadro-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('quadro:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
@@ -72,6 +74,6 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.loadURL(entry);show();
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Quadro UI failed to start'))}},100)})");
  log('QUADRO_READY '+app.getVersion());
- if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService});
+ if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture});
  if(test&&process.argv.some(x=>x.startsWith('--quadro-close-test=')))await require('./quadro-close-smoke.cjs')({app,win,store,log});
 }).catch(error=>{log('STARTUP_FAILED '+error.stack);if(!test)dialog.showErrorBox('Quadro Browser — ошибка запуска','Локальные данные не удалены.\n'+error.message+'\nЖурнал: '+logFile);app.exit(1)});
