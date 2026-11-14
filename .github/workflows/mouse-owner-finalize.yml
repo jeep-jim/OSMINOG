@@ -1,0 +1,75 @@
+name: Apply reviewed Mouse owner additions
+on:
+  push:
+    branches: ['codex/mouse-browser-606-native-menu']
+    paths: ['.github/workflows/mouse-owner-finalize.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify complete reviewed text and every input and output hash
+        run: |
+          python3 - <<'PY'
+          import base64,zlib,hashlib,json,pathlib
+          root=pathlib.Path.cwd();parts=[]
+          expected=['51329b67e7d33d6af8b559d8e8f0b078983ea14ed877d74d2a96f0b6eb268206','0ac9eddc32550fcdef929b09f08bfa4703140ef52139689b14ba5163dc999ba3','14d10ad75bb43e71ae0b96245f01a58891866079ae7d6708aba4198a9e909997','531727f614d58ae427400704c309dd0384d77aff55dc5a3334c9e0f7ce6afb89','830ee2ca5811a5917cd394cebe3ba6dfa7b5e6a1ad8c2f1e85f1d86b6e6ddc64']
+          for i in range(5):
+              file=root/('.github/mouse-final/end.txt' if i==4 else f'.github/mouse-final/{i:02}.b64')
+              value=''.join(file.read_text().split())
+              if i==3:
+                  value=value.replace('E2Xjj9+eXFw79','E2Xjj9+XFw79').replace('CTXrFa1cb1','CTXrFa1ncb1')
+                  value=value.split('LzyGRY')[0]+'LzyGRY21iiNxiplcxRpqvQZTbW+CzcwGs/JaDwpU2/cwmzcovHKrcazssxX3g638Xa4jbfDbbwdbuPtaKwGGk0VWaOp0mI01lqMxlqI0VTzMptKZLOxRDYbS+QLtygbNHZxNPZZNHdaNPdaNHdbNHdDmE0VEbOxO6ixJX/xFmbTFqUMNxuzW7Oph8R0Gy/cbbxwt/HCG9ur'
+              actual=hashlib.sha256(value.encode()).hexdigest();print('PART',i,len(value),actual)
+              if actual!=expected[i]:raise SystemExit('Transport mismatch; no source writes: '+str(i))
+              parts.append(value)
+          raw=zlib.decompress(base64.b64decode(''.join(parts),validate=True))
+          assert hashlib.sha256(raw).hexdigest()=='f8654c887b12ccd0e0645d9ee0a95166d386e941a0e77a712d6679751e23de97'
+          manifest=json.loads(raw);outputs={}
+          assert len(manifest)==27
+          for name,item in manifest.items():
+              assert name.startswith('desktop/') or name in ['OSMINOG_BROWSER_ROADMAP.md','tools/quadro-verify.py','docs/desktop/2026-11-14-mouse-browser-606.md'],name
+              p=(root/name).resolve();assert p.is_relative_to(root) and not pathlib.Path(name).is_absolute()
+              if item['base'] is None:
+                  assert not p.exists(),name
+                  value=item['content']
+              else:
+                  data=p.read_bytes();assert hashlib.sha256(data).hexdigest()==item['base'],name
+                  value=data.decode('utf8')
+                  for start,end,replacement in sorted(item['edits'],reverse=True):
+                      assert 0<=start<=end<=len(value),name
+                      value=value[:start]+replacement+value[end:]
+              out=value.encode('utf8');assert hashlib.sha256(out).hexdigest()==item['sha256'],name
+              outputs[name]=out
+          for name,out in outputs.items():
+              p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(out)
+          pathlib.Path('/tmp/mouse-owner-paths.json').write_text(json.dumps(list(outputs)))
+          print('MOUSE_OWNER_EXACT_SOURCE_HASHES_PASS',len(outputs))
+          PY
+      - name: Existing desktop and owner regressions
+        working-directory: desktop
+        run: |
+          npm test
+          node --test mouse-606.test.cjs mouse-private.test.cjs quadro.test.cjs quadro-polish.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs quadro-global-capture.test.cjs
+      - name: Commit only reviewed runtime and documentation; never change workflows via token
+        run: |
+          python3 - <<'PY'
+          import json,subprocess,pathlib
+          paths=json.loads(pathlib.Path('/tmp/mouse-owner-paths.json').read_text())
+          subprocess.run(['git','add','-f','--',*paths],check=True)
+          changed=subprocess.check_output(['git','diff','--cached','--name-only']).decode().splitlines()
+          assert set(changed)==set(paths),(changed,paths)
+          assert not any(p.startswith('.github/') for p in changed)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Implement isolated incognito, mascot glasses, capture feedback and readable start controls'
+          git push origin HEAD:codex/mouse-browser-606-native-menu
