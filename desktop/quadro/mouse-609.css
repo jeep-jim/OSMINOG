@@ -1,0 +1,14 @@
+/* Real artwork, enlarged without changing the owner's silhouette. */
+#update-dialog .mouse-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;min-height:178px;margin:0 0 16px}
+#update-dialog #update-mouse{display:block;width:150px;height:150px;max-width:none;flex:none;object-fit:contain;image-rendering:pixelated;margin:0;filter:none}
+:root[data-theme="dark"] #update-dialog #update-mouse{filter:invert(1)}
+#update-dialog #update-status{margin:0;font-size:15px;line-height:1.4;font-weight:600;min-height:21px}
+#update-dialog #update-progress{width:100%;height:6px;margin:0 0 12px;accent-color:var(--accent)}
+#update-dialog .dialog-content{overflow:auto;max-height:calc(100vh - 110px)}
+#update-dialog[data-phase="checking"] #update-mouse,#update-dialog[data-phase="downloading"] #update-mouse,#update-dialog[data-phase="installing"] #update-mouse{animation:mouse-update-breathe 1.6s ease-in-out infinite}
+@keyframes mouse-update-breathe{50%{transform:translateY(-3px);opacity:.72}}
+@media(prefers-reduced-motion:reduce){#update-dialog #update-mouse{animation:none!important;transform:none!important}}
+.pane,#ai-panel{position:relative}
+.resize-size-hud{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;pointer-events:none;user-select:none;white-space:nowrap;max-width:90%;padding:9px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.32);background:rgba(20,25,35,.88);color:#fff;font:600 16px/1.3 -apple-system,BlinkMacSystemFont,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.4px;box-shadow:0 6px 22px rgba(0,0,0,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.resize-size-hud[hidden]{display:none}
+:root[data-theme="light"] .resize-size-hud{background:rgba(255,255,255,.92);color:#152033;border-color:rgba(60,70,90,.28)}

@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.8');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.9');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -34,7 +34,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    for(const width of [1440,1100,900]){win.setSize(width,900);await sleep(100);for(const n of [1,2,4,6]){await js(`QuadroTest.changeLayout(${n})`);await geometry(n,true)}}
    console.log('QUADRO_FULLWIDTH_1_2_4_6_PASS');
    win.setSize(1440,960);await js('QuadroTest.changeLayout(4)');await sleep(150);
-   async function drag(selector,dx,dy){const r=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.sendInputEvent({type:'mouseMove',x:r.x,y:r.y});win.webContents.sendInputEvent({type:'mouseDown',x:r.x,y:r.y,button:'left',clickCount:1});await until(()=>js('document.body.classList.contains("resizing")'),'real pointer down');await sleep(50);win.webContents.sendInputEvent({type:'mouseMove',x:r.x+dx,y:r.y+dy,button:'left'});await sleep(100);win.webContents.sendInputEvent({type:'mouseUp',x:r.x+dx,y:r.y+dy,button:'left',clickCount:1});await until(()=>js('!document.body.classList.contains("resizing")'),'real pointer up');await sleep(150)}
+   async function drag(selector,dx,dy){const r=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.sendInputEvent({type:'mouseMove',x:r.x,y:r.y});win.webContents.sendInputEvent({type:'mouseDown',x:r.x,y:r.y,button:'left',clickCount:1});await until(()=>js('document.body.classList.contains("resizing")'),'real pointer down');await sleep(50);console.log('MOUSE_609_DRAG_DOWN',selector,await js('JSON.stringify({path:QuadroTest.model.drag?.path,axis:QuadroTest.model.drag?.axis,pointer:QuadroTest.model.drag?.pointer})'));win.webContents.sendInputEvent({type:'mouseMove',x:r.x+dx,y:r.y+dy,button:'left'});await sleep(100);console.log('MOUSE_609_DRAG_MOVED',selector,await js('JSON.stringify({axis:QuadroTest.model.drag?.axis,ratio:QuadroTest.model.tree.ratio,childRatio:QuadroTest.model.tree.a.ratio})'));win.webContents.sendInputEvent({type:'mouseUp',x:r.x+dx,y:r.y+dy,button:'left',clickCount:1});await until(()=>js('!document.body.classList.contains("resizing")'),'real pointer up');await sleep(150)}
    await drag('.divider[data-axis=x]',150,0);assert.ok(await js('QuadroTest.model.tree.ratio')>.55);await geometry(4,true);
    await drag('.divider[data-axis=y]',0,100);assert.ok(await js('QuadroTest.model.tree.a.ratio')>.55);await geometry(4,true);
    console.log('QUADRO_REAL_HORIZONTAL_VERTICAL_DRAG_PASS');
@@ -59,6 +59,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   }
   if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
+  if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});
   if(!process.argv.includes('--quadro-smoke-read'))await require('./mouse-final-smoke.cjs')({win});
   console.log('QUADRO_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('QUADRO_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('quadro-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}

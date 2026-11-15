@@ -34,9 +34,9 @@ module.exports=async({app,win,browser})=>{
   // mouse event or a synthetic coordinate passed only to the browser layout.
   probe.testPointer(d.bounds.x+d.bounds.width-180,d.bounds.y+100);await sleep(150);
   console.log('MOUSE_OS_POINTER_PROBE',JSON.stringify(probe.testPointer(d.bounds.x+d.bounds.width-180,d.bounds.y)));
-  try{await until(()=>win.quadroChromeGuard.nativeState().menuVisible,'real Apple menu visible after OS pointer hover');}catch(error){console.error('MOUSE_NATIVE_MENU_FAILURE',JSON.stringify(win.quadroChromeGuard.nativeState()));await screenshot('mouse-606-menu-failure.png');throw error;}
+  try{await until(()=>{const state=win.quadroChromeGuard.nativeState();return state.menuVisible&&state.held;},'real Apple menu visible and native hover handled after OS pointer hover');}catch(error){console.error('MOUSE_NATIVE_MENU_FAILURE',JSON.stringify(win.quadroChromeGuard.nativeState()));await screenshot('mouse-606-menu-failure.png');throw error;}
   const visible=win.quadroChromeGuard.nativeState();console.log('MOUSE_NATIVE_MENU_VISIBLE',JSON.stringify(visible));assert.equal(visible.activationPolicy,0);assert.equal(visible.appleMenuDisabled,false);assert.equal(visible.menuHidden,false);assert.equal(visible.windowLevel,0);
-  win.quadroChromeGuard.sample();await sleep(200);
+  win.quadroChromeGuard.sample();await until(async()=>Math.abs(await js('document.querySelector(".toolbar").getBoundingClientRect().height')-(40+visible.inset))<=2,'renderer geometry acknowledges real menu');
   assert.ok(Math.abs(await js('document.querySelector(".toolbar").getBoundingClientRect().height')-(40+visible.inset))<=2);
   await screenshot('mouse-606-system-menu.png');
   probe.testPointer(d.bounds.x+d.bounds.width/2,d.bounds.y+d.bounds.height/2);win.focus();

@@ -43,8 +43,9 @@ class GlobalCapture {
   });
   return this;
  }
- permission(){if(this.nativeCapture?.status().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
- state(){return{enabled:this.enabled,registered:this.registered,shortcut:SHORTCUT,permission:this.permission(),error:this.lastError,runningOnly:true,pickerAvailable:!!this.nativeCapture?.status().pickerAvailable,applicationPath:this.app.getPath?.('exe')||''};}
+ nativeStatus(){try{return this.nativeCapture?.status()||{};}catch{return{};}}
+ permission(){if(this.nativeStatus().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
+ state(){return{enabled:this.enabled,registered:this.registered,shortcut:SHORTCUT,permission:this.permission(),error:this.lastError,runningOnly:true,pickerAvailable:!!this.nativeStatus().pickerAvailable,applicationPath:this.app.getPath?.('exe')||''};}
  publish(){if(!this.main.isDestroyed())this.main.webContents.send('quadro:global-capture-state',this.state());}
  register(){
   if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);
@@ -62,22 +63,22 @@ class GlobalCapture {
   const result=await this.e.dialog.showMessageBox(options);
   if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
  }
- async acquire(display,choose=false){
-  if(this.nativeCapture?.status().pickerAvailable){
-   const frame=await this.nativeCapture.capture(Number(display.id),choose);if(!frame){this.lastError='';return null;}
-   require('./quadro-shell.cjs').pngBuffer(frame.base);this.captureCount++;return frame;
-  }
-  const permission=this.permission();
-  if(permission==='denied'||permission==='restricted'){await this.explainPermission();return null;}
-  // No microphone, video stream, continuous screen polling or audio capture.
+ async legacyFrame(display){
+  // The original, working path remains first when this process has consent.
   const scale=Math.min(display.scaleFactor||1,8192/Math.max(display.size.width,display.size.height),Math.sqrt(40000000/(display.size.width*display.size.height)));
   const sources=await this.e.desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.max(1,Math.round(display.size.width*scale)),height:Math.max(1,Math.round(display.size.height*scale))},fetchWindowIcons:false});
-  if(this.permission()!=='granted'){await this.explainPermission();return null;}
   const source=sources.find(s=>String(s.display_id)===String(display.id));
-  if(!source||source.thumbnail.isEmpty())throw Error('macOS не предоставила снимок выбранного экрана. Проверьте разрешение записи экрана.');
-  const base=source.thumbnail.toDataURL();require('./quadro-shell.cjs').pngBuffer(base);
-  this.captureCount++;
-  return{base,width:display.size.width,height:display.size.height,layers:[],kind:'screen'};
+  if(!source||source.thumbnail.isEmpty())throw Error('macOS не предоставила изображение выбранного экрана.');
+  return{base:source.thumbnail.toDataURL(),width:display.size.width,height:display.size.height,layers:[],kind:'screen',backend:'desktopCapturer'};
+ }
+ async acquire(display,choose=false){
+  const status=this.nativeStatus(),{acquireFrame}=require('./mouse-capture-policy.cjs');
+  const frame=await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
+   legacy:()=>this.legacyFrame(display),
+   native:status.pickerAvailable&&status.granted?()=>this.nativeCapture.capture(Number(display.id),false):null,
+   picker:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),true):null});
+  if(!frame){this.lastError='';return null;}
+  require('./quadro-shell.cjs').pngBuffer(frame.base);this.captureCount++;return frame;
  }
  async request(choose=false){
   this.requests++;
@@ -89,9 +90,15 @@ class GlobalCapture {
    const frame=this.test&&this.testFrame?this.testFrame:await this.acquire(display,choose);
    if(!frame)return;this.pending=frame;await this.openEditor(display);this.lastError='';
   }catch(error){
-   this.pending=null;this.lastError=String(error.message||'Не удалось создать скриншот').slice(0,500);
+   this.pending=null;
    if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
-   if(!this.test)await this.e.dialog.showMessageBox({type:'error',title:'Mouse Browser — скриншот',message:'Не удалось открыть снимок',detail:this.lastError,buttons:['Закрыть']});
+   const denied=require('./mouse-capture-policy.cjs').permissionError(error);
+   if(denied&&!this.nativeStatus().pickerAvailable){await this.explainPermission();return;}
+   this.lastError=denied?'macOS не разрешила захват текущей сборке. Запись в настройках могла остаться от предыдущей версии. Разрешение запуска приложения и запись экрана — разные разрешения.':String(error.message||'Не удалось создать скриншот').slice(0,500);
+   if(!this.test){
+    const result=await this.e.dialog.showMessageBox({type:'warning',title:'Mouse Browser — скриншот',message:denied?'macOS не предоставила доступ к экрану':'Не удалось получить снимок',detail:this.lastError+(error.nativeCode?'\nКод macOS: '+error.nativeCode:''),buttons:['Закрыть','Настройки записи экрана'],defaultId:0,cancelId:0,noLink:true});
+    if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
+   }
   }finally{this.busy=false;this.publish();}
  }
  async openEditor(display){
