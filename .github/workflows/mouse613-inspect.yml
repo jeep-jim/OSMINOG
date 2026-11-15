@@ -1,0 +1,34 @@
+name: Inspect Mouse 613 source
+on:
+  push:
+    branches: [codex/mouse613-capture-inspect]
+    paths: [.github/workflows/mouse613-inspect.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 47426b2d910241e360f17a5136989c3bc1456835
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          repository: jeep-jim/OSMINOG-Releases
+          ref: main
+          path: releases
+          persist-credentials: false
+      - run: |
+          mkdir export
+          git -C source archive --format=tar HEAD > export/source.tar
+          git -C releases archive --format=tar HEAD > export/releases.tar
+          git -C source rev-parse HEAD > export/source-head.txt
+          git -C releases rev-parse HEAD > export/releases-head.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse613-source-snapshot
+          path: export
+          retention-days: 2
+          if-no-files-found: error
