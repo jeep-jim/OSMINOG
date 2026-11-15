@@ -1,0 +1,51 @@
+name: Mouse 609 actual visual capture gate
+on:
+  push:
+    branches: ['codex/mouse609-source-transport']
+    paths: ['.github/workflows/mouse609-visual-gate.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach c571cd27c58ab49ec9f672b4ac4468d84c187e46
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('desktop/quadro/mouse-609.css');s=p.read_text();assert 'width:144px;height:144px' in s;p.write_text(s.replace('width:144px;height:144px','width:150px;height:150px'))
+          p=Path('desktop/mouse-609.test.cjs');s=p.read_text();assert 'width:144px' in s;p.write_text(s.replace('width:144px','width:150px'))
+          p=Path('desktop/mouse-609-smoke.cjs');s=p.read_text();a=s.index("  for(const theme of ['light','dark']){");b=s.index("  console.log('MOUSE_609_LARGE_UPDATE_MASCOT_BOTH_THEMES_PASS');",a)
+          s=s[:a]+'''  for(const theme of ['light','dark']){
+           await js(`QuadroTest.setTheme('${theme}');QuadroTest.overlays.show(document.querySelector('#update-dialog'))`);
+           await until(()=>js('document.querySelector("#update-dialog").open'),'actual update dialog open');
+           await js('document.querySelector("#update-mouse").decode()');
+           await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await sleep(700);
+           const image=await rect('#update-mouse'),dialog=await rect('#update-dialog');assert.ok(image.w>=150&&image.h>=150);assert.ok(Math.abs(image.x+image.w/2-dialog.x-dialog.w/2)<2);
+           assert.equal(await js('getComputedStyle(document.querySelector("#update-mouse")).filter'),theme==='dark'?'invert(1)':'none');
+           // capturePage can return a previous compositor frame; require actual
+           // foreground ink in the logo rectangle, not just positive DOM bounds.
+           let shot,visible=false;
+           for(let attempt=0;attempt<8;attempt++){
+            shot=await win.capturePage();const dims=shot.getSize(),rgba=shot.toBitmap(),scale=dims.width/await js('innerWidth');let ink=0;
+            for(let y=Math.ceil(image.y*scale);y<Math.floor((image.y+image.h)*scale);y++)for(let x=Math.ceil(image.x*scale);x<Math.floor((image.x+image.w)*scale);x++){
+             const i=(y*dims.width+x)*4;if(rgba[i+3]>250&&(theme==='dark'?Math.min(rgba[i],rgba[i+1],rgba[i+2])>200:Math.max(rgba[i],rgba[i+1],rgba[i+2])<50))ink++;
+            }
+            if(ink>300*scale*scale){visible=true;break;}await sleep(250);
+           }
+           assert.equal(visible,true,'actual update mascot ink visible in '+theme);assert.equal(await js('document.querySelector("#update-dialog").open'),true);
+           await fs.writeFile('mouse-609-update-'+theme+'.png',shot.toPNG());
+           await js('document.querySelector("#update-dialog").close();QuadroTest.overlays.sync()');await sleep(250);
+          }
+          '''+s[b:];p.write_text(s)
+          p=Path('docs/desktop/2026-11-15-mouse609.md');p.write_text(p.read_text()+'\nФинальная визуальная проверка усилена: один старый capturePage кадр не содержал открытого диалога, хотя DOM-геометрия уже была готова. Теперь проверяется open/декодирование/кадр и действительные контрастные пиксели логотипа; тестовый прогресс не подменяет реальный статус. Размер150px даёт точный5x масштаб исходной сетки30px. Runtime захвата/меню/данных не изменён.\n')
+          PY
+          git diff --check
+          (cd desktop && node --test mouse-609.test.cjs)
+          git add desktop/quadro/mouse-609.css desktop/mouse-609.test.cjs desktop/mouse-609-smoke.cjs docs/desktop/2026-11-15-mouse609.md
+          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Verify actually painted update mascot in both themes and use exact 5x owner pixel scale'
+          git push origin HEAD:refs/heads/codex/mouse609-visual-final-candidate
