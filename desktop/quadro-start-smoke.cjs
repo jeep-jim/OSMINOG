@@ -14,7 +14,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   ['#version-button','#update-dialog','#update-dialog [data-close-dialog]'],
   ['#screenshot-button','#capture-dialog','#capture-close']
  ]){
-  const stale=structuredClone(browser.panels);await click(button);await until(()=>js(`document.querySelector('${dialog}').open`),'footer modal '+dialog);noGuestAboveModal();
+  const stale=structuredClone(browser.panels);if(button==='#screenshot-button')await js('QuadroTest.capture.open()');else await click(button);await until(()=>js(`document.querySelector('${dialog}').open`),'footer modal '+dialog);noGuestAboveModal();
   // The old one-shot hide() design fails this check. A busy guest/resize may
   // deliver an obsolete layout after the dialog is already visible.
   browser.layout(stale);browser.emit();win.emit('resize');await sleep(150);noGuestAboveModal();

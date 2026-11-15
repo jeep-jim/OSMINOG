@@ -13,7 +13,9 @@ globalThis.createQuadroCapture=({N,show,restore,locale})=>{
   return out;
  }
  function selectTool(value){tool=value;d.dataset.tool=tool;d.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===tool)));$('#capture-text').hidden=tool!=='text';$('#capture-font').hidden=tool!=='text'}
- function render(){if(!base)return;ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(base,0,0);for(const op of ops)QuadroCaptureCore.draw(ctx,op);if(current&&tool!=='select')QuadroCaptureCore.draw(ctx,current);$('#capture-undo').disabled=!ops.length;$('#capture-redo').disabled=!redo.length}
+ function fit(){if(!base||!d.open)return;const stage=d.querySelector('.capture-stage'),s=getComputedStyle(stage),w=stage.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight),h=stage.clientHeight-parseFloat(s.paddingTop)-parseFloat(s.paddingBottom);if(w<=0||h<=0)return;const scale=Math.min(1,w/c.width,h/c.height);c.style.width=(c.width*scale)+'px';c.style.height=(c.height*scale)+'px';c.style.flex='none';}
+ new ResizeObserver(fit).observe(d.querySelector('.capture-stage'));
+ function render(){if(!base)return;fit();ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(base,0,0);for(const op of ops)QuadroCaptureCore.draw(ctx,op);if(current&&tool!=='select')QuadroCaptureCore.draw(ctx,current);$('#capture-undo').disabled=!ops.length;$('#capture-redo').disabled=!redo.length}
  function reset(){base=full;ops=[];redo=[];current=null;start=null;c.width=base.width;c.height=base.height;selectTool('select');render();status('Выделите область мышью')}
  function crop(r){if(r.width<8||r.height<8)return;const out=document.createElement('canvas');out.width=r.width;out.height=r.height;out.getContext('2d').drawImage(full,r.x,r.y,r.width,r.height,0,0,r.width,r.height);base=out;c.width=r.width;c.height=r.height;ops=[];redo=[];selectTool('arrow');render();status(`${r.width} × ${r.height}`)}
  const pos=e=>{const r=c.getBoundingClientRect();return{x:Math.max(0,Math.min(c.width,(e.clientX-r.x)*c.width/r.width)),y:Math.max(0,Math.min(c.height,(e.clientY-r.y)*c.height/r.height))}};
@@ -27,7 +29,7 @@ globalThis.createQuadroCapture=({N,show,restore,locale})=>{
  d.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{if(b.dataset.tool==='select')reset();else{selectTool(b.dataset.tool);if(tool==='text')$('#capture-text').focus()}});
  $('#capture-all').onclick=()=>crop({x:0,y:0,width:full.width,height:full.height});
  $('#capture-undo').onclick=()=>{if(ops.length)redo.push(ops.pop());render()};$('#capture-redo').onclick=()=>{if(redo.length)ops.push(redo.pop());render()};
- async function exportImage(action){if(tool==='select'){status('Сначала выделите область или нажмите «Весь снимок»');return}render();try{const result=await N.capture(action,{src:c.toDataURL('image/png')});status(result.canceled?'Сохранение отменено':action==='copy'?'Скопировано':'Сохранено')}catch(e){status(e.message)}}
+ async function exportImage(action){if(start)return;if(tool==='select')selectTool('arrow');render();try{const result=await N.capture(action,{src:c.toDataURL('image/png')});status(result.canceled?'Сохранение отменено':action==='copy'?'Скопировано':'Сохранено')}catch(e){status(e.message)}}
  $('#capture-copy').onclick=()=>exportImage('copy');$('#capture-save').onclick=()=>exportImage('save');$('#capture-close').onclick=e=>{e.preventDefault();e.stopPropagation();d.close()};
  d.addEventListener('cancel',e=>{e.preventDefault();d.close()});
  d.addEventListener('close',()=>{opened=false;full=null;base=null;ops=[];redo=[];start=null;current=null;c.width=1;c.height=1;restore()});
@@ -40,6 +42,6 @@ globalThis.createQuadroCapture=({N,show,restore,locale})=>{
  }
  // Browser-region capture only. Closing never starts a second capture or a permission request.
  const api={open,feedback,isOpen:()=>opened};
- if(N.test)api.test={compose,crop,render,getCanvas:()=>c,getOps:()=>ops,getFull:()=>full,selectTool,exportImage};
+ if(N.test)api.test={compose,crop,render,getCanvas:()=>c,getOps:()=>ops,getFull:()=>full,selectTool,exportImage,fit};
  return api;
 };

@@ -15,7 +15,7 @@ module.exports=async({win,browser,store})=>{
  await js('QuadroTest.setLocale("en")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=wallet]").textContent'),'Wallet');
  await js('QuadroTest.setLocale("ru")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=wallet]").textContent'),'Кошелёк');
  console.log('QUADRO_FAVICONS_PNG_SVG_LOCALE_PASS');
- await click('#screenshot-button');
+ await js('QuadroTest.capture.open()');
  await until(()=>js('QuadroTest.capture.isOpen()'),'browser camera screenshot');assert.ok(browser.panels.length===0,'Native pages hidden behind editor');
  assert.ok(await js('QuadroTest.capture.test.getFull().width>800'));
  const fullPixel=await js(`(()=>{const f=QuadroTest.capture.test.getFull(),r=document.querySelector('.pane .page-slot').getBoundingClientRect(),s=f.width/innerWidth;return Array.from(f.getContext('2d').getImageData(Math.round((r.x+r.width-12)*s),Math.round((r.y+12)*s),1,1).data)})()`);

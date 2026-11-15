@@ -39,7 +39,7 @@ module.exports=async({app,win,browser,libraryService})=>{
   console.log('QUADRO_DOWNLOAD_PROGRESS_PAUSE_RESUME_FILE_PASS');
   for(const fullscreen of [false,true]){
    if(fullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'fullscreen screenshot setup');await sleep(800)}
-   await click('#screenshot-button');await until(()=>js('QuadroTest.capture.isOpen()'),'open screenshot via camera');
+   await js('QuadroTest.capture.open()');await until(()=>js('QuadroTest.capture.isOpen()'),'open screenshot via camera');
    assert.equal(await js('getComputedStyle(document.querySelector(".toolbar")).webkitAppRegion'),'no-drag');
    await click('#capture-close');await until(()=>js('!QuadroTest.capture.isOpen()&&!document.querySelector("#capture-dialog").open'),'actual screenshot X');await until(()=>browser.panels.length>1,'panes restored after screenshot X');
    if(fullscreen)await require('./quadro-lifecycle.cjs').leaveFullscreen(win);

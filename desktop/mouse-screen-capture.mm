@@ -86,6 +86,8 @@ static NSError* captureError(NSInteger code,NSString* text){return [NSError erro
 }
 - (void)captureFilter:(SCContentFilter*)filter {
  if(self.finished||self.capturing)return;self.capturing=YES;
+ // The selected DISPLAY includes system menu; do not replace the user-authorized filter.
+ if(@available(macOS 14.2,*))filter.includeMenuBar=YES;
  CGRect rect=filter.contentRect;double w=rect.size.width,h=rect.size.height;self.width=w;self.height=h;
  if(!(w>0&&h>0)){[self finish:nil error:captureError(1,@"macOS вернула пустую область снимка") cancelled:NO];return;}
  double scale=MIN(MAX(1.,filter.pointPixelScale),MIN(8192./MAX(w,h),sqrt(40000000./(w*h))));
@@ -100,7 +102,8 @@ static NSError* captureError(NSInteger code,NSString* text){return [NSError erro
  }else [SCScreenshotManager captureImageWithFilter:filter configuration:c completionHandler:^(CGImageRef image,NSError* error){[self finishImage:image error:error];}];
 }
 - (void)contentSharingPicker:(SCContentSharingPicker*)picker didUpdateWithFilter:(SCContentFilter*)filter forStream:(SCStream*)stream {
- dispatch_async(dispatch_get_main_queue(),^{[self captureFilter:filter];});
+ // Let the OS consent sheet disappear before acquiring a frame of the selected display.
+ dispatch_after(dispatch_time(DISPATCH_TIME_NOW,550*NSEC_PER_MSEC),dispatch_get_main_queue(),^{[self captureFilter:filter];});
 }
 - (void)contentSharingPicker:(SCContentSharingPicker*)picker didCancelForStream:(SCStream*)stream {[self finish:nil error:nil cancelled:YES];}
 - (void)contentSharingPickerStartDidFailWithError:(NSError*)error {[self finish:nil error:error cancelled:NO];}
@@ -125,7 +128,7 @@ static napi_value capture(napi_env e,napi_callback_info info){
   if(choose){
    r.usingPicker=YES;SCContentSharingPicker* picker=SCContentSharingPicker.sharedPicker;SCContentSharingPickerConfiguration* c=[SCContentSharingPickerConfiguration new];c.allowedPickerModes=SCContentSharingPickerModeSingleDisplay;picker.defaultConfiguration=c;[picker addObserver:r];picker.active=YES;[picker presentPickerUsingContentStyle:SCShareableContentStyleDisplay];
   }else{
-   [SCShareableContent getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:YES completionHandler:^(SCShareableContent* content,NSError* error){dispatch_async(dispatch_get_main_queue(),^{
+   [SCShareableContent getShareableContentExcludingDesktopWindows:NO onScreenWindowsOnly:YES completionHandler:^(SCShareableContent* content,NSError* error){dispatch_async(dispatch_get_main_queue(),^{
     if(r.finished)return;if(error){[r finish:nil error:error cancelled:NO];return;}SCDisplay* chosen=nil;for(SCDisplay* item in content.displays)if(item.displayID==display){chosen=item;break;}
     if(!chosen){[r finish:nil error:captureError(4,@"Выбранный экран отключён. Повторите снимок.") cancelled:NO];return;}
     [r captureFilter:[[SCContentFilter alloc] initWithDisplay:chosen excludingWindows:@[]]];
