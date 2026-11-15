@@ -23,9 +23,9 @@ globalThis.createQuadroOverlays=({N,restore,error})=>{
  chooser.addEventListener('click',e=>{if(e.target===chooser){const r=chooser.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)chooser.close();}});
  chooser.addEventListener('keydown',e=>{const buttons=[...chooser.querySelectorAll('button')];const i=buttons.indexOf(document.activeElement);if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();buttons[(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();}});
  async function choose(select){
-  if(select.disabled||chooser.open)return;anchor=select;chooser.replaceChildren();
+  if(select.disabled||chooser.open)return;anchor=select;chooser.dataset.select=select.id;chooser.replaceChildren();
   for(const option of select.options){if(option.hidden)continue;const b=document.createElement('button');b.type='button';b.textContent=option.textContent;b.disabled=option.disabled;b.dataset.value=option.value;b.setAttribute('role','option');b.setAttribute('aria-selected',String(option.selected));
-   if(select.id==='ai-select'){b.classList.add('provider-option');const text=document.createElement('span');text.textContent=option.textContent;b.replaceChildren();const icon=document.createElement('img');icon.className='favicon';icon.alt='';icon.src='globe.svg';b.append(icon,text);globalThis.MouseAIIcons?.apply(icon,option.value);}
+   if(select.id==='ai-select'){b.classList.add('provider-option');const text=document.createElement('span');text.textContent=option.textContent;text.className='provider-label';b.replaceChildren();const icon=document.createElement('img');icon.className='favicon';icon.alt='';icon.src='globe.svg';const check=document.createElement('span');check.className='provider-check';check.setAttribute('aria-hidden','true');check.textContent=option.selected?'✓':'';b.append(icon,text,check);globalThis.MouseAIIcons?.apply(icon,option.value);}
    b.onclick=()=>{select.value=option.value;chooser.close();select.dispatchEvent(new Event('change',{bubbles:true}));};chooser.append(b);
   }
   const r=select.getBoundingClientRect(),width=Math.min(innerWidth-24,Math.max(160,r.width)),height=Math.min(320,chooser.children.length*32+12,innerHeight-24);
