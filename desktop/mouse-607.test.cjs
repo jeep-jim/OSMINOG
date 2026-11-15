@@ -29,5 +29,5 @@ test('private mascot uses uniform square pixels on 47x64 grid, unchanged silhoue
  const segments=[...body.matchAll(/M(\d+) (\d+)h(\d+)v(\d+)h-\d+z/g)];assert.equal(segments.map(m=>m[0]).join(''),body);
  for(const m of segments){const [x,y,w,h]=m.slice(1).map(Number);assert.ok(x+w<=47&&y+h<=64);assert.equal(w,2);assert.equal(h,2);for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)mask[j][i]=true;}
  for(let y=0;y<64;y++)for(let x=0;x<47;x++)assert.equal(mask[y][x],(x<44&&y<60&&brand.pixels[Math.floor(y/2)][21-Math.floor(x/2)]==='1'),`private source silhouette ${x},${y}`);
- assert.match(svg,/id="owner-pixel-glasses"/);assert.match(svg,/fill="#000000"/);assert.match(svg,/fill="#ffffff"/);
+ assert.match(svg,/id="owner-pixel-glasses"/);assert.match(svg,/fill="#a855f7"/);assert.match(svg,/fill="#ffffff"/);
 });

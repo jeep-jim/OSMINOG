@@ -22,3 +22,10 @@
 /* A focused pane never rewrites saved split ratios or side-panel preferences. */
 body.pane-focused #library-dialog,body.pane-focused #library-divider,body.pane-focused #ai-panel,body.pane-focused #ai-divider{display:none!important}
 body.pane-focused [data-pane-action=split-x],body.pane-focused [data-pane-action=split-y],body.pane-focused [data-pane-action=remove]{display:none}
+
+/* 6.0.10: preserve every pixel of the existing glasses in both themes. */
+#statusbar #private-button svg{display:block;width:24px;height:14px;shape-rendering:crispEdges;filter:none}
+#statusbar #private-button svg path:first-child{fill:#a855f7}
+#statusbar #private-button svg path:last-child{fill:#ffffff}
+:root[data-theme=light] #statusbar #private-button[aria-pressed=true]{background:#ede9fe;border-color:#a855f7}
+:root[data-theme=dark] #statusbar #private-button[aria-pressed=true]{background:#211a33;border-color:#a855f7}
