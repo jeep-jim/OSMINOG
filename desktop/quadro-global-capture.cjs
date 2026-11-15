@@ -69,6 +69,8 @@ class GlobalCapture {
   const sources=await this.e.desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.max(1,Math.round(display.size.width*scale)),height:Math.max(1,Math.round(display.size.height*scale))},fetchWindowIcons:false});
   const source=sources.find(s=>String(s.display_id)===String(display.id));
   if(!source||source.thumbnail.isEmpty())throw Error('macOS не предоставила изображение выбранного экрана.');
+  const pixels=source.thumbnail.getSize?.(),bounds=display.bounds||display.size;
+  if(pixels&&Math.abs(pixels.width/pixels.height-bounds.width/bounds.height)>2/Math.max(pixels.width,pixels.height))throw Error('macOS вернула неполный кадр экрана.');
   return{base:source.thumbnail.toDataURL(),width:display.size.width,height:display.size.height,layers:[],kind:'screen',backend:'desktopCapturer'};
  }
  async acquire(display,choose=false){

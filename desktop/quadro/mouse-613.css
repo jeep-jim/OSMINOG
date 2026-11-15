@@ -1,0 +1,35 @@
+/* One row, no hidden offscreen tabs. The add button still follows the last tab. */
+.toolbar #tabstrip{flex:0 1 auto;min-width:0;gap:3px;overflow:hidden}
+.toolbar #tabstrip .tab-item{flex:0 1 230px;min-width:0;max-width:230px;position:relative}
+.toolbar #tabstrip .tab-title{min-width:0;padding:2px 5px;font-size:12px}
+.toolbar #tabstrip .tab-close{position:absolute;left:1px;top:2px;bottom:2px;width:20px;min-width:0;z-index:2}
+.toolbar #tabstrip .favicon{width:14px;height:14px;margin:0 6px;flex:none}
+.toolbar #tabstrip .tab-item:hover .favicon,.toolbar #tabstrip .tab-item:focus-within .favicon{opacity:0}
+.toolbar #tabstrip[data-density=compact] .tab-title{font-size:10px;padding:2px 1px}
+.toolbar #tabstrip[data-density=compact] .favicon{margin:0 3px}
+.toolbar #tabstrip[data-density=tiny] .tab-title{padding:0;font-size:0}
+.toolbar #tabstrip[data-density=tiny] .favicon{width:min(12px,75%);margin:auto;flex:0 1 12px}
+.toolbar #tabstrip[data-density=tiny] .tab-close{left:0;top:0;width:100%;font-size:11px}
+.pane-head .pane-title{display:none!important}
+.pane-head{position:relative}
+.pane-head .pane-icon{cursor:grab;flex:none;display:flex;align-items:center;min-width:15px}
+.pane-head.address-editing>:not(.pane-address){display:none!important}
+.pane-head.address-editing .pane-address{flex:1;min-width:0}
+.pane-head.address-editing input{font-size:11px;padding:2px 7px}
+body.mouse-swapping{cursor:grabbing;user-select:none}
+body.mouse-swapping .pane.mouse-drop-target{outline:2px solid var(--mouse-ai-active);outline-offset:-2px}
+body.mouse-swapping .tab-item.mouse-drop-target{box-shadow:inset 0 0 0 1px var(--mouse-ai-active)}
+#ai-panel>.ai-controls{height:28px;min-height:28px;max-height:28px;flex:none;padding:2px 4px;gap:2px;box-sizing:border-box}
+#ai-panel>.ai-controls>button,#ai-panel>.ai-controls [data-action=ai-back],#ai-panel>.ai-controls [data-action=ai-forward]{height:22px;min-height:22px;width:20px;min-width:20px;font-size:13px;border-radius:5px}
+.ai-provider{height:22px}
+.ai-provider #ai-select{height:22px;min-height:22px;padding:2px 26px 2px 23px;font-size:10px;appearance:none;-webkit-appearance:none}
+.ai-provider:after{content:'';position:absolute;right:10px;top:7px;width:5px;height:5px;border-right:1.4px solid var(--text);border-bottom:1.4px solid var(--text);transform:rotate(45deg);pointer-events:none}
+.ai-provider>.favicon{left:5px;width:13px;height:13px;filter:none}
+.ai-provider>.favicon[data-builtin=chatgpt],#choice-dialog .favicon[data-builtin=chatgpt]{background:#f8f8f8;border-radius:3px;padding:1px;box-sizing:content-box}
+#choice-dialog .provider-option{gap:7px;padding:5px 9px;min-height:28px;font-size:12px}
+#choice-dialog .provider-option .favicon{width:14px;height:14px;filter:none}
+#choice-dialog .provider-option>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#choice-dialog .provider-option[aria-selected=true]{background:var(--selected);font-weight:600}
+#choice-dialog .provider-option[aria-selected=true]:after{content:'✓';color:var(--mouse-ai-active);font-size:15px;flex:none;margin-left:7px;margin-right:2px}
+#status:empty{display:none}
+.mouse-domain button{font:inherit;padding:0;border:0;background:none;box-shadow:none;color:var(--accent);text-decoration:underline}

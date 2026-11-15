@@ -1197,3 +1197,6 @@ After another browser termination report the owner explicitly supersedes the ful
 
 ## 2026-11-15 — Mouse6.0.12
 ИИ: четыре локальных официальных логотипа, собственные назад/вперёд, голубой активный статус. Плюс у последней вкладки, очки -1px. Защита от уничтоженных views и bounded shell recovery; причина конкретного вылета требует .ips. См. docs/desktop/2026-11-15-mouse612.md. Публиковать только после проверки DMG и канала.
+
+## 2026-11-15 — Mouse 6.0.13
+Owner requested compact single-row tabs, swapping, expanded URL, matching AI toolbar and selected check, right library controls, mouse.black About, and entire-display screenshot fit. See docs/desktop/2026-11-15-mouse613.md. Native verification and publication required.
