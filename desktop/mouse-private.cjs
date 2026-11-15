@@ -30,6 +30,7 @@ class PrivateMode {
   const remember=(target,event)=>{const before=target.listeners(event);return()=>{for(const fn of target.listeners(event))if(!before.includes(fn))listeners.push([target,event,fn]);};};
   const collect=[remember(win,'resize'),remember(win,'closed'),remember(win.webContents,'did-start-navigation')];
   const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});
+  require('./mouse-stability.cjs').installWorkspace(browser);
   collect.forEach(fn=>fn());
   const gate=new (require('./quadro-overlays.cjs').OverlayGate)(browser,win);
   const current={store,ses,partition,browser,gate,handlers,emit,listeners,libraryService:null,startService:null};this.current=current;

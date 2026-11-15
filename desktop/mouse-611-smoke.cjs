@@ -21,7 +21,7 @@ module.exports=async({win})=>{
     assert.equal(a.src,src);assert.equal(a.filter,'none');
     const at=(x,y)=>a.pixels.slice((y*47+x)*4,(y*47+x)*4+4);
     assert.deepEqual(at(0,58),light?[0,0,0,255]:[255,255,255,255]);
-    assert.deepEqual(at(46,17),[168,85,247,255]);assert.deepEqual(at(16,17),[255,255,255,255]);
+    assert.deepEqual(at(45,17),[168,85,247,255]);assert.deepEqual(at(15,17),[255,255,255,255]);
    }
    assert.equal(result.background,light?'rgb(237, 238, 240)':'rgb(23, 24, 34)');
    assert.equal(result.text,light?'rgb(25, 25, 35)':'rgb(245, 241, 255)');

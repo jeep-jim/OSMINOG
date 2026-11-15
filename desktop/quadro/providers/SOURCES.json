@@ -1,0 +1,26 @@
+[
+  {
+    "provider": "chatgpt",
+    "source": "https://chatgpt.com/cdn/assets/favicon.6a33781f61.svg",
+    "originalSHA256": "2021463df9935dda89cef407aa564bced9d83b4f9b6ae8945d649e56676624f0",
+    "pngSHA256": "ae88cf97b04fe949d9261fa2a88121470e03c03eadf39240ad764726b13d84ef"
+  },
+  {
+    "provider": "claude",
+    "source": "https://claude.ai/favicon.ico",
+    "originalSHA256": "525d5c063365f7656ba0fe8b9165742c4874e70852d9bed7153b6faca8663a02",
+    "pngSHA256": "e6f61bff7a0b8e19259e9355f3a5ff404e8ac3f3ddae3a4b828d7a92941c5cd2"
+  },
+  {
+    "provider": "gemini",
+    "source": "https://www.gstatic.com/lamda/images/gemini_favicon_f069958c85030456e93de685481c559f160ea06b.png",
+    "originalSHA256": "5dccbfbde13e1c1c222eeccfe49c9986adc9c75f741be1ae0e6626a92fad4765",
+    "pngSHA256": "d7ec81dc21eb7ee62a6633e107b8d8a39241d31c09631a494cb352cc42f637d4"
+  },
+  {
+    "provider": "deepseek",
+    "source": "https://www.deepseek.com/favicon.ico",
+    "originalSHA256": "30a4420e6e4dcb17fd7de560c5004346c2bc8cd971d2d5f5ee15326603e51321",
+    "pngSHA256": "3ba62d7374fa1ccaec9f33de3a291f56094c5df49e9d4c814de467962c7b6cb4"
+  }
+]
