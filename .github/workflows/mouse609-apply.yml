@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify and apply exact changes without retaining transport
+      - name: Verify and apply exact application changes
         shell: bash
         run: |
           set -euo pipefail
@@ -24,7 +24,10 @@ jobs:
           assert hashlib.sha256(raw).hexdigest()=='906eeee8a5443ca542e6e611388f219dcc8cd6053c1334213c31c74c3a349ad8'
           for e in json.loads(raw):
               p=pathlib.Path(e['path'])
-              assert not p.is_absolute() and '..' not in p.parts and (e['path'].startswith(('desktop/','tools/','docs/desktop/','.github/workflows/')) or e['path']=='OSMINOG_BROWSER_ROADMAP.md')
+              assert not p.is_absolute() and '..' not in p.parts
+              if e['path'].startswith('.github/workflows/'):
+                  continue
+              assert e['path'].startswith(('desktop/','tools/','docs/desktop/')) or e['path']=='OSMINOG_BROWSER_ROADMAP.md'
               if 'new' in e:
                   assert not p.exists();p.parent.mkdir(parents=True,exist_ok=True);p.write_text(e['new']);continue
               text=p.read_text();assert hashlib.sha256(text.encode()).hexdigest()==e['sha'],str(p)
@@ -32,13 +35,13 @@ jobs:
               for a,b,s in reversed(e['ops']):text=text[:a]+s+text[b:]
               assert hashlib.sha256(text.encode()).hexdigest()==e['outsha'],str(p)
               p.write_text(text)
-          assert not pathlib.Path('.github/workflows/mouse609-snapshot.yml').exists()
           assert not pathlib.Path('transport').exists()
           PY
+          test -z "$(git diff --name-only -- .github/workflows)"
           git diff --check
           node --check desktop/quadro/quadro.js
           node --check desktop/mouse-609-smoke.cjs
           git add -A
-          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Mouse 6.0.9: recover consented capture, expose Apple menu without title chrome, update mascot and transient pane size HUD'
+          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Mouse 6.0.9 application changes: consented capture recovery, native title chrome, centered mascot and pane size HUD'
           git push origin HEAD:refs/heads/codex/mouse609-generated-candidate
           git rev-parse HEAD
