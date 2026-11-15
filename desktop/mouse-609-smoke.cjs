@@ -22,12 +22,26 @@ module.exports=async({app,win,browser,globalCapture})=>{
   }
   console.log('MOUSE_609_RESIZE_HUD_BOTH_AXES_CENTERS_RELEASE_PASS');
   for(const theme of ['light','dark']){
-   await js(`QuadroTest.setTheme('${theme}');QuadroTest.overlays.show(document.querySelector('#update-dialog'))`);
-   win.webContents.send('quadro:update-state',{phase:'downloading',percent:38,currentVersion:app.getVersion()});await sleep(200);
-   const image=await rect('#update-mouse'),dialog=await rect('#update-dialog');assert.ok(image.w>=140&&image.h>=140);assert.ok(Math.abs(image.x+image.w/2-dialog.x-dialog.w/2)<2);
-   assert.equal(await js('document.querySelector("#update-dialog").dataset.phase'),'downloading');
-   await fs.writeFile('mouse-609-update-'+theme+'.png',(await win.capturePage()).toPNG());await click('#update-dialog [data-close-dialog]');
+ await js(`QuadroTest.setTheme('${theme}');QuadroTest.overlays.show(document.querySelector('#update-dialog'))`);
+ await until(()=>js('document.querySelector("#update-dialog").open'),'actual update dialog open');
+ await js('document.querySelector("#update-mouse").decode()');
+ await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await sleep(700);
+ const image=await rect('#update-mouse'),dialog=await rect('#update-dialog');assert.ok(image.w>=150&&image.h>=150);assert.ok(Math.abs(image.x+image.w/2-dialog.x-dialog.w/2)<2);
+ assert.equal(await js('getComputedStyle(document.querySelector("#update-mouse")).filter'),theme==='dark'?'invert(1)':'none');
+ // capturePage can return a previous compositor frame; require actual
+ // foreground ink in the logo rectangle, not just positive DOM bounds.
+ let shot,visible=false;
+ for(let attempt=0;attempt<8;attempt++){
+  shot=await win.capturePage();const dims=shot.getSize(),rgba=shot.toBitmap(),scale=dims.width/await js('innerWidth');let ink=0;
+  for(let y=Math.ceil(image.y*scale);y<Math.floor((image.y+image.h)*scale);y++)for(let x=Math.ceil(image.x*scale);x<Math.floor((image.x+image.w)*scale);x++){
+   const i=(y*dims.width+x)*4;if(rgba[i+3]>250&&(theme==='dark'?Math.min(rgba[i],rgba[i+1],rgba[i+2])>200:Math.max(rgba[i],rgba[i+1],rgba[i+2])<50))ink++;
   }
+  if(ink>300*scale*scale){visible=true;break;}await sleep(250);
+ }
+ assert.equal(visible,true,'actual update mascot ink visible in '+theme);assert.equal(await js('document.querySelector("#update-dialog").open'),true);
+ await fs.writeFile('mouse-609-update-'+theme+'.png',shot.toPNG());
+ await js('document.querySelector("#update-dialog").close();QuadroTest.overlays.sync()');await sleep(250);
+}
   console.log('MOUSE_609_LARGE_UPDATE_MASCOT_BOTH_THEMES_PASS');
   const display=screen.getDisplayMatching(win.getBounds());
   if(globalCapture.permission()==='granted'){
