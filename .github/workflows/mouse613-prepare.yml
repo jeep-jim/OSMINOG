@@ -1,7 +1,7 @@
 name: Prepare scoped Mouse 6.0.13 tabs and address
 on:
   push:
-    branches: [codex/mouse613-prep]
+    branches: [codex/mouse613-tabs-address-prep]
     paths: ['staging/mouse613-prep/**','.github/workflows/mouse613-prepare.yml']
 permissions:
   contents: write
@@ -32,7 +32,7 @@ jobs:
           git diff --check
           git config user.name 'Mouse build preparation'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git switch -c codex/mouse-613-tabs-address
+          git switch -c codex/mouse-613-tabs-address-v2
           git add desktop tools .github/workflows/quadro-macos.yml OSMINOG_BROWSER_ROADMAP.md docs/desktop/2026-11-15-mouse613-tabs-address.md
           git commit -m 'Mouse 6.0.13: fitting tabs, lossless swaps, expanded address and aligned AI'
-          git push origin HEAD:refs/heads/codex/mouse-613-tabs-address
+          git push origin HEAD:refs/heads/codex/mouse-613-tabs-address-v2
