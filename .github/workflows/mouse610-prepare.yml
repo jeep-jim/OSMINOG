@@ -1,0 +1,74 @@
+name: Prepare Mouse 610 purple glasses
+on:
+  push:
+    branches: ['codex/mouse610-prepare']
+    paths: ['.github/workflows/mouse610-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply only approved artwork color, toolbar contrast and release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach 54b73852d35e27494d0132c1b0e1865269475189
+          python3 - <<'PY'
+          from pathlib import Path
+          def replace(path,a,b,count=1):
+              p=Path(path);s=p.read_text();assert s.count(a)==count,(path,a,s.count(a));p.write_text(s.replace(a,b))
+          replace('desktop/quadro/mouse-private.svg','<g id="owner-pixel-glasses"><path fill="#000000"','<g id="owner-pixel-glasses"><path fill="#a855f7"')
+          p=Path('desktop/quadro/mouse-final.css')
+          p.write_text(p.read_text()+'''\n/* 6.0.10: preserve every pixel of the existing glasses in both themes. */
+          #statusbar #private-button svg{display:block;width:24px;height:14px;shape-rendering:crispEdges;filter:none}
+          #statusbar #private-button svg path:first-child{fill:#a855f7}
+          #statusbar #private-button svg path:last-child{fill:#ffffff}
+          :root[data-theme=light] #statusbar #private-button[aria-pressed=true]{background:#ede9fe;border-color:#a855f7}
+          :root[data-theme=dark] #statusbar #private-button[aria-pressed=true]{background:#211a33;border-color:#a855f7}
+          ''')
+          replace('desktop/quadro-build.cjs',"version:'6.0.9'","version:'6.0.10'")
+          replace('desktop/quadro.test.cjs',"c.extraMetadata.version,'6.0.9'","c.extraMetadata.version,'6.0.10'")
+          for file in ['desktop/mouse-607.test.cjs','desktop/mouse-608.test.cjs']:
+              replace(file,'/fill="#000000"/','/fill="#a855f7"/')
+          replace('desktop/mouse-608.test.cjs','white fill and intact black glasses','white fill and intact purple glasses')
+          replace('desktop/mouse-607-smoke.cjs',"[0,0,0,255],'reference glasses have an opaque black right arm'","[168,85,247,255],'approved glasses have an opaque purple right arm'")
+          p=Path('desktop/mouse-607-smoke.cjs');s=p.read_text()
+          anchor=" console.log('MOUSE_608_WHITE_SQUARE_PIXELS_AND_FIXED_DOCK_PASS');"
+          assert s.count(anchor)==1
+          extra='''
+           const beforeTheme=await js('QuadroTest.model.theme');
+           try{
+            for(const theme of ['light','dark']){
+             await js(`QuadroTest.setTheme('${theme}')`);
+             const icon=await js(`(()=>{const e=document.querySelector('#private-button svg'),r=e.getBoundingClientRect(),p=e.querySelectorAll('path');return{width:r.width,height:r.height,shape:getComputedStyle(e).shapeRendering,body:getComputedStyle(p[0]).fill,shine:getComputedStyle(p[1]).fill,paths:[...p].map(x=>x.getAttribute('d'))}})()`);
+             assert.equal(icon.width,24);assert.equal(icon.height,14);assert.equal(icon.shape,'crispedges');
+             assert.equal(icon.body,'rgb(168, 85, 247)');assert.equal(icon.shine,'rgb(255, 255, 255)');
+             assert.deepEqual(icon.paths,['M1 2h22v3h-2v4h-2v2h-6V7h-2v4H5V9H3V5H1Z','M5 4h2v2H5zm2 2h2v2H7zm8-2h2v2h-2zm2 2h2v2h-2z']);
+             const rendered=await js(`(()=>{const svg=document.querySelector('#private-button svg').cloneNode(true);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('width','24');svg.setAttribute('height','14');svg.setAttribute('shape-rendering','crispEdges');svg.querySelectorAll('path')[0].setAttribute('fill','#a855f7');svg.querySelectorAll('path')[1].setAttribute('fill','#ffffff');return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=24;c.height=14;const x=c.getContext('2d');x.drawImage(i,0,0);resolve([...x.getImageData(0,0,24,14).data])};i.onerror=reject;i.src='data:image/svg+xml;base64,'+btoa(new XMLSerializer().serializeToString(svg))})})()`);
+             const pixel=(x,y)=>rendered.slice((y*24+x)*4,(y*24+x)*4+4);
+             assert.deepEqual(pixel(5,4),[255,255,255,255]);assert.deepEqual(pixel(7,6),[255,255,255,255]);assert.deepEqual(pixel(15,4),[255,255,255,255]);assert.deepEqual(pixel(17,6),[255,255,255,255]);assert.deepEqual(pixel(1,2),[168,85,247,255]);
+             await new Promise(r=>setTimeout(r,250));await fs.writeFile('mouse-610-footer-'+theme+'.png',(await win.capturePage()).toPNG());
+            }
+           }finally{await js(`QuadroTest.setTheme(${JSON.stringify(beforeTheme)})`)}
+           console.log('MOUSE_610_PURPLE_GLASSES_AND_ALL_FOOTER_PIXELS_BOTH_THEMES_PASS');
+          '''
+          p.write_text(s.replace(anchor,anchor+extra))
+          p=Path('tools/quadro-verify.py');s=p.read_text();assert '6.0.9' in s;p.write_text(s.replace('6.0.9','6.0.10'))
+          p=Path('tools/mouse-update-verify.py');s=p.read_text();assert 'MOUSE_609_REAL_608_TO_609_REPLACE_RELAUNCH_PROFILE_PASS' in s
+          s=s.replace('6.0.9','6.0.10').replace('6.0.8','6.0.9').replace('mouse609','mouse610').replace('old608','old609').replace('keep-profile-609','keep-profile-610').replace('retain-609','retain-610').replace('MOUSE_609_REAL_608_TO_609','MOUSE_610_REAL_609_TO_610')
+          s=s.replace('bdf75806471b5f86c3bbf69593edcd1de9640f5627033a20f485003289908f1f','130a779b189cab0711c527de6e1b7b657e15160046dad6ee09bfe33da45ec24a')
+          p.write_text(s)
+          p=Path('docs/desktop/2026-11-15-mouse610-purple-glasses.md')
+          p.write_text('# Mouse Browser 6.0.10 — только контраст очков\n\nПрямое поручение владельца: опубликовать минимальную смену цвета очков и проверить пиксели кнопки в светлой теме. Очки исходного белого маскота: #A855F7 вместо #000000. Геометрия всех SVG path, белые блики, усы, хвост, Dock и логотип не меняются.\n\nУ кнопки инкогнито явные фиолетовый и белый цвета вместо зависимости бликов от var(--panel); целая сетка24×14 и crispEdges. Только два UI-файла; остальное версия, соответствующие проверки и документация. Скриншоты, разрешения, updater/runtime и другие платформы не изменяются.\n\nНативный прогон должен проверить исходный белый силуэт, фиолетовую дужку, все четыре белые группы бликов кнопки в обеих темах, прежние проверки и настоящий переход609→610. До фактического успешного выпуска публикация не заявляется. Профиль не удалять; DeveloperID/нотариализация не добавлены.\n')
+          p=Path('OSMINOG_BROWSER_ROADMAP.md');p.write_text(p.read_text()+'\n\n## 2026-11-15 — минимальный Mouse6.0.10\nПо прямому поручению владельца только фиолетовые очки и читаемые пиксельные блики кнопки обеих тем. См. docs/desktop/2026-11-15-mouse610-purple-glasses.md. Публиковать после нативной проверки без прочих UI/runtime изменений.\n')
+          PY
+          git diff --check
+          node --check desktop/mouse-607-smoke.cjs
+          node --check desktop/quadro-build.cjs
+          git add desktop tools docs/desktop/2026-11-15-mouse610-purple-glasses.md OSMINOG_BROWSER_ROADMAP.md
+          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Mouse 6.0.10: purple incognito glasses and intact toolbar highlights only'
+          git push origin HEAD:refs/heads/codex/mouse610-color-candidate
