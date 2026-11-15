@@ -23,7 +23,10 @@ module.exports=async({app,win})=>{
   verify(nativeImage.createFromBuffer(ui),{dark,size:64});
  }
  const svg=await fs.readFile(path.join(__dirname,'quadro/mouse-private.svg'),'utf8');
- assert.match(svg,/viewBox="0 0 47 64"/);assert.doesNotMatch(svg,/transform=/);
+ assert.match(svg,/viewBox="0 0 47 64"/);
+ assert.equal((svg.match(/transform=/g)||[]).length,1);
+ assert.match(svg,/<g id="owner-pixel-glasses" transform="translate\(-1 0\)">/);
+ assert.doesNotMatch(svg.replace(' transform="translate(-1 0)"',''),/transform=|filter=/);
  assert.equal((svg.match(/id="mouse-approved-left"/g)||[]).length,1);
  const artwork=await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=47;c.height=64;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(i,0,0);resolve({pixels:[...x.getImageData(0,0,47,64).data],png:c.toDataURL('image/png')})};i.onerror=reject;i.src='mouse-private.svg'})`);
  const at=(x,y)=>artwork.pixels.slice((y*47+x)*4,(y*47+x)*4+4);
