@@ -75,7 +75,7 @@ class GlobalCapture {
   const status=this.nativeStatus(),{acquireFrame}=require('./mouse-capture-policy.cjs');
   const frame=await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
    legacy:()=>this.legacyFrame(display),
-   native:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),false):null,
+   native:status.pickerAvailable&&status.granted?()=>this.nativeCapture.capture(Number(display.id),false):null,
    picker:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),true):null});
   if(!frame){this.lastError='';return null;}
   require('./quadro-shell.cjs').pngBuffer(frame.base);this.captureCount++;return frame;

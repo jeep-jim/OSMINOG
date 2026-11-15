@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """CI-only real 6.0.8 -> 6.0.9 replacement using the NEW installer.
-This does not claim the already-installed 6.0.8 button contains the new updater.
+Version 6.0.8 already ships this installer. This verifies replacement separately from old-module channel discovery.
 """
 import hashlib,json,os,pathlib,shutil,subprocess,sys,time,urllib.request
 if sys.platform!='darwin' or os.environ.get('CI')!='true':raise SystemExit('CI macOS only')

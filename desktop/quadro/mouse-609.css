@@ -1,7 +1,7 @@
 /* Real artwork, enlarged without changing the owner's silhouette. */
 #update-dialog .mouse-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;min-height:178px;margin:0 0 16px}
 #update-dialog #update-mouse{display:block;width:144px;height:144px;max-width:none;flex:none;object-fit:contain;image-rendering:pixelated;margin:0;filter:none}
-:root[data-theme="dark"] #update-dialog #update-mouse{content:url('brand-dark.png')}
+:root[data-theme="dark"] #update-dialog #update-mouse{filter:invert(1)}
 #update-dialog #update-status{margin:0;font-size:15px;line-height:1.4;font-weight:600;min-height:21px}
 #update-dialog #update-progress{width:100%;height:6px;margin:0 0 12px;accent-color:var(--accent)}
 #update-dialog .dialog-content{overflow:auto;max-height:calc(100vh - 110px)}

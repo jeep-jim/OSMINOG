@@ -121,7 +121,8 @@ static napi_value capture(napi_env e,napi_callback_info info){
   bool testStream=false;if(n>2)napi_get_value_bool(e,args[2],&testStream);
   if(testStream){const char* ci=std::getenv("CI");if(!ci||std::strcmp(ci,"true")||!std::getenv("QUADRO_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--quadro-smoke-write"]||!CGPreflightScreenCaptureAccess()){[r finish:nil error:captureError(7,@"Test stream requires CI and pre-existing screen permission") cancelled:NO];return promise;}r.streamFrame=YES;}
 
-  if(choose||!CGPreflightScreenCaptureAccess()){
+  if(!choose&&!CGPreflightScreenCaptureAccess()){[r finish:nil error:[NSError errorWithDomain:@"com.apple.ScreenCaptureKit.SCStreamErrorDomain" code:-3801 userInfo:@{NSLocalizedDescriptionKey:@"macOS не предоставила разрешение текущей сборке"}] cancelled:NO];return promise;}
+  if(choose){
    r.usingPicker=YES;SCContentSharingPicker* picker=SCContentSharingPicker.sharedPicker;SCContentSharingPickerConfiguration* c=[SCContentSharingPickerConfiguration new];c.allowedPickerModes=SCContentSharingPickerModeSingleDisplay;picker.defaultConfiguration=c;[picker addObserver:r];picker.active=YES;[picker presentPickerUsingContentStyle:SCShareableContentStyleDisplay];
   }else{
    [SCShareableContent getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:YES completionHandler:^(SCShareableContent* content,NSError* error){dispatch_async(dispatch_get_main_queue(),^{
