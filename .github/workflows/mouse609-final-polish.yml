@@ -1,0 +1,46 @@
+name: Finalize Mouse 609 exact source polish
+on:
+  push:
+    branches: ['codex/mouse609-source-transport']
+    paths: ['.github/workflows/mouse609-final-polish.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach d3f8387fb76b6b91f2866485b8723d1f798a2897
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,subprocess
+          def replace(p,a,b):
+              p=Path(p);s=p.read_text();assert s.count(a)==1,(str(p),s.count(a));p.write_text(s.replace(a,b))
+          replace('desktop/quadro-global-capture.cjs','native:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),false):null,','native:status.pickerAvailable&&status.granted?()=>this.nativeCapture.capture(Number(display.id),false):null,')
+          replace('desktop/mouse-screen-capture.mm','  if(choose||!CGPreflightScreenCaptureAccess()){','  if(!choose&&!CGPreflightScreenCaptureAccess()){[r finish:nil error:[NSError errorWithDomain:@"com.apple.ScreenCaptureKit.SCStreamErrorDomain" code:-3801 userInfo:@{NSLocalizedDescriptionKey:@"macOS не предоставила разрешение текущей сборке"}] cancelled:NO];return promise;}\n  if(choose){')
+          brand=json.loads(subprocess.check_output(['node','-e','console.log(JSON.stringify(require("./desktop/mouse-brand.cjs").pixels))'],text=True))
+          cells=''.join('M%d %dh1v1h-1z'%(21-x,y) for y,row in enumerate(brand) for x,v in enumerate(row) if v=='1')
+          svg='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="30" viewBox="0 0 22 30" shape-rendering="crispEdges"><path fill="#000000" d="'+cells+'"/></svg>\n'
+          Path('desktop/quadro/mouse-update.svg').write_text(svg)
+          replace('desktop/quadro/index.html','id="update-mouse" src="brand.png"','id="update-mouse" src="mouse-update.svg"')
+          replace('desktop/quadro/mouse-609.css',":root[data-theme=\"dark\"] #update-dialog #update-mouse{content:url('brand-dark.png')}",':root[data-theme="dark"] #update-dialog #update-mouse{filter:invert(1)}')
+          p=Path('desktop/mouse-609.test.cjs');p.write_text(p.read_text()+'''\ntest('update mascot is the exact tight owner mask, not a redraw or padded small favicon',()=>{
+           const b=require('./mouse-brand.cjs'),s=fs.readFileSync('quadro/mouse-update.svg','utf8'),cells=[...s.matchAll(/M(\\d+) (\\d+)h1v1h-1z/g)].map(m=>[+m[1],+m[2]]),expected=[];
+           for(let y=0;y<30;y++)for(let x=0;x<22;x++)if(b.pixels[y][x]==='1')expected.push([21-x,y]);assert.deepEqual(cells,expected);assert.equal(cells.length,175);assert.match(s,/viewBox="0 0 22 30"/);
+          });
+          test('stale broad permission reaches the explicit picker only once',()=>{
+           const host=fs.readFileSync('quadro-global-capture.cjs','utf8'),native=fs.readFileSync('mouse-screen-capture.mm','utf8');
+           assert.match(host,/native:status.pickerAvailable&&status.granted/);assert.match(native,/if\\(!choose&&!CGPreflightScreenCaptureAccess\\(\\)\\)/);assert.doesNotMatch(native,/if\\(choose\\|\\|!CGPreflight/);
+          });\n''')
+          p=Path('tools/mouse-update-verify.py');s=p.read_text();s=s.replace('This does not claim the already-installed 6.0.8 button contains the new updater.','Version 6.0.8 already ships this installer. This verifies replacement separately from old-module channel discovery.');p.write_text(s)
+          p=Path('docs/desktop/2026-11-15-mouse609.md');p.write_text(p.read_text()+'\nNative run43666525721 прошёл, включая оба размера HUD, настоящий legacy/однокадровый stream и OS-клик по вкладке при открытом меню Apple. Реальные снимки просмотрены: лишней титульной полосы нет. Перед финальной публикацией убраны прозрачные поля вокруг крупной мыши обновления (точная175-пиксельная маска, без перерисовки). Исключён повторный picker при рассогласовании Electron/native-разрешений. Нужен повтор native для нового точного SHA.\n')
+          PY
+          git diff --check
+          (cd desktop && node --test mouse-609.test.cjs)
+          git add desktop/quadro-global-capture.cjs desktop/mouse-screen-capture.mm desktop/quadro/mouse-update.svg desktop/quadro/index.html desktop/quadro/mouse-609.css desktop/mouse-609.test.cjs tools/mouse-update-verify.py docs/desktop/2026-11-15-mouse609.md
+          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Use exact full-size mouse in updater and prevent duplicate picker on stale capture grants'
+          git push origin HEAD:refs/heads/codex/mouse609-final-candidate
