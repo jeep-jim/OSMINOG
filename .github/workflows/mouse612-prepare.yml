@@ -1,0 +1,42 @@
+name: Prepare Mouse 6.0.12 AI and stability
+on:
+  push:
+    branches: [codex/mouse612-prep]
+    paths: ['mouse612/**','.github/workflows/mouse612-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 5ecccfb387c260c4d83bc821125dc87302a0c816
+          path: work
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: python3 -m pip install Pillow==11.3.0 CairoSVG==2.8.2
+      - name: Apply scoped source edits and import official images
+        working-directory: work
+        run: |
+          set -euo pipefail
+          python3 ../mouse612/prepare.py
+          python3 ../mouse612/assets.py
+          node --check desktop/quadro/quadro.js
+          node --check desktop/quadro/mouse-612-ui.js
+          node --check desktop/mouse-stability.cjs
+          node --check desktop/mouse-612-smoke.cjs
+          (cd desktop && node --test mouse-612.test.cjs)
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop tools/quadro-verify.py tools/mouse-update-verify.py docs/desktop/2026-11-15-mouse612.md OSMINOG_BROWSER_ROADMAP.md
+          git commit -m 'Mouse 6.0.12: AI controls, official picker, adjacent tabs and lifecycle guards'
+          git push origin HEAD:refs/heads/codex/mouse-612-ai-safety
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse612-official-logos
+          path: work/desktop/quadro/providers
