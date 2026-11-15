@@ -1,0 +1,148 @@
+name: Prepare Mouse 6.0.12 AI navigation
+on:
+  push:
+    branches: [codex/mouse612-prepare]
+    paths: ['.github/workflows/mouse612-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5ecccfb387c260c4d83bc821125dc87302a0c816
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Apply only owner-requested UI changes and matching tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          def edit(path, old, new):
+              p=Path(path);s=p.read_text();assert s.count(old)==1,(path,old,s.count(old));p.write_text(s.replace(old,new))
+          edit('desktop/quadro/index.html','<div class="ai-controls"><div class="ai-provider">','<div class="ai-controls"><button data-action="ai-back" title="Назад в ИИ-чате" aria-label="Назад в ИИ-чате" disabled>‹</button><button data-action="ai-forward" title="Вперёд в ИИ-чате" aria-label="Вперёд в ИИ-чате" disabled>›</button><div class="ai-provider">')
+          edit('desktop/quadro/quadro.js',' function applySide(){const max=',' function applySide(){syncAINavigation();const max=')
+          edit('desktop/quadro/quadro.js',' const aiIcons=createMouseAIIcons', ''' function syncAINavigation(){
+            const t=tab(m.aiId),side=t?.lane==='side';
+            $('[data-action=ai-back]').disabled=!(side&&t.back);
+            $('[data-action=ai-forward]').disabled=!(side&&t.forward);
+            $('[data-action=ai-reload]').disabled=!side;
+           }
+           async function navigateAI(name){
+            const t=tab(m.aiId);if(!t||t.lane!=='side'||!['back','forward','reload'].includes(name))return;
+            if(name==='back'&&!t.back||name==='forward'&&!t.forward)return;
+            await N.browser(name,{id:t.id});
+           }
+           const aiIcons=createMouseAIIcons''')
+          edit('desktop/quadro/quadro.js',"if(name==='ai-reload'&&tab(m.aiId))return N.browser('reload',{id:m.aiId});","if(['ai-back','ai-forward','ai-reload'].includes(name))return navigateAI(name.slice(3));")
+          edit('desktop/quadro/i18n.js'," const en={"," const en={\n 'Назад в ИИ-чате':'Back in AI chat','Вперёд в ИИ-чате':'Forward in AI chat',")
+          for name, digest in [('mouse-private.svg','2af26d231b8de35d044045a220ddfb322d19f334db135169fcba17cac57cfad3'),('mouse-private-light.svg','bbf911643a151c18d8b89632fad33a56f1c10a46e0933cbd8bedab79b4706099')]:
+              p=Path('desktop/quadro')/name;assert hashlib.sha256(p.read_bytes()).hexdigest()==digest
+              edit(str(p),'<g id="owner-pixel-glasses">','<g id="owner-pixel-glasses" transform="translate(-1 0)">')
+          for path in ['desktop/mouse-607-smoke.cjs','desktop/mouse-611-smoke.cjs']:
+              edit(path,'at(46,17)','at(45,17)');edit(path,'at(16,17)','at(15,17)')
+          for path in ['desktop/quadro-build.cjs','desktop/quadro-smoke.cjs','desktop/mouse-606.test.cjs','desktop/quadro.test.cjs','tools/quadro-verify.py']:
+              p=Path(path);s=p.read_text();assert '6.0.11' in s,path;p.write_text(s.replace('6.0.11','6.0.12'))
+          edit('desktop/quadro-build.cjs',"'mouse-611-smoke.cjs'","'mouse-611-smoke.cjs','mouse-612-smoke.cjs'")
+          edit('desktop/quadro-smoke.cjs',"assert.equal(browser.get(aiId).error,'');","assert.equal(browser.get(aiId).error,'');\n   await require('./mouse-612-smoke.cjs')({win,browser,url,aiId});")
+          p=Path('tools/mouse-update-verify.py');s=p.read_text();s=s.replace('6.0.11','__NEXT__').replace('6.0.10','6.0.11').replace('__NEXT__','6.0.12')
+          s=s.replace('mouse611-update-roundtrip','mouse612-update-roundtrip').replace('old610','old611').replace('keep-profile-611','keep-profile-612').replace('retain-611','retain-612').replace('MOUSE_611_REAL_610_TO_611_REPLACE_RELAUNCH_PROFILE_PASS','MOUSE_612_REAL_611_TO_612_REPLACE_RELAUNCH_PROFILE_PASS')
+          assert '9cb12434ea571ead2d491eae2289626a4fa391b56b406160f7df8a6718e162ab' in s
+          s=s.replace('9cb12434ea571ead2d491eae2289626a4fa391b56b406160f7df8a6718e162ab','9d917572f579576c1b6b914f7fa45632f4ee1f06b1a6ad32ccd58c113f486d87');p.write_text(s)
+          Path('desktop/mouse-612.test.cjs').write_text('''
+          'use strict';
+          const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto'),vm=require('node:vm');
+          test('only complete glasses group moves exactly one source pixel left in both themes',()=>{
+           for(const [name,hash] of [['mouse-private.svg','2af26d231b8de35d044045a220ddfb322d19f334db135169fcba17cac57cfad3'],['mouse-private-light.svg','bbf911643a151c18d8b89632fad33a56f1c10a46e0933cbd8bedab79b4706099']]){
+            const s=fs.readFileSync('quadro/'+name,'utf8'),mark='<g id="owner-pixel-glasses" transform="translate(-1 0)">';
+            assert.equal(s.split(mark).length,2);const old=s.replace(mark,'<g id="owner-pixel-glasses">');
+            assert.equal(crypto.createHash('sha256').update(old).digest('hex'),hash,'body/paths/colors must remain identical to 6.0.11');
+           }
+          });
+          test('AI controls dispatch only to the selected side tab and follow its history availability',async()=>{
+           const source=fs.readFileSync('quadro/quadro.js','utf8');
+           const methods=source.slice(source.indexOf(' function syncAINavigation(){'),source.indexOf(' const aiIcons=createMouseAIIcons'));
+           const controls=Object.fromEntries(['back','forward','reload'].map(x=>['[data-action=ai-'+x+']',{}])),calls=[];
+           let current={id:'side-a',lane:'side',back:false,forward:false};
+           const context=vm.createContext({m:{aiId:'side-a'},tab:id=>current&&current.id===id?current:null,$:key=>controls[key],N:{browser:async(name,args)=>calls.push({name,id:args.id})}});
+           vm.runInContext(methods,context);context.syncAINavigation();assert.equal(controls['[data-action=ai-back]'].disabled,true);assert.equal(controls['[data-action=ai-forward]'].disabled,true);
+           await context.navigateAI('back');assert.equal(calls.length,0);
+           current.back=true;context.syncAINavigation();assert.equal(controls['[data-action=ai-back]'].disabled,false);await context.navigateAI('back');assert.deepEqual(calls,[{name:'back',id:'side-a'}]);
+           current.forward=true;await context.navigateAI('forward');assert.deepEqual(calls[1],{name:'forward',id:'side-a'});
+           current={id:'side-a',lane:'main',back:true,forward:true};context.syncAINavigation();await context.navigateAI('back');await context.navigateAI('reload');assert.equal(calls.length,2);assert.equal(controls['[data-action=ai-reload]'].disabled,true);
+           current=null;context.syncAINavigation();await context.navigateAI('forward');assert.equal(calls.length,2);
+           assert.ok(source.includes("function applySide(){syncAINavigation();"));
+           assert.ok(source.includes("if(['ai-back','ai-forward','ai-reload'].includes(name))return navigateAI(name.slice(3));"));
+           const html=fs.readFileSync('quadro/index.html','utf8');assert.match(html,/data-action="ai-back"[^>]*disabled/);assert.match(html,/data-action="ai-forward"[^>]*disabled/);
+          });
+          '''.lstrip())
+          Path('desktop/mouse-612-smoke.cjs').write_text('''
+          'use strict';
+          const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function until(fn,label){for(let i=0;i<240;i++){if(await fn())return;await sleep(50)}throw Error('AI navigation timeout: '+label)}
+          module.exports=async({win,browser,url,aiId})=>{
+           const js=s=>win.webContents.executeJavaScript(s),wc=browser.get(aiId).view.webContents;
+           const originals=[...browser.tabs.values()].filter(t=>t.lane!=='side').map(t=>({id:t.id,wc:t.view.webContents.id,url:t.view.webContents.getURL()}));
+           const prefs=await js('({theme:QuadroTest.model.theme,width:QuadroTest.model.aiWidth})');
+           const server=http.createServer((req,res)=>{if(req.url==='/redirect'){res.writeHead(302,{Location:'/login'});res.end();return}res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>AI local navigation fixture</title><h1>AI navigation fixture</h1><p>Redirect / history / independent panel</p>')});
+           await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;
+           const disabled=name=>js(`document.querySelector('[data-action=ai-${name}]').disabled`);
+           async function click(name){
+            assert.equal(await disabled(name),false,name+' is available');
+            const p=await js(`(()=>{const e=document.querySelector('[data-action=ai-${name}]'),r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),width:r.width}})()`);
+            assert.ok(p.width>0);win.focus();win.webContents.sendInputEvent({type:'mouseMove',x:p.x,y:p.y});win.webContents.sendInputEvent({type:'mouseDown',x:p.x,y:p.y,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',x:p.x,y:p.y,button:'left',clickCount:1});
+           }
+           async function at(expected){await until(()=>wc.getURL()===expected&&!browser.get(aiId).loading,'URL '+expected);await sleep(100)}
+           let second;
+           try{
+            await until(()=>disabled('back'),'initial back disabled');assert.equal(await disabled('forward'),true);
+            await browser.command('navigate',{id:aiId,url:root+'/redirect'});await at(root+'/login');await until(async()=>!await disabled('back'),'redirect history');
+            await click('back');await at(url+'/custom-ai');await until(async()=>!await disabled('forward'),'forward enabled');
+            await click('forward');await at(root+'/login');await until(()=>disabled('forward'),'forward boundary');
+            await wc.executeJavaScript("history.pushState({},'', '/login#next')");await at(root+'/login#next');
+            await click('back');await at(root+'/login');await click('forward');await at(root+'/login#next');
+            await js(`QuadroTest.openAI(${JSON.stringify(url+'/second-ai')})`);second=await js('QuadroTest.model.aiId');assert.notEqual(second,aiId);
+            await until(()=>!browser.get(second).loading,'second AI load');await until(()=>disabled('back'),'second AI independent history');assert.equal(await disabled('forward'),true);
+            await js(`QuadroTest.openAI(${JSON.stringify(url+'/custom-ai')})`);assert.equal(await js('QuadroTest.model.aiId'),aiId);assert.equal(wc.getURL(),root+'/login#next');
+            await until(async()=>!await disabled('back'),'restored AI history');await click('back');await at(root+'/login');await click('back');await at(url+'/custom-ai');
+            await until(async()=>!await disabled('forward'),'restored forward');
+            for(const theme of ['light','dark']){
+             await js(`QuadroTest.setTheme('${theme}');QuadroTest.model.aiWidth=240;QuadroTest.applySide()`);await sleep(180);
+             const geometry=await js(`(()=>{const bar=document.querySelector('.ai-controls'),r=bar.getBoundingClientRect();return{fits:bar.scrollWidth<=bar.clientWidth+1,buttons:[...bar.querySelectorAll('button')].map(b=>{const x=b.getBoundingClientRect(),s=getComputedStyle(b);return{visible:x.width>0&&x.left>=r.left&&x.right<=r.right+1,color:s.color,bg:s.backgroundColor}})}})()`);
+             assert.ok(geometry.fits,'240px toolbar fits');assert.equal(geometry.buttons.length,5);assert.ok(geometry.buttons.every(b=>b.visible&&b.color!==b.bg));
+             await fs.writeFile('mouse-612-ai-navigation-'+theme+'.png',(await win.capturePage()).toPNG());
+            }
+            await click('forward');await at(root+'/login');await click('back');await at(url+'/custom-ai');
+            assert.equal(browser.get(aiId).view.webContents.id,wc.id);
+            for(const o of originals){assert.equal(browser.get(o.id).view.webContents.id,o.wc);assert.equal(browser.get(o.id).view.webContents.getURL(),o.url,'AI back never navigates main pane')}
+            await js('document.querySelector("[data-action=close-ai]").click()');await until(()=>!browser.get(aiId).visible,'close AI');
+            await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'reopen AI');assert.equal(wc.getURL(),url+'/custom-ai');
+            assert.equal(await disabled('forward'),false);
+            console.log('MOUSE_612_AI_NATIVE_BACK_FORWARD_REDIRECT_SPA_PROVIDER_ISOLATION_PASS');
+           }finally{
+            if(second&&browser.tabs.has(second))await browser.command('close',{id:second});
+            await js(`QuadroTest.setTheme(${JSON.stringify(prefs.theme)});QuadroTest.model.aiWidth=${prefs.width};QuadroTest.applySide()`);
+            await new Promise(r=>server.close(r));
+           }
+          };
+          '''.lstrip())
+          Path('docs/desktop/2026-11-15-mouse612-ai-navigation.md').write_text('''# Mouse Browser 6.0.12 — навигация ИИ и положение очков
+          Поручение владельца: в той же компактной строке ИИ добавить Назад/Вперёд; историю брать только у выбранной side-вкладки, включая входы/редиректы и переходы внутри страницы. Недоступные действия выключены; смена сервиса сохраняет отдельные истории. Не перезагружать и не перемещать основные окна.
+          Дополнительное поручение: сдвинуть только всю группу очков маскота на один пиксель влево по исходной сетке47×64. В обоих SVG применяется translate(-1 0), все пути/цвета/блики и тело мыши без изменений. Иконка кнопки очков и Dock не меняются.
+          Проверки: unit границ команд; настоящие клики по кнопкам в packaged Mac, redirect и pushState, переключение ИИ, основные окна неизменны, панель240px обеих тем, сохранение истории при закрытии панели. Прежние проверки приватности/профиля и переход6.0.11→6.0.12 сохраняются. Публикация только после успешных проверок и точных хэшей; ad-hoc, без Developer ID/нотариализации.
+          ''')
+          with Path('OSMINOG_BROWSER_ROADMAP.md').open('a') as f:f.write('\n## 2026-11-15 — Mouse6.0.12: Назад/Вперёд у ИИ и очки на1px влево\nСм. docs/desktop/2026-11-15-mouse612-ai-navigation.md. Только две запрошенные правки; остальные функции не менять. Публикация/проверка канала отдельно.\n')
+          PY
+          node --check desktop/quadro/quadro.js
+          node --check desktop/mouse-612-smoke.cjs
+          (cd desktop && node --test mouse-612.test.cjs)
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop tools/quadro-verify.py tools/mouse-update-verify.py docs/desktop/2026-11-15-mouse612-ai-navigation.md OSMINOG_BROWSER_ROADMAP.md
+          git commit -m 'Mouse 6.0.12: independent AI back-forward controls and glasses one pixel left'
+          git push origin HEAD:refs/heads/codex/mouse-612-ai-history
