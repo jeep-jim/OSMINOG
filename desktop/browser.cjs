@@ -32,37 +32,45 @@ class BrowserWorkspace{
    // Electron's native save dialog chooses the destination; never a server upload.
    item.setSaveDialogOptions({title:'Сохранить файл на устройстве'});
   });
-  win.on('resize',()=>this.layout(this.panels));
+  this.onResize=()=>this.layout(this.panels);win.on('resize',this.onResize);
   // Loading a code-preview iframe must not hide the separate native chat views.
-  win.webContents.on('did-start-navigation',(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.layout([])});
-  win.on('closed',()=>this.dispose());
+  this.onHostNavigation=(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.layout([])};win.webContents.on('did-start-navigation',this.onHostNavigation);
+  this.onWindowClosed=()=>this.dispose();win.on('closed',this.onWindowClosed);
  }
- save(){if(!this.store)return;for(const id of this.restored)this.snapshots[id]=[...this.tabs.values(),...this.providers.values()].filter(t=>t.project===id&&!t.ephemeral).map(t=>({id:t.id,url:t.view.webContents.getURL()||t.url,lane:t.lane||'main',provider:t.provider,thread:t.thread}));const snapshot=JSON.parse(JSON.stringify(this.snapshots));this.saveQueue=this.saveQueue.catch(()=>{}).then(()=>this.store.set({browserSessions:snapshot}));this.saveQueue.catch(e=>{if(!this.disposed)this.win.webContents.send('browser:error',e.message)});return this.saveQueue}
+ save(){if(!this.store)return;for(const id of this.restored)this.snapshots[id]=[...this.tabs.values(),...this.providers.values()].filter(t=>t.project===id&&!t.ephemeral).map(t=>({id:t.id,url:t.view.webContents.isDestroyed()?t.url:t.view.webContents.getURL()||t.url,lane:t.lane||'main',provider:t.provider,thread:t.thread}));const snapshot=JSON.parse(JSON.stringify(this.snapshots));this.saveQueue=this.saveQueue.catch(()=>{}).then(()=>this.store.set({browserSessions:snapshot}));this.saveQueue.catch(e=>{if(!this.disposed)this.win.webContents.send('browser:error',e.message)});return this.saveQueue}
  async initNetwork(){if(this.store){const saved=(await this.store.get('browserNetwork')).browserNetwork;if(saved)await this.setNetwork(saved,false)}}
  async setNetwork(input,persist=true){const config=proxyConfig(input);await this.session.setProxy(config.mode==='fixed_servers'?{mode:config.mode,proxyRules:config.server,proxyBypassRules:'<local>'}:{mode:config.mode});await this.session.closeAllConnections();this.network=config;if(persist&&this.store)await this.store.set({browserNetwork:config});return config}
  async restore(id){if(this.restored.has(id)||!this.store)return;if(!Object.keys(this.snapshots).length)this.snapshots=(await this.store.get('browserSessions')).browserSessions||{};this.restored.add(id);for(const item of this.snapshots[id]||[]){try{const t=this.make(address(item.url),id,!!item.provider);if(typeof item.id==='string'&&/^[a-f0-9-]{36}$/.test(item.id)){if(!item.provider){this.tabs.delete(t.id);this.tabs.set(item.id,t)}t.id=item.id}if(item.provider&&Object.hasOwn(PROVIDERS,item.provider)){t.provider=item.provider;t.thread=item.thread||'main';this.providers.set(JSON.stringify([id,t.provider,t.thread]),t)}else{t.lane=item.lane==='side'?'side':'main'}}catch{}}}
- emit(){if(!this.disposed&&!this.win.isDestroyed())this.win.webContents.send('browser:state',this.state())}
- state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
+ emit(){if(!this.disposed&&!this.win.isDestroyed()&&!this.win.webContents.isDestroyed())this.win.webContents.send('browser:state',this.state())}
+ describe(t){
+  const wc=t.view.webContents,dead=!!t.closed||wc.isDestroyed();
+  const url=dead?t.url:wc.getURL()||t.url;
+  return{id:t.id,lane:t.lane||'main',url,title:t.title||url,favicon:t.favicon||'',loading:dead?false:t.loading,error:dead?'Вкладка закрыта системой. Откройте её заново.':t.error||'',back:!dead&&wc.navigationHistory.canGoBack(),forward:!dead&&wc.navigationHistory.canGoForward(),contextEnabled:!dead&&!!t.contextOrigin&&t.contextOrigin===new URL(url).origin};
+ }
+ state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({...this.describe(t),session:true,provider:t.provider})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>this.describe(t)),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
  make(url,project,ai=false,{background=false}={}){
   const view=new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
+  const alive=()=>!this.disposed&&!t.closed&&!this.win.isDestroyed()&&!wc.isDestroyed();
+  const on=(event,fn)=>wc.on(event,(...args)=>{if(alive())return fn(...args)});
+  wc.once('destroyed',()=>{t.closed=true;t.visible=false;this.emit();});
   view.setBorderRadius?.(0);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
-  wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
-  wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame){t.navigationEpoch=(t.navigationEpoch||0)+1;if(this.pointerTarget?.id===t.id)this.pointerTarget=null}});
-  wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
-  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project||this.pointerEnabled&&!providerFor(wc.getURL()))return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
-  wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
-  wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
-  wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
-  wc.on('did-start-loading',()=>{t.loading=true;t.error='';this.emit()});
-  wc.on('did-stop-loading',()=>{wc.send('osminog.pointer.mode',!!this.pointerEnabled&&!providerFor(wc.getURL()));t.loading=false;this.emit()});
-  wc.on('did-navigate',()=>{t.favicon='';this.emit();this.save()});wc.on('did-navigate-in-page',()=>{this.emit();this.save()});
-  wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
-  wc.on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.emit()});
-  wc.on('render-process-gone',()=>{t.error='Вкладка остановлена. Нажмите обновить.';this.emit()});
+  on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
+  on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame){t.navigationEpoch=(t.navigationEpoch||0)+1;if(this.pointerTarget?.id===t.id)this.pointerTarget=null}});
+  on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
+  on('context-menu',(_event,params)=>{if(t.project!==this.project||this.pointerEnabled&&!providerFor(wc.getURL()))return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
+  on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
+  on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
+  on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
+  on('did-start-loading',()=>{t.loading=true;t.crashed=false;t.error='';this.emit()});
+  on('did-stop-loading',()=>{wc.send('osminog.pointer.mode',!!this.pointerEnabled&&!providerFor(wc.getURL()));t.loading=false;this.emit()});
+  on('did-navigate',()=>{t.url=wc.getURL()||t.url;t.favicon='';this.emit();this.save()});on('did-navigate-in-page',()=>{t.url=wc.getURL()||t.url;this.emit();this.save()});
+  on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.emit()}});
+  on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.emit()});
+  on('render-process-gone',()=>{t.crashed=true;t.loading=false;t.error='Вкладка остановлена. Нажмите обновить.';this.layout(this.panels);this.emit()});
   if(!ai)this.tabs.set(t.id,t);
-  wc.loadURL(url).catch(e=>{t.error=e.message;this.emit()});return t;
+  wc.loadURL(url).catch(e=>{if(alive()){t.error=e.message;this.emit()}});return t;
  }
  get(id){const t=this.tabs.get(id)||[...this.providers.values()].find(t=>t.id===id);if(!t||t.project!==this.project)throw Error('Вкладка не принадлежит открытому проекту');return t}
  selectProvider(provider,thread='main',{background=false}={}){
@@ -75,7 +83,7 @@ class BrowserWorkspace{
  }
  releaseService(thread){for(const [key,t] of this.providers)if(t.ephemeral&&t.thread===thread){this.providers.delete(key);this.destroy(t)}}
  open({url,lane}){if(!this.project)throw Error('Сначала откройте проект');const t=this.make(address(url),this.project);t.lane=lane==='side'?'side':'main';this.save();this.emit();return{id:t.id}}
- destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
+ destroy(t){if(!t)return;t.closed=true;if(!this.win.isDestroyed()){const root=t.clipView||t.view;if(!this.win.contentView.children||this.win.contentView.children.includes(root))this.win.contentView.removeChildView(root)}if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
    case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project){this.contextScopes.set(this.project,this.contextScope);this.contextScope=this.contextScopes.has(id)?this.contextScopes.get(id):null;this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();this.pointerTarget=null;this.pointerEnabled=false}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
@@ -136,7 +144,7 @@ class BrowserWorkspace{
   this.panels=Array.isArray(panels)?panels.slice(0,100):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
   const desired=new Map();
   const [width,height]=this.win.getContentSize(),seen=new Set();
-  for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
+  for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||t.closed||t.crashed||t.view.webContents.isDestroyed()||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
    const {x,y,width:w,height:h}=p;if(![x,y,w,h].every(Number.isFinite)||w<1||h<1)continue;
    const bounds={x:Math.round(x),y:Math.round(y),width:Math.round(w),height:Math.round(h)};
    const clip=p.clip;
@@ -147,6 +155,7 @@ class BrowserWorkspace{
    desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip});
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
+   if(t.closed||t.view.webContents.isDestroyed()){t.visible=false;continue;}
    const next=desired.get(t),show=!!next;
    if(next){const {bounds,clipped,wrap}=next;
     if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
@@ -159,7 +168,7 @@ class BrowserWorkspace{
   }
 
  }
- dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
+ dispose(){if(this.disposed)return;this.disposed=true;this.win.removeListener('resize',this.onResize);this.win.removeListener('closed',this.onWindowClosed);this.win.webContents.removeListener('did-start-navigation',this.onHostNavigation);for(const t of [...this.tabs.values(),...this.providers.values()])this.destroy(t);this.tabs.clear();this.providers.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
 

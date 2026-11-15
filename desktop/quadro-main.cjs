@@ -9,9 +9,12 @@ const test=process.env.CI==='true'&&process.env.QUADRO_TEST_PROFILE&&path.isAbso
 if(test)app.setPath('userData',process.env.QUADRO_TEST_PROFILE);
 fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'quadro-startup.log');
-function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
+function log(s){try{if(fs.existsSync(logFile)&&fs.statSync(logFile).size>1048576)fs.renameSync(logFile,logFile+'.previous');fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n')}catch{}console.log(s)}
 let paneFocus;
 let win,browser,store,exitController,libraryService,overlayGate,startService,web3Service,globalCapture,privateMode;
+const runtimeJournal=require('./mouse-runtime-guard.cjs').journal({directory:app.getPath('userData'),version:app.getVersion(),isPrivate:()=>!!privateMode?.current||!!privateMode?.busy});
+process.on('uncaughtExceptionMonitor',(error)=>runtimeJournal.record('main-exception',{reason:error.name}));
+app.on('child-process-gone',(_event,details)=>runtimeJournal.record('child-process-gone',details));
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'quadro/index.html')).href;
 function show(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus()}
@@ -32,7 +35,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:false,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'quadro-preload.cjs'),additionalArguments:['--quadro-version='+app.getVersion(),...(test?['--quadro-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
  if(test)win.mouseDockThemeForTest=()=>updateDock.appliedTheme;
  exitController=require('./quadro-lifecycle.cjs').install({app,win,log,onError:error=>{if(!test)dialog.showErrorBox('Mouse Browser — данные не сохранены','Браузер оставлен открытым. Повторите выход после устранения ошибки: '+error.message)},flush:async()=>{
-  if(win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');
+  if(!win.webContents.isDestroyed()&&!win.webContents.isCrashed()&&win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');
   if(privateMode?.current)await privateMode.dispose();
   if(browser){await browser.save();await browser.saveQueue;await browser.session.cookies.flushStore();browser.session.flushStorageData();}
   if(libraryService)await libraryService.flush();
@@ -45,7 +48,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const send=name=>{show();if(win.webContents.getURL()===entry)win.webContents.send('quadro:menu',name)};
  Menu.setApplicationMenu(Menu.buildFromTemplate([
   {label:'Mouse Browser',submenu:[{role:'about'},{label:'Проверить обновление…',click:()=>send('updates')},{type:'separator'},{role:'services'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},
-  {label:'Файл',submenu:[{label:'Скриншот экрана Mac · ⌃A',click:()=>void globalCapture?.request()},{label:'Скриншот окон браузера',click:()=>send('screenshot')},{label:'Инкогнито / обычный режим',accelerator:'Cmd+Shift+N',click:()=>send('privacy')},{label:'Новая вкладка',accelerator:'Cmd+T',click:()=>send('new-tab')},{label:'Адрес страницы',accelerator:'Cmd+L',click:()=>send('address')},{label:'Вернуть закрытую вкладку',accelerator:'Cmd+Shift+T',click:()=>send('reopen')},{label:'Новое окно в раскладке',accelerator:'Cmd+Alt+T',click:()=>send('split-x')},{label:'Закрыть вкладку',accelerator:'Cmd+W',click:()=>send('close-tab')}]},
+  {label:'Файл',submenu:[{label:'Скриншот экрана Mac · ⌃A',click:()=>void globalCapture?.request()},{label:'Скриншот окон браузера',click:()=>send('screenshot')},{label:'Инкогнито / обычный режим',accelerator:'Cmd+Shift+N',click:()=>send('privacy')},{label:'Новая вкладка',accelerator:'Cmd+T',click:()=>send('new-tab')},{label:'Адрес страницы',accelerator:'Cmd+L',click:()=>send('address')},{label:'Вернуть закрытую вкладку',accelerator:'Cmd+Shift+T',click:()=>send('reopen')},{label:'Новое окно в раскладке',accelerator:'Cmd+Alt+T',click:()=>send('split-x')},{label:'Закрыть вкладку',accelerator:'Cmd+W',click:()=>send('close-tab')},{type:'separator'},{label:'Показать локальный журнал сбоев',click:()=>shell.showItemInFolder(runtimeJournal.file)}]},
   {label:'Правка',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'pasteAndMatchStyle'},{role:'selectAll'}]},
   {label:'Вид',submenu:[{label:'Обновить страницу',accelerator:'Cmd+R',click:()=>send('reload')},{label:'Показать / скрыть ИИ',accelerator:'Cmd+Shift+I',click:()=>send('ai')},{label:'Сменить тему',click:()=>send('theme')},{type:'separator'},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{type:'separator'},{role:'togglefullscreen'}]},
   {label:'История',submenu:[{label:'Показать историю',accelerator:'Cmd+Y',click:()=>send('history')},{label:'Сохранённые запросы',click:()=>send('searches')},{label:'Закладки',accelerator:'Cmd+Alt+B',click:()=>send('bookmarks')},{label:'Добавить закладку',accelerator:'Cmd+D',click:()=>send('bookmark')},{label:'Загрузки',accelerator:'Cmd+Shift+J',click:()=>send('downloads')}]},
@@ -85,12 +88,13 @@ if(ownsProfile)app.whenReady().then(async()=>{
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,test});
  ipcMain.handle('quadro:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(()=>{if(!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через ⌘Q и повторите.')}));return true;});
  win.webContents.on('preload-error',(_e,_p,error)=>log('PRELOAD_ERROR '+error.message));
- win.webContents.on('render-process-gone',(_e,detail)=>log('SHELL_STOPPED '+detail.reason));
+ const shellRecovery=require('./mouse-runtime-guard.cjs').install({win,entry,getRuntime:()=>({gate:privateMode?.current?.gate||overlayGate,busy:!!privateMode?.busy}),closing:()=>exitController.isClosing(),record:runtimeJournal.record,notify:message=>{if(!test)void dialog.showMessageBox(win,{type:'warning',message,buttons:['Закрыть']}).catch(()=>{})}});
  await win.loadURL(entry);show();
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Quadro UI failed to start'))}},100)})");
- log('QUADRO_READY '+app.getVersion());
+ log('QUADRO_READY '+app.getVersion());runtimeJournal.record('ready');
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
  if(test&&process.argv.some(x=>/^--quadro-smoke-(write|read)$/.test(x)))await require('./quadro-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture,paneFocus});
+ if(test&&process.argv.includes('--mouse-runtime-smoke'))await require('./mouse-runtime-smoke.cjs')({app,win,browser,store,privateMode,shellRecovery});
  if(test&&(process.argv.includes('--mouse-private-smoke')||process.argv.includes('--mouse-private-close')))await require('./mouse-private-smoke.cjs')({app,win,browser,store,privateMode,ipcRouter});
  if(test&&process.argv.some(x=>x.startsWith('--quadro-close-test=')))await require('./quadro-close-smoke.cjs')({app,win,store,log});
 }).catch(error=>{log('STARTUP_FAILED '+error.stack);if(!test)dialog.showErrorBox('Mouse Browser — ошибка запуска','Локальные данные не удалены.\n'+error.message+'\nЖурнал: '+logFile);app.exit(1)});

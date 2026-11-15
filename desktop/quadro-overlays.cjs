@@ -14,8 +14,9 @@ class OverlayGate {
   const make=browser.make.bind(browser);
   browser.make=(...args)=>{const t=make(...args);if(this.blocked)this.hide();return t;};
  }
- pages(){return [...this.browser.tabs.values(),...this.browser.providers.values()];}
+ pages(){return [...this.browser.tabs.values(),...this.browser.providers.values()].filter(t=>!t.closed&&!t.view.webContents.isDestroyed());}
  hide(){
+  if(this.browser.disposed||this.win.isDestroyed())return;
   this.layout([]);
   for(const t of this.pages()){
    t.view.setVisible(false);t.clipView?.setVisible(false);t.visible=false;
@@ -23,6 +24,7 @@ class OverlayGate {
   }
  }
  attach(){
+  if(this.browser.disposed||this.win.isDestroyed())return;
   const children=this.win.contentView.children;
   for(const t of this.pages()){const root=t.clipView||t.view;if(!children.includes(root))this.win.contentView.addChildView(root);}
  }
