@@ -46,7 +46,7 @@ module.exports=async({app,win})=>{
   for(const theme of ['light','dark']){
    await js(`QuadroTest.setTheme('${theme}')`);
    const icon=await js(`(()=>{const e=document.querySelector('#private-button svg'),r=e.getBoundingClientRect(),p=e.querySelectorAll('path');return{width:r.width,height:r.height,shape:getComputedStyle(e).shapeRendering,body:getComputedStyle(p[0]).fill,shine:getComputedStyle(p[1]).fill,paths:[...p].map(x=>x.getAttribute('d'))}})()`);
-   assert.equal(icon.width,24);assert.equal(icon.height,14);assert.equal(icon.shape,'crispedges');
+   assert.equal(icon.width,24);assert.equal(icon.height,14);assert.equal(icon.shape.toLowerCase(),'crispedges');
    assert.equal(icon.body,'rgb(168, 85, 247)');assert.equal(icon.shine,'rgb(255, 255, 255)');
    assert.deepEqual(icon.paths,['M1 2h22v3h-2v4h-2v2h-6V7h-2v4H5V9H3V5H1Z','M5 4h2v2H5zm2 2h2v2H7zm8-2h2v2h-2zm2 2h2v2h-2z']);
    const rendered=await js(`(()=>{const svg=document.querySelector('#private-button svg').cloneNode(true);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('width','24');svg.setAttribute('height','14');svg.setAttribute('shape-rendering','crispEdges');svg.querySelectorAll('path')[0].setAttribute('fill','#a855f7');svg.querySelectorAll('path')[1].setAttribute('fill','#ffffff');return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=24;c.height=14;const x=c.getContext('2d');x.drawImage(i,0,0);resolve([...x.getImageData(0,0,24,14).data])};i.onerror=reject;i.src='data:image/svg+xml;base64,'+btoa(new XMLSerializer().serializeToString(svg))})})()`);
