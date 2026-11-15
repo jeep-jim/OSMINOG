@@ -1,0 +1,35 @@
+/* mouse.black: scoped browser chrome; webpage styles are not touched. */
+.toolbar #tabstrip{flex:0 1 auto;min-width:0;gap:var(--mouse-tab-gap,4px);overflow:hidden}
+.toolbar #tabstrip .tab-item{flex:0 1 230px;min-width:0;max-width:230px;position:relative}
+.toolbar #new-tab{flex:0 0 28px;margin-left:0}
+#tabstrip[data-density=compact] .tab-close,#tabstrip[data-density=icons] .tab-close,#tabstrip[data-density=micro] .tab-close{width:0;min-width:0;padding:0;overflow:hidden}
+#tabstrip[data-density=compact] .tab-item:hover .tab-close,#tabstrip[data-density=icons] .tab-item:hover .tab-close{position:absolute;left:0;top:0;width:20px;z-index:2;background:var(--panel)!important;overflow:visible}
+#tabstrip[data-density=icons] .tab-item{justify-content:center}
+#tabstrip[data-density=icons] .tab-title,#tabstrip[data-density=micro] .tab-title{position:absolute;inset:0;width:100%;font-size:0;padding:0}
+#tabstrip[data-density=micro] .favicon{display:none}
+#tabstrip[data-density=micro] .tab-item{border-radius:3px}
+.pane-head{position:relative}
+.pane-head .pane-title{display:none!important}
+.pane-head .pane-icon{cursor:grab;flex:none;display:flex;align-items:center}
+.pane-head .pane-address{min-width:0;flex:1}
+.pane-head .pane-address input{min-width:0}
+.pane-head.address-editing>.pane-address{position:absolute;inset:2px 4px;z-index:10;display:flex;background:var(--panel)}
+.pane-head.address-editing>.pane-address input{height:22px;width:100%;font-size:12px;background:var(--panel);border:1px solid var(--accent)}
+.pane-head.address-editing>:not(.pane-address){visibility:hidden;pointer-events:none}
+#ai-panel>.ai-controls{height:28px;min-height:28px;flex:0 0 28px;padding:2px 4px;gap:2px;overflow:hidden;background:linear-gradient(180deg,var(--panel),color-mix(in srgb,var(--panel) 76%,var(--bg)))}
+#ai-panel>.ai-controls>button,#ai-panel>.ai-controls [data-action=ai-back],#ai-panel>.ai-controls [data-action=ai-forward]{width:20px;min-width:20px;height:22px;min-height:22px;padding:0;border-radius:5px;font-size:13px}
+.ai-provider #ai-select{height:22px;min-height:22px;font-size:10px;padding:2px 27px 2px 23px;appearance:none;-webkit-appearance:none}
+.ai-provider>.favicon{width:13px;height:13px;left:5px}
+.ai-provider:after{content:'';position:absolute;right:10px;top:calc(50% - 4px);width:6px;height:6px;border-right:1.5px solid var(--text);border-bottom:1.5px solid var(--text);transform:rotate(45deg);pointer-events:none}
+#choice-dialog .provider-option{gap:7px;padding:6px 10px;min-height:30px}
+#choice-dialog .provider-option .favicon{width:15px;height:15px}
+#choice-dialog .provider-option .provider-label{min-width:0;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#choice-dialog .provider-check{width:18px;flex:none;margin-left:10px;text-align:center;font-size:15px;color:var(--accent)}
+#choice-dialog .provider-option[aria-selected=true]{background:var(--selected);box-shadow:inset 2px 0 var(--accent)}
+#statusbar #status:empty{display:none}
+.mouse-about{display:flex;gap:8px;align-items:baseline;color:var(--muted);font-size:12px}
+.mouse-about strong{color:var(--text);font-weight:600;user-select:text}
+body.mouse-tab-dragging{user-select:none;cursor:grabbing}
+body.mouse-tab-dragging .page-slot{pointer-events:auto}
+body.mouse-tab-dragging .mouse-drop-target{outline:2px solid var(--accent);outline-offset:-2px}
+#mouse-drag-label{position:fixed;z-index:100;max-width:170px;padding:7px 11px;border:1px solid var(--line);border-radius:7px;color:var(--text);background:var(--panel);box-shadow:0 4px 20px #0003;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;font-size:11px}

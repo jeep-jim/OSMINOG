@@ -1,0 +1,38 @@
+name: Prepare scoped Mouse 6.0.13 tabs and address
+on:
+  push:
+    branches: [codex/mouse613-prep]
+    paths: ['staging/mouse613-prep/**','.github/workflows/mouse613-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {path: patch}
+      - uses: actions/checkout@v4
+        with:
+          ref: 4ef3ec1f25fd9552cf7c3c9ef7d612a53afedb6f
+          path: source
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Apply scoped reviewed patch and publish candidate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 patch/staging/mouse613-prep/prepare.py source
+          cd source/desktop
+          node --check quadro/quadro.js
+          node --check quadro/mouse-613-ui.js
+          node --check mouse-613-smoke.cjs
+          node --test mouse-613.test.cjs
+          cd ..
+          git diff --check
+          git config user.name 'Mouse build preparation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c codex/mouse-613-tabs-address
+          git add desktop tools .github/workflows/quadro-macos.yml OSMINOG_BROWSER_ROADMAP.md docs/desktop/2026-11-15-mouse613-tabs-address.md
+          git commit -m 'Mouse 6.0.13: fitting tabs, lossless swaps, expanded address and aligned AI'
+          git push origin HEAD:refs/heads/codex/mouse-613-tabs-address
