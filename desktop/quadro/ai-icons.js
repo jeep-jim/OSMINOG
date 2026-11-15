@@ -1,7 +1,8 @@
 'use strict';
 globalThis.createMouseAIIcons=({N,tabs,sessions})=>{
- const cache=new Map();
+ const cache=new Map(),watched=new WeakSet();
  function apply(image,url,id=''){
+  if(!watched.has(image)){watched.add(image);globalThis.QuadroIcons.watch(image);}
   const t=tabs().find(t=>t.id===(id||sessions()[url]));const key=url+'|'+(t?.favicon||'');
   if(image.dataset.providerKey===key)return;image.dataset.providerKey=key;image.src='globe.svg';
   if(!url||url==='custom')return;
