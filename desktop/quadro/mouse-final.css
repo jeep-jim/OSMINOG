@@ -29,3 +29,10 @@ body.pane-focused [data-pane-action=split-x],body.pane-focused [data-pane-action
 #statusbar #private-button svg path:last-child{fill:#ffffff}
 :root[data-theme=light] #statusbar #private-button[aria-pressed=true]{background:#ede9fe;border-color:#a855f7}
 :root[data-theme=dark] #statusbar #private-button[aria-pressed=true]{background:#211a33;border-color:#a855f7}
+
+/* 6.0.11: private light appearance; purple glasses and highlights are NOT inverted. */
+:root[data-private=true][data-theme=light] .home-page{--home-ink:#191923;background:#edeef0!important;color:#191923}
+:root[data-private=true][data-theme=light] .private-welcome .private-note{color:#555562}
+:root[data-private=true][data-theme=light] .home-page h2,:root[data-private=true][data-theme=light] .home-site-label{text-shadow:none}
+:root[data-private=true][data-theme=light] .favorite-add .home-site-icon{background:#ffffff99;border-color:#9296a0;color:#191923}
+:root[data-private=true][data-theme=light] .home-page .home-customize,:root[data-private=true][data-theme=light] .home-page .home-more{color:#191923!important;background:#ffffffc9!important;border-color:#a6a9b2!important}

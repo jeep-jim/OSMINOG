@@ -14,7 +14,7 @@ module.exports=async({app,win,browser,store,privateMode})=>{
   await until(()=>privateMode.current&&!privateMode.busy,'enter private');
   assert.equal(await js('document.documentElement.dataset.private'),'true');
   assert.equal(await js('getComputedStyle(document.querySelector(".private-welcome")).display'),'block');
-  assert.ok(await js('document.querySelector(".private-mascot").src.endsWith("mouse-private.svg")'));
+  await require('./mouse-611-smoke.cjs')({win});
   const first=privateMode.current,ses=first.ses;assert.equal(ses.isPersistent(),false);assert.equal(ses.storagePath,null);
   assert.equal((await ses.cookies.get({url:root})).length,0);
   await js(`QuadroTest.openPage(${JSON.stringify(root+'/'+marker)})`);await until(()=>[...first.browser.tabs.values()].some(t=>!t.loading),'private fixture');
