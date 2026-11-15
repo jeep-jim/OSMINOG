@@ -3,7 +3,9 @@
  function ordered(tabs,order=[]){const byId=new Map(tabs.map(t=>[t.id,t])),result=[];for(const id of Array.isArray(order)?order:[]){if(byId.has(id)){result.push(byId.get(id));byId.delete(id);}}return result.concat([...byId.values()]);}
  function swapOrder(tabs,order,a,b){const ids=ordered(tabs,order).map(t=>t.id),i=ids.indexOf(a),j=ids.indexOf(b);if(i>=0&&j>=0)[ids[i],ids[j]]=[ids[j],ids[i]];return ids;}
  function swapSlots(slots,a,b){if(a===b)return {...slots};return {...slots,[a]:slots[b]||'',[b]:slots[a]||''};}
- const core={ordered,swapOrder,swapSlots};if(typeof module==='object'&&module.exports){module.exports=core;return;}root.MouseTabOrder=core;
+ function moveLibraryControls(doc){const right=doc.querySelector('#footer-right'),ai=doc.querySelector('#ai-toggle');if(!right||!ai)return;for(const selector of ['#history-button','[data-action="bookmarks"]','#downloads-button']){const button=doc.querySelector(selector);if(button)right.insertBefore(button,ai);}}
+ const core={ordered,swapOrder,swapSlots,moveLibraryControls};if(typeof module==='object'&&module.exports){module.exports=core;return;}root.MouseTabOrder=core;
+ moveLibraryControls(document);
  root.createMouseArrangement=({model:m,tabs,renderTabs,renderTree,layout,save,hideHints})=>{
   const $=s=>document.querySelector(s),strip=$('#tabstrip');let pending=null,drag=null,clickUntil=0,sizeFrame=0;
   const valid=id=>tabs().some(t=>t.id===id);

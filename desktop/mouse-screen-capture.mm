@@ -86,10 +86,16 @@ static NSError* captureError(NSInteger code,NSString* text){return [NSError erro
 }
 - (void)captureFilter:(SCContentFilter*)filter {
  if(self.finished||self.capturing)return;self.capturing=YES;
+ // A screen command must not silently become a window/app-only image.
+ if(filter.style!=SCShareableContentStyleDisplay){[self finish:nil error:captureError(8,@"Выберите весь экран, а не отдельное окно приложения.") cancelled:NO];return;}
+ // Picker-created display filters can omit the system menu by default.
+ if(@available(macOS 14.2,*)){filter.includeMenuBar=YES;}
  CGRect rect=filter.contentRect;double w=rect.size.width,h=rect.size.height;self.width=w;self.height=h;
  if(!(w>0&&h>0)){[self finish:nil error:captureError(1,@"macOS вернула пустую область снимка") cancelled:NO];return;}
  double scale=MIN(MAX(1.,filter.pointPixelScale),MIN(8192./MAX(w,h),sqrt(40000000./(w*h))));
  SCStreamConfiguration* c=[SCStreamConfiguration new];c.width=MAX(1,(size_t)round(w*scale));c.height=MAX(1,(size_t)round(h*scale));c.showsCursor=NO;c.capturesAudio=NO;
+ // Zero sourceRect is ScreenCaptureKit's full-display default, never workArea.
+ c.sourceRect=CGRectZero;
  if(self.usingPicker||self.streamFrame){
   c.queueDepth=3;c.minimumFrameInterval=CMTimeMake(1,30);
   SCStream* stream=[[SCStream alloc] initWithFilter:filter configuration:c delegate:self];self.stream=stream;
@@ -100,7 +106,9 @@ static NSError* captureError(NSInteger code,NSString* text){return [NSError erro
  }else [SCScreenshotManager captureImageWithFilter:filter configuration:c completionHandler:^(CGImageRef image,NSError* error){[self finishImage:image error:error];}];
 }
 - (void)contentSharingPicker:(SCContentSharingPicker*)picker didUpdateWithFilter:(SCContentFilter*)filter forStream:(SCStream*)stream {
- dispatch_async(dispatch_get_main_queue(),^{[self captureFilter:filter];});
+ // Let the system's selection overlay dismiss before acquiring the single frame.
+ // This keeps the approved picker filter/authorization; cancellation still wins.
+ dispatch_after(dispatch_time(DISPATCH_TIME_NOW,800*NSEC_PER_MSEC),dispatch_get_main_queue(),^{if(!self.finished)[self captureFilter:filter];});
 }
 - (void)contentSharingPicker:(SCContentSharingPicker*)picker didCancelForStream:(SCStream*)stream {[self finish:nil error:nil cancelled:YES];}
 - (void)contentSharingPickerStartDidFailWithError:(NSError*)error {[self finish:nil error:error cancelled:NO];}
@@ -125,7 +133,7 @@ static napi_value capture(napi_env e,napi_callback_info info){
   if(choose){
    r.usingPicker=YES;SCContentSharingPicker* picker=SCContentSharingPicker.sharedPicker;SCContentSharingPickerConfiguration* c=[SCContentSharingPickerConfiguration new];c.allowedPickerModes=SCContentSharingPickerModeSingleDisplay;picker.defaultConfiguration=c;[picker addObserver:r];picker.active=YES;[picker presentPickerUsingContentStyle:SCShareableContentStyleDisplay];
   }else{
-   [SCShareableContent getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:YES completionHandler:^(SCShareableContent* content,NSError* error){dispatch_async(dispatch_get_main_queue(),^{
+   [SCShareableContent getShareableContentExcludingDesktopWindows:NO onScreenWindowsOnly:YES completionHandler:^(SCShareableContent* content,NSError* error){dispatch_async(dispatch_get_main_queue(),^{
     if(r.finished)return;if(error){[r finish:nil error:error cancelled:NO];return;}SCDisplay* chosen=nil;for(SCDisplay* item in content.displays)if(item.displayID==display){chosen=item;break;}
     if(!chosen){[r finish:nil error:captureError(4,@"Выбранный экран отключён. Повторите снимок.") cancelled:NO];return;}
     [r captureFilter:[[SCContentFilter alloc] initWithDisplay:chosen excludingWindows:@[]]];
