@@ -1,0 +1,33 @@
+name: Align Mouse 610 smoke version
+on:
+  push:
+    branches: ['codex/mouse610-prepare']
+    paths: ['.github/workflows/mouse610-version.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update only version assertion and CSS serialization case
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach fd32c16457c4a30c826950ac9a2f8b6fab7888ff
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('desktop/quadro-smoke.cjs');s=p.read_text();a="assert.equal(app.getVersion(),'6.0.9')";assert s.count(a)==1;p.write_text(s.replace(a,"assert.equal(app.getVersion(),'6.0.10')"))
+          p=Path('desktop/mouse-607-smoke.cjs');s=p.read_text();a="assert.equal(icon.shape,'crispedges')";assert s.count(a)==1;p.write_text(s.replace(a,"assert.equal(icon.shape.toLowerCase(),'crispedges')"))
+          for p in Path('desktop').glob('*smoke*.cjs'):
+              for i,line in enumerate(p.read_text().splitlines(),1):
+                  if '6.0.9' in line: print(str(p),i,line[:250])
+          PY
+          git diff --check
+          node --check desktop/quadro-smoke.cjs
+          node --check desktop/mouse-607-smoke.cjs
+          git add desktop/quadro-smoke.cjs desktop/mouse-607-smoke.cjs
+          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Keep native smoke version and CSS keyword serialization aligned with Mouse 6.0.10'
+          git push origin HEAD:refs/heads/codex/mouse610-version-final
