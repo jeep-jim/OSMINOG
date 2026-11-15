@@ -23,7 +23,10 @@ test('private mascot uses uniform square pixels on 47x64 grid, unchanged silhoue
  const svg=fs.readFileSync('quadro/mouse-private.svg','utf8');
  assert.equal(orientPrivateSVG(svg),svg,'already approved art cannot be flipped again');
  assert.equal((svg.match(/id="mouse-approved-left"/g)||[]).length,1);
- assert.match(svg,/viewBox="0 0 47 64"/);assert.doesNotMatch(svg,/transform=|filter=/);
+ assert.match(svg,/viewBox="0 0 47 64"/);
+ assert.equal((svg.match(/transform=/g)||[]).length,1);
+ assert.match(svg,/<g id="owner-pixel-glasses" transform="translate\(-1 0\)">/);
+ assert.doesNotMatch(svg.replace(' transform="translate(-1 0)"',''),/transform=|filter=/);
  const body=svg.match(/<g id="mouse-approved-left"><path fill="#ffffff" d="([^"]+)"/)[1];
  const mask=Array.from({length:64},()=>Array(47).fill(false));
  const segments=[...body.matchAll(/M(\d+) (\d+)h(\d+)v(\d+)h-\d+z/g)];assert.equal(segments.map(m=>m[0]).join(''),body);
