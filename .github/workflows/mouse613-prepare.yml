@@ -1,0 +1,45 @@
+name: Prepare Mouse 6.0.13 workspace and full-screen capture
+on:
+  push:
+    branches: [codex/mouse613-prep]
+    paths: ['mouse613/**','.github/workflows/mouse613-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 4ef3ec1f25fd9552cf7c3c9ef7d612a53afedb6f
+          path: work
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Apply scoped changes and regressions
+        working-directory: work
+        run: |
+          set -euo pipefail
+          python3 ../mouse613/prepare.py
+          python3 ../mouse613/compat.py
+          node --check desktop/quadro/quadro.js
+          node --check desktop/quadro/mouse-613-ui.js
+          node --check desktop/quadro/capture.js
+          node --check desktop/quadro-global-capture.cjs
+          node --check desktop/mouse-613-smoke.cjs
+          (cd desktop && node --test mouse-613.test.cjs)
+          git diff --check
+          git diff > ../mouse613-prepared.diff
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop tools/quadro-verify.py tools/mouse-update-verify.py docs/desktop/2026-11-15-mouse613.md OSMINOG_BROWSER_ROADMAP.md
+          git commit -m 'Mouse 6.0.13: compact movable workspace and full-display capture'
+          git push origin HEAD:refs/heads/codex/mouse-613-workspace-capture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse613-prepared-source
+          path: |
+            mouse613-prepared.diff
+            work/.github/workflows/quadro-macos.yml
