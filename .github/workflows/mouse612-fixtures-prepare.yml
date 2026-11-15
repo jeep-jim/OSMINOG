@@ -1,0 +1,47 @@
+name: Prepare Mouse 6.0.12 lifetime fixtures
+on:
+  push:
+    branches: [codex/mouse612-prepare]
+    paths: ['.github/workflows/mouse612-fixtures-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 279bee80b1e3c98e02018467ec652c6d97124009
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Complete live object interfaces in existing test doubles
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          def edit(path,old,new):
+           p=Path(path);s=p.read_text();assert s.count(old)==1,(path,old);p.write_text(s.replace(old,new))
+          edit('desktop/browser-state.test.cjs','webContents:Object.assign(new EventEmitter(),{send(){}})','webContents:Object.assign(new EventEmitter(),{send(){},isDestroyed:()=>false})')
+          edit('desktop/quadro-overlays.test.cjs','view=()=>({shown:false,setVisible(v){this.shown=v}})','view=()=>({shown:false,webContents:{isDestroyed:()=>false},setVisible(v){this.shown=v}})')
+          edit('desktop/quadro-overlays.test.cjs','win={contentView:','win={isDestroyed:()=>false,contentView:')
+          PY
+          cd desktop
+          npm ci --ignore-scripts
+          npm ci --prefix quadro-wallet-deps --ignore-scripts
+          npm test > quadro-unit-base.log 2>&1 || { tail -n 180 quadro-unit-base.log; exit 1; }
+          node --test quadro.test.cjs quadro-lifecycle.test.cjs quadro-capture.test.cjs quadro-library.test.cjs quadro-overlays.test.cjs quadro-start.test.cjs quadro-polish.test.cjs quadro-web3.test.cjs quadro-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs mouse-607.test.cjs mouse-608.test.cjs mouse-609.test.cjs mouse-611.test.cjs mouse-612.test.cjs mouse-runtime.test.cjs > quadro-unit-all.log 2>&1 || { tail -n 200 quadro-unit-all.log; exit 1; }
+          cd ..
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop/browser-state.test.cjs desktop/quadro-overlays.test.cjs
+          git commit -m 'Model native isDestroyed APIs in existing lifetime test fixtures'
+          git push origin HEAD:refs/heads/codex/mouse-612-ai-history
+          git archive HEAD | gzip > mouse612-source.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse612-source-and-unit
+          path: |
+            mouse612-source.tar.gz
+            desktop/quadro-unit-*.log
+          retention-days: 7
