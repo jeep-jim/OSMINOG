@@ -4,7 +4,7 @@ const load=Module._load;
 class View{constructor(){this.webContents=new EventEmitter();Object.assign(this.webContents,{navigationHistory:{canGoBack:()=>false,canGoForward:()=>false},setWindowOpenHandler(){},loadURL:async url=>{this.url=url},getURL:()=>this.url,isDestroyed:()=>false,close:()=>{this.closed=true},executeJavaScript:async()=>({text:'page'})});}addChildView(){}removeChildView(){}setBounds(x){this.bounds=x}setVisible(x){this.visible=x}}
 Module._load=function(id,...args){if(id==='electron')return{View,WebContentsView:View,session:{fromPartition:()=>({setPermissionCheckHandler(){},setPermissionRequestHandler(){},on(){}})},clipboard:{writeText(){}},dialog:{}};return load.call(this,id,...args)};
 const {BrowserWorkspace,address}=require('./browser.cjs');Module._load=load;
-const host=()=>Object.assign(new EventEmitter(),{webContents:Object.assign(new EventEmitter(),{send(){}}),contentView:{addChildView(){},removeChildView(){}},isDestroyed:()=>false,getContentSize:()=>[1440,900]});
+const host=()=>Object.assign(new EventEmitter(),{webContents:Object.assign(new EventEmitter(),{send(){},isDestroyed:()=>false}),contentView:{addChildView(){},removeChildView(){}},isDestroyed:()=>false,getContentSize:()=>[1440,900]});
 const storage=()=>{let data={};return{get:async()=>structuredClone(data),set:async x=>Object.assign(data,structuredClone(x))}};
 test('restores local browser lanes and provider conversations; rejects another project',async()=>{
  const store=storage(),b=new BrowserWorkspace(host(),store);await b.command('project',{id:'work'});const tab=b.open({url:'https://example.com'}),side=b.open({url:'https://example.org',lane:'side'});const ai=b.selectProvider('chatgpt','draft-1');await b.save();

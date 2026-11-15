@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {OverlayGate}=require('./quadro-overlays.cjs');
 function fixture(){
- const children=[],view=()=>({shown:false,setVisible(v){this.shown=v}}),win={contentView:{children,addChildView(v){if(!children.includes(v))children.push(v)},removeChildView(v){const i=children.indexOf(v);if(i>=0)children.splice(i,1)}},webContents:{focus(){}}};
+ const children=[],view=()=>({shown:false,webContents:{isDestroyed:()=>false},setVisible(v){this.shown=v}}),win={isDestroyed:()=>false,contentView:{children,addChildView(v){if(!children.includes(v))children.push(v)},removeChildView(v){const i=children.indexOf(v);if(i>=0)children.splice(i,1)}},webContents:{focus(){}}};
  const browser={tabs:new Map(),providers:new Map(),panels:[],make(id){const t={id,view:view(),visible:false};this.tabs.set(id,t);win.contentView.addChildView(t.view);return t},layout(panels){this.panels=panels;for(const t of this.tabs.values()){t.visible=panels.some(x=>x.id===t.id);t.view.setVisible(t.visible)}}};
  browser.make('page');return{browser,win};
 }
