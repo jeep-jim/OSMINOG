@@ -1,0 +1,28 @@
+name: Mouse 609 drag lifetime correction
+on:
+  push:
+    branches: ['codex/mouse609-source-transport']
+    paths: ['.github/workflows/mouse609-drag-fix.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach c96270d2ccfd7cfaff47cc13943eb3f83598e74f
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('desktop/quadro/quadro.js');s=p.read_text();a="document.addEventListener('lostpointercapture',endDrag);";assert s.count(a)==1;s=s.replace(a,'');p.write_text(s)
+          p=Path('desktop/quadro-smoke.cjs');s=p.read_text();a="await until(()=>js('document.body.classList.contains(\"resizing\")'),'real pointer down');await sleep(50);";b=a+"console.log('MOUSE_609_DRAG_DOWN',selector,await js('JSON.stringify({path:QuadroTest.model.drag?.path,axis:QuadroTest.model.drag?.axis,pointer:QuadroTest.model.drag?.pointer})'));";assert s.count(a)==1;s=s.replace(a,b)
+          a="await sleep(100);win.webContents.sendInputEvent({type:'mouseUp',x:r.x+dx,y:r.y+dy,button:'left',clickCount:1});";b="await sleep(100);console.log('MOUSE_609_DRAG_MOVED',selector,await js('JSON.stringify({axis:QuadroTest.model.drag?.axis,ratio:QuadroTest.model.tree.ratio,childRatio:QuadroTest.model.tree.a.ratio})'));win.webContents.sendInputEvent({type:'mouseUp',x:r.x+dx,y:r.y+dy,button:'left',clickCount:1});";assert s.count(a)==1;s=s.replace(a,b);p.write_text(s)
+          p=Path('docs/desktop/2026-11-15-mouse609.md');p.write_text(p.read_text()+'\nПервый native609 прогон остановлен на прежней проверке перетягивания. Убран добавленный обработчик lostpointercapture: исчезновение native guest при начале drag не должно преждевременно завершать жест. Pointerup/cancel/blur и очистка HUD сохранены; проверки ratio/геометрии не ослаблены. Добавлена диагностика фактически выбранной оси.\n')
+          PY
+          git diff --check
+          git add desktop/quadro/quadro.js desktop/quadro-smoke.cjs docs/desktop/2026-11-15-mouse609.md
+          git -c user.name='jeep-jim' -c user.email='yokkey@ya.ru' commit -m 'Preserve drag lifetime while native views detach; retain size HUD release and geometry assertions'
+          git push origin HEAD:refs/heads/codex/mouse609-drag-candidate
