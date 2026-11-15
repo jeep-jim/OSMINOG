@@ -54,7 +54,7 @@ module.exports=async({app,win,browser,globalCapture})=>{
   await js('QuadroTest.changeLayout(2)');await sleep(160);app.focus({steal:true});win.focus();win.webContents.focus();
   win.setFullScreen(true);await until(()=>win.isFullScreen(),'enter fullscreen');await sleep(900);
   const d=screen.getDisplayMatching(win.getBounds());native.testPointer(d.bounds.x+d.bounds.width-160,d.bounds.y);
-  await until(()=>win.quadroChromeGuard.nativeState().menuVisible,'real system menu visible');await sleep(300);win.quadroChromeGuard.sample();await sleep(200);
+  await until(()=>{const state=win.quadroChromeGuard.nativeState();return state.menuVisible&&state.held;},'real system menu visible and native hover handled');await sleep(300);win.quadroChromeGuard.sample();await sleep(200);
   console.log('MOUSE_609_NATIVE_CHROME_STATE',JSON.stringify(win.quadroChromeGuard.nativeState()));
   const before=await js('QuadroTest.model.slots[QuadroTest.model.active]');
   const target=await js(`(()=>{const t=[...document.querySelectorAll('.tab-item')].find(t=>!t.classList.contains('active'));if(!t)throw Error('Need two tabs');const r=t.querySelector('.tab-title').getBoundingClientRect();return{id:t.dataset.tab,x:r.x+r.width/2,y:r.y+r.height/2}})()`);
