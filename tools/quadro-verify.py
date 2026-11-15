@@ -15,7 +15,7 @@ with open('quadro-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'quadro-startup.log'
-   if f.exists() and 'QUADRO_READY 6.0.11' in f.read_text():break
+   if f.exists() and 'QUADRO_READY 6.0.12' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -45,8 +45,13 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if r.returncode or marker not in r.stdout:raise SystemExit('Private session verification failed: '+mode)
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
+# Independently crash only the renderer on a disposable runner profile.
+env={**os.environ,'CI':'true','QUADRO_TEST_PROFILE':str(root/'runtime-612')}
+r=subprocess.run([str(exe),'--mouse-runtime-smoke'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=150)
+pathlib.Path('quadro-runtime-612.log').write_text(r.stdout);print(r.stdout,flush=True)
+if r.returncode or 'MOUSE_612_REAL_SHELL_CRASH_PRIVATE_RECOVERY_AND_PAGE_CLOSE_STRESS_PASS' not in r.stdout:raise SystemExit('Runtime recovery verification failed')
 # Actual older app replacement, verified new startup and a preserved runner profile.
-candidates=[pathlib.Path('dist-quadro/Mouse-Browser-6.0.11-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.11-mac-arm64.dmg')]
+candidates=[pathlib.Path('dist-quadro/Mouse-Browser-6.0.12-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.12-mac-arm64.dmg')]
 dmg=next((p.resolve() for p in candidates if p.is_file()),None)
 installer=pathlib.Path('mouse-install-update.cjs').resolve()
 if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')

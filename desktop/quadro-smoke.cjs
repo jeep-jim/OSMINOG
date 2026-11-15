@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.11');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.12');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--quadro-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -40,6 +40,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    console.log('QUADRO_REAL_HORIZONTAL_VERTICAL_DRAG_PASS');
    await js(`QuadroTest.openAI(${JSON.stringify(url+'/custom-ai')})`);await until(()=>browser.panels.length===5,'custom AI webpage');
    const aiId=await js('QuadroTest.model.aiId');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/custom-ai')&&!browser.get(aiId).loading,'custom AI navigation completion');assert.equal(browser.get(aiId).error,'');
+   await require('./mouse-612-smoke.cjs')({win,browser,url,aiId});
    await drag('#ai-divider',-140,0);assert.ok(await js('QuadroTest.model.aiWidth')>400);await geometry(4,false);
    await js('document.querySelector("[data-action=close-ai]").click()');await until(()=>!browser.get(aiId).visible,'hidden AI');await geometry(4,true);
    await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'AI returns');await geometry(4,false);

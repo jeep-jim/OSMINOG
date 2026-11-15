@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
  const en={
+ 'Назад в ИИ-чате':'Back in AI chat','Вперёд в ИИ-чате':'Forward in AI chat',
  'История':'History','Поиск':'Searches','Закладки':'Bookmarks','Загрузки':'Downloads','Поиск в списке':'Search list','Очистить':'Clear','Показать ещё':'Show more','Полный экран / выйти':'Enter / exit full screen','История · ⌘Y':'History · ⌘Y','Загрузки · ⌘⇧J':'Downloads · ⌘⇧J','Добавить закладку · ⌘D':'Add bookmark · ⌘D','Закрыть скриншот':'Close screenshot',
  'Скриншот':'Screenshot','Выделите область мышью':'Drag to select an area','Экран Mac':'Mac screen','Весь снимок':'Entire image','Копировать':'Copy','Сохранить PNG':'Save PNG','Скопировано':'Copied','Сохранено':'Saved','Сохранение отменено':'Save cancelled','Текст подписи':'Annotation text','Размер текста':'Text size','Введите текст подписи':'Enter annotation text','Толщина':'Stroke width','Цвет':'Color','Выделить заново':'Select again','Стрелка':'Arrow','Линия':'Line','Текст':'Text','Круг':'Ellipse','Прямоугольник':'Rectangle','Карандаш':'Pencil','Маркер':'Highlighter','Отменить':'Undo','Повторить':'Redo','Закрыть · Esc':'Close · Esc','Выделите область мышью. Затем выберите инструмент. Снимки никуда не отправляются.':'Select an area, then choose a tool. Screenshots are never uploaded.',
  'Сначала выделите область или нажмите «Весь снимок»':'Select an area or click Entire image first',
