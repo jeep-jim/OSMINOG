@@ -1,0 +1,198 @@
+name: Prepare Mouse 6.0.12 runtime stability
+on:
+  push:
+    branches: [codex/mouse612-prepare]
+    paths: ['.github/workflows/mouse612-stability-prepare.yml']
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3fe42f46df9f3111dd2ba80b9ecd07cb88b96254
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Apply guarded runtime fix, retain requested UI changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          def edit(path,old,new):
+              p=Path(path);s=p.read_text();assert s.count(old)==1,(path,old,s.count(old));p.write_text(s.replace(old,new))
+          # Only the owner-authorized translation is allowed; source silhouette still has no transform.
+          edit('desktop/mouse-607.test.cjs','assert.doesNotMatch(svg,/transform=|filter=/);','assert.doesNotMatch(svg.replace(\' transform="translate(-1 0)"\',\'\'),/transform=|filter=/);assert.equal((svg.match(/transform=/g)||[]).length,1);')
+          p=Path('desktop/browser.cjs');s=p.read_text()
+          def once(old,new):
+              global s
+              assert s.count(old)==1,(old,s.count(old));s=s.replace(old,new)
+          once("win.on('resize',()=>this.layout(this.panels));","this.onResize=()=>this.layout(this.panels);win.on('resize',this.onResize);")
+          once("win.webContents.on('did-start-navigation',(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.layout([])});","this.onHostNavigation=(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.layout([])};win.webContents.on('did-start-navigation',this.onHostNavigation);")
+          once("win.on('closed',()=>this.dispose());","this.onWindowClosed=()=>this.dispose();win.on('closed',this.onWindowClosed);")
+          once("url:t.view.webContents.getURL()||t.url,lane:t.lane||'main',provider:t.provider,thread:t.thread","url:t.view.webContents.isDestroyed()?t.url:t.view.webContents.getURL()||t.url,lane:t.lane||'main',provider:t.provider,thread:t.thread")
+          once("emit(){if(!this.disposed&&!this.win.isDestroyed())","emit(){if(!this.disposed&&!this.win.isDestroyed()&&!this.win.webContents.isDestroyed())")
+          a=s.index(' state(){return');b=s.index(' make(url,',a)
+          s=s[:a]+''' describe(t){
+            const wc=t.view.webContents,dead=!!t.closed||wc.isDestroyed();
+            const url=dead?t.url:wc.getURL()||t.url;
+            return{id:t.id,lane:t.lane||'main',url,title:t.title||url,favicon:t.favicon||'',loading:dead?false:t.loading,error:dead?'Вкладка закрыта системой. Откройте её заново.':t.error||'',back:!dead&&wc.navigationHistory.canGoBack(),forward:!dead&&wc.navigationHistory.canGoForward(),contextEnabled:!dead&&!!t.contextOrigin&&t.contextOrigin===new URL(url).origin};
+           }
+           state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({...this.describe(t),session:true,provider:t.provider})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>this.describe(t)),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
+          '''+s[b:]
+          once("const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;","const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;\n  const alive=()=>!this.disposed&&!t.closed&&!this.win.isDestroyed()&&!wc.isDestroyed();\n  const on=(event,fn)=>wc.on(event,(...args)=>{if(alive())return fn(...args)});\n  wc.once('destroyed',()=>{t.closed=true;t.visible=false;this.emit();});")
+          a=s.index('  wc.setWindowOpenHandler');b=s.index(' get(id){',a);x=s[a:b].replace('wc.on(','on(')
+          x=x.replace("t.loading=true;t.error='';this.emit()","t.loading=true;t.crashed=false;t.error='';this.emit()")
+          x=x.replace("on('did-navigate',()=>{t.favicon='';this.emit();this.save()});on('did-navigate-in-page',()=>{this.emit();this.save()});","on('did-navigate',()=>{t.url=wc.getURL()||t.url;t.favicon='';this.emit();this.save()});on('did-navigate-in-page',()=>{t.url=wc.getURL()||t.url;this.emit();this.save()});")
+          x=x.replace("on('render-process-gone',()=>{t.error='Вкладка остановлена. Нажмите обновить.';this.emit()});","on('render-process-gone',()=>{t.crashed=true;t.loading=false;t.error='Вкладка остановлена. Нажмите обновить.';this.layout(this.panels);this.emit()});")
+          x=x.replace("wc.loadURL(url).catch(e=>{t.error=e.message;this.emit()});","wc.loadURL(url).catch(e=>{if(alive()){t.error=e.message;this.emit()}});")
+          s=s[:a]+x+s[b:]
+          once("destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}","destroy(t){if(!t)return;t.closed=true;if(!this.win.isDestroyed()){const root=t.clipView||t.view;if(!this.win.contentView.children||this.win.contentView.children.includes(root))this.win.contentView.removeChildView(root)}if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}")
+          once("if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;","if(!t||t.closed||t.crashed||t.view.webContents.isDestroyed()||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;")
+          once("const next=desired.get(t),show=!!next;","if(t.closed||t.view.webContents.isDestroyed()){t.visible=false;continue;}\n   const next=desired.get(t),show=!!next;")
+          once("dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}","dispose(){if(this.disposed)return;this.disposed=true;this.win.removeListener('resize',this.onResize);this.win.removeListener('closed',this.onWindowClosed);this.win.webContents.removeListener('did-start-navigation',this.onHostNavigation);for(const t of [...this.tabs.values(),...this.providers.values()])this.destroy(t);this.tabs.clear();this.providers.clear();this.ai=null}")
+          p.write_text(s)
+          edit('desktop/quadro-browsing.cjs',"if(!win.isDestroyed())win.webContents.send('quadro:library-changed')","if(!browser.disposed&&!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('quadro:library-changed')")
+          edit('desktop/quadro-browsing.cjs',"const visit=()=>{if(t.lane==='side'||t.provider)return;","const alive=()=>!browser.disposed&&!t.closed&&!wc.isDestroyed();const visit=()=>{if(!alive()||t.lane==='side'||t.provider)return;")
+          edit('desktop/quadro-browsing.cjs',"wc.on('page-title-updated',(_e,title)=>library.title(wc.getURL(),title));","wc.on('page-title-updated',(_e,title)=>{if(alive())library.title(wc.getURL(),title)});")
+          edit('desktop/quadro-browsing.cjs',"library.closed(t.view.webContents.getURL()||t.url,t.title)","library.closed(t.view.webContents.isDestroyed()?t.url:t.view.webContents.getURL()||t.url,t.title)")
+          edit('desktop/quadro-overlays.cjs',"pages(){return [...this.browser.tabs.values(),...this.browser.providers.values()];}","pages(){return [...this.browser.tabs.values(),...this.browser.providers.values()].filter(t=>!t.closed&&!t.view.webContents.isDestroyed());}")
+          edit('desktop/quadro-overlays.cjs',' hide(){\n  this.layout([]);',' hide(){\n  if(this.browser.disposed||this.win.isDestroyed())return;\n  this.layout([]);')
+          edit('desktop/quadro-overlays.cjs',' attach(){\n  const children=',' attach(){\n  if(this.browser.disposed||this.win.isDestroyed())return;\n  const children=')
+          Path('desktop/mouse-runtime-guard.cjs').write_text('''
+          'use strict';
+          // Local content-free diagnostics. Private activity is not serialized.
+          // Never continue an unsafe main process via a global uncaughtException handler.
+          const fs=require('node:fs'),path=require('node:path');
+          function journal({directory,version,isPrivate=()=>false}){
+           const file=path.join(directory,'mouse-runtime.log');
+           function record(kind,details={}){
+            if(isPrivate())return;
+            const token=v=>String(v||'').replace(/[^a-zA-Z0-9_.-]/g,'').slice(0,60);
+            const row={at:new Date().toISOString(),version,kind:token(kind),reason:token(details.reason),type:token(details.type),code:Number.isFinite(details.exitCode)?details.exitCode:null};
+            try{if(fs.existsSync(file)&&fs.statSync(file).size>262144)fs.renameSync(file,file+'.previous');fs.appendFileSync(file,JSON.stringify(row)+'\\n',{mode:0o600});}catch{}
+           }
+           return{record,file};
+          }
+          function install({win,entry,getRuntime,closing=()=>false,record=()=>{},notify=()=>{},delay=150}){
+           let disposed=false,recovering=false,timer=null;const attempts=[];
+           function alive(){return !disposed&&!win.isDestroyed()&&!win.webContents.isDestroyed()&&!closing();}
+           async function recover(){
+            timer=null;if(!alive()||recovering)return;
+            const runtime=getRuntime();if(runtime?.busy){timer=setTimeout(()=>void recover(),delay);return;}
+            const now=Date.now();while(attempts.length&&now-attempts[0]>60000)attempts.shift();
+            if(attempts.length>=2){record('shell-recovery-paused');notify('Интерфейс остановлен повторно. Журнал сбоев доступен в меню «Файл».');return;}
+            attempts.push(now);recovering=true;
+            try{
+             if(runtime?.gate){runtime.gate.hide();runtime.gate.blocked=false;runtime.gate.sequence=0;runtime.gate.desired=[];}
+             await win.loadURL(entry);if(!alive())return;
+             await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>100){clearInterval(t);reject(Error('Shell recovery not ready'))}},100)})");
+             if(!alive())return;record('shell-recovered');win.webContents.send('browser:error','Интерфейс восстановлен после сбоя. Открытые страницы сохранены.');
+            }catch{record('shell-recovery-failed');if(alive())notify('Не удалось восстановить интерфейс. Данные не удалены; журнал доступен в меню «Файл».');}
+            finally{recovering=false;}
+           }
+           const gone=(_event,details)=>{record('shell-process-gone',details);if(!alive()||details.reason==='clean-exit'||timer||recovering)return;timer=setTimeout(()=>void recover(),delay);};
+           win.webContents.on('render-process-gone',gone);
+           const cleanup=()=>{disposed=true;clearTimeout(timer);timer=null;win.webContents.removeListener('render-process-gone',gone);};win.once('closed',cleanup);
+           return{recover,cleanup,isRecovering:()=>recovering||!!timer};
+          }
+          module.exports={install,journal};
+          '''.lstrip())
+          edit('desktop/quadro-main.cjs',"function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\\n');console.log(s)}","function log(s){try{if(fs.existsSync(logFile)&&fs.statSync(logFile).size>1048576)fs.renameSync(logFile,logFile+'.previous');fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\\n')}catch{}console.log(s)}")
+          edit('desktop/quadro-main.cjs',"const ipcRouter=require('./mouse-private-core.cjs')","const runtimeJournal=require('./mouse-runtime-guard.cjs').journal({directory:app.getPath('userData'),version:app.getVersion(),isPrivate:()=>!!privateMode?.current||!!privateMode?.busy});\nprocess.on('uncaughtExceptionMonitor',(error)=>runtimeJournal.record('main-exception',{reason:error.name}));\napp.on('child-process-gone',(_event,details)=>runtimeJournal.record('child-process-gone',details));\nconst ipcRouter=require('./mouse-private-core.cjs')")
+          edit('desktop/quadro-main.cjs',"if(win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');","if(!win.webContents.isDestroyed()&&!win.webContents.isCrashed()&&win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');")
+          edit('desktop/quadro-main.cjs',"{label:'Закрыть вкладку',accelerator:'Cmd+W',click:()=>send('close-tab')}","{label:'Закрыть вкладку',accelerator:'Cmd+W',click:()=>send('close-tab')},{type:'separator'},{label:'Показать локальный журнал сбоев',click:()=>shell.showItemInFolder(runtimeJournal.file)}")
+          edit('desktop/quadro-main.cjs',"win.webContents.on('render-process-gone',(_e,detail)=>log('SHELL_STOPPED '+detail.reason));","const shellRecovery=require('./mouse-runtime-guard.cjs').install({win,entry,getRuntime:()=>({gate:privateMode?.current?.gate||overlayGate,busy:!!privateMode?.busy}),closing:()=>exitController.isClosing(),record:runtimeJournal.record,notify:message=>{if(!test)void dialog.showMessageBox(win,{type:'warning',message,buttons:['Закрыть']}).catch(()=>{})}});")
+          edit('desktop/quadro-main.cjs',"log('QUADRO_READY '+app.getVersion());","log('QUADRO_READY '+app.getVersion());runtimeJournal.record('ready');")
+          edit('desktop/quadro-main.cjs'," if(test&&(process.argv.includes('--mouse-private-smoke')", " if(test&&process.argv.includes('--mouse-runtime-smoke'))await require('./mouse-runtime-smoke.cjs')({app,win,browser,store,privateMode,shellRecovery});\n if(test&&(process.argv.includes('--mouse-private-smoke')")
+          edit('desktop/quadro-build.cjs',"'mouse-612-smoke.cjs'","'mouse-612-smoke.cjs','mouse-runtime-guard.cjs','mouse-runtime-smoke.cjs'")
+          Path('desktop/mouse-runtime.test.cjs').write_text('''
+          'use strict';
+          const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),vm=require('node:vm'),{EventEmitter}=require('node:events');
+          const {install,journal}=require('./mouse-runtime-guard.cjs'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          test('disposed pages ignore late native callbacks and destroyed state is safe',()=>{
+           class WC extends EventEmitter{constructor(){super();this.dead=false;this.url='https://fixture.invalid/';this.navigationHistory={canGoBack:()=>{this.check();return false},canGoForward:()=>{this.check();return false}}}check(){if(this.dead)throw Error('Object has been destroyed')}getURL(){this.check();return this.url}isDestroyed(){return this.dead}setWindowOpenHandler(){}send(){this.check()}loadURL(url){this.url=url;return Promise.resolve()}close(){this.dead=true;this.emit('destroyed')}}
+           class V{constructor(){this.webContents=new WC}setBorderRadius(){}setBounds(){}setVisible(){}}
+           const ses={getUserAgent:()=>'',setPermissionCheckHandler(){},setPermissionRequestHandler(){},on(){}};
+           const mod={exports:{}},context={module:mod,exports:mod.exports,URL,Buffer,console,setTimeout,clearTimeout,process,__dirname,require:n=>n==='electron'?{WebContentsView:V,View:V,session:{fromPartition:()=>ses}}:n==='./page-context.cjs'?{readPage:'',providerFor:()=>''}:n==='./network.cjs'?{proxyConfig:()=>({})}:n==='./connection-diagnostics.cjs'?{ConnectionDiagnostics:class{attach(){}}}:require(n)};
+           vm.runInNewContext(fs.readFileSync('browser.cjs','utf8'),context);
+           const win=new EventEmitter();win.webContents=new WC;win.isDestroyed=()=>false;win.getContentSize=()=>[1000,800];win.contentView={children:[],addChildView(v){this.children.push(v)},removeChildView(v){this.children=this.children.filter(x=>x!==v)}};
+           const b=new mod.exports.BrowserWorkspace(win,null);b.project='test';const t=b.make('https://fixture.invalid/','test');t.view.webContents.dead=true;
+           assert.doesNotThrow(()=>b.state());assert.equal(b.state().tabs[0].back,false);assert.ok(b.state().tabs[0].error);
+           t.view.webContents.dead=false;b.dispose();for(const event of ['did-stop-loading','did-navigate','page-title-updated','render-process-gone'])assert.doesNotThrow(()=>t.view.webContents.emit(event));
+           assert.equal(win.listenerCount('resize'),0);assert.equal(win.listenerCount('closed'),0);assert.equal(win.webContents.listenerCount('did-start-navigation'),0);assert.equal(win.contentView.children.length,0);
+          });
+          test('shell-only recovery is coalesced, bounded, and never quits the process',async()=>{
+           const win=new EventEmitter();win.webContents=new EventEmitter();win.isDestroyed=()=>false;win.webContents.isDestroyed=()=>false;win.webContents.send=()=>{};win.webContents.executeJavaScript=async()=>{};
+           let loads=0,hides=0;win.loadURL=async url=>{assert.equal(url,'file:///shell');loads++};
+           const gate={hide:()=>hides++,sequence:50,blocked:true};const g=install({win,entry:'file:///shell',getRuntime:()=>({gate}),delay:5});
+           win.webContents.emit('render-process-gone',{}, {reason:'crashed'});win.webContents.emit('render-process-gone',{}, {reason:'crashed'});await sleep(30);assert.equal(loads,1);assert.equal(hides,1);assert.equal(gate.blocked,false);assert.equal(gate.sequence,0);
+           await g.recover();assert.equal(loads,2);await g.recover();assert.equal(loads,2);g.cleanup();win.webContents.emit('render-process-gone',{}, {reason:'crashed'});await sleep(20);assert.equal(loads,2);
+          });
+          test('runtime journal is bounded, content-free and does not record private mode',()=>{
+           const dir=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-runtime-'));let privateMode=false;
+           try{const j=journal({directory:dir,version:'6.0.12',isPrivate:()=>privateMode});j.record('renderer',{reason:'crashed',exitCode:4,url:'https://secret.invalid/',message:'password'});const before=fs.readFileSync(j.file,'utf8');assert.ok(!before.includes('secret'));assert.ok(!before.includes('password'));privateMode=true;j.record('private',{reason:'crashed'});assert.equal(fs.readFileSync(j.file,'utf8'),before);privateMode=false;fs.writeFileSync(j.file,'x'.repeat(270000));j.record('ready');assert.ok(fs.statSync(j.file).size<1024);assert.ok(fs.existsSync(j.file+'.previous'));}finally{fs.rmSync(dir,{recursive:true,force:true})}
+          });
+          '''.lstrip())
+          Path('desktop/mouse-runtime-smoke.cjs').write_text('''
+          'use strict';
+          const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function until(fn,label){for(let i=0;i<300;i++){try{if(await fn())return}catch{}await sleep(60)}throw Error('Runtime smoke timeout: '+label)}
+          module.exports=async({app,win,browser,store,privateMode,shellRecovery})=>{
+           const js=s=>win.webContents.executeJavaScript(s),server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Runtime fixture</title><script>window.marker="retained-page"</script><p>Alive</p>')});
+           await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;let failed=false;
+           try{
+            await js(`QuadroTest.openPage(${JSON.stringify(root+'/keep')})`);await until(()=>[...browser.tabs.values()].some(t=>t.url===root+'/keep'&&!t.loading),'fixture');
+            const kept=[...browser.tabs.values()].find(t=>t.url===root+'/keep'),id=kept.view.webContents.id;await js('QuadroTest.save()');
+            const before=await js('QuadroTest.model.state.tabs.map(t=>t.id)');
+            win.webContents.forcefullyCrashRenderer();await until(()=>!shellRecovery.isRecovering()&&!win.webContents.isCrashed()&&js('document.documentElement.dataset.quadroReady==="true"'),'shell recovery');
+            assert.ok(!win.isDestroyed());assert.equal(browser.get(kept.id).view.webContents.id,id);assert.equal(await kept.view.webContents.executeJavaScript('window.marker'),'retained-page');assert.deepEqual(await js('QuadroTest.model.state.tabs.map(t=>t.id)'),before);
+            const doomed=await browser.command('open',{url:root+'/doomed',lane:'side'});const wc=browser.get(doomed.id).view.webContents;await until(()=>!browser.get(doomed.id).loading,'doomed ready');wc.close({waitForBeforeUnload:false});await until(()=>wc.isDestroyed(),'destroyed');
+            assert.doesNotThrow(()=>browser.state());assert.doesNotThrow(()=>browser.emit());assert.doesNotThrow(()=>browser.layout(browser.panels));await browser.command('close',{id:doomed.id});
+            for(let n=0;n<20;n++){const t=await browser.command('open',{url:root+'/close-'+n,lane:'side'});await browser.command('close',{id:t.id});}
+            for(let n=0;n<3;n++){win.setFullScreen(true);await until(()=>win.isFullScreen(),'fullscreen');await sleep(600);win.setFullScreen(false);await until(()=>!win.isFullScreen(),'normal');await sleep(600)}
+            await privateMode.toggle();const c=privateMode.current;assert.ok(c);await c.store.set({runtimeSentinel:'PRIVATE_RUNTIME_SENTINEL_612'});await js('QuadroTest.save()');const privateIDs=await js('QuadroTest.model.state.tabs.map(t=>t.id)');
+            win.webContents.forcefullyCrashRenderer();await until(()=>!shellRecovery.isRecovering()&&!win.webContents.isCrashed()&&js('document.documentElement.dataset.quadroReady==="true"'),'private shell recovery');
+            assert.equal(privateMode.current,c);assert.equal(await js('document.documentElement.dataset.private'),'true');assert.deepEqual(await js('QuadroTest.model.state.tabs.map(t=>t.id)'),privateIDs);assert.equal((await c.store.get('runtimeSentinel')).runtimeSentinel,'PRIVATE_RUNTIME_SENTINEL_612');
+            await privateMode.toggle();assert.equal(privateMode.current,null);assert.equal(browser.get(kept.id).view.webContents.id,id);assert.equal(await kept.view.webContents.executeJavaScript('window.marker'),'retained-page');
+            await fs.writeFile('mouse-612-runtime-recovered.png',(await win.capturePage()).toPNG());
+            assert.ok(!(await fs.readFile(require('node:path').join(app.getPath('userData'),'workspace.json'),'utf8')).includes('PRIVATE_RUNTIME_SENTINEL_612'));
+            console.log('MOUSE_612_REAL_SHELL_CRASH_PRIVATE_RECOVERY_AND_PAGE_CLOSE_STRESS_PASS');
+           }catch(e){failed=true;console.error(e)}finally{await new Promise(r=>server.close(r));app.exit(failed?1:0)}
+          };
+          '''.lstrip())
+          p=Path('tools/quadro-verify.py');s=p.read_text();needle='# Actual older app replacement, verified new startup and a preserved runner profile.';assert needle in s
+          addition="""# Independently crash only the renderer on a disposable runner profile.
+          env={**os.environ,'CI':'true','QUADRO_TEST_PROFILE':str(root/'runtime-612')}
+          r=subprocess.run([str(exe),'--mouse-runtime-smoke'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=150)
+          pathlib.Path('quadro-runtime-612.log').write_text(r.stdout);print(r.stdout,flush=True)
+          if r.returncode or 'MOUSE_612_REAL_SHELL_CRASH_PRIVATE_RECOVERY_AND_PAGE_CLOSE_STRESS_PASS' not in r.stdout:raise SystemExit('Runtime recovery verification failed')
+          """
+          p.write_text(s.replace(needle,addition+needle))
+          with Path('docs/desktop/2026-11-15-mouse612-ai-navigation.md').open('a') as f:f.write('\n## Срочное дополнение: сообщение владельца о вылете\nВыпуск остановлен до дополнительных проверок. На старом BrowserWorkspace воспроизведены два необработанных исключения Object has been destroyed: state после уничтожения WebContents и поздний did-stop-loading после dispose. Исправлены проверки живого объекта, поздние события, освобождение обработчиков и обращения библиотеки/overlay к закрытым страницам. При сбое renderer оболочки восстанавливается только локальный интерфейс, сохраняются существующие native-вкладки и изолированная память инкогнито; максимум2 попытки/минуту, без глобального подавления uncaughtException. Добавлен локальный ограниченный журнал кодов/типов без URL/сообщений/паролей, приватные события не пишутся. Точная связь с вылетом личного Mac без системного crash-report пока не подтверждена. Требуются принудительный renderer crash, восстановление обычного/приватного режима, закрытие страниц во время загрузки и fullscreen stress в настоящем DMG.\n')
+          PY
+          node --check desktop/browser.cjs
+          node --check desktop/quadro-main.cjs
+          node --check desktop/mouse-runtime-smoke.cjs
+          (cd desktop && node --test mouse-runtime.test.cjs mouse-612.test.cjs mouse-607.test.cjs mouse-611.test.cjs)
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop tools/quadro-verify.py docs/desktop/2026-11-15-mouse612-ai-navigation.md
+          git commit -m 'Mouse 6.0.12: guard destroyed pages and recover isolated shell crashes'
+          git push origin HEAD:refs/heads/codex/mouse-612-ai-history
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse612-stability-source
+          path: |
+            desktop/browser.cjs
+            desktop/quadro-main.cjs
+            desktop/quadro-overlays.cjs
+            desktop/quadro-browsing.cjs
+            desktop/mouse-runtime*.cjs
+            desktop/mouse-612*.cjs
+            desktop/quadro-smoke.cjs
+          retention-days: 7
