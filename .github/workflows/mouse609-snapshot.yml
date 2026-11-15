@@ -1,0 +1,18 @@
+name: Mouse 609 exact source snapshot
+on:
+  push:
+    branches: ['codex/mouse-609-capture-menu']
+    paths: ['.github/workflows/mouse609-snapshot.yml']
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git archive --format=tar.gz --output=mouse609-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse609-source
+          path: mouse609-source.tar.gz
+          retention-days: 2
