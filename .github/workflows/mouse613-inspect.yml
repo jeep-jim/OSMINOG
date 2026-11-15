@@ -23,7 +23,7 @@ jobs:
       - run: |
           mkdir export
           git -C source archive --format=tar HEAD > export/source.tar
-          git -C releases archive --format=tar HEAD > export/releases.tar
+          git -C releases archive --format=tar HEAD tools .github channels > export/releases.tar
           git -C source rev-parse HEAD > export/source-head.txt
           git -C releases rev-parse HEAD > export/releases-head.txt
       - uses: actions/upload-artifact@v4
