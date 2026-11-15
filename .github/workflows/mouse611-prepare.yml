@@ -1,0 +1,126 @@
+name: Prepare Mouse 6.0.11 private theme
+on:
+  push:
+    branches: [codex/mouse611-prepare]
+    paths: [.github/workflows/mouse611-prepare.yml]
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e496fbce15132e3285871e03e48ac135614997ad
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Apply narrow checked source edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          def edit(path,old,new):
+              p=Path(path);s=p.read_text();assert s.count(old)==1,(path,old,s.count(old));p.write_text(s.replace(old,new))
+          d=Path('desktop')
+          svg=(d/'quadro/mouse-private.svg').read_text()
+          old='<g id="mouse-approved-left"><path fill="#ffffff"'
+          assert svg.count(old)==1
+          (d/'quadro/mouse-private-light.svg').write_text(svg.replace(old,'<g id="mouse-approved-left"><path fill="#000000"'))
+          edit('desktop/quadro/quadro.js',' function favicon(t){'," function privateArtwork(){return m.theme==='light'?'mouse-private-light.svg':'mouse-private.svg'}\n function favicon(t){")
+          edit('desktop/quadro/quadro.js',"im.src=m.privateMode?'mouse-private.svg':'brand.png'","im.src=m.privateMode?privateArtwork():'brand.png'")
+          edit('desktop/quadro/quadro.js',"function setTheme(theme){m.theme=theme;document.documentElement.dataset.theme=theme;void N.theme(theme);save()}","function setTheme(theme){m.theme=theme;document.documentElement.dataset.theme=theme;document.querySelectorAll('.private-mascot,.private-logo').forEach(im=>{im.src=privateArtwork()});void N.theme(theme);save()}")
+          edit('desktop/quadro/start.js','  slot.append(root);',"  root.querySelector('.private-mascot').src=document.documentElement.dataset.theme==='light'?'mouse-private-light.svg':'mouse-private.svg';\n  slot.append(root);")
+          with (d/'quadro/mouse-final.css').open('a') as f:f.write('''
+          /* 6.0.11: private light appearance; purple glasses and highlights are NOT inverted. */
+          :root[data-private=true][data-theme=light] .home-page{--home-ink:#191923;background:#edeef0!important;color:#191923}
+          :root[data-private=true][data-theme=light] .private-welcome .private-note{color:#555562}
+          :root[data-private=true][data-theme=light] .home-page h2,:root[data-private=true][data-theme=light] .home-site-label{text-shadow:none}
+          :root[data-private=true][data-theme=light] .favorite-add .home-site-icon{background:#ffffff99;border-color:#9296a0;color:#191923}
+          :root[data-private=true][data-theme=light] .home-page .home-customize,:root[data-private=true][data-theme=light] .home-page .home-more{color:#191923!important;background:#ffffffc9!important;border-color:#a6a9b2!important}
+          ''')
+          for path in ['desktop/quadro-build.cjs','desktop/quadro-smoke.cjs','desktop/mouse-606.test.cjs','tools/quadro-verify.py']:
+              p=Path(path);s=p.read_text();assert '6.0.10' in s,path;p.write_text(s.replace('6.0.10','6.0.11'))
+          edit('desktop/quadro-build.cjs',"'mouse-private-smoke.cjs'","'mouse-private-smoke.cjs','mouse-611-smoke.cjs'")
+          edit('desktop/mouse-private-smoke.cjs',"  assert.ok(await js('document.querySelector(\".private-mascot\").src.endsWith(\"mouse-private.svg\")'));","  await require('./mouse-611-smoke.cjs')({win});")
+          (d/'mouse-611-smoke.cjs').write_text('''
+          'use strict';
+          const assert=require('node:assert/strict'),fs=require('node:fs/promises');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          module.exports=async({win})=>{
+           const js=s=>win.webContents.executeJavaScript(s);
+           const previous=await js('QuadroTest.model.theme');
+           const tabIds=await js('QuadroTest.model.state.tabs.map(t=>t.id)');
+           try{
+            for(const theme of ['light','dark','light']){
+             await js(`QuadroTest.setTheme('${theme}')`);
+             const result=await js(`(async()=>{
+              const imgs=[...document.querySelectorAll('.private-mascot,.private-logo')];
+              await Promise.all(imgs.map(i=>i.decode()));
+              const art=imgs.map(i=>{const c=document.createElement('canvas');c.width=47;c.height=64;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(i,0,0,47,64);return{src:i.getAttribute('src'),filter:getComputedStyle(i).filter,pixels:[...x.getImageData(0,0,47,64).data]}});
+              const home=document.querySelector('.home-page'),style=getComputedStyle(home);
+              return{art,tab:document.querySelector('#tabstrip .private-logo')?.getAttribute('src'),pane:document.querySelector('.pane-icon .private-logo')?.getAttribute('src'),background:style.backgroundColor,text:style.color,private:document.documentElement.dataset.private};
+             })()`);
+             const light=theme==='light',src=light?'mouse-private-light.svg':'mouse-private.svg';
+             assert.equal(result.private,'true');assert.ok(result.art.length>=3);assert.equal(result.tab,src);assert.equal(result.pane,src);
+             for(const a of result.art){
+              assert.equal(a.src,src);assert.equal(a.filter,'none');
+              const at=(x,y)=>a.pixels.slice((y*47+x)*4,(y*47+x)*4+4);
+              assert.deepEqual(at(0,58),light?[0,0,0,255]:[255,255,255,255]);
+              assert.deepEqual(at(46,17),[168,85,247,255]);assert.deepEqual(at(16,17),[255,255,255,255]);
+             }
+             assert.equal(result.background,light?'rgb(237, 238, 240)':'rgb(23, 24, 34)');
+             assert.equal(result.text,light?'rgb(25, 25, 35)':'rgb(245, 241, 255)');
+             assert.deepEqual(await js('QuadroTest.model.state.tabs.map(t=>t.id)'),tabIds);
+             await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await sleep(350);
+             await fs.writeFile('mouse-611-private-'+theme+'.png',(await win.capturePage()).toPNG());
+            }
+            console.log('MOUSE_611_PRIVATE_THEME_ASSETS_AND_LIVE_SWITCH_PASS');
+           }finally{await js(`QuadroTest.setTheme(${JSON.stringify(previous)})`);}
+          };
+          '''.lstrip())
+          (d/'mouse-611.test.cjs').write_text('''
+          'use strict';
+          const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+          test('private light artwork changes only the mouse body; all purple glasses, white glints and geometry stay exact',()=>{
+           const dark=fs.readFileSync('quadro/mouse-private.svg','utf8'),light=fs.readFileSync('quadro/mouse-private-light.svg','utf8');
+           const body='<g id="mouse-approved-left"><path fill="#ffffff"';
+           assert.equal(dark.split(body).length,2);
+           assert.equal(light,dark.replace(body,'<g id="mouse-approved-left"><path fill="#000000"'));
+           assert.match(light,/fill="#a855f7"/);assert.match(light,/fill="#ffffff"/);
+          });
+          test('private light styles are scoped and theme updates both existing and new images without page reload',()=>{
+           const css=fs.readFileSync('quadro/mouse-final.css','utf8'),app=fs.readFileSync('quadro/quadro.js','utf8'),start=fs.readFileSync('quadro/start.js','utf8');
+           assert.ok(css.includes(':root[data-private=true][data-theme=light] .home-page{--home-ink:#191923;background:#edeef0!important;color:#191923}'));
+           assert.ok(app.includes("im.src=m.privateMode?privateArtwork():'brand.png'"));
+           assert.ok(app.includes("document.querySelectorAll('.private-mascot,.private-logo').forEach(im=>{im.src=privateArtwork()})"));
+           assert.ok(start.includes("document.documentElement.dataset.theme==='light'?'mouse-private-light.svg':'mouse-private.svg'"));
+          });
+          '''.lstrip())
+          p=Path('.github/workflows/quadro-macos.yml');s=p.read_text();s=s.replace("version:'6.0.10'","version:'6.0.11'").replace('mouse-609.test.cjs','mouse-609.test.cjs mouse-611.test.cjs').replace("tests:[","tests:['private-theme-light-dark-live',",1)
+          needle='          grep -q MOUSE_610_PURPLE_GLASSES_AND_ALL_FOOTER_PIXELS_BOTH_THEMES_PASS quadro-smoke-write.log'
+          assert s.count(needle)==1
+          s=s.replace(needle,needle+'\n          grep -q MOUSE_611_PRIVATE_THEME_ASSETS_AND_LIVE_SWITCH_PASS quadro-mouse-private-smoke.log');p.write_text(s)
+          p=Path('tools/mouse-update-verify.py');s=p.read_text();s=s.replace('6.0.10','__NEXT__').replace('6.0.9','6.0.10').replace('__NEXT__','6.0.11')
+          s=s.replace('mouse610-update-roundtrip','mouse611-update-roundtrip').replace('old609','old610').replace('keep-profile-610','keep-profile-611').replace('retain-610','retain-611').replace('MOUSE_610_REAL_609_TO_610_REPLACE_RELAUNCH_PROFILE_PASS','MOUSE_611_REAL_610_TO_611_REPLACE_RELAUNCH_PROFILE_PASS')
+          assert '130a779b189cab0711c527de6e1b7b657e15160046dad6ee09bfe33da45ec24a' in s
+          s=s.replace('130a779b189cab0711c527de6e1b7b657e15160046dad6ee09bfe33da45ec24a','9cb12434ea571ead2d491eae2289626a4fa391b56b406160f7df8a6718e162ab');p.write_text(s)
+          p=Path('docs/desktop/2026-11-15-mouse611-private-theme.md');p.write_text('''# Mouse Browser 6.0.11 — тема инкогнито
+          Прямое поручение владельца: опубликовать небольшое обновление, не макет и не техническое задание.
+          Светлая тема: светло-серый фон, чёрная исходная мышь и чёрная мышь с фиолетовыми очками в верхней вкладке/строке панели. Тёмная тема сохраняет прежний фон и белую мышь. Очки #A855F7 и белые пиксельные блики не инвертируются.
+          Тема применяется к уже открытым и новым внутренним вкладкам без перезагрузки сайтов. Dock остаётся чёрной мышью на белом. Захват, меню, кошелёк, приватное хранение, updater и другие платформы не меняются.
+          Новый SVG отличается от прежнего только цветом тела; геометрия, усы, хвост и очки неизменны. Требуются обе темы в настоящем private mode, проверка пикселей всех img и снимков, прежние проверки приватности и реальный переход 6.0.10→6.0.11 с сохранением профиля. До успешной публикации и проверки канала не считать выпуск готовым.
+          ''')
+          with Path('OSMINOG_BROWSER_ROADMAP.md').open('a') as f:f.write('\n## 2026-11-15 — Mouse6.0.11: инкогнито следует теме\nТолько чёрная мышь/серый фон светлой темы и правильные верхние иконки, без инверсии фиолетовых очков. См. docs/desktop/2026-11-15-mouse611-private-theme.md. Публикация через существующий проверенный канал после arm64-проверок.\n')
+          PY
+          node --check desktop/quadro/quadro.js
+          node --check desktop/quadro/start.js
+          node --check desktop/mouse-611-smoke.cjs
+          (cd desktop && node --test mouse-611.test.cjs)
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop tools/quadro-verify.py tools/mouse-update-verify.py .github/workflows/quadro-macos.yml docs/desktop/2026-11-15-mouse611-private-theme.md OSMINOG_BROWSER_ROADMAP.md
+          git commit -m 'Mouse 6.0.11: match private mascot and page to light or dark theme'
+          git push origin HEAD:refs/heads/codex/mouse-611-private-theme
