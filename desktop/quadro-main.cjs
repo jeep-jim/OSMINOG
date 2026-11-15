@@ -57,6 +57,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
+ require('./mouse-stability.cjs').installWorkspace(browser,{report:log});
  overlayGate=new (require('./quadro-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('quadro:overlay',(e,state)=>{trusted(e);return overlayGate.set(state)});
  web3Service=await require('./quadro-web3.cjs').install({app,win,browser,trusted,test});
@@ -85,7 +86,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,test});
  ipcMain.handle('quadro:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(()=>{if(!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через ⌘Q и повторите.')}));return true;});
  win.webContents.on('preload-error',(_e,_p,error)=>log('PRELOAD_ERROR '+error.message));
- win.webContents.on('render-process-gone',(_e,detail)=>log('SHELL_STOPPED '+detail.reason));
+ require('./mouse-stability.cjs').installShellRecovery({win,entry,current:()=>privateMode?.current?{browser:privateMode.current.browser,gate:privateMode.current.gate}:{browser,gate:overlayGate},isClosing:()=>exitController.isClosing(),report:log});
+ app.on('child-process-gone',(_e,detail)=>log('CHILD_STOPPED '+detail.type+' '+detail.reason));
  await win.loadURL(entry);show();
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Quadro UI failed to start'))}},100)})");
  log('QUADRO_READY '+app.getVersion());

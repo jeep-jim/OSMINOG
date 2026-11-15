@@ -16,7 +16,8 @@ static NSHashTable<NSWindow*>* hiddenTitleWindows;
 // that style mask can crash. Keep the style, but remove its redundant title view
 // and make its auxiliary fullscreen title window non-interactive. The actual
 // Apple menu/status window is not owned by these buttons and is never touched.
-static void suppressTitleChrome(){
+static BOOL suppressing=NO,titlePending=NO,windowClosing=NO;
+static void suppressTitleChromeUnsafe(){
  NSWindow* w=mouseWindow;if(!w)return;
  if(w.titleVisibility!=NSWindowTitleHidden)w.titleVisibility=NSWindowTitleHidden;if(!w.titlebarAppearsTransparent)w.titlebarAppearsTransparent=YES;
  for(NSNumber* kind in @[@(NSWindowCloseButton),@(NSWindowMiniaturizeButton),@(NSWindowZoomButton)]){
@@ -37,6 +38,15 @@ static void suppressTitleChrome(){
  }
 }
 
+static void suppressTitleChrome(){
+ if(!NSThread.isMainThread||suppressing||windowClosing||!mouseWindow)return;
+ suppressing=YES;
+ @try{suppressTitleChromeUnsafe();}@catch(NSException* ex){NSLog(@"Mouse title update rejected: %@",ex.name);}@finally{suppressing=NO;}
+}
+static void queueTitleChrome(){
+ if(titlePending||windowClosing)return;titlePending=YES;
+ dispatch_async(dispatch_get_main_queue(),^{titlePending=NO;suppressTitleChrome();});
+}
 static NSWindow* windowFrom(napi_env env,napi_value v){
  void* data=nullptr;size_t size=0;bool isBuffer=false;
  napi_is_buffer(env,v,&isBuffer);if(!isBuffer||napi_get_buffer_info(env,v,&data,&size)!=napi_ok||size!=sizeof(void*))return nil;
@@ -74,16 +84,16 @@ static napi_value install(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);
  if(!NSThread.isMainThread||n!=1){napi_throw_error(e,nullptr,"Main UI thread and native handle required");return nullptr;}
  NSWindow* w=windowFrom(e,args[0]);if(!w){napi_throw_error(e,nullptr,"Invalid native window");return nullptr;}
- mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
+ windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
  NSNotificationCenter* c=NSNotificationCenter.defaultCenter;
- [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){suppressTitleChrome();}]];
+ [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){queueTitleChrome();}]];
 
  [observers addObject:[c addObserverForName:NSWindowWillEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){savedOptions=NSApp.presentationOptions;hasSaved=YES;}]];
  [observers addObject:[c addObserverForName:NSWindowDidEnterFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){dispatch_async(dispatch_get_main_queue(),^{ensureSystemMenu();});}]];
  [observers addObject:[c addObserverForName:NSWindowDidBecomeKeyNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){ensureSystemMenu();}]];
  [observers addObject:[c addObserverForName:NSWindowWillExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){restoreHover();}]];
  [observers addObject:[c addObserverForName:NSWindowDidExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){menuHeld=NO;windowCorners();if(hasSaved){@try{NSApp.presentationOptions=savedOptions;}@catch(NSException* e){}hasSaved=NO;}}]];
- [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
+ [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){windowClosing=YES;restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
  return state(e,info);
 }
 static napi_value reveal(napi_env e,napi_callback_info info){

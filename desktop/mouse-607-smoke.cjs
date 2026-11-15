@@ -29,8 +29,8 @@ module.exports=async({app,win})=>{
  const at=(x,y)=>artwork.pixels.slice((y*47+x)*4,(y*47+x)*4+4);
  assert.deepEqual(at(0,58),[255,255,255,255],'owner now requires white mascot; tail ends left');
  assert.equal(at(46,63)[3],0);
- assert.deepEqual(at(46,17),[168,85,247,255],'approved glasses have an opaque purple right arm');
- assert.deepEqual(at(16,17),[255,255,255,255],'reference glasses retain white pixel highlights');
+ assert.deepEqual(at(45,17),[168,85,247,255],'approved glasses have an opaque purple right arm');
+ assert.deepEqual(at(15,17),[255,255,255,255],'reference glasses retain white pixel highlights');
  for(let i=3;i<artwork.pixels.length;i+=4)assert.ok(artwork.pixels[i]===0||artwork.pixels[i]===255,'pixel art has no fractional translucent edges');
  await fs.writeFile('mouse-607-incognito-artwork.png',Buffer.from(artwork.png.split(',')[1],'base64'));
  const js=s=>win.webContents.executeJavaScript(s),previous=await js('QuadroTest.model.theme');
