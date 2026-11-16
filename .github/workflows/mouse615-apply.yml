@@ -1,0 +1,36 @@
+name: Apply Mouse 615 approved UI
+on:
+  push:
+    branches: [codex/mouse615-source]
+    paths: [.github/workflows/mouse615-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply reviewed owner UI only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tools/mouse615-refine.py tools/mouse615-ui-tests.cjs tools/mouse615-ui-smoke.cjs "$RUNNER_TEMP/"
+          git fetch origin codex/mouse615-burrow-footer
+          test "$(git rev-parse FETCH_HEAD)" = 92f5bc628ace55213b61dd044a19373e8dcc4c17
+          git checkout -B codex/mouse615-burrow-footer FETCH_HEAD
+          python3 "$RUNNER_TEMP/mouse615-refine.py" "$PWD"
+          (cd desktop && node --test mouse-browser.test.cjs mouse-lifecycle.test.cjs mouse-capture.test.cjs mouse-library.test.cjs mouse-overlays.test.cjs mouse-start.test.cjs mouse-polish.test.cjs mouse-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs mouse-607.test.cjs mouse-608.test.cjs mouse-609.test.cjs mouse-611.test.cjs mouse-612.test.cjs mouse-613.test.cjs mouse-614.test.cjs mouse-615.test.cjs)
+          git diff --check
+          test -z "$(git diff --name-only -- .github/workflows)"
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Mouse 6.0.15: actual arched burrow with hover mouse and separated footer controls'
+          git push origin HEAD:codex/mouse615-burrow-footer
+          git rev-parse HEAD
