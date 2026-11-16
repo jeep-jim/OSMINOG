@@ -32,9 +32,11 @@ module.exports=async({win,browser,app})=>{
   await js('document.querySelector("[data-action=ai-back]").click()');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/first'),'back exact AI');
   await until(()=>js('!document.querySelector("[data-action=ai-forward]").disabled'),'forward enabled');await js('document.querySelector("[data-action=ai-forward]").click()');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/second'),'forward exact AI');
   assert.deepEqual(await js('MouseTest.model.state.tabs.filter(t=>t.lane!=="side").map(t=>t.id)'),mainIds);
-  await js('document.querySelectorAll(".tab-item").forEach((e,i)=>{e.dataset.oldDisplay=e.style.display;e.style.display=i?"none":""})');await sleep(100);
-  const gap=await js('(()=>{const a=document.querySelector(".tab-item").getBoundingClientRect(),b=document.querySelector("#new-tab").getBoundingClientRect();return b.left-a.right})()');assert.ok(gap>=0&&gap<=14,'plus must immediately follow last tab: '+gap);
-  await js('document.querySelectorAll(".tab-item").forEach(e=>e.style.display=e.dataset.oldDisplay||"")');
+  await js(`(()=>{const style=document.createElement('style');style.id='mouse-one-tab-probe';style.textContent='#tabstrip .tab-item:not(:first-child){display:none!important}';document.head.append(style);MouseTest.arrangement.refresh()})()`);
+  try{
+   await until(()=>js('(()=>{const s=document.querySelector("#tabstrip"),items=[...s.querySelectorAll(".tab-item")].filter(e=>getComputedStyle(e).display!=="none"),b=document.querySelector("#new-tab").getBoundingClientRect();return items.length===1&&b.left-items[0].getBoundingClientRect().right>=0&&b.left-items[0].getBoundingClientRect().right<=14})()'),'new tab stays adjacent after visible count changes');
+   const gap=await js('document.querySelector("#new-tab").getBoundingClientRect().left-document.querySelector(".tab-item").getBoundingClientRect().right');assert.ok(gap>=0&&gap<=14,'new-tab control must immediately follow last tab: '+gap);
+  }finally{await js('document.querySelector("#mouse-one-tab-probe")?.remove();MouseTest.arrangement.refresh()');}
   console.log('MOUSE_612_AI_LOGOS_NAV_ACTIVE_AND_ADJACENT_PLUS_PASS');
  }finally{
   if(aiId&&browser.tabs.has(aiId))await browser.command('close',{id:aiId});
