@@ -44,7 +44,17 @@ test('Mouse rounds shared viewport endpoints to prevent a one-pixel edge strip',
  }
 });
 test('burrow is grounded, flared, shaded upward and plus is smaller and hidden at rest',()=>{
- const css=read('mouse/mouse-615.css'),svg=read('mouse/burrow.svg');assert.match(css,/margin-bottom:-4px/);assert.match(css,/width:12px;height:12px/);
+ const css=read('mouse/mouse-615.css'),svg=read('mouse/burrow.svg');assert.match(css,/margin-bottom:-5px/);assert.match(css,/width:12px;height:12px/);
  assert.match(css,/pointer-events:none;opacity:0/);assert.match(css,/#new-tab:hover \.burrow-plus\{opacity:1\}/);assert.match(css,/#new-tab:focus-visible \.burrow-plus\{opacity:1\}/);
  assert.match(svg,/M0 32C5 32 7 29 7 24/);assert.match(svg,/stop-color="#030406"/);assert.match(svg,/offset="1" stop-color="#4d535d"/);
+});
+
+test('618 changes only burrow height and baseline; original curve, width, gradient and plus stay exact',()=>{
+ const crypto=require('node:crypto');
+ const blob=s=>crypto.createHash('sha1').update(Buffer.concat([Buffer.from('blob '+Buffer.byteLength(s)+'\0'),Buffer.from(s)])).digest('hex');
+ const css=read('mouse/mouse-615.css');assert.match(css,/width:36px;height:29px;min-height:29px/);assert.match(css,/margin-bottom:-5px/);
+ const previous=css.replace('height:29px;min-height:29px','height:32px;min-height:32px').replace('margin-bottom:-5px','margin-bottom:-4px');
+ assert.equal(blob(previous),'49cbbdffd25b56d9b53c6c7df18d8867571b3a17','all other stylesheet bytes must match released617');
+ const svg=read('mouse/burrow.svg');assert.match(svg,/preserveAspectRatio="none"/);
+ assert.equal(blob(svg.replace(' preserveAspectRatio="none"','')),'0d9059f21f232ac7800f9a6ef6d7cb5c76bd38bc','original curve and gradient unchanged');
 });
