@@ -1,5 +1,5 @@
 'use strict';
-const {nativeImage}=require('electron'),{faviconData}=require('./quadro/favicon.js');
+const {nativeImage}=require('electron'),{faviconData}=require('./mouse/favicon.js');
 const PRESETS=new Set(['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/']);
 function install({browser,store,ipcMain,trusted}){
  const cache=new Map();

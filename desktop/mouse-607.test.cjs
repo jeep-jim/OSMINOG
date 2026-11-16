@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const brand=require('./mouse-brand.cjs'),{pixels,orientPrivateSVG}=require('./quadro-icon.cjs');
+const brand=require('./mouse-brand.cjs'),{pixels,orientPrivateSVG}=require('./mouse-icon.cjs');
 test('approved mouse is an exact horizontal reflection, with tail on the left in BOTH themes',()=>{
  assert.equal(brand.pixels[29],'0000000000000001111111');
  for(const app of [false,true])for(const dark of [false,true])for(const size of [64,1024]){
@@ -20,7 +20,7 @@ test('approved mouse is an exact horizontal reflection, with tail on the left in
  }
 });
 test('private mascot uses uniform square pixels on 47x64 grid, unchanged silhouette and idempotent orientation',()=>{
- const svg=fs.readFileSync('quadro/mouse-private.svg','utf8');
+ const svg=fs.readFileSync('mouse/mouse-private.svg','utf8');
  assert.equal(orientPrivateSVG(svg),svg,'already approved art cannot be flipped again');
  assert.equal((svg.match(/id="mouse-approved-left"/g)||[]).length,1);
  assert.match(svg,/viewBox="0 0 47 64"/);

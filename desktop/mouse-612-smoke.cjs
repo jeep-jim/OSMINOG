@@ -4,13 +4,13 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let i=0;i<200;i++){try{if(await fn())return;}catch{}await sleep(50);}throw Error('Mouse612 timeout: '+label);}
 module.exports=async({win,browser,app})=>{
  const js=s=>win.webContents.executeJavaScript(s);
- const saved=await js('JSON.parse(JSON.stringify({aiId:QuadroTest.model.aiId,aiOpen:QuadroTest.model.aiOpen,aiSites:QuadroTest.model.aiSites,aiSessions:QuadroTest.model.aiSessions,theme:QuadroTest.model.theme,libraryOpen:QuadroTest.model.libraryOpen,active:QuadroTest.model.active}))');
+ const saved=await js('JSON.parse(JSON.stringify({aiId:MouseTest.model.aiId,aiOpen:MouseTest.model.aiOpen,aiSites:MouseTest.model.aiSites,aiSessions:MouseTest.model.aiSessions,theme:MouseTest.model.theme,libraryOpen:MouseTest.model.libraryOpen,active:MouseTest.model.active}))');
  const server=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<title>AI navigation '+req.url+'</title><h1>AI fixture</h1><script>window.marker="keep"</script>');});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;let aiId='';
  try{
-  await js('QuadroTest.model.aiOpen=true;QuadroTest.model.aiId="";QuadroTest.model.libraryOpen=false;QuadroTest.applySide()');
+  await js('MouseTest.model.aiOpen=true;MouseTest.model.aiId="";MouseTest.model.libraryOpen=false;MouseTest.applySide()');
   for(const theme of ['light','dark']){
-   await js(`QuadroTest.setTheme('${theme}')`);
+   await js(`MouseTest.setTheme('${theme}')`);
    const cards=await js(`Promise.all([...document.querySelectorAll('.ai-preset-card')].map(async b=>{const i=b.querySelector('img');await i.decode();return {name:b.textContent,src:i.src,w:i.naturalWidth,h:i.naturalHeight,url:b.dataset.aiUrl}}))`);
    assert.deepEqual(cards.map(c=>c.name),['ChatGPT','Claude','Gemini','DeepSeek']);
    for(const c of cards){assert.ok(c.src.startsWith('file:')&&c.src.includes('/providers/'));assert.ok(c.w>=16&&c.h>=16);}
@@ -22,23 +22,23 @@ module.exports=async({win,browser,app})=>{
   const originalCommand=browser.command.bind(browser),clicked=[];
   try{
    browser.command=(action,args={})=>{if(action==='open'&&args.lane==='side'&&/^https:\/\/(chatgpt.com|claude.ai|gemini.google.com|chat.deepseek.com)\/$/.test(args.url)){clicked.push(args.url);return originalCommand(action,{...args,url:root+'/provider/'+clicked.length});}return originalCommand(action,args);};
-   for(let i=0;i<4;i++){await js(`document.querySelectorAll('.ai-preset-card')[${i}].click()`);await until(()=>clicked.length===i+1,'preset click');await until(()=>js('!!QuadroTest.model.aiId'),'preset selected');const id=await js('QuadroTest.model.aiId');await until(()=>!browser.get(id).loading,'preset loaded');await originalCommand('close',{id});await js('QuadroTest.model.aiId="";QuadroTest.applySide()');}
+   for(let i=0;i<4;i++){await js(`document.querySelectorAll('.ai-preset-card')[${i}].click()`);await until(()=>clicked.length===i+1,'preset click');await until(()=>js('!!MouseTest.model.aiId'),'preset selected');const id=await js('MouseTest.model.aiId');await until(()=>!browser.get(id).loading,'preset loaded');await originalCommand('close',{id});await js('MouseTest.model.aiId="";MouseTest.applySide()');}
    assert.equal(clicked.length,4);
   }finally{browser.command=originalCommand;}
-  await js(`QuadroTest.openAI(${JSON.stringify(root+'/first')})`);aiId=await js('QuadroTest.model.aiId');await until(()=>!browser.get(aiId).loading,'first loaded');
-  const mainIds=await js('QuadroTest.model.state.tabs.filter(t=>t.lane!=="side").map(t=>t.id)');
+  await js(`MouseTest.openAI(${JSON.stringify(root+'/first')})`);aiId=await js('MouseTest.model.aiId');await until(()=>!browser.get(aiId).loading,'first loaded');
+  const mainIds=await js('MouseTest.model.state.tabs.filter(t=>t.lane!=="side").map(t=>t.id)');
   await browser.command('navigate',{id:aiId,url:root+'/second'});await until(()=>!browser.get(aiId).loading&&browser.get(aiId).view.webContents.getURL().endsWith('/second'),'second loaded');
   await until(()=>js('!document.querySelector("[data-action=ai-back]").disabled'),'back enabled');
   await js('document.querySelector("[data-action=ai-back]").click()');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/first'),'back exact AI');
   await until(()=>js('!document.querySelector("[data-action=ai-forward]").disabled'),'forward enabled');await js('document.querySelector("[data-action=ai-forward]").click()');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/second'),'forward exact AI');
-  assert.deepEqual(await js('QuadroTest.model.state.tabs.filter(t=>t.lane!=="side").map(t=>t.id)'),mainIds);
+  assert.deepEqual(await js('MouseTest.model.state.tabs.filter(t=>t.lane!=="side").map(t=>t.id)'),mainIds);
   await js('document.querySelectorAll(".tab-item").forEach((e,i)=>{e.dataset.oldDisplay=e.style.display;e.style.display=i?"none":""})');await sleep(100);
   const gap=await js('(()=>{const a=document.querySelector(".tab-item").getBoundingClientRect(),b=document.querySelector("#new-tab").getBoundingClientRect();return b.left-a.right})()');assert.ok(gap>=0&&gap<=14,'plus must immediately follow last tab: '+gap);
   await js('document.querySelectorAll(".tab-item").forEach(e=>e.style.display=e.dataset.oldDisplay||"")');
   console.log('MOUSE_612_AI_LOGOS_NAV_ACTIVE_AND_ADJACENT_PLUS_PASS');
  }finally{
   if(aiId&&browser.tabs.has(aiId))await browser.command('close',{id:aiId});
-  await js(`Object.assign(QuadroTest.model,${JSON.stringify(saved)});QuadroTest.setTheme(${JSON.stringify(saved.theme)});QuadroTest.renderAISites();QuadroTest.renderTree();QuadroTest.applySide();QuadroTest.save()`);
+  await js(`Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderAISites();MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);
   server.close();
  }
  const {BrowserWindow,session}=require('electron'),{MemoryStore}=require('./mouse-private-core.cjs'),{installWorkspace,installShellRecovery}=require('./mouse-stability.cjs');

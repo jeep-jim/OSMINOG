@@ -5,7 +5,7 @@ class PrivateMode {
  constructor(options){Object.assign(this,options);this.current=null;this.busy=false;}
  async reload(){
   await this.win.loadURL(this.entry);
-  await this.win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.quadroReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>200){clearInterval(t);reject(Error('Не удалось открыть режим браузера'))}},50)})`);
+  await this.win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>200){clearInterval(t);reject(Error('Не удалось открыть режим браузера'))}},50)})`);
  }
  async toggle(){
   if(this.busy)return;this.busy=true;
@@ -14,7 +14,7 @@ class PrivateMode {
  }
  async enter(){
   const {win,normalBrowser,normalGate,normalStore,router,trusted,test}=this;
-  await win.webContents.executeJavaScript('globalThis.QuadroFlush?.()');
+  await win.webContents.executeJavaScript('globalThis.MouseFlush?.()');
   await normalBrowser.save();await normalBrowser.saveQueue;
   // Destroy the old host JS context before switching privileged IPC destinations.
   await win.loadURL('about:blank');
@@ -32,33 +32,33 @@ class PrivateMode {
   const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});
   require('./mouse-stability.cjs').installWorkspace(browser);
   collect.forEach(fn=>fn());
-  const gate=new (require('./quadro-overlays.cjs').OverlayGate)(browser,win);
+  const gate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
   const current={store,ses,partition,browser,gate,handlers,emit,listeners,libraryService:null,startService:null};this.current=current;
   try{
    browser.contextScope=[];await browser.initNetwork();await browser.command('project',{id:'mouse-private'});
-   const send=name=>{if(!win.isDestroyed())win.webContents.send('quadro:menu',name);};
-   require('./quadro-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.quadroChromeGuard});
-   register.handle('quadro:overlay',(event,state)=>{trusted(event);return gate.set(state);});
-   const libraryService=await require('./quadro-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test});
+   const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
+   require('./mouse-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.mouseChromeGuard});
+   register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state);});
+   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test});
    current.libraryService=libraryService;
    // Do not even keep private visit/search/closed lists in the library UI.
    for(const name of ['visit','title','input','closed'])libraryService.library[name]=()=>{};
-   const startService=await require('./quadro-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
+   const startService=await require('./mouse-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
    current.startService=startService;
    require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain:register,trusted});
-   register.handle('quadro:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:(await store.get('quadroPreferences')).quadroPreferences};});
-   register.handle('quadro:save',async(event,p)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./quadro/layout.js').validate(p.tree);return store.set({quadroPreferences:p});});
+   register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:(await store.get('quadroPreferences')).quadroPreferences};});
+   register.handle('mouse:save',async(event,p)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return store.set({quadroPreferences:p});});
    const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
-   register.handle('quadro:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
-   for(const name of ['quadro:privacy','quadro:window','quadro:theme'])handlers.set(name,router.normal.get(name));
-   handlers.set('quadro:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('quadro:global-capture-admin')(event,action,args);});
-   handlers.set('quadro:web3-admin',()=>{throw Error('Кошелёк отключён в инкогнито');});
-   handlers.set('quadro:wallet',()=>{throw Error('Кошелёк отключён в инкогнито');});
-   handlers.set('quadro:update',()=>{throw Error('Обновление доступно в обычном режиме');});
+   register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
+   for(const name of ['mouse:privacy','mouse:window','mouse:theme'])handlers.set(name,router.normal.get(name));
+   handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
+   handlers.set('mouse:web3-admin',()=>{throw Error('Кошелёк отключён в инкогнито');});
+   handlers.set('mouse:wallet',()=>{throw Error('Кошелёк отключён в инкогнито');});
+   handlers.set('mouse:update',()=>{throw Error('Обновление доступно в обычном режиме');});
    // Explicit file downloads are allowed, but clearly distinguished from ephemeral browsing data.
    const warning=(_event,item)=>item.setSaveDialogOptions({title:'Инкогнито: сохранённый файл останется на Mac',defaultPath:require('node:path').join(this.e.app.getPath('downloads'),require('node:path').basename(item.getFilename()||'download')),properties:['showOverwriteConfirmation']});
    ses.on('will-download',warning);
-   await browser.command('open',{url:'quadro://start',lane:'main'});
+   await browser.command('open',{url:'mouse://start',lane:'main'});
    router.use(handlers);await this.reload();
   }catch(error){await this.dispose();router.use(null);normalGate.blocked=false;normalGate.sequence=0;normalBrowser.emit=emit;await this.reload();throw error;}
  }

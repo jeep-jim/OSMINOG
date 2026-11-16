@@ -39,10 +39,10 @@ try:
  subprocess.run(['codesign','--verify','--deep','--strict',str(stage/'previous.app')],check=True)
  assert (profile/'mouse-update-owner-sentinel.txt').read_text()=='keep-profile-613'
  assert json.loads((profile/'workspace.json').read_text())['mouseUpdateProof']=='retain-613'
- assert 'QUADRO_READY 6.0.14' in (profile/'quadro-startup.log').read_text()
+ assert 'MOUSE_READY 6.0.14' in (profile/'mouse-startup.log').read_text()
  assert not (profile/'mouse-update-receipt.json').exists()
  print('MOUSE_614_REAL_613_TO_614_REPLACE_RELAUNCH_PROFILE_PASS',flush=True)
- with open('mouse-update-roundtrip.log','a') as log:log.write('\nMOUSE_614_REAL_613_TO_614_REPLACE_RELAUNCH_PROFILE_PASS\n'+(profile/'quadro-startup.log').read_text())
+ with open('mouse-update-roundtrip.log','a') as log:log.write('\nMOUSE_614_REAL_613_TO_614_REPLACE_RELAUNCH_PROFILE_PASS\n'+(profile/'mouse-startup.log').read_text())
 finally:
  for line in subprocess.check_output(['ps','-axo','pid=,command='],text=True).splitlines():
   parts=line.strip().split(None,1)

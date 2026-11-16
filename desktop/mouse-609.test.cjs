@@ -14,13 +14,13 @@ test('picker errors retain native error code, do not falsely claim capture',asyn
 test('no picker and denied permission produces a permission result, not a capture',async()=>{const f=fixture('denied');f.args.picker=null;await assert.rejects(()=>acquireFrame(f.args),permissionError);assert.equal(f.calls.length,0);});
 test('native picker retains selected stream only until its first complete frame',()=>{const s=fs.readFileSync('mouse-screen-capture.mm','utf8');assert.match(s,/SCFrameStatusComplete/);assert.match(s,/self\.finished\|\|self\.gotFrame/);assert.match(s,/self.gotFrame=YES/);assert.match(s,/stopCaptureWithCompletionHandler/);assert.match(s,/capturesAudio=NO/);assert.match(s,/nativeCode/);assert.doesNotMatch(s,/tccutil|TCC\.db|spctl|sudo|CGRequestPostEventAccess/);});
 test('fullscreen chrome repair scopes to standard window buttons, not Apple menu',()=>{const s=fs.readFileSync('mouse-native-menu.mm','utf8');assert.match(s,/standardWindowButton/);assert.match(s,/button.window==chrome/);assert.match(s,/chrome\.ignoresMouseEvents=YES/);assert.doesNotMatch(s,/setMenuBarVisible:NO|NSApplicationPresentationDisableForceQuit/);});
-test('update artwork and resize badges are transient, accessible, and motion-aware',()=>{const css=fs.readFileSync('quadro/mouse-609.css','utf8'),hud=fs.readFileSync('quadro/resize-hud.js','utf8');assert.match(css,/#update-mouse\{[^}]*width:150px/);assert.match(css,/prefers-reduced-motion/);assert.match(css,/pointer-events:none/);assert.match(hud,/before\.clear/);assert.match(hud,/\.remove\(\)/);assert.doesNotMatch(hud,/localStorage|sessionStorage|fetch\(/);});
+test('update artwork and resize badges are transient, accessible, and motion-aware',()=>{const css=fs.readFileSync('mouse/mouse-609.css','utf8'),hud=fs.readFileSync('mouse/resize-hud.js','utf8');assert.match(css,/#update-mouse\{[^}]*width:150px/);assert.match(css,/prefers-reduced-motion/);assert.match(css,/pointer-events:none/);assert.match(hud,/before\.clear/);assert.match(hud,/\.remove\(\)/);assert.doesNotMatch(hud,/localStorage|sessionStorage|fetch\(/);});
 
 test('update mascot is the exact tight owner mask, not a redraw or padded small favicon',()=>{
- const b=require('./mouse-brand.cjs'),s=fs.readFileSync('quadro/mouse-update.svg','utf8'),cells=[...s.matchAll(/M(\d+) (\d+)h1v1h-1z/g)].map(m=>[+m[1],+m[2]]),expected=[];
+ const b=require('./mouse-brand.cjs'),s=fs.readFileSync('mouse/mouse-update.svg','utf8'),cells=[...s.matchAll(/M(\d+) (\d+)h1v1h-1z/g)].map(m=>[+m[1],+m[2]]),expected=[];
  for(let y=0;y<30;y++)for(let x=0;x<22;x++)if(b.pixels[y][x]==='1')expected.push([21-x,y]);assert.deepEqual(cells,expected);assert.equal(cells.length,175);assert.match(s,/viewBox="0 0 22 30"/);
 });
 test('stale broad permission reaches the explicit picker only once',()=>{
- const host=fs.readFileSync('quadro-global-capture.cjs','utf8'),native=fs.readFileSync('mouse-screen-capture.mm','utf8');
+ const host=fs.readFileSync('mouse-global-capture.cjs','utf8'),native=fs.readFileSync('mouse-screen-capture.mm','utf8');
  assert.match(host,/native:status.pickerAvailable&&status.granted/);assert.match(native,/if\(!choose&&!CGPreflightScreenCaptureAccess\(\)\)/);assert.doesNotMatch(native,/if\(choose\|\|!CGPreflight/);
 });
