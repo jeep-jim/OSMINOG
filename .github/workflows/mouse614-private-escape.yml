@@ -1,0 +1,42 @@
+name: Mouse 614 private Escape binding
+on:
+  push:
+    branches: [codex/mouse614-ai-focus-brand]
+    paths: [.github/workflows/mouse614-private-escape.yml]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/mouse-614-ai-fullscreen
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Scoped private page binding, no permission or privacy changes
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 9b3780fb6ae32ce54c84ac9bdd697c779f088b2e
+          python3 - <<'PY'
+          from pathlib import Path
+          def once(p,a,b):
+           s=p.read_text();assert s.count(a)==1,(str(p),s.count(a));p.write_text(s.replace(a,b))
+          once(Path('desktop/mouse-main.cjs'),'router:ipcRouter,trusted,globalCapture,test});','router:ipcRouter,trusted,globalCapture,paneFocus,test});')
+          once(Path('desktop/mouse-private.cjs'),"require('./mouse-stability.cjs').installWorkspace(browser);","""require('./mouse-stability.cjs').installWorkspace(browser);
+            // Explicitly bind only this private workspace's pages. Embedded views can
+            // report no owning BrowserWindow while native fullscreen reparents them.
+            const makePrivate=browser.make.bind(browser);
+            browser.make=(...args)=>{const page=makePrivate(...args);page.view.webContents.on('before-input-event',(event,input)=>{
+             if(input.type==='keyDown'&&input.key==='Escape'&&this.paneFocus?.active){event.preventDefault();this.paneFocus.leave();}
+            });return page;};""")
+          p=Path('desktop/mouse-614.test.cjs')
+          with p.open('a') as f:f.write("\ntest('private Escape is attached to owned workspace pages without relying on reparented window lookup',()=>{const main=fs.readFileSync('mouse-main.cjs','utf8'),p=fs.readFileSync('mouse-private.cjs','utf8');assert.match(main,/globalCapture,paneFocus,test/);assert.match(p,/const makePrivate=browser.make.bind\\(browser\\)/);assert.match(p,/this.paneFocus\\?\\.active/);assert.match(p,/event.preventDefault\\(\\);this.paneFocus.leave\\(\\)/);});\n")
+          PY
+          (cd desktop && node --test mouse-608.test.cjs mouse-private.test.cjs mouse-614.test.cjs)
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop/mouse-main.cjs desktop/mouse-private.cjs desktop/mouse-614.test.cjs
+          git commit -m 'Bind AI fullscreen Escape to actual private workspace pages'
+          git push origin HEAD:codex/mouse-614-ai-fullscreen
