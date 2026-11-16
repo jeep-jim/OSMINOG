@@ -1,0 +1,20 @@
+name: Mouse 616 source snapshot
+on:
+  push:
+    branches: [codex/mouse616-prepare]
+    paths: [.github/workflows/mouse616-source.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 001ec7a2ef59423f0aef051ba0110cf18ba87df0
+      - run: git archive --format=tar.gz -o "$RUNNER_TEMP/mouse616-source.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse616-source
+          path: ${{ runner.temp }}/mouse616-source.tar.gz
+          retention-days: 3
