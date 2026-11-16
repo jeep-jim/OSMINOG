@@ -1,0 +1,30 @@
+name: Prepare Mouse 6.0.14 AI fullscreen candidate
+on:
+  push:
+    branches: [codex/prepare-mouse614-ai-fullscreen]
+    paths: [.github/workflows/prepare-mouse614-ai.yml, tools/prepare-mouse614-ai.py]
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply scoped edits to pinned published source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tools/prepare-mouse614-ai.py /tmp/prepare-mouse614-ai.py
+          git switch -c codex/mouse-614-ai-fullscreen d23ee4cab77a41e9c2d34ce50d3f6d5e19c2a582
+          python3 /tmp/prepare-mouse614-ai.py
+          while IFS= read -r file; do git add -- "$file"; done < /tmp/mouse614-paths.txt
+          git diff --cached --check
+          git -c user.name='jeep-jim' -c user.email='173029176+jeep-jim@users.noreply.github.com' commit -m 'Mouse 6.0.14: replace duplicate AI plus with reversible fullscreen'
+          git push origin HEAD:refs/heads/codex/mouse-614-ai-fullscreen
+          git show --stat --oneline HEAD
