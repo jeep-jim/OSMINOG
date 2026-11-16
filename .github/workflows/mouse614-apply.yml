@@ -1,0 +1,46 @@
+name: Apply Mouse 614 owner follow-ups
+on:
+  push:
+    branches: [codex/mouse614-ai-focus-brand]
+    paths: [.github/workflows/mouse614-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply exact reviewed transformations without touching other products
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tools/mouse614-followup.py "$RUNNER_TEMP/mouse614-followup.py"
+          cp tools/mouse614-rename.py "$RUNNER_TEMP/mouse614-rename.py"
+          git fetch origin codex/mouse-614-ai-fullscreen
+          test "$(git rev-parse FETCH_HEAD)" = cee158951e6febc480b99f12da3854cdb2a3eb18
+          git checkout -B codex/mouse-614-ai-fullscreen FETCH_HEAD
+          python3 "$RUNNER_TEMP/mouse614-followup.py" "$PWD"
+          python3 "$RUNNER_TEMP/mouse614-rename.py" "$PWD"
+          (cd desktop && node --test mouse-browser.test.cjs mouse-lifecycle.test.cjs mouse-capture.test.cjs mouse-library.test.cjs mouse-overlays.test.cjs mouse-start.test.cjs mouse-polish.test.cjs mouse-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs mouse-607.test.cjs mouse-608.test.cjs mouse-609.test.cjs mouse-611.test.cjs mouse-612.test.cjs mouse-613.test.cjs mouse-614.test.cjs)
+          git diff --check
+          git add -A
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Mouse 6.0.14: mouse-hole new tab, validated update badge and safe Mac source branding'
+          git push origin HEAD:codex/mouse-614-ai-fullscreen
+          git rev-parse HEAD > "$RUNNER_TEMP/source-sha.txt"
+          git archive --format=tar.gz -o "$RUNNER_TEMP/mouse614-ready-source.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse614-ready-source
+          path: |
+            ${{ runner.temp }}/mouse614-ready-source.tar.gz
+            ${{ runner.temp }}/source-sha.txt
+          retention-days: 3
