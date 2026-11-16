@@ -1,0 +1,20 @@
+name: Mouse 615 source snapshot
+on:
+  push:
+    branches: [codex/mouse615-source]
+    paths: [.github/workflows/mouse615-source.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 92f5bc628ace55213b61dd044a19373e8dcc4c17
+      - run: git archive --format=tar.gz -o "$RUNNER_TEMP/mouse615-source.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse615-source
+          path: ${{ runner.temp }}/mouse615-source.tar.gz
+          retention-days: 3
