@@ -32,7 +32,7 @@ module.exports=async({win})=>{
    await fs.writeFile('mouse-614-burrow-update-'+theme+'.png',screenshot.toPNG());
    assert.equal(await state({phase:'current',availableVersion:''}),'false');
    const icon=await js('(()=>{const b=document.querySelector("#new-tab"),s=b.querySelector("svg"),r=s.getBoundingClientRect();return{label:b.getAttribute("aria-label"),plus:b.textContent.includes("＋"),paths:s.querySelectorAll("path").length,width:r.width,height:r.height}})()');
-   assert.equal(icon.label,'Новая вкладка');assert.equal(icon.plus,false);assert.equal(icon.paths,3);assert.equal(icon.width,23);assert.equal(icon.height,25);
+   assert.equal(icon.label,'Новая вкладка');assert.equal(icon.plus,false);assert.equal(icon.paths,1);assert.equal(icon.width,19);assert.equal(icon.height,18);
   }
   const count=await js('MouseTest.model.state.tabs.length');await js('document.querySelector("#new-tab").click()');for(let i=0;i<100&&await js('MouseTest.model.state.tabs.length')===count;i++)await sleep(30);assert.equal(await js('MouseTest.model.state.tabs.length'),count+1);assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
   console.log('MOUSE_614_REAL_UPDATE_BADGE_BOTH_THEMES_AND_BURROW_CLICK_PASS');

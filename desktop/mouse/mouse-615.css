@@ -1,0 +1,24 @@
+/* Approved refinement only: the actual new-tab button is an arched burrow.
+   No extra square button, floor line, shadow, bottom highlight or hover glow. */
+:root{--burrow-surface:#dedee1;--burrow-edge:#b4b5bc;--burrow-mouse:#25262b}
+:root[data-theme=dark]{--burrow-surface:#090b10;--burrow-edge:#333a46;--burrow-mouse:#c3c7d0}
+:root[data-theme] .toolbar>#new-tab{
+ width:28px;height:30px;min-height:30px;flex:0 0 28px;padding:6px 3px 3px;
+ align-self:flex-end;display:grid;place-items:center;overflow:hidden;
+ border:1px solid var(--burrow-edge);border-bottom:0;border-radius:14px 14px 0 0;
+ background:var(--burrow-surface)!important;box-shadow:none!important;filter:none!important;
+ backdrop-filter:none;-webkit-backdrop-filter:none;transition:none;
+}
+#new-tab .burrow-mouse{display:block;width:19px;height:18px;color:var(--burrow-mouse);pointer-events:none;opacity:1;transition:opacity .12s ease;shape-rendering:crispEdges}
+:root[data-theme] .toolbar>#new-tab:hover{background:var(--burrow-surface)!important;box-shadow:none!important}
+#new-tab:hover .burrow-mouse{opacity:0}
+#new-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){#new-tab .burrow-mouse{transition:none}}
+/* Keep the three original controls intact, separated LEFT of the AI/update group,
+   at the owner's marked position. Narrow windows reduce spacing, not hit targets. */
+#footer-library{display:flex;align-items:center;gap:0;flex:none;margin-right:clamp(24px,8vw,120px);border:1px solid var(--glass-edge);border-radius:6px;overflow:hidden;background:var(--glass);box-shadow:none}
+#statusbar #footer-library>button{width:23px;min-width:23px;padding:0;border:0;border-radius:0;box-shadow:none}
+#statusbar #footer-library>button+button{border-left:1px solid var(--glass-edge)}
+#statusbar #footer-library>button:focus-visible{outline-offset:-2px}
+@media(max-width:1100px){#footer-library{margin-right:24px}}
+@media(max-width:850px){#footer-library{margin-right:12px}}
