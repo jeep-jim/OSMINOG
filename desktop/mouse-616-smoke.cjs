@@ -5,7 +5,7 @@ async function until(f,label){for(let i=0;i<180;i++){if(await f())return;await s
 module.exports=async({app,win,browser,store,globalCapture})=>{
  const js=s=>win.webContents.executeJavaScript(s),before=new Set(browser.tabs.keys()),bounds=win.getBounds();
  const saved=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,theme:MouseTest.model.theme,aiOpen:MouseTest.model.aiOpen,aiId:MouseTest.model.aiId,aiWidth:MouseTest.model.aiWidth,aiSessions:MouseTest.model.aiSessions,aiSites:MouseTest.model.aiSites}))');
- let server;const sentinel=path.join(app.getPath('userData'),'quadro-wallet','mouse616-preserve-fixture');
+ let server;const held=new Map();const hold=url=>{let release;const wait=new Promise(r=>release=r);held.set(url,wait);return()=>{held.delete(url);release();}};const sentinel=path.join(app.getPath('userData'),'quadro-wallet','mouse616-preserve-fixture');
  async function click(selector){win.focus();win.webContents.focus();const p=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});}
  async function full(value){if(win.isFullScreen()===value)return;await new Promise((resolve,reject)=>{const event=value?'enter-full-screen':'leave-full-screen',timer=setTimeout(()=>reject(Error('No native '+event)),7000);win.once(event,()=>{clearTimeout(timer);resolve()});win.setFullScreen(value)});await sleep(180);}
  try{
@@ -13,7 +13,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await fs.mkdir(path.dirname(sentinel),{recursive:true});await fs.writeFile(sentinel,'legacy bytes must remain unchanged');
   assert.deepEqual(await js('[typeof MouseNative.wallet,typeof MouseNative.web3]'),['undefined','undefined']);
   for(const name of ['wallet-vault.cjs','mouse-web3.cjs','mouse-web3-runtime.cjs','mouse/web3.js'])assert.equal(require('node:fs').existsSync(path.join(__dirname,name)),false,'Mac package excludes '+name);
-  const counts={};server=http.createServer((req,res)=>{counts[req.url]=(counts[req.url]||0)+1;setTimeout(()=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Mouse616 '+req.url+'</title><style>html,body{margin:0;background:#dd3c92;color:#111;height:100%;overflow:hidden}</style><input id="draft" value="preserved"><script>globalThis.token=Math.random();globalThis.injected=typeof ethereum</script>')},req.url==='/favicon.ico'?0:850)});
+  const counts={};server=http.createServer(async(req,res)=>{counts[req.url]=(counts[req.url]||0)+1;await held.get(req.url);res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Mouse616 '+req.url+'</title><style>html,body{margin:0;background:#dd3c92;color:#111;height:100%;overflow:hidden}</style><input id="draft" value="preserved"><script>globalThis.token=Math.random();globalThis.injected=typeof ethereum</script>')});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port,ids=[];
   for(let i=0;i<4;i++)ids.push((await browser.command('open',{url:root+'/pane'+i,lane:'main'})).id);
   await until(()=>ids.every(id=>!browser.get(id).loading),'main pages loaded');
@@ -27,11 +27,13 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
    assert.deepEqual(ui.order.slice(0,4),['ai-back','ai-forward','ai-reload','ai-provider']);assert.equal(ui.extra,0);assert.equal(ui.wallet,false);
    for(const b of ui.buttons)assert.deepEqual(b,ui.common,'one shared footer button style');
    assert.deepEqual(ui.corners,[['0px','8px'],['8px','0px'],['0px','8px'],['8px','0px']]);
-   const firstSelector='.pane [data-pane-action=reload]';const t=browser.get(ids[0]),wc=t.view.webContents.id,oldCount=counts['/pane0'];
+   const firstSelector='.pane [data-pane-action=reload]';const t=browser.get(ids[0]),wc=t.view.webContents.id,oldCount=counts['/pane0'];const releaseMain=hold('/pane0');
    await click(firstSelector);await until(()=>js('document.querySelector(".pane [data-pane-action=reload]").dataset.loading==="true"'),'reload shows activity');
-   assert.equal(await js('getComputedStyle(document.querySelector(".pane .mouse-reload-glyph")).animationName'),'mouse-reload-spin');
+   await until(()=>t.loading&&counts['/pane0']>oldCount,'reload reached controlled response');
+   const feedback=await js('(()=>{const b=document.querySelector(".pane [data-pane-action=reload]"),g=b.querySelector(".mouse-reload-glyph");return{loading:b.dataset.loading,busy:b.getAttribute("aria-busy"),animation:getComputedStyle(g).animationName,reduced:matchMedia("(prefers-reduced-motion:reduce)").matches}})()');console.log('MOUSE_616_RELOAD_FEEDBACK',theme,JSON.stringify(feedback));
+   assert.equal(feedback.loading,'true');assert.equal(feedback.busy,'true');assert.equal(feedback.animation,feedback.reduced?'none':'mouse-reload-spin');releaseMain();
    await until(()=>!t.loading&&counts['/pane0']>oldCount,'actual page reload');await until(()=>js('document.querySelector(".pane [data-pane-action=reload]").dataset.loading==="false"'),'reload stops');assert.equal(t.view.webContents.id,wc);
-   const oldAI=counts['/ai'];await click('[data-action=ai-reload]');await until(()=>js('document.querySelector("[data-action=ai-reload]").dataset.loading==="true"'),'AI reload shows activity');await until(()=>!browser.get(ai).loading&&counts['/ai']>oldAI,'AI actual reload');await sleep(600);
+   const oldAI=counts['/ai'],releaseAI=hold('/ai');await click('[data-action=ai-reload]');await until(()=>js('document.querySelector("[data-action=ai-reload]").dataset.loading==="true"'),'AI reload shows activity');await until(()=>browser.get(ai).loading&&counts['/ai']>oldAI,'AI controlled reload');releaseAI();await until(()=>!browser.get(ai).loading&&counts['/ai']>oldAI,'AI actual reload');await sleep(600);
    await fs.writeFile('mouse-616-controls-'+theme+'.png',(await win.capturePage()).toPNG());
    const display=screen.getDisplayMatching(win.getBounds());assert.equal(globalCapture.permission(),'granted');
    // Verify real composited native page pixels, not a DOM-only shell screenshot.
