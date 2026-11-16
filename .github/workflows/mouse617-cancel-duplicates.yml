@@ -1,0 +1,37 @@
+name: Cancel exact duplicate Mouse617 runs
+on:
+  push:
+    branches: ['ops/mouse617-cancel-duplicates']
+    paths: ['.github/workflows/mouse617-cancel-duplicates.yml']
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel-duplicates:
+    if: github.repository == 'jeep-jim/OSMINOG' && github.ref == 'refs/heads/ops/mouse617-cancel-duplicates'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify repository, source, branch and workflow before cancelling duplicates
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,subprocess
+          repo='jeep-jim/OSMINOG'
+          expected={43853988507:419668574,43853988459:417071662,43853988526:351468502,43853988636:351479698,43853988553:408918108,43853988584:370781122,43853989072:351443074,43853988510:408952258}
+          for run,workflow in expected.items():
+              endpoint=f'repos/{repo}/actions/runs/{run}'
+              data=json.loads(subprocess.check_output(['gh','api',endpoint]))
+              assert data['repository']['full_name']==repo
+              assert data['head_sha']=='6cee99f1a69454720ec9b23d7835d597d7b8bd6e'
+              assert data['head_branch']=='fix/mouse-617-owner-head-and-chrome'
+              assert data['workflow_id']==workflow and data['event']=='pull_request'
+              if data['status']=='completed':
+                  print(run,'already completed',data['conclusion'])
+                  continue
+              subprocess.run(['gh','api',endpoint+'/cancel','--method','POST'],check=True)
+              print(run,'duplicate cancellation requested')
+          print('Original native run43853980665 and its original companion runs were not touched.')
+          PY
