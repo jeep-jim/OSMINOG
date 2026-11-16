@@ -1,0 +1,17 @@
+/* Temporary AI presentation: never changes saved pane geometry. */
+#workspace{position:relative}
+body.ai-focused #stage,body.ai-focused #ai-divider,body.ai-focused #library-dialog,body.ai-focused #library-divider{display:none!important}
+body.ai-focused #ai-panel{position:absolute;inset:0;flex:none;width:auto!important;max-width:none;min-width:0;height:auto}
+/* Only a validated newer release sets this state. Keep it visible on hover/focus. */
+:root{--mouse-update-green:#16823b}
+:root[data-theme=dark]{--mouse-update-green:#67e66d}
+#statusbar #version-button[data-update-available=true]{border-color:var(--mouse-update-green)!important;box-shadow:inset 0 0 0 1px var(--mouse-update-green)!important}
+#statusbar #version-button[data-update-available=true]:focus-visible{outline-color:var(--mouse-update-green)}
+/* A mouse burrow, not a second add/link control. The action and Cmd+T are unchanged. */
+#new-tab{display:grid;place-items:center}
+#new-tab .mouse-burrow{width:23px;height:25px;display:block;overflow:visible;pointer-events:none}
+#new-tab .burrow-rim{fill:#ac9884;stroke:#6b5b4d;stroke-width:1}
+#new-tab .burrow-opening{fill:#17191f}
+#new-tab .burrow-floor{stroke:var(--text);stroke-width:1.4;stroke-linecap:round}
+:root[data-theme=dark] #new-tab .burrow-rim{fill:#ad9c88;stroke:#d5c2aa}
+#new-tab:hover .burrow-opening{fill:#090b10}

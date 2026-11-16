@@ -127,7 +127,7 @@ static napi_value capture(napi_env e,napi_callback_info info){
   if(n<1||napi_get_value_uint32(e,args[0],&display)!=napi_ok){napi_throw_error(e,nullptr,"Invalid display identifier");return nullptr;}if(n>1)napi_get_value_bool(e,args[1],&choose);
   MouseScreenRequest* r=[MouseScreenRequest new];r.env=e;napi_value promise;napi_deferred deferred;napi_create_promise(e,&deferred,&promise);r.deferred=deferred;activeRequest=r;
   bool testStream=false;if(n>2)napi_get_value_bool(e,args[2],&testStream);
-  if(testStream){const char* ci=std::getenv("CI");if(!ci||std::strcmp(ci,"true")||!std::getenv("QUADRO_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--quadro-smoke-write"]||!CGPreflightScreenCaptureAccess()){[r finish:nil error:captureError(7,@"Test stream requires CI and pre-existing screen permission") cancelled:NO];return promise;}r.streamFrame=YES;}
+  if(testStream){const char* ci=std::getenv("CI");if(!ci||std::strcmp(ci,"true")||!std::getenv("MOUSE_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||!CGPreflightScreenCaptureAccess()){[r finish:nil error:captureError(7,@"Test stream requires CI and pre-existing screen permission") cancelled:NO];return promise;}r.streamFrame=YES;}
 
   if(!choose&&!CGPreflightScreenCaptureAccess()){[r finish:nil error:[NSError errorWithDomain:@"com.apple.ScreenCaptureKit.SCStreamErrorDomain" code:-3801 userInfo:@{NSLocalizedDescriptionKey:@"macOS не предоставила разрешение текущей сборке"}] cancelled:NO];return promise;}
   if(choose){

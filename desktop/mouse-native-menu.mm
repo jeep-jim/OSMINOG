@@ -113,7 +113,7 @@ static napi_value release(napi_env e,napi_callback_info info){restoreHover();ret
 // CI-only native pointer movement. Never exposed through IPC/preload or normal UI.
 static napi_value testPointer(napi_env e,napi_callback_info info){
  const char* ci=std::getenv("CI");
- if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("QUADRO_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--quadro-smoke-write"]){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
+ if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("MOUSE_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
  size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
  if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid pointer probe");return nullptr;}
  CGPoint point=CGPointMake(x,y);CGError result=CGWarpMouseCursorPosition(point);
@@ -122,7 +122,7 @@ static napi_value testPointer(napi_env e,napi_callback_info info){
 }
 static napi_value testClick(napi_env e,napi_callback_info info){
  const char* ci=std::getenv("CI");
- if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("QUADRO_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--quadro-smoke-write"]){napi_throw_error(e,nullptr,"Click probe is CI smoke-only");return nullptr;}
+ if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("MOUSE_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]){napi_throw_error(e,nullptr,"Click probe is CI smoke-only");return nullptr;}
  size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
  if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid click probe");return nullptr;}
  CGPoint p=CGPointMake(x,y);CGWarpMouseCursorPosition(p);

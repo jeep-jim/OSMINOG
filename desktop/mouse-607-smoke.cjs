@@ -19,10 +19,10 @@ module.exports=async({app,win})=>{
  for(const dark of [false,true]){
   const bytes=await fs.readFile(path.join(__dirname,'icons/mouse-browser-'+(dark?'dark':'light')+'.png'));
   verify(nativeImage.createFromBuffer(bytes),{app:true,dark,size:1024});
-  const ui=await fs.readFile(path.join(__dirname,'quadro/'+(dark?'brand-dark.png':'brand.png')));
+  const ui=await fs.readFile(path.join(__dirname,'mouse/'+(dark?'brand-dark.png':'brand.png')));
   verify(nativeImage.createFromBuffer(ui),{dark,size:64});
  }
- const svg=await fs.readFile(path.join(__dirname,'quadro/mouse-private.svg'),'utf8');
+ const svg=await fs.readFile(path.join(__dirname,'mouse/mouse-private.svg'),'utf8');
  assert.match(svg,/viewBox="0 0 47 64"/);
  assert.equal((svg.match(/transform=/g)||[]).length,1);
  assert.match(svg,/<g id="owner-pixel-glasses" transform="translate\(-1 0\)">/);
@@ -36,18 +36,18 @@ module.exports=async({app,win})=>{
  assert.deepEqual(at(15,17),[255,255,255,255],'reference glasses retain white pixel highlights');
  for(let i=3;i<artwork.pixels.length;i+=4)assert.ok(artwork.pixels[i]===0||artwork.pixels[i]===255,'pixel art has no fractional translucent edges');
  await fs.writeFile('mouse-607-incognito-artwork.png',Buffer.from(artwork.png.split(',')[1],'base64'));
- const js=s=>win.webContents.executeJavaScript(s),previous=await js('QuadroTest.model.theme');
+ const js=s=>win.webContents.executeJavaScript(s),previous=await js('MouseTest.model.theme');
  try{
   for(const theme of ['light','dark','light']){
-   await js(`QuadroNative.theme('${theme}')`);
+   await js(`MouseNative.theme('${theme}')`);
    assert.equal(win.mouseDockThemeForTest(),'light','Dock must remain black on white in every theme');
   }
- }finally{await js(`QuadroNative.theme(${JSON.stringify(previous)})`);}
+ }finally{await js(`MouseNative.theme(${JSON.stringify(previous)})`);}
  console.log('MOUSE_608_WHITE_SQUARE_PIXELS_AND_FIXED_DOCK_PASS');
- const beforeTheme=await js('QuadroTest.model.theme');
+ const beforeTheme=await js('MouseTest.model.theme');
  try{
   for(const theme of ['light','dark']){
-   await js(`QuadroTest.setTheme('${theme}')`);
+   await js(`MouseTest.setTheme('${theme}')`);
    const icon=await js(`(()=>{const e=document.querySelector('#private-button svg'),r=e.getBoundingClientRect(),p=e.querySelectorAll('path');return{width:r.width,height:r.height,shape:getComputedStyle(e).shapeRendering,body:getComputedStyle(p[0]).fill,shine:getComputedStyle(p[1]).fill,paths:[...p].map(x=>x.getAttribute('d'))}})()`);
    assert.equal(icon.width,24);assert.equal(icon.height,14);assert.equal(icon.shape.toLowerCase(),'crispedges');
    assert.equal(icon.body,'rgb(168, 85, 247)');assert.equal(icon.shine,'rgb(255, 255, 255)');
@@ -57,7 +57,7 @@ module.exports=async({app,win})=>{
    assert.deepEqual(pixel(5,4),[255,255,255,255]);assert.deepEqual(pixel(7,6),[255,255,255,255]);assert.deepEqual(pixel(15,4),[255,255,255,255]);assert.deepEqual(pixel(17,6),[255,255,255,255]);assert.deepEqual(pixel(1,2),[168,85,247,255]);
    await new Promise(r=>setTimeout(r,250));await fs.writeFile('mouse-610-footer-'+theme+'.png',(await win.capturePage()).toPNG());
   }
- }finally{await js(`QuadroTest.setTheme(${JSON.stringify(beforeTheme)})`)}
+ }finally{await js(`MouseTest.setTheme(${JSON.stringify(beforeTheme)})`)}
  console.log('MOUSE_610_PURPLE_GLASSES_AND_ALL_FOOTER_PIXELS_BOTH_THEMES_PASS');
 
  const contents=path.dirname(path.dirname(process.execPath));

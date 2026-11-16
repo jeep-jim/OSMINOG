@@ -18,11 +18,11 @@ test('private cleanup clears storage, cache, auth, resolver and network; no sile
  await assert.rejects(()=>clearPrivateSession(Object.fromEntries(names.map(n=>[n,async()=>{if(n==='clearCache')throw Error('fixture');}]))),/очистить/);
 });
 test('incognito page excludes wallet provider and custom wallpaper writes',()=>{
- assert.match(fs.readFileSync(require.resolve('./quadro-page-preload.cjs'),'utf8'),/!process.argv.includes\('--mouse-private-page'\)/);
- assert.match(fs.readFileSync(require.resolve('./quadro-start.cjs'),'utf8'),/if\(privateMode\)throw Error/);
+ assert.match(fs.readFileSync(require.resolve('./mouse-page-preload.cjs'),'utf8'),/!process.argv.includes\('--mouse-private-page'\)/);
+ assert.match(fs.readFileSync(require.resolve('./mouse-start.cjs'),'utf8'),/if\(privateMode\)throw Error/);
  const s=fs.readFileSync(require.resolve('./mouse-private.cjs'),'utf8');assert.match(s,/cache:false/);assert.match(s,/ses.isPersistent/);assert.match(s,/loadURL\('about:blank'\)/);
 });
 test('owner mascot keeps exact source, has no invented name; capture flash is not painted into PNG',()=>{
- assert.equal(require('./mouse-brand.cjs').mascot,'маскот');const script=fs.readFileSync(require.resolve('./quadro/capture.js'),'utf8');assert.match(script,/if\(kind!=='initial'\)feedback/);assert.match(script,/dataset.captured/);assert.doesNotMatch(script,/ctx.fill.*flash/i);
- const svg=fs.readFileSync(require.resolve('./quadro/mouse-private.svg'),'utf8');assert.match(svg,/shape-rendering="crispEdges"/);assert.doesNotMatch(svg,/<script|https?:\/\/[^w]/);
+ assert.equal(require('./mouse-brand.cjs').mascot,'маскот');const script=fs.readFileSync(require.resolve('./mouse/capture.js'),'utf8');assert.match(script,/if\(kind!=='initial'\)feedback/);assert.match(script,/dataset.captured/);assert.doesNotMatch(script,/ctx.fill.*flash/i);
+ const svg=fs.readFileSync(require.resolve('./mouse/mouse-private.svg'),'utf8');assert.match(svg,/shape-rendering="crispEdges"/);assert.doesNotMatch(svg,/<script|https?:\/\/[^w]/);
 });

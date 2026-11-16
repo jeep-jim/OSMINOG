@@ -1,0 +1,125 @@
+'use strict';
+// The only automatic activity is an OS shortcut registration. A screen image is
+// acquired once, only after a user shortcut/menu command, before showing UI.
+const path = require('node:path');
+const {pathToFileURL} = require('node:url');
+const SHORTCUT = 'Control+A';
+const SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
+class GlobalCapture {
+ constructor({electron,app,mainWindow,store,trusted,entryDirectory,test=false}) {
+  this.e=electron;this.app=app;this.main=mainWindow;this.store=store;this.trusted=trusted;
+  this.nativeCapture=null;if(process.platform==='darwin'){try{this.nativeCapture=require('./mouse-screen-capture.node')}catch{}}
+  this.dir=entryDirectory;this.test=test;this.enabled=true;this.registered=false;this.busy=false;
+  this.editor=null;this.pending=null;this.lastError='';this.captureCount=0;this.requests=0;
+  this.editorEntry=pathToFileURL(path.join(this.dir,'mouse/capture-global.html')).href;
+ }
+ async init() {
+  const saved=await this.store.get('quadroGlobalCapture');this.enabled=saved.quadroGlobalCapture?.enabled!==false;
+  this.register();
+  this.onActivate=()=>this.publish();this.app.on('activate',this.onActivate);this.main.on('focus',this.onActivate);
+  this.app.on('will-quit',()=>this.dispose());
+  this.main.on('closed',()=>this.dispose());
+  this.e.ipcMain.handle('mouse:global-capture-admin',async(event,action,args={})=>{
+   this.trusted(event);
+   if(action==='state')return this.state();
+   if(action==='enable'){
+    if(typeof args.enabled!=='boolean')throw Error('Invalid screenshot preference');
+    this.enabled=args.enabled;this.register();await this.store.set({quadroGlobalCapture:{enabled:this.enabled}});return this.state();
+   }
+   if(action==='request'){void this.request();return this.state();}
+   if(action==='choose'){void this.request(true);return this.state();}
+   if(action==='refresh'){this.lastError='';return this.state();}
+   if(action==='permission'){await this.e.shell.openExternal(SETTINGS_URL);return this.state();}
+   throw Error('Unsupported global screenshot command');
+  });
+  this.e.ipcMain.handle('mouse:global-capture-editor',async(event,action,args={})=>{
+   if(!this.editor||!require('./trust.cjs').trustedFrame(event,this.editor,this.editorEntry))throw Error('Untrusted capture editor');
+   if(action==='initial'){
+    if(!this.pending)throw Error('Снимок уже открыт или закрыт');const image=this.pending;this.pending=null;return image;
+   }
+   if(action==='close'){this.editor.close();return true;}
+   if(action==='copy'||action==='save')return require('./mouse-shell.cjs').exportPNG(action,args,this.editor);
+   throw Error('Unsupported screenshot editor command');
+  });
+  return this;
+ }
+ nativeStatus(){try{return this.nativeCapture?.status()||{};}catch{return{};}}
+ permission(){if(this.nativeStatus().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
+ state(){return{enabled:this.enabled,registered:this.registered,shortcut:SHORTCUT,permission:this.permission(),error:this.lastError,runningOnly:true,pickerAvailable:!!this.nativeStatus().pickerAvailable,applicationPath:this.app.getPath?.('exe')||''};}
+ publish(){if(!this.main.isDestroyed())this.main.webContents.send('mouse:global-capture-state',this.state());}
+ register(){
+  if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);
+  this.registered=false;this.lastError='';
+  if(this.enabled){
+   try{this.registered=this.e.globalShortcut.register(SHORTCUT,()=>void this.request());}
+   catch{this.registered=false;}
+   if(!this.registered)this.lastError='Control+A занято другим приложением или недоступно. Освободите сочетание либо используйте пункт «Скриншот экрана Mac» в меню «Файл».';
+  }
+  this.publish();
+ }
+ async explainPermission(){
+  this.lastError='Разрешите Mouse Browser запись экрана в настройках macOS: нужно разрешение «Запись экрана», а не исключение запуска приложения. Проверьте Mouse Browser, запущенный из «Программ». Если там осталась запись прежней сборки, удалите только эту запись из разрешений записи экрана и добавьте текущий Mouse Browser снова. Данные браузера удалять не нужно.';this.publish();
+  const options={type:'info',title:'Mouse Browser — скриншот экрана',message:'Нужно разрешение macOS на запись экрана',detail:this.lastError,buttons:['Отмена','Открыть настройки macOS'],defaultId:0,cancelId:0,noLink:true};
+  const result=await this.e.dialog.showMessageBox(options);
+  if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
+ }
+ async legacyFrame(display){
+  // The original, working path remains first when this process has consent.
+  const scale=Math.min(display.scaleFactor||1,8192/Math.max(display.size.width,display.size.height),Math.sqrt(40000000/(display.size.width*display.size.height)));
+  const sources=await this.e.desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.max(1,Math.round(display.size.width*scale)),height:Math.max(1,Math.round(display.size.height*scale))},fetchWindowIcons:false});
+  const source=sources.find(s=>String(s.display_id)===String(display.id));
+  if(!source||source.thumbnail.isEmpty())throw Error('macOS не предоставила изображение выбранного экрана.');
+  return{base:source.thumbnail.toDataURL(),width:display.size.width,height:display.size.height,layers:[],kind:'screen',backend:'desktopCapturer'};
+ }
+ async acquire(display,choose=false){
+  const status=this.nativeStatus(),{acquireFrame}=require('./mouse-capture-policy.cjs');
+  const frame=await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
+   legacy:()=>this.legacyFrame(display),
+   native:status.pickerAvailable&&status.granted?()=>this.nativeCapture.capture(Number(display.id),false):null,
+   picker:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),true):null});
+  if(!frame){this.lastError='';return null;}
+  require('./mouse-shell.cjs').pngBuffer(frame.base);this.captureCount++;return frame;
+ }
+ async request(choose=false){
+  this.requests++;
+  if(this.editor&&!this.editor.isDestroyed()){this.editor.show();this.editor.focus();return;}
+  if(this.busy)return;this.busy=true;
+  try{
+   // Select the display containing the pointer BEFORE any Mouse window moves focus.
+   const display=this.e.screen.getDisplayNearestPoint(this.e.screen.getCursorScreenPoint());
+   const frame=this.test&&this.testFrame?this.testFrame:await this.acquire(display,choose);
+   if(!frame)return;this.pending=frame;await this.openEditor(display);this.lastError='';
+  }catch(error){
+   this.pending=null;
+   if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
+   const denied=require('./mouse-capture-policy.cjs').permissionError(error);
+   if(denied&&!this.nativeStatus().pickerAvailable){await this.explainPermission();return;}
+   this.lastError=denied?'macOS не разрешила захват текущей сборке. Запись в настройках могла остаться от предыдущей версии. Разрешение запуска приложения и запись экрана — разные разрешения.':String(error.message||'Не удалось создать скриншот').slice(0,500);
+   if(!this.test){
+    const result=await this.e.dialog.showMessageBox({type:'warning',title:'Mouse Browser — скриншот',message:denied?'macOS не предоставила доступ к экрану':'Не удалось получить снимок',detail:this.lastError+(error.nativeCode?'\nКод macOS: '+error.nativeCode:''),buttons:['Закрыть','Настройки записи экрана'],defaultId:0,cancelId:0,noLink:true});
+    if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
+   }
+  }finally{this.busy=false;this.publish();}
+ }
+ async openEditor(display){
+  // This remains a normal browser app, never a menu-less UIElement helper.
+  if(process.platform==='darwin')this.app.setActivationPolicy('regular');
+  const b=display.workArea;
+  const editor=new this.e.BrowserWindow({title:'Mouse Browser — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:false,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'mouse-capture-preload.cjs'),additionalArguments:[`--mouse-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--mouse-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
+  this.editor=editor;
+  editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true,skipTransformProcessType:true});
+  if(process.platform==='darwin')this.app.setActivationPolicy('regular');
+  editor.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  editor.webContents.on('will-navigate',(e,url)=>{if(url!==this.editorEntry)e.preventDefault();});
+  editor.on('closed',()=>{this.pending=null;if(this.editor===editor)this.editor=null;if(process.platform==='darwin'&&!this.main.isDestroyed())this.app.setActivationPolicy('regular');});
+  await editor.loadURL(this.editorEntry);
+  await editor.webContents.executeJavaScript(`new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{if(document.documentElement.dataset.captureReady==='true'){clearInterval(t);resolve()}else if(document.documentElement.dataset.captureReady==='error'||++n>100){clearInterval(t);reject(Error('Не удалось подготовить редактор скриншота'))}},50)})`);
+  if(!editor.isDestroyed()){editor.show();editor.focus();await editor.webContents.executeJavaScript('globalThis.MouseCaptureFeedback?.()');}
+ }
+ dispose(){
+  this.nativeCapture?.cancel();this.app.removeListener('activate',this.onActivate);this.main.removeListener('focus',this.onActivate);
+  if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);this.registered=false;
+  this.pending=null;if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
+ }
+}
+module.exports={GlobalCapture,SHORTCUT,SETTINGS_URL};

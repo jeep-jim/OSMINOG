@@ -3,11 +3,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 module.exports=async({win})=>{
  const js=s=>win.webContents.executeJavaScript(s);
- const previous=await js('QuadroTest.model.theme');
- const tabIds=await js('QuadroTest.model.state.tabs.map(t=>t.id)');
+ const previous=await js('MouseTest.model.theme');
+ const tabIds=await js('MouseTest.model.state.tabs.map(t=>t.id)');
  try{
   for(const theme of ['light','dark','light']){
-   await js(`QuadroTest.setTheme('${theme}')`);
+   await js(`MouseTest.setTheme('${theme}')`);
    const result=await js(`(async()=>{
     const imgs=[...document.querySelectorAll('.private-mascot,.private-logo')];
     await Promise.all(imgs.map(i=>i.decode()));
@@ -25,10 +25,10 @@ module.exports=async({win})=>{
    }
    assert.equal(result.background,light?'rgb(237, 238, 240)':'rgb(23, 24, 34)');
    assert.equal(result.text,light?'rgb(25, 25, 35)':'rgb(245, 241, 255)');
-   assert.deepEqual(await js('QuadroTest.model.state.tabs.map(t=>t.id)'),tabIds);
+   assert.deepEqual(await js('MouseTest.model.state.tabs.map(t=>t.id)'),tabIds);
    await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await sleep(350);
    await fs.writeFile('mouse-611-private-'+theme+'.png',(await win.capturePage()).toPNG());
   }
   console.log('MOUSE_611_PRIVATE_THEME_ASSETS_AND_LIVE_SWITCH_PASS');
- }finally{await js(`QuadroTest.setTheme(${JSON.stringify(previous)})`);}
+ }finally{await js(`MouseTest.setTheme(${JSON.stringify(previous)})`);}
 };
