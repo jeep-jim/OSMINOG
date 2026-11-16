@@ -1,0 +1,52 @@
+name: Apply Mouse 616 controls
+on:
+  push:
+    branches: [codex/mouse616-prepare]
+    paths: [.github/workflows/mouse616-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply source-only changes and verify regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tools/mouse616-apply.py tools/mouse616.test.cjs tools/mouse616-smoke.cjs "$RUNNER_TEMP/"
+          git fetch origin codex/mouse616-controls-no-wallet
+          test "$(git rev-parse FETCH_HEAD)" = 001ec7a2ef59423f0aef051ba0110cf18ba87df0
+          git checkout -B codex/mouse616-controls-no-wallet FETCH_HEAD
+          python3 "$RUNNER_TEMP/mouse616-apply.py" "$PWD"
+          cp "$RUNNER_TEMP/mouse616.test.cjs" desktop/mouse-616.test.cjs
+          cp "$RUNNER_TEMP/mouse616-smoke.cjs" desktop/mouse-616-smoke.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('desktop/mouse-614.test.cjs');p.write_text(p.read_text().replace('burrow-mouse','burrow-plus').replace('viewBox="3 0 19 18"','viewBox="0 0 20 20"'))
+          p=Path('desktop/mouse-basics-smoke.cjs');s=p.read_text();a="await click('.pane.active [data-pane-action=bookmark]');await until(()=>lib.data.bookmarks.length>0,'bookmark from actual UI');";b="require('electron').Menu.getApplicationMenu().items.find(x=>x.label==='История').submenu.items.find(x=>x.label==='Добавить закладку').click();await until(()=>lib.data.bookmarks.length>0,'bookmark from retained native menu');";assert s.count(a)==1;p.write_text(s.replace(a,b))
+          p=Path('desktop/mouse-smoke.cjs');s=p.read_text();a="console.log('MOUSE_PROFILE_COOKIE_RESTART_PASS');";assert s.count(a)==1;p.write_text(s.replace(a,"assert.equal(await fs.readFile(require('node:path').join(app.getPath('userData'),'quadro-wallet','mouse616-preserve-fixture'),'utf8'),'legacy bytes must remain unchanged');"+a))
+          PY
+          (cd desktop && node --test mouse-browser.test.cjs mouse-lifecycle.test.cjs mouse-capture.test.cjs mouse-library.test.cjs mouse-overlays.test.cjs mouse-start.test.cjs mouse-polish.test.cjs mouse-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs mouse-607.test.cjs mouse-608.test.cjs mouse-609.test.cjs mouse-611.test.cjs mouse-612.test.cjs mouse-613.test.cjs mouse-614.test.cjs mouse-615.test.cjs mouse-616.test.cjs)
+          git diff --check
+          test -z "$(git diff --name-only -- .github)"
+          git add desktop tools
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Mouse 6.0.16: compact controls, responsive reload, native seams and remove experimental Mac wallet'
+          git push origin HEAD:codex/mouse616-controls-no-wallet
+          git rev-parse HEAD > "$RUNNER_TEMP/source-sha.txt"
+          git archive --format=tar.gz -o "$RUNNER_TEMP/mouse616-applied.tar.gz" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse616-applied
+          path: |
+            ${{ runner.temp }}/source-sha.txt
+            ${{ runner.temp }}/mouse616-applied.tar.gz
+          retention-days: 3
