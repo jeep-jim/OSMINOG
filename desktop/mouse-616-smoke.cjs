@@ -22,6 +22,9 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await until(()=>browser.panels.length===5&&browser.get(ids[0]).bounds,'native top-row page');
   for(const t of [browser.get(ids[0]),browser.get(ai)])assert.equal(await t.view.webContents.executeJavaScript('typeof ethereum+","+typeof __mouseWalletTransport'),'undefined,undefined');
   for(const theme of ['light','dark']){
+   // AppKit restores an earlier native size after fullscreen; place each independent pixel fixture on screen.
+   win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1100,work.width-16),height:Math.min(800,work.height-16)});await sleep(300);
+   await until(()=>{const b=win.getContentBounds();return b.x>=work.x&&b.y>=work.y&&b.x+b.width<=work.x+work.width&&b.y+b.height<=work.y+work.height;},'pixel fixture inside physical display');
    await js(`MouseTest.setTheme('${theme}')`);await sleep(180);
    const ui=await js(`(()=>{const order=[...document.querySelector('.ai-controls').children].map(b=>b.dataset.action||b.className);const style=s=>{const c=getComputedStyle(document.querySelector(s));return[c.borderRadius,c.backgroundColor,c.boxShadow,c.borderTopWidth,c.height]};return{order,extra:document.querySelectorAll('[data-pane-action=bookmark],[data-pane-action=split-x],[data-pane-action=split-y]').length,buttons:[style('#history-button'),style('#downloads-button'),style('#footer-library [data-action=bookmarks]')],common:style('#statusbar [data-action=settings]'),wallet:!!document.querySelector('[data-action=wallet]'),corners:[...document.querySelectorAll('.pane')].map(p=>[p.style.getPropertyValue('--pane-round-top'),p.style.getPropertyValue('--pane-round-bottom')])}})()`);
    assert.deepEqual(ui.order.slice(0,4),['ai-back','ai-forward','ai-reload','ai-provider']);assert.equal(ui.extra,0);assert.equal(ui.wallet,false);
@@ -47,6 +50,8 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
     if(n===19){await fs.writeFile('mouse-616-corner-failure.png',shot.toPNG());throw Error('Native corner chrome mismatch: '+JSON.stringify({samples,window:win.getBounds(),content:c,display:display.bounds,bounds:p}));}
    }
    await fs.writeFile('mouse-616-native-corners-'+theme+'.png',shot.toPNG());
+   const origin=win.getContentBounds(),page=t.bounds;require('./mouse-native-menu.node').testClick(origin.x+page.x+40,origin.y+page.y+10);
+   await until(()=>t.view.webContents.executeJavaScript('document.activeElement?.id==="draft"'),'native corner chrome must not intercept website input');
    const keys=[...ids,ai],tokens=await Promise.all(keys.map(id=>browser.get(id).view.webContents.executeJavaScript('token')));
    await full(true);await until(()=>js('document.querySelector("[data-window=zoom]").textContent==="⤡"&&document.querySelector("[data-action=fullscreen]").getAttribute("aria-pressed")==="true"'),'native fullscreen arrows inward');
    await full(false);await until(()=>js('document.querySelector("[data-window=zoom]").textContent==="⤢"&&document.querySelector("[data-action=fullscreen]").getAttribute("aria-pressed")==="false"'),'native fullscreen arrows outward');
