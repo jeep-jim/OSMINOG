@@ -31,6 +31,12 @@ class PrivateMode {
   const collect=[remember(win,'resize'),remember(win,'closed'),remember(win.webContents,'did-start-navigation')];
   const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});
   require('./mouse-stability.cjs').installWorkspace(browser);
+  // Explicitly bind only this private workspace's pages. Embedded views can
+  // report no owning BrowserWindow while native fullscreen reparents them.
+  const makePrivate=browser.make.bind(browser);
+  browser.make=(...args)=>{const page=makePrivate(...args);page.view.webContents.on('before-input-event',(event,input)=>{
+   if(input.type==='keyDown'&&input.key==='Escape'&&this.paneFocus?.active){event.preventDefault();this.paneFocus.leave();}
+  });return page;};
   collect.forEach(fn=>fn());
   const gate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
   const current={store,ses,partition,browser,gate,handlers,emit,listeners,libraryService:null,startService:null};this.current=current;
