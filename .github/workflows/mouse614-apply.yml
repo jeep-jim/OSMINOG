@@ -28,6 +28,9 @@ jobs:
           python3 "$RUNNER_TEMP/mouse614-followup.py" "$PWD"
           python3 "$RUNNER_TEMP/mouse614-rename.py" "$PWD"
           (cd desktop && node --test mouse-browser.test.cjs mouse-lifecycle.test.cjs mouse-capture.test.cjs mouse-library.test.cjs mouse-overlays.test.cjs mouse-start.test.cjs mouse-polish.test.cjs mouse-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs mouse-607.test.cjs mouse-608.test.cjs mouse-609.test.cjs mouse-611.test.cjs mouse-612.test.cjs mouse-613.test.cjs mouse-614.test.cjs)
+          cp .github/workflows/mouse-macos.yml "$RUNNER_TEMP/mouse-macos.yml"
+          rm .github/workflows/mouse-macos.yml
+          git restore -- .github/workflows/quadro-macos.yml
           git diff --check
           git add -A
           git diff --cached --stat
@@ -43,4 +46,5 @@ jobs:
           path: |
             ${{ runner.temp }}/mouse614-ready-source.tar.gz
             ${{ runner.temp }}/source-sha.txt
+            ${{ runner.temp }}/mouse-macos.yml
           retention-days: 3
