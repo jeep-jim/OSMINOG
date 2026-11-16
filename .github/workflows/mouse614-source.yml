@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: cee158951e6febc480b99f12da3854cdb2a3eb18
       - run: git archive --format=tar.gz -o "$RUNNER_TEMP/mouse614-source.tar.gz" HEAD
       - uses: actions/upload-artifact@v4
         with:
