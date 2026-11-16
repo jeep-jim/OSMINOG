@@ -12,7 +12,13 @@ module.exports=async({win,browser})=>{
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await move('#version-button');
    const look=await js(`(()=>{const b=document.querySelector('#new-tab'),c=getComputedStyle(b),m=b.querySelector('.burrow-plus'),r=b.getBoundingClientRect();return{r:[r.width,r.height],round:c.borderTopLeftRadius,bottomRound:c.borderBottomLeftRadius,borderBottom:c.borderBottomWidth,shadow:c.boxShadow,opacity:getComputedStyle(m).opacity,label:b.getAttribute('aria-label'),children:b.children.length}})()`);
-   assert.deepEqual(look.r,[36,32]);assert.equal(look.round,'0px');assert.equal(look.bottomRound,'0px');assert.equal(look.borderBottom,'0px');assert.equal(look.shadow,'none');assert.equal(look.opacity,'0');assert.equal(look.label,'Новая вкладка');assert.equal(look.children,1);
+   assert.deepEqual(look.r,[36,29]);assert.equal(look.round,'0px');assert.equal(look.bottomRound,'0px');assert.equal(look.borderBottom,'0px');assert.equal(look.shadow,'none');assert.equal(look.opacity,'0');assert.equal(look.label,'Новая вкладка');assert.equal(look.children,1);
+
+   // Compare to the exact released 617 geometry without changing production CSS.
+   const delta=await js(`(()=>{const b=document.querySelector('#new-tab'),bar=document.querySelector('.toolbar'),saved=b.getAttribute('style'),now=b.getBoundingClientRect();b.style.setProperty('height','32px','important');b.style.setProperty('min-height','32px','important');b.style.setProperty('margin-bottom','-4px','important');const old=b.getBoundingClientRect();if(saved===null)b.removeAttribute('style');else b.setAttribute('style',saved);const r=b.getBoundingClientRect();return{height:r.height-old.height,bottom:r.bottom-old.bottom,top:r.top-old.top,width:r.width-old.width,divider:r.bottom-bar.getBoundingClientRect().bottom,stable:r.height===now.height&&r.top===now.top,crop:{x:Math.max(0,Math.floor(r.x)-8),y:Math.max(0,Math.floor(bar.getBoundingClientRect().top)),width:Math.min(Math.ceil(r.width)+16,innerWidth-Math.max(0,Math.floor(r.x)-8)),height:Math.ceil(bar.getBoundingClientRect().height)+8}}})()`);
+   assert.equal(delta.height,-3);assert.equal(delta.bottom,1);assert.equal(delta.top,4);assert.equal(delta.width,0);assert.equal(delta.divider,0);assert.equal(delta.stable,true);
+   console.log('MOUSE_618_BURROW_GEOMETRY',theme,JSON.stringify(delta));
+   await fs.writeFile('mouse-618-burrow-'+theme+'.png',(await win.capturePage(delta.crop)).toPNG());
    await fs.writeFile('mouse-615-burrow-'+theme+'.png',(await win.capturePage()).toPNG());
    await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');assert.equal(await js('getComputedStyle(document.querySelector("#new-tab")).boxShadow'),'none');
    await fs.writeFile('mouse-615-burrow-hover-'+theme+'.png',(await win.capturePage()).toPNG());
@@ -31,6 +37,7 @@ module.exports=async({win,browser})=>{
   const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'burrow real pointer creates tab');
   assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
   console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
+  console.log('MOUSE_618_BURROW_DOWN1_SHORTER3_BOTH_THEMES_PASS');
  }finally{
   await js('MouseTest.browsing.close()').catch(()=>{});
   for(const t of browser.state().tabs)if(!beforeIds.has(t.id))await browser.command('close',{id:t.id});
