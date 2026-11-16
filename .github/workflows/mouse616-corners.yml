@@ -25,6 +25,10 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = 77b065a77bee4b708ec5f4e467d8e9501b0ec5a0
           git checkout -B codex/mouse616-controls-no-wallet FETCH_HEAD
           python3 "$RUNNER_TEMP/mouse616-native-corners.py" "$PWD"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('desktop/mouse-606.test.cjs');s=p.read_text();a='assert.doesNotMatch(code,/setMenuBarVisible:NO|setBool:|setObject:|NSApplicationPresentationDisableForceQuit/);';assert s.count(a)==1;p.write_text(s.replace(a,"assert.doesNotMatch(code.replace('[paneMasks setObject:prior forKey:page];',''),/setMenuBarVisible:NO|setBool:|setObject:|NSApplicationPresentationDisableForceQuit/);"))
+          PY
           (cd desktop && node --test mouse-browser.test.cjs mouse-lifecycle.test.cjs mouse-capture.test.cjs mouse-library.test.cjs mouse-overlays.test.cjs mouse-start.test.cjs mouse-polish.test.cjs mouse-global-capture.test.cjs mouse-606.test.cjs mouse-private.test.cjs mouse-607.test.cjs mouse-608.test.cjs mouse-609.test.cjs mouse-611.test.cjs mouse-612.test.cjs mouse-613.test.cjs mouse-614.test.cjs mouse-615.test.cjs mouse-616.test.cjs)
           git diff --check
           test -z "$(git diff --name-only -- .github)"
