@@ -12,11 +12,11 @@ module.exports=async({win,browser})=>{
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await move('#version-button');
    const look=await js(`(()=>{const b=document.querySelector('#new-tab'),c=getComputedStyle(b),m=b.querySelector('.burrow-plus'),r=b.getBoundingClientRect();return{r:[r.width,r.height],round:c.borderTopLeftRadius,bottomRound:c.borderBottomLeftRadius,borderBottom:c.borderBottomWidth,shadow:c.boxShadow,opacity:getComputedStyle(m).opacity,label:b.getAttribute('aria-label'),children:b.children.length}})()`);
-   assert.deepEqual(look.r,[28,30]);assert.equal(look.round,'14px');assert.equal(look.bottomRound,'0px');assert.equal(look.borderBottom,'0px');assert.equal(look.shadow,'none');assert.equal(look.opacity,'1');assert.equal(look.label,'Новая вкладка');assert.equal(look.children,1);
+   assert.deepEqual(look.r,[36,32]);assert.equal(look.round,'0px');assert.equal(look.bottomRound,'0px');assert.equal(look.borderBottom,'0px');assert.equal(look.shadow,'none');assert.equal(look.opacity,'0');assert.equal(look.label,'Новая вкладка');assert.equal(look.children,1);
    await fs.writeFile('mouse-615-burrow-'+theme+'.png',(await win.capturePage()).toPNG());
    await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');assert.equal(await js('getComputedStyle(document.querySelector("#new-tab")).boxShadow'),'none');
    await fs.writeFile('mouse-615-burrow-hover-'+theme+'.png',(await win.capturePage()).toPNG());
-   await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
+   await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'0');
    for(const width of [800,1100,1440]){
     win.setSize(width,900);await sleep(180);
     const g=await js(`(()=>{const lib=document.querySelector('#footer-library'),r=lib.getBoundingClientRect(),a=document.querySelector('#ai-toggle').getBoundingClientRect(),left=document.querySelector('#footer-left').getBoundingClientRect(),buttons=[...lib.querySelectorAll('button')],footer=document.querySelector('#statusbar');return{count:buttons.length,actions:buttons.map(b=>b.dataset.action),gap:a.left-r.right,space:r.left-left.right,right:document.querySelector('[data-action=quit]').getBoundingClientRect().right,width:innerWidth,overflow:footer.scrollWidth-footer.clientWidth,duplicate:['history-button','downloads-button'].some(id=>document.querySelectorAll('#'+id).length!==1)}})()`);
