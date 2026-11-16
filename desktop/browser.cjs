@@ -145,7 +145,7 @@ class BrowserWorkspace{
    if(right<=left||bottom<=top)continue;
    const clipped={x:left,y:top,width:right-left,height:bottom-top};
    const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===8&&bottom===bounds.y+bounds.height?8:0;
-   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius});
+   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
    const next=desired.get(t),show=!!next;
@@ -158,10 +158,10 @@ class BrowserWorkspace{
    }
    if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
-  // Native page masks are Mouse-only; no renderer injection or viewport modification.
-  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===8).map(p=>p.clipped));
+  // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
+  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===8).map(p=>({...p.clipped,color:p.cornerColor})));
  }
- dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
+ dispose(){if(this.disposed)return;this.disposed=true;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
 

@@ -18,7 +18,7 @@ test('single compact AI toolbar, icons precede provider names, no assistant labe
  assert.doesNotMatch(html,/class="ai-head"|<strong>ИИ-чат|ИИ помощник/);assert.match(html,/id="ai-provider-icon"[\s\S]+id="ai-select"/);assert.match(over,/b\.append\(icon,text\)/);
 });
 test('menu module never disables Apple menu or edits macOS defaults',()=>{
- const code=fs.readFileSync('mouse-native-menu.mm','utf8');assert.match(code,/p&=~\(NSApplicationPresentationHideMenuBar\|NSApplicationPresentationDisableAppleMenu\)/);assert.match(code,/NSNormalWindowLevel/);assert.doesNotMatch(code.replace('[paneMasks setObject:prior forKey:page];',''),/setMenuBarVisible:NO|setBool:|setObject:|NSApplicationPresentationDisableForceQuit/);
+ const code=fs.readFileSync('mouse-native-menu.mm','utf8');assert.match(code,/p&=~\(NSApplicationPresentationHideMenuBar\|NSApplicationPresentationDisableAppleMenu\)/);assert.match(code,/NSNormalWindowLevel/);assert.doesNotMatch(code,/setMenuBarVisible:NO|setBool:|setObject:|NSApplicationPresentationDisableForceQuit/);
  const {ChromeReveal}=require('./mouse/chrome-model.cjs'),m=new ChromeReveal();assert.equal(m.update({fullscreen:true,menuVisible:false,menuHeight:30}),0);assert.equal(m.update({fullscreen:true,menuVisible:true,menuHeight:30}),30);assert.equal(m.update({fullscreen:true,menuVisible:true,menuHeight:38,contentTopGap:38}),0);
 });
 test('new updater recognizes both Mouse filename and legacy compatible Mouse alias',()=>{

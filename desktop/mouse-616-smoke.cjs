@@ -9,7 +9,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
  async function click(selector){win.focus();win.webContents.focus();const p=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});}
  async function full(value){if(win.isFullScreen()===value)return;await new Promise((resolve,reject)=>{const event=value?'enter-full-screen':'leave-full-screen',timer=setTimeout(()=>reject(Error('No native '+event)),7000);win.once(event,()=>{clearTimeout(timer);resolve()});win.setFullScreen(value)});await sleep(180);}
  try{
-  await full(false);win.show();win.focus();win.setSize(1440,960);await sleep(200);
+  await full(false);win.show();win.focus();const work=screen.getPrimaryDisplay().workArea;win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1100,work.width-16),height:Math.min(800,work.height-16)});await sleep(250);
   await fs.mkdir(path.dirname(sentinel),{recursive:true});await fs.writeFile(sentinel,'legacy bytes must remain unchanged');
   assert.deepEqual(await js('[typeof MouseNative.wallet,typeof MouseNative.web3]'),['undefined','undefined']);
   for(const name of ['wallet-vault.cjs','mouse-web3.cjs','mouse-web3-runtime.cjs','mouse/web3.js'])assert.equal(require('node:fs').existsSync(path.join(__dirname,name)),false,'Mac package excludes '+name);
@@ -38,10 +38,13 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
    const display=screen.getDisplayMatching(win.getBounds());assert.equal(globalCapture.permission(),'granted');
    // Verify real composited native page pixels, not a DOM-only shell screenshot.
    let shot;for(let n=0;n<20;n++){
-    await sleep(100);const frame=await globalCapture.acquire(display);shot=nativeImage.createFromDataURL(frame.base);const size=shot.getSize(),bytes=shot.toBitmap(),c=win.getContentBounds(),p=t.bounds,sx=size.width/display.size.width,sy=size.height/display.size.height;
-    const rgb=(x,y)=>{const ix=Math.round((c.x+p.x+x-display.bounds.x)*sx),iy=Math.round((c.y+p.y+y-display.bounds.y)*sy),off=(iy*size.width+ix)*4;return[bytes[off+2],bytes[off+1],bytes[off]]};
-    const inside=rgb(20,p.height-2),outside=rgb(1,p.height-1),pink=a=>a.every((v,i)=>Math.abs(v-[221,60,146][i])<20);
-    if(pink(inside)&&!pink(outside))break;if(n===19){await fs.writeFile('mouse-616-corner-failure.png',shot.toPNG());console.log('MOUSE_NATIVE_PAGE_VIEWS',require('./mouse-native-menu.node').testPaneViews());throw Error('Native corners not clipped: '+JSON.stringify({inside,outside,bounds:p,view:t.view.getBounds()}));}
+    await sleep(100);const frame=await globalCapture.acquire(display);shot=nativeImage.createFromDataURL(frame.base);const size=shot.getSize(),bytes=shot.toBitmap(),c=win.getContentBounds(),sx=size.width/display.size.width,sy=size.height/display.size.height;
+    const rgb=(id,x,y)=>{const p=browser.get(id).bounds,ix=Math.round((c.x+p.x+x-display.bounds.x)*sx),iy=Math.round((c.y+p.y+y-display.bounds.y)*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height,'sample must be inside actual display');const off=(iy*size.width+ix)*4;return[bytes[off+2],bytes[off+1],bytes[off]]};
+    const p=t.bounds,lower=browser.get(ids[1]).bounds,side=browser.get(ai).bounds;
+    const samples={inside:rgb(ids[0],20,p.height-2),cutLeft:rgb(ids[0],1,p.height-1),cutRight:rgb(ids[0],p.width-2,p.height-1),pageTop:rgb(ids[0],1,40),externalBottom:rgb(ids[1],1,lower.height-2),aiBottom:rgb(ai,1,side.height-2)};
+    const pink=a=>a.every((v,i)=>Math.abs(v-[221,60,146][i])<20);
+    if(pink(samples.inside)&&!pink(samples.cutLeft)&&!pink(samples.cutRight)&&pink(samples.pageTop)&&pink(samples.externalBottom)&&pink(samples.aiBottom)){console.log('MOUSE_616_REAL_CORNER_PIXELS',theme,JSON.stringify(samples));break;}
+    if(n===19){await fs.writeFile('mouse-616-corner-failure.png',shot.toPNG());throw Error('Native corner chrome mismatch: '+JSON.stringify({samples,window:win.getBounds(),content:c,display:display.bounds,bounds:p}));}
    }
    await fs.writeFile('mouse-616-native-corners-'+theme+'.png',shot.toPNG());
    const keys=[...ids,ai],tokens=await Promise.all(keys.map(id=>browser.get(id).view.webContents.executeJavaScript('token')));
