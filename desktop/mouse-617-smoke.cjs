@@ -5,12 +5,12 @@ async function until(fn,label){for(let n=0;n<160;n++){if(await fn())return;await
 module.exports=async({win,browser})=>{
  const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),bounds=win.getBounds();
  const saved=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,theme:MouseTest.model.theme,aiOpen:MouseTest.model.aiOpen,aiId:MouseTest.model.aiId,aiWidth:MouseTest.model.aiWidth,aiSessions:MouseTest.model.aiSessions,aiSites:MouseTest.model.aiSites,libraryOpen:MouseTest.model.libraryOpen}))');
- const counts={};let server;
+ const counts={};let server,lastClick;
  async function click(selector){win.focus();const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)throw Error('Missing/disabled '+${JSON.stringify(selector)});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`),o=win.getContentBounds();assert.equal(native.testClick(o.x+p.x,o.y+p.y),true);await sleep(100)}
  try{
   if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'leave fullscreen');await sleep(400)}
   win.show();win.focus();const work=screen.getPrimaryDisplay().workArea;win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1101,work.width-16),height:Math.min(801,work.height-16)});
-  server=http.createServer((req,res)=>{counts[req.url]=(counts[req.url]||0)+1;res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Mouse617</title><style>body{margin:0;background:#dd3c92;height:100vh}</style><input id="retained" value="native-focus"><script>window.marker=Math.random()</script>')});
+  server=http.createServer((req,res)=>{counts[req.url]=(counts[req.url]||0)+1;res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Mouse617</title><style>body{margin:0;background:#dd3c92;height:100vh}</style><input id="retained" value="native-focus"><script>window.marker=Math.random();window.nativePresses=0;document.querySelector("#retained").addEventListener("pointerdown",e=>{if(e.isTrusted)window.nativePresses++})</script>')});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port,ids=[];
   for(let i=0;i<4;i++)ids.push((await browser.command('open',{url:root+'/page'+i,lane:'main'})).id);
   await until(()=>ids.every(id=>!browser.get(id).loading),'native fixtures loaded');
@@ -23,8 +23,19 @@ module.exports=async({win,browser})=>{
     await js('document.activeElement.value="unsubmitted address"');const count=counts['/page0'];
     await click(reload);await until(()=>counts['/page0']>count&&!first.loading,'one native click reload after address focus');
     assert.equal(await js('!!document.querySelector(".address-editing")'),false);
-    const p=first.bounds,o=win.getContentBounds();native.testClick(o.x+p.x+40,o.y+p.y+10);
-    await until(()=>first.view.webContents.executeJavaScript('document.activeElement.id==="retained"'),'native web content still receives clicks');
+    // Navigation completion is not the compositor/async hint-layout barrier.
+    // Require fully restored native bounds, then issue exactly ONE actual click.
+    await until(async()=>{
+     const dom=await js('(()=>{const r=document.querySelector(".pane .page-slot").getBoundingClientRect();return{x:Math.round(r.x),y:Math.round(r.y),right:Math.round(r.right),bottom:Math.round(r.bottom),hint:!!document.querySelector("#address-suggestions:popover-open"),blocked:MouseTest.overlays.active()}})()');
+     const b=(first.clipView||first.view).getBounds();
+     return first.visible&&!dom.hint&&!dom.blocked&&b.x===dom.x&&b.y===dom.y&&b.x+b.width===dom.right&&b.y+b.height===dom.bottom;
+    },'restored native page bounds after hints/reload');
+    const point=await first.view.webContents.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const r=document.querySelector("#retained").getBoundingClientRect();resolve({x:r.x+r.width/2,y:r.y+r.height/2,presses:window.nativePresses})})))');
+    assert.equal(point.presses,0,'reload must reset real-pointer counter');
+    const p=first.bounds,o=win.getContentBounds();lastClick={theme,n,point,page:{...p},parent:(first.clipView||first.view).getBounds(),child:first.view.getBounds()};
+    console.log('MOUSE_617_NATIVE_CLICK_BEFORE',JSON.stringify(lastClick));
+    assert.equal(native.testClick(o.x+p.x+point.x,o.y+p.y+point.y),true);
+    await until(()=>first.view.webContents.executeJavaScript('document.activeElement.id==="retained"&&window.nativePresses===1'),'native web content still receives one actual click');
    }
    await browser.command('navigate',{id:ids[0],url:root+'/second'});await until(()=>!first.loading,'second history entry');
    await click(input);await click('.pane [data-pane-action=back]');await until(()=>first.view.webContents.getURL()===root+'/page0'&&!first.loading,'native back after address focus');
@@ -41,6 +52,9 @@ module.exports=async({win,browser})=>{
    await fs.writeFile('mouse-617-chrome-'+theme+'.png',(await win.capturePage()).toPNG());console.log('MOUSE_617_NATIVE_FOCUS_GEOMETRY',theme,JSON.stringify(geometry));
   }
   console.log('MOUSE_617_NATIVE_ADDRESS_CLICKS_HEAD_10PX_FOOTER_PASS');
+ }catch(error){
+  console.log('MOUSE_617_FOCUS_FAILURE',JSON.stringify({lastClick,window:win.getBounds(),native:native.state(),pages:[...browser.tabs.values()].filter(t=>!before.has(t.id)).map(t=>({id:t.id,url:t.url,visible:t.visible,bounds:t.bounds,view:t.view.getBounds(),clip:t.clipView?.getBounds()})),shell:await js('({active:document.activeElement?.outerHTML,hint:!!document.querySelector("#address-suggestions:popover-open"),blocked:MouseTest.overlays.active(),drag:MouseTest.model.swapDrag,slots:MouseTest.model.slots})')}));
+  await fs.writeFile('mouse-617-focus-failure.png',(await win.capturePage()).toPNG());throw error;
  }finally{
   await js('document.querySelector("#settings-dialog").open&&document.querySelector("#settings-dialog").close()').catch(()=>{});
   for(const id of [...browser.tabs.keys()])if(!before.has(id))await browser.command('close',{id});server?.close();
