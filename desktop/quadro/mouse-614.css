@@ -1,0 +1,3 @@
+/* Temporary AI presentation only: saved pane tree and sidebar width stay intact. */
+body.ai-focused #stage,body.ai-focused #ai-divider,body.ai-focused #library-dialog,body.ai-focused #library-divider{display:none!important}
+body.ai-focused #ai-panel{flex:1 1 auto;width:100%;min-width:0}
