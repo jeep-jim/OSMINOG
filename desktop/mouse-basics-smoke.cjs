@@ -15,7 +15,7 @@ module.exports=async({app,win,browser,libraryService})=>{
  browser.session.prependListener('will-download',setPath);
  try{
   await js(`MouseTest.openPage(${JSON.stringify(root+'/visited-alpha')})`);await until(()=>lib.data.history.some(x=>x.url===root+'/visited-alpha'),'real navigation in history');
-  await click('.pane.active [data-pane-action=bookmark]');await until(()=>lib.data.bookmarks.length>0,'bookmark from actual UI');
+  require('electron').Menu.getApplicationMenu().items.find(x=>x.label==='История').submenu.items.find(x=>x.label==='Добавить закладку').click();await until(()=>lib.data.bookmarks.length>0,'bookmark from retained native menu');
   await click('.pane.active input');await js(`(()=>{const e=document.querySelector('.pane.active input');e.value='visited-alpha';e.dispatchEvent(new Event('input',{bubbles:true}))})()`);
   await until(()=>js('document.querySelector("#address-suggestions").matches(":popover-open")'),'address suggestion popup');
   assert.ok(await js('document.querySelector("#address-suggestions").textContent.includes("visited-alpha")'));

@@ -4,6 +4,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <cmath>
+#include <cctype>
+static void clearPaneTrim();
 #include <initializer_list>
 static __weak NSWindow* mouseWindow=nil;
 static NSMutableArray* observers;
@@ -84,7 +86,7 @@ static napi_value install(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);
  if(!NSThread.isMainThread||n!=1){napi_throw_error(e,nullptr,"Main UI thread and native handle required");return nullptr;}
  NSWindow* w=windowFrom(e,args[0]);if(!w){napi_throw_error(e,nullptr,"Invalid native window");return nullptr;}
- windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
+ clearPaneTrim();windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
  NSNotificationCenter* c=NSNotificationCenter.defaultCenter;
  [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){queueTitleChrome();}]];
 
@@ -93,7 +95,7 @@ static napi_value install(napi_env e,napi_callback_info info){
  [observers addObject:[c addObserverForName:NSWindowDidBecomeKeyNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){ensureSystemMenu();}]];
  [observers addObject:[c addObserverForName:NSWindowWillExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){restoreHover();}]];
  [observers addObject:[c addObserverForName:NSWindowDidExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){menuHeld=NO;windowCorners();if(hasSaved){@try{NSApp.presentationOptions=savedOptions;}@catch(NSException* e){}hasSaved=NO;}}]];
- [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){windowClosing=YES;restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
+ [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){windowClosing=YES;clearPaneTrim();restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
  return state(e,info);
 }
 static napi_value reveal(napi_env e,napi_callback_info info){
@@ -129,8 +131,69 @@ static napi_value testClick(napi_env e,napi_callback_info info){
  for(CGEventType type : {kCGEventMouseMoved,kCGEventLeftMouseDown,kCGEventLeftMouseUp}){CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}}
  napi_value value;napi_get_boolean(e,CGPreflightPostEventAccess(),&value);return value;
 }
+// A noninteractive native chrome overlay paints only the tiny corner cut-outs.
+// It sits above Chromium's compositor, not in the website DOM, and never changes
+// the page viewport, scroll position, event routing or a hosted view's layers.
+@interface MousePaneCornerTrim : NSView
+@property(nonatomic,strong) NSArray<NSDictionary*>* panes;
+@end
+@implementation MousePaneCornerTrim
+-(BOOL)isFlipped{return YES;}
+-(BOOL)isOpaque{return NO;}
+-(BOOL)acceptsFirstResponder{return NO;}
+-(BOOL)isAccessibilityElement{return NO;}
+-(NSView*)hitTest:(NSPoint)point{return nil;}
+-(void)drawRect:(NSRect)dirty{
+ for(NSDictionary* item in self.panes){
+  NSRect p=[item[@"rect"] rectValue];CGFloat radius=8,y=NSMaxY(p)-radius;
+  NSColor* color=item[@"color"];
+  for(int side=0;side<2;side++){
+   CGFloat x=side?NSMaxX(p)-radius:NSMinX(p);NSRect corner=NSMakeRect(x,y,radius,radius);
+   if(!NSIntersectsRect(corner,dirty))continue;
+   [NSGraphicsContext saveGraphicsState];NSRectClip(corner);
+   NSBezierPath* path=[NSBezierPath bezierPathWithRect:corner];
+   [path appendBezierPathWithOvalInRect:NSMakeRect(side?x-radius:x,y-radius,radius*2,radius*2)];
+   path.windingRule=NSEvenOddWindingRule;[color setFill];[path fill];
+   [NSGraphicsContext restoreGraphicsState];
+  }
+ }
+}
+@end
+static MousePaneCornerTrim* paneTrim;
+static void clearPaneTrim(){[paneTrim removeFromSuperview];paneTrim=nil;}
+static napi_value paneCorners(napi_env e,napi_callback_info info){
+ size_t n=1;napi_value args[1],answer;napi_get_cb_info(e,info,&n,args,nullptr,nullptr);uint32_t count=0;bool array=false;
+ // Stale resize/layout frames must not be able to crash the application.
+ if(n!=1||!NSThread.isMainThread||napi_is_array(e,args[0],&array)!=napi_ok||!array||napi_get_array_length(e,args[0],&count)!=napi_ok||count>100){napi_get_boolean(e,false,&answer);return answer;}
+ NSView* root=mouseWindow.contentView;NSMutableArray* panes=[NSMutableArray new];
+ @try{
+  if(root&&!windowClosing){
+   for(uint32_t i=0;i<count;i++){
+    napi_value v;napi_get_element(e,args[0],i,&v);double a[4]={};const char* keys[]={"x","y","width","height"};BOOL valid=YES;
+    for(int k=0;k<4;k++){napi_value value;if(napi_get_named_property(e,v,keys[k],&value)!=napi_ok||napi_get_value_double(e,value,&a[k])!=napi_ok||!std::isfinite(a[k])){valid=NO;break;}}
+    if(!valid||a[0]<0||a[1]<20||a[2]<16||a[3]<16||a[0]+a[2]>NSWidth(root.bounds)+1||a[1]+a[3]>NSHeight(root.bounds)+1)continue;
+    napi_value colorValue;char hex[9]={};size_t len=0;
+    if(napi_get_named_property(e,v,"color",&colorValue)!=napi_ok||napi_get_value_string_utf8(e,colorValue,hex,sizeof(hex),&len)!=napi_ok||len!=7||hex[0]!='#')continue;
+    BOOL hexOK=YES;for(int k=1;k<7;k++)if(!std::isxdigit((unsigned char)hex[k]))hexOK=NO;if(!hexOK)continue;
+    unsigned long rgb=std::strtoul(hex+1,nullptr,16);
+    NSColor* color=[NSColor colorWithSRGBRed:((rgb>>16)&255)/255.0 green:((rgb>>8)&255)/255.0 blue:(rgb&255)/255.0 alpha:1];
+    [panes addObject:@{@"rect":[NSValue valueWithRect:NSMakeRect(a[0],a[1],a[2],a[3])],@"color":color}];
+   }
+  }
+  if(!panes.count){clearPaneTrim();}
+  else{
+   if(!paneTrim){paneTrim=[[MousePaneCornerTrim alloc] initWithFrame:root.bounds];paneTrim.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;paneTrim.wantsLayer=YES;}
+   BOOL changed=![paneTrim.panes isEqual:panes]||!NSEqualRects(paneTrim.frame,root.bounds);
+   paneTrim.frame=root.bounds;paneTrim.panes=panes;
+   if(paneTrim.superview!=root||root.subviews.lastObject!=paneTrim)[root addSubview:paneTrim positioned:NSWindowAbove relativeTo:nil];
+   if(changed)[paneTrim setNeedsDisplay:YES];
+  }
+ }@catch(NSException* ex){clearPaneTrim();NSLog(@"Mouse corner trim skipped: %@",ex.name);}
+ napi_create_uint32(e,(uint32_t)panes.count,&answer);return answer;
+}
+
 static napi_value init(napi_env e,napi_value exports){
- napi_property_descriptor d[]={{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0}};
- napi_define_properties(e,exports,6,d);return exports;
+ napi_property_descriptor d[]={{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
+ napi_define_properties(e,exports,7,d);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

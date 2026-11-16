@@ -10,7 +10,6 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  function noGuestAboveModal(){assert.equal(overlayGate.blocked,true);assert.equal(browser.panels.length,0);for(const t of browser.tabs.values()){assert.equal(t.visible,false);assert.ok(!win.contentView.children.includes(t.clipView||t.view),'native webpage detached during modal');}}
  for(const [button,dialog,close] of [
   ['#statusbar [data-action=settings]','#settings-dialog','#settings-dialog [data-close-dialog]'],
-  ['#statusbar [data-action=wallet]','#web3-dialog','#web3-close'],
   ['#version-button','#update-dialog','#update-dialog [data-close-dialog]'],
   ['#screenshot-button','#capture-dialog','#capture-close']
  ]){

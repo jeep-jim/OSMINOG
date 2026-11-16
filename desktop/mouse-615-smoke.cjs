@@ -11,12 +11,12 @@ module.exports=async({win,browser})=>{
   win.show();win.focus();win.setSize(1440,960);await sleep(200);
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await move('#version-button');
-   const look=await js(`(()=>{const b=document.querySelector('#new-tab'),c=getComputedStyle(b),m=b.querySelector('.burrow-mouse'),r=b.getBoundingClientRect();return{r:[r.width,r.height],round:c.borderTopLeftRadius,bottomRound:c.borderBottomLeftRadius,borderBottom:c.borderBottomWidth,shadow:c.boxShadow,opacity:getComputedStyle(m).opacity,label:b.getAttribute('aria-label'),children:b.children.length}})()`);
+   const look=await js(`(()=>{const b=document.querySelector('#new-tab'),c=getComputedStyle(b),m=b.querySelector('.burrow-plus'),r=b.getBoundingClientRect();return{r:[r.width,r.height],round:c.borderTopLeftRadius,bottomRound:c.borderBottomLeftRadius,borderBottom:c.borderBottomWidth,shadow:c.boxShadow,opacity:getComputedStyle(m).opacity,label:b.getAttribute('aria-label'),children:b.children.length}})()`);
    assert.deepEqual(look.r,[28,30]);assert.equal(look.round,'14px');assert.equal(look.bottomRound,'0px');assert.equal(look.borderBottom,'0px');assert.equal(look.shadow,'none');assert.equal(look.opacity,'1');assert.equal(look.label,'Новая вкладка');assert.equal(look.children,1);
    await fs.writeFile('mouse-615-burrow-'+theme+'.png',(await win.capturePage()).toPNG());
-   await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-mouse")).opacity'),'0');assert.equal(await js('getComputedStyle(document.querySelector("#new-tab")).boxShadow'),'none');
+   await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');assert.equal(await js('getComputedStyle(document.querySelector("#new-tab")).boxShadow'),'none');
    await fs.writeFile('mouse-615-burrow-hover-'+theme+'.png',(await win.capturePage()).toPNG());
-   await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-mouse")).opacity'),'1');
+   await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
    for(const width of [800,1100,1440]){
     win.setSize(width,900);await sleep(180);
     const g=await js(`(()=>{const lib=document.querySelector('#footer-library'),r=lib.getBoundingClientRect(),a=document.querySelector('#ai-toggle').getBoundingClientRect(),left=document.querySelector('#footer-left').getBoundingClientRect(),buttons=[...lib.querySelectorAll('button')],footer=document.querySelector('#statusbar');return{count:buttons.length,actions:buttons.map(b=>b.dataset.action),gap:a.left-r.right,space:r.left-left.right,right:document.querySelector('[data-action=quit]').getBoundingClientRect().right,width:innerWidth,overflow:footer.scrollWidth-footer.clientWidth,duplicate:['history-button','downloads-button'].some(id=>document.querySelectorAll('#'+id).length!==1)}})()`);
@@ -30,7 +30,7 @@ module.exports=async({win,browser})=>{
   }
   const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'burrow real pointer creates tab');
   assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
-  console.log('MOUSE_615_ARCH_BUTTON_HOVER_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
+  console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
  }finally{
   await js('MouseTest.browsing.close()').catch(()=>{});
   for(const t of browser.state().tabs)if(!beforeIds.has(t.id))await browser.command('close',{id:t.id});

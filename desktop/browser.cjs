@@ -144,11 +144,12 @@ class BrowserWorkspace{
    if(clip&&[clip.x,clip.y,clip.width,clip.height].every(Number.isFinite)){left=Math.max(left,Math.round(clip.x));top=Math.max(top,Math.round(clip.y));right=Math.min(right,Math.round(clip.x+clip.width));bottom=Math.min(bottom,Math.round(clip.y+clip.height));}
    if(right<=left||bottom<=top)continue;
    const clipped={x:left,y:top,width:right-left,height:bottom-top};
-   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip});
+   const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===8&&bottom===bounds.y+bounds.height?8:0;
+   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
    const next=desired.get(t),show=!!next;
-   if(next){const {bounds,clipped,wrap}=next;
+   if(next){const {bounds,clipped,wrap,radius}=next;
     if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
     const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;
@@ -157,9 +158,10 @@ class BrowserWorkspace{
    }
    if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
-
+  // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
+  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===8).map(p=>({...p.clipped,color:p.cornerColor})));
  }
- dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
+ dispose(){if(this.disposed)return;this.disposed=true;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
 

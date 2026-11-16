@@ -1,17 +1,10 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto');
-test('burrow uses exact approved mouse head cells without altering original mascot',()=>{
- const h=fs.readFileSync('mouse/index.html','utf8'),original=fs.readFileSync('mouse/mouse-update.svg','utf8');
- const head=[...original.matchAll(/M(\d+) (\d+)h1v1h-1z/g)].filter(m=>+m[2]<18).map(m=>m[0]).join('');
- const button=h.match(/<button id="new-tab"[^>]*>(.*?)<\/button>/s)[1];
- assert.match(button,/class="burrow-mouse"/);assert.equal(button.match(/ d="([^"]+)"/)[1],head);assert.doesNotMatch(button,/burrow-floor|burrow-rim|burrow-opening|[＋+]/);
+test('arched new-tab uses a familiar plus and preserves approved mouse files',()=>{
+ const h=fs.readFileSync('mouse/index.html','utf8'),button=h.match(/<button id="new-tab"[^>]*>(.*?)<\/button>/s)[1];
+ assert.match(button,/class="burrow-plus"/);assert.match(button,/M10 4v12M4 10h12/);assert.doesNotMatch(button,/burrow-mouse|burrow-floor/);
  assert.equal(crypto.createHash('sha256').update(fs.readFileSync('mouse/mouse-original.png')).digest('hex'),require('./mouse-brand.cjs').sourceSHA256);
- assert.match(h,/id="new-tab" data-action="new-tab"[^>]*aria-label="Новая вкладка"/);
-});
-test('button itself is arched, no bottom border/glow, hover hides only the mouse',()=>{
- const css=fs.readFileSync('mouse/mouse-615.css','utf8');
- assert.match(css,/border-radius:14px 14px 0 0/);assert.match(css,/border-bottom:0/);assert.match(css,/box-shadow:none!important/);
- assert.match(css,/#new-tab:hover \.burrow-mouse\{opacity:0\}/);assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);assert.match(css,/#new-tab:focus-visible/);
+ const css=fs.readFileSync('mouse/mouse-615.css','utf8');assert.match(css,/border-radius:14px 14px 0 0/);assert.match(css,/border-bottom:0/);assert.match(css,/box-shadow:none!important/);assert.match(css,/#new-tab:hover \.burrow-plus\{opacity:1\}/);assert.match(css,/#new-tab:focus-visible/);
 });
 test('footer keeps a single separate labelled group and existing command buttons',()=>{
  const h=fs.readFileSync('mouse/index.html','utf8');assert.equal((h.match(/id="footer-library"/g)||[]).length,1);
