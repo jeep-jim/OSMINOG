@@ -11,7 +11,7 @@ fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
-let win,browser,store,exitController,libraryService,overlayGate,startService,web3Service,globalCapture,privateMode;
+let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'mouse/index.html')).href;
 function show(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus()}
@@ -21,7 +21,6 @@ if(!ownsProfile)app.quit();
 app.on('second-instance',show);app.on('activate',show);
 if(ownsProfile)app.whenReady().then(async()=>{
  store=new (require('./storage.cjs').Store)(app.getPath('userData'));
- const wallet=new (require('./wallet-vault.cjs').WalletVault)(store);
  nativeTheme.themeSource='light';
  // Owner requirement: Dock always uses the black mouse on white, irrespective of theme.
  const updateDock=()=>{const theme='light';app.dock.setIcon(path.join(__dirname,'icons/mouse-browser-'+theme+'.png'));updateDock.appliedTheme=theme;};updateDock();
@@ -56,11 +55,10 @@ if(ownsProfile)app.whenReady().then(async()=>{
  session.defaultSession.setPermissionRequestHandler((_wc,_p,callback)=>callback(false));
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
- browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);
+ browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;
  require('./mouse-stability.cjs').installWorkspace(browser,{report:log});
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state)});
- web3Service=await require('./mouse-web3.cjs').install({app,win,browser,trusted,test});
  await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
@@ -81,7 +79,6 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:browser',(e,action,args={})=>{trusted(e);if(!allowed.has(action))throw Error('Unsupported browser action');return browser.command(action,args)});
  ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
- ipcMain.handle('mouse:wallet',async(e,action,args)=>{trusted(e);try{return await wallet.command(action,args)}catch(error){throw Error(error.message.replaceAll('Trader OS','Mouse Browser'))}});
  ipcMain.handle('mouse:update',(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');return updates.run(action)});
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test});
  ipcMain.handle('mouse:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(()=>{if(!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через ⌘Q и повторите.')}));return true;});
@@ -93,7 +90,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
- if(test&&process.argv.some(x=>/^--mouse-smoke-(write|read)$/.test(x)))await require('./mouse-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture,paneFocus});
+ if(test&&process.argv.some(x=>/^--mouse-smoke-(write|read)$/.test(x)))await require('./mouse-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus});
  if(test&&(process.argv.includes('--mouse-private-smoke')||process.argv.includes('--mouse-private-close')))await require('./mouse-private-smoke.cjs')({app,win,browser,store,privateMode,ipcRouter});
  if(test&&process.argv.some(x=>x.startsWith('--mouse-close-test=')))await require('./mouse-close-smoke.cjs')({app,win,store,log});
 }).catch(error=>{log('STARTUP_FAILED '+error.stack);if(!test)dialog.showErrorBox('Mouse Browser — ошибка запуска','Локальные данные не удалены.\n'+error.message+'\nЖурнал: '+logFile);app.exit(1)});

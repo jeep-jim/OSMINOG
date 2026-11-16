@@ -2,11 +2,11 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let n=0;n<200;n++){if(await check())return;await sleep(75)}throw Error('Timed out: '+label)}
-module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture,paneFocus})=>{
+module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.15');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.16');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -14,10 +14,9 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    assert.ok((await store.get('mousePersistence')).mousePersistence==='mouse-6');
    assert.equal((await browser.session.cookies.get({url:'https://example.com/',name:'mouse-persistence'}))[0]?.value,'retained');
    assert.equal((await store.get('macPortPersistence')).macPortPersistence,'actual-legacy-mac-profile');
-   assert.equal((await js('MouseNative.wallet("list")'))[0]?.address,'0x1111111111111111111111111111111111111111');
+   assert.equal((await store.get('traderWalletWatch')).traderWalletWatch[0]?.address,'0x1111111111111111111111111111111111111111');
    assert.ok(libraryService.library.data.bookmarks.some(x=>x.title==='Library persistence fixture'));assert.ok(libraryService.library.data.searches.some(x=>x.query==='mouse persistent search'));console.log('MOUSE_LIBRARY_RESTART_PASS');assert.ok(startService.tabs.size>=1,'internal start tab restored');assert.equal(startService.getPreferences().background,'custom');assert.ok(libraryService.library.data.bookmarks.some(x=>x.title==='Visual bookmark fixture'));console.log('MOUSE_START_PAGE_RESTART_PASS');
-   assert.equal(web3Service.vault.state().exists,true);assert.equal(web3Service.vault.state().locked,true);assert.equal(web3Service.vault.state().backedUp,true);console.log('MOUSE_ENCRYPTED_WALLET_LOCKED_RESTART_PASS');
-   console.log('MOUSE_PROFILE_COOKIE_WALLET_RESTART_PASS');
+   assert.equal(await fs.readFile(require('node:path').join(app.getPath('userData'),'quadro-wallet','mouse616-preserve-fixture'),'utf8'),'legacy bytes must remain unchanged');console.log('MOUSE_PROFILE_COOKIE_RESTART_PASS');
   }else{
    await store.set({macPortPersistence:'actual-legacy-mac-profile',traderWalletWatch:[{address:'0x1111111111111111111111111111111111111111',label:'Migration fixture'}]});
    server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.setHeader('Content-Type','image/png');require('node:fs').createReadStream(require('node:path').join(__dirname,'mouse/brand.png')).pipe(res);return}res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><title>Mouse fixture '+req.url+'</title><h1>Локальная проверка браузера</h1><input id="kept" value="retained"><script>globalThis.loadedOnce=Math.random()</script>')});
@@ -50,10 +49,9 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    console.log('MOUSE_LIGHT_DARK_CONTRAST_PASS');
    await require('./mouse-compact-smoke.cjs')({win,browser});
    await require('./mouse-refinements-smoke.cjs')({win,browser,store});
-   await require('./mouse-basics-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture,paneFocus});
-   await require('./mouse-start-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,web3Service,globalCapture,paneFocus});
+   await require('./mouse-basics-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus});
+   await require('./mouse-start-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus});
    await require('./mouse-polish-smoke.cjs')({win,browser,overlayGate});
-   await require('./mouse-web3-smoke.cjs')({app,win,browser,web3Service});
    await require('./mouse-global-capture-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
    await store.set({mousePersistence:'mouse-6'});await browser.session.cookies.set({url:'https://example.com/',name:'mouse-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('MouseTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
@@ -65,6 +63,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-613-smoke.cjs')({win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-614-smoke.cjs')({win,browser});await require('./mouse-614-badge-smoke.cjs')({win});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-615-smoke.cjs')({win,browser});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-616-smoke.cjs')({app,win,browser,store,globalCapture});
   console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('mouse-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
 };

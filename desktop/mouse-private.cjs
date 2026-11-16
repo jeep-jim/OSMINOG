@@ -29,7 +29,7 @@ class PrivateMode {
   const register={handle:(channel,fn)=>{handlers.set(channel,fn);}};
   const remember=(target,event)=>{const before=target.listeners(event);return()=>{for(const fn of target.listeners(event))if(!before.includes(fn))listeners.push([target,event,fn]);};};
   const collect=[remember(win,'resize'),remember(win,'closed'),remember(win.webContents,'did-start-navigation')];
-  const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});
+  const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});browser.mouseRoundedPanes=true;
   require('./mouse-stability.cjs').installWorkspace(browser);
   // Explicitly bind only this private workspace's pages. Embedded views can
   // report no owning BrowserWindow while native fullscreen reparents them.
@@ -58,8 +58,6 @@ class PrivateMode {
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
    for(const name of ['mouse:privacy','mouse:window','mouse:theme'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
-   handlers.set('mouse:web3-admin',()=>{throw Error('Кошелёк отключён в инкогнито');});
-   handlers.set('mouse:wallet',()=>{throw Error('Кошелёк отключён в инкогнито');});
    handlers.set('mouse:update',()=>{throw Error('Обновление доступно в обычном режиме');});
    // Explicit file downloads are allowed, but clearly distinguished from ephemeral browsing data.
    const warning=(_event,item)=>item.setSaveDialogOptions({title:'Инкогнито: сохранённый файл останется на Mac',defaultPath:require('node:path').join(this.e.app.getPath('downloads'),require('node:path').basename(item.getFilename()||'download')),properties:['showOverwriteConfirmation']});

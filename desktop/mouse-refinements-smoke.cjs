@@ -12,8 +12,8 @@ module.exports=async({win,browser,store})=>{
  const iconServer=http.createServer((_q,r)=>{r.setHeader('Content-Type','image/svg+xml');r.end('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="9" fill="#183e61"/></svg>')});
  await new Promise(r=>iconServer.listen(0,'127.0.0.1',r));
  try{const href='http://127.0.0.1:'+iconServer.address().port+'/favicon.svg';await page.view.webContents.executeJavaScript(`(()=>{const l=document.createElement('link');l.rel='icon';l.href=${JSON.stringify(href)};document.head.append(l)})()`);await until(()=>js("[...document.querySelectorAll('.tab-item .favicon')].some(e=>e.src.startsWith('data:image/svg+xml')&&e.naturalWidth>0)"),'SVG favicon from actual page event')}finally{await new Promise(r=>iconServer.close(r))}
- await js('MouseTest.setLocale("en")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=wallet]").textContent'),'Wallet');
- await js('MouseTest.setLocale("ru")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=wallet]").textContent'),'Кошелёк');
+ await js('MouseTest.setLocale("en")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=ai]").textContent'),'AI');
+ await js('MouseTest.setLocale("ru")');await sleep(100);assert.equal(await js('document.querySelector("[data-action=ai]").textContent'),'ИИ');
  console.log('MOUSE_FAVICONS_PNG_SVG_LOCALE_PASS');
  await click('#screenshot-button');
  await until(()=>js('MouseTest.capture.isOpen()'),'browser camera screenshot');assert.ok(browser.panels.length===0,'Native pages hidden behind editor');

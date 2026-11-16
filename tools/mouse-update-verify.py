@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
-"""CI-only real 6.0.14 -> 6.0.15 replacement using the NEW installer.
-Version 6.0.14 already ships this installer. This verifies replacement separately from old-module channel discovery.
+"""CI-only real 6.0.15 -> 6.0.16 replacement using the NEW installer.
+Version 6.0.15 already ships this installer. This verifies replacement separately from old-module channel discovery.
 """
 import hashlib,json,os,pathlib,shutil,subprocess,sys,time,urllib.request
 if sys.platform!='darwin' or os.environ.get('CI')!='true':raise SystemExit('CI macOS only')
 dmg=pathlib.Path(sys.argv[1]).resolve();installer=pathlib.Path(sys.argv[2]).resolve()
-root=pathlib.Path(os.environ['RUNNER_TEMP'])/'mouse614-update-roundtrip';root.mkdir()
+root=pathlib.Path(os.environ['RUNNER_TEMP'])/'mouse615-update-roundtrip';root.mkdir()
 profile=pathlib.Path.home()/'Library/Application Support/Trader OS'
 if profile.exists():raise SystemExit('Refusing to use an existing default profile on this runner')
-profile.mkdir(parents=True);(profile/'mouse-update-owner-sentinel.txt').write_text('keep-profile-614')
-(profile/'workspace.json').write_text(json.dumps({'mouseUpdateProof':'retain-614','quadroPreferences':{'theme':'dark','locale':'ru'}}))
-old=root/'old614.dmg';url='https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.14-arm64/Mouse-Browser-6.0.14-mac-arm64.dmg'
+profile.mkdir(parents=True);(profile/'mouse-update-owner-sentinel.txt').write_text('keep-profile-615')
+(profile/'workspace.json').write_text(json.dumps({'mouseUpdateProof':'retain-615','quadroPreferences':{'theme':'dark','locale':'ru'}}))
+old=root/'old615.dmg';url='https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.15-arm64/Mouse-Browser-6.0.15-mac-arm64.dmg'
 with urllib.request.urlopen(url,timeout=90) as response,old.open('wb') as out:shutil.copyfileobj(response,out)
-if hashlib.sha256(old.read_bytes()).hexdigest()!='b8c371fe2a5ffcc5bdb02e0d02cdcb03f8f7616a541b5519937211db003ba5f8':raise SystemExit('Old package checksum mismatch')
+if hashlib.sha256(old.read_bytes()).hexdigest()!='ac6400a02c4503d23972f8f9c8b4f764ddcbfcc02d9bd873df37bbeb80624c88':raise SystemExit('Old package checksum mismatch')
 mount=root/'old-mount';mount.mkdir();target=root/'Applications/Mouse Browser.app';target.parent.mkdir()
 subprocess.run(['hdiutil','attach',str(old),'-nobrowse','-readonly','-mountpoint',str(mount)],check=True)
 try:subprocess.run(['ditto',str(mount/'Mouse Browser.app'),str(target)],check=True)
 finally:subprocess.run(['hdiutil','detach',str(mount)],check=True)
 def version(app):return subprocess.check_output(['/usr/libexec/PlistBuddy','-c','Print :CFBundleShortVersionString',str(app/'Contents/Info.plist')],text=True).strip()
-assert version(target)=='6.0.14'
+assert version(target)=='6.0.15'
 config={'installer':str(installer),'dmg':str(dmg),'target':str(target),'profile':str(profile),'root':str(root)}
 script="""const fs=require('node:fs'),path=require('node:path');const c=JSON.parse(process.argv[1]);const {MacInstaller}=require(c.installer);
 const app={getPath:k=>k==='home'?require('node:os').homedir():c.profile};
 const u=new MacInstaller({app,executable:path.join(c.target,'Contents/MacOS/Mouse Browser'),test:true,quit:async()=>{process.exitCode=0;setTimeout(()=>process.exit(0),100)}});
-(async()=>{const p=await u.prepare(c.dmg,{version:'6.0.15'});fs.writeFileSync(path.join(c.root,'plan.json'),JSON.stringify(p));await u.install();})().catch(e=>{console.error(e);process.exit(1)});"""
+(async()=>{const p=await u.prepare(c.dmg,{version:'6.0.16'});fs.writeFileSync(path.join(c.root,'plan.json'),JSON.stringify(p));await u.install();})().catch(e=>{console.error(e);process.exit(1)});"""
 r=subprocess.run(['node','-e',script,json.dumps(config)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
 pathlib.Path('mouse-update-roundtrip.log').write_text(r.stdout);print(r.stdout,flush=True)
 if r.returncode:raise SystemExit('Native installer preparation failed')
@@ -33,16 +33,16 @@ try:
   if (stage/'READY').exists():break
   time.sleep(.2)
  else:raise RuntimeError('Updated application did not acknowledge real startup: '+str(list(stage.iterdir())))
- assert (stage/'READY').read_text()=='6.0.15'
- assert version(target)=='6.0.15' and version(stage/'previous.app')=='6.0.14'
+ assert (stage/'READY').read_text()=='6.0.16'
+ assert version(target)=='6.0.16' and version(stage/'previous.app')=='6.0.15'
  subprocess.run(['codesign','--verify','--deep','--strict',str(target)],check=True)
  subprocess.run(['codesign','--verify','--deep','--strict',str(stage/'previous.app')],check=True)
- assert (profile/'mouse-update-owner-sentinel.txt').read_text()=='keep-profile-614'
- assert json.loads((profile/'workspace.json').read_text())['mouseUpdateProof']=='retain-614'
- assert 'MOUSE_READY 6.0.15' in (profile/'mouse-startup.log').read_text()
+ assert (profile/'mouse-update-owner-sentinel.txt').read_text()=='keep-profile-615'
+ assert json.loads((profile/'workspace.json').read_text())['mouseUpdateProof']=='retain-615'
+ assert 'MOUSE_READY 6.0.16' in (profile/'mouse-startup.log').read_text()
  assert not (profile/'mouse-update-receipt.json').exists()
- print('MOUSE_615_REAL_614_TO_615_REPLACE_RELAUNCH_PROFILE_PASS',flush=True)
- with open('mouse-update-roundtrip.log','a') as log:log.write('\nMOUSE_615_REAL_614_TO_615_REPLACE_RELAUNCH_PROFILE_PASS\n'+(profile/'mouse-startup.log').read_text())
+ print('MOUSE_616_REAL_615_TO_616_REPLACE_RELAUNCH_PROFILE_PASS',flush=True)
+ with open('mouse-update-roundtrip.log','a') as log:log.write('\nMOUSE_616_REAL_615_TO_616_REPLACE_RELAUNCH_PROFILE_PASS\n'+(profile/'mouse-startup.log').read_text())
 finally:
  for line in subprocess.check_output(['ps','-axo','pid=,command='],text=True).splitlines():
   parts=line.strip().split(None,1)

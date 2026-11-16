@@ -25,7 +25,7 @@ module.exports=async({app,win,browser,store,privateMode})=>{
   await page.executeJavaScript(`localStorage.setItem('private',${JSON.stringify(marker)});sessionStorage.setItem('private',${JSON.stringify(marker)})`);
   await page.executeJavaScript(`new Promise((resolve,reject)=>{const r=indexedDB.open('private-db');r.onupgradeneeded=()=>r.result.createObjectStore('test');r.onsuccess=()=>{const db=r.result,t=db.transaction('test','readwrite');t.objectStore('test').put(${JSON.stringify(marker)},'data');t.oncomplete=()=>{db.close();resolve(true)}};r.onerror=()=>reject(r.error)})`);
   assert.equal(first.libraryService.library.data.history.length,0);assert.equal(first.libraryService.library.data.searches.length,0);
-  assert.equal(await js('MouseNative.web3("state").then(()=>false,()=>true)'),true);
+  assert.equal(await js('typeof MouseNative.web3 === "undefined" && typeof MouseNative.wallet === "undefined"'),true);
   assert.equal(await js('MouseNative.update("check").then(()=>false,()=>true)'),true);
   assert.equal(await js('MouseNative.start("background").then(()=>false,()=>true)'),true);
   await js('MouseTest.changeLayout(2)');await js('MouseTest.save()');

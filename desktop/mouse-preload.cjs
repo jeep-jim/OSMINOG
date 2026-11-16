@@ -13,8 +13,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  overlay:state=>ipcRenderer.invoke('mouse:overlay',state),
  start:(action,args)=>ipcRenderer.invoke('mouse:start',action,args),onStart:cb=>on('mouse:start-changed',cb),
  window:action=>ipcRenderer.invoke('mouse:window',action),
- web3:(action,args)=>ipcRenderer.invoke('mouse:web3-admin',action,args),onWeb3:cb=>on('mouse:web3-state',cb),
- wallet:(action,args)=>ipcRenderer.invoke('mouse:wallet',action,args),update:action=>ipcRenderer.invoke('mouse:update',action),
+ update:action=>ipcRenderer.invoke('mouse:update',action),
  onState:cb=>on('browser:state',cb),onFocus:cb=>on('browser:focus',cb),onError:cb=>on('browser:error',cb),
  onMenu:cb=>on('mouse:menu',cb),onUpdate:cb=>on('mouse:update-state',cb)
 }));
