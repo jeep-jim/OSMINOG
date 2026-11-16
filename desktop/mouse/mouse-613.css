@@ -11,11 +11,13 @@
 .pane-head{position:relative}
 .pane-head .pane-title{display:none!important}
 .pane-head .pane-icon{cursor:grab;flex:none;display:flex;align-items:center}
-.pane-head .pane-address{min-width:0;flex:1}
+.pane-head .pane-address{min-width:0;flex:1;margin-right:8px}
 .pane-head .pane-address input{min-width:0}
-.pane-head.address-editing>.pane-address{position:absolute;inset:2px 4px;z-index:10;display:flex;background:var(--panel)}
+.pane-head.address-editing>.pane-address{position:relative;inset:auto;z-index:auto;display:flex;background:transparent}
 .pane-head.address-editing>.pane-address input{height:22px;width:100%;font-size:12px;background:var(--panel);border:1px solid var(--accent)}
-.pane-head.address-editing>:not(.pane-address){visibility:hidden;pointer-events:none}
+/* Editing must never hide or cover navigation, fullscreen or close. */
+.pane-head,.pane-head button,.pane-head input,.pane-head form{-webkit-app-region:no-drag}
+.ai-provider{margin-right:8px}
 #ai-panel>.ai-controls{height:28px;min-height:28px;flex:0 0 28px;padding:2px 4px;gap:2px;overflow:hidden;background:linear-gradient(180deg,var(--panel),color-mix(in srgb,var(--panel) 76%,var(--bg)))}
 #ai-panel>.ai-controls>button,#ai-panel>.ai-controls [data-action=ai-back],#ai-panel>.ai-controls [data-action=ai-forward]{width:20px;min-width:20px;height:22px;min-height:22px;padding:0;border-radius:5px;font-size:13px}
 .ai-provider #ai-select{height:22px;min-height:22px;font-size:10px;padding:2px 27px 2px 23px;appearance:none;-webkit-appearance:none}

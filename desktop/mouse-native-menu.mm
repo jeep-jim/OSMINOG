@@ -145,7 +145,7 @@ static napi_value testClick(napi_env e,napi_callback_info info){
 -(NSView*)hitTest:(NSPoint)point{return nil;}
 -(void)drawRect:(NSRect)dirty{
  for(NSDictionary* item in self.panes){
-  NSRect p=[item[@"rect"] rectValue];CGFloat radius=8,y=NSMaxY(p)-radius;
+  NSRect p=[item[@"rect"] rectValue];CGFloat radius=10,y=NSMaxY(p)-radius;
   NSColor* color=item[@"color"];
   for(int side=0;side<2;side++){
    CGFloat x=side?NSMaxX(p)-radius:NSMinX(p);NSRect corner=NSMakeRect(x,y,radius,radius);
@@ -171,7 +171,7 @@ static napi_value paneCorners(napi_env e,napi_callback_info info){
    for(uint32_t i=0;i<count;i++){
     napi_value v;napi_get_element(e,args[0],i,&v);double a[4]={};const char* keys[]={"x","y","width","height"};BOOL valid=YES;
     for(int k=0;k<4;k++){napi_value value;if(napi_get_named_property(e,v,keys[k],&value)!=napi_ok||napi_get_value_double(e,value,&a[k])!=napi_ok||!std::isfinite(a[k])){valid=NO;break;}}
-    if(!valid||a[0]<0||a[1]<20||a[2]<16||a[3]<16||a[0]+a[2]>NSWidth(root.bounds)+1||a[1]+a[3]>NSHeight(root.bounds)+1)continue;
+    if(!valid||a[0]<0||a[1]<20||a[2]<20||a[3]<20||a[0]+a[2]>NSWidth(root.bounds)+1||a[1]+a[3]>NSHeight(root.bounds)+1)continue;
     napi_value colorValue;char hex[9]={};size_t len=0;
     if(napi_get_named_property(e,v,"color",&colorValue)!=napi_ok||napi_get_value_string_utf8(e,colorValue,hex,sizeof(hex),&len)!=napi_ok||len!=7||hex[0]!='#')continue;
     BOOL hexOK=YES;for(int k=1;k<7;k++)if(!std::isxdigit((unsigned char)hex[k]))hexOK=NO;if(!hexOK)continue;

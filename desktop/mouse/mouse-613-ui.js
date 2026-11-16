@@ -14,6 +14,17 @@
    for(const e of strip.querySelectorAll('.tab-item')){const t=tabs().find(t=>t.id===e.dataset.tab);e.title=t?.title||t?.url||'';e.querySelectorAll('img').forEach(i=>{i.draggable=false;});}
    for(const head of document.querySelectorAll('.pane-head')){head.querySelectorAll('img').forEach(i=>{i.draggable=false;});const input=head.querySelector('.pane-address input');if(!input||input.dataset.expandBound)continue;input.dataset.expandBound='true';input.addEventListener('focus',()=>head.classList.add('address-editing'));input.addEventListener('blur',()=>head.classList.remove('address-editing'));input.addEventListener('keydown',e=>{if(e.key!=='Escape')return;e.preventDefault();e.stopPropagation();const item=tabs().find(t=>t.id===m.slots[head.closest('.pane').dataset.pane]);input.value=item?.internal?'':item?.url||'';hideHints();input.blur();});}fit();
   }
+  // Native guest focus can leave document.activeElement in the shell. Clear
+  // only editing presentation, without consuming the next control click.
+  function endAddressEditing(target){
+   if(target?.closest?.('#address-suggestions'))return;
+   for(const head of document.querySelectorAll('.pane-head.address-editing')){
+    const input=head.querySelector('.pane-address input');if(target===input)continue;
+    head.classList.remove('address-editing');if(document.activeElement===input)input.blur();
+   }
+  }
+  document.addEventListener('pointerdown',e=>endAddressEditing(e.target),true);
+  window.addEventListener('blur',()=>{endAddressEditing(null);hideHints();});
   function swapTabs(a,b){if(!valid(a)||!valid(b)||a===b)return false;m.tabOrder=swapOrder(tabs(),m.tabOrder,a,b);renderTabs();save();return true;}
   function swapPanes(a,b){const panes=[...document.querySelectorAll('.pane')].map(p=>p.dataset.pane);if(a===b||!panes.includes(a)||!panes.includes(b))return false;m.slots=swapSlots(m.slots,a,b);m.active=b;renderTree();save();return true;}
   function placeTab(id,pane){if(!valid(id)||!document.querySelector(`.pane[data-pane="${CSS.escape(pane)}"]`))return false;const source=Object.keys(m.slots).find(p=>m.slots[p]===id);if(source===pane)return false;if(source)return swapPanes(source,pane);m.slots[pane]=id;m.active=pane;renderTree();save();return true;}

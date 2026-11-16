@@ -138,13 +138,14 @@ class BrowserWorkspace{
   const [width,height]=this.win.getContentSize(),seen=new Set();
   for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
    const {x,y,width:w,height:h}=p;if(![x,y,w,h].every(Number.isFinite)||w<1||h<1)continue;
-   const bounds={x:Math.round(x),y:Math.round(y),width:Math.round(w),height:Math.round(h)};
+   // Snap shared endpoints for Mouse to avoid one-pixel rims at fractional layouts.
+   const bounds=this.mouseRoundedPanes?{x:Math.round(x),y:Math.round(y),width:Math.round(x+w)-Math.round(x),height:Math.round(y+h)-Math.round(y)}:{x:Math.round(x),y:Math.round(y),width:Math.round(w),height:Math.round(h)};
    const clip=p.clip;
    let left=Math.max(0,bounds.x),top=Math.max(0,bounds.y),right=Math.min(width,bounds.x+bounds.width),bottom=Math.min(height,bounds.y+bounds.height);
    if(clip&&[clip.x,clip.y,clip.width,clip.height].every(Number.isFinite)){left=Math.max(left,Math.round(clip.x));top=Math.max(top,Math.round(clip.y));right=Math.min(right,Math.round(clip.x+clip.width));bottom=Math.min(bottom,Math.round(clip.y+clip.height));}
    if(right<=left||bottom<=top)continue;
    const clipped={x:left,y:top,width:right-left,height:bottom-top};
-   const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===8&&bottom===bounds.y+bounds.height?8:0;
+   const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===10&&bottom===bounds.y+bounds.height?10:0;
    desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
@@ -159,7 +160,7 @@ class BrowserWorkspace{
    if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
   // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
-  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===8).map(p=>({...p.clipped,color:p.cornerColor})));
+  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===10).map(p=>({...p.clipped,color:p.cornerColor})));
  }
  dispose(){if(this.disposed)return;this.disposed=true;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }
