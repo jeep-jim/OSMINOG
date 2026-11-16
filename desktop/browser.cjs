@@ -145,24 +145,21 @@ class BrowserWorkspace{
    if(right<=left||bottom<=top)continue;
    const clipped={x:left,y:top,width:right-left,height:bottom-top};
    const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===8&&bottom===bounds.y+bounds.height?8:0;
-   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip||!!radius,radius});
+   desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius});
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
    const next=desired.get(t),show=!!next;
    if(next){const {bounds,clipped,wrap,radius}=next;
     if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
-    if(radius&&!t.roundView){t.roundView=new View();t.roundView.setBorderRadius(8);t.clipView.removeChildView(t.view);t.roundView.addChildView(t.view);t.clipView.addChildView(t.roundView)}
-    // Move the upper curved edge outside the clipped page-slot. No rounding below the address bar.
-    // Keep radius nonzero after creation; move unused bottom corners outside the clip instead.
-    const roundBounds=t.roundView?{x:0,y:-8,width:clipped.width,height:clipped.height+8+(radius?0:8)}:null;
-    const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y+(t.roundView?8:0),width:bounds.width,height:bounds.height}:bounds;
+    const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;
-    const signature=JSON.stringify([viewBounds,parentBounds,roundBounds]);
-    if(signature!==t.layoutSignature){if(t.clipView)t.clipView.setBounds(parentBounds);if(t.roundView)t.roundView.setBounds(roundBounds);t.view.setBounds(viewBounds);t.layoutSignature=signature}t.bounds=bounds;
+    const signature=JSON.stringify([viewBounds,parentBounds]);
+    if(signature!==t.layoutSignature){if(t.clipView)t.clipView.setBounds(parentBounds);t.view.setBounds(viewBounds);t.layoutSignature=signature}t.bounds=bounds;
    }
    if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
-
+  // Native page masks are Mouse-only; no renderer injection or viewport modification.
+  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===8).map(p=>p.clipped));
  }
  dispose(){if(this.disposed)return;this.disposed=true;for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }

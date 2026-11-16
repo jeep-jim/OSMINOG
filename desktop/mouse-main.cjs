@@ -55,7 +55,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  session.defaultSession.setPermissionRequestHandler((_wc,_p,callback)=>callback(false));
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
- browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;
+ browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);
  require('./mouse-stability.cjs').installWorkspace(browser,{report:log});
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state)});

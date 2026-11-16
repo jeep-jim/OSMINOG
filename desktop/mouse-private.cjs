@@ -29,7 +29,7 @@ class PrivateMode {
   const register={handle:(channel,fn)=>{handlers.set(channel,fn);}};
   const remember=(target,event)=>{const before=target.listeners(event);return()=>{for(const fn of target.listeners(event))if(!before.includes(fn))listeners.push([target,event,fn]);};};
   const collect=[remember(win,'resize'),remember(win,'closed'),remember(win.webContents,'did-start-navigation')];
-  const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});browser.mouseRoundedPanes=true;
+  const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});browser.mouseRoundedPanes=true;browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);
   require('./mouse-stability.cjs').installWorkspace(browser);
   // Explicitly bind only this private workspace's pages. Embedded views can
   // report no owning BrowserWindow while native fullscreen reparents them.

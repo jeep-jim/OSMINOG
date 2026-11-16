@@ -4,7 +4,7 @@ function installWorkspace(browser,{report=()=>{}}={}){
  if(browser.mouseSafety)return browser.mouseSafety;
  const gone=t=>!t?.view?.webContents||t.view.webContents.isDestroyed();
  const unlink=t=>{for(const [id,page] of browser.tabs)if(page===t)browser.tabs.delete(id);for(const [id,page] of browser.providers)if(page===t)browser.providers.delete(id);if(browser.ai===t){browser.ai=null;browser.provider='';}browser.panels=browser.panels.filter(p=>p.id!==t.id);};
- function detach(t){if(browser.win.isDestroyed())return;try{const root=t.clipView||t.view;if(browser.win.contentView.children.includes(root))browser.win.contentView.removeChildView(root);if(t.roundView?.children.includes(t.view))t.roundView.removeChildView(t.view);if(t.clipView?.children.includes(t.roundView))t.clipView.removeChildView(t.roundView);if(t.clipView?.children.includes(t.view))t.clipView.removeChildView(t.view);}catch{report('VIEW_DETACH_FAILED');}}
+ function detach(t){if(browser.win.isDestroyed())return;try{const root=t.clipView||t.view;if(browser.win.contentView.children.includes(root))browser.win.contentView.removeChildView(root);if(t.clipView?.children.includes(t.view))t.clipView.removeChildView(t.view);}catch{report('VIEW_DETACH_FAILED');}}
  function prune(){for(const t of [...browser.tabs.values(),...browser.providers.values()])if(gone(t)){unlink(t);detach(t);}}
  for(const name of ['state','save','layout']){const old=browser[name].bind(browser);browser[name]=(...args)=>{prune();return old(...args);};}
  const oldMake=browser.make.bind(browser);

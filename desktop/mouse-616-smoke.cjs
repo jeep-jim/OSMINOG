@@ -19,7 +19,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await until(()=>ids.every(id=>!browser.get(id).loading),'main pages loaded');
   await js(`MouseTest.changeLayout(4);Object.keys(MouseTest.model.slots).forEach((p,i)=>MouseTest.model.slots[p]=${JSON.stringify(ids)}[i]);MouseTest.renderTree()`);
   await js(`MouseTest.openAI(${JSON.stringify(root+'/ai')})`);const ai=await js('MouseTest.model.aiId');await until(()=>!browser.get(ai).loading,'AI page loaded');
-  await until(()=>browser.panels.length===5&&browser.get(ids[0]).roundView,'native rounded top-row page');
+  await until(()=>browser.panels.length===5&&browser.get(ids[0]).bounds,'native top-row page');
   for(const t of [browser.get(ids[0]),browser.get(ai)])assert.equal(await t.view.webContents.executeJavaScript('typeof ethereum+","+typeof __mouseWalletTransport'),'undefined,undefined');
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await sleep(180);
@@ -41,7 +41,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
     await sleep(100);const frame=await globalCapture.acquire(display);shot=nativeImage.createFromDataURL(frame.base);const size=shot.getSize(),bytes=shot.toBitmap(),c=win.getContentBounds(),p=t.bounds,sx=size.width/display.size.width,sy=size.height/display.size.height;
     const rgb=(x,y)=>{const ix=Math.round((c.x+p.x+x-display.bounds.x)*sx),iy=Math.round((c.y+p.y+y-display.bounds.y)*sy),off=(iy*size.width+ix)*4;return[bytes[off+2],bytes[off+1],bytes[off]]};
     const inside=rgb(20,p.height-2),outside=rgb(1,p.height-1),pink=a=>a.every((v,i)=>Math.abs(v-[221,60,146][i])<20);
-    if(pink(inside)&&!pink(outside))break;if(n===19)throw Error('Native corners not clipped: '+JSON.stringify({inside,outside,bounds:p,view:t.view.getBounds(),clip:t.clipView.getBounds(),round:t.roundView.getBounds()}));
+    if(pink(inside)&&!pink(outside))break;if(n===19){await fs.writeFile('mouse-616-corner-failure.png',shot.toPNG());console.log('MOUSE_NATIVE_PAGE_VIEWS',require('./mouse-native-menu.node').testPaneViews());throw Error('Native corners not clipped: '+JSON.stringify({inside,outside,bounds:p,view:t.view.getBounds()}));}
    }
    await fs.writeFile('mouse-616-native-corners-'+theme+'.png',shot.toPNG());
    const keys=[...ids,ai],tokens=await Promise.all(keys.map(id=>browser.get(id).view.webContents.executeJavaScript('token')));

@@ -29,15 +29,15 @@ test('wallet code, administrative IPC and injection are absent from Mac, legacy 
  const c=require('./mouse-build.cjs');assert.ok(!c.files.some(p=>/wallet|web3/.test(p)));assert.ok(!c.files.includes('main.cjs'));
  assert.doesNotMatch(read('mouse-main.cjs'),/rmSync|unlinkSync|removeItem/);
 });
-test('native corner wrappers preserve page viewport and shared non-Mouse layout',()=>{
+test('native pane mask does not change WebContents viewport and is opt-in for Mouse',()=>{
  class View{constructor(){this.children=[];this.visible=false;this.bounds={};}addChildView(v){this.children.push(v)}removeChildView(v){this.children=this.children.filter(x=>x!==v)}setBorderRadius(r){this.radius=r}setBounds(r){this.bounds=r}setVisible(b){this.visible=b}}
  const mod={exports:{}},ctx={module:mod,exports:mod.exports,require:n=>n==='electron'?{View,WebContentsView:View}:n==='node:crypto'?require(n):n==='node:path'?require(n):{}};
  vm.runInNewContext(read('browser.cjs'),ctx);const fn=mod.exports.BrowserWorkspace.prototype.layout;
- const win={isDestroyed:()=>false,getContentSize:()=>[1000,800],contentView:new View()},v=new View(),t={id:'t',project:'p',lane:'main',view:v,visible:false};win.contentView.addChildView(v);
- const b={mouseRoundedPanes:true,win,disposed:false,project:'p',tabs:new Map([['t',t]]),providers:new Map()};
+ const win={isDestroyed:()=>false,getContentSize:()=>[1000,800],contentView:new View()},v=new View(),t={id:'t',project:'p',lane:'main',view:v,visible:false};win.contentView.addChildView(v);let masks=[];
+ const b={mouseRoundedPanes:true,mouseCornerMask:items=>masks=items,win,disposed:false,project:'p',tabs:new Map([['t',t]]),providers:new Map()};
  fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:8}]);
- assert.equal(t.roundView.radius,8);assert.equal(t.roundView.bounds.y,-8);assert.equal(t.roundView.bounds.height,308);assert.equal(t.view.bounds.y,8);assert.equal(t.view.bounds.height,300);assert.equal(t.bounds.y,80);
- fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:0}]);assert.equal(t.roundView.bounds.height,316);assert.equal(t.view.bounds.y,8);
- t.lane='side';fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:8}]);assert.equal(t.roundView.bounds.height,316);
- const other={...b,mouseRoundedPanes:false,tabs:new Map([['x',{id:'x',project:'p',view:new View(),lane:'main'}]])};fn.call(other,[{id:'x',x:0,y:0,width:900,height:700,roundBottom:8}]);assert.equal(other.tabs.get('x').clipView,undefined);
+ assert.equal(t.clipView,undefined);assert.equal(t.view.bounds.y,80);assert.equal(t.view.bounds.height,300);assert.equal(t.bounds.y,80);assert.equal(masks.length,1);assert.equal(masks[0].height,300);
+ fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:0}]);assert.equal(masks.length,0);assert.equal(t.view.bounds.y,80);
+ t.lane='side';fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:8}]);assert.equal(masks.length,0);
+ const other={...b,mouseRoundedPanes:false,tabs:new Map([['x',{id:'x',project:'p',view:new View(),lane:'main'}]])};fn.call(other,[{id:'x',x:0,y:0,width:900,height:700,roundBottom:8}]);assert.equal(other.tabs.get('x').clipView,undefined);assert.equal(masks.length,0);
 });
