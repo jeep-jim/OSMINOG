@@ -2,12 +2,18 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let n=0;n<120;n++){if(await f())return;await sleep(50);}throw Error('Tab-flow timeout: '+label);}
 module.exports=async({win,browser})=>{
- const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),before=new Set(browser.tabs.keys());
- const saved=await js('JSON.parse(JSON.stringify({theme:MouseTest.model.theme,slots:MouseTest.model.slots,active:MouseTest.model.active,tree:MouseTest.model.tree,aiOpen:MouseTest.model.aiOpen,libraryOpen:MouseTest.model.libraryOpen}))');
+ const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),before=new Set(browser.state().tabs.map(t=>t.id));
+ const saved=await js('JSON.parse(JSON.stringify({theme:MouseTest.model.theme,slots:MouseTest.model.slots,active:MouseTest.model.active,tree:MouseTest.model.tree,tabOrder:MouseTest.model.tabOrder,aiOpen:MouseTest.model.aiOpen,libraryOpen:MouseTest.model.libraryOpen}))');
  async function activate(id){
-  const selector='.tab-item[data-tab="'+id+'"] .tab-title';
-  const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
-  win.focus();win.webContents.focus();win.webContents.sendInputEvent({type:'mouseMove',...p});win.webContents.sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});
+  const selector='.tab-item[data-tab="'+id+'"]';
+  win.focus();win.webContents.focus();
+  const center=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing tab');const r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
+  win.webContents.sendInputEvent({type:'mouseMove',...center});await sleep(90);
+  // Compact tabs reveal the existing close button on hover. Click an actually
+  // exposed title point, never the covered centre or a programmatic .click().
+  const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();for(const x of [r.right-3,r.x+r.width*.75,r.x+r.width/2]){const p={x:Math.round(x),y:Math.round(r.y+r.height/2)},hit=document.elementFromPoint(p.x,p.y);if(hit?.closest('.tab-title')?.closest('.tab-item')===e)return p;}throw Error('No exposed tab-title point '+JSON.stringify({width:r.width,density:document.querySelector('#tabstrip').dataset.density}));})()`);
+  console.log('MOUSE_619_TAB_FLOW_CLICK',JSON.stringify({id,...p,...await js('({width:innerWidth,density:document.querySelector("#tabstrip").dataset.density})')}));
+  win.webContents.sendInputEvent({type:'mouseMove',...p});win.webContents.sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});await sleep(35);win.webContents.sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});
   await until(()=>js(`document.querySelector('.tab-item.active')?.dataset.tab===${JSON.stringify(id)}`),'real tab click');await sleep(90);
  }
  async function check(){
@@ -25,7 +31,7 @@ module.exports=async({win,browser})=>{
     for(const i of [0,Math.floor(ids.length/2),ids.length-1]){await activate(ids[i]);await check();}
    }
   }
-  for(const id of [...browser.tabs.keys()])if(!before.has(id))await browser.command('close',{id});
+  for(const t of browser.state().tabs)if(!before.has(t.id))await browser.command('close',{id:t.id});
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}');MouseTest.renderTabs()`);await sleep(200);
    const ids=await js('[...document.querySelectorAll(".tab-item")].map(e=>e.dataset.tab)');if(ids.length)await activate(ids[Math.floor(ids.length/2)]);
@@ -35,7 +41,7 @@ module.exports=async({win,browser})=>{
   }
   console.log('MOUSE_619_ACTIVE_TAB_FLOW_MATCHED_RIM_BOTH_THEMES_PASS');
  }finally{
-  for(const id of [...browser.tabs.keys()])if(!before.has(id))await browser.command('close',{id});
+  for(const t of browser.state().tabs)if(!before.has(t.id))await browser.command('close',{id:t.id});
   await js(`Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);win.setBounds(bounds);
  }
 };
