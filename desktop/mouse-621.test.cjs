@@ -14,6 +14,8 @@ test('desktop slide preserves geometry and always restores input, including fail
   global.matchMedia=()=>({matches:false});global.requestAnimationFrame=fn=>setTimeout(fn,5);
   await S.run({workspace:w,model,layout:async()=>frames.push(w.style.transform),change:async()=>{changes++},direction:-1});
   assert.equal(changes,1);assert.ok(frames.some(s=>/^translateX\(-/.test(s)));assert.ok(frames.some(s=>/^translateX\([1-9]/.test(s)));assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);assert.equal(w.dataset.sliding,undefined);
+  const shifts=frames.filter(s=>s.startsWith('translateX(')).map(s=>Number(s.slice(11,-3)));assert.ok(shifts.length>=3&&shifts.every(Number.isInteger),'native slide uses whole CSS pixels');
+  for(const [left,width]of [[0,278.8],[281.2,317.65],[.4,500.3]]){const initial=Math.round(left+width)-Math.round(left);assert.ok(shifts.every(x=>Math.round(left+x+width)-Math.round(left+x)===initial),'fractional pane viewport never changes width');}
   await assert.rejects(S.run({workspace:w,model,layout:async()=>{},change:async()=>{throw Error('fixture failure')},direction:1}),/fixture failure/);assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
   global.matchMedia=()=>({matches:true});frames.length=0;await S.run({workspace:w,model,layout:async()=>frames.push(w.style.transform),change:async()=>{changes++}});assert.deepEqual(frames,['']);assert.equal(changes,2);
   assert.equal(S.ease(0),0);assert.equal(S.ease(.5),.5);assert.equal(S.ease(1),1);

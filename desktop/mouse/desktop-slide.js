@@ -12,7 +12,8 @@
    const start=performance.now();let progress=0;
    do{
     progress=Math.min(1,(performance.now()-start)/duration);
-    workspace.style.transform='translateX('+(from+(to-from)*ease(progress))+'px)';
+    // Integer movement preserves the native snapped width of fractional panes.
+    workspace.style.transform='translateX('+Math.round(from+(to-from)*ease(progress))+'px)';
     await layout();
     if(progress<1)await new Promise(resolve=>{let done=false;const finish=()=>{if(!done){done=true;resolve();}};root.requestAnimationFrame(finish);setTimeout(finish,40);});
    }while(progress<1);
