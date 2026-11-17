@@ -16,6 +16,7 @@ module.exports=async({app,win,browser,store,privateMode})=>{
   assert.equal(await js('getComputedStyle(document.querySelector(".private-welcome")).display'),'block');
   await require('./mouse-611-smoke.cjs')({win});
   if(!process.argv.includes('--mouse-private-close'))await require('./mouse-614-smoke.cjs')({win,browser:privateMode.current.browser,scope:'private'});
+  if(!process.argv.includes('--mouse-private-close'))await require('./mouse-emoji-smoke.cjs')({app,win,browser:privateMode.current.browser,scope:'private'});
   const first=privateMode.current,ses=first.ses;assert.equal(ses.isPersistent(),false);assert.equal(ses.storagePath,null);
   assert.equal((await ses.cookies.get({url:root})).length,0);
   await js(`MouseTest.openPage(${JSON.stringify(root+'/'+marker)})`);await until(()=>[...first.browser.tabs.values()].some(t=>!t.loading),'private fixture');

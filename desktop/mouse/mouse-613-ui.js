@@ -17,7 +17,7 @@
   // Native guest focus can leave document.activeElement in the shell. Clear
   // only editing presentation, without consuming the next control click.
   function endAddressEditing(target){
-   if(target?.closest?.('#address-suggestions'))return;
+   if(target?.closest?.('#address-suggestions')||(!target&&document.documentElement.dataset.nativeEmoji==='true'))return;
    for(const head of document.querySelectorAll('.pane-head.address-editing')){
     const input=head.querySelector('.pane-address input');if(target===input)continue;
     head.classList.remove('address-editing');if(document.activeElement===input)input.blur();
