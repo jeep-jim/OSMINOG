@@ -3,16 +3,29 @@ const assert=require('node:assert/strict'),http=require('node:http'),fs=require(
 const electron=require('electron'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const execFile=require('node:util').promisify(require('node:child_process').execFile);
 async function until(fn,label){for(let n=0;n<100;n++){if(await fn())return;await sleep(75)}throw Error('Emoji smoke timeout: '+label);}
-const paletteProbe=`ObjC.import('AppKit');ObjC.import('CoreGraphics');
-var apps=$.NSWorkspace.sharedWorkspace.runningApplications, ids=[];
-for(var i=0;i<apps.count;i++){var a=apps.objectAtIndex(i);if(ObjC.unwrap(a.bundleIdentifier)==='com.apple.CharacterPaletteIM')ids.push(Number(a.processIdentifier));}
-var windows=ObjC.deepUnwrap($.CGWindowListCopyWindowInfo(1,0));
-JSON.stringify(windows.filter(function(w){return ids.indexOf(w.kCGWindowOwnerPID)>=0&&w.kCGWindowBounds.Width>20&&w.kCGWindowBounds.Height>20;}).map(function(w){return{pid:w.kCGWindowOwnerPID,bounds:w.kCGWindowBounds};}));`;
-const hidePalette=`ObjC.import('AppKit');var a=$.NSWorkspace.sharedWorkspace.runningApplications;for(var i=0;i<a.count;i++){var x=a.objectAtIndex(i);if(ObjC.unwrap(x.bundleIdentifier)==='com.apple.CharacterPaletteIM')x.hide;}`;
+// Test-only native probe: CFArray has explicit toll-free NSArray bridging.
+// It returns only the system palette PID/bounds, never other window contents.
+const paletteProbe=String.raw`#import <AppKit/AppKit.h>
+#import <CoreGraphics/CoreGraphics.h>
+#include <stdio.h>
+#include <string.h>
+int main(int argc,const char **argv){@autoreleasepool{
+ NSArray<NSRunningApplication *> *apps=[NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.CharacterPaletteIM"];
+ if(argc>1&&strcmp(argv[1],"hide")==0){for(NSRunningApplication *a in apps)[a hide];return 0;}
+ NSMutableSet *pids=[NSMutableSet set];for(NSRunningApplication *a in apps)[pids addObject:@(a.processIdentifier)];
+ NSArray *all=CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,kCGNullWindowID));
+ if(!all)return 2;
+ NSMutableArray *visible=[NSMutableArray array];
+ for(NSDictionary *w in all){NSNumber *pid=w[(__bridge NSString *)kCGWindowOwnerPID];NSDictionary *b=w[(__bridge NSString *)kCGWindowBounds];
+  if([pids containsObject:pid]&&[b[@"Width"] doubleValue]>20&&[b[@"Height"] doubleValue]>20)[visible addObject:@{@"pid":pid,@"bounds":b}];
+ }
+ NSData *json=[NSJSONSerialization dataWithJSONObject:visible options:0 error:nil];if(!json)return 3;
+ fwrite(json.bytes,1,json.length,stdout);fputc('\n',stdout);return 0;
+}}`;
 module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
  const js=s=>win.webContents.executeJavaScript(s),before=new Set(browser.tabs.keys()),showNative=app.showEmojiPanel;
  const saved=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,theme:MouseTest.model.theme,locale:MouseTest.model.locale,aiOpen:MouseTest.model.aiOpen,aiId:MouseTest.model.aiId,aiWidth:MouseTest.model.aiWidth,aiSessions:MouseTest.model.aiSessions,aiSites:MouseTest.model.aiSites,libraryOpen:MouseTest.model.libraryOpen}))');
- const bounds=win.getBounds();let server,expected,inserted,calls=0;
+ const bounds=win.getBounds();let server,expected,inserted,calls=0,probeDir,probe;
  async function click(){
   win.focus();
   const p=await js('(()=>{const r=document.querySelector("#emoji-button").getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()');
@@ -71,24 +84,28 @@ module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
   await js('MouseTest.setLocale("en")');assert.equal(await js('document.querySelector("#emoji-button").getAttribute("aria-label")'),'Emoji & Symbols');await js('MouseTest.setLocale("ru")');
   app.showEmojiPanel=showNative;
   if(nativePanel){
+   const path=require('node:path');probeDir=await fs.mkdtemp(path.join(require('node:os').tmpdir(),'mouse-emoji-probe-'));probe=path.join(probeDir,'probe');
+   const source=path.join(probeDir,'probe.m');await fs.writeFile(source,paletteProbe);
+   await execFile('/usr/bin/clang',['-fobjc-arc','-framework','AppKit','-framework','CoreGraphics',source,'-o',probe],{timeout:30000});
    expected=main.view.webContents;await expected.executeJavaScript('document.querySelector("#field").focus()');expected.focus();await sleep(150);
    let nativeCalls=0;app.showEmojiPanel=()=>{nativeCalls++;assert.equal(electron.webContents.getFocusedWebContents()?.id,expected.id);return showNative.call(app);};
    await click();await until(()=>nativeCalls===1,'real native invocation');app.showEmojiPanel=showNative;
    let windows=[];
    for(let n=0;n<15;n++){
-    const result=await execFile('/usr/bin/osascript',['-l','JavaScript','-e',paletteProbe],{timeout:5000});
+    const result=await execFile(probe,[],{timeout:5000});
     windows=JSON.parse(result.stdout.trim()||'[]');if(windows.length)break;await sleep(200);
    }
    assert.ok(windows.length>0,'the OS Character Viewer must be visible, not a custom web dialog');
    await fs.writeFile('mouse-619-native-picker.json',JSON.stringify({scope,platform:process.platform,nativeCalls,windows},null,2));
    await execFile('/usr/sbin/screencapture',['-x','mouse-619-native-picker.png'],{timeout:5000});
-   await execFile('/usr/bin/osascript',['-l','JavaScript','-e',hidePalette],{timeout:5000});
+   await execFile(probe,['hide'],{timeout:5000});
    win.focus();console.log('MOUSE_619_NATIVE_CHARACTER_VIEWER_VISIBLE_PASS');
   }
   console.log(scope==='private'?'MOUSE_619_EMOJI_PRIVATE_FOCUS_AND_INSERTION_PASS':'MOUSE_619_EMOJI_FOOTER_PAGE_AI_SHELL_FOCUS_PASS');
  }finally{
   app.showEmojiPanel=showNative;
-  if(nativePanel)await execFile('/usr/bin/osascript',['-l','JavaScript','-e',hidePalette],{timeout:5000}).catch(()=>{});
+  if(probe)await execFile(probe,['hide'],{timeout:5000}).catch(()=>{});
+  if(probeDir)await fs.rm(probeDir,{recursive:true,force:true});
   for(const id of [...browser.tabs.keys()])if(!before.has(id))await browser.command('close',{id});
   server?.close();win.setBounds(bounds);
   await js(`delete document.documentElement.dataset.nativeEmoji;Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setLocale(${JSON.stringify(saved.locale)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.renderAISites();MouseTest.save();`);
