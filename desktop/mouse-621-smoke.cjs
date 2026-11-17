@@ -6,12 +6,22 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,n=160){for(let i=0;i<n;i++){if(await fn())return;await sleep(60)}throw Error('Mouse621 timeout: '+label)}
 module.exports=async({app,win,browser,store})=>{
  const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),original=await js('MouseTest.prefs()'),bounds=win.getBounds();let server,debugAttached=false,lastClick=null;const made=[];
- async function activate(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await until(()=>{const s=native.state();return s.appActive&&s.keyWindow;},'active native window');}
+ async function activate(){
+  app.focus({steal:true});win.show();win.focus();win.webContents.focus();await sleep(100);
+  if(!win.isFocused()){
+   // A visible app can still be inactive after the system Character Viewer.
+   // Use a genuine focus click in empty chrome, never synthesize a target action.
+   const p=await js(`(()=>{const bar=document.querySelector('#statusbar'),r=bar.getBoundingClientRect(),y=r.y+r.height/2;for(let x=r.x+8;x<r.right-8;x+=4){const e=document.elementFromPoint(x,y);if(e&&bar.contains(e)&&!e.closest('button,a,input,select,label'))return{x,y};}throw Error('No empty footer area for native activation');})()`),o=win.getContentBounds();
+   assert.equal(native.testClick(Math.round(o.x+p.x),Math.round(o.y+p.y)),true);await sleep(160);win.focus();win.webContents.focus();
+  }
+  await until(()=>win.isFocused(),'focused Electron native window');
+  console.log('MOUSE_621_NATIVE_ACTIVATION',JSON.stringify({focused:win.isFocused(),focusable:win.isFocusable(),native:native.state()}));
+ }
  async function click(sel){await activate();const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(sel)}),r=e.getBoundingClientRect();if(!r.width||!r.height)throw Error('Invisible '+${JSON.stringify(sel)});const x=r.x+r.width/2,y=r.y+r.height/2;if(!e.contains(document.elementFromPoint(x,y)))throw Error('Covered '+${JSON.stringify(sel)});return{x,y}})()`),o=win.getContentBounds(),point={x:Math.round(o.x+p.x),y:Math.round(o.y+p.y)},area=screen.getDisplayNearestPoint(point).bounds;lastClick={sel,point,area,window:win.getBounds(),native:native.state()};assert.ok(point.x>=area.x&&point.y>=area.y&&point.x<area.x+area.width&&point.y<area.y+area.height,'Native click must be on screen: '+JSON.stringify(lastClick));assert.equal(native.testClick(point.x,point.y),true);await sleep(160)}
  async function png(){return Buffer.from(await js(`(()=>{const c=document.createElement('canvas');c.width=100;c.height=80;const x=c.getContext('2d');x.fillStyle='#32c76a';x.fillRect(0,0,100,80);return c.toDataURL('image/png').split(',')[1]})()`),'base64')}
  try{
   if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'leave full screen');await sleep(350)}
-  const work=screen.getPrimaryDisplay().workArea;win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1200,work.width-16),height:Math.min(800,work.height-16)});win.show();win.focus();await sleep(250);await js('MouseTest.browsing.close();MouseTest.feedback.hide()');
+  const work=screen.getPrimaryDisplay().workArea;win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1200,work.width-16),height:Math.min(800,work.height-16)});await activate();await sleep(250);await js('MouseTest.browsing.close();MouseTest.feedback.hide()');
   console.log('MOUSE_621_ONSCREEN_NATIVE_FIXTURE',JSON.stringify({work,window:win.getBounds()}));
   const image=await png();server=http.createServer((req,res)=>{if(req.url==='/image.png'){res.setHeader('Content-Type','image/png');res.end(image);return;}res.setHeader('Content-Type','text/html');res.end(`<!doctype html><title>621 fixture</title><style>body{margin:0;background:#f0f0f0;color:#111}img{margin:30px;width:100px;height:80px}#drop{height:160px;margin:20px;background:#cfe5d0}</style><input id="kept" value="keep621"><img id="image" src="/image.png" draggable="true"><div id="drop">Drop PNG here</div><script>window.marker=Math.random();window.dropped=null;document.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy'});document.addEventListener('drop',async e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)window.dropped={name:f.name,type:f.type,size:f.size,bytes:[...new Uint8Array(await f.arrayBuffer())].slice(0,8)}});</script>`)});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;
@@ -63,7 +73,7 @@ module.exports=async({app,win,browser,store})=>{
   await js(`MouseTest.switchDesktop('desk-1')`);await js('MouseTest.save()');await browser.save();await store.queue;const bank=(await store.get('mouseDesktopsV1')).mouseDesktopsV1;assert.equal(bank.members[a],current);assert.equal(bank.members[b],'desk-1');await js(`MouseTest.switchDesktop(${JSON.stringify(current)})`);
   console.log('MOUSE_621_DESKTOPS_TOASTS_ZOOM_EDITOR_PASS');
  }catch(error){
-  console.log('MOUSE_621_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),native:native.state(),screen:screen.getPrimaryDisplay().bounds,shell:await js('({desk:MouseTest.model.desktopId,switching:MouseTest.model.switching,sliding:MouseTest.model.desktopSliding,trayHidden:document.querySelector("#desktop-tray").hidden,active:document.activeElement?.id})')}));
+  console.log('MOUSE_621_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),focused:win.isFocused(),focusable:win.isFocusable(),native:native.state(),screen:screen.getPrimaryDisplay().bounds,shell:await js('({desk:MouseTest.model.desktopId,switching:MouseTest.model.switching,sliding:MouseTest.model.desktopSliding,trayHidden:document.querySelector("#desktop-tray").hidden,active:document.activeElement?.id})')}));
   await fs.writeFile('mouse-621-failure.png',(await win.capturePage()).toPNG());throw error;
  }finally{
   if(debugAttached){await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]}).catch(()=>{});win.webContents.debugger.detach();}
