@@ -1,6 +1,9 @@
-# Mouse Browser 6.0.20 — выпуск
+# Mouse Browser 6.0.20 — опубликовано
 
-17 ноября 2026. Точный исходник проверен и объединён. Публикация запущена в OSMINOG-Releases run44035633689/job133877711251; на момент записи выполняется повторная проверка установленного DMG. Публичный выпуск620 и продвижение канала пока не подтверждены. Действующий канал на последнем чтении —619.
+17 ноября 2026. Выпуск448271693 опубликован2026-11-17T07:07:48Z, draft=false, prerelease=true. Канал `channels/mouse/macos-arm64.json` прочитан после выпуска и указывает6.0.20, blob `c3e2782271a8e15dd8bb47ebca5a276d646ab160`. Весь OSMINOG-Releases run44035633689/job133877711251 завершился SUCCESS, включая повторную установку и полное скачивание настоящим обновлятором6.0.19. Предыдущая запись о выполняющейся публикации относится к промежуточному этапу.
+
+Выпуск: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.20-arm64
+Установщик: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.20-arm64/Mouse-Browser-6.0.20-mac-arm64.dmg
 
 ## Объём последнего поручения
 
@@ -29,10 +32,18 @@ Candidate14305938788 независимо скачан, архив SHA256 `71d14
 DMG `Mouse-Browser-6.0.20-mac-arm64.dmg`:128528211байт; SHA256 `89799f0988b40f0f7bf9bd72a3664d5824c388f502017a0bdaab7b5967fbaeb8`.
 ZIP `Mouse-Browser-6.0.20-mac-arm64.zip`:128560198байт; SHA256 `661d28cf2403d61a0ec3a012b44d15bedc929ad82d39f10b1687af465a8bfca4`.
 
-Provenance/version/source/run совпали. Просмотрены настоящие снимки установленного Dock, приватного заголовка/головы, нативных углов и локального архива. Из ZIP извлечён app.asar, проверены package.version и обработчики истории, локального согласия/хранения и режима паузы. Логи подтверждают MOUSE_620_INSTALLED_ICNS_DOCK_UI_HEAD_PASS, MOUSE_620_REAL_HISTORY_NO_ACTION_FLOOD_PASS, MOUSE_620_UPDATE_HEAD_PREVIEW_ARCHIVE_CONTROLS_PASS, MOUSE_ARM64_SMOKE_PASS, MOUSE_PROFILE_COOKIE_RESTART_PASS и MOUSE_620_REAL_619_TO_620_REPLACE_RELAUNCH_PROFILE_PASS. Это проверка CI-fixtures, не чтение буфера или файлов владельца.
+Provenance/version/source/run совпали. Просмотрены настоящие снимки установленного Dock, приватного заголовка/головы, нативных углов, миниатюр загрузок и локального архива. Из ZIP извлечён app.asar, проверены package.version и обработчики истории, локального согласия/хранения и режима паузы. Логи подтверждают MOUSE_620_INSTALLED_ICNS_DOCK_UI_HEAD_PASS, MOUSE_620_REAL_HISTORY_NO_ACTION_FLOOD_PASS, MOUSE_620_UPDATE_HEAD_PREVIEW_ARCHIVE_CONTROLS_PASS, MOUSE_ARM64_SMOKE_PASS, MOUSE_PROFILE_COOKIE_RESTART_PASS и MOUSE_620_REAL_619_TO_620_REPLACE_RELAUNCH_PROFILE_PASS. Это проверка CI-fixtures, не чтение буфера или файлов владельца.
 
 ## Публикационный процесс
 
-ReleasePR39 merged `9d89696bd553d586b8e50ed2f01066f3f6e62f31`, pin и PUBLISH_OWNER содержат только проверенные пакеты. Publisher-contract44035385246 и обе проверки реестра SUCCESS. Выпуск использует прежние проверки точного merged-source/ancestry, контрольных сумм, установленного DMG/ZIP и обновления619→620; пакеты после проверки не пересобираются и прежние выпуски не перезаписываются. Последний шаг должен подтвердить анонимное обнаружение и полное скачивание620 настоящим опубликованным обновлятором619 через прежний статический канал.
+ReleasePR39 merged `9d89696bd553d586b8e50ed2f01066f3f6e62f31`, pin и PUBLISH_OWNER содержат только проверенные пакеты. Publisher-contract44035385246 и обе проверки реестра SUCCESS. Выпуск использовал прежние проверки точного merged-source/ancestry, контрольных сумм, установленного DMG/ZIP и обновления619→620; пакеты после проверки не пересобирались, прежние выпуски не перезаписывались.
 
-Установщик и канал нельзя объявлять готовыми до обратного чтения фактического выпуска. Профиль `~/Library/Application Support/Trader OS` не удалять. Сборка остаётся предварительной macOS Apple Silicon, ad-hoc, без Developer ID/нотариализации. Windows и другие продукты не публикуются; АвтоЦена, DNS, доступы и секреты не изменены. Автоматическая установка на личный Mac не выполнялась.
+После публикации обратно прочитаны release448271693 и канал: публичные размеры/SHA всех пяти assets соответствуют проверенным пакетам и provenance. Настоящий опубликованный обновлятор6.0.19 анонимно обнаружил6.0.20 через прежний статический канал без GitHub API, полностью скачал128528211байт и подтвердил SHA256. Channel verification: anonymousDiscovery=true, verifiedDownload=true, oldValidatedBadgeState=true, currentVersionCheck=true. У самой620 нет ложной индикации следующего обновления.
+
+Release evidence14307048000 независимо скачан; архив SHA256 `1d035084a689d3ea28e6d82e1ada1d1c7ee0503c5fb3d4e0efa18f1c62eefe14` проверен. Прочитаны RELEASE_RESULT.json, CHANNEL_RESULT.json, channel-verification.json и повторные native/update журналы; новые620-маркеры и настоящее619→620 обновление с сохранением профиля подтверждены. Весь run44035633689/job133877711251 SUCCESS.
+
+Roadmap обновлён коммитом `eccd010f62b4a60379fb9c290eaf562f6354c2f8`; обратная проверка diff показала только смену текущей версии в шапке и добавление нового раздела620. Вся прежняя история сохранена.
+
+## Установка и пределы проверки
+
+Обычный режим: «Обновить» → «Скачать обновление» → «Установить и перезапустить». Профиль `~/Library/Application Support/Trader OS` не удалять. Сборка остаётся предварительной macOS Apple Silicon, ad-hoc, без Developer ID/нотариализации. Windows и другие продукты не публиковались; АвтоЦена, DNS, доступы и секреты не изменены. Автоматическая установка на личный Mac не выполнялась. Успешные проверки сборочной машины не являются проверкой всех сценариев на устройстве владельца и не гарантируют отсутствие будущих сбоев.
