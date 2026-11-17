@@ -1,0 +1,36 @@
+name: Stop superseded Mouse621 diagnostic runs
+on:
+  push:
+    branches: [diagnostic/mouse621-cancel-superseded]
+    paths: [.github/workflows/mouse621-cancel-superseded.yml]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cancel-exact-old-heads:
+    if: github.repository == 'jeep-jim/OSMINOG'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Cancel only obsolete candidate heads, never latest source or another branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,subprocess
+          repo='jeep-jim/OSMINOG'
+          branch='feat/mouse621-desktops-toasts-drag'
+          old={'f6c29d01d86886cc15d52deb00c459de945f875d','6b4b1afe675af15feb81df5b7649dd45259ae4ba','c5ca0e0dbd7c75149c9ab4904230d6a5d6e65aa5','686aa174fd98b1b9896fcb28e1890baabd9b9f86'}
+          cancelled=[]
+          for status in ['queued','in_progress','waiting','pending','requested']:
+            data=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs?branch={branch}&status={status}&per_page=100'],text=True))
+            for r in data['workflow_runs']:
+              if r['head_branch']!=branch or r['head_sha'] not in old:continue
+              result=subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{r["id"]}/cancel'],capture_output=True,text=True)
+              if result.returncode:print('Already finished or cancellation unavailable:',r['id'],r['head_sha'])
+              else:cancelled.append(r['id']);print('CANCELLED_SUPERSEDED',r['id'],r['head_sha'])
+          print('Exact obsolete runs cancelled:',len(cancelled))
+          print('Latest source9a480d241dc7c4637e3a14d248bb0aa69db624eb and release gates unchanged.')
+          PY
