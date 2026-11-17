@@ -1,0 +1,24 @@
+name: Mouse621 exact source audit
+on:
+  push:
+    branches: [audit/mouse621-exact-source]
+    paths: [.github/workflows/mouse621-exact-source-audit.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 644db122181c7f67decd197cf999b4ccec436c84
+          persist-credentials: false
+      - run: |
+          git archive -o mouse621-exact-source.zip HEAD
+          sha256sum mouse621-exact-source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse621-exact-source
+          path: mouse621-exact-source.zip
+          retention-days: 2
