@@ -20,12 +20,12 @@ body>#status{position:fixed;z-index:900;left:50%;bottom:42px;transform:translate
 @media(prefers-reduced-motion:reduce){#desktop-tray{animation:none}}
 @media(max-width:1000px){#desktop-tray>header>span{display:none}.desktop-card{flex-basis:116px}#statusbar #desktops-button{left:50%}}
 
-/* Final owner correction: familiar plus above; burrow enters desktops below. */
+/* Final owner correction: familiar plus above; compact burrow enters desktops below. */
 :root[data-theme] .toolbar>#new-tab{position:relative;width:28px;height:28px;min-height:28px;flex:0 0 28px;padding:0;margin:0;align-self:center;border:1px solid var(--line);border-radius:10px;background:var(--panel)!important;box-shadow:none!important;display:grid;place-items:center}
 :root[data-theme] .toolbar>#new-tab:hover{background:var(--hover)!important}
 :root[data-theme] .toolbar>#new-tab::before{display:none!important}
 :root[data-theme] .toolbar>#new-tab .burrow-plus{width:14px;height:14px;color:var(--text);opacity:1!important}
-#statusbar #desktops-button{top:-2px;bottom:auto;width:36px;height:29px;min-width:36px;min-height:29px;padding:0;border:0;border-radius:0;background:transparent url("burrow.svg") center/100% 100% no-repeat!important;box-shadow:none;overflow:visible;-webkit-app-region:no-drag}
+#statusbar #desktops-button{top:auto;bottom:0;width:36px;height:23px;min-width:36px;min-height:23px;padding:0;border:0;border-radius:0;background:transparent url("burrow.svg") center/100% 100% no-repeat!important;box-shadow:none;overflow:visible;-webkit-app-region:no-drag}
 #desktops-button::before{content:'';position:absolute;inset:0;background:var(--line);mask:url("burrow-rim.svg") center/100% 100% no-repeat;-webkit-mask:url("burrow-rim.svg") center/100% 100% no-repeat;pointer-events:none}
 #desktops-button .burrow-entry{position:absolute;inset:12px 10px 1px;border-radius:50% 50% 0 0;opacity:0;background:linear-gradient(transparent,color-mix(in srgb,var(--accent) 35%,transparent));transition:opacity .15s ease;pointer-events:none}
 #desktops-button:hover .burrow-entry,#desktops-button[aria-expanded=true] .burrow-entry{opacity:1}

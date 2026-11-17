@@ -12,7 +12,8 @@ module.exports=async({win,browser})=>{
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await move('#version-button');
    const look=await js(`(()=>{const b=document.querySelector('#new-tab'),n=document.querySelector('#desktops-button'),r=b.getBoundingClientRect(),nr=n.getBoundingClientRect(),bar=document.querySelector('#statusbar').getBoundingClientRect();return{plus:[r.width,r.height],round:getComputedStyle(b).borderRadius,opacity:getComputedStyle(b.querySelector('svg')).opacity,label:b.getAttribute('aria-label'),burrow:[nr.width,nr.height],center:nr.x+nr.width/2,viewport:innerWidth,baseline:nr.bottom-bar.bottom,mask:getComputedStyle(n,'::before').maskImage}})()`);
-   assert.deepEqual(look.plus,[28,28]);assert.equal(look.round,'10px');assert.equal(look.opacity,'1');assert.equal(look.label,'Новая вкладка');assert.deepEqual(look.burrow,[36,29]);assert.ok(Math.abs(look.center-look.viewport/2)<.01);assert.ok(Math.abs(look.baseline)<.05);assert.match(look.mask,/burrow-rim.svg/);
+   assert.deepEqual(look.plus,[28,28]);assert.equal(look.round,'10px');assert.equal(look.opacity,'1');assert.equal(look.label,'Новая вкладка');assert.deepEqual(look.burrow,[36,23]);assert.ok(Math.abs(look.center-look.viewport/2)<.01);assert.ok(Math.abs(look.baseline)<.05);assert.match(look.mask,/burrow-rim.svg/);
+   await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await sleep(250);
    await fs.writeFile('mouse-621-bottom-burrow-'+theme+'.png',(await win.capturePage()).toPNG());
    await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
    await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
@@ -27,7 +28,7 @@ module.exports=async({win,browser})=>{
     await click('#library-close');await until(()=>js('!document.querySelector("#library-dialog").open'),'library close');
    }
   }
-  const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'top plus real pointer creates tab');
+  const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'burrow real pointer creates tab');
   assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
   console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
   console.log('MOUSE_621_TOP_PLUS_BOTTOM_BURROW_BOTH_THEMES_PASS');

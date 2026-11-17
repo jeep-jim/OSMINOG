@@ -1,22 +1,34 @@
 'use strict';
 // Actual packaged macOS workspace, shell gestures and CGEvent PNG transfer.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http');
+const {screen}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label,n=160){for(let i=0;i<n;i++){if(await fn())return;await sleep(60)}throw Error('Mouse621 timeout: '+label)}
 module.exports=async({app,win,browser,store})=>{
- const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),original=await js('MouseTest.prefs()'),bounds=win.getBounds();let server;const made=[];
- async function click(sel){const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(sel)}),r=e.getBoundingClientRect();if(!r.width||!r.height)throw Error('Invisible '+${JSON.stringify(sel)});return{x:r.x+r.width/2,y:r.y+r.height/2}})()`),o=win.getContentBounds();win.focus();assert.equal(native.testClick(o.x+p.x,o.y+p.y),true);await sleep(120)}
+ const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),original=await js('MouseTest.prefs()'),bounds=win.getBounds();let server,debugAttached=false,lastClick=null;const made=[];
+ async function click(sel){win.focus();await until(()=>win.isFocused(),'focus for '+sel);const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(sel)}),r=e.getBoundingClientRect();if(!r.width||!r.height)throw Error('Invisible '+${JSON.stringify(sel)});const x=r.x+r.width/2,y=r.y+r.height/2;if(!e.contains(document.elementFromPoint(x,y)))throw Error('Covered '+${JSON.stringify(sel)});return{x,y}})()`),o=win.getContentBounds(),point={x:Math.round(o.x+p.x),y:Math.round(o.y+p.y)},area=screen.getDisplayNearestPoint(point).bounds;lastClick={sel,point,area,window:win.getBounds()};assert.ok(point.x>=area.x&&point.y>=area.y&&point.x<area.x+area.width&&point.y<area.y+area.height,'Native click must be on screen: '+JSON.stringify(lastClick));assert.equal(native.testClick(point.x,point.y),true);await sleep(160)}
  async function png(){return Buffer.from(await js(`(()=>{const c=document.createElement('canvas');c.width=100;c.height=80;const x=c.getContext('2d');x.fillStyle='#32c76a';x.fillRect(0,0,100,80);return c.toDataURL('image/png').split(',')[1]})()`),'base64')}
  try{
   if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'leave full screen');await sleep(350)}
-  win.setBounds({x:10,y:40,width:1200,height:800});win.show();win.focus();await js('MouseTest.browsing.close();MouseTest.feedback.hide()');
+  const work=screen.getPrimaryDisplay().workArea;win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1200,work.width-16),height:Math.min(800,work.height-16)});win.show();win.focus();await sleep(250);await js('MouseTest.browsing.close();MouseTest.feedback.hide()');
+  console.log('MOUSE_621_ONSCREEN_NATIVE_FIXTURE',JSON.stringify({work,window:win.getBounds()}));
   const image=await png();server=http.createServer((req,res)=>{if(req.url==='/image.png'){res.setHeader('Content-Type','image/png');res.end(image);return;}res.setHeader('Content-Type','text/html');res.end(`<!doctype html><title>621 fixture</title><style>body{margin:0;background:#f0f0f0;color:#111}img{margin:30px;width:100px;height:80px}#drop{height:160px;margin:20px;background:#cfe5d0}</style><input id="kept" value="keep621"><img id="image" src="/image.png" draggable="true"><div id="drop">Drop PNG here</div><script>window.marker=Math.random();window.dropped=null;document.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy'});document.addEventListener('drop',async e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)window.dropped={name:f.name,type:f.type,size:f.size,bytes:[...new Uint8Array(await f.arrayBuffer())].slice(0,8)}});</script>`)});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));const root='http://127.0.0.1:'+server.address().port;
   const initial=await js('MouseTest.model.state.desktops');assert.equal(initial.items.length,5);assert.equal(initial.active,'desk-3');
   const current=original.desktopId;
   await js(`MouseTest.openPage(${JSON.stringify(root+'/one')})`);const a=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:a,desk:current});await until(()=>!browser.get(a).loading,'first page');const aw=browser.get(a).view.webContents,identity=aw.id,marker=await aw.executeJavaScript('window.marker');
   await js('MouseTest.changeLayout(2);MouseTest.model.slots.p1='+JSON.stringify(a)+';MouseTest.model.active="p1";MouseTest.renderTree();MouseTest.save()');
-  await js(`globalThis.slideSamples=[];globalThis.slideTimer=setInterval(()=>{const e=document.querySelector('#workspace');if(e.dataset.sliding==='true')slideSamples.push(e.style.transform)},16);MouseTest.switchDesktop('desk-1')`);await js('clearInterval(slideTimer)');const samples=await js('slideSamples');if(!await js('matchMedia("(prefers-reduced-motion:reduce)").matches'))assert.ok(samples.length>3&&new Set(samples).size>2,JSON.stringify(samples));assert.equal(await js('document.querySelector("#workspace").style.transform'),'');console.log('MOUSE_621_SMOOTH_DESKTOP_NATIVE_SLIDE_PASS',samples.length);assert.equal(browser.state().tabs.length,0);assert.equal(browser.get(a).visible,false);
+  // The CI desktop can prefer reduced motion. Exercise the real native slide under
+  // explicit no-preference emulation, then restore media settings, not OS defaults.
+  const debug=win.webContents.debugger;assert.equal(debug.isAttached(),false);debug.attach('1.3');debugAttached=true;
+  await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+  assert.equal(await js('matchMedia("(prefers-reduced-motion:reduce)").matches'),false);
+  await until(async()=>{const w=await js('Math.round(document.querySelector(".pane[data-pane=p1] .page-slot").getBoundingClientRect().width)');return browser.get(a).visible&&browser.get(a).view.getBounds().width===w;},'native viewport before slide');
+  const rawLayout=browser.layout.bind(browser),viewport=browser.get(a).view.getBounds(),frames=[];
+  browser.layout=panels=>{const value=rawLayout(panels),p=panels.find(p=>p.id===a);if(p&&browser.get(a).visible)frames.push({x:p.x,width:browser.get(a).view.getBounds().width});return value;};
+  try{await js(`MouseTest.switchDesktop('desk-1')`);}finally{browser.layout=rawLayout;await debug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]});debug.detach();debugAttached=false;}
+  assert.ok(new Set(frames.map(f=>Math.round(f.x))).size>=3,'actual native positions must animate: '+JSON.stringify(frames));assert.ok(frames.every(f=>f.width===viewport.width),'page viewport stays unchanged during slide');
+  assert.equal(await js('document.querySelector("#workspace").style.transform'),'');console.log('MOUSE_621_SMOOTH_DESKTOP_NATIVE_SLIDE_PASS',JSON.stringify({frames:frames.length,viewport:viewport.width,preference:'emulated-no-preference'}));assert.equal(browser.state().tabs.length,0);assert.equal(browser.get(a).visible,false);
   await js(`MouseTest.openPage(${JSON.stringify(root+'/two')})`);const b=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:b,desk:'desk-1'});await until(()=>!browser.get(b).loading,'second page');const bw=browser.get(b).view.webContents;
   await aw.executeJavaScript('document.title="(3) Telegram fixture"');await until(()=>js('MouseTest.model.state.desktops.items.find(d=>d.id==="desk-3").unread===3'),'actual hidden title badge');
   await click('#desktops-button');await until(()=>js('!document.querySelector("#desktop-tray").hidden'),'tray visible');assert.equal(await js('document.querySelectorAll(".desktop-card").length'),5);assert.equal(await js('document.querySelector("[data-desk=desk-3] .desk-badge").textContent'),'3');
@@ -49,7 +61,11 @@ module.exports=async({app,win,browser,store})=>{
   await until(()=>dw.executeJavaScript('!!window.dropped'),'native image file received');const file=await dw.executeJavaScript('window.dropped');assert.equal(file.type,'image/png');assert.ok(file.size>50);assert.deepEqual(file.bytes,[137,80,78,71,13,10,26,10]);console.log('MOUSE_621_NATIVE_CROSS_PAGE_PNG_DRAG_PASS',JSON.stringify(file));
   await js(`MouseTest.switchDesktop('desk-1');MouseTest.save()`);await browser.save();await store.queue;const bank=(await store.get('mouseDesktopsV1')).mouseDesktopsV1;assert.equal(bank.members[a],current);assert.equal(bank.members[b],'desk-1');await js(`MouseTest.switchDesktop(${JSON.stringify(current)})`);
   console.log('MOUSE_621_DESKTOPS_TOASTS_ZOOM_EDITOR_PASS');
+ }catch(error){
+  console.log('MOUSE_621_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),screen:screen.getPrimaryDisplay().bounds,shell:await js('({desk:MouseTest.model.desktopId,switching:MouseTest.model.switching,sliding:MouseTest.model.desktopSliding,trayHidden:document.querySelector("#desktop-tray").hidden,active:document.activeElement?.id})')}));
+  await fs.writeFile('mouse-621-failure.png',(await win.capturePage()).toPNG());throw error;
  }finally{
+  if(debugAttached){await win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]}).catch(()=>{});win.webContents.debugger.detach();}
   try{const o=win.getContentBounds();native.testMouse(o.x+10,o.y+60,2);}catch{}
   await js('document.querySelector("#capture-dialog")?.open&&document.querySelector("#capture-dialog").close();MouseTest.desktopUI.close();MouseTest.zoomUI.close();MouseTest.feedback.hide();MouseTest.browsing.close();MouseNative.zoom("set",{factor:1})').catch(()=>{});
   for(const {id,desk}of made){await js(`MouseTest.switchDesktop(${JSON.stringify(desk)})`).catch(()=>{});if(browser.tabs.has(id))await browser.command('close',{id});}
