@@ -1,12 +1,13 @@
 'use strict';
 // Mouse-only workspace bank. Pages stay alive; desks share the normal web session.
 // PrivateMode installs its own bank on MemoryStore, never on the normal Store.
-const {randomUUID}=require('node:crypto');
 const L=require('./mouse/layout.js');
-const KEY='mouseDesktopsV1',MAX_DESKS=40;
-const layoutKeys=['tree','slots','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions'];
+const Modes=require('./mouse/modes.js');
+const {DesktopPreviews}=require('./mouse-desktop-previews.cjs');
+const KEY='mouseDesktopsV1',MAX_DESKS=5;
+const layoutKeys=['tree','slots','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions','mode'];
 const clone=x=>JSON.parse(JSON.stringify(x));
-const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{}});
+const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{},mode:''});
 function unread(title){
  // Only a site's explicit numeric title badge, never an invented message count.
  const s=String(title||'').trim(),m=/^(?:\((\d{1,6})\)|\[(\d{1,6})\])\s*\S/.exec(s)||/\S.*\s\((\d{1,6})\)$/.exec(s);
@@ -14,6 +15,7 @@ function unread(title){
 }
 function layout(value={}){
  const out=blank();try{out.tree=L.validate(value.tree);}catch{}
+ out.mode=Modes.modes.some(m=>m.id===value.mode)?value.mode:'';
  const leaves=L.leaves(out.tree);out.active=leaves.includes(value.active)?value.active:leaves[0];
  if(value.slots&&typeof value.slots==='object')for(const p of leaves)if(typeof value.slots[p]==='string'&&value.slots[p].length<=100)out.slots[p]=value.slots[p];
  out.tabOrder=[...new Set((Array.isArray(value.tabOrder)?value.tabOrder:[]).filter(v=>typeof v==='string'&&v.length<=100))].slice(0,1000);
@@ -23,13 +25,24 @@ function layout(value={}){
 }
 class DesktopBank{
  constructor(saved,preferences={}){
-  this.members=Object.create(null);this.items=[];this.active='desk-3';this.global={};
-  if(saved?.schema===1&&Array.isArray(saved.items)){
-   for(const x of saved.items.slice(0,MAX_DESKS))if(x&&typeof x.id==='string'&&/^[a-z\d-]{1,64}$/i.test(x.id)&&!this.items.some(v=>v.id===x.id))this.items.push({id:x.id,name:String(x.name||'Стол').slice(0,60),layout:layout(x.layout)});
+  this.members=Object.create(null);this.items=[];this.active='desk-3';this.global={};this.recovery=null;
+  if([1,2].includes(saved?.schema)&&Array.isArray(saved.items)){
+   // Forty was the previous release's hard limit. Fold old overflow into the
+   // fifth desk and retain its complete source state for recovery.
+   for(const x of saved.items.slice(0,40))if(x&&typeof x.id==='string'&&/^[a-z\d-]{1,64}$/i.test(x.id)&&!this.items.some(v=>v.id===x.id))this.items.push({id:x.id,name:String(x.name||'Стол').slice(0,60),layout:layout(x.layout)});
    if(this.items.some(x=>x.id===saved.active))this.active=saved.active;
    if(saved.members&&typeof saved.members==='object')for(const [id,desk]of Object.entries(saved.members).slice(0,20000))if(id.length<=100&&this.items.some(x=>x.id===desk))this.members[id]=desk;
+   if(saved.schema===2&&saved.recovery&&typeof saved.recovery==='object')this.recovery=clone(saved.recovery);
   }
-  if(!this.items.length)this.items=Array.from({length:5},(_,i)=>({id:'desk-'+(i+1),name:'Стол '+(i+1),layout:i===2?layout(preferences):blank()}));
+  if(!this.items.length)this.items=Array.from({length:MAX_DESKS},(_,i)=>({id:'desk-'+(i+1),name:'Стол '+(i+1),layout:i===2?layout(preferences):blank()}));
+  if(this.items.length>MAX_DESKS){
+   this.recovery=clone(saved);const fifth=this.items[MAX_DESKS-1],overflow=this.items.slice(MAX_DESKS),overflowIds=new Set(overflow.map(d=>d.id)),activeOverflow=overflow.find(d=>d.id===this.active);
+   const combined=[...fifth.layout.tabOrder,...overflow.flatMap(d=>d.layout.tabOrder)];
+   for(const [id,desk]of Object.entries(this.members))if(overflowIds.has(desk)){this.members[id]=fifth.id;combined.push(id);}
+   if(activeOverflow){fifth.layout=clone(activeOverflow.layout);this.active=fifth.id;}
+   fifth.layout.tabOrder=[...new Set([...fifth.layout.tabOrder,...combined])];this.items=this.items.slice(0,MAX_DESKS);
+  }
+  for(let n=1;this.items.length<MAX_DESKS;n++){const id='desk-'+n;if(!this.items.some(d=>d.id===id))this.items.push({id,name:'Стол '+(this.items.length+1),layout:blank()});}
   if(!this.items.some(x=>x.id===this.active))this.active=this.items[0].id;
   for(const [k,v]of Object.entries(preferences))if(!layoutKeys.includes(k)&&k!=='desktopId'&&v!==undefined)this.global[k]=clone(v);
  }
@@ -44,14 +57,16 @@ class DesktopBank{
   return true;
  }
  select(id){if(!this.items.some(x=>x.id===id))throw Error('Рабочий стол не найден');this.active=id;return this.preferences();}
- add(){if(this.items.length>=MAX_DESKS)throw Error('Открыто максимальное число столов: '+MAX_DESKS);const id=randomUUID();this.items.push({id,name:'Стол '+(this.items.length+1),layout:blank()});return id;}
- describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=tabs.filter(t=>this.members[t.id]===d.id),count=own.reduce((n,t)=>n+unread(t.title),0);return{id:d.id,name:d.name,unread:Math.min(999999,count),count:own.length,tree:clone(d.layout.tree),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
- snapshot(){return{schema:1,active:this.active,items:clone(this.items),members:{...this.members}};}
+ add(tabs=[]){this.sync(tabs);const empty=this.items.filter(d=>!tabs.some(t=>this.members[t.id]===d.id)),desk=empty.find(d=>d.id!==this.active)||empty[0];if(!desk)throw Error('Все пять столов заняты. Освободите один из них.');return desk.id;}
+ describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=tabs.filter(t=>this.members[t.id]===d.id),count=own.reduce((n,t)=>n+unread(t.title),0);return{id:d.id,name:d.name,mode:d.layout.mode,unread:Math.min(999999,count),count:own.length,tree:clone(d.layout.tree),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
+ snapshot(){return{schema:2,active:this.active,items:clone(this.items),members:{...this.members},...(this.recovery?{recovery:clone(this.recovery)}:{})};}
 }
-async function install({browser,store,ipcMain,trusted,win}){
+async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
  const saved=await store.get([KEY,'quadroPreferences']);const bank=new DesktopBank(saved[KEY],saved.quadroPreferences||{});
  const rawState=browser.state.bind(browser),oldSave=browser.save.bind(browser),oldCommand=browser.command.bind(browser),oldMake=browser.make.bind(browser),oldLayout=browser.layout.bind(browser),oldDispose=browser.dispose.bind(browser);
  bank.sync(rawState().tabs);let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false;
+ const previews=new DesktopPreviews({browser,bank,state:rawState});
+ const lock=()=>previews.lock(),unlock=()=>previews.unlock();powerMonitor?.on('lock-screen',lock);powerMonitor?.on('unlock-screen',unlock);
  function persist(){const value=bank.snapshot(),preferences=bank.preferences();queue=queue.catch(()=>{}).then(()=>store.set({[KEY]:value,quadroPreferences:preferences}));return queue;}
  function state(){const raw=rawState();bank.sync(raw.tabs);return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active};}
  browser.state=state;
@@ -75,25 +90,39 @@ async function install({browser,store,ipcMain,trusted,win}){
   if(action==='state')return bank.describe(rawState().tabs);
   if(action==='thumbnail'){
    if(typeof args.id!=='string'||bank.members[args.id]!==bank.active)return{src:''};
-   const t=browser.tabs.get(args.id);if(!t||!t.visible||t.view.webContents.isDestroyed())return{src:''};
-   try{const image=await t.view.webContents.capturePage();if(browser.disposed||bank.members[args.id]!==bank.active)return{src:''};return{src:image.resize({width:240}).toDataURL()};}catch{return{src:''};}
+   const t=browser.tabs.get(args.id),wc=t?.view?.webContents;if(!t||!t.visible||wc.isDestroyed()||previews.locked)return{src:''};
+   const generation=previews.generation,desk=bank.active,epoch=t.navigationEpoch||0,url=wc.getURL?.()||t.url||'';
+   try{const image=await wc.capturePage();if(disposed||browser.disposed||generation!==previews.generation||previews.locked||!t.visible||desk!==bank.active||!previews.valid(args.id,{page:t,desk,epoch,url}))return{src:''};const src=image.resize({width:240}).toDataURL();return{src:src.length<=1400000?src:''};}catch{return{src:''};}
   }
-  if(!['switch','add','rename'].includes(action))throw Error('Unknown desktop action');
+  if(!['switch','add','rename','apply-mode','previews','remember-preview'].includes(action))throw Error('Unknown desktop action');
+  // Validate a mode before accepting any accompanying preferences.
+  const mode=action==='apply-mode'?Modes.get(args.mode):null;
   const run=async()=>{
    if(disposed)throw Error('Рабочее пространство закрыто');
    if(args.from&&args.from!==bank.active)throw Error('Рабочий стол уже изменился');
    if(args.preferences){if(args.preferences.desktopId!==bank.active)throw Error('Раскладка другого стола');require('./mouse/layout.js').validate(args.preferences.tree);bank.savePreferences(args.preferences);}
+   if(action==='previews'||action==='remember-preview'){await previews.capture();return previews.snapshot();}
    if(action==='rename'){const d=bank.items.find(d=>d.id===args.id);if(!d)throw Error('Рабочий стол не найден');d.name=String(args.name||'Стол').trim().slice(0,60)||'Стол';await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
-   const id=action==='add'?bank.add():args.id;
+   if(action==='apply-mode'){
+    await browser.mouseBeforeDesktopChange?.();await previews.capture();
+    const own=()=>rawState().tabs.filter(t=>bank.members[t.id]===bank.active);
+    // Even an internal start tab or an AI side tab is user-owned content.
+    // Existing pages retain identity, sessions and navigation history.
+    if(!own().length)for(const url of mode.sites)await browser.command('open',{url,lane:'main'});
+    bank.current().layout=layout(Modes.arranged(mode.id,own(),bank.current().layout));await persist();browser.emit();return{state:state(),preferences:bank.preferences()};
+   }
+   const id=action==='add'?bank.add(rawState().tabs):args.id;
    if(!bank.items.some(d=>d.id===id))throw Error('Рабочий стол не найден');
+   await browser.mouseBeforeDesktopChange?.();await previews.capture();
    oldLayout([]);bank.select(id);await persist();
    const result={state:state(),preferences:bank.preferences()};browser.emit();return result;
   };
   const result=switchQueue.then(run);switchQueue=result.catch(()=>{});return result;
  });
- browser.dispose=()=>{disposed=true;oldDispose();};
- browser.mouseDesktops={bank,state,preferences:()=>bank.preferences()};
+ const dispose=()=>{if(disposed)return;disposed=true;previews.dispose();powerMonitor?.removeListener('lock-screen',lock);powerMonitor?.removeListener('unlock-screen',unlock);};
+ browser.dispose=()=>{dispose();oldDispose();};
+ browser.mouseDesktops={bank,state,preferences:()=>bank.preferences(),previews};
  await persist();
- return{bank,state,savePreferences,preferences:()=>bank.preferences(),flush:()=>queue};
+ return{bank,state,savePreferences,preferences:()=>bank.preferences(),flush:()=>queue,previews,dispose};
 }
 module.exports={DesktopBank,unread,layout,install,KEY,MAX_DESKS};
