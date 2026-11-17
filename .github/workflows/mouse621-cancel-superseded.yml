@@ -1,4 +1,4 @@
-name: Stop superseded Mouse621 diagnostic runs
+name: Recover queued Mouse621 native allocation
 on:
   push:
     branches: [diagnostic/mouse621-cancel-superseded]
@@ -7,34 +7,33 @@ permissions:
   contents: read
   actions: write
 jobs:
-  cancel-exact-old-heads:
+  exact-queued-recovery:
     if: github.repository == 'jeep-jim/OSMINOG'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Preserve final source gates and stop only superseded621 candidates
+      - name: Retry only an unallocated exact native candidate, never an executing test
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json,subprocess
-          repo='jeep-jim/OSMINOG';branch='feat/mouse621-desktops-toasts-drag';latest='ecf39b1f4d9de5f1e3eb85fb8f2d86c52bab6848'
+          import json,subprocess,time,datetime
+          repo='jeep-jim/OSMINOG';run=44081845571;job=134034136368;head='ecf39b1f4d9de5f1e3eb85fb8f2d86c52bab6848'
           def get(path):return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/'+path],text=True))
-          assert get('git/ref/heads/'+branch)['object']['sha']==latest,'Do not cancel after another source change'
-          seen=set();cancelled=[]
-          for status in ['queued','in_progress','waiting','pending','requested']:
-            data=get(f'actions/runs?status={status}&per_page=100')
-            for r in data['workflow_runs']:
-              if r['head_branch']!=branch or r['id'] in seen:continue
-              seen.add(r['id']);print('CANDIDATE_RUN',r['id'],r['name'],r['status'],r['head_sha'])
-              if r['head_sha']==latest:continue
-              comparison=get('compare/'+r['head_sha']+'...'+latest)
-              if comparison['status']!='ahead' or comparison['behind_by']!=0:continue
-              result=subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{r["id"]}/cancel'],capture_output=True,text=True)
-              if result.returncode:print('Already finished or cancellation unavailable:',r['id'])
-              else:cancelled.append(r['id']);print('CANCELLED_SUPERSEDED',r['id'])
-          print('Obsolete ancestor runs cancelled:',len(cancelled))
-          print('Final source and all release checks preserved:',latest)
+          r=get(f'actions/runs/{run}');assert r['head_sha']==head and r['workflow_id']==419668574
+          j=get(f'actions/jobs/{job}');assert j['run_id']==run and j['head_sha']==head
+          if r['status']!='queued' or j['status']!='queued' or j.get('steps'):
+            print('Native job has started or completed; no changes.');raise SystemExit(0)
+          created=datetime.datetime.fromisoformat(r['created_at'].replace('Z','+00:00'))
+          assert (datetime.datetime.now(datetime.timezone.utc)-created).total_seconds()>300
+          subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{run}/cancel'],check=True)
+          for _ in range(30):
+            if get(f'actions/runs/{run}')['status']=='completed':break
+            time.sleep(1)
+          r=get(f'actions/runs/{run}');assert r['conclusion']=='cancelled' and r['head_sha']==head
+          subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/jobs/{job}/rerun'],check=True)
+          print('MOUSE621_EXACT_UNALLOCATED_JOB_RETRIED',run,job,head)
+          print('No source, test, runner label, release gate or channel change.')
           PY
