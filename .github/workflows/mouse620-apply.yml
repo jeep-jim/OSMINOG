@@ -26,19 +26,21 @@ jobs:
           find desktop -maxdepth 1 -name 'mouse-*.cjs' -exec node --check {} \;
           (cd desktop && node --test mouse-*.test.cjs) > mouse620-tests.log
           tail -12 mouse620-tests.log
-      - name: Remove transport and commit guarded source
+      - name: Commit source without changing workflows through the contents-only token
         run: |
           set -euo pipefail
           BRANCH=fix/mouse620-local-library
           test "$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" = "$GITHUB_SHA"
-          git rm tools/mouse620-payload-br1.txt tools/mouse620-payload-br2.txt tools/mouse620-payload-br3.txt tools/apply-mouse620.cjs .github/workflows/mouse620-apply.yml
-          git add -- desktop tools/mouse-verify.py tools/mouse-update-verify.py MOUSE_BROWSER_ROADMAP.md .github/workflows/mouse-macos.yml .github/workflows/mouse620-source.yml
+          cp .github/workflows/mouse-macos.yml mouse620-native-workflow.txt
+          git restore --source=HEAD -- .github
+          git rm tools/mouse620-payload-br1.txt tools/mouse620-payload-br2.txt tools/mouse620-payload-br3.txt tools/apply-mouse620.cjs
+          git add -- desktop tools/mouse-verify.py tools/mouse-update-verify.py MOUSE_BROWSER_ROADMAP.md
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Mouse620: owner head and Dock, update progress, opt-in local archive,12px corners and meaningful history'
-          git push origin "HEAD:refs/heads/$BRANCH"
           git rev-parse HEAD > mouse620-applied-sha.txt
           git archive --format=tar HEAD desktop tools .github MOUSE_BROWSER_ROADMAP.md > mouse620-applied.tar
+          git push origin "HEAD:refs/heads/$BRANCH"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -47,4 +49,5 @@ jobs:
             mouse620-tests.log
             mouse620-applied-sha.txt
             mouse620-applied.tar
+            mouse620-native-workflow.txt
           retention-days: 2
