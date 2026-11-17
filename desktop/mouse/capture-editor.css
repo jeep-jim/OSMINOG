@@ -1,0 +1,8 @@
+#capture-dialog{position:relative}
+#capture-dialog[data-tool=move] #capture-canvas{cursor:default}
+#capture-dialog #capture-color{width:28px;min-width:28px;height:28px;min-height:28px;padding:4px;display:grid;place-items:center}
+#capture-color>span{display:block;width:18px;height:18px;border-radius:4px;border:1px solid var(--line)}
+#capture-palette{position:absolute;z-index:30;width:200px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 8px 28px #0005}
+.capture-swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.capture-swatches button{width:32px;min-height:28px;border:1px solid var(--muted);border-radius:6px}.capture-swatches button[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:2px}
+#capture-palette label{display:flex;flex-direction:row;align-items:center;gap:6px;margin:10px 0 0;font-size:12px}#capture-palette input{width:118px;height:28px;min-width:0;padding:3px 5px;font:12px ui-monospace,monospace}
+#capture-dialog [data-tool=move] svg{display:block;pointer-events:none}

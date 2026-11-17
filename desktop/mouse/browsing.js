@@ -63,7 +63,7 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
    row.append(visual,body,actions);fragment.append(row);if(item.url||['downloads','captures'].includes(rowKind))icons.push([img,item]);
   }
   list.append(fragment);list.scrollTop=scrollTop;for(const [img,item]of icons)setIcon(img,item,rowKind,id);
-  $('#library-count').textContent=rows.length+' / '+total;$('#library-more').hidden=rows.length>=total;$('#library-more').textContent=tr('Показать все','Show all');controls();
+  $('#library-count').textContent=rows.length+' / '+total+' · '+names[kind]();$('#library-more').hidden=rows.length>=total;$('#library-more').textContent=tr('Показать все','Show all');controls();
  }
  async function open(value){hideHints();kind=value;limit=100;resetSelection();$('#library-query').value='';if(!d.open){await N.browser('layout',{panels:[]});d.show();}onSidebar(true);restore();await render();$('#library-query').focus();}
  $('#capture-auto').onchange=()=>run(async()=>{try{await N.archive('toggle',{enabled:$('#capture-auto').checked});}finally{await captureSettings();}});
