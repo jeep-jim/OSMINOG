@@ -4,8 +4,9 @@ const {randomUUID}=require('node:crypto');
 const path=require('node:path'),fs=require('node:fs/promises');
 async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=false}){
  const library=await new Library(store).init(),live=new Map(),retryURLs=new Set();
+ const icons=require('./mouse-library-icons.cjs').createIcons({app,browser,library,nativeImage:require('electron').nativeImage});
  let timer;const notify=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!win.isDestroyed())win.webContents.send('mouse:library-changed')},120);timer.unref?.()};
- const attach=t=>{const wc=t.view.webContents;const visit=()=>{if(t.lane==='side'||t.provider)return;library.visit(wc.getURL(),wc.getTitle());notify()};wc.on('did-navigate',visit);wc.on('did-navigate-in-page',(_e,_u,main)=>{if(main)visit()});wc.on('page-title-updated',(_e,title)=>library.title(wc.getURL(),title));};
+ const attach=t=>{const wc=t.view.webContents;const visit=()=>{if(t.lane==='side'||t.provider)return;library.visit(wc.getURL(),wc.getTitle());notify()};wc.on('did-navigate',visit);wc.on('did-navigate-in-page',(_e,_u,main)=>{if(main)visit()});wc.on('page-title-updated',(_e,title)=>library.title(wc.getURL(),title));wc.on('page-favicon-updated',(_e,values)=>{if(t.lane==='side'||t.provider)return;library.favicon(wc.getURL(),values?.[0]);notify()});};
  for(const t of browser.tabs.values())attach(t);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);attach(t);return t};
  const command=browser.command.bind(browser);browser.command=async(action,args={})=>{
@@ -39,10 +40,17 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
   if(result.response===1){const error=await shell.openPath(row.path);if(error)throw Error(error)}return true;
  }
  ipcMain.handle('mouse:library',async(e,action,args={})=>{
-  trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>16000)throw Error('Invalid library request');
+  trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>(action==='remove-selected'?512000:16000))throw Error('Invalid library request');
   if(action==='suggest')return library.suggestions(args.query);
   if(action==='list')return library.list(args.kind,args.query,args.offset);
-  if(action==='bookmark'){const t=browser.get(args.id);const result=library.bookmark(t.view.webContents.getURL(),t.title);notify();return result}
+  if(action==='icon')return args.kind==='downloads'?icons.download(args.id):icons.site(args.url);
+  if(action==='remove-selected'){
+   const ids=library.selected(args.kind,args);if(!ids.length)return{cleared:false,count:0};
+   const result=await dialog.showMessageBox(win,{type:'question',buttons:['Отмена','Очистить выбранное'],defaultId:0,cancelId:0,message:'Удалить выбранные записи: '+ids.length+'?',detail:'Удаляются только отмеченные записи списка. Файлы на диске, cookies и пароли не удаляются. Активные загрузки сохраняются.'});
+   if(result.response!==1)return{cleared:false,count:0};
+   const count=library.removeMany(args.kind,ids);await library.flush();notify();return{cleared:true,count};
+  }
+  if(action==='bookmark'){const t=browser.get(args.id);const result=library.bookmark(t.view.webContents.getURL(),t.title);library.favicon(t.view.webContents.getURL(),t.favicon);notify();return result}
   if(action==='reopen')return library.reopen();
   if(action==='remove'){if(args.kind==='downloads')return download('remove',args.id);library.remove(args.kind,args.id);notify();return true}
   if(action==='clear'){
@@ -53,6 +61,6 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
   if(action==='download')return download(args.action,args.id);
   throw Error('Unsupported library action');
  });
- return{library,flush:()=>library.flush(),live};
+ return{library,flush:()=>library.flush(),live,icon:icons.site};
 }
 module.exports={install};

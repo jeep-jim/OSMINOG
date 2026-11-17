@@ -1,0 +1,8 @@
+/* Owner: active tab flows into the divider; both use the same theme token.
+   The decorative layer is outside the clipped tabstrip and never catches input. */
+.toolbar{isolation:isolate}
+.mouse-tab-flow{position:absolute;z-index:0;pointer-events:none;overflow:visible;-webkit-app-region:no-drag;fill:var(--line)}
+.toolbar #tabstrip{position:relative;z-index:1}
+.toolbar[data-tab-flow=true] #tabstrip .tab-item.active{background:transparent;border-color:transparent;box-shadow:none}
+:root[data-theme] .toolbar>#new-tab{position:relative;z-index:1}
+#new-tab::before{content:'';position:absolute;inset:0;background:var(--line);mask:url("burrow-rim.svg") center/100% 100% no-repeat;-webkit-mask:url("burrow-rim.svg") center/100% 100% no-repeat;pointer-events:none}

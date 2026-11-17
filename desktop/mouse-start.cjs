@@ -31,13 +31,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
   }
   return command(action,args);
  };
- const icons=new Map();let inFlight=0;
- async function icon(url){
-  url=webURL(url);if(!url||![...library.data.bookmarks,...library.data.history].some(x=>x.url===url))return '';
-  const key=new URL('/favicon.ico',url).href;if(icons.has(key))return icons.get(key);if(inFlight>=4)return '';
-  if(icons.size>=256)icons.delete(icons.keys().next().value);
-  const task=(async()=>{inFlight++;try{const r=await browser.session.fetch(key,{credentials:'omit',signal:AbortSignal.timeout(3500)});if(!r.ok||Number(r.headers.get('content-length'))>131072)return '';const reader=r.body.getReader(),chunks=[];let size=0;try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>131072)return '';chunks.push(Buffer.from(value));}}finally{await reader.cancel().catch(()=>{});}return faviconData(Buffer.concat(chunks),r.headers.get('content-type'),nativeImage);}catch{return '';}finally{inFlight--;}})();icons.set(key,task);return task;
- }
+ const icon=url=>libraryService.icon(url);
  async function setBackground(file){
   if(privateMode)throw Error('Собственный фон меняется только в обычном режиме');
   const stat=await fs.stat(file);if(!stat.isFile()||stat.size>20*1024*1024)throw Error('Изображение должно быть не больше 20 МБ');
@@ -54,7 +48,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
    const url=bookmarkURL(args.url),title=String(args.title||new URL(url).hostname).trim().slice(0,500);
    const row=args.id?library.data.bookmarks.find(x=>x.id===args.id):null;
    if(args.id&&!row)throw Error('Закладка не найдена');
-   if(row){if(library.data.bookmarks.some(x=>x.id!==row.id&&x.url===url))throw Error('Этот сайт уже есть в закладках');row.url=url;row.title=title;library.changed();}else library.bookmark(url,title);
+   if(row){if(library.data.bookmarks.some(x=>x.id!==row.id&&x.url===url))throw Error('Этот сайт уже есть в закладках');if(row.url!==url)delete row.favicon;row.url=url;row.title=title;library.changed();}else library.bookmark(url,title);
    await library.flush();win.webContents.send('mouse:library-changed');notify();return true;
   }
   if(action==='remove'){library.remove('bookmarks',String(args.id));await library.flush();win.webContents.send('mouse:library-changed');notify();return true;}
