@@ -10,6 +10,12 @@ test('select-all applies to every matching page while excludes and active downlo
  assert.deepEqual(lib.selected('downloads',{all:true}),['c','d']);assert.equal(lib.removeMany('downloads',['a','b','c','d']),2);assert.deepEqual(lib.data.downloads.map(x=>x.id),['a','b']);
  assert.throws(()=>lib.selected('bookmarks',{ids:['x'.repeat(101)]}));assert.throws(()=>lib.selected('closed',{all:true}));assert.throws(()=>lib.selected('history',{all:'yes'}));
 });
+test('unlimited bookmarks select-all snapshot is not truncated by the inbound ID batch bound',async()=>{
+ const lib=await create();lib.data.bookmarks=Array.from({length:10005},(_,i)=>({id:'saved'+i,url:'https://example.test/'+i,title:'match'}));
+ const ids=lib.selected('bookmarks',{all:true,query:'match'});assert.equal(ids.length,10005);assert.throws(()=>lib.selected('bookmarks',{ids}));
+ lib.data.bookmarks.push({id:'arrived-later',url:'https://example.test/later',title:'match'});
+ assert.equal(lib.removeMany('bookmarks',ids),10005);assert.deepEqual(lib.data.bookmarks.map(x=>x.id),['arrived-later']);
+});
 test('observed favicon is retained for exact visited records and saved origin bookmarks only',async()=>{
  const lib=await create();lib.visit('https://example.test/a');lib.bookmark('https://example.test/');lib.bookmark('https://other.test/');lib.favicon('https://example.test/a','https://cdn.test/brand.svg');
  assert.equal(lib.data.history[0].favicon,'https://cdn.test/brand.svg');assert.equal(lib.data.bookmarks[1].favicon,'https://cdn.test/brand.svg');assert.equal(lib.data.bookmarks[0].favicon,undefined);
