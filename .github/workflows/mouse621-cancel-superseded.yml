@@ -14,23 +14,27 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Cancel only obsolete candidate heads, never latest source or another branch
+      - name: Preserve final source gates and stop only superseded621 candidates
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import json,subprocess
-          repo='jeep-jim/OSMINOG'
-          branch='feat/mouse621-desktops-toasts-drag'
-          old={'f6c29d01d86886cc15d52deb00c459de945f875d','6b4b1afe675af15feb81df5b7649dd45259ae4ba','c5ca0e0dbd7c75149c9ab4904230d6a5d6e65aa5','686aa174fd98b1b9896fcb28e1890baabd9b9f86'}
-          cancelled=[]
+          repo='jeep-jim/OSMINOG';branch='feat/mouse621-desktops-toasts-drag';latest='ecf39b1f4d9de5f1e3eb85fb8f2d86c52bab6848'
+          def get(path):return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/'+path],text=True))
+          assert get('git/ref/heads/'+branch)['object']['sha']==latest,'Do not cancel after another source change'
+          seen=set();cancelled=[]
           for status in ['queued','in_progress','waiting','pending','requested']:
-            data=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs?branch={branch}&status={status}&per_page=100'],text=True))
+            data=get(f'actions/runs?status={status}&per_page=100')
             for r in data['workflow_runs']:
-              if r['head_branch']!=branch or r['head_sha'] not in old:continue
+              if r['head_branch']!=branch or r['id'] in seen:continue
+              seen.add(r['id']);print('CANDIDATE_RUN',r['id'],r['name'],r['status'],r['head_sha'])
+              if r['head_sha']==latest:continue
+              comparison=get('compare/'+r['head_sha']+'...'+latest)
+              if comparison['status']!='ahead' or comparison['behind_by']!=0:continue
               result=subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{r["id"]}/cancel'],capture_output=True,text=True)
-              if result.returncode:print('Already finished or cancellation unavailable:',r['id'],r['head_sha'])
-              else:cancelled.append(r['id']);print('CANCELLED_SUPERSEDED',r['id'],r['head_sha'])
-          print('Exact obsolete runs cancelled:',len(cancelled))
-          print('Latest source9a480d241dc7c4637e3a14d248bb0aa69db624eb and release gates unchanged.')
+              if result.returncode:print('Already finished or cancellation unavailable:',r['id'])
+              else:cancelled.append(r['id']);print('CANCELLED_SUPERSEDED',r['id'])
+          print('Obsolete ancestor runs cancelled:',len(cancelled))
+          print('Final source and all release checks preserved:',latest)
           PY
