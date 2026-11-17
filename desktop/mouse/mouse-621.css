@@ -1,5 +1,5 @@
 /* 621: temporary feedback is never part of the bottom status bar. */
-body>#status{position:fixed;z-index:900;left:50%;bottom:42px;transform:translateX(-50%);margin:0;max-width:min(620px,80vw);padding:10px 16px;white-space:normal;overflow-wrap:anywhere;text-align:center;font-size:12px;line-height:1.45;color:var(--text);background:color-mix(in srgb,var(--panel) 90%,transparent);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0004;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none}
+body>#status{position:fixed;display:block;z-index:900;left:50%;bottom:42px;transform:translateX(-50%);margin:0;max-width:min(620px,80vw);padding:10px 16px;white-space:normal;overflow-wrap:anywhere;text-align:center;font-size:12px;line-height:1.45;color:var(--text);background:color-mix(in srgb,var(--panel) 90%,transparent);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0004;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none}
 #statusbar{position:relative;z-index:8;overflow:visible}
 #statusbar #desktops-button{position:absolute;left:50%;transform:translateX(-50%);width:36px;min-width:36px;display:grid;place-items:center;z-index:2;color:var(--text)}
 #desktops-button[aria-expanded=true] svg{transform:rotate(180deg)}
