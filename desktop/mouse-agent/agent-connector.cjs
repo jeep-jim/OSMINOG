@@ -11,7 +11,7 @@ class AgentController{
  async dom(id){return this.send('DOM.getDocument',{depth:3,pierce:false},await this.session(id));}
  async read(id){return this.send('Mouse.read',{},await this.session(id));}
  async click(id,x,y){await this.activate(id);const s=await this.session(id);for(const type of ['mouseMoved','mousePressed','mouseReleased'])await this.send('Input.dispatchMouseEvent',{type,x,y,button:'left',clickCount:1},s);}
- async clickSelector(id,selector){const s=await this.session(id),{root}=await this.send('DOM.getDocument',{},s),{nodeId}=await this.send('DOM.querySelector',{nodeId:root.nodeId,selector},s);if(!nodeId)throw Error('Element not found');const {model}=await this.send('DOM.getBoxModel',{nodeId},s),q=model.content;return this.click(id,(q[0]+q[2]+q[4]+q[6])/4,(q[1]+q[3]+q[5]+q[7])/4);}
+ async clickSelector(id,selector){await this.activate(id);const s=await this.session(id),{root}=await this.send('DOM.getDocument',{},s),{nodeId}=await this.send('DOM.querySelector',{nodeId:root.nodeId,selector},s);if(!nodeId)throw Error('Element not found');const {model}=await this.send('DOM.getBoxModel',{nodeId},s),q=model.content;return this.click(id,(q[0]+q[2]+q[4]+q[6])/4,(q[1]+q[3]+q[5]+q[7])/4);}
  async type(id,text){await this.activate(id);return this.send('Input.insertText',{text},await this.session(id));}
  async screenshot(id){await this.activate(id);return this.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false},await this.session(id));}
  async terminal(command,{background=false}={}){return this.send('Mouse.terminal',{command,background});}

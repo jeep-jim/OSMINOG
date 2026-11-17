@@ -65,3 +65,29 @@ test('Stop before utility spawn never delivers model credentials or task to the 
 test('Stop releases an approved held mouse button outside the page before detaching',async()=>{
  const f=fixture(),{c,sessionId}=await attached(f);f.host.gateway={clients:new Set([c]),stop:async()=>{}};const pending=f.host.command({method:'Input.dispatchMouseEvent',sessionId,params:{type:'mousePressed',x:5,y:8,button:'left'}},c);await tick();f.host.decision(f.host.state().pending.id,true);await pending;assert.equal(c.pressed.size,1);await f.host.stop();assert.equal(c.pressed.size,0);assert.deepEqual(f.calls.at(-1).args,{type:'mouseReleased',x:-1,y:-1,button:'left',buttons:0,clickCount:1});assert.equal(f.wc.debugger.attached,false);await f.host.dispose();
 });
+test('selector click activates its target before measuring coordinates in the new grid pane',async()=>{
+ const controller=new AgentController('ws://127.0.0.1:9222/devtools/browser/'+'a'.repeat(64));const calls=[];controller.client={send:async(method,args)=>{calls.push({method,args});if(method==='Target.attachToTarget')return{sessionId:'session'};if(method==='DOM.getDocument')return{root:{nodeId:1}};if(method==='DOM.querySelector')return{nodeId:2};if(method==='DOM.getBoxModel')return{model:{content:[10,20,30,20,30,40,10,40]}};return{};}};
+ await controller.clickSelector('owned','#action');assert.equal(calls[0].method,'Target.activateTarget');assert.ok(calls.findIndex(c=>c.method==='DOM.getBoxModel')>0);const pointer=calls.filter(c=>c.method==='Input.dispatchMouseEvent');assert.equal(pointer.length,3);for(const event of pointer)assert.deepEqual([event.args.x,event.args.y],[20,30]);
+});
+test('approval cannot apply stale pointer coordinates after hiding or resizing the target pane',async()=>{
+ for(const change of ['hide','resize']){
+  const f=fixture(),{c,sessionId}=await attached(f);const action=f.host.command({method:'Input.dispatchMouseEvent',sessionId,params:{type:'mousePressed',x:5,y:8,button:'left'}},c),rejected=assert.rejects(action,/Видимая область/);await tick();if(change==='hide')f.tab.visible=false;else f.tab.view.getBounds=()=>({width:400,height:300});f.host.decision(f.host.state().pending.id,true);await rejected;assert.equal(f.calls.some(x=>x.method==='Input.dispatchMouseEvent'),false);await f.host.dispose();
+ }
+});
+test('explicit autonomous session uses scoped CDP actions without per-action prompts and Stop revokes it',async()=>{
+ const f=fixture(),consents=[];f.host.dialog.showMessageBox=async(_win,args)=>{consents.push(args);return{response:1};};assert.equal(f.host.state().autonomous,false);await f.host.handle('enable',{port:0,autonomous:true});assert.equal(f.host.state().autonomous,true);assert.match(consents[0].detail,/без отдельного подтверждения/);assert.equal(consents[0].buttons[1],'Включить автономно');
+ const sdk=await new AgentController(f.host.state().connectionUrl,{CDP}).connect();try{
+  await sdk.click('owned',20,30);assert.deepEqual(f.calls.filter(x=>x.method==='Input.dispatchMouseEvent').map(x=>x.args.type),['mouseMoved','mousePressed','mouseReleased']);assert.equal(f.host.pending,null);await assert.rejects(sdk.click('other',20,30),/вне/);f.tab.visible=false;await assert.rejects(f.host.command({method:'Input.insertText',sessionId:await sdk.session('owned'),params:{text:'blocked'}},[...f.host.gateway.clients][0]),/видимой/);
+ }finally{await sdk.close();await f.host.stop();}assert.equal(f.host.state().autonomous,false);assert.equal(f.host.state().enabled,false);await f.host.enable(0);assert.equal(f.host.state().autonomous,false,'A later default session requires manual approvals');await f.host.dispose();
+});
+test('declining autonomous native consent does not start listener or grant permissions',async()=>{
+ const f=fixture();f.host.dialog.showMessageBox=async()=>({response:0});await f.host.enable({port:0,autonomous:true});assert.equal(f.host.state().enabled,false);assert.equal(f.host.state().autonomous,false);assert.equal(f.host.state().port,0);await f.host.dispose();
+});
+test('terminal displays plain program command and streaming stdout without split framing or wrapper echo',async()=>{
+ let proc,spawnOptions;const pty={spawn(_shell,_args,options){spawnOptions=options;proc={pid:1,write(x){this.last=x;},kill(){},onData(fn){this.data=fn;},onExit(fn){this.exit=fn;},resize(){}};return proc;}};
+ const terminal=new TerminalService({pty}),chunks=[];terminal.on('data',data=>chunks.push(data));terminal.start(process.cwd());assert.equal(spawnOptions.env.BASH_SILENCE_DEPRECATION_WARNING,'1');proc.data('Mouse $ ');
+ const promise=terminal.execute("printf 'hello\\n'"),id=terminal.pending.id,start='\x1b]1337;MouseStart:'+id+'\x07',end='\x1b]1337;MouseEnd:'+id+':0\x07';proc.data(proc.last.slice(0,50));proc.data(proc.last.slice(50)+'\r\n');assert.equal(chunks.join(''),'Mouse $ ','Program wrapper echo stays hidden');
+ for(const ch of start)proc.data(ch);assert.match(chunks.join(''),/Mouse \$ printf 'hello\\n'\r\n$/);proc.data('hello\r\n');assert.ok(chunks.join('').endsWith('hello\r\n'),'stdout is visible before completion');
+ for(const ch of end)proc.data(ch);proc.data('Mouse $ ');const result=await promise;assert.equal(result.stdout,'hello\r\n');assert.equal(result.exitCode,0);assert.ok(chunks.join('').endsWith('hello\r\nMouse $ '));assert.doesNotMatch(chunks.join(''),/MouseStart|MouseEnd|builtin printf|__mouse_rc|eval /);assert.doesNotMatch(terminal.output,/MouseStart|MouseEnd/);
+ terminal.write('echo manual\r');assert.equal(proc.last,'echo manual\r');proc.data('echo manual\r\nmanual\r\nMouse $ ');assert.ok(chunks.join('').endsWith('echo manual\r\nmanual\r\nMouse $ '),'Manual input keeps ordinary echo and prompt');terminal.stop();
+});

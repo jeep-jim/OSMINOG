@@ -5,7 +5,7 @@ const READ_PAGE=`(()=>({url:location.href,title:document.title,text:(document.bo
 function clipped(value,n=600){return String(value??'').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'').slice(0,n);}
 class AgentHost{
  constructor({app,win,browser,ipcMain,trusted,dialog,powerMonitor,utilityProcess,isPrivate=()=>false,test=false,GatewayClass=Gateway,TerminalClass=TerminalService}){
-  Object.assign(this,{app,win,browser,ipcMain,trusted,dialog,powerMonitor,utilityProcess,isPrivate,test,GatewayClass});this.terminalService=new TerminalClass();this.enabled=false;this.running=false;this.disposed=false;this.desk='';this.folder='';this.logs=[];this.pending=null;this.generation=0;this.watch=new Map();this.attached=new Set();this.stopping=Promise.resolve();this.busy=false;
+  Object.assign(this,{app,win,browser,ipcMain,trusted,dialog,powerMonitor,utilityProcess,isPrivate,test,GatewayClass});this.terminalService=new TerminalClass();this.enabled=false;this.autonomous=false;this.running=false;this.disposed=false;this.desk='';this.folder='';this.logs=[];this.pending=null;this.generation=0;this.watch=new Map();this.attached=new Set();this.stopping=Promise.resolve();this.busy=false;
   this.terminalService.on('data',data=>{if(!this.disposed&&this.enabled)this.send('mouse:terminal-data',String(data).slice(-64000));});
   this.terminalService.on('exit',()=>{this.log('Терминал завершён');});
   if(ipcMain)ipcMain.handle('mouse:agent',(event,action,args={})=>{trusted(event);return this.handle(action,args);});
@@ -20,17 +20,18 @@ class AgentHost{
  requireMode(){if(this.disposed||this.isPrivate()||this.browser.disposed||this.mode()!=='agents')throw Error('Выберите режим «Агенты» в обычном рабочем столе');}
  requireSession(){if(!this.valid())throw Error('Агент остановлен или рабочий стол изменён');}
  send(channel,value){if(!this.win?.isDestroyed?.()&&!this.win?.webContents?.isDestroyed?.())this.win?.webContents?.send?.(channel,value);}
- state(){const privateMode=this.isPrivate();return{enabled:this.enabled&&!privateMode,running:this.running&&!privateMode,connected:privateMode?0:(this.gateway?.clients?.size||0),desk:privateMode?'':this.desk,port:privateMode?0:(this.gateway?.port||0),connectionUrl:privateMode?'':(this.gateway?.url||''),folder:privateMode?'':this.folder,terminal:!privateMode&&!!this.terminalService.proc,pending:!privateMode&&this.pending?{id:this.pending.id,type:this.pending.type,summary:this.pending.summary}:null,logs:privateMode?[]:this.logs.map(x=>({...x}))};}
+ state(){const privateMode=this.isPrivate();return{enabled:this.enabled&&!privateMode,autonomous:this.enabled&&this.autonomous&&!privateMode,running:this.running&&!privateMode,connected:privateMode?0:(this.gateway?.clients?.size||0),desk:privateMode?'':this.desk,port:privateMode?0:(this.gateway?.port||0),connectionUrl:privateMode?'':(this.gateway?.url||''),folder:privateMode?'':this.folder,terminal:!privateMode&&!!this.terminalService.proc,pending:!privateMode&&this.pending?{id:this.pending.id,type:this.pending.type,summary:this.pending.summary}:null,logs:privateMode?[]:this.logs.map(x=>({...x}))};}
  emit(){this.send('mouse:agent-state',this.state());}
  log(text){this.logs.push({time:Date.now(),text:clipped(text,1000)});if(this.logs.length>100)this.logs.shift();this.emit();}
- async enable(port=9222){
+ async enable(options=9222){
+  if(typeof options==='number')options={port:options};if(!options||typeof options!=='object'||Array.isArray(options))throw Error('Invalid agent options');const port=options.port===undefined?9222:Number(options.port),autonomous=options.autonomous===true;
   this.requireMode();if(this.enabled)return this.state();if(this.busy)throw Error('Подключение уже запускается');this.busy=true;const generation=this.generation,desk=this.active();
   try{
-   const result=await this.dialog.showMessageBox(this.win,{type:'question',title:'Agent Mouse',message:'Разрешить управление этим рабочим столом?',detail:'Локальный коннектор сможет читать страницы выбранного стола. Клики, ввод, открытие адресов и команды терминала требуют подтверждения. Доступ отключается кнопкой «Стоп», при смене стола или блокировке экрана. Папка проекта не является изолированной средой.',buttons:['Отмена','Включить'],defaultId:0,cancelId:0,noLink:true});
-   if(result.response!==1)return this.state();this.requireMode();if(generation!==this.generation||desk!==this.active())throw Error('Рабочий стол изменён');await this.stopping;this.enabled=true;this.desk=desk;
+   const result=await this.dialog.showMessageBox(this.win,{type:'question',title:'Agent Mouse',message:autonomous?'Разрешить самостоятельные действия в этом сеансе?':'Разрешить управление этим рабочим столом?',detail:autonomous?'Агент сможет самостоятельно читать страницы этого стола, открывать адреса, кликать, вводить текст и выполнять команды в выбранной папке без отдельного подтверждения каждого действия. Команды выполняются с вашими правами; папка не является изолированной средой. «Стоп», смена стола и блокировка экрана прекращают сеанс.':'Локальный коннектор сможет читать страницы выбранного стола. Клики, ввод, открытие адресов и команды терминала требуют подтверждения. Доступ отключается кнопкой «Стоп», при смене стола или блокировке экрана. Папка проекта не является изолированной средой.',buttons:['Отмена',autonomous?'Включить автономно':'Включить'],defaultId:0,cancelId:0,noLink:true});
+   if(result.response!==1)return this.state();this.requireMode();if(generation!==this.generation||desk!==this.active())throw Error('Рабочий стол изменён');await this.stopping;this.enabled=true;this.autonomous=autonomous;this.desk=desk;
    const gateway=new this.GatewayClass({targets:()=>this.targets(),valid:()=>this.valid(),command:(r,c)=>this.command(r,c),onConnect:()=>this.log('Внешний агент подключился'),onDisconnect:c=>{void this.releasePressed(c);this.cancelPending('Соединение агента закрыто',c);this.emit();}});this.gateway=gateway;
-   try{await gateway.start(Number(port));if(generation!==this.generation||!this.valid())throw Error('Подключение остановлено');}catch(e){if(this.gateway===gateway){this.enabled=false;this.gateway=null;}await gateway.stop();throw e;}
-   this.log('Agent Mouse включён. Порт '+gateway.port);return this.state();
+   try{await gateway.start(Number(port));if(generation!==this.generation||!this.valid())throw Error('Подключение остановлено');}catch(e){if(this.gateway===gateway){this.enabled=false;this.autonomous=false;this.gateway=null;}await gateway.stop();throw e;}
+   this.log((this.autonomous?'Автономный сеанс Agent Mouse включён. Порт ':'Agent Mouse включён. Порт ')+gateway.port);return this.state();
   }finally{this.busy=false;}
  }
  target(id){
@@ -47,10 +48,15 @@ class AgentHost{
  async debugger(tab){const wc=tab.view.webContents;if(!this.attached.has(wc)){if(wc.debugger.isAttached())throw Error('У вкладки уже открыто другое подключение DevTools');wc.debugger.attach('1.3');this.attached.add(wc);}return wc.debugger;}
  async cdp(tab,method,params={}){const check=this.guard(tab);check();const debug=await this.debugger(tab);check();const result=await debug.sendCommand(method,params);check();return result;}
  approve(type,summary,{client,tab}={}){
-  this.requireSession();if(this.pending)throw Error('Уже ожидается подтверждение другого действия');const check=tab?this.guard(tab):()=>this.requireSession();const generation=this.generation;return new Promise((resolve,reject)=>{
-   const pending={id:crypto.randomUUID(),type,summary:clipped(summary,1200),client,wc:tab?.view.webContents,resolve:()=>{try{if(generation!==this.generation)throw Error('Агент остановлен');check();resolve();}catch(e){reject(e);}},reject,timer:setTimeout(()=>this.cancelPending('Время подтверждения истекло'),90000)};this.pending=pending;this.emit();
+  this.requireSession();if(this.pending)throw Error('Уже ожидается подтверждение другого действия');const check=tab?this.guard(tab):()=>this.requireSession(),visibleInput=tab&&['click','type','scroll'].includes(type),bounds=visibleInput?tab.view.getBounds?.():null,generation=this.generation;
+  const validate=()=>{if(generation!==this.generation)throw Error('Агент остановлен');check();if(visibleInput){const now=tab.view.getBounds?.();if(!tab.visible||bounds&&now&&(bounds.width!==now.width||bounds.height!==now.height))throw Error('Видимая область вкладки изменилась; запросите действие снова');}};
+  // Explicit native consent authorizes this session only. The same scope checks still apply.
+  if(this.autonomous){validate();return Promise.resolve();}
+  return new Promise((resolve,reject)=>{
+   const pending={id:crypto.randomUUID(),type,summary:clipped(summary,1200),client,wc:tab?.view.webContents,resolve:()=>{try{validate();resolve();}catch(e){reject(e);}},reject,timer:setTimeout(()=>this.cancelPending('Время подтверждения истекло'),90000)};this.pending=pending;this.emit();
   });
  }
+
  cancelPending(message,client,wc){const p=this.pending;if(!p||(client&&p.client!==client)||(wc&&p.wc!==wc))return;this.pending=null;clearTimeout(p.timer);p.reject(Error(message));this.emit();}
  decision(id,allow){const p=this.pending;if(!p||p.id!==id)throw Error('Подтверждение уже не актуально');this.pending=null;clearTimeout(p.timer);if(allow===true){p.resolve();this.log('Действие разрешено пользователем');}else{p.reject(Error('Действие отклонено пользователем'));this.log('Действие отклонено');}return this.state();}
  async command(request,client){
@@ -92,7 +98,7 @@ class AgentHost{
  async chooseFolder(){this.requireMode();if(this.running||this.terminalService.pending)throw Error('Сначала остановите задачу');const generation=this.generation,result=await this.dialog.showOpenDialog(this.win,{title:'Папка проекта Agent Mouse',properties:['openDirectory','createDirectory']});if(result.canceled)return this.state();this.requireMode();if(generation!==this.generation)throw Error('Выбор папки отменён');const dir=result.filePaths?.[0];if(typeof dir!=='string'||!path.isAbsolute(dir)||!fs.statSync(dir).isDirectory())throw Error('Нужна папка проекта');this.terminalService.stop();this.folder=dir;this.log('Выбрана папка проекта: '+dir);return this.state();}
  async task(args){
   this.requireSession();if(this.running)throw Error('Задача уже выполняется');if(!this.utilityProcess)throw Error('Внешний процесс недоступен');const endpoint=P.endpoint(P.text(args.endpoint,2048)),model=P.text(args.model,200),task=P.text(args.task,12000),key=args.key?P.text(args.key,4096):'',generation=this.generation;
-  const consent=await this.dialog.showMessageBox(this.win,{type:'question',title:'Запустить Agent Mouse',message:'Передать задачу и результаты действий модели '+model+'?',detail:'Адрес: '+endpoint.url+'\nМодель получит текст задачи, содержимое прочитанных вкладок и вывод терминала'+(args.vision===true?', а по запросу — снимки видимых страниц':'')+'. Ключ хранится только в памяти до остановки. Изменения требуют подтверждения.',buttons:['Отмена','Запустить'],defaultId:0,cancelId:0,noLink:true});
+  const consent=await this.dialog.showMessageBox(this.win,{type:'question',title:'Запустить Agent Mouse',message:'Передать задачу и результаты действий модели '+model+'?',detail:'Адрес: '+endpoint.url+'\nМодель получит текст задачи, содержимое прочитанных вкладок и вывод терминала'+(args.vision===true?', а по запросу — снимки видимых страниц':'')+'. Ключ хранится только в памяти до остановки. '+(this.autonomous?'В этом автономном сеансе действия выполняются самостоятельно; «Стоп» прекращает доступ.':'Изменения требуют подтверждения.'),buttons:['Отмена','Запустить'],defaultId:0,cancelId:0,noLink:true});
   if(consent.response!==1)return this.state();this.requireSession();if(generation!==this.generation||this.running)throw Error('Задача отменена');this.running=true;
   let child,payload={cdp:this.gateway.url,endpoint:endpoint.url,model,key,task,vision:args.vision===true};const clear=()=>{if(payload)payload.key='';payload=null;};
   try{
@@ -111,7 +117,7 @@ class AgentHost{
  async handle(action,args={}){
   if(!args||typeof args!=='object'||Array.isArray(args)||JSON.stringify(args).length>50000)throw Error('Invalid agent request');
   if(action==='stop'){await this.stop();return this.state();}if(action==='state')return this.state();this.requireMode();
-  if(action==='enable')return this.enable(args.port===undefined?9222:args.port);if(action==='folder')return this.chooseFolder();if(action==='task')return this.task(args);if(action==='approve')return this.decision(args.id,args.allow);
+  if(action==='enable')return this.enable({port:args.port,autonomous:args.autonomous===true});if(action==='folder')return this.chooseFolder();if(action==='task')return this.task(args);if(action==='approve')return this.decision(args.id,args.allow);
   if(action==='localhost'){const url=P.preview(args.port),desk=this.active(),result=await this.browser.command('open',{url,lane:'main'});this.requireMode();if(desk===this.active())this.send('mouse:agent-open',{id:result.id,desk});this.log('Открыт предпросмотр '+url);return{...this.state(),openedId:result.id};}
   this.requireSession();if(action==='terminal-start'){if(!this.folder)throw Error('Выберите папку проекта');this.terminalService.start(this.folder);this.emit();return this.state();}
   if(action==='terminal-input'){this.terminalService.write(args.data);return true;}if(action==='terminal-resize'){this.terminalService.resize(args.cols,args.rows);return true;}
@@ -126,7 +132,7 @@ class AgentHost{
   return new Promise(resolve=>{const timer=setTimeout(resolve,1500);timer.unref?.();worker.once('exit',()=>{clearTimeout(timer);resolve();});if(worker.pid===undefined)worker.once('spawn',()=>{try{worker.kill();}catch{}});try{worker.kill();}catch{clearTimeout(timer);resolve();}});
  }
  stop(reason='Остановлено пользователем'){
-  const hadWork=this.enabled||this.running||!!this.gateway||!!this.terminalService.proc;this.enabled=false;this.running=false;++this.generation;this.cancelPending(reason);const worker=this.worker;this.worker=null;const workerExit=this.terminateWorker(worker);this.terminalService.stop();const gateway=this.gateway;this.gateway=null;
+  const hadWork=this.enabled||this.running||!!this.gateway||!!this.terminalService.proc;this.enabled=false;this.autonomous=false;this.running=false;++this.generation;this.cancelPending(reason);const worker=this.worker;this.worker=null;const workerExit=this.terminateWorker(worker);this.terminalService.stop();const gateway=this.gateway;this.gateway=null;
   const releases=[...(gateway?.clients||[])].map(c=>this.releasePressed(c));
   const watchers=[...this.watch],attached=new Set(this.attached);this.watch.clear();this.attached.clear();
   for(const [wc,record]of watchers){if(!wc.isDestroyed()){wc.removeListener('did-start-navigation',record.navigate);wc.removeListener('destroyed',record.destroy);}}

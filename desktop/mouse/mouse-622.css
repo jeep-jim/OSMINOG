@@ -58,3 +58,7 @@
 @keyframes mouse-agent-walk{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-3px,-2px) rotate(-4deg)}75%{transform:translate(3px,-2px) rotate(4deg)}}
 @media(max-width:900px){.desk-content{padding-top:21px}.desk-description{display:none}.desktop-list{gap:6px}.desktop-card{padding:5px}.desktop-card[aria-current=true]{padding:4px}.desk-mode{padding:7px;gap:5px}.desk-mode>strong{font-size:9px}.desk-mode-list{gap:6px}.desk-preview{height:63px}.desk-preview-large{height:150px}.desk-cell-label{font-size:6px;padding:0 1px;gap:1px}.desk-name{font-size:10px}.desk-help{font-size:9px;margin-top:9px}.desk-modes-inner>small{font-size:9px}.desk-peek-heading>span{display:none}}
 @media(prefers-reduced-motion:reduce){#desktop-tray,#desk-modes,#desk-modes-button>span,.agent-presence img,.desk-agent-badge{animation:none!important;transition:none!important}}
+
+.agent-autonomy{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.4}.agent-autonomy input{flex:none;margin-top:2px}.agent-autonomy small{display:block;margin-top:3px;font-size:10px;color:var(--muted)}
+
+.desk-empty .desk-cell-label,.desk-empty .desk-page-title{visibility:hidden}
