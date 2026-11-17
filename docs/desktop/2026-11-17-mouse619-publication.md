@@ -1,6 +1,6 @@
 # Mouse Browser 6.0.19 — объединённый выпуск опубликован
 
-17 ноября 2026. Выпуск448134151 опубликован2026-11-17T04:30:50Z, draft=false, prerelease=true. Канал `channels/mouse/macos-arm64.json` прочитан после выпуска и указывает6.0.19; URL/размер/SHA совпадают с проверенным DMG. На момент этой записи повторная проверка установленного DMG, публикация пакетов и продвижение канала завершились SUCCESS; последний шаг проверки полного скачивания настоящим обновлятором6.0.18 ещё выполняется. Не выдавать весь release run за завершённый до его итогового статуса.
+17 ноября 2026. Выпуск448134151 опубликован2026-11-17T04:30:50Z, draft=false, prerelease=true. Канал `channels/mouse/macos-arm64.json` прочитан после выпуска и указывает6.0.19; URL/размер/SHA совпадают с проверенным DMG. Весь release run44017114230/job133817572585 завершился SUCCESS, включая повторную проверку установленного DMG и полное скачивание настоящим обновлятором6.0.18. Предыдущая запись о выполняющемся последнем шаге более не актуальна.
 
 Выпуск: https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.19-arm64
 Установщик: https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.19-arm64/Mouse-Browser-6.0.19-mac-arm64.dmg
@@ -44,10 +44,14 @@ ZIP `Mouse-Browser-6.0.19-mac-arm64.zip`:128555708байт, SHA256 `3f55e6387bb6
 
 Подтверждены `MOUSE_619_NATIVE_CHARACTER_VIEWER_VISIBLE_PASS`, обычная/приватная матрицы фокуса, `MOUSE_PROFILE_COOKIE_RESTART_PASS`, `MOUSE_619_REAL_618_TO_619_REPLACE_RELAUNCH_PROFILE_PASS`. Вставка символа в матрице моделируется insertText, отдельно проверяется настоящее видимое системное окно. Это не ручной выбор конкретного эмодзи. Подтверждение очистки в тесте управляется ответом native dialog; реальные UI-клики, snapshot и результат удаления проверяются. Fixtures отдельные, личные файлы/профиль владельца не используются.
 
-## Публикационный этап
+## Завершённая публикация и обратная проверка
 
 ReleasePR38 mergedf33473eeab65ba415a15244cfaa90f5016fbc7d0, новыйpin56af2d2ad6bb10b2f14e7565d0becfede8a74b18. Контракт издателя44016990922 и registry44016990902/44016990933 SUCCESS.
 
-Release run https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44017114230 , job133817572585, повторил проверку установленного DMG, подписи/сравнение app.asar с ZIP, все новые и прежние native/private/profile/618→619 проверки; эти шаги SUCCESS. Затем опубликованы те же проверенные пакеты без пересборки и прочитан новый канал: blob `a4ac2afab307bd1ba850ed8c19fddd3dbdd3346a`. Последнее анонимное полное скачивание обновлятором618 на момент записи ещё выполняется.
+Release run https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44017114230 , job133817572585, полностью SUCCESS. Повторены установленный DMG, подписи и совпадение app.asar с ZIP, все новые и прежние native/private/profile/618→619 проверки. Опубликованы те же проверенные пакеты без пересборки; канал прочитан: blob `a4ac2afab307bd1ba850ed8c19fddd3dbdd3346a`.
+
+Настоящий модуль обновления опубликованной6.0.18 анонимно обнаружил6.0.19 через существующий статический канал без GitHub API, полностью скачал128553638байт и проверил SHA256. `channel-verification.json`: anonymousDiscovery=true, verifiedDownload=true, oldValidatedBadgeState=true, currentVersionCheck=true. Проверка самой6.0.19 возвращает current, без ложного предложения обновиться на себя.
+
+Release verification artifact14299587713 независимо скачан, SHA256 `20ca303fdfa2674909c1f8de79a9a9f6389d82ab77b45f63bef4a405b53bcce5` совпал. Прочитаны RELEASE_RESULT.json, CHANNEL_RESULT.json, channel-verification.json и журналы повторных нативных проверок. Все новые library/tab/emoji, private, cookie-restart и618→619 маркеры повторно подтверждены. Публичный выпуск448134151 и канал проверены прямым чтением после публикации.
 
 Обновление в обычном режиме: «Обновить» → «Скачать обновление» → «Установить и перезапустить». Профиль `~/Library/Application Support/Trader OS` не удалять. Предварительная macOS Apple Silicon сборка с ad-hoc подписью, без Developer ID/нотариализации. Проверки runner не являются проверкой личного Mac и не гарантируют отсутствие любых будущих сбоев. АвтоЦена, DNS, хостинг, секреты и выпуски других платформ не менялись.
