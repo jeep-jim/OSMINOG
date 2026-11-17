@@ -24,3 +24,13 @@ test('desktop slide preserves geometry and always restores input, including fail
 test('owner final top plus and centered bottom burrow keep distinct actions',()=>{
  const css=fs.readFileSync('mouse/mouse-621.css','utf8'),ui=fs.readFileSync('mouse/desktops.js','utf8');assert.match(css,/#statusbar #desktops-button\{top:auto;bottom:0;width:36px;height:23px;min-width:36px;min-height:23px/);assert.match(css,/#statusbar\{position:relative;z-index:8;overflow:visible\}/);assert.match(css,/\.toolbar>#new-tab\{[^}]*width:28px;height:28px/);assert.match(css,/\.toolbar>#new-tab::before\{display:none!important\}/);assert.match(ui,/button.onclick=open/);assert.match(fs.readFileSync('mouse/browser.js','utf8'),/name==='new-tab'\)return openPage\('mouse:\/\/start'\)/);
 });
+test('250ms native acknowledgements still display intermediate desktop positions in both directions',async()=>{
+ const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8');
+ for(const direction of [-1,1]){
+  let time=0,side=0;const sides=[[],[]],ctx={module:{exports:{}},performance:{now:()=>time},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>setTimeout(()=>{time+=16;fn(time)},0),cancelAnimationFrame:clearTimeout,setTimeout,clearTimeout};vm.runInNewContext(code,ctx);
+  const w={getBoundingClientRect:()=>({width:873}),style:{transform:''},dataset:{},inert:false},model={};
+  await ctx.module.exports.run({workspace:w,model,direction,layout:async()=>{if(w.style.transform)sides[side].push(parseInt(w.style.transform.slice(11),10));time+=250;},change:async()=>{side=1;}});
+  for(const positions of sides){assert.ok(new Set(positions).size>=5,JSON.stringify(sides));assert.ok(positions.every(Number.isInteger));}
+  assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
+ }
+});
