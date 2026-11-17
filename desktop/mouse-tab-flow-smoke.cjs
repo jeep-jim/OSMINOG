@@ -33,7 +33,7 @@ module.exports=async({win,browser})=>{
   }
   for(const t of browser.state().tabs)if(!before.has(t.id))await browser.command('close',{id:t.id});
   for(const theme of ['light','dark']){
-   await js(`MouseTest.setTheme('${theme}');MouseTest.renderTabs()`);await sleep(200);
+   await js(`MouseTest.setTheme('${theme}');MouseTest.renderTree()`);await sleep(200);
    const ids=await js('[...document.querySelectorAll(".tab-item")].map(e=>e.dataset.tab)');if(ids.length)await activate(ids[Math.floor(ids.length/2)]);
    console.log('MOUSE_619_TAB_FLOW_THEME',theme,JSON.stringify(await check()));
    const clip=await js('(()=>{const r=document.querySelector(".toolbar").getBoundingClientRect();return{x:0,y:0,width:Math.floor(innerWidth),height:Math.ceil(r.bottom+8)}})()');
