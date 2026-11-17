@@ -6,7 +6,10 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
  const library=await new Library(store).init(),live=new Map(),retryURLs=new Set();
  const icons=require('./mouse-library-icons.cjs').createIcons({app,browser,library,nativeImage:require('electron').nativeImage});
  let timer;const notify=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!win.isDestroyed())win.webContents.send('mouse:library-changed')},120);timer.unref?.()};
- const attach=t=>{const wc=t.view.webContents;const visit=()=>{if(t.lane==='side'||t.provider)return;library.visit(wc.getURL(),wc.getTitle());notify()};wc.on('did-navigate',visit);wc.on('did-navigate-in-page',(_e,_u,main)=>{if(main)visit()});wc.on('page-title-updated',(_e,title)=>library.title(wc.getURL(),title));wc.on('page-favicon-updated',(_e,values)=>{if(t.lane==='side'||t.provider)return;library.favicon(wc.getURL(),values?.[0]);notify()});};
+ const attach=t=>{const wc=t.view.webContents;if(t.lane==='side'||t.provider)return;
+  require('./mouse-history.cjs').attachHistory(wc,library,()=>{library.favicon(wc.getURL(),t.favicon);notify()});
+  wc.on('page-favicon-updated',(_e,values)=>{library.favicon(wc.getURL(),values?.[0]);notify()});
+ };
  for(const t of browser.tabs.values())attach(t);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);attach(t);return t};
  const command=browser.command.bind(browser);browser.command=async(action,args={})=>{
@@ -41,6 +44,7 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
  }
  ipcMain.handle('mouse:library',async(e,action,args={})=>{
   trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>(action==='remove-selected'?512000:16000))throw Error('Invalid library request');
+  if(action==='preview')return icons.preview(args.id);
   if(action==='suggest')return library.suggestions(args.query);
   if(action==='list')return library.list(args.kind,args.query,args.offset);
   if(action==='icon')return args.kind==='downloads'?icons.download(args.id):icons.site(args.url);

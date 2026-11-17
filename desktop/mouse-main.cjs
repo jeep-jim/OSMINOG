@@ -11,7 +11,7 @@ fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
-let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode;
+let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'mouse/index.html')).href;
 function show(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus()}
@@ -64,6 +64,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  browser.contextScope=[];
  globalCapture=await new (require('./mouse-global-capture.cjs').GlobalCapture)({electron:require('electron'),app,mainWindow:win,store,trusted,entryDirectory:__dirname,test}).init();
  require('./mouse-shell.cjs').install({win,browser,ipcMain,trusted,send,test,captureScreen:()=>globalCapture.request()});
+ localCaptures=await require('./mouse-local-captures.cjs').install({e:require('electron'),app,win,store,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),test});
+ app.once('will-quit',()=>void localCaptures.dispose());
  libraryService=await require('./mouse-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
  startService=await require('./mouse-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
@@ -80,7 +82,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');return updates.run(action)});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,onPrivacyChange:()=>localCaptures.privacyChanged()});
  ipcMain.handle('mouse:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(()=>{if(!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через ⌘Q и повторите.')}));return true;});
  win.webContents.on('preload-error',(_e,_p,error)=>log('PRELOAD_ERROR '+error.message));
  require('./mouse-stability.cjs').installShellRecovery({win,entry,current:()=>privateMode?.current?{browser:privateMode.current.browser,gate:privateMode.current.gate}:{browser,gate:overlayGate},isClosing:()=>exitController.isClosing(),report:log});
@@ -90,7 +92,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
- if(test&&process.argv.some(x=>/^--mouse-smoke-(write|read)$/.test(x)))await require('./mouse-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus});
- if(test&&(process.argv.includes('--mouse-private-smoke')||process.argv.includes('--mouse-private-close')))await require('./mouse-private-smoke.cjs')({app,win,browser,store,privateMode,ipcRouter});
+ if(test&&process.argv.some(x=>/^--mouse-smoke-(write|read)$/.test(x)))await require('./mouse-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates});
+ if(test&&(process.argv.includes('--mouse-private-smoke')||process.argv.includes('--mouse-private-close')))await require('./mouse-private-smoke.cjs')({app,win,browser,store,privateMode,ipcRouter,localCaptures});
  if(test&&process.argv.some(x=>x.startsWith('--mouse-close-test=')))await require('./mouse-close-smoke.cjs')({app,win,store,log});
 }).catch(error=>{log('STARTUP_FAILED '+error.stack);if(!test)dialog.showErrorBox('Mouse Browser — ошибка запуска','Локальные данные не удалены.\n'+error.message+'\nЖурнал: '+logFile);app.exit(1)});

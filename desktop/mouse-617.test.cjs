@@ -12,7 +12,7 @@ test('small head is the exact 19 by 17, 128-cell owner artwork in both themes',(
  }
  assert.match(read('mouse/index.html'),/class="brand"[^>]*><img src="mouse-head.svg"/);
  assert.match(read('mouse/index.html'),/rel="icon"[^>]*href="mouse-head.svg"/);
- assert.match(read('mouse/browser.js'),/im.src=m.privateMode&&m.theme==='dark'\?'mouse-head-dark.svg':'mouse-head.svg'/);
+ assert.match(read('mouse/browser.js'),/im.src=m.privateMode\?privateArtwork\(\):'mouse-head.svg'/);
 });
 test('address editing keeps actual controls reachable and clears stale edit styling',()=>{
  const css=read('mouse/mouse-613.css'),ui=read('mouse/mouse-613-ui.js');
@@ -26,10 +26,10 @@ test('footer is preserved, only successful AI-open status text is suppressed',()
  for(const id of ['statusbar','footer-left','footer-right','version-button','history-button','downloads-button'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
  assert.match(html,/<strong>Mouse Browser<\/strong>/);assert.doesNotMatch(app,/ИИ открыт как отдельная веб-страница/);assert.match(app,/setStatus\(/);
 });
-test('internal corner radius is ten in shell and native compositor, not external corners',()=>{
+test('internal corner radius is twelve in shell and native compositor, not external corners',()=>{
  const {internalCorners}=require('./mouse/mouse-616-ui.js'),stage={top:40,bottom:900};
- assert.deepEqual(internalCorners({top:40,bottom:460},stage),{top:0,bottom:10});assert.deepEqual(internalCorners({top:466,bottom:900},stage),{top:10,bottom:0});assert.deepEqual(internalCorners(stage,stage),{top:0,bottom:0});
- assert.match(read('mouse-native-menu.mm'),/CGFloat radius=10,y=NSMaxY\(p\)-radius/);assert.match(read('mouse-native-menu.mm'),/hitTest:\(NSPoint\)point\{return nil;\}/);
+ assert.deepEqual(internalCorners({top:40,bottom:460},stage),{top:0,bottom:12});assert.deepEqual(internalCorners({top:466,bottom:900},stage),{top:12,bottom:0});assert.deepEqual(internalCorners(stage,stage),{top:0,bottom:0});
+ assert.match(read('mouse-native-menu.mm'),/CGFloat radius=12,y=NSMaxY\(p\)-radius/);assert.match(read('mouse-native-menu.mm'),/hitTest:\(NSPoint\)point\{return nil;\}/);
 });
 test('Mouse rounds shared viewport endpoints to prevent a one-pixel edge strip',()=>{
  class View{constructor(){this.children=[]}addChildView(v){this.children.push(v)}removeChildView(v){this.children=this.children.filter(x=>x!==v)}setBounds(r){this.bounds=r}setVisible(b){this.visible=b}}
@@ -39,7 +39,7 @@ test('Mouse rounds shared viewport endpoints to prevent a one-pixel edge strip',
  const a={id:'a',project:'p',lane:'main',view:new View()},b={id:'b',project:'p',lane:'main',view:new View()};
  const host={mouseRoundedPanes:true,mouseCornerMask:()=>{},win,disposed:false,project:'p',tabs:new Map([['a',a],['b',b]]),providers:new Map()};
  for(const x of [.25,.5,.75])for(const width of [333.25,333.5,333.75]){
-  fn.call(host,[{id:'a',x,y:80.5,width,height:300.5,roundBottom:10},{id:'b',x:x+width,y:80.5,width:200.5,height:300.5}]);
+  fn.call(host,[{id:'a',x,y:80.5,width,height:300.5,roundBottom:12},{id:'b',x:x+width,y:80.5,width:200.5,height:300.5}]);
   assert.equal(a.view.bounds.x+a.view.bounds.width,b.view.bounds.x);assert.equal(a.view.bounds.y+a.view.bounds.height,Math.round(80.5+300.5));
  }
 });

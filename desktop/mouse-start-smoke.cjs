@@ -34,7 +34,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   await until(()=>libraryService.library.data.bookmarks.some(x=>x.url===url),'bookmark stored');await until(()=>js('document.querySelector(".favorites-grid").textContent.includes("Visual bookmark fixture")'),'real tile shown');
   const row=libraryService.library.data.bookmarks.find(x=>x.url===url);await click('[data-bookmark="'+row.id+'"] .favorite-open');await until(()=>browser.tabs.get(internal)?.view.webContents.getURL()===url,'bookmark navigates in same pane');assert.equal(startService.tabs.has(internal),false);
   await click('#new-tab');await until(()=>js('!!document.querySelector(".home-page")'),'second visual tab');await js('MouseTest.home.refresh()');
-  assert.ok(await js('document.querySelector(".recent-grid").textContent.includes("Start target fixture")'),'recent cards are real history');
+  await until(()=>libraryService.library.list('history',url).items.some(x=>x.url===url&&x.title==='Start target fixture'),'completed meaningful visit persisted');
+  await until(()=>js('document.querySelector(".recent-grid").textContent.includes("Start target fixture")'),'recent cards update from real delayed history');
   await fs.writeFile('mouse-604-start-page.png',(await win.capturePage()).toPNG());
   await click('.home-customize');await until(()=>js('document.querySelector("#start-settings-dialog").open'),'start customization');noGuestAboveModal();await click('[data-background="sea"].background-preset');await until(()=>startService.getPreferences().background==='sea','preset stored');
   await click('#start-settings-dialog .start-close');await until(()=>!overlayGate.blocked,'start settings close');

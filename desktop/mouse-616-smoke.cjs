@@ -29,7 +29,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
    const ui=await js(`(()=>{const order=[...document.querySelector('.ai-controls').children].map(b=>b.dataset.action||b.className);const style=s=>{const c=getComputedStyle(document.querySelector(s));return[c.borderRadius,c.backgroundColor,c.boxShadow,c.borderTopWidth,c.height]};return{order,extra:document.querySelectorAll('[data-pane-action=bookmark],[data-pane-action=split-x],[data-pane-action=split-y]').length,buttons:[style('#history-button'),style('#downloads-button'),style('#footer-library [data-action=bookmarks]')],common:style('#statusbar [data-action=settings]'),wallet:!!document.querySelector('[data-action=wallet]'),corners:[...document.querySelectorAll('.pane')].map(p=>[p.style.getPropertyValue('--pane-round-top'),p.style.getPropertyValue('--pane-round-bottom')])}})()`);
    assert.deepEqual(ui.order.slice(0,4),['ai-back','ai-forward','ai-reload','ai-provider']);assert.equal(ui.extra,0);assert.equal(ui.wallet,false);
    for(const b of ui.buttons)assert.deepEqual(b,ui.common,'one shared footer button style');
-   assert.deepEqual(ui.corners,[['0px','10px'],['10px','0px'],['0px','10px'],['10px','0px']]);
+   assert.deepEqual(ui.corners,[['0px','12px'],['12px','0px'],['0px','12px'],['12px','0px']]);
    const firstSelector='.pane [data-pane-action=reload]';const t=browser.get(ids[0]),wc=t.view.webContents.id,oldCount=counts['/pane0'];const releaseMain=hold('/pane0');
    await click(firstSelector);await until(()=>js('document.querySelector(".pane [data-pane-action=reload]").dataset.loading==="true"'),'reload shows activity');
    await until(()=>t.loading&&counts['/pane0']>oldCount,'reload reached controlled response');
@@ -44,9 +44,14 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
     await sleep(100);const frame=await globalCapture.acquire(display);shot=nativeImage.createFromDataURL(frame.base);const size=shot.getSize(),bytes=shot.toBitmap(),c=win.getContentBounds(),sx=size.width/display.size.width,sy=size.height/display.size.height;
     const rgb=(id,x,y)=>{const p=browser.get(id).bounds,ix=Math.round((c.x+p.x+x-display.bounds.x)*sx),iy=Math.round((c.y+p.y+y-display.bounds.y)*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height,'sample must be inside actual display');const off=(iy*size.width+ix)*4;return[bytes[off+2],bytes[off+1],bytes[off]]};
     const p=t.bounds,lower=browser.get(ids[1]).bounds,side=browser.get(ai).bounds;
-    const samples={cutExact10:rgb(ids[0],3,p.height-2),inside:rgb(ids[0],20,p.height-2),cutLeft:rgb(ids[0],1,p.height-1),cutRight:rgb(ids[0],p.width-2,p.height-1),pageTop:rgb(ids[0],1,40),externalBottom:rgb(ids[1],1,lower.height-2),aiBottom:rgb(ai,1,side.height-2)};
+    const samples={cutExact12:rgb(ids[0],5,p.height-2),inside:rgb(ids[0],20,p.height-2),cutLeft:rgb(ids[0],1,p.height-1),cutRight:rgb(ids[0],p.width-2,p.height-1),pageTop:rgb(ids[0],1,40),externalBottom:rgb(ids[1],1,lower.height-2),aiBottom:rgb(ai,1,side.height-2)};
     const pink=a=>a.every((v,i)=>Math.abs(v-[221,60,146][i])<20);
-    if(pink(samples.inside)&&!pink(samples.cutExact10)&&!pink(samples.cutLeft)&&!pink(samples.cutRight)&&pink(samples.pageTop)&&pink(samples.externalBottom)&&pink(samples.aiBottom)){console.log('MOUSE_616_REAL_CORNER_PIXELS',theme,JSON.stringify(samples));break;}
+    const outside=[];for(let yy=0;yy<11;yy++)for(let xx=0;xx<11;xx++){
+     // Stay clear of antialiasing; samples are pixel centers within a 12-DIP arc.
+     if(Math.hypot(12-(xx+.5),12-(yy+.5))>13){outside.push(rgb(ids[0],xx,p.height-1-yy),rgb(ids[0],p.width-1-xx,p.height-1-yy));}
+    }
+    const noSquareArtifacts=outside.every(a=>!pink(a));
+    if(noSquareArtifacts&&pink(samples.inside)&&!pink(samples.cutExact12)&&!pink(samples.cutLeft)&&!pink(samples.cutRight)&&pink(samples.pageTop)&&pink(samples.externalBottom)&&pink(samples.aiBottom)){console.log('MOUSE_616_REAL_CORNER_PIXELS',theme,JSON.stringify(samples));break;}
     if(n===19){await fs.writeFile('mouse-616-corner-failure.png',shot.toPNG());throw Error('Native corner chrome mismatch: '+JSON.stringify({samples,window:win.getBounds(),content:c,display:display.bounds,bounds:p}));}
    }
    await fs.writeFile('mouse-616-native-corners-'+theme+'.png',shot.toPNG());
