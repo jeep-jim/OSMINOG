@@ -1,0 +1,37 @@
+name: Mouse621 isolated native interaction diagnostic
+on:
+  push:
+    branches: [feat/mouse621-desktops-toasts-drag]
+    paths: ['tools/mouse621-interaction-probe.cjs','.github/workflows/mouse621-interaction-probe.yml','desktop/mouse/desktops.js','desktop/browser.cjs']
+permissions:
+  contents: read
+jobs:
+  native-probe:
+    runs-on: macos-15
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm ci
+      - run: npm run prepare:runtime && node mouse-native-build.cjs && node mouse-icon.cjs
+      - name: Isolated actual native pointer hit testing
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CI=true
+          export MOUSE_TEST_PROFILE="$RUNNER_TEMP/mouse621-native-probe"
+          mkdir -p "$MOUSE_TEST_PROFILE"
+          ./node_modules/.bin/electron ../tools/mouse621-interaction-probe.cjs --mouse-smoke-write 2>&1 | tee mouse621-probe.log
+          grep -q MOUSE621_ISOLATED_NATIVE_TRAY_CLICK_PASS mouse621-probe.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse621-isolated-native-interaction
+          path: |
+            desktop/mouse621-probe.log
+            desktop/mouse621-probe-*.png
+          retention-days: 2
