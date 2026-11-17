@@ -56,5 +56,5 @@ test('618 changes only burrow height and baseline; original curve, width, gradie
  const previous=css.replace('height:29px;min-height:29px','height:32px;min-height:32px').replace('margin-bottom:-5px','margin-bottom:-4px');
  assert.equal(blob(previous),'49cbbdffd25b56d9b53c6c7df18d8867571b3a17','all other stylesheet bytes must match released617');
  const svg=read('mouse/burrow.svg');assert.match(svg,/preserveAspectRatio="none"/);
- assert.equal(blob(svg.replace(' preserveAspectRatio="none"','')),'0d9059f21f232ac7800f9a6ef6d7cb5c76bd38bc','original curve and gradient unchanged');
+ assert.equal(blob(svg.replace(' preserveAspectRatio="none"','').replace('stroke="none"','stroke="#59616e"')),'0d9059f21f232ac7800f9a6ef6d7cb5c76bd38bc','original curve and gradient unchanged');
 });

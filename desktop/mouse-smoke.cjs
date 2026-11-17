@@ -65,6 +65,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-615-smoke.cjs')({win,browser});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-616-smoke.cjs')({app,win,browser,store,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-617-smoke.cjs')({win,browser});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-tab-flow-smoke.cjs')({win,browser});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-emoji-smoke.cjs')({app,win,browser,nativePanel:true});
   console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('mouse-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
