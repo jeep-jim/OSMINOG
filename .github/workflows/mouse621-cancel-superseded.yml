@@ -1,4 +1,4 @@
-name: Recover queued Mouse621 native allocation
+name: Recover queued Mouse621 macOS compatibility allocation
 on:
   push:
     branches: [diagnostic/mouse621-cancel-superseded]
@@ -14,18 +14,18 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Retry only an unallocated exact native candidate, never an executing test
+      - name: Retry only an unallocated exact compatibility job, never an executing test
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import json,subprocess,time,datetime
-          repo='jeep-jim/OSMINOG';run=44081845571;job=134034136368;head='ecf39b1f4d9de5f1e3eb85fb8f2d86c52bab6848'
+          repo='jeep-jim/OSMINOG';run=44081845888;job=134034137740;head='ecf39b1f4d9de5f1e3eb85fb8f2d86c52bab6848'
           def get(path):return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/'+path],text=True))
-          r=get(f'actions/runs/{run}');assert r['head_sha']==head and r['workflow_id']==419668574
+          r=get(f'actions/runs/{run}');assert r['head_sha']==head and r['workflow_id']==417071662
           j=get(f'actions/jobs/{job}');assert j['run_id']==run and j['head_sha']==head
           if r['status']!='queued' or j['status']!='queued' or j.get('steps'):
-            print('Native job has started or completed; no changes.');raise SystemExit(0)
+            print('Compatibility job has started or completed; no changes.');raise SystemExit(0)
           created=datetime.datetime.fromisoformat(r['created_at'].replace('Z','+00:00'))
           assert (datetime.datetime.now(datetime.timezone.utc)-created).total_seconds()>300
           subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{run}/cancel'],check=True)
@@ -34,6 +34,6 @@ jobs:
             time.sleep(1)
           r=get(f'actions/runs/{run}');assert r['conclusion']=='cancelled' and r['head_sha']==head
           subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/jobs/{job}/rerun'],check=True)
-          print('MOUSE621_EXACT_UNALLOCATED_JOB_RETRIED',run,job,head)
+          print('MOUSE621_EXACT_UNALLOCATED_COMPATIBILITY_JOB_RETRIED',run,job,head)
           print('No source, test, runner label, release gate or channel change.')
           PY
