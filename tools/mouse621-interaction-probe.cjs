@@ -5,7 +5,7 @@ assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);as
 const dir=path.resolve(__dirname,'../desktop'),target=require.resolve(path.join(dir,'mouse-smoke.cjs'));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 require.cache[target]={id:target,filename:target,loaded:true,exports:async({app,win,browser})=>{
- const {screen}=require(path.join(dir,'node_modules/electron')),native=require(path.join(dir,'mouse-native-menu.node')),js=s=>win.webContents.executeJavaScript(s);let server;
+ const {screen}=require('electron'),native=require(path.join(dir,'mouse-native-menu.node')),js=s=>win.webContents.executeJavaScript(s);let server,passed=false;
  const until=async(fn,label)=>{for(let i=0;i<100;i++){if(await fn())return;await sleep(50)}throw Error('PROBE timeout '+label)};
  const traceJS=`(()=>{window.probeEvents=[];for(const type of ['pointerdown','pointerup','mousedown','mouseup','click'])document.addEventListener(type,e=>{window.probeEvents.push({type,target:e.target.tagName,id:e.target.id,desk:e.target.closest('[data-desk]')?.dataset.desk,x:e.clientX,y:e.clientY,trusted:e.isTrusted});window.probeEvents=window.probeEvents.slice(-30);},true)})()`;
  async function click(selector){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await sleep(120);const p=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`),o=win.getContentBounds();console.log('PROBE_CLICK',selector,JSON.stringify({point:p,origin:o,focus:win.isFocused(),native:native.state()}));native.testClick(Math.round(o.x+p.x),Math.round(o.y+p.y));await sleep(400);await dump(selector);}
@@ -17,8 +17,8 @@ require.cache[target]={id:target,filename:target,loaded:true,exports:async({app,
   await js('MouseTest.switchDesktop("desk-1")');await js(`MouseTest.openPage(${JSON.stringify(url+'/b')})`);await until(()=>[...browser.tabs.values()].some(t=>t.visible&&!t.loading&&t.url.endsWith('/b')),'b loaded');
   await click('#desktops-button');await until(()=>js('!document.querySelector("#desktop-tray").hidden'),'tray visible');await fs.writeFile('mouse621-probe-open.png',(await win.capturePage()).toPNG());
   await click('[data-desk="desk-3"] .desk-preview');await until(()=>js('MouseTest.model.desktopId==="desk-3"&&!MouseTest.model.switching'),'native desk click');
-  console.log('MOUSE621_ISOLATED_NATIVE_TRAY_CLICK_PASS');
+  console.log('MOUSE621_ISOLATED_NATIVE_TRAY_CLICK_PASS');passed=true;
  }catch(error){await dump('failure');await fs.writeFile('mouse621-probe-failure.png',(await win.capturePage()).toPNG());throw error;}
- finally{server?.close();setTimeout(()=>app.exit(0),200);}
+ finally{server?.close();setTimeout(()=>app.exit(passed?0:1),200);}
 }};
 require(path.join(dir,'mouse-main.cjs'));
