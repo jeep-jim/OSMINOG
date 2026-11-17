@@ -34,3 +34,5 @@ test('250ms native acknowledgements still display intermediate desktop positions
   assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
  }
 });
+
+require('./mouse-floating-overlay.test.cjs');
