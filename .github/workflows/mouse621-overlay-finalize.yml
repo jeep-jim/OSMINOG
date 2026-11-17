@@ -1,0 +1,52 @@
+name: Apply guarded Mouse621 overlay correction
+on:
+  push:
+    branches: [feat/mouse621-desktops-toasts-drag]
+    paths: ['tools/mouse621-overlay-finalize.cjs','.github/workflows/mouse621-overlay-finalize.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.repository == 'jeep-jim/OSMINOG' && github.ref == 'refs/heads/feat/mouse621-desktops-toasts-drag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Exact source patch and retained regression tests
+        run: |
+          set -euo pipefail
+          node tools/mouse621-overlay-finalize.cjs
+          git diff --check
+          node --check desktop/mouse/browser.js
+          node --check desktop/mouse/desktops.js
+          node --check desktop/mouse-621-smoke.cjs
+          (cd desktop && node --test mouse-desktops.test.cjs mouse-621.test.cjs)
+      - name: Commit source only after fast-forward check
+        run: |
+          set -euo pipefail
+          BRANCH=feat/mouse621-desktops-toasts-drag
+          test "$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- desktop/mouse/browser.js desktop/mouse-621-smoke.cjs desktop/mouse-621.test.cjs desktop/mouse-floating-overlay.test.cjs MOUSE_BROWSER_ROADMAP.md
+          git commit -m 'Bound native overlay layout and verify live desktop popover input without page reload'
+          git push origin "HEAD:refs/heads/$BRANCH"
+          git rev-parse HEAD
+      - name: Export exact reviewed source and patch
+        if: always()
+        run: |
+          git diff HEAD~1 -- desktop MOUSE_BROWSER_ROADMAP.md > mouse621-overlay-review.patch
+          git archive --format=zip -o mouse621-overlay-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse621-overlay-patched-source
+          path: |
+            mouse621-overlay-review.patch
+            mouse621-overlay-source.zip
+          retention-days: 2
