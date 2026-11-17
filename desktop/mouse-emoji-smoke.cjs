@@ -12,7 +12,7 @@ const hidePalette=`ObjC.import('AppKit');var a=$.NSWorkspace.sharedWorkspace.run
 module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
  const js=s=>win.webContents.executeJavaScript(s),before=new Set(browser.tabs.keys()),showNative=app.showEmojiPanel;
  const saved=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,theme:MouseTest.model.theme,locale:MouseTest.model.locale,aiOpen:MouseTest.model.aiOpen,aiId:MouseTest.model.aiId,aiWidth:MouseTest.model.aiWidth,aiSessions:MouseTest.model.aiSessions,aiSites:MouseTest.model.aiSites,libraryOpen:MouseTest.model.libraryOpen}))');
- let server,expected,inserted,calls=0;
+ const bounds=win.getBounds();let server,expected,inserted,calls=0;
  async function click(){
   win.focus();
   const p=await js('(()=>{const r=document.querySelector("#emoji-button").getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()');
@@ -22,6 +22,9 @@ module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
   }else for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});
  }
  try{
+  if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'exit fullscreen');await sleep(350);}
+  const area=electron.screen.getPrimaryDisplay().workArea;win.setBounds({x:area.x+8,y:area.y+8,width:Math.min(1100,area.width-16),height:Math.min(800,area.height-16)});win.show();win.focus();
+  await js('MouseTest.browsing.close();MouseTest.model.libraryOpen=false;MouseTest.applySide()');
   await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!document.querySelector("#emoji-button").disabled'),'supported button');
   assert.equal(app.isEmojiPanelSupported(),true);
   assert.equal(await js('MouseNative.emoji("unsupported").then(()=>false,()=>true)'),true);
@@ -87,7 +90,7 @@ module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
   app.showEmojiPanel=showNative;
   if(nativePanel)await execFile('/usr/bin/osascript',['-l','JavaScript','-e',hidePalette],{timeout:5000}).catch(()=>{});
   for(const id of [...browser.tabs.keys()])if(!before.has(id))await browser.command('close',{id});
-  server?.close();
+  server?.close();win.setBounds(bounds);
   await js(`delete document.documentElement.dataset.nativeEmoji;Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setLocale(${JSON.stringify(saved.locale)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.renderAISites();MouseTest.save();`);
  }
 };

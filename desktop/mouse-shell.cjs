@@ -33,6 +33,7 @@ async function exportPNG(action,args,parent){
 }
 function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reuseChrome=null}){
  let captureBusy=false;const icons=new Map();
+ require('./mouse-emoji.cjs').install({app:require('electron').app,win,browser,ipcMain,trusted});
  win.setWindowButtonVisibility(false);
  const chromeGuard=reuseChrome||require('./mouse-mac-chrome.cjs').install(win,{test});
  const chrome=chromeGuard.state;win.mouseChromeGuard=chromeGuard;
