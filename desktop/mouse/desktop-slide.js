@@ -9,14 +9,21 @@
   const previous=workspace.style.transform,wasInert=workspace.inert;
   model.desktopSliding=true;workspace.dataset.sliding='true';workspace.inert=true;
   async function animate(from,to,duration){
-   const start=performance.now();let progress=0;
-   do{
-    progress=Math.min(1,(performance.now()-start)/duration);
-    // Integer movement preserves the native snapped width of fractional panes.
+   let elapsed=0,last=performance.now();
+   while(true){
+    // A delayed native layout acknowledgement must not skip the whole slide.
+    // Cap one displayed frame at 32ms; ordinary 60/120Hz timing is unchanged.
+    const now=performance.now();elapsed+=Math.min(32,Math.max(0,now-last));last=now;
+    const progress=Math.min(1,elapsed/duration);
     workspace.style.transform='translateX('+Math.round(from+(to-from)*ease(progress))+'px)';
     await layout();
-    if(progress<1)await new Promise(resolve=>{let done=false;const finish=()=>{if(!done){done=true;resolve();}};root.requestAnimationFrame(finish);setTimeout(finish,40);});
-   }while(progress<1);
+    if(progress===1)break;
+    await new Promise(resolve=>{
+     let done=false,frame,timer;
+     const finish=()=>{if(done)return;done=true;clearTimeout(timer);root.cancelAnimationFrame?.(frame);resolve();};
+     frame=root.requestAnimationFrame(finish);timer=setTimeout(finish,40);
+    });
+   }
   }
   try{
    await animate(0,-sign*width,140);
