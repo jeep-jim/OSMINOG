@@ -13,6 +13,7 @@ class PrivateMode {
   finally{this.busy=false;}
  }
  async enter(){
+  this.onPrivacyChange?.();
   const {win,normalBrowser,normalGate,normalStore,router,trusted,test}=this;
   await win.webContents.executeJavaScript('globalThis.MouseFlush?.()');
   await normalBrowser.save();await normalBrowser.saveQueue;
@@ -81,6 +82,7 @@ class PrivateMode {
   c.store.destroy();c.handlers.clear();this.current=null;
  }
  async leave(){
+  this.onPrivacyChange?.();
   const emit=this.current.emit;await this.win.loadURL('about:blank');await this.dispose();this.router.use(null);
   this.normalBrowser.emit=emit;this.normalGate.sequence=0;this.normalGate.blocked=false;this.normalGate.desired=[];
   await this.reload();

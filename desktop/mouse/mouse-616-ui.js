@@ -1,6 +1,6 @@
  'use strict';
 (function(root){
- function internalCorners(pane,stage){return{top:pane.top>stage.top+1?10:0,bottom:pane.bottom<stage.bottom-1?10:0};}
+ function internalCorners(pane,stage){return{top:pane.top>stage.top+1?12:0,bottom:pane.bottom<stage.bottom-1?12:0};}
  function install({model,tab,doc=document,clock=()=>performance.now()}){
   const pulses=new WeakMap();let timer=0;
   const all=()=>[...doc.querySelectorAll('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"]')];

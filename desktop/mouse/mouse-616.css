@@ -2,7 +2,7 @@
 #statusbar #footer-library>button{width:23px;min-width:23px;padding:0;border:1px solid transparent;border-radius:5px;background:var(--glass);box-shadow:inset 0 1px 0 var(--glass-shine)}
 #statusbar #footer-library>button:hover{background:var(--hover)}
 #stage,#stage .branch,#stage .split{background:var(--line)}
-#stage .pane{--pane-round-top:0px;--pane-round-bottom:0px;border-radius:var(--pane-round-top) var(--pane-round-top) var(--pane-round-bottom) var(--pane-round-bottom);overflow:hidden}
+#stage .pane{--pane-round-top:0px;--pane-round-bottom:0px;border-radius:var(--pane-round-top) var(--pane-round-top) var(--pane-round-bottom) var(--pane-round-bottom);overflow:hidden;clip-path:inset(0 round var(--pane-round-top) var(--pane-round-top) var(--pane-round-bottom) var(--pane-round-bottom));background-clip:padding-box}
 #stage .pane-head button,#ai-panel>.ai-controls>button{border-radius:10px}
 #stage .pane-address input{border-radius:10px}
 .mouse-reload-glyph{display:block;pointer-events:none;transform-origin:center;line-height:1}

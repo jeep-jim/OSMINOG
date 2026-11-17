@@ -26,10 +26,10 @@ async function boundedBody(response,limit){
 async function exportPNG(action,args,parent){
   const data=pngBuffer(args.src),image=nativeImage.createFromBuffer(data);if(image.isEmpty())throw Error('Invalid PNG pixels');
   // Electron44 uses asynchronous MIME ClipboardItems, not removed writeImage().
-  if(action==='copy'){await clipboard.write([new ClipboardItem({'image/png':new Blob([new Uint8Array(data)],{type:'image/png'})})]);return{ok:true}}
+  if(action==='copy'){await clipboard.write([new ClipboardItem({'image/png':new Blob([new Uint8Array(data)],{type:'image/png'})})]);await require('./mouse-local-captures.cjs').recordExport(data);return{ok:true}}
   const result=await dialog.showSaveDialog(parent,{title:'Сохранить скриншот',defaultPath:'Mouse-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png',filters:[{name:'PNG',extensions:['png']}],properties:['showOverwriteConfirmation']});
   if(result.canceled||!result.filePath)return{canceled:true};
-  await fs.writeFile(result.filePath,data);return{ok:true};
+  await fs.writeFile(result.filePath,data);await require('./mouse-local-captures.cjs').recordExport(data);return{ok:true};
 }
 function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reuseChrome=null}){
  let captureBusy=false;const icons=new Map();

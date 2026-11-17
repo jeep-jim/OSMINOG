@@ -35,6 +35,16 @@ function createIcons({app,browser,library,nativeImage}){
   if(!row||row.state!=='completed'||!row.path||typeof app.getFileIcon!=='function')return '';
   return cached('file:'+row.id+':'+row.path,async()=>{const stat=await fs.stat(row.path).catch(()=>null);if(!stat?.isFile())return '';const icon=await app.getFileIcon(row.path,{size:'normal'});return icon.isEmpty()?'':icon.toDataURL();});
  }
- return{site,download};
+ async function preview(id){
+  const row=(library.data.downloads||[]).find(x=>x.id===id);
+  if(!row||row.state!=='completed'||!row.path||!require('./mouse-capture-archive.cjs').IMAGE.test(row.filename||row.path))return '';
+  const stat=await fs.lstat(row.path).catch(()=>null);if(!stat?.isFile()||stat.isSymbolicLink()||stat.size>24*1024*1024)return '';
+  return cached('preview:'+row.id+':'+stat.size+':'+stat.mtimeMs,async()=>{
+   const image=await nativeImage.createThumbnailFromPath(row.path,{width:480,height:320});if(image.isEmpty())return '';
+   const after=await fs.lstat(row.path).catch(()=>null);if(!after||after.size!==stat.size||after.mtimeMs!==stat.mtimeMs||after.isSymbolicLink())return '';
+   const s=image.getSize(),scale=Math.min(1,480/s.width,320/s.height);return image.resize({width:Math.max(1,Math.round(s.width*scale)),height:Math.max(1,Math.round(s.height*scale))}).toDataURL();
+  });
+ }
+ return{site,download,preview};
 }
 module.exports={createIcons,iconURL};
