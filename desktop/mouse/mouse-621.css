@@ -1,6 +1,6 @@
 /* 621: temporary feedback is never part of the bottom status bar. */
 body>#status{position:fixed;z-index:900;left:50%;bottom:42px;transform:translateX(-50%);margin:0;max-width:min(620px,80vw);padding:10px 16px;white-space:normal;overflow-wrap:anywhere;text-align:center;font-size:12px;line-height:1.45;color:var(--text);background:color-mix(in srgb,var(--panel) 90%,transparent);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0004;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none}
-#statusbar{position:relative}
+#statusbar{position:relative;z-index:8;overflow:visible}
 #statusbar #desktops-button{position:absolute;left:50%;transform:translateX(-50%);width:36px;min-width:36px;display:grid;place-items:center;z-index:2;color:var(--text)}
 #desktops-button[aria-expanded=true] svg{transform:rotate(180deg)}
 .desktop-total-badge,.desk-badge{border-radius:999px;background:#b92942;color:#fff;font:600 10px/16px -apple-system,sans-serif;min-width:16px;text-align:center;padding:0 3px;position:absolute;top:-2px;right:0}
@@ -18,4 +18,18 @@ body>#status{position:fixed;z-index:900;left:50%;bottom:42px;transform:translate
 #mouse-drag-label .drag-preview{width:168px;height:86px;display:block;object-fit:cover;object-position:top;background:var(--bg);border-radius:6px}#mouse-drag-label .drag-name{display:block;font-size:11px;padding:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#mouse-drag-label .drag-fallback{display:grid;place-items:center;color:var(--muted);font-size:24px;border:1px solid var(--line)}
 @keyframes desk-rise{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
 @media(prefers-reduced-motion:reduce){#desktop-tray{animation:none}}
-@media(max-width:1000px){#desktop-tray>header>span{display:none}.desktop-card{flex-basis:116px}#statusbar #desktops-button{left:51%}}
+@media(max-width:1000px){#desktop-tray>header>span{display:none}.desktop-card{flex-basis:116px}#statusbar #desktops-button{left:50%}}
+
+/* Final owner correction: familiar plus above; burrow enters desktops below. */
+:root[data-theme] .toolbar>#new-tab{position:relative;width:28px;height:28px;min-height:28px;flex:0 0 28px;padding:0;margin:0;align-self:center;border:1px solid var(--line);border-radius:10px;background:var(--panel)!important;box-shadow:none!important;display:grid;place-items:center}
+:root[data-theme] .toolbar>#new-tab:hover{background:var(--hover)!important}
+:root[data-theme] .toolbar>#new-tab::before{display:none!important}
+:root[data-theme] .toolbar>#new-tab .burrow-plus{width:14px;height:14px;color:var(--text);opacity:1!important}
+#statusbar #desktops-button{top:-2px;bottom:auto;width:36px;height:29px;min-width:36px;min-height:29px;padding:0;border:0;border-radius:0;background:transparent url("burrow.svg") center/100% 100% no-repeat!important;box-shadow:none;overflow:visible;-webkit-app-region:no-drag}
+#desktops-button::before{content:'';position:absolute;inset:0;background:var(--line);mask:url("burrow-rim.svg") center/100% 100% no-repeat;-webkit-mask:url("burrow-rim.svg") center/100% 100% no-repeat;pointer-events:none}
+#desktops-button .burrow-entry{position:absolute;inset:12px 10px 1px;border-radius:50% 50% 0 0;opacity:0;background:linear-gradient(transparent,color-mix(in srgb,var(--accent) 35%,transparent));transition:opacity .15s ease;pointer-events:none}
+#desktops-button:hover .burrow-entry,#desktops-button[aria-expanded=true] .burrow-entry{opacity:1}
+#desktops-button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#desktop-tray{bottom:61px}
+#workspace[data-sliding=true]{pointer-events:none;will-change:transform}
+@media(prefers-reduced-motion:reduce){#desktops-button .burrow-entry{transition:none}}

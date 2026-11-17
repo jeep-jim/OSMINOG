@@ -11,7 +11,7 @@ function install({app,win,ipcMain,getBrowser,isTransition}){
  ipcMain.handle('mouse:image-drag',async(event,args)=>{
   const browser=getBrowser(),page=owned(browser,event);if(!page||isTransition()||disposed||busy||!native.primaryDown())throw Error('Начните перетаскивание из видимой страницы');
   const url=source(args?.src),ticket=generation,wc=page.view.webContents,epoch=page.navigationEpoch;busy=true;let dir;
-  const valid=()=>!disposed&&!isTransition()&&ticket===generation&&getBrowser()===browser&&!wc.isDestroyed()&&page.navigationEpoch===epoch&&native.primaryDown();
+  const valid=()=>!disposed&&!isTransition()&&ticket===generation&&getBrowser()===browser&&!wc.isDestroyed()&&page.visible&&owned(browser,event)===page&&page.navigationEpoch===epoch&&native.primaryDown();
   try{
    const data=url.startsWith('data:')?Buffer.from(url.split(',')[1],'base64'):await read(await browser.session.fetch(url,{signal:AbortSignal.timeout(5000)}));
    if(data.length>LIMIT||!valid())throw Error('Перенос отменён');
