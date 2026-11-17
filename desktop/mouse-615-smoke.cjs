@@ -11,22 +11,16 @@ module.exports=async({win,browser})=>{
   win.show();win.focus();win.setSize(1440,960);await sleep(200);
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await move('#version-button');
-   const look=await js(`(()=>{const b=document.querySelector('#new-tab'),c=getComputedStyle(b),m=b.querySelector('.burrow-plus'),r=b.getBoundingClientRect();return{r:[r.width,r.height],round:c.borderTopLeftRadius,bottomRound:c.borderBottomLeftRadius,borderBottom:c.borderBottomWidth,shadow:c.boxShadow,opacity:getComputedStyle(m).opacity,label:b.getAttribute('aria-label'),children:b.children.length}})()`);
-   assert.deepEqual(look.r,[36,29]);assert.equal(look.round,'0px');assert.equal(look.bottomRound,'0px');assert.equal(look.borderBottom,'0px');assert.equal(look.shadow,'none');assert.equal(look.opacity,'0');assert.equal(look.label,'Новая вкладка');assert.equal(look.children,1);
-
-   // Compare to the exact released 617 geometry without changing production CSS.
-   const delta=await js(`(()=>{const b=document.querySelector('#new-tab'),bar=document.querySelector('.toolbar'),saved=b.getAttribute('style'),now=b.getBoundingClientRect();b.style.setProperty('height','32px','important');b.style.setProperty('min-height','32px','important');b.style.setProperty('margin-bottom','-4px','important');const old=b.getBoundingClientRect();if(saved===null)b.removeAttribute('style');else b.setAttribute('style',saved);const r=b.getBoundingClientRect();return{height:r.height-old.height,bottom:r.bottom-old.bottom,top:r.top-old.top,width:r.width-old.width,divider:r.bottom-bar.getBoundingClientRect().bottom,stable:r.height===now.height&&r.top===now.top,crop:{x:Math.max(0,Math.floor(r.x)-8),y:Math.max(0,Math.floor(bar.getBoundingClientRect().top)),width:Math.min(Math.ceil(r.width)+16,innerWidth-Math.max(0,Math.floor(r.x)-8)),height:Math.ceil(bar.getBoundingClientRect().height)+8}}})()`);
-   assert.equal(delta.height,-3);assert.equal(delta.bottom,1);assert.equal(delta.top,4);assert.equal(delta.width,0);assert.equal(delta.divider,0);assert.equal(delta.stable,true);
-   console.log('MOUSE_618_BURROW_GEOMETRY',theme,JSON.stringify(delta));
-   await fs.writeFile('mouse-618-burrow-'+theme+'.png',(await win.capturePage(delta.crop)).toPNG());
-   await fs.writeFile('mouse-615-burrow-'+theme+'.png',(await win.capturePage()).toPNG());
-   await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');assert.equal(await js('getComputedStyle(document.querySelector("#new-tab")).boxShadow'),'none');
-   await fs.writeFile('mouse-615-burrow-hover-'+theme+'.png',(await win.capturePage()).toPNG());
-   await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'0');
+   const look=await js(`(()=>{const b=document.querySelector('#new-tab'),n=document.querySelector('#desktops-button'),r=b.getBoundingClientRect(),nr=n.getBoundingClientRect(),bar=document.querySelector('#statusbar').getBoundingClientRect();return{plus:[r.width,r.height],round:getComputedStyle(b).borderRadius,opacity:getComputedStyle(b.querySelector('svg')).opacity,label:b.getAttribute('aria-label'),burrow:[nr.width,nr.height],center:nr.x+nr.width/2,viewport:innerWidth,baseline:nr.bottom-bar.bottom,mask:getComputedStyle(n,'::before').maskImage}})()`);
+   assert.deepEqual(look.plus,[28,28]);assert.equal(look.round,'10px');assert.equal(look.opacity,'1');assert.equal(look.label,'Новая вкладка');assert.deepEqual(look.burrow,[36,23]);assert.ok(Math.abs(look.center-look.viewport/2)<.01);assert.ok(Math.abs(look.baseline)<.05);assert.match(look.mask,/burrow-rim.svg/);
+   await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await sleep(250);
+   await fs.writeFile('mouse-621-bottom-burrow-'+theme+'.png',(await win.capturePage()).toPNG());
+   await move('#new-tab');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
+   await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
    for(const width of [800,1100,1440]){
     win.setSize(width,900);await sleep(180);
-    const g=await js(`(()=>{const lib=document.querySelector('#footer-library'),r=lib.getBoundingClientRect(),a=document.querySelector('#ai-toggle').getBoundingClientRect(),left=document.querySelector('#footer-left').getBoundingClientRect(),buttons=[...lib.querySelectorAll('button')],footer=document.querySelector('#statusbar');return{count:buttons.length,actions:buttons.map(b=>b.id==='emoji-button'?'emoji':b.dataset.action),gap:a.left-r.right,space:r.left-left.right,right:document.querySelector('[data-action=quit]').getBoundingClientRect().right,width:innerWidth,overflow:footer.scrollWidth-footer.clientWidth,duplicate:['history-button','downloads-button'].some(id=>document.querySelectorAll('#'+id).length!==1)}})()`);
-    assert.equal(g.count,4);assert.deepEqual(g.actions,['emoji','history','bookmarks','downloads']);assert.equal(g.duplicate,false);assert.ok(g.space>=0,'groups may not overlap: '+JSON.stringify(g));assert.ok(g.gap>=12,'library needs its own space');assert.ok(g.right<=g.width+1);assert.ok(g.overflow<=1,'footer must fit: '+JSON.stringify(g));if(width===1440)assert.ok(g.gap>=110,'owner requested leftward separation');
+    const g=await js(`(()=>{const lib=document.querySelector('#footer-library'),r=lib.getBoundingClientRect(),a=document.querySelector('#ai-toggle').getBoundingClientRect(),left=document.querySelector('#footer-left').getBoundingClientRect(),buttons=[...lib.querySelectorAll('button')],footer=document.querySelector('#statusbar');return{count:buttons.length,actions:buttons.map(b=>b.id==='emoji-button'?'emoji':b.id==='global-zoom-button'?'zoom':b.dataset.action),gap:a.left-r.right,space:r.left-left.right,right:document.querySelector('[data-action=quit]').getBoundingClientRect().right,width:innerWidth,overflow:footer.scrollWidth-footer.clientWidth,duplicate:['history-button','downloads-button'].some(id=>document.querySelectorAll('#'+id).length!==1)}})()`);
+    assert.equal(g.count,5);assert.deepEqual(g.actions,['emoji','zoom','history','bookmarks','downloads']);assert.equal(g.duplicate,false);assert.ok(g.space>=0,'groups may not overlap: '+JSON.stringify(g));assert.ok(g.gap>=12,'library needs its own space');assert.ok(g.right<=g.width+1);assert.ok(g.overflow<=1,'footer must fit: '+JSON.stringify(g));if(width===1440)assert.ok(g.gap>=110,'owner requested leftward separation');
    }
    for(const action of ['history','bookmarks','downloads']){
     await click('#footer-library [data-action="'+action+'"]');
@@ -37,7 +31,7 @@ module.exports=async({win,browser})=>{
   const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'burrow real pointer creates tab');
   assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
   console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
-  console.log('MOUSE_618_BURROW_DOWN1_SHORTER3_BOTH_THEMES_PASS');
+  console.log('MOUSE_621_TOP_PLUS_BOTTOM_BURROW_BOTH_THEMES_PASS');
  }finally{
   await js('MouseTest.browsing.close()').catch(()=>{});
   for(const t of browser.state().tabs)if(!beforeIds.has(t.id))await browser.command('close',{id:t.id});

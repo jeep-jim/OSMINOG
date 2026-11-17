@@ -47,11 +47,11 @@ class BrowserWorkspace{
   const view=new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
   const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false},wc=view.webContents;
   view.setBorderRadius?.(0);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
-  wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project)this.open({url:address(next),lane:t.provider?'side':t.lane})}catch{}return{action:'deny'}});
+  wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project){if(this.mouseOpenFrom)this.mouseOpenFrom(t,address(next));else this.open({url:address(next),lane:t.provider?'side':t.lane});}}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
   wc.on('did-start-navigation',(_e,_url,_inPlace,isMainFrame)=>{if(isMainFrame){t.navigationEpoch=(t.navigationEpoch||0)+1;if(this.pointerTarget?.id===t.id)this.pointerTarget=null}});
   wc.on('will-redirect',(e,next)=>{try{address(next)}catch{e.preventDefault()}});
-  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project||this.pointerEnabled&&!providerFor(wc.getURL()))return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
+  wc.on('context-menu',(_event,params)=>{if(t.project!==this.project||this.pointerEnabled&&!providerFor(wc.getURL()))return;const items=require('./context-menu.cjs').template(wc,params,{clipboard,open:url=>this.mouseOpenFrom?this.mouseOpenFrom(t,address(url)):this.open({url,lane:t.lane||'main'}),media:destination=>this.win.webContents.send('browser:media',{id:t.id,url:params.srcURL,project:t.project,destination})});Menu.buildFromTemplate(items).popup({window:this.win})});
   wc.on('focus',()=>{if(t.project===this.project)this.win.webContents.send('browser:focus',{id:t.id})});
   wc.on('page-favicon-updated',(_e,icons)=>{t.favicon=Array.isArray(icons)?icons[0]||'':'';this.emit()});
   wc.on('page-title-updated',(_e,title)=>{t.title=title;this.emit()});
@@ -136,7 +136,7 @@ class BrowserWorkspace{
   this.panels=Array.isArray(panels)?panels.slice(0,100):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
   const desired=new Map();
   const [width,height]=this.win.getContentSize(),seen=new Set();
-  for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project))continue;seen.add(t.id);
+  for(const p of this.panels){const t=p.id==='ai'?this.ai:this.tabs.get(p.id)||[...this.providers.values()].find(t=>t.id===p.id);if(!t||seen.has(t.id)||(p.id!=='ai'&&t.project!==this.project)||this.mouseDesktops&&this.mouseDesktops.bank.members[t.id]!==this.mouseDesktops.bank.active)continue;seen.add(t.id);
    const {x,y,width:w,height:h}=p;if(![x,y,w,h].every(Number.isFinite)||w<1||h<1)continue;
    // Snap shared endpoints for Mouse to avoid one-pixel rims at fractional layouts.
    const bounds=this.mouseRoundedPanes?{x:Math.round(x),y:Math.round(y),width:Math.round(x+w)-Math.round(x),height:Math.round(y+h)-Math.round(y)}:{x:Math.round(x),y:Math.round(y),width:Math.round(w),height:Math.round(h)};

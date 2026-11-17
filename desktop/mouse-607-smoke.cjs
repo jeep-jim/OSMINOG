@@ -23,10 +23,10 @@ module.exports=async({app,win})=>{
   verify(nativeImage.createFromBuffer(ui),{dark,size:64});
  }
  const svg=await fs.readFile(path.join(__dirname,'mouse/mouse-private.svg'),'utf8');
- assert.match(svg,/viewBox="0 0 19 17"/);assert.doesNotMatch(svg,/transform=|filter=/);
- const artwork=await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=19;c.height=17;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(i,0,0);resolve({pixels:[...x.getImageData(0,0,19,17).data],png:c.toDataURL('image/png')})};i.onerror=reject;i.src='mouse-private.svg'})`);
- const at=(x,y)=>artwork.pixels.slice((y*19+x)*4,(y*19+x)*4+4);
- assert.deepEqual(at(2,2),[255,255,255,255]);assert.equal(at(18,16)[3],0);assert.deepEqual(at(3,7),[168,85,247,255]);assert.deepEqual(at(5,8),[255,255,255,255]);
+ assert.match(svg,/viewBox="0 0 47 64"/);assert.match(svg,/id="mouse-approved-left"/);
+ const artwork=await win.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=47;c.height=64;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(i,0,0);resolve({pixels:[...x.getImageData(0,0,47,64).data],png:c.toDataURL('image/png')})};i.onerror=reject;i.src='mouse-private.svg'})`);
+ const at=(x,y)=>artwork.pixels.slice((y*47+x)*4,(y*47+x)*4+4);
+ assert.deepEqual(at(10,2),[255,255,255,255]);assert.equal(at(46,63)[3],0);assert.deepEqual(at(13,16),[168,85,247,255]);assert.deepEqual(at(15,17),[255,255,255,255]);
  for(let i=3;i<artwork.pixels.length;i+=4)assert.ok(artwork.pixels[i]===0||artwork.pixels[i]===255);
  await fs.writeFile('mouse-607-incognito-artwork.png',Buffer.from(artwork.png.split(',')[1],'base64'));
  const js=s=>win.webContents.executeJavaScript(s),previous=await js('MouseTest.model.theme');
@@ -41,8 +41,8 @@ module.exports=async({app,win})=>{
  try{
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);
-   const icon=await js(`(async()=>{const e=document.querySelector('#private-button img');await e.decode();const r=e.getBoundingClientRect(),c=document.createElement('canvas');c.width=19;c.height=17;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(e,0,0,19,17);return{width:r.width,height:r.height,filter:getComputedStyle(e).filter,pixels:[...x.getImageData(0,0,19,17).data]}})()`);
-   assert.equal(icon.width,23);assert.equal(icon.height,21);assert.equal(icon.filter,'none');const pixel=(x,y)=>icon.pixels.slice((y*19+x)*4,(y*19+x)*4+4);assert.deepEqual(pixel(3,7),[168,85,247,255]);assert.deepEqual(pixel(5,8),[255,255,255,255]);
+   const icon=await js(`(async()=>{const e=document.querySelector('#private-button svg'),r=e.getBoundingClientRect(),i=new Image();const copy=e.cloneNode(true),paths=[...e.querySelectorAll('path')];paths.forEach((p,n)=>copy.querySelectorAll('path')[n].setAttribute('fill',getComputedStyle(p).fill));i.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(copy));await i.decode();const c=document.createElement('canvas');c.width=48;c.height=28;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(i,0,0,48,28);return{width:r.width,height:r.height,filter:getComputedStyle(e).filter,pixels:[...x.getImageData(0,0,48,28).data]}})()`);
+   assert.equal(icon.width,24);assert.equal(icon.height,14);assert.equal(icon.filter,'none');const tuples=[];for(let i=0;i<icon.pixels.length;i+=4)tuples.push(icon.pixels.slice(i,i+4).join(','));assert.ok(tuples.includes('168,85,247,255'));assert.ok(tuples.includes('255,255,255,255'));
    await new Promise(r=>setTimeout(r,250));await fs.writeFile('mouse-610-footer-'+theme+'.png',(await win.capturePage()).toPNG());
   }
  }finally{await js(`MouseTest.setTheme(${JSON.stringify(beforeTheme)})`)}

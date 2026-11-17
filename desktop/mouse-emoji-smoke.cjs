@@ -59,7 +59,7 @@ module.exports=async({app,win,browser,scope='normal',nativePanel=false})=>{
   };
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);await sleep(150);
-   const position=await js('(()=>{const e=document.querySelector("#emoji-button"),h=document.querySelector("#history-button"),a=e.getBoundingClientRect(),b=h.getBoundingClientRect();return{parent:e.parentElement.id,before:e.nextElementSibling===h,right:a.right,historyLeft:b.left,width:a.width,height:a.height,label:e.getAttribute("aria-label")}})()');
+   const position=await js('(()=>{const e=document.querySelector("#emoji-button"),h=document.querySelector("#history-button"),a=e.getBoundingClientRect(),b=h.getBoundingClientRect();return{parent:e.parentElement.id,before:e.nextElementSibling?.id==="global-zoom-button"&&e.nextElementSibling.nextElementSibling===h,right:a.right,historyLeft:b.left,width:a.width,height:a.height,label:e.getAttribute("aria-label")}})()');
    assert.equal(position.parent,'footer-library');assert.equal(position.before,true);assert.ok(position.right<=position.historyLeft);assert.ok(position.width>=20&&position.height>=20);
    for(const [page,kind] of [[main,'field'],[main,'rich'],[main,'frame'],[ai,'field']]){
     expected=page.view.webContents;

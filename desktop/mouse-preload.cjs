@@ -4,6 +4,8 @@ const on=(channel,callback)=>{const listener=(_event,data)=>callback(data);ipcRe
 if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.freeze({
  version:process.argv.find(x=>x.startsWith('--mouse-version='))?.split('=').slice(1).join('=')||'6.0.0',
  test:process.argv.includes('--mouse-test'),
+ desktops:(action,args)=>ipcRenderer.invoke('mouse:desktops',action,args),
+ zoom:(action,args)=>ipcRenderer.invoke('mouse:zoom',action,args),onZoom:cb=>on('mouse:zoom-state',cb),
  archive:(action,args)=>ipcRenderer.invoke('mouse:archive',action,args),
  emoji:(action,target)=>ipcRenderer.invoke('mouse:emoji',action,target),
  privacy:()=>ipcRenderer.invoke('mouse:privacy'),init:()=>ipcRenderer.invoke('mouse:init'),save:p=>ipcRenderer.invoke('mouse:save',p),

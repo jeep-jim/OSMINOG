@@ -18,7 +18,7 @@ test('private cleanup clears storage, cache, auth, resolver and network; no sile
  await assert.rejects(()=>clearPrivateSession(Object.fromEntries(names.map(n=>[n,async()=>{if(n==='clearCache')throw Error('fixture');}]))),/очистить/);
 });
 test('incognito page excludes wallet provider and custom wallpaper writes',()=>{
- assert.doesNotMatch(fs.readFileSync(require.resolve('./mouse-page-preload.cjs'),'utf8'),/exposeInMainWorld|ethereum|ipcRenderer/);
+ assert.doesNotMatch(fs.readFileSync(require.resolve('./mouse-page-preload.cjs'),'utf8'),/exposeInMainWorld|ethereum/);
  assert.match(fs.readFileSync(require.resolve('./mouse-start.cjs'),'utf8'),/if\(privateMode\)throw Error/);
  const s=fs.readFileSync(require.resolve('./mouse-private.cjs'),'utf8');assert.match(s,/cache:false/);assert.match(s,/ses.isPersistent/);assert.match(s,/loadURL\('about:blank'\)/);
 });

@@ -53,8 +53,10 @@ class PrivateMode {
    const startService=await require('./mouse-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
    current.startService=startService;
    require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain:register,trusted});
-   register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:(await store.get('quadroPreferences')).quadroPreferences};});
-   register.handle('mouse:save',async(event,p)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return store.set({quadroPreferences:p});});
+   const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted});
+   current.desktopService=desktopService;current.pageZoom=await require('./mouse-zoom.cjs').install({win,browser,store,ipcMain:register,trusted});
+   register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:desktopService.preferences()};});
+   register.handle('mouse:save',async(event,p)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p);});
    const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
    for(const name of ['mouse:privacy','mouse:window','mouse:theme'])handlers.set(name,router.normal.get(name));

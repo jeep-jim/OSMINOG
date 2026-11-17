@@ -12,7 +12,7 @@ test('small head is the exact 19 by 17, 128-cell owner artwork in both themes',(
  }
  assert.match(read('mouse/index.html'),/class="brand"[^>]*><img src="mouse-head.svg"/);
  assert.match(read('mouse/index.html'),/rel="icon"[^>]*href="mouse-head.svg"/);
- assert.match(read('mouse/browser.js'),/im.src=m.privateMode\?privateArtwork\(\):'mouse-head.svg'/);
+ assert.match(read('mouse/browser.js'),/im.src=m.privateMode&&m.theme==='dark'\?'mouse-head-dark.svg':'mouse-head.svg'/);
 });
 test('address editing keeps actual controls reachable and clears stale edit styling',()=>{
  const css=read('mouse/mouse-613.css'),ui=read('mouse/mouse-613-ui.js');

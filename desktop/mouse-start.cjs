@@ -20,7 +20,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
  const save=browser.save.bind(browser);browser.save=()=>Promise.all([save(),persist()]);
  const command=browser.command.bind(browser);
  browser.command=async(action,args={})=>{
-  if(action==='open'&&args.url===START){const id=randomUUID();tabs.set(id,{id});await persist();browser.emit();return{id};}
+  if(action==='open'&&args.url===START){const id=randomUUID();tabs.set(id,{id});browser.mouseAssignDesk?.(id);await persist();browser.emit();return{id};}
   if(tabs.has(args.id)){
    if(action==='close'){tabs.delete(args.id);await persist();browser.emit();return browser.state();}
    if(action==='navigate'){

@@ -14,5 +14,21 @@
   }
   ctx.restore();
  }
- const api={rect,draw};if(typeof module!=='undefined')module.exports=api;else root.MouseCaptureCore=api;
+
+ function bounds(op,measure){
+  if(!op?.points?.length)return null;
+  const pad=Math.max(3,(op.width||1)*(op.tool==='marker'?2:1));
+  if(op.tool==='text'){
+   const font=op.font||24,lines=String(op.text||'').split('\n').slice(0,20),width=Math.max(8,...lines.map(s=>measure?measure(s.slice(0,200),font):s.length*font*.65));
+   return{x:op.points[0].x-pad,y:op.points[0].y-pad,width:width+pad*2,height:lines.length*font*1.2+pad*2};
+  }
+  const xs=op.points.map(p=>p.x),ys=op.points.map(p=>p.y);
+  return{x:Math.min(...xs)-pad,y:Math.min(...ys)-pad,width:Math.max(...xs)-Math.min(...xs)+pad*2,height:Math.max(...ys)-Math.min(...ys)+pad*2};
+ }
+ function hit(ops,p,tolerance=6,measure){
+  for(let i=ops.length-1;i>=0;i--){const b=bounds(ops[i],measure);if(b&&p.x>=b.x-tolerance&&p.x<=b.x+b.width+tolerance&&p.y>=b.y-tolerance&&p.y<=b.y+b.height+tolerance)return i;}
+  return -1;
+ }
+ function translate(op,dx,dy){if(!Number.isFinite(dx)||!Number.isFinite(dy))throw Error('Invalid annotation movement');return{...op,points:op.points.map(p=>({x:p.x+dx,y:p.y+dy}))};}
+ const api={rect,draw,bounds,hit,translate};if(typeof module!=='undefined')module.exports=api;else root.MouseCaptureCore=api;
 })(globalThis);
