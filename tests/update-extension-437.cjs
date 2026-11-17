@@ -373,7 +373,9 @@ async function persistedSnapshot(page) {
 }
 
 async function waitForUpdatedEditor(version) {
-  const deadline = Date.now() + 90000;
+  // This includes native writes: CI progressed 140 -> 141/150 after 90s.
+  // Match the recovery helper's bounded 150s budget.
+  const deadline = Date.now() + 150000;
   let lastStatus;
   while (Date.now() < deadline) {
     assert.equal(contextClosed, false, 'Updating the extension must not close the browser context');
