@@ -18,8 +18,8 @@ module.exports=async({win,browser})=>{
    await move('#version-button');assert.equal(await js('getComputedStyle(document.querySelector(".burrow-plus")).opacity'),'1');
    for(const width of [800,1100,1440]){
     win.setSize(width,900);await sleep(180);
-    const g=await js(`(()=>{const lib=document.querySelector('#footer-library'),r=lib.getBoundingClientRect(),a=document.querySelector('#ai-toggle').getBoundingClientRect(),left=document.querySelector('#footer-left').getBoundingClientRect(),buttons=[...lib.querySelectorAll('button')],footer=document.querySelector('#statusbar');return{count:buttons.length,actions:buttons.map(b=>b.id==='emoji-button'?'emoji':b.dataset.action),gap:a.left-r.right,space:r.left-left.right,right:document.querySelector('[data-action=quit]').getBoundingClientRect().right,width:innerWidth,overflow:footer.scrollWidth-footer.clientWidth,duplicate:['history-button','downloads-button'].some(id=>document.querySelectorAll('#'+id).length!==1)}})()`);
-    assert.equal(g.count,5);assert.deepEqual(g.actions,['emoji',null,'history','bookmarks','downloads']);assert.equal(g.duplicate,false);assert.ok(g.space>=0,'groups may not overlap: '+JSON.stringify(g));assert.ok(g.gap>=12,'library needs its own space');assert.ok(g.right<=g.width+1);assert.ok(g.overflow<=1,'footer must fit: '+JSON.stringify(g));if(width===1440)assert.ok(g.gap>=110,'owner requested leftward separation');
+    const g=await js(`(()=>{const lib=document.querySelector('#footer-library'),r=lib.getBoundingClientRect(),a=document.querySelector('#ai-toggle').getBoundingClientRect(),left=document.querySelector('#footer-left').getBoundingClientRect(),buttons=[...lib.querySelectorAll('button')],footer=document.querySelector('#statusbar');return{count:buttons.length,actions:buttons.map(b=>b.id==='emoji-button'?'emoji':b.id==='global-zoom-button'?'zoom':b.dataset.action),gap:a.left-r.right,space:r.left-left.right,right:document.querySelector('[data-action=quit]').getBoundingClientRect().right,width:innerWidth,overflow:footer.scrollWidth-footer.clientWidth,duplicate:['history-button','downloads-button'].some(id=>document.querySelectorAll('#'+id).length!==1)}})()`);
+    assert.equal(g.count,5);assert.deepEqual(g.actions,['emoji','zoom','history','bookmarks','downloads']);assert.equal(g.duplicate,false);assert.ok(g.space>=0,'groups may not overlap: '+JSON.stringify(g));assert.ok(g.gap>=12,'library needs its own space');assert.ok(g.right<=g.width+1);assert.ok(g.overflow<=1,'footer must fit: '+JSON.stringify(g));if(width===1440)assert.ok(g.gap>=110,'owner requested leftward separation');
    }
    for(const action of ['history','bookmarks','downloads']){
     await click('#footer-library [data-action="'+action+'"]');
@@ -27,7 +27,7 @@ module.exports=async({win,browser})=>{
     await click('#library-close');await until(()=>js('!document.querySelector("#library-dialog").open'),'library close');
    }
   }
-  const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'burrow real pointer creates tab');
+  const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'top plus real pointer creates tab');
   assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
   console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
   console.log('MOUSE_621_TOP_PLUS_BOTTOM_BURROW_BOTH_THEMES_PASS');
