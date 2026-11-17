@@ -35,7 +35,13 @@
   }
  }
  const offFocus=N.onFocus(({id})=>{
-  if(typeof id==='string'){destination={kind:'page',id};pressed=null;}
+  if(typeof id==='string'){
+   destination={kind:'page',id};pressed=null;
+   // Native WebContents focus does not clear the shell's DOM activeElement.
+   // Blur its stale editor so the next footer click cannot reactivate it.
+   const stale=document.activeElement;if(editable(stale))stale.blur();
+   delete root.dataset.nativeEmoji;
+  }
  });
  document.addEventListener('focusin',e=>{if(editable(e.target))destination=snapshot(e.target);});
  document.addEventListener('focusout',e=>{
