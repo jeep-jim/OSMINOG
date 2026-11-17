@@ -55,3 +55,9 @@ body.ai-focused #new-tab .burrow-plus{opacity:1!important;color:var(--muted)}
 
 #screenshot-button{position:relative}
 #screenshot-button[data-archive-active=true]::after{content:'';position:absolute;width:5px;height:5px;right:2px;top:2px;border-radius:50%;background:#44b96b;pointer-events:none}
+
+/* Reserve a stable control row above capture content; do not inherit dialog-label columns. */
+#library-capture-settings .capture-switch-label{flex-direction:row;justify-content:flex-start}
+#library-dialog[data-kind=captures] #library-rows[data-view=grid]>.library-row{padding-top:34px}
+#library-dialog[data-kind=captures] #library-rows[data-view=grid] .library-visual:has(.library-thumbnail){padding-top:0}
+#library-dialog[data-kind=captures] #library-rows[data-view=grid] .library-text-preview{margin-top:0}
