@@ -1,0 +1,24 @@
+name: Mouse621 source review snapshot
+on:
+  push:
+    branches: [feat/mouse621-desktops-toasts-drag]
+    paths: [.github/workflows/mouse621-source-review.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6bdaf6a4e9a2364aa5535cc20b3df0f9a836615b
+          persist-credentials: false
+      - run: |
+          git archive -o mouse621-base.zip HEAD desktop tools .github/workflows AGENTS.md MOUSE_BROWSER_ROADMAP.md OSMINOG_BROWSER_ROADMAP.md OSMINOG_PROJECT_LOG.md OSMINOG_ROADMAP.md docs/desktop docs/light docs/mobile/2026-11-07-project-isolation.md
+          sha256sum mouse621-base.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mouse621-base-source
+          path: mouse621-base.zip
+          retention-days: 2
