@@ -11,12 +11,21 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
  const rectangles=()=>js('Object.fromEntries([...document.querySelectorAll(".pane")].map(e=>{const r=e.getBoundingClientRect();return[e.dataset.pane,{x:r.x,y:r.y,width:r.width,height:r.height}]}))');
  async function capturePages(){
   const out=new Map();
-  for(const t of browser.state().tabs){const page=browser.get(t.id),wc=page.view?.webContents;const entry={page,wc,url:wc?.getURL?.()||page.url||'',epoch:page.navigationEpoch||0,internal:!!t.internal};if(!t.internal){entry.identity=await wc.executeJavaScript('window.identity');assert.equal(typeof entry.identity,'number','Native624 local fixture is fully loaded');}out.set(t.id,entry);}
+  for(const t of browser.state().tabs){
+   const entry={internal:!!t.internal,url:t.url,lane:t.lane||'main'};
+   // Internal start tabs are shell records, deliberately without a WebContents.
+   if(!entry.internal){const page=browser.get(t.id),wc=page.view.webContents;Object.assign(entry,{page,wc,url:wc.getURL()||page.url||'',epoch:page.navigationEpoch||0,identity:await wc.executeJavaScript('window.identity')});assert.equal(typeof entry.identity,'number','Native624 local fixture is fully loaded');}
+   out.set(t.id,entry);
+  }
   return out;
  }
  async function samePages(label){
-  assert.deepEqual(browser.state().tabs.map(t=>t.id).sort(),[...records.keys()].sort(),label+' preserves every page ID');
-  for(const [id,r]of records){const page=browser.get(id),wc=page.view?.webContents;assert.equal(page,r.page,label+' preserves page object');assert.equal(wc,r.wc,label+' preserves WebContents');assert.equal(wc?.getURL?.()||page.url||'',r.url,label+' preserves URL');assert.equal(page.navigationEpoch||0,r.epoch,label+' preserves navigation epoch');if(!r.internal)assert.equal(await wc.executeJavaScript('window.identity'),r.identity,label+' preserves the loaded document');}
+  const current=new Map(browser.state().tabs.map(t=>[t.id,t]));assert.deepEqual([...current.keys()].sort(),[...records.keys()].sort(),label+' preserves every page ID');
+  for(const [id,r]of records){
+   const t=current.get(id);assert.equal(!!t.internal,r.internal,label+' preserves the internal-page flag');assert.equal(t.url,r.url,label+' preserves the descriptor URL');assert.equal(t.lane||'main',r.lane,label+' preserves the page lane');
+   if(r.internal)continue;
+   const page=browser.get(id),wc=page.view.webContents;assert.equal(page,r.page,label+' preserves page object');assert.equal(wc,r.wc,label+' preserves WebContents');assert.equal(wc.getURL()||page.url||'',r.url,label+' preserves URL');assert.equal(page.navigationEpoch||0,r.epoch,label+' preserves navigation epoch');assert.equal(await wc.executeJavaScript('window.identity'),r.identity,label+' preserves the loaded document');
+  }
  }
  async function sameLayout(expected,label){assert.deepEqual(await layout(),expected,label+' preserves the complete custom layout');await samePages(label);}
  async function sameRects(expected,label){const actual=await rectangles();assert.deepEqual(Object.keys(actual).sort(),Object.keys(expected).sort(),label+' keeps pane geometry identities');for(const id of Object.keys(expected))for(const k of ['x','y','width','height'])assert.ok(Math.abs(actual[id][k]-expected[id][k])<=1,label+' changes pane '+id+' '+k+': '+JSON.stringify({before:expected[id],after:actual[id]}));}
@@ -26,11 +35,13 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'native624 shell reload');await painted();
  }
  async function verifyLayoutAndHistory({root,bank}){
+  let start,verificationError;
+  try{
   await js('MouseTest.desktopUI.close();MouseTest.browsing.close()');
   await js(`MouseTest.openAI(${JSON.stringify(root+'/624-owned-ai')})`);const aiUrl=root+'/624-owned-ai';
   const created=[];
   for(let i=0;i<3;i++){await js(`MouseTest.openPage(${JSON.stringify(root+'/624-grid/'+i)})`);created.push(await js('MouseTest.model.slots[MouseTest.model.active]'));}
-  await js('MouseTest.openPage("mouse://start")');const start=await js('MouseTest.model.slots[MouseTest.model.active]');
+  start=await js('(async()=>{await MouseTest.openPage("mouse://start");return MouseTest.model.slots[MouseTest.model.active];})()');
   await until(()=>browser.state().tabs.filter(t=>!t.internal).every(t=>!browser.get(t.id).loading),'native624 fixture pages loaded');
   const tree={axis:'x',ratio:.63,a:{id:'p1'},b:{axis:'y',ratio:.37,a:{id:'p2'},b:{id:'p3'}}},slots={p1:created[0],p2:created[1],p3:start};
   await js(`(()=>{const m=MouseTest.model;m.tree=${JSON.stringify(tree)};m.slots=${JSON.stringify(slots)};m.active='p3';m.aiWidth=312;m.tabOrder=[${JSON.stringify(created[2])},m.aiId,...m.state.tabs.map(t=>t.id).filter(id=>id!==${JSON.stringify(created[2])}&&id!==m.aiId)];MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();return MouseTest.save();})()`);
@@ -59,6 +70,12 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await click('#desktops-button');await click('#desk-history-back');await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'Undo works after reload');await click('#desk-history-forward');await until(async()=>JSON.stringify(await layout())===JSON.stringify(changed),'Redo works after reload');
   await click('#desk-history-button');await until(()=>js('!document.querySelector("#desk-history-panel").hidden'),'history panel reopens');const entrySelector='#desk-history-panel [data-history-id="'+entry.id+'"] .desk-history-restore';await until(()=>js(`!!document.querySelector(${JSON.stringify(entrySelector)})`),'history entry renders');await js(`document.querySelector(${JSON.stringify(entrySelector)}).scrollIntoView({block:'nearest',inline:'center'})`);await painted();await click(entrySelector);await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'native history row restores the chosen baseline');await samePages('History jump');
   facts.history={undo:true,redo:true,persisted:true,pagesPreserved:true,entryRestore:true};await saveFacts();console.log('MOUSE_624_LAYOUT_UNDO_REDO_PERSIST_PASS');await js('MouseTest.desktopUI.close()');
+  }catch(error){verificationError=error;throw error;}
+  finally{
+   // The outer suite closes actual WebContents; this shell-only fixture needs
+   // its own cleanup after every identity assertion, including a failed proof.
+   if(start&&bank.members[start])try{if(bank.members[start]!==bank.active)await js(`MouseTest.switchDesktop(${JSON.stringify(bank.members[start])})`);await browser.command('close',{id:start});assert.equal(bank.members[start],undefined,'The internal test tab is removed from the profile');}catch(error){if(!verificationError)throw error;console.error('MOUSE_624_INTERNAL_FIXTURE_CLEANUP',error.message);}
+  }
  }
  const pillSelector=id=>'#mouse-progress-rail .mouse-progress-pill[data-progress-id="'+id+'"]';
  async function pill(id){return js(`(()=>{const e=document.querySelector(${JSON.stringify(pillSelector(id))});if(!e)return null;return{phase:e.dataset.phase,estimated:e.dataset.estimated,indeterminate:e.dataset.indeterminate,desk:e.dataset.desk,value:e.querySelector('.mouse-progress-value').textContent,aria:e.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'),label:e.querySelector('.mouse-progress-label').textContent,stopHidden:e.querySelector('.mouse-progress-stop').hidden};})()`);}
