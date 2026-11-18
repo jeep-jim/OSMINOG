@@ -2,6 +2,10 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let i=0;i<240;i++){if(await fn())return;await sleep(60);}throw Error('Mouse614 timeout: '+label);}
+async function waitForAIClosed({js,windowed,browser,id,webContents}){
+ // Native removal can precede the persisted IPC result accepted by the renderer.
+ await until(async()=>windowed()&&!browser.tabs.has(id)&&webContents.isDestroyed()&&await js('MouseTest.model.focusAI===false&&MouseTest.model.aiOpen===false&&MouseTest.model.switching===false'),'close destroys AI and returns layout');
+}
 module.exports=async({win,browser,scope='normal'})=>{
  const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),wasFull=win.isFullScreen();
  let settledFull=wasFull;const entered=()=>{settledFull=true},left=()=>{settledFull=false};win.on('enter-full-screen',entered);win.on('leave-full-screen',left);
@@ -38,7 +42,7 @@ module.exports=async({win,browser,scope='normal'})=>{
   win.setFullScreen(true);await until(full,'existing fullscreen native event');await sleep(350);await click('[data-action=ai-fullscreen]');await until(()=>browser.panels.length===1&&browser.panels[0].id===aiId,'existing fullscreen AI');await click('[data-action=ai-fullscreen]');await until(async()=>!await js('MouseTest.model.focusAI'),'restore inside existing fullscreen');assert.equal(win.isFullScreen(),true,'must preserve pre-existing fullscreen');assert.equal(await snapshot(),original);
   win.setFullScreen(false);await until(windowed,'leave existing mode');await sleep(350);
   await js(`MouseTest.openAI(${JSON.stringify(url+'/close-chat')})`);const closeId=await js('MouseTest.model.aiId');await until(()=>!browser.get(closeId).loading,'separate close fixture ready');const closeWC=browser.get(closeId).view.webContents;
-  await click('[data-action=ai-fullscreen]');await until(full,'close entry');await sleep(350);await click('[data-action=close-ai]');await until(async()=>windowed()&&!await js('MouseTest.model.focusAI')&&!browser.tabs.has(closeId),'close destroys AI and returns layout');assert.equal(closeWC.isDestroyed(),true);assert.equal(await js('MouseTest.model.aiOpen'),false);assert.ok(browser.tabs.has(aiId),'Unselected AI session remains open');await js(`MouseTest.openAI(${JSON.stringify(url+'/chat')})`);await sleep(350);assert.equal(await snapshot(),original);
+  await click('[data-action=ai-fullscreen]');await until(full,'close entry');await sleep(350);await click('[data-action=close-ai]');await waitForAIClosed({js,windowed,browser,id:closeId,webContents:closeWC});assert.equal(closeWC.isDestroyed(),true);assert.equal(await js('MouseTest.model.aiOpen'),false);assert.ok(browser.tabs.has(aiId),'Unselected AI session remains open');await js(`MouseTest.openAI(${JSON.stringify(url+'/chat')})`);await sleep(350);assert.equal(await snapshot(),original);
   await js('MouseTest.model.aiId="";MouseTest.applySide()');await click('[data-action=ai-fullscreen]');await until(full,'empty AI can expand');assert.equal(await js('[...document.querySelectorAll(".ai-preset-card")].filter(e=>e.getBoundingClientRect().width>0).length'),scope==='private'?4:5);await click('[data-action=ai-fullscreen]');await until(windowed,'empty restore');await js(`MouseTest.model.aiId=${JSON.stringify(aiId)};MouseTest.applySide()`);await sleep(300);
   for(const [id,p] of ids){assert.equal(browser.get(id).view.webContents.id,p.id);assert.equal(browser.get(id).navigationEpoch||0,p.epoch);}
   assert.equal(wc.id,aiWC);assert.equal(await wc.executeJavaScript('once'),once);assert.equal(await wc.executeJavaScript('document.querySelector("#draft").value'),'keep my draft');assert.equal(await snapshot(),original);
@@ -49,3 +53,4 @@ module.exports=async({win,browser,scope='normal'})=>{
   await js(`Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);win.setBounds(bounds);win.removeListener('enter-full-screen',entered);win.removeListener('leave-full-screen',left);if(wasFull)win.setFullScreen(true);server.close();
  }
 };
+module.exports.waitForAIClosed=waitForAIClosed;

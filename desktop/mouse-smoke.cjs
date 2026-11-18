@@ -3,10 +3,10 @@ const assert=require('node:assert/strict'),http=require('node:http'),fs=require(
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let n=0;n<200;n++){if(await check())return;await sleep(75)}throw Error('Timed out: '+label)}
 module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode})=>{
- let server;
+ let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.26');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.27');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -58,6 +58,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   // Exercise the new native editors/search first, then retain every existing gate.
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-performance-smoke.cjs')({app,win,browser,store});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-626-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
@@ -75,6 +77,12 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-620-smoke.cjs')({app,win,browser,libraryService,localCaptures,updates});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-621-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-622-smoke.cjs')({app,win,browser,store,agentHost});
-  console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();app.exit(0);
- }catch(error){console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('mouse-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
+  console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();exit(0);
+ }catch(error){
+  console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));
+  const failure={version:app.getVersion(),error:{message:error.message,stack:error.stack},state:browser.state(),panels:browser.panels,overlayBlocked:overlayGate.blocked,surfaceHeld:!!browser.mouseSurfaceHold,nativeDiagnostics:{surfaces:browser.mouseDesktops?.surfaces?.diagnostics?.(),overlays:overlayGate.diagnostics?.()}};
+  const save=()=>fs.writeFile('mouse-627-smoke-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await save();
+  try{failure.renderer=await require('./mouse-lifecycle.cjs').bounded(js('(()=>{const m=MouseTest.model;return{activeElement:document.activeElement?.id,ready:m.ready,desktopSliding:!!m.desktopSliding,switching:!!m.switching,libraryOpen:m.libraryOpen,libraryWidth:m.libraryWidth,drag:m.drag?{kind:m.drag.kind,axis:m.drag.axis,pointer:m.drag.pointer}:null,bodyClass:document.body.className,dialogs:[...document.querySelectorAll("dialog[open]")].map(d=>({id:d.id,modal:d.matches(":modal")}))};})()'),2000,'Failure renderer state');}catch(e){failure.rendererError=e.message;}await save();
+  await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),2000,'Failure screenshot').then(image=>fs.writeFile('mouse-failure.png',image.toPNG())).catch(()=>{});server?.close();exit(1);
+ }
 };

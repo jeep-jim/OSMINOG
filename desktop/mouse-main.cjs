@@ -11,18 +11,30 @@ fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
-let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,agentHost,progress,progressBridge,documentService,documentPreparation;
+let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,agentHost,progress,progressBridge,documentService,documentPreparation,documentClosing;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'mouse/index.html')).href;
 async function releaseDocumentsUI(){if(!win||win.isDestroyed()||win.webContents.isDestroyed()||win.webContents.getURL()!==entry)return;try{await require('./mouse-lifecycle.cjs').bounded(win.webContents.executeJavaScript('globalThis.MouseDocumentsTransaction?.(false)'),7000,'Document controls');}catch(error){log('DOCUMENT_UI_RELEASE_FAILED '+error.message);}}
 function prepareDocuments(){
  if(!documentService)return Promise.resolve();if(documentPreparation)return documentPreparation;const bounded=require('./mouse-lifecycle.cjs').bounded;
  documentPreparation=(async()=>{try{
+  await documentClosing;
   if(win.webContents.getURL()===entry){await bounded(win.webContents.executeJavaScript('globalThis.MouseDocumentsTransaction?.(true)'),7000,'Document controls');await bounded(win.webContents.executeJavaScript('globalThis.MouseFlushDocuments?.()'),7000,'Document draft');}
   await documentService.prepareExit(id=>bounded(win.webContents.executeJavaScript('globalThis.MouseExportDocument('+JSON.stringify(id)+')'),30000,'Document export'));
   // Success stays inert until privacy destroys this shell or quitting finishes.
   // Cancellation, failed persistence and failed update installation release it.
  }catch(error){await releaseDocumentsUI();throw error;}})().finally(()=>{documentPreparation=null;});return documentPreparation;
+}
+function closeDocumentTab(id,commit){
+ if(documentPreparation)throw Error('Завершите выбор сохранения документов');
+ const previous=documentClosing,bounded=require('./mouse-lifecycle.cjs').bounded;
+ const work=(async()=>{await previous;try{
+  if(win.webContents.getURL()!==entry)throw Error('Редактор документа недоступен');
+  await bounded(win.webContents.executeJavaScript('globalThis.MouseDocumentsTransaction?.(true)'),7000,'Document controls');
+  await bounded(win.webContents.executeJavaScript('globalThis.MouseFlushDocuments?.()'),7000,'Document draft');
+  return await documentService.closeDocument(id,documentId=>bounded(win.webContents.executeJavaScript('globalThis.MouseExportDocument('+JSON.stringify(documentId)+')'),30000,'Document export'),commit);
+ }finally{await releaseDocumentsUI();}})();
+ const pending=work.catch(()=>{});documentClosing=pending;void pending.finally(()=>{if(documentClosing===pending)documentClosing=null;});return work;
 }
 function show(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus()}
 function trusted(e){if(!require('./trust.cjs').trustedFrame(e,win,entry))throw Error('Untrusted frame')}
@@ -80,8 +92,9 @@ if(ownsProfile)app.whenReady().then(async()=>{
  libraryService=await require('./mouse-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
  startService=await require('./mouse-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
- desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain,trusted,powerMonitor:require('electron').powerMonitor});
  documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
+ require('./mouse-document-tabs.cjs').install({browser,documents:documentService,closeDocument:closeDocumentTab,library:libraryService.library});
+ desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain,trusted,powerMonitor:require('electron').powerMonitor});
  app.once('will-quit',()=>documentService.dispose());
  progress=new (require('./mouse-progress.cjs').ProgressStore)({emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:progress-state',state);}});
  progressBridge=require('./mouse-progress-bridge.cjs').install({win,browser,ipcMain,trusted,progress,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
@@ -107,7 +120,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,onPrivacyChange:()=>{documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacyChange:()=>{documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');}});
  ipcMain.handle('mouse:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(async error=>{if(!exitController.isClosing())await releaseDocumentsUI();if(error.code!=='MOUSE_DOCUMENT_CANCEL'&&!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через ⌘Q и повторите.')}));return true;});
  win.webContents.on('preload-error',(_e,_p,error)=>log('PRELOAD_ERROR '+error.message));
  require('./mouse-stability.cjs').installShellRecovery({win,entry,current:()=>privateMode?.current?{browser:privateMode.current.browser,gate:privateMode.current.gate}:{browser,gate:overlayGate},isClosing:()=>exitController.isClosing(),report:log});

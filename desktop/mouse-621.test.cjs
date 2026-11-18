@@ -15,32 +15,134 @@ test('image drag keeps its gesture guards and the sole page bridge reports only 
  assert.match(h,/native.primaryDown/);assert.match(h,/page.navigationEpoch===epoch/);assert.match(h,/getBrowser\(\)===browser/);assert.match(h,/0o600/);assert.match(h,/generation\+\+/);assert.match(h,/AbortSignal.timeout\(5000\)/);
 });
 test('status notification lives outside footer and expires without resetting on repeated same error',()=>{const s=fs.readFileSync('mouse/feedback.js','utf8'),css=fs.readFileSync('mouse/mouse-621.css','utf8');assert.match(s,/document.body.append\(node\)/);assert.match(s,/timer=setTimeout\(hide,4500\)/);assert.match(s,/now<until&&!node.hidden/);assert.match(css,/body>#status\{position:fixed/);assert.match(css,/left:50%/);assert.match(css,/pointer-events:none/);});
-test('desktop slide preserves geometry and always restores input, including failures and reduced motion',async()=>{
- const S=require('./mouse/desktop-slide.js'),oldMatch=global.matchMedia,oldRAF=global.requestAnimationFrame;
- const w={getBoundingClientRect:()=>({width:800}),style:{transform:''},dataset:{},inert:false},model={},frames=[];let changes=0;
- try{
-  global.matchMedia=()=>({matches:false});global.requestAnimationFrame=fn=>setTimeout(fn,5);
-  await S.run({workspace:w,model,layout:async()=>frames.push(w.style.transform),change:async()=>{changes++},direction:-1});
-  assert.equal(changes,1);assert.ok(frames.some(s=>/^translateX\(-/.test(s)));assert.ok(frames.some(s=>/^translateX\([1-9]/.test(s)));assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);assert.equal(w.dataset.sliding,undefined);
-  const shifts=frames.filter(s=>s.startsWith('translateX(')).map(s=>Number(s.slice(11,-3)));assert.ok(shifts.length>=3&&shifts.every(Number.isInteger),'native slide uses whole CSS pixels');
-  for(const [left,width]of [[0,278.8],[281.2,317.65],[.4,500.3]]){const initial=Math.round(left+width)-Math.round(left);assert.ok(shifts.every(x=>Math.round(left+x+width)-Math.round(left+x)===initial),'fractional pane viewport never changes width');}
-  await assert.rejects(S.run({workspace:w,model,layout:async()=>{},change:async()=>{throw Error('fixture failure')},direction:1}),/fixture failure/);assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
-  global.matchMedia=()=>({matches:true});frames.length=0;await S.run({workspace:w,model,layout:async()=>frames.push(w.style.transform),change:async()=>{changes++}});assert.deepEqual(frames,['']);assert.equal(changes,2);
-  assert.equal(S.ease(0),0);assert.equal(S.ease(.5),.5);assert.equal(S.ease(1),1);
- }finally{global.matchMedia=oldMatch;global.requestAnimationFrame=oldRAF;}
+function slideFixture(delay=0,options={}){
+ const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8'),events=[],listeners=new Map(),frames=new Map(),timers=new Map();let time=0,cleared,task=0;
+ const ctx={module:{exports:{}},performance:{now:()=>time},matchMedia:()=>({matches:!!options.reduced}),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)};
+ if(options.manualFrames)Object.assign(ctx,{requestAnimationFrame:fn=>{const id=++task;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:(fn,ms)=>{const id=++task;timers.set(id,{fn,at:time+ms});return id;},clearTimeout:id=>timers.delete(id)});
+ vm.runInNewContext(code,ctx);const S=ctx.module.exports,w={style:{transform:'',visibility:''},dataset:{},inert:false},model={desktopId:'old'},scene={ids:()=>[model.desktopId],valid:()=>true,stage:async(kind,packet)=>{events.push('decoded:'+kind);return packet.complete;},show:()=>events.push('show-old'),animate:async()=>{events.push('animate-start');time+=S.DURATION;events.push('animate-end');return true;},timing:()=>({animationDurationMs:S.DURATION}),cancel:()=>events.push('cancel'),remove:()=>events.push('remove')};
+ const N={test:true,onPreviewsCleared:fn=>{cleared=fn;return()=>{cleared=null;}},desktops:async(action,args)=>{
+  if(action==='surfaces'){events.push('capture:'+model.desktopId);if(options.cancelIncoming&&model.desktopId==='new')cleared();return{token:'capture-token',complete:!(options.incomplete&&model.desktopId==='old')};}
+  events.push(args.phase);if(args.phase==='begin'){assert.ok(events.includes('decoded:outgoing'));assert.equal(w.style.visibility,'');return{held:options.begin!==false,token:'capture-token'};}
+  assert.equal(w.style.visibility,'');return{released:true};
+ }};
+ const run=()=>S.run({workspace:w,model,N,sceneFactory:()=>scene,direction:options.direction||1,layout:async()=>{events.push('layout');time+=delay;},change:async()=>{events.push('change');if(options.fail)throw Error('fixture failure');model.desktopId='new';}});
+ const flush=async()=>{for(let i=0;i<16;i++)await Promise.resolve();};
+ const paint=async()=>{time+=16;for(const [id,fn]of [...frames])if(frames.delete(id))fn(time);await flush();};
+ const elapse=async ms=>{time+=ms;for(const [id,timer]of [...timers])if(timer.at<=time){timers.delete(id);timer.fn();}await flush();};
+ return{S,w,model,N,events,listeners,run,clock:()=>time,hasCleared:()=>!!cleared,flush,paint,elapse,pendingFrames:()=>frames.size,pendingTimers:()=>timers.size};
+}
+test('desktop transition decodes before hold and restores input, native surfaces and listeners on every outcome',async()=>{
+ for(const options of [{},{fail:true},{incomplete:true},{begin:false},{cancelIncoming:true},{reduced:true}]){
+  const f=slideFixture(0,options);if(options.fail)await assert.rejects(f.run(),/fixture failure/);else await f.run();
+  assert.equal(f.events.filter(x=>x==='change').length,1);assert.equal(f.w.style.transform,'');assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(!!f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);
+  if(!options.reduced&&!options.incomplete&&options.begin!==false)assert.ok(f.events.includes('end'),'owned hold is released even when change or capture is cancelled');
+  if(options.incomplete||options.begin===false||options.cancelIncoming||options.reduced)assert.ok(!f.events.includes('animate-start'));
+ }
+ const f=slideFixture();await f.run();assert.deepEqual(f.events,['capture:old','decoded:outgoing','show-old','begin','change','layout','capture:new','decoded:incoming','animate-start','animate-end','end','remove','layout']);assert.equal(f.S.last.decoded,true);assert.equal(f.S.last.animated,true);
+ assert.equal(f.S.ease(0),0);assert.equal(f.S.ease(.5),.5);assert.equal(f.S.ease(1),1);
 });
 test('owner final top plus and centered bottom burrow keep distinct actions',()=>{
  const css=fs.readFileSync('mouse/mouse-621.css','utf8'),ui=fs.readFileSync('mouse/desktops.js','utf8');assert.match(css,/#statusbar #desktops-button\{top:auto;bottom:0;width:36px;height:23px;min-width:36px;min-height:23px/);assert.match(css,/#statusbar\{position:relative;z-index:8;overflow:visible\}/);assert.match(css,/\.toolbar>#new-tab\{[^}]*width:28px;height:28px/);assert.match(css,/\.toolbar>#new-tab::before\{display:none!important\}/);assert.match(ui,/button.onclick=open/);assert.match(fs.readFileSync('mouse/browser.js','utf8'),/name==='new-tab'\)return openPage\('mouse:\/\/start'\)/);
 });
-test('250ms native acknowledgements still display intermediate desktop positions in both directions',async()=>{
- const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8');
- for(const direction of [-1,1]){
-  let time=0,side=0;const sides=[[],[]],ctx={module:{exports:{}},performance:{now:()=>time},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>setTimeout(()=>{time+=16;fn(time)},0),cancelAnimationFrame:clearTimeout,setTimeout,clearTimeout};vm.runInNewContext(code,ctx);
-  const w={getBoundingClientRect:()=>({width:873}),style:{transform:''},dataset:{},inert:false},model={};
-  await ctx.module.exports.run({workspace:w,model,direction,layout:async()=>{if(w.style.transform)sides[side].push(parseInt(w.style.transform.slice(11),10));time+=250;},change:async()=>{side=1;}});
-  for(const positions of sides){assert.ok(new Set(positions).size>=5,JSON.stringify(sides));assert.ok(positions.every(Number.isInteger));}
-  assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
+test('250ms native acknowledgements cannot stretch the shared compositor timeline or add per-frame layout calls',async()=>{
+ for(const direction of [-1,1])for(const delay of [0,250]){
+  const f=slideFixture(delay,{direction});await f.run();
+  assert.equal(f.events.filter(x=>x==='layout').length,2);assert.equal(f.S.last.layoutCalls,2);assert.equal(f.S.last.animationDurationMs,330);
+  assert.equal(f.S.last.totalDurationMs,330+2*delay);assert.equal(f.clock(),330+2*delay);
+  const start=f.events.indexOf('animate-start'),end=f.events.indexOf('animate-end');assert.deepEqual(f.events.slice(start+1,end),[],'there is no native IPC inside the animation interval');
+  assert.equal(f.w.style.transform,'');assert.equal(f.S.last.direction,direction);
  }
+});
+test('incoming desktop materialization finishes two setup frames before animation starts',async()=>{
+ const f=slideFixture(0,{manualFrames:true}),running=f.run();await f.flush();
+ await f.paint();await f.paint();
+ assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
+ await f.paint();assert.ok(!f.events.includes('animate-start'),'the first incoming setup frame cannot start the animation');
+ await f.paint();assert.ok(f.events.includes('animate-start'));
+ await f.paint();await f.paint();await running;
+ assert.equal(f.S.last.animationDurationMs,330);assert.equal(f.events.filter(x=>x==='layout').length,2);
+ assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
+});
+for(const interruption of ['resize','timeout'])test('incoming desktop preparation '+interruption+' releases the hold without starting animation',async()=>{
+ const f=slideFixture(0,{manualFrames:true}),running=f.run();await f.flush();await f.paint();await f.paint();
+ assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
+ if(interruption==='resize'){f.listeners.get('resize')();await f.paint();await f.paint();}
+ else{await f.elapse(119);assert.ok(!f.events.includes('end'),'the existing120ms preparation budget is retained');await f.elapse(1);}
+ assert.ok(!f.events.includes('animate-start'));assert.equal(f.events.filter(x=>x==='end').length,1);
+ await f.paint();await f.paint();await running;
+ assert.equal(f.events.filter(x=>x==='remove').length,1);assert.equal(f.events.filter(x=>x==='layout').length,2);
+ assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);
+ assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
+});
+
+function pendingSlideScene(direction=1){
+ const vm=require('node:vm'),animations=[],area={x:0,y:0,width:500,height:300};let now=1000,document;
+ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
+ class Animation{
+  constructor(node,frames,options){this.node=node;this.frames=frames;this.options=options;this.pending=true;this.start=null;this.writes=[];this.cancelled=false;this.readyTask=deferred();this.finishTask=deferred();this.ready=this.readyTask.promise;this.finished=this.finishTask.promise;animations.push(this);}
+  get startTime(){return this.start;}
+  set startTime(value){this.writes.push(value);this.start=value;this.pending=false;this.readyTask.resolve(this);this.advance();}
+  get currentTime(){return this.pending?0:Math.max(0,Math.min(this.options.duration,now-this.start));}
+  browserReady(){if(this.cancelled||!this.pending)return;this.start=now;this.pending=false;this.readyTask.resolve(this);this.advance();}
+  advance(){if(!this.pending&&!this.cancelled&&this.currentTime===this.options.duration)this.finishTask.resolve(this);}
+  cancel(){this.cancelled=true;const error=Object.assign(Error('cancelled'),{name:'AbortError'});this.readyTask.reject(error);this.finishTask.reject(error);}
+ }
+ class Node{
+  constructor(tag='div'){this.tagName=tag.toUpperCase();this.ownerDocument=document;this.style={};this.dataset={};this.children=[];this.isConnected=false;}
+  setAttribute(){}removeAttribute(){}querySelector(){return null;}querySelectorAll(){return[];}getBoundingClientRect(){return{...area};}
+  cloneNode(){return new Node();}append(...nodes){this.children.push(...nodes);for(const node of nodes)node.isConnected=true;}
+  attachShadow(){this.shadow=new Node();return this.shadow;}remove(){this.isConnected=false;}animate(frames,options){return new Animation(this,frames,options);}
+ }
+ document={styleSheets:[],documentElement:{dataset:{theme:'light'}},timeline:{currentTime:600},createElement:tag=>new Node(tag)};document.body=new Node();
+ const workspace=new Node(),model={desktopId:'old',state:{tabs:[]}},ctx={module:{exports:{}},performance:{now:()=>now}};
+ vm.runInNewContext(fs.readFileSync('mouse/desktop-slide.js','utf8'),ctx);const scene=ctx.module.exports.createScene(workspace,model,direction);
+ const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+ return{scene,animations,area,async stage(){assert.equal(await scene.stage('outgoing',{desk:'old',complete:true,surfaces:[]}),true);model.desktopId='new';assert.equal(await scene.stage('incoming',{desk:'new',complete:true,surfaces:[]}),true);},async at(value){now=value;for(const animation of animations)animation.advance();await flush();},flush};
+}
+test('pending desktop players ignore stale document time and align only to the actual outgoing start',async()=>{
+ for(const direction of [-1,1]){
+  const f=pendingSlideScene(direction);await f.stage();const running=f.scene.animate();await f.flush();
+  assert.deepEqual(f.animations.map(a=>a.startTime),[null,null],'an old document timestamp must not bypass pending play');
+  assert.deepEqual(f.animations.map(a=>a.currentTime),[0,0]);await f.at(1040);f.animations[0].browserReady();await f.flush();
+  assert.deepEqual(f.animations.map(a=>a.startTime),[1040,null]);await f.at(1052);f.animations[1].browserReady();await f.flush();
+  assert.deepEqual(f.animations.map(a=>a.startTime),[1040,1040]);assert.deepEqual(f.animations[0].writes,[],'the outgoing playhead is never rewound');assert.deepEqual(f.animations[1].writes,[1040]);
+  for(const time of [1100,1230,1369]){await f.at(time);const [a,b]=f.animations;assert.equal(a.currentTime,b.currentTime);const outgoing=-direction*f.area.width*a.currentTime/330,incoming=direction*f.area.width*(1-b.currentTime/330);assert.ok(Math.abs(incoming-outgoing-direction*f.area.width)<1e-9);assert.ok(a.currentTime<330);}
+  await f.at(1370);assert.equal(await running,true);for(const animation of f.animations){assert.equal(animation.options.duration,330);assert.equal(animation.options.easing,'cubic-bezier(.22,1,.36,1)');}
+ }
+});
+test('desktop players already sharing an actual browser start need no timestamp assignment',async()=>{
+ const f=pendingSlideScene();await f.stage();const running=f.scene.animate();await f.at(1040);for(const animation of f.animations)animation.browserReady();await f.flush();
+ assert.deepEqual(f.animations.map(a=>a.startTime),[1040,1040]);assert.ok(f.animations.every(a=>a.writes.length===0));
+ await f.at(1370);assert.equal(await running,true);
+});
+test('cancelling desktop players while browser play is pending settles ready and finished safely',async()=>{
+ const f=pendingSlideScene();await f.stage();const running=f.scene.animate();f.scene.cancel();assert.equal(await running,false);f.scene.remove();
+ assert.ok(f.animations.every(a=>a.cancelled&&a.writes.length===0));assert.equal(f.scene.overlay.isConnected,false);
+});
+
+test('Nora controls cancel global backdrop effects in the loaded CSS without restyling other controls',()=>{
+ const html=fs.readFileSync('mouse/index.html','utf8'),sheets=[...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match=>match[1]).filter(file=>!file.startsWith('agent-vendor/')),rules=[];
+ for(const file of sheets){
+  const css=fs.readFileSync('mouse/'+file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
+  for(const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)){
+   const declarations=match[2].split(';').flatMap(text=>{const colon=text.indexOf(':');return colon<0?[]:[[text.slice(0,colon).trim(),text.slice(colon+1).trim()]];});
+   for(const selector of match[1].split(',').map(text=>text.trim()))if(/^(?:#desktop-tray )?(?:button|select)$/.test(selector))rules.push({selector,declarations});
+  }
+ }
+ // Resolve the actual generic and scoped declarations for simple control
+ // fixtures. Native verification additionally checks Chromium's computed CSS.
+ const effect=(tag,inNora,property)=>{
+  let winner={weight:-1,value:''};
+  for(const rule of rules){if(rule.selector!==tag&&!(inNora&&rule.selector==='#desktop-tray '+tag))continue;
+   for(const [name,raw]of rule.declarations)if(name===property){const important=/!important\s*$/.test(raw),weight=(important?1000:0)+(rule.selector.startsWith('#')?100:0);if(weight>=winner.weight)winner={weight,value:raw.replace(/\s*!important\s*$/,'')};}
+  }return winner.value;
+ };
+ for(const tag of ['button','select'])for(const property of ['backdrop-filter','-webkit-backdrop-filter']){
+  assert.equal(effect(tag,true,property),'none',tag+' inside Nora must not sample a backdrop');
+  assert.equal(effect(tag,false,property),'blur(14px) saturate(1.15)',tag+' outside Nora retains its existing effect');
+ }
+ const scoped=rules.filter(rule=>rule.selector.startsWith('#desktop-tray '));assert.equal(scoped.length,2);
+ for(const rule of scoped)assert.deepEqual(rule.declarations.map(([property])=>property).sort(),['-webkit-backdrop-filter','backdrop-filter'],'the reset must not change colors, borders, backgrounds or other control styles');
 });
 
 require('./mouse-floating-overlay.test.cjs');

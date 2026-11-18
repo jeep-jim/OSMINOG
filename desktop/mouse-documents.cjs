@@ -36,11 +36,12 @@ async function atomicWrite(file,bytes,before,check=()=>{},onCommit=()=>{}){
  finally{await handle?.close().catch(()=>{});await fs.unlink(temporary).catch(()=>{});}
 }
 class DocumentService{
- constructor({win,dialog,trusted,ipcMain,isPrivate=()=>false,codec,emit}){Object.assign(this,{win,dialog,trusted,isPrivate});this.codec=codec;this.records=new Map();this.epoch=0;this.queue=Promise.resolve();this.disposed=false;this.emit=emit||(()=>{});if(ipcMain)ipcMain.handle('mouse:documents',(event,action,args)=>{trusted(event);return this.handle(action,args);});}
+ constructor({win,dialog,trusted,ipcMain,isPrivate=()=>false,codec,emit}){Object.assign(this,{win,dialog,trusted,isPrivate});this.codec=codec;this.records=new Map();this.listeners=new Set();this.epoch=0;this.queue=Promise.resolve();this.disposed=false;this.emit=emit||(()=>{});if(ipcMain)ipcMain.handle('mouse:documents',(event,action,args)=>{trusted(event);return this.handle(action,args);});}
  zip(){return this.codec||(this.codec=require('./mouse-document-zip.cjs'));}
  describe(r){return{id:r.id,name:r.name,kind:r.kind,size:r.bytes.length,revision:r.revision,dirty:r.dirty,hasSavedCopy:!!r.savedPath,private:r.private};}
  state(){return{documents:[...this.records.values()].map(r=>this.describe(r))};}
- changed(){if(!this.disposed)this.emit(this.state());}
+ subscribe(listener){this.listeners.add(listener);return()=>this.listeners.delete(listener);}
+ changed(){if(this.disposed)return;const state=this.state();this.emit(state);for(const listener of this.listeners)listener(state);}
  own(id){if(this.disposed||typeof id!=='string')throw Error('Документ закрыт');const r=this.records.get(id);if(!r||r.private!==!!this.isPrivate())throw Error('Документ недоступен в этом сеансе');return r;}
  guard(r,revision=r.revision){const epoch=this.epoch,editGeneration=r.editGeneration;return()=>{if(this.disposed||this.epoch!==epoch||this.records.get(r.id)!==r||r.private!==!!this.isPrivate()||r.revision!==revision||r.editGeneration!==editGeneration)throw error('MOUSE_DOCUMENT_STALE','Документ или режим изменился. Откройте его снова.');};}
  async open(){
@@ -55,7 +56,7 @@ class DocumentService{
   const r={id:crypto.randomUUID(),name:path.basename(file),kind,originalPath:file,originalHash:data.hash,bytes:data.bytes,archive,revision:0,editGeneration:0,dirty:false,draft:null,private:privateMode,savedPath:'',savedHash:''};this.records.set(r.id,r);this.changed();return this.describe(r);
  }
  read(id){const r=this.own(id);return{...this.describe(r),...(r.archive?this.zip().snapshot(r.archive):{bytes:new Uint8Array(r.bytes)}),draft:r.draft?structuredClone(r.draft):null};}
- draft(id,value,expectedRevision){const r=this.own(id);if(expectedRevision!==undefined&&(!Number.isInteger(expectedRevision)||expectedRevision!==r.revision))throw error('MOUSE_DOCUMENT_STALE','Версия документа изменилась');if(value!==undefined){if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Неверный черновик');const encoded=JSON.stringify(value);if(encoded.length>MAX_DRAFT)throw Error('Черновик слишком большой');const next=JSON.parse(encoded);if(isDeepStrictEqual(r.draft,next))return this.describe(r);r.draft=next;}r.editGeneration++;r.dirty=true;this.changed();return this.describe(r);}
+ draft(id,value,expectedRevision){const r=this.own(id),wasDirty=r.dirty;if(expectedRevision!==undefined&&(!Number.isInteger(expectedRevision)||expectedRevision!==r.revision))throw error('MOUSE_DOCUMENT_STALE','Версия документа изменилась');if(value!==undefined){if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Неверный черновик');const encoded=JSON.stringify(value);if(encoded.length>MAX_DRAFT)throw Error('Черновик слишком большой');const next=JSON.parse(encoded);if(isDeepStrictEqual(r.draft,next))return this.describe(r);r.draft=next;}r.editGeneration++;r.dirty=true;if(!wasDirty)this.changed();return this.describe(r);}
  async save(args={}){
   const r=this.own(args.id);if(!Number.isInteger(args.expectedRevision)||args.expectedRevision!==r.revision)throw error('MOUSE_DOCUMENT_STALE','Версия документа изменилась');const check=this.guard(r),kind=r.kind;let bytes;
   if(r.archive){if(!args.parts||typeof args.parts!=='object'||Array.isArray(args.parts)||Object.keys(args.parts).length>256)throw Error('Неверные изменения документа');const allowed=kind==='docx'?/^word\/(?:document|header\d*|footer\d*)\.xml$/:/^(?:xl\/workbook\.xml|xl\/worksheets\/[^/]+\.xml)$/;for(const [part,value]of Object.entries(args.parts)){if(!allowed.test(part)||typeof value!=='string'||value.length>16*1024*1024||/<!DOCTYPE|<!ENTITY/i.test(value))throw Error('Неподдерживаемая часть документа');}bytes=this.zip().save(r.archive,args.parts);}
@@ -70,6 +71,17 @@ class DocumentService{
   });this.changed();return{...this.describe(r),saved:true};
  }
  async confirmClose(id){const r=this.own(id);if(!r.dirty)return'discard';const check=this.guard(r);const result=await this.dialog.showMessageBox(this.win,{type:'question',title:'Изменения документа',message:'Сохранить изменения в «'+r.name+'»?',buttons:['Сохранить','Не сохранять','Отмена'],defaultId:0,cancelId:2,noLink:true});check();return['save','discard','cancel'][result.response]||'cancel';}
+ async closeDocument(id,exporter,commit=()=>{}){
+  if(this.preparing)throw Error('Завершите выбор сохранения документов');
+  const run=async()=>{const r=this.own(id);let check=this.guard(r);const choice=await this.confirmClose(id);check();if(choice==='cancel')return false;
+   if(choice==='save'){const payload=await exporter(id);const result=await this.save({id,expectedRevision:r.revision,...payload});if(result.cancelled)return false;if(r.dirty)throw error('MOUSE_DOCUMENT_STALE','После сохранения появились новые правки. Повторите закрытие.');check=this.guard(r);}
+   check();
+   // A navigation creates the replacement page before the document disappears.
+   // DesktopBank therefore sees the same tab ID throughout the transition.
+   commit();this.records.delete(id);this.changed();return true;
+  };
+  const result=this.queue.then(run);this.queue=result.catch(()=>{});return result;
+ }
  async prepareExit(exporter){
   if(this.preparing)return this.preparing;
   this.preparing=(async()=>{await this.queue;const records=[...this.records.values()],checks=new Map(records.map(r=>[r,this.guard(r)])),discard=[];
@@ -85,11 +97,11 @@ class DocumentService{
   if(!args||typeof args!=='object'||Array.isArray(args))throw Error('Неверный запрос документа');
   if(action==='state')return this.state();if(action==='read')return this.read(args.id);if(action==='draft')return this.draft(args.id,args.draft,args.expectedRevision);
   if(this.preparing&&!['state','read','draft'].includes(action))throw Error('Завершите выбор сохранения документов');
-  if(action==='release'){this.own(args.id);this.records.delete(args.id);this.changed();return true;}
+  if(action==='release'){const r=this.own(args.id);if(r.dirty)throw Error('Сначала сохраните или закройте документ через его вкладку');this.records.delete(args.id);this.changed();return true;}
   if(!['open','save','confirm-close'].includes(action))throw Error('Неизвестное действие документа');
   const run=()=>action==='open'?this.open():action==='save'?this.save(args):this.confirmClose(args.id),result=this.queue.then(run);this.queue=result.catch(()=>{});return result;
  }
  clear(){this.epoch++;this.records.clear();this.changed();}
- dispose(){if(this.disposed)return;this.clear();this.disposed=true;}
+ dispose(){if(this.disposed)return;this.clear();this.disposed=true;this.listeners.clear();}
 }
 module.exports={DocumentService,readRegular,atomicWrite,digest,MAX_FILE,MAX_TOTAL,MAX_OPEN};

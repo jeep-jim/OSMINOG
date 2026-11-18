@@ -1,56 +1,82 @@
 'use strict';
-globalThis.createMouseDocumentsUI=({N,overlays,layout,status:browserStatus})=>{
- const dialog=document.createElement('dialog');dialog.id='mouse-documents';dialog.innerHTML='<header class="document-heading"><span class="document-product-icon" aria-hidden="true">▤</span><div><strong>Документы</strong><small>PDF · Word · Excel</small></div><button class="document-open" type="button">Открыть файл…</button><button class="document-save" type="button" disabled>Сохранить копию</button><button class="document-save-as" type="button" disabled>Сохранить как…</button><button class="document-hide" type="button" title="Свернуть редактор" aria-label="Свернуть редактор">×</button></header><nav class="document-tabs" aria-label="Открытые документы"></nav><div class="document-notice" role="status"></div><main class="document-editor-host"></main><footer class="document-footer"><span class="document-save-state"></span><span>Файлы обрабатываются на этом Mac</span></footer>';
- document.body.append(dialog);const tabs=dialog.querySelector('.document-tabs'),host=dialog.querySelector('.document-editor-host'),notice=dialog.querySelector('.document-notice'),saveButton=dialog.querySelector('.document-save'),saveAs=dialog.querySelector('.document-save-as'),saveState=dialog.querySelector('.document-save-state');
- const button=document.createElement('button');button.id='documents-button';button.type='button';button.title='Документы · ⌘O';button.setAttribute('aria-label',button.title);button.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 2h8l4 4v16H6zM14 2v5h4M9 11h6M9 15h6M9 18h4"/></svg>';document.querySelector('#footer-library').append(button);
- const records=new Map();let active='',editor=null,busy=false,transactionHeld=false,selectEpoch=0,draftTimer=0,selection=Promise.resolve();
- const blocked=()=>busy||transactionHeld;
- function status(message){notice.textContent=notice.title=String(message||'');}
- function drawTabs(){tabs.replaceChildren();for(const r of records.values()){const item=document.createElement('div');item.className='document-tab';item.dataset.documentId=r.id;item.dataset.kind=r.kind;item.setAttribute('aria-current',String(r.id===active));const select=document.createElement('button'),close=document.createElement('button');select.type=close.type='button';select.textContent=(r.dirty?'● ':'')+r.name;select.title=r.name;select.onclick=()=>{if(!blocked())void safe(()=>selectDocument(r.id));};close.textContent='×';close.className='document-tab-close';close.title='Закрыть документ';close.setAttribute('aria-label','Закрыть '+r.name);close.onclick=()=>safe(()=>closeDocument(r.id));item.append(select,close);tabs.append(item);}const r=records.get(active),locked=blocked();for(const control of tabs.querySelectorAll('button'))control.disabled=locked;dialog.querySelector('.document-open').disabled=locked;host.inert=locked;saveButton.disabled=saveAs.disabled=locked||!r;dialog.setAttribute('aria-busy',String(locked));saveButton.textContent=r?.hasSavedCopy?'Сохранить':'Сохранить копию';saveState.textContent=r?(r.dirty?'● Не сохранено':'Сохранено / без изменений'):'';button.dataset.dirty=String([...records.values()].some(r=>r.dirty));}
- const safe=fn=>Promise.resolve().then(fn).catch(e=>{status(e.message);if(!dialog.open)browserStatus(e.message);});
- function empty(){host.innerHTML='<div class="document-welcome"><div class="document-format-icons" aria-hidden="true"><span class="format-pdf">PDF</span><span class="format-word">W</span><span class="format-sheet">X</span></div><h2>Документы — рядом с вашими вкладками</h2><p>Откройте PDF, DOCX или XLSX. Добавьте отметки, исправьте текст или значения таблицы и сохраните файл.</p><button type="button" class="primary">Выбрать документ</button><small>Также доступны TXT, Markdown, CSV, TSV и JSON.</small></div>';host.querySelector('button').onclick=()=>safe(openFile);status('Исходный файл сохраняется до явного выбора места записи.');}
- function mergedDraft(a,b){return{...(a||{}),...(b||{}),...((a?.parts||b?.parts)?{parts:{...(a?.parts||{}),...(b?.parts||{})}}:{})};}
- async function harvest(){clearTimeout(draftTimer);const r=records.get(active);if(!r?.dirty||!editor)return;const draft=await(editor.getDraft?.()||editor.exportChanges());r.draft=mergedDraft(r.draft,draft);try{await N.documents('draft',{id:r.id,expectedRevision:r.loadedRevision??r.revision,draft:r.draft});}catch(error){status(error.message+' · правки остаются в открытом редакторе');}}
- function changed(){const r=records.get(active);if(!r)return;const wasDirty=r.dirty;r.dirty=true;if(!wasDirty)drawTabs();void N.documents('draft',{id:r.id,expectedRevision:r.loadedRevision??r.revision}).catch(error=>status(error.message));clearTimeout(draftTimer);draftTimer=setTimeout(()=>void safe(harvest),1000);}
- async function mount(id){
-  const ticket=++selectEpoch;const r=records.get(id);if(!r)return;const data=await N.documents('read',{id});if(ticket!==selectEpoch)return;const draft=mergedDraft(data.draft,r.draft),view=r.view;
-  const value={...data,...(data.parts?{parts:{...data.parts,...draft.parts}}:{}),draft,view};host.replaceChildren();status('Открываю '+r.name+'…');
-  let nextEditor;if(data.kind==='pdf')nextEditor=await createMousePDFEditor({host,document:value,onChange:changed,status});
-  else if(data.kind==='docx')nextEditor=await createMouseWordEditor({host,document:value,onChange:changed,status});
-  else if(data.kind==='xlsx')nextEditor=await createMouseSheetEditor({host,document:value,onChange:changed,status});
-  else{const field=document.createElement('textarea');field.className='document-text';field.spellcheck=false;field.value=typeof draft.text==='string'?draft.text:new TextDecoder('utf-8',{fatal:true}).decode(data.bytes);host.append(field);field.oninput=changed;nextEditor={getDraft:()=>({text:field.value}),exportChanges:async()=>{if(/\.json$/i.test(r.name))JSON.parse(field.value);return{bytes:new TextEncoder().encode(field.value)};},dispose:()=>host.replaceChildren()};status('Текстовый документ · UTF-8');}
-  if(ticket!==selectEpoch||!records.has(id)){nextEditor?.dispose();return;}editor=nextEditor;r.loadedRevision=data.revision;r.dirty=r.dirty||data.dirty;drawTabs();
+globalThis.createMouseDocumentsUI=({N,active,activate,layout,status:browserStatus})=>{
+ const records=new Map();let busy=0,transactionHeld=false,syncing=Promise.resolve();const saves=new Set();
+ const button=document.createElement('button');button.id='documents-button';button.type='button';button.title='Открыть документ во вкладке · ⌘O';button.setAttribute('aria-label',button.title);button.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 2h8l4 4v16H6zM14 2v5h4M9 11h6M9 15h6M9 18h4"/></svg>';document.querySelector('#footer-library').append(button);
+ const blocked=()=>busy>0||transactionHeld;
+ const mergedDraft=(a,b)=>({...a,...b,...((a?.parts||b?.parts)?{parts:{...a?.parts,...b?.parts}}:{})});
+ function status(r,message){const text=String(message||'');if(r?.node){const notice=r.node.querySelector('.document-notice');notice.textContent=notice.title=text;}if(!r?.node?.isConnected&&text)browserStatus(text);}
+ const safe=(fn,r)=>Promise.resolve().then(fn).catch(error=>{if(!r||records.get(r.id)===r)status(r,error.message);});
+ function draw(){
+  const locked=blocked();button.disabled=locked;button.dataset.dirty=String([...records.values()].some(r=>r.dirty));
+  for(const r of records.values())if(r.node){const waiting=locked||!!r.busy||!!r.loading;r.node.setAttribute('aria-busy',String(waiting));r.host.inert=waiting;for(const control of r.node.querySelectorAll('.document-heading button'))control.disabled=waiting;r.node.querySelector('.document-name').textContent=r.name;r.node.querySelector('.document-name').title=r.name;r.node.querySelector('.document-save').textContent=r.hasSavedCopy?'Сохранить':'Сохранить копию';r.node.querySelector('.document-save-state').textContent=r.dirty?'● Не сохранено':'Без изменений';}
  }
- async function selectDocument(id){
-  const run=async()=>{const target=records.get(id);if(id===active&&editor&&target?.loadedRevision===target?.revision)return;const previousBusy=busy;busy=true;drawTabs();try{await harvest();const old=records.get(active);if(old&&editor?.getView)old.view=editor.getView();editor?.dispose();editor=null;active=records.has(id)?id:'';drawTabs();if(active)await mount(active);else empty();}finally{busy=previousBusy;drawTabs();}};
-  const work=selection.then(run);selection=work.catch(()=>{});return work;
+ function record(info){let r=records.get(info.id);if(!r){r={...info,editor:null,node:null,host:null,loading:null,loadedRevision:null,token:0,visible:false,draft:null,view:null,draftTimer:0,suspendTimer:0};records.set(r.id,r);}return r;}
+ function makePane(r){
+  if(r.node)return r.node;const node=document.createElement('section');node.className='document-pane';node.dataset.documentId=r.id;node.dataset.kind=r.kind;node.setAttribute('aria-label','Документ '+r.name);
+  node.innerHTML='<header class="document-heading"><span class="document-product-icon" aria-hidden="true">▤</span><div class="document-heading-title"><strong class="document-name"></strong><small class="document-format"></small></div><button class="document-open" type="button" title="Открыть другой документ во вкладке · ⌘O">Открыть…</button><button class="document-save" type="button">Сохранить копию</button><button class="document-save-as" type="button">Сохранить как…</button></header><div class="document-notice" role="status"></div><main class="document-editor-host"></main><footer class="document-footer"><span class="document-save-state"></span><span>На этом Mac</span></footer>';
+  r.node=node;r.host=node.querySelector('.document-editor-host');node.querySelector('.document-format').textContent=({pdf:'PDF',docx:'Word · DOCX',xlsx:'Excel · XLSX',text:'Текст · UTF-8'})[r.kind]||'Документ';node.querySelector('.document-open').onclick=()=>void safe(openFile,r);node.querySelector('.document-save').onclick=()=>void safe(()=>save(r.id),r);node.querySelector('.document-save-as').onclick=()=>void safe(()=>save(r.id,true),r);draw();return node;
  }
- async function show(){if(!dialog.open)await overlays.show(dialog);await sync();if(!records.size)empty();else if(!editor)await selectDocument(active||records.keys().next().value);}
- function hide(){void safe(harvest);if(dialog.open)dialog.close();layout();}
- async function openFile(){if(blocked())return;await show();if(blocked())return;busy=true;drawTabs();try{const info=await N.documents('open');if(info){const existing=records.get(info.id);if(existing)Object.assign(existing,info);else records.set(info.id,info);await selectDocument(info.id);}}finally{busy=false;drawTabs();}}
+ function rememberView(r){if(r.editor?.getView)r.view=r.editor.getView();}
+ function disposeEditor(r){r.token++;r.editor?.dispose();r.editor=null;r.loadedRevision=null;r.host?.replaceChildren();}
+ function disposeRecord(r){clearTimeout(r.draftTimer);clearTimeout(r.suspendTimer);disposeEditor(r);r.node?.remove();records.delete(r.id);}
+ async function harvest(r){
+  clearTimeout(r.draftTimer);if(!r.dirty||!r.editor)return;await r.loading;if(records.get(r.id)!==r||!r.dirty||!r.editor)return;
+  const revision=r.loadedRevision,draft=mergedDraft(r.draft,await(r.editor.getDraft?.()||r.editor.exportChanges()));
+  await N.documents('draft',{id:r.id,expectedRevision:revision,draft});r.draft=draft;
+ }
+ function changed(r){
+  if(records.get(r.id)!==r)return;r.dirty=true;draw();
+  // Mark each edit in the host immediately so a pending native Save dialog
+  // cannot commit an older payload; the full draft is copied only after idle.
+  void N.documents('draft',{id:r.id,expectedRevision:r.loadedRevision??r.revision}).catch(error=>status(r,error.message));clearTimeout(r.draftTimer);r.draftTimer=setTimeout(()=>void safe(()=>harvest(r),r),700);
+ }
+ async function ensureEditor(r){
+  if(r.editor&&r.loadedRevision===r.revision)return r.editor;
+  if(r.loading){await r.loading;return ensureEditor(r);}
+  if(records.get(r.id)!==r)throw Error('Документ закрыт');makePane(r);rememberView(r);disposeEditor(r);const token=r.token;
+  const work=(async()=>{
+   const data=await N.documents('read',{id:r.id});if(records.get(r.id)!==r||token!==r.token)throw Error('Документ закрыт');
+   const draft=mergedDraft(data.draft,r.draft),value={...data,...(data.parts?{parts:{...data.parts,...draft.parts}}:{}),draft,view:r.view};status(r,'Открываю '+data.name+'…');let editor;
+   const options={host:r.host,document:value,onChange:()=>changed(r),status:message=>status(r,message)};
+   if(data.kind==='pdf')editor=await createMousePDFEditor(options);
+   else if(data.kind==='docx')editor=await createMouseWordEditor(options);
+   else if(data.kind==='xlsx')editor=await createMouseSheetEditor(options);
+   else{const field=document.createElement('textarea');field.className='document-text';field.spellcheck=false;field.setAttribute('aria-label',data.name);field.value=typeof draft.text==='string'?draft.text:new TextDecoder('utf-8',{fatal:true}).decode(data.bytes);r.host.append(field);field.oninput=()=>changed(r);editor={getDraft:()=>({text:field.value}),getView:()=>({top:field.scrollTop,left:field.scrollLeft,start:field.selectionStart,end:field.selectionEnd}),exportChanges:async()=>{if(/\.json$/i.test(r.name))JSON.parse(field.value);return{bytes:new TextEncoder().encode(field.value)};},dispose:()=>field.remove()};if(r.view){field.scrollTop=r.view.top||0;field.scrollLeft=r.view.left||0;field.setSelectionRange(r.view.start||0,r.view.end||0);}status(r,'Текстовый документ · UTF-8');}
+   if(records.get(r.id)!==r||token!==r.token){editor?.dispose();throw Error('Документ закрыт');}
+   r.editor=editor;r.loadedRevision=data.revision;r.revision=data.revision;r.dirty=r.dirty||data.dirty;return editor;
+  })();r.loading=work;draw();try{return await work;}finally{if(r.loading===work)r.loading=null;draw();}
+ }
+ function suspendLater(r){
+  if(r.suspendTimer||r.visible||!r.editor&&!r.loading)return;
+  r.suspendTimer=setTimeout(()=>{r.suspendTimer=0;void safe(async()=>{if(r.visible||blocked()||r.busy)return;await harvest(r);if(r.visible||blocked()||r.busy)return;rememberView(r);disposeEditor(r);},r);},1200);
+ }
+ function mount(slots){
+  for(const r of records.values())r.visible=false;
+  for(const {slot,item}of slots){const id=item?.documentId;if(!id)continue;const r=record({id,name:item.title,kind:item.documentKind,revision:item.revision,dirty:item.dirty,hasSavedCopy:item.hasSavedCopy,private:item.private});r.visible=true;clearTimeout(r.suspendTimer);r.suspendTimer=0;const node=makePane(r);if(node.parentNode!==slot)slot.append(node);const empty=slot.querySelector(':scope>.empty');if(empty)empty.hidden=true;if(!r.busy&&!transactionHeld)void safe(()=>ensureEditor(r),r);}
+  for(const r of records.values())if(!r.visible){r.node?.remove();suspendLater(r);}draw();
+ }
+ async function sync(state){
+  const work=syncing.then(async()=>{
+   const value=state||await N.documents('state');const wanted=new Set();for(const info of value.documents){wanted.add(info.id);const r=record(info),revised=r.revision!==undefined&&r.revision!==info.revision,dirty=revised?info.dirty:r.dirty||info.dirty;Object.assign(r,info,{dirty});if(revised){r.draft=null;if(r.editor&&!r.busy&&!blocked()){rememberView(r);disposeEditor(r);if(r.visible)void safe(()=>ensureEditor(r),r);}}}
+   for(const r of [...records.values()])if(!wanted.has(r.id))disposeRecord(r);draw();
+  });syncing=work.catch(()=>{});return work;
+ }
+ async function openFile(){
+  if(blocked())return;busy++;draw();try{const info=await N.documents('open');if(!info)return;const r=record(info);Object.assign(r,info);await activate(info.id);await ensureEditor(r);return info;}finally{busy--;draw();}
+ }
  async function exportDocument(id){
-  await selection;if(!records.has(id))throw Error('Документ закрыт');if(active!==id||!editor||records.get(id).loadedRevision!==records.get(id).revision)await selectDocument(id);if(!editor)throw Error('Редактор документа недоступен');
-  const previousBusy=busy;busy=true;drawTabs();try{await harvest();const r=records.get(id),payload=await editor.exportChanges();return{...payload,...(payload.parts?{parts:{...r.draft?.parts,...payload.parts}}:{})};}finally{busy=previousBusy;drawTabs();}
+  await syncing;const r=records.get(id);if(!r)throw Error('Документ закрыт');const editor=await ensureEditor(r);await harvest(r);const payload=await editor.exportChanges();suspendLater(r);return{...payload,...(payload.parts?{parts:{...r.draft?.parts,...payload.parts}}:{})};
  }
- async function saveCore(id,as){
-  clearTimeout(draftTimer);const payload=await exportDocument(id),r=records.get(id);if(editor?.getView)r.view=editor.getView();const scroll=[...host.querySelectorAll('*')].filter(e=>e.scrollTop||e.scrollLeft).map(e=>({className:e.className,top:e.scrollTop,left:e.scrollLeft}));const result=await N.documents('save',{id,expectedRevision:r.revision,saveAs:as,...payload});if(result.cancelled)return false;
-  Object.assign(r,result,{draft:null,dirty:result.dirty});editor?.dispose();editor=null;await mount(id);for(const pos of scroll)for(const e of host.querySelectorAll('*'))if(e.className===pos.className){e.scrollTop=pos.top;e.scrollLeft=pos.left;}status('Сохранено: '+r.name);return true;
+ async function saveCore(r,as){
+  r.busy=true;try{const payload=await exportDocument(r.id);rememberView(r);const positions=[...r.host.querySelectorAll('*')].filter(e=>e.scrollTop||e.scrollLeft).map(e=>({className:e.className,top:e.scrollTop,left:e.scrollLeft})),result=await N.documents('save',{id:r.id,expectedRevision:r.loadedRevision,saveAs:as,...payload});if(result.cancelled)return false;Object.assign(r,result,{draft:null,dirty:false});disposeEditor(r);await ensureEditor(r);for(const pos of positions)for(const e of r.host.querySelectorAll('*'))if(e.className===pos.className){e.scrollTop=pos.top;e.scrollLeft=pos.left;}status(r,'Сохранено: '+r.name);return true;}finally{r.busy=false;suspendLater(r);}
  }
- async function save(id=active,as=false){if(blocked()||!id)return false;busy=true;drawTabs();try{return await saveCore(id,as);}finally{busy=false;drawTabs();}}
- async function closeDocument(id=active){
-  if(blocked())return;await selection;if(blocked())return;const r=records.get(id);if(!r)return;busy=true;drawTabs();try{if(id===active)await harvest();if(r.dirty){const choice=await N.documents('confirm-close',{id});if(choice==='cancel')return;if(choice==='save'&&!await saveCore(id,false))return;}if(id===active){selectEpoch++;editor?.dispose();editor=null;active='';}await N.documents('release',{id});records.delete(id);drawTabs();if(!active)await selectDocument(records.keys().next().value||'');}finally{busy=false;drawTabs();}
+ async function save(id=active(),as=false){
+  if(blocked()||!id)return false;const r=records.get(id);if(!r)return false;busy++;draw();const task=saveCore(r,as);saves.add(task);try{return await task;}finally{saves.delete(task);busy--;draw();}
  }
- let syncSerial=Promise.resolve();
- async function sync(){
-  const work=syncSerial.then(async()=>{const state=await N.documents('state'),wanted=new Set();let reload=false;for(const info of state.documents){wanted.add(info.id);const r=records.get(info.id);if(r){const changedRevision=r.revision!==info.revision,dirty=changedRevision?info.dirty:r.dirty||info.dirty;Object.assign(r,info,{dirty});if(changedRevision){r.draft=null;if(r.id===active)reload=true;}}else records.set(info.id,{...info});}for(const id of records.keys())if(!wanted.has(id))records.delete(id);if(active&&!records.has(active)){selectEpoch++;editor?.dispose();editor=null;active='';empty();}drawTabs();if(reload&&!busy&&active)await selectDocument(active);});syncSerial=work.catch(()=>{});return work;
- }
- async function flush(){await selection;await harvest();}
-
- button.onclick=()=>void safe(show);dialog.querySelector('.document-open').onclick=()=>void safe(openFile);saveButton.onclick=()=>void safe(()=>save());saveAs.onclick=()=>void safe(()=>save(active,true));dialog.querySelector('.document-hide').onclick=hide;dialog.addEventListener('cancel',e=>{e.preventDefault();hide();});
- N.onDocuments?.(()=>void safe(sync));document.addEventListener('keydown',e=>{if(dialog.open&&(e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='s'){e.preventDefault();void safe(()=>save(active,e.shiftKey));}});
- // Main keeps this hold through its saves and the following privacy/quit
- // transition. Internal export/select still work while user edits are inert.
- globalThis.MouseDocumentsTransaction=held=>{transactionHeld=held===true;drawTabs();return true;};
- globalThis.MouseExportDocument=exportDocument;globalThis.MouseFlushDocuments=flush;void sync().catch(()=>{});empty();
- return{open:show,openFile,hide,save,exportDocument,close:closeDocument,flush,dialog,records};
+ async function closeDocument(id=active()){if(blocked()||!id)return false;const result=await N.browser('close',{id});return!result?.cancelled;}
+ async function flush(){await Promise.all([...saves]);await syncing;for(const r of [...records.values()])await harvest(r);}
+ button.onclick=()=>void safe(openFile);N.onDocuments?.(state=>void safe(()=>sync(state)));document.addEventListener('keydown',event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='s'&&active()){event.preventDefault();void safe(()=>save(active(),event.shiftKey),records.get(active()));}});
+ globalThis.MouseDocumentsTransaction=held=>{transactionHeld=held===true;draw();if(!transactionHeld)for(const r of records.values()){if(r.visible&&!r.busy&&(!r.editor||r.loadedRevision!==r.revision))void safe(()=>ensureEditor(r),r);suspendLater(r);}return true;};
+ globalThis.MouseExportDocument=exportDocument;globalThis.MouseFlushDocuments=flush;void sync().catch(()=>{});
+ return{open:openFile,openFile,save,exportDocument,close:closeDocument,flush,mount,sync,records};
 };

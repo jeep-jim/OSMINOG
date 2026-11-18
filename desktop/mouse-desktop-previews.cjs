@@ -13,6 +13,12 @@ class DesktopPreviews{
  dispose(){this.disposed=true;this.clear();}
  live(id){const t=this.browser.tabs.get(id),wc=t?.view?.webContents;return t&&wc&&!wc.isDestroyed?.()?{t,wc}:null;}
  valid(id,entry){const live=this.live(id);return live&&live.t===entry.page&&(live.t.navigationEpoch||0)===entry.epoch&&(live.wc.getURL?.()||live.t.url||'')===entry.url&&this.bank.members[id]===entry.desk;}
+ rememberImage(id,image,pin){
+  if(this.disposed||this.locked||this.browser.disposed||pin.desk!==this.bank.active||!this.valid(id,pin)||image.isEmpty?.())return;
+  const width=Math.min(400,image.getSize?.().width||400),bytes=image.resize({width}).toJPEG(70);if(!bytes.length||bytes.length>MAX_BYTES)return;
+  const at=this.now();this.attempts.delete(id);this.attempts.set(id,{...pin,at});this.cache.delete(id);this.cache.set(id,{page:pin.page,epoch:pin.epoch,url:pin.url,desk:pin.desk,src:'data:image/jpeg;base64,'+bytes.toString('base64'),capturedAt:at});
+  while(this.attempts.size>MAX_IMAGES)this.attempts.delete(this.attempts.keys().next().value);while(this.cache.size>MAX_IMAGES)this.cache.delete(this.cache.keys().next().value);
+ }
  takeCaptureSlot(){
   const release=()=>{const next=this.captureWaiters.shift();if(next)next(release);else this.activeCaptures--;};
   if(this.activeCaptures<MAX_CAPTURES){this.activeCaptures++;return Promise.resolve(release);}

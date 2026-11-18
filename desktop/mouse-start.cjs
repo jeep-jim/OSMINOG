@@ -12,10 +12,10 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
  const saved=await store.get(['quadroStartTabs','quadroStartPage']);
  const tabs=new Map((Array.isArray(saved.quadroStartTabs)?saved.quadroStartTabs:[]).filter(t=>t&&/^[a-f0-9-]{36}$/.test(t.id)).map(t=>[t.id,{id:t.id}]));
  let preferences={background:BACKGROUNDS.has(saved.quadroStartPage?.background)?saved.quadroStartPage.background:'dusk',showRecent:saved.quadroStartPage?.showRecent!==false};
- const wallpaper=path.join(app.getPath('userData'),'quadro-start-background.jpg');let backgroundData='',queue=Promise.resolve();
+ const wallpaper=path.join(app.getPath('userData'),'quadro-start-background.jpg');let backgroundData='',queue=Promise.resolve(),lastPersisted='';
  if(preferences.background==='custom'){try{const stat=await fs.stat(wallpaper);if(stat.size<=8*1024*1024)backgroundData='data:image/jpeg;base64,'+(await fs.readFile(wallpaper)).toString('base64');}catch{}if(!backgroundData)preferences.background='dusk';}
  const notify=()=>{if(!win.isDestroyed())win.webContents.send('mouse:start-changed');};
- function persist(){const value={quadroStartTabs:[...tabs.values()],quadroStartPage:{...preferences}};queue=queue.catch(()=>{}).then(()=>store.set(value));return queue;}
+ function persist(){const value={quadroStartTabs:[...tabs.values()],quadroStartPage:{...preferences}},signature=JSON.stringify(value);if(signature===lastPersisted)return queue;lastPersisted=signature;queue=queue.catch(()=>{}).then(()=>store.set(value)).catch(error=>{if(lastPersisted===signature)lastPersisted='';throw error;});return queue;}
  const state=browser.state.bind(browser);
  browser.state=()=>{const s=state();return{...s,tabs:[...s.tabs,...[...tabs.keys()].map(id=>({id,lane:'main',url:START,title:'Новая вкладка',internal:true,loading:false,back:false,forward:false,favicon:''}))]};};
  const save=browser.save.bind(browser);browser.save=()=>Promise.all([save(),persist()]);

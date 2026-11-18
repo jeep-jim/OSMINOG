@@ -1,16 +1,19 @@
-/* The footer and Nora share one opaque surface and a single continuous stroke. */
-#mouse-dock-surface{position:fixed;inset:0;width:100vw;height:100vh;z-index:901;pointer-events:none;overflow:visible}
-#mouse-dock-surface[hidden],#mouse-dock-scrim[hidden]{display:none}
-#mouse-dock-fill{fill:var(--panel);stroke:none}
-#mouse-dock-outline{fill:none;stroke:var(--line);stroke-width:var(--dock-line-width,1px);vector-effect:non-scaling-stroke}
-#mouse-dock-scrim{position:fixed;inset:0;z-index:900;background:#000;pointer-events:none}
-body.mouse-dock-active #statusbar{z-index:902;background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border-image:linear-gradient(transparent,transparent) 1!important}
-#desktop-tray{animation:none!important;transition:none!important;padding:0;overflow:visible;max-height:none;clip-path:url(#mouse-desktop-burrow);outline:none}
+/* Nora is a fixed-size panel sliding inside a stationary viewport. */
+#mouse-dock-scrim{position:fixed;inset:0;z-index:900;background:#000;pointer-events:none;opacity:0}
+#mouse-dock-scrim[hidden]{display:none}
+/* Opening the panel does not replace or resize the footer's own surface. */
+body:has(#desktop-tray[open]) #statusbar{border-image:none!important}
+#desktop-tray{animation:none!important;transition:none!important;padding:0;overflow:hidden;max-height:none;clip-path:none;outline:none;contain:layout paint}
 #desktop-tray::backdrop{background:transparent;backdrop-filter:none}
+#desktop-tray .desk-burrow-panel{position:relative;width:100%;height:100%;isolation:isolate;transform:translate3d(0,100%,0);contain:layout paint}
+/* The opaque panel needs no per-control sampling of the moving backdrop. */
+#desktop-tray button,#desktop-tray select{backdrop-filter:none;-webkit-backdrop-filter:none}
 #desktop-tray .desk-glass{display:none}
-#desktop-tray .desk-burrow-shape{filter:none;z-index:-1}
-#desktop-tray .desk-burrow-shape>path{stroke:transparent;fill:none}
-#desktop-tray .desk-content{position:absolute;bottom:0;left:0;width:100%;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:25px 6.2% 14px;opacity:0}
+#desktop-tray #mouse-dock-surface{position:absolute;inset:0;width:100%;height:100%;filter:none;pointer-events:none;z-index:0}
+#desktop-tray #mouse-dock-fill{fill:var(--panel);stroke:none}
+#desktop-tray #mouse-dock-outline{fill:none;stroke:var(--line);stroke-width:var(--dock-line-width,1px);vector-effect:non-scaling-stroke}
+/* Keep the scrollbar inside the arch's straight sides; content keeps the same inner margins. */
+#desktop-tray .desk-content{position:absolute;inset:0 3.6%;z-index:1;width:auto;height:100%;max-height:none;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:25px 2.6% 14px;opacity:1;clip-path:none;border-radius:var(--nora-curve-x) var(--nora-curve-x) 0 0 / var(--nora-curve-y) var(--nora-curve-y) 0 0}
 #desktop-tray .desk-content>header{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;min-height:38px;margin-bottom:15px}
 #desktop-tray .desk-content>header>.desk-title{display:flex;min-width:0;gap:4px;align-items:flex-start;justify-self:start}
 #desktop-tray .desk-content>header>.desk-history-controls{display:flex;flex-direction:row;justify-content:center;align-items:center;justify-self:center;min-width:0;gap:7px}

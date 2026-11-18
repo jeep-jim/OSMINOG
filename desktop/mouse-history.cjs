@@ -31,7 +31,8 @@ function attachHistory(wc,library,notify,{delay=450,setTimer=setTimeout,clearTim
  }
  const schedule=()=>{cancel();timer=setTimer(commit,delay);timer?.unref?.();};
  const start=(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace){loading=true;pending='document';cancel();}};
- const navigate=()=>{pending='document';};
+ // A committed navigation still waits for finish if its start preceded attachment.
+ const navigate=()=>{loading=true;pending='document';cancel();};
  const finish=()=>{loading=false;if(!pending)pending='document';schedule();};
  const inPage=(_event,_url,isMainFrame)=>{if(!isMainFrame)return;pending=pending==='document'?'document':'in-page';if(!loading)schedule();};
  const title=(_event,value)=>{const now=current();if(!now)return;if(pending){if(!loading)schedule();return;}if(!technical(now.url,value)&&lastId){library.title(now.url,value,lastId);notify();}};

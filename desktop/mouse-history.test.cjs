@@ -5,6 +5,53 @@ function store(seed={}){let data=structuredClone(seed);return{get:async k=>({[k]
 function fixture(lib){const wc=new EventEmitter();let callback=null,notifies=0;wc.url='';wc.title='';wc.getURL=()=>wc.url;wc.getTitle=()=>wc.title;wc.isDestroyed=()=>false;
  const tracker=attachHistory(wc,lib,()=>notifies++,{setTimer:fn=>(callback=fn,1),clearTimer:()=>{callback=null;}});
  return{wc,tracker,settle(){const f=callback;callback=null;f?.();},navigate(url,title){wc.emit('did-start-navigation',{},url,false,true);wc.url=url;wc.emit('did-navigate',{},url);wc.title=title;wc.emit('page-title-updated',{},title);wc.emit('did-finish-load');},count:()=>notifies};}
+function timedFixture(lib){
+ const wc=new EventEmitter(),timers=new Map(),visits=[];let now=0,sequence=0;wc.url='';wc.title='';wc.getURL=()=>wc.url;wc.getTitle=()=>wc.title;wc.isDestroyed=()=>false;
+ const visit=lib.visit.bind(lib);lib.visit=(...args)=>{const row=visit(...args);visits.push({at:now,id:row?.id,url:args[0],previousId:args[2]?.previousId});return row;};
+ const tracker=attachHistory(wc,lib,()=>{},{setTimer:(fn,delay)=>{const id=++sequence;timers.set(id,{fn,at:now+delay});return id;},clearTimer:id=>timers.delete(id)});
+ return{wc,tracker,timers,visits,advanceTo(at){assert.ok(at>=now);for(;;){const next=[...timers].filter(([,t])=>t.at<=at).sort((a,b)=>a[1].at-b[1].at||a[0]-b[0])[0];if(!next)break;timers.delete(next[0]);now=next[1].at;next[1].fn();}now=at;},navigate(url){wc.url=url;wc.emit('did-navigate',{},url);},title(value){wc.title=value;wc.emit('page-title-updated',{},value);}};
+}
+test('recorded fd27 navigation timing without an initial start creates one visit after load completion',async t=>{
+ const l=await new Library(store()).init(),f=timedFixture(l),url='https://fixture.test/mouse620-history/page';t.after(async()=>{f.tracker.dispose();await l.flush();});
+ // Offsets from fd27's observed did-navigate. Its diagnostics attach late;
+ // absence of a start here does not prove the history tracker missed that event.
+ f.navigate(url);f.advanceTo(45);f.title('620 history fixture');f.advanceTo(930);const beforeFinish=l.data.history.length;
+ f.advanceTo(931);f.wc.emit('did-finish-load');
+ const offsets=[[1118,1119,1122],[1132,1134,1134],[1135,1135,1136],[1137,1138,1138],[1138,1139,1139],[1140,1141,1141],[1141,1142,1142],[1143,1143,1144],[1144,1145,1145],[1146,1146,1147],[1147,1148,1148],[1148,1149,1149],[1149,1150,1151],[1151,1152,1152],[1153,1153,1154]];
+ for(const [n,[start,navigate,title]]of offsets.entries()){
+  const next=url+'?filter='+n+'#section'+n;f.advanceTo(start);f.wc.emit('did-start-navigation',{},next,true,true);f.advanceTo(navigate);f.wc.url=next;f.wc.emit('did-navigate-in-page',{},next,true);f.advanceTo(title);f.title('Action '+n);
+ }
+ f.advanceTo(1605);t.diagnostic(JSON.stringify({scope:'recorded event timing with deterministic timers',beforeFinish,visits:f.visits}));
+ assert.equal(l.data.history.length,1);assert.equal(l.list('history','mouse620-history').total,1);assert.equal(beforeFinish,0);assert.equal(f.visits.length,1);assert.equal(f.visits[0].at,1604);assert.equal(l.data.history[0].url,url+'?filter=14#section14');assert.equal(l.data.history[0].title,'Action 14');
+});
+test('finished navigation with or without an observed start keeps its visit ID through fifteen actions and reload',async t=>{
+ for(const withStart of [false,true]){
+  const l=await new Library(store()).init(),f=timedFixture(l),url='https://fixture.test/catalog';t.after(async()=>{f.tracker.dispose();await l.flush();});
+  if(withStart)f.wc.emit('did-start-navigation',{},url,false,true);f.navigate(url);f.advanceTo(45);f.title('Catalogue');f.advanceTo(930);f.tracker.flush();assert.equal(f.visits.length,0,'No title debounce or explicit flush records an unfinished page');
+  f.advanceTo(931);f.wc.emit('did-finish-load');f.advanceTo(1380);assert.equal(f.visits.length,0,'The original450ms debounce is preserved');f.advanceTo(1381);assert.equal(l.data.history.length,1);const id=l.data.history[0].id;
+  for(let n=0;n<15;n++){f.advanceTo(1400+n*20);const next=url+'?filter='+n+'#section'+n;f.wc.emit('did-start-navigation',{},next,true,true);f.wc.url=next;f.wc.emit('did-navigate-in-page',{},next,true);f.title('Action '+n);}
+  f.advanceTo(2129);assert.equal(f.visits.length,1);f.advanceTo(2130);assert.equal(l.data.history.length,1);assert.equal(l.list('history').total,1);assert.equal(l.data.history[0].id,id);assert.equal(l.data.history[0].url,url+'?filter=14#section14');assert.equal(l.data.history[0].title,'Action 14');
+  f.wc.emit('did-start-navigation',{},f.wc.url,false,true);f.navigate(f.wc.url);f.title('Reloaded');f.advanceTo(3000);assert.equal(f.visits.length,2);f.wc.emit('did-finish-load');f.advanceTo(3450);assert.equal(l.data.history.length,1);assert.equal(l.data.history[0].id,id);
+  for(const [n,next]of [url+'/different',url+'/different#/one',url+'/different#/two'].entries()){f.wc.url=next;f.wc.emit('did-navigate-in-page',{},next,true);f.title('Route '+n);f.advanceTo(3900+n*450);assert.equal(l.data.history.length,2+n,'Distinct paths and routed hashes remain separate visits');}
+ }
+});
+test('a new committed navigation cancels the prior debounce and records only the latest finished redirect',async t=>{
+ const l=await new Library(store()).init(),f=timedFixture(l);t.after(async()=>{f.tracker.dispose();await l.flush();});
+ f.navigate('https://fixture.test/previous');f.title('Previous');f.wc.emit('did-finish-load');assert.equal(f.timers.size,1);
+ f.advanceTo(100);f.navigate('https://fixture.test/intermediate');assert.equal(f.timers.size,0,'Committed navigation cancels a previous document timer even without start');f.advanceTo(110);f.title('Intermediate');f.advanceTo(600);assert.equal(f.visits.length,0);
+ f.advanceTo(650);f.navigate('https://fixture.test/final');f.advanceTo(660);f.title('Final');f.advanceTo(1200);f.tracker.flush();assert.equal(f.visits.length,0);
+ f.wc.emit('did-finish-load');f.advanceTo(1649);assert.equal(f.visits.length,0);f.advanceTo(1650);assert.equal(f.visits.length,1);assert.equal(l.data.history.length,1);assert.equal(l.data.history[0].url,'https://fixture.test/final');assert.equal(l.data.history[0].title,'Final');
+});
+test('failure and disposal cancel an unfinished navigation before its delayed finish',async t=>{
+ for(const mode of ['failure','dispose','destroyed']){
+  const l=await new Library(store()).init(),f=timedFixture(l);t.after(async()=>{f.tracker.dispose();await l.flush();});
+  f.navigate('https://fixture.test/unfinished');f.advanceTo(45);f.title('Unfinished');f.advanceTo(600);assert.equal(f.visits.length,0,mode);
+  if(mode==='failure')f.wc.emit('did-fail-load',{},-105,'Fixture failure',f.wc.url,true);else if(mode==='dispose')f.tracker.dispose();else f.wc.emit('destroyed');
+  f.title('Late title');f.advanceTo(1200);f.tracker.flush();assert.equal(f.visits.length,0);assert.equal(f.timers.size,0);
+  if(mode==='failure'){f.navigate('https://fixture.test/recovered');f.title('Recovered');f.advanceTo(1700);assert.equal(f.visits.length,0);f.wc.emit('did-finish-load');f.advanceTo(2150);assert.equal(l.data.history.length,1);assert.equal(l.data.history[0].url,'https://fixture.test/recovered');}
+  else{f.wc.emit('did-finish-load');f.advanceTo(2150);assert.equal(f.visits.length,0);assert.equal(f.wc.listenerCount('did-finish-load'),0);}
+ }
+});
 test('one finished page is not recorded for each anchor, tracking or filter action, title or reload',async()=>{
  const l=await new Library(store()).init(),f=fixture(l),w=f.wc;
  f.navigate('https://example.com/catalog','Catalogue');assert.equal(l.data.history.length,0);f.settle();assert.equal(l.data.history.length,1);const id=l.data.history[0].id;

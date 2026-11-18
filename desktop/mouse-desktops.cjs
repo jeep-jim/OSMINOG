@@ -4,6 +4,7 @@
 const L=require('./mouse/layout.js');
 const Modes=require('./mouse/modes.js');
 const {DesktopPreviews}=require('./mouse-desktop-previews.cjs');
+const {DesktopSurfaces}=require('./mouse-surfaces.cjs');
 const {randomUUID}=require('node:crypto');
 const KEY='mouseDesktopsV1',MAX_DESKS=5,HISTORY_LIMIT=30,HISTORY_BYTES=512*1024;
 const layoutKeys=['tree','slots','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions','mode','agentOpen'];
@@ -190,7 +191,9 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
  }
  rawLiveState();
  const previews=new DesktopPreviews({browser,bank,state:rawLiveState});
- const lock=()=>previews.lock(),unlock=()=>previews.unlock();powerMonitor?.on('lock-screen',lock);powerMonitor?.on('unlock-screen',unlock);
+ const surfaces=new DesktopSurfaces({browser,bank,win,onImage:(id,image,pin)=>previews.rememberImage(id,image,pin)}),clearPreviews=previews.clear.bind(previews);
+ previews.clear=()=>{clearPreviews();surfaces.clear();};
+ const lock=()=>{previews.lock();surfaces.lock();},unlock=()=>{previews.unlock();surfaces.unlock();};powerMonitor?.on('lock-screen',lock);powerMonitor?.on('unlock-screen',unlock);
  function persist(){rawLiveState();const value=bank.snapshot(),preferences=bank.preferences(),signature=JSON.stringify([value,preferences]);if(signature===lastPersisted)return queue;lastPersisted=signature;queue=queue.catch(()=>{}).then(()=>store.set({[KEY]:value,quadroPreferences:preferences})).catch(error=>{if(lastPersisted===signature)lastPersisted='';throw error;});return queue;}
  function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState()};}
  browser.state=state;
@@ -223,6 +226,11 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
   trusted(event);if(disposed||browser.disposed)throw Error('Рабочее пространство закрыто');
   if(!args||typeof args!=='object'||JSON.stringify(args).length>120000)throw Error('Invalid desktop request');
   if(action==='state')return bank.describe(rawLiveState().tabs);
+  if(action==='surfaces')return surfaces.capture(args);
+  if(action==='surface-hold'){
+   if(!['begin','end'].includes(args.phase)||typeof args.token!=='string')throw Error('Invalid surface transition');
+   return serial(()=>args.phase==='begin'?surfaces.begin(args.token,args.purpose):surfaces.end(args.token));
+  }
   if(action==='thumbnail'){
    if(typeof args.id!=='string'||bank.members[args.id]!==bank.active)return{src:''};
    return previews.thumbnail(args.id);
@@ -238,6 +246,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
    // An invalid history ID must not accept or checkpoint accompanying edits.
    const selected=action==='restore-layout'&&typeof args.historyId==='string'?bank.historyEntry(args.historyId):null;
    if(action==='restore-layout'&&!selected)throw Error('Состояние раскладки больше недоступно');
+   if(args.afterClosePreferences){if(action!=='close-tab'||args.afterClosePreferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.afterClosePreferences);changeMeta(args.history||{});}
    if(args.preferences){if(args.preferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.preferences);changeMeta(args.history||{});bank.savePreferences(args.preferences,args.history||{},tabs);}
    if(action==='previews'||action==='remember-preview'){await previews.capture();await persist();return previews.snapshot();}
    if(['undo','redo','restore-layout'].includes(action)){
@@ -259,7 +268,10 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
      if(source!==args.desk){previews.drop(args.id);browser.layout(browser.panels||[]);}
      await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
     }
-    await browser.mouseBeforeDesktopChange?.();await oldCommand('close',{id:args.id});previews.drop(args.id);await persist();
+    await browser.mouseBeforeDesktopChange?.();const closed=await oldCommand('close',{id:args.id});
+    if(closed?.cancelled){await persist();return{state:state(),preferences:bank.preferences(),previews:previews.snapshot(),cancelled:true};}
+    if(args.afterClosePreferences)bank.savePreferences(args.afterClosePreferences,args.history||{},rawLiveState().tabs);
+    previews.drop(args.id);await persist();
     const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),closed:{id:args.id,desk:source}};browser.emit();return result;
    }
    if(action==='rename'){const d=bank.items.find(d=>d.id===args.id);if(!d)throw Error('Рабочий стол не найден');d.name=String(args.name||'Стол').trim().slice(0,60)||'Стол';await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
@@ -280,10 +292,10 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
   };
   return serial(run);
  });
- const dispose=()=>{if(disposed)return;disposed=true;previews.dispose();powerMonitor?.removeListener('lock-screen',lock);powerMonitor?.removeListener('unlock-screen',unlock);};
+ const dispose=()=>{if(disposed)return;disposed=true;surfaces.dispose();previews.dispose();powerMonitor?.removeListener('lock-screen',lock);powerMonitor?.removeListener('unlock-screen',unlock);};
  browser.dispose=()=>{dispose();oldDispose();};
- browser.mouseDesktops={bank,state,preferences:()=>bank.preferences(),previews};
+ browser.mouseDesktops={bank,state,preferences:()=>bank.preferences(),previews,surfaces};
  await persist();
- return{bank,state,savePreferences,preferences:()=>bank.preferences(),flush:async()=>{await switchQueue;await queue;},previews,dispose};
+ return{bank,state,savePreferences,preferences:()=>bank.preferences(),flush:async()=>{await switchQueue;await queue;},previews,surfaces,dispose};
 }
 module.exports={DesktopBank,unread,layout,install,KEY,MAX_DESKS,HISTORY_LIMIT,HISTORY_BYTES};

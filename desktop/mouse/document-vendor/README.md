@@ -50,7 +50,7 @@ for name in names:
 
 ## Runtime use and advisory scope
 
-[`document-pdf.js`](../document-pdf.js) imports PDF.js and its local worker for rendering. It loads pdf-lib, fontkit and DejaVu Sans only when an edited PDF needs export. The adapter supplies `isEvalSupported: false`, operates on explicitly opened file bytes and does not instantiate PDF.js's scripting manager/full viewer scripting pipeline. The shell CSP limits scripts/workers to local application resources and sets `object-src 'none'`.
+[`document-pdf.js`](../document-pdf.js) imports PDF.js and its local worker for rendering. It loads pdf-lib lazily when the user enters existing-text editing or exports edits. Fontkit and DejaVu Sans are loaded only when a replacement needs characters missing from its source font, or when an added text annotation needs export. The adapter supplies `isEvalSupported: false`, operates on explicitly opened file bytes and does not instantiate PDF.js's scripting manager/full viewer scripting pipeline. The shell CSP limits scripts/workers to local application resources and sets `object-src 'none'`.
 
 Two official Mozilla advisories were checked on 2026-11-18:
 
@@ -61,4 +61,4 @@ Two official Mozilla advisories were checked on 2026-11-18:
 
 This is a scoped comparison with two published advisories. It is not an assurance that the snapshot or all bundled transitive code is free of vulnerabilities. The presence of an `enableScripting: false` property in a `getDocument` options object is not used as proof that a separate viewer scripting manager has been disabled; that manager is not instantiated here.
 
-Supported edits, resource limits, native file handling and the distinction between local tests and pending installed verification are recorded in [the 6.0.25 implementation note](../../../docs/desktop/2026-11-18-mouse625-documents.md).
+The original resource inventory and file handling are recorded in [the 6.0.25 implementation note](../../../docs/desktop/2026-11-18-mouse625-documents.md). Ordinary document tabs, existing-text replacement limits and the current verification status are recorded in [the 6.0.27 implementation note](../../../docs/desktop/2026-11-18-mouse627-tabs-performance.md).

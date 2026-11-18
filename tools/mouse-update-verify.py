@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CI-only real 6.0.25 -> 6.0.26 replacement using the NEW installer.
+"""CI-only real 6.0.25 -> 6.0.27 replacement using the NEW installer.
 Version 6.0.25 already ships this installer. Replacement is separate from old-module channel discovery.
 """
 import hashlib,json,os,pathlib,shutil,subprocess,sys,time,urllib.request
@@ -28,15 +28,15 @@ def record_update_diagnostics(stage,profile,target,phase,error=None):
    result=subprocess.run(['/usr/libexec/PlistBuddy','-c','Print :CFBundleShortVersionString',str(app/'Contents/Info.plist')],capture_output=True,text=True,timeout=5)
    return {'returncode':result.returncode,'stdout':result.stdout,'stderr':result.stderr}
   except (OSError,subprocess.SubprocessError) as exc:return {'error':str(exc)}
- evidence={'phase':phase,'error':None if error is None else repr(error),'expectedVersion':'6.0.26',
+ evidence={'phase':phase,'error':None if error is None else repr(error),'expectedVersion':'6.0.27',
   'ready':read_file(stage/'READY'),'resultLog':read_file(stage/'result.log'),
   'receipt':read_file(profile/'mouse-update-receipt.json'),'startupLog':read_file(profile/'mouse-startup.log'),
   'installedVersion':read_version(target),'previousVersion':read_version(stage/'previous.app')}
- line='MOUSE_626_UPDATE_ACK_DIAGNOSTICS '+json.dumps(evidence,ensure_ascii=False)
+ line='MOUSE_627_UPDATE_ACK_DIAGNOSTICS '+json.dumps(evidence,ensure_ascii=False)
  print(line,flush=True)
  with open('mouse-update-roundtrip.log','a') as log:log.write('\n'+line+'\n')
- file=pathlib.Path('mouse-626-update-diagnostics.json')
- history=json.loads(file.read_text()) if file.exists() else {'version':'6.0.26','snapshots':[]}
+ file=pathlib.Path('mouse-627-update-diagnostics.json')
+ history=json.loads(file.read_text()) if file.exists() else {'version':'6.0.27','snapshots':[]}
  history['snapshots'].append(evidence);file.write_text(json.dumps(history,ensure_ascii=False,indent=2)+'\n')
 
 if sys.platform!='darwin' or os.environ.get('CI')!='true':raise SystemExit('CI macOS only')
@@ -60,27 +60,27 @@ config={'installer':str(installer),'dmg':str(dmg),'target':str(target),'profile'
 script="""const fs=require('node:fs'),path=require('node:path');const c=JSON.parse(process.argv[1]);const {MacInstaller}=require(c.installer);
 const app={getPath:k=>k==='home'?require('node:os').homedir():c.profile};
 const u=new MacInstaller({app,executable:path.join(c.target,'Contents/MacOS/Mouse Browser'),test:true,quit:async()=>{process.exitCode=0;setTimeout(()=>process.exit(0),100)}});
-(async()=>{const p=await u.prepare(c.dmg,{version:'6.0.26'});fs.writeFileSync(path.join(c.root,'plan.json'),JSON.stringify(p));await u.install();})().catch(e=>{console.error(e);process.exit(1)});"""
+(async()=>{const p=await u.prepare(c.dmg,{version:'6.0.27'});fs.writeFileSync(path.join(c.root,'plan.json'),JSON.stringify(p));await u.install();})().catch(e=>{console.error(e);process.exit(1)});"""
 r=subprocess.run(['node','-e',script,json.dumps(config)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
 pathlib.Path('mouse-update-roundtrip.log').write_text(r.stdout);print(r.stdout,flush=True)
 if r.returncode:raise SystemExit('Native installer preparation failed')
 plan=json.loads((root/'plan.json').read_text());stage=pathlib.Path(plan['stage'])
 try:
- wait_for_update_ack(stage,profile,'6.0.26')
+ wait_for_update_ack(stage,profile,'6.0.27')
  record_update_diagnostics(stage,profile,target,'acknowledged-before-final-assertions')
- assert (stage/'READY').read_text()=='6.0.26'
- assert version(target)=='6.0.26' and version(stage/'previous.app')=='6.0.25'
+ assert (stage/'READY').read_text()=='6.0.27'
+ assert version(target)=='6.0.27' and version(stage/'previous.app')=='6.0.25'
  subprocess.run(['codesign','--verify','--deep','--strict',str(target)],check=True)
  subprocess.run(['codesign','--verify','--deep','--strict',str(stage/'previous.app')],check=True)
  assert (profile/'mouse-update-owner-sentinel.txt').read_text()=='keep-profile-625'
  assert json.loads((profile/'workspace.json').read_text())['mouseUpdateProof']=='retain-625'
- assert 'MOUSE_READY 6.0.26' in (profile/'mouse-startup.log').read_text()
+ assert 'MOUSE_READY 6.0.27' in (profile/'mouse-startup.log').read_text()
  assert not (profile/'mouse-update-receipt.json').exists()
- print('MOUSE_626_REAL_625_TO_626_REPLACE_RELAUNCH_PROFILE_PASS',flush=True)
- with open('mouse-update-roundtrip.log','a') as log:log.write('\nMOUSE_626_REAL_625_TO_626_REPLACE_RELAUNCH_PROFILE_PASS\n'+(profile/'mouse-startup.log').read_text())
+ print('MOUSE_627_REAL_625_TO_627_REPLACE_RELAUNCH_PROFILE_PASS',flush=True)
+ with open('mouse-update-roundtrip.log','a') as log:log.write('\nMOUSE_627_REAL_625_TO_627_REPLACE_RELAUNCH_PROFILE_PASS\n'+(profile/'mouse-startup.log').read_text())
 except Exception as error:
  try:record_update_diagnostics(stage,profile,target,'failure',error)
- except Exception as diagnostic_error:print('MOUSE_626_UPDATE_ACK_DIAGNOSTICS_ERROR',repr(diagnostic_error),flush=True)
+ except Exception as diagnostic_error:print('MOUSE_627_UPDATE_ACK_DIAGNOSTICS_ERROR',repr(diagnostic_error),flush=True)
  raise
 finally:
  for line in subprocess.check_output(['ps','-axo','pid=,command='],text=True).splitlines():

@@ -2,6 +2,12 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
 const {screen,nativeImage}=require('electron');const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<180;i++){if(await f())return;await sleep(50)}throw Error('Mouse616 timeout: '+label);}
+async function readReloadFeedback(js,selector){
+ const target=JSON.stringify(selector);
+ // Click feedback is immediate; actual loading reaches the renderer through browser:state.
+ await until(()=>js(`document.querySelector(${target}).getAttribute("aria-busy")==="true"`),'reload loading state reaches renderer');
+ return js(`(()=>{const b=document.querySelector(${target}),g=b.querySelector(".mouse-reload-glyph");return{loading:b.dataset.loading,busy:b.getAttribute("aria-busy"),animation:getComputedStyle(g).animationName,reduced:matchMedia("(prefers-reduced-motion:reduce)").matches}})()`);
+}
 module.exports=async({app,win,browser,store,globalCapture})=>{
  const js=s=>win.webContents.executeJavaScript(s),before=new Set(browser.tabs.keys()),bounds=win.getBounds();
  const saved=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,theme:MouseTest.model.theme,aiOpen:MouseTest.model.aiOpen,aiId:MouseTest.model.aiId,aiWidth:MouseTest.model.aiWidth,aiSessions:MouseTest.model.aiSessions,aiSites:MouseTest.model.aiSites}))');
@@ -33,7 +39,7 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
    const firstSelector='.pane [data-pane-action=reload]';const t=browser.get(ids[0]),wc=t.view.webContents.id,oldCount=counts['/pane0'];const releaseMain=hold('/pane0');
    await click(firstSelector);await until(()=>js('document.querySelector(".pane [data-pane-action=reload]").dataset.loading==="true"'),'reload shows activity');
    await until(()=>t.loading&&counts['/pane0']>oldCount,'reload reached controlled response');
-   const feedback=await js('(()=>{const b=document.querySelector(".pane [data-pane-action=reload]"),g=b.querySelector(".mouse-reload-glyph");return{loading:b.dataset.loading,busy:b.getAttribute("aria-busy"),animation:getComputedStyle(g).animationName,reduced:matchMedia("(prefers-reduced-motion:reduce)").matches}})()');console.log('MOUSE_616_RELOAD_FEEDBACK',theme,JSON.stringify(feedback));
+   const feedback=await readReloadFeedback(js,firstSelector);console.log('MOUSE_616_RELOAD_FEEDBACK',theme,JSON.stringify(feedback));
    assert.equal(feedback.loading,'true');assert.equal(feedback.busy,'true');assert.equal(feedback.animation,feedback.reduced?'none':'mouse-reload-spin');releaseMain();
    await until(()=>!t.loading&&counts['/pane0']>oldCount,'actual page reload');await until(()=>js('document.querySelector(".pane [data-pane-action=reload]").dataset.loading==="false"'),'reload stops');assert.equal(t.view.webContents.id,wc);
    const oldAI=counts['/ai'],releaseAI=hold('/ai');await click('[data-action=ai-reload]');await until(()=>js('document.querySelector("[data-action=ai-reload]").dataset.loading==="true"'),'AI reload shows activity');await until(()=>browser.get(ai).loading&&counts['/ai']>oldAI,'AI controlled reload');releaseAI();await until(()=>!browser.get(ai).loading&&counts['/ai']>oldAI,'AI actual reload');await sleep(600);
@@ -70,3 +76,4 @@ module.exports=async({app,win,browser,store,globalCapture})=>{
   await js(`Object.assign(MouseTest.model,${JSON.stringify(saved)});MouseTest.setTheme(${JSON.stringify(saved.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.renderAISites();MouseTest.save()`);win.setBounds(bounds);
  }
 };
+module.exports.readReloadFeedback=readReloadFeedback;

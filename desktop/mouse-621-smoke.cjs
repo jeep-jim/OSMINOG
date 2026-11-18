@@ -30,18 +30,12 @@ module.exports=async({app,win,browser,store})=>{
   const current=original.desktopId;
   await js(`MouseTest.openPage(${JSON.stringify(root+'/one')})`);const a=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:a,desk:current});await until(()=>!browser.get(a).loading,'first page');const aw=browser.get(a).view.webContents,identity=aw.id,marker=await aw.executeJavaScript('window.marker');
   await js('MouseTest.changeLayout(2);MouseTest.model.slots.p1='+JSON.stringify(a)+';MouseTest.model.active="p1";MouseTest.renderTree();MouseTest.save()');
-  // The CI desktop can prefer reduced motion. Exercise the real native slide under
-  // explicit no-preference emulation, then restore media settings, not OS defaults.
-  const debug=win.webContents.debugger;assert.equal(debug.isAttached(),false);debug.attach('1.3');debugAttached=true;
-  await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
-  assert.equal(await js('matchMedia("(prefers-reduced-motion:reduce)").matches'),false);
-  await until(async()=>{const w=await js('Math.round(document.querySelector(".pane[data-pane=p1] .page-slot").getBoundingClientRect().width)');return browser.get(a).visible&&browser.get(a).view.getBounds().width===w;},'native viewport before slide');
-  const rawLayout=browser.layout.bind(browser),viewport=browser.get(a).view.getBounds(),frames=[];
-  browser.layout=panels=>{const value=rawLayout(panels),p=panels.find(p=>p.id===a);if(p&&browser.get(a).visible)frames.push({x:p.x,width:browser.get(a).view.getBounds().width});return value;};
-  try{await js(`MouseTest.switchDesktop('desk-1')`);}finally{browser.layout=rawLayout;await debug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]});debug.detach();debugAttached=false;}
-  assert.ok(new Set(frames.map(f=>Math.round(f.x))).size>=3,'actual native positions must animate: '+JSON.stringify(frames));assert.ok(frames.every(f=>f.width===viewport.width),'page viewport stays unchanged during slide: '+JSON.stringify({viewport,frames}));
-  assert.equal(await js('document.querySelector("#workspace").style.transform'),'');console.log('MOUSE_621_SMOOTH_DESKTOP_NATIVE_SLIDE_PASS',JSON.stringify({frames:frames.length,viewport:viewport.width,preference:'emulated-no-preference'}));assert.equal(browser.state().tabs.length,0);assert.equal(browser.get(a).visible,false);
+  await until(async()=>{const w=await js('Math.round(document.querySelector(".pane[data-pane=p1] .page-slot").getBoundingClientRect().width)');return browser.get(a).visible&&browser.get(a).view.getBounds().width===w;},'native viewport before desktop switch');
+  const viewport=browser.get(a).view.getBounds();await js("MouseTest.switchDesktop('desk-1')");
+  assert.equal(browser.get(a).view.getBounds().width,viewport.width);assert.equal(aw.id,identity);assert.equal(await aw.executeJavaScript('window.marker'),marker);
+  assert.equal(await js('document.querySelector("#workspace").style.transform'),'');assert.equal(browser.state().tabs.length,0);assert.equal(browser.get(a).visible,false);
   await js(`MouseTest.openPage(${JSON.stringify(root+'/two')})`);const b=await js('MouseTest.model.slots[MouseTest.model.active]');made.push({id:b,desk:'desk-1'});await until(()=>!browser.get(b).loading,'second page');const bw=browser.get(b).view.webContents;
+  await require('./mouse-627-desktop-transition-smoke.cjs')({app,win,browser,pages:[a,b],leftDesk:'desk-1',rightDesk:current});
   await aw.executeJavaScript('document.title="(3) Telegram fixture"');await until(()=>js('MouseTest.model.state.desktops.items.find(d=>d.id==="desk-3").unread===3'),'actual hidden title badge');
   await click('#desktops-button');await until(()=>js('!document.querySelector("#desktop-tray").hidden'),'tray visible');assert.equal(await js('document.querySelectorAll(".desktop-card").length'),5);assert.equal(await js('document.querySelector("[data-desk=desk-3] .desk-badge").textContent'),'3');
   await click('[data-desk=desk-3] .desk-open');await until(()=>js('MouseTest.model.desktopId==="desk-3"&&!MouseTest.model.switching'),'native desktop click');assert.equal(aw.id,identity);assert.equal(await aw.executeJavaScript('window.marker'),marker);assert.equal(await aw.executeJavaScript('document.querySelector("#kept").value'),'keep621');assert.equal(await js('MouseLayout.leaves(MouseTest.model.tree).length'),2);
