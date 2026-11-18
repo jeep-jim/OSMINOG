@@ -32,6 +32,9 @@ function distinctVisibleHeights(frames){
  for(const top of frames.map(frame=>frame.top).sort((a,b)=>a-b))if(top-previous>=1){count++;previous=top;}
  return count;
 }
+function closingReversalPair(first,second){
+ return!!first&&!!second&&first.phase==='closing'&&second.phase==='closing'&&first.open&&!first.hidden&&second.open&&!second.hidden&&second.time>first.time&&second.progress>0&&second.progress<first.progress&&second.bbox.y-first.bbox.y>=1;
+}
 module.exports=async({app,win,browser,store})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
@@ -86,7 +89,30 @@ module.exports=async({app,win,browser,store})=>{
     if(detailed){const header=content.querySelector(':scope>header'),headerRect=rect(header),headerHit=headerRect&&document.elementFromPoint((headerRect.left+headerRect.right)/2,(headerRect.top+headerRect.bottom)/2);Object.assign(result.content,{bounds:rect(content),clientHeight:content.clientHeight,offsetHeight:content.offsetHeight,scrollTop:content.scrollTop,maxHeight:style.maxHeight,paddingTop:style.paddingTop,header:headerRect,headerDisplay:header?getComputedStyle(header).display:null,headerHit:headerHit?.tagName+'#'+headerHit?.id,headerVisible:!!header&&header.contains(headerHit)});}
     result.sampleDuration=performance.now()-sampleStart;return result;
    };
-   const tick=()=>{const frame=sample();if(frame)frames.push(frame);if(!stopped&&frames.length<1000)raf=requestAnimationFrame(tick);};globalThis.__mouse626Recorder={frames,sample,stop(){stopped=true;cancelAnimationFrame(raf);const frame=sample(true);if(frame)frames.push(frame);return frames;}};tick();
+   const recorder={frames,sample,onFrame:null,stop(){stopped=true;cancelAnimationFrame(raf);recorder.onFrame=null;const frame=sample(true);if(frame)frames.push(frame);return frames;}};
+   const tick=()=>{const frame=sample();if(frame){frames.push(frame);recorder.onFrame?.(frame);}if(!stopped&&frames.length<1000)raf=requestAnimationFrame(tick);};globalThis.__mouse626Recorder=recorder;tick();
+  })()`);
+ }
+ async function armInterruptedReopen(){
+  await js(`(()=>{
+   globalThis.__mouse626Reversal?.dispose();const recorder=globalThis.__mouse626Recorder,tray=document.querySelector('#desktop-tray'),outline=document.querySelector('#mouse-dock-outline'),local=tray.querySelector('.desk-burrow-shape>path'),fill=document.querySelector('#mouse-dock-fill'),qualifies=${closingReversalPair.toString()},deadline=performance.now()+10000;let previous=null,finished=false,timer,resolve;
+   const observed={armedAt:performance.now(),frameCount:0,closingCount:0,lastFrame:null},promise=new Promise(done=>resolve=done);
+   const finish=result=>{if(finished)return;finished=true;clearTimeout(timer);if(recorder.onFrame===observe)recorder.onFrame=null;resolve({...result,observed});};
+   const snapshot=()=>({time:performance.now(),phase:tray.dataset.motion,top:outline.getBBox().y,progress:Number(tray.dataset.motionProgress),height:tray.getBoundingClientRect().height,paths:{outline:outline.getAttribute('d'),local:local.getAttribute('d'),fill:fill.getAttribute('d')}});
+   const observe=frame=>{
+    observed.frameCount++;observed.lastFrame=frame;if(frame.phase==='closing')observed.closingCount++;
+    if(performance.now()>deadline){finish({error:'Timed out waiting for two painted closing frames with at least one pixel of shrink'});return;}
+    if(qualifies(previous,frame)){
+     // The preceding closing sample has already crossed a paint boundary.
+     // Reverse inside this natural RAF callback so IPC latency cannot consume
+     // the remaining short closing transition before the test acts.
+     const closingFrames=[previous,frame],before=snapshot();
+     try{void MouseTest.desktopUI.open();const after=snapshot();finish({before,after,closingFrames,open:tray.open});}catch(error){finish({error:String(error),before,closingFrames});}
+     return;
+    }
+    previous=frame.phase==='closing'?frame:null;
+   };
+   timer=setTimeout(()=>finish({error:'Timed out waiting for two painted closing frames with at least one pixel of shrink'}),10000);recorder.onFrame=observe;globalThis.__mouse626Reversal={promise,observed,dispose:()=>finish({error:'Interruption observer disposed'})};return true;
   })()`);
  }
  const stopFrames=()=>js('globalThis.__mouse626Recorder.stop()');
@@ -158,13 +184,13 @@ module.exports=async({app,win,browser,store})=>{
   }
   Object.assign(facts.nora,{symmetric:true,footerConnected:true,continuousOpen:true,continuousClose:true,resizeContinuous:true,contentRevealed:true,controlsWork:true});
   // Interrupt native opening with Escape, then reopen the same live contour.
-  await installRecorder();await click('#desktops-button',false);await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="opening"&&Number(document.querySelector("#desktop-tray").dataset.motionProgress)>.08'),'partly grown Nora');await key('Escape');await until(async()=>await phase()==='closing','Escape reverses the growing surface');
-  const interruption=await js('(()=>{const tray=document.querySelector("#desktop-tray"),path=document.querySelector("#mouse-dock-outline"),before={time:performance.now(),top:path.getBBox().y,progress:Number(tray.dataset.motionProgress),height:tray.getBoundingClientRect().height};void MouseTest.desktopUI.open();return{before,after:{time:performance.now(),top:path.getBBox().y,progress:Number(tray.dataset.motionProgress),height:tray.getBoundingClientRect().height},open:tray.open};})()');facts.interruption=interruption;assert.ok(Math.abs(interruption.before.progress-interruption.after.progress)<.08,'Retargeting advances the current motion rather than resetting its progress: '+JSON.stringify(interruption));assert.ok(Math.abs(interruption.before.top-interruption.after.top)<Math.max(8,interruption.before.height*.2),'Retargeting has no height jump: '+JSON.stringify(interruption));assert.equal(interruption.open,true);await until(async()=>await phase()==='open','reopened Nora finishes');const interrupted=await retainFrames('interrupted');attachedGeometry(interrupted,'interrupted motion');assert.ok(interrupted.some(f=>f.phase==='closing')&&interrupted.some(f=>f.phase==='opening'));facts.frames.interrupted=interrupted;facts.nora.interruptedMotion=true;await click('#desks-close');
+  await installRecorder();await click('#desktops-button',false);await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="opening"&&Number(document.querySelector("#desktop-tray").dataset.motionProgress)>=.4'),'partly grown Nora');await armInterruptedReopen();await key('Escape');
+  const interruption=await js('globalThis.__mouse626Reversal.promise');facts.interruption=interruption;assert.equal(interruption.error,undefined,'Reversal waits for genuine painted closing motion: '+JSON.stringify(interruption));assert.ok(closingReversalPair(...interruption.closingFrames),'Two natural closing RAF samples show at least one pixel of shrink before reopening');assert.ok(Math.abs(interruption.before.progress-interruption.after.progress)<.08,'Retargeting advances the current motion rather than resetting its progress: '+JSON.stringify(interruption));assert.ok(Math.abs(interruption.before.top-interruption.after.top)<Math.max(8,interruption.before.height*.2),'Retargeting has no height jump: '+JSON.stringify(interruption));assert.deepEqual(interruption.after.paths,interruption.before.paths,'Retargeting preserves the exact painted SVG contours');assert.equal(interruption.open,true);await until(async()=>await phase()==='open','reopened Nora finishes');const interrupted=await retainFrames('interrupted');attachedGeometry(interrupted,'interrupted motion');assert.ok(interrupted.some(f=>f.phase==='closing')&&interrupted.some(f=>f.phase==='opening'));facts.frames.interrupted=interrupted;facts.nora.interruptedMotion=true;await click('#desks-close');
   await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});assert.equal(await js('matchMedia("(prefers-reduced-motion:reduce)").matches'),true);await installRecorder();await click('#desktops-button');assert.equal(await phase(),'open');assert.equal(await js('Number(document.querySelector("#desktop-tray").dataset.motionProgress)'),1);await click('#desks-close');const reduced=await retainFrames('reduced');assert.ok(!reduced.some(f=>f.progress>0&&f.progress<1),'Reduced motion never paints intermediate motion');facts.nora.reducedMotion=true;
   await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});await verifyPalette();await samePages();
  }catch(error){verificationError=error;const renderer=await js('({current:globalThis.__mouse626Recorder?.sample(true),frames:globalThis.__mouse626Recorder?.frames,input:globalThis.__mouse626Input?{state:globalThis.__mouse626Input.state(),events:globalThis.__mouse626Input.events}:null})').catch(diagnosticError=>({error:diagnosticError.message}));if(lastInput&&renderer.input){lastInput.failureState=renderer.input.state;lastInput.events=renderer.input.events;}const failure={version:facts.version,message:error.message,stack:error.stack,lastClick,lastInput,interruption:facts.interruption??null,motion:await phase().catch(()=>null),recorded:facts.frames,renderer};console.error('MOUSE_626_FAILURE_CONTEXT',JSON.stringify({lastClick,lastInput,interruption:failure.interruption,motion:failure.motion,current:renderer.current}));await fs.writeFile('mouse-626-failure-diagnostics.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await fs.writeFile('mouse-626-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});throw error;}
  finally{
-  try{await js('globalThis.__mouse626Recorder?.stop();delete globalThis.__mouse626Recorder;globalThis.__mouse626Input?.dispose();delete globalThis.__mouse626Input;MouseTest.desktopUI.close({immediate:true});document.querySelector("#capture-dialog")?.open&&document.querySelector("#capture-dialog").close();MouseTest.zoomUI.close()');
+  try{await js('globalThis.__mouse626Reversal?.dispose();delete globalThis.__mouse626Reversal;globalThis.__mouse626Recorder?.stop();delete globalThis.__mouse626Recorder;globalThis.__mouse626Input?.dispose();delete globalThis.__mouse626Input;MouseTest.desktopUI.close({immediate:true});document.querySelector("#capture-dialog")?.open&&document.querySelector("#capture-dialog").close();MouseTest.zoomUI.close()');
    if(attached){await debug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]});debug.detach();attached=false;}
    await js(`MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.requestLayout();MouseTest.save()`);await store.queue;win.setBounds(bounds);if(originalFullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'restore inherited fullscreen');}await samePages();
    await clipboard.write(savedClipboard);
