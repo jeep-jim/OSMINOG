@@ -68,7 +68,8 @@ function controllerFixture(){
  // A normally rendering interval contains successive frames. Keep at() as one
  // actual callback so stalls and timestamps that lag the wall clock stay real.
  const until=time=>{assert.ok(time>=now,'Fixture time cannot run backwards');while(now<time)at(Math.min(time,now+16));};
- return{motion,tray,content,footer,classes,frames,settled,created,at,until,get time(){return now;},height(value){contentHeight=value;motion.sync();},resize({width=viewportWidth,top=footerTop}={}){viewportWidth=width;footerTop=top;ctx.innerWidth=width;listeners.get('resize')();},reduced(value){media.matches=value;media.change();}};
+ const delay=ms=>{assert.ok(ms>=0,'A render delay cannot run the clock backwards');now+=ms;};
+ return{motion,tray,content,footer,classes,frames,settled,created,at,until,delay,get time(){return now;},height(value){contentHeight=value;motion.sync();},resize({width=viewportWidth,top=footerTop}={}){viewportWidth=width;footerTop=top;ctx.innerWidth=width;listeners.get('resize')();},reduced(value){media.matches=value;media.change();}};
 }
 
 test('opening grows from zero, locks controls until settled, and closing retracts before release',async()=>{
@@ -81,6 +82,17 @@ test('opening grows from zero, locks controls until settled, and closing retract
 test('reversing an unfinished motion preserves geometry and cancels only the replaced completion',async()=>{
  const f=controllerFixture(),first=f.motion.open();f.until(220);const before=f.motion.sample();const close=f.motion.close();const reversed=f.motion.sample();near(reversed.height,before.height);near(reversed.progress,before.progress);assert.equal(await first,false);
  f.until(320);const beforeReopen=f.motion.sample();const reopen=f.motion.open();near(f.motion.sample().height,beforeReopen.height);assert.equal(await close,false);f.until(1200);assert.equal(await reopen,true);assert.equal(f.motion.progress,1);assert.deepEqual(f.settled,[true]);
+});
+
+test('reversing after an unpainted delay preserves the exact visible contour in both directions',async()=>{
+ const f=controllerFixture(),first=f.motion.open();
+ const geometry=()=>{const s=f.motion.sample();return{height:s.height,progress:s.progress,outline:s.paths.outline,fill:s.paths.fill};};
+ f.until(240);const beforeClose=geometry();assert.ok(beforeClose.progress>0&&beforeClose.progress<1);
+ f.delay(180);assert.deepEqual(geometry(),beforeClose,'Elapsed time without a frame cannot paint a new contour');
+ const closing=f.motion.close();assert.deepEqual(geometry(),beforeClose,'Close must reverse from the last painted opening geometry');assert.equal(await first,false);assert.equal(f.tray.dataset.motion,'closing');
+ f.until(f.time+80);const beforeOpen=geometry();assert.ok(beforeOpen.progress>0&&beforeOpen.progress<beforeClose.progress);
+ f.delay(180);const reopening=f.motion.open();assert.deepEqual(geometry(),beforeOpen,'Open must reverse from the last painted closing geometry');assert.equal(await closing,false);assert.equal(f.tray.dataset.motion,'opening');
+ f.until(f.time+640);assert.equal(await reopening,true);near(f.motion.sample().height,240);assert.equal(f.motion.progress,1);assert.deepEqual(f.settled,[true]);assert.equal(f.frames.size,0);
 });
 
 test('layout callbacks and delayed frame timestamps cannot rewind an uninterrupted motion',async()=>{

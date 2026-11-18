@@ -82,18 +82,20 @@
   // Use the same current clock as sync/animate so the next RAF never rewinds it.
   function tick(){frame=0;const time=performance.now();if(heightTween?.start===null)heightTween.start=heightTween.last=time;advance(time);paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
   function schedule(){if(!frame)frame=requestAnimationFrame(tick);}
-  function sync(){
+  function sync(advanceClock=true){
    if(!active||tray.hidden)return;
-   const time=performance.now();advance(time);const next=measure().height;
+   const time=performance.now();if(advanceClock)advance(time);const next=measure().height;
    // Content/preview construction can occupy the rest of this task. Start its
    // height transition at the first animation frame, once that work has yielded.
    if(Math.abs(next-targetHeight)>.25){targetHeight=next;if(!height||reduced.matches||progress===0){height=next;heightTween=null;}else heightTween={from:height,to:next,start:null,last:null,elapsed:0,duration:300};}
    paint();if(progressTween||heightTween)schedule();
   }
   function animate(to,immediate=false){
-   cancelWaiter();const time=performance.now();advance(time);goal=to;
+   // A reversal begins at the last visible contour. Advancing the old tween
+   // here would create a synchronous jump before the new direction is painted.
+   cancelWaiter();const time=performance.now();goal=to;if(heightTween&&heightTween.start!==null)heightTween.last=time;
    if(!active){active=true;surfaceNode.removeAttribute('hidden');scrim.hidden=false;document.body.classList.add('mouse-dock-active');}
-   sync();
+   sync(false);
    const result=new Promise(resolve=>{waiter={resolve};});
    if(immediate||reduced.matches){progress=to;progressTween=null;height=targetHeight;heightTween=null;paint();complete();}
    else if(Math.abs(to-progress)<.0001){progress=to;progressTween=null;paint();complete();}
