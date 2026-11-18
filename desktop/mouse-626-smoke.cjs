@@ -5,12 +5,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=r
 const {screen,clipboard,ClipboardItem,nativeImage}=require('electron');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
+const {closingReversalPair,observeNoraReversal}=require('./mouse-smoke-reversal.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let i=0;i<400;i++){if(await fn())return;await sleep(25);}throw Error('Mouse627 motion timeout: '+label);}
 const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
-function closingReversalPair(first,second){
- return!!first&&!!second&&first.phase==='closing'&&second.phase==='closing'&&first.open&&!first.hidden&&second.open&&!second.hidden&&second.time>first.time&&second.progress>0&&second.progress<first.progress&&second.matrix.f-first.matrix.f>=1;
-}
 function paintedPanel(pixels,size,geometry){
  const sx=size.width/geometry.viewport.width,sy=size.height/geometry.viewport.height,top=geometry.baseline-geometry.height,columns=[.2,.5,.8].map(f=>Math.floor((geometry.left+geometry.width*f)*sx)),fill=geometry.fill,line=geometry.line;
  const rgb=(x,y)=>{const i=(y*size.width+x)*4;return[pixels[i+2],pixels[i+1],pixels[i],pixels[i+3]];},distance=(a,b)=>Math.max(...b.map((v,i)=>Math.abs(a[i]-v))),solid=p=>p[3]===255&&distance(p,fill)<=2;
@@ -87,21 +85,8 @@ module.exports=async({app,win,browser,store})=>{
  }
  async function armInterruptedReopen(){
   await js(`(()=>{
-   globalThis.__mouse627Reversal?.dispose();const recorder=globalThis.__mouse627Recorder,tray=document.querySelector('#desktop-tray'),qualifies=${closingReversalPair.toString()};let previous=null,finished=false,timer,resolve;
-   const observed={armedAt:performance.now(),frameCount:0,closingCount:0,lastFrame:null},promise=new Promise(done=>resolve=done);
-   const finish=result=>{if(finished)return;finished=true;clearTimeout(timer);if(recorder.onFrame===observe)recorder.onFrame=null;resolve({...result,observed});};
-   const observe=frame=>{
-    observed.frameCount++;observed.lastFrame=frame;if(frame.phase==='closing')observed.closingCount++;
-    if(qualifies(previous,frame)){
-     // Reverse on the second naturally painted closing sample, while the same
-     // WAAPI player is still alive; IPC latency cannot consume the transition.
-     const closingFrames=[previous,frame],before=recorder.sample();
-     try{void MouseTest.desktopUI.open();const after=recorder.sample();finish({before,after,closingFrames,open:tray.open});}catch(error){finish({error:String(error),before,closingFrames});}
-     return;
-    }
-    previous=frame.phase==='closing'?frame:null;
-   };
-   timer=setTimeout(()=>finish({error:'Timed out waiting for two painted closing frames separated by at least one pixel'}),10000);recorder.onFrame=observe;globalThis.__mouse627Reversal={promise,observed,dispose:()=>finish({error:'Interruption observer disposed'})};return true;
+   globalThis.__mouse627Reversal?.dispose();const tray=document.querySelector('#desktop-tray');
+   globalThis.__mouse627Reversal=(${observeNoraReversal.toString()})({recorder:globalThis.__mouse627Recorder,tray,panel:tray.querySelector('.desk-burrow-panel'),eventTarget:window,reopen:()=>MouseTest.desktopUI.open(),qualifiesClosing:${closingReversalPair.toString()}});return true;
   })()`);
  }
  async function retainFrames(name){
@@ -250,7 +235,7 @@ module.exports=async({app,win,browser,store})=>{
    await fixedControls(theme);await installRecorder();const closingCapture=await armPanelCapture(theme,'closing');await click('#desks-close',false);await capturePanel(theme,'closing',closingCapture);await closed();const closing=await retainFrames(theme+'Closing');continuous(closing,'closing',theme+' closing');await samePages();
   }
   Object.assign(motionFacts,{fixedSize:true,translationOnly:true,constantContour:true,openClosePainted:true,contentScrollable:true,footerStable:true});
-  await installRecorder();await click('#desktops-button',false);await until(()=>js('(()=>{const s=MouseTest.desktopUI.motion.sample();return s?.state==="opening"&&s.progress>.15&&s.progress<.98;})()'),'partly translated Nora');await armInterruptedReopen();await key('Escape');
+  await installRecorder();await armInterruptedReopen();await click('#desktops-button',false);const openingTrigger=await js('globalThis.__mouse627Reversal.opening');assert.equal(openingTrigger.error,undefined,'Native Escape waits for the real opening timeline: '+JSON.stringify(openingTrigger));await key('Escape');
   const interruption=await js('globalThis.__mouse627Reversal.promise');motionFacts.interruption=interruption;assert.equal(interruption.error,undefined,'Reversal waits for genuine painted closing motion: '+JSON.stringify(interruption));assert.ok(closingReversalPair(...interruption.closingFrames));assert.ok(Math.abs(interruption.before.progress-interruption.after.progress)<.04,'Reversal retains the current progress');assert.ok(Math.abs(interruption.before.matrix.f-interruption.after.matrix.f)<2,'Reversal does not jump to an endpoint');assert.deepEqual(interruption.after.paths,interruption.before.paths);assert.equal(interruption.after.height,interruption.before.height);assert.equal(interruption.open,true);await until(async()=>await phase()==='open','reopened panel finishes');const interrupted=await retainFrames('interrupted');fixedGeometry(interrupted,'interrupted translation');assert.ok(interrupted.frames.some(f=>f.phase==='closing')&&interrupted.frames.some(f=>f.phase==='opening'));motionFacts.interruptionPreserved=true;await click('#desks-close');
   await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});assert.equal(await js('matchMedia("(prefers-reduced-motion:reduce)").matches'),true);await installRecorder();await click('#desktops-button');assert.equal(await phase(),'open');assert.equal(await js('MouseTest.desktopUI.motion.progress'),1);await click('#desks-close');const reduced=await retainFrames('reduced');assert.ok(reduced.frames.length>0);assert.ok(reduced.frames.every(f=>f.progress===0||f.progress===1),'Reduced motion has no intermediate translation');fixedGeometry(reduced,'reduced motion');motionFacts.reducedMotion=true;
   await endBackgroundProbe();await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});await verifyPalette();await samePages();
