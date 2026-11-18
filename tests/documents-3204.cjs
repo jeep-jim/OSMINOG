@@ -4,8 +4,19 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  const root=path.resolve(__dirname,'..');const server=http.createServer((req,res)=>{const name=path.resolve(root,'.'+decodeURIComponent(req.url.split('?')[0]));if(!name.startsWith(root+path.sep)){res.writeHead(403).end();return}fs.readFile(name,(e,b)=>{if(e){res.writeHead(404).end();return}res.setHeader('Content-Security-Policy',"script-src 'self'; object-src 'self';");res.setHeader('Content-Type',name.endsWith('.mjs')||name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':'application/octet-stream');res.end(b)})});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({executablePath:process.env.OSMINOG_CHROMIUM,headless:true,args:['--no-sandbox','--no-zygote','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});const page=await browser.newPage({viewport:{width:1400,height:1000}});page.setDefaultTimeout(8000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('https://**',r=>r.abort());
  await page.addInitScript(()=>{const store={osminogDisplayPrefs:{language:'ru',theme:'dark'}},event={addListener(){},removeListener(){}};window.__store=store;window.chrome={runtime:{getURL:p=>new URL(p,location.href).href,getManifest:()=>({version:'4.0.8'}),onMessage:event,sendMessage:async()=>({ok:false,error:'offline test'})},storage:{local:{get:(keys,cb)=>{const v=typeof keys==='string'?{[keys]:store[keys]}:{...store};cb?.(v);return Promise.resolve(v)},set:(v,cb)=>{Object.assign(store,structuredClone(v));cb?.();return Promise.resolve()},remove:async keys=>{for(const k of [].concat(keys))delete store[k]}},onChanged:event},tabs:{getCurrent:async()=>({id:1}),query:async()=>[]},permissions:{contains:async()=>false},i18n:{getMessage:()=>''}}});
- try{await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);await page.evaluate(()=>document.querySelector('#osminogStorageOnboarding')?.close());await page.waitForFunction(()=>!!window.OSMINOGDocuments&&!!window.BriefCraftBridge&&!!window.OSMINOGCanvasUX);await page.waitForTimeout(700);await page.evaluate(()=>{createProject();sessionStorage.setItem('osminogIntroDismissedV1','1');renderAll()});
- const id=await page.evaluate(src=>createObject('file',{name:'source.pdf',fileName:'source.pdf',mime:'application/pdf',src}).id,'data:application/pdf;base64,'+fs.readFileSync('/tmp/osminog-doc-tests/source.pdf').toString('base64'));
+ let documentId;
+ try{await page.goto(`http://127.0.0.1:${server.address().port}/editor.html`);
+ await page.waitForFunction(()=>!!window.OSMINOGStateReady&&!!window.OSMINOGDocuments&&!!window.BriefCraftBridge&&!!window.OSMINOGCanvasUX);
+ await page.evaluate(()=>OSMINOGStateReady);
+ // The folder-status query can finish after state loading. Complete its real
+ // onboarding before editing, so a late showModal cannot steal the PDF focus.
+ await page.waitForSelector('#osminogStorageOnboarding[open]');
+ const onboarding=page.locator('#osminogStorageOnboarding'),later=await page.evaluate(()=>OSMINOGWorkspaceLanguage.text('later'));
+ await onboarding.getByRole('button',{name:later,exact:true}).click();
+ await onboarding.waitFor({state:'hidden'});
+ await page.waitForFunction(()=>!document.body.inert&&!document.querySelector('#osminogStorageOnboarding[open]'));
+ await page.evaluate(()=>{createProject();sessionStorage.setItem('osminogIntroDismissedV1','1');renderAll()});
+ const id=documentId=await page.evaluate(src=>createObject('file',{name:'source.pdf',fileName:'source.pdf',mime:'application/pdf',src}).id,'data:application/pdf;base64,'+fs.readFileSync('/tmp/osminog-doc-tests/source.pdf').toString('base64'));
  let read=await page.evaluate(id=>BriefCraftBridge.executeTool('document_read',{id}),id);assert.equal(read.ok,true,JSON.stringify(read));assert.equal(read.pageCount,2);assert.equal(read.items[0].text,'Original text');console.log('PASS PDF parsed, real text and coordinates readable through shared AI tool');
  await page.evaluate(id=>OSMINOGDocuments.open(id),id);await page.waitForSelector('[data-doc-item="0"]');await page.locator('[data-doc-item="0"]').fill('Исправленный текст');await page.locator('[data-doc-item="0"]').blur();await page.waitForFunction(id=>objects().find(o=>o.id===id).documentRevision===1,id);
  let result=await page.evaluate(id=>BriefCraftBridge.executeTool('document_edit',{id,expectedRevision:0,operations:[{op:'add_text',page:1,x:40,y:150,text:'Stale'}]}),id);assert.match(result.error,/изменился/);
@@ -21,6 +32,19 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  // Shared Board 4.x restored the extension studio; keep this contract in sync with shared-board-400.
  assert.equal(await page.evaluate(()=>typeof OSMINOGExtensionStudio?.list),'function');console.log('PASS restored extension studio remains available');
  await page.screenshot({path:'/tmp/osminog-doc-tests/editor.png',animations:'disabled',timeout:30000});assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');
+ }catch(error){
+  try{
+   const diagnostic=await page.evaluate(id=>{
+    const describe=el=>el?{tag:el.tagName,id:el.id,documentItem:el.getAttribute('data-doc-item'),inert:el.inert,inertAncestor:el.closest('[inert]')?.id||null}:null;
+    const item=typeof objects==='function'?objects().find(o=>o.id===id):null;
+    return {readyState:document.readyState,bodyInert:document.body.inert,documentId:id,documentRevision:item?.documentRevision??null,
+     dialogs:[...document.querySelectorAll('dialog')].map(d=>({id:d.id,open:d.open,modal:d.matches(':modal'),hidden:d.hidden,display:getComputedStyle(d).display})),
+     textareas:[...document.querySelectorAll('[data-doc-item]')].map(el=>({...describe(el),value:el.value,focused:el===document.activeElement,disabled:el.disabled,readOnly:el.readOnly})),
+     focused:describe(document.activeElement)};
+   },documentId);
+   console.error('DOCUMENTS_3204_FAILURE_STATE '+JSON.stringify({state:diagnostic,pageErrors:errors}));
+  }catch(diagnosticError){console.error('DOCUMENTS_3204_FAILURE_STATE '+JSON.stringify({diagnosticError:diagnosticError.message,pageErrors:errors}))}
+  throw error;
  }finally{await browser.close();await new Promise(r=>server.close(r))}
 })().catch(e=>{console.error(e);process.exitCode=1});
 

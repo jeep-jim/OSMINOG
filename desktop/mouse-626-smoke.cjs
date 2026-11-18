@@ -37,7 +37,7 @@ module.exports=async({app,win,browser,store})=>{
  const facts={version:'6.0.26',palette:{},stateRestored:false,supersededForNora:{version:'6.0.27',proof:'mouse-627-motion.json',reason:'Fixed-size compositor slide replaces the former contour morph'}};
  const motionFacts={version:'6.0.27',themes:['light','dark'],fixedSize:false,translationOnly:false,constantContour:false,openClosePainted:false,interruptionPreserved:false,reducedMotion:false,contentScrollable:false,backgroundStable:false,footerStable:false,stateRestored:false,frames:{},geometry:{},captures:{},captureStates:{},footer:{},background:{before:[],after:[],nativeBoundsCalls:0,resizeEvents:0,snapshots:[]}};
  let attached=false,lastClick=null,lastInput=null,verificationError,cleanupError,backgroundProbe=false,paintCapture=null;
- const boundsHooks=[];
+ const boundsHooks=[],captureDiagnostics=[];
  const phase=()=>js('document.querySelector("#desktop-tray").dataset.motion');
  const settled=()=>until(()=>js('(()=>{const t=document.querySelector("#desktop-tray");return t.hidden||t.dataset.motion==="open";})()'),'Nora reaches its current target');
  const closed=()=>until(()=>js('document.querySelector("#desktop-tray").hidden&&!document.querySelector("#desktop-tray").open&&!document.querySelector(".mouse-floating-snapshot")'),'Nora closes and restores native pages');
@@ -49,7 +49,7 @@ module.exports=async({app,win,browser,store})=>{
   lastClick={selector,point};assert.equal(point.ready,true,'Mouse627 native target: '+JSON.stringify(lastClick));
   const origin=win.getContentBounds(),target={x:Math.round(origin.x+point.x),y:Math.round(origin.y+point.y)},area=screen.getDisplayNearestPoint(target).bounds;
   assert.ok(target.x>=area.x&&target.y>=area.y&&target.x<area.x+area.width&&target.y<area.y+area.height,'Native click stays on the display');
-  assert.equal(native.testClick(target.x,target.y),true);await sleep(90);
+  lastClick.nativeAt=performance.now();assert.equal(native.testClick(target.x,target.y),true);await sleep(90);
   if(wait){if(selector==='#desktops-button')await until(async()=>await phase()==='open','Nora opens from its footer control');else if(selector==='#desks-close')await closed();await settled();}
  }
  async function key(keyCode,modifiers=[]){keyCode=({Enter:'Return',ArrowLeft:'Left',ArrowRight:'Right',ArrowUp:'Up',ArrowDown:'Down'})[keyCode]||keyCode;win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});if(keyCode==='Return')win.webContents.sendInputEvent({type:'char',keyCode:'\r',modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await sleep(35);}
@@ -134,20 +134,31 @@ module.exports=async({app,win,browser,store})=>{
  }
  async function armPanelCapture(theme,state){
   const geometry=await js(`(()=>{const t=document.querySelector('#desktop-tray'),footer=document.querySelector('#statusbar').getBoundingClientRect(),toolbar=document.querySelector('.toolbar').getBoundingClientRect(),current=MouseTest.desktopUI.motion.sample(),rgb=value=>value.match(/[\\d.]+/g).slice(0,3).map(Number),width=current?.width||Math.min(1000,innerWidth-12),height=current?.height||Math.max(1,Math.min(440,footer.top-toolbar.bottom-12));return{viewport:{width:innerWidth,height:innerHeight},width,height,left:(innerWidth-width)/2,baseline:footer.top,fill:rgb(getComputedStyle(document.querySelector('#mouse-dock-fill')).fill),line:rgb(getComputedStyle(document.querySelector('#mouse-dock-outline')).stroke),before:globalThis.__mouse627Recorder?.sample()};})()`);
+  const diagnostic={theme,state,geometry,armedAt:performance.now(),ready:null,frames:[],retainedBytes:0,droppedFrames:0},retained=[];captureDiagnostics.push(diagnostic);
   let last=null;const capture=armFrameCapture(win.webContents,{select(image,frame){
+   const receivedAt=performance.now();
    const pixels=image.toBitmap({scaleFactor:frame.scaleFactor});assert.equal(pixels.length,frame.pixelSize.width*frame.pixelSize.height*4,'Presentation bitmap matches its native dimensions');
    last=paintedPanel(pixels,frame.pixelSize,geometry);
+   const selected=!!last&&last.translateY>=Math.max(16,geometry.height*.08)&&last.translateY<=geometry.height*.9,row={...frame,receivedAt,selectionMs:performance.now()-receivedAt,boundary:last,selected};diagnostic.frames.push(row);
+   // Keep a small, bounded raw sample for a failed capture. PNG encoding and
+   // disk writes happen only after the subscription has ended, never in motion.
+   if(retained.length<12&&diagnostic.retainedBytes+pixels.length<=32*1024*1024){retained.push({row,pixels});diagnostic.retainedBytes+=pixels.length;}else diagnostic.droppedFrames++;
    // Detect the top edge first, then reject endpoints. A scrim or a fully open
    // panel must never pass as motion simply because a DOM sample was moving.
-   if(!last||last.translateY<Math.max(16,geometry.height*.08)||last.translateY>geometry.height*.9)return null;
+   if(!selected)return null;
    return{theme,state,geometry,...last};
-  }});paintCapture=capture;capture.result.catch(()=>{});return{capture,geometry,last:()=>last};
+  }});paintCapture=capture;capture.result.catch(()=>{});
+  const armed={capture,geometry,last:()=>last,clear:()=>{retained.length=0;},async failure(){
+   diagnostic.lastClick=lastClick;diagnostic.failedAt=performance.now();
+   for(const {row,pixels}of retained){const filename='mouse-627-panel-'+theme+'-'+state+'-rejected-'+String(row.sequence).padStart(3,'0')+'.png';try{const image=nativeImage.createFromBitmap(pixels,{...row.pixelSize,scaleFactor:1}),png=image.toPNG();assert.deepEqual({width:png.readUInt32BE(16),height:png.readUInt32BE(20)},row.pixelSize);await fs.writeFile(filename,png);row.filename=filename;}catch(error){row.writeError=error.message;}}
+  }};
+  try{diagnostic.ready=await capture.ready;return armed;}catch(error){await armed.failure();armed.clear();throw error;}
  }
  async function capturePanel(theme,state,armed){
   if(armed){
    try{const result=await armed.capture.result,{png,...painted}=result,filename='mouse-627-panel-'+theme+'-'+state+'.png';assert.deepEqual({width:png.readUInt32BE(16),height:png.readUInt32BE(20)},result.pixelSize,'Saved PNG is the selected presentation bitmap');await fs.writeFile(filename,png);(motionFacts.captures[theme]??={})[state]=filename;(motionFacts.captureStates[theme]??={})[state]={before:armed.geometry.before,after:await js('globalThis.__mouse627Recorder?.sample()'),painted};}
-   catch(error){throw Error(error.message+'; last painted boundary: '+JSON.stringify(armed.last()));}
-   finally{armed.capture.cancel();if(paintCapture===armed.capture)paintCapture=null;}return;
+   catch(error){await armed.failure();throw Error(error.message+'; last painted boundary: '+JSON.stringify(armed.last()));}
+   finally{armed.capture.cancel();armed.clear();if(paintCapture===armed.capture)paintCapture=null;}return;
   }
   const before=await js('globalThis.__mouse627Recorder?.sample()');
   if(state!=='open')assert.ok(before&&before.phase===(state==='opening'?'opening':'closing')&&before.progress>0&&before.progress<1,'Capture begins during a natural '+state+' frame');
@@ -245,7 +256,7 @@ module.exports=async({app,win,browser,store})=>{
   await endBackgroundProbe();await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});await verifyPalette();await samePages();
  }catch(error){
   verificationError=error;const renderer=await js('({current:globalThis.__mouse627Recorder?.sample(),frames:globalThis.__mouse627Recorder?.frames,sizes:globalThis.__mouse627Recorder?.sizes,mutations:globalThis.__mouse627Recorder?.mutations,input:globalThis.__mouse626Input?{state:globalThis.__mouse626Input.state(),events:globalThis.__mouse626Input.events}:null})').catch(diagnosticError=>({error:diagnosticError.message}));
-  if(lastInput&&renderer.input){lastInput.failureState=renderer.input.state;lastInput.events=renderer.input.events;}const failure={version:motionFacts.version,message:error.message,stack:error.stack,lastClick,lastInput,interruption:motionFacts.interruption??null,motion:await phase().catch(()=>null),recorded:motionFacts,renderer};console.error('MOUSE_627_MOTION_FAILURE_CONTEXT',JSON.stringify({message:error.message,lastClick,lastInput,interruption:failure.interruption,motion:failure.motion,current:renderer.current}));await fs.writeFile('mouse-627-motion-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await fs.writeFile('mouse-627-motion-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});throw error;
+  if(lastInput&&renderer.input){lastInput.failureState=renderer.input.state;lastInput.events=renderer.input.events;}const failure={version:motionFacts.version,message:error.message,stack:error.stack,lastClick,lastInput,interruption:motionFacts.interruption??null,motion:await phase().catch(()=>null),recorded:motionFacts,renderer,captureDiagnostics};console.error('MOUSE_627_MOTION_FAILURE_CONTEXT',JSON.stringify({message:error.message,lastClick,lastInput,interruption:failure.interruption,motion:failure.motion,current:renderer.current}));await fs.writeFile('mouse-627-motion-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await fs.writeFile('mouse-627-motion-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});throw error;
  }finally{
   try{paintCapture?.cancel();paintCapture=null;await removeBackgroundProbe();await js('globalThis.__mouse627Reversal?.dispose();delete globalThis.__mouse627Reversal;globalThis.__mouse627Recorder?.stop();delete globalThis.__mouse627Recorder;globalThis.__mouse626Input?.dispose();delete globalThis.__mouse626Input;MouseTest.desktopUI.close({immediate:true});document.querySelector("#capture-dialog")?.open&&document.querySelector("#capture-dialog").close();MouseTest.zoomUI.close()');await closed();
    if(attached){await debug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]});debug.detach();attached=false;}

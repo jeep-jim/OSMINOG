@@ -53,7 +53,7 @@ module.exports=async({app,win,browser,pages,leftDesk='desk-1',rightDesk='desk-3'
    const target=direction>0?rightDesk:leftDesk;assert.notEqual(await js('MouseTest.model.desktopId'),target);
    delay=theme==='dark'&&direction===-1?250:0;active={theme,direction,ackDelayMs:delay,captures:[]};const pageBefore=await pins();await js(observe);
    let frameCapture,paintedFrame;
-   if(direction===1){const [width,height]=win.getContentSize(),geometry={width,height,rows:pages.map(id=>browser.get(id).bounds.y+3)};frameCapture=armFrameCapture(win.webContents,{select:(image,context)=>paintedBands(image,context,geometry)});}
+   if(direction===1){const [width,height]=win.getContentSize(),geometry={width,height,rows:pages.map(id=>browser.get(id).bounds.y+3)};frameCapture=armFrameCapture(win.webContents,{select:(image,context)=>paintedBands(image,context,geometry)});await frameCapture.ready;}
    const changing=js('MouseTest.switchDesktop('+JSON.stringify(target)+')');changing.catch(()=>{});
    try{
     if(direction===1){
