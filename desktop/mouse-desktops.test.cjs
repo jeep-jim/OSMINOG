@@ -34,3 +34,41 @@ test('empty desktop seeds support exactly once; applying a second grid preserves
  const f=fixture(),urls=[],base=f.b.command;f.b.command=async function(action,args){if(action==='open')urls.push(args.url);return base.call(this,action,args);};const service=await install({...f,browser:f.b,trusted:()=>{}}),call=(a,args)=>f.handlers.get('mouse:desktops')({},a,args);
  await call('apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()});assert.deepEqual(urls,require('./mouse/modes.js').get('support').sites);const pages=[...f.b.tabs.values()];await call('apply-mode',{mode:'design',from:'desk-3',preferences:service.preferences()});assert.equal(urls.length,7);assert.deepEqual([...f.b.tabs.values()],pages);assert.equal(L.leaves(service.preferences().tree).length,5);assert.equal(service.preferences().tabOrder.length,7);assert.equal(service.bank.describe(f.b.state().tabs).items[2].mode,'design');await assert.rejects(call('apply-mode',{mode:'trader',from:'desk-1'}),/уже изменился/);f.b.dispose();
 });
+test('agents mode hides the replaced AI panel while preserving its live page and saved session',async()=>{
+ const Modes=require('./mouse/modes.js'),f=fixture(),main=f.b.make(),ai=f.b.make();ai.lane='side';const opened=[],base=f.b.command;f.b.command=async function(action,args){if(action==='open')opened.push(args.url);return base.call(this,action,args);};
+ const service=await install({...f,browser:f.b,trusted:()=>{}}),previous={...service.preferences(),slots:{p1:main.id},aiOpen:true,aiId:ai.id,aiSessions:{'https://chat.example/':ai.id}};await service.savePreferences(previous);
+ const result=await f.handlers.get('mouse:desktops')({},'apply-mode',{mode:'agents',from:'desk-3',preferences:previous});assert.equal(result.preferences.aiOpen,false);assert.equal(result.preferences.aiId,ai.id);assert.deepEqual(result.preferences.aiSessions,previous.aiSessions);assert.deepEqual([...f.b.tabs.values()],[main,ai]);assert.deepEqual(opened,[]);
+ const summary=result.state.desktops.items[2],preview=service.previews.snapshot().items[2];assert.equal(summary.count,2);assert.equal(summary.paneCount,1);assert.equal(summary.hiddenCount,1);assert.ok(!preview.preview.panes.some(p=>p.pane==='ai'));assert.ok(preview.preview.extraTabs.some(t=>t.id===ai.id));
+ for(const mode of ['trader','support','design','content'])assert.equal(Modes.arranged(mode,result.state.tabs,previous).aiOpen,true);f.b.dispose();
+});
+test('authoritative reconciliation removes closed references while retaining all unplaced live tabs',()=>{
+ const b=new DesktopBank(),tabs=Array.from({length:24},(_,i)=>({id:'tab-'+i,title:'Page '+i,url:'https://'+i+'.test/',favicon:'https://'+i+'.test/icon.png',lane:'main'}));b.sync(tabs);
+ b.savePreferences({tree:L.preset(7),slots:Object.fromEntries(Array.from({length:7},(_,i)=>['p'+(i+1),'tab-'+i])),tabOrder:tabs.map(t=>t.id),aiId:'closed-ai',aiSessions:{'https://old.test/':'closed-ai'}});b.assign('closed-ai');
+ b.reconcile(tabs);let d=b.describe(tabs).items[2];assert.equal(d.count,24);assert.equal(d.paneCount,7);assert.equal(d.hiddenCount,17);assert.equal(d.tabs.filter(t=>t.placed).length,7);assert.equal(d.tabs[0].favicon,tabs[0].favicon);assert.equal(b.members['closed-ai'],undefined);assert.equal(b.current().layout.aiId,'');assert.deepEqual(b.current().layout.aiSessions,{});
+ tabs.splice(0,1);b.reconcile(tabs);d=b.describe(tabs).items[2];assert.equal(d.count,23);assert.equal(d.paneCount,6);assert.equal(d.hiddenCount,17);assert.equal(b.current().layout.slots.p1,undefined);assert.ok(!b.current().layout.tabOrder.includes('tab-0'));assert.ok(!d.tabs.some(t=>t.id==='tab-0'));
+ const restored=new DesktopBank(b.snapshot(),b.preferences());assert.equal(restored.describe(tabs).items[2].hiddenCount,17);assert.equal(restored.members['tab-23'],'desk-3');
+});
+test('host prunes missing or destroyed native pages and excludes native services, retaining user start tabs',async()=>{
+ const f=fixture(),gone=f.b.make(),dead=f.b.make(),servicePage=f.b.make(),start=f.b.make(),live=f.b.make();dead.view.webContents.isDestroyed=()=>true;servicePage.ephemeral=true;start.internal=true;
+ const base=f.b.state;f.b.state=function(){return{...base.call(this),tabs:[...base.call(this).tabs,{id:'orphan',title:'Stale native record'}]};};
+ const service=await install({...f,browser:f.b,trusted:()=>{}});assert.deepEqual(service.state().tabs.map(t=>t.id),[gone.id,start.id,live.id]);assert.equal(service.state().desktops.items[2].count,3);
+ await f.b.command('close',{id:gone.id});assert.equal(service.bank.members[gone.id],undefined);assert.equal(service.state().desktops.items[2].count,2);assert.ok(!f.saved.mouseDesktopsV1.members[gone.id]);f.b.dispose();
+});
+test('trusted transfer and reorder retain the exact page object, active desk and destination order',async()=>{
+ const f=fixture(),first=f.b.make(),second=f.b.make(),third=f.b.make(),service=await install({...f,browser:f.b,trusted:()=>{}}),call=(a,args)=>f.handlers.get('mouse:desktops')({},a,args);let stops=0;f.b.mouseBeforeDesktopChange=async()=>{stops++;};
+ await service.savePreferences({...service.preferences(),tree:L.preset(2),slots:{p1:first.id,p2:second.id},tabOrder:[first.id,second.id,third.id]});
+ let r=await call('move-tab',{id:third.id,desk:'desk-3',before:first.id,from:'desk-3'});assert.deepEqual(r.preferences.tabOrder,[third.id,first.id,second.id]);assert.equal(stops,0);assert.equal(f.b.tabs.get(third.id),third);
+ r=await call('move-tab',{id:first.id,desk:'desk-1',from:'desk-3'});assert.equal(stops,1);assert.equal(r.state.desktopId,'desk-3');assert.equal(r.moved.from,'desk-3');assert.equal(r.moved.desk,'desk-1');assert.equal(service.bank.current().layout.slots.p1,undefined);assert.equal(service.bank.items[0].layout.slots.p1,first.id);assert.equal(f.b.tabs.get(first.id),first);assert.equal(r.previews.items[0].preview.tabs[0].id,first.id);assert.equal(r.state.desktops.items[2].count,2);assert.equal(r.state.desktops.items[0].count,1);
+ await call('move-tab',{id:second.id,desk:'desk-1',before:first.id});assert.deepEqual(service.bank.items[0].layout.tabOrder,[second.id,first.id]);assert.equal(f.b.tabs.get(second.id),second);
+ const snapshot=service.bank.snapshot();await assert.rejects(call('move-tab',{id:third.id,desk:'desk-2',before:first.id}),/Позиция/);await assert.rejects(call('move-tab',{id:'closed',desk:'desk-1'}),/закрыта/);await assert.rejects(call('move-tab',{id:third.id,desk:'desk-6'}),/не найден/);assert.deepEqual(service.bank.snapshot(),snapshot);
+ await service.flush();const restored=new DesktopBank(f.saved.mouseDesktopsV1);assert.deepEqual(restored.items[0].layout.tabOrder,[second.id,first.id]);assert.equal(restored.active,'desk-3');f.b.dispose();
+});
+test('explicit preview close can close an inactive desk tab without switching or bypassing native IPC scope',async()=>{
+ const f=fixture(),page=f.b.make(),service=await install({...f,browser:f.b,trusted:e=>{if(!e.trusted)throw Error('Untrusted frame');}}),call=(a,args)=>f.handlers.get('mouse:desktops')({trusted:true},a,args);
+ await call('move-tab',{id:page.id,desk:'desk-1'});await assert.rejects(f.b.command('close',{id:page.id}),/другому/);await assert.rejects(f.handlers.get('mouse:desktops')({},'close-tab',{id:page.id}),/Untrusted/);assert.equal(f.b.tabs.get(page.id),page);
+ const r=await call('close-tab',{id:page.id,from:'desk-3'});assert.deepEqual(r.closed,{id:page.id,desk:'desk-1'});assert.equal(r.state.desktopId,'desk-3');assert.equal(r.state.desktops.items[0].count,0);assert.deepEqual(r.previews.items[0].preview.tabs,[]);assert.equal(f.b.tabs.has(page.id),false);assert.equal(service.bank.members[page.id],undefined);assert.equal(service.bank.items[0].layout.slots.p1,undefined);assert.deepEqual(service.bank.items[0].layout.tabOrder,[]);f.b.dispose();
+});
+test('identical shell preferences do not enqueue repeated desktop storage writes',async()=>{
+ const f=fixture();f.b.make();let writes=0;const base=f.store.set;f.store.set=async v=>{writes++;return base(v);};const service=await install({...f,browser:f.b,trusted:()=>{}});assert.equal(writes,1);
+ await Promise.all(Array.from({length:25},()=>service.savePreferences(service.preferences())));assert.equal(writes,1);await service.savePreferences({...service.preferences(),theme:'dark'});assert.equal(writes,2);f.b.dispose();
+});

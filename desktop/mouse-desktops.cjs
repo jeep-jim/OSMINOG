@@ -49,6 +49,34 @@ class DesktopBank{
  current(){return this.items.find(d=>d.id===this.active);}
  assign(id,desk=this.active){if(typeof id==='string'&&this.items.some(d=>d.id===desk)&&!Object.hasOwn(this.members,id))this.members[id]=desk;}
  sync(tabs){for(const t of tabs)this.assign(t.id);}
+ // Only the authoritative, unfiltered workspace state may prune membership.
+ // An unplaced live tab is still owned content, never an abandoned page.
+ reconcile(tabs){
+  this.sync(tabs);const live=new Set(tabs.map(t=>t.id));
+  for(const id of Object.keys(this.members))if(!live.has(id))delete this.members[id];
+  for(const d of this.items){const own=id=>live.has(id)&&this.members[id]===d.id,p=d.layout;
+   p.tabOrder=p.tabOrder.filter(own);
+   for(const [pane,id]of Object.entries(p.slots))if(id&&!own(id))delete p.slots[pane];
+   if(p.aiId&&!own(p.aiId))p.aiId='';
+   for(const [url,id]of Object.entries(p.aiSessions))if(!own(id))delete p.aiSessions[url];
+  }
+ }
+ ordered(desk,tabs){const d=this.items.find(d=>d.id===desk),byId=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t])),seen=new Set();return[...(d?.layout.tabOrder||[]),...byId.keys()].filter(id=>byId.has(id)&&!seen.has(id)&&seen.add(id)).map(id=>byId.get(id));}
+ placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&own.has(d.layout.aiId)?[d.layout.aiId]:[])]);}
+ move(id,desk,before,tabs){
+  this.reconcile(tabs);const page=tabs.find(t=>t.id===id),source=this.members[id],destination=this.items.find(d=>d.id===desk);
+  if(!page||!source)throw Error('Вкладка уже закрыта');
+  if(!destination)throw Error('Рабочий стол не найден');
+  if(before!==undefined&&(typeof before!=='string'||!tabs.some(t=>t.id===before&&this.members[t.id]===desk)))throw Error('Позиция вкладки уже изменилась');
+  if(before===id)return{ id,from:source,desk };
+  if(source!==desk){const p=this.items.find(d=>d.id===source).layout;p.tabOrder=p.tabOrder.filter(x=>x!==id);for(const [pane,tab]of Object.entries(p.slots))if(tab===id)delete p.slots[pane];if(p.aiId===id)p.aiId='';for(const [url,tab]of Object.entries(p.aiSessions))if(tab===id)delete p.aiSessions[url];this.members[id]=desk;}
+  const order=this.ordered(desk,tabs).map(t=>t.id).filter(x=>x!==id),at=before===undefined?order.length:order.indexOf(before);order.splice(at,0,id);destination.layout.tabOrder=order;
+  if(source!==desk){
+   if(page.lane==='side'){if(!destination.layout.aiId){destination.layout.aiId=id;destination.layout.aiOpen=true;}}
+   else{const pane=L.leaves(destination.layout.tree).find(p=>!destination.layout.slots[p]);if(pane)destination.layout.slots[pane]=id;}
+  }
+  return{id,from:source,desk};
+ }
  preferences(){return{...clone(this.global),...clone(this.current().layout),desktopId:this.active};}
  savePreferences(p){
   if(p.desktopId&&p.desktopId!==this.active)return false;
@@ -58,17 +86,22 @@ class DesktopBank{
  }
  select(id){if(!this.items.some(x=>x.id===id))throw Error('Рабочий стол не найден');this.active=id;return this.preferences();}
  add(tabs=[]){this.sync(tabs);const empty=this.items.filter(d=>!tabs.some(t=>this.members[t.id]===d.id)),desk=empty.find(d=>d.id!==this.active)||empty[0];if(!desk)throw Error('Все пять столов заняты. Освободите один из них.');return desk.id;}
- describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=tabs.filter(t=>this.members[t.id]===d.id),count=own.reduce((n,t)=>n+unread(t.title),0);return{id:d.id,name:d.name,mode:d.layout.mode,unread:Math.min(999999,count),count:own.length,tree:clone(d.layout.tree),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
+ describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
  snapshot(){return{schema:2,active:this.active,items:clone(this.items),members:{...this.members},...(this.recovery?{recovery:clone(this.recovery)}:{})};}
 }
 async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
  const saved=await store.get([KEY,'quadroPreferences']);const bank=new DesktopBank(saved[KEY],saved.quadroPreferences||{});
  const rawState=browser.state.bind(browser),oldSave=browser.save.bind(browser),oldCommand=browser.command.bind(browser),oldMake=browser.make.bind(browser),oldLayout=browser.layout.bind(browser),oldDispose=browser.dispose.bind(browser);
- bank.sync(rawState().tabs);let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false;
- const previews=new DesktopPreviews({browser,bank,state:rawState});
+ let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false,lastPersisted='';
+ function rawLiveState(){
+  const raw=rawState(),seen=new Set(),tabs=raw.tabs.filter(t=>{const page=browser.tabs.get(t.id),wc=page?.view?.webContents;return !seen.has(t.id)&&seen.add(t.id)&&!page?.provider&&!page?.ephemeral&&(t.internal||wc&&!wc.isDestroyed?.());});
+  bank.reconcile(tabs);return{...raw,tabs};
+ }
+ rawLiveState();
+ const previews=new DesktopPreviews({browser,bank,state:rawLiveState});
  const lock=()=>previews.lock(),unlock=()=>previews.unlock();powerMonitor?.on('lock-screen',lock);powerMonitor?.on('unlock-screen',unlock);
- function persist(){const value=bank.snapshot(),preferences=bank.preferences();queue=queue.catch(()=>{}).then(()=>store.set({[KEY]:value,quadroPreferences:preferences}));return queue;}
- function state(){const raw=rawState();bank.sync(raw.tabs);return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active};}
+ function persist(){rawLiveState();const value=bank.snapshot(),preferences=bank.preferences(),signature=JSON.stringify([value,preferences]);if(signature===lastPersisted)return queue;lastPersisted=signature;queue=queue.catch(()=>{}).then(()=>store.set({[KEY]:value,quadroPreferences:preferences})).catch(error=>{if(lastPersisted===signature)lastPersisted='';throw error;});return queue;}
+ function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active};}
  browser.state=state;
  browser.mouseAssignDesk=id=>bank.assign(id,creationDesk||bank.active);
  browser.make=(...args)=>{const t=oldMake(...args);bank.assign(t.id,creationDesk||bank.active);return t;};
@@ -79,6 +112,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
   const targetDesk=creationDesk||bank.active;
   const result=await oldCommand(action,args);
   if(action==='open'&&result?.id){bank.assign(result.id,targetDesk);await persist();browser.emit();}
+  if(action==='close'){previews.drop(args.id);await persist();}
   return result;
  };
  // window.open belongs to its source desk, even while that desk is not visible.
@@ -87,14 +121,12 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
  ipcMain.handle('mouse:desktops',async(event,action,args={})=>{
   trusted(event);if(disposed||browser.disposed)throw Error('Рабочее пространство закрыто');
   if(!args||typeof args!=='object'||JSON.stringify(args).length>120000)throw Error('Invalid desktop request');
-  if(action==='state')return bank.describe(rawState().tabs);
+  if(action==='state')return bank.describe(rawLiveState().tabs);
   if(action==='thumbnail'){
    if(typeof args.id!=='string'||bank.members[args.id]!==bank.active)return{src:''};
-   const t=browser.tabs.get(args.id),wc=t?.view?.webContents;if(!t||!t.visible||wc.isDestroyed()||previews.locked)return{src:''};
-   const generation=previews.generation,desk=bank.active,epoch=t.navigationEpoch||0,url=wc.getURL?.()||t.url||'';
-   try{const image=await wc.capturePage();if(disposed||browser.disposed||generation!==previews.generation||previews.locked||!t.visible||desk!==bank.active||!previews.valid(args.id,{page:t,desk,epoch,url}))return{src:''};const src=image.resize({width:240}).toDataURL();return{src:src.length<=1400000?src:''};}catch{return{src:''};}
+   return previews.thumbnail(args.id);
   }
-  if(!['switch','add','rename','apply-mode','previews','remember-preview'].includes(action))throw Error('Unknown desktop action');
+  if(!['switch','add','rename','apply-mode','previews','remember-preview','move-tab','close-tab'].includes(action))throw Error('Unknown desktop action');
   // Validate a mode before accepting any accompanying preferences.
   const mode=action==='apply-mode'?Modes.get(args.mode):null;
   const run=async()=>{
@@ -102,16 +134,30 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
    if(args.from&&args.from!==bank.active)throw Error('Рабочий стол уже изменился');
    if(args.preferences){if(args.preferences.desktopId!==bank.active)throw Error('Раскладка другого стола');require('./mouse/layout.js').validate(args.preferences.tree);bank.savePreferences(args.preferences);}
    if(action==='previews'||action==='remember-preview'){await previews.capture();return previews.snapshot();}
+   if(action==='move-tab'||action==='close-tab'){
+    const tabs=rawLiveState().tabs,page=tabs.find(t=>t.id===args.id),source=bank.members[args.id];
+    if(typeof args.id!=='string'||!page||!source)throw Error('Вкладка уже закрыта');
+    if(action==='move-tab'){
+     if(!bank.items.some(d=>d.id===args.desk))throw Error('Рабочий стол не найден');
+     if(args.before!==undefined&&(typeof args.before!=='string'||!tabs.some(t=>t.id===args.before&&bank.members[t.id]===args.desk)))throw Error('Позиция вкладки уже изменилась');
+     if(source!==args.desk)await browser.mouseBeforeDesktopChange?.();
+     const moved=bank.move(args.id,args.desk,args.before,rawLiveState().tabs);
+     if(source!==args.desk){previews.drop(args.id);browser.layout(browser.panels||[]);}
+     await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
+    }
+    await browser.mouseBeforeDesktopChange?.();await oldCommand('close',{id:args.id});previews.drop(args.id);await persist();
+    const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),closed:{id:args.id,desk:source}};browser.emit();return result;
+   }
    if(action==='rename'){const d=bank.items.find(d=>d.id===args.id);if(!d)throw Error('Рабочий стол не найден');d.name=String(args.name||'Стол').trim().slice(0,60)||'Стол';await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
    if(action==='apply-mode'){
     await browser.mouseBeforeDesktopChange?.();await previews.capture();
-    const own=()=>rawState().tabs.filter(t=>bank.members[t.id]===bank.active);
+    const own=()=>rawLiveState().tabs.filter(t=>bank.members[t.id]===bank.active);
     // Even an internal start tab or an AI side tab is user-owned content.
     // Existing pages retain identity, sessions and navigation history.
     if(!own().length)for(const url of mode.sites)await browser.command('open',{url,lane:'main'});
     bank.current().layout=layout(Modes.arranged(mode.id,own(),bank.current().layout));await persist();browser.emit();return{state:state(),preferences:bank.preferences()};
    }
-   const id=action==='add'?bank.add(rawState().tabs):args.id;
+   const id=action==='add'?bank.add(rawLiveState().tabs):args.id;
    if(!bank.items.some(d=>d.id===id))throw Error('Рабочий стол не найден');
    await browser.mouseBeforeDesktopChange?.();await previews.capture();
    oldLayout([]);bank.select(id);await persist();
