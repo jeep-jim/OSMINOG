@@ -6,6 +6,8 @@ body:has(#desktop-tray[open]) #statusbar{border-image:none!important}
 #desktop-tray{animation:none!important;transition:none!important;padding:0;overflow:hidden;max-height:none;clip-path:none;outline:none;contain:layout paint}
 #desktop-tray::backdrop{background:transparent;backdrop-filter:none}
 #desktop-tray .desk-burrow-panel{position:relative;width:100%;height:100%;isolation:isolate;transform:translate3d(0,100%,0);contain:layout paint}
+/* The opaque panel needs no per-control sampling of the moving backdrop. */
+#desktop-tray button,#desktop-tray select{backdrop-filter:none;-webkit-backdrop-filter:none}
 #desktop-tray .desk-glass{display:none}
 #desktop-tray #mouse-dock-surface{position:absolute;inset:0;width:100%;height:100%;filter:none;pointer-events:none;z-index:0}
 #desktop-tray #mouse-dock-fill{fill:var(--panel);stroke:none}

@@ -75,4 +75,74 @@ for(const interruption of ['resize','timeout'])test('incoming desktop preparatio
  assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
 });
 
+function pendingSlideScene(direction=1){
+ const vm=require('node:vm'),animations=[],area={x:0,y:0,width:500,height:300};let now=1000,document;
+ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
+ class Animation{
+  constructor(node,frames,options){this.node=node;this.frames=frames;this.options=options;this.pending=true;this.start=null;this.writes=[];this.cancelled=false;this.readyTask=deferred();this.finishTask=deferred();this.ready=this.readyTask.promise;this.finished=this.finishTask.promise;animations.push(this);}
+  get startTime(){return this.start;}
+  set startTime(value){this.writes.push(value);this.start=value;this.pending=false;this.readyTask.resolve(this);this.advance();}
+  get currentTime(){return this.pending?0:Math.max(0,Math.min(this.options.duration,now-this.start));}
+  browserReady(){if(this.cancelled||!this.pending)return;this.start=now;this.pending=false;this.readyTask.resolve(this);this.advance();}
+  advance(){if(!this.pending&&!this.cancelled&&this.currentTime===this.options.duration)this.finishTask.resolve(this);}
+  cancel(){this.cancelled=true;const error=Object.assign(Error('cancelled'),{name:'AbortError'});this.readyTask.reject(error);this.finishTask.reject(error);}
+ }
+ class Node{
+  constructor(tag='div'){this.tagName=tag.toUpperCase();this.ownerDocument=document;this.style={};this.dataset={};this.children=[];this.isConnected=false;}
+  setAttribute(){}removeAttribute(){}querySelector(){return null;}querySelectorAll(){return[];}getBoundingClientRect(){return{...area};}
+  cloneNode(){return new Node();}append(...nodes){this.children.push(...nodes);for(const node of nodes)node.isConnected=true;}
+  attachShadow(){this.shadow=new Node();return this.shadow;}remove(){this.isConnected=false;}animate(frames,options){return new Animation(this,frames,options);}
+ }
+ document={styleSheets:[],documentElement:{dataset:{theme:'light'}},timeline:{currentTime:600},createElement:tag=>new Node(tag)};document.body=new Node();
+ const workspace=new Node(),model={desktopId:'old',state:{tabs:[]}},ctx={module:{exports:{}},performance:{now:()=>now}};
+ vm.runInNewContext(fs.readFileSync('mouse/desktop-slide.js','utf8'),ctx);const scene=ctx.module.exports.createScene(workspace,model,direction);
+ const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+ return{scene,animations,area,async stage(){assert.equal(await scene.stage('outgoing',{desk:'old',complete:true,surfaces:[]}),true);model.desktopId='new';assert.equal(await scene.stage('incoming',{desk:'new',complete:true,surfaces:[]}),true);},async at(value){now=value;for(const animation of animations)animation.advance();await flush();},flush};
+}
+test('pending desktop players ignore stale document time and align only to the actual outgoing start',async()=>{
+ for(const direction of [-1,1]){
+  const f=pendingSlideScene(direction);await f.stage();const running=f.scene.animate();await f.flush();
+  assert.deepEqual(f.animations.map(a=>a.startTime),[null,null],'an old document timestamp must not bypass pending play');
+  assert.deepEqual(f.animations.map(a=>a.currentTime),[0,0]);await f.at(1040);f.animations[0].browserReady();await f.flush();
+  assert.deepEqual(f.animations.map(a=>a.startTime),[1040,null]);await f.at(1052);f.animations[1].browserReady();await f.flush();
+  assert.deepEqual(f.animations.map(a=>a.startTime),[1040,1040]);assert.deepEqual(f.animations[0].writes,[],'the outgoing playhead is never rewound');assert.deepEqual(f.animations[1].writes,[1040]);
+  for(const time of [1100,1230,1369]){await f.at(time);const [a,b]=f.animations;assert.equal(a.currentTime,b.currentTime);const outgoing=-direction*f.area.width*a.currentTime/330,incoming=direction*f.area.width*(1-b.currentTime/330);assert.ok(Math.abs(incoming-outgoing-direction*f.area.width)<1e-9);assert.ok(a.currentTime<330);}
+  await f.at(1370);assert.equal(await running,true);for(const animation of f.animations){assert.equal(animation.options.duration,330);assert.equal(animation.options.easing,'cubic-bezier(.22,1,.36,1)');}
+ }
+});
+test('desktop players already sharing an actual browser start need no timestamp assignment',async()=>{
+ const f=pendingSlideScene();await f.stage();const running=f.scene.animate();await f.at(1040);for(const animation of f.animations)animation.browserReady();await f.flush();
+ assert.deepEqual(f.animations.map(a=>a.startTime),[1040,1040]);assert.ok(f.animations.every(a=>a.writes.length===0));
+ await f.at(1370);assert.equal(await running,true);
+});
+test('cancelling desktop players while browser play is pending settles ready and finished safely',async()=>{
+ const f=pendingSlideScene();await f.stage();const running=f.scene.animate();f.scene.cancel();assert.equal(await running,false);f.scene.remove();
+ assert.ok(f.animations.every(a=>a.cancelled&&a.writes.length===0));assert.equal(f.scene.overlay.isConnected,false);
+});
+
+test('Nora controls cancel global backdrop effects in the loaded CSS without restyling other controls',()=>{
+ const html=fs.readFileSync('mouse/index.html','utf8'),sheets=[...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match=>match[1]).filter(file=>!file.startsWith('agent-vendor/')),rules=[];
+ for(const file of sheets){
+  const css=fs.readFileSync('mouse/'+file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
+  for(const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)){
+   const declarations=match[2].split(';').flatMap(text=>{const colon=text.indexOf(':');return colon<0?[]:[[text.slice(0,colon).trim(),text.slice(colon+1).trim()]];});
+   for(const selector of match[1].split(',').map(text=>text.trim()))if(/^(?:#desktop-tray )?(?:button|select)$/.test(selector))rules.push({selector,declarations});
+  }
+ }
+ // Resolve the actual generic and scoped declarations for simple control
+ // fixtures. Native verification additionally checks Chromium's computed CSS.
+ const effect=(tag,inNora,property)=>{
+  let winner={weight:-1,value:''};
+  for(const rule of rules){if(rule.selector!==tag&&!(inNora&&rule.selector==='#desktop-tray '+tag))continue;
+   for(const [name,raw]of rule.declarations)if(name===property){const important=/!important\s*$/.test(raw),weight=(important?1000:0)+(rule.selector.startsWith('#')?100:0);if(weight>=winner.weight)winner={weight,value:raw.replace(/\s*!important\s*$/,'')};}
+  }return winner.value;
+ };
+ for(const tag of ['button','select'])for(const property of ['backdrop-filter','-webkit-backdrop-filter']){
+  assert.equal(effect(tag,true,property),'none',tag+' inside Nora must not sample a backdrop');
+  assert.equal(effect(tag,false,property),'blur(14px) saturate(1.15)',tag+' outside Nora retains its existing effect');
+ }
+ const scoped=rules.filter(rule=>rule.selector.startsWith('#desktop-tray '));assert.equal(scoped.length,2);
+ for(const rule of scoped)assert.deepEqual(rule.declarations.map(([property])=>property).sort(),['-webkit-backdrop-filter','backdrop-filter'],'the reset must not change colors, borders, backgrounds or other control styles');
+});
+
 require('./mouse-floating-overlay.test.cjs');

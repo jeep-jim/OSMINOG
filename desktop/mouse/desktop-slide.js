@@ -63,10 +63,13 @@
     const options={duration:DURATION,easing:'cubic-bezier(.22,1,.36,1)',fill:'forwards'};
     animationStartedAt=root.performance.now();overlay.dataset.phase='animating';
     animations.push(frames.outgoing.animate([{transform:'translate3d(0,0,0)'},{transform:'translate3d('+(-sign*area.width)+'px,0,0)'}],options),frames.incoming.animate([{transform:'translate3d('+(sign*area.width)+'px,0,0)'},{transform:'translate3d(0,0,0)'}],options));
-    // Explicitly share the document timeline start: IPC latency never extends
-    // this interval or inserts an empty exit/change/entry phase.
-    const start=document.timeline.currentTime;if(start!==null)for(const animation of animations)animation.startTime=start;
-    await Promise.all(animations.map(animation=>animation.finished.catch(()=>{})));animationEndedAt=root.performance.now();overlay.dataset.phase='finished';return valid();
+    // Let the browser prepare the first frames before resolving their starts.
+    // Assigning a cached document timestamp would bypass pending play.
+    const finished=Promise.all(animations.map(animation=>animation.finished.catch(()=>{})));
+    try{await Promise.all(animations.map(animation=>animation.ready));}catch{return false;}
+    if(!valid())return false;
+    const start=animations[0].startTime;if(Number.isFinite(start)&&animations[1].startTime!==start)animations[1].startTime=start;
+    await finished;animationEndedAt=root.performance.now();overlay.dataset.phase='finished';return valid();
    },
    cancel(){cancelled=true;for(const animation of animations)animation.cancel();},
    remove(){for(const animation of animations)animation.cancel();overlay.remove();frames.outgoing=frames.incoming=null;},

@@ -37,18 +37,21 @@ test('the fixed Nora arch keeps its original symmetric silhouette without self-i
  }
 });
 
-function controllerFixture({deferReady=false}={}){
- let now=0,footerTop=772,viewportWidth=1280,viewportHeight=800,reads=0,writes=0,rafId=0,rafRequests=0;const created=[],animations=[],observers=[],listeners=new Map(),settled=[],rafs=new Map(),readiness=[];
+function controllerFixture({deferReady=false,deferPlay=false,timelineLag=0,startNow=0,trace=false}={}){
+ let now=startNow,lag=timelineLag,footerTop=772,viewportWidth=1280,viewportHeight=800,reads=0,writes=0,clockReads=0,rafId=0,rafRequests=0;const created=[],animations=[],observers=[],listeners=new Map(),settled=[],rafs=new Map(),readiness=[];
  class Animation{
   constructor(node,frames,options){this.node=node;this.keyframes=frames;this.options=options;this.rate=1;this.hold=0;this.started=now;this.running=false;this.cancelled=false;this.willChangeAtCreation=node.style.willChange;this.ready=deferReady?new Promise(resolve=>readiness.push(()=>resolve(this))):Promise.resolve(this);this.newFinished();this.effect={getComputedTiming:()=>({progress:Math.max(0,Math.min(1,this.currentTime/options.duration))})};animations.push(this);}
   newFinished(){this.finished=new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject;});this.completed=false;}
   get currentTime(){return Math.max(0,Math.min(this.options.duration,this.hold+(this.running?(now-this.started)*this.rate:0)));}
   set currentTime(value){this.hold=value;this.started=now;}
-  get startTime(){return this.started-this.hold/this.rate;}
-  set startTime(value){this.started=value;this.hold=0;}
+  get startTime(){return this.pending||!this.running?null:this.started-this.hold/this.rate;}
+  set startTime(value){this.started=value;this.hold=0;this.pending=false;this.running=true;this.resolvePlay?.(this);this.resolvePlay=null;}
+  get playState(){return this.cancelled?'idle':this.completed?'finished':this.running||this.pending?'running':'paused';}
+  get playbackRate(){return this.rate;}
   pause(){this.hold=this.currentTime;this.running=false;}
   updatePlaybackRate(rate){const value=this.currentTime;this.rate=rate;this.hold=value;this.started=now;}
-  play(){if(this.completed)this.newFinished();this.started=now;this.running=true;}
+  play(){if(this.completed)this.newFinished();this.started=now;if(deferPlay){this.pending=true;this.running=false;this.ready=new Promise(resolve=>{this.resolvePlay=resolve;});}else this.running=true;}
+  browserReady(){if(!this.pending||this.cancelled)return;this.pending=false;this.running=true;this.started=now;this.resolvePlay?.(this);this.resolvePlay=null;}
   cancel(){this.running=false;this.cancelled=true;if(!this.completed)this.reject(Object.assign(Error('cancelled'),{name:'AbortError'}));}
   advance(){if(!this.running||this.cancelled)return;const value=this.currentTime;if(this.rate>0?value>=this.options.duration:value<=0){this.hold=value;this.running=false;this.completed=true;this.resolve(this);}}
  }
@@ -66,13 +69,13 @@ function controllerFixture({deferReady=false}={}){
  Object.defineProperty(content,'scrollHeight',{get(){throw Error('Nora motion must not measure content height');}});
  const body=new Node(),classes=new Set();body.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)};
  const media={matches:false,addEventListener(_type,fn){this.change=fn;}};
- const ctx={console,document:{body,timeline:{get currentTime(){return now;}},createElementNS(){const node=new Node();created.push(node);return node;},createElement(){const node=new Node();created.push(node);return node;},querySelector:s=>s==='.toolbar'?toolbar:created.find(n=>'#'+n.id===s)},window:{addEventListener:(type,fn)=>listeners.set(type,fn)},matchMedia:()=>media,getComputedStyle:()=>{reads++;return{borderTopWidth:'1px'};},ResizeObserver:class{constructor(fn){observers.push(fn);}observe(){}},requestAnimationFrame(fn){rafRequests++;rafs.set(++rafId,fn);return rafId;},cancelAnimationFrame(id){rafs.delete(id);},innerWidth:viewportWidth,innerHeight:viewportHeight};
+ const ctx={console,performance:{now(){clockReads++;return now;}},document:{body,timeline:{get currentTime(){return now-lag;}},createElementNS(){const node=new Node();created.push(node);return node;},createElement(){const node=new Node();created.push(node);return node;},querySelector:s=>s==='.toolbar'?toolbar:created.find(n=>'#'+n.id===s)},window:{addEventListener:(type,fn)=>listeners.set(type,fn)},matchMedia:()=>media,getComputedStyle:()=>{reads++;return{borderTopWidth:'1px'};},ResizeObserver:class{constructor(fn){observers.push(fn);}observe(){}},requestAnimationFrame(fn){rafRequests++;rafs.set(++rafId,fn);return rafId;},cancelAnimationFrame(id){rafs.delete(id);},innerWidth:viewportWidth,innerHeight:viewportHeight};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync(require.resolve('./mouse/burrow-motion.js'),'utf8'),ctx);
- const motion=ctx.createMouseBurrowMotion({tray,content,footer,button,settled:opened=>settled.push(opened)});
+ const motion=ctx.createMouseBurrowMotion({tray,content,footer,button,trace,settled:opened=>settled.push(opened)});
  const at=async time=>{assert.ok(time>=now);now=time;for(const animation of animations)animation.advance();await Promise.resolve();};
  const paint=async(time=now)=>{await at(time);const pending=[...rafs.values()];rafs.clear();for(const callback of pending)callback(now);await Promise.resolve();};
  const warm=async()=>{await Promise.resolve();await Promise.resolve();await paint();await paint();};
- return{motion,tray,content,footer,classes,settled,created,animations,local,path,clip,at,paint,warm,ready(){for(const resolve of readiness.splice(0))resolve();},get queuedFrames(){return rafs.size;},get frameRequests(){return rafRequests;},get time(){return now;},counts:()=>({reads,writes}),resize({width=viewportWidth,top=footerTop,height=viewportHeight}={}){viewportWidth=width;viewportHeight=height;footerTop=top;ctx.innerWidth=width;ctx.innerHeight=height;listeners.get('resize')();},observed(){observers[0]([{target:tray,contentRect:{width:Math.min(1000,viewportWidth-12),height:440}},{target:footer,contentRect:{width:viewportWidth,height:28}}]);},reduced(value){media.matches=value;media.change();}};
+ return{motion,tray,content,footer,classes,settled,created,animations,local,path,clip,at,paint,warm,ready(){for(const resolve of readiness.splice(0))resolve();},async playReady(){lag=0;for(const animation of animations)animation.browserReady();await Promise.resolve();await Promise.resolve();},get queuedFrames(){return rafs.size;},get frameRequests(){return rafRequests;},get clockReads(){return clockReads;},get time(){return now;},counts:()=>({reads,writes}),resize({width=viewportWidth,top=footerTop,height=viewportHeight}={}){viewportWidth=width;viewportHeight=height;footerTop=top;ctx.innerWidth=width;ctx.innerHeight=height;listeners.get('resize')();},observed(){observers[0]([{target:tray,contentRect:{width:Math.min(1000,viewportWidth-12),height:440}},{target:footer,contentRect:{width:viewportWidth,height:28}}]);},reduced(value){media.matches=value;media.change();}};
 }
 
 test('Nora slides a fixed final contour using transform and opacity animation only',async()=>{
@@ -115,6 +118,22 @@ test('initial layer readiness and slow preparation do not consume the300ms slide
  await f.paint(130);assert.equal(f.motion.progress,0);assert.ok(f.animations.every(a=>!a.running));
  await f.paint(160);assert.ok(f.animations.every(a=>a.running));assert.deepEqual(f.animations.map(a=>a.startTime),[160,160]);assert.equal(f.motion.progress,0,'the second preparation frame starts both players from zero');assert.equal(f.frameRequests,2);assert.equal(f.queuedFrames,0);
  const counts=f.counts();await f.at(190);near(f.motion.progress,.1);await f.at(459);assert.ok(f.motion.progress<1);assert.deepEqual(f.counts(),counts);await f.at(460);assert.equal(await opened,true);assert.equal(f.motion.progress,1);assert.equal(f.frameRequests,2,'there is no per-frame animation callback');
+});
+
+test('a stale document timeline cannot backdate a pending browser play into its endpoint',async()=>{
+ const f=controllerFixture({deferPlay:true,timelineLag:300,startNow:1000}),opened=f.motion.open();await f.warm();
+ assert.equal(f.motion.progress,0,'the old frame timestamp must not bypass pending play');assert.ok(f.animations.every(a=>a.pending&&a.startTime===null));
+ await f.at(1040);assert.equal(f.motion.progress,0);await f.playReady();assert.deepEqual(f.animations.map(a=>a.startTime),[1040,1040]);
+ await f.at(1056);near(f.motion.progress,16/300);await f.at(1339);assert.ok(f.motion.progress<1);await f.at(1340);assert.equal(await opened,true);
+});
+
+test('startup tracing is opt-in, bounded and records real pending and ready clocks without a frame loop',async()=>{
+ const normal=controllerFixture(),normalOpen=normal.motion.open();await normal.warm();await normal.at(300);await normalOpen;assert.equal(normal.motion.diagnostics().enabled,false);assert.equal(normal.motion.diagnostics().events.length,0);assert.equal(normal.clockReads,0,'production animations do not collect trace timings');
+ const f=controllerFixture({deferPlay:true,timelineLag:300,startNow:1000,trace:true}),opened=f.motion.open();await f.warm();let report=f.motion.diagnostics();const pending=report.events.find(row=>row.event==='play-pending');assert.equal(pending.performanceNow,1000);assert.equal(pending.documentTime,700);assert.equal(pending.movement.currentTime,0);assert.equal(pending.movement.startTime,null);assert.equal(pending.movement.pending,true);
+ await f.at(1040);await f.playReady();report=f.motion.diagnostics();const ready=report.events.find(row=>row.event==='play-ready');assert.equal(ready.documentTime,1040);assert.equal(ready.movement.startTime,1040);assert.equal(ready.shade.startTime,1040);assert.equal(ready.movement.pending,false);const count=report.events.length;
+ await f.at(1056);assert.equal(f.motion.diagnostics().events.length,count,'sampling animation progress creates no additional trace records');await f.at(1340);await opened;f.reduced(true);
+ for(let i=0;i<40;i++){await f.motion.close();await f.motion.open();}
+ assert.equal(f.motion.diagnostics().events.length,32);assert.equal(f.frameRequests,2);
 });
 
 test('close, release and reduced motion cancel every pending preparation stage',async()=>{
