@@ -9,6 +9,30 @@ function fixture(options={}){
  function add(id,{desk='desk-3',visible=true,width=800,height=600}={}){const wc=new EventEmitter();wc.id=browser.tabs.size+1;wc.isDestroyed=()=>false;wc.getURL=()=>page.url;wc.capturePage=async(rect,opts)=>{captures.push({id,rect,opts});return image(width,height);};const page={id,url:'https://'+id+'.test/',navigationEpoch:0,visible,bounds:{x:0,y:50,width,height},view:{webContents:wc,getBounds:()=>({...page.bounds})}};bank.members[id]=desk;browser.tabs.set(id,page);if(visible)browser.panels.push({id,...page.bounds});return page;}
  const surfaces=new DesktopSurfaces({browser,bank,win,now:()=>now,onImage:(id)=>images.push(id),...options});return{win,shell,bank,browser,surfaces,captures,images,layouts,events,add,image,advance:ms=>now+=ms};
 }
+function scheduledFixture(options={}){
+ const fs=require('node:fs'),vm=require('node:vm'),timers=new Set(),started=[],encoded=[],pending=[];let clock=0,active=0,maximum=0;
+ const schedule=(fn,ms)=>{const timer={at:clock+ms,fn,unref(){}};timers.add(timer);return timer;};
+ const context={module:{exports:{}},require,Buffer,structuredClone,setTimeout:schedule,clearTimeout:timer=>timers.delete(timer),performance:{now:()=>clock}};
+ vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const f=fixture();f.surfaces.dispose();
+ f.surfaces=new context.module.exports.DesktopSurfaces({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,onImage:id=>f.images.push(id),...options});f.surfaces.enableDiagnostics();
+ const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
+ return{...f,started,encoded,pending,maximum:()=>maximum,active:()=>active,
+  addTimed(id,{delay=null,pngMs=0,width=800,height=600}={}){
+   const page=f.add(id,{width,height});page.view.webContents.capturePage=()=>{
+    started.push({id,at:clock});active++;maximum=Math.max(maximum,active);
+    return new Promise(resolve=>{
+     let finished=false;const finish=()=>{assert.equal(finished,false,'Each native readback completes once');finished=true;active--;resolve({isEmpty:()=>false,toPNG(){encoded.push(id);clock+=pngMs;return f.image(width,height).toPNG();}});};
+     pending.push({id,finish});if(delay!==null)schedule(finish,delay);
+    });
+   };return page;
+  },
+  async advance(ms){
+   const end=clock+ms;
+   for(;;){await microtasks();const timer=[...timers].filter(t=>t.at<=end).sort((a,b)=>a.at-b.at)[0];if(!timer)break;timers.delete(timer);clock=Math.max(clock,timer.at);timer.fn();}
+   clock=Math.max(clock,end);await microtasks();
+  }
+ };
+}
 test('exact PNG surfaces capture active visible pages only and preserve actual dimensions and identity pins',async()=>{
  const f=fixture(),a=f.add('a',{width:812,height:613});f.add('hidden',{visible:false});f.add('other',{desk:'desk-1'});
  const r=await f.surfaces.capture({ids:['a']});assert.equal(r.complete,true);assert.equal(r.desk,'desk-3');assert.match(r.token,/^[a-f\d-]{36}$/);assert.equal(r.surfaces[0].width,812);assert.equal(r.surfaces[0].pixelHeight,613);assert.equal(r.surfaces[0].webContentsId,a.view.webContents.id);assert.equal(r.surfaces[0].epoch,0);assert.deepEqual(r.surfaces[0].bounds,a.bounds);assert.match(r.surfaces[0].src,/^data:image\/png;base64,/);assert.deepEqual(f.images,['a']);assert.deepEqual(f.captures,[{id:'a',rect:undefined,opts:{stayHidden:true,stayAwake:false}}]);
@@ -83,7 +107,7 @@ test('surface diagnostics distinguish a deadline with outstanding native work fr
   assert.equal((await f.surfaces.capture({ids:['absent']})).complete,false);report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'invalid-initial-pins');assert.deepEqual(report.lastCapture.invalidIds,['absent']);
  }finally{clearTimeout(keepAlive);f.surfaces.dispose();}
 });
-test('largest viewport starts first within two workers and the unchanged 700ms deadline in the recorded five-page latency replay',async t=>{
+test('largest viewport starts first within two workers and the historical 700ms deadline in the recorded five-page latency replay',async t=>{
  // Native waits and completed-page encoding costs from the a1ce macOS trace.
  // This deterministic scheduling regression is not a prediction of Mac latency.
  const sample=[
@@ -100,7 +124,7 @@ test('largest viewport starts first within two workers and the unchanged 700ms d
  vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Replay=context.module.exports.DesktopSurfaces,f=fixture();f.surfaces.dispose();
  for(const row of sample){const page=f.add(row.id,{width:row.width,height:row.height});page.view.webContents.capturePage=()=>{started.push({id:row.id,at:clock});active++;maximum=Math.max(maximum,active);return new Promise(resolve=>schedule(()=>{active--;const png=f.image(row.width,row.height).toPNG();png.write(row.id,24);const encode=png.toString.bind(png);png.toString=format=>{clock+=row.base64;return encode(format);};resolve({isEmpty:()=>false,toPNG(){clock+=row.png;return png;}});},row.capture));};}
  f.add('hidden',{visible:false});f.add('other',{desk:'desk-1'});const before=sample.map(row=>{const page=f.browser.tabs.get(row.id);return{id:row.id,page,wc:page.view.webContents,bounds:{...page.bounds},epoch:page.navigationEpoch,visible:page.visible};});
- const surfaces=new Replay({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,onImage:id=>{clock+=sample.find(row=>row.id===id).preview;}});surfaces.enableDiagnostics();const requested=sample.map(row=>row.id);let settled=false,result;
+ const surfaces=new Replay({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,captureMs:700,onImage:id=>{clock+=sample.find(row=>row.id===id).preview;}});surfaces.enableDiagnostics();const requested=sample.map(row=>row.id);let settled=false,result;
  const work=surfaces.capture({ids:requested}).then(value=>{result=value;settled=true;});
  const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
  for(let step=0;step<32&&!settled;step++){await microtasks();if(settled)break;const next=[...timers].sort((a,b)=>a.at-b.at)[0];assert.ok(next,'the pending batch has a bounded completion event');timers.delete(next);clock=Math.max(clock,next.at);next.fn();}
@@ -110,4 +134,52 @@ test('largest viewport starts first within two workers and the unchanged 700ms d
  for(const row of report.lastCapture.pages){const start=started.find(item=>item.id===row.id).at;assert.equal(row.nativeStartedAt,start);assert.equal(row.queueMs,start-report.lastCapture.startedAt);}
  for(const image of result.surfaces){const row=sample.find(row=>row.id===image.id);assert.equal(image.pixelWidth,row.width);assert.equal(image.pixelHeight,row.height);assert.equal(Buffer.from(image.src.split(',')[1],'base64').subarray(24,24+row.id.length).toString(),row.id);}
  for(const pin of before){const page=f.browser.tabs.get(pin.id);assert.equal(page,pin.page);assert.equal(page.view.webContents,pin.wc);assert.deepEqual(page.bounds,pin.bounds);assert.equal(page.navigationEpoch,pin.epoch);assert.equal(page.visible,pin.visible);}assert.deepEqual(f.layouts,[]);assert.deepEqual(f.captures,[]);
+});
+test('preparation covers the recorded cfc9 capture prefix and explicitly synthetic queued remainder',async()=>{
+ // Native durations for the only three pages started in run44361919717.
+ // The last two pages never started there: their 100ms delays below are fixtures,
+ // not measured Mac latency. Encoding costs are controlled fixture values too.
+ const sample=[
+  {id:'p1',width:236,height:296,delay:737.721125,pngMs:3},
+  {id:'p2',width:236,height:174,delay:702.42,pngMs:3},
+  {id:'p3',width:100,height:100,delay:100,pngMs:3},
+  {id:'p4',width:100,height:100,delay:100,pngMs:3},
+  {id:'ai',width:503,height:504,delay:451.259,pngMs:13}
+ ];
+ for(const oldBudget of [true,false]){
+  const f=scheduledFixture(oldBudget?{captureMs:700}:{});for(const row of sample)f.addTimed(row.id,row);
+  const work=f.surfaces.capture({ids:sample.map(row=>row.id)});await f.advance(2500);const result=await work,report=f.surfaces.diagnostics();
+  assert.equal(f.maximum(),2);assert.equal(f.active(),0);assert.equal(f.surfaces.activeCaptures,0);
+  if(oldBudget){assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(report.lastCapture.reason,'deadline');assert.deepEqual(f.started.map(row=>row.id),['ai','p1','p2']);assert.deepEqual(f.encoded,['ai']);}
+  else{assert.equal(result.complete,true);assert.ok(result.token);assert.equal(report.lastCapture.reason,'complete');assert.ok(report.lastCapture.elapsedMs>700&&report.lastCapture.elapsedMs<2500);assert.deepEqual(f.started.map(row=>row.id),['ai','p1','p2','p3','p4']);assert.deepEqual([...result.surfaces].map(row=>row.id).sort(),sample.map(row=>row.id).sort());}
+  f.surfaces.dispose();
+ }
+});
+test('bounded default preparation accommodates three synthetic slow waves without exceeding two captures',async()=>{
+ const f=scheduledFixture(),ids=['a','b','c','d','e'];for(const id of ids)f.addTimed(id,{delay:738,pngMs:10});
+ const work=f.surfaces.capture({ids});await f.advance(2500);const result=await work,report=f.surfaces.diagnostics();
+ assert.equal(result.complete,true);assert.equal(result.surfaces.length,5);assert.equal(report.lastCapture.elapsedMs,2244);assert.equal(f.maximum(),2);assert.equal(f.active(),0);assert.deepEqual(f.started.map(row=>row.id),ids);assert.deepEqual(f.images.slice().sort(),ids);f.surfaces.dispose();
+});
+test('default preparation deadline returns no token and rejects late pixels without starting queued pages',async()=>{
+ const f=scheduledFixture(),ids=['a','b','c','d','e'];for(const id of ids)f.addTimed(id);
+ let settled=false;const work=f.surfaces.capture({ids}).then(value=>{settled=true;return value;});await f.advance(2499);assert.equal(settled,false);
+ await f.advance(1);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.busy,false);assert.equal(f.surfaces.activeCaptures,2);assert.equal(f.surfaces.diagnostics().lastCapture.elapsedMs,2500);assert.deepEqual(f.started.map(row=>row.id),['a','b']);
+ for(const item of f.pending)item.finish();await f.advance(0);
+ assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.active(),0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.deepEqual(f.started.map(row=>row.id),['a','b']);const report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'deadline');assert.ok(report.lastCapture.pages.every(row=>row.state==='late-after-deadline'));f.surfaces.dispose();
+});
+test('timed-out native work still consumes the shared capacity across overlapping retries',async()=>{
+ const f=scheduledFixture();for(const id of ['a','b','queued','retry'])f.addTimed(id);
+ const first=f.surfaces.capture({ids:['a','b','queued']});await f.advance(2500);assert.equal((await first).complete,false);assert.equal(f.surfaces.activeCaptures,2);
+ const saturated=await f.surfaces.capture({ids:['retry']});assert.equal(saturated.complete,false);assert.equal(saturated.token,'');assert.deepEqual(f.started.map(row=>row.id),['a','b']);
+ f.pending.find(row=>row.id==='a').finish();await f.advance(0);assert.equal(f.surfaces.activeCaptures,1);
+ const retry=f.surfaces.capture({ids:['retry']});assert.equal(f.surfaces.activeCaptures,2);assert.deepEqual(f.started.map(row=>row.id),['a','b','retry']);f.pending.find(row=>row.id==='retry').finish();await f.advance(0);assert.equal((await retry).complete,true);
+ f.pending.find(row=>row.id==='b').finish();await f.advance(0);assert.equal(f.maximum(),2);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.active(),0);assert.deepEqual(f.encoded,['retry']);assert.deepEqual(f.images,['retry']);assert.deepEqual(f.started.map(row=>row.id),['a','b','retry']);f.surfaces.dispose();
+});
+test('invalidation during the added preparation time still rejects pending results and queued work',async()=>{
+ for(const mutation of ['clear','lock','resize','dispose']){
+  const f=scheduledFixture();for(const id of ['a','b','queued'])f.addTimed(id,{delay:900});let settled=false;const work=f.surfaces.capture({ids:['a','b','queued']}).then(value=>{settled=true;return value;});
+  await f.advance(800);assert.equal(settled,false,mutation+' remains in preparation after700ms');assert.equal(f.surfaces.activeCaptures,2);
+  if(mutation==='resize')f.win.emit('resize');else f.surfaces[mutation]();await f.advance(100);const result=await work;
+  assert.equal(result.complete,false,mutation);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.held,null);assert.equal(f.surfaces.activeCaptures,0);assert.deepEqual(f.started.map(row=>row.id),['a','b']);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);f.surfaces.dispose();
+ }
 });

@@ -2,7 +2,9 @@
 // Short-lived, exact-viewport page pixels for shell transitions. Normal and
 // private instances keep their own RAM only; nothing is written to a profile.
 const {randomUUID}=require('node:crypto');
-const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=2,CAPTURE_MS=700,HOLD_MS=5000;
+// One bounded preparation budget covers the whole two-worker queue, including
+// native readback and encoding; it is separate from the subsequent animation.
+const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=2,CAPTURE_MS=2500,HOLD_MS=5000;
 const rect=r=>r&&['x','y','width','height'].every(k=>Number.isFinite(r[k]))&&r.width>0&&r.height>0?{x:r.x,y:r.y,width:r.width,height:r.height}:null;
 const same=(a,b)=>!!a&&!!b&&['x','y','width','height'].every(k=>a[k]===b[k]);
 class DesktopSurfaces{
