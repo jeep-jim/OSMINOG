@@ -22,7 +22,8 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   await until(()=>win.isFocused(),'focused native window');
  }
  async function click(selector){
-  await activate();const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing control');const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;if(!r.width||!r.height||!e.contains(document.elementFromPoint(x,y)))throw Error('Control is invisible or covered: '+${JSON.stringify(selector)});return{x,y};})()`),o=win.getContentBounds(),point={x:Math.round(o.x+p.x),y:Math.round(o.y+p.y)},display=screen.getDisplayNearestPoint(point).bounds;
+  await activate();const target=await js(`(()=>{const selector=${JSON.stringify(selector)},e=document.querySelector(selector);if(!e)return{ok:false,reason:'missing control',selector,rect:null,hit:null};const r=e.getBoundingClientRect(),rect={x:r.x,y:r.y,width:r.width,height:r.height},hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2),ok=!!r.width&&!!r.height&&e.contains(hit);return{ok,reason:ok?'ready':!r.width||!r.height?'empty bounds':'covered',selector,rect,hit:hit?{tag:hit.tagName,id:hit.id||'',class:(hit.getAttribute('class')||'').slice(0,160)}:null};})()`);
+  assert.equal(target.ok,true,'Mouse622 native click target: '+JSON.stringify(target));const r=target.rect,o=win.getContentBounds(),point={x:Math.round(o.x+r.x+r.width/2),y:Math.round(o.y+r.y+r.height/2)},display=screen.getDisplayNearestPoint(point).bounds;
   lastClick={selector,point,display};assert.ok(point.x>=display.x&&point.y>=display.y&&point.x<display.x+display.width&&point.y<display.y+display.height,'Click outside display');assert.equal(native.testClick(point.x,point.y),true);await sleep(180);
  }
  async function painted(){
