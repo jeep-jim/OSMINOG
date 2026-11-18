@@ -340,3 +340,10 @@ a88d1a5/run44264122508 подтвердил installed626 Nora/полную па�
 Release PR44 объединён; publisher44268549386 FAIL до publish/channel. Точные c73-пакеты импортированы, обе темы прошли обычное открытие/закрытие/resize/стык. Interruption fixture успел Escape→reopen между RAF14297.4 и14396.7ms и не записал closing; same-stack top/progress/height сохранились точно. Проверяется ожидание настоящих closing-кадров перед reopen без снятия geometry gates. Verified failed artifact14411631914: SHA256 `62fe949e9c176bf3acb376e04a65747f1df95cb1d2acb483f8449506c1d0e836`,2519372 bytes. Пакеты и канал626 ещё не опубликованы; подробная диагностика добавлена в `docs/desktop/2026-11-18-mouse626-nora.md`. Параллельная native drag-handle правка main237f231 сохранена.
 
 Fixture626 исправлен: callback доEscape ждёт2настоящих closing RAF-кадра со сжатием≥1px перед reopen; исходные gates сохранены, добавлено точное сравнение всех SVG-путей. Syntax/diff-check PASS; новая native-приёмка и публикация ещё ожидаются.
+
+
+## 2026-11-18 — native626 PASS, учёт области перетаскивания в ширине вкладок
+
+PR164/source8d539fdf, native44270188357: все9 Nora+5palette PASS; observer действительно записал2closing-кадра и exactSVG before/after. Run остановился позднее на613 tabs regrow. В productfit и старой expected-формуле найден пропуск новой26px области перетаскивания и дополнительного gap; исправляется фактический расчёт ширины, handle сохраняется. Verified artifact14411463776:3488777 bytes, SHA256 `cee909ce5db04134693e96217ace8581890c6881490422e36dfa9e1b9a35caec`. Полный gate и публикация ещё PENDING; детали в журнале626.
+
+Productfit учитывает всех соседей в потоке; independentnative expected опирается на реальные края. Существующие пороги сохранены, перед ними пишется613 geometryJSON. Targeted613 tests6/6 иsyntax PASS; новая native-приёмка ожидается.

@@ -4,12 +4,19 @@
  function swapOrder(tabs,order,a,b){const ids=ordered(tabs,order).map(t=>t.id),i=ids.indexOf(a),j=ids.indexOf(b);if(i>=0&&j>=0)[ids[i],ids[j]]=[ids[j],ids[i]];return ids;}
  function swapSlots(slots,a,b){if(a===b)return {...slots};return {...slots,[a]:slots[b]||'',[b]:slots[a]||''};}
  function moveLibraryControls(doc){const right=doc.querySelector('#footer-library'),ai=null;if(!right)return;for(const selector of ['#history-button','[data-action="bookmarks"]','#downloads-button']){const button=doc.querySelector(selector);if(button)right.insertBefore(button,ai);}}
- const core={ordered,swapOrder,swapSlots,moveLibraryControls};if(typeof module==='object'&&module.exports){module.exports=core;return;}root.MouseTabOrder=core;
+ function tabstripAvailableWidth(toolbar,strip,readStyle=getComputedStyle){
+  const px=value=>parseFloat(value)||0,s=readStyle(toolbar),own=readStyle(strip);let reserved=0,siblings=0;
+  // Every participating flex sibling takes its outer width and another gap.
+  // Hidden-by-visibility controls still occupy space; overlays do not.
+  for(const child of toolbar.children){if(child===strip)continue;const style=readStyle(child);if(style.display==='none'||style.position==='absolute'||style.position==='fixed')continue;reserved+=child.getBoundingClientRect().width+px(style.marginLeft)+px(style.marginRight);siblings++;}
+  return Math.max(0,toolbar.clientWidth-px(s.paddingLeft)-px(s.paddingRight)-reserved-px(s.columnGap)*siblings-px(own.marginLeft)-px(own.marginRight));
+ }
+ const core={ordered,swapOrder,swapSlots,moveLibraryControls,tabstripAvailableWidth};if(typeof module==='object'&&module.exports){module.exports=core;return;}root.MouseTabOrder=core;
  moveLibraryControls(document);
  root.createMouseArrangement=({model:m,tabs,renderTabs,renderTree,layout,save,hideHints,preview})=>{
   const $=s=>document.querySelector(s),strip=$('#tabstrip');let pending=null,drag=null,clickUntil=0,sizeFrame=0;
   const valid=id=>tabs().some(t=>t.id===id);
-  function fit(){if(sizeFrame)return;sizeFrame=requestAnimationFrame(()=>{sizeFrame=0;const items=[...strip.querySelectorAll('.tab-item')].filter(e=>getComputedStyle(e).display!=='none');const toolbar=$('.toolbar'),s=getComputedStyle(toolbar),available=Math.max(0,toolbar.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)-$('#new-tab').offsetWidth-parseFloat(s.columnGap||0));const gap=Math.min(4,available/Math.max(1,items.length*6));strip.style.setProperty('--mouse-tab-gap',gap+'px');const count=items.length,stripWidth=Math.min(available,count*230+gap*Math.max(0,count-1));strip.style.width=stripWidth+'px';const width=count?Math.max(0,(stripWidth-gap*(count-1))/count):230;strip.dataset.density=width<24?'micro':width<55?'icons':width<105?'compact':'normal';});}
+  function fit(){if(sizeFrame)return;sizeFrame=requestAnimationFrame(()=>{sizeFrame=0;const items=[...strip.querySelectorAll('.tab-item')].filter(e=>getComputedStyle(e).display!=='none'),available=tabstripAvailableWidth($('.toolbar'),strip);const gap=Math.min(4,available/Math.max(1,items.length*6));strip.style.setProperty('--mouse-tab-gap',gap+'px');const count=items.length,stripWidth=Math.min(available,count*230+gap*Math.max(0,count-1));strip.style.width=stripWidth+'px';const width=count?Math.max(0,(stripWidth-gap*(count-1))/count):230;strip.dataset.density=width<24?'micro':width<55?'icons':width<105?'compact':'normal';});}
   function refresh(){
    for(const e of strip.querySelectorAll('.tab-item')){const t=tabs().find(t=>t.id===e.dataset.tab);e.title=t?.title||t?.url||'';e.querySelectorAll('img').forEach(i=>{i.draggable=false;});}
    for(const head of document.querySelectorAll('.pane-head')){head.querySelectorAll('img').forEach(i=>{i.draggable=false;});const input=head.querySelector('.pane-address input');if(!input||input.dataset.expandBound)continue;input.dataset.expandBound='true';input.addEventListener('focus',()=>head.classList.add('address-editing'));input.addEventListener('blur',()=>head.classList.remove('address-editing'));input.addEventListener('keydown',e=>{if(e.key!=='Escape')return;e.preventDefault();e.stopPropagation();const item=tabs().find(t=>t.id===m.slots[head.closest('.pane').dataset.pane]);input.value=item?.internal?'':item?.url||'';hideHints();input.blur();});}fit();
