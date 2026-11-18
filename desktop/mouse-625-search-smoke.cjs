@@ -17,7 +17,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
  const originalPages=new Map([...browser.tabs.values(),...browser.providers.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL()}]));
  const savedSearch=await store.get('mouseSearch'),originalEngine=browser.mouseSearch.state().engine;
  const libraryBefore=copy(libraryService.library.data),token='mouse625-search-'+randomUUID(),normalCreated=new Set(),restorers=[],wrappedPages=new Set();
- const captures=[],received=[],facts={version:'6.0.25',search:{},stateRestored:false,captured:captures};
+ const captures=[],received=[],facts={version:'6.0.25',search:{},stateRestored:false,captured:captures,keyboard:[]};
  let server,root='',probe=null,lastClick=null,lastInput,verificationError,cleanupError;
  const currentBrowser=()=>privateMode.current?.browser||browser;
  async function painted(){let timer;try{await Promise.race([js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))'),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Search proof paint timed out')),1800)})]);}finally{clearTimeout(timer);}await sleep(100);}
@@ -36,7 +36,19 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   const frame=win.getContentBounds(),target={x:Math.round(frame.x+point.x),y:Math.round(frame.y+point.y)},display=screen.getDisplayNearestPoint(target).bounds;lastClick={...lastClick,stage:'native-click',target};
   assert.ok(target.x>=display.x&&target.y>=display.y&&target.x<display.x+display.width&&target.y<display.y+display.height);assert.equal(native.testClick(target.x,target.y),true);await sleep(130);
  }
- async function key(keyCode,modifiers=[]){win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await sleep(45);}
+ async function key(keyCode,modifiers=[]){
+  // Electron uses Accelerator names. RawKeyDown alone cannot submit a text form;
+  // Chromium's implicit submit consumes the trusted Return character (charCode 13).
+  keyCode=({Enter:'Return',ArrowDown:'Down'})[keyCode]||keyCode;
+  win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});
+  if(keyCode==='Return')win.webContents.sendInputEvent({type:'char',keyCode:'\r',modifiers});
+  win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await sleep(45);
+ }
+ async function traceAddressKeys(selector,query){
+  assert.equal(await js(`(()=>{globalThis.__mouse625SearchKeys?.dispose();const input=document.querySelector(${JSON.stringify(selector)});if(!input||document.activeElement!==input||input.value!==${JSON.stringify(query)})return false;const form=input.form,events=[],types=['keydown','keypress','keyup','submit'],observe=e=>{if(e.target!==input&&!(e.type==='submit'&&e.target===form))return;events.push({type:e.type,key:e.key??null,code:e.code??null,keyCode:e.keyCode??null,charCode:e.charCode??null,isTrusted:e.isTrusted,defaultPreventedAtCapture:e.defaultPrevented});if(events.length>32)events.shift();};for(const type of types)document.addEventListener(type,observe,{capture:true,passive:true});globalThis.__mouse625SearchKeys={events,dispose(){for(const type of types)document.removeEventListener(type,observe,true);}};return true;})()`),true,'Keyboard observation is limited to the focused fixture input and its form');
+ }
+ const addressKeys=()=>js('globalThis.__mouse625SearchKeys?.events||[]');
+ const stopAddressKeys=()=>js('globalThis.__mouse625SearchKeys?.dispose();delete globalThis.__mouse625SearchKeys');
  async function inputState(selector){return js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),active=document.activeElement;return{found:!!e,focused:active===e,activeSelector:active?active.tagName.toLowerCase()+(active.id?'#'+active.id:'.'+[...active.classList].join('.')):'',value:e?.value??null,selectionStart:e?.selectionStart??null,selectionEnd:e?.selectionEnd??null,fullySelected:active===e&&typeof e?.value==='string'&&e.selectionStart===0&&e.selectionEnd===e.value.length};})()`);}
  async function type(selector,text){
   lastInput={selector,expected:text,stage:'focus'};await click(selector);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.focused;},'native search input focus');
@@ -106,11 +118,13 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   const address='.pane.active .pane-address input',addressState=()=>js(`(()=>{const e=document.querySelector(${JSON.stringify(address)}),pane=e?.closest('.pane');return{pane:pane?.dataset.pane,id:MouseTest.model.slots[pane?.dataset.pane],url:e?.value};})()`);
   await until(async()=>(await addressState()).url===homeURL,'the fixture URL is painted in the visible pane address');
   assert.deepEqual(await addressState(),{...pane,url:homeURL},'The visible address control belongs to the same active pane and fixture tab');
-  probe={route:'address',query};await type(address,query);await key('Enter');
+  probe={route:'address',query};await type(address,query);await traceAddressKeys(address,query);await key('Enter');
   await until(()=>captures.length===before+2&&received.includes(before+1),'address submission reaches only loopback');
   await until(()=>wc.getURL()===root+'/captured/'+(before+1)+'?fixture='+encodeURIComponent(token)&&!page.loading,'address submission loads the same local fixture tab');
   assert.deepEqual(await js('({pane:MouseTest.model.active,id:MouseTest.model.slots[MouseTest.model.active]})'),pane,'Address submission preserves the active pane and tab');
   assert.equal(currentBrowser().get(id),page,'Address submission navigates the same page');assert.equal(page.view.webContents,wc,'Address submission preserves WebContents identity');
+  const keys=await addressKeys();assert.ok(keys.some(e=>e.type==='keypress'&&e.isTrusted&&e.charCode===13),'A trusted Return keypress reaches the fixture address input');assert.equal(keys.filter(e=>e.type==='submit'&&e.isTrusted).length,1,'The native Return submits the fixture form exactly once');
+  facts.keyboard.push({scope:privateMode.current?'private':'normal',engine,events:keys});await stopAddressKeys();
   assertDestination(captures[before+1],engine,query);assert.equal(captures[before].url,captures[before+1].url,'Home and address use the same normalization and selected provider');probe=null;
  }
  async function reload(){
@@ -145,9 +159,9 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   await enterPrivate();assert.notEqual(privateMode.current.partition,previousPartition);await picker('bing');await leavePrivate();await picker('bing');
   facts.search.privateRAMOnly=true;facts.search.pickerKeyboardSelection=true;facts.search.addressAndHomeMatch=true;
   assert.equal(captures.length,8);assert.deepEqual([...new Set(received)].sort((a,b)=>a-b),captures.map((_,i)=>i));assert.ok(captures.every(row=>row.stage==='make-before-loadURL'||row.stage==='loadURL'));facts.search.noExternalSearchNavigation=true;
- }catch(error){verificationError=error;console.error('MOUSE_625_SEARCH_FAILURE',JSON.stringify({message:error.message,lastClick,lastInput,actualInput:lastInput?await inputState(lastInput.selector).catch(()=>null):null,captures,private:!!privateMode.current}));await fs.writeFile('mouse-625-search-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});}
+ }catch(error){verificationError=error;console.error('MOUSE_625_SEARCH_FAILURE',JSON.stringify({message:error.message,lastClick,lastInput,actualInput:lastInput?await inputState(lastInput.selector).catch(()=>null):null,keyboard:await addressKeys().catch(()=>[]),captures,private:!!privateMode.current}));await fs.writeFile('mouse-625-search-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});}
  finally{
-  probe=null;
+  probe=null;await stopAddressKeys().catch(()=>{});
   try{
    if(privateMode.current)await privateMode.leave();
    for(const id of normalCreated)if(!beforeTabs.has(id)&&(browser.tabs.has(id)||startService.tabs.has(id)))await browser.command('close',{id});
