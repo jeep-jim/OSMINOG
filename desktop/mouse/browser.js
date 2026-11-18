@@ -131,7 +131,7 @@
  const globalCaptureSettings=createMouseGlobalCaptureSettings({N,status:setStatus});
  async function switchDesktop(id,add=false){
   while(m.switching)await deskSwitch;if(!add&&id===m.desktopId)return;
-  m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();browsing.hideHints();browsing.close();desktopUI?.close();zoomUI?.close();feedback.hide();
+  m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();browsing.hideHints();browsing.close();desktopUI?.close({immediate:true});zoomUI?.close();feedback.hide();
   const operation=(async()=>{
    if(m.focusPane||m.focusAI){restorePane();await N.window('pane-restore');}
    await N.desktops('remember-preview',{preferences:prefs()});

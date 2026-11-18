@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.25');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.26');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -58,6 +58,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   // Exercise the new native editors/search first, then retain every existing gate.
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-626-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});

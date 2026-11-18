@@ -4,21 +4,28 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 module.exports=({win,js})=>{
  const frames=[];let result;
  async function capture(theme,state){
+  await js(`new Promise((resolve,reject)=>{const start=performance.now();const poll=()=>{const tray=document.querySelector('#desktop-tray');if(tray.open&&!tray.hidden&&tray.dataset.motion==='open')return resolve();if(performance.now()-start>5000)return reject(Error('Burrow did not settle for geometry capture'));requestAnimationFrame(poll);};poll();})`);
   const measured=await js(`(()=>{
-   const tray=document.querySelector('#desktop-tray'),path=tray.querySelector('.desk-burrow-shape>path'),bar=document.querySelector('#statusbar');
-   const r=tray.getBoundingClientRect(),footer=bar.getBoundingClientRect(),line=getComputedStyle(path),border=getComputedStyle(bar),matrix=path.getScreenCTM(),length=path.getTotalLength();
+   const tray=document.querySelector('#desktop-tray'),path=tray.querySelector('.desk-burrow-shape>path'),bar=document.querySelector('#statusbar'),outline=document.querySelector('#mouse-dock-outline'),fill=document.querySelector('#mouse-dock-fill');
+   const r=tray.getBoundingClientRect(),footer=bar.getBoundingClientRect(),line=getComputedStyle(outline),border=getComputedStyle(bar),matrix=path.getScreenCTM(),length=path.getTotalLength();
    const count=Math.ceil(length*Math.max(Math.hypot(matrix.a,matrix.b),Math.hypot(matrix.c,matrix.d))*3),points=[];
    for(let i=0;i<=count;i++){const p=path.getPointAtLength(length*i/count).matrixTransform(matrix);points.push({x:p.x-r.left,y:p.y-r.top});}
    const top=Math.min(...points.map(p=>p.y)),depths=[2,6,12,20,32,48,64];
    const profile=right=>depths.map(depth=>{let best,delta=Infinity;for(const p of points){if(right?p.x<r.width*.7:p.x>r.width*.3)continue;const d=Math.abs(p.y-top-depth);if(d<delta){best=p;delta=d;}}if(!best||delta>.75)throw Error('Missing rendered curve sample');return right?r.width-best.x:best.x;});
    const start=path.getPointAtLength(0).matrixTransform(matrix),end=path.getPointAtLength(length).matrixTransform(matrix);
-   return{width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,footerTop:footer.top,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBorder:border.borderTopColor,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,endpoints:{left:start.y,right:end.y}};
+   const edgeMatrix=outline.getScreenCTM(),edgeStart=outline.getPointAtLength(0).matrixTransform(edgeMatrix),edgeEnd=outline.getPointAtLength(outline.getTotalLength()).matrixTransform(edgeMatrix),probe=document.createElement('i');probe.style.color='var(--line)';document.body.append(probe);const edge=getComputedStyle(probe).color;probe.style.color='var(--panel)';const panel=getComputedStyle(probe).color;probe.remove();
+   return{width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,footerTop:footer.top,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBorder:edge,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,endpoints:{left:start.y,right:end.y},surface:{fill:getComputedStyle(fill).fill,panel,opacity:getComputedStyle(fill).opacity,start:{x:edgeStart.x,y:edgeStart.y},end:{x:edgeEnd.x,y:edgeEnd.y},localStroke:getComputedStyle(path).stroke}};
   })()`);
   assert.equal(measured.stroke,measured.footerBorder,theme+' '+state+' outline matches the actual footer border color');
   assert.ok(measured.footerBorderWidth>0,'The footer still has its original border box');
   assert.ok(Math.abs(measured.bottom-measured.footerTop)<=1,'Burrow meets the footer without an overlap');
   const baseline=measured.footerTop+measured.footerBorderWidth/2;
   for(const side of ['left','right'])assert.ok(Math.abs(measured.endpoints[side]-baseline)<=.05,theme+' '+state+' '+side+' outline meets the centre of the actual footer stroke');
+  for(const end of ['start','end'])assert.ok(Math.abs(measured.surface[end].y-baseline)<=.05,'The shared dock outline is attached to the footer');
+  assert.ok(Math.abs(measured.surface.start.x)<.05&&Math.abs(measured.surface.end.x-measured.viewport.width)<.05,'One outline spans the complete footer');
+  assert.equal(measured.surface.fill,measured.surface.panel,'The menu and footer share one solid surface fill');
+  assert.equal(Number(measured.surface.opacity),1,'The common surface is opaque');
+  for(let i=0;i<measured.topCurve.depths.length;i++)assert.ok(Math.abs(measured.topCurve.left[i]-measured.topCurve.right[i])<=.75,'Left and right curves are exact reflections');
   assert.ok(measured.topCurve.left[0]-measured.topCurve.left.at(-1)>15,'Upper-left corner remains rounded');
   assert.ok(measured.topCurve.right[0]-measured.topCurve.right.at(-1)>15,'Upper-right corner remains rounded');
   const image=await win.capturePage();await fs.writeFile('mouse-623-'+state+'-'+theme+'.png',image.toPNG());
@@ -29,8 +36,9 @@ module.exports=({win,js})=>{
    const x=measured.left+measured.width*fraction,seam=rgb(x,baseline+.5),below=rgb(x,baseline+2.5),delta=difference(seam,below);
    inside.push({x,seam,below,delta});assert.ok(delta<=6,theme+' '+state+' has no footer line inside the burrow: '+JSON.stringify(inside.at(-1)));
    const above=rgb(x,baseline-2),rows=[-1,-.5,0,.5,1].map(offset=>({offset,rgb:rgb(x,baseline+offset)}));
-   // Translucent glass may differ from the footer fill. A separate dark/bright
-   // line must not appear outside those adjacent, actually captured backgrounds.
+   // The same opaque path fills both the menu and footer. Adjacent rows have
+   // the same pixels, with no second panel edge or translucency discontinuity.
+   assert.ok(difference(above,below)<=6,theme+' '+state+' shares the same fill above and below the join');
    for(const row of rows)for(let channel=0;channel<3;channel++)assert.ok(row.rgb[channel]>=Math.min(above[channel],below[channel])-6&&row.rgb[channel]<=Math.max(above[channel],below[channel])+6,theme+' '+state+' has a one-pixel seam at '+row.offset+'px: '+JSON.stringify({above,below,row}));
    join.push({x,above,below,rows});
   }
@@ -108,7 +116,7 @@ module.exports=({win,js})=>{
    await fs.writeFile('mouse-623-verification.json',JSON.stringify(result,null,2)+'\n');console.log('MOUSE_623_TAB_LIFECYCLE_CHIPS_STABILITY_PASS');
   }finally{
    const o=win.getContentBounds();try{native.testMouse(o.x+10,o.y+60,2);}catch{}
-   await js('delete globalThis.__mouse623Nodes;MouseTest.desktopUI.close()').catch(()=>{});
+   await js('delete globalThis.__mouse623Nodes;MouseTest.desktopUI.close({immediate:true})').catch(()=>{});
   }
  }
  async function verifyAgentEntry({browser,agentHost,click,until}){

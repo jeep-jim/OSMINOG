@@ -31,14 +31,14 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
  async function sameLayout(expected,label){assert.deepEqual(await layout(),expected,label+' preserves the complete custom layout');await samePages(label);}
  async function sameRects(expected,label){const actual=await rectangles();assert.deepEqual(Object.keys(actual).sort(),Object.keys(expected).sort(),label+' keeps pane geometry identities');for(const id of Object.keys(expected))for(const k of ['x','y','width','height'])assert.ok(Math.abs(actual[id][k]-expected[id][k])<=1,label+' changes pane '+id+' '+k+': '+JSON.stringify({before:expected[id],after:actual[id]}));}
  async function reload(){
-  await js('MouseTest.desktopUI.close();MouseTest.save()');await store.queue;
+  await js('MouseTest.desktopUI.close({immediate:true});MouseTest.save()');await store.queue;
   const loaded=new Promise(resolve=>win.webContents.once('did-finish-load',resolve));win.webContents.reload();await loaded;
   await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'native624 shell reload');await painted();
  }
  async function historyReady(stage){
   // Opening waits for native page previews before showModal(); a fixed click
   // delay does not establish that the history control can receive input yet.
-  await until(()=>js(`(()=>{const tray=document.querySelector('#desktop-tray'),back=document.querySelector('#desk-history-back');if(!tray?.open||tray.hidden||!back||back.disabled)return false;const r=back.getBoundingClientRect();return r.width>0&&r.height>0&&back.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()`),'native624 '+stage+' history tray and Undo control ready');
+  await until(()=>js(`(()=>{const tray=document.querySelector('#desktop-tray'),back=document.querySelector('#desk-history-back');if(!tray?.open||tray.hidden||tray.dataset.motion!=="open"||!back||back.disabled)return false;const r=back.getBoundingClientRect();return r.width>0&&r.height>0&&back.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()`),'native624 '+stage+' history tray and Undo control ready');
  }
  async function verifyLayoutAndHistory({root,bank}){
   const originalBounds=win.getBounds(),work=screen.getDisplayMatching(originalBounds).workArea;let start,verificationError,baselineBounds,enteredFullscreen=false,leftFullscreen=false;
@@ -53,7 +53,7 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   baselineBounds={x:work.x+padX,y:work.y+padY,width:Math.min(1200,work.width-padX*2),height:Math.min(820,work.height-padY*2)};
   win.setBounds(baselineBounds);let settled=0;
   await until(()=>{settled=!win.isFullScreen()&&!win.isMaximized()&&JSON.stringify(win.getBounds())===JSON.stringify(baselineBounds)?settled+1:0;return settled>=6;},'native624 on-screen window bounds settle');await painted();
-  await js('MouseTest.desktopUI.close();MouseTest.browsing.close()');
+  await js('MouseTest.desktopUI.close({immediate:true});MouseTest.browsing.close()');
   await js(`MouseTest.openAI(${JSON.stringify(root+'/624-owned-ai')})`);const aiUrl=root+'/624-owned-ai';
   const created=[];
   for(let i=0;i<3;i++){await js(`MouseTest.openPage(${JSON.stringify(root+'/624-grid/'+i)})`);created.push(await js('MouseTest.model.slots[MouseTest.model.active]'));}
@@ -86,7 +86,7 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await reload();await sameLayout(changed,'History shell reload');const after=await js('MouseNative.desktops("history-state",{from:MouseTest.model.desktopId})');assert.ok(after.canUndo);assert.ok(after.entries.some(e=>e.id===entry.id),'History entry identity survives reload');
   await click('#desktops-button');await historyReady('after reload');await click('#desk-history-back');await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'Undo works after reload');await click('#desk-history-forward');await until(async()=>JSON.stringify(await layout())===JSON.stringify(changed),'Redo works after reload');
   await click('#desk-history-button');await until(()=>js('!document.querySelector("#desk-history-panel").hidden'),'history panel reopens');const entrySelector='#desk-history-panel [data-history-id="'+entry.id+'"] .desk-history-restore';await until(()=>js(`!!document.querySelector(${JSON.stringify(entrySelector)})`),'history entry renders');await js(`document.querySelector(${JSON.stringify(entrySelector)}).scrollIntoView({block:'nearest',inline:'center'})`);await painted();await click(entrySelector);await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'native history row restores the chosen baseline');await samePages('History jump');
-  facts.history={undo:true,redo:true,persisted:true,pagesPreserved:true,entryRestore:true};await saveFacts();console.log('MOUSE_624_LAYOUT_UNDO_REDO_PERSIST_PASS');await js('MouseTest.desktopUI.close()');
+  facts.history={undo:true,redo:true,persisted:true,pagesPreserved:true,entryRestore:true};await saveFacts();console.log('MOUSE_624_LAYOUT_UNDO_REDO_PERSIST_PASS');await js('MouseTest.desktopUI.close({immediate:true})');
   }catch(error){verificationError=error;await nativeContext('failure').catch(()=>{});throw error;}
   finally{
    win.removeListener('enter-full-screen',entered);win.removeListener('leave-full-screen',left);
