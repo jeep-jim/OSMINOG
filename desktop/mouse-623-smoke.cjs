@@ -1,77 +1,59 @@
 'use strict';
 // Measures the installed, painted burrow in the existing 622 native fixture.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
+const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 module.exports=({win,js})=>{
  const frames=[];let result;
  async function capture(theme,state){
   await js(`new Promise((resolve,reject)=>{const start=performance.now();const poll=()=>{const tray=document.querySelector('#desktop-tray');if(tray.open&&!tray.hidden&&tray.dataset.motion==='open')return resolve();if(performance.now()-start>5000)return reject(Error('Burrow did not settle for geometry capture'));requestAnimationFrame(poll);};poll();})`);
+  const control=state==='preview'?'.desk-preview-close':state==='modes'?'#desk-modes .desk-mode:last-child':'.desktop-card[aria-current="true"] .desk-preview-button';
   const measured=await js(`(()=>{
-   const tray=document.querySelector('#desktop-tray'),path=tray.querySelector('.desk-burrow-shape>path'),bar=document.querySelector('#statusbar'),outline=document.querySelector('#mouse-dock-outline'),fill=document.querySelector('#mouse-dock-fill');
-   const r=tray.getBoundingClientRect(),footer=bar.getBoundingClientRect(),line=getComputedStyle(outline),border=getComputedStyle(bar),matrix=path.getScreenCTM(),length=path.getTotalLength();
+   const tray=document.querySelector('#desktop-tray'),path=document.querySelector('#mouse-dock-outline'),bar=document.querySelector('#statusbar'),fill=document.querySelector('#mouse-dock-fill'),content=tray.querySelector('.desk-content'),control=document.querySelector(${JSON.stringify(control)});
+   control.scrollIntoView({block:'nearest',inline:'nearest'});
+   const r=tray.getBoundingClientRect(),footer=bar.getBoundingClientRect(),line=getComputedStyle(path),border=getComputedStyle(bar),matrix=path.getScreenCTM(),length=path.getTotalLength();
+   // This settled profile is measured once per captured state, never in the
+   // animation recorder. It still verifies the owner's rounded final outline.
    const count=Math.ceil(length*Math.max(Math.hypot(matrix.a,matrix.b),Math.hypot(matrix.c,matrix.d))*3),points=[];
    for(let i=0;i<=count;i++){const p=path.getPointAtLength(length*i/count).matrixTransform(matrix);points.push({x:p.x-r.left,y:p.y-r.top});}
    const top=Math.min(...points.map(p=>p.y)),depths=[2,6,12,20,32,48,64];
    const profile=right=>depths.map(depth=>{let best,delta=Infinity;for(const p of points){if(right?p.x<r.width*.7:p.x>r.width*.3)continue;const d=Math.abs(p.y-top-depth);if(d<delta){best=p;delta=d;}}if(!best||delta>.75)throw Error('Missing rendered curve sample');return right?r.width-best.x:best.x;});
-   const start=path.getPointAtLength(0).matrixTransform(matrix),end=path.getPointAtLength(length).matrixTransform(matrix);
-   const edgeMatrix=outline.getScreenCTM(),edgeStart=outline.getPointAtLength(0).matrixTransform(edgeMatrix),edgeEnd=outline.getPointAtLength(outline.getTotalLength()).matrixTransform(edgeMatrix),probe=document.createElement('i');probe.style.color='var(--line)';document.body.append(probe);const edge=getComputedStyle(probe).color;probe.style.color='var(--panel)';const panel=getComputedStyle(probe).color;probe.remove();
-   return{width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,footerTop:footer.top,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBorder:edge,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,endpoints:{left:start.y,right:end.y},surface:{fill:getComputedStyle(fill).fill,panel,opacity:getComputedStyle(fill).opacity,start:{x:edgeStart.x,y:edgeStart.y},end:{x:edgeEnd.x,y:edgeEnd.y},localStroke:getComputedStyle(path).stroke}};
+   const start=path.getPointAtLength(0).matrixTransform(matrix),end=path.getPointAtLength(length).matrixTransform(matrix),probe=document.createElement('i');probe.style.color='var(--line)';document.body.append(probe);const edge=getComputedStyle(probe).color;probe.style.color='var(--panel)';const panel=getComputedStyle(probe).color;probe.remove();
+   const contentRect=content.getBoundingClientRect(),target=control.getBoundingClientRect(),hit=(${nativeHitTarget.toString()})(control),sample=MouseTest.desktopUI.motion.sample();
+   return{width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,footerTop:footer.top,footerHeight:footer.height,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBorder:edge,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,paths:sample.paths,geometryWrites:sample.geometryWrites,endpoints:{left:start.y,right:end.y},surface:{fill:getComputedStyle(fill).fill,panel,opacity:getComputedStyle(fill).opacity,start:{x:start.x,y:start.y},end:{x:end.x,y:end.y}},content:{overflow:getComputedStyle(content).overflowY,scrollTop:content.scrollTop,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,visibleHeight:Math.max(0,Math.min(target.bottom,contentRect.bottom)-Math.max(target.top,contentRect.top)),accessible:hit.ready}};
   })()`);
-  assert.equal(measured.stroke,measured.footerBorder,theme+' '+state+' outline matches the actual footer border color');
-  assert.ok(measured.footerBorderWidth>0,'The footer still has its original border box');
-  assert.ok(Math.abs(measured.bottom-measured.footerTop)<=1,'Burrow meets the footer without an overlap');
-  const baseline=measured.footerTop+measured.footerBorderWidth/2;
-  for(const side of ['left','right'])assert.ok(Math.abs(measured.endpoints[side]-baseline)<=.05,theme+' '+state+' '+side+' outline meets the centre of the actual footer stroke');
-  for(const end of ['start','end'])assert.ok(Math.abs(measured.surface[end].y-baseline)<=.05,'The shared dock outline is attached to the footer');
-  assert.ok(Math.abs(measured.surface.start.x)<.05&&Math.abs(measured.surface.end.x-measured.viewport.width)<.05,'One outline spans the complete footer');
-  assert.equal(measured.surface.fill,measured.surface.panel,'The menu and footer share one solid surface fill');
-  assert.equal(Number(measured.surface.opacity),1,'The common surface is opaque');
-  for(let i=0;i<measured.topCurve.depths.length;i++)assert.ok(Math.abs(measured.topCurve.left[i]-measured.topCurve.right[i])<=.75,'Left and right curves are exact reflections');
-  assert.ok(measured.topCurve.left[0]-measured.topCurve.left.at(-1)>15,'Upper-left corner remains rounded');
-  assert.ok(measured.topCurve.right[0]-measured.topCurve.right.at(-1)>15,'Upper-right corner remains rounded');
+  assert.equal(measured.stroke,measured.footerBorder,theme+' '+state+' outline matches the footer color');assert.ok(measured.footerBorderWidth>0,'The footer retains its original border box');assert.equal(measured.footerImage,'none','Nora does not cut the footer border');
+  assert.ok(Math.abs(measured.bottom-measured.footerTop)<=1,'The fixed panel ends at the footer');
+  for(const side of ['left','right'])assert.ok(Math.abs(measured.endpoints[side]-measured.footerTop)<=1,theme+' '+state+' '+side+' outline stays at the footer');
+  assert.ok(Math.abs(measured.surface.start.x-measured.left)<.05&&Math.abs(measured.surface.end.x-measured.right)<.05,'The constant outline occupies only the fixed panel width');
+  assert.equal(measured.surface.fill,measured.surface.panel);assert.equal(Number(measured.surface.opacity),1);assert.equal(measured.content.overflow,'auto');assert.equal(measured.content.accessible,true,theme+' '+state+' control is really reachable inside the fixed scroll viewport');assert.ok(measured.content.visibleHeight>0);
+  for(let i=0;i<measured.topCurve.depths.length;i++)assert.ok(Math.abs(measured.topCurve.left[i]-measured.topCurve.right[i])<=.75,'Left and right curves remain reflections');
+  assert.ok(measured.topCurve.left[0]-measured.topCurve.left.at(-1)>15,'Upper-left corner remains rounded');assert.ok(measured.topCurve.right[0]-measured.topCurve.right.at(-1)>15,'Upper-right corner remains rounded');
   const image=await win.capturePage();await fs.writeFile('mouse-623-'+state+'-'+theme+'.png',image.toPNG());
   const size=image.getSize(),pixels=image.toBitmap(),sx=size.width/measured.viewport.width,sy=size.height/measured.viewport.height;
-  const rgb=(x,y)=>{const ix=Math.floor(x*sx),iy=Math.floor(y*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height,'Seam sample lies inside the native capture');const i=(iy*size.width+ix)*4;return[pixels[i+2],pixels[i+1],pixels[i]];};
-  const difference=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i]))),inside=[],outside=[],join=[];
-  for(const fraction of [.2,.35,.65,.8]){
-   const x=measured.left+measured.width*fraction,seam=rgb(x,baseline+.5),below=rgb(x,baseline+2.5),delta=difference(seam,below);
-   inside.push({x,seam,below,delta});assert.ok(delta<=6,theme+' '+state+' has no footer line inside the burrow: '+JSON.stringify(inside.at(-1)));
-   const above=rgb(x,baseline-2),rows=[-1,-.5,0,.5,1].map(offset=>({offset,rgb:rgb(x,baseline+offset)}));
-   // The same opaque path fills both the menu and footer. Adjacent rows have
-   // the same pixels, with no second panel edge or translucency discontinuity.
-   assert.ok(difference(above,below)<=6,theme+' '+state+' shares the same fill above and below the join');
-   for(const row of rows)for(let channel=0;channel<3;channel++)assert.ok(row.rgb[channel]>=Math.min(above[channel],below[channel])-6&&row.rgb[channel]<=Math.max(above[channel],below[channel])+6,theme+' '+state+' has a one-pixel seam at '+row.offset+'px: '+JSON.stringify({above,below,row}));
-   join.push({x,above,below,rows});
-  }
-  for(const x of [measured.left/2,(measured.right+measured.viewport.width)/2]){
-   const seam=rgb(x,measured.footerTop+.5),below=rgb(x,measured.footerTop+2.5),delta=difference(seam,below);
-   outside.push({x,seam,below,delta});assert.ok(delta>8,theme+' '+state+' preserves the footer border outside the burrow');
-  }
-  frames.push({theme,state,...measured,baseline,pixels:{inside,outside,join}});
+  const borderPixels=[.15,.3,.7,.85].map(fraction=>{const x=measured.viewport.width*fraction,y=measured.footerTop+.25,ix=Math.floor(x*sx),iy=Math.floor(y*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height);const i=(iy*size.width+ix)*4;return{x,y,rgb:[pixels[i+2],pixels[i+1],pixels[i]]};});
+  frames.push({theme,state,...measured,borderPixels});
  }
  async function finish(){
-  assert.equal(frames.length,6,'Three burrow states are captured in both themes');
+  assert.equal(frames.length,6,'Three fixed-viewport states are captured in both themes');
   for(const theme of ['light','dark']){
    const compact=frames.find(f=>f.theme===theme&&f.state==='compact');assert.ok(compact);
    for(const state of ['modes','preview']){
-    const expanded=frames.find(f=>f.theme===theme&&f.state===state);assert.ok(expanded);
-    assert.ok(expanded.height>compact.height+60,theme+' '+state+' actually expands the burrow');
-    assert.ok(Math.abs(expanded.width-compact.width)<1,'Only burrow height changes between states');
-    for(const side of ['left','right'])for(let i=0;i<compact.topCurve.depths.length;i++){
-     const delta=Math.abs(compact.topCurve[side][i]-expanded.topCurve[side][i]);
-     assert.ok(delta<=1,theme+' '+state+' '+side+' curve changed at '+compact.topCurve.depths[i]+'px: '+delta);
-    }
+    const other=frames.find(f=>f.theme===theme&&f.state===state);assert.ok(other);assert.ok(Math.abs(other.height-compact.height)<.05&&Math.abs(other.width-compact.width)<.05,theme+' '+state+' keeps the same viewport');
+    assert.deepEqual(other.paths,compact.paths,theme+' '+state+' preserves the complete final contour');assert.equal(other.geometryWrites,compact.geometryWrites,theme+' content changes do not rebuild the shape');
+    assert.equal(other.footerTop,compact.footerTop);assert.equal(other.footerHeight,compact.footerHeight);assert.deepEqual(other.borderPixels,compact.borderPixels,theme+' footer keeps its actual native border pixels');
+    for(const side of ['left','right'])for(let i=0;i<compact.topCurve.depths.length;i++)assert.ok(Math.abs(compact.topCurve[side][i]-other.topCurve[side][i])<=1,theme+' '+state+' keeps its upper '+side+' curve');
    }
   }
-  result={version:'6.0.23',fixedTopCurves:true,seamFree:true,outlineMatchesFooter:true,themes:['light','dark'],states:['compact','modes','preview'],frames};
+  result={version:'6.0.23',fixedTopCurves:true,outlineMatchesFooter:true,fixedViewport:true,scrollableContent:true,footerStationary:true,supersededOldGeometry:true,geometryVersion:'6.0.27',themes:['light','dark'],states:['compact','modes','preview'],frames};
   await fs.writeFile('mouse-623-verification.json',JSON.stringify(result,null,2)+'\n');
-  console.log('MOUSE_623_BURROW_GEOMETRY_AND_SEAM_PASS');
+  console.log('MOUSE_627_BURROW_FIXED_VIEWPORT_CONTROLS_PASS');
  }
  async function verifyTabs({browser,bank,click,activate,root,native,until,sleep}){
   const chip=id=>'.desk-tab-chip[data-tab="'+id+'"]';
   const snapshot=()=>js('MouseNative.desktops("previews",{preferences:MouseTest.prefs()})');
   const order=()=>js('[...document.querySelectorAll(".desk-peek-tabs>.desk-tab-chip[data-tab]")].map(e=>e.dataset.tab)');
   async function drag(from,to,bottom=false){
-   await activate();const points=await js(`(()=>{const point=(selector,bottom)=>{const e=document.querySelector(selector),r=e.getBoundingClientRect(),x=r.left+r.width/2,y=bottom?r.bottom-3:r.top+r.height/2;if(!r.width||!r.height||!e.contains(document.elementFromPoint(x,y)))throw Error('Chip drag endpoint is covered: '+selector);return{x,y};};return{a:point(${JSON.stringify(from)},false),b:point(${JSON.stringify(to)},${bottom})};})()`),o=win.getContentBounds();
+   await activate();const points=await js(`(()=>{const from=document.querySelector(${JSON.stringify(from)}),to=document.querySelector(${JSON.stringify(to)});from.scrollIntoView({block:'center',inline:'nearest'});to.scrollIntoView({block:'nearest',inline:'nearest'});const point=(element,bottom)=>{const hit=(${nativeHitTarget.toString()})(element,{yFraction:bottom?.9:.5});if(!hit.ready)throw Error('Chip drag endpoint is covered: '+JSON.stringify(hit));return{x:hit.x,y:hit.y};};return{a:point(from,false),b:point(to,${bottom})};})()`),o=win.getContentBounds();
    const a={x:Math.round(o.x+points.a.x),y:Math.round(o.y+points.a.y)},b={x:Math.round(o.x+points.b.x),y:Math.round(o.y+points.b.y)};
    assert.equal(native.testMouse(a.x,a.y,0),true);
    try{await sleep(80);for(let i=1;i<=12;i++){assert.equal(native.testMouse(a.x+(b.x-a.x)*i/12,a.y+(b.y-a.y)*i/12,1),true);await sleep(30);if(i===2)await until(()=>js('!!document.querySelector(".desk-chip-ghost")'),'real native chip drag');}await sleep(100);}

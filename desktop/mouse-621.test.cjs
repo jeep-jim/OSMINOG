@@ -15,31 +15,38 @@ test('image drag keeps its gesture guards and the sole page bridge reports only 
  assert.match(h,/native.primaryDown/);assert.match(h,/page.navigationEpoch===epoch/);assert.match(h,/getBrowser\(\)===browser/);assert.match(h,/0o600/);assert.match(h,/generation\+\+/);assert.match(h,/AbortSignal.timeout\(5000\)/);
 });
 test('status notification lives outside footer and expires without resetting on repeated same error',()=>{const s=fs.readFileSync('mouse/feedback.js','utf8'),css=fs.readFileSync('mouse/mouse-621.css','utf8');assert.match(s,/document.body.append\(node\)/);assert.match(s,/timer=setTimeout\(hide,4500\)/);assert.match(s,/now<until&&!node.hidden/);assert.match(css,/body>#status\{position:fixed/);assert.match(css,/left:50%/);assert.match(css,/pointer-events:none/);});
-test('desktop slide preserves geometry and always restores input, including failures and reduced motion',async()=>{
- const S=require('./mouse/desktop-slide.js'),oldMatch=global.matchMedia,oldRAF=global.requestAnimationFrame;
- const w={getBoundingClientRect:()=>({width:800}),style:{transform:''},dataset:{},inert:false},model={},frames=[];let changes=0;
- try{
-  global.matchMedia=()=>({matches:false});global.requestAnimationFrame=fn=>setTimeout(fn,5);
-  await S.run({workspace:w,model,layout:async()=>frames.push(w.style.transform),change:async()=>{changes++},direction:-1});
-  assert.equal(changes,1);assert.ok(frames.some(s=>/^translateX\(-/.test(s)));assert.ok(frames.some(s=>/^translateX\([1-9]/.test(s)));assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);assert.equal(w.dataset.sliding,undefined);
-  const shifts=frames.filter(s=>s.startsWith('translateX(')).map(s=>Number(s.slice(11,-3)));assert.ok(shifts.length>=3&&shifts.every(Number.isInteger),'native slide uses whole CSS pixels');
-  for(const [left,width]of [[0,278.8],[281.2,317.65],[.4,500.3]]){const initial=Math.round(left+width)-Math.round(left);assert.ok(shifts.every(x=>Math.round(left+x+width)-Math.round(left+x)===initial),'fractional pane viewport never changes width');}
-  await assert.rejects(S.run({workspace:w,model,layout:async()=>{},change:async()=>{throw Error('fixture failure')},direction:1}),/fixture failure/);assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
-  global.matchMedia=()=>({matches:true});frames.length=0;await S.run({workspace:w,model,layout:async()=>frames.push(w.style.transform),change:async()=>{changes++}});assert.deepEqual(frames,['']);assert.equal(changes,2);
-  assert.equal(S.ease(0),0);assert.equal(S.ease(.5),.5);assert.equal(S.ease(1),1);
- }finally{global.matchMedia=oldMatch;global.requestAnimationFrame=oldRAF;}
+function slideFixture(delay=0,options={}){
+ const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8'),events=[],listeners=new Map();let time=0,cleared;
+ const ctx={module:{exports:{}},performance:{now:()=>time},matchMedia:()=>({matches:!!options.reduced}),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)};
+ vm.runInNewContext(code,ctx);const S=ctx.module.exports,w={style:{transform:'',visibility:''},dataset:{},inert:false},model={desktopId:'old'},scene={ids:()=>[model.desktopId],valid:()=>true,stage:async(kind,packet)=>{events.push('decoded:'+kind);return packet.complete;},show:()=>events.push('show-old'),animate:async()=>{events.push('animate-start');time+=S.DURATION;events.push('animate-end');return true;},timing:()=>({animationDurationMs:S.DURATION}),cancel:()=>events.push('cancel'),remove:()=>events.push('remove')};
+ const N={test:true,onPreviewsCleared:fn=>{cleared=fn;return()=>{cleared=null;}},desktops:async(action,args)=>{
+  if(action==='surfaces'){events.push('capture:'+model.desktopId);if(options.cancelIncoming&&model.desktopId==='new')cleared();return{token:'capture-token',complete:!(options.incomplete&&model.desktopId==='old')};}
+  events.push(args.phase);if(args.phase==='begin'){assert.ok(events.includes('decoded:outgoing'));assert.equal(w.style.visibility,'');return{held:options.begin!==false,token:'capture-token'};}
+  assert.equal(w.style.visibility,'');return{released:true};
+ }};
+ const run=()=>S.run({workspace:w,model,N,sceneFactory:()=>scene,direction:options.direction||1,layout:async()=>{events.push('layout');time+=delay;},change:async()=>{events.push('change');if(options.fail)throw Error('fixture failure');model.desktopId='new';}});
+ return{S,w,model,N,events,listeners,run,clock:()=>time,hasCleared:()=>!!cleared};
+}
+test('desktop transition decodes before hold and restores input, native surfaces and listeners on every outcome',async()=>{
+ for(const options of [{},{fail:true},{incomplete:true},{begin:false},{cancelIncoming:true},{reduced:true}]){
+  const f=slideFixture(0,options);if(options.fail)await assert.rejects(f.run(),/fixture failure/);else await f.run();
+  assert.equal(f.events.filter(x=>x==='change').length,1);assert.equal(f.w.style.transform,'');assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(!!f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);
+  if(!options.reduced&&!options.incomplete&&options.begin!==false)assert.ok(f.events.includes('end'),'owned hold is released even when change or capture is cancelled');
+  if(options.incomplete||options.begin===false||options.cancelIncoming||options.reduced)assert.ok(!f.events.includes('animate-start'));
+ }
+ const f=slideFixture();await f.run();assert.deepEqual(f.events,['capture:old','decoded:outgoing','show-old','begin','change','layout','capture:new','decoded:incoming','animate-start','animate-end','end','remove','layout']);assert.equal(f.S.last.decoded,true);assert.equal(f.S.last.animated,true);
+ assert.equal(f.S.ease(0),0);assert.equal(f.S.ease(.5),.5);assert.equal(f.S.ease(1),1);
 });
 test('owner final top plus and centered bottom burrow keep distinct actions',()=>{
  const css=fs.readFileSync('mouse/mouse-621.css','utf8'),ui=fs.readFileSync('mouse/desktops.js','utf8');assert.match(css,/#statusbar #desktops-button\{top:auto;bottom:0;width:36px;height:23px;min-width:36px;min-height:23px/);assert.match(css,/#statusbar\{position:relative;z-index:8;overflow:visible\}/);assert.match(css,/\.toolbar>#new-tab\{[^}]*width:28px;height:28px/);assert.match(css,/\.toolbar>#new-tab::before\{display:none!important\}/);assert.match(ui,/button.onclick=open/);assert.match(fs.readFileSync('mouse/browser.js','utf8'),/name==='new-tab'\)return openPage\('mouse:\/\/start'\)/);
 });
-test('250ms native acknowledgements still display intermediate desktop positions in both directions',async()=>{
- const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8');
- for(const direction of [-1,1]){
-  let time=0,side=0;const sides=[[],[]],ctx={module:{exports:{}},performance:{now:()=>time},matchMedia:()=>({matches:false}),requestAnimationFrame:fn=>setTimeout(()=>{time+=16;fn(time)},0),cancelAnimationFrame:clearTimeout,setTimeout,clearTimeout};vm.runInNewContext(code,ctx);
-  const w={getBoundingClientRect:()=>({width:873}),style:{transform:''},dataset:{},inert:false},model={};
-  await ctx.module.exports.run({workspace:w,model,direction,layout:async()=>{if(w.style.transform)sides[side].push(parseInt(w.style.transform.slice(11),10));time+=250;},change:async()=>{side=1;}});
-  for(const positions of sides){assert.ok(new Set(positions).size>=5,JSON.stringify(sides));assert.ok(positions.every(Number.isInteger));}
-  assert.equal(w.style.transform,'');assert.equal(w.inert,false);assert.equal(model.desktopSliding,false);
+test('250ms native acknowledgements cannot stretch the shared compositor timeline or add per-frame layout calls',async()=>{
+ for(const direction of [-1,1])for(const delay of [0,250]){
+  const f=slideFixture(delay,{direction});await f.run();
+  assert.equal(f.events.filter(x=>x==='layout').length,2);assert.equal(f.S.last.layoutCalls,2);assert.equal(f.S.last.animationDurationMs,330);
+  assert.equal(f.S.last.totalDurationMs,330+2*delay);assert.equal(f.clock(),330+2*delay);
+  const start=f.events.indexOf('animate-start'),end=f.events.indexOf('animate-end');assert.deepEqual(f.events.slice(start+1,end),[],'there is no native IPC inside the animation interval');
+  assert.equal(f.w.style.transform,'');assert.equal(f.S.last.direction,direction);
  }
 });
 

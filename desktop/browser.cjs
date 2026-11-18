@@ -141,6 +141,7 @@ class BrowserWorkspace{
  }
  layout(panels){
   if(this.disposed||this.win.isDestroyed())return;
+  if(this.mouseDesktops)this.mouseLayoutCalls=(this.mouseLayoutCalls||0)+1;
   this.panels=Array.isArray(panels)?panels.slice(0,100):[];const contextIds=this.panels.filter(p=>p.id!=='ai'&&this.tabs.get(p.id)?.project===this.project&&this.tabs.get(p.id)?.lane!=='side').map(p=>p.id);if(contextIds.length)this.contextIds=contextIds;
   const desired=new Map();
   const [width,height]=this.win.getContentSize(),seen=new Set();
@@ -157,7 +158,7 @@ class BrowserWorkspace{
    desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
-   const next=desired.get(t),show=!!next;
+   const next=desired.get(t),show=!!next&&!this.mouseSurfaceHold;
    if(next){const {bounds,clipped,wrap,radius}=next;
     if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
     const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
@@ -168,7 +169,7 @@ class BrowserWorkspace{
    if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
   // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
-  if(this.mouseCornerMask)this.mouseCornerMask([...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor})));
+  if(this.mouseCornerMask)this.mouseCornerMask(this.mouseSurfaceHold?[]:[...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor})));
  }
  dispose(){if(this.disposed)return;this.disposed=true;clearTimeout(this.pageStateTimer);this.pageStateTimer=null;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
 }
