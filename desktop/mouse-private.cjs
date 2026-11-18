@@ -13,6 +13,7 @@ class PrivateMode {
   finally{this.busy=false;}
  }
  async enter(){
+  await this.prepareDocuments?.();
   this.onPrivacyChange?.();
   const {win,normalBrowser,normalGate,normalStore,router,trusted,test}=this;
   await win.webContents.executeJavaScript('globalThis.MouseFlush?.()');
@@ -46,7 +47,7 @@ class PrivateMode {
    const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
    require('./mouse-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.mouseChromeGuard});
    register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state);});
-   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test});
+   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine});
    current.libraryService=libraryService;
    // Do not even keep private visit/search/closed lists in the library UI.
    for(const name of ['visit','title','input','closed'])libraryService.library[name]=()=>{};
@@ -59,7 +60,7 @@ class PrivateMode {
    register.handle('mouse:save',async(event,p,history)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p,history);});
    const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
-   for(const name of ['mouse:privacy','mouse:window','mouse:theme'])handlers.set(name,router.normal.get(name));
+   for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:documents'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
    handlers.set('mouse:agent',(event,action)=>{trusted(event);if(action==='state')return{enabled:false,running:false,connected:0,desk:'',logs:[],pending:null};throw Error('Agent Mouse доступен в обычном режиме');});
    handlers.set('mouse:progress',(event,action)=>{trusted(event);if(action==='state')return{tasks:[],revision:0};throw Error('Прогресс подключённого ИИ доступен в обычном режиме');});
@@ -86,6 +87,7 @@ class PrivateMode {
   c.store.destroy();c.handlers.clear();this.current=null;
  }
  async leave(){
+  await this.prepareDocuments?.();
   this.onPrivacyChange?.();
   const emit=this.current.emit;await this.win.loadURL('about:blank');await this.dispose();this.router.use(null);
   this.normalBrowser.emit=emit;this.normalGate.sequence=0;this.normalGate.blocked=false;this.normalGate.desired=[];

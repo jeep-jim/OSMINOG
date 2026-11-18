@@ -2,11 +2,11 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let n=0;n<200;n++){if(await check())return;await sleep(75)}throw Error('Timed out: '+label)}
-module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost})=>{
+module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.24');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.25');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -71,6 +71,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-620-smoke.cjs')({app,win,browser,libraryService,localCaptures,updates});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-621-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-622-smoke.cjs')({app,win,browser,store,agentHost});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('mouse-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
 };

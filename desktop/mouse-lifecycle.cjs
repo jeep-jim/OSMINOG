@@ -14,11 +14,11 @@ function leaveFullscreen(win,ms=7000){
   try{win.setFullScreen(false)}catch(error){clear();reject(error)}
  });
 }
-function install({app,win,flush,log=()=>{},onError=()=>{},saveTimeout=7000,fullscreenTimeout=7000}){
+function install({app,win,flush,prepare=async()=>{},log=()=>{},onError=()=>{},saveTimeout=7000,fullscreenTimeout=7000}){
  let task=null,finishing=false;
  const request=()=>{
   if(task)return task;
-  task=Promise.resolve().then(()=>bounded(flush(),saveTimeout,'Save')).then(async()=>{
+  task=Promise.resolve().then(()=>prepare()).then(()=>bounded(flush(),saveTimeout,'Save')).then(async()=>{
    log('MOUSE_EXIT_SAVED');
    await leaveFullscreen(win,fullscreenTimeout).catch(error=>log('MOUSE_FULLSCREEN_EXIT_WARNING '+error.message));
    finishing=true;app.quit();

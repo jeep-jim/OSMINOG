@@ -2,8 +2,9 @@
 const {Library,webURL}=require('./mouse-library.cjs');
 const {randomUUID}=require('node:crypto');
 const path=require('node:path'),fs=require('node:fs/promises');
-async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=false}){
+async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=false,searchEngine}){
  const library=await new Library(store).init(),live=new Map(),retryURLs=new Set();
+ const search=await require('./mouse-search.cjs').create({store,privateMode:browser.privateMode===true,inheritedEngine:searchEngine});browser.mouseSearch=search;
  const icons=require('./mouse-library-icons.cjs').createIcons({app,browser,library,nativeImage:require('electron').nativeImage});
  let timer;const notify=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(!win.isDestroyed())win.webContents.send('mouse:library-changed')},120);timer.unref?.()};
  const attach=t=>{const wc=t.view.webContents;if(t.lane==='side'||t.provider)return;
@@ -13,7 +14,11 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
  for(const t of browser.tabs.values())attach(t);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);attach(t);return t};
  const command=browser.command.bind(browser);browser.command=async(action,args={})=>{
-  if(action==='open'&&args.lane!=='side'||action==='navigate'&&browser.get(args.id).lane!=='side')library.input(args.url,require('./browser.cjs').address(args.url));
+  if(action==='open'||action==='navigate'){
+   const url=search.resolve(args.url);
+   if(action==='open'&&args.lane!=='side'||action==='navigate'&&browser.get(args.id).lane!=='side')library.input(args.url,url);
+   args={...args,url};
+  }
   if(action==='close'){const t=browser.get(args.id);if(t.lane!=='side')library.closed(t.view.webContents.getURL()||t.url,t.title)}
   return command(action,args);
  };
@@ -65,6 +70,6 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
   if(action==='download')return download(args.action,args.id);
   throw Error('Unsupported library action');
  });
- return{library,flush:()=>library.flush(),live,icon:icons.site};
+ return{library,search,flush:()=>Promise.all([library.flush(),search.flush()]),live,icon:icons.site};
 }
 module.exports={install};

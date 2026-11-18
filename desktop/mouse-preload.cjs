@@ -5,6 +5,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  version:process.argv.find(x=>x.startsWith('--mouse-version='))?.split('=').slice(1).join('=')||'6.0.0',
  test:process.argv.includes('--mouse-test'),
  agent:(action,args)=>ipcRenderer.invoke('mouse:agent',action,args),onAgent:cb=>on('mouse:agent-state',cb),onTerminal:cb=>on('mouse:terminal-data',cb),onAgentOpen:cb=>on('mouse:agent-open',cb),
+ documents:(action,args)=>ipcRenderer.invoke('mouse:documents',action,args),onDocuments:cb=>on('mouse:documents-state',cb),
  desktops:(action,args)=>ipcRenderer.invoke('mouse:desktops',action,args),
  progress:(action,args)=>ipcRenderer.invoke('mouse:progress',action,args),onProgress:cb=>on('mouse:progress-state',cb),
  onPreviewsCleared:cb=>on('mouse:previews-cleared',cb),
