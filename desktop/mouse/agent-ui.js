@@ -12,7 +12,7 @@ globalThis.createMouseAgentUI=({N,model:m,layout,status,changed=()=>{},activateT
   const serial=JSON.stringify(next.logs||[]);if(serial!==lastLogs){lastLogs=serial;const log=$('.agent-log');log.replaceChildren();for(const item of next.logs||[]){const li=document.createElement('li');li.textContent=item.text||String(item);log.append(li);}log.scrollTop=log.scrollHeight;}
   if(next.terminal)mountTerminal();if(wasEnabled&&!next.enabled)$('#agent-key').value='';changed();sync();
  }
- function sync(){const desk=m.desktopId||state.desk;globalThis.MouseAgentBrand?.apply($('.agent-presence img'),desk);panel.style.setProperty('--agent-color',globalThis.MouseAgentBrand?.color(desk)||'#32c76a');const visible=m.mode==='agents'&&!m.privateMode&&!m.focusPane&&!m.focusAI&&!m.libraryOpen;const was=panel.hidden;panel.hidden=!visible;if(visible&&was)fit();}
+ function sync(){const desk=m.desktopId||state.desk;globalThis.MouseAgentBrand?.apply($('.agent-presence img'),desk);panel.style.setProperty('--agent-color',globalThis.MouseAgentBrand?.color(desk)||'#32c76a');const visible=m.agentOpen&&!m.privateMode&&!m.focusPane&&!m.focusAI&&!m.libraryOpen;const was=panel.hidden;panel.hidden=!visible;if(visible&&was)fit();}
  $('#agent-choose-ai').onclick=()=>safe(chooseAI);
  $('#agent-enable').onclick=()=>safe(()=>call('enable',{port:Number($('#agent-port').value),autonomous:$('#agent-autonomous').checked}));
  $('#agent-folder').onclick=()=>safe(()=>call('folder'));

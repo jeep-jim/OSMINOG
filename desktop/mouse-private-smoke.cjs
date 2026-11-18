@@ -9,12 +9,15 @@ module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
   await js(`MouseTest.openPage(${JSON.stringify(root+'/normal')})`);await until(()=>[...browser.tabs.values()].some(t=>!t.loading&&t.url===root+'/normal'),'normal fixture');
   const normal=[...browser.tabs.values()].find(t=>t.url===root+'/normal'),wc=normal.view.webContents,id=wc.id,loaded=await wc.executeJavaScript('loaded');
   await browser.session.cookies.set({url:root,name:'ordinary',value:'keep-normal'});await wc.executeJavaScript('localStorage.setItem("normal","retained")');
+  const progress=await wc.executeJavaScript('MouseAgent.updateProgress(55,"Normal fixture progress",{taskId:"624-private-boundary"})');assert.equal(progress.source,'page');assert.equal(progress.tabId,normal.id);
+  await until(()=>js(`!!document.querySelector('.mouse-progress-pill[data-progress-id="${progress.id}"]')`),'normal progress paints before privacy');
   await localCaptures.archive.configure({enabled:true});
   const captureReads=localCaptures.archive.reads;
   // Enter via actual footer mouse events, not just a direct service method.
   const p=await js('(()=>{const r=document.querySelector("#private-button").getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()');win.focus();win.webContents.focus();for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});
   await until(()=>privateMode.current&&!privateMode.busy,'enter private');
   assert.equal(await js('document.documentElement.dataset.private'),'true');
+  assert.deepEqual((await js('MouseNative.progress("state")')).tasks,[],'Private shell exposes no normal progress');
   assert.equal(await js('MouseNative.archive("list",{}).then(()=>false,()=>true)'),true);
   await localCaptures.archive.tick();assert.equal(localCaptures.archive.reads,captureReads);assert.equal(localCaptures.archive.items.length,0);
   await require('electron').clipboard.writeText('PRIVATE_CAPTURE620_SENTINEL');
@@ -26,6 +29,7 @@ module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
   assert.equal((await ses.cookies.get({url:root})).length,0);
   await js(`MouseTest.openPage(${JSON.stringify(root+'/'+marker)})`);await until(()=>[...first.browser.tabs.values()].some(t=>!t.loading),'private fixture');
   const page=[...first.browser.tabs.values()][0].view.webContents;
+  assert.equal(await page.executeJavaScript('typeof MouseAgent.updateProgress'),'function');assert.equal(await page.executeJavaScript('MouseAgent.updateProgress(90,"Private fixture",{taskId:"624-private-denied"}).then(()=>false,()=>true)'),true,'Actual private-page IPC is rejected');
   assert.equal(await page.executeJavaScript('typeof ethereum'),'undefined');assert.equal(await page.executeJavaScript('localStorage.getItem("normal")'),null);
   await ses.cookies.set({url:root,name:'private-marker',value:marker,expirationDate:Date.now()/1000+3600});
   await page.executeJavaScript(`localStorage.setItem('private',${JSON.stringify(marker)});sessionStorage.setItem('private',${JSON.stringify(marker)})`);
@@ -41,6 +45,7 @@ module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
   await localCaptures.archive.tick();assert.equal(localCaptures.archive.items.length,0);await localCaptures.archive.configure({enabled:false});
   assert.equal(await js('document.documentElement.dataset.private'),'false');assert.equal(privateMode.current,null);assert.equal(first.store.destroyed,true);assert.equal(first.browser.tabs.size,0);assert.equal((await ses.cookies.get({url:root})).length,0);
   assert.equal(browser.get(normal.id).view.webContents.id,id);assert.equal(await wc.executeJavaScript('loaded'),loaded);assert.equal(await wc.executeJavaScript('localStorage.getItem("normal")'),'retained');assert.equal((await browser.session.cookies.get({url:root,name:'ordinary'}))[0].value,'keep-normal');
+  assert.deepEqual((await js('MouseNative.progress("state")')).tasks,[],'Normal progress was cleared, not merely hidden while private');console.log('MOUSE_624_PRIVATE_PROGRESS_SCOPE_PASS');
   await browser.save();await browser.saveQueue;await store.queue;const profile=await fs.readFile(path.join(app.getPath('userData'),'workspace.json'),'utf8');assert.ok(!profile.includes(marker));assert.ok(!profile.includes('mouse-private-'));
   await privateMode.enter();assert.notEqual(privateMode.current.partition,first.partition);assert.equal((await privateMode.current.ses.cookies.get({url:root})).length,0);await privateMode.leave();
   console.log('MOUSE_PRIVATE_MEMORY_ISOLATION_CLEANUP_NORMAL_UNCHANGED_PASS');

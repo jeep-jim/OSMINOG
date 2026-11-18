@@ -1,8 +1,9 @@
 'use strict';
-// No page-visible bridge. Only an actual drag of a visible image can request a
-// bounded native file drag. Ordinary text/link/file drops remain Chromium's.
-const {ipcRenderer}=require('electron');
+// The only page-visible API reports progress for this page. It grants no browser,
+// terminal, file, or other-tab access. Native image drag still requires a gesture.
+const {ipcRenderer,contextBridge}=require('electron');
 if(process.isMainFrame){
+ contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress:(percent,statusText,options={})=>ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId})}));
  let inFlight=false;
  document.addEventListener('dragstart',event=>{
   if(inFlight||!event.isTrusted||event.defaultPrevented)return;

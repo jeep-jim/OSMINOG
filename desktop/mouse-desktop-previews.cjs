@@ -55,7 +55,7 @@ class DesktopPreviews{
    const desk=this.bank.items.find(x=>x.id===d.id),own=this.bank.ordered(d.id,tabs),byId=new Map(own.map(t=>[t.id,t]));
    const info=id=>{const t=byId.get(id);if(!t)return{id:'',title:'Свободное окно',url:'',site:'',favicon:'',internal:false,lane:'main',src:'',capturedAt:0};const image=!this.locked&&!this.disposed&&!t.internal?this.cache.get(id):null;return{id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),site:site(t.url),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',src:image?.src||'',capturedAt:image?.capturedAt||0};};
    const panes=L.leaves(desk.layout.tree).map(pane=>({pane,...info(desk.layout.slots[pane])}));
-   if(desk.layout.aiOpen&&desk.layout.aiId)panes.push({pane:'ai',...info(desk.layout.aiId)});
+   if(desk.layout.aiOpen&&!desk.layout.agentOpen&&desk.layout.aiId)panes.push({pane:'ai',...info(desk.layout.aiId)});
    const used=new Set(panes.map(p=>p.id)),ordered=own.map(t=>{const {src,capturedAt,...rest}=info(t.id);return{...rest,placed:used.has(t.id)};}),extraTabs=ordered.filter(t=>!t.placed);
    return{...d,slots:{...desk.layout.slots},aiOpen:desk.layout.aiOpen,aiId:desk.layout.aiId,preview:{panes,tabs:ordered,extraTabs,capturedAt:Math.max(0,...panes.map(p=>p.capturedAt))}};
   })};

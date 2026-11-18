@@ -12,7 +12,7 @@ class Gateway{
    if(!allowed(req)||!token((req.headers.authorization||'').replace(/^Bearer /,''))){res.writeHead(403);res.end('Forbidden');return;}
    if(req.method!=='GET'){res.writeHead(405);res.end();return;}
    const route=req.url?.split('?')[0];let result;
-   if(route==='/json/version')result={'Browser':'Agent Mouse/6.0.22','Protocol-Version':'1.3',webSocketDebuggerUrl:this.url};
+   if(route==='/json/version')result={'Browser':'Agent Mouse/6.0.24','Protocol-Version':'1.3',webSocketDebuggerUrl:this.url};
    else if(['/json','/json/list'].includes(route))result=this.targets();else{res.writeHead(404);res.end();return;}
    res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));
   });this.server=server;
@@ -29,7 +29,7 @@ class Gateway{
     if(++client.queued>16){socket.close(1008,'Too many requests');return;}
     chain=chain.then(async()=>{
      try{if(generation!==this.generation||!this.valid()||socket.readyState!==1)throw Error('Агент остановлен');const result=await this.command(request,client);if(generation===this.generation&&this.valid())this.send(client,{id:request.id,result:result||{},...(request.sessionId?{sessionId:request.sessionId}:{})});}
-     catch(error){this.send(client,{id:request.id,error:{code:-32000,message:String(error.message||'Command failed').slice(0,500)},...(request.sessionId?{sessionId:request.sessionId}:{})});}finally{client.queued--;}
+     catch(error){this.send(client,{id:request.id,error:{code:-32000,message:String(error.message||'Command failed').slice(0,500),...(error.code==='MOUSE_PROGRESS_LIMIT'?{data:'MOUSE_PROGRESS_LIMIT'}:{})},...(request.sessionId?{sessionId:request.sessionId}:{})});}finally{client.queued--;}
     }).catch(()=>{socket.close(1011,'Request failed');});
    });
   });

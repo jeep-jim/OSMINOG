@@ -1,0 +1,33 @@
+/* One continuous burrow outline; its endpoint follows the footer border centre. */
+#desktop-tray{bottom:27.5px}
+#agent-panel{min-width:240px;max-width:none;border-left:0}
+.desk-content>header>.desk-history-controls{flex:1;display:flex;flex-direction:row;justify-content:center;align-items:center;gap:7px;color:#28b965;min-width:170px}
+.desk-content>header>div:first-child{flex:1}
+.desk-history-controls button{border:0;background:transparent;color:inherit;padding:4px;min-width:26px;border-radius:14px}
+#desk-history-button{display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;white-space:nowrap}
+#desk-history-back,#desk-history-forward{font-size:21px}
+.desk-history-controls button:hover{background:color-mix(in srgb,#28b965 11%,transparent)}
+.desk-history-panel{margin:0 0 14px;padding:10px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--bg) 50%,var(--panel))}
+.desk-history-heading{display:flex;align-items:center;justify-content:space-between;font-size:11px;margin-bottom:8px}
+.desk-history-heading button{width:25px;height:25px;min-height:25px;padding:0;border-radius:50%}
+.desk-history-list{display:flex;gap:8px;overflow:auto;padding:2px 2px 8px;overscroll-behavior:contain;scrollbar-width:thin}
+.desk-history-entry{flex:0 0 140px;min-width:0;display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-size:10px}
+.desk-history-entry[data-position=current]{border-color:#28b965;background:color-mix(in srgb,#28b965 9%,var(--panel))}
+.desk-history-entry strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}.desk-history-entry time,.desk-history-count{color:var(--muted);font-size:9px}
+.desk-history-grid{height:42px;display:flex;overflow:hidden}.desk-history-grid .desk-cell{border:1px solid var(--line);border-radius:3px;background:color-mix(in srgb,#9875e3 13%,var(--panel))}.desk-history-grid .desk-cell-label{display:none}
+.desk-history-restore{font-size:9px;min-height:23px;margin-top:3px;border-radius:12px;padding:3px 6px}
+.desk-history-hint{margin:5px 2px 0;color:var(--muted);font-size:10px;line-height:1.4}
+body.has-progress-pills{grid-template-rows:calc(40px + var(--chrome-inset,0px)) minmax(0,1fr) 38px 28px}
+#mouse-progress-rail{display:flex;align-items:center;gap:7px;padding:3px 8px;min-height:0;min-width:0;overflow-x:auto;overflow-y:hidden;background:var(--panel);scrollbar-width:none;z-index:8}
+.mouse-progress-pill{position:relative;isolation:isolate;display:flex;align-items:center;gap:7px;flex:0 1 360px;min-width:230px;height:30px;border:1px solid color-mix(in srgb,var(--progress-color) 45%,var(--line));border-radius:18px;overflow:hidden;padding:2px 7px 2px 31px;background:color-mix(in srgb,var(--bg) 65%,var(--panel));font-size:10px}
+.mouse-progress-fill{position:absolute;inset:0;z-index:-1;background:color-mix(in srgb,var(--progress-color) 19%,transparent);transform-origin:left;transform:scaleX(var(--progress));transition:transform .35s ease}
+.mouse-progress-mouse{position:absolute;left:7px;width:19px;height:21px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
+.mouse-progress-copy{display:flex;flex:1;min-width:0;flex-direction:column;justify-content:center;gap:1px;line-height:1.12}.mouse-progress-label,.mouse-progress-status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mouse-progress-label{font-size:8px;color:var(--muted)}.mouse-progress-status{font-size:10px}.mouse-progress-value{font-variant-numeric:tabular-nums;flex:none;font-weight:600}
+.mouse-progress-pill button{min-height:20px;width:20px;height:20px;min-width:20px;padding:0;border:0;border-radius:50%;background:transparent;font-size:13px}.mouse-progress-pill button:hover{background:var(--hover)}.mouse-progress-stop{color:#e77f91}.mouse-progress-dismiss{color:var(--muted)}
+.mouse-progress-pill[data-phase=running][data-indeterminate=true] .mouse-progress-fill{transform:scaleX(1);opacity:.35;animation:mouse-progress-wait 1.8s ease-in-out infinite}
+.mouse-progress-pill[data-phase=error]{border-color:#df8468}.mouse-progress-pill[data-phase=stopped]{opacity:.7}
+@keyframes mouse-progress-wait{50%{opacity:.85}}
+@media(max-width:950px){#desk-history-button{flex-direction:column;gap:1px;font-size:9px}.desk-content>header>.desk-history-controls{gap:2px;min-width:130px}.desk-history-entry{flex-basis:128px}}
+@media(prefers-reduced-motion:reduce){.mouse-progress-fill{animation:none!important;transition:none!important}}
+
+.mouse-progress-meter{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

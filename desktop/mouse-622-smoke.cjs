@@ -10,6 +10,7 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 module.exports=async({app,win,browser,store,agentHost})=>{
  const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node'),before=new Set(browser.tabs.keys()),original=await js('MouseTest.prefs()'),bounds=win.getBounds(),bank=browser.mouseDesktops.bank,saved=bank.snapshot(),globals=copy(bank.global),originalDialog=agentHost?.dialog;
  const burrow623=require('./mouse-623-smoke.cjs')({win,js});
+ const features624=require('./mouse-624-smoke.cjs')({win,browser,store,agentHost,js,click,until,sleep,painted});
  let server,modelServer,client,captureTab,captureOriginal,releaseModelCompletion,lastClick=null,intercepted=false,modelRequests=0,workerPid=0,ptyPid=0;
  const selected=[];
  async function activate(){
@@ -71,7 +72,8 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   }
   await burrow623.finish();
   await burrow623.verifyTabs({browser,bank,click,activate,root,native,until,sleep});
-  await burrow623.verifyAgentEntry({browser,agentHost,click,until});await js('MouseTest.switchDesktop("desk-1")');
+  await burrow623.verifyAgentEntry({browser,agentHost,click,until});
+  await features624.verifyLayoutAndHistory({root,bank});await features624.verifyPageProgress({root,bank});await js('MouseTest.switchDesktop("desk-1")');
   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").open'),'tray for switch');await click('[data-desk="desk-2"] .desk-open');await until(()=>js('MouseTest.model.desktopId==="desk-2"&&!MouseTest.model.switching'),'native desk switch');assert.equal(bank.items.length,5);
   console.log('MOUSE_622_FIVE_DESKS_MODES_PRESERVE_TABS_PASS');console.log('MOUSE_622_BURROW_PREVIEW_BOTH_THEMES_PASS');
   await js('MouseTest.applyMode("agents")');await until(()=>supportIds.some(id=>browser.get(id).visible),'agent layout visible');
@@ -104,6 +106,7 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   // Stop must revoke the listener and terminal; a cleared label alone is insufficient.
   await click('#agent-stop');await until(()=>!agentHost.state().enabled,'native Stop action');await until(()=>!alive(ptyPid),'PTY process exit');assert.equal(agentHost.state().enabled,false);assert.equal(agentHost.state().terminal,false);assert.equal(agentHost.state().connectionUrl,'');assert.ok(await closedPort(connection.port));
   await js(`document.querySelector('#agent-local-port').value=${server.address().port};document.querySelector('.agent-localhost button').scrollIntoView({block:'center'})`);const beforePreview=new Set(browser.tabs.keys());await click('.agent-localhost button');await until(()=>[...browser.tabs.values()].some(t=>!beforePreview.has(t.id)&&t.view.webContents.getURL()===root+'/'),'localhost preview opens inside Mouse');
+  await features624.verifyPillStop();
   const facts={fixedDesks:5,suggestedRequests:selected.length,preservedTabs:allIds.length,hiddenCaptures,realThumbnails:true,localModelFixtureRequests:modelRequests,externalWorker:true,ptyStdout:true,autonomousActions:true,stoppedListener:true,localhostPreview:true};await fs.writeFile('mouse-622-verification.json',JSON.stringify(facts,null,2)+'\n');console.log('MOUSE_622_AGENT_CDP_PTY_WORKER_STOP_PASS',JSON.stringify(facts));
  }catch(error){
   console.log('MOUSE_622_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),focused:win.isFocused(),modelRequests,agent:agentHost?{enabled:agentHost.state().enabled,running:agentHost.state().running,desk:agentHost.state().desk,pending:agentHost.state().pending?.type}:null}));await fs.writeFile('mouse-622-failure.png',(await win.capturePage()).toPNG());throw error;

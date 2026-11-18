@@ -11,26 +11,34 @@ module.exports=({win,js})=>{
    for(let i=0;i<=count;i++){const p=path.getPointAtLength(length*i/count).matrixTransform(matrix);points.push({x:p.x-r.left,y:p.y-r.top});}
    const top=Math.min(...points.map(p=>p.y)),depths=[2,6,12,20,32,48,64];
    const profile=right=>depths.map(depth=>{let best,delta=Infinity;for(const p of points){if(right?p.x<r.width*.7:p.x>r.width*.3)continue;const d=Math.abs(p.y-top-depth);if(d<delta){best=p;delta=d;}}if(!best||delta>.75)throw Error('Missing rendered curve sample');return right?r.width-best.x:best.x;});
-   return{width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,footerTop:footer.top,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBorder:border.borderTopColor,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource};
+   const start=path.getPointAtLength(0).matrixTransform(matrix),end=path.getPointAtLength(length).matrixTransform(matrix);
+   return{width:r.width,height:r.height,left:r.left,right:r.right,bottom:r.bottom,footerTop:footer.top,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBorder:border.borderTopColor,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,endpoints:{left:start.y,right:end.y}};
   })()`);
   assert.equal(measured.stroke,measured.footerBorder,theme+' '+state+' outline matches the actual footer border color');
   assert.ok(measured.footerBorderWidth>0,'The footer still has its original border box');
   assert.ok(Math.abs(measured.bottom-measured.footerTop)<=1,'Burrow meets the footer without an overlap');
+  const baseline=measured.footerTop+measured.footerBorderWidth/2;
+  for(const side of ['left','right'])assert.ok(Math.abs(measured.endpoints[side]-baseline)<=.05,theme+' '+state+' '+side+' outline meets the centre of the actual footer stroke');
   assert.ok(measured.topCurve.left[0]-measured.topCurve.left.at(-1)>15,'Upper-left corner remains rounded');
   assert.ok(measured.topCurve.right[0]-measured.topCurve.right.at(-1)>15,'Upper-right corner remains rounded');
   const image=await win.capturePage();await fs.writeFile('mouse-623-'+state+'-'+theme+'.png',image.toPNG());
   const size=image.getSize(),pixels=image.toBitmap(),sx=size.width/measured.viewport.width,sy=size.height/measured.viewport.height;
   const rgb=(x,y)=>{const ix=Math.floor(x*sx),iy=Math.floor(y*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height,'Seam sample lies inside the native capture');const i=(iy*size.width+ix)*4;return[pixels[i+2],pixels[i+1],pixels[i]];};
-  const difference=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i]))),inside=[],outside=[];
+  const difference=(a,b)=>Math.max(...a.map((v,i)=>Math.abs(v-b[i]))),inside=[],outside=[],join=[];
   for(const fraction of [.2,.35,.65,.8]){
-   const x=measured.left+measured.width*fraction,seam=rgb(x,measured.footerTop+.5),below=rgb(x,measured.footerTop+2.5),delta=difference(seam,below);
+   const x=measured.left+measured.width*fraction,seam=rgb(x,baseline+.5),below=rgb(x,baseline+2.5),delta=difference(seam,below);
    inside.push({x,seam,below,delta});assert.ok(delta<=6,theme+' '+state+' has no footer line inside the burrow: '+JSON.stringify(inside.at(-1)));
+   const above=rgb(x,baseline-2),rows=[-1,-.5,0,.5,1].map(offset=>({offset,rgb:rgb(x,baseline+offset)}));
+   // Translucent glass may differ from the footer fill. A separate dark/bright
+   // line must not appear outside those adjacent, actually captured backgrounds.
+   for(const row of rows)for(let channel=0;channel<3;channel++)assert.ok(row.rgb[channel]>=Math.min(above[channel],below[channel])-6&&row.rgb[channel]<=Math.max(above[channel],below[channel])+6,theme+' '+state+' has a one-pixel seam at '+row.offset+'px: '+JSON.stringify({above,below,row}));
+   join.push({x,above,below,rows});
   }
   for(const x of [measured.left/2,(measured.right+measured.viewport.width)/2]){
    const seam=rgb(x,measured.footerTop+.5),below=rgb(x,measured.footerTop+2.5),delta=difference(seam,below);
    outside.push({x,seam,below,delta});assert.ok(delta>8,theme+' '+state+' preserves the footer border outside the burrow');
   }
-  frames.push({theme,state,...measured,pixels:{inside,outside}});
+  frames.push({theme,state,...measured,baseline,pixels:{inside,outside,join}});
  }
  async function finish(){
   assert.equal(frames.length,6,'Three burrow states are captured in both themes');
@@ -112,8 +120,10 @@ module.exports=({win,js})=>{
    await until(()=>{start=browser.state().tabs.find(t=>!before.has(t.id)&&t.internal);return!!start;},'internal start page for Agent entry');
    const pane=await js('MouseTest.model.active'),selector='.pane[data-pane="'+pane+'"] .home-agent-open';
    await until(()=>js(`!!document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().width`),'Agent Mouse start service is visible');
-   const ids=browser.state().tabs.map(t=>t.id).sort();await click(selector);
-   await until(()=>js('MouseTest.model.mode==="agents"&&!document.querySelector("#agent-panel").hidden'),'start entry opens the Agent panel');
+   const layoutExpression='JSON.stringify((({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth})=>({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth}))(MouseTest.prefs()))';
+   const ids=browser.state().tabs.map(t=>t.id).sort(),layout=await js(layoutExpression);await click(selector);
+   await until(()=>js('MouseTest.model.agentOpen===true&&!document.querySelector("#agent-panel").hidden'),'start entry opens the Agent service panel');
+   assert.equal(await js(layoutExpression),layout,'Agent service entry preserves the existing mode and exact layout');
    assert.equal(agentHost.state().enabled,false,'Opening Agent Mouse does not enable its connection');
    assert.deepEqual(browser.state().tabs.map(t=>t.id).sort(),ids,'Agent entry preserves existing tabs');
    await until(()=>js('(()=>{const i=document.querySelector("#agent-panel .agent-presence img.agent-mouse-icon");return!!i&&i.complete&&i.naturalWidth>0;})()'),'coloured Agent mouse asset paints');

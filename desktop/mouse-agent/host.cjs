@@ -1,35 +1,68 @@
 'use strict';
 const path=require('node:path'),fs=require('node:fs'),crypto=require('node:crypto');
 const {Gateway}=require('./gateway.cjs'),{TerminalService}=require('./terminal-service.cjs'),P=require('./policy.cjs');
+const {ProgressStore,percent:progressPercent}=require('../mouse-progress.cjs');
 const READ_PAGE=`(()=>({url:location.href,title:document.title,text:(document.body?.innerText||'').slice(0,18000),elements:[...document.querySelectorAll('a,button,input,textarea,select,[role="button"]')].slice(0,100).map(e=>{const r=e.getBoundingClientRect();return{tag:e.tagName.toLowerCase(),type:e.type||'',text:(e.innerText||e.getAttribute('aria-label')||e.getAttribute('placeholder')||'').slice(0,160),id:e.id||'',name:e.name||'',href:e.tagName==='A'?e.href:undefined,rect:{x:r.x,y:r.y,width:r.width,height:r.height},disabled:!!e.disabled,password:e.type==='password'}})}))()`;
 function clipped(value,n=600){return String(value??'').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'').slice(0,n);}
 class AgentHost{
- constructor({app,win,browser,ipcMain,trusted,dialog,powerMonitor,utilityProcess,isPrivate=()=>false,test=false,GatewayClass=Gateway,TerminalClass=TerminalService}){
+ constructor({app,win,browser,ipcMain,trusted,dialog,powerMonitor,utilityProcess,isPrivate=()=>false,test=false,GatewayClass=Gateway,TerminalClass=TerminalService,progress}){
   Object.assign(this,{app,win,browser,ipcMain,trusted,dialog,powerMonitor,utilityProcess,isPrivate,test,GatewayClass});this.terminalService=new TerminalClass();this.enabled=false;this.autonomous=false;this.running=false;this.disposed=false;this.desk='';this.folder='';this.logs=[];this.pending=null;this.generation=0;this.watch=new Map();this.attached=new Set();this.stopping=Promise.resolve();this.busy=false;
+  // Cache the live WebContents once: BrowserWindow.webContents is a native
+  // getter that throws after window destruction, even with optional chaining.
+  this.shellContents=win?.webContents;this.ownsProgress=!progress;this.progress=progress||new ProgressStore({emit:value=>this.send('mouse:progress-state',value)});this.progressSession=crypto.randomUUID();this.progressClients=new Map();this.progressOwners=new Set();this.progressRun=null;this.progressClientSequence=0;this.ipcProgressClient={};this.disposing=null;
   this.terminalService.on('data',data=>{if(!this.disposed&&this.enabled)this.send('mouse:terminal-data',String(data).slice(-64000));});
   this.terminalService.on('exit',()=>{this.log('Терминал завершён');});
   if(ipcMain)ipcMain.handle('mouse:agent',(event,action,args={})=>{trusted(event);return this.handle(action,args);});
   const before=browser.mouseBeforeDesktopChange;this.previousBeforeDesktopChange=before;this.beforeDesktopChange=async(...args)=>{await this.stop('Рабочий стол изменён');if(before)await before(...args);};browser.mouseBeforeDesktopChange=this.beforeDesktopChange;
   this.onLock=()=>void this.stop('Экран заблокирован');powerMonitor?.on('lock-screen',this.onLock);this.onQuit=()=>void this.stop('Браузер закрывается');app?.on('before-quit',this.onQuit);
-  this.onShellGone=()=>void this.stop('Оболочка закрыта');win?.once?.('closed',this.onShellGone);win?.webContents?.on?.('render-process-gone',this.onShellGone);
-  this.onShellNavigation=(_e,url)=>{if(url&&url!==this.shellURL)void this.stop('Оболочка закрыта');};this.shellURL=win?.webContents?.getURL?.()||'';win?.webContents?.on?.('will-navigate',this.onShellNavigation);
+  this.onShellGone=()=>void this.stop('Оболочка закрыта');win?.once?.('closed',this.onShellGone);this.shellContents?.on?.('render-process-gone',this.onShellGone);
+  this.onShellNavigation=(_e,url)=>{if(url&&url!==this.shellURL)void this.stop('Оболочка закрыта');};this.shellURL=this.shellContents?.getURL?.()||'';this.shellContents?.on?.('will-navigate',this.onShellNavigation);
  }
  active(){return this.browser.mouseDesktops?.bank?.active||this.browser.state()?.desktopId||'';}
  mode(){return this.browser.mouseDesktops?.bank?.current()?.layout?.mode||'';}
- valid(){return !this.disposed&&this.enabled&&!this.isPrivate()&&!this.browser.disposed&&this.desk===this.active()&&this.mode()==='agents'&&!this.win?.isDestroyed?.();}
- requireMode(){if(this.disposed||this.isPrivate()||this.browser.disposed||this.mode()!=='agents')throw Error('Выберите режим «Агенты» в обычном рабочем столе');}
+ agentOpen(){const layout=this.browser.mouseDesktops?.bank?.current()?.layout;return layout?.agentOpen===true||layout?.agentOpen===undefined&&this.mode()==='agents';}
+ valid(){return !this.disposed&&this.enabled&&!this.isPrivate()&&!this.browser.disposed&&this.desk===this.active()&&this.agentOpen()&&!this.win?.isDestroyed?.();}
+ requireMode(){if(this.disposed||this.isPrivate()||this.browser.disposed||!this.agentOpen())throw Error('Откройте Agent Mouse в обычном рабочем столе');}
  requireSession(){if(!this.valid())throw Error('Агент остановлен или рабочий стол изменён');}
- send(channel,value){if(!this.win?.isDestroyed?.()&&!this.win?.webContents?.isDestroyed?.())this.win?.webContents?.send?.(channel,value);}
+ send(channel,value){if(!this.win?.isDestroyed?.()&&!this.shellContents?.isDestroyed?.())this.shellContents?.send?.(channel,value);}
  state(){const privateMode=this.isPrivate();return{enabled:this.enabled&&!privateMode,autonomous:this.enabled&&this.autonomous&&!privateMode,running:this.running&&!privateMode,connected:privateMode?0:(this.gateway?.clients?.size||0),desk:privateMode?'':this.desk,port:privateMode?0:(this.gateway?.port||0),connectionUrl:privateMode?'':(this.gateway?.url||''),folder:privateMode?'':this.folder,terminal:!privateMode&&!!this.terminalService.proc,pending:!privateMode&&this.pending?{id:this.pending.id,type:this.pending.type,summary:this.pending.summary}:null,logs:privateMode?[]:this.logs.map(x=>({...x}))};}
  emit(){this.send('mouse:agent-state',this.state());}
  log(text){this.logs.push({time:Date.now(),text:clipped(text,1000)});if(this.logs.length>100)this.logs.shift();this.emit();}
+ progressContext(client,args={}){
+  this.requireSession();const run=this.progressRun;
+  if(args.runToken!==undefined){
+   if(!run||typeof args.runToken!=='string'||args.runToken!==run.token||run.generation!==this.generation||!this.running||run.client&&run.client!==client)throw Error('Неизвестная задача агента');
+   run.client=client;return{owner:run.owner,label:'Agent Mouse',taskId:'default'};
+  }
+  if(run?.client===client&&run.generation===this.generation)return{owner:run.owner,label:'Agent Mouse',taskId:args.taskId??'default'};
+  let context=this.progressClients.get(client);if(!context){context={owner:'agent:'+this.progressSession+':'+crypto.randomUUID(),label:'Внешний агент '+(++this.progressClientSequence)};this.progressClients.set(client,context);this.progressOwners.add(context.owner);}
+  return{...context,taskId:args.taskId??'default'};
+ }
+ updateProgress(args,client=this.ipcProgressClient){
+  const context=this.progressContext(client,args),phase=args.phase||'running';progressPercent(args.percent);
+  if(!['running','stopped','error'].includes(phase))throw Error('Invalid progress phase');
+  const input={taskId:context.taskId,desk:this.desk,source:'agent',label:context.label,percent:args.percent,statusText:args.statusText,estimated:true};
+  if(phase==='running')return this.progress.update(context.owner,input);
+  const existing=this.progress.finish(context.owner,context.taskId,{phase,statusText:args.statusText});if(existing)return existing;
+  this.progress.update(context.owner,{...input,percent:null});return this.progress.finish(context.owner,context.taskId,{phase,statusText:args.statusText});
+ }
+ disconnectProgress(client){const context=this.progressClients.get(client);if(context){for(const owner of [context.owner,context.owner+':terminal']){this.progress.stopOwner(owner,'Соединение агента закрыто');this.progressOwners.delete(owner);}this.progressClients.delete(client);}}
+ autoProgress(owner,input){try{return this.progress.update(owner,input);}catch(error){if(error.code!=='MOUSE_PROGRESS_LIMIT')throw error;return null;}}
+ async terminalCommand(command,options,client){
+  const context=this.progressContext(client),owner=context.owner+':terminal',taskId=crypto.randomUUID();this.progressOwners.add(owner);
+  this.autoProgress(owner,{taskId,desk:this.desk,source:'terminal',label:'Терминал',percent:null,statusText:options.background?'Запуск фоновой команды':'Команда выполняется',estimated:false});
+  try{const result=await this.terminalService.execute(command,options);this.requireSession();const success=result.exitCode===0;
+   this.progress.finish(owner,taskId,{phase:success?'completed':'error',statusText:success?(result.background?'Фоновая команда запущена':'Команда завершена'):'Команда завершилась с кодом '+result.exitCode,estimated:false});return result;
+  }catch(error){this.progress.finish(owner,taskId,{phase:this.valid()?'error':'stopped',statusText:this.valid()?clipped(error.message,240):'Остановлено'});throw error;}
+ }
  async enable(options=9222){
   if(typeof options==='number')options={port:options};if(!options||typeof options!=='object'||Array.isArray(options))throw Error('Invalid agent options');const port=options.port===undefined?9222:Number(options.port),autonomous=options.autonomous===true;
   this.requireMode();if(this.enabled)return this.state();if(this.busy)throw Error('Подключение уже запускается');this.busy=true;const generation=this.generation,desk=this.active();
   try{
    const result=await this.dialog.showMessageBox(this.win,{type:'question',title:'Agent Mouse',message:autonomous?'Разрешить самостоятельные действия в этом сеансе?':'Разрешить управление этим рабочим столом?',detail:autonomous?'Агент сможет самостоятельно читать страницы этого стола, открывать адреса, кликать, вводить текст и выполнять команды в выбранной папке без отдельного подтверждения каждого действия. Команды выполняются с вашими правами; папка не является изолированной средой. «Стоп», смена стола и блокировка экрана прекращают сеанс.':'Локальный коннектор сможет читать страницы выбранного стола. Клики, ввод, открытие адресов и команды терминала требуют подтверждения. Доступ отключается кнопкой «Стоп», при смене стола или блокировке экрана. Папка проекта не является изолированной средой.',buttons:['Отмена',autonomous?'Включить автономно':'Включить'],defaultId:0,cancelId:0,noLink:true});
    if(result.response!==1)return this.state();this.requireMode();if(generation!==this.generation||desk!==this.active())throw Error('Рабочий стол изменён');await this.stopping;this.enabled=true;this.autonomous=autonomous;this.desk=desk;
-   const gateway=new this.GatewayClass({targets:()=>this.targets(),valid:()=>this.valid(),command:(r,c)=>this.command(r,c),onConnect:()=>this.log('Внешний агент подключился'),onDisconnect:c=>{void this.releasePressed(c);this.cancelPending('Соединение агента закрыто',c);this.emit();}});this.gateway=gateway;
+   this.progressSession=crypto.randomUUID();this.progressClients.clear();this.progressClientSequence=0;
+   const gateway=new this.GatewayClass({targets:()=>this.targets(),valid:()=>this.valid(),command:(r,c)=>this.command(r,c),onConnect:()=>this.log('Внешний агент подключился'),onDisconnect:c=>{void this.releasePressed(c);this.cancelPending('Соединение агента закрыто',c);this.disconnectProgress(c);this.emit();}});this.gateway=gateway;
    try{await gateway.start(Number(port));if(generation!==this.generation||!this.valid())throw Error('Подключение остановлено');}catch(e){if(this.gateway===gateway){this.enabled=false;this.autonomous=false;this.gateway=null;}await gateway.stop();throw e;}
    this.log((this.autonomous?'Автономный сеанс Agent Mouse включён. Порт ':'Agent Mouse включён. Порт ')+gateway.port);return this.state();
   }finally{this.busy=false;}
@@ -61,6 +94,7 @@ class AgentHost{
  decision(id,allow){const p=this.pending;if(!p||p.id!==id)throw Error('Подтверждение уже не актуально');this.pending=null;clearTimeout(p.timer);if(allow===true){p.resolve();this.log('Действие разрешено пользователем');}else{p.reject(Error('Действие отклонено пользователем'));this.log('Действие отклонено');}return this.state();}
  async command(request,client){
   this.requireSession();const method=request.method,a=request.params||{};
+  if(method==='browser.setProgress')return this.updateProgress(a,client);
   if(method==='Target.getTargets')return{targetInfos:this.targets()};
   if(method==='Target.createTarget'){
    const url=P.webURL(a.url);await this.approve('open','Открыть '+url,{client});this.requireSession();const result=await this.browser.command('open',{url,lane:'main'});this.requireSession();this.send('mouse:agent-open',{id:result.id,desk:this.desk});this.log('Открыта вкладка: '+url);return{targetId:result.id};
@@ -69,7 +103,7 @@ class AgentHost{
   if(method==='Target.detachFromTarget'){if(typeof a.sessionId!=='string'||!client.sessions.has(a.sessionId))throw Error('Неизвестная CDP-сессия');client.sessions.delete(a.sessionId);return{};}
   if(method==='Target.activateTarget'){const tab=this.target(a.targetId);if(!tab.visible){this.send('mouse:agent-open',{id:tab.id,desk:this.desk});for(let i=0;i<50&&!tab.visible;i++){await new Promise(resolve=>setTimeout(resolve,20));this.requireSession();}if(!tab.visible)throw Error('Сначала разместите вкладку в сетке');}tab.view.webContents.focus();return{};}
   if(method==='Mouse.terminal'){
-   const command=P.text(a.command);await this.approve('terminal','Выполнить в '+this.folder+':\n'+command,{client});this.requireSession();if(!this.folder)throw Error('Выберите папку проекта');this.terminalService.start(this.folder);this.log('Команда: '+clipped(command,400));const result=await this.terminalService.execute(command,{background:a.background===true});this.requireSession();this.log('Команда завершена, код '+result.exitCode);return result;
+   const command=P.text(a.command);await this.approve('terminal','Выполнить в '+this.folder+':\n'+command,{client});this.requireSession();if(!this.folder)throw Error('Выберите папку проекта');this.terminalService.start(this.folder);this.log('Команда: '+clipped(command,400));const result=await this.terminalCommand(command,{background:a.background===true},client);this.requireSession();this.log('Команда завершена, код '+result.exitCode);return result;
   }
   const id=client.sessions.get(request.sessionId);if(!id)throw Error('Сначала подключитесь к вкладке через Target.attachToTarget');const tab=this.target(id),wc=tab.view.webContents,check=this.guard(tab);
   if(['Page.enable','DOM.enable','Runtime.enable','Page.disable','DOM.disable','Runtime.disable'].includes(method))return{};
@@ -100,18 +134,21 @@ class AgentHost{
   this.requireSession();if(this.running)throw Error('Задача уже выполняется');if(!this.utilityProcess)throw Error('Внешний процесс недоступен');const endpoint=P.endpoint(P.text(args.endpoint,2048)),model=P.text(args.model,200),task=P.text(args.task,12000),key=args.key?P.text(args.key,4096):'',generation=this.generation;
   const consent=await this.dialog.showMessageBox(this.win,{type:'question',title:'Запустить Agent Mouse',message:'Передать задачу и результаты действий модели '+model+'?',detail:'Адрес: '+endpoint.url+'\nМодель получит текст задачи, содержимое прочитанных вкладок и вывод терминала'+(args.vision===true?', а по запросу — снимки видимых страниц':'')+'. Ключ хранится только в памяти до остановки. '+(this.autonomous?'В этом автономном сеансе действия выполняются самостоятельно; «Стоп» прекращает доступ.':'Изменения требуют подтверждения.'),buttons:['Отмена','Запустить'],defaultId:0,cancelId:0,noLink:true});
   if(consent.response!==1)return this.state();this.requireSession();if(generation!==this.generation||this.running)throw Error('Задача отменена');this.running=true;
-  let child,payload={cdp:this.gateway.url,endpoint:endpoint.url,model,key,task,vision:args.vision===true};const clear=()=>{if(payload)payload.key='';payload=null;};
+  const run={owner:'worker:'+crypto.randomUUID(),token:crypto.randomBytes(16).toString('hex'),generation,client:null};this.progressRun=run;this.progressOwners.add(run.owner);
+  const finishProgress=(phase,text)=>{this.progress.finish(run.owner,'default',{phase,statusText:text,estimated:true});this.progressOwners.delete(run.owner);this.progressOwners.delete(run.owner+':terminal');if(this.progressRun===run)this.progressRun=null;};
+  let child,payload={cdp:this.gateway.url,endpoint:endpoint.url,model,key,task,vision:args.vision===true,progressToken:run.token};const clear=()=>{if(payload){payload.key='';payload.progressToken='';}payload=null;};
   try{
+   this.autoProgress(run.owner,{desk:this.desk,source:'agent',label:'Agent Mouse',percent:null,statusText:'Запуск задачи',estimated:true});
    child=this.utilityProcess.fork(path.join(__dirname,'runner.cjs'),[],{serviceName:'Agent Mouse',stdio:'pipe',env:P.cleanEnv()});this.worker=child;
    child.once('spawn',()=>{
     if(this.worker!==child||generation!==this.generation||!this.valid()){clear();child.kill();return;}
     child.postMessage(payload);clear();
    });
-   child.on('message',m=>{if(this.worker!==child||generation!==this.generation||!this.valid())return;if(m?.type==='log')this.log(m.text);if(m?.type==='done'){this.running=false;this.log(m.text);this.worker=null;child.kill();}});
-   child.on('exit',()=>{clear();if(this.worker===child){this.worker=null;this.running=false;this.cancelPending('Процесс агента завершён');this.log('Процесс агента завершён');}});
-   child.on('error',()=>{if(this.worker===child){void this.stop('Не удалось запустить процесс агента');}});child.stdout?.on('data',()=>{});child.stderr?.on('data',()=>{});
+   child.on('message',m=>{if(this.worker!==child||generation!==this.generation||!this.valid())return;if(m?.type==='log')this.log(m.text);if(m?.type==='done'){finishProgress(['completed','stopped'].includes(m.outcome)?m.outcome:'error',clipped(m.text,240));this.running=false;this.log(m.text);this.worker=null;child.kill();}});
+   child.on('exit',()=>{clear();if(this.worker===child){finishProgress('error','Процесс агента завершён без результата');this.worker=null;this.running=false;this.cancelPending('Процесс агента завершён');this.log('Процесс агента завершён');}});
+   child.on('error',()=>{if(this.worker===child){finishProgress('error','Не удалось запустить процесс агента');void this.stop('Не удалось запустить процесс агента');}});child.stdout?.on('data',()=>{});child.stderr?.on('data',()=>{});
    this.log('Начата задача: '+task.slice(0,250));return this.state();
-  }catch(e){clear();this.running=false;this.worker=null;try{child?.kill();}catch{}this.emit();throw e;}
+  }catch(e){clear();finishProgress('error',clipped(e.message,240));this.running=false;this.worker=null;try{child?.kill();}catch{}this.emit();throw e;}
 
  }
  async handle(action,args={}){
@@ -120,6 +157,7 @@ class AgentHost{
   if(action==='enable')return this.enable({port:args.port,autonomous:args.autonomous===true});if(action==='folder')return this.chooseFolder();if(action==='task')return this.task(args);if(action==='approve')return this.decision(args.id,args.allow);
   if(action==='localhost'){const url=P.preview(args.port),desk=this.active(),result=await this.browser.command('open',{url,lane:'main'});this.requireMode();if(desk===this.active())this.send('mouse:agent-open',{id:result.id,desk});this.log('Открыт предпросмотр '+url);return{...this.state(),openedId:result.id};}
   this.requireSession();if(action==='terminal-start'){if(!this.folder)throw Error('Выберите папку проекта');this.terminalService.start(this.folder);this.emit();return this.state();}
+  if(action==='set-progress')return this.updateProgress(args);
   if(action==='terminal-input'){this.terminalService.write(args.data);return true;}if(action==='terminal-resize'){this.terminalService.resize(args.cols,args.rows);return true;}
   throw Error('Неизвестная команда Agent Mouse');
  }
@@ -132,6 +170,7 @@ class AgentHost{
   return new Promise(resolve=>{const timer=setTimeout(resolve,1500);timer.unref?.();worker.once('exit',()=>{clearTimeout(timer);resolve();});if(worker.pid===undefined)worker.once('spawn',()=>{try{worker.kill();}catch{}});try{worker.kill();}catch{clearTimeout(timer);resolve();}});
  }
  stop(reason='Остановлено пользователем'){
+  for(const owner of this.progressOwners)this.progress.stopOwner(owner,reason);this.progressOwners.clear();this.progressClients.clear();this.progressRun=null;
   const hadWork=this.enabled||this.running||!!this.gateway||!!this.terminalService.proc;this.enabled=false;this.autonomous=false;this.running=false;++this.generation;this.cancelPending(reason);const worker=this.worker;this.worker=null;const workerExit=this.terminateWorker(worker);this.terminalService.stop();const gateway=this.gateway;this.gateway=null;
   const releases=[...(gateway?.clients||[])].map(c=>this.releasePressed(c));
   const watchers=[...this.watch],attached=new Set(this.attached);this.watch.clear();this.attached.clear();
@@ -139,7 +178,14 @@ class AgentHost{
   const close=Promise.resolve(gateway?.stop()).catch(()=>{});
   this.stopping=Promise.all([this.stopping,workerExit,close,...releases]).then(()=>{for(const wc of attached)if(!wc.isDestroyed()){try{wc.debugger.detach();}catch{}}});if(hadWork)this.log(reason);else this.emit();return this.stopping;
  }
- async dispose(){if(this.disposed)return;await this.stop('Рабочее пространство закрыто');this.disposed=true;this.powerMonitor?.removeListener('lock-screen',this.onLock);this.app?.removeListener('before-quit',this.onQuit);this.win?.webContents?.removeListener?.('will-navigate',this.onShellNavigation);this.win?.removeListener?.('closed',this.onShellGone);this.win?.webContents?.removeListener?.('render-process-gone',this.onShellGone);if(this.browser.mouseBeforeDesktopChange===this.beforeDesktopChange)this.browser.mouseBeforeDesktopChange=this.previousBeforeDesktopChange;this.terminalService.removeAllListeners();}
+ dispose(){
+  if(this.disposing)return this.disposing;if(this.disposed)return Promise.resolve();
+  this.disposing=(async()=>{try{await this.stop('Рабочее пространство закрыто');}finally{
+   this.disposed=true;this.powerMonitor?.removeListener('lock-screen',this.onLock);this.app?.removeListener('before-quit',this.onQuit);
+   this.shellContents?.removeListener?.('will-navigate',this.onShellNavigation);this.shellContents?.removeListener?.('render-process-gone',this.onShellGone);this.win?.removeListener?.('closed',this.onShellGone);
+   if(this.browser.mouseBeforeDesktopChange===this.beforeDesktopChange)this.browser.mouseBeforeDesktopChange=this.previousBeforeDesktopChange;this.terminalService.removeAllListeners();if(this.ownsProgress)this.progress.dispose();
+  }})();return this.disposing;
+ }
 }
 function install(options){return new AgentHost(options);}
 module.exports={AgentHost,install,READ_PAGE};
