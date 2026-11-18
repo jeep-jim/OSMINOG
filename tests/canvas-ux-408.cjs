@@ -1,6 +1,102 @@
 'use strict';
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+
+async function farTextRedrawCase(page,mode,index,seedId){
+  const evidence={mode,status:'running',stage:'setup',snapshots:[],events:[]};let failure;
+  try{
+    // Reuse a real filled text from the preceding checks. Each order starts
+    // with the same connected, blurred activeEditable, even if another fails.
+    await page.evaluate(()=>{state.view={x:0,y:0,scale:1};applyView();setTool('text')});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>queueMicrotask(resolve))));
+    await page.locator(`.canvas-object[data-id="${seedId}"] [data-field=text]`).click();
+    await page.keyboard.press('Escape');
+    evidence.setup=await page.evaluate(({index,seedId})=>{
+      const originalRAF=window.requestAnimationFrame,originalCancel=window.cancelAnimationFrame;
+      const nativeRAF=callback=>originalRAF.call(window,callback),nativeCancel=id=>originalCancel.call(window,id);
+      const held=new Map(),events=[],previousIds=new Set(objects().map(o=>o.id));let holding=true,subject=null,caret=null;
+      const seedField=document.querySelector(`.canvas-object[data-id="${seedId}"] [data-field=text]`);
+      const seed={id:seedId,connected:!!seedField?.isConnected,activeEditable:state.activeEditable===seedField};
+      window.requestAnimationFrame=callback=>{
+        if(!holding)return nativeRAF(callback);
+        // Use native opaque handles and preserve cancellation, including a
+        // callback cancelling a later held callback while this batch runs.
+        const id=nativeRAF(()=>{});nativeCancel(id);
+        if(held.has(id))throw Error('Native RAF reused an outstanding held handle');
+        held.set(id,callback);events.push({kind:'held-raf',id});return id;
+      };
+      window.cancelAnimationFrame=id=>{const cancelled=held.delete(id);nativeCancel(id);if(cancelled)events.push({kind:'cancel-held-raf',id})};
+      window.__canvas408Redraw={
+        flush(){
+          if(!holding)return Promise.resolve();
+          return new Promise((resolve,reject)=>nativeRAF(at=>{
+            holding=false;
+            try{
+              for(const id of [...held.keys()]){const callback=held.get(id);if(!held.delete(id))continue;events.push({kind:'run-held-raf',id,at});callback.call(window,at)}
+              queueMicrotask(resolve);
+            }catch(error){reject(error)}
+          }));
+        },
+        capture(stage,rememberCaret=false){
+          if(!subject){
+            const model=selectedObjects()[0],field=model&&document.querySelector(`.canvas-object[data-id="${model.id}"] [data-field=text]`);
+            subject={id:model?.id,model,field};
+            for(const type of ['blur','focusout'])field?.addEventListener(type,()=>events.push({kind:type,id:subject.id,at:performance.now()}));
+          }
+          const {id,model,field}=subject,actual=objects().find(o=>o.id===id),selection=getSelection();
+          if(rememberCaret&&selection)caret={anchorNode:selection.anchorNode,anchorOffset:selection.anchorOffset,focusNode:selection.focusNode,focusOffset:selection.focusOffset,isCollapsed:selection.isCollapsed,rangeCount:selection.rangeCount};
+          const caretPreserved=!!caret&&!!selection&&['anchorNode','anchorOffset','focusNode','focusOffset','isCollapsed','rangeCount'].every(key=>caret[key]===selection[key]);
+          return {stage,at:performance.now(),id,selected:[...state.selected],createdIds:objects().filter(o=>!previousIds.has(o.id)).map(o=>o.id),modelPresent:!!actual,modelUnchanged:!!actual&&actual===model,
+            fieldConnected:!!field?.isConnected,fieldUnchanged:!!field&&document.querySelector(`.canvas-object[data-id="${id}"] [data-field=text]`)===field,focused:!!field&&document.activeElement===field,
+            seedMounted:!!seedField?.isConnected,text:actual?.text??null,fieldText:field?.innerText??null,position:actual?{x:actual.x,y:actual.y}:null,
+            caretPreserved,caretInsideField:!!field&&!!selection&&field.contains(selection.anchorNode)&&field.contains(selection.focusNode),
+            caret:selection?{anchorOffset:selection.anchorOffset,focusOffset:selection.focusOffset,isCollapsed:selection.isCollapsed,rangeCount:selection.rangeCount}:null};
+        },
+        restore(){window.requestAnimationFrame=originalRAF;window.cancelAnimationFrame=originalCancel;return events}
+      };
+      state.view={x:44000+index*6000,y:27000+index*4000,scale:1};applyView();setTool('text');
+      return {seed,viewportFrame:canvasViewportFrame,viewportHeld:!!canvasViewportFrame&&held.has(canvasViewportFrame),anchor:worldPoint(400,250)};
+    },{index,seedId});
+    assert(evidence.setup.seed.connected&&evidence.setup.seed.activeEditable,'Far-text fixture retains the previous activeEditable');
+    assert(evidence.setup.viewportHeld,'Actual viewport redraw is held before the text click');
+    const capture=async(stage,rememberCaret=false)=>{const row=await page.evaluate(({stage,rememberCaret})=>__canvas408Redraw.capture(stage,rememberCaret),{stage,rememberCaret});evidence.snapshots.push(row);return row};
+    const flush=()=>page.evaluate(()=>__canvas408Redraw.flush());
+    if(mode==='before-click')await flush();
+    evidence.stage='click';await page.mouse.click(400,250);
+    const clicked=await capture('clicked',true);
+    assert(clicked.focused&&clicked.modelPresent&&clicked.seedMounted,'Click creates and focuses text while the previous pinned node is mounted');
+    assert.deepEqual(clicked.createdIds,[clicked.id],'Each redraw order creates exactly one new text object');
+    let redraw;
+    if(mode==='after-click'){await flush();redraw=await capture('after-redraw-empty')}
+    evidence.stage='input';await page.keyboard.insertText('Дальний участок');
+    const typed=await capture('after-input',true);
+    if(mode==='after-input'){await flush();redraw=await capture('after-redraw-filled')}
+    const retained=(row,label)=>{
+      assert(row.modelPresent&&row.modelUnchanged,`${label}: same text model survives`);
+      assert(row.fieldConnected&&row.fieldUnchanged,`${label}: same text field stays connected`);
+      assert.deepEqual(row.selected,[clicked.id],`${label}: text remains selected`);
+      assert(row.caretInsideField&&row.caretPreserved,`${label}: caret nodes and offsets survive`);
+      assert.deepEqual(row.position,evidence.setup.anchor,`${label}: exact far canvas anchor survives`);
+    };
+    if(redraw){
+      evidence.stage=redraw.stage;
+      assert.equal(redraw.focused,true,mode==='after-click'?'CANVAS_FOCUS_PRESERVED_AFTER_EMPTY_REDRAW':'CANVAS_FOCUS_PRESERVED_AFTER_FILLED_REDRAW');
+      retained(redraw,redraw.stage);assert.equal(redraw.text,mode==='after-click'?'':'Дальний участок');
+    }
+    evidence.stage='after-input';const final=redraw&&mode==='after-input'?redraw:typed;
+    assert.equal(final.focused,true,'Far text keeps native editing focus after input');retained(final,'after-input');
+    assert.equal(final.text,'Дальний участок');assert.equal(final.fieldText,'Дальний участок');
+    evidence.stage='complete';
+  }catch(error){failure=error;evidence.error={name:error.name,code:error.code,message:error.message,stage:evidence.stage}}
+  finally{
+    try{
+      evidence.events=await page.evaluate(async()=>{const probe=window.__canvas408Redraw;if(!probe)return [];let events;try{await probe.flush()}finally{events=probe.restore();delete window.__canvas408Redraw}return events});
+      await page.keyboard.press('Escape');
+    }catch(error){evidence.cleanupError=error.message;if(!failure){failure=error;evidence.error={name:error.name,code:error.code,message:error.message,stage:'cleanup'}}}
+  }
+  evidence.status=failure?'fail':'pass';return {evidence,failure};
+}
+
 (async()=>{
   const root=path.resolve(__dirname,'..'),server=http.createServer((req,res)=>{
     const name=path.resolve(root,'.'+decodeURIComponent(req.url.split('?')[0]));
@@ -8,9 +104,12 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     fs.readFile(name,(e,data)=>{if(e)return res.writeHead(404).end();const ext=path.extname(name);res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml','.png':'image/png','.mjs':'text/javascript'})[ext]||'application/octet-stream');res.end(data)});
   });
   await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;const passed=[];
+  const focusEvidence={schema:'canvas-focus-redraw-408-v1',nativeRunCauseProven:false,status:'not-run',retainedSuiteStatus:'running',modes:[]};
+  const writeFocusEvidence=()=>{fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});fs.writeFileSync(path.join(root,'artifacts/canvas-focus-redraw-408-results.json'),JSON.stringify(focusEvidence,null,2)+'\n')};
   const check=(label,fn)=>{fn();passed.push(label);console.log('PASS',label)};
   try{
     browser=await chromium.launch({headless:true,executablePath:process.env.TEST_CHROMIUM||undefined,args:['--no-sandbox']});
+    focusEvidence.browserVersion=browser.version();
     const page=await browser.newPage({viewport:{width:1600,height:1000}}),errors=[];
     page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR',e.message)});
     await page.route('https://**',r=>r.abort());
@@ -77,7 +176,15 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     assert.equal(zoom.scale,.005);assert.equal(zoom.label,'0.5%');assert(Math.abs(zoom.before.x-zoom.after.x)<.01);assert(Math.abs(zoom.before.y-zoom.after.y)<.01);passed.push('0.5% zoom with stable pointer anchor and readable label');
     const far=await page.evaluate(()=>{createObject('shape',{x:-45000,y:-28000,w:200,h:100});createObject('shape',{x:55000,y:36000,w:300,h:200});document.querySelector('#inspector').classList.add('collapsed');fitToContent();return {view:state.view,center:viewportCenter()}});
     assert(far.view.scale<.02);assert(far.view.scale>=.005);passed.push('fit includes distant positive and negative coordinates below old 12% cap');
-    await page.evaluate(()=>{state.view={x:44000,y:27000,scale:1};applyView();setTool('text')});const farAnchor=await page.evaluate(()=>worldPoint(400,250));await page.mouse.click(400,250);await page.keyboard.insertText('Дальний участок');o=await page.evaluate(()=>selectedObjects()[0]);assert.equal(o.x,farAnchor.x);assert.equal(o.y,farAnchor.y);passed.push('text can be placed far outside the old 12000×8000 plane');await page.keyboard.press('Escape');
+    const redrawFailures=[];
+    for(const [index,mode] of ['before-click','after-click','after-input'].entries()){
+      const result=await farTextRedrawCase(page,mode,index,id);focusEvidence.modes.push(result.evidence);
+      console.log('FOCUS_REDRAW_RESULT',mode,result.evidence.status);
+      if(result.failure)redrawFailures.push(result.failure);
+    }
+    focusEvidence.status=redrawFailures.length?'fail':'pass';writeFocusEvidence();
+    if(redrawFailures.length)throw redrawFailures[0];
+    passed.push('text can be placed far outside the old 12000×8000 plane','pending viewport redraw preserves empty text and native caret','pending viewport redraw preserves filled text and native caret','redraw before click retains the far-text control');
     await page.evaluate(()=>{state.view={x:0,y:0,scale:1};applyView();setTool('pen')});await page.mouse.move(350,550);await page.mouse.down();await page.mouse.move(550,630,{steps:15});await page.mouse.up();
     const ink=await page.evaluate(()=>{const o=objects().findLast(o=>o.type==='ink'),p=document.querySelector(`[data-id="${o.id}"] .ink-path`),q=p.getPointAtLength(p.getTotalLength()/2),s=new DOMPoint(q.x,q.y).matrixTransform(p.getScreenCTM());return {id:o.id,x:s.x,y:s.y,count:objects().length}});
     await page.locator('[data-desk-group=magic]').click({button:'right'});await page.locator('#deskMore [data-desk=eraser]').click();await page.mouse.click(ink.x,ink.y);assert.equal(await page.evaluate(id=>objects().some(o=>o.id===id),ink.id),false);await page.locator('#canvasUndo').click();assert.equal(await page.evaluate(id=>objects().some(o=>o.id===id),ink.id),true);assert.equal(await page.evaluate(()=>objects().length),ink.count);passed.push('eraser removes only a drawn stroke; one undo restores it');
@@ -93,7 +200,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     passed.push('dock contained at desktop, tablet and 390px mobile widths');
     assert.deepEqual(errors,[]);passed.push('no JavaScript page errors');
     fs.writeFileSync(path.join(root,'artifacts/canvas-ux-408-results.json'),JSON.stringify({passed:passed.length,checks:passed,errors},null,2));
+    focusEvidence.retainedSuiteStatus='pass';writeFocusEvidence();
     console.log(`PASS ${passed.length} checks`);
-  } finally {await browser?.close();await new Promise(r=>server.close(r))}
+  } catch(error) {focusEvidence.retainedSuiteStatus='fail';focusEvidence.suiteError={name:error.name,code:error.code,message:error.message};writeFocusEvidence();throw error}
+  finally {await browser?.close();await new Promise(r=>server.close(r))}
 })().catch(e=>{console.error(e);process.exitCode=1});
 

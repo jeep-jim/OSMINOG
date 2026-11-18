@@ -1,0 +1,112 @@
+name: Canvas focus fix regression — non-release
+on:
+  pull_request:
+    branches: ['mouse627-window-documents-performance']
+    paths: ['editor.js', 'tests/canvas-ux-408.cjs', '.github/workflows/canvas-focus-regression.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-focus:
+    if: github.head_ref == 'mouse627-canvas-focus-fix' || github.ref_name == 'mouse627-canvas-focus-fix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: d6b1a558cf69adedbd91841eb44711bcd3d97c74
+          path: baseline
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install the same pinned browser runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/canvas-focus-runtime" --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/canvas-focus-runtime/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Require the same regression to reject the old defect and pass the fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, shutil, subprocess
+          root = pathlib.Path.cwd()
+          evidence = root / 'focus-regression-evidence'
+          evidence.mkdir()
+          candidate, baseline = root / 'candidate', root / 'baseline'
+          test = pathlib.Path('tests/canvas-ux-408.cjs')
+          baseline_editor = hashlib.sha256((baseline / 'editor.js').read_bytes()).hexdigest()
+          assert baseline_editor == '47d59c66da6fff242d55ec39c9d6845dd502851fdceb707179f24cdd061c3535'
+          shutil.copyfile(candidate / test, baseline / test)
+          test_hash = hashlib.sha256((candidate / test).read_bytes()).hexdigest()
+          assert hashlib.sha256((baseline / test).read_bytes()).hexdigest() == test_hash
+          env = {**os.environ, 'NODE_PATH': str(pathlib.Path(os.environ['RUNNER_TEMP']) / 'canvas-focus-runtime/node_modules')}
+          summary = {'purpose': 'controlled regression verification; non-release',
+                     'publishableCandidate': False, 'originalRunCauseProven': False,
+                     'testSHA256': test_hash, 'results': []}
+          for name, checkout in [('baseline', baseline), ('candidate', candidate)]:
+              record = {'name': name,
+                        'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=checkout, text=True).strip(),
+                        'editorSHA256': hashlib.sha256((checkout / 'editor.js').read_bytes()).hexdigest()}
+              output = ''
+              try:
+                  process = subprocess.run(['node', str(test)], cwd=checkout, env=env,
+                                           text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)
+                  output = process.stdout
+                  record['returncode'] = process.returncode
+                  focus = json.loads((checkout / 'artifacts/canvas-focus-redraw-408-results.json').read_text())
+                  if not isinstance(focus, dict):
+                      raise ValueError('Focus evidence must be a JSON object')
+                  modes = focus.get('modes', [])
+                  if not isinstance(modes, list) or any(not isinstance(row, dict) for row in modes):
+                      raise ValueError('Focus modes must be a list of JSON objects')
+                  modes_valid = (
+                      focus.get('schema') == 'canvas-focus-redraw-408-v1' and
+                      focus.get('nativeRunCauseProven') is False and
+                      [row.get('mode') for row in modes] == ['before-click', 'after-click', 'after-input'])
+                  record['focusStatus'] = focus.get('status')
+                  record['retainedSuiteStatus'] = focus.get('retainedSuiteStatus')
+                  record['modeStatuses'] = [row.get('status') for row in modes]
+                  record['browserVersion'] = focus.get('browserVersion')
+                  def expected_focus_failure(row, stage, marker):
+                      error = row.get('error', {})
+                      if not isinstance(error, dict) or not isinstance(error.get('message'), str):
+                          return False
+                      return (row.get('status') == 'fail' and error.get('code') == 'ERR_ASSERTION' and
+                              error.get('stage') == stage and error.get('message', '').startswith(marker) and
+                              not row.get('cleanupError'))
+                  record['expectedOutcomeObserved'] = (
+                      modes_valid and process.returncode != 0 and focus.get('status') == 'fail' and
+                      modes[0].get('status') == 'pass' and
+                      expected_focus_failure(modes[1], 'after-redraw-empty', 'CANVAS_FOCUS_PRESERVED_AFTER_EMPTY_REDRAW') and
+                      expected_focus_failure(modes[2], 'after-redraw-filled', 'CANVAS_FOCUS_PRESERVED_AFTER_FILLED_REDRAW') and
+                      'CANVAS_FOCUS_PRESERVED_AFTER_EMPTY_REDRAW' in output
+                      if name == 'baseline' else
+                      modes_valid and process.returncode == 0 and focus.get('status') == 'pass' and
+                      focus.get('retainedSuiteStatus') == 'pass' and all(row.get('status') == 'pass' for row in modes))
+              except subprocess.TimeoutExpired as error:
+                  output = str(error.stdout or '') + '\nTIMEOUT: ' + str(error)
+                  record.update(returncode=None, expectedOutcomeObserved=False, timeout=True)
+              except (OSError, ValueError) as error:
+                  output = output + '\nINVALID RESULT: ' + str(error)
+                  record.update(expectedOutcomeObserved=False, resultError=str(error))
+              (evidence / (name + '.log')).write_text(output)
+              if (checkout / 'artifacts').exists():
+                  shutil.copytree(checkout / 'artifacts', evidence / name)
+              summary['results'].append(record)
+              (evidence / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+              print(json.dumps(record))
+          if not all(row['expectedOutcomeObserved'] for row in summary['results']):
+              raise SystemExit('The fixed baseline/fix comparison did not meet its declared outcomes')
+          print('CANVAS_FOCUS_FIX_REGRESSION_COMPLETE_NON_RELEASE')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canvas-focus-fix-regression-attempt-${{ github.run_attempt }}
+          path: focus-regression-evidence/
+          if-no-files-found: warn
+          retention-days: 14

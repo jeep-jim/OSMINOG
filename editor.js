@@ -627,6 +627,10 @@ function renderObjects(force=false){
     const target=$("#viewport");if(target){canvasViewportObserver=new ResizeObserver(scheduleCanvasViewport);canvasViewportObserver.observe(target)}
   }
   const mounted=desktop.filter(obj=>pinned.has(obj.id)||(viewport?.measured!==false&&OSMINOGCanvasBudget.intersects(obj,viewport?.bounds)));
+  // Remove departing siblings before ordering survivors: moving a focused
+  // survivor ahead of an obsolete sibling would blur its inline editor.
+  const mountedIds=new Set(mounted.map(obj=>obj.id));
+  for(const [id,el] of live)if(!mountedIds.has(id)){el.remove();live.delete(id)}
   mounted.forEach((obj,index)=>{let el=live.get(obj.id);const record=el&&canvasRenderRecords.get(el),changedContent=force&&!OSMINOGCanvasBudget.sameContent(record?.content,canvasContentKey(obj));if(!el||el.dataset.type!==obj.type||record?.object!==obj||changedContent){const next=buildObjectElement(obj);if(el)el.replaceWith(next);else root.append(next);el=next}else updateObjectElement(el,obj);const current=root.children[index];if(current!==el)root.insertBefore(el,current||null);live.delete(obj.id)});
   live.forEach(el=>el.remove())
 }
