@@ -37,10 +37,10 @@ test('the fixed Nora arch keeps its original symmetric silhouette without self-i
  }
 });
 
-function controllerFixture({deferReady=false,deferPlay=false,timelineLag=0,startNow=0,trace=false}={}){
+function controllerFixture({deferReady=false,deferPlay=false,effectTimingCache=false,timelineLag=0,startNow=0,trace=false}={}){
  let now=startNow,lag=timelineLag,footerTop=772,viewportWidth=1280,viewportHeight=800,reads=0,writes=0,clockReads=0,rafId=0,rafRequests=0;const created=[],animations=[],observers=[],listeners=new Map(),settled=[],rafs=new Map(),readiness=[];
  class Animation{
-  constructor(node,frames,options){this.node=node;this.keyframes=frames;this.options=options;this.rate=1;this.hold=0;this.started=now;this.running=false;this.cancelled=false;this.willChangeAtCreation=node.style.willChange;this.ready=deferReady?new Promise(resolve=>readiness.push(()=>resolve(this))):Promise.resolve(this);this.newFinished();this.effect={getComputedTiming:()=>({progress:Math.max(0,Math.min(1,this.currentTime/options.duration))})};animations.push(this);}
+  constructor(node,frames,options){this.node=node;this.keyframes=frames;this.options=options;this.rate=1;this.pendingRate=null;this.hold=0;this.started=now;this.running=false;this.cancelled=false;this.willChangeAtCreation=node.style.willChange;this.ready=deferReady?new Promise(resolve=>readiness.push(()=>resolve(this))):Promise.resolve(this);this.newFinished();this.effect={getComputedTiming:()=>({progress:this.effectState().progress})};animations.push(this);}
   newFinished(){this.finished=new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject;});this.completed=false;}
   get currentTime(){return Math.max(0,Math.min(this.options.duration,this.hold+(this.running?(now-this.started)*this.rate:0)));}
   set currentTime(value){this.hold=value;this.started=now;}
@@ -48,10 +48,17 @@ function controllerFixture({deferReady=false,deferPlay=false,timelineLag=0,start
   set startTime(value){this.started=value;this.hold=0;this.pending=false;this.running=true;this.resolvePlay?.(this);this.resolvePlay=null;}
   get playState(){return this.cancelled?'idle':this.completed?'finished':this.running||this.pending?'running':'paused';}
   get playbackRate(){return this.rate;}
+  set playbackRate(rate){const value=this.currentTime;this.pendingRate=null;this.rate=rate;this.hold=value;this.started=now;}
+  get effectivePlaybackRate(){return this.pendingRate??this.rate;}
+  // Chromium152 TimingCalculations::CalculatePhase/Timing::CalculateTimings:
+  // an exact end is after/non-current when forwards, active/current backwards.
+  // AnimationEffect::UpdateInheritedTime caches by time and idle state, without
+  // a rate key. A rate-only update can therefore retain the previous phase.
+  effectState(){const time=this.currentTime;if(!effectTimingCache||this.effectTime!==time||this.effectIdle!==this.cancelled){const phase=time<=0&&this.rate<0?'before':time>=this.options.duration&&this.rate>=0?'after':'active';this.effectTime=time;this.effectIdle=this.cancelled;this.effectTiming={phase,isCurrent:!this.cancelled&&(phase==='active'||phase==='before'&&this.rate>0||phase==='after'&&this.rate<0),progress:Math.max(0,Math.min(1,time/this.options.duration))};}return this.effectTiming;}
   pause(){this.hold=this.currentTime;this.running=false;}
-  updatePlaybackRate(rate){const value=this.currentTime;this.rate=rate;this.hold=value;this.started=now;}
-  play(){if(this.completed)this.newFinished();this.started=now;if(deferPlay){this.pending=true;this.running=false;this.ready=new Promise(resolve=>{this.resolvePlay=resolve;});}else this.running=true;}
-  browserReady(){if(!this.pending||this.cancelled)return;this.pending=false;this.running=true;this.started=now;this.resolvePlay?.(this);this.resolvePlay=null;}
+  updatePlaybackRate(rate){if(deferPlay&&(this.running||this.pending)){this.pendingRate=rate;return;}this.playbackRate=rate;}
+  play(){const value=this.currentTime;if(this.completed)this.newFinished();this.hold=value;this.started=now;if(deferPlay){if(!this.pending)this.ready=new Promise(resolve=>{this.resolvePlay=resolve;});this.pending=true;this.running=false;}else this.running=true;}
+  browserReady(){if(!this.pending||this.cancelled)return;if(this.pendingRate!==null)this.playbackRate=this.pendingRate;this.pending=false;this.running=true;this.started=now;this.resolvePlay?.(this);this.resolvePlay=null;}
   cancel(){this.running=false;this.cancelled=true;if(!this.completed)this.reject(Object.assign(Error('cancelled'),{name:'AbortError'}));}
   advance(){if(!this.running||this.cancelled)return;const value=this.currentTime;if(this.rate>0?value>=this.options.duration:value<=0){this.hold=value;this.running=false;this.completed=true;this.resolve(this);}}
  }
@@ -72,7 +79,7 @@ function controllerFixture({deferReady=false,deferPlay=false,timelineLag=0,start
  const ctx={console,performance:{now(){clockReads++;return now;}},document:{body,timeline:{get currentTime(){return now-lag;}},createElementNS(){const node=new Node();created.push(node);return node;},createElement(){const node=new Node();created.push(node);return node;},querySelector:s=>s==='.toolbar'?toolbar:created.find(n=>'#'+n.id===s)},window:{addEventListener:(type,fn)=>listeners.set(type,fn)},matchMedia:()=>media,getComputedStyle:()=>{reads++;return{borderTopWidth:'1px'};},ResizeObserver:class{constructor(fn){observers.push(fn);}observe(){}},requestAnimationFrame(fn){rafRequests++;rafs.set(++rafId,fn);return rafId;},cancelAnimationFrame(id){rafs.delete(id);},innerWidth:viewportWidth,innerHeight:viewportHeight};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync(require.resolve('./mouse/burrow-motion.js'),'utf8'),ctx);
  const motion=ctx.createMouseBurrowMotion({tray,content,footer,button,trace,settled:opened=>settled.push(opened)});
- const at=async time=>{assert.ok(time>=now);now=time;for(const animation of animations)animation.advance();await Promise.resolve();};
+ const at=async time=>{assert.ok(time>=now);now=time;for(const animation of animations){animation.advance();if(effectTimingCache)animation.effectState();}await Promise.resolve();};
  const paint=async(time=now)=>{await at(time);const pending=[...rafs.values()];rafs.clear();for(const callback of pending)callback(now);await Promise.resolve();};
  const warm=async()=>{await Promise.resolve();await Promise.resolve();await paint();await paint();};
  return{motion,tray,content,footer,classes,settled,created,animations,local,path,clip,at,paint,warm,ready(){for(const resolve of readiness.splice(0))resolve();},async playReady(){lag=0;for(const animation of animations)animation.browserReady();await Promise.resolve();await Promise.resolve();},get queuedFrames(){return rafs.size;},get frameRequests(){return rafRequests;},get clockReads(){return clockReads;},get time(){return now;},counts:()=>({reads,writes}),resize({width=viewportWidth,top=footerTop,height=viewportHeight}={}){viewportWidth=width;viewportHeight=height;footerTop=top;ctx.innerWidth=width;ctx.innerHeight=height;listeners.get('resize')();},observed(){observers[0]([{target:tray,contentRect:{width:Math.min(1000,viewportWidth-12),height:440}},{target:footer,contentRect:{width:viewportWidth,height:28}}]);},reduced(value){media.matches=value;media.change();}};
@@ -130,6 +137,24 @@ test('a fresh closing player commits its full-size layers before starting its un
  await f.paint(460);assert.ok(players.every(a=>a.running&&a.playbackRate===-1&&a.currentTime===300));assert.equal(f.frameRequests,4);assert.equal(f.queuedFrames,0);
  assert.ok(players.every(a=>a.options.duration===300&&a.options.easing==='cubic-bezier(.22,.8,.25,1)'),'preparation does not alter duration or easing');
  const counts=f.counts();await f.at(490);near(f.motion.progress,.9);await f.at(759);assert.ok(f.motion.progress>0);assert.deepEqual(f.counts(),counts);await f.at(760);assert.equal(await closing,true);assert.equal(f.motion.progress,0);assert.equal(f.frameRequests,4);
+});
+
+test('fresh closing remains a current effect at the end boundary before and during pending browser play',async()=>{
+ const f=controllerFixture({deferPlay:true,effectTimingCache:true}),panel=f.created.find(node=>node.className==='desk-burrow-panel');
+ // Independently reproduce the previously observed endpoint classification:
+ // fill:both keeps the visual endpoint, but does not make it compositor-current.
+ const after=panel.animate([],{duration:300,fill:'both'});after.finished.catch(()=>{});after.pause();after.currentTime=300;assert.deepEqual(after.effectState(),{phase:'after',isCurrent:false,progress:1});after.updatePlaybackRate(-1);after.play();assert.equal(after.pending,true);assert.equal(after.effectivePlaybackRate,-1);assert.equal(after.effectState().isCurrent,false,'a late rate change does not refresh unchanged endpoint timing');after.cancel();
+ f.reduced(true);assert.equal(await f.motion.open(),true);f.reduced(false);const closing=f.motion.close(),players=f.animations.slice(-2);
+ assert.ok(players.every(a=>a.effectState().phase==='active'&&a.effectState().isCurrent),'both fresh closing effects must be current at their first end-boundary sample');
+ await f.at(115);assert.equal(f.motion.progress,1);await f.warm();assert.ok(players.every(a=>a.pending&&a.currentTime===300&&a.effectState().isCurrent),'pending play retains compositor eligibility without consuming duration');
+ await f.at(155);assert.equal(f.motion.progress,1);await f.playReady();assert.ok(players.every(a=>a.playbackRate===-1&&a.effectState().isCurrent));await f.at(205);near(f.motion.progress,250/300);await f.at(454);assert.ok(f.motion.progress>0);await f.at(455);assert.equal(await closing,true);assert.equal(f.motion.progress,0);
+});
+
+test('live reversal retains its player and pending effective rate until browser readiness',async()=>{
+ const f=controllerFixture({deferPlay:true,effectTimingCache:true}),opened=f.motion.open();await f.warm();await f.playReady();await f.at(300);await opened;
+ const closing=f.motion.close();await f.warm();await f.playReady();await f.at(420);const players=f.animations.slice(-2),before=f.motion.progress,frames=f.frameRequests,reopened=f.motion.open();assert.equal(await closing,false);
+ assert.ok(players.every(a=>a.pending&&a.playbackRate===-1&&a.effectivePlaybackRate===1),'live reversal queues its new rate instead of seeking a running player');assert.equal(f.animations.length,4);assert.equal(f.frameRequests,frames);near(f.motion.progress,before);assert.ok(players.every(a=>a.effectState().isCurrent));
+ await f.at(470);near(f.motion.progress,before);await f.playReady();assert.ok(players.every(a=>a.playbackRate===1&&a.pendingRate===null));near(f.motion.progress,before);await f.at(590);assert.equal(await reopened,true);assert.equal(f.motion.progress,1);
 });
 
 test('reopen, release, immediate close and reduced motion cancel every fresh closing preparation stage',async()=>{

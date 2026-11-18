@@ -5,7 +5,7 @@
 //           https://chromedevtools.github.io/devtools-protocol/tot/IO/
 // Transport: https://www.electronjs.org/docs/latest/api/debugger
 const fs=require('node:fs/promises');
-const TRACE_CATEGORIES=Object.freeze(['toplevel','devtools.timeline','disabled-by-default-devtools.timeline.frame','blink.animations','blink.user_timing','cc','viz','renderer.scheduler','input','gpu','__metadata']);
+const TRACE_CATEGORIES=Object.freeze(['toplevel','devtools.timeline','disabled-by-default-devtools.timeline.frame','blink.animations','blink.user_timing','cc','viz','renderer.scheduler','input','gpu','gpu.capture','__metadata']);
 const DEFAULT_LIMITS=Object.freeze({recordMs:60000,commandMs:3000,readMs:12000,writeMs:3000,bufferKb:8192,chunkBytes:65536,maxBytes:64*1024*1024,maxOutputBytes:72*1024*1024,maxEvents:200000,maxReads:1024,maxSnapshots:64});
 const MARKER_PREFIX='mouse627.motion.';
 const safeToken=value=>typeof value==='string'&&value.length<=240&&/^[\w .:$<>()[\],+*\/-]+$/.test(value)&&!/:\/\/|\b(?:data|file):/i.test(value);

@@ -59,12 +59,15 @@
    tray.dataset.motion=to?'open':'closed';tray.dataset.motionProgress=String(to);content.inert=to!==1;
    if(waiter){const done=waiter;waiter=null;done.resolve(true);settled?.(to===1);}
   }
-  function players(){
+  function players(to){
    if(movement)return;
    const options={duration,easing:'cubic-bezier(.22,.8,.25,1)',fill:'both'};
    movement=panel.animate([{transform:'translate3d(0,100%,0)'},{transform:'translate3d(0,0,0)'}],options);
    shade=scrim.animate([{opacity:0},{opacity:.12}],options);
-   for(const animation of [movement,shade]){animation.pause();animation.currentTime=position*duration;animation.finished.catch(()=>{});}
+   // Establish direction before the first endpoint timing calculation. At the
+   // end boundary a forward effect is after/non-current even with fill:both;
+   // changing only its rate later can leave that cached phase non-compositable.
+   for(const animation of [movement,shade]){animation.pause();animation.playbackRate=to?1:-1;animation.currentTime=position*duration;animation.finished.catch(()=>{});}
    note('players-paused');
   }
   function startPlayers(to,ticket){
@@ -97,7 +100,7 @@
    if(!active){active=true;geometryDirty=true;scrim.hidden=false;document.body.classList.add('mouse-dock-active');sync();}
    const result=new Promise((resolve,reject)=>{waiter={resolve,reject};});
    if(immediate||reduced.matches||typeof panel.animate!=='function'||(!movement&&position===to)||(wasPreparing&&position===to)){complete(to);return result;}
-   content.inert=true;panel.style.willChange='transform';scrim.style.willChange='opacity';const fresh=!movement;players();
+   content.inert=true;panel.style.willChange='transform';scrim.style.willChange='opacity';const fresh=!movement;players(to);
    tray.dataset.motion=to?'opening':'closing';tray.dataset.motionProgress=String(progress());
    if(fresh||wasPreparing)preparePlayers(to,ticket);else startPlayers(to,ticket);
    return result;
