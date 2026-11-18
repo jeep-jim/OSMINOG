@@ -1,6 +1,7 @@
 "use strict";
 // Actual installed Electron proof, sharing the existing local-page fixture.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http'),net=require('node:net');
+const {screen}=require('electron');
 const {AgentController}=require('./mouse-agent/agent-connector.cjs');
 const keys=['mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 const pick=p=>Object.fromEntries(keys.map(k=>[k,p[k]]));
@@ -35,8 +36,18 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'native624 shell reload');await painted();
  }
  async function verifyLayoutAndHistory({root,bank}){
-  let start,verificationError;
+  const originalBounds=win.getBounds(),work=screen.getDisplayMatching(originalBounds).workArea;let start,verificationError,baselineBounds,enteredFullscreen=false,leftFullscreen=false;
+  const entered=()=>{enteredFullscreen=true;},left=()=>{leftFullscreen=true;};
+  const nativeContext=async stage=>console.log('MOUSE_624_NATIVE_BOUNDS',JSON.stringify({stage,original:originalBounds,baseline:baselineBounds,actual:win.getBounds(),normal:win.getNormalBounds(),fullscreen:win.isFullScreen(),enteredFullscreen,leftFullscreen,maximized:win.isMaximized(),focused:win.isFocused(),workArea:work,focus:await js('({pane:MouseTest.model.focusPane,ai:MouseTest.model.focusAI,agent:MouseTest.model.agentOpen})').catch(()=>null)}));
   try{
+  await nativeContext('before-fixture');
+  if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'native624 leaves inherited fullscreen');}
+  if(win.isMaximized())win.unmaximize();
+  assert.ok(work.width>=800&&work.height>=600,'Native624 display work area supports the minimum window');
+  const padX=Math.min(8,Math.floor((work.width-800)/2)),padY=Math.min(8,Math.floor((work.height-600)/2));
+  baselineBounds={x:work.x+padX,y:work.y+padY,width:Math.min(1200,work.width-padX*2),height:Math.min(820,work.height-padY*2)};
+  win.setBounds(baselineBounds);let settled=0;
+  await until(()=>{settled=!win.isFullScreen()&&!win.isMaximized()&&JSON.stringify(win.getBounds())===JSON.stringify(baselineBounds)?settled+1:0;return settled>=6;},'native624 on-screen window bounds settle');await painted();
   await js('MouseTest.desktopUI.close();MouseTest.browsing.close()');
   await js(`MouseTest.openAI(${JSON.stringify(root+'/624-owned-ai')})`);const aiUrl=root+'/624-owned-ai';
   const created=[];
@@ -45,12 +56,13 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await until(()=>browser.state().tabs.filter(t=>!t.internal).every(t=>!browser.get(t.id).loading),'native624 fixture pages loaded');
   const tree={axis:'x',ratio:.63,a:{id:'p1'},b:{axis:'y',ratio:.37,a:{id:'p2'},b:{id:'p3'}}},slots={p1:created[0],p2:created[1],p3:start};
   await js(`(()=>{const m=MouseTest.model;m.tree=${JSON.stringify(tree)};m.slots=${JSON.stringify(slots)};m.active='p3';m.aiWidth=312;m.tabOrder=[${JSON.stringify(created[2])},m.aiId,...m.state.tabs.map(t=>t.id).filter(id=>id!==${JSON.stringify(created[2])}&&id!==m.aiId)];MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();return MouseTest.save();})()`);
-  await painted();records=await capturePages();const baseline=await layout(),geometry=await rectangles(),bounds=win.getBounds();
+  await painted();records=await capturePages();const baseline=await layout(),geometry=await rectangles(),bounds=win.getBounds();assert.deepEqual(bounds,baselineBounds,'The fullscreen baseline is the settled on-screen window');await nativeContext('before-fullscreen');
   assert.deepEqual(baseline.tree,tree);assert.deepEqual(baseline.slots,slots);assert.equal(agentHost.state().enabled,false);
   // A real entry click from a focused pane must reveal the service, not a preset.
-  await js('MouseTest.togglePaneFullscreen("p3")');await until(()=>win.isFullScreen(),'native focused start pane');await until(()=>js('MouseTest.model.focusPane==="p3"'),'focused start pane');await painted();
+  win.once('enter-full-screen',entered);win.once('leave-full-screen',left);
+  await js('MouseTest.togglePaneFullscreen("p3")');await until(()=>enteredFullscreen&&win.isFullScreen(),'native focused start pane finishes entering fullscreen');await until(()=>js('MouseTest.model.focusPane==="p3"'),'focused start pane');await painted();await nativeContext('focused-fullscreen');
   await click('.pane[data-pane="p3"] .home-agent-open');
-  await until(()=>js('MouseTest.model.agentOpen===true&&!MouseTest.model.focusPane&&!MouseTest.model.focusAI&&!document.querySelector("#agent-panel").hidden'),'Agent service restores focus and opens');await until(()=>!win.isFullScreen()&&JSON.stringify(win.getBounds())===JSON.stringify(bounds),'Agent service restores the actual native window bounds');await painted();
+  await until(()=>js('MouseTest.model.agentOpen===true&&!MouseTest.model.focusPane&&!MouseTest.model.focusAI&&!document.querySelector("#agent-panel").hidden'),'Agent service restores focus and opens');await until(()=>leftFullscreen&&!win.isFullScreen()&&JSON.stringify(win.getBounds())===JSON.stringify(bounds),'Agent service restores the actual native window bounds');await painted();await nativeContext('agent-restored');
   await sameLayout(baseline,'Agent service selection');await sameRects(geometry,'Agent service selection');assert.equal(agentHost.state().enabled,false);
   await fs.writeFile('mouse-624-agent-preserved.png',(await win.capturePage()).toPNG());
   await reload();assert.equal(await js('MouseTest.model.agentOpen'),true);await sameLayout(baseline,'Agent service shell reload');await sameRects(geometry,'Agent service shell reload');
@@ -70,11 +82,15 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await click('#desktops-button');await click('#desk-history-back');await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'Undo works after reload');await click('#desk-history-forward');await until(async()=>JSON.stringify(await layout())===JSON.stringify(changed),'Redo works after reload');
   await click('#desk-history-button');await until(()=>js('!document.querySelector("#desk-history-panel").hidden'),'history panel reopens');const entrySelector='#desk-history-panel [data-history-id="'+entry.id+'"] .desk-history-restore';await until(()=>js(`!!document.querySelector(${JSON.stringify(entrySelector)})`),'history entry renders');await js(`document.querySelector(${JSON.stringify(entrySelector)}).scrollIntoView({block:'nearest',inline:'center'})`);await painted();await click(entrySelector);await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'native history row restores the chosen baseline');await samePages('History jump');
   facts.history={undo:true,redo:true,persisted:true,pagesPreserved:true,entryRestore:true};await saveFacts();console.log('MOUSE_624_LAYOUT_UNDO_REDO_PERSIST_PASS');await js('MouseTest.desktopUI.close()');
-  }catch(error){verificationError=error;throw error;}
+  }catch(error){verificationError=error;await nativeContext('failure').catch(()=>{});throw error;}
   finally{
+   win.removeListener('enter-full-screen',entered);win.removeListener('leave-full-screen',left);
    // The outer suite closes actual WebContents; this shell-only fixture needs
    // its own cleanup after every identity assertion, including a failed proof.
-   if(start&&bank.members[start])try{if(bank.members[start]!==bank.active)await js(`MouseTest.switchDesktop(${JSON.stringify(bank.members[start])})`);await browser.command('close',{id:start});assert.equal(bank.members[start],undefined,'The internal test tab is removed from the profile');}catch(error){if(!verificationError)throw error;console.error('MOUSE_624_INTERNAL_FIXTURE_CLEANUP',error.message);}
+   let cleanupError;
+   if(start&&bank.members[start])try{if(bank.members[start]!==bank.active)await js(`MouseTest.switchDesktop(${JSON.stringify(bank.members[start])})`);await browser.command('close',{id:start});assert.equal(bank.members[start],undefined,'The internal test tab is removed from the profile');}catch(error){cleanupError=error;console.error('MOUSE_624_INTERNAL_FIXTURE_CLEANUP',error.message);}
+   try{await js('MouseTest.restorePane();MouseNative.window("pane-restore")');if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'native624 cleanup leaves fullscreen');}win.setBounds(originalBounds);}catch(error){cleanupError||=error;console.error('MOUSE_624_WINDOW_FIXTURE_CLEANUP',error.message);}
+   if(cleanupError&&!verificationError)throw cleanupError;
   }
  }
  const pillSelector=id=>'#mouse-progress-rail .mouse-progress-pill[data-progress-id="'+id+'"]';
