@@ -5,12 +5,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {spawn}=require('node:child_process'),{screen}=require('electron');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let i=0;i<160;i++){if(await fn())return;await sleep(40);}throw Error('Mouse627 window timeout: '+label);}
-module.exports=async({app,win})=>{
+module.exports=async({app,win,browser,overlayGate})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);
  const js=code=>win.webContents.executeJavaScript(code),native=require('./mouse-native-menu.node');
+ const surfaces=browser.mouseDesktops.surfaces;surfaces.enableDiagnostics();overlayGate.enableDiagnostics();
+ const nativeState=()=>({surfaces:surfaces.diagnostics(),overlays:overlayGate.diagnostics()});
  const driverModule=require.resolve('./mouse-native-menu.node').replace('app.asar/','app.asar.unpacked/');
  const originalBounds=win.getBounds(),originalTheme=await js('MouseTest.prefs().theme'),wasFullscreen=win.isFullScreen();
- const evidence={version:app.getVersion(),gestures:[],controls:[],clicks:[],restored:false};
+ const evidence={version:app.getVersion(),gestures:[],controls:[],clicks:[],nora:[],restored:false};
  async function traceControls(){
   await js(`(()=>{
    globalThis.__mouse627WindowTrace?.dispose();const events=[],messages=[],status=document.querySelector('#status'),types=['pointerdown','pointerup','click','keydown','resize'];
@@ -45,18 +47,23 @@ module.exports=async({app,win})=>{
    assert.equal(points.region,'drag');assert.ok(points.left.width>8&&points.right.width>8,'Both empty footer regions are available');
    await gesture(theme+' footer left',points.left);await gesture(theme+' footer right',points.right);await gesture(theme+' top grip',points.top);
    const before=win.getBounds();await click('[data-action="theme"]');await until(()=>js(`MouseTest.prefs().theme!==${JSON.stringify(theme)}`),'theme responds to a real click');assert.deepEqual(win.getBounds(),before);evidence.controls.push(theme+' theme');
-   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora responds to a real click');await click('#desks-close');await until(()=>js('document.querySelector("#desktop-tray").hidden'),'Nora closes');assert.deepEqual(win.getBounds(),before);evidence.controls.push(theme+' Nora');
+   const roots=win.contentView.children.slice(),sameRoots=label=>{const current=win.contentView.children;assert.equal(current.length,roots.length,label+' retains every native root');for(let i=0;i<roots.length;i++)assert.equal(current[i],roots[i],label+' preserves native parent and order');};
+   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora responds to a real click');sameRoots(theme+' open Nora');
+   const nora={theme,rootsBefore:roots.length,rootsOpen:win.contentView.children.length,openNative:nativeState()};
+   await click('#desks-close');await until(()=>js('document.querySelector("#desktop-tray").hidden&&!document.querySelector("#desktop-tray").open&&!document.querySelector(".mouse-floating-snapshot")'),'Nora closes and restores native pages');sameRoots(theme+' closed Nora');
+   nora.rootsClosed=win.contentView.children.length;nora.nativeParentsPreserved=true;nora.closeNative=nativeState();evidence.nora.push(nora);assert.deepEqual(win.getBounds(),before);evidence.controls.push(theme+' Nora');
    await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await fs.writeFile('mouse-627-window-'+theme+'.png',(await win.capturePage()).toPNG());
   }
  }catch(error){
   // Preserve the failing state before restoring window bounds: restoration
   // emits resize, which closes Nora and erases the original failure state.
-  evidence.failure={message:error.message,stack:error.stack,time:performance.now(),timeOrigin:performance.timeOrigin,bounds:win.getBounds(),contentBounds:win.getContentBounds(),renderer:await js('globalThis.__mouse627WindowTrace?.snapshot()').catch(cause=>({error:cause.message}))};
+  evidence.failure={message:error.message,stack:error.stack,time:performance.now(),timeOrigin:performance.timeOrigin,bounds:win.getBounds(),contentBounds:win.getContentBounds(),native:nativeState(),renderer:await js('globalThis.__mouse627WindowTrace?.snapshot()').catch(cause=>({error:cause.message}))};
   console.error('MOUSE_627_WINDOW_FAILURE_CONTEXT',JSON.stringify({message:error.message,lastClick:evidence.clicks.at(-1),renderer:evidence.failure.renderer}));
   await fs.writeFile('mouse-627-window-failure.json',JSON.stringify(evidence.failure,null,2)+'\n').catch(()=>{});
   let timer;try{const image=await Promise.race([win.capturePage(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Window failure capture timeout')),2000);})]);await fs.writeFile('mouse-627-window-failure.png',image.toPNG());}catch{}finally{clearTimeout(timer);}
   throw error;
  }finally{
+  evidence.native=nativeState();
   await js('globalThis.__mouse627WindowTrace?.dispose();delete globalThis.__mouse627WindowTrace').catch(()=>{});
   if(evidence.activeGesture)evidence.activeGesture.after=win.getBounds();win.setBounds(originalBounds);await js(`MouseTest.setTheme(${JSON.stringify(originalTheme)})`);if(wasFullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'restore fullscreen');}
   evidence.restored=true;await fs.writeFile('mouse-627-window-verification.json',JSON.stringify(evidence,null,2)+'\n');

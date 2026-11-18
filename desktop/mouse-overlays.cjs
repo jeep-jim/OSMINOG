@@ -19,7 +19,10 @@ class OverlayGate {
   this.layout([]);
   for(const t of this.pages()){
    t.view.setVisible(false);t.clipView?.setVisible(false);t.visible=false;
-   this.win.contentView.removeChildView(t.clipView||t.view);
+   // An owned surface hold already keeps every native page invisible. Preserve
+   // its parent instead of detaching and later reattaching background pages too.
+   // If the hold ends while a dialog stays open, the next layout detaches again.
+   if(!this.browser.mouseSurfaceHold)this.win.contentView.removeChildView(t.clipView||t.view);
   }
  }
  attach(){
@@ -34,5 +37,25 @@ class OverlayGate {
   else{this.attach();this.layout(this.desired);}
   return{blocked:this.blocked};
  }
+ enableDiagnostics({now=()=>performance.now()}={}){
+  if(this.trace)return;
+  const trace=this.trace={counts:{set:0,hide:0,attach:0,layout:0},totalMs:{set:0,hide:0,attach:0,layout:0},events:[]};
+  // Installed only by the native test harness: production calls do not read
+  // clocks, inspect diagnostic child counts or allocate trace entries.
+  for(const operation of ['set','hide','attach','layout']){
+   const run=this[operation];
+   this[operation]=(...args)=>{
+    const at=now(),hierarchy=operation==='hide'||operation==='attach',before=hierarchy?this.win.contentView.children.length:undefined;let completed=false;
+    try{const result=run.apply(this,args);completed=true;return result;}
+    finally{
+     const elapsedMs=now()-at,event={operation,at,elapsedMs,blocked:this.blocked,surfaceHeld:!!this.browser.mouseSurfaceHold,sequence:this.sequence,completed};
+     if(hierarchy){event.childrenBefore=before;event.childrenAfter=this.win.contentView.children.length;}
+     if(operation==='layout')event.panels=Array.isArray(args[0])?args[0].length:0;
+     trace.counts[operation]++;trace.totalMs[operation]+=elapsedMs;trace.events.push(event);if(trace.events.length>32)trace.events.shift();
+    }
+   };
+  }
+ }
+ diagnostics(){const trace=this.trace;return trace?{enabled:true,counts:{...trace.counts},totalMs:{...trace.totalMs},events:trace.events.map(event=>({...event}))}:{enabled:false,events:[]};}
 }
 module.exports={OverlayGate};

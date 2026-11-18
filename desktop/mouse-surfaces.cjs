@@ -11,9 +11,13 @@ class DesktopSurfaces{
   // BrowserWindow.webContents is a native getter: after 'closed' it throws.
   // Retain the emitter now so disposal can continue into closing every page.
   this.shellContents=win?.webContents;
+  this.diagnostic=null;
   this.resize=()=>this.clear(true);this.navigation=(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.clear(false);};
   win?.on?.('resize',this.resize);this.shellContents?.on?.('did-start-navigation',this.navigation);
  }
+ enableDiagnostics(){this.diagnostic={sequence:0,lastCapture:null,events:[]};}
+ diagnostics(){const trace=this.diagnostic;return trace?structuredClone({enabled:true,busy:this.busy,activeCaptures:this.activeCaptures,generation:this.generation,held:!!this.held,locked:this.locked,disposed:this.disposed,lastCapture:trace.lastCapture,events:trace.events}):{enabled:false};}
+ recordDiagnostic(trace,phase,detail={}){if(!trace||trace!==this.diagnostic)return;trace.events.push({phase,at:performance.now(),...detail});if(trace.events.length>32)trace.events.shift();}
  shape(){const size=this.win?.getContentSize?.();return Array.isArray(size)?size.join('x'):'';}
  live(id,hold){
   const page=this.browser.tabs.get(id),wc=page?.view?.webContents;
@@ -27,40 +31,61 @@ class DesktopSurfaces{
  empty(){return{desk:this.bank.active,surfaces:[],complete:false,generation:this.generation,token:''};}
  async capture(args={}){
   if(!Array.isArray(args.ids)||args.ids.length>MAX_PAGES||args.ids.some(id=>typeof id!=='string'||!id||id.length>100)||new Set(args.ids).size!==args.ids.length)throw Error('Invalid surface page identities');
-  if(this.busy||this.disposed||this.locked||this.browser.disposed||this.held&&args.hold!==this.held.token||args.hold&&!this.held)return this.empty();
-  const pins=args.ids.map(id=>this.live(id,args.hold));if(pins.some(p=>!p))return this.empty();
-  const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[];let index=0,bytes=0,pixels=0,cancelled=false,timer;
+  const trace=this.diagnostic,observed=trace?{sequence:++trace.sequence,startedAt:performance.now(),requestedIds:args.ids.slice(),generation:this.generation,reason:'pending',complete:false,completedIds:[],pngBytes:0,pixels:0,pages:[]}:null;
+  if(trace){trace.lastCapture=observed;this.recordDiagnostic(trace,'capture-start',{sequence:observed.sequence,ids:observed.requestedIds,activeCaptures:this.activeCaptures,busy:this.busy,held:!!this.held});}
+  const resultDiagnostic=(reason,complete)=>{if(observed){observed.reason=reason;observed.complete=complete;observed.elapsedMs=performance.now()-observed.startedAt;this.recordDiagnostic(trace,'capture-result',{sequence:observed.sequence,reason,complete,elapsedMs:observed.elapsedMs,activeCaptures:this.activeCaptures});}};
+  const incomplete=reason=>{resultDiagnostic(reason,false);return this.empty();};
+  if(this.busy||this.disposed||this.locked||this.browser.disposed||this.held&&args.hold!==this.held.token||args.hold&&!this.held)return incomplete(this.busy?'busy':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':this.held?'different-hold':'hold-ended');
+  const pins=args.ids.map(id=>this.live(id,args.hold));if(pins.some(p=>!p)){if(observed)observed.invalidIds=args.ids.filter((_id,i)=>!pins[i]);return incomplete('invalid-initial-pins');}
+  const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[];let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
   const current=()=>!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape();
   this.busy=true;
   const worker=async()=>{
    while(index<pins.length&&current()){
-    const pin=pins[index++];if(!this.valid(pin,args.hold)||this.activeCaptures>=MAX_CAPTURES)continue;
+    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',captureMs:null,pngMs:null,base64Ms:null,previewMs:null}:null;let stageStarted;
+    if(row)observed.pages.push(row);
+    const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row});}};
+    if(!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');continue;}
+    if(this.activeCaptures>=MAX_CAPTURES){pageDiagnostic('capture-capacity');continue;}
     this.activeCaptures++;
     try{
      // Capturing the selected incoming desk during an owned hold must not make
      // hidden/background pages visible or keep the computer awake.
+     if(row){row.state='capturing';stageStarted=performance.now();}
      const image=await pin.wc.capturePage(undefined,{stayHidden:true,stayAwake:false});
-     if(!current()||!this.valid(pin,args.hold)||image.isEmpty?.())continue;
+     if(row){row.captureMs=performance.now()-stageStarted;pageDiagnostic('captured');}
+     if(!current()){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');continue;}
+     if(!this.valid(pin,args.hold)){pageDiagnostic('pin-changed-after-capture');continue;}
+     if(image.isEmpty?.()){pageDiagnostic('empty-image');continue;}
      // Preserve the sharpest representation the compositor actually supplied.
      // NativeImage.toPNG defaults to 1x even when the original frame is Retina.
      const scales=image.getScaleFactors?.().filter(v=>Number.isFinite(v)&&v>0)||[1],scaleFactor=Math.max(...scales);
-     if(!Number.isFinite(scaleFactor)||pixels+pin.viewport.width*pin.viewport.height*scaleFactor*scaleFactor>MAX_PIXELS)continue;
+     if(!Number.isFinite(scaleFactor)||pixels+pin.viewport.width*pin.viewport.height*scaleFactor*scaleFactor>MAX_PIXELS){pageDiagnostic('scale-or-pixel-budget');continue;}
+     if(row){row.state='png';stageStarted=performance.now();}
      const png=image.toPNG({scaleFactor});
-     if(!Buffer.isBuffer(png)||png.length<24||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))continue;
+     if(row)row.pngMs=performance.now()-stageStarted;
+     if(!Buffer.isBuffer(png)||png.length<24||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))){pageDiagnostic('invalid-png');continue;}
      const pixelWidth=png.readUInt32BE(16),pixelHeight=png.readUInt32BE(20),area=pixelWidth*pixelHeight;
      const width=pin.viewport.width,height=pin.viewport.height;
-     if(!pixelWidth||!pixelHeight||pixelWidth<width-1||pixelHeight<height-1||Math.abs(pixelWidth/width-pixelHeight/height)>.02||bytes+png.length>MAX_PNG_BYTES||pixels+area>MAX_PIXELS)continue;
+     if(!pixelWidth||!pixelHeight||pixelWidth<width-1||pixelHeight<height-1||Math.abs(pixelWidth/width-pixelHeight/height)>.02||bytes+png.length>MAX_PNG_BYTES||pixels+area>MAX_PIXELS){pageDiagnostic(bytes+png.length>MAX_PNG_BYTES?'png-byte-budget':pixels+area>MAX_PIXELS?'png-pixel-budget':'png-dimensions');continue;}
      bytes+=png.length;pixels+=area;
-     surfaces.push({id:pin.id,src:'data:image/png;base64,'+png.toString('base64'),width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds}});
-     try{this.onImage?.(pin.id,image,pin);}catch{}
-    }catch{}finally{this.activeCaptures--;}
+     if(row){row.state='base64';stageStarted=performance.now();}const src='data:image/png;base64,'+png.toString('base64');if(row)row.base64Ms=performance.now()-stageStarted;
+     surfaces.push({id:pin.id,src,width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds}});
+     if(row){row.state='preview';stageStarted=performance.now();}
+     try{this.onImage?.(pin.id,image,pin);}catch(error){if(row)row.previewError=String(error?.message||error).slice(0,512);}
+     if(row){row.previewMs=performance.now()-stageStarted;row.pngBytes=png.length;row.pixelWidth=pixelWidth;row.pixelHeight=pixelHeight;pageDiagnostic('complete');}
+    }catch(error){if(row){row.errorStage=row.state;row.message=String(error?.message||error).slice(0,512);pageDiagnostic('error');}}finally{this.activeCaptures--;}
    }
   };
   try{
-   await Promise.race([Promise.all(Array.from({length:Math.min(MAX_CAPTURES,pins.length)},worker)),new Promise(resolve=>{timer=setTimeout(()=>{cancelled=true;resolve();},this.captureMs);timer.unref?.();})]);
-   if(!current()||surfaces.length!==pins.length||pins.some(pin=>!this.valid(pin,args.hold)))return this.empty();
+   await Promise.race([Promise.all(Array.from({length:Math.min(MAX_CAPTURES,pins.length)},worker)),new Promise(resolve=>{timer=setTimeout(()=>{cancelled=true;deadline=true;if(observed)this.recordDiagnostic(trace,'capture-deadline',{sequence:observed.sequence,elapsedMs:performance.now()-observed.startedAt,completedIds:surfaces.map(surface=>surface.id),activeCaptures:this.activeCaptures});resolve();},this.captureMs);timer.unref?.();})]);
+   if(observed){observed.completedIds=surfaces.map(surface=>surface.id);observed.pngBytes=bytes;observed.pixels=pixels;}
+   if(!current())return incomplete(deadline?'deadline':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':generation!==this.generation?'generation-changed':desk!==this.bank.active?'desktop-changed':'window-size-changed');
+   if(surfaces.length!==pins.length)return incomplete('incomplete-pages');
+   if(pins.some(pin=>!this.valid(pin,args.hold)))return incomplete('pins-changed');
    const token=randomUUID();this.records.set(token,{generation,desk,shape,pins,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
    if(args.hold)this.watch(pins);
+   resultDiagnostic('complete',true);
    return{desk,surfaces,complete:true,generation,token};
   }finally{cancelled=true;clearTimeout(timer);this.busy=false;}
  }

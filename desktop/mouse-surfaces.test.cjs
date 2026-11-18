@@ -61,3 +61,25 @@ test('captures run at most two at once, return incomplete on budgets, and time o
  const large=fixture(),page=large.add('large');page.view.webContents.capturePage=async()=>large.image(800,600,MAX_PNG_BYTES+1);assert.equal((await large.surfaces.capture({ids:['large']})).complete,false);large.surfaces.dispose();
  const timeout=fixture({captureMs:10}),p=timeout.add('wait');let late;p.view.webContents.capturePage=()=>new Promise(resolve=>late=resolve);const pending=timeout.surfaces.capture({ids:['wait']});const keepAlive=setTimeout(()=>{},40);assert.equal((await pending).complete,false);late(timeout.image());await new Promise(r=>setImmediate(r));assert.equal(timeout.surfaces.activeCaptures,0);assert.deepEqual(timeout.images,[]);clearTimeout(keepAlive);timeout.surfaces.dispose();
 });
+test('opt-in surface diagnostics measure native capture, PNG, base64 and preview work separately and remain bounded cloneable metadata',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm');let elapsed=0,enabled=true;
+ const context={module:{exports:{}},require,Buffer,structuredClone,setTimeout,clearTimeout,performance:{now(){assert.equal(enabled,true,'ordinary capture does not read the diagnostic clock');return elapsed;}}};
+ vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Instrumented=context.module.exports.DesktopSurfaces;
+ const f=fixture(),page=f.add('a'),png=f.image().toPNG();f.surfaces.dispose();const stringify=png.toString.bind(png);png.toString=encoding=>{elapsed+=5;return stringify(encoding);};
+ page.view.webContents.capturePage=async()=>{elapsed+=40;return{isEmpty:()=>false,toPNG(){elapsed+=20;return png;}};};
+ const surfaces=new Instrumented({browser:f.browser,bank:f.bank,win:f.win,onImage(){elapsed+=15;}});
+ enabled=false;assert.equal((await surfaces.capture({ids:['a']})).complete,true);assert.equal(surfaces.diagnostics().enabled,false);enabled=true;surfaces.enableDiagnostics();
+ for(let i=0;i<9;i++)assert.equal((await surfaces.capture({ids:['a']})).complete,true);
+ const report=surfaces.diagnostics(),copy=structuredClone(report),last=copy.lastCapture;
+ assert.equal(copy.events.length,32);assert.equal(last.reason,'complete');assert.equal(last.complete,true);assert.equal(last.elapsedMs,80);assert.deepEqual(last.completedIds,['a']);
+ const row=last.pages[0];assert.equal(row.captureMs,40);assert.equal(row.pngMs,20);assert.equal(row.base64Ms,5);assert.equal(row.previewMs,15);assert.equal(row.state,'complete');assert.equal(row.pngBytes,png.length);
+ assert.doesNotMatch(JSON.stringify(copy),/data:image|https:|token/);report.lastCapture.requestedIds.push('mutated');report.events.length=0;assert.equal(surfaces.diagnostics().lastCapture.requestedIds.length,1);assert.equal(surfaces.diagnostics().events.length,32);surfaces.dispose();
+});
+test('surface diagnostics distinguish a deadline with outstanding native work from an invalid page and retain the original refusal after late completion',async()=>{
+ const f=fixture({captureMs:10}),page=f.add('wait');let finish;page.view.webContents.capturePage=()=>new Promise(resolve=>finish=resolve);f.surfaces.enableDiagnostics();
+ const keepAlive=setTimeout(()=>{},100);try{
+  assert.equal((await f.surfaces.capture({ids:['wait']})).complete,false);let report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'deadline');assert.equal(report.lastCapture.complete,false);assert.equal(report.activeCaptures,1);assert.equal(report.lastCapture.pages[0].state,'capturing');assert.equal(report.lastCapture.pages[0].captureMs,null);assert.ok(report.events.some(e=>e.phase==='capture-deadline'&&e.activeCaptures===1));
+  finish(f.image());await new Promise(r=>setImmediate(r));report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'deadline');assert.equal(report.lastCapture.pages[0].state,'late-after-deadline');assert.equal(report.activeCaptures,0);assert.deepEqual(f.images,[]);
+  assert.equal((await f.surfaces.capture({ids:['absent']})).complete,false);report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'invalid-initial-pins');assert.deepEqual(report.lastCapture.invalidIds,['absent']);
+ }finally{clearTimeout(keepAlive);f.surfaces.dispose();}
+});
