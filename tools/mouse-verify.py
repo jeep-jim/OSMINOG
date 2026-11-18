@@ -7,7 +7,15 @@ def run_logged(args,env,log_path,timeout):
  # Keep failure output even when a native process times out. A regular file
  # also avoids waiting for inherited stdout pipes after the main app exits.
  with log_path.open('w') as log:
-  try:result=subprocess.run(args,env=env,stdout=log,stderr=subprocess.STDOUT,text=True,timeout=timeout)
+  process=subprocess.Popen(args,env=env,stdout=log,stderr=subprocess.STDOUT,text=True)
+  deadline=time.monotonic()+timeout
+  try:
+   while process.poll() is None:
+    remaining=deadline-time.monotonic()
+    if remaining<=0:
+     process.kill();process.wait();raise subprocess.TimeoutExpired(args,timeout)
+    time.sleep(min(.1,remaining))
+   result=subprocess.CompletedProcess(args,process.returncode)
   finally:
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
