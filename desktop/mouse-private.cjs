@@ -53,7 +53,7 @@ class PrivateMode {
    const startService=await require('./mouse-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
    current.startService=startService;
    require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain:register,trusted});
-   const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted});
+   const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted,powerMonitor:this.e.powerMonitor});
    current.desktopService=desktopService;current.pageZoom=await require('./mouse-zoom.cjs').install({win,browser,store,ipcMain:register,trusted});
    register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:desktopService.preferences()};});
    register.handle('mouse:save',async(event,p)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p);});
@@ -61,6 +61,7 @@ class PrivateMode {
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
    for(const name of ['mouse:privacy','mouse:window','mouse:theme'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
+   handlers.set('mouse:agent',(event,action)=>{trusted(event);if(action==='state')return{enabled:false,running:false,connected:0,desk:'',logs:[],pending:null};throw Error('Agent Mouse доступен в обычном режиме');});
    handlers.set('mouse:update',()=>{throw Error('Обновление доступно в обычном режиме');});
    // Explicit file downloads are allowed, but clearly distinguished from ephemeral browsing data.
    const warning=(_event,item)=>item.setSaveDialogOptions({title:'Инкогнито: сохранённый файл останется на Mac',defaultPath:require('node:path').join(this.e.app.getPath('downloads'),require('node:path').basename(item.getFilename()||'download')),properties:['showOverwriteConfirmation']});
