@@ -15,10 +15,10 @@ class PaneFocus {
  }
  reset(){if(!this.active)return;this.active=false;this.enteredFullscreen=false;this.restore();}
  finishNativeExit(){
-  const saved=this.returnState;this.reset();if(!saved)return;
+  const saved=this.returnState;this.reset();this.exitRequested=false;if(!saved)return;
   // AppKit/Electron can restore an older frame for an untitled window. Apply
   // our own frame only after its native transition has finished, once.
-  this.exitRequested=true;setImmediate(()=>{
+  setImmediate(()=>{
    if(this.returnState!==saved)return;this.returnState=null;this.exitRequested=false;
    if(this.win.isDestroyed()||this.win.isFullScreen())return;
    if(this.win.isMaximized?.())this.win.unmaximize();

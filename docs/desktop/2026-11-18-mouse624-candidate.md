@@ -95,3 +95,14 @@ Failed verification artifact `14395789037` (7 077 422 bytes, SHA-256 `ab68210b9c
 Исправлен рабочий `PaneFocus`: при принадлежащем ему переходе сохраняются bounds/состояние максимизации и однократно восстанавливаются после native leave-full-screen. Полноэкранный режим, включённый до фокусировки панели, не присваивается этому механизму. Уничтоженное окно не получает resize; повторный запрос во время выхода не захватывает временные full bounds. Добавлены шесть проверок этих сценариев, включая возврат наблюдённого старого размера, отмену фокуса во время входа и сохранение обычного размера максимизированного окна. Полный локальный прогон после исправления: 237 PASS, 0 FAIL. Все прежние native assertions сохранены; исправление ещё должно пройти установленный Mac gate.
 
 Неуспешный verification `14396259935`, 7 077 325 bytes, SHA-256 `bb654df8cc147cb3ddc2a1e24135a7ac4ce4effcbf66b7207db6b3ee2ad32edb` не используется для публикации; candidate отсутствует.
+
+
+## Нативный прогон b3892ec и граница переходов fullscreen
+
+[Run44237704441](https://github.com/jeep-jim/OSMINOG/actions/runs/44237704441), job134577755037 завершился ошибкой `Timed out preexisting fullscreen` в прежнем `mouse-608-smoke.cjs`. Новый624 helper ещё не выполнялся. Failed verification14398541638:1626321bytes, SHA25643e3620a477c0f54a45aad486a5c82fc0e865ef1df4b98679e9caf6721ee09aa; candidate отсутствует.
+
+В608 fixture после команды выхода следующий независимый fullscreen начинался по одному isFullScreen(), до гарантированного native leave event и завершения восстановления bounds. [Electron BrowserWindow](https://www.electronjs.org/docs/latest/api/browser-window) прямо требует при зависимых действиях ждать enter-full-screen/leave-full-screen на macOS. Fixture теперь ждёт настоящие события и завершение returnState; проверки дерева/страниц/предварительно существующего fullscreen сохранены. Добавлена диагностика каждой фактической границы.
+
+Отдельная локальная проверка реального PaneFocus доказала узкий race: после actual leave event повторное exitRequested=true до setImmediate могло отменить новую независимую fullscreen-команду. Этот flag теперь сбрасывается синхронно при leave event; возврат bounds и запрет повторного входа самого PaneFocus остаются защищены returnState. Раннее закрытие ещё входящего owned fullscreen сохраняется. Новый unit проверяет независимый вход в том же turn после leave. Журнал не утверждает, что этот race — единственная доказанная причина CI timeout. Новый native прогон обязателен.
+
+Локальная проверка после этой границы переходов: `cd desktop && node --test mouse*.test.cjs` — **238 PASS, 0 FAIL**.
