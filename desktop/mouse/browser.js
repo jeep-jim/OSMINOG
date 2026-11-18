@@ -65,7 +65,7 @@
   while(m.switching)await deskSwitch;Object.assign(m,removedLayout());reconcile();renderTree();save();
  }
 
- async function activateDesktopTab({desk,id}){if(desk!==m.desktopId)await switchDesktop(desk);const t=tab(id);if(!t)throw Error('Вкладка уже закрыта');desktopUI.close();if(t.lane==='side'){if(m.agentOpen)await N.agent('stop');m.agentOpen=false;m.aiOpen=true;m.aiId=id;renderAISites();applySide();save();return;}const pane=L.leaves(m.tree).find(p=>m.slots[p]===id);if(pane)setActive(pane);else{m.slots[m.active]=id;renderTree();save();}}
+ async function activateDesktopTab({desk,id}){if(desk!==m.desktopId&&await switchDesktop(desk)===false)return;if(await desktopUI.close()===false)return;const t=tab(id);if(!t)throw Error('Вкладка уже закрыта');if(t.lane==='side'){if(m.agentOpen)await N.agent('stop');m.agentOpen=false;m.aiOpen=true;m.aiId=id;renderAISites();applySide();save();return;}const pane=L.leaves(m.tree).find(p=>m.slots[p]===id);if(pane)setActive(pane);else{m.slots[m.active]=id;renderTree();save();}}
 
  function renderTree(){
   if(m.drag||m.swapDrag)return;browsing.hideHints();reconcile();const stage=$('#stage');stage.replaceChildren();
@@ -131,8 +131,9 @@
  const globalCaptureSettings=createMouseGlobalCaptureSettings({N,status:setStatus});
  async function switchDesktop(id,add=false){
   while(m.switching)await deskSwitch;if(!add&&id===m.desktopId)return;
-  m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();browsing.hideHints();browsing.close();desktopUI?.close();zoomUI?.close();feedback.hide();
+  m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();browsing.hideHints();browsing.close();zoomUI?.close();feedback.hide();
   const operation=(async()=>{
+   if(await desktopUI?.close()===false)return false;
    if(m.focusPane||m.focusAI){restorePane();await N.window('pane-restore');}
    await N.desktops('remember-preview',{preferences:prefs()});
    const order=m.state.desktops?.items||[],direction=add?1:(order.findIndex(d=>d.id===id)>=order.findIndex(d=>d.id===m.desktopId)?1:-1);
