@@ -55,6 +55,9 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await require('./mouse-global-capture-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
    await store.set({mousePersistence:'mouse-6'});await browser.session.cookies.set({url:'https://example.com/',name:'mouse-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('MouseTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
+  // Exercise the new native editors/search first, then retain every existing gate.
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});
@@ -71,8 +74,6 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-620-smoke.cjs')({app,win,browser,libraryService,localCaptures,updates});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-621-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-622-smoke.cjs')({app,win,browser,store,agentHost});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();app.exit(0);
  }catch(error){console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('mouse-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
 };

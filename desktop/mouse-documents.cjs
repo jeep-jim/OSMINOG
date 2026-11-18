@@ -14,6 +14,17 @@ async function readRegular(file){const handle=await fs.open(file,'r');try{
  const bytes=Buffer.concat(chunks,total);return{bytes,hash:digest(bytes),mode:stat.mode&0o777};
 }finally{await handle.close();}}
 async function fileState(file){try{const stat=await fs.lstat(file);if(!stat.isFile()||stat.isSymbolicLink())throw Error('Выберите обычный файл, не ссылку');return await readRegular(file);}catch(e){if(e.code==='ENOENT')return null;throw e;}}
+async function canonicalTarget(file){
+ // Open records already use realpath. Resolve the native Save dialog's parent
+ // too, including macOS /var aliases, before comparing original/saved hashes.
+ const parent=await fs.realpath(path.dirname(file)),target=path.join(parent,path.basename(file));let stat;
+ try{stat=await fs.lstat(target);}catch(e){if(e.code==='ENOENT')return target;throw e;}
+ if(!stat.isFile()||stat.isSymbolicLink())throw Error('Выберите обычный файл, не ссылку');
+ const canonical=await fs.realpath(target),current=await fs.lstat(target);
+ if(!current.isFile()||current.isSymbolicLink())throw Error('Выберите обычный файл, не ссылку');
+ if(stat.dev!==current.dev||stat.ino!==current.ino)throw error('MOUSE_DOCUMENT_CONFLICT','Файл изменён другой программой. Сохраните новую копию.');
+ return canonical;
+}
 async function atomicWrite(file,bytes,before,check=()=>{},onCommit=()=>{}){
  const temporary=path.join(path.dirname(file),'.mouse-document-'+crypto.randomUUID()+'.tmp');let handle;
  try{handle=await fs.open(temporary,'wx',before?.mode||0o600);await handle.writeFile(bytes);await handle.sync();await handle.close();handle=null;check();const current=await fileState(file);if((current?.hash||null)!==(before?.hash||null))throw error('MOUSE_DOCUMENT_CONFLICT','Файл изменён другой программой. Сохраните новую копию.');const hash=digest(bytes);check();
@@ -52,7 +63,7 @@ class DocumentService{
   if(bytes.length>MAX_FILE)throw Error('Сохраняемый документ превышает 32 МБ');
   const saveAs=args.saveAs===true||!r.savedPath;let target=r.savedPath;
   if(saveAs){const extension=path.extname(r.name),base=path.basename(r.name,extension),result=await this.dialog.showSaveDialog(this.win,{title:r.private?'Сохранить копию · файл останется на Mac':'Сохранить документ',defaultPath:path.join(path.dirname(r.savedPath||r.originalPath),base+(r.savedPath?'':' — копия')+extension),filters:[{name:kind.toUpperCase(),extensions:[extension.slice(1)]}],properties:['showOverwriteConfirmation','createDirectory']});check();if(result.canceled||!result.filePath)return{cancelled:true};target=path.resolve(result.filePath);if(path.extname(target).toLowerCase()!==extension.toLowerCase())throw Error('Сохраните файл с расширением '+extension);}
-  const before=await fileState(target);check();const expected=target===r.originalPath?r.originalHash:target===r.savedPath?r.savedHash:null;
+  target=await canonicalTarget(target);check();const before=await fileState(target);check();const expected=target===r.originalPath?r.originalHash:target===r.savedPath?r.savedHash:null;
   if(expected&&(before?.hash||null)!==expected)throw error('MOUSE_DOCUMENT_CONFLICT','Файл изменён другой программой. Выберите «Сохранить как».');
   const nextArchive=r.archive?this.zip().read(bytes):null;check();await atomicWrite(target,bytes,before,check,hash=>{
    r.bytes=bytes;r.archive=nextArchive;r.savedPath=target;r.savedHash=hash;if(target===r.originalPath)r.originalHash=hash;r.name=path.basename(target);r.revision++;r.dirty=false;r.draft=null;
