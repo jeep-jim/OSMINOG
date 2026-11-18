@@ -238,6 +238,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
    // An invalid history ID must not accept or checkpoint accompanying edits.
    const selected=action==='restore-layout'&&typeof args.historyId==='string'?bank.historyEntry(args.historyId):null;
    if(action==='restore-layout'&&!selected)throw Error('Состояние раскладки больше недоступно');
+   if(args.afterClosePreferences){if(action!=='close-tab'||args.afterClosePreferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.afterClosePreferences);changeMeta(args.history||{});}
    if(args.preferences){if(args.preferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.preferences);changeMeta(args.history||{});bank.savePreferences(args.preferences,args.history||{},tabs);}
    if(action==='previews'||action==='remember-preview'){await previews.capture();await persist();return previews.snapshot();}
    if(['undo','redo','restore-layout'].includes(action)){
@@ -259,7 +260,10 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
      if(source!==args.desk){previews.drop(args.id);browser.layout(browser.panels||[]);}
      await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
     }
-    await browser.mouseBeforeDesktopChange?.();await oldCommand('close',{id:args.id});previews.drop(args.id);await persist();
+    await browser.mouseBeforeDesktopChange?.();const closed=await oldCommand('close',{id:args.id});
+    if(closed?.cancelled){await persist();return{state:state(),preferences:bank.preferences(),previews:previews.snapshot(),cancelled:true};}
+    if(args.afterClosePreferences)bank.savePreferences(args.afterClosePreferences,args.history||{},rawLiveState().tabs);
+    previews.drop(args.id);await persist();
     const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),closed:{id:args.id,desk:source}};browser.emit();return result;
    }
    if(action==='rename'){const d=bank.items.find(d=>d.id===args.id);if(!d)throw Error('Рабочий стол не найден');d.name=String(args.name||'Стол').trim().slice(0,60)||'Стол';await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}

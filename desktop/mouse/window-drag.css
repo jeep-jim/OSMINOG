@@ -1,0 +1,12 @@
+/* Native window movement from the unused footer surface, including both
+   sides of Nora. Interactive controls retain their own pointer events. */
+#statusbar{app-region:drag;-webkit-app-region:drag;user-select:none}
+#statusbar :is(button,input,select,textarea,a,label,[role="button"],[contenteditable="true"]),
+#statusbar :is(button,input,select,textarea,a,label,[role="button"],[contenteditable="true"]) *{
+ app-region:no-drag;-webkit-app-region:no-drag
+}
+/* A modal owns its complete input surface until it closes. */
+body:has(dialog:modal) #statusbar,
+body:has([popover]:popover-open) #statusbar{
+ app-region:no-drag;-webkit-app-region:no-drag
+}

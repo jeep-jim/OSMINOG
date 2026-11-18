@@ -53,6 +53,7 @@ class PrivateMode {
    for(const name of ['visit','title','input','closed'])libraryService.library[name]=()=>{};
    const startService=await require('./mouse-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
    current.startService=startService;
+   if(this.documentService)require('./mouse-document-tabs.cjs').install({browser,documents:this.documentService,closeDocument:this.closeDocumentTab,library:libraryService.library,privateMode:true});
    require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain:register,trusted});
    // Place the one fresh private start page before the bank's first checkpoint.
    // Saved empty slots remain intentional; renderer reconciliation stays prune-only.
