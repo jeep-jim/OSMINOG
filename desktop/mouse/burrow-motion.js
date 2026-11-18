@@ -78,15 +78,16 @@
    if(trace){note('play-pending');Promise.all([movement.ready,shade.ready]).then(()=>{if(active&&ticket===generation&&current===movement)note('play-ready');}).catch(()=>{});}
    current.finished.then(()=>{if(active&&ticket===generation&&current===movement)complete(to);}).catch(()=>{});
   }
-  function prepareOpening(ticket){
+  function preparePlayers(to,ticket){
    preparing=true;const current=movement;
-   note('prepare-await-ready');
-   // Materializing the dialog, SVG and controls must not consume the300ms
-   // slide. Let the paused layers commit before their timeline starts.
+   note('prepare-await-ready',{to});
+   // Opening and closing both create fresh players after a settled endpoint.
+   // Commit their paused layers before starting the300ms timeline; a live
+   // reversal keeps its existing players and never repeats this preparation.
    Promise.all([movement.ready,shade.ready]).then(()=>{
     if(!active||ticket!==generation||current!==movement)return;
-    note('pause-ready');preparationFrame=requestAnimationFrame(rafTime=>{
-     note('preparation-frame-1',{rafTime});preparationFrame=requestAnimationFrame(rafTime=>{preparationFrame=0;note('preparation-frame-2',{rafTime});startPlayers(1,ticket);});
+    note('pause-ready',{to});preparationFrame=requestAnimationFrame(rafTime=>{
+     note('preparation-frame-1',{rafTime,to});preparationFrame=requestAnimationFrame(rafTime=>{preparationFrame=0;note('preparation-frame-2',{rafTime,to});startPlayers(to,ticket);});
     });
    }).catch(error=>{if(active&&ticket===generation&&current===movement){const failed=waiter;waiter=null;stopPlayers();failed?.reject(error);}});
   }
@@ -95,10 +96,10 @@
    note('request',{to,immediate});
    if(!active){active=true;geometryDirty=true;scrim.hidden=false;document.body.classList.add('mouse-dock-active');sync();}
    const result=new Promise((resolve,reject)=>{waiter={resolve,reject};});
-   if(immediate||reduced.matches||typeof panel.animate!=='function'||(!movement&&position===to)||(wasPreparing&&to===0)){complete(to);return result;}
+   if(immediate||reduced.matches||typeof panel.animate!=='function'||(!movement&&position===to)||(wasPreparing&&position===to)){complete(to);return result;}
    content.inert=true;panel.style.willChange='transform';scrim.style.willChange='opacity';const fresh=!movement;players();
    tray.dataset.motion=to?'opening':'closing';tray.dataset.motionProgress=String(progress());
-   if(to===1&&(wasPreparing||fresh&&position===0))prepareOpening(ticket);else startPlayers(to,ticket);
+   if(fresh||wasPreparing)preparePlayers(to,ticket);else startPlayers(to,ticket);
    return result;
   }
   function release(){

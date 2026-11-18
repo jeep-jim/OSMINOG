@@ -86,7 +86,7 @@ test('Nora slides a fixed final contour using transform and opacity animation on
  const counts=f.counts(),path=f.path.getAttribute('d'),clip=f.clip.getAttribute('d');let previous=0;
  for(const time of [30,60,100,150,200,250]){await f.at(time);const sample=f.motion.sample();assert.ok(sample.progress>previous&&sample.progress<1);previous=sample.progress;assert.equal(sample.height,440);assert.equal(sample.width,1000);assert.equal(sample.geometryWrites,initial.geometryWrites);assert.equal(sample.measurements,initial.measurements);assert.equal(f.path.getAttribute('d'),path);assert.equal(f.clip.getAttribute('d'),clip);assert.deepEqual(f.counts(),counts,'Animation sampling performs no geometry/style writes or layout reads');}
  await f.at(300);assert.equal(await opened,true);assert.equal(f.content.inert,false);assert.equal(f.motion.progress,1);assert.equal(f.motion.isSettled,true);assert.equal(panel.style.willChange,'');assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.tray.dataset.motion,'open');assert.deepEqual(f.settled,[true]);
- const closing=f.motion.close();assert.equal(f.content.inert,true);await f.at(450);assert.equal(f.motion.sample().height,440);assert.ok(f.motion.progress>0&&f.motion.progress<1);await f.at(600);assert.equal(await closing,true);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.motion.sample().height,440);f.motion.release();assert.equal(f.motion.sample(),null);assert.equal(f.classes.has('mouse-dock-active'),false);
+ const closing=f.motion.close();assert.equal(f.content.inert,true);await f.warm();await f.at(450);assert.equal(f.motion.sample().height,440);assert.ok(f.motion.progress>0&&f.motion.progress<1);await f.at(600);assert.equal(await closing,true);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.motion.sample().height,440);f.motion.release();assert.equal(f.motion.sample(),null);assert.equal(f.classes.has('mouse-dock-active'),false);
 });
 
 test('reversal keeps the same animation player, exact transform progress and fixed dimensions',async()=>{
@@ -118,6 +118,40 @@ test('initial layer readiness and slow preparation do not consume the300ms slide
  await f.paint(130);assert.equal(f.motion.progress,0);assert.ok(f.animations.every(a=>!a.running));
  await f.paint(160);assert.ok(f.animations.every(a=>a.running));assert.deepEqual(f.animations.map(a=>a.startTime),[160,160]);assert.equal(f.motion.progress,0,'the second preparation frame starts both players from zero');assert.equal(f.frameRequests,2);assert.equal(f.queuedFrames,0);
  const counts=f.counts();await f.at(190);near(f.motion.progress,.1);await f.at(459);assert.ok(f.motion.progress<1);assert.deepEqual(f.counts(),counts);await f.at(460);assert.equal(await opened,true);assert.equal(f.motion.progress,1);assert.equal(f.frameRequests,2,'there is no per-frame animation callback');
+});
+
+test('a fresh closing player commits its full-size layers before starting its unchanged300ms slide',async()=>{
+ const f=controllerFixture({deferReady:true}),opened=f.motion.open();f.ready();await f.warm();await f.at(300);assert.equal(await opened,true);
+ const closing=f.motion.close(),players=f.animations.slice(-2),panel=players[0].node;
+ assert.equal(f.animations.length,4,'a settled opening released its players');assert.deepEqual(players.map(a=>a.willChangeAtCreation),['transform','opacity']);
+ assert.ok(players.every(a=>!a.running));assert.equal(f.motion.progress,1);assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.content.inert,true);
+ await f.at(415);assert.equal(f.motion.progress,1);assert.equal(f.frameRequests,2,'closing waits for its own paused-player readiness');f.ready();await Promise.resolve();await Promise.resolve();
+ await f.paint(430);assert.equal(f.motion.progress,1);assert.ok(players.every(a=>!a.running),'the first preparation frame cannot consume closing motion');
+ await f.paint(460);assert.ok(players.every(a=>a.running&&a.playbackRate===-1&&a.currentTime===300));assert.equal(f.frameRequests,4);assert.equal(f.queuedFrames,0);
+ assert.ok(players.every(a=>a.options.duration===300&&a.options.easing==='cubic-bezier(.22,.8,.25,1)'),'preparation does not alter duration or easing');
+ const counts=f.counts();await f.at(490);near(f.motion.progress,.9);await f.at(759);assert.ok(f.motion.progress>0);assert.deepEqual(f.counts(),counts);await f.at(760);assert.equal(await closing,true);assert.equal(f.motion.progress,0);assert.equal(f.frameRequests,4);
+});
+
+test('reopen, release, immediate close and reduced motion cancel every fresh closing preparation stage',async()=>{
+ for(const stage of ['ready','first-frame','second-frame'])for(const action of ['reopen','release','immediate','reduce']){
+  const f=controllerFixture({deferReady:true}),opened=f.motion.open();f.ready();await f.warm();await f.at(300);await opened;const closing=f.motion.close();
+  if(stage!=='ready'){f.ready();await Promise.resolve();await Promise.resolve();if(stage==='second-frame')await f.paint(316);}
+  if(action==='reopen'){assert.equal(await f.motion.open(),true);assert.equal(await closing,false);assert.equal(f.motion.progress,1);assert.equal(f.content.inert,false);assert.equal(f.tray.dataset.motion,'open');}
+  else if(action==='release'){f.motion.release();assert.equal(await closing,false);assert.equal(f.motion.sample(),null);}
+  else if(action==='immediate'){assert.equal(await f.motion.close({immediate:true}),true);assert.equal(await closing,false);assert.equal(f.motion.progress,0);}
+  else{f.reduced(true);assert.equal(await closing,true);assert.equal(f.motion.progress,0);}
+  assert.equal(f.queuedFrames,0);assert.ok(f.animations.every(a=>a.cancelled));const requests=f.frameRequests,counts=f.counts();f.ready();await f.paint(1000);await f.paint(1100);assert.equal(f.frameRequests,requests,'cancelled closing preparation cannot schedule stale frames');assert.deepEqual(f.counts(),counts,'late readiness cannot overwrite the new endpoint');
+ }
+});
+
+test('repeated close during preparation preserves the open endpoint, then live reversal reuses those players',async()=>{
+ for(const stage of ['ready','first-frame','second-frame']){
+  const f=controllerFixture({deferReady:true}),opened=f.motion.open();f.ready();await f.warm();await f.at(300);await opened;const closing=f.motion.close(),players=f.animations.slice(-2);
+  if(stage!=='ready'){f.ready();await Promise.resolve();await Promise.resolve();if(stage==='second-frame')await f.paint(316);}
+  const repeated=f.motion.close();assert.equal(await closing,false);assert.equal(f.motion.progress,1,'another close cannot jump from an unstarted slide to closed');assert.equal(f.tray.dataset.motion,'closing');assert.equal(f.animations.length,4);assert.ok(players.every(a=>!a.cancelled&&!a.running));
+  f.ready();await f.warm();const started=f.time;await f.at(started+150);near(f.motion.progress,.5);const requests=f.frameRequests,reopening=f.motion.open();assert.equal(await repeated,false);near(f.motion.progress,.5);assert.equal(f.animations.length,4);assert.equal(f.frameRequests,requests,'reversal of running closing players has no preparation delay');assert.ok(players.every(a=>a.running&&a.playbackRate===1));
+  await f.at(started+300);assert.equal(await reopening,true);assert.equal(f.motion.progress,1);assert.equal(f.queuedFrames,0);
+ }
 });
 
 test('a stale document timeline cannot backdate a pending browser play into its endpoint',async()=>{
