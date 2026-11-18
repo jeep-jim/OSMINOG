@@ -18,7 +18,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
  const savedSearch=await store.get('mouseSearch'),originalEngine=browser.mouseSearch.state().engine;
  const libraryBefore=copy(libraryService.library.data),token='mouse625-search-'+randomUUID(),normalCreated=new Set(),restorers=[],wrappedPages=new Set();
  const captures=[],received=[],facts={version:'6.0.25',search:{},stateRestored:false,captured:captures};
- let server,root='',probe=null,lastClick=null,verificationError,cleanupError;
+ let server,root='',probe=null,lastClick=null,lastInput,verificationError,cleanupError;
  const currentBrowser=()=>privateMode.current?.browser||browser;
  async function painted(){let timer;try{await Promise.race([js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))'),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Search proof paint timed out')),1800)})]);}finally{clearTimeout(timer);}await sleep(100);}
  async function activate(){
@@ -35,7 +35,12 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   assert.ok(target.x>=display.x&&target.y>=display.y&&target.x<display.x+display.width&&target.y<display.y+display.height);assert.equal(native.testClick(target.x,target.y),true);await sleep(130);
  }
  async function key(keyCode,modifiers=[]){win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await sleep(45);}
- async function type(selector,text){await click(selector);await until(()=>js(`document.activeElement===document.querySelector(${JSON.stringify(selector)})`),'native search input focus');await key('A',['meta']);await win.webContents.insertText(text);assert.equal(await js(`document.querySelector(${JSON.stringify(selector)}).value`),text);}
+ async function inputState(selector){return js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),active=document.activeElement;return{found:!!e,focused:active===e,activeSelector:active?active.tagName.toLowerCase()+(active.id?'#'+active.id:'.'+[...active.classList].join('.')):'',value:e?.value??null,selectionStart:e?.selectionStart??null,selectionEnd:e?.selectionEnd??null,fullySelected:active===e&&typeof e?.value==='string'&&e.selectionStart===0&&e.selectionEnd===e.value.length};})()`);}
+ async function type(selector,text){
+  lastInput={selector,expected:text,stage:'focus'};await click(selector);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.focused;},'native search input focus');
+  if(lastInput.observed.value.length){lastInput.stage='select-all';await key('A',['meta']);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.fullySelected;},'native search text fully selected');}
+  lastInput.stage='insert';await win.webContents.insertText(text);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.value===text;},'native typed search text');lastInput.stage='verified';
+ }
  function redirect(workspace,url,stage){
   let target;try{target=new URL(String(url));}catch{return null;}
   if(target.origin===root)return null;
@@ -78,6 +83,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   assert.deepEqual(state.values,['google','bing','duckduckgo','yandex']);assert.equal(state.focused,(await searchState()).engine,'Opening the picker focuses the selected engine');
   const moves=(state.values.indexOf(engine)-state.values.indexOf(state.focused)+state.values.length)%state.values.length;
   for(let i=0;i<moves;i++)await key('ArrowDown');
+  await until(()=>js(`document.activeElement.dataset.searchEngine===${JSON.stringify(engine)}`),'native ArrowDown focus reaches the selected engine');
   assert.equal(await js('document.activeElement.dataset.searchEngine'),engine,'ArrowDown moves the actual picker focus');await key('Enter');
   await until(async()=>!await js('document.querySelector("#start-search-engine-dialog").open')&&(await searchState()).engine===engine,'Enter selects and closes the picker');await picker(engine);
  }
@@ -128,7 +134,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   await enterPrivate();assert.notEqual(privateMode.current.partition,previousPartition);await picker('bing');await leavePrivate();await picker('bing');
   facts.search.privateRAMOnly=true;facts.search.pickerKeyboardSelection=true;facts.search.addressAndHomeMatch=true;
   assert.equal(captures.length,8);assert.deepEqual([...new Set(received)].sort((a,b)=>a-b),captures.map((_,i)=>i));assert.ok(captures.every(row=>row.stage==='make-before-loadURL'||row.stage==='loadURL'));facts.search.noExternalSearchNavigation=true;
- }catch(error){verificationError=error;console.error('MOUSE_625_SEARCH_FAILURE',JSON.stringify({message:error.message,lastClick,captures,private:!!privateMode.current}));await fs.writeFile('mouse-625-search-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});}
+ }catch(error){verificationError=error;console.error('MOUSE_625_SEARCH_FAILURE',JSON.stringify({message:error.message,lastClick,lastInput,actualInput:lastInput?await inputState(lastInput.selector).catch(()=>null):null,captures,private:!!privateMode.current}));await fs.writeFile('mouse-625-search-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});}
  finally{
   probe=null;
   try{

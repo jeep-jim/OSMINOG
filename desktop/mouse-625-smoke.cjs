@@ -14,7 +14,7 @@ module.exports=async({app,win,browser,documentService,privateMode,store})=>{
  assert.equal(documentService.state().documents.length,0,'The document proof does not replace existing open documents');
  assert.equal(privateMode.current,null,'The document proof starts in the normal profile');
  const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node'),original=await js('MouseTest.prefs()'),originalBounds=win.getBounds(),bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),originalDialog=documentService.dialog;
- const ownedDocuments=new Set(),openChoices=[],saveChoices=[],messageChoices=[],facts={version:'6.0.25'},evidence={};let fixtureDir,fixtures,server,baseline,pages,lastClick,cleanupMode=false,verificationError;
+ const ownedDocuments=new Set(),openChoices=[],saveChoices=[],messageChoices=[],facts={version:'6.0.25'},evidence={};let fixtureDir,fixtures,server,baseline,pages,lastClick,lastInput,cleanupMode=false,verificationError;
  const documentState=id=>documentService.state().documents.find(r=>r.id===id);
  const layout=()=>js(`Object.fromEntries(${JSON.stringify(layoutKeys)}.map(k=>[k,MouseTest.prefs()[k]]))`);
  const dialogChoice=(queue,kind)=>{if(!queue.length)throw Error('Unexpected native document '+kind+' dialog');return queue.shift();};
@@ -31,10 +31,17 @@ module.exports=async({app,win,browser,documentService,privateMode,store})=>{
   await activate();const point=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing document control: '+${JSON.stringify(selector)});const r=e.getBoundingClientRect(),x=r.left+r.width*${xFraction},y=r.top+r.height*${yFraction};if(e.disabled||!r.width||!r.height||!e.contains(document.elementFromPoint(x,y)))throw Error('Document control is hidden or covered: '+${JSON.stringify(selector)});return{x,y};})()`),bounds=win.getContentBounds(),position={x:Math.round(bounds.x+point.x),y:Math.round(bounds.y+point.y)},display=screen.getDisplayNearestPoint(position).bounds;
   lastClick={selector,position,display};assert.ok(position.x>=display.x&&position.x<display.x+display.width&&position.y>=display.y&&position.y<display.y+display.height,'Native document target is on screen');assert.equal(native.testClick(position.x,position.y),true);await sleep(100);
  }
+ async function inputState(selector){return js(`(()=>{const e=document.querySelector('#mouse-documents')?.querySelector(${JSON.stringify(selector)}),active=document.activeElement,editable=!!e?.isContentEditable,selection=window.getSelection(),inside=!!e&&!!selection?.rangeCount&&e.contains(selection.getRangeAt(0).startContainer)&&e.contains(selection.getRangeAt(0).endContainer),value=e?(editable?e.textContent:e.value):null,start=typeof e?.selectionStart==='number'?e.selectionStart:null,end=typeof e?.selectionEnd==='number'?e.selectionEnd:null,selectedText=editable&&inside?selection.toString():null;return{found:!!e,focused:active===e,activeSelector:active?active.tagName.toLowerCase()+(active.id?'#'+active.id:'.'+[...active.classList].join('.')):'',value,selectionStart:start,selectionEnd:end,selectedText,fullySelected:active===e&&typeof value==='string'&&(value.length===0||(editable?inside&&selectedText===value:start===0&&end===value.length))};})()`);}
  async function type(selector,text){
-  await click(selector);await until(()=>js(`document.activeElement===document.querySelector(${JSON.stringify(selector)})`),'native text field focus');
-  win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});await win.webContents.insertText(text);
-  await until(()=>js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return(e.isContentEditable?e.textContent:e.value)===${JSON.stringify(text)};})()`),'native typed document text');
+  lastInput={selector,expected:text,stage:'focus'};await click(selector);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.focused;},'native text field focus');
+  if(lastInput.observed.value.length){
+   lastInput.stage='select-all';win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});
+   // The shell dispatches selectAll from before-input-event. Its completion
+   // must be observed before insertText can replace the existing value.
+   await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.fullySelected;},'native document text fully selected');
+  }
+  lastInput.stage='insert';await win.webContents.insertText(text);
+  await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.value===text;},'native typed document text');lastInput.stage='verified';
  }
  async function ready(){await until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest?.documentsUI').catch(()=>false),'document shell is ready');}
  async function show(){if(!await js('MouseTest.documentsUI.dialog.open'))await click('#documents-button');await until(()=>js('MouseTest.documentsUI.dialog.open'),'document modal opens');}
@@ -90,7 +97,7 @@ module.exports=async({app,win,browser,documentService,privateMode,store})=>{
   for(const kind of ['pdf','docx','xlsx'])assert.deepEqual(await fs.readFile(fixtures.paths[kind]),fixtures.bytes[kind],kind+' original stays unchanged');
   assert.equal(openChoices.length,0);assert.equal(saveChoices.length,0);assert.equal(messageChoices.length,0);await preserve('Completed document proof');facts.browser={gridPreserved:true,pageIdentityPreserved:true};facts.evidence=evidence;
   await fs.writeFile('mouse-625-documents.json',JSON.stringify(facts,null,2)+'\n');console.log('MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PASS',JSON.stringify(facts));
- }catch(error){verificationError=error;console.error('MOUSE_625_DOCUMENT_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),private:!!privateMode.current,documents:documentService.state().documents,notice:await js('document.querySelector(".document-notice")?.textContent').catch(()=>null)}));await fs.writeFile('mouse-625-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});throw error;
+ }catch(error){verificationError=error;console.error('MOUSE_625_DOCUMENT_FAILURE_CONTEXT',JSON.stringify({lastClick,lastInput,actualInput:lastInput?await inputState(lastInput.selector).catch(()=>null):null,window:win.getBounds(),private:!!privateMode.current,documents:documentService.state().documents,notice:await js('document.querySelector(".document-notice")?.textContent').catch(()=>null)}));await fs.writeFile('mouse-625-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});throw error;
  }finally{
   cleanupMode=true;let cleanupError;
   try{await documentService.queue;for(const info of documentService.state().documents)if(ownedDocuments.has(info.id))await documentService.handle('release',{id:info.id});if(privateMode.current)await privateMode.leave();await ready();await js('MouseTest.documentsUI.hide();MouseTest.desktopUI.close();MouseTest.zoomUI.close()');
