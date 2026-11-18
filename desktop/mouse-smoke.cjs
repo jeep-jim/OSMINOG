@@ -40,7 +40,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await js(`MouseTest.openAI(${JSON.stringify(url+'/custom-ai')})`);await until(()=>browser.panels.length===5,'custom AI webpage');
    const aiId=await js('MouseTest.model.aiId');await until(()=>browser.get(aiId).view.webContents.getURL().endsWith('/custom-ai')&&!browser.get(aiId).loading,'custom AI navigation completion');assert.equal(browser.get(aiId).error,'');
    await drag('#ai-divider',-140,0);assert.ok(await js('MouseTest.model.aiWidth')>400);await geometry(4,false);
-   await js('document.querySelector("[data-action=close-ai]").click()');await until(()=>!browser.get(aiId).visible,'hidden AI');await geometry(4,true);
+   await js('document.querySelector("[data-action=ai]").click()');await until(()=>!browser.get(aiId).visible,'hidden AI');await geometry(4,true);
    await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'AI returns');await geometry(4,false);
    for(const [id,old] of originals){const t=browser.get(id);assert.equal(t.view.webContents.id,old.wc);assert.equal(await t.view.webContents.executeJavaScript('globalThis.loadedOnce'),old.value);assert.equal(await t.view.webContents.executeJavaScript('document.querySelector("#kept").value'),'retained')}
    console.log('MOUSE_CUSTOM_AI_RESIZE_NO_RELOAD_PASS');
