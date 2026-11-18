@@ -12,8 +12,8 @@ module.exports=async({win,browser,app})=>{
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);
    const cards=await js(`Promise.all([...document.querySelectorAll('.ai-preset-card')].map(async b=>{const i=b.querySelector('img');await i.decode();return {name:b.textContent,src:i.src,w:i.naturalWidth,h:i.naturalHeight,url:b.dataset.aiUrl}}))`);
-   assert.deepEqual(cards.map(c=>c.name),['ChatGPT','Claude','Gemini','DeepSeek']);
-   for(const c of cards){assert.ok(c.src.startsWith('file:')&&c.src.includes('/providers/'));assert.ok(c.w>=16&&c.h>=16);}
+   assert.deepEqual(cards.map(c=>c.name),['ChatGPT','Claude','Gemini','DeepSeek','Агент Mouse']);
+   for(const c of cards){assert.ok(c.src.startsWith('file:'));assert.ok(c.w>=16&&c.h>=16);if(c.url==='mouse://agent')assert.match(c.src,/agent-mouse-(green|orange|cyan|violet|coral)\.svg$/);else assert.ok(c.src.includes('/providers/'));}
    const color=await js('(()=>{const c=getComputedStyle(document.querySelector("#ai-toggle"));return[c.color,c.borderTopColor,document.querySelector("#ai-toggle").getAttribute("aria-pressed")]})()');
    assert.equal(color[0],theme==='light'?'rgb(0, 115, 143)':'rgb(83, 217, 255)');assert.equal(color[1],color[0]);assert.equal(color[2],'true');
    assert.equal(await js('document.querySelector("[data-action=ai-back]").disabled'),true);

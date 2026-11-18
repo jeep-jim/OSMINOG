@@ -1,10 +1,12 @@
 'use strict';
-globalThis.createMouseAIIcons=({N,tabs,sessions})=>{
+globalThis.createMouseAIIcons=({N,tabs,sessions,desk=()=>''})=>{
  const cache=new Map(),watched=new WeakSet();
  function apply(image,url,id=''){
   if(!watched.has(image)){watched.add(image);globalThis.MouseIcons.watch(image);}
-  const t=tabs().find(t=>t.id===(id||sessions()[url]));const key=url+'|'+(t?.favicon||'');
+  const t=tabs().find(t=>t.id===(id||sessions()[url])),agent=url===globalThis.MouseAgentBrand?.service;const key=url+'|'+(t?.favicon||'')+(agent?'|'+globalThis.MouseAgentBrand.variant(desk()):'');
   if(image.dataset.providerKey===key)return;image.dataset.providerKey=key;image.src='globe.svg';
+  if(agent){globalThis.MouseAgentBrand.apply(image,desk());return;}
+  image.classList.remove('agent-mouse-icon');delete image.dataset.agentColor;
   if(!url||url==='custom')return;
   const builtin={'https://chatgpt.com/':'chatgpt','https://claude.ai/':'claude','https://gemini.google.com/':'gemini','https://chat.deepseek.com/':'deepseek'}[url];
   if(builtin){image.src='providers/'+builtin+'.png';return;}

@@ -16,7 +16,7 @@
   const ordered=[...Object.values(previous.slots||{}),...(previous.tabOrder||[]),...main.map(t=>t.id)].filter(x=>valid.has(x)&&!seen.has(x)&&seen.add(x));
   const leaves=t=>t.id?[t.id]:[...leaves(t.a),...leaves(t.b)],ids=leaves(spec.tree),slots=Object.fromEntries(ids.map((p,i)=>[p,ordered[i]||'']));
   const selected=previous.slots?.[previous.active],active=ids.find(p=>selected&&slots[p]===selected)||ids[0];
-  return{...previous,mode:id,tree:spec.tree,slots,active,tabOrder:ordered};
+  return{...previous,...(id==='agents'?{aiOpen:false}:{}),mode:id,tree:spec.tree,slots,active,tabOrder:ordered};
  }
  const api={modes,get,arranged};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseModes=api;
 })(globalThis);

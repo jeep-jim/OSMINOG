@@ -22,7 +22,7 @@ module.exports=async({app,win,browser})=>{
  }
  assert.equal(ai.navigationEpoch||0,epoch);assert.equal(ai.view.webContents.id,wc);
  console.log('MOUSE_COMPACT_AI_PROVIDER_ICON_AND_EXACT_BRAND_PASS');
- await js(`MouseTest.setTheme(${JSON.stringify(previous.theme)})`);if(!previous.aiOpen)await js('MouseTest.action("close-ai")');
+ await js(`MouseTest.setTheme(${JSON.stringify(previous.theme)})`);if(!previous.aiOpen)await js('MouseTest.action("ai")');
  if(!win.isFullScreen())await new Promise(resolve=>{win.once('enter-full-screen',resolve);win.setFullScreen(true)});
  app.focus({steal:true});win.show();win.focus();win.webContents.focus();await sleep(250);
  console.log('MOUSE_NATIVE_MENU_BEFORE',JSON.stringify(win.mouseChromeGuard.nativeState()));

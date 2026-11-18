@@ -25,7 +25,7 @@
   }
   document.addEventListener('pointerdown',e=>endAddressEditing(e.target),true);
   window.addEventListener('blur',()=>{endAddressEditing(null);hideHints();});
-  function swapTabs(a,b){if(!valid(a)||!valid(b)||a===b)return false;m.tabOrder=swapOrder(tabs(),m.tabOrder,a,b);renderTabs();save();return true;}
+  function swapTabs(a,b){if(!valid(a)||!valid(b)||a===b)return false;m.tabOrder=swapOrder(m.state.tabs,m.tabOrder,a,b);renderTabs();save();return true;}
   function swapPanes(a,b){const panes=[...document.querySelectorAll('.pane')].map(p=>p.dataset.pane);if(a===b||!panes.includes(a)||!panes.includes(b))return false;m.slots=swapSlots(m.slots,a,b);m.active=b;renderTree();save();return true;}
   function placeTab(id,pane){if(!valid(id)||!document.querySelector(`.pane[data-pane="${CSS.escape(pane)}"]`))return false;const source=Object.keys(m.slots).find(p=>m.slots[p]===id);if(source===pane)return false;if(source)return swapPanes(source,pane);m.slots[pane]=id;m.active=pane;renderTree();save();return true;}
   function targetAt(x,y){const e=document.elementFromPoint(x,y);if(!e||!drag)return null;const top=e.closest('.tab-item');if(top&&drag.kind==='tab'&&valid(top.dataset.tab)&&top.dataset.tab!==drag.id)return{kind:'tab',id:top.dataset.tab,element:top};const pane=e.closest('.pane');if(pane&&!(drag.kind==='pane'&&pane.dataset.pane===drag.id))return{kind:'pane',id:pane.dataset.pane,element:pane};return null;}
