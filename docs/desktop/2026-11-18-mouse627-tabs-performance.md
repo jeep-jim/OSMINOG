@@ -269,3 +269,27 @@ Bit4 объединяет несколько eligibility branches, поэтом�
 Focused combined70 PASS,0FAIL,0SKIP. Полный актуальный Node список из mouse-macos.yml:420/420 PASS,0FAIL,0SKIP. Syntax/diff-check PASS. Native приёмка нового product fix и paired compositor proof остаются PENDING; подготовленные5e0a packages не опубликованы.
 
 Независимый narrow review initial-direction fix PASS: pinned playbackRate setter очищает pending rate и сохраняет время; explicit endpoint вычисляется уже с нужным знаком. Отдельные26 burrow/trace tests PASS. Новый native trace обязателен.
+
+## Прогон 23e57c7: fresh close перешёл на compositor; зафиксирована отдельная задержка вывода
+
+Source `23e57c770074eb15e10b7dae420d2f4ccb7d006d`, tree `a66ee81e6d0cc1a0393951521245690164be59ce`, [Mouse run44350041162](https://github.com/jeep-jim/OSMINOG/actions/runs/44350041162). Первые Mouse job134962853157 и companion Mac job134962854574 отменены без runner/steps; повторены только эти неисполненные задания. Все7 companion workflows завершились SUCCESS. Исполненный Mouse attempt2/job134973394094 прошёл Node420, build, PDF existing-text, document tabs, metadata workload и native window gate. Light opening прошёл. Light closing получил настоящий допустимый промежуточный PNG, но остановился на неизменённом требовании `light closing paints at least three intermediate frames`: renderer содержит только два промежуточных положения. Candidate artifact не создан; source не merged, выпуск не опубликован.
+
+Verification artifact14448854034 независимо скачан и проверен:3680307байт, SHA256 `08d801b58037a583cc204c2983043d2e207788fc5b5e6365b08cdb534ff23553`,38уникальных безопасных ZIP paths, CRC PASS. Trace содержит50020событий,10264314байт сырого JSON,5834ms записи; потери/ошибки/достижение лимитов не отмечены.13renderer anchors имеют spread0.175ms. Окно во всех сохранённых samples visible/focused/not minimized; renderer visible, GPU compositing enabled.
+
+Trace впервые подтверждает исправление fresh closing: подготовка проходит с playbackRate−1/currentTime300; panel node1145/animation0x8c и scrim node1146/animation0xc5 запускаются в303932214/303932237µs. Их paired compositor models0xc6/0xc7 начинаются в303935300/303935309µs и заканчиваются в304266717/304266732µs. Во всей сохранённой записи нет `compositeFailed`. Это подтверждение именно light close; dark и последующее fresh close не достигнуты, их доказательства остаются обязательными.
+
+Оставшийся отказ имеет отдельную измеренную задержку: renderer samples19896.6→20098.0ms (201.4ms), translate0.785988→144.848px. На общей trace шкале промежуток FireAnimationFrame равен304169115−303968638=200477µs=200.477ms. Native PNG seq7 показывает145px и проходит прежний pixel selector; обработка selector0.97–2.21ms. Непрерывность renderer этим кадром не доказана.
+
+В интервале задержки display scheduler сообщает Swap throttled:pending_swaps2/max2. Native CVDisplayLink продолжает callbacks примерно раз в16.7ms, но renderer Scheduler::BeginFrame имеет gap174.566ms. GPU CrGpuMain RunTask303999272→304150122 занимает150.850ms elapsed при2.060ms CPU; внутри FinishPaintRenderPass83.194ms elapsed/1.124ms CPU, затем Dawn wait66.339ms elapsed/0.032ms CPU в цепочке SwapBuffers→ScheduleOverlays→IOSurface/CoreAnimation access. DrawAndSwap gap188.834ms. Эти вложенные интервалы не складываются. Они показывают backpressure в графическом выводе, но не устанавливают первопричину драйвера/оборудования и не доказывают, что проблема существует только в CI.
+
+Отдельный preceding CopyOutput занимает32µs. Capture utilization0или17%; PipelineLimited/NearlyPipelineLimited и FpsRateLimited во время закрытия отсутствуют. Pinned Electron44.5.0 frame subscriber копирует пиксели перед JS callback; удержание JS bitmap не доказывает удержание native pool. Поэтому нет подтверждённого основания менять capture retention, GPU flags, длительность или easing. Использованные первичные исходники:
+
+- https://github.com/chromium/chromium/blob/152.0.7977.130/components/viz/service/display/display_scheduler.cc
+- https://github.com/chromium/chromium/blob/152.0.7977.130/components/viz/common/frame_sinks/begin_frame_source.cc
+- https://github.com/chromium/chromium/blob/152.0.7977.130/gpu/command_buffer/service/shared_image/iosurface_image_backing.mm
+- https://github.com/chromium/chromium/blob/152.0.7977.130/components/viz/service/frame_sinks/video_capture/frame_sink_video_capturer_impl.cc
+- https://github.com/electron/electron/blob/v44.5.0/shell/browser/api/frame_subscriber.cc
+
+Независимый review поддержал один ограниченный повтор с тем же application/workflow code и прежними gates. Этот commit дополняет только журнал; desktop, tools и .github/workflows остаются byte-identical к23e57. Отдельный новый run сохраняет первоначальный failed run и его artifact без удаления/перезаписи. Нового product fix этим commit не заявляется. Если исполненная повторная проверка снова не проходит, нужен разбор её свидетельств, а не автоматический цикл повторов. Отмена до runner/steps учитывается отдельно от исполненной проверки.
+
+Перед merge по-прежнему обязательны все исходные gates и paired fresh-closing compositor models без paired rejection в light/dark/последующем close. Успех отдельного повторного запуска подтвердит критерии в нём, но не будет обещанием отсутствия задержек на любом оборудовании. Publisher pins остаются PENDING до этой приёмки и обычного source merge.
