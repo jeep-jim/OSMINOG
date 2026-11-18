@@ -467,3 +467,121 @@ Workflow использует две изолированные checkouts и о�
 Baseline return1: before-click PASS; after-click падает только на ожидаемом ERR_ASSERTION/after-redraw-empty/EMPTY_REDRAW, фиксируя blur/focusout, удалённую модель, disconnected field и пустое selection; after-input — ожидаемый ERR_ASSERTION/after-redraw-filled/FILLED_REDRAW, модель/поле/текст сохранены, focus/caret потеряны. Candidate return0: все3 PASS, прежний seed реально удалён после RAF, новая model/field identity, focus, selection, caret nodes/offsets и точные far coordinates сохранены. Полный retained canvas408: **26 checks PASS,errors=[]**, включая обе темы, редактирование кириллицы, сохранение, пустой-text cleanup, undo и responsive widths. Это подтверждает исправление воспроизведённого product defect, не восстанавливает отсутствовавший DOM первоначального Chrome failure.
 
 После свежего чтения PR165/main подтверждены open head d6b1 и base9e2812f0d102a6e9ce0fb37f7377e803d97ef7a9. В source переносится ровно editor.js + tests/canvas-ux-408.cjs и этот append-only журнал. Изолированные диагностические workflows/harness/guards не переносятся. Desktop subtree,300ms Nora motion, native pixel/continuity thresholds и full acceptance workflow остаются побайтово прежними. Следующий обязательный run проверяет весь новый source; готовность релиза будет оценена по его полному результату, фактическому trace и candidate bytes. До этого source merge и публикация не выполнены.
+
+
+## Сохранение подготовленного publisher во время очереди Mac
+
+На19:27 UTC все6 non-Mac companions acbcf36 SUCCESS; основной native44379124696 и Mac companion44379124813 ещё ожидали runner,steps=[] без исполненных failures. Независимые draft PR166/167 закрыты без merge после сохранения artifacts и переноса проверенных editor/test изменений в PR165; их ветки сохранены.
+
+Девять уже проверенных627 publisher files сохранены отдельно в OSMINOG-Releases branch `mouse627-publication`: remote head `8c81ef8c6eabf3b564e8eadee3460a34d357ab53`, tree `3e1368e0107658383161d589e49f262977d2aacf`, local `7e24b5c5103884dcf67bae431aeacc0192fe2121`. Parent/fresh main `0191c2a22cfef8baa95b33e56a5612513e904df9` неизменен. PR не создан, main/channel/public assets не менялись; новый branch push не соответствует main-only owner trigger. Readback pin подтверждает ready=false, source пустой,run0; owner остаётся PENDING. Historical625/626 не изменены, cache-файлы не включены. Это сохранение подготовленной работы, не публикация.
+
+Заметки уточняют реально объявленные FORMATS: PDF,DOCX,XLSX; TXT/Markdown/CSV/TSV/JSON открываются как текст. Остальные publisher/helper/schema/test bytes сохранены, включая47 trace tests/18 publisher tests и прежние accepted scopes. Финальные pins/owner/notes будут заполнены только по новому полностью принятому source/candidate и фактическому source merge.
+
+
+Все7 companions exact acbcf36 завершены SUCCESS в attempt1 без retries: Mac44379124813,Windows44379125060,Chrome44379124588,diagnostics44379124820,graphics44379125201,photo44379125246,trash44379125070. Root независимо прочитал полный список8 workflows этого commit; основной Mouse44379124696/job135066216545 на19:31 UTC оставался queued без runner/steps. Сопутствующие сборки не заменяют его installed native evidence и candidate. Source merge/publisher PR/готовые pins остаются PENDING.
+
+
+## Native очередь отменена без исполнения; одно восстановление задания
+
+Primary run44379124696 attempt1/job135066216545 отменён19:33:35 UTC после15m01s в queued, runner_id0,steps=[]. Это не test failure: приложение и проверки не запускались. Root прочитал cancelled status, пустой artifact list и неизменный PR165 head acbcf36. Семь companion workflows завершены SUCCESS в attempt1.
+
+Root19:34:26 UTC вызвал поддерживаемый GitHub re-run-one-job для135066216545 ровно один раз. Source и run44379124696 сохраняются, новый attempt2. Бюджет queue-only recovery1 использован1; существующее native evidence не перезаписывается, поскольку первый attempt его не создал. Выполненные failures этим решением не повторяются, дальнейших автоматических повторов нет. Публикация остаётся PENDING до фактического installed run, новых evidence/candidate и всех последующих gates.
+
+
+Независимый review release notes подтвердил точность форматов/RAM-drafts/PDF limits/per-pane pill/ad-hoc scope, но нашёл недостаточность общей оговорки про FPS. Подготовленные заметки дополнены явным фактом прежних macOS closing delays/insufficient intermediate frames: причина эпизодов и их устранение не подтверждены. Добавлена ссылка на pinned journal acbcf36. Это раскрытие измеренного ограничения, не изменение gates или утверждение runner-only причины; native attempt2 ещё ожидал исполнения. Правка заметок пока локальна и войдёт в финальное заполнение release branch.
+
+
+## Две отмены очереди без исполнения; уточнённый операционный шаг
+
+Attempt2/job135075961659 также cancelled19:49:30 UTC через902s, runner_id0,steps=[]. Fresh API подтверждает exact acbcf36, run44379124696 completed/failure и artifacts=[]. Итог failure относится к запуску GitHub, фактических product test results в обеих попытках нет. Motion_audit сохранил terminal report и полные API metadata; root независимо перечитал latest job и пустые artifacts. Logs обоих jobs недоступны404 BlobNotFound. Check output показывает4annotations, но отдельный annotations endpoint connector не поддерживает; публичная web-страница job также недоступна. Причина отмены не установлена.
+
+Root и release_path независимо проверили source workflow: macos-15, timeout25, без concurrency/cancel-in-progress, job if или environment gate; companion с тем же label действительно прошёл на runner1000048931. На19:53 UTC в OSMINOG нет queued/in_progress runs. Текущая официальная status page показывает Actions Operational; это не доказывает отсутствие локальной проблемы выделения runner. Документация описывает общий45min discard, который не объясняет наблюдаемые901/902s; инфраструктурная причина не выдумывается.
+
+После этой диагностики root явно пересмотрел свой операционный queue-only лимит1: он не является ограничением владельца или разрешением повторять исполненный product failure. Независимый release_path рекомендовал минимальное действие — ещё один single-job rerun последнего cancelled job без изменения исходника, платформы, gate или артефактов. В19:53:48 UTC поддерживаемый rerun135075961659 вернул success. Теперь queue-only recovery использован2; run/source прежние, acceptance attempt3. Это попытка впервые исполнить обязательную приёмку acbcf36, не результат приёмки и не исправление прежних Nora delays. При исполненном failure следующий шаг определяется конкретным новым evidence; старые artifacts не допускаются к публикации.
+
+
+## Первая исполненная приёмка acbcf36 завершена успешно
+
+Attempt3/job135087871076 получил runner1000048936 в19:53:55 UTC. На20:02:46 API подтверждает SUCCESS всех21steps [run44379124696](https://github.com/jeep-jim/OSMINOG/actions/runs/44379124696). Root независимо прочитал весь job, artifacts и список8 workflows exact acbcf36: все8 completed/success. Предшествующие две queue cancellations сохранены; на этом source исполнена одна полная native попытка.
+
+Завершённый job log подтверждает176 общих desktop tests,438 Mouse tests и378 повторных тематических проверок — каждая группа0FAIL/0SKIP; эти группы пересекаются и не суммируются в число уникальных тестов. Установленный прогон содержит actual markers PDF replacement, document tabs, metadata workload, footer/window drag, fixed Nora, four desktop transitions, retained viewport controls, ARM64 smoke, profile/cookie restart и реальной625→627 replacement/relaunch/profile. Trace motion-complete:137960events,27637921raw bytes,dataLossOccurred=false,errors=[]. Это ещё не самостоятельный вывод trace validator: фактические bytes проверяются отдельно.
+
+Новый verification artifact14467111554:12372073bytes,SHA256 `0b6cd60b0500eb61783171b8528e0824502ea6eab5253b8d96b5c6c17a7adeb7`; candidate14466087376:267400261bytes,SHA256 `52f30f0b7abc05a27210411c284ee53a270a7dbfd628f0f09ac2fcf1fdf6a0d9`. Fresh API связывает оба с acbcf36/run44379124696,expired=false. На этом шаге скачивание/независимые ZIP, trace, pixels и package checks продолжаются; source merge и публикация ещё не выполнены.
+
+PR165 переименован в «Mouse6.0.27: Нора постоянного размера, переходы столов и документы во вкладках», чтобы не заявлять устранение известных задержек. Root и release_path прочитали exact issue163: его5критериев относятся к document tabs/guards/PDF/regressions; per-pane progress pill туда не входит. Closes#163 допустим после полной document acceptance, но не означает завершения отдельной пилюли. Этот follow-up и наблюдённые Nora delays остаются явно раскрыты.
+
+
+## Независимая проверка фактических артефактов acbcf36
+
+Verification ZIP14467111554:136unique safe paths,35972602expanded bytes,CRC PASS; API size/digest/source/run совпали. Root независимо пересчитал SHA/CRC, выполнил текущие publisher verify_627_evidence (включая настоящие PNG pixels), retained623 facts,626 palette facts и verify_627_motion_trace прямо на ZIP bytes. Все проверки PASS. Actual profile restart и625→627 replacement markers прочитаны из соответствующих логов. Root осмотрел light closing, dark open, PDF edit и dark desktop transition PNG; release_path выполняет отдельную сверку retained evidence.
+
+Motion_review отдельно выполнил неизменённый strict helper:3fresh closes light generation16/group227, dark20/group294, later26/group336, каждая properties{0,4}. Все6 selected models имеют реальные END и main/impl FINISHED, active-phase rejections0. Clock28anchors,spread0.162ms,correlationMargin0.2925ms. Отдельные pre-play opacity chains226/293/335 имеют ненаблюдаемый impl terminal и не подмешиваются к selected pairs. Attribution остаётся temporal-correlation/directIdentityLink=false; непрерывность compositor lifetime и стабильныеFPS не заявляются.
+
+Candidate ZIP14466087376:4unique safe regular files,CRC PASS, API bytes/digest/source/run совпали. Motion_review дополнительно выполнил подготовленный независимый byte verifier: exact files/provenance/SHA256SUMS,86required feature tokens из124,без superseded tokens — PASS. Root заново пересчитал archive и оба пакета: DMG133881495bytes,SHA256 `e383c648d316f4087c04fcecc7cb6afd2aa46c625af84c580cab55293628c286`; ZIP134212464bytes,SHA256 `629ec26ccabdc95022b765454cbab4812e7e43cbffa59d7bd78d0c7805a1a6af`. Version6.0.27,sourceacbcf36,run44379124696,arm64/darwin,ad-hoc,notarized=false. Старые candidate bytes не используются.
+
+В actual PDF PNG длинная замена «Mouse627 исправлен» накладывается на начало соседнего KEEP AFTER. Release_path подтвердил source: UI предупреждает о сохранении размеров/положения без автоматического переноса; engine компенсирует изменение advance черезTJ, сохраняя исходную позицию следующего фрагмента. Это предел редактирования без перевёрстки, а не утверждение идеальной вёрстки. Release notes дополнены прямой фразой о возможном наложении и необходимости проверить страницу перед сохранением. Исходник и ранее принятые gates не меняются.
+
+
+## Source объединён; окончательные publication pins проверены
+
+После fresh PR/main reads и завершения независимых reviews PR165 объединён обычным merge `d4e94ff9844bf81f3a54821a0bf9cee9df03705f`. Root и release_path отдельно прочитали merged=true/headacbcf36, оба parents9e2812f/acbcf36 и exact tree `b29e35d7ec327ad399ebeda35fe84b33d6b37573`, совпадающее с принятым source. Source merge не объявляется публикацией.
+
+В OSMINOG-Releases заполнены только3staging files поверх9ранее подготовленных627files: ready=true, точныеsource/run/artifacts/archive/package hashes,sourcePR165/actualmerge; прежний625pin сохранён. Owner и notes раскрывают timing/PDF/RAM/progress/signing ограничения. Независимый review уточнил различие: реальная замена установленной625 использует current installer; shipped625 updater отдельно выполняет anonymous discovery и полный verified627 download в publisher. Эта формулировка внесена и повторно прочитана reviewer.
+
+Required local gates PASS: validate-template,47trace tests,18publisher integration tests,validate final pin. После документального уточнения owner выполнен validate, алгоритмы и широкие тесты не менялись. Local final commit `e09e1e6244bc64107cf8e695c1a3fc39ddd2141f`, remote final branch commit `cae26f556c470b438de4908e819d9899c8e61f6d`, exact shared tree `626db1154294f11c71307b0760139f851521568c`. Fresh Releases main `0191c2a22cfef8baa95b33e56a5612513e904df9` и prior branch8c81 сохранены; update_ref использовал expected_sha безforce. Все3remote files побайтово прочитаны обратно и совпали с reviewed content.
+
+Создан [publication PR46](https://github.com/jeep-jim/OSMINOG-Releases/pull/46),9added files,2commits, без изменения исторических607–626files. PR checks выполняются; последующий ordinary merge запустит отдельный Mac publisher с fresh installed/native/trace/profile/update gates до первого release API и проверкой публичного канала после публикации. На этом шаге public release и channel ещё не изменены.
+
+
+## Запущен окончательный publisher
+
+Все3publication PR checks exact cae26f5 завершены SUCCESS: contract44388451247/job135099295280 (47+18tests и оба validate markers), registry integrity44388451086, registry44388451120. Native publisher job в PR-run SKIPPED по условиюworkflow, поэтому этот success ещё не публикация. После fresh PR/main reads root объединил PR46 обычным merge `8e10e197c77a7fecb07426f3a14b5d59665c5d09`. Readback merged=true, дваparents0191/cae26 и exact reviewed tree626db115 подтверждены.
+
+Push запустил [actual publisher44388724277](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44388724277), workflow423059052,attempt1,exact merge8e10/tree626db115. Contract135100255464 SUCCESS; на20:14:03 UTC native mouse-release135100464339 queued безrunner/steps. До первого release API сохранены публичные625/626asset IDs,size,digests и прежний channel6.0.26 для независимого сравнения после публикации. Import/install/publish/channel/updater outcomes пока не получены; их успех не предполагается.
+
+
+## Публичные пакеты и канал6.0.27 доступны
+
+Publisher получил отдельный runner1000048944. Import exact source bytes, fresh installed/native/replacement gate, fresh trace gate/publication и channel advancement завершены SUCCESS. [Release450512773](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.27-arm64) опубликован2026-11-18T20:22:39Z: draft=false,prerelease=true. Root прочитал actual release API и channel; release_path независимо прочитал release/API/rawchannel и сравнил прежние625/626 с baseline.
+
+Все5assets uploaded с точными bytes/digests: DMG764865231 и совместимый Quadro alias764866066 —133881495bytes/SHAe383c648d316f4087c04fcecc7cb6afd2aa46c625af84c580cab55293628c286; appZIP764865642 —134212464bytes/SHA629ec26ccabdc95022b765454cbab4812e7e43cbffa59d7bd78d0c7805a1a6af; provenance764866529 —5194bytes/SHA1f7782834cfd15ee4b3cf5188d5baa7f570e1634c69439ce71b55e87e83150e5; SHA256SUMS764866492 —304bytes/SHA26b83c3d19f348516cfef00e51abbb6cb16e0d575431aa73fb4b402de47c4dab. Root вычислил ожидаемые provenance/checksum bytes из принятого candidate и сравнил все5public digests. Публичное body содержит exact reviewed notes с известными Nora/PDF/RAM/progress/signing ограничениями.
+
+Channel commit `6160577780210c12ede25ab0b9d2be9cdacf24b1` указывает6.0.27, точные DMG URL/size/hash и publishedAt20:22:39Z. Независимая проверка всех10старых625/626assets поID/name/bytes/digest/state/URL и flags/publishedAt совпала с baseline. На20:24:31UTC actual shipped625 anonymous discovery/full download step8 ещё in_progress; финальный успех workflow и проверка его новых artifacts пока не получены. Публичная доступность уже подтверждена, но завершение всей публикационной проверки ещё не объявляется.
+
+
+## Publisher attempt1: старая HTTP-репрезентация канала; ограниченное восстановление
+
+Attempt1/job135100464339 завершился FAILURE только на последнем discovery/download шаге: в20:26:44 assertion ожидал latestVersion6.0.27, получил6.0.26. Первые7steps, включая fresh native/trace, public packages и channel advancement, SUCCESS. Verification artifact14467661569:12357908bytes,SHA256 `5ca0b7a9c6d29bc163e3797db9682ffed419c6dd4a67ebe4488b285080733893`,143safe unique paths,CRC PASS,35976777expanded bytes; сохранён отдельно от source artifacts.
+
+Root,motion_audit,motion_review прочитали все48actual responses exact штатногоCHANNEL. Каждый HTTP200 содержал полный370-byte JSON6.0.26, старыйDMG/hash, одинаковыйETag и bodySHA `ac2a5dd2ad46bfbd5e1991ec9bac9254ad5453e5fe129fef5018f067c780b4d4`. Cache-Control=max-age300,Age=null; первыйrequest20:22:43.571,последнийresponse20:26:39.708,интервал236.137s. Старый625 parser корректно выдал available/static/latest6.0.26. Новая627download и current627check не достигнуты,channel-verification.json отсутствует. Это подтверждает выдачу прежнего HTTP-содержимого после изменения репозитория; конкретный cache/delivery слой и время его обновления не установлены. Raw-URL read через GitHub connector не равнозначен анонимному маршруту runner и не заменяет actual updater gate.
+
+Fresh publisher motion отдельно PASS:138906events,28anchors,spread0.160ms; inputs/provenance соответствуют attempt1/8e10 и отличаются от source. Selected dark303 имеет наблюдаемыеEND/FINISHED. Light232 иlater343 сохраняют unknown impl END/terminal, с уникальнымиstartup, DOMfinished0/releasenull и subsequent compositor frames; никакие ненаблюдаемые lifecycle события не выдуманы. Независимый strict helper/manual review прошёл в ранее согласованных пределах, не доказывая непрерывный compositor lifetime или устранение прежнихNora stalls.
+
+Release_path независимо прочитал итоговый сгенерированный627publisher: все fresh gates предшествуют releaseAPI; уже public release только сверяет существующие assets, upload/PATCH находятся под draft; exact same-version channel полностью сравнивается и return происходит доPUT. Attempt-specific artifact names сохраняют первую неудачу. Root выбрал минимальное операционное действие — один ограниченный rerun существующего failed job вместо добавления отдельного verificationworkflow. Это восстановление после доказанной старой HTTP-репрезентации, без изменения app/workflow/pins/URL/version assertions/headers и без заявления об установленной внешней причине.
+
+В20:31:04 root свежимAPI подтвердил единственный failed step и сохранность artifact14467661569. Rerun135100464339 принят20:31:08UTC: тот же run44388724277/source8e10,attempt2; delivery recovery budget1 использован1. Если возникнет новый native failure либо снова старый channel, дополнительного неизменённого повтора не будет: сохранить новое evidence и расследовать. Успех actual625 полного verified download и current627 по-прежнему ожидается.
+
+
+## Окончательная публикация 6.0.27 подтверждена
+
+[Publisher run 44388724277](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44388724277), attempt 2, завершён SUCCESS 2026-11-18T20:50:04Z. Mac job 135111363419 получил runner 1000048947, начался в 20:41:14Z и завершился в 20:50:03Z; все 12 шагов SUCCESS. Импортированы прежние принятые пакеты exact source acbcf36 и candidate 14466087376. Повторно выполнены установленный DMG/ZIP, native/pixels, profile restart, реальная замена установленной 6.0.25 на 6.0.27, свежий strict trace, проверка публичных assets и static channel. Это неизменённый publisher SHA 8e10e197c77a7fecb07426f3a14b5d59665c5d09. Contract в latest-attempt API имеет исходные timestamps 20:13:28–20:13:45; повторное исполнение contract не заявляется.
+
+Новый отдельный artifact 14470345060, `mouse627-release-verification-attempt-2`: 12294663 bytes, SHA-256 `58c67ad754362066732a51da8d7b88292af9ddab6f4a506c03b50259e32f6dba`. Root и motion_audit независимо сверили API size/digest/run/source, 143 уникальных безопасных пути, CRC PASS и 36568720 expanded bytes. Attempt 1 сохранён отдельно. Root выполнил текущие verify_627_evidence с фактическими PNG pixels, retained 623/626 facts и verify_627_motion_trace непосредственно на новом ZIP; все проверки PASS. Логи содержат настоящие MOUSE_PROFILE_COOKIE_RESTART_PASS и MOUSE_627_REAL_625_TO_627_REPLACE_RELAUNCH_PROFILE_PASS.
+
+Свежий trace attempt 2: 142879 событий, motion-complete, complete=true, dataLossOccurred=false, limited events 0, errors=[]. Записанный trace JSON — 25599298 bytes, SHA-256 `1c5dad6d7a573c39e502200fd126f1fbeab61ae083e40f37d1b6b7a859c9e2c3`; motion JSON — 294673 bytes, SHA-256 `e8c18a443ddf1633ef08fe2ec6396ecea8711d5530131a5e077b05475e42ea36`. Root пересчитал gate и сопоставил saved report с исходными bytes: inputs/evidence совпадают, provenance явно содержит publisherRunAttempt=2, source acbcf36, run 44388724277 и SHA 8e10. Эти inputs отличаются от принятого source trace. Motion_review независимо выполнил неизменённый helper: 28 anchors, spread 0.154 ms; свежие пары light generation 16/group 226, dark 20/group 301, later 26/group 345, properties {0,4}. Во всех шести selected models этой попытки наблюдаются собственные END и main/impl FINISHED. Attribution остаётся temporal-correlation, directIdentityLink=false; непрерывный compositor lifetime и постоянная частота кадров не заявляются.
+
+### Фактическая доставка через выпущенный обновлятор 6.0.25
+
+Step 8 SUCCESS. В actual job stdout в 20:49:52.727829Z выполнен MOUSE627_ACTUAL_625_UPDATER_STATIC_DISCOVERY_DOWNLOAD_PASS. Новый channel-verification.json содержит actualOldModuleVersion=6.0.25, version=6.0.27 и четыре true: anonymousDiscovery, verifiedDownload, oldValidatedBadgeState, currentVersionCheck. Подтверждён полный DMG 133881495 bytes с SHA-256 `e383c648d316f4087c04fcecc7cb6afd2aa46c625af84c580cab55293628c286`; используется прежний immutable shipped updater, новый временный каталог и полная загрузка с повторной проверкой файла.
+
+Channel-discovery-diagnostics.json имеет outcome=success. Старый 6.0.25 с первого check (20:49:48.439–20:49:48.740Z) получил available/static, latestVersion=availableVersion=6.0.27. Текущий 6.0.27 с первого check (20:49:52.715–20:49:52.722Z) получил current/static, latestVersion=6.0.27, availableVersion пуст. Оба HTTP 200 по тому же штатному raw channel URL содержат полный 370-byte JSON 6.0.27 и одинаковый новый ETag. Root прочитал фактические тела обоих ответов и сопоставил их с публичным manifest. Это закрывает оставшийся discovery/download/current-version gate. Конкретная причина прежней выдачи 6.0.26 в attempt 1 по-прежнему не установлена.
+
+### Итоговые публичные ссылки и сохранённые пределы
+
+[Release 6.0.27](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.27-arm64) доступен публично: ID 450512773, draft=false, prerelease=true, published_at=2026-11-18T20:22:39Z. [DMG](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.27-arm64/Mouse-Browser-6.0.27-mac-arm64.dmg), [ZIP](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.27-arm64/Mouse-Browser-6.0.27-mac-arm64.zip), [SHA256SUMS](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.27-arm64/SHA256SUMS.txt). Канал указывает на точные DMG URL/size/digest и время исходной публикации.
+
+После attempt 2 root и release_path снова прочитали public release/channel. Все пять assets сохранили первоначальные ID/size/digest/state/URL, published_at и reviewed notes. Все десять старых assets 6.0.25/6.0.26 и release metadata совпадают с baseline до публикации. Дополнительная сборка, смена пакетов, ослабление gates или отдельный обходной workflow не выполнялись.
+
+Ограничения остаются явными: причина и устранение прежних Nora closing stalls не подтверждены; per-pane bottom progress pill ещё не реализована; RAM document drafts не имеют crash recovery; PDF не выполняет OCR/автоматическую перевёрстку, длинная замена может наложиться на соседний текст. Выпуск — Apple Silicon preview с ad-hoc подписью, без Developer ID/нотариализации. Успех новой приёмки не отменяет эти пределы.
+
+Запись итогов добавляется отдельным документальным commit поверх свежего source main после публикации. Она не меняет принятый application source acbcf36, проверенные package bytes, release pins или канал.
