@@ -92,7 +92,7 @@
    return result;
   }
   function release(){
-   cancelWaiter();if(frame)cancelAnimationFrame(frame);frame=0;progressTween=heightTween=null;progress=goal=0;active=false;last=null;
+   cancelWaiter();if(frame)cancelAnimationFrame(frame);frame=0;progressTween=heightTween=null;progress=goal=height=targetHeight=0;active=false;last=null;
    surfaceNode.setAttribute('hidden','');scrim.hidden=true;document.body.classList.remove('mouse-dock-active');content.inert=true;content.style.opacity='0';tray.style.height='0px';tray.dataset.motion='closed';tray.dataset.motionProgress='0';
   }
   const observer=new ResizeObserver(()=>sync());observer.observe(content);observer.observe(footer);

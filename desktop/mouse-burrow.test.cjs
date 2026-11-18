@@ -96,6 +96,13 @@ test('late preview or modes height retargets smoothly, keeps its footer anchor, 
  const closing=f.motion.close();f.at(1200);f.motion.release();assert.equal(await closing,false);assert.equal(f.frames.size,0);f.height(500);f.at(1900);assert.equal(f.motion.sample(),null);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.classes.has('mouse-dock-active'),false);
 });
 
+test('immediate release during a height change cannot carry an unfinished size into the next opening',async()=>{
+ const f=controllerFixture(),opening=f.motion.open();f.at(640);await opening;
+ f.height(510);f.at(940);f.height(240);f.at(1090);near(f.motion.sample().height,375);
+ f.motion.release();const reopened=f.motion.open();f.at(1730);assert.equal(await reopened,true);
+ near(f.motion.sample().height,240);near(f.motion.sample().targetHeight,240);assert.equal(f.frames.size,0);
+});
+
 test('reduced motion completes immediately and changing preference completes an in-flight opening',async()=>{
  const f=controllerFixture();f.reduced(true);assert.equal(await f.motion.open(),true);assert.equal(f.motion.progress,1);assert.equal(f.frames.size,0);assert.equal(f.content.inert,false);assert.equal(await f.motion.close(),true);assert.equal(f.motion.progress,0);
  f.motion.release();f.reduced(false);const pending=f.motion.open();f.at(180);assert.ok(f.motion.progress>0&&f.motion.progress<1);f.reduced(true);assert.equal(await pending,true);assert.equal(f.motion.progress,1);assert.equal(f.content.inert,false);f.at(400);assert.equal(f.frames.size,0);
