@@ -83,3 +83,31 @@ test('surface diagnostics distinguish a deadline with outstanding native work fr
   assert.equal((await f.surfaces.capture({ids:['absent']})).complete,false);report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'invalid-initial-pins');assert.deepEqual(report.lastCapture.invalidIds,['absent']);
  }finally{clearTimeout(keepAlive);f.surfaces.dispose();}
 });
+test('largest viewport starts first within two workers and the unchanged 700ms deadline in the recorded five-page latency replay',async t=>{
+ // Native waits and completed-page encoding costs from the a1ce macOS trace.
+ // This deterministic scheduling regression is not a prediction of Mac latency.
+ const sample=[
+  {id:'p1',width:299,height:338,capture:9.352208,png:1.802208,base64:.035375,preview:.911},
+  {id:'p2',width:299,height:200,capture:23.786208,png:2.535292,base64:.015,preview:.911417},
+  {id:'p3',width:194,height:269,capture:294.600625,png:3.448,base64:.023125,preview:.999708},
+  {id:'p4',width:194,height:269,capture:284.872209,png:3.240458,base64:.030167,preview:.909875},
+  // The fifth native frame arrived after the old deadline, before any encoding.
+  {id:'ai',width:503,height:572,capture:549.106083,png:0,base64:0,preview:0}
+ ];
+ const fs=require('node:fs'),vm=require('node:vm');let clock=0,active=0,maximum=0;const timers=new Set(),started=[];
+ const schedule=(fn,ms)=>{const timer={at:clock+ms,fn,unref(){}};timers.add(timer);return timer;};
+ const context={module:{exports:{}},require,Buffer,structuredClone,setTimeout:schedule,clearTimeout:timer=>timers.delete(timer),performance:{now:()=>clock}};
+ vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Replay=context.module.exports.DesktopSurfaces,f=fixture();f.surfaces.dispose();
+ for(const row of sample){const page=f.add(row.id,{width:row.width,height:row.height});page.view.webContents.capturePage=()=>{started.push({id:row.id,at:clock});active++;maximum=Math.max(maximum,active);return new Promise(resolve=>schedule(()=>{active--;const png=f.image(row.width,row.height).toPNG();png.write(row.id,24);const encode=png.toString.bind(png);png.toString=format=>{clock+=row.base64;return encode(format);};resolve({isEmpty:()=>false,toPNG(){clock+=row.png;return png;}});},row.capture));};}
+ f.add('hidden',{visible:false});f.add('other',{desk:'desk-1'});const before=sample.map(row=>{const page=f.browser.tabs.get(row.id);return{id:row.id,page,wc:page.view.webContents,bounds:{...page.bounds},epoch:page.navigationEpoch,visible:page.visible};});
+ const surfaces=new Replay({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,onImage:id=>{clock+=sample.find(row=>row.id===id).preview;}});surfaces.enableDiagnostics();const requested=sample.map(row=>row.id);let settled=false,result;
+ const work=surfaces.capture({ids:requested}).then(value=>{result=value;settled=true;});
+ const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
+ for(let step=0;step<32&&!settled;step++){await microtasks();if(settled)break;const next=[...timers].sort((a,b)=>a.at-b.at)[0];assert.ok(next,'the pending batch has a bounded completion event');timers.delete(next);clock=Math.max(clock,next.at);next.fn();}
+ await work;const report=surfaces.diagnostics();for(const timer of [...timers].sort((a,b)=>a.at-b.at)){timers.delete(timer);clock=Math.max(clock,timer.at);timer.fn();await microtasks();}surfaces.dispose();
+ t.diagnostic(JSON.stringify({scope:'recorded-delay replay, not measured Mac performance',reason:report.lastCapture.reason,elapsedMs:report.lastCapture.elapsedMs,maximumNativeCaptures:maximum,started}));
+ assert.equal(result.complete,true,'all five captured surfaces complete without extending 700ms');assert.equal(report.lastCapture.reason,'complete');assert.ok(report.lastCapture.elapsedMs<700);assert.equal(maximum,2);assert.equal(active,0);assert.deepEqual(started.map(row=>row.id),['ai','p1','p2','p3','p4'],'equal-area pages retain request order');assert.equal(started[0].at,0);assert.deepEqual(requested,['p1','p2','p3','p4','ai']);assert.deepEqual([...result.surfaces].map(row=>row.id).sort(),[...requested].sort());
+ for(const row of report.lastCapture.pages){const start=started.find(item=>item.id===row.id).at;assert.equal(row.nativeStartedAt,start);assert.equal(row.queueMs,start-report.lastCapture.startedAt);}
+ for(const image of result.surfaces){const row=sample.find(row=>row.id===image.id);assert.equal(image.pixelWidth,row.width);assert.equal(image.pixelHeight,row.height);assert.equal(Buffer.from(image.src.split(',')[1],'base64').subarray(24,24+row.id.length).toString(),row.id);}
+ for(const pin of before){const page=f.browser.tabs.get(pin.id);assert.equal(page,pin.page);assert.equal(page.view.webContents,pin.wc);assert.deepEqual(page.bounds,pin.bounds);assert.equal(page.navigationEpoch,pin.epoch);assert.equal(page.visible,pin.visible);}assert.deepEqual(f.layouts,[]);assert.deepEqual(f.captures,[]);
+});

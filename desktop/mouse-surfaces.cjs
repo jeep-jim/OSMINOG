@@ -37,12 +37,15 @@ class DesktopSurfaces{
   const incomplete=reason=>{resultDiagnostic(reason,false);return this.empty();};
   if(this.busy||this.disposed||this.locked||this.browser.disposed||this.held&&args.hold!==this.held.token||args.hold&&!this.held)return incomplete(this.busy?'busy':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':this.held?'different-hold':'hold-ended');
   const pins=args.ids.map(id=>this.live(id,args.hold));if(pins.some(p=>!p)){if(observed)observed.invalidIds=args.ids.filter((_id,i)=>!pins[i]);return incomplete('invalid-initial-pins');}
+  // Do not leave the largest selected viewport behind every small capture.
+  // Stable sorting preserves request order for equal areas; limits stay shared.
+  pins.sort((a,b)=>b.viewport.width*b.viewport.height-a.viewport.width*a.viewport.height);
   const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[];let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
   const current=()=>!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape();
   this.busy=true;
   const worker=async()=>{
    while(index<pins.length&&current()){
-    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',captureMs:null,pngMs:null,base64Ms:null,previewMs:null}:null;let stageStarted;
+    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,base64Ms:null,previewMs:null}:null;let stageStarted;
     if(row)observed.pages.push(row);
     const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row});}};
     if(!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');continue;}
@@ -51,7 +54,7 @@ class DesktopSurfaces{
     try{
      // Capturing the selected incoming desk during an owned hold must not make
      // hidden/background pages visible or keep the computer awake.
-     if(row){row.state='capturing';stageStarted=performance.now();}
+     if(row){row.state='capturing';stageStarted=performance.now();row.nativeStartedAt=stageStarted;row.queueMs=stageStarted-observed.startedAt;}
      const image=await pin.wc.capturePage(undefined,{stayHidden:true,stayAwake:false});
      if(row){row.captureMs=performance.now()-stageStarted;pageDiagnostic('captured');}
      if(!current()){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');continue;}
