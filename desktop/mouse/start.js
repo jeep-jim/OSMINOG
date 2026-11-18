@@ -20,6 +20,34 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status,openAgent,desk=(
  settings.querySelector('#start-background-file').onclick=()=>run(async()=>{try{await N.start('background');await refresh();settings.querySelector('#start-background-error').textContent='';}catch(e){settings.querySelector('#start-background-error').textContent=e.message;}});
  settings.querySelector('#start-recent-visible').onchange=e=>run(async()=>{await N.start('preferences',{showRecent:e.target.checked});await refresh();});
  async function customize(){await refresh();settings.querySelector('#start-recent-visible').checked=data.preferences.showRecent;await overlays.show(settings);}
+ const searchPicker=make('dialog','choice-dialog home-search-engine-dialog');searchPicker.id='start-search-engine-dialog';searchPicker.setAttribute('aria-label',tr('Поисковик','Search engine'));document.body.append(searchPicker);
+ let searchAnchor=null,searchOpening=false,searchChoosing=false;
+ searchPicker.addEventListener('close',()=>{const anchor=searchAnchor;searchAnchor=null;anchor?.setAttribute('aria-expanded','false');if(anchor?.isConnected)anchor.focus();});
+ searchPicker.addEventListener('click',e=>{if(e.target!==searchPicker)return;const r=searchPicker.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)searchPicker.close();});
+ searchPicker.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){e.preventDefault();searchPicker.close();return;}
+  const options=[...searchPicker.querySelectorAll('[data-search-engine]')],index=options.indexOf(document.activeElement);let next;
+  if(e.key==='ArrowDown')next=(index+1)%options.length;else if(e.key==='ArrowUp')next=(index-1+options.length)%options.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=options.length-1;
+  if(next!==undefined){e.preventDefault();options[next]?.focus();}
+ });
+ async function chooseSearch(anchor){
+  if(searchOpening||searchPicker.open||searchChoosing)return;searchOpening=true;
+  try{
+   await refresh();if(!anchor.isConnected)return;searchAnchor=anchor;searchPicker.replaceChildren();searchPicker.setAttribute('aria-label',tr('Поисковик','Search engine'));
+   const list=make('div','home-search-engine-list');list.setAttribute('role','listbox');list.setAttribute('aria-label',tr('Поисковик','Search engine'));searchPicker.append(list);
+   for(const engine of data.search.engines){
+    const option=button('',async()=>{
+     if(searchChoosing)return;searchChoosing=true;const buttons=[...list.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+     try{await N.start('preferences',{searchEngine:engine.id});await refresh();if(searchPicker.open)searchPicker.close();}finally{searchChoosing=false;buttons.forEach(b=>b.disabled=false);}
+    });
+    option.dataset.searchEngine=engine.id;option.setAttribute('role','option');option.setAttribute('aria-selected',String(engine.id===data.search.engine));
+    const check=make('span','home-search-engine-check',engine.id===data.search.engine?'✓':'');check.setAttribute('aria-hidden','true');option.append(make('span','',engine.name),check);list.append(option);
+   }
+   const r=anchor.getBoundingClientRect(),width=Math.min(innerWidth-24,Math.max(170,r.width)),height=Math.min(data.search.engines.length*36+12,innerHeight-24);
+   searchPicker.style.width=width+'px';searchPicker.style.maxHeight=height+'px';searchPicker.style.left=Math.max(12,Math.min(innerWidth-width-12,r.right-width))+'px';searchPicker.style.top=(r.top>innerHeight/2?Math.max(12,r.top-height-6):Math.min(innerHeight-height-12,r.bottom+6))+'px';
+   await overlays.show(searchPicker);anchor.setAttribute('aria-expanded','true');searchPicker.querySelector('[aria-selected="true"]')?.focus();
+  }finally{searchOpening=false;}
+ }
  const icons=new Map(),iconQueue=[];let running=0;
  function queueIcon(item,box){
   const initial=(new URL(item.url).hostname.replace(/^www\./,'')[0]||'').toUpperCase();box.textContent=initial;
@@ -43,6 +71,7 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status,openAgent,desk=(
   const grid=root.querySelector('.favorites-grid');grid.replaceChildren();for(const item of items)grid.append(tile(item,info.pane));
   const add=button('',()=>editBookmark(null),'favorite-open favorite-add');add.append(make('span','home-site-icon','＋'),make('span','home-site-label',tr('Добавить сайт','Add website')));grid.append(add);
   root.querySelector('.home-favorites-title').textContent=tr('Избранное','Favorites');root.querySelector('.home-welcome').textContent=tr('Новая вкладка','New tab');root.querySelector('.home-query').placeholder=tr('Поиск или адрес сайта','Search or enter website');
+  const engineButton=root.querySelector('.home-search-engine');engineButton.disabled=!data.search;engineButton.querySelector('.home-search-engine-name').textContent=data.search?.name||'Google';engineButton.dataset.searchEngine=data.search?.engine||'google';engineButton.setAttribute('aria-label',tr('Поисковик: ','Search engine: ')+(data.search?.name||'Google'));engineButton.title=tr('Выбрать поисковик','Choose search engine');
   const more=root.querySelector('.home-more');more.hidden=items.length>=data.bookmarks.total;more.textContent=tr('Показать ещё','Show more');info.items=items;
   const recent=root.querySelector('.recent-grid');recent.replaceChildren();for(const item of data.recent)recent.append(tile(item,info.pane,true));
   const section=root.querySelector('.home-recent');section.hidden=!pref.showRecent||!data.recent.length;root.querySelector('.home-recent-title').textContent=tr('Недавно посещённые','Recently visited');
@@ -55,11 +84,12 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status,openAgent,desk=(
   if(!enabled){if(root){roots.delete(root);root.remove();}if(empty)empty.hidden=false;return;}
   if(empty)empty.hidden=true;if(root)return;
   root=make('section','home-page');root.setAttribute('aria-label',tr('Новая вкладка','New tab'));
-  root.innerHTML='<div class="home-content"><div class="private-welcome"><div class="private-intro"><img class="private-mascot" src="mouse-private.svg" alt="Маскот в пиксельных очках"><h1 class="private-pixel-title"><img src="incognito-title.svg" alt="Инкогнито"></h1></div><p>Посещения, поиск, cookies и данные сайтов этой сессии не сохраняются в профиль. Закройте браузер или выйдите из инкогнито, чтобы очистить сессию.</p><p class="private-note">Сохранённые вами файлы, скриншоты и буфер обмена остаются. Это не анонимность перед сайтами, сетью или macOS.</p></div><p class="home-welcome">Новая вкладка</p><form class="home-search"><span aria-hidden="true">⌕</span><input class="home-query" aria-label="Поиск или адрес сайта" placeholder="Поиск или адрес сайта" autocomplete="off" spellcheck="false"><button type="submit" aria-label="Открыть">→</button></form><section class="home-favorites"><h2 class="home-favorites-title">Избранное</h2><div class="favorites-grid"></div><button class="home-more" hidden>Показать ещё</button></section><section class="home-recent" hidden><h2 class="home-recent-title">Недавно посещённые</h2><div class="recent-grid"></div></section></div><div class="home-bottom"><button class="home-customize">⚙ Настроить страницу</button></div>';
+  root.innerHTML='<div class="home-content"><div class="private-welcome"><div class="private-intro"><img class="private-mascot" src="mouse-private.svg" alt="Маскот в пиксельных очках"><h1 class="private-pixel-title"><img src="incognito-title.svg" alt="Инкогнито"></h1></div><p>Посещения, поиск, cookies и данные сайтов этой сессии не сохраняются в профиль. Закройте браузер или выйдите из инкогнито, чтобы очистить сессию.</p><p class="private-note">Сохранённые вами файлы, скриншоты и буфер обмена остаются. Это не анонимность перед сайтами, сетью или macOS.</p></div><p class="home-welcome">Новая вкладка</p><div class="home-search-row"><form class="home-search"><span aria-hidden="true">⌕</span><input class="home-query" aria-label="Поиск или адрес сайта" placeholder="Поиск или адрес сайта" autocomplete="off" spellcheck="false"><button type="submit" aria-label="Открыть">→</button></form><button type="button" class="home-search-engine" aria-haspopup="listbox" aria-expanded="false" aria-controls="start-search-engine-dialog" disabled><span class="home-search-engine-name">Google</span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><section class="home-favorites"><h2 class="home-favorites-title">Избранное</h2><div class="favorites-grid"></div><button class="home-more" hidden>Показать ещё</button></section><section class="home-recent" hidden><h2 class="home-recent-title">Недавно посещённые</h2><div class="recent-grid"></div></section></div><div class="home-bottom"><button class="home-customize">⚙ Настроить страницу</button></div>';
   root.querySelector('.private-mascot').src=document.documentElement.dataset.theme==='light'?'mouse-private-light.svg':'mouse-private.svg';
-  const agent=make('section','home-agent');agent.innerHTML='<button class="home-agent-open" type="button" aria-label="Открыть Agent Mouse"><img class="agent-mouse-icon" src="agent-mouse-green.svg" alt=""><span class="home-agent-copy"><strong>Agent Mouse</strong><small>Задачи в браузере и терминале</small></span><span class="home-agent-arrow" aria-hidden="true">↗</span></button>';root.querySelector('.home-search').after(agent);agent.querySelector('button').onclick=()=>run(()=>openAgent());
+  const agent=make('section','home-agent');agent.innerHTML='<button class="home-agent-open" type="button" aria-label="Открыть Agent Mouse"><img class="agent-mouse-icon" src="agent-mouse-green.svg" alt=""><span class="home-agent-copy"><strong>Agent Mouse</strong><small>Задачи в браузере и терминале</small></span><span class="home-agent-arrow" aria-hidden="true">↗</span></button>';root.querySelector('.home-search-row').after(agent);agent.querySelector('button').onclick=()=>run(()=>openAgent());
   slot.append(root);const info={pane,items:[]};roots.set(root,info);
-  root.querySelector('form').onsubmit=e=>{e.preventDefault();const q=root.querySelector('input').value.trim();if(q)run(()=>navigate(q,pane));};root.querySelector('.home-customize').onclick=()=>run(customize);
+  root.querySelector('form').onsubmit=e=>{e.preventDefault();const q=root.querySelector('.home-query').value.trim();if(q)run(()=>navigate(q,pane));};root.querySelector('.home-customize').onclick=()=>run(customize);
+  const searchButton=root.querySelector('.home-search-engine');searchButton.onclick=()=>run(()=>chooseSearch(searchButton));searchButton.onkeydown=e=>{if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();void run(()=>chooseSearch(searchButton));}};
   root.querySelector('.home-more').onclick=()=>run(async()=>{const result=await N.start('get',{offset:info.items.length});paint(root,info,[...info.items,...result.bookmarks.items]);});
   if(data)paint(root,info);else void run(refresh);
  }

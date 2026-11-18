@@ -1,7 +1,7 @@
 'use strict';
 // External Node SDK. Copy the owner's per-session URL from Agent Mouse; never log it.
 class AgentController{
- constructor(endpoint,{CDP,timeout=120000}={}){const u=new URL(endpoint);if(u.protocol!=='ws:'||u.hostname!=='127.0.0.1'||!/^\/devtools\/browser\/[a-f0-9]{64}$/.test(u.pathname))throw Error('Use the local session URL supplied by Mouse');this.endpoint=endpoint;this.CDP=CDP;this.timeout=timeout;this.sessions=new Map();}
+ constructor(endpoint,{CDP,timeout=120000,progressToken}={}){const u=new URL(endpoint);if(u.protocol!=='ws:'||u.hostname!=='127.0.0.1'||!/^\/devtools\/browser\/[a-f0-9]{64}$/.test(u.pathname))throw Error('Use the local session URL supplied by Mouse');this.endpoint=endpoint;this.CDP=CDP;this.timeout=timeout;this.progressToken=progressToken;this.sessions=new Map();}
  async connect(){let CDP=this.CDP;if(!CDP){try{CDP=require('./deps.cjs')('chrome-remote-interface')}catch{CDP=require('chrome-remote-interface')}}this.client=await CDP({target:this.endpoint,protocol:{version:{major:'1',minor:'3'},domains:[]}});return this;}
  async send(method,params={},sessionId){if(!this.client)throw Error('CDP is disconnected');let timer;try{return await Promise.race([this.client.send(method,params,sessionId),new Promise((_,reject)=>{timer=setTimeout(()=>{void this.close();reject(Error('CDP request timed out; connection closed'));},this.timeout);})]);}finally{clearTimeout(timer)}}
  async tabs(){return(await this.send('Target.getTargets')).targetInfos;}
@@ -15,6 +15,7 @@ class AgentController{
  async type(id,text){await this.activate(id);return this.send('Input.insertText',{text},await this.session(id));}
  async screenshot(id){await this.activate(id);return this.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false},await this.session(id));}
  async terminal(command,{background=false}={}){return this.send('Mouse.terminal',{command,background});}
- async close(){const c=this.client;this.client=null;this.sessions.clear();if(c)await c.close().catch(()=>{});}
+ async setProgress(percent=null,statusText='',{taskId,phase}={}){if(percent!==null&&(typeof percent!=='number'||!Number.isFinite(percent)||percent<0||percent>100))throw Error('Progress percent must be null or a number from 0 to 100');try{return await this.send('browser.setProgress',{percent,statusText,...(taskId!==undefined?{taskId}:{}),...(phase?{phase}:{}),...(this.progressToken?{runToken:this.progressToken}:{})});}catch(error){if(error.response?.data==='MOUSE_PROGRESS_LIMIT')error.code='MOUSE_PROGRESS_LIMIT';throw error;}}
+ async close(){const c=this.client;this.client=null;this.progressToken='';this.sessions.clear();if(c)await c.close().catch(()=>{});}
 }
 module.exports={AgentController};

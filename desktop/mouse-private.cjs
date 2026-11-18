@@ -13,6 +13,7 @@ class PrivateMode {
   finally{this.busy=false;}
  }
  async enter(){
+  await this.prepareDocuments?.();
   this.onPrivacyChange?.();
   const {win,normalBrowser,normalGate,normalStore,router,trusted,test}=this;
   await win.webContents.executeJavaScript('globalThis.MouseFlush?.()');
@@ -46,27 +47,32 @@ class PrivateMode {
    const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
    require('./mouse-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.mouseChromeGuard});
    register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state);});
-   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test});
+   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine});
    current.libraryService=libraryService;
    // Do not even keep private visit/search/closed lists in the library UI.
    for(const name of ['visit','title','input','closed'])libraryService.library[name]=()=>{};
    const startService=await require('./mouse-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
    current.startService=startService;
    require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain:register,trusted});
+   // Place the one fresh private start page before the bank's first checkpoint.
+   // Saved empty slots remain intentional; renderer reconciliation stays prune-only.
+   const initialTab=await browser.command('open',{url:'mouse://start',lane:'main'});
+   const initialPreferences=(await store.get('quadroPreferences')).quadroPreferences||{};
+   await store.set({quadroPreferences:{...initialPreferences,slots:{p1:initialTab.id},active:'p1',tabOrder:[initialTab.id]}});
    const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted,powerMonitor:this.e.powerMonitor});
    current.desktopService=desktopService;current.pageZoom=await require('./mouse-zoom.cjs').install({win,browser,store,ipcMain:register,trusted});
    register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:desktopService.preferences()};});
-   register.handle('mouse:save',async(event,p)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p);});
+   register.handle('mouse:save',async(event,p,history)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p,history);});
    const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
-   for(const name of ['mouse:privacy','mouse:window','mouse:theme'])handlers.set(name,router.normal.get(name));
+   for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:documents'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
    handlers.set('mouse:agent',(event,action)=>{trusted(event);if(action==='state')return{enabled:false,running:false,connected:0,desk:'',logs:[],pending:null};throw Error('Agent Mouse доступен в обычном режиме');});
+   handlers.set('mouse:progress',(event,action)=>{trusted(event);if(action==='state')return{tasks:[],revision:0};throw Error('Прогресс подключённого ИИ доступен в обычном режиме');});
    handlers.set('mouse:update',()=>{throw Error('Обновление доступно в обычном режиме');});
    // Explicit file downloads are allowed, but clearly distinguished from ephemeral browsing data.
    const warning=(_event,item)=>item.setSaveDialogOptions({title:'Инкогнито: сохранённый файл останется на Mac',defaultPath:require('node:path').join(this.e.app.getPath('downloads'),require('node:path').basename(item.getFilename()||'download')),properties:['showOverwriteConfirmation']});
    ses.on('will-download',warning);
-   await browser.command('open',{url:'mouse://start',lane:'main'});
    router.use(handlers);await this.reload();
   }catch(error){await this.dispose();router.use(null);normalGate.blocked=false;normalGate.sequence=0;normalBrowser.emit=emit;await this.reload();throw error;}
  }
@@ -85,6 +91,7 @@ class PrivateMode {
   c.store.destroy();c.handlers.clear();this.current=null;
  }
  async leave(){
+  await this.prepareDocuments?.();
   this.onPrivacyChange?.();
   const emit=this.current.emit;await this.win.loadURL('about:blank');await this.dispose();this.router.use(null);
   this.normalBrowser.emit=emit;this.normalGate.sequence=0;this.normalGate.blocked=false;this.normalGate.desired=[];

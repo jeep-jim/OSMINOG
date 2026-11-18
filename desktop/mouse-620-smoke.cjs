@@ -1,11 +1,12 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
+const {randomUUID}=require('node:crypto');
 const e=require('electron'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<160;n++){if(await fn())return;await sleep(75)}throw Error('Mouse620 timeout: '+label);}
 module.exports=async({app,win,browser,libraryService,localCaptures,updates})=>{
  const js=s=>win.webContents.executeJavaScript(s),a=localCaptures.archive,lib=libraryService.library,box=win.getBounds(),originalDialog=e.dialog.showMessageBox,originalOpen=e.dialog.showOpenDialog;
  const originalUpdate=structuredClone(updates.state),originalData=structuredClone(lib.data),model=await js('JSON.parse(JSON.stringify({theme:MouseTest.model.theme,tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,libraryWidth:MouseTest.model.libraryWidth,libraryOpen:MouseTest.model.libraryOpen,aiOpen:MouseTest.model.aiOpen,aiWidth:MouseTest.model.aiWidth}))');
- let historyServer=null,historyTab=null;
+ let historyServer=null,historyTab=null,historyScope=null,historyPhase='';const historyEvents=[];
  const temp=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse620-fixtures-')),imageFile=path.join(temp,'620-preview.png'),folder=path.join(temp,'Screenshots');await fs.mkdir(folder);
  let answer=0;const fixtureText='<b>Fixture 620 — это текст, не HTML</b>\nЛокальная заметка 😀';
  async function click(selector){win.focus();win.webContents.focus();const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||e.disabled)throw Error('Missing620 control '+${JSON.stringify(selector)});const r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});await sleep(160);}
@@ -66,18 +67,30 @@ module.exports=async({app,win,browser,libraryService,localCaptures,updates})=>{
   await click('#library-select-all');answer=0;await click('#library-clear');assert.equal(a.items.length,2);answer=1;await click('#library-clear');await until(()=>a.items.length===0,'clear only archive copies');assert.deepEqual(await fs.readFile(sourceImage),png);assert.deepEqual(await fs.readFile(imageFile),png);
   // Actual Chromium navigation events, not direct Library.visit fixture calls.
   historyServer=require('node:http').createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>620 history fixture</title><p>Meaningful visit fixture</p>');});
-  await new Promise(resolve=>historyServer.listen(0,'127.0.0.1',resolve));const root='http://127.0.0.1:'+historyServer.address().port;
-  historyTab=(await browser.command('open',{url:root+'/page',lane:'main'})).id;const wc=browser.get(historyTab).view.webContents;
-  await until(()=>lib.list('history',root).total===1,'real navigation stored once');const first=lib.list('history',root).items[0].id;
-  await wc.executeJavaScript(`for(let i=0;i<15;i++){history.replaceState({},'', '/page?filter='+i+'#section'+i);document.title='Action '+i;}`);await sleep(900);
-  assert.equal(lib.list('history',root).total,1);assert.equal(lib.list('history',root).items[0].id,first);
-  await browser.command('reload',{id:historyTab});await until(()=>!browser.get(historyTab).loading,'reload loaded');await sleep(700);assert.equal(lib.list('history',root).total,1);
-  await wc.executeJavaScript("history.pushState({},'', '/different-page');document.title='A separate page'");await until(()=>lib.list('history',root).total===2,'meaningful route preserved');
-  await wc.loadURL(root+'/api/challenge_redirect?t=1');await sleep(700);assert.equal(lib.list('history',root).total,2,'technical challenge is not a visit');
-  await js(`MouseTest.browsing.open('history')`);await query(root);await until(()=>js('document.querySelectorAll(".library-row").length===2'),'grouped actual history');
+  await new Promise(resolve=>historyServer.listen(0,'127.0.0.1',resolve));const root='http://127.0.0.1:'+historyServer.address().port,prefix='mouse620-history-'+randomUUID(),pagePath='/'+prefix+'/page',pageURL=root+pagePath;
+  // The a620 failure's cause was not recorded. A unique scope prevents an old
+  // loopback visit from satisfying readiness; all history counts remain exact.
+  historyScope={root,prefix,pageURL};historyPhase='initial';const ownRows=()=>lib.data.history.filter(row=>String(row.url||'').includes(prefix));
+  assert.equal(lib.list('history',prefix).total,0);assert.equal(ownRows().length,0);
+  historyTab=(await browser.command('open',{url:pageURL,lane:'main'})).id;const wc=browser.get(historyTab).view.webContents;
+  for(const event of ['did-start-navigation','did-navigate','did-finish-load','did-navigate-in-page','page-title-updated','did-fail-load'])wc.on(event,(_event,...args)=>{historyEvents.push({event,args:args.slice(0,4),url:wc.isDestroyed()?'':wc.getURL(),at:Date.now()});if(historyEvents.length>100)historyEvents.shift();});
+  await until(()=>wc.getURL()===pageURL&&!browser.get(historyTab).loading,'own page finishes loading');
+  await until(()=>lib.list('history',prefix).items.some(row=>row.url===pageURL),'own first navigation is stored');assert.equal(lib.list('history',prefix).total,1);assert.equal(ownRows().length,1);const first=lib.list('history',prefix).items[0].id;
+  historyPhase='replace-state';await wc.executeJavaScript(`for(let i=0;i<15;i++){history.replaceState({},'', ${JSON.stringify(pagePath+'?filter=')}+i+'#section'+i);document.title='Action '+i;}`);await sleep(900);
+  assert.equal(lib.list('history',prefix).total,1);assert.equal(ownRows().length,1);assert.equal(lib.list('history',prefix).items[0].id,first);
+  historyPhase='reload';let reloaded=false;wc.once('did-finish-load',()=>{reloaded=true;});await browser.command('reload',{id:historyTab});await until(()=>reloaded&&!browser.get(historyTab).loading,'own reload finishes');await sleep(700);assert.equal(lib.list('history',prefix).total,1);assert.equal(ownRows().length,1);
+  historyPhase='meaningful-route';await wc.executeJavaScript(`history.pushState({},'', ${JSON.stringify('/'+prefix+'/different-page')});document.title='A separate page'`);await until(()=>lib.list('history',prefix).total===2,'meaningful route preserved');assert.equal(ownRows().length,2);
+  // Keep the exact production noise pathname. The query marker also belongs to
+  // this scope, so filtering by prefix cannot hide an incorrectly stored visit.
+  historyPhase='technical-route';const technicalURL=root+'/api/challenge_redirect?fixture='+prefix+'&t=1';assert.equal(require('./mouse-history.cjs').technical(technicalURL,'620 history fixture'),true);
+  await wc.loadURL(technicalURL);await sleep(700);assert.equal(lib.list('history',prefix).total,2,'technical challenge is not a visit');assert.equal(ownRows().length,2,'technical challenge creates no raw history entry');
+  historyPhase='history-ui';await js(`MouseTest.browsing.open('history')`);await query(prefix);await until(()=>js('document.querySelectorAll(".library-row").length===2'),'grouped actual history');
   await fs.writeFile('mouse-620-history.png',(await win.capturePage()).toPNG());
   console.log('MOUSE_620_REAL_HISTORY_NO_ACTION_FLOOD_PASS');
   console.log('MOUSE_620_UPDATE_HEAD_PREVIEW_ARCHIVE_CONTROLS_PASS');
+ }catch(error){
+  if(historyScope)try{const page=browser.tabs.get(historyTab),wc=page?.view.webContents,rows=lib.data.history.filter(row=>String(row.url||'').startsWith(historyScope.root+'/')).map(({id,url,title,at,lastAt})=>({id,url,title,at,lastAt}));console.error('MOUSE_620_HISTORY_FAILURE',JSON.stringify({...historyScope,phase:historyPhase,currentURL:wc&&!wc.isDestroyed()?wc.getURL():'',loading:page?.loading,rows,events:historyEvents,message:error.message}));}catch{}
+  throw error;
  }finally{
   if(historyTab&&browser.tabs.has(historyTab))await browser.command('close',{id:historyTab});historyServer?.close();
   e.dialog.showMessageBox=originalDialog;e.dialog.showOpenDialog=originalOpen;updates.state=originalUpdate;win.webContents.send('mouse:update-state',updates.state);

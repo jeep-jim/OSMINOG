@@ -9,7 +9,7 @@ function mouseFloatingBackdrop(N,m){
    const ticket=++epoch;owner=name;clear();const specs=[];
    const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect();if(tab&&!tab.internal&&r?.width>1&&r.height>1)specs.push({id,r});};
    if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
-   if(!m.focusPane&&m.aiOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
+   if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
    let timeout;
    const pictures=Promise.all(specs.map(async({id,r})=>{try{
     const result=await N.desktops('thumbnail',{id});if(ticket!==epoch||owner!==name||!/^data:image\/(?:png|jpeg);base64,/.test(result.src||''))return;
@@ -23,7 +23,7 @@ function mouseFloatingBackdrop(N,m){
   hide(name){if(owner!==name)return;epoch++;owner='';clear();}
  };
 }
-globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,moveTab,closeTab,activateTab,layout,status})=>{
+globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,restoreLayout,moveTab,closeTab,activateTab,layout,status})=>{
  const backdrop=mouseFloatingBackdrop(N,m);globalThis.MouseFloatingBackdrop=backdrop;
  const make=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
  const button=make('button','');button.id='desktops-button';button.type='button';button.title='Рабочие столы';button.setAttribute('aria-label','Рабочие столы');button.setAttribute('aria-expanded','false');button.innerHTML='<span class="burrow-entry" aria-hidden="true"></span><span class="desktop-total-badge" hidden></span>';
@@ -35,25 +35,27 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  // Only the straight sides grow: use the real modes-open layout for every state.
  const shape=tray.querySelector('.desk-burrow-shape'),content=tray.querySelector('.desk-content');
  function shapeBurrow(){
+  const footer=document.querySelector('#statusbar'),baseline=footer.getBoundingClientRect().top+(parseFloat(getComputedStyle(footer).borderTopWidth)||0)/2;tray.style.bottom=(innerHeight-baseline)+'px';
   const w=tray.clientWidth,h=tray.clientHeight;if(!w||!h)return;
   const previewHeight=peek.hidden?0:peek.offsetHeight+(parseFloat(getComputedStyle(peek).marginBottom)||0);
-  const expanded=Math.min(parseFloat(getComputedStyle(tray).maxHeight)||Infinity,content.offsetHeight-modes.offsetHeight-previewHeight+modes.firstElementChild.scrollHeight);
+  const expanded=Math.min(parseFloat(getComputedStyle(tray).maxHeight)||Infinity,content.offsetHeight-modes.offsetHeight-previewHeight-(history.panel.hidden?0:history.panel.offsetHeight+(parseFloat(getComputedStyle(history.panel).marginBottom)||0))+modes.firstElementChild.scrollHeight);
   const top=expanded*.18,shoulder=expanded*.07,foot=Math.min(expanded*.095,Math.max(0,h-top)),control=foot*15/38,n=x=>Math.round(x*1000)/1000;
   const d=`M0 ${h}C${n(w*.025)} ${h} ${n(w*.036)} ${n(h-control)} ${n(w*.036)} ${n(h-foot)}V${n(top)}C${n(w*.036)} ${n(shoulder)} ${n(w*.068)} 0 ${n(w*.112)} 0H${n(w*.888)}C${n(w*.932)} 0 ${n(w*.964)} ${n(shoulder)} ${n(w*.964)} ${n(top)}V${n(h-foot)}C${n(w*.964)} ${n(h-control)} ${n(w*.975)} ${h} ${w} ${h}`;
   shape.setAttribute('viewBox',`0 0 ${w} ${h}`);shape.querySelector(':scope>path').setAttribute('d',d);shape.querySelector('clipPath path').setAttribute('d',d+'Z');
  }
+ const history=createMouseLayoutHistory({N,model:m,header:content.querySelector(':scope>header'),before:modes,restore:restoreLayout,status,show:()=>{closePeek();showModes(false);},changed:()=>{shapeBurrow();layout();}});
  const shapeObserver=new ResizeObserver(shapeBurrow);shapeObserver.observe(tray);shapeObserver.observe(content);shapeObserver.observe(modes.firstElementChild);
  const rename=document.createElement('dialog');rename.id='desktop-rename';rename.innerHTML='<form><header><strong>Название рабочего стола</strong><button type="button" aria-label="Закрыть">×</button></header><label>Название<input maxlength="60" required></label><footer><button type="submit">Сохранить</button></footer></form>';document.body.append(rename);let renameId='';
  rename.querySelector('header button').onclick=()=>rename.close();rename.addEventListener('close',layout);
  rename.querySelector('form').onsubmit=async e=>{e.preventDefault();try{const r=await N.desktops('rename',{id:renameId,name:rename.querySelector('input').value});rename.close();render(r.state.desktops);}catch(error){status(error.message)}};
- function showModes(value){modesOpen=value;modeButton.setAttribute('aria-expanded',String(value));modes.inert=!value;tray.classList.toggle('modes-open',value);if(value)closePeek();layout();}
+ function showModes(value){modesOpen=value;modeButton.setAttribute('aria-expanded',String(value));modes.inert=!value;tray.classList.toggle('modes-open',value);if(value){history.hide();closePeek();}layout();}
  function closePeek(){clearChipDrag();peekId='';peek.hidden=true;tray.classList.remove('preview-open');layout();}
  function enriched(d){
   const previous=previewState?.items?.find(x=>x.id===d.id),snapshot=previous?.preview||d.preview||{},current=d.tabs||snapshot.tabs;
   if(!current)return previous?{...previous,...d,preview:snapshot}:d;
   const byId=new Map(current.map(t=>[t.id,t])),oldImages=new Map((snapshot.panes||[]).filter(p=>p.id).map(p=>[p.id,p]));
   const info=id=>{const t=byId.get(id);if(!t)return{id:'',title:'Свободное окно',src:''};const old=oldImages.get(id);let site=t.site;try{site=site||new URL(t.url).hostname.replace(/^www\./,'');}catch{}return{...t,site:site||t.title,src:old?.url===t.url?old.src||'':'',capturedAt:old?.url===t.url?old.capturedAt||0:0};};
-  const slots=d.slots||previous?.slots||{},panes=MouseLayout.leaves(d.tree).map(pane=>({pane,...info(slots[pane])}));if(d.aiOpen&&d.aiId)panes.push({pane:'ai',...info(d.aiId)});
+  const slots=d.slots||previous?.slots||{},panes=MouseLayout.leaves(d.tree).map(pane=>({pane,...info(slots[pane])}));if(d.aiOpen&&!d.agentOpen&&d.aiId)panes.push({pane:'ai',...info(d.aiId)});
   return{...previous,...d,preview:{...snapshot,panes,tabs:current,extraTabs:current.filter(t=>!t.placed),capturedAt:Math.max(0,...panes.map(p=>p.capturedAt||0))}};
  }
  const words=(n,a,b,c)=>n%10===1&&n%100!==11?a:n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?b:c;
@@ -88,7 +90,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   }
   for(const [id,node]of existing)if(!wanted.has(id)){if(chipDrag?.id===id)clearChipDrag();node.remove();}shapeBurrow();layout();
  }
- function showPeek(id){showModes(false);peekId=id;drawPeek();}
+ function showPeek(id){history.hide();showModes(false);peekId=id;drawPeek();}
  async function refreshPreviews(ticket=epoch){try{const next=await N.desktops('previews',{preferences:preferences()});if(ticket!==epoch||tray.hidden)return;previewState=next;render(next);}catch(error){if(ticket===epoch&&!tray.hidden)status(error.message)}}
  async function open(){
   if(!tray.hidden||opening){close();return;}opening=true;const ticket=++epoch;
@@ -96,12 +98,12 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   catch(error){close();status(error.message);}finally{if(ticket===epoch)opening=false;}
  }
  function clearPreviewDOM(){previewState=null;tray.querySelector('.desktop-list').replaceChildren();peek.querySelector('.desk-peek-image').replaceChildren();peek.querySelector('.desk-peek-tabs').replaceChildren();}
- function close(){epoch++;opening=false;closePeek();showModes(false);if(tray.open)tray.close();tray.hidden=true;button.setAttribute('aria-expanded','false');backdrop.hide('desktops');clearPreviewDOM();layout();}
+ function close(){epoch++;opening=false;history.hide();closePeek();showModes(false);if(tray.open)tray.close();tray.hidden=true;button.setAttribute('aria-expanded','false');backdrop.hide('desktops');clearPreviewDOM();layout();}
  tray.addEventListener('cancel',e=>{e.preventDefault();if(peekId)closePeek();else close();button.focus();});
  tray.addEventListener('close',()=>{if(tray.open||opening)return;epoch++;tray.hidden=true;button.setAttribute('aria-expanded','false');backdrop.hide('desktops');clearPreviewDOM();layout();});
  async function choose(id,add=false){try{await switchDesktop(id,add);render(m.state.desktops);close();}catch(error){status(error.message)}}
  function render(next){
-  if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&tabs.some(t=>t.id===m.aiId)?[m.aiId]:[])]);return{...d,tree:m.tree,slots:m.slots,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');if(tray.hidden)return;
+  if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&!m.agentOpen&&tabs.some(t=>t.id===m.aiId)?[m.aiId]:[])]);return{...d,tree:m.tree,slots:m.slots,agentOpen:m.agentOpen,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');history.render(state);if(tray.hidden)return;
   setText(tray.querySelector('.desk-current-name'),state.items.find(d=>d.active)?.name||'');const list=tray.querySelector('.desktop-list'),existing=new Map([...list.children].map(e=>[e.dataset.desk,e])),wanted=new Set();
   for(let index=0;index<state.items.length;index++){
    const d=state.items[index];wanted.add(d.id);let tile=existing.get(d.id);
@@ -119,7 +121,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  N.onPreviewsCleared?.(()=>{MouseDesktopPreview.clearIcons();close();});
  document.addEventListener('pointerdown',e=>{if(tray.hidden)return;const r=tray.getBoundingClientRect(),outside=e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;if(outside&&!button.contains(e.target))close();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!tray.hidden){e.preventDefault();e.stopImmediatePropagation();if(peekId)closePeek();else close();button.focus();}},true);
- return{render,open,close,showPeek,add:()=>choose('',true),bounds:()=>tray.hidden?null:tray.getBoundingClientRect()};
+ return{render,open,close,showPeek,history,add:()=>choose('',true),bounds:()=>tray.hidden?null:tray.getBoundingClientRect()};
 };
 
 globalThis.createMouseZoomUI=({N,layout,status})=>{

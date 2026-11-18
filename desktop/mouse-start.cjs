@@ -8,6 +8,7 @@ function recentSites(history,limit=12){const seen=new Set(),out=[];for(const ite
 function bookmarkURL(value){const input=String(value||'').trim();if(!input||input.length>8192||/\s/.test(input))throw Error('Укажите адрес сайта');const url=webURL(/^[a-z][a-z\d+.-]*:/i.test(input)?input:'https://'+input);if(!url)throw Error('Нужен адрес HTTP или HTTPS без пароля');return url;}
 async function install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test=false,privateMode=false}){
  const {nativeImage}=require('electron'),{faviconData}=require('./mouse/favicon.js'),library=libraryService.library;
+ const search=libraryService.search||browser.mouseSearch;
  const saved=await store.get(['quadroStartTabs','quadroStartPage']);
  const tabs=new Map((Array.isArray(saved.quadroStartTabs)?saved.quadroStartTabs:[]).filter(t=>t&&/^[a-f0-9-]{36}$/.test(t.id)).map(t=>[t.id,{id:t.id}]));
  let preferences={background:BACKGROUNDS.has(saved.quadroStartPage?.background)?saved.quadroStartPage.background:'dusk',showRecent:saved.quadroStartPage?.showRecent!==false};
@@ -24,7 +25,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
   if(tabs.has(args.id)){
    if(action==='close'){tabs.delete(args.id);await persist();browser.emit();return browser.state();}
    if(action==='navigate'){
-    const url=require('./browser.cjs').address(args.url);library.input(args.url,url);
+    const url=search.resolve(args.url);library.input(args.url,url);
     const t=browser.make(url,browser.project);browser.tabs.delete(t.id);t.id=args.id;t.lane='main';browser.tabs.set(t.id,t);tabs.delete(t.id);await browser.save();browser.emit();return browser.state();
    }
    if(['back','forward','reload'].includes(action))return true;
@@ -42,7 +43,7 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
  }
  ipcMain.handle('mouse:start',async(e,action,args={})=>{
   trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>16000)throw Error('Invalid start-page request');
-  if(action==='get')return{preferences:{...preferences},backgroundData,bookmarks:library.list('bookmarks',args.query,args.offset),recent:recentSites(library.data.history)};
+  if(action==='get')return{preferences:{...preferences},search:search.state(),backgroundData,bookmarks:library.list('bookmarks',args.query,args.offset),recent:recentSites(library.data.history)};
   if(action==='icon')return icon(args.url);
   if(action==='bookmark'){
    const url=bookmarkURL(args.url),title=String(args.title||new URL(url).hostname).trim().slice(0,500);
@@ -53,8 +54,11 @@ async function install({app,win,browser,store,libraryService,ipcMain,trusted,dia
   }
   if(action==='remove'){library.remove('bookmarks',String(args.id));await library.flush();win.webContents.send('mouse:library-changed');notify();return true;}
   if(action==='preferences'){
-   if(args.background!==undefined){if(!BACKGROUNDS.has(args.background)||args.background==='custom'&&!backgroundData)throw Error('Фон недоступен');preferences.background=args.background;}
-   if(typeof args.showRecent==='boolean')preferences.showRecent=args.showRecent;await persist();notify();return true;
+   if(args.background!==undefined&&(!BACKGROUNDS.has(args.background)||args.background==='custom'&&!backgroundData))throw Error('Фон недоступен');
+   if(args.searchEngine!==undefined)await search.set(args.searchEngine);
+   if(args.background!==undefined)preferences.background=args.background;
+   if(typeof args.showRecent==='boolean')preferences.showRecent=args.showRecent;
+   if(args.background!==undefined||typeof args.showRecent==='boolean')await persist();notify();return true;
   }
   if(action==='background'){
    if(privateMode)throw Error('Собственный фон меняется только в обычном режиме');

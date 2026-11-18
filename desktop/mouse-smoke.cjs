@@ -2,11 +2,11 @@
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,label){for(let n=0;n<200;n++){if(await check())return;await sleep(75)}throw Error('Timed out: '+label)}
-module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost})=>{
+module.exports=async({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode})=>{
  let server;
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.23');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.25');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -55,6 +55,9 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await require('./mouse-global-capture-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
    await store.set({mousePersistence:'mouse-6'});await browser.session.cookies.set({url:'https://example.com/',name:'mouse-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('MouseTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
+  // Exercise the new native editors/search first, then retain every existing gate.
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});

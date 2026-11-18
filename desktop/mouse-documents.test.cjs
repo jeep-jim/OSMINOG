@@ -1,0 +1,98 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
+const {DocumentService,atomicWrite,readRegular,MAX_FILE}=require('./mouse-documents.cjs');
+const bytes=text=>new Uint8Array(Buffer.from(text));
+async function fixture(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-documents-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const original=path.join(root,'notes.txt'),copy=path.join(root,'copy.txt');await fs.writeFile(original,'original');let privateMode=false;const choices={open:original,save:copy,close:2};const dialogs={showOpenDialog:async()=>({canceled:!choices.open,filePaths:choices.open?[choices.open]:[]}),showSaveDialog:async()=>({canceled:!choices.save,filePath:choices.save}),showMessageBox:async()=>({response:choices.close})};const service=new DocumentService({dialog:dialogs,win:{},isPrivate:()=>privateMode,trusted:()=>{}});t.after(()=>service.dispose());const record=await service.handle('open');return{root,original,copy,record,service,choices,dialogs,setPrivate:v=>{privateMode=v;}};}
+test('native open exposes opaque IDs and bytes, never filesystem paths',async t=>{const f=await fixture(t),value=f.service.read(f.record.id);assert.equal(value.name,'notes.txt');assert.equal(Buffer.from(value.bytes).toString(),'original');assert.equal(value.kind,'text');assert.equal(JSON.stringify(value).includes(f.root),false);assert.equal((await f.service.handle('open')).id,f.record.id);assert.equal(f.service.records.size,1);assert.throws(()=>f.service.read(f.original),/недоступен/);});
+test('first Save uses explicit copy and retains original; later Save updates only saved copy',async t=>{const f=await fixture(t);f.service.draft(f.record.id,{text:'first'});let result=await f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('first')});assert.equal(result.revision,1);assert.equal(result.dirty,false);assert.equal(await fs.readFile(f.original,'utf8'),'original');assert.equal(await fs.readFile(f.copy,'utf8'),'first');f.service.draft(f.record.id,{text:'second'});result=await f.service.handle('save',{id:f.record.id,expectedRevision:1,bytes:bytes('second')});assert.equal(result.revision,2);assert.equal(await fs.readFile(f.copy,'utf8'),'second');assert.equal((await fs.readdir(f.root)).some(x=>x.endsWith('.tmp')),false);});
+test('cancelled SaveAs retains unsaved draft and creates no file',async t=>{const f=await fixture(t);f.choices.save=null;f.service.draft(f.record.id,{text:'edit'});assert.deepEqual(await f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('edit')}),{cancelled:true});assert.equal(f.service.read(f.record.id).draft.text,'edit');assert.equal(f.service.read(f.record.id).dirty,true);await assert.rejects(fs.stat(f.copy),{code:'ENOENT'});});
+test('external changes block overwriting original and saved copies',async t=>{const f=await fixture(t);f.choices.save=f.original;await fs.writeFile(f.original,'external');await assert.rejects(f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('edit')}),{code:'MOUSE_DOCUMENT_CONFLICT'});assert.equal(await fs.readFile(f.original,'utf8'),'external');f.choices.save=f.copy;await f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('copy')});await fs.writeFile(f.copy,'changed elsewhere');await assert.rejects(f.service.handle('save',{id:f.record.id,expectedRevision:1,bytes:bytes('new')}),{code:'MOUSE_DOCUMENT_CONFLICT'});assert.equal(await fs.readFile(f.copy,'utf8'),'changed elsewhere');});
+test('directory aliases cannot bypass original or saved-copy external-change guards',async t=>{
+ const f=await fixture(t),actual=path.join(f.root,'actual'),alias=path.join(f.root,'alias');await fs.mkdir(actual);await fs.symlink(actual,alias,'dir');
+ const original=path.join(actual,'notes.txt'),selected=path.join(alias,'notes.txt'),saved=path.join(actual,'saved.txt'),selectedCopy=path.join(alias,'saved.txt');await fs.writeFile(original,'alias original');f.choices.open=selected;
+ const opened=await f.service.handle('open'),record=f.service.records.get(opened.id);assert.equal(record.originalPath,await fs.realpath(original));assert.notEqual(path.resolve(selected),record.originalPath);
+ f.service.draft(opened.id,{text:'local edit'});await fs.writeFile(original,'external original edit');f.choices.save=selected;
+ await assert.rejects(f.service.handle('save',{id:opened.id,expectedRevision:0,bytes:bytes('local edit')}),{code:'MOUSE_DOCUMENT_CONFLICT'});
+ assert.equal(await fs.readFile(original,'utf8'),'external original edit');assert.equal(record.revision,0);assert.equal(record.dirty,true);assert.equal(record.savedPath,'');
+ f.choices.save=selectedCopy;await f.service.handle('save',{id:opened.id,expectedRevision:0,bytes:bytes('saved edit')});assert.equal(record.savedPath,await fs.realpath(saved));assert.notEqual(record.savedPath,path.resolve(selectedCopy));
+ await fs.writeFile(saved,'external saved-copy edit');f.service.draft(opened.id,{text:'second local edit'});
+ await assert.rejects(f.service.handle('save',{id:opened.id,expectedRevision:1,saveAs:true,bytes:bytes('second local edit')}),{code:'MOUSE_DOCUMENT_CONFLICT'});
+ assert.equal(await fs.readFile(saved,'utf8'),'external saved-copy edit');assert.equal(record.revision,1);assert.equal(record.dirty,true);assert.equal(record.draft.text,'second local edit');assert.equal((await fs.readdir(actual)).some(name=>name.endsWith('.tmp')),false);
+});
+test('an existing target-file symlink is rejected before saving and cannot redirect a write',async t=>{
+ const f=await fixture(t),link=path.join(f.root,'linked.txt');await fs.symlink(f.original,link,'file');f.choices.save=link;f.service.draft(f.record.id,{text:'local edit'});
+ await assert.rejects(f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('local edit')}),/обычный файл, не ссылку/);
+ assert.equal((await fs.lstat(link)).isSymbolicLink(),true);assert.equal(await fs.readlink(link),f.original);assert.equal(await fs.readFile(f.original,'utf8'),'original');assert.equal(f.service.read(f.record.id).revision,0);assert.equal(f.service.read(f.record.id).dirty,true);assert.equal((await fs.readdir(f.root)).some(name=>name.endsWith('.tmp')),false);
+});
+test('edits arriving during SaveAs invalidate the old payload without losing newer draft',async t=>{const f=await fixture(t);let resume,started;const waiting=new Promise(r=>{started=r;});f.dialogs.showSaveDialog=()=>{started();return new Promise(r=>{resume=r;});};f.service.draft(f.record.id,{text:'old'});const save=f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('old')});await waiting;f.service.draft(f.record.id,{text:'new'});resume({canceled:false,filePath:f.copy});await assert.rejects(save,{code:'MOUSE_DOCUMENT_STALE'});assert.equal(f.service.read(f.record.id).draft.text,'new');assert.equal(f.service.read(f.record.id).dirty,true);await assert.rejects(fs.stat(f.copy),{code:'ENOENT'});});
+test('privacy transition or closed document invalidates pending native picker',async t=>{const f=await fixture(t);let resume;f.dialogs.showSaveDialog=()=>new Promise(r=>{resume=r;});const saving=f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('x')});while(!resume)await new Promise(r=>setImmediate(r));f.service.clear();f.setPrivate(true);resume({canceled:false,filePath:f.copy});await assert.rejects(saving,{code:'MOUSE_DOCUMENT_STALE'});assert.deepEqual(f.service.state().documents,[]);await assert.rejects(fs.stat(f.copy),{code:'ENOENT'});});
+test('close cancellation keeps documents dirty; explicit save completes before exit',async t=>{const f=await fixture(t);f.service.draft(f.record.id,{text:'edited'});await assert.rejects(f.service.prepareExit(async()=>({bytes:bytes('edited')})),{code:'MOUSE_DOCUMENT_CANCEL'});assert.equal(f.service.read(f.record.id).dirty,true);f.choices.close=0;await f.service.prepareExit(async id=>{assert.equal(id,f.record.id);return{bytes:bytes('edited')};});assert.equal(await fs.readFile(f.copy,'utf8'),'edited');assert.equal(f.service.read(f.record.id).dirty,false);});
+test('discard is deferred until all documents have an exit decision',async t=>{const f=await fixture(t),second=path.join(f.root,'second.txt');await fs.writeFile(second,'second');f.choices.open=second;const other=await f.service.handle('open');f.service.draft(f.record.id,{text:'one'});f.service.draft(other.id,{text:'two'});let calls=0;f.dialogs.showMessageBox=async()=>({response:calls++===0?1:2});await assert.rejects(f.service.prepareExit(async()=>assert.fail('must not export')),{code:'MOUSE_DOCUMENT_CANCEL'});assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(other.id).dirty,true);});
+test('new edit after a discard decision cancels exit without clearing any discarded document',async t=>{
+ const f=await fixture(t),second=path.join(f.root,'second.txt');await fs.writeFile(second,'second');f.choices.open=second;const other=await f.service.handle('open');
+ f.service.draft(f.record.id,{text:'one'});f.service.draft(other.id,{text:'two'});let calls=0;
+ f.dialogs.showMessageBox=async()=>{if(calls++===0)return{response:1};await f.service.handle('draft',{id:f.record.id,expectedRevision:0,draft:{text:'new edit after discard'}});return{response:1};};
+ await assert.rejects(f.service.prepareExit(async()=>assert.fail('discard does not export')),{code:'MOUSE_DOCUMENT_STALE'});
+ assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(f.record.id).draft.text,'new edit after discard');assert.equal(f.service.read(other.id).dirty,true);assert.equal(f.service.read(other.id).draft.text,'two');
+});
+test('routine identical harvest of discarded A while exporting B does not invalidate the exit decision',async t=>{
+ const f=await fixture(t),second=path.join(f.root,'second.txt');await fs.writeFile(second,'second');f.choices.open=second;const other=await f.service.handle('open');
+ f.service.draft(f.record.id,{text:'one',meta:{a:1,b:2}});f.service.draft(other.id,{text:'two'});let calls=0;
+ f.dialogs.showMessageBox=async()=>({response:calls++===0?1:0});
+ await f.service.prepareExit(async id=>{assert.equal(id,other.id);await f.service.handle('draft',{id:f.record.id,expectedRevision:0,draft:{meta:{b:2,a:1},text:'one'}});return{bytes:bytes('two')};});
+ assert.equal(f.service.read(f.record.id).dirty,false);assert.equal(f.service.read(f.record.id).draft,null);assert.equal(f.service.read(other.id).dirty,false);assert.equal(await fs.readFile(f.copy,'utf8'),'two');
+});
+test('an initially clean document edited during a later close decision blocks exit and keeps all drafts',async t=>{
+ const f=await fixture(t),second=path.join(f.root,'second.txt');await fs.writeFile(second,'second');f.choices.open=second;const other=await f.service.handle('open');f.service.draft(other.id,{text:'two'});
+ f.dialogs.showMessageBox=async()=>{await f.service.handle('draft',{id:f.record.id,expectedRevision:0,draft:{text:'new edit to the initially clean document'}});return{response:1};};
+ await assert.rejects(f.service.prepareExit(async()=>assert.fail('discard does not export')),{code:'MOUSE_DOCUMENT_STALE'});
+ assert.equal(f.service.read(f.record.id).draft.text,'new edit to the initially clean document');assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(other.id).dirty,true);assert.equal(f.service.read(other.id).draft.text,'two');
+});
+test('a previously saved document edited during the next decision blocks exit without discarding another draft',async t=>{
+ const f=await fixture(t),second=path.join(f.root,'second.txt');await fs.writeFile(second,'second');f.choices.open=second;const other=await f.service.handle('open');f.service.draft(f.record.id,{text:'one'});f.service.draft(other.id,{text:'two'});let decisions=0;
+ f.dialogs.showMessageBox=async()=>{if(decisions++===0)return{response:0};await f.service.handle('draft',{id:f.record.id,expectedRevision:1,draft:{text:'edit after earlier save'}});return{response:1};};
+ await assert.rejects(f.service.prepareExit(async id=>{assert.equal(id,f.record.id);return{bytes:bytes('one')};}),{code:'MOUSE_DOCUMENT_STALE'});
+ assert.equal(await fs.readFile(f.copy,'utf8'),'one');assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(f.record.id).draft.text,'edit after earlier save');assert.equal(f.service.read(other.id).dirty,true);assert.equal(f.service.read(other.id).draft.text,'two');
+});
+test('a new document opened during the close transaction prevents acceptance of the old document set',async t=>{
+ const f=await fixture(t),second=path.join(f.root,'second.txt');await fs.writeFile(second,'second');f.service.draft(f.record.id,{text:'one'});let other;
+ f.dialogs.showMessageBox=async()=>{f.choices.open=second;other=await f.service.open();return{response:1};};
+ await assert.rejects(f.service.prepareExit(async()=>assert.fail('discard does not export')),{code:'MOUSE_DOCUMENT_STALE'});
+ assert.equal(f.service.records.size,2);assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(f.record.id).draft.text,'one');assert.equal(f.service.read(other.id).dirty,false);
+});
+test('explicit change notification still advances generation when its following full draft is identical',async t=>{
+ const f=await fixture(t);f.service.draft(f.record.id,{text:'one'});const record=f.service.records.get(f.record.id),generation=record.editGeneration;
+ f.service.draft(f.record.id,{text:'one'});assert.equal(record.editGeneration,generation);f.service.draft(f.record.id);assert.equal(record.editGeneration,generation+1);f.service.draft(f.record.id,{text:'one'});assert.equal(record.editGeneration,generation+1);
+});
+test('oversized RAM draft rejection retains dirty flag and prior draft',async t=>{const f=await fixture(t);f.service.draft(f.record.id,{text:'safe'});assert.throws(()=>f.service.draft(f.record.id,{text:'x'.repeat(3*1024*1024)}),/слишком большой/);assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(f.record.id).draft.text,'safe');});
+test('invalid extension and non-document bytes are rejected without record',async t=>{const f=await fixture(t);for(const [name,text] of [['bad.exe','MZ'],['bad.pdf','not a pdf']]){const file=path.join(f.root,name);await fs.writeFile(file,text);f.choices.open=file;await assert.rejects(f.service.handle('open'));}assert.equal(f.service.records.size,1);});
+test('atomic write detects changed file before rename and cleans temporary file',async t=>{const f=await fixture(t),before=await readRegular(f.original);let calls=0;await assert.rejects(atomicWrite(f.original,Buffer.from('replacement'),before,()=>{if(++calls===1)throw Error('context changed');}),/context changed/);assert.equal(await fs.readFile(f.original,'utf8'),'original');assert.equal((await fs.readdir(f.root)).filter(x=>x.endsWith('.tmp')).length,0);});
+test('final pre-commit context check rejects without renaming or committing metadata',async t=>{
+ const f=await fixture(t),before=await readRegular(f.original);let checks=0,commits=0;
+ await assert.rejects(atomicWrite(f.original,Buffer.from('replacement'),before,()=>{if(++checks===2)throw Error('final context changed');},()=>commits++),/final context changed/);
+ assert.equal(checks,2);assert.equal(commits,0);assert.equal(await fs.readFile(f.original,'utf8'),'original');assert.equal((await fs.readdir(f.root)).filter(x=>x.endsWith('.tmp')).length,0);
+});
+test('rename commits revision before asynchronous directory sync; later revision-matched edits remain dirty',async t=>{
+ const f=await fixture(t),directory=await fs.realpath(f.root),realOpen=fs.open;let releaseSync,reachedSync;
+ const gate=new Promise(resolve=>{releaseSync=resolve;}),reached=new Promise(resolve=>{reachedSync=resolve;});
+ fs.open=async(...args)=>{const handle=await realOpen(...args);if(args[0]===directory&&args[1]==='r'){const sync=handle.sync.bind(handle);handle.sync=async()=>{reachedSync();await gate;await sync();};}return handle;};
+ t.after(()=>{fs.open=realOpen;releaseSync();});
+ f.service.draft(f.record.id,{text:'committing'});const pending=f.service.handle('save',{id:f.record.id,expectedRevision:0,bytes:bytes('committing')});
+ await reached;const committed=f.service.read(f.record.id);assert.equal(committed.revision,1);assert.equal(committed.hasSavedCopy,true);assert.equal(committed.dirty,false);assert.equal(await fs.readFile(f.copy,'utf8'),'committing');
+ await assert.rejects(f.service.handle('draft',{id:f.record.id,expectedRevision:0,draft:{text:'stale previous version'}}),{code:'MOUSE_DOCUMENT_STALE'});
+ await f.service.handle('draft',{id:f.record.id,expectedRevision:1,draft:{text:'new edit after commit'}});releaseSync();const result=await pending;
+ assert.equal(result.saved,true);assert.equal(result.revision,1);assert.equal(result.dirty,true);assert.equal(f.service.read(f.record.id).draft.text,'new edit after commit');assert.equal(await fs.readFile(f.copy,'utf8'),'committing');fs.open=realOpen;
+});
+test('exit rejects a revision-matched edit arriving after rename while directory sync is still pending',async t=>{
+ const f=await fixture(t),directory=await fs.realpath(f.root),realOpen=fs.open;let releaseSync,reachedSync;const gate=new Promise(resolve=>{releaseSync=resolve;}),reached=new Promise(resolve=>{reachedSync=resolve;});
+ fs.open=async(...args)=>{const handle=await realOpen(...args);if(args[0]===directory&&args[1]==='r'){const sync=handle.sync.bind(handle);handle.sync=async()=>{reachedSync();await gate;await sync();};}return handle;};
+ t.after(()=>{fs.open=realOpen;releaseSync();});f.choices.close=0;f.service.draft(f.record.id,{text:'committing'});const exit=f.service.prepareExit(async()=>({bytes:bytes('committing')}));
+ await reached;assert.equal(f.service.read(f.record.id).revision,1);await f.service.handle('draft',{id:f.record.id,expectedRevision:1,draft:{text:'new edit after commit'}});releaseSync();await assert.rejects(exit,{code:'MOUSE_DOCUMENT_STALE'});
+ assert.equal(await fs.readFile(f.copy,'utf8'),'committing');assert.equal(f.service.read(f.record.id).dirty,true);assert.equal(f.service.read(f.record.id).draft.text,'new edit after commit');fs.open=realOpen;
+});
+test('only trusted shell IPC can reach document capabilities',()=>{let handler;new DocumentService({ipcMain:{handle:(_n,fn)=>{handler=fn;}},trusted:()=>{throw Error('Untrusted frame');},dialog:{}});assert.throws(()=>handler({},'state'),/Untrusted frame/);});
+test('a file that grows after stat is read only through MAX_FILE+1 and its handle is closed',async t=>{
+ const realOpen=fs.open;let total=0,closed=0;
+ fs.open=async()=>({stat:async()=>({size:1,mode:0o600,isFile:()=>true}),read:async(_buffer,_offset,length)=>{total+=length;return{bytesRead:length};},readFile:async()=>assert.fail('unbounded readFile must not be used'),close:async()=>{closed++;}});
+ t.after(()=>{fs.open=realOpen;});await assert.rejects(readRegular('growing-file-fixture'),/превышает 32 МБ/);assert.equal(total,MAX_FILE+1);assert.equal(closed,1);fs.open=realOpen;
+});

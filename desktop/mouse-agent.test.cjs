@@ -23,7 +23,7 @@ test('gateway requires per-session token and rejects browser Origin; real SDK sp
  }finally{await gateway.stop();}assert.equal(gateway.clients.size,0);assert.equal(gateway.url,'');
 });
 test('host starts disabled; only agents mode and owned current-desk targets are exposed',async()=>{
- const f=fixture();assert.equal(f.host.state().enabled,false);f.layout.mode='support';await assert.rejects(f.host.enable(0),/Агенты/);f.layout.mode='agents';await f.host.enable(0);
+ const f=fixture();assert.equal(f.host.state().enabled,false);f.layout.mode='support';await assert.rejects(f.host.enable(0),/Agent Mouse/);f.layout.mode='agents';await f.host.enable(0);
  try{assert.deepEqual(f.host.targets().map(t=>t.targetId),['owned']);assert.throws(()=>f.host.target('other'),/вне/);await assert.rejects(f.host.command({method:'Browser.close'},client()),/подключитесь/);}
  finally{await f.host.dispose();}
 });
@@ -90,4 +90,63 @@ test('terminal displays plain program command and streaming stdout without split
  for(const ch of start)proc.data(ch);assert.match(chunks.join(''),/Mouse \$ printf 'hello\\n'\r\n$/);proc.data('hello\r\n');assert.ok(chunks.join('').endsWith('hello\r\n'),'stdout is visible before completion');
  for(const ch of end)proc.data(ch);proc.data('Mouse $ ');const result=await promise;assert.equal(result.stdout,'hello\r\n');assert.equal(result.exitCode,0);assert.ok(chunks.join('').endsWith('hello\r\nMouse $ '));assert.doesNotMatch(chunks.join(''),/MouseStart|MouseEnd|builtin printf|__mouse_rc|eval /);assert.doesNotMatch(terminal.output,/MouseStart|MouseEnd/);
  terminal.write('echo manual\r');assert.equal(proc.last,'echo manual\r');proc.data('echo manual\r\nmanual\r\nMouse $ ');assert.ok(chunks.join('').endsWith('echo manual\r\nmanual\r\nMouse $ '),'Manual input keeps ordinary echo and prompt');terminal.stop();
+});
+test('Agent Mouse can open independently of its grid; an explicit closed panel denies access',async()=>{
+ const f=fixture();f.layout.mode='support';f.layout.agentOpen=true;await f.host.enable(0);assert.equal(f.host.state().enabled,true);assert.equal(f.layout.mode,'support');await f.host.stop();f.layout.mode='agents';f.layout.agentOpen=false;await assert.rejects(f.host.enable(0),/Agent Mouse/);await f.host.dispose();
+});
+test('real scoped CDP progress keeps client ownership and trusted source identity, and Stop freezes estimates',async()=>{
+ const f=fixture();await f.host.enable(0);const first=await new AgentController(f.host.gateway.url,{CDP}).connect(),second=await new AgentController(f.host.gateway.url,{CDP}).connect();
+ try{
+  const a=await first.send('browser.setProgress',{taskId:'same',percent:34,statusText:'Первый',desk:'desk-2',owner:'forged',source:'terminal',label:'Forged',tabId:'other'}),b=await second.setProgress(null,'Второй',{taskId:'same'});assert.notEqual(a.id,b.id);assert.equal(a.desk,'desk-3');assert.equal(a.source,'agent');assert.equal(a.estimated,true);assert.equal(a.tabId,undefined);assert.equal(a.label,'Внешний агент 1');assert.equal(b.label,'Внешний агент 2');assert.equal(f.host.pending,null);
+  await assert.rejects(first.setProgress(NaN,'bad'),/null|number/);await assert.rejects(first.setProgress(101,'bad'),/percent/);assert.equal(f.host.progress.snapshot().tasks.find(t=>t.id===a.id).percent,34);
+  const serverClient=[...f.host.progressClients].find(([,c])=>c.label===a.label)[0],closed=new Promise(resolve=>serverClient.socket.once('close',resolve));await first.close();await closed;let state=f.host.progress.snapshot().tasks;assert.equal(state.find(t=>t.id===a.id).phase,'stopped');assert.equal(state.find(t=>t.id===b.id).phase,'running');
+  await second.setProgress(58,'Продолжаю',{taskId:'same'});await f.host.stop();state=f.host.progress.snapshot().tasks;assert.equal(state.find(t=>t.id===b.id).percent,58);assert.equal(state.find(t=>t.id===b.id).phase,'stopped');await assert.rejects(f.host.command({method:'browser.setProgress',params:{percent:100,statusText:'late'}},client()),/остановлен/);
+ }finally{await first.close();await second.close();await f.host.dispose();}
+});
+test('terminal progress remains indeterminate across stdout and completes only on the command exit result',async()=>{
+ const f=fixture();await f.host.enable({port:0,autonomous:true});f.host.folder=process.cwd();const c=client();let finish;f.host.terminalService.execute=()=>new Promise(resolve=>{finish=resolve;});
+ const command=f.host.command({method:'Mouse.terminal',params:{command:'fixture'}},c);await tick();const entry=f.host.progress.snapshot().tasks.find(t=>t.source==='terminal');assert.equal(entry.percent,null);assert.equal(entry.estimated,false);f.host.terminalService.emit('data','stdout\n'.repeat(1000));assert.equal(f.host.progress.snapshot().tasks.find(t=>t.id===entry.id).percent,null);finish({stdout:'done',exitCode:0,background:false});await command;let result=f.host.progress.snapshot().tasks.find(t=>t.id===entry.id);assert.equal(result.phase,'completed');assert.equal(result.percent,100);assert.equal(result.estimated,false);
+ f.host.terminalService.execute=async()=>({stdout:'failed',exitCode:2,background:false});await f.host.command({method:'Mouse.terminal',params:{command:'failure fixture'}},c);result=f.host.progress.snapshot().tasks.filter(t=>t.source==='terminal').at(-1);assert.equal(result.phase,'error');assert.equal(result.percent,null);await f.host.dispose();
+});
+test('worker reports share its host task using a private run token; an unrelated client cannot claim it',async()=>{
+ const f=fixture();await f.host.enable(0);const child=new EventEmitter();let payload;child.pid=12345;child.postMessage=data=>{payload=structuredClone(data);};child.kill=()=>{child.emit('exit',0);return true;};f.host.utilityProcess={fork:()=>child};
+ await f.host.task({task:'Progress fixture',endpoint:'http://127.0.0.1:11434/v1',model:'fixture'});const initial=f.host.progress.snapshot().tasks[0];assert.equal(initial.percent,null);child.emit('spawn');assert.ok(payload.progressToken);assert.ok(!JSON.stringify(f.host.state()).includes(payload.progressToken));
+ const worker=await new AgentController(f.host.gateway.url,{CDP,progressToken:payload.progressToken}).connect(),other=await new AgentController(f.host.gateway.url,{CDP}).connect();try{
+  const updated=await worker.setProgress(42,'Проверено');assert.equal(updated.id,initial.id);assert.equal(updated.label,'Agent Mouse');assert.equal(f.host.progress.snapshot().tasks.length,1);await assert.rejects(other.send('browser.setProgress',{percent:99,statusText:'forged',runToken:'invalid'}),/задача|задачи/);assert.equal(f.host.progress.snapshot().tasks[0].percent,42);
+  child.emit('message',{type:'done',outcome:'stopped',text:'Лимит шагов'});const stopped=f.host.progress.snapshot().tasks[0];assert.equal(stopped.phase,'stopped');assert.equal(stopped.percent,42);assert.equal(f.host.state().running,false);
+ }finally{await worker.close();await other.close();await f.host.dispose();}
+});
+test('runner uses explicit progress estimates and never manufactures completion at its step limit or on error',async()=>{
+ const {run}=require('./mouse-agent/runner.cjs');const progress=[];let outcome='',modelCalls=0;
+ class Controller{async connect(){return this;}async tabs(){return[];}async setProgress(value,text,options){progress.push({value,text,options});return{};}async close(){}}
+ const config={task:'fixture',cdp:'fixture',key:'key',progressToken:'private-token'};
+ await run(config,{Controller,finish:value=>{outcome=value;},complete:async(_config,messages)=>{assert.ok(!JSON.stringify(messages).includes('private-token'));modelCalls++;return JSON.stringify({action:'tabs'});}});assert.equal(modelCalls,20);assert.equal(outcome,'stopped');assert.deepEqual(progress.map(p=>p.value),[null,null]);assert.equal(progress.at(-1).options.phase,'stopped');assert.equal(config.key,'');assert.equal(config.progressToken,'');
+ progress.length=0;await assert.rejects(run({task:'fixture',cdp:'fixture'},{Controller,complete:async()=>{throw Error('API unavailable');}}),/API unavailable/);assert.deepEqual(progress.map(p=>p.value),[null,null]);assert.equal(progress.at(-1).options.phase,'error');
+ progress.length=0;const actions=[{action:'browser.setProgress',args:{percent:35,statusText:'Проверен первый результат'}},{action:'done',args:{text:'Готово'}}];await run({task:'fixture',cdp:'fixture'},{Controller,complete:async()=>JSON.stringify(actions.shift())});assert.deepEqual(progress.map(p=>p.value),[null,35,100]);
+});
+test('dispose after a destroyed native window never reads its webContents getter and removes listeners once',async()=>{
+ const f=fixture();await f.host.enable(0);const shell=f.host.shellContents;let invalidReads=0,killed=0;f.host.worker={kill(){killed++;}};f.host.running=true;f.host.terminalService.start(process.cwd());f.host.win.isDestroyed=()=>true;Object.defineProperty(f.host.win,'webContents',{get(){invalidReads++;throw Error('Object has been destroyed');}});
+ await Promise.all([f.host.dispose(),f.host.dispose()]);assert.equal(invalidReads,0);assert.equal(killed,1);assert.equal(f.host.disposed,true);assert.equal(f.host.state().enabled,false);assert.equal(f.host.gateway,null);assert.equal(f.host.terminalService.proc,null);assert.equal(shell.listenerCount('will-navigate'),0);assert.equal(shell.listenerCount('render-process-gone'),0);assert.equal(f.host.app.listenerCount('before-quit'),0);assert.equal(f.powerMonitor.listenerCount('lock-screen'),0);assert.equal(f.host.terminalService.listenerCount('data'),0);
+});
+test('full progress capacity rejects explicit SDK reports but does not prevent the host worker or terminal execution',async()=>{
+ const {MAX_ACTIVE}=require('./mouse-progress.cjs'),{run}=require('./mouse-agent/runner.cjs'),f=fixture();await f.host.enable({port:0,autonomous:true});f.host.folder=process.cwd();
+ for(let i=0;i<MAX_ACTIVE;i++)f.host.progress.update('page:'+i,{desk:'desk-3',source:'page',label:'fixture.example',percent:null,statusText:'Fixture job'});
+ const child=new EventEmitter();let payload,commands=0;child.pid=12345;child.postMessage=data=>{payload=structuredClone(data);};child.kill=()=>{child.emit('exit',0);return true;};f.host.utilityProcess={fork:()=>child};f.host.terminalService.execute=async command=>{commands++;assert.equal(command,'quota fixture');return{stdout:'verified fixture result',exitCode:0,background:false};};
+ const external=await new AgentController(f.host.gateway.url,{CDP}).connect();try{
+  await assert.rejects(external.setProgress(null,'Explicit update'),error=>error.code==='MOUSE_PROGRESS_LIMIT');
+  await f.host.task({task:'Quota fixture',endpoint:'http://127.0.0.1:11434/v1',model:'fixture'});assert.equal(f.host.state().running,true);child.emit('spawn');let modelCalls=0,outcome='';
+  class Controller extends AgentController{constructor(endpoint,options){super(endpoint,{...options,CDP});}}
+  const result=await run(payload,{Controller,finish:value=>{outcome=value;},complete:async(_config,messages)=>{
+   if(modelCalls++===0)return JSON.stringify({action:'terminal',args:{command:'quota fixture'}});
+   assert.ok(messages.at(-1).content.includes('verified fixture result'));return JSON.stringify({action:'done',args:{text:'Verified done'}});
+  }});
+  child.emit('message',{type:'done',outcome,text:result});assert.equal(commands,1);assert.equal(modelCalls,2);assert.equal(result,'Verified done');assert.equal(outcome,'completed');assert.equal(f.host.state().running,false);assert.equal(f.host.state().enabled,true);assert.equal(f.host.progress.snapshot().tasks.filter(t=>t.phase==='running').length,MAX_ACTIVE);
+ }finally{await external.close();await f.host.dispose();}
+});
+test('automatic worker progress ignores only typed capacity errors, including its final report',async()=>{
+ const {run}=require('./mouse-agent/runner.cjs'),{ProgressLimitError}=require('./mouse-progress.cjs');let calls=0,closed=0,outcome='',modelCalls=0;
+ class Controller{async connect(){return this;}async tabs(){return[{targetId:'fixture'}];}async setProgress(){calls++;throw new ProgressLimitError();}async close(){closed++;}}
+ const text=await run({task:'fixture',cdp:'fixture'},{Controller,finish:value=>{outcome=value;},complete:async()=>JSON.stringify(modelCalls++?{action:'done',args:{text:'done'}}:{action:'tabs'})});assert.equal(text,'done');assert.equal(modelCalls,2);assert.equal(calls,2);assert.equal(closed,1);assert.equal(outcome,'completed');
+ class DeniedController extends Controller{async setProgress(){throw Error('Session stopped');}}
+ modelCalls=0;await assert.rejects(run({task:'fixture',cdp:'fixture'},{Controller:DeniedController,complete:async()=>{modelCalls++;return JSON.stringify({action:'done'});}}),/Session stopped/);assert.equal(modelCalls,0);assert.equal(closed,2);
 });
