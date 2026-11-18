@@ -27,6 +27,11 @@ function contourEvidence(frame){
  for(let j=0;j<segments.length;j++)for(let k=0;k<=40;k++){const p=at(segments[j],k/40),q=at(segments.at(-j-1),1-k/40);mirror=Math.max(mirror,Math.abs(p.x+q.x-frame.width),Math.abs(p.y-q.y));top=Math.min(top,p.y);}
  return{mirror,top,endpoints:[screen(first),screen(point)]};
 }
+function distinctVisibleHeights(frames){
+ let count=0,previous=-Infinity;
+ for(const top of frames.map(frame=>frame.top).sort((a,b)=>a-b))if(top-previous>=1){count++;previous=top;}
+ return count;
+}
 module.exports=async({app,win,browser,store})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
@@ -98,7 +103,7 @@ module.exports=async({app,win,browser,store})=>{
  function continuous(frames,direction,label){
   attachedGeometry(frames,label);const moving=frames.filter(f=>f.phase===direction&&f.progress>0&&f.progress<1);
   assert.ok(moving.length>=3,label+' paints at least three intermediate frames');
-  assert.ok(new Set(moving.map(f=>Math.round(f.top))).size>=3,label+' has real intermediate contour heights');
+  assert.ok(distinctVisibleHeights(moving)>=3,label+' has at least three intermediate contour heights separated by one pixel');
   for(let i=1;i<moving.length;i++){const delta=moving[i].top-moving[i-1].top,summary=f=>({time:f.time,sampleDuration:f.sampleDuration,top:f.top,progress:f.progress,baseline:f.baseline,bounds:f.bounds,motion:f.motion,content:f.content});assert.ok(direction==='opening'?delta<=1:delta>=-1,label+' reverses its geometry smoothly: '+JSON.stringify({index:i,delta,elapsed:moving[i].time-moving[i-1].time,before:summary(moving[i-1]),after:summary(moving[i])}));}
   assert.ok(moving.every(f=>f.open&&!f.hidden),'Modal view gate remains active throughout '+direction);
   if(direction==='opening')assert.ok(moving.some(f=>f.inert&&f.opacity<.9),'Content is revealed only after the surface grows');
@@ -147,7 +152,7 @@ module.exports=async({app,win,browser,store})=>{
   for(const theme of facts.themes){
    await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await installRecorder();await click('#desktops-button');const opening=await retainFrames(theme+'-open');continuous(opening,'opening',theme+' opening');
    assert.ok([...browser.tabs.values(),...browser.providers.values()].every(page=>!page.visible),'Native pages remain behind the active menu');
-   const compact=await js('document.querySelector("#desktop-tray").getBoundingClientRect().height');await installRecorder();await click('.desktop-card[aria-current="true"] .desk-preview-button');await settled();const expansion=await retainFrames(theme+'-resize');attachedGeometry(expansion,theme+' preview growth');const resizing=expansion.filter(f=>f.phase==='resizing');assert.ok(resizing.length>=3,'Preview grows across multiple painted geometries: '+JSON.stringify(expansion.map(f=>({time:f.time,phase:f.phase,top:f.top,sampleDuration:f.sampleDuration,motion:f.motion}))));assert.ok(new Set(resizing.map(f=>Math.round(f.top))).size>=3,'Preview paints at least three distinct intermediate contour heights');assert.ok(await js('document.querySelector("#desktop-tray").getBoundingClientRect().height')>compact+60,'Preview truly expands the menu');facts.frames[theme+'-resize']=expansion;await seam(theme);
+   const compact=await js('document.querySelector("#desktop-tray").getBoundingClientRect().height');await installRecorder();await click('.desktop-card[aria-current="true"] .desk-preview-button');await settled();const expansion=await retainFrames(theme+'-resize');attachedGeometry(expansion,theme+' preview growth');const resizing=expansion.filter(f=>f.phase==='resizing');assert.ok(resizing.length>=3,'Preview grows across multiple painted geometries: '+JSON.stringify(expansion.map(f=>({time:f.time,phase:f.phase,top:f.top,sampleDuration:f.sampleDuration,motion:f.motion}))));assert.ok(distinctVisibleHeights(resizing)>=3,'Preview paints at least three intermediate contour heights separated by one pixel');assert.ok(await js('document.querySelector("#desktop-tray").getBoundingClientRect().height')>compact+60,'Preview truly expands the menu');facts.frames[theme+'-resize']=expansion;await seam(theme);
    await click('.desk-preview-close');await click('#desk-modes-button');assert.equal(await js('document.querySelector("#desk-modes-button").getAttribute("aria-expanded")'),'true');assert.equal(await js('document.querySelector("#desk-modes").inert'),false);await click('#desk-history-button');assert.equal(await js('document.querySelector("#desk-history-panel").hidden'),false);assert.equal(await js('document.querySelector("#desk-modes-button").getAttribute("aria-expanded")'),'false');await click('#desk-history-button');
    await installRecorder();await click('#desks-close');const closing=await retainFrames(theme+'-close');continuous(closing,'closing',theme+' closing');await samePages();
   }

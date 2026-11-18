@@ -39,10 +39,17 @@
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let progress=0,height=0,targetHeight=0,goal=0,frame=0,progressTween=null,heightTween=null,last=null,waiter=null,active=false;
   const cancelWaiter=()=>{if(waiter){waiter.resolve(false);waiter=null;}};
-  const tweenValue=(t,time)=>t.start===null?t.from:mix(t.from,t.to,ease(clamp((time-t.start)/t.duration)));
+  // Keep visual time moving forward without consuming a whole transition when
+  // native preview work stalls a frame. Normal frame intervals retain their real
+  // duration; a late frame resumes the contour instead of jumping to its end.
+  const tweenValue=(t,time)=>{
+   if(t.start===null)return t.from;
+   t.elapsed=Math.min(t.duration,t.elapsed+Math.min(64,Math.max(0,time-t.last)));t.last=Math.max(t.last,time);
+   return mix(t.from,t.to,ease(t.elapsed/t.duration));
+  };
   function advance(time){
-   if(progressTween){progress=tweenValue(progressTween,time);if(time>=progressTween.start+progressTween.duration){progress=progressTween.to;progressTween=null;}}
-   if(heightTween){height=tweenValue(heightTween,time);if(heightTween.start!==null&&time>=heightTween.start+heightTween.duration){height=heightTween.to;heightTween=null;}}
+   if(progressTween){progress=tweenValue(progressTween,time);if(progressTween.elapsed>=progressTween.duration){progress=progressTween.to;progressTween=null;}}
+   if(heightTween){height=tweenValue(heightTween,time);if(heightTween.elapsed>=heightTween.duration){height=heightTween.to;heightTween=null;}}
   }
   function measure(){
    const r=footer.getBoundingClientRect(),border=parseFloat(getComputedStyle(footer).borderTopWidth)||0,baseline=r.top+border/2;
@@ -73,14 +80,14 @@
   // RAF's timestamp belongs to the start of its frame. A ResizeObserver/layout
   // callback may already have advanced the contour later in that same frame.
   // Use the same current clock as sync/animate so the next RAF never rewinds it.
-  function tick(){frame=0;const time=performance.now();if(heightTween?.start===null)heightTween.start=time;advance(time);paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
+  function tick(){frame=0;const time=performance.now();if(heightTween?.start===null)heightTween.start=heightTween.last=time;advance(time);paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
   function schedule(){if(!frame)frame=requestAnimationFrame(tick);}
   function sync(){
    if(!active||tray.hidden)return;
    const time=performance.now();advance(time);const next=measure().height;
    // Content/preview construction can occupy the rest of this task. Start its
    // height transition at the first animation frame, once that work has yielded.
-   if(Math.abs(next-targetHeight)>.25){targetHeight=next;if(!height||reduced.matches||progress===0){height=next;heightTween=null;}else heightTween={from:height,to:next,start:null,duration:300};}
+   if(Math.abs(next-targetHeight)>.25){targetHeight=next;if(!height||reduced.matches||progress===0){height=next;heightTween=null;}else heightTween={from:height,to:next,start:null,last:null,elapsed:0,duration:300};}
    paint();if(progressTween||heightTween)schedule();
   }
   function animate(to,immediate=false){
@@ -90,7 +97,7 @@
    const result=new Promise(resolve=>{waiter={resolve};});
    if(immediate||reduced.matches){progress=to;progressTween=null;height=targetHeight;heightTween=null;paint();complete();}
    else if(Math.abs(to-progress)<.0001){progress=to;progressTween=null;paint();complete();}
-   else{progressTween={from:progress,to,start:time,duration:(to?640:500)*Math.max(.28,Math.sqrt(Math.abs(to-progress)))};paint();schedule();}
+   else{const start=performance.now();progressTween={from:progress,to,start,last:start,elapsed:0,duration:(to?640:500)*Math.max(.28,Math.sqrt(Math.abs(to-progress)))};paint();schedule();}
    return result;
   }
   function release(){
