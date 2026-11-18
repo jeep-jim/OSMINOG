@@ -70,7 +70,10 @@
    if(progressTween||heightTween)return;
    if(waiter&&progress===goal){const done=waiter;waiter=null;done.resolve(true);settled?.(goal===1);}
   }
-  function tick(time){frame=0;advance(time);paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
+  // RAF's timestamp belongs to the start of its frame. A ResizeObserver/layout
+  // callback may already have advanced the contour later in that same frame.
+  // Use the same current clock as sync/animate so the next RAF never rewinds it.
+  function tick(){frame=0;advance(performance.now());paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
   function schedule(){if(!frame)frame=requestAnimationFrame(tick);}
   function sync(){
    if(!active||tray.hidden)return;

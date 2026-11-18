@@ -64,7 +64,7 @@ function controllerFixture(){
  const ctx={console,document:{body,createElementNS(_ns,_tag){const node=new Node();created.push(node);return node;},createElement(){const node=new Node();created.push(node);return node;},querySelector:s=>s==='.toolbar'?{getBoundingClientRect:()=>({bottom:40})}:created.find(n=>'#'+n.id===s)},window:{addEventListener:(type,fn)=>listeners.set(type,fn)},performance:{now:()=>now},matchMedia:()=>media,getComputedStyle:()=>({borderTopWidth:'1px'}),ResizeObserver:class{constructor(fn){observers.push(fn);}observe(){}},requestAnimationFrame:fn=>{const id=++nextFrame;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),innerWidth:viewportWidth,innerHeight:800};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync(require.resolve('./mouse/burrow-motion.js'),'utf8'),ctx);
  const motion=ctx.createMouseBurrowMotion({tray,content,footer,button,settled:opened=>settled.push(opened)});
- const at=time=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(now);};
+ const at=(time,frameTime=time)=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(frameTime);};
  return{motion,tray,content,footer,classes,frames,settled,created,at,get time(){return now;},height(value){contentHeight=value;motion.sync();},resize({width=viewportWidth,top=footerTop}={}){viewportWidth=width;footerTop=top;ctx.innerWidth=width;listeners.get('resize')();},reduced(value){media.matches=value;media.change();}};
 }
 
@@ -78,6 +78,16 @@ test('opening grows from zero, locks controls until settled, and closing retract
 test('reversing an unfinished motion preserves geometry and cancels only the replaced completion',async()=>{
  const f=controllerFixture(),first=f.motion.open();f.at(220);const before=f.motion.sample();const close=f.motion.close();const reversed=f.motion.sample();near(reversed.height,before.height);near(reversed.progress,before.progress);assert.equal(await first,false);
  f.at(320);const beforeReopen=f.motion.sample();const reopen=f.motion.open();near(f.motion.sample().height,beforeReopen.height);assert.equal(await close,false);f.at(1200);assert.equal(await reopen,true);assert.equal(f.motion.progress,1);assert.deepEqual(f.settled,[true]);
+});
+
+test('layout callbacks and delayed frame timestamps cannot rewind an uninterrupted motion',async()=>{
+ const f=controllerFixture(),opened=f.motion.open();
+ f.at(240,200);f.motion.sync();const opening=f.motion.sample();
+ f.at(250,220);assert.ok(f.motion.sample().height>=opening.height,'A stale frame timestamp must not undo a newer layout measurement');
+ f.at(640);await opened;const closed=f.motion.close();
+ f.at(850,800);f.motion.sync();const closing=f.motion.sample();
+ f.at(860,820);assert.ok(f.motion.sample().height<=closing.height,'Closing must not grow back when a frame timestamp predates the last measurement');
+ f.at(1140);assert.equal(await closed,true);
 });
 
 test('late preview or modes height retargets smoothly, keeps its footer anchor, and releases no stale animation',async()=>{
