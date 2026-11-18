@@ -91,16 +91,22 @@ test('layout callbacks and delayed frame timestamps cannot rewind an uninterrupt
 });
 
 test('late preview or modes height retargets smoothly, keeps its footer anchor, and releases no stale animation',async()=>{
- const f=controllerFixture(),opening=f.motion.open();f.at(640);await opening;f.height(510);near(f.motion.sample().height,240);f.at(790);assert.ok(f.motion.sample().height>240&&f.motion.sample().height<510);
- const before=f.motion.sample().height;f.height(360);near(f.motion.sample().height,before);f.resize({width:950,top:700});near(f.motion.sample().baseline,700.5);near(f.motion.sample().left+f.motion.sample().width/2,475);f.at(1090);near(f.motion.sample().height,360);
+ const f=controllerFixture(),opening=f.motion.open();f.at(640);await opening;f.height(510);near(f.motion.sample().height,240);f.at(640);f.at(790);assert.ok(f.motion.sample().height>240&&f.motion.sample().height<510);
+ const before=f.motion.sample().height;f.height(360);near(f.motion.sample().height,before);f.resize({width:950,top:700});near(f.motion.sample().baseline,700.5);near(f.motion.sample().left+f.motion.sample().width/2,475);f.at(790);f.at(1090);near(f.motion.sample().height,360);
  const closing=f.motion.close();f.at(1200);f.motion.release();assert.equal(await closing,false);assert.equal(f.frames.size,0);f.height(500);f.at(1900);assert.equal(f.motion.sample(),null);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.classes.has('mouse-dock-active'),false);
 });
 
 test('immediate release during a height change cannot carry an unfinished size into the next opening',async()=>{
  const f=controllerFixture(),opening=f.motion.open();f.at(640);await opening;
- f.height(510);f.at(940);f.height(240);f.at(1090);near(f.motion.sample().height,375);
+ f.height(510);f.at(640);f.at(940);f.height(240);f.at(940);f.at(1090);near(f.motion.sample().height,375);
  f.motion.release();const reopened=f.motion.open();f.at(1730);assert.equal(await reopened,true);
  near(f.motion.sample().height,240);near(f.motion.sample().targetHeight,240);assert.equal(f.frames.size,0);
+});
+
+test('expensive preview construction cannot consume the height animation before its first frame',async()=>{
+ const f=controllerFixture(),opening=f.motion.open();f.at(640);await opening;f.height(510);
+ f.at(1400);near(f.motion.sample().height,240);assert.equal(f.tray.dataset.motion,'resizing');
+ f.at(1550);near(f.motion.sample().height,375);f.at(1700);near(f.motion.sample().height,510);assert.equal(f.tray.dataset.motion,'open');
 });
 
 test('reduced motion completes immediately and changing preference completes an in-flight opening',async()=>{

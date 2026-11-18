@@ -39,10 +39,10 @@
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let progress=0,height=0,targetHeight=0,goal=0,frame=0,progressTween=null,heightTween=null,last=null,waiter=null,active=false;
   const cancelWaiter=()=>{if(waiter){waiter.resolve(false);waiter=null;}};
-  const tweenValue=(t,time)=>mix(t.from,t.to,ease(clamp((time-t.start)/t.duration)));
+  const tweenValue=(t,time)=>t.start===null?t.from:mix(t.from,t.to,ease(clamp((time-t.start)/t.duration)));
   function advance(time){
    if(progressTween){progress=tweenValue(progressTween,time);if(time>=progressTween.start+progressTween.duration){progress=progressTween.to;progressTween=null;}}
-   if(heightTween){height=tweenValue(heightTween,time);if(time>=heightTween.start+heightTween.duration){height=heightTween.to;heightTween=null;}}
+   if(heightTween){height=tweenValue(heightTween,time);if(heightTween.start!==null&&time>=heightTween.start+heightTween.duration){height=heightTween.to;heightTween=null;}}
   }
   function measure(){
    const r=footer.getBoundingClientRect(),border=parseFloat(getComputedStyle(footer).borderTopWidth)||0,baseline=r.top+border/2;
@@ -73,12 +73,14 @@
   // RAF's timestamp belongs to the start of its frame. A ResizeObserver/layout
   // callback may already have advanced the contour later in that same frame.
   // Use the same current clock as sync/animate so the next RAF never rewinds it.
-  function tick(){frame=0;advance(performance.now());paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
+  function tick(){frame=0;const time=performance.now();if(heightTween?.start===null)heightTween.start=time;advance(time);paint();complete();if(progressTween||heightTween)frame=requestAnimationFrame(tick);}
   function schedule(){if(!frame)frame=requestAnimationFrame(tick);}
   function sync(){
    if(!active||tray.hidden)return;
    const time=performance.now();advance(time);const next=measure().height;
-   if(Math.abs(next-targetHeight)>.25){targetHeight=next;if(!height||reduced.matches||progress===0){height=next;heightTween=null;}else heightTween={from:height,to:next,start:time,duration:300};}
+   // Content/preview construction can occupy the rest of this task. Start its
+   // height transition at the first animation frame, once that work has yielded.
+   if(Math.abs(next-targetHeight)>.25){targetHeight=next;if(!height||reduced.matches||progress===0){height=next;heightTween=null;}else heightTween={from:height,to:next,start:null,duration:300};}
    paint();if(progressTween||heightTween)schedule();
   }
   function animate(to,immediate=false){
