@@ -71,9 +71,10 @@ module.exports=({win,js})=>{
   }
   try{
    await js('MouseTest.switchDesktop("desk-5")');assert.equal(browser.state().tabs.length,0,'Lifecycle fixture uses an empty desk');
-   await js('MouseTest.changeLayout(3)');
    for(let i=0;i<4;i++)await js(`MouseTest.openPage(${JSON.stringify(root+'/lifecycle/'+i)})`);
    await until(()=>browser.state().tabs.length===4&&browser.state().tabs.every(t=>!browser.get(t.id).loading&&t.favicon?.endsWith('/favicon.png')),'four local pages and real favicons');
+   // Arrange this fixture explicitly: ordinary state updates preserve empty slots.
+   await js('MouseTest.changeLayout(3)');const prepared=(await snapshot()).items.find(d=>d.id==='desk-5');assert.equal(prepared.count,4);assert.equal(prepared.paneCount,3);assert.equal(prepared.hiddenCount,1);
    const records=new Map();for(const t of browser.state().tabs){const wc=browser.get(t.id).view.webContents,identity=await wc.executeJavaScript('window.identity');assert.equal(typeof identity,'number','Fixture script is loaded');records.set(t.id,{wc,identity});}
    const pane=await js('(()=>{const pane=document.querySelector(".pane").dataset.pane;return{pane,id:MouseTest.model.slots[pane]};})()'),closed=records.get(pane.id).wc;
    await click('.pane[data-pane="'+pane.pane+'"] [data-pane-action=remove]');
