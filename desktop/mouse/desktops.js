@@ -112,7 +112,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   if(!tray.hidden||opening){
    if(tray.open&&motion.goal===0){
     const ticket=++epoch;opening=true;button.setAttribute('aria-expanded','true');
-    try{await motion.open();if(ticket===epoch)void refreshPreviews(ticket);}finally{if(ticket===epoch)opening=false;}
+    try{const done=await motion.open();if(done&&ticket===epoch)void refreshPreviews(ticket);}finally{if(ticket===epoch)opening=false;}
     return;
    }
    return close();
@@ -121,7 +121,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   try{
    if(!await backdrop.show('desktops')||ticket!==epoch)return;
    tray.hidden=false;content.inert=true;tray.showModal();tray.focus({preventScroll:true});button.setAttribute('aria-expanded','true');
-   render(m.state.desktops||state);layout();void refreshPreviews(ticket);await motion.open();
+   render(m.state.desktops||state);layout();const done=await motion.open();if(done&&ticket===epoch)void refreshPreviews(ticket);
   }catch(error){await close({immediate:true}).catch(()=>{});status(error.message);}finally{if(ticket===epoch)opening=false;}
  }
  function clearPreviewDOM(){previewState=null;tray.querySelector('.desktop-list').replaceChildren();peek.querySelector('.desk-peek-image').replaceChildren();peek.querySelector('.desk-peek-tabs').replaceChildren();}

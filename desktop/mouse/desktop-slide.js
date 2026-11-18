@@ -89,6 +89,7 @@
    if(cancelled||!scene.valid())return;
    let incomingReady=false;try{const incoming=await N.desktops('surfaces',{ids:scene.ids(),hold});incomingReady=!cancelled&&await scene.stage('incoming',incoming);}catch{}
    if(!incomingReady)return;
+   if(!await presented()||cancelled||!scene.valid())return;
    result.decoded=true;result.animated=await scene.animate();Object.assign(result,scene.timing());
   }finally{
    workspace.style.visibility=previousVisibility;

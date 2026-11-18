@@ -16,8 +16,9 @@ test('image drag keeps its gesture guards and the sole page bridge reports only 
 });
 test('status notification lives outside footer and expires without resetting on repeated same error',()=>{const s=fs.readFileSync('mouse/feedback.js','utf8'),css=fs.readFileSync('mouse/mouse-621.css','utf8');assert.match(s,/document.body.append\(node\)/);assert.match(s,/timer=setTimeout\(hide,4500\)/);assert.match(s,/now<until&&!node.hidden/);assert.match(css,/body>#status\{position:fixed/);assert.match(css,/left:50%/);assert.match(css,/pointer-events:none/);});
 function slideFixture(delay=0,options={}){
- const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8'),events=[],listeners=new Map();let time=0,cleared;
+ const vm=require('node:vm'),code=fs.readFileSync('mouse/desktop-slide.js','utf8'),events=[],listeners=new Map(),frames=new Map(),timers=new Map();let time=0,cleared,task=0;
  const ctx={module:{exports:{}},performance:{now:()=>time},matchMedia:()=>({matches:!!options.reduced}),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)};
+ if(options.manualFrames)Object.assign(ctx,{requestAnimationFrame:fn=>{const id=++task;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:(fn,ms)=>{const id=++task;timers.set(id,{fn,at:time+ms});return id;},clearTimeout:id=>timers.delete(id)});
  vm.runInNewContext(code,ctx);const S=ctx.module.exports,w={style:{transform:'',visibility:''},dataset:{},inert:false},model={desktopId:'old'},scene={ids:()=>[model.desktopId],valid:()=>true,stage:async(kind,packet)=>{events.push('decoded:'+kind);return packet.complete;},show:()=>events.push('show-old'),animate:async()=>{events.push('animate-start');time+=S.DURATION;events.push('animate-end');return true;},timing:()=>({animationDurationMs:S.DURATION}),cancel:()=>events.push('cancel'),remove:()=>events.push('remove')};
  const N={test:true,onPreviewsCleared:fn=>{cleared=fn;return()=>{cleared=null;}},desktops:async(action,args)=>{
   if(action==='surfaces'){events.push('capture:'+model.desktopId);if(options.cancelIncoming&&model.desktopId==='new')cleared();return{token:'capture-token',complete:!(options.incomplete&&model.desktopId==='old')};}
@@ -25,7 +26,10 @@ function slideFixture(delay=0,options={}){
   assert.equal(w.style.visibility,'');return{released:true};
  }};
  const run=()=>S.run({workspace:w,model,N,sceneFactory:()=>scene,direction:options.direction||1,layout:async()=>{events.push('layout');time+=delay;},change:async()=>{events.push('change');if(options.fail)throw Error('fixture failure');model.desktopId='new';}});
- return{S,w,model,N,events,listeners,run,clock:()=>time,hasCleared:()=>!!cleared};
+ const flush=async()=>{for(let i=0;i<16;i++)await Promise.resolve();};
+ const paint=async()=>{time+=16;for(const [id,fn]of [...frames])if(frames.delete(id))fn(time);await flush();};
+ const elapse=async ms=>{time+=ms;for(const [id,timer]of [...timers])if(timer.at<=time){timers.delete(id);timer.fn();}await flush();};
+ return{S,w,model,N,events,listeners,run,clock:()=>time,hasCleared:()=>!!cleared,flush,paint,elapse,pendingFrames:()=>frames.size,pendingTimers:()=>timers.size};
 }
 test('desktop transition decodes before hold and restores input, native surfaces and listeners on every outcome',async()=>{
  for(const options of [{},{fail:true},{incomplete:true},{begin:false},{cancelIncoming:true},{reduced:true}]){
@@ -48,6 +52,27 @@ test('250ms native acknowledgements cannot stretch the shared compositor timelin
   const start=f.events.indexOf('animate-start'),end=f.events.indexOf('animate-end');assert.deepEqual(f.events.slice(start+1,end),[],'there is no native IPC inside the animation interval');
   assert.equal(f.w.style.transform,'');assert.equal(f.S.last.direction,direction);
  }
+});
+test('incoming desktop materialization finishes two setup frames before animation starts',async()=>{
+ const f=slideFixture(0,{manualFrames:true}),running=f.run();await f.flush();
+ await f.paint();await f.paint();
+ assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
+ await f.paint();assert.ok(!f.events.includes('animate-start'),'the first incoming setup frame cannot start the animation');
+ await f.paint();assert.ok(f.events.includes('animate-start'));
+ await f.paint();await f.paint();await running;
+ assert.equal(f.S.last.animationDurationMs,330);assert.equal(f.events.filter(x=>x==='layout').length,2);
+ assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
+});
+for(const interruption of ['resize','timeout'])test('incoming desktop preparation '+interruption+' releases the hold without starting animation',async()=>{
+ const f=slideFixture(0,{manualFrames:true}),running=f.run();await f.flush();await f.paint();await f.paint();
+ assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
+ if(interruption==='resize'){f.listeners.get('resize')();await f.paint();await f.paint();}
+ else{await f.elapse(119);assert.ok(!f.events.includes('end'),'the existing120ms preparation budget is retained');await f.elapse(1);}
+ assert.ok(!f.events.includes('animate-start'));assert.equal(f.events.filter(x=>x==='end').length,1);
+ await f.paint();await f.paint();await running;
+ assert.equal(f.events.filter(x=>x==='remove').length,1);assert.equal(f.events.filter(x=>x==='layout').length,2);
+ assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);
+ assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
 });
 
 require('./mouse-floating-overlay.test.cjs');

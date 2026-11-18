@@ -24,8 +24,9 @@
   const glass=tray.querySelector('.desk-glass');panel.append(local);if(glass)panel.append(glass);panel.append(content);tray.append(panel);
   const scrim=document.createElement('div');scrim.id='mouse-dock-scrim';scrim.hidden=true;scrim.setAttribute('aria-hidden','true');document.body.append(scrim);
   const toolbar=document.querySelector('.toolbar'),reduced=matchMedia('(prefers-reduced-motion: reduce)'),duration=300;
-  let active=false,goal=0,position=0,movement=null,shade=null,waiter=null,generation=0,geometry=null,geometryDirty=true,measurements=0,geometryWrites=0;
+  let active=false,goal=0,position=0,movement=null,shade=null,waiter=null,generation=0,geometry=null,geometryDirty=true,measurements=0,geometryWrites=0,preparing=false,preparationFrame=0;
   const cancelWaiter=()=>{if(waiter){waiter.resolve(false);waiter=null;}};
+  const cancelPreparation=()=>{preparing=false;if(preparationFrame)cancelAnimationFrame(preparationFrame);preparationFrame=0;};
   const progress=()=>{if(!movement)return position;const value=movement.effect.getComputedTiming().progress;if(value!==null&&value!==undefined)return clamp(value);const time=Number(movement.currentTime);return time>=duration?1:time<=0?0:position;};
   function measure(){
    measurements++;
@@ -44,6 +45,7 @@
    local.style.setProperty('--dock-line-width',next.line+'px');panel.style.setProperty('--nora-curve-x',shape.rx+'px');panel.style.setProperty('--nora-curve-y',shape.ry+'px');scrim.style.bottom=next.bottom+'px';
   }
   function stopPlayers(){
+   cancelPreparation();
    const current=movement,shadow=shade;movement=shade=null;
    // All finished promises have rejection handlers before cancellation.
    current?.cancel();shadow?.cancel();panel.style.willChange='';scrim.style.willChange='';
@@ -60,16 +62,34 @@
    shade=scrim.animate([{opacity:0},{opacity:.12}],options);
    for(const animation of [movement,shade]){animation.pause();animation.currentTime=position*duration;animation.finished.catch(()=>{});}
   }
-  function animate(to,immediate=false){
-   cancelWaiter();const ticket=++generation;goal=to;
-   if(!active){active=true;geometryDirty=true;scrim.hidden=false;document.body.classList.add('mouse-dock-active');sync();}
-   const result=new Promise(resolve=>{waiter={resolve};});
-   if(immediate||reduced.matches||typeof panel.animate!=='function'||(!movement&&position===to)){complete(to);return result;}
-   content.inert=true;players();panel.style.willChange='transform';scrim.style.willChange='opacity';
-   tray.dataset.motion=to?'opening':'closing';tray.dataset.motionProgress=String(progress());
+  function startPlayers(to,ticket,sharedStart=false){
+   if(!active||ticket!==generation||!movement)return;preparing=false;
    for(const animation of [movement,shade]){if(typeof animation.updatePlaybackRate==='function')animation.updatePlaybackRate(to?1:-1);else animation.playbackRate=to?1:-1;animation.play();animation.finished.catch(()=>{});}
+   // Both freshly prepared layers start at zero on the same timeline. A
+   // reversal keeps its existing playhead and must never use this reset.
+   const start=document.timeline?.currentTime;if(sharedStart&&Number.isFinite(start))for(const animation of [movement,shade])animation.startTime=start;
    const current=movement;
    current.finished.then(()=>{if(active&&ticket===generation&&current===movement)complete(to);}).catch(()=>{});
+  }
+  function prepareOpening(ticket){
+   preparing=true;const current=movement;
+   // Materializing the dialog, SVG and controls must not consume the300ms
+   // slide. Let the paused layers commit before their timeline starts.
+   Promise.all([movement.ready,shade.ready]).then(()=>{
+    if(!active||ticket!==generation||current!==movement)return;
+    preparationFrame=requestAnimationFrame(()=>{
+     preparationFrame=requestAnimationFrame(()=>{preparationFrame=0;startPlayers(1,ticket,true);});
+    });
+   }).catch(error=>{if(active&&ticket===generation&&current===movement){const failed=waiter;waiter=null;stopPlayers();failed?.reject(error);}});
+  }
+  function animate(to,immediate=false){
+   const wasPreparing=preparing;cancelPreparation();cancelWaiter();const ticket=++generation;goal=to;
+   if(!active){active=true;geometryDirty=true;scrim.hidden=false;document.body.classList.add('mouse-dock-active');sync();}
+   const result=new Promise((resolve,reject)=>{waiter={resolve,reject};});
+   if(immediate||reduced.matches||typeof panel.animate!=='function'||(!movement&&position===to)||(wasPreparing&&to===0)){complete(to);return result;}
+   content.inert=true;panel.style.willChange='transform';scrim.style.willChange='opacity';const fresh=!movement;players();
+   tray.dataset.motion=to?'opening':'closing';tray.dataset.motionProgress=String(progress());
+   if(to===1&&(wasPreparing||fresh&&position===0))prepareOpening(ticket);else startPlayers(to,ticket);
    return result;
   }
   function release(){
