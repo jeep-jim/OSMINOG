@@ -78,5 +78,11 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-621-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-622-smoke.cjs')({app,win,browser,store,agentHost});
   console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();app.exit(0);
- }catch(error){console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));await fs.writeFile('mouse-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1)}
+ }catch(error){
+  console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));
+  const failure={version:app.getVersion(),error:{message:error.message,stack:error.stack},state:browser.state(),panels:browser.panels,overlayBlocked:overlayGate.blocked,surfaceHeld:!!browser.mouseSurfaceHold};
+  const save=()=>fs.writeFile('mouse-627-smoke-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await save();
+  try{failure.renderer=await require('./mouse-lifecycle.cjs').bounded(js('(()=>{const m=MouseTest.model;return{activeElement:document.activeElement?.id,ready:m.ready,desktopSliding:!!m.desktopSliding,switching:!!m.switching,libraryOpen:m.libraryOpen,libraryWidth:m.libraryWidth,drag:m.drag?{kind:m.drag.kind,axis:m.drag.axis,pointer:m.drag.pointer}:null,bodyClass:document.body.className,dialogs:[...document.querySelectorAll("dialog[open]")].map(d=>({id:d.id,modal:d.matches(":modal")}))};})()'),2000,'Failure renderer state');}catch(e){failure.rendererError=e.message;}await save();
+  await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),2000,'Failure screenshot').then(image=>fs.writeFile('mouse-failure.png',image.toPNG())).catch(()=>{});server?.close();app.exit(1);
+ }
 };

@@ -19,6 +19,8 @@ module.exports=async({win,browser,overlayGate})=>{
   await click('#library-close');await until(()=>js('!document.querySelector("#library-dialog").open'),'sidebar closed');
  }
  await js('MouseTest.action("downloads")');await until(()=>js('document.querySelector("#library-dialog").open'),'resize sidebar');
+ const sidebar=await js('(()=>{const d=document.querySelector("#library-dialog"),divider=document.querySelector("#library-divider"),r=divider.getBoundingClientRect();return{open:d.open,modelOpen:MouseTest.model.libraryOpen,aiHidden:document.querySelector("#ai-panel").hidden,dividerVisible:!divider.hidden&&r.width>0&&r.height>0}})()');
+ assert.equal(sidebar.open,true,'Library dialog remains open before resizing');assert.equal(sidebar.modelOpen,true,'Open library dialog must retain sidebar state');assert.equal(sidebar.aiHidden,true,'Open library must hide the AI panel');assert.equal(sidebar.dividerVisible,true,'Open library must expose its resize divider');
  const pos=await js('(()=>{const r=document.querySelector("#library-divider").getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()');
  win.webContents.sendInputEvent({type:'mouseMove',...pos});win.webContents.sendInputEvent({type:'mouseDown',...pos,button:'left',clickCount:1});await sleep(100);win.webContents.sendInputEvent({type:'mouseMove',x:pos.x-90,y:pos.y,button:'left'});await sleep(120);win.webContents.sendInputEvent({type:'mouseUp',x:pos.x-90,y:pos.y,button:'left',clickCount:1});await sleep(150);
  assert.ok(await js('MouseTest.model.libraryWidth')>oldWidth+50);await click('#library-close');

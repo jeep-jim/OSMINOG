@@ -3,11 +3,18 @@ import os,pathlib,subprocess,sys,time
 exe=pathlib.Path(sys.argv[1]).resolve()
 if not exe.is_file():raise SystemExit('Packaged Mouse executable missing')
 root=pathlib.Path(os.environ['RUNNER_TEMP'])/'mouse-profiles';root.mkdir(exist_ok=True)
+def run_logged(args,env,log_path,timeout):
+ # Keep failure output even when a native process times out. A regular file
+ # also avoids waiting for inherited stdout pipes after the main app exits.
+ with log_path.open('w') as log:
+  try:result=subprocess.run(args,env=env,stdout=log,stderr=subprocess.STDOUT,text=True,timeout=timeout)
+  finally:
+   log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
+ return result,output
 for mode,marker in [('--mouse-smoke-write','MOUSE_REAL_HORIZONTAL_VERTICAL_DRAG_PASS'),('--mouse-smoke-read','MOUSE_PROFILE_COOKIE_RESTART_PASS')]:
  env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'persistent')}
- result=subprocess.run([str(exe),mode,'--mouse-init-race'],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=480)
- pathlib.Path(mode.lstrip('-')+'.log').write_text(result.stdout);print(result.stdout,flush=True)
- if result.returncode or marker not in result.stdout or 'MOUSE_ARM64_SMOKE_PASS' not in result.stdout:raise SystemExit('Packaged verification failed: '+mode)
+ result,output=run_logged([str(exe),mode,'--mouse-init-race'],env,pathlib.Path(mode.lstrip('-')+'.log'),480)
+ if result.returncode or marker not in output or 'MOUSE_ARM64_SMOKE_PASS' not in output:raise SystemExit('Packaged verification failed: '+mode)
 env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'ordinary')}
 with open('mouse-normal-launch.log','w') as log:
  p=subprocess.Popen([str(exe)],env=env,stdout=log,stderr=subprocess.STDOUT)
