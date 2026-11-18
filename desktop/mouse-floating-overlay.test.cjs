@@ -5,10 +5,10 @@ function fixture(options={}){
  const images=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect})};let restores=0;
  const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
   createElement:()=>({style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}}),body:{append(...nodes){events.push('append');images.push(...nodes);}}};
- const ctx={document,setTimeout,clearTimeout,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
+ const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
  const model={state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
  const normal=()=>({complete:true,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
- const N={desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
+ const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
  const restore=async()=>{events.push('restore');restores++;await options.restore?.(restores);};
  return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,calls,events,model,rect,normal};
 }
@@ -49,6 +49,21 @@ test('a stale begin is rejected and its prepared surfaces are removed',async()=>
 test('a new popup waits for the previous native restore before capturing again',async()=>{
  const release=deferred();let ends=0;const f=fixture({end:()=>++ends===1?release.promise:Promise.resolve({released:true})});
  await f.overlay.show('desktops');const close=f.overlay.hide('desktops');await flush();const next=f.overlay.show('zoom');await flush();assert.equal(f.events.filter(x=>x==='capture').length,1);release.resolve({released:true});await close;assert.equal(await next,true);assert.equal(f.events.filter(x=>x==='capture').length,2);await f.overlay.hide('zoom');assert.equal(f.images.length,0);
+});
+test('CI backdrop diagnostics distinguish bounded capture and hold phases without retaining pixels or mutable state',async()=>{
+ let clock=0;const f=fixture({test:true,performance:{now:()=>++clock}});
+ for(let i=0;i<3;i++){await f.overlay.show('desktops');await f.overlay.hide('desktops');}
+ f.overlay.note('previews-cleared');const snapshot=f.overlay.diagnostics(),copy=structuredClone(snapshot);
+ assert.equal(copy.events.length,32);assert.equal(copy.owner,'');assert.equal(copy.heldToken,false);assert.equal(copy.images,0);assert.equal(copy.events.at(-1).phase,'previews-cleared');
+ assert.ok(copy.events.every(e=>Number.isFinite(e.at)&&typeof e.owner==='string'&&Number.isInteger(e.epoch)));
+ const captured=copy.events.find(e=>e.phase==='capture'&&e.stage==='result');assert.deepEqual(captured.returnedIds,['visible']);assert.equal(captured.complete,true);assert.equal(captured.tokenPresent,true);assert.equal(captured.unchanged,true);
+ assert.ok(copy.events.some(e=>e.phase==='hold'&&e.stage==='result'&&e.held));assert.ok(copy.events.some(e=>e.phase==='hide'&&e.stage==='cleared'));
+ assert.doesNotMatch(JSON.stringify(copy),/data:image|capture-token/);snapshot.events.find(e=>e.returnedIds).returnedIds.push('mutated');snapshot.events.length=0;assert.equal(f.overlay.diagnostics().events.length,32);assert.ok(f.overlay.diagnostics().events.every(e=>!e.returnedIds?.includes('mutated')));
+});
+test('CI backdrop records the original bounded error while ordinary mode performs no diagnostic clock reads',async()=>{
+ const error=Error('capture rejected '+'.'.repeat(700)),f=fixture({test:true,capture:()=>Promise.reject(error)});
+ await assert.rejects(f.overlay.show('desktops'),actual=>actual===error);const entry=structuredClone(f.overlay.diagnostics()).events.at(-1);assert.equal(entry.phase,'error');assert.equal(entry.operation,'show');assert.equal(entry.message.length,512);await f.overlay.hide('desktops');
+ const normal=fixture({performance:{now(){throw Error('ordinary mode must not read the diagnostic clock');}}});assert.equal(normal.overlay.diagnostics,undefined);assert.equal(normal.overlay.note,undefined);assert.equal(await normal.overlay.show('desktops'),true);await normal.overlay.hide('desktops');
 });
 test('desktop and zoom popovers participate in the existing modal native-view gate',()=>{
  const s=fs.readFileSync('mouse/desktops.js','utf8'),browser=fs.readFileSync('mouse/browser.js','utf8');
