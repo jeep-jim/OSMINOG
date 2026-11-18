@@ -1,7 +1,7 @@
 'use strict';
 // Real installed controls and painted SVG frames, using only the isolated CI profile.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
-const {screen,clipboard}=require('electron');
+const {screen,clipboard,ClipboardItem,nativeImage}=require('electron');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let i=0;i<400;i++){if(await fn())return;await sleep(25);}throw Error('Mouse626 timeout: '+label);}
 const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
@@ -11,7 +11,9 @@ module.exports=async({app,win,browser,store})=>{
  const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node'),debug=win.webContents.debugger;
  const bounds=win.getBounds(),originalFullscreen=win.isFullScreen(),original=await js('MouseTest.prefs()'),layout=()=>js(`Object.fromEntries(${JSON.stringify(layoutKeys)}.map(k=>[k,MouseTest.prefs()[k]]))`),beforeLayout=await layout();
  const pages=new Map([...browser.tabs.values(),...browser.providers.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL(),epoch:page.navigationEpoch}]));
- const savedClipboard=clipboard.availableFormats().map(format=>({format,bytes:clipboard.readBuffer(format)}));
+ // Electron 44 exposes asynchronous MIME ClipboardItems. Resolve each Blob now
+ // so the original bytes remain available after the fixture exports a new PNG.
+ const savedClipboard=await Promise.all((await clipboard.read()).map(async item=>new ClipboardItem(Object.fromEntries(await Promise.all(item.types.map(async type=>[type,await item.getType(type)]))))));
  const facts={version:'6.0.26',themes:['light','dark'],nora:{},palette:{},stateRestored:false,frames:{},seams:{}};
  let attached=false,lastClick=null,lastInput=null,verificationError,cleanupError;
  const phase=()=>js('document.querySelector("#desktop-tray").dataset.motion');
@@ -91,7 +93,9 @@ module.exports=async({app,win,browser,store})=>{
   await fs.writeFile('mouse-626-palette.png',(await win.capturePage()).toPNG());await key('Escape');await click('[data-tool=move]');const midpoint={x:(line.a.x+line.b.x)/2,y:line.a.y};await gesture(midpoint,midpoint,1);assert.equal(await js('MouseTest.capture.test.getSelected()'),0);
   await click('#capture-color');await type('#capture-hex','#7a41d3');assert.equal(await js('MouseTest.capture.test.getOps()[0].color'),'#7a41d3','Existing annotation follows custom color live');await key('Enter');await click('#capture-undo');assert.equal(await js('MouseTest.capture.test.getOps()[0].color'),'#2a79c3','One undo restores the previous annotation color');await click('#capture-redo');assert.equal(await js('MouseTest.capture.test.getOps()[0].color'),'#7a41d3');facts.palette.annotationApplied=true;
   await click('#capture-copy');await until(()=>js('document.querySelector("#capture-status").textContent.includes("Скопировано")'),'actual PNG reaches the native clipboard');
-  const exported=clipboard.readImage();assert.equal(exported.isEmpty(),false);const canvas=await js('(()=>{const c=MouseTest.capture.test.getCanvas(),op=MouseTest.capture.test.getOps()[0];return{width:c.width,height:c.height,x:Math.round((op.points[0].x+op.points.at(-1).x)/2),y:Math.round((op.points[0].y+op.points.at(-1).y)/2)};})()'),size=exported.getSize();assert.equal(size.width,canvas.width);assert.equal(size.height,canvas.height);
+  const item=(await clipboard.read()).find(value=>value.types.includes('image/png'));assert.ok(item,'A PNG ClipboardItem exists in the real system clipboard');
+  const blob=await item.getType('image/png'),png=Buffer.from(await blob.arrayBuffer());assert.equal(blob.type,'image/png');assert.deepEqual([...png.subarray(0,8)],[137,80,78,71,13,10,26,10]);
+  const exported=nativeImage.createFromBuffer(png);assert.equal(exported.isEmpty(),false);const canvas=await js('(()=>{const c=MouseTest.capture.test.getCanvas(),op=MouseTest.capture.test.getOps()[0];return{width:c.width,height:c.height,x:Math.round((op.points[0].x+op.points.at(-1).x)/2),y:Math.round((op.points[0].y+op.points.at(-1).y)/2)};})()'),size=exported.getSize();assert.equal(size.width,canvas.width);assert.equal(size.height,canvas.height);
   const bytes=exported.toBitmap(),matches=[];for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const i=((canvas.y+dy)*size.width+canvas.x+dx)*4;if(bytes[i+2]===122&&bytes[i+1]===65&&bytes[i]===211&&bytes[i+3]===255)matches.push({x:canvas.x+dx,y:canvas.y+dy});}assert.ok(matches.length>0,'Exported native PNG preserves the exact arbitrary RGB, not a preview-only color');facts.palette.exportPreserved=true;facts.palette.exportSample={color:'#7a41d3',size,pixels:matches.length};
   await click('#capture-color');await click('#capture-palette [data-color="#32c76a"]');await click('#capture-close');await until(()=>js('!MouseTest.capture.isOpen()'),'capture editor closes');
  }
@@ -118,7 +122,7 @@ module.exports=async({app,win,browser,store})=>{
   try{await js('globalThis.__mouse626Recorder?.stop();delete globalThis.__mouse626Recorder;MouseTest.desktopUI.close({immediate:true});document.querySelector("#capture-dialog")?.open&&document.querySelector("#capture-dialog").close();MouseTest.zoomUI.close()');
    if(attached){await debug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]});debug.detach();attached=false;}
    await js(`MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.requestLayout();MouseTest.save()`);await store.queue;win.setBounds(bounds);if(originalFullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'restore inherited fullscreen');}await samePages();
-   clipboard.clear();for(const {format,bytes}of savedClipboard)clipboard.writeBuffer(format,bytes);
+   await clipboard.write(savedClipboard);
    assert.equal(await js('document.querySelectorAll(".mouse-floating-snapshot").length'),0,'Preview image memory is released after closing');
    await until(()=>js('!document.querySelector("dialog[open]:not([data-nonmodal])")'),'all fixture modal gates close');facts.stateRestored=true;
   }catch(error){cleanupError=error;console.error('MOUSE_626_CLEANUP_FAILURE',error.message);}
