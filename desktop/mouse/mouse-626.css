@@ -27,3 +27,7 @@ body.mouse-dock-active #statusbar{z-index:902;background:transparent!important;b
  #desktop-tray .desk-title>strong{font-size:13px}
  #desktop-tray #desk-modes-button{font-size:11px;padding-inline:3px}
 }
+
+/* Always expose a dedicated native draggable region beside navigation. */
+.toolbar .mouse-window-drag-handle{display:block;flex:0 0 26px;align-self:stretch;min-width:26px;min-height:26px;-webkit-app-region:drag;cursor:grab;user-select:none}
+.toolbar .mouse-window-drag-handle:active{cursor:grabbing}
