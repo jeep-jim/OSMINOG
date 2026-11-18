@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   mouse-arm64:
+    if: github.head_ref != 'mouse627-capture-diagnostic' && github.ref_name != 'mouse627-capture-diagnostic'
     runs-on: macos-15
     timeout-minutes: 25
     defaults:

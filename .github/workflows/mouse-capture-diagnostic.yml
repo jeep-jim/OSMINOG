@@ -1,0 +1,65 @@
+name: Mouse627 capture causal diagnostic — NON_RELEASE
+on:
+  pull_request:
+    paths: ['desktop/mouse-627-capture-diagnostic*','desktop/mouse-626-smoke.cjs','desktop/mouse-smoke.cjs','desktop/mouse-build.cjs','tools/mouse-capture-diagnostic.py','.github/workflows/mouse-capture-diagnostic.yml','.github/workflows/mouse-macos.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture-diagnostic:
+    if: github.head_ref == 'mouse627-capture-diagnostic' || github.ref_name == 'mouse627-capture-diagnostic'
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: test "$(uname -m)" = arm64
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high --json > mouse-audit.json
+      - name: Prepare the same pinned Agent Mouse runtime
+        run: |
+          npm ci --prefix mouse-agent
+          npm audit --prefix mouse-agent --omit=dev --audit-level=high --json > mouse-agent-audit.json
+          node mouse-agent/prepare.cjs
+      - run: npm test
+      - name: Verify diagnostic lifecycle and unchanged motion helpers
+        run: node --test mouse-627-capture-diagnostic.test.cjs mouse-burrow.test.cjs mouse-smoke-frames.test.cjs mouse-smoke-trace.test.cjs mouse-smoke-exit.test.cjs
+      - run: npm run prepare:runtime
+      - run: node mouse-native-build.cjs
+      - run: node mouse-icon.cjs
+      - name: Build diagnostic app without publication
+        run: npx electron-builder --config mouse-build.cjs --mac dmg zip --arm64 --publish never
+      - name: Run the fixed installed-app causal plan — no release acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="dist-mouse/mac-arm64/Mouse Browser.app"
+          test "$(lipo -archs "$APP/Contents/MacOS/Mouse Browser")" = arm64
+          codesign --verify --deep --strict "$APP"
+          INSTALL="$RUNNER_TEMP/Проверка Mouse/Mouse Browser.app"
+          mkdir -p "$(dirname "$INSTALL")"
+          ditto "$APP" "$INSTALL"
+          python3 ../tools/mouse-capture-diagnostic.py "$INSTALL/Contents/MacOS/Mouse Browser"
+          test ! -e dist-mouse/mouse-build.json
+          test ! -e dist-mouse/SHA256SUMS.txt
+      - name: Preserve diagnostic observations, including aborted plans
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse627-capture-diagnostic-NON_RELEASE
+          path: |
+            desktop/mouse-*.log
+            desktop/mouse-*.png
+            desktop/mouse-627-*.json
+            desktop/mouse-audit.json
+            desktop/mouse-agent-audit.json
+          retention-days: 14

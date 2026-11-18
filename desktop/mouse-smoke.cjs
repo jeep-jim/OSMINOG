@@ -60,7 +60,13 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-performance-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-626-smoke.cjs')({app,win,browser,store});
+  if(!process.argv.includes('--mouse-smoke-read')){
+   const motionResult=await require('./mouse-626-smoke.cjs')({app,win,browser,store});
+   if(process.argv.includes('--mouse627-capture-diagnostic')){
+    assert.equal(motionResult?.diagnosticOnly,true);assert.equal(motionResult.releaseEligible,false);
+    console.log('MOUSE_627_CAPTURE_DIAGNOSTIC_COMPLETE_NON_RELEASE',JSON.stringify(motionResult));server?.close();exit(0);return;
+   }
+  }
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});
