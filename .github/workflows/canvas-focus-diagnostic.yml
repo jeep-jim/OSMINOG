@@ -1,0 +1,65 @@
+name: Canvas focus causality diagnostic (non-release)
+on:
+  pull_request:
+    branches: [mouse627-window-documents-performance]
+    paths:
+      - tools/canvas-focus-probe.cjs
+      - .github/workflows/canvas-focus-diagnostic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose-focus:
+    if: github.head_ref == 'mouse627-capture-diagnostic' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'mouse627-capture-diagnostic')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install the same pinned browser test runtime
+        run: |
+          node --check tools/canvas-focus-probe.cjs
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Execute the fixed causal scenario and both controls
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, sys
+          root = pathlib.Path.cwd()
+          out = root / 'artifacts/canvas-focus-diagnostic'
+          out.mkdir(parents=True, exist_ok=True)
+          env = os.environ.copy()
+          env.update(OSMINOG_PROBE_ROOT=str(root), OSMINOG_PROBE_OUTPUT=str(out))
+          rows = []
+          for mode in ('after-click', 'before-click', 'after-input'):
+              row = {'mode': mode, 'nativeRunCauseProven': False}
+              with (out / (mode + '.log')).open('w') as log:
+                  try:
+                      result = subprocess.run(['node', 'tools/canvas-focus-probe.cjs', mode],
+                                              env=env, stdout=log, stderr=subprocess.STDOUT,
+                                              timeout=180)
+                      row['exitCode'] = result.returncode
+                  except subprocess.TimeoutExpired:
+                      row.update(exitCode=None, error='bounded diagnostic timeout')
+              rows.append(row)
+              print(json.dumps(row), flush=True)
+          summary = {'purpose': 'causal diagnostic only; no release acceptance',
+                     'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+                     'workflowEventSHA': os.environ.get('GITHUB_SHA'),
+                     'nativeRunCauseProven': False, 'publishableCandidate': False,
+                     'runs': rows}
+          (out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+          print('CANVAS_FOCUS_DIAGNOSTIC_COMPLETE_NON_RELEASE', flush=True)
+          sys.exit(0 if all(row['exitCode'] == 0 for row in rows) else 1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canvas-focus-diagnostic-attempt-${{ github.run_attempt }}
+          path: artifacts/canvas-focus-diagnostic/
+          if-no-files-found: error
+          retention-days: 14
