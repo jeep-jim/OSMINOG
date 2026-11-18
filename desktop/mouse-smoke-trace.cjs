@@ -1,6 +1,6 @@
 'use strict';
 // CI-only diagnostics over the debugger already owned by the installed smoke
-// fixture. No capture category, sampling, runtime switch or animation changes.
+// fixture. No screenshots, sampling, runtime switch or animation changes.
 // Protocol: https://chromedevtools.github.io/devtools-protocol/tot/Tracing/
 //           https://chromedevtools.github.io/devtools-protocol/tot/IO/
 // Transport: https://www.electronjs.org/docs/latest/api/debugger
@@ -11,6 +11,33 @@ const MARKER_PREFIX='mouse627.motion.';
 const safeToken=value=>typeof value==='string'&&value.length<=240&&/^[\w .:$<>()[\],+*\/-]+$/.test(value)&&!/:\/\/|\b(?:data|file):/i.test(value);
 const argumentText=new Set(['type','event_type','task_type','queue_type','priority','state','step','phase','reason','source_func','src_func','functionName','nodeName','unsupportedProperties','property','compositeFailed']);
 const privateKey=/url|uri|cookie|header|request|response|body|payload|script|stack|html|text|snapshot|screenshot|image|frameName/i;
+// Pinned Chromium152: cc/animation/keyframe_model.cc emits
+// TypeName-TargetProperty-group and an enum transition. Keep only their bounded
+// structural values; Name/State themselves may never bypass text redaction.
+// Target properties: cc/trees/target_property.h. Run states and curve names:
+// ui/gfx/animation/keyframe/{keyframe_model,animation_curve}.cc, plus the two cc
+// Filter/ScrollOffset curve classes. A compositor group is a batch, not a DOM ID.
+const ccRunStates=new Set(['WAITING_FOR_TARGET_AVAILABILITY','WAITING_FOR_DELETION','STARTING','RUNNING','PAUSED','PAUSED_EXCLUSIVE','FINISHED','ABORTED','ABORTED_BUT_NEEDS_COMPLETION']);
+function compositorArguments(event){
+ if(!event.cat?.split(',').includes('cc'))return;
+ const transition=event.name==='ElementAnimations::SetRunState'&&event.ph==='I';
+ if(!transition&&!(event.name==='KeyframeModel'&&event.ph==='b'))return;
+ const name=event.args?.Name;
+ if(typeof name!=='string'||name.length>64)return;
+ const match=/^(?:Transform|Float|Size|Color|Rect|Filter|ScrollOffset)-(0|[1-9]|1[01])-([1-9][0-9]{0,9})$/.exec(name);
+ if(!match)return;
+ const targetProperty=Number(match[1]),group=Number(match[2]);
+ if(!Number.isSafeInteger(group)||group>2147483647)return;
+ const model={targetProperty,group};
+ if(transition){
+  const state=event.args?.State;
+  if(typeof state!=='string'||state.length>80)return;
+  const parts=state.split('->');
+  if(parts.length!==2||!parts.every(value=>ccRunStates.has(value)))return;
+  model.from=parts[0];model.to=parts[1];
+ }
+ return model;
+}
 function numericArguments(value,key='',depth=0){
  if(depth>8||privateKey.test(key))return undefined;
  if(value===null||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))return value;
@@ -32,6 +59,9 @@ function sanitizeEvents(events,maxEvents){
   for(const key of ['name','cat','ph','s','scope','id','bind_id','bp'])if(safeToken(event[key])||typeof event[key]==='number'&&Number.isFinite(event[key]))out[key]=event[key];
   if(event.id2&&typeof event.id2==='object')out.id2=Object.fromEntries(['local','global'].flatMap(key=>safeToken(event.id2[key])||typeof event.id2[key]==='number'&&Number.isFinite(event.id2[key])?[[key,event.id2[key]]]:[]));
   out.args=numericArguments(event.args)||{};
+  // Reserved derived field: never trust a similarly named raw argument.
+  if(typeof out.args==='object')delete out.args.ccModel;
+  const ccModel=compositorArguments(event);if(ccModel)out.args.ccModel=ccModel;
   if(event.ph==='M'&&['process_name','thread_name'].includes(event.name)&&safeToken(event.args?.name))out.args.name=event.args.name;
   clean.push(out);
  }

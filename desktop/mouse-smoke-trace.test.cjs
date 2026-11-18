@@ -20,6 +20,57 @@ test('stream trace preserves scheduling, compositor failure, marker and process/
  assert.equal(document.traceEvents[0].args.data.compositeFailed,16);assert.deepEqual(document.traceEvents[0].args.data.unsupportedProperties,['height','background-color']);assert.deepEqual(document.traceEvents[0].id2,{local:'0x42'});assert.equal(document.traceEvents[1].args.name,'Renderer');assert.equal(document.traceEvents[2].args.name,'CrRendererMain');assert.equal(document.traceEvents[3].args.queue.priority,'normal');assert.equal(document.traceEvents[3].dur,200);assert.equal(document.traceEvents[3].tdur,150);assert.equal(meta.bufferUsage[0].percentFull,.5);
  assert.deepEqual(meta.snapshots.map(item=>item.label),['before','click-close','after']);assert.doesNotMatch(f.saved[0].data,/private|secret pixels|Private page|ResourceSendRequest|Screenshot/);assert.equal(f.debug.count('IO.close'),1);assert.equal(f.debug.listenerCount('message'),0);assert.equal(f.debug.listenerCount('detach'),0);
 });
+test('cc model diagnostics preserve property/group across threads and only bounded enum transitions',async()=>{
+ const events=[
+  {cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:120,args:{Name:'Transform-0-41',State:'WAITING_FOR_TARGET_AVAILABILITY->STARTING',ccModel:{targetProperty:7,group:999}}},
+  {cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:121,args:{Name:'Float-4-41',State:'STARTING->RUNNING'}},
+  {cat:'cc',name:'KeyframeModel',ph:'b',pid:10,tid:30,ts:140,id2:{local:'0x51'},args:{Name:'Transform-0-41'}},
+  {cat:'cc',name:'KeyframeModel',ph:'b',pid:10,tid:30,ts:141,id2:{local:'0x52'},args:{Name:'Float-4-41'}},
+  {cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:30,ts:142,args:{Name:'Transform-0-41',State:'STARTING->RUNNING'}},
+  {cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:30,ts:450,args:{Name:'Float-4-41',State:'RUNNING->FINISHED'}},
+  {cat:'cc',name:'KeyframeModel',ph:'b',pid:10,tid:30,ts:119,id2:{local:'0x50'},args:{Name:'Color-7-40'}}
+ ];
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop(),rows=result.traceEvents;
+ assert.deepEqual(rows.map(row=>row.args.ccModel),[
+  {targetProperty:0,group:41,from:'WAITING_FOR_TARGET_AVAILABILITY',to:'STARTING'},
+  {targetProperty:4,group:41,from:'STARTING',to:'RUNNING'},
+  {targetProperty:0,group:41},{targetProperty:4,group:41},
+  {targetProperty:0,group:41,from:'STARTING',to:'RUNNING'},
+  {targetProperty:4,group:41,from:'RUNNING',to:'FINISHED'},
+  {targetProperty:7,group:40}
+ ]);
+ assert.equal(rows[0].tid,20);assert.equal(rows[2].tid,30);assert.deepEqual(rows[2].id2,{local:'0x51'});
+ assert.doesNotMatch(f.saved[0].data,/"Name"|"State"|Transform-0-41|Float-4-41|Color-7-40|->/);
+ assert.equal(result.mouseMotionTrace.complete,true);assert.deepEqual(result.mouseMotionTrace.errors,[]);
+});
+test('cc structural diagnostics reject unreviewed labels, unsafe integers and spoofed derived arguments',async()=>{
+ const invalidNames=['private-0-41','Transform-12-41','Transform--1-41','Transform-0-0','Transform-0-01','Transform-0-2147483648','Transform-0-999999999999999','Transform-0-41\n','Transform-0-41 https://private.invalid','Float-4-1-2','x'.repeat(10000)],
+ invalidStates=['RUNNING->private','RUNNING->FINISHED->ABORTED','RUNNING ->FINISHED','running->FINISHED','x'.repeat(10000)];
+ const base={cat:'cc',name:'KeyframeModel',ph:'b',pid:10,tid:30,ts:1},spoof={targetProperty:0,group:41};
+ const events=[...invalidNames.map(Name=>({...base,args:{Name,ccModel:spoof}})),
+  ...invalidStates.map(State=>({...base,name:'ElementAnimations::SetRunState',ph:'I',args:{Name:'Transform-0-41',State,ccModel:spoof}})),
+  {...base,name:'OtherEvent',args:{Name:'Transform-0-41',State:'STARTING->RUNNING',ccModel:spoof}},
+  {...base,cat:'devtools.timeline',args:{Name:'Transform-0-41',ccModel:spoof}},
+  {...base,ph:'e',args:{Name:'Transform-0-41',ccModel:spoof}},
+  {...base,name:'ElementAnimations::SetRunState',ph:'X',args:{Name:'Transform-0-41',State:'STARTING->RUNNING',ccModel:spoof}},
+  {...base,args:{Name:42,ccModel:spoof}}
+ ];
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop();
+ assert.equal(result.traceEvents.length,events.length);
+ for(const row of result.traceEvents)assert.equal(row.args.ccModel,undefined,JSON.stringify(row));
+ assert.doesNotMatch(f.saved[0].data,/private|STARTING->RUNNING|"Name":"|"State"|"ccModel"/);
+});
+test('cc diagnostics retain reviewed property range and terminal enum values without new categories or budgets',async()=>{
+ const states=['WAITING_FOR_TARGET_AVAILABILITY','WAITING_FOR_DELETION','STARTING','RUNNING','PAUSED','PAUSED_EXCLUSIVE','FINISHED','ABORTED','ABORTED_BUT_NEEDS_COMPLETION'];
+ const events=states.map((state,index)=>({cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:index,args:{Name:'Float-4-2147483647',State:'RUNNING->'+state}}));
+ events.push({cat:'cc',name:'KeyframeModel',ph:'b',pid:10,tid:30,ts:10,args:{Name:'Filter-11-1'}});
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop();
+ assert.deepEqual(result.traceEvents.slice(0,states.length).map(row=>row.args.ccModel.to),states);
+ assert.ok(result.traceEvents.slice(0,states.length).every(row=>row.args.ccModel.group===2147483647));
+ assert.deepEqual(result.traceEvents.at(-1).args.ccModel,{targetProperty:11,group:1});
+ assert.deepEqual(f.debug.calls[0].params.traceConfig.includedCategories,TRACE_CATEGORIES);
+ assert.equal(result.mouseMotionTrace.limits.maxBytes,64*1024*1024);assert.equal(result.mouseMotionTrace.limits.maxEvents,200000);
+});
 test('base64 stream chunks are joined and concurrent stop calls close/write only once',async()=>{
  const source=JSON.stringify({traceEvents:[sample]}),half=Math.floor(source.length/2),f=fixture(new Debugger({chunks:[{data:source.slice(0,half),eof:false},{data:Buffer.from(source.slice(half)).toString('base64'),base64Encoded:true,eof:true}]}));
  await f.trace.start();const [a,b]=await Promise.all([f.trace.stop('failed-motion'),f.trace.stop('cleanup')]);assert.equal(a,b);assert.equal(a.mouseMotionTrace.reason,'failed-motion');assert.equal(a.mouseMotionTrace.bytes,Buffer.byteLength(source));assert.equal(f.debug.count('Tracing.end'),1);assert.equal(f.debug.count('IO.read'),2);assert.equal(f.debug.count('IO.close'),1);assert.equal(f.saved.length,1);
