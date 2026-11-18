@@ -54,6 +54,11 @@ class PrivateMode {
    const startService=await require('./mouse-start.cjs').install({app:this.e.app,win,browser,store,libraryService,ipcMain:register,trusted,dialog:this.e.dialog,test,privateMode:true});
    current.startService=startService;
    require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain:register,trusted});
+   // Place the one fresh private start page before the bank's first checkpoint.
+   // Saved empty slots remain intentional; renderer reconciliation stays prune-only.
+   const initialTab=await browser.command('open',{url:'mouse://start',lane:'main'});
+   const initialPreferences=(await store.get('quadroPreferences')).quadroPreferences||{};
+   await store.set({quadroPreferences:{...initialPreferences,slots:{p1:initialTab.id},active:'p1',tabOrder:[initialTab.id]}});
    const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted,powerMonitor:this.e.powerMonitor});
    current.desktopService=desktopService;current.pageZoom=await require('./mouse-zoom.cjs').install({win,browser,store,ipcMain:register,trusted});
    register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:desktopService.preferences()};});
@@ -68,7 +73,6 @@ class PrivateMode {
    // Explicit file downloads are allowed, but clearly distinguished from ephemeral browsing data.
    const warning=(_event,item)=>item.setSaveDialogOptions({title:'Инкогнито: сохранённый файл останется на Mac',defaultPath:require('node:path').join(this.e.app.getPath('downloads'),require('node:path').basename(item.getFilename()||'download')),properties:['showOverwriteConfirmation']});
    ses.on('will-download',warning);
-   await browser.command('open',{url:'mouse://start',lane:'main'});
    router.use(handlers);await this.reload();
   }catch(error){await this.dispose();router.use(null);normalGate.blocked=false;normalGate.sequence=0;normalBrowser.emit=emit;await this.reload();throw error;}
  }
