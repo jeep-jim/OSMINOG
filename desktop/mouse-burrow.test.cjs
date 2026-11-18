@@ -1,0 +1,153 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {contour,surface}=require('./mouse/burrow-motion.js');
+const near=(a,b,epsilon=.002)=>assert.ok(Math.abs(a-b)<=epsilon,`${a} differs from ${b}`);
+
+// Sample SVG independently of the production geometry: each cubic is evaluated
+// from its four control points, while H/V and closure become straight edges.
+function samplePath(d,steps=24){
+ const tokens=d.match(/[A-Za-z]|-?(?:\d*\.)?\d+(?:e[-+]?\d+)?/g),points=[];let i=0,x=0,y=0,start;
+ const add=(nx,ny)=>{x=nx;y=ny;points.push({x,y});};
+ while(i<tokens.length){const cmd=tokens[i++];
+  if(cmd==='M'){add(Number(tokens[i++]),Number(tokens[i++]));start={x,y};}
+  else if(cmd==='H')add(Number(tokens[i++]),y);
+  else if(cmd==='V')add(x,Number(tokens[i++]));
+  else if(cmd==='C'){
+   const ax=x,ay=y,bx=Number(tokens[i++]),by=Number(tokens[i++]),cx=Number(tokens[i++]),cy=Number(tokens[i++]),dx=Number(tokens[i++]),dy=Number(tokens[i++]);
+   for(let t=1;t<=steps;t++){const u=t/steps,v=1-u;add(v*v*v*ax+3*v*v*u*bx+3*v*u*u*cx+u*u*u*dx,v*v*v*ay+3*v*v*u*by+3*v*u*u*cy+u*u*u*dy);}
+  }else if(cmd==='Z')add(start.x,start.y);else throw Error('Unknown SVG command '+cmd);
+ }
+ return points;
+}
+function properIntersection(a,b,c,d){
+ const side=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x),eps=1e-8;
+ return side(a,b,c)*side(a,b,d)<-eps&&side(c,d,a)*side(c,d,b)<-eps;
+}
+
+test('burrow is mirror symmetric at every scale and remains a simple attached shape while stretching',()=>{
+ for(const width of [320,701,1000,987.25])for(const expandedHeight of [80,240,580])for(const progress of [.00001,.0001,.001,.005,.01,.025,.05,.1,.25,.5,.75,1]){
+  const height=expandedHeight*progress,s=contour({width,height,progress}),points=samplePath(s.d),closed=[...points,points[0]];
+  assert.ok(!/NaN|Infinity/.test(s.d));near(s.start+s.end,width);near(s.left+s.right,width);
+  for(let i=0;i<points.length;i++){
+   const p=points[i],mirror=points[points.length-1-i];near(p.x+mirror.x,width);near(p.y,mirror.y);
+   assert.ok(p.x>=-.002&&p.x<=width+.002&&p.y>=-.002&&p.y<=height+.002,JSON.stringify({width,height,progress,p}));
+  }
+  near(points[0].y,height);near(points.at(-1).y,height);assert.ok(points.some(p=>Math.abs(p.y)<.002));
+  for(let i=1;i<closed.length;i++)for(let j=i+2;j<closed.length;j++)assert.equal(properIntersection(closed[i-1],closed[i],closed[j-1],closed[j]),false,JSON.stringify({width,height,progress,i,j}));
+ }
+});
+
+test('the dock is a single outline from viewport edge to viewport edge, with the menu sharing exact clipping coordinates',()=>{
+ for(const progress of [0,.01,.2,.65,1]){
+  const shape=contour({width:1000,height:420*progress,progress}),opts={viewportWidth:1281,viewportHeight:800,baseline:772.5,left:140.5,shape},s=surface(opts),points=samplePath(s.outline),local=samplePath(shape.d);
+  assert.equal((s.outline.match(/M/g)||[]).length,1);assert.equal((s.fill.match(/M/g)||[]).length,1);assert.equal((s.fill.match(/Z/g)||[]).length,1);
+  near(points[0].x,0);near(points[0].y,opts.baseline);near(points.at(-1).x,opts.viewportWidth);near(points.at(-1).y,opts.baseline);
+  // The first outline segment is the footer; the local bump begins at point 1.
+  for(let i=0;i<local.length;i++){near(points[i+1].x,local[i].x+opts.left);near(points[i+1].y,local[i].y+opts.baseline-shape.height);}
+  const fill=samplePath(s.fill);near(fill.at(-3).x,opts.viewportWidth);near(fill.at(-3).y,opts.viewportHeight);near(fill.at(-2).x,0);near(fill.at(-2).y,opts.viewportHeight);near(fill.at(-1).y,opts.baseline);
+ }
+});
+
+function controllerFixture(){
+ let now=0,nextFrame=0,contentHeight=240,footerTop=772,viewportWidth=1280;const frames=new Map(),created=[],observers=[],listeners=new Map(),settled=[];
+ class Node{
+  constructor(){this.style={setProperty(k,v){this[k]=v;}};this.dataset={};this.attrs=new Map();this.children=[];this.hidden=false;this.inert=false;}
+  setAttribute(k,v){this.attrs.set(k,String(v));}getAttribute(k){return this.attrs.get(k)??null;}hasAttribute(k){return this.attrs.has(k);}removeAttribute(k){this.attrs.delete(k);}
+  toggleAttribute(k,force){const has=force===undefined?!this.attrs.has(k):force;if(has)this.attrs.set(k,'');else this.attrs.delete(k);return has;}
+  append(...nodes){this.children.push(...nodes);}getBoundingClientRect(){return{};}
+ }
+ const path=new Node(),clip=new Node(),local=new Node(),tray=new Node(),content=new Node(),footer=new Node(),button=new Node();
+ local.querySelector=s=>s===':scope>path'?path:s==='clipPath path'?clip:null;tray.querySelector=s=>s==='.desk-burrow-shape'?local:null;
+ tray.getBoundingClientRect=()=>({width:Math.min(1000,viewportWidth-12)});footer.getBoundingClientRect=()=>({top:footerTop});Object.defineProperty(content,'scrollHeight',{get:()=>contentHeight});
+ const body=new Node(),classes=new Set();body.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)};
+ const media={matches:false,addEventListener(_type,fn){this.change=fn;}};
+ const ctx={console,document:{body,createElementNS(_ns,_tag){const node=new Node();created.push(node);return node;},createElement(){const node=new Node();created.push(node);return node;},querySelector:s=>s==='.toolbar'?{getBoundingClientRect:()=>({bottom:40})}:created.find(n=>'#'+n.id===s)},window:{addEventListener:(type,fn)=>listeners.set(type,fn)},performance:{now:()=>now},matchMedia:()=>media,getComputedStyle:()=>({borderTopWidth:'1px'}),ResizeObserver:class{constructor(fn){observers.push(fn);}observe(){}},requestAnimationFrame:fn=>{const id=++nextFrame;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),innerWidth:viewportWidth,innerHeight:800};
+ vm.createContext(ctx);vm.runInContext(fs.readFileSync(require.resolve('./mouse/burrow-motion.js'),'utf8'),ctx);
+ const motion=ctx.createMouseBurrowMotion({tray,content,footer,button,settled:opened=>settled.push(opened)});
+ const at=(time,frameTime=time)=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(frameTime);};
+ // A normally rendering interval contains successive frames. Keep at() as one
+ // actual callback so stalls and timestamps that lag the wall clock stay real.
+ const until=time=>{assert.ok(time>=now,'Fixture time cannot run backwards');while(now<time)at(Math.min(time,now+16));};
+ const delay=ms=>{assert.ok(ms>=0,'A render delay cannot run the clock backwards');now+=ms;};
+ return{motion,tray,content,footer,classes,frames,settled,created,at,until,delay,get time(){return now;},height(value){contentHeight=value;motion.sync();},resize({width=viewportWidth,top=footerTop}={}){viewportWidth=width;footerTop=top;ctx.innerWidth=width;listeners.get('resize')();},reduced(value){media.matches=value;media.change();}};
+}
+
+test('opening grows from zero, locks controls until settled, and closing retracts before release',async()=>{
+ const f=controllerFixture(),svg=f.created.find(n=>n.id==='mouse-dock-surface');assert.equal(svg.hasAttribute('hidden'),true);const opened=f.motion.open();assert.equal(svg.hasAttribute('hidden'),false);assert.equal(f.motion.progress,0);assert.equal(f.content.inert,true);assert.equal(f.motion.sample().height,0);assert.equal(f.classes.has('mouse-dock-active'),true);
+ let previous=0;for(let t=16;t<640;t+=16){f.at(t);const s=f.motion.sample();assert.ok(s.height>=previous);assert.ok(s.progress>0&&s.progress<1);near(s.baseline,772.5);near(s.left+s.width/2,640);assert.equal(f.content.inert,true);previous=s.height;}
+ f.at(640);assert.equal(await opened,true);assert.equal(f.content.inert,false);assert.equal(f.motion.sample().height,240);assert.deepEqual(f.settled,[true]);
+ const closing=f.motion.close();assert.equal(f.content.inert,true);assert.equal(f.classes.has('mouse-dock-active'),true);f.until(890);assert.ok(f.motion.sample().height>0&&f.motion.sample().height<240);f.until(1140);assert.equal(await closing,true);assert.equal(f.motion.sample().height,0);assert.deepEqual(f.settled,[true,false]);f.motion.release();assert.equal(svg.hasAttribute('hidden'),true);assert.equal(f.classes.has('mouse-dock-active'),false);assert.equal(f.frames.size,0);
+});
+
+test('reversing an unfinished motion preserves geometry and cancels only the replaced completion',async()=>{
+ const f=controllerFixture(),first=f.motion.open();f.until(220);const before=f.motion.sample();const close=f.motion.close();const reversed=f.motion.sample();near(reversed.height,before.height);near(reversed.progress,before.progress);assert.equal(await first,false);
+ f.until(320);const beforeReopen=f.motion.sample();const reopen=f.motion.open();near(f.motion.sample().height,beforeReopen.height);assert.equal(await close,false);f.until(1200);assert.equal(await reopen,true);assert.equal(f.motion.progress,1);assert.deepEqual(f.settled,[true]);
+});
+
+test('reversing after an unpainted delay preserves the exact visible contour in both directions',async()=>{
+ const f=controllerFixture(),first=f.motion.open();
+ const geometry=()=>{const s=f.motion.sample();return{height:s.height,progress:s.progress,outline:s.paths.outline,fill:s.paths.fill};};
+ f.until(240);const beforeClose=geometry();assert.ok(beforeClose.progress>0&&beforeClose.progress<1);
+ f.delay(180);assert.deepEqual(geometry(),beforeClose,'Elapsed time without a frame cannot paint a new contour');
+ const closing=f.motion.close();assert.deepEqual(geometry(),beforeClose,'Close must reverse from the last painted opening geometry');assert.equal(await first,false);assert.equal(f.tray.dataset.motion,'closing');
+ f.until(f.time+80);const beforeOpen=geometry();assert.ok(beforeOpen.progress>0&&beforeOpen.progress<beforeClose.progress);
+ f.delay(180);const reopening=f.motion.open();assert.deepEqual(geometry(),beforeOpen,'Open must reverse from the last painted closing geometry');assert.equal(await closing,false);assert.equal(f.tray.dataset.motion,'opening');
+ f.until(f.time+640);assert.equal(await reopening,true);near(f.motion.sample().height,240);assert.equal(f.motion.progress,1);assert.deepEqual(f.settled,[true]);assert.equal(f.frames.size,0);
+});
+
+test('layout callbacks and delayed frame timestamps cannot rewind an uninterrupted motion',async()=>{
+ const f=controllerFixture(),opened=f.motion.open();
+ f.until(224);f.at(240,200);f.motion.sync();const opening=f.motion.sample();
+ f.at(250,220);assert.ok(f.motion.sample().height>=opening.height,'A stale frame timestamp must not undo a newer layout measurement');
+ f.until(640);await opened;const closed=f.motion.close();
+ f.until(834);f.at(850,800);f.motion.sync();const closing=f.motion.sample();
+ f.at(860,820);assert.ok(f.motion.sample().height<=closing.height,'Closing must not grow back when a frame timestamp predates the last measurement');
+ f.until(1140);assert.equal(await closed,true);
+});
+
+test('late preview or modes height retargets smoothly, keeps its footer anchor, and releases no stale animation',async()=>{
+ const f=controllerFixture(),opening=f.motion.open();f.until(640);await opening;f.height(510);near(f.motion.sample().height,240);f.at(640);f.until(790);assert.ok(f.motion.sample().height>240&&f.motion.sample().height<510);
+ const before=f.motion.sample().height;f.height(360);near(f.motion.sample().height,before);f.resize({width:950,top:700});near(f.motion.sample().baseline,700.5);near(f.motion.sample().left+f.motion.sample().width/2,475);f.at(790);f.until(1090);near(f.motion.sample().height,360);
+ const closing=f.motion.close();f.until(1200);f.motion.release();assert.equal(await closing,false);assert.equal(f.frames.size,0);f.height(500);f.at(1900);assert.equal(f.motion.sample(),null);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.classes.has('mouse-dock-active'),false);
+});
+
+test('immediate release during a height change cannot carry an unfinished size into the next opening',async()=>{
+ const f=controllerFixture(),opening=f.motion.open();f.until(640);await opening;
+ f.height(510);f.at(640);f.until(940);f.height(240);f.at(940);f.until(1090);near(f.motion.sample().height,375);
+ f.motion.release();const reopened=f.motion.open();f.until(1730);assert.equal(await reopened,true);
+ near(f.motion.sample().height,240);near(f.motion.sample().targetHeight,240);assert.equal(f.frames.size,0);
+});
+
+test('expensive preview construction cannot consume the height animation before its first frame',async()=>{
+ const f=controllerFixture(),opening=f.motion.open();f.until(640);await opening;f.height(510);
+ f.at(1400);near(f.motion.sample().height,240);assert.equal(f.tray.dataset.motion,'resizing');
+ f.until(1550);near(f.motion.sample().height,375);f.until(1700);near(f.motion.sample().height,510);assert.equal(f.tray.dataset.motion,'open');
+});
+
+test('long gaps between rendered frames preserve a gradual opening and subsequent frames finish it',async()=>{
+ const f=controllerFixture(),opened=f.motion.open();f.until(160);let previous=f.motion.sample();
+ for(const time of [1600,3200]){
+  f.at(time);const next=f.motion.sample();
+  assert.ok(next.progress>previous.progress&&next.progress<1,'A resumed frame advances without consuming the entire opening');
+  assert.ok(next.height-previous.height<240/4,'One resumed frame must not replace a quarter of the complete opening');
+  assert.equal(f.content.inert,true);assert.equal(f.tray.dataset.motion,'opening');assert.deepEqual(f.settled,[]);
+  f.motion.sync();f.motion.sync();near(f.motion.sample().height,next.height);previous=next;
+ }
+ f.until(f.time+640);assert.equal(await opened,true);near(f.motion.sample().height,240);assert.equal(f.content.inert,false);assert.deepEqual(f.settled,[true]);assert.equal(f.frames.size,0);
+});
+
+test('long gaps during an active height transition keep intermediate geometry before settling at its target',async()=>{
+ const f=controllerFixture(),opened=f.motion.open();f.until(640);await opened;f.height(510);f.at(640);f.until(704);let previous=f.motion.sample();
+ for(const time of [1800,3000]){
+  f.at(time);const next=f.motion.sample();
+  assert.ok(next.height>previous.height&&next.height<510,'An interrupted resize resumes through intermediate sizes');
+  assert.ok(next.height-previous.height<(510-240)/3,'One resumed frame must not replace a third of the complete height change');
+  near(next.baseline,772.5);assert.equal(f.tray.dataset.motion,'resizing');assert.equal(next.progress,1);previous=next;
+ }
+ f.until(f.time+300);near(f.motion.sample().height,510);near(f.motion.sample().targetHeight,510);assert.equal(f.tray.dataset.motion,'open');assert.equal(f.frames.size,0);
+});
+
+test('reduced motion completes immediately and changing preference completes an in-flight opening',async()=>{
+ const f=controllerFixture();f.reduced(true);assert.equal(await f.motion.open(),true);assert.equal(f.motion.progress,1);assert.equal(f.frames.size,0);assert.equal(f.content.inert,false);assert.equal(await f.motion.close(),true);assert.equal(f.motion.progress,0);
+ f.motion.release();f.reduced(false);const pending=f.motion.open();f.until(180);assert.ok(f.motion.progress>0&&f.motion.progress<1);f.reduced(true);assert.equal(await pending,true);assert.equal(f.motion.progress,1);assert.equal(f.content.inert,false);f.at(400);assert.equal(f.frames.size,0);
+});

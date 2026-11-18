@@ -30,5 +30,8 @@
   return -1;
  }
  function translate(op,dx,dy){if(!Number.isFinite(dx)||!Number.isFinite(dy))throw Error('Invalid annotation movement');return{...op,points:op.points.map(p=>({x:p.x+dx,y:p.y+dy}))};}
- const api={rect,draw,bounds,hit,translate};if(typeof module!=='undefined')module.exports=api;else root.MouseCaptureCore=api;
+ function normalizeColor(value){if(typeof value!=='string')return null;let v=value.trim().toLowerCase();if(/^[0-9a-f]{3}$|^[0-9a-f]{6}$/.test(v))v='#'+v;if(/^#[0-9a-f]{3}$/.test(v))v='#'+[...v.slice(1)].map(n=>n+n).join('');return /^#[0-9a-f]{6}$/.test(v)?v:null;}
+ function colorToHSV(value,fallbackHue=0){const hex=normalizeColor(value);if(!hex)throw Error('Invalid color');const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255),v=Math.max(r,g,b),delta=v-Math.min(r,g,b);let h=fallbackHue;if(delta){h=v===r?(g-b)/delta+(g<b?6:0):v===g?(b-r)/delta+2:(r-g)/delta+4;h*=60;}return{h,s:v?delta/v:0,v};}
+ function colorFromHSV({h,s,v}){if(![h,s,v].every(Number.isFinite))throw Error('Invalid color');h=((h%360)+360)%360;s=Math.max(0,Math.min(1,s));v=Math.max(0,Math.min(1,v));const chroma=v*s,x=chroma*(1-Math.abs((h/60)%2-1)),m=v-chroma,rgb=h<60?[chroma,x,0]:h<120?[x,chroma,0]:h<180?[0,chroma,x]:h<240?[0,x,chroma]:h<300?[x,0,chroma]:[chroma,0,x];return'#'+rgb.map(n=>Math.round((n+m)*255).toString(16).padStart(2,'0')).join('');}
+ const api={rect,draw,bounds,hit,translate,normalizeColor,colorToHSV,colorFromHSV};if(typeof module!=='undefined')module.exports=api;else root.MouseCaptureCore=api;
 })(globalThis);
