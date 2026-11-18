@@ -42,6 +42,19 @@ test('stale sources cannot begin a hold; zero-page internal desktops and long-li
 test('selected-page navigation, resize and disposal clear holds and remove lifecycle listeners',async()=>{
  for(const mode of ['navigate','destroy','resize','dispose']){const f=fixture(),a=f.add('a'),r=await f.surfaces.capture({ids:['a']});f.surfaces.begin(r.token);if(mode==='navigate')a.view.webContents.emit('did-start-navigation',{},'https://new.test/',false,true);if(mode==='destroy')a.view.webContents.emit('destroyed');if(mode==='resize')f.win.emit('resize');if(mode==='dispose')f.surfaces.dispose();assert.equal(f.browser.mouseSurfaceHold,null,mode);assert.equal(f.surfaces.held,null);assert.equal(f.surfaces.watchers.length,0);assert.equal(f.surfaces.records.size,0);f.surfaces.dispose();assert.equal(f.win.listenerCount('resize'),0);assert.equal(f.shell.listenerCount('did-start-navigation'),0);}
 });
+test('destroyed native window disposal clears surfaces and continues closing every page and later listeners',async()=>{
+ const f=fixture(),pages=[f.add('a'),f.add('b')],closed=[],powerMonitor=new EventEmitter();f.surfaces.dispose();
+ Object.assign(f.browser,{win:f.win,providers:new Map(),state(){return{tabs:[...this.tabs.values()].map(p=>({id:p.id,url:p.url,lane:'main'}))};},make(){},save:async()=>{},command:async()=>{},emit(){},dispose(){}});
+ for(const page of pages){const wc=page.view.webContents;wc.close=options=>{assert.equal(options.waitForBeforeUnload,false);closed.push(page.id);wc.isDestroyed=()=>true;wc.emit('destroyed');};}
+ require('./mouse-stability.cjs').installWorkspace(f.browser);
+ const service=await require('./mouse-desktops.cjs').install({browser:f.browser,win:f.win,powerMonitor,store:{get:async()=>({}),set:async()=>{}},ipcMain:{handle(){}},trusted(){}});
+ const captured=await service.surfaces.capture({ids:['a','b']});assert.equal(captured.complete,true);assert.equal(service.surfaces.begin(captured.token).held,true);
+ let invalidReads=0,laterClosed=0;f.win.on('closed',()=>f.browser.dispose());f.win.on('closed',()=>laterClosed++);
+ f.win.isDestroyed=()=>true;Object.defineProperty(f.win,'webContents',{get(){invalidReads++;throw Error('Object has been destroyed');}});
+ assert.doesNotThrow(()=>f.win.emit('closed'));assert.equal(invalidReads,0);assert.deepEqual(closed,['a','b']);assert.equal(laterClosed,1);assert.equal(f.browser.disposed,true);assert.equal(f.browser.tabs.size,0);assert.equal(f.browser.mouseSurfaceHold,null);
+ assert.equal(service.surfaces.disposed,true);assert.equal(service.surfaces.watchers.length,0);assert.equal(service.previews.disposed,true);assert.equal(f.shell.listenerCount('did-start-navigation'),0);assert.equal(f.win.listenerCount('resize'),0);assert.equal(powerMonitor.listenerCount('lock-screen'),0);assert.equal(powerMonitor.listenerCount('unlock-screen'),0);
+ f.browser.dispose();assert.deepEqual(closed,['a','b']);assert.equal(invalidReads,0);
+});
 test('captures run at most two at once, return incomplete on budgets, and time out without serving late pixels',async()=>{
  const f=fixture(),finish=[];let running=0,maximum=0;for(const id of ['a','b','c']){const p=f.add(id);p.view.webContents.capturePage=()=>{running++;maximum=Math.max(maximum,running);return new Promise(resolve=>finish.push(()=>{running--;resolve(f.image());}));};}
  const work=f.surfaces.capture({ids:['a','b','c']});assert.equal(finish.length,MAX_CAPTURES);finish.shift()();await new Promise(r=>setImmediate(r));assert.equal(finish.length,2);finish.shift()();finish.shift()();assert.equal((await work).complete,true);assert.equal(maximum,2);assert.equal(f.surfaces.activeCaptures,0);f.surfaces.dispose();

@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),http=require('node:http'),fs=require(
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<240;n++){if(await fn())return;await sleep(60);}throw Error('Timed out '+label);}
 module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
- let server;const js=s=>win.webContents.executeJavaScript(s),marker='PRIVATE_SENTINEL_606_6f532';
+ let server;const exit=require('./mouse-smoke-exit.cjs')({app,win}),js=s=>win.webContents.executeJavaScript(s),marker='PRIVATE_SENTINEL_606_6f532';
  async function initialStartPlaced(){
   const current=privateMode.current,ids=[...current.startService.tabs.keys()],p=current.desktopService.preferences();
   assert.equal(ids.length,1,'A fresh private session owns exactly one initial start tab');assert.deepEqual(p.slots,{p1:ids[0]},'The initial private start tab is placed before the renderer loads');assert.equal(p.active,'p1');assert.deepEqual(p.tabOrder,ids);
@@ -56,6 +56,6 @@ module.exports=async({app,win,browser,store,privateMode,localCaptures})=>{
   await browser.save();await browser.saveQueue;await store.queue;const profile=await fs.readFile(path.join(app.getPath('userData'),'workspace.json'),'utf8');assert.ok(!profile.includes(marker));assert.ok(!profile.includes('mouse-private-'));
   await privateMode.enter();assert.notEqual(privateMode.current.partition,first.partition);assert.equal((await privateMode.current.ses.cookies.get({url:root})).length,0);await initialStartPlaced();await privateMode.leave();
   console.log('MOUSE_PRIVATE_MEMORY_ISOLATION_CLEANUP_NORMAL_UNCHANGED_PASS');
-  console.log('MOUSE_PRIVATE_MASCOT_GLASSES_REAL_BUTTON_PASS');server.close();app.exit(0);
- }catch(error){console.error(error);await fs.writeFile('mouse-private-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();app.exit(1);}
+  console.log('MOUSE_PRIVATE_MASCOT_GLASSES_REAL_BUTTON_PASS');server.close();exit(0);
+ }catch(error){console.error(error);await fs.writeFile('mouse-private-failure.png',(await win.capturePage()).toPNG()).catch(()=>{});server?.close();exit(1);}
 };

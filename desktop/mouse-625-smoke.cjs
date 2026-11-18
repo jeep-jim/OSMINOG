@@ -6,10 +6,21 @@ const {screen}=require('electron');
 const ZIP=require('./mouse-document-zip.cjs');
 const {createFixtures,hash}=require('./mouse-document-fixtures.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const copy=value=>JSON.parse(JSON.stringify(value));
 const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 async function until(fn,label,n=240){for(let i=0;i<n;i++){if(await fn())return;await sleep(60);}throw Error('Mouse625 timeout: '+label);}
+function paintedPDFText(image,{scaleFactor,pixelSize},probe){
+ const bytes=image.toBitmap({scaleFactor}),{width,height}=pixelSize,sx=width/probe.viewport.width,sy=height/probe.viewport.height;
+ if(bytes.length!==width*height*4||probe.points.length<12)return null;
+ const samples=probe.points.map(point=>{const x=Math.floor(point.x*sx),y=Math.floor(point.y*sy),radius=Math.ceil(Math.max(sx,sy));let best;
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){const pixelX=x+dx,pixelY=y+dy;if(pixelX<0||pixelX>=width||pixelY<0||pixelY>=height)continue;const i=(pixelY*width+pixelX)*4,rgba=[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]],dark=Math.max(...rgba.slice(0,3));if(rgba[3]===255&&(!best||dark<best.dark))best={pixelX,pixelY,rgba,dark};}
+  return best?{...point,...best}:null;
+ });
+ if(samples.some(sample=>!sample||sample.dark>90))return null;
+ return{text:probe.text,mode:'edit',viewport:probe.viewport,beforeStyle:probe.style,minimum:12,samples};
+}
 module.exports=async({app,win,browser,documentService,privateMode,store})=>{
  assert.ok(documentService&&privateMode&&store,'Native625 receives the installed document and privacy services');
  assert.equal(documentService.state().documents.length,0,'The document proof does not replace existing open documents');
@@ -164,8 +175,23 @@ module.exports=async({app,win,browser,documentService,privateMode,store})=>{
   await click('[data-pdf="undo"]');await until(()=>js(`(()=>{const draft=MouseTest.documentsUI.records.get(${JSON.stringify(id)})?.editor?.getDraft().pdf;return !!draft&&!draft.pending.length&&!draft.edits.some(e=>e.type==='replace')&&!!document.querySelector('.pane.active .document-pane .document-pdf-run[aria-label="Изменить: ${PDFText.TEXT}"]');})()`),'Undo restores original PDF text');
   await click('.document-pdf-run[aria-label="Изменить: '+PDFText.TEXT+'"]');await type('.document-pdf-replacement',PDFText.REPLACEMENT);await click('[data-pdf="replace"]');await until(()=>js(`(()=>{const draft=MouseTest.documentsUI.records.get(${JSON.stringify(id)})?.editor?.getDraft().pdf;return !!draft&&!draft.pending.length&&draft.edits.some(e=>e.type==='replace'&&e.text===${JSON.stringify(PDFText.REPLACEMENT)})&&document.querySelector('.pane.active [data-pdf=replace]')?.disabled===false&&!!document.querySelector('.pane.active .document-pane .document-pdf-run[aria-label="Изменить: ${PDFText.REPLACEMENT}"]');})()`),'replacement completes');
   const output=await saveAs(id,target),readback=await readPDF(output),text=readback.text.replace(/\s+/g,' ').trim();assert.ok(!text.includes(PDFText.TEXT),'Source text is removed from the saved PDF');assert.ok(text.includes(PDFText.REPLACEMENT));assert.ok(text.includes(PDFText.CYRILLIC));assert.ok(text.includes('KEEP AFTER'));assert.ok(text.includes('Untouched footer'));await PDFText.verifyUnrelatedPDFContent(originalBytes,output);assert.deepEqual(await fs.readFile(file),originalBytes);
-  await fs.writeFile('mouse-627-pdf-existing-text.png',(await win.capturePage()).toPNG());await closeDocument(id);const reopened=await openFile(target,'pdf');await click('[data-pdf-tool="edit"]');await until(()=>js(`!!document.querySelector('.pane.active .document-pane .document-pdf-run[aria-label="Изменить: ${PDFText.REPLACEMENT}"]')`),'saved replacement reopens as editable existing text');await closeDocument(reopened);await hideAndPreserve('Existing PDF text replacement and reopen');
-  const proof={version:'6.0.27',originalTextAbsent:true,replacementPresent:true,cyrillicPresent:true,unrelatedContentPreserved:true,undo:true};await fs.writeFile('mouse-627-pdf-text.json',JSON.stringify(proof,null,2)+'\n');console.log('MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS',JSON.stringify(proof));
+  await closeDocument(id);const reopened=await openFile(target,'pdf');await click('[data-pdf-tool="edit"]');await until(()=>js(`!!document.querySelector('.pane.active .document-pane .document-pdf-run[aria-label="Изменить: ${PDFText.REPLACEMENT}"]')`),'saved replacement reopens as editable existing text');
+  const readability=await verifyPDFGlyphPaint(PDFText.REPLACEMENT);await closeDocument(reopened);await hideAndPreserve('Existing PDF text replacement and reopen');
+  const proof={version:'6.0.27',originalTextAbsent:true,replacementPresent:true,cyrillicPresent:true,unrelatedContentPreserved:true,undo:true,editTextVisible:true,readability};await fs.writeFile('mouse-627-pdf-text.json',JSON.stringify(proof,null,2)+'\n');console.log('MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS',JSON.stringify(proof));
+ }
+ async function verifyPDFGlyphPaint(text){
+  const selector='.document-pdf-run[aria-label='+JSON.stringify('Изменить: '+text)+']';await painted();
+  const probe=await js(`(()=>{const run=document.querySelector(${JSON.stringify(controlSelector(selector))}),pane=run.closest('.document-pane'),canvas=pane.querySelector('.document-pdf-base'),scroll=pane.querySelector('.document-pdf-scroll'),r=run.getBoundingClientRect(),c=canvas.getBoundingClientRect(),v=scroll.getBoundingClientRect(),style=getComputedStyle(run),sx=canvas.width/c.width,sy=canvas.height/c.height,rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data,points=[];
+   const left=Math.max(r.left+3,v.left+3,c.left),right=Math.min(r.right-3,v.right-3,c.right),top=Math.max(r.top+3,v.top+3,c.top),bottom=Math.min(r.bottom-3,v.bottom-3,c.bottom);
+   for(let y=Math.ceil((top-c.top)*sy);y<Math.floor((bottom-c.top)*sy);y++)for(let x=Math.ceil((left-c.left)*sx);x<Math.floor((right-c.left)*sx);x++){const i=(y*canvas.width+x)*4;if(rgba[i+3]===255&&Math.max(rgba[i],rgba[i+1],rgba[i+2])<60)points.push({x:c.left+(x+.5)/sx,y:c.top+(y+.5)/sy,sourceRGBA:[...rgba.slice(i,i+4)]});}
+   points.sort((a,b)=>a.x-b.x||a.y-b.y);const spaced=[];for(const point of points)if(spaced.every(old=>Math.hypot(old.x-point.x,old.y-point.y)>=3))spaced.push(point);
+   return{text:${JSON.stringify(text)},viewport:{width:innerWidth,height:innerHeight},style:{backdropFilter:style.backdropFilter,webkitBackdropFilter:style.getPropertyValue('-webkit-backdrop-filter'),appearance:style.appearance,background:style.backgroundColor},available:spaced.length,points:spaced.length>=12?Array.from({length:12},(_,i)=>spaced[Math.floor(i*(spaced.length-1)/11)]):spaced};})()`);
+  assert.equal(probe.style.backdropFilter,'none','PDF edit targets never blur the underlying glyphs');assert.ok(!probe.style.webkitBackdropFilter||probe.style.webkitBackdropFilter==='none');assert.equal(probe.style.appearance,'none');assert.ok(probe.available>=12,'The rendered replacement contains twelve separated visible dark glyph samples');
+  const capture=armFrameCapture(win.webContents,{select:(image,frame)=>paintedPDFText(image,frame,probe)});
+  try{
+   await click(selector);const result=await capture.result,{png,...painted}=result,filename='mouse-627-pdf-existing-text.png';await fs.writeFile(filename,png);
+   assert.equal(await js('document.querySelector(".pane.active .document-pdf-replacement").value'),text,'The visible text remains selectable in Edit mode');return{...painted,filename};
+  }finally{capture.cancel();}
  }
  async function verifyOfficeAndSafeguards(){
   const bodySelector='.word-document-paper > .word-paragraph [data-word-text]',firstText='Mouse625 edited bold paragraph',savedText='Mouse625 saved through the unsaved dialog';

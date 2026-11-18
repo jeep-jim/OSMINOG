@@ -8,8 +8,11 @@ const same=(a,b)=>!!a&&!!b&&['x','y','width','height'].every(k=>a[k]===b[k]);
 class DesktopSurfaces{
  constructor({browser,bank,win,onImage,now=Date.now,captureMs=CAPTURE_MS,holdMs=HOLD_MS}){
   Object.assign(this,{browser,bank,win,onImage,now,captureMs,holdMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.busy=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
+  // BrowserWindow.webContents is a native getter: after 'closed' it throws.
+  // Retain the emitter now so disposal can continue into closing every page.
+  this.shellContents=win?.webContents;
   this.resize=()=>this.clear(true);this.navigation=(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.clear(false);};
-  win?.on?.('resize',this.resize);win?.webContents?.on?.('did-start-navigation',this.navigation);
+  win?.on?.('resize',this.resize);this.shellContents?.on?.('did-start-navigation',this.navigation);
  }
  shape(){const size=this.win?.getContentSize?.();return Array.isArray(size)?size.join('x'):'';}
  live(id,hold){
@@ -83,6 +86,6 @@ class DesktopSurfaces{
  }
  lock(){this.locked=true;this.clear(true);}
  unlock(){this.locked=false;}
- dispose(){if(this.disposed)return;this.disposed=true;this.clear(false);this.win?.removeListener?.('resize',this.resize);this.win?.webContents?.removeListener?.('did-start-navigation',this.navigation);}
+ dispose(){if(this.disposed)return;this.disposed=true;this.clear(false);this.win?.removeListener?.('resize',this.resize);this.shellContents?.removeListener?.('did-start-navigation',this.navigation);}
 }
 module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,HOLD_MS};
