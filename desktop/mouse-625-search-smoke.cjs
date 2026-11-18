@@ -30,8 +30,10 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   await until(()=>win.isFocused(),'native window focus');
  }
  async function click(selector){
-  await activate();const point=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing search control: '+${JSON.stringify(selector)});e.scrollIntoView({block:'nearest',inline:'nearest'});const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;if(e.disabled||!r.width||!r.height||!e.contains(document.elementFromPoint(x,y)))throw Error('Search control is hidden or covered: '+${JSON.stringify(selector)});return{x,y};})()`);
-  const frame=win.getContentBounds(),target={x:Math.round(frame.x+point.x),y:Math.round(frame.y+point.y)},display=screen.getDisplayNearestPoint(target).bounds;lastClick={selector,target};
+  lastClick={selector,stage:'locate'};await activate();
+  const point=await js(`(()=>{try{const e=document.querySelector(${JSON.stringify(selector)});if(!e)return{ok:false,reason:'missing'};e.scrollIntoView({block:'nearest',inline:'nearest'});const r=e.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2,hit=document.elementFromPoint(x,y),bounds={x:r.x,y:r.y,width:r.width,height:r.height},hitSelector=hit?hit.tagName.toLowerCase()+(hit.id?'#'+hit.id:'.'+[...hit.classList].join('.')):null;return{ok:!e.disabled&&r.width>0&&r.height>0&&e.contains(hit),reason:e.disabled?'disabled':!r.width||!r.height?'hidden':!e.contains(hit)?'covered':null,x,y,bounds,hitSelector};}catch(error){return{ok:false,reason:'inspection-error',message:String(error.message)};}})()`);
+  lastClick.control=point;assert.equal(point.ok,true,'Native search click target is unavailable: '+JSON.stringify(lastClick));
+  const frame=win.getContentBounds(),target={x:Math.round(frame.x+point.x),y:Math.round(frame.y+point.y)},display=screen.getDisplayNearestPoint(target).bounds;lastClick={...lastClick,stage:'native-click',target};
   assert.ok(target.x>=display.x&&target.y>=display.y&&target.x<display.x+display.width&&target.y<display.y+display.height);assert.equal(native.testClick(target.x,target.y),true);await sleep(130);
  }
  async function key(keyCode,modifiers=[]){win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await sleep(45);}
@@ -97,9 +99,18 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
   probe={route:'home',query};await type('.pane .home-query',query);await click('.pane .home-search button[type="submit"]');
   await until(()=>captures.length===before+1&&received.includes(before),'home submission reaches only loopback');
   assertDestination(captures[before],engine,query);
-  const id=await js('MouseTest.model.slots[MouseTest.model.active]');await until(()=>currentBrowser().get(id)?.view.webContents.getURL().startsWith(root)&&!currentBrowser().get(id).loading,'local substitute page is loaded');
-  probe={route:'address',query};await type('#address-input',query);await key('Enter');
+  const pane=await js('({pane:MouseTest.model.active,id:MouseTest.model.slots[MouseTest.model.active]})'),id=pane.id;
+  await until(()=>currentBrowser().get(id)?.view.webContents.getURL().startsWith(root)&&!currentBrowser().get(id).loading,'local substitute page is loaded');
+  const page=currentBrowser().get(id),wc=page.view.webContents,homeURL=root+'/captured/'+before+'?fixture='+encodeURIComponent(token);
+  assert.equal(wc.getURL(),homeURL,'The active pane contains this home search fixture');
+  const address='.pane.active .pane-address input',addressState=()=>js(`(()=>{const e=document.querySelector(${JSON.stringify(address)}),pane=e?.closest('.pane');return{pane:pane?.dataset.pane,id:MouseTest.model.slots[pane?.dataset.pane],url:e?.value};})()`);
+  await until(async()=>(await addressState()).url===homeURL,'the fixture URL is painted in the visible pane address');
+  assert.deepEqual(await addressState(),{...pane,url:homeURL},'The visible address control belongs to the same active pane and fixture tab');
+  probe={route:'address',query};await type(address,query);await key('Enter');
   await until(()=>captures.length===before+2&&received.includes(before+1),'address submission reaches only loopback');
+  await until(()=>wc.getURL()===root+'/captured/'+(before+1)+'?fixture='+encodeURIComponent(token)&&!page.loading,'address submission loads the same local fixture tab');
+  assert.deepEqual(await js('({pane:MouseTest.model.active,id:MouseTest.model.slots[MouseTest.model.active]})'),pane,'Address submission preserves the active pane and tab');
+  assert.equal(currentBrowser().get(id),page,'Address submission navigates the same page');assert.equal(page.view.webContents,wc,'Address submission preserves WebContents identity');
   assertDestination(captures[before+1],engine,query);assert.equal(captures[before].url,captures[before+1].url,'Home and address use the same normalization and selected provider');probe=null;
  }
  async function reload(){
