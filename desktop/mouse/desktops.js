@@ -16,13 +16,17 @@ function mouseFloatingBackdrop(N,m,restore){
   if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
   return result;
  }
- const unchanged=items=>items.every(({id,slot,r})=>{const box=slot.getBoundingClientRect();return slot.isConnected&&m.state.tabs.some(t=>t.id===id)&&['x','y','width','height'].every(key=>Math.abs(box[key]-r[key])<.5);});
+ // Match BrowserWorkspace.layout: native dimensions come from the two snapped
+ // endpoints. Rounding a fractional width independently can differ by one DIP.
+ const nativeBox=r=>({x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.x+r.width)-Math.round(r.x),height:Math.round(r.y+r.height)-Math.round(r.y)});
+ const sameBox=(a,b)=>a&&b&&['x','y','width','height'].every(key=>a[key]===b[key]);
+ const unchanged=items=>items.every(({id,slot,r})=>slot.isConnected&&m.state.tabs.some(t=>t.id===id)&&sameBox(nativeBox(slot.getBoundingClientRect()),nativeBox(r)));
  function buildImages(packet,items){
   const byId=new Map((packet.surfaces||[]).map(surface=>[surface.id,surface])),next=[];
   if(byId.size!==items.length)throw Error('Состав рабочего стола изменился.');
   for(const {id,r,roundBottom}of items){
    const surface=byId.get(id);if(!/^data:image\/png;base64,/.test(surface?.src||''))throw Error('Не удалось подготовить изображение вкладки.');
-   const box=surface.bounds||r;if(!['x','y','width','height'].every(key=>Math.abs(box[key]-r[key])<.5))throw Error('Размер рабочего стола изменился.');
+   const expected=nativeBox(r),box=surface.bounds||expected;if(!sameBox(box,expected))throw Error('Размер рабочего стола изменился.');
    const image=document.createElement('img');image.className='mouse-floating-snapshot';image.dataset.tabId=id;image.dataset.roundBottom=String(roundBottom);image.alt='';image.draggable=false;image.setAttribute('aria-hidden','true');image.src=surface.src;
    Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800',borderRadius:`0 0 ${roundBottom}px ${roundBottom}px`,clipPath:`inset(0 round 0 0 ${roundBottom}px ${roundBottom}px)`});next.push(image);
   }
