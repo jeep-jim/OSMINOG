@@ -52,7 +52,7 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
    }else if(rowKind==='downloads'){
     const state={completed:tr('Готово','Complete'),paused:tr('Пауза','Paused'),progressing:tr('Скачивается','Downloading'),cancelled:tr('Отменено','Cancelled'),interrupted:tr('Прервано','Interrupted')}[item.state]||item.state;
     body.append(make('small','library-detail',state+' · '+bytes(item.received)+(item.total?' / '+bytes(item.total):'')));
-    if(['progressing','paused'].includes(item.state)){const progress=make('progress');progress.max=item.total||1;progress.value=item.received||0;body.append(progress);actions.append(button(item.state==='paused'?tr('Продолжить','Resume'):tr('Пауза','Pause'),()=>N.library('download',{id:item.id,action:item.state==='paused'?'resume':'pause'})),button(tr('Отменить','Cancel'),()=>N.library('download',{id:item.id,action:'cancel'})));}
+    if(['progressing','paused'].includes(item.state)){const progress=make('progress');progress.setAttribute('aria-label',title);if(Number.isFinite(item.total)&&item.total>0){progress.max=item.total;progress.value=Math.min(item.total,Math.max(0,item.received||0));}else{progress.removeAttribute('value');progress.setAttribute('aria-valuetext',tr('Размер файла неизвестен','File size is unknown'));}body.append(progress);actions.append(button(item.state==='paused'?tr('Продолжить','Resume'):tr('Пауза','Pause'),()=>N.library('download',{id:item.id,action:item.state==='paused'?'resume':'pause'})),button(tr('Отменить','Cancel'),()=>N.library('download',{id:item.id,action:'cancel'})));}
     else if(item.state==='completed')actions.append(button(tr('Открыть','Open'),()=>N.library('download',{id:item.id,action:'open'})),button(tr('В папке','Show in folder'),()=>N.library('download',{id:item.id,action:'show'})));
     else if(item.url)actions.append(button(tr('Повторить','Retry'),()=>N.library('download',{id:item.id,action:'retry'})));
    }else body.append(make('small','library-detail',item.url||date));
@@ -74,7 +74,7 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
  $('#library-query').oninput=()=>{limit=100;resetSelection();void run(render)};$('#library-more').onclick=()=>{limit=Math.max(100,total);void run(render)};
  $('#library-select-all').onchange=e=>{resetSelection();allSelected=e.target.checked;controls()};
  $('#library-clear').onclick=()=>run(async()=>{const result=await library('remove-selected',{kind,query:$('#library-query').value,all:allSelected,ids:[...selection],exclude:[...excluded]});if(result.cleared)resetSelection();await render()});
- N.onLibrary(()=>{if(d.open)void run(render);void N.library('list',{kind:'downloads'}).then(data=>{const count=data.items.filter(x=>['progressing','paused'].includes(x.state)).length,b=$('#downloads-button');if(b){b.dataset.active=String(count>0);b.setAttribute('aria-label',tr('Загрузки','Downloads')+(count?' · '+count:''))}}).catch(()=>{})});
+ N.onLibrary(()=>{if(d.open)void run(render)});
  const pop=make('div','address-suggestions');pop.id='address-suggestions';pop.setAttribute('popover','manual');pop.setAttribute('role','listbox');document.body.append(pop);
  let anchor=null,options=[],active=-1,serial=0,delay=null;
  function hideHints(){serial++;clearTimeout(delay);if(pop.matches(':popover-open'))pop.hidePopover();anchor?.setAttribute('aria-expanded','false');anchor?.removeAttribute('aria-activedescendant');anchor=null;options=[];active=-1;restore()}

@@ -84,7 +84,7 @@ class PrivateMode {
   for(const item of c.libraryService?.live.values()||[])item.cancel();
   c.browser.dispose();
   for(const [target,event,fn] of c.listeners)target.removeListener(event,fn);
-  if(c.libraryService){clearTimeout(c.libraryService.library.timer);c.libraryService.library.ready=false;c.libraryService.library.data={};}
+  if(c.libraryService){clearTimeout(c.libraryService.library.timer);c.libraryService.library.ready=false;c.libraryService.library.data={};c.libraryService.activity?.clear();}
   c.ses.removeAllListeners('will-download');
   await clearPrivateSession(c.ses);
   c.ses.setPermissionCheckHandler(null);c.ses.setPermissionRequestHandler(null);

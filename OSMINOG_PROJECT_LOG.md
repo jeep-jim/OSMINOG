@@ -2377,3 +2377,7 @@ Implementation candidate: `light/` contains a new 21-file package (about 46 KiB 
 ## 2026-11-10 — Light 5.0.0 published with exact CI artifacts
 
 PR #117 merged; Chrome 5.0.0 activated in the existing update channel, Windows/macOS unsigned previews published. All four Light native jobs and existing release gates passed on f752dd6fe83c5ee4888b4c91444cdd2cc9caa719. Full evidence, archive hashes, measured memory and migration/signing/billing limitations: [release audit](docs/light/2026-11-10-release.md). Owner hardware verification remains false; no claim of remote installation or guaranteed crash elimination.
+
+## 2026-11-19 — Mouse Browser 6.0.29: уточнение владельца и полный выпуск
+
+Работа над лендингом остановлена по поручению владельца. Следующий выпуск сохраняет Mouse 6.0.28 и переносит аккуратную пилюлю под адресную строку каждой панели, добавляет видимую активность загрузок и подтверждение снимка затвором. Исправляется повторное снятие compositor hints между открытой Норой и закрытием; длительность и native gates сохранены. 6.0.28 уже опубликована и служит проверенным базовым DMG для реального обновления 6.0.28 → 6.0.29. Подробности, exact baseline, изменения и честный текущий статус: [Mouse 6.0.29](docs/desktop/2026-11-19-mouse629-feedback.md). Публикация нового кандидата — только после source и installed native gates, без замены старых assets.
