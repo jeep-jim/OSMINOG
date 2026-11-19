@@ -65,19 +65,22 @@ test('private completion stays in that session and never writes the normal profi
  f.privateSession({});assert.equal((await f.command('state')).learned,false);f.privateSession(null);assert.equal((await f.command('state')).learned,false);assert.equal(f.writes.length,0);f.controller.dispose();
 });
 
-test('normal learning before private entry stays persisted through a private completion',async()=>{
- const f=await fixture();
- try{
-  const initial=structuredClone(f.data[KEY]);assert.equal((await f.command('state')).learned,false);
-  await f.closedWheel();const normalRequest=f.latest();f.setActive(normalRequest.to);
-  const normal=await f.command('finish',{id:normalRequest.id,changed:true});assert.equal(normal.completed,true);assert.equal(normal.learned,true);
-  const beforePrivate=structuredClone((await f.store.get(KEY))[KEY]);assert.deepEqual(beforePrivate,{completed:true});assert.notDeepEqual(beforePrivate,initial);assert.equal(f.writes.length,1);
-  f.advance(500);f.setActive('b');f.privateSession({});assert.equal((await f.command('state')).learned,false);
-  await f.closedWheel();const privateRequest=f.latest();assert.notEqual(privateRequest.id,normalRequest.id);f.setActive(privateRequest.to);
-  const privateResult=await f.command('finish',{id:privateRequest.id,changed:true});assert.equal(privateResult.completed,true);assert.equal(privateResult.learned,true);
-  assert.equal(f.writes.length,1);assert.deepEqual((await f.store.get(KEY))[KEY],beforePrivate);
-  f.privateSession(null);assert.equal((await f.command('state')).learned,true);assert.deepEqual((await f.store.get(KEY))[KEY],beforePrivate);assert.equal(f.writes.length,1);
- }finally{f.controller.dispose();}
+test('fresh and already learned normal profiles keep their pre-private baseline through private completion',async()=>{
+ for(const completed of [false,true]){
+  const f=await fixture({completed}),expectedWrites=completed?0:1;
+  try{
+   const initial=structuredClone(f.data[KEY]);assert.equal((await f.command('state')).learned,completed);
+   await f.closedWheel();const normalRequest=f.latest();f.setActive(normalRequest.to);
+   const normal=await f.command('finish',{id:normalRequest.id,changed:true});assert.equal(normal.completed,true);assert.equal(normal.learned,true);
+   const beforePrivate=structuredClone((await f.store.get(KEY))[KEY]);assert.deepEqual(beforePrivate,{completed:true});
+   if(completed)assert.deepEqual(beforePrivate,initial);else assert.notDeepEqual(beforePrivate,initial);assert.equal(f.writes.length,expectedWrites);
+   f.advance(500);f.setActive('b');f.privateSession({});assert.equal((await f.command('state')).learned,false);
+   await f.closedWheel();const privateRequest=f.latest();assert.notEqual(privateRequest.id,normalRequest.id);f.setActive(privateRequest.to);
+   const privateResult=await f.command('finish',{id:privateRequest.id,changed:true});assert.equal(privateResult.completed,true);assert.equal(privateResult.learned,true);
+   assert.equal(f.writes.length,expectedWrites);assert.deepEqual((await f.store.get(KEY))[KEY],beforePrivate);
+   f.privateSession(null);assert.equal((await f.command('state')).learned,true);assert.deepEqual((await f.store.get(KEY))[KEY],beforePrivate);assert.equal(f.writes.length,expectedWrites);
+  }finally{f.controller.dispose();}
+ }
 });
 
 test('a stale wheel request cannot mark completion in a different privacy session',async()=>{

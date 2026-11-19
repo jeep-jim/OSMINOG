@@ -332,3 +332,39 @@ KEY остаётся строго undefined. Product privacy code не меня�
 дополнительных записей при private completion. Focused35/35 и полный локальный
 Mouse gate781tests/775PASS/0FAIL/6platformSKIP прошли (6208.270487ms).
 Следующий полный native source прогон повторяет все gates без ослаблений.
+
+## Source5743e26: Windows first-use fixture sequencing
+
+Windows run44583712930/job135770879200 снова прошёл новый631 task/stress
+gate и независимую проверку; исправленный630 gesture fixture также дошёл
+до обоих markers `MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS` и
+`MOUSE_630_PAGE_SCROLL_PRESERVED_PASS`. Полный WRITE затем отказал в
+`mouse-628-ui-smoke.cjs:347`: native click не нашёл видимый
+`.desktop-gesture-copy summary` (bounds0×0). Это не успех полного выпуска.
+
+Проверка source показала различие orchestration: Windows запускал630
+page-wheel gestures перед628 first-use tutorial; macOS уже использует
+обратный порядок. Обычный630 gesture закономерно сохраняет обучение, поэтому
+следующий first-use сценарий больше не имеет видимой подсказки. Frozen628
+намеренно требует fresh isolated profile, проверяет реально видимую подсказку,
+проводит обучение и сохраняет `{completed:true}` для последующего READ/restart;
+он не должен сбрасывать этот ключ в cleanup.
+
+Исправляется только порядок Windows WRITE: `pageWheelNavigation` следует
+после `noraMotionPaletteAndWheel`, как на macOS. Ключ обучения не удаляется,
+профиль пользователя и runtime не меняются. Frozen628 UI/motion/pixel/native
+click/restart gates остаются прежними.630 fixture должен принимать уже
+завершённое обучение и всё равно проверить новый completed gesture с matching
+request ID, immutable normal baseline и отсутствие private-записей.
+Mac5743 на момент этой записи ещё выполняет полный installed gate; оба
+пакета следующего exact source head требуют нового полного native acceptance.
+
+Verification archive14560383889 (21906433bytes) проверен по SHA/CRC:
+`4ef7463f5b17ff6aa660f97d419ec0f30ab6174c86ba40e1089ed4d6b356317d`.
+В raw630 facts `normalInitial=null`, `beforePrivate=true`,
+`afterPrivate=true`, `privatePersisted=null`; private WebContents/store
+уничтожены. Это подтверждает прохождение предыдущего baseline fix.
+Handler regression расширен на fresh и already learned normal profile:
+первый пишет обучение ровно один раз, второй не переписывает его;
+private completion не пишет в normal storage в обоих случаях.
+Focused35/35PASS,0SKIP (226.333ms); syntax/diff checks прошли.

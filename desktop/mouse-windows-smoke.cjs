@@ -273,8 +273,9 @@ module.exports=async ctx=>{
    await step('metadataWorkload',()=>require('./mouse-627-performance-smoke.cjs')(shared));await step('perPaneProgress',()=>require('./mouse-628-progress-smoke.cjs')(shared));
    await step('downloadAndCaptureFeedback',()=>require('./mouse-630-feedback-smoke.cjs')(shared));
    await step('noraForeground',()=>require('./mouse-630-nora-smoke.cjs')(shared));
-   await step('pageWheelNavigation',()=>require('./mouse-630-gesture-smoke.cjs')(shared));
    await step('629UIAndScrollbars',()=>require('./mouse-629-ui-smoke.cjs')(shared));await step('noraMotionPaletteAndWheel',()=>noraMotion(shared));
+   // The retained first-use tutorial precedes page/control gestures that learn it.
+   await step('pageWheelNavigation',()=>require('./mouse-630-gesture-smoke.cjs')(shared));
    await step('privacy',privateIsolation);await step('agentPTYLocalMCP',agent);await step('profileWrite',writeProfile);
   }
   // Complete the installed run through the real Windows close control and
