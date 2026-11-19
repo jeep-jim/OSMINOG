@@ -143,7 +143,7 @@ def read_png(read, name, claimed_digest, claimed_size):
     return image
 
 
-def verify_capture(read, capture, expected_name, expected_pages, *, shell=False):
+def verify_capture(read, capture, expected_name, expected_pages, *, shell=False, shell_count=2):
     need(isinstance(capture, dict) and capture.get('filename') == expected_name, 'wrong native screenshot identity')
     need(capture.get('source') == 'globalCapture.acquire(display)' and capture.get('kind') == 'screen'
          and isinstance(capture.get('backend'), str) and capture['backend'], 'capture is not an actual OS display')
@@ -223,18 +223,19 @@ def verify_capture(read, capture, expected_name, expected_pages, *, shell=False)
     need(isinstance(attempts, list) and 1 <= len(attempts) <= 10 and attempts[-1].get('accepted') is True,
          'bounded real display acquisition never accepted the content')
     if shell:
-        verify_shell(read, capture, image)
+        verify_shell(read, capture, image, expected_count=shell_count)
     return len(probes)
 
 
-def verify_shell(read, capture, image):
+def verify_shell(read, capture, image, *, expected_count=2):
     shell = capture.get('shell')
     need(isinstance(shell, dict) and shell.get('filename') == capture['filename'][:-4] + '-shell-reference.png', 'task pill reference is missing')
     reference = read_png(read, shell['filename'], shell.get('sha256'), shell.get('pixelSize'))
     bounds, mapping = capture['contentBounds'], capture['mapping']
     rsx, rsy = reference['width'] / bounds['width'], reference['height'] / bounds['height']
     regions = shell.get('regions')
-    need(isinstance(regions, list) and len(regions) == 2, 'two real task pills must be presented')
+    need(expected_count in (1, 2) and isinstance(regions, list) and len(regions) == expected_count,
+         str(expected_count) + ' real task pills must be presented')
     for region in regions:
         box = rectangle(region.get('bounds'), 'task pill')
         trim = min(1, box['width'] / 4, box['height'] / 4)
@@ -422,6 +423,47 @@ def verify_distribution(value, label):
          and value['min'] <= value['p50'] <= value['p95'] <= value['max'], label + ' timing measurements are missing')
 
 
+def verify_switch_progress(switch, total, streams, visible):
+    progress = switch.get('progress', {})
+    state, ui = progress.get('state'), progress.get('ui', {})
+    running = tasks(state)
+    need(len(running) == 5 and ui.get('desk') == switch['to'], 'five real stream tasks and the active desktop are required')
+    for stream in streams:
+        task = find_task(state, stream['tabId'], 'stream-' + stream['id'])
+        need(task.get('phase') == 'running' and task.get('desk') == stream['desk'], 'a real background stream task is not running for its owner')
+    owner = next(stream for stream in streams if stream['desk'] == switch['to'])
+    need(progress.get('streamId') == owner['id'], 'switch task evidence belongs to another HTTP stream')
+    panes = ui.get('panes')
+    need(isinstance(panes, list) and len(panes) == 4 and {p.get('tabId') for p in panes} == {p['id'] for p in visible}
+         and all(isinstance(p.get('pills'), list) for p in panes), 'actual task UI does not belong to all four visible pages')
+    pills = [(pane, value) for pane in panes for value in pane['pills']]
+    need(len(pills) == (1 if total == 20 else 0), 'a visible stream needs exactly one pill; hidden stream owners need no visible pills')
+    if total == 50:
+        need(owner['tabId'] not in {p['id'] for p in visible}, 'the fifty-page stream owner must remain hidden')
+        return
+    pane, value = pills[0]
+    task = find_task(state, owner['tabId'], 'stream-' + owner['id'])
+    need(pane.get('tabId') == value.get('tabId') == owner['tabId'] and value.get('id') == task.get('id')
+         and value.get('taskId') == task.get('taskId') and value.get('desk') == owner['desk']
+         and value.get('phase') == 'running' and value.get('indeterminate') == 'true' and value.get('value') == '…',
+         'visible stress task pill is missing its real running HTTP owner')
+    header, slot = rectangle(pane.get('header'), 'owning address row'), rectangle(pane.get('slot'), 'owning page slot')
+    dock_value = pane.get('dock', {})
+    need(dock_value.get('hidden') is False, 'owning task dock is hidden')
+    dock, box = rectangle(dock_value.get('bounds'), 'owning task dock'), rectangle(value.get('bounds'), 'owning task pill')
+    need(box['x'] >= dock['x'] and box['y'] >= dock['y'] and box['x'] + box['width'] <= dock['x'] + dock['width']
+         and box['y'] + box['height'] <= dock['y'] + dock['height']
+         and abs(dock['y'] - header['y'] - header['height']) <= 1 and abs(slot['y'] - dock['y'] - dock['height']) <= 1,
+         'the full task pill must be between its own address row and native page')
+    capture = switch.get('capture', {})
+    native = [p for p in capture.get('native', []) if p.get('tabId') == owner['tabId']]
+    need(len(native) == 1 and abs(native[0]['bounds']['y'] - slot['y']) <= 1
+         and native[0]['bounds']['y'] >= box['y'] + box['height'] - 1, 'actual native page covers its owning task pill')
+    regions = capture.get('shell', {}).get('regions')
+    need(isinstance(regions, list) and len(regions) == 1 and regions[0].get('bounds') == box,
+         'stress shell pixels are not bound to the actual owning task pill')
+
+
 def verify_stress(read, facts):
     desks, stages = facts.get('desks'), facts.get('stages')
     need(isinstance(desks, list) and len(desks) == len(set(desks)) == 5, 'five distinct desktops are required')
@@ -442,6 +484,14 @@ def verify_stress(read, facts):
             need(first['desk'] == desks[index // 4 if index < 20 else (index - 20) // 6], 'page was assigned to the wrong desktop')
         requests = row.get('requests')
         need(isinstance(requests, list) and len(requests) == total and sorted(value.get('index') for value in requests) == list(range(total)), 'one actual HTTP document load per live page is required')
+        streams = row.get('streams')
+        need(isinstance(streams, list) and len(streams) == 5 and {stream.get('desk') for stream in streams} == set(desks), 'one actual background HTTP stream per desktop is required')
+        for desk_index, desk in enumerate(desks):
+            stream = next(item for item in streams if item['desk'] == desk)
+            owner_index = desk_index * 4 if total == 20 else 20 + desk_index * 6
+            owner = next(page for page in before if page['index'] == owner_index)
+            need(stream.get('id') == f'stage{total}-desk{desk_index}' and stream.get('tabId') == owner['id']
+                 and stream.get('index') == owner_index, 'actual HTTP stream owner does not match its live page')
         switches = row.get('switches')
         need(isinstance(switches, list) and len(switches) == switch_count, 'settled desktop switches are missing')
         for number, switch in enumerate(switches, 1):
@@ -467,15 +517,15 @@ def verify_stress(read, facts):
                     need(page.get('webContentsId') == owners[page['id']]['webContentsId']
                          and all(finite(page.get(key)) and page[key] >= 0 for key in ('queueMs', 'captureMs', 'pngMs', 'base64Ms', 'previewMs')),
                          'actual outgoing/incoming native capture and encoding timings are missing')
-            probes += verify_capture(read, switch.get('capture'), f'mouse-631-stress-{total}-switch-{number}.png', visible)
+            verify_switch_progress(switch, total, streams, visible)
+            probes += verify_capture(read, switch.get('capture'), f'mouse-631-stress-{total}-switch-{number}.png', visible,
+                                     shell=total == 20, shell_count=1)
         nora = row.get('nora', {})
         need(nora.get('held') is True and len(nora.get('before', [])) == len(nora.get('after', [])) == 5
              and all(integer(a) and integer(b) and b > a for a, b in zip(nora['before'], nora['after'])), 'background HTTP consumers stopped while Nora held the pages')
         need(nora.get('diagnostics', {}).get('lastCapture', {}).get('paintProof') is True
              and nora['diagnostics'].get('lastPaint', {}).get('ready') is True, 'Nora lost its real native paint barrier')
         probes += verify_capture(read, row.get('afterNoraCapture'), f'mouse-631-stress-{total}-after-nora.png', [page for page in before if page['desk'] == desks[0] and page['index'] < 20])
-        streams = row.get('streams')
-        need(isinstance(streams, list) and len(streams) == 5 and {stream.get('desk') for stream in streams} == set(desks), 'one actual background HTTP stream per desktop is required')
         for stream in streams:
             server, old, new = stream.get('server', {}), stream.get('before', {}), stream.get('after', {})
             values, sent = server.get('values'), server.get('sentAt')

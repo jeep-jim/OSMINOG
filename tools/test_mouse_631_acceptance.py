@@ -41,7 +41,7 @@ def owned(index, *, task=False):
             'scrollX': 0, 'scrollY': 130 + index, 'cookie': f'mouse631_{index}=owned-identity-{index}', 'ticks': 10}
 
 
-def capture(files, name, pages, *, shell=False):
+def capture(files, name, pages, *, shell=False, pill_ids=None):
     width, height = 240, 440 if len(pages) == 4 else 240
     pixels = bytearray([240, 237, 225, 255] * (width * height))
 
@@ -74,8 +74,8 @@ def capture(files, name, pages, *, shell=False):
                 result['probes'].append({'tabId': page['id'], 'index': page['index'], 'webContentsId': page['webContentsId'], 'desk': page['desk'],
                                          'region': 'ab'[part], 'localBounds': local, 'offset': {'x': dx, 'y': dy}, 'cssPoint': point,
                                          'x': point['x'], 'y': point['y'], 'expectedRGB': rgb, 'actualRGBA': rgb + [255], 'tolerance': 3})
-        if shell:
-            pill_box = {'x': box['x'], 'y': 25, 'width': 100, 'height': 20}
+        if shell and (pill_ids is None or page['id'] in pill_ids):
+            pill_box = {'x': box['x'], 'y': box['y'] - 25, 'width': 100, 'height': 20}
             fill(pill_box, [40, 45, 50, 255])
             fill({'x': box['x'] + 4, 'y': 30, 'width': 15, 'height': 4}, [210, 210, 210, 255])
             fill({'x': box['x'] + 30, 'y': 30, 'width': 5, 'height': 6}, [180, 140, 20, 255])
@@ -123,6 +123,19 @@ def ui(pages, values, theme='light', at=1000000):
     return {'sampledAt': at, 'theme': theme, 'desk': 'd0', 'panes': panes}
 
 
+def stress_progress(pages, values, captured, target, stream_id):
+    actual_ui = ui(pages, values)
+    actual_ui['desk'] = target
+    for pane, native in zip(actual_ui['panes'], captured['native']):
+        box = native['bounds']
+        value = pane.pop('pill')
+        pane['pills'] = [value] if value else []
+        pane['header'] = {**box, 'y': box['y'] - 50, 'height': 25}
+        pane['dock'] = {'hidden': value is None, 'bounds': {**box, 'y': box['y'] - 25, 'height': 25}}
+        pane['slot'] = box.copy()
+    return {'streamId': stream_id, 'state': {'tasks': copy.deepcopy(values)}, 'ui': actual_ui}
+
+
 def fixtures():
     files = {}
     pages = [owned(0, task=True), owned(1, task=True)]
@@ -168,6 +181,8 @@ def fixtures():
     distribution = {'count': 10, 'min': 1, 'p50': 2, 'p95': 3, 'max': 4}
     for total, switches in ((20, 5), (50, 10)):
         pages = [owned(i) for i in range(total)]
+        stream_owners = [pages[d * 4 if total == 20 else 20 + d * 6] for d in range(5)]
+        stream_tasks = [task_value(page, f'stream-stage{total}-desk{d}', None, None) for d, page in enumerate(stream_owners)]
         row = {'ownedPageCount': total, 'totalBrowserPages': total + 1, 'deskCount': 5, 'pagesPerDesk': [total // 5] * 5,
                'switchCount': switches, 'beforePages': copy.deepcopy(pages), 'afterPages': [{**page, 'ticks': 100} for page in pages],
                'requests': [{'index': page['index'], 'path': '/page/' + str(page['index']) + '/'} for page in pages],
@@ -187,14 +202,18 @@ def fixtures():
                 calls.append({'error': None, 'diagnostics': {'lastCapture': {'complete': True, 'paintProof': False,
                                'requestedIds': [page['id'] for page in owners], 'pages': [{'id': page['id'], 'webContentsId': page['webContentsId'], 'bitmapReadouts': 0,
                                **dict.fromkeys(('queueMs', 'captureMs', 'pngMs', 'base64Ms', 'previewMs'), .1)} for page in owners]}}})
+            captured = capture(files, f'mouse-631-stress-{total}-switch-{number}.png', visible,
+                               shell=total == 20, pill_ids={stream_owners[number % 5]['id']})
             row['switches'].append({'sequence': number, 'from': desks[(number - 1) % 5], 'to': target, 'elapsedMs': 400,
                                    'slide': {'phase': 'complete', 'animated': True, 'decoded': True, 'totalDurationMs': 399},
                                    'visiblePageIds': [page['id'] for page in visible], 'surfaceCalls': calls,
-                                   'capture': capture(files, f'mouse-631-stress-{total}-switch-{number}.png', visible)})
+                                   'progress': stress_progress(visible, stream_tasks, captured, target, f'stage{total}-desk{number % 5}'),
+                                   'capture': captured})
         row['afterNoraCapture'] = capture(files, f'mouse-631-stress-{total}-after-nora.png', pages[:4])
-        for desk in desks:
+        for d, desk in enumerate(desks):
             chunks = ['owned-one', 'owned-two', 'owned-three-данные']
-            row['streams'].append({'desk': desk, 'before': {'chunks': chunks[:2]},
+            row['streams'].append({'desk': desk, 'id': f'stage{total}-desk{d}', 'tabId': stream_owners[d]['id'],
+                                   'index': stream_owners[d]['index'], 'before': {'chunks': chunks[:2]},
                                    'server': {'requestCount': 1, 'values': chunks, 'sentAt': [{'activeDesk': 'other', 'noraHeld': True}] * 3,
                                               'digest': CHECK.digest('\n'.join(chunks).encode())},
                                    'after': {'requests': 1, 'done': True, 'error': None, 'chunks': chunks, 'expected': 3}})
@@ -251,6 +270,71 @@ class AcceptanceTests(unittest.TestCase):
             mutate(record)
             with self.assertRaises(ValueError):
                 CHECK.verify_capture(self.files.__getitem__, record, record['filename'], self.task['pages'])
+
+    def test_stress_task_requires_the_real_running_stream_owner(self):
+        for change in ('missing', 'foreign-pill', 'nonrunning', 'foreign-stream'):
+            with self.subTest(change=change):
+                facts = copy.deepcopy(self.stress)
+                switch = facts['stages'][0]['switches'][0]
+                if change == 'missing':
+                    switch.pop('progress')
+                elif change == 'foreign-pill':
+                    switch['progress']['ui']['panes'][0]['pills'][0]['tabId'] = 'page-0'
+                elif change == 'nonrunning':
+                    switch['progress']['state']['tasks'][1]['phase'] = 'completed'
+                else:
+                    facts['stages'][0]['streams'][1]['tabId'] = 'page-5'
+                with self.assertRaises(ValueError):
+                    CHECK.verify_stress(self.files.__getitem__, facts)
+
+    def test_stress_task_pixel_region_is_bound_to_the_actual_pill_and_native_dock(self):
+        for change in ('missing-reference', 'foreign-region', 'native-cover'):
+            with self.subTest(change=change):
+                facts = copy.deepcopy(self.stress)
+                switch = facts['stages'][0]['switches'][0]
+                if change == 'missing-reference':
+                    switch['capture'].pop('shell')
+                elif change == 'foreign-region':
+                    switch['capture']['shell']['regions'][0]['bounds']['x'] += 1
+                else:
+                    switch['capture']['native'][0]['bounds']['y'] = 25
+                with self.assertRaisesRegex(ValueError, 'bound to the actual owning task pill|covers its owning task pill'):
+                    CHECK.verify_stress(self.files.__getitem__, facts)
+
+    def test_rehashed_native_page_pixels_cannot_cover_the_stress_task_pill(self):
+        for forge_reference in (False, True):
+            with self.subTest(forge_reference=forge_reference):
+                facts = copy.deepcopy(self.stress)
+                captured = facts['stages'][0]['switches'][0]['capture']
+                image = CHECK.decode_png(self.files[captured['filename']])
+                box = captured['shell']['regions'][0]['bounds']
+                for y in range(box['y'], box['y'] + box['height']):
+                    for x in range(box['x'], box['x'] + box['width']):
+                        offset = (y * image['width'] + x) * 4
+                        image['pixels'][offset:offset + 4] = bytes([240, 237, 225, 255])
+                wrong = png(image['width'], image['height'], image['pixels'])
+                files = {**self.files, captured['filename']: wrong, captured['displayFilename']: wrong}
+                captured['sha256'] = captured['displaySha256'] = CHECK.digest(wrong)
+                if forge_reference:
+                    files[captured['shell']['filename']] = wrong
+                    captured['shell']['sha256'] = CHECK.digest(wrong)
+                with self.assertRaisesRegex(ValueError, 'OS task pill differs|blank rectangle'):
+                    CHECK.verify_stress(files.__getitem__, facts)
+
+    def test_fifty_page_hidden_streams_cannot_claim_visible_pills(self):
+        facts = copy.deepcopy(self.stress)
+        row = facts['stages'][1]
+        switch = row['switches'][0]
+        switch['progress']['ui']['panes'][0]['pills'] = [copy.deepcopy(self.stress['stages'][0]['switches'][0]['progress']['ui']['panes'][0]['pills'][0])]
+        with self.assertRaisesRegex(ValueError, 'hidden stream owners need no visible pills'):
+            CHECK.verify_stress(self.files.__getitem__, facts)
+
+    def test_task_shell_still_requires_two_pills_by_default(self):
+        captured = copy.deepcopy(self.task['themes'][0]['capture'])
+        captured['shell']['regions'].pop()
+        image = CHECK.decode_png(self.files[captured['filename']])
+        with self.assertRaisesRegex(ValueError, '2 real task pills'):
+            CHECK.verify_shell(self.files.__getitem__, captured, image)
 
     def test_reload_and_form_loss_fail_even_when_native_id_is_reused(self):
         before = owned(7)

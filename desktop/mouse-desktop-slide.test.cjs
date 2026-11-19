@@ -68,7 +68,7 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
   assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'target-pane'},slots:{'target-pane':'target-page'},active:'target-pane',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
  }};
- const context={m:model,N,desktopUI,deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:{validate:tree=>tree,leaves:tree=>[tree.id]},prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,'hidden');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:{validate:tree=>tree,leaves:tree=>[tree.id]},prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  vm.runInNewContext(browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
@@ -90,5 +90,16 @@ test('ordinary renderer desktop switch still closes Nora, library and native pan
   const f=rendererSwitchFixture({focus,library:true}),result=await f.run(false);assert.equal(result.borrowedHold,false);assert.equal(result.phase,'complete');
   for(const action of ['nora.close','browsing.close','restorePane','window:pane-restore'])assert.ok(f.events.indexOf(action)>=0&&f.events.indexOf(action)<f.events.indexOf('stage:outgoing'));
   assert.equal(f.desktopUI.isOpen,false);assert.equal(f.model.libraryOpen,false);assert.equal(f.model.focusPane,'');assert.equal(f.model.focusAI,false);assert.equal(f.model.switching,false);
+ }
+});
+
+test('renderer prepares incoming progress ownership under the cover before its existing native layout',async()=>{
+ for(const keepNora of [false,true]){
+  const f=rendererSwitchFixture({focus:'',library:false}),result=await f.run(keepNora);
+  assert.equal(f.events.filter(event=>event==='progress.prepare').length,1);
+  assert.ok(f.events.indexOf('progress.prepare')>f.events.indexOf('renderTree'));
+  assert.ok(f.events.indexOf('progress.prepare')<f.events.indexOf('layout'));
+  assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));
+  assert.equal(f.events.filter(event=>event==='layout').length,2);assert.equal(result.layoutCalls,2);
  }
 });

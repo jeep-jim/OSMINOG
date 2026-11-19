@@ -20,6 +20,28 @@ module.exports=async ctx=>{
   const failure=(_event,details)=>facts.renderFailures.push({tabId:record.id,index:record.index,event:'render-process-gone',details,stage:currentStage});wc.on('render-process-gone',failure);restorers.push(()=>wc.removeListener('render-process-gone',failure));
  }
  async function readAll(records){return Promise.all(records.map(record=>fixture.identity(record)));}
+ async function progressUI(){
+  return fixture.js(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{desk:MouseTest.model.desktopId,panes:[...document.querySelectorAll('.pane')].map(p=>{const dock=p.querySelector('.mouse-pane-progress');return{pane:p.dataset.pane,tabId:MouseTest.model.slots[p.dataset.pane]||'',header:rect(p.querySelector('.pane-head')),slot:rect(p.querySelector('.page-slot')),dock:dock?{hidden:dock.hidden,bounds:rect(dock)}:null,pills:dock?[...dock.querySelectorAll('.mouse-progress-pill')].filter(e=>!dock.hidden&&!e.hidden&&e.getBoundingClientRect().width>0&&e.getBoundingClientRect().height>0).map(e=>({id:e.dataset.progressId,taskId:e.dataset.taskId,tabId:e.dataset.tabId,desk:e.dataset.desk,phase:e.dataset.phase,kind:e.dataset.kind,indeterminate:e.dataset.indeterminate,value:e.querySelector('.mouse-progress-value').textContent,bounds:rect(e)})):[]};})};})()`);
+ }
+ async function switchProgress(total,owner,running,visible,entry){
+  const state=await fixture.js('MouseNative.progress("state")'),ui=await progressUI();
+  entry.progress={streamId:owner.id,state,ui};
+  assert.equal(ui.desk,owner.desk);assert.equal(state.tasks.length,5,'Exactly the five real HTTP stream tasks remain running');
+  for(const stream of running){const found=state.tasks.filter(task=>task.tabId===stream.tabId&&task.taskId==='stream-'+stream.id);assert.equal(found.length,1);assert.equal(found[0].phase,'running');assert.equal(found[0].desk,stream.desk);}
+  assert.deepEqual(ui.panes.map(p=>p.tabId).sort(),visible.map(record=>record.id).sort());
+  const pills=ui.panes.flatMap(pane=>pane.pills.map(pill=>({pane,pill}))),regions=[];
+  assert.equal(pills.length,total===20?1:0,'Only a visible stream owner may display its task pill');
+  if(total===20){
+   const {pane,pill}=pills[0],task=state.tasks.find(task=>task.tabId===owner.tabId&&task.taskId==='stream-'+owner.id),native=fixture.nativeState(visible.find(record=>record.id===owner.tabId));
+   assert.equal(pane.tabId,owner.tabId);assert.equal(pill.tabId,owner.tabId);assert.equal(pill.id,task.id);assert.equal(pill.taskId,task.taskId);assert.equal(pill.desk,owner.desk);assert.equal(pill.phase,'running');assert.equal(pill.indeterminate,'true');assert.equal(pill.value,'…');
+   assert.equal(pane.dock.hidden,false);const box=pill.bounds,dock=pane.dock.bounds;
+   assert.ok(box.width>0&&box.height>0&&box.x>=dock.x&&box.y>=dock.y&&box.x+box.width<=dock.x+dock.width&&box.y+box.height<=dock.y+dock.height,'The complete task pill belongs to its actual dock');
+   assert.ok(Math.abs(dock.y-(pane.header.y+pane.header.height))<=1&&Math.abs(pane.slot.y-(dock.y+dock.height))<=1,'The task dock is between its own address row and page');
+   assert.ok(Math.abs(native.bounds.y-pane.slot.y)<=1&&native.bounds.y>=box.y+box.height-1,'The actual native page cannot cover its task pill');
+   regions.push({label:'Actual running HTTP stream task '+owner.id,bounds:box});
+  }
+  return{evidence:{streamId:owner.id,state,ui},regions};
+ }
  async function rendererMonitor(start){
   if(start){await fixture.js(`(()=>{const s=globalThis.__mouse631Frames={running:true,count:0,gaps:[],max:0,longTasks:[]};let last;const tick=t=>{if(!s.running)return;if(last!==undefined){const gap=t-last;s.gaps.push(gap);if(s.gaps.length>4096)s.gaps.shift();s.max=Math.max(s.max,gap);}last=t;s.count++;s.raf=requestAnimationFrame(tick);};s.raf=requestAnimationFrame(tick);s.observer=new PerformanceObserver(list=>{for(const task of list.getEntries()){s.longTasks.push({startTime:task.startTime,duration:task.duration});if(s.longTasks.length>128)s.longTasks.shift();}});s.observer.observe({type:'longtask',buffered:false});return true;})()`);frameMonitorStarted=true;return;}
   const result=await fixture.js(`(()=>{const s=globalThis.__mouse631Frames;s.running=false;cancelAnimationFrame(s.raf);s.observer.disconnect();return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks};})()`);frameMonitorStarted=false;result.gapDistribution=distribution(result.gaps);delete result.gaps;return result;
@@ -89,7 +111,8 @@ module.exports=async ctx=>{
     await fixture.switchDesk(id);const elapsedMs=performance.now()-start;assert.ok(elapsedMs<12000);
     const slide=await fixture.js('structuredClone(MouseDesktopSlide.last)');assert.equal(slide.phase,'complete');assert.equal(slide.animated,true);assert.equal(slide.decoded,true);
     const visible=groups[d].slice(0,4),entry={sequence:n+1,from:desks[n%5],to:id,elapsedMs,slide,counts:Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-countsBefore[key]])),layoutCalls:(browser.mouseLayoutCalls||0)-layoutBefore,surfaceCalls:captureCalls.slice(callsBefore),visiblePageIds:visible.map(record=>record.id)};row.switches.push(entry);
-    entry.capture=await fixture.captureContent('mouse-631-stress-'+target+'-switch-'+(n+1)+'.png',visible);facts.captures.push(entry.capture.filename);await save();
+    const progress=await switchProgress(target,running[d],running,visible,entry);
+    entry.capture=await fixture.captureContent('mouse-631-stress-'+target+'-switch-'+(n+1)+'.png',visible,{shellRegions:progress.regions});facts.captures.push(entry.capture.filename);await save();
    }
    operation='nora';await fixture.js('MouseTest.desktopUI.open()');await fixture.until(()=>fixture.js('MouseTest.desktopUI.isOpen&&MouseTest.desktopUI.holdsNative&&!MouseTest.desktopUI.isPreparing'),'Nora opens over live background streams');
    const noraBefore=await Promise.all(running.map(stream=>fixture.pageJS(owned.find(record=>record.id===stream.tabId),'mouse631.stream.chunks.length')));await sleep(650);

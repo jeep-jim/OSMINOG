@@ -145,7 +145,7 @@
    // A background swipe keeps the native window and sidebar geometry stable.
    // Keep fullscreen ownership represented in the UI until its normal exit.
    m.focusAI=!!(keepOpen&&oldFocusAI&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen);m.focusPane=keepOpen&&(oldFocusPane||oldFocusAI&&!m.focusAI)?m.active:'';
-   renderTree();renderAISites();applySide();desktopUI?.render(m.state.desktops);
+   renderTree();renderAISites();applySide();desktopUI?.render(m.state.desktops);progressUI?.prepareLayout();
    }});
   })().finally(()=>{m.switching=false;requestLayout();});
   deskSwitch=operation.catch(()=>{});return operation;

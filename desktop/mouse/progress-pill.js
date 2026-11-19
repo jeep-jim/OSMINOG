@@ -27,7 +27,7 @@
   return result;
  }
  function createMouseProgressPills({N,model,layout,status,frozen=()=>false,extraTasks=()=>[],onDismissTask=()=>{},openDownloads=()=>{},now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}){
-  let state={tasks:[]},rendering=false,tick=null;const hosts=new Map(),nodes=new Map(),selected=new Map(),selectedManual=new Set();
+  let state={tasks:[]},rendering=false,tick=null,renderedDesk='';const hosts=new Map(),nodes=new Map(),selected=new Map(),selectedManual=new Set();
   const tasks=()=>{const extra=extraTasks();return[...(Array.isArray(extra)?extra.filter(task=>task.source==='download').slice(0,36):[]),...(Array.isArray(state.tasks)?state.tasks.slice(0,88):[])];};
   const stopTick=()=>{if(tick!==null)clearTimer(tick);tick=null;};
   function syncTick(active){if(!active||frozen()||document.visibilityState==='hidden'){stopTick();return;}if(tick===null)tick=setTimer(()=>{tick=null;render();},1000);}
@@ -63,8 +63,8 @@
    const meter=node.querySelector('.mouse-progress-meter');meter.setAttribute('aria-valuemin','0');meter.setAttribute('aria-valuemax','100');if(finite)meter.setAttribute('aria-valuenow',String(task.percent));else meter.removeAttribute('aria-valuenow');meter.setAttribute('aria-valuetext',(finite?Math.round(task.percent)+'%'+qualifier:'Процент неизвестен')+' · '+description+(time.text?' · '+time.text:''));meter.setAttribute('aria-label',source);
    node.title=source+qualifier+'\n'+description+(time.text?'\n'+time.text:'');
   }
-  function render(next=state){
-   state=next||{tasks:[]};if(rendering)return;if(!model.ready||frozen()||document.visibilityState==='hidden'){stopTick();return;}
+  function paintState(preparing=false){
+   if(rendering)return;if(!model.ready||(!preparing&&frozen())||document.visibilityState==='hidden'){stopTick();return;}
    rendering=true;let geometryChanged=false,timedTask=false;
    try{
     const visible=panels(),assigned=assignTasks(tasks(),{desk:model.desktopId,privateMode:model.privateMode,panels:visible}),wanted=new Set(),keys=new Set(visible.map(p=>p.key));
@@ -87,16 +87,24 @@
      host.next.hidden=values.length<2;setText(host.next,(Math.max(0,values.indexOf(current))+1)+'/'+values.length);host.next.setAttribute('aria-label','Следующая задача, '+host.next.textContent);
      const hidden=!values.length;if(host.dock.hidden!==hidden){host.dock.hidden=hidden;geometryChanged=true;}panel.element.classList.toggle('has-pane-progress',!hidden);
     }
-    for(const [id,node]of nodes)if(!wanted.has(id)){node.remove();nodes.delete(id);}
+    for(const [id,node]of nodes)if(!wanted.has(id)){node.remove();nodes.delete(id);}renderedDesk=model.desktopId;
    }finally{rendering=false;}
-   syncTick(timedTask);
-   if(geometryChanged)layout();
+   if(preparing)stopTick();else{syncTick(timedTask);if(geometryChanged)layout();}
+  }
+  function render(next=state){state=next||{tasks:[]};paintState();}
+  function prepareLayout(){
+   // A switched desktop has new pane DOM. Install its already-known docks
+   // under the transition cover, before the one awaited incoming layout.
+   // Live updates and stationary Nora holds remain frozen; this is once per
+   // changed owner and never starts a timer or requests another native layout.
+   if(!model.switching||!model.desktopSliding||renderedDesk===model.desktopId)return;
+   paintState(true);
   }
   N.onProgress(render);void N.progress('state').then(render).catch(()=>{});
   const updateProgress=(percent,statusText,options={})=>N.progress('update',{percent,statusText,taskId:options?.taskId,phase:options?.phase,etaSeconds:options?.etaSeconds,tabId:model.slots[model.active]||model.aiId||''});
   root.MouseAgent=Object.freeze({updateProgress});if(!('browser' in root))root.browser=Object.freeze({setProgress:updateProgress});
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopTick();else render();});root.addEventListener?.('pagehide',stopTick);
-  return{render,panels};
+  return{render,panels,prepareLayout};
  }
  if(typeof module==='object'&&module.exports)module.exports={assignTasks,formatTaskTime};else root.createMouseProgressPills=createMouseProgressPills;
 })(globalThis);

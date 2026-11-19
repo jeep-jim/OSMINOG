@@ -170,3 +170,65 @@ Mac artifact14554795203, SHA-256
 блокера; прежние pixel/identity/Nora gates и таймауты сохранены.
 Точные Mac units первого run:176/176base;751PASS+6platformSKIP Mouse;
 12/12Python; retained selected639PASS+2SKIP. Новая нативная проверка обязательна.
+
+## Второй нативный прогон — воспроизведён дефект размеров кадра
+
+Source `306a2ea2c395aef6986c8fd8e25059716690d360`, tree
+`889f2787bd883c68f471ee4d2069a1aec129378f`, исправил оба fixture blockers.
+В [Mac44571090518/job135726010376](https://github.com/jeep-jim/OSMINOG/actions/runs/44571090518/job/135726010376)
+измерены display1024×768, workArea(0,25)1024×684, window/content(4,29)1016×676,
+minimum800×600. Task-only прошёл. Из20живых страниц выполнены4animated/decoded
+перехода; пятый desk5→desk1 остановлен `png-dimensions` для WC4/page0:
+requested505×273, остальные3page captures завершены. Отклонённый PNG dimension
+в старом диагностическом row не сохранён; прежний viewport505×245 нельзя
+выдавать за размер этого PNG. GPU mailbox сообщения сами по себе не доказывают
+причину. Artifact14555290146 SHA-256:
+`ce0897a3ab594c26499a21faa50a449c25a995793d661e1499efbb88735530a2`.
+
+[Windows44571090438/job135726011132](https://github.com/jeep-jim/OSMINOG/actions/runs/44571090438/job/135726011132)
+прошёл176/176base и765/765Mouse без пропусков, настоящий629→631 profile и
+task-only. Независимый task review снова прошёл15cases/2themes/3OS captures/
+60pixelprobes. Первые4stress перехода прошли по40OS probes каждый, с временами
+559.94/566.88/560.26/563.58ms. Это измерения контрольного сценария, не сравнение
+с Chrome. Пятый incoming capture22 отклонён для WC4:requested505×295,
+`png-dimensions`; прежний успешный outgoing был505×267, rejected PNG size
+неизвестен. Нагрузка50ещё не началась. Motionbefore=true/normal=false/
+restored=true; cleanup20pages прошёл. Artifact14554559188:11062414bytes,
+SHA-256 `f51d5126aa8c8b8aa1a06e50dce6d38233830fa0e04b2219c16cd1b641644e03`.
+
+На Windows OS-снимке четвёртого перехода root и verifier увидели повторный
+заголовок page16 в полосе28px над документом; это отдельное наблюдение, которое
+цветовые области ниже в странице не обнаруживали. Проверка видимой task pill
+после переключения должна быть добавлена к независимому pixel gate.
+
+Code review установил дополнительное изменение геометрии: slide выставляет
+`desktopSliding`, incoming renderTree пересоздаёт pane DOM без task dock,
+а обычный progress render откладывается до снятия флага. Поэтому incoming
+layout измеряет страницу без28pxплашки, после анимации добавляет её и снова
+меняет viewport. Исправление готовит уже известные owning docks до единственного
+awaited incoming layout, сохраняя заморозку live updates и Nora hold. Кроме
+того, native capture должен отбрасывать кадр другой геометрии и ограниченно
+повторять съёмку при неизменных владельце/epoch/desk/viewport. Прежние2500ms,
+8попыток, лимиты памяти и запрет масштабирования/подстановки старого кадра
+сохраняются. Оба source-пакета306 отклонены; публикация не выполнялась.
+
+Исправления этого дефекта готовы: `prepareLayout()` ставит известный task dock
+нового стола перед incoming layout, без дополнительного native layout/таймера;
+обычные обновления остаются заморожены до конца перехода. Native capture
+ограниченно повторяет чтение валидного кадра прежнего размера. Больший кадр
+отбрасывается по metadata до PNG/bitmap и не увеличивает reservation; неверный
+scale, повреждённый PNG и абсолютное превышение бюджета не повторяются.
+Cancellation/identity/privacy guards проверены для всех трёх причин retry.
+Оба продуктовых diff независимо просмотрены.
+
+Новый stress gate проверяет после каждого20-page switch не только цветовые
+области страницы, но и все пиксели единственной видимой task pill: main task,
+stream owner, DOM/native bounds и shell-reference связаны. На50-page этапе
+владельцы пяти потоков скрыты и видимых pills должно быть0. Прежний task-only
+gate продолжает требовать2pills. Новые отрицательные tests отвергают native
+cover, missing/foreign owner и заменённый PNG даже с новым SHA.
+Checker source и Releases побайтно совпадают, новый SHA-256:
+`91cb74d4d6597eec9a81c0207ab4921d3e0926d3be6c8017ac4d0e2a68bfa6be`.
+17/17Python contracts прошли; предыдущие12cases сохранены. Общий локальный
+Mouse gate после объединения:774tests,768PASS,0FAIL,6platformSKIP,
+6039.422686ms. Настоящая проверка обоих установленных пакетов ещё требуется.
