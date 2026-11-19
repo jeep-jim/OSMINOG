@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#064579"><meta name="color-scheme" content="dark"><meta name="apple-mobile-web-app-capable" content="yes"><title>OSMINOG — океан намерений</title><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/design/eye-original.svg" type="image/svg+xml"><link rel="stylesheet" href="/ocean.css"><script src="/ocean.js" defer></script></head>
+<body>
+<section id="splash" class="splash-screen" aria-label="OSMINOG welcome">
+  <div class="splash-water" aria-hidden="true"></div>
+  <div class="splash-life" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <header class="splash-header">
+    <img class="splash-star" src="/design/star-idle.svg" alt="">
+    <img class="splash-wordmark" src="/design/wordmark.svg" alt="OSMINOG">
+  </header>
+  <label class="language-pill">
+    <span class="sr" id="languageLabel">Выбери язык</span>
+    <select id="welcomeLanguage" aria-labelledby="languageLabel">
+      <option value="ru">Русский</option><option value="en">English</option>
+      <option value="zh">中文（简体）</option><option value="ja">日本語</option>
+      <option value="ko">한국어</option><option value="ar">العربية</option>
+      <option value="es">Español</option><option value="pt">Português</option>
+      <option value="de">Deutsch</option><option value="fr">Français</option>
+    </select>
+    <span class="language-orb" aria-hidden="true"></span>
+  </label>
+  <div class="splash-poem" id="splashPoem" lang="ru" aria-live="polite">
+    <p>Разбуди меня от сна</p><p>просто потянув тачскрин</p><p>я подниму с морского дна</p><p>то, что скрывает глубина</p>
+  </div>
+  <p class="splash-hint" id="splashHint">Потяни экран, чтобы войти</p>
+  <button id="splashWake" class="splash-eye" type="button" aria-label="Разбудить OSMINOG"><span></span></button>
+</section>
+<div id="scene"><div id="water" aria-hidden="true"></div><div id="plankton" aria-hidden="true"></div>
+<header><button id="star" aria-label="Профиль и настройки"><img src="/design/star-idle.svg" alt=""></button><img class="wordmark" src="/design/wordmark.svg" alt="OSMINOG"></header>
+<div id="navigation" hidden><button id="back" aria-label="Назад">‹</button><div><strong id="viewTitle"></strong><small id="viewHint"></small></div></div>
+<main id="viewport"><div id="welcome"><p>Что у тебя сейчас?</p><small>Запиши намерение.<br>Пузырь рядом с ним — твой магнит.</small><button id="welcomeLogin">Войти в свой океан</button></div><div id="messages" aria-live="polite"></div></main>
+<div id="notice" role="status" hidden></div><footer><div id="options"><label><span class="sr">Видимость намерения</span><select id="audience"><option value="private">Только мне</option><option value="ocean">В океан · участникам пилота</option></select></label><label><span class="sr">Тип намерения</span><select id="kind"><option value="discuss">Обсудить</option><option value="seek">Ищу</option><option value="offer">Предлагаю</option><option value="together">Вместе</option></select></label></div><div id="attachmentPreview" hidden></div>
+<div id="dock"><button id="attach" class="orb attach" aria-label="Добавить вложение"><i></i><i></i><i></i></button><form id="composer"><textarea id="text" rows="1" maxlength="2000" aria-label="Текст намерения" placeholder="Что у тебя сейчас?"></textarea><button id="eye" type="submit" aria-label="Отправить"><span><b></b></span></button></form></div></footer>
+</div>
+<dialog id="profile"><div class="sheetTitle"><h2>OSMINOG</h2><button data-close aria-label="Закрыть">×</button></div><p class="muted">Океан намерений · закрытый пилот</p>
+<form id="authForm"><p id="authError" role="alert"></p><label>Логин<input id="login" autocomplete="username" pattern="[a-zA-Z0-9_]{3,32}" required maxlength="32"></label><label>Пароль<input id="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required></label><div id="registration" hidden><label>Имя<input id="name" maxlength="48" autocomplete="nickname"></label><label>Приглашение<input id="invite" autocomplete="off"></label></div><button class="primary" id="authSubmit" type="submit">Войти</button><button type="button" id="toggleRegister">Есть приглашение? Создать аккаунт</button><small>В пилоте нет восстановления пароля. Сохрани его в менеджере паролей.</small></form>
+<form id="profileForm" hidden><label>Имя<input id="profileName" maxlength="48" required></label><label>Твой планктон<select id="avatar"><option value="plankton">Планктон</option><option value="jelly">Медуза</option><option value="star">Звезда</option></select></label><label class="toggle"><input type="checkbox" id="aiConsent">ИИ-подбор REG</label><small>Разрешаю передавать REG текст моих активных намерений «В океан» для подбора по смыслу. Личные записи, черновики, беседы и вложения не передаются. Выключение прекращает новые отправки, но не отзывает уже переданные данные.</small><small id="aiStatus"></small><button type="submit" class="primary">Сохранить профиль</button><button id="conversations" type="button">Мои беседы</button><button id="logout" type="button">Выйти</button></form>
+<label class="toggle"><input type="checkbox" id="motion">Планктон и движение</label><label class="theme-setting">Тема океана<select id="themeChoice"><option value="dark">Тёмный океан</option><option value="blue">Голубой океан</option></select></label><p class="muted">По умолчанию магнит подбирает по словам. ИИ REG используется только с отдельным разрешением и при доступном подключении; его оценки могут ошибаться. Намерения активны 24 часа; черновик никому не виден.</p><button id="update" hidden>Обновить APK</button><small id="version">0.3.0-pilot.4</small></dialog>
+<dialog id="attachments"><div class="sheetTitle"><h2>Добавить</h2><button data-close aria-label="Закрыть">×</button></div><button id="choosePhoto">Фото</button><button id="camera">Камера</button><button id="chooseFile">Файл · PDF или TXT</button><label>Ссылка<input id="link" type="url" placeholder="https://…"></label><button id="addLink">Прикрепить ссылку</button><small>Одно вложение до 2 МБ. Геометаданные фото удаляются сервером. В беседе пилота доступны текст и ссылки.</small></dialog>
+<dialog id="cameraSheet"><div class="sheetTitle"><h2>Камера</h2><button data-close aria-label="Закрыть камеру">×</button></div><video id="video" autoplay muted playsinline></video><button id="capture" class="primary">Сделать снимок</button><small>Кадр прикрепится к черновику. Отправится только вместе с намерением.</small></dialog>
+<input type="file" id="file" hidden accept="image/jpeg,image/png,application/pdf,text/plain">
+</body></html>

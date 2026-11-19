@@ -1,0 +1,91 @@
+name: OSMINOG intention ocean — web and APK candidate
+on:
+  push:
+    branches: ['feat/intent-ocean-*']
+    paths: ['mobile-web/**', 'services/intent-ocean/**', 'tests/ocean/**', 'android-ocean/**', 'infra/intent-ocean/**', '.github/workflows/intent-ocean.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: intent-ocean-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.13'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: pip install -r services/intent-ocean/requirements.txt playwright==1.62.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Validate shared code, backend access boundaries and real two-context flow
+        run: |
+          python mobile-web/build.py
+          node --check mobile-web/ocean.js
+          node --check mobile-web/sw.js
+          python -m unittest discover -s tests/ocean -p 'test_*.py' -v
+          python tests/ocean/browser.py
+      - name: Build isolated server image, without deploying
+        run: docker build -f infra/intent-ocean/Dockerfile -t osminog-ocean:${{ github.sha }} .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ocean-web-verification
+          path: artifacts/ocean/
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.13'}
+      - run: pip install -r services/intent-ocean/requirements.txt && python mobile-web/build.py
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Build shared-asset APK and lint
+        working-directory: android-ocean
+        run: gradle :app:assembleDebug :app:assembleRelease :app:lintDebug :app:assembleDebugAndroidTest
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back emulated
+          working-directory: android-ocean
+          script: gradle :app:connectedDebugAndroidTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ocean-android-unsigned-candidate
+          path: |
+            android-ocean/app/build/outputs/apk/release/app-release-unsigned.apk
+            android-ocean/app/build/reports/
+            android-ocean/app/build/outputs/androidTest-results/
+  package:
+    needs: [web, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.13'}
+      - run: |
+          pip install -r services/intent-ocean/requirements.txt
+          python mobile-web/build.py
+          mkdir -p dist
+          tar -czf dist/osminog-ocean-source.tar.gz mobile-web services/intent-ocean android-ocean infra/intent-ocean tests/ocean
+          sha256sum dist/osminog-ocean-source.tar.gz > dist/SHA256SUMS.txt
+          git rev-parse HEAD > dist/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ocean-pilot-source
+          path: dist/
