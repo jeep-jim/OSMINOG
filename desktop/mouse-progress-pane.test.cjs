@@ -14,6 +14,10 @@ test('agent and terminal attach only to their panel; private mode exposes no tas
  const result=mapping(tasks);assert.deepEqual(result.get('agent').map(t=>t.id),['agent','terminal']);assert.deepEqual(result.get('right').map(t=>t.id),['shell']);assert.equal([...result.values()].flat().length,3);
  assert.equal([...mapping(tasks,panes.slice(0,2)).values()].flat().length,1);assert.equal([...mapping(tasks,panes,{privateMode:true}).values()].flat().length,0);
 });
+test('download tasks require the exact current privacy mode and retain their native tab and desk owner',()=>{
+ const download=(id,extra={})=>task(id,{source:'download',kind:'download',privateMode:false,percent:31,...extra}),normal=download('normal'),privateTask=download('private',{privateMode:true}),unmarked=download('unmarked',{privateMode:undefined}),foreign=download('foreign',{desk:'desk-2'}),hidden=download('hidden',{tabId:'hidden'}),reported=task('reported');
+ const tasks=[reported,normal,privateTask,unmarked,foreign,hidden];assert.deepEqual(mapping(tasks).get('left').map(task=>task.id),['normal','reported']);assert.deepEqual([...mapping(tasks,panes,{privateMode:true}).values()].flat().map(task=>task.id),['private']);
+});
 test('explicit tasks take priority over observed/loading indicators without inventing percentages',()=>{
  const tasks=[task('navigation',{kind:'navigation',percent:null,createdAt:0}),task('observed',{kind:'observed',percent:60,createdAt:1}),task('explicit',{percent:32,createdAt:2}),task('second',{percent:47,createdAt:3}),task('complete',{percent:100,phase:'completed',createdAt:0})],before=JSON.stringify(tasks);
  assert.deepEqual(mapping(tasks).get('left').map(t=>t.id),['explicit','second','complete','navigation','observed']);assert.equal(JSON.stringify(tasks),before);
@@ -26,8 +30,8 @@ test('explicit tasks take priority over observed/loading indicators without inve
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=name=>fs.readFileSync(path.join(__dirname,'mouse',name),'utf8');
 const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
-function fixture(){
- const observers=[],records=[],frames=new Map(),timers=new Map(),calls=[],errors=[];let sequence=0,restoreCount=0;
+function fixture(options={}){
+ const observers=[],records=[],frames=new Map(),timers=new Map(),calls=[],progressCalls=[],errors=[];let sequence=0,restoreCount=0;
  const descendants=node=>node.children.flatMap(child=>[child,...descendants(child)]);
  function matches(node,selector){
   if(node.nodeType!==1)return false;
@@ -74,19 +78,19 @@ function fixture(){
   }
  }
  const document={body:new Element('body'),createElement:tag=>new Element(tag),querySelector:selector=>document.body.querySelector(selector),querySelectorAll:selector=>document.body.querySelectorAll(selector),addEventListener(){}};
- for(const id of ['p1','p2']){const pane=document.createElement('section');pane.className='pane';pane.dataset.pane=id;document.body.append(pane);}
+ for(const id of ['p1','p2']){const pane=document.createElement('section');pane.className='pane';pane.dataset.pane=id;pane.innerHTML='<header class="pane-head"></header><div class="page-slot"></div>';document.body.append(pane);}
  class MutationObserver{constructor(callback){this.callback=callback;this.pending=[];this.queued=false;observers.push(this);}observe(target,options){this.target=target;this.options=options;}}
  const model={ready:true,desktopId:'desk-1',privateMode:false,slots:{p1:'a',p2:'b'},active:'p1',desktopSliding:false};let emit;
- const N={overlay:async()=>({}),progress:async()=>({tasks:[]}),onProgress:fn=>{emit=fn;},agent:async()=>{},browser:async(action,args)=>{calls.push({action,args});return true;}};
+ const N={overlay:async()=>({}),progress:async(action,args)=>{progressCalls.push({action,args});return{tasks:[]};},onProgress:fn=>{emit=fn;},agent:async()=>{},browser:async(action,args)=>{calls.push({action,args});return true;}};
  const context={document,MutationObserver,HTMLSelectElement:class{},N,m:model,MouseAgentBrand:{color:()=> '#32c76a',apply(){}},safe:fn=>Promise.resolve().then(fn).catch(error=>errors.push(error)),requestAnimationFrame:fn=>{const id=++sequence;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:fn=>{const id=++sequence;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id)};
  vm.createContext(context);vm.runInContext(source('overlays.js'),context);vm.runInContext(source('progress-pill.js'),context);
  const scheduler=source('browser.js').match(/let frame=0,layoutTimeout=0;function requestLayout\(\)\{[^\n]+\}/)?.[0];assert.ok(scheduler);
  vm.runInContext(scheduler+'\nasync function layoutNow(){progressUI.render();await N.browser("layout",{panels:[]});}',context);
  context.createMouseOverlays({N,restore:()=>{restoreCount++;context.requestLayout();},error:value=>errors.push(value)});
- context.progressUI=context.createMouseProgressPills({N,model,layout:context.requestLayout,status:()=>{},frozen:()=>model.desktopSliding});
+ context.progressUI=context.createMouseProgressPills({N,model,layout:context.requestLayout,status:()=>{},frozen:()=>model.desktopSliding,...options});
  async function flush(count=5){for(let i=0;i<count;i++){await microtasks();const pending=[...frames.values()];frames.clear();for(const fn of pending)fn();await microtasks();}assert.deepEqual(errors,[]);}
  const reset=()=>{calls.length=0;records.length=0;restoreCount=0;};
- return{model,document,ui:context.progressUI,emit:value=>emit(value),flush,reset,calls,records,observerOptions:()=>observers[0].options,restores:()=>restoreCount,async ready(){await flush();reset();}};
+ return{model,document,ui:context.progressUI,emit:value=>emit(value),flush,reset,calls,progressCalls,records,observerOptions:()=>observers[0].options,restores:()=>restoreCount,async ready(){await flush();reset();}};
 }
 const renderTask=(extra={})=>({id:'a-task',taskId:'a-task',desk:'desk-1',source:'page',tabId:'a',kind:'reported',phase:'running',createdAt:1,label:'example.test',percent:35,statusText:'Обработка',estimated:true,...extra});
 function idle(f){assert.equal(f.records.length,0,'No child replacement reaches the shipped overlay observer');assert.equal(f.restores(),0,'The unchanged DOM requests no overlay restoration');assert.equal(f.calls.length,0,'The feedback path schedules no native layout IPC');}
@@ -95,6 +99,43 @@ test('empty per-pane progress renders settle without a childList-driven layout l
  const f=fixture();await f.ready();assert.deepEqual(JSON.parse(JSON.stringify(f.observerOptions())),{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
  assert.equal(f.document.querySelectorAll('.mouse-pane-progress').length,2);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(node=>node.hidden));
  f.ui.render();await f.flush();idle(f);
+});
+test('page, AI and Agent pills occupy the slot immediately after their own header',async()=>{
+ const f=fixture();await f.ready();
+ const ai=f.document.createElement('aside');ai.id='ai-panel';ai.innerHTML='<div class="ai-controls"></div><div id="ai-slot"></div>';f.document.body.append(ai);
+ const agent=f.document.createElement('aside');agent.id='agent-panel';agent.hidden=true;agent.innerHTML='<header class="agent-heading"></header><div class="agent-scroll"></div><footer class="agent-footer"></footer>';f.document.body.append(agent);
+ f.model.aiOpen=true;f.model.aiId='chat';const tasks=[renderTask(),renderTask({id:'chat-task',tabId:'chat'}),renderTask({id:'agent-task',source:'agent',tabId:undefined})];f.emit({tasks});await f.flush();
+ const order=(element,header,content)=>{const dock=element.querySelector('.mouse-pane-progress');assert.ok(dock);assert.equal(element.children.indexOf(dock),element.children.indexOf(element.querySelector(header))+1);assert.equal(element.children.indexOf(element.querySelector(content)),element.children.indexOf(dock)+1);return dock;};
+ for(const pane of f.document.querySelectorAll('.pane'))order(pane,'.pane-head','.page-slot');
+ assert.equal(order(ai,'.ai-controls','#ai-slot').hidden,false);assert.equal(ai.querySelector('.mouse-progress-pill').dataset.tabId,'chat');
+ ai.hidden=true;agent.hidden=false;f.model.agentOpen=true;f.ui.render();await f.flush();
+ assert.equal(ai.querySelector('.mouse-pane-progress'),null);assert.equal(order(agent,'.agent-heading','.agent-scroll').hidden,false);assert.equal(agent.querySelector('.mouse-progress-pill').dataset.progressId,'agent-task');
+ f.reset();f.ui.render();await f.flush();idle(f);
+ f.model.privateMode=true;f.ui.render();await f.flush();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(dock=>dock.hidden));
+});
+test('the native layout starts below the header pill and keeps the pane bottom corners',async()=>{
+ const slot={x:8,y:104,width:420,height:360},calls=[],pane={dataset:{pane:'p1'},style:{getPropertyValue:()=> '12'},classList:{contains:name=>name==='has-pane-progress'},querySelector:()=>({getBoundingClientRect:()=>({...slot})})};
+ const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const layout=source('browser.js').match(/async function layoutNow\(\)\{[^\n]+\}/)?.[0];assert.ok(layout);await vm.runInNewContext(layout+'\nlayoutNow()',context);
+ assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'layout',args:{panels:[{id:'page',...slot,roundBottom:12,roundColor:'#43536b'}]}}]);
+});
+test('native download feedback shares the header pill without stealing a manual task selection',async()=>{
+ let downloads=[];const dismissed=[],opened=[],f=fixture({extraTasks:()=>downloads,onDismissTask:task=>{dismissed.push(task.id);downloads=downloads.filter(value=>value.id!==task.id);},openDownloads:task=>opened.push(task.id)});await f.ready();f.emit({tasks:[renderTask()]});await f.flush();
+ const download=extra=>renderTask({id:'download:native-id',taskId:'native-id',source:'download',kind:'download',privateMode:false,label:'report.pdf',estimated:false,percent:null,statusText:'Скачивается',downloadState:'downloading',createdAt:2,...extra});
+ downloads=[download()];f.ui.render();await f.flush();const dock=f.document.querySelector('.mouse-pane-progress'),selected=()=>dock.querySelectorAll('.mouse-progress-pill').find(node=>!node.hidden),next=dock.querySelector('.mouse-progress-next');let node=selected();
+ assert.equal(node.dataset.source,'download');assert.equal(node.querySelector('.mouse-progress-value').textContent,'…');assert.equal(node.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'),null);assert.equal(node.querySelector('.mouse-progress-mouse').hidden,true);assert.equal(node.querySelector('.mouse-progress-download-icon').textContent,'↓');assert.equal(node.querySelector('.mouse-progress-stop').hidden,true);assert.equal(node.querySelector('.mouse-progress-downloads').hidden,false);
+ next.onclick();await f.flush();assert.equal(selected().dataset.progressId,'a-task');downloads=[download({percent:52})];f.ui.render();await f.flush();assert.equal(selected().dataset.progressId,'a-task','A download update preserves the explicit Next selection');
+ next.onclick();await f.flush();node=selected();assert.equal(node.dataset.source,'download');assert.equal(node.querySelector('.mouse-progress-value').textContent,'52%');await node.querySelector('.mouse-progress-downloads').onclick();assert.deepEqual(opened,['download:native-id']);
+ downloads=[download({percent:52,phase:'stopped',downloadState:'cancelled',statusText:'Загрузка отменена'})];f.ui.render();await f.flush();assert.equal(selected().querySelector('.mouse-progress-value').textContent,'52%','Cancelling never fabricates 100%');assert.equal(selected().querySelector('.mouse-progress-download-icon').textContent,'×');
+ downloads=[download({percent:100,phase:'completed',downloadState:'completed',statusText:'Скачано'})];f.ui.render();await f.flush();assert.equal(selected().querySelector('.mouse-progress-value').textContent,'100%');assert.equal(selected().querySelector('.mouse-progress-download-icon').textContent,'✓');
+ f.reset();f.ui.render();await f.flush();idle(f);await selected().querySelector('.mouse-progress-dismiss').onclick();f.ui.render();await f.flush();assert.deepEqual(dismissed,['download:native-id']);assert.equal(f.progressCalls.filter(call=>call.action==='dismiss').length,0,'Transient download dismissal never goes to the agent progress store');assert.equal(selected().dataset.progressId,'a-task');
+ downloads=[download({privateMode:true})];f.ui.render();await f.flush();assert.equal(selected().dataset.progressId,'a-task');f.model.privateMode=true;f.ui.render();await f.flush();assert.equal(selected().dataset.source,'download');assert.equal(dock.querySelectorAll('.mouse-progress-pill').length,1,'Only the current private download remains visible');
+});
+test('a new running download immediately replaces an automatically selected completed download, while manual Next stays selected',async()=>{
+ const download=(id,extra={})=>renderTask({id,taskId:id,source:'download',kind:'download',privateMode:false,phase:'running',percent:20,...extra});let downloads=[download('download:old',{phase:'completed',percent:100})];
+ const f=fixture({extraTasks:()=>downloads});await f.ready();const dock=f.document.querySelector('.mouse-pane-progress'),selected=()=>dock.querySelectorAll('.mouse-progress-pill').find(node=>!node.hidden);assert.equal(selected().dataset.progressId,'download:old');
+ downloads.push(download('download:new',{createdAt:2}));f.ui.render();await f.flush();assert.equal(selected().dataset.progressId,'download:new','The completion TTL cannot hide activity from a new native download');
+ dock.querySelector('.mouse-progress-next').onclick();await f.flush();assert.equal(selected().dataset.progressId,'download:old');downloads.push(download('download:newer',{createdAt:3}));f.ui.render();await f.flush();assert.equal(selected().dataset.progressId,'download:old','A manual Next selection is not replaced by new activity');
 });
 test('unchanged active progress settles, while new percentage/status still reaches the owning pane',async()=>{
  const f=fixture();await f.ready();f.emit({tasks:[renderTask()]});await f.flush();assert.equal(f.document.querySelector('.mouse-progress-value').textContent,'35%');

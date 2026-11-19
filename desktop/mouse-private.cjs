@@ -60,7 +60,7 @@ class PrivateMode {
    const initialTab=await browser.command('open',{url:'mouse://start',lane:'main'});
    const initialPreferences=(await store.get('quadroPreferences')).quadroPreferences||{};
    await store.set({quadroPreferences:{...initialPreferences,slots:{p1:initialTab.id},active:'p1',tabOrder:[initialTab.id]}});
-   const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted,powerMonitor:this.e.powerMonitor});
+   const desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain:register,trusted,powerMonitor:this.e.powerMonitor,screen:this.e.screen});
    current.desktopService=desktopService;current.pageZoom=await require('./mouse-zoom.cjs').install({win,browser,store,ipcMain:register,trusted});
    register.handle('mouse:init',async event=>{trusted(event);return{privateMode:true,state:browser.state(),preferences:desktopService.preferences()};});
    register.handle('mouse:save',async(event,p,history)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p,history);});
@@ -84,7 +84,7 @@ class PrivateMode {
   for(const item of c.libraryService?.live.values()||[])item.cancel();
   c.browser.dispose();
   for(const [target,event,fn] of c.listeners)target.removeListener(event,fn);
-  if(c.libraryService){clearTimeout(c.libraryService.library.timer);c.libraryService.library.ready=false;c.libraryService.library.data={};}
+  if(c.libraryService){clearTimeout(c.libraryService.library.timer);c.libraryService.library.ready=false;c.libraryService.library.data={};c.libraryService.activity?.clear();}
   c.ses.removeAllListeners('will-download');
   await clearPrivateSession(c.ses);
   c.ses.setPermissionCheckHandler(null);c.ses.setPermissionRequestHandler(null);

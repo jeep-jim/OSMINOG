@@ -529,3 +529,16 @@ The exact 150-file / 9331638-byte CI package and matching helper are published a
 ## 2026-11-10 — owner authorizes lightweight storage reset
 
 After another browser termination report the owner explicitly supersedes the full-workspace restoration requirement. Chrome and new Windows/macOS packages shall contain only lightweight text/media collection, bounded canvas layout, complete text view/edit, media viewing and GPT/DeepSeek connection. Remove agent execution, embedded browsers, other AI providers and heavy creative tools from shipped runtime. Preserve existing archives; never auto-load a large legacy snapshot. Prepare Free 100 screenshots/month and Pro entitlements/archive export without taking payments. Desktop and extension are selectable future landing-page downloads, not the separate mobile ocean product. Record actual memory/test/build results; do not certify owner-device stability from Linux CI.
+
+## 2026-11-19 — Mouse Browser 6.0.29: уточнение владельца и полный выпуск
+
+Работа над лендингом остановлена по поручению владельца. Следующий выпуск сохраняет Mouse 6.0.28 и переносит аккуратную пилюлю под адресную строку каждой панели, добавляет видимую активность загрузок и подтверждение снимка затвором. Исправляется повторное снятие compositor hints между открытой Норой и закрытием; длительность и native gates сохранены. 6.0.28 уже опубликована и служит проверенным базовым DMG для реального обновления 6.0.28 → 6.0.29. Подробности, exact baseline, изменения и честный текущий статус: [Mouse 6.0.29](docs/desktop/2026-11-19-mouse629-feedback.md). Публикация нового кандидата — только после source и installed native gates, без замены старых assets.
+
+Уточнение того же поручения: вернуть точные цвета межпанельных прожилок6.0.27, Нору показывать поверх всех native pages, снять только её обводку. Трёхпальцевый маршрут отменён владельцем: нужны внутренние два пальца/wheel с сохранением прокрутки страниц. Эти исправления входят в6.0.29 до публикации; новые native foreground и wheel gates заменяют только отменённый gesture contract.
+
+
+### 19 ноября 2026 — согласование Mouse6.0.30 с принятым исправлением6.0.29
+
+Параллельный PR170 принят в main как `a5a773c16c2b342f9c7dfaf5334649e1da1f3eca` после полного native run44498720435 на exact72679ee907dda6e7ac134b1f01addee858c4e59a. Его отдельные6.0.29 пакеты принадлежат release PR51. Наш PR169 продолжает оставшиеся требования в6.0.30, сохраняя принятые native visibility/preview, дробные границы, цвета, Nora wheel/tutorial и site scrollbar fixes. Поверх них добавляются header progress pill, настоящая активность скачивания, screenshot shutter/success и trusted wheel на странице/при закрытой Норе. Нельзя публиковать второй набор6.0.29 под тем же tag или терять принятые изменения.
+
+Предыдущий наш source10/e41e7469, run44500891371, отклонён: retained616 выявил переопределение radius кнопки скачиваний12px вместо общего5px. Новые headers/feedback/Nora/wheel и неизменённая628 trace независимо прошли, но поздние restart/private/upgrade не выполнены. В6.0.30 удалён только этот CSS override; gate сохранён. Полный новый source и installed publisher обязательны. Подробности и фактический статус — [журнал630](docs/desktop/2026-11-19-mouse630-complete-feedback.md).

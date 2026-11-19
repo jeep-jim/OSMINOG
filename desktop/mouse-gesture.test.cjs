@@ -1,23 +1,28 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {install,KEY,CHANNEL,EVENT}=require('./mouse-gesture.cjs');
+const {install,KEY,CHANNEL,EVENT,PAGE_CHANNEL,PAGE_RECOGNIZER}=require('./mouse-gesture.cjs');
 const {installIPCSwitch}=require('./mouse-private-core.cjs');
 const {createMouseDesktopGesture}=require('./mouse/desktop-gesture.js');
+const Wheel=require('./mouse/desktop-wheel.js');
 
 async function fixture({completed=false,retiredCompleted=false}={}){
  const handlers=new Map(),writes=[],sent=[],timers=new Map(),data={[KEY]:{completed},mouseDesktopGestureHintV1:{completed:retiredCompleted},unrelated:{keep:true}};
- const ipcMain={handle:(name,handler)=>handlers.set(name,handler)};
+ const ipcMain=new EventEmitter();ipcMain.handle=(name,handler)=>handlers.set(name,handler);
  const win=new EventEmitter();win.webContents=new EventEmitter();win.isDestroyed=win.webContents.isDestroyed=()=>false;win.isFocused=()=>true;
  win.webContents.send=(channel,packet)=>{sent.push({channel,packet});win.webContents.emit(channel,packet);};
  const event={sender:win.webContents},router=installIPCSwitch(ipcMain,()=>win.webContents);
  let active='b',privateMode=null,busy=false,time=1000,nextTimer=0;
  const store={get:async key=>({[key]:structuredClone(data[key])}),set:async value=>{writes.push(structuredClone(value));Object.assign(data,structuredClone(value));}};
+ const normalPage={id:'normal',visible:true,nativeVisible:true,view:{webContents:{mainFrame:{},isDestroyed:()=>false,getURL:()=> 'https://fixture.example/'}}};normalPage.view.getVisible=()=>normalPage.nativeVisible;
+ const normalBrowser={tabs:new Map([[normalPage.id,normalPage]]),mouseDesktops:{bank:{members:{normal:'b'}}}};let browser=normalBrowser;
  const service={state:()=>({desktopId:active,desktops:{active,items:['a','b','c'].map(id=>({id,active:id===active}))}})};
- const controller=await install({win,store,ipcMain,trusted:e=>{if(e!==event)throw Error('Untrusted frame');},getContext:()=>({privateMode,busy,desktopService:service}),now:()=>time,setTimer:fn=>{const id=++nextTimer;timers.set(id,fn);return id;},clearTimer:id=>timers.delete(id)});
+ const controller=await install({win,store,ipcMain,trusted:e=>{if(e!==event)throw Error('Untrusted frame');},getContext:()=>({privateMode,busy,desktopService:service,browser}),now:()=>time,setTimer:fn=>{const id=++nextTimer;timers.set(id,fn);return id;},clearTimer:id=>timers.delete(id)});
  const command=(action,args)=>handlers.get(CHANNEL)(event,action,args);
  const wheel=direction=>command('wheel',{direction});
  const latest=()=>sent.filter(item=>item.channel===EVENT).at(-1)?.packet;
- return{win,store,handlers,event,router,controller,command,wheel,latest,now:()=>time,sent,writes,timers,data,advance:ms=>{time+=ms;},active:()=>active,setActive:id=>{active=id;},setBusy:value=>{busy=value;},privateSession:value=>{privateMode=value;router.use(value?new Map([[CHANNEL,router.normal.get(CHANNEL)]]):null);}};
+ const closedWheel=async(direction='left',scope='panel')=>{const deltaX=direction==='left'?56:-56;await command('wheel',{scope,deltaX,deltaY:0});time+=20;await command('wheel',{scope,deltaX,deltaY:0});};
+ const pageWheel=(p=normalPage,args={deltaX:56,deltaY:0},frame=p.view.webContents.mainFrame)=>ipcMain.emit(PAGE_CHANNEL,{sender:p.view.webContents,senderFrame:frame},{scope:'page',...args});
+ return{win,store,handlers,event,router,controller,command,wheel,closedWheel,pageWheel,normalPage,normalBrowser,ipcMain,latest,now:()=>time,sent,writes,timers,data,advance:ms=>{time+=ms;},active:()=>active,setActive:id=>{active=id;},setBusy:value=>{busy=value;},privateSession:value=>{privateMode=value;if(value){const p={id:'private',visible:true,view:{webContents:{mainFrame:{},isDestroyed:()=>false,getURL:()=> 'https://fixture.example/'},getVisible:()=>true}};browser={tabs:new Map([[p.id,p]]),mouseDesktops:{bank:{members:{private:'b'}}}};}else browser=normalBrowser;router.use(value?new Map([[CHANNEL,router.normal.get(CHANNEL)]]):null);return browser;}};
 }
 
 test('only trusted wheel requests while Nora is open dispatch the adjacent desktop',async()=>{
@@ -98,18 +103,22 @@ class Element{
  removeEventListener(name){this.listeners.delete(name);}
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function uiFixture({changeBank=true,fail=false,open=true}={}){
- const native=await fixture(),observers=[],oldDocument=global.document,oldObserver=global.MutationObserver;
+async function uiFixture({changeBank=true,fail=false,open=true,disabled=false}={}){
+ const native=await fixture(),observers=[],oldDocument=global.document,oldObserver=global.MutationObserver,oldWindow=global.window,windowListeners=new Map();
  global.document={createElement:()=>new Element()};global.MutationObserver=class{constructor(fn){this.fn=fn;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}};
+ global.window={document:global.document,innerHeight:800,performance:{now:native.now},getComputedStyle:node=>node.style||{overflowX:'visible',overflowY:'visible'},addEventListener:(name,fn)=>windowListeners.set(name,fn),removeEventListener:name=>windowListeners.delete(name)};
  const tray=new Element(),content=new Element(),model={desktopId:'b',state:{desktopId:'b'}},errors=[];tray.open=open;tray.hidden=!open;
  let calls=0,resolveSwitch,changed=0;
  const N={test:true,desktopGesture:native.command,onDesktopSwipe:fn=>{native.win.webContents.on(EVENT,fn);return()=>native.win.webContents.removeListener(EVENT,fn);}};
- const ui=createMouseDesktopGesture({N,tray,content,model,now:native.now,changed:()=>changed++,status:error=>errors.push(error),switchBehind:async id=>{calls++;assert.equal(tray.open,true);assert.equal(tray.hidden,false);await new Promise(resolve=>{resolveSwitch=resolve;});if(fail)throw Error('switch failed');model.desktopId=id;if(changeBank)native.setActive(id);return true;}});
+ const switchTarget=async(id,wasOpen)=>{calls++;assert.equal(tray.open,wasOpen);assert.equal(tray.hidden,!wasOpen);await new Promise(resolve=>{resolveSwitch=resolve;});if(fail)throw Error('switch failed');model.desktopId=id;if(changeBank)native.setActive(id);return true;};
+ const ui=createMouseDesktopGesture({N,tray,content,model,disabled:()=>disabled,now:native.now,changed:()=>changed++,status:error=>errors.push(error),switchBehind:id=>switchTarget(id,true),switchClosed:id=>switchTarget(id,false)});
  await ui.ready;
  const target={closest:selector=>selector==='.desktop-list,.desktop-gesture-hint'?target:null};
  const input=(values={})=>{const event={isTrusted:true,target,cancelable:true,defaultPrevented:false,deltaX:0,deltaY:0,deltaMode:0,preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;},...values};content.listeners.get('wheel')?.(event);return event;};
  const wheel=direction=>input({deltaX:direction==='left'?72:-72});
- return{...native,ui,tray,content,model,errors,input,wheel,calls:()=>calls,changes:()=>changed,finish:()=>resolveSwitch(),dispose:()=>{ui.dispose();native.controller.dispose();global.document=oldDocument;global.MutationObserver=oldObserver;}};
+ const control={nodeType:1,matches:selector=>selector==='#desktops-button'};
+ const windowInput=(values={})=>{const event={isTrusted:true,target:control,cancelable:true,defaultPrevented:false,deltaX:0,deltaY:0,deltaMode:0,composedPath:()=>[control],preventDefault(){this.defaultPrevented=true;},...values};windowListeners.get('wheel')?.(event);return event;};
+ return{...native,ui,tray,content,model,errors,input,wheel,windowInput,windowListeners,setDisabled:value=>{disabled=value;},calls:()=>calls,changes:()=>changed,finish:()=>resolveSwitch(),dispose:()=>{ui.dispose();native.controller.dispose();global.document=oldDocument;global.MutationObserver=oldObserver;global.window=oldWindow;}};
 }
 
 test('the hint stays until a panel wheel really changes the bank, then stays hidden after reopening Nora',async()=>{
@@ -203,4 +212,37 @@ test('closed Nora, system swipes and busy controls do not consume a new desktop 
  f.tray.open=true;f.tray.hidden=false;await f.ui.sync();f.model.switching=true;f.input({deltaX:120});await tick();assert.equal(f.calls(),0);assert.equal(f.sent.length,0);assert.equal(f.ui.diagnostics().learned,false);
  f.model.switching=false;f.advance(100);f.input({deltaX:70});await tick();assert.equal(f.calls(),0,'the tail of a gesture begun while busy cannot trigger a late switch');
  f.advance(300);f.input({deltaX:70});await tick();assert.equal(f.calls(),1);f.finish();await tick();await tick();f.dispose();
+});
+
+test('closed-Nora guest wheel authenticates the actual visible main frame, desktop and privacy session',async()=>{
+ const f=await fixture();f.pageWheel();f.advance(20);f.pageWheel();assert.equal(f.latest().source,'trusted-wheel');assert.equal(f.latest().surface,'page');assert.equal(f.latest().tabId,'normal');assert.equal(f.latest().to,'c');assert.equal(f.latest().gesture.count,2);await f.command('finish',{id:f.latest().id,changed:false});f.advance(500);const count=f.sent.length;
+ f.normalPage.visible=false;f.pageWheel();f.pageWheel();f.normalPage.visible=true;f.normalPage.nativeVisible=false;f.pageWheel();f.pageWheel();f.normalPage.nativeVisible=true;
+ f.pageWheel(f.normalPage,undefined,{});f.pageWheel(f.normalPage,undefined,{});f.normalBrowser.mouseDesktops.bank.members.normal='a';f.pageWheel();f.pageWheel();f.normalBrowser.mouseDesktops.bank.members.normal='b';assert.equal(f.sent.length,count);
+ const current=f.privateSession({}),privatePage=current.tabs.get('private');f.pageWheel();f.pageWheel();assert.equal(f.sent.length,count,'A normal guest cannot steer the private desktop bank');f.pageWheel(privatePage);f.advance(20);f.pageWheel(privatePage);assert.equal(f.latest().tabId,'private');f.setActive('c');assert.equal((await f.command('finish',{id:f.latest().id,changed:true})).learned,true);assert.equal(f.writes.length,0);f.privateSession({});assert.equal((await f.command('state')).learned,false);f.controller.dispose();assert.equal(f.ipcMain.listenerCount(PAGE_CHANNEL),0);
+});
+test('closed-shell intent has its own thresholds and preserves the accepted Nora tutorial key',async()=>{
+ const f=await fixture();assert.equal(KEY,'mouseDesktopWheelHintV2');assert.equal((await f.command('state')).recognizer,'two-finger-or-wheel');assert.equal(PAGE_RECOGNIZER,'horizontal-wheel-and-desktop-controls');
+ await f.command('wheel',{scope:'panel',deltaX:111,deltaY:0});assert.equal(f.sent.length,0);f.advance(16);await f.command('wheel',{scope:'panel',deltaX:4,deltaY:0});assert.equal(f.latest().gesture.axis,'x');assert.equal(f.latest().gesture.distance,115);f.setActive('c');assert.equal((await f.command('finish',{id:f.latest().id,changed:true})).completed,true);assert.deepEqual(f.writes,[{[KEY]:{completed:true}}]);
+ for(let i=0;i<15;i++){f.advance(40);await f.command('wheel',{scope:'control',deltaX:-64,deltaY:0});}assert.equal(f.sent.length,1,'The whole momentum tail remains in one burst');
+ f.advance(500);await f.command('wheel',{scope:'control',deltaX:0,deltaY:-64});assert.equal(f.latest().to,'b');assert.equal(f.latest().gesture.axis,'y');f.controller.dispose();
+});
+test('page input is blocked while Nora owns the modal route and rejects forged shell scopes',async()=>{
+ const f=await fixture();await f.command('context',{open:true});f.pageWheel();f.advance(20);f.pageWheel();await f.closedWheel();assert.equal(f.sent.length,0);
+ await assert.rejects(f.command('wheel',{scope:'page',deltaX:120,deltaY:0}),/область/);await f.command('context',{open:false});await f.command('wheel',{scope:'panel',deltaX:Infinity,deltaY:0});assert.equal(f.sent.length,0);
+ await f.closedWheel();const id=f.latest().id;await f.command('context',{open:true});f.setActive('c');assert.equal((await f.command('finish',{id,changed:true})).completed,false);assert.equal(f.writes.length,0);f.controller.dispose();
+});
+test('closed-shell controller switches without opening Nora and restores its listener on disposal',async()=>{
+ const f=await uiFixture({open:false});assert.equal(f.windowInput({deltaY:64}).defaultPrevented,true);await tick();assert.equal(f.calls(),1);assert.equal(f.latest().surface,'control');f.finish();await tick();await tick();assert.equal(f.tray.open,false);assert.equal(f.ui.diagnostics().lastResult.completed,true);assert.equal(f.ui.diagnostics().learned,true);f.dispose();assert.equal(f.windowListeners.size,0);
+});
+test('opening/closing and open Nora cannot consume closed-shell wheel',async()=>{
+ const f=await uiFixture({open:false,disabled:true});assert.equal(f.windowInput({deltaY:80}).defaultPrevented,false);await tick();assert.equal(f.calls(),0);f.setDisabled(false);f.tray.open=true;f.tray.hidden=false;await f.ui.sync();assert.equal(f.windowInput({deltaY:80}).defaultPrevented,false);await tick();assert.equal(f.calls(),0);f.dispose();
+});
+test('wheel normalization accepts only actual trusted unmodified finite input',()=>{
+ const event={isTrusted:true,deltaMode:0,deltaX:18,deltaY:1};assert.deepEqual(Wheel.normalize(event),{deltaX:18,deltaY:1});assert.deepEqual(Wheel.normalize({...event,deltaMode:1}),{deltaX:288,deltaY:16});for(const patch of [{isTrusted:false},{defaultPrevented:true},{ctrlKey:true},{metaKey:true},{altKey:true},{shiftKey:true},{deltaX:NaN},{deltaMode:9}])assert.equal(Wheel.normalize({...event,...patch}),null);
+});
+test('scrollable ancestors, editable controls and page handlers retain input, including a scroller edge',()=>{
+ const handlers=new Map(),sent=[],win={document:{},innerHeight:800,performance:{now:()=>0},addEventListener:(name,fn)=>handlers.set(name,fn),removeEventListener:name=>handlers.delete(name),getComputedStyle:node=>node.style||{overflowX:'visible',overflowY:'visible'}},tools=Wheel.listen({window:win,scope:()=> 'page',send:value=>sent.push(value)});let prevented=0;
+ const dispatch=(path,extra={})=>handlers.get('wheel')({isTrusted:true,deltaMode:0,deltaX:80,deltaY:0,cancelable:true,preventDefault(){prevented++;},composedPath:()=>path,...extra});
+ const scroll={nodeType:1,scrollWidth:800,clientWidth:200,scrollLeft:600,scrollHeight:100,clientHeight:100,style:{overflowX:'auto',overflowY:'hidden'},matches:()=>false};dispatch([scroll]);dispatch([scroll]);assert.equal(sent.length,0);assert.equal(prevented,0);
+ tools.reset();dispatch([],{deltaX:0,deltaY:80});assert.equal(sent.length,0);tools.reset();dispatch([],{defaultPrevented:true});assert.equal(sent.length,0);tools.reset();dispatch([{nodeType:1,isContentEditable:true}]);assert.equal(sent.length,0);tools.reset();dispatch([]);assert.equal(sent.length,1);assert.equal(prevented,1);tools.dispose();assert.equal(handlers.size,0);
 });

@@ -2,11 +2,21 @@
 // Short-lived, exact-viewport page pixels for shell transitions. Normal and
 // private instances keep their own RAM only; nothing is written to a profile.
 const {randomUUID}=require('node:crypto');
-// One bounded preparation budget covers the whole two-worker queue, including
-// native readback and encoding; it is separate from the subsequent animation.
-const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=2,CAPTURE_MS=2500,HOLD_MS=5000,PAINT_MS=1500,PAINT_ATTEMPTS=8,PAINT_TOLERANCE=4;
+// One preparation budget covers the whole queue, including native readback
+// and encoding. Guest and shell readbacks share both count and pixel limits.
+const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=4,CAPTURE_MS=2500,HOLD_MS=5000,PAINT_MS=1500,PAINT_ATTEMPTS=8,PAINT_TOLERANCE=4;
+const CAPTURE_ATTEMPTS=8,CAPTURE_RETRY_MS=Object.freeze([16,32,64,128,256,256,256]);
 const rect=r=>r&&['x','y','width','height'].every(k=>Number.isFinite(r[k]))&&r.width>0&&r.height>0?{x:r.x,y:r.y,width:r.width,height:r.height}:null;
 const same=(a,b)=>!!a&&!!b&&['x','y','width','height'].every(k=>a[k]===b[k]);
+const pixelReservation=(width,height,scale)=>{const pixels=Math.ceil(width*scale)*Math.ceil(height*scale);return [width,height,scale].every(value=>Number.isFinite(value)&&value>0)&&Number.isSafeInteger(pixels)&&pixels>0&&pixels<=MAX_PIXELS?pixels:0;};
+function representation(image,reservedPixels,scaleLimit){
+ if(image.isEmpty?.())return null;
+ const scales=image.getScaleFactors?.();
+ if(!Array.isArray(scales)||!scales.length||scales.some(value=>!Number.isFinite(value)||value<=0))return null;
+ const scaleFactor=Math.max(...scales),size=image.getSize?.(scaleFactor);
+ if(scaleFactor>scaleLimit||!size||!['width','height'].every(key=>Number.isSafeInteger(size[key])&&size[key]>0)||size.width*size.height>reservedPixels)return null;
+ return{scaleFactor,width:size.width,height:size.height};
+}
 // A decoded PNG and two renderer RAFs do not prove that its GPU upload has
 // finished. Keep only nine small interior colour-region summaries per page,
 // never another full image. Means over the same DIP regions tolerate texture
@@ -42,8 +52,8 @@ function matchesPaint(image,size,regions){
  return regions.every(region=>{const mean=regionMean(bitmap,pixels.width,pixels.height,region,box);return mean&&mean.every((value,i)=>Math.abs(value-region.rgba[i])<=PAINT_TOLERANCE);});
 }
 class DesktopSurfaces{
- constructor({browser,bank,win,onImage,now=Date.now,captureMs=CAPTURE_MS,holdMs=HOLD_MS,paintMs=PAINT_MS}){
-  Object.assign(this,{browser,bank,win,onImage,now,captureMs,holdMs,paintMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.busy=false;this.painting=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
+ constructor({browser,bank,win,screen,onImage,now=Date.now,budgetNow=()=>performance.now(),captureMs=CAPTURE_MS,holdMs=HOLD_MS,paintMs=PAINT_MS}){
+  Object.assign(this,{browser,bank,win,screen,onImage,now,budgetNow,captureMs,holdMs,paintMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.reservedPixels=0;this.capacityWaiters=new Set();this.busy=false;this.painting=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
   // BrowserWindow.webContents is a native getter: after 'closed' it throws.
   // Retain the emitter now so disposal can continue into closing every page.
   this.shellContents=win?.webContents;
@@ -52,8 +62,33 @@ class DesktopSurfaces{
   win?.on?.('resize',this.resize);this.shellContents?.on?.('did-start-navigation',this.navigation);
  }
  enableDiagnostics(){this.diagnostic={sequence:0,lastCapture:null,lastPaint:null,events:[]};}
- diagnostics(){const trace=this.diagnostic;return trace?structuredClone({enabled:true,busy:this.busy,activeCaptures:this.activeCaptures,generation:this.generation,held:!!this.held,locked:this.locked,disposed:this.disposed,lastCapture:trace.lastCapture,lastPaint:trace.lastPaint,events:trace.events}):{enabled:false};}
+ diagnostics(){const trace=this.diagnostic;return trace?structuredClone({enabled:true,busy:this.busy,activeCaptures:this.activeCaptures,reservedPixels:this.reservedPixels,generation:this.generation,held:!!this.held,locked:this.locked,disposed:this.disposed,lastCapture:trace.lastCapture,lastPaint:trace.lastPaint,events:trace.events}):{enabled:false};}
  recordDiagnostic(trace,phase,detail={}){if(!trace||trace!==this.diagnostic)return;trace.events.push({phase,at:performance.now(),...detail});if(trace.events.length>32)trace.events.shift();}
+ scaleFactor(){
+  // Reserve for the largest real connected display, including a window moved
+  // between displays during readback. Missing screen data is never a 1x guess.
+  try{const displays=this.screen?.getAllDisplays?.();if(!Array.isArray(displays)||!displays.length||displays.some(display=>!Number.isFinite(display?.scaleFactor)||display.scaleFactor<=0))return 0;return Math.max(1,...displays.map(display=>display.scaleFactor));}catch{return 0;}
+ }
+ reserveCapture(pixels){
+  if(!Number.isSafeInteger(pixels)||pixels<=0||pixels>MAX_PIXELS||this.activeCaptures>=MAX_CAPTURES||this.reservedPixels+pixels>MAX_PIXELS)return null;
+  this.activeCaptures++;this.reservedPixels+=pixels;let released=false;
+  return()=>{if(released)return;released=true;this.activeCaptures--;this.reservedPixels-=pixels;this.wakeCapacity();};
+ }
+ wakeCapacity(){for(const wake of [...this.capacityWaiters])wake();}
+ waitCapture(pixels,current,waiting){
+  return new Promise(resolve=>{
+   let done=false;const finish=release=>{if(done)return;done=true;this.capacityWaiters.delete(wake);waiting.delete(cancel);resolve(release);};
+   const cancel=()=>finish(null),wake=()=>{if(done)return;if(!current())return finish(null);const release=this.reserveCapture(pixels);if(release)finish(release);};
+   this.capacityWaiters.add(wake);waiting.add(cancel);wake();
+  });
+ }
+ waitRetry(ms,current,waiting){
+  return new Promise(resolve=>{
+   let done=false,timer;const finish=completed=>{if(done)return;done=true;clearTimeout(timer);this.capacityWaiters.delete(wake);waiting.delete(cancel);resolve(completed);};
+   const cancel=()=>finish(false),wake=()=>{if(!current())finish(false);};
+   this.capacityWaiters.add(wake);waiting.add(cancel);timer=setTimeout(()=>finish(current()),ms);timer.unref?.();wake();
+  });
+ }
  shape(){const size=this.win?.getContentSize?.();return Array.isArray(size)?size.join('x'):'';}
  live(id,hold){
   const page=this.browser.tabs.get(id),wc=page?.view?.webContents;
@@ -67,63 +102,94 @@ class DesktopSurfaces{
  empty(){return{desk:this.bank.active,surfaces:[],complete:false,generation:this.generation,token:''};}
  async capture(args={}){
   if(!Array.isArray(args.ids)||args.ids.length>MAX_PAGES||args.ids.some(id=>typeof id!=='string'||!id||id.length>100)||new Set(args.ids).size!==args.ids.length)throw Error('Invalid surface page identities');
-  const trace=this.diagnostic,observed=trace?{sequence:++trace.sequence,startedAt:performance.now(),requestedIds:args.ids.slice(),generation:this.generation,reason:'pending',complete:false,completedIds:[],pngBytes:0,pixels:0,pages:[]}:null;
-  if(trace){trace.lastCapture=observed;this.recordDiagnostic(trace,'capture-start',{sequence:observed.sequence,ids:observed.requestedIds,activeCaptures:this.activeCaptures,busy:this.busy,held:!!this.held});}
+  const deadlineAt=this.budgetNow()+this.captureMs;
+  const trace=this.diagnostic,observed=trace?{sequence:++trace.sequence,startedAt:performance.now(),requestedIds:args.ids.slice(),generation:this.generation,reason:'pending',complete:false,completedIds:[],pngBytes:0,pixels:0,peakActiveCaptures:0,peakReservedPixels:0,pages:[]}:null;
+  if(trace){trace.lastCapture=observed;this.recordDiagnostic(trace,'capture-start',{sequence:observed.sequence,ids:observed.requestedIds,activeCaptures:this.activeCaptures,reservedPixels:this.reservedPixels,busy:this.busy,held:!!this.held});}
   const resultDiagnostic=(reason,complete)=>{if(observed){observed.reason=reason;observed.complete=complete;observed.elapsedMs=performance.now()-observed.startedAt;this.recordDiagnostic(trace,'capture-result',{sequence:observed.sequence,reason,complete,elapsedMs:observed.elapsedMs,activeCaptures:this.activeCaptures});}};
   const incomplete=reason=>{resultDiagnostic(reason,false);return this.empty();};
   if(this.busy||this.disposed||this.locked||this.browser.disposed||this.held&&args.hold!==this.held.token||args.hold&&!this.held)return incomplete(this.busy?'busy':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':this.held?'different-hold':'hold-ended');
   const pins=args.ids.map(id=>this.live(id,args.hold));if(pins.some(p=>!p)){if(observed)observed.invalidIds=args.ids.filter((_id,i)=>!pins[i]);return incomplete('invalid-initial-pins');}
+  const scaleFactor=this.scaleFactor();if(!scaleFactor&&pins.length)return incomplete('scale-unavailable');if(observed)observed.scaleFactor=scaleFactor;
   // Do not leave the largest selected viewport behind every small capture.
   // Stable sorting preserves request order for equal areas; limits stay shared.
   pins.sort((a,b)=>b.viewport.width*b.viewport.height-a.viewport.width*a.viewport.height);
-  const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[],regions=[];let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
-  const current=()=>!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape();
+  const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[],regions=[],waiting=new Set();let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
+  const expire=()=>{if(deadline)return;cancelled=true;deadline=true;if(observed)this.recordDiagnostic(trace,'capture-deadline',{sequence:observed.sequence,elapsedMs:performance.now()-observed.startedAt,completedIds:surfaces.map(surface=>surface.id),activeCaptures:this.activeCaptures});};
+  // A settled native promise can run before an overdue timer callback. Check
+  // the same monotonic deadline before starting or retrying any native work.
+  const current=()=>{if(!cancelled&&this.budgetNow()>=deadlineAt)expire();const scale=this.scaleFactor();return!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape()&&(!pins.length||scale>0&&scale<=scaleFactor);};
   this.busy=true;
   const worker=async()=>{
    while(index<pins.length&&current()){
-    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,base64Ms:null,previewMs:null}:null;let stageStarted;
+    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,base64Ms:null,previewMs:null,attempts:[],backoffs:[]}:null;let stageStarted;
     if(row)observed.pages.push(row);
-    const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row});}};
+    const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row,attempts:row.attempts.map(attempt=>({...attempt})),backoffs:row.backoffs.map(backoff=>({...backoff}))});}};
     if(!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');continue;}
-    if(this.activeCaptures>=MAX_CAPTURES){pageDiagnostic('capture-capacity');continue;}
-    this.activeCaptures++;
+    const reservedPixels=pixelReservation(pin.viewport.width,pin.viewport.height,scaleFactor);
+    if(!reservedPixels){pageDiagnostic('capture-pixel-budget');continue;}
+    if(row){row.reservedPixels=reservedPixels;row.scaleFactor=scaleFactor;}
+    let release=null,image,acquired=false;
     try{
-     // Capturing the selected incoming desk during an owned hold must not make
-     // hidden/background pages visible or keep the computer awake.
-     if(row){row.state='capturing';stageStarted=performance.now();row.nativeStartedAt=stageStarted;row.queueMs=stageStarted-observed.startedAt;}
-     const image=await pin.wc.capturePage(undefined,{stayHidden:true,stayAwake:false});
-     if(row){row.captureMs=performance.now()-stageStarted;pageDiagnostic('captured');}
+     for(let attempt=0;attempt<CAPTURE_ATTEMPTS;attempt++){
+      if(!current()||!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');break;}
+      if(row)row.state='capacity';release=this.reserveCapture(reservedPixels);if(!release)release=await this.waitCapture(reservedPixels,()=>current()&&this.valid(pin,args.hold),waiting);
+      if(!release){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');break;}
+      if(observed){observed.peakActiveCaptures=Math.max(observed.peakActiveCaptures,this.activeCaptures);observed.peakReservedPixels=Math.max(observed.peakReservedPixels,this.reservedPixels);}
+      if(!current()||!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');break;}
+      // Capturing an incoming desk under its owned hold must not show hidden
+      // pages or keep the computer awake. Every retry uses the same options.
+      let nativeAttempt;if(row){row.state='capturing';stageStarted=performance.now();row.nativeStartedAt=stageStarted;row.queueMs=stageStarted-observed.startedAt;row.captureMs=null;nativeAttempt={attempt:attempt+1,nativeStartedAt:stageStarted,queueMs:row.queueMs};row.attempts.push(nativeAttempt);}
+      try{image=await pin.wc.capturePage(undefined,{stayHidden:true,stayAwake:false});}
+      catch(error){
+       if(nativeAttempt){const finishedAt=performance.now();Object.assign(nativeAttempt,{finishedAt,elapsedMs:finishedAt-stageStarted,outcome:'rejected',message:String(error?.message||error).slice(0,512)});}
+       // Viz can reject a copy request before returning any pixels. Pace only
+       // this exact native rejection, within the original preparation budget;
+       // a timer is not readiness evidence and no image fallback is accepted.
+       if(error?.message!=='UnknownVizError'||attempt+1>=CAPTURE_ATTEMPTS)throw error;
+       release();release=null;
+       if(!current()||!this.valid(pin,args.hold)){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');break;}
+       const remaining=deadlineAt-this.budgetNow();if(remaining<=0){expire();pageDiagnostic('late-after-deadline');break;}
+       const delayMs=Math.min(CAPTURE_RETRY_MS[attempt],remaining),backoff=row?{afterAttempt:attempt+1,scheduledAt:performance.now(),delayMs}:null;if(backoff)row.backoffs.push(backoff);pageDiagnostic('retry-wait');
+       const completed=await this.waitRetry(delayMs,()=>current()&&this.valid(pin,args.hold),waiting);
+       if(backoff){backoff.finishedAt=performance.now();backoff.elapsedMs=backoff.finishedAt-backoff.scheduledAt;backoff.completed=completed;}
+       if(!completed){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');break;}
+       continue;
+      }
+      acquired=true;if(nativeAttempt){const finishedAt=performance.now();Object.assign(nativeAttempt,{finishedAt,elapsedMs:finishedAt-stageStarted,outcome:'captured'});row.captureMs=nativeAttempt.elapsedMs;pageDiagnostic('captured');}break;
+     }
+     if(!acquired)continue;
      if(!current()){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');continue;}
      if(!this.valid(pin,args.hold)){pageDiagnostic('pin-changed-after-capture');continue;}
      if(image.isEmpty?.()){pageDiagnostic('empty-image');continue;}
      // Preserve the sharpest representation the compositor actually supplied.
      // NativeImage.toPNG defaults to 1x even when the original frame is Retina.
-     const scales=image.getScaleFactors?.().filter(v=>Number.isFinite(v)&&v>0)||[1],scaleFactor=Math.max(...scales);
-     if(!Number.isFinite(scaleFactor)||pixels+pin.viewport.width*pin.viewport.height*scaleFactor*scaleFactor>MAX_PIXELS){pageDiagnostic('scale-or-pixel-budget');continue;}
+     const actual=representation(image,reservedPixels,scaleFactor);
+     if(!actual||pixels+actual.width*actual.height>MAX_PIXELS){pageDiagnostic('scale-or-pixel-budget');continue;}
      if(row){row.state='png';stageStarted=performance.now();}
-     const png=image.toPNG({scaleFactor});
+     const png=image.toPNG({scaleFactor:actual.scaleFactor});
      if(row)row.pngMs=performance.now()-stageStarted;
      if(!Buffer.isBuffer(png)||png.length<24||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))){pageDiagnostic('invalid-png');continue;}
      const pixelWidth=png.readUInt32BE(16),pixelHeight=png.readUInt32BE(20),area=pixelWidth*pixelHeight;
      const width=pin.viewport.width,height=pin.viewport.height;
-     if(!pixelWidth||!pixelHeight||pixelWidth<width-1||pixelHeight<height-1||Math.abs(pixelWidth/width-pixelHeight/height)>.02||bytes+png.length>MAX_PNG_BYTES||pixels+area>MAX_PIXELS){pageDiagnostic(bytes+png.length>MAX_PNG_BYTES?'png-byte-budget':pixels+area>MAX_PIXELS?'png-pixel-budget':'png-dimensions');continue;}
-     regions.push(...imageRegions(image,pixelWidth,pixelHeight,scaleFactor,pin.bounds));
+     if(pixelWidth!==actual.width||pixelHeight!==actual.height||pixelWidth<width-1||pixelHeight<height-1||Math.abs(pixelWidth/width-pixelHeight/height)>.02||bytes+png.length>MAX_PNG_BYTES||pixels+area>MAX_PIXELS){pageDiagnostic(bytes+png.length>MAX_PNG_BYTES?'png-byte-budget':pixels+area>MAX_PIXELS?'png-pixel-budget':'png-dimensions');continue;}
+     regions.push(...imageRegions(image,pixelWidth,pixelHeight,actual.scaleFactor,pin.bounds));
      bytes+=png.length;pixels+=area;
      if(row){row.state='base64';stageStarted=performance.now();}const src='data:image/png;base64,'+png.toString('base64');if(row)row.base64Ms=performance.now()-stageStarted;
      surfaces.push({id:pin.id,src,width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds}});
      if(row){row.state='preview';stageStarted=performance.now();}
      try{this.onImage?.(pin.id,image,pin);}catch(error){if(row)row.previewError=String(error?.message||error).slice(0,512);}
      if(row){row.previewMs=performance.now()-stageStarted;row.pngBytes=png.length;row.pixelWidth=pixelWidth;row.pixelHeight=pixelHeight;pageDiagnostic('complete');}
-    }catch(error){if(row){row.errorStage=row.state;row.message=String(error?.message||error).slice(0,512);pageDiagnostic('error');}}finally{this.activeCaptures--;}
+    }catch(error){if(row){row.errorStage=row.state;row.message=String(error?.message||error).slice(0,512);pageDiagnostic('error');}}finally{release?.();}
    }
   };
   try{
-   await Promise.race([Promise.all(Array.from({length:Math.min(MAX_CAPTURES,pins.length)},worker)),new Promise(resolve=>{timer=setTimeout(()=>{cancelled=true;deadline=true;if(observed)this.recordDiagnostic(trace,'capture-deadline',{sequence:observed.sequence,elapsedMs:performance.now()-observed.startedAt,completedIds:surfaces.map(surface=>surface.id),activeCaptures:this.activeCaptures});resolve();},this.captureMs);timer.unref?.();})]);
+   const deadlineWait=new Promise(resolve=>{timer=setTimeout(()=>{expire();resolve();},Math.max(0,deadlineAt-this.budgetNow()));timer.unref?.();});
+   await Promise.race([Promise.all(Array.from({length:Math.min(MAX_CAPTURES,pins.length)},worker)),deadlineWait]);
    if(observed){observed.completedIds=surfaces.map(surface=>surface.id);observed.pngBytes=bytes;observed.pixels=pixels;}
-   if(!current())return incomplete(deadline?'deadline':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':generation!==this.generation?'generation-changed':desk!==this.bank.active?'desktop-changed':'window-size-changed');
+   if(!current())return incomplete(deadline?'deadline':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':generation!==this.generation?'generation-changed':desk!==this.bank.active?'desktop-changed':shape!==this.shape()?'window-size-changed':'display-scale-changed');
    if(surfaces.length!==pins.length)return incomplete('incomplete-pages');
    if(pins.some(pin=>!this.valid(pin,args.hold)))return incomplete('pins-changed');
-   const token=randomUUID();this.records.set(token,{generation,desk,shape,pins,regions,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
+   const token=randomUUID();this.records.set(token,{generation,desk,shape,scaleFactor,pins,regions,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
    // Once the selected incoming desk has a complete validated frame, pages
    // from a previous desk no longer own the long-lived Nora hold. Background
    // navigation there must not close Nora after a successful desk switch.
@@ -133,34 +199,43 @@ class DesktopSurfaces{
    // borrowing Nora's hold can verify that this frame belongs to its lease
    // without treating the new capture token as a replacement hold.
    return{desk,surfaces,complete:true,generation,token,holdToken:args.hold||''};
-  }finally{cancelled=true;clearTimeout(timer);this.busy=false;}
+  }finally{cancelled=true;clearTimeout(timer);for(const cancel of [...waiting])cancel();this.busy=false;}
  }
  async present(args={}){
   if(typeof args.token!=='string'||!args.token||args.token.length>100||args.holdToken!==undefined&&(typeof args.holdToken!=='string'||!args.holdToken||args.holdToken.length>100))throw Error('Invalid surface paint identity');
-  const record=this.records.get(args.token),trace=this.diagnostic,started=performance.now();
-  const current=()=>record&&this.records.get(args.token)===record&&!this.disposed&&!this.locked&&!this.browser.disposed&&!this.win?.isDestroyed?.()&&!this.shellContents?.isDestroyed?.()&&record.generation===this.generation&&record.desk===this.bank.active&&record.shape===this.shape()&&this.now()-record.at<=HOLD_MS&&(args.holdToken?this.held?.token===args.holdToken&&this.browser.mouseSurfaceHold===args.holdToken:!this.held)&&record.pins.every(pin=>this.valid(pin,args.holdToken));
+  const record=this.records.get(args.token),trace=this.diagnostic,started=performance.now(),scaleFactor=this.scaleFactor();
+  const current=()=>{const scale=this.scaleFactor();return record&&this.records.get(args.token)===record&&!this.disposed&&!this.locked&&!this.browser.disposed&&!this.win?.isDestroyed?.()&&!this.shellContents?.isDestroyed?.()&&record.generation===this.generation&&record.desk===this.bank.active&&record.shape===this.shape()&&scale>0&&scale<=scaleFactor&&(!record.pins.length||scale<=record.scaleFactor)&&this.now()-record.at<=HOLD_MS&&(args.holdToken?this.held?.token===args.holdToken&&this.browser.mouseSurfaceHold===args.holdToken:!this.held)&&record.pins.every(pin=>this.valid(pin,args.holdToken));};
   const observed={startedAt:started,attempts:0,regions:record?.regions.length||0,held:!!args.holdToken,ready:false,reason:'pending'};
   if(trace)trace.lastPaint=observed;
   const finish=(ready,reason)=>{Object.assign(observed,{ready,reason,elapsedMs:performance.now()-started});this.recordDiagnostic(trace,'paint-result',observed);return{ready,reason,attempts:observed.attempts,regions:observed.regions};};
+  if(!scaleFactor)return finish(false,'scale-unavailable');
   if(!current())return finish(false,'stale');
-  if(this.painting||this.activeCaptures>=MAX_CAPTURES||typeof this.shellContents?.capturePage!=='function')return finish(false,'unavailable');
+  if(this.painting||typeof this.shellContents?.capturePage!=='function')return finish(false,'unavailable');
+  const size=this.win.getContentSize(),reservedPixels=pixelReservation(size[0],size[1],scaleFactor),waiting=new Set();if(!reservedPixels)return finish(false,'pixel-budget');
+  Object.assign(observed,{scaleFactor,reservedPixels,peakActiveCaptures:0,peakReservedPixels:0});
   let cancelled=false,timer;this.painting=true;this.recordDiagnostic(trace,'paint-start',{held:observed.held,regions:observed.regions});
   const work=(async()=>{
    try{
     for(let attempt=0;attempt<PAINT_ATTEMPTS&&!cancelled;attempt++){
      if(!current())return finish(false,'stale');
-     this.activeCaptures++;observed.attempts++;
-     let image;try{image=await this.shellContents.capturePage(undefined,{stayHidden:true,stayAwake:false});}finally{this.activeCaptures--;}
-     if(cancelled)return null;
-     if(!current())return finish(false,'stale');
-     if(matchesPaint(image,this.win.getContentSize(),record.regions))return finish(true,'painted');
+     let release=this.reserveCapture(reservedPixels);if(!release)release=await this.waitCapture(reservedPixels,()=>!cancelled&&current(),waiting);
+     if(!release)return cancelled?null:finish(false,'stale');
+     observed.peakActiveCaptures=Math.max(observed.peakActiveCaptures,this.activeCaptures);observed.peakReservedPixels=Math.max(observed.peakReservedPixels,this.reservedPixels);
+     try{
+      if(cancelled)return null;if(!current())return finish(false,'stale');
+      observed.attempts++;const image=await this.shellContents.capturePage(undefined,{stayHidden:true,stayAwake:false});
+      if(cancelled)return null;
+      if(!current())return finish(false,'stale');
+      if(!representation(image,reservedPixels,scaleFactor))return finish(false,'pixel-budget');
+      if(matchesPaint(image,size,record.regions))return finish(true,'painted');
+     }finally{release();}
     }
     if(!cancelled)return finish(false,'mismatch');
    }catch(error){if(!cancelled){this.recordDiagnostic(trace,'paint-error',{message:String(error?.message||error).slice(0,512)});return finish(false,'readback-error');}}
    finally{this.painting=false;}
   })();
   try{return await Promise.race([work,new Promise(resolve=>{timer=setTimeout(()=>{cancelled=true;resolve(finish(false,'deadline'));},this.paintMs);timer.unref?.();})]);}
-  finally{cancelled=true;clearTimeout(timer);}
+  finally{cancelled=true;clearTimeout(timer);for(const cancel of [...waiting])cancel();}
  }
  watch(pins,replace=false){
   if(replace){const selected=new Set(pins.map(pin=>pin.wc));for(const w of this.watchers)if(!selected.has(w.wc)){w.wc.removeListener?.('destroyed',w.clear);w.wc.removeListener?.('did-start-navigation',w.nav);}this.watchers=this.watchers.filter(w=>selected.has(w.wc));}
@@ -181,10 +256,11 @@ class DesktopSurfaces{
   for(const w of this.watchers){w.wc.removeListener?.('destroyed',w.clear);w.wc.removeListener?.('did-start-navigation',w.nav);}this.watchers=[];
   const held=this.held;this.held=null;
   if(held&&this.browser.mouseSurfaceHold===held.token){this.browser.mouseSurfaceHold=null;if(!this.disposed&&!this.browser.disposed&&!this.win?.isDestroyed?.())this.browser.layout(this.browser.panels||[]);}
+  this.wakeCapacity();
   if(notify&&!this.disposed&&!this.win?.isDestroyed?.()){try{this.win.webContents.send('mouse:previews-cleared');}catch{}}
  }
  lock(){this.locked=true;this.clear(true);}
  unlock(){this.locked=false;}
  dispose(){if(this.disposed)return;this.disposed=true;this.clear(false);this.win?.removeListener?.('resize',this.resize);this.shellContents?.removeListener?.('did-start-navigation',this.navigation);}
 }
-module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,HOLD_MS,PAINT_MS,PAINT_ATTEMPTS,PAINT_TOLERANCE};
+module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,CAPTURE_ATTEMPTS,CAPTURE_RETRY_MS,HOLD_MS,PAINT_MS,PAINT_ATTEMPTS,PAINT_TOLERANCE};

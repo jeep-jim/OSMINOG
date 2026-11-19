@@ -11,7 +11,7 @@ function mouseFloatingBackdrop(N,m,restore){
  const clear=()=>{for(const image of images){image.remove();image.removeAttribute('src');}images=[];surfacePacket=null;};
  function specs(){
   const result=[];
-  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:pane?.classList?.contains('has-pane-progress')?0:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
+  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
   if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
   if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
   return result;
@@ -114,7 +114,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  function shapeBurrow(){motion?.sync();}
  const history=createMouseLayoutHistory({N,model:m,header:content.querySelector(':scope>header'),before:modes,restore:restoreLayout,status,show:()=>{closePeek();showModes(false);},changed:()=>{shapeBurrow();layout();}});
  motion=createMouseBurrowMotion({tray,content,footer:document.querySelector('#statusbar'),button,trace:N.test===true,preparePaint:()=>backdrop.present('desktops'),settled:opened=>{if(opened&&document.activeElement===tray)modeButton.focus({preventScroll:true});}});
- const gesture=globalThis.createMouseDesktopGesture?.({N,tray,content,model:m,switchBehind:async id=>{if(tray.hidden||!tray.open||motion.goal!==1)return false;await switchDesktop(id,false,{keepNora:true});render(m.state.desktops);return m.desktopId===id;},changed:()=>{shapeBurrow();layout();},status});
+ const gesture=globalThis.createMouseDesktopGesture?.({N,tray,content,model:m,disabled:()=>opening||!motion.isSettled,switchClosed:async id=>{if(opening||!tray.hidden||tray.open)return false;await switchDesktop(id);render(m.state.desktops);return m.desktopId===id;},switchBehind:async id=>{if(tray.hidden||!tray.open||motion.goal!==1)return false;await switchDesktop(id,false,{keepNora:true});render(m.state.desktops);return m.desktopId===id;},changed:()=>{shapeBurrow();layout();},status});
  const rename=document.createElement('dialog');rename.id='desktop-rename';rename.innerHTML='<form><header><strong>Название рабочего стола</strong><button type="button" aria-label="Закрыть">×</button></header><label>Название<input maxlength="60" required></label><footer><button type="submit">Сохранить</button></footer></form>';document.body.append(rename);let renameId='';
  rename.querySelector('header button').onclick=()=>rename.close();rename.addEventListener('close',layout);
  rename.querySelector('form').onsubmit=async e=>{e.preventDefault();try{const r=await N.desktops('rename',{id:renameId,name:rename.querySelector('input').value});rename.close();render(r.state.desktops);}catch(error){status(error.message)}};

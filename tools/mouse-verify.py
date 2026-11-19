@@ -52,9 +52,12 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
    if process.poll() is None:process.kill();process.wait()
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
-for mode,markers in [('--mouse-smoke-write',['MOUSE_REAL_HORIZONTAL_VERTICAL_DRAG_PASS','MOUSE_629_UI_REGRESSIONS_NATIVE_PASS','MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS']),('--mouse-smoke-read',['MOUSE_PROFILE_COOKIE_RESTART_PASS','MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_NATIVE_PASS'])]:
+for mode,markers in [('--mouse-smoke-write',['MOUSE_REAL_HORIZONTAL_VERTICAL_DRAG_PASS','MOUSE_629_UI_REGRESSIONS_NATIVE_PASS','MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS','MOUSE_630_DOWNLOAD_ACTIVITY_PASS','MOUSE_630_CAPTURE_FEEDBACK_PASS','MOUSE_630_NORA_NATIVE_FOREGROUND_PASS','MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS','MOUSE_630_PAGE_SCROLL_PRESERVED_PASS']),('--mouse-smoke-read',['MOUSE_PROFILE_COOKIE_RESTART_PASS','MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_NATIVE_PASS'])]:
  env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'persistent')}
- result,output=run_logged([str(exe),mode,'--mouse-init-race'],env,pathlib.Path(mode.lstrip('-')+'.log'),480)
+ # The accepted 6.0.28 write suite took 413850 ms. Three new native suites
+ # add download/capture, foreground and wheel interactions; retain all existing
+ # per-scenario/frame/exit limits and bound the expanded whole write process.
+ result,output=run_logged([str(exe),mode,'--mouse-init-race'],env,pathlib.Path(mode.lstrip('-')+'.log'),600 if mode=='--mouse-smoke-write' else 480)
  if result.returncode or not all(marker in output for marker in markers) or 'MOUSE_ARM64_SMOKE_PASS' not in output:raise SystemExit('Packaged verification failed: '+mode)
 env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'ordinary')}
 with open('mouse-normal-launch.log','w') as log:
@@ -63,7 +66,7 @@ with open('mouse-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'mouse-startup.log'
-   if f.exists() and 'MOUSE_READY 6.0.29' in f.read_text():break
+   if f.exists() and 'MOUSE_READY 6.0.30' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -93,7 +96,7 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
 # Actual older app replacement, verified new startup and a preserved runner profile.
-candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.29-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.29-mac-arm64.dmg')]
+candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.30-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.30-mac-arm64.dmg')]
 dmg=next((p.resolve() for p in candidates if p.is_file()),None)
 installer=pathlib.Path('mouse-install-update.cjs').resolve()
 if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')

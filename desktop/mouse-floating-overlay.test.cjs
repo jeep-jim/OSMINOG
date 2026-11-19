@@ -99,9 +99,9 @@ test('a borrowed backdrop refuses another hold, desk or stale page geometry',asy
  await assert.rejects(lease.replace({...incoming,surfaces:incoming.surfaces.map(s=>({...s,bounds:{...f.rect,width:321}}))}),/Размер рабочего стола/);
  assert.equal(f.images[0],original);assert.equal(f.events.filter(x=>x==='end').length,0);await f.overlay.hide('desktops');assert.equal(await lease.replace(incoming),false);
 });
-test('a pane progress footer makes the page bottom an interior edge in the Nora snapshot too',async()=>{
+test('a progress pill below the header preserves the page bottom corners in the Nora snapshot',async()=>{
  const f=fixture({roundBottom:12,hasProgress:true});await f.overlay.show('desktops');
- assert.equal(f.images[0].style.borderRadius,'0 0 0px 0px');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 0px 0px)');assert.equal(f.images[0].style.height,'240px');
+ assert.equal(f.images[0].style.borderRadius,'0 0 12px 12px');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 12px 12px)');assert.equal(f.images[0].style.height,'240px');
  await f.overlay.hide('desktops');assert.equal(f.images.length,0);
 });
 test('closing Nora during an incoming image decode cannot resurrect a stale backdrop',async()=>{

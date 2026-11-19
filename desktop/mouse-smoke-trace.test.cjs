@@ -78,6 +78,100 @@ test('cc diagnostics retain reviewed property range and terminal enum values wit
  assert.deepEqual(f.debug.calls[0].params.traceConfig.includedCategories,TRACE_CATEGORIES);
  assert.equal(result.mouseMotionTrace.limits.maxBytes,64*1024*1024);assert.equal(result.mouseMotionTrace.limits.maxEvents,200000);
 });
+test('rejected compositor inputs gain separate diagnostics without changing events or accepted positive groups',async()=>{
+ const base={cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:123};
+ const events=[
+  {cat:'blink.user_timing',name:'private-page-mark',ph:'R',args:{detail:'private detail'}},
+  {...base,args:{Name:'Transform-0--1',State:'RUNNING->ABORTED',ccModel:{targetProperty:0,group:777}}},
+  {...base,ts:124,args:{Name:'Float-4-41',State:'RUNNING->FINISHED',ccModel:{targetProperty:0,group:777}}},
+  {...base,ts:125,args:{}},
+  {...base,ts:126,name:'KeyframeModel',ph:'b',args:{Name:'ScrollOffset-6--1'}},
+  {...base,ts:127,ph:'X',args:{Name:'Transform-0--1',State:'RUNNING->ABORTED',ccModel:{group:777}}}
+ ];
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop();
+ const expected=events.slice(1).map(({pid,tid,ts,name,cat,ph},index)=>({pid,tid,ts,name,cat,ph,args:index===1?{ccModel:{targetProperty:4,group:41,from:'RUNNING',to:'FINISHED'}}:{}}));
+ assert.deepEqual(result.traceEvents,expected,'diagnostic metadata must not remove, fill or rewrite rejected trace arguments');
+ assert.deepEqual(result.mouseMotionTrace.ccModelRejections,{total:3,truncated:0,byReason:{group:2,missing:1},rows:[
+  {eventIndex:0,name:base.name,phase:'I',pid:10,tid:20,ts:123,curve:'Transform',targetProperty:0,group:-1,from:'RUNNING',to:'ABORTED',field:'name',reason:'group'},
+  {eventIndex:2,name:base.name,phase:'I',pid:10,tid:20,ts:125,field:'name',reason:'missing'},
+  {eventIndex:3,name:'KeyframeModel',phase:'b',pid:10,tid:20,ts:126,curve:'ScrollOffset',targetProperty:6,group:-1,field:'name',reason:'group'}
+ ]});
+ assert.equal(result.mouseMotionTrace.complete,true);assert.equal(result.mouseMotionTrace.droppedEvents,1);assert.deepEqual(result.mouseMotionTrace.errors,[]);
+ assert.doesNotMatch(f.saved[0].data,/"Name"|"State"|777|Transform-0--1|RUNNING->ABORTED|private/);
+});
+test('compositor rejection reasons expose only bounded numeric fields and reviewed curve/state enums',async()=>{
+ const cases=[
+  [undefined,'args','missing'],[null,'args','type'],['private raw arguments','args','type'],[[],'args','type'],['__stripped__','args','stripped'],
+  [{},'name','missing'],[{Name:null},'name','type'],[{Name:42},'name','type'],[{Name:{url:'https://private.invalid/'}},'name','type'],
+  [{Name:'private'.repeat(1000)},'name','length'],[{Name:'__stripped__'},'name','stripped'],
+  [{Name:'PrivateCurve-0-41'},'name','unknown-curve',{targetProperty:0,group:41}],
+  [{Name:'Transform-12-41'},'name','property',{curve:'Transform',targetProperty:12,group:41}],
+  [{Name:'Transform--1-41'},'name','property',{curve:'Transform',targetProperty:-1,group:41}],
+  [{Name:'Transform-2147483648-41'},'name','property',{curve:'Transform',group:41}],
+  [{Name:'Transform-00-41'},'name','property',{curve:'Transform',group:41}],
+  [{Name:'Transform-0-0'},'name','group',{curve:'Transform',targetProperty:0,group:0}],
+  [{Name:'Transform-0--1'},'name','group',{curve:'Transform',targetProperty:0,group:-1}],
+  [{Name:'Transform-0--2147483648'},'name','group',{curve:'Transform',targetProperty:0,group:-2147483648}],
+  [{Name:'Transform-0--2147483649'},'name','group',{curve:'Transform',targetProperty:0}],
+  [{Name:'Transform-0-2147483648'},'name','group',{curve:'Transform',targetProperty:0}],
+  [{Name:'Transform-0-999999999999999999999'},'name','group',{curve:'Transform',targetProperty:0}],
+  [{Name:'Transform-0-01'},'name','group',{curve:'Transform',targetProperty:0}],
+  [{Name:'Transform-0--0'},'name','group',{curve:'Transform',targetProperty:0}],
+  [{Name:'Float-4-1-2'},'name','format'],[{Name:'Transform-0-41 https://private.invalid/'},'name','format'],
+  [{Name:'Transform-0-41'},'state','missing'],[{Name:'Transform-0-41',State:null},'state','type'],
+  [{Name:'Transform-0-41',State:{text:'private state'}},'state','type'],
+  [{Name:'Transform-0-41',State:'private'.repeat(1000)},'state','length'],
+  [{Name:'Transform-0-41',State:'__stripped__'},'state','stripped'],
+  [{Name:'Transform-0-41',State:'RUNNING->FINISHED->ABORTED'},'state','format'],
+  [{Name:'Transform-0-41',State:'RUNNING->PRIVATE_STATE'},'state','state',{from:'RUNNING'}],
+  [{Name:'Transform-0-41',State:'PRIVATE_STATE->FINISHED'},'state','state',{to:'FINISHED'}],
+  [{Name:'Transform-0-41',State:'RUNNING ->FINISHED'},'state','state',{to:'FINISHED'}],
+  [{Name:'Transform-0-41',State:''},'state','format']
+ ];
+ const events=cases.map(([args],index)=>({cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:index,...(args===undefined?{}:{args})}));
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop(),diagnostics=result.mouseMotionTrace.ccModelRejections;
+ assert.equal(diagnostics.total,cases.length);assert.equal(diagnostics.truncated,0);assert.equal(diagnostics.rows.length,cases.length);assert.equal(Object.values(diagnostics.byReason).reduce((sum,value)=>sum+value,0),cases.length);
+ for(let index=0;index<cases.length;index++){
+  const [args,field,reason,values={}]=cases[index],row=diagnostics.rows[index];
+  const positiveName=field==='state'?{curve:'Transform',targetProperty:0,group:41}:{};
+  assert.deepEqual(row,{eventIndex:index,name:'ElementAnimations::SetRunState',phase:'I',pid:10,tid:20,ts:index,...positiveName,...values,field,reason},'case '+index);
+  assert.equal(result.traceEvents[index].args.ccModel,undefined,'a rejected value never receives a structural model');
+  for(const key of ['targetProperty','group'])if(row[key]!==undefined)assert.ok(Number.isSafeInteger(row[key])&&row[key]>=-2147483648&&row[key]<=2147483647);
+  if(args&&typeof args.Name==='number')assert.equal(result.traceEvents[index].args.Name,args.Name,'pre-existing numeric argument output is unchanged');
+ }
+ assert.doesNotMatch(JSON.stringify(diagnostics),/private|PRIVATE|PrivateCurve|__stripped__|https?:|"Name"|"State"|ccModel|->/);
+ assert.doesNotMatch(f.saved[0].data,/private|PRIVATE|PrivateCurve|__stripped__|https?:|"ccModel"/);
+ assert.equal(result.mouseMotionTrace.complete,true);assert.deepEqual(result.mouseMotionTrace.errors,[]);
+});
+test('compositor rejection rows are bounded and indexed only to retained events while counts stay exact',async()=>{
+ const dropped=[{cat:'blink.user_timing',name:'private-mark',ph:'R'},{cat:'cc,network',name:'ElementAnimations::SetRunState',ph:'I',args:{}}];
+ const rejected=index=>({cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:index,args:index%2?{}:{Name:'Transform-0--1',State:'RUNNING->FINISHED'}});
+ const events=[...dropped,sample,...Array.from({length:80},(_,index)=>[rejected(index),{cat:'cc',name:'OtherEvent',ph:'I',pid:10,tid:20,ts:index,args:{Name:'Transform-0--1',ccModel:{group:777}}}]).flat()];
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop(),diagnostics=result.mouseMotionTrace.ccModelRejections;
+ assert.equal(result.traceEvents.length,161);assert.equal(result.mouseMotionTrace.droppedEvents,2);assert.equal(result.mouseMotionTrace.limitedEvents,0);
+ assert.equal(diagnostics.total,80);assert.equal(diagnostics.rows.length,64);assert.equal(diagnostics.truncated,16);assert.deepEqual(diagnostics.byReason,{group:40,missing:40});
+ for(let index=0;index<diagnostics.rows.length;index++){
+  const row=diagnostics.rows[index],event=result.traceEvents[row.eventIndex];
+  assert.equal(row.eventIndex,1+index*2);assert.equal(row.ts,index);assert.equal(row.reason,index%2?'missing':'group');
+  assert.deepEqual(event.args,{});assert.equal(row.name,event.name);assert.equal(row.phase,event.ph);assert.equal(row.pid,event.pid);assert.equal(row.tid,event.tid);assert.equal(row.ts,event.ts);
+ }
+ const limited=fixture(new Debugger({events}),{limits:{maxEvents:9}});await limited.trace.start();const capped=await limited.trace.stop();
+ assert.equal(capped.traceEvents.length,9);assert.equal(capped.mouseMotionTrace.droppedEvents,2);assert.equal(capped.mouseMotionTrace.limitedEvents,152);assert.equal(capped.mouseMotionTrace.complete,false);
+ assert.equal(capped.mouseMotionTrace.ccModelRejections.total,4);assert.equal(capped.mouseMotionTrace.ccModelRejections.rows.length,4);assert.equal(capped.mouseMotionTrace.ccModelRejections.truncated,0);assert.deepEqual(capped.mouseMotionTrace.ccModelRejections.byReason,{group:2,missing:2});
+ assert.ok(capped.mouseMotionTrace.errors.some(error=>/Trace exceeded event limit/.test(error.message)));
+});
+test('rejection metadata does not copy arbitrary identity values or trust a supplied structural model',async()=>{
+ const events=[
+  {cat:'cc',name:'ElementAnimations::SetRunState',ph:'I',pid:'private pid',tid:{text:'private thread'},ts:'https://private.invalid/',args:{ccModel:{curve:'Transform',targetProperty:0,group:41,from:'RUNNING',to:'FINISHED'}}},
+  {cat:'devtools.timeline',name:'ElementAnimations::SetRunState',ph:'I',pid:10,tid:20,ts:2,args:{Name:'Transform-0--1',State:'RUNNING->ABORTED'}},
+  {cat:'cc',name:'KeyframeModel',ph:'e',pid:10,tid:20,ts:3,args:{Name:'Transform-0--1'}},
+  {cat:'cc',name:'OtherEvent',ph:'I',pid:10,tid:20,ts:4,args:{Name:'Transform-0--1',State:'RUNNING->ABORTED'}}
+ ];
+ const f=fixture(new Debugger({events}));await f.trace.start();const result=await f.trace.stop();
+ assert.equal(result.traceEvents.length,events.length);assert.ok(result.traceEvents.every(event=>Object.keys(event.args).length===0));
+ assert.deepEqual(result.mouseMotionTrace.ccModelRejections,{total:1,truncated:0,byReason:{missing:1},rows:[{eventIndex:0,name:'ElementAnimations::SetRunState',phase:'I',field:'name',reason:'missing'}]});
+ assert.doesNotMatch(f.saved[0].data,/private|https?:|"ccModel"|"group"|"curve"|RUNNING|FINISHED|ABORTED/);
+});
 test('base64 stream chunks are joined and concurrent stop calls close/write only once',async()=>{
  const source=JSON.stringify({traceEvents:[sample]}),half=Math.floor(source.length/2),f=fixture(new Debugger({chunks:[{data:source.slice(0,half),eof:false},{data:Buffer.from(source.slice(half)).toString('base64'),base64Encoded:true,eof:true}]}));
  await f.trace.start();const [a,b]=await Promise.all([f.trace.stop('failed-motion'),f.trace.stop('cleanup')]);assert.equal(a,b);assert.equal(a.mouseMotionTrace.reason,'failed-motion');assert.equal(a.mouseMotionTrace.bytes,Buffer.byteLength(source));assert.equal(f.debug.count('Tracing.end'),1);assert.equal(f.debug.count('IO.read'),2);assert.equal(f.debug.count('IO.close'),1);assert.equal(f.saved.length,1);
