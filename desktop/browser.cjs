@@ -159,20 +159,9 @@ class BrowserWorkspace{
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
    const next=desired.get(t),show=!!next&&!this.mouseSurfaceHold;
-   if(next){const {bounds,clipped,wrap,radius}=next;
-    if((wrap||this.mouseNativeRoundedPanes)&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
-    // Electron's native radius is symmetric. Nest an upward-offset rounded View
-    // inside the ordinary clip so only the bottom corners touch website pixels.
-    // The page keeps its exact viewport size and screen origin. Mac retains its
-    // existing AppKit mask; this path is enabled only for Windows Mouse.
-    const nativeRadius=this.mouseNativeRoundedPanes?radius:0;
-    if(this.mouseNativeRoundedPanes){
-     if(!t.roundView){t.roundView=new View();t.clipView.removeChildView(t.view);t.roundView.addChildView(t.view);t.clipView.addChildView(t.roundView);}
-     if(t.nativeRadius!==nativeRadius){t.roundView.setBorderRadius(nativeRadius);t.nativeRadius=nativeRadius;}
-     const roundBounds={x:0,y:-nativeRadius,width:clipped.width,height:clipped.height+nativeRadius},roundSignature=JSON.stringify(roundBounds);
-     if(t.roundSignature!==roundSignature){t.roundView.setBounds(roundBounds);t.roundSignature=roundSignature;}
-    }
-    const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y+nativeRadius,width:bounds.width,height:bounds.height}:bounds;
+   if(next){const {bounds,clipped,wrap}=next;
+    if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
+    const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;
     const signature=JSON.stringify([viewBounds,parentBounds]);
     if(signature!==t.layoutSignature){if(t.clipView)t.clipView.setBounds(parentBounds);t.view.setBounds(viewBounds);t.layoutSignature=signature}t.bounds=bounds;

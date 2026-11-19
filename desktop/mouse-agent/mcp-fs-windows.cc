@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+napi_value mousePaneCorners(napi_env env,napi_callback_info info);
+
 namespace {
 constexpr ULONG kOpen=1,kCreate=2,kDirectory=1,kSynchronous=0x20,kNonDirectory=0x40,kReparse=0x200000;
 constexpr DWORD kDirectoryShare=FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE;
@@ -265,7 +267,7 @@ napi_value init(napi_env env,napi_value exports){
   {"stat",nullptr,stat,nullptr,nullptr,nullptr,napi_default,nullptr},{"list",nullptr,list,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"commit",nullptr,commit,nullptr,nullptr,nullptr,napi_default,nullptr},{"remove",nullptr,remove,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"ownProcess",nullptr,ownProcess,nullptr,nullptr,nullptr,napi_default,nullptr},{"stopProcessTree",nullptr,stopProcessTree,nullptr,nullptr,nullptr,napi_default,nullptr},
-  {"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr}
+  {"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr},{"paneCorners",nullptr,mousePaneCorners,nullptr,nullptr,nullptr,napi_default,nullptr}
  };
  napi_define_properties(env,exports,sizeof(properties)/sizeof(properties[0]),properties);return exports;
 }

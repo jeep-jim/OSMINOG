@@ -106,3 +106,38 @@ cannot obscure the original failure while printing a Cyrillic path.
 The next candidate merges the already published Mac 6.0.29 journal and retains
 both platform histories. Windows installed acceptance and public availability
 remain pending at this checkpoint. No owner-device test has been performed.
+
+
+## Real Windows navigation and visual acceptance
+
+Candidate `44c42aaa34511805c6977d46f111ff1355e2e545` built the NSIS minimum-OS
+hook successfully and passed 176/624 unit groups. Its added signature measurement
+failed before installed acceptance; stderr had not been retained, so the exact
+native cause is not established. The verifier now uses an owned UTF-8 result
+file, preserves PowerShell diagnostics, and measures the actual signature after
+UI/profile acceptance but before declaring success or emitting a build manifest.
+The same 44c runtime passed the full retained Mac installed workflow:
+[44510163582 / job 135512003081](https://github.com/jeep-jim/OSMINOG/actions/runs/44510163582/job/135512003081).
+
+The next Windows run used a script-only initial link click. Chromium marked the
+unactivated history as skippable, leaving the visible Back control disabled.
+The Windows smoke now uses real User32 input for the webpage link and verifies
+its coordinate mapping through the native view parents. Production navigation
+flags were not changed. The rule is documented by Chromium in
+[history manipulation intervention](https://chromium.googlesource.com/chromium/src/+/refs/heads/lkgr/docs/history_manipulation_intervention.md).
+
+At `f81b0b2f3aa9735f1ae5c10fce0b3e9d1ae2fe19`,
+[Windows run 44512418438](https://github.com/jeep-jim/OSMINOG/actions/runs/44512418438)
+passed native navigation, five live desktop identities, maximize/minimize,
+Ctrl+A and Ctrl+Alt+S capture, retained PDF/DOCX/XLSX document cases, normal/private
+search, metadata workload and per-pane progress. Real OS screenshots in large
+light and small dark windows show the independent progress indicators.
+
+The first real visual defect was isolated by the unchanged 629 pixel gate: all
+18 separator probes matched, but bottom corner probes saw webpage colour
+(171,43,158) instead of the divider (199,207,223). Full-display evidence confirms
+square page bottoms. An ordinary parent View radius does not apply the guest
+WebContents compositor's clipping. A Windows bottom-corner chrome implementation
+is being added while preserving the exact guest viewport and square top corners.
+Later Nora, private, Local/PTY, restart, update and ordinary-launch gates remain
+required; this run is not a released or fully accepted Windows package.
