@@ -429,3 +429,103 @@ PR45 merged924b413; publisher44274371325 attempt1 прошёл native/publish/ch
 [журнале629](docs/desktop/2026-11-19-mouse629-restore-ui.md).
 72 локальные проверки изменённого поведения PASS; полный Mac suite, реальные
 пиксели семи нативных окон, сохранение профиля628→629 и публикация ещё ожидаются.
+
+## 19 ноября 2026 — исходный 629 проверен полностью, публикация ожидается
+
+Статус: **SOURCE_VERIFIED / PUBLICATION_PENDING**. Предыдущие записи ожидания и
+падений относятся к своим попыткам и сохраняются в
+[журнале 629](docs/desktop/2026-11-19-mouse629-restore-ui.md).
+Проверенный исходник `72679ee907dda6e7ac134b1f01addee858c4e59a`,
+[Mac-run 44498720435, attempt 1 / job 135472522776](https://github.com/jeep-jim/OSMINOG/actions/runs/44498720435/job/135472522776)
+завершился SUCCESS: наборы 176/598/533 без отказов, все 8 исходных checks зелёные.
+[PR 170](https://github.com/jeep-jim/OSMINOG/pull/170) объединён коммитом
+`a5a773c16c2b342f9c7dfaf5334649e1da1f3eca`; происхождение пакетов закреплено за
+проверенным 72679 и указанным run, а не подменено merge-коммитом.
+
+Native-приёмка подтвердила цвета прожилок 627 и чистые стыки в четырёх сценах
+с семью окнами / 360 pixel probes, Нору поверх native-страниц в обеих темах / 16
+overlap probes, одинаковые root/nested скроллбары и четыре завершённых trusted
+wheel-прокрутки. Обучение переключению столов прошло WRITE и новый READ-процесс,
+включая restart и private isolation. Физический трекпад CI не проверяет.
+Сохранённые Local/progress/Nora gates и неизменённый frozen motion-trace gate
+прошли: 161375 событий, 18 clock anchors, spread 0.147 ms, без upstream data loss.
+
+Ошибка готовности ordinary 627 fixture исправлена без изменения продукта или
+критериев движения: маркеры и прокрутка подтверждаются реальными пикселями до
+первого скрытия страниц. Все 4 перехода прошли с 13/15/17/19 кадрами движения,
+layout counts 6/6/6/7 и точным сохранением страниц/viewport/scroll. Два архивных
+composite PNG (forward light/dark) независимо пересчитаны: оба цвета присутствуют
+одновременно. Обратные испытания содержат source-PNG measurements и DOM motion;
+четыре испытания не означают четыре composite PNG.
+
+Проверены ordinary/private завершение, cookie/profile restart и реальная замена
+опубликованной 6.0.28 на 6.0.29 с повторным запуском и сохранением CI-profile
+sentinels. Подготовленные точные пакеты: DMG 137744712 bytes, SHA-256
+`665fca86eb86f1bd98bca4c72652fb5b0a981fc4f4c6467a66d0683874c6d57c`;
+ZIP 140110868 bytes, SHA-256
+`954894c4a3b9c9484a6c3c8295a17eb7da007bf35938eaa8f066a3f7ecc93e16`.
+Verification artifact 14515839614: 19186676 bytes, SHA-256
+`a009d5448f699e40abe4930301c4be1e0c90370fa5c566043bc1e012a667b9e9`.
+Публикация 629 и изменение публичного канала этим ещё не подтверждены; результат
+отдельного Releases publisher и обратного чтения будет добавлен после выполнения.
+
+Первая попытка [publisher 44501476513](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513),
+release commit `32babb2e2dc9ed3c6eec6ec7f9f862b42eb2be37`, native job 135482236470:
+**FAILURE**. Импорт точных пакетов, свежий WRITE (UI, жесты, ordinary 627) и
+frozen two-input trace прошли: 153304 события, 18 anchors, spread 0.143 ms.
+READ сохранил library/start/cookie, но остановился на
+`Mouse628 motion timeout: restarted Nora opens`. Внутренняя стадия отказа не
+сохранена, native diagnostics выключены; причина неизвестна. Те же девять
+connection-refused предупреждений были и в успешном source READ. Проверенный
+artifact 14517653063: 18458204 bytes, SHA-256
+`c983cdf46633162499a4d82653fe80a7dca1fb4f62bd2dfb8530d4864f29ce6d`.
+Publish/channel/live updater — SKIPPED; запрошен один повтор того же native job
+с теми же пакетами и критериями, результат PENDING. Статус остаётся
+**SOURCE_VERIFIED / PUBLICATION_PENDING**; исправление этого отказа не заявлено.
+
+## 19 ноября 2026 — публикация 629 подтверждена, проверка старого обновлятора ожидается
+
+[Publisher 44501476513, attempt 2](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/attempts/2)
+повторно использует те же пакеты и критерии. Шаги 5, 6 и 7 завершились SUCCESS:
+проверка установленного DMG/обновления, пересчёт доказательств с публикацией и
+обновление статического канала. Публичное чтение подтвердило
+[релиз 6.0.29](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.29-arm64),
+ID 451181980, tag `quadro-macos-v6.0.29-arm64`, `draft:false`, `prerelease:true`,
+время публикации **2026-11-19T10:24:42Z**. Размеры и SHA-256 всех пяти assets
+совпадают с pin; публичные DMG/ZIP имеют те же проверенные размеры и хеши,
+которые приведены выше. Raw channel показывает 6.0.29, тот же DMG, размер,
+digest и publishedAt.
+
+Статус этого этапа: **PUBLICATION_CONFIRMED / LIVE_UPDATER_PENDING**. Шаг 8 —
+анонимное обнаружение и скачивание через опубликованный обновлятор 6.0.28 —
+ещё IN_PROGRESS. Полная итоговая приёмка и финальный архив доказательств пока
+не объявлены подтверждёнными; прежние pending/failed записи сохранены как история.
+
+## 19 ноября 2026 — Mouse Browser 6.0.29 PUBLISHED, финальная приёмка завершена
+
+Итоговый статус: **PUBLISHED**. Publisher attempt 2:
+[native job 135489533542](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/job/135489533542)
+и [contract job 135489534139](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/job/135489534139)
+завершились SUCCESS, шаги 5–9 прошли. Независимый пересчёт свежих отчётов совпал
+с архивом: 360 separator/16 Nora probes, четыре wheel/scrollend, 24 borderless
+состояния и по четыре сцены переходов, Local и progress; четыре переключения
+столов и новый READ PID 11710
+после WRITE PID 2278. Frozen trace: 157290 событий, 18 anchors, spread 0.131 ms.
+Первый READ timeout не воспроизвёлся в единственном повторе с неизменными
+пакетами и критериями; его первоначальная причина не установлена.
+
+[Публичный релиз](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.29-arm64)
+и [канал](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json)
+совпадают с pin. Настоящий опубликованный обновлятор 6.0.28 анонимно обнаружил
+6.0.29 и целиком скачал DMG с проверкой размера/SHA; current-version check также
+PASS. Доступность отмечена на попытке 47 после 46 наблюдений `current`, причина
+задержки не установлена. Реальное обновление с сохранением CI-профиля прошло.
+Финальный artifact 14519761881: 241 запись, ZIP 19267377 bytes, SHA-256
+`1191390754661cc26e62555da332c55a36b059bca567da83c667c4c73cbca904`.
+Точные хеши свежих proof/log и границы trace сохранены в
+[журнале 629](docs/desktop/2026-11-19-mouse629-restore-ui.md).
+
+Это ad-hoc/non-notarized prerelease. Проверен программный native wheel, но не
+физический трекпад; скроллбары проверены на локальной Chromium fixture, не в
+авторизованной сессии ВК. Прежние failed/pending записи сохраняются как история;
+на этом итоговом этапе обязательных ожидающих publisher-проверок нет.
