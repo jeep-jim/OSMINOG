@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -22,8 +23,24 @@ struct Pane {double x,y,width,height;uint32_t color;};
 struct Corner {
  HWND window=nullptr;int width=0,height=0;double cx=0,cy=0,radius=0;uint32_t color=0;bool painted=false;
 };
+struct CornerTrace {
+ HWND parent;std::string reason="received";DWORD error=0;uint32_t requested=0,accepted=0;int result=0;uint64_t calls=0;
+};
+thread_local std::vector<CornerTrace> cornerTraces;
+CornerTrace& trace(HWND parent){
+ for(auto& entry:cornerTraces)if(entry.parent==parent)return entry;
+ if(cornerTraces.size()==32)cornerTraces.erase(cornerTraces.begin());
+ cornerTraces.push_back(CornerTrace{parent});return cornerTraces.back();
+}
+void traceResult(HWND parent,const char* reason,DWORD error,uint32_t accepted,int result){
+ auto& entry=trace(parent);entry.reason=reason;entry.error=error;entry.accepted=accepted;entry.result=result;
+}
+void eraseTrace(HWND parent){
+ cornerTraces.erase(std::remove_if(cornerTraces.begin(),cornerTraces.end(),[parent](const CornerTrace& entry){return entry.parent==parent;}),cornerTraces.end());
+}
 struct PaneTrim {
  HWND parent;std::vector<Pane> panes;std::vector<Corner> corners;bool painting=false;
+ const char* paintStage="not-started";DWORD paintError=0;
  explicit PaneTrim(HWND handle):parent(handle){}
  void destroy(Corner& corner){
   if(corner.window&&GetWindowLongPtrW(corner.window,GWLP_USERDATA)==reinterpret_cast<LONG_PTR>(this))DestroyWindow(corner.window);
@@ -42,19 +59,22 @@ LRESULT CALLBACK cornerWindowProc(HWND window,UINT message,WPARAM wparam,LPARAM 
 }
 bool ensureCornerClass(){
  const HINSTANCE module=GetModuleHandleW(nullptr);WNDCLASSW cls{};
- if(GetClassInfoW(module,kCornerClass,&cls))return cls.lpfnWndProc==cornerWindowProc;
+ if(GetClassInfoW(module,kCornerClass,&cls)){if(cls.lpfnWndProc==cornerWindowProc)return true;SetLastError(ERROR_CLASS_ALREADY_EXISTS);return false;}
  cls.lpfnWndProc=cornerWindowProc;cls.hInstance=module;cls.lpszClassName=kCornerClass;
  return RegisterClassW(&cls)!=0;
 }
-bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double radius,uint32_t color){
+bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double radius,uint32_t color,const char*& stage){
  // A top-down, premultiplied BGRA DIB. Supersampling only the tiny 13-DIP
  // cutouts makes the native arc smooth at fractional display scales.
  BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
  info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
- void* raw=nullptr;HDC dc=CreateCompatibleDC(nullptr);if(!dc)return false;
+ void* raw=nullptr;stage="create-bitmap-dc";SetLastError(ERROR_SUCCESS);HDC dc=CreateCompatibleDC(nullptr);if(!dc)return false;
+ stage="create-bitmap";SetLastError(ERROR_SUCCESS);
  HBITMAP bitmap=CreateDIBSection(dc,&info,DIB_RGB_COLORS,&raw,nullptr,0);
- if(!bitmap||!raw){if(bitmap)DeleteObject(bitmap);DeleteDC(dc);return false;}
- HGDIOBJ old=SelectObject(dc,bitmap);auto* pixels=static_cast<uint32_t*>(raw);
+ if(!bitmap||!raw){const DWORD error=GetLastError();if(bitmap)DeleteObject(bitmap);DeleteDC(dc);SetLastError(error);return false;}
+ stage="select-bitmap";SetLastError(ERROR_SUCCESS);HGDIOBJ old=SelectObject(dc,bitmap);
+ if(!old||old==HGDI_ERROR){const DWORD error=GetLastError();DeleteObject(bitmap);DeleteDC(dc);SetLastError(error);return false;}
+ auto* pixels=static_cast<uint32_t*>(raw);
  const unsigned red=(color>>16)&255,green=(color>>8)&255,blue=color&255;const double square=radius*radius;
  for(int y=0;y<height;y++)for(int x=0;x<width;x++){
   unsigned outside=0;
@@ -66,6 +86,7 @@ bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double r
   pixels[y*width+x]=(alpha<<24)|(((red*alpha+127)/255)<<16)|(((green*alpha+127)/255)<<8)|((blue*alpha+127)/255);
  }
  SIZE size{width,height};POINT source{0,0};BLENDFUNCTION blend{AC_SRC_OVER,0,255,AC_SRC_ALPHA};
+ stage="update-layered-corner";SetLastError(ERROR_SUCCESS);
  const bool ok=UpdateLayeredWindow(corner.window,nullptr,nullptr,&size,dc,&source,0,&blend,ULW_ALPHA)!=FALSE;
  const DWORD error=ok?0:GetLastError();SelectObject(dc,old);DeleteObject(bitmap);DeleteDC(dc);
  if(!ok){SetLastError(error);return false;}
@@ -74,8 +95,11 @@ bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double r
 bool paintPaneTrim(PaneTrim& trim){
  if(trim.painting)return true;trim.painting=true;
  struct Reset {bool& value;~Reset(){value=false;}} reset{trim.painting};
+ const auto failed=[&trim](const char* stage,DWORD error){trim.paintStage=stage;trim.paintError=error;SetLastError(error);return false;};
+ trim.paintStage="client-geometry";trim.paintError=0;
  RECT client{};const UINT dpi=GetDpiForWindow(trim.parent);
- if(dpi<96||dpi>768||!GetClientRect(trim.parent,&client)){SetLastError(ERROR_INVALID_WINDOW_HANDLE);return false;}
+ if(dpi<96||dpi>768)return failed("invalid-dpi",ERROR_INVALID_WINDOW_HANDLE);
+ if(!GetClientRect(trim.parent,&client))return failed("client-rect",GetLastError());
  const double scale=dpi/96.0,radius=12*scale;size_t used=0;
  for(const auto& pane:trim.panes){
   if(pane.x+pane.width>(client.right-client.left)/scale+1||pane.y+pane.height>(client.bottom-client.top)/scale+1)continue;
@@ -90,26 +114,27 @@ bool paintPaneTrim(PaneTrim& trim){
    if(!corner.window){
     corner.window=CreateWindowExW(WS_EX_LAYERED|WS_EX_TRANSPARENT|WS_EX_NOACTIVATE|WS_EX_NOPARENTNOTIFY,kCornerClass,L"",WS_CHILD|WS_DISABLED|WS_CLIPSIBLINGS,
      x,y,width,height,trim.parent,nullptr,GetModuleHandleW(nullptr),&trim);
-    if(!corner.window)return false;
+    if(!corner.window)return failed("create-corner",GetLastError());
    }
-   if(!SetWindowPos(corner.window,HWND_TOP,x,y,width,height,SWP_NOACTIVATE|SWP_NOOWNERZORDER))return false;
+   if(!SetWindowPos(corner.window,HWND_TOP,x,y,width,height,SWP_NOACTIVATE|SWP_NOOWNERZORDER))return failed("position-corner",GetLastError());
    if(!corner.painted||corner.width!=width||corner.height!=height||corner.cx!=cx||corner.cy!=cy||corner.radius!=radius||corner.color!=pane.color)
-    if(!drawCorner(corner,width,height,cx,cy,radius,pane.color))return false;
+    if(!drawCorner(corner,width,height,cx,cy,radius,pane.color,trim.paintStage))return failed(trim.paintStage,GetLastError());
    ShowWindow(corner.window,SW_SHOWNOACTIVATE);
   }
  }
  while(trim.corners.size()>used){trim.destroy(trim.corners.back());trim.corners.pop_back();}
+ trim.paintStage="ready";
  return true;
 }
 LRESULT CALLBACK paneParentProc(HWND window,UINT message,WPARAM wparam,LPARAM lparam,UINT_PTR id,DWORD_PTR reference){
- if(message==WM_NCDESTROY){RemoveWindowSubclass(window,paneParentProc,id);delete reinterpret_cast<PaneTrim*>(reference);return DefSubclassProc(window,message,wparam,lparam);}
+ if(message==WM_NCDESTROY){RemoveWindowSubclass(window,paneParentProc,id);delete reinterpret_cast<PaneTrim*>(reference);eraseTrace(window);return DefSubclassProc(window,message,wparam,lparam);}
  const LRESULT result=DefSubclassProc(window,message,wparam,lparam);
  if(message==WM_DPICHANGED||message==WM_SIZE){
   DWORD_PTR current=0;
   // The original window may have been destroyed recursively by its handler.
   if(GetWindowSubclass(window,paneParentProc,id,&current)&&current==reference){
    auto* trim=reinterpret_cast<PaneTrim*>(reference);
-   if(!paintPaneTrim(*trim)){for(auto& corner:trim->corners)ShowWindow(corner.window,SW_HIDE);}
+   if(!paintPaneTrim(*trim)){traceResult(window,trim->paintStage,trim->paintError,static_cast<uint32_t>(trim->panes.size()),0);for(auto& corner:trim->corners)ShowWindow(corner.window,SW_HIDE);}
   }
  }
  return result;
@@ -118,6 +143,23 @@ void clearPaneTrim(HWND parent,PaneTrim* trim){
  if(!trim)return;RemoveWindowSubclass(parent,paneParentProc,kCornerSubclass);delete trim;
 }
 napi_value answer(napi_env env,int count){napi_value result;napi_create_int32(env,count,&result);return result;}
+napi_value object(napi_env env){napi_value value;napi_create_object(env,&value);return value;}
+void value(napi_env env,napi_value target,const char* key,napi_value item){napi_set_named_property(env,target,key,item);}
+void number(napi_env env,napi_value target,const char* key,double item){napi_value result;napi_create_double(env,item,&result);value(env,target,key,result);}
+void boolean(napi_env env,napi_value target,const char* key,bool item){napi_value result;napi_get_boolean(env,item,&result);value(env,target,key,result);}
+void string(napi_env env,napi_value target,const char* key,const char* item){napi_value result;napi_create_string_utf8(env,item,NAPI_AUTO_LENGTH,&result);value(env,target,key,result);}
+void hex(napi_env env,napi_value target,const char* key,uintptr_t item){char text[24]{};std::snprintf(text,sizeof(text),"0x%llx",static_cast<unsigned long long>(item));string(env,target,key,text);}
+napi_value rectangle(napi_env env,const RECT& rect){napi_value result=object(env);number(env,result,"x",rect.left);number(env,result,"y",rect.top);number(env,result,"width",rect.right-rect.left);number(env,result,"height",rect.bottom-rect.top);return result;}
+napi_value windowState(napi_env env,HWND window){
+ napi_value result=object(env);hex(env,result,"handle",reinterpret_cast<uintptr_t>(window));boolean(env,result,"exists",IsWindow(window)!=FALSE);
+ DWORD process=0;const DWORD thread=GetWindowThreadProcessId(window,&process);number(env,result,"pid",process);number(env,result,"threadId",thread);
+ wchar_t name[128]{};const int length=GetClassNameW(window,name,128);napi_value className;napi_create_string_utf16(env,reinterpret_cast<const char16_t*>(name),length>0?static_cast<size_t>(length):0,&className);value(env,result,"className",className);
+ hex(env,result,"style",static_cast<uint32_t>(GetWindowLongPtrW(window,GWL_STYLE)));hex(env,result,"exStyle",static_cast<uint32_t>(GetWindowLongPtrW(window,GWL_EXSTYLE)));
+ boolean(env,result,"visible",IsWindowVisible(window)!=FALSE);boolean(env,result,"enabled",IsWindowEnabled(window)!=FALSE);boolean(env,result,"iconic",IsIconic(window)!=FALSE);
+ hex(env,result,"parentHandle",reinterpret_cast<uintptr_t>(GetParent(window)));hex(env,result,"rootHandle",reinterpret_cast<uintptr_t>(GetAncestor(window,GA_ROOT)));
+ RECT rect{};if(GetWindowRect(window,&rect))value(env,result,"rect",rectangle(env,rect));
+ return result;
+}
 bool coordinate(napi_env env,napi_value value,const char* key,double& result){
  napi_value field;return napi_get_named_property(env,value,key,&field)==napi_ok&&napi_get_value_double(env,field,&result)==napi_ok&&std::isfinite(result);
 }
@@ -135,20 +177,69 @@ bool paneValue(napi_env env,napi_value value,Pane& pane){
 napi_value mousePaneCorners(napi_env env,napi_callback_info info){
  size_t count=2;napi_value args[2];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);
  void* bytes=nullptr;size_t length=0;bool buffer=false,array=false;uint32_t items=0;
- if(count!=2||napi_is_buffer(env,args[0],&buffer)!=napi_ok||!buffer||napi_get_buffer_info(env,args[0],&bytes,&length)!=napi_ok||length!=sizeof(HWND)||
-  napi_is_array(env,args[1],&array)!=napi_ok||!array||napi_get_array_length(env,args[1],&items)!=napi_ok||items>100)return answer(env,0);
- HWND parent=nullptr;std::memcpy(&parent,bytes,sizeof(parent));DWORD process=0;const DWORD thread=GetWindowThreadProcessId(parent,&process);
+ if(count!=2||napi_is_buffer(env,args[0],&buffer)!=napi_ok||!buffer||napi_get_buffer_info(env,args[0],&bytes,&length)!=napi_ok||length!=sizeof(HWND))return answer(env,0);
+ HWND parent=nullptr;std::memcpy(&parent,bytes,sizeof(parent));
+ {auto& entry=trace(parent);entry.calls++;entry.reason="received";entry.error=0;entry.requested=0;entry.accepted=0;entry.result=0;}
+ if(napi_is_array(env,args[1],&array)!=napi_ok||!array||napi_get_array_length(env,args[1],&items)!=napi_ok||items>100){traceResult(parent,"invalid-panes",0,0,0);return answer(env,0);}
+ trace(parent).requested=items;
+ if(!IsWindow(parent)){traceResult(parent,"invalid-window",0,0,0);return answer(env,0);}
+ DWORD process=0;SetLastError(ERROR_SUCCESS);const DWORD thread=GetWindowThreadProcessId(parent,&process);const DWORD threadError=thread?0:GetLastError();
  // Do not paint or subclass foreign windows, other threads, or child HWNDs.
- if(!IsWindow(parent)||process!=GetCurrentProcessId()||thread!=GetCurrentThreadId()||GetAncestor(parent,GA_ROOT)!=parent)return answer(env,0);
+ if(!thread){traceResult(parent,"window-thread",threadError,0,0);return answer(env,0);}
+ if(process!=GetCurrentProcessId()){traceResult(parent,"foreign-process",0,0,0);return answer(env,0);}
+ if(thread!=GetCurrentThreadId()){traceResult(parent,"different-ui-thread",0,0,0);return answer(env,0);}
+ if(GetAncestor(parent,GA_ROOT)!=parent){traceResult(parent,"not-top-level",0,0,0);return answer(env,0);}
  DWORD_PTR reference=0;GetWindowSubclass(parent,paneParentProc,kCornerSubclass,&reference);auto* trim=reinterpret_cast<PaneTrim*>(reference);
  std::vector<Pane> panes;panes.reserve(items);
  for(uint32_t i=0;i<items;i++){napi_value value;Pane pane{};if(napi_get_element(env,args[1],i,&value)==napi_ok&&paneValue(env,value,pane))panes.push_back(pane);}
- if(panes.empty()){clearPaneTrim(parent,trim);return answer(env,0);}
+ if(panes.empty()){clearPaneTrim(parent,trim);traceResult(parent,items?"no-valid-panes":"cleared",0,0,0);return answer(env,0);}
  if(!trim){
-  if(!ensureCornerClass())return answer(env,0);trim=new PaneTrim(parent);
-  if(!SetWindowSubclass(parent,paneParentProc,kCornerSubclass,reinterpret_cast<DWORD_PTR>(trim))){delete trim;return answer(env,0);}
+  if(!ensureCornerClass()){const DWORD error=GetLastError();traceResult(parent,"register-class",error,static_cast<uint32_t>(panes.size()),0);return answer(env,0);}trim=new PaneTrim(parent);
+  SetLastError(ERROR_SUCCESS);
+  if(!SetWindowSubclass(parent,paneParentProc,kCornerSubclass,reinterpret_cast<DWORD_PTR>(trim))){const DWORD error=GetLastError();delete trim;traceResult(parent,"subclass-parent",error,static_cast<uint32_t>(panes.size()),0);return answer(env,0);}
  }
  trim->panes=std::move(panes);
- if(!paintPaneTrim(*trim)){const DWORD error=GetLastError();clearPaneTrim(parent,trim);std::fprintf(stderr,"Mouse pane corner chrome failed (Windows error %lu)\n",static_cast<unsigned long>(error));return answer(env,0);}
+ if(!paintPaneTrim(*trim)){const DWORD error=trim->paintError;traceResult(parent,trim->paintStage,error,static_cast<uint32_t>(trim->panes.size()),0);clearPaneTrim(parent,trim);std::fprintf(stderr,"Mouse pane corner chrome failed (Windows error %lu)\n",static_cast<unsigned long>(error));return answer(env,0);}
+ traceResult(parent,"ready",0,static_cast<uint32_t>(trim->panes.size()),static_cast<int>(trim->corners.size()/2));
  return answer(env,static_cast<int>(trim->corners.size()/2));
+}
+
+// Diagnostic snapshot only: no painting, position changes, subclassing or HWND
+// creation. Inspect only this process's top-level window on its owning thread.
+napi_value mousePaneCornersState(napi_env env,napi_callback_info info){
+ size_t count=1;napi_value args[1];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);
+ napi_value result=object(env),validation=object(env);value(env,result,"validation",validation);
+ void* bytes=nullptr;size_t length=0;bool buffer=false;
+ const bool validBuffer=count==1&&napi_is_buffer(env,args[0],&buffer)==napi_ok&&buffer&&napi_get_buffer_info(env,args[0],&bytes,&length)==napi_ok&&length==sizeof(HWND);
+ boolean(env,validation,"buffer",validBuffer);
+ if(!validBuffer){string(env,validation,"reason","invalid-handle-buffer");return result;}
+ HWND parent=nullptr;std::memcpy(&parent,bytes,sizeof(parent));
+ const bool exists=IsWindow(parent)!=FALSE;DWORD process=0;const DWORD thread=exists?GetWindowThreadProcessId(parent,&process):0;
+ const bool owned=exists&&process==GetCurrentProcessId(),uiThread=owned&&thread==GetCurrentThreadId(),topLevel=exists&&GetAncestor(parent,GA_ROOT)==parent;
+ boolean(env,validation,"window",exists);boolean(env,validation,"ownedProcess",owned);boolean(env,validation,"uiThread",uiThread);boolean(env,validation,"topLevel",topLevel);
+ string(env,validation,"reason",!exists?"invalid-window":!owned?"foreign-process":!uiThread?"different-ui-thread":!topLevel?"not-top-level":"valid");
+ napi_value last=object(env);string(env,last,"reason","not-called");value(env,result,"lastCall",last);
+ for(const auto& entry:cornerTraces)if(entry.parent==parent){
+  string(env,last,"reason",entry.reason.c_str());number(env,last,"win32Error",entry.error);number(env,last,"requestedPanes",entry.requested);number(env,last,"acceptedPanes",entry.accepted);number(env,last,"result",entry.result);number(env,last,"calls",static_cast<double>(entry.calls));break;
+ }
+ if(!owned||!uiThread||!topLevel)return result;
+ napi_value parentState=windowState(env,parent);value(env,result,"parent",parentState);number(env,parentState,"dpi",GetDpiForWindow(parent));
+ RECT client{};if(GetClientRect(parent,&client))value(env,parentState,"clientRect",rectangle(env,client));
+ POINT origin{0,0};if(ClientToScreen(parent,&origin)){napi_value point=object(env);number(env,point,"x",origin.x);number(env,point,"y",origin.y);value(env,parentState,"clientOrigin",point);}
+ DWORD_PTR reference=0;GetWindowSubclass(parent,paneParentProc,kCornerSubclass,&reference);auto* trim=reinterpret_cast<PaneTrim*>(reference);
+ napi_value trimState=object(env);value(env,result,"trim",trimState);boolean(env,trimState,"exists",trim!=nullptr);
+ if(trim){
+  boolean(env,trimState,"painting",trim->painting);string(env,trimState,"paintStage",trim->paintStage);number(env,trimState,"paintError",trim->paintError);
+  number(env,trimState,"paneCount",static_cast<double>(trim->panes.size()));number(env,trimState,"cornerCount",static_cast<double>(trim->corners.size()));
+  number(env,trimState,"paintedCount",static_cast<double>(std::count_if(trim->corners.begin(),trim->corners.end(),[](const Corner& corner){return corner.painted;})));
+  number(env,trimState,"visibleCount",static_cast<double>(std::count_if(trim->corners.begin(),trim->corners.end(),[](const Corner& corner){return IsWindowVisible(corner.window)!=FALSE;})));
+  napi_value panes,corners;napi_create_array(env,&panes);napi_create_array(env,&corners);value(env,trimState,"panes",panes);value(env,trimState,"corners",corners);
+  uint32_t i=0;for(const auto& pane:trim->panes){if(i==100)break;napi_value item=object(env);number(env,item,"x",pane.x);number(env,item,"y",pane.y);number(env,item,"width",pane.width);number(env,item,"height",pane.height);char color[8]{};std::snprintf(color,sizeof(color),"#%06x",pane.color);string(env,item,"color",color);napi_set_element(env,panes,i++,item);}
+  i=0;for(const auto& corner:trim->corners){if(i==200)break;napi_value item=windowState(env,corner.window);boolean(env,item,"painted",corner.painted);number(env,item,"bitmapWidth",corner.width);number(env,item,"bitmapHeight",corner.height);number(env,item,"cx",corner.cx);number(env,item,"cy",corner.cy);number(env,item,"radius",corner.radius);char color[8]{};std::snprintf(color,sizeof(color),"#%06x",corner.color);string(env,item,"color",color);napi_set_element(env,corners,i++,item);}
+ }
+ napi_value children;napi_create_array(env,&children);value(env,result,"children",children);uint32_t index=0;HWND child=GetWindow(parent,GW_CHILD);std::vector<HWND> seen;
+ while(child&&index<256&&std::find(seen.begin(),seen.end(),child)==seen.end()){
+  seen.push_back(child);napi_value item=windowState(env,child);number(env,item,"zOrder",index);boolean(env,item,"ownedCorner",trim&&GetWindowLongPtrW(child,GWLP_USERDATA)==reinterpret_cast<LONG_PTR>(trim));napi_set_element(env,children,index++,item);child=GetWindow(child,GW_HWNDNEXT);
+ }
+ boolean(env,result,"childrenTruncated",child!=nullptr);return result;
 }

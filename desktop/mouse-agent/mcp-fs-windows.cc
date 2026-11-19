@@ -258,6 +258,8 @@ napi_value stopProcessTree(napi_env env,napi_callback_info info){
 napi_value primaryDown(napi_env env,napi_callback_info){return boolean(env,(GetAsyncKeyState(VK_LBUTTON)&0x8000)!=0);}
 }
 
+napi_value mousePaneCornersState(napi_env env,napi_callback_info info);
+
 napi_value init(napi_env env,napi_value exports){
  HMODULE ntdll=GetModuleHandleW(L"ntdll.dll");ntCreate=reinterpret_cast<NtCreate>(GetProcAddress(ntdll,"NtCreateFile"));ntSetInfo=reinterpret_cast<NtSetInfo>(GetProcAddress(ntdll,"NtSetInformationFile"));ntError=reinterpret_cast<NtError>(GetProcAddress(ntdll,"RtlNtStatusToDosError"));
  if(!ntCreate||!ntSetInfo||!ntError)return fail(env,"Required Windows filesystem APIs unavailable");
@@ -267,7 +269,8 @@ napi_value init(napi_env env,napi_value exports){
   {"stat",nullptr,stat,nullptr,nullptr,nullptr,napi_default,nullptr},{"list",nullptr,list,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"commit",nullptr,commit,nullptr,nullptr,nullptr,napi_default,nullptr},{"remove",nullptr,remove,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"ownProcess",nullptr,ownProcess,nullptr,nullptr,nullptr,napi_default,nullptr},{"stopProcessTree",nullptr,stopProcessTree,nullptr,nullptr,nullptr,napi_default,nullptr},
-  {"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr},{"paneCorners",nullptr,mousePaneCorners,nullptr,nullptr,nullptr,napi_default,nullptr}
+  {"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr},{"paneCorners",nullptr,mousePaneCorners,nullptr,nullptr,nullptr,napi_default,nullptr},
+  {"paneCornersState",nullptr,mousePaneCornersState,nullptr,nullptr,nullptr,napi_default,nullptr}
  };
  napi_define_properties(env,exports,sizeof(properties)/sizeof(properties[0]),properties);return exports;
 }

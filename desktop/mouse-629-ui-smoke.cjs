@@ -29,13 +29,19 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
   await activate();const target=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);assert.equal(target.ready,true,selector+' is a real native click target');
   const origin=win.getContentBounds();assert.equal((nativeInput||require('./mouse-native-menu.node')).testClick(Math.round(origin.x+target.x),Math.round(origin.y+target.y)),true);
  }
+ function nativePaneCorners(){
+  if(process.platform!=='win32')return;
+  try{return{electron:{windowBounds:win.getBounds(),contentBounds:win.getContentBounds(),contentViewBounds:win.contentView.getBounds(),visible:win.isVisible(),focused:win.isFocused(),surfaceHeld:!!browser.mouseSurfaceHold},native:require('./mouse-mcp-fs.node').paneCornersState(win.getNativeWindowHandle())};}
+  catch(error){return{error:String(error.stack||error).slice(0,4000)};}
+ }
  async function capture(name){
-  const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),frame=await globalCapture.acquire(display);
+  const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),cornerStateBefore=nativePaneCorners(),frame=await globalCapture.acquire(display),cornerStateAfter=nativePaneCorners();
   assert.equal(frame.kind,'screen');assert.ok(frame.backend);assert.deepEqual({width:frame.width,height:frame.height},{width:display.bounds.width,height:display.bounds.height});assert.deepEqual(win.getContentBounds(),contentBounds);
   assert.match(frame.base,/^data:image\/png;base64,/);const screenPNG=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:screenPNG.readUInt32BE(16),height:screenPNG.readUInt32BE(20)},full=nativeImage.createFromBuffer(screenPNG);
   assert.deepEqual(full.getSize(1),screenPixelSize);const {cropPixels,mapping}=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=full.crop(cropPixels),png=image.toPNG({scaleFactor:1}),pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)};
   assert.deepEqual(pixelSize,{width:cropPixels.width,height:cropPixels.height});
   const metadata={source:'globalCapture.acquire(display)',kind:frame.kind,backend:frame.backend,display:{id:display.id,bounds:{...display.bounds},scaleFactor:display.scaleFactor},contentBounds,screenPixelSize,cropPixels,pixelSize,mapping,capture:name+'.png',screenCapture:name+'-display.png'};
+  if(process.platform==='win32')metadata.nativePaneCorners={before:cornerStateBefore,after:cornerStateAfter};
   await fs.writeFile(metadata.capture,png);await fs.writeFile(metadata.screenCapture,screenPNG);return{image,metadata,bitmap:{size:image.getSize(1),bytes:image.toBitmap({scaleFactor:1})}};
  }
  async function identities(){return Promise.all(pages.map(async page=>({id:page.id,webContentsId:page.view.webContents.id,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0,bounds:page.bounds,clip:page.clipView?.getBounds()||null,...await page.view.webContents.executeJavaScript('({timeOrigin:performance.timeOrigin,identity:globalThis.mouse629Identity,field:document.querySelector("input").value,width:innerWidth,height:innerHeight,scrollX,scrollY})')})));}

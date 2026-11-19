@@ -12,7 +12,7 @@ if(process.platform==='win32'&&process.arch==='x64'){
  const root=path.join(__dirname,'mouse-agent/native-win');
  cp.execFileSync(process.execPath,[gyp,'rebuild','--directory',root,'--arch=x64','--target='+process.versions.node],{stdio:'inherit',cwd:__dirname});
  fs.copyFileSync(path.join(root,'build/Release/mouse_mcp_fs.node'),path.join(__dirname,'mouse-mcp-fs.node'));
- const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove','ownProcess','stopProcessTree','primaryDown','paneCorners'])if(typeof native[name]!=='function')throw Error('Missing Windows native export: '+name);
+ const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove','ownProcess','stopProcessTree','primaryDown','paneCorners','paneCornersState'])if(typeof native[name]!=='function')throw Error('Missing Windows native export: '+name);
  console.log('MOUSE_WINDOWS_NATIVE_X64_BUILT');
  return;
 }

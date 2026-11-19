@@ -276,3 +276,44 @@ The newer main runtime is preserved. Publication must still require the exact
 successful Windows source head, its merged maintenance PR, immutable artifact
 hashes, a fresh full installed verification and anonymous public download.
 This changes the version-specific integration branch, not any acceptance gate.
+
+## Complete source acceptance, followed by a fresh-host rendering failure
+
+Source `9b15a122c82edcec853e78a88d921128a58d1bf2` passed
+[Windows run 44532782697 / job 135590206217](https://github.com/jeep-jim/OSMINOG/actions/runs/44532782697/job/135590206217)
+on Windows Server 2022: 176 base tests, 629 Mouse tests and seven Python checks,
+with no failures or skips. Full installed WRITE, reinstallation, READ, actual
+NSIS update and visible relaunch, post-update READ, ordinary startup,
+second-instance restore and native close passed. The real terminal lifecycle
+also passed in [run 44532782658](https://github.com/jeep-jim/OSMINOG/actions/runs/44532782658).
+Preserving the runner's `PSModuleAnalysisCachePath` while independently resetting
+`PSModulePath` removed the measured first-start delay without extending the
+existing readiness or Stop limits. The background process is now a direct,
+noninteractive PowerShell child contained by the existing ConPTY and native Job
+Object; raw Unicode command data is passed through child-only environment
+variables and cleared before execution.
+
+PR 172 was merged into `release/mouse-6.0.29` as
+`adc2faee898c8b835f20d0451fe91c9f95b5ed63`. The source candidate installer measured
+125,607,419 bytes, SHA-256
+`e789302e49469b733cdb735fee41d7a0094fd8d9425a64b72a915e2e578ce88e`.
+Its installed executable and native runtime were independently inspected. Both
+installer and executable remain unsigned. These results established the source
+candidate on that host; they did not establish a public Windows release.
+
+Release PR 52 passed all 22 publisher contract tests and was merged. The fresh
+[publisher run 44535145464 / job 135598566630](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44535145464/job/135598566630)
+successfully imported the exact pinned source, merged PR and hashed candidate,
+but failed installed acceptance on Windows Server 2025. The installer and
+installed executable hashes matched the successful source evidence. All 18
+divider probes and eight page-interior probes in the first 6.0.29 separator
+capture passed, while all 64 bottom-corner cutout probes failed after the existing
+15 captures. The full display image shows square guest-page bottom corners.
+The native-window cause is not established by that image alone. Public asset
+publication and channel updates were skipped; no ready download is claimed.
+
+The follow-up work records bounded native HWND state and runs the same complete
+installed verifier against the same candidate on a second Windows 2025 runner.
+The original pixel assertions, Windows 2022 acceptance and fresh publisher gate
+remain required. A corrected build and successful public download verification
+are still needed before delivery.
