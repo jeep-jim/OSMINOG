@@ -54,13 +54,43 @@ jobs:
           old="await require('./mouse-628-ui-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});"
           assert text.count(old)==1
           new="await require('./mouse-motion-diagnostic.cjs')({app,win,browser,store,privateMode,globalCapture,overlayGate});app.exit(0);return;"
-          p.write_text(text.replace(old,new))
+          text=text.replace(old,new)
+          prefix="await require('./mouse-629-feedback-smoke.cjs')({app,win,browser,store,libraryService,privateMode,globalCapture});"
+          assert text.count(prefix)==1
+          diagnostic_prefix="""await (async()=>{
+            const observed={diagnosticOnly:true,releaseAcceptance:false,suite:'mouse-629-feedback-smoke.cjs',status:'running',startedAt:Date.now()};
+            try{await require('./mouse-629-feedback-smoke.cjs')({app,win,browser,store,libraryService,privateMode,globalCapture});observed.status='passed';}
+            catch(error){
+              observed.status='failed';observed.error={message:error.message,stack:error.stack};
+              const evidence=JSON.parse(await fs.readFile('mouse-629-feedback-evidence.json','utf8'));
+              observed.cleanup={restored:evidence.restored,cleanupError:evidence.cleanupError??null,motionCleanupError:evidence.motionCleanupError??null};
+              if(error.message!=='Actual rendered confirmation changes pixels outside the exported bitmap'||evidence.restored!==true||evidence.cleanupError||evidence.motionCleanupError)throw error;
+              observed.continuedForDiagnosticOnly=true;
+              console.error('MOUSE_MOTION_DIAGNOSTIC_PREFIX_FAILURE_RECORDED',JSON.stringify(observed));
+            }finally{observed.completedAt=Date.now();await fs.writeFile('mouse-motion-diagnostic-prefix.json',JSON.stringify(observed,null,2)+'\\n');}
+          })();"""
+          p.write_text(text.replace(prefix,diagnostic_prefix))
+          feedback_file=pathlib.Path('mouse-629-feedback-smoke.cjs');feedback_text=feedback_file.read_text();feedback_before=hashlib.sha256(feedback_file.read_bytes()).hexdigest()
+          observation="assert.ok(changedPixels>20,'Actual rendered confirmation changes pixels outside the exported bitmap');"
+          assert feedback_text.count(observation)==1
+          feedback_text=feedback_text.replace(observation,"facts.capture.copyAttemptDiagnostic={copiedFeedback,copiedFrame,changedPixels,region,observedAt:performance.now(),afterReadback:await feedback()};"+observation)
+          sampling="animationName:getComputedStyle(badge).animationName,"
+          assert feedback_text.count(sampling)==1
+          feedback_text=feedback_text.replace(sampling,"sampledAt:performance.now(),timeOrigin:performance.timeOrigin,badgeOpacity:getComputedStyle(badge).opacity,badgeAnimations:badge.getAnimations().map(a=>({currentTime:a.currentTime,startTime:a.startTime,playState:a.playState,timing:a.effect.getComputedTiming()})),"+sampling)
+          capture_start="const image=await target.capturePage(),png=image.toPNG();"
+          assert feedback_text.count(capture_start)==1
+          feedback_text=feedback_text.replace(capture_start,"const requestedAt=performance.now(),image=await target.capturePage(),receivedAt=performance.now(),png=image.toPNG(),encodedAt=performance.now();")
+          capture_result="return{file,source:'BrowserWindow.capturePage',"
+          assert feedback_text.count(capture_result)==1
+          feedback_text=feedback_text.replace(capture_result,"return{file,requestedAt,receivedAt,encodedAt,mainTimeOrigin:performance.timeOrigin,source:'BrowserWindow.capturePage',")
+          feedback_file.write_text(feedback_text)
           pathlib.Path('mouse-motion-diagnostic-build.cjs').write_text("const base=require('./mouse-build.cjs');base.files.push('mouse-motion-diagnostic.cjs');base.directories.output='dist-mouse-motion-diagnostic';module.exports=base;\n")
-          pathlib.Path('mouse-motion-diagnostic-harness.patch').write_bytes(subprocess.check_output(['git','diff','--','mouse-smoke.cjs']))
-          provenance=pathlib.Path('mouse-motion-diagnostic-provenance.json');data=json.loads(provenance.read_text());data['harnessAfterSHA256']=hashlib.sha256(p.read_bytes()).hexdigest();provenance.write_text(json.dumps(data,indent=2)+'\n')
+          pathlib.Path('mouse-motion-diagnostic-harness.patch').write_bytes(subprocess.check_output(['git','diff','--','mouse-smoke.cjs','mouse-629-feedback-smoke.cjs']))
+          provenance=pathlib.Path('mouse-motion-diagnostic-provenance.json');data=json.loads(provenance.read_text());data['harnessAfterSHA256']=hashlib.sha256(p.read_bytes()).hexdigest();data['feedbackBeforeSHA256']=feedback_before;data['feedbackAfterSHA256']=hashlib.sha256(feedback_file.read_bytes()).hexdigest();provenance.write_text(json.dumps(data,indent=2)+'\n')
           PY
           node --check mouse-motion-diagnostic.cjs
           node --check mouse-smoke.cjs
+          node --check mouse-629-feedback-smoke.cjs
       - uses: actions/cache/restore@v4
         with:
           path: |
@@ -93,9 +123,9 @@ jobs:
         with:
           name: mouse-motion-observer-diagnostic-attempt-${{ github.run_attempt }}
           path: |
-            desktop/mouse-motion-diagnostic*.json
-            desktop/mouse-motion-diagnostic*.png
-            desktop/mouse-motion-diagnostic*.log
+            desktop/mouse-*.json
+            desktop/mouse-*.png
+            desktop/mouse-*.log
             desktop/mouse-motion-diagnostic*.patch
           if-no-files-found: error
           retention-days: 14
