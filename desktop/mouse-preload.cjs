@@ -2,6 +2,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 const on=(channel,callback)=>{const listener=(_event,data)=>callback(data);ipcRenderer.on(channel,listener);return()=>ipcRenderer.removeListener(channel,listener)};
 if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.freeze({
+ platform:process.platform,arch:process.arch,
  version:process.argv.find(x=>x.startsWith('--mouse-version='))?.split('=').slice(1).join('=')||'6.0.0',
  test:process.argv.includes('--mouse-test'),
  agent:(action,args)=>ipcRenderer.invoke('mouse:agent',action,args),onAgent:cb=>on('mouse:agent-state',cb),onTerminal:cb=>on('mouse:terminal-data',cb),onAgentOpen:cb=>on('mouse:agent-open',cb),

@@ -1,6 +1,14 @@
 'use strict';
 const {screen}=require('electron'),{ChromeReveal}=require('./mouse/chrome-model.cjs');
 function install(win,{test=false}={}){
+ if(process.platform==='win32'){
+  // Windows owns its taskbar and system menu. Only report the actual native
+  // window state; never load an AppKit addon or reserve a fake titlebar inset.
+  const state=()=>({fullscreen:win.isFullScreen(),maximized:win.isMaximized(),inset:0});
+  const update=()=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:chrome',state());};
+  for(const event of ['enter-full-screen','leave-full-screen','maximize','unmaximize','resize','focus'])win.on(event,update);
+  return{state,sample:()=>0,nativeState:()=>state()};
+ }
  const native=require('./mouse-native-menu.node');native.install(win.getNativeWindowHandle());
  const model=new ChromeReveal();let last=0,timer=null,testPoint=null,awaySince=0;
  const state=()=>({fullscreen:win.isFullScreen(),inset:last});

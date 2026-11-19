@@ -5,7 +5,7 @@ function fixture({granted='denied',available=true}={}){
  const app=new EventEmitter(),win=new EventEmitter(),handlers=new Map(),registered=new Map(),events=[],saved={};
  Object.assign(win,{isDestroyed:()=>false,webContents:{send:(...args)=>events.push(['state',...args])}});
  const electron={ipcMain:{handle:(name,fn)=>handlers.set(name,fn)},globalShortcut:{register:(name,fn)=>{if(!available)return false;registered.set(name,fn);return true;},unregister:name=>registered.delete(name)},systemPreferences:{getMediaAccessStatus:()=>granted},screen:{getCursorScreenPoint:()=>({x:50,y:20}),getDisplayNearestPoint:()=>({id:2,size:{width:100,height:100},workArea:{x:0,y:0,width:100,height:100}})},desktopCapturer:{getSources:async()=>{events.push(['capture']);return[];}},dialog:{showMessageBox:async()=>{events.push(['permission']);return{response:0};}},shell:{openExternal:async()=>events.push(['settings'])}};
- const service=new GlobalCapture({electron,app,mainWindow:win,store:{get:async()=>saved,set:async v=>Object.assign(saved,v)},trusted:e=>{if(!e?.trusted)throw Error('Untrusted');},entryDirectory:'/app',test:true});
+ const service=new GlobalCapture({electron,app,mainWindow:win,store:{get:async()=>saved,set:async v=>Object.assign(saved,v)},trusted:e=>{if(!e?.trusted)throw Error('Untrusted');},entryDirectory:'/app',test:true,platform:'darwin'});
  return{service,app,handlers,registered,events,saved};
 }
 test('global Ctrl+A registers without capturing at startup and is released on quit',async()=>{

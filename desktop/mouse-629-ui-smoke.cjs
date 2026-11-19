@@ -17,9 +17,9 @@ function sample(image,mapping,point,bitmap){
  assert.equal(bytes.length,size.width*size.height*4);const i=(y*size.width+x)*4;return{x,y,rgba:[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]]};
 }
 function matches(probe){return probe.rgba[3]===255&&probe.expected.every((v,i)=>Math.abs(v-probe.rgba[i])<=3);}
-module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
+module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- assert.equal(app.getVersion(),'6.0.29');assert.equal(globalCapture?.permission(),'granted');
+ assert.equal(app.getVersion(),'6.0.29');assert.equal(globalCapture?.permission(),process.platform==='win32'?'not-required':'granted');
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),bounds=win.getBounds(),fullscreen=win.isFullScreen();
  const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],nora:[],restored:false};
  const pages=[];let server,verificationError,cleanupError;
@@ -27,7 +27,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
  async function activate(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'window focus');}
  async function click(selector){
   await activate();const target=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);assert.equal(target.ready,true,selector+' is a real native click target');
-  const origin=win.getContentBounds();assert.equal(require('./mouse-native-menu.node').testClick(Math.round(origin.x+target.x),Math.round(origin.y+target.y)),true);
+  const origin=win.getContentBounds();assert.equal((nativeInput||require('./mouse-native-menu.node')).testClick(Math.round(origin.x+target.x),Math.round(origin.y+target.y)),true);
  }
  async function capture(name){
   const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),frame=await globalCapture.acquire(display);
