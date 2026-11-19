@@ -167,3 +167,79 @@ the completion evidence. No product scrollbar CSS or input-routing rule changes.
 
 This partial native/UI proof does not replace the missing complete scrollbar,
 gesture, motion, restart and real-upgrade gates. Publication remains pending.
+
+## Fourth candidate — complete629 UI evidence, retained motion failure
+
+Source `87f2b68941e534881778c5d61ac5f6a47a26ab49`,
+[run44487095970](https://github.com/jeep-jim/OSMINOG/actions/runs/44487095970),
+attempt1/job135433158784:176/594/529 test batches and native packages PASS.
+`MOUSE_629_UI_REGRESSIONS_NATIVE_PASS` is present. Independent verification with
+Releases validator blob `04ad715ccb7b2397e7306516c28455c7577d2d83` accepts all four
+separator scenes/360 probes, two Nora scenes/16 overlap probes, two scrollbar
+guest PNGs and all four actual wheel inputs. Each input has its own trusted
+`scrollend`, matching event index and unchanged positions after two RAFs; the
+other scroll container and active desktop remain unchanged. Fixture restoration
+passes. The exact UI JSON SHA-256 is
+`629ced4aa8aac9f3b7dc20bac91a9472b5c41e29fa23b4c1d26a88fa004e14c9`.
+
+Verification artifact14511990271:8610963 bytes, SHA-256
+`bed31b6c36e24bf5293231feb34e58b118215ceb51eac3c361a0216931c977b2`.
+The complete job still FAILS: retained628 light closing capture times out after
+4000ms/11 frames. Archived PNGs1–6 show the fully open panel, PNG7 shows an11px
+translation, and PNGs8–11 show no panel. The renderer recorded only two genuine
+intermediate translations,12.9789px and290.016px. The first-exterior-edge
+comparator agrees with independent pixel scanning; accepting internal white
+card edges would incorrectly treat a static panel as moving.
+
+The complete lossless Chromium trace records324.214ms of GPU IOSurface waits
+inside the411ms play-request→complete interval; renderer longTasks is empty.
+The test frame capturer is active throughout. This establishes scarce observed
+frames under GPU waits, but does not establish whether capture or host load is
+the cause. Native visibility diagnostics contain no hide/layout/attach operations
+during closing: the hold is released once after animation completion. Prior628
+source and publisher history also records frame failures followed by successful
+same-source runs. One bounded same-source retry was therefore requested as
+attempt2, without changing product code, animation duration, capture range,
+frame thresholds, timeout or trace requirements. Its outcome is recorded below.
+
+All seven companion workflows on87f2 are SUCCESS. Gesture, restart, private and
+real628→629 replacement acceptance must still pass before publication.
+
+## Same-source retry — Nora and wheel switching pass, ordinary transition stops
+
+Run44487095970 attempt2/job135437220042 uses the unchanged87f2 source. It passes
+the complete629 UI gate, retained628 Nora motion/content-fit/borderless gates,
+open-Nora desktop transitions and `MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS`.
+The prior Nora closing failure does not recur. The archived tutorial includes
+four normal successful native wheel switches, non-switch rejection, reopened
+hint suppression, private completion and fresh-private isolation. Restart is
+still false because the separate read process has not run.
+
+Verification artifact14512351654:16957565 bytes, SHA-256
+`be9336732337e687278fc60ceb7a025c7691d7f078c71e0c7ea0795a96a444c5`.
+Source test batches remain176/594/529 PASS. This is not a successful release
+candidate: the later621 scenario calls627 ordinary desktop-transition proof,
+whose first forward painted-band capture times out after4000ms/16 frames.
+Nora is closed. The627 helper writes its pending transition only after awaiting
+capture success, so the failed archive contains no per-frame band counts,
+pending transition, or captured rejected PNGs. The available evidence cannot
+distinguish missing fixture paint, stale sampling geometry, delayed preparation
+and sparse intermediate presentation. A narrow failure-diagnostics correction
+will retain those observations before cleanup; no gate or timing is relaxed.
+
+Independent checks of this exact archive accept the full629 UI block and the
+retained628 Local/progress/borderless/open-Nora-slide block. The frozen two-input
+motion-trace gate passes179774 events and19 clock anchors, spread0.069ms. Full
+gesture validation correctly rejects missing fresh-read evidence. A confirmed
+new-publisher version-dispatch error was corrected: Local/progress record the
+runtime version6.0.29, while borderless/motion/open-Nora-slide retain schema6.0.28.
+All38 publisher contract tests pass; frozen627/628 validators remain unchanged.
+
+The627 diagnostics now preserve actual rejected band counts, original scan
+geometry, phase/capture timestamps, renderer observations and native state before
+fixture cleanup. Failed frames retain the first and latest callbacks within
+12 frames/32 MiB; encoding and writes occur after subscription cancellation.
+Source-surface band samples reuse the existing bitmap and preserve captured PNGs
+on failure. Selection RGB/tolerance/minimum, timeout4000ms, maxFrames120 and all
+original animation assertions remain unchanged. This improves failure evidence;
+it does not establish the cause or claim a fix for the timed-out transition.
