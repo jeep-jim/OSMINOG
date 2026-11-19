@@ -89,12 +89,19 @@ class DesktopSurfaces{
    if(surfaces.length!==pins.length)return incomplete('incomplete-pages');
    if(pins.some(pin=>!this.valid(pin,args.hold)))return incomplete('pins-changed');
    const token=randomUUID();this.records.set(token,{generation,desk,shape,pins,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
-   if(args.hold)this.watch(pins);
+   // Once the selected incoming desk has a complete validated frame, pages
+   // from a previous desk no longer own the long-lived Nora hold. Background
+   // navigation there must not close Nora after a successful desk switch.
+   if(args.hold)this.watch(pins,true);
    resultDiagnostic('complete',true);
-   return{desk,surfaces,complete:true,generation,token};
+   // The capture record and the hold have separate identities. A renderer
+   // borrowing Nora's hold can verify that this frame belongs to its lease
+   // without treating the new capture token as a replacement hold.
+   return{desk,surfaces,complete:true,generation,token,holdToken:args.hold||''};
   }finally{cancelled=true;clearTimeout(timer);this.busy=false;}
  }
- watch(pins){
+ watch(pins,replace=false){
+  if(replace){const selected=new Set(pins.map(pin=>pin.wc));for(const w of this.watchers)if(!selected.has(w.wc)){w.wc.removeListener?.('destroyed',w.clear);w.wc.removeListener?.('did-start-navigation',w.nav);}this.watchers=this.watchers.filter(w=>selected.has(w.wc));}
   for(const pin of pins){if(this.watchers.some(w=>w.wc===pin.wc))continue;const clear=()=>this.clear(true),nav=(_event,_url,_inPlace,isMainFrame)=>{if(isMainFrame)this.clear(true);};pin.wc.on?.('destroyed',clear);pin.wc.on?.('did-start-navigation',nav);this.watchers.push({wc:pin.wc,clear,nav});}
  }
  begin(token,purpose='transition'){

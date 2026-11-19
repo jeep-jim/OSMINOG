@@ -32,6 +32,18 @@ test('new pages and clip roots remain hidden and attached while a modal owns a s
  late.clipView=view();win.contentView.removeChildView(late.view);win.contentView.addChildView(late.clipView);resetCalls();
  const roots=win.contentView.children.slice();browser.layout([{id:'late'}]);assert.equal(late.clipView.shown,false);assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
 });
+test('open Nora applies incoming viewport selection under its hold without exposing or reparenting pages',()=>{
+ const {browser,win,calls,resetCalls}=fixture(),incoming=browser.make('incoming'),gate=new OverlayGate(browser,win);
+ browser.layout([{id:'page',x:0,y:40,width:800,height:600}]);browser.mouseSurfaceHold='nora-owned';browser.layout(browser.panels);
+ gate.set({sequence:1,blocked:true});const roots=win.contentView.children.slice();resetCalls();
+ const selected=[{id:'incoming',x:306,y:40,width:494,height:600}];browser.layout(selected);
+ assert.deepEqual(browser.panels,selected,'Incoming held capture must see the selected real viewport, not []');
+ assert.deepEqual(gate.desired,selected);assert.equal(incoming.visible,false);assert.equal(browser.tabs.get('page').visible,false);
+ assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
+ browser.layout([]);assert.deepEqual(gate.desired,[],'An internal/empty incoming desk clears the old selected page set');
+ browser.layout(selected);gate.set({sequence:2,blocked:false});assert.equal(incoming.visible,false);
+ browser.mouseSurfaceHold=null;browser.layout(selected);assert.equal(incoming.visible,true);assert.equal(browser.tabs.get('page').visible,false);
+});
 test('losing a surface hold restores normal modal detachment including late pages and stale IPC',()=>{
  const {browser,win,calls,view,resetCalls}=fixture(),gate=new OverlayGate(browser,win);browser.mouseSurfaceHold='owned-popover';gate.set({sequence:4,blocked:true});const late=browser.make('late');
  const provider={id:'provider',view:view(),visible:false};browser.providers.set(provider.id,provider);win.contentView.addChildView(provider.view);resetCalls();

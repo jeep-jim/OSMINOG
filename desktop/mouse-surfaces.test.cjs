@@ -55,13 +55,25 @@ test('hold validates decoded source token and captures only selected incoming pa
  const source=await f.surfaces.capture({ids:['a']});assert.deepEqual(f.surfaces.begin(source.token),{held:true,token:source.token});assert.equal(a.visible,false);assert.equal(f.browser.mouseSurfaceHold,source.token);
  f.bank.active='desk-1';f.browser.layout([{id:'b',...b.bounds}]);assert.equal(b.visible,false);
  assert.equal((await f.surfaces.capture({ids:['b']})).complete,false);assert.equal((await f.surfaces.capture({ids:['background'],hold:source.token})).complete,false);
- const target=await f.surfaces.capture({ids:['b'],hold:source.token});assert.equal(target.complete,true);assert.equal(b.visible,false);assert.deepEqual(f.captures.map(x=>x.id),['a','b']);assert.deepEqual(f.surfaces.end('stale'),{released:false});assert.equal(f.browser.mouseSurfaceHold,source.token);
+ const target=await f.surfaces.capture({ids:['b'],hold:source.token});assert.equal(target.complete,true);assert.equal(source.holdToken,'');assert.equal(target.holdToken,source.token);assert.notEqual(target.token,source.token,'Incoming capture keeps its own record identity');assert.equal(b.visible,false);assert.deepEqual(f.captures.map(x=>x.id),['a','b']);assert.deepEqual(f.surfaces.end('stale'),{released:false});assert.equal(f.browser.mouseSurfaceHold,source.token);
  assert.deepEqual(f.surfaces.end(source.token),{released:true});assert.equal(b.visible,true);assert.equal(a.visible,false);assert.equal(a.view.webContents,original);assert.equal(f.browser.mouseSurfaceHold,null);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.watchers.length,0);f.surfaces.dispose();
 });
 test('stale sources cannot begin a hold; zero-page internal desktops and long-lived popovers are supported',async()=>{
  const f=fixture({holdMs:20}),a=f.add('a');let r=await f.surfaces.capture({ids:['a']});a.navigationEpoch++;assert.deepEqual(f.surfaces.begin(r.token),{held:false,token:''});
  r=await f.surfaces.capture({ids:['a']});f.advance(5001);assert.equal(f.surfaces.begin(r.token).held,false);
  f.browser.layout([]);r=await f.surfaces.capture({ids:[]});assert.equal(r.complete,true);assert.equal(f.surfaces.begin(r.token,'popover').held,true);assert.equal(f.surfaces.timer,undefined);assert.equal(f.surfaces.held.purpose,'popover');f.surfaces.end(r.token);f.surfaces.dispose();
+});
+test('Nora hold transfers lifecycle ownership to the validated incoming desk, not background pages',async()=>{
+ const f=fixture(),outgoing=f.add('outgoing'),incoming=f.add('incoming',{desk:'desk-1',visible:false});
+ const old=await f.surfaces.capture({ids:['outgoing']});assert.equal(f.surfaces.begin(old.token,'popover').held,true);
+ f.bank.active='desk-1';f.browser.layout([{id:'incoming',...incoming.bounds}]);
+ const next=await f.surfaces.capture({ids:['incoming'],hold:old.token});assert.equal(next.complete,true);
+ assert.equal(outgoing.view.webContents.listenerCount('did-start-navigation'),0,'Background desktop no longer owns Nora invalidation');
+ assert.equal(incoming.view.webContents.listenerCount('did-start-navigation'),1);
+ outgoing.view.webContents.emit('did-start-navigation',{},'https://background.test/',false,true);
+ assert.equal(f.surfaces.held.token,old.token);assert.equal(incoming.visible,false);
+ incoming.view.webContents.emit('did-start-navigation',{},'https://current.test/',false,true);
+ assert.equal(f.surfaces.held,null);assert.equal(f.browser.mouseSurfaceHold,null);assert.equal(f.events.at(-1),'mouse:previews-cleared');f.surfaces.dispose();
 });
 test('selected-page navigation, resize and disposal clear holds and remove lifecycle listeners',async()=>{
  for(const mode of ['navigate','destroy','resize','dispose']){const f=fixture(),a=f.add('a'),r=await f.surfaces.capture({ids:['a']});f.surfaces.begin(r.token);if(mode==='navigate')a.view.webContents.emit('did-start-navigation',{},'https://new.test/',false,true);if(mode==='destroy')a.view.webContents.emit('destroyed');if(mode==='resize')f.win.emit('resize');if(mode==='dispose')f.surfaces.dispose();assert.equal(f.browser.mouseSurfaceHold,null,mode);assert.equal(f.surfaces.held,null);assert.equal(f.surfaces.watchers.length,0);assert.equal(f.surfaces.records.size,0);f.surfaces.dispose();assert.equal(f.win.listenerCount('resize'),0);assert.equal(f.shell.listenerCount('did-start-navigation'),0);}

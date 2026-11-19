@@ -7,7 +7,7 @@ class OverlayGate {
   this.layout=browser.layout.bind(browser);
   browser.layout=panels=>{
    const next=Array.isArray(panels)?panels.slice(0,100):[];
-   if(!this.blocked||next.length)this.desired=next;
+   if(!this.blocked||next.length||this.browser.mouseSurfaceHold)this.desired=next;
    if(this.blocked){this.hide();return;}
    this.attach();this.layout(next);
   };
@@ -16,7 +16,13 @@ class OverlayGate {
  }
  pages(){return [...this.browser.tabs.values(),...this.browser.providers.values()];}
  hide(){
-  this.layout([]);
+  // Nora owns decoded page pixels while the native views are held. Keep the
+  // selected hidden views at their real incoming desktop bounds so capturePage
+  // can prepare a switch behind the still-open dialog. Ordinary modal dialogs
+  // continue using an empty layout and detaching every page.
+  const held=!!this.browser.mouseSurfaceHold;
+  this.layout(held?this.desired:[]);
+  if(held)return;
   for(const t of this.pages()){
    t.view.setVisible(false);t.clipView?.setVisible(false);t.visible=false;
    // An owned surface hold already keeps every native page invisible. Preserve

@@ -2,15 +2,15 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 function fixture(options={}){
- const images=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect})};let restores=0;
+ const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)}})};let restores=0;
  const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
-  createElement:()=>({style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}}),body:{append(...nodes){events.push('append');images.push(...nodes);}}};
+  createElement:()=>{const image={style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}};created.push(image);return image;},body:{append(...nodes){events.push('append');images.push(...nodes);}}};
  const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
- const model={state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
- const normal=()=>({complete:true,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
+ const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
+ const normal=()=>({complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
  const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
  const restore=async()=>{events.push('restore');restores++;await options.restore?.(restores);};
- return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,calls,events,model,rect,normal};
+ return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
 }
 const flush=()=>new Promise(setImmediate);
 test('popover decodes exact-size surfaces before holding native input and retains them until native restoration',async()=>{
@@ -26,6 +26,25 @@ test('popover decodes exact-size surfaces before holding native input and retain
 test('closing during capture rejects late pixels without hiding native pages afterwards',async()=>{
  const capture=deferred(),f=fixture({capture:()=>capture.promise}),pending=f.overlay.show('desktops');await flush();assert.ok(f.events.includes('capture'));
  const closing=f.overlay.hide('desktops');capture.resolve(f.normal());assert.equal(await pending,false);await closing;assert.equal(f.images.length,0);assert.ok(!f.events.includes('begin'));
+});
+test('a Nora backdrop preserves rounded page corners and replaces the desk without releasing its native hold',async()=>{
+ const f=fixture({roundBottom:12});await f.overlay.show('desktops');const original=f.images[0],lease=f.overlay.lease('desktops',()=>{});
+ assert.equal(original.style.borderRadius,'0 0 12px 12px');assert.equal(original.style.clipPath,'inset(0 round 0 0 12px 12px)');assert.equal(lease.outgoing.desk,'desk1');assert.equal(f.overlay.lease('zoom'),null);
+ f.model.desktopId='desk2';const incoming={...f.normal(),token:'incoming-capture',holdToken:lease.token};
+ assert.notEqual(incoming.token,lease.token,'New capture identity is separate from the borrowed hold');
+ assert.equal(await lease.replace(incoming),true);assert.equal(lease.valid(),true);assert.equal(f.images.length,1);assert.notEqual(f.images[0],original);assert.equal(original.src,undefined);assert.equal(f.overlay.lease('desktops').outgoing,incoming);
+ assert.equal(f.events.filter(x=>x==='begin').length,1);assert.equal(f.events.filter(x=>x==='end').length,0);assert.equal(f.overlay.held('desktops'),true);
+ await f.overlay.hide('desktops');assert.equal(lease.valid(),false);assert.equal(f.events.filter(x=>x==='end').length,1);assert.equal(f.images.length,0);
+});
+test('a borrowed backdrop refuses another hold, desk or stale page geometry',async()=>{
+ const f=fixture();await f.overlay.show('desktops');const lease=f.overlay.lease('desktops'),original=f.images[0];f.model.desktopId='desk2';const incoming={...f.normal(),token:'incoming-capture',holdToken:lease.token};
+ assert.equal(await lease.replace({...incoming,holdToken:'other-hold'}),false);assert.equal(await lease.replace({...incoming,desk:'desk3'}),false);
+ await assert.rejects(lease.replace({...incoming,surfaces:incoming.surfaces.map(s=>({...s,bounds:{...f.rect,width:321}}))}),/Размер рабочего стола/);
+ assert.equal(f.images[0],original);assert.equal(f.events.filter(x=>x==='end').length,0);await f.overlay.hide('desktops');assert.equal(await lease.replace(incoming),false);
+});
+test('closing Nora during an incoming image decode cannot resurrect a stale backdrop',async()=>{
+ const pending=deferred();let decoded=0;const f=fixture({decode:()=>++decoded===1?Promise.resolve():pending.promise});await f.overlay.show('desktops');const lease=f.overlay.lease('desktops');f.model.desktopId='desk2';
+ const replacing=lease.replace({...f.normal(),token:'incoming-capture',holdToken:lease.token});await flush();await f.overlay.hide('desktops');pending.resolve();assert.equal(await replacing,false);assert.equal(f.images.length,0);assert.ok(f.created.every(image=>image.src===undefined));assert.equal(f.events.filter(x=>x==='end').length,1);
 });
 test('closing while begin is in flight releases exactly the owned hold',async()=>{
  const begin=deferred(),f=fixture({begin:()=>begin.promise}),pending=f.overlay.show('desktops');while(!f.events.includes('begin'))await flush();

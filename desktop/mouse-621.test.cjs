@@ -33,8 +33,9 @@ function slideFixture(delay=0,options={}){
 }
 test('desktop transition decodes before hold and restores input, native surfaces and listeners on every outcome',async()=>{
  for(const options of [{},{fail:true},{incomplete:true},{begin:false},{cancelIncoming:true},{reduced:true}]){
-  const f=slideFixture(0,options);if(options.fail)await assert.rejects(f.run(),/fixture failure/);else await f.run();
-  assert.equal(f.events.filter(x=>x==='change').length,1);assert.equal(f.w.style.transform,'');assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(!!f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);
+  const f=slideFixture(0,options),error=options.fail?/fixture failure/:options.incomplete?/Не удалось подготовить переход/:options.begin===false?/Рабочий стол изменился/:options.cancelIncoming?/Не удалось подготовить изображение/:null;
+  if(error)await assert.rejects(f.run(),error);else await f.run();
+  assert.equal(f.events.filter(x=>x==='change').length,options.incomplete||options.begin===false?0:1,'Failed outgoing preparation cannot silently change the selected desk');assert.equal(f.w.style.transform,'');assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(!!f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);
   if(!options.reduced&&!options.incomplete&&options.begin!==false)assert.ok(f.events.includes('end'),'owned hold is released even when change or capture is cancelled');
   if(options.incomplete||options.begin===false||options.cancelIncoming||options.reduced)assert.ok(!f.events.includes('animate-start'));
  }
@@ -64,44 +65,55 @@ test('incoming desktop materialization finishes two setup frames before animatio
  assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
 });
 for(const interruption of ['resize','timeout'])test('incoming desktop preparation '+interruption+' releases the hold without starting animation',async()=>{
- const f=slideFixture(0,{manualFrames:true}),running=f.run();await f.flush();await f.paint();await f.paint();
+ const f=slideFixture(0,{manualFrames:true}),running=f.run(),rejected=assert.rejects(running,/Изображение выбранного стола ещё не готово/);await f.flush();await f.paint();await f.paint();
  assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
  if(interruption==='resize'){f.listeners.get('resize')();await f.paint();await f.paint();}
- else{await f.elapse(119);assert.ok(!f.events.includes('end'),'the existing120ms preparation budget is retained');await f.elapse(1);}
+ else{await f.elapse(1499);assert.ok(!f.events.includes('end'),'Bounded preparation waits for real painted frames instead of silently skipping the slide at120ms');await f.elapse(1);}
  assert.ok(!f.events.includes('animate-start'));assert.equal(f.events.filter(x=>x==='end').length,1);
- await f.paint();await f.paint();await running;
+ await f.paint();await f.paint();await rejected;
  assert.equal(f.events.filter(x=>x==='remove').length,1);assert.equal(f.events.filter(x=>x==='layout').length,2);
  assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);
  assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
 });
 
-function pendingSlideScene(direction=1){
- const vm=require('node:vm'),animations=[],area={x:0,y:0,width:500,height:300};let now=1000,document;
+function pendingSlideScene(direction=1,{outgoingBody='',incomingBody=''}={}){
+ const vm=require('node:vm'),animations=[],area={x:0,y:0,width:500,height:300},frames=new Map(),timers=new Map();let now=1000,document,task=0;
  const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
  class Animation{
-  constructor(node,frames,options){this.node=node;this.frames=frames;this.options=options;this.pending=true;this.start=null;this.writes=[];this.cancelled=false;this.readyTask=deferred();this.finishTask=deferred();this.ready=this.readyTask.promise;this.finished=this.finishTask.promise;animations.push(this);}
+  constructor(node,frames,options){this.node=node;this.frames=frames;this.options=options;this.pending=true;this.playState='running';this.start=null;this.holdTime=0;this.writes=[];this.cancelled=false;this.readyTask=deferred();this.finishTask=deferred();this.ready=this.readyTask.promise;this.finished=this.finishTask.promise;animations.push(this);}
   get startTime(){return this.start;}
   set startTime(value){this.writes.push(value);this.start=value;this.pending=false;this.readyTask.resolve(this);this.advance();}
-  get currentTime(){return this.pending?0:Math.max(0,Math.min(this.options.duration,now-this.start));}
-  browserReady(){if(this.cancelled||!this.pending)return;this.start=now;this.pending=false;this.readyTask.resolve(this);this.advance();}
-  advance(){if(!this.pending&&!this.cancelled&&this.currentTime===this.options.duration)this.finishTask.resolve(this);}
+  get currentTime(){return this.pending||this.playState==='paused'?this.holdTime:Math.max(0,Math.min(this.options.duration,now-this.start));}
+  set currentTime(value){this.holdTime=value;}
+  pause(){this.playState='paused';this.start=null;this.pending=true;Promise.resolve().then(()=>{if(this.cancelled||this.playState!=='paused')return;this.pending=false;this.readyTask.resolve(this);});}
+  play(){this.playState='running';this.pending=true;this.start=null;this.readyTask=deferred();this.ready=this.readyTask.promise;}
+  browserReady(){if(this.cancelled||!this.pending||this.playState!=='running')return;this.start=now-this.holdTime;this.pending=false;this.readyTask.resolve(this);this.advance();}
+  advance(){if(this.playState==='running'&&!this.pending&&!this.cancelled&&this.currentTime===this.options.duration)this.finishTask.resolve(this);}
   cancel(){this.cancelled=true;const error=Object.assign(Error('cancelled'),{name:'AbortError'});this.readyTask.reject(error);this.finishTask.reject(error);}
  }
  class Node{
-  constructor(tag='div'){this.tagName=tag.toUpperCase();this.ownerDocument=document;this.style={};this.dataset={};this.children=[];this.isConnected=false;}
-  setAttribute(){}removeAttribute(){}querySelector(){return null;}querySelectorAll(){return[];}getBoundingClientRect(){return{...area};}
+  constructor(tag='div'){this.tagName=tag.toUpperCase();this.ownerDocument=document;this.style={setProperty(name,value){this[name]=value;}};this.attributes=[];this.dataset={};this.children=[];this.isConnected=false;}
+  setAttribute(name,value){const old=this.attributes.find(a=>a.name===name);if(old)old.value=String(value);else this.attributes.push({name,value:String(value)});}getAttribute(name){return this.attributes.find(a=>a.name===name)?.value??null;}removeAttribute(name){this.attributes=this.attributes.filter(a=>a.name!==name);}querySelector(){return null;}querySelectorAll(){return[];}getBoundingClientRect(){return{...area};}
   cloneNode(){return new Node();}append(...nodes){this.children.push(...nodes);for(const node of nodes)node.isConnected=true;}
   attachShadow(){this.shadow=new Node();return this.shadow;}remove(){this.isConnected=false;}animate(frames,options){return new Animation(this,frames,options);}
  }
- document={styleSheets:[],documentElement:{dataset:{theme:'light'}},timeline:{currentTime:600},createElement:tag=>new Node(tag)};document.body=new Node();
- const workspace=new Node(),model={desktopId:'old',state:{tabs:[]}},ctx={module:{exports:{}},performance:{now:()=>now}};
+ document={styleSheets:[],documentElement:{attributes:[],dataset:{theme:'light'}},timeline:{currentTime:600},createElement:tag=>new Node(tag)};document.body=new Node();
+ const workspace=new Node(),model={desktopId:'old',state:{tabs:[]}},ctx={module:{exports:{}},performance:{now:()=>now},requestAnimationFrame:fn=>{const id=++task;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:(fn,ms)=>{const id=++task;timers.set(id,{fn,at:now+ms});return id;},clearTimeout:id=>timers.delete(id)};
  vm.runInNewContext(fs.readFileSync('mouse/desktop-slide.js','utf8'),ctx);const scene=ctx.module.exports.createScene(workspace,model,direction);
  const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
- return{scene,animations,area,async stage(){assert.equal(await scene.stage('outgoing',{desk:'old',complete:true,surfaces:[]}),true);model.desktopId='new';assert.equal(await scene.stage('incoming',{desk:'new',complete:true,surfaces:[]}),true);},async at(value){now=value;for(const animation of animations)animation.advance();await flush();},flush};
+ const paint=async()=>{now+=16;for(const [id,fn]of [...frames])if(frames.delete(id))fn(now);await flush();};
+ return{scene,animations,area,async stage(){document.body.setAttribute('class',outgoingBody);assert.equal(await scene.stage('outgoing',{desk:'old',complete:true,surfaces:[]}),true);model.desktopId='new';document.body.setAttribute('class',incomingBody);assert.equal(await scene.stage('incoming',{desk:'new',complete:true,surfaces:[]}),true);},async preparePlayers(){await flush();assert.ok(animations.every(a=>a.playState==='paused'&&a.currentTime===0));await paint();assert.ok(animations.every(a=>a.playState==='paused'),'One painted paused frame is insufficient');await paint();assert.ok(animations.every(a=>a.playState==='running'&&a.pending&&a.currentTime===0));assert.equal(timers.size,0);},async at(value){now=value;for(const animation of animations)animation.advance();await flush();},flush};
 }
+test('each desktop frame retains its own fullscreen body selectors when the target changes from AI to a pane',async()=>{
+ const f=pendingSlideScene(1,{outgoingBody:'ai-focused',incomingBody:'pane-focused'});await f.stage();
+ const contexts=f.scene.overlay.shadow.children.filter(node=>node.dataset.transitionRoot==='true');assert.equal(contexts.length,2);
+ const shells=contexts.map(html=>html.children[0]);assert.equal(shells[0].getAttribute('class'),'ai-focused');assert.equal(shells[1].getAttribute('class'),'pane-focused');
+ assert.equal(shells[0].children[0].dataset.transitionFrame,'outgoing');assert.equal(shells[1].children[0].dataset.transitionFrame,'incoming');
+ for(const element of [...contexts,...shells])assert.equal(element.style.display,'contents');f.scene.remove();
+});
 test('pending desktop players ignore stale document time and align only to the actual outgoing start',async()=>{
  for(const direction of [-1,1]){
-  const f=pendingSlideScene(direction);await f.stage();const running=f.scene.animate();await f.flush();
+  const f=pendingSlideScene(direction);await f.stage();const running=f.scene.animate();await f.preparePlayers();
   assert.deepEqual(f.animations.map(a=>a.startTime),[null,null],'an old document timestamp must not bypass pending play');
   assert.deepEqual(f.animations.map(a=>a.currentTime),[0,0]);await f.at(1040);f.animations[0].browserReady();await f.flush();
   assert.deepEqual(f.animations.map(a=>a.startTime),[1040,null]);await f.at(1052);f.animations[1].browserReady();await f.flush();
@@ -111,12 +123,12 @@ test('pending desktop players ignore stale document time and align only to the a
  }
 });
 test('desktop players already sharing an actual browser start need no timestamp assignment',async()=>{
- const f=pendingSlideScene();await f.stage();const running=f.scene.animate();await f.at(1040);for(const animation of f.animations)animation.browserReady();await f.flush();
+ const f=pendingSlideScene();await f.stage();const running=f.scene.animate();await f.preparePlayers();await f.at(1040);for(const animation of f.animations)animation.browserReady();await f.flush();
  assert.deepEqual(f.animations.map(a=>a.startTime),[1040,1040]);assert.ok(f.animations.every(a=>a.writes.length===0));
  await f.at(1370);assert.equal(await running,true);
 });
 test('cancelling desktop players while browser play is pending settles ready and finished safely',async()=>{
- const f=pendingSlideScene();await f.stage();const running=f.scene.animate();f.scene.cancel();assert.equal(await running,false);f.scene.remove();
+ const f=pendingSlideScene();await f.stage();const running=f.scene.animate();await f.preparePlayers();f.scene.cancel();assert.equal(await running,false);f.scene.remove();
  assert.ok(f.animations.every(a=>a.cancelled&&a.writes.length===0));assert.equal(f.scene.overlay.isConnected,false);
 });
 

@@ -3,20 +3,32 @@
 // Keep those surfaces until native layout is restored, so neither boundary
 // exposes an empty page slot or stretches a low-resolution preview.
 function mouseFloatingBackdrop(N,m,restore){
- let epoch=0,owner='',images=[],heldToken='',preparing=Promise.resolve(),releasing=Promise.resolve();
+ let epoch=0,owner='',images=[],heldToken='',surfacePacket=null,preparing=Promise.resolve(),releasing=Promise.resolve();
  const trace=N.test===true?[]:null;
  const record=(phase,detail={})=>{trace.push({phase,at:performance.now(),owner,epoch,...detail});if(trace.length>32)trace.shift();};
  const failure=(error,operation)=>{if(trace)record('error',{operation,message:String(error?.message||error).slice(0,512)});};
  const painted=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
- const clear=()=>{for(const image of images){image.remove();image.removeAttribute('src');}images=[];};
+ const clear=()=>{for(const image of images){image.remove();image.removeAttribute('src');}images=[];surfacePacket=null;};
  function specs(){
   const result=[];
-  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect();if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
+  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
   if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
   if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
   return result;
  }
  const unchanged=items=>items.every(({id,slot,r})=>{const box=slot.getBoundingClientRect();return slot.isConnected&&m.state.tabs.some(t=>t.id===id)&&['x','y','width','height'].every(key=>Math.abs(box[key]-r[key])<.5);});
+ function buildImages(packet,items){
+  const byId=new Map((packet.surfaces||[]).map(surface=>[surface.id,surface])),next=[];
+  if(byId.size!==items.length)throw Error('Состав рабочего стола изменился.');
+  for(const {id,r,roundBottom}of items){
+   const surface=byId.get(id);if(!/^data:image\/png;base64,/.test(surface?.src||''))throw Error('Не удалось подготовить изображение вкладки.');
+   const box=surface.bounds||r;if(!['x','y','width','height'].every(key=>Math.abs(box[key]-r[key])<.5))throw Error('Размер рабочего стола изменился.');
+   const image=document.createElement('img');image.className='mouse-floating-snapshot';image.dataset.tabId=id;image.dataset.roundBottom=String(roundBottom);image.alt='';image.draggable=false;image.setAttribute('aria-hidden','true');image.src=surface.src;
+   Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800',borderRadius:`0 0 ${roundBottom}px ${roundBottom}px`,clipPath:`inset(0 round 0 0 ${roundBottom}px ${roundBottom}px)`});next.push(image);
+  }
+  return next;
+ }
+ async function decodeImages(next){let timer;try{await Promise.race([Promise.all(next.map(image=>image.decode())),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Изображение рабочего стола ещё не готово.')),1200);})]);}finally{clearTimeout(timer);}}
  return{
   show(name){
    const ticket=++epoch;owner=name;
@@ -31,22 +43,33 @@ function mouseFloatingBackdrop(N,m,restore){
     const stable=result.complete&&result.token?unchanged(items):null;
     if(trace)record('capture',{stage:'result',returnedIds:(result.surfaces||[]).map(surface=>surface.id).slice(0,16),complete:!!result.complete,tokenPresent:!!result.token,unchanged:stable});
     if(!result.complete||!result.token||!stable)throw Error('Не удалось подготовить рабочие столы. Повторите открытие.');
-    const byId=new Map(result.surfaces.map(surface=>[surface.id,surface])),next=[];
-    for(const {id,r}of items){
-     const surface=byId.get(id);if(!/^data:image\/png;base64,/.test(surface?.src||''))throw Error('Не удалось подготовить изображение вкладки.');
-     const image=document.createElement('img');image.className='mouse-floating-snapshot';image.dataset.tabId=id;image.alt='';image.draggable=false;image.setAttribute('aria-hidden','true');image.src=surface.src;
-     const box=surface.bounds||r;Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800'});next.push(image);
-    }
-    if(trace)record('decode',{stage:'start'});let decodeTimer;try{await Promise.race([Promise.all(next.map(image=>image.decode())),new Promise((_,reject)=>{decodeTimer=setTimeout(()=>reject(Error('Изображение рабочего стола ещё не готово.')),1200);})]);}finally{clearTimeout(decodeTimer);}
+    const next=buildImages(result,items);
+    if(trace)record('decode',{stage:'start'});await decodeImages(next);
     if(trace)record('decode',{stage:'done'});
     if(ticket!==epoch||owner!==name||!unchanged(items)){if(trace)record('cancel',{stage:'decode'});for(const image of next)image.removeAttribute('src');return false;}
-    clear();images=next;document.body.append(...images);if(trace)record('paint',{stage:'start'});await painted();if(trace)record('paint',{stage:'done'});
+    clear();images=next;surfacePacket=result;document.body.append(...images);if(trace)record('paint',{stage:'start'});await painted();if(trace)record('paint',{stage:'done'});
     if(ticket!==epoch||owner!==name){if(trace)record('cancel',{stage:'paint'});return false;}
     heldToken=result.token;if(trace)record('hold',{stage:'start',tokenPresent:true});const held=await N.desktops('surface-hold',{phase:'begin',token:heldToken,purpose:'popover'});if(trace)record('hold',{stage:'result',held:!!held.held});if(!held.held){heldToken='';throw Error('Рабочий стол изменился. Повторите открытие.');}
     if(trace)record(ticket===epoch&&owner===name?'done':'cancel',{stage:'hold'});
     return ticket===epoch&&owner===name;
    }catch(error){failure(error,'show');throw error;}
    })();preparing=task;return task;
+  },
+  held:name=>owner===name&&!!heldToken,
+  lease(name,abort){
+   if(owner!==name||!heldToken||!surfacePacket)return null;
+   const ticket=epoch,token=heldToken,valid=()=>owner===name&&epoch===ticket&&heldToken===token;
+   return{token,outgoing:surfacePacket,valid,abort,
+    async replace(packet){
+     if(!valid()||packet?.complete!==true||packet.holdToken!==token||packet.desk!==m.desktopId)return false;
+     const items=specs(),next=buildImages(packet,items);
+     try{await decodeImages(next);}catch(error){for(const image of next)image.removeAttribute('src');throw error;}
+     if(!valid()||!unchanged(items)){for(const image of next)image.removeAttribute('src');return false;}
+     clear();images=next;surfacePacket=packet;document.body.append(...images);
+     if(trace)record('replace',{desk:packet.desk,ids:items.map(item=>item.id)});
+     await painted();return valid();
+    }
+   };
   },
   hide(name){
    if(owner!==name){if(trace)record('hide',{stage:'ignored',requestedOwner:name});return releasing;}epoch++;owner='';const pending=preparing;if(trace)record('hide',{stage:'wait',requestedOwner:name});
@@ -73,6 +96,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  function shapeBurrow(){motion?.sync();}
  const history=createMouseLayoutHistory({N,model:m,header:content.querySelector(':scope>header'),before:modes,restore:restoreLayout,status,show:()=>{closePeek();showModes(false);},changed:()=>{shapeBurrow();layout();}});
  motion=createMouseBurrowMotion({tray,content,footer:document.querySelector('#statusbar'),button,trace:N.test===true,settled:opened=>{if(opened&&document.activeElement===tray)modeButton.focus({preventScroll:true});}});
+ const gesture=globalThis.createMouseDesktopGesture?.({N,tray,content,model:m,switchBehind:async id=>{if(tray.hidden||!tray.open||motion.goal!==1)return false;await switchDesktop(id,false,{keepNora:true});render(m.state.desktops);return m.desktopId===id;},changed:()=>{shapeBurrow();layout();},status});
  const rename=document.createElement('dialog');rename.id='desktop-rename';rename.innerHTML='<form><header><strong>Название рабочего стола</strong><button type="button" aria-label="Закрыть">×</button></header><label>Название<input maxlength="60" required></label><footer><button type="submit">Сохранить</button></footer></form>';document.body.append(rename);let renameId='';
  rename.querySelector('header button').onclick=()=>rename.close();rename.addEventListener('close',layout);
  rename.querySelector('form').onsubmit=async e=>{e.preventDefault();try{const r=await N.desktops('rename',{id:renameId,name:rename.querySelector('input').value});rename.close();render(r.state.desktops);}catch(error){status(error.message)}};
@@ -131,6 +155,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   }
   opening=true;const ticket=++epoch;
   try{
+   await gesture?.ready;if(ticket!==epoch)return;
    if(!await backdrop.show('desktops')||ticket!==epoch)return;
    tray.hidden=false;content.inert=true;tray.showModal();tray.focus({preventScroll:true});button.setAttribute('aria-expanded','true');
    render(m.state.desktops||state);layout();const done=await motion.open();if(done&&ticket===epoch)void refreshPreviews(ticket);
@@ -168,7 +193,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  N.onPreviewsCleared?.(()=>{if(N.test===true)backdrop.note('previews-cleared');MouseDesktopPreview.clearIcons();close({immediate:true});});
  document.addEventListener('pointerdown',e=>{if(tray.hidden)return;const r=tray.getBoundingClientRect(),outside=e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;if(outside&&!button.contains(e.target)){const b=button.getBoundingClientRect();if(motion.goal===0&&e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom)void open();else void close();}});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!tray.hidden){e.preventDefault();e.stopImmediatePropagation();if(peekId)closePeek();else void close();}},true);
- return{render,open,close,showPeek,history,motion,add:()=>choose('',true),bounds:()=>tray.hidden?null:tray.getBoundingClientRect(),...(N.test===true?{diagnostics:()=>backdrop.diagnostics()}:{})};
+ return{render,open,close,showPeek,history,motion,gesture,get isOpen(){return tray.open&&!tray.hidden&&motion.goal===1;},get holdsNative(){return tray.open&&!tray.hidden&&backdrop.held('desktops');},transitionLease:()=>backdrop.lease('desktops',()=>close({immediate:true})),add:()=>choose('',true),bounds:()=>tray.hidden?null:tray.getBoundingClientRect(),...(N.test===true?{diagnostics:()=>backdrop.diagnostics()}:{})};
 };
 
 globalThis.createMouseZoomUI=({N,layout,status})=>{
