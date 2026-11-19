@@ -2,16 +2,30 @@
 // Real DownloadItems, native BrowserViews, clipboard/file IPC and the native
 // screenshot editor. The global editor uses an explicitly synthetic input frame.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http'),{createHash}=require('node:crypto');
-const {dialog,clipboard,nativeImage}=require('electron');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),sha=buffer=>createHash('sha256').update(buffer).digest('hex');
 async function until(fn,label){for(let n=0;n<360;n++){if(await fn())return;await sleep(25);}throw Error('Mouse629 feedback timeout: '+label);}
+function createDownloadFixture({known,requests,canRetry,canFinishKnown}){
+ let brokenAttempts=0;
+ return(req,res)=>{
+  if(!req.url.startsWith('/download/')){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Mouse629 feedback fixture</title><body style="background:#e8edf4;color:#25354c"><h1>Download feedback fixture</h1><p>Local native test page.</p>');return;}
+  const name=req.url.split('/').at(-1),unknown=name.includes('unknown'),broken=name==='retry'&&!canRetry();
+  // A truncated HTTP body is resumable in Chromium. Reject its subsequent
+  // native retry with an actual 404 so done(interrupted) is terminal, then
+  // allow a fresh user-requested retry only after the UI error was observed.
+  const terminal=broken&&brokenAttempts++>0,record={case:name,at:Date.now(),range:req.headers.range||null,status:terminal?404:200,sentBytes:0,aborted:false};requests.push(record);
+  if(terminal){res.writeHead(404,{'Content-Type':'text/plain','Content-Length':0,'Cache-Control':'no-store'});res.end();return;}
+  res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="mouse629-'+name+'.bin"','Accept-Ranges':'bytes','Cache-Control':'no-store',...(!unknown?{'Content-Length':known.length}:{})});
+  let offset=0;const timer=setInterval(()=>{if(res.destroyed){clearInterval(timer);return;}if(offset>=262144&&(unknown||name==='known'&&!canFinishKnown()))return;const end=Math.min(known.length,offset+8192);res.write(known.subarray(offset,end));offset=end;record.sentBytes=offset;if(broken&&offset>=65536){clearInterval(timer);record.aborted=true;res.destroy();}else if(offset===known.length){clearInterval(timer);res.end();}},25);res.on('close',()=>clearInterval(timer));
+ };
+}
 module.exports=async({app,win,browser,store,libraryService,privateMode,globalCapture})=>{
+ const {dialog,clipboard,nativeImage}=require('electron');
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(privateMode.current,null);
  const js=source=>win.webContents.executeJavaScript(source),frame=async()=>{await js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');};
  await js('MouseTest.desktopUI.close({immediate:true});MouseTest.browsing.close();MouseTest.save()');await store.queue;
  const original=await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})');
  const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),originalIds=new Set(browser.tabs.keys()),savedShow=dialog.showSaveDialog,savedTestFrame=globalCapture.testFrame;
- const facts={version:app.getVersion(),platform:process.platform,arch:process.arch,source:'actual Electron DownloadItem events and capture/export IPC',downloads:{nativeEvents:[],events:[],files:[],screenshots:[]},capture:{},restored:false};
+ const facts={version:app.getVersion(),platform:process.platform,arch:process.arch,source:'actual Electron DownloadItem events and capture/export IPC',downloads:{nativeEvents:[],events:[],files:[],screenshots:[],httpRequests:[]},capture:{},restored:false};
  const save=()=>fs.writeFile('mouse-629-feedback-evidence.json',JSON.stringify(facts,null,2)+'\n');
  const attaches=[],createdFiles=new Set(),known=Buffer.alloc(1048576,71);let server,root='',allowRetry=false,finishKnown=false,debugAttached=false,failed;
  function attach(target,service,scope){
@@ -50,12 +64,7 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
  async function picture(file,target=win){const image=await target.capturePage(),png=image.toPNG();await fs.writeFile(file,png);return{file,source:'BrowserWindow.capturePage',pixelSize:{width:png.readUInt32BE(16),height:png.readUInt32BE(20)},sha256:sha(png)};}
  const feedback=async(run=js)=>run(`(()=>{const stage=document.querySelector('.capture-stage'),node=stage.querySelector('.capture-shutter-feedback'),badge=node.querySelector('.capture-feedback-badge'),blade=node.querySelector('.capture-shutter-blade'),r=badge.getBoundingClientRect();return{state:stage.dataset.captureFeedback||null,hidden:node.hidden,badgeBounds:{x:r.x,y:r.y,width:r.width,height:r.height},animationName:getComputedStyle(badge).animationName,bladeDisplay:getComputedStyle(blade).display,bladeTransform:getComputedStyle(blade).transform}})()`);
  try{
-  server=http.createServer((req,res)=>{
-   if(!req.url.startsWith('/download/')){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Mouse629 feedback fixture</title><body style="background:#e8edf4;color:#25354c"><h1>Download feedback fixture</h1><p>Local native test page.</p>');return;}
-   const name=req.url.split('/').at(-1),unknown=name.includes('unknown'),broken=name==='retry'&&!allowRetry;
-   res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':'attachment; filename="mouse629-'+name+'.bin"','Accept-Ranges':'bytes',...(!unknown?{'Content-Length':known.length}:{})});
-   let offset=0;const timer=setInterval(()=>{if(res.destroyed){clearInterval(timer);return;}if(offset>=262144&&(unknown||name==='known'&&!finishKnown))return;const end=Math.min(known.length,offset+8192);res.write(known.subarray(offset,end));offset=end;if(broken&&offset>=65536){clearInterval(timer);res.destroy();}else if(offset===known.length){clearInterval(timer);res.end();}},25);res.on('close',()=>clearInterval(timer));
-  });await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));root='http://127.0.0.1:'+server.address().port;attach(browser,libraryService,'normal');
+  server=http.createServer(createDownloadFixture({known,requests:facts.downloads.httpRequests,canRetry:()=>allowRetry,canFinishKnown:()=>finishKnown}));await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));root='http://127.0.0.1:'+server.address().port;attach(browser,libraryService,'normal');
   await js(`MouseTest.restorePane();MouseTest.changeLayout(1);MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.applySide();MouseTest.openPage(${JSON.stringify(root+'/fixture')})`);
   let normalPage;await until(()=>{normalPage=[...browser.tabs.values()].find(page=>page.url===root+'/fixture'&&!page.loading);return normalPage?.visible;},'normal owner page');
   const first=await start('known',normalPage);await until(()=>first.received>0&&first.state==='progressing','actual known bytes');
@@ -69,7 +78,7 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
   // Access is a real click on the existing shell download control.
   const point=await js('(()=>{const r=document.querySelector("#downloads-button").getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()');win.focus();win.webContents.focus();for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...point,button:'left',clickCount:1});await until(()=>js('MouseTest.browsing.isOpen()'),'downloads button opens library');assert.ok(await js('document.querySelector("#library-rows").textContent.includes("mouse629-known.bin")'));await js('MouseTest.browsing.close()');
   const unknown=await start('unknown',normalPage);await until(()=>unknown.received>0,'unknown-size bytes');const unknownEvent=await sample('unknown',unknown.id,'downloading');assert.equal(unknownEvent.task.percent,null);assert.equal(unknownEvent.ui.pill.ariaNow,null);assert.equal(unknownEvent.ui.pill.hidden,false,'New running transfer replaces the previous completed pill without a manual Next click');assert.ok(unknownEvent.ui.pill.bounds.width>0&&unknownEvent.ui.pill.bounds.height>0);await js(`MouseNative.library('download',{id:${JSON.stringify(unknown.id)},action:'cancel'})`);await until(()=>unknown.state==='cancelled','unknown cancel');await sample('unknown',unknown.id,'cancelled');
-  const broken=await start('retry',normalPage);await until(()=>broken.state==='interrupted'&&!libraryService.live.has(broken.id),'broken response terminates');await sample('retry',broken.id,'error');const previous=new Set(libraryService.library.data.downloads.map(row=>row.id));allowRetry=true;await js(`MouseNative.library('download',{id:${JSON.stringify(broken.id)},action:'retry'})`);let retried;await until(()=>{retried=libraryService.library.data.downloads.find(row=>!previous.has(row.id)&&row.url===root+'/download/retry');return retried;},'explicit retry creates its own native item');await until(()=>retried.state==='completed','retry succeeds');await sample('retry',retried.id,'completed');const retryData=await fs.readFile(retried.path);assert.ok(retryData.equals(known));facts.downloads.files.push({case:'retry',bytes:retryData.length,sha256:sha(retryData),expectedBytes:known.length,expectedSha256:sha(known)});
+  const broken=await start('retry',normalPage);await until(()=>broken.state==='interrupted'&&!libraryService.live.has(broken.id),'network break followed by HTTP 404 terminates');const brokenRequests=facts.downloads.httpRequests.filter(row=>row.case==='retry');assert.ok(brokenRequests.some(row=>row.status===200&&row.aborted&&row.sentBytes>0));assert.ok(brokenRequests.some(row=>row.status===404));assert.ok(facts.downloads.nativeEvents.some(row=>row.case==='retry'&&row.event==='done'&&row.nativeState==='interrupted'));await sample('retry',broken.id,'error');const previous=new Set(libraryService.library.data.downloads.map(row=>row.id));allowRetry=true;await js(`MouseNative.library('download',{id:${JSON.stringify(broken.id)},action:'retry'})`);let retried;await until(()=>{retried=libraryService.library.data.downloads.find(row=>!previous.has(row.id)&&row.url===root+'/download/retry');return retried;},'explicit retry creates its own native item');await until(()=>retried.state==='completed','retry succeeds');await sample('retry',retried.id,'completed');const retryData=await fs.readFile(retried.path);assert.ok(retryData.equals(known));facts.downloads.files.push({case:'retry',bytes:retryData.length,sha256:sha(retryData),expectedBytes:known.length,expectedSha256:sha(known)});
   console.log('MOUSE_629_DOWNLOAD_ACTIVITY_PASS');
   // Keep a live normal task while entering private mode: the private renderer
   // must expose only its own ephemeral Library/DownloadItem collection.
@@ -107,3 +116,4 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
   finally{server?.closeAllConnections();server?.close();await save();}
  }
 };
+module.exports.createDownloadFixture=createDownloadFixture;
