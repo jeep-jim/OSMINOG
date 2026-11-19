@@ -334,3 +334,225 @@ selector and all timing/animation assertions are unchanged. Local
 `node --test mouse-621.test.cjs mouse-smoke-frames.test.cjs mouse-desktop-slide.test.cjs`
 passes82/82, including stale-band, stale-scroll and hidden/changed-viewport
 rejections. Syntax and diff checks pass; native acceptance remains pending.
+
+## Seventh candidate — complete source acceptance; publication pending
+
+Status at this checkpoint: **SOURCE_VERIFIED / PUBLICATION_PENDING**. Earlier
+failure and pending entries above remain the history of their specific attempts.
+This successful source run does not by itself establish public availability.
+
+Tested source `72679ee907dda6e7ac134b1f01addee858c4e59a`,
+[run 44498720435 attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/44498720435),
+[job 135472522776](https://github.com/jeep-jim/OSMINOG/actions/runs/44498720435/job/135472522776):
+the complete installed macOS arm64 workflow is **SUCCESS**. Test batches
+176/176, 598/598 and 533/533 pass with zero failures; all eight source checks are
+green. [PR 170](https://github.com/jeep-jim/OSMINOG/pull/170) was merged as
+`a5a773c16c2b342f9c7dfaf5334649e1da1f3eca`. Package provenance remains the tested
+72679 source and this run, separately from the merge commit.
+
+### Exact artifacts and packages
+
+Both downloaded artifact ZIPs were checked against their recorded SHA-256;
+the extracted DMG/ZIP were independently rehashed against `SHA256SUMS.txt`.
+
+| Source artifact | Artifact ID | ZIP bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Candidate packages | 14515834581 | 275833808 | `ed08aeac0820362bfadb37c3d9b5487b5c6c321317d080e28e3e2b4e19bbcbe9` |
+| Native verification | 14515839614 | 19186676 | `a009d5448f699e40abe4930301c4be1e0c90370fa5c566043bc1e012a667b9e9` |
+
+| Candidate package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Mouse-Browser-6.0.29-mac-arm64.dmg` | 137744712 | `665fca86eb86f1bd98bca4c72652fb5b0a981fc4f4c6467a66d0683874c6d57c` |
+| `Mouse-Browser-6.0.29-mac-arm64.zip` | 140110868 | `954894c4a3b9c9484a6c3c8295a17eb7da007bf35938eaa8f066a3f7ecc93e16` |
+
+`mouse-build.json` records version 6.0.29, source 72679, run 44498720435,
+darwin/arm64, ad-hoc signing and `notarized:false`; its 5608 bytes hash to
+`b26c891de9878fea40dc7d9cbb3588ab0f13656fa34d9e29b57ac062a6c2a1e6`.
+The full source job log is 672148 bytes, SHA-256
+`08ef7c65e5830decedd84d7505b2b6be9685287dd2aef44b0e729ba09c9d7ae6`.
+These are verified source-candidate bytes, not a claim that release assets or
+the public update channel have already changed.
+
+### Restored UI, input and retained motion
+
+The installed 629 UI gate passes all four seven-pane separator scenes: 360 probes
+cover the 6.0.27 divider colours, corner cutouts and preserved page interiors.
+Both Nora scenes pass 16 overlap-fill probes with native guests hidden, decoded
+snapshots and preserved page identity/bounds. The complete UI evidence is
+`mouse-629-ui-regressions.json`, 261429 bytes, SHA-256
+`515a023df993957884e017754469960d60fcb07c4554af96fc721a5ac2bf27c8`.
+
+Root and nested guest scrollbars pass in both browser themes despite author
+white `!important` styles. Site-owned light colour scheme, form styles,
+geometry and scroll positions survive theme changes. All four native wheel
+inputs have matching trusted `scrollend` evidence, stable positions after two
+RAFs, exact preservation of the other container and no Mouse desktop change.
+The two scrollbar images remain guest WebContents captures, not native display
+composition evidence.
+
+The 629 tutorial passes WRITE and a separate fresh-process READ: genuine adjacent
+desktop changes hide the hint, non-switch input retains it, reopening/restart
+keep completion, and private completion remains isolated. The evidence records
+`syntheticNativeEvent:true` and `physicalTrackpadVerified:false`: CI uses Electron
+native mouse-wheel injection and does not prove a physical two-finger gesture on
+the owner's Mac. `mouse-629-swipe-tutorial.json` is 18598 bytes, SHA-256
+`296d9b6b7e9e4e5fa81eb620ebc50bc567a36145f91d080bb7e961913a9fd709`.
+
+Retained 628 Local MCP, page progress, borderless/content-fit Nora and open-Nora
+desktop-slide acceptance pass. The unchanged frozen two-input motion-trace gate
+also passes: 161375 events, 18 clock anchors, 0.147 ms anchor spread. Trace metadata
+records `complete:true`, `dataLossOccurred:false`, `limitedEvents:0` and no
+collection errors. The archived trace is 29158827 bytes, SHA-256
+`391bd80b8050a9fd42ef5ca3965b249d6a2328eae9017290f8326aef2fc4d92f`.
+The earlier failures remain recorded; this run does not establish their cause
+or identical animation cadence on every Mac.
+
+### Ordinary 627 transition readiness and independent PNG checks
+
+Both fixtures now paint before their first hide. Each succeeds on its first
+readback: page A in 380.083 ms, page B in 199.983 ms. Independent decoding of
+`mouse-627-desktop-transition-prepared-0.png` and `-prepared-1.png` confirms
+236 red and 997 blue pixels on the measured row. Both separate scrolled-content
+probes equal `[207,229,208,255]`, with DOM scrollY 137. Native visibility, desktop,
+WebContents, URL, epoch and bounds are identical before/after preparation.
+
+| Measured transition | Moving RAF samples | Native layouts | Animation ms | Injected ack delay ms |
+| --- | ---: | ---: | ---: | ---: |
+| Light forward | 13 | 6 | 356.3 | 0 |
+| Light back | 15 | 6 | 330.6 | 0 |
+| Dark forward | 17 | 6 | 352.7 | 0 |
+| Dark back | 19 | 7 | 333.0 | 250 |
+
+Independent assertions accept all four transitions: both layers move and remain
+adjacent; each captured source retains its expected band; pageBefore/pageAfter
+are exactly equal, including WebContents, URL, epoch, random marker, viewport
+and scrollY 137. Native layout and animation-duration bounds are unchanged;
+the fixture reports restored state.
+
+There are **two** archived simultaneous-composite PNGs, one forward transition
+per theme, both from `beginFrameSubscription`. Re-decoding the measured row
+reproduces light `[235,305]` and dark `[206,790]` red/blue counts. Both exceed the
+unchanged 16-pixel minimum. The reverse trials have source-PNG measurements and
+renderer motion records; the inherited test does not save separate reverse
+composite PNGs. Four transition trials must not be described as four such PNGs.
+
+### Persistence, real upgrade and publication boundary
+
+`mouse-smoke-write.log`, `mouse-smoke-read.log`, private smoke and private-close
+logs all record actual process return code 0. Restart checks retain cookies,
+workspace preferences, library/start-page data and legacy profile fixtures.
+Private tests confirm in-memory isolation, cleanup, fresh-session reset and the
+unchanged ordinary page identity/storage. Retained native PNG drag, document
+editing/tabs, fullscreen restore, layout history and Agent/PTY stop gates pass.
+
+`mouse-update-roundtrip.log` records
+`MOUSE_629_REAL_628_TO_629_REPLACE_RELAUNCH_PROFILE_PASS`. The real installer
+replaces the checksum-pinned published 6.0.28 app with this 6.0.29 candidate,
+relaunches it and acknowledges exact `READY=6.0.29`. Assertions verify both
+application versions/signatures, retained profile sentinel/file values, the
+new startup record and removal of the update receipt. This is a synthetic CI
+profile-preservation proof, not inspection of the owner's existing profile.
+
+Public release publication is still **PENDING** here. The next step is the
+separate Releases publisher's installed verification, publication and readback
+of the exact assets/update channel. Append that result only after it completes.
+
+## Publisher attempt 1 — READ opening timeout; no publication
+
+[Releases run 44501476513](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513),
+release commit `32babb2e2dc9ed3c6eec6ec7f9f862b42eb2be37`,
+[native job 135482236470](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/job/135482236470)
+ends in **FAILURE**. Import of the exact source-candidate bytes passes. Fresh
+installed WRITE passes the full UI, gesture WRITE and ordinary 627 transition
+checks. Its frozen two-input trace also passes: 153304 events, 18 clock anchors,
+0.143 ms spread.
+
+Fresh READ passes library, start-page and cookie/profile restart assertions,
+then fails with `Mouse628 motion timeout: restarted Nora opens`. The internal
+opening-stage reason was not retained and native diagnostics were disabled, so
+the cause is **unknown**. The successful source READ also logged the same nine
+loopback `ERR_CONNECTION_REFUSED` load warnings; their presence alone does not
+explain this failure. No correction or successful repeat is established here.
+
+Verification artifact 14517653063 was downloaded and its ZIP verified:
+18458204 bytes, SHA-256
+`c983cdf46633162499a4d82653fe80a7dca1fb4f62bd2dfb8530d4864f29ce6d`.
+Publication, channel update and live-updater verification steps are **SKIPPED**.
+One retry of the same native job, imported bytes and acceptance criteria has
+been requested; its result is **PENDING**. Source acceptance remains verified,
+but public publication remains **PENDING**.
+
+## Publisher attempt 2 — release and channel confirmed; final updater gate pending
+
+[Run 44501476513, attempt 2](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/attempts/2)
+reuses the same imported packages and acceptance criteria. Steps 5, 6 and 7 are
+**SUCCESS**: installed-DMG/previous-version replacement verification, independent
+recomputation and publication of the exact packages, then static-channel update.
+
+Direct public readback confirms
+[release 6.0.29](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.29-arm64),
+ID 451181980, tag `quadro-macos-v6.0.29-arm64`, `draft:false`, `prerelease:true`,
+published at **2026-11-19T10:24:42Z**. All five public assets match the pinned
+sizes and SHA-256 values. The published DMG is 137744712 bytes with SHA-256
+`665fca86eb86f1bd98bca4c72652fb5b0a981fc4f4c6467a66d0683874c6d57c`;
+the published ZIP is 140110868 bytes with SHA-256
+`954894c4a3b9c9484a6c3c8295a17eb7da007bf35938eaa8f066a3f7ecc93e16`.
+
+Raw-channel readback also reports version 6.0.29, the same public DMG, byte count,
+digest and publication timestamp. The current checkpoint is therefore
+**PUBLICATION_CONFIRMED / LIVE_UPDATER_PENDING**. Step 8, anonymous discovery and
+download through the shipped 6.0.28 updater, is still **IN_PROGRESS**. Full final
+acceptance is not claimed until that gate and the final archived proof are
+confirmed. Earlier pending/failed checkpoints above remain unchanged as history.
+
+## Final result — 6.0.29 PUBLISHED and independently accepted
+
+Final status: **PUBLISHED**. Publisher attempt 2 completed with
+[native job 135489533542](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/job/135489533542)
+and [contract job 135489534139](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513/job/135489534139)
+both **SUCCESS**; steps 5–9 pass. Fresh proof is tied to run 44501476513,
+attempt 2 and release commit `32babb2e2dc9ed3c6eec6ec7f9f862b42eb2be37`.
+The first READ opening timeout did not recur in the single retry with unchanged
+packages and criteria. Its original cause remains unestablished.
+
+Independent recomputation exactly reproduces the archived fresh installed
+reports: 24 borderless states, four desktop slides, four Local and four progress
+scenes; 360 separator probes, 16 Nora overlap probes and four native wheel inputs
+with four trusted scroll completions. Gesture proof includes four actual desktop
+switches and a fresh READ process, PID 11710 after WRITE PID 2278, with restart
+completion and restored state. Real 6.0.28→6.0.29 replacement, profile retention
+and ordinary/private process checks also pass.
+
+The unchanged frozen two-input trace gate passes 157290 events and 18 clock
+anchors, with 0.131 ms spread and closing generations 24/28/34. Its existing
+correlation/provenance limits remain: `directIdentityLink:false` and
+`continuousCompositorLifetimeProven:false`. This does not establish continuous
+compositor lifetime or explain the earlier failed attempts.
+
+`RELEASE_RESULT.json` agrees with the public release and five assets recorded
+above. `channel-verification.json` confirms that the actual shipped 6.0.28
+updater anonymously discovers 6.0.29 and downloads the exact 137744712-byte DMG;
+`anonymousDiscovery`, `verifiedDownload` and `currentVersionCheck` are all true.
+Discovery reported `available` on attempt 47 after 46 `current` observations;
+the evidence does not establish the reason for that delay. The public
+[update channel](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json)
+and [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.29-arm64)
+retain the confirmed version, publication time and pinned package hashes.
+
+Final verification artifact **14519761881** contains 241 entries. Its downloaded
+ZIP and the native job log were independently rehashed:
+
+| Final proof | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Verification artifact ZIP | 19267377 | `1191390754661cc26e62555da332c55a36b059bca567da83c667c4c73cbca904` |
+| Native job 135489533542 log | 110555 | `2135501267c8089a908084b8fd15dadbe0cfb2ec4e81b1db4a540efe1fd6ba1e` |
+| `mouse-629-ui-regressions.json` | 261351 | `beae3a4de1a45e4795762f2e8c038f86dbb70ee4277c6d370aa41cf929203748` |
+| `mouse-629-swipe-tutorial.json` | 18587 | `935973c29ff3a52274ee648391a9228f420c68948d9ba6121f70e4caee063649` |
+| `mouse-628-motion-trace.json` | 28714050 | `f2346ffd4c7658e01fe57f99862deb9a7f17fdc5da208e28db8c832b4b8415d0` |
+| `mouse-628-motion.json` | 2288389 | `b47b6286c7d9200b6e42dcedeca97126172411328b1462d6ed9bb7405d1c007a` |
+
+The released build remains an ad-hoc-signed, non-notarized prerelease. Native
+wheel injection was tested; a physical trackpad was not. Uniform scrollbar
+behaviour was verified with the hostile local Chromium fixture, not an
+authenticated VK session. All earlier pending/failed checkpoints remain history;
+no required publisher gate remains pending at this final checkpoint.
