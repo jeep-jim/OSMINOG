@@ -49,12 +49,21 @@ test('real Windows Stop before first output kills its shell and releases the sta
 });
 test('real Windows PowerShell executes Unicode and exit codes; Stop terminates background descendants',{skip:process.platform!=='win32',timeout:60000},async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-win-terminal-')),pidFile=path.join(root,'child.pid'),terminal=new TerminalService();
- let stage='start',failure;
+ let stage='start',failure,background;
  try{
   terminal.start(root);stage='Unicode and exit 7';const first=await terminal.execute("Write-Output 'Привет €'; cmd.exe /d /c exit 7");assert.equal(first.exitCode,7);assert.match(first.stdout,/Привет €/);
   stage='exit reset and working directory';const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);const actual=fs.statSync(second.stdout.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').trim(),{bigint:true}),selected=fs.statSync(root,{bigint:true});assert.equal(actual.dev,selected.dev);assert.equal(actual.ino,selected.ino);
   const command="$child=Start-Process -FilePath "+psQuote(process.execPath)+" -ArgumentList @('-e','setInterval(()=>{},1000)') -NoNewWindow -PassThru; [IO.File]::WriteAllText("+psQuote(pidFile)+",$child.Id.ToString()); Start-Sleep -Seconds 40";
-  stage='background launch';const background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0,JSON.stringify(background));assert.equal(background.background,true);await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);stage='owned descendant shutdown';terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
- }catch(error){failure=error;error.message=stage+': '+error.message;throw error;}
+  stage='background launch';background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0,JSON.stringify(background));assert.equal(background.background,true);await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);stage='owned descendant shutdown';terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
+ }catch(error){
+  failure=error;error.message=stage+': '+error.message;
+  if(background)t.diagnostic('Background launch reply: '+JSON.stringify(background));
+  if(stage==='background launch'&&terminal.proc&&!terminal.pending){
+   try{const jobs=await terminal.execute("Get-Job | Format-List Id,Name,State,HasMoreData,JobStateInfo; Get-Job | ForEach-Object { $_.ChildJobs | Format-List Id,Name,State,HasMoreData,JobStateInfo; Receive-Job -Job $_ -Keep 2>&1 | Out-String -Width 200 }",{timeout:3000});t.diagnostic('PowerShell background job diagnostics: '+JSON.stringify(jobs));}
+   catch(diagnosticError){t.diagnostic('Unable to read background job diagnostics: '+diagnosticError.message);}
+  }
+  t.diagnostic('Terminal output at '+stage+': '+terminal.output.slice(-10000));
+  throw error;
+ }
  finally{terminal.stop();try{await fs.promises.rm(root,{recursive:true,force:true,maxRetries:10,retryDelay:100});}catch(error){if(!failure)throw error;t.diagnostic('Cleanup after '+stage+': '+error.message);}}
 });
