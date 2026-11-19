@@ -5,6 +5,30 @@ const {screen}=require('electron');
 const {AgentController}=require('./mouse-agent/agent-connector.cjs');
 const keys=['mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 const pick=p=>Object.fromEntries(keys.map(k=>[k,p[k]]));
+const pillSelector=id=>'.mouse-pane-progress .mouse-progress-pill[data-progress-id='+JSON.stringify(id)+']';
+// Runs in the renderer. A task can exist with an available Stop child while its
+// article is hidden behind another selected task in the same pane.
+function progressPillState(selector){
+ const e=document.querySelector(selector);if(!e)return null;
+ const box=node=>{if(!node)return null;const r=node.getBoundingClientRect(),c=getComputedStyle(node),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return{hidden:node.hidden,visible:!node.hidden&&r.width>0&&r.height>0&&c.display!=='none'&&c.visibility!=='hidden'&&Number(c.opacity)>0,rect:{x:r.x,y:r.y,width:r.width,height:r.height},hit:!!hit&&node.contains(hit)};};
+ const article=box(e),dock=e.closest('.mouse-pane-progress'),dockBox=box(dock),tasks=dock?[...dock.querySelectorAll('.mouse-progress-pill')]:[],selected=tasks.filter(node=>!node.hidden),next=dock?.querySelector('.mouse-progress-next');
+ return{...article,visible:article.visible&&!!dockBox?.visible,id:e.dataset.progressId,owner:dock?.dataset.pane||'',dock:dockBox,taskIds:tasks.map(node=>node.dataset.progressId),selectedIds:selected.map(node=>node.dataset.progressId),selectedId:selected.length===1?selected[0].dataset.progressId:null,next:next?{...box(next),disabled:next.disabled,text:next.textContent}:null,phase:e.dataset.phase,estimated:e.dataset.estimated,indeterminate:e.dataset.indeterminate,desk:e.dataset.desk,value:e.querySelector('.mouse-progress-value').textContent,aria:e.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'),label:e.querySelector('.mouse-progress-label').textContent,stopHidden:e.querySelector('.mouse-progress-stop').hidden};
+}
+async function selectProgressPill(id,{read,click,until},evidence={}){
+ evidence.id=id;evidence.clicks=[];let state;
+ const sample=async()=>{state=await read(id);evidence.current=state;return state;};
+ await until(async()=>!!await sample(),'progress task exists before native selection');evidence.before=state;
+ const owner=state.owner,count=state.taskIds.length,selected=()=>state?.owner===owner&&state.selectedId===id&&state.visible&&state.hit;
+ assert.ok(owner&&count>0,'Progress task has an owning pane');
+ for(let i=0;!selected()&&i<count;i++){
+  assert.ok(state?.owner===owner&&state.taskIds.includes(id),'Native progress selection keeps the target and its owning pane');
+  assert.ok(state.dock?.visible&&state.selectedIds.length===1&&state.next?.visible&&!state.next.disabled,'The owning pane offers a visible native Next control: '+JSON.stringify(state));
+  const before=state.selectedId,step={from:before};evidence.clicks.push(step);
+  await click('.mouse-pane-progress[data-pane='+JSON.stringify(owner)+'] > .mouse-progress-next');
+  await until(async()=>{await sample();return state?.owner===owner&&state.selectedIds.length===1&&state.selectedId!==before&&(state.selectedId!==id||state.visible&&state.hit);},'native Next selects another task in the same pane');step.to=state.selectedId;
+ }
+ assert.ok(selected(),'Native Next reveals the requested progress task within one cycle: '+JSON.stringify(state));return state;
+}
 module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
  const facts={version:'6.0.24'};let records;
  const saveFacts=()=>fs.writeFile('mouse-624-verification.json',JSON.stringify(facts,null,2)+'\n');
@@ -98,8 +122,8 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
    if(cleanupError&&!verificationError)throw cleanupError;
   }
  }
- const pillSelector=id=>'.mouse-pane-progress .mouse-progress-pill[data-progress-id="'+id+'"]';
- async function pill(id){return js(`(()=>{const e=document.querySelector(${JSON.stringify(pillSelector(id))});if(!e)return null;return{phase:e.dataset.phase,estimated:e.dataset.estimated,indeterminate:e.dataset.indeterminate,desk:e.dataset.desk,value:e.querySelector('.mouse-progress-value').textContent,aria:e.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'),label:e.querySelector('.mouse-progress-label').textContent,stopHidden:e.querySelector('.mouse-progress-stop').hidden};})()`);}
+ async function pill(id){return js(`(${progressPillState.toString()})(${JSON.stringify(pillSelector(id))})`);}
+ async function selectPill(id){const evidence={};(facts.progressSelections??=[]).push(evidence);try{return await selectProgressPill(id,{read:pill,click,until},evidence);}finally{await saveFacts();}}
  async function verifyPageProgress({root,bank}){
   // Two real WebContents use the public page preload, not a forged IPC sender.
   const own=browser.state().tabs.find(t=>!t.internal&&browser.get(t.id).view.webContents.getURL().startsWith(root)),other=[...browser.tabs.values()].find(t=>bank.members[t.id]!==bank.active&&!t.internal&&t.view.webContents.getURL().startsWith(root));assert.ok(own&&other,'Two loaded fixture pages belong to different desktops');
@@ -112,9 +136,9 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
    assert.equal(first.source,'page');assert.equal(first.desk,bank.active);assert.equal(first.tabId,own.id);assert.equal(first.label,new URL(root).hostname);assert.equal(first.estimated,true);assert.equal(first.percent,37);assert.equal(Object.hasOwn(first,'owner'),false);
    second=await update(otherWC,12,'Другой стол · отдельная задача');assert.notEqual(first.id,second.id);assert.equal(second.tabId,other.id);assert.equal(second.desk,bank.members[other.id]);assert.equal(second.source,'page');
    const state=await js('MouseNative.progress("state")');assert.equal(state.tasks.find(t=>t.id===first.id).percent,37,'Another page cannot overwrite this page task with the same taskId');assert.equal(state.tasks.find(t=>t.id===second.id).percent,12);
-   await until(async()=>{const p=await pill(first.id);return p?.value==='37%'&&p.aria==='37'&&p.estimated==='true'&&p.indeterminate==='false';},'real page percentage paints');assert.equal((await pill(first.id)).stopHidden,true,'A webpage cannot impersonate the agent Stop control');await painted();await fs.writeFile('mouse-624-progress-known.png',(await win.capturePage()).toPNG());
-   await update(wc,null,'Локальная проверка · процент неизвестен');await until(async()=>{const p=await pill(first.id);return p?.phase==='running'&&p.indeterminate==='true'&&p.aria===null&&p.value==='…';},'unknown progress has no invented percentage');await painted();await fs.writeFile('mouse-624-progress-unknown.png',(await win.capturePage()).toPNG());
-   const completed=await update(wc,100,'Локальная проверка завершена');assert.equal(completed.phase,'completed');await until(async()=>(await pill(first.id))?.value==='100%'&&(await pill(first.id))?.phase==='completed','100 percent paints before dismissal');await sleep(1200);assert.ok(await pill(first.id),'Completion remains visible long enough to read');await until(async()=>!await pill(first.id),'completed pill automatically disappears');
+   await selectPill(first.id);await until(async()=>{const p=await pill(first.id);return p?.visible&&p.hit&&p.value==='37%'&&p.aria==='37'&&p.estimated==='true'&&p.indeterminate==='false';},'real page percentage paints');assert.equal((await pill(first.id)).stopHidden,true,'A webpage cannot impersonate the agent Stop control');await painted();await fs.writeFile('mouse-624-progress-known.png',(await win.capturePage()).toPNG());
+   await update(wc,null,'Локальная проверка · процент неизвестен');await until(async()=>{const p=await pill(first.id);return p?.visible&&p.hit&&p.phase==='running'&&p.indeterminate==='true'&&p.aria===null&&p.value==='…';},'unknown progress has no invented percentage');await painted();await fs.writeFile('mouse-624-progress-unknown.png',(await win.capturePage()).toPNG());
+   const completed=await update(wc,100,'Локальная проверка завершена');assert.equal(completed.phase,'completed');await until(async()=>{const p=await pill(first.id);return p?.visible&&p.hit&&p.value==='100%'&&p.phase==='completed';},'100 percent paints before dismissal');await sleep(1200);const shown=await pill(first.id);assert.ok(shown?.visible&&shown.hit,'Completion remains visible long enough to read');await until(async()=>!await pill(first.id),'completed pill automatically disappears');
    facts.progress={determinate:true,indeterminate:true,completionDismissed:true,pageScope:true};await saveFacts();
   }finally{for(const entry of [first,second])if(entry)await js(`MouseNative.progress('dismiss',{id:${JSON.stringify(entry.id)}})`).catch(()=>{});}
  }
@@ -137,14 +161,16 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
    const terminalTask=(await js('MouseNative.progress("state")')).tasks.find(t=>t.source==='terminal'&&t.phase==='running');assert.ok(terminalTask);assert.equal(terminalTask.percent,null,'Terminal output does not invent a percentage');
    server=http.createServer(async(req,res)=>{assert.equal(req.url,'/v1/chat/completions');let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw);assert.equal(body.model,'mouse624-stop-fixture');requestSeen=true;await barrier;if(!res.destroyed){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({choices:[{message:{content:JSON.stringify({action:'done',args:{text:'Stopped fixture'}})}}]}));}});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
    await agentHost.handle('task',{endpoint:'http://127.0.0.1:'+server.address().port+'/v1/',model:'mouse624-stop-fixture',task:'Локальный тест остановки; запрос удерживается тестовым сервером'});await until(()=>requestSeen&&agentHost.worker?.pid>0,'live external worker waits at the local fixture');const workerPid=agentHost.worker.pid;
-   await until(async()=>{const p=await pill(report.id);return p?.phase==='running'&&p.value==='36%'&&!p.stopHidden;},'SDK progress pill offers Stop');await js(`document.querySelector(${JSON.stringify(pillSelector(report.id))}).scrollIntoView({block:'nearest',inline:'center'})`);await painted();
+   await selectPill(report.id);await until(async()=>{const p=await pill(report.id);return p?.visible&&p.hit&&p.phase==='running'&&p.value==='36%'&&!p.stopHidden;},'SDK progress pill offers Stop');await js(`document.querySelector(${JSON.stringify(pillSelector(report.id))}).scrollIntoView({block:'nearest',inline:'center'})`);await painted();
    await until(()=>js(`(()=>{const e=document.querySelector(${JSON.stringify(pillSelector(report.id)+' .mouse-progress-stop')});return !document.querySelector('#agent-panel').hidden&&e&&e.getBoundingClientRect().width>0&&e.getBoundingClientRect().height>0})()`),'Agent Stop is visible in its owning panel');
-   console.log('MOUSE_624_PILL_STOP_BEFORE',JSON.stringify({enabled:agentHost.state().enabled,running:agentHost.state().running,terminalPending:!!agentHost.terminalService.pending,terminalPid:agentHost.terminalService.proc?.pid??null,workerPid:agentHost.worker?.pid??null,terminalAlive:alive(terminalPid),workerAlive:alive(workerPid),requestSeen,pill:await pill(report.id)}));
+   facts.pillStopBefore={enabled:agentHost.state().enabled,running:agentHost.state().running,terminalPending:!!agentHost.terminalService.pending,terminalPid:agentHost.terminalService.proc?.pid??null,workerPid:agentHost.worker?.pid??null,terminalAlive:alive(terminalPid),workerAlive:alive(workerPid),requestSeen,pill:await pill(report.id)};await saveFacts();console.log('MOUSE_624_PILL_STOP_BEFORE',JSON.stringify(facts.pillStopBefore));
    assert.ok(agentHost.terminalService.pending&&agentHost.state().running,'Both actual operations are still waiting when the user stops them');await click(pillSelector(report.id)+' .mouse-progress-stop');
    await until(()=>!agentHost.state().enabled&&!agentHost.state().running&&!alive(workerPid)&&!alive(terminalPid),'pill Stop terminates the real worker and PTY');assert.ok(await closedPort(connection.port),'Pill Stop revokes the local listener');assert.equal(agentHost.state().terminal,false);assert.equal(agentHost.state().connectionUrl,'');
-   await until(async()=>{const p=await pill(report.id);return p?.phase==='stopped'&&p.value==='36%'&&p.stopHidden;},'Stop preserves the last reported estimate instead of reporting 100 percent');
+   await until(async()=>{const p=await pill(report.id);return p?.visible&&p.hit&&p.phase==='stopped'&&p.value==='36%'&&p.stopHidden;},'Stop preserves the last reported estimate instead of reporting 100 percent');
    facts.progress.stopped=true;await saveFacts();console.log('MOUSE_624_SCOPED_PROGRESS_PILL_PASS');
   }finally{release();await client?.close().catch(()=>{});await agentHost.stop('Завершена проверка индикатора');server?.closeAllConnections?.();server?.close();}
  }
  return{facts,saveFacts,verifyLayoutAndHistory,verifyPageProgress,verifyPillStop};
 };
+module.exports.progressPillState=progressPillState;
+module.exports.selectProgressPill=selectProgressPill;

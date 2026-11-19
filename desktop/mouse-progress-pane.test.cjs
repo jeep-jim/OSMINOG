@@ -108,3 +108,27 @@ test('ownership, unknown progress and removal still update DOM and geometry, the
  f.emit({tasks:[renderTask({percent:null,statusText:'Жду данные'})]});await f.flush();node=f.document.querySelector('.mouse-progress-pill');assert.equal(node.querySelector('.mouse-progress-value').textContent,'…');assert.equal(node.querySelector('.mouse-progress-meter').getAttribute('aria-valuenow'),null);assert.ok(f.calls.length>0);f.reset();f.ui.render();await f.flush();idle(f);
  f.emit({tasks:[]});await f.flush();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(node=>node.hidden));assert.ok(f.calls.length>0);f.reset();f.ui.render();await f.flush();idle(f);
 });
+
+test('the native progress fixture selects a hidden live task through its owning Next control',async()=>{
+ const smoke={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'mouse-624-smoke.cjs'),'utf8'),{module:smoke,require:name=>name.startsWith('node:')?require(name):{}});
+ const f=fixture();await f.ready();const agent=f.document.createElement('section');agent.id='agent-panel';f.document.body.append(agent);f.model.agentOpen=true;
+ const previous=renderTask({id:'previous',taskId:'previous',source:'agent',tabId:undefined,percent:100,phase:'completed',createdAt:1}),page=renderTask({id:'page-task'});
+ f.emit({tasks:[previous,page]});await f.flush();
+ const target=renderTask({id:'sdk-stop',taskId:'sdk-stop',source:'agent',tabId:undefined,percent:36,createdAt:2}),terminal=renderTask({id:'pty',source:'terminal',tabId:undefined,percent:null,createdAt:3}),stopped=renderTask({id:'prior-stopped',source:'agent',tabId:undefined,phase:'stopped',createdAt:4});
+ f.emit({tasks:[previous,page,target,terminal,stopped]});await f.flush();
+ const dock=agent.querySelector('.mouse-pane-progress'),next=dock.querySelector('.mouse-progress-next'),node=dock.querySelectorAll('.mouse-progress-pill').find(node=>node.dataset.progressId===target.id),pageNode=f.document.querySelectorAll('.mouse-progress-pill').find(node=>node.dataset.progressId===page.id);
+ assert.equal(next.textContent,'3/4');assert.equal(node.hidden,true);assert.equal(node.querySelector('.mouse-progress-stop').hidden,false,'A live Stop child alone does not prove its article is visible');assert.equal(pageNode.hidden,false);
+ // Read the shipped snapshot against the shipped renderer's selection state.
+ // Deterministic boxes model only display:none ancestry; native hit geometry
+ // remains the installed Electron gate, never a claim made by this unit test.
+ const descendants=node=>node.children.flatMap(child=>[child,...descendants(child)]),all=[f.document.body,...descendants(f.document.body)];
+ for(const e of all){e.closest=selector=>{for(let p=e;p;p=p.parentNode)if(p.classList.contains(selector.slice(1)))return p;return null;};e.getBoundingClientRect=()=>{for(let p=e;p;p=p.parentNode)if(p.hidden)return{x:0,y:0,width:0,height:0};const owner=e.closest('.mouse-pane-progress'),x=owner?.dataset.pane==='agent'?400:0,isNext=e.classList.contains('mouse-progress-next');return{x:x+(isNext?300:0),y:10,width:isNext?25:e.classList.contains('mouse-pane-progress')?325:300,height:30};};}
+ const doc={querySelector:selector=>{const id=JSON.parse(selector.match(/data-progress-id=("[^"]+")/)[1]);return f.document.querySelectorAll('.mouse-progress-pill').find(node=>node.dataset.progressId===id)||null;},elementFromPoint:(x,y)=>{if(y<10||y>=40)return null;const host=x>=400?dock:pageNode.parentNode;if(host.hidden||host.parentNode.hidden)return null;if(x>=(host===dock?700:300))return host.querySelector('.mouse-progress-next');return host.querySelectorAll('.mouse-progress-pill').find(node=>!node.hidden)||null;}};
+ const snapshot=vm.runInNewContext('('+smoke.exports.progressPillState.toString()+')',{document:doc,getComputedStyle:()=>({display:'flex',visibility:'visible',opacity:'1'})});
+ let pending,reads=0;const clicks=[],evidence={},read=async id=>{if(pending&&++reads===2){pending();pending=null;await f.flush();}return snapshot('.mouse-pane-progress .mouse-progress-pill[data-progress-id='+JSON.stringify(id)+']');},until=async(fn,label)=>{for(let i=0;i<5;i++)if(await fn())return;throw Error(label);},click=async selector=>{assert.equal(selector,'.mouse-pane-progress[data-pane="agent"] > .mouse-progress-next');assert.equal(next.hidden,false);clicks.push(selector);reads=0;pending=()=>next.onclick();};
+ const before=await read(target.id);assert.equal(before.visible,false);assert.equal(before.rect.width,0);assert.equal(before.stopHidden,false);assert.equal(before.selectedId,previous.id);
+ const selected=await smoke.exports.selectProgressPill(target.id,{read,click,until},evidence);
+ assert.equal(clicks.length,2);assert.equal(evidence.clicks.length,2);assert.equal(selected.selectedId,target.id);assert.equal(selected.visible,true);assert.equal(selected.hit,true);assert.equal(selected.value,'36%');assert.equal(selected.stopHidden,false);assert.equal(pageNode.hidden,false);assert.equal(next.textContent,'1/4');
+ const after=await smoke.exports.selectProgressPill(target.id,{read,click,until});assert.equal(after.id,target.id);assert.equal(clicks.length,2,'An already selected task needs no Next click');
+ agent.hidden=true;const hidden=await read(target.id);assert.equal(hidden.hidden,false);assert.equal(hidden.visible,false,'A selected article in a hidden ancestor remains unavailable');assert.equal(hidden.stopHidden,false);
+});
