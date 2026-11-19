@@ -394,3 +394,75 @@ conflicted with the Windows SDK type brought in by the composition headers.
 No installer or installed acceptance was produced by that run. The helper and
 its calls are renamed to a unique function name; no drawing behavior or test
 criteria change is involved.
+
+## Modern rendering passes; the remaining failure is updater startup
+
+Source `9b5d93fc47382bc027c1f8c05e8e2fc08090c86b` compiled successfully in
+[run 44541832593](https://github.com/jeep-jim/OSMINOG/actions/runs/44541832593).
+The complete Windows 2022 job `135621903877` passed, including the actual
+installed update and restart. The exact same installer was then verified on
+Windows Server 2025 build 26100 in job `135627856046`. All four 90-pixel
+separator/corner captures and both nine-pixel Nora captures passed at the first
+attempt. The native report records the conditional composition path, eight
+surfaces and visuals, successful commits and actual cloak state 1. The complete
+WRITE workload passed in 152,688 ms, followed by a successful reinstall with an
+unchanged profile and a successful READ workload in 2,453 ms. Agent PTY, Local
+MCP, native file operations, documents, private isolation and wheel behavior
+passed within that installed workload. Physical touchpad and external-account
+testing are not claimed.
+
+The later update-button stage failed before the PowerShell helper acknowledged
+readiness. The helper wrapper PID 6928 exited with code 0; no result or readiness
+file existed, stderr was empty, and the 90 stdout bytes contained only console
+control sequences. Cancellation was recorded and the source run correctly
+failed. Its installer is 125,615,658 bytes, SHA-256
+`9deff57cf96babdf0b5f08240fef141f75e473e844b4a44742281f7c4381aba7`.
+This candidate is not eligible for publication despite the successful UI work.
+
+The downloaded 2022 evidence archive `14538709389` has SHA-256
+`6bba051caec815a55a8013e9cb127e8c9baa4d1baaf802c340f8af0aa4ba09b9`;
+the modern archive `14539198141` has SHA-256
+`0f2c24fc592087a96a15d363be9af325e0ca9ea472ccaba5f5095f2e82c757dc`.
+Independent inspection of all 22 PE files, including delay imports, found no
+external MSVC runtime dependency. The composition addon uses the Windows OS
+libraries `Dcomp.dll` and `Dwmapi.dll`.
+
+## Give the update helper its own documented process lifetime
+
+The failing launch used `conhost --headless` with NUL input. Microsoft's console
+[change adb04729](https://github.com/microsoft/terminal/commit/adb04729bcce7151f6380eded79e9408df9d1e3b)
+makes a successful zero-byte input read terminate its VT input loop. This is a
+source-supported explanation consistent with the observed early console exit;
+the exact runner console binary has not been disassembled, so the specific
+binary-level cause is not claimed as proven. Microsoft also describes direct
+[`conhost --headless` use as unsupported](https://github.com/microsoft/terminal/issues/13914).
+A pipe owned by Mouse would close when Mouse exits, which would not meet the
+updater's required lifetime.
+
+The replacement launches the fixed system Windows PowerShell executable through
+documented
+[`CreateProcessW`](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw),
+with `CREATE_NO_WINDOW`, a Unicode environment and an explicit standard-handle
+allowlist. Its NUL input and duplicated file-backed log handles do not depend on
+a parent-owned pipe. It does not request `DETACHED_PROCESS`, a new console or a
+job-policy breakaway. Direct native creation avoids libuv's additional child
+job while preserving any enclosing Windows job policy. The fixed PowerShell
+script, checked package bytes, JSON path data, readiness, cancellation and
+receipt protocol remain unchanged.
+
+A type-tagged native token retains the exact created process handle. Status and
+cancellation use that handle, avoiding a later PID lookup; releasing the token
+closes only the handle and never terminates a successful updater. The JavaScript
+adapter reports the actual PowerShell exit code and keeps the existing bounded
+readiness deadline. The proven pane-corner implementation is unchanged.
+
+A separate focused workflow builds the native addon once on Windows 2022 and
+runs those identical bytes on Windows 2022 and the current modern Windows
+runner. It binds source, run, attempt, Node version and hashes before testing.
+Two real-helper tests require readiness and cancellation, then prove survival
+after the launching Node process exits. An independent live original-process
+guard prevents the synthetic installer from executing; the tests require
+cancellation, unchanged fixture files and no installer-start trace. The full
+source installation/update gates and fresh publisher gate remain required.
+These changes still require actual Windows execution before readiness can be
+claimed.

@@ -30,6 +30,16 @@ async function installerFixture(){
  const candidate=channelCandidate(manifest({size:bytes.length,digest:'sha256:'+crypto.createHash('sha256').update(bytes).digest('hex')}),'6.0.29',target),app={isPackaged:true,getVersion:()=> '6.0.30',getPath:name=>name==='temp'?temp:profile};
  return{root,dir,profile,temp,executable,file,candidate,app,arch:'x64',cleanup:()=>fsp.rm(root,{recursive:true,force:true})};
 }
+function helperRuntime(onLaunch=()=>{},initialExit=null){
+ const handle={},state={exitCode:initialExit,released:0,stopped:0,args:null};
+ const native={
+  launchUpdateHelper(...args){state.args=args;onLaunch(...args);return{pid:12345,handle};},
+  updateHelperStatus(value){assert.equal(value,handle);return{running:state.exitCode===null,exitCode:state.exitCode};},
+  stopUpdateHelper(value){assert.equal(value,handle);state.stopped++;state.exitCode=1;return true;},
+  releaseUpdateHelper(value){assert.equal(value,handle);state.released++;},
+ };
+ return{native,state};
+}
 test('Windows installer validates real package bytes and installed identity before preparing any replacement',async()=>{
  const f=await installerFixture();try{
   const installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{throw Error('must not quit during preparation');}}),plan=await installer.prepare(f.file,f.candidate);
@@ -46,35 +56,51 @@ test('Windows install path accepts an ordinary directory but rejects a junction 
   await fsp.mkdir(path.join(f.dir,'child'));await assert.rejects(()=>ordinaryWindowsDirectory(path.join(alias,'child')),/символическую/);
  }finally{await f.cleanup();}
 });
-test('failed browser save cancels the detached Windows installer and never acknowledges a new version',async()=>{
+test('failed browser save cancels the held Windows helper and never acknowledges a new version',async()=>{
  const f=await installerFixture();try{
-  let command,args,options,installer;
-  installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{throw Error('save failed');},spawn:(...values)=>{[command,args,options]=values;const child=new EventEmitter();child.unref=()=>{};void fsp.writeFile(installer.plan.ready,'ready');return child;}});
+  let installer;const runtime=helperRuntime(()=>fs.writeFileSync(installer.plan.ready,'ready'));
+  installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{throw Error('save failed');},nativeHelper:runtime.native});
   await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),/save failed/);
-  assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.match(command,/conhost\.exe$/);assert.deepEqual(args.slice(0,2),['--headless','--']);assert.match(args[2],/powershell\.exe$/);assert.equal(args.at(-2),'-EncodedCommand');assert.equal(Buffer.from(args.at(-1),'base64').toString('utf16le'),WINDOWS_HELPER);assert.ok(!args.some(x=>/ExecutionPolicy|Bypass/.test(x)));
-  assert.equal(options.shell,undefined);assert.equal(options.detached,true);assert.equal(options.windowsHide,true);assert.equal(options.stdio[0],'ignore');assert.ok(options.stdio.slice(1).every(Number.isInteger));assert.equal(options.env.MOUSE_INSTALL_PLAN,path.join(installer.plan.stage,'plan.json'));assert.ok(!args.join(' ').includes(f.dir),'Unicode/space install path is data, never interpolated script source');
+  assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');const [encoded,entries,cwd,out,err]=runtime.state.args;
+  assert.equal(Buffer.from(encoded,'base64').toString('utf16le'),WINDOWS_HELPER);assert.ok(!WINDOWS_HELPER.includes(f.dir),'Unicode/space install path is data, never interpolated script source');
+  assert.ok(entries.includes('MOUSE_INSTALL_PLAN='+path.join(installer.plan.stage,'plan.json')));assert.equal(cwd,installer.plan.stage);assert.ok(Number.isInteger(out)&&Number.isInteger(err));
+  assert.equal(runtime.state.stopped,1);assert.equal(runtime.state.released,1);assert.equal(installer.child.exitCode,1);assert.equal(installer.child.killed,true);
   assert.equal(await fsp.readFile(installer.plan.helperOut,'utf8'),'');assert.equal(await fsp.readFile(installer.plan.helperErr,'utf8'),'');
  }finally{await f.cleanup();}
 });
-test('a Windows console host exiting zero before readiness fails immediately and preserves its diagnostic',{timeout:3000},async()=>{
+test('a Windows helper exiting zero before readiness fails immediately and preserves its diagnostic',{timeout:3000},async()=>{
  const f=await installerFixture();try{
-  let quit=false,killed=false,installer;
-  installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{quit=true;},spawn:()=>{
-   const child=new EventEmitter();child.unref=()=>{};child.kill=()=>{killed=true;return true;};
-   fs.writeFileSync(installer.plan.result,'Helper diagnostic before readiness');
-   queueMicrotask(()=>{child.exitCode=0;child.emit('exit',0,null);});return child;
-  }});
+  let quit=false,installer;const runtime=helperRuntime(()=>fs.writeFileSync(installer.plan.result,'Helper diagnostic before readiness'),0);
+  installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{quit=true;},nativeHelper:runtime.native});
   await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),/до подтверждения \(код 0\): Helper diagnostic before readiness/);
-  assert.equal(quit,false);assert.equal(killed,true);assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.equal(fs.existsSync(installer.plan.ready),false);
+  assert.equal(quit,false);assert.equal(runtime.state.stopped,0,'an exited process is released, not terminated again');assert.equal(runtime.state.released,1);assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.equal(fs.existsSync(installer.plan.ready),false);
+ }finally{await f.cleanup();}
+});
+test('a native helper creation error leaves Mouse open and cancels the prepared plan',async()=>{
+ const f=await installerFixture();try{
+  let quit=false;const runtime=helperRuntime(()=>{throw Error('CreateProcess refused the helper');}),installer=new WindowsInstaller({...f,platform:'win32',nativeHelper:runtime.native,quit:async()=>{quit=true;}});
+  await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),/CreateProcess refused/);
+  assert.equal(quit,false);assert.equal(installer.child,null);assert.equal(runtime.state.stopped,0);assert.equal(runtime.state.released,0);
+  assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.equal(fs.existsSync(installer.plan.ready),false);assert.equal(await fsp.readFile(f.executable,'utf8'),'MZ installed');
+ }finally{await f.cleanup();}
+});
+test('a native helper status error stays observable even if releasing its handle also fails',{timeout:3000},async()=>{
+ const f=await installerFixture();try{
+  let quit=false;const runtime=helperRuntime(),failure=Error('Helper status unavailable');
+  runtime.native.updateHelperStatus=()=>{throw failure;};runtime.native.releaseUpdateHelper=()=>{runtime.state.released++;throw Error('Handle release failed');};
+  const installer=new WindowsInstaller({...f,platform:'win32',nativeHelper:runtime.native,quit:async()=>{quit=true;}});
+  await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),error=>error===failure);
+  assert.equal(quit,false);assert.equal(installer.child.mouseHelperState.error,failure);assert.equal(runtime.state.released,1);
+  assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.equal(fs.existsSync(installer.plan.ready),false);
  }finally{await f.cleanup();}
 });
 test('the Windows helper resets only its inherited PowerShell module path and preserves the isolated profile',async()=>{
- const f=await installerFixture();try{
-  const installer=new WindowsInstaller({...f,platform:'win32'}),plan=await installer.prepare(f.file,f.candidate),env={PSModulePath:'PS7 modules',pSmOdUlEpAtH:'another PS7 path',PATH:'keep executable search',CI:'true',MOUSE_TEST_PROFILE:f.profile},original={...env};let options;
-  await startWindowsHelper(plan,{env,spawn:(_command,_args,value)=>{options=value;return new EventEmitter();}});
-  assert.deepEqual(env,original);assert.equal(Object.keys(options.env).some(key=>key.toLowerCase()==='psmodulepath'),false);
-  assert.equal(options.env.PATH,env.PATH);assert.equal(options.env.CI,'true');assert.equal(options.env.MOUSE_TEST_PROFILE,f.profile);assert.equal(options.env.MOUSE_INSTALL_PLAN,path.join(plan.stage,'plan.json'));
- }finally{await f.cleanup();}
+ const f=await installerFixture();let child;try{
+  const installer=new WindowsInstaller({...f,platform:'win32'}),plan=await installer.prepare(f.file,f.candidate),env={PSModulePath:'PS7 modules',pSmOdUlEpAtH:'another PS7 path',PATH:'keep executable search',CI:'true',MOUSE_TEST_PROFILE:f.profile},original={...env},runtime=helperRuntime();
+  child=await startWindowsHelper(plan,{env,native:runtime.native});const entries=runtime.state.args[1];
+  assert.deepEqual(env,original);assert.equal(entries.some(value=>value.slice(0,value.indexOf('=')).toLowerCase()==='psmodulepath'),false);
+  for(const [key,value]of Object.entries({PATH:env.PATH,CI:'true',MOUSE_TEST_PROFILE:f.profile,MOUSE_INSTALL_PLAN:path.join(plan.stage,'plan.json')}))assert.ok(entries.includes(key+'='+value));
+ }finally{child?.kill();await f.cleanup();}
 });
 test('Windows acknowledgement is bound to the running version, executable and dedicated temp stage',async()=>{
  const f=await installerFixture();try{

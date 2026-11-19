@@ -136,35 +136,50 @@ try {
  exit 1
 }
 `;
-async function startWindowsHelper(plan,{spawn=cp.spawn,env=process.env}={}){
- const system=path.join(process.env.SystemRoot||'C:\\Windows','System32'),powershell=path.join(system,'WindowsPowerShell','v1.0','powershell.exe');
+function observeWindowsHelper(native,processInfo){
+ const child=new (require('node:events').EventEmitter)();
+ Object.assign(child,{pid:processInfo.pid,exitCode:null,signalCode:null,killed:false,mouseHelperState:{error:null,exit:null}});
+ let handle=processInfo.handle,timer;
+ const release=()=>{clearInterval(timer);if(handle){const current=handle;handle=null;native.releaseUpdateHelper(current);}};
+ child.on('error',error=>{child.mouseHelperState.error=error;});
+ const poll=()=>{
+  if(!handle)return;
+  try{
+   const state=native.updateHelperStatus(handle);if(state.running)return;
+   child.exitCode=state.exitCode;child.mouseHelperState.exit={code:state.exitCode,signal:null};release();child.emit('exit',state.exitCode,null);
+  }catch(error){try{release();}catch{}child.emit('error',error);}
+ };
+ child.kill=()=>{if(!handle)return false;const stopped=native.stopUpdateHelper(handle);if(stopped)child.killed=true;poll();return stopped;};
+ child.unref=()=>{timer?.unref();return child;};
+ // Status comes from the held PowerShell process handle. Keeping only this
+ // observation timer referenced never assigns the helper to libuv's child job.
+ timer=setInterval(poll,50);return child;
+}
+async function startWindowsHelper(plan,{native,env=process.env}={}){
  // A pwsh -> Node -> Windows PowerShell chain otherwise inherits PS7 modules
  // that Windows PowerShell cannot load. Reset only this child's module search
  // variable so Windows PowerShell constructs its own defaults at startup.
  const environment={...env,MOUSE_INSTALL_PLAN:path.join(plan.stage,'plan.json')};
  for(const key of Object.keys(environment))if(key.toLowerCase()==='psmodulepath')delete environment[key];
- // PowerShell requires a console even in noninteractive mode. A bare
- // DETACHED_PROCESS can exit zero before running its script. The system's
- // headless console host supplies that console without displaying a window.
- // Keep detached: libuv otherwise assigns the child to a kill-on-parent-exit
- // Job Object, which would stop the installer when Mouse closes.
+ // The native launcher uses documented CREATE_NO_WINDOW and a restricted
+ // inherited-handle list. It neither requests DETACHED_PROCESS nor assigns
+ // PowerShell to libuv's kill-on-parent-exit child job. File-backed output and
+ // NUL input belong to PowerShell itself, so no parent-owned pipe controls its
+ // lifetime after Mouse exits.
  const out=await fs.open(plan.helperOut,'a',0o600);let err;
  try{
   err=await fs.open(plan.helperErr,'a',0o600);
   const encoded=Buffer.from(WINDOWS_HELPER,'utf16le').toString('base64');
-  const child=spawn(path.join(system,'conhost.exe'),['--headless','--',powershell,'-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{detached:true,windowsHide:true,stdio:['ignore',out.fd,err.fd],env:environment});
-  // Latch events before closing our descriptor copies: a launch failure may
-  // arrive before the caller's await resumes. The child owns inherited handles.
-  const state=child.mouseHelperState={error:null,exit:null};
-  child.once('error',error=>{state.error=error;});child.once('exit',(code,signal)=>{state.exit={code,signal};});return child;
+  const runtime=native||require('./mouse-mcp-fs.node'),entries=Object.entries(environment).filter(([,value])=>value!=null).map(([key,value])=>key+'='+String(value));
+  return observeWindowsHelper(runtime,runtime.launchUpdateHelper(encoded,entries,plan.stage,out.fd,err.fd));
  }finally{await out.close();await err?.close();}
 }
 async function helperFailure(plan,child){
  const state=child?.mouseHelperState;if(state?.error)return state.error;
  const exited=state?.exit||(child&&child.exitCode!=null?{code:child.exitCode,signal:child.signalCode}:null);
  if(!exited)return null;
- // conhost does not forward the hosted PowerShell's exit code. Every exit
- // before readiness is a failure, including zero; the file is the handshake.
+ // Every PowerShell exit before readiness is a failure, including zero; the
+ // checked helper.ready file remains the required startup handshake.
  let detail='';for(const file of [plan.result,plan.helperErr]){const stat=await fs.stat(file).catch(()=>null);if(stat?.isFile()&&stat.size>0&&stat.size<=65536){detail=(await fs.readFile(file,'utf8')).trim().slice(0,2000);if(detail)break;}}
  return Error('Помощник установки Windows завершился до подтверждения (код '+String(exited.code)+')'+(detail?': '+detail:''));
 }
@@ -181,7 +196,7 @@ async function ordinaryWindowsDirectory(target){
  for(;;){const stat=await fs.lstat(current);if(!stat.isDirectory()||stat.isSymbolicLink())throw Error('Нельзя обновить приложение через символическую ссылку');const parent=path.dirname(current);if(parent===current)break;current=parent;}
 }
 class WindowsInstaller{
- constructor({app,quit,executable=process.execPath,platform=process.platform,arch=process.arch,spawn=cp.spawn}){this.app=app;this.quit=quit;this.executable=executable;this.platform=platform;this.arch=arch;this.spawn=spawn;this.plan=null;this.child=null;}
+ constructor({app,quit,executable=process.execPath,platform=process.platform,arch=process.arch,nativeHelper}){this.app=app;this.quit=quit;this.executable=executable;this.platform=platform;this.arch=arch;this.nativeHelper=nativeHelper;this.plan=null;this.child=null;}
  async prepare(file,candidate){
   if(this.platform!=='win32'||this.arch!=='x64'||!this.app.isPackaged)throw Error('Обновление Windows доступно из установленного Mouse Browser x64');
   const c=windowsPackage(candidate),target=path.dirname(this.executable);
@@ -200,7 +215,7 @@ class WindowsInstaller{
   const p=this.plan;if(!p)throw Error('Обновление не подготовлено');
   await fs.writeFile(p.receipt,JSON.stringify({platform:'win32',version:p.version,target:p.executable,stage:p.stage}),{mode:0o600});
   try{
-   this.child=await startWindowsHelper(p,{spawn:this.spawn});
+   this.child=await startWindowsHelper(p,{native:this.nativeHelper});
    const deadline=Date.now()+15000;
    for(;;){
     const failure=await helperFailure(p,this.child);if(failure)throw failure;

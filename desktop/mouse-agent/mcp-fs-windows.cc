@@ -15,6 +15,10 @@
 #include <vector>
 
 napi_value mousePaneCorners(napi_env env,napi_callback_info info);
+napi_value mouseLaunchUpdateHelper(napi_env env,napi_callback_info info);
+napi_value mouseUpdateHelperStatus(napi_env env,napi_callback_info info);
+napi_value mouseStopUpdateHelper(napi_env env,napi_callback_info info);
+napi_value mouseReleaseUpdateHelper(napi_env env,napi_callback_info info);
 
 namespace {
 constexpr ULONG kOpen=1,kCreate=2,kDirectory=1,kSynchronous=0x20,kNonDirectory=0x40,kReparse=0x200000;
@@ -270,7 +274,11 @@ napi_value init(napi_env env,napi_value exports){
   {"commit",nullptr,commit,nullptr,nullptr,nullptr,napi_default,nullptr},{"remove",nullptr,remove,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"ownProcess",nullptr,ownProcess,nullptr,nullptr,nullptr,napi_default,nullptr},{"stopProcessTree",nullptr,stopProcessTree,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr},{"paneCorners",nullptr,mousePaneCorners,nullptr,nullptr,nullptr,napi_default,nullptr},
-  {"paneCornersState",nullptr,mousePaneCornersState,nullptr,nullptr,nullptr,napi_default,nullptr}
+  {"paneCornersState",nullptr,mousePaneCornersState,nullptr,nullptr,nullptr,napi_default,nullptr},
+  {"launchUpdateHelper",nullptr,mouseLaunchUpdateHelper,nullptr,nullptr,nullptr,napi_default,nullptr},
+  {"updateHelperStatus",nullptr,mouseUpdateHelperStatus,nullptr,nullptr,nullptr,napi_default,nullptr},
+  {"stopUpdateHelper",nullptr,mouseStopUpdateHelper,nullptr,nullptr,nullptr,napi_default,nullptr},
+  {"releaseUpdateHelper",nullptr,mouseReleaseUpdateHelper,nullptr,nullptr,nullptr,napi_default,nullptr}
  };
  napi_define_properties(env,exports,sizeof(properties)/sizeof(properties[0]),properties);return exports;
 }
