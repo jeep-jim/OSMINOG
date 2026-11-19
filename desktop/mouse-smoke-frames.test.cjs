@@ -103,6 +103,17 @@ test('static native UI requires current-theme display pixels and both actual own
  // while renderer metadata claims a hit-ready 64% pill.
  const missing=f.clone();f.fill(missing,f.regions[1].bounds,[243,245,249]);const result=f.check(missing);assert.equal(result.accepted,false);assert.equal(result.regions[1].nativeColors,1);assert.ok(result.reasons.some(reason=>reason.includes('p2')&&reason.includes('native UI is not painted')));
 });
+test('recorded source8 Nora closing thumbnail is rejected before the actual settled foreground is accepted',async()=>{
+ // Lossless BGRA [64,295,32,14] crops from run44487516856. The shell
+ // failure PNG (d85eefc6...65c73df4) and earlier native open PNG
+ // (f48f741c...362f6ccf) have identical current title pixels. The rejected
+ // reversed PNG (cc98fcd5...f9ce492) still has the real 139px closing offset.
+ const inflate=text=>require('node:zlib').inflateSync(Buffer.from(text,'base64'));
+ const current=inflate('eJzFVP1Lk1EU/jP6NehHfwmECMFASKhIQcqwjBIzKNHKMqWillkSRkpJlgMllVlRujJmq7FK+nKpqcM+prOCLK1ATHPZvk48B87lvu7dUgh64GX3PDv3Pvd9znkP0b/HzI9p6u95Tu6uu9Rua6Zqy9GE+cnLl8U8e7Ztoo5rrUvS/RUI0PGSItPzotHoX/Uz16ziuxZkZyru4tnKResX7cjhPSdL99H9Tjv1e17Qu2EvTU9NJdwnWgO9PYpra7Iyl5q0giKRCHNd9luUvzmDuay0FKo6VkaBuTn+b2zEx/mnykvo2SM3XaiqoKuX61hfRyQcphbrJfYX58TTfz00oPhvkxPksN9UMfbJ+uDunZz/0OngODs9NcZ77BXgXvp/8fSv1FQrLaCh9hwV521VZ+EdZd/v+Xlqb2tRcUXZAfI87SbLoWLFff86SR/8oyp23umgYDBo0Mfdz1eeoNyNaxUHj3V8Gf9E3ld99PjBPYM/jXW1vF6/eiWFwyHODYWClJ6cxPwTt4t7AuucdWmm9V/47M/P5XfjengHueZmedC/0dxkqIcAnoFvtdazh1iXFxaY6p85UkouRyd1u5x8pg58G7IXtYa/ur7EeVkbDPvES5x7+7qN1+hhM329/jowTyTn/egIc/BT15/4PK5i35th5ZlwH8f8htjve7tofQB1lRlxeO+uGP+BmtMWxekzBJ7hG0ZfFG7fonjxQeLBXk9c/aG+l6qX8NgaGwy9DaCfUUP5PvGLeYi5KPg5O8P3kZylArMMfZ0ImLXwROaWGTCHFvbY/8AfbRI9KA=='),stale=inflate('eJxbKHvl/8JRPIpH8SgexaN4hGEAutd9/Q==');
+ const size={width:32,height:14},reference={...size,data:current},frames=[{...size,data:stale},{...size,data:Buffer.from(current)}],seen=[];
+ const result=await acquireFreshNativeFrame({reference:async()=>reference,capture:async()=>frames[seen.length],select:candidate=>{seen.push(candidate);return nativeStaticFrameMatch({reference,candidate,viewport:size,mapping:{scaleX:1,scaleY:1,originX:0,originY:0},regions:[{label:'Nora title',bounds:{x:0,y:0,...size}}],background:{bounds:{x:0,y:0,...size},css:'rgb(255, 255, 255)',rgb:[255,255,255]}});}});
+ assert.deepEqual(result.readiness.attempts.map(row=>row.accepted),[false,true]);assert.equal(result.readiness.attempts[0].regions[0].nativeColors,1);assert.ok(result.readiness.attempts[0].regions[0].mismatched>0);assert.ok(result.readiness.attempts[0].theme.mismatched>0);assert.equal(result.readiness.attempts[1].tolerance,2);assert.strictEqual(result.frame,frames[1]);assert.deepEqual(frames[0].data,stale,'the rejected real frame remains unchanged');
+});
 test('an old shell readback cannot bless an equally old native theme or a missing pill',()=>{
  for(const missing of [false,true]){const f=staticUIFixture();if(missing)f.fill(f.reference,f.regions[1].bounds,[243,245,249]);else f.fill(f.reference,f.background.bounds,[16,21,30]);const result=f.check(f.clone());assert.equal(result.accepted,false);assert.ok(result.reasons.some(reason=>reason.includes(missing?'shell UI is not painted':'shell readback has not painted the current theme')));}
 });
