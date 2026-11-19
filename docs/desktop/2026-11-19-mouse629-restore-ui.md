@@ -243,3 +243,35 @@ Source-surface band samples reuse the existing bitmap and preserve captured PNGs
 on failure. Selection RGB/tolerance/minimum, timeout4000ms, maxFrames120 and all
 original animation assertions remain unchanged. This improves failure evidence;
 it does not establish the cause or claim a fix for the timed-out transition.
+
+## Fifth candidate — repeated dark closing cadence failure
+
+Source `4678e374062fb8a05da28675ee2b9de7f5373ecc`,
+[run44491411916](https://github.com/jeep-jim/OSMINOG/actions/runs/44491411916),
+attempt1/job135447678636 and attempt2/job135451182381 both stop on the retained
+assertion `dark closing paints at least three intermediate frames`. Both pass
+176/594/529 source tests, native packaging and the complete629 UI gate. All seven
+companion workflows pass. Neither attempt reaches the ordinary627 transition
+whose failure diagnostics were added in this candidate.
+
+Attempt1 verification artifact14513441931:9177567 bytes, SHA-256
+`df54ad9e65a99786275c1f514c9925288197758ed9f022d53bd95ea24ff27ed3`.
+The dark closing recorder contains only two intermediate translations:2.26055px
+and34.5066px; longTasks is empty. All four opening/closing painted-frame captures
+have a qualifying actual bitmap, including dark closing progress0.8866. The
+assertion therefore concerns the separate three-frame cadence requirement, not
+failure to identify the painted moving edge.
+
+Attempt2 verification artifact14513602730:9230472 bytes, SHA-256
+`62e3d05f0ba467c9f7e4b58bc70704cb79f216cb6f46136a3ccb7f82822bbfb8`.
+Its log confirms the same assertion and a complete108483-event trace without
+data loss or collection errors. This failed evidence is not a release candidate.
+
+The next diagnostic records two fresh, equally prepared native open/close pairs
+on the same Mac: without frame subscription, then with the existing subscription.
+Both use unchanged recorder/geometry/cadence checks and one separate trace.
+Original failure evidence and accepted PNGs are retained unchanged; diagnostic
+results cannot turn the original failure into PASS. A no-subscription trial is
+explicitly not a presented-pixel proof. This comparison can identify evidence
+consistent with capture overhead under tracing, but cannot alone remove order,
+host-load or tracing confounds. No further blind rerun was requested.
