@@ -57,3 +57,11 @@ Windows port and verification are in progress. Local packaging/icon checks pass;
 the Linux executor cannot establish Windows native correctness. No successful
 Windows build, installed acceptance, release, owner-device result or Authenticode
 signature is claimed at this initial entry. The first Windows release is unsigned.
+
+The initial native-port run
+[44501682066](https://github.com/jeep-jim/OSMINOG/actions/runs/44501682066)
+passed locked dependency installation and both production audits. It stopped
+before C++ compilation: Node 22's bundled node-gyp 11.5 did not recognize the
+VS18 installation on `windows-latest`. The source builder is pinned to the
+`windows-2022` VS2022 image, and node-gyp is given the configured Python path.
+This is a toolchain correction, not a passed native implementation check.

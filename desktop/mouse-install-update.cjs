@@ -106,9 +106,9 @@ function windowsPackage(candidate){
  return candidate;
 }
 class WindowsInstaller{
- constructor({app,quit,executable=process.execPath,platform=process.platform,spawn=cp.spawn}){this.app=app;this.quit=quit;this.executable=executable;this.platform=platform;this.spawn=spawn;this.plan=null;this.child=null;}
+ constructor({app,quit,executable=process.execPath,platform=process.platform,arch=process.arch,spawn=cp.spawn}){this.app=app;this.quit=quit;this.executable=executable;this.platform=platform;this.arch=arch;this.spawn=spawn;this.plan=null;this.child=null;}
  async prepare(file,candidate){
-  if(this.platform!=='win32'||process.arch!=='x64'||!this.app.isPackaged)throw Error('Обновление Windows доступно из установленного Mouse Browser x64');
+  if(this.platform!=='win32'||this.arch!=='x64'||!this.app.isPackaged)throw Error('Обновление Windows доступно из установленного Mouse Browser x64');
   const c=windowsPackage(candidate),target=path.dirname(this.executable);
   if(path.basename(this.executable)!=='Mouse Browser.exe'||!path.isAbsolute(file)||path.basename(file)!==c.name||/[\r\n\0]/.test(target))throw Error('Недопустимый путь установки Windows');
   const exe=await fs.lstat(this.executable),uninstaller=await fs.lstat(path.join(target,'Uninstall Mouse Browser.exe')).catch(()=>null);

@@ -9,3 +9,6 @@ protocol.cjs
 *smoke*.log
 
 page-pointer-preload.cjs
+*.node
+dist-mouse*/
+mouse-agent/native-win/build/

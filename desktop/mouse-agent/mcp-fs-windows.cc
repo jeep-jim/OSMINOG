@@ -9,6 +9,8 @@
 #include <fcntl.h>
 #include <cerrno>
 #include <cstdint>
+#include <cwchar>
+#include <cwctype>
 #include <cstring>
 #include <string>
 #include <vector>

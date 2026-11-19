@@ -181,7 +181,7 @@ def native_input(action: str, values: list[str]) -> None:
     print("MOUSE_WINDOWS_INPUT_OK", flush=True)
 
 
-def native_windows(api, pid: int) -> list[dict]:
+def native_windows(api, pid: int | None) -> list[dict]:
     windows = []
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -189,14 +189,14 @@ def native_windows(api, pid: int) -> list[dict]:
     def collect(handle, _unused):
         owner = wintypes.DWORD()
         api.GetWindowThreadProcessId(handle, ctypes.byref(owner))
-        if owner.value != pid or not api.IsWindowVisible(handle):
+        if (pid is not None and owner.value != pid) or not api.IsWindowVisible(handle):
             return True
         length = api.GetWindowTextLengthW(handle)
         title = ctypes.create_unicode_buffer(length + 1)
         api.GetWindowTextW(handle, title, length + 1)
         rectangle = wintypes.RECT()
         if api.GetWindowRect(handle, ctypes.byref(rectangle)):
-            windows.append({"handle": int(handle), "pid": pid, "title": title.value,
+            windows.append({"handle": int(handle), "pid": owner.value, "title": title.value,
                             "minimized": bool(api.IsIconic(handle)),
                             "bounds": [rectangle.left, rectangle.top,
                                        rectangle.right - rectangle.left,
@@ -208,6 +208,50 @@ def native_windows(api, pid: int) -> list[dict]:
     if not api.EnumWindows(collect, 0):
         raise RuntimeError("Cannot enumerate real Windows application windows")
     return windows
+
+
+def process_image(pid: int) -> str | None:
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    handle = kernel.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+    if not handle:
+        return None
+    try:
+        length = wintypes.DWORD(32768)
+        name = ctypes.create_unicode_buffer(length.value)
+        if kernel.QueryFullProcessImageNameW(handle, 0, name, ctypes.byref(length)):
+            return name.value
+        return None
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def close_native_window(api, window: dict) -> None:
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel.GetExitCodeProcess.restype = wintypes.BOOL
+    handle = kernel.OpenProcess(0x100000 | 0x1000, False, window["pid"])
+    if not handle:
+        raise RuntimeError("Cannot observe the actual updated Mouse process")
+    try:
+        if not api.PostMessageW(window["handle"], 0x0010, 0, 0):
+            raise RuntimeError("Cannot close the real updated Mouse window")
+        if kernel.WaitForSingleObject(handle, 30000) != 0:
+            raise RuntimeError("Updated Mouse did not exit after native close")
+        result = wintypes.DWORD()
+        if not kernel.GetExitCodeProcess(handle, ctypes.byref(result)) or result.value != 0:
+            raise RuntimeError("Updated Mouse native close failed")
+    finally:
+        kernel.CloseHandle(handle)
 
 
 def kill_owned_tree(process: subprocess.Popen) -> None:
@@ -315,6 +359,53 @@ def normal_launch(executable: Path, env: dict, output: Path) -> dict:
             kill_owned_tree(process)
 
 
+def update_roundtrip(executable: Path, env: dict, output: Path) -> dict:
+    api = user32()
+    result = run_logged([str(executable), "--mouse-windows-update-smoke"], env,
+                        output / "mouse-windows-update-button.log", 240)
+    verify_markers(result.pop("output"), ["MOUSE_WINDOWS_UPDATE_BUTTON_INSTALL_STARTED"])
+    source = json.loads((output / "mouse-windows-smoke-update.json").read_text(encoding="utf-8"))
+    update = source.get("update", {})
+    if update.get("installButton") is not True or update.get("downloadButton") is not True:
+        raise RuntimeError("Native update buttons were not both exercised")
+    plan = update["plan"]
+    stage = Path(plan["stage"])
+    receipt = Path(plan["receipt"])
+    completion = Path(plan["result"])
+    ready = stage / "READY"
+    window = None
+    deadline = time.monotonic() + 240
+    try:
+        while time.monotonic() < deadline:
+            status = completion.read_text(encoding="utf-8-sig") if completion.is_file() else ""
+            if status and status != "Installer completed":
+                raise RuntimeError("Native updater helper failed: " + status)
+            candidates = [item for item in native_windows(api, None)
+                          if item["title"] == "Mouse Browser" and item["pid"] != plan["pid"]
+                          and not item["minimized"]
+                          and (process_image(item["pid"]) or "").lower() == str(executable).lower()]
+            if candidates:
+                window = candidates[0]
+            if (window and status == "Installer completed" and ready.is_file()
+                    and ready.read_text(encoding="utf-8") == VERSION and not receipt.exists()):
+                break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError("Actual updater did not acknowledge a visible relaunched installed application")
+        if pe_machine(executable) != 0x8664:
+            raise RuntimeError("Updated installed executable is not AMD64")
+        return {**result, "ok": True, "sameVersion": True,
+                "transport": update["transport"], "publicChannelDownloadVerified": False,
+                "downloadButton": True, "installButton": True, "receiptAcknowledged": True,
+                "helperResult": status, "newWindow": window, "profileRetestedAfterward": True,
+                "executableSha256": sha256(executable)}
+    finally:
+        # This is the exact visible process launched from the tested installer
+        # destination, never a broad process-name kill.
+        if window is not None:
+            close_native_window(api, window)
+
+
 def main(argv=None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments[:1] == ["--input"]:
@@ -338,7 +429,8 @@ def main(argv=None) -> int:
     root.mkdir(parents=True)
     env = {**os.environ, "CI": "true", "MOUSE_TEST_PROFILE": str(profile),
            "MOUSE_WINDOWS_TEST_PYTHON": str(Path(sys.executable).resolve()),
-           "MOUSE_WINDOWS_TEST_DRIVER": str(Path(__file__).resolve())}
+           "MOUSE_WINDOWS_TEST_DRIVER": str(Path(__file__).resolve()),
+           "MOUSE_WINDOWS_TEST_INSTALLER": str(installer)}
     evidence = {"ok": False, "version": VERSION, "platform": "win32", "arch": "x64",
                 "installer": installer.name, "installerBytes": installer.stat().st_size,
                 "installerSha256": sha256(installer), "profile": str(profile),
@@ -371,6 +463,12 @@ def main(argv=None) -> int:
             if PRIVATE_MARKER in (profile / "workspace.json").read_text(encoding="utf-8"):
                 raise RuntimeError("Private sentinel leaked into the persistent workspace")
             save()
+        evidence["checks"]["actualUpdateButton"] = update_roundtrip(executable, env, output)
+        after_update = run_logged([str(executable), "--mouse-windows-smoke-read"], env,
+                                  output / "mouse-windows-post-update-read.log", 180)
+        verify_markers(after_update.pop("output"), READ_MARKERS)
+        evidence["checks"]["postUpdateProfile"] = after_update
+        save()
         ordinary_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Обычный запуск")}
         evidence["checks"]["ordinaryLaunch"] = normal_launch(executable, ordinary_env, output)
         evidence["ok"] = True

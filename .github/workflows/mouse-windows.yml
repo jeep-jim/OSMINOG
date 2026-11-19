@@ -13,7 +13,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   mouse-windows-x64:
-    runs-on: windows-latest
+    # Node 22's bundled node-gyp supports the VS2022 toolchain on this image.
+    # windows-latest has advanced to VS18, which that node-gyp cannot discover.
+    runs-on: windows-2022
     timeout-minutes: 45
     defaults:
       run:
@@ -47,6 +49,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Prepare native Windows runtime and owner artwork
         run: |
+          $env:npm_config_python = Join-Path $env:pythonLocation 'python.exe'
           node mouse-agent/prepare.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run prepare:runtime
