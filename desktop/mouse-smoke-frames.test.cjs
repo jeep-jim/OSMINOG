@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
+const {armFrameCapture,nativeBitmap,staticShellReadback,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
 function fixture(){const contents=new EventEmitter(),events=[];contents.beginFrameSubscription=(onlyDirty,callback)=>{assert.equal(onlyDirty,false);contents.frame=callback;events.push('armed');};contents.endFrameSubscription=()=>events.push('ended');return{contents,events,image(value){return{value,getScaleFactors:()=>[1,2],getSize:s=>({width:50*s,height:30*s}),toPNG:({scaleFactor})=>{events.push('encoded '+value+' at '+scaleFactor);return Buffer.from(value);}};}};}
 test('arms before action; rejects endpoints and encodes only the selected actual frame at its native scale',async()=>{const f=fixture(),seen=[],capture=armFrameCapture(f.contents,{select(image,frame){seen.push(frame);return image.value==='middle'?{top:27}:null;}});assert.deepEqual(f.events,['armed']);f.contents.frame(f.image('closed'),{x:0,y:0,width:100,height:60});f.contents.frame(f.image('middle'),{x:4,y:9,width:20,height:12});f.contents.frame(f.image('late'),{});const result=await capture.result;assert.deepEqual(f.events,['armed','ended','encoded middle at 2']);assert.equal(result.source,'beginFrameSubscription');assert.equal(result.sequence,2);assert.equal(result.scaleFactor,2);assert.deepEqual(result.pixelSize,{width:100,height:60});assert.deepEqual(result.metadata,{top:27});assert.equal(result.png.toString(),'middle');assert.equal(seen.length,2);assert.equal(f.contents.listenerCount('destroyed'),0);capture.cancel();assert.equal(f.events.filter(x=>x==='ended').length,1);});
 test('pixel selector failure always unsubscribes and never encodes',async()=>{const f=fixture(),capture=armFrameCapture(f.contents,{select(){throw Error('bad pixels');}});f.contents.frame(f.image('bad'),{});await assert.rejects(capture.result,/bad pixels/);assert.deepEqual(f.events,['armed','ended']);});
@@ -64,4 +64,64 @@ test('native corner readiness waits for both the painted marker and the current 
  assert.equal(nativeCornerPaintReady([current,stale],marker,light),false);assert.equal(nativeCornerPaintReady([],marker,light),false);
  assert.equal(nativeCornerPaintReady([row([...light,255],[...light,255])],marker,light),false);assert.equal(nativeCornerPaintReady([row([...marker,254],[...light,255])],marker,light),false);assert.equal(nativeCornerPaintReady([row([...marker,255],[...light,254])],marker,light),false);
  assert.equal(nativeCornerPaintReady([row([...marker,255],[240,245,249,255])],marker,light),false,'the existing RGB tolerance remains two levels');
+});
+
+function staticUIFixture(){
+ const viewport={width:40,height:24},reference={width:40,height:24,data:Buffer.alloc(40*24*4)},background={bounds:{x:0,y:18,width:40,height:6},rgb:[255,255,255]},regions=[{label:'owning p1 progress 37%',bounds:{x:1,y:2,width:16,height:12}},{label:'owning p2 progress 64%',bounds:{x:21,y:2,width:16,height:12}}],mapping={scaleX:1,scaleY:1,originX:0,originY:0};
+ const fill=(bitmap,box,rgb)=>{for(let y=box.y;y<box.y+box.height;y++)for(let x=box.x;x<box.x+box.width;x++){const i=(y*bitmap.width+x)*4;bitmap.data.set([rgb[2],rgb[1],rgb[0],255],i);}};
+ fill(reference,{x:0,y:0,width:40,height:24},[243,245,249]);fill(reference,background.bounds,background.rgb);
+ for(const region of regions){const{x,y}=region.bounds;fill(reference,{x:x+1,y:y+1,width:6,height:10},[200,228,215]);fill(reference,{x:x+3,y:y+4,width:8,height:2},[16,21,30]);}
+ const clone=()=>({...reference,data:Buffer.from(reference.data)}),check=candidate=>nativeStaticFrameMatch({reference,candidate,viewport,mapping,regions,background});return{reference,viewport,background,regions,mapping,fill,clone,check};
+}
+test('static native UI requires current-theme display pixels and both actual owning pills',()=>{
+ const f=staticUIFixture(),current=f.clone();assert.equal(f.check(current).accepted,true);
+ const staleTheme=f.clone();f.fill(staleTheme,f.background.bounds,[16,21,30]);assert.ok(f.check(staleTheme).reasons.includes('native display does not match the current theme'));
+ // Actual run119 small/light failure: the p2 rectangle is uniform light --bg,
+ // while renderer metadata claims a hit-ready 64% pill.
+ const missing=f.clone();f.fill(missing,f.regions[1].bounds,[243,245,249]);const result=f.check(missing);assert.equal(result.accepted,false);assert.equal(result.regions[1].nativeColors,1);assert.ok(result.reasons.some(reason=>reason.includes('p2')&&reason.includes('native UI is not painted')));
+});
+test('an old shell readback cannot bless an equally old native theme or a missing pill',()=>{
+ for(const missing of [false,true]){const f=staticUIFixture();if(missing)f.fill(f.reference,f.regions[1].bounds,[243,245,249]);else f.fill(f.reference,f.background.bounds,[16,21,30]);const result=f.check(f.clone());assert.equal(result.accepted,false);assert.ok(result.reasons.some(reason=>reason.includes(missing?'shell UI is not painted':'shell readback has not painted the current theme')));}
+});
+test('same-theme stale scroll or text position fails static shell/native pixel agreement',()=>{
+ const f=staticUIFixture(),candidate=f.clone();f.fill(candidate,{x:24,y:6,width:8,height:2},[243,245,249]);f.fill(candidate,{x:24,y:9,width:8,height:2},[16,21,30]);const result=f.check(candidate);assert.equal(result.accepted,false);assert.ok(result.regions[1].nativeColors>=3);assert.ok(result.regions[1].mismatched>0);assert.ok(result.regions[1].firstMismatch);assert.equal(result.theme.mismatched,0);
+});
+test('static pixel comparison preserves fractional source-plane mapping without resizing',()=>{
+ const f=staticUIFixture(),mapping={scaleX:1.25,scaleY:1.25,originX:.75,originY:.75},candidate={width:51,height:31,data:Buffer.alloc(51*31*4)};
+ for(let y=0;y<f.reference.height;y++)for(let x=0;x<f.reference.width;x++){const px=Math.floor(.75+(x+.5)*1.25),py=Math.floor(.75+(y+.5)*1.25),from=(y*f.reference.width+x)*4,to=(py*candidate.width+px)*4;f.reference.data.copy(candidate.data,to,from,from+4);}
+ assert.equal(nativeStaticFrameMatch({...f,candidate,mapping}).accepted,true);assert.throws(()=>nativeStaticFrameMatch({...f,candidate,mapping:{...mapping,originX:100}}),/outside its bitmap/);
+});
+test('native bitmap readback checks physical BGRA dimensions and the actual representation scale',async()=>{
+ const f=staticUIFixture(),calls=[],png=Buffer.alloc(24);png.writeUInt32BE(40,16);png.writeUInt32BE(24,20);const image={getScaleFactors:()=>[1,2],toPNG:options=>{calls.push(['png',options]);return png;},toBitmap:options=>{calls.push(['bitmap',options]);return f.reference.data;}};
+ const bitmap=await staticShellReadback({capturePage:async()=>image});assert.deepEqual(calls,[['png',{scaleFactor:2}],['bitmap',{scaleFactor:2}]]);assert.equal(bitmap.width,40);assert.equal(bitmap.height,24);assert.strictEqual(bitmap.data,f.reference.data);assert.throws(()=>nativeBitmap(image,{width:39,height:24}),/bitmap bytes/);assert.throws(()=>nativeBitmap(image,{width:0,height:24}),/bitmap size/);
+});
+test('fresh native selection accepts a matching first acquisition without a forced discard',async()=>{
+ const f=staticUIFixture(),candidate={bitmap:f.clone(),originalPNG:Buffer.from('untouched original')};let captures=0,readbacks=0;
+ const result=await acquireFreshNativeFrame({reference:async()=>{readbacks++;return f.reference;},capture:async()=>{captures++;return candidate;},select:(frame,reference)=>nativeStaticFrameMatch({...f,reference,candidate:frame.bitmap})});assert.strictEqual(result.frame,candidate);assert.equal(result.frame.originalPNG.toString(),'untouched original');assert.equal(captures,1);assert.equal(readbacks,1);assert.equal(result.readiness.attempts.length,1);assert.equal(result.readiness.attempts[0].accepted,true);
+});
+test('fresh native selection rejects wrong theme and absent p2, then returns the exact qualifying frame',async()=>{
+ const f=staticUIFixture(),old=f.clone(),missing=f.clone(),current=f.clone();f.fill(old,f.background.bounds,[16,21,30]);f.fill(missing,f.regions[1].bounds,[243,245,249]);const sequence=[old,missing,current],notices=[];let stable=0;
+ const result=await acquireFreshNativeFrame({reference:async()=>f.reference,capture:async()=>({bitmap:sequence.shift()}),select:(frame,reference)=>nativeStaticFrameMatch({...f,reference,candidate:frame.bitmap}),assertStable:async()=>{stable++;},onAttempt:state=>notices.push(state)});
+ assert.strictEqual(result.frame.bitmap,current);assert.deepEqual(result.readiness.attempts.map(row=>row.accepted),[false,false,true]);assert.equal(stable,9);assert.deepEqual(notices.map(row=>row.attempts.length),[1,2,3]);assert.ok(notices[0].attempts[0].reasons.includes('native display does not match the current theme'));
+});
+test('native acquisition budget fails with rejected-pixel evidence rather than accepting the last frame',async()=>{
+ const f=staticUIFixture(),candidate=f.clone();f.fill(candidate,f.regions[1].bounds,[243,245,249]);let captures=0;
+ await assert.rejects(acquireFreshNativeFrame({reference:async()=>f.reference,capture:async()=>{captures++;return candidate;},select:frame=>f.check(frame),maxFrames:2}),error=>{assert.match(error.message,/2 acquisitions/);assert.equal(error.readiness.attempts.length,2);assert.ok(error.readiness.attempts.every(row=>row.accepted===false));assert.strictEqual(error.lastCapture,candidate);return true;});assert.equal(captures,2);
+});
+test('a stalled native acquisition has a real deadline and never starts another capture',async()=>{
+ const f=staticUIFixture();let captures=0;await assert.rejects(acquireFreshNativeFrame({reference:async()=>f.reference,capture:async()=>{captures++;return new Promise(()=>{});},select:()=>({accepted:true}),timeoutMs:5}),error=>{assert.match(error.message,/timed out/);assert.deepEqual(error.readiness.attempts,[]);return true;});assert.equal(captures,1);
+});
+test('a stability barrier that resolves after the deadline cannot start readback, capture or selection',async()=>{
+ for(const blocked of [1,2,3]){
+  const f=staticUIFixture();let stable=0,readbacks=0,captures=0,selections=0,release;
+  const barrier=new Promise(resolve=>{release=resolve;}),pending=acquireFreshNativeFrame({assertStable:async()=>{if(++stable===blocked)await barrier;},reference:async()=>{readbacks++;return f.reference;},capture:async()=>{captures++;return f.clone();},select:frame=>{selections++;return f.check(frame);},timeoutMs:5});
+  await assert.rejects(pending,/timed out/);release();await new Promise(resolve=>setImmediate(resolve));assert.equal(readbacks,blocked===1?0:1);assert.equal(captures,blocked===3?1:0);assert.equal(selections,0);
+ }
+});
+test('synchronous pixel selection cannot accept after the deadline while its timer is blocked',async()=>{
+ const f=staticUIFixture();await assert.rejects(acquireFreshNativeFrame({reference:async()=>f.reference,capture:async()=>f.clone(),select:frame=>{const until=performance.now()+15;while(performance.now()<until){}return f.check(frame);},timeoutMs:10}),error=>{assert.match(error.message,/timed out/);assert.ok(error.readiness.elapsedMs>=10);assert.deepEqual(error.readiness.attempts,[]);return true;});
+});
+test('changed live UI and asynchronous selectors never certify a native frame',async()=>{
+ const f=staticUIFixture();let stable=0;await assert.rejects(acquireFreshNativeFrame({reference:async()=>f.reference,capture:async()=>f.clone(),select:frame=>f.check(frame),assertStable:async()=>{if(++stable===3)throw Error('theme changed during capture');}}),error=>{assert.match(error.message,/theme changed/);assert.deepEqual(error.readiness.attempts,[]);return true;});
+ await assert.rejects(acquireFreshNativeFrame({reference:async()=>f.reference,capture:async()=>f.clone(),select:async()=>({accepted:true})}),/synchronous pixel evidence/);
 });
