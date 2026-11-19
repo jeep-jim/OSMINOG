@@ -114,3 +114,59 @@ Windows дополнительно устанавливает настоящий
 NSIS AppID. Mac сохраняет реальную проверку замены 6.0.29→6.0.31.
 На данном этапе **SOURCE_NATIVE_PENDING / NOT_PUBLISHED**. Миллисекунды
 ускорения, исправление всех дефектов устройства и готовая игра не заявляются.
+
+## Первый нативный прогон — пакет отклонён, две ошибки новых fixtures
+
+[PR177](https://github.com/jeep-jim/OSMINOG/pull/177), exact source
+`174245ea3a894d6eb80e4ed758af43148f403de0`, tree
+`633d6bf7b75ef3ac1e2862fc4597593d37541706` полностью совпадает с локально
+проверенным деревом. Это общий head с двумя настоящими родителями main и
+принятой Windows maintenance-ветки.
+
+[Windows run44566783626 / job135710616690](https://github.com/jeep-jim/OSMINOG/actions/runs/44566783626/job/135710616690)
+прошёл 176/176 base, 757/757 Mouse и 7/7 + 12/12 Python-проверок без пропусков.
+Native compile и NSIS build прошли. Настоящий опубликованный629 записал
+профиль (PID7064, WRITE146656ms),631 после замены прочитал его новым PID4120
+(READ1531ms). Preferences, cookies, localStorage, bookmarks и закрытый файл
+профиля сохранились. Новый TASK_ONLY_NATIVE_PASS завершён за11832.9241ms.
+Root отдельно декодировал его настоящие PNG:15 task cases,2themes,3captures,
+60pixelprobes прошли. Это успех компонента, а не всего кандидата.
+
+После создания20страниц stress остановился на чтении
+`MouseDesktopSlide.last.phase`: значение `last` отсутствовало. Code review
+подтвердил, что `N.test` включён; ранний reduced-motion путь возвращается до
+записи `last`. Исходная media preference в первом отчёте не была записана,
+поэтому её конкретное значение не объявляется измеренным. Fixture теперь
+явно задаёт no-preference в своём CDP scope, проверяет его, сохраняет исходное
+значение и восстанавливает его в finally. Phase/animated/decoded, pixels и
+identity gates не ослаблены. Четыре targeted restore/error tests прошли.
+
+Windows artifact14552249183:10520658bytes, ZIP SHA-256
+`9536d539efb20e82695d953d278120c9991948a1aaeb78120d184d3aa0f43728`;
+скачан один раз, hash и CRC проверены. Candidate не создан, modern installed
+job пропущен. Отдельный helper run44566783788 прошёл на2022 и modern:
+по2/2 настоящих READY_CANCEL/PARENT_LIFETIME tests без пропусков.
+
+[Mac run44566783860 / job135710618128](https://github.com/jeep-jim/OSMINOG/actions/runs/44566783860/job/135710618128)
+прошёл unit/native/build шаги, но installed gate остановился раньше task pages
+на эвристическом требовании workArea>=1000×700. Размер workArea в старом
+отчёте отсутствует; его нельзя выводить из shell-only PNG1440×960. Новая
+геометрия fixture должна исходить из настоящей workArea, минимального размера
+окна приложения и видимости контрольных областей всех четырёх страниц.
+Состав пиксельных и ownership-проверок сохраняется.
+
+Mac artifact14554795203, SHA-256
+`56178d0528b1220e9530f2d1faa8762cba973f59d1c6240e3650dda9feaf7171`.
+Ни один первый source-пакет не принят и не опубликован. Следующий общий head
+проверяет исправленные fixtures; продуктовые изменения после первого head
+на этом этапе не добавляются.
+
+Обе узкие fixture-правки завершены: размеры вычисляются из actual workArea и
+`getMinimumSize()` без изменения минимума приложения, actual window/content
+обязательно остаются внутри workArea, полная видимость областей определяется
+неизменённым CSS78+34=112px и последующей проверкой их DOM/OS-пикселей.
+Геометрия сохраняется до проверки и в каждом capture. Вместе с motion restore
+новые8/8 tests прошли, syntax/diff-check прошли. Независимый review не нашёл
+блокера; прежние pixel/identity/Nora gates и таймауты сохранены.
+Точные Mac units первого run:176/176base;751PASS+6platformSKIP Mouse;
+12/12Python; retained selected639PASS+2SKIP. Новая нативная проверка обязательна.

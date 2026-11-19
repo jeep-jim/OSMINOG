@@ -9,7 +9,7 @@ const distribution=values=>{const sorted=values.slice().sort((a,b)=>a-b);return{
 module.exports=async ctx=>{
  const facts={version:ctx.app.getVersion(),platform:process.platform,arch:process.arch,source:'installed native pages and local HTTP streams',budgetMs:200000,stages:[],captures:[],renderFailures:[],restored:false,ok:false,baselineComparison:{performed:false,reason:'No historical executable was run under this identical fixture; recorded durations are measurements, not a claimed speedup.'}};
  const save=()=>fs.writeFile('mouse-631-stress.json',JSON.stringify(facts,null,2)+'\n');
- let fixture,server,verificationError,cleanupError,currentStage='setup',operation='setup',interval,frameMonitorStarted=false;
+ let fixture,server,verificationError,cleanupError,currentStage='setup',operation='setup',interval,frameMonitorStarted=false,motionDebug,motionAttached=false;
  const requests=[],streams=new Map(),restorers=[],captureCalls=[],counts={capturePage:0,getVisible:0,setVisible:0,setBounds:0,nativeCorners:0,state:0},mainGaps=[];
  let lastTick=performance.now();
  function wrap(object,name,wrapper){const original=object[name];assert.equal(typeof original,'function',name+' is callable');object[name]=wrapper(original);restorers.push(()=>{object[name]=original;});}
@@ -43,7 +43,14 @@ module.exports=async ctx=>{
   return result;
  }
  try{
-  fixture=await createFixture(ctx,'stress',facts.budgetMs);const {browser,win,bank}=fixture,desks=bank.items.map(item=>item.id);assert.equal(desks.length,5);facts.desks=desks;
+  fixture=await createFixture(ctx,'stress',facts.budgetMs);
+  // The inherited accessibility preference may intentionally bypass a slide.
+  // This scenario measures the animated path, as the retained Nora fixtures do.
+  facts.motionMedia={before:await fixture.js('matchMedia("(prefers-reduced-motion:reduce)").matches')};
+  motionDebug=fixture.win.webContents.debugger;assert.equal(motionDebug.isAttached(),false);motionDebug.attach('1.3');motionAttached=true;
+  await bounded(motionDebug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]}),3000,'Enable stress fixture motion');
+  facts.motionMedia.normal=await fixture.js('matchMedia("(prefers-reduced-motion:reduce)").matches');assert.equal(facts.motionMedia.normal,false);
+  const {browser,win,bank}=fixture,desks=bank.items.map(item=>item.id);assert.equal(desks.length,5);facts.desks=desks;
   server=http.createServer((req,res)=>{
    const url=new URL(req.url,'http://localhost');
    if(url.pathname==='/favicon.ico'){res.writeHead(204);res.end();return;}
@@ -106,6 +113,10 @@ module.exports=async ctx=>{
   if(frameMonitorStarted&&fixture)await rendererMonitor(false).catch(error=>{facts.rendererCleanupError=error.message;});
   for(const restore of restorers.reverse())try{restore();}catch(error){facts.wrapperCleanupError=error.message;}
   if(fixture)try{facts.cleanup=await bounded(fixture.cleanup(),22000,'stress cleanup');facts.restored=true;}catch(error){cleanupError=error;facts.cleanupError={message:error.message,stack:error.stack};}
+  if(motionAttached)try{
+   try{await bounded(motionDebug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]}),3000,'Restore stress fixture motion');}finally{motionDebug.detach();motionAttached=false;}
+   facts.motionMedia.restored=await fixture.js('matchMedia("(prefers-reduced-motion:reduce)").matches');assert.equal(facts.motionMedia.restored,facts.motionMedia.before,'Stress fixture restores the inherited motion preference');
+  }catch(error){cleanupError??=error;facts.motionCleanupError={message:error.message,stack:error.stack};}
   if(server){server.closeAllConnections();await bounded(new Promise(resolve=>server.close(resolve)),2000,'fixture HTTP shutdown').catch(error=>{cleanupError??=error;facts.serverCleanupError=error.message;});}
   facts.ok=!verificationError&&!cleanupError&&facts.restored;await save();
  }

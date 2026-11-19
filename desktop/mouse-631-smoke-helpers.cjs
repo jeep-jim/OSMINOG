@@ -12,6 +12,20 @@ const clone=value=>structuredClone(value);
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 const colorFor=(index,part)=>[40+(index*47+part*101)%160,55+(index*71+part*37)%150,65+(index*29+part*83)%140];
+const pageRegion={top:78,height:34};
+
+function containsRect(outer,inner){
+ return [outer,inner].every(rect=>rect&&['x','y','width','height'].every(key=>Number.isFinite(rect[key]))&&rect.width>0&&rect.height>0)&&inner.x>=outer.x&&inner.y>=outer.y&&inner.x+inner.width<=outer.x+outer.width&&inner.y+inner.height<=outer.y+outer.height;
+}
+function fixtureWindowBounds(work,minimum){
+ assert.ok(work&&['x','y','width','height'].every(key=>Number.isFinite(work[key]))&&work.width>0&&work.height>0,'Actual display work area is finite and positive');
+ assert.ok(Array.isArray(minimum)&&minimum.length===2&&minimum.every(value=>Number.isFinite(value)&&value>=0),'Actual BrowserWindow minimum is available');
+ const area={x:Math.ceil(work.x),y:Math.ceil(work.y),width:Math.floor(work.x+work.width)-Math.ceil(work.x),height:Math.floor(work.y+work.height)-Math.ceil(work.y)};
+ assert.ok(area.width>=minimum[0]&&area.height>=minimum[1],'Display work area must contain the actual BrowserWindow minimum: '+JSON.stringify({work,minimum}));
+ const width=Math.max(1,minimum[0],Math.min(1200,area.width-8)),height=Math.max(1,minimum[1],Math.min(820,area.height-8));
+ const bounds={x:area.x+Math.min(4,Math.floor((area.width-width)/2)),y:area.y+Math.min(4,Math.floor((area.height-height)/2)),width,height};
+ assert.ok(containsRect(work,bounds),'Requested fixture window remains inside the actual display work area');return bounds;
+}
 
 async function bounded(operation,ms,label){
  let timer;
@@ -22,7 +36,7 @@ async function bounded(operation,ms,label){
 function pageHTML(index,{slowImage=false}={}){
  const token=randomUUID(),colors=[colorFor(index,0),colorFor(index,1)];
  return `<!doctype html><html><head><meta charset="utf-8"><title>Mouse631 page ${index}</title>
- <style>html{background:#f3f0e8;color:#17242d;font:14px system-ui}body{margin:0;min-height:1800px}header{position:fixed;inset:0 0 auto;background:#f3f0e8;padding:7px 14px;height:60px;box-sizing:border-box}h1{font-size:15px;margin:0 0 5px}input{width:75%;box-sizing:border-box}.region{position:fixed;top:78px;width:36%;height:34px;border:0}#region-a{left:8%;background:rgb(${colors[0]})}#region-b{left:56%;background:rgb(${colors[1]})}main{padding:140px 20px 0}p{max-width:48em;line-height:1.5}#site-progress{position:fixed;left:8%;top:120px;width:84%;height:14px}#stream-status{position:fixed;left:8%;top:142px;font-size:11px;background:#f3f0e8}</style></head><body>
+ <style>html{background:#f3f0e8;color:#17242d;font:14px system-ui}body{margin:0;min-height:1800px}header{position:fixed;inset:0 0 auto;background:#f3f0e8;padding:7px 14px;height:60px;box-sizing:border-box}h1{font-size:15px;margin:0 0 5px}input{width:75%;box-sizing:border-box}.region{position:fixed;top:${pageRegion.top}px;width:36%;height:${pageRegion.height}px;border:0}#region-a{left:8%;background:rgb(${colors[0]})}#region-b{left:56%;background:rgb(${colors[1]})}main{padding:140px 20px 0}p{max-width:48em;line-height:1.5}#site-progress{position:fixed;left:8%;top:120px;width:84%;height:14px}#stream-status{position:fixed;left:8%;top:142px;font-size:11px;background:#f3f0e8}</style></head><body>
  <header><h1>Desktop fixture · live page ${index}</h1><input id="field" aria-label="Preserved form value" value="initial-${index}"></header>
  <div id="region-a" class="region" aria-label="Page ${index} first content region"></div><div id="region-b" class="region" aria-label="Page ${index} second content region"></div>
  <main><p>This is an owned local test document with a real renderer, form state, cookie and scrolling content. Page ${index} must stay alive while other desktops are visible.</p><p id="ordinary-busy" aria-busy="true">An ordinary busy region is not a browser task.</p><progress id="ordinary-progress" max="100" value="23"></progress></main><output id="stream-status">No stream started</output>
@@ -68,10 +82,18 @@ async function createFixture(ctx,name,budgetMs){
  if(fullscreen){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'leave fullscreen');}
  if(maximized)win.unmaximize();
  await js('MouseTest.restorePane();MouseNative.window("pane-restore")');
- const work=screen.getDisplayMatching(win.getBounds()).workArea;
- assert.ok(work.width>=1000&&work.height>=700,'Native fixture requires the actual CI desktop to fit four readable panes');
- win.setBounds({x:work.x+4,y:work.y+4,width:Math.min(1200,work.width-8),height:Math.min(820,work.height-8)});
+ const geometryFile='mouse-631-'+name+'-geometry.json',geometry={version:app.getVersion(),name,requiredPageRegionBottom:pageRegion.top+pageRegion.height};
+ async function recordGeometry(phase){
+  const display=screen.getDisplayMatching(win.getBounds());Object.assign(geometry,{phase,display:{id:display.id,bounds:clone(display.bounds),workArea:clone(display.workArea),scaleFactor:display.scaleFactor},minimumSize:win.getMinimumSize(),windowBounds:win.getBounds(),contentBounds:win.getContentBounds()});
+  await fs.writeFile(geometryFile,JSON.stringify(geometry,null,2)+'\n');return clone(geometry);
+ }
+ await recordGeometry('before-fit');
+ try{geometry.requestedBounds=fixtureWindowBounds(geometry.display.workArea,geometry.minimumSize);}
+ catch(error){await recordGeometry('fit-rejected');error.message+='; native geometry: '+JSON.stringify(geometry);throw error;}
+ win.setBounds(geometry.requestedBounds);
  app.focus({steal:true});win.show();win.focus();await until(()=>win.isFocused(),'native fixture window focus');await frame();
+ await recordGeometry('fitted');
+ assert.ok(containsRect(geometry.display.workArea,geometry.windowBounds)&&containsRect(geometry.display.workArea,geometry.contentBounds),'Actual fixture window and content fit the work area: '+JSON.stringify(geometry));
 
  async function switchDesk(id,options){
   assert.ok(bank.items.some(item=>item.id===id),'Only an existing owned desktop is selected');
@@ -96,6 +118,10 @@ async function createFixture(ctx,name,budgetMs){
   const tree=require('./mouse/layout.js').preset(records.length),leaves=require('./mouse/layout.js').leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,records[i].id]));
   await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,agentOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await until(()=>records.every(record=>record.page.visible&&record.page.bounds?.width>80&&record.page.bounds?.height>100),'native split panes appear');await frame();
+  geometry.native=records.map(nativeState);await recordGeometry('split-panes');
+  // Both fixed page regions end at this CSS-derived position. The unchanged
+  // capture gate below still reads their actual DOM bounds and all ten pixels.
+  assert.ok(geometry.native.every(page=>page.bounds.height>=pageRegion.top+pageRegion.height&&containsRect({x:0,y:0,width:geometry.contentBounds.width,height:geometry.contentBounds.height},page.bounds)),'Every split pane and complete fixture region is visible: '+JSON.stringify(geometry));
   return{tree,slots,active:leaves[0]};
  }
  async function identity(record){
@@ -114,6 +140,8 @@ async function createFixture(ctx,name,budgetMs){
  async function captureContent(filename,records,{shellRegions=[]}={}){
   assert.equal(globalCapture.permission(),process.platform==='win32'?'not-required':'granted');
   const contentBounds=win.getContentBounds(),display=screen.getDisplayMatching(win.getBounds()),states=records.map(nativeState);
+  geometry.native=states;const fixtureGeometry=await recordGeometry('capture '+filename);
+  assert.ok(containsRect(display.workArea,contentBounds),'Actual captured content remains inside the display work area: '+JSON.stringify(fixtureGeometry));
   assert.ok(states.every(state=>state.visible&&state.parentVisible&&state.cachedVisible&&state.attached));
   const content=[];
   for(const record of records){const dom=await pageJS(record,'({index:mouse631.index,identity:mouse631.identity,regions:["a","b"].map(part=>{const element=document.querySelector("#region-"+part),r=element.getBoundingClientRect();return{part,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},color:getComputedStyle(element).backgroundColor};})})');assert.equal(dom.index,record.index);assert.equal(dom.identity,record.before.identity);content.push({tabId:record.id,...dom});}
@@ -142,7 +170,7 @@ async function createFixture(ctx,name,budgetMs){
    last={png,full,kind:frame.kind,backend:frame.backend,screenPixelSize,...geometry,pixelSize,probes,reference,shellMatch};if(accepted)break;
   }
   assert.ok(last,'OS capture produced a frame');const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(filename,last.png);await fs.writeFile(displayFilename,last.full);
-  const result={filename,sha256:sha256(last.png),displayFilename,displaySha256:sha256(last.full),source:'globalCapture.acquire(display)',kind:last.kind,backend:last.backend,display:{id:display.id,bounds:display.bounds,scaleFactor:display.scaleFactor},contentBounds,screenPixelSize:last.screenPixelSize,cropPixels:last.cropPixels,mapping:last.mapping,pixelSize:last.pixelSize,native:states,content,probes:last.probes,attempts};
+  const result={filename,sha256:sha256(last.png),displayFilename,displaySha256:sha256(last.full),source:'globalCapture.acquire(display)',kind:last.kind,backend:last.backend,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},contentBounds,fixtureGeometry,screenPixelSize:last.screenPixelSize,cropPixels:last.cropPixels,mapping:last.mapping,pixelSize:last.pixelSize,native:states,content,probes:last.probes,attempts};
   if(last.reference){const referenceFilename=filename.replace(/\.png$/,'-shell-reference.png');await fs.writeFile(referenceFilename,last.reference.png);result.shell={filename:referenceFilename,sha256:sha256(last.reference.png),pixelSize:{width:last.reference.width,height:last.reference.height},regions:shellRegions,background,match:last.shellMatch};}
   if(!attempts.at(-1).accepted)throw Object.assign(Error('Mouse631 actual OS pixels do not show every live page content region'),{capture:result});
   return result;
@@ -166,4 +194,4 @@ async function createFixture(ctx,name,budgetMs){
  return{...ctx,name,started,deadline,js,pageJS,until,frame,bank,created,switchDesk,open,preparePage,setLayout,identity,assertIdentity,nativeState,captureContent,cleanup};
 }
 
-module.exports={createFixture,pageHTML,colorFor,bounded,sleep,sha256};
+module.exports={createFixture,pageHTML,colorFor,bounded,sleep,sha256,fixtureWindowBounds,containsRect};
