@@ -88,7 +88,7 @@ test('generated sandbox preload requires only Electron and keeps activity privat
  }
 });
 test('actual Mouse beforePack produces the bundled sandbox preload',async()=>{
- const preload=fs.readFileSync(path.join(__dirname,'mouse-page-preload.cjs'),'utf8'),writes=[],config={module:{exports:{}},__dirname,require(name){if(name==='node:fs')return{readFileSync(file,encoding){assert.equal(file,path.join(__dirname,'mouse-page-preload.cjs'));assert.equal(encoding,'utf8');return preload;},writeFileSync(file,value){writes.push({file,value});}};if(name==='node:path')return path;if(name==='./package.json')return require('./package.json');if(name==='./mouse-page-activity.cjs')return require('./mouse-page-activity.cjs');throw Error('Unexpected build dependency '+name);}};
+ const preload=fs.readFileSync(path.join(__dirname,'mouse-page-preload.cjs'),'utf8'),writes=[],config={module:{exports:{}},__dirname,require(name){if(name==='node:fs')return{readFileSync(file,encoding){assert.equal(file,path.join(__dirname,'mouse-page-preload.cjs'));assert.equal(encoding,'utf8');return preload;},writeFileSync(file,value){writes.push({file,value});}};if(name==='node:path')return path;if(name==='./package.json')return require('./package.json');if(name==='./mouse-page-activity.cjs')return require('./mouse-page-activity.cjs');if(name==='./mouse-scrollbars.cjs')return require('./mouse-scrollbars.cjs');throw Error('Unexpected build dependency '+name);}};
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'mouse-build.cjs'),'utf8'),config);await config.module.exports.beforePack();
- assert.deepEqual(writes,[{file:path.join(__dirname,'page-pointer-preload.cjs'),value:bundlePagePreload(preload)}]);
+ assert.deepEqual(writes,[{file:path.join(__dirname,'page-pointer-preload.cjs'),value:require('./mouse-scrollbars.cjs').bundlePagePreload(bundlePagePreload(preload))}]);
 });

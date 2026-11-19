@@ -18,6 +18,15 @@ test('privacy clear, lock and disposal invalidate delayed asynchronous captures'
   const f=fixture(),{t}=f.add('a');let finish;t.view.webContents.capturePage=()=>new Promise(resolve=>{finish=resolve;});const pending=f.previews.captureOne('a');await new Promise(r=>setImmediate(r));f.previews[transition]();finish(f.image);await pending;assert.equal(f.previews.cache.size,0);if(transition==='lock'){await f.previews.capture();assert.equal(f.previews.cache.size,0);f.previews.unlock();}
  }
 });
+test('a thumbnail capture finishing after Nora hides a page never asks Electron to reveal or keep it awake',async()=>{
+ const f=fixture(),{t}=f.add('a');let finish,received;
+ t.view.webContents.capturePage=(rect,options)=>{received={rect,options};return new Promise(resolve=>{finish=resolve;});};
+ const work=f.previews.captureOne('a');await new Promise(resolve=>setImmediate(resolve));
+ t.visible=false;
+ assert.deepEqual(received,{rect:undefined,options:{stayHidden:true,stayAwake:false}});
+ finish(f.image);await work;
+ assert.equal(t.visible,false);assert.deepEqual(await f.previews.thumbnail('a'),{src:''});
+});
 test('late captures cannot cross desktops and cache stays bounded',async()=>{
  const f=fixture(),{t}=f.add('a');let finish;t.view.webContents.capturePage=()=>new Promise(resolve=>{finish=resolve;});const pending=f.previews.captureOne('a');await new Promise(r=>setImmediate(r));f.bank.select('desk-1');finish(f.image);await pending;assert.equal(f.previews.cache.size,0);f.bank.select('desk-3');for(let n=0;n<MAX_IMAGES+4;n++){f.add('p'+n);await f.previews.captureOne('p'+n);}assert.equal(f.previews.cache.size,MAX_IMAGES);assert.equal(f.previews.cache.has('p0'),false);assert.equal(f.previews.cache.has('p63'),true);
 });
