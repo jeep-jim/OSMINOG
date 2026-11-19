@@ -43,7 +43,23 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,agentHost}
   assert.equal(native.testClick(target.x,target.y),true);facts.clicks.push({selector,point,target,contentBounds,displayId:display.id,workArea,at:performance.now()});await sleep(80);
  }
  async function toggle(selector,value){if(await js(`document.querySelector(${JSON.stringify(selector)}).checked`)!==value)await click(selector);await until(()=>js(`document.querySelector(${JSON.stringify(selector)}).checked===${JSON.stringify(value)}`),'Local checkbox '+selector);}
- async function type(selector,value){await click(selector);await until(()=>js(`document.hasFocus()&&document.activeElement===document.querySelector(${JSON.stringify(selector)})`),'Local native input focus '+selector);win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});await win.webContents.insertText(value);await until(()=>js(`document.querySelector(${JSON.stringify(selector)}).value===${JSON.stringify(value)}`),'Local input '+selector);}
+ async function type(selector,value){
+  await click(selector);await until(()=>js(`document.hasFocus()&&document.activeElement===document.querySelector(${JSON.stringify(selector)})`),'Local native input focus '+selector);
+  const numeric=await js(`document.querySelector(${JSON.stringify(selector)}).type==='number'`);
+  const key=(keyCode,modifiers=[])=>{win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});};
+  key('A',['meta']);
+  if(numeric){
+   assert.match(value,/^\d+$/,'Native Local numeric input accepts only decimal digits');
+   key('Backspace');
+   // Native number inputs can ignore selection/insertText. Clear through the
+   // actual keyboard path and verify each digit before submitting the form.
+   for(let i=0;i<16&&await js(`document.querySelector(${JSON.stringify(selector)}).value!==''`);i++)key('Backspace');
+   await until(()=>js(`document.querySelector(${JSON.stringify(selector)}).value===''`),'Local numeric input cleared '+selector);
+   for(const digit of value){win.webContents.sendInputEvent({type:'keyDown',keyCode:digit});win.webContents.sendInputEvent({type:'char',keyCode:digit});win.webContents.sendInputEvent({type:'keyUp',keyCode:digit});}
+  }else await win.webContents.insertText(value);
+  try{await until(()=>js(`document.querySelector(${JSON.stringify(selector)}).value===${JSON.stringify(value)}`),'Local input '+selector);}
+  catch(error){facts.lastInput={selector,numeric,expected:numeric?value:'text',observed:await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return{value:e.value,valid:e.validity.valid,active:document.activeElement===e,focused:document.hasFocus(),type:e.type}})()`)};throw error;}
+ }
  async function reject(kind,operation,pattern){let error;try{await operation();}catch(e){error=e;}assert.ok(error,'Expected rejection: '+kind);if(pattern)assert.match(error.message,pattern);facts.denials.push({kind,rejected:true,message:String(error.message).slice(0,500)});}
  async function privacyUI(isPrivate){await until(()=>js(`document.documentElement.dataset.mouseReady==='true'&&MouseTest.model.privateMode===${JSON.stringify(isPrivate)}`),'Local private renderer ready');const state=await js(`({ready:document.documentElement.dataset.mouseReady,privateMode:MouseTest.model.privateMode,panelHidden:document.querySelector('#agent-panel').hidden,previewHidden:document.querySelector('.agent-local-preview').hidden,filename:document.querySelector('.agent-local-file-name').textContent,content:document.querySelector('.agent-local-file-content').value,treePaths:[...document.querySelectorAll('#agent-local-tree [data-local-path]')].map(e=>e.dataset.localPath)})`);assert.equal(state.ready,'true');assert.equal(state.privateMode,isPrivate);if(isPrivate)assert.equal(state.panelHidden,true);assert.equal(state.previewHidden,true);assert.equal(state.filename,'');assert.equal(state.content,'');assert.deepEqual(state.treePaths,[]);return state;}
  async function capture(theme,view,expectedContent){
