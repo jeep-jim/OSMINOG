@@ -285,3 +285,50 @@ attached hidden resize оставляет native size старым, detached res
 gate:780tests,774PASS,0FAIL,6platformSKIP,5825.711271ms. Независимое review
 product diff завершено; нужны отдельные реальные native probe и полные
 установленные acceptance обоих пакетов.
+
+## Source13cd6b21: новые native gates прошли, retained gates остановили выпуск
+
+`13cd6b2187d953b29289ff992a7c77215f07fc4f` впервые прошёл новый независимый
+gate на обеих ОС:15task cases,20/50live pages,5desktops,15switches,
+20OS captures и740pixel probes. Все120 кадров страниц при slide получены
+сразу с правильным размером, без retries и ненужных bitmap readouts.
+На каждом switch остаются2native layout и8capturePage независимо от20/50
+живых страниц. Документы, формы, cookies, scroll и HTTP-потоки сохранены.
+На20-page этапе во всех пяти снимках ровно одна правильная видимая pill;
+на50-page этапе stream owners скрыты и видимых pills нет. На Windows
+контрольные OS-снимки больше не содержат duplicate heading поверх dock.
+
+Windows run44580306173/job135758843470: медиана switch20=550.1ms,
+switch50=547.7ms, max50=582.7ms. macOS run44580306221/job135758842294:
+медиана switch20=1006.4ms, switch50=930.6ms, max50=1436.3ms.
+Это измерения данного fixture; исторический/Chrome benchmark не проводился.
+Архивы size/SHA/CRC проверены, independent checker повторно выполнен:
+
+- macOS14558218936: `223126e809a08c34f16b1d87af1469d08a0f6a4f622cb52990d5af4e6e73679b`;
+- Windows14559446127: `61ed8954bf9b5878615e307720dcb06dd2b7c0efd1bf76ff71aea5b1243169e7`.
+
+Оба полных source workflow при этом остаются FAIL, candidate отсутствует.
+На macOS последующий retained628 dark closing дал2intermediate frames
+при требуемых3. Native capture также зафиксировал лишь2intermediate положения.
+Trace полная, без data loss; в том же интервале есть GPU wait spans.
+Последовательные диагностические closing controls дали6frames без подписки
+и3с подпиской и прошли прежний критерий. Причинность capture/GPU не доказана;
+исходная ошибка не заменяется контрольным успехом. Nora code, frame count,
+timing и frozen validator не меняются. Отдельный631процесс завершился exit0
+до запуска retained WRITE в новом процессе с другим профилем.
+
+На Windows после нового gate и реального629→631 profile upgrade отказал
+retained630 gesture fixture: он сравнивал состояние normal profile после
+private gesture с baseline, снятым до обычных жестов. Raw evidence показывает
+`closedPage.before.learned=false`, `after.learned=true`, `lastResult.completed=true`
+ещё до входа в private. Production handler закономерно сохраняет first-use
+обучение обычного жеста; private completion использует отдельный WeakSet.
+Исправлен только fixture: initial state отдельно записан, успешное обычное
+обучение дополнительно подтверждено request ID и completed, immutable clone
+normal baseline снимается после store queue непосредственно до private entry.
+Далее normal state строго сравнивается при private и после выхода; private
+KEY остаётся строго undefined. Product privacy code не меняется. Новый
+последовательный handler test подтверждает ровно одну normal запись и отсутствие
+дополнительных записей при private completion. Focused35/35 и полный локальный
+Mouse gate781tests/775PASS/0FAIL/6platformSKIP прошли (6208.270487ms).
+Следующий полный native source прогон повторяет все gates без ослаблений.
