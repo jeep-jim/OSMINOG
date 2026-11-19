@@ -107,3 +107,89 @@ jobs:
             desktop/mouse-*.json
           if-no-files-found: warn
           retention-days: 14
+  mouse-windows-x64-modern:
+    # Match the fresh publisher host (currently Windows Server 2025). Reuse the
+    # exact VS2022-built installer: this checks composition/runtime differences,
+    # independently of the newer image's native compiler availability.
+    needs: mouse-windows-x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop
+        shell: pwsh
+    steps:
+      - name: Preserve exact source bytes on Windows
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: mouse-windows-x64-candidate
+          path: desktop/dist-mouse-windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: mouse-windows-x64-verification
+          path: desktop/source-windows-verification
+      - name: Verify immutable installer and source evidence
+        shell: python
+        env:
+          MOUSE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          import hashlib, json, os, platform
+          from pathlib import Path
+
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+
+          candidate = Path('dist-mouse-windows')
+          name = 'Mouse-Browser-6.0.29-Windows-x64.exe'
+          require({p.name for p in candidate.iterdir()} == {name, 'SHA256SUMS.txt', 'mouse-windows-build.json'},
+                  'Expected the unchanged three-file source candidate')
+          build = json.loads((candidate / 'mouse-windows-build.json').read_text(encoding='utf-8'))
+          require((build['version'], build['platform'], build['arch']) == ('6.0.29', 'win32', 'x64'),
+                  'Unexpected source candidate target')
+          require(build['source'] == os.environ['MOUSE_SOURCE_SHA'] and str(build['runId']) == os.environ['GITHUB_RUN_ID'],
+                  'Candidate does not belong to this exact source run')
+          installer = candidate / name
+          with installer.open('rb') as stream:
+              digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+          size = installer.stat().st_size
+          require(build['package'] == {'name': name, 'size': size, 'sha256': digest},
+                  'Installer bytes differ from the source manifest')
+          require((candidate / 'SHA256SUMS.txt').read_text(encoding='utf-8') == digest + '  ' + name + '\n',
+                  'Installer checksum file differs from the actual bytes')
+          evidence_bytes = Path('source-windows-verification/mouse-windows-verification.json').read_bytes()
+          evidence = json.loads(evidence_bytes)
+          evidence_digest = hashlib.sha256(evidence_bytes).hexdigest()
+          require(build['verification']['sha256'] == evidence_digest and build['verification']['result'] == evidence,
+                  'Source verification does not match the manifest')
+          require(evidence['ok'] is True and evidence['installerSha256'] == digest and evidence['installerBytes'] == size,
+                  'Source installed acceptance does not bind these installer bytes')
+          Path('mouse-windows-modern-input.json').write_text(json.dumps({
+              'ok': True, 'source': build['source'], 'runId': build['runId'],
+              'sourceRunAttempt': build['runAttempt'], 'package': build['package'],
+              'sourceVerificationSha256': evidence_digest,
+              'runner': {'system': platform.system(), 'release': platform.release(), 'version': platform.version(),
+                         'imageOS': os.environ.get('ImageOS'), 'imageVersion': os.environ.get('ImageVersion')}
+          }, indent=2) + '\n', encoding='utf-8')
+          print('MOUSE_WINDOWS_MODERN_IMMUTABLE_INPUT_PASS')
+      - name: Verify same installed app on modern Windows
+        run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.29-Windows-x64.exe
+      - name: Upload modern Windows verification evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-windows-x64-modern-verification
+          path: |
+            desktop/mouse-*.log
+            desktop/mouse-*.png
+            desktop/mouse-*.json
+          if-no-files-found: warn
+          retention-days: 14

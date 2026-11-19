@@ -276,3 +276,193 @@ The newer main runtime is preserved. Publication must still require the exact
 successful Windows source head, its merged maintenance PR, immutable artifact
 hashes, a fresh full installed verification and anonymous public download.
 This changes the version-specific integration branch, not any acceptance gate.
+
+## Complete source acceptance, followed by a fresh-host rendering failure
+
+Source `9b15a122c82edcec853e78a88d921128a58d1bf2` passed
+[Windows run 44532782697 / job 135590206217](https://github.com/jeep-jim/OSMINOG/actions/runs/44532782697/job/135590206217)
+on Windows Server 2022: 176 base tests, 629 Mouse tests and seven Python checks,
+with no failures or skips. Full installed WRITE, reinstallation, READ, actual
+NSIS update and visible relaunch, post-update READ, ordinary startup,
+second-instance restore and native close passed. The real terminal lifecycle
+also passed in [run 44532782658](https://github.com/jeep-jim/OSMINOG/actions/runs/44532782658).
+Preserving the runner's `PSModuleAnalysisCachePath` while independently resetting
+`PSModulePath` removed the measured first-start delay without extending the
+existing readiness or Stop limits. The background process is now a direct,
+noninteractive PowerShell child contained by the existing ConPTY and native Job
+Object; raw Unicode command data is passed through child-only environment
+variables and cleared before execution.
+
+PR 172 was merged into `release/mouse-6.0.29` as
+`adc2faee898c8b835f20d0451fe91c9f95b5ed63`. The source candidate installer measured
+125,607,419 bytes, SHA-256
+`e789302e49469b733cdb735fee41d7a0094fd8d9425a64b72a915e2e578ce88e`.
+Its installed executable and native runtime were independently inspected. Both
+installer and executable remain unsigned. These results established the source
+candidate on that host; they did not establish a public Windows release.
+
+Release PR 52 passed all 22 publisher contract tests and was merged. The fresh
+[publisher run 44535145464 / job 135598566630](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44535145464/job/135598566630)
+successfully imported the exact pinned source, merged PR and hashed candidate,
+but failed installed acceptance on Windows Server 2025. The installer and
+installed executable hashes matched the successful source evidence. All 18
+divider probes and eight page-interior probes in the first 6.0.29 separator
+capture passed, while all 64 bottom-corner cutout probes failed after the existing
+15 captures. The full display image shows square guest-page bottom corners.
+The native-window cause is not established by that image alone. Public asset
+publication and channel updates were skipped; no ready download is claimed.
+
+The follow-up work records bounded native HWND state and runs the same complete
+installed verifier against the same candidate on a second Windows 2025 runner.
+The original pixel assertions, Windows 2022 acceptance and fresh publisher gate
+remain required. A corrected build and successful public download verification
+are still needed before delivery.
+
+## Native snapshots isolate the modern Windows presentation defect
+
+Diagnostic source `efd82bc701f631246d2d5729c093f5182e25fa6e` in PR 175 again
+passed the complete Windows 2022 build, 176 base tests, 629 Mouse tests, seven
+Python checks and installed/update acceptance in
+[run 44537909335 / job 135608155139](https://github.com/jeep-jim/OSMINOG/actions/runs/44537909335/job/135608155139).
+The new modern job verified that it received the same 125,613,959-byte installer,
+SHA-256 `65b82af8124c2796903f249225fb1752628e4faa466d5c0744ec0ce50649bbec`,
+and the bound source evidence, then reproduced the corner failure on Windows
+Server 2025 build 26100, image `windows-2025-vs2026` version `20261103.298.1`, in
+[job 135612502737](https://github.com/jeep-jim/OSMINOG/actions/runs/44537909335/job/135612502737).
+The overall source workflow correctly failed; this diagnostic candidate is not
+eligible for publication.
+
+The independent before/after native snapshots show valid process, UI thread and
+top-level ownership on both systems. Four accepted panes produced eight painted,
+visible corner HWNDs at the highest eight child z-order positions, with error
+zero and exact requested geometry. Client origin `(8, 8)`, DPI 96 and Electron
+content bounds agree. On 2022, all four theme/size captures passed their 90
+pixel probes at the first capture. On 2025, the 18 divider and eight page-interior
+probes passed, but all 64 corner cutouts remained page pixels after 15 captures.
+The parent extended style is `0x100` on the successful host and `0x200100` on
+the failing host. Microsoft identifies the additional `0x00200000` bit as
+[`WS_EX_NOREDIRECTIONBITMAP`](https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles).
+This establishes successful creation, paint, geometry and sibling ordering;
+the missing display pixels require a native presentation correction, not a
+change to the pixel expectations or JavaScript layout.
+
+Both evidence archives were downloaded and independently checked. The 2022
+archive `14537054456` is 9,903,209 bytes, SHA-256
+`a0b98c1e59515cf6624388cc2521a7af18a4bbe36205e27a3b001a3653c2f94b`.
+The modern archive `14537791527` is 2,204,307 bytes, SHA-256
+`b127b5657bce311c328fcc9c30196e0777c67c3ac6691c1f43bf7a99e4ed4412`.
+Release PR 54 now requires the complete source run and the exact modern job,
+input-validation, full installed acceptance and evidence-upload steps to pass
+at the pinned source attempt. Its 32 contract tests passed in
+[release run 44538241110](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44538241110).
+
+## Present the existing corner bitmaps through an owned composition layer
+
+The correction selects a DirectComposition presentation path when the owned
+parent has `WS_EX_NOREDIRECTIONBITMAP`. It retains the same tiny premultiplied
+corner bitmaps, physical coordinates and noninteractive child HWNDs. Windows
+parents without that flag keep the existing child-window presentation. The
+parent's renderer flags and the JavaScript page layout are not modified.
+
+The native trim creates its own desktop composition device with
+[`DCompositionCreateDevice2`](https://learn.microsoft.com/en-us/windows/win32/api/dcomp/nf-dcomp-dcompositioncreatedevice2),
+using the documented null rendering-device option, and binds its own target
+above the parent's child windows. It wraps the existing layered HWNDs with
+[`CreateSurfaceFromHwnd`](https://learn.microsoft.com/en-us/windows/win32/api/dcomp/nf-dcomp-idcompositiondevice-createsurfacefromhwnd).
+The source HWNDs are cloaked through DWM while their bitmaps remain available to
+the composition tree. The small visuals use the same physical offsets and a
+client-area clip. No second GPU rendering device, popup window or external
+runtime is introduced; the additional libraries are the Windows OS components
+`Dcomp.dll` and `Dwmapi.dll`.
+
+Creation, positioning and commit failures retain their explicit HRESULT and
+stage. A target already occupied by another component is never replaced.
+Removing a pane removes its visual; clearing or destroying the trim detaches
+its own root, commits the removal, releases its COM references and destroys its
+own source HWNDs. The bounded diagnostic now records both the successful cloak
+request and the actual DWM cloak state. Independent review found no need to
+alter the existing pixel, Nora, page identity or profile criteria. Twelve local
+runtime checks passed, and the native build configuration parses cleanly;
+Windows compilation and complete acceptance on both hosts are still required
+before this correction is certified.
+
+The first compile of this correction, source
+`696892894d576d9db4f420427cc3edf387f8154a` in
+[run 44541182197 / job 135619624655](https://github.com/jeep-jim/OSMINOG/actions/runs/44541182197/job/135619624655),
+stopped at MSVC error C2872: the local diagnostic helper named `boolean`
+conflicted with the Windows SDK type brought in by the composition headers.
+No installer or installed acceptance was produced by that run. The helper and
+its calls are renamed to a unique function name; no drawing behavior or test
+criteria change is involved.
+
+## Modern rendering passes; the remaining failure is updater startup
+
+Source `9b5d93fc47382bc027c1f8c05e8e2fc08090c86b` compiled successfully in
+[run 44541832593](https://github.com/jeep-jim/OSMINOG/actions/runs/44541832593).
+The complete Windows 2022 job `135621903877` passed, including the actual
+installed update and restart. The exact same installer was then verified on
+Windows Server 2025 build 26100 in job `135627856046`. All four 90-pixel
+separator/corner captures and both nine-pixel Nora captures passed at the first
+attempt. The native report records the conditional composition path, eight
+surfaces and visuals, successful commits and actual cloak state 1. The complete
+WRITE workload passed in 152,688 ms, followed by a successful reinstall with an
+unchanged profile and a successful READ workload in 2,453 ms. Agent PTY, Local
+MCP, native file operations, documents, private isolation and wheel behavior
+passed within that installed workload. Physical touchpad and external-account
+testing are not claimed.
+
+The later update-button stage failed before the PowerShell helper acknowledged
+readiness. The helper wrapper PID 6928 exited with code 0; no result or readiness
+file existed, stderr was empty, and the 90 stdout bytes contained only console
+control sequences. Cancellation was recorded and the source run correctly
+failed. Its installer is 125,615,658 bytes, SHA-256
+`9deff57cf96babdf0b5f08240fef141f75e473e844b4a44742281f7c4381aba7`.
+This candidate is not eligible for publication despite the successful UI work.
+
+The downloaded 2022 evidence archive `14538709389` has SHA-256
+`6bba051caec815a55a8013e9cb127e8c9baa4d1baaf802c340f8af0aa4ba09b9`;
+the modern archive `14539198141` has SHA-256
+`0f2c24fc592087a96a15d363be9af325e0ca9ea472ccaba5f5095f2e82c757dc`.
+Independent inspection of all 22 PE files, including delay imports, found no
+external MSVC runtime dependency. The composition addon uses the Windows OS
+libraries `Dcomp.dll` and `Dwmapi.dll`.
+
+## Give the update helper its own documented process lifetime
+
+The failing launch used `conhost --headless` with NUL input. Microsoft's console
+[change adb04729](https://github.com/microsoft/terminal/commit/adb04729bcce7151f6380eded79e9408df9d1e3b)
+makes a successful zero-byte input read terminate its VT input loop. This is a
+source-supported explanation consistent with the observed early console exit;
+the exact runner console binary has not been disassembled, so the specific
+binary-level cause is not claimed as proven. Microsoft also describes direct
+[`conhost --headless` use as unsupported](https://github.com/microsoft/terminal/issues/13914).
+A pipe owned by Mouse would close when Mouse exits, which would not meet the
+updater's required lifetime.
+
+The replacement launches the fixed system Windows PowerShell executable through
+documented
+[`CreateProcessW`](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw),
+with `CREATE_NO_WINDOW`, a Unicode environment and an explicit standard-handle
+allowlist. Its NUL input and duplicated file-backed log handles do not depend on
+a parent-owned pipe. It does not request `DETACHED_PROCESS`, a new console or a
+job-policy breakaway. Direct native creation avoids libuv's additional child
+job while preserving any enclosing Windows job policy. The fixed PowerShell
+script, checked package bytes, JSON path data, readiness, cancellation and
+receipt protocol remain unchanged.
+
+A type-tagged native token retains the exact created process handle. Status and
+cancellation use that handle, avoiding a later PID lookup; releasing the token
+closes only the handle and never terminates a successful updater. The JavaScript
+adapter reports the actual PowerShell exit code and keeps the existing bounded
+readiness deadline. The proven pane-corner implementation is unchanged.
+
+A separate focused workflow builds the native addon once on Windows 2022 and
+runs those identical bytes on Windows 2022 and the current modern Windows
+runner. It binds source, run, attempt, Node version and hashes before testing.
+Two real-helper tests require readiness and cancellation, then prove survival
+after the launching Node process exits. An independent live original-process
+guard prevents the synthetic installer from executing; the tests require
+cancellation, unchanged fixture files and no installer-start trace. The full
+source installation/update gates and fresh publisher gate remain required.
+These changes still require actual Windows execution before readiness can be
+claimed.
