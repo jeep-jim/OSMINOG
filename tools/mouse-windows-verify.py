@@ -431,6 +431,12 @@ def update_roundtrip(executable: Path, env: dict, output: Path) -> dict:
 
 
 def main(argv=None) -> int:
+    # The Windows runner's redirected Python stdout can retain an ANSI code
+    # page even though Electron logs and our owned paths are UTF-8/Unicode.
+    # Emitting diagnostic logs must never hide the original native failure.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments[:1] == ["--input"]:
         if len(arguments) < 2:

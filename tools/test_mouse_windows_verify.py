@@ -1,8 +1,10 @@
 import importlib.util
+import io
 from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest import mock
 
 
 spec = importlib.util.spec_from_file_location("mouse_windows_verify", Path(__file__).with_name("mouse-windows-verify.py"))
@@ -11,6 +13,14 @@ spec.loader.exec_module(verify)
 
 
 class WindowsVerificationContracts(unittest.TestCase):
+    def test_unicode_diagnostics_survive_windows_ansi_stdout(self):
+        buffer = io.BytesIO()
+        stream = io.TextIOWrapper(buffer, encoding="cp1252")
+        with mock.patch.object(verify.sys, "stdout", stream), mock.patch.object(verify.sys, "stderr", stream), mock.patch.object(verify, "native_input", side_effect=lambda *_: print("Проверка Mouse Browser")):
+            self.assertEqual(verify.main(["--input", "key", "ESC"]), 0)
+        stream.flush()
+        self.assertEqual(buffer.getvalue().decode("utf-8").strip(), "Проверка Mouse Browser")
+
     def test_real_pe_machine_does_not_trust_filename_or_installer(self):
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / "Mouse Browser.exe"

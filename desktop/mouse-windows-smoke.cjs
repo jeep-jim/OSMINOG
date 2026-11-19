@@ -60,9 +60,9 @@ module.exports=async ctx=>{
   }
   const page=await open(origin+'/first'),id=page.id;
   await page.view.webContents.executeJavaScript('document.querySelector("#next").click()');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native link navigation');
-  await click('[data-action="back"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/first','native back');
-  await click('[data-action="forward"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native forward');
-  const old=await page.view.webContents.executeJavaScript('mouseWindowsIdentity');await click('[data-action="reload"]');
+  await click('.pane.active [data-pane-action="back"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/first','native back');
+  await click('.pane.active [data-pane-action="forward"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native forward');
+  const old=await page.view.webContents.executeJavaScript('mouseWindowsIdentity');await click('.pane.active [data-pane-action="reload"]');
   await until(async()=>!page.loading&&await page.view.webContents.executeJavaScript('mouseWindowsIdentity')!==old,'native reload');assert.equal(browser.get(id),page);
   facts.nativePages={layouts:[1,2,4,6],pageId:id,webContentsId:page.view.webContents.id,back:true,forward:true,reload:true};
   console.log('MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS');
