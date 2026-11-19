@@ -93,6 +93,21 @@ bool equalProperty(napi_env env,napi_value object,const char* key,const std::str
  if(napi_get_named_property(env,object,key,&value)!=napi_ok||napi_typeof(env,value,&type)!=napi_ok||type!=napi_string||napi_get_value_string_utf8(env,value,nullptr,0,&length)!=napi_ok||length>100)return false;
  std::vector<char> data(length+1);return napi_get_value_string_utf8(env,value,data.data(),data.size(),&length)==napi_ok&&std::string(data.data(),length)==expected;
 }
+bool equalBytes(napi_env env,napi_value expected,HANDLE handle,const FileStat& current){
+ napi_value snapshot;bool isBuffer=false;void* bytes=nullptr;size_t length=0;
+ if(napi_get_named_property(env,expected,"expectedBytes",&snapshot)!=napi_ok||napi_is_buffer(env,snapshot,&isBuffer)!=napi_ok||!isBuffer||
+  napi_get_buffer_info(env,snapshot,&bytes,&length)!=napi_ok||length>256*1024||current.standard.EndOfFile.QuadPart<0||
+  static_cast<uint64_t>(current.standard.EndOfFile.QuadPart)!=length)return false;
+ // The destination was opened synchronously with write sharing denied. Compare
+ // bounded bytes, not just timestamps, which may coincide across rapid writes.
+ unsigned char buffer[4096];size_t offset=0;
+ while(offset<length){
+  const DWORD request=static_cast<DWORD>((length-offset)<sizeof(buffer)?length-offset:sizeof(buffer));DWORD read=0;
+  if(!ReadFile(handle,buffer,request,&read,nullptr)||!read||std::memcmp(static_cast<unsigned char*>(bytes)+offset,buffer,read))return false;
+  offset+=read;
+ }
+ DWORD read=0;return ReadFile(handle,buffer,1,&read,nullptr)&&read==0;
+}
 HANDLE openChild(HANDLE parent,const std::wstring& child,ACCESS_MASK access,ULONG disposition,ULONG options,DWORD share=FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE){
  // Other editors must remain able to rename/create inside the directory.
  // Confinement comes from the held directory object and one-component relative
@@ -186,14 +201,15 @@ napi_value commit(napi_env env,napi_callback_info info){
  if(count!=4||!descriptor(env,args[0],parent)||!name(env,args[1],temporary)||!tempName(temporary)||!name(env,args[2],target))return fail(env,"Invalid project commit arguments");
  Handle source(openChild(parent,temporary,DELETE|FILE_READ_ATTRIBUTES,kOpen,kReparse|kNonDirectory,kCommitSourceShare));
  FileStat temporaryStat;if(source.value==INVALID_HANDLE_VALUE||!statHandle(source.value,temporaryStat)||!regular(temporaryStat))return fail(env,"Unsafe temporary file denied",GetLastError());
- Handle destination(openChild(parent,target,FILE_READ_ATTRIBUTES,kOpen,kReparse,kDirectoryShare));const DWORD targetError=destination.value==INVALID_HANDLE_VALUE?GetLastError():0;
+ Handle destination(openChild(parent,target,FILE_READ_DATA|FILE_READ_ATTRIBUTES,kOpen,kReparse,kCommitSourceShare));const DWORD targetError=destination.value==INVALID_HANDLE_VALUE?GetLastError():0;
  if(destination.value==INVALID_HANDLE_VALUE&&!missing(targetError))return fail(env,"File changed after reading; not overwritten",targetError);
  napi_valuetype type;napi_typeof(env,args[3],&type);const bool expected=type!=napi_null;
  if(!expected){if(destination.value!=INVALID_HANDLE_VALUE)return fail(env,"File was created by another writer");}
  else{
   FileStat current;if(type!=napi_object||destination.value==INVALID_HANDLE_VALUE||!statHandle(destination.value,current)||!regular(current)||
    !equalProperty(env,args[3],"dev",std::to_string(current.id.VolumeSerialNumber))||!equalProperty(env,args[3],"ino",fileId(current))||
-   !equalProperty(env,args[3],"mtimeNs",timeNs(current.basic.LastWriteTime))||!equalProperty(env,args[3],"ctimeNs",timeNs(current.basic.ChangeTime)))return fail(env,"File changed after reading; not overwritten");
+   !equalProperty(env,args[3],"mtimeNs",timeNs(current.basic.LastWriteTime))||!equalProperty(env,args[3],"ctimeNs",timeNs(current.basic.ChangeTime))||
+   !equalBytes(env,args[3],destination.value,current))return fail(env,"File changed after reading; not overwritten");
  }
  // Both source and destination are in the held parent. FALSE publishes a new
  // file exclusively. Replacement retains the same documented precommit check

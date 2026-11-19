@@ -62,6 +62,10 @@ jobs:
           node mouse-windows-icon.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run retained and Windows Mouse tests
+        id: units
+        # Still a mandatory release gate below. Continue only to collect native
+        # installed UI diagnostics in the same run if an independent test fails.
+        continue-on-error: true
         run: |
           npm test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -72,10 +76,22 @@ jobs:
       - name: Build Mouse Browser NSIS installer
         run: npx electron-builder --config mouse-windows-build.cjs --win nsis --x64 --publish never
       - name: Verify installed app, native UI, restart and profile preservation
+        id: installed
         run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.29-Windows-x64.exe
       - name: Bind verified installer bytes to source and test evidence
+        if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
         run: node ../tools/mouse-windows-manifest.cjs
+      - name: Require both unit and installed acceptance
+        if: always()
+        env:
+          UNIT_OUTCOME: ${{ steps.units.outcome }}
+          INSTALLED_OUTCOME: ${{ steps.installed.outcome }}
+        run: |
+          if ($env:UNIT_OUTCOME -ne 'success' -or $env:INSTALLED_OUTCOME -ne 'success') {
+            throw "Mouse release blocked: units=$env:UNIT_OUTCOME installed=$env:INSTALLED_OUTCOME"
+          }
       - uses: actions/upload-artifact@v4
+        if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
         with:
           name: mouse-windows-x64-candidate
           path: |

@@ -51,6 +51,15 @@ test('new-file conflict and an edited existing file are preserved at commit',()=
   f=fixture({write:true,native:backend});try{if(existing)fs.writeFileSync(path.join(f.root,'race.txt'),'old');const digest=existing?f.files.read('race.txt').sha256:undefined;assert.throws(()=>f.files.write('race.txt','agent replacement',digest),/another writer|changed after/);assert.equal(fs.readFileSync(path.join(f.root,'race.txt'),'utf8'),'concurrent writer');assert.ok(!fs.readdirSync(f.root).some(x=>x.startsWith('.mouse-local-')));}finally{f.close();}
  }
 });
+test('Windows replacement preserves an equal-length edit even when timestamp checks coincide',{skip:process.platform!=='win32'},()=>{
+ let f;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){if(key!=='commit')return target[key];return(...args)=>{
+  fs.writeFileSync(path.join(f.root,'race.txt'),'new');const current=target.stat(args[0],args[2]);
+  // Exercise content conflict independently of timestamp resolution: keep the
+  // original byte snapshot while making expected timestamps match the edit.
+  return target.commit(args[0],args[1],args[2],{...args[3],mtimeNs:current.mtimeNs,ctimeNs:current.ctimeNs});
+ };}});
+ f=fixture({write:true,native:backend});try{fs.writeFileSync(path.join(f.root,'race.txt'),'old');const prior=f.files.read('race.txt');assert.throws(()=>f.files.write('race.txt','agent replacement',prior.sha256),/changed after/);assert.equal(fs.readFileSync(path.join(f.root,'race.txt'),'utf8'),'new');assert.ok(!fs.readdirSync(f.root).some(x=>x.startsWith('.mouse-local-')));}finally{f.close();}
+});
 test('read and write are bounded by UTF-8 bytes, including a file that grows during descriptor reading',()=>{
  let largest=0,grew=false,f;const extra={...fs,readSync(fd,buffer,offset,length,position){largest=Math.max(largest,length);if(!grew){grew=true;fs.appendFileSync(path.join(f.root,'hello.txt'),'x'.repeat(LIMITS.readBytes*2));}return fs.readSync(fd,buffer,offset,length,position);}};
  f=fixture({write:true,extra});try{assert.throws(()=>f.files.read('hello.txt'),/лимит/);assert.equal(largest,LIMITS.readBytes+1);assert.throws(()=>f.files.write('utf.txt','€'.repeat(Math.ceil(LIMITS.writeBytes/3))),/64 КиБ/);assert.equal(fs.existsSync(path.join(f.root,'utf.txt')),false);}finally{f.close();}
@@ -63,8 +72,8 @@ test('directory enumeration is capped before sorting and explicit truncation is 
 test('root replacement and closed capability cannot regain access',()=>{
  const f=fixture({write:true});try{fs.renameSync(f.root,path.join(f.base,'old'));directoryLink(f.outside,f.root);assert.throws(()=>f.files.read('secret.txt'),/заменена/);assert.throws(()=>f.files.write('secret.txt','bad'),/заменена/);f.files.close();assert.throws(()=>f.files.walk(),/отозван/);assert.equal(fs.readFileSync(path.join(f.outside,'secret.txt'),'utf8'),'outside sentinel');}finally{f.close();}
 });
-test('Unicode paths preserve exact text through create, replacement and enumeration',()=>{
- const f=fixture({write:true});try{const file='Проект € 🐭/текст.txt';f.files.write(file,'Первый текст €');const before=f.files.read(file);assert.equal(before.content,'Первый текст €');f.files.write(file,'Второй текст 🐭',before.sha256);assert.equal(fs.readFileSync(path.join(f.root,...file.split('/')),'utf8'),'Второй текст 🐭');assert.ok(f.files.walk().entries.some(entry=>entry.path===file));}finally{f.close();}
+test('Unicode paths and a UTF-8 BOM preserve exact file snapshots through create, replacement and enumeration',()=>{
+ const f=fixture({write:true});try{const file='Проект € 🐭/текст.txt';f.files.write(file,'\ufeffПервый текст €');const before=f.files.read(file);assert.equal(before.content,'Первый текст €');f.files.write(file,'Второй текст 🐭',before.sha256);assert.equal(fs.readFileSync(path.join(f.root,...file.split('/')),'utf8'),'Второй текст 🐭');assert.ok(f.files.walk().entries.some(entry=>entry.path===file));}finally{f.close();}
 });
 test('Windows native boundary rejects ADS, DOS device names and ambiguous path normalization',{skip:process.platform!=='win32'},()=>{
  const f=fixture({write:true});try{for(const name of ['hello.txt:stream','hello.txt.','hello.txt ','CON','NUL.txt','COM1','LPT9.log','a/b','a\\b','..']){assert.throws(()=>native.openRead(f.files.rootFd,name));assert.throws(()=>native.openTemp(f.files.rootFd,name,0o600));}assert.equal(f.files.read('hello.txt').content,'inside');}finally{f.close();}
