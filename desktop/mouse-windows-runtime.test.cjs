@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),fsp=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto'),vm=require('node:vm'),{EventEmitter}=require('node:events');
 const {MouseUpdates,WINDOWS_CHANNEL,channelCandidate,selectRelease,releaseTarget}=require('./mouse-update.cjs');
-const {WindowsInstaller,windowsPackage,acknowledgeWindows,ordinaryWindowsDirectory}=require('./mouse-install-update.cjs');
+const {WindowsInstaller,windowsPackage,acknowledgeWindows,ordinaryWindowsDirectory,WINDOWS_HELPER}=require('./mouse-install-update.cjs');
 const target={platform:'win32',arch:'x64'};
 const manifest=(patch={})=>({schema:1,...target,version:'6.0.30',url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.30-x64/Mouse-Browser-6.0.30-Windows-x64.exe',size:100,digest:'sha256:'+'a'.repeat(64),...patch});
 function load(name,stubs={}){const mod={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,name),'utf8'),{module:mod,exports:mod.exports,require:id=>Object.hasOwn(stubs,id)?stubs[id]:require(id),process,Buffer,URL,Date,AbortSignal,setTimeout,clearTimeout,console},{filename:name});return mod.exports;}
@@ -51,8 +51,21 @@ test('failed browser save cancels the detached Windows installer and never ackno
   let command,args,options,installer;
   installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{throw Error('save failed');},spawn:(...values)=>{[command,args,options]=values;const child=new EventEmitter();child.unref=()=>{};void fsp.writeFile(installer.plan.ready,'ready');return child;}});
   await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),/save failed/);
-  assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.match(command,/powershell\.exe$/);assert.ok(args.includes('-Command'));assert.ok(!args.some(x=>/ExecutionPolicy|Bypass/.test(x)));
-  assert.equal(options.shell,undefined);assert.equal(options.env.MOUSE_INSTALL_PLAN,path.join(installer.plan.stage,'plan.json'));assert.ok(!args.join(' ').includes(f.dir),'Unicode/space install path is data, never interpolated script source');
+  assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.match(command,/conhost\.exe$/);assert.deepEqual(args.slice(0,2),['--headless','--']);assert.match(args[2],/powershell\.exe$/);assert.equal(args.at(-2),'-EncodedCommand');assert.equal(Buffer.from(args.at(-1),'base64').toString('utf16le'),WINDOWS_HELPER);assert.ok(!args.some(x=>/ExecutionPolicy|Bypass/.test(x)));
+  assert.equal(options.shell,undefined);assert.equal(options.detached,true);assert.equal(options.windowsHide,true);assert.equal(options.stdio[0],'ignore');assert.ok(options.stdio.slice(1).every(Number.isInteger));assert.equal(options.env.MOUSE_INSTALL_PLAN,path.join(installer.plan.stage,'plan.json'));assert.ok(!args.join(' ').includes(f.dir),'Unicode/space install path is data, never interpolated script source');
+  assert.equal(await fsp.readFile(installer.plan.helperOut,'utf8'),'');assert.equal(await fsp.readFile(installer.plan.helperErr,'utf8'),'');
+ }finally{await f.cleanup();}
+});
+test('a Windows console host exiting zero before readiness fails immediately and preserves its diagnostic',{timeout:3000},async()=>{
+ const f=await installerFixture();try{
+  let quit=false,killed=false,installer;
+  installer=new WindowsInstaller({...f,platform:'win32',quit:async()=>{quit=true;},spawn:()=>{
+   const child=new EventEmitter();child.unref=()=>{};child.kill=()=>{killed=true;return true;};
+   fs.writeFileSync(installer.plan.result,'Helper diagnostic before readiness');
+   queueMicrotask(()=>{child.exitCode=0;child.emit('exit',0,null);});return child;
+  }});
+  await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),/до подтверждения \(код 0\): Helper diagnostic before readiness/);
+  assert.equal(quit,false);assert.equal(killed,true);assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.equal(fs.existsSync(installer.plan.ready),false);
  }finally{await f.cleanup();}
 });
 test('Windows acknowledgement is bound to the running version, executable and dedicated temp stage',async()=>{

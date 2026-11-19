@@ -72,15 +72,24 @@ async function acknowledge(app,executable=process.execPath){
 // helper would keep Mouse Browser.exe locked while NSIS replaces it. Paths are
 // passed as JSON data, never interpolated into PowerShell source or a shell.
 const WINDOWS_HELPER=`$ErrorActionPreference = 'Stop'
-$plan = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($env:MOUSE_INSTALL_PLAN))
+$plan = $null
+function Write-Step([string]$message) {
+ [IO.File]::AppendAllText($plan.helperTrace, [DateTime]::UtcNow.ToString('o') + ' ' + $message + [Environment]::NewLine)
+}
 function Verify-Package {
  $item = Get-Item -LiteralPath $plan.file -Force
  if ($item.PSIsContainer -or (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) -or $item.Length -ne $plan.size) { throw 'Update file changed' }
  if ((Get-FileHash -Algorithm SHA256 -LiteralPath $plan.file).Hash.ToLowerInvariant() -ne $plan.hash) { throw 'Update SHA256 changed' }
 }
 try {
+ $plan = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($env:MOUSE_INSTALL_PLAN))
+ Write-Step 'Helper started'
+ if (Test-Path -LiteralPath $plan.cancel) { throw 'Update cancelled before verification' }
  Verify-Package
+ Write-Step 'Package SHA256 verified'
+ if (Test-Path -LiteralPath $plan.cancel) { throw 'Update cancelled before readiness' }
  [IO.File]::WriteAllText($plan.ready, 'ready')
+ Write-Step 'Ready; waiting for original Mouse'
  $deadline = [DateTime]::UtcNow.AddSeconds(90)
  while (Get-Process -Id $plan.pid -ErrorAction SilentlyContinue) {
   if (Test-Path -LiteralPath $plan.cancel) { throw 'Update cancelled because Mouse did not close' }
@@ -88,13 +97,16 @@ try {
   Start-Sleep -Milliseconds 250
  }
  if (Test-Path -LiteralPath $plan.cancel) { throw 'Update cancelled' }
+ Write-Step 'Original Mouse exited'
  Verify-Package
  # /D must be last: NSIS reads the remainder as the literal install directory.
  $arguments = '--updated /S /D=' + $plan.target
  $installer = Start-Process -FilePath $plan.file -ArgumentList $arguments -PassThru
+ Write-Step 'Installer started'
  # Wait for the NSIS process, not every descendant of the installer.
  if (-not $installer.WaitForExit(180000)) { throw 'Installer did not complete within three minutes' }
  if ($installer.ExitCode -ne 0) { throw ('Installer exited with code ' + $installer.ExitCode) }
+ Write-Step 'Installer exited successfully'
  # NSIS --force-run delegates through Explorer and loses an isolated profile's
  # environment. Launch the exact installed executable from this helper instead.
  $launch = New-Object System.Diagnostics.ProcessStartInfo
@@ -104,12 +116,41 @@ try {
  $launch.WorkingDirectory = $plan.target
  $browser = [System.Diagnostics.Process]::Start($launch)
  if ($null -eq $browser) { throw 'Updated Mouse could not be launched' }
+ Write-Step 'Updated Mouse launched'
  [IO.File]::WriteAllText($plan.result, 'Installer completed')
 } catch {
- [IO.File]::WriteAllText($plan.result, $_.Exception.Message)
+ if ($null -ne $plan) { [IO.File]::WriteAllText($plan.result, $_.Exception.Message) }
+ [Console]::Error.WriteLine($_.Exception.ToString())
  exit 1
 }
 `;
+async function startWindowsHelper(plan,{spawn=cp.spawn}={}){
+ const system=path.join(process.env.SystemRoot||'C:\\Windows','System32'),powershell=path.join(system,'WindowsPowerShell','v1.0','powershell.exe');
+ // PowerShell requires a console even in noninteractive mode. A bare
+ // DETACHED_PROCESS can exit zero before running its script. The system's
+ // headless console host supplies that console without displaying a window.
+ // Keep detached: libuv otherwise assigns the child to a kill-on-parent-exit
+ // Job Object, which would stop the installer when Mouse closes.
+ const out=await fs.open(plan.helperOut,'a',0o600);let err;
+ try{
+  err=await fs.open(plan.helperErr,'a',0o600);
+  const encoded=Buffer.from(WINDOWS_HELPER,'utf16le').toString('base64');
+  const child=spawn(path.join(system,'conhost.exe'),['--headless','--',powershell,'-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{detached:true,windowsHide:true,stdio:['ignore',out.fd,err.fd],env:{...process.env,MOUSE_INSTALL_PLAN:path.join(plan.stage,'plan.json')}});
+  // Latch events before closing our descriptor copies: a launch failure may
+  // arrive before the caller's await resumes. The child owns inherited handles.
+  const state=child.mouseHelperState={error:null,exit:null};
+  child.once('error',error=>{state.error=error;});child.once('exit',(code,signal)=>{state.exit={code,signal};});return child;
+ }finally{await out.close();await err?.close();}
+}
+async function helperFailure(plan,child){
+ const state=child?.mouseHelperState;if(state?.error)return state.error;
+ const exited=state?.exit||(child&&child.exitCode!=null?{code:child.exitCode,signal:child.signalCode}:null);
+ if(!exited)return null;
+ // conhost does not forward the hosted PowerShell's exit code. Every exit
+ // before readiness is a failure, including zero; the file is the handshake.
+ let detail='';for(const file of [plan.result,plan.helperErr]){const stat=await fs.stat(file).catch(()=>null);if(stat?.isFile()&&stat.size>0&&stat.size<=65536){detail=(await fs.readFile(file,'utf8')).trim().slice(0,2000);if(detail)break;}}
+ return Error('Помощник установки Windows завершился до подтверждения (код '+String(exited.code)+')'+(detail?': '+detail:''));
+}
 function windowsPackage(candidate){
  if(!candidate||!/^\d+\.\d+\.\d+$/.test(candidate.version)||candidate.name!==`Mouse-Browser-${candidate.version}-Windows-x64.exe`||!/^[a-f0-9]{64}$/.test(candidate.hash)||!Number.isSafeInteger(candidate.size)||candidate.size<=0||candidate.size>512*1024*1024)throw Error('Неверный установщик Windows x64');
  const expected=`https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v${candidate.version}-x64/${candidate.name}`;
@@ -135,20 +176,22 @@ class WindowsInstaller{
   const stat=await fs.lstat(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==c.size||await require('./mouse-update.cjs').fileHash(file)!==c.hash)throw Error('Скачанный установщик изменился');
   const handle=await fs.open(file,'r');try{const magic=Buffer.alloc(2);await handle.read(magic,0,2,0);if(magic.toString('ascii')!=='MZ')throw Error('Файл не является установщиком Windows');}finally{await handle.close();}
   const stage=await fs.mkdtemp(path.join(this.app.getPath('temp'),'mouse-update-install-'));
-  this.plan={platform:'win32',version:c.version,file,hash:c.hash,size:c.size,target,executable:this.executable,pid:process.pid,stage,ready:path.join(stage,'helper.ready'),cancel:path.join(stage,'cancel'),result:path.join(stage,'result.log'),receipt:path.join(this.app.getPath('userData'),'mouse-windows-update-receipt.json')};
+  this.plan={platform:'win32',version:c.version,file,hash:c.hash,size:c.size,target,executable:this.executable,pid:process.pid,stage,ready:path.join(stage,'helper.ready'),cancel:path.join(stage,'cancel'),result:path.join(stage,'result.log'),helperOut:path.join(stage,'helper.stdout.log'),helperErr:path.join(stage,'helper.stderr.log'),helperTrace:path.join(stage,'helper.trace.log'),receipt:path.join(this.app.getPath('userData'),'mouse-windows-update-receipt.json')};
   await fs.writeFile(path.join(stage,'plan.json'),JSON.stringify(this.plan),{mode:0o600,flag:'wx'});return this.plan;
  }
  async install(){
   const p=this.plan;if(!p)throw Error('Обновление не подготовлено');
   await fs.writeFile(p.receipt,JSON.stringify({platform:'win32',version:p.version,target:p.executable,stage:p.stage}),{mode:0o600});
-  const powershell=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
-  this.child=this.spawn(powershell,['-NoLogo','-NoProfile','-NonInteractive','-Command',WINDOWS_HELPER],{detached:true,windowsHide:true,stdio:'ignore',env:{...process.env,MOUSE_INSTALL_PLAN:path.join(p.stage,'plan.json')}});
-  let failure;this.child.once('error',error=>{failure=error;});this.child.once('exit',code=>{if(code!==0)failure=Error('Не удалось запустить установку Windows');});
   try{
+   this.child=await startWindowsHelper(p,{spawn:this.spawn});
    const deadline=Date.now()+15000;
-   while(!await fs.stat(p.ready).then(s=>s.isFile()).catch(()=>false)){if(failure)throw failure;if(Date.now()>deadline)throw Error('Помощник установки Windows не ответил');await new Promise(resolve=>setTimeout(resolve,50));}
+   for(;;){
+    const failure=await helperFailure(p,this.child);if(failure)throw failure;
+    if(await fs.readFile(p.ready,'utf8').then(value=>value==='ready').catch(()=>false))break;
+    if(Date.now()>deadline)throw Error('Помощник установки Windows не ответил');await new Promise(resolve=>setTimeout(resolve,50));
+   }
    this.child.unref();await this.quit();
-  }catch(error){await fs.writeFile(p.cancel,'cancel',{mode:0o600}).catch(()=>{});try{this.child.kill?.();}catch{}throw error;}
+  }catch(error){await fs.writeFile(p.cancel,'cancel',{mode:0o600}).catch(()=>{});try{this.child?.kill?.();}catch{}throw error;}
  }
 }
 async function acknowledgeWindows(app,executable=process.execPath){
@@ -159,4 +202,4 @@ async function acknowledgeWindows(app,executable=process.execPath){
  const stat=await fs.lstat(r.stage).catch(()=>null);if(!stat?.isDirectory()||stat.isSymbolicLink())return;
  await fs.writeFile(path.join(r.stage,'READY'),app.getVersion(),{mode:0o600});await fs.unlink(receipt);
 }
-module.exports={MacInstaller,WindowsInstaller,acknowledge,acknowledgeWindows,ordinaryWindowsDirectory,allowedTarget,bundlePath,HELPER,WINDOWS_HELPER,windowsPackage};
+module.exports={MacInstaller,WindowsInstaller,acknowledge,acknowledgeWindows,ordinaryWindowsDirectory,allowedTarget,bundlePath,HELPER,WINDOWS_HELPER,windowsPackage,startWindowsHelper};

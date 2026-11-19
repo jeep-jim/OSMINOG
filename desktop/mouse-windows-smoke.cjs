@@ -240,7 +240,25 @@ module.exports=async ctx=>{
   await click('#update-install');
   // The app must leave through its real exit controller. Do not fake completion
   // or call app.exit here; the outer driver checks new-process READY and HWND.
-  await new Promise((_,reject)=>setTimeout(()=>reject(Error('Update did not close the original app')),60000));
+  const deadline=Date.now()+60000;
+  while(Date.now()<deadline){if(updates.state.phase==='error')throw Error('Actual Windows updater failed: '+updates.state.error);await sleep(50);}
+  throw Error('Update did not close the original app');
+ }
+ async function updateDiagnostics(){
+  const installer=ctx.updates?.installer,plan=installer?.plan,child=installer?.child;
+  const evidence={state:ctx.updates?.state,stage:plan?.stage,child:child?{pid:child.pid,exitCode:child.exitCode,signalCode:child.signalCode,killed:child.killed}:null,files:{}};
+  if(plan?.stage){
+   const names=new Set(['plan.json','result.log','helper.ready','cancel','READY']);
+   for(const entry of await fs.readdir(plan.stage,{withFileTypes:true}))if(entry.isFile()&&/^[\w.-]+\.log$/.test(entry.name)&&names.size<16)names.add(entry.name);
+   for(const name of names){
+    let handle;try{
+     const file=path.join(plan.stage,name),stat=await fs.lstat(file);if(!stat.isFile()||stat.isSymbolicLink()){evidence.files[name]={regular:false};continue;}
+     handle=await fs.open(file,'r');const buffer=Buffer.alloc(65536),{bytesRead}=await handle.read(buffer,0,buffer.length,0);
+     evidence.files[name]={bytes:stat.size,truncated:stat.size>bytesRead,text:buffer.subarray(0,bytesRead).toString('utf8')};
+    }catch(error){evidence.files[name]={error:error.code||error.message};}finally{await handle?.close();}
+   }
+  }
+  facts.updateHelper=evidence;await fs.writeFile('mouse-windows-update-helper.json',JSON.stringify(evidence,null,2)+'\n');
  }
  try{
   assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.29');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
@@ -262,7 +280,9 @@ module.exports=async ctx=>{
   server?.closeAllConnections?.();server?.close();console.log('MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED');await click('[data-window="quit"]');
   await new Promise((_,reject)=>setTimeout(()=>reject(Error('Native Windows close button did not terminate the application')),30000));
  }catch(error){
-  facts.ok=false;facts.error={step:currentStep,message:error.message,stack:error.stack};console.error(error);await save().catch(()=>{});
+  facts.ok=false;facts.error={step:currentStep,message:error.message,stack:error.stack};console.error(error);
+  if(updateMode)await require('./mouse-lifecycle.cjs').bounded(updateDiagnostics(),3000,'Windows updater diagnostics').catch(error=>{facts.updateDiagnosticError=error.message;});
+  await save().catch(()=>{});
   await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),3000,'Windows failure screenshot').then(image=>fs.writeFile('mouse-windows-failure.png',image.toPNG())).catch(()=>{});
   await require('./mouse-lifecycle.cjs').bounded(globalCapture.acquire(screen.getDisplayMatching(win.getBounds())),5000,'Windows failure display screenshot').then(frame=>{const png=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64');return fs.writeFile('mouse-windows-failure-display.png',png);}).catch(()=>{});
   clearTimeout(watchdog);server?.closeAllConnections?.();server?.close();exit(1);
