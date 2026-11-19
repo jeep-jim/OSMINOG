@@ -25,14 +25,25 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
   };
   target.session.prependListener('will-download',setup);target.session.on('will-download',observe);attaches.push(()=>{target.session.removeListener('will-download',setup);target.session.removeListener('will-download',observe);});
  }
- const ui=async id=>js(`(()=>{const rect=e=>{if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}},node=[...document.querySelectorAll('.mouse-progress-pill')].find(e=>e.dataset.progressId===${JSON.stringify('download:')}+${JSON.stringify(id)}),pane=node?.closest('.pane'),button=document.querySelector('#downloads-button'),meter=node?.querySelector('[role=progressbar]');return{viewport:{width:innerWidth,height:innerHeight},footer:{state:button.dataset.downloadState,count:Number(button.dataset.downloadCount),bounds:rect(button)},pill:node?{bounds:rect(node),hidden:node.hidden,ariaNow:meter?.getAttribute('aria-valuenow'),value:node.querySelector('.mouse-progress-value').textContent,state:node.dataset.phase,tabId:node.dataset.tabId}:null,head:rect(pane?.querySelector('.pane-head')),slot:rect(pane?.querySelector('.page-slot'))};})()`);
+ const rendererSample=async id=>js(`(()=>{const input=MouseTest.downloadUI.snapshot(),activity=input.items.find(item=>item.id===${JSON.stringify(id)}),task=MouseTest.downloadUI.tasks().find(item=>item.taskId===${JSON.stringify(id)}),rect=e=>{if(!e)return null;const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}},node=[...document.querySelectorAll('.mouse-progress-pill')].find(e=>e.dataset.progressId===${JSON.stringify('download:')}+${JSON.stringify(id)}),pane=node?.closest('.pane'),button=document.querySelector('#downloads-button'),meter=node?.querySelector('[role=progressbar]');return{activity,task,ui:{viewport:{width:innerWidth,height:innerHeight},footer:{state:button.dataset.downloadState,count:Number(button.dataset.downloadCount),bounds:rect(button)},pill:node?{bounds:rect(node),hidden:node.hidden,ariaNow:meter?.getAttribute('aria-valuenow'),value:node.querySelector('.mouse-progress-value').textContent,state:node.dataset.phase,tabId:node.dataset.tabId}:null,head:rect(pane?.querySelector('.pane-head')),slot:rect(pane?.querySelector('.page-slot'))}};})()`);
  async function sample(name,id,state,service=libraryService,target=browser){
-  await until(async()=>{await js('MouseTest.downloadUI.refresh()');return(await js('MouseTest.downloadUI.tasks()')).some(task=>task.taskId===id&&task.downloadState===state);},name+' '+state+' renderer');
-  // Read the native IPC input and the task derived from that same revision in
-  // one renderer turn; a live network transfer can advance between IPC calls.
-  const {activity,task}=await js(`(()=>{const input=MouseTest.downloadUI.snapshot();return{activity:input.items.find(item=>item.id===${JSON.stringify(id)}),task:MouseTest.downloadUI.tasks().find(item=>item.taskId===${JSON.stringify(id)})}})()`),view=await ui(id),page=target.tabs.get(activity.tabId),native={tabId:activity.tabId,bounds:page?.bounds};
+  // Input, derived task and painted DOM are one renderer observation. Wait for
+  // the actual native layout to acknowledge that observation before retaining it.
+  let retained;
+  await until(async()=>{
+   await js('MouseTest.downloadUI.refresh()');const next=await rendererSample(id);if(!next.activity||!next.task||next.task.downloadState!==state)return false;
+   const page=target.tabs.get(next.activity.tabId),native={tabId:next.activity.tabId,bounds:page?.bounds?{...page.bounds}:null};
+   if(next.task.phase==='running'){
+    const slot=next.ui.slot,pill=next.ui.pill;if(!page?.visible||!slot||!pill||pill.hidden||pill.bounds.width<=0||pill.bounds.height<=0||!native.bounds)return false;
+    const expected={x:Math.round(slot.x),y:Math.round(slot.y),width:target.mouseRoundedPanes?Math.round(slot.x+slot.width)-Math.round(slot.x):Math.round(slot.width),height:target.mouseRoundedPanes?Math.round(slot.y+slot.height)-Math.round(slot.y):Math.round(slot.height)};
+    if(!['x','y','width','height'].every(key=>native.bounds[key]===expected[key]))return false;
+   }
+   retained={...next,native};return true;
+  },name+' '+state+' renderer and native bounds');
+  const {activity,task,ui:view,native}=retained;
   assert.ok(activity);assert.ok(task);assert.equal(task.privateMode,target.privateMode===true);assert.equal(task.tabId,activity.tabId);assert.equal(task.desk,activity.desk);
   const expected=state==='completed'?100:activity.total>0?Math.min(100,activity.received/activity.total*100):null;assert.equal(task.percent,expected);
+  if(view.pill)assert.equal(view.pill.ariaNow,expected===null?null:String(expected));
   const event={case:name,state,at:Date.now(),activity,task,ui:view,native};facts.downloads.events.push(event);return event;
  }
  async function start(name,page,service=libraryService){const before=new Set(service.library.data.downloads.map(row=>row.id));page.view.webContents.downloadURL(root+'/download/'+name);let row;await until(()=>{row=service.library.data.downloads.find(item=>!before.has(item.id)&&item.url===root+'/download/'+name);return row;},name+' native DownloadItem');return row;}
@@ -49,9 +60,9 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
   let normalPage;await until(()=>{normalPage=[...browser.tabs.values()].find(page=>page.url===root+'/fixture'&&!page.loading);return normalPage?.visible;},'normal owner page');
   const first=await start('known',normalPage);await until(()=>first.received>0&&first.state==='progressing','actual known bytes');
   await js(`MouseNative.library('download',{id:${JSON.stringify(first.id)},action:'pause'})`);await sample('known',first.id,'paused');await js(`MouseNative.library('download',{id:${JSON.stringify(first.id)},action:'resume'})`);
+  await until(()=>first.received===262144&&first.state==='progressing','known transfer reaches its real HTTP hold before screenshots');
   for(const theme of ['light','dark']){
-   await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);const event=await sample('known',first.id,'downloading');await frame();const visible=await ui(first.id);assert.ok(visible.pill&&!visible.pill.hidden);assert.ok(visible.head&&visible.slot);assert.ok(visible.pill.bounds.y>=visible.head.y+visible.head.height-1);assert.ok(visible.slot.y>=visible.pill.bounds.y+visible.pill.bounds.height-1);
-   await until(()=>normalPage.bounds.y>=visible.pill.bounds.y+visible.pill.bounds.height-1,'native page below pill');event.ui=visible;event.native.bounds=normalPage.bounds;
+   await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await frame();const event=await sample('known',first.id,'downloading'),visible=event.ui;assert.ok(visible.pill&&!visible.pill.hidden);assert.ok(visible.head&&visible.slot);assert.ok(visible.pill.bounds.y>=visible.head.y+visible.head.height-1);assert.ok(visible.slot.y>=visible.pill.bounds.y+visible.pill.bounds.height-1);
    facts.downloads.screenshots.push({...await picture('mouse-629-download-'+theme+'.png'),theme,case:'known',ui:visible,native:event.native});
   }
   finishKnown=true;await until(()=>first.state==='completed','known download done');await sample('known',first.id,'completed');const downloaded=await fs.readFile(first.path);assert.ok(downloaded.equals(known));facts.downloads.files.push({case:'known',bytes:downloaded.length,sha256:sha(downloaded),expectedBytes:known.length,expectedSha256:sha(known)});

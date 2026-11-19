@@ -4,6 +4,12 @@
 const {ipcRenderer,contextBridge}=require('electron');
 if(process.isMainFrame){
  contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress:(percent,statusText,options={})=>ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId})}));
+ // Trusted native wheel input is handled in this isolated world, including in
+ // ephemeral private sessions. No desktop control API is exposed to a webpage.
+ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)){
+  let wheel=null;const start=()=>{if(!wheel)wheel=MouseDesktopWheel.listen({window,scope:()=> 'page',send:value=>ipcRenderer.send('mouse:desktop-wheel',value)});};
+  start();window.addEventListener('pageshow',start);window.addEventListener('pagehide',()=>{wheel?.dispose();wheel=null;});
+ }
  // The activity observer is lexical to this isolated preload. Only its small
  // presentation packet reaches main; it is not a page-callable browser API.
  if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&!process.argv?.includes('--mouse-private-page')){

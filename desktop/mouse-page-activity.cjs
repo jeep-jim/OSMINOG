@@ -118,6 +118,7 @@ function createPageActivityTools(){
 }
 
 function bundlePagePreload(source){
- return "'use strict';\nconst MousePageActivity=("+createPageActivityTools.toString()+")();\n"+source;
+ const wheel=require('./mouse/desktop-wheel.js').createMouseDesktopWheelTools;
+ return "'use strict';\nconst MousePageActivity=("+createPageActivityTools.toString()+")();\nconst MouseDesktopWheel=("+wheel.toString()+")();\n"+source;
 }
 module.exports={createPageActivityTools,bundlePagePreload};

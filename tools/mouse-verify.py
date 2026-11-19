@@ -54,7 +54,10 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
  return result,output
 for mode,marker in [('--mouse-smoke-write','MOUSE_REAL_HORIZONTAL_VERTICAL_DRAG_PASS'),('--mouse-smoke-read','MOUSE_PROFILE_COOKIE_RESTART_PASS')]:
  env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'persistent')}
- result,output=run_logged([str(exe),mode,'--mouse-init-race'],env,pathlib.Path(mode.lstrip('-')+'.log'),480)
+ # The accepted 6.0.28 write suite took 413850 ms. Three new native suites
+ # add download/capture, foreground and wheel interactions; retain all existing
+ # per-scenario/frame/exit limits and bound the expanded whole write process.
+ result,output=run_logged([str(exe),mode,'--mouse-init-race'],env,pathlib.Path(mode.lstrip('-')+'.log'),600 if mode=='--mouse-smoke-write' else 480)
  if result.returncode or marker not in output or 'MOUSE_ARM64_SMOKE_PASS' not in output:raise SystemExit('Packaged verification failed: '+mode)
 env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'ordinary')}
 with open('mouse-normal-launch.log','w') as log:

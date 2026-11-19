@@ -115,9 +115,9 @@ test('page, AI and Agent pills occupy the slot immediately after their own heade
 });
 test('the native layout starts below the header pill and keeps the pane bottom corners',async()=>{
  const slot={x:8,y:104,width:420,height:360},calls=[],pane={dataset:{pane:'p1'},style:{getPropertyValue:()=> '12'},classList:{contains:name=>name==='has-pane-progress'},querySelector:()=>({getBoundingClientRect:()=>({...slot})})};
- const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:()=> '#111'}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
  const layout=source('browser.js').match(/async function layoutNow\(\)\{[^\n]+\}/)?.[0];assert.ok(layout);await vm.runInNewContext(layout+'\nlayoutNow()',context);
- assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'layout',args:{panels:[{id:'page',...slot,roundBottom:12,roundColor:'#111'}]}}]);
+ assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'layout',args:{panels:[{id:'page',...slot,roundBottom:12,roundColor:'#43536b'}]}}]);
 });
 test('native download feedback shares the header pill without stealing a manual task selection',async()=>{
  let downloads=[];const dismissed=[],opened=[],f=fixture({extraTasks:()=>downloads,onDismissTask:task=>{dismissed.push(task.id);downloads=downloads.filter(value=>value.id!==task.id);},openDownloads:task=>opened.push(task.id)});await f.ready();f.emit({tasks:[renderTask()]});await f.flush();
