@@ -1,6 +1,6 @@
 # МАУС · Mouse Browser
 
-Домен проекта: **mouse.black**. Текущий опубликованный Mac-выпуск: **6.0.29**. Для **6.0.30** продолжается полная приёмка: [source-прогон c436](https://github.com/jeep-jim/OSMINOG/actions/runs/44538212380) прошёл все 8 CI, full630 и 17 маркеров, но неизменённый trace-критерий отклонил снимок готовности darkClosing. Подготовлен фиксированный диагностический протокол с сохранением исходного Promise-снимка и двух реальных кадров; следующая нативная приёмка ещё впереди. Полный статус и доказательства — в [журнале 6.0.30](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
+Домен проекта: **mouse.black**. Текущий опубликованный Mac-выпуск: **6.0.29**. Для **6.0.30** продолжается полная приёмка: [source5240](https://github.com/jeep-jim/OSMINOG/actions/runs/44544019190) остановился в ранней подготовке History до проверки motion. Добавлено пассивное ожидание окончания адресного перехода в существующем бюджете; прежние source/publisher отказы сохранены. Новый полный native/trace результат и публикация ещё ожидаются. Полный статус и доказательства — в [журнале6.0.30](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
 
 ## 16 ноября 2026 — 6.0.14, выполнено и опубликовано
 
@@ -555,3 +555,11 @@ PASS. Доступность отмечена на попытке 47 после 
 PR174 head `c436b9b958ea257d980ef163c5fd8faf9bf4fb9f`, [Mac run 44538212380](https://github.com/jeep-jim/OSMINOG/actions/runs/44538212380), attempt 1 / job 135609215774: все 8 CI и native 17–20 успешны; независимые full630,17/17 маркеров и оба архива подтверждены. Замороженный 628 trace дал **REJECT**: в darkClosing обе реальные анимации имеют currentTime=300.003000000018 при неизменённом пределе 300. Прежний raw сохранён; эти пакеты не приняты к публикации.
 
 Подготовлен только диагностический протокол: точный Promise-resolved snapshot, первый RAF, второй фиксированный RAF; без подбора значений, округления, изменения 300 мс или критериев. Нормальная анимация и завершение интерфейса не ждут диагностические кадры; проверяется поколение и оба проигрывателя. Локальные результаты и пределы наблюдения — в [журнале 6.0.30](docs/desktop/2026-11-19-mouse630-complete-feedback.md). Статус **SOURCE_RECHECK_PENDING**; новый полный native/trace результат ещё не получен, merge/pin/publisher по c436 не выполняются.
+
+## 19 ноября 2026 — 6.0.30: 5240 остановился до motion; уточняется submission barrier
+
+[Source44544019190](https://github.com/jeep-jim/OSMINOG/actions/runs/44544019190), exact5240/attempt1/job135629620237: buildPASS, nativeFAIL при подготовке History. Адресный click и одиночные Down/Return прошли; History click не отправлялся. Raw показывает стабильный готовый hit target, но потерю shell/document focus. Закрытие подсказок синхронно, а завершение navigate и естественный blur асинхронны; прежний fixture вторую часть не ожидал. Внутренний механизм focus transfer по этим архивам не установлен.
+
+Verification14539548056 проверен по происхождению, SHA/размеру/CRC и всем байтам: acquisitionPASS, overallREJECT,0/17markers, без628trace/candidate. Motion-протокол5240 этим прогоном не проверен. Отдельный generic Mac candidate44544018980 упал до тестов на HTTP500 загрузки Electron; остальные6 workflows прошли.
+
+Добавлен узкий пассивный navigation receipt до History: новый main-frame start→finish после единственного Return, сохранённая identity/advanced epoch и естественный blur исходного input в остатке прежних12000ms. Нет повторных inputs, refocus внутри barrier, изменения продукта или ослабления frozen gates. Локально22/22 focused tests PASS,17 прежних test bodies сохранены; syntax/diff-check PASS. Точные SHA и ограничения — в [журнале630](docs/desktop/2026-11-19-mouse630-complete-feedback.md). Статус **SOURCE_RECHECK_PENDING / PUBLICATION_PENDING**; ни merge, ни новый release pin по5240 не выполняются.

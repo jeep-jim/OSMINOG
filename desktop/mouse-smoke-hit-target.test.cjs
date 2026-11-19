@@ -47,7 +47,7 @@ test('the exact serialized browser helper has no Node or lexical dependencies',(
  const browserFunction=vm.runInNewContext('('+nativeHitTarget.toString()+')'),f=fixture([rect(20,20,140,16),rect(20,42,60,16)]),point=browserFunction(f.element);assert.equal(point.ready,true);assert.equal(f.document.elementFromPoint(point.x,point.y),f.element);
 });
 
-const {basicsInputBudget,basicsInputProblems,waitBasicsInput,prepareBasicsClick,resetBasicsAddressHints,freshBasicsSuggestions,installBasicsInputObserver}=require('./mouse-basics-smoke.cjs');
+const {basicsInputBudget,basicsInputProblems,waitBasicsInput,prepareBasicsClick,resetBasicsAddressHints,freshBasicsSuggestions,observeBasicsNavigation,waitBasicsNavigation,installBasicsInputObserver}=require('./mouse-basics-smoke.cjs');
 function basicsSnapshot(){return{
  native:{destroyed:false,contentsMatches:true,browserMatchesWindow:true,contentsFocused:true,loading:false,window:{visible:true,focused:true,minimized:false,contentBounds:{x:8,y:33,width:1008,height:668}},panels:[]},
  dom:{timeOrigin:123,focused:true,readyState:'complete',visibilityState:'visible',target:{token:1,connected:true,active:true,queryMatches:true,expanded:true,bounds:{x:200,y:40,width:150,height:28}},point:{ready:true,x:275,y:54},popup:{open:true,generation:2,rows:[3],selected:[]}}
@@ -108,4 +108,50 @@ test('the serialized basics observer distinguishes fresh suggestion rows and rec
  const event={type:'keydown',key:'ArrowDown',isTrusted:true,defaultPrevented:false,target:f.element};listeners.get('keydown:true')(event);newRow.selected=true;event.defaultPrevented=true;listeners.get('keydown:false')(event);
  const observed=api.snapshot('.pane.active input');assert.equal(observed.events.length,2);assert.equal(observed.events[0].isTrusted,true);assert.equal(observed.events[0].target.token,observed.target.token);assert.equal(observed.events[0].active.token,observed.target.token);assert.equal(observed.events[0].defaultPrevented,false);assert.equal(observed.events[1].defaultPrevented,true);assert.equal(observed.events[1].selected.length,1);assert.equal(f.document.activeElement,f.element);assert.equal(f.element.value,'visited-alpha');
  api.stop();assert.equal(disconnected,true);assert.equal(listeners.size,0);assert.equal(context.__mouse630BasicsInput,undefined);assert.ok(observer);
+});
+
+function navigationFixture(){
+ const {EventEmitter}=require('node:events'),contents=new EventEmitter(),expectedURL='http://127.0.0.1/visited-alpha',report={},timers=new Map();let time=0,serial=0,input;
+ const budget=basicsInputBudget({now:()=>time,setTimer:(fn,delay)=>{const id=++serial;timers.set(id,{fn,delay,at:time+delay});return id;},clearTimer:id=>timers.delete(id)});
+ const native={id:'page-a',webContentsId:9,project:'mouse',pageMatches:true,contentsMatches:true,contextMatches:true,destroyed:false,epoch:1,url:expectedURL,loading:false,error:''},sample=basicsSnapshot();
+ sample.native.webContentsId=1;sample.native.contentsFocused=false;sample.dom.focused=false;sample.dom.target.active=false;sample.dom.popup.open=false;sample.dom.context={desktopId:'desk-a',pane:'p3',pageId:native.id};
+ const pin={shellWebContentsId:1,timeOrigin:sample.dom.timeOrigin,targetToken:sample.dom.target.token,...sample.dom.context};
+ const observer=observeBasicsNavigation({contents,readNative:()=>({...native}),input:()=>input,expectedURL,report,now:()=>time});
+ const send=()=>{input={at:++time,type:'keyDown',keyCode:'Return'};return input;};
+ const start=()=>{time++;native.epoch++;native.loading=true;contents.emit('did-start-navigation',{},expectedURL,false,true);};
+ const finish=()=>{time++;native.loading=false;contents.emit('did-finish-load');};
+ const wait=(read=async()=>structuredClone(sample))=>waitBasicsNavigation({budget,observer,report,read,pin});
+ const nextPoll=async()=>{await basicsMicrotasksUntil(()=>[...timers.values()].some(t=>t.delay===25));const[id,t]=[...timers].find(([,t])=>t.delay===25);timers.delete(id);time=t.at;t.fn();};
+ const expire=()=>{time=budget.deadlineAt+1;const pending=[...timers.values()];timers.clear();for(const t of pending)t.fn();};
+ const stopped=()=>{for(const name of ['did-start-navigation','did-finish-load','did-fail-load'])assert.equal(contents.listenerCount(name),0,name+' listener removed');};
+ return{contents,native,sample,pin,report,budget,observer,expectedURL,send,start,finish,wait,nextPoll,expire,stopped};
+}
+test('basics submission requires a new full main-frame receipt after Return even when the same URL is already loaded',async()=>{
+ const f=navigationFixture();f.start();f.finish();assert.equal(f.report.start,undefined,'a completed pre-Return load is only diagnostic');
+ const input=f.send();f.contents.emit('did-finish-load');f.contents.emit('did-start-navigation',{},f.expectedURL,true,true);f.contents.emit('did-start-navigation',{},f.expectedURL,false,false);
+ const pending=f.wait();await basicsMicrotasksUntil(()=>f.report.samples===1);assert.deepEqual(f.report.waitingFor,['new main-frame navigation receipt']);assert.equal(f.report.ready,undefined);
+ f.start();f.finish();await f.nextPoll();const ready=await pending;
+ assert.equal(ready.page.url,f.report.pageBefore.url,'URL equality itself did not admit the old page');assert.ok(f.report.start.at>=input.at);assert.ok(f.report.start.native.epoch>f.report.pageBefore.epoch);assert.equal(f.report.finish.native.epoch,f.report.start.native.epoch);assert.ok(f.report.finish.at>=f.report.start.at);assert.deepEqual(f.report.input,input);assert.equal(f.report.receipts.length,7);f.stopped();
+ for(const wrongURL of [false,true]){const stale=navigationFixture();stale.send();if(wrongURL)stale.native.epoch++;stale.contents.emit('did-start-navigation',{},wrongURL?stale.expectedURL+'/unexpected':stale.expectedURL,false,true);stale.finish();await assert.rejects(stale.wait(),/unexpected main-frame navigation/);assert.equal(stale.report.ready,undefined);stale.stopped();}
+});
+test('basics waits for natural address blur after the actual load without repairing shell focus',async()=>{
+ const f=navigationFixture();f.sample.dom.target.active=true;f.send();f.start();f.finish();let historyPrepared=false;
+ const pending=f.wait().then(value=>{historyPrepared=true;return value;});await basicsMicrotasksUntil(()=>f.report.samples===1);
+ assert.deepEqual(f.report.waitingFor,['natural address blur']);assert.equal(historyPrepared,false);assert.equal(f.sample.native.contentsFocused,false);assert.equal(f.sample.dom.focused,false);
+ f.sample.dom.target.active=false;await f.nextPoll();const ready=await pending;
+ assert.equal(historyPrepared,true);assert.equal(ready.native.contentsFocused,false);assert.equal(ready.dom.focused,false);assert.equal(ready.dom.target.active,false);f.stopped();
+});
+test('basics submission rejects changed page, WebContents, input, document, context or completed epoch and removes listeners',async()=>{
+ const changes=[f=>{f.native.pageMatches=false;},f=>{f.native.contentsMatches=false;},f=>{f.sample.native.webContentsId=2;},f=>{f.sample.dom.target.token=99;},f=>{f.sample.dom.timeOrigin++;},f=>{f.sample.dom.context.desktopId='other';},f=>{f.sample.dom.context.pageId='other';},f=>{f.sample.dom.target.connected=false;},f=>{f.native.epoch++;}];
+ for(const change of changes){const f=navigationFixture();f.send();f.start();f.finish();change(f);await assert.rejects(f.wait(),/submission (identity|navigation epoch) changed/);assert.equal(f.report.ready,undefined);assert.ok(f.report.failure);f.stopped();}
+});
+test('basics retains a real main-frame load failure and never substitutes a successful old page',async()=>{
+ const f=navigationFixture();f.send();f.start();f.native.loading=false;f.native.error='ERR_NAME_NOT_RESOLVED';f.contents.emit('did-fail-load',{},-105,f.native.error,f.expectedURL,true);
+ await assert.rejects(f.wait(),/submission failed: main-frame load failed/);assert.equal(f.report.navigationFailure.receipt.event,'did-fail-load');assert.equal(f.report.navigationFailure.receipt.code,-105);assert.equal(f.report.finish,undefined);assert.equal(f.report.ready,undefined);f.stopped();
+});
+test('a submission deadline removes native listeners and late native or renderer callbacks cannot replace its failure',async()=>{
+ const f=navigationFixture();f.send();f.start();f.finish();const lateStart=f.contents.listeners('did-start-navigation')[0];let reply;
+ const pending=f.wait(()=>new Promise(resolve=>{reply=resolve;}));await basicsMicrotasksUntil(()=>typeof reply==='function');f.expire();await assert.rejects(pending,/readiness timeout: address submission completed/);f.stopped();
+ const failure={...f.report.failure},count=f.report.receiptCount;lateStart({},f.expectedURL,false,true);reply(structuredClone(f.sample));for(let i=0;i<20;i++)await Promise.resolve();
+ assert.deepEqual(f.report.failure,failure);assert.equal(f.report.receiptCount,count);assert.equal(f.report.last,undefined);assert.equal(f.report.ready,undefined);assert.equal(f.sample.native.contentsFocused,false);assert.equal(f.sample.dom.focused,false);
 });

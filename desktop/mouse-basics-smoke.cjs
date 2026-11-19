@@ -51,6 +51,46 @@ function freshBasicsSuggestions(snapshot,initial){
  const {dom}=snapshot;
  return dom.target.queryMatches&&dom.target.expanded&&dom.popup.open&&dom.popup.generation>initial.generation&&dom.popup.rows.length>0&&dom.popup.rows.every(id=>!initial.rows.includes(id));
 }
+function observeBasicsNavigation({contents,readNative,input,expectedURL,report,now=()=>performance.now()}){
+ let stopped=false;const listeners=[],before=readNative();
+ Object.assign(report,{pageBefore:before,expectedURL,receipts:[],receiptCount:0,truncatedReceipts:0});
+ const identity=s=>!s.destroyed&&s.pageMatches&&s.contentsMatches&&s.contextMatches&&s.id===before.id&&s.webContentsId===before.webContentsId&&s.project===before.project;
+ const sent=()=>{const event=input();if(event?.type==='keyDown'&&event.keyCode==='Return'&&Number.isFinite(event.at)){report.input={...event};return event;}return null;};
+ function receive(event,detail={}){
+  if(stopped)return;
+  const at=now(),native=readNative(),row={event,at,...detail,native};report.receiptCount++;if(report.receipts.length<32)report.receipts.push(row);else report.truncatedReceipts++;
+  const marker=sent();if(!marker||at<marker.at)return;
+  if(!identity(native)){report.navigationFailure={reason:'navigation identity changed',receipt:row};return;}
+  if(event==='did-start-navigation'&&detail.mainFrame&&!detail.inPlace){
+   if(detail.url!==expectedURL||native.epoch<=before.epoch||report.start){report.navigationFailure={reason:'unexpected main-frame navigation',receipt:row};return;}
+   report.start=row;
+  }else if(event==='did-finish-load'&&report.start&&at>=report.start.at&&native.epoch===report.start.native.epoch){report.finish=row;}
+  else if(event==='did-fail-load'&&detail.mainFrame&&report.start&&native.epoch===report.start.native.epoch){report.navigationFailure={reason:'main-frame load failed',receipt:row};}
+ }
+ const on=(name,fn)=>{contents.on(name,fn);listeners.push([name,fn]);};
+ on('did-start-navigation',(_e,url,inPlace,mainFrame)=>receive('did-start-navigation',{url,inPlace:!!inPlace,mainFrame:!!mainFrame}));
+ on('did-finish-load',()=>receive('did-finish-load'));
+ on('did-fail-load',(_e,code,description,url,mainFrame)=>receive('did-fail-load',{code,description,url,mainFrame:!!mainFrame}));
+ return{snapshot(){sent();return readNative();},identity,failure(error){if(report.failure)return;report.failure={at:now(),message:error.message};try{report.failure.page=readNative();sent();}catch(e){report.failure.snapshotError=String(e.message).slice(0,500);}},stop(){if(stopped)return;stopped=true;for(const[name,fn]of listeners)contents.removeListener(name,fn);report.stoppedAt=now();}};
+}
+async function waitBasicsNavigation({budget,observer,report,read,pin}){
+ try{
+  await budget.wait(async()=>{
+   const before=observer.snapshot();report.lastPageBeforeDOM=before;const value=await read();budget.check('address submission completed');const page=observer.snapshot();
+   const sample={...value,pageBefore:before,page};report.last=sample;report.samples=(report.samples||0)+1;const waiting=[];report.waitingFor=waiting;
+   if(!observer.identity(before)||!observer.identity(page)||value.native.destroyed||!value.native.contentsMatches||!value.native.browserMatchesWindow||value.native.webContentsId!==pin.shellWebContentsId||value.dom.timeOrigin!==pin.timeOrigin||value.dom.target.token!==pin.targetToken||!value.dom.target.connected||value.dom.context?.desktopId!==pin.desktopId||value.dom.context?.pane!==pin.pane||value.dom.context?.pageId!==pin.pageId)throw Error('Mouse630 basics submission identity changed');
+   if(report.navigationFailure)throw Error('Mouse630 basics submission failed: '+report.navigationFailure.reason);
+   if(page.error)throw Error('Mouse630 basics submission page failed: '+page.error);
+   if(!report.input||!report.start||!report.finish)waiting.push('new main-frame navigation receipt');
+   else if(page.epoch!==report.finish.native.epoch||before.epoch!==page.epoch)throw Error('Mouse630 basics submission navigation epoch changed');
+   if(before.url!==report.expectedURL||page.url!==report.expectedURL||before.loading||page.loading)waiting.push('completed expected page');
+   if(value.dom.target.active)waiting.push('natural address blur');
+   if(value.dom.popup.open)waiting.push('accepted suggestion closed');
+   return waiting.length===0;
+  },'address submission completed');
+  report.ready=report.last;return report.ready;
+ }catch(error){observer.failure(error);throw error;}finally{observer.stop();}
+}
 // Serialized into the shell. Only observe events/row identity; never focus,
 // click, choose a suggestion, or change the application's hint lifecycle.
 function installBasicsInputObserver(hitTarget){
@@ -65,8 +105,8 @@ function installBasicsInputObserver(hitTarget){
  function record(event,phase){drain();if(events.length>=256){truncated++;return;}events.push({at:performance.now(),type:event.type,phase,isTrusted:event.isTrusted,key:String(event.key||'').slice(0,32),defaultPrevented:event.defaultPrevented,target:describe(event.target),active:describe(document.activeElement),focused:document.hasFocus(),generation,selected:selected()});}
  for(const type of ['pointerdown','pointerup','click','focusin','focusout','input','keydown','keyup'])for(const capture of (type.startsWith('key')?[true,false]:[true])){const fn=e=>record(e,capture?'capture':'bubble');window.addEventListener(type,fn,capture);listeners.push([type,fn,capture]);}
  const api={snapshot(selector){
-  drain();const e=document.querySelector(selector),r=e?.getBoundingClientRect();if(selector==='.pane.active input'&&!address)address=e;
-  return{at:performance.now(),timeOrigin:performance.timeOrigin,readyState:document.readyState,visibilityState:document.visibilityState,focused:document.hasFocus(),active:describe(document.activeElement),target:{...describe(e),connected:!!e?.isConnected,active:e===document.activeElement,queryMatches:e?.value==='visited-alpha',expanded:e?.getAttribute('aria-expanded')==='true',bounds:r?{x:r.x,y:r.y,width:r.width,height:r.height}:null},point:hitTarget(e),popup:{open:pop.matches(':popover-open'),generation,rows:rows(),selected:selected()},events:[...events],renders:[...renders],truncated};
+  drain();const e=document.querySelector(selector),r=e?.getBoundingClientRect(),model=globalThis.MouseTest?.model,pane=e?.closest?.('.pane')?.dataset.pane||null;if(selector==='.pane.active input'&&!address)address=e;
+  return{at:performance.now(),timeOrigin:performance.timeOrigin,readyState:document.readyState,visibilityState:document.visibilityState,focused:document.hasFocus(),context:model?{desktopId:model.desktopId,pane,pageId:model.slots[pane]||null}:null,active:describe(document.activeElement),target:{...describe(e),connected:!!e?.isConnected,active:e===document.activeElement,queryMatches:e?.value==='visited-alpha',expanded:e?.getAttribute('aria-expanded')==='true',bounds:r?{x:r.x,y:r.y,width:r.width,height:r.height}:null},point:hitTarget(e),popup:{open:pop.matches(':popover-open'),generation,rows:rows(),selected:selected()},events:[...events],renders:[...renders],truncated};
  },stop(){observer.disconnect();for(const [type,fn,capture]of listeners)window.removeEventListener(type,fn,capture);delete globalThis[key];}};
  globalThis[key]=api;
 }
@@ -112,8 +152,19 @@ module.exports=async({app,win,browser,libraryService})=>{
   send({type:'keyDown',keyCode:'Down'});send({type:'keyUp',keyCode:'Down'});
   await until(()=>js('!!document.querySelector("#address-suggestions [aria-selected=true]")'),'keyboard suggestion selected');
   const returnBudget=basicsInputBudget(),returnReport=step('before Return',returnBudget);await waitBasicsInput({budget:returnBudget,report:returnReport,read:()=>read(selector,returnReport),label:'retained address focus before Return',pin,condition:s=>fresh(s)&&s.dom.popup.selected.length>0});
-  send({type:'keyDown',keyCode:'Return'});send({type:'keyUp',keyCode:'Return'});
-  await until(()=>js('!document.querySelector("#address-suggestions").matches(":popover-open")'),'suggestion accepted');
+  const context=returnReport.ready.dom.context,submissionPage=browser.tabs.get(context.pageId),pageContents=submissionPage?.view.webContents;assert.ok(pageContents&&!pageContents.isDestroyed(),'Return submits the pinned native page');
+  const project=browser.project,returnIndex=facts.inputs.length,navigation=facts.navigation={startedAt:returnBudget.startedAt,deadlineAt:returnBudget.deadlineAt,timeoutMs:returnBudget.timeoutMs,before:returnReport.ready,samples:0,pin:{shellWebContentsId:wc.id,timeOrigin:pin.timeOrigin,targetToken:pin.targetToken,...context}};
+  const pageState=()=>({id:submissionPage.id,webContentsId:pageContents.id,project:submissionPage.project,pageMatches:browser.tabs.get(submissionPage.id)===submissionPage,contentsMatches:submissionPage.view.webContents===pageContents,contextMatches:browser.project===project&&submissionPage.project===project,destroyed:pageContents.isDestroyed(),epoch:submissionPage.navigationEpoch||0,url:pageContents.isDestroyed()?'':pageContents.getURL(),loading:pageContents.isDestroyed()||pageContents.isLoadingMainFrame()||submissionPage.loading,error:submissionPage.error||''});
+  returnBudget.check('arm address navigation');const submission=observeBasicsNavigation({contents:pageContents,readNative:pageState,input:()=>facts.inputs[returnIndex],expectedURL:root+'/visited-alpha',report:navigation});
+  try{
+   returnBudget.check('submit address');
+   send({type:'keyDown',keyCode:'Return'});send({type:'keyUp',keyCode:'Return'});
+   await until(()=>js('!document.querySelector("#address-suggestions").matches(":popover-open")'),'suggestion accepted');
+   // choose() hides the popup before its async form submission completes.
+   // Observe the new real load and natural input blur before the next click
+   // prepares shell focus; never repair focus while submission is in flight.
+   await waitBasicsNavigation({budget:returnBudget,observer:submission,report:navigation,read:()=>read(selector,navigation),pin:navigation.pin});
+  }catch(error){submission.failure(error);throw error;}finally{submission.stop();}
   await click('#history-button');await until(()=>js('document.querySelector("#library-dialog").open'),'history UI');assert.ok(await js('document.querySelector("#library-rows").textContent.includes("visited-alpha")'));await click('#library-close');
   await until(()=>js('!document.querySelector("#library-dialog").open'),'history sidebar closed');
   await until(()=>[...browser.tabs.values()].some(t=>t.visible&&t.lane!=='side'&&!t.view.webContents.isDestroyed()),'native page restored after history close');
@@ -152,4 +203,4 @@ module.exports=async({app,win,browser,libraryService})=>{
   browser.session.removeListener('will-download',setPath);await new Promise(r=>server.close(r));
  }
 };
-Object.assign(module.exports,{basicsInputBudget,basicsInputProblems,waitBasicsInput,prepareBasicsClick,resetBasicsAddressHints,freshBasicsSuggestions,installBasicsInputObserver});
+Object.assign(module.exports,{basicsInputBudget,basicsInputProblems,waitBasicsInput,prepareBasicsClick,resetBasicsAddressHints,freshBasicsSuggestions,observeBasicsNavigation,waitBasicsNavigation,installBasicsInputObserver});
