@@ -45,6 +45,17 @@ async function staticShellReadback(contents){
  const image=await contents.capturePage(),scales=image.getScaleFactors?.()||[1];if(!scales.length||scales.some(n=>!Number.isFinite(n)||n<=0))throw Error('Invalid static shell readback scale');
  const scaleFactor=Math.max(...scales),png=image.toPNG({scaleFactor}),pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)};return{...nativeBitmap(image,pixelSize,scaleFactor),png};
 }
+function staticThemeProbe(scope=globalThis){
+ // The display compositor can shade the bottom footer with the Dock's shadow
+ // and clip its outer window corners. The existing new-tab button supplies an
+ // opaque --panel surface inside the top chrome, without adding test paint.
+ const selector='.toolbar>#new-tab',inset=4,e=scope.document.querySelector(selector);if(!e)throw Error('Static theme button is missing');
+ const style=scope.getComputedStyle(e),r=e.getBoundingClientRect(),elementBounds={x:r.x,y:r.y,width:r.width,height:r.height};
+ if(!Object.values(elementBounds).every(Number.isFinite)||r.width<=inset*2||r.height<=inset*2||r.x<0||r.y<0||r.x+r.width>scope.innerWidth||r.y+r.height>scope.innerHeight||style.display==='none'||style.visibility!=='visible'||Number(style.opacity)!==1||style.backgroundImage!=='none')throw Error('Static theme button must be visible opaque chrome inside the viewport');
+ const bounds={x:r.x+inset,y:r.y+inset,width:r.width-inset*2,height:r.height-inset*2},points=[[bounds.x+.5,bounds.y+.5],[bounds.x+bounds.width-.5,bounds.y+.5],[bounds.x+.5,bounds.y+bounds.height-.5],[bounds.x+bounds.width-.5,bounds.y+bounds.height-.5],[bounds.x+bounds.width/2,bounds.y+bounds.height/2]];
+ if(!points.every(([x,y])=>{const hit=scope.document.elementFromPoint(x,y);return hit===e||e.contains(hit);}))throw Error('Static theme button is covered or clipped');
+ return{source:'computed opaque toolbar button',selector,theme:scope.document.documentElement.dataset.theme,elementBounds,inset,bounds,css:style.backgroundColor};
+}
 function nativeStaticFrameMatch({reference,candidate,viewport,mapping,regions,background}){
  const validBitmap=bitmap=>bitmap&&Number.isInteger(bitmap.width)&&bitmap.width>0&&Number.isInteger(bitmap.height)&&bitmap.height>0&&Buffer.isBuffer(bitmap.data)&&bitmap.data.length===bitmap.width*bitmap.height*4;
  if(!validBitmap(reference)||!validBitmap(candidate)||!viewport||!['width','height'].every(key=>Number.isFinite(viewport[key])&&viewport[key]>0)||!mapping||!['scaleX','scaleY','originX','originY'].every(key=>Number.isFinite(mapping[key]))||mapping.scaleX<=0||mapping.scaleY<=0)throw Error('Invalid static native UI mapping');
@@ -90,4 +101,4 @@ async function acquireFreshNativeFrame({reference,capture,select,assertStable=as
  catch(error){if(!error.readiness)Object.assign(error,{readiness:readiness(),lastCapture,lastReference});throw error;}
  finally{finished=true;clearTimeout(timer);}
 }
-module.exports={armFrameCapture,nativeBitmap,staticShellReadback,nativeStaticFrameMatch,acquireFreshNativeFrame};
+module.exports={armFrameCapture,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame};

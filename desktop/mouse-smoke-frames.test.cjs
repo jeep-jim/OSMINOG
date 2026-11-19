@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {armFrameCapture,nativeBitmap,staticShellReadback,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
+const {armFrameCapture,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
 function fixture(){const contents=new EventEmitter(),events=[];contents.beginFrameSubscription=(onlyDirty,callback)=>{assert.equal(onlyDirty,false);contents.frame=callback;events.push('armed');};contents.endFrameSubscription=()=>events.push('ended');return{contents,events,image(value){return{value,getScaleFactors:()=>[1,2],getSize:s=>({width:50*s,height:30*s}),toPNG:({scaleFactor})=>{events.push('encoded '+value+' at '+scaleFactor);return Buffer.from(value);}};}};}
 test('arms before action; rejects endpoints and encodes only the selected actual frame at its native scale',async()=>{const f=fixture(),seen=[],capture=armFrameCapture(f.contents,{select(image,frame){seen.push(frame);return image.value==='middle'?{top:27}:null;}});assert.deepEqual(f.events,['armed']);f.contents.frame(f.image('closed'),{x:0,y:0,width:100,height:60});f.contents.frame(f.image('middle'),{x:4,y:9,width:20,height:12});f.contents.frame(f.image('late'),{});const result=await capture.result;assert.deepEqual(f.events,['armed','ended','encoded middle at 2']);assert.equal(result.source,'beginFrameSubscription');assert.equal(result.sequence,2);assert.equal(result.scaleFactor,2);assert.deepEqual(result.pixelSize,{width:100,height:60});assert.deepEqual(result.metadata,{top:27});assert.equal(result.png.toString(),'middle');assert.equal(seen.length,2);assert.equal(f.contents.listenerCount('destroyed'),0);capture.cancel();assert.equal(f.events.filter(x=>x==='ended').length,1);});
 test('pixel selector failure always unsubscribes and never encodes',async()=>{const f=fixture(),capture=armFrameCapture(f.contents,{select(){throw Error('bad pixels');}});f.contents.frame(f.image('bad'),{});await assert.rejects(capture.result,/bad pixels/);assert.deepEqual(f.events,['armed','ended']);});
@@ -73,6 +73,29 @@ function staticUIFixture(){
  for(const region of regions){const{x,y}=region.bounds;fill(reference,{x:x+1,y:y+1,width:6,height:10},[200,228,215]);fill(reference,{x:x+3,y:y+4,width:8,height:2},[16,21,30]);}
  const clone=()=>({...reference,data:Buffer.from(reference.data)}),check=candidate=>nativeStaticFrameMatch({reference,candidate,viewport,mapping,regions,background});return{reference,viewport,background,regions,mapping,fill,clone,check};
 }
+function themeProbeFixture(){
+ const rect={x:988,y:6,width:28,height:28},style={display:'grid',visibility:'visible',opacity:'1',backgroundImage:'none',backgroundColor:'rgb(255, 255, 255)'},child={},hits=[],e={getBoundingClientRect:()=>rect,contains:node=>node===child},scope={innerWidth:1024,innerHeight:684,getComputedStyle:node=>{assert.strictEqual(node,e);return style;},document:{documentElement:{dataset:{theme:'light'}},querySelector:selector=>{assert.equal(selector,'.toolbar>#new-tab');return e;},elementFromPoint:(x,y)=>{hits.push({x,y});return child;}}};return{rect,style,e,scope,hits};
+}
+test('the theme probe measures the existing opaque toolbar button interior and verifies every hit point',()=>{
+ const f=themeProbeFixture(),probe=staticThemeProbe(f.scope);assert.deepEqual(probe,{source:'computed opaque toolbar button',selector:'.toolbar>#new-tab',theme:'light',elementBounds:{x:988,y:6,width:28,height:28},inset:4,bounds:{x:992,y:10,width:20,height:20},css:'rgb(255, 255, 255)'});assert.equal(f.hits.length,5);assert.ok(f.hits.every(p=>p.x>992&&p.x<1012&&p.y>10&&p.y<30));
+ const before=structuredClone(probe);f.rect.x-=16;assert.notDeepEqual(staticThemeProbe(f.scope),before,'a later button movement is observable by the capture stability check');f.scope.document.documentElement.dataset.theme='dark';f.style.backgroundColor='rgb(25, 33, 46)';assert.equal(staticThemeProbe(f.scope).theme,'dark');assert.equal(staticThemeProbe(f.scope).css,'rgb(25, 33, 46)');
+});
+test('the theme probe rejects clipped, translucent, gradient or covered shell chrome',()=>{
+ for(const change of [f=>{f.style.opacity='.9';},f=>{f.style.backgroundImage='linear-gradient(white,black)';},f=>{f.style.visibility='hidden';},f=>{f.style.display='none';},f=>{f.rect.x=-1;},f=>{f.rect.x=1000;},f=>{f.rect.width=8;},f=>{f.rect.height=NaN;}]){const f=themeProbeFixture();change(f);assert.throws(()=>staticThemeProbe(f.scope),/visible opaque chrome/);}
+ const f=themeProbeFixture();f.scope.document.elementFromPoint=(x,y)=>x===1002&&y===20?f.e:null;assert.throws(()=>staticThemeProbe(f.scope),/covered or clipped/,'an unobscured centre alone does not certify the whole probe');f.scope.document.querySelector=()=>null;assert.throws(()=>staticThemeProbe(f.scope),/missing/);
+});
+test('recorded run120 pixels distinguish a current opaque button from the Dock-composited footer',()=>{
+ // Lossless BGRA crops from the verified run120 rejected shell/native PNGs.
+ // Artifact SHA256 a9d84f07c2d00835e16c9d4b7aaf8f239b7251aa9f24f9ea19651843f1d4ed66.
+ // Button [992,10,20,20] is byte-identical in both originals; the footer
+ // [296,656,8,28] is white in the shell and shaded in the native display.
+ const inflate=text=>require('node:zlib').inflateSync(Buffer.from(text,'base64'));
+ const button=inflate('eNr7/38UDDUwc0I3GFMLpEUEgvFwNQ8UVjAzQNhYQRyMkcVICU9qmzfS4oPW6XkU0A8AAGpd9yg='),footerReference=inflate('eNr7/38UjIJRMFAAAP1VfK4='),footerNative=inflate('eNp1ikeSxDAMA///TSs45ywfNENNgUVztYcuNECGEOLzPDF8MwjXqR3c952Q/b8fCfbruhL6LrfzPPlP/sP1nXqO4ziyG6C+7/ufXUM/km3bsinvmnVdOSXLsrx8nmd2IDvdtVNO05QSrsE+jiNvcEowDMMLbH3fcxJd17FLaAdt27LTjboEP5KmaWJd1ynhmqqqXuT2siwTcKTzLnrvGedcQnfCWvvq2AhjzM+N5Y0oiiJBd7jsH3nUVno=');
+ const check=(reference,candidate,width,height)=>nativeStaticFrameMatch({reference:{width,height,data:reference},candidate:{width,height,data:candidate},viewport:{width,height},mapping:{scaleX:1,scaleY:1,originX:0,originY:0},regions:[{label:'recorded shell crop',bounds:{x:0,y:0,width,height}}],background:{bounds:{x:0,y:0,width,height},css:'rgb(255, 255, 255)',rgb:[255,255,255]}});
+ const current=check(button,Buffer.from(button),20,20);assert.equal(current.accepted,true);assert.equal(current.theme.referencePixels,364);assert.equal(current.theme.mismatched,0);assert.equal(current.theme.minimum,100);
+ const shaded=check(footerReference,footerNative,8,28);assert.equal(shaded.accepted,false);assert.equal(shaded.theme.referencePixels,224);assert.equal(shaded.theme.mismatched,224);assert.ok(shaded.reasons.includes('native display does not match the current theme'));
+ const changed=Buffer.from(button);changed[0]=252;assert.equal(check(button,changed,20,20).theme.mismatched,1,'the two-level native pixel tolerance remains strict inside the selected opaque surface');
+});
 test('static native UI requires current-theme display pixels and both actual owning pills',()=>{
  const f=staticUIFixture(),current=f.clone();assert.equal(f.check(current).accepted,true);
  const staleTheme=f.clone();f.fill(staleTheme,f.background.bounds,[16,21,30]);assert.ok(f.check(staleTheme).reasons.includes('native display does not match the current theme'));
