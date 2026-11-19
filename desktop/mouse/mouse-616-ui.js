@@ -14,7 +14,7 @@
   }
   function feedback(event){const b=event.target.closest?.('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"]');if(!b||b.disabled)return;pulses.set(b,clock()+500);sync();clearTimeout(timer);timer=setTimeout(sync,520);}
   doc.addEventListener('click',feedback,true);
-  function fullscreen(active){for(const b of doc.querySelectorAll('[data-window="zoom"],[data-action="fullscreen"]')){b.textContent=active?'⤡':'⤢';b.setAttribute('aria-pressed',String(!!active));b.title=active?'Выйти из полного экрана · ⌃⌘F':'Полный экран · ⌃⌘F';b.setAttribute('aria-label',b.title);}}
+  function fullscreen(active){const windows=root.MouseNative?.platform==='win32';for(const b of doc.querySelectorAll(windows?'[data-action="fullscreen"]':'[data-window="zoom"],[data-action="fullscreen"]')){b.textContent=active?'⤡':'⤢';b.setAttribute('aria-pressed',String(!!active));b.title=(active?'Выйти из полного экрана · ':'Полный экран · ')+(windows?'F11':'⌃⌘F');b.setAttribute('aria-label',b.title);}}
   function round(){const stage=doc.querySelector('#stage'),r=stage.getBoundingClientRect();for(const p of stage.querySelectorAll('.pane')){const c=internalCorners(p.getBoundingClientRect(),r);p.style.setProperty('--pane-round-top',c.top+'px');p.style.setProperty('--pane-round-bottom',c.bottom+'px');}}
   sync();fullscreen(false);return{sync,fullscreen,round,dispose(){clearTimeout(timer);doc.removeEventListener('click',feedback,true);}};
  }

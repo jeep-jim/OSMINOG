@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {ProgressStore,MAX_ACTIVE,MAX_PER_OWNER,MAX_HISTORY,HISTORY_TTL,STALE_TTL,COMPLETED_VISIBLE,STOPPED_VISIBLE,EMIT_INTERVAL}=require('./mouse-progress.cjs');
+const {ProgressStore,MAX_ACTIVE,MAX_PER_OWNER,MAX_HISTORY,HISTORY_TTL,STALE_TTL,COMPLETED_VISIBLE,STOPPED_VISIBLE,EMIT_INTERVAL,MAX_ETA_SECONDS}=require('./mouse-progress.cjs');
 const input=(value={})=>({desk:'desk-3',source:'agent',label:'Agent Mouse',percent:null,statusText:'Работает',estimated:true,...value});
 test('progress is explicit, sanitized and owned; indeterminate and an AI estimate stay distinct',()=>{
  const s=new ProgressStore();try{
@@ -10,12 +10,32 @@ test('progress is explicit, sanitized and owned; indeterminate and an AI estimat
   assert.equal(s.update('agent:a',input({percent:99.99})).phase,'running');assert.equal(s.snapshot().tasks.find(t=>t.id===a.id).percent,99.9);s.removeOwner('agent:a');assert.deepEqual(s.snapshot().tasks.map(t=>t.id),[b.id]);
  }finally{s.dispose();}
 });
-test('Stop and errors preserve the last estimate; only completion yields 100 and then dismisses',()=>{
+test('Stop and errors preserve the last estimate; completed metadata100 is immediately absent from visible tasks',()=>{
  let now=100;const s=new ProgressStore({now:()=>now});try{
   const a=s.update('agent:a',input({percent:63}));s.stopOwner('agent:a','Остановлено');const stopped=s.snapshot().tasks[0];assert.equal(stopped.phase,'stopped');assert.equal(stopped.percent,63);assert.equal(stopped.dismissAt,now+STOPPED_VISIBLE);
   s.update('terminal:a',input({source:'terminal',label:'Терминал',estimated:false}));const error=s.finish('terminal:a','default',{phase:'error',statusText:'Код 2'});assert.equal(error.percent,null);assert.equal(error.estimated,false);
-  const complete=s.update('agent:b',input({percent:100,statusText:'Готово'}));assert.equal(complete.phase,'completed');assert.equal(complete.estimated,true);assert.equal(complete.dismissAt,now+COMPLETED_VISIBLE);now+=500;s.update('agent:b',input({percent:100,statusText:'Готово'}));assert.equal(s.snapshot().tasks.find(t=>t.id===complete.id).dismissAt,complete.dismissAt,'Repeating 100 does not restart the completion timer');
-  now=100+COMPLETED_VISIBLE;assert.ok(!s.snapshot().tasks.some(t=>t.id===complete.id));assert.ok(s.snapshot().tasks.some(t=>t.id===a.id));now=100+STOPPED_VISIBLE;assert.equal(s.snapshot().tasks.length,0);assert.equal(s.entries.size,3);now=100+HISTORY_TTL;s.sweep();assert.equal(s.entries.size,0);assert.equal(s.latest.size,0);
+  const complete=s.update('agent:b',input({percent:100,statusText:'Готово'}));assert.equal(complete.phase,'completed');assert.equal(complete.estimated,true);assert.equal(COMPLETED_VISIBLE,0);assert.equal(complete.dismissAt,now);assert.ok(!s.snapshot().tasks.some(t=>t.id===complete.id));now+=500;assert.equal(s.update('agent:b',input({percent:100,statusText:'Готово'})).id,complete.id,'Repeated100 remains the same hidden completion');
+  assert.ok(!s.snapshot().tasks.some(t=>t.id===complete.id));assert.ok(s.snapshot().tasks.some(t=>t.id===a.id));now=100+STOPPED_VISIBLE;assert.equal(s.snapshot().tasks.length,0);assert.equal(s.entries.size,3);now=100+HISTORY_TTL;s.sweep();assert.equal(s.entries.size,0);assert.equal(s.latest.size,0);
+ }finally{s.dispose();}
+});
+test('only a producer supplies ETA; zero stays running, elapsed time changes none, and outcomes clear it',()=>{
+ let now=100;const s=new ProgressStore({now:()=>now});try{
+  const first=s.report('page',input({source:'page',percent:37,etaSeconds:90}));assert.equal(first.etaSeconds,90);
+  now+=10000;assert.equal(s.snapshot().tasks[0].etaSeconds,90,'No timer predicts or counts down the reported remaining time');
+  const zero=s.report('page',input({source:'page',percent:37,etaSeconds:0}));assert.equal(zero.etaSeconds,0);assert.equal(zero.phase,'running');
+  for(const etaSeconds of [-1,NaN,Infinity,MAX_ETA_SECONDS+1,'12',{}])assert.throws(()=>s.report('page',input({source:'page',etaSeconds})),/ETA/);
+  assert.equal(s.snapshot().tasks[0].etaSeconds,0);
+  s.report('page',input({source:'page',percent:38}));assert.equal(s.snapshot().tasks[0].etaSeconds,null,'Omission explicitly means unknown rather than retaining a stale estimate');
+  const cancelled=s.report('page',input({source:'page',phase:'cancelled',percent:100,etaSeconds:12,statusText:'Request cancelled'}));assert.equal(cancelled.phase,'cancelled');assert.equal(cancelled.percent,38);assert.equal(cancelled.etaSeconds,null);
+  s.report('next',input({percent:64,etaSeconds:45}));const error=s.report('next',input({phase:'error',percent:100,statusText:'Network error'}));assert.equal(error.percent,64);assert.equal(error.etaSeconds,null);
+  s.report('done',input({percent:null,etaSeconds:20}));const done=s.report('done',input({phase:'completed',percent:null}));assert.equal(done.percent,100);assert.ok(!s.snapshot().tasks.some(task=>task.id===done.id));
+ }finally{s.dispose();}
+});
+test('removing one declared task and moving its owner preserves other tasks and stable identities',()=>{
+ const s=new ProgressStore();try{
+  const a=s.update('page',input({taskId:'a',percent:12})),b=s.update('page',input({taskId:'b',percent:24}));
+  s.moveOwner('page','desk-2');assert.deepEqual(s.snapshot({desk:'desk-3'}).tasks,[]);assert.deepEqual(s.snapshot({desk:'desk-2'}).tasks.map(t=>t.id),[a.id,b.id]);
+  s.removeTask('page','a');assert.deepEqual(s.snapshot().tasks.map(t=>t.id),[b.id]);assert.equal(s.latest.size,1);
  }finally{s.dispose();}
 });
 test('active tasks, per-owner tasks and retained history are bounded',()=>{
@@ -23,6 +43,19 @@ test('active tasks, per-owner tasks and retained history are bounded',()=>{
   for(let i=0;i<MAX_PER_OWNER;i++)s.update('owner',input({taskId:'task-'+i}));assert.throws(()=>s.update('owner',input({taskId:'too-many'})),/limit/);
   for(let i=MAX_PER_OWNER;i<MAX_ACTIVE;i++)s.update('owner-'+i,input());assert.equal(s.snapshot().tasks.length,MAX_ACTIVE);assert.throws(()=>s.update('overflow',input()),error=>error.name==='ProgressLimitError'&&error.code==='MOUSE_PROGRESS_LIMIT');
   for(let i=0;i<MAX_HISTORY+10;i++)s.update('history-'+i,input({percent:100}));assert.ok(s.entries.size<=MAX_ACTIVE+MAX_HISTORY);s.clear();assert.deepEqual(s.snapshot().tasks,[]);assert.equal(s.entries.size,0);
+ }finally{s.dispose();}
+});
+test('fifty independent tabs can report across five desks;65th active owner and fifth task from one owner are bounded',()=>{
+ const s=new ProgressStore();try{
+  assert.equal(MAX_ACTIVE,64);for(let i=0;i<50;i++)s.update('page:'+i,input({source:'page',desk:'desk-'+Math.floor(i/10),tabId:'tab-'+i,percent:i,statusText:'Site task'}));
+  assert.equal(s.snapshot().tasks.length,50);for(let i=50;i<64;i++)s.update('page:'+i,input({source:'page',tabId:'tab-'+i}));assert.equal(s.snapshot().tasks.length,64);assert.throws(()=>s.update('page:65',input({source:'page'})),error=>error.code==='MOUSE_PROGRESS_LIMIT');
+  s.clear();for(let i=0;i<4;i++)s.update('one-page',input({taskId:'task-'+i}));assert.throws(()=>s.update('one-page',input({taskId:'fifth'})),error=>error.code==='MOUSE_PROGRESS_LIMIT');
+ }finally{s.dispose();}
+});
+test('an identical producer ETA is a fresh estimate and publishes its new receipt timestamp',()=>{
+ let now=1000;const emitted=[],s=new ProgressStore({now:()=>now,emit:value=>emitted.push(value)});try{
+  const first=s.update('page',input({source:'page',percent:37,etaSeconds:90}));now+=5000;const next=s.update('page',input({source:'page',percent:37,etaSeconds:90}));
+  assert.equal(next.id,first.id);assert.equal(next.updatedAt,6000);assert.equal(emitted.length,2);assert.equal(emitted[1].tasks[0].updatedAt,6000);assert.equal(next.percent,37);assert.equal(next.etaSeconds,90);
  }finally{s.dispose();}
 });
 test('rapid running updates coalesce, and a terminal outcome publishes immediately',async()=>{

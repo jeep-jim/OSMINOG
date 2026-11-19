@@ -8,7 +8,26 @@ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&typeof we
  webFrame.insertCSS(MouseScrollbarCSS,{cssOrigin:'user'});
 }
 if(process.isMainFrame){
- contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress:(percent,statusText,options={})=>ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId})}));
+ let taskContext=null,documentActive=true,documentVersion=0;
+ const resetTaskContext=()=>{taskContext=null;documentVersion++;};
+ const context=()=>{
+  if(!documentActive)return Promise.reject(Error('Страница задачи уже закрыта'));
+  if(!taskContext){const pending=ipcRenderer.invoke('mouse:page-progress-context');taskContext=pending;pending.catch(()=>{if(taskContext===pending)taskContext=null;});}
+  return taskContext;
+ };
+ const updateProgress=async(percent,statusText,options={})=>{
+  const version=documentVersion,owner=await context();if(!documentActive||version!==documentVersion)throw Error('Страница задачи уже изменилась');
+  return ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId,phase:options?.phase,etaSeconds:options?.etaSeconds,documentToken:owner.documentToken});
+ };
+ contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress}));
+ // Electron refuses to bind over an existing main-world property. Wait until
+ // the site's initial scripts ran, and leave its own `browser` namespace alone.
+ const browserAlias=()=>{try{contextBridge.exposeInMainWorld('browser',Object.freeze({setProgress:updateProgress}));}catch{/* MouseAgent remains the collision-free canonical API. */}};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',browserAlias,{once:true});else browserAlias();
+ if(typeof window!=='undefined'){
+  window.addEventListener('pagehide',()=>{documentActive=false;resetTaskContext();});
+  window.addEventListener('pageshow',()=>{documentActive=true;});
+ }
   if(typeof MouseDesktopWheel!=='undefined'&&typeof window!=='undefined'&&/^https?:$/.test(location.protocol)){
     let wheel=null;const start=()=>{if(!wheel)wheel=MouseDesktopWheel.listen({window,scope:()=> 'page',send:value=>ipcRenderer.send('mouse:desktop-wheel',value)});};
     start();window.addEventListener('pageshow',start);window.addEventListener('pagehide',()=>{wheel?.dispose();wheel=null;});
@@ -17,11 +36,13 @@ if(process.isMainFrame){
  // presentation packet reaches main; it is not a page-callable browser API.
  if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&!process.argv?.includes('--mouse-private-page')){
   let activity=null;
-  const start=()=>{if(!activity)activity=MousePageActivity.observe({document,window,send:value=>ipcRenderer.send('mouse:page-activity',value)});};
+  const start=()=>{if(!activity)activity=MousePageActivity.observe({document,window,send:value=>{
+   const version=documentVersion;void context().then(owner=>{if(documentActive&&version===documentVersion)ipcRenderer.send('mouse:page-activity',{...value,documentToken:owner.documentToken});}).catch(()=>{});
+  }});};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   window.addEventListener('pageshow',start);
   window.addEventListener('pagehide',()=>{activity?.dispose();activity=null;});
-  ipcRenderer.on('mouse:page-activity-resync',()=>activity?.refresh());
+  ipcRenderer.on('mouse:page-activity-resync',()=>{resetTaskContext();activity?.refresh();});
  }
  let inFlight=false;
  document.addEventListener('dragstart',event=>{

@@ -1,5 +1,5 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),{assignTasks}=require('./mouse/progress-pill.js');
+const test=require('node:test'),assert=require('node:assert/strict'),{assignTasks,formatTaskTime}=require('./mouse/progress-pill.js');
 const task=(id,extra={})=>({id,taskId:id,desk:'desk-1',source:'page',tabId:'a',kind:'reported',phase:'running',createdAt:1,...extra});
 const panes=[{key:'left',kind:'page',tabId:'a'},{key:'right',kind:'page',tabId:'b'},{key:'ai',kind:'page',tabId:'chat'},{key:'agent',kind:'agent',tabId:''}];
 const mapping=(tasks,panels=panes,extra={})=>assignTasks(tasks,{desk:'desk-1',privateMode:false,panels,...extra});
@@ -18,9 +18,9 @@ test('download tasks require the exact current privacy mode and retain their nat
  const download=(id,extra={})=>task(id,{source:'download',kind:'download',privateMode:false,percent:31,...extra}),normal=download('normal'),privateTask=download('private',{privateMode:true}),unmarked=download('unmarked',{privateMode:undefined}),foreign=download('foreign',{desk:'desk-2'}),hidden=download('hidden',{tabId:'hidden'}),reported=task('reported');
  const tasks=[reported,normal,privateTask,unmarked,foreign,hidden];assert.deepEqual(mapping(tasks).get('left').map(task=>task.id),['normal','reported']);assert.deepEqual([...mapping(tasks,panes,{privateMode:true}).values()].flat().map(task=>task.id),['private']);
 });
-test('explicit tasks take priority over observed/loading indicators without inventing percentages',()=>{
+test('explicit tasks take priority over declared DOM tasks; obsolete navigation/completion metadata paints no pill',()=>{
  const tasks=[task('navigation',{kind:'navigation',percent:null,createdAt:0}),task('observed',{kind:'observed',percent:60,createdAt:1}),task('explicit',{percent:32,createdAt:2}),task('second',{percent:47,createdAt:3}),task('complete',{percent:100,phase:'completed',createdAt:0})],before=JSON.stringify(tasks);
- assert.deepEqual(mapping(tasks).get('left').map(t=>t.id),['explicit','second','complete','navigation','observed']);assert.equal(JSON.stringify(tasks),before);
+ assert.deepEqual(mapping(tasks).get('left').map(t=>t.id),['explicit','second','observed']);assert.equal(JSON.stringify(tasks),before);
 });
 
 // Execute the shipped progress renderer, overlay MutationObserver callback and
@@ -31,7 +31,7 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=name=>fs.readFileSync(path.join(__dirname,'mouse',name),'utf8');
 const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
 function fixture(options={}){
- const observers=[],records=[],frames=new Map(),timers=new Map(),calls=[],progressCalls=[],errors=[];let sequence=0,restoreCount=0;
+ const observers=[],records=[],frames=new Map(),timers=new Map(),calls=[],progressCalls=[],errors=[];let sequence=0,restoreCount=0,clock=100000;
  const descendants=node=>node.children.flatMap(child=>[child,...descendants(child)]);
  function matches(node,selector){
   if(node.nodeType!==1)return false;
@@ -82,18 +82,81 @@ function fixture(options={}){
  class MutationObserver{constructor(callback){this.callback=callback;this.pending=[];this.queued=false;observers.push(this);}observe(target,options){this.target=target;this.options=options;}}
  const model={ready:true,desktopId:'desk-1',privateMode:false,slots:{p1:'a',p2:'b'},active:'p1',desktopSliding:false};let emit;
  const N={overlay:async()=>({}),progress:async(action,args)=>{progressCalls.push({action,args});return{tasks:[]};},onProgress:fn=>{emit=fn;},agent:async()=>{},browser:async(action,args)=>{calls.push({action,args});return true;}};
- const context={document,MutationObserver,HTMLSelectElement:class{},N,m:model,MouseAgentBrand:{color:()=> '#32c76a',apply(){}},safe:fn=>Promise.resolve().then(fn).catch(error=>errors.push(error)),requestAnimationFrame:fn=>{const id=++sequence;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:fn=>{const id=++sequence;timers.set(id,fn);return id;},clearTimeout:id=>timers.delete(id)};
+ const context={document,MutationObserver,HTMLSelectElement:class{},N,m:model,MouseAgentBrand:{color:()=> '#32c76a',apply(){}},safe:fn=>Promise.resolve().then(fn).catch(error=>errors.push(error)),requestAnimationFrame:fn=>{const id=++sequence;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:(fn,delay=0)=>{const id=++sequence;timers.set(id,{fn,delay,at:clock+delay});return id;},clearTimeout:id=>timers.delete(id)};
  vm.createContext(context);vm.runInContext(source('overlays.js'),context);vm.runInContext(source('progress-pill.js'),context);
  const scheduler=source('browser.js').match(/let frame=0,layoutTimeout=0;function requestLayout\(\)\{[^\n]+\}/)?.[0];assert.ok(scheduler);
  vm.runInContext(scheduler+'\nasync function layoutNow(){progressUI.render();await N.browser("layout",{panels:[]});}',context);
  context.createMouseOverlays({N,restore:()=>{restoreCount++;context.requestLayout();},error:value=>errors.push(value)});
- context.progressUI=context.createMouseProgressPills({N,model,layout:context.requestLayout,status:()=>{},frozen:()=>model.desktopSliding,...options});
+ context.progressUI=context.createMouseProgressPills({N,model,layout:context.requestLayout,status:()=>{},frozen:()=>model.desktopSliding,now:()=>clock,...options});
  async function flush(count=5){for(let i=0;i<count;i++){await microtasks();const pending=[...frames.values()];frames.clear();for(const fn of pending)fn();await microtasks();}assert.deepEqual(errors,[]);}
  const reset=()=>{calls.length=0;records.length=0;restoreCount=0;};
- return{model,document,ui:context.progressUI,emit:value=>emit(value),flush,reset,calls,progressCalls,records,observerOptions:()=>observers[0].options,restores:()=>restoreCount,async ready(){await flush();reset();}};
+ async function advance(ms){const target=clock+ms;for(;;){const next=[...timers].filter(([,timer])=>timer.at<=target).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;clock=next[1].at;timers.delete(next[0]);next[1].fn();await microtasks();}clock=target;await flush();}
+ return{model,document,ui:context.progressUI,emit:value=>emit(value),flush,reset,advance,pendingTicks:()=>[...timers.values()].filter(timer=>timer.delay===1000).length,calls,progressCalls,records,observerOptions:()=>observers[0].options,restores:()=>restoreCount,async ready(){await flush();reset();}};
 }
-const renderTask=(extra={})=>({id:'a-task',taskId:'a-task',desk:'desk-1',source:'page',tabId:'a',kind:'reported',phase:'running',createdAt:1,label:'example.test',percent:35,statusText:'Обработка',estimated:true,...extra});
+const renderTask=(extra={})=>({id:'a-task',taskId:'a-task',desk:'desk-1',source:'page',tabId:'a',kind:'reported',phase:'running',createdAt:100000,updatedAt:100000,label:'example.test',percent:35,statusText:'Обработка',estimated:true,...extra});
 function idle(f){assert.equal(f.records.length,0,'No child replacement reaches the shipped overlay observer');assert.equal(f.restores(),0,'The unchanged DOM requests no overlay restoration');assert.equal(f.calls.length,0,'The feedback path schedules no native layout IPC');}
+function replaceFixturePanes(f){
+ for(const pane of f.document.querySelectorAll('.pane'))pane.remove();
+ for(const id of ['p1','p2']){const pane=f.document.createElement('section');pane.className='pane';pane.dataset.pane=id;pane.innerHTML='<header class="pane-head"></header><div class="page-slot"></div>';pane.style.getPropertyValue=()=>'';f.document.body.append(pane);}
+}
+test('incoming ownership preparation mounts known docks before the shipped layout without thawing live updates',async()=>{
+ const f=fixture();await f.ready();const incoming=renderTask({id:'incoming',taskId:'incoming',desk:'desk-2',tabId:'c'});
+ f.emit({tasks:[renderTask(),incoming]});await f.flush();f.reset();
+ Object.assign(f.model,{switching:true,desktopSliding:true,desktopId:'desk-2',slots:{p1:'c',p2:'d'}});replaceFixturePanes(f);f.ui.render();
+ assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0,'The normal renderer remains frozen after the incoming DOM replaces the outgoing panes');
+ f.ui.prepareLayout();await f.flush();const pill=f.document.querySelector('.mouse-progress-pill'),dock=pill.parentNode;
+ assert.equal(pill.dataset.progressId,'incoming');assert.equal(pill.dataset.tabId,'c');assert.equal(dock.parentNode.dataset.pane,'p1');assert.equal(dock.hidden,false);assert.equal(f.pendingTicks(),0);assert.equal(f.calls.length,0);assert.equal(f.restores(),0);
+ // The slot model reports dock occupancy; the executed measurement is the
+ // shipped layoutNow. Real DOM and OS pixel geometry stay native CI gates.
+ for(const pane of f.document.querySelectorAll('.pane'))pane.querySelector('.page-slot').getBoundingClientRect=()=>{const occupied=!!pane.querySelector('.mouse-pane-progress')&&!pane.querySelector('.mouse-pane-progress').hidden;return{x:pane.dataset.pane==='p1'?0:511,y:occupied?96:68,width:505,height:occupied?245:273};};
+ const calls=[],context={progressUI:f.ui,desktopUI:null,zoomUI:null,m:f.model,document:f.document,tab:id=>id?{internal:false}:null,overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:()=> '#43536b'}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const layoutSource=source('browser.js').match(/async function layoutNow\(\)\{[^\n]+\}/)?.[0];assert.ok(layoutSource);const layoutNow=vm.runInNewContext(layoutSource+'\nlayoutNow',context);
+ await layoutNow();assert.equal(calls.length,1);assert.deepEqual(JSON.parse(JSON.stringify(calls[0].args.panels.map(p=>({id:p.id,y:p.y,height:p.height})))),[{id:'c',y:96,height:245},{id:'d',y:68,height:273}]);
+ f.emit({tasks:[{...incoming,percent:67,statusText:'Новые данные'}]});f.ui.prepareLayout();await f.advance(1200);
+ assert.equal(pill.querySelector('.mouse-progress-value').textContent,'35%','A repeated preparation cannot thaw queued updates during the same transition');assert.equal(f.pendingTicks(),0);assert.equal(f.calls.length,0);
+ Object.assign(f.model,{switching:false,desktopSliding:false});await layoutNow();assert.equal(calls.length,2);assert.deepEqual(JSON.parse(JSON.stringify(calls[1].args.panels)),JSON.parse(JSON.stringify(calls[0].args.panels)),'Final layout uses exactly the prepared native viewport');
+ assert.equal(pill.querySelector('.mouse-progress-value').textContent,'67%');assert.equal(pill.querySelector('.mouse-progress-status').textContent,'Новые данные');assert.equal(f.pendingTicks(),1);assert.equal(f.calls.length,0,'Final metadata paint needs no additional layout request');
+});
+test('incoming preparation is one explicit owner change while stationary Nora remains frozen',async()=>{
+ let held=true;const f=fixture({frozen:()=>held});await f.ready();const incoming=renderTask({id:'nora-task',taskId:'nora-task',desk:'desk-2',tabId:'c'});
+ f.emit({tasks:[incoming]});Object.assign(f.model,{desktopId:'desk-2',slots:{p1:'c',p2:'d'}});replaceFixturePanes(f);f.ui.prepareLayout();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);
+ Object.assign(f.model,{switching:true,desktopSliding:true});f.ui.prepareLayout();await f.flush();const pill=f.document.querySelector('.mouse-progress-pill');assert.equal(pill.dataset.progressId,'nora-task');assert.equal(f.pendingTicks(),0);assert.equal(f.calls.length,0);assert.equal(held,true);
+ Object.assign(f.model,{switching:false,desktopSliding:false});f.emit({tasks:[{...incoming,percent:82}]});f.ui.prepareLayout();await f.advance(1500);assert.equal(pill.querySelector('.mouse-progress-value').textContent,'35%');assert.equal(f.calls.length,0);assert.equal(f.pendingTicks(),0);
+ held=false;f.ui.render();await f.flush();assert.equal(pill.querySelector('.mouse-progress-value').textContent,'82%');assert.equal(f.calls.length,0,'Closing the hold updates metadata without resizing the prepared dock');
+});
+test('incoming preparation preserves page ownership and private download isolation',async()=>{
+ const own=renderTask({id:'private-download',taskId:'private-download',desk:'desk-2',tabId:'c',source:'download',kind:'download',privateMode:true}),other={...own,id:'normal-download',privateMode:false};
+ const f=fixture({extraTasks:()=>[own,other]});await f.ready();f.emit({tasks:[renderTask({id:'page-task',desk:'desk-2',tabId:'c'}),renderTask({id:'foreign-task',desk:'desk-3',tabId:'c'})]});await f.flush();f.reset();
+ Object.assign(f.model,{privateMode:true,switching:true,desktopSliding:true,desktopId:'desk-2',slots:{p1:'c',p2:'d'}});replaceFixturePanes(f);f.ui.prepareLayout();await f.flush();
+ const pills=f.document.querySelectorAll('.mouse-progress-pill');assert.deepEqual(pills.map(p=>p.dataset.progressId),['private-download']);assert.equal(pills[0].parentNode.parentNode.dataset.pane,'p1');assert.equal(f.calls.length,0);assert.equal(f.pendingTicks(),0);
+});
+test('incoming preparation never bypasses a hidden or unready document',async()=>{
+ const f=fixture();await f.ready();f.emit({tasks:[renderTask({desk:'desk-2',tabId:'c'})]});await f.flush();f.reset();
+ Object.assign(f.model,{switching:true,desktopSliding:true,desktopId:'desk-2',slots:{p1:'c',p2:'d'}});replaceFixturePanes(f);f.document.visibilityState='hidden';f.ui.prepareLayout();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);assert.equal(f.pendingTicks(),0);
+ f.document.visibilityState='visible';f.model.ready=false;f.ui.prepareLayout();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);
+ f.model.ready=true;f.ui.prepareLayout();await f.flush();assert.equal(f.document.querySelector('.mouse-progress-pill').dataset.tabId,'c');assert.equal(f.calls.length,0);assert.equal(f.pendingTicks(),0);
+});
+test('task time formatter derives only elapsed/remaining seconds from supplied timestamps, with negative-clock and expiry guards',()=>{
+ const task=renderTask({createdAt:1000,updatedAt:1000,etaSeconds:90,percent:37}),before=JSON.stringify(task);
+ assert.deepEqual(formatTaskTime(task,6000),{kind:'eta',seconds:85,text:'Осталось ≈85 с · оценка сайта'});
+ assert.deepEqual(formatTaskTime(task,0),{kind:'eta',seconds:90,text:'Осталось ≈90 с · оценка сайта'});
+ assert.deepEqual(formatTaskTime(task,91000),{kind:'expired',seconds:0,text:'Оценка истекла · ждём ответ'});assert.equal(JSON.stringify(task),before);
+ assert.deepEqual(formatTaskTime({...task,etaSeconds:null},6000),{kind:'elapsed',seconds:5,text:'В работе 5 с'});assert.equal(formatTaskTime({...task,etaSeconds:null},0).seconds,0);
+ assert.equal(formatTaskTime({...task,source:'agent'},6000).text,'Осталось ≈85 с · оценка ИИ');assert.equal(formatTaskTime({...task,phase:'completed'},6000).text,'');assert.equal(formatTaskTime({...task,source:'download'},6000).text,'');
+});
+test('one time tick serves visible tasks and stops for hidden desktops, frozen Nora, completion and downloads',async()=>{
+ let downloads=[];const f=fixture({extraTasks:()=>downloads});await f.ready();const tasks=[renderTask({etaSeconds:90}),renderTask({id:'b-task',taskId:'b-task',tabId:'b',etaSeconds:null})];f.emit({tasks});await f.flush();assert.equal(f.pendingTicks(),1);
+ f.reset();await f.advance(1000);assert.equal(f.calls.length,0);assert.equal(f.pendingTicks(),1);
+ f.model.desktopSliding=true;f.ui.render();assert.equal(f.pendingTicks(),0);await f.advance(4000);assert.equal(f.calls.length,0);
+ f.model.desktopSliding=false;f.ui.render();await f.flush();assert.equal(f.pendingTicks(),1);assert.equal(f.document.querySelector('.mouse-progress-pill').dataset.remainingSeconds,'85');
+ f.model.desktopId='desk-2';f.ui.render();await f.flush();assert.equal(f.pendingTicks(),0);f.model.desktopId='desk-1';f.emit({tasks:[]});await f.flush();assert.equal(f.pendingTicks(),0);
+ downloads=[renderTask({source:'download',kind:'download',privateMode:false})];f.ui.render();await f.flush();assert.equal(f.pendingTicks(),0,'The task clock does not own native download UI');
+});
+test('the fiftieth independent page task is not truncated before its own desktop is displayed',async()=>{
+ const f=fixture();await f.ready();f.model.desktopId='desk-5';f.model.slots={p1:'page-49',p2:''};
+ f.emit({tasks:Array.from({length:50},(_,i)=>renderTask({id:'task-'+i,taskId:'task-'+i,desk:'desk-'+(1+Math.floor(i/10)),tabId:'page-'+i}))});await f.flush();
+ const nodes=f.document.querySelectorAll('.mouse-progress-pill');assert.equal(nodes.length,1);assert.equal(nodes[0].dataset.progressId,'task-49');assert.equal(f.pendingTicks(),1);
+});
 
 test('empty per-pane progress renders settle without a childList-driven layout loop',async()=>{
  const f=fixture();await f.ready();assert.deepEqual(JSON.parse(JSON.stringify(f.observerOptions())),{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
@@ -140,20 +203,31 @@ test('a new running download immediately replaces an automatically selected comp
 test('unchanged active progress settles, while new percentage/status still reaches the owning pane',async()=>{
  const f=fixture();await f.ready();f.emit({tasks:[renderTask()]});await f.flush();assert.equal(f.document.querySelector('.mouse-progress-value').textContent,'35%');
  f.reset();f.ui.render();await f.flush();idle(f);
- f.emit({tasks:[renderTask({percent:42,statusText:'Проверка'})]});await f.flush();assert.equal(f.document.querySelector('.mouse-progress-value').textContent,'42%');assert.equal(f.document.querySelector('.mouse-progress-status').textContent,'Проверка');assert.ok(f.records.length>0);assert.ok(f.calls.length>0);
+ f.emit({tasks:[renderTask({percent:42,statusText:'Проверка'})]});await f.flush();assert.equal(f.document.querySelector('.mouse-progress-value').textContent,'42%');assert.equal(f.document.querySelector('.mouse-progress-status').textContent,'Проверка');assert.ok(f.records.length>0);assert.equal(f.calls.length,0,'Task text changes do not affect native geometry');
  f.reset();f.ui.render();await f.flush();idle(f);
+});
+test('the owning pill counts down a labelled provider estimate, never completes at zero, and100 hides it',async()=>{
+ const f=fixture();await f.ready();f.emit({tasks:[renderTask({percent:37,etaSeconds:90})]});await f.flush();let node=f.document.querySelector('.mouse-progress-pill');
+ assert.equal(node.dataset.etaSeconds,'90');assert.equal(node.querySelector('.mouse-progress-value').textContent,'37%');assert.equal(node.querySelector('.mouse-progress-label').textContent,'Осталось ≈90 с · оценка сайта · example.test');assert.match(node.title,/Осталось ≈90 с · оценка сайта/);
+ f.reset();for(let i=0;i<4;i++)f.ui.render();await f.flush();idle(f);assert.equal(node.dataset.etaSeconds,'90');
+ await f.advance(5000);assert.equal(node.dataset.etaSeconds,'90');assert.equal(node.dataset.remainingSeconds,'85');assert.equal(node.dataset.estimateUpdatedAt,'100000');assert.match(node.querySelector('.mouse-progress-label').textContent,/≈85 с · оценка сайта/);assert.equal(f.calls.length,0,'A local time tick never requests native layout');assert.equal(node.querySelector('.mouse-progress-value').textContent,'37%');assert.equal(f.pendingTicks(),1);
+ f.emit({tasks:[renderTask({percent:null,etaSeconds:0})]});await f.flush();assert.equal(node.dataset.phase,'running');assert.equal(node.dataset.etaSeconds,'0');assert.equal(node.querySelector('.mouse-progress-value').textContent,'…');
+ assert.equal(node.dataset.timeKind,'expired');assert.equal(node.dataset.remainingSeconds,'0');assert.match(node.querySelector('.mouse-progress-label').textContent,/Оценка истекла · ждём ответ/);
+ f.emit({tasks:[renderTask({percent:37,phase:'cancelled',etaSeconds:null,statusText:'Запрос отменён'})]});await f.flush();assert.equal(node.dataset.etaSeconds,'');assert.equal(node.querySelector('.mouse-progress-value').textContent,'37%');assert.match(node.querySelector('.mouse-progress-status').textContent,/^Отменено/);assert.doesNotMatch(node.title,/Осталось/);
+ assert.equal(f.pendingTicks(),0);f.emit({tasks:[renderTask({percent:null})]});await f.flush();assert.equal(node.dataset.elapsedSeconds,'5');assert.match(node.querySelector('.mouse-progress-label').textContent,/В работе 5 с/);assert.equal(f.pendingTicks(),1);
+ f.emit({tasks:[renderTask({percent:100,phase:'completed'})]});await f.flush();assert.equal(f.document.querySelector('.mouse-progress-pill'),null);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(dock=>dock.hidden));assert.equal(f.pendingTicks(),0);
 });
 test('ownership, unknown progress and removal still update DOM and geometry, then settle',async()=>{
  const f=fixture();await f.ready();f.emit({tasks:[renderTask()]});await f.flush();f.reset();f.model.slots={p1:'b',p2:'a'};f.ui.render();await f.flush();
  let node=f.document.querySelector('.mouse-progress-pill');assert.equal(node.parentNode.parentNode.dataset.pane,'p2');assert.equal(node.querySelector('.mouse-progress-value').textContent,'35%');assert.ok(f.calls.length>0);f.reset();f.ui.render();await f.flush();idle(f);
- f.emit({tasks:[renderTask({percent:null,statusText:'Жду данные'})]});await f.flush();node=f.document.querySelector('.mouse-progress-pill');assert.equal(node.querySelector('.mouse-progress-value').textContent,'…');assert.equal(node.querySelector('.mouse-progress-meter').getAttribute('aria-valuenow'),null);assert.ok(f.calls.length>0);f.reset();f.ui.render();await f.flush();idle(f);
+ f.emit({tasks:[renderTask({percent:null,statusText:'Жду данные'})]});await f.flush();node=f.document.querySelector('.mouse-progress-pill');assert.equal(node.querySelector('.mouse-progress-value').textContent,'…');assert.equal(node.querySelector('.mouse-progress-meter').getAttribute('aria-valuenow'),null);assert.equal(f.calls.length,0,'Changing a percentage to unknown retains the same dock geometry');f.reset();f.ui.render();await f.flush();idle(f);
  f.emit({tasks:[]});await f.flush();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(node=>node.hidden));assert.ok(f.calls.length>0);f.reset();f.ui.render();await f.flush();idle(f);
 });
 
 test('the native progress fixture selects a hidden live task through its owning Next control',async()=>{
  const smoke={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'mouse-624-smoke.cjs'),'utf8'),{module:smoke,require:name=>name.startsWith('node:')?require(name):{}});
  const f=fixture();await f.ready();const agent=f.document.createElement('section');agent.id='agent-panel';f.document.body.append(agent);f.model.agentOpen=true;
- const previous=renderTask({id:'previous',taskId:'previous',source:'agent',tabId:undefined,percent:100,phase:'completed',createdAt:1}),page=renderTask({id:'page-task'});
+ const previous=renderTask({id:'previous',taskId:'previous',source:'agent',tabId:undefined,percent:28,phase:'stopped',createdAt:1}),page=renderTask({id:'page-task'});
  f.emit({tasks:[previous,page]});await f.flush();
  const target=renderTask({id:'sdk-stop',taskId:'sdk-stop',source:'agent',tabId:undefined,percent:36,createdAt:2}),terminal=renderTask({id:'pty',source:'terminal',tabId:undefined,percent:null,createdAt:3}),stopped=renderTask({id:'prior-stopped',source:'agent',tabId:undefined,phase:'stopped',createdAt:4});
  f.emit({tasks:[previous,page,target,terminal,stopped]});await f.flush();

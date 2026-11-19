@@ -18,7 +18,7 @@ class AgentController{
  async localTools(){return this.send('Mouse.mcp.listTools');}
  async localFile(name,args={}){return this.send('Mouse.mcp.callTool',{name,arguments:args});}
  async localStatus(){return this.send('Mouse.mcp.status');}
- async setProgress(percent=null,statusText='',{taskId,phase}={}){if(percent!==null&&(typeof percent!=='number'||!Number.isFinite(percent)||percent<0||percent>100))throw Error('Progress percent must be null or a number from 0 to 100');try{return await this.send('browser.setProgress',{percent,statusText,...(taskId!==undefined?{taskId}:{}),...(phase?{phase}:{}),...(this.progressToken?{runToken:this.progressToken}:{})});}catch(error){if(error.response?.data==='MOUSE_PROGRESS_LIMIT')error.code='MOUSE_PROGRESS_LIMIT';throw error;}}
+ async setProgress(percent=null,statusText='',{taskId,phase,etaSeconds}={}){if(percent!==null&&(typeof percent!=='number'||!Number.isFinite(percent)||percent<0||percent>100))throw Error('Progress percent must be null or a number from 0 to 100');if(etaSeconds!==undefined&&etaSeconds!==null&&(typeof etaSeconds!=='number'||!Number.isFinite(etaSeconds)||etaSeconds<0||etaSeconds>604800))throw Error('Progress ETA must be null or seconds from 0 to 604800');try{return await this.send('browser.setProgress',{percent,statusText,...(taskId!==undefined?{taskId}:{}),...(phase?{phase}:{}),...(etaSeconds!==undefined?{etaSeconds}:{}),...(this.progressToken?{runToken:this.progressToken}:{})});}catch(error){if(error.response?.data==='MOUSE_PROGRESS_LIMIT')error.code='MOUSE_PROGRESS_LIMIT';throw error;}}
  async close(){const c=this.client;this.client=null;this.progressToken='';this.sessions.clear();if(c)await c.close().catch(()=>{});}
 }
 module.exports={AgentController};

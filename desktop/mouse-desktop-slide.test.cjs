@@ -16,7 +16,7 @@ test('normal desktop slide stages decoded outgoing pixels before hiding and chan
  assert.equal(result.animated,true);assert.equal(result.decoded,true);assert.equal(result.layoutCalls,2);assert.equal(result.borrowedHold,false);
  const names=f.calls.map(x=>x[0]);assert.ok(names.indexOf('show')<names.indexOf('change'));
  assert.deepEqual(f.calls.filter(x=>x[0]==='surface-hold').map(x=>x[1]),[{phase:'begin',token:'frame-a'},{phase:'end',token:'frame-a'}]);
- assert.equal(f.calls.filter(x=>x[0]==='surfaces')[1][1].hold,'frame-a');assert.ok(names.indexOf('animate')<names.indexOf('remove'));
+ assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['a-page'],paintProof:false},{ids:['b-page'],hold:'frame-a',paintProof:false}]);assert.ok(names.indexOf('animate')<names.indexOf('remove'));
  assert.equal(f.workspace.style.visibility,'');assert.equal(f.workspace.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.listeners.size,0);
 });
 test('a delayed or invalid outgoing frame does not silently switch desktops without animation',async()=>{
@@ -29,7 +29,7 @@ test('a borrowed Nora hold keeps the dialog background owned through the complet
  assert.equal(result.animated,true);assert.equal(result.borrowedHold,true);assert.equal(result.phase,'complete');
  assert.deepEqual(f.calls.find(x=>x[0]==='scene')[1],{borrowedHold:true},'The borrowed scene must stay below Nora’s existing scrim');
  assert.equal(f.calls.filter(x=>x[0]==='surface-hold').length,0,'Borrowed hold is neither reacquired nor released');
- assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['b-page'],hold:'nora-hold'}]);
+ assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['b-page'],hold:'nora-hold',paintProof:true}]);
  assert.ok(names.indexOf('animate')<names.indexOf('replace'));assert.ok(names.indexOf('replace')<names.indexOf('remove'),'Incoming Nora pixels exist before the transition cover is removed');
  assert.equal(names.includes('abort'),false);assert.equal(f.workspace.style.visibility,'');assert.equal(f.workspace.inert,false);
 });
@@ -68,7 +68,7 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
   assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'target-pane'},slots:{'target-pane':'target-page'},active:'target-pane',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
  }};
- const context={m:model,N,desktopUI,deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:{validate:tree=>tree,leaves:tree=>[tree.id]},prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,'hidden');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:{validate:tree=>tree,leaves:tree=>[tree.id]},prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  vm.runInNewContext(browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
@@ -90,5 +90,16 @@ test('ordinary renderer desktop switch still closes Nora, library and native pan
   const f=rendererSwitchFixture({focus,library:true}),result=await f.run(false);assert.equal(result.borrowedHold,false);assert.equal(result.phase,'complete');
   for(const action of ['nora.close','browsing.close','restorePane','window:pane-restore'])assert.ok(f.events.indexOf(action)>=0&&f.events.indexOf(action)<f.events.indexOf('stage:outgoing'));
   assert.equal(f.desktopUI.isOpen,false);assert.equal(f.model.libraryOpen,false);assert.equal(f.model.focusPane,'');assert.equal(f.model.focusAI,false);assert.equal(f.model.switching,false);
+ }
+});
+
+test('renderer prepares incoming progress ownership under the cover before its existing native layout',async()=>{
+ for(const keepNora of [false,true]){
+  const f=rendererSwitchFixture({focus:'',library:false}),result=await f.run(keepNora);
+  assert.equal(f.events.filter(event=>event==='progress.prepare').length,1);
+  assert.ok(f.events.indexOf('progress.prepare')>f.events.indexOf('renderTree'));
+  assert.ok(f.events.indexOf('progress.prepare')<f.events.indexOf('layout'));
+  assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));
+  assert.equal(f.events.filter(event=>event==='layout').length,2);assert.equal(result.layoutCalls,2);
  }
 });

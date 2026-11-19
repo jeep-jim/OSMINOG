@@ -21,12 +21,12 @@ function paintedPDFText(image,{scaleFactor,pixelSize},probe){
  if(samples.some(sample=>!sample||sample.dark>90))return null;
  return{text:probe.text,mode:'edit',viewport:probe.viewport,beforeStyle:probe.style,minimum:12,samples};
 }
-module.exports=async({app,win,browser,documentService,privateMode,store})=>{
+module.exports=async({app,win,browser,documentService,privateMode,store,nativeInput})=>{
  assert.ok(documentService&&privateMode&&store,'Native625 receives the installed document and privacy services');
  assert.equal(documentService.state().documents.length,0,'The document proof does not replace existing open documents');
  assert.equal(privateMode.current,null,'The document proof starts in the normal profile');
  let lastAttempt=null,lastScript=null,failedScript=null,step='initializing';
- const js=async source=>{const call={step,source:source.slice(0,240)};lastScript=call;try{return await win.webContents.executeJavaScript(source);}catch(error){failedScript||={...call,message:error.message};throw error;}},native=require('./mouse-native-menu.node'),original=await js('MouseTest.prefs()'),originalBounds=win.getBounds(),bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),originalDialog=documentService.dialog;
+ const js=async source=>{const call={step,source:source.slice(0,240)};lastScript=call;try{return await win.webContents.executeJavaScript(source);}catch(error){failedScript||={...call,message:error.message};throw error;}},native=nativeInput||require('./mouse-native-menu.node'),original=await js('MouseTest.prefs()'),originalBounds=win.getBounds(),bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),originalDialog=documentService.dialog;
  const ownedDocuments=new Set(),openChoices=[],saveChoices=[],messageChoices=[],facts={version:'6.0.25'},evidence={},tabFacts={version:'6.0.27'};let fixtureDir,fixtures,server,baseline,pages,lastClick,lastInput,cleanupMode=false,verificationError;
  const documentState=id=>documentService.state().documents.find(r=>r.id===id);
  const layout=()=>js(`Object.fromEntries(${JSON.stringify(layoutKeys)}.map(k=>[k,MouseTest.prefs()[k]]))`);
@@ -58,7 +58,7 @@ module.exports=async({app,win,browser,documentService,privateMode,store})=>{
  async function type(selector,text){
   lastInput={selector,expected:text,stage:'focus'};await click(selector);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.focused;},'native text field focus');
   if(lastInput.observed.value.length){
-   lastInput.stage='select-all';win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:['meta']});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:['meta']});
+   lastInput.stage='select-all';const modifiers=[process.platform==='win32'?'control':'meta'];win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers});
    // The shell dispatches selectAll from before-input-event. Its completion
    // must be observed before insertText can replace the existing value.
    await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.fullySelected;},'native document text fully selected');

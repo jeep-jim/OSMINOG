@@ -48,3 +48,42 @@ test('load completion and failures remain current; subframe navigation does not 
 test('non-Mouse workspaces retain immediate page event notifications',()=>{
  const f=fixture({mouse:false}),page=f.page();for(let n=0;n<4;n++)page.view.webContents.emit('page-title-updated',{},'Legacy '+n);assert.equal(f.sent.length,4);assert.equal(f.builds(),4);assert.equal(f.timers.size,0);
 });
+
+test('fifty live pages do not add hidden native view polling or geometry writes to unchanged layouts',()=>{
+ const f=fixture({stable:true}),pages=Array.from({length:50},()=>f.page()),counts={destroyed:0,visible:0,bounds:0,visibility:0};
+ for(const page of pages){const view=page.view,wc=view.webContents;wc.isDestroyed=()=>{counts.destroyed++;return!!wc.dead;};view.getVisible=()=>{counts.visible++;return view.visible;};view.setBounds=bounds=>{counts.bounds++;view.bounds=bounds;};view.setVisible=visible=>{counts.visibility++;view.visible=visible;};}
+ const panels=pages.slice(0,4).map((page,i)=>({id:page.id,x:100+i*200,y:50,width:180,height:600}));f.b.layout(panels);
+ for(const key of Object.keys(counts))counts[key]=0;
+ for(let n=0;n<100;n++)f.b.layout(panels);
+ assert.equal(counts.visible,400,'Only four selected native views are reconciled on each normal layout');assert.ok(counts.destroyed<=800,'Defensive selected-page checks stay independent of the other 46 live pages');assert.equal(counts.bounds,0);assert.equal(counts.visibility,0);
+ counts.destroyed=0;for(let n=0;n<10;n++){for(const page of pages)page.view.webContents.emit('page-title-updated',{},'Title '+page.id+' '+n);f.tick();}
+ assert.equal(f.builds(),10);assert.equal(counts.destroyed,0,'Successful state snapshots no longer pre-scan every WebContents in stability');assert.equal(f.b.tabs.size,50);assert.ok(pages.every(page=>!page.view.webContents.dead));
+ const next=pages.slice(4,8).map((page,i)=>({...panels[i],id:page.id}));f.b.layout(next);assert.equal(counts.visibility,8,'Only the outgoing and incoming selections change visibility');
+ const rogue=pages[49];rogue.visible=false;rogue.view.visible=true;f.b.mouseSurfaceHold='nora';f.b.layout(next);assert.equal(rogue.view.visible,false,'An owned Nora hold still checks actual hidden-view visibility across all pages');assert.ok(pages.every(page=>!page.view.visible));
+ f.b.dispose();assert.equal(f.b.layoutPages.size,0);assert.equal(f.b.tabs.size,0);
+});
+
+function rendererMetadataFixture(){
+ const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),begin=source.indexOf('function receiveState('),end=source.indexOf('N.onState(receiveState)',begin);assert.ok(begin>=0&&end>begin);
+ const tabs=Array.from({length:10},(_,i)=>({id:'active-'+i,url:'https://fixture.test/'+i,title:'Title '+i,lane:'main',loading:false,internal:false,back:false,forward:false}));
+ const model={ready:true,desktopId:'desk-3',state:{tabs},slots:{p1:tabs[0].id,p2:tabs[1].id,p3:tabs[2].id,p4:tabs[3].id},aiId:'',switching:false},calls={tabs:0,labels:0,ai:0,layout:0,desktops:0,progress:0,saves:0};
+ const context={m:model,pendingState:null,tab:id=>model.state.tabs.find(t=>t.id===id),prefs:()=>({slots:model.slots,aiId:model.aiId}),reconcile(){for(const [pane,id]of Object.entries(model.slots))if(!model.state.tabs.some(t=>t.id===id))model.slots[pane]='';if(model.aiId&&!model.state.tabs.some(t=>t.id===model.aiId))model.aiId='';},renderTabs:()=>calls.tabs++,syncPaneLabels:()=>calls.labels++,syncAIIcon:()=>calls.ai++,applySide:()=>calls.layout++,desktopUI:{render:()=>calls.desktops++},progressUI:{render:()=>calls.progress++},save:()=>calls.saves++};
+ vm.runInNewContext(source.slice(begin,end),context);return{model,calls,receive:context.receiveState};
+}
+
+test('background metadata bursts update desktop badges and progress without active DOM rebuild or native layout',()=>{
+ const f=rendererMetadataFixture();
+ for(let n=0;n<50;n++)f.receive({desktopId:'desk-3',tabs:f.model.state.tabs.map(tab=>({...tab})),desktops:{items:Array.from({length:5},(_,i)=>({id:'desk-'+i,unread:n,title:'Background '+n}))},progress:{sequence:n}});
+ assert.deepEqual(f.calls,{tabs:0,labels:0,ai:0,layout:0,desktops:50,progress:50,saves:0});assert.equal(f.model.state.progress.sequence,49);
+});
+
+test('active title, loading and navigation updates remain current without geometrical relayout',()=>{
+ const f=rendererMetadataFixture();
+ for(const change of [{title:'A current title'},{loading:true},{loading:false,back:true,url:'https://fixture.test/next'}]){
+  const next=f.model.state.tabs.map(tab=>({...tab}));Object.assign(next[0],change);f.receive({desktopId:'desk-3',tabs:next,desktops:{items:[]}});assert.deepEqual(Object.fromEntries(Object.keys(change).map(key=>[key,f.model.state.tabs[0][key]])),change);
+ }
+ assert.deepEqual(f.calls,{tabs:3,labels:3,ai:3,layout:0,desktops:3,progress:3,saves:0});
+ const internal=f.model.state.tabs.map(tab=>({...tab}));internal[0].internal=true;f.receive({desktopId:'desk-3',tabs:internal});assert.equal(f.calls.layout,1,'Replacing a native guest with a start/document page requires layout');
+ f.receive({desktopId:'desk-3',tabs:internal.filter(tab=>tab.id!=='active-1')});assert.equal(f.model.slots.p2,'');assert.equal(f.calls.layout,2,'Closing a selected page hides its native view');assert.equal(f.calls.saves,1);
+ const before={...f.calls};f.model.switching=true;f.receive({desktopId:'desk-4',tabs:[]});assert.deepEqual(f.calls,before,'The active transition owns its state until it settles');
+});

@@ -1,6 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {ScopedFiles,LIMITS,TOOLS}=require('./mcp-files.cjs'),native=require('../mouse-mcp-fs.node');
+const directoryLink=(target,link)=>fs.symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
 function fixture(options={}){
  const base=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-mcp-files-')),root=path.join(base,'project'),outside=path.join(base,'outside');fs.mkdirSync(root);fs.mkdirSync(outside);fs.writeFileSync(path.join(root,'hello.txt'),'inside');fs.writeFileSync(path.join(outside,'secret.txt'),'outside sentinel');
  const files=new ScopedFiles(root,options);return{base,root,outside,files,close(){files.close();fs.rmSync(base,{recursive:true,force:true});}};
@@ -21,16 +22,18 @@ test('absolute, traversal, alternate separator, null, command-shaped args and ex
   assert.throws(()=>f.files.execute('read_file',{path:'hello.txt',command:'cat /etc/passwd'}),/параметры/);assert.throws(()=>f.files.execute('exec',{command:'bad'}),/Неизвестный/);
  }finally{f.close();}
 });
-test('symlink directory/file, hardlinks and special files never cross the selected capability',()=>{
+test('symlink directory/file, hardlinks and special files never cross the selected capability',t=>{
  const f=fixture({write:true});try{
-  fs.symlinkSync(f.outside,path.join(f.root,'link'));fs.symlinkSync(path.join(f.outside,'secret.txt'),path.join(f.root,'file-link'));fs.linkSync(path.join(f.outside,'secret.txt'),path.join(f.root,'hard'));
-  for(const name of ['link/secret.txt','file-link','hard']){assert.throws(()=>f.files.read(name));assert.throws(()=>f.files.write(name,'escape'));}
-  const blocked=f.files.walk().entries.filter(x=>x.type==='blocked');assert.equal(blocked.length,3);assert.equal(fs.readFileSync(path.join(f.outside,'secret.txt'),'utf8'),'outside sentinel');
+  directoryLink(f.outside,path.join(f.root,'link'));fs.linkSync(path.join(f.outside,'secret.txt'),path.join(f.root,'hard'));const names=['link/secret.txt','hard'];
+  try{fs.symlinkSync(path.join(f.outside,'secret.txt'),path.join(f.root,'file-link'),'file');names.push('file-link');}
+  catch(error){if(process.platform!=='win32'||error.code!=='EPERM')throw error;t.diagnostic('File-symlink creation needs Windows privilege; directory junction and hardlink checks still execute.');}
+  for(const name of names){assert.throws(()=>f.files.read(name));assert.throws(()=>f.files.write(name,'escape'));}
+  const blocked=f.files.walk().entries.filter(x=>x.type==='blocked');assert.equal(blocked.length,names.length);assert.equal(fs.readFileSync(path.join(f.outside,'secret.txt'),'utf8'),'outside sentinel');
  }finally{f.close();}
 });
 test('held parent directory prevents a symlink replacement redirecting read or final write',()=>{
  for(const phase of ['openRead','openTemp','commit']){
-  let f,swapped=false;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){const value=target[key];if(key!==phase)return value;return(...args)=>{if(!swapped){swapped=true;fs.renameSync(path.join(f.root,'sub'),path.join(f.root,'held'));fs.symlinkSync(f.outside,path.join(f.root,'sub'));}return value(...args);};}});
+  let f,swapped=false;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){const value=target[key];if(key!==phase)return value;return(...args)=>{if(!swapped){swapped=true;fs.renameSync(path.join(f.root,'sub'),path.join(f.root,'held'));directoryLink(f.outside,path.join(f.root,'sub'));}return value(...args);};}});
   f=fixture({write:true,native:backend});try{
    fs.mkdirSync(path.join(f.root,'sub'));fs.writeFileSync(path.join(f.root,'sub','secret.txt'),'authorized object');
    if(phase==='openRead')assert.equal(f.files.read('sub/secret.txt').content,'authorized object');else{f.files.write('sub/new.txt','authorized write');assert.equal(fs.readFileSync(path.join(f.root,'held','new.txt'),'utf8'),'authorized write');}
@@ -39,7 +42,7 @@ test('held parent directory prevents a symlink replacement redirecting read or f
  }
 });
 test('directory replacement before openat fails closed instead of following it',()=>{
- let f,done=false;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){if(key!=='openDir')return target[key];return(...args)=>{if(!done&&args[1]==='sub'){done=true;fs.renameSync(path.join(f.root,'sub'),path.join(f.root,'old'));fs.symlinkSync(f.outside,path.join(f.root,'sub'));}return target.openDir(...args);};}});
+ let f,done=false;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){if(key!=='openDir')return target[key];return(...args)=>{if(!done&&args[1]==='sub'){done=true;fs.renameSync(path.join(f.root,'sub'),path.join(f.root,'old'));directoryLink(f.outside,path.join(f.root,'sub'));}return target.openDir(...args);};}});
  f=fixture({write:true,native:backend});try{fs.mkdirSync(path.join(f.root,'sub'));assert.throws(()=>f.files.write('sub/new.txt','must not escape'),/symlink/);assert.equal(fs.existsSync(path.join(f.outside,'new.txt')),false);}finally{f.close();}
 });
 test('new-file conflict and an edited existing file are preserved at commit',()=>{
@@ -47,6 +50,15 @@ test('new-file conflict and an edited existing file are preserved at commit',()=
   let f;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){if(key!=='commit')return target[key];return(...args)=>{fs.writeFileSync(path.join(f.root,'race.txt'),'concurrent writer');return target.commit(...args);};}});
   f=fixture({write:true,native:backend});try{if(existing)fs.writeFileSync(path.join(f.root,'race.txt'),'old');const digest=existing?f.files.read('race.txt').sha256:undefined;assert.throws(()=>f.files.write('race.txt','agent replacement',digest),/another writer|changed after/);assert.equal(fs.readFileSync(path.join(f.root,'race.txt'),'utf8'),'concurrent writer');assert.ok(!fs.readdirSync(f.root).some(x=>x.startsWith('.mouse-local-')));}finally{f.close();}
  }
+});
+test('Windows replacement preserves an equal-length edit even when timestamp checks coincide',{skip:process.platform!=='win32'},()=>{
+ let f;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){if(key!=='commit')return target[key];return(...args)=>{
+  fs.writeFileSync(path.join(f.root,'race.txt'),'new');const current=target.stat(args[0],args[2]);
+  // Exercise content conflict independently of timestamp resolution: keep the
+  // original byte snapshot while making expected timestamps match the edit.
+  return target.commit(args[0],args[1],args[2],{...args[3],mtimeNs:current.mtimeNs,ctimeNs:current.ctimeNs});
+ };}});
+ f=fixture({write:true,native:backend});try{fs.writeFileSync(path.join(f.root,'race.txt'),'old');const prior=f.files.read('race.txt');assert.throws(()=>f.files.write('race.txt','agent replacement',prior.sha256),/changed after/);assert.equal(fs.readFileSync(path.join(f.root,'race.txt'),'utf8'),'new');assert.ok(!fs.readdirSync(f.root).some(x=>x.startsWith('.mouse-local-')));}finally{f.close();}
 });
 test('read and write are bounded by UTF-8 bytes, including a file that grows during descriptor reading',()=>{
  let largest=0,grew=false,f;const extra={...fs,readSync(fd,buffer,offset,length,position){largest=Math.max(largest,length);if(!grew){grew=true;fs.appendFileSync(path.join(f.root,'hello.txt'),'x'.repeat(LIMITS.readBytes*2));}return fs.readSync(fd,buffer,offset,length,position);}};
@@ -58,7 +70,13 @@ test('directory enumeration is capped before sorting and explicit truncation is 
  }finally{f.close();}
 });
 test('root replacement and closed capability cannot regain access',()=>{
- const f=fixture({write:true});try{fs.renameSync(f.root,path.join(f.base,'old'));fs.symlinkSync(f.outside,f.root);assert.throws(()=>f.files.read('secret.txt'),/заменена/);assert.throws(()=>f.files.write('secret.txt','bad'),/заменена/);f.files.close();assert.throws(()=>f.files.walk(),/отозван/);assert.equal(fs.readFileSync(path.join(f.outside,'secret.txt'),'utf8'),'outside sentinel');}finally{f.close();}
+ const f=fixture({write:true});try{fs.renameSync(f.root,path.join(f.base,'old'));directoryLink(f.outside,f.root);assert.throws(()=>f.files.read('secret.txt'),/заменена/);assert.throws(()=>f.files.write('secret.txt','bad'),/заменена/);f.files.close();assert.throws(()=>f.files.walk(),/отозван/);assert.equal(fs.readFileSync(path.join(f.outside,'secret.txt'),'utf8'),'outside sentinel');}finally{f.close();}
+});
+test('Unicode paths and a UTF-8 BOM preserve exact file snapshots through create, replacement and enumeration',()=>{
+ const f=fixture({write:true});try{const file='Проект € 🐭/текст.txt';f.files.write(file,'\ufeffПервый текст €');const before=f.files.read(file);assert.equal(before.content,'Первый текст €');f.files.write(file,'Второй текст 🐭',before.sha256);assert.equal(fs.readFileSync(path.join(f.root,...file.split('/')),'utf8'),'Второй текст 🐭');assert.ok(f.files.walk().entries.some(entry=>entry.path===file));}finally{f.close();}
+});
+test('Windows native boundary rejects ADS, DOS device names and ambiguous path normalization',{skip:process.platform!=='win32'},()=>{
+ const f=fixture({write:true});try{for(const name of ['hello.txt:stream','hello.txt.','hello.txt ','CON','NUL.txt','COM1','LPT9.log','a/b','a\\b','..']){assert.throws(()=>native.openRead(f.files.rootFd,name));assert.throws(()=>native.openTemp(f.files.rootFd,name,0o600));}assert.equal(f.files.read('hello.txt').content,'inside');}finally{f.close();}
 });
 test('audit contains operation/path/outcome and never file contents',()=>{
  const records=[],f=fixture({onAction:record=>records.push(record)});try{f.files.execute('read_file',{path:'hello.txt'});assert.throws(()=>f.files.execute('write_file',{path:'hello.txt',content:'SENSITIVE_CONTENT'}));assert.equal(records.length,2);assert.equal(records[0].status,'ok');assert.equal(records[1].status,'denied');assert.ok(!JSON.stringify(records).includes('SENSITIVE_CONTENT'));}finally{f.close();}

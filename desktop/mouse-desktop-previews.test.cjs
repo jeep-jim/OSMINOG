@@ -1,11 +1,11 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {DesktopBank}=require('./mouse-desktops.cjs'),{DesktopPreviews,MAX_IMAGES}=require('./mouse-desktop-previews.cjs'),L=require('./mouse/layout.js');
+const {DesktopBank}=require('./mouse-desktops.cjs'),{DesktopPreviews,MAX_IMAGES,MAX_CACHE_BYTES}=require('./mouse-desktop-previews.cjs'),L=require('./mouse/layout.js');
 function fixture(){
  const bank=new DesktopBank(),browser={tabs:new Map()},records=[],captures=[];let now=100;
- const image={getSize:()=>({width:800,height:600}),resize({width}){assert.equal(width,400);return this;},toJPEG(quality){assert.equal(quality,70);return Buffer.from('image');}};
+ const image={getSize:()=>({width:400,height:300}),resize({width,height}){assert.ok(width>0&&width<=400);assert.ok(height>0&&height<=400);return{toBitmap:()=>Buffer.alloc(width*height*4)};},toJPEG(quality){assert.equal(quality,70);return Buffer.from('image');}};
  function add(id,desk='desk-3',{visible=true,internal=false,lane='main'}={}){bank.assign(id,desk);const record={id,url:'https://'+id+'.test/',title:'Title '+id,internal,lane};records.push(record);const t={id,url:record.url,visible,navigationEpoch:0,view:{webContents:{isDestroyed:()=>false,getURL:()=>record.url,async capturePage(){captures.push(id);return image;}}}};if(!internal)browser.tabs.set(id,t);return{t,record};}
- const previews=new DesktopPreviews({bank,browser,state:()=>({tabs:records}),now:()=>++now});return{bank,browser,records,captures,previews,add,image,advance:ms=>{now+=ms;}};
+ const previews=new DesktopPreviews({bank,browser,state:()=>({tabs:records}),now:()=>++now,fromBitmap:(bytes,size)=>{assert.equal(bytes.length,size.width*size.height*4);assert.equal(size.scaleFactor,1);return image;}});return{bank,browser,records,captures,previews,add,image,advance:ms=>{now+=ms;}};
 }
 test('preview captures only visible active pages, preserves exact layout and uses cached images without waking hidden desks',async()=>{
  const f=fixture();f.add('a');f.add('hidden','desk-1',{visible:false});f.add('internal','desk-3',{internal:true});f.add('ai','desk-3',{lane:'side'});f.bank.savePreferences({tree:L.preset(2),slots:{p1:'a',p2:'internal'},aiOpen:true,aiId:'ai'});await f.previews.capture();assert.deepEqual(f.captures,['a','ai']);const active=f.previews.snapshot().items[2];assert.equal(active.preview.panes.length,3);assert.equal(active.preview.panes[0].site,'a.test');assert.match(active.preview.panes[0].src,/^data:image\/jpeg;base64,/);assert.equal(active.preview.panes[1].internal,true);assert.equal(active.preview.panes[1].src,'');assert.equal(active.preview.panes[2].pane,'ai');f.bank.select('desk-1');f.browser.tabs.get('a').visible=false;f.browser.tabs.get('ai').visible=false;await f.previews.capture();assert.deepEqual(f.captures,['a','ai']);assert.ok(f.previews.snapshot().items[2].preview.panes[0].src);
@@ -28,13 +28,13 @@ test('a thumbnail capture finishing after Nora hides a page never asks Electron 
  assert.equal(t.visible,false);assert.deepEqual(await f.previews.thumbnail('a'),{src:''});
 });
 test('late captures cannot cross desktops and cache stays bounded',async()=>{
- const f=fixture(),{t}=f.add('a');let finish;t.view.webContents.capturePage=()=>new Promise(resolve=>{finish=resolve;});const pending=f.previews.captureOne('a');await new Promise(r=>setImmediate(r));f.bank.select('desk-1');finish(f.image);await pending;assert.equal(f.previews.cache.size,0);f.bank.select('desk-3');for(let n=0;n<MAX_IMAGES+4;n++){f.add('p'+n);await f.previews.captureOne('p'+n);}assert.equal(f.previews.cache.size,MAX_IMAGES);assert.equal(f.previews.cache.has('p0'),false);assert.equal(f.previews.cache.has('p63'),true);
+ const f=fixture(),{t}=f.add('a');let finish;t.view.webContents.capturePage=()=>new Promise(resolve=>{finish=resolve;});const pending=f.previews.captureOne('a');await new Promise(r=>setImmediate(r));f.bank.select('desk-1');finish(f.image);await pending;assert.equal(f.previews.cache.size,0);f.bank.select('desk-3');f.image.getSize=()=>({width:100,height:100});for(let n=0;n<MAX_IMAGES+4;n++){f.add('p'+n);await f.previews.captureOne('p'+n);}assert.equal(f.previews.cache.size,MAX_IMAGES);assert.equal(f.previews.cache.has('p0'),false);assert.equal(f.previews.cache.has('p63'),true);
 });
 test('same ID replacement or closure invalidates cached image ownership',async()=>{
  const f=fixture();f.add('a');f.bank.savePreferences({tree:L.preset(1),slots:{p1:'a'}});await f.previews.capture();assert.ok(f.previews.cache.has('a'));const original=f.browser.tabs.get('a');f.browser.tabs.set('a',{...original});assert.equal(f.previews.snapshot().items[2].preview.panes[0].src,'');await f.previews.capture();f.records.length=0;f.browser.tabs.delete('a');assert.equal(f.previews.snapshot().items[2].preview.panes[0].id,'');assert.equal(f.previews.cache.size,0);
 });
 test('internal-only tabs remain represented and oversized images are omitted',async()=>{
- const f=fixture();f.add('start','desk-3',{internal:true});const {t}=f.add('large');f.bank.savePreferences({tree:L.preset(2),slots:{p1:'start',p2:'large'}});t.view.webContents.capturePage=async()=>({getSize:()=>({width:900}),resize(){return this;},toJPEG:()=>Buffer.alloc(256*1024+1)});await f.previews.capture();const panes=f.previews.snapshot().items[2].preview.panes;assert.equal(panes[0].id,'start');assert.equal(panes[1].src,'');assert.equal(f.previews.cache.size,0);
+ const f=fixture();f.add('start','desk-3',{internal:true});f.add('large');f.bank.savePreferences({tree:L.preset(2),slots:{p1:'start',p2:'large'}});f.image.toJPEG=()=>Buffer.alloc(256*1024+1);await f.previews.capture();const panes=f.previews.snapshot().items[2].preview.panes;assert.equal(panes[0].id,'start');assert.equal(panes[1].src,'');assert.equal(f.previews.cache.size,0);
 });
 test('opening a burrow reuses one valid capture for thumbnails and preview snapshots within 750ms',async()=>{
  const f=fixture(),{t}=f.add('a');f.bank.savePreferences({tree:L.preset(1),slots:{p1:'a'}});await f.previews.capture();const first=await f.previews.thumbnail('a');await f.previews.capture();assert.deepEqual(f.captures,['a']);assert.match(first.src,/^data:image\/jpeg;base64,/);assert.equal(first.src,f.previews.snapshot().items[2].preview.panes[0].src);
@@ -53,4 +53,38 @@ test('preview chip order and favicons follow current live tab metadata without t
  const f=fixture();f.add('a');const {record}=f.add('b');record.favicon='https://b.test/icon.png';f.bank.savePreferences({tree:L.preset(1),slots:{p1:'a'},tabOrder:['b','a']});
  let d=f.previews.snapshot().items[2];assert.deepEqual(d.preview.tabs.map(t=>t.id),['b','a']);assert.equal(d.preview.tabs[0].favicon,record.favicon);assert.equal(d.preview.tabs[0].placed,false);assert.equal(d.preview.tabs[1].placed,true);assert.equal(d.hiddenCount,1);assert.deepEqual(f.captures,[]);
  record.title='Updated title';d=f.previews.snapshot().items[2];assert.equal(d.preview.tabs[0].title,'Updated title');f.records.splice(1,1);f.browser.tabs.delete('b');d=f.previews.snapshot().items[2];assert.deepEqual(d.preview.tabs.map(t=>t.id),['a']);assert.equal(d.count,1);assert.deepEqual(f.captures,[]);
+});
+
+test('transition images keep only bounded thumbnail pixels and encode JPEG only when requested',()=>{
+ const f=fixture(),{t}=f.add('a');f.bank.savePreferences({tree:L.preset(1),slots:{p1:'a'}});f.previews.enableDiagnostics();
+ const calls=[],source={getSize:()=>({width:1600,height:3000}),resize(size){calls.push(size);return{toBitmap(options){calls.push(options);return Buffer.alloc(size.width*size.height*4,40);}};}};
+ const pin={page:t,desk:f.bank.active,epoch:0,url:t.url};
+ f.previews.rememberImage('a',source,pin);
+ assert.deepEqual(calls,[{width:213,height:400},{scaleFactor:1}]);assert.deepEqual(f.captures,[]);
+ const entry=f.previews.cache.get('a');assert.equal(entry.bitmap.length,213*400*4);assert.equal(entry.src,'');assert.equal(Object.values(entry).includes(source),false);
+ let d=f.previews.diagnostics();assert.equal(d.resizes,1);assert.equal(d.bitmapCopies,1);assert.equal(d.jpegEncodes,0);assert.equal(d.retainedBitmaps,1);
+ const first=f.previews.snapshot().items[2].preview.panes[0].src;assert.match(first,/^data:image\/jpeg;base64,/);assert.equal('bitmap' in entry,false);assert.equal(f.previews.diagnostics().jpegEncodes,1);
+ assert.equal(f.previews.snapshot().items[2].preview.panes[0].src,first);f.previews.rememberImage('a',source,pin);assert.equal(f.previews.diagnostics().jpegEncodes,1);assert.equal(f.previews.diagnostics().resizes,1);
+ f.advance(751);f.previews.rememberImage('a',source,pin);assert.equal(f.previews.diagnostics().resizes,2);assert.equal(f.previews.diagnostics().jpegEncodes,1);
+});
+
+test('preview snapshots do not encode cached images for extra unplaced tabs',async()=>{
+ const f=fixture();f.add('visible');f.add('extra');f.bank.savePreferences({tree:L.preset(1),slots:{p1:'visible'}});f.previews.enableDiagnostics();
+ await f.previews.capture();assert.equal(f.previews.diagnostics().captures,2);assert.equal(f.previews.diagnostics().jpegEncodes,0);
+ const desk=f.previews.snapshot().items[2];assert.ok(desk.preview.panes[0].src);assert.equal(desk.preview.extraTabs[0].id,'extra');assert.equal(f.previews.diagnostics().jpegEncodes,1);assert.ok(f.previews.cache.get('extra').bitmap);
+});
+
+test('raw and encoded thumbnail storage share a strict byte budget and privacy clear releases pixels',async()=>{
+ const f=fixture();f.image.getSize=()=>({width:400,height:400});f.previews.enableDiagnostics();
+ for(let i=0;i<MAX_IMAGES;i++){f.add('p'+i);await f.previews.captureOne('p'+i);}
+ const d=f.previews.diagnostics();assert.equal(d.entries,Math.floor(MAX_CACHE_BYTES/(400*400*4)));assert.ok(d.retainedBytes<=MAX_CACHE_BYTES);assert.equal(d.jpegEncodes,0);assert.equal(f.previews.cache.has('p0'),false);assert.equal(f.previews.cache.has('p59'),true);
+ f.previews.lock();assert.equal(f.previews.diagnostics().retainedBytes,0);assert.equal(f.previews.diagnostics().retainedBitmaps,0);assert.equal(f.previews.cache.size,0);
+});
+
+test('lazy thumbnail bytes are invalidated before encoding after navigation or replacement',async()=>{
+ for(const mutation of ['navigation','replacement','lock','dispose']){
+  const f=fixture(),{t}=f.add('a');f.bank.savePreferences({tree:L.preset(1),slots:{p1:'a'}});f.previews.enableDiagnostics();await f.previews.capture();assert.equal(f.previews.diagnostics().jpegEncodes,0);
+  if(mutation==='navigation')t.navigationEpoch++;if(mutation==='replacement')f.browser.tabs.set('a',{...t});if(mutation==='lock'||mutation==='dispose')f.previews[mutation]();
+  assert.equal(f.previews.snapshot().items[2].preview.panes[0].src,'',mutation);assert.equal(f.previews.diagnostics().jpegEncodes,0,mutation);
+ }
 });

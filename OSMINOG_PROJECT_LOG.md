@@ -2422,3 +2422,19 @@ SHA-256 `666eb7f3386b4fb01fd659789bb1ba54c1de4e6b4e4514f035f60cc9967209a2`.
 Это unsigned prerelease; физический компьютер/тачпад владельца и внешние
 авторизованные аккаунты не проверялись. Новая основная ветка и Mac-канал
 сохранены отдельно. Исходники Windows и его канал не откатывают работу над 6.0.30.
+
+## 2026-11-19 — Mouse Browser 6.0.29 Windows x64 port
+
+The owner requests a working Windows installer of the current Mouse product,
+extending its previous macOS-only scope. The first Windows attempt failed on a
+Mac-only build guard; no installer was delivered. Native Windows runtime,
+secure Local MCP, PowerShell/ConPTY, update installation and full installed UI
+acceptance are being implemented from the verified 6.0.29 source. The Windows
+product/profile/feed are separate from legacy Trader OS and the existing Mac
+release. Evidence and actual publication status are recorded in the
+[Windows 6.0.29 journal](docs/desktop/2026-11-19-mouse629-windows.md).
+
+
+## 19 ноября 2026 — Mouse 6.0.31: задачи сайтов и производительность столов
+
+По новому прямому поручению владельца готовится общий Windows/macOS выпуск: убрать navigation-пилюлю «Страница загружена», принимать прогресс/ETA самой фоновой задачи сайта и проверить зависания/отрисовку на 20 и 50 живых вкладках в пяти столах. Принятый Windows629 объединён с Mac630 без отката согласованного UI и native gates. Сценарий DOOM в доступном DeepSeek-документе отсутствует; точная реализация этой части требует исходного текста, она не заявляется готовой. Решения, факты и результаты: [журнал631](docs/desktop/2026-11-19-mouse631-task-progress-performance.md). Текущий статус **IMPLEMENTING / NOT_PUBLISHED**; старые пакеты и данные пользователя сохранены.

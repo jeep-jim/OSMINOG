@@ -105,8 +105,25 @@ test('real scoped CDP progress keeps client ownership and trusted source identit
 });
 test('terminal progress remains indeterminate across stdout and completes only on the command exit result',async()=>{
  const f=fixture();await f.host.enable({port:0,autonomous:true});await f.host.handle('folder');await f.host.handle('local-permissions',{write:false,commands:true});const c=client();let finish;f.host.terminalService.execute=()=>new Promise(resolve=>{finish=resolve;});
- const command=f.host.command({method:'Mouse.terminal',params:{command:'fixture'}},c);await tick();const entry=f.host.progress.snapshot().tasks.find(t=>t.source==='terminal');assert.equal(entry.percent,null);assert.equal(entry.estimated,false);f.host.terminalService.emit('data','stdout\n'.repeat(1000));assert.equal(f.host.progress.snapshot().tasks.find(t=>t.id===entry.id).percent,null);finish({stdout:'done',exitCode:0,background:false});await command;let result=f.host.progress.snapshot().tasks.find(t=>t.id===entry.id);assert.equal(result.phase,'completed');assert.equal(result.percent,100);assert.equal(result.estimated,false);
+ const command=f.host.command({method:'Mouse.terminal',params:{command:'fixture'}},c);await tick();const entry=f.host.progress.snapshot().tasks.find(t=>t.source==='terminal');assert.equal(entry.percent,null);assert.equal(entry.estimated,false);f.host.terminalService.emit('data','stdout\n'.repeat(1000));assert.equal(f.host.progress.snapshot().tasks.find(t=>t.id===entry.id).percent,null);finish({stdout:'done',exitCode:0,background:false});await command;let result=f.host.progress.entries.get(entry.id);assert.equal(result.phase,'completed');assert.equal(result.percent,100);assert.equal(result.estimated,false);assert.ok(!f.host.progress.snapshot().tasks.some(task=>task.id===entry.id),'Completed command metadata is retained without a visible100% pill');
  f.host.terminalService.execute=async()=>({stdout:'failed',exitCode:2,background:false});await f.host.command({method:'Mouse.terminal',params:{command:'failure fixture'}},c);result=f.host.progress.snapshot().tasks.filter(t=>t.source==='terminal').at(-1);assert.equal(result.phase,'error');assert.equal(result.percent,null);await f.host.dispose();
+});
+test('real CDP task lifecycle forwards only producer ETA and immediately hides completion',async()=>{
+ const f=fixture();await f.host.enable(0);const sdk=await new AgentController(f.host.gateway.url,{CDP}).connect();try{
+  const first=await sdk.setProgress(37,'Working',{taskId:'eta',etaSeconds:90});assert.equal(first.etaSeconds,90);assert.equal(first.source,'agent');
+  for(const etaSeconds of [Infinity,NaN,-1,604801,'90'])await assert.rejects(sdk.setProgress(38,'bad',{taskId:'eta',etaSeconds}),/ETA/);
+  for(const etaSeconds of [-1,604801,'90'])await assert.rejects(sdk.send('browser.setProgress',{percent:38,statusText:'bad',taskId:'eta',etaSeconds}),/ETA/);
+  const zero=await sdk.setProgress(null,'Waiting',{taskId:'unknown',etaSeconds:0});assert.equal(zero.etaSeconds,0);assert.equal(zero.phase,'running');
+  const cancelled=await sdk.setProgress(100,'Cancelled',{taskId:'eta',phase:'cancelled'});assert.equal(cancelled.id,first.id);assert.equal(cancelled.percent,37);assert.equal(cancelled.phase,'cancelled');assert.equal(cancelled.etaSeconds,null);
+  const complete=await sdk.setProgress(null,'Done',{taskId:'unknown',phase:'completed'});assert.equal(complete.phase,'completed');assert.equal(complete.percent,100);assert.ok(!f.host.progress.snapshot().tasks.some(task=>task.id===complete.id));
+ }finally{await sdk.close();await f.host.dispose();}
+});
+test('runner forwards an explicit task metadata allowlist without authority or source fields',async()=>{
+ const {run}=require('./mouse-agent/runner.cjs'),reports=[];
+ class Controller{async connect(){return this;}async setProgress(percent,statusText,options){reports.push({percent,statusText,options});return{};}async close(){}}
+ const actions=[{action:'browser.setProgress',args:{percent:37,statusText:'Provider checkpoint',taskId:'job',phase:'running',etaSeconds:45,source:'page',desk:'forged',runToken:'forged',command:'forged'}},{action:'done',args:{text:'Completed with fixture evidence'}}];
+ await run({task:'Synthetic metadata forwarding fixture',cdp:'fixture'},{Controller,complete:async()=>JSON.stringify(actions.shift())});
+ assert.deepEqual(reports[1],{percent:37,statusText:'Provider checkpoint',options:{taskId:'job',phase:'running',etaSeconds:45}});assert.deepEqual(reports.map(report=>report.percent),[null,37,100]);
 });
 test('worker reports share its host task using a private run token; an unrelated client cannot claim it',async()=>{
  const f=fixture();await f.host.enable(0);const child=new EventEmitter();let payload;child.pid=12345;child.postMessage=data=>{payload=structuredClone(data);};child.kill=()=>{child.emit('exit',0);return true;};f.host.utilityProcess={fork:()=>child};
