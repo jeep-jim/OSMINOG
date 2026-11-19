@@ -16,7 +16,7 @@
  const api={contour};
  if(typeof module!=='undefined')module.exports=api;
  root.MouseBurrowGeometry=api;
- root.createMouseBurrowMotion=({tray,content,footer,button,settled,trace=false})=>{
+ root.createMouseBurrowMotion=({tray,content,footer,button,settled,preparePaint,trace=false})=>{
   const local=tray.querySelector('.desk-burrow-shape'),outline=local.querySelector(':scope>path'),clip=local.querySelector('clipPath path');
   const panel=document.createElement('div');panel.className='desk-burrow-panel';
   local.id='mouse-dock-surface';outline.id='mouse-dock-outline';
@@ -85,6 +85,20 @@
   }
   function preparePlayers(to,ticket){
    preparing=true;const current=movement;
+   const failed=error=>{if(active&&ticket===generation&&current===movement){const pending=waiter;waiter=null;stopPlayers();pending?.reject(error);}};
+   const playWhenPainted=()=>{
+    if(!active||ticket!==generation||current!==movement)return;
+    if(to!==1||typeof preparePaint!=='function'){startPlayers(to,ticket);return;}
+    // A new modal and its native-page snapshots can already have two RAFs
+    // while their GPU render pass is still pending. Keep the real players at
+    // time zero until a bounded native readback proves those exact surfaces.
+    note('paint-await');
+    Promise.resolve().then(preparePaint).then(ready=>{
+     if(!active||ticket!==generation||current!==movement)return;
+     if(ready!==true)throw Error('Рабочий стол ещё не отрисован. Повторите открытие.');
+     note('paint-ready');startPlayers(to,ticket);
+    }).catch(failed);
+   };
    note('prepare-await-ready',{to});
    // Opening and closing both create fresh players after a settled endpoint.
    // Commit their paused layers before starting the300ms timeline; a live
@@ -92,9 +106,9 @@
    Promise.all([movement.ready,shade.ready]).then(()=>{
     if(!active||ticket!==generation||current!==movement)return;
     note('pause-ready',{to});preparationFrame=requestAnimationFrame(rafTime=>{
-     note('preparation-frame-1',{rafTime,to});preparationFrame=requestAnimationFrame(rafTime=>{preparationFrame=0;note('preparation-frame-2',{rafTime,to});startPlayers(to,ticket);});
+     note('preparation-frame-1',{rafTime,to});preparationFrame=requestAnimationFrame(rafTime=>{preparationFrame=0;note('preparation-frame-2',{rafTime,to});playWhenPainted();});
     });
-   }).catch(error=>{if(active&&ticket===generation&&current===movement){const failed=waiter;waiter=null;stopPlayers();failed?.reject(error);}});
+   }).catch(failed);
   }
   function animate(to,immediate=false){
    const wasPreparing=preparing;cancelPreparation();cancelWaiter();const ticket=++generation;goal=to;

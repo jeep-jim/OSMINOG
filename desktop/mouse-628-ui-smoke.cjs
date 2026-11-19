@@ -34,6 +34,15 @@ function screenCropGeometry(displayBounds,contentBounds,screenPixelSize){
  assert.ok(cropPixels.x>=0&&cropPixels.y>=0&&cropPixels.width>0&&cropPixels.height>0&&cropPixels.x+cropPixels.width<=screenPixelSize.width&&cropPixels.y+cropPixels.height<=screenPixelSize.height,'The complete native window content is inside the captured display');
  return{cropPixels,mapping:{scaleX,scaleY,originX:left-cropPixels.x,originY:top-cropPixels.y}};
 }
+function cornerBackground(css){
+ const value=String(css).trim(),hex=/^#([\da-f]{3}|[\da-f]{6})$/i.exec(value),functional=/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?))?\s*\)$/i.exec(value);
+ let rgb;if(hex){const digits=hex[1].length===3?[...hex[1]].map(c=>c+c).join(''):hex[1];rgb=[0,2,4].map(offset=>parseInt(digits.slice(offset,offset+2),16));}else if(functional&&(!functional[4]||Number(functional[4])===1))rgb=functional.slice(1,4).map(Number);
+ assert.ok(rgb&&rgb.every(v=>Number.isInteger(v)&&v>=0&&v<=255),'The computed --bg must resolve to an opaque RGB theme colour: '+value);return{css:value,rgb};
+}
+function nativeCornerPaintReady(rows,marker,background){
+ const matches=(pixel,rgb)=>pixel?.rgba?.[3]===255&&rgb.every((v,i)=>Math.abs(pixel.rgba[i]-v)<=2);
+ return rows.length>0&&rows.every(row=>matches(row.before?.inside,marker)&&matches(row.before?.outside,background));
+}
 async function verifyGestureRestart({app,win,store}){
  const filename='mouse-628-swipe-tutorial.json',facts=JSON.parse(await fs.readFile(filename,'utf8'));
  assert.equal(facts.version,'6.0.28');assert.equal(facts.successHidden,true);assert.equal(facts.privateIsolated,true);
@@ -253,25 +262,27 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
   await fs.writeFile(screenCapture,screenPNG);await fs.writeFile(capture,png);return{image,metadata};
  }
  async function cornerBaseline(theme){
-  const geometry=await js(`(()=>{const rows=[];for(const pane of document.querySelectorAll('.pane')){const slot=pane.querySelector('.page-slot'),r=slot.getBoundingClientRect(),radius=parseFloat(pane.style.getPropertyValue('--pane-round-bottom'))||0,id=MouseTest.model.slots[pane.dataset.pane];if(radius<4||!id)continue;for(const side of ['left','right']){const x=side==='left'?r.left+1.25:r.right-1.25,insideX=side==='left'?r.left+radius+3:r.right-radius-3;if(x>innerWidth*.12&&x<innerWidth*.88)continue;rows.push({id,side,radius,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},outside:{x,y:r.bottom-1.25},inside:{x:insideX,y:r.bottom-1.25}});}}return{viewport:{width:innerWidth,height:innerHeight},rows};})()`);
+  const geometry=await js(`(()=>{const rows=[];for(const pane of document.querySelectorAll('.pane')){const slot=pane.querySelector('.page-slot'),r=slot.getBoundingClientRect(),radius=parseFloat(pane.style.getPropertyValue('--pane-round-bottom'))||0,id=MouseTest.model.slots[pane.dataset.pane];if(radius<4||!id)continue;for(const side of ['left','right']){const x=side==='left'?r.left+1.25:r.right-1.25,insideX=side==='left'?r.left+radius+3:r.right-radius-3;if(x>innerWidth*.12&&x<innerWidth*.88)continue;rows.push({id,side,radius,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},outside:{x,y:r.bottom-1.25},inside:{x:insideX,y:r.bottom-1.25}});}}return{viewport:{width:innerWidth,height:innerHeight},actualTheme:document.documentElement.dataset.theme,backgroundCSS:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),rows};})()`);
+  assert.equal(geometry.actualTheme,theme,'The measured native corners belong to the requested theme');geometry.expectedBackground=cornerBackground(geometry.backgroundCSS);delete geometry.backgroundCSS;
   geometry.rows=geometry.rows.filter(row=>cornerPages.some(page=>page.id===row.id));assert.ok(geometry.rows.length>0,'Real rounded native page corners are present');
-  const diagnostic={theme,stage:'before',viewport:geometry.viewport,attempts:[]};cornerDiagnostics.push(diagnostic);
+  const diagnostic={theme,actualTheme:geometry.actualTheme,expectedBackground:geometry.expectedBackground,stage:'before',viewport:geometry.viewport,attempts:[]};cornerDiagnostics.push(diagnostic);
   for(let attempt=0;attempt<20;attempt++){
    if(attempt)await sleep(100);const captured=await captureNativeWindow(theme,'before',geometry.viewport);geometry.capture=captured.metadata.capture;geometry.nativeCapture=captured.metadata;
    for(const row of geometry.rows)row.before={outside:pixel(captured.image,row.outside,geometry.viewport,captured.metadata.mapping),inside:pixel(captured.image,row.inside,geometry.viewport,captured.metadata.mapping)};
    diagnostic.attempts.push({attempt,nativeCapture:captured.metadata,rows:structuredClone(geometry.rows)});await fs.writeFile('mouse-628-corner-diagnostics.json',JSON.stringify(cornerDiagnostics,null,2)+'\n');
-   if(geometry.rows.every(row=>cornerColor.every((v,i)=>Math.abs(row.before.inside.rgba[i]-v)<=2)))break;
+   if(nativeCornerPaintReady(geometry.rows,cornerColor,geometry.expectedBackground.rgb))break;
   }
-  for(const row of geometry.rows){assert.ok(cornerColor.every((v,i)=>Math.abs(row.before.inside.rgba[i]-v)<=2),'Native interior corner marker is really painted: '+JSON.stringify(row));assert.ok(cornerColor.some((v,i)=>Math.abs(row.before.outside.rgba[i]-v)>16),'The real native page corner is clipped before Nora opens: '+JSON.stringify(row));}
+  for(const row of geometry.rows){assert.ok(row.before.inside.rgba[3]===255&&cornerColor.every((v,i)=>Math.abs(row.before.inside.rgba[i]-v)<=2),'Native interior corner marker is really painted: '+JSON.stringify(row));assert.ok(row.before.outside.rgba[3]===255&&geometry.expectedBackground.rgb.every((v,i)=>Math.abs(row.before.outside.rgba[i]-v)<=2),'The native corner cutout has the current theme background: '+JSON.stringify({theme,expectedBackground:geometry.expectedBackground,row}));assert.ok(cornerColor.some((v,i)=>Math.abs(row.before.outside.rgba[i]-v)>16),'The real native page corner is clipped before Nora opens: '+JSON.stringify(row));}
   return geometry;
  }
  async function verifyOpenCorners(theme,before){
-  const visible=await js(`(()=>{const g=${JSON.stringify(before)},surface=document.querySelector('#mouse-dock-surface'),fill=document.querySelector('#mouse-dock-fill'),r=surface.getBoundingClientRect(),point=p=>new DOMPoint(p.x-r.left,p.y-r.top),outside=p=>!fill.isPointInFill(point(p));return{alpha:Number(getComputedStyle(document.querySelector('#mouse-dock-scrim')).opacity),rows:g.rows.filter(row=>outside(row.inside)&&outside(row.outside)).map(row=>{const image=[...document.querySelectorAll('.mouse-floating-snapshot')].find(e=>e.dataset.tabId===row.id),c=getComputedStyle(image);return{...row,roundBottom:Number(image.dataset.roundBottom),borderBottomLeftRadius:c.borderBottomLeftRadius,borderBottomRightRadius:c.borderBottomRightRadius,clipPath:c.clipPath};})};})()`),captured=await captureNativeWindow(theme,'open',before.viewport);assert.ok(visible.rows.length>0,'At least one native lower corner stays exposed beside Nora');
+  const visible=await js(`(()=>{const g=${JSON.stringify(before)},surface=document.querySelector('#mouse-dock-surface'),fill=document.querySelector('#mouse-dock-fill'),r=surface.getBoundingClientRect(),point=p=>new DOMPoint(p.x-r.left,p.y-r.top),outside=p=>!fill.isPointInFill(point(p));return{actualTheme:document.documentElement.dataset.theme,backgroundCSS:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),alpha:Number(getComputedStyle(document.querySelector('#mouse-dock-scrim')).opacity),rows:g.rows.filter(row=>outside(row.inside)&&outside(row.outside)).map(row=>{const image=[...document.querySelectorAll('.mouse-floating-snapshot')].find(e=>e.dataset.tabId===row.id),c=getComputedStyle(image);return{...row,roundBottom:Number(image.dataset.roundBottom),borderBottomLeftRadius:c.borderBottomLeftRadius,borderBottomRightRadius:c.borderBottomRightRadius,clipPath:c.clipPath};})};})()`),captured=await captureNativeWindow(theme,'open',before.viewport);assert.ok(visible.rows.length>0,'At least one native lower corner stays exposed beside Nora');
+  assert.equal(visible.actualTheme,theme);const expectedBackground=cornerBackground(visible.backgroundCSS);assert.deepEqual(expectedBackground,before.expectedBackground,'The current theme background remains identical while Nora opens');
   for(const key of ['display','contentBounds','screenPixelSize','cropPixels','pixelSize','mapping'])assert.deepEqual(captured.metadata[key],before.nativeCapture[key],'Before and open corners use the same physical source plane: '+key);
   for(const row of visible.rows)row.after={outside:pixel(captured.image,row.outside,before.viewport,captured.metadata.mapping),inside:pixel(captured.image,row.inside,before.viewport,captured.metadata.mapping)};
-  cornerDiagnostics.push({theme,stage:'open',alpha:visible.alpha,nativeCapture:captured.metadata,rows:visible.rows});await fs.writeFile('mouse-628-corner-diagnostics.json',JSON.stringify(cornerDiagnostics,null,2)+'\n');
+  cornerDiagnostics.push({theme,actualTheme:visible.actualTheme,expectedBackground,stage:'open',alpha:visible.alpha,nativeCapture:captured.metadata,rows:visible.rows});await fs.writeFile('mouse-628-corner-diagnostics.json',JSON.stringify(cornerDiagnostics,null,2)+'\n');
   for(const row of visible.rows){assert.equal(row.roundBottom,row.radius);assert.equal(parseFloat(row.borderBottomLeftRadius),row.radius);assert.equal(parseFloat(row.borderBottomRightRadius),row.radius);assert.notEqual(row.clipPath,'none');for(const key of ['outside','inside']){const expected=row.before[key].rgba.slice(0,3).map(v=>Math.round(v*(1-visible.alpha)));assert.ok(expected.every((v,i)=>Math.abs(row.after[key].rgba[i]-v)<=4),'The presented rounded corner retains its pixels under the measured scrim: '+JSON.stringify({row:row.side,key,expected,actual:row.after[key]}));}}
-  const capture=captured.metadata.capture,proof={theme,viewport:before.viewport,alpha:visible.alpha,beforeCapture:before.capture,capture,nativeCapture:{before:before.nativeCapture,open:captured.metadata},rows:visible.rows};(borderlessFacts.corners??=[]).push(proof);return proof;
+  const capture=captured.metadata.capture,proof={theme,actualTheme:visible.actualTheme,expectedBackground,viewport:before.viewport,alpha:visible.alpha,beforeCapture:before.capture,capture,nativeCapture:{before:before.nativeCapture,open:captured.metadata},rows:visible.rows};(borderlessFacts.corners??=[]).push(proof);return proof;
  }
  async function pageSnapshot(page){
   const wc=page.view.webContents,renderer=await wc.executeJavaScript('({timeOrigin:performance.timeOrigin,width:innerWidth,height:innerHeight,scrollX,scrollY,resizeEvents:globalThis.__mouse628PageProbe?.events||[]})');
@@ -430,3 +441,5 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  console.log('MOUSE_628_BORDERLESS_NATIVE_PASS');console.log('MOUSE_628_NORA_CONTENT_FIT_NATIVE_PASS');console.log('MOUSE_626_CAPTURE_ANY_COLOR_PASS');
 };
 module.exports.screenCropGeometry=screenCropGeometry;
+module.exports.cornerBackground=cornerBackground;
+module.exports.nativeCornerPaintReady=nativeCornerPaintReady;

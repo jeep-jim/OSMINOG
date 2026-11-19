@@ -1,11 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {DesktopSurfaces,MAX_CAPTURES,MAX_PNG_BYTES}=require('./mouse-surfaces.cjs');
+const {DesktopSurfaces,MAX_CAPTURES,MAX_PNG_BYTES,PAINT_ATTEMPTS,HOLD_MS}=require('./mouse-surfaces.cjs');
 function fixture(options={}){
  const win=new EventEmitter(),shell=new EventEmitter(),bank={active:'desk-3',members:{}},captures=[],images=[],layouts=[],events=[];let now=100;
  win.isDestroyed=()=>false;win.getContentSize=()=>[1000,800];win.webContents=shell;shell.send=name=>events.push(name);
  const browser={tabs:new Map(),panels:[],layout(panels){this.panels=panels;layouts.push(panels.map(p=>p.id));for(const p of this.tabs.values())p.visible=panels.some(x=>x.id===p.id)&&!this.mouseSurfaceHold;}};
- function image(width=800,height=600,bytes=32){const png=Buffer.alloc(bytes);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(width,16);png.writeUInt32BE(height,20);return{toPNG:()=>png,isEmpty:()=>false};}
+ function image(width=800,height=600,bytes=32,rgba=[71,123,199,255]){const png=Buffer.alloc(bytes);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(width,16);png.writeUInt32BE(height,20);return{toPNG:()=>png,isEmpty:()=>false,getSize:()=>({width,height}),toBitmap:()=>Buffer.alloc(width*height*4,Buffer.from([rgba[2],rgba[1],rgba[0],rgba[3]]))};}
+ shell.capturePage=async()=>image(1000,800);
  function add(id,{desk='desk-3',visible=true,width=800,height=600}={}){const wc=new EventEmitter();wc.id=browser.tabs.size+1;wc.isDestroyed=()=>false;wc.getURL=()=>page.url;wc.capturePage=async(rect,opts)=>{captures.push({id,rect,opts});return image(width,height);};const page={id,url:'https://'+id+'.test/',navigationEpoch:0,visible,bounds:{x:0,y:50,width,height},view:{webContents:wc,getBounds:()=>({...page.bounds})}};bank.members[id]=desk;browser.tabs.set(id,page);if(visible)browser.panels.push({id,...page.bounds});return page;}
  const surfaces=new DesktopSurfaces({browser,bank,win,now:()=>now,onImage:(id)=>images.push(id),...options});return{win,shell,bank,browser,surfaces,captures,images,layouts,events,add,image,advance:ms=>now+=ms};
 }
@@ -21,7 +22,7 @@ function scheduledFixture(options={}){
    const page=f.add(id,{width,height});page.view.webContents.capturePage=()=>{
     started.push({id,at:clock});active++;maximum=Math.max(maximum,active);
     return new Promise(resolve=>{
-     let finished=false;const finish=()=>{assert.equal(finished,false,'Each native readback completes once');finished=true;active--;resolve({isEmpty:()=>false,toPNG(){encoded.push(id);clock+=pngMs;return f.image(width,height).toPNG();}});};
+     let finished=false;const finish=()=>{assert.equal(finished,false,'Each native readback completes once');finished=true;active--;resolve({...f.image(width,height),toPNG(){encoded.push(id);clock+=pngMs;return f.image(width,height).toPNG();}});};
      pending.push({id,finish});if(delay!==null)schedule(finish,delay);
     });
    };return page;
@@ -33,6 +34,65 @@ function scheduledFixture(options={}){
   }
  };
 }
+test('paint readiness waits for every captured page region before native hide and rechecks the owned hold',async()=>{
+ const f=fixture(),a=f.add('a',{width:400,height:300}),b=f.add('b',{width:320,height:270});f.surfaces.enableDiagnostics();
+ a.bounds={x:12,y:40,width:400,height:300};b.bounds={x:520,y:180,width:320,height:270};
+ const colors=[[17,80,155,255],[224,111,35,255]];
+ for(const [i,page]of [a,b].entries())page.view.webContents.capturePage=async()=>f.image(page.bounds.width,page.bounds.height,32,colors[i]);
+ const packet=await f.surfaces.capture({ids:['a','b']}),options=[];let reads=0;
+ const painted=()=>{const root=f.image(1000,800,32,[243,245,249,255]),bitmap=root.toBitmap();for(const [n,page]of [a,b].entries()){const p=page.bounds,c=colors[n];for(let y=p.y;y<p.y+p.height;y++)for(let x=p.x;x<p.x+p.width;x++){const i=(y*1000+x)*4;bitmap[i]=c[2];bitmap[i+1]=c[1];bitmap[i+2]=c[0];bitmap[i+3]=c[3];}}return{...root,toBitmap:()=>bitmap};};
+ f.shell.capturePage=async(rect,opts)=>{options.push({rect,opts});return ++reads===1?f.image(1000,800,32,[243,245,249,255]):painted();};
+ const ready=await f.surfaces.present({token:packet.token});
+ assert.deepEqual(ready,{ready:true,reason:'painted',attempts:2,regions:18});assert.ok(a.visible&&b.visible);assert.deepEqual(f.layouts,[],'Readback does not hide or resize native pages');assert.equal(f.surfaces.activeCaptures,0);
+ assert.ok(options.every(call=>call.rect===undefined&&call.opts.stayHidden===true&&call.opts.stayAwake===false));
+ f.browser.panels=[{id:'a',...a.bounds},{id:'b',...b.bounds}];assert.equal(f.surfaces.begin(packet.token,'popover').held,true);
+ const before=reads;assert.equal((await f.surfaces.present({token:packet.token,holdToken:'different'})).ready,false);assert.equal(reads,before);
+ assert.equal((await f.surfaces.present({token:packet.token,holdToken:packet.token})).ready,true);assert.equal(f.surfaces.held.token,packet.token);assert.equal(a.visible,false);assert.equal(b.visible,false);
+ assert.equal(f.surfaces.diagnostics().lastPaint.ready,true);f.surfaces.dispose();
+});
+
+test('paint mismatch and expired capture never become a ready fallback',async()=>{
+ const f=fixture();f.add('a');const packet=await f.surfaces.capture({ids:['a']});let reads=0;
+ f.shell.capturePage=async()=>{reads++;return f.image(1000,800,32,[255,255,255,255]);};
+ const mismatch=await f.surfaces.present({token:packet.token});assert.equal(mismatch.ready,false);assert.equal(mismatch.reason,'mismatch');assert.equal(reads,PAINT_ATTEMPTS);assert.equal(f.surfaces.held,null);
+ f.advance(HOLD_MS+1);const expired=await f.surfaces.present({token:packet.token});assert.equal(expired.ready,false);assert.equal(expired.reason,'stale');assert.equal(reads,PAINT_ATTEMPTS);f.surfaces.dispose();
+});
+
+test('pending paint cannot acknowledge a changed navigation, page, geometry, desk, resize or hold',async()=>{
+ for(const mutation of ['navigation','replacement','geometry','desktop','resize','end','lock']){
+  const f=fixture(),page=f.add('a'),packet=await f.surfaces.capture({ids:['a']});f.surfaces.begin(packet.token,'popover');let finish;
+  f.shell.capturePage=()=>new Promise(resolve=>{finish=resolve;});
+  const waiting=f.surfaces.present({token:packet.token,holdToken:packet.token});assert.equal(f.surfaces.activeCaptures,1);
+  if(mutation==='navigation')page.navigationEpoch++;
+  if(mutation==='replacement')f.browser.tabs.set('a',{...page});
+  if(mutation==='geometry')page.bounds.width--;
+  if(mutation==='desktop')f.bank.active='desk-4';
+  if(mutation==='resize')f.win.emit('resize');
+  if(mutation==='end')f.surfaces.end(packet.token);
+  if(mutation==='lock')f.surfaces.lock();
+  finish(f.image(1000,800));const result=await waiting;assert.equal(result.ready,false,mutation);assert.equal(result.reason,'stale',mutation);assert.equal(f.surfaces.activeCaptures,0);f.surfaces.dispose();
+ }
+});
+
+test('a late native paint stays bounded and cannot open another readback or acknowledge after expiry',async()=>{
+ const f=fixture({paintMs:5});f.surfaces.enableDiagnostics();f.add('a');const packet=await f.surfaces.capture({ids:['a']});let finish,reads=0;
+ f.shell.capturePage=()=>{reads++;return new Promise(resolve=>{finish=resolve;});};const keepAlive=setTimeout(()=>{},100);
+ try{
+  const result=await f.surfaces.present({token:packet.token});assert.equal(result.ready,false);assert.equal(result.reason,'deadline');assert.equal(f.surfaces.activeCaptures,1);
+  assert.equal((await f.surfaces.present({token:packet.token})).reason,'unavailable');assert.equal(reads,1);
+  finish(f.image(1000,800));await new Promise(resolve=>setImmediate(resolve));assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.painting,false);
+  assert.equal(f.surfaces.diagnostics().events.filter(row=>row.phase==='paint-result'&&row.ready).length,0,'Late GPU completion cannot report readiness');
+ }finally{clearTimeout(keepAlive);f.surfaces.dispose();}
+});
+
+test('paint regions use actual image scale and tolerate bounded resampling without accepting a different fill',async()=>{
+ const f=fixture(),page=f.add('a',{width:400,height:300});page.view.webContents.capturePage=async()=>({...f.image(800,600),getScaleFactors:()=>[1,2]});
+ const packet=await f.surfaces.capture({ids:['a']});let delta=3;
+ f.shell.capturePage=async()=>({...f.image(2000,1600,32,[71+delta,123+delta,199+delta,255]),getScaleFactors:()=>[1,2],getSize:scale=>{assert.equal(scale,2);return{width:2000,height:1600};}});
+ assert.equal((await f.surfaces.present({token:packet.token})).ready,true);delta=8;
+ assert.equal((await f.surfaces.present({token:packet.token})).ready,false);f.surfaces.dispose();
+});
+
 test('exact PNG surfaces capture active visible pages only and preserve actual dimensions and identity pins',async()=>{
  const f=fixture(),a=f.add('a',{width:812,height:613});f.add('hidden',{visible:false});f.add('other',{desk:'desk-1'});
  const r=await f.surfaces.capture({ids:['a']});assert.equal(r.complete,true);assert.equal(r.desk,'desk-3');assert.match(r.token,/^[a-f\d-]{36}$/);assert.equal(r.surfaces[0].width,812);assert.equal(r.surfaces[0].pixelHeight,613);assert.equal(r.surfaces[0].webContentsId,a.view.webContents.id);assert.equal(r.surfaces[0].epoch,0);assert.deepEqual(r.surfaces[0].bounds,a.bounds);assert.match(r.surfaces[0].src,/^data:image\/png;base64,/);assert.deepEqual(f.images,['a']);assert.deepEqual(f.captures,[{id:'a',rect:undefined,opts:{stayHidden:true,stayAwake:false}}]);
@@ -47,7 +107,7 @@ test('capture rejects late navigation, page replacement, geometry, desktop, lock
 });
 test('surface PNG preserves an existing Retina representation without inventing a higher scale',async()=>{
  const f=fixture(),page=f.add('retina');let requested;
- page.view.webContents.capturePage=async()=>({getScaleFactors:()=>[1,2],isEmpty:()=>false,toPNG(options){requested=options;return f.image(1600,1200).toPNG();}});
+ page.view.webContents.capturePage=async()=>({...f.image(1600,1200),getScaleFactors:()=>[1,2],isEmpty:()=>false,toPNG(options){requested=options;return f.image(1600,1200).toPNG();}});
  const r=await f.surfaces.capture({ids:['retina']});assert.equal(r.complete,true);assert.deepEqual(requested,{scaleFactor:2});assert.equal(r.surfaces[0].width,800);assert.equal(r.surfaces[0].height,600);assert.equal(r.surfaces[0].pixelWidth,1600);assert.equal(r.surfaces[0].pixelHeight,1200);f.surfaces.dispose();
 });
 test('hold validates decoded source token and captures only selected incoming panels without showing them',async()=>{
@@ -102,7 +162,7 @@ test('opt-in surface diagnostics measure native capture, PNG, base64 and preview
  const context={module:{exports:{}},require,Buffer,structuredClone,setTimeout,clearTimeout,performance:{now(){assert.equal(enabled,true,'ordinary capture does not read the diagnostic clock');return elapsed;}}};
  vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Instrumented=context.module.exports.DesktopSurfaces;
  const f=fixture(),page=f.add('a'),png=f.image().toPNG();f.surfaces.dispose();const stringify=png.toString.bind(png);png.toString=encoding=>{elapsed+=5;return stringify(encoding);};
- page.view.webContents.capturePage=async()=>{elapsed+=40;return{isEmpty:()=>false,toPNG(){elapsed+=20;return png;}};};
+ page.view.webContents.capturePage=async()=>{elapsed+=40;return{...f.image(),isEmpty:()=>false,toPNG(){elapsed+=20;return png;}};};
  const surfaces=new Instrumented({browser:f.browser,bank:f.bank,win:f.win,onImage(){elapsed+=15;}});
  enabled=false;assert.equal((await surfaces.capture({ids:['a']})).complete,true);assert.equal(surfaces.diagnostics().enabled,false);enabled=true;surfaces.enableDiagnostics();
  for(let i=0;i<9;i++)assert.equal((await surfaces.capture({ids:['a']})).complete,true);
@@ -134,7 +194,7 @@ test('largest viewport starts first within two workers and the historical 700ms 
  const schedule=(fn,ms)=>{const timer={at:clock+ms,fn,unref(){}};timers.add(timer);return timer;};
  const context={module:{exports:{}},require,Buffer,structuredClone,setTimeout:schedule,clearTimeout:timer=>timers.delete(timer),performance:{now:()=>clock}};
  vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Replay=context.module.exports.DesktopSurfaces,f=fixture();f.surfaces.dispose();
- for(const row of sample){const page=f.add(row.id,{width:row.width,height:row.height});page.view.webContents.capturePage=()=>{started.push({id:row.id,at:clock});active++;maximum=Math.max(maximum,active);return new Promise(resolve=>schedule(()=>{active--;const png=f.image(row.width,row.height).toPNG();png.write(row.id,24);const encode=png.toString.bind(png);png.toString=format=>{clock+=row.base64;return encode(format);};resolve({isEmpty:()=>false,toPNG(){clock+=row.png;return png;}});},row.capture));};}
+ for(const row of sample){const page=f.add(row.id,{width:row.width,height:row.height});page.view.webContents.capturePage=()=>{started.push({id:row.id,at:clock});active++;maximum=Math.max(maximum,active);return new Promise(resolve=>schedule(()=>{active--;const png=f.image(row.width,row.height).toPNG();png.write(row.id,24);const encode=png.toString.bind(png);png.toString=format=>{clock+=row.base64;return encode(format);};resolve({...f.image(row.width,row.height),isEmpty:()=>false,toPNG(){clock+=row.png;return png;}});},row.capture));};}
  f.add('hidden',{visible:false});f.add('other',{desk:'desk-1'});const before=sample.map(row=>{const page=f.browser.tabs.get(row.id);return{id:row.id,page,wc:page.view.webContents,bounds:{...page.bounds},epoch:page.navigationEpoch,visible:page.visible};});
  const surfaces=new Replay({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,captureMs:700,onImage:id=>{clock+=sample.find(row=>row.id===id).preview;}});surfaces.enableDiagnostics();const requested=sample.map(row=>row.id);let settled=false,result;
  const work=surfaces.capture({ids:requested}).then(value=>{result=value;settled=true;});

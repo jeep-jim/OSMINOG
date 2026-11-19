@@ -21,11 +21,12 @@ test('a malformed first framebuffer or throwing selector never signals readiness
  for(const malformed of [true,false]){const f=fixture(),capture=armFrameCapture(f.contents,{select(){if(!malformed)throw Error('invalid bitmap data');return null;}}),image=f.image('bad');if(malformed)image.getSize=()=>({width:NaN,height:60});f.contents.frame(image,{});const outcomes=await Promise.allSettled([capture.ready,capture.result]);assert.ok(outcomes.every(value=>value.status==='rejected'));assert.strictEqual(outcomes[0].reason,outcomes[1].reason);assert.deepEqual(f.events,['armed','ended']);}
 });
 
-function nativeCornerCrop(){
+function nativeCornerHelpers(){
  const fs=require('node:fs'),vm=require('node:vm'),file=require.resolve('./mouse-628-ui-smoke.cjs'),from=require('node:module').createRequire(file),context={module:{exports:{}},require:id=>id==='electron'?{}:from(id)};
  vm.runInNewContext(fs.readFileSync(file,'utf8'),context,{filename:file});
- return(...args)=>JSON.parse(JSON.stringify(context.module.exports.screenCropGeometry(...args)));
+ return context.module.exports;
 }
+function nativeCornerCrop(){const helpers=nativeCornerHelpers();return(...args)=>JSON.parse(JSON.stringify(helpers.screenCropGeometry(...args)));}
 test('native corner proof crops the real display origin from the first failed Mac geometry',()=>{
  const crop=nativeCornerCrop(),display={x:0,y:0,width:1024,height:768},content={x:8,y:33,width:1008,height:668};
  const result=crop(display,content,{width:1024,height:768});assert.deepEqual(result,{cropPixels:{x:8,y:33,width:1008,height:668},mapping:{scaleX:1,scaleY:1,originX:0,originY:0}});
@@ -47,4 +48,20 @@ test('native corner proof rejects off-display windows and invalid capture dimens
  const crop=nativeCornerCrop(),display={x:0,y:0,width:1024,height:768},pixels={width:1024,height:768};
  for(const content of [{x:-1,y:0,width:100,height:100},{x:1000,y:0,width:100,height:100},{x:0,y:700,width:100,height:100},{x:0,y:0,width:0,height:100}])assert.throws(()=>crop(display,content,pixels),/inside the captured display/);
  assert.throws(()=>crop(display,{x:0,y:0,width:100,height:100},{width:NaN,height:768}),/real display scale/);
+});
+test('native corner proof derives expected RGB from the current computed theme variable',()=>{
+ const {cornerBackground}=nativeCornerHelpers(),read=value=>JSON.parse(JSON.stringify(cornerBackground(value)));
+ assert.deepEqual(read(' #f3f5f9 '),{css:'#f3f5f9',rgb:[243,245,249]});assert.deepEqual(read('#10151e'),{css:'#10151e',rgb:[16,21,30]});
+ assert.deepEqual(read('rgb(243, 245, 249)'),{css:'rgb(243, 245, 249)',rgb:[243,245,249]});assert.deepEqual(read('rgba(16, 21, 30, 1)'),{css:'rgba(16, 21, 30, 1)',rgb:[16,21,30]});
+ for(const value of ['transparent','rgba(16, 21, 30, 0.5)','rgb(256, 0, 0)','rgb(1.5, 2, 3)',''])assert.throws(()=>cornerBackground(value),/opaque RGB theme colour/);
+});
+test('native corner readiness waits for both the painted marker and the current theme mask',()=>{
+ const {nativeCornerPaintReady}=nativeCornerHelpers(),marker=[171,43,158],light=[243,245,249],dark=[16,21,30],row=(inside,outside)=>({before:{inside:{rgba:inside},outside:{rgba:outside}}}),stale=row([...marker,255],[...dark,255]),current=row([...marker,255],[...light,255]);
+ // Actual second Mac failure: light DOM and visible marker, but the native
+ // cutout still used the preceding dark theme. Distinct-from-marker is not
+ // enough evidence that the selected theme has reached the native display.
+ assert.equal(nativeCornerPaintReady([stale],marker,light),false);assert.equal(nativeCornerPaintReady([current],marker,light),true);assert.equal(nativeCornerPaintReady([stale],marker,dark),true);
+ assert.equal(nativeCornerPaintReady([current,stale],marker,light),false);assert.equal(nativeCornerPaintReady([],marker,light),false);
+ assert.equal(nativeCornerPaintReady([row([...light,255],[...light,255])],marker,light),false);assert.equal(nativeCornerPaintReady([row([...marker,254],[...light,255])],marker,light),false);assert.equal(nativeCornerPaintReady([row([...marker,255],[...light,254])],marker,light),false);
+ assert.equal(nativeCornerPaintReady([row([...marker,255],[240,245,249,255])],marker,light),false,'the existing RGB tolerance remains two levels');
 });

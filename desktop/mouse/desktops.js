@@ -49,6 +49,10 @@ function mouseFloatingBackdrop(N,m,restore){
     if(ticket!==epoch||owner!==name||!unchanged(items)){if(trace)record('cancel',{stage:'decode'});for(const image of next)image.removeAttribute('src');return false;}
     clear();images=next;surfacePacket=result;document.body.append(...images);if(trace)record('paint',{stage:'start'});await painted();if(trace)record('paint',{stage:'done'});
     if(ticket!==epoch||owner!==name){if(trace)record('cancel',{stage:'paint'});return false;}
+    if(trace)record('readback',{stage:'before-hold'});
+    const presented=await N.desktops('surface-present',{token:result.token});
+    if(ticket!==epoch||owner!==name||!unchanged(items)){if(trace)record('cancel',{stage:'readback'});return false;}
+    if(!presented?.ready)throw Error('Изображение рабочего стола ещё не отрисовано. Повторите открытие.');
     heldToken=result.token;if(trace)record('hold',{stage:'start',tokenPresent:true});const held=await N.desktops('surface-hold',{phase:'begin',token:heldToken,purpose:'popover'});if(trace)record('hold',{stage:'result',held:!!held.held});if(!held.held){heldToken='';throw Error('Рабочий стол изменился. Повторите открытие.');}
     if(trace)record(ticket===epoch&&owner===name?'done':'cancel',{stage:'hold'});
     return ticket===epoch&&owner===name;
@@ -56,6 +60,15 @@ function mouseFloatingBackdrop(N,m,restore){
    })();preparing=task;return task;
   },
   held:name=>owner===name&&!!heldToken,
+  async present(name){
+   if(owner!==name||!heldToken||!surfacePacket)return false;
+   const ticket=epoch,token=surfacePacket.token,holdToken=heldToken;
+   if(trace)record('readback',{stage:'before-motion'});
+   const result=await N.desktops('surface-present',{token,holdToken});
+   const ready=result?.ready===true&&ticket===epoch&&owner===name&&heldToken===holdToken&&surfacePacket?.token===token;
+   if(trace)record('readback',{stage:'motion-result',ready,reason:result?.reason});
+   return ready;
+  },
   lease(name,abort){
    if(owner!==name||!heldToken||!surfacePacket)return null;
    const ticket=epoch,token=heldToken,valid=()=>owner===name&&epoch===ticket&&heldToken===token;
@@ -95,7 +108,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  const content=tray.querySelector('.desk-content');content.inert=true;let motion=null;
  function shapeBurrow(){motion?.sync();}
  const history=createMouseLayoutHistory({N,model:m,header:content.querySelector(':scope>header'),before:modes,restore:restoreLayout,status,show:()=>{closePeek();showModes(false);},changed:()=>{shapeBurrow();layout();}});
- motion=createMouseBurrowMotion({tray,content,footer:document.querySelector('#statusbar'),button,trace:N.test===true,settled:opened=>{if(opened&&document.activeElement===tray)modeButton.focus({preventScroll:true});}});
+ motion=createMouseBurrowMotion({tray,content,footer:document.querySelector('#statusbar'),button,trace:N.test===true,preparePaint:()=>backdrop.present('desktops'),settled:opened=>{if(opened&&document.activeElement===tray)modeButton.focus({preventScroll:true});}});
  const gesture=globalThis.createMouseDesktopGesture?.({N,tray,content,model:m,switchBehind:async id=>{if(tray.hidden||!tray.open||motion.goal!==1)return false;await switchDesktop(id,false,{keepNora:true});render(m.state.desktops);return m.desktopId===id;},changed:()=>{shapeBurrow();layout();},status});
  const rename=document.createElement('dialog');rename.id='desktop-rename';rename.innerHTML='<form><header><strong>Название рабочего стола</strong><button type="button" aria-label="Закрыть">×</button></header><label>Название<input maxlength="60" required></label><footer><button type="submit">Сохранить</button></footer></form>';document.body.append(rename);let renameId='';
  rename.querySelector('header button').onclick=()=>rename.close();rename.addEventListener('close',layout);
@@ -193,7 +206,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  N.onPreviewsCleared?.(()=>{if(N.test===true)backdrop.note('previews-cleared');MouseDesktopPreview.clearIcons();close({immediate:true});});
  document.addEventListener('pointerdown',e=>{if(tray.hidden)return;const r=tray.getBoundingClientRect(),outside=e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;if(outside&&!button.contains(e.target)){const b=button.getBoundingClientRect();if(motion.goal===0&&e.clientX>=b.left&&e.clientX<=b.right&&e.clientY>=b.top&&e.clientY<=b.bottom)void open();else void close();}});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!tray.hidden){e.preventDefault();e.stopImmediatePropagation();if(peekId)closePeek();else void close();}},true);
- return{render,open,close,showPeek,history,motion,gesture,get isOpen(){return tray.open&&!tray.hidden&&motion.goal===1;},get holdsNative(){return tray.open&&!tray.hidden&&backdrop.held('desktops');},transitionLease:()=>backdrop.lease('desktops',()=>close({immediate:true})),add:()=>choose('',true),bounds:()=>tray.hidden?null:tray.getBoundingClientRect(),...(N.test===true?{diagnostics:()=>backdrop.diagnostics()}:{})};
+ return{render,open,close,showPeek,history,motion,gesture,get isOpen(){return tray.open&&!tray.hidden&&motion.goal===1;},get isPreparing(){return opening;},get holdsNative(){return tray.open&&!tray.hidden&&backdrop.held('desktops');},transitionLease:()=>backdrop.lease('desktops',()=>close({immediate:true})),add:()=>choose('',true),bounds:()=>tray.hidden?null:tray.getBoundingClientRect(),...(N.test===true?{diagnostics:()=>backdrop.diagnostics()}:{})};
 };
 
 globalThis.createMouseZoomUI=({N,layout,status})=>{

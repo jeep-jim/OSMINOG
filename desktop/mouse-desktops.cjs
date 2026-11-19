@@ -227,6 +227,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
   if(!args||typeof args!=='object'||JSON.stringify(args).length>120000)throw Error('Invalid desktop request');
   if(action==='state')return bank.describe(rawLiveState().tabs);
   if(action==='surfaces')return surfaces.capture(args);
+  if(action==='surface-present')return surfaces.present(args);
   if(action==='surface-hold'){
    if(!['begin','end'].includes(args.phase)||typeof args.token!=='string')throw Error('Invalid surface transition');
    return serial(()=>args.phase==='begin'?surfaces.begin(args.token,args.purpose):surfaces.end(args.token));

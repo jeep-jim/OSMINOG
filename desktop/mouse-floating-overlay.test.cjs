@@ -8,7 +8,7 @@ function fixture(options={}){
  const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
  const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
  const normal=()=>({complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
- const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
+ const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}if(action==='surface-present'){events.push('readback');return options.present?options.present(args):{ready:true,reason:'painted'};}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
  const restore=async()=>{events.push('restore');restores++;await options.restore?.(restores);};
  return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
 }
@@ -18,10 +18,24 @@ test('popover decodes exact-size surfaces before holding native input and retain
  const showing=f.overlay.show('desktops');await flush();assert.ok(f.events.includes('decode'));assert.ok(!f.events.includes('begin'));assert.equal(f.images.length,0);
  decode.resolve();assert.equal(await showing,true);assert.equal(f.images.length,1);const image=f.images[0];
  assert.equal(image.style.pointerEvents,'none');assert.equal(image.style.width,'320px');assert.equal(image.style.height,'240px');assert.equal(image.draggable,false);
- assert.ok(f.events.indexOf('append')<f.events.indexOf('begin'));
+ assert.ok(f.events.indexOf('append')<f.events.indexOf('readback'));assert.ok(f.events.indexOf('readback')<f.events.indexOf('begin'));
  await f.overlay.hide('zoom');assert.equal(f.images.length,1,'another popup cannot discard the active background');
  const hiding=f.overlay.hide('desktops');await flush();assert.equal(f.images.length,1,'native restoration still pending');assert.ok(f.events.includes('end'));end.resolve();await hiding;assert.equal(f.images.length,0);assert.equal(image.src,undefined);
  assert.equal(f.calls.filter(c=>c.action==='surface-hold').length,2);
+});
+test('decoded snapshots leave native pages visible until actual readback acknowledges the same packet',async()=>{
+ const readback=deferred(),f=fixture({present:()=>readback.promise}),showing=f.overlay.show('desktops');
+ while(!f.events.includes('readback'))await flush();
+ assert.equal(f.images.length,1);assert.equal(f.events.includes('begin'),false);assert.equal(f.overlay.held('desktops'),false);
+ readback.resolve({ready:true});assert.equal(await showing,true);assert.equal(f.overlay.held('desktops'),true);
+ assert.equal(await f.overlay.present('desktops'),true);
+ const calls=f.calls.filter(call=>call.action==='surface-present');assert.deepEqual(JSON.parse(JSON.stringify(calls.map(call=>call.args))),[{token:'capture-token'},{token:'capture-token',holdToken:'capture-token'}]);
+ await f.overlay.hide('desktops');
+});
+test('unpainted or cancelled readback cannot hide native pages or revive a released hold',async()=>{
+ const f=fixture({present:async()=>({ready:false,reason:'mismatch'})});await assert.rejects(f.overlay.show('desktops'),/ещё не отрисовано/);await f.overlay.hide('desktops');assert.equal(f.events.includes('begin'),false);assert.equal(f.images.length,0);
+ const pending=deferred();let calls=0;const held=fixture({present:()=>++calls===1?{ready:true}:pending.promise});await held.overlay.show('desktops');const painting=held.overlay.present('desktops');
+ await held.overlay.hide('desktops');pending.resolve({ready:true});assert.equal(await painting,false);assert.equal(held.images.length,0);assert.equal(held.events.filter(event=>event==='begin').length,1);
 });
 test('closing during capture rejects late pixels without hiding native pages afterwards',async()=>{
  const capture=deferred(),f=fixture({capture:()=>capture.promise}),pending=f.overlay.show('desktops');await flush();assert.ok(f.events.includes('capture'));
