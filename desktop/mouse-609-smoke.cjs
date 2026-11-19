@@ -15,6 +15,10 @@ function installResizeInputProbe({axis,path,from,to}){
  for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])document.addEventListener(type,observe,true);
  return{state:()=>({clock:'renderer performance.now',axis,path,from,to,events:events.slice(),frames:frames.slice(),...sample()}),dispose(){disposed=true;cancelAnimationFrame(frame);for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])document.removeEventListener(type,observe,true);}};
 }
+function resizeInputProbeScript(spec){
+ // executeJavaScript clones the completion value across IPC; keep probe methods in the renderer.
+ return `globalThis.__mouse609ResizeInput=(${installResizeInputProbe.toString()})(${JSON.stringify(spec)});true`;
+}
 async function observedResizeDrag({input,from,to,waitDown,waitMove,waitFrames,verify,waitRelease}){
  let pressed=false,position=from,result,error;
  try{input('mouseMove',from);pressed=true;input('mouseDown',from);await waitDown();position=to;input('mouseMove',to);await waitMove();result=await waitFrames();await verify(result);}
@@ -35,7 +39,7 @@ module.exports=async({app,win,browser,globalCapture})=>{
   for(const axis of ['x','y']){
    const selector=`.divider[data-axis=${axis}]`,r=await rect(selector),p={x:Math.round(r.x+r.w/2),y:Math.round(r.y+r.h/2)},q={x:p.x+(axis==='x'?70:0),y:p.y+(axis==='y'?60:0)},path=await js(`document.querySelector(${JSON.stringify(selector)}).dataset.path`);
    const attempt={axis,path,from:p,to:q,divider:r,clock:'main performance.now',startedAt:performance.now(),sent:[]},deadline=attempt.startedAt+12000;resizeFacts.axes.push(attempt);let pointer;
-   await js(`globalThis.__mouse609ResizeInput=(${installResizeInputProbe.toString()})(${JSON.stringify({axis,path,from:p,to:q})})`);
+   await js(resizeInputProbeScript({axis,path,from:p,to:q}));
    const state=()=>js('globalThis.__mouse609ResizeInput.state()'),matching=(s,type,point)=>s.events.find(e=>e.type===type&&e.trusted&&Math.abs(e.x-point.x)<=1&&Math.abs(e.y-point.y)<=1&&(pointer===undefined||e.pointer===pointer));
    const receipt=async(check,label)=>{attempt.phase=label;while(performance.now()<deadline){attempt.last=await state();const checkedAt=performance.now();if(checkedAt>=deadline)break;if(check(attempt.last)){attempt[label+'At']=checkedAt;return attempt.last;}await sleep(60);}throw Error('Timed out resize '+axis+' '+label);};
    try{
@@ -101,3 +105,4 @@ module.exports=async({app,win,browser,globalCapture})=>{
 };
 module.exports.observedResizeDrag=observedResizeDrag;
 module.exports.installResizeInputProbe=installResizeInputProbe;
+module.exports.resizeInputProbeScript=resizeInputProbeScript;

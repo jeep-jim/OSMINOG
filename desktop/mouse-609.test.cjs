@@ -27,6 +27,16 @@ test('stale broad permission reaches the explicit picker only once',()=>{
 
 function resizeInputHelpers(globals={}){const context={module:{exports:{}},require:id=>id==='electron'?{}:require(id),...globals};require('node:vm').runInNewContext(fs.readFileSync('mouse-609-smoke.cjs','utf8'),context,{filename:'mouse-609-smoke.cjs'});return context.module.exports;}
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return{promise,resolve};},settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('installed resize probe keeps methods in the renderer and returns a cloneable IPC completion',()=>{
+ const vm=require('node:vm'),listeners=new Map(),cancelled=[],model={tree:{axis:'x',ratio:.5,a:{axis:'y',ratio:.5}},drag:null};
+ const context=vm.createContext({MouseTest:{model},document:{body:{classList:{contains:()=>false}},querySelectorAll:()=>[],addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:(type,fn)=>{assert.strictEqual(listeners.get(type),fn);listeners.delete(type);}},performance:{now:()=>1},cancelAnimationFrame:id=>cancelled.push(id)});
+ const {resizeInputProbeScript}=resizeInputHelpers(),spec={axis:'y',path:'a',from:{x:125,y:306},to:{x:125,y:366}};
+ const completion=vm.runInContext(resizeInputProbeScript(spec),context);
+ assert.equal(structuredClone(completion),true,'Electron executeJavaScript can serialize the actual setup completion');
+ assert.throws(()=>structuredClone(context.__mouse609ResizeInput),{name:'DataCloneError'},'probe methods must never cross the IPC result boundary');
+ const state=structuredClone(vm.runInContext('globalThis.__mouse609ResizeInput.state()',context));assert.equal(state.axis,'y');assert.equal(state.path,'a');assert.deepEqual(state.events,[]);assert.equal(state.ratio,.5);assert.equal(listeners.size,4);
+ assert.equal(structuredClone(vm.runInContext('globalThis.__mouse609ResizeInput.dispose();delete globalThis.__mouse609ResizeInput',context)),true);assert.equal(listeners.size,0);assert.equal(context.__mouse609ResizeInput,undefined);assert.deepEqual(cancelled,[0]);
+});
 test('HUD verification waits for delivered down, delivered move and resize frames; release is observed before completion',async()=>{
  const {observedResizeDrag}=resizeInputHelpers(),from={x:125,y:306},to={x:125,y:366},down=deferred(),move=deferred(),frames=deferred(),released=deferred(),log=[],paint={ratio:.62,badges:[{},{}]};let completed=false;
  const pending=observedResizeDrag({from,to,input:(type,p)=>log.push([type,p]),waitDown:()=>down.promise,waitMove:()=>move.promise,waitFrames:()=>frames.promise,verify:value=>{assert.strictEqual(value,paint);log.push(['verify']);},waitRelease:point=>{assert.strictEqual(point,to);log.push(['release observed']);return released.promise;}}).then(value=>{completed=true;return value;});

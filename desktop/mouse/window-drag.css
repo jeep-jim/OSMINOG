@@ -10,3 +10,7 @@ body:has(dialog:modal) #statusbar,
 body:has([popover]:popover-open) #statusbar{
  app-region:no-drag;-webkit-app-region:no-drag
 }
+
+/* Keep resize hit targets and native drag logic; remove decorative grip bars. */
+.divider::after,
+.ai-divider::after{display:none!important;content:none!important}

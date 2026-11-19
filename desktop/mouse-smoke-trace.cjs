@@ -7,8 +7,10 @@
 const fs=require('node:fs/promises');
 const TRACE_CATEGORIES=Object.freeze(['toplevel','devtools.timeline','disabled-by-default-devtools.timeline.frame','blink.animations','blink.user_timing','cc','viz','renderer.scheduler','input','gpu','gpu.capture','__metadata']);
 // Run121 lost early motion anchors in the 8MiB Chromium ring. Reserve 16MiB
-// for the same causal categories; stream, event, output and timing caps stay fixed.
-const DEFAULT_LIMITS=Object.freeze({recordMs:60000,commandMs:3000,readMs:12000,writeMs:3000,bufferKb:16384,chunkBytes:65536,maxBytes:64*1024*1024,maxOutputBytes:72*1024*1024,maxEvents:200000,maxReads:1024,maxSnapshots:64});
+// for the same causal categories; stream, event, output and recording caps stay fixed.
+// Tracing.end acknowledges a command before the asynchronous buffer flush completes.
+// Give its completion event a separate bounded transport budget, not a frame deadline.
+const DEFAULT_LIMITS=Object.freeze({recordMs:60000,commandMs:3000,completionMs:12000,readMs:12000,writeMs:3000,bufferKb:16384,chunkBytes:65536,maxBytes:64*1024*1024,maxOutputBytes:72*1024*1024,maxEvents:200000,maxReads:1024,maxSnapshots:64});
 const MARKER_PREFIX='mouse627.motion.';
 const safeToken=value=>typeof value==='string'&&value.length<=240&&/^[\w .:$<>()[\],+*\/-]+$/.test(value)&&!/:\/\/|\b(?:data|file):/i.test(value);
 const argumentText=new Set(['type','event_type','task_type','queue_type','priority','state','step','phase','reason','source_func','src_func','functionName','nodeName','unsupportedProperties','property','compositeFailed']);
@@ -81,14 +83,14 @@ async function writeTrace(file,text,signal){
 function createMotionTrace(debug,{file='mouse-627-motion-trace.json',snapshot=async()=>null,versions={},limits:overrides={},write=writeTrace}={}){
  const limits={...DEFAULT_LIMITS,...overrides};for(const [key,value]of Object.entries(limits))if(!Number.isSafeInteger(value)||value<=0)throw Error('Invalid motion trace limit: '+key);
  const config={transferMode:'ReturnAsStream',streamFormat:'json',streamCompression:'none',bufferUsageReportingInterval:500,traceConfig:{recordMode:'recordContinuously',traceBufferSizeInKb:limits.bufferKb,enableSampling:false,enableSystrace:false,enableArgumentFilter:true,includedCategories:[...TRACE_CATEGORIES],excludedCategories:['*']}};
- const meta={schemaVersion:1,source:'Chromium CDP Tracing',versions,config,limits,startedAt:null,stoppedAt:null,reason:null,complete:false,dataLossOccurred:null,bytes:0,eventCount:0,droppedEvents:0,limitedEvents:0,bufferUsage:[],snapshots:[],errors:[],clockNote:'Renderer performance.mark names are trace anchors. Main and renderer time origins alone do not establish a shared clock.',retention:'Bounded rolling buffer retains the final motion/failure; earlier events may be overwritten.'};
+ const meta={schemaVersion:1,source:'Chromium CDP Tracing',versions,config,limits,startedAt:null,stoppedAt:null,endRequestedAt:null,completionReceivedAt:null,completionLatencyMs:null,reason:null,complete:false,dataLossOccurred:null,bytes:0,eventCount:0,droppedEvents:0,limitedEvents:0,bufferUsage:[],snapshots:[],errors:[],clockNote:'Renderer performance.mark names are trace anchors. Main and renderer time origins alone do not establish a shared clock.',retention:'Bounded rolling buffer retains the final motion/failure; earlier events may be overwritten.'};
  const document={traceEvents:[],displayTimeUnit:'ms',mouseMotionTrace:meta};
- let startPromise,stopPromise,timer,attempted=false,started=false,stopping=false,completion=null,resolveComplete,detached=false;
+ let startPromise,stopPromise,timer,attempted=false,started=false,stopping=false,completion=null,resolveComplete,detached=false,endRequestedTime=null;
  const complete=new Promise(resolve=>{resolveComplete=resolve;});
  const error=(stage,value)=>{meta.errors.push({stage,message:String(value?.message||value).replace(/\b(?:https?|file|data):\S+/gi,'[redacted]').slice(0,1000)});};
  const command=(method,params={},timeout=limits.commandMs)=>bounded(()=>debug.sendCommand(method,params),timeout,method);
  const onMessage=(_event,method,params)=>{
-  if(method==='Tracing.tracingComplete'&&!completion){completion=params||{};resolveComplete(completion);}
+  if(method==='Tracing.tracingComplete'&&!completion){meta.completionReceivedAt=Date.now();meta.completionLatencyMs=endRequestedTime===null?null:Math.max(0,performance.now()-endRequestedTime);completion=params||{};resolveComplete(completion);}
   if(method==='Tracing.bufferUsage'){if(meta.bufferUsage.length===64)meta.bufferUsage.shift();meta.bufferUsage.push({at:performance.now(),...Object.fromEntries(['percentFull','eventCount','value'].flatMap(key=>Number.isFinite(params?.[key])?[[key,params[key]]]:[]))});}
  };
  const onDetach=()=>{detached=true;resolveComplete({detached:true});};
@@ -130,8 +132,8 @@ function createMotionTrace(debug,{file='mouse-627-motion-trace.json',snapshot=as
     if(startPromise)await startPromise;
     meta.reason=reason;await capture('after');
     if(attempted&&!detached){
-     if(!completion)await command('Tracing.end').catch(value=>error('end',value));
-     const result=completion||await bounded(()=>complete,limits.commandMs,'Tracing.tracingComplete');
+     if(!completion){meta.endRequestedAt=Date.now();endRequestedTime=performance.now();await command('Tracing.end').catch(value=>error('end',value));}
+     const result=completion||await bounded(()=>complete,limits.completionMs,'Tracing.tracingComplete');
      meta.dataLossOccurred=typeof result.dataLossOccurred==='boolean'?result.dataLossOccurred:null;
      try{
       if(result.detached)throw Error('Debugger detached before trace completion');
