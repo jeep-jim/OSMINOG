@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {DesktopSurfaces,MAX_CAPTURES,MAX_PNG_BYTES,MAX_PIXELS,CAPTURE_MS,PAINT_MS,PAINT_ATTEMPTS,HOLD_MS}=require('./mouse-surfaces.cjs');
+const {DesktopSurfaces,MAX_CAPTURES,MAX_PNG_BYTES,MAX_PIXELS,CAPTURE_MS,CAPTURE_ATTEMPTS,CAPTURE_RETRY_MS,PAINT_MS,PAINT_ATTEMPTS,HOLD_MS}=require('./mouse-surfaces.cjs');
 function fixture(options={}){
  const win=new EventEmitter(),shell=new EventEmitter(),bank={active:'desk-3',members:{}},captures=[],images=[],layouts=[],events=[],screen={getAllDisplays:()=>[{scaleFactor:1}]};let now=100;
  win.isDestroyed=()=>false;win.getContentSize=()=>[1000,800];win.webContents=shell;shell.send=name=>events.push(name);
@@ -164,7 +164,7 @@ test('opt-in surface diagnostics measure native capture, PNG, base64 and preview
  vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Instrumented=context.module.exports.DesktopSurfaces;
  const f=fixture(),page=f.add('a'),png=f.image().toPNG();f.surfaces.dispose();const stringify=png.toString.bind(png);png.toString=encoding=>{elapsed+=5;return stringify(encoding);};
  page.view.webContents.capturePage=async()=>{elapsed+=40;return{...f.image(),isEmpty:()=>false,toPNG(){elapsed+=20;return png;}};};
- const surfaces=new Instrumented({browser:f.browser,bank:f.bank,win:f.win,screen:f.screen,onImage(){elapsed+=15;}});
+ const surfaces=new Instrumented({browser:f.browser,bank:f.bank,win:f.win,screen:f.screen,budgetNow:()=>elapsed,onImage(){elapsed+=15;}});
  enabled=false;assert.equal((await surfaces.capture({ids:['a']})).complete,true);assert.equal(surfaces.diagnostics().enabled,false);enabled=true;surfaces.enableDiagnostics();
  for(let i=0;i<9;i++)assert.equal((await surfaces.capture({ids:['a']})).complete,true);
  const report=surfaces.diagnostics(),copy=structuredClone(report),last=copy.lastCapture;
@@ -353,4 +353,64 @@ test('native readback rejection releases one reservation and wakes bounded work 
  const f=scheduledFixture(),ids=['a','b','c','d','queued'];for(const id of ids)f.addTimed(id);const work=f.surfaces.capture({ids});await f.flush();assert.equal(f.surfaces.activeCaptures,4);
  f.pending.find(row=>row.id==='a').fail(Error('native readback failed'));await f.advance(0);assert.deepEqual(f.started.map(row=>row.id),ids);assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.reservedPixels,4*800*600);
  for(const id of ids.slice(1))f.pending.find(row=>row.id===id).finish();await f.advance(0);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.maximum(),4);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.capacityWaiters.size,0);f.surfaces.dispose();
+});
+
+test('an exact native UnknownVizError can recover only through a fresh validated capture within the same batch',async()=>{
+ const f=scheduledFixture();f.addTimed('page');const work=f.surfaces.capture({ids:['page']});await f.advance(2);assert.equal(f.pending.length,1);assert.equal(f.surfaces.activeCaptures,1);
+ f.pending[0].fail(Error('UnknownVizError'));await f.advance(0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.images.length,0);await f.advance(15);assert.equal(f.started.length,1);await f.advance(1);assert.equal(f.started.length,2);assert.equal(f.started[1].at,18);assert.equal(f.surfaces.activeCaptures,1);
+ const png=f.image().toPNG();png.write('fresh',24);await f.advance(50);f.pending[1].finish({...f.image(),toPNG:()=>png});await f.advance(0);const result=await work,report=f.surfaces.diagnostics(),row=report.lastCapture.pages[0];
+ assert.equal(result.complete,true);assert.ok(result.token);assert.equal(Buffer.from(result.surfaces[0].src.split(',')[1],'base64').subarray(24,29).toString(),'fresh');assert.deepEqual(f.images,['page']);assert.equal(f.maximum(),1,'Attempts for one page never overlap');assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);
+ assert.deepEqual(row.attempts.map(value=>[value.attempt,value.outcome,value.elapsedMs]),[[1,'rejected',2],[2,'captured',50]]);assert.equal(row.attempts[0].message,'UnknownVizError');assert.equal(row.nativeStartedAt,18);assert.equal(row.captureMs,50);assert.equal(row.backoffs.length,1);assert.equal(row.backoffs[0].delayMs,16);assert.equal(row.backoffs[0].completed,true);assert.equal(row.backoffs[0].elapsedMs,16);
+ const originalWait=report.events.find(value=>value.phase==='page'&&value.state==='retry-wait');assert.equal(originalWait.attempts.length,1,'Historical events do not mutate after later attempts');assert.equal(originalWait.attempts[0].outcome,'rejected');assert.equal('completed' in originalWait.backoffs[0],false);assert.ok(f.started.every(value=>value.rect===undefined&&value.opts.stayHidden===true&&value.opts.stayAwake===false));f.surfaces.dispose();
+});
+
+test('persistent exact native rejection stops at eight attempts and preserves every error without a token',async()=>{
+ assert.equal(CAPTURE_ATTEMPTS,8);assert.deepEqual(CAPTURE_RETRY_MS,[16,32,64,128,256,256,256]);assert.equal(Object.isFrozen(CAPTURE_RETRY_MS),true);
+ const f=scheduledFixture();f.addTimed('page');const work=f.surfaces.capture({ids:['page']});let expectedTime=0;
+ for(let attempt=0;attempt<8;attempt++){await f.flush();assert.equal(f.pending.length,attempt+1);assert.equal(f.started[attempt].at,expectedTime);assert.equal(f.surfaces.activeCaptures,1);f.pending[attempt].fail(Error('UnknownVizError'));await f.advance(0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);if(attempt<7){const delay=CAPTURE_RETRY_MS[attempt];await f.advance(delay-1);assert.equal(f.started.length,attempt+1);await f.advance(1);expectedTime+=delay;}}
+ const result=await work,row=f.surfaces.diagnostics().lastCapture.pages[0];assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.started.length,8);assert.equal(expectedTime,1008);assert.equal(f.clock(),1008);assert.equal(row.attempts.length,8);assert.ok(row.attempts.every(value=>value.outcome==='rejected'&&value.message==='UnknownVizError'));assert.deepEqual(row.backoffs.map(value=>value.delayMs),CAPTURE_RETRY_MS);assert.ok(row.backoffs.every(value=>value.completed===true));assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.equal(f.surfaces.capacityWaiters.size,0);await f.advance(5000);assert.equal(f.started.length,8);f.surfaces.dispose();
+});
+
+test('retry pacing consumes the original deadline and expiry cancels the wait before another native call',async()=>{
+ const f=scheduledFixture();f.addTimed('page');let settled=false;const work=f.surfaces.capture({ids:['page']}).then(value=>{settled=true;return value;});await f.advance(2490);f.pending[0].fail(Error('UnknownVizError'));await f.advance(0);assert.equal(f.surfaces.reservedPixels,0);await f.advance(9);assert.equal(settled,false);assert.equal(f.started.length,1);await f.advance(1);
+ const result=await work,report=f.surfaces.diagnostics(),row=report.lastCapture.pages[0];assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(report.lastCapture.reason,'deadline');assert.equal(report.lastCapture.elapsedMs,2500);assert.equal(row.backoffs.length,1);assert.equal(row.backoffs[0].delayMs,10,'Backoff is bounded by remaining time');assert.equal(row.backoffs[0].completed,false);assert.equal(f.surfaces.capacityWaiters.size,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);await f.advance(1000);assert.equal(f.started.length,1);assert.deepEqual(f.images,[]);f.surfaces.dispose();
+});
+
+test('a retried native capture that outlives the deadline keeps its reservation until actual completion',async()=>{
+ const f=scheduledFixture();f.addTimed('page');const work=f.surfaces.capture({ids:['page']});f.pending[0].fail(Error('UnknownVizError'));await f.advance(16);assert.equal(f.started.length,2);await f.advance(2484);const result=await work;
+ assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(f.surfaces.diagnostics().lastCapture.reason,'deadline');assert.equal(f.surfaces.diagnostics().lastCapture.elapsedMs,2500);assert.equal(f.surfaces.activeCaptures,1);assert.equal(f.surfaces.reservedPixels,800*600);assert.equal(f.surfaces.capacityWaiters.size,0);
+ f.pending[1].finish();await f.advance(0);const row=f.surfaces.diagnostics().lastCapture.pages[0];assert.equal(row.state,'late-after-deadline');assert.deepEqual(row.attempts.map(value=>value.outcome),['rejected','captured']);assert.equal(f.started.length,2);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.equal(f.surfaces.records.size,0);f.surfaces.dispose();
+});
+
+test('other native errors and image or encoding failures never enter UnknownVizError retry',async()=>{
+ for(const error of [Error('Unknown'),Error('UnknownVizError '),Error('unknownvizerror'),Error('Current display surface not available for capture'),'UnknownVizError',Object.assign(Error('Different'),{code:'UnknownVizError'})]){
+  const f=scheduledFixture();f.addTimed('page');const work=f.surfaces.capture({ids:['page']});f.pending[0].fail(error);await f.advance(0);assert.equal((await work).complete,false);await f.advance(5000);const row=f.surfaces.diagnostics().lastCapture.pages[0];assert.equal(f.started.length,1);assert.equal(row.attempts.length,1);assert.equal(row.backoffs.length,0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.images,[]);f.surfaces.dispose();
+ }
+ for(const type of ['empty','scale','dimensions','png-error','bitmap-error']){
+  const f=scheduledFixture();f.addTimed('page');const work=f.surfaces.capture({ids:['page']}),image=f.image();if(type==='empty')image.isEmpty=()=>true;if(type==='scale')image.getScaleFactors=()=>[NaN];if(type==='dimensions')image.getSize=()=>({width:801,height:600});if(type==='png-error')image.toPNG=()=>{throw Error('UnknownVizError');};if(type==='bitmap-error')image.toBitmap=()=>{throw Error('UnknownVizError');};
+  f.pending[0].finish(image);await f.advance(0);const result=await work;assert.equal(result.complete,false,type);assert.equal(result.token,'');await f.advance(5000);const row=f.surfaces.diagnostics().lastCapture.pages[0];assert.equal(f.started.length,1,type);assert.equal(row.attempts.length,1);assert.equal(row.attempts[0].outcome,'captured');assert.equal(row.backoffs.length,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.images,[]);f.surfaces.dispose();
+ }
+});
+
+test('backoff cancellation rechecks privacy, lifetime, display scale and every page identity before retry',async()=>{
+ for(const mutation of ['clear','lock','resize','dispose','workspace-dispose','scale','scale-unavailable','hidden','membership','desktop','navigation','url','replacement','bounds','viewport']){
+  let scaleFactor=1;const f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor}]}}),page=f.addTimed('page'),work=f.surfaces.capture({ids:['page']});f.pending[0].fail(Error('UnknownVizError'));await f.advance(0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);
+  if(['clear','lock','dispose'].includes(mutation))f.surfaces[mutation]();if(mutation==='resize')f.win.emit('resize');if(mutation==='workspace-dispose')f.browser.disposed=true;if(mutation==='scale')scaleFactor=2;if(mutation==='scale-unavailable')scaleFactor=NaN;if(mutation==='hidden')page.visible=false;if(mutation==='membership')f.bank.members.page='other';if(mutation==='desktop')f.bank.active='other';if(mutation==='navigation')page.navigationEpoch++;if(mutation==='url')page.url='https://changed.test/';if(mutation==='replacement')f.browser.tabs.set('page',{...page});if(mutation==='bounds')page.bounds.width--;if(mutation==='viewport')page.view.getBounds=()=>({...page.bounds,width:799});
+  await f.advance(16);const result=await work,row=f.surfaces.diagnostics().lastCapture.pages[0];assert.equal(result.complete,false,mutation);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.started.length,1,mutation);assert.equal(row.attempts.length,1);assert.equal(row.backoffs.length,1);assert.equal(row.backoffs[0].completed,false);assert.equal(f.surfaces.capacityWaiters.size,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);await f.advance(3000);assert.equal(f.started.length,1,mutation);f.surfaces.dispose();
+ }
+});
+
+test('a failed guest frees capacity during backoff and reacquires the same shared shell count and pixel pool',async()=>{
+ for(const retina of [false,true]){
+  const scale=retina?2:1,f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor:scale}]}}),ids=retina?['a','b']:['a','b','c','d'],size=retina?{width:2048,height:1024,scaleFactor:2}:{};if(retina)f.win.getContentSize=()=>[2048,1024];
+  f.addTimed('source',{delay:0,width:100,height:100,scaleFactor:scale});let work=f.surfaces.capture({ids:['source']});await f.advance(0);const packet=await work;for(const id of ids)f.addTimed(id,size);f.setShellTimed({scaleFactor:scale});work=f.surfaces.capture({ids});const paint=f.surfaces.present({token:packet.token});await f.flush();assert.equal(f.surfaces.activeCaptures,ids.length);assert.equal(f.surfaces.capacityWaiters.size,1);assert.equal(f.started.some(row=>row.id==='shell'),false);
+  f.pending.find(row=>row.id==='a').fail(Error('UnknownVizError'));await f.advance(0);assert.equal(f.started.at(-1).id,'shell','Settled failure makes room for pending shell paint during pacing');assert.equal(f.surfaces.activeCaptures,ids.length);if(retina)assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);
+  await f.advance(16);assert.equal(f.started.filter(row=>row.id==='a').length,1,'Retry cannot bypass occupied count or scaled pixel capacity');assert.equal(f.surfaces.capacityWaiters.size,1);f.pending.find(row=>row.id==='shell').finish();await f.advance(0);assert.equal((await paint).ready,true);assert.equal(f.started.at(-1).id,'a');assert.equal(f.surfaces.activeCaptures,ids.length);
+  for(const id of ids.slice(1))f.pending.find(row=>row.id===id).finish();f.pending.filter(row=>row.id==='a').at(-1).finish();await f.advance(0);const result=await work;assert.equal(result.complete,true);assert.equal(result.surfaces.length,ids.length);assert.equal(f.maximum(),ids.length);assert.ok(f.started.every(row=>row.activeCaptures<=4&&row.reservedPixels<=MAX_PIXELS));assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.capacityWaiters.size,0);f.surfaces.dispose();
+ }
+});
+
+test('an overdue pacing callback cannot start native work ahead of an overdue deadline timer',async()=>{
+ const f=scheduledFixture();f.addTimed('cpu',{delay:0,pngMs:2600});f.addTimed('retry');const work=f.surfaces.capture({ids:['cpu','retry']});f.pending.find(row=>row.id==='retry').fail(Error('UnknownVizError'));await f.flush();
+ await f.advance(0);assert.equal(f.clock(),2600,'Controlled synchronous encoding holds the event loop past the absolute budget');assert.equal(f.started.length,2);await f.advance(0);const result=await work,report=f.surfaces.diagnostics();assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(report.lastCapture.reason,'deadline');assert.equal(f.started.length,2,'Retry timer was earlier in the queue but cannot renew an expired budget');assert.equal(report.lastCapture.pages.find(row=>row.id==='retry').attempts.length,1);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.capacityWaiters.size,0);f.surfaces.dispose();
 });

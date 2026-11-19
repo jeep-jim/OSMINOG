@@ -5,6 +5,7 @@ const {randomUUID}=require('node:crypto');
 // One preparation budget covers the whole queue, including native readback
 // and encoding. Guest and shell readbacks share both count and pixel limits.
 const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=4,CAPTURE_MS=2500,HOLD_MS=5000,PAINT_MS=1500,PAINT_ATTEMPTS=8,PAINT_TOLERANCE=4;
+const CAPTURE_ATTEMPTS=8,CAPTURE_RETRY_MS=Object.freeze([16,32,64,128,256,256,256]);
 const rect=r=>r&&['x','y','width','height'].every(k=>Number.isFinite(r[k]))&&r.width>0&&r.height>0?{x:r.x,y:r.y,width:r.width,height:r.height}:null;
 const same=(a,b)=>!!a&&!!b&&['x','y','width','height'].every(k=>a[k]===b[k]);
 const pixelReservation=(width,height,scale)=>{const pixels=Math.ceil(width*scale)*Math.ceil(height*scale);return [width,height,scale].every(value=>Number.isFinite(value)&&value>0)&&Number.isSafeInteger(pixels)&&pixels>0&&pixels<=MAX_PIXELS?pixels:0;};
@@ -51,8 +52,8 @@ function matchesPaint(image,size,regions){
  return regions.every(region=>{const mean=regionMean(bitmap,pixels.width,pixels.height,region,box);return mean&&mean.every((value,i)=>Math.abs(value-region.rgba[i])<=PAINT_TOLERANCE);});
 }
 class DesktopSurfaces{
- constructor({browser,bank,win,screen,onImage,now=Date.now,captureMs=CAPTURE_MS,holdMs=HOLD_MS,paintMs=PAINT_MS}){
-  Object.assign(this,{browser,bank,win,screen,onImage,now,captureMs,holdMs,paintMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.reservedPixels=0;this.capacityWaiters=new Set();this.busy=false;this.painting=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
+ constructor({browser,bank,win,screen,onImage,now=Date.now,budgetNow=()=>performance.now(),captureMs=CAPTURE_MS,holdMs=HOLD_MS,paintMs=PAINT_MS}){
+  Object.assign(this,{browser,bank,win,screen,onImage,now,budgetNow,captureMs,holdMs,paintMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.reservedPixels=0;this.capacityWaiters=new Set();this.busy=false;this.painting=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
   // BrowserWindow.webContents is a native getter: after 'closed' it throws.
   // Retain the emitter now so disposal can continue into closing every page.
   this.shellContents=win?.webContents;
@@ -81,6 +82,13 @@ class DesktopSurfaces{
    this.capacityWaiters.add(wake);waiting.add(cancel);wake();
   });
  }
+ waitRetry(ms,current,waiting){
+  return new Promise(resolve=>{
+   let done=false,timer;const finish=completed=>{if(done)return;done=true;clearTimeout(timer);this.capacityWaiters.delete(wake);waiting.delete(cancel);resolve(completed);};
+   const cancel=()=>finish(false),wake=()=>{if(!current())finish(false);};
+   this.capacityWaiters.add(wake);waiting.add(cancel);timer=setTimeout(()=>finish(current()),ms);timer.unref?.();wake();
+  });
+ }
  shape(){const size=this.win?.getContentSize?.();return Array.isArray(size)?size.join('x'):'';}
  live(id,hold){
   const page=this.browser.tabs.get(id),wc=page?.view?.webContents;
@@ -94,6 +102,7 @@ class DesktopSurfaces{
  empty(){return{desk:this.bank.active,surfaces:[],complete:false,generation:this.generation,token:''};}
  async capture(args={}){
   if(!Array.isArray(args.ids)||args.ids.length>MAX_PAGES||args.ids.some(id=>typeof id!=='string'||!id||id.length>100)||new Set(args.ids).size!==args.ids.length)throw Error('Invalid surface page identities');
+  const deadlineAt=this.budgetNow()+this.captureMs;
   const trace=this.diagnostic,observed=trace?{sequence:++trace.sequence,startedAt:performance.now(),requestedIds:args.ids.slice(),generation:this.generation,reason:'pending',complete:false,completedIds:[],pngBytes:0,pixels:0,peakActiveCaptures:0,peakReservedPixels:0,pages:[]}:null;
   if(trace){trace.lastCapture=observed;this.recordDiagnostic(trace,'capture-start',{sequence:observed.sequence,ids:observed.requestedIds,activeCaptures:this.activeCaptures,reservedPixels:this.reservedPixels,busy:this.busy,held:!!this.held});}
   const resultDiagnostic=(reason,complete)=>{if(observed){observed.reason=reason;observed.complete=complete;observed.elapsedMs=performance.now()-observed.startedAt;this.recordDiagnostic(trace,'capture-result',{sequence:observed.sequence,reason,complete,elapsedMs:observed.elapsedMs,activeCaptures:this.activeCaptures});}};
@@ -105,27 +114,50 @@ class DesktopSurfaces{
   // Stable sorting preserves request order for equal areas; limits stay shared.
   pins.sort((a,b)=>b.viewport.width*b.viewport.height-a.viewport.width*a.viewport.height);
   const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[],regions=[],waiting=new Set();let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
-  const current=()=>{const scale=this.scaleFactor();return!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape()&&(!pins.length||scale>0&&scale<=scaleFactor);};
+  const expire=()=>{if(deadline)return;cancelled=true;deadline=true;if(observed)this.recordDiagnostic(trace,'capture-deadline',{sequence:observed.sequence,elapsedMs:performance.now()-observed.startedAt,completedIds:surfaces.map(surface=>surface.id),activeCaptures:this.activeCaptures});};
+  // A settled native promise can run before an overdue timer callback. Check
+  // the same monotonic deadline before starting or retrying any native work.
+  const current=()=>{if(!cancelled&&this.budgetNow()>=deadlineAt)expire();const scale=this.scaleFactor();return!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape()&&(!pins.length||scale>0&&scale<=scaleFactor);};
   this.busy=true;
   const worker=async()=>{
    while(index<pins.length&&current()){
-    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,base64Ms:null,previewMs:null}:null;let stageStarted;
+    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,base64Ms:null,previewMs:null,attempts:[],backoffs:[]}:null;let stageStarted;
     if(row)observed.pages.push(row);
-    const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row});}};
+    const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row,attempts:row.attempts.map(attempt=>({...attempt})),backoffs:row.backoffs.map(backoff=>({...backoff}))});}};
     if(!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');continue;}
     const reservedPixels=pixelReservation(pin.viewport.width,pin.viewport.height,scaleFactor);
     if(!reservedPixels){pageDiagnostic('capture-pixel-budget');continue;}
-    if(row){row.reservedPixels=reservedPixels;row.scaleFactor=scaleFactor;row.state='capacity';}
-    let release=this.reserveCapture(reservedPixels);if(!release)release=await this.waitCapture(reservedPixels,current,waiting);
-    if(!release){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');continue;}
-    if(observed){observed.peakActiveCaptures=Math.max(observed.peakActiveCaptures,this.activeCaptures);observed.peakReservedPixels=Math.max(observed.peakReservedPixels,this.reservedPixels);}
+    if(row){row.reservedPixels=reservedPixels;row.scaleFactor=scaleFactor;}
+    let release=null,image,acquired=false;
     try{
-     if(!current()||!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');continue;}
-     // Capturing the selected incoming desk during an owned hold must not make
-     // hidden/background pages visible or keep the computer awake.
-     if(row){row.state='capturing';stageStarted=performance.now();row.nativeStartedAt=stageStarted;row.queueMs=stageStarted-observed.startedAt;}
-     const image=await pin.wc.capturePage(undefined,{stayHidden:true,stayAwake:false});
-     if(row){row.captureMs=performance.now()-stageStarted;pageDiagnostic('captured');}
+     for(let attempt=0;attempt<CAPTURE_ATTEMPTS;attempt++){
+      if(!current()||!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');break;}
+      if(row)row.state='capacity';release=this.reserveCapture(reservedPixels);if(!release)release=await this.waitCapture(reservedPixels,()=>current()&&this.valid(pin,args.hold),waiting);
+      if(!release){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');break;}
+      if(observed){observed.peakActiveCaptures=Math.max(observed.peakActiveCaptures,this.activeCaptures);observed.peakReservedPixels=Math.max(observed.peakReservedPixels,this.reservedPixels);}
+      if(!current()||!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');break;}
+      // Capturing an incoming desk under its owned hold must not show hidden
+      // pages or keep the computer awake. Every retry uses the same options.
+      let nativeAttempt;if(row){row.state='capturing';stageStarted=performance.now();row.nativeStartedAt=stageStarted;row.queueMs=stageStarted-observed.startedAt;row.captureMs=null;nativeAttempt={attempt:attempt+1,nativeStartedAt:stageStarted,queueMs:row.queueMs};row.attempts.push(nativeAttempt);}
+      try{image=await pin.wc.capturePage(undefined,{stayHidden:true,stayAwake:false});}
+      catch(error){
+       if(nativeAttempt){const finishedAt=performance.now();Object.assign(nativeAttempt,{finishedAt,elapsedMs:finishedAt-stageStarted,outcome:'rejected',message:String(error?.message||error).slice(0,512)});}
+       // Viz can reject a copy request before returning any pixels. Pace only
+       // this exact native rejection, within the original preparation budget;
+       // a timer is not readiness evidence and no image fallback is accepted.
+       if(error?.message!=='UnknownVizError'||attempt+1>=CAPTURE_ATTEMPTS)throw error;
+       release();release=null;
+       if(!current()||!this.valid(pin,args.hold)){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');break;}
+       const remaining=deadlineAt-this.budgetNow();if(remaining<=0){expire();pageDiagnostic('late-after-deadline');break;}
+       const delayMs=Math.min(CAPTURE_RETRY_MS[attempt],remaining),backoff=row?{afterAttempt:attempt+1,scheduledAt:performance.now(),delayMs}:null;if(backoff)row.backoffs.push(backoff);pageDiagnostic('retry-wait');
+       const completed=await this.waitRetry(delayMs,()=>current()&&this.valid(pin,args.hold),waiting);
+       if(backoff){backoff.finishedAt=performance.now();backoff.elapsedMs=backoff.finishedAt-backoff.scheduledAt;backoff.completed=completed;}
+       if(!completed){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');break;}
+       continue;
+      }
+      acquired=true;if(nativeAttempt){const finishedAt=performance.now();Object.assign(nativeAttempt,{finishedAt,elapsedMs:finishedAt-stageStarted,outcome:'captured'});row.captureMs=nativeAttempt.elapsedMs;pageDiagnostic('captured');}break;
+     }
+     if(!acquired)continue;
      if(!current()){pageDiagnostic(deadline?'late-after-deadline':'capture-invalidated');continue;}
      if(!this.valid(pin,args.hold)){pageDiagnostic('pin-changed-after-capture');continue;}
      if(image.isEmpty?.()){pageDiagnostic('empty-image');continue;}
@@ -147,11 +179,12 @@ class DesktopSurfaces{
      if(row){row.state='preview';stageStarted=performance.now();}
      try{this.onImage?.(pin.id,image,pin);}catch(error){if(row)row.previewError=String(error?.message||error).slice(0,512);}
      if(row){row.previewMs=performance.now()-stageStarted;row.pngBytes=png.length;row.pixelWidth=pixelWidth;row.pixelHeight=pixelHeight;pageDiagnostic('complete');}
-    }catch(error){if(row){row.errorStage=row.state;row.message=String(error?.message||error).slice(0,512);pageDiagnostic('error');}}finally{release();}
+    }catch(error){if(row){row.errorStage=row.state;row.message=String(error?.message||error).slice(0,512);pageDiagnostic('error');}}finally{release?.();}
    }
   };
   try{
-   await Promise.race([Promise.all(Array.from({length:Math.min(MAX_CAPTURES,pins.length)},worker)),new Promise(resolve=>{timer=setTimeout(()=>{cancelled=true;deadline=true;if(observed)this.recordDiagnostic(trace,'capture-deadline',{sequence:observed.sequence,elapsedMs:performance.now()-observed.startedAt,completedIds:surfaces.map(surface=>surface.id),activeCaptures:this.activeCaptures});resolve();},this.captureMs);timer.unref?.();})]);
+   const deadlineWait=new Promise(resolve=>{timer=setTimeout(()=>{expire();resolve();},Math.max(0,deadlineAt-this.budgetNow()));timer.unref?.();});
+   await Promise.race([Promise.all(Array.from({length:Math.min(MAX_CAPTURES,pins.length)},worker)),deadlineWait]);
    if(observed){observed.completedIds=surfaces.map(surface=>surface.id);observed.pngBytes=bytes;observed.pixels=pixels;}
    if(!current())return incomplete(deadline?'deadline':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':generation!==this.generation?'generation-changed':desk!==this.bank.active?'desktop-changed':shape!==this.shape()?'window-size-changed':'display-scale-changed');
    if(surfaces.length!==pins.length)return incomplete('incomplete-pages');
@@ -230,4 +263,4 @@ class DesktopSurfaces{
  unlock(){this.locked=false;}
  dispose(){if(this.disposed)return;this.disposed=true;this.clear(false);this.win?.removeListener?.('resize',this.resize);this.shellContents?.removeListener?.('did-start-navigation',this.navigation);}
 }
-module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,HOLD_MS,PAINT_MS,PAINT_ATTEMPTS,PAINT_TOLERANCE};
+module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,CAPTURE_ATTEMPTS,CAPTURE_RETRY_MS,HOLD_MS,PAINT_MS,PAINT_ATTEMPTS,PAINT_TOLERANCE};
