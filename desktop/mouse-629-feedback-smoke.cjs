@@ -27,7 +27,7 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
  const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),originalIds=new Set(browser.tabs.keys()),savedShow=dialog.showSaveDialog,savedTestFrame=globalCapture.testFrame;
  const facts={version:app.getVersion(),platform:process.platform,arch:process.arch,source:'actual Electron DownloadItem events and capture/export IPC',downloads:{nativeEvents:[],events:[],files:[],screenshots:[],httpRequests:[]},capture:{},restored:false};
  const save=()=>fs.writeFile('mouse-629-feedback-evidence.json',JSON.stringify(facts,null,2)+'\n');
- const attaches=[],createdFiles=new Set(),known=Buffer.alloc(1048576,71);let server,root='',allowRetry=false,finishKnown=false,debugAttached=false,globalDebugAttached=false,globalEditor=null,editorHook=null,globalLoadOverride=null,failed;
+ const attaches=[],createdFiles=new Set(),globalLoadOverrides=new Map(),known=Buffer.alloc(1048576,71);let server,root='',allowRetry=false,finishKnown=false,debugAttached=false,globalDebugAttached=false,globalEditor=null,editorHook=null,failed;
  const motionQuery='matchMedia("(prefers-reduced-motion:reduce)").matches',motionMedia=async(wc,value)=>{await wc.debugger.sendCommand('Emulation.setEmulatedMedia',value?{features:[{name:'prefers-reduced-motion',value}]}:{media:'',features:[]});return wc.executeJavaScript(motionQuery);};
  const normalFeedback=value=>{assert.equal(value.reducedMotion,false);assert.equal(value.animationName,'mouse-capture-confirm');assert.equal(value.bladeAnimationName,'mouse-capture-shutter');assert.notEqual(value.bladeDisplay,'none');assert.notEqual(value.bladeTransform,'none');};
  function attach(target,service,scope){
@@ -103,15 +103,22 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
   dialog.showSaveDialog=async()=>{throw Error('Mouse629 deliberate export failure');};const failedResult=await js('MouseTest.capture.test.exportImage("save")');facts.capture.failed={result:failedResult,feedback:await feedback()};assert.match(failedResult.error,/deliberate export failure/);assert.equal(facts.capture.failed.feedback.state,null);dialog.showSaveDialog=savedShow;
   assert.equal(await motionMedia(win.webContents,'reduce'),true);await js('MouseTest.capture.test.exportImage("copy")');const reduced=await feedback();facts.capture.reducedMotion={matches:await js(motionQuery),...reduced};assert.equal(facts.capture.reducedMotion.matches,true);assert.equal(reduced.animationName,'none');assert.equal(reduced.bladeDisplay,'none');
   await js('document.querySelector("#capture-close").click()');await until(()=>js('!MouseTest.capture.isOpen()'),'capture closes');
-  facts.capture.global={source:'synthetic input frame, real native editor and export IPC',motionMedia:{before:null,normal:null,restored:null}};
+  assert.equal(globalCapture.editor,null,'The CI global editor starts closed');
+  facts.capture.global={source:'synthetic input frame, real native editor and export IPC',motionMedia:{before:null,normal:null,restored:null},editorHook:[]};
   // The editor is a different WebContents. Measure its untouched hidden blank
   // document, then apply normal motion before loading its actual UI, so the
   // first acquisition cue is tested without replaying or fabricating feedback.
   editorHook=(_event,created)=>{
-   if(created===win||created.webContents.getLastWebPreferences().preload!==path.join(globalCapture.dir,'mouse-capture-preload.cjs'))return;
-   app.removeListener('browser-window-created',editorHook);editorHook=null;globalEditor=created;const loadURL=created.loadURL;globalLoadOverride={window:created,loadURL};
+   if(created===win)return;
+   if(facts.capture.global.editorHook.length<20)facts.capture.global.editorHook.push({event:'created',id:created.id});
+   const loadURL=created.loadURL;globalLoadOverrides.set(created,loadURL);
    created.loadURL=async function(...args){
-    this.loadURL=loadURL;globalLoadOverride=null;await loadURL.call(this,'about:blank');facts.capture.global.motionMedia.before=await this.webContents.executeJavaScript(motionQuery);assert.equal(this.webContents.debugger.isAttached(),false);this.webContents.debugger.attach('1.3');globalDebugAttached=true;facts.capture.global.motionMedia.normal=await motionMedia(this.webContents,'no-preference');assert.equal(facts.capture.global.motionMedia.normal,false);return loadURL.apply(this,args);
+    this.loadURL=loadURL;globalLoadOverrides.delete(this);const captureEntry=args[0]===globalCapture.editorEntry,owner=globalCapture.editor===this;
+    if(facts.capture.global.editorHook.length<20)facts.capture.global.editorHook.push({event:'load',id:this.id,captureEntry,owner});
+    if(!captureEntry||!owner)return loadURL.apply(this,args);
+    app.removeListener('browser-window-created',editorHook);editorHook=null;globalEditor=this;
+    for(const [other,originalLoad]of globalLoadOverrides)if(!other.isDestroyed())other.loadURL=originalLoad;globalLoadOverrides.clear();
+    await loadURL.call(this,'about:blank');facts.capture.global.motionMedia.before=await this.webContents.executeJavaScript(motionQuery);assert.equal(this.webContents.debugger.isAttached(),false);this.webContents.debugger.attach('1.3');globalDebugAttached=true;facts.capture.global.motionMedia.normal=await motionMedia(this.webContents,'no-preference');assert.equal(facts.capture.global.motionMedia.normal,false);return loadURL.apply(this,args);
    };
   };app.on('browser-window-created',editorHook);
   globalCapture.testFrame={base:'data:image/png;base64,'+canvas.toString('base64'),width:nativeImage.createFromBuffer(canvas).getSize().width,height:nativeImage.createFromBuffer(canvas).getSize().height,layers:[],kind:'screen'};await globalCapture.request();const editor=globalCapture.editor;assert.ok(editor?.isVisible());assert.equal(editor,globalEditor);const ej=source=>editor.webContents.executeJavaScript(source),initialFeedback=await feedback(ej);assert.equal(initialFeedback.state,'capture');normalFeedback(initialFeedback);await ej('document.querySelector("#capture-all").click()');dialog.showSaveDialog=async()=>({canceled:false,filePath:pngFile});await ej('MouseCaptureTest.test.exportImage("save")');const saveFeedback=await feedback(ej);assert.equal(saveFeedback.state,'save');normalFeedback(saveFeedback);Object.assign(facts.capture.global,{initialFeedback,saveFeedback});
@@ -120,7 +127,7 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
  }catch(error){failed=error;facts.error={message:error.message,stack:error.stack};await picture('mouse-629-feedback-failure.png').catch(()=>{});throw error;}
  finally{
   let motionCleanupError;
-  dialog.showSaveDialog=savedShow;globalCapture.testFrame=savedTestFrame;if(editorHook)app.removeListener('browser-window-created',editorHook);if(globalLoadOverride&&!globalLoadOverride.window.isDestroyed())globalLoadOverride.window.loadURL=globalLoadOverride.loadURL;
+  dialog.showSaveDialog=savedShow;globalCapture.testFrame=savedTestFrame;if(editorHook)app.removeListener('browser-window-created',editorHook);for(const [editor,loadURL]of globalLoadOverrides)if(!editor.isDestroyed())editor.loadURL=loadURL;globalLoadOverrides.clear();
   try{if(globalDebugAttached&&globalEditor&&!globalEditor.isDestroyed()){facts.capture.global.motionMedia.restored=await motionMedia(globalEditor.webContents,null);assert.equal(facts.capture.global.motionMedia.restored,facts.capture.global.motionMedia.before);}}catch(error){motionCleanupError=error;}finally{if(globalDebugAttached&&globalEditor&&!globalEditor.isDestroyed())globalEditor.webContents.debugger.detach();if(globalCapture.editor&&!globalCapture.editor.isDestroyed())globalCapture.editor.close();}
   try{if(debugAttached){facts.capture.motionMedia.restored=await motionMedia(win.webContents,null);assert.equal(facts.capture.motionMedia.restored,facts.capture.motionMedia.before);}}catch(error){motionCleanupError=motionCleanupError||error;}finally{if(debugAttached)win.webContents.debugger.detach();}
   if(motionCleanupError)facts.motionCleanupError={message:motionCleanupError.message,stack:motionCleanupError.stack};
