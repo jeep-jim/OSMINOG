@@ -59,7 +59,15 @@ module.exports=async ctx=>{
    await until(async()=>{const boxes=await js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);return boxes.length===count&&boxes.every(box=>{const page=browser.get(box.id);return page?.visible&&page.view.getVisible()&&['x','y','width','height'].every(key=>Math.abs(page.bounds[key]-box[key])<=1.5);});},count+' real native panes match the shell');
   }
   const page=await open(origin+'/first'),id=page.id;
-  await page.view.webContents.executeJavaScript('document.querySelector("#next").click()');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native link navigation');
+  // Navigation must originate from real OS input. Programmatic anchor.click()
+  // has no user activation and Chromium may omit that entry from Back UI.
+  await focus();await page.view.webContents.executeJavaScript('document.querySelector("#next").scrollIntoView({block:"center"});new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  const link=await page.view.webContents.executeJavaScript(`(${nativeHitTarget.toString()})(document.querySelector('#next'))`);assert.equal(link.ready,true);
+  const host=win.getContentBounds(),outer=page.clipView?.getBounds(),rounded=page.roundView?.getBounds(),inner=page.view.getBounds();
+  const surface={x:(outer?.x||0)+(rounded?.x||0)+inner.x,y:(outer?.y||0)+(rounded?.y||0)+inner.y};
+  assert.equal(surface.x,page.bounds.x,'Windows nested native view X maps to the unchanged webpage origin');assert.equal(surface.y,page.bounds.y,'Windows nested native view Y maps to the unchanged webpage origin');
+  nativeInput.testClick(host.x+surface.x+link.x,host.y+surface.y+link.y);await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native link navigation');
+  facts.navigation={id,link,host,outer,rounded,inner,surface,native:{url:page.view.webContents.getURL(),back:page.view.webContents.navigationHistory.canGoBack(),forward:page.view.webContents.navigationHistory.canGoForward()},guest:await page.view.webContents.executeJavaScript('({historyLength:history.length,userActivation:navigator.userActivation.hasBeenActive})'),shell:await js(`({active:MouseTest.model.active,slots:MouseTest.model.slots,page:MouseTest.model.state.tabs.find(t=>t.id===${JSON.stringify(id)}),backDisabled:document.querySelector('.pane.active [data-pane-action="back"]').disabled})`)};await save();
   await click('.pane.active [data-pane-action="back"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/first','native back');
   await click('.pane.active [data-pane-action="forward"]');await until(()=>!page.loading&&page.view.webContents.getURL()===origin+'/second','native forward');
   const old=await page.view.webContents.executeJavaScript('mouseWindowsIdentity');await click('.pane.active [data-pane-action="reload"]');
@@ -226,6 +234,7 @@ module.exports=async ctx=>{
  }catch(error){
   facts.ok=false;facts.error={step:currentStep,message:error.message,stack:error.stack};console.error(error);await save().catch(()=>{});
   await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),3000,'Windows failure screenshot').then(image=>fs.writeFile('mouse-windows-failure.png',image.toPNG())).catch(()=>{});
+  await require('./mouse-lifecycle.cjs').bounded(globalCapture.acquire(screen.getDisplayMatching(win.getBounds())),5000,'Windows failure display screenshot').then(frame=>{const png=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64');return fs.writeFile('mouse-windows-failure-display.png',png);}).catch(()=>{});
   clearTimeout(watchdog);server?.closeAllConnections?.();server?.close();exit(1);
  }
 };
