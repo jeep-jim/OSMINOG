@@ -246,3 +246,63 @@ test('scrollable ancestors, editable controls and page handlers retain input, in
  const scroll={nodeType:1,scrollWidth:800,clientWidth:200,scrollLeft:600,scrollHeight:100,clientHeight:100,style:{overflowX:'auto',overflowY:'hidden'},matches:()=>false};dispatch([scroll]);dispatch([scroll]);assert.equal(sent.length,0);assert.equal(prevented,0);
  tools.reset();dispatch([],{deltaX:0,deltaY:80});assert.equal(sent.length,0);tools.reset();dispatch([],{defaultPrevented:true});assert.equal(sent.length,0);tools.reset();dispatch([{nodeType:1,isContentEditable:true}]);assert.equal(sent.length,0);tools.reset();dispatch([]);assert.equal(sent.length,1);assert.equal(prevented,1);tools.dispose();assert.equal(handlers.size,0);
 });
+
+const {wheelPreparationBudget,wheelTargetProblems,prepareWheelTarget}=require('./mouse-630-gesture-smoke.cjs');
+function wheelReadySnapshot(){
+ return{timeOrigin:100,dom:{timeOrigin:100,readyState:'complete',visibilityState:'visible',focused:true,connected:true,hit:true,viewport:{width:200,height:100},point:{x:30,y:20},observerCount:0},native:{contextMatches:true,contentsMatches:true,pageMatches:true,epochMatches:true,urlMatches:true,desktopMatches:true,destroyed:false,busy:false,loading:false,shell:false,contentsFocused:true,window:{visible:true,focused:true,minimized:false,contentBounds:{x:0,y:0,width:500,height:300}},browserMatchesWindow:true,cachedVisible:true,viewVisible:true,hasClip:true,clipVisible:true,viewBounds:{x:-20,y:-10,width:200,height:100},rootBounds:{x:200,y:100,width:100,height:60},rootAttached:true,rootIndex:1,childAttached:true,surfaceHeld:false}};
+}
+function controlledWheelBudget(){
+ let time=0,serial=0;const timers=new Map();
+ const budget=wheelPreparationBudget({now:()=>time,setTimer:callback=>{const id=++serial;timers.set(id,callback);return id;},clearTimer:id=>timers.delete(id)});
+ return{budget,expire(){time=budget.deadlineAt+1;const due=[...timers.values()];timers.clear();for(const callback of due)callback();}};
+}
+async function wheelMicrotasksUntil(predicate){for(let n=0;n<100&&!predicate();n++)await Promise.resolve();assert.equal(predicate(),true,'The controlled asynchronous stage was reached');}
+test('native wheel preparation waits for window focus and attached placement before focusing contents',async()=>{
+ const calls=[],report={};let windowFocused=false,contentsFocused=false,reads=0,attached=false;
+ const ready=await prepareWheelTarget({budget:wheelPreparationBudget(),report,
+  read:async()=>{const value=wheelReadySnapshot();reads++;attached=reads>=3;value.native.window.focused=windowFocused;value.native.rootAttached=attached;value.native.contentsFocused=contentsFocused;value.dom.focused=contentsFocused;value.dom.point.x=contentsFocused?45:30;calls.push('read');return value;},
+  focusWindow:()=>{calls.push('focus-window');setTimeout(()=>{windowFocused=true;},1);},
+  windowReady:()=>{calls.push(windowFocused?'window-ready':'window-pending');return windowFocused;},
+  focusContents:()=>{assert.equal(windowFocused,true);assert.equal(attached,true);calls.push('focus-contents');contentsFocused=true;}
+ });
+ assert.ok(calls.indexOf('window-ready')<calls.indexOf('focus-contents'));assert.equal(calls.filter(x=>x==='focus-contents').length,1);assert.equal(report.before.native.window.focused,false);assert.equal(report.placement.native.rootAttached,true);assert.equal(report.placement.native.contentsFocused,false);assert.equal(ready.dom.point.x,45,'The returned target point is measured after contents focus');assert.equal(report.ready,ready);assert.deepEqual(report.waitingFor,[]);
+});
+test('native wheel hit testing intersects child, clip parent and window bounds without trusting cached visibility',()=>{
+ const ready=wheelReadySnapshot();assert.deepEqual(wheelTargetProblems(ready,true),[]);
+ for(const [key,value]of [['viewVisible',false],['viewVisible',null],['clipVisible',false],['rootAttached',false],['childAttached',false],['surfaceHeld',true],['browserMatchesWindow',false]]){const changed=structuredClone(ready);changed.native[key]=value;assert.ok(wheelTargetProblems(changed,true).includes('native-target-not-visible-attached'),key);}
+ const clipped=structuredClone(ready);clipped.dom.point.x=10;assert.ok(wheelTargetProblems(clipped,true).includes('native-clip-hit-test'),'A point inside the guest but outside its clipped visible part is rejected');
+ const outside=structuredClone(ready);outside.native.rootBounds.x=490;assert.ok(wheelTargetProblems(outside,true).includes('native-clip-hit-test'),'A guest point outside the native content bounds is rejected');
+ const changed=structuredClone(ready);changed.nativeBefore=structuredClone(changed.native);changed.native.rootBounds.x++;assert.ok(wheelTargetProblems(changed,true).includes('native-geometry-changing'));
+});
+test('shell control readiness uses the shell document without requiring a guest view or clip parent',()=>{
+ const value=wheelReadySnapshot();Object.assign(value.native,{shell:true,browserMatchesWindow:false,cachedVisible:null,viewVisible:null,hasClip:false,clipVisible:null,viewBounds:null,rootBounds:null,rootAttached:false,childAttached:false});assert.deepEqual(wheelTargetProblems(value,true),[]);
+ value.dom.hit=false;assert.ok(wheelTargetProblems(value,true).includes('target-hit-test'));value.dom.hit=true;value.dom.focused=false;assert.ok(wheelTargetProblems(value,true).includes('target-not-focused'));
+});
+test('a changed wheel owner, document, navigation epoch or desktop fails before target focus',async()=>{
+ for(const key of ['contextMatches','contentsMatches','pageMatches','epochMatches','urlMatches','desktopMatches','timeOrigin']){
+  const value=wheelReadySnapshot();if(key==='timeOrigin')value.dom.timeOrigin++;else value.native[key]=false;let focused=0;
+  await assert.rejects(prepareWheelTarget({budget:controlledWheelBudget().budget,report:{},read:async()=>value,focusWindow(){},windowReady:()=>true,focusContents(){focused++;}}),/target identity changed/);assert.equal(focused,0,key);
+ }
+});
+test('wheel readiness cannot use window focus alone when the target document remains unfocused',async()=>{
+ const value=wheelReadySnapshot(),report={},clock=controlledWheelBudget();value.dom.focused=false;let focused=0;
+ const pending=prepareWheelTarget({budget:clock.budget,report,read:async()=>value,focusWindow(){},windowReady:()=>true,focusContents(){focused++;}});
+ await wheelMicrotasksUntil(()=>focused===1&&report.waitingFor?.includes('target-not-focused')===true);clock.expire();
+ await assert.rejects(pending,/readiness timeout: native wheel target focus/);
+ assert.equal(focused,1);assert.deepEqual(report.waitingFor,['target-not-focused']);assert.equal(report.ready,undefined);
+});
+test('a late target snapshot cannot continue focus preparation or overwrite recorded state after the deadline',async()=>{
+ let resolveRead;const calls=[],report={},clock=controlledWheelBudget();
+ const pending=prepareWheelTarget({budget:clock.budget,report,read:()=>new Promise(resolve=>{resolveRead=resolve;}),focusWindow:()=>calls.push('window'),windowReady:()=>true,focusContents:()=>calls.push('contents')});
+ await wheelMicrotasksUntil(()=>typeof resolveRead==='function');clock.expire();
+ await assert.rejects(pending,/readiness timeout: initial target snapshot/);resolveRead(wheelReadySnapshot());await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(calls,[]);assert.equal(report.last,undefined);assert.equal(report.before,undefined);
+});
+test('one monotonic wheel preparation deadline survives synchronous clock overrun and is never reset',async()=>{
+ let time=0,ran=false;const budget=wheelPreparationBudget({timeoutMs:12,now:()=>time});
+ await assert.rejects(budget.run(()=>{time=13;return true;},'first'),/readiness timeout: first/);
+ await assert.rejects(budget.run(()=>{ran=true;},'second'),/readiness timeout: second/);assert.equal(ran,false);assert.equal(budget.deadlineAt,12);
+});
+test('wheel preparation preserves the original sampling error instead of replacing it with a readiness timeout',async()=>{
+ const original=Error('original renderer failure');let focused=false;
+ await assert.rejects(prepareWheelTarget({budget:wheelPreparationBudget(),report:{},read:async()=>{throw original;},focusWindow(){focused=true;},windowReady:()=>true,focusContents(){focused=true;}}),error=>error===original);assert.equal(focused,false);
+});

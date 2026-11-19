@@ -5,32 +5,116 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=r
 const {KEY,EVENT,PAGE_RECOGNIZER:RECOGNIZER}=require('./mouse-gesture.cjs'),Wheel=require('./mouse/desktop-wheel.js');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let n=0;n<480;n++){if(await fn())return;await sleep(25);}throw Error('Mouse630 wheel timeout: '+label);}
+function wheelPreparationBudget({timeoutMs=12000,now=()=>performance.now(),setTimer=setTimeout,clearTimer=clearTimeout}={}){
+ const startedAt=now(),deadlineAt=startedAt+timeoutMs;let expired=false;
+ const check=label=>{if(expired||now()>=deadlineAt){expired=true;throw Error('Mouse630 wheel readiness timeout: '+label);}};
+ async function run(operation,label){
+  check(label);let timer;
+  try{const value=await Promise.race([Promise.resolve().then(()=>{check(label);return operation();}),new Promise((_,reject)=>{timer=setTimer(()=>{expired=true;reject(Error('Mouse630 wheel readiness timeout: '+label));},Math.max(1,Math.ceil(deadlineAt-now())));})]);check(label);return value;}
+  finally{clearTimer(timer);}
+ }
+ async function wait(predicate,label){for(;;){if(await run(predicate,label)){check(label);return;}await run(()=>new Promise(resolve=>setTimer(resolve,25)),label);}}
+ return{startedAt,deadlineAt,timeoutMs,run,wait,check};
+}
+function wheelTargetProblems(snapshot,focus=false){
+ const {native,dom}=snapshot,problems=[];
+ for(const key of ['contextMatches','contentsMatches','pageMatches','epochMatches','urlMatches','desktopMatches'])if(native[key]!==true)problems.push('identity:'+key);
+ if(native.destroyed)problems.push('identity:destroyed');
+ if(!native.window.visible||!native.window.focused||native.window.minimized)problems.push('window-not-ready');
+ if(native.busy||native.loading)problems.push('target-loading');
+ if(!dom||dom.timeOrigin!==snapshot.timeOrigin)problems.push('identity:timeOrigin');
+ if(!dom||dom.readyState!=='complete'||dom.visibilityState!=='visible')problems.push('document-not-visible-ready');
+ if(snapshot.nativeBefore){
+  for(const key of ['contextMatches','contentsMatches','pageMatches','epochMatches','urlMatches','desktopMatches'])if(snapshot.nativeBefore[key]!==true)problems.push('identity:before-'+key);
+  const geometry=value=>JSON.stringify([value.viewBounds,value.rootBounds,value.window.contentBounds,value.rootIndex,value.rootAttached,value.childAttached]);
+  if(geometry(snapshot.nativeBefore)!==geometry(native))problems.push('native-geometry-changing');
+ }
+ const point=dom?.point,inside=(r,p)=>r&&p&&[r.x,r.y,r.width,r.height,p.x,p.y].every(Number.isFinite)&&r.width>0&&r.height>0&&p.x>=r.x&&p.y>=r.y&&p.x<r.x+r.width&&p.y<r.y+r.height;
+ if(!dom?.connected||!dom.hit||!inside({x:0,y:0,width:dom?.viewport?.width,height:dom?.viewport?.height},point))problems.push('target-hit-test');
+ if(!native.shell){
+  if(!native.browserMatchesWindow||!native.cachedVisible||native.viewVisible!==true||native.hasClip&&native.clipVisible!==true||native.surfaceHeld||!native.rootAttached||!native.childAttached)problems.push('native-target-not-visible-attached');
+  const view=native.viewBounds,root=native.rootBounds;
+  if(!inside({x:0,y:0,width:view?.width,height:view?.height},point))problems.push('native-view-hit-test');
+  const contentPoint=view&&point?{x:point.x+view.x+(native.hasClip?root?.x||0:0),y:point.y+view.y+(native.hasClip?root?.y||0:0)}:null;
+  if(!inside(root,contentPoint)||!inside({x:0,y:0,width:native.window.contentBounds.width,height:native.window.contentBounds.height},contentPoint))problems.push('native-clip-hit-test');
+ }
+ if(focus&&(!native.contentsFocused||dom?.focused!==true))problems.push('target-not-focused');
+ return problems;
+}
+async function prepareWheelTarget({budget,report,read,focusWindow,windowReady,focusContents}){
+ const sample=async stage=>{const value=await read();budget.check(stage);report.last=value;report.sampleCount=(report.sampleCount||0)+1;report.stage=stage;return value;};
+ report.before=await budget.run(()=>sample('before'),'initial target snapshot');
+ await budget.run(focusWindow,'focus window');await budget.wait(windowReady,'native wheel window focused');
+ async function ready(focus){const value=await sample(focus?'contents-focus':'placement');report.waitingFor=wheelTargetProblems(value,focus);if(report.waitingFor.some(reason=>reason.startsWith('identity:')))throw Error('Mouse630 wheel target identity changed: '+report.waitingFor.join(', '));return report.waitingFor.length===0;}
+ await budget.wait(()=>ready(false),'native wheel target placement');report.placement=report.last;
+ await budget.run(focusContents,'focus target WebContents');
+ await budget.wait(()=>ready(true),'native wheel target focus');report.ready=report.last;report.stage='ready';return report.ready;
+}
 module.exports=async({app,win,browser,store,privateMode})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(privateMode.current,null);
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank;
  await js('MouseTest.desktopUI.close({immediate:true});MouseTest.browsing.close();MouseTest.feedback.hide();MouseTest.save()');await store.queue;
  const original=await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})'),savedBank=bank.snapshot(),originalPages=new Map([...browser.tabs.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL()}])),normalLearned=(await store.get(KEY))[KEY];
  const desks=bank.items.slice(0,2).map(item=>item.id),made=[],send=win.webContents.send,signs=new Map();assert.equal(desks.length,2);
- const facts={version:app.getVersion(),electronVersion:process.versions.electron,source:'webContents.sendInputEvent mouseWheel via Chromium trusted wheel event',physicalTwoFingerDeviceVerified:false,recognizer:RECOGNIZER,limits:{horizontalThreshold:Wheel.HORIZONTAL_THRESHOLD,controlThreshold:Wheel.CONTROL_THRESHOLD,quietMs:Wheel.QUIET_MS,cooldownMs:Wheel.COOLDOWN_MS},inputs:[],observed:[],packets:[],cases:{},restored:false};
+ const facts={version:app.getVersion(),electronVersion:process.versions.electron,source:'webContents.sendInputEvent mouseWheel via Chromium trusted wheel event',physicalTwoFingerDeviceVerified:false,recognizer:RECOGNIZER,limits:{horizontalThreshold:Wheel.HORIZONTAL_THRESHOLD,controlThreshold:Wheel.CONTROL_THRESHOLD,quietMs:Wheel.QUIET_MS,cooldownMs:Wheel.COOLDOWN_MS},inputs:[],observed:[],packets:[],cases:{},readiness:[],restored:false};
  const save=()=>fs.writeFile('mouse-630-wheel-pages.json',JSON.stringify(facts,null,2)+'\n');let server,root='',failed;
  const packetRange=entry=>({...entry,packetEndIndex:facts.packets.length,packetCount:facts.packets.length-entry.packetIndex});
  const current=()=>js('({desktopId:MouseTest.model.desktopId,noraOpen:MouseTest.desktopUI.isOpen,switching:MouseTest.model.switching,gesture:MouseTest.desktopUI.gesture.diagnostics()})');
  async function observe(wc){
   await wc.executeJavaScript(`(()=>{if(globalThis.__mouse630WheelObserve)return;globalThis.__mouse630WheelEvents=[];globalThis.__mouse630WheelObserve=event=>{if(globalThis.__mouse630WheelEvents.length<500)globalThis.__mouse630WheelEvents.push({isTrusted:event.isTrusted,deltaX:event.deltaX,deltaY:event.deltaY,deltaMode:event.deltaMode,defaultPrevented:event.defaultPrevented});};window.addEventListener('wheel',globalThis.__mouse630WheelObserve);})()`);
  }
- async function burst(label,wc,point,{axis='x',direction=1,count=4,amount=32,precise=true}={}){
-  await observe(wc);app.focus({steal:true});win.show();win.focus();wc.focus();await until(()=>win.isFocused(),'native wheel window focused');
-  const origin=await wc.executeJavaScript('performance.timeOrigin'),key=wc.id+':'+origin+':'+axis;
+ async function burst(label,wc,target,{axis='x',direction=1,count=4,amount=32,precise=true}={}){
+  const budget=wheelPreparationBudget(),report={case:label,webContentsId:wc.id,selector:target.selector,clock:'node performance.now() milliseconds',startedAt:budget.startedAt,deadlineAt:budget.deadlineAt,timeoutMs:budget.timeoutMs,stage:'observe',sampleCount:0,diagnosticErrors:[]};facts.readiness.push(report);
+  let pin,read,native;
+  try{
+  await budget.run(()=>observe(wc),'install wheel observer');
+  const context=privateMode.current,targetBrowser=context?.browser||browser,shell=wc===win.webContents;
+  const page=shell?null:[...targetBrowser.tabs.values()].find(item=>item.view.webContents===wc);
+  pin={context,browser:targetBrowser,page,shell,wc,epoch:page?.navigationEpoch,url:wc.getURL(),desktop:targetBrowser.mouseDesktops.bank.active,timeOrigin:await budget.run(()=>wc.executeJavaScript('performance.timeOrigin'),'pin target document')};
+  native=()=>{
+   const currentContext=privateMode.current,currentBrowser=currentContext?.browser||browser,view=page?.view,clip=page?.clipView,rootView=clip||view,children=win.contentView.children,destroyed=wc.isDestroyed();
+   return{
+    at:performance.now(),shell,privateMode:!!currentContext,
+    contextMatches:currentContext===pin.context&&currentBrowser===pin.browser,
+    contentsMatches:wc===pin.wc&&(shell?wc===win.webContents:view?.webContents===wc),
+    pageMatches:shell||!!page&&currentBrowser.tabs.get(page.id)===page,
+    epochMatches:shell||page?.navigationEpoch===pin.epoch,urlMatches:!destroyed&&wc.getURL()===pin.url,
+    desktopMatches:currentBrowser.mouseDesktops.bank.active===pin.desktop&&(shell||currentBrowser.mouseDesktops.bank.members[page?.id]===pin.desktop),
+    destroyed,contentsFocused:!destroyed&&wc.isFocused(),loading:!destroyed&&wc.isLoadingMainFrame(),busy:privateMode.busy,
+    window:{visible:win.isVisible(),focused:win.isFocused(),minimized:win.isMinimized(),contentBounds:{...win.getContentBounds()}},
+    pageId:page?.id||null,epoch:page?.navigationEpoch??null,pageError:!!page?.error,browserMatchesWindow:targetBrowser.win===win,cachedVisible:page?.visible??null,
+    // Electron44.5 View exposes getVisible. A missing capability stays unknown,
+    // never promoted from the cached flag to a proven visible native target.
+    viewVisibilitySupported:typeof view?.getVisible==='function',viewVisible:view?.getVisible?.()??null,
+    hasClip:!!clip,clipVisibilitySupported:typeof clip?.getVisible==='function',clipVisible:clip?.getVisible?.()??null,
+    viewBounds:view?{...view.getBounds()}:null,rootBounds:rootView?{...rootView.getBounds()}:null,
+    rootAttached:shell||children.includes(rootView),rootIndex:rootView?children.indexOf(rootView):null,rootsCount:children.length,
+    childAttached:!clip||clip.children.includes(view),surfaceHeld:!!targetBrowser.mouseSurfaceHold
+   };
+  };
+  read=async()=>{
+   const before=native(),dom=await wc.executeJavaScript(`(()=>{const e=document.querySelector(${JSON.stringify(target.selector)}),r=e?.getBoundingClientRect(),point=r?{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}:null,hit=point?document.elementFromPoint(point.x,point.y):null;return{at:performance.now(),timeOrigin:performance.timeOrigin,readyState:document.readyState,visibilityState:document.visibilityState,focused:document.hasFocus(),viewport:{width:innerWidth,height:innerHeight},connected:!!e?.isConnected,hit:!!e&&(hit===e||e.contains(hit)),point,bounds:r?{x:r.x,y:r.y,width:r.width,height:r.height}:null,observerCount:Array.isArray(globalThis.__mouse630WheelEvents)?globalThis.__mouse630WheelEvents.length:null};})()`);
+   const after=native();return{timeOrigin:pin.timeOrigin,native:after,nativeBefore:before,dom};
+  };
+  const ready=await prepareWheelTarget({budget,report,read,focusWindow:()=>{app.focus({steal:true});win.show();win.focus();},windowReady:()=>win.isVisible()&&win.isFocused()&&!win.isMinimized(),focusContents:()=>wc.focus()});
+  const point=ready.dom.point,origin=ready.dom.timeOrigin,key=wc.id+':'+origin+':'+axis;
   const input=value=>{const event={type:'mouseWheel',x:Math.round(point.x),y:Math.round(point.y),deltaX:axis==='x'?value:0,deltaY:axis==='y'?value:0,hasPreciseScrollingDeltas:precise,canScroll:true};facts.inputs.push({case:label,webContentsId:wc.id,at:Date.now(),...event});wc.sendInputEvent(event);};
   if(!signs.has(key)){
-   const index=await wc.executeJavaScript('globalThis.__mouse630WheelEvents.length');input(2);let seen;await until(async()=>{seen=await wc.executeJavaScript(`globalThis.__mouse630WheelEvents[${index}]`);return seen;},'wheel calibration observed by Chromium');assert.equal(seen.isTrusted,true);const sign=Math.sign(axis==='x'?seen.deltaX:seen.deltaY);assert.ok(sign);signs.set(key,sign);
+   const index=await wc.executeJavaScript('globalThis.__mouse630WheelEvents.length');report.stage='calibration';report.calibration={index,inputIndex:facts.inputs.length,sentAt:performance.now()};input(2);let seen;await until(async()=>{seen=await wc.executeJavaScript(`globalThis.__mouse630WheelEvents[${index}]`);return seen;},'wheel calibration observed by Chromium');assert.equal(seen.isTrusted,true);const sign=Math.sign(axis==='x'?seen.deltaX:seen.deltaY);assert.ok(sign);signs.set(key,sign);report.calibration.observed={...seen};report.calibration.completedAt=performance.now();
   }
   await sleep(500);const start=await wc.executeJavaScript('globalThis.__mouse630WheelEvents.length'),before=await current(),packetIndex=facts.packets.length;
   for(let i=0;i<count;i++){input(direction*signs.get(key)*amount);await sleep(16);}
-  await sleep(75);const observed=await wc.executeJavaScript(`globalThis.__mouse630WheelEvents.slice(${start})`);assert.ok(observed.length>0);assert.ok(observed.every(event=>event.isTrusted===true));facts.observed.push({case:label,webContentsId:wc.id,events:observed});return{before,packetIndex,observed};
+  await sleep(75);const observed=await wc.executeJavaScript(`globalThis.__mouse630WheelEvents.slice(${start})`);assert.ok(observed.length>0);assert.ok(observed.every(event=>event.isTrusted===true));facts.observed.push({case:label,webContentsId:wc.id,events:observed});report.stage='complete';return{before,packetIndex,observed};
+  }catch(error){
+   report.error={message:error.message,stage:report.stage};
+   if(native){try{report.failureNative=native();}catch(diagnosticError){report.diagnosticErrors.push({stage:'failure native snapshot',message:String(diagnosticError.message).slice(0,500)});}}
+   if(read){try{report.failure=await wheelPreparationBudget({timeoutMs:1000}).run(read,'failure target snapshot');}catch(diagnosticError){report.diagnosticErrors.push({stage:'failure snapshot',message:String(diagnosticError.message).slice(0,500)});}}
+   throw error;
+  }finally{report.finishedAt=performance.now();}
  }
  async function settled(target){await until(()=>js(`!MouseTest.model.switching&&!MouseTest.desktopUI.gesture.diagnostics().running&&MouseTest.model.desktopId===${JSON.stringify(target)}`),'adjacent desktop '+target+' settles');return current();}
- async function point(wc,selector){return wc.executeJavaScript(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);}
+ // Resolve the selector's actual point only after native placement/focus is ready.
+ function point(_wc,selector){return{selector};}
  async function openPage(targetBrowser,desk,url){
   await js(`MouseTest.switchDesktop(${JSON.stringify(desk)})`);await js(`MouseTest.changeLayout(1);MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.applySide();MouseTest.openPage(${JSON.stringify(url)})`);const id=await js('MouseTest.model.slots[MouseTest.model.active]');let page;await until(()=>{page=targetBrowser.tabs.get(id);return page?.visible&&!page.loading;},'wheel fixture page is native and visible');return page;
  }
@@ -64,4 +148,7 @@ module.exports=async({app,win,browser,store,privateMode})=>{
   finally{win.webContents.send=send;server?.closeAllConnections();server?.close();await save();}
  }
 };
+module.exports.wheelPreparationBudget=wheelPreparationBudget;
+module.exports.wheelTargetProblems=wheelTargetProblems;
+module.exports.prepareWheelTarget=prepareWheelTarget;
 

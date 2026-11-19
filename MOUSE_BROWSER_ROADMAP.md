@@ -1,6 +1,6 @@
 # МАУС · Mouse Browser
 
-Домен проекта: **mouse.black**. Текущий опубликованный Mac-выпуск: **6.0.29**. Исходники **6.0.30** приняты и объединены; [финальный publisher](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266) проверяет установленный пакет перед публикацией. Полный статус и доказательства — в [журнале 6.0.30](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
+Домен проекта: **mouse.black**. Текущий опубликованный Mac-выпуск: **6.0.29**. Финальная проверка установленной **6.0.30** [остановилась до публикации](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266); подготовлено уточнение native wheel fixture для повторной полной приёмки. Полный статус и доказательства — в [журнале 6.0.30](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
 
 ## 16 ноября 2026 — 6.0.14, выполнено и опубликовано
 
@@ -537,3 +537,9 @@ PASS. Доступность отмечена на попытке 47 после 
 [Release PR53](https://github.com/jeep-jim/OSMINOG-Releases/pull/53) merged как `83e5f23d009ef4495179844c2a50cb1c2192f18c`. Первый contract остановился из-за различий AST serialization между Python3.12 и3.13; все32 различия воспроизведены на неизменённых файлах. Workflow закреплён на Python3.12, исходные checkers/tests/digests не менялись; новый contract и оба registry checks PASS.
 
 [Publisher44528964266](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266), attempt1/job135577124089, завершил import5 в13:01:24Z и начал отдельный установленный Mac-прогон с реальным обновлением опубликованной6.0.29. Текущий статус **SOURCE_VERIFIED / PUBLISHER_RUNNING**; публичный пакет/канал6.0.30 и анонимная загрузка старым обновлятором ещё не подтверждены. Source candidate не пересобирается; опубликованные bytes6.0.29 сохраняются. Полные hashes, история отказов и пределы доказательств — в [журнале630](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
+
+## 19 ноября 2026 — publisher630 отклонён; уточнена подготовка native wheel
+
+[Publisher44528964266](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266), attempt1/job135577124089, завершился FAILURE на установленном шаге6: первый private calibration mouseWheel deltaX2 не появился в Chromium observer. Девять обычных сценариев прошли; рабочая private серия ещё не началась. Причина потери события не установлена. Publication7, channel8 и old-updater9 SKIPPED. Архив14532259716 проверен по точному происхождению, SHA/размеру и всем байтам: immutable628 trace PASS, full630 REJECT, markers11/17, actual replacement/channel records отсутствуют. Публичный канал при повторном чтении13:14Z остаётся6.0.29.
+
+В630 fixture добавлена проверка реального native target и page focus после фокуса окна, стабильности владельца/документа/геометрии и фактической точки ввода; состояние отказа сохраняется до private cleanup. Локально34/34 теста PASS. Одиночная trusted delta2 calibration, рабочие серии и все исходные критерии сохранены. Новый кандидат ещё требует полного Mac CI, установленной проверки и публикации; прежний принятый a1e3, failed publisher и raw evidence сохранены. Подробности — в [журнале630](docs/desktop/2026-11-19-mouse630-complete-feedback.md). Статус: **SOURCE_RECHECK_PENDING / PUBLICATION_PENDING**.
