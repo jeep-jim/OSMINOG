@@ -94,7 +94,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
  documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
  require('./mouse-document-tabs.cjs').install({browser,documents:documentService,closeDocument:closeDocumentTab,library:libraryService.library});
- desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain,trusted,powerMonitor:require('electron').powerMonitor});
+ desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain,trusted,powerMonitor:require('electron').powerMonitor,screen:require('electron').screen});
  app.once('will-quit',()=>documentService.dispose());
  progress=new (require('./mouse-progress.cjs').ProgressStore)({emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:progress-state',state);}});
  progressBridge=require('./mouse-progress-bridge.cjs').install({win,browser,ipcMain,trusted,progress,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});

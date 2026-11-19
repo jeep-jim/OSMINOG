@@ -181,7 +181,7 @@ class DesktopBank{
  describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,agentOpen:d.layout.agentOpen,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
  snapshot(){return{schema:2,active:this.active,items:clone(this.items),members:{...this.members},...(this.recovery?{recovery:clone(this.recovery)}:{})};}
 }
-async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
+async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  const saved=await store.get([KEY,'quadroPreferences']);const bank=new DesktopBank(saved[KEY],saved.quadroPreferences||{});
  const rawState=browser.state.bind(browser),oldSave=browser.save.bind(browser),oldCommand=browser.command.bind(browser),oldMake=browser.make.bind(browser),oldLayout=browser.layout.bind(browser),oldDispose=browser.dispose.bind(browser);
  let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false,lastPersisted='';
@@ -191,7 +191,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor}){
  }
  rawLiveState();
  const previews=new DesktopPreviews({browser,bank,state:rawLiveState});
- const surfaces=new DesktopSurfaces({browser,bank,win,onImage:(id,image,pin)=>previews.rememberImage(id,image,pin)}),clearPreviews=previews.clear.bind(previews);
+ const surfaces=new DesktopSurfaces({browser,bank,win,screen,onImage:(id,image,pin)=>previews.rememberImage(id,image,pin)}),clearPreviews=previews.clear.bind(previews);
  previews.clear=()=>{clearPreviews();surfaces.clear();};
  const lock=()=>{previews.lock();surfaces.lock();},unlock=()=>{previews.unlock();surfaces.unlock();};powerMonitor?.on('lock-screen',lock);powerMonitor?.on('unlock-screen',unlock);
  function persist(){rawLiveState();const value=bank.snapshot(),preferences=bank.preferences(),signature=JSON.stringify([value,preferences]);if(signature===lastPersisted)return queue;lastPersisted=signature;queue=queue.catch(()=>{}).then(()=>store.set({[KEY]:value,quadroPreferences:preferences})).catch(error=>{if(lastPersisted===signature)lastPersisted='';throw error;});return queue;}

@@ -1,32 +1,33 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {DesktopSurfaces,MAX_CAPTURES,MAX_PNG_BYTES,PAINT_ATTEMPTS,HOLD_MS}=require('./mouse-surfaces.cjs');
+const {DesktopSurfaces,MAX_CAPTURES,MAX_PNG_BYTES,MAX_PIXELS,CAPTURE_MS,PAINT_MS,PAINT_ATTEMPTS,HOLD_MS}=require('./mouse-surfaces.cjs');
 function fixture(options={}){
- const win=new EventEmitter(),shell=new EventEmitter(),bank={active:'desk-3',members:{}},captures=[],images=[],layouts=[],events=[];let now=100;
+ const win=new EventEmitter(),shell=new EventEmitter(),bank={active:'desk-3',members:{}},captures=[],images=[],layouts=[],events=[],screen={getAllDisplays:()=>[{scaleFactor:1}]};let now=100;
  win.isDestroyed=()=>false;win.getContentSize=()=>[1000,800];win.webContents=shell;shell.send=name=>events.push(name);
  const browser={tabs:new Map(),panels:[],layout(panels){this.panels=panels;layouts.push(panels.map(p=>p.id));for(const p of this.tabs.values())p.visible=panels.some(x=>x.id===p.id)&&!this.mouseSurfaceHold;}};
- function image(width=800,height=600,bytes=32,rgba=[71,123,199,255]){const png=Buffer.alloc(bytes);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(width,16);png.writeUInt32BE(height,20);return{toPNG:()=>png,isEmpty:()=>false,getSize:()=>({width,height}),toBitmap:()=>Buffer.alloc(width*height*4,Buffer.from([rgba[2],rgba[1],rgba[0],rgba[3]]))};}
+ function image(width=800,height=600,bytes=32,rgba=[71,123,199,255]){const png=Buffer.alloc(bytes);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(width,16);png.writeUInt32BE(height,20);return{toPNG:()=>png,isEmpty:()=>false,getScaleFactors:()=>[1],getSize:()=>({width,height}),toBitmap:()=>Buffer.alloc(width*height*4,Buffer.from([rgba[2],rgba[1],rgba[0],rgba[3]]))};}
  shell.capturePage=async()=>image(1000,800);
  function add(id,{desk='desk-3',visible=true,width=800,height=600}={}){const wc=new EventEmitter();wc.id=browser.tabs.size+1;wc.isDestroyed=()=>false;wc.getURL=()=>page.url;wc.capturePage=async(rect,opts)=>{captures.push({id,rect,opts});return image(width,height);};const page={id,url:'https://'+id+'.test/',navigationEpoch:0,visible,bounds:{x:0,y:50,width,height},view:{webContents:wc,getBounds:()=>({...page.bounds})}};bank.members[id]=desk;browser.tabs.set(id,page);if(visible)browser.panels.push({id,...page.bounds});return page;}
- const surfaces=new DesktopSurfaces({browser,bank,win,now:()=>now,onImage:(id)=>images.push(id),...options});return{win,shell,bank,browser,surfaces,captures,images,layouts,events,add,image,advance:ms=>now+=ms};
+ const surfaces=new DesktopSurfaces({browser,bank,win,screen,now:()=>now,onImage:(id)=>images.push(id),...options});return{win,shell,screen:surfaces.screen,bank,browser,surfaces,captures,images,layouts,events,add,image,advance:ms=>now+=ms};
 }
 function scheduledFixture(options={}){
  const fs=require('node:fs'),vm=require('node:vm'),timers=new Set(),started=[],encoded=[],pending=[];let clock=0,active=0,maximum=0;
  const schedule=(fn,ms)=>{const timer={at:clock+ms,fn,unref(){}};timers.add(timer);return timer;};
  const context={module:{exports:{}},require,Buffer,structuredClone,setTimeout:schedule,clearTimeout:timer=>timers.delete(timer),performance:{now:()=>clock}};
- vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const f=fixture();f.surfaces.dispose();
- f.surfaces=new context.module.exports.DesktopSurfaces({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,onImage:id=>f.images.push(id),...options});f.surfaces.enableDiagnostics();
- const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
- return{...f,started,encoded,pending,maximum:()=>maximum,active:()=>active,
-  addTimed(id,{delay=null,pngMs=0,width=800,height=600}={}){
-   const page=f.add(id,{width,height});page.view.webContents.capturePage=()=>{
-    started.push({id,at:clock});active++;maximum=Math.max(maximum,active);
-    return new Promise(resolve=>{
-     let finished=false;const finish=()=>{assert.equal(finished,false,'Each native readback completes once');finished=true;active--;resolve({...f.image(width,height),toPNG(){encoded.push(id);clock+=pngMs;return f.image(width,height).toPNG();}});};
-     pending.push({id,finish});if(delay!==null)schedule(finish,delay);
-    });
-   };return page;
-  },
+ vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const f=fixture(options);f.surfaces.dispose();
+ f.surfaces=new context.module.exports.DesktopSurfaces({browser:f.browser,bank:f.bank,win:f.win,screen:f.screen,now:()=>clock,onImage:id=>f.images.push(id),...options});f.surfaces.enableDiagnostics();
+ const microtasks=async()=>{for(let i=0;i<24;i++)await Promise.resolve();};
+ const controlled=(id,{delay=null,pngMs=0,width=800,height=600,scaleFactor=1,pixelWidth=Math.ceil(width*scaleFactor),pixelHeight=Math.ceil(height*scaleFactor)}={})=>(rect,opts)=>{
+  started.push({id,at:clock,rect,opts,activeCaptures:f.surfaces.activeCaptures,reservedPixels:f.surfaces.reservedPixels});active++;maximum=Math.max(maximum,active);
+  return new Promise((resolve,reject)=>{
+   let finished=false;const settle=()=>{assert.equal(finished,false,'Each native readback settles once');finished=true;active--;};
+   const finish=image=>{settle();resolve(image||{...f.image(pixelWidth,pixelHeight),getScaleFactors:()=>[scaleFactor],toPNG(){encoded.push(id);clock+=pngMs;return f.image(pixelWidth,pixelHeight).toPNG();}});};
+   pending.push({id,finish,fail(error){settle();reject(error);}});if(delay!==null)schedule(()=>finish(),delay);
+  });
+ };
+ return{...f,started,encoded,pending,maximum:()=>maximum,active:()=>active,clock:()=>clock,flush:microtasks,
+  addTimed(id,options={}){const page=f.add(id,options);page.view.webContents.capturePage=controlled(id,options);return page;},
+  setShellTimed(options={}){const [width,height]=f.win.getContentSize();f.shell.capturePage=controlled('shell',{width,height,...options});},
   async advance(ms){
    const end=clock+ms;
    for(;;){await microtasks();const timer=[...timers].filter(t=>t.at<=end).sort((a,b)=>a.at-b.at)[0];if(!timer)break;timers.delete(timer);clock=Math.max(clock,timer.at);timer.fn();}
@@ -86,7 +87,7 @@ test('a late native paint stays bounded and cannot open another readback or ackn
 });
 
 test('paint regions use actual image scale and tolerate bounded resampling without accepting a different fill',async()=>{
- const f=fixture(),page=f.add('a',{width:400,height:300});page.view.webContents.capturePage=async()=>({...f.image(800,600),getScaleFactors:()=>[1,2]});
+ const f=fixture({screen:{getAllDisplays:()=>[{scaleFactor:2}]}}),page=f.add('a',{width:400,height:300});page.view.webContents.capturePage=async()=>({...f.image(800,600),getScaleFactors:()=>[1,2]});
  const packet=await f.surfaces.capture({ids:['a']});let delta=3;
  f.shell.capturePage=async()=>({...f.image(2000,1600,32,[71+delta,123+delta,199+delta,255]),getScaleFactors:()=>[1,2],getSize:scale=>{assert.equal(scale,2);return{width:2000,height:1600};}});
  assert.equal((await f.surfaces.present({token:packet.token})).ready,true);delta=8;
@@ -106,7 +107,7 @@ test('capture rejects late navigation, page replacement, geometry, desktop, lock
  }
 });
 test('surface PNG preserves an existing Retina representation without inventing a higher scale',async()=>{
- const f=fixture(),page=f.add('retina');let requested;
+ const f=fixture({screen:{getAllDisplays:()=>[{scaleFactor:2}]}}),page=f.add('retina');let requested;
  page.view.webContents.capturePage=async()=>({...f.image(1600,1200),getScaleFactors:()=>[1,2],isEmpty:()=>false,toPNG(options){requested=options;return f.image(1600,1200).toPNG();}});
  const r=await f.surfaces.capture({ids:['retina']});assert.equal(r.complete,true);assert.deepEqual(requested,{scaleFactor:2});assert.equal(r.surfaces[0].width,800);assert.equal(r.surfaces[0].height,600);assert.equal(r.surfaces[0].pixelWidth,1600);assert.equal(r.surfaces[0].pixelHeight,1200);f.surfaces.dispose();
 });
@@ -143,7 +144,7 @@ test('destroyed native window disposal clears surfaces and continues closing eve
  Object.assign(f.browser,{win:f.win,providers:new Map(),state(){return{tabs:[...this.tabs.values()].map(p=>({id:p.id,url:p.url,lane:'main'}))};},make(){},save:async()=>{},command:async()=>{},emit(){},dispose(){}});
  for(const page of pages){const wc=page.view.webContents;wc.close=options=>{assert.equal(options.waitForBeforeUnload,false);closed.push(page.id);wc.isDestroyed=()=>true;wc.emit('destroyed');};}
  require('./mouse-stability.cjs').installWorkspace(f.browser);
- const service=await require('./mouse-desktops.cjs').install({browser:f.browser,win:f.win,powerMonitor,store:{get:async()=>({}),set:async()=>{}},ipcMain:{handle(){}},trusted(){}});
+ const service=await require('./mouse-desktops.cjs').install({browser:f.browser,win:f.win,screen:f.screen,powerMonitor,store:{get:async()=>({}),set:async()=>{}},ipcMain:{handle(){}},trusted(){}});
  const captured=await service.surfaces.capture({ids:['a','b']});assert.equal(captured.complete,true);assert.equal(service.surfaces.begin(captured.token).held,true);
  let invalidReads=0,laterClosed=0;f.win.on('closed',()=>f.browser.dispose());f.win.on('closed',()=>laterClosed++);
  f.win.isDestroyed=()=>true;Object.defineProperty(f.win,'webContents',{get(){invalidReads++;throw Error('Object has been destroyed');}});
@@ -151,11 +152,11 @@ test('destroyed native window disposal clears surfaces and continues closing eve
  assert.equal(service.surfaces.disposed,true);assert.equal(service.surfaces.watchers.length,0);assert.equal(service.previews.disposed,true);assert.equal(f.shell.listenerCount('did-start-navigation'),0);assert.equal(f.win.listenerCount('resize'),0);assert.equal(powerMonitor.listenerCount('lock-screen'),0);assert.equal(powerMonitor.listenerCount('unlock-screen'),0);
  f.browser.dispose();assert.deepEqual(closed,['a','b']);assert.equal(invalidReads,0);
 });
-test('captures run at most two at once, return incomplete on budgets, and time out without serving late pixels',async()=>{
- const f=fixture(),finish=[];let running=0,maximum=0;for(const id of ['a','b','c']){const p=f.add(id);p.view.webContents.capturePage=()=>{running++;maximum=Math.max(maximum,running);return new Promise(resolve=>finish.push(()=>{running--;resolve(f.image());}));};}
- const work=f.surfaces.capture({ids:['a','b','c']});assert.equal(finish.length,MAX_CAPTURES);finish.shift()();await new Promise(r=>setImmediate(r));assert.equal(finish.length,2);finish.shift()();finish.shift()();assert.equal((await work).complete,true);assert.equal(maximum,2);assert.equal(f.surfaces.activeCaptures,0);f.surfaces.dispose();
- const large=fixture(),page=large.add('large');page.view.webContents.capturePage=async()=>large.image(800,600,MAX_PNG_BYTES+1);assert.equal((await large.surfaces.capture({ids:['large']})).complete,false);large.surfaces.dispose();
- const timeout=fixture({captureMs:10}),p=timeout.add('wait');let late;p.view.webContents.capturePage=()=>new Promise(resolve=>late=resolve);const pending=timeout.surfaces.capture({ids:['wait']});const keepAlive=setTimeout(()=>{},40);assert.equal((await pending).complete,false);late(timeout.image());await new Promise(r=>setImmediate(r));assert.equal(timeout.surfaces.activeCaptures,0);assert.deepEqual(timeout.images,[]);clearTimeout(keepAlive);timeout.surfaces.dispose();
+test('captures run at most four at once, return incomplete on budgets, and time out without serving late pixels',async()=>{
+ const f=fixture(),finish=[],ids=['a','b','c','d','e'];let running=0,maximum=0;for(const id of ids){const p=f.add(id);p.view.webContents.capturePage=()=>{running++;maximum=Math.max(maximum,running);return new Promise(resolve=>finish.push(()=>{running--;resolve(f.image());}));};}
+ const work=f.surfaces.capture({ids});assert.equal(MAX_CAPTURES,4);assert.equal(finish.length,4);finish.shift()();await new Promise(r=>setImmediate(r));assert.equal(finish.length,4);while(finish.length)finish.shift()();assert.equal((await work).complete,true);assert.equal(maximum,4);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);f.surfaces.dispose();
+ const large=fixture(),page=large.add('large');page.view.webContents.capturePage=async()=>large.image(800,600,MAX_PNG_BYTES+1);assert.equal((await large.surfaces.capture({ids:['large']})).complete,false);assert.equal(large.surfaces.reservedPixels,0);large.surfaces.dispose();
+ const timeout=fixture({captureMs:10}),p=timeout.add('wait');let late;p.view.webContents.capturePage=()=>new Promise(resolve=>late=resolve);const pending=timeout.surfaces.capture({ids:['wait']});const keepAlive=setTimeout(()=>{},40);assert.equal((await pending).complete,false);assert.equal(timeout.surfaces.reservedPixels,800*600);late(timeout.image());await new Promise(r=>setImmediate(r));assert.equal(timeout.surfaces.activeCaptures,0);assert.equal(timeout.surfaces.reservedPixels,0);assert.deepEqual(timeout.images,[]);clearTimeout(keepAlive);timeout.surfaces.dispose();
 });
 test('opt-in surface diagnostics measure native capture, PNG, base64 and preview work separately and remain bounded cloneable metadata',async()=>{
  const fs=require('node:fs'),vm=require('node:vm');let elapsed=0,enabled=true;
@@ -163,7 +164,7 @@ test('opt-in surface diagnostics measure native capture, PNG, base64 and preview
  vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Instrumented=context.module.exports.DesktopSurfaces;
  const f=fixture(),page=f.add('a'),png=f.image().toPNG();f.surfaces.dispose();const stringify=png.toString.bind(png);png.toString=encoding=>{elapsed+=5;return stringify(encoding);};
  page.view.webContents.capturePage=async()=>{elapsed+=40;return{...f.image(),isEmpty:()=>false,toPNG(){elapsed+=20;return png;}};};
- const surfaces=new Instrumented({browser:f.browser,bank:f.bank,win:f.win,onImage(){elapsed+=15;}});
+ const surfaces=new Instrumented({browser:f.browser,bank:f.bank,win:f.win,screen:f.screen,onImage(){elapsed+=15;}});
  enabled=false;assert.equal((await surfaces.capture({ids:['a']})).complete,true);assert.equal(surfaces.diagnostics().enabled,false);enabled=true;surfaces.enableDiagnostics();
  for(let i=0;i<9;i++)assert.equal((await surfaces.capture({ids:['a']})).complete,true);
  const report=surfaces.diagnostics(),copy=structuredClone(report),last=copy.lastCapture;
@@ -179,7 +180,7 @@ test('surface diagnostics distinguish a deadline with outstanding native work fr
   assert.equal((await f.surfaces.capture({ids:['absent']})).complete,false);report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'invalid-initial-pins');assert.deepEqual(report.lastCapture.invalidIds,['absent']);
  }finally{clearTimeout(keepAlive);f.surfaces.dispose();}
 });
-test('largest viewport starts first within two workers and the historical 700ms deadline in the recorded five-page latency replay',async t=>{
+test('largest viewport starts first within four workers and the historical 700ms deadline in the recorded five-page latency replay',async t=>{
  // Native waits and completed-page encoding costs from the a1ce macOS trace.
  // This deterministic scheduling regression is not a prediction of Mac latency.
  const sample=[
@@ -196,13 +197,13 @@ test('largest viewport starts first within two workers and the historical 700ms 
  vm.runInNewContext(fs.readFileSync('mouse-surfaces.cjs','utf8'),context);const Replay=context.module.exports.DesktopSurfaces,f=fixture();f.surfaces.dispose();
  for(const row of sample){const page=f.add(row.id,{width:row.width,height:row.height});page.view.webContents.capturePage=()=>{started.push({id:row.id,at:clock});active++;maximum=Math.max(maximum,active);return new Promise(resolve=>schedule(()=>{active--;const png=f.image(row.width,row.height).toPNG();png.write(row.id,24);const encode=png.toString.bind(png);png.toString=format=>{clock+=row.base64;return encode(format);};resolve({...f.image(row.width,row.height),isEmpty:()=>false,toPNG(){clock+=row.png;return png;}});},row.capture));};}
  f.add('hidden',{visible:false});f.add('other',{desk:'desk-1'});const before=sample.map(row=>{const page=f.browser.tabs.get(row.id);return{id:row.id,page,wc:page.view.webContents,bounds:{...page.bounds},epoch:page.navigationEpoch,visible:page.visible};});
- const surfaces=new Replay({browser:f.browser,bank:f.bank,win:f.win,now:()=>clock,captureMs:700,onImage:id=>{clock+=sample.find(row=>row.id===id).preview;}});surfaces.enableDiagnostics();const requested=sample.map(row=>row.id);let settled=false,result;
+ const surfaces=new Replay({browser:f.browser,bank:f.bank,win:f.win,screen:f.screen,now:()=>clock,captureMs:700,onImage:id=>{clock+=sample.find(row=>row.id===id).preview;}});surfaces.enableDiagnostics();const requested=sample.map(row=>row.id);let settled=false,result;
  const work=surfaces.capture({ids:requested}).then(value=>{result=value;settled=true;});
  const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
  for(let step=0;step<32&&!settled;step++){await microtasks();if(settled)break;const next=[...timers].sort((a,b)=>a.at-b.at)[0];assert.ok(next,'the pending batch has a bounded completion event');timers.delete(next);clock=Math.max(clock,next.at);next.fn();}
  await work;const report=surfaces.diagnostics();for(const timer of [...timers].sort((a,b)=>a.at-b.at)){timers.delete(timer);clock=Math.max(clock,timer.at);timer.fn();await microtasks();}surfaces.dispose();
  t.diagnostic(JSON.stringify({scope:'recorded-delay replay, not measured Mac performance',reason:report.lastCapture.reason,elapsedMs:report.lastCapture.elapsedMs,maximumNativeCaptures:maximum,started}));
- assert.equal(result.complete,true,'all five captured surfaces complete without extending 700ms');assert.equal(report.lastCapture.reason,'complete');assert.ok(report.lastCapture.elapsedMs<700);assert.equal(maximum,2);assert.equal(active,0);assert.deepEqual(started.map(row=>row.id),['ai','p1','p2','p3','p4'],'equal-area pages retain request order');assert.equal(started[0].at,0);assert.deepEqual(requested,['p1','p2','p3','p4','ai']);assert.deepEqual([...result.surfaces].map(row=>row.id).sort(),[...requested].sort());
+ assert.equal(result.complete,true,'all five captured surfaces complete without extending 700ms');assert.equal(report.lastCapture.reason,'complete');assert.ok(report.lastCapture.elapsedMs<700);assert.equal(maximum,4);assert.equal(active,0);assert.deepEqual(started.map(row=>row.id),['ai','p1','p2','p3','p4'],'equal-area pages retain request order');assert.equal(started[0].at,0);assert.deepEqual(requested,['p1','p2','p3','p4','ai']);assert.deepEqual([...result.surfaces].map(row=>row.id).sort(),[...requested].sort());
  for(const row of report.lastCapture.pages){const start=started.find(item=>item.id===row.id).at;assert.equal(row.nativeStartedAt,start);assert.equal(row.queueMs,start-report.lastCapture.startedAt);}
  for(const image of result.surfaces){const row=sample.find(row=>row.id===image.id);assert.equal(image.pixelWidth,row.width);assert.equal(image.pixelHeight,row.height);assert.equal(Buffer.from(image.src.split(',')[1],'base64').subarray(24,24+row.id.length).toString(),row.id);}
  for(const pin of before){const page=f.browser.tabs.get(pin.id);assert.equal(page,pin.page);assert.equal(page.view.webContents,pin.wc);assert.deepEqual(page.bounds,pin.bounds);assert.equal(page.navigationEpoch,pin.epoch);assert.equal(page.visible,pin.visible);}assert.deepEqual(f.layouts,[]);assert.deepEqual(f.captures,[]);
@@ -221,37 +222,135 @@ test('preparation covers the recorded cfc9 capture prefix and explicitly synthet
  for(const oldBudget of [true,false]){
   const f=scheduledFixture(oldBudget?{captureMs:700}:{});for(const row of sample)f.addTimed(row.id,row);
   const work=f.surfaces.capture({ids:sample.map(row=>row.id)});await f.advance(2500);const result=await work,report=f.surfaces.diagnostics();
-  assert.equal(f.maximum(),2);assert.equal(f.active(),0);assert.equal(f.surfaces.activeCaptures,0);
-  if(oldBudget){assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(report.lastCapture.reason,'deadline');assert.deepEqual(f.started.map(row=>row.id),['ai','p1','p2']);assert.deepEqual(f.encoded,['ai']);}
+  assert.equal(f.maximum(),4);assert.equal(f.active(),0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);
+  if(oldBudget){assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(report.lastCapture.reason,'deadline');assert.deepEqual(f.started.map(row=>row.id),['ai','p1','p2','p3','p4']);assert.deepEqual(f.encoded,['p3','p4','ai']);}
   else{assert.equal(result.complete,true);assert.ok(result.token);assert.equal(report.lastCapture.reason,'complete');assert.ok(report.lastCapture.elapsedMs>700&&report.lastCapture.elapsedMs<2500);assert.deepEqual(f.started.map(row=>row.id),['ai','p1','p2','p3','p4']);assert.deepEqual([...result.surfaces].map(row=>row.id).sort(),sample.map(row=>row.id).sort());}
   f.surfaces.dispose();
  }
 });
-test('bounded default preparation accommodates three synthetic slow waves without exceeding two captures',async()=>{
+test('bounded default preparation accommodates a second slow wave without exceeding four captures',async()=>{
  const f=scheduledFixture(),ids=['a','b','c','d','e'];for(const id of ids)f.addTimed(id,{delay:738,pngMs:10});
  const work=f.surfaces.capture({ids});await f.advance(2500);const result=await work,report=f.surfaces.diagnostics();
- assert.equal(result.complete,true);assert.equal(result.surfaces.length,5);assert.equal(report.lastCapture.elapsedMs,2244);assert.equal(f.maximum(),2);assert.equal(f.active(),0);assert.deepEqual(f.started.map(row=>row.id),ids);assert.deepEqual(f.images.slice().sort(),ids);f.surfaces.dispose();
+ assert.equal(result.complete,true);assert.equal(result.surfaces.length,5);assert.equal(report.lastCapture.elapsedMs,1496);assert.equal(f.maximum(),4);assert.equal(f.active(),0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.started.map(row=>row.id),ids);assert.deepEqual(f.images.slice().sort(),ids);f.surfaces.dispose();
 });
 test('default preparation deadline returns no token and rejects late pixels without starting queued pages',async()=>{
  const f=scheduledFixture(),ids=['a','b','c','d','e'];for(const id of ids)f.addTimed(id);
  let settled=false;const work=f.surfaces.capture({ids}).then(value=>{settled=true;return value;});await f.advance(2499);assert.equal(settled,false);
- await f.advance(1);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.busy,false);assert.equal(f.surfaces.activeCaptures,2);assert.equal(f.surfaces.diagnostics().lastCapture.elapsedMs,2500);assert.deepEqual(f.started.map(row=>row.id),['a','b']);
+ await f.advance(1);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.busy,false);assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.reservedPixels,4*800*600);assert.equal(f.surfaces.diagnostics().lastCapture.elapsedMs,2500);assert.deepEqual(f.started.map(row=>row.id),['a','b','c','d']);
  for(const item of f.pending)item.finish();await f.advance(0);
- assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.active(),0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.deepEqual(f.started.map(row=>row.id),['a','b']);const report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'deadline');assert.ok(report.lastCapture.pages.every(row=>row.state==='late-after-deadline'));f.surfaces.dispose();
+ assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.active(),0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.deepEqual(f.started.map(row=>row.id),['a','b','c','d']);const report=f.surfaces.diagnostics();assert.equal(report.lastCapture.reason,'deadline');assert.ok(report.lastCapture.pages.every(row=>row.state==='late-after-deadline'));f.surfaces.dispose();
 });
-test('timed-out native work still consumes the shared capacity across overlapping retries',async()=>{
- const f=scheduledFixture();for(const id of ['a','b','queued','retry'])f.addTimed(id);
- const first=f.surfaces.capture({ids:['a','b','queued']});await f.advance(2500);assert.equal((await first).complete,false);assert.equal(f.surfaces.activeCaptures,2);
- const saturated=await f.surfaces.capture({ids:['retry']});assert.equal(saturated.complete,false);assert.equal(saturated.token,'');assert.deepEqual(f.started.map(row=>row.id),['a','b']);
- f.pending.find(row=>row.id==='a').finish();await f.advance(0);assert.equal(f.surfaces.activeCaptures,1);
- const retry=f.surfaces.capture({ids:['retry']});assert.equal(f.surfaces.activeCaptures,2);assert.deepEqual(f.started.map(row=>row.id),['a','b','retry']);f.pending.find(row=>row.id==='retry').finish();await f.advance(0);assert.equal((await retry).complete,true);
- f.pending.find(row=>row.id==='b').finish();await f.advance(0);assert.equal(f.maximum(),2);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.active(),0);assert.deepEqual(f.encoded,['retry']);assert.deepEqual(f.images,['retry']);assert.deepEqual(f.started.map(row=>row.id),['a','b','retry']);f.surfaces.dispose();
+test('timed-out native work keeps its shared slots and pixels across retries and expired waiters never start',async()=>{
+ const f=scheduledFixture(),oldIds=['a','b','c','d'];for(const id of [...oldIds,'queued','retry'])f.addTimed(id);
+ const first=f.surfaces.capture({ids:[...oldIds,'queued']});await f.advance(2500);assert.equal((await first).complete,false);assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.reservedPixels,4*800*600);
+ const expired=f.surfaces.capture({ids:['retry']});await f.advance(2499);assert.deepEqual(f.started.map(row=>row.id),oldIds);assert.equal(f.surfaces.capacityWaiters.size,1);
+ await f.advance(1);assert.equal((await expired).complete,false);assert.equal(f.surfaces.capacityWaiters.size,0);assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.reservedPixels,4*800*600);
+ f.pending.find(row=>row.id==='a').finish();await f.advance(0);assert.equal(f.surfaces.activeCaptures,3);assert.deepEqual(f.started.map(row=>row.id),oldIds,'Expired and unstarted work cannot wake on a later release');
+ const retry=f.surfaces.capture({ids:['retry']});await f.flush();assert.equal(f.surfaces.activeCaptures,4);assert.deepEqual(f.started.map(row=>row.id),[...oldIds,'retry']);f.pending.find(row=>row.id==='retry').finish();await f.advance(0);assert.equal((await retry).complete,true);
+ for(const id of oldIds.slice(1))f.pending.find(row=>row.id===id).finish();await f.advance(0);assert.equal(f.maximum(),4);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.active(),0);assert.deepEqual(f.encoded,['retry']);assert.deepEqual(f.images,['retry']);assert.deepEqual(f.started.map(row=>row.id),[...oldIds,'retry']);f.surfaces.dispose();
 });
-test('invalidation during the added preparation time still rejects pending results and queued work',async()=>{
+test('invalidation during preparation keeps outstanding reservations but rejects results and queued work',async()=>{
  for(const mutation of ['clear','lock','resize','dispose']){
-  const f=scheduledFixture();for(const id of ['a','b','queued'])f.addTimed(id,{delay:900});let settled=false;const work=f.surfaces.capture({ids:['a','b','queued']}).then(value=>{settled=true;return value;});
-  await f.advance(800);assert.equal(settled,false,mutation+' remains in preparation after700ms');assert.equal(f.surfaces.activeCaptures,2);
-  if(mutation==='resize')f.win.emit('resize');else f.surfaces[mutation]();await f.advance(100);const result=await work;
-  assert.equal(result.complete,false,mutation);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.held,null);assert.equal(f.surfaces.activeCaptures,0);assert.deepEqual(f.started.map(row=>row.id),['a','b']);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);f.surfaces.dispose();
+  const f=scheduledFixture(),ids=['a','b','c','d','queued'];for(const id of ids)f.addTimed(id,{delay:900});let settled=false;const work=f.surfaces.capture({ids}).then(value=>{settled=true;return value;});
+  await f.advance(800);assert.equal(settled,false,mutation+' remains in preparation after700ms');assert.equal(f.surfaces.activeCaptures,4);
+  if(mutation==='resize')f.win.emit('resize');else f.surfaces[mutation]();assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.reservedPixels,4*800*600);await f.advance(100);const result=await work;
+  assert.equal(result.complete,false,mutation);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.surfaces.held,null);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.started.map(row=>row.id),ids.slice(0,4));assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);f.surfaces.dispose();
  }
+});
+test('four recorded f9 cold readbacks fit the unchanged preparation deadline without a forced second wave',async t=>{
+ // Actual native durations from run44512047028/read, independent of their old
+ // queue waits. Replaying them is a scheduler regression, not measured Mac speed.
+ // Only measured PNG costs are added; all other processing costs are fixture zero.
+ const sample=[
+  {id:'ai',width:503,height:864,delay:1753.407875,pngMs:7.170708},
+  {id:'pane5',width:561,height:518,delay:2263.842291,pngMs:5.575625},
+  {id:'visited',width:364,height:415,delay:849.720708,pngMs:0},
+  {id:'pane2',width:364,height:415,delay:385.139333,pngMs:0}
+ ];
+ const f=scheduledFixture();assert.equal(CAPTURE_MS,2500);assert.equal(PAINT_MS,1500);assert.equal(f.surfaces.captureMs,2500);assert.equal(f.surfaces.paintMs,1500);
+ const pins=sample.map(row=>{const page=f.addTimed(row.id,row);return{page,wc:page.view.webContents,bounds:{...page.bounds},epoch:page.navigationEpoch};});f.add('hidden',{visible:false});f.add('other',{desk:'desk-4'});
+ let settled=false;const work=f.surfaces.capture({ids:sample.map(row=>row.id)}).then(value=>{settled=true;return value;});await f.advance(2250);assert.equal(settled,false);await f.advance(250);
+ const result=await work,report=f.surfaces.diagnostics();assert.equal(result.complete,true);assert.ok(result.token);assert.equal(result.surfaces.length,4);assert.equal(report.lastCapture.reason,'complete');assert.ok(report.lastCapture.elapsedMs<2500);assert.equal(report.lastCapture.peakActiveCaptures,4);assert.equal(report.lastCapture.peakReservedPixels,1027310);assert.equal(f.maximum(),4);
+ assert.deepEqual(f.started.map(row=>row.id),sample.map(row=>row.id));assert.ok(f.started.every(row=>row.at===0&&row.opts.stayHidden===true&&row.opts.stayAwake===false));assert.equal(report.lastCapture.pages.every(row=>row.queueMs===0),true);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.capacityWaiters.size,0);
+ for(const pin of pins){assert.equal(f.browser.tabs.get(pin.page.id),pin.page);assert.equal(pin.page.view.webContents,pin.wc);assert.deepEqual(pin.page.bounds,pin.bounds);assert.equal(pin.page.navigationEpoch,pin.epoch);assert.equal(pin.page.visible,true);}assert.deepEqual(f.layouts,[]);
+ t.diagnostic(JSON.stringify({scope:'recorded native and available PNG delays; other processing costs are fixture zero',elapsedMs:report.lastCapture.elapsedMs,maximumNativeCaptures:f.maximum(),reservedPixels:report.lastCapture.peakReservedPixels}));f.surfaces.dispose();
+});
+
+test('Retina reservations cap the shared in-flight pixels and retain the cumulative output budget',async()=>{
+ const f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor:1},{scaleFactor:2}]}}),ids=['a','b','c'];for(const id of ids)f.addTimed(id,{width:2048,height:1024,scaleFactor:2});
+ const work=f.surfaces.capture({ids});await f.flush();assert.equal(f.surfaces.activeCaptures,2);assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);assert.equal(f.surfaces.capacityWaiters.size,1);assert.deepEqual(f.started.map(row=>row.id),['a','b']);
+ f.pending.find(row=>row.id==='a').finish();await f.advance(0);assert.deepEqual(f.started.map(row=>row.id),ids);assert.equal(f.surfaces.activeCaptures,2);assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);
+ f.pending.find(row=>row.id==='b').finish();f.pending.find(row=>row.id==='c').finish();await f.advance(0);const result=await work;
+ assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.maximum(),2,'The pixel limit binds before the four-slot limit');assert.ok(f.started.every(row=>row.reservedPixels<=MAX_PIXELS));assert.equal(f.surfaces.diagnostics().lastCapture.peakReservedPixels,MAX_PIXELS);assert.deepEqual(f.encoded,['a','b'],'Cumulative output limit rejects excess pixels before PNG encoding');assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);f.surfaces.dispose();
+});
+
+test('mixed and fractional display scales reserve rounded physical pixels without fabricating image resolution',async()=>{
+ for(const [displayScale,imageScale,width,height] of [[2,1,800,600],[1.25,1.25,129,127]]){
+  const f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor:1},{scaleFactor:displayScale}]}});f.addTimed('page',{width,height,scaleFactor:imageScale});
+  const work=f.surfaces.capture({ids:['page']});await f.flush();const expected=Math.ceil(width*displayScale)*Math.ceil(height*displayScale);assert.equal(f.surfaces.reservedPixels,expected);assert.equal(f.surfaces.activeCaptures,1);
+  f.pending[0].finish();await f.advance(0);const result=await work;assert.equal(result.complete,true);assert.equal(result.surfaces[0].pixelWidth,Math.ceil(width*imageScale));assert.equal(result.surfaces[0].pixelHeight,Math.ceil(height*imageScale));assert.equal(f.surfaces.reservedPixels,0);f.surfaces.dispose();
+ }
+});
+
+test('unknown display scale or an oversized scaled viewport fails before native work and empty internal desks remain supported',async()=>{
+ const invalid=[undefined,null,{}, {getAllDisplays:()=>[]}, {getAllDisplays:()=>null},... [0,-1,NaN,Infinity,'2'].map(scaleFactor=>({getAllDisplays:()=>[{scaleFactor:1},{scaleFactor}]})),{getAllDisplays(){throw Error('display unavailable');}}];
+ for(const screen of invalid){const f=fixture({screen});f.add('a');const result=await f.surfaces.capture({ids:['a']});assert.equal(result.complete,false);assert.equal(result.token,'');assert.deepEqual(f.captures,[]);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);const empty=await f.surfaces.capture({ids:[]});assert.equal(empty.complete,true);let reads=0;f.shell.capturePage=async()=>{reads++;return f.image(1000,800);};assert.equal((await f.surfaces.present({token:empty.token})).ready,false);assert.equal(reads,0);f.surfaces.dispose();}
+ for(const [scale,width,height] of [[1,4097,4096],[2,2048,2049]]){const f=fixture({screen:{getAllDisplays:()=>[{scaleFactor:scale}]}});f.add('too-large',{width,height});const result=await f.surfaces.capture({ids:['too-large']});assert.equal(result.complete,false);assert.equal(result.token,'');assert.deepEqual(f.captures,[]);assert.equal(f.surfaces.reservedPixels,0);f.surfaces.dispose();}
+});
+
+test('unexpected or unknown native representation is rejected before PNG or bitmap allocation on both routes',async()=>{
+ const variants=[{scales:[3],size:{width:1200,height:900}},{scales:[2],size:{width:801,height:600}},{scales:[],size:{width:400,height:300}},{scales:[1,NaN],size:{width:400,height:300}},{scales:null,size:{width:400,height:300}},{scales:[2],size:{width:Infinity,height:600}}];
+ for(const variant of variants){const f=fixture({screen:{getAllDisplays:()=>[{scaleFactor:2}]}}),page=f.add('a',{width:400,height:300});let png=0,bitmap=0;const bad={isEmpty:()=>false,getScaleFactors:()=>variant.scales,getSize:()=>variant.size,toPNG(){png++;throw Error('Unexpected PNG allocation');},toBitmap(){bitmap++;throw Error('Unexpected bitmap allocation');}};
+  f.win.getContentSize=()=>[400,300];const source=await f.surfaces.capture({ids:['a']});page.view.webContents.capturePage=async()=>bad;assert.equal((await f.surfaces.capture({ids:['a']})).complete,false);assert.equal(png,0);assert.equal(bitmap,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);
+  f.shell.capturePage=async()=>bad;assert.equal((await f.surfaces.present({token:source.token})).ready,false);assert.equal(png,0);assert.equal(bitmap,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);f.surfaces.dispose();
+ }
+});
+
+test('display scale growth invalidates an in-flight result before encoding and keeps its reservation until settlement',async()=>{
+ let scaleFactor=1;const f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor}]}});f.addTimed('a');const work=f.surfaces.capture({ids:['a']});scaleFactor=2;await f.advance(0);assert.equal(f.surfaces.activeCaptures,1);assert.equal(f.surfaces.reservedPixels,800*600);
+ f.pending[0].finish();await f.advance(0);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.diagnostics().lastCapture.reason,'display-scale-changed');f.surfaces.dispose();
+});
+
+test('privacy and lifecycle invalidation cancel pixel waiters without releasing outstanding native reservations',async()=>{
+ for(const mutation of ['clear','lock','resize','dispose']){
+  const f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor:2}]}});for(const id of ['a','b','queued'])f.addTimed(id,{width:2048,height:1024,scaleFactor:2});const work=f.surfaces.capture({ids:['a','b','queued']});await f.flush();assert.equal(f.surfaces.capacityWaiters.size,1);assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);
+  if(mutation==='resize')f.win.emit('resize');else f.surfaces[mutation]();await f.flush();assert.equal(f.surfaces.capacityWaiters.size,0,mutation);assert.equal(f.surfaces.activeCaptures,2);assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);assert.deepEqual(f.started.map(row=>row.id),['a','b']);
+  for(const item of f.pending)item.finish();await f.advance(0);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.activeCaptures,0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);assert.deepEqual(f.started.map(row=>row.id),['a','b']);f.surfaces.dispose();
+ }
+});
+
+test('a capacity waiter rechecks visibility, ownership and identity before it can start native work',async()=>{
+ for(const mutation of ['hidden','membership','navigation','url','replacement','geometry']){
+  const f=scheduledFixture(),oldIds=['a','b','c','d'];for(const id of oldIds)f.addTimed(id);const page=f.addTimed('queued');const old=f.surfaces.capture({ids:oldIds});await f.advance(2500);assert.equal((await old).complete,false);const waiting=f.surfaces.capture({ids:['queued']});await f.flush();assert.equal(f.surfaces.capacityWaiters.size,1);
+  if(mutation==='hidden')page.visible=false;if(mutation==='membership')f.bank.members.queued='other';if(mutation==='navigation')page.navigationEpoch++;if(mutation==='url')page.url='https://changed.test/';if(mutation==='replacement')f.browser.tabs.set('queued',{...page});if(mutation==='geometry')page.bounds.width--;
+  f.pending.find(row=>row.id==='a').finish();await f.advance(0);const result=await waiting;assert.equal(result.complete,false,mutation);assert.equal(result.token,'');assert.deepEqual(f.started.map(row=>row.id),oldIds,mutation);assert.equal(f.surfaces.capacityWaiters.size,0);assert.equal(f.surfaces.activeCaptures,3);assert.equal(f.surfaces.reservedPixels,3*800*600);
+  f.surfaces.dispose();for(const id of oldIds.slice(1))f.pending.find(row=>row.id===id).finish();await f.advance(0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.deepEqual(f.encoded,[]);assert.deepEqual(f.images,[]);
+ }
+});
+
+test('shell paint waits for the same four native slots used by guest captures',async()=>{
+ const f=scheduledFixture();f.addTimed('source',{delay:0});let work=f.surfaces.capture({ids:['source']});await f.advance(0);const packet=await work;
+ const ids=['a','b','c','d'];for(const id of ids)f.addTimed(id);f.setShellTimed();work=f.surfaces.capture({ids});const paint=f.surfaces.present({token:packet.token});await f.flush();assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.capacityWaiters.size,1);assert.equal(f.started.some(row=>row.id==='shell'),false);
+ f.pending.find(row=>row.id==='a').finish();await f.advance(0);assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.started.at(-1).id,'shell');assert.equal(f.surfaces.reservedPixels,3*800*600+1000*800);
+ for(const id of ids.slice(1))f.pending.find(row=>row.id===id).finish();f.pending.find(row=>row.id==='shell').finish();await f.advance(0);assert.equal((await work).complete,true);assert.equal((await paint).ready,true);assert.equal(f.maximum(),4);assert.ok(f.started.every(row=>row.activeCaptures<=4&&row.reservedPixels<=MAX_PIXELS));assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.capacityWaiters.size,0);f.surfaces.dispose();
+});
+
+test('a late shell readback keeps its scaled pixel reservation and queued guests cannot bypass it',async()=>{
+ const f=scheduledFixture({screen:{getAllDisplays:()=>[{scaleFactor:2}]}});f.win.getContentSize=()=>[2048,2048];f.addTimed('source',{delay:0,width:100,height:100,scaleFactor:2});let work=f.surfaces.capture({ids:['source']});await f.advance(0);const packet=await work;
+ f.addTimed('guest',{width:100,height:100,scaleFactor:2});f.addTimed('next',{width:100,height:100,scaleFactor:2});f.setShellTimed({scaleFactor:2});work=f.surfaces.capture({ids:['guest']});const paint=f.surfaces.present({token:packet.token});await f.flush();assert.equal(f.surfaces.activeCaptures,1);assert.equal(f.surfaces.reservedPixels,40000);assert.equal(f.surfaces.capacityWaiters.size,1);assert.equal(f.started.some(row=>row.id==='shell'),false);
+ f.pending.find(row=>row.id==='guest').finish();await f.advance(0);assert.equal((await work).complete,true);assert.equal(f.started.at(-1).id,'shell');assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);assert.equal(f.surfaces.activeCaptures,1);
+ const next=f.surfaces.capture({ids:['next']});await f.advance(1500);assert.equal((await paint).ready,false);assert.equal(f.surfaces.diagnostics().lastPaint.reason,'deadline');assert.equal(f.surfaces.reservedPixels,MAX_PIXELS);assert.equal(f.surfaces.activeCaptures,1);assert.equal(f.surfaces.capacityWaiters.size,1);assert.equal(f.started.some(row=>row.id==='next'),false);
+ f.pending.find(row=>row.id==='shell').finish();await f.advance(0);assert.equal(f.started.at(-1).id,'next');assert.equal(f.surfaces.reservedPixels,40000);assert.equal(f.surfaces.activeCaptures,1);assert.equal(f.surfaces.painting,false);f.pending.find(row=>row.id==='next').finish();await f.advance(0);assert.equal((await next).complete,true);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.capacityWaiters.size,0);assert.ok(f.started.every(row=>row.reservedPixels<=MAX_PIXELS));assert.equal(f.surfaces.diagnostics().events.some(row=>row.phase==='paint-result'&&row.ready),false);f.surfaces.dispose();
+});
+
+test('a shell paint waiter expires within its original budget and cannot start after a guest later settles',async()=>{
+ const f=scheduledFixture();f.addTimed('source',{delay:0});let work=f.surfaces.capture({ids:['source']});await f.advance(0);const packet=await work;const ids=['a','b','c','d'];for(const id of ids)f.addTimed(id);f.setShellTimed();work=f.surfaces.capture({ids});const paint=f.surfaces.present({token:packet.token});await f.advance(1499);assert.equal(f.surfaces.capacityWaiters.size,1);assert.equal(f.started.some(row=>row.id==='shell'),false);
+ await f.advance(1);const result=await paint;assert.equal(result.ready,false);assert.equal(result.reason,'deadline');assert.equal(result.attempts,0);assert.equal(f.surfaces.capacityWaiters.size,0);assert.equal(f.surfaces.activeCaptures,4);
+ for(const id of ids)f.pending.find(row=>row.id===id).finish();await f.advance(0);assert.equal((await work).complete,true);assert.equal(f.started.some(row=>row.id==='shell'),false);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.activeCaptures,0);f.surfaces.dispose();
+});
+
+test('native readback rejection releases one reservation and wakes bounded work without issuing a partial token',async()=>{
+ const f=scheduledFixture(),ids=['a','b','c','d','queued'];for(const id of ids)f.addTimed(id);const work=f.surfaces.capture({ids});await f.flush();assert.equal(f.surfaces.activeCaptures,4);
+ f.pending.find(row=>row.id==='a').fail(Error('native readback failed'));await f.advance(0);assert.deepEqual(f.started.map(row=>row.id),ids);assert.equal(f.surfaces.activeCaptures,4);assert.equal(f.surfaces.reservedPixels,4*800*600);
+ for(const id of ids.slice(1))f.pending.find(row=>row.id===id).finish();await f.advance(0);const result=await work;assert.equal(result.complete,false);assert.equal(result.token,'');assert.equal(result.surfaces.length,0);assert.equal(f.surfaces.records.size,0);assert.equal(f.maximum(),4);assert.equal(f.surfaces.reservedPixels,0);assert.equal(f.surfaces.activeCaptures,0);assert.equal(f.surfaces.capacityWaiters.size,0);f.surfaces.dispose();
 });

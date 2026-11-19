@@ -73,6 +73,7 @@ async function verifyGestureRestart({app,win,browser,store}){
   assert.equal(observed.gesture.learned,true);assert.equal(observed.hintHidden,true);assert.equal(observed.noraOpen,true);
   facts.restart={pid:process.pid,mainTimeOrigin:performance.timeOrigin,version:app.getVersion(),persisted,...observed};facts.restartHidden=true;
   await fs.writeFile('mouse-629-swipe-restart.png',(await win.capturePage()).toPNG());facts.restart.capture='mouse-629-swipe-restart.png';
+  try{diagnostic.opened=await restartSnapshot('opened');await saveDiagnostic();}catch(error){diagnosticError('opened evidence',error);await saveDiagnostic().catch(()=>{});}
  }catch(error){
   try{
    diagnostic.error={message:error.message,stack:error.stack};diagnostic.failure=await restartSnapshot('before-cleanup');await saveDiagnostic();
