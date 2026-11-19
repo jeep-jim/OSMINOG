@@ -65,3 +65,15 @@ before C++ compilation: Node 22's bundled node-gyp 11.5 did not recognize the
 VS18 installation on `windows-latest`. The source builder is pinned to the
 `windows-2022` VS2022 image, and node-gyp is given the configured Python path.
 This is a toolchain correction, not a passed native implementation check.
+
+Run [44503108102](https://github.com/jeep-jim/OSMINOG/actions/runs/44503108102)
+at `7ebce13a0d2f3c390c8ef715b9acbb8844f3a674` compiled the Windows module and
+completed the unit stage: 605 of 620 Mouse tests passed, 15 failed. It did not
+build or install an application. Failures exposed Windows directory sharing
+rules during atomic replacement and race fixtures, short DOS path aliases in
+updater/terminal checks, the lack of Windows `O_NOFOLLOW` semantics, and POSIX
+mode assertions that do not describe Windows ACLs. The retained stylesheet
+hash difference was reproduced exactly by LF-to-CRLF conversion; the builder
+now disables checkout conversion rather than changing the accepted artwork
+hash. The native boundary remains based on held handles and reparse/hardlink
+rejection. Follow-up Windows execution is required for every correction.

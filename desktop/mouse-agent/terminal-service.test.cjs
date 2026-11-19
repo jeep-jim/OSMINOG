@@ -23,12 +23,14 @@ test('failed terminal input clears the pending command and its timer',async()=>{
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(check,timeout=12000){const deadline=Date.now()+timeout;while(Date.now()<deadline){if(check())return;await delay(100);}assert.fail('Timed out waiting for Windows terminal fixture');}
 const psQuote=value=>"'"+value.replace(/'/g,"''")+"'";
-test('real Windows PowerShell executes Unicode and exit codes; Stop terminates background descendants',{skip:process.platform!=='win32',timeout:60000},async()=>{
+test('real Windows PowerShell executes Unicode and exit codes; Stop terminates background descendants',{skip:process.platform!=='win32',timeout:60000},async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-win-terminal-')),pidFile=path.join(root,'child.pid'),terminal=new TerminalService();
+ let stage='start',failure;
  try{
-  terminal.start(root);const first=await terminal.execute("Write-Output 'Привет €'; cmd.exe /d /c exit 7");assert.equal(first.exitCode,7);assert.match(first.stdout,/Привет €/);
-  const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);assert.ok(second.stdout.includes(root));
+  terminal.start(root);stage='Unicode and exit 7';const first=await terminal.execute("Write-Output 'Привет €'; cmd.exe /d /c exit 7");assert.equal(first.exitCode,7);assert.match(first.stdout,/Привет €/);
+  stage='exit reset and working directory';const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);assert.ok(second.stdout.toLowerCase().includes(fs.realpathSync(root).toLowerCase()),JSON.stringify(second));
   const command="$child=Start-Process -FilePath "+psQuote(process.execPath)+" -ArgumentList @('-e','setInterval(()=>{},1000)') -NoNewWindow -PassThru; [IO.File]::WriteAllText("+psQuote(pidFile)+",$child.Id.ToString()); Start-Sleep -Seconds 40";
-  const background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0);assert.equal(background.background,true);await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
- }finally{terminal.stop();fs.rmSync(root,{recursive:true,force:true});}
+  stage='background launch';const background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0,JSON.stringify(background));assert.equal(background.background,true);await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);stage='owned descendant shutdown';terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
+ }catch(error){failure=error;error.message=stage+': '+error.message;throw error;}
+ finally{terminal.stop();try{await fs.promises.rm(root,{recursive:true,force:true,maxRetries:10,retryDelay:100});}catch(error){if(!failure)throw error;t.diagnostic('Cleanup after '+stage+': '+error.message);}}
 });

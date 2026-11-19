@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),fsp=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto'),vm=require('node:vm'),{EventEmitter}=require('node:events');
 const {MouseUpdates,WINDOWS_CHANNEL,channelCandidate,selectRelease,releaseTarget}=require('./mouse-update.cjs');
-const {WindowsInstaller,windowsPackage,acknowledgeWindows}=require('./mouse-install-update.cjs');
+const {WindowsInstaller,windowsPackage,acknowledgeWindows,ordinaryWindowsDirectory}=require('./mouse-install-update.cjs');
 const target={platform:'win32',arch:'x64'};
 const manifest=(patch={})=>({schema:1,...target,version:'6.0.30',url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.30-x64/Mouse-Browser-6.0.30-Windows-x64.exe',size:100,digest:'sha256:'+'a'.repeat(64),...patch});
 function load(name,stubs={}){const mod={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,name),'utf8'),{module:mod,exports:mod.exports,require:id=>Object.hasOwn(stubs,id)?stubs[id]:require(id),process,Buffer,URL,Date,AbortSignal,setTimeout,clearTimeout,console},{filename:name});return mod.exports;}
@@ -24,7 +24,7 @@ test('Windows API fallback preserves platform filtering and network failures rem
 });
 
 async function installerFixture(){
- const root=await fsp.mkdtemp(path.join(os.tmpdir(),'mouse-windows-test-')),dir=path.join(root,'Mouse — spaces'),profile=path.join(root,'profile'),temp=path.join(root,'temp');await Promise.all([fsp.mkdir(dir),fsp.mkdir(profile),fsp.mkdir(temp)]);
+ const temporary=await fsp.mkdtemp(path.join(os.tmpdir(),'mouse-windows-test-')),root=process.platform==='win32'?temporary:await fsp.realpath(temporary),dir=path.join(root,'Mouse — spaces'),profile=path.join(root,'profile'),temp=path.join(root,'temp');await Promise.all([fsp.mkdir(dir),fsp.mkdir(profile),fsp.mkdir(temp)]);
  const executable=path.join(dir,'Mouse Browser.exe');await fsp.writeFile(executable,'MZ installed');await fsp.writeFile(path.join(dir,'Uninstall Mouse Browser.exe'),'MZ uninstaller');
  const bytes=Buffer.from('MZ synthetic installer; never executed'),file=path.join(root,'Mouse-Browser-6.0.30-Windows-x64.exe');await fsp.writeFile(file,bytes);
  const candidate=channelCandidate(manifest({size:bytes.length,digest:'sha256:'+crypto.createHash('sha256').update(bytes).digest('hex')}),'6.0.29',target),app={isPackaged:true,getVersion:()=> '6.0.30',getPath:name=>name==='temp'?temp:profile};
@@ -36,6 +36,14 @@ test('Windows installer validates real package bytes and installed identity befo
   assert.equal(plan.target,f.dir);assert.equal(plan.executable,f.executable);assert.equal(plan.hash,f.candidate.hash);assert.equal(JSON.parse(await fsp.readFile(path.join(plan.stage,'plan.json'),'utf8')).file,f.file);
   await fsp.appendFile(f.file,'changed');await assert.rejects(()=>installer.prepare(f.file,f.candidate),/изменился/);
   await assert.rejects(()=>new WindowsInstaller({...f,platform:'darwin'}).prepare(f.file,f.candidate),/Windows/);
+ }finally{await f.cleanup();}
+});
+test('Windows install path accepts an ordinary directory but rejects a junction or symlink in any ancestor',async()=>{
+ const f=await installerFixture();try{
+  await ordinaryWindowsDirectory(f.dir);
+  const alias=path.join(f.root,'alias');await fsp.symlink(f.dir,alias,process.platform==='win32'?'junction':'dir');
+  await assert.rejects(()=>ordinaryWindowsDirectory(alias),/символическую/);
+  await fsp.mkdir(path.join(f.dir,'child'));await assert.rejects(()=>ordinaryWindowsDirectory(path.join(alias,'child')),/символическую/);
  }finally{await f.cleanup();}
 });
 test('failed browser save cancels the detached Windows installer and never acknowledges a new version',async()=>{

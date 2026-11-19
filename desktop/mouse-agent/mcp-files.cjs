@@ -30,15 +30,16 @@ class ScopedFiles{
   this.fs=extra||require('./deps.cjs')('fs-extra');
   // This module is mandatory. Missing native confinement never falls back to
   // check-then-open path operations. Electron resolves it from app.asar.unpacked.
-  this.native=native||require('../mouse-mcp-fs.node');this.root=fs.realpathSync(folder);this.rootIdentity=fs.lstatSync(this.root);
+  this.native=native||require('../mouse-mcp-fs.node');this.root=fs.realpathSync(folder);this.rootIdentity=fs.lstatSync(this.root,{bigint:true});
   if(!this.rootIdentity.isDirectory()||this.rootIdentity.isSymbolicLink())throw invalid('Нужна обычная папка проекта');
   this.rootFd=this.native.openRoot(this.root);
-  if(!same(fs.fstatSync(this.rootFd),this.rootIdentity)){fs.closeSync(this.rootFd);throw invalid('Папка изменена во время открытия');}
+  try{if(!same(fs.fstatSync(this.rootFd,{bigint:true}),this.rootIdentity))throw invalid('Папка изменена во время открытия');}
+  catch(error){fs.closeSync(this.rootFd);throw error;}
   this.writeAllowed=write===true;this.closed=false;this.onAction=onAction;
  }
  checkRoot(){
   if(this.closed)throw invalid('Доступ к папке отозван');
-  const current=fs.lstatSync(this.root);if(current.isSymbolicLink()||!current.isDirectory()||!same(current,this.rootIdentity)||fs.realpathSync(this.root)!==this.root)throw invalid('Папка проекта была заменена; выберите её снова');
+  const current=fs.lstatSync(this.root,{bigint:true});if(current.isSymbolicLink()||!current.isDirectory()||!same(current,this.rootIdentity)||fs.realpathSync(this.root)!==this.root)throw invalid('Папка проекта была заменена; выберите её снова');
  }
  directory(value='.',{create=false}={}){
   const relative=relativePath(value,{root:true});this.checkRoot();let fd=this.rootFd;

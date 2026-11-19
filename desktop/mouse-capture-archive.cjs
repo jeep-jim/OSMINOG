@@ -3,10 +3,23 @@
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto');
 const MAX_TEXT=1024*1024,MAX_IMAGE=24*1024*1024,MAX_ITEMS=1000,MAX_BYTES=512*1024*1024;
 const ID=/^[a-f0-9-]{36}$/i,IMAGE=/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i;
+async function openNoFollow(file){
+ const nodeFS=require('node:fs');
+ if(process.platform!=='win32')return fs.open(file,nodeFS.constants.O_RDONLY|nodeFS.constants.O_NOFOLLOW);
+ // Windows ignores O_NOFOLLOW. The shared native boundary opens the leaf
+ // relative to a held parent HANDLE, inspects reparse metadata, and gives Node
+ // the same already-validated handle. Never fall back to check-then-open.
+ const native=require('./mouse-mcp-fs.node');let fd,parent;
+ try{parent=native.openRoot(path.dirname(path.resolve(file)));fd=native.openRead(parent,path.basename(file));}
+ catch(error){if([2,3].includes(error.win32Error)&&/cannot be opened|cannot be read/.test(error.message))error.code='ENOENT';throw error;}
+ finally{if(parent!==undefined)nodeFS.closeSync(parent);}
+ const {promisify}=require('node:util'),stat=promisify(nodeFS.fstat),read=promisify(nodeFS.read),close=promisify(nodeFS.close);
+ return{stat:()=>stat(fd),read:(buffer,offset,length,position)=>read(fd,buffer,offset,length,position),close:()=>close(fd)};
+}
 function hash(type,data){return crypto.createHash('sha256').update(type).update(data).digest('hex');}
 function protectedFormats(types){return types.some(t=>/concealed|transient|password|sensitive|exclud(e|ed).*monitor|CanIncludeInClipboardHistory/i.test(t));}
 async function readBounded(file,max){
- const h=await fs.open(file,require('node:fs').constants.O_RDONLY|require('node:fs').constants.O_NOFOLLOW);
+ const h=await openNoFollow(file);
  try{const stat=await h.stat();if(!stat.isFile()||stat.size>max)throw Error('Файл слишком большой или недоступен');const chunks=[];let size=0;for(;;){const block=Buffer.alloc(Math.min(65536,max+1-size));const {bytesRead}=await h.read(block,0,block.length,null);if(!bytesRead)break;size+=bytesRead;if(size>max)throw Error('Файл слишком большой');chunks.push(block.subarray(0,bytesRead));}return Buffer.concat(chunks);}finally{await h.close();}
 }
 class CaptureArchive{

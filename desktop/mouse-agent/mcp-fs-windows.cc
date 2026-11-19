@@ -16,7 +16,8 @@
 
 namespace {
 constexpr ULONG kOpen=1,kCreate=2,kDirectory=1,kSynchronous=0x20,kNonDirectory=0x40,kReparse=0x200000;
-constexpr DWORD kDirectoryShare=FILE_SHARE_READ|FILE_SHARE_DELETE;
+constexpr DWORD kDirectoryShare=FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE;
+constexpr DWORD kCommitSourceShare=FILE_SHARE_READ|FILE_SHARE_DELETE;
 constexpr ACCESS_MASK kDirectoryAccess=FILE_LIST_DIRECTORY|FILE_TRAVERSE|FILE_READ_ATTRIBUTES|SYNCHRONIZE;
 using NtCreate=NTSTATUS(NTAPI*)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
 using NtError=ULONG(NTAPI*)(NTSTATUS);
@@ -30,7 +31,8 @@ struct Handle {
  HANDLE release(){const HANDLE handle=value;value=INVALID_HANDLE_VALUE;return handle;}
 };
 napi_value fail(napi_env env,const char* message,DWORD code=0){
- napi_value msg,error;napi_create_string_utf8(env,message,NAPI_AUTO_LENGTH,&msg);napi_create_error(env,nullptr,msg,&error);
+ const std::string detail=std::string(message)+(code?" (Windows error "+std::to_string(code)+")":"");
+ napi_value msg,error;napi_create_string_utf8(env,detail.c_str(),detail.size(),&msg);napi_create_error(env,nullptr,msg,&error);
  if(code){napi_value value;napi_create_uint32(env,code,&value);napi_set_named_property(env,error,"win32Error",value);}
  napi_throw(env,error);return nullptr;
 }
@@ -91,6 +93,10 @@ bool equalProperty(napi_env env,napi_value object,const char* key,const std::str
  std::vector<char> data(length+1);return napi_get_value_string_utf8(env,value,data.data(),data.size(),&length)==napi_ok&&std::string(data.data(),length)==expected;
 }
 HANDLE openChild(HANDLE parent,const std::wstring& child,ACCESS_MASK access,ULONG disposition,ULONG options,DWORD share=FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE){
+ // Other editors must remain able to rename/create inside the directory.
+ // Confinement comes from the held directory object and one-component relative
+ // opens, not Windows sharing locks. Never reuse a mutated reparse capability.
+ FileStat parentStat;if(!statHandle(parent,parentStat)||!directory(parentStat)){SetLastError(ERROR_ACCESS_DENIED);return INVALID_HANDLE_VALUE;}
  UNICODE_STRING string{};string.Buffer=const_cast<wchar_t*>(child.data());string.Length=static_cast<USHORT>(child.size()*sizeof(wchar_t));string.MaximumLength=string.Length;
  OBJECT_ATTRIBUTES attributes{};attributes.Length=sizeof(attributes);attributes.RootDirectory=parent;attributes.ObjectName=&string;attributes.Attributes=0x40; // OBJ_CASE_INSENSITIVE
  IO_STATUS_BLOCK io{};HANDLE handle=INVALID_HANDLE_VALUE;
@@ -177,7 +183,7 @@ napi_value list(napi_env env,napi_callback_info info){
 napi_value commit(napi_env env,napi_callback_info info){
  size_t count=4;napi_value args[4];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);HANDLE parent;std::wstring temporary,target;
  if(count!=4||!descriptor(env,args[0],parent)||!name(env,args[1],temporary)||!tempName(temporary)||!name(env,args[2],target))return fail(env,"Invalid project commit arguments");
- Handle source(openChild(parent,temporary,DELETE|FILE_READ_ATTRIBUTES,kOpen,kReparse|kNonDirectory,kDirectoryShare));
+ Handle source(openChild(parent,temporary,DELETE|FILE_READ_ATTRIBUTES,kOpen,kReparse|kNonDirectory,kCommitSourceShare));
  FileStat temporaryStat;if(source.value==INVALID_HANDLE_VALUE||!statHandle(source.value,temporaryStat)||!regular(temporaryStat))return fail(env,"Unsafe temporary file denied",GetLastError());
  Handle destination(openChild(parent,target,FILE_READ_ATTRIBUTES,kOpen,kReparse,kDirectoryShare));const DWORD targetError=destination.value==INVALID_HANDLE_VALUE?GetLastError():0;
  if(destination.value==INVALID_HANDLE_VALUE&&!missing(targetError))return fail(env,"File changed after reading; not overwritten",targetError);

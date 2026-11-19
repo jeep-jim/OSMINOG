@@ -90,12 +90,20 @@ try {
  if (Test-Path -LiteralPath $plan.cancel) { throw 'Update cancelled' }
  Verify-Package
  # /D must be last: NSIS reads the remainder as the literal install directory.
- $arguments = '--updated /S --force-run /D=' + $plan.target
+ $arguments = '--updated /S /D=' + $plan.target
  $installer = Start-Process -FilePath $plan.file -ArgumentList $arguments -PassThru
- # Start-Process -Wait also waits for the newly launched browser's process
- # tree. Wait only for NSIS so a successful running app can be acknowledged.
+ # Wait for the NSIS process, not every descendant of the installer.
  if (-not $installer.WaitForExit(180000)) { throw 'Installer did not complete within three minutes' }
  if ($installer.ExitCode -ne 0) { throw ('Installer exited with code ' + $installer.ExitCode) }
+ # NSIS --force-run delegates through Explorer and loses an isolated profile's
+ # environment. Launch the exact installed executable from this helper instead.
+ $launch = New-Object System.Diagnostics.ProcessStartInfo
+ $launch.FileName = $plan.executable
+ $launch.Arguments = '--updated'
+ $launch.UseShellExecute = $false
+ $launch.WorkingDirectory = $plan.target
+ $browser = [System.Diagnostics.Process]::Start($launch)
+ if ($null -eq $browser) { throw 'Updated Mouse could not be launched' }
  [IO.File]::WriteAllText($plan.result, 'Installer completed')
 } catch {
  [IO.File]::WriteAllText($plan.result, $_.Exception.Message)
@@ -108,6 +116,12 @@ function windowsPackage(candidate){
  if(candidate.url!==expected)throw Error('Неверный адрес установщика Windows');
  return candidate;
 }
+async function ordinaryWindowsDirectory(target){
+ // realpath also expands legitimate DOS 8.3 names (RUNNER~1), so textual
+ // equality is not a symlink test. Inspect every actual ancestor instead.
+ let current=path.resolve(target);
+ for(;;){const stat=await fs.lstat(current);if(!stat.isDirectory()||stat.isSymbolicLink())throw Error('Нельзя обновить приложение через символическую ссылку');const parent=path.dirname(current);if(parent===current)break;current=parent;}
+}
 class WindowsInstaller{
  constructor({app,quit,executable=process.execPath,platform=process.platform,arch=process.arch,spawn=cp.spawn}){this.app=app;this.quit=quit;this.executable=executable;this.platform=platform;this.arch=arch;this.spawn=spawn;this.plan=null;this.child=null;}
  async prepare(file,candidate){
@@ -116,7 +130,7 @@ class WindowsInstaller{
   if(path.basename(this.executable)!=='Mouse Browser.exe'||!path.isAbsolute(file)||path.basename(file)!==c.name||/[\r\n\0]/.test(target))throw Error('Недопустимый путь установки Windows');
   const exe=await fs.lstat(this.executable),uninstaller=await fs.lstat(path.join(target,'Uninstall Mouse Browser.exe')).catch(()=>null);
   if(!exe.isFile()||exe.isSymbolicLink()||!uninstaller?.isFile()||uninstaller.isSymbolicLink())throw Error('Сначала установите Mouse Browser с помощью установщика Windows');
-  if((await fs.realpath(target)).toLowerCase()!==path.resolve(target).toLowerCase())throw Error('Нельзя обновить приложение через символическую ссылку');
+  await ordinaryWindowsDirectory(target);
   await fs.access(target,require('node:fs').constants.W_OK);
   const stat=await fs.lstat(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==c.size||await require('./mouse-update.cjs').fileHash(file)!==c.hash)throw Error('Скачанный установщик изменился');
   const handle=await fs.open(file,'r');try{const magic=Buffer.alloc(2);await handle.read(magic,0,2,0);if(magic.toString('ascii')!=='MZ')throw Error('Файл не является установщиком Windows');}finally{await handle.close();}
@@ -139,8 +153,10 @@ class WindowsInstaller{
 }
 async function acknowledgeWindows(app,executable=process.execPath){
  const receipt=path.join(app.getPath('userData'),'mouse-windows-update-receipt.json');let r;try{r=JSON.parse(await fs.readFile(receipt,'utf8'));}catch{return;}
- if(r.platform!=='win32'||r.version!==app.getVersion()||typeof r.target!=='string'||path.resolve(r.target).toLowerCase()!==path.resolve(executable).toLowerCase()||typeof r.stage!=='string'||path.resolve(path.dirname(r.stage)).toLowerCase()!==path.resolve(app.getPath('temp')).toLowerCase()||!/^mouse-update-install-[\w-]+$/.test(path.basename(r.stage)))return;
+ if(r.platform!=='win32'||r.version!==app.getVersion()||typeof r.target!=='string'||typeof r.stage!=='string'||!/^mouse-update-install-[\w-]+$/.test(path.basename(r.stage)))return;
+ const [target,actual,parent,temp]=await Promise.all([fs.realpath(r.target),fs.realpath(executable),fs.realpath(path.dirname(r.stage)),fs.realpath(app.getPath('temp'))]);
+ if(target.toLowerCase()!==actual.toLowerCase()||parent.toLowerCase()!==temp.toLowerCase())return;
  const stat=await fs.lstat(r.stage).catch(()=>null);if(!stat?.isDirectory()||stat.isSymbolicLink())return;
  await fs.writeFile(path.join(r.stage,'READY'),app.getVersion(),{mode:0o600});await fs.unlink(receipt);
 }
-module.exports={MacInstaller,WindowsInstaller,acknowledge,acknowledgeWindows,allowedTarget,bundlePath,HELPER,WINDOWS_HELPER,windowsPackage};
+module.exports={MacInstaller,WindowsInstaller,acknowledge,acknowledgeWindows,ordinaryWindowsDirectory,allowedTarget,bundlePath,HELPER,WINDOWS_HELPER,windowsPackage};
