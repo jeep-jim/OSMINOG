@@ -2,7 +2,7 @@
 #desktop-tray .desktop-gesture-hint{display:flex;align-items:center;justify-content:center;gap:16px;max-width:600px;margin:14px auto 0;padding:6px 8px 0;border:0;box-shadow:none;background:none;color:var(--muted);font-size:11px;line-height:1.45}
 #desktop-tray .desktop-gesture-hint[hidden]{display:none}
 #desktop-tray .desktop-gesture-art{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 114px;height:68px;overflow:visible;color:var(--text);opacity:.72;pointer-events:none}
-#desktop-tray .desktop-gesture-hand{width:62px;height:58px;fill:currentColor;animation:mouse-three-finger-hint 3.4s ease-in-out infinite;transform-origin:center;will-change:transform}
+#desktop-tray .desktop-gesture-hand{width:62px;height:58px;fill:currentColor;animation:mouse-two-finger-hint 3.4s ease-in-out infinite;transform-origin:center;will-change:transform}
 #desktop-tray .desktop-gesture-arrow{position:absolute;top:16px;font-size:35px;font-weight:300;line-height:1;opacity:.38}
 #desktop-tray .desktop-gesture-arrow-left{left:0}
 #desktop-tray .desktop-gesture-arrow-right{right:0}
@@ -11,6 +11,6 @@
 #desktop-tray .desktop-gesture-copy details{margin:2px 0 0;padding:0;border:0;background:none;font-size:10px}
 #desktop-tray .desktop-gesture-copy summary{cursor:pointer;width:fit-content;opacity:.8}
 #desktop-tray .desktop-gesture-copy p{margin:5px 0 0;max-width:440px}
-@keyframes mouse-three-finger-hint{0%,12%,100%{transform:translateX(0)}28%{transform:translateX(-15px)}44%,56%{transform:translateX(0)}72%{transform:translateX(15px)}88%{transform:translateX(0)}}
+@keyframes mouse-two-finger-hint{0%,12%,100%{transform:translateX(0)}28%{transform:translateX(-15px)}44%,56%{transform:translateX(0)}72%{transform:translateX(15px)}88%{transform:translateX(0)}}
 @media(prefers-reduced-motion:reduce){#desktop-tray .desktop-gesture-hand{animation:none;will-change:auto}}
 @media(max-width:900px){#desktop-tray .desktop-gesture-hint{gap:9px;margin-top:10px;font-size:10px}#desktop-tray .desktop-gesture-art{flex-basis:84px;height:60px}#desktop-tray .desktop-gesture-hand{width:52px;height:50px}#desktop-tray .desktop-gesture-copy strong{font-size:11px}}

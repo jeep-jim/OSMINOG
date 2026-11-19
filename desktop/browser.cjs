@@ -166,7 +166,9 @@ class BrowserWorkspace{
     const signature=JSON.stringify([viewBounds,parentBounds]);
     if(signature!==t.layoutSignature){if(t.clipView)t.clipView.setBounds(parentBounds);t.view.setBounds(viewBounds);t.layoutSignature=signature}t.bounds=bounds;
    }
-   if(show!==!!t.visible){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
+   // A native view (or a newly created clip parent) may disagree with the last
+   // logical flag. A surface hold must keep every real guest hidden as well.
+   if(show!==!!t.visible||(t.view.getVisible?.()??show)!==show||(t.clipView?.getVisible?.()??show)!==show){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
   // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
   if(this.mouseCornerMask)this.mouseCornerMask(this.mouseSurfaceHold?[]:[...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor})));

@@ -1,7 +1,12 @@
 'use strict';
 // The only page-visible API reports progress for this page. It grants no browser,
 // terminal, file, or other-tab access. Native image drag still requires a gesture.
-const {ipcRenderer,contextBridge}=require('electron');
+const {ipcRenderer,contextBridge,webFrame}=require('electron');
+// Install before page scripts/paint. This remains in the isolated preload and
+// changes only native scrollbars; no new bridge or page-callable method exists.
+if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&typeof webFrame?.insertCSS==='function'){
+ webFrame.insertCSS(MouseScrollbarCSS,{cssOrigin:'user'});
+}
 if(process.isMainFrame){
  contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress:(percent,statusText,options={})=>ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId})}));
  // The activity observer is lexical to this isolated preload. Only its small

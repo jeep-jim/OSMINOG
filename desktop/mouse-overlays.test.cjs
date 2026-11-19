@@ -32,6 +32,21 @@ test('new pages and clip roots remain hidden and attached while a modal owns a s
  late.clipView=view();win.contentView.removeChildView(late.view);win.contentView.addChildView(late.clipView);resetCalls();
  const roots=win.contentView.children.slice();browser.layout([{id:'late'}]);assert.equal(late.clipView.shown,false);assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
 });
+test('a held Nora barrier hides actual native visibility even when the logical page flag is already false',()=>{
+ const {browser,win,view,resetCalls,calls}=fixture(),page=browser.tabs.get('page'),gate=new OverlayGate(browser,win);
+ // Model the real workspace optimization: unchanged logical visibility does
+ // not imply that a newly completed native clip parent is already hidden.
+ gate.layout=panels=>{browser.panels=panels;};
+ browser.mouseSurfaceHold='owned-nora';page.visible=false;page.view.shown=true;page.view.getVisible=()=>page.view.shown;
+ page.clipView=view();page.clipView.shown=true;page.clipView.getVisible=()=>page.clipView.shown;
+ win.contentView.removeChildView(page.view);win.contentView.addChildView(page.clipView);const roots=win.contentView.children.slice();resetCalls();
+ gate.set({sequence:1,blocked:true});
+ assert.equal(page.view.getVisible(),false);assert.equal(page.clipView.getVisible(),false);assert.equal(page.visible,false);
+ assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
+ page.view.shown=true;page.clipView.shown=true;browser.layout([{id:page.id}]);
+ assert.equal(page.view.getVisible(),false,'A late native capture cannot survive the next modal layout');
+ assert.equal(page.clipView.getVisible(),false);assert.deepEqual(browser.panels,[{id:page.id}]);
+});
 test('open Nora applies incoming viewport selection under its hold without exposing or reparenting pages',()=>{
  const {browser,win,calls,resetCalls}=fixture(),incoming=browser.make('incoming'),gate=new OverlayGate(browser,win);
  browser.layout([{id:'page',x:0,y:40,width:800,height:600}]);browser.mouseSurfaceHold='nora-owned';browser.layout(browser.panels);

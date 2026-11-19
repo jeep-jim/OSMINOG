@@ -28,9 +28,9 @@ body>dialog footer{border:0!important}
 #statusbar,
 body:has(#desktop-tray[open]) #statusbar{border:0!important;border-image:none!important;box-shadow:none!important;background:var(--panel)!important}
 #statusbar #version-button[data-update-available=true]{border:0!important;box-shadow:none!important;background:color-mix(in srgb,var(--mouse-update-green) 18%,var(--panel))!important;color:var(--mouse-update-green)}
-#stage,#stage .branch,#stage .split,#stage .pane,#stage .pane.active{background:var(--bg)}
+#stage,#stage .branch,#stage .split,#stage .pane,#stage .pane.active{background:var(--line)}
 #stage .pane{padding:0;border:0!important;box-shadow:none!important}
-.divider{background:var(--bg)}
+.divider{background:var(--line)}
 .divider:hover,.divider:focus-visible,.divider.dragging{background:var(--accent)}
 /* Progress belongs to its own panel. It never reserves a global footer row. */
 .mouse-pane-progress{display:flex;align-items:center;flex:0 0 34px;gap:4px;min-width:0;height:34px;padding:2px 5px;background:var(--bg);border:0;box-shadow:none;overflow:hidden}
