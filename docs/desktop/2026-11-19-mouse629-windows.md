@@ -317,3 +317,71 @@ installed verifier against the same candidate on a second Windows 2025 runner.
 The original pixel assertions, Windows 2022 acceptance and fresh publisher gate
 remain required. A corrected build and successful public download verification
 are still needed before delivery.
+
+## Native snapshots isolate the modern Windows presentation defect
+
+Diagnostic source `efd82bc701f631246d2d5729c093f5182e25fa6e` in PR 175 again
+passed the complete Windows 2022 build, 176 base tests, 629 Mouse tests, seven
+Python checks and installed/update acceptance in
+[run 44537909335 / job 135608155139](https://github.com/jeep-jim/OSMINOG/actions/runs/44537909335/job/135608155139).
+The new modern job verified that it received the same 125,613,959-byte installer,
+SHA-256 `65b82af8124c2796903f249225fb1752628e4faa466d5c0744ec0ce50649bbec`,
+and the bound source evidence, then reproduced the corner failure on Windows
+Server 2025 build 26100, image `windows-2025-vs2026` version `20261103.298.1`, in
+[job 135612502737](https://github.com/jeep-jim/OSMINOG/actions/runs/44537909335/job/135612502737).
+The overall source workflow correctly failed; this diagnostic candidate is not
+eligible for publication.
+
+The independent before/after native snapshots show valid process, UI thread and
+top-level ownership on both systems. Four accepted panes produced eight painted,
+visible corner HWNDs at the highest eight child z-order positions, with error
+zero and exact requested geometry. Client origin `(8, 8)`, DPI 96 and Electron
+content bounds agree. On 2022, all four theme/size captures passed their 90
+pixel probes at the first capture. On 2025, the 18 divider and eight page-interior
+probes passed, but all 64 corner cutouts remained page pixels after 15 captures.
+The parent extended style is `0x100` on the successful host and `0x200100` on
+the failing host. Microsoft identifies the additional `0x00200000` bit as
+[`WS_EX_NOREDIRECTIONBITMAP`](https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles).
+This establishes successful creation, paint, geometry and sibling ordering;
+the missing display pixels require a native presentation correction, not a
+change to the pixel expectations or JavaScript layout.
+
+Both evidence archives were downloaded and independently checked. The 2022
+archive `14537054456` is 9,903,209 bytes, SHA-256
+`a0b98c1e59515cf6624388cc2521a7af18a4bbe36205e27a3b001a3653c2f94b`.
+The modern archive `14537791527` is 2,204,307 bytes, SHA-256
+`b127b5657bce311c328fcc9c30196e0777c67c3ac6691c1f43bf7a99e4ed4412`.
+Release PR 54 now requires the complete source run and the exact modern job,
+input-validation, full installed acceptance and evidence-upload steps to pass
+at the pinned source attempt. Its 32 contract tests passed in
+[release run 44538241110](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44538241110).
+
+## Present the existing corner bitmaps through an owned composition layer
+
+The correction selects a DirectComposition presentation path when the owned
+parent has `WS_EX_NOREDIRECTIONBITMAP`. It retains the same tiny premultiplied
+corner bitmaps, physical coordinates and noninteractive child HWNDs. Windows
+parents without that flag keep the existing child-window presentation. The
+parent's renderer flags and the JavaScript page layout are not modified.
+
+The native trim creates its own desktop composition device with
+[`DCompositionCreateDevice2`](https://learn.microsoft.com/en-us/windows/win32/api/dcomp/nf-dcomp-dcompositioncreatedevice2),
+using the documented null rendering-device option, and binds its own target
+above the parent's child windows. It wraps the existing layered HWNDs with
+[`CreateSurfaceFromHwnd`](https://learn.microsoft.com/en-us/windows/win32/api/dcomp/nf-dcomp-idcompositiondevice-createsurfacefromhwnd).
+The source HWNDs are cloaked through DWM while their bitmaps remain available to
+the composition tree. The small visuals use the same physical offsets and a
+client-area clip. No second GPU rendering device, popup window or external
+runtime is introduced; the additional libraries are the Windows OS components
+`Dcomp.dll` and `Dwmapi.dll`.
+
+Creation, positioning and commit failures retain their explicit HRESULT and
+stage. A target already occupied by another component is never replaced.
+Removing a pane removes its visual; clearing or destroying the trim detaches
+its own root, commits the removal, releases its COM references and destroys its
+own source HWNDs. The bounded diagnostic now records both the successful cloak
+request and the actual DWM cloak state. Independent review found no need to
+alter the existing pixel, Nora, page identity or profile criteria. Twelve local
+runtime checks passed, and the native build configuration parses cleanly;
+Windows compilation and complete acceptance on both hosts are still required
+before this correction is certified.
