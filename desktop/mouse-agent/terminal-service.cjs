@@ -15,6 +15,17 @@ function powershellCommand(command,id,background){
  // The input echo has printable [char] expressions, never an actual OSC marker.
  return script+'\r';
 }
+function closeWindowsPty(proc){
+ const agent=proc?._agent;if(!agent){proc?.kill();return;}
+ // The pinned node-pty 1.1.0 public kill queues work until the first output,
+ // and its bundled-ConPTY path only disposes the worker on later output.
+ // Stop must also work before first output and when no more output arrives.
+ // Own only this PTY's pipes/worker; native Job Object cleanup owns processes.
+ if(agent._useConpty!==true||agent._useConptyDll!==true)throw Error('Unexpected Windows terminal backend');
+ if(Array.isArray(proc._deferreds))proc._deferreds.length=0;
+ agent._conoutSocketWorker?._worker?.on('error',()=>{}); // Closing a not-yet-connected pipe may abort this worker.
+ try{agent.kill();}finally{agent._conoutSocketWorker?.dispose();agent.inSocket?.destroy();agent.outSocket?.destroy();}
+}
 class TerminalService extends EventEmitter{
  constructor({pty,platform=process.platform,native}={}){super();this.ptyModule=pty;this.platform=platform;this.native=native;this.processOwner=null;this.pending=null;this.proc=null;this.output='';}
  start(cwd){
@@ -25,8 +36,8 @@ class TerminalService extends EventEmitter{
   this.proc=pty.spawn(shell,windows?['-NoLogo','-NoProfile','-NoExit','-EncodedCommand',encoded(powershellStartup)]:['--noprofile','--norc'],{name:'xterm-256color',cols:80,rows:16,cwd,env:{...env,TERM:'xterm-256color',HISTFILE:windows?'NUL':'/dev/null',BASH_SILENCE_DEPRECATION_WARNING:'1',PS1:'Mouse $ '},...(windows?{useConpty:true,useConptyDll:true}:{})});
   const proc=this.proc;
   try{if(windows&&(!this.ptyModule||this.native)){this.native=this.native||require('../mouse-mcp-fs.node');this.processOwner=this.native.ownProcess(proc.pid);}}
-  catch(error){this.proc=null;try{proc.kill();}catch{}throw error;}
-  proc.onData(data=>{if(this.proc===proc)this.consume(data);});proc.onExit(({exitCode})=>{if(this.proc!==proc)return;this.proc=null;this.releaseProcessOwner();this.cancelPending('Терминал закрыт');this.emit('exit',exitCode);});
+  catch(error){this.proc=null;try{windows?closeWindowsPty(proc):proc.kill();}catch{}throw error;}
+  proc.onData(data=>{if(this.proc===proc)this.consume(data);});proc.onExit(({exitCode})=>{if(this.proc!==proc)return;this.proc=null;this.releaseProcessOwner();if(windows)try{closeWindowsPty(proc);}catch{}this.cancelPending('Терминал закрыт');this.emit('exit',exitCode);});
  }
  releaseProcessOwner(){const owner=this.processOwner;this.processOwner=null;if(owner)try{this.native.stopProcessTree(owner);}catch{}}
  display(data){if(!data)return;this.output=(this.output+data).slice(-64000);this.emit('data',data);}
@@ -76,7 +87,7 @@ class TerminalService extends EventEmitter{
     for(const row of [...identities].reverse()){try{process.kill(row.pid,'SIGTERM')}catch{}}
     // Escalate only the exact processes observed above; never signal a guessed process group.
     const timer=setTimeout(()=>{try{const now=new Map(read().map(row=>[row.pid,row]));for(const row of identities){const current=now.get(row.pid);if(current&&current.start===row.start&&current.group===row.group){try{process.kill(row.pid,'SIGKILL')}catch{}}}}catch{}},400);timer.unref?.();
-   }}catch{}try{p.kill()}catch{}
+   }}catch{}try{this.platform==='win32'?closeWindowsPty(p):p.kill()}catch{}
   }this.releaseProcessOwner();this.output='';
  }
 }

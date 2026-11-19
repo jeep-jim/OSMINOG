@@ -20,8 +20,9 @@ constexpr DWORD kDirectoryShare=FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELE
 constexpr DWORD kCommitSourceShare=FILE_SHARE_READ|FILE_SHARE_DELETE;
 constexpr ACCESS_MASK kDirectoryAccess=FILE_LIST_DIRECTORY|FILE_TRAVERSE|FILE_READ_ATTRIBUTES|SYNCHRONIZE;
 using NtCreate=NTSTATUS(NTAPI*)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,PLARGE_INTEGER,ULONG,ULONG,ULONG,ULONG,PVOID,ULONG);
+using NtSetInfo=NTSTATUS(NTAPI*)(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
 using NtError=ULONG(NTAPI*)(NTSTATUS);
-NtCreate ntCreate=nullptr;NtError ntError=nullptr;
+NtCreate ntCreate=nullptr;NtSetInfo ntSetInfo=nullptr;NtError ntError=nullptr;
 
 struct Handle {
  HANDLE value=INVALID_HANDLE_VALUE;
@@ -79,7 +80,7 @@ std::string fileId(const FileStat& stat){
  static constexpr char hex[]="0123456789abcdef";std::string result;result.reserve(32);
  for(unsigned char byte:stat.id.FileId.Identifier){result.push_back(hex[byte>>4]);result.push_back(hex[byte&15]);}return result;
 }
-std::string timeNs(LARGE_INTEGER time){return std::to_string((time.QuadPart-116444736000000000LL)*100);}
+std::string timeNs(LARGE_INTEGER time){const auto ticks=time.QuadPart-116444736000000000LL;return ticks?std::to_string(ticks)+"00":"0";}
 napi_value statValue(napi_env env,const FileStat& stat){
  napi_value value;napi_create_object(env,&value);prop(env,value,"type",reparse(stat)?"symlink":stat.standard.Directory?"directory":stat.kind==FILE_TYPE_DISK?"file":"special");
  prop(env,value,"dev",std::to_string(stat.id.VolumeSerialNumber));prop(env,value,"ino",fileId(stat));prop(env,value,"mtimeNs",timeNs(stat.basic.LastWriteTime));prop(env,value,"ctimeNs",timeNs(stat.basic.ChangeTime));
@@ -199,7 +200,11 @@ napi_value commit(napi_env env,napi_callback_info info){
  // as macOS; it is not a compare-and-swap with every possible external editor.
  const size_t bytes=sizeof(FILE_RENAME_INFO)+target.size()*sizeof(wchar_t);std::vector<unsigned char> buffer(bytes);
  auto* rename=reinterpret_cast<FILE_RENAME_INFO*>(buffer.data());rename->ReplaceIfExists=expected?TRUE:FALSE;rename->RootDirectory=parent;rename->FileNameLength=static_cast<DWORD>(target.size()*sizeof(wchar_t));std::memcpy(rename->FileName,target.data(),rename->FileNameLength);
- if(!SetFileInformationByHandle(source.value,FileRenameInfo,rename,static_cast<DWORD>(bytes)))return fail(env,expected?"Atomic project file replacement failed":"File was created by another writer",GetLastError());
+ // Use the native handle-relative contract directly. On the tested Windows
+ // runner the Win32 FileRenameInfo wrapper returned ERROR_INVALID_PARAMETER
+ // with this non-null RootDirectory; do not fall back to resolving a path.
+ IO_STATUS_BLOCK io{};const NTSTATUS status=ntSetInfo(source.value,&io,rename,static_cast<ULONG>(bytes),static_cast<FILE_INFORMATION_CLASS>(10)); // FileRenameInformation
+ if(status<0){const std::string message=std::string(expected?"Atomic project file replacement failed":"Exclusive project file publication failed")+" (NTSTATUS "+std::to_string(static_cast<uint32_t>(status))+")";return fail(env,message.c_str(),ntError(status));}
  return boolean(env,true);
 }
 napi_value remove(napi_env env,napi_callback_info info){
@@ -232,8 +237,8 @@ napi_value primaryDown(napi_env env,napi_callback_info){return boolean(env,(GetA
 }
 
 napi_value init(napi_env env,napi_value exports){
- HMODULE ntdll=GetModuleHandleW(L"ntdll.dll");ntCreate=reinterpret_cast<NtCreate>(GetProcAddress(ntdll,"NtCreateFile"));ntError=reinterpret_cast<NtError>(GetProcAddress(ntdll,"RtlNtStatusToDosError"));
- if(!ntCreate||!ntError)return fail(env,"Required Windows filesystem APIs unavailable");
+ HMODULE ntdll=GetModuleHandleW(L"ntdll.dll");ntCreate=reinterpret_cast<NtCreate>(GetProcAddress(ntdll,"NtCreateFile"));ntSetInfo=reinterpret_cast<NtSetInfo>(GetProcAddress(ntdll,"NtSetInformationFile"));ntError=reinterpret_cast<NtError>(GetProcAddress(ntdll,"RtlNtStatusToDosError"));
+ if(!ntCreate||!ntSetInfo||!ntError)return fail(env,"Required Windows filesystem APIs unavailable");
  napi_property_descriptor properties[]={
   {"openRoot",nullptr,openRoot,nullptr,nullptr,nullptr,napi_default,nullptr},{"openDir",nullptr,openDir,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"openRead",nullptr,openRead,nullptr,nullptr,nullptr,napi_default,nullptr},{"openTemp",nullptr,openTemp,nullptr,nullptr,nullptr,napi_default,nullptr},

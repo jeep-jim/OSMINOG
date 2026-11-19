@@ -20,15 +20,22 @@ test('Windows path environment is preserved case-insensitively without inheritin
 test('failed terminal input clears the pending command and its timer',async()=>{
  const m=mock(),terminal=new TerminalService({...m,platform:'win32'});terminal.start(process.cwd());m.sessions[0].write=()=>{throw Error('broken input');};await assert.rejects(terminal.execute('Write-Output hello'),/broken input/);assert.equal(terminal.pending,null);terminal.stop();
 });
+test('Windows Stop disposes the pinned ConPTY worker even before any output',()=>{
+ const m=mock(),terminal=new TerminalService({...m,platform:'win32'}),closed=[];terminal.start(process.cwd());const proc=m.sessions[0];proc._deferreds=[()=>assert.fail('Stopped command must not run')];proc._agent={_useConpty:true,_useConptyDll:true,kill(){closed.push('console');},_conoutSocketWorker:{dispose(){closed.push('worker');}},inSocket:{destroy(){closed.push('input');}},outSocket:{destroy(){closed.push('output');}}};
+ terminal.stop();assert.deepEqual(closed,['console','worker','input','output']);assert.equal(proc._deferreds.length,0);assert.deepEqual(m.stopped,m.owned);
+});
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(check,timeout=12000){const deadline=Date.now()+timeout;while(Date.now()<deadline){if(check())return;await delay(100);}assert.fail('Timed out waiting for Windows terminal fixture');}
 const psQuote=value=>"'"+value.replace(/'/g,"''")+"'";
+test('real Windows Stop before first output kills its shell and releases the startup worker',{skip:process.platform!=='win32',timeout:15000},async()=>{
+ const terminal=new TerminalService();terminal.start(os.tmpdir());const pid=terminal.proc.pid;terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
+});
 test('real Windows PowerShell executes Unicode and exit codes; Stop terminates background descendants',{skip:process.platform!=='win32',timeout:60000},async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-win-terminal-')),pidFile=path.join(root,'child.pid'),terminal=new TerminalService();
  let stage='start',failure;
  try{
   terminal.start(root);stage='Unicode and exit 7';const first=await terminal.execute("Write-Output 'Привет €'; cmd.exe /d /c exit 7");assert.equal(first.exitCode,7);assert.match(first.stdout,/Привет €/);
-  stage='exit reset and working directory';const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);assert.ok(second.stdout.toLowerCase().includes(fs.realpathSync(root).toLowerCase()),JSON.stringify(second));
+  stage='exit reset and working directory';const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);const actual=fs.statSync(second.stdout.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').trim(),{bigint:true}),selected=fs.statSync(root,{bigint:true});assert.equal(actual.dev,selected.dev);assert.equal(actual.ino,selected.ino);
   const command="$child=Start-Process -FilePath "+psQuote(process.execPath)+" -ArgumentList @('-e','setInterval(()=>{},1000)') -NoNewWindow -PassThru; [IO.File]::WriteAllText("+psQuote(pidFile)+",$child.Id.ToString()); Start-Sleep -Seconds 40";
   stage='background launch';const background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0,JSON.stringify(background));assert.equal(background.background,true);await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);stage='owned descendant shutdown';terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
  }catch(error){failure=error;error.message=stage+': '+error.message;throw error;}

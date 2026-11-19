@@ -87,7 +87,7 @@ module.exports=async ctx=>{
   await click('[data-window="zoom"]');await until(()=>win.isMaximized(),'native maximize button');
   await click('[data-window="zoom"]');await until(()=>!win.isMaximized(),'native restore button');
   await click('[data-window="minimize"]');await until(()=>win.isMinimized(),'native minimize button');win.restore();await focus();
-  win.setBounds(bounds);facts.windowControls={maximize:true,restore:true,minimize:true,normalClose:'verified in separate ordinary process'};console.log('MOUSE_WINDOWS_NATIVE_WINDOW_CONTROLS_PASS');
+  win.setBounds(bounds);facts.windowControls={maximize:true,restore:true,minimize:true,normalClose:'native quit button at the end of this process'};console.log('MOUSE_WINDOWS_NATIVE_WINDOW_CONTROLS_PASS');
  }
  async function shortcuts(){
   const page=await open(origin+'/shortcuts');await focus();const local=await page.view.webContents.executeJavaScript('(()=>{const e=document.querySelector("#retained"),r=e.getBoundingClientRect();e.value="Windows Ctrl+A selection";return{x:r.x+r.width/2,y:r.y+r.height/2};})()');
@@ -217,9 +217,14 @@ module.exports=async ctx=>{
    await step('629UIAndScrollbars',()=>require('./mouse-629-ui-smoke.cjs')(shared));await step('noraMotionPaletteAndWheel',()=>require('./mouse-628-ui-smoke.cjs')(shared));
    await step('privacy',privateIsolation);await step('agentPTYLocalMCP',agent);await step('profileWrite',writeProfile);
   }
-  facts.ok=true;await save();console.log('MOUSE_WINDOWS_X64_SMOKE_PASS');clearTimeout(watchdog);server?.closeAllConnections?.();server?.close();exit(0);
+  // Complete the installed run through the real Windows close control and
+  // production flush/quit controller. The outer process must observe exit 0;
+  // a missing handler or blocked close cannot become a passing smoke result.
+  currentStep='nativeClose';facts.nativeClose={selector:'[data-window="quit"]',input:'User32'};facts.ok=true;await save();console.log('MOUSE_WINDOWS_X64_SMOKE_PASS');
+  server?.closeAllConnections?.();server?.close();console.log('MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED');await click('[data-window="quit"]');
+  await new Promise((_,reject)=>setTimeout(()=>reject(Error('Native Windows close button did not terminate the application')),30000));
  }catch(error){
-  facts.error={step:currentStep,message:error.message,stack:error.stack};console.error(error);await save().catch(()=>{});
+  facts.ok=false;facts.error={step:currentStep,message:error.message,stack:error.stack};console.error(error);await save().catch(()=>{});
   await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),3000,'Windows failure screenshot').then(image=>fs.writeFile('mouse-windows-failure.png',image.toPNG())).catch(()=>{});
   clearTimeout(watchdog);server?.closeAllConnections?.();server?.close();exit(1);
  }

@@ -34,6 +34,20 @@ class WindowsVerificationContracts(unittest.TestCase):
             verify.verify_markers('AssertionError: expected MOUSE_WINDOWS_X64_SMOKE_PASS\n{"message":"MOUSE_WINDOWS_PROFILE_WRITE_PASS"}', required)
         verify.verify_markers("MOUSE_WINDOWS_X64_SMOKE_PASS\nMOUSE_WINDOWS_PROFILE_WRITE_PASS {\"ok\":true}\n", required)
 
+    def test_new_window_must_belong_to_existing_exact_installed_executable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installed = root / "Mouse Browser.exe"
+            installed.write_bytes(b"owned installer output")
+            unrelated = root / "other" / installed.name
+            unrelated.parent.mkdir()
+            unrelated.write_bytes(installed.read_bytes())
+            self.assertTrue(verify.same_executable_path(str(installed), installed))
+            self.assertFalse(verify.same_executable_path(str(unrelated), installed))
+            self.assertFalse(verify.same_executable_path(None, installed))
+            installed.unlink()
+            self.assertFalse(verify.same_executable_path(str(installed), installed))
+
     def test_complete_write_contract_retains_substantive_existing_native_gates(self):
         required = set(verify.WRITE_MARKERS)
         for marker in ("MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PASS",

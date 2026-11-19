@@ -45,11 +45,13 @@ WRITE_MARKERS = [
     "MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS",
     "MOUSE_WINDOWS_PROFILE_WRITE_PASS",
     "MOUSE_WINDOWS_X64_SMOKE_PASS",
+    "MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED",
 ]
 READ_MARKERS = [
     "MOUSE_WINDOWS_PROFILE_COOKIE_RESTART_PASS",
     "MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_NATIVE_PASS",
     "MOUSE_WINDOWS_X64_SMOKE_PASS",
+    "MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED",
 ]
 
 
@@ -239,6 +241,17 @@ def process_image(pid: int) -> str | None:
         kernel.CloseHandle(handle)
 
 
+def same_executable_path(actual: str | None, expected: Path) -> bool:
+    if not actual:
+        return False
+    # QueryFullProcessImageName may expand a DOS 8.3 ancestor that was present
+    # in RUNNER_TEMP. Compare the actual canonical file path, not its spelling.
+    try:
+        return os.path.normcase(str(Path(actual).resolve(strict=True))) == os.path.normcase(str(expected.resolve(strict=True)))
+    except (OSError, ValueError):
+        return False
+
+
 def close_native_window(api, window: dict) -> None:
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
@@ -285,11 +298,13 @@ def run_logged(args, env, output: Path, timeout: float) -> dict:
         try:
             while process.poll() is None:
                 current = time.monotonic()
-                if exit_request is None and "MOUSE_SMOKE_EXIT_REQUESTED " in output.read_text(encoding="utf-8", errors="replace"):
-                    exit_request = current
-                    deadline = min(deadline, current + 30)
+                if exit_request is None:
+                    latest = output.read_text(encoding="utf-8", errors="replace")
+                    if "MOUSE_SMOKE_EXIT_REQUESTED " in latest or "MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED" in latest.splitlines():
+                        exit_request = current
+                        deadline = min(deadline, current + 35)
                 if current >= deadline:
-                    reason = "did not exit within 30 seconds of its exit request" if exit_request else "exceeded its bounded smoke deadline"
+                    reason = "did not exit within 35 seconds of its exit request" if exit_request else "exceeded its bounded smoke deadline"
                     raise RuntimeError(f"Native process {process.pid} {reason}")
                 time.sleep(0.15)
         finally:
@@ -392,7 +407,7 @@ def update_roundtrip(executable: Path, env: dict, output: Path) -> dict:
             candidates = [item for item in native_windows(api, None)
                           if item["title"] == "Mouse Browser" and item["pid"] != plan["pid"]
                           and not item["minimized"]
-                          and (process_image(item["pid"]) or "").lower() == str(executable).lower()]
+                          and same_executable_path(process_image(item["pid"]), executable)]
             if candidates:
                 window = candidates[0]
             if (window and status == "Installer completed" and ready.is_file()
