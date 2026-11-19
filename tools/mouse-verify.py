@@ -9,7 +9,10 @@ def sample_native_exit(process,log_path,deadline):
  if sys.platform!='darwin':return
  state_path=log_path.with_name(log_path.stem+'-process.log')
  sample_path=log_path.with_name(log_path.stem+'-sample.log')
- commands=[(['/bin/ps','-p',str(process.pid),'-o','pid,ppid,state,etime,command'],2),(['/usr/bin/sample',str(process.pid),'2','1','-file',str(sample_path)],4)]
+ # The previous 4 s command cap killed sample while it symbolicated its already
+ # collected stacks. Keep the same 30 s process deadline, but let that report
+ # finish within it so another native teardown failure has usable evidence.
+ commands=[(['/bin/ps','-p',str(process.pid),'-o','pid,ppid,state,etime,command'],2),(['/usr/bin/sample',str(process.pid),'2','1','-file',str(sample_path)],12)]
  try:
   with state_path.open('w') as state:
    for command,limit in commands:
@@ -60,7 +63,7 @@ with open('mouse-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'mouse-startup.log'
-   if f.exists() and 'MOUSE_READY 6.0.27' in f.read_text():break
+   if f.exists() and 'MOUSE_READY 6.0.28' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -90,7 +93,7 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
 # Actual older app replacement, verified new startup and a preserved runner profile.
-candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.27-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.27-mac-arm64.dmg')]
+candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.28-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.28-mac-arm64.dmg')]
 dmg=next((p.resolve() for p in candidates if p.is_file()),None)
 installer=pathlib.Path('mouse-install-update.cjs').resolve()
 if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')

@@ -4,7 +4,7 @@
 const {randomUUID}=require('node:crypto');
 const MAX_ACTIVE=12,MAX_PER_OWNER=4,MAX_HISTORY=24,HISTORY_TTL=60000,STALE_TTL=30*60*1000;
 const COMPLETED_VISIBLE=2500,STOPPED_VISIBLE=5000,EMIT_INTERVAL=100;
-const SOURCES=new Set(['agent','terminal','page','shell']),FINAL=new Set(['completed','stopped','error']);
+const SOURCES=new Set(['agent','terminal','page','shell']),KINDS=new Set(['reported','navigation','observed']),FINAL=new Set(['completed','stopped','error']);
 class ProgressLimitError extends Error{constructor(){super('Progress task limit reached');this.name='ProgressLimitError';this.code='MOUSE_PROGRESS_LIMIT';}}
 function cleanText(value,limit=240){
  if(value===undefined||value===null)return'';if(typeof value!=='string')throw Error('Progress text must be a string');
@@ -44,14 +44,15 @@ class ProgressStore{
   if(this.disposed)throw Error('Progress store is closed');if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid progress update');
   const taskId=input.taskId??'default',key=this.key(owner,taskId),value=percent(input.percent),desk=identifier(input.desk,'desk',64),source=input.source;
   if(!SOURCES.has(source))throw Error('Invalid progress source');
+  const kind=input.kind??'reported';if(!KINDS.has(kind))throw Error('Invalid progress kind');
   const statusText=cleanText(input.statusText),label=cleanText(input.label||source,64),tabId=input.tabId===undefined?'':identifier(input.tabId,'tabId',100),estimated=input.estimated!==false,now=this.now();this.prune();
   let entry=this.entries.get(this.latest.get(key));const phase=value===100?'completed':'running';
-  if(entry&&(entry.desk!==desk||entry.source!==source||entry.label!==label||(entry.tabId||'')!==tabId))throw Error('Progress owner context changed');
+  if(entry&&(entry.desk!==desk||entry.source!==source||entry.label!==label||(entry.tabId||'')!==tabId||entry.kind!==kind))throw Error('Progress owner context changed');
   if(entry&&entry.phase==='completed'&&phase==='completed'&&entry.statusText===statusText)return this.public(entry);
   if(!entry||entry.phase!=='running'){
    const active=[...this.entries.values()].filter(e=>e.phase==='running');if(phase==='running'&&(active.length>=MAX_ACTIVE||active.filter(e=>e.owner===owner).length>=MAX_PER_OWNER))throw new ProgressLimitError();
    if(entry)entry.dismissed=true;
-   entry={id:randomUUID(),taskId,owner,key,desk,source,label,...(tabId?{tabId}:{}),percent:value,statusText,phase,estimated,createdAt:now,updatedAt:now,dismissAt:0,expiresAt:0,dismissed:false};this.entries.set(entry.id,entry);this.latest.set(key,entry.id);
+   entry={id:randomUUID(),taskId,owner,key,desk,source,label,kind,...(tabId?{tabId}:{}),percent:value,statusText,phase,estimated,createdAt:now,updatedAt:now,dismissAt:0,expiresAt:0,dismissed:false};this.entries.set(entry.id,entry);this.latest.set(key,entry.id);
   }else{
    if(entry.percent===value&&entry.statusText===statusText&&entry.estimated===estimated){entry.updatedAt=now;this.schedule();return this.public(entry);}
    Object.assign(entry,{percent:value,statusText,phase,estimated,updatedAt:now});

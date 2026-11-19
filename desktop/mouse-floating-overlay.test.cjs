@@ -2,15 +2,15 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 function fixture(options={}){
- const images=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect})};let restores=0;
+ const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
  const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
-  createElement:()=>({style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}}),body:{append(...nodes){events.push('append');images.push(...nodes);}}};
+  createElement:()=>{const image={style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}};created.push(image);return image;},body:{append(...nodes){events.push('append');images.push(...nodes);}}};
  const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
- const model={state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
- const normal=()=>({complete:true,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
- const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
+ const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
+ const normal=()=>({complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
+ const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}if(action==='surface-present'){events.push('readback');return options.present?options.present(args):{ready:true,reason:'painted'};}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
  const restore=async()=>{events.push('restore');restores++;await options.restore?.(restores);};
- return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,calls,events,model,rect,normal};
+ return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
 }
 const flush=()=>new Promise(setImmediate);
 test('popover decodes exact-size surfaces before holding native input and retains them until native restoration',async()=>{
@@ -18,14 +18,52 @@ test('popover decodes exact-size surfaces before holding native input and retain
  const showing=f.overlay.show('desktops');await flush();assert.ok(f.events.includes('decode'));assert.ok(!f.events.includes('begin'));assert.equal(f.images.length,0);
  decode.resolve();assert.equal(await showing,true);assert.equal(f.images.length,1);const image=f.images[0];
  assert.equal(image.style.pointerEvents,'none');assert.equal(image.style.width,'320px');assert.equal(image.style.height,'240px');assert.equal(image.draggable,false);
- assert.ok(f.events.indexOf('append')<f.events.indexOf('begin'));
+ assert.ok(f.events.indexOf('append')<f.events.indexOf('readback'));assert.ok(f.events.indexOf('readback')<f.events.indexOf('begin'));
  await f.overlay.hide('zoom');assert.equal(f.images.length,1,'another popup cannot discard the active background');
  const hiding=f.overlay.hide('desktops');await flush();assert.equal(f.images.length,1,'native restoration still pending');assert.ok(f.events.includes('end'));end.resolve();await hiding;assert.equal(f.images.length,0);assert.equal(image.src,undefined);
  assert.equal(f.calls.filter(c=>c.action==='surface-hold').length,2);
 });
+test('decoded snapshots leave native pages visible until actual readback acknowledges the same packet',async()=>{
+ const readback=deferred(),f=fixture({present:()=>readback.promise}),showing=f.overlay.show('desktops');
+ while(!f.events.includes('readback'))await flush();
+ assert.equal(f.images.length,1);assert.equal(f.events.includes('begin'),false);assert.equal(f.overlay.held('desktops'),false);
+ readback.resolve({ready:true});assert.equal(await showing,true);assert.equal(f.overlay.held('desktops'),true);
+ assert.equal(await f.overlay.present('desktops'),true);
+ const calls=f.calls.filter(call=>call.action==='surface-present');assert.deepEqual(JSON.parse(JSON.stringify(calls.map(call=>call.args))),[{token:'capture-token'},{token:'capture-token',holdToken:'capture-token'}]);
+ await f.overlay.hide('desktops');
+});
+test('unpainted or cancelled readback cannot hide native pages or revive a released hold',async()=>{
+ const f=fixture({present:async()=>({ready:false,reason:'mismatch'})});await assert.rejects(f.overlay.show('desktops'),/ещё не отрисовано/);await f.overlay.hide('desktops');assert.equal(f.events.includes('begin'),false);assert.equal(f.images.length,0);
+ const pending=deferred();let calls=0;const held=fixture({present:()=>++calls===1?{ready:true}:pending.promise});await held.overlay.show('desktops');const painting=held.overlay.present('desktops');
+ await held.overlay.hide('desktops');pending.resolve({ready:true});assert.equal(await painting,false);assert.equal(held.images.length,0);assert.equal(held.events.filter(event=>event==='begin').length,1);
+});
 test('closing during capture rejects late pixels without hiding native pages afterwards',async()=>{
  const capture=deferred(),f=fixture({capture:()=>capture.promise}),pending=f.overlay.show('desktops');await flush();assert.ok(f.events.includes('capture'));
  const closing=f.overlay.hide('desktops');capture.resolve(f.normal());assert.equal(await pending,false);await closing;assert.equal(f.images.length,0);assert.ok(!f.events.includes('begin'));
+});
+test('a Nora backdrop preserves rounded page corners and replaces the desk without releasing its native hold',async()=>{
+ const f=fixture({roundBottom:12});await f.overlay.show('desktops');const original=f.images[0],lease=f.overlay.lease('desktops',()=>{});
+ assert.equal(original.style.borderRadius,'0 0 12px 12px');assert.equal(original.style.clipPath,'inset(0 round 0 0 12px 12px)');assert.equal(lease.outgoing.desk,'desk1');assert.equal(f.overlay.lease('zoom'),null);
+ f.model.desktopId='desk2';const incoming={...f.normal(),token:'incoming-capture',holdToken:lease.token};
+ assert.notEqual(incoming.token,lease.token,'New capture identity is separate from the borrowed hold');
+ assert.equal(await lease.replace(incoming),true);assert.equal(lease.valid(),true);assert.equal(f.images.length,1);assert.notEqual(f.images[0],original);assert.equal(original.src,undefined);assert.equal(f.overlay.lease('desktops').outgoing,incoming);
+ assert.equal(f.events.filter(x=>x==='begin').length,1);assert.equal(f.events.filter(x=>x==='end').length,0);assert.equal(f.overlay.held('desktops'),true);
+ await f.overlay.hide('desktops');assert.equal(lease.valid(),false);assert.equal(f.events.filter(x=>x==='end').length,1);assert.equal(f.images.length,0);
+});
+test('a borrowed backdrop refuses another hold, desk or stale page geometry',async()=>{
+ const f=fixture();await f.overlay.show('desktops');const lease=f.overlay.lease('desktops'),original=f.images[0];f.model.desktopId='desk2';const incoming={...f.normal(),token:'incoming-capture',holdToken:lease.token};
+ assert.equal(await lease.replace({...incoming,holdToken:'other-hold'}),false);assert.equal(await lease.replace({...incoming,desk:'desk3'}),false);
+ await assert.rejects(lease.replace({...incoming,surfaces:incoming.surfaces.map(s=>({...s,bounds:{...f.rect,width:321}}))}),/Размер рабочего стола/);
+ assert.equal(f.images[0],original);assert.equal(f.events.filter(x=>x==='end').length,0);await f.overlay.hide('desktops');assert.equal(await lease.replace(incoming),false);
+});
+test('a pane progress footer makes the page bottom an interior edge in the Nora snapshot too',async()=>{
+ const f=fixture({roundBottom:12,hasProgress:true});await f.overlay.show('desktops');
+ assert.equal(f.images[0].style.borderRadius,'0 0 0px 0px');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 0px 0px)');assert.equal(f.images[0].style.height,'240px');
+ await f.overlay.hide('desktops');assert.equal(f.images.length,0);
+});
+test('closing Nora during an incoming image decode cannot resurrect a stale backdrop',async()=>{
+ const pending=deferred();let decoded=0;const f=fixture({decode:()=>++decoded===1?Promise.resolve():pending.promise});await f.overlay.show('desktops');const lease=f.overlay.lease('desktops');f.model.desktopId='desk2';
+ const replacing=lease.replace({...f.normal(),token:'incoming-capture',holdToken:lease.token});await flush();await f.overlay.hide('desktops');pending.resolve();assert.equal(await replacing,false);assert.equal(f.images.length,0);assert.ok(f.created.every(image=>image.src===undefined));assert.equal(f.events.filter(x=>x==='end').length,1);
 });
 test('closing while begin is in flight releases exactly the owned hold',async()=>{
  const begin=deferred(),f=fixture({begin:()=>begin.promise}),pending=f.overlay.show('desktops');while(!f.events.includes('begin'))await flush();

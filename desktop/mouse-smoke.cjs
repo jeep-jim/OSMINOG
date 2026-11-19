@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.27');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.28');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -25,8 +25,10 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await until(()=>[...browser.tabs.values()].filter(t=>t.lane!=='side').every(t=>!t.loading),'fixture loads');
    const originals=new Map();for(const t of browser.tabs.values()){assert.equal(t.error,'','Guest page/preload error');originals.set(t.id,{wc:t.view.webContents.id,value:await t.view.webContents.executeJavaScript('globalThis.loadedOnce')})}
    async function geometry(n,full){
-    await until(()=>browser.panels.filter(p=>browser.tabs.get(p.id)?.lane!=='side').length===n,'native panel count');await sleep(100);
-    const boxes=await js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);
+    await until(()=>browser.panels.filter(p=>browser.tabs.get(p.id)?.lane!=='side').length===n,'native panel count');
+    const measure=()=>js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);
+    let boxes;try{await until(async()=>{boxes=await measure();return boxes.length===n&&boxes.every(b=>{const t=browser.get(b.id);return t?.visible&&['x','y','width','height'].every(key=>Math.abs(t.bounds[key]-b[key])<=1.5)})},'native panel geometry settles');}
+    catch(error){console.log('MOUSE_NATIVE_GEOMETRY_TIMEOUT',JSON.stringify({expected:n,boxes,native:boxes?.map(b=>({id:b.id,visible:browser.get(b.id)?.visible,bounds:browser.get(b.id)?.bounds}))}));throw error;}
     for(const b of boxes){const t=browser.get(b.id);assert.equal(t.visible,true);for(const key of ['x','y','width','height'])assert.ok(Math.abs(t.bounds[key]-b[key])<=1.5,key+' native mismatch')}
     if(full){const width=await js('innerWidth');assert.ok(Math.abs(Math.max(...boxes.map(b=>b.x+b.width))-width)<=1);assert.ok(Math.min(...boxes.map(b=>b.x))<=1)}
    }
@@ -60,7 +62,9 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-performance-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-626-smoke.cjs')({app,win,browser,store});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-local-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,agentHost});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-progress-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});
+  await require('./mouse-628-ui-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});
@@ -81,7 +85,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  }catch(error){
   console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));
   const failure={version:app.getVersion(),error:{message:error.message,stack:error.stack},state:browser.state(),panels:browser.panels,overlayBlocked:overlayGate.blocked,surfaceHeld:!!browser.mouseSurfaceHold,nativeDiagnostics:{surfaces:browser.mouseDesktops?.surfaces?.diagnostics?.(),overlays:overlayGate.diagnostics?.()}};
-  const save=()=>fs.writeFile('mouse-627-smoke-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await save();
+  const save=()=>fs.writeFile('mouse-628-smoke-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await save();
   try{failure.renderer=await require('./mouse-lifecycle.cjs').bounded(js('(()=>{const m=MouseTest.model;return{activeElement:document.activeElement?.id,ready:m.ready,desktopSliding:!!m.desktopSliding,switching:!!m.switching,libraryOpen:m.libraryOpen,libraryWidth:m.libraryWidth,drag:m.drag?{kind:m.drag.kind,axis:m.drag.axis,pointer:m.drag.pointer}:null,bodyClass:document.body.className,dialogs:[...document.querySelectorAll("dialog[open]")].map(d=>({id:d.id,modal:d.matches(":modal")}))};})()'),2000,'Failure renderer state');}catch(e){failure.rendererError=e.message;}await save();
   await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),2000,'Failure screenshot').then(image=>fs.writeFile('mouse-failure.png',image.toPNG())).catch(()=>{});server?.close();exit(1);
  }

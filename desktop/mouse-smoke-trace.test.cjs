@@ -9,7 +9,7 @@ class Debugger extends EventEmitter{
  count(method){return this.calls.filter(call=>call.method===method).length;}
 }
 function fixture(debug=new Debugger(),options={}){
- const saved=[],trace=createMotionTrace(debug,{snapshot:async label=>({label,visible:true,focused:true}),limits:{recordMs:1000,commandMs:60,readMs:300,writeMs:60},write:async(file,data,signal)=>{saved.push({file,data,signal});},...options});
+ const saved=[],trace=createMotionTrace(debug,{snapshot:async label=>({label,visible:true,focused:true}),limits:{recordMs:1000,commandMs:60,completionMs:300,readMs:300,writeMs:60},write:async(file,data,signal)=>{saved.push({file,data,signal});},...options});
  return{debug,trace,saved};
 }
 test('stream trace preserves scheduling, compositor failure, marker and process/thread identity without page content',async()=>{
@@ -19,6 +19,13 @@ test('stream trace preserves scheduling, compositor failure, marker and process/
  assert.equal(meta.complete,true);assert.equal(meta.eventCount,5);assert.equal(meta.droppedEvents,4);assert.deepEqual(meta.errors,[]);assert.equal(config.transferMode,'ReturnAsStream');assert.equal(config.streamFormat,'json');assert.equal(config.traceConfig.recordMode,'recordContinuously');assert.deepEqual(config.traceConfig.includedCategories,TRACE_CATEGORIES);assert.deepEqual(config.traceConfig.excludedCategories,['*']);assert.equal(config.traceConfig.enableSampling,false);
  assert.equal(document.traceEvents[0].args.data.compositeFailed,16);assert.deepEqual(document.traceEvents[0].args.data.unsupportedProperties,['height','background-color']);assert.deepEqual(document.traceEvents[0].id2,{local:'0x42'});assert.equal(document.traceEvents[1].args.name,'Renderer');assert.equal(document.traceEvents[2].args.name,'CrRendererMain');assert.equal(document.traceEvents[3].args.queue.priority,'normal');assert.equal(document.traceEvents[3].dur,200);assert.equal(document.traceEvents[3].tdur,150);assert.equal(meta.bufferUsage[0].percentFull,.5);
  assert.deepEqual(meta.snapshots.map(item=>item.label),['before','click-close','after']);assert.doesNotMatch(f.saved[0].data,/private|secret pixels|Private page|ResourceSendRequest|Screenshot/);assert.equal(f.debug.count('IO.close'),1);assert.equal(f.debug.listenerCount('message'),0);assert.equal(f.debug.listenerCount('detach'),0);
+});
+test('the larger Chromium ring keeps every causal category and cap, and never clears native data loss',async()=>{
+ const f=fixture(new Debugger({complete:{dataLossOccurred:true}}),{limits:{}});await f.trace.start();const document=await f.trace.stop(),meta=document.mouseMotionTrace,config=f.debug.calls.find(call=>call.method==='Tracing.start').params;
+ assert.equal(config.traceConfig.traceBufferSizeInKb,16384);assert.equal(config.traceConfig.recordMode,'recordContinuously');assert.equal(config.traceConfig.enableSampling,false);assert.equal(config.traceConfig.enableSystrace,false);assert.equal(config.traceConfig.enableArgumentFilter,true);
+ assert.deepEqual(config.traceConfig.includedCategories,['toplevel','devtools.timeline','disabled-by-default-devtools.timeline.frame','blink.animations','blink.user_timing','cc','viz','renderer.scheduler','input','gpu','gpu.capture','__metadata']);assert.deepEqual(config.traceConfig.excludedCategories,['*']);
+ assert.deepEqual(meta.limits,{recordMs:60000,commandMs:3000,completionMs:12000,readMs:12000,writeMs:3000,bufferKb:16384,chunkBytes:65536,maxBytes:64*1024*1024,maxOutputBytes:72*1024*1024,maxEvents:200000,maxReads:1024,maxSnapshots:64});
+ const saved=JSON.parse(f.saved[0].data).mouseMotionTrace;assert.deepEqual(saved.config,config,'the saved evidence records the exact protocol configuration');assert.equal(meta.complete,true,'a completely read stream is distinct from a lossless trace');assert.equal(meta.dataLossOccurred,true);assert.equal(saved.dataLossOccurred,true,'the publisher must still reject the recorded native loss');assert.equal(meta.limitedEvents,0);assert.deepEqual(meta.errors,[]);assert.equal(f.debug.count('IO.close'),1);assert.equal(f.debug.listenerCount('message'),0);
 });
 test('cc model diagnostics preserve property/group across threads and only bounded enum transitions',async()=>{
  const events=[
@@ -95,7 +102,26 @@ test('byte, read-count, event and malformed-JSON limits close every returned str
 });
 test('read and tracing-completion deadlines are bounded and preserve diagnostic errors',async()=>{
  const read=fixture(new Debugger({command:method=>method==='IO.read'?new Promise(()=>{}):undefined}),{limits:{recordMs:1000,commandMs:30,readMs:10,writeMs:100}});await read.trace.start();const readResult=await read.trace.stop();assert.ok(readResult.mouseMotionTrace.errors.some(error=>/IO.read timed out/.test(error.message)));assert.equal(read.debug.count('IO.close'),1);assert.equal(read.debug.listenerCount('message'),0);
- const completion=fixture(new Debugger({command:method=>method==='Tracing.end'?{}:undefined}),{limits:{recordMs:1000,commandMs:10,readMs:100,writeMs:100}});await completion.trace.start();const result=await completion.trace.stop();assert.ok(result.mouseMotionTrace.errors.some(error=>/Tracing.tracingComplete timed out/.test(error.message)));assert.equal(completion.debug.count('Tracing.end'),1);assert.equal(completion.debug.listenerCount('message'),0);
+ const completion=fixture(new Debugger({command:method=>method==='Tracing.end'?{}:undefined}),{limits:{recordMs:1000,commandMs:10,completionMs:30,readMs:100,writeMs:100}});await completion.trace.start();const result=await completion.trace.stop();assert.equal(result.mouseMotionTrace.complete,false);assert.ok(result.mouseMotionTrace.errors.some(error=>/Tracing.tracingComplete timed out after 30ms/.test(error.message)));assert.equal(result.mouseMotionTrace.completionReceivedAt,null);assert.equal(result.mouseMotionTrace.completionLatencyMs,null);assert.equal(completion.debug.count('Tracing.end'),1);assert.equal(completion.debug.count('IO.read'),0);assert.equal(completion.debug.listenerCount('message'),0);assert.equal(completion.debug.listenerCount('detach'),0);
+});
+test('asynchronous trace completion outlives the command budget and records actual receipt latency',async()=>{
+ const commandMs=10,completionMs=150,delayMs=40;
+ const debug=new Debugger({command:(method,_params,self)=>{if(method==='Tracing.end'){setTimeout(()=>self.emit('message',{},'Tracing.tracingComplete',self.complete),delayMs);return{};}}});
+ const f=fixture(debug,{limits:{recordMs:1000,commandMs,completionMs,readMs:300,writeMs:100}});
+ await f.trace.start();const document=await f.trace.stop(),meta=document.mouseMotionTrace,saved=JSON.parse(f.saved[0].data).mouseMotionTrace;
+ assert.equal(meta.complete,true);assert.equal(meta.eventCount,1);assert.equal(meta.dataLossOccurred,false);assert.deepEqual(meta.errors,[]);
+ assert.ok(Number.isFinite(meta.endRequestedAt));assert.ok(meta.completionReceivedAt>=meta.endRequestedAt);assert.ok(meta.completionLatencyMs>commandMs,'event receipt is allowed after the command-response budget');assert.ok(meta.completionLatencyMs<completionMs,'the event still has a fixed completion budget');
+ assert.equal(saved.endRequestedAt,meta.endRequestedAt);assert.equal(saved.completionReceivedAt,meta.completionReceivedAt);assert.equal(saved.completionLatencyMs,meta.completionLatencyMs);
+ assert.equal(meta.limits.commandMs,commandMs);assert.equal(meta.limits.completionMs,completionMs);assert.equal(debug.count('Tracing.end'),1);assert.equal(debug.count('IO.read'),1);assert.equal(debug.count('IO.close'),1);assert.equal(debug.listenerCount('message'),0);assert.equal(debug.listenerCount('detach'),0);
+});
+test('the completion budget does not extend command timeouts or hide detach while waiting',async()=>{
+ const commandMs=10,completionMs=80;
+ const end=fixture(new Debugger({command:(method,_params,self)=>{if(method==='Tracing.end'){setTimeout(()=>self.emit('message',{},'Tracing.tracingComplete',self.complete),30);return new Promise(()=>{});}}}),{limits:{recordMs:1000,commandMs,completionMs,readMs:300,writeMs:100}});
+ await end.trace.start();const timed=await end.trace.stop();
+ assert.equal(timed.mouseMotionTrace.complete,true,'the returned stream is still drained for diagnostics');assert.ok(timed.mouseMotionTrace.errors.some(error=>error.stage==='end'&&/Tracing.end timed out after 10ms/.test(error.message)),'the unchanged command deadline remains an evidence error');assert.equal(end.debug.count('IO.close'),1);assert.equal(end.debug.listenerCount('message'),0);
+ const detach=fixture(new Debugger({command:(method,_params,self)=>{if(method==='Tracing.end'){queueMicrotask(()=>self.emit('detach',{},'target closed'));return{};}}}),{limits:{recordMs:1000,commandMs,completionMs,readMs:300,writeMs:100}});
+ await detach.trace.start();const detached=await detach.trace.stop();
+ assert.equal(detached.mouseMotionTrace.complete,false);assert.ok(detached.mouseMotionTrace.errors.some(error=>/Debugger detached before trace completion/.test(error.message)));assert.equal(detached.mouseMotionTrace.completionReceivedAt,null);assert.equal(detached.mouseMotionTrace.completionLatencyMs,null);assert.equal(detach.debug.count('IO.read'),0);assert.equal(detach.debug.listenerCount('message'),0);assert.equal(detach.debug.listenerCount('detach'),0);assert.equal(detach.saved.length,1);
 });
 test('unexpected format closes its handle, and detach cannot prevent a diagnostic artifact',async()=>{
  const format=fixture(new Debugger({complete:{traceFormat:'proto'}}));await format.trace.start();const bad=await format.trace.stop();assert.equal(bad.mouseMotionTrace.complete,false);assert.equal(format.debug.count('IO.read'),0);assert.equal(format.debug.count('IO.close'),1);

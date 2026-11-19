@@ -63,8 +63,13 @@ module.exports=async({app,win,browser,pages,leftDesk='desk-1',rightDesk='desk-3'
    }finally{frameCapture?.cancel();await changing.catch(()=>{});}
    await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await sleep(40);
    const recorded=await js('(()=>{const p=globalThis.__mouse627DesktopProof;p.running=false;cancelAnimationFrame(p.raf);return{frames:p.frames,snapshots:p.snapshots,allSnapshots:p.allSnapshots,last:MouseDesktopSlide.last,overlayCount:document.querySelectorAll("#mouse-desktop-transition").length,visibility:document.querySelector("#workspace").style.visibility,sliding:MouseTest.model.desktopSliding}})()');
-   const pageAfter=await pins(),nativeLayoutCalls=(browser.mouseLayoutCalls||0)-(active.counter??browser.mouseLayoutCalls);compare(pageBefore,pageAfter);
-   const {frames,snapshots,allSnapshots,last}=recorded;assert.ok(last.animated&&last.decoded,'Both real page surfaces must be decoded and animated');assert.equal(last.direction,direction);assert.equal(last.layoutCalls,2);
+   const pageAfter=await pins(),nativeLayoutCalls=(browser.mouseLayoutCalls||0)-(active.counter??browser.mouseLayoutCalls);
+   const {frames,snapshots,allSnapshots,last}=recorded;
+   // Persist the already measured facts before assertions can abort this attempt.
+   // Frames are capped at 120 by the observer; surfaces at 16 pages per capture.
+   // No readback or disk write is added inside the animation interval.
+   evidence.pendingTransition={theme,direction,ackDelayMs:delay,nativeLayoutCalls,frames,pageBefore,pageAfter,snapshots,allSnapshots,captures:active.captures,last,overlayCount:recorded.overlayCount,visibility:recorded.visibility,sliding:recorded.sliding,...(paintedFrame?{paintedFrame}:{})};await save();
+   compare(pageBefore,pageAfter);assert.ok(last.animated&&last.decoded,'Both real page surfaces must be decoded and animated');assert.equal(last.direction,direction);assert.equal(last.layoutCalls,2);
    assert.ok(Number.isInteger(nativeLayoutCalls)&&nativeLayoutCalls>0&&nativeLayoutCalls<=8,'Native layouts are bounded independently of animation frames: '+nativeLayoutCalls);
    assert.ok(frames.length>=3,'At least three genuine compositor frames are observed');const width=frames[0].width;
    assert.ok(frames.every(f=>f.width===width&&Math.abs((f.incomingX-f.outgoingX)-direction*width)<=1.5),'Both full-width layers remain adjacent, without an empty exit/change gap');
@@ -74,7 +79,7 @@ module.exports=async({app,win,browser,pages,leftDesk='desk-1',rightDesk='desk-3'
    assert.equal(active.captures.length,2);assert.ok(active.captures.every(c=>c.complete&&c.rows.length===1));assert.equal(active.captures[0].prepared,false);assert.equal(active.captures[1].prepared,true);
    for(const [index,frame]of ['outgoing','incoming'].entries()){const ids=allSnapshots.filter(s=>s.frame===frame).map(s=>s.id);assert.equal(new Set(ids).size,ids.length,'Each native page is painted once in its desktop frame');assert.deepEqual(ids.sort(),active.captures[index].ids.slice().sort(),'The '+frame+' frame paints the complete set of captured page surfaces');}
    assert.equal(recorded.overlayCount,0);assert.equal(recorded.visibility,'');assert.equal(recorded.sliding,false);assert.equal(browser.mouseSurfaceHold,null);assert.equal(surface.records.size,0);
-   evidence.transitions.push({theme,direction,ackDelayMs:delay,nativeLayoutCalls,animationDurationMs:last.animationDurationMs,totalDurationMs:last.totalDurationMs,frames,pageBefore,pageAfter,snapshots,allSnapshots,captures:active.captures,...(paintedFrame?{paintedFrame}:{})});active=null;delay=0;await save();
+   evidence.transitions.push({theme,direction,ackDelayMs:delay,nativeLayoutCalls,animationDurationMs:last.animationDurationMs,totalDurationMs:last.totalDurationMs,frames,pageBefore,pageAfter,snapshots,allSnapshots,captures:active.captures,...(paintedFrame?{paintedFrame}:{})});delete evidence.pendingTransition;active=null;delay=0;await save();
   }
   evidence.simultaneous=evidence.pngSurfaces=evidence.compositorOnly=evidence.nativeIdentityPreserved=evidence.viewportAndScrollPreserved=evidence.slowAckBounded=true;completed=true;
  }finally{

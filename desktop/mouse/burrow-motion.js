@@ -1,6 +1,6 @@
 'use strict';
-// Nora keeps its final shape and dimensions. Only its inner panel translates;
-// the compositor owns animation frames, while geometry changes on window resize.
+// Nora slides as one panel. Its resting height follows the actual content;
+// opening/closing never scales the content or animates the silhouette.
 (function(root){
  const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n));
  const mix=(a,b,t)=>a+(b-a)*t;
@@ -16,7 +16,7 @@
  const api={contour};
  if(typeof module!=='undefined')module.exports=api;
  root.MouseBurrowGeometry=api;
- root.createMouseBurrowMotion=({tray,content,footer,button,settled,trace=false})=>{
+ root.createMouseBurrowMotion=({tray,content,footer,button,settled,preparePaint,trace=false})=>{
   const local=tray.querySelector('.desk-burrow-shape'),outline=local.querySelector(':scope>path'),clip=local.querySelector('clipPath path');
   const panel=document.createElement('div');panel.className='desk-burrow-panel';
   local.id='mouse-dock-surface';outline.id='mouse-dock-outline';
@@ -33,14 +33,16 @@
   const progress=()=>{if(!movement)return position;const value=movement.effect.getComputedTiming().progress;if(value!==null&&value!==undefined)return clamp(value);const time=Number(movement.currentTime);return time>=duration?1:time<=0?0:position;};
   function measure(){
    measurements++;
-   const r=footer.getBoundingClientRect(),line=parseFloat(getComputedStyle(footer).borderTopWidth)||1,baseline=r.top,top=toolbar?.getBoundingClientRect().bottom||40;
-   const width=Math.max(1,tray.getBoundingClientRect().width),height=Math.max(1,Math.min(440,baseline-top-12));
-   return{width,height,targetHeight:height,baseline,left:(innerWidth-width)/2,center:innerWidth/2,bottom:innerHeight-baseline,viewportWidth:innerWidth,viewportHeight:innerHeight,line};
+   const r=footer.getBoundingClientRect(),line=parseFloat(getComputedStyle(footer).borderTopWidth)||0,baseline=r.top,top=toolbar?.getBoundingClientRect().bottom||40;
+   const width=Math.max(1,tray.getBoundingClientRect().width),availableHeight=Math.max(1,baseline-top-12);
+   const contentHeight=Math.max(1,Math.ceil(content.getBoundingClientRect().height));
+   const height=Math.min(contentHeight,availableHeight);
+   return{width,height,targetHeight:height,contentHeight,availableHeight,fits:contentHeight<=availableHeight,baseline,left:(innerWidth-width)/2,center:innerWidth/2,bottom:innerHeight-baseline,viewportWidth:innerWidth,viewportHeight:innerHeight,line};
   }
   function sync(){
    if(!active||tray.hidden||!geometryDirty)return;
    geometryDirty=false;const next=measure();
-   if(geometry&&['width','height','baseline','left','bottom','line'].every(key=>Math.abs(geometry[key]-next[key])<.01))return;
+   if(geometry&&['width','height','baseline','left','bottom','line'].every(key=>Math.abs(geometry[key]-next[key])<.01)){geometry={...geometry,...next};return;}
    const shape=contour({width:next.width,height:next.height});
    geometry={...next,shape,paths:{outline:shape.d,fill:shape.closed}};geometryWrites++;
    tray.style.bottom=next.bottom+'px';tray.style.height=next.height+'px';
@@ -83,6 +85,20 @@
   }
   function preparePlayers(to,ticket){
    preparing=true;const current=movement;
+   const failed=error=>{if(active&&ticket===generation&&current===movement){const pending=waiter;waiter=null;stopPlayers();pending?.reject(error);}};
+   const playWhenPainted=()=>{
+    if(!active||ticket!==generation||current!==movement)return;
+    if(to!==1||typeof preparePaint!=='function'){startPlayers(to,ticket);return;}
+    // A new modal and its native-page snapshots can already have two RAFs
+    // while their GPU render pass is still pending. Keep the real players at
+    // time zero until a bounded native readback proves those exact surfaces.
+    note('paint-await');
+    Promise.resolve().then(preparePaint).then(ready=>{
+     if(!active||ticket!==generation||current!==movement)return;
+     if(ready!==true)throw Error('Рабочий стол ещё не отрисован. Повторите открытие.');
+     note('paint-ready');startPlayers(to,ticket);
+    }).catch(failed);
+   };
    note('prepare-await-ready',{to});
    // Opening and closing both create fresh players after a settled endpoint.
    // Commit their paused layers before starting the300ms timeline; a live
@@ -90,9 +106,9 @@
    Promise.all([movement.ready,shade.ready]).then(()=>{
     if(!active||ticket!==generation||current!==movement)return;
     note('pause-ready',{to});preparationFrame=requestAnimationFrame(rafTime=>{
-     note('preparation-frame-1',{rafTime,to});preparationFrame=requestAnimationFrame(rafTime=>{preparationFrame=0;note('preparation-frame-2',{rafTime,to});startPlayers(to,ticket);});
+     note('preparation-frame-1',{rafTime,to});preparationFrame=requestAnimationFrame(rafTime=>{preparationFrame=0;note('preparation-frame-2',{rafTime,to});playWhenPainted();});
     });
-   }).catch(error=>{if(active&&ticket===generation&&current===movement){const failed=waiter;waiter=null;stopPlayers();failed?.reject(error);}});
+   }).catch(failed);
   }
   function animate(to,immediate=false){
    const wasPreparing=preparing;cancelPreparation();cancelWaiter();const ticket=++generation;goal=to;
@@ -110,13 +126,13 @@
    generation++;cancelWaiter();position=goal=0;active=false;stopPlayers();
    scrim.hidden=true;scrim.style.opacity='0';document.body.classList.remove('mouse-dock-active');content.inert=true;panel.style.transform='translate3d(0,100%,0)';tray.dataset.motion='closed';tray.dataset.motionProgress='0';
   }
-  // Content growth scrolls inside a constant viewport. Observe only geometry
-  // inputs, not content height or transform frames; repeated sync() is a no-op.
+  // Modes, preview, history and the first-use hint grow the panel upward.
+  // Observe intrinsic content size, never the translating panel's position.
   const observed=new WeakMap(),observer=new ResizeObserver(entries=>{
    let changed=false;for(const entry of entries){const size={width:entry.contentRect.width,height:entry.target===tray?0:entry.contentRect.height},old=observed.get(entry.target);observed.set(entry.target,size);if(!old||Math.abs(old.width-size.width)>.01||Math.abs(old.height-size.height)>.01)changed=true;}
    if(changed){geometryDirty=true;sync();}
   });
-  observer.observe(footer);observer.observe(tray);if(toolbar)observer.observe(toolbar);
+  observer.observe(content);observer.observe(footer);observer.observe(tray);if(toolbar)observer.observe(toolbar);
   window.addEventListener('resize',()=>{geometryDirty=true;sync();});
   reduced.addEventListener('change',()=>{if(active&&reduced.matches){generation++;complete(goal);}});
   content.inert=true;tray.dataset.motion='closed';tray.dataset.motionProgress='0';panel.style.transform='translate3d(0,100%,0)';

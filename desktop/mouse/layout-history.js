@@ -22,7 +22,9 @@ globalThis.createMouseLayoutHistory=({N,model,header,before,restore,status,chang
    const count=make('span','desk-history-count','Окна: '+MouseLayout.leaves(entry.tree).length);
    const button=make('button','desk-history-restore',entry.position==='current'?'Сейчас':'Восстановить');button.type='button';button.disabled=entry.position==='current'||busy;button.onclick=()=>void change('restore-layout',entry.id);card.append(preview,label,time,count,button);list.append(card);
   }
-  list.querySelector('[data-position=current]')?.scrollIntoView({block:'nearest',inline:'nearest'});changed();
+  const current=list.querySelector('[data-position=current]');
+  if(current){const item=current.getBoundingClientRect(),viewport=list.getBoundingClientRect();if(item.left<viewport.left)list.scrollLeft-=viewport.left-item.left;else if(item.right>viewport.right)list.scrollLeft+=item.right-viewport.right;}
+  changed();
  }
  async function refresh(flush=false){const ticket=++request;try{if(flush)await globalThis.MouseFlush?.();const next=await N.desktops('history-state',{from:model.desktopId});if(ticket===request)draw(next);}catch(error){if(ticket===request)status(error.message);}}
  async function change(action,id){if(busy)return;busy=true;buttons();try{const result=await restore(action,id);if(result?.history)draw(result.history);if(!panel.hidden)await refresh();}catch(error){status(error.message);}finally{busy=false;buttons();}}

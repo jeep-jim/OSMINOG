@@ -1,6 +1,17 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const localFixtureModule={exports:{}};vm.runInNewContext(require('node:fs').readFileSync(require('node:path').join(__dirname,'mouse-628-local-smoke.cjs'),'utf8'),{module:localFixtureModule,require:name=>name.startsWith('node:')?require(name):{}});
+const {localNativeTarget}=localFixtureModule.exports;
+test('Local rejects the actual offscreen-origin click that hit the macOS menu bar',()=>{
+ const point={ready:true,x:960,y:196},content={x:-416,y:-192,width:1440,height:960},workArea={x:0,y:25,width:1024,height:743};
+ assert.deepEqual({x:content.x+point.x,y:content.y+point.y},{x:544,y:4});assert.throws(()=>localNativeTarget(point,content,workArea),/usable display work area/);
+ const target=localNativeTarget(point,{x:0,y:25,width:1024,height:743},workArea);assert.equal(target.x,960);assert.equal(target.y,221);
+});
+test('Local respects a display work-area origin and rejects its Dock edge',()=>{
+ const workArea={x:-1024,y:25,width:1024,height:700},content={...workArea};const target=localNativeTarget({ready:true,x:50,y:80},content,workArea);assert.equal(target.x,-974);assert.equal(target.y,105);
+ assert.throws(()=>localNativeTarget({ready:true,x:50,y:700},content,workArea),/usable display work area/);
+});
 const rect=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
 function fixture(fragments,{bounds,clip,style={},selector='',cover=()=>false,child=false}={}){
  bounds||=rect(Math.min(...fragments.map(r=>r.left)),Math.min(...fragments.map(r=>r.top)),Math.max(...fragments.map(r=>r.right))-Math.min(...fragments.map(r=>r.left)),Math.max(...fragments.map(r=>r.bottom))-Math.min(...fragments.map(r=>r.top)));

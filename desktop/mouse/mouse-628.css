@@ -1,0 +1,90 @@
+/* Owner correction 2026-11-19: surfaces, not permanent decorative outlines. */
+.toolbar,
+.pane-head,
+#ai-panel>.ai-controls,
+#library-dialog,
+#agent-panel,
+.agent-heading,
+.agent-footer,
+.toolbar .tab-item,
+.address-suggestions,
+.resize-size-hud,
+body>#status,
+#library-dialog #library-rows .library-row,
+#agent-panel :is(details,.agent-log,.agent-approval,.agent-terminal),
+.mouse-progress-pill,
+body>dialog,
+body>dialog header,
+body>dialog footer{border:0!important}
+:is(.toolbar,#statusbar,.pane-head,.ai-controls,#desktop-tray,#global-zoom-panel) :is(button,select,input),
+#library-dialog :is(button,select,input),
+#agent-panel :is(button,select,input,textarea),
+#statusbar #footer-library>button,
+#statusbar #ai-toggle[aria-pressed=true],
+:root[data-theme] .toolbar>#new-tab{border:0!important;box-shadow:none!important}
+:is(.toolbar,#statusbar,.pane-head,.ai-controls,#desktop-tray) button:focus-visible,
+:is(.toolbar,#statusbar,.pane-head,.ai-controls,#desktop-tray) select:focus-visible,
+:is(.toolbar,#statusbar,.pane-head,.ai-controls,#desktop-tray) input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#statusbar,
+body:has(#desktop-tray[open]) #statusbar{border:0!important;border-image:none!important;box-shadow:none!important;background:var(--panel)!important}
+#statusbar #version-button[data-update-available=true]{border:0!important;box-shadow:none!important;background:color-mix(in srgb,var(--mouse-update-green) 18%,var(--panel))!important;color:var(--mouse-update-green)}
+#stage,#stage .branch,#stage .split,#stage .pane,#stage .pane.active{background:var(--bg)}
+#stage .pane{padding:0;border:0!important;box-shadow:none!important}
+.divider{background:var(--bg)}
+.divider:hover,.divider:focus-visible,.divider.dragging{background:var(--accent)}
+/* Progress belongs to its own panel. It never reserves a global footer row. */
+.mouse-pane-progress{display:flex;align-items:center;flex:0 0 34px;gap:4px;min-width:0;height:34px;padding:2px 5px;background:var(--bg);border:0;box-shadow:none;overflow:hidden}
+.mouse-pane-progress>.mouse-progress-pill{flex:1 1 0;min-width:0;max-width:none;width:auto;height:30px;gap:5px;padding-right:4px;border:0!important;box-shadow:none}
+.mouse-pane-progress>.mouse-progress-next{flex:0 0 auto;min-width:25px;min-height:24px;height:24px;padding:0 3px;border:0;border-radius:12px;background:var(--button);font-size:9px;font-variant-numeric:tabular-nums}
+.mouse-pane-progress .mouse-progress-status{font-size:10px}
+.mouse-pane-progress .mouse-progress-value{font-size:10px}
+.mouse-pane-progress .mouse-progress-stop,.mouse-pane-progress .mouse-progress-dismiss{flex:none}
+.mouse-pane-progress .mouse-progress-pill[data-phase=error]{background:color-mix(in srgb,#df8468 14%,var(--panel))}
+#agent-panel>.mouse-pane-progress{background:var(--panel)}
+#desktop-tray{border:0!important;box-shadow:none!important;outline:0;overflow:hidden}
+#desktop-tray #mouse-dock-outline{stroke:none!important;fill:none}
+#desktops-button::before{content:none!important;display:none!important}
+#desktop-tray #mouse-dock-fill{fill:var(--panel);stroke:none}
+#desktop-tray .desk-content{position:relative;inset:auto;margin:0 3.6%;width:auto;height:auto;max-height:none;overflow:visible;scrollbar-width:none;padding:22px 2.6% 14px;border-radius:0}
+#desktop-tray .desk-content::-webkit-scrollbar{display:none}
+#desktop-tray .desk-content>header,
+#desktop-preview-popover,
+#desktop-tray :is(.desktop-card,.desk-preview,.desk-cell,.desk-mode,.desk-history-panel,.desk-history-entry,.desk-tab-chip,.desk-preview-large){border:0!important;box-shadow:none!important}
+#desktop-tray .desktop-card,
+#desktop-tray .desktop-card[aria-current=true]{padding:8px}
+#desktop-tray .desktop-card[aria-current=true]{background:color-mix(in srgb,#32c76a 13%,var(--panel))}
+#desktop-tray .desk-preview-large{height:clamp(90px,18vh,188px)}
+#desktop-tray .desk-content>header{padding:0}
+#desktop-tray .desktop-list{padding:0}
+#desktop-tray .desk-help{margin-bottom:0}
+#desktop-tray .desk-mode[aria-pressed=true]{background:color-mix(in srgb,#9a74e8 16%,var(--panel))}
+#desktop-tray #desk-modes{transition:grid-template-rows .22s cubic-bezier(.2,.8,.2,1),opacity .18s}
+#desktop-tray:has(#desktop-preview-popover:not([hidden])) #desk-modes,
+#desktop-tray:has(#desk-history-panel:not([hidden])) #desk-modes{transition:none}
+/* Short windows keep every control accessible without a vertical Nora scroller. */
+@media(max-height:700px){
+ #desktop-tray .desk-content{padding-top:17px;padding-bottom:10px}
+ #desktop-tray .desk-content>header{min-height:30px;margin-bottom:10px}
+ #desktop-tray .desk-description{display:none}
+ #desktop-tray .desk-preview{height:58px}
+ #desktop-tray .desk-preview-large{height:clamp(80px,16vh,112px)}
+ #desktop-tray .desktop-card,#desktop-tray .desktop-card[aria-current=true]{padding:6px;gap:4px}
+ #desktop-tray .desk-mode{padding:7px;gap:5px}
+ #desktop-tray .desk-mode>.desk-preview{height:30px}
+ #desktop-tray .desk-help{margin-top:9px;font-size:9px}
+ #desktop-preview-popover{margin-bottom:10px;padding-bottom:0}
+ #desktop-tray .desk-history-panel{padding:6px;margin-bottom:8px}
+ #desktop-tray .desk-history-heading{margin-bottom:6px}
+ #desktop-tray .desk-history-list{padding:0 0 6px}
+ #desktop-tray .desk-history-entry{padding:6px;gap:3px}
+ #desktop-tray .desk-history-grid{height:28px}
+ #desktop-tray .desk-history-hint{font-size:9px;line-height:1.35}
+ #desktop-tray .desktop-gesture-hint{margin-top:9px;padding-top:4px;font-size:10px;line-height:1.35}
+ #desktop-tray .desktop-gesture-art{height:52px}
+ #desktop-tray .desktop-gesture-hand{height:48px}
+ #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-help{display:none}
+ #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-preview{height:45px}
+ #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-preview-large{height:80px}
+ #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-mode>.desk-preview{height:25px}
+}
+@media(prefers-reduced-motion:reduce){#desktop-tray #desk-modes{transition:none}}

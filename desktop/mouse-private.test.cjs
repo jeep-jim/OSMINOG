@@ -33,3 +33,10 @@ test('owner mascot keeps exact source, has no invented name; capture flash is no
  assert.equal(require('./mouse-brand.cjs').mascot,'маскот');const script=fs.readFileSync(require.resolve('./mouse/capture.js'),'utf8');assert.match(script,/if\(kind!=='initial'\)feedback/);assert.match(script,/dataset.captured/);assert.doesNotMatch(script,/ctx.fill.*flash/i);
  const svg=fs.readFileSync(require.resolve('./mouse/mouse-private.svg'),'utf8');assert.match(svg,/shape-rendering="crispEdges"/);assert.doesNotMatch(svg,/<script|https?:\/\/[^w]/);
 });
+
+test('privacy completion notifies observers only after the transition is no longer busy, including failure',async()=>{
+ const {PrivateMode}=require('./mouse-private.cjs'),states=[];const mode=new PrivateMode({onPrivacySettled:()=>states.push({busy:mode.busy,private:!!mode.current})});
+ mode.enter=async()=>{assert.equal(mode.busy,true);mode.current={};};mode.leave=async()=>{assert.equal(mode.busy,true);mode.current=null;};
+ await mode.toggle();await mode.toggle();assert.deepEqual(states,[{busy:false,private:true},{busy:false,private:false}]);
+ mode.enter=async()=>{throw Error('Fixture transition failed');};await assert.rejects(mode.toggle(),/Fixture transition failed/);assert.deepEqual(states.at(-1),{busy:false,private:false});assert.equal(mode.busy,false);
+});

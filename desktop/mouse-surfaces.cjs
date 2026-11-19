@@ -4,12 +4,46 @@
 const {randomUUID}=require('node:crypto');
 // One bounded preparation budget covers the whole two-worker queue, including
 // native readback and encoding; it is separate from the subsequent animation.
-const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=2,CAPTURE_MS=2500,HOLD_MS=5000;
+const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=2,CAPTURE_MS=2500,HOLD_MS=5000,PAINT_MS=1500,PAINT_ATTEMPTS=8,PAINT_TOLERANCE=4;
 const rect=r=>r&&['x','y','width','height'].every(k=>Number.isFinite(r[k]))&&r.width>0&&r.height>0?{x:r.x,y:r.y,width:r.width,height:r.height}:null;
 const same=(a,b)=>!!a&&!!b&&['x','y','width','height'].every(k=>a[k]===b[k]);
+// A decoded PNG and two renderer RAFs do not prove that its GPU upload has
+// finished. Keep only nine small interior colour-region summaries per page,
+// never another full image. Means over the same DIP regions tolerate texture
+// interpolation at fractional/Retina scales without accepting blank slots.
+function regionMean(bitmap,pixelWidth,pixelHeight,region,box){
+ const sx=pixelWidth/box.width,sy=pixelHeight/box.height;
+ const left=Math.max(0,Math.floor((region.x-box.x)*sx)),top=Math.max(0,Math.floor((region.y-box.y)*sy));
+ const right=Math.min(pixelWidth,Math.ceil((region.x+region.width-box.x)*sx)),bottom=Math.min(pixelHeight,Math.ceil((region.y+region.height-box.y)*sy));
+ if(right<=left||bottom<=top)return null;
+ const sum=[0,0,0,0];let count=0;
+ for(let y=top;y<bottom;y++)for(let x=left;x<right;x++){const i=(y*pixelWidth+x)*4;sum[0]+=bitmap[i+2];sum[1]+=bitmap[i+1];sum[2]+=bitmap[i];sum[3]+=bitmap[i+3];count++;}
+ return sum.map(value=>value/count);
+}
+function imageRegions(image,pixelWidth,pixelHeight,scaleFactor,bounds){
+ const bitmap=image.toBitmap({scaleFactor});if(bitmap.length!==pixelWidth*pixelHeight*4)throw Error('Invalid surface paint bitmap');
+ const width=Math.min(12,bounds.width/8),height=Math.min(12,bounds.height/8),regions=[];
+ for(const fy of [.25,.5,.75])for(const fx of [.25,.5,.75]){
+  const region={x:bounds.x+bounds.width*fx-width/2,y:bounds.y+bounds.height*fy-height/2,width,height};
+  const rgba=regionMean(bitmap,pixelWidth,pixelHeight,region,bounds);
+  // Transparent source pixels have no independent visible colour to prove.
+  // Native page snapshots are normally opaque; no artificial marker is added.
+  if(rgba&&rgba[3]>=254)regions.push({...region,rgba});
+ }
+ return regions;
+}
+function matchesPaint(image,size,regions){
+ if(image.isEmpty?.())return false;
+ const scales=image.getScaleFactors?.().filter(v=>Number.isFinite(v)&&v>0)||[1],scaleFactor=Math.max(...scales),pixels=image.getSize(scaleFactor);
+ if(!Number.isFinite(scaleFactor)||!pixels||!['width','height'].every(key=>Number.isInteger(pixels[key])&&pixels[key]>0)||pixels.width*pixels.height>MAX_PIXELS)return false;
+ const bitmap=image.toBitmap({scaleFactor});if(bitmap.length!==pixels.width*pixels.height*4)return false;
+ if(Math.abs(pixels.width/size[0]-pixels.height/size[1])>.02)return false;
+ const box={x:0,y:0,width:size[0],height:size[1]};
+ return regions.every(region=>{const mean=regionMean(bitmap,pixels.width,pixels.height,region,box);return mean&&mean.every((value,i)=>Math.abs(value-region.rgba[i])<=PAINT_TOLERANCE);});
+}
 class DesktopSurfaces{
- constructor({browser,bank,win,onImage,now=Date.now,captureMs=CAPTURE_MS,holdMs=HOLD_MS}){
-  Object.assign(this,{browser,bank,win,onImage,now,captureMs,holdMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.busy=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
+ constructor({browser,bank,win,onImage,now=Date.now,captureMs=CAPTURE_MS,holdMs=HOLD_MS,paintMs=PAINT_MS}){
+  Object.assign(this,{browser,bank,win,onImage,now,captureMs,holdMs,paintMs});this.generation=0;this.records=new Map();this.activeCaptures=0;this.busy=false;this.painting=false;this.held=null;this.locked=false;this.disposed=false;this.watchers=[];
   // BrowserWindow.webContents is a native getter: after 'closed' it throws.
   // Retain the emitter now so disposal can continue into closing every page.
   this.shellContents=win?.webContents;
@@ -17,8 +51,8 @@ class DesktopSurfaces{
   this.resize=()=>this.clear(true);this.navigation=(_event,_url,inPlace,isMainFrame)=>{if(isMainFrame&&!inPlace)this.clear(false);};
   win?.on?.('resize',this.resize);this.shellContents?.on?.('did-start-navigation',this.navigation);
  }
- enableDiagnostics(){this.diagnostic={sequence:0,lastCapture:null,events:[]};}
- diagnostics(){const trace=this.diagnostic;return trace?structuredClone({enabled:true,busy:this.busy,activeCaptures:this.activeCaptures,generation:this.generation,held:!!this.held,locked:this.locked,disposed:this.disposed,lastCapture:trace.lastCapture,events:trace.events}):{enabled:false};}
+ enableDiagnostics(){this.diagnostic={sequence:0,lastCapture:null,lastPaint:null,events:[]};}
+ diagnostics(){const trace=this.diagnostic;return trace?structuredClone({enabled:true,busy:this.busy,activeCaptures:this.activeCaptures,generation:this.generation,held:!!this.held,locked:this.locked,disposed:this.disposed,lastCapture:trace.lastCapture,lastPaint:trace.lastPaint,events:trace.events}):{enabled:false};}
  recordDiagnostic(trace,phase,detail={}){if(!trace||trace!==this.diagnostic)return;trace.events.push({phase,at:performance.now(),...detail});if(trace.events.length>32)trace.events.shift();}
  shape(){const size=this.win?.getContentSize?.();return Array.isArray(size)?size.join('x'):'';}
  live(id,hold){
@@ -42,7 +76,7 @@ class DesktopSurfaces{
   // Do not leave the largest selected viewport behind every small capture.
   // Stable sorting preserves request order for equal areas; limits stay shared.
   pins.sort((a,b)=>b.viewport.width*b.viewport.height-a.viewport.width*a.viewport.height);
-  const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[];let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
+  const generation=this.generation,desk=this.bank.active,shape=this.shape(),surfaces=[],regions=[];let index=0,bytes=0,pixels=0,cancelled=false,deadline=false,timer;
   const current=()=>!cancelled&&!this.disposed&&!this.locked&&!this.browser.disposed&&generation===this.generation&&desk===this.bank.active&&shape===this.shape();
   this.busy=true;
   const worker=async()=>{
@@ -73,6 +107,7 @@ class DesktopSurfaces{
      const pixelWidth=png.readUInt32BE(16),pixelHeight=png.readUInt32BE(20),area=pixelWidth*pixelHeight;
      const width=pin.viewport.width,height=pin.viewport.height;
      if(!pixelWidth||!pixelHeight||pixelWidth<width-1||pixelHeight<height-1||Math.abs(pixelWidth/width-pixelHeight/height)>.02||bytes+png.length>MAX_PNG_BYTES||pixels+area>MAX_PIXELS){pageDiagnostic(bytes+png.length>MAX_PNG_BYTES?'png-byte-budget':pixels+area>MAX_PIXELS?'png-pixel-budget':'png-dimensions');continue;}
+     regions.push(...imageRegions(image,pixelWidth,pixelHeight,scaleFactor,pin.bounds));
      bytes+=png.length;pixels+=area;
      if(row){row.state='base64';stageStarted=performance.now();}const src='data:image/png;base64,'+png.toString('base64');if(row)row.base64Ms=performance.now()-stageStarted;
      surfaces.push({id:pin.id,src,width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds}});
@@ -88,13 +123,47 @@ class DesktopSurfaces{
    if(!current())return incomplete(deadline?'deadline':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':generation!==this.generation?'generation-changed':desk!==this.bank.active?'desktop-changed':'window-size-changed');
    if(surfaces.length!==pins.length)return incomplete('incomplete-pages');
    if(pins.some(pin=>!this.valid(pin,args.hold)))return incomplete('pins-changed');
-   const token=randomUUID();this.records.set(token,{generation,desk,shape,pins,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
-   if(args.hold)this.watch(pins);
+   const token=randomUUID();this.records.set(token,{generation,desk,shape,pins,regions,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
+   // Once the selected incoming desk has a complete validated frame, pages
+   // from a previous desk no longer own the long-lived Nora hold. Background
+   // navigation there must not close Nora after a successful desk switch.
+   if(args.hold)this.watch(pins,true);
    resultDiagnostic('complete',true);
-   return{desk,surfaces,complete:true,generation,token};
+   // The capture record and the hold have separate identities. A renderer
+   // borrowing Nora's hold can verify that this frame belongs to its lease
+   // without treating the new capture token as a replacement hold.
+   return{desk,surfaces,complete:true,generation,token,holdToken:args.hold||''};
   }finally{cancelled=true;clearTimeout(timer);this.busy=false;}
  }
- watch(pins){
+ async present(args={}){
+  if(typeof args.token!=='string'||!args.token||args.token.length>100||args.holdToken!==undefined&&(typeof args.holdToken!=='string'||!args.holdToken||args.holdToken.length>100))throw Error('Invalid surface paint identity');
+  const record=this.records.get(args.token),trace=this.diagnostic,started=performance.now();
+  const current=()=>record&&this.records.get(args.token)===record&&!this.disposed&&!this.locked&&!this.browser.disposed&&!this.win?.isDestroyed?.()&&!this.shellContents?.isDestroyed?.()&&record.generation===this.generation&&record.desk===this.bank.active&&record.shape===this.shape()&&this.now()-record.at<=HOLD_MS&&(args.holdToken?this.held?.token===args.holdToken&&this.browser.mouseSurfaceHold===args.holdToken:!this.held)&&record.pins.every(pin=>this.valid(pin,args.holdToken));
+  const observed={startedAt:started,attempts:0,regions:record?.regions.length||0,held:!!args.holdToken,ready:false,reason:'pending'};
+  if(trace)trace.lastPaint=observed;
+  const finish=(ready,reason)=>{Object.assign(observed,{ready,reason,elapsedMs:performance.now()-started});this.recordDiagnostic(trace,'paint-result',observed);return{ready,reason,attempts:observed.attempts,regions:observed.regions};};
+  if(!current())return finish(false,'stale');
+  if(this.painting||this.activeCaptures>=MAX_CAPTURES||typeof this.shellContents?.capturePage!=='function')return finish(false,'unavailable');
+  let cancelled=false,timer;this.painting=true;this.recordDiagnostic(trace,'paint-start',{held:observed.held,regions:observed.regions});
+  const work=(async()=>{
+   try{
+    for(let attempt=0;attempt<PAINT_ATTEMPTS&&!cancelled;attempt++){
+     if(!current())return finish(false,'stale');
+     this.activeCaptures++;observed.attempts++;
+     let image;try{image=await this.shellContents.capturePage(undefined,{stayHidden:true,stayAwake:false});}finally{this.activeCaptures--;}
+     if(cancelled)return null;
+     if(!current())return finish(false,'stale');
+     if(matchesPaint(image,this.win.getContentSize(),record.regions))return finish(true,'painted');
+    }
+    if(!cancelled)return finish(false,'mismatch');
+   }catch(error){if(!cancelled){this.recordDiagnostic(trace,'paint-error',{message:String(error?.message||error).slice(0,512)});return finish(false,'readback-error');}}
+   finally{this.painting=false;}
+  })();
+  try{return await Promise.race([work,new Promise(resolve=>{timer=setTimeout(()=>{cancelled=true;resolve(finish(false,'deadline'));},this.paintMs);timer.unref?.();})]);}
+  finally{cancelled=true;clearTimeout(timer);}
+ }
+ watch(pins,replace=false){
+  if(replace){const selected=new Set(pins.map(pin=>pin.wc));for(const w of this.watchers)if(!selected.has(w.wc)){w.wc.removeListener?.('destroyed',w.clear);w.wc.removeListener?.('did-start-navigation',w.nav);}this.watchers=this.watchers.filter(w=>selected.has(w.wc));}
   for(const pin of pins){if(this.watchers.some(w=>w.wc===pin.wc))continue;const clear=()=>this.clear(true),nav=(_event,_url,_inPlace,isMainFrame)=>{if(isMainFrame)this.clear(true);};pin.wc.on?.('destroyed',clear);pin.wc.on?.('did-start-navigation',nav);this.watchers.push({wc:pin.wc,clear,nav});}
  }
  begin(token,purpose='transition'){
@@ -118,4 +187,4 @@ class DesktopSurfaces{
  unlock(){this.locked=false;}
  dispose(){if(this.disposed)return;this.disposed=true;this.clear(false);this.win?.removeListener?.('resize',this.resize);this.shellContents?.removeListener?.('did-start-navigation',this.navigation);}
 }
-module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,HOLD_MS};
+module.exports={DesktopSurfaces,MAX_PAGES,MAX_PNG_BYTES,MAX_PIXELS,MAX_CAPTURES,CAPTURE_MS,HOLD_MS,PAINT_MS,PAINT_ATTEMPTS,PAINT_TOLERANCE};

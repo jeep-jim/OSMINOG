@@ -3,6 +3,29 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {screen,desktopCapturer,systemPreferences}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let i=0;i<200;i++){if(await fn())return;await sleep(60)}throw Error('Timed out '+label);}
+// Test-only receipt observer; this is serialized into the installed shell.
+// It observes Electron's real input route without dispatching renderer events.
+function installResizeInputProbe({axis,path,from,to}){
+ const events=[],frames=[];let disposed=false,requested=false,frame=0;
+ function sample(){const m=MouseTest.model,at=performance.now();let split=m.tree;for(const key of path)split=split[key];return{at,ratio:split.ratio,drag:m.drag?{kind:m.drag.kind,axis:m.drag.axis,path:m.drag.path,pointer:m.drag.pointer}:null,resizing:document.body.classList.contains('resizing'),hudCount:document.querySelectorAll('.resize-size-hud').length,panes:[...document.querySelectorAll('.pane')].map(e=>{const r=e.getBoundingClientRect();return{id:e.dataset.pane,width:r.width,height:r.height};}),badges:[...document.querySelectorAll('.pane>.resize-size-hud:not([hidden])')].map(e=>{const r=e.getBoundingClientRect(),p=e.parentElement.getBoundingClientRect();return{text:e.textContent,w:Math.round(p.width),h:Math.round(p.height),dx:Math.abs(r.x+r.width/2-p.x-p.width/2),dy:Math.abs(r.y+r.height/2-p.y-p.height/2)};})};}
+ function observe(event){
+  if(disposed)return;const row={type:event.type,at:performance.now(),x:event.clientX,y:event.clientY,pointer:event.pointerId,button:event.button,buttons:event.buttons,trusted:event.isTrusted};if(events.length<40)events.push(row);
+  if(!requested&&row.trusted&&row.type==='pointermove'&&Math.abs(row.x-to.x)<=1&&Math.abs(row.y-to.y)<=1&&MouseTest.model.drag?.pointer===row.pointer&&MouseTest.model.drag?.axis===axis&&MouseTest.model.drag?.path===path){requested=true;frame=requestAnimationFrame(timestamp=>{if(disposed)return;frames.push({timestamp,...sample()});frame=requestAnimationFrame(timestamp=>{if(!disposed)frames.push({timestamp,...sample()});});});}
+ }
+ for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])document.addEventListener(type,observe,true);
+ return{state:()=>({clock:'renderer performance.now',axis,path,from,to,events:events.slice(),frames:frames.slice(),...sample()}),dispose(){disposed=true;cancelAnimationFrame(frame);for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])document.removeEventListener(type,observe,true);}};
+}
+function resizeInputProbeScript(spec){
+ // executeJavaScript clones the completion value across IPC; keep probe methods in the renderer.
+ return `globalThis.__mouse609ResizeInput=(${installResizeInputProbe.toString()})(${JSON.stringify(spec)});true`;
+}
+async function observedResizeDrag({input,from,to,waitDown,waitMove,waitFrames,verify,waitRelease}){
+ let pressed=false,position=from,result,error;
+ try{input('mouseMove',from);pressed=true;input('mouseDown',from);await waitDown();position=to;input('mouseMove',to);await waitMove();result=await waitFrames();await verify(result);}
+ catch(reason){error=reason;}
+ finally{if(pressed)try{input('mouseUp',position);await waitRelease(position);}catch(reason){if(error)error.resizeReleaseError=String(reason.stack||reason);else error=reason;}}
+ if(error)throw error;return result;
+}
 module.exports=async({app,win,browser,globalCapture})=>{
  const js=s=>win.webContents.executeJavaScript(s),native=require('./mouse-native-menu.node');
  const old=await js('JSON.parse(JSON.stringify({tree:MouseTest.model.tree,slots:MouseTest.model.slots,active:MouseTest.model.active,theme:MouseTest.model.theme,aiOpen:MouseTest.model.aiOpen}))');
@@ -12,13 +35,25 @@ module.exports=async({app,win,browser,globalCapture})=>{
  const click=async sel=>{const r=await rect(sel),p={x:Math.round(r.x+r.w/2),y:Math.round(r.y+r.h/2)};win.focus();win.webContents.focus();for(const t of ['mouseMove','mouseDown','mouseUp'])input(t,p);await sleep(120);};
  try{
   await js('MouseTest.changeLayout(4)');await sleep(200);
+  const resizeFacts={version:app.getVersion(),source:'webContents.sendInputEvent observed in the shell; HUD after matching pointermove animation frames',axes:[]};
   for(const axis of ['x','y']){
-   const r=await rect(`.divider[data-axis=${axis}]`),p={x:Math.round(r.x+r.w/2),y:Math.round(r.y+r.h/2)},q={x:p.x+(axis==='x'?70:0),y:p.y+(axis==='y'?60:0)};
-   win.focus();win.webContents.focus();input('mouseMove',p);input('mouseDown',p);await sleep(100);input('mouseMove',q);await sleep(140);
-   const badges=await js(`Array.from(document.querySelectorAll('.pane>.resize-size-hud:not([hidden])')).map(e=>{const r=e.getBoundingClientRect(),p=e.parentElement.getBoundingClientRect();return{text:e.textContent,w:Math.round(p.width),h:Math.round(p.height),dx:Math.abs(r.x+r.width/2-p.x-p.width/2),dy:Math.abs(r.y+r.height/2-p.y-p.height/2)}})`);
-   assert.ok(badges.length>=2,'size HUD for both affected panels');for(const b of badges){assert.equal(b.text,b.w+' × '+b.h);assert.ok(b.dx<1&&b.dy<1,'HUD centered in pane');}
-   if(axis==='x')await fs.writeFile('mouse-609-resize-hud.png',(await win.capturePage()).toPNG());
-   input('mouseUp',q);await until(()=>js('document.querySelectorAll(".resize-size-hud").length===0'),'HUD removed on release');
+   const selector=`.divider[data-axis=${axis}]`,r=await rect(selector),p={x:Math.round(r.x+r.w/2),y:Math.round(r.y+r.h/2)},q={x:p.x+(axis==='x'?70:0),y:p.y+(axis==='y'?60:0)},path=await js(`document.querySelector(${JSON.stringify(selector)}).dataset.path`);
+   const attempt={axis,path,from:p,to:q,divider:r,clock:'main performance.now',startedAt:performance.now(),sent:[]},deadline=attempt.startedAt+12000;resizeFacts.axes.push(attempt);let pointer;
+   await js(resizeInputProbeScript({axis,path,from:p,to:q}));
+   const state=()=>js('globalThis.__mouse609ResizeInput.state()'),matching=(s,type,point)=>s.events.find(e=>e.type===type&&e.trusted&&Math.abs(e.x-point.x)<=1&&Math.abs(e.y-point.y)<=1&&(pointer===undefined||e.pointer===pointer));
+   const receipt=async(check,label)=>{attempt.phase=label;while(performance.now()<deadline){attempt.last=await state();const checkedAt=performance.now();if(checkedAt>=deadline)break;if(check(attempt.last)){attempt[label+'At']=checkedAt;return attempt.last;}await sleep(60);}throw Error('Timed out resize '+axis+' '+label);};
+   try{
+    attempt.before=await state();assert.equal(attempt.before.drag,null,'No previous drag is left active');assert.equal(attempt.before.resizing,false);assert.equal(attempt.before.hudCount,0);
+    win.focus();win.webContents.focus();
+    await observedResizeDrag({input:(type,point)=>{attempt.sent.push({type,...point,at:performance.now()});input(type,point);},from:p,to:q,
+     waitDown:async()=>{const s=await receipt(s=>matching(s,'pointerdown',p)&&s.drag?.kind==='pane'&&s.drag.axis===axis&&s.drag.path===path&&s.resizing,'down');pointer=matching(s,'pointerdown',p).pointer;attempt.down=s;},
+     waitMove:async()=>{attempt.move=await receipt(s=>matching(s,'pointermove',q)&&s.drag?.pointer===pointer,'move');},
+     waitFrames:()=>receipt(s=>s.frames.length===2,'frames'),
+     verify:async after=>{attempt.after=after;assert.ok(after.drag?.pointer===pointer&&after.drag.axis===axis&&after.resizing,'The same real drag remains active through the resize frame');assert.notEqual(after.ratio,attempt.before.ratio,'The delivered drag changes the affected split');const badges=after.badges;assert.ok(badges.length>=2,'size HUD for both affected panels');for(const b of badges){assert.equal(b.text,b.w+' × '+b.h);assert.ok(b.dx<1&&b.dy<1,'HUD centered in pane');}if(axis==='x')await fs.writeFile('mouse-609-resize-hud.png',(await win.capturePage()).toPNG());},
+     waitRelease:async point=>{attempt.releaseStartedAt=performance.now();await until(async()=>{attempt.released=await state();return matching(attempt.released,'pointerup',point)&&!attempt.released.drag&&!attempt.released.resizing&&attempt.released.hudCount===0;},'HUD removed on observed release');attempt.releaseFinishedAt=performance.now();}
+    });attempt.status='pass';
+   }catch(error){attempt.status='fail';attempt.error={message:error.message,stack:error.stack,release:error.resizeReleaseError};throw error;}
+   finally{attempt.finishedAt=performance.now();attempt.final=await state();await js('globalThis.__mouse609ResizeInput.dispose();delete globalThis.__mouse609ResizeInput');await fs.writeFile('mouse-609-resize-hud.json',JSON.stringify(resizeFacts,null,2)+'\n');}
   }
   console.log('MOUSE_609_RESIZE_HUD_BOTH_AXES_CENTERS_RELEASE_PASS');
   for(const theme of ['light','dark']){
@@ -68,3 +103,6 @@ module.exports=async({app,win,browser,globalCapture})=>{
   await js(`Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.setTheme(${JSON.stringify(old.theme)});MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);
  }
 };
+module.exports.observedResizeDrag=observedResizeDrag;
+module.exports.installResizeInputProbe=installResizeInputProbe;
+module.exports.resizeInputProbeScript=resizeInputProbeScript;
