@@ -23,6 +23,17 @@ function paintedPanel(pixels,size,geometry){
  return null;
 }
 const GESTURE_KEY=require('./mouse-gesture.cjs').KEY;
+// Map an actual display framebuffer to the BrowserWindow's content area.
+// Preserve integer source pixels; fractional backing scales are represented
+// by the sample origin instead of resizing or rounding away their phase.
+function screenCropGeometry(displayBounds,contentBounds,screenPixelSize){
+ const scaleX=screenPixelSize.width/displayBounds.width,scaleY=screenPixelSize.height/displayBounds.height;
+ const left=(contentBounds.x-displayBounds.x)*scaleX,top=(contentBounds.y-displayBounds.y)*scaleY,right=left+contentBounds.width*scaleX,bottom=top+contentBounds.height*scaleY;
+ const cropPixels={x:Math.floor(left),y:Math.floor(top),width:Math.ceil(right)-Math.floor(left),height:Math.ceil(bottom)-Math.floor(top)};
+ assert.ok([scaleX,scaleY,left,top,right,bottom].every(Number.isFinite)&&scaleX>0&&scaleY>0,'A real display scale is required');
+ assert.ok(cropPixels.x>=0&&cropPixels.y>=0&&cropPixels.width>0&&cropPixels.height>0&&cropPixels.x+cropPixels.width<=screenPixelSize.width&&cropPixels.y+cropPixels.height<=screenPixelSize.height,'The complete native window content is inside the captured display');
+ return{cropPixels,mapping:{scaleX,scaleY,originX:left-cropPixels.x,originY:top-cropPixels.y}};
+}
 async function verifyGestureRestart({app,win,store}){
  const filename='mouse-628-swipe-tutorial.json',facts=JSON.parse(await fs.readFile(filename,'utf8'));
  assert.equal(facts.version,'6.0.28');assert.equal(facts.successHidden,true);assert.equal(facts.privateIsolated,true);
@@ -46,7 +57,7 @@ function rendererTraceState(marker){
  performance.mark(marker);const mark=performance.getEntriesByName(marker,'mark').at(-1);performance.clearMarks(marker);
  return{marker,markStartTime:mark?.startTime,before,after:performance.now(),documentTimeBefore,documentTimeAfter:document.timeline.currentTime,visibilityState:document.visibilityState,hidden:document.hidden,hasFocus:document.hasFocus()};
 }
-module.exports=async({app,win,browser,store,privateMode})=>{
+module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  if(process.argv.includes('--mouse-smoke-read'))return verifyGestureRestart({app,win,store});
@@ -228,17 +239,39 @@ module.exports=async({app,win,browser,store,privateMode})=>{
   await painted();
  }
  async function removeCornerMarkers(){for(const page of cornerPages.splice(0))if(!page.view.webContents.isDestroyed())await page.view.webContents.executeJavaScript(`document.getElementById(${JSON.stringify(cornerMarker)})?.remove()`).catch(()=>{});}
- function pixel(image,point,viewport){const size=image.getSize(),bytes=image.toBitmap(),x=Math.max(0,Math.min(size.width-1,Math.floor(point.x*size.width/viewport.width))),y=Math.max(0,Math.min(size.height-1,Math.floor(point.y*size.height/viewport.height))),i=(y*size.width+x)*4;return{x,y,rgba:[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]]};}
+ function pixel(image,point,viewport,mapping){const size=image.getSize(1),bytes=image.toBitmap({scaleFactor:1}),x=Math.max(0,Math.min(size.width-1,Math.floor(mapping?mapping.originX+point.x*mapping.scaleX:point.x*size.width/viewport.width))),y=Math.max(0,Math.min(size.height-1,Math.floor(mapping?mapping.originY+point.y*mapping.scaleY:point.y*size.height/viewport.height))),i=(y*size.width+x)*4;assert.equal(bytes.length,size.width*size.height*4,'Pixel samples use the exact archived native representation');return{x,y,rgba:[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]]};}
+ const cornerDiagnostics=[];
+ async function captureNativeWindow(theme,stage,viewport){
+  assert.equal(globalCapture?.permission(),'granted','Native corner proof requires the existing CI screen-capture grant');
+  const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.deepEqual({width:contentBounds.width,height:contentBounds.height},viewport,'Native content bounds match the measured renderer viewport');
+  const frame=await globalCapture.acquire(display);assert.equal(frame?.kind,'screen');assert.ok(typeof frame.backend==='string'&&frame.backend);assert.deepEqual({width:frame.width,height:frame.height},{width:display.bounds.width,height:display.bounds.height},'The screen frame belongs to the selected complete display');assert.deepEqual(win.getContentBounds(),contentBounds,'The native window did not move while its frame was acquired');
+  assert.match(frame.base,/^data:image\/png;base64,/);const screenPNG=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:screenPNG.readUInt32BE(16),height:screenPNG.readUInt32BE(20)},screenImage=nativeImage.createFromBuffer(screenPNG);assert.equal(screenImage.isEmpty(),false);assert.deepEqual(screenImage.getSize(1),screenPixelSize,'Display PNG is decoded without scaling');
+  const {cropPixels,mapping}=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=screenImage.crop(cropPixels),png=image.toPNG({scaleFactor:1}),pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)};assert.deepEqual(pixelSize,{width:cropPixels.width,height:cropPixels.height},'The native window crop preserves source pixels');
+  const name='mouse-628-corners-'+theme+'-'+stage,capture=name+'.png',screenCapture=name+'-display.png',metadata={source:'globalCapture.acquire(display)',kind:frame.kind,backend:frame.backend,display:{id:display.id,bounds:{...display.bounds},scaleFactor:display.scaleFactor},contentBounds:{...contentBounds},screenPixelSize,screenCapture,capture,cropPixels,pixelSize,mapping};
+  // Archive the actual source plane and lossless crop before a pixel assertion.
+  // A failure must retain the image which failed, not a later cleanup frame.
+  await fs.writeFile(screenCapture,screenPNG);await fs.writeFile(capture,png);return{image,metadata};
+ }
  async function cornerBaseline(theme){
-  const geometry=await js(`(()=>{const rows=[];for(const pane of document.querySelectorAll('.pane')){const slot=pane.querySelector('.page-slot'),r=slot.getBoundingClientRect(),radius=parseFloat(pane.style.getPropertyValue('--pane-round-bottom'))||0,id=MouseTest.model.slots[pane.dataset.pane];if(radius<4||!id)continue;for(const side of ['left','right']){const x=side==='left'?r.left+1.25:r.right-1.25,insideX=side==='left'?r.left+radius+3:r.right-radius-3;if(x>innerWidth*.12&&x<innerWidth*.88)continue;rows.push({id,side,radius,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},outside:{x,y:r.bottom-1.25},inside:{x:insideX,y:r.bottom-1.25}});}}return{viewport:{width:innerWidth,height:innerHeight},rows};})()`),image=await win.capturePage();
+  const geometry=await js(`(()=>{const rows=[];for(const pane of document.querySelectorAll('.pane')){const slot=pane.querySelector('.page-slot'),r=slot.getBoundingClientRect(),radius=parseFloat(pane.style.getPropertyValue('--pane-round-bottom'))||0,id=MouseTest.model.slots[pane.dataset.pane];if(radius<4||!id)continue;for(const side of ['left','right']){const x=side==='left'?r.left+1.25:r.right-1.25,insideX=side==='left'?r.left+radius+3:r.right-radius-3;if(x>innerWidth*.12&&x<innerWidth*.88)continue;rows.push({id,side,radius,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},outside:{x,y:r.bottom-1.25},inside:{x:insideX,y:r.bottom-1.25}});}}return{viewport:{width:innerWidth,height:innerHeight},rows};})()`);
   geometry.rows=geometry.rows.filter(row=>cornerPages.some(page=>page.id===row.id));assert.ok(geometry.rows.length>0,'Real rounded native page corners are present');
-  for(const row of geometry.rows){row.before={outside:pixel(image,row.outside,geometry.viewport),inside:pixel(image,row.inside,geometry.viewport)};assert.ok(cornerColor.every((v,i)=>Math.abs(row.before.inside.rgba[i]-v)<=2),'Native interior corner marker is really painted');assert.ok(cornerColor.some((v,i)=>Math.abs(row.before.outside.rgba[i]-v)>16),'The real native page corner is clipped before Nora opens');}
-  geometry.capture='mouse-628-corners-'+theme+'-before.png';await fs.writeFile(geometry.capture,image.toPNG());return geometry;
+  const diagnostic={theme,stage:'before',viewport:geometry.viewport,attempts:[]};cornerDiagnostics.push(diagnostic);
+  for(let attempt=0;attempt<20;attempt++){
+   if(attempt)await sleep(100);const captured=await captureNativeWindow(theme,'before',geometry.viewport);geometry.capture=captured.metadata.capture;geometry.nativeCapture=captured.metadata;
+   for(const row of geometry.rows)row.before={outside:pixel(captured.image,row.outside,geometry.viewport,captured.metadata.mapping),inside:pixel(captured.image,row.inside,geometry.viewport,captured.metadata.mapping)};
+   diagnostic.attempts.push({attempt,nativeCapture:captured.metadata,rows:structuredClone(geometry.rows)});await fs.writeFile('mouse-628-corner-diagnostics.json',JSON.stringify(cornerDiagnostics,null,2)+'\n');
+   if(geometry.rows.every(row=>cornerColor.every((v,i)=>Math.abs(row.before.inside.rgba[i]-v)<=2)))break;
+  }
+  for(const row of geometry.rows){assert.ok(cornerColor.every((v,i)=>Math.abs(row.before.inside.rgba[i]-v)<=2),'Native interior corner marker is really painted: '+JSON.stringify(row));assert.ok(cornerColor.some((v,i)=>Math.abs(row.before.outside.rgba[i]-v)>16),'The real native page corner is clipped before Nora opens: '+JSON.stringify(row));}
+  return geometry;
  }
  async function verifyOpenCorners(theme,before){
-  const visible=await js(`(()=>{const g=${JSON.stringify(before)},surface=document.querySelector('#mouse-dock-surface'),fill=document.querySelector('#mouse-dock-fill'),r=surface.getBoundingClientRect(),point=p=>new DOMPoint(p.x-r.left,p.y-r.top),outside=p=>!fill.isPointInFill(point(p));return{alpha:Number(getComputedStyle(document.querySelector('#mouse-dock-scrim')).opacity),rows:g.rows.filter(row=>outside(row.inside)&&outside(row.outside)).map(row=>{const image=[...document.querySelectorAll('.mouse-floating-snapshot')].find(e=>e.dataset.tabId===row.id),c=getComputedStyle(image);return{...row,roundBottom:Number(image.dataset.roundBottom),borderBottomLeftRadius:c.borderBottomLeftRadius,borderBottomRightRadius:c.borderBottomRightRadius,clipPath:c.clipPath};})};})()`),image=await win.capturePage();assert.ok(visible.rows.length>0,'At least one native lower corner stays exposed beside Nora');
-  for(const row of visible.rows){assert.equal(row.roundBottom,row.radius);assert.equal(parseFloat(row.borderBottomLeftRadius),row.radius);assert.equal(parseFloat(row.borderBottomRightRadius),row.radius);assert.notEqual(row.clipPath,'none');row.after={outside:pixel(image,row.outside,before.viewport),inside:pixel(image,row.inside,before.viewport)};for(const key of ['outside','inside']){const expected=row.before[key].rgba.slice(0,3).map(v=>Math.round(v*(1-visible.alpha)));assert.ok(expected.every((v,i)=>Math.abs(row.after[key].rgba[i]-v)<=4),'The presented rounded corner retains its pixels under the measured scrim: '+JSON.stringify({row:row.side,key,expected,actual:row.after[key]}));}}
-  const capture='mouse-628-corners-'+theme+'-open.png';await fs.writeFile(capture,image.toPNG());const proof={theme,viewport:before.viewport,alpha:visible.alpha,beforeCapture:before.capture,capture,rows:visible.rows};(borderlessFacts.corners??=[]).push(proof);return proof;
+  const visible=await js(`(()=>{const g=${JSON.stringify(before)},surface=document.querySelector('#mouse-dock-surface'),fill=document.querySelector('#mouse-dock-fill'),r=surface.getBoundingClientRect(),point=p=>new DOMPoint(p.x-r.left,p.y-r.top),outside=p=>!fill.isPointInFill(point(p));return{alpha:Number(getComputedStyle(document.querySelector('#mouse-dock-scrim')).opacity),rows:g.rows.filter(row=>outside(row.inside)&&outside(row.outside)).map(row=>{const image=[...document.querySelectorAll('.mouse-floating-snapshot')].find(e=>e.dataset.tabId===row.id),c=getComputedStyle(image);return{...row,roundBottom:Number(image.dataset.roundBottom),borderBottomLeftRadius:c.borderBottomLeftRadius,borderBottomRightRadius:c.borderBottomRightRadius,clipPath:c.clipPath};})};})()`),captured=await captureNativeWindow(theme,'open',before.viewport);assert.ok(visible.rows.length>0,'At least one native lower corner stays exposed beside Nora');
+  for(const key of ['display','contentBounds','screenPixelSize','cropPixels','pixelSize','mapping'])assert.deepEqual(captured.metadata[key],before.nativeCapture[key],'Before and open corners use the same physical source plane: '+key);
+  for(const row of visible.rows)row.after={outside:pixel(captured.image,row.outside,before.viewport,captured.metadata.mapping),inside:pixel(captured.image,row.inside,before.viewport,captured.metadata.mapping)};
+  cornerDiagnostics.push({theme,stage:'open',alpha:visible.alpha,nativeCapture:captured.metadata,rows:visible.rows});await fs.writeFile('mouse-628-corner-diagnostics.json',JSON.stringify(cornerDiagnostics,null,2)+'\n');
+  for(const row of visible.rows){assert.equal(row.roundBottom,row.radius);assert.equal(parseFloat(row.borderBottomLeftRadius),row.radius);assert.equal(parseFloat(row.borderBottomRightRadius),row.radius);assert.notEqual(row.clipPath,'none');for(const key of ['outside','inside']){const expected=row.before[key].rgba.slice(0,3).map(v=>Math.round(v*(1-visible.alpha)));assert.ok(expected.every((v,i)=>Math.abs(row.after[key].rgba[i]-v)<=4),'The presented rounded corner retains its pixels under the measured scrim: '+JSON.stringify({row:row.side,key,expected,actual:row.after[key]}));}}
+  const capture=captured.metadata.capture,proof={theme,viewport:before.viewport,alpha:visible.alpha,beforeCapture:before.capture,capture,nativeCapture:{before:before.nativeCapture,open:captured.metadata},rows:visible.rows};(borderlessFacts.corners??=[]).push(proof);return proof;
  }
  async function pageSnapshot(page){
   const wc=page.view.webContents,renderer=await wc.executeJavaScript('({timeOrigin:performance.timeOrigin,width:innerWidth,height:innerHeight,scrollX,scrollY,resizeEvents:globalThis.__mouse628PageProbe?.events||[]})');
@@ -396,3 +429,4 @@ module.exports=async({app,win,browser,store,privateMode})=>{
  await fs.writeFile('mouse-628-borderless.json',JSON.stringify(borderlessFacts,null,2)+'\n');await fs.writeFile('mouse-626-verification.json',JSON.stringify(facts,null,2)+'\n');await fs.writeFile('mouse-628-motion.json',JSON.stringify(motionFacts,null,2)+'\n');
  console.log('MOUSE_628_BORDERLESS_NATIVE_PASS');console.log('MOUSE_628_NORA_CONTENT_FIT_NATIVE_PASS');console.log('MOUSE_626_CAPTURE_ANY_COLOR_PASS');
 };
+module.exports.screenCropGeometry=screenCropGeometry;

@@ -60,7 +60,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-performance-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});
-  await require('./mouse-628-ui-smoke.cjs')({app,win,browser,store,privateMode});
+  await require('./mouse-628-ui-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});

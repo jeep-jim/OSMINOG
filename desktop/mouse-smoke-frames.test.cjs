@@ -20,3 +20,31 @@ test('ready and result reject together when timeout, cancel or destruction prece
 test('a malformed first framebuffer or throwing selector never signals readiness',async()=>{
  for(const malformed of [true,false]){const f=fixture(),capture=armFrameCapture(f.contents,{select(){if(!malformed)throw Error('invalid bitmap data');return null;}}),image=f.image('bad');if(malformed)image.getSize=()=>({width:NaN,height:60});f.contents.frame(image,{});const outcomes=await Promise.allSettled([capture.ready,capture.result]);assert.ok(outcomes.every(value=>value.status==='rejected'));assert.strictEqual(outcomes[0].reason,outcomes[1].reason);assert.deepEqual(f.events,['armed','ended']);}
 });
+
+function nativeCornerCrop(){
+ const fs=require('node:fs'),vm=require('node:vm'),file=require.resolve('./mouse-628-ui-smoke.cjs'),from=require('node:module').createRequire(file),context={module:{exports:{}},require:id=>id==='electron'?{}:from(id)};
+ vm.runInNewContext(fs.readFileSync(file,'utf8'),context,{filename:file});
+ return(...args)=>JSON.parse(JSON.stringify(context.module.exports.screenCropGeometry(...args)));
+}
+test('native corner proof crops the real display origin from the first failed Mac geometry',()=>{
+ const crop=nativeCornerCrop(),display={x:0,y:0,width:1024,height:768},content={x:8,y:33,width:1008,height:668};
+ const result=crop(display,content,{width:1024,height:768});assert.deepEqual(result,{cropPixels:{x:8,y:33,width:1008,height:668},mapping:{scaleX:1,scaleY:1,originX:0,originY:0}});
+ // The failing interior probe is window-local (15,404); its actual screen
+ // pixel is (23,437), not a pixel in the shell WebContents screenshot.
+ const point={x:15,y:404},mapped={x:result.cropPixels.x+Math.floor(result.mapping.originX+point.x*result.mapping.scaleX),y:result.cropPixels.y+Math.floor(result.mapping.originY+point.y*result.mapping.scaleY)};
+ assert.deepEqual(mapped,{x:23,y:437});
+ const retina=crop(display,content,{width:2048,height:1536});assert.deepEqual(retina.cropPixels,{x:16,y:66,width:2016,height:1336});assert.deepEqual(retina.mapping,{scaleX:2,scaleY:2,originX:0,originY:0});
+});
+test('fractional scale and a negative display origin retain exact source pixels without resizing',()=>{
+ const crop=nativeCornerCrop(),display={x:-1280,y:-100,width:1280,height:800},content={x:-1273,y:-93,width:803,height:603},result=crop(display,content,{width:1600,height:1000});
+ assert.deepEqual(result.cropPixels,{x:8,y:8,width:1005,height:755});assert.deepEqual(result.mapping,{scaleX:1.25,scaleY:1.25,originX:.75,originY:.75});
+ for(const point of [{x:0,y:0},{x:1.25,y:1.25},{x:15,y:404},{x:801.75,y:601.75}]){
+  const actual={x:result.cropPixels.x+Math.floor(result.mapping.originX+point.x*result.mapping.scaleX),y:result.cropPixels.y+Math.floor(result.mapping.originY+point.y*result.mapping.scaleY)};
+  assert.deepEqual(actual,{x:Math.floor((7+point.x)*1.25),y:Math.floor((7+point.y)*1.25)},'cropped coordinates still identify the original physical framebuffer pixel');
+ }
+});
+test('native corner proof rejects off-display windows and invalid capture dimensions',()=>{
+ const crop=nativeCornerCrop(),display={x:0,y:0,width:1024,height:768},pixels={width:1024,height:768};
+ for(const content of [{x:-1,y:0,width:100,height:100},{x:1000,y:0,width:100,height:100},{x:0,y:700,width:100,height:100},{x:0,y:0,width:0,height:100}])assert.throws(()=>crop(display,content,pixels),/inside the captured display/);
+ assert.throws(()=>crop(display,{x:0,y:0,width:100,height:100},{width:NaN,height:768}),/real display scale/);
+});
