@@ -19,7 +19,7 @@ test('existing authenticated connector exposes real MCP tools but cannot grant w
   await f.host.handle('local-permissions',{write:true,commands:false});const content='\\'.repeat(65536);await client.localFile('write_file',{path:'escaped.txt',content});assert.equal(fs.readFileSync(path.join(f.folder,'escaped.txt'),'utf8'),content,'64KiB UTF-8 file survives JSON escaping in authenticated envelope');
   await assert.rejects(client.localFile('write_file',{path:'large.txt',content:'x'.repeat(65537)}),/64 КиБ/);assert.equal(fs.existsSync(path.join(f.folder,'large.txt')),false);await assert.rejects(client.terminal('anything'),/Команды отключены/);
   await f.host.handle('local-permissions',{write:false,commands:true});assert.equal((await client.terminal('fixture')).exitCode,0);await assert.rejects(client.localFile('write_file',{path:'new.txt',content:'no'}),/Запись отключена/);
-  f.host.dialog.showOpenDialog=async()=>({canceled:false,filePaths:[f.other]});await f.host.chooseFolder();assert.equal(f.host.state().local.writeAllowed,false);assert.equal(f.host.state().local.commandsAllowed,false);assert.equal(f.host.state().folder,f.other);
+  f.host.dialog.showOpenDialog=async()=>({canceled:false,filePaths:[f.other]});await f.host.chooseFolder();assert.equal(f.host.state().local.writeAllowed,false);assert.equal(f.host.state().local.commandsAllowed,false);assert.equal(f.host.state().folder,fs.realpathSync(f.other));
   await f.host.stop();assert.equal(f.host.mcp.connected,false);assert.equal(f.host.localCommands,false);assert.equal(f.host.state().local.tree,null);
  }finally{await client?.close();await f.close();}
 });
