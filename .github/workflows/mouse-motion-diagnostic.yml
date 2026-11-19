@@ -7,7 +7,7 @@ permissions:
 jobs:
   motion-observer-diagnostic:
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: desktop
@@ -102,21 +102,27 @@ jobs:
           ELECTRON_CACHE: ${{ runner.temp }}/mouse-electron-cache
           ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/mouse-builder-cache
         run: npx electron-builder --config mouse-motion-diagnostic-build.cjs --mac --arm64 --dir --publish never
-      - name: Run balanced observation experiment after the same smoke prefix
+      - name: Compare Graphite backends in separate processes on the same Mac
         run: |
           python3 - <<'PY'
-          import os,pathlib,subprocess
+          import os,pathlib,subprocess,json,hashlib,time
           exe=pathlib.Path('dist-mouse-motion-diagnostic/mac-arm64/Mouse Browser.app/Contents/MacOS/Mouse Browser').resolve();assert exe.is_file()
-          profile=pathlib.Path(os.environ['RUNNER_TEMP'])/'mouse-motion-diagnostic-profile';profile.mkdir()
-          env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(profile),'MOUSE_MOTION_DIAGNOSTIC':'1','MOUSE_DIAGNOSTIC_SOURCE_HEAD':'c8848cfa525b2c48ebbafcf7751be1d26d272590'}
-          log=pathlib.Path('mouse-motion-diagnostic-process.log')
-          with log.open('w') as out:
-           try:result=subprocess.run([str(exe),'--mouse-smoke-write','--mouse-init-race'],env=env,stdout=out,stderr=subprocess.STDOUT,timeout=660,check=False)
-           except subprocess.TimeoutExpired:
-            out.write('\nMOUSE_MOTION_DIAGNOSTIC_PROCESS_TIMEOUT\n');raise
-          text=log.read_text(errors='replace');print(text)
-          assert result.returncode==0, 'Diagnostic process did not complete'
-          assert pathlib.Path('mouse-motion-diagnostic.json').is_file(), 'Diagnostic observations missing'
+          asar=exe.parents[1]/'Resources'/'app.asar';asar_hash=hashlib.sha256(asar.read_bytes()).hexdigest();root=pathlib.Path.cwd();records=[]
+          for variant in ['default','off']:
+           output=root/'mouse-motion-diagnostic-runs'/variant;output.mkdir(parents=True)
+           profile=pathlib.Path(os.environ['RUNNER_TEMP'])/('mouse-motion-diagnostic-profile-'+variant);profile.mkdir()
+           env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(profile),'MOUSE_MOTION_DIAGNOSTIC':'1','MOUSE_DIAGNOSTIC_SOURCE_HEAD':'c8848cfa525b2c48ebbafcf7751be1d26d272590','MOUSE_DIAGNOSTIC_GRAPHITE':variant}
+           args=[str(exe),'--mouse-smoke-write','--mouse-init-race']+(['--disable-skia-graphite'] if variant=='off' else [])
+           assert hashlib.sha256(asar.read_bytes()).hexdigest()==asar_hash
+           log=output/'mouse-motion-diagnostic-process.log';record={'variant':variant,'args':args,'packagedAsarSHA256':asar_hash,'startedAt':time.time(),'diagnosticOnly':True,'releaseAcceptance':False};records.append(record)
+           with log.open('w') as out:
+            try:result=subprocess.run(args,cwd=output,env=env,stdout=out,stderr=subprocess.STDOUT,timeout=660,check=False)
+            except subprocess.TimeoutExpired:
+             out.write('\nMOUSE_MOTION_DIAGNOSTIC_PROCESS_TIMEOUT\n');record['timeout']=True;raise
+            finally:
+             record['completedAt']=time.time();(root/'mouse-motion-diagnostic-backend-launches.json').write_text(json.dumps(records,indent=2)+'\n')
+           print(log.read_text(errors='replace'));record['returncode']=result.returncode;record['reportExists']=(output/'mouse-motion-diagnostic.json').is_file();(root/'mouse-motion-diagnostic-backend-launches.json').write_text(json.dumps(records,indent=2)+'\n')
+          assert all(row['returncode']==0 and row['reportExists'] for row in records), 'A backend diagnostic did not complete; inspect both preserved process logs'
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -127,5 +133,8 @@ jobs:
             desktop/mouse-*.png
             desktop/mouse-*.log
             desktop/mouse-motion-diagnostic*.patch
+            desktop/mouse-motion-diagnostic-runs/**/*.json
+            desktop/mouse-motion-diagnostic-runs/**/*.png
+            desktop/mouse-motion-diagnostic-runs/**/*.log
           if-no-files-found: error
           retention-days: 14
