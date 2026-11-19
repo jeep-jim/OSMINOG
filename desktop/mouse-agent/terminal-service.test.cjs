@@ -20,7 +20,7 @@ test('Windows background bootstrap keeps maximum Unicode payload out of argv and
  const bootstrap=Buffer.from(match[2],'base64').toString('utf16le');assert.ok(!bootstrap.includes(command));assert.match(bootstrap,/SetEnvironmentVariable\('MOUSE_TERMINAL_PAYLOAD',\$null\)/);assert.match(bootstrap,/SetEnvironmentVariable\('MOUSE_TERMINAL_CWD',\$null\)/);assert.match(bootstrap,/Set-Location -LiteralPath \$__mouseFolder/);
 });
 test('Windows path environment is preserved case-insensitively without inheriting credentials',()=>{
- assert.deepEqual(cleanEnv({Path:'C:\\bin',SystemRoot:'C:\\Windows',USERPROFILE:'C:\\Users\\owner',Temp:'C:\\Temp',PSModulePath:'C:\\modules',OPENAI_API_KEY:'secret',NODE_OPTIONS:'--require bad',SECRET:'secret'}),{PATH:'C:\\bin',SYSTEMROOT:'C:\\Windows',USERPROFILE:'C:\\Users\\owner',TEMP:'C:\\Temp',PSModulePath:'C:\\modules'});
+ assert.deepEqual(cleanEnv({Path:'C:\\bin',SystemRoot:'C:\\Windows',USERPROFILE:'C:\\Users\\owner',Temp:'C:\\Temp',PSModulePath:'C:\\modules',pSmOdUlEaNaLySiScAcHePaTh:'C:\\cache\\ModuleAnalysisCache',OPENAI_API_KEY:'secret',NODE_OPTIONS:'--require bad',SECRET:'secret'}),{PATH:'C:\\bin',SYSTEMROOT:'C:\\Windows',USERPROFILE:'C:\\Users\\owner',TEMP:'C:\\Temp',PSModulePath:'C:\\modules',PSModuleAnalysisCachePath:'C:\\cache\\ModuleAnalysisCache'});
 });
 test('Windows PowerShell rebuilds module paths while preserving PATH and profile; Mac keeps its environment',()=>{
  const previous=Object.entries(process.env).filter(([key])=>key.toUpperCase()==='PSMODULEPATH'),windows=mock(),mac=mock(),
@@ -53,16 +53,18 @@ test('real Windows Stop before first output kills its shell and releases the sta
  const terminal=new TerminalService();terminal.start(os.tmpdir());const pid=terminal.proc.pid;terminal.stop();await until(()=>{try{process.kill(pid,0);return false;}catch(error){return error.code==='ESRCH';}});
 });
 test('real Windows PowerShell executes Unicode and exit codes; Stop terminates background descendants',{skip:process.platform!=='win32',timeout:60000},async t=>{
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-win-terminal-')),pidFile=path.join(root,'child.pid'),terminal=new TerminalService();
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-win-terminal-')),pidFile=path.join(root,'child.pid'),terminal=new TerminalService(),began=Date.now(),timings=[];
  let stage='start',failure,background,backgroundPid;
+ const mark=value=>{stage=value;timings.push({stage,elapsedMs:Date.now()-began});},cacheKey=Object.keys(process.env).find(key=>key.toUpperCase()==='PSMODULEANALYSISCACHEPATH'),cache=cacheKey&&process.env[cacheKey];
+ t.diagnostic('PowerShell module cache: '+JSON.stringify({present:!!cache,fileExists:!!cache&&fs.existsSync(cache),forwarded:!!cache&&cleanEnv().PSModuleAnalysisCachePath===cache}));
  try{
-  terminal.start(root);stage='Unicode and exit 7';const first=await terminal.execute("Write-Output 'Привет €'; cmd.exe /d /c exit 7");assert.equal(first.exitCode,7);assert.match(first.stdout,/Привет €/);
-  stage='exit reset and working directory';const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);const actual=fs.statSync(second.stdout.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').trim(),{bigint:true}),selected=fs.statSync(root,{bigint:true});assert.equal(actual.dev,selected.dev);assert.equal(actual.ino,selected.ino);
+  mark('start');terminal.start(root);mark('Unicode and exit 7');const first=await terminal.execute("Write-Output 'Привет €'; cmd.exe /d /c exit 7");assert.equal(first.exitCode,7);assert.match(first.stdout,/Привет €/);
+  mark('exit reset and working directory');const second=await terminal.execute("Set-Location -LiteralPath "+psQuote(root)+"; Write-Output (Get-Location).Path");assert.equal(second.exitCode,0);const actual=fs.statSync(second.stdout.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').trim(),{bigint:true}),selected=fs.statSync(root,{bigint:true});assert.equal(actual.dev,selected.dev);assert.equal(actual.ino,selected.ino);
   const command="if([Environment]::GetEnvironmentVariable('MOUSE_TERMINAL_PAYLOAD') -or [Environment]::GetEnvironmentVariable('MOUSE_TERMINAL_CWD')){throw 'Background launch data was retained'}; [Console]::WriteLine([Environment]::NewLine+'MOUSE_BACKGROUND_STREAM \u041f\u0440\u0438\u0432\u0435\u0442 \u20ac'); $child=Start-Process -FilePath "+psQuote(process.execPath)+" -ArgumentList @('-e','setInterval(()=>{},1000)') -NoNewWindow -PassThru; [IO.File]::WriteAllText((Join-Path (Get-Location).Path 'child.pid'),$child.Id.ToString()); Start-Sleep -Seconds 40";
-  stage='background launch';background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0,JSON.stringify(background));assert.equal(background.background,true);backgroundPid=Number(/Mouse background PID: (\d+)/.exec(background.stdout)?.[1]);assert.ok(Number.isInteger(backgroundPid)&&backgroundPid>1,JSON.stringify(background));process.kill(backgroundPid,0);
-  stage='foreground after background acknowledgement';const foreground=await terminal.execute("Write-Output 'MOUSE_FOREGROUND_READY'");assert.equal(foreground.exitCode,0,JSON.stringify(foreground));assert.match(foreground.stdout,/MOUSE_FOREGROUND_READY/);
-  stage='background descendant readiness';await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);assert.match(terminal.output.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,''),/(?:^|\r?\n)MOUSE_BACKGROUND_STREAM \u041f\u0440\u0438\u0432\u0435\u0442 \u20ac(?:\r?\n|$)/);
-  stage='owned descendant shutdown';terminal.stop();await until(()=>[backgroundPid,pid].every(ownedPid=>{try{process.kill(ownedPid,0);return false;}catch(error){return error.code==='ESRCH';}}));
+  mark('background launch');background=await terminal.execute(command,{background:true});assert.equal(background.exitCode,0,JSON.stringify(background));assert.equal(background.background,true);backgroundPid=Number(/Mouse background PID: (\d+)/.exec(background.stdout)?.[1]);assert.ok(Number.isInteger(backgroundPid)&&backgroundPid>1,JSON.stringify(background));process.kill(backgroundPid,0);
+  mark('foreground after background acknowledgement');const foreground=await terminal.execute("Write-Output 'MOUSE_FOREGROUND_READY'");assert.equal(foreground.exitCode,0,JSON.stringify(foreground));assert.match(foreground.stdout,/MOUSE_FOREGROUND_READY/);
+  mark('background descendant readiness');await until(()=>fs.existsSync(pidFile));const pid=Number(fs.readFileSync(pidFile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);process.kill(pid,0);assert.match(terminal.output.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,''),/(?:^|\r?\n)MOUSE_BACKGROUND_STREAM \u041f\u0440\u0438\u0432\u0435\u0442 \u20ac(?:\r?\n|$)/);
+  mark('owned descendant shutdown');terminal.stop();await until(()=>[backgroundPid,pid].every(ownedPid=>{try{process.kill(ownedPid,0);return false;}catch(error){return error.code==='ESRCH';}}));
  }catch(error){
   failure=error;error.message=stage+': '+error.message;
   if(background)t.diagnostic('Background launch reply: '+JSON.stringify(background));
@@ -70,5 +72,5 @@ test('real Windows PowerShell executes Unicode and exit codes; Stop terminates b
   t.diagnostic('Terminal output at '+stage+': '+terminal.output.slice(-10000));
   throw error;
  }
- finally{terminal.stop();try{await fs.promises.rm(root,{recursive:true,force:true,maxRetries:10,retryDelay:100});}catch(error){if(!failure)throw error;t.diagnostic('Cleanup after '+stage+': '+error.message);}}
+ finally{timings.push({stage:failure?'failed':'passed',elapsedMs:Date.now()-began});t.diagnostic('Terminal stage timings: '+JSON.stringify(timings));terminal.stop();try{await fs.promises.rm(root,{recursive:true,force:true,maxRetries:10,retryDelay:100});}catch(error){if(!failure)throw error;t.diagnostic('Cleanup after '+stage+': '+error.message);}}
 });

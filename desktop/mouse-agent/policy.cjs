@@ -7,7 +7,9 @@ function cleanEnv(source=process.env){
  // Windows environment names are case-insensitive (usually Path/SystemRoot).
  // Preserve only executable, profile and temporary-directory discovery; model
  // credentials and NODE_OPTIONS are never inherited by terminal/MCP children.
- const names=['PATH','HOME','USER','LOGNAME','LANG','LC_ALL','TMPDIR','SHELL','SYSTEMROOT','SYSTEMDRIVE','WINDIR','COMSPEC','PATHEXT','USERPROFILE','HOMEDRIVE','HOMEPATH','APPDATA','LOCALAPPDATA','TEMP','TMP','PROGRAMFILES','PROGRAMFILES(X86)','COMMONPROGRAMFILES','PSModulePath'];
+ // Keep the standard PowerShell command-discovery cache path even when the
+ // Windows shell must rebuild its module search path for its own version.
+ const names=['PATH','HOME','USER','LOGNAME','LANG','LC_ALL','TMPDIR','SHELL','SYSTEMROOT','SYSTEMDRIVE','WINDIR','COMSPEC','PATHEXT','USERPROFILE','HOMEDRIVE','HOMEPATH','APPDATA','LOCALAPPDATA','TEMP','TMP','PROGRAMFILES','PROGRAMFILES(X86)','COMMONPROGRAMFILES','PSModulePath','PSModuleAnalysisCachePath'];
  const keys=new Map(Object.keys(source).map(key=>[key.toUpperCase(),key]));return Object.fromEntries(names.map(key=>[key,source[keys.get(key.toUpperCase())]]).filter(([,value])=>typeof value==='string'));
 }
 module.exports={webURL,endpoint,preview,text,cleanEnv};
