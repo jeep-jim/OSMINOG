@@ -1,6 +1,6 @@
 # МАУС · Mouse Browser
 
-Домен проекта: **mouse.black**. Текущий опубликованный Mac-выпуск: **6.0.22**. Канал обновлений проверен; установка поверх6.0.21 с сохранением профиля прошла.
+Домен проекта: **mouse.black**. Текущий опубликованный Mac-выпуск: **6.0.29**. Исходники **6.0.30** приняты и объединены; [финальный publisher](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266) проверяет установленный пакет перед публикацией. Полный статус и доказательства — в [журнале 6.0.30](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
 
 ## 16 ноября 2026 — 6.0.14, выполнено и опубликовано
 
@@ -529,3 +529,11 @@ PASS. Доступность отмечена на попытке 47 после 
 физический трекпад; скроллбары проверены на локальной Chromium fixture, не в
 авторизованной сессии ВК. Прежние failed/pending записи сохраняются как история;
 на этом итоговом этапе обязательных ожидающих publisher-проверок нет.
+
+## 19 ноября 2026 — 6.0.30: исходник принят, финальная публикация выполняется
+
+Принят source `a1e3d0d8a594cbf324fee8cece53080c9f750d12`: все восемь CI checks, [Mac run44524997073](https://github.com/jeep-jim/OSMINOG/actions/runs/44524997073), независимые frozen630 и immutable628 trace,17/17 native markers и проверка обоих package hashes прошли. [PR169](https://github.com/jeep-jim/OSMINOG/pull/169) merged как `82b6d317eed274d4c009572581970280bec2fb3e`. Нора поверх страниц, прежние цвета прожилок, две темы и углы, progress pills под адресом, download/shutter/private и внутренний two-finger/wheel route проверены на настоящих Mac PNG/JSON. Физический трекпад владельца не проверялся.
+
+[Release PR53](https://github.com/jeep-jim/OSMINOG-Releases/pull/53) merged как `83e5f23d009ef4495179844c2a50cb1c2192f18c`. Первый contract остановился из-за различий AST serialization между Python3.12 и3.13; все32 различия воспроизведены на неизменённых файлах. Workflow закреплён на Python3.12, исходные checkers/tests/digests не менялись; новый contract и оба registry checks PASS.
+
+[Publisher44528964266](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266), attempt1/job135577124089, завершил import5 в13:01:24Z и начал отдельный установленный Mac-прогон с реальным обновлением опубликованной6.0.29. Текущий статус **SOURCE_VERIFIED / PUBLISHER_RUNNING**; публичный пакет/канал6.0.30 и анонимная загрузка старым обновлятором ещё не подтверждены. Source candidate не пересобирается; опубликованные bytes6.0.29 сохраняются. Полные hashes, история отказов и пределы доказательств — в [журнале630](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
