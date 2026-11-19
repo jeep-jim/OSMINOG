@@ -275,3 +275,62 @@ results cannot turn the original failure into PASS. A no-subscription trial is
 explicitly not a presented-pixel proof. This comparison can identify evidence
 consistent with capture overhead under tracing, but cannot alone remove order,
 host-load or tracing confounds. No further blind rerun was requested.
+
+## Sixth candidate — transition fixture was never painted before it was hidden
+
+Source `8a7acf464e575d09b887b9079ccc2e7f9abeef95`,
+[run44495617866](https://github.com/jeep-jim/OSMINOG/actions/runs/44495617866),
+attempt1/job135461908576:176/594/529 source tests and native packaging PASS.
+The source Nora motion assertions, complete629 UI block, retained borderless,
+content-fit and open-Nora desktop-slide blocks, and629 gesture WRITE all pass.
+The diagnostic A/B is not invoked: its original Nora-failure trigger is absent.
+This is still a failed run, with no candidate upload or release publication.
+
+Verification artifact14514718435:17400295 bytes, SHA-256
+`907fd225f6ed54cd129cd58203c6bcf1eeb056cc49695f0cbd3f2e0b26bbb966`.
+The downloaded ZIP matches the GitHub artifact digest. The full job log is
+626586 bytes, SHA-256
+`8a867701fad2c1ef5f6816395eff5f1f4386c79e27bccc93905306d11e569bf7`.
+
+The ordinary627 selector times out after4000ms/19 callbacks. Its new diagnostics
+make the missing precondition observable: the incoming native PNG247x572 has
+zero red-marker pixels anywhere, despite DOM reporting a236x8 red marker and
+scrollY137. The PNG still shows the pre-scroll input at the top. The outgoing
+PNG contains its blue marker. All19 shell callbacks therefore have red count0;
+blue counts during the actual transition include765,217,151,103. The selector
+correctly rejects them. There are11 intermediate renderer frames, both decoded
+surfaces, and a372.7ms completed animation. Increasing the capture timeout would
+not repair a marker absent from its source image.
+
+The test currently adds both markers and scrolls after the first page is already
+hidden. The correction prepares each fixture while its native page is visible,
+before its first departure, and confirms the marker in bounded native readback.
+The measured transitions retain their existing RGB, minimum-pixel, frame-count,
+identity, scroll, duration and layout-count assertions. This changes fixture
+readiness only; it does not alter product motion or infer freshness for arbitrary
+background-page DOM updates.
+
+Independent release validation accepts this archive's360 separator and16 Nora
+overlap probes, four trusted scroll completions, and retained628 UI evidence.
+The frozen two-input trace gate separately rejects `laterClosing:
+compositor/Blink completions disagree` in the otherwise complete157049-event
+trace. This is a distinct unresolved evidence failure, not a trace PASS. Fresh
+process gesture-read and628-to629 profile upgrade have not been reached.
+The rejected later-close generation34 has raw Chromium Blink END timestamps
+371097509/371097528 microseconds and compositor END371123900/371123928:
+26.372–26.419ms exceeds the unchanged20ms correlation bound. A29.395ms
+BeginMainFrame spans these events. This establishes delayed lifecycle evidence,
+not whether product behavior, tracing, or runner load caused a visible defect.
+The earlier light/dark opening/closing RAF counts are11/6/10/5 respectively.
+
+The fixture correction now prepares page A after its final viewport is visible
+and before the existing first switch; page B is prepared after native visibility
+is confirmed. It adds no desktop round trip. At most8 native readbacks within4s
+must show both the fixed band and a separate scrolled-content pixel, after two
+guest RAFs. Identity, visibility, URL, epoch and bounds remain pinned. Original
+style/scroll state and actual preparation PNGs are retained for cleanup/evidence.
+Each measured source PNG must also contain its expected band. The old transition
+selector and all timing/animation assertions are unchanged. Local
+`node --test mouse-621.test.cjs mouse-smoke-frames.test.cjs mouse-desktop-slide.test.cjs`
+passes82/82, including stale-band, stale-scroll and hidden/changed-viewport
+rejections. Syntax and diff checks pass; native acceptance remains pending.
