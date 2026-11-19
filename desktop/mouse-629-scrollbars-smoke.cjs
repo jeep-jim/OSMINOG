@@ -23,11 +23,22 @@ html:root::-webkit-scrollbar-thumb,#nested::-webkit-scrollbar-thumb{background:#
 #description{position:fixed;left:32px;top:386px;max-width:520px;line-height:1.5}
 </style></head><body><h1>Mouse Browser · native scrollbars</h1><div id="nested"><div>Nested overflow with author white !important scrollbar styles</div></div><input id="native-input" value="Site-owned native form control"/><p id="description">Root and nested native scrollbars share the browser skin. The page and this light native input retain their own colours.</p><script>
 globalThis.mouse629ScrollbarWheel=[];
+globalThis.mouse629ScrollbarScrollEnd=[];
 document.addEventListener('wheel',event=>{
  const events=globalThis.mouse629ScrollbarWheel;
- events.push({isTrusted:event.isTrusted,deltaX:event.deltaX,deltaY:event.deltaY,deltaMode:event.deltaMode,x:event.clientX,y:event.clientY,nested:!!event.target.closest?.('#nested'),at:performance.now()});
+ events.push({index:(events.at(-1)?.index??-1)+1,isTrusted:event.isTrusted,deltaX:event.deltaX,deltaY:event.deltaY,deltaMode:event.deltaMode,x:event.clientX,y:event.clientY,nested:!!event.target.closest?.('#nested'),at:performance.now()});
  if(events.length>32)events.shift();
 },{capture:true,passive:true});
+for(const [target,element]of [['root',document],['nested',document.querySelector('#nested')]]){
+ element.addEventListener('scrollend',event=>{
+  if(event.target!==element)return;
+  const root=document.documentElement,nested=document.querySelector('#nested'),scroller=target==='root'?root:nested;
+  const wheel=[...globalThis.mouse629ScrollbarWheel].reverse().find(value=>value.nested===(target==='nested'));
+  const events=globalThis.mouse629ScrollbarScrollEnd;
+  events.push({target,isTrusted:event.isTrusted,at:performance.now(),root:root.scrollTop,nested:nested.scrollTop,scrollTop:scroller.scrollTop,scrollLeft:scroller.scrollLeft,wheelEventIndex:wheel?.index??-1});
+  if(events.length>32)events.shift();
+ },{passive:true});
+}
 </script></body></html>`;
 
 // Serialized into the guest to measure the actually rendered document.
@@ -37,13 +48,20 @@ function measureScrollbars(){
  const geometry=element=>({clientWidth:element.clientWidth,clientHeight:element.clientHeight,offsetWidth:element.offsetWidth,offsetHeight:element.offsetHeight,scrollWidth:element.scrollWidth,scrollHeight:element.scrollHeight,scrollTop:element.scrollTop,scrollLeft:element.scrollLeft});
  const inputStyle=getComputedStyle(input),bodyStyle=getComputedStyle(document.body);
  return{
-  viewport:{width:innerWidth,height:innerHeight,devicePixelRatio},timeOrigin:performance.timeOrigin,
+  at:performance.now(),viewport:{width:innerWidth,height:innerHeight,devicePixelRatio},timeOrigin:performance.timeOrigin,
   media:{dark:matchMedia('(prefers-color-scheme: dark)').matches,forcedColors:matchMedia('(forced-colors: active)').matches},
   root:{...css(root),...geometry(root),corner:getComputedStyle(root,'::-webkit-scrollbar-corner').backgroundColor},
   nested:{...css(nested),...geometry(nested),corner:getComputedStyle(nested,'::-webkit-scrollbar-corner').backgroundColor},
   site:{background:bodyStyle.backgroundColor,color:bodyStyle.color,rootScheme:getComputedStyle(root).colorScheme,input:{background:inputStyle.backgroundColor,color:inputStyle.color,scheme:inputStyle.colorScheme,border:inputStyle.borderTopColor,appearance:inputStyle.appearance}},
-  wheelEvents:globalThis.mouse629ScrollbarWheel.map(event=>({...event}))
+  wheelEvents:globalThis.mouse629ScrollbarWheel.map(event=>({...event})),
+  scrollEndSupported:{root:'onscrollend' in document,nested:'onscrollend' in nested},
+  scrollEndEvents:globalThis.mouse629ScrollbarScrollEnd.map(event=>({...event}))
  };
+}
+
+function matchingScrollEnd(value,event,target){
+ if(!event?.isTrusted||event.nested!==(target==='nested'))return null;
+ return value.scrollEndEvents.find(end=>end.target===target&&end.isTrusted&&end.wheelEventIndex===event.index&&end.at>=event.at&&end.root===value.root.scrollTop&&end.nested===value.nested.scrollTop)||null;
 }
 
 function styleEvidence(value,theme){
@@ -71,29 +89,49 @@ module.exports=async function run({app,win,browser,store}){
  const original={...await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})'),noraOpen};
  const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),desktop=bank.active;
  const originalPages=new Map([...browser.tabs.values(),...browser.providers.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0}]));
- const facts={version:app.getVersion(),source:'installed guest WebContents + bundled preload',physicalTrackpadVerified:false,themes:[],wheel:{},restored:false};
+ const facts={version:app.getVersion(),source:'installed guest WebContents + bundled preload',physicalTrackpadVerified:false,themes:[],wheel:{},wheelAttempts:[],restored:false};
  const evidencePath=path.join(os.tmpdir(),'mouse-629-scrollbars.json');
  let server,createdId=null,page=null,wc=null,verificationError=null;
  const save=()=>fs.writeFile(evidencePath,JSON.stringify(facts,null,2)+'\n');
  const guest=source=>wc.executeJavaScript(source);
  const measure=()=>guest('('+measureScrollbars.toString()+')()');
  const settle=()=>guest('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
- async function wheel(target){
+ async function wheel(target,theme){
   app.focus({steal:true});win.show();win.focus();wc.focus();
   await until(()=>win.isFocused()&&page.visible,'visible focused native guest');
   const point=await guest(`(()=>{const nested=document.querySelector('#nested'),r=nested.getBoundingClientRect();const point=${JSON.stringify(target)}==='nested'?{x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)}:{x:Math.round(innerWidth-45),y:Math.round(innerHeight-55)};const hit=document.elementFromPoint(point.x,point.y);return{...point,nested:!!hit?.closest('#nested'),hit:hit?.tagName||'',inside:point.x>0&&point.x<innerWidth&&point.y>0&&point.y<innerHeight};})()`);
   assert.equal(point.inside,true);assert.equal(point.nested,target==='nested');
-  const before=await measure(),desktopBefore={bank:bank.active,shell:await js('MouseTest.model.desktopId')},eventCount=before.wheelEvents.length;
+  const before=await measure(),desktopBefore={bank:bank.active,shell:await js('MouseTest.model.desktopId')},eventIndex=(before.wheelEvents.at(-1)?.index??-1)+1;
   const input={type:'mouseWheel',x:point.x,y:point.y,deltaX:0,deltaY:-160};
-  wc.sendInputEvent({type:'mouseMove',x:point.x,y:point.y});wc.sendInputEvent(input);
-  let after;
-  await until(async()=>{after=await measure();return after.wheelEvents.length>eventCount&&after[target].scrollTop!==before[target].scrollTop;},'trusted native wheel scrolls '+target);
-  await sleep(120);await settle();after=await measure();
-  const event=after.wheelEvents[eventCount];assert.equal(event.isTrusted,true);assert.equal(event.nested,target==='nested');assert.notEqual(event.deltaY,0);
-  assert.notEqual(after[target].scrollTop,before[target].scrollTop,'Native wheel moves real page content');
-  const other=target==='nested'?'root':'nested';assert.equal(after[other].scrollTop,before[other].scrollTop,'Only the intended scroll container moves');
-  const desktopAfter={bank:bank.active,shell:await js('MouseTest.model.desktopId')};assert.deepEqual(desktopAfter,desktopBefore);assert.equal(desktopAfter.bank,desktop);assert.equal(desktopAfter.shell,desktop);
-  return{input,point,event,before:{root:before.root.scrollTop,nested:before.nested.scrollTop},after:{root:after.root.scrollTop,nested:after.nested.scrollTop},desktopBefore,desktopAfter};
+  const positions=value=>({root:value.root.scrollTop,nested:value.nested.scrollTop});
+  const record={theme,target,status:'prepared',startedAt:before.at,observedAt:before.at,input,point,event:null,before:positions(before),after:positions(before),desktopBefore,desktopAfter:null,completion:{method:'trusted scrollend',timeoutMs:6000,supported:before.scrollEndSupported[target],event:null,observedAt:null,positions:null,afterTwoFrames:null}};
+  facts.wheelAttempts.push(record);await save();
+  let after=before;
+  const update=value=>{after=value;record.observedAt=value.at;record.after=positions(value);record.event=value.wheelEvents.find(event=>event.index===eventIndex)||null;};
+  try{
+   assert.equal(record.completion.supported,true,'Installed Chromium supports native scrollend for '+target);
+   wc.sendInputEvent({type:'mouseMove',x:point.x,y:point.y});wc.sendInputEvent(input);record.status='sent';
+   const deadline=Date.now()+record.completion.timeoutMs;
+   // A fixed delay can sample the last animation frames (458, then 460 in the
+   // native regression). Only Chromium's trusted scrollend completes this wheel.
+   while(Date.now()<=deadline){
+    update(await measure());const end=matchingScrollEnd(after,record.event,target);
+    if(end&&after[target].scrollTop!==before[target].scrollTop){record.completion.event=end;record.completion.observedAt=after.at;record.completion.positions=positions(after);break;}
+    await sleep(25);
+   }
+   assert.ok(record.completion.event,'Mouse629 scrollbar timeout: trusted native scrollend for '+target);
+   await settle();update(await measure());record.completion.afterTwoFrames={at:after.at,...positions(after)};
+   assert.deepEqual(positions(after),record.completion.positions,'Completed wheel remains at the same exact positions after two animation frames');
+   const event=record.event;assert.equal(event.isTrusted,true);assert.equal(event.nested,target==='nested');assert.notEqual(event.deltaY,0);
+   assert.notEqual(after[target].scrollTop,before[target].scrollTop,'Native wheel moves real page content');
+   const other=target==='nested'?'root':'nested';assert.equal(after[other].scrollTop,before[other].scrollTop,'Only the intended scroll container moves');
+   record.desktopAfter={bank:bank.active,shell:await js('MouseTest.model.desktopId')};assert.deepEqual(record.desktopAfter,desktopBefore);assert.equal(record.desktopAfter.bank,desktop);assert.equal(record.desktopAfter.shell,desktop);
+   record.status='completed';await save();return record;
+  }catch(error){
+   record.status='failed';record.error={message:error.message};
+   try{update(await measure());record.observedScrollEnds=after.scrollEndEvents;record.desktopAfter={bank:bank.active,shell:await js('MouseTest.model.desktopId')};}catch(measureError){record.measureError=measureError.message;}
+   await save();throw error;
+  }
  }
  try{
   await js('(async()=>{MouseTest.restorePane();await MouseNative.window("pane-restore");MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.model.libraryOpen=false;MouseTest.model.focusPane="";MouseTest.model.focusAI=false;MouseTest.changeLayout(1);MouseTest.applySide();await MouseTest.save();})()');
@@ -115,7 +153,7 @@ module.exports=async function run({app,win,browser,store}){
     for(const field of ['clientWidth','clientHeight','scrollTop','scrollLeft'])assert.equal(measured[key][field],beforeTheme[key][field],key+' '+field+' is stable across a theme change');
    }
    if(previous)assert.deepEqual(measured.site,previous.site,'Both browser themes preserve identical page styling');
-   const wheels={root:await wheel('root'),nested:await wheel('nested')};if(theme==='dark')facts.wheel=wheels;
+   const wheels={root:await wheel('root',theme),nested:await wheel('nested',theme)};if(theme==='dark')facts.wheel=wheels;
    const filename='mouse-629-scrollbars-'+theme+'.png',filePath=path.join(os.tmpdir(),filename),image=await wc.capturePage(),png=image.toPNG(),pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)};
    assert.ok(pixelSize.width>0&&pixelSize.height>0);await fs.writeFile(filePath,png);
    const afterWheels=await measure();styleEvidence(afterWheels,theme);
@@ -140,3 +178,4 @@ module.exports=async function run({app,win,browser,store}){
 
 module.exports.fixtureHTML=fixtureHTML;
 module.exports.measureScrollbars=measureScrollbars;
+module.exports.matchingScrollEnd=matchingScrollEnd;

@@ -139,3 +139,31 @@ Fractional-boundary regression tests reproduce the old failure through the real
 subpixel move crossing a native endpoint, and cover replacement behind open Nora.
 59 focused backdrop/slide/theme/gesture tests PASS after the correction; the new
 cases failed before it. No animation duration or frame acceptance threshold changed.
+
+
+## Third candidate — dense-pane correction verified, wheel test sampled early
+
+Source `9a7def0988c09b7566ebdcd59cf4891c8d4cd67c`,
+[run44485195422](https://github.com/jeep-jim/OSMINOG/actions/runs/44485195422),
+job135426787407:176/594/529 test batches and native packages PASS. Independent
+re-decoding of the archived display/crop PNGs confirms all four seven-pane
+separator scenes:360 total probes (72 divider,256 corner-cutout,32 page-interior).
+Both light/dark Nora scenes pass16 actual overlap-fill probes, all seven native
+guests hidden, seven snapshots, preserved page identity/bounds, and restored
+desktop bank/preferences. The fractional-boundary opening failure is resolved in
+this installed run.
+
+Verification artifact14510896060:5609273 bytes, SHA-256
+`548021c49089c25990d54b67000ef905fc40b0a2b8cdc2743094491adf656dfc`.
+The run still fails before final acceptance: the scrollbar test sampled the root
+at458 after its first160px wheel, then saw460 while testing the nested container.
+Recorded trusted native wheel inputs occurred at604.2ms(root) and765.3ms(nested);
+final positions were root460 and nested240. Dark root/nested width `thin`, colours
+`rgb(104,104,104) rgb(23,23,23)`, corners `rgb(23,23,23)` and site-owned light form
+styles were observed as intended. A fixed120ms wait does not establish completed
+scrolling. The next fixture waits for actual trusted `scrollend` before sending
+the next input, retains exact equality of the untouched container, and records
+the completion evidence. No product scrollbar CSS or input-routing rule changes.
+
+This partial native/UI proof does not replace the missing complete scrollbar,
+gesture, motion, restart and real-upgrade gates. Publication remains pending.
