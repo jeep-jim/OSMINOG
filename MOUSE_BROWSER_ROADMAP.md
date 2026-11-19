@@ -563,3 +563,35 @@ PR174 head `c436b9b958ea257d980ef163c5fd8faf9bf4fb9f`, [Mac run 44538212380](htt
 Verification14539548056 проверен по происхождению, SHA/размеру/CRC и всем байтам: acquisitionPASS, overallREJECT,0/17markers, без628trace/candidate. Motion-протокол5240 этим прогоном не проверен. Отдельный generic Mac candidate44544018980 упал до тестов на HTTP500 загрузки Electron; остальные6 workflows прошли.
 
 Добавлен узкий пассивный navigation receipt до History: новый main-frame start→finish после единственного Return, сохранённая identity/advanced epoch и естественный blur исходного input в остатке прежних12000ms. Нет повторных inputs, refocus внутри barrier, изменения продукта или ослабления frozen gates. Локально22/22 focused tests PASS,17 прежних test bodies сохранены; syntax/diff-check PASS. Точные SHA и ограничения — в [журнале630](docs/desktop/2026-11-19-mouse630-complete-feedback.md). Статус **SOURCE_RECHECK_PENDING / PUBLICATION_PENDING**; ни merge, ни новый release pin по5240 не выполняются.
+
+
+## 19 ноября 2026 — Mouse Browser 6.0.29 Windows x64 опубликован
+
+Прямое поручение владельца выполнено: готов самостоятельный установщик именно
+**6.0.29 для Windows x64**. Статус **PUBLISHED / VERIFIED_DOWNLOAD**.
+[Прямая загрузка](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.29-x64/Mouse-Browser-6.0.29-Windows-x64.exe)
+и [страница релиза](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.29-x64)
+проверены; опубликованный файл — 125623123 байта, SHA-256
+`18bf6e78eb5519e37d2ceb0e45acd1ea88d8f519e715e1d94d2fbc3c476e2e9d`.
+
+Точный source `164462db8d81f614cce9c9a8ab5d1fed0e2b7381` принят через PR175
+в отдельную ветку `release/mouse-6.0.29`. Полный
+[source run 44548393177](https://github.com/jeep-jim/OSMINOG/actions/runs/44548393177)
+прошёл на Windows Server 2022 и 2025: 176 базовых, 632 Mouse и 7 Python-проверок;
+установленный UI/Agent/документы/приватность, переустановка, профиль и фактическая
+замена с повторным запуском. Нативный помощник отдельно проверен на обоих хостах.
+Исправления современного Windows-композитора и времени жизни обновлятора,
+история отказов и точные hashes сохранены в
+[полном журнале Windows](docs/desktop/2026-11-19-mouse629-windows.md).
+
+[Publisher 44554901554](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44554901554)
+повторно проверил тот же установщик, опубликовал release 451521130 в 15:32:59Z,
+проверил четыре публичных assets и анонимно скачал весь EXE с проверкой размера,
+SHA-256 и повторным хешированием. Windows-канал 6.0.29 обнаружен с первой попытки,
+проверка текущей версии прошла. Сравнительная 6.0.28 — fixture, не прежний реальный
+Windows-релиз. Итоговый evidence artifact 14545915755:
+SHA-256 `666eb7f3386b4fb01fd659789bb1ba54c1de4e6b4e4514f035f60cc9967209a2`.
+
+Это unsigned prerelease; физический компьютер/тачпад владельца и внешние
+авторизованные аккаунты не проверялись. Новая основная ветка и Mac-канал
+сохранены отдельно. Исходники Windows и его канал не откатывают работу над 6.0.30.
