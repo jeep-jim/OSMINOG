@@ -1,0 +1,48 @@
+name: Mouse Browser Windows x64 6.0.28
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/mouse-windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mouse-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix mouse-agent
+      - run: node mouse-agent/prepare.cjs
+      - run: npm run prepare:runtime
+      - run: node mouse-native-build.cjs
+      - run: node mouse-icon.cjs
+      - name: Run cross-platform Mouse tests
+        run: node --test mouse-browser.test.cjs mouse-progress.test.cjs mouse-progress-bridge.test.cjs mouse-progress-pane.test.cjs mouse-documents.test.cjs mouse-document-tabs.test.cjs mouse-desktops.test.cjs mouse-gesture.test.cjs mouse-local-ui.test.cjs
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          npx electron-builder --config mouse-build.cjs --win nsis --x64 --publish never --config.win.icon=icons/trader-os.ico --config.win.target=nsis --config.artifactName='Mouse-Browser-6.0.28-Windows-x64.${ext}' --config.nsis.oneClick=false --config.nsis.perMachine=false --config.nsis.deleteAppDataOnUninstall=false
+      - name: Check installer output
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist-mouse/*.exe
+          if (-not $files) { throw 'Mouse Windows installer missing' }
+          $files | ForEach-Object { Write-Host "$($_.Name) $($_.Length) bytes" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mouse-Browser-6.0.28-Windows-x64
+          path: desktop/dist-mouse/*.exe
+          if-no-files-found: error
+          retention-days: 30
