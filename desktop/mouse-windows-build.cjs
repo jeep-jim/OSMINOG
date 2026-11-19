@@ -20,7 +20,7 @@ module.exports={
  ]}],
  win:{target:[{target:'nsis',arch:['x64']}],icon:'icons/mouse-browser.ico',
   signAndEditExecutable:true,verifyUpdateCodeSignature:false},
- nsis:{oneClick:false,perMachine:false,allowElevation:false,
+ nsis:{oneClick:false,perMachine:false,allowElevation:false,include:'mouse-windows-installer.nsh',
   allowToChangeInstallationDirectory:true,deleteAppDataOnUninstall:false,
   installerIcon:'icons/mouse-browser.ico',uninstallerIcon:'icons/mouse-browser.ico',
   installerHeaderIcon:'icons/mouse-browser.ico',shortcutName:'Mouse Browser',

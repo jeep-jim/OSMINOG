@@ -27,7 +27,7 @@ module.exports=async ctx=>{
  const frame=()=>js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
  async function focus(){win.show();if(win.isMinimized())win.restore();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'native window foreground');await frame();}
  async function click(selector){
-  await focus();let point;await until(async()=>{point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return point.ready===true;},'native control '+selector);
+  await focus();let point;await until(async()=>{point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return point.ready===true;},'native control '+selector).catch(error=>{error.message+='; last hit test: '+JSON.stringify(point);throw error;});
   const bounds=win.getContentBounds();assert.equal(nativeInput.testClick(bounds.x+point.x,bounds.y+point.y),true);await sleep(80);
  }
  async function checkbox(selector,checked){

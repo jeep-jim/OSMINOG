@@ -77,3 +77,32 @@ hash difference was reproduced exactly by LF-to-CRLF conversion; the builder
 now disables checkout conversion rather than changing the accepted artwork
 hash. The native boundary remains based on held handles and reparse/hardlink
 rejection. Follow-up Windows execution is required for every correction.
+
+
+## Windows native and unit gate; first installed application
+
+The native filesystem corrections preserve handle-relative lookup and use the
+host libuv descriptor table. NTFS replacement uses NtSetInformationFile with a
+held parent; the destination metadata handle is closed before replacement.
+Existing-file writes also compare the bounded original bytes through the checked
+handle: same-size edits can share a Windows timestamp. This is a precommit
+conflict check, not an atomic compare-and-swap guarantee against external editors.
+The Windows terminal owns descendant processes through a Job object and closes
+the bundled ConPTY pipes and worker on Stop, including Stop before first output.
+
+At source `6073548d39e364958e3f1353012da1d8442d9781`,
+[run 44507849036](https://github.com/jeep-jim/OSMINOG/actions/runs/44507849036)
+completed native compilation, 176/176 base tests, 624/624 retained/Windows tests
+with no skips, four Python verifier checks, and the NSIS build. The installer
+actually installed into a directory containing spaces and Cyrillic characters:
+exit zero after 27094 ms. The installed executable was AMD64 (0x8664), emitted
+MOUSE_READY 6.0.29, and opened native page layouts. Installed acceptance then
+failed because the new Windows smoke attempted to use hidden legacy global
+Back/Forward/Reload controls. The application exposes those actions in the active
+pane. The smoke now targets those real visible controls; no acceptance requirement
+was removed. Python stdout/stderr are explicitly UTF-8 so runner ANSI encoding
+cannot obscure the original failure while printing a Cyrillic path.
+
+The next candidate merges the already published Mac 6.0.29 journal and retains
+both platform histories. Windows installed acceptance and public availability
+remain pending at this checkpoint. No owner-device test has been performed.

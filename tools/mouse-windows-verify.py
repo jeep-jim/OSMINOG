@@ -63,6 +63,31 @@ def sha256(file: Path) -> str:
     return digest.hexdigest()
 
 
+def authenticode(file: Path, env: dict) -> dict:
+    # Paths remain environment data, never interpolated into PowerShell source.
+    # Measure the actual package instead of trusting a generic builder log line.
+    command = r"""$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$signature = Get-AuthenticodeSignature -LiteralPath $env:MOUSE_WINDOWS_AUTHENTICODE_FILE
+$certificate = $signature.SignerCertificate
+[ordered]@{
+ status = $signature.Status.ToString()
+ statusMessage = $signature.StatusMessage
+ signerSubject = $(if ($certificate) { $certificate.Subject } else { $null })
+ signerThumbprint = $(if ($certificate) { $certificate.Thumbprint } else { $null })
+} | ConvertTo-Json -Compress
+"""
+    powershell = Path(env.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    result = subprocess.run([str(powershell), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+                            env={**env, "MOUSE_WINDOWS_AUTHENTICODE_FILE": str(file)},
+                            stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8-sig",
+                            timeout=30, check=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    data = json.loads(result.stdout)
+    if not isinstance(data, dict) or not isinstance(data.get("status"), str) or not data["status"]:
+        raise RuntimeError("Authenticode returned no actual signature status")
+    return {"source": "Get-AuthenticodeSignature", "path": str(file), "sha256": sha256(file), **data}
+
+
 def pe_machine(file: Path) -> int:
     with file.open("rb") as handle:
         header = handle.read(64)
@@ -332,7 +357,8 @@ def install(installer: Path, target: Path, env: dict, log: Path) -> dict:
         raise RuntimeError(f"Installed executable is not PE AMD64: {machine:#x}")
     result.pop("output")
     return {**result, "executable": str(executable), "peMachine": "0x8664",
-            "executableSha256": sha256(executable), "unicodeAndSpaces": True}
+            "executableSha256": sha256(executable), "unicodeAndSpaces": True,
+            "authenticode": authenticode(executable, env)}
 
 
 def normal_launch(executable: Path, env: dict, output: Path) -> dict:
@@ -472,6 +498,7 @@ def main(argv=None) -> int:
         report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     try:
+        evidence["authenticode"] = {"installer": authenticode(installer, env)}
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
         executable = target / "Mouse Browser.exe"
         for mode, markers in (("write", WRITE_MARKERS), ("read", READ_MARKERS)):

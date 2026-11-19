@@ -13,12 +13,15 @@ for(const name of ['mouse-windows-audit.json','mouse-windows-agent-audit.json'])
  if(audit.error||!audit.metadata||audit.metadata.vulnerabilities.high||audit.metadata.vulnerabilities.critical)throw Error('Production dependency audit failed: '+name);
 }
 const size=fs.statSync(installer).size;if(size<50*1024*1024||size>500*1024*1024)throw Error('Installer size outside expected range');
+const installerHash=sha(installer),signature=evidence.authenticode?.installer;
+if(evidence.installerSha256!==installerHash||evidence.installerBytes!==size||signature?.source!=='Get-AuthenticodeSignature'||signature.sha256!==installerHash||typeof signature.status!=='string'||!signature.status)throw Error('Measured installer signature is not bound to the verified package');
+const signing=signature.status==='NotSigned'?'unsigned':signature.status==='Valid'?'signed':'invalid';
 const source=cp.execFileSync('git',['rev-parse','HEAD'],{cwd:desktop,encoding:'utf8'}).trim();
 if(!/^[a-f0-9]{40}$/.test(source))throw Error('Source commit missing');
 const metadata={version,productName:'Mouse Browser',platform:'win32',arch:'x64',source,
  runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,
- signing:'unsigned',ownerDeviceVerified:false,
- package:{name,size,sha256:sha(installer)},
+ signing,authenticode:signature,ownerDeviceVerified:false,
+ package:{name,size,sha256:installerHash},
  verification:{file:path.basename(evidencePath),sha256:sha(evidencePath),result:evidence},
  updateChannel:'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json'};
 fs.writeFileSync(path.join(out,'mouse-windows-build.json'),JSON.stringify(metadata,null,2)+'\n');
