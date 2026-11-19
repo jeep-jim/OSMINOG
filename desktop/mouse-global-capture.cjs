@@ -4,11 +4,13 @@
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const SHORTCUT = 'Control+A';
+const WINDOWS_SHORTCUT = 'Control+Alt+S';
 const SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
 class GlobalCapture {
- constructor({electron,app,mainWindow,store,trusted,entryDirectory,test=false}) {
+ constructor({electron,app,mainWindow,store,trusted,entryDirectory,test=false,platform=process.platform}) {
   this.e=electron;this.app=app;this.main=mainWindow;this.store=store;this.trusted=trusted;
-  this.nativeCapture=null;if(process.platform==='darwin'){try{this.nativeCapture=require('./mouse-screen-capture.node')}catch{}}
+  this.platform=platform;this.isWindows=platform==='win32';this.shortcut=this.isWindows?WINDOWS_SHORTCUT:SHORTCUT;
+  this.nativeCapture=null;if(platform==='darwin'){try{this.nativeCapture=require('./mouse-screen-capture.node')}catch{}}
   this.dir=entryDirectory;this.test=test;this.enabled=true;this.registered=false;this.busy=false;
   this.editor=null;this.pending=null;this.lastError='';this.captureCount=0;this.requests=0;
   this.editorEntry=pathToFileURL(path.join(this.dir,'mouse/capture-global.html')).href;
@@ -29,7 +31,7 @@ class GlobalCapture {
    if(action==='request'){void this.request();return this.state();}
    if(action==='choose'){void this.request(true);return this.state();}
    if(action==='refresh'){this.lastError='';return this.state();}
-   if(action==='permission'){await this.e.shell.openExternal(SETTINGS_URL);return this.state();}
+   if(action==='permission'){if(!this.isWindows)await this.e.shell.openExternal(SETTINGS_URL);return this.state();}
    throw Error('Unsupported global screenshot command');
   });
   this.e.ipcMain.handle('mouse:global-capture-editor',async(event,action,args={})=>{
@@ -44,16 +46,16 @@ class GlobalCapture {
   return this;
  }
  nativeStatus(){try{return this.nativeCapture?.status()||{};}catch{return{};}}
- permission(){if(this.nativeStatus().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
- state(){return{enabled:this.enabled,registered:this.registered,shortcut:SHORTCUT,permission:this.permission(),error:this.lastError,runningOnly:true,pickerAvailable:!!this.nativeStatus().pickerAvailable,applicationPath:this.app.getPath?.('exe')||''};}
+ permission(){if(this.isWindows)return 'not-required';if(this.nativeStatus().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
+ state(){return{enabled:this.enabled,registered:this.registered,shortcut:this.shortcut,platform:this.platform,permission:this.permission(),error:this.lastError,runningOnly:true,pickerAvailable:!!this.nativeStatus().pickerAvailable,applicationPath:this.app.getPath?.('exe')||''};}
  publish(){if(!this.main.isDestroyed())this.main.webContents.send('mouse:global-capture-state',this.state());}
  register(){
-  if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);
+  if(this.registered)this.e.globalShortcut.unregister(this.shortcut);
   this.registered=false;this.lastError='';
   if(this.enabled){
-   try{this.registered=this.e.globalShortcut.register(SHORTCUT,()=>void this.request());}
+   try{this.registered=this.e.globalShortcut.register(this.shortcut,()=>void this.request());}
    catch{this.registered=false;}
-   if(!this.registered)this.lastError='Control+A занято другим приложением или недоступно. Освободите сочетание либо используйте пункт «Скриншот экрана Mac» в меню «Файл».';
+   if(!this.registered)this.lastError=this.isWindows?'Ctrl+Alt+S занято другим приложением или недоступно. Освободите сочетание либо нажмите «Снять экран сейчас» в настройках Mouse Browser.':'Control+A занято другим приложением или недоступно. Освободите сочетание либо используйте пункт «Скриншот экрана Mac» в меню «Файл».';
   }
   this.publish();
  }
@@ -68,12 +70,12 @@ class GlobalCapture {
   const scale=Math.min(display.scaleFactor||1,8192/Math.max(display.size.width,display.size.height),Math.sqrt(40000000/(display.size.width*display.size.height)));
   const sources=await this.e.desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.max(1,Math.round(display.size.width*scale)),height:Math.max(1,Math.round(display.size.height*scale))},fetchWindowIcons:false});
   const source=sources.find(s=>String(s.display_id)===String(display.id));
-  if(!source||source.thumbnail.isEmpty())throw Error('macOS не предоставила изображение выбранного экрана.');
+  if(!source||source.thumbnail.isEmpty())throw Error((this.isWindows?'Windows':'macOS')+' не предоставила изображение выбранного экрана.');
   return{base:source.thumbnail.toDataURL(),width:display.size.width,height:display.size.height,layers:[],kind:'screen',backend:'desktopCapturer'};
  }
  async acquire(display,choose=false){
   const status=this.nativeStatus(),{acquireFrame}=require('./mouse-capture-policy.cjs');
-  const frame=await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
+  const frame=this.isWindows?await this.legacyFrame(display):await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
    legacy:()=>this.legacyFrame(display),
    native:status.pickerAvailable&&status.granted?()=>this.nativeCapture.capture(Number(display.id),false):null,
    picker:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),true):null});
@@ -92,12 +94,12 @@ class GlobalCapture {
   }catch(error){
    this.pending=null;
    if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
-   const denied=require('./mouse-capture-policy.cjs').permissionError(error);
+   const denied=!this.isWindows&&require('./mouse-capture-policy.cjs').permissionError(error);
    if(denied&&!this.nativeStatus().pickerAvailable){await this.explainPermission();return;}
    this.lastError=denied?'macOS не разрешила захват текущей сборке. Запись в настройках могла остаться от предыдущей версии. Разрешение запуска приложения и запись экрана — разные разрешения.':String(error.message||'Не удалось создать скриншот').slice(0,500);
    if(!this.test){
-    const result=await this.e.dialog.showMessageBox({type:'warning',title:'Mouse Browser — скриншот',message:denied?'macOS не предоставила доступ к экрану':'Не удалось получить снимок',detail:this.lastError+(error.nativeCode?'\nКод macOS: '+error.nativeCode:''),buttons:['Закрыть','Настройки записи экрана'],defaultId:0,cancelId:0,noLink:true});
-    if(result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
+    const result=await this.e.dialog.showMessageBox({type:'warning',title:'Mouse Browser — скриншот',message:denied?'macOS не предоставила доступ к экрану':'Не удалось получить снимок',detail:this.lastError+(!this.isWindows&&error.nativeCode?'\nКод macOS: '+error.nativeCode:''),buttons:this.isWindows?['Закрыть']:['Закрыть','Настройки записи экрана'],defaultId:0,cancelId:0,noLink:true});
+    if(!this.isWindows&&result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
    }
   }finally{this.busy=false;this.publish();}
  }
@@ -107,7 +109,7 @@ class GlobalCapture {
   const b=display.workArea;
   const editor=new this.e.BrowserWindow({title:'Mouse Browser — Скриншот',x:b.x,y:b.y,width:b.width,height:b.height,minWidth:480,minHeight:360,frame:false,show:false,backgroundColor:'#151a23',alwaysOnTop:true,skipTaskbar:false,minimizable:false,fullscreenable:false,webPreferences:{preload:path.join(this.dir,'mouse-capture-preload.cjs'),additionalArguments:[`--mouse-capture-theme=${this.e.nativeTheme.shouldUseDarkColors?'dark':'light'}`,...(this.test?['--mouse-capture-test']:[])],sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,webviewTag:false}});
   this.editor=editor;
-  editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true,skipTransformProcessType:true});
+  if(this.platform==='darwin')editor.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true,skipTransformProcessType:true});
   if(process.platform==='darwin')this.app.setActivationPolicy('regular');
   editor.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   editor.webContents.on('will-navigate',(e,url)=>{if(url!==this.editorEntry)e.preventDefault();});
@@ -118,8 +120,8 @@ class GlobalCapture {
  }
  dispose(){
   this.nativeCapture?.cancel();this.app.removeListener('activate',this.onActivate);this.main.removeListener('focus',this.onActivate);
-  if(this.registered)this.e.globalShortcut.unregister(SHORTCUT);this.registered=false;
+  if(this.registered)this.e.globalShortcut.unregister(this.shortcut);this.registered=false;
   this.pending=null;if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
  }
 }
-module.exports={GlobalCapture,SHORTCUT,SETTINGS_URL};
+module.exports={GlobalCapture,SHORTCUT,WINDOWS_SHORTCUT,SETTINGS_URL};

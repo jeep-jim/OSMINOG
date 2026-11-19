@@ -3,16 +3,28 @@ globalThis.createMouseOverlays=({N,restore,error})=>{
  const held=new Set();let sequence=0,last=false;
  const active=()=>held.size>0||!!document.querySelector('dialog[open]:not([data-nonmodal])');
  function publish(force=false){const blocked=active();if(!force&&blocked===last)return Promise.resolve();last=blocked;return N.overlay({sequence:++sequence,blocked}).catch(e=>{error(e.message);throw e;});}
+ function reconcile(){const wasBlocked=last;return publish().then(()=>{if(wasBlocked&&!active())restore();});}
  function bind(d){if(d.dataset.overlayBound)return;d.dataset.overlayBound='true';
-  d.addEventListener('close',()=>{held.delete(d);void publish(true).then(restore).catch(()=>{});});
+  d.addEventListener('close',()=>{held.delete(d);void reconcile().catch(()=>{});});
  }
  async function show(d){
   bind(d);held.add(d);
   try{await publish(true);if(!d.open)d.showModal();d.querySelector('input,button,[tabindex]')?.focus();}
   catch(e){held.delete(d);if(d.open)d.close();await publish(true).catch(()=>{});restore();throw e;}
  }
- // Also covers dialogs inserted later and incidental direct showModal() callers.
- const observer=new MutationObserver(()=>{document.querySelectorAll('dialog').forEach(bind);void publish().then(()=>{if(!active())restore();}).catch(()=>{});});
+ // Cover direct showModal(), newly inserted/nested dialogs and removal without
+ // close(). Page titles, loading labels and progress text are not modal state:
+ // their childList notifications must not trigger another native layout.
+ const isDialog=node=>node?.nodeType===1&&(node.localName==='dialog'||node.tagName==='DIALOG');
+ const observer=new MutationObserver(records=>{
+  const changed=new Set(),closed=new Set(),collect=node=>{if(node.nodeType!==1)return;if(isDialog(node))changed.add(node);for(const dialog of node.querySelectorAll('dialog'))changed.add(dialog);};
+  for(const record of records){if(record.type==='attributes'){if(isDialog(record.target)){changed.add(record.target);if(!record.target.open)closed.add(record.target);}}else{for(const node of record.addedNodes)collect(node);for(const node of record.removedNodes)collect(node);}}
+  if(!changed.size)return;
+  // A newly appended dialog may still be awaiting show()'s native hide ACK.
+  // Only an actual open-attribute removal (or detachment) releases that hold.
+  for(const dialog of changed){if(dialog.isConnected)bind(dialog);if(!dialog.isConnected||closed.has(dialog))held.delete(dialog);}
+  void reconcile().catch(()=>{});
+ });
  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
  document.querySelectorAll('dialog').forEach(bind);
  // Native HTML select popups may be obscured by native pages. Use one accessible

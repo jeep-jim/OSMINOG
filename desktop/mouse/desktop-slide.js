@@ -107,7 +107,7 @@
   root.addEventListener?.('resize',cancel);root.addEventListener?.('pagehide',cancel);stopCleared=N.onPreviewsCleared?.(cancel);
   try{
    scene=sceneFactory(workspace,model,direction,{borrowedHold:!!lease});
-   const old=lease?lease.outgoing:await N.desktops('surfaces',{ids:scene.ids()});
+   const old=lease?lease.outgoing:await N.desktops('surfaces',{ids:scene.ids(),paintProof:false});
    if(!current()||!await scene.stage('outgoing',old))throw Error('Не удалось подготовить переход. Рабочий стол сохранён.');
    scene.show();if(!await present(current))throw Error('Переход ещё не готов. Повторите переключение.');
    if(!lease){const response=await N.desktops('surface-hold',{phase:'begin',token:old.token});if(!response.held)throw Error('Рабочий стол изменился во время подготовки.');hold=response.token;}
@@ -115,7 +115,7 @@
    result.phase='changing';
    workspace.style.visibility='hidden';await changeOnce();result.layoutCalls++;await layout();
    if(!current()||!scene.valid())return result;
-   result.phase='preparing-incoming';const incoming=await N.desktops('surfaces',{ids:scene.ids(),hold});
+   result.phase='preparing-incoming';const incoming=await N.desktops('surfaces',{ids:scene.ids(),hold,paintProof:!!lease});
    if(!current()||!await scene.stage('incoming',incoming))throw Error('Не удалось подготовить изображение выбранного стола.');
    if(!await present(current)||!scene.valid())throw Error('Изображение выбранного стола ещё не готово.');
    result.decoded=true;result.phase='animating';result.animated=!reduced&&await scene.animate();Object.assign(result,scene.timing());

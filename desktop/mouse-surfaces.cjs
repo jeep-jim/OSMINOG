@@ -102,8 +102,10 @@ class DesktopSurfaces{
  empty(){return{desk:this.bank.active,surfaces:[],complete:false,generation:this.generation,token:''};}
  async capture(args={}){
   if(!Array.isArray(args.ids)||args.ids.length>MAX_PAGES||args.ids.some(id=>typeof id!=='string'||!id||id.length>100)||new Set(args.ids).size!==args.ids.length)throw Error('Invalid surface page identities');
+  if(args.paintProof!==undefined&&typeof args.paintProof!=='boolean')throw Error('Invalid surface paint proof option');
+  const paintProof=args.paintProof!==false;
   const deadlineAt=this.budgetNow()+this.captureMs;
-  const trace=this.diagnostic,observed=trace?{sequence:++trace.sequence,startedAt:performance.now(),requestedIds:args.ids.slice(),generation:this.generation,reason:'pending',complete:false,completedIds:[],pngBytes:0,pixels:0,peakActiveCaptures:0,peakReservedPixels:0,pages:[]}:null;
+  const trace=this.diagnostic,observed=trace?{sequence:++trace.sequence,startedAt:performance.now(),requestedIds:args.ids.slice(),paintProof,generation:this.generation,reason:'pending',complete:false,completedIds:[],pngBytes:0,pixels:0,peakActiveCaptures:0,peakReservedPixels:0,pages:[]}:null;
   if(trace){trace.lastCapture=observed;this.recordDiagnostic(trace,'capture-start',{sequence:observed.sequence,ids:observed.requestedIds,activeCaptures:this.activeCaptures,reservedPixels:this.reservedPixels,busy:this.busy,held:!!this.held});}
   const resultDiagnostic=(reason,complete)=>{if(observed){observed.reason=reason;observed.complete=complete;observed.elapsedMs=performance.now()-observed.startedAt;this.recordDiagnostic(trace,'capture-result',{sequence:observed.sequence,reason,complete,elapsedMs:observed.elapsedMs,activeCaptures:this.activeCaptures});}};
   const incomplete=reason=>{resultDiagnostic(reason,false);return this.empty();};
@@ -121,7 +123,7 @@ class DesktopSurfaces{
   this.busy=true;
   const worker=async()=>{
    while(index<pins.length&&current()){
-    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,base64Ms:null,previewMs:null,attempts:[],backoffs:[]}:null;let stageStarted;
+    const pin=pins[index++],row=observed?{id:pin.id,webContentsId:pin.wc.id,viewport:{width:pin.viewport.width,height:pin.viewport.height},state:'starting',queueMs:null,nativeStartedAt:null,captureMs:null,pngMs:null,proofMs:null,bitmapReadouts:0,base64Ms:null,previewMs:null,attempts:[],backoffs:[]}:null;let stageStarted;
     if(row)observed.pages.push(row);
     const pageDiagnostic=state=>{if(row){row.state=state;this.recordDiagnostic(trace,'page',{sequence:observed.sequence,...row,attempts:row.attempts.map(attempt=>({...attempt})),backoffs:row.backoffs.map(backoff=>({...backoff}))});}};
     if(!this.valid(pin,args.hold)){pageDiagnostic('invalid-before-capture');continue;}
@@ -172,7 +174,10 @@ class DesktopSurfaces{
      const pixelWidth=png.readUInt32BE(16),pixelHeight=png.readUInt32BE(20),area=pixelWidth*pixelHeight;
      const width=pin.viewport.width,height=pin.viewport.height;
      if(pixelWidth!==actual.width||pixelHeight!==actual.height||pixelWidth<width-1||pixelHeight<height-1||Math.abs(pixelWidth/width-pixelHeight/height)>.02||bytes+png.length>MAX_PNG_BYTES||pixels+area>MAX_PIXELS){pageDiagnostic(bytes+png.length>MAX_PNG_BYTES?'png-byte-budget':pixels+area>MAX_PIXELS?'png-pixel-budget':'png-dimensions');continue;}
-     regions.push(...imageRegions(image,pixelWidth,pixelHeight,actual.scaleFactor,pin.bounds));
+     // Nora verifies these regions against an actual shell readback before it
+     // hides native guests. A normal desktop slide has no such consumer and
+     // must not copy a full viewport bitmap merely to discard nine summaries.
+     if(paintProof){if(row){row.state='proof';stageStarted=performance.now();row.bitmapReadouts++;}regions.push(...imageRegions(image,pixelWidth,pixelHeight,actual.scaleFactor,pin.bounds));if(row)row.proofMs=performance.now()-stageStarted;}
      bytes+=png.length;pixels+=area;
      if(row){row.state='base64';stageStarted=performance.now();}const src='data:image/png;base64,'+png.toString('base64');if(row)row.base64Ms=performance.now()-stageStarted;
      surfaces.push({id:pin.id,src,width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds}});
@@ -189,7 +194,7 @@ class DesktopSurfaces{
    if(!current())return incomplete(deadline?'deadline':this.disposed?'disposed':this.locked?'locked':this.browser.disposed?'workspace-disposed':generation!==this.generation?'generation-changed':desk!==this.bank.active?'desktop-changed':shape!==this.shape()?'window-size-changed':'display-scale-changed');
    if(surfaces.length!==pins.length)return incomplete('incomplete-pages');
    if(pins.some(pin=>!this.valid(pin,args.hold)))return incomplete('pins-changed');
-   const token=randomUUID();this.records.set(token,{generation,desk,shape,scaleFactor,pins,regions,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
+   const token=randomUUID();this.records.set(token,{generation,desk,shape,scaleFactor,pins,regions,paintProof,at:this.now()});while(this.records.size>2)this.records.delete(this.records.keys().next().value);
    // Once the selected incoming desk has a complete validated frame, pages
    // from a previous desk no longer own the long-lived Nora hold. Background
    // navigation there must not close Nora after a successful desk switch.
@@ -210,6 +215,7 @@ class DesktopSurfaces{
   const finish=(ready,reason)=>{Object.assign(observed,{ready,reason,elapsedMs:performance.now()-started});this.recordDiagnostic(trace,'paint-result',observed);return{ready,reason,attempts:observed.attempts,regions:observed.regions};};
   if(!scaleFactor)return finish(false,'scale-unavailable');
   if(!current())return finish(false,'stale');
+  if(!record.paintProof)return finish(false,'proof-unavailable');
   if(this.painting||typeof this.shellContents?.capturePage!=='function')return finish(false,'unavailable');
   const size=this.win.getContentSize(),reservedPixels=pixelReservation(size[0],size[1],scaleFactor),waiting=new Set();if(!reservedPixels)return finish(false,'pixel-budget');
   Object.assign(observed,{scaleFactor,reservedPixels,peakActiveCaptures:0,peakReservedPixels:0});
@@ -244,7 +250,7 @@ class DesktopSurfaces{
  begin(token,purpose='transition'){
   if(!['transition','popover'].includes(purpose))throw Error('Invalid surface hold purpose');
   const record=this.records.get(token);
-  if(this.held||!record||this.disposed||this.locked||record.generation!==this.generation||record.desk!==this.bank.active||record.shape!==this.shape()||this.now()-record.at>HOLD_MS||record.pins.some(pin=>!this.valid(pin)))return{held:false,token:''};
+  if(this.held||!record||purpose==='popover'&&!record.paintProof||this.disposed||this.locked||record.generation!==this.generation||record.desk!==this.bank.active||record.shape!==this.shape()||this.now()-record.at>HOLD_MS||record.pins.some(pin=>!this.valid(pin)))return{held:false,token:''};
   this.held={token,generation:this.generation,purpose};this.browser.mouseSurfaceHold=token;this.watch(record.pins);
   if(purpose==='transition'){this.timer=setTimeout(()=>this.clear(true),this.holdMs);this.timer.unref?.();}
   try{this.browser.layout(this.browser.panels||[]);}catch(error){this.clear(false);throw error;}

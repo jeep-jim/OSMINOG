@@ -1,0 +1,37 @@
+name: Mouse Windows terminal diagnostics
+on:
+  pull_request:
+    paths: ['desktop/mouse-agent/terminal-service.cjs','desktop/mouse-agent/terminal-service.test.cjs','.github/workflows/mouse-windows-terminal-diagnostics.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  terminal-diagnostics:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Preserve exact source bytes
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare pinned native terminal
+        run: |
+          npm ci --prefix desktop/mouse-agent
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node desktop/mouse-agent/prepare.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:npm_config_python = Join-Path $env:pythonLocation 'python.exe'
+          node desktop/mouse-native-build.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Diagnose actual PowerShell background lifecycle
+        run: node --test desktop/mouse-agent/terminal-service.test.cjs

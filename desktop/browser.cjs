@@ -72,7 +72,7 @@ class BrowserWorkspace{
   if(!ai)this.tabs.set(t.id,t);
   wc.loadURL(url).catch(e=>{t.error=e.message;this.pageStateChanged()});return t;
  }
- get(id){const t=this.tabs.get(id)||[...this.providers.values()].find(t=>t.id===id);if(!t||t.project!==this.project)throw Error('Вкладка не принадлежит открытому проекту');return t}
+ get(id){const t=this.tabs.get(id)||[...this.providers.values()].find(t=>t.id===id);if(!t||t.project!==this.project)throw Error('Вкладка не принадлежит открытому проекту');if(t.view?.webContents?.isDestroyed?.()){this.mouseSafety?.forget(t);throw Error('Вкладка уже закрыта');}return t}
  selectProvider(provider,thread='main',{background=false}={}){
   if(!Object.hasOwn(PROVIDERS,provider)&&provider!=='')throw Error('Неизвестный ИИ');
   if(!provider){this.ai=null;this.provider='';this.layout(this.panels);this.emit();return null}
@@ -83,7 +83,7 @@ class BrowserWorkspace{
  }
  releaseService(thread){for(const [key,t] of this.providers)if(t.ephemeral&&t.thread===thread){this.providers.delete(key);this.destroy(t)}}
  open({url,lane}){if(!this.project)throw Error('Сначала откройте проект');const t=this.make(address(url),this.project);t.lane=lane==='side'?'side':'main';this.save();this.emit();return{id:t.id}}
- destroy(t){if(!t)return;this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
+ destroy(t){if(!t)return;this.layoutPages?.delete(t);this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){
    case 'project':{const id=String(args.id||'').slice(0,200);if(id!==this.project){this.ai=null;this.provider='';this.contextIds=[]}if(id!==this.project){this.contextScopes.set(this.project,this.contextScope);this.contextScope=this.contextScopes.has(id)?this.contextScopes.get(id):null;this.contextRevision=(this.contextRevision||0)+1;this.agentTools?.stop();this.originalActions?.stop();this.context?.invalidate();this.pointerTarget=null;this.pointerEnabled=false}this.project=id;await this.restore(id);this.layout([]);this.emit();return this.state()}
@@ -157,9 +157,17 @@ class BrowserWorkspace{
    const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===12&&bottom===bounds.y+bounds.height?12:0;
    desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
   }
-  for(const t of [...this.tabs.values(),...this.providers.values()]){
+  // A normal layout owns only the selected pages and the previous selection.
+  // New pages are born hidden. A modal hold still rechecks every actual native
+  // view because a late capture/clip completion must never rise above Nora.
+  const all=()=>[...this.tabs.values(),...this.providers.values()];
+  const affected=this.mouseSurfaceHold?all():new Set([...(this.layoutPages||all()),...desired.keys()]);
+  const selected=new Set();
+  for(const t of affected){
+   if(t.view?.webContents?.isDestroyed?.()){desired.delete(t);this.mouseSafety?.forget(t);continue;}
    const next=desired.get(t),show=!!next&&!this.mouseSurfaceHold;
-   if(next){const {bounds,clipped,wrap,radius}=next;
+   if(next)selected.add(t);
+   if(next){const {bounds,clipped,wrap}=next;
     if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
     const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;
@@ -170,10 +178,11 @@ class BrowserWorkspace{
    // logical flag. A surface hold must keep every real guest hidden as well.
    if(show!==!!t.visible||(t.view.getVisible?.()??show)!==show||(t.clipView?.getVisible?.()??show)!==show){t.view.setVisible(show);t.clipView?.setVisible(show);t.visible=show}
   }
+  this.layoutPages=selected;
   // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
   if(this.mouseCornerMask)this.mouseCornerMask(this.mouseSurfaceHold?[]:[...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor})));
  }
- dispose(){if(this.disposed)return;this.disposed=true;clearTimeout(this.pageStateTimer);this.pageStateTimer=null;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.ai=null}
+ dispose(){if(this.disposed)return;this.disposed=true;clearTimeout(this.pageStateTimer);this.pageStateTimer=null;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.layoutPages?.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
 

@@ -16,7 +16,7 @@ test('normal desktop slide stages decoded outgoing pixels before hiding and chan
  assert.equal(result.animated,true);assert.equal(result.decoded,true);assert.equal(result.layoutCalls,2);assert.equal(result.borrowedHold,false);
  const names=f.calls.map(x=>x[0]);assert.ok(names.indexOf('show')<names.indexOf('change'));
  assert.deepEqual(f.calls.filter(x=>x[0]==='surface-hold').map(x=>x[1]),[{phase:'begin',token:'frame-a'},{phase:'end',token:'frame-a'}]);
- assert.equal(f.calls.filter(x=>x[0]==='surfaces')[1][1].hold,'frame-a');assert.ok(names.indexOf('animate')<names.indexOf('remove'));
+ assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['a-page'],paintProof:false},{ids:['b-page'],hold:'frame-a',paintProof:false}]);assert.ok(names.indexOf('animate')<names.indexOf('remove'));
  assert.equal(f.workspace.style.visibility,'');assert.equal(f.workspace.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.listeners.size,0);
 });
 test('a delayed or invalid outgoing frame does not silently switch desktops without animation',async()=>{
@@ -29,7 +29,7 @@ test('a borrowed Nora hold keeps the dialog background owned through the complet
  assert.equal(result.animated,true);assert.equal(result.borrowedHold,true);assert.equal(result.phase,'complete');
  assert.deepEqual(f.calls.find(x=>x[0]==='scene')[1],{borrowedHold:true},'The borrowed scene must stay below Nora’s existing scrim');
  assert.equal(f.calls.filter(x=>x[0]==='surface-hold').length,0,'Borrowed hold is neither reacquired nor released');
- assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['b-page'],hold:'nora-hold'}]);
+ assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['b-page'],hold:'nora-hold',paintProof:true}]);
  assert.ok(names.indexOf('animate')<names.indexOf('replace'));assert.ok(names.indexOf('replace')<names.indexOf('remove'),'Incoming Nora pixels exist before the transition cover is removed');
  assert.equal(names.includes('abort'),false);assert.equal(f.workspace.style.visibility,'');assert.equal(f.workspace.inert,false);
 });

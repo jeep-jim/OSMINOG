@@ -2,7 +2,7 @@
 const path=require('node:path'),fs=require('node:fs'),crypto=require('node:crypto');
 const {Gateway}=require('./gateway.cjs'),{TerminalService}=require('./terminal-service.cjs'),P=require('./policy.cjs');
 const {McpManager}=require('./mcp-manager.cjs'),{ManagedDev}=require('./mcp-dev.cjs');
-const {ProgressStore,percent:progressPercent}=require('../mouse-progress.cjs');
+const {ProgressStore}=require('../mouse-progress.cjs');
 const READ_PAGE=`(()=>({url:location.href,title:document.title,text:(document.body?.innerText||'').slice(0,18000),elements:[...document.querySelectorAll('a,button,input,textarea,select,[role="button"]')].slice(0,100).map(e=>{const r=e.getBoundingClientRect();return{tag:e.tagName.toLowerCase(),type:e.type||'',text:(e.innerText||e.getAttribute('aria-label')||e.getAttribute('placeholder')||'').slice(0,160),id:e.id||'',name:e.name||'',href:e.tagName==='A'?e.href:undefined,rect:{x:r.x,y:r.y,width:r.width,height:r.height},disabled:!!e.disabled,password:e.type==='password'}})}))()`;
 function clipped(value,n=600){return String(value??'').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'').slice(0,n);}
 class AgentHost{
@@ -44,12 +44,8 @@ class AgentHost{
   return{...context,taskId:args.taskId??'default'};
  }
  updateProgress(args,client=this.ipcProgressClient){
-  const context=this.progressContext(client,args),phase=args.phase||'running';progressPercent(args.percent);
-  if(!['running','stopped','error'].includes(phase))throw Error('Invalid progress phase');
-  const input={taskId:context.taskId,desk:this.desk,source:'agent',label:context.label,percent:args.percent,statusText:args.statusText,estimated:true};
-  if(phase==='running')return this.progress.update(context.owner,input);
-  const existing=this.progress.finish(context.owner,context.taskId,{phase,statusText:args.statusText});if(existing)return existing;
-  this.progress.update(context.owner,{...input,percent:null});return this.progress.finish(context.owner,context.taskId,{phase,statusText:args.statusText});
+  const context=this.progressContext(client,args);
+  return this.progress.report(context.owner,{taskId:context.taskId,desk:this.desk,source:'agent',label:context.label,percent:args.percent,statusText:args.statusText,phase:args.phase,etaSeconds:args.etaSeconds,estimated:true});
  }
  disconnectProgress(client){const context=this.progressClients.get(client);if(context){for(const owner of [context.owner,context.owner+':terminal']){this.progress.stopOwner(owner,'Соединение агента закрыто');this.progressOwners.delete(owner);}this.progressClients.delete(client);}}
  autoProgress(owner,input){try{return this.progress.update(owner,input);}catch(error){if(error.code!=='MOUSE_PROGRESS_LIMIT')throw error;return null;}}

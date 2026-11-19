@@ -35,12 +35,21 @@ function scheduledFixture(options={}){
   }
  };
 }
+test('ordinary transition frames skip unused full bitmap readout and cannot become a Nora paint proof',async()=>{
+ const f=fixture(),page=f.add('a');f.surfaces.enableDiagnostics();let reads=0,shellReads=0;
+ page.view.webContents.capturePage=async()=>({...f.image(),toBitmap(){reads++;throw Error('Unused proof must not copy this bitmap');}});f.shell.capturePage=async()=>{shellReads++;return f.image(1000,800);};
+ const packet=await f.surfaces.capture({ids:['a'],paintProof:false});assert.equal(packet.complete,true);assert.equal(reads,0);assert.equal(f.surfaces.diagnostics().lastCapture.paintProof,false);assert.equal(f.surfaces.diagnostics().lastCapture.pages[0].bitmapReadouts,0);
+ assert.equal((await f.surfaces.present({token:packet.token})).reason,'proof-unavailable');assert.equal(shellReads,0);assert.equal(f.surfaces.begin(packet.token,'popover').held,false);assert.equal(f.surfaces.begin(packet.token,'transition').held,true);assert.equal(f.surfaces.end(packet.token).released,true);
+ await assert.rejects(()=>f.surfaces.capture({ids:['a'],paintProof:'false'}),/paint proof option/);f.surfaces.dispose();
+});
+
 test('paint readiness waits for every captured page region before native hide and rechecks the owned hold',async()=>{
  const f=fixture(),a=f.add('a',{width:400,height:300}),b=f.add('b',{width:320,height:270});f.surfaces.enableDiagnostics();
  a.bounds={x:12,y:40,width:400,height:300};b.bounds={x:520,y:180,width:320,height:270};
  const colors=[[17,80,155,255],[224,111,35,255]];
  for(const [i,page]of [a,b].entries())page.view.webContents.capturePage=async()=>f.image(page.bounds.width,page.bounds.height,32,colors[i]);
  const packet=await f.surfaces.capture({ids:['a','b']}),options=[];let reads=0;
+ assert.equal(f.surfaces.diagnostics().lastCapture.paintProof,true);assert.ok(f.surfaces.diagnostics().lastCapture.pages.every(row=>row.bitmapReadouts===1&&row.proofMs>=0));
  const painted=()=>{const root=f.image(1000,800,32,[243,245,249,255]),bitmap=root.toBitmap();for(const [n,page]of [a,b].entries()){const p=page.bounds,c=colors[n];for(let y=p.y;y<p.y+p.height;y++)for(let x=p.x;x<p.x+p.width;x++){const i=(y*1000+x)*4;bitmap[i]=c[2];bitmap[i+1]=c[1];bitmap[i+2]=c[0];bitmap[i+3]=c[3];}}return{...root,toBitmap:()=>bitmap};};
  f.shell.capturePage=async(rect,opts)=>{options.push({rect,opts});return ++reads===1?f.image(1000,800,32,[243,245,249,255]):painted();};
  const ready=await f.surfaces.present({token:packet.token});
