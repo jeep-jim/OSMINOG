@@ -25,9 +25,32 @@
   const scrim=document.createElement('div');scrim.id='mouse-dock-scrim';scrim.hidden=true;scrim.setAttribute('aria-hidden','true');document.body.append(scrim);
   const toolbar=document.querySelector('.toolbar'),reduced=matchMedia('(prefers-reduced-motion: reduce)'),duration=300;
   let active=false,goal=0,position=0,movement=null,shade=null,waiter=null,generation=0,geometry=null,geometryDirty=true,measurements=0,geometryWrites=0,preparing=false,preparationFrame=0,parked=false;
+  let readyObservation=null;
   const events=[],animationTime=animation=>animation?{currentTime:animation.currentTime,startTime:animation.startTime,pending:animation.pending===true,playState:animation.playState,playbackRate:animation.playbackRate}:null;
   const timing=()=>({performanceNow:performance.now(),documentTime:document.timeline?.currentTime??null,generation,goal,preparing,phase:tray.dataset.motion,movement:animationTime(movement),shade:animationTime(shade)});
   const note=(event,extra={})=>{if(!trace)return;events.push({event,...timing(),...extra});if(events.length>32)events.shift();};
+  const cancelReadyObservation=()=>{const old=readyObservation;readyObservation=null;if(old?.frame)cancelAnimationFrame(old.frame);};
+  function observeReady(ticket){
+   cancelReadyObservation();
+   const observation={ticket,movement,shade,frame:0};readyObservation=observation;
+   const current=()=>readyObservation===observation&&active&&ticket===generation&&observation.movement===movement&&observation.shade===shade;
+   Promise.all([observation.movement.ready,observation.shade.ready]).then(()=>{
+    if(!current())return;
+    // Preserve the raw promise-resolution snapshot, including any endpoint
+    // overshoot. The first RAF can still share that document timestamp.
+    note('play-ready-resolved');
+    observation.frame=requestAnimationFrame(rafTime=>{
+     if(!current())return;observation.frame=0;
+     note('play-ready-frame-1',{rafTime});
+     observation.frame=requestAnimationFrame(rafTime=>{
+      if(!current())return;observation.frame=0;readyObservation=null;
+      // Always sample the fixed second frame. No range filter, retry, seek or
+      // rounding: invalid/finished values remain invalid for the verifier.
+      note('play-ready',{rafTime});
+     });
+    });
+   }).catch(()=>{});
+  }
   const cancelWaiter=()=>{if(waiter){waiter.resolve(false);waiter=null;}};
   const cancelPreparation=()=>{preparing=false;if(preparationFrame)cancelAnimationFrame(preparationFrame);preparationFrame=0;};
   const progress=()=>{if(!movement)return position;const value=movement.effect.getComputedTiming().progress;if(value!==null&&value!==undefined)return clamp(value);const time=Number(movement.currentTime);return time>=duration?1:time<=0?0:position;};
@@ -50,6 +73,7 @@
    local.style.setProperty('--dock-line-width',next.line+'px');panel.style.setProperty('--nora-curve-x',shape.rx+'px');panel.style.setProperty('--nora-curve-y',shape.ry+'px');scrim.style.bottom=next.bottom+'px';
   }
   function stopPlayers(keepLayers=false){
+   if(trace)cancelReadyObservation();
    cancelPreparation();parked=false;
    const current=movement,shadow=shade;movement=shade=null;
    // All finished promises have rejection handlers before cancellation.
@@ -57,6 +81,7 @@
    if(!keepLayers){panel.style.willChange='';scrim.style.willChange='';}
   }
   function complete(to,retainOpen=false){
+   if(trace)cancelReadyObservation();
    note('complete',{to});
    position=to;panel.style.transform=to?'translate3d(0,0,0)':'translate3d(0,100%,0)';scrim.style.opacity=String(to*.12);
    if(to===1&&retainOpen&&!reduced.matches&&movement&&shade){
@@ -93,7 +118,7 @@
    // still describe an old frame after expensive rendering; forcing it into
    // startTime would consume that delay from the animation immediately.
    const current=movement;
-   if(trace){note('play-pending');Promise.all([movement.ready,shade.ready]).then(()=>{if(active&&ticket===generation&&current===movement)note('play-ready');}).catch(()=>{});}
+   if(trace){note('play-pending');observeReady(ticket);}
    current.finished.then(()=>{if(active&&ticket===generation&&current===movement)complete(to,to===1);}).catch(()=>{});
   }
   function preparePlayers(to,ticket){
@@ -125,6 +150,7 @@
   }
   function animate(to,immediate=false){
    const wasPreparing=preparing,atEndpoint=!!movement&&Number(movement.currentTime)===to*duration;cancelPreparation();cancelWaiter();const ticket=++generation;goal=to;
+   if(trace)cancelReadyObservation();
    // Retain the current open effects until an actual close, then retire them
    // without dropping the visible layers or their inline endpoint. Closing
    // gets a fresh reverse pair and its full paused-readiness preparation.
