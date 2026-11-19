@@ -42,6 +42,53 @@ function compositorArguments(event){
  }
  return model;
 }
+// Rejections explain the raw input without relaxing the positive-group parser
+// above. Perfetto may replace args or individual arguments with __stripped__;
+// an absent field is a separate observation, not evidence of that filtering.
+const MAX_CC_REJECTION_ROWS=64;
+const ccCurveNames=new Set(['Transform','Float','Size','Color','Rect','Filter','ScrollOffset']);
+function diagnosticInteger(value){
+ if(!/^-?(?:0|[1-9][0-9]{0,9})$/.test(value))return;
+ const number=Number(value);
+ if(Number.isSafeInteger(number)&&!Object.is(number,-0)&&number>=-2147483648&&number<=2147483647)return number;
+}
+function compositorRejection(event,eventIndex){
+ if(!event.cat?.split(',').includes('cc'))return;
+ const transition=event.name==='ElementAnimations::SetRunState'&&event.ph==='I';
+ if(!transition&&!(event.name==='KeyframeModel'&&event.ph==='b'))return;
+ const row={eventIndex,name:event.name,phase:event.ph};
+ for(const key of ['pid','tid','ts'])if(Number.isFinite(event[key]))row[key]=event[key];
+ const reject=(field,reason)=>({field,reason});
+ const checkText=(value,field,maxLength)=>value===undefined?reject(field,'missing'):typeof value!=='string'?reject(field,'type'):value.length>maxLength?reject(field,'length'):value==='__stripped__'?reject(field,'stripped'):null;
+ const args=event.args;
+ if(args==='__stripped__')return{...row,...reject('args','stripped')};
+ if(args===undefined)return{...row,...reject('args','missing')};
+ if(!args||typeof args!=='object'||Array.isArray(args))return{...row,...reject('args','type')};
+ function nameFailure(){
+  const invalid=checkText(args.Name,'name',64);if(invalid)return invalid;
+  const match=/^([A-Za-z]+)-(-?[0-9]+)-(-?[0-9]+)$/.exec(args.Name);
+  if(!match||match[0]!==args.Name)return reject('name','format');
+  const curve=match[1],targetProperty=diagnosticInteger(match[2]),group=diagnosticInteger(match[3]);
+  if(ccCurveNames.has(curve))row.curve=curve;
+  if(targetProperty!==undefined)row.targetProperty=targetProperty;
+  if(group!==undefined)row.group=group;
+  if(!ccCurveNames.has(curve))return reject('name','unknown-curve');
+  if(targetProperty===undefined||targetProperty<0||targetProperty>11)return reject('name','property');
+  if(group===undefined||group<=0)return reject('name','group');
+ }
+ function stateFailure(){
+  if(!transition)return;
+  const invalid=checkText(args.State,'state',80);if(invalid)return invalid;
+  const parts=args.State.split('->');if(parts.length!==2)return reject('state','format');
+  if(ccRunStates.has(parts[0]))row.from=parts[0];
+  if(ccRunStates.has(parts[1]))row.to=parts[1];
+  if(!parts.every(value=>ccRunStates.has(value)))return reject('state','state');
+ }
+ // Evaluate both so a rejected group can still carry known state enums. Raw
+ // Name/State, arbitrary labels and a supplied ccModel are never retained here.
+ const nameReason=nameFailure(),stateReason=stateFailure();
+ return{...row,...(nameReason||stateReason||reject('name','format'))};
+}
 function numericArguments(value,key='',depth=0){
  if(depth>8||privateKey.test(key))return undefined;
  if(value===null||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))return value;
@@ -51,7 +98,7 @@ function numericArguments(value,key='',depth=0){
  return Object.fromEntries(Object.entries(value).slice(0,128).filter(([name])=>safeToken(name)).flatMap(([name,item])=>{const result=numericArguments(item,name,depth+1);return result===undefined?[]:[[name,result]];}));
 }
 function sanitizeEvents(events,maxEvents){
- const clean=[];let dropped=0,limited=0;
+ const clean=[],ccModelRejections={total:0,truncated:0,byReason:{},rows:[]};let dropped=0,limited=0;
  for(const event of events){
   if(!event||typeof event!=='object'||!safeToken(event.name)||!safeToken(event.cat||'' )||/screenshot|snapshot|netlog|network|Resource(?:Send|Receive|Finish)|WebSocket|XHR|Fetch/i.test((event.cat||'')+' '+event.name)){dropped++;continue;}
   if(event.cat?.split(',').includes('blink.user_timing')&&!event.name.startsWith(MARKER_PREFIX)){dropped++;continue;}
@@ -66,10 +113,17 @@ function sanitizeEvents(events,maxEvents){
   // Reserved derived field: never trust a similarly named raw argument.
   if(typeof out.args==='object')delete out.args.ccModel;
   const ccModel=compositorArguments(event);if(ccModel)out.args.ccModel=ccModel;
+  else{
+   const rejected=compositorRejection(event,clean.length);
+   if(rejected){
+    ccModelRejections.total++;ccModelRejections.byReason[rejected.reason]=(ccModelRejections.byReason[rejected.reason]||0)+1;
+    if(ccModelRejections.rows.length<MAX_CC_REJECTION_ROWS)ccModelRejections.rows.push(rejected);else ccModelRejections.truncated++;
+   }
+  }
   if(event.ph==='M'&&['process_name','thread_name'].includes(event.name)&&safeToken(event.args?.name))out.args.name=event.args.name;
   clean.push(out);
  }
- return{events:clean,dropped,limited};
+ return{events:clean,dropped,limited,ccModelRejections};
 }
 function bounded(operation,ms,label,onTimeout){
  let timer;
@@ -83,7 +137,7 @@ async function writeTrace(file,text,signal){
 function createMotionTrace(debug,{file='mouse-627-motion-trace.json',snapshot=async()=>null,versions={},limits:overrides={},write=writeTrace}={}){
  const limits={...DEFAULT_LIMITS,...overrides};for(const [key,value]of Object.entries(limits))if(!Number.isSafeInteger(value)||value<=0)throw Error('Invalid motion trace limit: '+key);
  const config={transferMode:'ReturnAsStream',streamFormat:'json',streamCompression:'none',bufferUsageReportingInterval:500,traceConfig:{recordMode:'recordContinuously',traceBufferSizeInKb:limits.bufferKb,enableSampling:false,enableSystrace:false,enableArgumentFilter:true,includedCategories:[...TRACE_CATEGORIES],excludedCategories:['*']}};
- const meta={schemaVersion:1,source:'Chromium CDP Tracing',versions,config,limits,startedAt:null,stoppedAt:null,endRequestedAt:null,completionReceivedAt:null,completionLatencyMs:null,reason:null,complete:false,dataLossOccurred:null,bytes:0,eventCount:0,droppedEvents:0,limitedEvents:0,bufferUsage:[],snapshots:[],errors:[],clockNote:'Renderer performance.mark names are trace anchors. Main and renderer time origins alone do not establish a shared clock.',retention:'Bounded rolling buffer retains the final motion/failure; earlier events may be overwritten.'};
+ const meta={schemaVersion:1,source:'Chromium CDP Tracing',versions,config,limits,startedAt:null,stoppedAt:null,endRequestedAt:null,completionReceivedAt:null,completionLatencyMs:null,reason:null,complete:false,dataLossOccurred:null,bytes:0,eventCount:0,droppedEvents:0,limitedEvents:0,ccModelRejections:{total:0,truncated:0,byReason:{},rows:[]},bufferUsage:[],snapshots:[],errors:[],clockNote:'Renderer performance.mark names are trace anchors. Main and renderer time origins alone do not establish a shared clock.',retention:'Bounded rolling buffer retains the final motion/failure; earlier events may be overwritten.'};
  const document={traceEvents:[],displayTimeUnit:'ms',mouseMotionTrace:meta};
  let startPromise,stopPromise,timer,attempted=false,started=false,stopping=false,completion=null,resolveComplete,detached=false,endRequestedTime=null;
  const complete=new Promise(resolve=>{resolveComplete=resolve;});
@@ -120,7 +174,7 @@ function createMotionTrace(debug,{file='mouse-627-motion-trace.json',snapshot=as
    if(!eof)throw Error('Trace stream exceeded read-count limit');
    let parsed;try{parsed=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw Error('Trace stream is not valid JSON');}
    const events=Array.isArray(parsed)?parsed:parsed?.traceEvents;if(!Array.isArray(events))throw Error('Trace JSON has no traceEvents array');
-   const sanitized=sanitizeEvents(events,limits.maxEvents);document.traceEvents=sanitized.events;meta.eventCount=sanitized.events.length;meta.droppedEvents=sanitized.dropped;meta.limitedEvents=sanitized.limited;
+   const sanitized=sanitizeEvents(events,limits.maxEvents);document.traceEvents=sanitized.events;meta.eventCount=sanitized.events.length;meta.droppedEvents=sanitized.dropped;meta.limitedEvents=sanitized.limited;meta.ccModelRejections=sanitized.ccModelRejections;
    if(sanitized.limited)throw Error('Trace exceeded event limit');
    meta.complete=true;
   }

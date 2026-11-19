@@ -91,6 +91,37 @@ function rendererTraceState(marker){
  performance.mark(marker);const mark=performance.getEntriesByName(marker,'mark').at(-1);performance.clearMarks(marker);
  return{marker,markStartTime:mark?.startTime,before,after:performance.now(),documentTimeBefore,documentTimeAfter:document.timeline.currentTime,visibilityState:document.visibilityState,hidden:document.hidden,hasFocus:document.hasFocus()};
 }
+async function motionNodeOwners(debug,rendererPid){
+ // Blink's Animation trace nodeId and CDP backendNodeId both use
+ // IdentifiersFactory::IntIdForNode. Record actual shell owners only; this
+ // does not infer which compositor model belongs to an element.
+ const objectGroup='mouse628-motion-node-owners',budgetMs=1500,cleanupBudgetMs=500,startedAt=performance.now();
+ const targets=[['panel','#desktop-tray .desk-burrow-panel'],['scrim','#mouse-dock-scrim'],['gesture-hand','#desktop-tray .desktop-gesture-hand']];
+ const report={diagnosticOnly:true,source:'CDP DOM.describeNode',rendererPid,budgetMs,cleanupBudgetMs,startedAt,rows:targets.map(([label])=>({label,backendNodeId:null})),errors:[]};
+ let cancelled=false;
+ const command=(method,params)=>{
+  const remaining=budgetMs-(performance.now()-startedAt);
+  if(cancelled||remaining<=0){cancelled=true;return Promise.reject(Error('Owner diagnostics deadline'));}
+  return bounded(()=>{if(cancelled||performance.now()-startedAt>=budgetMs){cancelled=true;throw Error('Owner diagnostics deadline');}return debug.sendCommand(method,params);},Math.ceil(remaining),'Owner diagnostics',()=>{cancelled=true;});
+ };
+ try{
+  for(let index=0;index<targets.length;index++){
+   const [label,selector]=targets[index],row=report.rows[index];let stage='evaluate';
+   try{
+    const value=await command('Runtime.evaluate',{expression:'document.querySelector('+JSON.stringify(selector)+')',objectGroup,silent:true,returnByValue:false,generatePreview:false});
+    if(value?.exceptionDetails){report.errors.push({label,stage,reason:'evaluation-exception'});continue;}
+    const objectId=value?.result?.objectId;if(!objectId){report.errors.push({label,stage,reason:'element-unavailable'});continue;}
+    stage='describe';const valueNode=await command('DOM.describeNode',{objectId,depth:0,pierce:false}),id=valueNode?.node?.backendNodeId;
+    if(Number.isSafeInteger(id)&&id>0){row.backendNodeId=id;row.observedAt=performance.now();}else report.errors.push({label,stage,reason:'invalid-backend-node-id'});
+   }catch(error){report.errors.push({label,stage,reason:cancelled?'timeout':'command-failed'});if(cancelled)break;}
+  }
+ }finally{
+  cancelled=true;let cleanupTimedOut=false;
+  try{await bounded(()=>debug.sendCommand('Runtime.releaseObjectGroup',{objectGroup}),cleanupBudgetMs,'Owner diagnostics cleanup',()=>{cleanupTimedOut=true;});report.objectsReleased=true;}
+  catch(error){report.objectsReleased=false;report.errors.push({stage:'release',reason:cleanupTimedOut?'timeout':'command-failed'});}
+ }
+ report.finishedAt=performance.now();report.elapsedMs=report.finishedAt-startedAt;return report;
+}
 module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
@@ -110,7 +141,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  const tracePoint=(label,renderer)=>{if(motionTrace?.active)motionTrace.checkpoint(label,{native:nativeTraceState(),renderer});};
  const newMotionTrace=file=>createMotionTrace(debug,{file,versions:Object.fromEntries(['electron','chrome','node','v8'].map(key=>[key,process.versions[key]])),snapshot:async label=>{
   const native=nativeTraceState(),renderer=await js(`(${rendererTraceState.toString()})(${JSON.stringify(MARKER_PREFIX+label)})`),metrics=app.getAppMetrics().map(({pid,type,cpu,memory,creationTime,sandboxed})=>({pid,type,cpu,memory,creationTime,sandboxed}));
-  return{native,renderer,metrics,...(label==='before'?{gpuFeatureStatus:app.getGPUFeatureStatus?.()}:{})};
+  return{native,renderer,metrics,...(label==='before'?{gpuFeatureStatus:app.getGPUFeatureStatus?.(),domNodeOwners:motionFacts.domNodeOwners}:{})};
  }});
  async function stopMotionTrace(reason){
   if(!motionTrace||traceSaved)return;
@@ -494,6 +525,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
   await js('MouseTest.desktopUI.close({immediate:true});MouseTest.zoomUI.close();MouseTest.browsing.close();MouseTest.feedback.hide()');await closed();await activate();await painted();await js('MouseTest.desktopUI.gesture.ready');
   borderlessFacts.viewports.push({name:'large',bounds:win.getBounds(),content:win.getContentSize()});await installCornerMarkers();
   assert.equal(debug.isAttached(),false);debug.attach('1.3');attached=true;await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});assert.equal(await js('matchMedia("(prefers-reduced-motion:reduce)").matches'),false);
+  motionFacts.domNodeOwners=await motionNodeOwners(debug,win.webContents.getOSProcessId());
   motionTrace=newMotionTrace('mouse-628-motion-trace.json');await motionTrace.start();
   await beginBackgroundProbe();
   for(const theme of motionFacts.themes){
