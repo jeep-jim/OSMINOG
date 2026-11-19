@@ -24,3 +24,30 @@ test('stale broad permission reaches the explicit picker only once',()=>{
  const host=fs.readFileSync('mouse-global-capture.cjs','utf8'),native=fs.readFileSync('mouse-screen-capture.mm','utf8');
  assert.match(host,/native:status.pickerAvailable&&status.granted/);assert.match(native,/if\(!choose&&!CGPreflightScreenCaptureAccess\(\)\)/);assert.doesNotMatch(native,/if\(choose\|\|!CGPreflight/);
 });
+
+function resizeInputHelpers(globals={}){const context={module:{exports:{}},require:id=>id==='electron'?{}:require(id),...globals};require('node:vm').runInNewContext(fs.readFileSync('mouse-609-smoke.cjs','utf8'),context,{filename:'mouse-609-smoke.cjs'});return context.module.exports;}
+const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return{promise,resolve};},settle=()=>new Promise(resolve=>setImmediate(resolve));
+test('HUD verification waits for delivered down, delivered move and resize frames; release is observed before completion',async()=>{
+ const {observedResizeDrag}=resizeInputHelpers(),from={x:125,y:306},to={x:125,y:366},down=deferred(),move=deferred(),frames=deferred(),released=deferred(),log=[],paint={ratio:.62,badges:[{},{}]};let completed=false;
+ const pending=observedResizeDrag({from,to,input:(type,p)=>log.push([type,p]),waitDown:()=>down.promise,waitMove:()=>move.promise,waitFrames:()=>frames.promise,verify:value=>{assert.strictEqual(value,paint);log.push(['verify']);},waitRelease:point=>{assert.strictEqual(point,to);log.push(['release observed']);return released.promise;}}).then(value=>{completed=true;return value;});
+ await settle();assert.deepEqual(log,[['mouseMove',from],['mouseDown',from]]);
+ down.resolve();await settle();assert.deepEqual(log.at(-1),['mouseMove',to]);assert.equal(log.some(row=>row[0]==='verify'),false);
+ move.resolve();await settle();assert.equal(log.some(row=>row[0]==='verify'),false,'a delivered move alone is not a painted HUD');
+ frames.resolve(paint);await settle();assert.deepEqual(log.slice(-3),[['verify'],['mouseUp',to],['release observed']]);assert.equal(completed,false,'the fixture cannot restore the model before actual release');released.resolve();assert.strictEqual(await pending,paint);
+});
+test('every failed resize phase releases its real button and preserves the first failure',async()=>{
+ const {observedResizeDrag}=resizeInputHelpers(),from={x:125,y:306},to={x:125,y:366};
+ for(const phase of ['down','move','frames','verify']){const failure=Error('failed '+phase),log=[],check=name=>async()=>{if(name===phase)throw failure;return{};};let released=0;
+  await assert.rejects(observedResizeDrag({from,to,input:(type,p)=>log.push([type,p]),waitDown:check('down'),waitMove:check('move'),waitFrames:check('frames'),verify:check('verify'),waitRelease:async()=>{released++;}}),error=>error===failure);assert.equal(log.filter(row=>row[0]==='mouseUp').length,1);assert.deepEqual(log.at(-1),['mouseUp',phase==='down'?from:to]);assert.equal(released,1);
+ }
+ const first=Error('HUD missing after observed frames');await assert.rejects(observedResizeDrag({from,to,input:()=>{},waitDown:async()=>{},waitMove:async()=>{},waitFrames:async()=>({}),verify:()=>{throw first;},waitRelease:()=>{throw Error('release missing');}}),error=>error===first&&/release missing/.test(error.resizeReleaseError));
+});
+test('the resize receipt probe records only the matching real pointer frames and cancels its observers',()=>{
+ const listeners=new Map(),queued=new Map();let next=0,now=0;const model={tree:{axis:'x',ratio:.5,a:{axis:'y',ratio:.5}},drag:{kind:'pane',axis:'y',path:'a',pointer:1}};
+ const document={body:{classList:{contains:name=>name==='resizing'}},querySelectorAll:()=>[],addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:(type,fn)=>{assert.strictEqual(listeners.get(type),fn);listeners.delete(type);}};
+ const {installResizeInputProbe}=resizeInputHelpers({MouseTest:{model},document,performance:{now:()=>++now},requestAnimationFrame:fn=>{queued.set(++next,fn);return next;},cancelAnimationFrame:id=>queued.delete(id)}),spec={axis:'y',path:'a',from:{x:125,y:306},to:{x:125,y:366}},probe=installResizeInputProbe(spec);
+ const dispatch=values=>listeners.get('pointermove')({type:'pointermove',clientX:125,clientY:366,pointerId:1,button:0,buttons:1,isTrusted:true,...values}),paint=()=>{const[id,fn]=queued.entries().next().value;queued.delete(id);fn(++now);};
+ dispatch({isTrusted:false});dispatch({pointerId:2});dispatch({clientY:306});assert.equal(queued.size,0,'untrusted, foreign-pointer and unmoved input cannot arm the resize frames');
+ dispatch({});assert.equal(queued.size,1);paint();assert.equal(probe.state().frames.length,1);assert.equal(probe.state().frames[0].ratio,.5);model.tree.a.ratio=.62;paint();const state=probe.state();assert.equal(state.frames.length,2);assert.equal(state.frames[1].ratio,.62);assert.equal(state.frames[1].badges.length,0,'the observer never fabricates missing HUDs');assert.ok(state.frames[1].timestamp>state.frames[0].timestamp);probe.dispose();assert.equal(listeners.size,0);assert.equal(queued.size,0);
+ const unfinished=installResizeInputProbe(spec);dispatch({});assert.equal(queued.size,1);unfinished.dispose();assert.equal(queued.size,0);assert.equal(listeners.size,0);
+});
