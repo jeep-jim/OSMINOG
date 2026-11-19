@@ -172,7 +172,23 @@ class BrowserWorkspace{
     const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;
     const signature=JSON.stringify([viewBounds,parentBounds]);
-    if(signature!==t.layoutSignature){if(t.clipView)t.clipView.setBounds(parentBounds);t.view.setBounds(viewBounds);t.layoutSignature=signature}t.bounds=bounds;
+    if(signature!==t.layoutSignature){
+     if(t.clipView)t.clipView.setBounds(parentBounds);
+     const previous=this.mouseSurfaceHold&&t.view.getVisible?.()===false?t.view.getBounds?.():null;
+     const resized=previous&&(previous.width!==viewBounds.width||previous.height!==viewBounds.height);
+     const parent=t.clipView||this.win.contentView,children=resized?parent.children:null,index=Array.isArray(children)?children.indexOf(t.view):-1;
+     if(index>=0){
+      // Chromium's hidden NativeViewHost does not resize its native widget.
+      // Electron propagates detached WebContentsView bounds to WebContents.
+      // Keep this same hidden view, owner and sibling index; never show it to
+      // obtain pixels, and restore its parent even when native resize throws.
+      const alive=()=>!this.disposed&&!this.win.isDestroyed()&&!t.view.webContents.isDestroyed();
+      try{parent.removeChildView(t.view);t.view.setBounds(viewBounds);}
+      finally{if(alive())parent.addChildView(t.view,index);}
+      if(!alive())throw Error('Page closed during hidden viewport resize');
+     }else t.view.setBounds(viewBounds);
+     t.layoutSignature=signature;
+    }t.bounds=bounds;
    }
    // A native view (or a newly created clip parent) may disagree with the last
    // logical flag. A surface hold must keep every real guest hidden as well.

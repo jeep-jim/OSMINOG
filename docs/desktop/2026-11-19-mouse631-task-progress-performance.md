@@ -232,3 +232,56 @@ Checker source и Releases побайтно совпадают, новый SHA-2
 17/17Python contracts прошли; предыдущие12cases сохранены. Общий локальный
 Mouse gate после объединения:774tests,768PASS,0FAIL,6platformSKIP,
 6039.422686ms. Настоящая проверка обоих установленных пакетов ещё требуется.
+
+## Третий native source18ccd680: устойчивый старый hidden viewport
+
+`18ccd680d47256c7a757af1a6e020fb63bad637e` также отклонён. На macOS
+run44576189326/job135744203987 task-only прошёл, но первый incoming capture
+seq14 вернул8раз NativeImage505×273 вместо требуемого505×245. На Windows
+run44576189234/job135744204078 реальная замена629→631 и task-only прошли;
+тот же первый incoming capture вернул8раз505×295 вместо505×267. Большие
+кадры отброшены до PNG/bitmap, остальные три панели получили правильные
+кадры. Ни один stress switch не завершён, этап50 не начат, оба cleanup20
+успешны; renderer crash не зарегистрирован. Таймауты/допуски не ослаблялись,
+готового candidate нет. Verification archives проверены по size/SHA/ZIP CRC:
+
+- macOS artifact14556237278, SHA-256
+  `e8506308ffeed0f822dbf5a547c0389dcebc06b5b75786fe2c364d6aa85f831d`;
+- Windows artifact14556214402, SHA-256
+  `c666f9d31b4cc764f4ce42374955ab62b2b47b4e7a10e37a89866ac0715c530c`.
+
+Первопричина установлена по pinned Electron44.5.0/Chromium152.0.7977.130:
+`NativeViewHost::Layout` при пустом `GetVisibleBounds()` вызывает только
+`HideWidget()`, а native bounds обновляет через `ShowWidget()` в видимой
+ветке. Поэтому `WebContentsView.getBounds()` уже сообщает новый размер,
+но RenderWidgetHostView остаётся прежним и повторный capture не помогает.
+Обычный `webContents.invalidate()` перерисовывает owner window и не является
+доказанным способом обновить этот hidden layout. Отдельный native probe
+проверяет сохранение вкладки при resize скрытого view вне widget и возврате
+того же view в исходного parent/index. Продуктовое исправление принимается
+только после реальных native кадров; старый кадр не масштабируется и не
+подменяется.
+
+Primary sources:
+https://github.com/electron/electron/blob/v44.5.0/shell/browser/ui/inspectable_web_contents_view.cc
+https://github.com/electron/electron/blob/v44.5.0/shell/browser/api/electron_api_view.cc
+https://github.com/chromium/chromium/blob/152.0.7977.130/ui/views/controls/native/native_view_host.cc
+https://github.com/chromium/chromium/blob/152.0.7977.130/ui/views/controls/native/native_view_host_aura.cc
+
+Подготовленная product-правка ограничена `BrowserWorkspace.layout`: только
+при существующем surface hold, фактически скрытом WCV, изменении ширины или
+высоты и подтверждённом исходном родителе view временно отсоединяется до
+`setBounds`, затем синхронно возвращается в тот же parent/index. Это тот же
+WebContents, без показа, перезагрузки или смены focus. `finally` возвращает
+живой view даже при ошибке resize; уничтоженный владелец не восстанавливается,
+успешная геометрия при ошибке не кешируется. Позиционные и неизменные layout
+этот путь не вызывают. Capture/paint budgets, visibility и privacy guards
+остались прежними.
+
+Шесть новых causal tests моделируют именно границу Chromium NativeViewHost:
+attached hidden resize оставляет native size старым, detached resize
+обновляет его. На прежнем source четыре случая воспроизводят отказ; с
+исправлением все шесть проходят. Focused58/58 прошли. Общий локальный Mouse
+gate:780tests,774PASS,0FAIL,6platformSKIP,5825.711271ms. Независимое review
+product diff завершено; нужны отдельные реальные native probe и полные
+установленные acceptance обоих пакетов.
