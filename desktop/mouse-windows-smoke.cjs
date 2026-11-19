@@ -142,13 +142,16 @@ module.exports=async ctx=>{
   await click('#private-button');await until(()=>privateMode.current&&!privateMode.busy,'private entry');await until(()=>js('document.documentElement.dataset.mouseReady==="true"'),'private shell ready');
   const current=privateMode.current,ses=current.ses;assert.equal(ses.isPersistent(),false);assert.equal(ses.storagePath,null);
   assert.equal((await ses.cookies.get({url:origin})).length,0);
+  // The retained611 asset/theme proof measures the private home itself, before
+  // the isolation fixture replaces that home with a real native webpage.
+  await until(()=>js('!!document.querySelector(".home-page")'),'fresh private home is rendered');
+  await require('./mouse-611-smoke.cjs')({win});
   await js(`MouseTest.openPage(${JSON.stringify(origin+'/'+PRIVATE_MARKER)})`);let page;await until(async()=>{const id=await js('MouseTest.model.slots[MouseTest.model.active]');page=current.browser.get(id);return page&&!page.loading&&page.view.webContents.getURL().endsWith(PRIVATE_MARKER);},'private page');
   assert.equal(await page.view.webContents.executeJavaScript('localStorage.getItem("mouseWindowsNormal")'),null);
   await ses.cookies.set({url:origin,name:'mouse-windows-private',value:PRIVATE_MARKER,expirationDate:Date.now()/1000+3600});
   await page.view.webContents.executeJavaScript(`localStorage.setItem('private',${JSON.stringify(PRIVATE_MARKER)});sessionStorage.setItem('private',${JSON.stringify(PRIVATE_MARKER)})`);
   await page.view.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const request=indexedDB.open('windows-private');request.onupgradeneeded=()=>request.result.createObjectStore('private');request.onsuccess=()=>{const db=request.result,tx=db.transaction('private','readwrite');tx.objectStore('private').put(${JSON.stringify(PRIVATE_MARKER)},'marker');tx.oncomplete=()=>{db.close();resolve(true)};tx.onerror=()=>reject(tx.error)};request.onerror=()=>reject(request.error)})`);
   for(const theme of ['light','dark']){await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);assert.equal(await js('document.documentElement.dataset.private'),'true');await fs.writeFile('mouse-windows-private-'+theme+'.png',(await win.capturePage()).toPNG());}
-  await require('./mouse-611-smoke.cjs')({win});
   await click('#private-button');await until(()=>!privateMode.current&&!privateMode.busy,'private cleanup');assert.equal(current.store.destroyed,true);assert.equal(current.browser.tabs.size,0);assert.deepEqual(await ses.cookies.get({url:origin}),[]);
   assert.equal(browser.get(normal.id).view.webContents,wc);assert.equal(await wc.executeJavaScript('mouseWindowsIdentity'),identity);assert.equal(await wc.executeJavaScript('localStorage.getItem("mouseWindowsNormal")'),'retained');assert.equal((await browser.session.cookies.get({url:origin,name:'mouse-windows-normal'}))[0].value,'retained');
   await click('#private-button');await until(()=>privateMode.current&&!privateMode.busy,'fresh private session');assert.notEqual(privateMode.current.partition,current.partition);assert.deepEqual(await privateMode.current.ses.cookies.get({url:origin}),[]);
