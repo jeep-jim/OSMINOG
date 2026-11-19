@@ -385,3 +385,12 @@ alter the existing pixel, Nora, page identity or profile criteria. Twelve local
 runtime checks passed, and the native build configuration parses cleanly;
 Windows compilation and complete acceptance on both hosts are still required
 before this correction is certified.
+
+The first compile of this correction, source
+`696892894d576d9db4f420427cc3edf387f8154a` in
+[run 44541182197 / job 135619624655](https://github.com/jeep-jim/OSMINOG/actions/runs/44541182197/job/135619624655),
+stopped at MSVC error C2872: the local diagnostic helper named `boolean`
+conflicted with the Windows SDK type brought in by the composition headers.
+No installer or installed acceptance was produced by that run. The helper and
+its calls are renamed to a unique function name; no drawing behavior or test
+criteria change is involved.

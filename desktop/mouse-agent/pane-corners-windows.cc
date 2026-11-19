@@ -229,16 +229,16 @@ napi_value answer(napi_env env,int count){napi_value result;napi_create_int32(en
 napi_value object(napi_env env){napi_value value;napi_create_object(env,&value);return value;}
 void value(napi_env env,napi_value target,const char* key,napi_value item){napi_set_named_property(env,target,key,item);}
 void number(napi_env env,napi_value target,const char* key,double item){napi_value result;napi_create_double(env,item,&result);value(env,target,key,result);}
-void boolean(napi_env env,napi_value target,const char* key,bool item){napi_value result;napi_get_boolean(env,item,&result);value(env,target,key,result);}
+void setBoolean(napi_env env,napi_value target,const char* key,bool item){napi_value result;napi_get_boolean(env,item,&result);value(env,target,key,result);}
 void string(napi_env env,napi_value target,const char* key,const char* item){napi_value result;napi_create_string_utf8(env,item,NAPI_AUTO_LENGTH,&result);value(env,target,key,result);}
 void hex(napi_env env,napi_value target,const char* key,uintptr_t item){char text[24]{};std::snprintf(text,sizeof(text),"0x%llx",static_cast<unsigned long long>(item));string(env,target,key,text);}
 napi_value rectangle(napi_env env,const RECT& rect){napi_value result=object(env);number(env,result,"x",rect.left);number(env,result,"y",rect.top);number(env,result,"width",rect.right-rect.left);number(env,result,"height",rect.bottom-rect.top);return result;}
 napi_value windowState(napi_env env,HWND window){
- napi_value result=object(env);hex(env,result,"handle",reinterpret_cast<uintptr_t>(window));boolean(env,result,"exists",IsWindow(window)!=FALSE);
+ napi_value result=object(env);hex(env,result,"handle",reinterpret_cast<uintptr_t>(window));setBoolean(env,result,"exists",IsWindow(window)!=FALSE);
  DWORD process=0;const DWORD thread=GetWindowThreadProcessId(window,&process);number(env,result,"pid",process);number(env,result,"threadId",thread);
  wchar_t name[128]{};const int length=GetClassNameW(window,name,128);napi_value className;napi_create_string_utf16(env,reinterpret_cast<const char16_t*>(name),length>0?static_cast<size_t>(length):0,&className);value(env,result,"className",className);
  hex(env,result,"style",static_cast<uint32_t>(GetWindowLongPtrW(window,GWL_STYLE)));hex(env,result,"exStyle",static_cast<uint32_t>(GetWindowLongPtrW(window,GWL_EXSTYLE)));
- boolean(env,result,"visible",IsWindowVisible(window)!=FALSE);boolean(env,result,"enabled",IsWindowEnabled(window)!=FALSE);boolean(env,result,"iconic",IsIconic(window)!=FALSE);
+ setBoolean(env,result,"visible",IsWindowVisible(window)!=FALSE);setBoolean(env,result,"enabled",IsWindowEnabled(window)!=FALSE);setBoolean(env,result,"iconic",IsIconic(window)!=FALSE);
  hex(env,result,"parentHandle",reinterpret_cast<uintptr_t>(GetParent(window)));hex(env,result,"rootHandle",reinterpret_cast<uintptr_t>(GetAncestor(window,GA_ROOT)));
  RECT rect{};if(GetWindowRect(window,&rect))value(env,result,"rect",rectangle(env,rect));
  return result;
@@ -298,12 +298,12 @@ napi_value mousePaneCornersState(napi_env env,napi_callback_info info){
  napi_value result=object(env),validation=object(env);value(env,result,"validation",validation);
  void* bytes=nullptr;size_t length=0;bool buffer=false;
  const bool validBuffer=count==1&&napi_is_buffer(env,args[0],&buffer)==napi_ok&&buffer&&napi_get_buffer_info(env,args[0],&bytes,&length)==napi_ok&&length==sizeof(HWND);
- boolean(env,validation,"buffer",validBuffer);
+ setBoolean(env,validation,"buffer",validBuffer);
  if(!validBuffer){string(env,validation,"reason","invalid-handle-buffer");return result;}
  HWND parent=nullptr;std::memcpy(&parent,bytes,sizeof(parent));
  const bool exists=IsWindow(parent)!=FALSE;DWORD process=0;const DWORD thread=exists?GetWindowThreadProcessId(parent,&process):0;
  const bool owned=exists&&process==GetCurrentProcessId(),uiThread=owned&&thread==GetCurrentThreadId(),topLevel=exists&&GetAncestor(parent,GA_ROOT)==parent;
- boolean(env,validation,"window",exists);boolean(env,validation,"ownedProcess",owned);boolean(env,validation,"uiThread",uiThread);boolean(env,validation,"topLevel",topLevel);
+ setBoolean(env,validation,"window",exists);setBoolean(env,validation,"ownedProcess",owned);setBoolean(env,validation,"uiThread",uiThread);setBoolean(env,validation,"topLevel",topLevel);
  string(env,validation,"reason",!exists?"invalid-window":!owned?"foreign-process":!uiThread?"different-ui-thread":!topLevel?"not-top-level":"valid");
  napi_value last=object(env);string(env,last,"reason","not-called");value(env,result,"lastCall",last);
  for(const auto& entry:cornerTraces)if(entry.parent==parent){
@@ -314,12 +314,12 @@ napi_value mousePaneCornersState(napi_env env,napi_callback_info info){
  RECT client{};if(GetClientRect(parent,&client))value(env,parentState,"clientRect",rectangle(env,client));
  POINT origin{0,0};if(ClientToScreen(parent,&origin)){napi_value point=object(env);number(env,point,"x",origin.x);number(env,point,"y",origin.y);value(env,parentState,"clientOrigin",point);}
  DWORD_PTR reference=0;GetWindowSubclass(parent,paneParentProc,kCornerSubclass,&reference);auto* trim=reinterpret_cast<PaneTrim*>(reference);
- napi_value trimState=object(env);value(env,result,"trim",trimState);boolean(env,trimState,"exists",trim!=nullptr);
+ napi_value trimState=object(env);value(env,result,"trim",trimState);setBoolean(env,trimState,"exists",trim!=nullptr);
  if(trim){
-  boolean(env,trimState,"painting",trim->painting);string(env,trimState,"paintStage",trim->paintStage);number(env,trimState,"paintError",trim->paintError);hex(env,trimState,"paintHresult",static_cast<uint32_t>(trim->paintHresult));
+  setBoolean(env,trimState,"painting",trim->painting);string(env,trimState,"paintStage",trim->paintStage);number(env,trimState,"paintError",trim->paintError);hex(env,trimState,"paintHresult",static_cast<uint32_t>(trim->paintHresult));
   string(env,trimState,"renderingMode",trim->composed?"direct-composition":"layered-child");
   napi_value composition=object(env);value(env,trimState,"composition",composition);
-  boolean(env,composition,"device",trim->device!=nullptr);boolean(env,composition,"target",trim->target!=nullptr);boolean(env,composition,"root",trim->root!=nullptr);number(env,composition,"commits",static_cast<double>(trim->commits));
+  setBoolean(env,composition,"device",trim->device!=nullptr);setBoolean(env,composition,"target",trim->target!=nullptr);setBoolean(env,composition,"root",trim->root!=nullptr);number(env,composition,"commits",static_cast<double>(trim->commits));
   number(env,composition,"surfaceCount",static_cast<double>(std::count_if(trim->corners.begin(),trim->corners.end(),[](const Corner& corner){return corner.surface!=nullptr;})));
   number(env,composition,"visualCount",static_cast<double>(std::count_if(trim->corners.begin(),trim->corners.end(),[](const Corner& corner){return corner.visual!=nullptr;})));
   number(env,trimState,"paneCount",static_cast<double>(trim->panes.size()));number(env,trimState,"cornerCount",static_cast<double>(trim->corners.size()));
@@ -328,18 +328,18 @@ napi_value mousePaneCornersState(napi_env env,napi_callback_info info){
   napi_value panes,corners;napi_create_array(env,&panes);napi_create_array(env,&corners);value(env,trimState,"panes",panes);value(env,trimState,"corners",corners);
   uint32_t i=0;for(const auto& pane:trim->panes){if(i==100)break;napi_value item=object(env);number(env,item,"x",pane.x);number(env,item,"y",pane.y);number(env,item,"width",pane.width);number(env,item,"height",pane.height);char color[8]{};std::snprintf(color,sizeof(color),"#%06x",pane.color);string(env,item,"color",color);napi_set_element(env,panes,i++,item);}
   i=0;for(const auto& corner:trim->corners){
-   if(i==200)break;napi_value item=windowState(env,corner.window);boolean(env,item,"painted",corner.painted);
+   if(i==200)break;napi_value item=windowState(env,corner.window);setBoolean(env,item,"painted",corner.painted);
    number(env,item,"bitmapWidth",corner.width);number(env,item,"bitmapHeight",corner.height);number(env,item,"cx",corner.cx);number(env,item,"cy",corner.cy);number(env,item,"radius",corner.radius);
-   boolean(env,item,"sourceCloaked",corner.cloaked);DWORD cloakState=0;const HRESULT cloakHr=DwmGetWindowAttribute(corner.window,DWMWA_CLOAKED,&cloakState,sizeof(cloakState));
+   setBoolean(env,item,"sourceCloaked",corner.cloaked);DWORD cloakState=0;const HRESULT cloakHr=DwmGetWindowAttribute(corner.window,DWMWA_CLOAKED,&cloakState,sizeof(cloakState));
    hex(env,item,"cloakHresult",static_cast<uint32_t>(cloakHr));if(SUCCEEDED(cloakHr))number(env,item,"cloakState",cloakState);
-   boolean(env,item,"compositionSurface",corner.surface!=nullptr);boolean(env,item,"compositionVisual",corner.visual!=nullptr);
+   setBoolean(env,item,"compositionSurface",corner.surface!=nullptr);setBoolean(env,item,"compositionVisual",corner.visual!=nullptr);
    if(corner.visual){number(env,item,"visualX",corner.visualX);number(env,item,"visualY",corner.visualY);}
    char color[8]{};std::snprintf(color,sizeof(color),"#%06x",corner.color);string(env,item,"color",color);napi_set_element(env,corners,i++,item);
   }
  }
  napi_value children;napi_create_array(env,&children);value(env,result,"children",children);uint32_t index=0;HWND child=GetWindow(parent,GW_CHILD);std::vector<HWND> seen;
  while(child&&index<256&&std::find(seen.begin(),seen.end(),child)==seen.end()){
-  seen.push_back(child);napi_value item=windowState(env,child);number(env,item,"zOrder",index);boolean(env,item,"ownedCorner",trim&&GetWindowLongPtrW(child,GWLP_USERDATA)==reinterpret_cast<LONG_PTR>(trim));napi_set_element(env,children,index++,item);child=GetWindow(child,GW_HWNDNEXT);
+  seen.push_back(child);napi_value item=windowState(env,child);number(env,item,"zOrder",index);setBoolean(env,item,"ownedCorner",trim&&GetWindowLongPtrW(child,GWLP_USERDATA)==reinterpret_cast<LONG_PTR>(trim));napi_set_element(env,children,index++,item);child=GetWindow(child,GW_HWNDNEXT);
  }
- boolean(env,result,"childrenTruncated",child!=nullptr);return result;
+ setBoolean(env,result,"childrenTruncated",child!=nullptr);return result;
 }
