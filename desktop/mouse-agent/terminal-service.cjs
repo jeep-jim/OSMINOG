@@ -32,6 +32,9 @@ class TerminalService extends EventEmitter{
   if(this.proc)return;if(!path.isAbsolute(cwd)||!fs.statSync(cwd).isDirectory())throw Error('Выберите папку проекта');
   const pty=this.ptyModule||require('./deps.cjs')('node-pty'),windows=this.platform==='win32',env=cleanEnv();
   if(windows&&!this.ptyModule&&Number(require('node:os').release().split('.')[2])<18309)throw Error('Для терминала Mouse нужна Windows 10 версии 1903 или новее');
+  // cleanEnv normalizes case. Windows PowerShell must rebuild its own module
+  // paths instead of inheriting incompatible PS7 paths through Mouse.
+  if(windows)delete env.PSModulePath;
   const shell=windows?path.win32.join(env.SYSTEMROOT||env.WINDIR||'C:\\Windows','System32/WindowsPowerShell/v1.0/powershell.exe'):'/bin/bash';
   this.proc=pty.spawn(shell,windows?['-NoLogo','-NoProfile','-NoExit','-EncodedCommand',encoded(powershellStartup)]:['--noprofile','--norc'],{name:'xterm-256color',cols:80,rows:16,cwd,env:{...env,TERM:'xterm-256color',HISTFILE:windows?'NUL':'/dev/null',BASH_SILENCE_DEPRECATION_WARNING:'1',PS1:'Mouse $ '},...(windows?{useConpty:true,useConptyDll:true}:{})});
   const proc=this.proc;

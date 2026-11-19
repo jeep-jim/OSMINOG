@@ -17,6 +17,23 @@ test('PowerShell framing treats Unicode, quotes and multiple lines as script dat
 test('Windows path environment is preserved case-insensitively without inheriting credentials',()=>{
  assert.deepEqual(cleanEnv({Path:'C:\\bin',SystemRoot:'C:\\Windows',USERPROFILE:'C:\\Users\\owner',Temp:'C:\\Temp',PSModulePath:'C:\\modules',OPENAI_API_KEY:'secret',NODE_OPTIONS:'--require bad',SECRET:'secret'}),{PATH:'C:\\bin',SYSTEMROOT:'C:\\Windows',USERPROFILE:'C:\\Users\\owner',TEMP:'C:\\Temp',PSModulePath:'C:\\modules'});
 });
+test('Windows PowerShell rebuilds module paths while preserving PATH and profile; Mac keeps its environment',()=>{
+ const previous=Object.entries(process.env).filter(([key])=>key.toUpperCase()==='PSMODULEPATH'),windows=mock(),mac=mock(),
+  winTerminal=new TerminalService({...windows,platform:'win32'}),macTerminal=new TerminalService({...mac,platform:'darwin'});
+ for(const [key] of previous)delete process.env[key];
+ try{
+  process.env.pSmOdUlEpAtH='C:\\PowerShell7-only\\Modules';
+  const expected=cleanEnv();assert.equal(expected.PSModulePath,'C:\\PowerShell7-only\\Modules');
+  winTerminal.start(process.cwd());const windowsEnv=windows.sessions[0].options.env;
+  assert.equal(Object.keys(windowsEnv).some(key=>key.toUpperCase()==='PSMODULEPATH'),false);
+  for(const [key,value] of Object.entries(expected))if(key!=='PSModulePath')assert.equal(windowsEnv[key],value,key+' must stay unchanged');
+  macTerminal.start(process.cwd());assert.equal(mac.sessions[0].options.env.PSModulePath,expected.PSModulePath);
+ }finally{
+  winTerminal.stop();if(macTerminal.proc)macTerminal.proc.pid=process.pid;macTerminal.stop();
+  for(const key of Object.keys(process.env))if(key.toUpperCase()==='PSMODULEPATH')delete process.env[key];
+  for(const [key,value] of previous)process.env[key]=value;
+ }
+});
 test('failed terminal input clears the pending command and its timer',async()=>{
  const m=mock(),terminal=new TerminalService({...m,platform:'win32'});terminal.start(process.cwd());m.sessions[0].write=()=>{throw Error('broken input');};await assert.rejects(terminal.execute('Write-Output hello'),/broken input/);assert.equal(terminal.pending,null);terminal.stop();
 });

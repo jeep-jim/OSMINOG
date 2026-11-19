@@ -1,9 +1,11 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -26,14 +28,27 @@ class WindowsVerificationContracts(unittest.TestCase):
 
             def measure(args, **options):
                 self.assertIn("-EncodedCommand", args)
+                self.assertNotIn("psmodulepath", {key.casefold() for key in options["env"]})
+                self.assertEqual(options["env"]["KEEP_NATIVE_ENV"], "preserved")
                 self.assertEqual(options["env"]["MOUSE_WINDOWS_AUTHENTICODE_FILE"], str(executable))
                 Path(options["env"]["MOUSE_WINDOWS_AUTHENTICODE_RESULT"]).write_text(json.dumps({"status": "NotSigned", "signerSubject": None, "signerThumbprint": None}), encoding="utf-8-sig")
                 return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
             with mock.patch.object(verify.subprocess, "run", side_effect=measure):
-                result = verify.authenticode(executable, {})
+                result = verify.authenticode(executable, {"PSModulePath": r"C:\PowerShell7\Modules", "pSMoDuLePaTh": r"C:\WrongModules", "KEEP_NATIVE_ENV": "preserved"})
             self.assertEqual(result["status"], "NotSigned")
             self.assertEqual(result["sha256"], verify.sha256(executable))
+
+    @unittest.skipUnless(sys.platform == "win32", "Requires actual Windows Authenticode")
+    def test_native_signature_measurement_ignores_inherited_powershell_module_path(self):
+        with tempfile.TemporaryDirectory(prefix="mouse-signature-test-") as directory:
+            file = Path(directory) / "Unsigned fixture.ps1"
+            file.write_text("# Owned unsigned fixture; never executed.\n", encoding="utf-8")
+            result = verify.authenticode(file, {**os.environ, "PSModulePath": str(Path(directory) / "missing-PS7-modules")})
+            self.assertEqual(result["status"], "NotSigned")
+            self.assertIsNone(result["signerSubject"])
+            self.assertIsNone(result["signerThumbprint"])
+            self.assertEqual(result["sha256"], verify.sha256(file))
 
     def test_unicode_diagnostics_survive_windows_ansi_stdout(self):
         buffer = io.BytesIO()

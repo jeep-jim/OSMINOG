@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),fsp=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto'),vm=require('node:vm'),{EventEmitter}=require('node:events');
 const {MouseUpdates,WINDOWS_CHANNEL,channelCandidate,selectRelease,releaseTarget}=require('./mouse-update.cjs');
-const {WindowsInstaller,windowsPackage,acknowledgeWindows,ordinaryWindowsDirectory,WINDOWS_HELPER}=require('./mouse-install-update.cjs');
+const {WindowsInstaller,windowsPackage,acknowledgeWindows,ordinaryWindowsDirectory,WINDOWS_HELPER,startWindowsHelper}=require('./mouse-install-update.cjs');
 const target={platform:'win32',arch:'x64'};
 const manifest=(patch={})=>({schema:1,...target,version:'6.0.30',url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.30-x64/Mouse-Browser-6.0.30-Windows-x64.exe',size:100,digest:'sha256:'+'a'.repeat(64),...patch});
 function load(name,stubs={}){const mod={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,name),'utf8'),{module:mod,exports:mod.exports,require:id=>Object.hasOwn(stubs,id)?stubs[id]:require(id),process,Buffer,URL,Date,AbortSignal,setTimeout,clearTimeout,console},{filename:name});return mod.exports;}
@@ -66,6 +66,14 @@ test('a Windows console host exiting zero before readiness fails immediately and
   }});
   await installer.prepare(f.file,f.candidate);await assert.rejects(()=>installer.install(),/до подтверждения \(код 0\): Helper diagnostic before readiness/);
   assert.equal(quit,false);assert.equal(killed,true);assert.equal(await fsp.readFile(installer.plan.cancel,'utf8'),'cancel');assert.equal(fs.existsSync(installer.plan.ready),false);
+ }finally{await f.cleanup();}
+});
+test('the Windows helper resets only its inherited PowerShell module path and preserves the isolated profile',async()=>{
+ const f=await installerFixture();try{
+  const installer=new WindowsInstaller({...f,platform:'win32'}),plan=await installer.prepare(f.file,f.candidate),env={PSModulePath:'PS7 modules',pSmOdUlEpAtH:'another PS7 path',PATH:'keep executable search',CI:'true',MOUSE_TEST_PROFILE:f.profile},original={...env};let options;
+  await startWindowsHelper(plan,{env,spawn:(_command,_args,value)=>{options=value;return new EventEmitter();}});
+  assert.deepEqual(env,original);assert.equal(Object.keys(options.env).some(key=>key.toLowerCase()==='psmodulepath'),false);
+  assert.equal(options.env.PATH,env.PATH);assert.equal(options.env.CI,'true');assert.equal(options.env.MOUSE_TEST_PROFILE,f.profile);assert.equal(options.env.MOUSE_INSTALL_PLAN,path.join(plan.stage,'plan.json'));
  }finally{await f.cleanup();}
 });
 test('Windows acknowledgement is bound to the running version, executable and dedicated temp stage',async()=>{

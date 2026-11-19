@@ -68,6 +68,8 @@ def authenticode(file: Path, env: dict) -> dict:
     # Paths remain environment data, never interpolated into PowerShell source.
     # Measure the actual package instead of trusting a generic builder log line.
     command = r"""$ErrorActionPreference = 'Stop'
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1')) -ErrorAction Stop
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
 $signature = Get-AuthenticodeSignature -LiteralPath $env:MOUSE_WINDOWS_AUTHENTICODE_FILE
 $certificate = $signature.SignerCertificate
 $result = [ordered]@{
@@ -81,10 +83,13 @@ $json = $result | ConvertTo-Json -Compress
 """
     powershell = Path(env.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
     encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    # PowerShell7 -> Python -> Windows PowerShell keeps incompatible PS7 module
+    # paths. Let this child rebuild its own defaults; Windows env keys ignore case.
+    signature_env = {key: value for key, value in env.items() if key.casefold() != "psmodulepath"}
     with tempfile.TemporaryDirectory(prefix="mouse-windows-signature-") as temporary:
         output = Path(temporary) / "signature.json"
         result = subprocess.run([str(powershell), "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-                                env={**env, "MOUSE_WINDOWS_AUTHENTICODE_FILE": str(file),
+                                env={**signature_env, "MOUSE_WINDOWS_AUTHENTICODE_FILE": str(file),
                                      "MOUSE_WINDOWS_AUTHENTICODE_RESULT": str(output)},
                                 stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8-sig", errors="replace",
                                 timeout=30, check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))

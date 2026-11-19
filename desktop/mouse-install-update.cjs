@@ -79,7 +79,19 @@ function Write-Step([string]$message) {
 function Verify-Package {
  $item = Get-Item -LiteralPath $plan.file -Force
  if ($item.PSIsContainer -or (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) -or $item.Length -ne $plan.size) { throw 'Update file changed' }
- if ((Get-FileHash -Algorithm SHA256 -LiteralPath $plan.file).Hash.ToLowerInvariant() -ne $plan.hash) { throw 'Update SHA256 changed' }
+ # Do not depend on a module search path inherited from a different PowerShell.
+ $stream = $null
+ $sha = $null
+ try {
+  $stream = [IO.File]::OpenRead($plan.file)
+  if ($stream.Length -ne $plan.size) { throw 'Update file changed' }
+  $sha = [Security.Cryptography.SHA256]::Create()
+  $digest = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+  if ($digest -ne $plan.hash) { throw 'Update SHA256 changed' }
+ } finally {
+  if ($null -ne $sha) { $sha.Dispose() }
+  if ($null -ne $stream) { $stream.Dispose() }
+ }
 }
 try {
  $plan = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($env:MOUSE_INSTALL_PLAN))
@@ -124,8 +136,13 @@ try {
  exit 1
 }
 `;
-async function startWindowsHelper(plan,{spawn=cp.spawn}={}){
+async function startWindowsHelper(plan,{spawn=cp.spawn,env=process.env}={}){
  const system=path.join(process.env.SystemRoot||'C:\\Windows','System32'),powershell=path.join(system,'WindowsPowerShell','v1.0','powershell.exe');
+ // A pwsh -> Node -> Windows PowerShell chain otherwise inherits PS7 modules
+ // that Windows PowerShell cannot load. Reset only this child's module search
+ // variable so Windows PowerShell constructs its own defaults at startup.
+ const environment={...env,MOUSE_INSTALL_PLAN:path.join(plan.stage,'plan.json')};
+ for(const key of Object.keys(environment))if(key.toLowerCase()==='psmodulepath')delete environment[key];
  // PowerShell requires a console even in noninteractive mode. A bare
  // DETACHED_PROCESS can exit zero before running its script. The system's
  // headless console host supplies that console without displaying a window.
@@ -135,7 +152,7 @@ async function startWindowsHelper(plan,{spawn=cp.spawn}={}){
  try{
   err=await fs.open(plan.helperErr,'a',0o600);
   const encoded=Buffer.from(WINDOWS_HELPER,'utf16le').toString('base64');
-  const child=spawn(path.join(system,'conhost.exe'),['--headless','--',powershell,'-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{detached:true,windowsHide:true,stdio:['ignore',out.fd,err.fd],env:{...process.env,MOUSE_INSTALL_PLAN:path.join(plan.stage,'plan.json')}});
+  const child=spawn(path.join(system,'conhost.exe'),['--headless','--',powershell,'-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{detached:true,windowsHide:true,stdio:['ignore',out.fd,err.fd],env:environment});
   // Latch events before closing our descriptor copies: a launch failure may
   // arrive before the caller's await resumes. The child owns inherited handles.
   const state=child.mouseHelperState={error:null,exit:null};
