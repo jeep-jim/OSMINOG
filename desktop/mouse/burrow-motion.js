@@ -49,11 +49,12 @@
    local.setAttribute('viewBox',`0 0 ${next.width} ${next.height}`);fill.setAttribute('d',shape.closed);outline.setAttribute('d',shape.d);clip.setAttribute('d',shape.closed);
    local.style.setProperty('--dock-line-width',next.line+'px');panel.style.setProperty('--nora-curve-x',shape.rx+'px');panel.style.setProperty('--nora-curve-y',shape.ry+'px');scrim.style.bottom=next.bottom+'px';
   }
-  function stopPlayers(){
+  function stopPlayers(keepLayers=false){
    cancelPreparation();parked=false;
    const current=movement,shadow=shade;movement=shade=null;
    // All finished promises have rejection handlers before cancellation.
-   current?.cancel();shadow?.cancel();panel.style.willChange='';scrim.style.willChange='';
+   current?.cancel();shadow?.cancel();
+   if(!keepLayers){panel.style.willChange='';scrim.style.willChange='';}
   }
   function complete(to,retainOpen=false){
    note('complete',{to});
@@ -61,7 +62,7 @@
    if(to===1&&retainOpen&&!reduced.matches&&movement&&shade){
     if(!parked){
      cancelPreparation();
-     // Keep the visible layers and their players ready for closing. Chromium
+     // Keep the visible layers and their players throughout the open state. Chromium
      // caches effect phase by time/idle state, so changing rate at exactly300ms
      // alone can leave the finished forward effect non-current. Reapplying its
      // identical keyframes invalidates that cache at rest, without changing
@@ -112,9 +113,9 @@
     }).catch(failed);
    };
    note('prepare-await-ready',{to});
-   // Opening and a close without retained players commit fresh paused layers
-   // before starting the300ms timeline. A parked open pair or live reversal
-   // already has its players and never repeats this preparation.
+   // Fresh opening and closing players commit paused layers before starting
+   // the300ms timeline. A live reversal keeps its players and never repeats
+   // this preparation.
    Promise.all([movement.ready,shade.ready]).then(()=>{
     if(!active||ticket!==generation||current!==movement)return;
     note('pause-ready',{to});preparationFrame=requestAnimationFrame(rafTime=>{
@@ -124,6 +125,10 @@
   }
   function animate(to,immediate=false){
    const wasPreparing=preparing,atEndpoint=!!movement&&Number(movement.currentTime)===to*duration;cancelPreparation();cancelWaiter();const ticket=++generation;goal=to;
+   // Retain the current open effects until an actual close, then retire them
+   // without dropping the visible layers or their inline endpoint. Closing
+   // gets a fresh reverse pair and its full paused-readiness preparation.
+   if(to===0&&parked&&!immediate&&!reduced.matches)stopPlayers(true);
    note('request',{to,immediate});
    if(!active){active=true;geometryDirty=true;scrim.hidden=false;document.body.classList.add('mouse-dock-active');sync();}
    const result=new Promise((resolve,reject)=>{waiter={resolve,reject};});
