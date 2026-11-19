@@ -196,3 +196,113 @@ Candidate artifact 14532270598 (`mouse-arm64-candidate`) создан 2026-11-19
 Текущий статус: **SOURCE_VERIFIED / PUBLISHER_RUNNING**. Принятый DMG не пересобирается: publisher импортирует ровно зафиксированные байты, проверяет source evidence и отдельную установленную копию, реальную замену опубликованной 6.0.29 с сохранением профиля, публичные assets, статический канал и анонимную загрузку всего DMG старым обновлятором. До окончания этих этапов 6.0.30 не объявляется опубликованной. Публичные assets 6.0.29 не заменяются задним числом.
 
 Уточнение описания screenshot evidence: light download PNG показывает 17% / 176 KB, соответствующие сохранённому native byte sample 180224/1048576 = 17.1875%; приложенный позднейший DOM sample уже показывает 25%. Dark PNG показывает 25%. Эти асинхронные наблюдения не обозначаются одним и тем же кадром. Canvas и saved PNG совпадают побайтно; clipboard PNG имеет иное кодирование, но те же 1440×960 RGBA pixels. Подтверждение и затвор в экспорт не попали.
+
+## 19 ноября 2026 — первый установленный publisher отклонён до публикации
+
+[Publisher44528964266](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44528964266), attempt1 / job135577124089 / head `83e5f23d009ef4495179844c2a50cb1c2192f18c`, завершился FAILURE в13:06:49Z. Import5 прошёл; installed/native step6 завершился ошибкой. Publication7, channel8 и actual old-updater9 SKIPPED; upload10 прошёл13:06:39–13:06:43Z. Принятие исходника a1e3 остаётся фактом source CI, но этот пакет не получил полной установленной приёмки и не опубликован.
+
+В raw `mouse-630-wheel-pages.json` записаны33 inputs, семь observed групп, два gesture packets и девять завершённых обычных сценариев. Первый private input: WC58, точка(1274,290), precise mouseWheel deltaX2. Он не появился в оконном observer Chromium, после чего исходный wait завершился `Mouse630 wheel timeout: wheel calibration observed by Chromium`. Рабочая серия четырёх private inputs ещё не отправлялась. Cleanup завершился с restored=true. Этот delta2 меньше product axis floor4; порог112px переключения и downstream IPC ещё не участвовали. Факт запроса sendInputEvent не равен доказательству доставки. Причина потери события не установлена.
+
+Failure PNG получен BrowserWindow.capturePage, поэтому видимый shell placeholder не доказывает отсутствие native guest на экране. Прежний fixture перед вводом вызывал wc.focus до завершения фокусировки окна и проверял только win.isFocused; actual native placement/visibility, document focus и состояние владельца до cleanup не сохранялись. Это установленный пробел подготовки и диагностики, а не доказанная внутренняя причина потери события.
+
+Verification artifact14532259716 (`mouse630-release-verification-attempt-1`) создан13:06:43Z:16178063bytes, SHA-256 `b3917ca2c00cef065406dfbfbb3a2b43926293610ea61ac1f5c5ea832299c553`. Независимо проверены точные repo/run/head/attempt/job, strict upload10 interval, API SHA/size, ZIP CRC, безопасные пути и все47880805 распакованных байтов182файлов. Неизменённый628 trace PASS; full630 REJECT (`gesture first-use lifecycle incomplete`), markers11/17. Actual replacement log и channel-verification.json отсутствуют: эти стадии не достигнуты, общий результат REJECT. Raw evidence, source acceptance и прежний pin сохраняются.
+
+[Публичный канал](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json) повторно прочитан13:14Z:6.0.29, DMG137744712bytes, SHA-256 `665fca86eb86f1bd98bca4c72652fb5b0a981fc4f4c6467a66d0683874c6d57c`. Следующий кандидат требует собственной полной source-проверки, точного нового pin, установленной приёмки, реальной замены629, публичных assets/channel и фактической анонимной загрузки старым обновлятором. До этих результатов630 не объявляется опубликованной.
+
+### Подготовка целевого native ввода перед повторной приёмкой
+
+Исправлен только producer `desktop/mouse-630-gesture-smoke.cjs` и дополнены его focused tests в существующем `mouse-gesture.test.cjs`. После активации и подтверждённого фокуса BrowserWindow проверяются реальные current context/browser/page/WC, navigationEpoch/URL/timeOrigin и desktop membership. Проверяются actual view/clip visibility, attachment к contentView, стабильные native bounds до и после чтения DOM, отсутствие surface hold, точка внутри видимой части clip и окна, DOM hit target и готовность документа. Затем вызывается wc.focus и подтверждаются wc.isFocused вместе с document.hasFocus. Координата selector считывается после фокусировки.
+
+Подготовка имеет единый monotonic deadline12000ms, который не начинается заново при опросах. До ввода и при отказе сохраняются структурированные фактические состояния; native failure snapshot берётся синхронно до дополнительного bounded1000ms DOM query и до private cleanup. Поздний ответ не продолжает подготовку после deadline, диагностическая ошибка не заменяет исходный отказ.
+
+Исходный calibration wait480×25ms плюс время executeJavaScript оставлен побайтно прежним: одна delta2, обязательное наблюдение настоящего trusted wheel, прежнее определение знака. Рабочие серии, quiet500ms, интервалы16ms, все десять сценариев, исходный error/cleanup и критерии112/64/280/420 сохранены. В продуктовый recognizer, frozen checkers, motion300ms, capture2500ms и paint1500ms изменений нет. Дополнительная подготовка не доказывает причину потери события предыдущего запуска.
+
+Локальные проверки:34/34 PASS (26 прежних и восемь новых), syntax и diffcheck PASS. Проверены порядок focus, actual visibility/clip intersection, shell route, смена владельца/document/epoch, отсутствие document focus, поздний ответ после deadline, единый deadline и сохранение исходной ошибки. Принудительные deadline tests управляют часами и timers явно, без зависимости от10–20ms планировщика CI. Повторная исходная Mac-приёмка и установленный publisher ещё ожидаются: **SOURCE_RECHECK_PENDING / PUBLICATION_PENDING**.
+
+## 19 ноября 2026 — повторная source-проверка остановилась раньше wheel-сценария
+
+[PR174](https://github.com/jeep-jim/OSMINOG/pull/174), source `9a9725a01cab531bba718486c0fff6ef99143287`, tree `64112b7e4fa505d5d055d92e6ab2c85213c61a61`: [Mac run44533831946](https://github.com/jeep-jim/OSMINOG/actions/runs/44533831946), attempt1/job135593916455, завершился FAILURE13:31:27Z. Build15 PASS13:29:31–13:30:29Z; native17 FAILED13:30:34–13:31:20Z. Bind18/candidate19 SKIPPED, verification20 PASS13:31:20–13:31:22Z. Все семь остальных workflows этого head завершились SUCCESS; это не заменяет обязательный native результат.
+
+В raw write log записано `Timed out keyboard suggestion selected`, mouse-basics-smoke.cjs:25 / dispatcher:54. Проверка ждала aria-selected после одной отправленной через sendInputEvent пары Down keyDown/keyUp. До нового mouse-630-gesture-smoke выполнение не дошло; его native эффективность этим запуском не проверена. Кандидат не загружен, публикация не выполнялась.
+
+[Artifact14534574139](https://github.com/jeep-jim/OSMINOG/actions/runs/44533831946/artifacts/14534574139):451543bytes, SHA-256 `4bf73bc9c0b9c956442e180eb84b18ecd05cc877ae1f475a9523d3716a003618`. Независимые provenance, strict upload20 interval, API SHA/size, ZIP CRC/safe paths и все512192 извлечённых байта10файлов PASS. Full630 REJECT из-за недостигнутых proof files, immutable628 trace отсутствует, markers0/17. Этот ранний отказ не обозначается отказом измеренных анимаций или жеста.
+
+Failure PNG показывает открытый popup с одной bookmark-строкой и адресным input visited-alpha. Raw JSON сообщает ready=true, switching=false, desktopSliding=false, dialogs=[], overlayBlocked=false, surfaceHeld=false и clipped page ниже popup. Поле renderer.activeElement сохраняет только id; пустое значение у input без id не доказывает blur. Native focus и доставленный Down не записаны, фактическая причина текущего отказа неизвестна.
+
+В коде установлен отдельный пробел readiness: focus планирует suggestions через100ms, новый input — через90ms, а прежний until проверял только уже открытый popup и совпадающий текст. Начальный адрес тоже содержит visited-alpha, поэтому условие не отличает focus-popup от нового результата query; поздний render заменяет rows и сбрасывает active=-1. Это возможная последовательность по коду, не доказанная последовательность данного запуска. Product suggest проверяет activeElement===input перед показом, поэтому утверждение, будто он открывается без фокуса input, неверно.
+
+Для следующей проверки сохраняется реальный click, один Down и один Return. Требуется дождаться завершения первоначального focus-popup, затем фактической замены rows после нового query и сохранённого focus. После открытия popup фокус не восстанавливается искусственно: если clip/layout отнял его, это должно остаться наблюдаемым отказом. Подготовка и новая диагностика не подменяют критерий реального keyboard selection.
+
+### Уточнение подготовки basics keyboard fixture
+
+В mouse-basics-smoke.cjs добавлена ограниченная подготовка настоящего клика: сначала подтверждённый window/WC focus, затем стабильный доступный native hit target. До единственного адресного клика прежние hints закрываются штатным hideHints, а уже активный адресный input получает blur; это задаёт начальное состояние, в котором реальный click вызывает новый focus. Before/after подготовки сохраняются, тот же input/timeOrigin проверяются повторно.
+
+После click fixture только наблюдает сохранение actual native/document/input focus. Она дожидается полного первоначального focus-popup, фиксирует identities его rows, выполняет прежний query input и требует новую generation с полностью новыми rows. Только после этого отправляется одна пара Down, затем после прежнего selection gate — одна пара Return. После click искусственное восстановление focus, повторные keys/clicks и прямой выбор строки отсутствуют.
+
+Пассивный observer сохраняет ограниченные capture/bubble записи реальных pointer/key событий, их isTrusted, target/active identities, row generation и выделение. Исходный until200×60ms, шестнадцать прежних функциональных ожиданий и assertions сохранены. Общая подготовка ограничена monotonic12000ms; при отказе синхронный native snapshot предшествует bounded1000ms DOM query и cleanup, исходное исключение сохраняется. Новый raw diagnostic — mouse-630-basics-input.json.
+
+Локально17/17 hit-target/basics tests PASS (десять прежних, семь новых), syntax/diffcheck PASS; независимый review прошёл. Уже проверенные34 gesture tests и их producer/test files сохранены побайтно. Product browsing/recognizer, frozen evidence checkers, workflows, версия и критерии приёмки не изменены. Это исправление предпосылок теста, а не доказательство причины предыдущего отказа. Следующий source native run и полная публикация ещё ожидаются.
+
+## 2026-11-19 — c436: native PASS, независимая приёмка REJECT
+
+Кандидат PR174 `c436b9b958ea257d980ef163c5fd8faf9bf4fb9f`, tree `fa64d7982bdda71fcfdf9f3fb6adbce1830ddeed`, проверен в run `44538212380`, attempt 1, job `135609215774`. Job завершился **success** в 14:06:19 UTC. Native17 прошёл (13:56:34–14:05:59); bind18 и оба upload19/20 также прошли. [1]
+
+Оба архива получены и сохранены с привязкой к точным source/run/attempt/job и интервалам загрузки. Verification `14537941500`: 22 181 843 байта, SHA-256 `e0420da8b441028fec36f2e40f1c1e5274007efe5d4397d7dab38d4b640b9677`. Проверены CRC, безопасные пути и каждый распакованный байт: 282 файла, 54 137 315 байт. Candidate `14539315521`: 275 921 952 байта, SHA-256 `67dd44d60517d29894d0cd87299fdc9e016c4cb4ba226e918a7100b0f0e9a64f`; четыре записи ZIP, build provenance и заявленные package hashes подтверждены. [1][2]
+
+Независимый запуск неизменённых проверок дал **full630 PASS** и **17/17 обязательных маркеров**, но замороженный `mouse628-motion-trace.py` завершился **REJECT** с точным сообщением:
+
+> darkClosing: player did not become ready during closing
+
+Поэтому итог helper — **REJECT, exit 1**. Успех native job не заменяет эту проверку. Причина нарушения trace-условия пока не установлена; из одного текста исключения не следует вывод о конкретном GPU, compositor или исправлении. [1]
+
+Проверенные package bytes сохранены для анализа: DMG — 137 808 797 байт, SHA-256 `cf981bd1133c21cc18cbf1c411729014a24782dc6ce8dada3157bae316240e12`; ZIP — 140 150 013 байт, SHA-256 `3805df7d4c02596d7484a93e72592a36442ac1c657843c30ff5b4d536a31b1d4`. Эти пакеты **не приняты для публикации**. [2]
+
+### Статус и следующий шаг
+
+PR174 не сливается по этому результату; release pin остаётся привязанным к ранее принятому `a1e3`. История предыдущих source-отказов и неудачного publisher сохранена. Продолжается разбор фактического `darkClosing` trace; повтор запуска и изменения проверок не выполнялись в рамках acquisition. Будущий PASS не заявляется.
+
+Источники:
+
+1. [Source run и verification artifact 14537941500](https://github.com/jeep-jim/OSMINOG/actions/runs/44538212380).
+2. [Source run и candidate artifact 14539315521](https://github.com/jeep-jim/OSMINOG/actions/runs/44538212380).
+
+
+## 2026-11-19 — точное условие darkClosing и фиксированный протокол наблюдения
+
+Разбор неизменённого `mouse-628-motion.json` уточнил отказ c436. В `geometry.darkClosing.startup.events`, generation 58, оба проигрывателя в `play-ready` имеют `pending=false`, `playState=running`, `playbackRate=-1`, но `currentTime=300.003000000018`. Значение превышает прежний строгий предел 300 на 0.003000000018 мс. Фактические `startTime=35693.90300000002` и `documentTime=35393.9` дают эту разность. В принятом a1e3 соответствующее значение было 299.9789999999649; подготовка 300 и завершение 0 правильны в обоих архивах. Установлена точная причина отказа условия; внутренний механизм появления разницы 3 мкс этими данными не доказан.
+
+Поэтому c436 остаётся **REJECT**. Его исходные снимки, JSON, trace и результаты проверки сохраняются без исправлений и округления. Подтверждённые отдельно результаты не подменяют общую приёмку: basics дал один доверенный адресный клик, свежие строки поколения 1→2 и одиночные Down/Return с сохранённым фокусом; wheel дал 37 отправок,8 наблюдений,3 пакета и 10 сценариев, включая приватный. Предварительный blur уже активного адреса в этом Mac-прогоне не упражнялся. Визуально проверены Нора, прожилки, прогресс, загрузки и центральное подтверждение снимка. Перезапуск сделал 4 захвата с первой попытки за 1766.619 мс, подготовка изображения — 238.757 мс; эти результаты не дают PASS замороженному trace.
+
+Исправление ограничено диагностикой `trace=true`: прежний точный снимок в microtask после разрешения обоих ready Promise сохраняется как `play-ready-resolved`; первый безусловный RAF записывается как `play-ready-frame-1`; второй безусловный RAF записывается как `play-ready`. Каждый снимок содержит фактические свойства и собственное время. Нет выбора кадра по диапазону, повторов до удачного значения, clamp, округления или изменения timeline. Некорректное состояние во втором кадре остаётся некорректным; отмена либо смена поколения/любой из двух анимаций не подменяются другим проигрывателем.
+
+Два фиксированных RAF нужны для различения кадрового момента и разрешения Promise: [Web Animations](https://www.w3.org/TR/web-animations-1/#animation-frame) выполняет microtask checkpoint после обновления timelines, а [HTML update the rendering](https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering) выполняет RAF callbacks позднее в том же цикле. Следовательно, первый RAF может иметь тот же documentTime. В самом c436 такой кадр присутствует. Этот факт не доказывает происхождение численной разницы 3 мкс.
+
+Ограничения изменения: производственная ветка без trace не получает дополнительных RAF/измерений; `finished`, завершение интерфейса, подготовка страниц и 300 мс движения не ожидают диагностические кадры. Буфер из 32 сохраняется; guards проверяют active, generation и оба объекта проигрывателей, отдельный RAF отменяется на завершении/смене. В неизменённом trace checker граница `model_hi` использует время второго фактического наблюдения, а не прежнего microtask; это изменение точки измерения явно учитывается, критерии и выбор пары по завершению не изменяются. Никакая непрерывная compositor lifetime из этого не заявляется.
+
+Локальная проверка: 28/28 тестов mouse-burrow.test.cjs прошли (22 прежних и 6 новых); синтаксис обоих файлов и diff-check прошли. Дифференциальный byte-аудит подтверждает: удаление только нового диагностического helper/state/trace-cancel и возврат прежней trace-ветки в точности восстанавливает исходный burrow-motion.js с SHA-256 `37d9e79041b955b4e82d2ac03f3acc42a53c2b5321770a4fbd7b9edf6369ab25`. Новый нативный прогон и полный frozen630/frozen628 обязательны после проверенного исправления; их будущий PASS не заявляется. Статус: **SOURCE_RECHECK_PENDING**. Source PR174 пока не слит; release pin и опубликованные пакеты 6.0.29 не менялись.
+
+## 2026-11-19 — 5240: ранний отказ подготовки History, motion ещё не проверен
+
+Source `5240a552002784071eeb0215a2862fc394a0921b`, tree `ec1d0500f4144140b16b7dd831183d2e8d97b6ea`, [run44544019190](https://github.com/jeep-jim/OSMINOG/actions/runs/44544019190), attempt1/job135629620237 завершился FAILURE в14:31:39 UTC. Build15 прошёл14:28:57–14:30:45; native17 остановился14:31:32 с `Mouse630 basics readiness timeout: stable native click target`. Bind18/candidate19 SKIPPED, verification20 PASS14:31:32–14:31:34. Новый фиксированный протокол motion из5240 не был достигнут и не имеет результата нативной приёмки.
+
+Verification14539548056:432468bytes, SHA-256 `1d3aaa916f44a114636801589efb21d8cbf03d9a830959d3476e8d91fe0fc77c`;11 файлов,754968 распакованных байт. Точные run/attempt/job/source/tree/upload interval, API hash/size, ZIP CRC, безопасные пути и все извлечённые байты проверены. Это **acquisition PASS**, но итоговая приёмка **REJECT**: нет обязательных628 JSON/trace и candidate, markers0/17. Исходные PNG/JSON/log не менялись. Completed job log SHA-256 `ee44b287c931b6925fe94cd9a31ead408293d4d83d492757c62683bf89d704ba`.
+
+### Фактический порядок и предел диагноза
+
+В raw `mouse-630-basics-input.json` прошли единственный адресный click, новая generation1→2 с5→6 rows и единственные пары Down/Return. Всего7 отправленных native inputs: move/down/up, Down down/up, Return down/up. Последний этап — подготовка `click #history-button`; сам History click ещё не отправлялся. Все420 наблюдений ожидали только `native/document focus`: кнопка оставалась подключённой, фактический hit point(1055,946) был готов, bounds стабильны. Поэтому общее название timeout не означает отказ геометрии.
+
+В начале этой подготовки shell WC1 и документ имели focus, исходный input2 был active. Позже окно оставалось focused/visible, но shell/document потеряли focus, а guest WC9 его получил; input естественно перестал быть active. В прошедшем c436 при входе в тот же helper исходный input тоже был active: shell native focus уже был false при DOM focus=true, а guest WC9 был focused. Его последующая подготовка завершилась успешно. Отдельного navigation receipt в этих старых архивах нет; конкретный внутренний механизм переноса focus и точный момент завершения сети этим сравнением не доказаны.
+
+Пробел fixture подтверждён кодом5240: [browsing.js](https://github.com/jeep-jim/OSMINOG/blob/5240a552002784071eeb0215a2862fc394a0921b/desktop/mouse/browsing.js) закрывает подсказки синхронно перед `requestSubmit()`, а [browser.js](https://github.com/jeep-jim/OSMINOG/blob/5240a552002784071eeb0215a2862fc394a0921b/desktop/mouse/browser.js) выполняет `input.blur()` только после `await N.browser('navigate')`. [Native navigate](https://github.com/jeep-jim/OSMINOG/blob/5240a552002784071eeb0215a2862fc394a0921b/desktop/browser.cjs) ожидает `loadURL()`. Прежний basics fixture ждал лишь закрытого popup и затем начинал focus preparation следующего клика. Закрытие popup не подтверждает завершение asynchronous submission.
+
+Отдельный generic macOS candidate [44544018980](https://github.com/jeep-jim/OSMINOG/actions/runs/44544018980), job135629617515, остановился раньше тестов: step5 `npm ci`,14:33:06–14:33:12, HTTP500 при скачивании `electron-v44.5.0-darwin-arm64.zip`. Его completed log SHA-256 `4f694215e6cfaf14fa8d008f035903103a769ef4d3459aa50038def1a1c32230`. Остальные6 workflows5240 прошли. Этот dependency failure не считается результатом продукта; слепой rerun не выполнялся.
+
+### Узкая подготовка следующей проверки
+
+В basics fixture добавлено пассивное ожидание завершения submission перед существующей отдельной подготовкой History. Наблюдатель устанавливается до единственного Return; закрепляются исходные page object/tab ID/WC/navigationEpoch и исходный input/token/timeOrigin. Требуется новое main-frame `did-start-navigation` ожидаемого URL после фактического send-маркера с увеличенным epoch, затем соответствующий `did-finish-load`, тот же page/WC/epoch, ожидаемый URL, отсутствие loading/error и естественный blur того же подключённого input. Уже совпадающий URL недостаточен: `/visited-alpha` был загружен до Return.
+
+Наблюдение использует остаток прежнего `returnBudget`12000ms; оно не меняет focus/blur, не повторяет key/click и не ослабляет focus guards следующего History helper. Listeners снимаются на success/error/timeout; поздний DOM result не должен разрешать поздний click. Before/start/finish/ready/failure facts сохраняются в существующем raw basics diagnostic. Product navigation, wheel recognizer,300ms motion, budgets, workflows и frozen checkers не изменяются этой правкой.
+
+Локально22/22 focused tests PASS:17 прежних test bodies сохранены,5 новых проверяют новые receipts при уже совпадающем URL, ожидание естественного blur без восстановления focus, смену page/WC/input/document/context/epoch, ошибку загрузки и deadline с удалением listeners и защитой от поздних callbacks. Syntax и diff-check PASS. Byte-аудит сохранил прежние until/send/focus guards/reset helpers, все исходные функциональные ожидания и input payloads. Независимый review финального diff PASS. Producer SHA-256 `dd3f132fedf4e5295c40dc2988a62f75df322a3099253e79e66f0a3e49ce9f99`, test SHA-256 `1e9c0c989fbdb9e0d55ce8e3872cb84b8c0964672f4372c8ec5f7a062775466b`; patch SHA-256 `35685cf702e0e898a82a377c225d1e751e87e7385f2c629cd2e4fbd9dc0ea05a`. Эффективность на настоящем Mac ещё не доказана.
+
+Статус: **SOURCE_RECHECK_PENDING / PUBLICATION_PENDING**. Source PR174 не слит; release pin остаётся на ранее принятомa1e3; опубликованный Mac-канал6.0.29 и его immutable packages не менялись. Следующий exact-source native run обязан заново пройти полный630, неизменённый628 trace,17markers и package bindings; затем необходим отдельный publisher, настоящее629→630 обновление и анонимное скачивание старым обновлятором.

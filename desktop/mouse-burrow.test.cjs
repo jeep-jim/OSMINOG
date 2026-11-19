@@ -42,7 +42,9 @@ function controllerFixture({deferReady=false,deferPlay=false,effectTimingCache=f
  class Animation{
   constructor(node,frames,options){this.node=node;this.keyframes=frames;this.options=options;this.rate=1;this.pendingRate=null;this.hold=0;this.started=now;this.running=false;this.cancelled=false;this.keyframeUpdates=0;this.willChangeAtCreation=node.style.willChange;this.ready=deferReady?new Promise(resolve=>readiness.push(()=>resolve(this))):Promise.resolve(this);this.newFinished();this.effect={getComputedTiming:()=>({progress:this.effectState().progress}),getKeyframes:()=>this.keyframes.map(frame=>({...frame})),setKeyframes:frames=>{this.keyframes=frames.map(frame=>({...frame}));this.keyframeUpdates++;this.effectTime=this.effectIdle=undefined;this.effectTiming=null;}};animations.push(this);}
   newFinished(){this.finished=new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject;});this.completed=false;}
-  get currentTime(){return Math.max(0,Math.min(this.options.duration,this.hold+(this.running?(now-this.started)*this.rate:0)));}
+  // Reverse playback may report a value just above duration at resolution;
+  // preserve that observation instead of hiding it with a two-sided clamp.
+  get currentTime(){if(this.running&&now===this.readyObservedAt&&this.readyObservedTime!==undefined)return this.readyObservedTime;const value=this.running?(now-this.startTime)*this.rate:this.hold;return this.running?(this.rate<0?Math.max(0,value):Math.min(this.options.duration,value)):value;}
   set currentTime(value){this.hold=value;this.started=now;}
   get startTime(){return this.pending||!this.running?null:this.started-this.hold/this.rate;}
   set startTime(value){this.started=value;this.hold=0;this.pending=false;this.running=true;this.resolvePlay?.(this);this.resolvePlay=null;}
@@ -60,7 +62,7 @@ function controllerFixture({deferReady=false,deferPlay=false,effectTimingCache=f
   pause(){this.hold=this.currentTime;this.running=false;this.pending=false;this.resolvePlay?.(this);this.resolvePlay=null;if(this.completed)this.newFinished();}
   updatePlaybackRate(rate){if(deferPlay&&(this.running||this.pending)){this.pendingRate=rate;return;}this.playbackRate=rate;}
   play(){const value=this.currentTime;if(this.completed)this.newFinished();this.hold=value;this.started=now;if(deferPlay){if(!this.pending)this.ready=new Promise(resolve=>{this.resolvePlay=resolve;});this.pending=true;this.running=false;}else this.running=true;}
-  browserReady(){if(!this.pending||this.cancelled)return;if(this.pendingRate!==null)this.playbackRate=this.pendingRate;this.pending=false;this.running=true;this.started=now;this.resolvePlay?.(this);this.resolvePlay=null;}
+  browserReady(startTime,reportedTime){if(!this.pending||this.cancelled)return;if(this.pendingRate!==null)this.playbackRate=this.pendingRate;this.pending=false;this.running=true;this.started=startTime===undefined?now:startTime+this.hold/this.rate;this.readyObservedAt=now;this.readyObservedTime=reportedTime;this.resolvePlay?.(this);this.resolvePlay=null;}
   cancel(){this.running=false;this.cancelled=true;if(!this.completed)this.reject(Object.assign(Error('cancelled'),{name:'AbortError'}));}
   advance(){if(!this.running||this.cancelled)return;const value=this.currentTime;if(this.rate>0?value>=this.options.duration:value<=0){this.hold=value;this.running=false;this.completed=true;this.resolve(this);}}
  }
@@ -85,7 +87,7 @@ function controllerFixture({deferReady=false,deferPlay=false,effectTimingCache=f
  const at=async time=>{assert.ok(time>=now);now=time;for(const animation of animations){animation.advance();if(effectTimingCache)animation.effectState();}await Promise.resolve();};
  const paint=async(time=now)=>{await at(time);const pending=[...rafs.values()];rafs.clear();for(const callback of pending)callback(now);await Promise.resolve();};
  const warm=async()=>{await Promise.resolve();await Promise.resolve();await paint();await paint();};
- return{motion,tray,content,footer,classes,settled,created,animations,local,path,clip,at,paint,warm,ready(){for(const resolve of readiness.splice(0))resolve();},async playReady(){lag=0;for(const animation of animations)animation.browserReady();await Promise.resolve();await Promise.resolve();},get queuedFrames(){return rafs.size;},get frameRequests(){return rafRequests;},get clockReads(){return clockReads;},get time(){return now;},counts:()=>({reads,writes}),resize({width=viewportWidth,top=footerTop,height=viewportHeight}={}){viewportWidth=width;viewportHeight=height;footerTop=top;ctx.innerWidth=width;ctx.innerHeight=height;listeners.get('resize')();},observed(){observers[0]([{target:tray,contentRect:{width:Math.min(1000,viewportWidth-12),height:440}},{target:footer,contentRect:{width:viewportWidth,height:28}}]);},changeContent(height){contentHeight=height;observers[0]([{target:content,contentRect:{width:800,height}}]);},reduced(value){media.matches=value;media.change();}};
+ return{motion,tray,content,footer,classes,settled,created,animations,local,path,clip,at,paint,warm,ready(){for(const resolve of readiness.splice(0))resolve();},async playReady(startTime,reportedTime){lag=0;for(const animation of animations)animation.browserReady(startTime,reportedTime);await Promise.resolve();await Promise.resolve();},frameCallbacks:()=>[...rafs.values()],get queuedFrames(){return rafs.size;},get frameRequests(){return rafRequests;},get clockReads(){return clockReads;},get time(){return now;},counts:()=>({reads,writes}),resize({width=viewportWidth,top=footerTop,height=viewportHeight}={}){viewportWidth=width;viewportHeight=height;footerTop=top;ctx.innerWidth=width;ctx.innerHeight=height;listeners.get('resize')();},observed(){observers[0]([{target:tray,contentRect:{width:Math.min(1000,viewportWidth-12),height:440}},{target:footer,contentRect:{width:viewportWidth,height:28}}]);},changeContent(height){contentHeight=height;observers[0]([{target:content,contentRect:{width:800,height}}]);},reduced(value){media.matches=value;media.change();}};
 }
 
 test('native paint preparation consumes no part of the unchanged300ms animation timeline',async()=>{
@@ -184,8 +186,8 @@ test('settled open keeps its current pair until a real close prepares fresh play
  const request=f.motion.diagnostics().events.find(row=>row.generation===generation&&row.event==='request');assert.equal(request.movement,null);assert.equal(request.shade,null);assert.equal(request.phase,'open');assert.equal(request.preparing,false);
  assert.equal(f.frameRequests,requests,'fresh close waits for its own paused-player readiness');await f.at(415);assert.equal(f.motion.progress,1);f.ready();await Promise.resolve();await Promise.resolve();
  await f.paint(430);assert.equal(f.motion.progress,1);assert.ok(fresh.every(a=>!a.pending&&!a.running));await f.paint(460);assert.equal(f.frameRequests,requests+2);assert.ok(fresh.every(a=>a.pending&&a.currentTime===300&&a.effectState().isCurrent));
- await f.at(500);assert.equal(f.motion.progress,1,'preparation and pending browser play consume none of the closing timeline');await f.playReady();await f.at(650);near(f.motion.progress,.5);await f.at(799);assert.ok(f.motion.progress>0);await f.at(800);assert.equal(await closing,true);
- const stages=f.motion.diagnostics().events.filter(row=>row.generation===generation);assert.deepEqual(Array.from(stages,row=>row.event),['request','players-paused','prepare-await-ready','pause-ready','preparation-frame-1','preparation-frame-2','play-request','play-pending','play-ready','complete']);
+ await f.at(500);assert.equal(f.motion.progress,1,'preparation and pending browser play consume none of the closing timeline');await f.playReady();await f.paint(500);await f.paint(516);await f.at(650);near(f.motion.progress,.5);await f.at(799);assert.ok(f.motion.progress>0);await f.at(800);assert.equal(await closing,true);
+ const stages=f.motion.diagnostics().events.filter(row=>row.generation===generation);assert.deepEqual(Array.from(stages,row=>row.event),['request','players-paused','prepare-await-ready','pause-ready','preparation-frame-1','preparation-frame-2','play-request','play-pending','play-ready-resolved','play-ready-frame-1','play-ready','complete']);
  assert.ok(fresh.every(a=>a.options.duration===300&&a.options.easing==='cubic-bezier(.22,.8,.25,1)'));assert.equal(f.motion.isSettled,true);assert.equal(f.motion.progress,0);assert.ok(f.animations.every(a=>a.cancelled&&a.node.style.willChange===''));assert.equal(f.animations.length,4);
 });
 
@@ -254,13 +256,84 @@ test('a stale document timeline cannot backdate a pending browser play into its 
  await f.at(1056);near(f.motion.progress,16/300);await f.at(1339);assert.ok(f.motion.progress<1);await f.at(1340);assert.equal(await opened,true);
 });
 
-test('startup tracing is opt-in, bounded and records real pending and ready clocks without a frame loop',async()=>{
- const normal=controllerFixture(),normalOpen=normal.motion.open();await normal.warm();await normal.at(300);await normalOpen;assert.equal(normal.motion.diagnostics().enabled,false);assert.equal(normal.motion.diagnostics().events.length,0);assert.equal(normal.clockReads,0,'production animations do not collect trace timings');
+test('startup tracing is opt-in and samples two fixed frames without a continuing frame loop',async()=>{
+ const normal=controllerFixture(),normalOpen=normal.motion.open();await normal.warm();await normal.at(300);await normalOpen;assert.equal(normal.motion.diagnostics().enabled,false);assert.equal(normal.motion.diagnostics().events.length,0);assert.equal(normal.clockReads,0,'production animations do not collect trace timings');assert.equal(normal.frameRequests,2);
+ const normalClose=normal.motion.close();await normal.warm();await normal.at(450);near(normal.motion.progress,.5);await normal.at(600);assert.equal(await normalClose,true);assert.equal(normal.clockReads,0);assert.equal(normal.frameRequests,4);assert.equal(normal.queuedFrames,0);assert.deepEqual(normal.settled,[true,false]);assert.ok(normal.animations.every(a=>a.options.duration===300&&a.cancelled));
  const f=controllerFixture({deferPlay:true,timelineLag:300,startNow:1000,trace:true}),opened=f.motion.open();await f.warm();let report=f.motion.diagnostics();const pending=report.events.find(row=>row.event==='play-pending');assert.equal(pending.performanceNow,1000);assert.equal(pending.documentTime,700);assert.equal(pending.movement.currentTime,0);assert.equal(pending.movement.startTime,null);assert.equal(pending.movement.pending,true);
- await f.at(1040);await f.playReady();report=f.motion.diagnostics();const ready=report.events.find(row=>row.event==='play-ready');assert.equal(ready.documentTime,1040);assert.equal(ready.movement.startTime,1040);assert.equal(ready.shade.startTime,1040);assert.equal(ready.movement.pending,false);const count=report.events.length;
- await f.at(1056);assert.equal(f.motion.diagnostics().events.length,count,'sampling animation progress creates no additional trace records');await f.at(1340);await opened;f.reduced(true);
+ await f.at(1040);await f.playReady();report=f.motion.diagnostics();const resolved=report.events.find(row=>row.event==='play-ready-resolved');assert.equal(resolved.documentTime,1040);assert.equal(resolved.movement.startTime,1040);assert.equal(resolved.shade.startTime,1040);assert.equal(resolved.movement.pending,false);assert.equal(report.events.some(row=>row.event==='play-ready'),false);
+ await f.paint(1040);const first=f.motion.diagnostics().events.find(row=>row.event==='play-ready-frame-1');assert.equal(first.rafTime,1040);assert.equal(first.movement.currentTime,0);assert.equal(f.motion.diagnostics().events.some(row=>row.event==='play-ready'),false);
+ await f.paint(1056);report=f.motion.diagnostics();const ready=report.events.find(row=>row.event==='play-ready');assert.equal(ready.rafTime,1056);assert.equal(ready.documentTime,1056);assert.equal(ready.movement.currentTime,16);assert.equal(ready.movement.startTime,1040);const count=report.events.length;
+ await f.at(1072);assert.equal(f.motion.diagnostics().events.length,count,'sampling animation progress creates no additional trace records');await f.at(1340);await opened;f.reduced(true);
  for(let i=0;i<40;i++){await f.motion.close();await f.motion.open();}
- assert.equal(f.motion.diagnostics().events.length,32);assert.equal(f.frameRequests,2);
+ assert.equal(f.motion.diagnostics().events.length,32);assert.equal(f.frameRequests,4);assert.equal(f.queuedFrames,0);
+});
+
+test('ready diagnostics preserve the archived300.003 overshoot and sample the fixed second frame even when it is still invalid',async()=>{
+ // Reproduce the independently reported clock values from c436 verbatim;
+ // subtracting already serialized doubles introduces a different last bit.
+ // This is a sampled-clock fixture, not a diagnosis of Chromium's clock source.
+ const documentTime=35393.9,startTime=35693.90300000002,overshoot=300.003000000018;
+ for(const secondTime of [35443.9,documentTime]){
+  const f=controllerFixture({deferPlay:true,startNow:documentTime,trace:true});f.reduced(true);await f.motion.open();f.reduced(false);
+  const closing=f.motion.close();await f.warm();const pair=f.animations.slice(-2);await f.playReady(startTime,overshoot);
+  const resolved=f.motion.diagnostics().events.find(row=>row.event==='play-ready-resolved');assert.equal(resolved.documentTime,documentTime);assert.equal(resolved.movement.currentTime,overshoot);assert.equal(resolved.shade.currentTime,overshoot);assert.equal(resolved.movement.startTime,startTime);assert.equal(f.queuedFrames,1);
+  await f.paint(documentTime);const first=f.motion.diagnostics().events.find(row=>row.event==='play-ready-frame-1');assert.equal(first.rafTime,documentTime);assert.equal(first.documentTime,documentTime);assert.equal(first.movement.currentTime,overshoot);assert.equal(first.shade.currentTime,overshoot);assert.equal(f.motion.diagnostics().events.some(row=>row.event==='play-ready'),false);
+  await f.paint(secondTime);const ready=f.motion.diagnostics().events.find(row=>row.event==='play-ready'),expected=secondTime===documentTime?overshoot:startTime-secondTime;assert.equal(ready.rafTime,secondTime);assert.equal(ready.documentTime,secondTime);assert.equal(ready.movement.currentTime,expected);assert.equal(ready.shade.currentTime,expected);assert.equal(ready.movement.startTime,startTime);assert.equal(ready.shade.startTime,startTime);assert.equal(ready.movement.pending,false);assert.equal(ready.movement.playState,'running');
+  if(secondTime===documentTime)assert.ok(ready.movement.currentTime>300,'an invalid fixed observation is retained, not filtered until a passing value');
+  assert.equal(f.frameRequests,4);assert.equal(f.queuedFrames,0);const count=f.motion.diagnostics().events.length;await f.paint(documentTime+80);assert.equal(f.motion.diagnostics().events.length,count,'no third diagnostic frame or retry');
+  assert.ok(pair.every(a=>a.options.duration===300&&a.playbackRate===-1&&a.startTime===startTime));assert.deepEqual(f.animations,pair);await f.at(startTime);assert.equal(await closing,true);
+ }
+});
+
+test('UI completion never waits for diagnostic frames and cancels an unobserved ready sample',async()=>{
+ for(const direction of ['open','close'])for(const stage of ['first','second']){
+  const f=controllerFixture({deferPlay:true,trace:true});if(direction==='close'){f.reduced(true);await f.motion.open();f.reduced(false);}
+  const done=direction==='open'?f.motion.open():f.motion.close();await f.warm();await f.playReady();if(stage==='second')await f.paint();
+  const stale=f.frameCallbacks()[0];assert.equal(typeof stale,'function');await f.at(300);assert.equal(await done,true);assert.equal(f.motion.isSettled,true);assert.equal(f.tray.dataset.motion,direction==='open'?'open':'closed');assert.equal(f.content.inert,direction!=='open');assert.equal(f.queuedFrames,0);
+  const events=JSON.stringify(f.motion.diagnostics().events),requests=f.frameRequests,clocks=f.clockReads;stale(300);await Promise.resolve();assert.equal(f.clockReads,clocks);assert.equal(f.frameRequests,requests);assert.equal(JSON.stringify(f.motion.diagnostics().events),events);assert.equal(f.motion.diagnostics().events.some(row=>row.event==='play-ready'),false);
+ }
+});
+
+test('release, immediate close and reduced motion cancel either pending diagnostic frame',async()=>{
+ for(const action of ['release','immediate','reduce'])for(const stage of ['first','second']){
+  const f=controllerFixture({deferPlay:true,trace:true});f.reduced(true);await f.motion.open();f.reduced(false);const closing=f.motion.close();await f.warm();await f.playReady();if(stage==='second')await f.paint();const stale=f.frameCallbacks()[0];
+  if(action==='release'){f.motion.release();assert.equal(await closing,false);}else if(action==='immediate'){assert.equal(await f.motion.close({immediate:true}),true);assert.equal(await closing,false);}else{f.reduced(true);assert.equal(await closing,true);}
+  assert.equal(f.queuedFrames,0);assert.ok(f.animations.every(a=>a.cancelled));const events=JSON.stringify(f.motion.diagnostics().events),requests=f.frameRequests,clocks=f.clockReads;stale(f.time);await Promise.resolve();assert.equal(f.clockReads,clocks);assert.equal(f.frameRequests,requests);assert.equal(f.queuedFrames,0);assert.equal(JSON.stringify(f.motion.diagnostics().events),events);
+ }
+});
+
+test('stale diagnostic callbacks cannot overwrite the handle of a live reversal or a new player pair',async()=>{
+ const f=controllerFixture({deferPlay:true,trace:true}),opening=f.motion.open();await f.warm();await f.playReady();await f.paint(16);const oldOpening=f.frameCallbacks()[0],pair=f.animations.slice(),closing=f.motion.close();assert.equal(await opening,false);await f.playReady();
+ const closeGeneration=f.motion.diagnostics().current.generation,closeFrame=f.frameCallbacks()[0],requests=f.frameRequests;oldOpening(16);await Promise.resolve();assert.equal(f.frameCallbacks()[0],closeFrame);assert.equal(f.frameRequests,requests);assert.deepEqual(f.animations,pair);
+ await f.paint(16);await f.paint(24);assert.equal(f.motion.diagnostics().events.filter(row=>row.event==='play-ready').length,1);assert.equal(f.motion.diagnostics().events.find(row=>row.event==='play-ready').generation,closeGeneration);await f.at(32);assert.equal(await closing,true);
+ const nextOpening=f.motion.open();await f.warm();await f.playReady();const next=f.frameCallbacks()[0],nextPair=f.animations.slice(-2),nextRequests=f.frameRequests;assert.ok(nextPair.every(a=>!pair.includes(a)));oldOpening(32);closeFrame(32);await Promise.resolve();assert.equal(f.frameCallbacks()[0],next);assert.equal(f.frameRequests,nextRequests);assert.equal(f.queuedFrames,1);
+ f.motion.release();assert.equal(await nextOpening,false);assert.equal(f.queuedFrames,0);
+});
+
+test('both movement and shade identities guard promise resolution and each diagnostic frame',async()=>{
+ // Execute the exact observer with independently replaceable closure inputs.
+ // The public controller always replaces a pair together; this exercises each
+ // identity guard without adding a mutation API to the product.
+ const source=fs.readFileSync(require.resolve('./mouse/burrow-motion.js'),'utf8'),start=source.indexOf('  const cancelReadyObservation='),end=source.indexOf('  const cancelWaiter=',start);assert.ok(start>=0&&end>start);
+ const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+ for(const player of ['movement','shade'])for(const stage of ['promise','first','second']){
+  let release,id=0;const ready=new Promise(resolve=>{release=resolve;}),rows=[],rafs=new Map(),ctx={active:true,generation:7,readyObservation:null,movement:{ready},shade:{ready},note:event=>rows.push(event),requestAnimationFrame:fn=>{rafs.set(++id,fn);return id;},cancelAnimationFrame:key=>rafs.delete(key)};
+  vm.createContext(ctx);vm.runInContext(source.slice(start,end)+';globalThis.observe=observeReady;globalThis.cancel=cancelReadyObservation;',ctx);ctx.observe(7);
+  if(stage!=='promise'){release();await flush();assert.deepEqual(rows,['play-ready-resolved']);if(stage==='second'){const [key,fn]=rafs.entries().next().value;rafs.delete(key);fn(10);assert.deepEqual(rows,['play-ready-resolved','play-ready-frame-1']);}}
+  const count=rows.length,requests=id;ctx[player]={ready:Promise.resolve()};
+  if(stage==='promise'){release();await flush();}else{const [key,fn]=rafs.entries().next().value;rafs.delete(key);fn(20);}
+  assert.equal(rows.length,count);assert.equal(id,requests);assert.equal(rafs.size,0);ctx.cancel();
+ }
+});
+
+test('the32-entry trace ring retains every stage of the latest fresh close with both fixed observations',async()=>{
+ const f=controllerFixture({deferPlay:true,trace:true}),required=['request','players-paused','prepare-await-ready','pause-ready','preparation-frame-1','preparation-frame-2','play-request','play-pending','play-ready-resolved','play-ready-frame-1','play-ready','complete'];
+ for(let cycle=0;cycle<4;cycle++){
+  const start=f.time,opening=f.motion.open();await f.warm();await f.playReady();await f.paint(start);await f.paint(start+16);await f.at(start+300);await opening;
+  const closing=f.motion.close(),generation=f.motion.diagnostics().current.generation;await f.warm();await f.playReady();await f.paint(start+300);await f.paint(start+316);await f.at(start+600);await closing;f.motion.release();
+  const report=f.motion.diagnostics();assert.ok(report.events.length<=32);const stages=Array.from(report.events.filter(row=>row.generation===generation),row=>row.event);assert.deepEqual(stages,[...required,'release']);
+ }
+ assert.equal(f.motion.diagnostics().events.length,32);assert.equal(f.queuedFrames,0);
 });
 
 test('close, release and reduced motion cancel every pending preparation stage',async()=>{
