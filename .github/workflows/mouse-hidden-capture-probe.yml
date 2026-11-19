@@ -1,0 +1,63 @@
+name: Mouse hidden native capture diagnostic
+on:
+  pull_request:
+    branches: [fix/mouse-631-task-desktops]
+    paths: ['tools/mouse-hidden-capture-probe.cjs', '.github/workflows/mouse-hidden-capture-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hidden-capture:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: desktop
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install locked JS dependencies without native build scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install exact Electron binary only if missing
+        run: |
+          node - <<'NODE'
+          const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process');
+          assert.equal(require('electron/package.json').version,'44.5.0');
+          let present=false;try{present=fs.existsSync(require('electron'));}catch{}
+          if(!present)cp.execFileSync(process.execPath,['node_modules/electron/install.js'],{stdio:'inherit',timeout:180000});
+          assert.ok(fs.existsSync(require('electron')));
+          NODE
+      - name: Compare six fresh hidden native views within ninety seconds
+        env:
+          MOUSE_PROBE_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
+          const output=path.resolve('mouse-hidden-capture-probe-output');fs.mkdirSync(output,{recursive:true});
+          const started=Date.now(),result=cp.spawnSync(require('electron'),[path.resolve('../tools/mouse-hidden-capture-probe.cjs'),'--out='+output],{encoding:'utf8',timeout:90000,maxBuffer:8*1024*1024,env:process.env});
+          fs.writeFileSync(path.join(output,'launcher.json'),JSON.stringify({status:result.status,signal:result.signal,error:result.error?.message||null,elapsedMs:Date.now()-started,source:process.env.MOUSE_PROBE_SOURCE},null,2));
+          fs.writeFileSync(path.join(output,'launcher.log'),(result.stdout||'')+'\n'+(result.stderr||''));
+          process.stdout.write(result.stdout||'');process.stderr.write(result.stderr||'');
+          if(result.error||result.status!==0)process.exit(result.status||1);
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-hidden-capture-probe-${{ matrix.os }}-${{ github.run_attempt }}
+          path: |
+            desktop/mouse-hidden-capture-probe-output/*.json
+            desktop/mouse-hidden-capture-probe-output/*.png
+            desktop/mouse-hidden-capture-probe-output/*.log
+          if-no-files-found: error
+          retention-days: 7
