@@ -10,7 +10,7 @@ async function completion(config,messages){
  let total=0;const chunks=[];for await(const chunk of response.body){total+=chunk.length;if(total>2*1024*1024)throw Error('Слишком большой ответ модели');chunks.push(chunk);}return JSON.parse(Buffer.concat(chunks).toString()).choices?.[0]?.message?.content;
 }
 async function run(config,{report=()=>{},Controller=AgentController,complete=completion,finish=()=>{}}={}){
- let client;const shell=process.platform==='win32'?'The terminal is Windows PowerShell 5.1, not Bash. Use PowerShell or Windows executable syntax; background=true starts a PowerShell job in the selected project.':'The terminal uses Bash.';
+ let client;const shell=process.platform==='win32'?'The terminal is Windows PowerShell 5.1, not Bash. Use PowerShell or Windows executable syntax; background=true starts a noninteractive PowerShell background process in the selected project. A successful launch does not mean the background command has finished.':'The terminal uses Bash.';
  const messages=[{role:'system',content:SYSTEM+' '+shell},{role:'user',content:P.text(config.task,12000)}];
  const autoProgress=async(...args)=>{try{return await client?.setProgress?.(...args);}catch(error){if(error.code!=='MOUSE_PROGRESS_LIMIT')throw error;return null;}};
  try{client=await new Controller(config.cdp,{progressToken:config.progressToken}).connect();

@@ -3,13 +3,20 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {cleanEnv,text}=require('./policy.cjs');
 const quote=s=>"'"+s.replace(/'/g,"'\\''")+"'";
 const encoded=s=>Buffer.from(s,'utf16le').toString('base64');
-const powershellStartup="[Console]::InputEncoding=New-Object System.Text.UTF8Encoding; [Console]::OutputEncoding=New-Object System.Text.UTF8Encoding; $global:OutputEncoding=[Console]::OutputEncoding; $ProgressPreference='SilentlyContinue'; Remove-Module PSReadLine -ErrorAction SilentlyContinue; function global:prompt { 'Mouse PS> ' }";
+const powershellEncoding="[Console]::InputEncoding=New-Object System.Text.UTF8Encoding; [Console]::OutputEncoding=New-Object System.Text.UTF8Encoding; $global:OutputEncoding=[Console]::OutputEncoding";
+const powershellStartup=powershellEncoding+"; $ProgressPreference='SilentlyContinue'; Remove-Module PSReadLine -ErrorAction SilentlyContinue; function global:prompt { 'Mouse PS> ' }";
+// Keep argv fixed and short even for the maximum Unicode command. These values
+// belong only to the new process and are removed before the owner's code runs.
+const powershellBackground=encoded(powershellEncoding+"; $__mousePayload=[Environment]::GetEnvironmentVariable('MOUSE_TERMINAL_PAYLOAD'); $__mouseFolder=[Environment]::GetEnvironmentVariable('MOUSE_TERMINAL_CWD'); [Environment]::SetEnvironmentVariable('MOUSE_TERMINAL_PAYLOAD',$null); [Environment]::SetEnvironmentVariable('MOUSE_TERMINAL_CWD',$null); Set-Location -LiteralPath $__mouseFolder -ErrorAction Stop; & ([scriptblock]::Create($__mousePayload))");
 function powershellCommand(command,id,background){
  // Decode the owner's command as data, so quotes, backticks, newlines and
  // Unicode cannot escape the framing code. No user text is interpolated as PS.
  const body=Buffer.from(command,'utf8').toString('base64'),decode="[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+body+"'))";
+ // A direct child keeps live output in this ConPTY and inherits the held native
+ // Job Object. Closing its private stdin prevents it consuming the shell input.
+ // The reply acknowledges process creation, not completion of the background task.
  const action=background?
-  "Start-Job -Name 'Mouse-"+id+"' -ScriptBlock { param($payload,$folder); Set-Location -LiteralPath $folder; & ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)))) } -ArgumentList @('"+body+"',(Get-Location).Path) | Format-Table Id,Name,State -AutoSize":
+  "$__mouseStart=New-Object System.Diagnostics.ProcessStartInfo; $__mouseStart.FileName=[IO.Path]::Combine($PSHOME,'powershell.exe'); $__mouseStart.Arguments='-NoLogo -NoProfile -NonInteractive -EncodedCommand "+powershellBackground+"'; $__mouseStart.WorkingDirectory=(Get-Location).Path; $__mouseStart.UseShellExecute=$false; $__mouseStart.RedirectStandardInput=$true; $__mouseStart.EnvironmentVariables['MOUSE_TERMINAL_PAYLOAD']="+decode+"; $__mouseStart.EnvironmentVariables['MOUSE_TERMINAL_CWD']=$__mouseStart.WorkingDirectory; $__mouseChild=[Diagnostics.Process]::Start($__mouseStart); try { $__mouseChild.StandardInput.Close(); Write-Output ('Mouse background PID: '+$__mouseChild.Id) } finally { $__mouseChild.Dispose() }":
   ". ([scriptblock]::Create("+decode+"))";
  const script="[Console]::Write([char]27+']1337;MouseStart:"+id+"'+[char]7); $__mouseResult=@{code=0}; try { . { $global:LASTEXITCODE=0; "+action+"; if(!$?) { $__mouseResult.code=1 }; if($global:LASTEXITCODE -ne 0) { $__mouseResult.code=[int]$global:LASTEXITCODE } } 2>&1 | Out-Host } catch { $__mouseResult.code=1; $_ | Out-Host } finally { [Console]::Write([char]27+']1337;MouseEnd:"+id+":'+$__mouseResult.code+[char]7) }";
  // The input echo has printable [char] expressions, never an actual OSC marker.
