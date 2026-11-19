@@ -1,18 +1,59 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
+class NativeView{constructor(){this.children=[];}addChildView(view){this.children.push(view);}removeChildView(view){this.children=this.children.filter(item=>item!==view);}setBounds(bounds){this.bounds=bounds;}setVisible(visible){this.visible=visible;}getVisible(){return this.visible;}}
+const nativeModule={exports:{}};
+vm.runInNewContext(fs.readFileSync('browser.cjs','utf8'),{module:nativeModule,exports:nativeModule.exports,require:id=>id==='electron'?{View:NativeView,WebContentsView:NativeView}:id.startsWith('node:')?require(id):{}});
+function nativeBounds(rect){
+ const view=new NativeView(),page={id:'visible',project:'project',lane:'main',view,visible:false},win={isDestroyed:()=>false,getContentSize:()=>[1200,900],contentView:new NativeView()};
+ const browser={win,disposed:false,project:'project',mouseRoundedPanes:true,tabs:new Map([[page.id,page]]),providers:new Map()};
+ nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,[{id:page.id,...rect}]);
+ return JSON.parse(JSON.stringify(page.bounds));
+}
 function fixture(options={}){
- const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
+ const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240,...options.rect},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
  const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
   createElement:()=>{const image={style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}};created.push(image);return image;},body:{append(...nodes){events.push('append');images.push(...nodes);}}};
  const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
  const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
- const normal=()=>({complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',width:320,height:240,pixelWidth:640,pixelHeight:480}]});
+ const normal=()=>{const bounds=nativeBounds(rect);return{complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',bounds,width:bounds.width,height:bounds.height,pixelWidth:bounds.width*2,pixelHeight:bounds.height*2}]};};
  const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}if(action==='surface-present'){events.push('readback');return options.present?options.present(args):{ready:true,reason:'painted'};}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
  const restore=async()=>{events.push('restore');restores++;await options.restore?.(restores);};
  return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
 }
 const flush=()=>new Promise(setImmediate);
+test('fractional panes use the exact captured native endpoints when Nora opens',async()=>{
+ // The first rectangle is the real 971px-wide seven-pane CI fixture: its
+ // divider centres are 514.4375 and 703.921875, with a 6px divider at each side.
+ const cases=[
+  {rect:{x:517.4375,y:68,width:183.484375,height:360},bounds:{x:517,y:68,width:184,height:360}},
+  {rect:{x:12.484375,y:70.484375,width:320.03125,height:240.03125},bounds:{x:12,y:70,width:321,height:241}},
+  {rect:{x:12.515625,y:70.515625,width:320.96875,height:240.96875},bounds:{x:13,y:71,width:320,height:240}}
+ ];
+ for(const {rect,bounds}of cases){
+  assert.deepEqual(nativeBounds(rect),bounds,'The real BrowserWorkspace.layout determines capture bounds');
+  assert.ok(Math.abs(bounds.width-rect.width)>.5,'Independent width rounding is not the native endpoint rule');
+  const f=fixture({rect});assert.equal(await f.overlay.show('desktops'),true);
+  const image=f.images[0];for(const [style,key]of [['left','x'],['top','y'],['width','width'],['height','height']])assert.equal(image.style[style],bounds[key]+'px');
+  assert.equal(f.events.filter(event=>event==='begin').length,1);await f.overlay.hide('desktops');assert.equal(f.images.length,0);
+ }
+});
+test('a capture rounded by width instead of native endpoints is rejected before Nora takes a hold',async()=>{
+ const rect={x:517.4375,y:68,width:183.484375,height:360};let f;
+ f=fixture({rect,capture:()=>{const packet=f.normal();packet.surfaces[0].bounds.width=Math.round(rect.width);return packet;}});
+ await assert.rejects(f.overlay.show('desktops'),/Размер рабочего стола/);
+ assert.equal(f.events.includes('decode'),false);assert.equal(f.events.includes('begin'),false);await f.overlay.hide('desktops');assert.equal(f.images.length,0);
+});
+test('a subpixel layout change crossing a native endpoint rejects the captured Nora background',async()=>{
+ const capture=deferred(),f=fixture({rect:{x:12.484375,y:70,width:320,height:240},capture:()=>capture.promise}),packet=f.normal(),showing=f.overlay.show('desktops');
+ await flush();f.rect.x+=.03125;assert.notDeepEqual(nativeBounds(f.rect),packet.surfaces[0].bounds);
+ capture.resolve(packet);await assert.rejects(showing,/Не удалось подготовить/);await f.overlay.hide('desktops');assert.equal(f.events.includes('decode'),false);assert.equal(f.events.includes('begin'),false);
+});
+test('a fractional layout change within the same native endpoints preserves the valid capture',async()=>{
+ const decode=deferred(),f=fixture({rect:{x:12.375,y:70,width:320,height:240},decode:()=>decode.promise}),packet=f.normal(),showing=f.overlay.show('desktops');
+ await flush();assert.equal(f.events.includes('decode'),true);f.rect.x-=.75;assert.deepEqual(nativeBounds(f.rect),packet.surfaces[0].bounds);
+ decode.resolve();assert.equal(await showing,true);assert.equal(f.images[0].style.left,'12px');assert.equal(f.images[0].style.width,'320px');await f.overlay.hide('desktops');
+});
 test('popover decodes exact-size surfaces before holding native input and retains them until native restoration',async()=>{
  const decode=deferred(),end=deferred(),f=fixture({decode:()=>decode.promise,end:()=>end.promise});
  const showing=f.overlay.show('desktops');await flush();assert.ok(f.events.includes('decode'));assert.ok(!f.events.includes('begin'));assert.equal(f.images.length,0);
@@ -44,9 +85,11 @@ test('closing during capture rejects late pixels without hiding native pages aft
 test('a Nora backdrop preserves rounded page corners and replaces the desk without releasing its native hold',async()=>{
  const f=fixture({roundBottom:12});await f.overlay.show('desktops');const original=f.images[0],lease=f.overlay.lease('desktops',()=>{});
  assert.equal(original.style.borderRadius,'0 0 12px 12px');assert.equal(original.style.clipPath,'inset(0 round 0 0 12px 12px)');assert.equal(lease.outgoing.desk,'desk1');assert.equal(f.overlay.lease('zoom'),null);
+ Object.assign(f.rect,{x:517.4375,y:68,width:183.484375,height:360});
  f.model.desktopId='desk2';const incoming={...f.normal(),token:'incoming-capture',holdToken:lease.token};
  assert.notEqual(incoming.token,lease.token,'New capture identity is separate from the borrowed hold');
  assert.equal(await lease.replace(incoming),true);assert.equal(lease.valid(),true);assert.equal(f.images.length,1);assert.notEqual(f.images[0],original);assert.equal(original.src,undefined);assert.equal(f.overlay.lease('desktops').outgoing,incoming);
+ assert.equal(f.images[0].style.left,'517px');assert.equal(f.images[0].style.width,'184px');
  assert.equal(f.events.filter(x=>x==='begin').length,1);assert.equal(f.events.filter(x=>x==='end').length,0);assert.equal(f.overlay.held('desktops'),true);
  await f.overlay.hide('desktops');assert.equal(lease.valid(),false);assert.equal(f.events.filter(x=>x==='end').length,1);assert.equal(f.images.length,0);
 });

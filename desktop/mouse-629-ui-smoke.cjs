@@ -11,8 +11,8 @@ async function until(fn,label){for(let n=0;n<320;n++){if(await fn())return;await
 const COLORS=[[171,43,158],[24,117,150],[158,75,32],[75,89,158],[35,130,77],[143,52,86],[83,100,41]];
 const PALETTE={light:{hex:'#c7cfdf',rgb:[199,207,223]},dark:{hex:'#43536b',rgb:[67,83,107]}};
 const TREE={axis:'x',ratio:.53,a:{axis:'y',ratio:.82,a:{axis:'x',ratio:.39,a:{axis:'y',ratio:.47,a:{id:'p1'},b:{id:'p2'}},b:{id:'p3'}},b:{id:'p4'}},b:{axis:'x',ratio:.41,a:{axis:'y',ratio:.68,a:{id:'p5'},b:{id:'p6'}},b:{id:'p7'}}};
-function sample(image,mapping,point){
- const size=image.getSize(1),bytes=image.toBitmap({scaleFactor:1}),x=Math.floor(mapping.originX+point.x*mapping.scaleX),y=Math.floor(mapping.originY+point.y*mapping.scaleY);
+function sample(image,mapping,point,bitmap){
+ const {size,bytes}=bitmap||{size:image.getSize(1),bytes:image.toBitmap({scaleFactor:1})},x=Math.floor(mapping.originX+point.x*mapping.scaleX),y=Math.floor(mapping.originY+point.y*mapping.scaleY);
  assert.ok(x>=0&&y>=0&&x<size.width&&y<size.height,'A sample remains in the real native window crop');
  assert.equal(bytes.length,size.width*size.height*4);const i=(y*size.width+x)*4;return{x,y,rgba:[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]]};
 }
@@ -36,7 +36,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
   assert.deepEqual(full.getSize(1),screenPixelSize);const {cropPixels,mapping}=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=full.crop(cropPixels),png=image.toPNG({scaleFactor:1}),pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)};
   assert.deepEqual(pixelSize,{width:cropPixels.width,height:cropPixels.height});
   const metadata={source:'globalCapture.acquire(display)',kind:frame.kind,backend:frame.backend,display:{id:display.id,bounds:{...display.bounds},scaleFactor:display.scaleFactor},contentBounds,screenPixelSize,cropPixels,pixelSize,mapping,capture:name+'.png',screenCapture:name+'-display.png'};
-  await fs.writeFile(metadata.capture,png);await fs.writeFile(metadata.screenCapture,screenPNG);return{image,metadata};
+  await fs.writeFile(metadata.capture,png);await fs.writeFile(metadata.screenCapture,screenPNG);return{image,metadata,bitmap:{size:image.getSize(1),bytes:image.toBitmap({scaleFactor:1})}};
  }
  async function identities(){return Promise.all(pages.map(async page=>({id:page.id,webContentsId:page.view.webContents.id,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0,bounds:page.bounds,clip:page.clipView?.getBounds()||null,...await page.view.webContents.executeJavaScript('({timeOrigin:performance.timeOrigin,identity:globalThis.mouse629Identity,field:document.querySelector("input").value,width:innerWidth,height:innerHeight,scrollX,scrollY})')})));}
  async function separators(theme,variant){
@@ -56,7 +56,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
   assert.ok(points.filter(p=>p.kind==='corner-cutout').length>=20,'Dense fixture covers several independent native junctions');
   const row={theme,variant,expectedHex:expected.hex,expectedRGB:expected.rgb,actualToken:geometry.actualToken,stageColor:geometry.stageColor,dividerColors:geometry.dividerColors,paneCount:7,viewport:geometry.viewport,nativePanels:pages.map(page=>({id:page.id,bounds:page.bounds})),probes:[]};facts.separators.push(row);
   for(let attempt=0;attempt<15;attempt++){
-   if(attempt)await sleep(100);const captured=await capture('mouse-629-separators-'+theme+'-'+variant);row.nativeCapture=captured.metadata;row.probes=points.map(p=>({...p,...sample(captured.image,captured.metadata.mapping,p.point)}));row.attempts=attempt+1;
+   if(attempt)await sleep(100);const captured=await capture('mouse-629-separators-'+theme+'-'+variant);row.nativeCapture=captured.metadata;row.probes=points.map(p=>({...p,...sample(captured.image,captured.metadata.mapping,p.point,captured.bitmap)}));row.attempts=attempt+1;
    if(row.probes.every(matches))break;
   }
   for(const p of row.probes)assert.ok(matches(p),'The displayed native junction matches its original627 divider/page colour: '+JSON.stringify({theme,variant,probe:p}));return row;
@@ -70,7 +70,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
   assert.ok(geometry.points.length>=3,'At least three blank Nora-fill positions overlap real guest viewports');assert.equal(geometry.snapshots.length,7);assert.ok(geometry.snapshots.every(p=>p.complete&&p.width>0&&p.height>0));assert.equal(geometry.stroke,'none');
   const row={theme,holdActive:true,overlayBlocked:true,nativeHidden,snapshots:geometry.snapshots,panelFill:geometry.panelFill,panelBounds:geometry.panelBounds,probes:[],identityPreserved:false,boundsPreserved:false};facts.nora.push(row);
   for(let attempt=0;attempt<15;attempt++){
-   if(attempt)await sleep(100);const captured=await capture('mouse-629-nora-'+theme);row.nativeCapture=captured.metadata;row.probes=geometry.points.map(p=>({...p,kind:'nora-fill',expected:geometry.panelFill,...sample(captured.image,captured.metadata.mapping,p.point)}));row.attempts=attempt+1;if(row.probes.every(matches))break;
+   if(attempt)await sleep(100);const captured=await capture('mouse-629-nora-'+theme);row.nativeCapture=captured.metadata;row.probes=geometry.points.map(p=>({...p,kind:'nora-fill',expected:geometry.panelFill,...sample(captured.image,captured.metadata.mapping,p.point,captured.bitmap)}));row.attempts=attempt+1;if(row.probes.every(matches))break;
   }
   for(const p of row.probes)assert.ok(matches(p),'Nora fill, rather than native guest pixels, is actually presented above the page: '+JSON.stringify({theme,probe:p}));
   assert.deepEqual(await identities(),beforeIdentity,'Nora preserves native page identity, viewport, fields, scroll and bounds while open');
@@ -91,7 +91,12 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
    win.setBounds(initialBounds);await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await painted();await separators(theme,'initial');
    win.setBounds({...initialBounds,width:initialBounds.width-37,height:initialBounds.height-23});await painted();await separators(theme,'resized');await nora(theme);
   }
- }catch(error){verificationError=error;facts.error=error.stack||String(error);throw error;}
+ }catch(error){
+  verificationError=error;facts.error=error.stack||String(error);
+  facts.failure={renderer:await js('({viewport:{width:innerWidth,height:innerHeight},phase:document.querySelector("#desktop-tray").dataset.motion,open:document.querySelector("#desktop-tray").open,hidden:document.querySelector("#desktop-tray").hidden,motion:MouseTest.desktopUI.motion.diagnostics?.(),backdrop:MouseTest.desktopUI.diagnostics?.(),snapshotCount:document.querySelectorAll(".mouse-floating-snapshot").length,panes:[...document.querySelectorAll("#stage .pane")].map(e=>{const r=e.querySelector(".page-slot").getBoundingClientRect();return{id:MouseTest.model.slots[e.dataset.pane],bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};})})').catch(e=>({error:e.message})),native:{surfaces:browser.mouseDesktops.surfaces.diagnostics?.(),overlayBlocked:overlayGate.blocked,surfaceHeld:!!browser.mouseSurfaceHold,pages:pages.map(page=>({id:page.id,bounds:page.bounds,visible:page.visible,nativeVisible:page.view.getVisible()}))}};
+  try{facts.failure.nativeCapture=(await capture('mouse-629-ui-failure')).metadata;}catch(e){facts.failure.captureError=e.message;}
+  throw error;
+ }
  finally{
   try{
    await js('MouseTest.desktopUI.close({immediate:true})');await until(()=>!browser.mouseSurfaceHold,'cleanup releases Nora');await js('MouseFlush()');

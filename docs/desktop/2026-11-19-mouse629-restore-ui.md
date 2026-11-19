@@ -106,3 +106,36 @@ before the retained628 motion gate so a later motion failure cannot hide their
 results. No frame threshold, animation timing, pixel tolerance or release gate
 is weakened. Cleanup now additionally asserts exact desktop bank/preferences,
 and scrollbar failures retain their partial native evidence.
+
+
+## Second candidate — dense layout exposed a fractional-boundary defect
+
+Source `8c64a10373fa20f56c17289c6e35876677a9562c`,
+[run44483684227](https://github.com/jeep-jim/OSMINOG/actions/runs/44483684227),
+job135421801079:176/586/521 test batches and native package build PASS. The
+seven-pane light-theme initial/resized scenes passed all90 pixel probes each.
+Nora then failed to open, so the full candidate remained FAILURE/unpublished.
+Verification artifact14508928742:4891719 bytes, SHA-256
+`c98689163cf37c3b9c8b152d5674ce732783b2cf069582cacdfc931334a28323`.
+
+The saved divider centres are514.4375 and703.921875 with6px gutters. Thus the
+real DOM pane spans x517.4375→700.921875, width183.484375. The workspace correctly
+rounds shared endpoints to517→701, width184. `mouseFloatingBackdrop.buildImages`
+incorrectly compared raw width differences with `<0.5`:0.515625 rejected this
+valid native capture before image decoding/readback. All seven native captures
+had completed in99.64ms. The corrected backdrop compares the same independently
+rounded endpoints as `BrowserWorkspace.layout`, retaining exact rejection of a
+stale surface or a real boundary change. This is a product correction for dense
+fractional layouts, not a widened test tolerance.
+
+Native629 failure reporting now retains renderer/backdrop state before cleanup
+and a display screenshot. Pixel sampling reuses one bitmap per native frame
+instead of allocating a full bitmap for each probe. A new installed run must
+confirm the backdrop correction and all remaining themes/gesture/motion gates.
+
+Fractional-boundary regression tests reproduce the old failure through the real
+`BrowserWorkspace.layout` with mocked native views, including the exact captured
+183.484375→184 case. They also reject independently rounded/stale widths and a
+subpixel move crossing a native endpoint, and cover replacement behind open Nora.
+59 focused backdrop/slide/theme/gesture tests PASS after the correction; the new
+cases failed before it. No animation duration or frame acceptance threshold changed.
