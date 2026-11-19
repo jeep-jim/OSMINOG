@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
-const {McpManager}=require('./mcp-manager.cjs'),{ManagedDev}=require('./mcp-dev.cjs'),{EventEmitter}=require('node:events');
+const {McpManager,serverWorkingDirectory}=require('./mcp-manager.cjs'),{ManagedDev}=require('./mcp-dev.cjs'),{EventEmitter}=require('node:events');
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn){const until=Date.now()+10000;while(Date.now()<until){if(fn())return;await delay(25);}throw Error('Actual MCP event timeout');}
 test('official SDK starts a real stdio child, enforces write permission, observes external edits and revokes',async()=>{
@@ -15,6 +15,17 @@ test('official SDK starts a real stdio child, enforces write permission, observe
 });
 test('Stop during SDK child connection cannot resurrect a writable session',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-mcp-start-')),manager=new McpManager();try{const starting=manager.start(dir,{write:true});const rejected=assert.rejects(starting,/отменено|closed|Connection/);await manager.close();await rejected;assert.equal(manager.connected,false);assert.equal(manager.writeAllowed,false);}finally{await manager.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('official SDK cannot spawn inside a file archive but connects from its physical bundle directory',async()=>{
+ const base=fs.mkdtempSync(path.join(os.tmpdir(),'mouse-mcp-asar-')),resources=path.join(base,'Resources'),project=path.join(base,'project');fs.mkdirSync(resources);fs.mkdirSync(project);fs.writeFileSync(path.join(resources,'app.asar'),'archive placeholder: OS cwd must treat this as a file');fs.writeFileSync(path.join(project,'actual.txt'),'actual SDK child');
+ const virtual=path.join(resources,'app.asar','mouse-agent','mcp-server.cjs'),cwd=serverWorkingDirectory(virtual),dependency=require('./deps.cjs'),{Client}=dependency('@modelcontextprotocol/sdk/client/index.js'),{StdioClientTransport}=dependency('@modelcontextprotocol/sdk/client/stdio.js');
+ // Node does not emulate Electron's ASAR loader. Use the actual source script
+ // for both attempts so this regression isolates OS cwd and real SDK IPC.
+ const entry=path.join(__dirname,'mcp-server.cjs'),transport=directory=>new StdioClientTransport({command:process.execPath,args:[entry,'--allow-dir',project],cwd:directory,stderr:'pipe'}),bad=new Client({name:'cwd-regression',version:'1.0.0'},{capabilities:{}}),good=new Client({name:'cwd-regression',version:'1.0.0'},{capabilities:{}});
+ try{
+  assert.equal(cwd,resources);assert.equal(serverWorkingDirectory(entry),__dirname);const rejected=transport(path.dirname(virtual));rejected.stderr.on('data',()=>{});await assert.rejects(bad.connect(rejected),error=>['ENOTDIR','ENOENT'].includes(error.code));
+  const accepted=transport(cwd);accepted.stderr.on('data',()=>{});await good.connect(accepted);assert.equal((await good.listTools()).tools.length,4);const result=await good.callTool({name:'read_file',arguments:{path:'actual.txt'}});assert.equal(result.structuredContent.content,'actual SDK child');
+ }finally{await Promise.allSettled([bad.close(),good.close()]);fs.rmSync(base,{recursive:true,force:true});}
 });
 test('managed dev command starts only after owner setting, restarts only that command and stops pending work',async()=>{
  const instances=[];
