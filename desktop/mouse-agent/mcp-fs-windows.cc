@@ -198,6 +198,10 @@ napi_value commit(napi_env env,napi_callback_info info){
  // Both source and destination are in the held parent. FALSE publishes a new
  // file exclusively. Replacement retains the same documented precommit check
  // as macOS; it is not a compare-and-swap with every possible external editor.
+ // Legacy FileRenameInformation refuses to replace an open destination even
+ // when its handle permits delete sharing. Release only our metadata handle
+ // after validation; the source and parent remain held for the relative rename.
+ if(destination.value!=INVALID_HANDLE_VALUE)CloseHandle(destination.release());
  const size_t bytes=sizeof(FILE_RENAME_INFO)+target.size()*sizeof(wchar_t);std::vector<unsigned char> buffer(bytes);
  auto* rename=reinterpret_cast<FILE_RENAME_INFO*>(buffer.data());rename->ReplaceIfExists=expected?TRUE:FALSE;rename->RootDirectory=parent;rename->FileNameLength=static_cast<DWORD>(target.size()*sizeof(wchar_t));std::memcpy(rename->FileName,target.data(),rename->FileNameLength);
  // Use the native handle-relative contract directly. On the tested Windows
