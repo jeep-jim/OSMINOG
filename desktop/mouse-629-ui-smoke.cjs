@@ -98,13 +98,13 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate})=>{
    for(const page of pages)if(browser.tabs.has(page.id)&&!before.has(page.id))await browser.command('close',{id:page.id});
    await js('MouseFlush()');bank.items=copy(savedBank.items);bank.members=Object.assign(Object.create(null),savedBank.members);bank.active=savedBank.active;bank.global=savedGlobal;bank.recovery=savedBank.recovery?copy(savedBank.recovery):null;bank.historyGroups.clear();bank.historyLiveKey='';browser.mouseDesktops.previews.clear();
    await js(`Object.assign(MouseTest.model,${JSON.stringify(original)});MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);browser.emit();await browser.save();await browser.saveQueue;await store.queue;win.setBounds(bounds);if(fullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'restore fullscreen');}
-   assert.deepEqual([...browser.tabs.keys()].sort(),[...before].sort());facts.restored=true;
+   assert.deepEqual([...browser.tabs.keys()].sort(),[...before].sort());assert.deepEqual(bank.snapshot(),savedBank,'Dense native fixture restores the original desktop bank');assert.deepEqual(await js('MouseTest.prefs()'),original,'Dense native fixture restores the original preferences');facts.restored=true;
   }catch(error){cleanupError=error;facts.cleanupError=error.stack||String(error);}
   server?.closeAllConnections?.();server?.close();await fs.writeFile('mouse-629-ui-regressions.json',JSON.stringify(facts,null,2)+'\n');if(cleanupError&&!verificationError)throw cleanupError;
  }
  try{
   facts.scrollbars=await require('./mouse-629-scrollbars-smoke.cjs')({app,win,browser,store});
-  for(const row of facts.scrollbars.themes){const shot=row.screenshot;if(path.resolve(shot.path)!==path.resolve(shot.filename))await fs.copyFile(shot.path,shot.filename);}
- }finally{await fs.writeFile('mouse-629-ui-regressions.json',JSON.stringify(facts,null,2)+'\n');}
+ }catch(error){facts.scrollbars=error.scrollbarEvidence||facts.scrollbars;facts.error=error.stack||String(error);throw error;}
+ finally{for(const row of facts.scrollbars?.themes||[]){const shot=row.screenshot;if(path.resolve(shot.path)!==path.resolve(shot.filename))await fs.copyFile(shot.path,shot.filename);}await fs.writeFile('mouse-629-ui-regressions.json',JSON.stringify(facts,null,2)+'\n');}
  console.log('MOUSE_629_UI_REGRESSIONS_NATIVE_PASS');return facts;
 };

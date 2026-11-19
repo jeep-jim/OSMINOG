@@ -80,3 +80,29 @@ are identified as guest captures, not display-composition proof.
 
 Installed macOS acceptance, exact artifact hashes and public publication remain
 pending at this checkpoint. Results are appended below after execution.
+
+
+## First installed candidate — failed motion gate, no publication
+
+Source `25ba4f754ddea5d8d1c0d1acf7dfe8dc6bff2c29`,
+[PR170](https://github.com/jeep-jim/OSMINOG/pull/170),
+[run44482527827 attempt1](https://github.com/jeep-jim/OSMINOG/actions/runs/44482527827),
+job135417949950: suites176/176,586/586,521/521 PASS; DMG/ZIP built. Installed
+Local MCP and per-pane progress gates passed. The light Nora closing gate then
+recorded only two intermediate RAF samples instead of the required three and
+failed. This attempt is not accepted or published.
+
+Verification artifact14508799186:6269554 bytes, SHA-256
+`7ebf9a05c1914ff961ea10f76deaba6182107e512442f75608c12e0880294d16`.
+The preserved trace contains58948 events with no reported data loss. Closing
+intermediate samples were at renderer times8418.3ms(progress0.9788) and
+8545.4ms(progress0.6754); renderer long-task list was empty. GPU trace showed
+Dawn/IOSurface command waits of approximately79–119ms across that interval.
+This does not establish whether capture overhead, runner load or application
+behaviour caused the delay, and does not establish smoothness on the owner's Mac.
+
+The following candidate moves the new seven-pane/Nora/scrollbar regression scenes
+before the retained628 motion gate so a later motion failure cannot hide their
+results. No frame threshold, animation timing, pixel tolerance or release gate
+is weakened. Cleanup now additionally asserts exact desktop bank/preferences,
+and scrollbar failures retain their partial native evidence.
