@@ -4,8 +4,34 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {nativeImage}=require('electron');
 const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
+const {bounded}=require('./mouse-smoke-trace.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const BAND_ID='mouse627-native-transition-band',BAND_COLORS=[[199,37,77],[29,125,220]];
+async function prepareVisiblePage({browser,id,index}){
+ assert.ok(Number.isInteger(index)&&index>=0&&index<BAND_COLORS.length);const page=browser.get(id),wc=page?.view.webContents;assert.ok(wc&&!wc.isDestroyed());
+ const startedAt=performance.now(),budget=operation=>bounded(operation,Math.max(1,4000-(performance.now()-startedAt)),'Visible transition fixture preparation');
+ const native=()=>({selectedDesktop:browser.mouseDesktops.bank.active,logicalVisible:!!page.visible,nativeVisible:page.view.getVisible(),clipVisible:page.clipView?.getVisible?.()??true,webContentsId:wc.id,epoch:page.navigationEpoch||0,url:wc.getURL(),bounds:{...page.view.getBounds()},surfaceBounds:{...page.bounds},held:!!browser.mouseSurfaceHold});
+ const before=native(),row={id,index,original:null,native:before,startedAt,mainTimeOrigin:performance.timeOrigin,attempts:[],ready:false};let lastImage,lastScale=1;
+ try{
+  assert.equal(before.logicalVisible,true);assert.equal(before.nativeVisible,true);assert.equal(before.clipVisible,true);assert.equal(before.held,false);
+  row.original=await budget(()=>wc.executeJavaScript('({minHeight:document.body.style.minHeight,scrollX,scrollY})'));
+  await budget(()=>wc.executeJavaScript('(()=>{if(document.getElementById('+JSON.stringify(BAND_ID)+'))throw Error("Transition band already exists");document.body.style.minHeight="2400px";scrollTo(0,137);const band=document.createElement("div");band.id='+JSON.stringify(BAND_ID)+';band.setAttribute("aria-hidden","true");band.style.cssText="position:fixed;inset:0 0 auto;height:8px;z-index:2147483647;pointer-events:none;background:rgb('+BAND_COLORS[index].join(',')+');";document.body.append(band);})()'));
+  for(let attempt=1;attempt<=8;attempt++){
+   assert.ok(performance.now()-startedAt<4000,'Visible transition fixture preparation exceeds its budget');assert.deepEqual(native(),before,'Fixture stays visible in the same native viewport before capture');
+   const dom=await budget(()=>wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(first=>requestAnimationFrame(second=>{const e=document.getElementById('+JSON.stringify(BAND_ID)+'),r=e.getBoundingClientRect(),d=document.querySelector("#drop"),q=d.getBoundingClientRect(),x=Math.floor((Math.max(0,q.left)+Math.min(innerWidth,q.right))/2),y=Math.floor((Math.max(0,q.top)+Math.min(innerHeight,q.bottom))/2);resolve({timeOrigin:performance.timeOrigin,at:performance.now(),rafs:[first,second],width:innerWidth,height:innerHeight,scrollX,scrollY,band:{x:r.x,y:r.y,width:r.width,height:r.height,color:getComputedStyle(e).backgroundColor},scrollProbe:{x,y,hit:document.elementFromPoint(x,y)===d,color:getComputedStyle(d).backgroundColor}});})))'));
+   assert.equal(dom.scrollX,0);assert.equal(dom.scrollY,137);assert.equal(dom.band.color,'rgb('+BAND_COLORS[index].join(', ')+')');assert.equal(dom.band.y,0);assert.ok(dom.band.width>=16&&dom.band.height>=4&&dom.band.x>=0&&dom.band.x+dom.band.width<=dom.width);assert.equal(dom.scrollProbe.hit,true);assert.equal(dom.scrollProbe.color,'rgb(207, 229, 208)');
+   const image=await budget(()=>wc.capturePage(undefined,{stayHidden:true,stayAwake:false})),scaleFactor=Math.max(...image.getScaleFactors()),pixelSize=image.getSize(scaleFactor),pixels=image.toBitmap({scaleFactor});lastImage=image;lastScale=scaleFactor;
+   assert.deepEqual(native(),before,'Native page identity and visibility survive fixture readback');assert.equal(pixels.length,pixelSize.width*pixelSize.height*4);
+   const sx=pixelSize.width/dom.width,sy=pixelSize.height/dom.height,y=Math.floor(3*sy),left=Math.max(0,Math.ceil(dom.band.x*sx)),right=Math.min(pixelSize.width,Math.floor((dom.band.x+dom.band.width)*sx)),minimum=Math.ceil(16*sx);let count=0;
+   for(let x=left;x<right;x++){const i=(y*pixelSize.width+x)*4;if(pixels[i+3]===255&&[pixels[i+2],pixels[i+1],pixels[i]].every((value,k)=>Math.abs(value-BAND_COLORS[index][k])<=2))count++;}
+   const x=Math.floor(dom.scrollProbe.x*sx),py=Math.floor(dom.scrollProbe.y*sy),offset=(py*pixelSize.width+x)*4,rgba=[pixels[offset+2],pixels[offset+1],pixels[offset],pixels[offset+3]],scrollPainted=rgba[3]===255&&rgba.slice(0,3).every((value,k)=>Math.abs(value-[207,229,208][k])<=2);
+   row.attempts.push({attempt,at:performance.now(),dom,scaleFactor,pixelSize,band:{expectedColor:BAND_COLORS[index],row:y,left,right,count,minimum},scrollProbe:{x,y:py,rgba,painted:scrollPainted}});
+   if(count>=minimum&&scrollPainted){assert.ok(performance.now()-startedAt<4000,'Visible transition fixture preparation exceeds its budget');row.ready=true;break;}
+  }
+  assert.equal(row.ready,true,'Visible fixture must paint its band and scrolled content before becoming a background page');row.after=native();row.paintElapsedMs=performance.now()-startedAt;row.filename='mouse-627-desktop-transition-prepared-'+index+'.png';await fs.writeFile(row.filename,lastImage.toPNG({scaleFactor:lastScale}));return row;
+ }catch(error){row.error=error.message;if(lastImage){row.filename='mouse-627-desktop-transition-prepared-'+index+'-failed.png';await fs.writeFile(row.filename,lastImage.toPNG({scaleFactor:lastScale})).catch(()=>{});}if(row.original)await wc.executeJavaScript('document.getElementById('+JSON.stringify(BAND_ID)+')?.remove();document.body.style.minHeight='+JSON.stringify(row.original.minHeight)+';scrollTo('+row.original.scrollX+','+row.original.scrollY+')').catch(()=>{});throw error;}
+ finally{row.elapsedMs=performance.now()-startedAt;await fs.writeFile('mouse-627-desktop-transition-preparation-'+index+'.json',JSON.stringify(row,null,2)+'\n');}
+}
 function paintedBands(image,{scaleFactor,pixelSize},geometry){
  const bytes=image.toBitmap({scaleFactor}),{width,height}=pixelSize;
  if(bytes.length!==width*height*4||width<1||height<1)return null;
@@ -17,19 +43,20 @@ function paintedBands(image,{scaleFactor,pixelSize},geometry){
  const minimum=Math.ceil(16*sx);if(!counts.every(count=>count>=minimum))return null;
  return{bothDesktopsPainted:true,colors:BAND_COLORS,counts,minimum,rows,viewport:geometry,pixelSize,scaleFactor};
 }
-module.exports=async({app,win,browser,pages,leftDesk='desk-1',rightDesk='desk-3'})=>{
+module.exports=async({app,win,browser,pages,prepared,leftDesk='desk-1',rightDesk='desk-3'})=>{
  const js=code=>win.webContents.executeJavaScript(code),surface=browser.mouseDesktops.surfaces,originalCommand=browser.command,originalBegin=surface.begin,originalCapture=surface.capture;
  const initial=await js('({theme:MouseTest.model.theme,desk:MouseTest.model.desktopId})'),saved=[];
- const evidence={version:app.getVersion(),simultaneous:false,pngSurfaces:false,compositorOnly:false,nativeIdentityPreserved:false,viewportAndScrollPreserved:false,slowAckBounded:false,restored:false,transitions:[]};
+ const evidence={version:app.getVersion(),preparation:prepared,simultaneous:false,pngSurfaces:false,compositorOnly:false,nativeIdentityPreserved:false,viewportAndScrollPreserved:false,slowAckBounded:false,restored:false,transitions:[]};
  const file='mouse-627-desktop-transition.json',save=()=>fs.writeFile(file,JSON.stringify(evidence,null,2)+'\n');let active=null,delay=0,attached=false,completed=false;
  async function pins(){return Promise.all(pages.map(async id=>{const page=browser.get(id),wc=page.view.webContents,dom=await wc.executeJavaScript('({scrollX,scrollY,marker:window.marker})'),bounds=page.view.getBounds();return{id,webContentsId:wc.id,navigationEpoch:page.navigationEpoch||0,url:wc.getURL(),width:bounds.width,height:bounds.height,...dom};}));}
  function compare(before,after){assert.deepEqual(after,before,'WebContents, navigation, viewport and scroll survive desktop motion');}
  const observe="(()=>{const selected=new Set("+JSON.stringify(pages)+"),proof=globalThis.__mouse627DesktopProof={frames:[],snapshots:[],allSnapshots:[],midpoint:false,running:true};\nconst tick=at=>{if(!proof.running)return;const host=document.querySelector('#mouse-desktop-transition'),shadow=host?.shadowRoot,outgoing=shadow?.querySelector('[data-transition-frame=outgoing]'),incoming=shadow?.querySelector('[data-transition-frame=incoming]');\nif(host?.dataset.phase==='animating'&&outgoing&&incoming){const x=node=>new DOMMatrixReadOnly(getComputedStyle(node).transform).m41,width=host.getBoundingClientRect().width,a=x(outgoing),b=x(incoming);if(proof.frames.length<120)proof.frames.push({at,outgoingX:a,incomingX:b,width});if(Math.abs(a)>width*.2&&Math.abs(a)<width*.9)proof.midpoint=true;\nif(!proof.allSnapshots.length){proof.allSnapshots=[...shadow.querySelectorAll('img[data-surface]')].map(img=>({id:img.dataset.surface,frame:img.closest('[data-transition-frame]').dataset.transitionFrame,png:img.src.startsWith('data:image/png;base64,'),decoded:img.complete&&img.naturalWidth>0,pixelWidth:img.naturalWidth,pixelHeight:img.naturalHeight,width:img.getBoundingClientRect().width,height:img.getBoundingClientRect().height}));proof.snapshots=proof.allSnapshots.filter(img=>selected.has(img.id));}\n}\nproof.raf=requestAnimationFrame(tick);};proof.raf=requestAnimationFrame(tick);})()";
  try{
   assert.equal(await js('MouseNative.test'),true);assert.equal(pages.length,BAND_COLORS.length);await save();
+  assert.equal(prepared?.length,2);assert.equal(initial.desk,leftDesk);assert.equal(browser.mouseSurfaceHold,null);assert.equal(await js('!MouseTest.model.switching&&!MouseTest.model.desktopSliding&&!document.querySelector("#mouse-desktop-transition")&&!document.querySelector(".mouse-floating-snapshot")'),true);
+  for(const [index,id]of pages.entries()){const row=prepared[index],page=browser.get(id),wc=page.view.webContents;assert.equal(row.id,id);assert.equal(row.index,index);assert.equal(row.ready,true);assert.equal(row.native.selectedDesktop,index===0?rightDesk:leftDesk);assert.equal(row.native.logicalVisible,true);assert.equal(row.native.nativeVisible,true);assert.equal(row.native.webContentsId,wc.id);assert.equal(row.native.epoch,page.navigationEpoch||0);assert.equal(row.native.url,wc.getURL());assert.deepEqual(row.native.bounds,page.view.getBounds());assert.deepEqual(row.native.surfaceBounds,page.bounds);saved.push({id,...row.original});const dom=await wc.executeJavaScript('({scrollX,scrollY,band:document.getElementById('+JSON.stringify(BAND_ID)+')?.style.backgroundColor})');assert.equal(dom.scrollX,0);assert.equal(dom.scrollY,137);assert.equal(dom.band,'rgb('+BAND_COLORS[index].join(', ')+')');}
   const debug=win.webContents.debugger;assert.equal(debug.isAttached(),false);debug.attach('1.3');attached=true;
   await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
-  for(const [index,id]of pages.entries()){const wc=browser.get(id).view.webContents;saved.push({id,...await wc.executeJavaScript('({minHeight:document.body.style.minHeight,scrollX,scrollY})')});await wc.executeJavaScript('(()=>{document.body.style.minHeight="2400px";scrollTo(0,137);const band=document.createElement("div");band.id='+JSON.stringify(BAND_ID)+';band.setAttribute("aria-hidden","true");band.style.cssText="position:fixed;inset:0 0 auto;height:8px;z-index:2147483647;pointer-events:none;background:rgb('+BAND_COLORS[index].join(',')+');";document.body.append(band);})()');}
   browser.command=async function(action,args){const result=await originalCommand.call(this,action,args);if(action==='layout'&&delay)await sleep(delay);return result;};
   surface.begin=function(token,purpose){if(active&&purpose!=='popover'&&active.counter===undefined)active.counter=browser.mouseLayoutCalls||0;return originalBegin.call(this,token,purpose);};
   surface.capture=async function(args){
@@ -93,3 +120,4 @@ module.exports=async({app,win,browser,pages,leftDesk='desk-1',rightDesk='desk-3'
  }
  if(completed){assert.equal(evidence.restored,true);console.log('MOUSE_627_COMPOSITOR_DESKTOP_SLIDE_NATIVE_PASS',JSON.stringify(evidence.transitions.map(x=>({theme:x.theme,direction:x.direction,ackDelayMs:x.ackDelayMs,nativeLayoutCalls:x.nativeLayoutCalls,frames:x.frames.length,animationDurationMs:x.animationDurationMs}))));console.log('MOUSE_621_SMOOTH_DESKTOP_NATIVE_SLIDE_PASS');}
 };
+module.exports.prepareVisiblePage=prepareVisiblePage;

@@ -1,6 +1,28 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),http=require('node:http');
-const {createDownloadFixture}=require('./mouse-629-feedback-smoke.cjs');
+const {createDownloadFixture,copyFeedbackPlateau}=require('./mouse-629-feedback-smoke.cjs');
+
+function copySample(currentTime,{opacity='1',startTime=2000,sampledAt=startTime+currentTime,...extra}={}){
+ return{state:'copy',hidden:false,reducedMotion:false,animationName:'mouse-capture-confirm',badgeOpacity:opacity,sampledAt,timeOrigin:1795080592411.5,badgeAnimations:[{animationName:'mouse-capture-confirm',startTime,currentTime,playState:'running',timing:{duration:1400}}],...extra};
+}
+
+test('copy screenshot rejects an early fade-in and a readback outside the natural visible interval',()=>{
+ // The diagnostic runner observed this early frame while two RAFs had already
+ // completed. A present node and running animation alone are insufficient.
+ const early=copySample(16.358,{opacity:'0.0576627'}),before=copySample(250),after=copySample(650);
+ assert.equal(copyFeedbackPlateau(early),false);assert.equal(copyFeedbackPlateau(copySample(16.358)),false);
+ assert.equal(copyFeedbackPlateau(before),true);assert.equal(copyFeedbackPlateau(after,before),true);
+ assert.equal(copyFeedbackPlateau(copySample(1100),before),false);
+ assert.equal(copyFeedbackPlateau(copySample(1400,{state:null,hidden:true}),before),false);
+ assert.equal(copyFeedbackPlateau(copySample(650,{opacity:'0.5'}),before),false);
+});
+
+test('copy screenshot cannot accept a replacement animation or a different renderer as the same cue',()=>{
+ const before=copySample(250),replacement=copySample(300,{startTime:4000}),reloaded=copySample(600,{timeOrigin:1795080599999});
+ assert.equal(copyFeedbackPlateau(replacement),true);assert.equal(copyFeedbackPlateau(replacement,before),false);
+ assert.equal(copyFeedbackPlateau(reloaded,before),false);assert.equal(copyFeedbackPlateau(copySample(240),before),false);
+ assert.equal(copyFeedbackPlateau(copySample(650,{reducedMotion:true,badgeAnimations:[]})),false);
+});
 
 test('native download fixture truncates real bytes, rejects automatic restart, and serves only an explicit retry',{timeout:5000},async()=>{
  const known=Buffer.alloc(131072,71),requests=[];let allowed=false;
