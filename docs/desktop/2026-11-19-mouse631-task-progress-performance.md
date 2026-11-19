@@ -1,6 +1,6 @@
 # Mouse Browser 6.0.31 — задачи сайтов и несколько рабочих столов
 
-**SOURCE_ACCEPTED / WINDOWS_PUBLISHED_VERIFIED / MAC_PUBLICATION_PENDING.** Общий кандидат 6.0.31 для Windows x64 и macOS arm64 прошёл все 14 source checks и независимые проверки артефактов. Source PR177 и Releases PR57 объединены. Windows publisher и независимый аудит итогового evidence-архива завершились успешно: публичный EXE, канал 6.0.31, новая установка и анонимная полная загрузка настоящим обновлятором 6.0.29 подтверждены. В первой попытке GitHub не выделил Mac arm64 runner до запуска нативного job; повторён только отменённый job с теми же пакетами и критериями, готовая публичная Mac-сборка 6.0.31 пока не заявляется.
+**PUBLISHED / VERIFIED_DOWNLOAD — Windows x64 и macOS arm64.** Общий выпуск Mouse Browser 6.0.31 опубликован и проверен на обеих платформах. Приняты все 14 source checks, обе свежие установки, независимые task/stress/UI/trace проверки и итоговые evidence-архивы. Публичные EXE, DMG и ZIP совпадают с закреплёнными пакетами; каналы показывают 6.0.31. Настоящие модули обновления 6.0.29 анонимно обнаружили выпуск, целиком скачали соответствующие пакеты и проверили их hashes; проверка current для версии 6.0.31 также прошла. Сценарий DOOM по-прежнему отсутствует, поэтому эта отдельная часть поручения остаётся открытой (`DOOM_SPEC_MISSING`).
 
 ## Прямое уточнение владельца, 19 ноября 2026
 
@@ -437,7 +437,7 @@ Syntax/diff check и15existing Local UI contracts прошли; эти contracts
 
 ## Source85479b34: принят общий кандидат Windows/macOS
 
-**SOURCE_ACCEPTED / WINDOWS_PUBLISHED_VERIFIED / MAC_PUBLICATION_PENDING.** Общий кандидат 6.0.31 для Windows x64 и macOS arm64 прошёл все 14 source checks и независимые проверки артефактов. Source PR177 и Releases PR57 объединены. Windows publisher и независимый аудит итогового evidence-архива завершились успешно: публичный EXE, канал 6.0.31, новая установка и анонимная полная загрузка настоящим обновлятором 6.0.29 подтверждены. В первой попытке GitHub не выделил Mac arm64 runner до запуска нативного job; повторён только отменённый job с теми же пакетами и критериями, готовая публичная Mac-сборка 6.0.31 пока не заявляется.
+**PUBLISHED / VERIFIED_DOWNLOAD — Windows x64 и macOS arm64.** Общий выпуск Mouse Browser 6.0.31 опубликован и проверен на обеих платформах. Приняты все 14 source checks, обе свежие установки, независимые task/stress/UI/trace проверки и итоговые evidence-архивы. Публичные EXE, DMG и ZIP совпадают с закреплёнными пакетами; каналы показывают 6.0.31. Настоящие модули обновления 6.0.29 анонимно обнаружили выпуск, целиком скачали соответствующие пакеты и проверили их hashes; проверка current для версии 6.0.31 также прошла. Сценарий DOOM по-прежнему отсутствует, поэтому эта отдельная часть поручения остаётся открытой (`DOOM_SPEC_MISSING`).
 
 ### Точный исходник и все проверки GitHub
 
@@ -514,7 +514,7 @@ Mac candidate artifact 14566050657: 275996444 bytes, ZIP SHA-256 `f464c504323e5d
 
 Перед release PR57 прошли 150 уникальных локальных контрактов: 27 retained evidence, 39 UI, 17 task/stress, 10 native report wrapper, 8 финальных package bytes и 49 Windows publication tests; оба complete pin validators также PASS. На exact release head `29cd71396f7adb4269edb5ed070bba96a6ce4e12` прошли четыре PR checks, а два publisher jobs ожидаемо пропущены до merge. Узкий `.gitattributes` с `tools/mouse631-task-evidence.py text eol=lf` сохраняет побайтовое равенство независимого checker исходнику на Windows. Фактический `git` filter под `core.autocrlf=true`, `false` и `input` дал один SHA-256 `91cb74d4d6597eec9a81c0207ab4921d3e0926d3be6c8017ac4d0e2a68bfa6be`. Это не утверждение о прежней настройке runner; package bytes и строгие критерии не менялись.
 
-### Публикация Windows и ожидание Mac
+### Публикация Windows и Mac
 
 [Releases PR57](https://github.com/jeep-jim/OSMINOG-Releases/pull/57) объединён 2026-11-19 в 19:33:07Z, merge `4cad2e4e1e6b5f2cf86e9d0d092499b4dd4c9a9c`. Запущены [Windows publisher 44599494290](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44599494290) и [Mac publisher 44599494196](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44599494196). Windows завершился SUCCESS в 19:46:32Z, включая новую установку, immutable public asset verification, обновление канала и анонимное обнаружение/полную загрузку старым обновлятором. Итоговый evidence-архив отдельно принят независимой проверкой actual publisher functions, native reports, hashes и PNG.
 
@@ -534,7 +534,39 @@ Mac candidate artifact 14566050657: 275996444 bytes, ZIP SHA-256 `f464c504323e5d
 
 #### Mac: первая попытка остановлена инфраструктурой
 
-Mac run `44599494196`, attempt 1, завершился `failure` в 19:48:35Z: job `135826924579` отменён до запуска, `steps=[]`, runner не назначен; contract job `135826690796` прошёл. Нативная проверка этой попыткой не выполнялась. Четыре annotations GitHub подтвердили инфраструктурную причину: `The job was not acquired by Runner of type hosted even after multiple attempts` и три notices о нехватке доступных macOS arm64 runners. Это не провал native/test gate. В 19:50:31Z повторно запущен только отменённый job: attempt 2 использует тот же release commit `4cad2e4e1e6b5f2cf86e9d0d092499b4dd4c9a9c`, source, package pins и все прежние критерии; код/thresholds не менялись. Fresh-installed доказательства, release ID, public asset hashes и анонимное чтение Mac-канала пока не получены. Источник и пакеты приняты, но публичная Mac-публикация не выводится из source acceptance или merge.
+Mac run `44599494196`, attempt 1, завершился `failure` в 19:48:35Z: job `135826924579` отменён до запуска, `steps=[]`, runner не назначен; contract job `135826690796` прошёл. Нативная проверка этой попыткой не выполнялась. Четыре annotations GitHub подтвердили инфраструктурную причину: `The job was not acquired by Runner of type hosted even after multiple attempts` и три notices о нехватке доступных macOS arm64 runners. Это не провал native/test gate. В 19:50:31Z запрошен повтор отменённого job: attempt 2 использует тот же release commit `4cad2e4e1e6b5f2cf86e9d0d092499b4dd4c9a9c`, source, package pins и все прежние критерии; код/thresholds не менялись. На момент повторного запуска fresh-installed доказательства, release ID, public asset hashes и анонимное чтение Mac-канала ещё не были получены; публичный выпуск не выводился из source acceptance или merge. Итог attempt 2 записывается отдельно ниже.
+
+#### Mac attempt 2: пакеты опубликованы, приёмка завершена
+
+[Mac publisher job135837313701](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44599494196/job/135837313701) получил runner в 19:55:39Z. Импорт exact source artifacts завершился в 19:57:20Z по GitHub Jobs API; fresh-installed набор с настоящей заменой 6.0.29 → 6.0.31 завершился SUCCESS в 20:06:07Z по тому же API. Затем прошли независимые UI/task/frozen-motion gates, публикация, обновление Mac-канала и анонимная полная загрузка настоящим модулем 6.0.29. Все steps native job и contract job `135837316993` завершены SUCCESS; native job завершён в 20:11:20Z, статус run attempt2 — SUCCESS, его API `updated_at` — 20:11:21Z. Независимый аудит итогового архива принят отдельно после завершения workflow.
+
+[Публичный Mac release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.31-arm64) ID `451869817`, `draft:false`, опубликован **2026-11-19T20:07:32Z**. Отдельное чтение публичного GitHub release API подтвердило все пять assets:
+
+| Asset | ID | Bytes | SHA-256 |
+|---|---:|---:|---|
+| [Mouse-Browser-6.0.31-mac-arm64.dmg](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.31-arm64/Mouse-Browser-6.0.31-mac-arm64.dmg) | 769089193 | 137837783 | `479fc4476891e260a11c9cd9c10c126604ad97733d81e862fc60a6394703a204` |
+| [Mouse-Browser-6.0.31-mac-arm64.zip](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.31-arm64/Mouse-Browser-6.0.31-mac-arm64.zip) | 769089595 | 140184913 | `0bf25636d92fba9eb28033de413e1fab61ea5f90753a82b6bf123143ec1ddc72` |
+| `Quadro-Browser-6.0.31-mac-arm64.dmg` | 769089890 | 137837783 | `479fc4476891e260a11c9cd9c10c126604ad97733d81e862fc60a6394703a204` |
+| `mouse-build.json` | 769090252 | 6086 | `bd16ccb2a45eea59d8b293d314ba168cc7ccb555e2e8ada0d3d78d8bdf13f0ce` |
+| `SHA256SUMS.txt` | 769090207 | 304 | `7c65b7834d3805195227bb5b3f4d3253fcca76a6bad435eecea5ebf07627a4d3` |
+
+DMG/ZIP полностью соответствуют размерам и hashes accepted source candidate и release pins. Alias имеет те же байты, что основной DMG. Старые выпуски и их assets не заменялись. Итоговый архив принят независимыми проверками ниже.
+
+В 20:09:19Z GitHub Contents API отдельно подтвердил [`channels/mouse/macos-arm64.json`](https://github.com/jeep-jim/OSMINOG-Releases/blob/main/channels/mouse/macos-arm64.json): schema 1, `darwin` / `arm64`, версия `6.0.31`, официальный Mouse DMG URL, 137837783 bytes, SHA-256 `479fc4476891e260a11c9cd9c10c126604ad97733d81e862fc60a6394703a204`, `publishedAt=2026-11-19T20:07:32Z`. Отдельная проверка полной загрузки старым обновлятором также прошла; её результат приведён ниже.
+
+#### Итоговый Mac evidence-аудит
+
+Архив `mouse631-release-verification-attempt-2`, artifact `14571025228`: 26466713 bytes, SHA-256 `48ba9c983df9cbf174cc6699a7af81b33aba6823aa993e26a511a60905cc6986`. API provenance соответствует publisher run `44599494196`, attempt2, exact release head `4cad2e4e1e6b5f2cf86e9d0d092499b4dd4c9a9c` и native job `135837313701`; проверены CRC и 349 извлечённых файлов. Окончательный `independent-final-audit.json` имеет SHA-256 `57e44a73fc9124fc4d53c015cfc7c39fdfde08ce229b2174d93d8ba54290975f`.
+
+Фактические publisher `verify_631`, retained `verify_630` и frozen `mouse628-motion-trace-evidence-v2` заново выполнены независимо за 70.09 s на 207 входных файлах. Полученные результаты совпали с опубликованными в архиве acceptance reports. Проверены 15 task cases, 20 OS captures и 740 pixel probes; нагрузки 20/50 живых страниц на пяти столах с 15 переходами. Все 120 native capture frames имеют правильный размер с первой попытки, на каждый переход — два layout и восемь capture calls, ненужных ordinary bitmap readouts — ноль. `renderFailures=[]`, cleanup закрыл все 50 тестовых страниц и восстановил desktop state.
+
+Хост — macOS `15.8.2` / build `24H232`, image `macos-15-arm64` / `20261118.0550.1`. В этом контролируемом сценарии p50/max перехода составили 754.062/856.597 ms при 20 страницах и 699.966/776.844 ms при 50 страницах. Эти измерения не являются сравнением с Chrome или обещанием той же скорости на произвольных сайтах и компьютере владельца.
+
+Строгий motion trace принят на 143304 событиях, трёх fresh closing generations и 18 clock anchors со spread 0.166 ms; прежний предел completion skew 20 ms сохранён. Acceptance scope остаётся `unique-compositor-starts-and-dom-completion`: неизвестные compositor terminal events не объявляются наблюдавшимися, общая DOM/model identity и непрерывный compositor lifetime не выводятся; native visual gates остаются обязательными. Retained UI проверил 24 borderless состояния, четыре desktop slides, 92532 native progress-pill pixels, шесть настоящих download items, десять page-wheel сценариев, private disposal, 723 Nora visibility samples и семь fractional native panes.
+
+Нативная установка повторно прошла настоящую замену опубликованной 6.0.29 на 6.0.31 с `MOUSE_READY 6.0.31`, подтверждением запуска и сохранением профильных/workspace sentinels. Normal profile/cookie restart, четыре режима native close/quit и private-process exit disk scan прошли. WRITE занял 367864 ms, READ — 5104 ms. Сам браузер выполнялся на publisher Mac; локальный независимый аудит проверял архив, hashes, PNG, trace и завершённый log.
+
+Настоящий модуль обновления опубликованной Mac 6.0.29 анонимно обнаружил 6.0.31 и целиком скачал публичный DMG: **137837783 bytes**, SHA-256 **`479fc4476891e260a11c9cd9c10c126604ad97733d81e862fc60a6394703a204`**. Повторное хеширование файла на диске и current-version check для 6.0.31 — PASS. В diagnostics записано 85 state/error observations: первые 42 попытки показывали прежнее static-current состояние, попытка 43 обнаружила 6.0.31. Наблюдение зафиксировано без предположения о сетевой причине; штатный ограниченный цикл и все gates сохранены. Completed log подтвердил итоговый PASS в 20:11:12Z. Все пять публичных Mac assets и static channel отдельно совпали с pins.
 
 ### Оставшиеся границы
 
