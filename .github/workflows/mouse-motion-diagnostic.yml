@@ -1,0 +1,101 @@
+name: Mouse Nora observer diagnostics (not a release)
+on:
+  pull_request:
+    paths: ['tools/mouse-motion-diagnostic.cjs','.github/workflows/mouse-motion-diagnostic.yml']
+permissions:
+  contents: read
+jobs:
+  motion-observer-diagnostic:
+    runs-on: macos-15
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Bind diagnostic to unchanged product source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          git fetch --depth=1 origin c8848cfa525b2c48ebbafcf7751be1d26d272590
+          git diff --exit-code c8848cfa525b2c48ebbafcf7751be1d26d272590 -- . ../tools/mouse-verify.py ../tools/mouse-update-verify.py
+          python3 - <<'PY'
+          import hashlib,json,pathlib,subprocess
+          p=pathlib.Path('mouse-motion-diagnostic-provenance.json')
+          data={'diagnosticOnly':True,'releaseEvidence':False,'productSource':'c8848cfa525b2c48ebbafcf7751be1d26d272590','diagnosticHead':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'harnessBeforeSHA256':hashlib.sha256(pathlib.Path('mouse-smoke.cjs').read_bytes()).hexdigest(),'diagnosticSHA256':hashlib.sha256(pathlib.Path('../tools/mouse-motion-diagnostic.cjs').read_bytes()).hexdigest()}
+          p.write_text(json.dumps(data,indent=2)+'\n')
+          with open('mouse-motion-diagnostic-display.json','w') as out:
+           try:subprocess.run(['system_profiler','SPDisplaysDataType','-json'],stdout=out,stderr=subprocess.STDOUT,timeout=30,check=False)
+           except subprocess.TimeoutExpired:out.write('\nSYSTEM_PROFILER_TIMEOUT\n')
+          PY
+      - run: npm ci
+      - name: Prepare the same native runtime
+        run: |
+          npm ci --prefix mouse-agent
+          node mouse-agent/prepare.cjs
+          npm run prepare:runtime
+          node mouse-native-build.cjs
+          node mouse-icon.cjs
+      - name: Install temporary diagnostic harness only
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib,shutil,subprocess
+          shutil.copyfile('../tools/mouse-motion-diagnostic.cjs','mouse-motion-diagnostic.cjs')
+          p=pathlib.Path('mouse-smoke.cjs');text=p.read_text()
+          old="await require('./mouse-628-ui-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});"
+          assert text.count(old)==1
+          new="await require('./mouse-motion-diagnostic.cjs')({app,win,browser,store,privateMode,globalCapture,overlayGate});app.exit(0);return;"
+          p.write_text(text.replace(old,new))
+          pathlib.Path('mouse-motion-diagnostic-build.cjs').write_text("const base=require('./mouse-build.cjs');base.files.push('mouse-motion-diagnostic.cjs');base.directories.output='dist-mouse-motion-diagnostic';module.exports=base;\n")
+          pathlib.Path('mouse-motion-diagnostic-harness.patch').write_bytes(subprocess.check_output(['git','diff','--','mouse-smoke.cjs']))
+          provenance=pathlib.Path('mouse-motion-diagnostic-provenance.json');data=json.loads(provenance.read_text());data['harnessAfterSHA256']=hashlib.sha256(p.read_bytes()).hexdigest();provenance.write_text(json.dumps(data,indent=2)+'\n')
+          PY
+          node --check mouse-motion-diagnostic.cjs
+          node --check mouse-smoke.cjs
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/mouse-electron-cache
+            ${{ runner.temp }}/mouse-builder-cache
+          key: mouse-macos-arm64-downloads-v1-${{ hashFiles('desktop/package-lock.json') }}
+      - name: Build diagnostic app directory without release packages
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/mouse-electron-cache
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/mouse-builder-cache
+        run: npx electron-builder --config mouse-motion-diagnostic-build.cjs --mac --arm64 --dir --publish never
+      - name: Run balanced observation experiment after the same smoke prefix
+        run: |
+          python3 - <<'PY'
+          import os,pathlib,subprocess
+          exe=pathlib.Path('dist-mouse-motion-diagnostic/mac-arm64/Mouse Browser.app/Contents/MacOS/Mouse Browser').resolve();assert exe.is_file()
+          profile=pathlib.Path(os.environ['RUNNER_TEMP'])/'mouse-motion-diagnostic-profile';profile.mkdir()
+          env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(profile),'MOUSE_MOTION_DIAGNOSTIC':'1','MOUSE_DIAGNOSTIC_SOURCE_HEAD':'c8848cfa525b2c48ebbafcf7751be1d26d272590'}
+          log=pathlib.Path('mouse-motion-diagnostic-process.log')
+          with log.open('w') as out:
+           try:result=subprocess.run([str(exe),'--mouse-smoke-write','--mouse-init-race'],env=env,stdout=out,stderr=subprocess.STDOUT,timeout=660,check=False)
+           except subprocess.TimeoutExpired:
+            out.write('\nMOUSE_MOTION_DIAGNOSTIC_PROCESS_TIMEOUT\n');raise
+          text=log.read_text(errors='replace');print(text)
+          assert result.returncode==0, 'Diagnostic process did not complete'
+          assert pathlib.Path('mouse-motion-diagnostic.json').is_file(), 'Diagnostic observations missing'
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-motion-observer-diagnostic-attempt-${{ github.run_attempt }}
+          path: |
+            desktop/mouse-motion-diagnostic*.json
+            desktop/mouse-motion-diagnostic*.png
+            desktop/mouse-motion-diagnostic*.log
+            desktop/mouse-motion-diagnostic*.patch
+          if-no-files-found: error
+          retention-days: 14
