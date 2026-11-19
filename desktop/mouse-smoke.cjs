@@ -25,8 +25,10 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await until(()=>[...browser.tabs.values()].filter(t=>t.lane!=='side').every(t=>!t.loading),'fixture loads');
    const originals=new Map();for(const t of browser.tabs.values()){assert.equal(t.error,'','Guest page/preload error');originals.set(t.id,{wc:t.view.webContents.id,value:await t.view.webContents.executeJavaScript('globalThis.loadedOnce')})}
    async function geometry(n,full){
-    await until(()=>browser.panels.filter(p=>browser.tabs.get(p.id)?.lane!=='side').length===n,'native panel count');await sleep(100);
-    const boxes=await js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);
+    await until(()=>browser.panels.filter(p=>browser.tabs.get(p.id)?.lane!=='side').length===n,'native panel count');
+    const measure=()=>js(`Array.from(document.querySelectorAll('.pane')).map(p=>{const r=p.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[p.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height}})`);
+    let boxes;try{await until(async()=>{boxes=await measure();return boxes.length===n&&boxes.every(b=>{const t=browser.get(b.id);return t?.visible&&['x','y','width','height'].every(key=>Math.abs(t.bounds[key]-b[key])<=1.5)})},'native panel geometry settles');}
+    catch(error){console.log('MOUSE_NATIVE_GEOMETRY_TIMEOUT',JSON.stringify({expected:n,boxes,native:boxes?.map(b=>({id:b.id,visible:browser.get(b.id)?.visible,bounds:browser.get(b.id)?.bounds}))}));throw error;}
     for(const b of boxes){const t=browser.get(b.id);assert.equal(t.visible,true);for(const key of ['x','y','width','height'])assert.ok(Math.abs(t.bounds[key]-b[key])<=1.5,key+' native mismatch')}
     if(full){const width=await js('innerWidth');assert.ok(Math.abs(Math.max(...boxes.map(b=>b.x+b.width))-width)<=1);assert.ok(Math.min(...boxes.map(b=>b.x))<=1)}
    }
