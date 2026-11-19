@@ -1,9 +1,15 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
-class NativeView{constructor(){this.children=[];}addChildView(view){this.children.push(view);}removeChildView(view){this.children=this.children.filter(v=>v!==view);}setBounds(bounds){this.bounds=bounds;}setVisible(visible){this.visible=visible;}}
-const nativeModule={exports:{}};vm.runInNewContext(fs.readFileSync('browser.cjs','utf8'),{module:nativeModule,exports:nativeModule.exports,require:id=>id==='electron'?{View:NativeView,WebContentsView:NativeView}:id.startsWith('node:')?require(id):{}});
-function nativeBounds(rect){const page={id:'visible',project:'test',lane:'main',view:new NativeView(),visible:false},browser={disposed:false,project:'test',mouseRoundedPanes:true,tabs:new Map([[page.id,page]]),providers:new Map(),win:{isDestroyed:()=>false,getContentSize:()=>[1200,900],contentView:new NativeView()}};nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,[{id:page.id,...rect}]);return JSON.parse(JSON.stringify(page.bounds));}
+class NativeView{constructor(){this.children=[];}addChildView(view){this.children.push(view);}removeChildView(view){this.children=this.children.filter(item=>item!==view);}setBounds(bounds){this.bounds=bounds;}setVisible(visible){this.visible=visible;}getVisible(){return this.visible;}}
+const nativeModule={exports:{}};
+vm.runInNewContext(fs.readFileSync('browser.cjs','utf8'),{module:nativeModule,exports:nativeModule.exports,require:id=>id==='electron'?{View:NativeView,WebContentsView:NativeView}:id.startsWith('node:')?require(id):{}});
+function nativeBounds(rect){
+ const view=new NativeView(),page={id:'visible',project:'project',lane:'main',view,visible:false},win={isDestroyed:()=>false,getContentSize:()=>[1200,900],contentView:new NativeView()};
+ const browser={win,disposed:false,project:'project',mouseRoundedPanes:true,tabs:new Map([[page.id,page]]),providers:new Map()};
+ nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,[{id:page.id,...rect}]);
+ return JSON.parse(JSON.stringify(page.bounds));
+}
 function fixture(options={}){
  const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240,...options.rect},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
  const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
@@ -16,16 +22,37 @@ function fixture(options={}){
  return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
 }
 const flush=()=>new Promise(setImmediate);
-test('fractional Nora surfaces match actual native endpoint rounding, including the seven-pane case',async()=>{
- for(const [rect,expected]of [[{x:517.4375,y:68,width:183.484375,height:360},{x:517,y:68,width:184,height:360}],[{x:12.484375,y:70.484375,width:320.03125,height:240.03125},{x:12,y:70,width:321,height:241}],[{x:12.515625,y:70.515625,width:320.96875,height:240.96875},{x:13,y:71,width:320,height:240}]]){
-  assert.deepEqual(nativeBounds(rect),expected);const f=fixture({rect});assert.equal(await f.overlay.show('desktops'),true);const image=f.images[0];for(const [style,key]of [['left','x'],['top','y'],['width','width'],['height','height']])assert.equal(image.style[style],expected[key]+'px');assert.equal(f.events.filter(e=>e==='begin').length,1);await f.overlay.hide('desktops');
+test('fractional panes use the exact captured native endpoints when Nora opens',async()=>{
+ // The first rectangle is the real 971px-wide seven-pane CI fixture: its
+ // divider centres are 514.4375 and 703.921875, with a 6px divider at each side.
+ const cases=[
+  {rect:{x:517.4375,y:68,width:183.484375,height:360},bounds:{x:517,y:68,width:184,height:360}},
+  {rect:{x:12.484375,y:70.484375,width:320.03125,height:240.03125},bounds:{x:12,y:70,width:321,height:241}},
+  {rect:{x:12.515625,y:70.515625,width:320.96875,height:240.96875},bounds:{x:13,y:71,width:320,height:240}}
+ ];
+ for(const {rect,bounds}of cases){
+  assert.deepEqual(nativeBounds(rect),bounds,'The real BrowserWorkspace.layout determines capture bounds');
+  assert.ok(Math.abs(bounds.width-rect.width)>.5,'Independent width rounding is not the native endpoint rule');
+  const f=fixture({rect});assert.equal(await f.overlay.show('desktops'),true);
+  const image=f.images[0];for(const [style,key]of [['left','x'],['top','y'],['width','width'],['height','height']])assert.equal(image.style[style],bounds[key]+'px');
+  assert.equal(f.events.filter(event=>event==='begin').length,1);await f.overlay.hide('desktops');assert.equal(f.images.length,0);
  }
 });
-test('fractional Nora refuses a stale or independently rounded native width before hiding pages',async()=>{
- for(const width of [183,185]){let f;f=fixture({rect:{x:517.4375,y:68,width:183.484375,height:360},capture:()=>{const p=f.normal();p.surfaces[0].bounds.width=width;return p;}});await assert.rejects(f.overlay.show('desktops'),/Размер рабочего стола/);assert.equal(f.events.includes('decode'),false);assert.equal(f.events.includes('begin'),false);await f.overlay.hide('desktops');}
+test('a capture rounded by width instead of native endpoints is rejected before Nora takes a hold',async()=>{
+ const rect={x:517.4375,y:68,width:183.484375,height:360};let f;
+ f=fixture({rect,capture:()=>{const packet=f.normal();packet.surfaces[0].bounds.width=Math.round(rect.width);return packet;}});
+ await assert.rejects(f.overlay.show('desktops'),/Размер рабочего стола/);
+ assert.equal(f.events.includes('decode'),false);assert.equal(f.events.includes('begin'),false);await f.overlay.hide('desktops');assert.equal(f.images.length,0);
 });
-test('a subpixel change across a native endpoint invalidates the pending Nora capture',async()=>{
- const capture=deferred(),f=fixture({rect:{x:12.484375,y:70,width:320,height:240},capture:()=>capture.promise}),packet=f.normal(),opening=f.overlay.show('desktops');await flush();f.rect.x+=.03125;assert.notDeepEqual(nativeBounds(f.rect),packet.surfaces[0].bounds);capture.resolve(packet);await assert.rejects(opening,/Не удалось подготовить/);assert.equal(f.events.includes('begin'),false);await f.overlay.hide('desktops');
+test('a subpixel layout change crossing a native endpoint rejects the captured Nora background',async()=>{
+ const capture=deferred(),f=fixture({rect:{x:12.484375,y:70,width:320,height:240},capture:()=>capture.promise}),packet=f.normal(),showing=f.overlay.show('desktops');
+ await flush();f.rect.x+=.03125;assert.notDeepEqual(nativeBounds(f.rect),packet.surfaces[0].bounds);
+ capture.resolve(packet);await assert.rejects(showing,/Не удалось подготовить/);await f.overlay.hide('desktops');assert.equal(f.events.includes('decode'),false);assert.equal(f.events.includes('begin'),false);
+});
+test('a fractional layout change within the same native endpoints preserves the valid capture',async()=>{
+ const decode=deferred(),f=fixture({rect:{x:12.375,y:70,width:320,height:240},decode:()=>decode.promise}),packet=f.normal(),showing=f.overlay.show('desktops');
+ await flush();assert.equal(f.events.includes('decode'),true);f.rect.x-=.75;assert.deepEqual(nativeBounds(f.rect),packet.surfaces[0].bounds);
+ decode.resolve();assert.equal(await showing,true);assert.equal(f.images[0].style.left,'12px');assert.equal(f.images[0].style.width,'320px');await f.overlay.hide('desktops');
 });
 test('popover decodes exact-size surfaces before holding native input and retains them until native restoration',async()=>{
  const decode=deferred(),end=deferred(),f=fixture({decode:()=>decode.promise,end:()=>end.promise});
@@ -72,7 +99,7 @@ test('a borrowed backdrop refuses another hold, desk or stale page geometry',asy
  await assert.rejects(lease.replace({...incoming,surfaces:incoming.surfaces.map(s=>({...s,bounds:{...f.rect,width:321}}))}),/Размер рабочего стола/);
  assert.equal(f.images[0],original);assert.equal(f.events.filter(x=>x==='end').length,0);await f.overlay.hide('desktops');assert.equal(await lease.replace(incoming),false);
 });
-test('a pane progress pill below the header preserves the page bottom corners in Nora',async()=>{
+test('a progress pill below the header preserves the page bottom corners in the Nora snapshot',async()=>{
  const f=fixture({roundBottom:12,hasProgress:true});await f.overlay.show('desktops');
  assert.equal(f.images[0].style.borderRadius,'0 0 12px 12px');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 12px 12px)');assert.equal(f.images[0].style.height,'240px');
  await f.overlay.hide('desktops');assert.equal(f.images.length,0);

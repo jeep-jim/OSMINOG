@@ -33,7 +33,9 @@ class DesktopPreviews{
   const work=(async()=>{const release=await this.takeCaptureSlot();try{
    if(!release||this.disposed||this.locked||this.browser.disposed||generation!==this.generation||desk!==this.bank.active||!t.visible||!this.valid(id,{page:t,epoch,url,desk}))return;
    this.attempts.delete(id);this.attempts.set(id,{page:t,epoch,url,desk,at:this.now()});while(this.attempts.size>MAX_IMAGES)this.attempts.delete(this.attempts.keys().next().value);
-   const image=await wc.capturePage();
+   // A preview can finish after Nora has acquired its native hold. Never let
+   // that in-flight readback wake a guest above the shell's modal surface.
+   const image=await wc.capturePage(undefined,{stayHidden:true,stayAwake:false});
    if(this.disposed||this.locked||this.browser.disposed||generation!==this.generation||desk!==this.bank.active||!t.visible||!this.valid(id,{page:t,epoch,url,desk})||image.isEmpty?.())return;
    const width=Math.min(400,image.getSize?.().width||400),bytes=image.resize({width}).toJPEG(70);
    if(!bytes.length||bytes.length>MAX_BYTES)return;

@@ -49,21 +49,15 @@
    local.setAttribute('viewBox',`0 0 ${next.width} ${next.height}`);fill.setAttribute('d',shape.closed);outline.setAttribute('d',shape.d);clip.setAttribute('d',shape.closed);
    local.style.setProperty('--dock-line-width',next.line+'px');panel.style.setProperty('--nora-curve-x',shape.rx+'px');panel.style.setProperty('--nora-curve-y',shape.ry+'px');scrim.style.bottom=next.bottom+'px';
   }
-  function stopPlayers(keepLayers=false){
+  function stopPlayers(){
    cancelPreparation();
    const current=movement,shadow=shade;movement=shade=null;
    // All finished promises have rejection handlers before cancellation.
-   current?.cancel();shadow?.cancel();
-   if(!keepLayers){panel.style.willChange='';scrim.style.willChange='';}
+   current?.cancel();shadow?.cancel();panel.style.willChange='';scrim.style.willChange='';
   }
   function complete(to){
    note('complete',{to});
-   position=to;panel.style.transform=to?'translate3d(0,0,0)':'translate3d(0,100%,0)';scrim.style.opacity=String(to*.12);
-   // The open panel stays on screen and will slide back on these same layers.
-   // Dropping their hints here can make closing promote/rasterize them again;
-   // paused-player RAF readiness does not wait for that GPU work. Release the
-   // players now, but retain their hints until close, release or reduced motion.
-   stopPlayers(to===1&&!reduced.matches);
+   position=to;panel.style.transform=to?'translate3d(0,0,0)':'translate3d(0,100%,0)';scrim.style.opacity=String(to*.12);stopPlayers();
    tray.dataset.motion=to?'open':'closed';tray.dataset.motionProgress=String(to);content.inert=to!==1;
    if(waiter){const done=waiter;waiter=null;done.resolve(true);settled?.(to===1);}
   }

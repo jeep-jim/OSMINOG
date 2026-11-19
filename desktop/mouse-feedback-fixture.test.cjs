@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),http=require('node:http');
-const {createDownloadFixture,copyFeedbackPlateau}=require('./mouse-629-feedback-smoke.cjs');
+const {createDownloadFixture,copyFeedbackPlateau}=require('./mouse-630-feedback-smoke.cjs');
 
 function copySample(currentTime,{opacity='1',startTime=2000,sampledAt=startTime+currentTime,...extra}={}){
  return{state:'copy',hidden:false,reducedMotion:false,animationName:'mouse-capture-confirm',badgeOpacity:opacity,sampledAt,timeOrigin:1795080592411.5,badgeAnimations:[{animationName:'mouse-capture-confirm',startTime,currentTime,playState:'running',timing:{duration:1400}}],...extra};

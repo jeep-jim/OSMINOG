@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.29');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.30');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -46,7 +46,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await js('document.querySelector("[data-action=ai]").click()');await until(()=>browser.get(aiId).visible,'AI returns');await geometry(4,false);
    for(const [id,old] of originals){const t=browser.get(id);assert.equal(t.view.webContents.id,old.wc);assert.equal(await t.view.webContents.executeJavaScript('globalThis.loadedOnce'),old.value);assert.equal(await t.view.webContents.executeJavaScript('document.querySelector("#kept").value'),'retained')}
    console.log('MOUSE_CUSTOM_AI_RESIZE_NO_RELOAD_PASS');
-   for(const theme of ['light','dark']){await js(`MouseTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const probe=document.createElement('span');probe.style.color='var(--panel)';document.body.append(probe);const panel=getComputedStyle(probe).color;probe.remove();const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .navigation button, #new-tab, #statusbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(panel);return{id:e.id||e.dataset.action||e.tagName,color:c.color,panel,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)}})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x.ratio>=4.5),theme+' contrast '+JSON.stringify(ratios.filter(x=>x.ratio<4.5)))}
+   for(const theme of ['light','dark']){await js(`MouseTest.setTheme('${theme}')`);const ratios=await js(`(()=>{const probe=document.createElement('span');probe.style.color='var(--panel)';document.body.append(probe);const panel=getComputedStyle(probe).color;probe.remove();const lum=s=>{const x=s.match(/[0-9.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return x[0]*.2126+x[1]*.7152+x[2]*.0722};return Array.from(document.querySelectorAll('button.primary, .navigation button, #new-tab, #statusbar button, .ai-controls select')).filter(e=>e.getBoundingClientRect().width>0).map(e=>{const c=getComputedStyle(e),a=lum(c.color),b=lum(panel);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`);assert.ok(ratios.length>=7);assert.ok(ratios.every(x=>x>=4.5),theme+' contrast '+ratios)}
    await js('MouseTest.setTheme("light")');await fs.writeFile('mouse-light-smoke.png',(await win.capturePage()).toPNG());await js('MouseTest.setTheme("dark")');await fs.writeFile('mouse-dark-smoke.png',(await win.capturePage()).toPNG());
    console.log('MOUSE_LIGHT_DARK_CONTRAST_PASS');
    await require('./mouse-compact-smoke.cjs')({win,browser});
@@ -64,10 +64,12 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-local-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,agentHost});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-progress-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-629-feedback-smoke.cjs')({app,win,browser,store,libraryService,privateMode,globalCapture});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-629-nora-smoke.cjs')({app,win,browser,store,overlayGate,globalCapture,privateMode});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-630-feedback-smoke.cjs')({app,win,browser,store,libraryService,privateMode,globalCapture});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-630-nora-smoke.cjs')({app,win,browser,store,overlayGate,globalCapture,privateMode});
+  // Collect the owner regression scenes before the retained motion gate.
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-629-ui-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,overlayGate});
   await require('./mouse-628-ui-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-629-gesture-smoke.cjs')({app,win,browser,store,privateMode});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-630-gesture-smoke.cjs')({app,win,browser,store,privateMode});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-606-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-608-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-609-smoke.cjs')({app,win,browser,globalCapture});
@@ -88,7 +90,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  }catch(error){
   console.error(error);console.error('MOUSE_TAB_DIAGNOSTICS',JSON.stringify(browser.state()));
   const failure={version:app.getVersion(),error:{message:error.message,stack:error.stack},state:browser.state(),panels:browser.panels,overlayBlocked:overlayGate.blocked,surfaceHeld:!!browser.mouseSurfaceHold,nativeDiagnostics:{surfaces:browser.mouseDesktops?.surfaces?.diagnostics?.(),overlays:overlayGate.diagnostics?.()}};
-  const save=()=>fs.writeFile('mouse-628-smoke-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await save();
+  const save=()=>fs.writeFile('mouse-630-smoke-failure.json',JSON.stringify(failure,null,2)+'\n').catch(()=>{});await save();
   try{failure.renderer=await require('./mouse-lifecycle.cjs').bounded(js('(()=>{const m=MouseTest.model;return{activeElement:document.activeElement?.id,ready:m.ready,desktopSliding:!!m.desktopSliding,switching:!!m.switching,libraryOpen:m.libraryOpen,libraryWidth:m.libraryWidth,drag:m.drag?{kind:m.drag.kind,axis:m.drag.axis,pointer:m.drag.pointer}:null,bodyClass:document.body.className,dialogs:[...document.querySelectorAll("dialog[open]")].map(d=>({id:d.id,modal:d.matches(":modal")}))};})()'),2000,'Failure renderer state');}catch(e){failure.rendererError=e.message;}await save();
   await require('./mouse-lifecycle.cjs').bounded(win.capturePage(),2000,'Failure screenshot').then(image=>fs.writeFile('mouse-failure.png',image.toPNG())).catch(()=>{});server?.close();exit(1);
  }

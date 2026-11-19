@@ -16,11 +16,12 @@ function mouseFloatingBackdrop(N,m,restore){
   if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
   return result;
  }
- // Match BrowserWorkspace.layout: native dimensions come from the two snapped
- // endpoints. Rounding a fractional width independently can differ by one DIP.
+ // BrowserWorkspace.layout snaps shared endpoints, not width/height alone.
+ // Two rounded edges can change a fractional span by almost a full DIP;
+ // accepting that exact native box must still reject a stale one-pixel edge.
  const nativeBox=r=>({x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.x+r.width)-Math.round(r.x),height:Math.round(r.y+r.height)-Math.round(r.y)});
  const sameBox=(a,b)=>a&&b&&['x','y','width','height'].every(key=>a[key]===b[key]);
- const unchanged=items=>items.every(({id,slot,r})=>slot.isConnected&&m.state.tabs.some(t=>t.id===id)&&sameBox(nativeBox(slot.getBoundingClientRect()),nativeBox(r)));
+ const unchanged=items=>items.every(({id,slot,r})=>{const box=slot.getBoundingClientRect();return slot.isConnected&&m.state.tabs.some(t=>t.id===id)&&sameBox(nativeBox(box),nativeBox(r));});
  function buildImages(packet,items){
   const byId=new Map((packet.surfaces||[]).map(surface=>[surface.id,surface])),next=[];
   if(byId.size!==items.length)throw Error('Состав рабочего стола изменился.');

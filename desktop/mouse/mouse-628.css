@@ -28,8 +28,9 @@ body>dialog footer{border:0!important}
 #statusbar,
 body:has(#desktop-tray[open]) #statusbar{border:0!important;border-image:none!important;box-shadow:none!important;background:var(--panel)!important}
 #statusbar #version-button[data-update-available=true]{border:0!important;box-shadow:none!important;background:color-mix(in srgb,var(--mouse-update-green) 18%,var(--panel))!important;color:var(--mouse-update-green)}
-/* Keep the published 6.0.27 --line gutters from browser.css/mouse-616.css. */
+#stage,#stage .branch,#stage .split,#stage .pane,#stage .pane.active{background:var(--line)}
 #stage .pane{padding:0;border:0!important;box-shadow:none!important}
+.divider{background:var(--line)}
 .divider:hover,.divider:focus-visible,.divider.dragging{background:var(--accent)}
 /* Each panel reserves its own compact pill just below its address/header row. */
 .mouse-pane-progress{display:flex;align-items:center;flex:0 0 28px;gap:4px;min-width:0;height:28px;padding:2px 8px;background:var(--bg);border:0;box-shadow:none;overflow:hidden}

@@ -118,25 +118,8 @@ test('Nora slides a fixed final contour using transform and opacity animation on
  await f.warm();
  const counts=f.counts(),path=f.path.getAttribute('d'),clip=f.clip.getAttribute('d');let previous=0;
  for(const time of [30,60,100,150,200,250]){await f.at(time);const sample=f.motion.sample();assert.ok(sample.progress>previous&&sample.progress<1);previous=sample.progress;assert.equal(sample.height,440);assert.equal(sample.width,1000);assert.equal(sample.geometryWrites,initial.geometryWrites);assert.equal(sample.measurements,initial.measurements);assert.equal(f.path.getAttribute('d'),path);assert.equal(f.clip.getAttribute('d'),clip);assert.deepEqual(f.counts(),counts,'Animation sampling performs no geometry/style writes or layout reads');}
- await f.at(300);assert.equal(await opened,true);assert.equal(f.content.inert,false);assert.equal(f.motion.progress,1);assert.equal(f.motion.isSettled,true);assert.equal(panel.style.willChange,'transform');assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.tray.dataset.motion,'open');assert.deepEqual(f.settled,[true]);
+ await f.at(300);assert.equal(await opened,true);assert.equal(f.content.inert,false);assert.equal(f.motion.progress,1);assert.equal(f.motion.isSettled,true);assert.equal(panel.style.willChange,'');assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.tray.dataset.motion,'open');assert.deepEqual(f.settled,[true]);
  const closing=f.motion.close();assert.equal(f.content.inert,true);await f.warm();await f.at(450);assert.equal(f.motion.sample().height,440);assert.ok(f.motion.progress>0&&f.motion.progress<1);await f.at(600);assert.equal(await closing,true);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.motion.sample().height,440);f.motion.release();assert.equal(f.motion.sample(),null);assert.equal(f.classes.has('mouse-dock-active'),false);
-});
-
-test('an open Nora retains its two layer hints without live players or idle frame work, then releases them',async()=>{
- for(const action of ['close','immediate','release','reduced']){
-  const f=controllerFixture(),opening=f.motion.open();await f.warm();await f.at(300);await opening;
-  const [panel,scrim]=f.animations.map(player=>player.node),hints=()=>[panel.style.willChange,scrim.style.willChange];
-  assert.deepEqual(hints(),['transform','opacity'],'the visible panel and scrim keep their existing compositor hints');
-  assert.ok(f.animations.every(player=>player.cancelled&&!player.running),'layer retention must not retain animation players');assert.equal(f.motion.isSettled,true);assert.equal(f.queuedFrames,0);
-  const counts=f.counts(),requests=f.frameRequests;await f.at(1000);assert.deepEqual(f.counts(),counts);assert.equal(f.frameRequests,requests,'holding two layers adds no idle RAF loop');assert.deepEqual(hints(),['transform','opacity']);
-  if(action==='close'){
-   const closing=f.motion.close();await f.warm();assert.deepEqual(hints(),['transform','opacity']);
-   assert.ok(f.animations.slice(-2).every(player=>player.options.duration===300&&player.options.easing==='cubic-bezier(.22,.8,.25,1)'));
-   await f.at(1150);assert.ok(f.motion.progress>0&&f.motion.progress<1);assert.deepEqual(hints(),['transform','opacity']);await f.at(1300);assert.equal(await closing,true);
-  }else if(action==='immediate')assert.equal(await f.motion.close({immediate:true}),true);
-  else if(action==='release')f.motion.release();else f.reduced(true);
-  assert.deepEqual(hints(),['',''],action+' releases both layer hints');assert.ok(f.animations.every(player=>player.cancelled&&!player.running));assert.equal(f.queuedFrames,0);
- }
 });
 
 test('reversal keeps the same animation player, exact transform progress and fixed dimensions',async()=>{

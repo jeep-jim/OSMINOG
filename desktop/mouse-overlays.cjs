@@ -23,12 +23,14 @@ class OverlayGate {
   const held=!!this.browser.mouseSurfaceHold;
   this.layout(held?this.desired:[]);
   for(const t of this.pages()){
-   // The core layout caches t.visible. A new clip parent or reattached native
-   // view can be visible even when that cache already says false. Reassert the
-   // actual native barrier on every blocked layout, including Nora's hold.
-   t.view.setVisible(false);t.clipView?.setVisible(false);t.visible=false;
-   // Keep an owned surface hold's parents attached after explicitly hiding
-   // them; incoming captures retain their real bounds and WebContents identity.
+   // Native visibility can change independently of our last layout (for
+   // example while a capture or a clipped parent is being completed). Reassert
+   // the modal barrier against the actual views, including an owned Nora hold.
+   if(t.view.getVisible?.()!==false)t.view.setVisible(false);
+   if(t.clipView&&t.clipView.getVisible?.()!==false)t.clipView.setVisible(false);
+   t.visible=false;
+   // An owned surface hold already keeps every native page invisible. Preserve
+   // its parent instead of detaching and later reattaching background pages too.
    // If the hold ends while a dialog stays open, the next layout detaches again.
    if(!this.browser.mouseSurfaceHold)this.win.contentView.removeChildView(t.clipView||t.view);
   }

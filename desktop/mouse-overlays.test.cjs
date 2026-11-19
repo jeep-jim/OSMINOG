@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {OverlayGate}=require('./mouse-overlays.cjs');
 function fixture(){
  const calls={add:0,remove:0},children=[],view=()=>({shown:false,setVisible(v){this.shown=v}}),win={contentView:{children,addChildView(v){calls.add++;if(!children.includes(v))children.push(v)},removeChildView(v){calls.remove++;const i=children.indexOf(v);if(i>=0)children.splice(i,1)}},webContents:{focus(){}}};
- const browser={tabs:new Map(),providers:new Map(),panels:[],make(id){const t={id,view:view(),visible:false};this.tabs.set(id,t);win.contentView.addChildView(t.view);return t},layout(panels){this.panels=panels;for(const t of [...this.tabs.values(),...this.providers.values()]){const visible=panels.some(x=>x.id===t.id)&&!this.mouseSurfaceHold;if(visible!==!!t.visible){t.view.setVisible(visible);t.clipView?.setVisible(visible);t.visible=visible}}}};
+ const browser={tabs:new Map(),providers:new Map(),panels:[],make(id){const t={id,view:view(),visible:false};this.tabs.set(id,t);win.contentView.addChildView(t.view);return t},layout(panels){this.panels=panels;for(const t of [...this.tabs.values(),...this.providers.values()]){t.visible=panels.some(x=>x.id===t.id)&&!this.mouseSurfaceHold;t.view.setVisible(t.visible);t.clipView?.setVisible(t.visible)}}};
  browser.make('page');return{browser,win,calls,view,resetCalls(){calls.add=calls.remove=0;}};
 }
 test('modal lifetime rejects stale native layouts and new pages; release does not reload',()=>{
@@ -29,22 +29,23 @@ test('owned surface hold preserves native parents through modal open, stale layo
 test('new pages and clip roots remain hidden and attached while a modal owns a surface hold',()=>{
  const {browser,win,calls,view,resetCalls}=fixture(),gate=new OverlayGate(browser,win);browser.mouseSurfaceHold='owned-popover';gate.set({sequence:1,blocked:true});resetCalls();
  const late=browser.make('late');assert.equal(late.visible,false);assert.equal(late.view.shown,false);assert.ok(win.contentView.children.includes(late.view));assert.deepEqual(calls,{add:1,remove:0},'Only creation adds the new native root');
- late.clipView=view();late.clipView.setVisible(true);win.contentView.removeChildView(late.view);win.contentView.addChildView(late.clipView);resetCalls();
+ late.clipView=view();win.contentView.removeChildView(late.view);win.contentView.addChildView(late.clipView);resetCalls();
  const roots=win.contentView.children.slice();browser.layout([{id:'late'}]);assert.equal(late.clipView.shown,false);assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
 });
-test('Nora reasserts actual native visibility when held roots disagree with the cached page flag',()=>{
- const {browser,win,calls,view,resetCalls}=fixture(),page=browser.tabs.get('page'),background=browser.make('background'),provider={id:'provider',view:view(),visible:false};
- page.clipView=view();win.contentView.removeChildView(page.view);win.contentView.addChildView(page.clipView);browser.providers.set(provider.id,provider);win.contentView.addChildView(provider.view);
- const gate=new OverlayGate(browser,win),selected=[{id:'page',x:0,y:40,width:800,height:600}],roots=win.contentView.children.slice();browser.layout(selected);browser.mouseSurfaceHold='nora-owned';browser.layout(selected);resetCalls();
- for(const t of [page,background,provider]){assert.equal(t.visible,false);t.view.setVisible(true);t.clipView?.setVisible(true);}
+test('a held Nora barrier hides actual native visibility even when the logical page flag is already false',()=>{
+ const {browser,win,view,resetCalls,calls}=fixture(),page=browser.tabs.get('page'),gate=new OverlayGate(browser,win);
+ // Model the real workspace optimization: unchanged logical visibility does
+ // not imply that a newly completed native clip parent is already hidden.
+ gate.layout=panels=>{browser.panels=panels;};
+ browser.mouseSurfaceHold='owned-nora';page.visible=false;page.view.shown=true;page.view.getVisible=()=>page.view.shown;
+ page.clipView=view();page.clipView.shown=true;page.clipView.getVisible=()=>page.clipView.shown;
+ win.contentView.removeChildView(page.view);win.contentView.addChildView(page.clipView);const roots=win.contentView.children.slice();resetCalls();
  gate.set({sequence:1,blocked:true});
- for(const t of [page,background,provider]){assert.equal(t.visible,false);assert.equal(t.view.shown,false);if(t.clipView)assert.equal(t.clipView.shown,false);}
- // A later native hierarchy update must not bypass the modal during a reverse
- // or resize-triggered layout merely because t.visible is already false.
- page.view.setVisible(true);page.clipView.setVisible(true);browser.layout(selected);
- assert.equal(page.view.shown,false);assert.equal(page.clipView.shown,false);assert.deepEqual(browser.panels,selected);assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
- gate.set({sequence:2,blocked:false});assert.equal(page.view.shown,false);browser.mouseSurfaceHold=null;browser.layout(selected);
- assert.equal(browser.tabs.get('page'),page);assert.equal(page.view.shown,true);assert.equal(page.clipView.shown,true);assert.equal(background.view.shown,false);assert.equal(provider.view.shown,false);assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
+ assert.equal(page.view.getVisible(),false);assert.equal(page.clipView.getVisible(),false);assert.equal(page.visible,false);
+ assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
+ page.view.shown=true;page.clipView.shown=true;browser.layout([{id:page.id}]);
+ assert.equal(page.view.getVisible(),false,'A late native capture cannot survive the next modal layout');
+ assert.equal(page.clipView.getVisible(),false);assert.deepEqual(browser.panels,[{id:page.id}]);
 });
 test('open Nora applies incoming viewport selection under its hold without exposing or reparenting pages',()=>{
  const {browser,win,calls,resetCalls}=fixture(),incoming=browser.make('incoming'),gate=new OverlayGate(browser,win);

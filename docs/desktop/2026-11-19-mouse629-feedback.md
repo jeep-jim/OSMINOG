@@ -135,3 +135,8 @@ Default сохранил GPU compositing/rasterization enabled и Graphite enabl
 Применена только минимальная readiness часть: pageA получает marker/scroll после подтверждения видимого viewport и до первого скрытия; pageB — после actual view/clip visibility. Каждый helper за≤4000ms/≤8 readbacks обязан подтвердить нативные пиксели полосы с исходным RGB±2 и отдельный пиксель прокрученного Drop после двух guest RAF. WC/URL/epoch/bounds/visibility закреплены до и после readback; original style/scroll сохраняются для прежнего cleanup, попытки и PNG архивируются. Поздняя мутация скрытой страницы удалена. Новых переключений столов нет.
 
 Исходный paintedBands image→bitmap selector сохранён побайтно (837байт, SHA-256 `4f5bfea45c0fbda1c9fb80c0f4c31c33915aafd746be0c171d9cf06c87d89d0c`), как и прежний measurement/cleanup tail, 4000ms capture timeout и motion/layout/identity thresholds. Focused82/82 tests и независимый review проходят; оба feedback файла остаются frozen после21/21 focused tests. Эти результаты не являются native приёмкой: следующий полный source run и отдельный installed publisher обязательны. Диагностические workflow/helper не включены в source10.
+
+
+## Продолжение после принятия независимого6.0.29
+
+Наш source10/e41e7469, run44500891371, не принят из-за footer radius regression; exact artifact14517218131/SHA256`0d9d8ad532b774ed285c093267387c1228d7c4ac02d4343da633c98ce07ddca6`. Параллельный PR170 уже принят и release PR51 владеет отдельными6.0.29 пакетами. Оставшиеся требования перенесены на его принятую основу как6.0.30; прежние результаты и отклонения этого журнала сохраняются. Продолжение — [журнал630](2026-11-19-mouse630-complete-feedback.md).
