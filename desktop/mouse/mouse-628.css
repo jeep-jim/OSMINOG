@@ -91,4 +91,10 @@ body:has(#desktop-tray[open]) #statusbar{border:0!important;border-image:none!im
  #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-preview-large{height:80px}
  #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-mode>.desk-preview{height:25px}
 }
+/* Expanded help now also explains closed-Nora input. Reserve space for that
+   text just above the compact layout's 700px breakpoint by reusing its
+   preview height; text and control sizes stay unchanged. */
+@media(max-height:740px){
+ #desktop-tray:has(.desktop-gesture-hint details[open]) .desk-preview-large{height:80px}
+}
 @media(prefers-reduced-motion:reduce){#desktop-tray #desk-modes{transition:none}}

@@ -368,3 +368,67 @@ Handler regression расширен на fresh и already learned normal profile
 первый пишет обучение ровно один раз, второй не переписывает его;
 private completion не пишет в normal storage в обоих случаях.
 Focused35/35PASS,0SKIP (226.333ms); syntax/diff checks прошли.
+
+## Source22bb7c5: подтверждён Windows overflow, Mac trace не принят
+
+Windows44586269526/job135779925712 прошёл реальный629→631 profile upgrade
+и новый631 gate:15task cases,20/50pages,5desktops,15switches,740decoded
+pixel probes. Контрольные OS PNG показывают правильных владельцев страниц
+и pills без прежнего28px duplicate heading strip. Переставленный628
+first-use summary действительно видим и получает native click. Следующий
+строгий `preview-help` fit gate выявил642pxcontent при632pxavailable
+на viewport1008×712, traywidth996. Полный WRITE отказал, modern job skipped.
+Verification14562540681 (22923767bytes), SHA/CRC проверены:
+`8c498ee393362b4325936d1233eaff37fd0c47ee7016b32638d57e1ccbdbd8e2`.
+
+Сравнение с настоящим629 на том же runner из upgrade evidence изолирует
+причину: compact361, modes543, history595 и preview592 совпадают в обеих
+версиях. Только expanded help вырос с613 (actual612.875) до642 после
+добавления630 объяснения жестов при закрытой Норе. Предыдущие fixtures
+сообщают restored=true; измеренного накопленного geometry leak до раскрытия
+нет. Existing compact CSS действует только при viewportheight<=700 и
+не покрывает712px окно.
+
+Узкая общая CSS-правка применяется только к раскрытой справке и большому
+preview при viewportheight<=740: previewheight80px. Под700 это уже было
+существующим поведением. При фактическом712 размер preview128.15625→80
+освобождает48.15625px, давая консервативный content<=594 при632available.
+Текст, шрифты, кнопки, minimum sizes и остальные секции не меняются.
+При измеренном остальном контенте<=513.84375 и доступномH−80 нормальный
+18vh preview помещается при H>=(513.84375+80)/0.82=724.1997px;
+порог740 покрывает этот промежуток. Это расчёт по текущему fixture,
+окончательный fit должен подтвердить новый строгий native gate.
+
+Mac5743 run44583713062/job135770879133 завершил полный native gate:
+WRITE429049ms, READ7737ms, close/private/profile и реальная629→631
+замена с READY/receipt/profile sentinels прошли. Verification14561458365
+(26687773bytes) SHA/CRC и independent631740pixels проверены:
+`1e401f5a60a5907db173f4b452334020cb4638d3d77c7c3939a50e3e0a7f3b5f`.
+Тот же frozen publisher trace verifier также PASS:149392events,
+18clock anchors,3fresh closing generations,0activePhaseRejections.
+
+Mac22bb run44586269722/job135779925247 тоже завершил основной native job
+SUCCESS, но отдельный frozen publisher trace gate отклонил его exact archive.
+Это не accepted Mac release candidate. Verification size26693224, SHA:
+`8426f4252c3cb1dd51bddc30411ca9a3a7a8cee29956df2e573251c68a6dd06c`.
+Independent631 gate PASS740pixels. В darkClosing compositor END
+489794.379/489794.407ms предшествует paired Blink END
+489861.696/489861.746ms на67.289–67.367ms при прежнем лимите20ms.
+Clock18anchors spread0.125ms/margin0.273ms этого не объясняет.
+Следующий renderer BeginMainFrame приходит489861.385ms, Blink ends
+через0.311/0.361ms. Между ними не найден67ms synchronous UI task;
+в GPU процессе наблюдается50.722ms Dawn IOSurface scheduling wait внутри
+SwapBuffers. CopyOutput также присутствует, но его измеренный span0.131ms.
+complete()/nativehold release выполняются после задержки, а не до неё.
+Причинность capture subscription или конкретной product операции не
+установлена; Nora timing/trace validator и20ms threshold не изменяются.
+Source22bb archive остаётся rejected; следующая необходимая CSS-правка
+проходит полный новый native и independent publisher-scope gates.
+
+CSS diff ограничен6addedlines в `mouse/mouse-628.css`; SHA256
+`9f89f3550829d117d52dd3c189d606ea65a7c9948caa900b6269132069b96661`.
+Independent review не нашёл conflicting intrinsic min-height/aspect-ratio.
+Syntax/diff check и15existing Local UI contracts прошли; эти contracts не
+доказывают новый native fit. Дополнительная локальная DOM-проверка не смогла
+загрузить страницу: Chromium остановился на socket EPERM. Обхода ограничений
+не было, успешная DOM-проверка не заявляется.
