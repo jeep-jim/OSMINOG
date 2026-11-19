@@ -1,7 +1,9 @@
 import importlib.util
 import io
+import json
 from pathlib import Path
 import struct
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -13,6 +15,26 @@ spec.loader.exec_module(verify)
 
 
 class WindowsVerificationContracts(unittest.TestCase):
+    def test_signature_measurement_preserves_native_errors_and_reads_utf8_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "Mouse Browser.exe"
+            executable.write_bytes(b"owned package")
+            failed = subprocess.CompletedProcess([], 1, stdout="", stderr="ACTUAL_NATIVE_SIGNATURE_ERROR")
+            with mock.patch.object(verify.subprocess, "run", return_value=failed):
+                with self.assertRaisesRegex(RuntimeError, "ACTUAL_NATIVE_SIGNATURE_ERROR"):
+                    verify.authenticode(executable, {})
+
+            def measure(args, **options):
+                self.assertIn("-EncodedCommand", args)
+                self.assertEqual(options["env"]["MOUSE_WINDOWS_AUTHENTICODE_FILE"], str(executable))
+                Path(options["env"]["MOUSE_WINDOWS_AUTHENTICODE_RESULT"]).write_text(json.dumps({"status": "NotSigned", "signerSubject": None, "signerThumbprint": None}), encoding="utf-8-sig")
+                return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+            with mock.patch.object(verify.subprocess, "run", side_effect=measure):
+                result = verify.authenticode(executable, {})
+            self.assertEqual(result["status"], "NotSigned")
+            self.assertEqual(result["sha256"], verify.sha256(executable))
+
     def test_unicode_diagnostics_survive_windows_ansi_stdout(self):
         buffer = io.BytesIO()
         stream = io.TextIOWrapper(buffer, encoding="cp1252")

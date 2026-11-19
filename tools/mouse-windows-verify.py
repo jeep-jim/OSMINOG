@@ -9,6 +9,7 @@ changed. A timeout, missing marker, invisible window or nonzero exit fails close
 from __future__ import annotations
 
 import argparse
+import base64
 import ctypes
 from ctypes import wintypes
 import hashlib
@@ -67,22 +68,29 @@ def authenticode(file: Path, env: dict) -> dict:
     # Paths remain environment data, never interpolated into PowerShell source.
     # Measure the actual package instead of trusting a generic builder log line.
     command = r"""$ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $signature = Get-AuthenticodeSignature -LiteralPath $env:MOUSE_WINDOWS_AUTHENTICODE_FILE
 $certificate = $signature.SignerCertificate
-[ordered]@{
+$result = [ordered]@{
  status = $signature.Status.ToString()
  statusMessage = $signature.StatusMessage
  signerSubject = $(if ($certificate) { $certificate.Subject } else { $null })
  signerThumbprint = $(if ($certificate) { $certificate.Thumbprint } else { $null })
-} | ConvertTo-Json -Compress
+}
+$json = $result | ConvertTo-Json -Compress
+[IO.File]::WriteAllText($env:MOUSE_WINDOWS_AUTHENTICODE_RESULT, $json, [System.Text.Encoding]::UTF8)
 """
     powershell = Path(env.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-    result = subprocess.run([str(powershell), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
-                            env={**env, "MOUSE_WINDOWS_AUTHENTICODE_FILE": str(file)},
-                            stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8-sig",
-                            timeout=30, check=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    data = json.loads(result.stdout)
+    encoded = base64.b64encode(command.encode("utf-16-le")).decode("ascii")
+    with tempfile.TemporaryDirectory(prefix="mouse-windows-signature-") as temporary:
+        output = Path(temporary) / "signature.json"
+        result = subprocess.run([str(powershell), "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
+                                env={**env, "MOUSE_WINDOWS_AUTHENTICODE_FILE": str(file),
+                                     "MOUSE_WINDOWS_AUTHENTICODE_RESULT": str(output)},
+                                stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8-sig", errors="replace",
+                                timeout=30, check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if result.returncode != 0:
+            raise RuntimeError("Authenticode measurement failed: " + (result.stderr or result.stdout or str(result.returncode)).strip())
+        data = json.loads(output.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict) or not isinstance(data.get("status"), str) or not data["status"]:
         raise RuntimeError("Authenticode returned no actual signature status")
     return {"source": "Get-AuthenticodeSignature", "path": str(file), "sha256": sha256(file), **data}
@@ -357,8 +365,7 @@ def install(installer: Path, target: Path, env: dict, log: Path) -> dict:
         raise RuntimeError(f"Installed executable is not PE AMD64: {machine:#x}")
     result.pop("output")
     return {**result, "executable": str(executable), "peMachine": "0x8664",
-            "executableSha256": sha256(executable), "unicodeAndSpaces": True,
-            "authenticode": authenticode(executable, env)}
+            "executableSha256": sha256(executable), "unicodeAndSpaces": True}
 
 
 def normal_launch(executable: Path, env: dict, output: Path) -> dict:
@@ -498,7 +505,6 @@ def main(argv=None) -> int:
         report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     try:
-        evidence["authenticode"] = {"installer": authenticode(installer, env)}
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
         executable = target / "Mouse Browser.exe"
         for mode, markers in (("write", WRITE_MARKERS), ("read", READ_MARKERS)):
@@ -529,6 +535,10 @@ def main(argv=None) -> int:
         save()
         ordinary_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Обычный запуск")}
         evidence["checks"]["ordinaryLaunch"] = normal_launch(executable, ordinary_env, output)
+        # Metadata cannot prevent GUI diagnostics from running. It remains
+        # required before a successful report and the hash-bound manifest.
+        evidence["authenticode"] = {"installer": authenticode(installer, env),
+                                   "installedExecutable": authenticode(executable, env)}
         evidence["ok"] = True
         print("MOUSE_WINDOWS_INSTALLED_X64_VERIFICATION_PASS", flush=True)
         return 0
