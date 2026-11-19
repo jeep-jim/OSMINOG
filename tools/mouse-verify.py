@@ -9,7 +9,10 @@ def sample_native_exit(process,log_path,deadline):
  if sys.platform!='darwin':return
  state_path=log_path.with_name(log_path.stem+'-process.log')
  sample_path=log_path.with_name(log_path.stem+'-sample.log')
- commands=[(['/bin/ps','-p',str(process.pid),'-o','pid,ppid,state,etime,command'],2),(['/usr/bin/sample',str(process.pid),'2','1','-file',str(sample_path)],4)]
+ # The previous 4 s command cap killed sample while it symbolicated its already
+ # collected stacks. Keep the same 30 s process deadline, but let that report
+ # finish within it so another native teardown failure has usable evidence.
+ commands=[(['/bin/ps','-p',str(process.pid),'-o','pid,ppid,state,etime,command'],2),(['/usr/bin/sample',str(process.pid),'2','1','-file',str(sample_path)],12)]
  try:
   with state_path.open('w') as state:
    for command,limit in commands:

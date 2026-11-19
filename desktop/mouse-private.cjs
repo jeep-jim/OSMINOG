@@ -10,7 +10,7 @@ class PrivateMode {
  async toggle(){
   if(this.busy)return;this.busy=true;
   try{if(this.current)await this.leave();else await this.enter();}
-  finally{this.busy=false;}
+  finally{this.busy=false;this.onPrivacySettled?.();}
  }
  async enter(){
   await this.prepareDocuments?.();

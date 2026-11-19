@@ -32,6 +32,15 @@ body:has(#desktop-tray[open]) #statusbar{border:0!important;border-image:none!im
 #stage .pane{padding:0;border:0!important;box-shadow:none!important}
 .divider{background:var(--bg)}
 .divider:hover,.divider:focus-visible,.divider.dragging{background:var(--accent)}
+/* Progress belongs to its own panel. It never reserves a global footer row. */
+.mouse-pane-progress{display:flex;align-items:center;flex:0 0 34px;gap:4px;min-width:0;height:34px;padding:2px 5px;background:var(--bg);border:0;box-shadow:none;overflow:hidden}
+.mouse-pane-progress>.mouse-progress-pill{flex:1 1 0;min-width:0;max-width:none;width:auto;height:30px;gap:5px;padding-right:4px;border:0!important;box-shadow:none}
+.mouse-pane-progress>.mouse-progress-next{flex:0 0 auto;min-width:25px;min-height:24px;height:24px;padding:0 3px;border:0;border-radius:12px;background:var(--button);font-size:9px;font-variant-numeric:tabular-nums}
+.mouse-pane-progress .mouse-progress-status{font-size:10px}
+.mouse-pane-progress .mouse-progress-value{font-size:10px}
+.mouse-pane-progress .mouse-progress-stop,.mouse-pane-progress .mouse-progress-dismiss{flex:none}
+.mouse-pane-progress .mouse-progress-pill[data-phase=error]{background:color-mix(in srgb,#df8468 14%,var(--panel))}
+#agent-panel>.mouse-pane-progress{background:var(--panel)}
 #desktop-tray{border:0!important;box-shadow:none!important;outline:0;overflow:hidden}
 #desktop-tray #mouse-dock-outline{stroke:none!important;fill:none}
 #desktops-button::before{content:none!important;display:none!important}

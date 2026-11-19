@@ -75,6 +75,18 @@ test('trusted IPC, disposal and persisted normal completion retain their boundar
  const other=await fixture({platform:'linux'});await other.command('context',{open:true});other.swipe('left');assert.equal(other.sent.length,0);assert.equal((await other.command('state')).supported,false);other.controller.dispose();
 });
 
+test('window destruction clears gesture listeners and pending completion without reading its native getter',async()=>{
+ const f=await fixture(),shell=f.win.webContents;
+ await f.command('context',{open:true});f.swipe('left');assert.equal(f.timers.size,1);
+ assert.equal(shell.listenerCount('did-start-navigation'),1);assert.equal(shell.listenerCount('render-process-gone'),1);
+ let invalidReads=0;f.win.isDestroyed=()=>true;
+ Object.defineProperty(f.win,'webContents',{get(){invalidReads++;throw Error('Object has been destroyed');}});
+ let laterCleanup=false;f.win.once('closed',()=>{laterCleanup=true;});
+ assert.doesNotThrow(()=>f.win.emit('closed'));assert.doesNotThrow(()=>f.controller.dispose());
+ assert.equal(invalidReads,0);assert.equal(laterCleanup,true);assert.equal(f.win.listenerCount('swipe'),0);assert.equal(f.timers.size,0);
+ assert.equal(shell.listenerCount('did-start-navigation'),0);assert.equal(shell.listenerCount('render-process-gone'),0);assert.equal(f.writes.length,0);
+});
+
 class Element{
  constructor(){this.children=[];this.listeners=new Map();this.hidden=false;this.open=false;this.inert=false;this.attributes=new Map();this.parent=null;}
  setAttribute(key,value){this.attributes.set(key,String(value));}

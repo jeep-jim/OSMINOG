@@ -1,0 +1,130 @@
+'use strict';
+// Installed-app proof: ordinary page markup is observed by the bundled sandbox
+// preload, passes the owning WebContents IPC checks, and paints its own pane.
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
+const {screen,nativeImage,ipcMain}=require('electron');
+const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function until(check,label){for(let i=0;i<480;i++){if(await check())return;await sleep(25);}throw Error('Mouse628 progress timeout: '+label);}
+
+module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
+ assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
+ assert.equal(privateMode.current,null,'The progress fixture starts in the isolated normal profile');
+ const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node');
+ const bounds=win.getBounds(),fullscreen=win.isFullScreen(),maximized=win.isMaximized();
+ await js('MouseTest.desktopUI.close({immediate:true});MouseTest.save()');await store.queue;
+ const original=await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})');
+ const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),activeDesk=bank.active,otherDesk=bank.items.find(d=>d.id!==activeDesk)?.id;assert.ok(otherDesk);
+ const originalPages=new Map([...browser.tabs.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0}]));
+ const made=[],tracked=new Map(),events=[],clicks=[],facts={version:app.getVersion(),source:'standard page DOM through bundled isolated preload and owning native IPC',rows:[],events,clicks,restored:false};
+ let server,verificationError,cleanupError;
+ const save=()=>fs.writeFile('mouse-628-progress.json',JSON.stringify(facts,null,2)+'\n');
+ const state=()=>js('MouseNative.progress("state")');
+ const activity=(event,value)=>{if(!tracked.has(event.sender.id)||events.length>=256)return;events.push({at:performance.now(),webContentsId:event.sender.id,tabId:tracked.get(event.sender.id),mainFrame:event.senderFrame===event.sender.mainFrame,value:structuredClone(value)});};
+ ipcMain.on('mouse:page-activity',activity);
+ const frame=async()=>{await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await sleep(60);};
+ async function click(selector){
+  app.focus({steal:true});win.show();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'progress native window focus');
+  const point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);assert.equal(point.ready,true,'The own-pane control can receive a native click: '+JSON.stringify({selector,point}));
+  const origin=win.getContentBounds(),target={x:Math.round(origin.x+point.x),y:Math.round(origin.y+point.y)},display=screen.getDisplayNearestPoint(target).bounds;
+  assert.ok(target.x>=display.x&&target.x<display.x+display.width&&target.y>=display.y&&target.y<display.y+display.height);
+  const record={selector,point,target,at:performance.now()};clicks.push(record);assert.equal(native.testClick(target.x,target.y),true);return record;
+ }
+ async function page(name,desk){
+  if(bank.active!==desk)await js(`MouseTest.switchDesktop(${JSON.stringify(desk)})`);
+  await js(`MouseTest.openPage(${JSON.stringify('http://127.0.0.1:'+server.address().port+'/'+name)})`);
+  const id=await js('MouseTest.model.slots[MouseTest.model.active]'),record={id,desk,name,page:browser.get(id)};made.push(record);tracked.set(record.page.view.webContents.id,id);
+  await until(()=>!record.page.loading&&record.page.view.webContents.getURL().endsWith('/'+name),'native '+name+' fixture page loads');assert.equal(record.page.error,'');
+  record.identity=await record.page.view.webContents.executeJavaScript('({timeOrigin:performance.timeOrigin,identity:globalThis.mouse628ProgressIdentity})');assert.equal(typeof record.identity.identity,'number');return record;
+ }
+ const marker='mouse628-progress-indicator';
+ async function insert(record,type,label,value){
+  const start=events.length;
+  const measured=await record.page.view.webContents.executeJavaScript(`(()=>{document.getElementById(${JSON.stringify(marker)})?.remove();const e=document.createElement(${JSON.stringify(type==='html'?'progress':'div')});e.id=${JSON.stringify(marker)};e.setAttribute('aria-label',${JSON.stringify(label)});e.style.cssText='position:fixed;left:12px;top:36px;width:180px;height:22px;z-index:2147483646;opacity:1;visibility:visible;display:block;accent-color:#32c76a;background:#2854ca;color:white';if(${JSON.stringify(type)}==='html'){e.max=200;e.value=${JSON.stringify(value)};}else{e.setAttribute('role','progressbar');e.setAttribute('aria-valuemin','20');e.setAttribute('aria-valuemax','120');if(${JSON.stringify(value)}!==null)e.setAttribute('aria-valuenow',String(${JSON.stringify(value)}));}document.body.append(e);const r=e.getBoundingClientRect();return{tag:e.localName,role:e.getAttribute('role'),value:e.getAttribute('value'),max:e.getAttribute('max'),now:e.getAttribute('aria-valuenow'),min:e.getAttribute('aria-valuemin'),ariaMax:e.getAttribute('aria-valuemax'),label:e.getAttribute('aria-label'),bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};})()`);
+  assert.ok(measured.bounds.width>0&&measured.bounds.height>0);
+  await until(()=>events.slice(start).some(e=>e.tabId===record.id&&e.mainFrame&&e.value.active&&e.value.statusText===label),'the actual sandbox preload observes '+label);
+  return measured;
+ }
+ async function remove(record){
+  const existed=await record.page.view.webContents.executeJavaScript(`!!document.getElementById(${JSON.stringify(marker)})`);if(!existed)return;
+  const start=events.length;await record.page.view.webContents.executeJavaScript(`document.getElementById(${JSON.stringify(marker)}).remove()`);
+  await until(()=>events.slice(start).some(e=>e.tabId===record.id&&e.mainFrame&&e.value.active===false&&e.value.percent===null),'indicator disappearance reports no fabricated completion');
+ }
+ const taskFor=(snapshot,record)=>snapshot.tasks.find(t=>t.tabId===record.id&&t.kind==='observed');
+ async function observed(record,percent){let value;await until(async()=>{value=taskFor(await state(),record);return value?.source==='page'&&value.desk===record.desk&&value.estimated===true&&value.percent===percent;},record.name+' observed task reaches its authenticated owner');return value;}
+ async function ui(){return js(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};},hit=e=>(${nativeHitTarget.toString()})(e);return{theme:document.documentElement.dataset.theme,privateMode:MouseTest.model.privateMode,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio},desk:MouseTest.model.desktopId,footer:rect(document.querySelector('#statusbar')),bodyRows:getComputedStyle(document.body).gridTemplateRows,globalRail:!!document.querySelector('#mouse-progress-rail'),allPillTabs:[...document.querySelectorAll('.mouse-progress-pill')].map(e=>e.dataset.tabId),panes:[...document.querySelectorAll('.pane')].map(p=>{const dock=p.querySelector('.mouse-pane-progress'),pill=dock&&[...dock.querySelectorAll('.mouse-progress-pill')].find(e=>!e.hidden),meter=pill?.querySelector('[role="progressbar"]'),next=dock?.querySelector('.mouse-progress-next');return{pane:p.dataset.pane,tabId:MouseTest.model.slots[p.dataset.pane],bounds:rect(p),slot:rect(p.querySelector('.page-slot')),dock:dock?{hidden:dock.hidden,bounds:rect(dock),parentPane:dock.parentElement.dataset.pane,cssHeight:getComputedStyle(dock).height}:null,pill:pill?{id:pill.dataset.progressId,tabId:pill.dataset.tabId,desk:pill.dataset.desk,kind:pill.dataset.kind,phase:pill.dataset.phase,estimated:pill.dataset.estimated,indeterminate:pill.dataset.indeterminate,value:pill.querySelector('.mouse-progress-value').textContent,status:pill.querySelector('.mouse-progress-status').textContent,ariaNow:meter.getAttribute('aria-valuenow'),bounds:rect(pill),stopHidden:pill.querySelector('.mouse-progress-stop').hidden,dismiss:hit(pill.querySelector('.mouse-progress-dismiss'))}:null,next:next?{hidden:next.hidden,text:next.textContent,hit:hit(next)}:null};})};})()`);}
+ async function visible(record,percent){let data;await until(async()=>{data=await ui();const pane=data.panes.find(p=>p.tabId===record.id);return pane?.pill?.tabId===record.id&&pane.pill.kind==='observed'&&pane.pill.ariaNow===(percent===null?null:String(percent))&&pane.pill.indeterminate===String(percent===null);},record.name+' paints only its own pane');return data;}
+ function footerUnchanged(before,after){assert.deepEqual(after.footer,before.footer,'Per-pane progress never grows or moves the bottom application footer');assert.equal(after.bodyRows,before.bodyRows,'No extra global progress row is inserted');assert.equal(after.globalRail,false);}
+ async function ownership(data,expected){
+  assert.equal(data.panes.length,2);assert.equal(data.globalRail,false);
+  for(const [record,percent]of expected){
+   const p=data.panes.find(p=>p.tabId===record.id);assert.ok(p?.pill);assert.equal(p.pill.tabId,p.tabId);assert.equal(p.pill.desk,activeDesk);assert.equal(p.dock.parentPane,p.pane);assert.equal(p.dock.hidden,false);assert.equal(p.pill.estimated,'true');assert.equal(p.pill.stopHidden,true);assert.equal(p.pill.dismiss.ready,true);assert.equal(p.pill.ariaNow,percent===null?null:String(percent));assert.equal(p.pill.value,percent===null?'…':Math.round(percent)+'%');assert.ok(Math.abs(p.dock.bounds.height-34)<=1);assert.ok(Math.abs(p.dock.bounds.bottom-p.bounds.bottom)<=1);assert.ok(p.slot.bottom<=p.dock.bounds.y+1);
+   await until(()=>{const b=record.page.bounds;return record.page.visible&&b&&b.y+b.height<=p.dock.bounds.y+1.5;},record.name+' native surface leaves the own-pane controls uncovered');
+  }
+ }
+ async function capture(name,data){
+  await frame();assert.equal(globalCapture?.permission(),'granted');const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.deepEqual({width:contentBounds.width,height:contentBounds.height},{width:data.viewport.width,height:data.viewport.height});
+  const captured=await globalCapture.acquire(display);assert.equal(captured.kind,'screen');assert.ok(captured.backend);assert.deepEqual(win.getContentBounds(),contentBounds);
+  const png=Buffer.from(captured.base.slice(captured.base.indexOf(',')+1),'base64'),screenPixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)},image=nativeImage.createFromBuffer(png);assert.deepEqual(image.getSize(1),screenPixelSize);
+  const {cropPixels,mapping}=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),crop=image.crop(cropPixels).toPNG({scaleFactor:1}),pixelSize={width:crop.readUInt32BE(16),height:crop.readUInt32BE(20)};assert.deepEqual(pixelSize,{width:cropPixels.width,height:cropPixels.height});
+  const filename=name+'.png',screenCapture=name+'-display.png';await fs.writeFile(filename,crop);await fs.writeFile(screenCapture,png);return{filename,screenCapture,source:'globalCapture.acquire(display)',kind:captured.kind,backend:captured.backend,display:{id:display.id,bounds:display.bounds,scaleFactor:display.scaleFactor},contentBounds,screenPixelSize,cropPixels,pixelSize,mapping};
+ }
+ async function setPair(first,second){
+  await js(`MouseTest.changeLayout(2);MouseTest.model.slots={p1:${JSON.stringify(first.id)},p2:${JSON.stringify(second.id)}};MouseTest.model.active='p1';MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.model.libraryOpen=false;MouseTest.model.focusPane='';MouseTest.model.focusAI=false;MouseTest.renderTree();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  await until(()=>first.page.visible&&second.page.visible,'both actual fixture pages are visible');await frame();
+ }
+ try{
+  if(fullscreen){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'progress fixture exits inherited fullscreen');}if(win.isMaximized())win.unmaximize();
+  await js('MouseTest.restorePane();MouseNative.window("pane-restore")');
+  server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><meta charset="utf-8"><title>Mouse628 progress fixture</title><body><h1>Native progress fixture</h1><script>globalThis.mouse628ProgressIdentity=Math.random()</script>');});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const foreign=await page('foreign',otherDesk),first=await page('first',activeDesk),second=await page('second',activeDesk),hidden=await page('hidden',activeDesk);await setPair(first,second);
+  for(const task of (await state()).tasks.filter(t=>made.some(p=>p.id===t.tabId)))await js(`MouseNative.progress('dismiss',{id:${JSON.stringify(task.id)}})`);
+  facts.pages=made.map(r=>({id:r.id,desk:r.desk,name:r.name,webContentsId:r.page.view.webContents.id,identity:r.identity}));
+  await insert(hidden,'html','Mouse628 hidden tab',44);await insert(foreign,'html','Mouse628 other desktop',162);const hiddenTask=await observed(hidden,22),foreignTask=await observed(foreign,81);
+  facts.hiddenTasks={hidden:hiddenTask,foreign:foreignTask};
+  const work=screen.getDisplayMatching(win.getBounds()).workArea;assert.ok(work.width>=800&&work.height>=600);const left=work.x+Math.min(8,Math.floor((work.width-800)/2)),top=work.y+Math.min(8,Math.floor((work.height-600)/2));
+  const sizes=[{name:'large',bounds:{x:left,y:top,width:Math.max(800,Math.min(1200,work.x+work.width-left-8)),height:Math.max(600,Math.min(820,work.y+work.height-top-8))}},{name:'small',bounds:{x:left,y:top,width:800,height:600}}];
+  for(const size of sizes)for(const theme of ['light','dark']){
+   await remove(first);await remove(second);await until(async()=>{const s=await state();return!taskFor(s,first)&&!taskFor(s,second);},'old automatic fixture tasks are removed');
+   win.setBounds(size.bounds);await until(()=>JSON.stringify(win.getBounds())===JSON.stringify(size.bounds),'native progress '+size.name+' window bounds settle');await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await frame();let before;await until(async()=>{before=await ui();return before.theme===theme&&before.panes.length===2&&before.panes.every(p=>!p.pill);},'Hidden and foreign tasks do not occupy visible panes');
+   const dom={first:await insert(first,'html','Mouse628 first '+size.name+' '+theme,74),second:await insert(second,'aria','Mouse628 second '+size.name+' '+theme,84)},a=await observed(first,37),b=await observed(second,64);await visible(first,37);const known=await visible(second,64);await ownership(known,[[first,37],[second,64]]);footerUnchanged(before,known);assert.ok(!known.allPillTabs.includes(hidden.id)&&!known.allPillTabs.includes(foreign.id));
+   const row={viewport:size.name,theme,windowBounds:win.getBounds(),before,dom,tasks:{first:a,second:b},known,capture:await capture('mouse-628-progress-'+size.name+'-'+theme,known)};facts.rows.push(row);await save();
+   const bSelector='.mouse-progress-pill[data-progress-id="'+b.id+'"] .mouse-progress-dismiss';row.dismissClick=await click(bSelector);await until(async()=>!(await state()).tasks.some(t=>t.id===b.id),'real own-pane dismissal reaches the main progress store');let afterDismiss;await until(async()=>{afterDismiss=await ui();return afterDismiss.panes.find(p=>p.tabId===first.id)?.pill?.ariaNow==='37'&&!afterDismiss.panes.find(p=>p.tabId===second.id)?.pill;},'dismissal leaves the neighboring own-pane task visible');footerUnchanged(before,afterDismiss);row.afterDismiss=afterDismiss;
+   await remove(second);await insert(second,'aria','Mouse628 unknown '+size.name+' '+theme,null);row.unknownTask=await observed(second,null);row.unknown=await visible(second,null);await ownership(row.unknown,[[first,37],[second,null]]);footerUnchanged(before,row.unknown);
+   const eventStart=events.length;await remove(second);await until(async()=>!taskFor(await state(),second),'removing an unknown indicator clears its automatic task');let disappeared;await until(async()=>{disappeared=await ui();return disappeared.panes.find(p=>p.tabId===first.id)?.pill?.ariaNow==='37'&&!disappeared.panes.find(p=>p.tabId===second.id)?.pill;},'indicator disappearance is reflected in its own pane');row.disappearance={events:events.slice(eventStart),state:await state(),ui:disappeared};assert.ok(row.disappearance.events.some(e=>e.tabId===second.id&&e.value.active===false&&e.value.percent===null));assert.ok(!row.disappearance.state.tasks.some(t=>t.id===row.unknownTask.id&&t.percent===100));footerUnchanged(before,row.disappearance.ui);await save();
+  }
+  await insert(second,'aria','Mouse628 swap second',84);await observed(second,64);const beforeNora=await visible(second,64);
+  await js('MouseTest.desktopUI.open()');await until(()=>js('MouseTest.desktopUI.isOpen&&MouseTest.desktopUI.holdsNative&&!MouseTest.desktopUI.isPreparing'),'Nora holds the same progress-pane geometry');
+  const held=await ui(),snapshots=await js('[...document.querySelectorAll(".mouse-floating-snapshot")].map(e=>({tabId:e.dataset.tabId,roundBottom:e.dataset.roundBottom,width:e.style.width,height:e.style.height}))');
+  for(const record of [first,second]){const before=beforeNora.panes.find(p=>p.tabId===record.id),after=held.panes.find(p=>p.tabId===record.id),snapshot=snapshots.find(p=>p.tabId===record.id);assert.deepEqual(after.slot,before.slot);assert.deepEqual(after.dock.bounds,before.dock.bounds);assert.ok(snapshot);assert.equal(snapshot.roundBottom,'0','A page above its progress footer keeps an interior bottom edge in the frozen background');}
+  await insert(first,'html','Mouse628 progress while Nora holds geometry',90);const incoming=await observed(first,45),during=await ui();
+  for(const record of [first,second]){const before=beforeNora.panes.find(p=>p.tabId===record.id),after=during.panes.find(p=>p.tabId===record.id);assert.deepEqual(after.slot,before.slot);assert.deepEqual(after.dock.bounds,before.dock.bounds);}footerUnchanged(beforeNora,during);
+  await js('MouseTest.desktopUI.close({immediate:true})');const afterNora=await visible(first,45);await ownership(afterNora,[[first,45],[second,64]]);footerUnchanged(beforeNora,afterNora);facts.noraHold={before:beforeNora,held,snapshots,incoming,during,after:afterNora};await save();
+  await insert(first,'html','Mouse628 progress after Nora',74);await observed(first,37);await visible(first,37);const beforeSwap=await visible(second,64),firstId=taskFor(await state(),first).id,secondId=taskFor(await state(),second).id;
+  await setPair(second,first);await visible(second,64);const swapped=await visible(first,37);await ownership(swapped,[[first,37],[second,64]]);assert.equal(swapped.panes.find(p=>p.tabId===first.id).pane,'p2');assert.equal(swapped.panes.find(p=>p.tabId===second.id).pane,'p1');assert.equal(taskFor(await state(),first).id,firstId);assert.equal(taskFor(await state(),second).id,secondId);facts.ownershipSwap={before:beforeSwap,after:swapped,capture:await capture('mouse-628-progress-owner-swap',swapped)};
+  await setPair(hidden,second);const shownHidden=await visible(hidden,22);assert.ok(!shownHidden.allPillTabs.includes(first.id));assert.equal(shownHidden.panes.find(p=>p.tabId===hidden.id).pill.id,hiddenTask.id);assert.equal(taskFor(await state(),first).id,firstId);facts.hiddenTasks.revealed=shownHidden;await setPair(first,second);await visible(first,37);
+  const reported=await first.page.view.webContents.executeJavaScript(`MouseAgent.updateProgress(81,'Mouse628 explicit priority',{taskId:'628-native-priority'})`);assert.equal(reported.tabId,first.id);assert.equal(reported.kind,'reported');let priority;
+  await until(async()=>{priority=await ui();return priority.panes.find(p=>p.tabId===first.id)?.pill?.id===reported.id;},'explicit API has initial priority in its own pane');const own=priority.panes.find(p=>p.tabId===first.id);assert.equal(own.next.hidden,false);assert.equal(own.next.hit.ready,true);assert.equal(priority.panes.find(p=>p.tabId===second.id).pill.id,secondId);
+  const nextClick=await click('.pane[data-pane="'+own.pane+'"] .mouse-progress-next'),cycled=await visible(first,37);assert.equal(cycled.panes.find(p=>p.tabId===first.id).pill.id,firstId);assert.equal(cycled.panes.find(p=>p.tabId===second.id).pill.id,secondId);facts.explicitPriority={reported,initial:priority,nextClick,cycled};await js(`MouseNative.progress('dismiss',{id:${JSON.stringify(reported.id)}})`);await save();
+  const normalBefore=await observed(first,37),eventStart=events.length;await privateMode.toggle();assert.ok(privateMode.current);await until(()=>js('document.documentElement.dataset.mouseReady==="true"'),'private progress shell ready');
+  await js(`MouseTest.openPage(${JSON.stringify('http://127.0.0.1:'+server.address().port+'/private')})`);const privateId=await js('MouseTest.model.slots[MouseTest.model.active]'),privatePage=privateMode.current.browser.get(privateId);tracked.set(privatePage.view.webContents.id,privateId);await until(()=>!privatePage.loading,'private ordinary page loads');
+  const privateDOM=await privatePage.view.webContents.executeJavaScript(`(()=>{const e=document.createElement('progress');e.id=${JSON.stringify(marker)};e.max=100;e.value=73;e.style.cssText='position:fixed;left:12px;top:36px;width:180px;height:22px';document.body.append(e);const r=e.getBoundingClientRect();return{value:e.value,max:e.max,width:r.width,height:r.height};})()`);assert.ok(privateDOM.width>0&&privateDOM.height>0);await sleep(600);const privateState=await state(),privateUI=await ui();assert.deepEqual(privateState.tasks,[]);assert.equal(privateUI.allPillTabs.length,0);assert.ok(!events.slice(eventStart).some(e=>e.tabId===privateId));
+  await privateMode.toggle();assert.equal(privateMode.current,null);await until(()=>js('document.documentElement.dataset.mouseReady==="true"'),'normal progress shell restored');const normalAfter=await observed(first,37);assert.notEqual(normalAfter.id,normalBefore.id,'Restored normal DOM is resampled after private state was cleared');assert.equal(first.page.view.webContents,browser.get(first.id).view.webContents);await visible(first,37);
+  facts.privacy={normalBefore,privateTab:privateId,privateDOM,privateState,privateUI,privateEvents:events.slice(eventStart).filter(e=>e.tabId===privateId),normalAfter};await save();
+ }catch(error){verificationError=error;facts.error={message:error.message,stack:error.stack};facts.failedUI=await ui().catch(e=>({error:e.message}));if(facts.failedUI.viewport)try{facts.failureCapture=await capture('mouse-628-progress-failure',facts.failedUI);}catch(captureError){facts.captureError=captureError.message;}await save();throw error;}
+ finally{
+  try{
+   if(privateMode.current)await privateMode.toggle();await js('MouseTest.desktopUI.close({immediate:true})');
+   for(const record of made){if(!browser.tabs.has(record.id))continue;if(bank.members[record.id]!==bank.active)await js(`MouseTest.switchDesktop(${JSON.stringify(bank.members[record.id])})`);await browser.command('close',{id:record.id});}
+   await js('globalThis.MouseFlush?.()');Object.assign(bank,new(require('./mouse-desktops.cjs').DesktopBank)(savedBank,original.preferences));browser.emit();
+   await js(`(async()=>{const initial=await MouseNative.init();Object.assign(MouseTest.model,${JSON.stringify(original.preferences)},{focusPane:${JSON.stringify(original.focusPane)},focusAI:${JSON.stringify(original.focusAI)},libraryOpen:${JSON.stringify(original.libraryOpen)}});MouseTest.model.state=initial.state;MouseTest.setTheme(${JSON.stringify(original.preferences.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();await MouseTest.save();MouseTest.requestLayout();})()`);
+   await browser.save();await store.queue;assert.deepEqual(bank.snapshot(),savedBank,'Progress fixture restores the exact desktop history and memberships');assert.deepEqual([...browser.tabs.keys()].sort(),[...originalPages.keys()].sort());
+   for(const[id,before]of originalPages){const current=browser.get(id);assert.equal(current,before.page);assert.equal(current.view.webContents,before.wc);assert.equal(current.view.webContents.getURL(),before.url);assert.equal(current.navigationEpoch||0,before.epoch);}
+   if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'progress cleanup exits fullscreen');}win.setBounds(bounds);if(maximized)win.maximize();if(fullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'progress cleanup restores fullscreen');}await frame();facts.restored=true;
+  }catch(error){cleanupError=error;facts.cleanupError={message:error.message,stack:error.stack};}
+  finally{ipcMain.removeListener('mouse:page-activity',activity);server?.close();await save();}
+  if(cleanupError&&!verificationError)throw cleanupError;
+ }
+ assert.equal(facts.rows.length,4);assert.ok(facts.restored);assert.ok(facts.noraHold&&facts.ownershipSwap&&facts.explicitPriority&&facts.privacy);console.log('MOUSE_628_PER_PANE_PROGRESS_NATIVE_PASS');
+};

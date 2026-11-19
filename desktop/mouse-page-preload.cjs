@@ -4,6 +4,16 @@
 const {ipcRenderer,contextBridge}=require('electron');
 if(process.isMainFrame){
  contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress:(percent,statusText,options={})=>ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId})}));
+ // The activity observer is lexical to this isolated preload. Only its small
+ // presentation packet reaches main; it is not a page-callable browser API.
+ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol)&&!process.argv?.includes('--mouse-private-page')){
+  let activity=null;
+  const start=()=>{if(!activity)activity=MousePageActivity.observe({document,window,send:value=>ipcRenderer.send('mouse:page-activity',value)});};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+  window.addEventListener('pageshow',start);
+  window.addEventListener('pagehide',()=>{activity?.dispose();activity=null;});
+  ipcRenderer.on('mouse:page-activity-resync',()=>activity?.refresh());
+ }
  let inFlight=false;
  document.addEventListener('dragstart',event=>{
   if(inFlight||!event.isTrusted||event.defaultPrevented)return;

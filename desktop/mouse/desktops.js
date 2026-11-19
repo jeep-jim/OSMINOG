@@ -11,7 +11,7 @@ function mouseFloatingBackdrop(N,m,restore){
  const clear=()=>{for(const image of images){image.remove();image.removeAttribute('src');}images=[];surfacePacket=null;};
  function specs(){
   const result=[];
-  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
+  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:pane?.classList?.contains('has-pane-progress')?0:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
   if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
   if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
   return result;

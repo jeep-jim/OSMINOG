@@ -83,7 +83,7 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   console.log('MOUSE_622_FIVE_DESKS_MODES_PRESERVE_TABS_PASS');console.log('MOUSE_622_BURROW_PREVIEW_BOTH_THEMES_PASS');
   await js('MouseTest.applyMode("agents")');await until(()=>supportIds.some(id=>browser.get(id).visible),'agent layout visible');
   const project=path.join(app.getPath('userData'),'mouse622-agent-fixture');await fs.mkdir(project,{recursive:true});agentHost.dialog={...originalDialog,showMessageBox:async()=>({response:1}),showOpenDialog:async()=>({canceled:false,filePaths:[project]})};
-  await agentHost.handle('enable',{port:0});await agentHost.handle('folder');let connection=agentHost.state();assert.equal(connection.autonomous,false);assert.equal(connection.enabled,true);assert.equal(connection.desk,'desk-2');assert.ok(connection.port>0);
+  await agentHost.handle('enable',{port:0});await agentHost.handle('folder');await agentHost.handle('local-permissions',{write:false,commands:true});let connection=agentHost.state();assert.equal(connection.autonomous,false);assert.equal(connection.enabled,true);assert.equal(connection.desk,'desk-2');assert.ok(connection.port>0);
   const unauth=await fetch('http://127.0.0.1:'+connection.port+'/json/list');assert.equal(unauth.status,403);await unauth.text();
   client=await new AgentController(connection.connectionUrl).connect();assert.deepEqual((await client.tabs()).map(t=>t.targetId).sort(),allIds,'Only current desk tabs are exposed');
   const target=supportIds.find(id=>browser.get(id).visible),wc=browser.get(target).view.webContents;assert.ok((await client.dom(target)).root);assert.match((await client.read(target)).text,/local test fixture/);
@@ -95,7 +95,7 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   // A separately consented autonomous session must perform real actions without
   // per-action approvals, while the default approval checks above remain intact.
   const manualConnection=connection,manualPty=ptyPid;await client.close();client=null;await agentHost.stop('Завершён ручной тест');await until(()=>!alive(manualPty),'manual session PTY stopped');assert.ok(await closedPort(manualConnection.port));
-  await agentHost.handle('enable',{port:0,autonomous:true});connection=agentHost.state();assert.equal(connection.autonomous,true);assert.equal(connection.folder,project);assert.notEqual(connection.connectionUrl,manualConnection.connectionUrl);assert.equal(connection.pending,null);
+  await agentHost.handle('enable',{port:0,autonomous:true});await agentHost.handle('local-permissions',{write:false,commands:true});connection=agentHost.state();assert.equal(connection.autonomous,true);assert.equal(connection.folder,project);assert.notEqual(connection.connectionUrl,manualConnection.connectionUrl);assert.equal(connection.pending,null);
   client=await new AgentController(connection.connectionUrl).connect();await client.clickSelector(target,'#action');assert.equal(await wc.executeJavaScript('window.clicks'),2);assert.equal(agentHost.state().pending,null,'Autonomous click needs no per-action approval');
   const automatic=await client.terminal("printf 'MOUSE622_AUTONOMOUS_PTY_OK\\n'");assert.equal(automatic.exitCode,0);assert.match(automatic.stdout,/MOUSE622_AUTONOMOUS_PTY_OK/);assert.equal(agentHost.state().pending,null,'Autonomous command needs no per-action approval');ptyPid=agentHost.terminalService.proc.pid;
   await client.close();client=null;

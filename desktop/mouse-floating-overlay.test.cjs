@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 function fixture(options={}){
- const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)}})};let restores=0;
+ const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
  const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
   createElement:()=>{const image={style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}};created.push(image);return image;},body:{append(...nodes){events.push('append');images.push(...nodes);}}};
  const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
@@ -55,6 +55,11 @@ test('a borrowed backdrop refuses another hold, desk or stale page geometry',asy
  assert.equal(await lease.replace({...incoming,holdToken:'other-hold'}),false);assert.equal(await lease.replace({...incoming,desk:'desk3'}),false);
  await assert.rejects(lease.replace({...incoming,surfaces:incoming.surfaces.map(s=>({...s,bounds:{...f.rect,width:321}}))}),/Размер рабочего стола/);
  assert.equal(f.images[0],original);assert.equal(f.events.filter(x=>x==='end').length,0);await f.overlay.hide('desktops');assert.equal(await lease.replace(incoming),false);
+});
+test('a pane progress footer makes the page bottom an interior edge in the Nora snapshot too',async()=>{
+ const f=fixture({roundBottom:12,hasProgress:true});await f.overlay.show('desktops');
+ assert.equal(f.images[0].style.borderRadius,'0 0 0px 0px');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 0px 0px)');assert.equal(f.images[0].style.height,'240px');
+ await f.overlay.hide('desktops');assert.equal(f.images.length,0);
 });
 test('closing Nora during an incoming image decode cannot resurrect a stale backdrop',async()=>{
  const pending=deferred();let decoded=0;const f=fixture({decode:()=>++decoded===1?Promise.resolve():pending.promise});await f.overlay.show('desktops');const lease=f.overlay.lease('desktops');f.model.desktopId='desk2';

@@ -8,6 +8,9 @@ const CHANNEL='mouse:desktop-gesture';
 const EVENT='mouse:desktop-swipe';
 
 async function install({win,store,ipcMain,trusted,getContext,platform=process.platform,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}){
+ // The native BrowserWindow getter is unavailable once 'closed' is emitted.
+ // Keep the live emitter so teardown can always remove both shell listeners.
+ const shellContents=win.webContents;
  const saved=await store.get(KEY);
  let learned=saved[KEY]?.completed===true,armed=null,pending=null,serial=0,disposed=false,lastSwipe=-Infinity;
  const privateLearned=new WeakSet();
@@ -65,10 +68,10 @@ async function install({win,store,ipcMain,trusted,getContext,platform=process.pl
   throw Error('Неизвестная команда жеста');
  }
  const navigation=(_event,_url,_inPlace,isMainFrame)=>{if(isMainFrame!==false)reset();};
- const dispose=()=>{if(disposed)return;disposed=true;reset();win.removeListener('swipe',swipe);win.removeListener('closed',dispose);win.webContents.removeListener('did-start-navigation',navigation);win.webContents.removeListener('render-process-gone',reset);};
+ const dispose=()=>{if(disposed)return;disposed=true;reset();win.removeListener('swipe',swipe);win.removeListener('closed',dispose);shellContents.removeListener('did-start-navigation',navigation);shellContents.removeListener('render-process-gone',reset);};
  ipcMain.handle(CHANNEL,command);
  win.on('swipe',swipe);win.once('closed',dispose);
- win.webContents.on('did-start-navigation',navigation);win.webContents.on('render-process-gone',reset);
+ shellContents.on('did-start-navigation',navigation);shellContents.on('render-process-gone',reset);
  return{dispose,reset};
 }
 

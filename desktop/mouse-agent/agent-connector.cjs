@@ -15,6 +15,9 @@ class AgentController{
  async type(id,text){await this.activate(id);return this.send('Input.insertText',{text},await this.session(id));}
  async screenshot(id){await this.activate(id);return this.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false},await this.session(id));}
  async terminal(command,{background=false}={}){return this.send('Mouse.terminal',{command,background});}
+ async localTools(){return this.send('Mouse.mcp.listTools');}
+ async localFile(name,args={}){return this.send('Mouse.mcp.callTool',{name,arguments:args});}
+ async localStatus(){return this.send('Mouse.mcp.status');}
  async setProgress(percent=null,statusText='',{taskId,phase}={}){if(percent!==null&&(typeof percent!=='number'||!Number.isFinite(percent)||percent<0||percent>100))throw Error('Progress percent must be null or a number from 0 to 100');try{return await this.send('browser.setProgress',{percent,statusText,...(taskId!==undefined?{taskId}:{}),...(phase?{phase}:{}),...(this.progressToken?{runToken:this.progressToken}:{})});}catch(error){if(error.response?.data==='MOUSE_PROGRESS_LIMIT')error.code='MOUSE_PROGRESS_LIMIT';throw error;}}
  async close(){const c=this.client;this.client=null;this.progressToken='';this.sessions.clear();if(c)await c.close().catch(()=>{});}
 }

@@ -98,11 +98,12 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
    if(cleanupError&&!verificationError)throw cleanupError;
   }
  }
- const pillSelector=id=>'#mouse-progress-rail .mouse-progress-pill[data-progress-id="'+id+'"]';
+ const pillSelector=id=>'.mouse-pane-progress .mouse-progress-pill[data-progress-id="'+id+'"]';
  async function pill(id){return js(`(()=>{const e=document.querySelector(${JSON.stringify(pillSelector(id))});if(!e)return null;return{phase:e.dataset.phase,estimated:e.dataset.estimated,indeterminate:e.dataset.indeterminate,desk:e.dataset.desk,value:e.querySelector('.mouse-progress-value').textContent,aria:e.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'),label:e.querySelector('.mouse-progress-label').textContent,stopHidden:e.querySelector('.mouse-progress-stop').hidden};})()`);}
  async function verifyPageProgress({root,bank}){
   // Two real WebContents use the public page preload, not a forged IPC sender.
   const own=browser.state().tabs.find(t=>!t.internal&&browser.get(t.id).view.webContents.getURL().startsWith(root)),other=[...browser.tabs.values()].find(t=>bank.members[t.id]!==bank.active&&!t.internal&&t.view.webContents.getURL().startsWith(root));assert.ok(own&&other,'Two loaded fixture pages belong to different desktops');
+  await js(`MouseTest.activateDesktopTab({desk:${JSON.stringify(bank.active)},id:${JSON.stringify(own.id)}})`);
   const wc=browser.get(own.id).view.webContents,otherWC=other.view.webContents,taskId='624-page-scope';
   const update=(target,percent,statusText,options={taskId})=>target.executeJavaScript(`MouseAgent.updateProgress(${JSON.stringify(percent)},${JSON.stringify(statusText)},${JSON.stringify(options)})`);
   let first,second;
@@ -123,7 +124,7 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   const closedPort=port=>new Promise(resolve=>{const socket=net.connect({host:'127.0.0.1',port});socket.once('connect',()=>{socket.destroy();resolve(false)});socket.once('error',()=>resolve(true));socket.setTimeout(500,()=>{socket.destroy();resolve(false)});});
   let client,server,release,requestSeen=false,report;const barrier=new Promise(resolve=>{release=resolve});
   try{
-   assert.equal(agentHost.state().enabled,false);await agentHost.handle('enable',{port:0,autonomous:true});const connection=agentHost.state();assert.ok(connection.folder,'The explicitly selected fixture folder is retained');client=await new AgentController(connection.connectionUrl).connect();
+   assert.equal(agentHost.state().enabled,false);await agentHost.handle('enable',{port:0,autonomous:true});const connection=agentHost.state();assert.ok(connection.folder,'The explicitly selected fixture folder is retained');await agentHost.handle('local-permissions',{write:false,commands:true});client=await new AgentController(connection.connectionUrl).connect();
    // The gateway serializes each client's requests. Publish this estimate before
    // its blocking terminal RPC so the Stop proof cannot wait for the command to finish.
    report=await client.setProgress(36,'Оценка агента · проверка остановки',{taskId:'624-stop'});assert.equal(report.source,'agent');assert.equal(report.estimated,true);assert.equal(report.desk,connection.desk);

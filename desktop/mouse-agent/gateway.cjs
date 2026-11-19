@@ -16,7 +16,7 @@ class Gateway{
    else if(['/json','/json/list'].includes(route))result=this.targets();else{res.writeHead(404);res.end();return;}
    res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));
   });this.server=server;
-  const ws=new this.WebSocketServer({noServer:true,maxPayload:65536,perMessageDeflate:false});this.ws=ws;
+  const ws=new this.WebSocketServer({noServer:true,maxPayload:1024*1024,perMessageDeflate:false});this.ws=ws;
   server.on('upgrade',(req,socket,head)=>{
    if(!allowed(req)||!token((req.url||'').replace(/^\/devtools\/browser\//,''))||this.clients.size>=2){socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return;}
    ws.handleUpgrade(req,socket,head,client=>ws.emit('connection',client,req));

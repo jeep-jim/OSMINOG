@@ -4,8 +4,11 @@
   "private": true,
   "description": "Optional Agent Mouse runtime; no credentials or model weights",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@xterm/xterm": "6.0.0",
+    "chokidar": "4.0.3",
     "chrome-remote-interface": "0.33.3",
+    "fs-extra": "11.4.1",
     "node-pty": "1.1.0",
     "ws": "8.23.0"
   }
