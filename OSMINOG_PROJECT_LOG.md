@@ -2390,3 +2390,35 @@ PR #117 merged; Chrome 5.0.0 activated in the existing update channel, Windows/m
 Параллельный PR170 принят в main как `a5a773c16c2b342f9c7dfaf5334649e1da1f3eca` после полного native run44498720435 на exact72679ee907dda6e7ac134b1f01addee858c4e59a. Его отдельные6.0.29 пакеты принадлежат release PR51. Наш PR169 продолжает оставшиеся требования в6.0.30, сохраняя принятые native visibility/preview, дробные границы, цвета, Nora wheel/tutorial и site scrollbar fixes. Поверх них добавляются header progress pill, настоящая активность скачивания, screenshot shutter/success и trusted wheel на странице/при закрытой Норе. Нельзя публиковать второй набор6.0.29 под тем же tag или терять принятые изменения.
 
 Предыдущий наш source10/e41e7469, run44500891371, отклонён: retained616 выявил переопределение radius кнопки скачиваний12px вместо общего5px. Новые headers/feedback/Nora/wheel и неизменённая628 trace независимо прошли, но поздние restart/private/upgrade не выполнены. В6.0.30 удалён только этот CSS override; gate сохранён. Полный новый source и installed publisher обязательны. Подробности и фактический статус — [журнал630](docs/desktop/2026-11-19-mouse630-complete-feedback.md).
+
+
+## 19 ноября 2026 — Mouse Browser 6.0.29 Windows x64 опубликован
+
+Прямое поручение владельца выполнено: готов самостоятельный установщик именно
+**6.0.29 для Windows x64**. Статус **PUBLISHED / VERIFIED_DOWNLOAD**.
+[Прямая загрузка](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.29-x64/Mouse-Browser-6.0.29-Windows-x64.exe)
+и [страница релиза](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.29-x64)
+проверены; опубликованный файл — 125623123 байта, SHA-256
+`18bf6e78eb5519e37d2ceb0e45acd1ea88d8f519e715e1d94d2fbc3c476e2e9d`.
+
+Точный source `164462db8d81f614cce9c9a8ab5d1fed0e2b7381` принят через PR175
+в отдельную ветку `release/mouse-6.0.29`. Полный
+[source run 44548393177](https://github.com/jeep-jim/OSMINOG/actions/runs/44548393177)
+прошёл на Windows Server 2022 и 2025: 176 базовых, 632 Mouse и 7 Python-проверок;
+установленный UI/Agent/документы/приватность, переустановка, профиль и фактическая
+замена с повторным запуском. Нативный помощник отдельно проверен на обоих хостах.
+Исправления современного Windows-композитора и времени жизни обновлятора,
+история отказов и точные hashes сохранены в
+[полном журнале Windows](docs/desktop/2026-11-19-mouse629-windows.md).
+
+[Publisher 44554901554](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44554901554)
+повторно проверил тот же установщик, опубликовал release 451521130 в 15:32:59Z,
+проверил четыре публичных assets и анонимно скачал весь EXE с проверкой размера,
+SHA-256 и повторным хешированием. Windows-канал 6.0.29 обнаружен с первой попытки,
+проверка текущей версии прошла. Сравнительная 6.0.28 — fixture, не прежний реальный
+Windows-релиз. Итоговый evidence artifact 14545915755:
+SHA-256 `666eb7f3386b4fb01fd659789bb1ba54c1de4e6b4e4514f035f60cc9967209a2`.
+
+Это unsigned prerelease; физический компьютер/тачпад владельца и внешние
+авторизованные аккаунты не проверялись. Новая основная ветка и Mac-канал
+сохранены отдельно. Исходники Windows и его канал не откатывают работу над 6.0.30.
