@@ -15,8 +15,6 @@ jobs:
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       CSC_FOR_PULL_REQUEST: 'true'
-      ELECTRON_CACHE: ${{ runner.temp }}/mouse-electron-cache
-      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/mouse-builder-cache
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,18 +42,21 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            ${{ env.ELECTRON_CACHE }}
-            ${{ env.ELECTRON_BUILDER_CACHE }}
+            ${{ runner.temp }}/mouse-electron-cache
+            ${{ runner.temp }}/mouse-builder-cache
           key: mouse-macos-arm64-downloads-v1-${{ hashFiles('desktop/package-lock.json') }}
       - name: Build native Mouse DMG and ZIP
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/mouse-electron-cache
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/mouse-builder-cache
         run: npx electron-builder --config mouse-build.cjs --mac dmg zip --arm64 --publish never
       - name: Save Electron and builder download cache
         if: steps.mouse-builder-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
-            ${{ env.ELECTRON_CACHE }}
-            ${{ env.ELECTRON_BUILDER_CACHE }}
+            ${{ runner.temp }}/mouse-electron-cache
+            ${{ runner.temp }}/mouse-builder-cache
           key: ${{ steps.mouse-builder-cache.outputs.cache-primary-key }}
       - name: Verify installed app, screenshots, controls and saved profile
         shell: bash
