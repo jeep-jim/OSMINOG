@@ -3,10 +3,9 @@
 // absolute path. Reparse points (including junctions) and hardlinks are denied.
 // References: Microsoft NtCreateFile, FILE_RENAME_INFO and directory-handle APIs.
 #include <node_api.h>
+#include <uv.h>
 #include <windows.h>
 #include <winternl.h>
-#include <io.h>
-#include <fcntl.h>
 #include <cerrno>
 #include <cstdint>
 #include <cwchar>
@@ -49,17 +48,17 @@ bool name(napi_env env,napi_value value,std::wstring& out){
  if(stem.size()==4&&(stem.compare(0,3,L"COM")==0||stem.compare(0,3,L"LPT")==0)&&((stem[3]>=L'1'&&stem[3]<=L'9')||stem[3]==L'\u00b9'||stem[3]==L'\u00b2'||stem[3]==L'\u00b3'))return false;
  return true;
 }
-void invalidParameter(const wchar_t*,const wchar_t*,const wchar_t*,unsigned int,uintptr_t){}
 bool descriptor(napi_env env,napi_value value,HANDLE& handle){
  int32_t fd=-1;if(napi_get_value_int32(env,value,&fd)!=napi_ok||fd<0)return false;
- const auto previous=_set_thread_local_invalid_parameter_handler(invalidParameter);
- const intptr_t raw=_get_osfhandle(fd);_set_thread_local_invalid_parameter_handler(previous);
- if(raw==-1||raw==-2)return false;handle=reinterpret_cast<HANDLE>(raw);return true;
+ uv_fs_t request{};const int result=uv_fs_fstat(nullptr,&request,fd,nullptr);uv_fs_req_cleanup(&request);if(result<0)return false;
+ handle=uv_get_osfhandle(fd);return handle!=INVALID_HANDLE_VALUE&&handle!=nullptr;
 }
 napi_value number(napi_env env,int value){napi_value result;napi_create_int32(env,value,&result);return result;}
 napi_value boolean(napi_env env,bool value){napi_value result;napi_get_boolean(env,value,&result);return result;}
-napi_value fdValue(napi_env env,Handle& handle,int flags){
- const int fd=_open_osfhandle(reinterpret_cast<intptr_t>(handle.value),flags|_O_BINARY|_O_NOINHERIT);
+napi_value fdValue(napi_env env,Handle& handle){
+ // Use the host's CRT table through libuv. A separately linked addon's CRT
+ // descriptors are not necessarily meaningful to Node fs or Electron.
+ const int fd=uv_open_osfhandle(handle.value);
  if(fd<0)return fail(env,"Could not create a Node file descriptor",GetLastError());handle.release();return number(env,fd);
 }
 void prop(napi_env env,napi_value object,const char* key,const std::string& value){napi_value text;napi_create_string_utf8(env,value.c_str(),value.size(),&text);napi_set_named_property(env,object,key,text);}
@@ -113,7 +112,7 @@ napi_value openRoot(napi_env env,napi_callback_info info){
  Handle handle(CreateFileW(root.c_str(),kDirectoryAccess,kDirectoryShare,nullptr,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,nullptr));
  if(handle.value==INVALID_HANDLE_VALUE)return fail(env,"Project root cannot be opened",GetLastError());
  FileStat stat;if(!statHandle(handle.value,stat)||!directory(stat))return fail(env,"Project root symlink or non-directory denied",GetLastError());
- return fdValue(env,handle,_O_RDONLY);
+ return fdValue(env,handle);
 }
 napi_value openDir(napi_env env,napi_callback_info info){
  size_t count=3;napi_value args[3];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);HANDLE parent;std::wstring child;bool create=false;
@@ -128,7 +127,7 @@ napi_value openDir(napi_env env,napi_callback_info info){
  }
  Handle handle(raw);if(raw==INVALID_HANDLE_VALUE)return fail(env,"Project directory missing or symlink denied",GetLastError());
  FileStat stat;if(!statHandle(raw,stat)||!directory(stat))return fail(env,"Project directory symlink denied",GetLastError());
- return fdValue(env,handle,_O_RDONLY);
+ return fdValue(env,handle);
 }
 napi_value openRead(napi_env env,napi_callback_info info){
  size_t count=2;napi_value args[2];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);HANDLE parent;std::wstring child;
@@ -136,14 +135,14 @@ napi_value openRead(napi_env env,napi_callback_info info){
  Handle handle(openChild(parent,child,FILE_READ_DATA|FILE_READ_ATTRIBUTES,kOpen,kReparse|kNonDirectory));
  if(handle.value==INVALID_HANDLE_VALUE)return fail(env,"Project file cannot be read",GetLastError());
  FileStat stat;if(!statHandle(handle.value,stat)||!regular(stat))return fail(env,"Only ordinary files without symlinks or hardlinks can be read");
- return fdValue(env,handle,_O_RDONLY);
+ return fdValue(env,handle);
 }
 napi_value openTemp(napi_env env,napi_callback_info info){
  size_t count=3;napi_value args[3];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);HANDLE parent;std::wstring child;
  if(count<2||!descriptor(env,args[0],parent)||!name(env,args[1],child)||!tempName(child))return fail(env,"Invalid temporary file component");
  Handle handle(openChild(parent,child,FILE_WRITE_DATA|FILE_READ_ATTRIBUTES,kCreate,kReparse|kNonDirectory));
  if(handle.value==INVALID_HANDLE_VALUE)return fail(env,"Exclusive temporary file creation failed",GetLastError());
- return fdValue(env,handle,_O_WRONLY);
+ return fdValue(env,handle);
 }
 napi_value stat(napi_env env,napi_callback_info info){
  size_t count=2;napi_value args[2];napi_get_cb_info(env,info,&count,args,nullptr,nullptr);HANDLE parent;std::wstring child;

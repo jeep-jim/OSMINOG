@@ -92,6 +92,12 @@ def user32():
     api.SetProcessDpiAwarenessContext.restype = wintypes.BOOL
     # Per-monitor v2: input and window geometry use physical desktop pixels.
     api.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    # A Python executable manifest may already set process awareness. Set the
+    # calling thread explicitly as well instead of silently trusting that call.
+    api.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+    api.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+    if not api.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4)):
+        raise RuntimeError("Cannot establish physical-pixel Windows input coordinates")
     api.IsWindowVisible.argtypes = [wintypes.HWND]
     api.IsWindowVisible.restype = wintypes.BOOL
     api.IsIconic.argtypes = [wintypes.HWND]
@@ -133,6 +139,9 @@ def native_input(action: str, values: list[str]) -> None:
     class Input(ctypes.Structure):
         _anonymous_ = ("union",)
         _fields_ = [("type", wintypes.DWORD), ("union", InputUnion)]
+
+    if ctypes.sizeof(Input) != (40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28):
+        raise RuntimeError("Incorrect User32 INPUT ABI layout")
 
     api.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(Input), ctypes.c_int]
     api.SendInput.restype = wintypes.UINT
@@ -397,7 +406,7 @@ def update_roundtrip(executable: Path, env: dict, output: Path) -> dict:
         return {**result, "ok": True, "sameVersion": True,
                 "transport": update["transport"], "publicChannelDownloadVerified": False,
                 "downloadButton": True, "installButton": True, "receiptAcknowledged": True,
-                "helperResult": status, "newWindow": window, "profileRetestedAfterward": True,
+                "helperResult": status, "newWindow": window, "profileRetestedAfterward": False,
                 "executableSha256": sha256(executable)}
     finally:
         # This is the exact visible process launched from the tested installer
@@ -468,6 +477,7 @@ def main(argv=None) -> int:
                                   output / "mouse-windows-post-update-read.log", 180)
         verify_markers(after_update.pop("output"), READ_MARKERS)
         evidence["checks"]["postUpdateProfile"] = after_update
+        evidence["checks"]["actualUpdateButton"]["profileRetestedAfterward"] = True
         save()
         ordinary_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Обычный запуск")}
         evidence["checks"]["ordinaryLaunch"] = normal_launch(executable, ordinary_env, output)

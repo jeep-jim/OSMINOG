@@ -1,8 +1,9 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process');
 if(process.platform==='win32'&&process.arch==='x64'){
- // This addon uses only the stable Node-API. node-gyp supplies the Windows
- // import library and Electron-compatible delay-load hook, and locates MSVC.
+ // Node-API and the host's libuv descriptor conversion keep the addon shared by
+ // Node and Electron. node-gyp supplies headers, the Windows import library,
+ // the executable-name delay-load hook, and locates MSVC.
  const candidates=[process.env.npm_config_node_gyp,
   path.join(path.dirname(process.execPath),'node_modules/npm/node_modules/node-gyp/bin/node-gyp.js'),
   process.env.npm_execpath&&path.resolve(path.dirname(process.env.npm_execpath),'../node_modules/node-gyp/bin/node-gyp.js')].filter(Boolean);

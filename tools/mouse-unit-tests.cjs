@@ -6,6 +6,6 @@ const files=fs.readdirSync(desktop).filter(file=>/^mouse-.*\.test\.cjs$/.test(fi
  .concat(fs.readdirSync(path.join(desktop,'mouse-agent')).filter(file=>file.endsWith('.test.cjs')).map(file=>'mouse-agent/'+file)).sort();
 if(!files.length)throw Error('Mouse test files missing');
 console.log('Mouse unit test files: '+files.length);
-const result=cp.spawnSync(process.execPath,['--test','--test-concurrency=4',...files],{cwd:desktop,stdio:'inherit',env:process.env});
+const result=cp.spawnSync(process.execPath,['--test','--test-timeout=90000','--test-concurrency=4',...files],{cwd:desktop,stdio:'inherit',env:process.env,timeout:300000});
 if(result.error)throw result.error;
 process.exit(result.status===null?1:result.status);

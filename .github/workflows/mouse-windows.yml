@@ -9,8 +9,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: mouse-windows-${{ github.ref }}
-  cancel-in-progress: false
+  group: mouse-windows-refs/heads/${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   mouse-windows-x64:
     # Node 22's bundled node-gyp supports the VS2022 toolchain on this image.
@@ -63,6 +63,8 @@ jobs:
           npm test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node ../tools/mouse-unit-tests.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s ../tools -p test_mouse_windows_verify.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Mouse Browser NSIS installer
         run: npx electron-builder --config mouse-windows-build.cjs --win nsis --x64 --publish never

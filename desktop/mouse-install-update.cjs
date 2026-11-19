@@ -24,8 +24,8 @@ if ! /usr/bin/open -n "$target"; then
 fi
 printf 'Application replaced. Previous application retained until successful new launch.\\n' > "$stage/result.log"
 `;
-function bundlePath(exe){return path.dirname(path.dirname(path.dirname(exe)));}
-function allowedTarget(target,home){return path.basename(target)==='Mouse Browser.app'&&[path.resolve('/Applications'),path.resolve(home,'Applications')].includes(path.dirname(target));}
+function bundlePath(exe){return path.posix.dirname(path.posix.dirname(path.posix.dirname(exe)));}
+function allowedTarget(target,home){return path.posix.basename(target)==='Mouse Browser.app'&&[path.posix.resolve('/Applications'),path.posix.resolve(home,'Applications')].includes(path.posix.dirname(target));}
 async function plist(file,key){return(await exec('/usr/libexec/PlistBuddy',['-c','Print :'+key,file])).stdout.trim();}
 class MacInstaller{
  constructor({app,quit,executable=process.execPath,test=false}){this.app=app;this.quit=quit;this.executable=executable;this.test=test&&process.env.CI==='true';this.stage=null;this.child=null;}
@@ -91,7 +91,10 @@ try {
  Verify-Package
  # /D must be last: NSIS reads the remainder as the literal install directory.
  $arguments = '--updated /S --force-run /D=' + $plan.target
- $installer = Start-Process -FilePath $plan.file -ArgumentList $arguments -Wait -PassThru
+ $installer = Start-Process -FilePath $plan.file -ArgumentList $arguments -PassThru
+ # Start-Process -Wait also waits for the newly launched browser's process
+ # tree. Wait only for NSIS so a successful running app can be acknowledged.
+ if (-not $installer.WaitForExit(180000)) { throw 'Installer did not complete within three minutes' }
  if ($installer.ExitCode -ne 0) { throw ('Installer exited with code ' + $installer.ExitCode) }
  [IO.File]::WriteAllText($plan.result, 'Installer completed')
 } catch {
@@ -131,12 +134,12 @@ class WindowsInstaller{
    const deadline=Date.now()+15000;
    while(!await fs.stat(p.ready).then(s=>s.isFile()).catch(()=>false)){if(failure)throw failure;if(Date.now()>deadline)throw Error('Помощник установки Windows не ответил');await new Promise(resolve=>setTimeout(resolve,50));}
    this.child.unref();await this.quit();
-  }catch(error){await fs.writeFile(p.cancel,'cancel',{mode:0o600}).catch(()=>{});throw error;}
+  }catch(error){await fs.writeFile(p.cancel,'cancel',{mode:0o600}).catch(()=>{});try{this.child.kill?.();}catch{}throw error;}
  }
 }
 async function acknowledgeWindows(app,executable=process.execPath){
  const receipt=path.join(app.getPath('userData'),'mouse-windows-update-receipt.json');let r;try{r=JSON.parse(await fs.readFile(receipt,'utf8'));}catch{return;}
- if(r.platform!=='win32'||r.version!==app.getVersion()||typeof r.target!=='string'||path.resolve(r.target).toLowerCase()!==path.resolve(executable).toLowerCase()||typeof r.stage!=='string'||path.dirname(r.stage)!==app.getPath('temp')||!/^mouse-update-install-[\w-]+$/.test(path.basename(r.stage)))return;
+ if(r.platform!=='win32'||r.version!==app.getVersion()||typeof r.target!=='string'||path.resolve(r.target).toLowerCase()!==path.resolve(executable).toLowerCase()||typeof r.stage!=='string'||path.resolve(path.dirname(r.stage)).toLowerCase()!==path.resolve(app.getPath('temp')).toLowerCase()||!/^mouse-update-install-[\w-]+$/.test(path.basename(r.stage)))return;
  const stat=await fs.lstat(r.stage).catch(()=>null);if(!stat?.isDirectory()||stat.isSymbolicLink())return;
  await fs.writeFile(path.join(r.stage,'READY'),app.getVersion(),{mode:0o600});await fs.unlink(receipt);
 }

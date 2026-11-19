@@ -2377,3 +2377,14 @@ Implementation candidate: `light/` contains a new 21-file package (about 46 KiB 
 ## 2026-11-10 — Light 5.0.0 published with exact CI artifacts
 
 PR #117 merged; Chrome 5.0.0 activated in the existing update channel, Windows/macOS unsigned previews published. All four Light native jobs and existing release gates passed on f752dd6fe83c5ee4888b4c91444cdd2cc9caa719. Full evidence, archive hashes, measured memory and migration/signing/billing limitations: [release audit](docs/light/2026-11-10-release.md). Owner hardware verification remains false; no claim of remote installation or guaranteed crash elimination.
+
+## 2026-11-19 — Mouse Browser 6.0.29 Windows x64 port
+
+The owner requests a working Windows installer of the current Mouse product,
+extending its previous macOS-only scope. The first Windows attempt failed on a
+Mac-only build guard; no installer was delivered. Native Windows runtime,
+secure Local MCP, PowerShell/ConPTY, update installation and full installed UI
+acceptance are being implemented from the verified 6.0.29 source. The Windows
+product/profile/feed are separate from legacy Trader OS and the existing Mac
+release. Evidence and actual publication status are recorded in the
+[Windows 6.0.29 journal](docs/desktop/2026-11-19-mouse629-windows.md).
