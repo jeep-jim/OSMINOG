@@ -109,6 +109,33 @@ module.exports=async ctx=>{
   const p=await editor.webContents.executeJavaScript(`(${nativeHitTarget.toString()})(document.querySelector('#capture-close'))`);assert.equal(p.ready,true);const box=editor.getContentBounds();nativeInput.testClick(box.x+p.x,box.y+p.y);await until(()=>!globalCapture.editor,'native screenshot close');await focus();
   facts.shortcuts={ctrlASelected:true,ctrlARegistered:false,captureShortcut:'Control+Alt+S',realScreenCapture:true};console.log('MOUSE_WINDOWS_CTRL_A_CAPTURE_SHORTCUT_PASS');
  }
+ async function noraMotion(shared){
+  // The desktop identity fixture leaves desk1 in its original one-pane layout.
+  // The retained628 corner/motion proof needs real split panes beside Nora.
+  const copy=value=>JSON.parse(JSON.stringify(value)),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),pages=[];
+  facts.noraFixture={layout:4,restored:false};let verificationError;
+  try{
+   for(let i=0;i<4;i++){const opened=await browser.command('open',{url:origin+'/nora-motion/'+i,lane:'main'});pages.push(browser.get(opened.id));}
+   await until(()=>pages.every(page=>!page.loading&&!page.error),'owned Nora fixture pages load');
+   const layout=require('./mouse/layout.js'),tree=layout.preset(4),leaves=layout.leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,pages[i].id]));
+   await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,agentOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
+   await until(()=>pages.every(page=>page.visible&&page.view.getVisible()),'four real Nora fixture panes are visible');await frame();
+   const corners=await js(`Array.from(document.querySelectorAll('.pane')).filter(p=>parseFloat(p.style.getPropertyValue('--pane-round-bottom'))>=4).map(p=>MouseTest.model.slots[p.dataset.pane])`);
+   assert.ok(corners.length>=2&&corners.every(id=>pages.some(page=>page.id===id)),'Owned split layout supplies real rounded native corners');
+   facts.noraFixture.pageIds=pages.map(page=>page.id);facts.noraFixture.roundedPageIds=corners;await save();
+   await require('./mouse-628-ui-smoke.cjs')(shared);
+  }catch(error){verificationError=error;throw error;}
+  finally{
+   try{
+    await js('MouseTest.desktopUI.close({immediate:true});MouseFlush()');await until(()=>!browser.mouseSurfaceHold,'Nora fixture releases native pages');
+    for(const page of pages)if(browser.tabs.has(page.id)&&!before.has(page.id))await browser.command('close',{id:page.id});
+    await js('MouseFlush()');bank.items=copy(savedBank.items);bank.members=Object.assign(Object.create(null),savedBank.members);bank.active=savedBank.active;bank.global=savedGlobal;bank.recovery=savedBank.recovery?copy(savedBank.recovery):null;bank.historyGroups.clear();bank.historyLiveKey='';browser.mouseDesktops.previews.clear();
+    await js(`Object.assign(MouseTest.model,${JSON.stringify(original)});MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);browser.emit();await browser.save();await browser.saveQueue;await store.queue;
+    assert.deepEqual([...browser.tabs.keys()].sort(),[...before].sort());assert.deepEqual(bank.snapshot(),savedBank,'Nora fixture restores the inherited desktop bank');assert.deepEqual(await js('MouseTest.prefs()'),original,'Nora fixture restores inherited layout and preferences');facts.noraFixture.restored=true;
+   }catch(error){facts.noraFixture.cleanupError=error.stack||String(error);if(!verificationError)throw error;}
+   finally{await save();}
+  }
+ }
  async function privateIsolation(){
   const normal=await open(origin+'/normal-isolation'),wc=normal.view.webContents,identity=await wc.executeJavaScript('mouseWindowsIdentity');
   await wc.executeJavaScript('localStorage.setItem("mouseWindowsNormal","retained")');await browser.session.cookies.set({url:origin,name:'mouse-windows-normal',value:'retained'});
@@ -222,7 +249,7 @@ module.exports=async ctx=>{
    await serve();await step('nativePages',nativePages);await step('fiveDesktops',desktops);await step('windowControls',windowsControls);await step('shortcuts',shortcuts);
    await step('documents',()=>require('./mouse-625-smoke.cjs')(shared));await step('search',()=>require('./mouse-625-search-smoke.cjs')(shared));
    await step('metadataWorkload',()=>require('./mouse-627-performance-smoke.cjs')(shared));await step('perPaneProgress',()=>require('./mouse-628-progress-smoke.cjs')(shared));
-   await step('629UIAndScrollbars',()=>require('./mouse-629-ui-smoke.cjs')(shared));await step('noraMotionPaletteAndWheel',()=>require('./mouse-628-ui-smoke.cjs')(shared));
+   await step('629UIAndScrollbars',()=>require('./mouse-629-ui-smoke.cjs')(shared));await step('noraMotionPaletteAndWheel',()=>noraMotion(shared));
    await step('privacy',privateIsolation);await step('agentPTYLocalMCP',agent);await step('profileWrite',writeProfile);
   }
   // Complete the installed run through the real Windows close control and

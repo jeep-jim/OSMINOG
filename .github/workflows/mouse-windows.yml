@@ -1,8 +1,5 @@
 name: Mouse Browser Windows x64
 on:
-  push:
-    branches: ['codex/mouse629-windows-x64']
-    paths: ['desktop/**','tools/mouse-windows*','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
   pull_request:
     paths: ['desktop/**','tools/mouse-windows*','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
   workflow_dispatch:
