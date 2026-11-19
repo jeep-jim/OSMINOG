@@ -1,5 +1,6 @@
 'use strict';
 (function(root){
+ const setText=(node,value)=>{if(node.textContent!==value)node.textContent=value;};
  // A task follows its owning tab, never whichever pane happens to be active.
  // Hidden tabs keep their state without creating another pane's indicator.
  function assignTasks(tasks,{desk,privateMode,panels}){
@@ -32,10 +33,10 @@
    node.dataset.phase=task.phase;node.dataset.estimated=String(!!task.estimated);node.dataset.indeterminate=String(!finite);node.dataset.desk=task.desk;node.dataset.tabId=task.tabId||'';node.dataset.kind=task.kind||'reported';
    node.style.setProperty('--progress',String(finite?Math.max(0,Math.min(100,task.percent))/100:0));node.style.setProperty('--progress-color',MouseAgentBrand.color(task.desk));MouseAgentBrand.apply(node.querySelector('.mouse-progress-mouse'),task.desk);
    const qualifier=finite&&task.estimated?(task.source==='page'?' · данные сайта':' · оценка ИИ'):'';
-   node.querySelector('.mouse-progress-label').textContent=source+qualifier;
+   setText(node.querySelector('.mouse-progress-label'),source+qualifier);
    const phase=task.phase==='stale'?'Нет обновлений':task.phase==='stopped'?'Остановлено':task.phase==='error'?'Ошибка':task.phase==='completed'?'Готово':'';
    const description=phase?(phase+(task.statusText&&task.statusText!==phase?' · '+task.statusText:'')):task.statusText||'В работе';
-   node.querySelector('.mouse-progress-status').textContent=description;node.querySelector('.mouse-progress-value').textContent=finite?Math.round(task.percent)+'%':'…';node.querySelector('.mouse-progress-stop').hidden=!['agent','terminal'].includes(task.source)||!active;
+   setText(node.querySelector('.mouse-progress-status'),description);setText(node.querySelector('.mouse-progress-value'),finite?Math.round(task.percent)+'%':'…');node.querySelector('.mouse-progress-stop').hidden=!['agent','terminal'].includes(task.source)||!active;
    const meter=node.querySelector('.mouse-progress-meter');meter.setAttribute('aria-valuemin','0');meter.setAttribute('aria-valuemax','100');if(finite)meter.setAttribute('aria-valuenow',String(task.percent));else meter.removeAttribute('aria-valuenow');meter.setAttribute('aria-valuetext',(finite?Math.round(task.percent)+'%'+qualifier:'Процент неизвестен')+' · '+description);meter.setAttribute('aria-label',source);
    node.title=source+qualifier+'\n'+description;
   }
@@ -56,7 +57,7 @@
      if(!current){selectedManual.delete(panel.key);current=values[0];}else if(!selectedManual.has(panel.key)&&(current.kind||'reported')!=='reported'&&(values[0]?.kind||'reported')==='reported')current=values[0];if(current)selected.set(panel.key,current.id);else selected.delete(panel.key);
      for(const task of values){wanted.add(task.id);let node=nodes.get(task.id);if(!node){node=makeNode(task);nodes.set(task.id,node);}if(node.parentNode!==host.dock)host.dock.insertBefore(node,host.next);node.hidden=task!==current;paint(node,task);}
      host.next.onclick=()=>{const list=assignTasks(Array.isArray(state.tasks)?state.tasks:[],{desk:model.desktopId,privateMode:model.privateMode,panels:panels()}).get(panel.key)||[],i=list.findIndex(t=>t.id===selected.get(panel.key));if(list.length){selected.set(panel.key,list[(i+1)%list.length].id);selectedManual.add(panel.key);render();}};
-     host.next.hidden=values.length<2;host.next.textContent=(Math.max(0,values.indexOf(current))+1)+'/'+values.length;host.next.setAttribute('aria-label','Следующая задача, '+host.next.textContent);
+     host.next.hidden=values.length<2;setText(host.next,(Math.max(0,values.indexOf(current))+1)+'/'+values.length);host.next.setAttribute('aria-label','Следующая задача, '+host.next.textContent);
      const hidden=!values.length;if(host.dock.hidden!==hidden){host.dock.hidden=hidden;geometryChanged=true;}panel.element.classList.toggle('has-pane-progress',!hidden);
     }
     for(const [id,node]of nodes)if(!wanted.has(id)){node.remove();nodes.delete(id);}
