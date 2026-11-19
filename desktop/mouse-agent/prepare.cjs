@@ -10,6 +10,11 @@ const out=path.join(root,'../mouse/agent-vendor');fs.mkdirSync(out,{recursive:tr
 for(const [src,dst]of [['lib/xterm.js','xterm.js'],['css/xterm.css','xterm.css'],['LICENSE','LICENSE.txt']])fs.copyFileSync(path.join(root,'node_modules/@xterm/xterm',src),path.join(out,dst));
 if(process.platform==='darwin'){
  const dir=path.join(root,'node_modules/node-pty/prebuilds/darwin-'+process.arch),helper=path.join(dir,'spawn-helper');if(fs.existsSync(helper))fs.chmodSync(helper,0o755);
- require('./deps.cjs')('node-pty');
 }
+if(process.platform==='win32'){
+ if(process.arch!=='x64')throw Error('Mouse Windows runtime requires x64');
+ const dir=path.join(root,'node_modules/node-pty/prebuilds/win32-x64');
+ for(const file of ['conpty.node','conpty/conpty.dll','conpty/OpenConsole.exe'])if(!fs.existsSync(path.join(dir,file)))throw Error('Windows terminal runtime missing: '+file);
+}
+if(['darwin','win32'].includes(process.platform))require('./deps.cjs')('node-pty');
 console.log('MOUSE_622_AGENT_DEPENDENCIES_PREPARED');

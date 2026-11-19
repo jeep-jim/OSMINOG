@@ -9,10 +9,10 @@ const {nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(check,label){for(let i=0;i<480;i++){if(await check())return;await sleep(25);}throw Error('Mouse628 progress timeout: '+label);}
 
-module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
+module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  assert.equal(privateMode.current,null,'The progress fixture starts in the isolated normal profile');
- const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node');
+ const js=source=>win.webContents.executeJavaScript(source),native=nativeInput||require('./mouse-native-menu.node');
  const bounds=win.getBounds(),fullscreen=win.isFullScreen(),maximized=win.isMaximized();
  await js('MouseTest.desktopUI.close({immediate:true});MouseTest.save()');await store.queue;
  const original=await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})');
@@ -65,7 +65,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
   }
  }
  async function capture(name,data){
-  await frame();assert.equal(globalCapture?.permission(),'granted');const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.deepEqual({width:contentBounds.width,height:contentBounds.height},{width:data.viewport.width,height:data.viewport.height});
+  await frame();assert.equal(globalCapture?.permission(),process.platform==='win32'?'not-required':'granted');const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.deepEqual({width:contentBounds.width,height:contentBounds.height},{width:data.viewport.width,height:data.viewport.height});
   const measureTheme=async()=>{const probe=await js(`(${staticThemeProbe.toString()})()`);return{...probe,...cornerBackground(probe.css)};},themeProbe=await measureTheme(),background=themeProbe,regions=data.panes.filter(p=>p.pill).map(p=>({label:'owning '+p.pane+' progress '+p.pill.value,bounds:p.pill.bounds}));assert.equal(themeProbe.theme,data.theme);facts.activeCapture={name,theme:data.theme,themeProbe};
   let selected;try{selected=await acquireFreshNativeFrame({
    reference:()=>staticShellReadback(win.webContents),assertStable:async()=>{assert.deepEqual(win.getContentBounds(),contentBounds);assert.deepEqual(await ui(),data,'Progress UI stays stable during native capture');assert.deepEqual(await measureTheme(),themeProbe,'Progress opaque theme probe stays stable during native capture');},

@@ -159,7 +159,7 @@ class BrowserWorkspace{
   }
   for(const t of [...this.tabs.values(),...this.providers.values()]){
    const next=desired.get(t),show=!!next&&!this.mouseSurfaceHold;
-   if(next){const {bounds,clipped,wrap,radius}=next;
+   if(next){const {bounds,clipped,wrap}=next;
     if(wrap&&!t.clipView){t.clipView=new View();t.clipView.setBorderRadius?.(0);this.win.contentView.removeChildView(t.view);t.clipView.addChildView(t.view);this.win.contentView.addChildView(t.clipView)}
     const viewBounds=t.clipView?{x:bounds.x-clipped.x,y:bounds.y-clipped.y,width:bounds.width,height:bounds.height}:bounds;
     const parentBounds=t.clipView?clipped:null;

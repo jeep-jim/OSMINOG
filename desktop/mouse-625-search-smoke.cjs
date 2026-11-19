@@ -7,11 +7,11 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label,n=240){for(let i=0;i<n;i++){if(await fn())return;await sleep(60);}throw Error('Mouse625 search timeout: '+label);}
 const copy=value=>JSON.parse(JSON.stringify(value));
 const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
-module.exports=async({app,win,browser,store,privateMode,startService,libraryService})=>{
+module.exports=async({app,win,browser,store,privateMode,startService,libraryService,nativeInput})=>{
  assert.equal(process.env.CI,'true','Search smoke is restricted to the isolated CI profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  assert.ok(privateMode&&startService&&libraryService&&browser.mouseSearch,'Installed search services are required');assert.equal(privateMode.current,null);
- const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node');
+ const js=source=>win.webContents.executeJavaScript(source),native=nativeInput||require('./mouse-native-menu.node');
  const bounds=win.getBounds(),normalBounds=win.getNormalBounds(),wasFullscreen=win.isFullScreen(),original=await js('MouseTest.prefs()');
  const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),savedGlobals=copy(bank.global),beforeTabs=new Set([...browser.tabs.keys(),...startService.tabs.keys()]);
  const originalPages=new Map([...browser.tabs.values(),...browser.providers.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL()}]));
@@ -52,7 +52,7 @@ module.exports=async({app,win,browser,store,privateMode,startService,libraryServ
  async function inputState(selector){return js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),active=document.activeElement;return{found:!!e,focused:active===e,activeSelector:active?active.tagName.toLowerCase()+(active.id?'#'+active.id:'.'+[...active.classList].join('.')):'',value:e?.value??null,selectionStart:e?.selectionStart??null,selectionEnd:e?.selectionEnd??null,fullySelected:active===e&&typeof e?.value==='string'&&e.selectionStart===0&&e.selectionEnd===e.value.length};})()`);}
  async function type(selector,text){
   lastInput={selector,expected:text,stage:'focus'};await click(selector);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.focused;},'native search input focus');
-  if(lastInput.observed.value.length){lastInput.stage='select-all';await key('A',['meta']);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.fullySelected;},'native search text fully selected');}
+  if(lastInput.observed.value.length){lastInput.stage='select-all';await key('A',[process.platform==='win32'?'control':'meta']);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.fullySelected;},'native search text fully selected');}
   lastInput.stage='insert';await win.webContents.insertText(text);await until(async()=>{lastInput.observed=await inputState(selector);return lastInput.observed.value===text;},'native typed search text');lastInput.stage='verified';
  }
  function redirect(workspace,url,stage){

@@ -1,48 +1,109 @@
-name: Mouse Browser Windows x64 6.0.28
+name: Mouse Browser Windows x64
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/mouse-windows.yml']
+  pull_request:
+    paths: ['desktop/**','tools/mouse-windows*','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: mouse-windows-refs/heads/${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
-  mouse-windows:
-    runs-on: windows-latest
+  mouse-windows-x64:
+    # Node 22's bundled node-gyp supports the VS2022 toolchain on this image.
+    # windows-latest has advanced to VS18, which that node-gyp cannot discover.
+    runs-on: windows-2022
     timeout-minutes: 45
     defaults:
       run:
         working-directory: desktop
+        shell: pwsh
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
+      - name: Preserve exact source bytes on Windows
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: desktop/package-lock.json
-      - run: npm ci
-      - run: npm ci --prefix mouse-agent
-      - run: node mouse-agent/prepare.cjs
-      - run: npm run prepare:runtime
-      - run: node mouse-native-build.cjs
-      - run: node mouse-icon.cjs
-      - name: Run cross-platform Mouse tests
-        run: node --test mouse-browser.test.cjs mouse-progress.test.cjs mouse-progress-bridge.test.cjs mouse-progress-pane.test.cjs mouse-documents.test.cjs mouse-document-tabs.test.cjs mouse-desktops.test.cjs mouse-gesture.test.cjs mouse-local-ui.test.cjs
-      - name: Build Windows installer
-        shell: pwsh
-        run: |
-          npx electron-builder --config mouse-build.cjs --win nsis --x64 --publish never --config.win.icon=icons/trader-os.ico --config.win.target=nsis --config.artifactName='Mouse-Browser-6.0.28-Windows-x64.${ext}' --config.nsis.oneClick=false --config.nsis.perMachine=false --config.nsis.deleteAppDataOnUninstall=false
-      - name: Check installer output
-        shell: pwsh
-        run: |
-          $files = Get-ChildItem dist-mouse/*.exe
-          if (-not $files) { throw 'Mouse Windows installer missing' }
-          $files | ForEach-Object { Write-Host "$($_.Name) $($_.Length) bytes" }
-      - uses: actions/upload-artifact@v4
+          cache-dependency-path: |
+            desktop/package-lock.json
+            desktop/mouse-agent/package-lock.json
+      - uses: actions/setup-python@v5
         with:
-          name: Mouse-Browser-6.0.28-Windows-x64
-          path: desktop/dist-mouse/*.exe
+          python-version: '3.12'
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci --prefix mouse-agent
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm audit --omit=dev --audit-level=high --json > mouse-windows-audit.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm audit --prefix mouse-agent --omit=dev --audit-level=high --json > mouse-windows-agent-audit.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prepare native Windows runtime and owner artwork
+        run: |
+          $env:npm_config_python = Join-Path $env:pythonLocation 'python.exe'
+          node mouse-agent/prepare.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run prepare:runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node mouse-native-build.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node mouse-windows-icon.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run retained and Windows Mouse tests
+        id: units
+        # Still a mandatory release gate below. Continue only to collect native
+        # installed UI diagnostics in the same run if an independent test fails.
+        continue-on-error: true
+        run: |
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node ../tools/mouse-unit-tests.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s ../tools -p test_mouse_windows_verify.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Mouse Browser NSIS installer
+        run: npx electron-builder --config mouse-windows-build.cjs --win nsis --x64 --publish never
+      - name: Verify installed app, native UI, restart and profile preservation
+        id: installed
+        run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.29-Windows-x64.exe
+      - name: Bind verified installer bytes to source and test evidence
+        if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
+        run: node ../tools/mouse-windows-manifest.cjs
+      - name: Require both unit and installed acceptance
+        if: always()
+        env:
+          UNIT_OUTCOME: ${{ steps.units.outcome }}
+          INSTALLED_OUTCOME: ${{ steps.installed.outcome }}
+        run: |
+          if ($env:UNIT_OUTCOME -ne 'success' -or $env:INSTALLED_OUTCOME -ne 'success') {
+            throw "Mouse release blocked: units=$env:UNIT_OUTCOME installed=$env:INSTALLED_OUTCOME"
+          }
+      - uses: actions/upload-artifact@v4
+        if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
+        with:
+          name: mouse-windows-x64-candidate
+          path: |
+            desktop/dist-mouse-windows/Mouse-Browser-6.0.29-Windows-x64.exe
+            desktop/dist-mouse-windows/SHA256SUMS.txt
+            desktop/dist-mouse-windows/mouse-windows-build.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-windows-x64-verification
+          path: |
+            desktop/mouse-*.log
+            desktop/mouse-*.png
+            desktop/mouse-*.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -67,15 +67,17 @@ function rendererTraceState(marker){
  performance.mark(marker);const mark=performance.getEntriesByName(marker,'mark').at(-1);performance.clearMarks(marker);
  return{marker,markStartTime:mark?.startTime,before,after:performance.now(),documentTimeBefore,documentTimeAfter:document.timeline.currentTime,visibilityState:document.visibilityState,hidden:document.hidden,hasFocus:document.hasFocus()};
 }
-module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
+module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInput,readMode=process.argv.includes('--mouse-smoke-read')})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- if(process.argv.includes('--mouse-smoke-read'))return verifyGestureRestart({app,win,store});
- const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node'),debug=win.webContents.debugger;
+ if(readMode)return verifyGestureRestart({app,win,store});
+ const js=source=>win.webContents.executeJavaScript(source),native=nativeInput||require('./mouse-native-menu.node'),debug=win.webContents.debugger;
  const bounds=win.getBounds(),originalFullscreen=win.isFullScreen(),original=await js('MouseTest.prefs()'),layout=()=>js(`Object.fromEntries(${JSON.stringify(layoutKeys)}.map(k=>[k,MouseTest.prefs()[k]]))`),beforeLayout=await layout();
  const allPages=()=>[...browser.tabs.values(),...browser.providers.values()];
  const pages=new Map(allPages().map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL(),epoch:page.navigationEpoch}]));
- const savedClipboard=await Promise.all((await clipboard.read()).map(async item=>new ClipboardItem(Object.fromEntries(await Promise.all(item.types.map(async type=>[type,await item.getType(type)]))))));
+ // A fresh Windows clipboard can expose an item with no formats. There is
+ // nothing to preserve for it, and ClipboardItem forbids an empty MIME map.
+ const savedClipboard=await Promise.all((await clipboard.read()).filter(item=>item.types.length>0).map(async item=>new ClipboardItem(Object.fromEntries(await Promise.all(item.types.map(async type=>[type,await item.getType(type)]))))));
  const facts={version:'6.0.26',palette:{},stateRestored:false,supersededForNora:{version:'6.0.28',proof:'mouse-628-motion.json',reason:'Content-fit borderless Nora replaces the former fixed-size scrolling and outline contracts'}};
  const borderlessFacts={version:'6.0.28',themes:['light','dark'],viewports:[],rows:[],tinyBurrow:[],footerSeamAbsent:false,decorativeOutlinesAbsent:false,roundedBackgroundCorners:false,restored:false};
  const motionFacts={version:'6.0.28',themes:['light','dark'],contentFit:false,noInnerScroll:false,translationOnly:false,strokeFreeContour:false,openClosePainted:false,interruptionPreserved:false,reducedMotion:false,backgroundStable:false,footerStable:false,stateRestored:false,frames:{},geometry:{},captures:{},captureStates:{},footer:{},background:{before:[],after:[],nativeBoundsCalls:0,resizeEvents:0,snapshots:[]}};
@@ -116,7 +118,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  async function type(selector,value){
   lastInput={selector,value,stage:'focus',snapshots:[]};await traceInput(selector);await click(selector);await until(async()=>{lastInput.observed=await inputState();return lastInput.observed.focused;},'palette input receives focus');
   lastInput.snapshots.push({stage:'focused',...lastInput.observed});assert.ok(lastInput.observed.rect.width>=lastInput.observed.requiredTextWidth,'The complete seven-character HEX value fits in its native input');
-  lastInput.stage='select-all';await key('A',['meta']);await until(async()=>{lastInput.observed=await inputState();return lastInput.observed.fullySelected;},'palette input is fully selected');lastInput.snapshots.push({stage:'selected',...lastInput.observed});
+  lastInput.stage='select-all';await key('A',[process.platform==='win32'?'control':'meta']);await until(async()=>{lastInput.observed=await inputState();return lastInput.observed.fullySelected;},'palette input is fully selected');lastInput.snapshots.push({stage:'selected',...lastInput.observed});
   lastInput.stage='insert';await win.webContents.insertText(value);lastInput.snapshots.push({stage:'insert-complete',...await inputState()});await until(async()=>{lastInput.observed=await inputState();return lastInput.observed.value.toLowerCase()===value.toLowerCase();},'native text reaches the palette input');
   lastInput.stage='verified';lastInput.snapshots.push({stage:'verified',...lastInput.observed});lastInput.events=await js('globalThis.__mouse626Input.events');(facts.palette.inputs??=[]).push(lastInput);
  }
@@ -300,7 +302,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  function pixel(image,point,viewport,mapping){const size=image.getSize(1),bytes=image.toBitmap({scaleFactor:1}),x=Math.max(0,Math.min(size.width-1,Math.floor(mapping?mapping.originX+point.x*mapping.scaleX:point.x*size.width/viewport.width))),y=Math.max(0,Math.min(size.height-1,Math.floor(mapping?mapping.originY+point.y*mapping.scaleY:point.y*size.height/viewport.height))),i=(y*size.width+x)*4;assert.equal(bytes.length,size.width*size.height*4,'Pixel samples use the exact archived native representation');return{x,y,rgba:[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]]};}
  const cornerDiagnostics=[];
  async function captureNativeWindow(theme,stage,viewport){
-  assert.equal(globalCapture?.permission(),'granted','Native corner proof requires the existing CI screen-capture grant');
+  assert.equal(globalCapture?.permission(),process.platform==='win32'?'not-required':'granted','Native corner proof requires the platform screen-capture permission state');
   const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.deepEqual({width:contentBounds.width,height:contentBounds.height},viewport,'Native content bounds match the measured renderer viewport');
   const frame=await globalCapture.acquire(display);assert.equal(frame?.kind,'screen');assert.ok(typeof frame.backend==='string'&&frame.backend);assert.deepEqual({width:frame.width,height:frame.height},{width:display.bounds.width,height:display.bounds.height},'The screen frame belongs to the selected complete display');assert.deepEqual(win.getContentBounds(),contentBounds,'The native window did not move while its frame was acquired');
   assert.match(frame.base,/^data:image\/png;base64,/);const screenPNG=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:screenPNG.readUInt32BE(16),height:screenPNG.readUInt32BE(20)},screenImage=nativeImage.createFromBuffer(screenPNG);assert.equal(screenImage.isEmpty(),false);assert.deepEqual(screenImage.getSize(1),screenPixelSize,'Display PNG is decoded without scaling');
@@ -506,7 +508,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
   await stopMotionTrace(verificationError?'verification-error':'fixture-cleanup');
   try{paintCapture?.cancel();paintCapture=null;await removeBackgroundProbe();await removeCornerMarkers();await js('globalThis.__mouse628Reversal?.dispose();delete globalThis.__mouse628Reversal;globalThis.__mouse628Recorder?.stop();delete globalThis.__mouse628Recorder;globalThis.__mouse626Input?.dispose();delete globalThis.__mouse626Input;MouseTest.desktopUI.close({immediate:true});document.querySelector("#capture-dialog")?.open&&document.querySelector("#capture-dialog").close();MouseTest.zoomUI.close()');await closed();
    if(attached){try{await bounded(()=>debug.sendCommand('Emulation.setEmulatedMedia',{media:'',features:[]}),3000,'Restore fixture emulated media');}finally{debug.detach();attached=false;}}
-   await js(`MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.requestLayout();MouseTest.save()`);await store.queue;win.setBounds(bounds);if(originalFullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'restore inherited fullscreen');}await samePages();await clipboard.write(savedClipboard);
+   await js(`MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.requestLayout();MouseTest.save()`);await store.queue;win.setBounds(bounds);if(originalFullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'restore inherited fullscreen');}await samePages();if(savedClipboard.length)await clipboard.write(savedClipboard);else clipboard.clear();
    assert.equal(await js('document.querySelectorAll(".mouse-floating-snapshot").length'),0,'Snapshot image memory is released after closing');await until(()=>js('!document.querySelector("dialog[open]:not([data-nonmodal])")'),'all fixture modal gates close');facts.stateRestored=true;motionFacts.stateRestored=true;borderlessFacts.restored=true;
   }catch(error){cleanupError=error;console.error('MOUSE_628_MOTION_CLEANUP_FAILURE',error.message);}
   finally{if(attached){try{debug.detach();}catch(error){cleanupError??=error;console.error('MOUSE_628_MOTION_DEBUGGER_CLEANUP_FAILURE',error.message);}attached=false;}}

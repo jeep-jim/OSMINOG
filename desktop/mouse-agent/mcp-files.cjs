@@ -30,15 +30,16 @@ class ScopedFiles{
   this.fs=extra||require('./deps.cjs')('fs-extra');
   // This module is mandatory. Missing native confinement never falls back to
   // check-then-open path operations. Electron resolves it from app.asar.unpacked.
-  this.native=native||require('../mouse-mcp-fs.node');this.root=fs.realpathSync(folder);this.rootIdentity=fs.lstatSync(this.root);
+  this.native=native||require('../mouse-mcp-fs.node');this.root=fs.realpathSync(folder);this.rootIdentity=fs.lstatSync(this.root,{bigint:true});
   if(!this.rootIdentity.isDirectory()||this.rootIdentity.isSymbolicLink())throw invalid('Нужна обычная папка проекта');
   this.rootFd=this.native.openRoot(this.root);
-  if(!same(fs.fstatSync(this.rootFd),this.rootIdentity)){fs.closeSync(this.rootFd);throw invalid('Папка изменена во время открытия');}
+  try{if(!same(fs.fstatSync(this.rootFd,{bigint:true}),this.rootIdentity))throw invalid('Папка изменена во время открытия');}
+  catch(error){fs.closeSync(this.rootFd);throw error;}
   this.writeAllowed=write===true;this.closed=false;this.onAction=onAction;
  }
  checkRoot(){
   if(this.closed)throw invalid('Доступ к папке отозван');
-  const current=fs.lstatSync(this.root);if(current.isSymbolicLink()||!current.isDirectory()||!same(current,this.rootIdentity)||fs.realpathSync(this.root)!==this.root)throw invalid('Папка проекта была заменена; выберите её снова');
+  const current=fs.lstatSync(this.root,{bigint:true});if(current.isSymbolicLink()||!current.isDirectory()||!same(current,this.rootIdentity)||fs.realpathSync(this.root)!==this.root)throw invalid('Папка проекта была заменена; выберите её снова');
  }
  directory(value='.',{create=false}={}){
   const relative=relativePath(value,{root:true});this.checkRoot();let fd=this.rootFd;
@@ -50,7 +51,7 @@ class ScopedFiles{
   const relative=relativePath(value),pieces=relative.split('/'),name=pieces.pop(),parent=this.directory(pieces.join('/')||'.',{create});return{...parent,relative,name};
  }
  regular(stat){if(stat?.type!=='file'||stat.nlink!==1)throw invalid('Доступны только обычные файлы без жёстких ссылок');}
- readAt(parent,name,relative){
+ readAt(parent,name,relative,{snapshot=false}={}){
   const fd=this.native.openRead(parent,name);
   try{
    const before=fs.fstatSync(fd,{bigint:true});if(before.size>BigInt(LIMITS.readBytes))throw invalid('Файл больше лимита чтения 256 КиБ');
@@ -61,7 +62,7 @@ class ScopedFiles{
    if(length>LIMITS.readBytes)throw invalid('Файл вырос сверх лимита чтения');
    const after=fs.fstatSync(fd,{bigint:true});if(before.ino!==after.ino||before.dev!==after.dev||before.mtimeNs!==after.mtimeNs||before.ctimeNs!==after.ctimeNs||before.size!==after.size)throw invalid('Файл изменён во время чтения');
    const bytes=buffer.subarray(0,length),content=new TextDecoder('utf-8',{fatal:true}).decode(bytes);if(content.includes('\0'))throw invalid('Двоичные файлы не редактируются текстовым инструментом');
-   this.checkRoot();return{path:relative,content,encoding:'utf-8',bytes:length,sha256:hash(bytes)};
+   this.checkRoot();return{path:relative,content,encoding:'utf-8',bytes:length,sha256:hash(bytes),...(snapshot?{snapshot:Buffer.from(bytes)}:{})};
   }finally{fs.closeSync(fd);}
  }
  read(value){const parent=this.parent(value);try{return this.readAt(parent.fd,parent.name,parent.relative);}finally{parent.close();}}
@@ -72,7 +73,13 @@ class ScopedFiles{
   const parent=this.parent(relative,{create:true});let fd,created=false,tempName;
   try{
    const prior=this.native.stat(parent.fd,parent.name);
-   if(prior){this.regular(prior);if(expectedSha256!==this.readAt(parent.fd,parent.name,relative).sha256)throw invalid('Конфликт файла: сначала прочитайте актуальный файл и передайте его expectedSha256');}
+   if(prior){
+    this.regular(prior);const observed=this.readAt(parent.fd,parent.name,relative,{snapshot:process.platform==='win32'});
+    if(expectedSha256!==observed.sha256)throw invalid('Конфликт файла: сначала прочитайте актуальный файл и передайте его expectedSha256');
+    // Windows timestamps can coincide across rapid writes. Its native commit
+    // compares this bounded snapshot again through the held destination HANDLE.
+    if(process.platform==='win32')prior.expectedBytes=observed.snapshot;
+   }
    else if(expectedSha256!==undefined)throw invalid('Файл был удалён после чтения');
    tempName='.mouse-local-'+crypto.randomBytes(16).toString('hex')+'.tmp';fd=this.native.openTemp(parent.fd,tempName,prior?prior.mode&0o777:0o600);created=true;
    this.fs.writeFileSync(fd,content,{encoding:'utf8'});fs.fsyncSync(fd);fs.closeSync(fd);fd=undefined;this.checkRoot();
