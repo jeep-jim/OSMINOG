@@ -43,7 +43,7 @@ function nativeCornerPaintReady(rows,marker,background){
  const matches=(pixel,rgb)=>pixel?.rgba?.[3]===255&&rgb.every((v,i)=>Math.abs(pixel.rgba[i]-v)<=2);
  return rows.length>0&&rows.every(row=>matches(row.before?.inside,marker)&&matches(row.before?.outside,background));
 }
-async function verifyGestureRestart({app,win,store}){
+async function verifyGestureRestart({app,win,browser,store}){
  const filename='mouse-629-swipe-tutorial.json',facts=JSON.parse(await fs.readFile(filename,'utf8'));
  assert.equal(facts.version,'6.0.30');assert.equal(facts.successHidden,true);assert.equal(facts.privateIsolated,true);
  assert.equal(facts.source,'nora-wheel');assert.equal(facts.recognizer,'two-finger-or-wheel');assert.equal(win.listenerCount('swipe'),0);
@@ -51,13 +51,36 @@ async function verifyGestureRestart({app,win,store}){
  const persisted=(await store.get(GESTURE_KEY))[GESTURE_KEY];assert.deepEqual(persisted,{completed:true});
  const js=source=>win.webContents.executeJavaScript(source),before=await js('({timeOrigin:performance.timeOrigin,open:document.querySelector("#desktop-tray").open})');
  assert.notEqual(process.pid,facts.writePid,'Restart is a different native application process');assert.notEqual(performance.timeOrigin,facts.writeMainTimeOrigin,'Restart has a new main-process time origin');assert.notEqual(before.timeOrigin,facts.writeRendererTimeOrigin,'Restart has a new renderer, not a repeated state query');
+ // open() can report a preparation refusal and resolve after closing itself.
+ // Retain that original capture/paint history before the fixture's cleanup.
+ const diagnosticFile='mouse-630-nora-restart-diagnostics.json',diagnostic={version:app.getVersion(),diagnosticOnly:true,stage:'restart',pid:process.pid,mainTimeOrigin:performance.timeOrigin,errors:[]};
+ const diagnosticError=(stage,error)=>diagnostic.errors.push({stage,message:String(error?.message||error).slice(0,1000)});
+ async function diagnosticAttempt(stage,operation,ms=1500,onTimeout){try{return await bounded(operation,ms,'Nora restart '+stage,onTimeout);}catch(error){diagnosticError(stage,error);return null;}}
+ async function diagnosticWrite(file,data){const controller=new AbortController();return diagnosticAttempt('write '+file,async()=>{await fs.writeFile(file,data,{signal:controller.signal});return true;},1500,()=>controller.abort());}
+ const saveDiagnostic=()=>diagnosticWrite(diagnosticFile,JSON.stringify(diagnostic,null,2)+'\n');
+ async function restartSnapshot(label){
+  const snapshot={label,at:performance.now(),wallTime:Date.now(),native:{pages:[]}};
+  try{Object.assign(snapshot.native,{visible:win.isVisible(),focused:win.isFocused(),minimized:win.isMinimized(),fullscreen:win.isFullScreen(),bounds:win.getBounds(),contentBounds:win.getContentBounds(),webContentsFocused:win.webContents.isFocused(),surfaceHeld:!!browser.mouseSurfaceHold,surfaces:browser.mouseDesktops?.surfaces?.diagnostics?.()});}catch(error){diagnosticError(label+' native',error);}
+  for(const page of [...browser.tabs.values(),...browser.providers.values()].slice(0,16)){try{snapshot.native.pages.push({id:page.id,visible:page.visible,loading:page.loading,error:!!page.error,epoch:page.navigationEpoch,bounds:page.bounds,viewBounds:page.view.getBounds(),viewVisible:page.view.getVisible?.(),clipVisible:page.clipView?.getVisible?.(),destroyed:page.view.webContents.isDestroyed()});}catch(error){diagnosticError(label+' native page',error);}}
+  snapshot.renderer=await diagnosticAttempt(label+' renderer',()=>js(`(()=>{const ui=globalThis.MouseTest?.desktopUI,tray=document.querySelector('#desktop-tray'),rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{at:performance.now(),timeOrigin:performance.timeOrigin,documentTime:document.timeline.currentTime,visibilityState:document.visibilityState,documentFocused:document.hasFocus(),activeElement:document.activeElement?.tagName+'#'+document.activeElement?.id,reducedMotion:matchMedia('(prefers-reduced-motion:reduce)').matches,tray:tray?{phase:tray.dataset.motion,open:tray.open,hidden:tray.hidden,bounds:rect(tray)}:null,isPreparing:ui?.isPreparing,holdsNative:ui?.holdsNative,motion:ui?.motion?.sample?.(),motionDiagnostics:ui?.motion?.diagnostics?.(),backdrop:ui?.diagnostics?.(),status:document.querySelector('#status')?.textContent?.slice(0,512),snapshots:[...document.querySelectorAll('.mouse-floating-snapshot')].slice(0,16).map(image=>({id:image.dataset.tabId,complete:image.complete,naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,bounds:rect(image)}))};})()`));
+  return snapshot;
+ }
+ try{const surfaces=browser.mouseDesktops?.surfaces;if(surfaces?.diagnostics?.().enabled!==true)surfaces?.enableDiagnostics?.();}catch(error){diagnosticError('enable surfaces',error);}
  try{
-  await js('MouseTest.desktopUI.gesture.ready');await js('MouseTest.desktopUI.open()');
+  await js('MouseTest.desktopUI.gesture.ready');try{diagnostic.before=await restartSnapshot('before-open');await saveDiagnostic();}catch(error){diagnosticError('before-open evidence',error);}await js('MouseTest.desktopUI.open()');
   await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'restarted Nora opens');
   const observed=await js('({gesture:MouseTest.desktopUI.gesture.diagnostics(),hintHidden:document.querySelector(".desktop-gesture-hint").hidden,noraOpen:document.querySelector("#desktop-tray").open,timeOrigin:performance.timeOrigin})');
   assert.equal(observed.gesture.learned,true);assert.equal(observed.hintHidden,true);assert.equal(observed.noraOpen,true);
   facts.restart={pid:process.pid,mainTimeOrigin:performance.timeOrigin,version:app.getVersion(),persisted,...observed};facts.restartHidden=true;
   await fs.writeFile('mouse-629-swipe-restart.png',(await win.capturePage()).toPNG());facts.restart.capture='mouse-629-swipe-restart.png';
+ }catch(error){
+  try{
+   diagnostic.error={message:error.message,stack:error.stack};diagnostic.failure=await restartSnapshot('before-cleanup');await saveDiagnostic();
+   diagnostic.capture={source:'BrowserWindow.capturePage',requestedAt:performance.now()};const image=await diagnosticAttempt('failure capture',()=>win.capturePage(),2500);diagnostic.capture.finishedAt=performance.now();diagnostic.capture.resolved=!!image;
+   if(image){const png=image.toPNG(),file='mouse-630-nora-restart-failure.png';diagnostic.capture.empty=image.isEmpty();diagnostic.capture.bytes=png.length;if(await diagnosticWrite(file,png))diagnostic.capture.file=file;}
+   await saveDiagnostic();
+  }catch(diagnosticFailure){diagnosticError('failure evidence',diagnosticFailure);await saveDiagnostic().catch(()=>{});}
+  throw error;
  }finally{if(!before.open)await js('MouseTest.desktopUI.close({immediate:true})');}
  facts.restored=await js('!document.querySelector("#desktop-tray").open&&!document.querySelector(".mouse-floating-snapshot")');assert.equal(facts.restored,true);
  await fs.writeFile(filename,JSON.stringify(facts,null,2)+'\n');console.log('MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_NATIVE_PASS');
@@ -70,7 +93,7 @@ function rendererTraceState(marker){
 module.exports=async({app,win,browser,store,privateMode,globalCapture})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- if(process.argv.includes('--mouse-smoke-read'))return verifyGestureRestart({app,win,store});
+ if(process.argv.includes('--mouse-smoke-read'))return verifyGestureRestart({app,win,browser,store});
  const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node'),debug=win.webContents.debugger;
  const bounds=win.getBounds(),originalFullscreen=win.isFullScreen(),original=await js('MouseTest.prefs()'),layout=()=>js(`Object.fromEntries(${JSON.stringify(layoutKeys)}.map(k=>[k,MouseTest.prefs()[k]]))`),beforeLayout=await layout();
  const allPages=()=>[...browser.tabs.values(),...browser.providers.values()];

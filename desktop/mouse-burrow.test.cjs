@@ -40,7 +40,7 @@ test('the fixed Nora arch keeps its original symmetric silhouette without self-i
 function controllerFixture({deferReady=false,deferPlay=false,effectTimingCache=false,timelineLag=0,startNow=0,trace=false,preparePaint}={}){
  let now=startNow,lag=timelineLag,footerTop=772,viewportWidth=1280,viewportHeight=800,contentHeight=440,reads=0,writes=0,clockReads=0,rafId=0,rafRequests=0;const created=[],animations=[],observers=[],listeners=new Map(),settled=[],rafs=new Map(),readiness=[];
  class Animation{
-  constructor(node,frames,options){this.node=node;this.keyframes=frames;this.options=options;this.rate=1;this.pendingRate=null;this.hold=0;this.started=now;this.running=false;this.cancelled=false;this.willChangeAtCreation=node.style.willChange;this.ready=deferReady?new Promise(resolve=>readiness.push(()=>resolve(this))):Promise.resolve(this);this.newFinished();this.effect={getComputedTiming:()=>({progress:this.effectState().progress})};animations.push(this);}
+  constructor(node,frames,options){this.node=node;this.keyframes=frames;this.options=options;this.rate=1;this.pendingRate=null;this.hold=0;this.started=now;this.running=false;this.cancelled=false;this.keyframeUpdates=0;this.willChangeAtCreation=node.style.willChange;this.ready=deferReady?new Promise(resolve=>readiness.push(()=>resolve(this))):Promise.resolve(this);this.newFinished();this.effect={getComputedTiming:()=>({progress:this.effectState().progress}),getKeyframes:()=>this.keyframes.map(frame=>({...frame})),setKeyframes:frames=>{this.keyframes=frames.map(frame=>({...frame}));this.keyframeUpdates++;this.effectTime=this.effectIdle=undefined;this.effectTiming=null;}};animations.push(this);}
   newFinished(){this.finished=new Promise((resolve,reject)=>{this.resolve=resolve;this.reject=reject;});this.completed=false;}
   get currentTime(){return Math.max(0,Math.min(this.options.duration,this.hold+(this.running?(now-this.started)*this.rate:0)));}
   set currentTime(value){this.hold=value;this.started=now;}
@@ -54,8 +54,10 @@ function controllerFixture({deferReady=false,deferPlay=false,effectTimingCache=f
   // an exact end is after/non-current when forwards, active/current backwards.
   // AnimationEffect::UpdateInheritedTime caches by time and idle state, without
   // a rate key. A rate-only update can therefore retain the previous phase.
+  // SetKeyframes clears that timing/effect cache even for identical keyframes;
+  // pausing a finished animation renews its promise when it leaves finished.
   effectState(){const time=this.currentTime;if(!effectTimingCache||this.effectTime!==time||this.effectIdle!==this.cancelled){const phase=time<=0&&this.rate<0?'before':time>=this.options.duration&&this.rate>=0?'after':'active';this.effectTime=time;this.effectIdle=this.cancelled;this.effectTiming={phase,isCurrent:!this.cancelled&&(phase==='active'||phase==='before'&&this.rate>0||phase==='after'&&this.rate<0),progress:Math.max(0,Math.min(1,time/this.options.duration))};}return this.effectTiming;}
-  pause(){this.hold=this.currentTime;this.running=false;}
+  pause(){this.hold=this.currentTime;this.running=false;this.pending=false;this.resolvePlay?.(this);this.resolvePlay=null;if(this.completed)this.newFinished();}
   updatePlaybackRate(rate){if(deferPlay&&(this.running||this.pending)){this.pendingRate=rate;return;}this.playbackRate=rate;}
   play(){const value=this.currentTime;if(this.completed)this.newFinished();this.hold=value;this.started=now;if(deferPlay){if(!this.pending)this.ready=new Promise(resolve=>{this.resolvePlay=resolve;});this.pending=true;this.running=false;}else this.running=true;}
   browserReady(){if(!this.pending||this.cancelled)return;if(this.pendingRate!==null)this.playbackRate=this.pendingRate;this.pending=false;this.running=true;this.started=now;this.resolvePlay?.(this);this.resolvePlay=null;}
@@ -118,7 +120,7 @@ test('Nora slides a fixed final contour using transform and opacity animation on
  await f.warm();
  const counts=f.counts(),path=f.path.getAttribute('d'),clip=f.clip.getAttribute('d');let previous=0;
  for(const time of [30,60,100,150,200,250]){await f.at(time);const sample=f.motion.sample();assert.ok(sample.progress>previous&&sample.progress<1);previous=sample.progress;assert.equal(sample.height,440);assert.equal(sample.width,1000);assert.equal(sample.geometryWrites,initial.geometryWrites);assert.equal(sample.measurements,initial.measurements);assert.equal(f.path.getAttribute('d'),path);assert.equal(f.clip.getAttribute('d'),clip);assert.deepEqual(f.counts(),counts,'Animation sampling performs no geometry/style writes or layout reads');}
- await f.at(300);assert.equal(await opened,true);assert.equal(f.content.inert,false);assert.equal(f.motion.progress,1);assert.equal(f.motion.isSettled,true);assert.equal(panel.style.willChange,'');assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.tray.dataset.motion,'open');assert.deepEqual(f.settled,[true]);
+ await f.at(300);assert.equal(await opened,true);assert.equal(f.content.inert,false);assert.equal(f.motion.progress,1);assert.equal(f.motion.isSettled,true);assert.equal(panel.style.willChange,'transform');assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.tray.dataset.motion,'open');assert.deepEqual(f.settled,[true]);
  const closing=f.motion.close();assert.equal(f.content.inert,true);await f.warm();await f.at(450);assert.equal(f.motion.sample().height,440);assert.ok(f.motion.progress>0&&f.motion.progress<1);await f.at(600);assert.equal(await closing,true);assert.equal(f.tray.dataset.motion,'closed');assert.equal(f.motion.sample().height,440);f.motion.release();assert.equal(f.motion.sample(),null);assert.equal(f.classes.has('mouse-dock-active'),false);
 });
 
@@ -157,15 +159,46 @@ test('initial layer readiness and slow preparation do not consume the300ms slide
 });
 
 test('a fresh closing player commits its full-size layers before starting its unchanged300ms slide',async()=>{
- const f=controllerFixture({deferReady:true}),opened=f.motion.open();f.ready();await f.warm();await f.at(300);assert.equal(await opened,true);
+ const f=controllerFixture({deferReady:true});f.reduced(true);assert.equal(await f.motion.open(),true);f.reduced(false);await f.at(300);
  const closing=f.motion.close(),players=f.animations.slice(-2),panel=players[0].node;
- assert.equal(f.animations.length,4,'a settled opening released its players');assert.deepEqual(players.map(a=>a.willChangeAtCreation),['transform','opacity']);
+ assert.equal(f.animations.length,2,'an open reduced-motion endpoint has no retained players');assert.deepEqual(players.map(a=>a.willChangeAtCreation),['transform','opacity']);
  assert.ok(players.every(a=>!a.running));assert.equal(f.motion.progress,1);assert.equal(panel.style.transform,'translate3d(0,0,0)');assert.equal(f.content.inert,true);
- await f.at(415);assert.equal(f.motion.progress,1);assert.equal(f.frameRequests,2,'closing waits for its own paused-player readiness');f.ready();await Promise.resolve();await Promise.resolve();
+ await f.at(415);assert.equal(f.motion.progress,1);assert.equal(f.frameRequests,0,'closing waits for its own paused-player readiness');f.ready();await Promise.resolve();await Promise.resolve();
  await f.paint(430);assert.equal(f.motion.progress,1);assert.ok(players.every(a=>!a.running),'the first preparation frame cannot consume closing motion');
- await f.paint(460);assert.ok(players.every(a=>a.running&&a.playbackRate===-1&&a.currentTime===300));assert.equal(f.frameRequests,4);assert.equal(f.queuedFrames,0);
+ await f.paint(460);assert.ok(players.every(a=>a.running&&a.playbackRate===-1&&a.currentTime===300));assert.equal(f.frameRequests,2);assert.equal(f.queuedFrames,0);
  assert.ok(players.every(a=>a.options.duration===300&&a.options.easing==='cubic-bezier(.22,.8,.25,1)'),'preparation does not alter duration or easing');
- const counts=f.counts();await f.at(490);near(f.motion.progress,.9);await f.at(759);assert.ok(f.motion.progress>0);assert.deepEqual(f.counts(),counts);await f.at(760);assert.equal(await closing,true);assert.equal(f.motion.progress,0);assert.equal(f.frameRequests,4);
+ const counts=f.counts();await f.at(490);near(f.motion.progress,.9);await f.at(759);assert.ok(f.motion.progress>0);assert.deepEqual(f.counts(),counts);await f.at(760);assert.equal(await closing,true);assert.equal(f.motion.progress,0);assert.equal(f.frameRequests,2);
+});
+
+test('settled open retains reverse-current players and closes with their unchanged300ms timeline',async()=>{
+ const f=controllerFixture({deferPlay:true,effectTimingCache:true}),opened=f.motion.open();await f.warm();await f.playReady();
+ const players=f.animations.slice(),finished=players.map(a=>a.finished),keyframes=players.map(a=>JSON.stringify(a.keyframes)),options=players.map(a=>JSON.stringify(a.options));await f.at(300);assert.equal(await opened,true);
+ assert.equal(f.motion.isSettled,true);assert.equal(f.content.inert,false);assert.ok(players.every(a=>!a.cancelled&&a.playState==='paused'&&a.currentTime===300&&a.playbackRate===-1&&a.effectState().isCurrent));
+ for(let i=0;i<players.length;i++){assert.notEqual(players[i].finished,finished[i]);assert.equal(JSON.stringify(players[i].keyframes),keyframes[i]);assert.equal(JSON.stringify(players[i].options),options[i]);assert.equal(players[i].keyframeUpdates,1);}
+ assert.deepEqual(players.map(a=>a.node.style.willChange),['transform','opacity']);const requests=f.frameRequests;
+ assert.equal(await f.motion.open(),true);assert.equal(f.animations.length,2);assert.equal(f.frameRequests,requests);assert.ok(players.every(a=>a.keyframeUpdates===1),'repeated open does not rebuild parked effects');
+ f.changeContent(510);assert.equal(f.motion.sample().height,510);assert.equal(f.motion.progress,1);assert.ok(players.every(a=>!a.cancelled&&a.currentTime===300&&a.keyframeUpdates===1));
+ const closing=f.motion.close();assert.equal(f.motion.isSettled,false);assert.equal(f.content.inert,true);assert.equal(f.animations.length,2);assert.ok(players.every((a,i)=>f.animations[i]===a&&a.pending&&a.currentTime===300&&a.effectState().isCurrent));assert.equal(f.frameRequests,requests,'retained closing has no new preparation RAF');assert.equal(f.queuedFrames,0);
+ await f.at(415);assert.equal(f.motion.progress,1,'browser pending play consumes none of the closing timeline');await f.playReady();await f.at(565);near(f.motion.progress,.5);await f.at(714);assert.ok(f.motion.progress>0);await f.at(715);assert.equal(await closing,true);
+ assert.equal(f.motion.isSettled,true);assert.equal(f.motion.progress,0);assert.ok(players.every(a=>a.cancelled&&a.node.style.willChange===''));assert.equal(f.animations.length,2);
+});
+
+test('reopening a pending retained close at its exact endpoint cannot auto-rewind a forward play',async()=>{
+ const f=controllerFixture({deferPlay:true,effectTimingCache:true}),opened=f.motion.open();await f.warm();await f.playReady();await f.at(300);await opened;
+ const players=f.animations.slice(),requests=f.frameRequests,closing=f.motion.close();assert.ok(players.every(a=>a.pending&&a.currentTime===300));
+ assert.equal(await f.motion.open(),true);assert.equal(await closing,false);assert.equal(f.motion.progress,1);assert.equal(f.motion.isSettled,true);assert.equal(f.tray.dataset.motion,'open');assert.equal(f.content.inert,false);
+ assert.ok(players.every(a=>!a.cancelled&&!a.pending&&a.playState==='paused'&&a.currentTime===300&&a.playbackRate===-1&&a.effectState().isCurrent));assert.equal(f.animations.length,2);assert.equal(f.frameRequests,requests);
+ await f.playReady();await f.at(1000);assert.equal(f.motion.progress,1,'a stale pending close cannot finish after the replacement open');
+ const finalClose=f.motion.close();await f.playReady();await f.at(1300);assert.equal(await finalClose,true);assert.ok(players.every(a=>a.cancelled));
+});
+
+test('parked open players are released on immediate close, release and reduced motion',async()=>{
+ for(const action of ['immediate','release','reduce']){
+  const f=controllerFixture(),opened=f.motion.open();await f.warm();await f.at(300);await opened;const players=f.animations.slice();assert.ok(players.every(a=>!a.cancelled));
+  if(action==='immediate')assert.equal(await f.motion.close({immediate:true}),true);else if(action==='release')f.motion.release();else f.reduced(true);
+  assert.ok(players.every(a=>a.cancelled&&a.node.style.willChange===''));assert.equal(f.queuedFrames,0);assert.equal(f.motion.isSettled,true);assert.equal(f.motion.progress,action==='reduce'?1:0);
+  const counts=f.counts();await f.at(1000);assert.deepEqual(f.counts(),counts,'retired completion callbacks cannot mutate the endpoint');
+ }
 });
 
 test('fresh closing remains a current effect at the end boundary before and during pending browser play',async()=>{
@@ -182,13 +215,13 @@ test('fresh closing remains a current effect at the end boundary before and duri
 test('live reversal retains its player and pending effective rate until browser readiness',async()=>{
  const f=controllerFixture({deferPlay:true,effectTimingCache:true}),opened=f.motion.open();await f.warm();await f.playReady();await f.at(300);await opened;
  const closing=f.motion.close();await f.warm();await f.playReady();await f.at(420);const players=f.animations.slice(-2),before=f.motion.progress,frames=f.frameRequests,reopened=f.motion.open();assert.equal(await closing,false);
- assert.ok(players.every(a=>a.pending&&a.playbackRate===-1&&a.effectivePlaybackRate===1),'live reversal queues its new rate instead of seeking a running player');assert.equal(f.animations.length,4);assert.equal(f.frameRequests,frames);near(f.motion.progress,before);assert.ok(players.every(a=>a.effectState().isCurrent));
+ assert.ok(players.every(a=>a.pending&&a.playbackRate===-1&&a.effectivePlaybackRate===1),'live reversal queues its new rate instead of seeking a running player');assert.equal(f.animations.length,2);assert.equal(f.frameRequests,frames);near(f.motion.progress,before);assert.ok(players.every(a=>a.effectState().isCurrent));
  await f.at(470);near(f.motion.progress,before);await f.playReady();assert.ok(players.every(a=>a.playbackRate===1&&a.pendingRate===null));near(f.motion.progress,before);await f.at(590);assert.equal(await reopened,true);assert.equal(f.motion.progress,1);
 });
 
 test('reopen, release, immediate close and reduced motion cancel every fresh closing preparation stage',async()=>{
  for(const stage of ['ready','first-frame','second-frame'])for(const action of ['reopen','release','immediate','reduce']){
-  const f=controllerFixture({deferReady:true}),opened=f.motion.open();f.ready();await f.warm();await f.at(300);await opened;const closing=f.motion.close();
+  const f=controllerFixture({deferReady:true});f.reduced(true);await f.motion.open();f.reduced(false);const closing=f.motion.close();
   if(stage!=='ready'){f.ready();await Promise.resolve();await Promise.resolve();if(stage==='second-frame')await f.paint(316);}
   if(action==='reopen'){assert.equal(await f.motion.open(),true);assert.equal(await closing,false);assert.equal(f.motion.progress,1);assert.equal(f.content.inert,false);assert.equal(f.tray.dataset.motion,'open');}
   else if(action==='release'){f.motion.release();assert.equal(await closing,false);assert.equal(f.motion.sample(),null);}
@@ -200,10 +233,10 @@ test('reopen, release, immediate close and reduced motion cancel every fresh clo
 
 test('repeated close during preparation preserves the open endpoint, then live reversal reuses those players',async()=>{
  for(const stage of ['ready','first-frame','second-frame']){
-  const f=controllerFixture({deferReady:true}),opened=f.motion.open();f.ready();await f.warm();await f.at(300);await opened;const closing=f.motion.close(),players=f.animations.slice(-2);
+  const f=controllerFixture({deferReady:true});f.reduced(true);await f.motion.open();f.reduced(false);const closing=f.motion.close(),players=f.animations.slice(-2);
   if(stage!=='ready'){f.ready();await Promise.resolve();await Promise.resolve();if(stage==='second-frame')await f.paint(316);}
-  const repeated=f.motion.close();assert.equal(await closing,false);assert.equal(f.motion.progress,1,'another close cannot jump from an unstarted slide to closed');assert.equal(f.tray.dataset.motion,'closing');assert.equal(f.animations.length,4);assert.ok(players.every(a=>!a.cancelled&&!a.running));
-  f.ready();await f.warm();const started=f.time;await f.at(started+150);near(f.motion.progress,.5);const requests=f.frameRequests,reopening=f.motion.open();assert.equal(await repeated,false);near(f.motion.progress,.5);assert.equal(f.animations.length,4);assert.equal(f.frameRequests,requests,'reversal of running closing players has no preparation delay');assert.ok(players.every(a=>a.running&&a.playbackRate===1));
+  const repeated=f.motion.close();assert.equal(await closing,false);assert.equal(f.motion.progress,1,'another close cannot jump from an unstarted slide to closed');assert.equal(f.tray.dataset.motion,'closing');assert.equal(f.animations.length,2);assert.ok(players.every(a=>!a.cancelled&&!a.running));
+  f.ready();await f.warm();const started=f.time;await f.at(started+150);near(f.motion.progress,.5);assert.equal(f.animations.length,2);const requests=f.frameRequests,reopening=f.motion.open();assert.equal(await repeated,false);near(f.motion.progress,.5);assert.equal(f.animations.length,2);assert.equal(f.frameRequests,requests,'reversal of running closing players has no preparation delay');assert.ok(players.every(a=>a.running&&a.playbackRate===1));
   await f.at(started+300);assert.equal(await reopening,true);assert.equal(f.motion.progress,1);assert.equal(f.queuedFrames,0);
  }
 });

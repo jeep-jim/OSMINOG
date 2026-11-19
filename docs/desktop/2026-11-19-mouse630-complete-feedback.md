@@ -10,7 +10,7 @@
 
 В6.0.30 сохраняются actual getVisible reconciliation в browser.cjs, native Nora barrier, preview capturePage с stayHidden:true/stayAwake:false, точное независимое округление endpoints, цвета#c7cfdf/#43536b и scrollbar-only user-origin injection. Принятые Nora wheel thresholds/KEY mouseDesktopWheelHintV2/private learning и629 native UI/scrollbar/tutorial проверки сохраняются. Runtime version в исторических629 fixtures становится6.0.30.
 
-Недоказанное изменение willChange из нашей старой ветки не переносится: burrow-motion.js берётся из принятого main. GPU flags не меняются. Длительность300ms, минимальные intermediate frame gates и алгоритм mouse628-motion-trace-evidence-v2 сохранены.
+Первая версия630 взяла burrow-motion.js из принятого main; прежнее изменение одного willChange из старой ветки не переносилось. После двух подтверждённых отказов закрытия ниже описано отдельное исправление жизненного цикла анимации. GPU flags не меняются. Длительность300ms, минимальные intermediate frame gates и алгоритм mouse628-motion-trace-evidence-v2 сохранены.
 
 ## Дополнение6.0.30
 
@@ -33,8 +33,33 @@
 
 ## Текущая проверка
 
-Локально выполнены43 focused feedback/header/page tests и93 focused gesture/Nora tests, syntax/diff checks и независимая сверка root build/dispatcher/workflow/update контракта. Source native gate находится на шагах17–20 (verify,bind,candidate,verification). Строгий upgrade helper закрепляет ранее принятый6.0.29 DMG137744712байт/SHA-256`665fca86eb86f1bd98bca4c72652fb5b0a981fc4f4c6467a66d0683874c6d57c` и требует настоящую6.0.30 startup/READY, удалениеreceipt, сохранениеsentinels иcodesign старого/нового приложения. Полный6.0.30 native source и отдельный installed publisher ещё не выполнялись.
+Локально выполнены43 focused feedback/header/page tests и93 focused gesture/Nora tests, syntax/diff checks и независимая сверка root build/dispatcher/workflow/update контракта. Source native gate находится на шагах17–20 (verify,bind,candidate,verification). Строгий upgrade helper закрепляет ранее принятый6.0.29 DMG137744712байт/SHA-256`665fca86eb86f1bd98bca4c72652fb5b0a981fc4f4c6467a66d0683874c6d57c` и требует настоящую6.0.30 startup/READY, удалениеreceipt, сохранениеsentinels иcodesign старого/нового приложения. Первые два полных630 прогона отклонены по описанной ниже причине; publisher630 ещё не запускался.
 
 Физический трекпад и установка на Mac владельца не заявляются. Предварительная ad-hoc подпись без Developer ID/нотариализации сохраняется. Точные принятые source/artifact/package/channel факты будут дописаны после их реального получения.
 
 Локальный запуск полного первого workflow test-list через имеющийся Node24.22.3 дал581PASS и7ошибок загрузки зависимостей: ws, @modelcontextprotocol/sdk, @xmldom/xmldom и macOS mouse-mcp-fs.node отсутствуют в этом checkout. Это не полный PASS; npm/runtime/native подготовка и тот же test-list остаются обязательными в Mac CI с Node22. Новых логических assertion failures этот локальный журнал не содержит.
+
+## Подтверждённая публикация629 и два отклонённых прогона630
+
+Публичный629 release опубликован2026-11-19T10:24:42Z. [Publisher44501476513](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44501476513), attempt2/job135489533542, завершён SUCCESS10:28:52Z, включая обнаружение и полное скачивание настоящим старым обновлятором628 без авторизации. Статический канал указывает629 с теми же размером и SHA DMG. Пакет629 не заменяется байтами нашего630 кандидата.
+
+[Source run44503698602](https://github.com/jeep-jim/OSMINOG/actions/runs/44503698602), head`f833cde3794b00e992021a082267d46575e89d92`, отклонён в обоих полных попытках:
+
+| Попытка | Job | Verification artifact | SHA-256 |
+|---|---|---|---|
+|1|135489691953|14518573011|`e891ec99c7b6d4ebcd2483edca627e33eef0d0affe52520fabc262fbc8f3350a`|
+|2|135494943723|14518838549|`07536359fd4b76e4f48b34058c6079154eed97badd34a77cca8c76faaa391b49`|
+
+В обеих попытках завершённые scopes header, реальные DownloadItem/capture/private, Nora foreground/fractional7 и accepted629 UI прошли независимые вычисления. Оба прогона остановились на неизменном `light closing paints at least three intermediate frames`: наблюдались два промежуточных RAF вместо минимум трёх. Во второй попытке native subscription сохранила настоящий промежуточный PNG; это не заменяет отсутствующие RAF или итоговую полную приёмку. Полный630 checker и исторический628 trace checker правильно отклонили неполные архивы. Candidate artifact не создавался; pin и публикация630 не выполнялись.
+
+Во второй трассе300ms окно закрытия52282.263–52582.263ms содержало RAF на+100.537 и+200.537ms. Сохранено57755 событий без потери данных; renderer longTasks и geometry mutations отсутствуют, максимальные задачи renderer2.711ms/browser6.298ms. GPU IOSurface/Dawn ожидания сопровождают SwapBuffers; это доказывает место задержки, но само по себе не доказывает её единственную причину. Один повтор того же head уже выполнен; дальнейший неизменный повтор не назначается.
+
+## Исправление подготовки закрытия, ожидающее нативного подтверждения
+
+После обычного завершённого открытия пара WAAPI-игроков сохраняется на открытом endpoint с paused состоянием и will-change. Перед парковкой устанавливается обратное направление и явно сбрасывается кеш effect timing через `setKeyframes` с теми же keyframes: простое изменение playbackRate при неизменном300ms endpoint в Chromium может оставить cached after/non-current. Временная шкала, easing, контур и длительность не меняются; epsilon seek и искусственные кадры не используются. Следующее закрытие использует подготовленную пару, а закрытый/reduced-motion/immediate/release пути освобождают её. Состояние покоя отделено от существования игроков, чтобы не блокировать двухпальцевый/колёсный переход в открытой Норе.
+
+Это отдельное изменение жизненного цикла, эффективность которого должна быть подтверждена полным новым Mac run, исходными PNG/trace и отдельной проверкой установленного пакета. Критерии и валидаторы не ослабляются. Локальная попытка дополнительного Chromium156 smoke не стартовала из-за запрета ProcessSingleton socket в среде; она не является PASS и не подменяет macOS Chromium152 проверку.
+
+Проверенные первичные описания API: [Blink AnimationEffect](https://chromium.googlesource.com/chromium/src/+/HEAD/third_party/blink/renderer/core/animation/animation_effect.cc), blob`a522ce6f1b12e5911b5293e5310e4d39936b42c7`; [Blink KeyframeEffect::SetKeyframes](https://chromium.googlesource.com/chromium/src/+/HEAD/third_party/blink/renderer/core/animation/keyframe_effect.cc), blob`13a9c1472857c1b27a166d553bea0bd8aa09171b`; [W3C Web Animations, phases and states](https://www.w3.org/TR/web-animations-1/#animation-effect-phases-and-states). Прочитан текущий официальный source, не точный binary tag152. `setKeyframes` явно вызывает очистку sampled effect и invalidation; это может перезапустить внутренний compositor effect. Поэтому сохранение объекта WAAPI и layer hint не описывается как доказанная непрерывность внутреннего cc-эффекта.
+
+После изменения113 focused burrow/gesture/floating/621 тестов прошли, включая сохранение двух игроков, точную границу300ms без перемотки при pending-close→open, разворот, cleanup и прежний fresh-player fallback. Это локальная логическая проверка, не измерение нативной плавности. В restart fixture добавлено сохранение bounded диагностики до finally-close: исходный629 publisher attempt1 терял состояние причины после cleanup. Условия успеха, исходные таймауты, прежние JSON/PNG/markers и cleanup сохранены; диагностическая ошибка не заменяет исходную ошибку проверки.
