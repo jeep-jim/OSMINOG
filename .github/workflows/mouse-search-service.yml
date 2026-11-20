@@ -1,7 +1,7 @@
 name: Mouse search — bounded own-user service
 on:
   push:
-    branches: ['fix/mouse634-download-widget']
+    branches: ['fix/mouse634-download-widget', 'fix/mouse-search-transport-proof']
     paths: ['infra/mouse-search/**', '.github/workflows/mouse-search-service.yml']
   workflow_dispatch:
 permissions:
@@ -147,18 +147,75 @@ jobs:
           test ! -L "$base" && test "$(stat -c %U "$base")" = osminog
           test ! -L "$base/proofs" && test ! -L "$base/proofs/$1"
           mkdir -p "$base/proofs/$1"
-          test ! -L "$base/proofs/$1/ai-smoke.py" && test ! -L "$base/proofs/$1/runtime-proof.py" && test ! -L "$base/proofs/$1/diagnose.py" && test ! -L "$base/proofs/$1/url_policy.py" && test ! -L "$base/proofs/$1/engine-matrix.py"
+          test ! -L "$base/proofs/$1/ai-smoke.py" && test ! -L "$base/proofs/$1/runtime-proof.py" && test ! -L "$base/proofs/$1/diagnose.py" && test ! -L "$base/proofs/$1/url_policy.py" && test ! -L "$base/proofs/$1/engine-matrix.py" && test ! -L "$base/proofs/$1/socket-proof.py"
           REMOTE
-          tar -czf - -C infra/mouse-search ai-smoke.py runtime-proof.py diagnose.py url_policy.py engine-matrix.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/proofs/$GITHUB_SHA"
+          tar -czf - -C infra/mouse-search ai-smoke.py runtime-proof.py diagnose.py url_policy.py engine-matrix.py socket-proof.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/proofs/$GITHUB_SHA"
           upstream=$(cat infra/mouse-search/upstream-revision)
           [[ "$upstream" =~ ^[0-9a-f]{40}$ ]]
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "/usr/bin/python3 -I -B /opt/osminog/mouse-search/proofs/$GITHUB_SHA/runtime-proof.py --verifier-source $GITHUB_SHA --upstream $upstream" > mouse-search-runtime.json
           cat mouse-search-runtime.json
       - name: Verify public TLS and real upstream results including pagination and video
         run: python3 infra/mouse-search/smoke.py desktop/mouse-search-ca.crt --host 151.248.113.177 --output mouse-search-live.json
-      - name: Compare bounded external Node and curl body delivery after public failure
-        if: failure() && steps.runtime.outcome == 'success'
-        run: node infra/mouse-search/transport-proof.cjs desktop/mouse-search-ca.crt
+      - name: Compare external body delivery while observing only verified own sockets
+        if: always() && steps.runtime.outcome == 'success' && (failure() || github.ref == 'refs/heads/fix/mouse-search-transport-proof')
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY"
+          key=$(mktemp); hosts=$(mktemp)
+          sampler_pid=
+          trap 'if test -n "$sampler_pid" && kill -0 "$sampler_pid" 2>/dev/null; then kill "$sampler_pid" 2>/dev/null || true; fi; rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=10 -o ServerAliveCountMax=2)
+          timeout --kill-after=1s 60s ssh "${ssh_args[@]}" osminog@151.248.113.177 /bin/bash -s -- "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > mouse-search-sockets.jsonl 2> mouse-search-sockets-status.log <<'REMOTE' &
+          set -euo pipefail
+          test "$(id -un)" = osminog
+          [[ "$1" =~ ^[0-9a-f]{40}$ && "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]]
+          unit="osminog-mouse-search-sockets-$2-$3"
+          systemd-run --user --quiet --wait --pipe --collect --unit="$unit" -p MemoryMax=64M -p MemorySwapMax=0 -p CPUQuota=10% -p TasksMax=8 -p NoNewPrivileges=yes -p RuntimeMaxSec=45 -p TimeoutStopSec=1 -p LimitCORE=0 /usr/bin/python3 -I -B -u "/opt/osminog/mouse-search/proofs/$1/socket-proof.py" --verifier-source "$1"
+          REMOTE
+          sampler_pid=$!
+          sampler_ready=false
+          for attempt in {1..150}; do
+            if grep -q '"stage": "SOCKET_READY"' mouse-search-sockets.jsonl; then sampler_ready=true; break; fi
+            if ! kill -0 "$sampler_pid" 2>/dev/null; then break; fi
+            sleep 0.1
+          done
+          transport_started=$(date +%s%3N)
+          set +e
+          node infra/mouse-search/transport-proof.cjs desktop/mouse-search-ca.crt
+          transport_status=$?
+          transport_finished=$(date +%s%3N)
+          sampler_running_at_transport_finish=false
+          if kill -0 "$sampler_pid" 2>/dev/null; then sampler_running_at_transport_finish=true; fi
+          wait "$sampler_pid"
+          sampler_status=$?
+          sampler_pid=
+          set -e
+          python3 - "$sampler_ready" "$sampler_status" "$transport_status" "$transport_started" "$transport_finished" "$sampler_running_at_transport_finish" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows = [json.loads(line) for line in Path('mouse-search-sockets.jsonl').read_text().splitlines() if line.startswith('{')]
+          report = {'diagnosticOnly': True, 'fixture': False,
+                    'transportStartedAfterSocketReady': sys.argv[1] == 'true',
+                    'samplerExitCode': int(sys.argv[2]), 'transportExitCode': int(sys.argv[3]),
+                    'transportStartedAtUnixMs': int(sys.argv[4]), 'transportFinishedAtUnixMs': int(sys.argv[5]),
+                    'samplerSshRunningAtTransportFinish': sys.argv[6] == 'true',
+                    'samplerComplete': any(row.get('stage') == 'SOCKET_COMPLETE' for row in rows),
+                    'coverage': 'Bounded snapshots only. Four sequential 12s transport probes can outlive the 45s sampler; SSH liveness does not establish full socket coverage.'}
+          Path('mouse-search-socket-coverage.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report))
+          PY
+          test "$sampler_ready" = true
+          test "$sampler_status" -eq 0
+          exit "$transport_status"
       - name: Diagnose a failed public search without changing its active runtime
         if: failure() && steps.runtime.outcome == 'success'
         env:
@@ -236,5 +293,8 @@ jobs:
             mouse-search-ai-live.json
             mouse-search-diagnostic-*.log
             mouse-search-transports.json
+            mouse-search-sockets.jsonl
+            mouse-search-sockets-status.log
+            mouse-search-socket-coverage.json
           if-no-files-found: warn
           retention-days: 30
