@@ -10,9 +10,9 @@
 .private-pixel-title{margin:10px 0 24px;line-height:1;text-align:center}
 .private-pixel-title img{display:block;width:min(100%,440px);height:auto;margin:0 auto;image-rendering:pixelated;object-fit:contain}
 :root[data-private=true][data-theme=light] .private-pixel-title img{filter:brightness(.55)}
-#ai-panel>.ai-controls>button,#ai-panel>.ai-controls .ai-provider{border-radius:5px!important}
-#ai-panel>.ai-controls>button{width:22px!important;min-width:22px;height:22px;min-height:22px;padding:0;display:grid;place-items:center}
-#ai-panel>.ai-controls .ai-provider select,#ai-panel>.ai-controls .mouse-select-trigger{border-radius:5px!important}
+:is(#ai-panel,#ai-chat-pane)>.ai-controls>button,:is(#ai-panel,#ai-chat-pane)>.ai-controls .ai-provider{border-radius:5px!important}
+:is(#ai-panel,#ai-chat-pane)>.ai-controls>button{width:22px!important;min-width:22px;height:22px;min-height:22px;padding:0;display:grid;place-items:center}
+:is(#ai-panel,#ai-chat-pane)>.ai-controls .ai-provider select,:is(#ai-panel,#ai-chat-pane)>.ai-controls .mouse-select-trigger{border-radius:5px!important}
 :root[data-theme] body.ai-focused .toolbar>#new-tab{width:28px;min-width:28px;flex:0 0 28px;height:28px;min-height:28px;align-self:center;margin:0;padding:0;border:1px solid var(--line);border-radius:5px;background:var(--panel)!important}
 body.ai-focused .toolbar>#new-tab::before,body.ai-focused .toolbar>#new-tab::after{display:none!important}
 body.ai-focused #new-tab .burrow-plus{opacity:1!important;color:var(--muted)}

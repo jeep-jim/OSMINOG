@@ -153,21 +153,26 @@ class DesktopBank{
   }
  }
  ordered(desk,tabs){const d=this.items.find(d=>d.id===desk),byId=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t])),seen=new Set();return[...(d?.layout.tabOrder||[]),...byId.keys()].filter(id=>byId.has(id)&&!seen.has(id)&&seen.add(id)).map(id=>byId.get(id));}
- placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&!d.layout.agentOpen&&own.has(d.layout.aiId)?[d.layout.aiId]:[])]);}
+ placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&!d.layout.agentOpen&&own.has(d.layout.aiId)?[d.layout.aiId,...[...own.values()].filter(t=>t.previewOf===d.layout.aiId).map(t=>t.id)]:[])]);}
  move(id,desk,before,tabs){
   this.reconcile(tabs);const page=tabs.find(t=>t.id===id),source=this.members[id],destination=this.items.find(d=>d.id===desk);
   if(!page||!source)throw Error('Вкладка уже закрыта');
   if(!destination)throw Error('Рабочий стол не найден');
   if(before!==undefined&&(typeof before!=='string'||!tabs.some(t=>t.id===before&&this.members[t.id]===desk)))throw Error('Позиция вкладки уже изменилась');
   if(before===id)return{ id,from:source,desk };
-  if(source!==desk){const origin=this.items.find(d=>d.id===source);this.finishHistoryGroup(origin);const p=origin.layout;p.tabOrder=p.tabOrder.filter(x=>x!==id);for(const [pane,tab]of Object.entries(p.slots))if(tab===id)delete p.slots[pane];if(p.aiId===id)p.aiId='';for(const [url,tab]of Object.entries(p.aiSessions))if(tab===id)delete p.aiSessions[url];this.members[id]=desk;}
-  const next=clone(destination.layout),order=this.ordered(desk,tabs).map(t=>t.id).filter(x=>x!==id),at=before===undefined?order.length:order.indexOf(before);order.splice(at,0,id);next.tabOrder=order;
+  const linked=source!==desk&&!page.previewOf?this.ordered(source,tabs).filter(t=>t.previewOf===id).map(t=>t.id):[],moving=[id,...linked],movedIds=new Set(moving),detachedPreview=source!==desk&&!!page.previewOf;
+  // Validate the destination and insertion point before changing a relation.
+  // A chat carries its live lower pages; an explicitly moved lower page becomes
+  // an ordinary tab rather than retaining a parent on a different desktop.
+  if(detachedPreview){delete page.previewOf;page.lane='main';}
+  if(source!==desk){const origin=this.items.find(d=>d.id===source);this.finishHistoryGroup(origin);const p=origin.layout;p.tabOrder=p.tabOrder.filter(x=>!movedIds.has(x));for(const [pane,tab]of Object.entries(p.slots))if(movedIds.has(tab))delete p.slots[pane];if(movedIds.has(p.aiId))p.aiId='';for(const [url,tab]of Object.entries(p.aiSessions))if(movedIds.has(tab))delete p.aiSessions[url];for(const moved of moving)this.members[moved]=desk;}
+  const next=clone(destination.layout),order=this.ordered(desk,tabs).map(t=>t.id).filter(x=>!movedIds.has(x)),at=before===undefined?order.length:order.indexOf(before);order.splice(at,0,...moving);next.tabOrder=order;
   if(source!==desk){
    if(page.lane==='side'){if(!next.aiId){next.aiId=id;next.aiOpen=true;}}
    else{const pane=L.leaves(next.tree).find(p=>!next.slots[p]);if(pane)next.slots[pane]=id;}
   }
   this.setLayout(destination,next,{reason:source===desk?'tab-order':'tab-transfer'});this.reconcile(tabs);
-  return{id,from:source,desk};
+  return{id,from:source,desk,...(linked.length?{linked}:{}),...(detachedPreview?{detachedPreview:true}:{})};
  }
  preferences(){return{...clone(this.global),...clone(this.current().layout),desktopId:this.active};}
  savePreferences(p,meta={},tabs){
@@ -178,7 +183,7 @@ class DesktopBank{
  }
  select(id){if(!this.items.some(x=>x.id===id))throw Error('Рабочий стол не найден');this.finishHistoryGroup();this.active=id;return this.preferences();}
  add(tabs=[]){this.sync(tabs);const empty=this.items.filter(d=>!tabs.some(t=>this.members[t.id]===d.id)),desk=empty.find(d=>d.id!==this.active)||empty[0];if(!desk)throw Error('Все пять столов заняты. Освободите один из них.');return desk.id;}
- describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,agentOpen:d.layout.agentOpen,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
+ describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,agentOpen:d.layout.agentOpen,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
  snapshot(){return{schema:2,active:this.active,items:clone(this.items),members:{...this.members},...(this.recovery?{recovery:clone(this.recovery)}:{})};}
 }
 async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
@@ -210,7 +215,13 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
   return result;
  };
  // window.open belongs to its source desk, even while that desk is not visible.
- browser.mouseOpenFrom=(parent,url)=>{const desk=bank.members[parent.id]||bank.active;creationDesk=desk;try{const p=browser.command('open',{url,lane:parent.lane||'main'});Promise.resolve(p).catch(()=>{});}finally{creationDesk='';}};
+ const openOnDesk=(desk,args)=>{creationDesk=desk;try{return browser.command('open',args);}finally{creationDesk='';}};
+ const aiPreview=require('./mouse-ai-preview.cjs').createPreviewRouter({browser,bank,open:openOnDesk,navigate:(id,url)=>oldCommand('navigate',{id,url}),discard:id=>oldCommand('close',{id}),persist});
+ browser.mousePreviewNavigation=aiPreview.outboundNavigation;
+ browser.mouseOpenFrom=(parent,url)=>{
+  const work=parent.lane==='side'&&!parent.provider?aiPreview.route(parent,url):openOnDesk(bank.members[parent.id]||bank.active,{url,lane:parent.lane||'main'});
+  return Promise.resolve(work).catch(error=>{if(!disposed&&!browser.disposed&&!win.isDestroyed())win.webContents.send('browser:error',error.message);});
+ };
  function serial(run){const result=switchQueue.then(run);switchQueue=result.catch(()=>{});return result;}
  function validatePreferences(p){if(!p||typeof p!=='object'||Array.isArray(p)||JSON.stringify(p).length>100000)throw Error('Invalid desktop preferences');L.validate(p.tree);}
  function savePreferences(p,meta={}){
@@ -266,7 +277,8 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
      if(args.before!==undefined&&(typeof args.before!=='string'||!tabs.some(t=>t.id===args.before&&bank.members[t.id]===args.desk)))throw Error('Позиция вкладки уже изменилась');
      if(source!==args.desk)await browser.mouseBeforeDesktopChange?.();
      const moved=bank.move(args.id,args.desk,args.before,rawLiveState().tabs);
-     if(source!==args.desk){previews.drop(args.id);browser.layout(browser.panels||[]);}
+     if(moved.detachedPreview){const native=browser.tabs.get(args.id);delete native.previewOf;native.lane='main';await oldSave();}
+     if(moved.from!==args.desk){for(const id of [args.id,...(moved.linked||[])])previews.drop(id);browser.layout(browser.panels||[]);}
      await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
     }
     await browser.mouseBeforeDesktopChange?.();const closed=await oldCommand('close',{id:args.id});

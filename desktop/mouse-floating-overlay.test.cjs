@@ -4,19 +4,20 @@ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve
 class NativeView{constructor(){this.children=[];}addChildView(view){this.children.push(view);}removeChildView(view){this.children=this.children.filter(item=>item!==view);}setBounds(bounds){this.bounds=bounds;}setVisible(visible){this.visible=visible;}getVisible(){return this.visible;}}
 const nativeModule={exports:{}};
 vm.runInNewContext(fs.readFileSync('browser.cjs','utf8'),{module:nativeModule,exports:nativeModule.exports,require:id=>id==='electron'?{View:NativeView,WebContentsView:NativeView}:id.startsWith('node:')?require(id):{}});
-function nativeBounds(rect){
+function nativeGeometry(rect,roundBottom=0){
  const view=new NativeView(),page={id:'visible',project:'project',lane:'main',view,visible:false},win={isDestroyed:()=>false,getContentSize:()=>[1200,900],contentView:new NativeView()};
  const browser={win,disposed:false,project:'project',mouseRoundedPanes:true,tabs:new Map([[page.id,page]]),providers:new Map()};
- nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,[{id:page.id,...rect}]);
- return JSON.parse(JSON.stringify(page.bounds));
+ nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,[{id:page.id,...rect,roundBottom}]);
+ return JSON.parse(JSON.stringify({bounds:page.bounds,...page.captureGeometry}));
 }
+const nativeBounds=rect=>nativeGeometry(rect).bounds;
 function fixture(options={}){
- const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240,...options.rect},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
- const document={querySelectorAll:()=>[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:()=>null,
+ const images=[],created=[],calls=[],events=[],rect={x:12,y:70,width:320,height:240,...options.rect},slot={isConnected:true,getBoundingClientRect:()=>({...rect}),closest:()=>options.sideSlot?null:({style:{getPropertyValue:()=>String(options.roundBottom||0)},classList:{contains:name=>name==='has-pane-progress'&&options.hasProgress===true}})};let restores=0;
+ const document={querySelectorAll:()=>options.sideSlot?[]:[{dataset:{pane:'p1'},querySelector:()=>slot}],querySelector:selector=>selector===options.sideSlot?slot:null,
   createElement:()=>{const image={style:{},dataset:{},setAttribute(){},removeAttribute(name){if(name==='src')delete this.src;},decode(){events.push('decode');return options.decode?options.decode():Promise.resolve();},remove(){events.push('remove');const i=images.indexOf(this);if(i>=0)images.splice(i,1);}};created.push(image);return image;},body:{append(...nodes){events.push('append');images.push(...nodes);}}};
- const ctx={document,setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
- const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:false};
- const normal=()=>{const bounds=nativeBounds(rect);return{complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',bounds,width:bounds.width,height:bounds.height,pixelWidth:bounds.width*2,pixelHeight:bounds.height*2}]};};
+ const ctx={document,MouseCaptureCore:require('./mouse/capture-core.js'),setTimeout,clearTimeout,performance:options.performance||performance,requestAnimationFrame:fn=>setImmediate(fn)};vm.runInNewContext(fs.readFileSync('mouse/desktops.js','utf8'),ctx);
+ const model={desktopId:'desk1',state:{tabs:[{id:'visible',internal:false}]},slots:{p1:'visible'},aiOpen:!!options.sideSlot,aiId:options.sideSlot==='#ai-slot'?'visible':'',aiPreviewId:options.sideSlot==='#ai-preview-slot'?'visible':''};
+ const normal=()=>{const geometry=nativeGeometry(rect,options.roundBottom||0),{bounds}=geometry;return{complete:true,desk:model.desktopId,token:'capture-token',surfaces:[{id:'visible',src:'data:image/png;base64,AAAA',...geometry,width:bounds.width,height:bounds.height,pixelWidth:bounds.width*2,pixelHeight:bounds.height*2}]};};
  const N={test:options.test===true,desktops:async(action,args)=>{calls.push({action,args});if(action==='surfaces'){events.push('capture');return options.capture?options.capture():normal();}if(action==='surface-present'){events.push('readback');return options.present?options.present(args):{ready:true,reason:'painted'};}assert.equal(action,'surface-hold');events.push(args.phase);if(args.phase==='begin'){assert.equal(args.purpose,'popover');return options.begin?options.begin():{held:true,token:args.token};}return options.end?options.end():{released:true};}};
  const restore=async()=>{events.push('restore');restores++;await options.restore?.(restores);};
  return{overlay:ctx.mouseFloatingBackdrop(N,model,restore),images,created,calls,events,model,rect,normal};
@@ -103,6 +104,14 @@ test('a progress pill below the header preserves the page bottom corners in the 
  const f=fixture({roundBottom:12,hasProgress:true});await f.overlay.show('desktops');
  assert.equal(f.images[0].style.borderRadius,'0 0 12px 12px');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 12px 12px)');assert.equal(f.images[0].style.height,'240px');
  await f.overlay.hide('desktops');assert.equal(f.images.length,0);
+});
+test('AI chat and preview snapshots use native corner geometry even outside a main pane',async()=>{
+ for(const sideSlot of ['#ai-slot','#ai-preview-slot']){
+  const f=fixture({sideSlot,roundBottom:12});assert.equal(await f.overlay.show('desktops'),true);
+  assert.equal(f.images.length,1);assert.equal(f.images[0].dataset.roundBottom,'12');assert.equal(f.images[0].style.clipPath,'inset(0 round 0 0 12px 12px)');
+  assert.deepEqual(Array.from(f.calls.find(call=>call.action==='surfaces').args.ids),['visible']);
+  await f.overlay.hide('desktops');assert.equal(f.images.length,0);
+ }
 });
 test('closing Nora during an incoming image decode cannot resurrect a stale backdrop',async()=>{
  const pending=deferred();let decoded=0;const f=fixture({decode:()=>++decoded===1?Promise.resolve():pending.promise});await f.overlay.show('desktops');const lease=f.overlay.lease('desktops');f.model.desktopId='desk2';

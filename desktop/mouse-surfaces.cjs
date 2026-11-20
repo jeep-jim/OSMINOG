@@ -2,6 +2,7 @@
 // Short-lived, exact-viewport page pixels for shell transitions. Normal and
 // private instances keep their own RAM only; nothing is written to a profile.
 const {randomUUID}=require('node:crypto');
+const {layerGeometry}=require('./mouse/capture-core.js');
 // One preparation budget covers the whole queue, including native readback
 // and encoding. Guest and shell readbacks share both count and pixel limits.
 const MAX_PAGES=16,MAX_PNG_BYTES=32*1024*1024,MAX_PIXELS=16*1024*1024,MAX_CAPTURES=4,CAPTURE_MS=2500,HOLD_MS=5000,PAINT_MS=1500,PAINT_ATTEMPTS=8,PAINT_TOLERANCE=4;
@@ -96,9 +97,10 @@ class DesktopSurfaces{
   const prepared=!!hold&&this.held?.token===hold&&this.browser.mouseSurfaceHold===hold&&(this.browser.panels||[]).some(p=>p.id===id);
   if(!page.visible&&!prepared)return null;
   const bounds=rect(page.bounds),viewport=rect(page.view.getBounds?.()||page.bounds);if(!bounds||!viewport)return null;
-  return{page,wc,id,desk:this.bank.active,epoch:page.navigationEpoch||0,url:wc.getURL?.()||page.url||'',bounds,viewport};
+  const geometry=layerGeometry({...bounds,...page.captureGeometry});if(!geometry)return null;
+  return{page,wc,id,desk:this.bank.active,epoch:page.navigationEpoch||0,url:wc.getURL?.()||page.url||'',bounds,viewport,geometry};
  }
- valid(pin,hold){const live=this.live(pin.id,hold);return !!live&&live.page===pin.page&&live.wc===pin.wc&&live.desk===pin.desk&&live.epoch===pin.epoch&&live.url===pin.url&&same(live.bounds,pin.bounds)&&same(live.viewport,pin.viewport);}
+ valid(pin,hold){const live=this.live(pin.id,hold);return !!live&&live.page===pin.page&&live.wc===pin.wc&&live.desk===pin.desk&&live.epoch===pin.epoch&&live.url===pin.url&&same(live.bounds,pin.bounds)&&same(live.viewport,pin.viewport)&&same(live.geometry.clip,pin.geometry.clip)&&live.geometry.roundBottom===pin.geometry.roundBottom;}
  empty(){return{desk:this.bank.active,surfaces:[],complete:false,generation:this.generation,token:''};}
  async capture(args={}){
   if(!Array.isArray(args.ids)||args.ids.length>MAX_PAGES||args.ids.some(id=>typeof id!=='string'||!id||id.length>100)||new Set(args.ids).size!==args.ids.length)throw Error('Invalid surface page identities');
@@ -210,7 +212,7 @@ class DesktopSurfaces{
      if(paintProof){if(row){row.state='proof';stageStarted=performance.now();row.bitmapReadouts++;}regions.push(...imageRegions(image,pixelWidth,pixelHeight,actual.scaleFactor,pin.bounds));if(row)row.proofMs=performance.now()-stageStarted;}
      bytes+=png.length;pixels+=area;
      if(row){row.state='base64';stageStarted=performance.now();}const src='data:image/png;base64,'+png.toString('base64');if(row)row.base64Ms=performance.now()-stageStarted;
-     surfaces.push({id:pin.id,src,width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds}});
+     surfaces.push({id:pin.id,src,width,height,pixelWidth,pixelHeight,epoch:pin.epoch,webContentsId:pin.wc.id,bounds:{...pin.bounds},clip:{...pin.geometry.clip},roundBottom:pin.geometry.roundBottom});
      if(row){row.state='preview';stageStarted=performance.now();}
      try{this.onImage?.(pin.id,image,pin);}catch(error){if(row)row.previewError=String(error?.message||error).slice(0,512);}
      if(row){row.previewMs=performance.now()-stageStarted;row.pngBytes=png.length;row.pixelWidth=pixelWidth;row.pixelHeight=pixelHeight;pageDiagnostic('complete');}

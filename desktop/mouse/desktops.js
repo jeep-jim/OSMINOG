@@ -11,9 +11,9 @@ function mouseFloatingBackdrop(N,m,restore){
  const clear=()=>{for(const image of images){image.remove();image.removeAttribute('src');}images=[];surfacePacket=null;};
  function specs(){
   const result=[];
-  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
+  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect();if(tab&&!tab.internal&&r?.width>1&&r.height>1&&!result.some(item=>item.id===id))result.push({id,slot,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
   if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
-  if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
+  if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen&&!m.settingsOpen){add(m.aiId,document.querySelector('#ai-slot'));add(m.aiPreviewId,document.querySelector('#ai-preview-slot'));}
   return result;
  }
  // BrowserWorkspace.layout snaps shared endpoints, not width/height alone.
@@ -25,11 +25,13 @@ function mouseFloatingBackdrop(N,m,restore){
  function buildImages(packet,items){
   const byId=new Map((packet.surfaces||[]).map(surface=>[surface.id,surface])),next=[];
   if(byId.size!==items.length)throw Error('Состав рабочего стола изменился.');
-  for(const {id,r,roundBottom}of items){
+  for(const {id,r}of items){
    const surface=byId.get(id);if(!/^data:image\/png;base64,/.test(surface?.src||''))throw Error('Не удалось подготовить изображение вкладки.');
    const expected=nativeBox(r),box=surface.bounds||expected;if(!sameBox(box,expected))throw Error('Размер рабочего стола изменился.');
+   const geometry=MouseCaptureCore.layerGeometry({...box,clip:surface.clip,roundBottom:surface.roundBottom});if(!geometry)throw Error('Область рабочего стола изменилась.');
+   const {clip,roundBottom}=geometry,insets=[clip.y-box.y,box.x+box.width-clip.x-clip.width,box.y+box.height-clip.y-clip.height,clip.x-box.x],inset=insets.every(value=>value===0)?'0':insets.map(value=>value+'px').join(' ');
    const image=document.createElement('img');image.className='mouse-floating-snapshot';image.dataset.tabId=id;image.dataset.roundBottom=String(roundBottom);image.alt='';image.draggable=false;image.setAttribute('aria-hidden','true');image.src=surface.src;
-   Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800',borderRadius:`0 0 ${roundBottom}px ${roundBottom}px`,clipPath:`inset(0 round 0 0 ${roundBottom}px ${roundBottom}px)`});next.push(image);
+   Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800',borderRadius:`0 0 ${roundBottom}px ${roundBottom}px`,clipPath:`inset(${inset} round 0 0 ${roundBottom}px ${roundBottom}px)`});next.push(image);
   }
   return next;
  }
@@ -126,7 +128,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   if(!current)return previous?{...previous,...d,preview:snapshot}:d;
   const byId=new Map(current.map(t=>[t.id,t])),oldImages=new Map((snapshot.panes||[]).filter(p=>p.id).map(p=>[p.id,p]));
   const info=id=>{const t=byId.get(id);if(!t)return{id:'',title:'Свободное окно',src:''};const old=oldImages.get(id);let site=t.site;try{site=site||new URL(t.url).hostname.replace(/^www\./,'');}catch{}return{...t,site:site||t.title,src:old?.url===t.url?old.src||'':'',capturedAt:old?.url===t.url?old.capturedAt||0:0};};
-  const slots=d.slots||previous?.slots||{},panes=MouseLayout.leaves(d.tree).map(pane=>({pane,...info(slots[pane])}));if(d.aiOpen&&!d.agentOpen&&d.aiId)panes.push({pane:'ai',...info(d.aiId)});
+  const slots=d.slots||previous?.slots||{},panes=MouseLayout.leaves(d.tree).map(pane=>({pane,...info(slots[pane])}));if(d.aiOpen&&!d.agentOpen&&d.aiId){panes.push({pane:'ai',...info(d.aiId)});const preview=current.find(t=>t.previewOf===d.aiId);if(preview)panes.push({pane:'ai-preview',...info(preview.id)});}
   return{...previous,...d,preview:{...snapshot,panes,tabs:current,extraTabs:current.filter(t=>!t.placed),capturedAt:Math.max(0,...panes.map(p=>p.capturedAt||0))}};
  }
  const words=(n,a,b,c)=>n%10===1&&n%100!==11?a:n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?b:c;
@@ -194,7 +196,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  tray.addEventListener('close',()=>{if(tray.open||opening)return;epoch++;finishClose();});
  async function choose(id,add=false){try{if(!await close())return;await switchDesktop(id,add);render(m.state.desktops);}catch(error){status(error.message)}}
  function render(next){
-  if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&!m.agentOpen&&tabs.some(t=>t.id===m.aiId)?[m.aiId]:[])]);return{...d,tree:m.tree,slots:m.slots,agentOpen:m.agentOpen,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');history.render(state);if(tray.hidden)return;
+  if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&!m.agentOpen?[m.aiId,m.aiPreviewId].filter(id=>tabs.some(t=>t.id===id)):[])]);return{...d,tree:m.tree,slots:m.slots,agentOpen:m.agentOpen,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');history.render(state);if(tray.hidden)return;
   setText(tray.querySelector('.desk-current-name'),state.items.find(d=>d.active)?.name||'');const list=tray.querySelector('.desktop-list'),existing=new Map([...list.children].map(e=>[e.dataset.desk,e])),wanted=new Set();
   for(let index=0;index<state.items.length;index++){
    const d=state.items[index];wanted.add(d.id);let tile=existing.get(d.id);

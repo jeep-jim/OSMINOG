@@ -1,0 +1,27 @@
+/* Downloads reserve space below their own live page. Task indicators retain
+   their existing header dock; byte-only updates never resize either slot. */
+:root{--mouse-download-track:#53cf8b;--mouse-download-fill:#07823c;--mouse-chrome-background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 92%,transparent),color-mix(in srgb,var(--bg) 94%,transparent))}
+.mouse-pane-downloads{display:flex;flex:0 0 16px;min-width:0;min-height:16px;height:16px;margin:6px 0 0;padding:0;background:var(--line);border:0;box-shadow:none}
+section.mouse-pane-downloads>button.mouse-download-pill{position:relative;display:block;isolation:isolate;flex:1;min-width:0;min-height:16px;width:100%;height:16px;margin:0;padding:0;overflow:hidden;border:0;border-radius:999px;background:var(--mouse-download-track);box-shadow:none;color:#fff}
+section.mouse-pane-downloads>button.mouse-download-pill:hover{background:var(--mouse-download-track)}
+.mouse-download-pill:focus-visible{outline:2px solid var(--mouse-download-fill);outline-offset:-2px}
+.mouse-download-fill{display:block;position:absolute;inset:0 auto 0 0;width:calc(var(--download-progress,0)*1%);border-radius:inherit;background:var(--mouse-download-fill);pointer-events:none;transition:width .16s linear}
+.mouse-download-meter{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
+.mouse-download-pill[data-indeterminate=true] .mouse-download-fill{width:28%;animation:mouse-pane-download-wait 1.3s ease-in-out infinite alternate}
+.mouse-download-pill[data-download-state=paused] .mouse-download-fill{animation:none}
+/* The page keeps its 12px bottom corners above the separate 8px pill caps. */
+#stage .pane.has-pane-downloads{border-bottom-left-radius:0;border-bottom-right-radius:0;clip-path:inset(0 round var(--pane-round-top) var(--pane-round-top) 0 0);background:var(--line)}
+.has-pane-downloads>.page-slot,.has-pane-downloads>#ai-slot,.has-pane-downloads>#ai-preview-slot{border-radius:0 0 12px 12px}
+#workspace #ai-panel.has-pane-downloads,#workspace #ai-panel:has(.has-pane-downloads),#ai-chat-pane.has-pane-downloads,#ai-preview-pane.has-pane-downloads{border-bottom-left-radius:0;border-bottom-right-radius:0;background:var(--line)}
+#downloads-button .mouse-download-badge{background:var(--mouse-download-fill)}
+/* Expanded pages meet the footer; the top workspace gap remains unchanged. */
+body.pane-focused #workspace,body.ai-focused #workspace{padding-bottom:0}
+body.ai-focused #workspace #ai-panel{inset:var(--workspace-gap,6px) 0 0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+body.ai-focused #workspace #ai-panel:not(.has-ai-preview) #ai-chat-pane,body.ai-focused #workspace #ai-preview-pane{border-bottom-left-radius:0;border-bottom-right-radius:0}
+body.pane-focused .has-pane-downloads>.page-slot,body.ai-focused #workspace #ai-panel:not(.has-ai-preview) #ai-slot,body.ai-focused #workspace #ai-preview-slot{border-bottom-left-radius:0;border-bottom-right-radius:0}
+/* One opaque base and the same existing toolbar gradient in both themes,
+   including Nora's open state. Underlying modal content cannot tint one bar. */
+.toolbar{background:var(--mouse-chrome-background);background-color:var(--bg)}
+#statusbar,body:has(#desktop-tray[open]) #statusbar{background:var(--mouse-chrome-background)!important;background-color:var(--bg)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+@keyframes mouse-pane-download-wait{from{transform:translateX(0)}to{transform:translateX(257.142857%)}}
+@media(prefers-reduced-motion:reduce){.mouse-download-fill{animation:none!important;transition:none!important}}

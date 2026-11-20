@@ -2,6 +2,7 @@
 // Measures the installed, painted burrow in the existing 622 native fixture.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
 module.exports=({win,js})=>{
  const frames=[];let result;
  async function capture(theme,state){
@@ -20,9 +21,10 @@ module.exports=({win,js})=>{
    const contentRect=content.getBoundingClientRect(),target=control.getBoundingClientRect(),hit=(${nativeHitTarget.toString()})(control),sample=MouseTest.desktopUI.motion.sample();
    return{width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,footerTop:footer.top,footerHeight:footer.height,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBackground:border.backgroundColor,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,footerShadow:border.boxShadow,paths:sample.paths,geometryWrites:sample.geometryWrites,endpoints:{left:start.y,right:end.y},surface:{fill:getComputedStyle(fill).fill,panel,opacity:getComputedStyle(fill).opacity,start:{x:start.x,y:start.y},end:{x:end.x,y:end.y}},content:{overflow:getComputedStyle(content).overflowY,scrollTop:content.scrollTop,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,height:contentRect.height,naturalHeight:sample.contentHeight,availableHeight:sample.availableHeight,fits:sample.fits,visibleHeight:Math.max(0,Math.min(target.bottom,contentRect.bottom,r.bottom)-Math.max(target.top,contentRect.top,r.top)),targetHeight:target.height,accessible:hit.ready}};
   })()`);
-  // The owner's 628 correction supersedes the 627 footer/outline stroke and
-  // fixed scrolling viewport. The footer and the opaque shape share one fill.
-  assert.equal(measured.stroke,'none',theme+' '+state+' silhouette has no decorative stroke');assert.equal(measured.footerBorderWidth,0,'The footer has no top stroke');assert.equal(measured.footerImage,'none');assert.equal(measured.footerShadow,'none');assert.equal(measured.footerBackground,measured.surface.panel);
+  // Keep the retained borderless silhouette and all seam probes. The 634 owner
+  // request gives the footer the same gradient as the upper toolbar.
+  const offsets=[.25,1.25,2.25],reference=await js(`(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})`);assertChromeReference(reference,offsets);
+  assert.equal(measured.stroke,'none',theme+' '+state+' silhouette has no decorative stroke');assert.equal(measured.footerBorderWidth,0,'The footer has no top stroke');assert.equal(measured.footerImage,'none');assert.equal(measured.footerShadow,'none');assert.equal(measured.footerBackground,reference.header.background);
   assert.ok(Math.abs(measured.bottom-measured.footerTop)<=1,'The content-fit panel ends at the footer');
   for(const side of ['left','right'])assert.ok(Math.abs(measured.endpoints[side]-measured.footerTop)<=1,theme+' '+state+' '+side+' silhouette meets the footer');
   assert.ok(Math.abs(measured.surface.start.x-measured.left)<.05&&Math.abs(measured.surface.end.x-measured.right)<.05,'The borderless shape occupies the panel width');
@@ -31,9 +33,9 @@ module.exports=({win,js})=>{
   assert.ok(measured.topCurve.left[0]-measured.topCurve.left.at(-1)>15,'Upper-left corner remains rounded');assert.ok(measured.topCurve.right[0]-measured.topCurve.right.at(-1)>15,'Upper-right corner remains rounded');
   const image=await win.capturePage();await fs.writeFile('mouse-623-'+state+'-'+theme+'.png',image.toPNG());
   const size=image.getSize(),pixels=image.toBitmap(),sx=size.width/measured.viewport.width,sy=size.height/measured.viewport.height;
-  const background=measured.footerBackground.match(/[\d.]+/g).slice(0,3).map(Number);
-  const footerPixels=[.15,.3,.7,.85].flatMap(fraction=>[.25,1.25,2.25].map(depth=>{const x=measured.viewport.width*fraction,y=measured.footerTop+depth,ix=Math.floor(x*sx),iy=Math.floor(y*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height);const i=(iy*size.width+ix)*4,rgb=[pixels[i+2],pixels[i+1],pixels[i]];assert.ok(rgb.every((value,c)=>Math.abs(value-background[c])<=3),theme+' '+state+' footer is its plain background at '+JSON.stringify({x,y,rgb,background}));return{x,y,rgb};}));
-  frames.push({theme,state,...measured,footerPixels});
+  const chromeReference=sampleChromeReference(image,measured.viewport,reference);
+  const footerPixels=[.15,.3,.7,.85].flatMap(fraction=>offsets.map((depth,referenceIndex)=>{const x=measured.viewport.width*fraction,y=measured.footerTop+depth,ix=Math.floor(x*sx),iy=Math.floor(y*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height);const i=(iy*size.width+ix)*4,rgb=[pixels[i+2],pixels[i+1],pixels[i]],background=chromeReference.references[referenceIndex].rgba.slice(0,3);assert.ok(rgb.every((value,c)=>Math.abs(value-background[c])<=3),theme+' '+state+' footer matches the actual toolbar gradient at '+JSON.stringify({x,y,rgb,background}));return{x,y,rgb,referenceIndex};}));
+  frames.push({theme,state,...measured,chromeReference,footerPixels});
  }
  async function finish(){
   assert.equal(frames.length,6,'Three content-fit states are captured in both themes');
@@ -42,7 +44,7 @@ module.exports=({win,js})=>{
    for(const state of ['modes','preview']){
     const other=frames.find(f=>f.theme===theme&&f.state===state);assert.ok(other);assert.ok(other.height>compact.height+16&&other.top<compact.top-16,theme+' '+state+' grows upward to fit added content');assert.ok(Math.abs(other.width-compact.width)<.05,theme+' '+state+' keeps its width');
     assert.notDeepEqual(other.paths,compact.paths,theme+' '+state+' has the measured taller silhouette');assert.ok(other.geometryWrites>compact.geometryWrites,theme+' content growth updates the shape');
-    assert.equal(other.footerTop,compact.footerTop);assert.equal(other.footerHeight,compact.footerHeight);assert.deepEqual(other.footerPixels,compact.footerPixels,theme+' footer keeps its actual plain background pixels');
+    assert.equal(other.footerTop,compact.footerTop);assert.equal(other.footerHeight,compact.footerHeight);assert.deepEqual(other.footerPixels,compact.footerPixels,theme+' footer keeps its actual background pixels');
     for(const side of ['left','right'])for(let i=0;i<compact.topCurve.depths.length;i++)assert.ok(Math.abs(compact.topCurve[side][i]-other.topCurve[side][i])<=1,theme+' '+state+' keeps its upper '+side+' curve');
    }
   }

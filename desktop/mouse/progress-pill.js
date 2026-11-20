@@ -2,6 +2,12 @@
 (function(root){
  const setText=(node,value)=>{if(node.textContent!==value)node.textContent=value;};
  const priority=task=>task.source==='download'?(task.phase==='running'?0:1):(task.kind||'reported')==='reported'?2:3;
+ const activeDownload=task=>task.source==='download'&&task.phase==='running'&&['started','downloading','paused'].includes(task.downloadState);
+ const bytes=value=>typeof value==='number'&&Number.isFinite(value)&&value>0?value:0;
+ function summarizeDownloads(values){
+  const items=values.filter(activeDownload),known=items.length>0&&items.every(item=>bytes(item.total)>0),total=items.reduce((sum,item)=>sum+bytes(item.total),0),received=items.reduce((sum,item)=>sum+Math.min(bytes(item.received),bytes(item.total)),0);
+  return{items,count:items.length,state:items.some(item=>item.downloadState==='downloading')?'downloading':items.some(item=>item.downloadState==='started')?'started':items.length?'paused':'idle',percent:known?Math.min(100,received/total*100):null};
+ }
  function formatTaskTime(task,now){
   if(task.source==='download'||task.phase!=='running')return{kind:'',seconds:null,text:''};
   const current=Number.isFinite(now)?now:0,received=Number.isFinite(task.updatedAt)?task.updatedAt:current,started=Number.isFinite(task.createdAt)?task.createdAt:current;
@@ -27,16 +33,39 @@
   return result;
  }
  function createMouseProgressPills({N,model,layout,status,frozen=()=>false,extraTasks=()=>[],onDismissTask=()=>{},openDownloads=()=>{},now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}){
-  let state={tasks:[]},rendering=false,tick=null,renderedDesk='';const hosts=new Map(),nodes=new Map(),selected=new Map(),selectedManual=new Set(),paintKeys=new WeakMap();
-  const tasks=()=>{const extra=extraTasks();return[...(Array.isArray(extra)?extra.filter(task=>task.source==='download').slice(0,36):[]),...(Array.isArray(state.tasks)?state.tasks.slice(0,88):[])];};
+  let state={tasks:[]},rendering=false,tick=null,renderedDesk='';const hosts=new Map(),downloadHosts=new Map(),nodes=new Map(),selected=new Map(),selectedManual=new Set(),paintKeys=new WeakMap();
+  const tasks=()=>Array.isArray(state.tasks)?state.tasks.filter(task=>task.source!=='download').slice(0,88):[];
+  const downloads=()=>{const extra=extraTasks();return Array.isArray(extra)?extra.filter(activeDownload):[];};
   const stopTick=()=>{if(tick!==null)clearTimer(tick);tick=null;};
   function syncTick(active){if(!active||frozen()||document.visibilityState==='hidden'){stopTick();return;}if(tick===null)tick=setTimer(()=>{tick=null;render();},1000);}
   function panels(){
-   const result=(model.focusAI?[]:[...document.querySelectorAll('.pane')]).map(element=>({key:'pane:'+element.dataset.pane,kind:'page',tabId:model.slots[element.dataset.pane]||'',element}));
+   const result=(model.focusAI?[]:[...document.querySelectorAll('.pane')]).map(element=>({key:'pane:'+element.dataset.pane,kind:'page',tabId:model.slots[element.dataset.pane]||'',element,content:element.querySelector('.page-slot')}));
    const ai=document.querySelector('#ai-panel'),agent=document.querySelector('#agent-panel');
-   if(ai&&!ai.hidden&&!model.focusPane&&model.aiOpen&&!model.agentOpen&&!model.libraryOpen)result.push({key:'ai',kind:'page',tabId:model.aiId||'',element:ai});
-   if(agent&&!agent.hidden&&!model.privateMode&&!model.focusPane&&!model.libraryOpen&&model.agentOpen)result.push({key:'agent',kind:'agent',tabId:'',element:agent});
+   if(ai&&!ai.hidden&&!model.focusPane&&model.aiOpen&&!model.agentOpen&&!model.libraryOpen&&!model.settingsOpen){
+    const chat=document.querySelector('#ai-chat-pane')||ai,preview=document.querySelector('#ai-preview-pane');
+    result.push({key:'ai',kind:'page',tabId:model.aiId||'',element:chat,content:document.querySelector('#ai-slot')});
+    if(preview&&!preview.hidden&&model.aiPreviewId)result.push({key:'ai-preview',kind:'page',tabId:model.aiPreviewId,element:preview,content:document.querySelector('#ai-preview-slot')});
+   }
+   if(agent&&!agent.hidden&&!model.privateMode&&!model.focusPane&&!model.libraryOpen&&model.agentOpen)result.push({key:'agent',kind:'agent',tabId:'',element:agent,content:agent.querySelector('.agent-scroll')});
    return result;
+  }
+  function paintDownloads(panel,values){
+   const value=summarizeDownloads(values);let host=downloadHosts.get(panel.key),geometryChanged=false;
+   if(host&&(host.element!==panel.element||host.content!==panel.content||!host.dock.isConnected)){
+    geometryChanged=!host.dock.hidden;host.element.classList.remove('has-pane-downloads');host.dock.remove();downloadHosts.delete(panel.key);host=null;
+   }
+   if(!host&&value.count&&panel.content){
+    const dock=document.createElement('section'),button=document.createElement('button');dock.className='mouse-pane-downloads';dock.dataset.pane=panel.key;dock.hidden=true;dock.setAttribute('aria-label','Загрузки этой панели');button.type='button';button.className='mouse-download-pill';button.innerHTML='<span class="mouse-download-fill" aria-hidden="true"></span><span class="mouse-download-meter" role="progressbar"></span>';
+    dock.append(button);panel.element.insertBefore(dock,panel.content.nextSibling||null);host={dock,button,element:panel.element,content:panel.content};downloadHosts.set(panel.key,host);
+   }
+   if(!host)return geometryChanged;
+   const hidden=!value.count;if(host.dock.hidden!==hidden){host.dock.hidden=hidden;geometryChanged=true;}panel.element.classList.toggle('has-pane-downloads',!hidden);
+   if(hidden){host.dock.remove();downloadHosts.delete(panel.key);return geometryChanged;}
+   const {button}=host,key=JSON.stringify([panel.tabId,value.items]);if(paintKeys.get(button)===key)return geometryChanged;paintKeys.set(button,key);
+   const en=model.locale==='en',title=(en?'Downloads':'Загрузки')+' · '+value.count+'\n'+value.items.map(item=>item.label+' · '+item.statusText).join('\n'),progress=value.percent===null?(en?'Size unknown':'Размер неизвестен'):Math.floor(value.percent)+'%';
+   button.dataset.tabId=panel.tabId;button.dataset.desk=model.desktopId;button.dataset.downloadIds=JSON.stringify(value.items.map(item=>item.taskId));button.dataset.downloadCount=String(value.count);button.dataset.downloadState=value.state;button.dataset.indeterminate=String(value.percent===null);button.style.setProperty('--download-progress',String(value.percent??0));button.title=title;button.setAttribute('aria-label',title+' · '+(en?'Open Downloads':'Открыть загрузки'));button.setAttribute('aria-busy',String(value.state!=='paused'));
+   const meter=button.querySelector('.mouse-download-meter');meter.setAttribute('aria-valuemin','0');meter.setAttribute('aria-valuemax','100');if(value.percent===null)meter.removeAttribute('aria-valuenow');else meter.setAttribute('aria-valuenow',String(value.percent));meter.setAttribute('aria-label',title);meter.setAttribute('aria-valuetext',progress+' · '+value.items.map(item=>item.statusText).join('; '));
+   button.onclick=async()=>{try{await openDownloads(value.items[0]);}catch(error){status(error.message);}};return geometryChanged;
   }
   function makeNode(task){
    const node=document.createElement('article');node.className='mouse-progress-pill';node.dataset.taskId=task.taskId;node.dataset.progressId=task.id;
@@ -69,8 +98,9 @@
    if(rendering)return;if(!model.ready||(!preparing&&frozen())||document.visibilityState==='hidden'){stopTick();return;}
    rendering=true;let geometryChanged=false,timedTask=false;
    try{
-    const visible=panels(),assigned=assignTasks(tasks(),{desk:model.desktopId,privateMode:model.privateMode,panels:visible}),wanted=new Set(),keys=new Set(visible.map(p=>p.key));
+    const visible=panels(),owners={desk:model.desktopId,privateMode:model.privateMode,panels:visible},assigned=assignTasks(tasks(),owners),assignedDownloads=assignTasks(downloads(),owners),wanted=new Set(),keys=new Set(visible.map(p=>p.key));
     for(const [key,host]of hosts)if(!keys.has(key)||!host.dock.isConnected){if(!host.dock.hidden)geometryChanged=true;host.element.classList.remove('has-pane-progress');host.dock.remove();hosts.delete(key);}
+    for(const [key,host]of downloadHosts)if(!keys.has(key)||!host.dock.isConnected){if(!host.dock.hidden)geometryChanged=true;host.element.classList.remove('has-pane-downloads');host.dock.remove();downloadHosts.delete(key);}
     for(const panel of visible){
      let host=hosts.get(panel.key);
      if(!host||host.element!==panel.element){
@@ -78,7 +108,7 @@
       const next=document.createElement('button');next.type='button';next.className='mouse-progress-next';next.title='Следующая задача этой панели';
       // Reserve the strip immediately after this panel's address/header row.
       // Native page bounds are measured from the content slot below it.
-      const content=panel.element.querySelector(panel.kind==='agent'?'.agent-scroll':panel.key==='ai'?'#ai-slot':'.page-slot');
+      const content=panel.content;
       dock.append(next);panel.element.insertBefore(dock,content);host={dock,next,element:panel.element};hosts.set(panel.key,host);
      }
      const values=assigned.get(panel.key)||[];let current=values.find(t=>t.id===selected.get(panel.key));
@@ -88,6 +118,7 @@
      host.next.onclick=()=>{const list=assignTasks(tasks(),{desk:model.desktopId,privateMode:model.privateMode,panels:panels()}).get(panel.key)||[],i=list.findIndex(t=>t.id===selected.get(panel.key));if(list.length){selected.set(panel.key,list[(i+1)%list.length].id);selectedManual.add(panel.key);render();}};
      if(host.next.hidden!==(values.length<2))host.next.hidden=values.length<2;setText(host.next,(Math.max(0,values.indexOf(current))+1)+'/'+values.length);const label='Следующая задача, '+host.next.textContent;if(host.next.getAttribute('aria-label')!==label)host.next.setAttribute('aria-label',label);
      const hidden=!values.length;if(host.dock.hidden!==hidden){host.dock.hidden=hidden;geometryChanged=true;}panel.element.classList.toggle('has-pane-progress',!hidden);
+     if(paintDownloads(panel,assignedDownloads.get(panel.key)||[]))geometryChanged=true;
     }
     for(const [id,node]of nodes)if(!wanted.has(id)){node.remove();nodes.delete(id);}renderedDesk=model.desktopId;
    }finally{rendering=false;}
@@ -108,5 +139,5 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopTick();else render();});root.addEventListener?.('pagehide',stopTick);
   return{render,panels,prepareLayout};
  }
- if(typeof module==='object'&&module.exports)module.exports={assignTasks,formatTaskTime};else root.createMouseProgressPills=createMouseProgressPills;
+ if(typeof module==='object'&&module.exports)module.exports={assignTasks,formatTaskTime,summarizeDownloads};else root.createMouseProgressPills=createMouseProgressPills;
 })(globalThis);

@@ -8,6 +8,7 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
 const {closingReversalPair,observeNoraReversal,runNoraReversalTrials}=require('./mouse-smoke-reversal.cjs');
 const {createMotionTrace,MARKER_PREFIX,bounded}=require('./mouse-smoke-trace.cjs');
+const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let i=0;i<400;i++){if(await fn())return;await sleep(25);}throw Error('Mouse628 motion timeout: '+label);}
 const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
@@ -43,7 +44,7 @@ function nativeCornerPaintReady(rows,marker,background){
  const matches=(pixel,rgb)=>pixel?.rgba?.[3]===255&&rgb.every((v,i)=>Math.abs(pixel.rgba[i]-v)<=2);
  return rows.length>0&&rows.every(row=>matches(row.before?.inside,marker)&&matches(row.before?.outside,background));
 }
-async function verifyGestureRestart({app,win,browser,store,expectedSavedVersion='6.0.33'}){
+async function verifyGestureRestart({app,win,browser,store,expectedSavedVersion='6.0.34'}){
  const filename='mouse-629-swipe-tutorial.json',facts=JSON.parse(await fs.readFile(filename,'utf8'));
  assert.equal(facts.version,expectedSavedVersion);assert.equal(facts.successHidden,true);assert.equal(facts.privateIsolated,true);
  assert.equal(facts.source,'nora-wheel');assert.equal(facts.recognizer,'two-finger-or-wheel');assert.equal(win.listenerCount('swipe'),0);
@@ -122,7 +123,7 @@ async function motionNodeOwners(debug,rendererPid){
  }
  report.finishedAt=performance.now();report.elapsedMs=report.finishedAt-startedAt;return report;
 }
-module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInput,readMode=process.argv.includes('--mouse-smoke-read'),expectedSavedVersion='6.0.33'})=>{
+module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInput,readMode=process.argv.includes('--mouse-smoke-read'),expectedSavedVersion='6.0.34'})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  if(readMode)return verifyGestureRestart({app,win,browser,store,expectedSavedVersion});
@@ -315,8 +316,8 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
  async function footer(captured){
   const data=await js(`(()=>{const bar=document.querySelector('#statusbar'),r=bar.getBoundingClientRect(),style=getComputedStyle(bar),columns=[];for(let x=r.left+8;x<r.right-8;x+=4){if(Math.abs(x-innerWidth/2)<24)continue;const covered=[...bar.querySelectorAll('button,select,input')].some(e=>{const b=e.getBoundingClientRect();return x>=b.left&&x<=b.right&&b.top<=r.top+3;});if(!covered){columns.push(x);x+=20;}}return{x:r.x,y:r.y,width:r.width,height:r.height,viewport:{width:innerWidth,height:innerHeight},borderWidth:style.borderTopWidth,borderColor:style.borderTopColor,borderImage:style.borderImageSource,boxShadow:style.boxShadow,background:style.backgroundColor,columns:columns.slice(0,24)};})()`),image=captured||await win.capturePage(),size=image.getSize(),pixels=image.toBitmap(),sx=size.width/data.viewport.width,sy=size.height/data.viewport.height;
   assert.equal(parseFloat(data.borderWidth),0,'Footer has no top border');assert.equal(data.borderImage,'none');assert.equal(data.boxShadow,'none');assert.ok(data.columns.length>=4,'There are exposed native footer pixels to verify');
-  const expected=data.background.match(/[\d.]+/g).slice(0,3).map(Number);
-  data.pixels=data.columns.map(x=>({x,samples:[.5,1.5,2.5].map(offset=>{const pixelX=Math.floor(x*sx),pixelY=Math.floor((data.y+offset)*sy),i=(pixelY*size.width+pixelX)*4,rgba=[pixels[i+2],pixels[i+1],pixels[i],pixels[i+3]];assert.ok(expected.every((v,c)=>Math.abs(rgba[c]-v)<=2)&&rgba[3]===255,'Footer edge is exactly its background, without a one-pixel seam: '+JSON.stringify({x,offset,expected,rgba}));return{offset,pixelX,pixelY,rgba};})}));return data;
+  const offsets=[.5,1.5,2.5],reference=await js(`(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})`);assertChromeReference(reference,offsets);assert.equal(data.background,reference.header.background);data.chromeReference=sampleChromeReference(image,data.viewport,reference);
+  data.pixels=data.columns.map(x=>({x,samples:offsets.map((offset,referenceIndex)=>{const pixelX=Math.floor(x*sx),pixelY=Math.floor((data.y+offset)*sy),i=(pixelY*size.width+pixelX)*4,rgba=[pixels[i+2],pixels[i+1],pixels[i],pixels[i+3]],expected=data.chromeReference.references[referenceIndex].rgba.slice(0,3);assert.ok(expected.every((v,c)=>Math.abs(rgba[c]-v)<=2)&&rgba[3]===255,'Footer edge matches the actual toolbar gradient, without a one-pixel seam: '+JSON.stringify({x,offset,expected,rgba}));return{offset,pixelX,pixelY,rgba,referenceIndex};})}));return data;
  }
  async function captureTinyBurrow(theme){
   const measured=await js(`(()=>{const button=document.querySelector('#desktops-button'),entry=button.querySelector('.burrow-entry'),bar=document.querySelector('#statusbar'),r=button.getBoundingClientRect(),footer=bar.getBoundingClientRect(),bounds=r=>({x:r.x,y:r.y,width:r.width,height:r.height}),paint=(element,pseudo)=>{const c=getComputedStyle(element,pseudo);return{display:c.display,content:c.content,borderWidths:['Top','Right','Bottom','Left'].map(side=>parseFloat(c['border'+side+'Width'])),boxShadow:c.boxShadow,backgroundImage:c.backgroundImage};};const x=Math.max(0,Math.floor(r.left-6)),right=Math.min(innerWidth,Math.ceil(r.right+6)),y=Math.max(0,Math.floor(footer.top-3)),bottom=Math.min(innerHeight,Math.ceil(footer.bottom));return{viewport:{width:innerWidth,height:innerHeight,devicePixelRatio},button:{bounds:bounds(r),...paint(button)},pseudo:paint(button,'::before'),entry:{bounds:bounds(entry.getBoundingClientRect()),...paint(entry)},footer:bounds(footer),crop:{x,y,width:right-x,height:bottom-y}};})()`);
@@ -428,7 +429,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
  async function verifyGestureAndSlide(){
   const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),savedPreferences=await js('MouseTest.prefs()'),fromIndex=bank.items.findIndex(d=>d.id===bank.active),leftIndex=Math.min(fromIndex,bank.items.length-2),desks=[bank.items[leftIndex].id,bank.items[leftIndex+1].id],colors=[[199,37,77],[29,125,220]],made=[],packets=[];
   const evidence={version:'6.0.28',simultaneous:false,pngSurfaces:false,compositorOnly:false,nativeIdentityPreserved:false,viewportAndScrollPreserved:false,slowAckBounded:false,noraStayedOpen:false,borrowedHold:true,restored:false,transitions:[]};
-  const tutorial={version:'6.0.33',source:'nora-wheel',inputSource:'Electron webContents.sendInputEvent mouseWheel in the isolated CI profile',syntheticNativeEvent:true,physicalTrackpadVerified:false,recognizer:'two-finger-or-wheel',firstUseShown:false,nonSwitchRetained:false,successHidden:false,reopenHidden:false,restartHidden:false,privateIsolated:false,restored:false,writePid:process.pid,writeMainTimeOrigin:performance.timeOrigin,writeRendererTimeOrigin:await js('performance.timeOrigin'),records:[]};
+  const tutorial={version:'6.0.34',source:'nora-wheel',inputSource:'Electron webContents.sendInputEvent mouseWheel in the isolated CI profile',syntheticNativeEvent:true,physicalTrackpadVerified:false,recognizer:'two-finger-or-wheel',firstUseShown:false,nonSwitchRetained:false,successHidden:false,reopenHidden:false,restartHidden:false,privateIsolated:false,restored:false,writePid:process.pid,writeMainTimeOrigin:performance.timeOrigin,writeRendererTimeOrigin:await js('performance.timeOrigin'),records:[]};
   const send=win.webContents.send,command=browser.command,surfaces=browser.mouseDesktops.surfaces,capture=surfaces.capture;let active=null,ackDelay=0,server,frameCapture=null,completed=false;
   const persist=async()=>{await fs.writeFile('mouse-628-desktop-transition.json',JSON.stringify(evidence,null,2)+'\n');await fs.writeFile('mouse-629-swipe-tutorial.json',JSON.stringify(tutorial,null,2)+'\n');};
   const shell=()=>js(`(()=>{const t=document.querySelector('#desktop-tray'),c=t.querySelector('.desk-content'),r=t.getBoundingClientRect();return{desktopId:MouseTest.model.desktopId,nora:{open:t.open,hidden:t.hidden,modal:t.matches(':modal'),phase:t.dataset.motion,inert:c.inert,x:r.x,y:r.y,width:r.width,height:r.height},gesture:MouseTest.desktopUI.gesture.diagnostics(),hintHidden:document.querySelector('.desktop-gesture-hint').hidden};})()`);

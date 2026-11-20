@@ -11,7 +11,7 @@
   return state+' · '+size;
  }
  function task(item,privateMode,locale='ru'){
-  return{id:'download:'+item.id,taskId:item.id,source:'download',kind:'download',privateMode,tabId:item.tabId||'',desk:item.desk||'',label:item.filename||'download',phase:item.state==='completed'?'completed':item.state==='cancelled'?'stopped':item.state==='error'?'error':'running',downloadState:item.state,percent:percent(item),estimated:false,statusText:description(item,locale),createdAt:item.createdAt,updatedAt:item.updatedAt};
+  return{id:'download:'+item.id,taskId:item.id,source:'download',kind:'download',privateMode,tabId:item.tabId||'',desk:item.desk||'',label:item.filename||'download',phase:item.state==='completed'?'completed':item.state==='cancelled'?'stopped':item.state==='error'?'error':'running',downloadState:item.state,received:bytes(item.received),total:bytes(item.total),percent:percent(item),estimated:false,statusText:description(item,locale),createdAt:item.createdAt,updatedAt:item.updatedAt};
  }
  function summary(items){
   const active=items.filter(item=>ACTIVE.has(item.state));

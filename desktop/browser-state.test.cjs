@@ -76,3 +76,22 @@ test('code iframe navigation leaves native chat visible; host navigation hides i
  win.webContents.emit('did-start-navigation',{},'osminog-code://project/index.html',false,false);win.webContents.emit('did-start-loading');assert.equal(b.get(t.id).view.visible,true);
  win.webContents.emit('did-start-navigation',{},'file:///editor.html',false,true);assert.equal(b.get(t.id).view.visible,false);
 });
+
+test('a lower AI preview retains its chat relation on disk and closes with that chat only',async()=>{
+ const store=storage(),b=new BrowserWorkspace(host(),store);await b.command('project',{id:'work'});
+ const main=b.open({url:'https://main.example'}),chat=b.open({url:'https://chat.example',lane:'side'}),preview=b.open({url:'https://source.example',lane:'side',previewOf:chat.id});
+ await b.save();const restored=new BrowserWorkspace(host(),store);await restored.command('project',{id:'work'});
+ assert.equal(restored.get(preview.id).previewOf,chat.id);assert.equal(restored.state().tabs.find(t=>t.id===preview.id).lane,'side');
+ const mainView=restored.get(main.id).view,chatView=restored.get(chat.id).view,previewView=restored.get(preview.id).view;
+ await restored.command('close',{id:chat.id});assert.equal(chatView.closed,true);assert.equal(previewView.closed,true);
+ assert.deepEqual(restored.state().tabs.map(t=>t.id),[main.id]);assert.equal(restored.get(main.id).view,mainView);assert.equal(mainView.closed,undefined);
+});
+
+test('AI outbound same-window links call the preview route without navigating the chat or main pages',async()=>{
+ const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});
+ const chat=b.get(b.open({url:'https://chat.example/conversation',lane:'side'}).id),main=b.get(b.open({url:'https://main.example'}).id),opened=[];
+ b.mousePreviewNavigation=require('./mouse-ai-preview.cjs').outboundNavigation;b.mouseOpenFrom=(parent,url)=>opened.push({parent:parent.id,url});
+ let prevented=0;const event={preventDefault(){prevented++}};
+ chat.view.webContents.emit('will-navigate',event,'https://source.example/article');assert.equal(prevented,1);assert.deepEqual(opened,[{parent:chat.id,url:'https://source.example/article'}]);assert.equal(chat.view.webContents.getURL(),'https://chat.example/conversation');
+ chat.view.webContents.emit('will-navigate',event,'https://chat.example/next');main.view.webContents.emit('will-navigate',event,'https://source.example/normal');assert.equal(prevented,1);assert.equal(opened.length,1);
+});

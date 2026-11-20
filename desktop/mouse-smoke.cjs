@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.33');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.34');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
