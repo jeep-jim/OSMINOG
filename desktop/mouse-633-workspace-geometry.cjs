@@ -12,6 +12,7 @@ function workspaceReadback(){
 }
 const right=r=>r.x+r.width,bottom=r=>r.y+r.height;
 function near(actual,expected,label){assert.ok(Number.isFinite(actual)&&Math.abs(actual-expected)<=1e-6,label+': '+actual+' != '+expected);}
+function outerNear(actual,expected,label){assert.ok(Number.isFinite(actual)&&Math.abs(actual-expected)<=1/16&&Math.round(actual)===Math.round(expected),label+': '+actual+' != '+expected);}
 function validateGeometry(geometry,{ai=false}={}){
  const {workspace:w,stage,viewport,padding,panes,dividers}=geometry;
  assert.deepEqual(padding,{top:GAP,right:0,bottom:GAP,left:0},'Only vertical workspace padding matches the pane gap');
@@ -20,7 +21,9 @@ function validateGeometry(geometry,{ai=false}={}){
  assert.equal(panes.length,7);assert.equal(new Set(panes.map(p=>p.id)).size,7);assert.ok(dividers.length>=6&&dividers.some(d=>d.axis==='x')&&dividers.some(d=>d.axis==='y'));
  for(const divider of dividers){assert.ok(['x','y'].includes(divider.axis));near(divider.bounds[divider.axis==='x'?'width':'height'],GAP,'pane divider thickness');}
  for(const pane of panes){assert.deepEqual(pane.radii,[RADIUS,RADIUS,RADIUS,RADIUS]);near(pane.roundTop,RADIUS,'pane top radius');near(pane.roundBottom,RADIUS,'pane bottom radius');assert.ok(pane.bounds.width>24&&pane.bounds.height>40);assert.ok(pane.bounds.x>=stage.x&&right(pane.bounds)<=right(stage)+1e-6&&pane.bounds.y>=stage.y&&bottom(pane.bounds)<=bottom(stage)+1e-6);near(pane.slot.x,pane.bounds.x,'native slot left');near(right(pane.slot),right(pane.bounds),'native slot right');near(bottom(pane.slot),bottom(pane.bounds),'native slot bottom');assert.ok(pane.slot.y>pane.bounds.y);}
- near(Math.min(...panes.map(p=>p.bounds.x)),stage.x,'outer pane left');near(Math.max(...panes.map(p=>right(p.bounds))),right(stage),'outer pane right');near(Math.min(...panes.map(p=>p.bounds.y)),stage.y,'outer pane top');near(Math.max(...panes.map(p=>bottom(p.bounds))),bottom(stage),'outer pane bottom');
+ // Nested CSS layout quantizes fractional lengths; the four aggregate edges
+ // may differ by a subpixel but must still reach the exact native endpoint.
+ outerNear(Math.min(...panes.map(p=>p.bounds.x)),stage.x,'outer pane left');outerNear(Math.max(...panes.map(p=>right(p.bounds))),right(stage),'outer pane right');outerNear(Math.min(...panes.map(p=>p.bounds.y)),stage.y,'outer pane top');outerNear(Math.max(...panes.map(p=>bottom(p.bounds))),bottom(stage),'outer pane bottom');
  assert.equal(!!geometry.ai,ai,'requested AI scene');
  if(ai){const panel=geometry.ai;assert.deepEqual(panel.radii,[RADIUS,RADIUS,RADIUS,RADIUS]);near(panel.bounds.y,w.y+GAP,'AI top gap');near(bottom(panel.bounds),bottom(w)-GAP,'AI bottom gap');near(right(panel.bounds),viewport.width,'AI right is flush');near(panel.bounds.x-right(stage),GAP,'AI divider gap');near(panel.divider.width,GAP,'AI divider thickness');near(panel.divider.x,right(stage),'AI divider position');near(panel.slot.x,panel.bounds.x,'AI native left');near(right(panel.slot),right(panel.bounds),'AI native right');near(bottom(panel.slot),bottom(panel.bounds),'AI native bottom');}
  else near(right(stage),viewport.width,'outer right is flush without a sidebar');
