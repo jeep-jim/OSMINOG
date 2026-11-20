@@ -13,8 +13,6 @@
 #new-tab:focus-visible .burrow-plus{opacity:1}
 #new-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){#new-tab .burrow-plus{transition:none}}
-/* Keep the three original controls intact, separated LEFT of the AI/update group,
-   at the owner's marked position. Narrow windows reduce spacing, not hit targets. */
-#footer-library{display:flex;align-items:center;gap:2px;flex:none;margin-right:clamp(24px,8vw,120px);border:0;border-radius:0;overflow:visible;background:transparent;box-shadow:none}
-@media(max-width:1100px){#footer-library{margin-right:24px}}
-@media(max-width:850px){#footer-library{margin-right:12px}}
+/* Keep the library controls together, with a modest gap before the AI group
+   at every window width. Button hit targets keep their normal size. */
+#footer-library{display:flex;align-items:center;gap:2px;flex:none;margin-right:12px;border:0;border-radius:0;overflow:visible;background:transparent;box-shadow:none}

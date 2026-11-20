@@ -11,5 +11,5 @@ test('footer keeps a single separate labelled group and existing command buttons
  assert.match(h,/id="footer-library" role="group" aria-label="Эмодзи, история, закладки и загрузки"/);
  for(const id of ['history-button','downloads-button','ai-toggle','version-button'])assert.equal((h.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
  assert.match(fs.readFileSync('mouse/mouse-613-ui.js','utf8'),/doc.querySelector\('#footer-library'\)/);
- assert.match(fs.readFileSync('mouse/mouse-615.css','utf8'),/margin-right:clamp\(24px,8vw,120px\)/);
+ assert.match(fs.readFileSync('mouse/mouse-615.css','utf8'),/margin-right:12px/);
 });

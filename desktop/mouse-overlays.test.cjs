@@ -15,6 +15,29 @@ test('modal lifetime rejects stale native layouts and new pages; release does no
  gate.set({sequence:1,blocked:true});assert.ok(page.visible,'old IPC cannot relock newer state');
 });
 test('wrapped clip views are detached too; malformed state rejected',()=>{const {browser,win}=fixture(),gate=new OverlayGate(browser,win),t=browser.tabs.get('page');t.clipView={setVisible(){}};win.contentView.removeChildView(t.view);win.contentView.addChildView(t.clipView);gate.set({sequence:1,blocked:true});assert.equal(win.contentView.children.length,0);assert.throws(()=>gate.set({sequence:NaN,blocked:true}));});
+test('a reloaded shell starts a new overlay sequence without accepting the old document IPC',()=>{
+ const {browser,win}=fixture(),gate=new OverlayGate(browser,win),page=browser.tabs.get('page');
+ const old={processId:7,routingId:40,detached:false,url:'file:///mouse/index.html'};win.webContents.mainFrame=old;browser.layout([{id:'page'}]);
+ gate.set({sequence:41,blocked:true},{...old});gate.set({sequence:42,blocked:false},{...old});assert.equal(page.visible,true);
+ // RenderDocument swaps the RFH on a same-site reload too. IPC may expose a
+ // distinct JS wrapper for the same current process/routing identity.
+ const current={...old,routingId:41};win.webContents.mainFrame=current;
+ gate.set({sequence:1,blocked:true},{...current});assert.equal(gate.blocked,true);assert.equal(page.visible,false);assert.equal(win.contentView.children.length,0);
+ const locked=gate.sequence;
+ for(const stale of [old,{...current,detached:true},{...current,routingId:99},null]){
+  gate.set({sequence:999,blocked:false},stale);assert.equal(gate.blocked,true);assert.equal(gate.sequence,locked);assert.equal(win.contentView.children.length,0,'A departed or unrelated frame cannot release the new document modal');
+ }
+ gate.set({sequence:2,blocked:false},{...current});assert.equal(page.visible,true);
+ gate.set({sequence:1,blocked:true},{...current});assert.equal(page.visible,true,'A new wrapper or metadata update is not a new document');
+ assert.equal(browser.tabs.get('page'),page,'The live webpage object is never recreated');
+});
+test('new shell sequencing preserves an independently owned Nora surface hold',()=>{
+ const {browser,win,calls,resetCalls}=fixture(),gate=new OverlayGate(browser,win),old={processId:2,routingId:8,detached:false};win.webContents.mainFrame=old;browser.layout([{id:'page'}]);
+ browser.mouseSurfaceHold='owned-nora';gate.set({sequence:10,blocked:true},old);const roots=win.contentView.children.slice();resetCalls();
+ const current={processId:3,routingId:8,detached:false};win.webContents.mainFrame=current;gate.set({sequence:1,blocked:false},{...current});
+ assert.equal(browser.mouseSurfaceHold,'owned-nora');assert.equal(browser.tabs.get('page').visible,false);assert.deepEqual(win.contentView.children,roots);assert.deepEqual(calls,{add:0,remove:0});
+ gate.set({sequence:100,blocked:false},old);assert.equal(gate.sequence,1);assert.equal(browser.mouseSurfaceHold,'owned-nora');assert.equal(browser.tabs.get('page').visible,false);
+});
 test('owned surface hold preserves native parents through modal open, stale layouts and close',()=>{
  const {browser,win,calls,view,resetCalls}=fixture(),page=browser.tabs.get('page'),background=browser.make('background');
  page.clipView=view();win.contentView.removeChildView(page.view);win.contentView.addChildView(page.clipView);

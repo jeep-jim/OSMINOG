@@ -87,7 +87,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;if(isMac)browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);else if(isWindows)browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-mcp-fs.node').paneCorners(win.getNativeWindowHandle(),rects);};
  require('./mouse-stability.cjs').installWorkspace(browser,{report:log});
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
- ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state)});
+ ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state,e.senderFrame)});
  await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
