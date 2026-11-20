@@ -585,3 +585,9 @@ Implemented Settings as a right sidebar/last footer gear, restored Agent Mouse w
 ### Mouse633 additional owner changes and first native diagnosis
 
 Owner requested native right-click favorites/split/grid controls and removal of the footer X. Both are implemented for the shared desktop UI; clicked tabs remain live. First633 CI found a Mac CI-input flag omission, Linux APP_RUN config export and a Windows owner-test selector quoting error; each has a targeted fix. Windows actual629/632 profile transitions and new Settings/livezoom stages passed before that test error. Native context-menu evidence has been added; complete633 acceptance/publication is still pending. See `docs/desktop/2026-11-20-mouse633-control-center.md` for runs and raw artifact binding.
+
+### 20.11.2026 — Mouse 6.0.33 опубликован для macOS, Windows и Linux
+
+Доступны [macOS arm64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.33-arm64), [Windows x64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.33-x64) и первый [Linux x64 AppImage/deb](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.33-x64). Все свежие установочные и публичные проверки завершены, каналы6.0.33 активны, исходные проверенные пакеты сохранены без пересборки.
+
+Последние правки владельца — Агент, правая панель настроек, живой Т+, загрузки, контекстные меню, удаление нижнего X,6px вертикальные отступы и12px скругления с прижатыми боковыми краями — включены. История не заменена: финальный статус, source/release merges, реальные доказательства и ограничения платформ собраны в [журнале633](docs/desktop/2026-11-20-mouse633-control-center.md). Это завершает прежние pending записи633; другие продуктовые каналы этим выпуском не заменялись.

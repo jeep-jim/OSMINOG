@@ -148,3 +148,79 @@ Source `ea1bda81e0ff746d280e4cb1f1c6be1d65880847`, tree `3406a1f3c70834bc62d5b9f
 Mac run44716856048/attempt1/job136222346456 passed the ordinary write/read, normal/fullscreen close and new workspace scenarios, then failed the retained614 private empty-picker expectation:4 visible external providers were compared with an unconditional5. The product deliberately excludes Agent from private mode and retains it in ordinary mode. The fixture now checks actual renderer privacy state against its caller scope and exact visible URLs: Agent plus the4 providers in ordinary mode, exactly the4 external providers in private mode. Missing Agent in ordinary mode, leaked Agent in private mode, duplicate/replaced provider URLs and a false caller mode all reject. Eleven focused614 checks passed;612 and614 badge caller audits found no other private-mode card-count mismatch.
 
 Mac diagnostic artifact14620637015 is31305501bytes,SHA256b344c1daa659b4399c3057a6c4c08def0faebaedc0d56003995d02be13ab0820, with401 CRC-checked entries. This failed whole workflow is not accepted as a package pin. The next source must again pass all three complete platform workflows before merge or publication; no633 channel is advanced here.
+
+## Final source acceptance and publication start
+
+Exact tested source `0a3f8aab08356297b3b8982a081debbfa65d826d`, tree `7507a3ce307f67acd4388e976c56ffc1d90aad80`, passed all 11 source workflows. All platform runs below are attempt 1.
+
+| Platform | Successful source run | Job | Candidate artifact | Verification artifact |
+| --- | --- | --- | --- | --- |
+| macOS arm64 | [44719381658](https://github.com/jeep-jim/OSMINOG/actions/runs/44719381658) | 136230894795 | 14621648503 | 14621927172 |
+| Windows x64 | [44719381462](https://github.com/jeep-jim/OSMINOG/actions/runs/44719381462) | 136230947739; modern 136238643342 | 14621813265 | 14622695364; modern 14623415723 |
+| Linux x64 | [44719381649](https://github.com/jeep-jim/OSMINOG/actions/runs/44719381649) | 136230895139 | 14621002841 | 14620937966 |
+
+Original archives were downloaded and independently matched to GitHub API size/digest, ZIP CRC, build manifests, checksums and raw report bindings. The complete release checker at `3753a36258680d2a0fb49dc9240323c2737c9f3d` accepted the Mac and Linux evidence and each Windows builder/modern report. Windows modern used the same actual EXE on Windows2025Server10.0.26100, image win25-vs2026; no consumer Windows10/11 machine is inferred from that runner name.
+
+The workspace report on each platform proves all six scenes, 864 decoded fixed-colour probes and four real native inputs through painted corner masks. Original Mac/Windows screenshots were visually reviewed: all seven main pages and the AI sidebar paint; top/bottom gaps are 6px, external horizontal edges remain flush, corners are 12px, the final footer control is Settings and the redundant footer X is absent. Agent remains visible without enabling its backend. Mac/Windows accepted the published629 updater and actual632→633 profile-preserving replacement. Linux accepted both package formats, sandbox, PTY/private isolation, profile restart, tasks/stress and X11 masks.
+
+[Source PR183](https://github.com/jeep-jim/OSMINOG/pull/183) merged at 2026-11-20T11:04:35Z as `5d92a4b6d340b38ab5f103d75790ccd671530164`. Readback confirmed the merged PR retains the exact tested source head. [Release PR60](https://github.com/jeep-jim/OSMINOG-Releases/pull/60) pinned those original bytes, preserved both published629 baselines and the honest null Linux predecessor, then passed all nine contracts at `af34de74d0ba96a986b1c2c26650eb6b2d65789e`. It merged at 2026-11-20T11:07:11Z as `f96b2355a5cdaf0e166c3ae39e1aaf7330f7c9c2`.
+
+Publication is pending at this checkpoint. Fresh publishers are [Mac44724937504](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44724937504), [Windows44724937479](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44724937479) and [Linux44724937490](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44724937490). They must independently install the pinned packages, repeat native gates and only then publish and verify anonymous public assets/feeds. A later record must confirm their actual outcomes.
+
+Limits remain explicit: no physical owner-device media-key/live VK session verification; Linux scope is Ubuntu22.04/X11, not Wayland. Linux runner basic_text correctly disables password import, so successful Linux encrypted credential import is not claimed. Mac is ad-hoc signed without notarization; Windows/Linux are unsigned previews. The earlier Mac GPU timing diagnostic remains an observation, not an established root-cause fix or a promise of zero hangs.
+
+## First Linux publisher: idle-colour failure and environment parity
+
+[Linux publisher44724937490](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44724937490), job136250300718, passed immutable source import, installed the actual deb and passed footer/Agent/website controls and native input. The fresh process then failed the unchanged629 idle-divider-colour assertion before the pixel loop. Publication and channel steps were skipped. Artifact14623966431 is 5,045,984bytes, SHA-256 `37f570588d3766f40846dad85afdeab9f59bd6dc0a8ce71c006565cf8909a274`; API size/digest and ZIP CRC passed.
+
+The original failure OS frame shows all seven pages, with one horizontal divider at RGB(40,84,202), the production accent colour; the other dividers retain RGB(199,207,223). All14 X11 masks are mapped with empty input regions. Actual pointer/:hover/focus readback was not archived, so the suspected hover mechanism is not a directly established root cause.
+
+A concrete environment mismatch was found: the successful source workflow uses Xvfb1600×1100×24, while the first fresh publisher used1600×1200×24. Comparing raw source and failure reports confirms identical application contentBounds(8,8,1443,917) and all seven native pane bounds. The source resized scenes remain1406×894. [Release PR61](https://github.com/jeep-jim/OSMINOG-Releases/pull/61), head `300411c76b4dbb14d351b5c9b7737c0d7b20e5ef`, changes only the publisher desktop height to match the source job and adds explanatory comments.
+
+Package bytes, source pins, window/pane scene sizes, fixed colour criteria, native input, timeouts and all publication gates remain unchanged. This environment correction must pass a new complete fresh-installed run before Linux publication. It is not a claimed product hover fix or proof of a1200px display defect. Mac/Windows fresh publishers continue independently.
+
+## Final publication — PUBLISHED / VERIFIED_DOWNLOAD
+
+Mouse Browser 6.0.33 is now public for macOS arm64, Windows x64 and Linux x64. All three final publisher workflows passed their fresh installed, immutable package and anonymous channel gates.
+
+| Platform | Final publisher / installed job | Public release | Published at (UTC) |
+| --- | --- | --- | --- |
+| macOS arm64 | [44724937504](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44724937504) / 136250390718 | [452606377](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.33-arm64) | 2026-11-20T11:24:52Z |
+| Windows x64 | [44724937479](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44724937479) / 136250296142 | [452606503](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.33-x64) | 2026-11-20T11:24:42Z |
+| Linux x64 | [44726437082](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44726437082) / 136255356592 | [452610798](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.33-x64) | 2026-11-20T11:29:28Z |
+
+Every published package is the original tested source15 byte sequence from `0a3f8aab08356297b3b8982a081debbfa65d826d`; there was no release rebuild. Source PR183 remains merged as `5d92a4b6d340b38ab5f103d75790ccd671530164`. Mac/Windows publishers used release merge `f96b2355a5cdaf0e166c3ae39e1aaf7330f7c9c2`. Linux used `f1ddfd5040d4cbce5d8e9456719ded61e337d1d3`, the verified merge of workflow-only PR61 after all three of its checks passed. Linux pins and package bytes were unchanged. The failed first publisher remains recorded above; the repeat proves complete acceptance in the source-matched X11 environment, not the unmeasured pointer mechanism of the earlier failure.
+
+### Public package bytes
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [Mouse-Browser-6.0.33-mac-arm64.dmg](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.33-arm64/Mouse-Browser-6.0.33-mac-arm64.dmg) | 137894277 | `fd19b8a6c3a3cc219f1fa57a1855d18f8bd48bfd7042b13000cb78138ef75d75` |
+| [Mouse-Browser-6.0.33-mac-arm64.zip](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.33-arm64/Mouse-Browser-6.0.33-mac-arm64.zip) | 140256446 | `9ff7a5b9f544f53d4863ee493b7fd7d5d33c38310bd70325249584c051e09630` |
+| [Mouse-Browser-6.0.33-Windows-x64.exe](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.33-x64/Mouse-Browser-6.0.33-Windows-x64.exe) | 125765703 | `3a864fcdbc2f4d3cc5c3c295abcd1f66ac7411a0b8e4ca235e0ab65fc0ccbab8` |
+| [Mouse-Browser-6.0.33-Linux-x64.AppImage](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.33-x64/Mouse-Browser-6.0.33-Linux-x64.AppImage) | 135575147 | `b2e6b90a1cfb82e3af9e391789ef756a581170223e4de948c1f890bbd29efc67` |
+| [Mouse-Browser-6.0.33-Linux-x64.deb](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.33-x64/Mouse-Browser-6.0.33-Linux-x64.deb) | 105781032 | `1d8b5a1072ab893daff35590b1964ca84c56458e83c6992316030c6c215e9128` |
+
+The Mac legacy `Quadro-Browser-6.0.33-mac-arm64.dmg` alias is byte-identical to the Mouse DMG. All platform manifests/checksums retain their original source bindings; Windows/Linux published fresh verification JSON also matches the corresponding raw publisher report byte-for-byte.
+
+### Fresh native evidence and independent verification
+
+| Platform | Publisher artifact | ZIP bytes | ZIP SHA-256 |
+| --- | --- | ---: | --- |
+| Mac | 14624737190 | 30605855 | `8f506a2ada4116e1f8ae20891b812c933cd5c2766cf77c02428d99ee32248f4a` |
+| Windows | 14624881454 | 28326998 | `d79d9a96d6d94c15f42137ed19484777f4b13dd41f4a5283220417d88a48dfaa` |
+| Linux | 14624239448 | 12216876 | `f72c5fe2a575c7ac65504988126c99f33e955a73970e969f6b04fda1236c1840` |
+
+Each original archive passed independent API digest/size and ZIP CRC checks. Its raw files were then independently recomputed with the unchanged release validators: full retained626/630/native631/feedback633/motion628 composition on Mac; installed/task/full-feedback/actual632-upgrade on Windows; full installation/profile/sandbox/task/media/document/owner/context/scrollbar/X11 composition on Linux. Windows/Linux publisher summaries match the separately recomputed results; the complete Mac raw composition also independently passed. All three fresh workspace reports accepted six scenes, seven main panes, two AI scenes, 864 fixed-colour pixel probes and four actual native corner inputs.
+
+Mac/Windows accepted both the published629 updater path and the actual632→633 profile-preserving package replacement. The real published629 updater modules anonymously discovered and downloaded the public633 packages, then the633 updater reported current. Linux is an honest first release: previousVersion remains null; both AppImage and deb downloads/current-version checks passed. Separate unauthenticated HTTP reads also downloaded the Windows EXE and both complete Linux packages and matched them to the tested candidates. Mac's binary download is established by the actual successful publisher updater receipt, independently bound here to the original package and public metadata; it was not redundantly downloaded again in the external audit.
+
+The active public feeds are [Mac](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json), [Windows](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json) and [Linux](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json). Root readback matched every URL, size, digest and publication timestamp to the corresponding public release and ready pin.
+
+Audit receipt SHA-256: Mac combined `c2f9725d0500623cebb482c4f17caaf8a5a3d5c4e3baacc1b09e68edae2ff212`, Mac full fresh `4eb9384a518edc5b253d01443b289d92552c5b4297ff977a701e02c34dfab818`; Linux combined `16dce0bb29dd23ea4d9cc70df2d1609aa0b9fe674c35e88106cc9119ce358d5f`. Public fresh verification SHA-256: Windows `81dff5ea4efc448e3953ad0d54dc4d1bfa098f738c67da7a47ddc27586f88419`; Linux `1f3591d4a0a275f787dec7ba3106436c72869af54246ecb36c54e84a344922c0`.
+
+### Delivered scope and limits
+
+The release keeps Agent Mouse available with optional Ollama guidance and explicit backend activation; places Settings at the far-right footer as a right sidebar; removes footer Quit and the redundant footer X; previews T+ changes on live pages; imports selected bookmark/password exports with OS encryption required for credentials; shows download progress, completion bounce and unread count; and adds native favorites/split/grid context actions. Documents remain view-only. The retained media-title stability, hidden scrollbars, website offer, Windows artwork and icon spacing fixes remain. Workspace top/bottom gaps equal the6px dividers, all pane/sidebar corners are12px, and outer left/right workspace edges remain flush.
+
+Native CI and published downloads are verified, not the owner's personal devices or live VK session. Physical media keys and a Windows desktop-shortcut screenshot remain unverified. Mac is Apple Silicon/macOS13.0+, ad-hoc signed without notarization; Windows/Linux are unsigned previews. Linux acceptance is Ubuntu22.04/X11, not a Wayland claim, and its basic_text runner correctly rejects password import without an encrypted system store. No blanket promise of zero hangs is made. This final record supersedes earlier pending statuses without removing their diagnostic history.
