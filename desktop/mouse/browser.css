@@ -16,7 +16,7 @@ dialog{padding:0;border:1px solid var(--line);border-radius:13px;background:var(
 #statusbar #footer-left .control-group{gap:5px;margin-right:8px}
 #statusbar #footer-left .layout-label{gap:7px;margin-right:4px}
 #statusbar #footer-right{gap:6px}
-#statusbar #footer-library{gap:5px}
+#statusbar #footer-library{gap:5px;margin-right:12px}
 #statusbar #footer-left>.control-group>button:not(.brand),#statusbar #footer-left>button,#statusbar #footer-library>button:not(#global-zoom-button),#statusbar #footer-right>[data-action=quit]{display:inline-grid;place-items:center;box-sizing:border-box;width:24px;min-width:24px;height:22px;min-height:22px;padding:0;line-height:1}
 #statusbar :is(#footer-left,#footer-library,#footer-right) button>svg{display:block;flex:none;width:15px;height:15px}
 #statusbar #footer-left #private-button>svg{width:24px;height:14px}
