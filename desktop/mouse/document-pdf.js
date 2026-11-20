@@ -5,7 +5,8 @@ let mousePDFLibraryRuntime,mousePDFExportRuntime;
 function mousePDFScript(source){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=new URL('document-vendor/'+source,document.baseURI).href;script.onload=resolve;script.onerror=()=>{script.remove();reject(Error('Не удалось загрузить PDF-редактор'));};document.head.append(script);});}
 function mouseLoadPDFLibrary(){if(!mousePDFLibraryRuntime)mousePDFLibraryRuntime=(async()=>{if(!globalThis.PDFLib)await mousePDFScript('pdf-lib.min.js');return globalThis.PDFLib;})().catch(error=>{mousePDFLibraryRuntime=null;throw error;});return mousePDFLibraryRuntime;}
 function mouseLoadPDFExportRuntime(){if(!mousePDFExportRuntime)mousePDFExportRuntime=(async()=>{await mouseLoadPDFLibrary();if(!globalThis.fontkit)await mousePDFScript('fontkit.umd.min.js');const response=await fetch(new URL('document-vendor/DejaVuSans.ttf',document.baseURI));if(!response.ok)throw Error('Не удалось загрузить шрифт PDF');return new Uint8Array(await response.arrayBuffer());})().catch(error=>{mousePDFExportRuntime=null;throw error;});return mousePDFExportRuntime;}
-globalThis.createMousePDFEditor=async({host,document:doc,onChange,status})=>{
+globalThis.createMousePDFEditor=async({host,document:doc,onChange,status,readOnly=false})=>{
+ if(readOnly)return createMousePDFViewer({host,document:doc,status});
  const engine=await import('./document-vendor/pdf.mjs');engine.GlobalWorkerOptions.workerSrc=new URL('document-vendor/pdf.worker.mjs',document.baseURI).href;
  const bytes=new Uint8Array(doc.bytes),load=data=>engine.getDocument({data:data.slice(),isEvalSupported:false,enableScripting:false,maxImageSize:16000000,canvasMaxAreaInBytes:64000000,useSystemFonts:true,disableAutoFetch:true});let task=load(bytes),pdf;
  try{pdf=await task.promise;}catch(error){await task.destroy().catch(()=>{});throw error;}

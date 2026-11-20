@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.31');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.32');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -57,8 +57,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
    await require('./mouse-global-capture-smoke.cjs')({app,win,browser,globalCapture,paneFocus});
    await store.set({mousePersistence:'mouse-6'});await browser.session.cookies.set({url:'https://example.com/',name:'mouse-persistence',value:'retained',expirationDate:Date.now()/1000+86400});await browser.session.cookies.flushStore();await js('MouseTest.save()');await browser.save();await browser.saveQueue;await libraryService.flush();await store.queue;
   }
-  // Exercise the new native editors/search first, then retain every existing gate.
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-smoke.cjs')({app,win,browser,store,documentService,privateMode});
+  // Documents now open as viewers; retained edit/export acceptance is historical.
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-632-documents-smoke.cjs')({app,win,browser,store,documentService,privateMode,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-performance-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});

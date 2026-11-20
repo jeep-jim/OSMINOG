@@ -3,7 +3,7 @@
 // barrier for the entire modal lifetime, including stale layout/resize events.
 class OverlayGate {
  constructor(browser,win){
-  this.browser=browser;this.win=win;this.blocked=false;this.sequence=0;this.desired=[];
+  this.browser=browser;this.win=win;this.blocked=false;this.sequence=0;this.desired=[];this.documentFrame='';
   this.layout=browser.layout.bind(browser);
   browser.layout=panels=>{
    const next=Array.isArray(panels)?panels.slice(0,100):[];
@@ -39,8 +39,15 @@ class OverlayGate {
   const children=this.win.contentView.children;
   for(const t of this.pages()){const root=t.clipView||t.view;if(!children.includes(root))this.win.contentView.addChildView(root);}
  }
- set({sequence,blocked}){
+ set({sequence,blocked},senderFrame){
   if(!Number.isSafeInteger(sequence)||sequence<1||typeof blocked!=='boolean')throw Error('Invalid overlay state');
+  if(senderFrame!==undefined){
+   // The renderer counter belongs to its document, not the BrowserWindow.
+   // Electron/Chromium RenderDocument gives a reload a new process/routing
+   // identity. Never let a late old-document IPC reset or release this gate.
+   let key;try{const main=this.win.webContents.mainFrame;if(!senderFrame||!main||senderFrame.detached||main.detached||!Number.isSafeInteger(senderFrame.processId)||!Number.isSafeInteger(senderFrame.routingId)||senderFrame.processId!==main.processId||senderFrame.routingId!==main.routingId)return{blocked:this.blocked};key=senderFrame.processId+':'+senderFrame.routingId;}catch{return{blocked:this.blocked};}
+   if(this.documentFrame!==key){this.documentFrame=key;this.sequence=0;}
+  }
   if(sequence<=this.sequence)return{blocked:this.blocked};
   this.sequence=sequence;this.blocked=blocked;
   if(blocked){this.hide();this.win.webContents.focus();}

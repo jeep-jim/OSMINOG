@@ -26,3 +26,5 @@
 @media(max-width:850px){.mouse-sheet-toolbar{grid-template-columns:minmax(110px,1fr) 75px auto}.mouse-sheet-formula{grid-column:1/-1;grid-row:2}.mouse-sheet-toolbar .mouse-sheet-apply{grid-column:3;grid-row:1}}
 @container(max-width:650px){.mouse-sheet-toolbar{grid-template-columns:minmax(0,1fr) 75px auto}.mouse-sheet-formula{grid-column:1/-1;grid-row:2}.mouse-sheet-toolbar .mouse-sheet-apply{grid-column:3;grid-row:1}}
 @container(max-width:360px){.mouse-sheet-toolbar{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.mouse-sheet-toolbar .mouse-sheet-select{grid-column:1;grid-row:1}.mouse-sheet-toolbar .mouse-sheet-address{grid-column:2;grid-row:1}.mouse-sheet-toolbar .mouse-sheet-apply{grid-column:1/-1;grid-row:3}}
+
+.mouse-sheet-editor[data-read-only=true] .mouse-sheet-toolbar{grid-template-columns:minmax(0,1fr) 75px}.mouse-sheet-editor[data-read-only=true] .mouse-sheet-formula{grid-column:1/-1;grid-row:2}

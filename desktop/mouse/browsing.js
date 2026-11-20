@@ -77,7 +77,7 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
  N.onLibrary(()=>{if(d.open)void run(render)});
  const pop=make('div','address-suggestions');pop.id='address-suggestions';pop.setAttribute('popover','manual');pop.setAttribute('role','listbox');document.body.append(pop);
  let anchor=null,options=[],active=-1,serial=0,delay=null;
- function hideHints(){serial++;clearTimeout(delay);if(pop.matches(':popover-open'))pop.hidePopover();anchor?.setAttribute('aria-expanded','false');anchor?.removeAttribute('aria-activedescendant');anchor=null;options=[];active=-1;restore()}
+ function hideHints(){serial++;clearTimeout(delay);const wasOpen=pop.matches(':popover-open');if(wasOpen)pop.hidePopover();anchor?.setAttribute('aria-expanded','false');anchor?.removeAttribute('aria-activedescendant');anchor=null;options=[];active=-1;if(wasOpen)restore()}
  function bounds(){return pop.matches(':popover-open')?pop.getBoundingClientRect():null}
  function highlight(){[...pop.children].forEach((e,i)=>e.setAttribute('aria-selected',String(i===active)));if(active>=0)anchor?.setAttribute('aria-activedescendant','address-option-'+active)}
  async function choose(index){if(!anchor||!options[index])return;const input=anchor,value=options[index].value;hideHints();input.value=value;input.focus();input.form?.requestSubmit()}

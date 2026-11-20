@@ -113,9 +113,16 @@ static napi_value reveal(napi_env e,napi_callback_info info){
 }
 static napi_value release(napi_env e,napi_callback_info info){restoreHover();return state(e,info);}
 // CI-only native pointer movement. Never exposed through IPC/preload or normal UI.
+static bool nativeInputProbeAllowed(){
+ const char* ci=std::getenv("CI"),*profile=std::getenv("MOUSE_TEST_PROFILE");
+ // The isolated media regression runs after task/stress in its own process;
+ // viewer and footer controls continue to run in the retained write process.
+ return ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&
+  ([NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]);
+}
 static napi_value testPointer(napi_env e,napi_callback_info info){
- const char* ci=std::getenv("CI");
- if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("MOUSE_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
+ if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
  size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
  if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid pointer probe");return nullptr;}
  CGPoint point=CGPointMake(x,y);CGError result=CGWarpMouseCursorPosition(point);
@@ -123,8 +130,7 @@ static napi_value testPointer(napi_env e,napi_callback_info info){
  napi_value o;napi_create_object(e,&o);number(e,o,"warpResult",result);boolean(e,o,"postAccess",CGPreflightPostEventAccess());return o;
 }
 static napi_value testClick(napi_env e,napi_callback_info info){
- const char* ci=std::getenv("CI");
- if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("MOUSE_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]){napi_throw_error(e,nullptr,"Click probe is CI smoke-only");return nullptr;}
+ if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Click probe is CI smoke-only");return nullptr;}
  size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
  if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid click probe");return nullptr;}
  CGPoint p=CGPointMake(x,y);CGWarpMouseCursorPosition(p);
@@ -203,8 +209,7 @@ static napi_value paneCorners(napi_env e,napi_callback_info info){
 // Queried only while servicing an explicit image drag; no input capture or log.
 static napi_value primaryDown(napi_env e,napi_callback_info info){napi_value value;napi_get_boolean(e,CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState,kCGMouseButtonLeft),&value);return value;}
 static napi_value testMouse(napi_env e,napi_callback_info info){
- const char* ci=std::getenv("CI");
- if(!ci||std::strcmp(ci,"true")!=0||!std::getenv("MOUSE_TEST_PROFILE")||![NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]){napi_throw_error(e,nullptr,"Mouse probe is CI smoke-only");return nullptr;}
+ if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Mouse probe is CI smoke-only");return nullptr;}
  size_t n=3;napi_value a[3];napi_get_cb_info(e,info,&n,a,nullptr,nullptr);double x=0,y=0;int32_t kind=0;
  if(n!=3||napi_get_value_double(e,a[0],&x)!=napi_ok||napi_get_value_double(e,a[1],&y)!=napi_ok||napi_get_value_int32(e,a[2],&kind)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)||kind<0||kind>2){napi_throw_error(e,nullptr,"Invalid mouse probe");return nullptr;}
  CGPoint p=CGPointMake(x,y);CGEventType type=kind==0?kCGEventLeftMouseDown:kind==1?kCGEventLeftMouseDragged:kCGEventLeftMouseUp;CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}napi_value value;napi_get_boolean(e,true,&value);return value;

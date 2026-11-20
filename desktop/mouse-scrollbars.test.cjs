@@ -1,6 +1,15 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const {CSS,bundlePagePreload}=require('./mouse-scrollbars.cjs');
+const {CSS,configure,bundlePagePreload}=require('./mouse-scrollbars.cjs');
+
+test('native scrollbar suppression is configured before any WebContents, without weakening isolation',()=>{
+ const switches=[];configure({isReady:()=>false,commandLine:{appendSwitch:(...args)=>switches.push(args)}});
+ assert.deepEqual(switches,[['hide-scrollbars']]);
+ assert.throws(()=>configure({isReady:()=>true,commandLine:{appendSwitch(){throw Error('late');}}}),/before app readiness/);
+ assert.doesNotMatch(CSS,/overflow|pointer-events|touch-action|scroll-behavior|color-scheme|background/);
+ assert.match(CSS,/scrollbar-width:\s*none\s*!important/);
+ assert.match(CSS,/width:\s*0\s*!important;\s*height:\s*0\s*!important/);
+});
 
 function run({protocol='https:',main=true,privateMode=false}={}){
  const inserted=[],exposed=[],messages=[],events=[];
@@ -33,7 +42,7 @@ test('reload creates one isolated stylesheet per document and subframe execution
  assert.equal(run().inserted.length,1);assert.equal(run().inserted.length,1);
  const subframe=run({main:false});assert.equal(subframe.inserted.length,1);assert.equal(subframe.exposed.length,0);assert.equal(subframe.messages.length,0);
 });
-test('internal documents and local files retain their own scrollbar presentation',()=>{
+test('internal documents and local files use native suppression without page-preload CSS',()=>{
  for(const protocol of ['file:','mouse:','about:','chrome:','data:'])assert.equal(run({protocol}).inserted.length,0,protocol);
  assert.equal(run({protocol:'http:'}).inserted.length,1);
 });

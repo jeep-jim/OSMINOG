@@ -105,24 +105,27 @@ module.exports=({win,js})=>{
  }
  async function verifyAgentEntry({browser,agentHost,click,until}){
   assert.equal(agentHost.state().enabled,false,'Entry probe starts with the agent disconnected');
-  assert.equal(await js(`document.querySelectorAll('#ai-select option[value="mouse://agent"]').length`),1);
-  assert.equal(await js(`document.querySelectorAll('.ai-preset-card[data-ai-url="mouse://agent"]').length`),1);
+  assert.equal(await js(`document.querySelectorAll('#ai-select option[value="mouse://agent"]').length`),0,'Assistant is not promoted as a website provider');
+  assert.equal(await js(`document.querySelectorAll('.ai-preset-card[data-ai-url="mouse://agent"]').length`),0);
+  assert.equal(await js(`document.querySelectorAll('[data-action="assistant"]').length`),1,'One optional assistant entry');
   const before=new Set(browser.state().tabs.map(t=>t.id));let start;
   try{
    await js('MouseTest.openPage("mouse://start")');
    await until(()=>{start=browser.state().tabs.find(t=>!before.has(t.id)&&t.internal);return!!start;},'internal start page for Agent entry');
-   const pane=await js('MouseTest.model.active'),selector='.pane[data-pane="'+pane+'"] .home-agent-open';
-   await until(()=>js(`!!document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().width`),'Agent Mouse start service is visible');
+   await until(()=>js('!!document.querySelector(".pane.active .home-page")'),'ordinary start page is visible');
+   assert.equal(await js('document.querySelectorAll(".home-agent-open").length'),0,'New tabs have no assistant promotion');
    const layoutExpression='JSON.stringify((({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth})=>({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth}))(MouseTest.prefs()))';
-   const ids=browser.state().tabs.map(t=>t.id).sort(),layout=await js(layoutExpression);await click(selector);
-   await until(()=>js('MouseTest.model.agentOpen===true&&!document.querySelector("#agent-panel").hidden'),'start entry opens the Agent service panel');
+   const ids=browser.state().tabs.map(t=>t.id).sort(),layout=await js(layoutExpression);
+   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora ready for optional assistant');await click('#desk-settings');await until(()=>js('document.querySelector("#settings-dialog").open'),'browser settings visible');await click('[data-action="assistant"]');
+   await until(()=>js('MouseTest.model.agentOpen===true&&!document.querySelector("#agent-panel").hidden'),'explicit menu entry opens the assistant');
    assert.equal(await js(layoutExpression),layout,'Agent service entry preserves the existing mode and exact layout');
    assert.equal(agentHost.state().enabled,false,'Opening Agent Mouse does not enable its connection');
    assert.deepEqual(browser.state().tabs.map(t=>t.id).sort(),ids,'Agent entry preserves existing tabs');
    await until(()=>js('(()=>{const i=document.querySelector("#agent-panel .agent-presence img.agent-mouse-icon");return!!i&&i.complete&&i.naturalWidth>0;})()'),'coloured Agent mouse asset paints');
    const icon=await js('(()=>{const i=document.querySelector("#agent-panel .agent-presence img.agent-mouse-icon");return{src:i.getAttribute("src"),color:i.dataset.agentColor,filter:getComputedStyle(i).filter};})()');
    assert.ok(['orange','cyan','green','violet','coral'].includes(icon.color));assert.equal(icon.src,'agent-mouse-'+icon.color+'.svg');assert.equal(icon.filter,'none','Agent mascot keeps its own colours');
-   result.agentEntry={startService:true,aiPreset:true,aiSelect:true,disabledUntilEnabled:true,mascotLoaded:true,color:icon.color};
+   await click('#agent-close');await until(()=>js('MouseTest.model.agentOpen===false&&document.querySelector("#agent-panel").hidden'),'assistant closes by its own visible control');assert.equal(agentHost.state().enabled,false);
+   result.agentEntry={startService:false,aiPreset:false,aiSelect:false,settingsEntry:true,manualOnly:true,closeControl:true,disabledUntilEnabled:true,mascotLoaded:true,color:icon.color};
    await fs.writeFile('mouse-623-verification.json',JSON.stringify(result,null,2)+'\n');console.log('MOUSE_623_AGENT_ENTRY_ASSET',JSON.stringify(result.agentEntry));
   }finally{if(start)await js(`MouseNative.browser('close',{id:${JSON.stringify(start.id)}})`).catch(()=>{});}
  }

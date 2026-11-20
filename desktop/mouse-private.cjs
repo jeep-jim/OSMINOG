@@ -46,7 +46,7 @@ class PrivateMode {
    browser.contextScope=[];await browser.initNetwork();await browser.command('project',{id:'mouse-private'});
    const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
    require('./mouse-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.mouseChromeGuard});
-   register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state);});
+   register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state,event.senderFrame);});
    const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine});
    current.libraryService=libraryService;
    // Do not even keep private visit/search/closed lists in the library UI.
