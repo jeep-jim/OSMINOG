@@ -22,6 +22,15 @@ test('top interior samples avoid a fractionally covered header edge and remain a
  const points=geometryPoints(geometry,[199,207,223],[255,255,255]).filter(point=>point.id==='page-0'&&point.kind==='pane-top-interior');
  assert.equal(points.length,2);for(const point of points){assert.equal(point.point.y,273.5);assert.ok(Math.floor(point.point.y)>=geometry.panes[0].bounds.y);assert.ok(point.point.y<geometry.panes[0].bounds.y+2);}
 });
+test('top interior pixels stay in the straight header span at one and two device pixels per CSS pixel',()=>{
+ for(const fraction of [0,1/64,.046875,.375,.609375,.96875]){
+  const geometry=fixture(),bounds={x:767+fraction,y:46+fraction,width:274.4375,height:565.078125};geometry.panes[0].bounds=bounds;
+  const points=geometryPoints(geometry,[199,207,223],[255,255,255]).filter(point=>point.id==='page-0'&&point.kind==='pane-top-interior');
+  for(const point of points)for(const scale of [1,2]){const x=Math.floor(point.point.x*scale)/scale,y=Math.floor(point.point.y*scale)/scale;assert.ok(x>=bounds.x+12);assert.ok(x+1/scale<=bounds.x+bounds.width-12);assert.ok(y>=bounds.y);assert.ok(point.point.y<bounds.y+2);}
+ }
+ const measured=fixture();measured.panes[0].bounds={x:767.609375,y:46,width:274.4375,height:565.078125};
+ const right=geometryPoints(measured,[199,207,223],[255,255,255]).find(point=>point.id==='page-0'&&point.kind==='pane-top-interior'&&point.side==='right');assert.deepEqual(right.point,{x:1029.5,y:46.5});
+});
 test('outer CSS quantization must still reach the identical native endpoint',()=>{
  const insetRight=(geometry,amount)=>{for(const pane of geometry.panes)if(Math.abs(pane.bounds.x+pane.bounds.width-geometry.stage.width)<1e-6)for(const key of ['bounds','slot'])pane[key].width-=amount;};
  const actual=fixture(false,1443);insetRight(actual,1/32);

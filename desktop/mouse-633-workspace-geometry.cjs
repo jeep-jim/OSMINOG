@@ -35,9 +35,9 @@ function geometryPoints(geometry,line,panel){
  for(const pane of [...geometry.panes,...(geometry.ai?[geometry.ai]:[])])for(const side of ['left','right']){
   const r=pane.bounds;
   for(const u of [.65,1.6,3])for(const v of [.65,1.6,3])if(Math.hypot(RADIUS-u,RADIUS-v)>13.5)points.push({kind:'pane-top-cutout',id:pane.id,side,paneBounds:r,point:{x:side==='left'?r.x+u:right(r)-u,y:r.y+v},expected:line});
-  // Use the first full pixel row inside the header, above its buttons. A
-  // fractional CSS top can antialias the preceding row even inside the arc.
-  points.push({kind:'pane-top-interior',id:pane.id,side,paneBounds:r,point:{x:side==='left'?r.x+RADIUS:right(r)-RADIUS,y:Math.ceil(r.y)+.5},expected:panel});
+  // Use a full pixel in the straight header span, above its buttons. The
+  // circle's tangent and a fractional top edge can contain antialiased pixels.
+  points.push({kind:'pane-top-interior',id:pane.id,side,paneBounds:r,point:{x:side==='left'?Math.ceil(r.x+RADIUS)+.5:Math.floor(right(r)-RADIUS)-.5,y:Math.ceil(r.y)+.5},expected:panel});
  }
  return points;
 }
