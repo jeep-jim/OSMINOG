@@ -22,12 +22,13 @@ test('compact pane toolbar removes only bookmarked and split duplicates; AI relo
  assert.match(html,/id="new-tab"[^>]*><svg class="burrow-plus"/);
  assert.doesNotMatch(html,/wallet-dialog|web3.js|data-action="wallet"|burrow-mouse/);
 });
-test('only internal horizontal seams receive corner radii, never external top/bottom',()=>{
- const {internalCorners}=require('./mouse/mouse-616-ui.js');const stage={top:40,bottom:900};
- assert.deepEqual(internalCorners({top:40,bottom:460},stage),{top:0,bottom:12});
- assert.deepEqual(internalCorners({top:466,bottom:900},stage),{top:12,bottom:0});
- assert.deepEqual(internalCorners({top:40,bottom:900},stage),{top:0,bottom:0});
- assert.deepEqual(internalCorners({top:300,bottom:600},stage),{top:12,bottom:12});
+test('every pane retains twelve-pixel top and bottom corners at internal and outer edges',()=>{
+ const {paneCorners}=require('./mouse/mouse-616-ui.js');const stage={top:40,bottom:900};
+ for(const pane of [{top:40,bottom:460},{top:466,bottom:900},{top:40,bottom:900},{top:300,bottom:600}])assert.deepEqual(paneCorners(pane,stage),{top:12,bottom:12});
+ const values=new Map(),writes=[],pane={style:{getPropertyValue:name=>values.get(name)||'',setProperty:(name,value)=>{values.set(name,value);writes.push([name,value]);}}};
+ const doc={addEventListener(){},removeEventListener(){},querySelectorAll:()=>[],querySelector:selector=>{assert.equal(selector,'#stage');return{querySelectorAll:selector=>{assert.equal(selector,'.pane');return[pane];}};}};
+ const ctx=vm.createContext({document:doc,clearTimeout});vm.runInContext(read('mouse/mouse-616-ui.js'),ctx);const controls=ctx.createMouseChromeControls({model:{},tab:()=>null,doc});
+ controls.round();assert.deepEqual(writes,[['--pane-round-top','12px'],['--pane-round-bottom','12px']]);controls.round();assert.equal(writes.length,2,'A repeated metadata/layout update must not rewrite unchanged corner styles');controls.dispose();
 });
 test('reload uses actual loading state with bounded click feedback; full screen changes both controls',()=>{
  const s=read('mouse/mouse-616-ui.js'),css=read('mouse/mouse-616.css');
@@ -35,6 +36,21 @@ test('reload uses actual loading state with bounded click feedback; full screen 
  assert.match(s,/data-window="zoom"/);assert.match(s,/data-action="fullscreen"/);
  assert.match(css,/prefers-reduced-motion:reduce/);assert.match(css,/\.mouse-reload-glyph\{animation:mouse-reload-spin/);
  assert.doesNotMatch(css,/#ai-panel\s*\{[^}]*border-radius:(?:8|10|12)px/);
+});
+test('native fullscreen synchronizes the replacement Settings button and preserves non-Mac maximize controls',()=>{
+ for(const platform of ['darwin','win32','linux']){
+  const button=(dataset,textContent,title='')=>{const attrs=new Map();return{dataset,textContent,title,getAttribute:name=>attrs.get(name)??null,setAttribute:(name,value)=>attrs.set(name,value)};};
+  const zoom=button({window:'zoom'},'❐','Восстановить окно'),settings=button({settingsAction:'fullscreen'},'Полный экран');zoom.setAttribute('aria-pressed','true');
+  const nodes=[zoom,settings],doc={addEventListener(){},removeEventListener(){},querySelectorAll:query=>nodes.filter(node=>query.split(',').some(selector=>{const match=selector.match(/^\[data-([a-z-]+)="([^"]+)"\]$/);assert.ok(match,'Supported DOM selector: '+selector);const key=match[1].replace(/-([a-z])/g,(_,c)=>c.toUpperCase());return node.dataset[key]===match[2];}))};
+  const ctx=vm.createContext({document:doc,MouseNative:{platform},clearTimeout});vm.runInContext(read('mouse/mouse-616-ui.js'),ctx);const controls=ctx.createMouseChromeControls({model:{},tab:()=>null,doc});
+  for(const active of [false,true,false]){
+   controls.fullscreen(active);const label=active?'Выйти из полного экрана':'Полный экран',shortcut=platform==='darwin'?'⌃⌘F':'F11';
+   assert.equal(settings.textContent,label);assert.equal(settings.getAttribute('aria-pressed'),String(active));assert.equal(settings.title,label+' · '+shortcut);assert.equal(settings.getAttribute('aria-label'),settings.title);
+   if(platform==='darwin'){assert.equal(zoom.textContent,active?'⤡':'⤢');assert.equal(zoom.getAttribute('aria-pressed'),String(active));}
+   else{assert.equal(zoom.textContent,'❐');assert.equal(zoom.title,'Восстановить окно');assert.equal(zoom.getAttribute('aria-pressed'),'true');}
+  }
+  controls.dispose();
+ }
 });
 test('reload click pulse stays distinct from actual loading delivered by browser state',()=>{
  const f=reloadFixture();assert.deepEqual(f.snapshot(),{loading:'false',busy:'false'});
@@ -78,7 +94,9 @@ test('native pane mask does not change WebContents viewport and is opt-in for Mo
  fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:12}]);
  assert.equal(t.clipView,undefined);assert.equal(t.view.bounds.y,80);assert.equal(t.view.bounds.height,300);assert.equal(t.bounds.y,80);assert.equal(masks.length,1);assert.equal(masks[0].height,300);
  fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:0}]);assert.equal(masks.length,0);assert.equal(t.view.bounds.y,80);
- t.lane='side';fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:12}]);assert.equal(masks.length,0);
+ t.lane='side';fn.call(b,[{id:'t',x:0,y:80,width:450,height:300,roundBottom:12}]);assert.equal(masks.length,1,'Side-lane pages retain the same bottom mask');assert.equal(t.view.bounds.y,80);assert.equal(t.view.bounds.height,300);
+ b.ai=t;fn.call(b,[{id:'ai',x:550,y:80,width:450,height:300,roundBottom:12,roundColor:'#c7cfdf'}]);assert.equal(masks.length,1,'The provider route also rounds its actual bottom edge');assert.equal(masks[0].x,550);assert.equal(masks[0].color,'#c7cfdf');assert.equal(t.view.bounds.y,80);assert.equal(t.view.bounds.height,300);
+ fn.call(b,[{id:'ai',x:550,y:80,width:450,height:300,roundBottom:12,clip:{x:550,y:80,width:450,height:240}}]);assert.equal(masks.length,0,'A cropped middle of a page is not its rounded bottom');assert.equal(t.view.bounds.height,300,'Mask selection does not change the page viewport');
  const other={...b,mouseRoundedPanes:false,tabs:new Map([['x',{id:'x',project:'p',view:new View(),lane:'main'}]])};fn.call(other,[{id:'x',x:0,y:0,width:900,height:700,roundBottom:12}]);assert.equal(other.tabs.get('x').clipView,undefined);assert.equal(masks.length,0);
 });
 

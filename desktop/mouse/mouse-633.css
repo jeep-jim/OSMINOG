@@ -1,5 +1,12 @@
 /* The control center is a workspace sidebar, with the same live-page ownership
    as History. Its controls never acquire the modal/frozen-page barrier. */
+:root{--workspace-gap:6px;--pane-radius:12px}
+/* Match the split seams above and below the panes; keep both screen edges flush. */
+#workspace{padding:var(--workspace-gap) 0;background:var(--line)}
+#workspace .divider[data-axis=x],#workspace .ai-divider{width:var(--workspace-gap)}
+#workspace .divider[data-axis=y]{height:var(--workspace-gap)}
+#workspace :is(#ai-panel,#library-dialog,#settings-dialog,#agent-panel){border-radius:var(--pane-radius);overflow:hidden}
+body.ai-focused #workspace #ai-panel{inset:var(--workspace-gap) 0}
 #settings-dialog{position:static;inset:auto;margin:0;box-sizing:border-box;flex:0 0 auto;width:380px;max-width:none;height:100%;max-height:none;padding:0;border:0;border-left:1px solid var(--line);border-radius:0;background:var(--panel);color:var(--text);box-shadow:none;backdrop-filter:blur(18px);overflow:hidden}
 #settings-dialog:not([open]){display:none}#settings-dialog[open]{display:flex;flex-direction:column}
 #settings-dialog>header{display:flex;align-items:center;gap:16px;min-height:61px;padding:13px 18px;border-bottom:1px solid var(--line);flex:none}

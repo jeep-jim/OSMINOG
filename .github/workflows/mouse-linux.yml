@@ -36,7 +36,7 @@ jobs:
       - name: Install Linux desktop and native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libx11-dev xvfb openbox xdotool dbus-x11 pulseaudio libfuse2 libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 libsecret-1-0 libnotify4 libatspi2.0-0 libxtst6
+          sudo apt-get install -y build-essential libx11-dev libxext-dev xvfb openbox xdotool dbus-x11 pulseaudio libfuse2 libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 libsecret-1-0 libnotify4 libatspi2.0-0 libxtst6
           test "$(id -u)" -ne 0
       - name: Install locked dependencies and native Linux runtime
         run: |

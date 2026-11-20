@@ -114,7 +114,7 @@
    if(r.width>1&&r.height>1)panels.push({id,x:r.x,y:r.y,width:r.width,height:r.height,roundBottom:parseInt(pane.style.getPropertyValue('--pane-round-bottom'),10)||0,roundColor:getComputedStyle(document.documentElement).getPropertyValue('--line').trim()});
   }
   if((!m.agentOpen||m.privateMode)&&!m.focusPane&&m.aiOpen&&!m.libraryOpen&&!m.settingsOpen&&tab(m.aiId)){
-   const r=$('#ai-slot').getBoundingClientRect();panels.push({id:m.aiId,x:r.x,y:r.y,width:r.width,height:r.height});
+   const r=$('#ai-slot').getBoundingClientRect();panels.push({id:m.aiId,x:r.x,y:r.y,width:r.width,height:r.height,roundBottom:12,roundColor:getComputedStyle(document.documentElement).getPropertyValue('--line').trim()});
   }
   const hint=browsing.bounds();
   if(hint){for(const p of panels){if(p.x<hint.right&&p.x+p.width>hint.left&&p.y<hint.bottom&&p.y+p.height>hint.top){const top=Math.min(p.y+p.height,hint.bottom);p.clip={x:p.x,y:top,width:p.width,height:Math.max(0,p.y+p.height-top)};}}}

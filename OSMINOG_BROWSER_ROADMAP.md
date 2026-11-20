@@ -1259,3 +1259,7 @@ Implemented Settings as a right sidebar/last footer gear, restored Agent Mouse w
 ### Mouse633 additional owner changes and first native diagnosis
 
 Owner requested native right-click favorites/split/grid controls and removal of the footer X. Both are implemented for the shared desktop UI; clicked tabs remain live. First633 CI found a Mac CI-input flag omission, Linux APP_RUN config export and a Windows owner-test selector quoting error; each has a targeted fix. Windows actual629/632 profile transitions and new Settings/livezoom stages passed before that test error. Native context-menu evidence has been added; complete633 acceptance/publication is still pending. See `docs/desktop/2026-11-20-mouse633-control-center.md` for runs and raw artifact binding.
+
+### Mouse633 — одинаковые отступы и внешние скругления
+
+Последнее прямое уточнение владельца от2026-11-20 входит в этот же выпуск: отступы окон от общей шапки и нижней панели равны промежуткам между окнами (6px); верхние и нижние углы всех окон скруглены (12px). Внешние края слева и справа остаются вплотную, без дополнительного горизонтального отступа. Правые панели ИИ, Агента, истории и настроек получают ту же геометрию. Это заменяет прежнее требование616/617 о прямых внешних верхних/нижних углах. Проверки фактических нативных пикселей сохраняются и обновляются под новое требование; публикация633 ещё не подтверждена. Подробности: [журнал633](docs/desktop/2026-11-20-mouse633-control-center.md).

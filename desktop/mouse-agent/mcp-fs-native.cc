@@ -12,6 +12,7 @@
 #include <vector>
 #ifdef __linux__
 #include <X11/Xlib.h>
+void installMouseLinuxPaneCorners(napi_env env,napi_value exports);
 #endif
 
 static napi_value fail(napi_env e,const char* message,int code=0){
@@ -134,6 +135,10 @@ static napi_value init(napi_env e,napi_value exports){
 #ifdef __linux__
   ,{"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr}
 #endif
- };napi_define_properties(e,exports,sizeof(props)/sizeof(props[0]),props);return exports;
+ };napi_define_properties(e,exports,sizeof(props)/sizeof(props[0]),props);
+#ifdef __linux__
+ installMouseLinuxPaneCorners(e,exports);
+#endif
+ return exports;
 }
 NAPI_MODULE(NODE_GYP_MODULE_NAME,init)

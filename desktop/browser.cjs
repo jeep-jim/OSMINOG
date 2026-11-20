@@ -154,7 +154,7 @@ class BrowserWorkspace{
    if(clip&&[clip.x,clip.y,clip.width,clip.height].every(Number.isFinite)){left=Math.max(left,Math.round(clip.x));top=Math.max(top,Math.round(clip.y));right=Math.min(right,Math.round(clip.x+clip.width));bottom=Math.min(bottom,Math.round(clip.y+clip.height));}
    if(right<=left||bottom<=top)continue;
    const clipped={x:left,y:top,width:right-left,height:bottom-top};
-   const radius=this.mouseRoundedPanes&&t.lane!=='side'&&Number(p.roundBottom)===12&&bottom===bounds.y+bounds.height?12:0;
+   const radius=this.mouseRoundedPanes&&Number(p.roundBottom)===12&&bottom===bounds.y+bounds.height?12:0;
    desired.set(t,{bounds:clip?bounds:clipped,clipped,wrap:!!clip,radius,cornerColor:/^#[0-9a-f]{6}$/i.test(p.roundColor||'')?p.roundColor:'#43536b'});
   }
   // A normal layout owns only the selected pages and the previous selection.
@@ -198,7 +198,7 @@ class BrowserWorkspace{
   // Native corner chrome is Mouse-only, noninteractive, and never modifies website geometry.
   if(this.mouseCornerMask)this.mouseCornerMask(this.mouseSurfaceHold?[]:[...desired.values()].filter(p=>p.radius===12).map(p=>({...p.clipped,color:p.cornerColor})));
  }
- dispose(){if(this.disposed)return;this.disposed=true;clearTimeout(this.pageStateTimer);this.pageStateTimer=null;this.mouseCornerMask?.([]);for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.layoutPages?.clear();this.ai=null}
+ dispose(){if(this.disposed)return;this.disposed=true;clearTimeout(this.pageStateTimer);this.pageStateTimer=null;this.mouseCornerMask?.([]);this.mouseCornerMask?.dispose?.();for(const t of [...this.tabs.values(),...this.providers.values()])if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false});this.tabs.clear();this.providers.clear();this.layoutPages?.clear();this.ai=null}
 }
 module.exports={BrowserWorkspace,address,readPage};
 
