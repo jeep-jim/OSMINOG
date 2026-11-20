@@ -118,7 +118,8 @@ module.exports=({win,js})=>{
    assert.ok(await js('document.querySelectorAll(".home-agent-open").length')>=1,'Start page exposes the Agent Mouse entry');
    const layoutExpression='JSON.stringify((({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth})=>({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth}))(MouseTest.prefs()))';
    const ids=browser.state().tabs.map(t=>t.id).sort(),layout=await js(layoutExpression);
-   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora ready for optional assistant');await click('#desk-settings');await until(()=>js('document.querySelector("#settings-dialog").open'),'browser settings visible');await js('document.querySelector("[data-action=assistant]").scrollIntoView({block:"center"})');await click('[data-action="assistant"]');
+   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora ready for optional assistant');assert.equal(await js('!!document.querySelector("#desk-settings")'),false,'Nora has no settings gear');await click('#desks-close');await until(()=>js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'Nora closes before footer settings');
+   await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer settings visible');await js('document.querySelector("[data-action=assistant]").scrollIntoView({block:"center"})');await click('[data-action="assistant"]');
    await until(()=>js('MouseTest.model.agentOpen===true&&!document.querySelector("#agent-panel").hidden'),'explicit menu entry opens the assistant');
    assert.equal(await js(layoutExpression),layout,'Agent service entry preserves the existing mode and exact layout');
    assert.equal(agentHost.state().enabled,false,'Opening Agent Mouse does not enable its connection');

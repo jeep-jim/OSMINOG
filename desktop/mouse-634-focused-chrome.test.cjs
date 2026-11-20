@@ -2,7 +2,7 @@
 // These reject incomplete native receipts; they do not replace the installed
 // fullscreen controls, native corner pixels or display screenshots.
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {assertFocusedGeometry,assertChromeSurfaces}=require('./mouse-634-focused-chrome-smoke.cjs');
+const {focusedChromeReadback,assertFocusedGeometry,assertChromeSurfaces}=require('./mouse-634-focused-chrome-smoke.cjs');
 const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
 const {downloadNativeBounds}=require('./mouse-630-feedback-smoke.cjs');
 const rect=(x,y,width,height)=>({x,y,width,height,right:x+width,bottom:y+height});
@@ -44,4 +44,17 @@ test('retained footer reference RGB is decoded from the same PNG representation 
  for(const [index,row]of reference.references.entries()){const x=Math.floor(row.point.x*2),y=Math.floor(row.point.y*2);pixels.set([247-index,243-index,240-index,255],(y*size.width+x)*4);}
  const sampled=sampleChromeReference(image,viewport,reference);assert.deepEqual(sampled.references.map(row=>row.rgba),[[240,243,247,255],[239,242,246,255],[238,241,245,255]]);assert.deepEqual(sampled.references.map(row=>[row.pixelX,row.pixelY]),[[212,2],[212,7],[212,12]]);
  pixels[(2*size.width+212)*4+3]=0;assert.throws(()=>sampleChromeReference(image,viewport,reference));
+});
+
+// Synthetic DOM reproduces the archived Linux/Windows HEADER hit underneath
+// the actual pointer-events:none active-tab silhouette; pixels remain a native gate.
+test('focused chrome excludes painted tab-flow SVG even when native hit testing returns the header',()=>{
+ const rectOf=(id,tagName,bounds)=>({id,tagName,getBoundingClientRect:()=>bounds,querySelectorAll:()=>[]}),header=rectOf('toolbar','HEADER',rect(0,0,1200,40)),footer=rectOf('statusbar','FOOTER',rect(0,792,1200,28)),flow=rectOf('','svg',rect(30,4,250,36)),workspace=rectOf('workspace','MAIN',rect(0,40,1200,752)),scrim=rectOf('mouse-dock-scrim','DIV',rect(0,0,0,0)),tray={open:false,dataset:{motion:'closed'}};scrim.hidden=true;header.querySelectorAll=()=>[flow];
+ const nodes={'.toolbar':header,'#statusbar':footer,'#workspace':workspace,'#mouse-dock-scrim':scrim,'#desktop-tray':tray},document={querySelector:s=>nodes[s]||null,elementFromPoint:(x,y)=>y<40?header:footer},getComputedStyle=node=>node===flow?{display:'block',visibility:'visible',opacity:'1'}:node===workspace?{paddingTop:'6px',paddingBottom:'6px',paddingLeft:'0px',paddingRight:'0px'}:node===scrim?{opacity:'0',backgroundColor:'rgb(0, 0, 0)'}:{backgroundImage:'linear-gradient(white, silver)',backgroundColor:'rgb(243, 245, 249)',backdropFilter:'blur(12px)',opacity:'1'},MouseTest={model:{theme:'light',slots:{}},progressUI:{panels:()=>[]}};
+ const context={document,getComputedStyle,MouseTest},result=JSON.parse(JSON.stringify(vm.runInNewContext('('+focusedChromeReadback.toString()+')()',context)));
+ assert.deepEqual(result.header.occluders,[{selector:'.mouse-tab-flow',bounds:rect(30,4,250,36)}]);assert.deepEqual(result.header.points.map(p=>p.point),[{x:284,y:4},{x:284,y:36}]);assert.deepEqual(result.header.points.map(p=>p.hit),['toolbar','toolbar']);assert.deepEqual(result.footer.points.map(p=>p.point.x),[100,100]);
+ tray.open=true;tray.id='desktop-tray';document.elementFromPoint=()=>tray;
+ const before={name:'ai-restored-light',header:result.header,footer:result.footer},opened=JSON.parse(JSON.stringify(vm.runInNewContext('('+focusedChromeReadback.toString()+')(reference)',{...context,reference:before})));
+ assert.equal(opened.header.pointSource,'pre-modal-layout');assert.equal(opened.header.referenceStage,'ai-restored-light');assert.deepEqual(opened.header.points,result.header.points.map(p=>({...p,actualModalHit:'desktop-tray'})));assert.deepEqual(opened.footer.points,result.footer.points.map(p=>({...p,actualModalHit:'desktop-tray'})));
+ assert.throws(()=>vm.runInNewContext('('+focusedChromeReadback.toString()+')()',context),/measured pre-modal points/);const stale=structuredClone(before);stale.header.bounds.width--;assert.throws(()=>vm.runInNewContext('('+focusedChromeReadback.toString()+')(reference)',{...context,reference:stale}),/changed the measured underlying chrome/);
 });

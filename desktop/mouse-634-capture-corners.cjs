@@ -63,6 +63,26 @@ function assertPixels(probes,label){
 function nativeState(browser,win,targets){
  return targets.map(target=>{const page=browser.get(target.id),view=page.view.getBounds(),parent=page.clipView?.getBounds()||null,root=page.clipView||page.view;return{id:page.id,webContentsId:page.view.webContents.id,bounds:{...page.bounds},actualBounds:{x:view.x+(parent?.x||0),y:view.y+(parent?.y||0),width:view.width,height:view.height},clip:{...page.captureGeometry?.clip},roundBottom:page.captureGeometry?.roundBottom,visible:page.visible===true,viewVisible:page.view.getVisible(),parentVisible:page.clipView?.getVisible()??true,attached:win.contentView.children.includes(root)};});
 }
+// Native close leaves the pointer where the editor's titled button was. A
+// platform tooltip can outlive the dialog and shade the restored pane corner.
+// Move onto the existing empty workspace gap; never hide UI or change pixels.
+function installCapturePointerProbe(point){
+ const workspace=document.querySelector('#workspace'),target=document.elementFromPoint(point.x,point.y);
+ if(!workspace||target!==workspace||target.closest('[title]'))throw Error('Capture pointer target must be the untitled workspace gap');
+ globalThis.__mouse634CapturePointer?.dispose();let event=null;
+ const move=e=>{if(e.target===workspace)event={type:e.type,trusted:e.isTrusted,x:e.clientX,y:e.clientY,target:e.target.id};};
+ document.addEventListener('pointermove',move,true);
+ globalThis.__mouse634CapturePointer={read:()=>event,dispose(){document.removeEventListener('pointermove',move,true);delete globalThis.__mouse634CapturePointer;}};
+}
+async function parkCapturePointer(fixture,win,geometry){
+ const cssPoint={x:Math.round(geometry.workspace.x+geometry.workspace.width*.375),y:Math.round(geometry.workspace.y+GAP/2)},origin=win.getContentBounds(),point={x:origin.x+cssPoint.x,y:origin.y+cssPoint.y};
+ await fixture.js(`(${installCapturePointerProbe.toString()})(${JSON.stringify(cssPoint)})`);
+ try{
+  const native=await fixture.nativeInput.testPointer(point.x,point.y);assert.equal(native.warpResult,0);assert.equal(native.postAccess,true);let event;
+  await fixture.until(async()=>{event=await fixture.js('__mouse634CapturePointer.read()');return event?.trusted===true&&event.target==='workspace'&&event.x===cssPoint.x&&event.y===cssPoint.y;},'634 native pointer leaves capture-close tooltip',2000);
+  await fixture.frame();return{cssPoint,point,native,event};
+ }finally{await fixture.js('globalThis.__mouse634CapturePointer?.dispose()');}
+}
 async function runCaptureCorners({win,browser,overlayGate,fixture,click,screenCapture,targets}){
  const {nativeImage}=require('electron'),facts={schema:1,ok:false,source:'Native screenshot-button input, actual composed editor canvas and OS before/after captures',physicalUserDeviceVerified:false,radius:RADIUS,gap:GAP,targets:structuredClone(targets),scenes:[],captures:[],identityRestored:false};
  assert.ok(Array.isArray(targets)&&targets.length>0&&new Set(targets.map(target=>target.id)).size===targets.length);
@@ -92,6 +112,7 @@ async function runCaptureCorners({win,browser,overlayGate,fixture,click,screenCa
    scene.composed=(await pixels(composed,points,'composed',theme)).filename;
    scene.stage='close';scene.closeInput=await click('#capture-close');
    await fixture.until(()=>!overlayGate.blocked&&records.every(record=>record.page.visible&&record.page.view.getVisible()),'634 same native pages restored after capture');
+   scene.pointerAfterClose=await parkCapturePointer(fixture,win,scene.before.geometry);
    await fixture.until(async()=>{const after=await identities();return after.every((row,index)=>row.raf>scene.before.identities[index].raf);},'634 live page animation resumes after capture');await fixture.frame();
    scene.after={geometry:await geometry(),native:nativeState(browser,win,targets),identities:await identities()};validateGeometry(scene.after.geometry,scene.after.native);
    assert.deepEqual(scene.after.geometry,scene.before.geometry,'Capture and close preserve all DOM workspace gaps and corners');assert.deepEqual(scene.after.native,scene.before.native,'Capture and close restore the same native owners, bounds and masks');
@@ -106,4 +127,4 @@ async function runCaptureCorners({win,browser,overlayGate,fixture,click,screenCa
   if(await fixture.js('MouseTest.model.theme').catch(()=>originalTheme)!==originalTheme)await fixture.js('MouseTest.setTheme('+JSON.stringify(originalTheme)+')').catch(()=>{});
  }
 }
-module.exports=Object.assign(runCaptureCorners,{captureReadback,validateGeometry,capturePoints,samplePixels,assertPixels});
+module.exports=Object.assign(runCaptureCorners,{captureReadback,validateGeometry,capturePoints,samplePixels,assertPixels,installCapturePointerProbe,parkCapturePointer});

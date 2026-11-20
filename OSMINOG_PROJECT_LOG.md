@@ -2522,3 +2522,10 @@ ReleasePR62 содержит только новые634 проверки и read
 ### Mouse6.0.34 — восстановлена точка остановки и исправлены следующие проверки
 
 Повторный source `a36b191` не принят: Windows уже подтвердил обе ссылки/сохранность чата, но остановился на непреднамеренной cross-origin download-ссылке HTTP fixture; Linux — на экранированном пробеле в FUSE subtype старогоAppImage; Mac отменён без выделенного runner. Исправлены только данные/проверки634: собственный origin каждой download fixture и ровно `\040` в subtype, с сохранением document/epoch, native, mount/ownership/hash и pixel gates. Новая полная приёмка/публикация остаётся открытой; точные логи, hashes и границы: [журнал634](docs/desktop/2026-11-20-mouse634-pane-feedback.md).
+
+
+### Mouse6.0.34 — Нора по новому снимку владельца и исправление нативных pixel probes
+
+Владелец потребовал убрать непрошенную шестерёнку из заголовка Норы и усилить затемнение обеих тем при её выезде. Gear/callback удалены; Settings открывается через нижнюю панель. Scrim12%→24% сохраняет прежнюю300ms анимацию/барьеры и восстановление; footer остаётся вне затемнения. Пять native smoke сохраняют реальные Nora/settings действия.
+
+Source2492add ещё не принят: Linux подтвердил оба настоящих633→634 формата; Windows —629→634/633→634; download/AI gates прошли. Mac остановился на тени tooltip после capture-close (cursor теперь реально отводится с trusted readback, tolerance3 сохранён); Win/Linux — на SVG активной вкладки с pointer-events:none поверх ошибочно выбранной точки header (явное исключение SVG bounds, tolerance6 сохранён). Open-Nora pixel gate использует честно помеченные pre-modal точки при неизменной текущей геометрии и проверяет24% shade по OS PNG. Адресные contracts проходят; новый installed CI/публикация ещё впереди. Полный локальный suite не объявляется успешным из-за отсутствующего native MCP addon. Точные run/artifact/SHA, результаты и границы: [журнал634](docs/desktop/2026-11-20-mouse634-pane-feedback.md).

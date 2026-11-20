@@ -73,3 +73,30 @@ test('native capture pixel probes preserve fractional framebuffer origin and rej
  const probes=samplePixels(bitmap,size,mapping,[point]);assert.deepEqual(probes[0].pixel,{x:3,y:4});assertPixels(probes,'actual framebuffer crop');
  Buffer.from([232,240,243,255]).copy(bitmap,offset);assert.throws(()=>assertPixels(samplePixels(bitmap,size,mapping,[point]),'filled corner'),/actual corner\/gap pixels/);
 });
+function pointerFixture({trusted=true,dx=0,covered=false,titled=false,native={warpResult:0,postAccess:true}}={}){
+ const events=[],listeners=new Map(),workspace={id:'workspace',closest:()=>titled?{}:null},document={querySelector:()=>workspace,elementFromPoint:()=>covered?{}:workspace,addEventListener:(type,handler)=>listeners.set(type,handler),removeEventListener:type=>listeners.delete(type)},context=vm.createContext({document});
+ const win={getContentBounds:()=>({x:4,y:29,width:1016,height:676})},geometry={workspace:{x:0,y:40,width:1016,height:608}},fixture={
+  js:async source=>vm.runInContext(source,context),
+  nativeInput:{testPointer:async(x,y)=>{events.push({type:'native',x,y});listeners.get('pointermove')?.({type:'pointermove',target:workspace,isTrusted:trusted,clientX:x-4+dx,clientY:y-29});return native;}},
+  until:async(check,label)=>{if(!await check())throw Error(label);events.push({type:'observed'});},
+  frame:async()=>{events.push({type:'presentation'});}
+ };
+ return{fixture,win,geometry,events,listeners,context};
+}
+test('capture readback moves the real pointer onto the empty gap and observes it before presentation',async()=>{
+ const {parkCapturePointer}=require('./mouse-634-capture-corners.cjs'),f=pointerFixture(),proof=await parkCapturePointer(f.fixture,f.win,f.geometry);
+ assert.deepEqual(proof.cssPoint,{x:381,y:43});assert.deepEqual(proof.point,{x:385,y:72});assert.deepEqual(plain(proof.event),{type:'pointermove',trusted:true,x:381,y:43,target:'workspace'});
+ assert.deepEqual(f.events,[{type:'native',x:385,y:72},{type:'observed'},{type:'presentation'}]);assert.equal(f.listeners.size,0);assert.equal(f.context.__mouse634CapturePointer,undefined);
+});
+test('capture cannot proceed with a covered or titled pointer target, untrusted event, wrong location or denied native input',async()=>{
+ const {parkCapturePointer}=require('./mouse-634-capture-corners.cjs');
+ for(const options of [{covered:true},{titled:true},{trusted:false},{dx:1},{native:{warpResult:1,postAccess:true}},{native:{warpResult:0,postAccess:false}}]){
+  const f=pointerFixture(options);await assert.rejects(parkCapturePointer(f.fixture,f.win,f.geometry));assert.ok(f.events.every(event=>event.type!=='presentation'));
+  if(options.covered||options.titled)assert.equal(f.events.length,0);assert.equal(f.listeners.size,0);assert.equal(f.context.__mouse634CapturePointer,undefined);
+ }
+});
+test('the observed close-tooltip shadow is rejected by the unchanged three-channel tolerance',()=>{
+ const {samplePixels,assertPixels}=require('./mouse-634-capture-corners.cjs'),size={width:1,height:1},point={kind:'pane-top-cutout',cssPoint:{x:0,y:0},expectedRGB:[199,207,223]},mapping={scaleX:1,scaleY:1,originX:0,originY:0};
+ const probes=samplePixels(Buffer.from([216,201,193,255]),size,mapping,[point]);assert.equal(probes[0].tolerance,3);assert.throws(()=>assertPixels(probes,'native tooltip shadow'),/actual corner\/gap pixels/);
+ assertPixels(samplePixels(Buffer.from([220,204,196,255]),size,mapping,[point]),'within existing tolerance');
+});
