@@ -17,7 +17,8 @@ test "$(git -C "$target/source" remote get-url origin)" = https://github.com/sea
 git -C "$target/source" fetch -q --depth=1 origin "$pin"
 git -C "$target/source" checkout -q --detach FETCH_HEAD
 test "$(git -C "$target/source" rev-parse HEAD)" = "$pin"
-python3 -m venv "$target/venv"
+python3 -m venv --without-pip "$target/venv"
+"$target/venv/bin/python" "$target/bootstrap-pip.py" "$target"
 "$target/venv/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'setuptools==80.9.0' wheel
 "$target/venv/bin/python" -m pip install --disable-pip-version-check --no-cache-dir -r "$target/source/requirements.txt"
 # Editable install retains pinned source/AGPL notices at the deployed revision.
