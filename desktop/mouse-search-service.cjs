@@ -12,8 +12,10 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const cheerio = require('cheerio/slim');
 
-const DEFAULT_ENDPOINT = 'https://osminog.red:3082/search';
-const DEFAULT_AI_ENDPOINT = 'https://osminog.red:3081';
+// This existing own public address is also an IP SAN in the pinned certificate.
+// Keep normal TLS identity verification; a DNS outage must not break both APIs.
+const DEFAULT_ENDPOINT = 'https://151.248.113.177:3082/search';
+const DEFAULT_AI_ENDPOINT = 'https://151.248.113.177:3081';
 const LIMITS = Object.freeze({query:512, page:30, results:24, searchBytes:2*1024*1024,
   metadataBytes:512*1024, modelBytes:128*1024, searchMs:12000, metadataMs:2500,
   queryMs:30000, modelMs:50000, metadataConcurrency:4, queries:3, modelCalls:2,

@@ -45,8 +45,52 @@ jobs:
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "umask 077; test \"\$(id -un)\" = osminog; test ! -L /opt/osminog/mouse-search; mkdir -p /opt/osminog/mouse-search/releases/$GITHUB_SHA"
           tar -czf - -C infra/mouse-search server.py settings.yml upstream-revision osminog-mouse-search.service deploy.sh prepare.sh bootstrap-pip.py ai-smoke.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/releases/$GITHUB_SHA"
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash /opt/osminog/mouse-search/releases/$GITHUB_SHA/deploy.sh $GITHUB_SHA"
+  verify:
+    needs: [test, deploy]
+    # A verifier-only push must not reinstall or rewrite the active release.
+    if: always() && needs.test.result == 'success' && (needs.deploy.result == 'success' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[verify-mouse-search]')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record the actual own hostname DNS outcome separately
+        run: python3 infra/mouse-search/dns-proof.py --output mouse-search-dns.json
+      - name: Inspect only the active own service and prepare bounded proof scripts
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY"
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts")
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 /bin/bash -s -- "$GITHUB_SHA" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          test "$(id -un)" = osminog
+          [[ "$1" =~ ^[0-9a-f]{40}$ ]]
+          base=/opt/osminog/mouse-search
+          test ! -L "$base" && test "$(stat -c %U "$base")" = osminog
+          test ! -L "$base/proofs" && test ! -L "$base/proofs/$1"
+          mkdir -p "$base/proofs/$1"
+          test ! -L "$base/proofs/$1/ai-smoke.py" && test ! -L "$base/proofs/$1/runtime-proof.py"
+          REMOTE
+          tar -czf - -C infra/mouse-search ai-smoke.py runtime-proof.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/proofs/$GITHUB_SHA"
+          upstream=$(cat infra/mouse-search/upstream-revision)
+          [[ "$upstream" =~ ^[0-9a-f]{40}$ ]]
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "/usr/bin/python3 -I -B /opt/osminog/mouse-search/proofs/$GITHUB_SHA/runtime-proof.py --verifier-source $GITHUB_SHA --upstream $upstream" > mouse-search-runtime.json
+          cat mouse-search-runtime.json
       - name: Verify public TLS and real upstream results including pagination and video
-        run: python3 infra/mouse-search/smoke.py desktop/mouse-search-ca.crt --output mouse-search-live.json
+        run: python3 infra/mouse-search/smoke.py desktop/mouse-search-ca.crt --host 151.248.113.177 --output mouse-search-live.json
       - name: Verify one real text response with actual ranked search context
         env:
           SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
@@ -62,13 +106,15 @@ jobs:
           unset SSH_PRIVATE_KEY
           printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
           ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts")
-          ssh "${ssh_args[@]}" osminog@151.248.113.177 "systemd-run --user --quiet --wait --pipe --collect --unit=osminog-mouse-search-ai-proof-$GITHUB_RUN_ID -p MemoryMax=64M -p CPUQuota=10% -p TasksMax=8 -p NoNewPrivileges=yes -p RuntimeMaxSec=90 /usr/bin/python3 -I -B /opt/osminog/mouse-search/releases/$GITHUB_SHA/ai-smoke.py"
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "systemd-run --user --quiet --wait --pipe --collect --unit=osminog-mouse-search-ai-proof-$GITHUB_RUN_ID -p MemoryMax=64M -p CPUQuota=10% -p TasksMax=8 -p NoNewPrivileges=yes -p RuntimeMaxSec=90 /usr/bin/python3 -I -B /opt/osminog/mouse-search/proofs/$GITHUB_SHA/ai-smoke.py --host 151.248.113.177 --verifier-source $GITHUB_SHA"
           ssh "${ssh_args[@]}" osminog@151.248.113.177 'cat /opt/osminog/mouse-search/state/mouse-search-ai-live.json' > mouse-search-ai-live.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Mouse-search-public-evidence
           path: |
+            mouse-search-dns.json
+            mouse-search-runtime.json
             mouse-search-live.json
             mouse-search-ai-live.json
           if-no-files-found: warn

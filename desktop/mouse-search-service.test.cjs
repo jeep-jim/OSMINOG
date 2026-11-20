@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const http=require('node:http'),zlib=require('node:zlib'),path=require('node:path');
-const {createSearchService,requestBuffer,parseOpenGraph,normalizeResult,publicAddress,checkedURL,LIMITS}=require('./mouse-search-service.cjs');
+const {createSearchService,requestBuffer,parseOpenGraph,normalizeResult,publicAddress,checkedURL,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT}=require('./mouse-search-service.cjs');
 
 async function server(t,handle){
   const instance=http.createServer(handle);await new Promise((resolve,reject)=>{instance.once('error',reject);instance.listen(0,'127.0.0.1',resolve);});
@@ -16,6 +16,21 @@ function fixture(t,origin,extras={}){
   const service=createSearchService({endpoint:origin+'/search',fixtureOrigins:[origin],fixtureProfile:process.env.MOUSE_TEST_PROFILE,ai:false,...extras});
   t.after(()=>service.dispose());return service;
 }
+
+test('default own endpoints match the pinned certificate IP SAN, with normal identity rejection for other addresses',()=>{
+  const {X509Certificate}=require('node:crypto'),tls=require('node:tls');
+  const certificate=new X509Certificate(require('node:fs').readFileSync(path.join(__dirname,'mouse-search-ca.crt')));
+  assert.equal(certificate.fingerprint256.replaceAll(':','').toLowerCase(),'18a7d7b3881078171848621de946b777ff682ba729ad6e4d399a1d6bff784d07');
+  assert.equal(DEFAULT_ENDPOINT,'https://151.248.113.177:3082/search');
+  assert.equal(DEFAULT_AI_ENDPOINT,'https://151.248.113.177:3081');
+  for(const endpoint of [DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT]){
+    const host=new URL(endpoint).hostname;assert.equal(publicAddress(host),true);
+    assert.equal(certificate.checkIP(host),host);
+    assert.equal(tls.checkServerIdentity(host,certificate.toLegacyObject()),undefined);
+  }
+  assert.equal(tls.checkServerIdentity('151.248.113.178',certificate.toLegacyObject()).code,'ERR_TLS_CERT_ALTNAME_INVALID');
+  const service=createSearchService();try{assert.equal(service.state().endpoint,DEFAULT_ENDPOINT);}finally{service.dispose();}
+});
 
 test('OG reads real HTML attributes and entities without executing script; stable article/video/product fields',()=>{
   const source='<head><meta content="A &amp; B" property="og:title"><meta property="og:description" content="Useful &lt;b&gt;description&lt;/b&gt;"><meta content="/cover.jpg" property="og:image"><meta property="og:type" content="product"><meta property="product:price:amount" content="199.99"><meta content="RUB" property="product:price:currency"><script>throw Error("never execute")</script></head>';
