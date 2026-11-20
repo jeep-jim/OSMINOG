@@ -31,8 +31,20 @@ function pixelAt(bitmap,size,mapping,point){
 }
 function probeDelta(rgba,rgb){return Math.max(...rgb.map((value,i)=>Math.abs(value-rgba[i])));}
 
-module.exports=async({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base,records=fixture.records.slice(0,2),names=['a','b'],filePrefix='mouse-634-download-widget'})=>{
+function ownedDownloadURL(name,pageURL,origin){
+ assert.ok(['a','b','chat','preview'].includes(name));
+ assert.match(origin,/^http:\/\/127\.0\.0\.1:\d+$/,'Downloads use a caller-owned HTTP fixture origin');
+ assert.equal(new URL(pageURL).origin,origin,'The download fixture is same-origin with its actual native owner');
+ return origin+'/download/'+name;
+}
+
+module.exports=async({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base,records=fixture.records.slice(0,2),names=['a','b'],downloadOrigins=[base,base],filePrefix='mouse-634-download-widget'})=>{
  assert.equal(records.length,2);assert.equal(names.length,2);assert.equal(new Set(records.map(record=>record.id)).size,2);assert.match(filePrefix,/^mouse-634-[a-z0-9-]+$/);
+ assert.equal(downloadOrigins.length,records.length);
+ // A cross-origin <a download> is a navigation that may become an attachment.
+ // This viewport gate uses same-origin download links and retains the strict
+ // unchanged document/security epoch assertion throughout every byte milestone.
+ const downloadURLs=records.map((record,index)=>ownedDownloadURL(names[index],record.page.view.webContents.getURL(),downloadOrigins[index]));
  const tabIds=records.map(record=>record.id),facts={schema:1,version:fixture.app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,source:'Actual DownloadItems, trusted native guest clicks and full OS display pixels',physicalUserDeviceVerified:false,placement:'bottom',pillHeight:16,gap:6,reservedHeight:22,palette:PALETTE,pixelTolerance:PIXEL_TOLERANCE,names:[...names],tabIds,nativeInputs:[],stages:[],captures:[],files:[],ok:false},reportFile=filePrefix+'.json';
  const save=()=>fs.writeFile(reportFile,JSON.stringify(facts,null,2)+'\n');
  const initialTheme=await fixture.js('MouseTest.model.theme');let original;
@@ -45,7 +57,7 @@ module.exports=async({fixture,browser,win,libraryService,guestClick,screenCaptur
   await fixture.until(async()=>{
    value=await read();
    for(let i=0;i<names.length;i++){
-    const active=activeNames.includes(names[i]),row=value.panels[i],native=value.native[i],download=libraryService.library.data.downloads.find(item=>item.url===base+'/download/'+names[i]);
+    const active=activeNames.includes(names[i]),row=value.panels[i],native=value.native[i],download=libraryService.library.data.downloads.find(item=>item.url===downloadURLs[i]);
     if(!row.ui.slot||!native.visible||!native.parentVisible||!native.cachedVisible||!native.attached)return false;
     if(active){
      if(!download||!row.activeIds.includes(download.id)||row.activeIds.length!==1||!row.ui.pill||row.ui.pill.hidden)return false;
@@ -99,8 +111,8 @@ module.exports=async({fixture,browser,win,libraryService,guestClick,screenCaptur
   streams.get(names[0]).cap=streams.get(names[0]).data.length;await fixture.until(()=>downloads.get(names[0]).done==='completed','634 first native download completes',12000);const firstDone=await settled('first-completed',[names[1]],{received:{[names[1]]:131072}});assert.equal(firstDone.activity.unreadCount,facts.unreadBefore+1);await capture('first-completed',firstDone,{badge:true});
   streams.get(names[1]).cap=streams.get(names[1]).data.length;await fixture.until(()=>downloads.get(names[1]).done==='completed','634 second native download completes',12000);const completed=await settled('both-completed',[]);assert.equal(completed.activity.unreadCount,facts.unreadBefore+2);await capture('completed',completed,{badge:true});
   for(let i=0;i<names.length;i++){
-   const name=names[i],record=downloads.get(name),data=await fs.readFile(record.path||record.file),expected=streams.get(name).data,entry=libraryService.library.data.downloads.find(item=>item.url===base+'/download/'+name);assert.ok(entry);assert.equal(entry.state,'completed');assert.equal(entry.received,data.length);assert.equal(entry.total,expected.length);assert.equal(data.length,524288);assert.equal(sha256(data),sha256(expected));assert.equal(streams.get(name).requests,1);assert.ok(record.events.some(event=>(event.type||event.event)==='done'&&event.state==='completed'));assert.equal(record.webContentsId,records[i].page.view.webContents.id);
-   const url=record.item.getURL();assert.equal(url,base+'/download/'+name);assert.equal(entry.url,url);
+   const name=names[i],record=downloads.get(name),data=await fs.readFile(record.path||record.file),expected=streams.get(name).data,entry=libraryService.library.data.downloads.find(item=>item.url===downloadURLs[i]);assert.ok(entry);assert.equal(entry.state,'completed');assert.equal(entry.received,data.length);assert.equal(entry.total,expected.length);assert.equal(data.length,524288);assert.equal(sha256(data),sha256(expected));assert.equal(streams.get(name).requests,1);assert.ok(record.events.some(event=>(event.type||event.event)==='done'&&event.state==='completed'));assert.equal(record.webContentsId,records[i].page.view.webContents.id);
+   const url=record.item.getURL();assert.equal(url,downloadURLs[i]);assert.equal(entry.url,url);
    facts.files.push({name,id:entry.id,url,tabId:records[i].id,webContentsId:record.webContentsId,filename:path.basename(record.path||record.file),bytes:data.length,sha256:sha256(data),expectedBytes:expected.length,expectedSha256:sha256(expected),requests:streams.get(name).requests,events:record.events.map(event=>({...event})),saveDecision:'DownloadItem.setSavePath only for this owned HTTP fixture'});
   }
   for(let i=0;i<records.length;i++){fixture.assertIdentity(original.identities[i],completed.identities[i]);assert.ok(completed.identities[i].ticks>original.identities[i].ticks,'Both original renderers kept running throughout the transfer');}
@@ -113,3 +125,4 @@ module.exports.assertIndependentGeometry=assertIndependentGeometry;
 module.exports.pixelAt=pixelAt;
 module.exports.probeDelta=probeDelta;
 module.exports.PALETTE=PALETTE;
+module.exports.ownedDownloadURL=ownedDownloadURL;

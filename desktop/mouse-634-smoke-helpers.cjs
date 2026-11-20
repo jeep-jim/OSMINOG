@@ -3,10 +3,10 @@ const assert=require('node:assert/strict');
 
 function ownerPage(html,index,{base,previewBase}){
  const links=`<nav id="owner-links" style="position:fixed;left:12px;top:136px;display:grid;gap:5px;background:#f3f0e8;padding:5px;z-index:5;font:12px system-ui">
- <a id="download-a" href="${base}/download/a" download>Download A</a>
- <a id="download-b" href="${base}/download/b" download>Download B</a>
- <a id="download-chat" href="${base}/download/chat" download>Download chat file</a>
- <a id="download-preview" href="${base}/download/preview" download>Download preview file</a>
+ <a id="download-a" href="/download/a" download>Download A</a>
+ <a id="download-b" href="/download/b" download>Download B</a>
+ <a id="download-chat" href="/download/chat" download>Download chat file</a>
+ <a id="download-preview" href="/download/preview" download>Download preview file</a>
  <a id="link-blank" href="${previewBase}/page/3/" target="_blank">Open source in new window</a>
  <a id="link-same" href="${previewBase}/page/4/">Open source in same window</a>
  </nav><script>globalThis.mouse634={index:${index},clicks:[],raf:0};requestAnimationFrame(function tick(){mouse634.raf++;requestAnimationFrame(tick)});document.querySelector('#owner-links').addEventListener('click',event=>{const link=event.target.closest('a');if(link)mouse634.clicks.push({id:link.id,trusted:event.isTrusted,isTrusted:event.isTrusted,at:Date.now()});});</script>`;

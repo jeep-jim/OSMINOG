@@ -605,3 +605,8 @@ Owner requested native right-click favorites/split/grid controls and removal of 
 SourcePR185 на`bff1bcc0ebabc7f2962418547e62a8efb1a923bd` не принят:7 прежнихunit fixtures требовали обновления после нового AI wrapper/helper; адресные32 проверки после исправления прошли. Linux подтвердил реальный deb633→634 с сохранением профиля, но переносимыйAppImage probe ошибочно требовал APPIMAGE в исходном/proc environ; новая проверка связывает фактический browserPID, цепочку своего launcher, read-only FUSE executable и неизменные байты образа. Windows подтвердил629→634/633→634 и новые нижние widget, но chat same-window probe неверно считал отменённую попытку навигации перезагрузкой. Счётчик отзыва capabilities не ослабляется; добавляется отдельное свидетельство отменённой попытки при сохранении документа.
 
 ReleasePR62 содержит только новые634 проверки и ready:false pins;5 draft workflows прошли. Публикация634 ещё не разрешена проверками. Подробные run/artifact/SHA и границы доказательств:docs/desktop/2026-11-20-mouse634-pane-feedback.md.
+
+
+### Mouse6.0.34 — восстановлена точка остановки и исправлены следующие проверки
+
+Повторный source `a36b191` не принят: Windows уже подтвердил обе ссылки/сохранность чата, но остановился на непреднамеренной cross-origin download-ссылке HTTP fixture; Linux — на экранированном пробеле в FUSE subtype старогоAppImage; Mac отменён без выделенного runner. Исправлены только данные/проверки634: собственный origin каждой download fixture и ровно `\040` в subtype, с сохранением document/epoch, native, mount/ownership/hash и pixel gates. Новая полная приёмка/публикация остаётся открытой; точные логи, hashes и границы: [журнал634](docs/desktop/2026-11-20-mouse634-pane-feedback.md).

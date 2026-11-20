@@ -3,8 +3,23 @@
 // These are not substituted for its real DownloadItem or OS frame acceptance.
 const test=require('node:test'),assert=require('node:assert/strict');
 const {downloadNativeBounds,assertDownloadPaneGeometry}=require('./mouse-630-feedback-smoke.cjs');
-const {assertIndependentGeometry,pixelAt,probeDelta,PALETTE}=require('./mouse-634-download-widget-smoke.cjs');
+const {assertIndependentGeometry,pixelAt,probeDelta,PALETTE,ownedDownloadURL}=require('./mouse-634-download-widget-smoke.cjs');
+const {ownerPage}=require('./mouse-634-smoke-helpers.cjs');
 const clone=value=>structuredClone(value);
+test('chat and cross-origin preview each download from their own fixed HTTP fixture',()=>{
+ const base='http://127.0.0.1:31001',previewBase='http://127.0.0.1:31002';
+ for(const [index,origin,name]of [[0,base,'a'],[1,base,'b'],[2,base,'chat'],[3,previewBase,'preview']]){
+  const pageURL=origin+'/page/'+index+'/',html=ownerPage('<body></body>',index,{base,previewBase});
+  const href=html.match(new RegExp('id="download-'+name+'" href="([^"]+)" download'))?.[1];assert.ok(href);
+  assert.equal(new URL(href,pageURL).href,ownedDownloadURL(name,pageURL,origin));
+  assert.equal(new URL(href,pageURL).origin,origin,'The download attribute must not turn into cross-origin navigation');
+  assert.ok(html.includes('id="link-blank" href="'+previewBase+'/page/3/" target="_blank"'));
+  assert.ok(html.includes('id="link-same" href="'+previewBase+'/page/4/"'));
+ }
+ assert.throws(()=>ownedDownloadURL('preview',previewBase+'/page/3/',base),/actual native owner/);
+ assert.throws(()=>ownedDownloadURL('preview','https://external.example/page/3/','https://external.example'),/caller-owned/);
+ assert.throws(()=>ownedDownloadURL('../page/3',base+'/page/2/',base));
+});
 function scene(active=[]){
  const panels=['a','b'].map((tabId,index)=>{
   const on=active.includes(tabId),x=8.25+index*426.5,pane={x,y:58,width:420.5,height:500},slot={x,y:86,width:420.5,height:472-(on?22:0)},pill=on?{bounds:{x,y:542,width:420.5,height:16},hidden:false,text:'',radius:'999px',trackColor:'rgb(83, 207, 139)',fillColor:'rgb(7, 130, 60)'}:null;

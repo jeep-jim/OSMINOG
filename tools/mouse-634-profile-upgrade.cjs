@@ -70,7 +70,9 @@ function validateLinuxProcessIdentity(facts,input,uid){
   assert.ok(Number.isSafeInteger(image.size)&&image.size>0&&Number.isSafeInteger(image.device)&&image.device>=0&&Number.isSafeInteger(image.inode)&&image.inode>0);assert.match(image.sha256,/^[0-9a-f]{64}$/);
   assert.ok(mount&&Number.isSafeInteger(mount.mountId)&&mount.mountId>0&&Number.isSafeInteger(mount.parentMountId)&&mount.parentMountId>0);assert.match(mount.device,/^\d+:\d+$/);
   assert.equal(mount.root,'/');assert.ok(path.posix.isAbsolute(mount.mountPoint)&&path.posix.normalize(mount.mountPoint)===mount.mountPoint&&mount.mountPoint!=='/');
-  assert.match(mount.filesystem,/^fuse(?:\.[^\s/\\\0]+)?$/);assert.ok(mount.options.includes('ro')&&!mount.options.includes('rw'),'AppImage payload must be an actual read-only FUSE mount');
+  // mountinfo keeps the subtype escaped: the owned "Mouse Browser.AppImage"
+  // is reported as fuse.Mouse\040Browser.AppImage. Admit only this space escape.
+  assert.match(mount.filesystem,/^fuse(?:\.(?:[^\s/\\\0]|\\040)+)?$/);assert.ok(mount.options.includes('ro')&&!mount.options.includes('rw'),'AppImage payload must be an actual read-only FUSE mount');
   assert.equal(facts.executable,path.posix.join(mount.mountPoint,'mouse-browser'));
   assert.deepEqual(mountForExecutable(mount.raw+'\n',facts.executable),mount);
  }else{

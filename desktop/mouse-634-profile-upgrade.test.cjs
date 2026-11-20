@@ -84,6 +84,26 @@ test('mounted AppImage identity uses the real FUSE mount and owned launch ancest
  facts.pid=facts.launcherPid;facts.launchAncestry=[facts.launchAncestry[1]];assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
 });
 
+test('mounted AppImage accepts the escaped-space subtype observed in the Linux633 baseline',()=>{
+ // Exact mount row from source run44753944355/artifact14636717202;
+ // the surrounding process and receipt are synthetic unit data, not native evidence.
+ const raw=String.raw`491 25 0:45 / /tmp/.mount_Mouse\040sY2Wgh ro,nosuid,nodev,relatime shared:250 - fuse.Mouse\040Browser.AppImage Mouse\040Browser.AppImage ro,user_id=1001,group_id=1001`;
+ const {input,facts}=syntheticMountedProcess();facts.executable='/tmp/.mount_Mouse sY2Wgh/mouse-browser';facts.mount=mountForExecutable(raw,facts.executable);
+ assert.equal(facts.mount.filesystem,String.raw`fuse.Mouse\040Browser.AppImage`);assert.equal(facts.mount.source,'Mouse Browser.AppImage');
+ assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
+ for(const options of [['rw'],['ro','rw']]){const changed=structuredClone(facts);changed.mount.options=options;assert.throws(()=>validateLinuxProcessIdentity(changed,input,1001));}
+ const changed=structuredClone(facts);changed.mount.raw=raw.replace('0:45','0:46');assert.throws(()=>validateLinuxProcessIdentity(changed,input,1001));
+});
+
+test('mounted AppImage subtype still rejects non-FUSE mounts, raw whitespace and other escapes',()=>{
+ for(const filesystem of ['ext4','fuseblk','fuse.','fuse.Mouse Browser.AppImage','fuse.Mouse\tBrowser.AppImage',
+  String.raw`fuse.Mouse\011Browser.AppImage`,String.raw`fuse.Mouse\012Browser.AppImage`,String.raw`fuse.Mouse\134Browser.AppImage`,
+  String.raw`fuse.Mouse\057Browser.AppImage`,String.raw`fuse.Mouse\000Browser.AppImage`,String.raw`fuse.Mouse\04Browser.AppImage`,String.raw`fuse.Mouse\Browser.AppImage`]){
+  const {input,facts}=syntheticMountedProcess();facts.mount.raw=facts.mount.raw.replace('fuse.AppImage',filesystem);facts.mount.filesystem=filesystem;
+  assert.throws(()=>validateLinuxProcessIdentity(facts,input,1001),filesystem);
+ }
+});
+
 test('mounted identity rejects wrong process ownership, ancestry, image receipts and conflicting environment',()=>{
  const mutations=[f=>f.uid=0,f=>f.pid=999,f=>f.launcherPid=999,f=>f.launchAncestry=[],f=>f.launchAncestry[0].parentPid=399,
   f=>f.launchAncestry[1].uid=0,f=>f.launchAncestry.push(f.launchAncestry[0]),f=>f.environmentAppImage='/tmp/different.AppImage',
