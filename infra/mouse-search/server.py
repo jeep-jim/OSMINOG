@@ -19,12 +19,31 @@ import socketserver
 import sqlite3
 import ssl
 import threading
+import tempfile
 import time
 from urllib.parse import parse_qs, urlencode
 
 BODY_LIMIT = 8192
 RESPONSE_LIMIT = 2 * 1024 * 1024
 BASE = Path('/opt/osminog/mouse-search')
+
+
+def own_runtime_paths(base=BASE):
+    """SearXNG's SQLite defaults use tempfile, independent of its data env vars."""
+    base = Path(base)
+    state, temporary = base/'state', base/'state/tmp'
+    if base.is_symlink() or state.is_symlink() or temporary.is_symlink():
+        raise RuntimeError('MOUSE_SEARCH_RUNTIME_PATH')
+    temporary.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if temporary.stat().st_uid != os.getuid() or temporary.resolve().parent != state.resolve():
+        raise RuntimeError('MOUSE_SEARCH_RUNTIME_OWNER')
+    temporary.chmod(0o700)
+    os.environ['TMPDIR'] = str(temporary)
+    # tempfile may have been imported by a dependency before this point.
+    tempfile.tempdir = str(temporary)
+    os.environ['SEARXNG_DATA_PATH'] = str(state/'searxng')
+    os.environ['XDG_CACHE_HOME'] = str(state/'cache')
+    return temporary
 
 
 class ApiError(Exception):
@@ -239,8 +258,7 @@ def main():
     os.environ['SEARXNG_SETTINGS_PATH'] = str(BASE / 'current/settings.yml')
     os.environ['SEARXNG_DISABLE_ETC_SETTINGS'] = 'true'
     os.environ['SEARXNG_SECRET'] = (BASE / 'secrets/searxng-secret').read_text().strip()
-    os.environ['SEARXNG_DATA_PATH'] = str(BASE / 'state/searxng')
-    os.environ['XDG_CACHE_HOME'] = str(BASE / 'state/cache')
+    own_runtime_paths()
     logging.disable(logging.CRITICAL)
     from searx.webapp import app  # The pinned, unmodified production WSGI application.
     logging.disable(logging.CRITICAL)

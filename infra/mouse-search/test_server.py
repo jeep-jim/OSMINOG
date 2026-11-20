@@ -3,6 +3,7 @@ import http.client
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
@@ -121,6 +122,25 @@ class SearchServerTests(unittest.TestCase):
         self.assertEqual(health['upstream'], 'a'*40)
         self.assertEqual(health['service'], 'osminog-mouse-search')
         self.assertFalse(health['storesQueries'])
+
+    def test_upstream_tempfile_cache_is_confined_to_own_state(self):
+        prior_tmp = tempfile.tempdir
+        saved = {key:os.environ.get(key) for key in ('TMPDIR','SEARXNG_DATA_PATH','XDG_CACHE_HOME')}
+        try:
+            own = backend.own_runtime_paths(self.directory.name)
+            self.assertEqual(Path(tempfile.gettempdir()), Path(self.directory.name)/'state/tmp')
+            self.assertEqual(own.stat().st_mode & 0o777, 0o700)
+            # Reproduce the exact upstream ExpireCacheCfg default path strategy.
+            upstream_cache = Path(tempfile.gettempdir()) / 'sxng_cache_DATA_CACHE.db'
+            self.assertEqual(upstream_cache.parent, own)
+            link = Path(self.directory.name)/'linked'
+            link.symlink_to(Path(self.directory.name), target_is_directory=True)
+            with self.assertRaises(RuntimeError): backend.own_runtime_paths(link)
+        finally:
+            tempfile.tempdir = prior_tmp
+            for key,value in saved.items():
+                if value is None: os.environ.pop(key,None)
+                else: os.environ[key]=value
 
 
 if __name__ == '__main__':

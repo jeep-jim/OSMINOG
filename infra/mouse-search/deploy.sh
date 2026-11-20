@@ -16,7 +16,7 @@ if ss -ltn '( sport = :3082 )' | tail -n +2 | grep -q .; then
   # An occupied unrelated port is a blocker, never something to stop or reuse.
   test -L "$base/current" && systemctl --user is-active --quiet osminog-mouse-search.service || { echo MOUSE_SEARCH_PORT_OCCUPIED; exit 1; }
 fi
-for item in secrets tls state state/searxng state/cache; do
+for item in secrets tls state state/searxng state/cache state/tmp; do
   test ! -L "$base/$item"
   mkdir -p "$base/$item"
   chmod 700 "$base/$item"
