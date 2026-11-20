@@ -11,7 +11,8 @@ test('Linux packaging keeps the common runtime and overwrites the unsafe upstrea
   assert.ok(build.files.includes('mouse-mcp-fs.node'));assert.ok(!build.files.includes('mouse-native-menu.node'));
   const appOutDir=path.join(root,'app'),stage=path.join(root,'stage');await fs.mkdir(appOutDir);await fs.mkdir(stage);await fs.writeFile(path.join(stage,'AppRun'),'UNSAFE_GENERATED_FALLBACK');
   await build.afterPack({appOutDir,electronPlatformName:'linux'});await require('builder-util').copyDir(appOutDir,stage);
-  const entry=await fs.readFile(path.join(stage,'AppRun'),'utf8');assert.equal(entry,build.APP_RUN);assert.doesNotMatch(entry,/--no-sandbox|unshare|NO_SANDBOX/);assert.match(entry,/exec "\$APPDIR\/mouse-browser" "\$@"/);if(process.platform!=='win32')assert.equal((await fs.stat(path.join(stage,'AppRun'))).mode&0o777,0o755);
+  const entry=await fs.readFile(path.join(stage,'AppRun'),'utf8');assert.equal(entry,await fs.readFile(path.join(appOutDir,'AppRun'),'utf8'));assert.doesNotMatch(entry,/--no-sandbox|unshare|NO_SANDBOX/);assert.match(entry,/exec "\$APPDIR\/mouse-browser" "\$@"/);if(process.platform!=='win32')assert.equal((await fs.stat(path.join(stage,'AppRun'))).mode&0o777,0o755);
+  const {getConfig,validateConfiguration}=require('app-builder-lib/out/util/config/config');await validateConfiguration(await getConfig(__dirname,'mouse-linux-build.cjs',null),{add(){}});
  }finally{await fs.rm(root,{recursive:true,force:true});}
 });
 test('Linux native input is CI-only and emits bounded real XTest actions',()=>{
@@ -19,6 +20,7 @@ test('Linux native input is CI-only and emits bounded real XTest actions',()=>{
  const driver=createLinuxInput({runtime,spawnSync:(program,args)=>{calls.push({program,args});return{status:0};}});
  assert.equal(driver.testClick(32.4,71.7),true);assert.deepEqual(calls.map(row=>row.args),[['mousemove','--sync','32','72'],['click','1']]);
  assert.equal(driver.testKey('ctrl+a'),true);assert.deepEqual(calls.at(-1).args,['key','--clearmodifiers','ctrl+a']);
+ assert.equal(driver.testRightClick(40,90),true);assert.deepEqual(calls.at(-1).args,['click','3']);assert.equal(driver.testKey('Home'),true);assert.deepEqual(calls.at(-1).args,['key','--clearmodifiers','Home']);
  assert.throws(()=>driver.testMouse(1,2,4),/phase/);assert.throws(()=>driver.testKey('a;echo bad'),/chord/);assert.throws(()=>driver.testClick(NaN,2),/finite/);
  for(const bad of [{...runtime,platform:'win32'},{...runtime,env:{...runtime.env,CI:'false'}},{...runtime,env:{...runtime.env,MOUSE_TEST_PROFILE:'relative'}},{...runtime,env:{...runtime.env,DISPLAY:'remote:99'}}])assert.throws(()=>createLinuxInput({runtime:bad}),/requires/);
 });

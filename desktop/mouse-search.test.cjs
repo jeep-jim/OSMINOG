@@ -45,7 +45,8 @@ test('search preference writes serialize and failed persistence never changes th
 async function workspace({store=memory(),privateMode=false,inheritedEngine}={}){
  const fs=require('node:fs'),vm=require('node:vm'),{createRequire}=require('node:module'),{EventEmitter}=require('node:events');
  const handlers=new Map(),ipcMain={handle:(key,fn)=>handlers.set(key,fn)},token={},trusted=e=>{assert.equal(e.sender,token);},sent=[];
- const win={isDestroyed:()=>false,webContents:{send:(...args)=>sent.push(args)}},app={getPath:()=>'/tmp/mouse-search-unit'},browser={tabs:new Map(),providers:new Map(),session:new EventEmitter(),project:'fixture',privateMode,emit(){},save:async()=>true};let sequence=0;
+ const shellContents=new EventEmitter();shellContents.send=(...args)=>sent.push(args);
+ const win={isDestroyed:()=>false,webContents:shellContents},app={getPath:()=>'/tmp/mouse-search-unit'},browser={tabs:new Map(),providers:new Map(),session:new EventEmitter(),project:'fixture',privateMode,emit(){},dispose(){this.disposed=true;},save:async()=>true};let sequence=0;
  browser.make=url=>{const wc=new EventEmitter();wc.url=url;wc.getURL=()=>wc.url;const t={id:'page-'+(++sequence),url,title:'Fixture',lane:'main',view:{webContents:wc}};browser.tabs.set(t.id,t);return t;};
  browser.get=id=>{const t=browser.tabs.get(id);if(!t)throw Error('Unknown fixture tab');return t;};browser.state=()=>({tabs:[...browser.tabs.values()].map(({id,url,lane})=>({id,url,lane}))});
  browser.command=async(action,args={})=>{if(action==='open'){const t=browser.make(args.url);t.lane=args.lane||'main';return{id:t.id};}if(action==='navigate'){const t=browser.get(args.id);t.url=args.url;t.view.webContents.url=args.url;return browser.state();}if(action==='close'){browser.tabs.delete(args.id);return browser.state();}return true;};

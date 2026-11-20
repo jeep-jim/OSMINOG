@@ -5,6 +5,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  platform:process.platform,arch:process.arch,
  version:process.argv.find(x=>x.startsWith('--mouse-version='))?.split('=').slice(1).join('=')||'6.0.0',
  test:process.argv.includes('--mouse-test'),
+ contextMenu:args=>ipcRenderer.invoke('mouse:context-menu',args),onContextAction:cb=>on('mouse:context-action',cb),
  settings:(action,args)=>ipcRenderer.invoke('mouse:settings',action,args),onSettings:cb=>on('mouse:settings-state',cb),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
  agent:(action,args)=>ipcRenderer.invoke('mouse:agent',action,args),onAgent:cb=>on('mouse:agent-state',cb),onTerminal:cb=>on('mouse:terminal-data',cb),onAgentOpen:cb=>on('mouse:agent-open',cb),

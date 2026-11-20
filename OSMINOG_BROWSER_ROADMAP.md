@@ -1255,3 +1255,7 @@ Windows [Releases PR59](https://github.com/jeep-jim/OSMINOG-Releases/pull/59), m
 ### Mouse 6.0.33 implementation checkpoint before native CI
 
 Implemented Settings as a right sidebar/last footer gear, restored Agent Mouse with optional Ollama onboarding, live T+ preview, actual download progress/bounce/unread count, and user-selected encrypted credential/bookmark import. Existing view-only documents remain. Added Mac/Windows actual632 profile replacement coverage and first Linux x64 packaging/installed gates. Focused portable tests passed; the broad scratch run is not green because the required MCP native addon/Node headers are unavailable here. No native acceptance or633 publication is claimed yet. Details: `docs/desktop/2026-11-20-mouse633-control-center.md`.
+
+### Mouse633 additional owner changes and first native diagnosis
+
+Owner requested native right-click favorites/split/grid controls and removal of the footer X. Both are implemented for the shared desktop UI; clicked tabs remain live. First633 CI found a Mac CI-input flag omission, Linux APP_RUN config export and a Windows owner-test selector quoting error; each has a targeted fix. Windows actual629/632 profile transitions and new Settings/livezoom stages passed before that test error. Native context-menu evidence has been added; complete633 acceptance/publication is still pending. See `docs/desktop/2026-11-20-mouse633-control-center.md` for runs and raw artifact binding.

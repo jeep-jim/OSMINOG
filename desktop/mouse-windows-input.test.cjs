@@ -11,6 +11,8 @@ test('Windows OS driver converts DIP once and preserves Unicode paths as argumen
  assert.deepEqual(calls[0][1],[runtime.env.MOUSE_WINDOWS_TEST_DRIVER,'--input','click','-1620','164']);
  assert.equal(calls[0][2].timeout,7000);assert.equal(calls[0][2].windowsHide,true);assert.equal(calls[0][2].shell,undefined);
  driver.testKey('CTRL+ALT+S');assert.deepEqual(calls[1][1],[runtime.env.MOUSE_WINDOWS_TEST_DRIVER,'--input','key','CTRL+ALT+S']);
+ assert.equal(driver.testRightClick(300,100),true);assert.deepEqual(calls[2][1],[runtime.env.MOUSE_WINDOWS_TEST_DRIVER,'--input','right-click','-1320','200']);
+ driver.testKey('HOME');assert.deepEqual(calls[3][1],[runtime.env.MOUSE_WINDOWS_TEST_DRIVER,'--input','key','HOME']);
 });
 
 test('Native input cannot run in an ordinary profile or with relative verifier paths',()=>{

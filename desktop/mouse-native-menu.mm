@@ -117,9 +117,11 @@ static bool nativeInputProbeAllowed(){
  const char* ci=std::getenv("CI"),*profile=std::getenv("MOUSE_TEST_PROFILE");
  // The isolated media regression runs after task/stress in its own process;
  // viewer and footer controls continue to run in the retained write process.
+ // Owner feedback has its own isolated installed verification process.
  return ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&
   ([NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||
-   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]);
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]);
 }
 static napi_value testPointer(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
@@ -135,6 +137,27 @@ static napi_value testClick(napi_env e,napi_callback_info info){
  if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid click probe");return nullptr;}
  CGPoint p=CGPointMake(x,y);CGWarpMouseCursorPosition(p);
  for(CGEventType type : {kCGEventMouseMoved,kCGEventLeftMouseDown,kCGEventLeftMouseUp}){CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}}
+ napi_value value;napi_get_boolean(e,CGPreflightPostEventAccess(),&value);return value;
+}
+static napi_value testRightClick(napi_env e,napi_callback_info info){
+ if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Right-click probe is CI smoke-only");return nullptr;}
+ size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
+ if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid right-click probe");return nullptr;}
+ CGPoint p=CGPointMake(x,y);CGWarpMouseCursorPosition(p);
+ for(CGEventType type : {kCGEventMouseMoved,kCGEventRightMouseDown,kCGEventRightMouseUp}){CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonRight);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}}
+ napi_value value;napi_get_boolean(e,CGPreflightPostEventAccess(),&value);return value;
+}
+static napi_value testKey(napi_env e,napi_callback_info info){
+ if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Key probe is CI smoke-only");return nullptr;}
+ size_t n=1,size=0;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);char key[16];
+ if(n!=1||napi_get_value_string_utf8(e,args[0],key,sizeof(key),&size)!=napi_ok||size==0||size>=sizeof(key)-1){napi_throw_error(e,nullptr,"Invalid native menu key");return nullptr;}
+ CGKeyCode code=0;bool valid=true;
+ if(!std::strcmp(key,"HOME"))code=115;else if(!std::strcmp(key,"END"))code=119;
+ else if(!std::strcmp(key,"LEFT"))code=123;else if(!std::strcmp(key,"RIGHT"))code=124;
+ else if(!std::strcmp(key,"DOWN"))code=125;else if(!std::strcmp(key,"UP"))code=126;
+ else if(!std::strcmp(key,"ENTER"))code=36;else if(!std::strcmp(key,"ESC"))code=53;else valid=false;
+ if(!valid){napi_throw_error(e,nullptr,"Unsupported native menu key");return nullptr;}
+ for(bool down : {true,false}){CGEventRef event=CGEventCreateKeyboardEvent(nullptr,code,down);if(event){CGEventSetFlags(event,0);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}}
  napi_value value;napi_get_boolean(e,CGPreflightPostEventAccess(),&value);return value;
 }
 // A noninteractive native chrome overlay paints only the tiny corner cut-outs.
@@ -215,7 +238,7 @@ static napi_value testMouse(napi_env e,napi_callback_info info){
  CGPoint p=CGPointMake(x,y);CGEventType type=kind==0?kCGEventLeftMouseDown:kind==1?kCGEventLeftMouseDragged:kCGEventLeftMouseUp;CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}napi_value value;napi_get_boolean(e,true,&value);return value;
 }
 static napi_value init(napi_env e,napi_value exports){
- napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
- napi_define_properties(e,exports,9,d);return exports;
+ napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
+ napi_define_properties(e,exports,11,d);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

@@ -12,6 +12,7 @@ function createLinuxInput({runtime=process,spawnSync=require('node:child_process
  const move=(x,y)=>send(['mousemove','--sync',...point(x,y)]);
  return{
   testClick:(x,y)=>{move(x,y);return send(['click','1']);},
+  testRightClick:(x,y)=>{move(x,y);return send(['click','3']);},
   testPointer:(x,y)=>{move(x,y);return{warpResult:0,postAccess:true};},
   testMouse:(x,y,phase)=>{if(![0,1,2].includes(phase))throw Error('Invalid native pointer phase');move(x,y);return phase===1?true:send([phase===0?'mousedown':'mouseup','1']);},
   testKey:chord=>{if(typeof chord!=='string'||!chord||chord.length>80||!/^[-+a-zA-Z0-9_]+$/.test(chord))throw Error('Invalid native key chord');return send(['key','--clearmodifiers',chord]);},

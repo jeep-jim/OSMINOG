@@ -204,8 +204,8 @@ def native_input(action: str, values: list[str]) -> None:
         if api.SendInput(1, ctypes.byref(value), ctypes.sizeof(Input)) != 1:
             raise RuntimeError("User32 SendInput failed: " + str(ctypes.get_last_error()))
 
-    if action in ("click", "mouse"):
-        if len(values) != (2 if action == "click" else 3):
+    if action in ("click", "right-click", "mouse"):
+        if len(values) != (3 if action == "mouse" else 2):
             raise ValueError("Invalid native pointer arguments")
         x, y = map(int, values[:2])
         if not api.SetCursorPos(x, y):
@@ -213,17 +213,19 @@ def native_input(action: str, values: list[str]) -> None:
         point = wintypes.POINT()
         if not api.GetCursorPos(ctypes.byref(point)) or (point.x, point.y) != (x, y):
             raise RuntimeError("Native pointer was clipped or moved to another display position")
-        phases = [0, 2] if action == "click" else [int(values[2])]
+        phases = [int(values[2])] if action == "mouse" else [0, 2]
         for phase in phases:
             if phase not in (0, 1, 2):
                 raise ValueError("Invalid native mouse phase")
             # SetCursorPos already emitted the native move.
             if phase != 1:
-                send(Input(type=0, mi=MouseInput(0, 0, 0, 0x0002 if phase == 0 else 0x0004, 0, 0)))
+                down, up = (0x0008, 0x0010) if action == "right-click" else (0x0002, 0x0004)
+                send(Input(type=0, mi=MouseInput(0, 0, 0, down if phase == 0 else up, 0, 0)))
                 time.sleep(0.015)
     elif action == "key":
-        keys = {"CTRL": 0x11, "ALT": 0x12, "SHIFT": 0x10, "A": 0x41, "S": 0x53, "ESC": 0x1B}
-        if len(values) != 1 or values[0] not in ("CTRL+A", "CTRL+ALT+S", "ESC"):
+        keys = {"CTRL": 0x11, "ALT": 0x12, "SHIFT": 0x10, "A": 0x41, "S": 0x53, "ESC": 0x1B,
+                "HOME": 0x24, "END": 0x23, "UP": 0x26, "DOWN": 0x28, "LEFT": 0x25, "RIGHT": 0x27, "ENTER": 0x0D}
+        if len(values) != 1 or values[0] not in ("CTRL+A", "CTRL+ALT+S", "ESC", "HOME", "END", "UP", "DOWN", "LEFT", "RIGHT", "ENTER"):
             raise ValueError("Unsupported native test chord")
         held = []
         try:

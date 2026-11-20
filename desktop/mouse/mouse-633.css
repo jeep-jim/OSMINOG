@@ -10,7 +10,7 @@
 #settings-dialog [data-settings-section]{padding:0 0 20px;margin:0 0 20px;border-bottom:1px solid var(--line)}#settings-dialog [data-settings-section][hidden]{display:none}#settings-dialog [data-settings-section]:last-child{border:0;padding-bottom:0;margin-bottom:0}
 #settings-dialog h3{font-size:12px;letter-spacing:.01em;margin:0 0 14px;font-weight:650}#settings-dialog p{font-size:11px;line-height:1.6;margin:9px 0}#settings-dialog .hint{color:var(--muted);font-size:10px}
 #settings-dialog .dialog-actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 0}#settings-dialog .dialog-actions button{font-size:10px;min-height:29px;padding:6px 10px;border-radius:8px}
-#settings-dialog .settings-switch,#settings-dialog .settings-field{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:14px 0;font-size:11px;line-height:1.5}
+#settings-dialog .settings-switch,#settings-dialog .settings-field{display:flex;flex-direction:row;text-align:left;align-items:center;justify-content:space-between;gap:18px;margin:14px 0;font-size:11px;line-height:1.5}
 #settings-dialog .settings-switch>span,#settings-dialog .settings-field>span{flex:1;min-width:0}#settings-dialog .settings-switch small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
 #settings-dialog input[role=switch]{appearance:none;width:31px;height:18px;min-width:31px;flex:none;padding:0;border:0;border-radius:999px;background:color-mix(in srgb,var(--muted) 36%,var(--panel));position:relative;cursor:pointer}
 #settings-dialog input[role=switch]::before{content:'';position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:transform .14s ease}
