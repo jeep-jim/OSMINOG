@@ -9,11 +9,11 @@ const row=(extra={})=>({origin:'https://example.test',username:'fixture-user',pa
 async function fixture(t,options={}){
  const folder=await fs.mkdtemp(path.join(os.tmpdir(),'mouse633-import-'));t.after(()=>fs.rm(folder,{recursive:true,force:true}));let saved={},clipboardText='',timer,privateMode=false,choice=1,selected='';const app=new EventEmitter(),powerMonitor=new EventEmitter(),win=new EventEmitter();win.isDestroyed=()=>false;app.getPath=()=>folder;
  const store=new CredentialStore({file:path.join(folder,'mouse-credentials.enc'),safeStorage:encryption(),platform:'linux'}),library=await new Library({get:async()=>saved,set:async value=>{saved=structuredClone(value);}}).init();
- const prompts=[],clipboard={writeText:value=>{clipboardText=value;},readText:()=>clipboardText,clear:()=>{clipboardText='';}},dialog={showOpenDialog:async(_win,input)=>{prompts.push(input);return selected?{canceled:false,filePaths:[selected]}:{canceled:true,filePaths:[]};},showMessageBox:async(_win,input)=>{prompts.push(input);return{response:choice};}};
+ const prompts=[],clipboard={writeText:async value=>{clipboardText=value;},readText:async()=>clipboardText,clear:async()=>{clipboardText='';}},dialog={showOpenDialog:async(_win,input)=>{prompts.push(input);return selected?{canceled:false,filePaths:[selected]}:{canceled:true,filePaths:[]};},showMessageBox:async(_win,input)=>{prompts.push(input);return{response:choice};}};
  const handlers=new Map(),ipcMain={handle:(name,fn)=>handlers.set(name,fn),removeHandler:name=>handlers.delete(name)};let notified=0;
  const service=new BrowserImportService({app,win,browser:{},library,ipcMain,trusted:event=>{if(event!=='owned')throw Error('untrusted');},dialog,clipboard,powerMonitor,isPrivate:()=>privateMode,notify:()=>{notified++;},store,setTimer:(fn,delay)=>{assert.equal(delay,30000);timer=fn;return{unref(){}};},clearTimer:()=>{timer=null;},...options});
  t.after(()=>service.dispose());t.after(()=>clearTimeout(library.timer));
- return{folder,store,library,service,app,powerMonitor,win,prompts,clipboard,dialog,handlers,get notified(){return notified;},get saved(){return saved;},get clip(){return clipboardText;},set clip(v){clipboardText=v;},expire(){const callback=timer;timer=null;callback?.();},private(value){privateMode=value;},choose(value){choice=value;},async select(name,content){selected=path.join(folder,name);await fs.writeFile(selected,content);return selected;}};
+ return{folder,store,library,service,app,powerMonitor,win,prompts,clipboard,dialog,handlers,get notified(){return notified;},get saved(){return saved;},get clip(){return clipboardText;},set clip(v){clipboardText=v;},get timer(){return timer;},expire(){const callback=timer;timer=null;return callback?.();},private(value){privateMode=value;},choose(value){choice=value;},async select(name,content){selected=path.join(folder,name);await fs.writeFile(selected,content);return selected;}};
 }
 test('HTML bookmark exports decode entities and ignore executable schemes, embedded credentials and scripts',()=>{
  const value=parseBookmarks('<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><DT><A HREF="https://example.test/?a=1&amp;b=2">A &amp; B &#x1F42D;</A><A HREF=javascript:alert(1)>bad</A><A HREF="https://name:password@example.test/">bad</A><script><A HREF="https://hidden.test">hidden</A></script></DL>');
@@ -74,13 +74,33 @@ test('a lock invalidates a pending file chooser even after the window becomes us
 });
 test('explicit password copy clears after 30 seconds only if unchanged, and lock/quit clear owned clipboard',async t=>{
  const f=await fixture(t);await f.store.merge([row()]);const id=(await f.store.list()).items[0].id;
- assert.deepEqual(await f.service.handle('credentials/copy',{id}),{copied:true,clearAfterSeconds:30});assert.equal(f.clip,row().password);f.expire();assert.equal(f.clip,'');
- await f.service.handle('credentials/copy',{id});f.clip='new human clipboard';f.expire();assert.equal(f.clip,'new human clipboard');
- await f.service.handle('credentials/copy',{id});f.powerMonitor.emit('lock-screen');assert.equal(f.clip,'');await f.service.handle('credentials/copy',{id});f.app.emit('before-quit');assert.equal(f.clip,'');
+ assert.deepEqual(await f.service.handle('credentials/copy',{id}),{copied:true,clearAfterSeconds:30});assert.equal(f.clip,row().password);await f.expire();assert.equal(f.clip,'');
+ await f.service.handle('credentials/copy',{id});f.clip='new human clipboard';await f.expire();assert.equal(f.clip,'new human clipboard');
+ await f.service.handle('credentials/copy',{id});f.powerMonitor.emit('lock-screen');await f.service.flush();assert.equal(f.clip,'');await f.service.handle('credentials/copy',{id});f.app.emit('before-quit');await f.service.flush();assert.equal(f.clip,'');
  // A cancelled quit must invalidate pending work without disabling the still
  // open application's import service. Final window close releases the IPC.
  assert.equal(f.handlers.has('mouse:import'),true);assert.equal((await f.service.handle('state')).passwords.count,1);await f.service.handle('credentials/copy',{id});assert.equal(f.clip,row().password);
- f.win.emit('closed');assert.equal(f.clip,'');assert.equal(f.handlers.has('mouse:import'),false);
+ f.win.emit('closed');await f.service.flush();assert.equal(f.clip,'');assert.equal(f.handlers.has('mouse:import'),false);
+});
+test('asynchronous clipboard writes finish before copy succeeds, and a stale expiry cannot erase a new copy',async t=>{
+ const f=await fixture(t);await f.store.merge([row()]);const id=(await f.store.list()).items[0].id;await f.service.handle('credentials/copy',{id});const previousExpiry=f.timer;
+ let entered,release,settled=false;const started=new Promise(resolve=>{entered=resolve;}),pendingWrite=new Promise(resolve=>{release=resolve;}),write=f.clipboard.writeText;
+ f.clipboard.writeText=async value=>{entered();await pendingWrite;await write(value);};const copy=f.service.handle('credentials/copy',{id});copy.then(()=>{settled=true;});await started;assert.equal(settled,false);assert.equal(f.clip,'');
+ const oldCleanup=previousExpiry();release();assert.deepEqual(await copy,{copied:true,clearAfterSeconds:30});await oldCleanup;assert.equal(f.clip,row().password);await f.expire();assert.equal(f.clip,'');
+});
+test('private transition, lock and close cancel a pending asynchronous secret write and flush its cleanup',async t=>{
+ for(const transition of ['private','lock','close']){
+  const f=await fixture(t);await f.store.merge([row()]);const id=(await f.store.list()).items[0].id;
+  let entered,release;const started=new Promise(resolve=>{entered=resolve;}),pendingWrite=new Promise(resolve=>{release=resolve;}),write=f.clipboard.writeText;
+  f.clipboard.writeText=async value=>{entered();await pendingWrite;await write(value);};const copy=f.service.handle('credentials/copy',{id}),rejected=assert.rejects(copy,/отменено/);await started;
+  if(transition==='private'){f.private(true);f.service.cancelPending();}else if(transition==='lock')f.powerMonitor.emit('lock-screen');else f.win.emit('closed');
+  release();await rejected;await f.service.flush();assert.equal(f.clip,'');assert.equal(f.timer,null);if(transition==='close')assert.equal(f.handlers.has('mouse:import'),false);
+ }
+});
+test('a rejected asynchronous clipboard write is reported without secret text and does not block a later copy',async t=>{
+ const f=await fixture(t);await f.store.merge([row()]);const id=(await f.store.list()).items[0].id,write=f.clipboard.writeText;
+ f.clipboard.writeText=async()=>{throw Error('adapter failure '+row().password);};await assert.rejects(f.service.handle('credentials/copy',{id}),error=>{assert.match(error.message,/Не удалось скопировать/);assert.equal(error.message.includes(row().password),false);return true;});assert.equal(f.clip,'');
+ f.clipboard.writeText=write;assert.deepEqual(await f.service.handle('credentials/copy',{id}),{copied:true,clearAfterSeconds:30});assert.equal(f.clip,row().password);
 });
 test('removing a password requires the native confirmation and persists without rewriting other entries',async t=>{
  const f=await fixture(t);await f.store.merge([row(),row({username:'second'})]);const id=(await f.store.list()).items[0].id;

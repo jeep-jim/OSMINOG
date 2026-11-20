@@ -51,15 +51,24 @@ function decodeFile(buffer){
 }
 class BrowserImportService{
  constructor({app,win,browser,library,ipcMain,trusted,dialog,safeStorage,clipboard,powerMonitor,isPrivate=()=>false,notify=()=>{},platform=process.platform,store,setTimer=setTimeout,clearTimer=clearTimeout}){
-  Object.assign(this,{app,win,browser,library,ipcMain,trusted,dialog,clipboard,powerMonitor,isPrivate,notify,setTimer,clearTimer});this.disposed=false;this.generation=0;this.busy=false;this.clipboardHash='';this.clipboardTimer=null;
+  Object.assign(this,{app,win,browser,library,ipcMain,trusted,dialog,clipboard,powerMonitor,isPrivate,notify,setTimer,clearTimer});this.disposed=false;this.generation=0;this.busy=false;this.clipboardHash='';this.clipboardTimer=null;this.clipboardVersion=0;this.clipboardQueue=Promise.resolve();
   this.store=store||new CredentialStore({file:path.join(app.getPath('userData'),'mouse-credentials.enc'),safeStorage,platform});
   this.onLock=()=>this.cancelPending();this.onQuit=()=>this.cancelPending();this.onClosed=()=>this.dispose();
   powerMonitor?.on('lock-screen',this.onLock);app?.on('before-quit',this.onQuit);win?.on?.('closed',this.onClosed);
   ipcMain?.handle('mouse:import',(event,action,args={})=>{trusted(event);return this.handle(action,args);});
  }
  guard(epoch=this.generation){if(this.disposed||this.win?.isDestroyed?.()||this.browser?.disposed||this.isPrivate()||epoch!==this.generation){const error=Error('Импорт и сохранённые пароли доступны только в обычном окне. Действие отменено.');error.code='MOUSE_IMPORT_CANCELLED';throw error;}}
- clearClipboard(){this.clearTimer(this.clipboardTimer);this.clipboardTimer=null;const digest=this.clipboardHash;this.clipboardHash='';if(!digest)return;try{const current=createHash('sha256').update(this.clipboard.readText()).digest('hex');if(current===digest)this.clipboard.clear();}catch{}}
- cancelPending(){this.generation++;this.clearClipboard();}
+ clipboardWork(work){const result=this.clipboardQueue.then(work);this.clipboardQueue=result.catch(()=>{});return result;}
+ async clearOwnedClipboard(){
+  this.clearTimer(this.clipboardTimer);this.clipboardTimer=null;const digest=this.clipboardHash;if(!digest)return;
+  try{const current=createHash('sha256').update(await this.clipboard.readText()).digest('hex');if(current===digest)await this.clipboard.clear();if(this.clipboardHash===digest)this.clipboardHash='';}catch{}
+ }
+ clearClipboard(version){
+  if(version===undefined||version===this.clipboardVersion){this.clearTimer(this.clipboardTimer);this.clipboardTimer=null;}
+  return this.clipboardWork(async()=>{if(version===undefined||version===this.clipboardVersion)await this.clearOwnedClipboard();});
+ }
+ cancelPending(){this.generation++;return this.clearClipboard();}
+ async flush(){await this.store.queue;await this.clipboardQueue;}
  async selected(kind,guard){
   const answer=await this.dialog.showOpenDialog(this.win,{title:kind==='bookmarks'?'Импорт закладок':'Импорт паролей из CSV',properties:['openFile'],filters:kind==='bookmarks'?[{name:'Закладки HTML или JSON',extensions:['html','htm','json']},{name:'Chromium Bookmarks без расширения',extensions:['*']}]:[{name:'Экспорт паролей CSV',extensions:['csv']}]});guard();
   if(answer.canceled||answer.filePaths?.length!==1)return null;
@@ -89,14 +98,18 @@ class BrowserImportService{
    const state=await this.store.status();guard();result=state.available?await this.store.list(args):{available:false,reason:state.reason,total:0,items:[],offset:0};
   }else if(action==='credentials/copy'){
    if(typeof args.id!=='string'||args.id.length>100)throw Error('Некорректная запись пароля');
-   result=await this.store.withPassword(args.id,password=>{guard();this.clearClipboard();this.clipboard.writeText(password);this.clipboardHash=createHash('sha256').update(password).digest('hex');this.clipboardTimer=this.setTimer(()=>this.clearClipboard(),30000);this.clipboardTimer?.unref?.();return{copied:true,clearAfterSeconds:30};},guard);
+   result=await this.store.withPassword(args.id,password=>this.clipboardWork(async()=>{
+    guard();await this.clearOwnedClipboard();guard();const version=++this.clipboardVersion;this.clipboardHash=createHash('sha256').update(password).digest('hex');
+    try{await this.clipboard.writeText(password);guard();}catch(error){await this.clearOwnedClipboard();if(error.code==='MOUSE_IMPORT_CANCELLED')throw error;throw Error('Не удалось скопировать пароль в системный буфер обмена.');}
+    this.clipboardTimer=this.setTimer(()=>this.clearClipboard(version),30000);this.clipboardTimer?.unref?.();return{copied:true,clearAfterSeconds:30};
+   }),guard);
   }else if(action==='credentials/remove'){
    if(typeof args.id!=='string'||args.id.length>100)throw Error('Некорректная запись пароля');
    const choice=await this.dialog.showMessageBox(this.win,{type:'question',message:'Удалить выбранный сохранённый пароль из Mouse?',detail:'Пароль на самом сайте и исходный экспорт не изменятся.',buttons:['Отмена','Удалить'],defaultId:0,cancelId:0,noLink:true});guard();result={removed:choice.response===1?await this.store.remove(args.id,guard):false};
   }else throw Error('Неизвестная команда импорта');
   guard();return result;
  }
- dispose(){if(this.disposed)return;this.cancelPending();this.disposed=true;this.powerMonitor?.removeListener('lock-screen',this.onLock);this.app?.removeListener('before-quit',this.onQuit);this.win?.removeListener?.('closed',this.onClosed);this.ipcMain?.removeHandler('mouse:import');}
+ dispose(){if(this.disposed)return this.flush();this.disposed=true;this.cancelPending();this.powerMonitor?.removeListener('lock-screen',this.onLock);this.app?.removeListener('before-quit',this.onQuit);this.win?.removeListener?.('closed',this.onClosed);this.ipcMain?.removeHandler('mouse:import');return this.flush();}
 }
 function install(options){return new BrowserImportService(options);}
 module.exports={install,BrowserImportService,parseBookmarks,parseCSV,parsePasswords,decodeFile,webURL,MAX_FILE_BYTES,MAX_BOOKMARKS,MAX_PASSWORDS};

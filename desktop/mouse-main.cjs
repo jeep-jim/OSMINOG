@@ -60,13 +60,14 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:!isMac,icon:path.join(__dirname,'icons/mouse-browser-light.png'),autoHideMenuBar:!isMac,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'mouse-preload.cjs'),additionalArguments:['--mouse-version='+app.getVersion(),...(test?['--mouse-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
  if(test)win.mouseDockThemeForTest=()=>updateDock.appliedTheme;
  exitController=require('./mouse-lifecycle.cjs').install({app,win,log,prepare:prepareDocuments,onError:error=>{if(!privateMode?.busy)void releaseDocumentsUI();if(!test&&error.code!=='MOUSE_DOCUMENT_CANCEL')dialog.showErrorBox('Mouse Browser — данные не сохранены','Браузер оставлен открытым. Повторите выход после устранения ошибки: '+error.message)},flush:async()=>{
+  importService?.cancelPending();
   if(win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.MouseFlush?.()');
   await agentHost?.stop('Браузер закрывается');
   if(privateMode?.current)await privateMode.dispose();
   if(browser){await browser.save();await browser.saveQueue;await browser.session.cookies.flushStore();browser.session.flushStorageData();}
   if(libraryService)await libraryService.flush();
   await settingsService?.flush();
-  await importService?.store.queue;
+  await importService?.flush();
   if(store)await store.queue;
  }});
  win.on('closed',()=>log('MOUSE_WINDOW_CLOSED'));
@@ -100,8 +101,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  localCaptures=await require('./mouse-local-captures.cjs').install({e:require('electron'),app,win,store,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),test});
  app.once('will-quit',()=>void localCaptures.dispose());
  libraryService=await require('./mouse-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
- importService=require('./mouse-browser-import.cjs').install({app,win,browser,library:libraryService.library,ipcMain,trusted,dialog,safeStorage:require('electron').safeStorage,clipboard:require('electron').clipboard,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),notify:()=>{if(!win.isDestroyed())win.webContents.send('mouse:library-changed');}});
- app.once('will-quit',()=>importService.dispose());
+ importService=require('./mouse-browser-import.cjs').install({app,win,browser,library:libraryService.library,ipcMain,trusted,dialog,safeStorage:require('electron').safeStorage,clipboard:require('electron').clipboard,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy||exitController?.isClosing()),notify:()=>{if(!win.isDestroyed())win.webContents.send('mouse:library-changed');}});
+ app.once('will-quit',()=>void importService.dispose());
  startService=await require('./mouse-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
  documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,readOnly:true,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
@@ -135,7 +136,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if((action==='maximize'||action==='zoom')&&!isMac){if(win.isMaximized())win.unmaximize();else win.maximize();return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');return importService.flush();}});
  const desktopGesture=await require('./mouse-gesture.cjs').install({win,store,ipcMain,trusted,enabled:()=>settingsService.state().desktopGestures,getContext:()=>({privateMode:privateMode.current,busy:privateMode.busy,browser:privateMode.current?.browser||browser,desktopService:privateMode.current?.desktopService||desktopService})});
  app.once('will-quit',()=>desktopGesture.dispose());
  ipcMain.handle('mouse:privacy',(event)=>{trusted(event);importService.cancelPending();setImmediate(()=>privateMode.toggle().catch(async error=>{if(!exitController.isClosing())await releaseDocumentsUI();if(error.code!=='MOUSE_DOCUMENT_CANCEL'&&!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через '+(isMac?'⌘Q':'Ctrl+Q')+' и повторите.')}));return true;});
