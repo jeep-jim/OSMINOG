@@ -103,7 +103,7 @@ function mouseFloatingBackdrop(N,m,restore){
   ...(trace?{note:phase=>record(phase),diagnostics:()=>({owner,epoch,heldToken:!!heldToken,images:images.length,events:trace.map(event=>({...event,...(event.requestedIds?{requestedIds:[...event.requestedIds]}:{}),...(event.returnedIds?{returnedIds:[...event.returnedIds]}:{})}))})}:{})
  };
 }
-globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,restoreLayout,moveTab,closeTab,activateTab,layout,restoreNative=async()=>layout(),status})=>{
+globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,restoreLayout,moveTab,closeTab,activateTab,layout,restoreNative=async()=>layout(),beforeOpen=null,status})=>{
  const backdrop=mouseFloatingBackdrop(N,m,restoreNative);globalThis.MouseFloatingBackdrop=backdrop;
  const make=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
  const button=make('button','');button.id='desktops-button';button.type='button';button.title='Рабочие столы';button.setAttribute('aria-label','Рабочие столы');button.setAttribute('aria-expanded','false');button.innerHTML='<span class="burrow-entry" aria-hidden="true"></span><span class="desktop-total-badge" hidden></span>';
@@ -176,6 +176,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   opening=true;const ticket=++epoch;
   try{
    await gesture?.ready;if(ticket!==epoch)return;
+   if(beforeOpen)await beforeOpen();if(ticket!==epoch)return;
    if(!await backdrop.show('desktops')||ticket!==epoch)return;
    tray.hidden=false;content.inert=true;tray.showModal();tray.focus({preventScroll:true});button.setAttribute('aria-expanded','true');
    render(m.state.desktops||state);layout();const done=await motion.open();if(done&&ticket===epoch)void refreshPreviews(ticket);

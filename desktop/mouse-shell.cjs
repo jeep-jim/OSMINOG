@@ -23,7 +23,7 @@ function imageData(image){
  return 'data:image/png;base64,'+data.toString('base64');
 }
 async function captureBrowser(win,browser){
- const [width,height]=win.getContentSize(),pages=()=>[...browser.tabs.values(),...browser.providers.values()].filter(t=>t.visible&&!t.view.webContents.isDestroyed());
+ const [width,height]=win.getContentSize(),pages=()=>[...browser.tabs.values(),...browser.providers.values(),...(browser.mouseAdditionalCapturePages?.()||[])].filter(t=>t.visible&&!t.view.webContents.isDestroyed());
  const geometry=t=>layerGeometry({...t.bounds,...t.captureGeometry});
  const pins=pages().map(page=>({page,wc:page.view.webContents,epoch:page.navigationEpoch||0,geometry:geometry(page)}));
  const current=()=>{
@@ -40,7 +40,7 @@ async function captureBrowser(win,browser){
   if(!pin.geometry)continue;
   const image=await pin.wc.capturePage(undefined,options);check();
   const {bounds,clip,roundBottom}=pin.geometry;
-  layers.push({src:imageData(image),...bounds,clip:{...clip},roundBottom});
+  layers.push({src:imageData(image),...bounds,clip:{...clip},...(pin.geometry.roundTop!==undefined?{roundTop:pin.geometry.roundTop}:{}),roundBottom});
  }
  check();return{base,width,height,layers,kind:'browser'};
 }

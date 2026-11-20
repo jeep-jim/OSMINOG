@@ -11,13 +11,13 @@
   const x=Math.max(bounds.x,requested.x),y=Math.max(bounds.y,requested.y),right=Math.min(bounds.x+bounds.width,requested.x+requested.width),bottom=Math.min(bounds.y+bounds.height,requested.y+requested.height);
   if(right<=x||bottom<=y)return null;
   const clip={x,y,width:right-x,height:bottom-y},roundBottom=layer.roundBottom===12&&bottom===bounds.y+bounds.height?12:0;
-  return{bounds,clip,roundBottom};
+  return{bounds,clip,...(layer.roundTop===12?{roundTop:y===bounds.y?12:0}:{}),roundBottom};
  }
  function drawLayer(ctx,image,layer,scaleX=1,scaleY=1){
   if(![scaleX,scaleY].every(value=>Number.isFinite(value)&&value>0))throw Error('Invalid capture image scale');
   const geometry=layerGeometry(layer);if(!geometry)return false;
-  const {bounds:b,clip:c,roundBottom:r}=geometry;
-  ctx.save();try{ctx.scale(scaleX,scaleY);ctx.beginPath();ctx.roundRect(c.x,c.y,c.width,c.height,[0,0,r,r]);ctx.clip();ctx.drawImage(image,b.x,b.y,b.width,b.height);}finally{ctx.restore();}
+  const {bounds:b,clip:c,roundBottom:r,roundTop:top=0}=geometry;
+  ctx.save();try{ctx.scale(scaleX,scaleY);ctx.beginPath();ctx.roundRect(c.x,c.y,c.width,c.height,[top,top,r,r]);ctx.clip();ctx.drawImage(image,b.x,b.y,b.width,b.height);}finally{ctx.restore();}
   return true;
  }
  function rect(a,b,w,h){const clamp=(n,max)=>Math.max(0,Math.min(max,n));const x=clamp(Math.min(a.x,b.x),w),y=clamp(Math.min(a.y,b.y),h);return{x:Math.floor(x),y:Math.floor(y),width:Math.max(0,Math.floor(clamp(Math.max(a.x,b.x),w)-x)),height:Math.max(0,Math.floor(clamp(Math.max(a.y,b.y),h)-y))}}

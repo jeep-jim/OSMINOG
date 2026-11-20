@@ -2,10 +2,22 @@
 // These reject incomplete native receipts; they do not replace the installed
 // fullscreen controls, native corner pixels or display screenshots.
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {focusedChromeReadback,assertFocusedGeometry,assertChromeSurfaces}=require('./mouse-634-focused-chrome-smoke.cjs');
+const {focusedChromeReadback,assertFocusedGeometry,assertChromeSurfaces,focusedProbeBounds,DOCK_CLEARANCE}=require('./mouse-634-focused-chrome-smoke.cjs');
 const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
 const {downloadNativeBounds}=require('./mouse-630-feedback-smoke.cjs');
 const rect=(x,y,width,height)=>({x,y,width,height,right:x+width,bottom:y+height});
+test('Mac native chrome fixture clears the measured Dock shadow without changing sample tolerances',()=>{
+ const bounds={x:4,y:29,width:1016,height:676},workArea={x:0,y:25,width:1024,height:684};
+ const adjusted=focusedProbeBounds(bounds,workArea,[800,600],'darwin');assert.deepEqual(adjusted,{x:4,y:29,width:1016,height:648});assert.equal(workArea.y+workArea.height-adjusted.y-adjusted.height,DOCK_CLEARANCE);assert.deepEqual(bounds,{x:4,y:29,width:1016,height:676});
+});
+test('a smaller Mac work area moves the fixture up only while the real minimum size still fits',()=>{
+ const workArea={x:-1100,y:25,width:1024,height:640},bounds={x:-1096,y:65,width:1016,height:600},adjusted=focusedProbeBounds(bounds,workArea,[800,600],'darwin');assert.deepEqual(adjusted,{x:-1096,y:33,width:1016,height:600});assert.equal(adjusted.y+adjusted.height,workArea.y+workArea.height-DOCK_CLEARANCE);
+ assert.throws(()=>focusedProbeBounds(bounds,{...workArea,height:620},[800,600],'darwin'),/cannot hold/);
+});
+test('Windows and Linux retain the caller window geometry and an already-clear Mac window stays unchanged',()=>{
+ const bounds={x:4,y:29,width:1016,height:676},workArea={x:0,y:25,width:1024,height:684};for(const platform of ['win32','linux'])assert.deepEqual(focusedProbeBounds(bounds,workArea,[800,600],platform),bounds);
+ const clear={...bounds,height:600};assert.deepEqual(focusedProbeBounds(clear,workArea,[800,600],'darwin'),clear);
+});
 function scene(mode){
  const focused=mode!=='grid',end=focused?780:774;
  const state={padding:{top:6,bottom:focused?0:6,left:0,right:0},header:{bounds:rect(0,0,1000,50)},footer:{bounds:rect(0,780,1000,20)},focusPane:mode==='pane'?'p1':'',focusAI:mode==='ai',aiId:'chat',aiPreviewId:'preview',panels:[],native:[]};

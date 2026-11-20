@@ -5,6 +5,21 @@ const {bounded,sha256}=require('./mouse-631-smoke-helpers.cjs');
 const {downloadNativeBounds}=require('./mouse-630-feedback-smoke.cjs');
 const {pixelAt,probeDelta}=require('./mouse-634-download-widget-smoke.cjs');
 
+// macOS Dock paints a shadow above its work-area boundary. The archived OS
+// frame was darker there while the same composed app pixels matched exactly.
+// Keep the ordinary .1/.9 probes, but place this temporary window beyond that
+// system overlay. Other platforms retain the caller's exact fixture geometry.
+const DOCK_CLEARANCE=32;
+function focusedProbeBounds(bounds,workArea,minimumSize,platform=process.platform){
+ const result={...bounds};if(platform!=='darwin')return result;
+ for(const value of [bounds,workArea])assert.ok(value&&['x','y','width','height'].every(key=>Number.isFinite(value[key]))&&value.width>0&&value.height>0,'Measured native window and work area are required');
+ assert.ok(Array.isArray(minimumSize)&&minimumSize.length===2&&minimumSize.every(value=>Number.isFinite(value)&&value>0),'Native window minimum size is required');
+ const bottom=Math.floor(workArea.y+workArea.height-DOCK_CLEARANCE),top=Math.ceil(workArea.y),minHeight=Math.ceil(minimumSize[1]);
+ assert.ok(bottom-top>=minHeight&&bounds.width>=minimumSize[0]&&bounds.width<=workArea.width,'Work area cannot hold the minimum native fixture above the Dock shadow');
+ result.x=Math.min(Math.max(bounds.x,workArea.x),workArea.x+workArea.width-bounds.width);result.y=Math.min(Math.max(bounds.y,top),bottom-minHeight);result.height=Math.min(bounds.height,bottom-result.y);
+ assert.ok(result.height>=minHeight&&result.x>=workArea.x&&result.y>=workArea.y&&result.x+result.width<=workArea.x+workArea.width&&result.y+result.height<=bottom,'Temporary native fixture remains inside the screen');return result;
+}
+
 function focusedChromeReadback(reference=null){
  const modalOpen=document.querySelector('#desktop-tray').open;
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
@@ -61,12 +76,14 @@ function assertNoraBackdrop(state){
 module.exports=async({fixture,browser,win,click,screenCapture})=>{
  const file='mouse-634-focused-chrome.json',records=[...fixture.records],originalTheme=await fixture.js('MouseTest.model.theme'),originalBounds=win.getBounds(),facts={schema:1,version:fixture.app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,physicalUserDeviceVerified:false,source:'Native pane fullscreen controls, actual native bounds and full OS display pixels',stages:[],nativeInputs:[],captures:[],ok:false,restored:false};
  const save=()=>fs.writeFile(file,JSON.stringify(facts,null,2)+'\n');
+ const workArea=require('electron').screen.getDisplayMatching(originalBounds).workArea,minimumSize=win.getMinimumSize(),probeBounds=focusedProbeBounds(originalBounds,workArea,minimumSize),originalNative=records.map(record=>({...fixture.nativeState(record),roundBottom:record.page.captureGeometry?.roundBottom}));
+ facts.probeWindow={originalBounds,workArea,minimumSize,minimumBottomClearance:process.platform==='darwin'?DOCK_CLEARANCE:0,adjustedBounds:probeBounds};
  let baseline;
  async function read(reference=null){const state=await fixture.js(`(${focusedChromeReadback.toString()})(${JSON.stringify(reference&&{name:reference.name,header:reference.header,footer:reference.footer})})`);return{...state,window:{bounds:win.getBounds(),contentBounds:win.getContentBounds(),fullscreen:win.isFullScreen()},native:records.map(record=>({...fixture.nativeState(record),roundBottom:record.page.captureGeometry?.roundBottom})),identities:await Promise.all(records.map(fixture.identity))};}
  async function settled(label,mode){let state;await fixture.until(async()=>{state=await read();if(state.window.fullscreen!==(mode!=='grid'))return false;if(mode==='grid'&&(state.focusPane||state.focusAI))return false;if(mode==='pane'&&!state.focusPane||mode==='ai'&&!state.focusAI)return false;for(const row of state.panels){const native=state.native.find(item=>item.tabId===row.tabId),expected=downloadNativeBounds(row.slot,true);if(!native?.visible||!['x','y','width','height'].every(key=>native.bounds[key]===expected[key]))return false;}return true;},'634 focused chrome '+label,15000);assertFocusedGeometry(state,mode);assertChromeSurfaces(state);assertNoraBackdrop(state);if(baseline){assert.deepEqual(state.mainSlots,baseline.mainSlots);for(let i=0;i<records.length;i++)fixture.assertIdentity(baseline.identities[i],state.identities[i]);}facts.stages.push({name:label,mode,...state});await save();return state;}
  async function nativeFullscreen(selector,active){
   const event=active?'enter-full-screen':'leave-full-screen';let handler;const completed=new Promise(resolve=>{handler=resolve;win.once(event,handler);});
-  try{facts.nativeInputs.push(await click(selector));await bounded(completed,15000,'634 native '+event);await fixture.frame();if(!active)await fixture.until(()=>['x','y','width','height'].every(key=>win.getBounds()[key]===originalBounds[key]),'634 exact original window restored',15000);}finally{win.removeListener(event,handler);}
+  try{facts.nativeInputs.push(await click(selector));await bounded(completed,15000,'634 native '+event);await fixture.frame();if(!active)await fixture.until(()=>['x','y','width','height'].every(key=>win.getBounds()[key]===probeBounds[key]),'634 exact probe window restored',15000);}finally{win.removeListener(event,handler);}
  }
  async function capture(label,state,{corners=true}={}){
   const {nativeImage}=require('electron'),expected=[];
@@ -85,17 +102,23 @@ module.exports=async({fixture,browser,win,click,screenCapture})=>{
   await save();assert.ok(result.acceptedAttempt,'The OS frame shows correct native bottom corners, shared chrome and the measured Nora shade');
  }
  try{
+  if(JSON.stringify(originalBounds)!==JSON.stringify(probeBounds)){win.setBounds(probeBounds);await fixture.until(()=>['x','y','width','height'].every(key=>win.getBounds()[key]===probeBounds[key]),'634 native window clear of Dock shadow');await fixture.frame();}assert.deepEqual(win.getBounds(),probeBounds);
   assert.equal(win.isFullScreen(),false);baseline=await settled('before','grid');assert.ok(baseline.panels.some(row=>row.key.startsWith('pane:')));assert.ok(baseline.panels.some(row=>row.key==='ai'),'The actual right-side chat is included');const pane=baseline.panels.find(row=>row.key.startsWith('pane:')),selector='.pane[data-pane="'+pane.key.slice(5)+'"] [data-pane-action="fullscreen"]';
   for(const theme of ['light','dark']){
    await fixture.js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await capture('grid',await settled('grid-'+theme,'grid'));
    await nativeFullscreen(selector,true);await capture('pane-expanded',await settled('pane-expanded-'+theme,'pane'));await nativeFullscreen(selector,false);await settled('pane-restored-'+theme,'grid');
    await nativeFullscreen('[data-action="ai-fullscreen"]',true);await capture('ai-expanded',await settled('ai-expanded-'+theme,'ai'));await nativeFullscreen('[data-action="ai-fullscreen"]',false);await settled('ai-restored-'+theme,'grid');
-   facts.nativeInputs.push(await click('#desktops-button'));await fixture.until(()=>fixture.js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'634 Nora open chrome');const open=await read(facts.stages.at(-1));assert.equal(open.nora.open,true);assertChromeSurfaces(open);assertNoraBackdrop(open);facts.stages.push({name:'nora-open-'+theme,mode:'nora',...open});await capture('nora-open',open,{corners:false});facts.nativeInputs.push(await click('#desktops-button'));await fixture.until(()=>fixture.js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'634 Nora closed chrome');await settled('nora-restored-'+theme,'grid');
+   facts.nativeInputs.push(await click('#desktops-button'));await fixture.until(()=>fixture.js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'634 Nora open chrome');const open=await read(facts.stages.at(-1));assert.equal(open.nora.open,true);assertChromeSurfaces(open);assertNoraBackdrop(open);facts.stages.push({name:'nora-open-'+theme,mode:'nora',...open});await capture('nora-open',open,{corners:false});facts.nativeInputs.push(await click('#desks-close'));await fixture.until(()=>fixture.js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'634 Nora closed chrome');await settled('nora-restored-'+theme,'grid');
   }
-  await fixture.js(`MouseTest.setTheme(${JSON.stringify(originalTheme)})`);const restored=await settled('restored','grid');assert.deepEqual(restored.window.bounds,originalBounds);facts.restored=true;facts.ok=true;await save();return{...facts,reportFile:file,reportSha256:sha256(await fs.readFile(file))};
+  await fixture.js(`MouseTest.setTheme(${JSON.stringify(originalTheme)})`);const restored=await settled('restored','grid');assert.deepEqual(restored.window.bounds,probeBounds);facts.ok=true;await save();
  }catch(error){facts.error={message:error.message,stack:error.stack};throw error;}
- finally{await fixture.js(`(async()=>{await MouseTest.desktopUI.close({immediate:true});if(MouseTest.model.focusPane||MouseTest.model.focusAI){MouseTest.restorePane();await MouseNative.window('pane-restore');}MouseTest.setTheme(${JSON.stringify(originalTheme)});})()`).catch(()=>{});await save();}
+ finally{
+  let restoreError;try{await fixture.js(`(async()=>{await MouseTest.desktopUI.close({immediate:true});if(MouseTest.model.focusPane||MouseTest.model.focusAI){MouseTest.restorePane();await MouseNative.window('pane-restore');}MouseTest.setTheme(${JSON.stringify(originalTheme)});})()`);if(!win.isDestroyed())win.setBounds(originalBounds);await fixture.until(()=>['x','y','width','height'].every(key=>win.getBounds()[key]===originalBounds[key]),'634 caller window bounds restored');await fixture.frame();let native;await fixture.until(()=>{try{native=records.map(record=>({...fixture.nativeState(record),roundBottom:record.page.captureGeometry?.roundBottom}));return JSON.stringify(native)===JSON.stringify(originalNative);}catch{return false;}},'634 caller native geometry restored');facts.windowRestoration={bounds:win.getBounds(),native,originalNative};assert.deepEqual(facts.windowRestoration.bounds,originalBounds);assert.deepEqual(native,originalNative);facts.restored=true;}catch(error){restoreError=error;facts.ok=false;facts.restored=false;facts.windowRestoration={error:error.message};}await save();if(restoreError&&!facts.error)throw restoreError;
+ }
+ return{...facts,reportFile:file,reportSha256:sha256(await fs.readFile(file))};
 };
 module.exports.focusedChromeReadback=focusedChromeReadback;
 module.exports.assertFocusedGeometry=assertFocusedGeometry;
 module.exports.assertChromeSurfaces=assertChromeSurfaces;
+module.exports.focusedProbeBounds=focusedProbeBounds;
+module.exports.DOCK_CLEARANCE=DOCK_CLEARANCE;

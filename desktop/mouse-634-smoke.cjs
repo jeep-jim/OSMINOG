@@ -90,6 +90,7 @@ module.exports=async ctx=>{
    facts.captureCorners=await stage('capture-rounded-corners',()=>require('./mouse-634-capture-corners.cjs')({win,browser,globalCapture,overlayGate,fixture,click,screenCapture,targets}));
   });
   facts.focusedChrome=await stage('focused-chrome',()=>require('./mouse-634-focused-chrome-smoke.cjs')({fixture,browser,win,click,screenCapture}));
+  facts.search=await stage('visual-search',()=>require('./mouse-634-search-smoke.cjs')({ctx,fixture,click,screenCapture}));
   facts.requests=requests;facts.elapsedMs=Date.now()-started;
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};try{if(fixture)await screenCapture('mouse-634-owner-feedback-failure.png','failure '+facts.stage);}catch(captureError){facts.failureCaptureError=captureError.message;}}
  finally{

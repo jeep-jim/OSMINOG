@@ -66,6 +66,12 @@ test('an expanded page screenshot follows the native square bottom and restores 
  const packet=await captureBrowser(f.win,f.browser);assert.equal(packet.layers.length,1);assert.equal(packet.layers[0].roundBottom,0);assert.deepEqual(plain(packet.layers[0].clip),{x:0,y:60,width:1000,height:700});
  f.browser.layout(f.panels);assert.equal(f.masks.at(-1).length,3);assert.ok(f.pages.every(page=>page.captureGeometry.roundBottom===12));
 });
+test('search captures include additional owned native pages with all four corners and invalidate a replaced page record',async()=>{
+ const f=fixture();f.browser.layout([]);const page={id:'search-only',visible:true,navigationEpoch:1,bounds:{x:30,y:150,width:300,height:240},captureGeometry:{clip:{x:30,y:150,width:300,height:240},roundTop:12,roundBottom:12},view:{webContents:{isDestroyed:()=>false,capturePage:async()=>image(300,240)}}};
+ f.browser.mouseAdditionalCapturePages=()=>[page];const packet=await captureBrowser(f.win,f.browser);assert.equal(packet.layers.length,1);assert.equal(packet.layers[0].roundTop,12);assert.equal(packet.layers[0].roundBottom,12);assert.deepEqual(plain(packet.layers[0].clip),page.bounds);assert.equal(f.browser.tabs.has('search-only'),false);
+ assert.equal(layerGeometry({...packet.layers[0],clip:{x:30,y:151,width:300,height:239}}).roundTop,0);assert.equal(layerGeometry({...packet.layers[0],clip:{x:30,y:150,width:300,height:239}}).roundTop,12);
+ let finish;page.view.webContents.capturePage=()=>new Promise(resolve=>{finish=resolve;});const pending=captureBrowser(f.win,f.browser);while(!finish)await new Promise(setImmediate);f.browser.mouseAdditionalCapturePages=()=>[{...page}];finish(image(300,240));await assert.rejects(pending,/Окно изменилось/);
+});
 test('native capture pixel probes preserve fractional framebuffer origin and reject a filled corner',()=>{
  const {samplePixels,assertPixels}=require('./mouse-634-capture-corners.cjs'),size={width:12,height:12},bitmap=Buffer.alloc(size.width*size.height*4),mapping={scaleX:1.5,scaleY:1.5,originX:.75,originY:.6};
  // A content-local coordinate does not start at the integer crop's origin.
