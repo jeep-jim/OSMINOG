@@ -27,3 +27,15 @@ test('a moved download follows its real tab and retry never borrows the active p
  let now=1,desk='desk-first',exists=true;const service=new DownloadActivity({now:()=>now,resolveOrigin:origin=>exists?{tabId:origin.tabId,desk}:{tabId:'',desk:''}});service.start(row(),{tabId:'original-tab',desk});desk='desk-moved';assert.equal(service.snapshot().items[0].desk,'desk-moved');assert.equal(service.snapshot().items[0].tabId,'original-tab');
  service.update('fixture',row({state:'interrupted',received:50}),{done:true});now+=VISIBLE_MS.error;assert.deepEqual(service.snapshot().items,[]);assert.deepEqual(service.origin('fixture'),{tabId:'original-tab',desk:'desk-moved'},'Retry retains the original owner after the short visible notification expires');exists=false;assert.deepEqual(service.origin('fixture'),{tabId:'',desk:''});service.clear();assert.deepEqual(service.origin('fixture'),{tabId:'',desk:''});
 });
+
+
+test('completion badge counts real successful done events once and outlives transient activity',()=>{
+ let time=100;const activity=new DownloadActivity({now:()=>time});activity.start(row());activity.update('fixture',row({received:1000,state:'completed'}));assert.equal(activity.snapshot().unreadCount,0);assert.equal(activity.snapshot().completedSerial,0);
+ activity.update('fixture',row({received:1000,state:'completed'}),{done:true});activity.update('fixture',row({received:1000,state:'completed'}),{done:true});assert.equal(activity.snapshot().unreadCount,1);assert.equal(activity.snapshot().completedSerial,1);
+ time+=VISIBLE_MS.completed+1;assert.equal(activity.snapshot().items.length,0);assert.equal(activity.snapshot().unreadCount,1);assert.equal(activity.acknowledge().unreadCount,0);assert.equal(activity.snapshot().completedSerial,1);
+});
+test('cancelled transfers do not increment unread and clearing a private session removes its badge',()=>{
+ const normal=new DownloadActivity(),privateDownloads=new DownloadActivity({privateMode:true});
+ for(const activity of [normal,privateDownloads]){for(const id of ['one','two']){activity.start(row({id}));activity.update(id,row({id,state:'completed'}),{done:true});}activity.start(row({id:'cancel'}));activity.update('cancel',row({id:'cancel',state:'cancelled'}),{done:true});assert.equal(activity.snapshot().unreadCount,2);}
+ privateDownloads.clear();assert.equal(privateDownloads.snapshot().unreadCount,0);assert.equal(normal.snapshot().unreadCount,2);normal.acknowledge();assert.equal(normal.snapshot().unreadCount,0);
+});

@@ -52,6 +52,9 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
    if process.poll() is None:process.kill();process.wait()
    log.flush();output=log_path.read_text(errors='replace');print(output,flush=True)
  return result,output
+owner_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner633')}
+owner,owner_output=run_logged([str(exe),'--mouse-633-smoke'],owner_env,pathlib.Path('mouse-633-owner-feedback.log'),270)
+if owner.returncode or 'MOUSE_633_OWNER_FEEDBACK_PASS' not in owner_output.splitlines():raise SystemExit('Mouse633 owner feedback native verification failed')
 # New owner regressions use their own profile and bounded process, not the
 # persistent profile or timing budget of the retained suites below.
 regression_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'task-stress-631')}
@@ -73,7 +76,7 @@ with open('mouse-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'mouse-startup.log'
-   if f.exists() and 'MOUSE_READY 6.0.32' in f.read_text():break
+   if f.exists() and 'MOUSE_READY 6.0.33' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -103,8 +106,16 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
 # Actual older app replacement, verified new startup and a preserved runner profile.
-candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.32-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.32-mac-arm64.dmg')]
+candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.33-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.33-mac-arm64.dmg')]
 dmg=next((p.resolve() for p in candidates if p.is_file()),None)
 installer=pathlib.Path('mouse-install-update.cjs').resolve()
 if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')
 subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-update-verify.py')),str(dmg),str(installer)],check=True,timeout=360)
+
+# Also preserve the actual current published632 profile with a narrow old/new
+# package probe; the full native629 updater gate above remains mandatory.
+upgrade_log=pathlib.Path('mouse-633-upgrade.log')
+with upgrade_log.open('w') as stream:
+ upgrade=subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-633-upgrade.py')),str(dmg)],stdout=stream,stderr=subprocess.STDOUT,text=True,timeout=480)
+upgrade_output=upgrade_log.read_text(errors='replace');print(upgrade_output,flush=True)
+if upgrade.returncode or 'MOUSE_633_REAL_632_TO_633_PROFILE_PASS' not in upgrade_output.splitlines():raise SystemExit('Real published632 profile upgrade failed')

@@ -19,7 +19,7 @@ function sample(image,mapping,point,bitmap){
 function matches(probe){return probe.rgba[3]===255&&probe.expected.every((v,i)=>Math.abs(v-probe.rgba[i])<=3);}
 module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- assert.equal(app.getVersion(),'6.0.32');assert.equal(globalCapture?.permission(),process.platform==='win32'?'not-required':'granted');
+ assert.equal(app.getVersion(),'6.0.33');assert.equal(globalCapture?.permission(),process.platform==='win32'?'not-required':'granted');
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),bounds=win.getBounds(),fullscreen=win.isFullScreen();
  const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],nora:[],restored:false};
  const pages=[];let server,verificationError,cleanupError;

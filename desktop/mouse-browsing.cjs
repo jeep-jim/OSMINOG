@@ -54,6 +54,7 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
  ipcMain.handle('mouse:library',async(e,action,args={})=>{
   trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>(action==='remove-selected'?512000:16000))throw Error('Invalid library request');
   if(action==='download-activity')return activity.snapshot();
+  if(action==='download-seen'){const result=activity.acknowledge();notify();return result;}
   if(action==='preview')return icons.preview(args.id);
   if(action==='suggest')return library.suggestions(args.query);
   if(action==='list')return library.list(args.kind,args.query,args.offset);

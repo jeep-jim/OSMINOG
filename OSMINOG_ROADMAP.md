@@ -570,3 +570,14 @@ Windows [Releases PR59](https://github.com/jeep-jim/OSMINOG-Releases/pull/59), m
 **PUBLISHED / VERIFIED_DOWNLOAD — macOS arm64 и Windows x64.** [Windows publisher 44687934185](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44687934185), job 136126741696, завершён SUCCESS на `091671cf707bd26b23e4c73ba3ab4a5d3cd3c8a0`. [Windows-релиз](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.32-x64) опубликован в 06:40:30 UTC; установленная проверка, публичные байты, канал 6.0.32 и анонимная загрузка настоящим обновлятором 6.0.29 приняты. Ранее завершены [Mac publisher 44686632355](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44686632355) и [Mac-релиз](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.32-arm64). Пакеты принятого source `ebe2df44f1fc73fa8fa329c01406a360ebf7eef3` не пересобирались и не изменялись; все финальные release gates закрыты.
 
 Физические медиаклавиши, личные устройства, живой VK-аккаунт и отдельный кадр Windows desktop shortcut остаются вне подтверждённой проверки; прежние ограничения подписей сохраняются. Точные hashes, artifact IDs и итоговые доказательства — в [журнале Mouse 6.0.32](docs/desktop/2026-11-20-mouse632-owner-fixes.md).
+
+
+## 2026-11-20 — Mouse 6.0.33: уточнение агента, пульт настроек и Linux
+
+Владелец исправил scope632: Агент Маус должен оставаться доступным и восстанавливать свою панель; принудительное скрытие отменено. Кнопка выхода справа снизу заменяется настройками, которые открываются правой боковой панелью и объединяют реальные настройки, включая импорт экспортированных закладок/паролей. Т+ получает живой предпросмотр страниц. У стрелки загрузок нужны измеренный прогресс, короткий подскок по завершении и счётчик до открытия загрузок. Разрешён немедленный выпуск после проверок для Mac arm64, Windows x64 и впервые Linux x64. Прежние Нора/прожилки/жесты/профили/task-only progress и просмотр документов без редактирования сохраняются.
+
+Реализация начата; новые пакеты ещё не объявлены готовыми. Точные решения, проверки и фактическая публикация: [Mouse633](docs/desktop/2026-11-20-mouse633-control-center.md).
+
+### Mouse 6.0.33 implementation checkpoint before native CI
+
+Implemented Settings as a right sidebar/last footer gear, restored Agent Mouse with optional Ollama onboarding, live T+ preview, actual download progress/bounce/unread count, and user-selected encrypted credential/bookmark import. Existing view-only documents remain. Added Mac/Windows actual632 profile replacement coverage and first Linux x64 packaging/installed gates. Focused portable tests passed; the broad scratch run is not green because the required MCP native addon/Node headers are unavailable here. No native acceptance or633 publication is claimed yet. Details: `docs/desktop/2026-11-20-mouse633-control-center.md`.

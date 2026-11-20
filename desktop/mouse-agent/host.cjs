@@ -192,6 +192,15 @@ class AgentHost{
  async handle(action,args={}){
   if(!args||typeof args!=='object'||Array.isArray(args)||JSON.stringify(args).length>1024*1024)throw Error('Invalid agent request');
   if(action==='stop'){await this.stop();return this.state();}if(action==='state')return this.state();this.requireMode();
+  if(action==='ollama-models'){
+   const generation=this.generation,desk=this.active(),result=await require('./ollama.cjs').models();
+   this.requireMode();if(generation!==this.generation||desk!==this.active())throw Error('Проверка модели отменена');return result;
+  }
+  if(action==='ollama-help'){
+   const help=require('./ollama.cjs').HELP;if(!Object.hasOwn(help,args.page))throw Error('Неизвестная страница Ollama');const url=help[args.page];
+   const desk=this.active(),result=await this.browser.command('open',{url,lane:'main'});this.requireMode();
+   if(desk===this.active())this.send('mouse:agent-open',{id:result.id,desk});return{opened:true};
+  }
   if(action==='enable')return this.enable({port:args.port,autonomous:args.autonomous===true});if(action==='folder')return this.chooseFolder();if(action==='task')return this.task(args);if(action==='approve')return this.decision(args.id,args.allow);
   if(action==='local-permissions')return this.localPermissions(args);
   if(action==='local-call')return this.localCall(args.name,args.arguments||{});

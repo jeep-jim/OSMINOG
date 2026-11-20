@@ -62,6 +62,7 @@ class MacInstaller{
 // Keep previous.app until the new executable really reaches its ready state.
 async function acknowledge(app,executable=process.execPath){
  if(process.platform==='win32')return acknowledgeWindows(app,executable);
+ if(process.platform==='linux')return require('./mouse-linux-update.cjs').acknowledge(app);
  const receipt=path.join(app.getPath('userData'),'mouse-update-receipt.json');let r;try{r=JSON.parse(await fs.readFile(receipt,'utf8'))}catch{return}
  const target=bundlePath(executable);if(r.version!==app.getVersion()||r.target!==target||typeof r.stage!=='string'||path.dirname(r.stage)!==path.dirname(target)||!/^\.mouse-update-[\w-]+$/.test(path.basename(r.stage)))return;
  const stat=await fs.lstat(r.stage).catch(()=>null);if(!stat||!stat.isDirectory()||stat.isSymbolicLink())return;

@@ -1,0 +1,37 @@
+/* The control center is a workspace sidebar, with the same live-page ownership
+   as History. Its controls never acquire the modal/frozen-page barrier. */
+#settings-dialog{position:static;inset:auto;margin:0;box-sizing:border-box;flex:0 0 auto;width:380px;max-width:none;height:100%;max-height:none;padding:0;border:0;border-left:1px solid var(--line);border-radius:0;background:var(--panel);color:var(--text);box-shadow:none;backdrop-filter:blur(18px);overflow:hidden}
+#settings-dialog:not([open]){display:none}#settings-dialog[open]{display:flex;flex-direction:column}
+#settings-dialog>header{display:flex;align-items:center;gap:16px;min-height:61px;padding:13px 18px;border-bottom:1px solid var(--line);flex:none}
+#settings-dialog>header>div{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}#settings-dialog>header strong{font-size:15px}#settings-dialog>header small{font-size:10px;color:var(--muted)}
+#settings-dialog>header>button{width:28px;min-width:28px;height:28px;min-height:28px;padding:0;border:0;font-size:19px}
+#settings-dialog>.dialog-content{padding:16px 18px 24px;overflow:auto;flex:1;min-height:0;scrollbar-width:none}
+#settings-dialog .settings-search{display:block;margin:0 0 20px}#settings-search{width:100%;box-sizing:border-box;height:34px;padding:7px 11px;border-radius:9px}
+#settings-dialog [data-settings-section]{padding:0 0 20px;margin:0 0 20px;border-bottom:1px solid var(--line)}#settings-dialog [data-settings-section][hidden]{display:none}#settings-dialog [data-settings-section]:last-child{border:0;padding-bottom:0;margin-bottom:0}
+#settings-dialog h3{font-size:12px;letter-spacing:.01em;margin:0 0 14px;font-weight:650}#settings-dialog p{font-size:11px;line-height:1.6;margin:9px 0}#settings-dialog .hint{color:var(--muted);font-size:10px}
+#settings-dialog .dialog-actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 0}#settings-dialog .dialog-actions button{font-size:10px;min-height:29px;padding:6px 10px;border-radius:8px}
+#settings-dialog .settings-switch,#settings-dialog .settings-field{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:14px 0;font-size:11px;line-height:1.5}
+#settings-dialog .settings-switch>span,#settings-dialog .settings-field>span{flex:1;min-width:0}#settings-dialog .settings-switch small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+#settings-dialog input[role=switch]{appearance:none;width:31px;height:18px;min-width:31px;flex:none;padding:0;border:0;border-radius:999px;background:color-mix(in srgb,var(--muted) 36%,var(--panel));position:relative;cursor:pointer}
+#settings-dialog input[role=switch]::before{content:'';position:absolute;left:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:transform .14s ease}
+#settings-dialog input[role=switch]:checked{background:var(--accent)}#settings-dialog input[role=switch]:checked::before{transform:translateX(13px)}#settings-dialog input:disabled{opacity:.45;cursor:default}#settings-dialog input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#settings-dialog select{width:126px;min-height:29px;font-size:11px}#settings-dialog input[type=range]{width:126px;min-width:0;padding:0;accent-color:var(--accent)}
+.settings-scale{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin:16px 0;font-size:11px}.settings-scale output{font-variant-numeric:tabular-nums}.settings-scale small{grid-column:1/-1;font-size:10px;color:var(--muted)}#settings-dialog .settings-scale input{width:100%}.settings-scale button{min-height:26px;font-size:10px}
+#settings-message{padding:10px 12px;border-radius:9px;background:var(--selected);overflow-wrap:anywhere}#settings-message[data-error=true]{color:light-dark(#a33c36,#ffa8a0)}
+#settings-passwords{margin-top:13px}#settings-passwords summary{cursor:pointer;font-size:11px;margin-bottom:10px}#settings-password-query{width:100%;box-sizing:border-box;font-size:11px}
+.settings-credential{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:11px 0;border-bottom:1px solid var(--line)}.settings-credential>div{flex:1 1 100%;display:flex;flex-direction:column;gap:3px;min-width:0}.settings-credential strong{font-size:11px;overflow-wrap:anywhere}.settings-credential span{font-size:10px;color:var(--muted);overflow-wrap:anywhere}.settings-credential button{font-size:10px;min-height:26px;padding:3px 9px}
+#settings-update-progress{width:100%;height:5px}#settings-dialog .global-capture-settings{margin-top:16px;padding-top:16px}#settings-dialog .global-capture-settings h3{font-size:11px}
+#statusbar #settings-button{margin-left:5px;width:25px;min-width:25px;padding:0;flex:none}#settings-button[aria-expanded=true]{background:var(--selected)}
+:root[data-show-brand-name=false] #statusbar .brand strong{display:none}:root[data-show-favicons=false] :is(.pane-icon,.tab-item>.favicon,.tab-item>.favicon-fallback){display:none}
+/* T+ retains the actual native pages instead of the old screenshot backdrop. */
+#global-zoom-panel[data-nonmodal]{border:1px solid var(--line)}#global-zoom-panel .zoom-close{position:absolute;right:6px;top:6px;border:0;padding:0;width:24px;min-width:24px;height:24px;min-height:24px;font-size:17px}
+/* Completion uses the same arrow; the unread badge survives the short task pill. */
+#statusbar #footer-library>#downloads-button.mouse-download-activity{position:relative;width:28px;min-width:28px;max-width:28px;padding:0;gap:0}
+#downloads-button .mouse-download-label{position:absolute!important;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}
+#downloads-button .mouse-download-badge{position:absolute;right:-1px;top:-1px;min-width:12px;height:12px;box-sizing:border-box;padding:0 2px;display:grid;place-items:center;font-size:8px;line-height:12px;font-weight:650;border-radius:999px;color:#fff;background:var(--accent);font-variant-numeric:tabular-nums;box-shadow:0 0 0 1.5px var(--panel)}
+#downloads-button .mouse-download-badge[hidden],:root[data-download-badge=false] #downloads-button .mouse-download-badge{display:none}
+#downloads-button[data-download-state=completed] .mouse-download-arrow{display:block}#downloads-button[data-download-state=completed] .mouse-download-check{display:none}
+#downloads-button[data-completion-bounce=true] .mouse-download-arrow{animation:mouse-download-complete-bounce .65s cubic-bezier(.25,.7,.35,1) both;transform-origin:center}
+:root[data-download-bounce=false] #downloads-button .mouse-download-arrow{animation:none!important}
+@keyframes mouse-download-complete-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}55%{transform:translateY(1px)}75%{transform:translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){#downloads-button .mouse-download-arrow{animation:none!important}#settings-dialog input[role=switch]::before{transition:none}}

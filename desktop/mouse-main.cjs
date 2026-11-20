@@ -1,8 +1,9 @@
 'use strict';
 const {app,BrowserWindow,ipcMain,Menu,session,nativeTheme,shell,dialog,systemPreferences}=require('electron');
 const fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
-const isMac=process.platform==='darwin',isWindows=process.platform==='win32';
-if(!isMac&&!isWindows)throw Error('Mouse Browser supports macOS and Windows');
+const isMac=process.platform==='darwin',isWindows=process.platform==='win32',isLinux=process.platform==='linux';
+if(!isMac&&!isWindows&&!isLinux)throw Error('Mouse Browser supports macOS, Windows and Linux');
+if(isLinux&&process.arch!=='x64')throw Error('This Mouse Browser Linux build requires x64');
 if(isWindows&&process.arch!=='x64')throw Error('This Mouse Browser Windows build requires x64');
 app.setName('Mouse Browser');
 // Apply before ready so native root/nested page scrollbars stay hidden.
@@ -10,14 +11,14 @@ require('./mouse-scrollbars.cjs').configure(app);
 // Retain Mac profile/logins. The first Windows Mouse release has its own stable
 // profile and installer identity; legacy Windows Trader data is never replaced.
 if(isMac)app.setPath('userData',path.join(app.getPath('appData'),'Trader OS'));
-else{app.setPath('userData',path.join(app.getPath('appData'),'Mouse Browser'));app.setAppUserModelId('black.mouse.browser.windows');}
+else{app.setPath('userData',path.join(app.getPath('appData'),'Mouse Browser'));if(isWindows)app.setAppUserModelId('black.mouse.browser.windows');}
 const test=process.env.CI==='true'&&process.env.MOUSE_TEST_PROFILE&&path.isAbsolute(process.env.MOUSE_TEST_PROFILE);
 if(test)app.setPath('userData',process.env.MOUSE_TEST_PROFILE);
 fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
-let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,agentHost,progress,progressBridge,documentService,documentPreparation,documentClosing;
+let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,agentHost,progress,progressBridge,documentService,documentPreparation,documentClosing,settingsService,importService;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'mouse/index.html')).href;
 async function releaseDocumentsUI(){if(!win||win.isDestroyed()||win.webContents.isDestroyed()||win.webContents.getURL()!==entry)return;try{await require('./mouse-lifecycle.cjs').bounded(win.webContents.executeJavaScript('globalThis.MouseDocumentsTransaction?.(false)'),7000,'Document controls');}catch(error){log('DOCUMENT_UI_RELEASE_FAILED '+error.message);}}
@@ -56,7 +57,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  // Create genuinely untitled from the outset: roundedCorners=true otherwise
  // retains AppKit Titled even for frame:false and creates a fullscreen blank bar.
  // The native module rounds the normal root view, without changing style masks.
- win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:!isMac,icon:path.join(__dirname,'icons/mouse-browser-light.png'),autoHideMenuBar:isWindows,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'mouse-preload.cjs'),additionalArguments:['--mouse-version='+app.getVersion(),...(test?['--mouse-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
+ win=new BrowserWindow({title:'Mouse Browser',width:1440,height:960,minWidth:800,minHeight:600,show:false,backgroundColor:'#f3f5f9',frame:false,fullscreenable:true,roundedCorners:!isMac,icon:path.join(__dirname,'icons/mouse-browser-light.png'),autoHideMenuBar:!isMac,kiosk:false,simpleFullscreen:false,alwaysOnTop:false,webPreferences:{preload:path.join(__dirname,'mouse-preload.cjs'),additionalArguments:['--mouse-version='+app.getVersion(),...(test?['--mouse-test']:[])],nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,webviewTag:false}});
  if(test)win.mouseDockThemeForTest=()=>updateDock.appliedTheme;
  exitController=require('./mouse-lifecycle.cjs').install({app,win,log,prepare:prepareDocuments,onError:error=>{if(!privateMode?.busy)void releaseDocumentsUI();if(!test&&error.code!=='MOUSE_DOCUMENT_CANCEL')dialog.showErrorBox('Mouse Browser — данные не сохранены','Браузер оставлен открытым. Повторите выход после устранения ошибки: '+error.message)},flush:async()=>{
   if(win.webContents.getURL()===entry)await win.webContents.executeJavaScript('globalThis.MouseFlush?.()');
@@ -64,6 +65,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(privateMode?.current)await privateMode.dispose();
   if(browser){await browser.save();await browser.saveQueue;await browser.session.cookies.flushStore();browser.session.flushStorageData();}
   if(libraryService)await libraryService.flush();
+  await settingsService?.flush();
+  await importService?.store.queue;
   if(store)await store.queue;
  }});
  win.on('closed',()=>log('MOUSE_WINDOW_CLOSED'));
@@ -80,7 +83,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   {label:'Окно',submenu:isMac?[{role:'minimize'},{role:'zoom'},{type:'separator'},{role:'front'}]:[{role:'minimize'},{label:'Развернуть / восстановить',click:()=>{if(win.isMaximized())win.unmaximize();else win.maximize();}}]}
  ]));
  // No menu-bar status item: the Dock icon and native application menu are sufficient.
- app.setAboutPanelOptions({applicationName:'Mouse Browser',applicationVersion:app.getVersion(),copyright:'Mouse Browser · mouse.black',credits:isMac?'mouse.black · macOS Apple Silicon':'mouse.black · Windows x64'});
+ app.setAboutPanelOptions({applicationName:'Mouse Browser',applicationVersion:app.getVersion(),copyright:'Mouse Browser · mouse.black',credits:isMac?'mouse.black · macOS Apple Silicon':isLinux?'mouse.black · Linux x64':'mouse.black · Windows x64'});
  session.defaultSession.setPermissionRequestHandler((_wc,_p,callback)=>callback(false));
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
@@ -89,6 +92,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state,e.senderFrame)});
  await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
+ settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
  globalCapture=await new (require('./mouse-global-capture.cjs').GlobalCapture)({electron:require('electron'),app,mainWindow:win,store,trusted,entryDirectory:__dirname,test,platform:process.platform}).init();
@@ -96,6 +100,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  localCaptures=await require('./mouse-local-captures.cjs').install({e:require('electron'),app,win,store,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),test});
  app.once('will-quit',()=>void localCaptures.dispose());
  libraryService=await require('./mouse-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
+ importService=require('./mouse-browser-import.cjs').install({app,win,browser,library:libraryService.library,ipcMain,trusted,dialog,safeStorage:require('electron').safeStorage,clipboard:require('electron').clipboard,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),notify:()=>{if(!win.isDestroyed())win.webContents.send('mouse:library-changed');}});
+ app.once('will-quit',()=>importService.dispose());
  startService=await require('./mouse-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
  documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,readOnly:true,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
@@ -114,8 +120,10 @@ if(ownsProfile)app.whenReady().then(async()=>{
  imageDrag=require('./mouse-image-drag.cjs').install({app,win,ipcMain,getBrowser:()=>privateMode?.current?.browser||browser,isTransition:()=>!!privateMode?.busy});
  app.once('will-quit',()=>imageDrag.dispose());
  const {MacInstaller,WindowsInstaller}=require('./mouse-install-update.cjs');
- const installer=new (isWindows?WindowsInstaller:MacInstaller)({app,quit:async()=>{await exitController.request();if(!exitController.isClosing())throw Error('Установка отменена: не удалось сохранить данные браузера');},test});
- const updates=new (require('./mouse-update.cjs').MouseUpdates)({app,shell,installer,target:{platform:process.platform,arch:isMac?'arm64':process.arch},emit:state=>{if(!win.isDestroyed())win.webContents.send('mouse:update-state',state)}});
+ const quitForUpdate=async()=>{await exitController.request();if(!exitController.isClosing())throw Error('Установка отменена: не удалось сохранить данные браузера');};
+ const linuxUpdate=isLinux?require('./mouse-linux-update.cjs'):null;
+ const installer=isLinux?(linuxUpdate.appImagePath()?new linuxUpdate.LinuxInstaller({app,quit:quitForUpdate,test}):null):new (isWindows?WindowsInstaller:MacInstaller)({app,quit:quitForUpdate,test});
+ const updates=new (require('./mouse-update.cjs').MouseUpdates)({app,shell,installer,target:{platform:process.platform,arch:isMac?'arm64':process.arch,...(isLinux?{format:process.env.APPIMAGE?'appimage':'deb'}:{})},emit:state=>{if(!win.isDestroyed())win.webContents.send('mouse:update-state',state)}});
  const escapeFullscreen=(event,input)=>{if(input.type==='keyDown'&&input.key==='Escape'){if(paneFocus.active){event.preventDefault();paneFocus.leave();return}if(win.isFullScreen()){event.preventDefault();win.setFullScreen(false)}}};
  // The shell handles Escape itself: a modal closes before fullscreen exits.
  for(const t of [...browser.tabs.values(),...browser.providers.values()])t.view.webContents.on('before-input-event',escapeFullscreen);
@@ -124,13 +132,13 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:init',async e=>{trusted(e);const data=await store.get(['quadroPreferences','traderPreferences']);const initial={state:browser.state(),preferences:desktopService.preferences()};if(test&&process.argv.includes('--mouse-init-race')){win.webContents.send('browser:state',browser.state());await new Promise(resolve=>setTimeout(resolve,450));}return initial});
  ipcMain.handle('mouse:save',async(e,p,history)=>{trusted(e);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid preferences');const value={tree:require('./mouse/layout.js').validate(p.tree),slots:p.slots,tabOrder:Array.isArray(p.tabOrder)?[...new Set(p.tabOrder.filter(id=>typeof id==='string'&&id.length<=100))].slice(0,1000):[],active:p.active,theme:p.theme,locale:p.locale==='en'?'en':'ru',libraryWidth:Math.max(300,Math.min(1600,Number(p.libraryWidth)||380)),aiOpen:p.aiOpen===true,aiWidth:Number(p.aiWidth)||360,aiId:p.aiId,aiSites:p.aiSites,aiSessions:p.aiSessions,desktopId:p.desktopId,mode:p.mode,agentOpen:p.agentOpen===true};return desktopService.savePreferences(value,history)});
  ipcMain.handle('mouse:browser',(e,action,args={})=>{trusted(e);if(!allowed.has(action))throw Error('Unsupported browser action');return browser.command(action,args)});
- ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if((action==='maximize'||action==='zoom')&&isWindows){if(win.isMaximized())win.unmaximize();else win.maximize();return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
+ ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if((action==='maximize'||action==='zoom')&&!isMac){if(win.isMaximized())win.unmaximize();else win.maximize();return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');}});
- const desktopGesture=await require('./mouse-gesture.cjs').install({win,store,ipcMain,trusted,getContext:()=>({privateMode:privateMode.current,busy:privateMode.busy,browser:privateMode.current?.browser||browser,desktopService:privateMode.current?.desktopService||desktopService})});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');}});
+ const desktopGesture=await require('./mouse-gesture.cjs').install({win,store,ipcMain,trusted,enabled:()=>settingsService.state().desktopGestures,getContext:()=>({privateMode:privateMode.current,busy:privateMode.busy,browser:privateMode.current?.browser||browser,desktopService:privateMode.current?.desktopService||desktopService})});
  app.once('will-quit',()=>desktopGesture.dispose());
- ipcMain.handle('mouse:privacy',(event)=>{trusted(event);setImmediate(()=>privateMode.toggle().catch(async error=>{if(!exitController.isClosing())await releaseDocumentsUI();if(error.code!=='MOUSE_DOCUMENT_CANCEL'&&!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через '+(isMac?'⌘Q':'Ctrl+Q')+' и повторите.')}));return true;});
+ ipcMain.handle('mouse:privacy',(event)=>{trusted(event);importService.cancelPending();setImmediate(()=>privateMode.toggle().catch(async error=>{if(!exitController.isClosing())await releaseDocumentsUI();if(error.code!=='MOUSE_DOCUMENT_CANCEL'&&!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через '+(isMac?'⌘Q':'Ctrl+Q')+' и повторите.')}));return true;});
  win.webContents.on('preload-error',(_e,_p,error)=>log('PRELOAD_ERROR '+error.message));
  require('./mouse-stability.cjs').installShellRecovery({win,entry,current:()=>privateMode?.current?{browser:privateMode.current.browser,gate:privateMode.current.gate}:{browser,gate:overlayGate},isClosing:()=>exitController.isClosing(),report:log});
  app.on('child-process-gone',(_e,detail)=>log('CHILD_STOPPED '+detail.type+' '+detail.reason));
@@ -139,6 +147,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
+ if(test&&process.argv.includes('--mouse-633-smoke'))await require('./mouse-633-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode,settingsService,importService});
+ if(test&&isLinux&&process.argv.some(x=>/^--mouse-linux-smoke-(write|read)$/.test(x)))await require('./mouse-linux-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode});
  if(test&&process.argv.includes('--mouse-631-smoke'))await require('./mouse-631-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode});
  if(test&&isWindows&&process.argv.some(x=>/^--mouse-windows-smoke-(write|read)$/.test(x)||x==='--mouse-windows-update-smoke'))await require('./mouse-windows-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode});
  if(test&&process.argv.some(x=>/^--mouse-smoke-(write|read)$/.test(x)))await require('./mouse-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,agentHost,documentService,privateMode});

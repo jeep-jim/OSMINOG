@@ -123,3 +123,14 @@ test('unsupported capture events never create a success cue and explicit clear c
  for(const kind of ['error','cancelled','pending',null])feedback.show(kind);assert.equal(node.hidden,true);assert.equal(f.timers.size,0);
  feedback.show('capture');assert.match(node.querySelector('strong').textContent,/Снимок готов/);feedback.clear();f.advance(10000);assert.equal(node.hidden,true);assert.equal(f.stage.dataset.captureFeedback,undefined);feedback.destroy();f.api.destroy();
 });
+
+
+test('completion bounce occurs once for a native event while the unread badge survives item expiry',async()=>{
+ const f=fixture({items:[row('file')]});await flush();f.setSnapshot({privateMode:false,items:[row('file',{state:'completed',expiresAt:2200})],unreadCount:1,completedSerial:1});await f.api.refresh();assert.equal(f.button.dataset.completionBounce,'true');assert.equal(f.button.querySelector('.mouse-download-badge').textContent,'1');assert.equal(f.button.querySelector('.mouse-download-badge').hidden,false);
+ f.advance(1700);assert.equal(f.button.dataset.completionBounce,'false');await f.api.refresh();assert.equal(f.button.dataset.completionBounce,'false','an identical snapshot cannot replay completion');f.advance(2200);assert.equal(f.button.dataset.downloadState,'idle');assert.equal(f.button.querySelector('.mouse-download-badge').hidden,false);assert.equal(f.api.snapshot().unreadCount,1);
+ f.setSnapshot({privateMode:false,items:[],unreadCount:0,completedSerial:1});await f.api.refresh();assert.equal(f.button.querySelector('.mouse-download-badge').hidden,true);f.api.destroy();
+});
+test('initial completed downloads and privacy mismatches never replay completion or leak badge counts',async()=>{
+ const f=fixture({privateMode:true,payloadPrivate:false});await flush();f.setSnapshot({privateMode:false,items:[row('hidden',{state:'completed'})],unreadCount:7,completedSerial:9});await f.api.refresh();assert.equal(f.button.dataset.unreadCount,'0');assert.equal(f.api.snapshot().unreadCount,0);assert.notEqual(f.button.dataset.completionBounce,'true');
+ f.setSnapshot({privateMode:true,items:[],unreadCount:2,completedSerial:2});await f.api.refresh();assert.equal(f.button.dataset.unreadCount,'2');assert.notEqual(f.button.dataset.completionBounce,'true');f.setMode(false);assert.equal(f.button.dataset.unreadCount,'0');f.api.destroy();
+});

@@ -24,7 +24,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.32"
+VERSION = "6.0.33"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -479,7 +479,7 @@ def update_roundtrip(executable: Path, env: dict, output: Path) -> dict:
 
 
 def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dict:
-    """Real public629 WRITE -> NSIS632 replacement -> new-process READ.
+    """Real public629 WRITE -> NSIS633 replacement -> new-process READ.
 
     The old application writes its own cookies/preferences/localStorage and
     bookmarks. No synthetic older-version profile or renamed installer is used.
@@ -503,7 +503,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Public629 installer bytes do not match the accepted release")
     directory = output / "mouse-631-upgrade"
     directory.mkdir()
-    target = root / "Реальное обновление 629 в 632"
+    target = root / "Реальное обновление 629 в 633"
     profile = root / "Существующий профиль 629"
     old_env = {**env, "MOUSE_TEST_PROFILE": str(profile), "MOUSE_WINDOWS_TEST_INSTALLER": str(baseline)}
     before_install = install(baseline, target, old_env, directory / "mouse-629-install.log")
@@ -519,7 +519,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
     new_env = {**env, "MOUSE_TEST_PROFILE": str(profile)}
     replacement = install(installer, target, new_env, directory / "mouse-631-replace.log")
     if sha256(profile / "workspace.json") != before_profile:
-        raise RuntimeError("629->632 installer changed the closed application profile")
+        raise RuntimeError("629->633 installer changed the closed application profile")
     read = run_logged([str(executable), "--mouse-windows-smoke-read", "--mouse-windows-upgrade-from=6.0.29"],
                       new_env, directory / "mouse-631-read.log", 180)
     verify_markers(read.pop("output"), READ_MARKERS)
@@ -527,13 +527,13 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
     new_report = json.loads(new_report_path.read_text(encoding="utf-8"))
     preserved = new_report.get("profile", {})
     if (new_report.get("ok"), new_report.get("version"), new_report.get("platform"), new_report.get("arch")) != (True, VERSION, "win32", "x64"):
-        raise RuntimeError("Updated application did not produce successful632 restart evidence")
+        raise RuntimeError("Updated application did not produce successful633 restart evidence")
     if preserved.get("previousVersion") != "6.0.29" or preserved.get("currentVersion") != VERSION or any(
             preserved.get(key) is not True for key in ("differentProcess", "preferencesPreserved", "cookiePreserved", "localStoragePreserved", "bookmarkPreserved")):
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_632_WINDOWS_REAL_629_TO_632_PROFILE_PASS", flush=True)
+    print("MOUSE_633_WINDOWS_REAL_629_TO_633_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -592,8 +592,23 @@ def main(argv=None) -> int:
         # registered Mouse installations or launch an uninstalled old path.
         evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
         save()
+        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-633-upgrade.py")), str(installer)], env,
+                           output / "mouse-633-upgrade.log", 480)
+        verify_markers(fresh.pop("output"), ["MOUSE_633_REAL_632_TO_633_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_633_REAL_632_TO_633_PROFILE_PASS"]
+        fresh["reportSha256"] = sha256(output / "mouse-633-upgrade.json")
+        evidence["checks"]["freshUpgrade"] = fresh
+        save()
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
         executable = target / "Mouse Browser.exe"
+        owner_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse633 owner feedback")}
+        owner = run_logged([str(executable), "--mouse-633-smoke"], owner_env,
+                           output / "mouse-633-owner-feedback.log", 270)
+        verify_markers(owner.pop("output"), ["MOUSE_633_OWNER_FEEDBACK_PASS"])
+        owner["requiredMarkers"] = ["MOUSE_633_OWNER_FEEDBACK_PASS"]
+        owner["reportSha256"] = sha256(output / "mouse-633-owner-feedback.json")
+        evidence["checks"]["ownerFeedback"] = owner
+        save()
         regression_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Задачи и 50 вкладок")}
         regression = run_logged([str(executable), "--mouse-631-smoke"], regression_env,
                                 output / "mouse-631-native.log", 400)

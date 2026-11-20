@@ -146,9 +146,9 @@ test('CI backdrop records the original bounded error while ordinary mode perform
  await assert.rejects(f.overlay.show('desktops'),actual=>actual===error);const entry=structuredClone(f.overlay.diagnostics()).events.at(-1);assert.equal(entry.phase,'error');assert.equal(entry.operation,'show');assert.equal(entry.message.length,512);await f.overlay.hide('desktops');
  const normal=fixture({performance:{now(){throw Error('ordinary mode must not read the diagnostic clock');}}});assert.equal(normal.overlay.diagnostics,undefined);assert.equal(normal.overlay.note,undefined);assert.equal(await normal.overlay.show('desktops'),true);await normal.overlay.hide('desktops');
 });
-test('desktop and zoom popovers participate in the existing modal native-view gate',()=>{
+test('Nora keeps its modal gate while the zoom chooser preserves live native pages',()=>{
  const s=fs.readFileSync('mouse/desktops.js','utf8'),browser=fs.readFileSync('mouse/browser.js','utf8');
- assert.match(s,/const tray=document.createElement\('dialog'\)/);assert.match(s,/const box=document.createElement\('dialog'\)/);assert.match(s,/tray\.showModal\(\)/);assert.match(s,/box\.showModal\(\)/);
+ assert.match(s,/const tray=document.createElement\('dialog'\)/);assert.match(s,/const box=document.createElement\('dialog'\)/);assert.match(s,/tray\.showModal\(\)/);assert.match(s,/box\.show\(\)/);const zoom=s.slice(s.indexOf('globalThis.createMouseZoomUI='));assert.match(zoom,/box\.dataset\.nonmodal='true'/);assert.doesNotMatch(zoom,/backdrop\.(?:show|hide)|showModal/);
  assert.match(browser,/dialog\[open\]:not\(\[data-nonmodal\]\)/);assert.doesNotMatch(s,/writeFile|localStorage|sessionStorage|sendBeacon|clipboard/);
 });
 test('native layout has a bounded fallback and coalesces a burst while RAF is stalled',async()=>{

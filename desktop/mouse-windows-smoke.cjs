@@ -20,7 +20,7 @@ module.exports=async ctx=>{
  const updateMode=process.argv.includes('--mouse-windows-update-smoke'),readMode=process.argv.includes('--mouse-windows-smoke-read'),mode=updateMode?'update':readMode?'read':'write';
  const js=source=>win.webContents.executeJavaScript(source),exit=require('./mouse-smoke-exit.cjs')({app,win});
  const facts={ok:false,version:app.getVersion(),platform:process.platform,arch:process.arch,mode,pid:process.pid,checks:{},physicalTrackpadVerified:false,liveExternalAccountsVerified:false};
- const expectedProfileVersion=readMode&&process.argv.includes('--mouse-windows-upgrade-from=6.0.29')?'6.0.29':'6.0.32';
+ const expectedProfileVersion=readMode&&process.argv.includes('--mouse-windows-upgrade-from=6.0.29')?'6.0.29':'6.0.33';
  const report='mouse-windows-smoke-'+mode+'.json';
  let server,nativeInput,origin,currentStep='identity';
  const save=()=>fs.writeFile(report,JSON.stringify(facts,null,2)+'\n');
@@ -221,8 +221,8 @@ module.exports=async ctx=>{
  }
  async function updateButton(){
   const {updates}=ctx,source=process.env.MOUSE_WINDOWS_TEST_INSTALLER;
-  assert.ok(path.isAbsolute(source||''));const stat=await fs.stat(source),name='Mouse-Browser-6.0.32-Windows-x64.exe';assert.equal(path.basename(source),name);
-  const candidate={version:'6.0.32',name,size:stat.size,hash:await require('./mouse-update.cjs').fileHash(source),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.32-x64/'+name};
+  assert.ok(path.isAbsolute(source||''));const stat=await fs.stat(source),name='Mouse-Browser-6.0.33-Windows-x64.exe';assert.equal(path.basename(source),name);
+  const candidate={version:'6.0.33',name,size:stat.size,hash:await require('./mouse-update.cjs').fileHash(source),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.33-x64/'+name};
   // Only the network transport is local: the actual downloader, digest checks,
   // renderer buttons, IPC, document flush, native helper and installer are used.
   updates.fetcher=async url=>{assert.equal(url,candidate.url);return new Response(require('node:stream').Readable.toWeb(syncFS.createReadStream(source)),{status:200});};
@@ -262,7 +262,7 @@ module.exports=async ctx=>{
   facts.updateHelper=evidence;await fs.writeFile('mouse-windows-update-helper.json',JSON.stringify(evidence,null,2)+'\n');
  }
  try{
-  assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.32');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
+  assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.33');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
   assert.equal(await js('document.title'),'Mouse Browser');assert.equal(win.isVisible(),true);assert.ok(win.getNativeWindowHandle().readBigUInt64LE()>0n);
   nativeInput=require('./mouse-windows-input.cjs').createWindowsInput();const shared={...ctx,nativeInput,readMode,expectedSavedVersion:expectedProfileVersion};
   if(updateMode){currentStep='actualUpdateButton';await updateButton();return;}

@@ -30,7 +30,7 @@ module.exports=async({win,browser,overlayGate})=>{
  await until(()=>js('document.querySelector("#contrast-fixture").dataset.ink==="dark"'),'black icon classified');
  for(const theme of ['dark','light']){
   await js(`MouseTest.setTheme('${theme}')`);assert.equal(await js('getComputedStyle(document.querySelector("#contrast-fixture")).filter'),theme==='dark'?'invert(1)':'none');
-  await js('MouseTest.action("settings")');await until(()=>overlayGate.blocked,'settings overlay');
+  await js('MouseTest.action("settings")');await until(async()=>await js('document.querySelector("#settings-dialog").open')&&!overlayGate.blocked,'settings live sidebar');
   const gap=await js('(()=>{const [a,b]=document.querySelectorAll("#settings-dialog .dialog-actions button"),r=a.getBoundingClientRect(),s=b.getBoundingClientRect();return s.top>r.bottom-1?s.top-r.bottom:s.left-r.right})()');assert.ok(gap>=7,'Settings action spacing');
   assert.ok((await js('getComputedStyle(document.querySelector("#settings-dialog")).backdropFilter')).includes('blur'));
   await click('#settings-dialog [data-close-dialog]');
