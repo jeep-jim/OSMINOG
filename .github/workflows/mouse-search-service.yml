@@ -46,10 +46,71 @@ jobs:
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "umask 077; test \"\$(id -un)\" = osminog; test ! -L /opt/osminog/mouse-search; mkdir -p /opt/osminog/mouse-search/releases/$GITHUB_SHA"
           tar -czf - -C infra/mouse-search server.py settings.yml upstream-revision osminog-mouse-search.service deploy.sh prepare.sh bootstrap-pip.py ai-smoke.py url_policy.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/releases/$GITHUB_SHA"
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash /opt/osminog/mouse-search/releases/$GITHUB_SHA/deploy.sh $GITHUB_SHA"
+  configure:
+    needs: test
+    # Explicit one-time configuration activation; the verified engine is reused.
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[configure-mouse-search]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Activate only the proven Yahoo configuration with bounded rollback
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY"
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 /bin/bash -s -- "$GITHUB_SHA" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          test "$(id -un)" = osminog
+          [[ "$1" =~ ^[0-9a-f]{40}$ ]]
+          base=/opt/osminog/mouse-search
+          for item in "$base" "$base/proofs"; do
+            test ! -L "$item" && test "$(stat -c %U "$item")" = osminog
+          done
+          test ! -L "$base/proofs/$1"
+          mkdir -p "$base/proofs/$1"
+          test "$(stat -c %U "$base/proofs/$1")" = osminog
+          mkdir "$base/proofs/$1/config-input"
+          REMOTE
+          tar -czf - -C infra/mouse-search configure.py settings.yml | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/proofs/$GITHUB_SHA/config-input"
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 /bin/bash -s -- "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" 2>&1 <<'REMOTE' | tee mouse-search-configure.log
+          set -euo pipefail
+          test "$(id -un)" = osminog
+          [[ "$1" =~ ^[0-9a-f]{40}$ && "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]]
+          unit="osminog-mouse-search-config-$2-$3"
+          set +e
+          systemd-run --user --wait --pipe --unit="$unit" -p MemoryMax=128M -p MemorySwapMax=0 -p CPUQuota=10% -p TasksMax=16 -p NoNewPrivileges=yes -p RuntimeMaxSec=120 -p TimeoutStopSec=30 -p LimitCORE=0 /opt/osminog/mouse-search/releases/792ff9a458bb0bf98ee442c7cbe7d4483c591b9d/venv/bin/python -I -B -u "/opt/osminog/mouse-search/proofs/$1/config-input/configure.py" --source "$1"
+          result=$?
+          if test "$result" -ne 0; then
+            systemctl --user show "$unit" -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState
+            systemctl --user reset-failed "$unit" || true
+          fi
+          exit "$result"
+          REMOTE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Mouse-search-configure-evidence
+          path: mouse-search-configure.log
+          retention-days: 30
   verify:
-    needs: [test, deploy]
+    needs: [test, deploy, configure]
     # A verifier-only push must not reinstall or rewrite the active release.
-    if: always() && needs.test.result == 'success' && (needs.deploy.result == 'success' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[verify-mouse-search]')))
+    if: always() && needs.test.result == 'success' && (needs.deploy.result == 'success' || needs.configure.result == 'success' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[verify-mouse-search]')))
     runs-on: ubuntu-latest
     # Includes independent 12s transport probes, capped 60s diagnostics and
     # one capped 90s model proof. Individual acceptance deadlines are unchanged.

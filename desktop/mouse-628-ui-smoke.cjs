@@ -2,13 +2,13 @@
 // Actual installed controls, compositor frames and native page identities in
 // the isolated CI profile. Content growth and borderless paint replace the
 // former fixed-height, inner-scroll and one-pixel outline contracts.
-const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),{createHash}=require('node:crypto');
 const {screen,clipboard,ClipboardItem,nativeImage}=require('electron');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
 const {closingReversalPair,observeNoraReversal,runNoraReversalTrials}=require('./mouse-smoke-reversal.cjs');
 const {createMotionTrace,MARKER_PREFIX,bounded}=require('./mouse-smoke-trace.cjs');
-const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
+const {chromeGradientReference,assertChromeReference,sampleChromeReference,reusePreModalChromeReference}=require('./mouse-634-chrome-reference.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let i=0;i<400;i++){if(await fn())return;await sleep(25);}throw Error('Mouse628 motion timeout: '+label);}
 const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
@@ -313,11 +313,23 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
    await fs.writeFile(filename,JSON.stringify(report,null,2)+'\n');
   }
  }
- async function footer(captured){
+ async function footer(captured,baseline){
   const data=await js(`(()=>{const bar=document.querySelector('#statusbar'),r=bar.getBoundingClientRect(),style=getComputedStyle(bar),columns=[];for(let x=r.left+8;x<r.right-8;x+=4){if(Math.abs(x-innerWidth/2)<24)continue;const covered=[...bar.querySelectorAll('button,select,input')].some(e=>{const b=e.getBoundingClientRect();return x>=b.left&&x<=b.right&&b.top<=r.top+3;});if(!covered){columns.push(x);x+=20;}}return{x:r.x,y:r.y,width:r.width,height:r.height,viewport:{width:innerWidth,height:innerHeight},borderWidth:style.borderTopWidth,borderColor:style.borderTopColor,borderImage:style.borderImageSource,boxShadow:style.boxShadow,background:style.backgroundColor,columns:columns.slice(0,24)};})()`),image=captured||await win.capturePage(),size=image.getSize(),pixels=image.toBitmap(),sx=size.width/data.viewport.width,sy=size.height/data.viewport.height;
   assert.equal(parseFloat(data.borderWidth),0,'Footer has no top border');assert.equal(data.borderImage,'none');assert.equal(data.boxShadow,'none');assert.ok(data.columns.length>=4,'There are exposed native footer pixels to verify');
-  const offsets=[.5,1.5,2.5],reference=await js(`(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})`);assertChromeReference(reference,offsets);assert.equal(data.background,reference.header.background);data.chromeReference=sampleChromeReference(image,data.viewport,reference);
+  const offsets=[.5,1.5,2.5],reference=await js(`(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})`);assert.equal(data.background,reference.header.background);
+  if(baseline){
+   const modal=await js('(()=>{const tray=document.querySelector("#desktop-tray");return{open:tray.open,hidden:tray.hidden,phase:tray.dataset.motion};})()');
+   assert.deepEqual(data.viewport,baseline.viewport,'Nora uses a reference from the same measured viewport');
+   data.chromeReference=reusePreModalChromeReference(baseline.reference,reference,modal,offsets);
+  }else{assertChromeReference(reference,offsets);data.chromeReference=sampleChromeReference(image,data.viewport,reference);}
   data.pixels=data.columns.map(x=>({x,samples:offsets.map((offset,referenceIndex)=>{const pixelX=Math.floor(x*sx),pixelY=Math.floor((data.y+offset)*sy),i=(pixelY*size.width+pixelX)*4,rgba=[pixels[i+2],pixels[i+1],pixels[i],pixels[i+3]],expected=data.chromeReference.references[referenceIndex].rgba.slice(0,3);assert.ok(expected.every((v,c)=>Math.abs(rgba[c]-v)<=2)&&rgba[3]===255,'Footer edge matches the actual toolbar gradient, without a one-pixel seam: '+JSON.stringify({x,offset,expected,rgba}));return{offset,pixelX,pixelY,rgba,referenceIndex};})}));return data;
+ }
+ async function footerBaseline(theme,viewport){
+  const modal=await js('(()=>{const tray=document.querySelector("#desktop-tray");return{open:tray.open,hidden:tray.hidden};})()');
+  assert.deepEqual(modal,{open:false,hidden:true},'The actual footer reference is captured before opening Nora');
+  await painted();const image=await win.capturePage(),png=image.toPNG(),capture='mouse-628-footer-reference-'+viewport+'-'+theme+'.png';await fs.writeFile(capture,png);
+  const data=await footer(image),baseline={theme,viewport:data.viewport,capture,bytes:png.length,sha256:createHash('sha256').update(png).digest('hex'),source:'BrowserWindow.capturePage before modal Nora',reference:data.chromeReference};
+  (borderlessFacts.footerReferences??=[]).push({...baseline,context:viewport});return{data,baseline};
  }
  async function captureTinyBurrow(theme){
   const measured=await js(`(()=>{const button=document.querySelector('#desktops-button'),entry=button.querySelector('.burrow-entry'),bar=document.querySelector('#statusbar'),r=button.getBoundingClientRect(),footer=bar.getBoundingClientRect(),bounds=r=>({x:r.x,y:r.y,width:r.width,height:r.height}),paint=(element,pseudo)=>{const c=getComputedStyle(element,pseudo);return{display:c.display,content:c.content,borderWidths:['Top','Right','Bottom','Left'].map(side=>parseFloat(c['border'+side+'Width'])),boxShadow:c.boxShadow,backgroundImage:c.backgroundImage};};const x=Math.max(0,Math.floor(r.left-6)),right=Math.min(innerWidth,Math.ceil(r.right+6)),y=Math.max(0,Math.floor(footer.top-3)),bottom=Math.min(innerHeight,Math.ceil(footer.bottom));return{viewport:{width:innerWidth,height:innerHeight,devicePixelRatio},button:{bounds:bounds(r),...paint(button)},pseudo:paint(button,'::before'),entry:{bounds:bounds(entry.getBoundingClientRect()),...paint(entry)},footer:bounds(footer),crop:{x,y,width:right-x,height:bottom-y}};})()`);
@@ -328,7 +340,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
   const png=image.toPNG({scaleFactor}),pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)};assert.deepEqual([...png.subarray(0,8)],[137,80,78,71,13,10,26,10]);assert.ok(Math.abs(pixelSize.width-measured.crop.width*scaleFactor)<=1&&Math.abs(pixelSize.height-measured.crop.height*scaleFactor)<=1,'The cropped PNG preserves the native representation scale');
   const capture='mouse-628-footer-burrow-'+theme+'.png';await fs.writeFile(capture,png);borderlessFacts.tinyBurrow.push({theme,source:'BrowserWindow.capturePage(rect)',...measured,capture,pixelSize,scaleFactor});
  }
- async function contentControls(theme,viewport){
+ async function contentControls(theme,viewport,baseline){
   const states=[];
   async function state(name,selector){
    // A grid expansion may have its own brief transition. Wait for the measured
@@ -339,7 +351,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
    assert.ok(Math.abs(measured.sample.height-measured.sample.contentHeight)<=1,'Nora follows '+name+' content height');assert.ok(Math.abs(measured.tray.height-measured.content.height)<=1,'Nora leaves no fixed empty area below '+name);
    assert.equal(measured.scrollTop,0);assert.equal(measured.tray.scrollTop,0,'The hidden Nora viewport never scrolls programmatically');assert.equal(measured.panel.scrollTop,0,'The translated panel never scrolls programmatically');assert.ok(measured.scrollHeight<=measured.clientHeight+1);assert.ok(!['auto','scroll'].includes(measured.overflowY));assert.deepEqual(measured.scrollers,[],'No vertical inner scrollbar in '+name);assert.equal(measured.control.ready,true,'Control remains visible without programmatic scrolling');
    assert.equal(measured.outline.stroke,'none');assert.ok(measured.decorations.length>=10);for(const frame of measured.decorations){assert.ok(frame.borders.every(border=>border.width===0||border.style==='none'),name+' has no decorative frame: '+JSON.stringify(frame));assert.equal(frame.boxShadow,'none',name+' has no shadow outline: '+JSON.stringify(frame));}
-   const capture='mouse-628-'+viewport+'-'+theme+'-'+name+'.png',image=await win.capturePage();await fs.writeFile(capture,image.toPNG());const row={theme,viewport,mode:name,measurements:measured,capture,footer:await footer(image)};borderlessFacts.rows.push(row);states.push(row);return measured;
+   const capture='mouse-628-'+viewport+'-'+theme+'-'+name+'.png',image=await win.capturePage();await fs.writeFile(capture,image.toPNG());const row={theme,viewport,mode:name,measurements:measured,capture,footer:await footer(image,baseline),footerReference:baseline.capture};borderlessFacts.rows.push(row);states.push(row);return measured;
   }
   const compact=await state('compact','#desks-close');
   await click('#desk-modes-button');const modes=await state('modes','#desk-modes .desk-mode:last-child');assert.ok(modes.sample.height>compact.sample.height+10,'Modes grow Nora upward');
@@ -532,10 +544,10 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
   motionTrace=newMotionTrace('mouse-628-motion-trace.json');await motionTrace.start();
   await beginBackgroundProbe();
   for(const theme of motionFacts.themes){
-   await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await painted();const footerBefore=await footer(),cornersBefore=await cornerBaseline(theme);await captureTinyBurrow(theme);await installRecorder();const openingCapture=await armPanelCapture(theme,'opening');await click('#desktops-button',false,()=>openingCapture.measure());
+   await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await painted();const {data:footerBefore,baseline}=await footerBaseline(theme,'motion'),cornersBefore=await cornerBaseline(theme);await captureTinyBurrow(theme);await installRecorder();const openingCapture=await armPanelCapture(theme,'opening');await click('#desktops-button',false,()=>openingCapture.measure());
    await capturePanel(theme,'opening',openingCapture);await until(async()=>await phase()==='open','open content-sized panel');await painted();await capturePanel(theme,'open');const opening=await retainFrames(theme+'Opening');continuous(opening,'opening',theme+' opening');
    assert.ok(allPages().every(page=>!page.visible),'Native pages are held behind the painted snapshot without changing their viewports');await snapshotEvidence(theme);await verifyOpenCorners(theme,cornersBefore);
-   const footerAfter=await footer();assert.deepEqual(footerAfter,footerBefore,theme+' keeps the footer geometry, border and actual pixels stationary');motionFacts.footer[theme]={before:footerBefore,after:footerAfter};
+   const footerAfter=await footer(undefined,baseline);assert.deepEqual(footerAfter,footerBefore,theme+' keeps the footer geometry, border and actual pixels stationary');motionFacts.footer[theme]={before:footerBefore,after:footerAfter,reference:baseline};
    await installRecorder();const closingCapture=await armPanelCapture(theme,'closing');await click('#desks-close',false);await capturePanel(theme,'closing',closingCapture);await closed();const closing=await retainFrames(theme+'Closing');continuous(closing,'closing',theme+' closing');await samePages();
   }
   Object.assign(motionFacts,{translationOnly:true,strokeFreeContour:true,openClosePainted:true,footerStable:true});
@@ -552,7 +564,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
   await endBackgroundProbe();await debug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});await stopMotionTrace('motion-complete');await removeCornerMarkers();
   for(const viewport of ['large','small']){
    if(viewport==='small'){win.setBounds({x:work.x+8,y:work.y+8,width:800,height:600});await painted();borderlessFacts.viewports.push({name:viewport,bounds:win.getBounds(),content:win.getContentSize()});assert.notDeepEqual(borderlessFacts.viewports[0].content,borderlessFacts.viewports[1].content,'A genuinely smaller app window is tested');}
-   for(const theme of motionFacts.themes){await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await click('#desktops-button');await contentControls(theme,viewport);await click('#desks-close');}
+   for(const theme of motionFacts.themes){await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);const {baseline}=await footerBaseline(theme,viewport);await click('#desktops-button');await contentControls(theme,viewport,baseline);await click('#desks-close');}
   }
   motionFacts.contentFit=motionFacts.noInnerScroll=true;borderlessFacts.footerSeamAbsent=borderlessFacts.decorativeOutlinesAbsent=borderlessFacts.roundedBackgroundCorners=true;
   win.setBounds(borderlessFacts.viewports[0].bounds);await painted();await verifyPalette();await samePages();await verifyGestureAndSlide();

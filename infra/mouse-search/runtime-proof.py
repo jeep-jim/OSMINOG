@@ -1,5 +1,6 @@
 """Read only this own service identity/caps; never inspect another unit/log."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,24 @@ def main():
     observed=dict(line.split('=',1) for line in response.stdout.splitlines() if '=' in line)
     report={'verifierSourceSha':args.verifier_source,'activeRuntimeSourceSha':current.split('/')[1],
             'upstreamSourceSha':upstream,'unit':'osminog-mouse-search.service','properties':observed,'fixture':False}
+    provenance=base/current/'runtime-provenance.json'
+    if provenance.exists() or provenance.is_symlink():
+        if provenance.is_symlink() or provenance.stat().st_uid!=os.getuid() or provenance.stat().st_size>8192:
+            raise SystemExit('MOUSE_SEARCH_PROOF_PROVENANCE_PATH')
+        identity=json.loads(provenance.read_text())
+        if identity.get('schema')!=1 or identity.get('configurationSourceSha')!=current.split('/')[1] or identity.get('upstreamSourceSha')!=upstream:
+            raise SystemExit('MOUSE_SEARCH_PROOF_PROVENANCE_IDENTITY')
+        for name in ('engineRuntimeSourceSha','facadeSourceSha'):
+            if not re.fullmatch(r'[0-9a-f]{40}',identity.get(name,'')):
+                raise SystemExit('MOUSE_SEARCH_PROOF_PROVENANCE_SOURCE')
+        for name,key in (('server.py','facadeSha256'),('settings.yml','configurationSha256'),('dependencies.txt','dependenciesSha256')):
+            target=base/current/name
+            if target.is_symlink() or hashlib.sha256(target.read_bytes()).hexdigest()!=identity.get(key):
+                raise SystemExit('MOUSE_SEARCH_PROOF_PROVENANCE_HASH')
+        for name in ('venv','source'):
+            if (base/current/name).resolve()!=(base/'releases'/identity['engineRuntimeSourceSha']/name).resolve():
+                raise SystemExit('MOUSE_SEARCH_PROOF_REUSED_ENGINE_PATH')
+        report['runtimeProvenance']=identity
     print(json.dumps(report))
     if upstream!=args.upstream or observed.get('ActiveState')!='active' or observed.get('MemoryMax')!='536870912' or observed.get('CPUQuotaPerSecUSec')!='250ms' or observed.get('TasksMax')!='64':
         raise SystemExit('MOUSE_SEARCH_PROOF_RUNTIME_MISMATCH')

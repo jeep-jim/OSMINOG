@@ -34,4 +34,17 @@ function sampleChromeReference(image,viewport,reference){
  const size=image.getSize(),bitmap=image.toBitmap(),sx=size.width/viewport.width,sy=size.height/viewport.height;assert.equal(bitmap.length,size.width*size.height*4);
  return{...reference,references:reference.references.map(row=>{const pixelX=Math.floor(row.point.x*sx),pixelY=Math.floor(row.point.y*sy);assert.ok(pixelX>=0&&pixelY>=0&&pixelX<size.width&&pixelY<size.height);const at=(pixelY*size.width+pixelX)*4,rgba=[bitmap[at+2],bitmap[at+1],bitmap[at],bitmap[at+3]];assert.equal(rgba[3],255,'The real toolbar background is opaque');return{...row,pixelX,pixelY,rgba};})};
 }
-module.exports={chromeGradientReference,assertChromeReference,sampleChromeReference};
+function reusePreModalChromeReference(before,current,modal,offsets){
+ // Modal hit testing cannot expose the inert toolbar, and the requested Nora
+ // scrim changes its presented pixels. Keep the actual pre-modal PNG reference
+ // while requiring the underlying chrome geometry and CSS to stay identical.
+ assert.deepEqual(modal,{open:true,hidden:false,phase:'open'},'A pre-modal footer reference is used only for the fully open Nora');
+ assertChromeReference(before,offsets);
+ for(const name of ['header','footer'])assert.deepEqual(current[name],before[name],'Nora retains the measured underlying '+name);
+ for(const row of before.references){
+  assert.ok(Number.isInteger(row.pixelX)&&row.pixelX>=0&&Number.isInteger(row.pixelY)&&row.pixelY>=0,'The pre-modal reference has actual PNG coordinates');
+  assert.ok(Array.isArray(row.rgba)&&row.rgba.length===4&&row.rgba.every(v=>Number.isInteger(v)&&v>=0&&v<=255)&&row.rgba[3]===255,'The pre-modal reference has decoded opaque PNG pixels');
+ }
+ return structuredClone(before);
+}
+module.exports={chromeGradientReference,assertChromeReference,sampleChromeReference,reusePreModalChromeReference};

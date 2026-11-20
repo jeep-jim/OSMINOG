@@ -8,6 +8,7 @@ use_default_settings:
       - brave.videos
       - duckduckgo videos
       - bing videos
+      - yahoo
 general:
   debug: false
   instance_name: Mouse Search
@@ -42,4 +43,6 @@ engines:
   - name: duckduckgo videos
     disabled: false
   - name: bing videos
+    disabled: false
+  - name: yahoo
     disabled: false

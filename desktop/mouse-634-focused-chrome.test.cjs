@@ -3,7 +3,7 @@
 // fullscreen controls, native corner pixels or display screenshots.
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
 const {focusedChromeReadback,assertFocusedGeometry,assertChromeSurfaces,focusedProbeBounds,DOCK_CLEARANCE}=require('./mouse-634-focused-chrome-smoke.cjs');
-const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
+const {chromeGradientReference,assertChromeReference,sampleChromeReference,reusePreModalChromeReference}=require('./mouse-634-chrome-reference.cjs');
 const {downloadNativeBounds}=require('./mouse-630-feedback-smoke.cjs');
 const rect=(x,y,width,height)=>({x,y,width,height,right:x+width,bottom:y+height});
 test('Mac native chrome fixture clears the measured Dock shadow without changing sample tolerances',()=>{
@@ -56,6 +56,25 @@ test('retained footer reference RGB is decoded from the same PNG representation 
  for(const [index,row]of reference.references.entries()){const x=Math.floor(row.point.x*2),y=Math.floor(row.point.y*2);pixels.set([247-index,243-index,240-index,255],(y*size.width+x)*4);}
  const sampled=sampleChromeReference(image,viewport,reference);assert.deepEqual(sampled.references.map(row=>row.rgba),[[240,243,247,255],[239,242,246,255],[238,241,245,255]]);assert.deepEqual(sampled.references.map(row=>[row.pixelX,row.pixelY]),[[212,2],[212,7],[212,12]]);
  pixels[(2*size.width+212)*4+3]=0;assert.throws(()=>sampleChromeReference(image,viewport,reference));
+});
+function preModalFixture(){
+ const before=referenceFixture();before.references=before.references.map((row,index)=>({...row,pixelX:Math.floor(row.point.x*2),pixelY:Math.floor(row.point.y*2),rgba:[240-index,243-index,247-index,255]}));
+ return{before,current:{...referenceFixture(),references:[]},modal:{open:true,hidden:false,phase:'open'}};
+}
+test('retained Nora footer uses its archived pre-modal pixels when the modal makes the toolbar inert',()=>{
+ const {before,current,modal}=preModalFixture(),result=reusePreModalChromeReference(before,current,modal,[.5,1.5,2.5]);
+ assert.deepEqual(result,before);assert.notEqual(result,before);assert.notEqual(result.references[0],before.references[0]);
+ assert.deepEqual(result.references[0].rgba,[240,243,247,255]);assert.deepEqual(current.references,[]);
+});
+test('pre-modal footer pixels cannot be borrowed across changed geometry, theme, paint or modal state',()=>{
+ for(const change of [v=>{v.current.header.bounds.width--;},v=>{v.current.footer.bounds.y--;},v=>{v.current.header.background='rgb(10, 20, 30)';},v=>{v.current.footer.backgroundImage='none';},v=>{v.current.header.backdropFilter='none';},v=>{v.current.footer.opacity='.9';},v=>{v.modal.open=false;},v=>{v.modal.hidden=true;},v=>{v.modal.phase='opening';}]){
+  const value=preModalFixture();change(value);assert.throws(()=>reusePreModalChromeReference(value.before,value.current,value.modal,[.5,1.5,2.5]));
+ }
+});
+test('pre-modal footer references require all original depths and decoded opaque PNG coordinates',()=>{
+ for(const change of [v=>{v.before.references.pop();},v=>{delete v.before.references[0].rgba;},v=>{v.before.references[0].rgba[3]=254;},v=>{v.before.references[0].rgba[0]=NaN;},v=>{v.before.references[0].pixelX=-1;},v=>{v.before.references[0].pixelY=.5;}]){
+  const value=preModalFixture();change(value);assert.throws(()=>reusePreModalChromeReference(value.before,value.current,value.modal,[.5,1.5,2.5]));
+ }
 });
 
 // Synthetic DOM reproduces the archived Linux/Windows HEADER hit underneath
