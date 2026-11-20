@@ -50,19 +50,19 @@
       exportChanges() {const result={};for(const path of dirty)result[path]=new Serializer().serializeToString(parts.get(path));return {parts:result};}
     };
   }
-  async function createMouseWordEditor({host,document,onChange=()=>{},status=()=>{}}) {
+  async function createMouseWordEditor({host,document,onChange=()=>{},status=()=>{},readOnly=false}) {
     if(!host?.ownerDocument)throw Error('Контейнер Word недоступен.');
     const html=host.ownerDocument,model=createModel(document),listeners=[],textRecords=new WeakMap(),runRecords=new WeakMap();
     let disposed=false,selected=null,capped=false,readOnlyCount=0;
     const count={nodes:0,paragraphs:0,cells:0,images:0,text:0};
-    const shell=html.createElement('section');shell.className='mouse-word-editor';shell.setAttribute('aria-label','Редактор Word');
+    const shell=html.createElement('section');shell.className='mouse-word-editor';shell.setAttribute('aria-label',readOnly?'Просмотр Word':'Редактор Word');shell.dataset.readOnly=String(readOnly);
     const toolbar=html.createElement('div');toolbar.className='word-format-bar';toolbar.setAttribute('role','toolbar');toolbar.setAttribute('aria-label','Форматирование фрагмента');
     const makeButton=(label,title)=>{const el=html.createElement('button');el.type='button';el.textContent=label;el.title=title;el.setAttribute('aria-label',title);el.disabled=true;el.setAttribute('aria-pressed','false');toolbar.appendChild(el);return el;};
     const bold=makeButton('Ж','Полужирный фрагмент'),italic=makeButton('К','Курсив фрагмента');bold.className='word-bold';italic.className='word-italic';
     const hint=html.createElement('span');hint.className='word-edit-hint';hint.textContent='Нажмите на текст, чтобы изменить его. Оформление страницы может отличаться от Word.';toolbar.appendChild(hint);
     const scroll=html.createElement('div');scroll.className='word-document-scroll';
     const paper=html.createElement('article');paper.className='word-document-paper';scroll.appendChild(paper);
-    shell.append(toolbar,scroll);host.replaceChildren(shell);
+    if(!readOnly)shell.append(toolbar);shell.append(scroll);host.replaceChildren(shell);
     const notify=()=>{if(!disposed)onChange();};
     const say=text=>{if(typeof status==='function')status(text);};
     function listen(node,type,handler,options){node.addEventListener(type,handler,options);listeners.push(()=>node.removeEventListener(type,handler,options));}
@@ -140,7 +140,7 @@
         if(isW(node,'t')||isW(node,'delText')){
           if(!permit('text',node.textContent.length))return;
           const text=item('span','word-text',node.textContent);wrapper.appendChild(text);
-          if(locked||!isW(node,'t')){text.classList.add('word-readonly');continue;}
+          if(readOnly||locked||!isW(node,'t')){text.classList.add('word-readonly');continue;}
           text.contentEditable='plaintext-only';text.spellcheck=false;text.setAttribute('role','textbox');text.setAttribute('aria-label','Текст документа');text.dataset.wordText='true';
           const rec={path,node,run,element:text};textRecords.set(text,rec);
         } else if(isW(node,'tab'))wrapper.appendChild(item('span','word-tab','\t'));
@@ -228,8 +228,10 @@
         model.formatRun(selected.path,selected.run,name,enabled);runStyle(runRecords.get(selected.run).wrapper,child(selected.run,'rPr'));buttons();notify();
       });
     }
+    if(document.view){scroll.scrollTop=Number(document.view.top)||0;scroll.scrollLeft=Number(document.view.left)||0;}
     return {
-      exportChanges:async()=>{if(disposed)throw Error('Документ уже закрыт.');return model.exportChanges();},
+      getView:()=>({top:scroll.scrollTop,left:scroll.scrollLeft}),
+      exportChanges:async()=>{if(readOnly)throw Error('Документ открыт только для просмотра');if(disposed)throw Error('Документ уже закрыт.');return model.exportChanges();},
       dispose(){if(disposed)return;disposed=true;for(const remove of listeners)remove();shell.remove();selected=null;model.parts.clear();}
     };
   }

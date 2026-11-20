@@ -27,7 +27,7 @@
   return result;
  }
  function createMouseProgressPills({N,model,layout,status,frozen=()=>false,extraTasks=()=>[],onDismissTask=()=>{},openDownloads=()=>{},now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}){
-  let state={tasks:[]},rendering=false,tick=null,renderedDesk='';const hosts=new Map(),nodes=new Map(),selected=new Map(),selectedManual=new Set();
+  let state={tasks:[]},rendering=false,tick=null,renderedDesk='';const hosts=new Map(),nodes=new Map(),selected=new Map(),selectedManual=new Set(),paintKeys=new WeakMap();
   const tasks=()=>{const extra=extraTasks();return[...(Array.isArray(extra)?extra.filter(task=>task.source==='download').slice(0,36):[]),...(Array.isArray(state.tasks)?state.tasks.slice(0,88):[])];};
   const stopTick=()=>{if(tick!==null)clearTimer(tick);tick=null;};
   function syncTick(active){if(!active||frozen()||document.visibilityState==='hidden'){stopTick();return;}if(tick===null)tick=setTimer(()=>{tick=null;render();},1000);}
@@ -46,6 +46,8 @@
    node.querySelector('.mouse-progress-stop').onclick=()=>void N.agent('stop').catch(error=>status(error.message));return node;
   }
   function paint(node,task){
+   const renderedAt=now(),time=formatTaskTime(task,renderedAt),key=JSON.stringify([task,time.kind,time.seconds]);
+   if(paintKeys.get(node)===key)return;paintKeys.set(node,key);
    const finite=typeof task.percent==='number'&&Number.isFinite(task.percent),active=task.phase==='running',source=task.label||'Задача',download=task.source==='download';
    node.dataset.phase=task.phase;node.dataset.estimated=String(!!task.estimated);node.dataset.indeterminate=String(!finite);node.dataset.desk=task.desk;node.dataset.tabId=task.tabId||'';node.dataset.kind=task.kind||'reported';node.dataset.source=task.source;node.dataset.downloadState=task.downloadState||'';
    node.style.setProperty('--progress',String(finite?Math.max(0,Math.min(100,task.percent))/100:0));node.style.setProperty('--progress-color',MouseAgentBrand.color(task.desk));const mouse=node.querySelector('.mouse-progress-mouse');mouse.hidden=download;if(!download)MouseAgentBrand.apply(mouse,task.desk);
@@ -55,7 +57,7 @@
    const qualifier=task.source==='page'?' · данные сайта':finite&&task.estimated?' · оценка ИИ':'';
    // Time moves only from the producer's received estimate or observed task
    // start. Expiry never changes the percentage or completes the task.
-   const renderedAt=now(),time=formatTaskTime(task,renderedAt);node.dataset.timeRenderedAt=String(renderedAt);node.dataset.timeKind=time.kind;node.dataset.estimateUpdatedAt=eta!==null&&Number.isFinite(task.updatedAt)?String(task.updatedAt):'';node.dataset.remainingSeconds=['eta','expired'].includes(time.kind)?String(time.seconds):'';node.dataset.elapsedSeconds=time.kind==='elapsed'?String(time.seconds):'';
+   node.dataset.timeRenderedAt=String(renderedAt);node.dataset.timeKind=time.kind;node.dataset.estimateUpdatedAt=eta!==null&&Number.isFinite(task.updatedAt)?String(task.updatedAt):'';node.dataset.remainingSeconds=['eta','expired'].includes(time.kind)?String(time.seconds):'';node.dataset.elapsedSeconds=time.kind==='elapsed'?String(time.seconds):'';
    setText(node.querySelector('.mouse-progress-label'),time.text?time.text+' · '+source:source+qualifier);
    const phase=task.phase==='stale'?'Нет обновлений':task.phase==='stopped'?'Остановлено':task.phase==='cancelled'?'Отменено':task.phase==='error'?'Ошибка':task.phase==='completed'?'Готово':'';
    const description=phase?(phase+(task.statusText&&task.statusText!==phase?' · '+task.statusText:'')):task.statusText||'В работе';
@@ -82,9 +84,9 @@
      const values=assigned.get(panel.key)||[];let current=values.find(t=>t.id===selected.get(panel.key));
      if(!current){selectedManual.delete(panel.key);current=values[0];}else if(!selectedManual.has(panel.key)&&values[0]&&priority(values[0])<priority(current))current=values[0];if(current)selected.set(panel.key,current.id);else selected.delete(panel.key);
      if(current?.phase==='running'&&current.source!=='download')timedTask=true;
-     for(const task of values){wanted.add(task.id);let node=nodes.get(task.id);if(!node){node=makeNode(task);nodes.set(task.id,node);}if(node.parentNode!==host.dock)host.dock.insertBefore(node,host.next);node.hidden=task!==current;paint(node,task);}
+     for(const task of values){wanted.add(task.id);let node=nodes.get(task.id);if(!node){node=makeNode(task);nodes.set(task.id,node);}if(node.parentNode!==host.dock)host.dock.insertBefore(node,host.next);if(node.hidden!==(task!==current))node.hidden=task!==current;paint(node,task);}
      host.next.onclick=()=>{const list=assignTasks(tasks(),{desk:model.desktopId,privateMode:model.privateMode,panels:panels()}).get(panel.key)||[],i=list.findIndex(t=>t.id===selected.get(panel.key));if(list.length){selected.set(panel.key,list[(i+1)%list.length].id);selectedManual.add(panel.key);render();}};
-     host.next.hidden=values.length<2;setText(host.next,(Math.max(0,values.indexOf(current))+1)+'/'+values.length);host.next.setAttribute('aria-label','Следующая задача, '+host.next.textContent);
+     if(host.next.hidden!==(values.length<2))host.next.hidden=values.length<2;setText(host.next,(Math.max(0,values.indexOf(current))+1)+'/'+values.length);const label='Следующая задача, '+host.next.textContent;if(host.next.getAttribute('aria-label')!==label)host.next.setAttribute('aria-label',label);
      const hidden=!values.length;if(host.dock.hidden!==hidden){host.dock.hidden=hidden;geometryChanged=true;}panel.element.classList.toggle('has-pane-progress',!hidden);
     }
     for(const [id,node]of nodes)if(!wanted.has(id)){node.remove();nodes.delete(id);}renderedDesk=model.desktopId;

@@ -1,0 +1,23 @@
+{
+  "scope": "Node DOM-write instrumentation of shipped syncPaneLabels + receiveState; not compositor reproduction",
+  "before": {
+    "titleChanges": 30,
+    "allPaneWrites": 1290,
+    "unrelatedPaneWrites": 810,
+    "contentMounts": {
+      "home": 120,
+      "documents": 30,
+      "layouts": 0
+    }
+  },
+  "after": {
+    "titleChanges": 30,
+    "allPaneWrites": 180,
+    "unrelatedPaneWrites": 0,
+    "contentMounts": {
+      "home": 0,
+      "documents": 0,
+      "layouts": 0
+    }
+  }
+}

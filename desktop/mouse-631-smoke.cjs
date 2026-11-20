@@ -7,18 +7,18 @@ const {bounded}=require('./mouse-lifecycle.cjs');
 module.exports=async ctx=>{
  const {app,win}=ctx,exit=require('./mouse-smoke-exit.cjs')({app,win});
  const report={ok:false,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,
-  startedAt:new Date().toISOString(),budgetMs:300000,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,stages:[]};
+  startedAt:new Date().toISOString(),budgetMs:350000,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,stages:[]};
  let current='identity';const started=performance.now();
  const save=()=>fs.writeFile('mouse-631-native.json',JSON.stringify(report,null,2)+'\n');
- const watchdog=setTimeout(()=>{report.error={stage:current,message:'Isolated Mouse631 native process exceeded its 300 second budget'};void save().finally(()=>exit(1));},300000);
+ const watchdog=setTimeout(()=>{report.error={stage:current,message:'Isolated Mouse631 native process exceeded its 350 second budget'};void save().finally(()=>exit(1));},350000);
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));
   assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
-  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.31');assert.equal(app.getName(),'Mouse Browser');
+  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.32');assert.equal(app.getName(),'Mouse Browser');
   assert.ok((process.platform==='win32'&&process.arch==='x64')||(process.platform==='darwin'&&process.arch==='arm64'));
   assert.equal(win.isVisible(),true);assert.equal(await win.webContents.executeJavaScript('document.documentElement.dataset.mouseReady'),'true');
   const shared={...ctx,nativeInput:process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-native-menu.node')};
-  for(const [stage,file]of [['taskOnly','./mouse-631-task-smoke.cjs'],['fiftyTabs','./mouse-631-stress-smoke.cjs']]){
+  for(const [stage,file]of [['taskOnly','./mouse-631-task-smoke.cjs'],['fiftyTabs','./mouse-631-stress-smoke.cjs'],['stationaryMedia','./mouse-632-media-smoke.cjs']]){
    current=stage;const began=performance.now();await require(file)(shared);
    report.stages.push({name:stage,ok:true,elapsedMs:performance.now()-began});await save();
   }

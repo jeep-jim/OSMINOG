@@ -5,6 +5,8 @@ const isMac=process.platform==='darwin',isWindows=process.platform==='win32';
 if(!isMac&&!isWindows)throw Error('Mouse Browser supports macOS and Windows');
 if(isWindows&&process.arch!=='x64')throw Error('This Mouse Browser Windows build requires x64');
 app.setName('Mouse Browser');
+// Apply before ready so native root/nested page scrollbars stay hidden.
+require('./mouse-scrollbars.cjs').configure(app);
 // Retain Mac profile/logins. The first Windows Mouse release has its own stable
 // profile and installer identity; legacy Windows Trader data is never replaced.
 if(isMac)app.setPath('userData',path.join(app.getPath('appData'),'Trader OS'));
@@ -96,7 +98,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  libraryService=await require('./mouse-browsing.cjs').install({app,win,browser,store,ipcMain,trusted,shell,dialog,test});
  startService=await require('./mouse-start.cjs').install({app,win,browser,store,libraryService,ipcMain,trusted,dialog,test});
  require('./mouse-ai-icons.cjs').install({win,browser,store,ipcMain,trusted});
- documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
+ documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,readOnly:true,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
  require('./mouse-document-tabs.cjs').install({browser,documents:documentService,closeDocument:closeDocumentTab,library:libraryService.library});
  desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain,trusted,powerMonitor:require('electron').powerMonitor,screen:require('electron').screen});
  app.once('will-quit',()=>documentService.dispose());

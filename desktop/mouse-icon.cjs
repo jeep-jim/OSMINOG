@@ -12,7 +12,26 @@ function pixels(size,{dark=false,app=false}={}){
  }
  return data;
 }
-function png(size,options){const raw=pixels(size,options),scan=Buffer.alloc((size*4+1)*size),head=Buffer.alloc(13);for(let y=0;y<size;y++)raw.copy(scan,y*(size*4+1)+1,y*size*4,(y+1)*size*4);head.writeUInt32BE(size);head.writeUInt32BE(size,4);head[8]=8;head[9]=6;return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',head),chunk('IDAT',zlib.deflateSync(scan)),chunk('IEND',Buffer.alloc(0))]);}
+// Windows asks for small images at fractional desktop scales (100/125/150%).
+// Keep the exact approved cell mask, but rasterize at continuous scale with
+// area coverage instead of dropping whiskers or snapping the whole mark down
+// to an integer cell size. Mac's approved pixel-exact assets remain unchanged.
+function smoothPixels(size,{dark=false,app=false}={}){
+ if(!Number.isInteger(size)||size<1||size>1024)throw Error('Invalid Mouse icon size');
+ const data=Buffer.alloc(size*size*4),samples=8,scale=size*(app?.68:.90)/Math.max(head.width,head.height),left=(size-head.width*scale)/2,top=(size-head.height*scale)/2;
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  let alpha=0,light=0;
+  for(let sy=0;sy<samples;sy++)for(let sx=0;sx<samples;sx++){
+   const px=x+(sx+.5)/samples,py=y+(sy+.5)/samples,hx=Math.floor((px-left)/scale),hy=Math.floor((py-top)/scale);
+   if(hx>=0&&hx<head.width&&hy>=0&&hy<head.height&&head.pixels[hy][hx]==='1'){alpha++;light+=dark?255:0;}
+   else if(app&&(Math.abs(px-size/2)/(size*.44))**5+(Math.abs(py-size/2)/(size*.44))**5<=1){alpha++;light+=dark?29:241;}
+  }
+  const at=(y*size+x)*4;
+  if(alpha){data[at]=data[at+1]=data[at+2]=Math.round(light/alpha);data[at+3]=Math.round(alpha*255/(samples*samples));}
+ }
+ return data;
+}
+function png(size,options){const raw=options?.smooth?smoothPixels(size,options):pixels(size,options),scan=Buffer.alloc((size*4+1)*size),head=Buffer.alloc(13);for(let y=0;y<size;y++)raw.copy(scan,y*(size*4+1)+1,y*size*4,(y+1)*size*4);head.writeUInt32BE(size);head.writeUInt32BE(size,4);head[8]=8;head[9]=6;return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',head),chunk('IDAT',zlib.deflateSync(scan)),chunk('IEND',Buffer.alloc(0))]);}
 // Current owner artwork is the exact tail-free head. Legacy orientation remains
 // only for historical input compatibility; current outputs never use the old body.
 function orientPrivateSVG(svg){
@@ -32,4 +51,4 @@ function build(){
  const privatePath=path.join(__dirname,'mouse/mouse-private.svg');
  fs.writeFileSync(privatePath,orientPrivateSVG(fs.readFileSync(privatePath,'utf8')));
 }
-if(require.main===module)build();module.exports={png,pixels,build,orientPrivateSVG};
+if(require.main===module)build();module.exports={png,pixels,smoothPixels,build,orientPrivateSVG};

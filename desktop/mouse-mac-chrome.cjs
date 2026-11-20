@@ -1,11 +1,13 @@
 'use strict';
 const {screen}=require('electron'),{ChromeReveal}=require('./mouse/chrome-model.cjs');
 function install(win,{test=false}={}){
+ let published='';
+ const publish=value=>{if(win.isDestroyed()||win.webContents.isDestroyed())return;const key=JSON.stringify(value);if(key===published)return;published=key;win.webContents.send('mouse:chrome',value);};
  if(process.platform==='win32'){
   // Windows owns its taskbar and system menu. Only report the actual native
   // window state; never load an AppKit addon or reserve a fake titlebar inset.
   const state=()=>({fullscreen:win.isFullScreen(),maximized:win.isMaximized(),inset:0});
-  const update=()=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:chrome',state());};
+  const update=()=>publish(state());
   for(const event of ['enter-full-screen','leave-full-screen','maximize','unmaximize','resize','focus'])win.on(event,update);
   return{state,sample:()=>0,nativeState:()=>state()};
  }
@@ -25,10 +27,10 @@ function install(win,{test=false}={}){
    }else awaySince=0;
   }
   const next=model.update({...s,fullscreen:win.isFullScreen()});
-  if(next!==last){last=next;win.webContents.send('mouse:chrome',state());}
+  if(next!==last){last=next;publish(state());}
   return next;
  }
- function update(){if(win.isDestroyed())return;sample();win.webContents.send('mouse:chrome',state());clearInterval(timer);timer=null;if(win.isFullScreen()){timer=setInterval(sample,100);timer.unref();}}
+ function update(){if(win.isDestroyed())return;sample();publish(state());clearInterval(timer);timer=null;if(win.isFullScreen()){timer=setInterval(sample,100);timer.unref();}}
  for(const event of ['enter-full-screen','leave-full-screen','maximize','unmaximize','resize','focus'])win.on(event,update);
  win.on('closed',()=>clearInterval(timer));
  return{state,sample,model,nativeState:()=>native.state(),...(test?{setTestPoint:p=>{testPoint=p;return sample()}}:{})};

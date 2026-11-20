@@ -87,17 +87,17 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await js(`(()=>{const m=MouseTest.model;m.tree=${JSON.stringify(tree)};m.slots=${JSON.stringify(slots)};m.active='p3';m.aiWidth=312;m.tabOrder=[${JSON.stringify(created[2])},m.aiId,...m.state.tabs.map(t=>t.id).filter(id=>id!==${JSON.stringify(created[2])}&&id!==m.aiId)];MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();return MouseTest.save();})()`);
   await painted();records=await capturePages();const baseline=await layout(),geometry=await rectangles(),bounds=win.getBounds();assert.deepEqual(bounds,baselineBounds,'The fullscreen baseline is the settled on-screen window');await nativeContext('before-fullscreen');
   assert.deepEqual(baseline.tree,tree);assert.deepEqual(baseline.slots,slots);assert.equal(agentHost.state().enabled,false);
-  // A real entry click from a focused pane must reveal the service, not a preset.
+  // A deliberate menu entry from a focused pane opens the optional helper.
   win.once('enter-full-screen',entered);win.once('leave-full-screen',left);
   await js('MouseTest.togglePaneFullscreen("p3")');await until(()=>enteredFullscreen&&win.isFullScreen(),'native focused start pane finishes entering fullscreen');await until(()=>js('MouseTest.model.focusPane==="p3"'),'focused start pane');await painted();await nativeContext('focused-fullscreen');
-  await click('.pane[data-pane="p3"] .home-agent-open');
+  await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora ready from focused pane');await click('#desk-settings');await until(()=>js('document.querySelector("#settings-dialog").open'),'browser settings from focused pane');await click('[data-action="assistant"]');
   await until(()=>js('MouseTest.model.agentOpen===true&&!MouseTest.model.focusPane&&!MouseTest.model.focusAI&&!document.querySelector("#agent-panel").hidden'),'Agent service restores focus and opens');await until(()=>leftFullscreen&&!win.isFullScreen()&&JSON.stringify(win.getBounds())===JSON.stringify(bounds),'Agent service restores the actual native window bounds');await painted();await nativeContext('agent-restored');
   await sameLayout(baseline,'Agent service selection');await sameRects(geometry,'Agent service selection');assert.equal(agentHost.state().enabled,false);
   await fs.writeFile('mouse-624-agent-preserved.png',(await win.capturePage()).toPNG());
-  await reload();assert.equal(await js('MouseTest.model.agentOpen'),true);await sameLayout(baseline,'Agent service shell reload');await sameRects(geometry,'Agent service shell reload');
+  await reload();assert.equal(await js('MouseTest.model.agentOpen'),false,'Helper is not automatically reopened on shell reload');await sameLayout(baseline,'Agent service shell reload');await sameRects(geometry,'Agent service shell reload');
   await js(`MouseTest.openAI(${JSON.stringify(aiUrl)})`);await painted();assert.equal(await js('MouseTest.model.agentOpen'),false);await sameLayout(baseline,'Return to the original web AI');await sameRects(geometry,'Return to the original web AI');
   await reload();assert.equal(await js('MouseTest.model.agentOpen'),false);await sameLayout(baseline,'Web AI shell reload');
-  facts.agent={layoutExact:true,pagesPreserved:true,aiReturn:true,reloadExact:true,defaultDisabled:true};await saveFacts();console.log('MOUSE_624_AGENT_SERVICE_LAYOUT_PERSIST_PASS');
+  facts.agent={layoutExact:true,pagesPreserved:true,aiReturn:true,reloadExact:true,defaultDisabled:true,autoRestoreDisabled:true};await saveFacts();console.log('MOUSE_624_AGENT_SERVICE_LAYOUT_PERSIST_PASS');
   // One actual layout edit, followed by native controls and persisted history.
   await js('(async()=>{await MouseTest.split("y");await MouseTest.save();})()');const changed=await layout();assert.notDeepEqual(changed.tree,baseline.tree);await samePages('Layout edit');
   await until(()=>js('MouseNative.desktops("history-state",{from:MouseTest.model.desktopId}).then(h=>h.canUndo)'),'layout history commit');
