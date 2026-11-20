@@ -10,6 +10,10 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#ifdef __linux__
+#include <X11/Xlib.h>
+void installMouseLinuxPaneCorners(napi_env env,napi_value exports);
+#endif
 
 static napi_value fail(napi_env e,const char* message,int code=0){
  napi_value text,error,value;napi_create_string_utf8(e,message,NAPI_AUTO_LENGTH,&text);napi_create_error(e,nullptr,text,&error);
@@ -103,6 +107,21 @@ static napi_value remove(napi_env e,napi_callback_info info){
  if(n!=2||!descriptor(e,args[0],parent)||!name(e,args[1],child)||child.rfind(".mouse-local-",0)!=0)return fail(e,"Invalid temporary cleanup capability");
  if(unlinkat(parent,child.c_str(),0)<0&&errno!=ENOENT)return fail(e,"Cannot clean temporary project file",errno);napi_value v;napi_get_undefined(e,&v);return v;
 }
+#ifdef __linux__
+// The image-drag IPC must still be backed by a held native button. X11 is
+// queried at each gesture check; a missing display never grants the gesture.
+static napi_value primaryDown(napi_env e,napi_callback_info){
+ bool down=false;Display* display=XOpenDisplay(nullptr);
+ if(display){
+  for(int index=0;index<ScreenCount(display);index++){
+   Window root,child;int rootX,rootY,windowX,windowY;unsigned int mask=0;
+   if(XQueryPointer(display,RootWindow(display,index),&root,&child,&rootX,&rootY,&windowX,&windowY,&mask)&&(mask&Button1Mask)){down=true;break;}
+  }
+  XCloseDisplay(display);
+ }
+ napi_value value;napi_get_boolean(e,down,&value);return value;
+}
+#endif
 static napi_value init(napi_env e,napi_value exports){
  const napi_property_descriptor props[]={
   {"openRoot",nullptr,openRoot,nullptr,nullptr,nullptr,napi_default,nullptr},
@@ -113,6 +132,13 @@ static napi_value init(napi_env e,napi_value exports){
   {"list",nullptr,list,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"commit",nullptr,commit,nullptr,nullptr,nullptr,napi_default,nullptr},
   {"remove",nullptr,remove,nullptr,nullptr,nullptr,napi_default,nullptr}
- };napi_define_properties(e,exports,sizeof(props)/sizeof(props[0]),props);return exports;
+#ifdef __linux__
+  ,{"primaryDown",nullptr,primaryDown,nullptr,nullptr,nullptr,napi_default,nullptr}
+#endif
+ };napi_define_properties(e,exports,sizeof(props)/sizeof(props[0]),props);
+#ifdef __linux__
+ installMouseLinuxPaneCorners(e,exports);
+#endif
+ return exports;
 }
 NAPI_MODULE(NODE_GYP_MODULE_NAME,init)

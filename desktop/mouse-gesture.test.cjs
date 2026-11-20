@@ -5,7 +5,7 @@ const {installIPCSwitch}=require('./mouse-private-core.cjs');
 const {createMouseDesktopGesture}=require('./mouse/desktop-gesture.js');
 const Wheel=require('./mouse/desktop-wheel.js');
 
-async function fixture({completed=false,retiredCompleted=false}={}){
+async function fixture({completed=false,retiredCompleted=false,enabled=()=>true}={}){
  const handlers=new Map(),writes=[],sent=[],timers=new Map(),data={[KEY]:{completed},mouseDesktopGestureHintV1:{completed:retiredCompleted},unrelated:{keep:true}};
  const ipcMain=new EventEmitter();ipcMain.handle=(name,handler)=>handlers.set(name,handler);
  const win=new EventEmitter();win.webContents=new EventEmitter();win.isDestroyed=win.webContents.isDestroyed=()=>false;win.isFocused=()=>true;
@@ -16,7 +16,7 @@ async function fixture({completed=false,retiredCompleted=false}={}){
  const normalPage={id:'normal',visible:true,nativeVisible:true,view:{webContents:{mainFrame:{},isDestroyed:()=>false,getURL:()=> 'https://fixture.example/'}}};normalPage.view.getVisible=()=>normalPage.nativeVisible;
  const normalBrowser={tabs:new Map([[normalPage.id,normalPage]]),mouseDesktops:{bank:{members:{normal:'b'}}}};let browser=normalBrowser;
  const service={state:()=>({desktopId:active,desktops:{active,items:['a','b','c'].map(id=>({id,active:id===active}))}})};
- const controller=await install({win,store,ipcMain,trusted:e=>{if(e!==event)throw Error('Untrusted frame');},getContext:()=>({privateMode,busy,desktopService:service,browser}),now:()=>time,setTimer:fn=>{const id=++nextTimer;timers.set(id,fn);return id;},clearTimer:id=>timers.delete(id)});
+ const controller=await install({win,store,ipcMain,enabled,trusted:e=>{if(e!==event)throw Error('Untrusted frame');},getContext:()=>({privateMode,busy,desktopService:service,browser}),now:()=>time,setTimer:fn=>{const id=++nextTimer;timers.set(id,fn);return id;},clearTimer:id=>timers.delete(id)});
  const command=(action,args)=>handlers.get(CHANNEL)(event,action,args);
  const wheel=direction=>command('wheel',{direction});
  const latest=()=>sent.filter(item=>item.channel===EVENT).at(-1)?.packet;
@@ -323,4 +323,9 @@ test('one monotonic wheel preparation deadline survives synchronous clock overru
 test('wheel preparation preserves the original sampling error instead of replacing it with a readiness timeout',async()=>{
  const original=Error('original renderer failure');let focused=false;
  await assert.rejects(prepareWheelTarget({budget:wheelPreparationBudget(),report:{},read:async()=>{throw original;},focusWindow(){focused=true;},windowReady:()=>true,focusContents(){focused=true;}}),error=>error===original);assert.equal(focused,false);
+});
+
+
+test('control-center gesture switch disables both open-Nora and closed-page dispatch',async()=>{
+ let allowed=true;const f=await fixture({enabled:()=>allowed});await f.command('context',{open:true});allowed=false;assert.equal((await f.command('state')).supported,false);assert.equal((await f.wheel('left')).accepted,false);await f.command('context',{open:false});await f.closedWheel();f.pageWheel();f.advance(25);f.pageWheel();assert.equal(f.sent.length,0);allowed=true;await f.command('context',{open:true});assert.equal((await f.wheel('left')).accepted,true);assert.equal(f.latest().to,'c');f.controller.dispose();
 });

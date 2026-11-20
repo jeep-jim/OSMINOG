@@ -12,8 +12,8 @@ test('ordinary620 head persists while owner621 restores private619 art and foote
 
 test('620 latest correction uses twelve-pixel pane seams without changing round controls',()=>{
  const css=read('mouse/mouse-616.css'),native=read('mouse-native-menu.mm'),host=read('browser.cjs');
- const {internalCorners}=require('./mouse/mouse-616-ui.js');
- assert.deepEqual(internalCorners({top:200.5,bottom:500.5},{top:40,bottom:900}),{top:12,bottom:12});
+ const {paneCorners}=require('./mouse/mouse-616-ui.js');
+ assert.deepEqual(paneCorners({top:200.5,bottom:500.5},{top:40,bottom:900}),{top:12,bottom:12});
  assert.match(css,/clip-path:inset\(0 round var\(--pane-round-top\)/);
  assert.match(native,/CGContextClearRect/);assert.match(native,/CGFloat radius=12/);
  assert.match(native,/NSMakeRect\(x-\(side\?0:1\),y,radius\+1,radius\+1\)/);

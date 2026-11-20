@@ -6,6 +6,11 @@ async function waitForAIClosed({js,windowed,browser,id,webContents}){
  // Native removal can precede the persisted IPC result accepted by the renderer.
  await until(async()=>windowed()&&!browser.tabs.has(id)&&webContents.isDestroyed()&&await js('MouseTest.model.focusAI===false&&MouseTest.model.aiOpen===false&&MouseTest.model.switching===false'),'close destroys AI and returns layout');
 }
+function assertVisibleAIPresets(snapshot,scope){
+ assert.ok(scope==='normal'||scope==='private');assert.equal(snapshot.privateMode,scope==='private','The visible card contract belongs to the actual browser mode');
+ const external=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'];
+ assert.deepEqual(snapshot.urls,scope==='private'?external:['mouse://agent',...external],'Only ordinary mode offers Agent Mouse alongside the four external providers');return true;
+}
 module.exports=async({win,browser,scope='normal'})=>{
  const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),wasFull=win.isFullScreen();
  let settledFull=wasFull;const entered=()=>{settledFull=true},left=()=>{settledFull=false};win.on('enter-full-screen',entered);win.on('leave-full-screen',left);
@@ -43,7 +48,7 @@ module.exports=async({win,browser,scope='normal'})=>{
   win.setFullScreen(false);await until(windowed,'leave existing mode');await sleep(350);
   await js(`MouseTest.openAI(${JSON.stringify(url+'/close-chat')})`);const closeId=await js('MouseTest.model.aiId');await until(()=>!browser.get(closeId).loading,'separate close fixture ready');const closeWC=browser.get(closeId).view.webContents;
   await click('[data-action=ai-fullscreen]');await until(full,'close entry');await sleep(350);await click('[data-action=close-ai]');await waitForAIClosed({js,windowed,browser,id:closeId,webContents:closeWC});assert.equal(closeWC.isDestroyed(),true);assert.equal(await js('MouseTest.model.aiOpen'),false);assert.ok(browser.tabs.has(aiId),'Unselected AI session remains open');await js(`MouseTest.openAI(${JSON.stringify(url+'/chat')})`);await sleep(350);assert.equal(await snapshot(),original);
-  await js('MouseTest.model.aiId="";MouseTest.applySide()');await click('[data-action=ai-fullscreen]');await until(full,'empty AI can expand');assert.equal(await js('[...document.querySelectorAll(".ai-preset-card")].filter(e=>e.getBoundingClientRect().width>0).length'),4);await click('[data-action=ai-fullscreen]');await until(windowed,'empty restore');await js(`MouseTest.model.aiId=${JSON.stringify(aiId)};MouseTest.applySide()`);await sleep(300);
+  await js('MouseTest.model.aiId="";MouseTest.applySide()');await click('[data-action=ai-fullscreen]');await until(full,'empty AI can expand');assertVisibleAIPresets(await js('({privateMode:MouseTest.model.privateMode,urls:[...document.querySelectorAll(".ai-preset-card")].filter(e=>e.getBoundingClientRect().width>0).map(e=>e.dataset.aiUrl)})'),scope);await click('[data-action=ai-fullscreen]');await until(windowed,'empty restore');await js(`MouseTest.model.aiId=${JSON.stringify(aiId)};MouseTest.applySide()`);await sleep(300);
   for(const [id,p] of ids){assert.equal(browser.get(id).view.webContents.id,p.id);assert.equal(browser.get(id).navigationEpoch||0,p.epoch);}
   assert.equal(wc.id,aiWC);assert.equal(await wc.executeJavaScript('once'),once);assert.equal(await wc.executeJavaScript('document.querySelector("#draft").value'),'keep my draft');assert.equal(await snapshot(),original);
   console.log('MOUSE_614_AI_FULLSCREEN_RESTORE_'+scope.toUpperCase()+'_PASS');
@@ -54,3 +59,4 @@ module.exports=async({win,browser,scope='normal'})=>{
  }
 };
 module.exports.waitForAIClosed=waitForAIClosed;
+module.exports.assertVisibleAIPresets=assertVisibleAIPresets;

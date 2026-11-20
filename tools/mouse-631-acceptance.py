@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent, dependency-free verification of installed Mouse 6.0.32 evidence.
+"""Independent, dependency-free verification of installed Mouse 6.0.33 evidence.
 
 verify(read) accepts a bounded filename -> bytes reader, including ZipFile.read.
 It decodes the archived native PNGs; JSON success flags alone are insufficient.
@@ -14,7 +14,7 @@ import sys
 import zlib
 from pathlib import Path
 
-VERSION = '6.0.32'
+VERSION = '6.0.33'
 IDENTITY_FIELDS = ('id', 'index', 'desk', 'webContentsId', 'url', 'navigationEpoch',
                    'identity', 'timeOrigin', 'field', 'scrollX', 'scrollY', 'cookie')
 
@@ -558,7 +558,7 @@ def verify(read, *, expected_platform=None, expected_arch=None):
         blob = read(name)
         need(isinstance(blob, bytes) and len(blob) <= 8 * 1024**2, name + ' report is not bounded bytes')
         report = json.loads(blob)
-        need(report.get('version') == VERSION and (report.get('platform'), report.get('arch')) in (('win32', 'x64'), ('darwin', 'arm64')),
+        need(report.get('version') == VERSION and (report.get('platform'), report.get('arch')) in (('win32', 'x64'), ('darwin', 'arm64'), ('linux', 'x64')),
              name + ' has the wrong installed version or native architecture')
         need(report.get('ok') is True and report.get('restored') is True and not report.get('error') and not report.get('cleanupError')
              and report.get('cleanup', {}).get('restored') is True and report['cleanup'].get('desktopStateRestored') is True,
@@ -581,7 +581,7 @@ def verify(read, *, expected_platform=None, expected_arch=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', required=True, type=Path)
-    parser.add_argument('--platform', choices=('win32', 'darwin'))
+    parser.add_argument('--platform', choices=('win32', 'darwin', 'linux'))
     parser.add_argument('--arch', choices=('x64', 'arm64'))
     args = parser.parse_args()
     root = args.directory.resolve()

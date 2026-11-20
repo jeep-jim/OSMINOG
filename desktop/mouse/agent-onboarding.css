@@ -1,0 +1,8 @@
+.agent-onboarding{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:12px;line-height:1.5}
+.agent-onboarding summary{cursor:pointer;font-weight:600}.agent-onboarding summary small{font-weight:400;color:var(--muted);margin-left:6px}
+.agent-onboarding p{margin:10px 0;color:var(--muted)}.agent-onboarding ol{margin:10px 0;padding-left:20px;display:grid;gap:14px}
+.agent-onboarding li>button{display:block;margin-top:7px}.agent-onboarding li>small{display:block;margin-top:7px;color:var(--muted)}
+.agent-onboarding code{white-space:normal;overflow-wrap:anywhere}.agent-onboarding button{min-height:30px;padding:5px 10px;font-size:12px}
+.agent-onboarding label{display:grid;gap:6px;margin:10px 0}.agent-onboarding select{width:100%;min-width:0;min-height:32px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px}
+.agent-onboarding .agent-ollama-guide{display:block;margin-top:12px;background:transparent;color:var(--muted);border-color:transparent}
+.agent-onboarding [hidden]{display:none!important}

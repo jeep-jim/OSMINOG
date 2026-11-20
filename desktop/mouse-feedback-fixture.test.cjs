@@ -1,6 +1,22 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),http=require('node:http');
+const test=require('node:test'),assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs'),vm=require('node:vm');
 const {createDownloadFixture,copyFeedbackPlateau}=require('./mouse-630-feedback-smoke.cjs');
+
+test('download smoke waits for the native item row after the sidebar opens and its acknowledgement resolves',async()=>{
+ const source=fs.readFileSync('mouse/browsing.js','utf8'),start=source.indexOf(' async function open(value)'),end=source.indexOf("\n $('#capture-auto').onchange",start+1);assert.ok(start>=0&&end>start);
+ const filename='mouse630-known.bin',id='new-native-download',dialog={open:false,dataset:{kind:'downloads'},show(){this.open=true;}},query={value:'',focus(){}};
+ let rows=[{id:'older-download',filename},{id,filename:'different.bin'}],acknowledge,respond,renderStarted=false;
+ const acknowledgement=new Promise(resolve=>acknowledge=resolve),list=new Promise(resolve=>respond=resolve),timers=[],delays=[];
+ const doc={querySelector:selector=>{assert.equal(selector,'#library-dialog');return dialog;},querySelectorAll:selector=>{assert.equal(selector,'#library-rows .library-row');return rows.map(row=>({dataset:{id:row.id},querySelector:selector=>{assert.equal(selector,'.library-name');return{textContent:row.filename};}}));}};
+ const context=vm.createContext({d:dialog,document:doc,kind:'history',limit:100,hideHints(){},resetSelection(){},onSidebar(){},restore(){},$:selector=>{assert.equal(selector,'#library-query');return query;},N:{browser:async(action,args)=>{assert.equal(action,'layout');assert.equal(args.panels.length,0);},library:action=>{assert.equal(action,'download-seen');return acknowledgement;}},render:async()=>{renderStarted=true;rows=await list;dialog.dataset.kind='downloads';},MouseTest:{browsing:{isOpen:()=>dialog.open}}});
+ vm.runInContext(source.slice(start,end)+'\nglobalThis.openLibrary=open;',context,{filename:'mouse/browsing.js download open fixture',timeout:1000});
+ const opening=context.openLibrary('downloads'),flush=()=>new Promise(resolve=>setImmediate(resolve));await flush();assert.equal(dialog.open,true,'The former open-only predicate already passes');assert.equal(renderStarted,false);
+ const module={exports:{}};vm.runInNewContext(fs.readFileSync('mouse-630-feedback-smoke.cjs','utf8'),{module,exports:module.exports,require,setTimeout:(fn,ms)=>{delays.push(ms);timers.push(fn);}},{filename:'mouse-630-feedback-smoke.cjs'});
+ let settled=false;const waiting=module.exports.waitForDownloadRow({js:async script=>vm.runInContext(script,context),id,filename}).then(()=>{settled=true;});await flush();
+ const tick=async()=>{assert.ok(timers.length);timers.shift()();await flush();};await tick();assert.equal(settled,false,'A matching name on another row or a matching ID with another name is insufficient');
+ acknowledge({ok:true});await flush();assert.equal(renderStarted,true);await tick();assert.equal(settled,false,'The unread acknowledgement must not substitute for the list response');
+ respond([{id,filename}]);await opening;await tick();await waiting;assert.equal(settled,true);assert.ok(delays.every(ms=>ms===25),'The retained polling interval is unchanged');
+});
 
 function copySample(currentTime,{opacity='1',startTime=2000,sampledAt=startTime+currentTime,...extra}={}){
  return{state:'copy',hidden:false,reducedMotion:false,animationName:'mouse-capture-confirm',badgeOpacity:opacity,sampledAt,timeOrigin:1795080592411.5,badgeAnimations:[{animationName:'mouse-capture-confirm',startTime,currentTime,playState:'running',timing:{duration:1400}}],...extra};

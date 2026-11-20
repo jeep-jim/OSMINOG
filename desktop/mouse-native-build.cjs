@@ -16,9 +16,14 @@ if(process.platform==='win32'&&process.arch==='x64'){
  console.log('MOUSE_WINDOWS_NATIVE_X64_BUILT');
  return;
 }
-if(process.platform!=='darwin'||process.arch!=='arm64')throw Error('Build on macOS Apple Silicon');
 const include=path.resolve(path.dirname(process.execPath),'../include/node');
 if(!fs.existsSync(path.join(include,'node_api.h')))throw Error('Pinned Node distribution headers missing: '+include);
+if(process.platform==='linux'&&process.arch==='x64'){
+ cp.execFileSync('g++',['-std=c++17','-shared','-fPIC','-I',include,'mouse-agent/mcp-fs-native.cc','mouse-agent/pane-corners-linux.cc','-lX11','-lXext','-o','mouse-mcp-fs.node'],{stdio:'inherit',cwd:__dirname});
+ const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove','primaryDown','paneCorners','paneCornersState'])if(typeof native[name]!=='function')throw Error('Missing Linux native export: '+name);
+ console.log('MOUSE_LINUX_NATIVE_X64_BUILT');return;
+}
+if(process.platform!=='darwin'||process.arch!=='arm64')throw Error('Build on macOS Apple Silicon, Windows x64 or Linux x64');
 cp.execFileSync('xcrun',['clang++','-std=c++17','-arch','arm64','-mmacosx-version-min=13.0','-bundle','-undefined','dynamic_lookup','-I',include,'mouse-agent/mcp-fs-native.cc','-o','mouse-mcp-fs.node'],{stdio:'inherit',cwd:__dirname});
 if(!process.argv.includes('--mcp-only')){
 cp.execFileSync('xcrun',['clang++','-std=c++17','-fobjc-arc','-arch','arm64','-mmacosx-version-min=13.0','-bundle','-undefined','dynamic_lookup','-I',include,'-include','QuartzCore/QuartzCore.h','-framework','Cocoa','-framework','CoreGraphics','-framework','QuartzCore','mouse-native-menu.mm','-o','mouse-native-menu.node'],{stdio:'inherit',cwd:__dirname});

@@ -26,9 +26,9 @@ test('footer is preserved, only successful AI-open status text is suppressed',()
  for(const id of ['statusbar','footer-left','footer-right','version-button','history-button','downloads-button'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
  assert.match(html,/<strong>Mouse Browser<\/strong>/);assert.doesNotMatch(app,/ИИ открыт как отдельная веб-страница/);assert.match(app,/setStatus\(/);
 });
-test('internal corner radius is twelve in shell and native compositor, not external corners',()=>{
- const {internalCorners}=require('./mouse/mouse-616-ui.js'),stage={top:40,bottom:900};
- assert.deepEqual(internalCorners({top:40,bottom:460},stage),{top:0,bottom:12});assert.deepEqual(internalCorners({top:466,bottom:900},stage),{top:12,bottom:0});assert.deepEqual(internalCorners(stage,stage),{top:0,bottom:0});
+test('internal and outer pane corner radius is twelve in shell and native compositor',()=>{
+ const {paneCorners}=require('./mouse/mouse-616-ui.js'),stage={top:40,bottom:900};
+ assert.deepEqual(paneCorners({top:40,bottom:460},stage),{top:12,bottom:12});assert.deepEqual(paneCorners({top:466,bottom:900},stage),{top:12,bottom:12});assert.deepEqual(paneCorners(stage,stage),{top:12,bottom:12});
  assert.match(read('mouse-native-menu.mm'),/CGFloat radius=12,y=NSMaxY\(p\)-radius/);assert.match(read('mouse-native-menu.mm'),/hitTest:\(NSPoint\)point\{return nil;\}/);
 });
 test('Mouse rounds shared viewport endpoints to prevent a one-pixel edge strip',()=>{

@@ -1,6 +1,6 @@
  'use strict';
 (function(root){
- function internalCorners(pane,stage){return{top:pane.top>stage.top+1?12:0,bottom:pane.bottom<stage.bottom-1?12:0};}
+ function paneCorners(){return{top:12,bottom:12};}
  function install({model,tab,doc=document,clock=()=>performance.now()}){
   const pulses=new WeakMap();let timer=0;
   const prop=(node,key,value)=>{if(node[key]!==value)node[key]=value;},attribute=(node,key,value)=>{if(node.getAttribute(key)!==value)node.setAttribute(key,value);};
@@ -15,10 +15,15 @@
   }
   function feedback(event){const b=event.target.closest?.('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"]');if(!b||b.disabled)return;pulses.set(b,clock()+500);sync();clearTimeout(timer);timer=setTimeout(sync,520);}
   doc.addEventListener('click',feedback,true);
-  function fullscreen(active){const windows=root.MouseNative?.platform==='win32';for(const b of doc.querySelectorAll(windows?'[data-action="fullscreen"]':'[data-window="zoom"],[data-action="fullscreen"]')){b.textContent=active?'⤡':'⤢';b.setAttribute('aria-pressed',String(!!active));b.title=(active?'Выйти из полного экрана · ':'Полный экран · ')+(windows?'F11':'⌃⌘F');b.setAttribute('aria-label',b.title);}}
-  function round(){const stage=doc.querySelector('#stage'),r=stage.getBoundingClientRect();for(const p of stage.querySelectorAll('.pane')){const c=internalCorners(p.getBoundingClientRect(),r);p.style.setProperty('--pane-round-top',c.top+'px');p.style.setProperty('--pane-round-bottom',c.bottom+'px');}}
+  function fullscreen(active){
+   const nativeMaximize=['win32','linux'].includes(root.MouseNative?.platform),selector='[data-action="fullscreen"],[data-settings-action="fullscreen"]',caption=active?'Выйти из полного экрана':'Полный экран';
+   for(const b of doc.querySelectorAll(nativeMaximize?selector:'[data-window="zoom"],'+selector)){
+    prop(b,'textContent',b.dataset.settingsAction==='fullscreen'?caption:active?'⤡':'⤢');attribute(b,'aria-pressed',String(!!active));prop(b,'title',caption+' · '+(nativeMaximize?'F11':'⌃⌘F'));attribute(b,'aria-label',b.title);
+   }
+  }
+  function round(){for(const p of doc.querySelector('#stage').querySelectorAll('.pane')){const c=paneCorners();for(const edge of ['top','bottom']){const name='--pane-round-'+edge,value=c[edge]+'px';if(p.style.getPropertyValue(name)!==value)p.style.setProperty(name,value);}}}
   sync();fullscreen(false);return{sync,fullscreen,round,dispose(){clearTimeout(timer);doc.removeEventListener('click',feedback,true);}};
  }
  root.createMouseChromeControls=install;
- if(typeof module!=='undefined')module.exports={internalCorners};
+ if(typeof module!=='undefined')module.exports={paneCorners};
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -1244,3 +1244,22 @@ Windows [Releases PR59](https://github.com/jeep-jim/OSMINOG-Releases/pull/59), m
 Оба desktop-выпуска опубликованы: [macOS arm64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.32-arm64) и [Windows x64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.32-x64). Финальные publishers [Mac 44686632355](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44686632355) и [Windows 44687934185](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44687934185), Windows job 136126741696, завершены SUCCESS. Windows-релиз 452352254 опубликован в 06:40:30 UTC после свежей установленной проверки. Оба канала указывают 6.0.32; прежние обновляторы 6.0.29 анонимно скачали опубликованные пакеты с совпавшими размерами и SHA-256. Все финальные gates приняты, source packages `ebe2df44f1fc73fa8fa329c01406a360ebf7eef3` сохранены без пересборки.
 
 Пределы остаются прежними: физические медиаклавиши, личные устройства и живой VK-аккаунт не проверены; отдельный desktop-shortcut screenshot отсутствует, Mac ad-hoc/без нотариализации, Windows без цифровой подписи. Подробные финальные run/artifact/package доказательства и история прежних отказов — в [журнале Mouse 6.0.32](docs/desktop/2026-11-20-mouse632-owner-fixes.md).
+
+
+## 2026-11-20 — Mouse 6.0.33: уточнение агента, пульт настроек и Linux
+
+Владелец исправил scope632: Агент Маус должен оставаться доступным и восстанавливать свою панель; принудительное скрытие отменено. Кнопка выхода справа снизу заменяется настройками, которые открываются правой боковой панелью и объединяют реальные настройки, включая импорт экспортированных закладок/паролей. Т+ получает живой предпросмотр страниц. У стрелки загрузок нужны измеренный прогресс, короткий подскок по завершении и счётчик до открытия загрузок. Разрешён немедленный выпуск после проверок для Mac arm64, Windows x64 и впервые Linux x64. Прежние Нора/прожилки/жесты/профили/task-only progress и просмотр документов без редактирования сохраняются.
+
+Реализация начата; новые пакеты ещё не объявлены готовыми. Точные решения, проверки и фактическая публикация: [Mouse633](docs/desktop/2026-11-20-mouse633-control-center.md).
+
+### Mouse 6.0.33 implementation checkpoint before native CI
+
+Implemented Settings as a right sidebar/last footer gear, restored Agent Mouse with optional Ollama onboarding, live T+ preview, actual download progress/bounce/unread count, and user-selected encrypted credential/bookmark import. Existing view-only documents remain. Added Mac/Windows actual632 profile replacement coverage and first Linux x64 packaging/installed gates. Focused portable tests passed; the broad scratch run is not green because the required MCP native addon/Node headers are unavailable here. No native acceptance or633 publication is claimed yet. Details: `docs/desktop/2026-11-20-mouse633-control-center.md`.
+
+### Mouse633 additional owner changes and first native diagnosis
+
+Owner requested native right-click favorites/split/grid controls and removal of the footer X. Both are implemented for the shared desktop UI; clicked tabs remain live. First633 CI found a Mac CI-input flag omission, Linux APP_RUN config export and a Windows owner-test selector quoting error; each has a targeted fix. Windows actual629/632 profile transitions and new Settings/livezoom stages passed before that test error. Native context-menu evidence has been added; complete633 acceptance/publication is still pending. See `docs/desktop/2026-11-20-mouse633-control-center.md` for runs and raw artifact binding.
+
+### Mouse633 — одинаковые отступы и внешние скругления
+
+Последнее прямое уточнение владельца от2026-11-20 входит в этот же выпуск: отступы окон от общей шапки и нижней панели равны промежуткам между окнами (6px); верхние и нижние углы всех окон скруглены (12px). Внешние края слева и справа остаются вплотную, без дополнительного горизонтального отступа. Правые панели ИИ, Агента, истории и настроек получают ту же геометрию. Это заменяет прежнее требование616/617 о прямых внешних верхних/нижних углах. Проверки фактических нативных пикселей сохраняются и обновляются под новое требование; публикация633 ещё не подтверждена. Подробности: [журнал633](docs/desktop/2026-11-20-mouse633-control-center.md).

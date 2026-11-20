@@ -3,7 +3,7 @@
 // these listeners. The native app.exit path and its requested code are retained.
 const fs=require('node:fs'),path=require('node:path');
 module.exports=({app,win,electron,runtime=process,write=line=>fs.writeSync(1,line+'\n')})=>{
- const mode=(runtime.argv||[]).find(value=>/^--mouse-(?:(?:windows-)?smoke-(?:write|read)|private-(?:smoke|close))$/.test(value));
+ const mode=(runtime.argv||[]).find(value=>/^--mouse-(?:(?:(?:windows|linux)-)?smoke-(?:write|read)|private-(?:smoke|close)|(?:631|633)-smoke)$/.test(value));
  if(runtime.env?.CI!=='true'||!path.isAbsolute(runtime.env?.MOUSE_TEST_PROFILE||'')||!mode)return code=>app.exit(code);
  const e=electron||require('electron'),safe=(read,fallback)=>{try{return read();}catch{return fallback;}};
  function record(marker,code){

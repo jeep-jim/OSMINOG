@@ -9,7 +9,7 @@ const EVENT='mouse:desktop-swipe';
 const PAGE_CHANNEL='mouse:desktop-wheel',PAGE_RECOGNIZER='horizontal-wheel-and-desktop-controls';
 const {accumulator}=require('./mouse/desktop-wheel.js');
 
-async function install({win,store,ipcMain,trusted,getContext,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}){
+async function install({win,store,ipcMain,trusted,getContext,enabled=()=>true,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}){
  // The native BrowserWindow getter is unavailable once 'closed' is emitted.
  // Keep the live emitter so teardown can always remove both shell listeners.
  const shellContents=win.webContents,intent=accumulator({now});
@@ -25,13 +25,13 @@ async function install({win,store,ipcMain,trusted,getContext,now=Date.now,setTim
   return{identity:value.privateMode||store,privateMode:value.privateMode||null,busy:!!value.busy,browser:value.browser,active:state.desktopId||state.desktops?.active,items:state.desktops?.items||[]};
  }
  function state(current=context()){
-  return{supported,learned:current?.privateMode?privateLearned.has(current.privateMode):learned,recognizer:'two-finger-or-wheel'};
+  return{supported:supported&&enabled(),enabled:enabled(),learned:current?.privateMode?privateLearned.has(current.privateMode):learned,recognizer:'two-finger-or-wheel'};
  }
  function clearPending(){if(pending?.timer)clearTimer(pending.timer);pending=null;}
  function reset(){armed=null;clearPending();intent.reset();}
  function wheel(direction){
   const current=context(),time=now();
-  if(disposed||!current||current.busy||armed!==current.identity||pending||time-lastWheel<180)return false;
+  if(disposed||!enabled()||!current||current.busy||armed!==current.identity||pending||time-lastWheel<180)return false;
   if(win.isDestroyed()||shellContents.isDestroyed()||win.isFocused?.()===false)return false;
   const index=current.items.findIndex(item=>item.id===current.active);
   const next=index<0?null:current.items[index+(direction==='left'?1:-1)];
@@ -47,7 +47,7 @@ async function install({win,store,ipcMain,trusted,getContext,now=Date.now,setTim
  // lifetime. Closed-shell/page input has its own scroll ownership recognizer.
  function closedWheel(value,surface,tabId=''){
   const current=context();
-  if(disposed||!current||current.busy||armed===current.identity||win.isDestroyed()||shellContents.isDestroyed()||win.isFocused?.()===false)return false;
+  if(disposed||!enabled()||!current||current.busy||armed===current.identity||win.isDestroyed()||shellContents.isDestroyed()||win.isFocused?.()===false)return false;
   if(!value||typeof value!=='object'||![value.deltaX,value.deltaY].every(n=>typeof n==='number'&&Number.isFinite(n)&&Math.abs(n)<=1024))return false;
   const gesture=intent.push({...value,scope:surface});if(!gesture||pending)return false;
   const index=current.items.findIndex(item=>item.id===current.active),next=index<0?null:current.items[index+(gesture.direction==='left'?1:-1)];
@@ -80,7 +80,7 @@ async function install({win,store,ipcMain,trusted,getContext,now=Date.now,setTim
   }
   if(action==='context'){
    if(typeof args.open!=='boolean')throw Error('Некорректное состояние Норы');
-   const next=args.open&&supported&&current&&!current.busy?current.identity:null;
+   const next=args.open&&supported&&enabled()&&current&&!current.busy?current.identity:null;
    if(armed!==next){clearPending();intent.reset();armed=next;}
    return state(current);
   }

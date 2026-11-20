@@ -34,6 +34,7 @@ function dom(){
   append(...nodes){for(const node of nodes){if(typeof node==='string'){this._text+=node;continue;}node.remove();node.parentElement=this;this.children.push(node);}}
   prepend(node){node.remove();node.parentElement=this;this.children.unshift(node);}
   before(node){const parent=this.parentElement,index=parent.children.indexOf(this);node.remove();node.parentElement=parent;parent.children.splice(index,0,node);}
+  after(node){const parent=this.parentElement,index=parent.children.indexOf(this);node.remove();node.parentElement=parent;parent.children.splice(index+1,0,node);}
   remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(e=>e!==this);this.parentElement=null;}
   replaceChildren(...nodes){for(const child of this.children)child.parentElement=null;this.children=[];this._text='';this.append(...nodes);}
   querySelectorAll(selector){return descendants(this).filter(element=>matches(element,selector));}
@@ -52,6 +53,7 @@ function dom(){
    }
   }
   focus(){document.activeElement=this;}
+  scrollIntoView(){this.scrolled=true;}
   click(){if(this.disabled)return;return this.onclick?.({target:this,preventDefault(){}});}
   change(checked){if(this.disabled)return;this.checked=checked;return this.onchange?.({target:this});}
   submit(){return this.onsubmit?.({target:this,preventDefault(){}});}
@@ -69,7 +71,7 @@ function fixture(start=initial()){
  const window={events:new Map(),addEventListener(name,fn){this.events.set(name,fn);},removeEventListener(name){this.events.delete(name);}};
  class Terminal{constructor(){this.cols=0;this.rows=0;terminalEvents.push(['create']);}open(){terminalEvents.push(['open']);}onData(fn){this.input=fn;terminalEvents.push(['onData',fn]);}write(value){terminalEvents.push(['write',value]);}resize(cols,rows){this.cols=cols;this.rows=rows;terminalEvents.push(['resize',cols,rows]);}focus(){terminalEvents.push(['focus']);}dispose(){terminalEvents.push(['dispose']);}}
  const context={document,window,navigator:{clipboard:{writeText:async value=>messages.push('clipboard:'+value)}},Terminal,ResizeObserver:class{observe(){}disconnect(){terminalEvents.push(['observer-disconnect']);}},setTimeout:(fn,delay)=>{const id=++timerId;timers.set(id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id)};
- vm.createContext(context);vm.runInContext(source('local-workspace.js'),context);vm.runInContext(source('agent-ui.js'),context);
+ vm.createContext(context);vm.runInContext(source('local-workspace.js'),context);vm.runInContext(source('agent-onboarding.js'),context);vm.runInContext(source('agent-ui.js'),context);
  const activated=[],ui=context.createMouseAgentUI({N,model,layout(){},status:message=>messages.push(message),activateTab:id=>activated.push(id)}),$=selector=>document.querySelector(selector);
  return{ui,model,N,document,htmlWrites,calls,messages,handlers,subscriptions,terminalEvents,activated,$,state:()=>copy(current),emit(next){current=copy(next);subscriptions.get('state')(copy(current));},async ready(){await tick();calls.length=0;},rows(){return document.querySelectorAll('.agent-local-entry');},row(name){return this.rows().find(e=>e.dataset.path===name);},flush:tick,runTimers(){const all=[...timers.values()];timers.clear();for(const t of all)t.fn();},dispose(){ui.dispose();}};
 }
@@ -78,6 +80,25 @@ test('Local is integrated before Agent UI; folder selection lives in Local and p
  const html=source('index.html');assert.ok(html.indexOf('src="local-workspace.js"')<html.indexOf('src="agent-ui.js"'));assert.ok(html.indexOf('href="local-workspace.css"')<html.indexOf('href="mouse-628.css"'));
  const f=fixture();await f.ready();assert.ok(f.$('#agent-local-workspace').contains(f.$('#agent-folder')));assert.equal(f.$('#agent-model-settings').contains(f.$('#agent-folder')),false);assert.equal(f.$('.agent-local-file-content').readOnly,true);assert.ok(f.$('#agent-local-tree [data-local-path="src/main.js"]'),'the native fixture selector resolves a real generated row');
  assert.equal(f.$('#agent-stop').disabled,false,'The read-only MCP child can be stopped before the agent gateway is enabled');assert.equal(f.$('#agent-local-refresh').disabled,false);assert.equal(f.$('#agent-local-write').disabled,true);assert.equal(f.$('#agent-local-commands').disabled,true);assert.equal(f.$('#agent-terminal-start').disabled,true);assert.equal(f.$('#agent-local-dev-start').disabled,true);f.dispose();
+});
+test('Ollama onboarding is optional, reads only after a click and changes model settings only after selection',async()=>{
+ const f=fixture();await f.ready();assert.deepEqual(f.calls,[]);f.ui.focus();assert.equal(f.$('#agent-ollama-setup').open,true);assert.equal(f.$('#agent-panel').getAttribute('aria-label'),'Агент Маус');
+ f.$('#agent-endpoint').value='https://chosen.example/v1/';f.$('#agent-model').value='owner-model';f.$('#agent-key').value='fixture-session-key';
+ const name='model:<img onerror=fixture>';f.handlers.set('ollama-models',async()=>({available:true,models:[{name,size:5}]}));await f.$('#agent-ollama-check').click();assert.equal(f.$('#agent-endpoint').value,'https://chosen.example/v1/');assert.equal(f.$('#agent-model').value,'owner-model');assert.equal(f.$('#agent-key').value,'fixture-session-key');assert.equal(f.$('#agent-ollama-models-label').hidden,false);assert.equal(f.$('#agent-ollama-models option').textContent,name);assert.equal(f.document.querySelectorAll('img').length,1);
+ f.$('#agent-ollama-use').click();assert.equal(f.$('#agent-endpoint').value,'http://127.0.0.1:11434/v1/');assert.equal(f.$('#agent-model').value,name);assert.equal(f.$('#agent-key').value,'');assert.deepEqual(f.calls.map(x=>x.action),['ollama-models']);assert.equal(f.state().enabled,false);assert.equal(f.$('#agent-autonomous').checked,false);f.dispose();
+});
+test('unavailable and empty Ollama states cannot fabricate a usable model or silently change an API',async()=>{
+ const f=fixture();await f.ready();f.$('#agent-endpoint').value='https://chosen.example/v1/';f.$('#agent-model').value='owner-model';
+ f.handlers.set('ollama-models',async()=>({available:false,reason:'Offline fixture',models:[]}));await f.$('#agent-ollama-check').click();assert.equal(f.$('#agent-ollama-use').hidden,true);assert.equal(f.$('#agent-ollama-status').textContent,'Offline fixture');
+ f.handlers.set('ollama-models',async()=>({available:true,models:[]}));await f.$('#agent-ollama-check').click();assert.equal(f.$('#agent-ollama-use').hidden,true);assert.match(f.$('#agent-ollama-status').textContent,/Скачайте/);assert.equal(f.$('#agent-model').value,'owner-model');assert.equal(f.$('#agent-endpoint').value,'https://chosen.example/v1/');f.dispose();
+});
+test('Ollama help uses only the native named help route; a late probe cannot resurrect a disposed panel',async()=>{
+ const f=fixture();await f.ready();for(const page of ['download','models','guide'])await f.$('[data-ollama-page="'+page+'"]').click();assert.deepEqual(f.calls,[{action:'ollama-help',args:{page:'download'}},{action:'ollama-help',args:{page:'models'}},{action:'ollama-help',args:{page:'guide'}}]);
+ const wait=deferred();f.handlers.set('ollama-models',()=>wait.promise);const checking=f.$('#agent-ollama-check').click();await f.flush();assert.equal(f.$('#agent-ollama-check').disabled,true);const model=f.$('#agent-model');f.dispose();wait.resolve({available:true,models:[{name:'late'}]});await checking;assert.equal(model.value,'');assert.equal(f.$('#agent-panel'),null);
+});
+test('settings sidebar hides the agent surface without revoking its session; section links grant no permissions',async()=>{
+ const f=fixture(initial({enabled:true,desk:'desk-1',local:{...initial().local,commandsAllowed:false,writeAllowed:false}}));await f.ready();f.model.settingsOpen=true;f.ui.sync();assert.equal(f.$('#agent-panel').hidden,true);assert.deepEqual(f.calls,[]);
+ f.model.settingsOpen=false;f.ui.focusSettings('permissions');assert.equal(f.$('#agent-panel').hidden,false);assert.equal(f.$('#agent-local-workspace').open,true);assert.equal(f.$('#agent-local-workspace').scrolled,true);assert.equal(f.$('#agent-local-write').checked,false);assert.equal(f.$('#agent-local-commands').checked,false);assert.deepEqual(f.calls,[]);f.ui.focusSettings('ollama');assert.equal(f.$('#agent-ollama-setup').open,true);f.dispose();
 });
 test('human preview uses structuredContent only and treats filenames/content as literal data',async()=>{
  const name='src/<img onerror=attack>.js',f=fixture(initial({local:{...initial().local,tree:{entries:[file(name)]}}}));await f.ready();

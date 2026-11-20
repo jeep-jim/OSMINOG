@@ -10,6 +10,7 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
  // Coalesce bursts without postponing every progress update until a transfer
  // becomes quiet. Continuous downloads must still reach the visible indicator.
  let timer;const notify=()=>{if(timer)return;timer=setTimeout(()=>{timer=null;if(!win.isDestroyed())win.webContents.send('mouse:library-changed')},120);timer.unref?.()};
+ const contextMenu=await require('./mouse-context-menu.cjs').install({win,browser,store,library,ipcMain,trusted,notify});
  const attach=t=>{const wc=t.view.webContents;if(t.lane==='side'||t.provider)return;
   require('./mouse-history.cjs').attachHistory(wc,library,()=>{library.favicon(wc.getURL(),t.favicon);notify()});
   wc.on('page-favicon-updated',(_e,values)=>{library.favicon(wc.getURL(),values?.[0]);notify()});
@@ -54,6 +55,7 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
  ipcMain.handle('mouse:library',async(e,action,args={})=>{
   trusted(e);if(!args||typeof args!=='object'||JSON.stringify(args).length>(action==='remove-selected'?512000:16000))throw Error('Invalid library request');
   if(action==='download-activity')return activity.snapshot();
+  if(action==='download-seen'){const result=activity.acknowledge();notify();return result;}
   if(action==='preview')return icons.preview(args.id);
   if(action==='suggest')return library.suggestions(args.query);
   if(action==='list')return library.list(args.kind,args.query,args.offset);
@@ -75,6 +77,6 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
   if(action==='download')return download(args.action,args.id);
   throw Error('Unsupported library action');
  });
- return{library,search,flush:()=>Promise.all([library.flush(),search.flush()]),live,activity,icon:icons.site};
+ return{library,search,flush:()=>Promise.all([library.flush(),search.flush()]),live,activity,contextMenu,icon:icons.site};
 }
 module.exports={install};

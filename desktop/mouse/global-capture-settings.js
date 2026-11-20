@@ -1,11 +1,11 @@
 'use strict';
 globalThis.createMouseGlobalCaptureSettings=({N,status})=>{
  const box=document.createElement('section');box.className='global-capture-settings';box.innerHTML='<h3>Скриншот из любого приложения · ⌃A</h3><label class="global-capture-enable"><input type="checkbox" id="global-capture-enabled"> Включить Control+A для всего Mac</label><p id="global-capture-state" role="status"></p><div class="dialog-actions"><button type="button" id="global-capture-now">Снять экран сейчас</button><button type="button" id="global-capture-choose">Выбрать экран через macOS</button><button type="button" id="global-capture-refresh">Проверить разрешение</button><button type="button" id="global-capture-permission">Разрешение macOS…</button></div><p class="hint">Работает, пока Mouse Browser запущен, даже если он свёрнут. ⌘Q завершает и браузер, и сочетание. Снимки остаются локально; перед копированием или сохранением можно выделить область и добавить разметку. ⌘A не меняется. Control+A в других программах будет занят скриншотом.</p>';
- document.querySelector('#settings-dialog .dialog-content').append(box);
- const windows=N.platform==='win32';
+ document.querySelector('#settings-dialog [data-settings-section=capture]').append(box);
+ const windows=N.platform!=='darwin';
  if(windows){
   box.querySelector('h3').textContent='Скриншот из любого приложения · Ctrl+Alt+S';
-  box.querySelector('.global-capture-enable').lastChild.textContent=' Включить Ctrl+Alt+S для Windows';
+  box.querySelector('.global-capture-enable').lastChild.textContent=' Включить Ctrl+Alt+S для '+(N.platform==='linux'?'Linux':'Windows');
   box.querySelector('#global-capture-permission').hidden=true;box.querySelector('#global-capture-refresh').textContent='Проверить сочетание';
   box.querySelector('.hint').textContent='Работает, пока Mouse Browser запущен, даже если он свёрнут. Ctrl+Q завершает браузер и освобождает сочетание. Снимается экран под указателем мыши. Перед копированием или сохранением можно выделить область и добавить разметку. Снимки остаются локально. Ctrl+A сохраняет обычное выделение текста.';
  }

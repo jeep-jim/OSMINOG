@@ -24,7 +24,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.32"
+VERSION = "6.0.33"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -53,7 +53,7 @@ SUPERSEDED_DOCUMENT_MARKERS = {"MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PA
                                "MOUSE_627_DOCUMENT_TABS_NATIVE_PASS", "MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS"}
 WRITE_MARKERS = [marker for marker in BASELINE_629_WRITE_MARKERS if marker not in SUPERSEDED_DOCUMENT_MARKERS] + [
     "MOUSE_632_DOCUMENTS_VIEW_ONLY_PASS", "MOUSE_632_FOOTER_LAYOUT_BOTH_THEMES_PASS",
-    "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS", "MOUSE_632_OPTIONAL_HELPER_MANUAL_ONLY_PASS",
+    "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS", "MOUSE_633_AGENT_VISIBLE_RESTORE_WITHOUT_AUTOENABLE_PASS",
     "MOUSE_630_DOWNLOAD_ACTIVITY_PASS", "MOUSE_630_CAPTURE_FEEDBACK_PASS",
     "MOUSE_630_NORA_NATIVE_FOREGROUND_PASS", "MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS",
     "MOUSE_630_PAGE_SCROLL_PRESERVED_PASS", "MOUSE_630_PRIVATE_DOWNLOAD_SCOPE_PASS",
@@ -204,8 +204,8 @@ def native_input(action: str, values: list[str]) -> None:
         if api.SendInput(1, ctypes.byref(value), ctypes.sizeof(Input)) != 1:
             raise RuntimeError("User32 SendInput failed: " + str(ctypes.get_last_error()))
 
-    if action in ("click", "mouse"):
-        if len(values) != (2 if action == "click" else 3):
+    if action in ("click", "right-click", "mouse"):
+        if len(values) != (3 if action == "mouse" else 2):
             raise ValueError("Invalid native pointer arguments")
         x, y = map(int, values[:2])
         if not api.SetCursorPos(x, y):
@@ -213,17 +213,19 @@ def native_input(action: str, values: list[str]) -> None:
         point = wintypes.POINT()
         if not api.GetCursorPos(ctypes.byref(point)) or (point.x, point.y) != (x, y):
             raise RuntimeError("Native pointer was clipped or moved to another display position")
-        phases = [0, 2] if action == "click" else [int(values[2])]
+        phases = [int(values[2])] if action == "mouse" else [0, 2]
         for phase in phases:
             if phase not in (0, 1, 2):
                 raise ValueError("Invalid native mouse phase")
             # SetCursorPos already emitted the native move.
             if phase != 1:
-                send(Input(type=0, mi=MouseInput(0, 0, 0, 0x0002 if phase == 0 else 0x0004, 0, 0)))
+                down, up = (0x0008, 0x0010) if action == "right-click" else (0x0002, 0x0004)
+                send(Input(type=0, mi=MouseInput(0, 0, 0, down if phase == 0 else up, 0, 0)))
                 time.sleep(0.015)
     elif action == "key":
-        keys = {"CTRL": 0x11, "ALT": 0x12, "SHIFT": 0x10, "A": 0x41, "S": 0x53, "ESC": 0x1B}
-        if len(values) != 1 or values[0] not in ("CTRL+A", "CTRL+ALT+S", "ESC"):
+        keys = {"CTRL": 0x11, "ALT": 0x12, "SHIFT": 0x10, "A": 0x41, "S": 0x53, "ESC": 0x1B,
+                "HOME": 0x24, "END": 0x23, "UP": 0x26, "DOWN": 0x28, "LEFT": 0x25, "RIGHT": 0x27, "ENTER": 0x0D}
+        if len(values) != 1 or values[0] not in ("CTRL+A", "CTRL+ALT+S", "ESC", "HOME", "END", "UP", "DOWN", "LEFT", "RIGHT", "ENTER"):
             raise ValueError("Unsupported native test chord")
         held = []
         try:
@@ -479,7 +481,7 @@ def update_roundtrip(executable: Path, env: dict, output: Path) -> dict:
 
 
 def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dict:
-    """Real public629 WRITE -> NSIS632 replacement -> new-process READ.
+    """Real public629 WRITE -> NSIS633 replacement -> new-process READ.
 
     The old application writes its own cookies/preferences/localStorage and
     bookmarks. No synthetic older-version profile or renamed installer is used.
@@ -503,7 +505,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Public629 installer bytes do not match the accepted release")
     directory = output / "mouse-631-upgrade"
     directory.mkdir()
-    target = root / "Реальное обновление 629 в 632"
+    target = root / "Реальное обновление 629 в 633"
     profile = root / "Существующий профиль 629"
     old_env = {**env, "MOUSE_TEST_PROFILE": str(profile), "MOUSE_WINDOWS_TEST_INSTALLER": str(baseline)}
     before_install = install(baseline, target, old_env, directory / "mouse-629-install.log")
@@ -519,7 +521,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
     new_env = {**env, "MOUSE_TEST_PROFILE": str(profile)}
     replacement = install(installer, target, new_env, directory / "mouse-631-replace.log")
     if sha256(profile / "workspace.json") != before_profile:
-        raise RuntimeError("629->632 installer changed the closed application profile")
+        raise RuntimeError("629->633 installer changed the closed application profile")
     read = run_logged([str(executable), "--mouse-windows-smoke-read", "--mouse-windows-upgrade-from=6.0.29"],
                       new_env, directory / "mouse-631-read.log", 180)
     verify_markers(read.pop("output"), READ_MARKERS)
@@ -527,13 +529,13 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
     new_report = json.loads(new_report_path.read_text(encoding="utf-8"))
     preserved = new_report.get("profile", {})
     if (new_report.get("ok"), new_report.get("version"), new_report.get("platform"), new_report.get("arch")) != (True, VERSION, "win32", "x64"):
-        raise RuntimeError("Updated application did not produce successful632 restart evidence")
+        raise RuntimeError("Updated application did not produce successful633 restart evidence")
     if preserved.get("previousVersion") != "6.0.29" or preserved.get("currentVersion") != VERSION or any(
             preserved.get(key) is not True for key in ("differentProcess", "preferencesPreserved", "cookiePreserved", "localStoragePreserved", "bookmarkPreserved")):
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_632_WINDOWS_REAL_629_TO_632_PROFILE_PASS", flush=True)
+    print("MOUSE_633_WINDOWS_REAL_629_TO_633_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -592,8 +594,23 @@ def main(argv=None) -> int:
         # registered Mouse installations or launch an uninstalled old path.
         evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
         save()
+        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-633-upgrade.py")), str(installer)], env,
+                           output / "mouse-633-upgrade.log", 480)
+        verify_markers(fresh.pop("output"), ["MOUSE_633_REAL_632_TO_633_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_633_REAL_632_TO_633_PROFILE_PASS"]
+        fresh["reportSha256"] = sha256(output / "mouse-633-upgrade.json")
+        evidence["checks"]["freshUpgrade"] = fresh
+        save()
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
         executable = target / "Mouse Browser.exe"
+        owner_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse633 owner feedback")}
+        owner = run_logged([str(executable), "--mouse-633-smoke"], owner_env,
+                           output / "mouse-633-owner-feedback.log", 270)
+        verify_markers(owner.pop("output"), ["MOUSE_633_OWNER_FEEDBACK_PASS"])
+        owner["requiredMarkers"] = ["MOUSE_633_OWNER_FEEDBACK_PASS"]
+        owner["reportSha256"] = sha256(output / "mouse-633-owner-feedback.json")
+        evidence["checks"]["ownerFeedback"] = owner
+        save()
         regression_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Задачи и 50 вкладок")}
         regression = run_logged([str(executable), "--mouse-631-smoke"], regression_env,
                                 output / "mouse-631-native.log", 400)

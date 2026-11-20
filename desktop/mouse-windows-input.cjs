@@ -21,6 +21,7 @@ function createWindowsInput({runtime=process,screen,spawnSync=require('node:chil
  }
  return{
   testClick:(x,y)=>send('click',coordinates(x,y)),
+  testRightClick:(x,y)=>send('right-click',coordinates(x,y)),
   testPointer:(x,y)=>{send('mouse',[...coordinates(x,y),1]);return{warpResult:0,postAccess:true};},
   testMouse:(x,y,phase)=>{if(![0,1,2].includes(phase))throw Error('Invalid native pointer phase');return send('mouse',[...coordinates(x,y),phase]);},
   testKey:chord=>send('key',[chord])

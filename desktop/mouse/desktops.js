@@ -216,16 +216,20 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
 };
 
 globalThis.createMouseZoomUI=({N,layout,status})=>{
- const backdrop=globalThis.MouseFloatingBackdrop;
  const b=document.createElement('button');b.type='button';b.id='global-zoom-button';b.textContent='Т+';b.title='Масштаб всех вкладок';b.setAttribute('aria-label',b.title);b.setAttribute('aria-expanded','false');document.querySelector('#emoji-button').after(b);
- const box=document.createElement('dialog');box.id='global-zoom-panel';box.hidden=true;box.innerHTML='<strong>Масштаб всех вкладок</strong><div><button data-zoom="minus" aria-label="Уменьшить">−</button><output>100%</output><button data-zoom="plus" aria-label="Увеличить">+</button><button data-zoom="reset">100%</button></div><input type="range" min="25" max="500" step="5" value="100" aria-label="Масштаб всех вкладок">';Object.assign(box.style,{margin:'0',left:'auto',top:'auto',color:'var(--text)'});document.body.append(box);let factor=1,opening=false;
- const close=()=>{opening=false;if(box.open)box.close();box.hidden=true;b.setAttribute('aria-expanded','false');return backdrop.hide('zoom').finally(layout);};
- N.onPreviewsCleared?.(close);
- box.addEventListener('cancel',e=>{e.preventDefault();void close().catch(error=>status(error.message));b.focus();});box.addEventListener('close',()=>{if(box.open||opening)return;box.hidden=true;b.setAttribute('aria-expanded','false');void backdrop.hide('zoom').then(layout).catch(error=>status(error.message));});
+ const box=document.createElement('dialog');box.id='global-zoom-panel';box.dataset.nonmodal='true';box.hidden=true;box.setAttribute('aria-label','Масштаб всех вкладок');
+ box.innerHTML='<strong>Масштаб всех вкладок</strong><button type="button" class="zoom-close" aria-label="Закрыть масштаб">×</button><div><button data-zoom="minus" aria-label="Уменьшить">−</button><output>100%</output><button data-zoom="plus" aria-label="Увеличить">+</button><button data-zoom="reset">100%</button></div><input type="range" min="25" max="500" step="5" value="100" aria-label="Масштаб всех вкладок">';
+ Object.assign(box.style,{margin:'0',left:'auto',top:'auto',color:'var(--text)'});document.body.append(box);let factor=1,closing=false;
+ // Native pages stay live. layoutNow reserves viewport space for this chooser;
+ // no snapshot lease, modal barrier or reload is involved.
+ function close(){if(closing)return Promise.resolve();closing=true;if(box.open)box.close();box.hidden=true;b.setAttribute('aria-expanded','false');closing=false;layout();return Promise.resolve();}
+ N.onPreviewsCleared?.(close);box.addEventListener('close',()=>{if(!closing)void close();});box.querySelector('.zoom-close').onclick=()=>void close();
  function render(s){factor=s.factor;box.querySelector('output').textContent=Math.round(factor*100)+'%';box.querySelector('input').value=Math.round(factor*100);b.title='Масштаб всех вкладок · '+Math.round(factor*100)+'%';document.documentElement.style.setProperty('--page-zoom',String(factor));}
- async function change(action,value){try{render(await N.zoom('set',{factor:action==='reset'?1:action==='set'?value:Math.max(.25,Math.min(5,Math.round((factor+(action==='plus'?.1:-.1))*100)/100))}));}catch(error){status(error.message)}}
- b.onclick=async()=>{if(!box.hidden||opening){close();return;}opening=true;try{if(!await backdrop.show('zoom'))return;box.hidden=false;box.showModal();b.setAttribute('aria-expanded','true');layout();}catch(error){close();status(error.message);}finally{opening=false;}};box.querySelectorAll('[data-zoom]').forEach(e=>e.onclick=()=>change(e.dataset.zoom));box.querySelector('input').oninput=e=>change('set',Number(e.target.value)/100);
- document.addEventListener('pointerdown',e=>{if(box.hidden)return;const r=box.getBoundingClientRect();if((e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)&&!b.contains(e.target))close();});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!box.hidden){e.preventDefault();e.stopImmediatePropagation();close();b.focus();}},true);
+ async function change(action,value){try{render(await N.zoom('set',{factor:action==='reset'?1:action==='set'?value:Math.max(.25,Math.min(5,Math.round((factor+(action==='plus'?.1:-.1))*100)/100))}));layout();}catch(error){status(error.message)}}
+ b.onclick=()=>{if(!box.hidden){void close();return;}box.hidden=false;box.show();b.setAttribute('aria-expanded','true');layout();box.querySelector('[data-zoom=minus]').focus({preventScroll:true});};
+ box.querySelectorAll('[data-zoom]').forEach(e=>e.onclick=()=>change(e.dataset.zoom));box.querySelector('input').oninput=e=>change('set',Number(e.target.value)/100);
+ document.addEventListener('pointerdown',e=>{if(box.hidden)return;const r=box.getBoundingClientRect();if((e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)&&!b.contains(e.target))void close();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!box.hidden){e.preventDefault();e.stopImmediatePropagation();void close();b.focus();}},true);
  N.zoom('state').then(render).catch(error=>status(error.message));N.onZoom(render);
  return{change,close,bounds:()=>box.hidden?null:box.getBoundingClientRect()};
 };

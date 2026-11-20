@@ -6,7 +6,7 @@ const {faviconData}=require('./mouse/favicon.js');
 const LIMIT=32*1024*1024;
 function captureShortcut(input,platform=process.platform){
  const key=String(input.key).toLowerCase();
- return input.type==='keyDown'&&input.control&&!input.meta&&!input.shift&&(platform==='win32'?input.alt&&(input.code==='KeyS'||key==='s'):!input.alt&&(input.code==='KeyA'||key==='a'));
+ return input.type==='keyDown'&&input.control&&!input.meta&&!input.shift&&(platform!=='darwin'?input.alt&&(input.code==='KeyS'||key==='s'):!input.alt&&(input.code==='KeyA'||key==='a'));
 }
 function pngBuffer(src){
  if(typeof src!=='string'||src.length>LIMIT*1.4||!src.startsWith('data:image/png;base64,'))throw Error('Expected a bounded PNG image');
@@ -61,7 +61,7 @@ function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reus
     const d=screen.getDisplayMatching(win.getBounds()),s=Math.min(d.scaleFactor,8192/Math.max(d.size.width,d.size.height));
     const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(d.size.width*s),height:Math.round(d.size.height*s)},fetchWindowIcons:false});
     const source=sources.find(x=>String(x.display_id)===String(d.id));
-    if(!source||source.thumbnail.isEmpty())throw Error(process.platform==='darwin'?'Экран недоступен. Проверьте разрешение записи экрана macOS.':'Windows не предоставила изображение выбранного экрана.');
+    if(!source||source.thumbnail.isEmpty())throw Error(process.platform==='darwin'?'Экран недоступен. Проверьте разрешение записи экрана macOS.':'Система не предоставила изображение выбранного экрана.');
     return{base:imageData(source.thumbnail),width:d.size.width,height:d.size.height,layers:[],kind};
    }
    const [width,height]=win.getContentSize(),base=imageData(await win.capturePage()),layers=[];
@@ -88,7 +88,7 @@ function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reus
  // Explicit standard editing for the trusted shell, including focus returning from a dialog.
  // Preserve Windows Ctrl+A (including guest pages) and Mac Cmd+A. The Windows
  // screenshot chord is Ctrl+Alt+S, so ordinary editing never captures the screen.
- if(!reuseChrome)win.webContents.on('before-input-event',(event,input)=>{if(input.type==='keyDown'&&(process.platform==='win32'?input.control&&!input.meta:input.meta&&!input.control)&&!input.alt&&!input.shift&&isA(input)){event.preventDefault();win.webContents.selectAll()}});
+ if(!reuseChrome)win.webContents.on('before-input-event',(event,input)=>{if(input.type==='keyDown'&&(process.platform!=='darwin'?input.control&&!input.meta:input.meta&&!input.control)&&!input.alt&&!input.shift&&isA(input)){event.preventDefault();win.webContents.selectAll()}});
  if(!reuseChrome)win.webContents.on('before-input-event',shortcut);
  for(const t of [...browser.tabs.values(),...browser.providers.values()])t.view.webContents.on('before-input-event',shortcut);
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);t.view.webContents.on('before-input-event',shortcut);return t};

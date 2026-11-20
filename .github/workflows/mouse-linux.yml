@@ -1,0 +1,101 @@
+name: Mouse Browser Linux x64
+on:
+  pull_request:
+    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mouse-linux-refs/heads/${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  mouse-linux-x64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: desktop
+        shell: bash
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      MOUSE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            desktop/mouse-agent/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Linux desktop and native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libx11-dev libxext-dev xvfb openbox xdotool dbus-x11 pulseaudio libfuse2 libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 libsecret-1-0 libnotify4 libatspi2.0-0 libxtst6
+          test "$(id -u)" -ne 0
+      - name: Install locked dependencies and native Linux runtime
+        run: |
+          npm ci
+          npm ci --prefix mouse-agent
+          npm audit --omit=dev --audit-level=high --json > mouse-linux-audit.json
+          npm audit --prefix mouse-agent --omit=dev --audit-level=high --json > mouse-linux-agent-audit.json
+          node mouse-agent/prepare.cjs
+          npm run prepare:runtime
+          node mouse-native-build.cjs
+          node mouse-icon.cjs
+      - name: Run retained and Linux Mouse contracts
+        id: units
+        continue-on-error: true
+        run: |
+          npm test
+          node ../tools/mouse-unit-tests.cjs
+          python3 -m unittest discover -s ../tools -p test_mouse_631_acceptance.py -v
+          python3 -m unittest discover -s ../tools -p test_mouse_linux_verify.py -v
+      - name: Build Linux AppImage and deb
+        run: npx electron-builder --config mouse-linux-build.cjs --linux AppImage deb --x64 --publish never
+      - name: Verify installed Linux packages and native behavior
+        id: installed
+        run: |
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1100x24' bash -euo pipefail -c '
+            openbox > mouse-linux-openbox.log 2>&1 &
+            pulseaudio --start --exit-idle-time=-1
+            pactl load-module module-null-sink sink_name=mouse_ci
+            pactl set-default-sink mouse_ci
+            python3 ../tools/mouse-linux-verify.py dist-mouse-linux
+          '
+      - name: Bind verified Linux packages to source evidence
+        if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
+        run: node ../tools/mouse-linux-manifest.cjs
+      - name: Require both unit and installed acceptance
+        if: always()
+        env:
+          UNIT_OUTCOME: ${{ steps.units.outcome }}
+          INSTALLED_OUTCOME: ${{ steps.installed.outcome }}
+        run: test "$UNIT_OUTCOME" = success && test "$INSTALLED_OUTCOME" = success
+      - uses: actions/upload-artifact@v4
+        if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
+        with:
+          name: mouse-linux-x64-candidate
+          path: |
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.33-Linux-x64.AppImage
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.33-Linux-x64.deb
+            desktop/dist-mouse-linux/SHA256SUMS.txt
+            desktop/dist-mouse-linux/mouse-linux-build.json
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-linux-x64-verification
+          path: |
+            desktop/mouse-*.log
+            desktop/mouse-*.png
+            desktop/mouse-*.json
+            desktop/mouse-linux-appimage/**
+          if-no-files-found: warn
+          retention-days: 14

@@ -146,10 +146,37 @@ test('CI backdrop records the original bounded error while ordinary mode perform
  await assert.rejects(f.overlay.show('desktops'),actual=>actual===error);const entry=structuredClone(f.overlay.diagnostics()).events.at(-1);assert.equal(entry.phase,'error');assert.equal(entry.operation,'show');assert.equal(entry.message.length,512);await f.overlay.hide('desktops');
  const normal=fixture({performance:{now(){throw Error('ordinary mode must not read the diagnostic clock');}}});assert.equal(normal.overlay.diagnostics,undefined);assert.equal(normal.overlay.note,undefined);assert.equal(await normal.overlay.show('desktops'),true);await normal.overlay.hide('desktops');
 });
-test('desktop and zoom popovers participate in the existing modal native-view gate',()=>{
+test('Nora keeps its modal gate while the zoom chooser preserves live native pages',()=>{
  const s=fs.readFileSync('mouse/desktops.js','utf8'),browser=fs.readFileSync('mouse/browser.js','utf8');
- assert.match(s,/const tray=document.createElement\('dialog'\)/);assert.match(s,/const box=document.createElement\('dialog'\)/);assert.match(s,/tray\.showModal\(\)/);assert.match(s,/box\.showModal\(\)/);
+ assert.match(s,/const tray=document.createElement\('dialog'\)/);assert.match(s,/const box=document.createElement\('dialog'\)/);assert.match(s,/tray\.showModal\(\)/);assert.match(s,/box\.show\(\)/);const zoom=s.slice(s.indexOf('globalThis.createMouseZoomUI='));assert.match(zoom,/box\.dataset\.nonmodal='true'/);assert.doesNotMatch(zoom,/backdrop\.(?:show|hide)|showModal/);
  assert.match(browser,/dialog\[open\]:not\(\[data-nonmodal\]\)/);assert.doesNotMatch(s,/writeFile|localStorage|sessionStorage|sendBeacon|clipboard/);
+});
+test('T+ reserves actual native viewport space and restores the same live pages when closed',async()=>{
+ const source=fs.readFileSync('mouse/browser.js','utf8'),start=source.indexOf(' async function layoutNow(){'),end=source.indexOf('\n\n function restorePane()',start);
+ assert.ok(start>=0&&end>start);
+ const win={isDestroyed:()=>false,getContentSize:()=>[1016,676],contentView:new NativeView()},tabs=new Map();
+ const rects=[{x:0,y:68,width:505,height:580},{x:511,y:68,width:505,height:580}];
+ const panes=rects.map((rect,index)=>{const id='page-'+index,view=new NativeView();view.webContents={isDestroyed:()=>false};win.contentView.addChildView(view);tabs.set(id,{id,project:'owned',lane:'main',view,visible:false});return{dataset:{pane:id},style:{getPropertyValue:()=>''},querySelector:()=>({getBoundingClientRect:()=>({...rect})})};});
+ const browser={win,project:'owned',mouseRoundedPanes:true,tabs,providers:new Map()},originalViews=[...tabs.values()].map(page=>page.view);
+ let zoom=null,hint=null;
+ const ctx={m:{slots:{'page-0':'page-0','page-1':'page-1'}},tab:id=>tabs.get(id),progressUI:null,chromeControls:null,
+  document:{documentElement:{},querySelector:()=>null,querySelectorAll:()=>panes},getComputedStyle:()=>({getPropertyValue:()=>'#43536b'}),
+  desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},
+  N:{browser:async(action,args)=>{assert.equal(action,'layout');nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,args.panels);}}
+ };
+ vm.runInNewContext(source.slice(start,end)+';globalThis.layoutProbe=layoutNow',ctx);
+ await ctx.layoutProbe();assert.deepEqual([...tabs.values()].map(page=>page.view.bounds.height),[580,580]);
+ // Actual Mac failure geometry: a smaller clip parent alone left the native
+ // child painting to648, over the chooser beginning at532.
+ zoom={left:747,right:1002,top:532,bottom:640};await ctx.layoutProbe();
+ const left=tabs.get('page-0'),right=tabs.get('page-1');
+ assert.equal(left.view.bounds.height,580);assert.equal(right.view.bounds.height,462);assert.equal(right.bounds.y+right.bounds.height,530);assert.equal(right.clipView,undefined);
+ assert.ok(left.view.visible&&right.view.visible);assert.deepEqual([...tabs.values()].map(page=>page.view),originalViews);
+ hint={left:511,right:1016,top:68,bottom:90};await ctx.layoutProbe();
+ assert.equal(right.view.bounds.height,462,'An existing top clip must not restore the oversized native child');assert.equal(right.clipView.bounds.y+right.view.bounds.y+right.view.bounds.height,530);
+ zoom=null;hint=null;await ctx.layoutProbe();
+ assert.deepEqual([...tabs.values()].map(page=>page.view.bounds.height),[580,580]);assert.ok(left.view.visible&&right.view.visible);assert.deepEqual([...tabs.values()].map(page=>page.view),originalViews);
+ assert.deepEqual(rects,[{x:0,y:68,width:505,height:580},{x:511,y:68,width:505,height:580}]);
 });
 test('native layout has a bounded fallback and coalesces a burst while RAF is stalled',async()=>{
  const s=fs.readFileSync('mouse/browser.js','utf8'),start=s.indexOf('let frame=0,layoutTimeout=0;'),end=s.indexOf('\n async function layoutNow',start);assert.ok(start>=0&&end>start);

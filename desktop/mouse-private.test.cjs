@@ -47,3 +47,16 @@ test('privacy completion notifies observers only after the transition is no long
  await mode.toggle();await mode.toggle();assert.deepEqual(states,[{busy:false,private:true},{busy:false,private:false}]);
  mode.enter=async()=>{throw Error('Fixture transition failed');};await assert.rejects(mode.toggle(),/Fixture transition failed/);assert.deepEqual(states.at(-1),{busy:false,private:false});assert.equal(mode.busy,false);
 });
+test('privacy entry and exit wait for pending secret cleanup before navigating, and stay put if cleanup fails',async()=>{
+ const {PrivateMode}=require('./mouse-private.cjs');
+ for(const leaving of [false,true])for(const fail of [false,true]){
+  const events=[];let resolve,reject;const cleanup=new Promise((a,b)=>{resolve=a;reject=b;});
+  const reached=()=>{events.push('native navigation');throw Error('Stopped at native fixture boundary');};
+  const mode=new PrivateMode({win:{webContents:{executeJavaScript:reached},loadURL:reached},prepareDocuments:async()=>events.push('prepared'),onPrivacyChange:()=>{events.push('cleanup pending');return cleanup;}});
+  if(leaving)mode.current={emit(){}};const original=mode.current,transition=mode.toggle();
+  await new Promise(setImmediate);assert.deepEqual(events,['prepared','cleanup pending']);assert.equal(mode.busy,true);assert.equal(mode.current,original);
+  if(fail){reject(Error('Cleanup failed'));await assert.rejects(transition,/Cleanup failed/);assert.deepEqual(events,['prepared','cleanup pending']);}
+  else{events.push('cleanup complete');resolve();await assert.rejects(transition,/Stopped at native fixture boundary/);assert.deepEqual(events,['prepared','cleanup pending','cleanup complete','native navigation']);}
+  assert.equal(mode.busy,false);assert.equal(mode.current,original);
+ }
+});

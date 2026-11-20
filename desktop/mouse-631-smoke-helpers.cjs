@@ -138,7 +138,7 @@ async function createFixture(ctx,name,budgetMs){
   return{tabId:page.id,index:record.index,desk:bank.members[page.id],webContentsId:page.view.webContents.id,bounds,viewBounds:view,parentBounds:parent,actualBounds:actual,visible:page.view.getVisible(),parentVisible:page.clipView?.getVisible()??true,cachedVisible:!!page.visible,attached:win.contentView.children.includes(root)};
  }
  async function captureContent(filename,records,{shellRegions=[]}={}){
-  assert.equal(globalCapture.permission(),process.platform==='win32'?'not-required':'granted');
+  assert.equal(globalCapture.permission(),process.platform==='darwin'?'granted':'not-required');
   const contentBounds=win.getContentBounds(),display=screen.getDisplayMatching(win.getBounds()),states=records.map(nativeState);
   geometry.native=states;const fixtureGeometry=await recordGeometry('capture '+filename);
   assert.ok(containsRect(display.workArea,contentBounds),'Actual captured content remains inside the display work area: '+JSON.stringify(fixtureGeometry));

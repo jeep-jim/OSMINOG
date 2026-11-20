@@ -9,7 +9,7 @@ const SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Pr
 class GlobalCapture {
  constructor({electron,app,mainWindow,store,trusted,entryDirectory,test=false,platform=process.platform}) {
   this.e=electron;this.app=app;this.main=mainWindow;this.store=store;this.trusted=trusted;
-  this.platform=platform;this.isWindows=platform==='win32';this.shortcut=this.isWindows?WINDOWS_SHORTCUT:SHORTCUT;
+  this.platform=platform;this.isWindows=platform==='win32';this.isMac=platform==='darwin';this.shortcut=this.isMac?SHORTCUT:WINDOWS_SHORTCUT;
   this.nativeCapture=null;if(platform==='darwin'){try{this.nativeCapture=require('./mouse-screen-capture.node')}catch{}}
   this.dir=entryDirectory;this.test=test;this.enabled=true;this.registered=false;this.busy=false;
   this.editor=null;this.pending=null;this.lastError='';this.captureCount=0;this.requests=0;
@@ -31,7 +31,7 @@ class GlobalCapture {
    if(action==='request'){void this.request();return this.state();}
    if(action==='choose'){void this.request(true);return this.state();}
    if(action==='refresh'){this.lastError='';return this.state();}
-   if(action==='permission'){if(!this.isWindows)await this.e.shell.openExternal(SETTINGS_URL);return this.state();}
+   if(action==='permission'){if(this.isMac)await this.e.shell.openExternal(SETTINGS_URL);return this.state();}
    throw Error('Unsupported global screenshot command');
   });
   this.e.ipcMain.handle('mouse:global-capture-editor',async(event,action,args={})=>{
@@ -46,7 +46,7 @@ class GlobalCapture {
   return this;
  }
  nativeStatus(){try{return this.nativeCapture?.status()||{};}catch{return{};}}
- permission(){if(this.isWindows)return 'not-required';if(this.nativeStatus().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
+ permission(){if(!this.isMac)return 'not-required';if(this.nativeStatus().granted)return 'granted';return this.e.systemPreferences.getMediaAccessStatus('screen');}
  state(){return{enabled:this.enabled,registered:this.registered,shortcut:this.shortcut,platform:this.platform,permission:this.permission(),error:this.lastError,runningOnly:true,pickerAvailable:!!this.nativeStatus().pickerAvailable,applicationPath:this.app.getPath?.('exe')||''};}
  publish(){if(!this.main.isDestroyed())this.main.webContents.send('mouse:global-capture-state',this.state());}
  register(){
@@ -55,7 +55,7 @@ class GlobalCapture {
   if(this.enabled){
    try{this.registered=this.e.globalShortcut.register(this.shortcut,()=>void this.request());}
    catch{this.registered=false;}
-   if(!this.registered)this.lastError=this.isWindows?'Ctrl+Alt+S занято другим приложением или недоступно. Освободите сочетание либо нажмите «Снять экран сейчас» в настройках Mouse Browser.':'Control+A занято другим приложением или недоступно. Освободите сочетание либо используйте пункт «Скриншот экрана Mac» в меню «Файл».';
+   if(!this.registered)this.lastError=!this.isMac?'Ctrl+Alt+S занято другим приложением или недоступно. Освободите сочетание либо нажмите «Снять экран сейчас» в настройках Mouse Browser.':'Control+A занято другим приложением или недоступно. Освободите сочетание либо используйте пункт «Скриншот экрана Mac» в меню «Файл».';
   }
   this.publish();
  }
@@ -69,13 +69,13 @@ class GlobalCapture {
   // The original, working path remains first when this process has consent.
   const scale=Math.min(display.scaleFactor||1,8192/Math.max(display.size.width,display.size.height),Math.sqrt(40000000/(display.size.width*display.size.height)));
   const sources=await this.e.desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.max(1,Math.round(display.size.width*scale)),height:Math.max(1,Math.round(display.size.height*scale))},fetchWindowIcons:false});
-  const source=sources.find(s=>String(s.display_id)===String(display.id));
-  if(!source||source.thumbnail.isEmpty())throw Error((this.isWindows?'Windows':'macOS')+' не предоставила изображение выбранного экрана.');
+  const source=sources.find(s=>String(s.display_id)===String(display.id))||(this.platform==='linux'&&sources.length===1?sources[0]:null);
+  if(!source||source.thumbnail.isEmpty())throw Error((this.isWindows?'Windows':this.isMac?'macOS':'Linux')+' не предоставила изображение выбранного экрана.');
   return{base:source.thumbnail.toDataURL(),width:display.size.width,height:display.size.height,layers:[],kind:'screen',backend:'desktopCapturer'};
  }
  async acquire(display,choose=false){
   const status=this.nativeStatus(),{acquireFrame}=require('./mouse-capture-policy.cjs');
-  const frame=this.isWindows?await this.legacyFrame(display):await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
+  const frame=!this.isMac?await this.legacyFrame(display):await acquireFrame({choose,permission:this.e.systemPreferences.getMediaAccessStatus('screen'),nativeGranted:!!status.granted,
    legacy:()=>this.legacyFrame(display),
    native:status.pickerAvailable&&status.granted?()=>this.nativeCapture.capture(Number(display.id),false):null,
    picker:status.pickerAvailable?()=>this.nativeCapture.capture(Number(display.id),true):null});
@@ -94,12 +94,12 @@ class GlobalCapture {
   }catch(error){
    this.pending=null;
    if(this.editor&&!this.editor.isDestroyed())this.editor.destroy();this.editor=null;
-   const denied=!this.isWindows&&require('./mouse-capture-policy.cjs').permissionError(error);
+   const denied=this.isMac&&require('./mouse-capture-policy.cjs').permissionError(error);
    if(denied&&!this.nativeStatus().pickerAvailable){await this.explainPermission();return;}
    this.lastError=denied?'macOS не разрешила захват текущей сборке. Запись в настройках могла остаться от предыдущей версии. Разрешение запуска приложения и запись экрана — разные разрешения.':String(error.message||'Не удалось создать скриншот').slice(0,500);
    if(!this.test){
-    const result=await this.e.dialog.showMessageBox({type:'warning',title:'Mouse Browser — скриншот',message:denied?'macOS не предоставила доступ к экрану':'Не удалось получить снимок',detail:this.lastError+(!this.isWindows&&error.nativeCode?'\nКод macOS: '+error.nativeCode:''),buttons:this.isWindows?['Закрыть']:['Закрыть','Настройки записи экрана'],defaultId:0,cancelId:0,noLink:true});
-    if(!this.isWindows&&result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
+    const result=await this.e.dialog.showMessageBox({type:'warning',title:'Mouse Browser — скриншот',message:denied?'macOS не предоставила доступ к экрану':'Не удалось получить снимок',detail:this.lastError+(this.isMac&&error.nativeCode?'\nКод macOS: '+error.nativeCode:''),buttons:!this.isMac?['Закрыть']:['Закрыть','Настройки записи экрана'],defaultId:0,cancelId:0,noLink:true});
+    if(this.isMac&&result.response===1)await this.e.shell.openExternal(SETTINGS_URL);
    }
   }finally{this.busy=false;this.publish();}
  }

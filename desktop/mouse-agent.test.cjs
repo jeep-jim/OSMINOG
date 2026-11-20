@@ -13,6 +13,15 @@ function fixture(){
 }
 const client=()=>({sessions:new Map(),pressed:new Map()});
 async function attached(f){f.host.enabled=true;f.host.desk='desk-3';const c=client();const {sessionId}=await f.host.command({method:'Target.attachToTarget',params:{targetId:'owned'}},c);return{c,sessionId};}
+test('Ollama help opens only official named destinations without enabling the agent or granting permissions',async()=>{
+ const f=fixture();await f.host.handle('ollama-help',{page:'download'});assert.deepEqual(f.calls,[{action:'open',args:{url:'https://ollama.com/download',lane:'main'}}]);assert.equal(f.host.state().enabled,false);assert.equal(f.host.autonomous,false);assert.equal(f.host.localCommands,false);
+ for(const page of ['https://hostile.test','toString','__proto__'])await assert.rejects(f.host.handle('ollama-help',{page}),/Неизвестная страница/);
+ assert.equal(f.calls.length,1);await f.host.dispose();
+});
+test('Ollama onboarding stays unavailable outside an open ordinary Agent Mouse panel',async()=>{
+ const f=fixture();f.layout.agentOpen=false;for(const action of ['ollama-models','ollama-help'])await assert.rejects(f.host.handle(action,{page:'download'}),/Откройте Agent Mouse/);
+ f.layout.agentOpen=true;f.host.isPrivate=()=>true;for(const action of ['ollama-models','ollama-help'])await assert.rejects(f.host.handle(action,{page:'download'}),/Откройте Agent Mouse/);assert.deepEqual(f.calls,[]);await f.host.dispose();
+});
 test('gateway requires per-session token and rejects browser Origin; real SDK speaks scoped protocol',async()=>{
  const gateway=new Gateway({WebSocketServer:WS.WebSocketServer,valid:()=>true,targets:()=>[],command:async r=>r.method==='Target.getTargets'?{targetInfos:[{targetId:'safe',type:'page'}]}:{}});await gateway.start(0);
  try{

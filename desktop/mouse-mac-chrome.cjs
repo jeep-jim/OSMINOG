@@ -3,8 +3,8 @@ const {screen}=require('electron'),{ChromeReveal}=require('./mouse/chrome-model.
 function install(win,{test=false}={}){
  let published='';
  const publish=value=>{if(win.isDestroyed()||win.webContents.isDestroyed())return;const key=JSON.stringify(value);if(key===published)return;published=key;win.webContents.send('mouse:chrome',value);};
- if(process.platform==='win32'){
-  // Windows owns its taskbar and system menu. Only report the actual native
+ if(process.platform!=='darwin'){
+  // Windows/Linux own their taskbar and system menu. Only report the actual native
   // window state; never load an AppKit addon or reserve a fake titlebar inset.
   const state=()=>({fullscreen:win.isFullScreen(),maximized:win.isMaximized(),inset:0});
   const update=()=>publish(state());

@@ -29,6 +29,7 @@ test('explicit tasks take priority over declared DOM tasks; obsolete navigation/
 // Installed Electron remains the native geometry/frame/count acceptance gate.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=name=>fs.readFileSync(path.join(__dirname,'mouse',name),'utf8');
+const nativeLayoutSource=()=>{const script=source('browser.js'),start=script.indexOf(' async function layoutNow(){'),end=script.indexOf('\n\n function restorePane()',start);assert.ok(start>=0&&end>start,'Production native layout function exists');return script.slice(start,end);};
 const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
 function fixture(options={}){
  const observers=[],records=[],frames=new Map(),timers=new Map(),calls=[],progressCalls=[],errors=[];let sequence=0,restoreCount=0,clock=100000;
@@ -110,7 +111,7 @@ test('incoming ownership preparation mounts known docks before the shipped layou
  // shipped layoutNow. Real DOM and OS pixel geometry stay native CI gates.
  for(const pane of f.document.querySelectorAll('.pane'))pane.querySelector('.page-slot').getBoundingClientRect=()=>{const occupied=!!pane.querySelector('.mouse-pane-progress')&&!pane.querySelector('.mouse-pane-progress').hidden;return{x:pane.dataset.pane==='p1'?0:511,y:occupied?96:68,width:505,height:occupied?245:273};};
  const calls=[],context={progressUI:f.ui,desktopUI:null,zoomUI:null,m:f.model,document:f.document,tab:id=>id?{internal:false}:null,overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:()=> '#43536b'}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
- const layoutSource=source('browser.js').match(/async function layoutNow\(\)\{[^\n]+\}/)?.[0];assert.ok(layoutSource);const layoutNow=vm.runInNewContext(layoutSource+'\nlayoutNow',context);
+ const layoutNow=vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow',context);
  await layoutNow();assert.equal(calls.length,1);assert.deepEqual(JSON.parse(JSON.stringify(calls[0].args.panels.map(p=>({id:p.id,y:p.y,height:p.height})))),[{id:'c',y:96,height:245},{id:'d',y:68,height:273}]);
  f.emit({tasks:[{...incoming,percent:67,statusText:'Новые данные'}]});f.ui.prepareLayout();await f.advance(1200);
  assert.equal(pill.querySelector('.mouse-progress-value').textContent,'35%','A repeated preparation cannot thaw queued updates during the same transition');assert.equal(f.pendingTicks(),0);assert.equal(f.calls.length,0);
@@ -179,7 +180,7 @@ test('page, AI and Agent pills occupy the slot immediately after their own heade
 test('the native layout starts below the header pill and keeps the pane bottom corners',async()=>{
  const slot={x:8,y:104,width:420,height:360},calls=[],pane={dataset:{pane:'p1'},style:{getPropertyValue:()=> '12'},classList:{contains:name=>name==='has-pane-progress'},querySelector:()=>({getBoundingClientRect:()=>({...slot})})};
  const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
- const layout=source('browser.js').match(/async function layoutNow\(\)\{[^\n]+\}/)?.[0];assert.ok(layout);await vm.runInNewContext(layout+'\nlayoutNow()',context);
+ await vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow()',context);
  assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'layout',args:{panels:[{id:'page',...slot,roundBottom:12,roundColor:'#43536b'}]}}]);
 });
 test('native download feedback shares the header pill without stealing a manual task selection',async()=>{

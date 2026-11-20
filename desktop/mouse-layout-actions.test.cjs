@@ -88,3 +88,8 @@ for(const action of ['split','layout'])test('queued '+action+' waits for history
  }
  await f.time.advance(200);assert.equal(f.writes.length,1);assert.equal(f.writes[0].history.reason,action);assert.deepEqual(f.writes[0].preferences.tree,clone(f.m.tree));assert.ok(Object.values(f.writes[0].preferences.slots).every(id=>id.startsWith('restored-')));
 });
+
+
+test('context grid keeps the clicked tab visible first without closing other tabs and supports stacked halves',async t=>{
+ const f=fixture(t),ids=f.m.state.tabs.map(tab=>tab.id);f.changeLayout(2,{axis:'y',firstTab:'two'});assert.equal(f.m.tree.axis,'y');assert.equal(f.m.tree.ratio,.5);assert.deepEqual(clone(f.m.slots),{p1:'two',p2:'one'});assert.deepEqual(f.m.state.tabs.map(tab=>tab.id),ids);assert.equal(f.native.length,0);await f.time.advance(200);assert.equal(f.writes.length,1);assert.deepEqual(f.writes[0].preferences.slots,{p1:'two',p2:'one'});
+});

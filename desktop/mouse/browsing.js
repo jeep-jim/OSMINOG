@@ -65,11 +65,11 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
   list.append(fragment);list.scrollTop=scrollTop;for(const [img,item]of icons)setIcon(img,item,rowKind,id);
   $('#library-count').textContent=rows.length+' / '+total+' · '+names[kind]();$('#library-more').hidden=rows.length>=total;$('#library-more').textContent=tr('Показать все','Show all');controls();
  }
- async function open(value){hideHints();kind=value;limit=100;resetSelection();$('#library-query').value='';if(!d.open){await N.browser('layout',{panels:[]});d.show();}onSidebar(true);restore();await render();$('#library-query').focus();}
+ async function open(value){hideHints();kind=value;limit=100;resetSelection();$('#library-query').value='';if(!d.open){await N.browser('layout',{panels:[]});d.show();}onSidebar(true);restore();if(kind==='downloads')await N.library('download-seen');await render();$('#library-query').focus();}
  $('#capture-auto').onchange=()=>run(async()=>{try{await N.archive('toggle',{enabled:$('#capture-auto').checked});}finally{await captureSettings();}});
  for(const [id,action] of [['capture-import','import'],['capture-watch-folder','folder'],['capture-open-folder','show-folder']])$('#'+id).onclick=()=>run(async()=>{await N.archive(action);await render();});
  $('#library-close').onclick=()=>d.close();d.addEventListener('close',()=>{if(d.open)return;generation++;observer.disconnect();onSidebar(false);hideHints();restore()});
- d.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>run(()=>{kind=b.dataset.library;limit=100;resetSelection();return render()}));
+ d.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>run(async()=>{kind=b.dataset.library;limit=100;resetSelection();if(kind==='downloads')await N.library('download-seen');return render()}));
  d.querySelectorAll('button[data-view]').forEach(b=>b.onclick=()=>{views[kind]=b.dataset.view;$('#library-rows').dataset.view=b.dataset.view;controls()});
  $('#library-query').oninput=()=>{limit=100;resetSelection();void run(render)};$('#library-more').onclick=()=>{limit=Math.max(100,total);void run(render)};
  $('#library-select-all').onchange=e=>{resetSelection();allSelected=e.target.checked;controls()};
