@@ -1,5 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
+const {newStartTabReady}=require('./mouse-614-badge-smoke.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<120;i++){if(await f())return;await sleep(50);}throw Error('Mouse615 timeout: '+label);}
 module.exports=async({win,browser})=>{
@@ -36,7 +37,8 @@ module.exports=async({win,browser})=>{
     await click('#library-close');await until(()=>js('!document.querySelector("#library-dialog").open'),'library close');
    }
   }
-  const count=await js('MouseTest.model.state.tabs.length');await click('#new-tab');await until(()=>js('MouseTest.model.state.tabs.length').then(n=>n===count+1),'burrow real pointer creates tab');
+  const tabIds=await js('MouseTest.model.state.tabs.map(t=>t.id)'),count=tabIds.length;await click('#new-tab');await until(()=>newStartTabReady({js,beforeIds:tabIds}),'burrow real pointer creates and selects start tab');
+  assert.equal(await js('MouseTest.model.state.tabs.length'),count+1);
   assert.equal(await js('MouseTest.model.state.tabs.find(t=>t.id===MouseTest.model.slots[MouseTest.model.active]).internal'),true);
   const interactions=await require('./mouse-632-controls-smoke.cjs')({win,browser,js,click,until});
   console.log('MOUSE_616_ARCH_PLUS_AND_SEPARATE_FOOTER_BOTH_THEMES_PASS');
