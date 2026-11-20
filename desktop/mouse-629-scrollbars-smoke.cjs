@@ -45,8 +45,9 @@ for(const [target,element]of [['root',document],['nested',document.querySelector
 </script></body></html>`;
 
 // These ordinary, visible fixture scrollers intentionally ask for wide white
-// native bars. No preload runs inside closed roots or cross-origin frames; the
-// Chromium preference must therefore suppress their actual painted gutters.
+// native bars. Frame documents have no page preload, so the native preference
+// must suppress their painted gutters. User-origin CSS can also match shadow
+// roots in Blink; their computed width is not evidence that scrolling works.
 function installScrollProbe(element){
  const events={wheel:[],key:[],end:[]};
  element.addEventListener('wheel',event=>events.wheel.push({isTrusted:event.isTrusted,at:performance.now(),x:event.deltaX,y:event.deltaY}),{passive:true});
@@ -188,7 +189,8 @@ module.exports=async function run({app,win,browser,store}){
     if(kind.endsWith('frame'))await until(async()=>{frame=wc.mainFrame.frames.find(child=>{try{return kind==='same-frame'?new URL(child.url).pathname==='/mouse632-frame':new URL(child.url).pathname==='/mouse632-cross-frame';}catch{return false;}});return!!frame&&await frame.executeJavaScript('typeof mouse632Probe==="function"').catch(()=>false);},kind+' ready');
     const read=()=>frame?frame.executeJavaScript('mouse632Probe()'):guest('mouse632Shadow('+JSON.stringify(kind)+')');
     let before;await until(async()=>{before=await read();return before.dark===(theme==='dark');},kind+' receives native theme');
-    assert.equal(before.width,'auto',kind+' author scrollbar style is untouched by document CSS');
+    if(frame)assert.equal(before.width,'auto',kind+' author scrollbar style is untouched by document CSS');
+    else assert.ok(['auto','none'].includes(before.width),kind+' retains an allowed native/user-origin scrollbar style');
     for(const axis of ['X','Y'])assert.equal(before['gap'+axis],0,kind+' native '+axis+' scrollbar gutter is absent');
     assert.equal(before.overflowX,'scroll');assert.equal(before.overflowY,'scroll');
     assert.ok(before.scrollWidth>before.clientWidth&&before.scrollHeight>before.clientHeight,kind+' overflows in both directions');
