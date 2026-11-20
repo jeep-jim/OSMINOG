@@ -51,7 +51,7 @@ jobs:
     # A verifier-only push must not reinstall or rewrite the active release.
     if: always() && needs.test.result == 'success' && (needs.deploy.result == 'success' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[verify-mouse-search]')))
     runs-on: ubuntu-latest
-    # Includes independent 12s transport probes, two capped 60s diagnostics and
+    # Includes independent 12s transport probes, capped 60s diagnostics and
     # one capped 90s model proof. Individual acceptance deadlines are unchanged.
     timeout-minutes: 8
     environment: osminog-reg
@@ -86,9 +86,9 @@ jobs:
           test ! -L "$base" && test "$(stat -c %U "$base")" = osminog
           test ! -L "$base/proofs" && test ! -L "$base/proofs/$1"
           mkdir -p "$base/proofs/$1"
-          test ! -L "$base/proofs/$1/ai-smoke.py" && test ! -L "$base/proofs/$1/runtime-proof.py" && test ! -L "$base/proofs/$1/diagnose.py" && test ! -L "$base/proofs/$1/url_policy.py"
+          test ! -L "$base/proofs/$1/ai-smoke.py" && test ! -L "$base/proofs/$1/runtime-proof.py" && test ! -L "$base/proofs/$1/diagnose.py" && test ! -L "$base/proofs/$1/url_policy.py" && test ! -L "$base/proofs/$1/engine-matrix.py"
           REMOTE
-          tar -czf - -C infra/mouse-search ai-smoke.py runtime-proof.py diagnose.py url_policy.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/proofs/$GITHUB_SHA"
+          tar -czf - -C infra/mouse-search ai-smoke.py runtime-proof.py diagnose.py url_policy.py engine-matrix.py | ssh "${ssh_args[@]}" osminog@151.248.113.177 "tar -xzf - -C /opt/osminog/mouse-search/proofs/$GITHUB_SHA"
           upstream=$(cat infra/mouse-search/upstream-revision)
           [[ "$upstream" =~ ^[0-9a-f]{40}$ ]]
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "/usr/bin/python3 -I -B /opt/osminog/mouse-search/proofs/$GITHUB_SHA/runtime-proof.py --verifier-source $GITHUB_SHA --upstream $upstream" > mouse-search-runtime.json
@@ -115,7 +115,7 @@ jobs:
           unset SSH_PRIVATE_KEY
           printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
           ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
-          for mode in live engine; do
+          for mode in live engine matrix; do
             ssh "${ssh_args[@]}" osminog@151.248.113.177 /bin/bash -s -- "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$mode" > "mouse-search-diagnostic-$mode.log" 2>&1 <<'REMOTE' || true
           set -euo pipefail
           test "$(id -un)" = osminog
@@ -127,10 +127,15 @@ jobs:
             interpreter=/usr/bin/python3; memory=64M; cpu=10%; tasks=8
           elif test "$4" = engine; then
             interpreter="$base/$current/venv/bin/python"; memory=256M; cpu=25%; tasks=64
+          elif test "$4" = matrix; then
+            interpreter="$base/$current/venv/bin/python"; memory=256M; cpu=25%; tasks=64
           else exit 1; fi
+          if test "$4" = matrix; then
+            script_args=("$base/proofs/$1/engine-matrix.py" --verifier-source "$1")
+          else script_args=("$base/proofs/$1/diagnose.py" --verifier-source "$1" --mode "$4"); fi
           unit="osminog-mouse-search-diag-$4-$2-$3"
           set +e
-          systemd-run --user --wait --pipe --unit="$unit" -p MemoryMax="$memory" -p MemorySwapMax=0 -p CPUQuota="$cpu" -p TasksMax="$tasks" -p NoNewPrivileges=yes -p RuntimeMaxSec=60 -p LimitCORE=0 "$interpreter" -I -B -u "$base/proofs/$1/diagnose.py" --verifier-source "$1" --mode "$4"
+          systemd-run --user --wait --pipe --unit="$unit" -p MemoryMax="$memory" -p MemorySwapMax=0 -p CPUQuota="$cpu" -p TasksMax="$tasks" -p NoNewPrivileges=yes -p RuntimeMaxSec=60 -p LimitCORE=0 "$interpreter" -I -B -u "${script_args[@]}"
           result=$?
           if test "$result" -ne 0; then
             systemctl --user show "$unit" -p Result -p ExecMainCode -p ExecMainStatus -p ActiveState
