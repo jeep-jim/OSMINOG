@@ -19,8 +19,8 @@ if(process.platform==='win32'&&process.arch==='x64'){
 const include=path.resolve(path.dirname(process.execPath),'../include/node');
 if(!fs.existsSync(path.join(include,'node_api.h')))throw Error('Pinned Node distribution headers missing: '+include);
 if(process.platform==='linux'&&process.arch==='x64'){
- cp.execFileSync('g++',['-std=c++17','-shared','-fPIC','-I',include,'mouse-agent/mcp-fs-native.cc','-o','mouse-mcp-fs.node'],{stdio:'inherit',cwd:__dirname});
- const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove'])if(typeof native[name]!=='function')throw Error('Missing Linux native export: '+name);
+ cp.execFileSync('g++',['-std=c++17','-shared','-fPIC','-I',include,'mouse-agent/mcp-fs-native.cc','-lX11','-o','mouse-mcp-fs.node'],{stdio:'inherit',cwd:__dirname});
+ const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove','primaryDown'])if(typeof native[name]!=='function')throw Error('Missing Linux native export: '+name);
  console.log('MOUSE_LINUX_NATIVE_X64_BUILT');return;
 }
 if(process.platform!=='darwin'||process.arch!=='arm64')throw Error('Build on macOS Apple Silicon, Windows x64 or Linux x64');

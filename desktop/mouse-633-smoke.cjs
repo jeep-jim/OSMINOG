@@ -86,6 +86,9 @@ module.exports=async ctx=>{
 
   await stage('native context menu',async()=>{
    facts.contextMenu=await require('./mouse-633-context-smoke.cjs')({...ctx,fixture,nativeInput});
+   // The private-menu scenario navigates the shell. Reattach the passive input
+   // observer to the returned normal document before the next native action.
+   await shellReady();
   });
 
   await stage('download feedback',async()=>{

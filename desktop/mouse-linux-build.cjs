@@ -45,6 +45,6 @@ module.exports={
   executableArgs:[]},
  appImage:{executableArgs:[]},
  deb:{packageName:'mouse-browser',maintainer:'Mouse Browser',
-  depends:['libgtk-3-0','libnotify4','libnss3','libxss1','libxtst6','xdg-utils','libatspi2.0-0','libuuid1','libsecret-1-0']},
+  depends:['libgtk-3-0','libnotify4','libnss3','libx11-6','libxss1','libxtst6','xdg-utils','libatspi2.0-0','libuuid1','libsecret-1-0']},
  publish:null
 };
