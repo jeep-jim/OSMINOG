@@ -18,6 +18,19 @@ function sample(image,mapping,point,bitmap){
  assert.equal(bytes.length,size.width*size.height*4);const i=(y*size.width+x)*4;return{x,y,rgba:[bytes[i+2],bytes[i+1],bytes[i],bytes[i+3]]};
 }
 function matches(probe){return probe.rgba[3]===255&&probe.expected.every((v,i)=>Math.abs(v-probe.rgba[i])<=3);}
+function fixtureControlsReadback(){
+ const rect=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
+ return{viewport:{width:innerWidth,height:innerHeight},title:rect('h2'),input:rect('input')};
+}
+function validateFixtureControls(geometry,bounds,points,factor){
+ assert.ok(Number.isFinite(factor)&&factor>0);const {viewport}=geometry;
+ assert.ok(Number.isFinite(viewport.width)&&Number.isFinite(viewport.height)&&viewport.width>0&&viewport.height>0);
+ for(const name of ['title','input']){
+  const r=geometry[name];assert.ok(r&&['x','y','width','height'].every(key=>Number.isFinite(r[key]))&&r.x>=0&&r.y>=0&&r.width>0&&r.height>0&&r.x+r.width<=viewport.width&&r.y+r.height<=viewport.height-8,'Owned fixture '+name+' remains above the bottom pixel witness zone');
+  for(const probe of points){const x=(probe.point.x-bounds.x)/factor,y=(probe.point.y-bounds.y)/factor;assert.ok(x>=0&&y>=0&&x<viewport.width&&y<viewport.height);assert.ok(!(x>=r.x&&x<r.x+r.width&&y>=r.y&&y<r.y+r.height),'Owned fixture '+name+' does not cover the unchanged native page-interior probe');}
+ }
+ return true;
+}
 module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  assert.equal(app.getVersion(),'6.0.33');assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
@@ -47,6 +60,10 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
   await fs.writeFile(metadata.capture,png);await fs.writeFile(metadata.screenCapture,screenPNG);return{image,metadata,bitmap:{size:image.getSize(1),bytes:image.toBitmap({scaleFactor:1})}};
  }
  async function identities(){return Promise.all(pages.map(async page=>({id:page.id,webContentsId:page.view.webContents.id,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0,bounds:page.bounds,clip:page.clipView?.getBounds()||null,...await page.view.webContents.executeJavaScript('({timeOrigin:performance.timeOrigin,identity:globalThis.mouse629Identity,field:document.querySelector("input").value,width:innerWidth,height:innerHeight,scrollX,scrollY})')})));}
+ async function fixtureControls(row,targets,points){
+  row.fixtureControls=await Promise.all(targets.map(async page=>({id:page.id,webContentsId:page.view.webContents.id,bounds:{...page.bounds},factor:page.view.webContents.getZoomFactor(),...await page.view.webContents.executeJavaScript('('+fixtureControlsReadback.toString()+')()')})));
+  for(const item of row.fixtureControls)validateFixtureControls(item,item.bounds,points.filter(probe=>probe.id===item.id&&['page-interior','ai-bottom-interior'].includes(probe.kind)),item.factor);
+ }
  async function workspaceScene(theme,aiPage){
   const geometry=await js('('+workspace633.workspaceReadback.toString()+')()');workspace633.validateGeometry(geometry,{ai:!!aiPage});
   const native=[...pages,...(aiPage?[aiPage]:[])].map(page=>workspace633.nativePanel(page,win));workspace633.validateNative(geometry,native);
@@ -70,6 +87,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
   }
   assert.ok(points.filter(p=>p.kind==='corner-cutout').length>=20,'Dense fixture covers several independent native junctions');
   const row={theme,variant,expectedHex:expected.hex,expectedRGB:expected.rgb,actualToken:geometry.actualToken,stageColor:geometry.stageColor,dividerColors:geometry.dividerColors,paneCount:7,viewport:geometry.viewport,nativePanels:pages.map(page=>({id:page.id,bounds:page.bounds})),probes:[],workspace633:await workspaceScene(theme)};facts.separators.push(row);
+  await fixtureControls(row,pages,points);
   for(let attempt=0;attempt<15;attempt++){
    if(attempt)await sleep(100);const captured=await capture('mouse-629-separators-'+theme+'-'+variant);row.nativeCapture=captured.metadata;row.probes=points.map(p=>({...p,...sample(captured.image,captured.metadata.mapping,p.point,captured.bitmap)}));row.attempts=attempt+1;
    if(row.probes.every(matches)&&workspacePixels(row.workspace633,captured))break;
@@ -87,6 +105,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
    for(const u of [.65,1.6,3])for(const v of [.65,1.6,3])if(Math.hypot(12-u,12-v)>13.5)row.points.push({kind:'ai-bottom-cutout',id,side,guestBounds:{...bounds},point:{x:side==='left'?bounds.x+u:bounds.x+bounds.width-u,y:bounds.y+bounds.height-v},expected:PALETTE[theme].rgb});
    row.points.push({kind:'ai-bottom-interior',id,side,guestBounds:{...bounds},point:{x:side==='left'?bounds.x+20:bounds.x+bounds.width-20,y:bounds.y+bounds.height-3},expected:workspace633.AI_COLOR});
   }
+  await fixtureControls(row,[...pages,page],row.points);
   for(let attempt=0;attempt<15;attempt++){if(attempt)await sleep(100);const captured=await capture('mouse-633-workspace-ai-'+theme);row.nativeCapture=captured.metadata;row.attempts=attempt+1;if(workspacePixels(row,captured))break;}
   await finishWorkspace(row);row.aiIdentityAfter=await identity();assert.deepEqual(row.aiIdentityAfter,row.aiIdentityBefore);assert.equal(row.aiIdentityBefore.url,url);
   row.input=[];
@@ -120,7 +139,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
   if(fullscreen){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'exit fullscreen');}
   const work=screen.getDisplayMatching(bounds).workArea,initialBounds={x:work.x+8,y:work.y+8,width:Math.min(1443,work.width-16),height:Math.min(917,work.height-16)};
   win.setBounds(initialBounds);await activate();await painted();
-  server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}const ai=req.url==='/ai',index=ai?7:Number(req.url.slice(1));assert.ok(Number.isInteger(index)&&index>=0&&index<(ai?8:7));res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><meta charset="utf-8"><title>Mouse629 pane '+index+'</title><style>html,body{margin:0;min-height:100%;background:rgb('+(ai?workspace633.AI_COLOR:COLORS[index]).join(',')+');color:white;font:14px sans-serif}h2{margin:12px}input{margin:12px;max-width:70%}</style><h2>Native pane '+index+'</h2><input value="retained-'+index+'"><script>globalThis.mouse629Identity=Math.random();globalThis.mouse633WorkspaceInputs=[];document.addEventListener("pointerdown",event=>{mouse633WorkspaceInputs.push({trusted:event.isTrusted,x:event.clientX,y:event.clientY,at:performance.now()})})</script>');});
+  server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}const ai=req.url==='/ai',index=ai?7:Number(req.url.slice(1));assert.ok(Number.isInteger(index)&&index>=0&&index<(ai?8:7));res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><meta charset="utf-8"><title>Mouse629 pane '+index+'</title><style>html,body{margin:0;min-height:100%;background:rgb('+(ai?workspace633.AI_COLOR:COLORS[index]).join(',')+');color:white;font:14px sans-serif}h2{position:absolute;left:12px;right:12px;top:6px;height:18px;margin:0;overflow:hidden;white-space:nowrap;font:600 16px/18px sans-serif}input{box-sizing:border-box;position:absolute;left:12px;top:28px;width:min(160px,calc(100% - 24px));height:20px;margin:0;padding:1px 2px;font:12px/16px sans-serif}</style><h2>Native pane '+index+'</h2><input value="retained-'+index+'"><script>globalThis.mouse629Identity=Math.random();globalThis.mouse633WorkspaceInputs=[];document.addEventListener("pointerdown",event=>{mouse633WorkspaceInputs.push({trusted:event.isTrusted,x:event.clientX,y:event.clientY,at:performance.now()})})</script>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));for(let i=0;i<7;i++){const opened=await browser.command('open',{url:'http://127.0.0.1:'+server.address().port+'/'+i,lane:'main'});pages.push(browser.get(opened.id));}
   await until(()=>pages.every(page=>!page.loading&&!page.error),'seven native fixture pages load');
   const leaves=require('./mouse/layout.js').leaves(TREE),slots=Object.fromEntries(leaves.map((id,i)=>[id,pages[i].id]));
@@ -151,3 +170,5 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
  finally{for(const row of facts.scrollbars?.themes||[]){const shot=row.screenshot;if(path.resolve(shot.path)!==path.resolve(shot.filename))await fs.copyFile(shot.path,shot.filename);}await fs.writeFile('mouse-629-ui-regressions.json',JSON.stringify(facts,null,2)+'\n');}
  console.log('MOUSE_629_UI_REGRESSIONS_NATIVE_PASS');return facts;
 };
+module.exports.fixtureControlsReadback=fixtureControlsReadback;
+module.exports.validateFixtureControls=validateFixtureControls;
