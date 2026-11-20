@@ -43,21 +43,72 @@ function processId(rows){
  const browser=rows.filter(row=>row.type==='browser');assert.equal(browser.length,1,'One owned native browser process required');
  assert.ok(Number.isSafeInteger(browser[0].id)&&browser[0].id>0,'Native browser PID missing');return browser[0].id;
 }
-async function linuxProcessIdentity(port,input){
+function mountForExecutable(text,executable){
+ assert.ok(typeof text==='string'&&text.length>0&&text.length<=4*1024*1024&&!text.includes('\0'),'Invalid native mount table');
+ const decode=value=>value.replace(/\\(040|011|012|134)/g,(_,octal)=>String.fromCharCode(parseInt(octal,8)));
+ const candidates=[];
+ for(const raw of text.trimEnd().split('\n')){
+  const fields=raw.split(' '),separator=fields.indexOf('-');if(separator<6||fields.length!==separator+4)continue;
+  const mountPoint=decode(fields[4]);if(executable!==mountPoint&&!executable.startsWith(mountPoint.replace(/\/$/,'')+'/'))continue;
+  candidates.push({raw,mountId:Number(fields[0]),parentMountId:Number(fields[1]),device:fields[2],root:decode(fields[3]),mountPoint,
+   options:fields[5].split(','),filesystem:fields[separator+1],source:decode(fields[separator+2]),superOptions:fields[separator+3].split(',')});
+ }
+ candidates.sort((a,b)=>b.mountPoint.length-a.mountPoint.length);assert.ok(candidates.length,'Native executable mount is missing');
+ assert.ok(candidates.length===1||candidates[0].mountPoint!==candidates[1].mountPoint,'Ambiguous native executable mount');return candidates[0];
+}
+function validateLinuxProcessIdentity(facts,input,uid){
+ assert.ok(Number.isSafeInteger(uid)&&uid>0);assert.equal(facts.uid,uid);assert.equal(facts.packageFormat,input.packageFormat);
+ const chain=facts.launchAncestry;assert.ok(Array.isArray(chain)&&chain.length>0&&chain.length<=16,'Owned launch ancestry missing');
+ assert.equal(chain[0].pid,facts.pid);assert.equal(chain.at(-1).pid,facts.launcherPid);assert.equal(new Set(chain.map(row=>row.pid)).size,chain.length);
+ for(let i=0;i<chain.length;i++){const row=chain[i];assert.ok(Number.isSafeInteger(row.pid)&&row.pid>0);assert.ok(Number.isSafeInteger(row.parentPid)&&row.parentPid>0);assert.equal(row.uid,uid);if(i+1<chain.length)assert.equal(row.parentPid,chain[i+1].pid);}
+ assert.equal(path.posix.basename(facts.executable),'mouse-browser');
+ if(input.packageFormat==='appimage'){
+  const target=path.posix.resolve(input.executable),image=facts.launchedImage,mount=facts.mount;
+  assert.equal(facts.appImage,target);assert.equal(facts.appImageSource,'verified launch path and owned browser ancestry');
+  assert.ok(facts.environmentAppImage===null||facts.environmentAppImage===target,'Conflicting initial APPIMAGE environment');
+  assert.ok(image&&image.path===target&&image.uid===uid&&image.regularFile===true&&image.executable===true);
+  assert.ok(Number.isSafeInteger(image.size)&&image.size>0&&Number.isSafeInteger(image.device)&&image.device>=0&&Number.isSafeInteger(image.inode)&&image.inode>0);assert.match(image.sha256,/^[0-9a-f]{64}$/);
+  assert.ok(mount&&Number.isSafeInteger(mount.mountId)&&mount.mountId>0&&Number.isSafeInteger(mount.parentMountId)&&mount.parentMountId>0);assert.match(mount.device,/^\d+:\d+$/);
+  assert.equal(mount.root,'/');assert.ok(path.posix.isAbsolute(mount.mountPoint)&&path.posix.normalize(mount.mountPoint)===mount.mountPoint&&mount.mountPoint!=='/');
+  assert.match(mount.filesystem,/^fuse(?:\.[^\s/\\\0]+)?$/);assert.ok(mount.options.includes('ro')&&!mount.options.includes('rw'),'AppImage payload must be an actual read-only FUSE mount');
+  assert.equal(facts.executable,path.posix.join(mount.mountPoint,'mouse-browser'));
+  assert.deepEqual(mountForExecutable(mount.raw+'\n',facts.executable),mount);
+ }else{
+  assert.equal(input.packageFormat,'deb');assert.equal(facts.appImage,null);assert.equal(facts.environmentAppImage,null);assert.equal(facts.executable,path.posix.resolve(input.executable));assert.ok(facts.executable.startsWith('/opt/'));
+ }
+ return true;
+}
+async function appImageReceipt(file,uid){
+ const before=await fs.lstat(file);assert.ok(before.isFile()&&!before.isSymbolicLink());assert.equal(before.uid,uid);assert.ok(before.mode&0o111);
+ const digest=crypto.createHash('sha256');for await(const chunk of sync.createReadStream(file))digest.update(chunk);
+ const after=await fs.lstat(file);for(const key of ['dev','ino','uid','size','mtimeMs'])assert.equal(after[key],before[key],'Image changed while hashing');
+ return{path:path.resolve(file),uid:before.uid,device:before.dev,inode:before.ino,size:before.size,sha256:digest.digest('hex'),regularFile:true,executable:true};
+}
+async function linuxProcessIdentity(port,input,launcherPid,launchedImage,facts){
  // AppImage's FUSE runtime may supervise a distinct browser child. Read the
  // actual browser PID from the owned CDP server, then bind only its /proc facts.
  const response=await fetch('http://127.0.0.1:'+port+'/json/version',{signal:AbortSignal.timeout(1500)});assert.equal(response.ok,true);
  const version=await response.json(),client=await connect(version.webSocketDebuggerUrl);
  try{
   const pid=processId((await client.send('SystemInfo.getProcessInfo')).processInfo);
-  const status=await fs.readFile('/proc/'+pid+'/status','utf8'),uids=status.match(/^Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$/m);
-  assert.ok(uids);assert.ok(process.getuid()>0);assert.ok(uids.slice(1).every(uid=>Number(uid)===process.getuid()));
-  const executable=await fs.readlink('/proc/'+pid+'/exe');assert.equal(path.basename(executable),'mouse-browser');
+  Object.assign(facts,{source:'CDP SystemInfo.getProcessInfo and owned /proc',type:'browser',pid,launcherPid,uid:process.getuid(),packageFormat:input.packageFormat,launchAncestry:[]});
+  let current=pid;
+  for(let i=0;i<16;i++){
+   const status=await fs.readFile('/proc/'+current+'/status','utf8'),uids=status.match(/^Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$/m),parent=status.match(/^PPid:\s+(\d+)\s*$/m);
+   assert.ok(uids&&parent);assert.ok(process.getuid()>0);assert.ok(uids.slice(1).every(uid=>Number(uid)===process.getuid()));
+   facts.launchAncestry.push({pid:current,parentPid:Number(parent[1]),uid:process.getuid()});if(current===launcherPid)break;current=Number(parent[1]);assert.ok(current>1,'Browser is not a child of the owned launcher');
+  }
+  facts.executable=await fs.readlink('/proc/'+pid+'/exe');
   const environment=(await fs.readFile('/proc/'+pid+'/environ','utf8')).split('\0');
-  const appImage=environment.find(value=>value.startsWith('APPIMAGE='))?.slice(9)||null;
-  if(input.packageFormat==='appimage')assert.equal(appImage,path.resolve(input.executable));
-  else{assert.equal(input.packageFormat,'deb');assert.equal(appImage,null);assert.ok(executable.startsWith('/opt/'));}
-  return{source:'CDP SystemInfo.getProcessInfo and owned /proc',type:'browser',pid,uid:process.getuid(),executable,appImage,packageFormat:input.packageFormat};
+  // Chromium relocates and clears the original argv/environment storage when
+  // setting its process title. /proc/environ is not the live process.env.
+  // Never infer a runtime environment value from the requested launch path.
+  facts.environmentAppImage=environment.find(value=>value.startsWith('APPIMAGE='))?.slice(9)||null;facts.appImage=null;
+  if(input.packageFormat==='appimage'){
+   facts.appImage=path.resolve(input.executable);facts.appImageSource='verified launch path and owned browser ancestry';facts.launchedImage=await appImageReceipt(input.executable,process.getuid());assert.deepEqual(facts.launchedImage,launchedImage,'Launched image bytes changed');
+   facts.mount=mountForExecutable(await fs.readFile('/proc/'+pid+'/mountinfo','utf8'),facts.executable);
+  }
+  validateLinuxProcessIdentity(facts,input,process.getuid());return facts;
  }finally{client.close();}
 }
 function processExited(pid){try{process.kill(pid,0);return false;}catch(error){if(error.code==='ESRCH')return true;throw error;}}
@@ -73,6 +124,7 @@ async function main(){
  const reserve=net.createServer();await new Promise(resolve=>reserve.listen(0,'127.0.0.1',resolve));const port=reserve.address().port;await new Promise(resolve=>reserve.close(resolve));
  const log=sync.createWriteStream(path.join(input.output,prefix+'-'+input.mode+'-app.log'),{flags:'w'});
  const env={...process.env,CI:'true',MOUSE_TEST_PROFILE:input.profile};for(const key of ['ELECTRON_RUN_AS_NODE','APPIMAGE','APPDIR','GH_TOKEN','GITHUB_TOKEN'])delete env[key];
+ const launchedImage=process.platform==='linux'&&input.packageFormat==='appimage'?await appImageReceipt(input.executable,process.getuid()):null;
  const child=cp.spawn(input.executable,['--remote-debugging-port='+port,'--remote-debugging-address=127.0.0.1'],{env,stdio:['ignore','pipe','pipe']});child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false});
  let shell,page,closed=false;const exited=new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>{closed=true;resolve({code,signal});});});
  const facts={ok:false,mode:input.mode,version:input.version,platform:process.platform,arch:process.arch,pid:child.pid,launcherPid:child.pid,reportPrefix:prefix,source:'real installed executable and owned loopback CDP fixture',physicalUserInputVerified:false};
@@ -82,7 +134,7 @@ async function main(){
   const shellTarget=await until(async()=>(await targets()).find(target=>/\/mouse\/index\.html$/.test(target.url)),'native Mouse shell debugger');shell=await connect(shellTarget.webSocketDebuggerUrl);
   await until(()=>evaluate(shell,'document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'real installed shell ready');
   const identity=await evaluate(shell,'({version:MouseNative.version,platform:MouseNative.platform,arch:MouseNative.arch,test:MouseNative.test})');assert.equal(identity.version,input.version);assert.equal(identity.platform,process.platform);assert.equal(identity.arch,process.arch);assert.equal(identity.test,true);facts.identity=identity;
-  if(process.platform==='linux'){facts.processIdentity=await linuxProcessIdentity(port,input);facts.pid=facts.processIdentity.pid;}
+  if(process.platform==='linux'){facts.processIdentity={};await linuxProcessIdentity(port,input,child.pid,launchedImage,facts.processIdentity);facts.pid=facts.processIdentity.pid;}
   let pageId;
   if(input.mode==='write'){
    const opened=await evaluate(shell,'MouseNative.browser("open",{url:'+JSON.stringify(url)+'})');pageId=opened.id;
@@ -109,5 +161,5 @@ async function main(){
  }catch(error){facts.error={message:error.message,stack:error.stack};await save();throw error;}
  finally{shell?.close();page?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));if(!closed){child.kill();await Promise.race([exited,sleep(5000)]);if(!closed)child.kill('SIGKILL');}if(!log.writableEnded)await new Promise(resolve=>log.end(resolve));}
 }
-module.exports={profileDocumentSnapshot,profileDocumentReady,waitForProfileDocument,reportPrefix,processId};
+module.exports={profileDocumentSnapshot,profileDocumentReady,waitForProfileDocument,reportPrefix,processId,mountForExecutable,validateLinuxProcessIdentity,appImageReceipt};
 if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;});

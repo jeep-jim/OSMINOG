@@ -19,5 +19,5 @@ test('620 latest correction uses twelve-pixel pane seams without changing round 
  assert.match(native,/NSMakeRect\(x-\(side\?0:1\),y,radius\+1,radius\+1\)/);
  assert.match(native,/hitTest:\(NSPoint\)point\{return nil;\}/);
  assert.match(host,/Number\(p.roundBottom\)===12/);
- assert.match(css,/#stage \.pane-head button,#ai-panel>\.ai-controls>button\{border-radius:10px\}/);
+ assert.match(css,/#stage \.pane-head button,:is\(#ai-panel,#ai-chat-pane\)>\.ai-controls>button\{border-radius:10px\}/);
 });

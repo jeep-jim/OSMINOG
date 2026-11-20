@@ -103,7 +103,7 @@
  const aiDivider=$('#ai-divider');aiDivider.onpointerdown=e=>beginDrag(e,{kind:'ai',divider:aiDivider});aiDivider.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();m.aiWidth+=e.key==='ArrowLeft'?20:-20;applySide();save()};aiDivider.ondblclick=()=>{m.aiWidth=360;applySide();save()};
  function syncAIPreview(){
   m.aiPreviewId=m.state.tabs.find(t=>t.previewOf===m.aiId&&t.lane==='side')?.id||'';
-  const preview=tab(m.aiPreviewId),pane=$('#ai-preview-pane');pane.hidden=!preview;$('#ai-panel').classList.toggle('has-ai-preview',!!preview);
+  const preview=tab(m.aiPreviewId),pane=$('#ai-preview-pane');if(pane.hidden!==!preview)pane.hidden=!preview;$('#ai-panel').classList.toggle('has-ai-preview',!!preview);
   const title=$('#ai-preview-title'),label=preview?(preview.title||preview.url):'',url=preview?.url||'';if(title.textContent!==label)title.textContent=label;if(title.title!==url)title.title=url;
   for(const name of ['back','forward']){const button=$('[data-action=ai-preview-'+name+']'),disabled=!preview?.[name];if(button.disabled!==disabled)button.disabled=disabled;}
  }

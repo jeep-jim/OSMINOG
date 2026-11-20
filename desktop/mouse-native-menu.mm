@@ -121,7 +121,8 @@ static bool nativeInputProbeAllowed(){
  return ci&&std::strcmp(ci,"true")==0&&profile&&profile[0]=='/'&&
   ([NSProcessInfo.processInfo.arguments containsObject:@"--mouse-smoke-write"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]||
-   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]);
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-634-smoke"]);
 }
 static napi_value testPointer(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}

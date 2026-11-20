@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const helperPath=path.resolve(__dirname,'../tools/mouse-634-profile-upgrade.cjs');
-const {profileDocumentSnapshot,profileDocumentReady,waitForProfileDocument,reportPrefix,processId}=require(helperPath);
+const {profileDocumentSnapshot,profileDocumentReady,waitForProfileDocument,reportPrefix,processId,mountForExecutable,validateLinuxProcessIdentity,appImageReceipt}=require(helperPath);
 const url='http://127.0.0.1:43125/persisted',origin='http://127.0.0.1:43125';
 
 // Synthetic execution contexts exercise the real read-only renderer probe and
@@ -65,4 +65,60 @@ test('Linux report prefixes keep independent deb and AppImage native bytes scope
 test('actual CDP browser PID is distinct from a launcher and rejects ambiguous process lists',()=>{
  assert.equal(processId([{type:'renderer',id:17},{type:'browser',id:29}]),29);
  for(const rows of [[],[{type:'renderer',id:17}],[{type:'browser',id:29},{type:'browser',id:30}],[{type:'browser',id:0}],[{type:'browser',id:'29'}],[{type:'browser',id:1.5}]])assert.throws(()=>processId(rows));
+});
+
+function syntheticMountedProcess(){
+ const input={packageFormat:'appimage',executable:'/tmp/owned/Mouse Browser.AppImage'},executable='/tmp/.mount_Mouse ABC123/mouse-browser';
+ const raw='91 37 0:84 / /tmp/.mount_Mouse\\040ABC123 ro,nosuid,nodev,relatime - fuse.AppImage AppImage ro,user_id=1001,group_id=1001';
+ const facts={pid:410,launcherPid:400,uid:1001,packageFormat:'appimage',executable,appImage:input.executable,appImageSource:'verified launch path and owned browser ancestry',environmentAppImage:null,
+  launchAncestry:[{pid:410,parentPid:400,uid:1001},{pid:400,parentPid:300,uid:1001}],mount:mountForExecutable(raw,executable),
+  launchedImage:{path:input.executable,uid:1001,device:2049,inode:12345,size:135575147,sha256:'b'.repeat(64),regularFile:true,executable:true}};
+ return{input,facts};
+}
+
+test('mounted AppImage identity uses the real FUSE mount and owned launch ancestry when Chromium clears initial environment',()=>{
+ const {input,facts}=syntheticMountedProcess();assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
+ assert.equal(facts.mount.mountPoint,'/tmp/.mount_Mouse ABC123');assert.equal(facts.environmentAppImage,null);
+ facts.environmentAppImage=input.executable;assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
+ facts.mount.raw=facts.mount.raw.replace('fuse.AppImage','fuse.mouse.browser');facts.mount.filesystem='fuse.mouse.browser';assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
+ facts.pid=facts.launcherPid;facts.launchAncestry=[facts.launchAncestry[1]];assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
+});
+
+test('mounted identity rejects wrong process ownership, ancestry, image receipts and conflicting environment',()=>{
+ const mutations=[f=>f.uid=0,f=>f.pid=999,f=>f.launcherPid=999,f=>f.launchAncestry=[],f=>f.launchAncestry[0].parentPid=399,
+  f=>f.launchAncestry[1].uid=0,f=>f.launchAncestry.push(f.launchAncestry[0]),f=>f.environmentAppImage='/tmp/different.AppImage',
+  f=>f.appImage='/tmp/different.AppImage',f=>f.appImageSource='environment',f=>f.launchedImage.path='/tmp/different.AppImage',
+  f=>f.launchedImage.uid=0,f=>f.launchedImage.size=0,f=>f.launchedImage.sha256='missing',f=>f.launchedImage.regularFile=false,f=>f.launchedImage.executable=false];
+ for(const mutate of mutations){const {input,facts}=syntheticMountedProcess();mutate(facts);assert.throws(()=>validateLinuxProcessIdentity(facts,input,1001));}
+});
+
+test('portable executable path alone cannot pass without its exact read-only native FUSE mount',()=>{
+ for(const mutate of [f=>f.executable='/opt/Mouse Browser/mouse-browser',f=>f.executable='/tmp/.mount_Mouse ABC123/other/mouse-browser',
+  f=>f.mount.filesystem='ext4',f=>f.mount.options=['rw'],f=>f.mount.root='/other',f=>f.mount.mountPoint='/tmp/another',f=>f.mount.raw=f.mount.raw.replace('0:84','0:85')]){
+  const {input,facts}=syntheticMountedProcess();mutate(facts);assert.throws(()=>validateLinuxProcessIdentity(facts,input,1001));
+ }
+ const {facts}=syntheticMountedProcess(),root='37 1 8:1 / / rw - ext4 /dev/root rw\n';
+ assert.equal(mountForExecutable(root+facts.mount.raw+'\n',facts.executable).mountId,91);
+ assert.throws(()=>mountForExecutable(facts.mount.raw+'\n'+facts.mount.raw,facts.executable));
+ assert.throws(()=>mountForExecutable(root+'\0',facts.executable));
+});
+
+test('native deb identity remains the exact installed executable and cannot be relabelled portable',()=>{
+ const input={packageFormat:'deb',executable:'/opt/Mouse Browser/mouse-browser'},facts={pid:22,launcherPid:22,uid:1001,packageFormat:'deb',executable:input.executable,appImage:null,environmentAppImage:null,launchAncestry:[{pid:22,parentPid:11,uid:1001}]};
+ assert.equal(validateLinuxProcessIdentity(facts,input,1001),true);
+ for(const mutate of [f=>f.executable='/opt/Another/mouse-browser',f=>f.executable='/tmp/.mount_Image/mouse-browser',f=>f.appImage='/tmp/owned.AppImage']){
+  const copy=structuredClone(facts);mutate(copy);assert.throws(()=>validateLinuxProcessIdentity(copy,input,1001));
+ }
+});
+
+test('AppImage launch receipt hashes actual owned bytes and rejects symlinks/non-executables',{skip:process.platform!=='linux'},async()=>{
+ const fsp=require('node:fs/promises'),os=require('node:os'),crypto=require('node:crypto');
+ const folder=await fsp.mkdtemp(path.join(os.tmpdir(),'mouse634-receipt-'));
+ try{
+  const file=path.join(folder,'synthetic.AppImage'),raw=Buffer.from('Synthetic unit payload, never an installed native app');await fsp.writeFile(file,raw,{mode:0o700});
+  const receipt=await appImageReceipt(file,process.getuid());assert.equal(receipt.size,raw.length);assert.equal(receipt.sha256,crypto.createHash('sha256').update(raw).digest('hex'));
+  await fsp.writeFile(file,Buffer.concat([raw,Buffer.from('changed')]));assert.notEqual((await appImageReceipt(file,process.getuid())).sha256,receipt.sha256);
+  const link=path.join(folder,'link.AppImage');await fsp.symlink(file,link);await assert.rejects(appImageReceipt(link,process.getuid()));
+  await fsp.chmod(file,0o600);await assert.rejects(appImageReceipt(file,process.getuid()));
+ }finally{await fsp.rm(folder,{recursive:true,force:true});}
 });

@@ -13,17 +13,17 @@ function renderer(){
   result.dataset=new Proxy({},{set(target,key,value){target[key]=value;writes.push({node:name,key:'data-'+key,value});return true;}});nodes.set(name,result);return result;
  }
  const panes=Array.from({length:4},(_,i)=>{const p=node('p'+(i+1));p.dataset.pane=p.name;for(const selector of ['.page-slot','.pane-address input','.pane-title','.pane-icon','[data-pane-action=back]','[data-pane-action=forward]','.pane-name','.page-slot>.empty>.mouse-mascot','.page-slot>.empty','.empty h2','[data-pane-action=open]'])p.children.set(selector,node(p.name+'/'+selector));return p;});
- const globals=new Map(['#address-input','.navigation [data-action=back]','.navigation [data-action=forward]','.navigation [data-action=reload]'].map(selector=>[selector,node(selector)]));
+ const globals=new Map(['#address-input','.navigation [data-action=back]','.navigation [data-action=forward]','.navigation [data-action=reload]','#ai-preview-pane','#ai-panel','#ai-preview-title','[data-action=ai-preview-back]','[data-action=ai-preview-forward]'].map(selector=>[selector,node(selector)]));
  const reloads=panes.map(p=>{const b=node(p.name+'/reload');b.closest=()=>p;b.children.set('.mouse-reload-glyph',node(p.name+'/glyph'));return b;});
  const document={activeElement:null,querySelector:selector=>globals.get(selector),querySelectorAll:selector=>selector==='.pane'?panes:selector.includes('reload')?reloads:[],createElement:()=>node('new'),addEventListener(){},removeEventListener(){}};
  const tabs=Array.from({length:10},(_,i)=>({id:'tab-'+i,title:'Title '+i,url:'https://fixture.test/'+i,lane:'main',loading:false,internal:false}));
  const m={ready:true,desktopId:'desk',state:{tabs},active:'p1',slots:Object.fromEntries(panes.map((p,i)=>[p.name,tabs[i].id])),aiId:''};
  const context={document,m,performance:{now:()=>0},setTimeout,clearTimeout,MouseNative:{platform:'darwin'},$:(selector)=>globals.get(selector),tab:id=>m.state.tabs.find(t=>t.id===id),selected:()=>m.state.tabs.find(t=>t.id===m.slots[m.active]),favicon:()=>node('favicon'),el:()=>node('mascot'),home:{mount:()=>mounts.home++},documentsUI:{mount:()=>mounts.documents++},prefs:()=>({slots:m.slots}),reconcile(){},renderTabs(){},syncAIIcon(){},applySide:()=>mounts.layouts++,desktopUI:{render(){}},progressUI:{render(){}},save(){}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/mouse-616-ui.js'),'utf8'),context);context.chromeControls=context.createMouseChromeControls({model:m,tab:context.tab,doc:document});
- const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),begin=source.indexOf('const paneBindings='),end=source.indexOf('function changeLayout(',begin),receive=source.indexOf('function receiveState('),receiveEnd=source.indexOf('N.onState(receiveState)',receive);
- assert.ok(begin>=0&&end>begin&&receive>=0&&receiveEnd>receive);vm.runInContext(source.slice(begin,end)+'\n'+source.slice(receive,receiveEnd),context);
- context.syncPaneLabels();writes.length=0;for(const key of Object.keys(mounts))mounts[key]=0;
- return{m,document,panes,nodes,writes,mounts,sync:context.syncPaneLabels,receive:context.receiveState,change(index,fields){const next=m.state.tabs.map(t=>({...t}));Object.assign(next[index],fields);context.receiveState({desktopId:'desk',tabs:next});}};
+ const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),begin=source.indexOf('const paneBindings='),end=source.indexOf('function changeLayout(',begin),receive=source.indexOf('function receiveState('),receiveEnd=source.indexOf('N.onState(receiveState)',receive),preview=source.indexOf('function syncAIPreview('),previewEnd=source.indexOf('function applySide(',preview);
+ assert.ok(begin>=0&&end>begin&&receive>=0&&receiveEnd>receive&&preview>=0&&previewEnd>preview);vm.runInContext(source.slice(begin,end)+'\n'+source.slice(preview,previewEnd)+'\n'+source.slice(receive,receiveEnd),context);
+ context.syncPaneLabels();context.syncAIPreview();writes.length=0;for(const key of Object.keys(mounts))mounts[key]=0;
+ return{m,document,panes,nodes,writes,mounts,sync:context.syncPaneLabels,syncPreview:context.syncAIPreview,receive:context.receiveState,change(index,fields){const next=m.state.tabs.map(t=>({...t}));Object.assign(next[index],fields);context.receiveState({desktopId:'desk',tabs:next});}};
 }
 
 test('track titles update only the owning labels and do not remount any pane content',()=>{
@@ -39,6 +39,13 @@ test('media metadata preserves an actively edited address and adjacent document 
  f.change(0,{title:'Next song',loading:true});f.change(0,{loading:false});
  assert.equal(input.value,'unfinished address');assert.equal(f.mounts.documents,mounts.documents,'An adjacent editor is not remounted by media/loading metadata');assert.equal(f.mounts.home,mounts.home);
  f.change(1,{revision:2});assert.equal(f.mounts.documents,mounts.documents+1,'A real document revision still reaches the document owner');
+});
+
+test('track changes leave an existing AI preview untouched while its own title stays current',()=>{
+ const f=renderer();f.m.aiId='chat';f.m.state.tabs.push({id:'chat',lane:'side',url:'https://chat.test/',title:'Chat'},{id:'preview',lane:'side',previewOf:'chat',url:'https://page.test/',title:'Preview'});f.syncPreview();f.writes.length=0;
+ for(let i=0;i<30;i++)f.change(0,{title:'Track '+i});
+ assert.equal(f.m.aiPreviewId,'preview');assert.equal(f.nodes.get('#ai-preview-title').textContent,'Preview');assert.ok(f.writes.every(write=>!write.node.includes('ai-preview')&&write.node!=='#ai-panel'),'Unrelated media metadata does not mutate the preview');assert.equal(f.mounts.layouts,0);
+ f.writes.length=0;f.change(11,{title:'Updated preview'});assert.equal(f.nodes.get('#ai-preview-title').textContent,'Updated preview');assert.deepEqual(f.writes,[{node:'#ai-preview-title',key:'textContent',value:'Updated preview'}]);assert.equal(f.mounts.layouts,0);
 });
 
 test('replacing a selected page still mounts its new content and requests native layout',()=>{
