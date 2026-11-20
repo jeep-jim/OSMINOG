@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {siteHTML,searchRows,assertSearchGeometry,PALETTE,TYPES}=require('./mouse-634-search-smoke.cjs');
+const {siteHTML,searchRows,assertSearchGeometry,searchWheelTargetProblems,PALETTE,TYPES}=require('./mouse-634-search-smoke.cjs');
 const {parseOpenGraph,normalizeResult}=require('./mouse-search-service.cjs');
 
 function scene(){
@@ -22,4 +22,21 @@ test('owned search pagination binds unique result URLs to two distinct fixture o
 });
 test('native website fixtures exercise real OG article, video and product metadata parsing',()=>{
  const origins=['http://127.0.0.1:43111','http://127.0.0.1:43112'];for(const [index,row]of searchRows(1,origins).entries()){const metadata=parseOpenGraph(siteHTML(index),row.url,origins),result=normalizeResult({...row,...metadata},origins);assert.equal(result.type,TYPES[index%3]);assert.equal(result.title,'Owned result '+index);assert.equal(result.url,row.url);if(result.type==='product')assert.ok(String(result.price).includes(String(100+index)));}
+});
+function wheelTarget(){
+ const bounds={x:18,y:172,width:306,height:89},contentBounds={x:4,y:29,width:1016,height:676},point={x:40,y:40};
+ const pin={identity:'owned-five',timeOrigin:123,url:'http://127.0.0.1:43112/site/5',webContentsId:12,revision:4,navigationEpoch:1,bounds,contentBounds,zoom:1};
+ const native={current:true,destroyed:false,webContentsId:12,revision:4,navigationEpoch:1,url:pin.url,visible:true,viewVisible:true,attached:true,blocked:false,loading:false,focused:true,bounds,zoom:1,window:{visible:true,focused:true,minimized:false,contentBounds}};
+ return{pin,point,native,before:structuredClone(native),dom:{identity:pin.identity,timeOrigin:123,url:pin.url,readyState:'complete',visibilityState:'visible',focused:true,viewport:{width:306,height:89},point,hit:true,pointer:{trusted:true,x:40,y:40}}};
+}
+test('search wheel readiness rejects a virtualized or changed native owner before input',()=>{
+ assert.deepEqual(searchWheelTargetProblems(wheelTarget(),true),[]);
+ for(const mutate of [s=>{s.native.current=false;},s=>{s.native.destroyed=true;},s=>{s.native.webContentsId=13;},s=>{s.native.navigationEpoch++;},s=>{s.native.revision++;},s=>{s.dom.identity='new-document';},s=>{s.dom.timeOrigin++;}]){const snapshot=wheelTarget();mutate(snapshot);assert.ok(searchWheelTargetProblems(snapshot,true).some(reason=>reason.startsWith('identity:')));}
+});
+test('search wheel readiness requires actual attached geometry, completed loading and native/document focus',()=>{
+ for(const mutate of [s=>{s.native.viewVisible=false;},s=>{s.native.attached=false;},s=>{s.native.loading=true;},s=>{s.native.blocked=true;},s=>{s.native.focused=false;},s=>{s.dom.focused=false;},s=>{s.native.window.focused=false;},s=>{s.before.bounds.y++;},s=>{s.native.bounds={...s.native.bounds,y:173};},s=>{s.native.zoom=2;},s=>{s.before.zoom=2;},s=>{s.dom.point={x:40,y:90};},s=>{s.dom.hit=false;}]){const snapshot=wheelTarget();mutate(snapshot);assert.ok(searchWheelTargetProblems(snapshot,true).length>0);}
+});
+test('search wheel readiness requires a real pointer receipt at the current guest point',()=>{
+ for(const pointer of [null,{trusted:false,x:40,y:40},{trusted:true,x:40,y:39}]){const snapshot=wheelTarget();snapshot.dom.pointer=pointer;assert.deepEqual(searchWheelTargetProblems(snapshot,false),[]);assert.ok(searchWheelTargetProblems(snapshot,true).includes('native-pointer-not-observed'));}
+ const scaled=wheelTarget();scaled.pin.zoom=scaled.native.zoom=scaled.before.zoom=2;scaled.dom.point={x:20,y:20};scaled.dom.pointer={trusted:true,x:20,y:20};assert.deepEqual(searchWheelTargetProblems(scaled,true),[]);
 });

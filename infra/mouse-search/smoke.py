@@ -1,6 +1,7 @@
 """Live, public TLS and upstream search proof. Only synthetic public queries."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,10 @@ import ssl
 import time
 import urllib.error
 import urllib.request
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode
+
+_spec=importlib.util.spec_from_file_location('mouse_proof_url_policy',Path(__file__).with_name('url_policy.py'))
+_policy=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(_policy)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -53,24 +57,28 @@ def checks(get, report):
     pin = Path(__file__).with_name('upstream-revision').read_text().strip()
     assert health.get('ok') and health.get('service') == 'osminog-mouse-search' and health.get('upstream') == pin
     observations = report['checks']
+    page_urls=[]
     for query, page, category in [('Python programming language', 1, 'general'), ('Python programming language', 2, 'general'), ('NASA moon landing', 1, 'videos')]:
         start = time.monotonic()
         result = get('/search', {'q': query, 'format': 'json', 'pageno': page, 'categories': category, 'safesearch': 1, 'language': 'all'})
         rows = result.get('results')
+        usable=[row for row in rows if _policy.usable_row(row)] if isinstance(rows,list) else []
         # Preserve real engine failures even when no usable result was returned.
         observation = {'query': query, 'page': page, 'category': category,
-                       'results': len(rows) if isinstance(rows, list) else None,
+                       'rawCount':len(rows) if isinstance(rows,list) else None,
+                       'rejectedCount':len(rows)-len(usable) if isinstance(rows,list) else None,
+                       'results':len(usable),
                        'elapsedSeconds': round(time.monotonic()-start, 3),
                        'unresponsiveEngines': result.get('unresponsive_engines', []), 'sample': []}
         observations.append(observation)
-        assert isinstance(rows, list) and rows, ('No real results', category, page, result.get('unresponsive_engines'))
-        assert any(isinstance(row.get('title'), str) and row['title'].strip() for row in rows)
-        for row in rows:
-            parsed = urlparse(row['url'])
-            assert parsed.scheme in ('https', 'http') and parsed.hostname and parsed.hostname not in ('localhost', '127.0.0.1')
-        observation['sample'] = [{k: row.get(k) for k in ('title', 'url', 'engine')} for row in rows[:5]]
-    first = {row['url'] for row in observations[0]['sample']}
-    assert any(row['url'] not in first for row in observations[1]['sample']), 'Pagination returned only first-page sample'
+        assert isinstance(rows, list) and usable, ('No usable real results', category, page, result.get('unresponsive_engines'))
+        if category=='videos':
+            assert any(row.get('template')=='videos.html' or 'video' in str(row.get('engine','')).lower() for row in usable), 'No usable video results'
+        observation['sample'] = [{k: row.get(k) for k in ('title', 'url', 'engine')} for row in usable[:5]]
+        page_urls.append({row['url'] for row in usable})
+    new_page_two=page_urls[1]-page_urls[0]
+    assert new_page_two, 'Pagination returned only first-page URLs'
+    report['newPageTwoUrls']=len(new_page_two)
     try:
         get('/search', {'q': 'synthetic invalid format', 'format': 'html'})
     except urllib.error.HTTPError as error:

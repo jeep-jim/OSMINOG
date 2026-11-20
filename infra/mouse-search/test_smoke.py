@@ -18,6 +18,8 @@ class SmokeTests(unittest.TestCase):
     def setUp(self):
         self.empty=False
         self.repeat=False
+        self.all_invalid=False
+        self.bad_video=False
         self.requests=[]
         parent=self
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -33,7 +35,11 @@ class SmokeTests(unittest.TestCase):
                 if parent.empty:
                     self.send(200,{'results':[],'unresponsive_engines':[['bing','timeout']]});return
                 value='1' if parent.repeat else page+form['categories'][0]
-                self.send(200,{'results':[{'url':'https://example.com/synthetic-fixture/'+value,'title':'Explicit synthetic verifier fixture','engine':'fixture'}]})
+                rows=[{'url':'http:///go/v1/actual-provider-shape','title':'Malformed provider URL','engine':'brave'}]
+                if not parent.all_invalid:
+                    rows.append({'url':'https://example.com/synthetic-fixture/'+value,'title':'Explicit synthetic verifier fixture',
+                                 'engine':'fixture videos' if form['categories']==['videos'] and not parent.bad_video else 'fixture'})
+                self.send(200,{'results':rows})
             def send(self,status,data):
                 raw=json.dumps(data).encode()
                 self.send_response(status);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(raw)
@@ -57,13 +63,29 @@ class SmokeTests(unittest.TestCase):
         self.assertTrue(report['invalidFormatRejected'])
         self.assertEqual([(row['page'],row['category']) for row in report['checks']],[(1,'general'),(2,'general'),(1,'videos')])
         self.assertEqual(len(self.requests),4)
+        self.assertEqual([(row['rawCount'],row['results'],row['rejectedCount']) for row in report['checks']],[(2,1,1)]*3)
+        self.assertEqual(report['newPageTwoUrls'],1)
 
     def test_empty_real_response_preserves_engine_error_and_cannot_pass(self):
         self.empty=True;report={'checks':[]}
-        with self.assertRaisesRegex(AssertionError,'No real results'): smoke.checks(self.get,report)
+        with self.assertRaisesRegex(AssertionError,'No usable real results'): smoke.checks(self.get,report)
         self.assertNotIn('status',report)
         self.assertEqual(report['checks'][0]['results'],0)
         self.assertEqual(report['checks'][0]['unresponsiveEngines'],[['bing','timeout']])
+
+    def test_nonempty_all_invalid_provider_rows_cannot_pass(self):
+        self.all_invalid=True;report={'checks':[]}
+        with self.assertRaisesRegex(AssertionError,'No usable real results'): smoke.checks(self.get,report)
+        self.assertEqual(report['checks'][0]['rawCount'],1)
+        self.assertEqual(report['checks'][0]['results'],0)
+        self.assertEqual(report['checks'][0]['rejectedCount'],1)
+        self.assertNotIn('status',report)
+
+    def test_valid_general_rows_do_not_substitute_for_video_results(self):
+        self.bad_video=True;report={'checks':[]}
+        with self.assertRaisesRegex(AssertionError,'No usable video results'): smoke.checks(self.get,report)
+        self.assertEqual(len(report['checks']),3)
+        self.assertNotIn('status',report)
 
     def test_repeated_first_page_is_still_rejected(self):
         self.repeat=True;report={'checks':[]}
