@@ -19,12 +19,22 @@ test('Linux packaging keeps the common runtime and overwrites the unsafe upstrea
 });
 test('Linux native input is CI-only and emits bounded real XTest actions',()=>{
  const calls=[],runtime={platform:'linux',env:{CI:'true',DISPLAY:':99',MOUSE_TEST_PROFILE:'/tmp/owned-profile'}};
- const driver=createLinuxInput({runtime,spawnSync:(program,args)=>{calls.push({program,args});return{status:0};}});
- assert.equal(driver.testClick(32.4,71.7),true);assert.deepEqual(calls.map(row=>row.args),[['mousemove','--sync','32','72'],['click','1']]);
+ let cursor=[0,0];const driver=createLinuxInput({runtime,spawnSync:(program,args,options)=>{calls.push({program,args});assert.equal(options.timeout,7000);if(args[0]==='mousemove')cursor=args.slice(1).map(Number);return{status:0,stdout:args[0]==='getmouselocation'?`X=${cursor[0]}\nY=${cursor[1]}\nSCREEN=0\nWINDOW=123\n`:''};}});
+ assert.equal(driver.testClick(32.4,71.7),true);assert.deepEqual(calls.map(row=>row.args),[['mousemove','32','72'],['getmouselocation','--shell'],['click','1']]);
  assert.equal(driver.testKey('ctrl+a'),true);assert.deepEqual(calls.at(-1).args,['key','--clearmodifiers','ctrl+a']);
  assert.equal(driver.testRightClick(40,90),true);assert.deepEqual(calls.at(-1).args,['click','3']);assert.equal(driver.testKey('Home'),true);assert.deepEqual(calls.at(-1).args,['key','--clearmodifiers','Home']);
  assert.throws(()=>driver.testMouse(1,2,4),/phase/);assert.throws(()=>driver.testKey('a;echo bad'),/chord/);assert.throws(()=>driver.testClick(NaN,2),/finite/);
  for(const bad of [{...runtime,platform:'win32'},{...runtime,env:{...runtime.env,CI:'false'}},{...runtime,env:{...runtime.env,MOUSE_TEST_PROFILE:'relative'}},{...runtime,env:{...runtime.env,DISPLAY:'remote:99'}}])assert.throws(()=>createLinuxInput({runtime:bad}),/requires/);
+});
+test('Linux native input releases a stationary held pointer and verifies its real location',()=>{
+ const runtime={platform:'linux',env:{CI:'true',DISPLAY:':99',MOUSE_TEST_PROFILE:'/tmp/owned-profile'}},calls=[];let cursor=[40,90];
+ const driver=createLinuxInput({runtime,spawnSync:(_program,args)=>{calls.push(args);if(args[0]==='mousemove'){if(args[1]==='--sync'&&args.slice(2).map(Number).every((value,index)=>value===cursor[index]))return{error:new Error('stationary --sync exceeds the bounded driver deadline'),status:null};cursor=args.slice(1).map(Number);}return{status:0,stdout:args[0]==='getmouselocation'?`X=${cursor[0]}\nY=${cursor[1]}\nSCREEN=0\nWINDOW=123\n`:''};}});
+ assert.equal(driver.testMouse(40,90,0),true);assert.equal(driver.testMouse(40,90,1),true);assert.equal(driver.testMouse(40,90,2),true);assert.equal(driver.testClick(40,90),true);
+ assert.deepEqual(calls.filter(args=>['mousedown','mouseup','click'].includes(args[0])),[['mousedown','1'],['mouseup','1'],['click','1']]);assert.equal(calls.filter(args=>args[0]==='getmouselocation').length,4);
+});
+test('Linux native input refuses button events when the X server reports the wrong or missing position',()=>{
+ const runtime={platform:'linux',env:{CI:'true',DISPLAY:':99',MOUSE_TEST_PROFILE:'/tmp/owned-profile'}};
+ for(const stdout of ['X=41\nY=90\nSCREEN=0\nWINDOW=123\n','X=40\nSCREEN=0\n','not a position']){const calls=[],driver=createLinuxInput({runtime,spawnSync:(_program,args)=>{calls.push(args);return{status:0,stdout:args[0]==='getmouselocation'?stdout:''};}});assert.throws(()=>driver.testClick(40,90),/did not reach/);assert.equal(calls.some(args=>args[0]==='click'),false);}
 });
 test('Linux formats use their own fixed channel and never alter existing platform addresses',()=>{
  const target=releaseTarget({platform:'linux',arch:'x64'}),version='6.0.34',tag=target.tagFor(version),prefix='https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+tag+'/',digest='sha256:'+'a'.repeat(64);
