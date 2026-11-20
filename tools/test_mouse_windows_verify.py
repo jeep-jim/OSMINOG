@@ -97,14 +97,49 @@ class WindowsVerificationContracts(unittest.TestCase):
 
     def test_complete_write_contract_retains_substantive_existing_native_gates(self):
         required = set(verify.WRITE_MARKERS)
-        for marker in ("MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PASS",
-                       "MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS",
-                       "MOUSE_629_UI_REGRESSIONS_NATIVE_PASS",
-                       "MOUSE_628_PER_PANE_PROGRESS_NATIVE_PASS",
-                       "MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS",
-                       "MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS",
-                       "MOUSE_WINDOWS_PRIVATE_MEMORY_ISOLATION_PASS"):
-            self.assertIn(marker, required)
+        baseline = set(verify.BASELINE_629_WRITE_MARKERS)
+        retained = {
+            "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
+            "MOUSE_WINDOWS_FIVE_DESKTOPS_IDENTITY_PASS",
+            "MOUSE_WINDOWS_CTRL_A_CAPTURE_SHORTCUT_PASS",
+            "MOUSE_WINDOWS_NATIVE_WINDOW_CONTROLS_PASS",
+            "MOUSE_625_SEARCH_ENGINE_NORMAL_PRIVATE_PASS",
+            "MOUSE_627_NATIVE_METADATA_WORKLOAD_PRESERVES_LIVE_PAGES_PASS",
+            "MOUSE_628_PER_PANE_PROGRESS_NATIVE_PASS",
+            "MOUSE_629_UI_REGRESSIONS_NATIVE_PASS",
+            "MOUSE_628_BORDERLESS_NATIVE_PASS",
+            "MOUSE_628_NORA_CONTENT_FIT_NATIVE_PASS",
+            "MOUSE_626_CAPTURE_ANY_COLOR_PASS",
+            "MOUSE_628_OPEN_NORA_DESKTOP_SLIDE_NATIVE_PASS",
+            "MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS",
+            "MOUSE_WINDOWS_PRIVATE_MEMORY_ISOLATION_PASS",
+            "MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS",
+            "MOUSE_WINDOWS_PROFILE_WRITE_PASS",
+            "MOUSE_WINDOWS_X64_SMOKE_PASS",
+            "MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED",
+        }
+        superseded_editing = {
+            "MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PASS",
+            "MOUSE_627_DOCUMENT_TABS_NATIVE_PASS",
+            "MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS",
+        }
+        # The actual published629 upgrade fixture retains its original editor gates.
+        self.assertEqual(baseline, retained | superseded_editing)
+        self.assertEqual(len(baseline), len(verify.BASELINE_629_WRITE_MARKERS))
+        self.assertTrue(superseded_editing.isdisjoint(required))
+        current = {
+            "MOUSE_632_DOCUMENTS_VIEW_ONLY_PASS",
+            "MOUSE_632_FOOTER_LAYOUT_BOTH_THEMES_PASS",
+            "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS",
+            "MOUSE_632_OPTIONAL_HELPER_MANUAL_ONLY_PASS",
+            "MOUSE_630_DOWNLOAD_ACTIVITY_PASS",
+            "MOUSE_630_CAPTURE_FEEDBACK_PASS",
+            "MOUSE_630_NORA_NATIVE_FOREGROUND_PASS",
+            "MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS",
+            "MOUSE_630_PAGE_SCROLL_PRESERVED_PASS",
+            "MOUSE_630_PRIVATE_DOWNLOAD_SCOPE_PASS",
+        }
+        self.assertEqual(required, retained | current)
         self.assertEqual(len(required), len(verify.WRITE_MARKERS))
 
 
