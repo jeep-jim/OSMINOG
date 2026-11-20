@@ -1,0 +1,25 @@
+name: OSMINOG external MCP pilot
+on:
+  push:
+    branches: [codex/osminog-external-mcp-20261006]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: node --check osminog-mcp-board.js && node --check cloud-config.js
+      - run: node --test mcp/tests/bridge.test.mjs
+      - name: Install browser test dependency
+        run: |
+          python -m pip install playwright==1.51.0
+          python -m playwright install --with-deps chromium
+      - name: Test editor with simulated Chrome APIs, not a live ChatGPT session
+        run: python mcp/tests/browser_test.py
