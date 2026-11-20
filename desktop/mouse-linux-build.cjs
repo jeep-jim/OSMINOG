@@ -23,7 +23,9 @@ module.exports={
  executableName:'mouse-browser',
  directories:{...mouse.directories,output:'dist-mouse-linux'},
  extraMetadata:{...mouse.extraMetadata,description:'Mouse Browser — mouse.black — local multi-pane browser for Linux x64'},
- artifactName:'Mouse-Browser-${version}-Linux-${arch}.${ext}',
+ // Both release formats use the channel's x64 name; builder otherwise expands
+ // this architecture as x86_64 for AppImage and amd64 for deb.
+ artifactName:'Mouse-Browser-${version}-Linux-x64.${ext}',
  files:[...mouse.files.filter(file=>!['mouse-native-menu.node','mouse-screen-capture.node'].includes(file)),
   'mouse-linux*.cjs','!mouse-linux*.test.cjs'],
  asarUnpack:['mouse-mcp-fs.node'],

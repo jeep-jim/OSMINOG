@@ -220,8 +220,8 @@ globalThis.createMouseZoomUI=({N,layout,status})=>{
  const box=document.createElement('dialog');box.id='global-zoom-panel';box.dataset.nonmodal='true';box.hidden=true;box.setAttribute('aria-label','Масштаб всех вкладок');
  box.innerHTML='<strong>Масштаб всех вкладок</strong><button type="button" class="zoom-close" aria-label="Закрыть масштаб">×</button><div><button data-zoom="minus" aria-label="Уменьшить">−</button><output>100%</output><button data-zoom="plus" aria-label="Увеличить">+</button><button data-zoom="reset">100%</button></div><input type="range" min="25" max="500" step="5" value="100" aria-label="Масштаб всех вкладок">';
  Object.assign(box.style,{margin:'0',left:'auto',top:'auto',color:'var(--text)'});document.body.append(box);let factor=1,closing=false;
- // Native pages stay live. layoutNow clips only the small rectangle occupied by
- // this chooser; no snapshot lease, modal barrier or reload is involved.
+ // Native pages stay live. layoutNow reserves viewport space for this chooser;
+ // no snapshot lease, modal barrier or reload is involved.
  function close(){if(closing)return Promise.resolve();closing=true;if(box.open)box.close();box.hidden=true;b.setAttribute('aria-expanded','false');closing=false;layout();return Promise.resolve();}
  N.onPreviewsCleared?.(close);box.addEventListener('close',()=>{if(!closing)void close();});box.querySelector('.zoom-close').onclick=()=>void close();
  function render(s){factor=s.factor;box.querySelector('output').textContent=Math.round(factor*100)+'%';box.querySelector('input').value=Math.round(factor*100);b.title='Масштаб всех вкладок · '+Math.round(factor*100)+'%';document.documentElement.style.setProperty('--page-zoom',String(factor));}

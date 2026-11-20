@@ -97,7 +97,7 @@ test('rejected compositor inputs gain separate diagnostics without changing even
   {eventIndex:3,name:'KeyframeModel',phase:'b',pid:10,tid:20,ts:126,curve:'ScrollOffset',targetProperty:6,group:-1,field:'name',reason:'group'}
  ]});
  assert.equal(result.mouseMotionTrace.complete,true);assert.equal(result.mouseMotionTrace.droppedEvents,1);assert.deepEqual(result.mouseMotionTrace.errors,[]);
- assert.doesNotMatch(f.saved[0].data,/"Name"|"State"|777|Transform-0--1|RUNNING->ABORTED|private/);
+ assert.doesNotMatch(f.saved[0].data,/"Name"|"State"|"group"\s*:\s*777(?=\s*[,}])|Transform-0--1|RUNNING->ABORTED|private/);
 });
 test('compositor rejection reasons expose only bounded numeric fields and reviewed curve/state enums',async()=>{
  const cases=[

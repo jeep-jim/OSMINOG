@@ -27,13 +27,15 @@ function gridLabel(item,en){if(item.count===2)return en?'2 panes · '+(item.axis
 
 async function install({win,browser,store,library,ipcMain,trusted,notify=()=>{},Menu,nativeImage,platform=process.platform}){
  if(!Menu||!nativeImage){const electron=require('electron');Menu??=electron.Menu;nativeImage??=electron.nativeImage;}
- const stored=(await store.get('quadroPreferences')).quadroPreferences||{},icon=icons(nativeImage,platform);let disposed=false,generation=0,lastMenu=null,lastTarget=null;
+ // Keep the shell reference while the native window is alive. The window's
+ // webContents getter may throw from its closed event, before guest disposal.
+ const shellContents=win.webContents,stored=(await store.get('quadroPreferences')).quadroPreferences||{},icon=icons(nativeImage,platform);let disposed=false,generation=0,lastMenu=null,lastTarget=null;
  const preferences=()=>browser.mouseDesktops?.preferences?.()||browser.mouseDesktops?.bank?.preferences?.()||stored;
- const frame=()=>{try{const value=win.webContents.mainFrame;return{processId:value.processId,routingId:value.routingId};}catch{return null;}};
- const current=()=>!disposed&&!browser.disposed&&!win.isDestroyed()&&!win.webContents.isDestroyed();
- const report=error=>{if(current())win.webContents.send('browser:error',String(error?.message||error));};
+ const frame=()=>{try{const value=shellContents.mainFrame;return{processId:value.processId,routingId:value.routingId};}catch{return null;}};
+ const current=()=>!disposed&&!browser.disposed&&!win.isDestroyed()&&!shellContents.isDestroyed();
+ const report=error=>{if(current())shellContents.send('browser:error',String(error?.message||error));};
  function invalidate(){generation++;try{lastMenu?.closePopup(win);}catch{}}
- win.webContents.on('did-start-navigation',invalidate);
+ shellContents.on('did-start-navigation',invalidate);
  function resolve(input,source,nativePage){
   if(!current())return null;const bank=browser.mouseDesktops?.bank,p=preferences(),panes=paneIds(p),state=browser.state();if(!bank?.active||!panes.length||state.desktopId!==bank.active)return null;
   let id=input.id||'',pane=input.pane||'';if(pane&&!panes.includes(pane))return null;
@@ -53,7 +55,7 @@ async function install({win,browser,store,library,ipcMain,trusted,notify=()=>{},
  }
  const guarded=(target,work)=>()=>{if(!valid(target))return;try{Promise.resolve(work()).catch(report);}catch(error){report(error);}};
  function template(target,legacy=[]){
-  const en=preferences().locale==='en',url=target.internal?'':webURL(target.url),saved=!!url&&library.data.bookmarks.some(row=>row.url===url),canLayout=target.lane!=='side',emit=(action,extra={})=>win.webContents.send('mouse:context-action',{id:target.id,pane:target.pane,action,...extra});
+  const en=preferences().locale==='en',url=target.internal?'':webURL(target.url),saved=!!url&&library.data.bookmarks.some(row=>row.url===url),canLayout=target.lane!=='side',emit=(action,extra={})=>shellContents.send('mouse:context-action',{id:target.id,pane:target.pane,action,...extra});
   const bookmark={id:'mouse-context-bookmark',label:en?(saved?'Already in favorites':'Add to favorites'):(saved?'Уже в избранном':'Добавить в избранное'),icon:icon('star',{filled:saved}),enabled:!!url&&!saved,click:guarded(target,async()=>{if(!url||library.data.bookmarks.some(row=>row.url===url))return;library.bookmark(url,target.title);if(target.native?.favicon)library.favicon(url,target.native.favicon);await library.flush();notify();})};
   const items=[bookmark,{type:'separator'},{id:'mouse-context-split-x',label:en?'Split to the right':'Разделить справа',icon:icon('split-x'),enabled:canLayout&&target.panes<Layout.LIMIT,click:guarded(target,()=>emit('split-x'))},{id:'mouse-context-split-y',label:en?'Split below':'Разделить снизу',icon:icon('split-y'),enabled:canLayout&&target.panes<Layout.LIMIT,click:guarded(target,()=>emit('split-y'))},{id:'mouse-context-grid',label:en?'Pane layout':'Расположение окон',icon:icon('grid',{count:4}),enabled:canLayout,submenu:GRID.map(item=>({id:'mouse-context-layout-'+item.count+(item.axis?'-'+item.axis:''),label:gridLabel(item,en),icon:icon('grid',item),enabled:canLayout,click:guarded(target,()=>emit('layout',item))}))}];
   if(legacy.length){items.push({type:'separator'});for(const item of legacy)items.push({...item,...(en&&item.label?{label:EN[item.label]||item.label}:{}),...(typeof item.click==='function'?{click:guarded(target,item.click)}:{})});}
@@ -63,7 +65,7 @@ async function install({win,browser,store,library,ipcMain,trusted,notify=()=>{},
  const previousContext=browser.mouseContextMenu;browser.mouseContextMenu=(page,params,legacy)=>{try{return popup({id:page.id},'guest',legacy,page);}catch(error){report(error);return{shown:false};}};
  ipcMain.handle('mouse:context-menu',(event,value)=>{trusted(event);if(!current())throw Error('Окно закрыто');const input=args(value,win.getContentBounds());return popup(input,'shell');});
  const originalDispose=browser.dispose.bind(browser);browser.dispose=(...values)=>{dispose();return originalDispose(...values);};
- function dispose(){if(disposed)return;disposed=true;invalidate();win.webContents.removeListener('did-start-navigation',invalidate);if(browser.mouseContextMenu!==previousContext)browser.mouseContextMenu=previousContext;ipcMain.removeHandler?.('mouse:context-menu');}
+ function dispose(){if(disposed)return;disposed=true;invalidate();shellContents.removeListener('did-start-navigation',invalidate);if(browser.mouseContextMenu!==previousContext)browser.mouseContextMenu=previousContext;ipcMain.removeHandler?.('mouse:context-menu');}
  return{get lastMenu(){return lastMenu;},get lastTarget(){return lastTarget?{...lastTarget}:null;},dispose};
 }
 module.exports={install,GRID,iconBitmap,args};
