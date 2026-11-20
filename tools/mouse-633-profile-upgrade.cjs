@@ -3,7 +3,7 @@
 // A narrow real old/new executable probe. The only debugger binds to loopback
 // in an owned CI profile; no remote account or owner profile is opened.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),sync=require('node:fs'),path=require('node:path'),http=require('node:http'),net=require('node:net'),cp=require('node:child_process'),crypto=require('node:crypto');
-const input=JSON.parse(process.argv[2]||'{}'),hash=value=>crypto.createHash('sha256').update(value).digest('hex');
+const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(read,label,ms=20000){const deadline=Date.now()+ms;let last;while(Date.now()<deadline){try{last=await read();if(last)return last;}catch(error){last=error.message;}await sleep(100);}throw Error(label+': '+JSON.stringify(last));}
 async function connect(url){
@@ -14,7 +14,27 @@ async function connect(url){
  return{close:()=>socket.close(),send:(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence,timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP timeout: '+method));},10000);pending.set(id,{resolve,reject,timer});socket.send(JSON.stringify({id,method,params}));})};
 }
 async function evaluate(client,expression){const result=await client.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw Error(result.exceptionDetails.exception?.description||result.exceptionDetails.text);return result.result.value;}
+function profileDocumentSnapshot(){
+ // This function runs in the selected page's current execution context. Target
+ // metadata and a complete initial document do not prove navigation committed.
+ const bounded=(value,length)=>String(value??'').slice(0,length),input=document.querySelector('#value');
+ let storageAccessible=false,storageError=null;
+ try{void window.localStorage.length;storageAccessible=true;}catch(error){storageError=bounded(error?.name||'Error',64);}
+ return{href:bounded(location.href,2048),origin:bounded(location.origin,512),readyState:bounded(document.readyState,32),title:bounded(document.title,128),input:!!input&&input.tagName==='INPUT'&&input.type==='text',storageAccessible,storageError};
+}
+function profileDocumentReady(snapshot,url,origin){
+ return snapshot?.href===url&&snapshot.origin===origin&&snapshot.readyState==='complete'&&snapshot.title==='Mouse633 preserved profile fixture'&&snapshot.input===true&&snapshot.storageAccessible===true;
+}
+async function waitForProfileDocument(client,target,url,origin,facts){
+ Object.assign(facts,{target:{id:String(target.id??'').slice(0,128),url:String(target.url??'').slice(0,2048)},expectedURL:url,expectedOrigin:origin,attempts:0,ready:false,last:null,evaluationError:null});
+ return until(async()=>{
+  facts.attempts+=1;
+  try{facts.last=await evaluate(client,'('+profileDocumentSnapshot.toString()+')()');facts.evaluationError=null;}catch(error){facts.evaluationError='Runtime.evaluate failed';throw error;}
+  facts.ready=profileDocumentReady(facts.last,url,origin);return facts.ready;
+ },'committed profile webpage ready');
+}
 async function main(){
+ const input=JSON.parse(process.argv[2]||'{}');
  assert.equal(process.env.CI,'true');assert.ok(['darwin','win32'].includes(process.platform));assert.ok(['write','read'].includes(input.mode));for(const name of ['executable','profile','output','state'])assert.ok(path.isAbsolute(input[name]||''),name+' must be absolute');assert.match(input.version,/^6\.0\.(32|33)$/);
  await fs.mkdir(input.profile,{recursive:true});await fs.mkdir(input.output,{recursive:true});
  const prior=input.mode==='read'?JSON.parse(await fs.readFile(input.state,'utf8')):null,token=prior?.token||crypto.randomBytes(24).toString('hex');
@@ -40,7 +60,7 @@ async function main(){
    pageId=prior.pageId;const data=await evaluate(shell,'MouseNative.init()');assert.equal(data.preferences.theme,'dark');assert.equal(data.preferences.aiWidth,413);assert.equal(data.preferences.libraryWidth,417);assert.ok(data.state.tabs.some(tab=>tab.id===pageId&&tab.url===url));
    await evaluate(shell,'MouseNative.browser("navigate",{id:'+JSON.stringify(pageId)+',url:'+JSON.stringify(url)+'})');
   }
-  const pageTarget=await until(async()=>(await targets()).find(target=>target.url===url),'native preserved webpage');page=await connect(pageTarget.webSocketDebuggerUrl);await until(()=>evaluate(page,'document.readyState==="complete"'),'profile webpage ready');
+  const pageTarget=await until(async()=>(await targets()).find(target=>target.url===url),'native preserved webpage');page=await connect(pageTarget.webSocketDebuggerUrl);facts.pageReadiness={};await waitForProfileDocument(page,pageTarget,url,origin,facts.pageReadiness);
   if(input.mode==='write'){
    await evaluate(page,`localStorage.setItem('mouse633upgrade',${JSON.stringify(token)});document.cookie='mouse633upgrade='+${JSON.stringify(token)}+'; Path=/; Max-Age=86400';document.querySelector('#value').value=${JSON.stringify(token)};true`);
    await evaluate(shell,'MouseNative.library("bookmark",{id:'+JSON.stringify(pageId)+'})');await evaluate(shell,'MouseFlush().then(()=>true)');
@@ -57,4 +77,5 @@ async function main(){
  }catch(error){facts.error={message:error.message,stack:error.stack};await save();throw error;}
  finally{shell?.close();page?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));if(!closed){child.kill();await Promise.race([exited,sleep(5000)]);if(!closed)child.kill('SIGKILL');}if(!log.writableEnded)await new Promise(resolve=>log.end(resolve));}
 }
-main().catch(error=>{console.error(error);process.exitCode=1;});
+module.exports={profileDocumentSnapshot,profileDocumentReady,waitForProfileDocument};
+if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;});
