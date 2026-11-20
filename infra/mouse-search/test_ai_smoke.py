@@ -116,19 +116,27 @@ class AIHttpDiagnosticTests(unittest.TestCase):
         response.__enter__.return_value.read.assert_called_once_with(2*1024*1024+1)
 
     def test_uncaught_http_failure_remains_nonzero_without_body_headers_or_credentials(self):
-        code = '''import importlib.util, io, sys, urllib.error
+        # Python 3.14 can print -c source lines in a traceback. Keep fixture
+        # credentials in runtime input, just as the actual proof does.
+        code = '''import importlib.util, io, json, sys, urllib.error
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('proof',sys.argv[1]);proof=importlib.util.module_from_spec(spec);spec.loader.exec_module(proof)
 proof.BASE=Path(sys.argv[2])
+fixture=json.load(sys.stdin)
 class Opener:
     def open(self,request,timeout):
-        raise urllib.error.HTTPError(request.full_url,502,'Bad Gateway',{'Authorization':'PRIVATE_HEADER'},io.BytesIO(b'{"error":"provider_empty_reply","reply":"PRIVATE_REPLY","token":"PRIVATE_TOKEN"}'))
-proof.request_json(Opener(),'https://151.248.113.177:3081/v1/chat?private=PRIVATE_URL',{'text':'PRIVATE_PROMPT'},token='PRIVATE_SESSION',stage='gateway-chat',verifier_source='a'*40)
+        raise urllib.error.HTTPError(request.full_url,502,'Bad Gateway',fixture['headers'],io.BytesIO(json.dumps(fixture['response']).encode()))
+proof.request_json(Opener(),fixture['url'],fixture['body'],token=fixture['token'],stage='gateway-chat',verifier_source='a'*40)
 '''
+        fixture = {'headers': {'Authorization': 'PRIVATE_HEADER'},
+                   'response': {'error': 'provider_empty_reply', 'reply': 'PRIVATE_REPLY', 'token': 'PRIVATE_TOKEN'},
+                   'url': 'https://151.248.113.177:3081/v1/chat?private=PRIVATE_URL',
+                   'body': {'text': 'PRIVATE_PROMPT'}, 'token': 'PRIVATE_SESSION'}
+        self.assertNotIn('PRIVATE', code)
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / 'current').symlink_to('releases/' + 'b'*40)
             result = subprocess.run([sys.executable, '-I', '-B', '-c', code, str(Path(smoke.__file__).resolve()), directory],
-                                    capture_output=True, text=True, timeout=5)
+                                    input=json.dumps(fixture), capture_output=True, text=True, timeout=5)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(json.loads(result.stdout)['errorCode'], 'provider_empty_reply')
         self.assertIn('HTTP Error 502', result.stderr)
