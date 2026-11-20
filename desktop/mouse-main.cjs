@@ -8,6 +8,7 @@ if(isWindows&&process.arch!=='x64')throw Error('This Mouse Browser Windows build
 app.setName('Mouse Browser');
 // Apply before ready so native root/nested page scrollbars stay hidden.
 require('./mouse-scrollbars.cjs').configure(app);
+if(isLinux)require('./mouse-linux-compat.cjs').configure(app);
 // Retain Mac profile/logins. The first Windows Mouse release has its own stable
 // profile and installer identity; legacy Windows Trader data is never replaced.
 if(isMac)app.setPath('userData',path.join(app.getPath('appData'),'Trader OS'));

@@ -12,17 +12,17 @@ module.exports=async({win,browser,app})=>{
   for(const theme of ['light','dark']){
    await js(`MouseTest.setTheme('${theme}')`);
    const cards=await js(`Promise.all([...document.querySelectorAll('.ai-preset-card')].map(async b=>{const i=b.querySelector('img');await i.decode();return {name:b.textContent,src:i.src,w:i.naturalWidth,h:i.naturalHeight,url:b.dataset.aiUrl}}))`);
-   assert.deepEqual(cards.map(c=>c.name),['ChatGPT','Claude','Gemini','DeepSeek']);
+   assert.deepEqual(cards.map(c=>c.name),['Агент Маус','ChatGPT','Claude','Gemini','DeepSeek']);
    for(const c of cards){assert.ok(c.src.startsWith('file:'));assert.ok(c.w>=16&&c.h>=16);if(c.url==='mouse://agent')assert.match(c.src,/agent-mouse-(green|orange|cyan|violet|coral)\.svg$/);else assert.ok(c.src.includes('/providers/'));}
    const color=await js('(()=>{const c=getComputedStyle(document.querySelector("#ai-toggle"));return[c.color,parseFloat(c.borderTopWidth),document.querySelector("#ai-toggle").getAttribute("aria-pressed")]})()');
    assert.equal(color[0],theme==='light'?'rgb(0, 115, 143)':'rgb(83, 217, 255)');assert.equal(color[1],0,'628 retains the cyan active state without a decorative button border');assert.equal(color[2],'true');
    assert.equal(await js('document.querySelector("[data-action=ai-back]").disabled'),true);
    await sleep(150);await fs.writeFile('mouse-612-ai-'+theme+'.png',(await win.capturePage()).toPNG());
   }
-  const originalCommand=browser.command.bind(browser),clicked=[];
+  const originalCommand=browser.command.bind(browser),clicked=[],providerURLs=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'];
   try{
    browser.command=(action,args={})=>{if(action==='open'&&args.lane==='side'&&/^https:\/\/(chatgpt.com|claude.ai|gemini.google.com|chat.deepseek.com)\/$/.test(args.url)){clicked.push(args.url);return originalCommand(action,{...args,url:root+'/provider/'+clicked.length});}return originalCommand(action,args);};
-   for(let i=0;i<4;i++){await js(`document.querySelectorAll('.ai-preset-card')[${i}].click()`);await until(()=>clicked.length===i+1,'preset click');await until(()=>js('!!MouseTest.model.aiId'),'preset selected');const id=await js('MouseTest.model.aiId');await until(()=>!browser.get(id).loading,'preset loaded');await originalCommand('close',{id});await js('MouseTest.model.aiId="";MouseTest.applySide()');}
+   for(let i=0;i<providerURLs.length;i++){await js(`document.querySelector(${JSON.stringify('.ai-preset-card[data-ai-url="'+providerURLs[i]+'"]')}).click()`);await until(()=>clicked.length===i+1,'preset click');await until(()=>js('!!MouseTest.model.aiId'),'preset selected');const id=await js('MouseTest.model.aiId');await until(()=>!browser.get(id).loading,'preset loaded');await originalCommand('close',{id});await js('MouseTest.model.aiId="";MouseTest.applySide()');}
    assert.equal(clicked.length,4);
   }finally{browser.command=originalCommand;}
   await js(`MouseTest.openAI(${JSON.stringify(root+'/first')})`);aiId=await js('MouseTest.model.aiId');await until(()=>!browser.get(aiId).loading,'first loaded');
