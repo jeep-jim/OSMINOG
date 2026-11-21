@@ -55,6 +55,10 @@ def run_logged(args,env,log_path,timeout,*,completion_timeout=30,sample_after=5)
 owner634_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner634')}
 owner634,owner634_output=run_logged([str(exe),'--mouse-634-smoke'],owner634_env,pathlib.Path('mouse-634-owner-feedback.log'),270)
 if owner634.returncode or 'MOUSE_634_OWNER_FEEDBACK_PASS' not in owner634_output.splitlines():raise SystemExit('Mouse634 pane downloads, AI preview and capture verification failed')
+owner635_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner635')}
+owner635,owner635_output=run_logged([str(exe),'--mouse-635-smoke'],owner635_env,pathlib.Path('mouse-635-owner-feedback.log'),270)
+required635=['MOUSE_635_PUBLIC_SEARCH_PASS','MOUSE_635_LIBRARY_STABLE_PASS','MOUSE_635_OWNER_FEEDBACK_PASS']
+if owner635.returncode or not all(marker in owner635_output.splitlines() for marker in required635):raise SystemExit('Mouse635 actual public search or stable library verification failed')
 owner_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner633')}
 owner,owner_output=run_logged([str(exe),'--mouse-633-smoke'],owner_env,pathlib.Path('mouse-633-owner-feedback.log'),270)
 if owner.returncode or 'MOUSE_633_OWNER_FEEDBACK_PASS' not in owner_output.splitlines():raise SystemExit('Mouse633 owner feedback native verification failed')
@@ -79,7 +83,7 @@ with open('mouse-normal-launch.log','w') as log:
   for _ in range(300):
    if p.poll() is not None:raise RuntimeError('Ordinary launch exited')
    f=root/'ordinary'/'mouse-startup.log'
-   if f.exists() and 'MOUSE_READY 6.0.34' in f.read_text():break
+   if f.exists() and 'MOUSE_READY 6.0.35' in f.read_text():break
    time.sleep(.1)
   else:raise RuntimeError('Ordinary launch timed out')
   time.sleep(2)
@@ -109,7 +113,7 @@ for mode,marker in [('--mouse-private-smoke','MOUSE_PRIVATE_MEMORY_ISOLATION_CLE
  if 'PRIVATE_SENTINEL_606_6f532' in (profile/'workspace.json').read_text():raise SystemExit('Private data leaked to profile')
  print('MOUSE_PRIVATE_PROCESS_EXIT_DISK_SCAN_PASS '+mode,flush=True)
 # Actual older app replacement, verified new startup and a preserved runner profile.
-candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.34-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.34-mac-arm64.dmg')]
+candidates=[pathlib.Path('dist-mouse/Mouse-Browser-6.0.35-mac-arm64.dmg'),pathlib.Path('Mouse-Browser-6.0.35-mac-arm64.dmg')]
 dmg=next((p.resolve() for p in candidates if p.is_file()),None)
 installer=pathlib.Path('mouse-install-update.cjs').resolve()
 if not dmg or not installer.is_file():raise SystemExit('Native updater test inputs missing')
@@ -117,8 +121,8 @@ subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-updat
 
 # Also preserve the actual current published632 profile with a narrow old/new
 # package probe; the full native629 updater gate above remains mandatory.
-upgrade_log=pathlib.Path('mouse-634-upgrade.log')
+upgrade_log=pathlib.Path('mouse-635-upgrade.log')
 with upgrade_log.open('w') as stream:
- upgrade=subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-634-upgrade.py')),str(dmg)],stdout=stream,stderr=subprocess.STDOUT,text=True,timeout=480)
+ upgrade=subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-635-upgrade.py')),str(dmg)],stdout=stream,stderr=subprocess.STDOUT,text=True,timeout=480)
 upgrade_output=upgrade_log.read_text(errors='replace');print(upgrade_output,flush=True)
-if upgrade.returncode or 'MOUSE_634_REAL_633_TO_634_PROFILE_PASS' not in upgrade_output.splitlines():raise SystemExit('Real published633 profile upgrade failed')
+if upgrade.returncode or 'MOUSE_635_REAL_634_TO_635_PROFILE_PASS' not in upgrade_output.splitlines():raise SystemExit('Real published633 profile upgrade failed')

@@ -60,7 +60,7 @@ module.exports=async ctx=>{
   await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
  }
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.34');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.35');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());facts.nativeInputSource=inputSource();
   fixture=await createFixture({...ctx,nativeInput},'owner634',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=await listen();facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
   downloadListener=(_event,item,wc)=>{const match=new URL(item.getURL()).pathname.match(/^\/download\/(a|b|chat|preview)$/);if(!match)return;const name=match[1],file=path.join(ownedFolder,'mouse634-'+name+'.bin'),row={name,item,path:file,events:[],webContentsId:wc?.id,done:false};item.setSavePath(file);downloads.set(name,row);const observe=(event,state)=>row.events.push({event,type:event,state,received:item.getReceivedBytes(),total:item.getTotalBytes(),at:Date.now()});observe('start',item.getState());item.on('updated',(_e,state)=>observe('updated',state));item.once('done',(_e,state)=>{observe('done',state);row.done=state;});};browser.session.prependListener('will-download',downloadListener);
@@ -90,7 +90,7 @@ module.exports=async ctx=>{
    facts.captureCorners=await stage('capture-rounded-corners',()=>require('./mouse-634-capture-corners.cjs')({win,browser,globalCapture,overlayGate,fixture,click,screenCapture,targets}));
   });
   facts.focusedChrome=await stage('focused-chrome',()=>require('./mouse-634-focused-chrome-smoke.cjs')({fixture,browser,win,click,screenCapture}));
-  facts.search=await stage('visual-search',()=>require('./mouse-634-search-smoke.cjs')({ctx,fixture,click,screenCapture}));
+  facts.search=await stage('visual-search',()=>require('./mouse-635-search-smoke.cjs')({ctx,fixture,click,screenCapture}));
   facts.requests=requests;facts.elapsedMs=Date.now()-started;
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};await save();try{if(fixture)await bounded(screenCapture('mouse-634-owner-feedback-failure.png','failure '+facts.stage),5000,'634 failure OS snapshot');}catch(captureError){facts.failureCaptureError=captureError.message;await save();}}
  finally{

@@ -5,7 +5,7 @@
 const {EventEmitter}=require('node:events');
 const {randomUUID}=require('node:crypto');
 const path=require('node:path');
-const RADIUS=12,MAX_LIVE=8,MAX_RESULTS=1000,WHEEL_CHANNEL='mouse:search-wheel';
+const RADIUS=16,MAX_LIVE=8,MAX_RESULTS=1000,WHEEL_CHANNEL='mouse:search-wheel';
 function webURL(value){
  if(typeof value!=='string'||value.length>8192)throw Error('Invalid search page URL');
  const url=new URL(value);

@@ -17,7 +17,7 @@ function setup({query,summary,chat}={}){
  return{controller,log,sent,registered,browser,gate,views,vision,service,serviceOptions,setPrivate:value=>{privateMode=value;}};
 }
 test('clearing an empty query removes native results immediately and invalidates outstanding answers without closing the workspace',async()=>{
- const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'before clearing',requestId:'before'});await f.controller.handle('vision-start',{id:'one',revision:f.controller.revision,consent:true});const oldRevision=f.controller.revision;
+ const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'before clearing',requestId:'before'});await f.vision.start({id:'one',consent:true});const oldRevision=f.controller.revision;
  const cleared=await f.controller.handle('clear');assert.equal(cleared.cleared,true);assert.ok(cleared.revision>oldRevision);assert.equal(f.controller.active,true);assert.deepEqual(f.views.rows,[]);assert.deepEqual(f.controller.results,[]);assert.equal(f.vision.state().active,false);assert.equal(f.controller.query,'');assert.deepEqual([...f.browser.tabs.keys()],['original']);
  answer.resolve({text:'Late answer must remain cancelled'});await new Promise(setImmediate);assert.equal(f.sent.some(row=>row.value.kind==='summary'),false);f.controller.dispose();
 });
@@ -51,7 +51,7 @@ test('pagination is revision-bound, deduplicated, and explicit open uses the aut
  await f.controller.handle('open-result',{id:'two',url:'https://attacker.example'});assert.deepEqual(f.log.find(r=>r[0]==='browser-command'),['browser-command','open',{url:'https://example.com/two',lane:'main'}]);assert.equal(f.controller.active,false);f.controller.dispose();
 });
 test('modal and privacy barriers hide native search pages and revoke selected-page observation',async()=>{
- const f=setup();f.controller.open();await f.controller.search({query:'topic',requestId:'q'});await f.controller.handle('vision-start',{id:'one',consent:true,revision:f.controller.revision});f.log.length=0;
+ const f=setup();f.controller.open();await f.controller.search({query:'topic',requestId:'q'});await f.vision.start({id:'one',consent:true});f.log.length=0;
  f.gate.set({blocked:true});assert.equal(f.log[0][0],'suspend');assert.equal(f.vision.state().active,false);assert.deepEqual(f.log.filter(r=>r[0]==='ordinary-layout').at(-1),['ordinary-layout',[]]);
  f.gate.set({blocked:false});assert.equal(f.log.at(-1)[0],'resume');f.setPrivate(true);await assert.rejects(f.controller.handle('query',{query:'secret'}),/обычном/);f.controller.close('private',{reset:true});assert.deepEqual(f.controller.results,[]);assert.equal(f.controller.query,'');f.controller.dispose();
 });
@@ -64,4 +64,42 @@ test('an old chat completion cannot unlock or overwrite a newer search conversat
  const old=deferred(),next=deferred();let count=0;const f=setup({chat:()=>++count===1?old.promise:next.promise});f.controller.open();await f.controller.search({query:'first',requestId:'q1'});
  const first=f.controller.chat({message:'first question',revision:f.controller.revision,requestId:'c1'}),rejected=assert.rejects(first,/закрыт/);await f.controller.search({query:'second',requestId:'q2'});const second=f.controller.chat({message:'second question',revision:f.controller.revision,requestId:'c2'});
  old.resolve({text:'obsolete'});await rejected;assert.equal(f.controller.chatPending,true);next.resolve({text:'current'});assert.equal((await second).text,'current');assert.deepEqual(f.controller.history,[{role:'user',content:'second question'},{role:'assistant',content:'current'}]);f.controller.dispose();
+});
+test('search IPC cannot activate screen sharing and chat never sends a selected-page snapshot',async()=>{
+ let sent;const f=setup({chat:async args=>{sent=args;return{text:'Source-only answer'};}});f.controller.open();await f.controller.search({query:'source-only',requestId:'q'});
+ for(const action of ['vision-start','vision-stop','vision-state'])await assert.rejects(f.controller.handle(action,{id:'one',consent:true,revision:f.controller.revision}),/Неизвестная/);
+ assert.equal(f.log.some(row=>row[0]==='vision-start'),false);
+ // Even an old internal observer cannot silently add page contents to chat.
+ await f.vision.start({id:'one',consent:true});let snapshots=0;f.vision.snapshot=async()=>{snapshots++;return{private:'must never be sent'};};
+ await f.controller.chat({message:'Summarize sources',revision:f.controller.revision,requestId:'chat'});assert.equal(snapshots,0);assert.equal(Object.hasOwn(sent,'visionContext'),false);assert.equal(sent.results[0].url,'https://example.com/one');f.controller.dispose();
+});
+test('expected provider errors cross IPC as a safe actionable envelope, while caller validation still rejects',async()=>{
+ const {SearchError}=require('./mouse-search-service.cjs');const f=setup({query:async()=>{throw new SearchError('SEARCH_HTTP','Сервер поиска временно недоступен. Повторите запрос.',503);}}),ipc=f.registered.get('mouse:tile-search');
+ await ipc({trusted:true},'open');assert.deepEqual(await ipc({trusted:true},'query',{query:'public'}),{ok:false,error:{code:'SEARCH_HTTP',message:'Сервер поиска временно недоступен. Повторите запрос.',status:503,retryable:true}});assert.throws(()=>ipc({trusted:false},'query',{query:'public'}),/Untrusted/);f.controller.dispose();
+});
+test('production Brave settings store only OS ciphertext and return status, never the saved key',async()=>{
+ const f=setup(),key='explicit-unit-test-key',state={};let plain='',encrypted=0,decrypted=0;
+ f.controller.safeStorage={isEncryptionAvailable:()=>true,getSelectedStorageBackend:()=> 'gnome_libsecret',encryptString:value=>{plain=value;encrypted++;return Buffer.from('opaque-native-ciphertext');},decryptString:value=>{assert.equal(value.toString(),'opaque-native-ciphertext');decrypted++;return plain;}};
+ f.controller.store={get:async()=>state,set:async value=>Object.assign(state,value)};
+ const ipc=f.registered.get('mouse:tile-search'),saved=await ipc({trusted:true},'set-brave-key',{key});assert.equal(saved.braveConfigured,true);assert.equal(saved.braveReadable,true);assert.equal(encrypted,1);assert.equal(JSON.stringify([state,saved,f.controller.state(),f.sent]).includes(key),false);
+ assert.equal(await f.serviceOptions.getBraveApiKey(),key);assert.ok(decrypted>0);const before=decrypted;
+ const cleared=await ipc({trusted:true},'set-brave-key',{key:''});assert.equal(cleared.braveConfigured,false);assert.equal(state.mouseSearchBraveKey.encrypted,'');assert.equal(decrypted,before,'Removal never needs to decrypt the stored key');f.controller.dispose();
+});
+test('unavailable or basic-text storage refuses saves but still allows removal of an unreadable encrypted record',async()=>{
+ const f=setup(),state={mouseSearchBraveKey:{schema:1,encrypted:'broken-record'}};let decrypts=0,encrypts=0;
+ f.controller.safeStorage={isEncryptionAvailable:()=>false,getSelectedStorageBackend:()=> 'basic_text',encryptString:()=>{encrypts++;throw Error('should not encrypt');},decryptString:()=>{decrypts++;throw Error('should not decrypt');}};
+ f.controller.store={get:async()=>state,set:async value=>Object.assign(state,value)};
+ const metadata=await f.controller.providerSettings();assert.equal(metadata.braveSaved,true);assert.equal(metadata.braveReadable,false);assert.equal(metadata.canRemove,true);assert.equal(metadata.secureStorageAvailable,false);
+ await assert.rejects(f.controller.setBraveKey({key:'do-not-save'}),{code:'SEARCH_CREDENTIALS'});assert.equal(encrypts,0);const clear=await f.controller.setBraveKey({key:''});assert.equal(clear.braveSaved,false);assert.equal(decrypts,0);assert.equal(state.mouseSearchBraveKey.encrypted,'');
+ if(process.platform==='linux'){f.controller.safeStorage.isEncryptionAvailable=()=>true;await assert.rejects(f.controller.setBraveKey({key:'do-not-save-basic-text'}),{code:'SEARCH_CREDENTIALS'});assert.equal(encrypts,0);}
+ f.controller.store.get=async()=>{throw Error('private storage failure');};assert.equal((await f.controller.providerSettings()).canRemove,true);f.controller.dispose();
+});
+test('ephemeral CI Brave environment key is ignored outside the exact isolated native test profile',async()=>{
+ const names=['CI','MOUSE_TEST_PROFILE','MOUSE_TEST_BRAVE_SEARCH_API_KEY'],before=Object.fromEntries(names.map(name=>[name,process.env[name]])),f=setup();
+ try{
+  process.env.CI='true';process.env.MOUSE_TEST_PROFILE='/tmp/fixture-search';process.env.MOUSE_TEST_BRAVE_SEARCH_API_KEY='ephemeral-test-only-key';
+  assert.equal(await f.serviceOptions.getBraveApiKey(),'');f.controller.test=true;assert.equal(await f.serviceOptions.getBraveApiKey(),'ephemeral-test-only-key');
+  const info=await f.controller.providerSettings();assert.equal(info.keyStatus,'ci');assert.equal(info.braveSaved,false);assert.equal(JSON.stringify(info).includes('ephemeral-test-only-key'),false);
+  process.env.MOUSE_TEST_PROFILE='/tmp/different-profile';assert.equal(await f.serviceOptions.getBraveApiKey(),'');
+ }finally{for(const name of names){if(before[name]===undefined)delete process.env[name];else process.env[name]=before[name];}f.controller.dispose();}
 });

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {normalizeSearchResults,searchMasonry,searchViewport,searchSnapshotPlan,createSearchRequests,createSearchSummary}=require('./mouse/search.js');
+const {normalizeSearchResults,searchMasonry,searchMasonryGrid,searchViewport,searchSnapshotPlan,createSearchRequests,createSearchSummary,unwrapSearchReply,searchFailureMessage,searchSourceInfo}=require('./mouse/search.js');
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};};
 
 test('search cards retain authoritative result IDs and URLs while rejecting executable or credential URLs',()=>{
@@ -53,4 +53,33 @@ test('old, wrong-revision and closed-search summaries cannot enter the new conve
 });
 test('a real summary is not duplicated by both the query response and its event',()=>{
  const applied=[],summary=createSearchSummary(value=>applied.push(value));summary.begin('q');summary.accept('q',7);const reply={requestId:'q',revision:7,text:'Actual result'};assert.equal(summary.receive(reply),true);assert.equal(summary.receive(reply),false);assert.equal(applied.length,1);summary.receive({requestId:'q',revision:7,error:'AI connection failed'});assert.equal(applied[1].text,'');assert.equal(applied[1].error,'AI connection failed');
+});
+
+test('expected service failures preserve a human message, code and retry choice without changing successes',()=>{
+ const reply={requestId:'live',revision:3,results:[]};assert.equal(unwrapSearchReply(reply),reply);
+ for(const retryable of [true,false]){let failure;try{unwrapSearchReply({ok:false,error:{code:'SEARCH_HTTP',message:'Сервер поиска временно недоступен. Повторите запрос.',retryable}});}catch(error){failure=error;}assert.equal(failure.code,'SEARCH_HTTP');assert.equal(failure.retryable,retryable);assert.equal(searchFailureMessage(failure),'Сервер поиска временно недоступен. Повторите запрос.');}
+});
+test('IPC failures and upstream diagnostics never become search UI copy',()=>{
+ for(const message of ["Error invoking remote method 'mouse:tile-search': SearchError: upstream failed",'SearchError: Сервер поиска недоступен','Сбой ECONNRESET','Сбой https://server.invalid/search','Не работает 127.0.0.1','fetch failed','Ошибка\n    at service.js:20'])assert.equal(searchFailureMessage(new Error(message),'Понятное сообщение'),'Понятное сообщение');
+ assert.equal(searchFailureMessage(new Error('Слишком много запросов. Повторите позже.')),'Слишком много запросов. Повторите позже.');
+});
+test('cancellation remains a distinguishable nonretryable envelope for the renderer state',()=>{
+ assert.throws(()=>unwrapSearchReply({ok:false,error:{code:'SEARCH_CANCELLED',message:'Поиск отменён.',retryable:false}}),error=>error.code==='SEARCH_CANCELLED'&&error.retryable===false&&error.message==='Поиск отменён.');
+ assert.throws(()=>unwrapSearchReply({ok:false}),error=>error.message==='Поиск сейчас недоступен. Попробуйте ещё раз.'&&error.retryable===true);
+});
+
+test('public API instant answers remain source-attributed data, separate from web result normalization',()=>{
+ const reply={provider:{id:'duckduckgo',kind:'instant-answer',limited:true,pagination:'none'},notice:'Краткая справка, не полная выдача сайтов.',instantAnswer:{title:'<b>Literal title</b>',text:'Actual API text',source:'DuckDuckGo',url:'https://example.test/answer'},RelatedTopics:[{Text:'Not a search result',FirstURL:'https://other.test/'}]};
+ const value=searchSourceInfo(reply);assert.equal(value.provider.kind,'instant-answer');assert.equal(value.provider.pagination,'none');assert.equal(value.answer.source,'DuckDuckGo');assert.equal(value.answer.title,'<b>Literal title</b>');assert.equal(value.answer.url,'https://example.test/answer');assert.equal(value.notice,reply.notice);assert.deepEqual(normalizeSearchResults(reply.results),[]);
+});
+test('source answers cannot introduce executable or credential-bearing URLs and empty abstracts stay empty',()=>{
+ for(const url of ['javascript:alert(1)','file:///profile','https://name:secret@example.test/'])assert.equal(searchSourceInfo({instantAnswer:{text:'Actual text',url}}).answer.url,'');
+ assert.equal(searchSourceInfo({instantAnswer:{title:'Related topic only',text:''}}).answer,null);assert.deepEqual(searchSourceInfo(),{provider:null,notice:'',answer:null});
+});
+
+test('actual CSS Grid row spans reproduce the existing masonry plan and stable append order exactly',()=>{
+ const rows=Array.from({length:1000},(_,i)=>({id:'r'+i,type:['article','video','product'][i%3]}));
+ function reconstruct(plan){const grid=searchMasonryGrid(plan),edges=[0];for(const height of grid.rows){assert.ok(height>0);edges.push(edges.at(-1)+height);}assert.ok(grid.rows.length<=plan.items.length*2);assert.equal(edges.at(-1),plan.height);assert.deepEqual(grid.items.map(item=>item.id),plan.items.map(item=>item.id),'Grid does not reorder the accessible DOM sequence');return grid.items.map(item=>({id:item.id,column:item.column-1,x:(item.column-1)*(grid.columnWidth+grid.gap),y:edges[item.rowStart-1],width:grid.columnWidth,height:edges[item.rowEnd-1]-edges[item.rowStart-1]}));}
+ for(const width of [180,640,920,1280,2400]){const first=searchMasonry(width,rows.slice(0,9)),next=searchMasonry(width,rows.slice(0,27));assert.deepEqual(reconstruct(first),first.items);assert.deepEqual(reconstruct(next),next.items);assert.deepEqual(reconstruct(next).slice(0,9),reconstruct(first),'Pagination can add Grid row boundaries without moving existing cards');}
+ const large=searchMasonry(920,rows);assert.deepEqual(reconstruct(large),large.items);assert.deepEqual(searchMasonryGrid(searchMasonry(0,[])).items,[]);
 });
