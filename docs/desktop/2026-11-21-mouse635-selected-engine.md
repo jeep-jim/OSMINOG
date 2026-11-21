@@ -148,3 +148,79 @@ Actual source Bing уже присутствует на OS frame. На11 complet
 Подготовлено узкое test-only размещение окна public-search выше системного Dock существующим `focusedProbeBounds` с32DIP clearance. Проверка требует реальные native/content/renderer размеры и восстановление исходных bounds в finally. Production search, pixel matcher,99%/95% thresholds,4500ms/15000ms budgets и сохранение всех rejected кадров остаются прежними. Изменённый исходник должен пройти новый полный Mac CI и fresh publisher; повтор старого failed job не используется как исправление.
 
 Focused regression suite для нового размещения и прежнего focused chrome:40/40 PASS. Для исходной геометрии window `{x:4,y:29,width:1016,height:676}` меняется только height до648; lower edge677 равен workArea.bottom709−32. Сохраняются before/requested/fitted/restored geometry и фактический renderer viewport. Проверены точное восстановление, отказ при stale viewport, обработка ошибки fit и неизменная геометрия других платформ. Новый установленный прогон ещё требуется. После failed publisher отдельно подтверждены404 для release/tag635 и побайтно неизменные три feed6.0.34; audit SHA-256 `9be11175f75d0508c5c88dd4996aca507c6a96a90885730855db3cf0feb0de66`.
+
+## Actual0d4a: полный Mac source принят; новый выпуск привязан
+
+Source `0d4a1390fced54b59c2cf7b49c9d9394549456ac` прошёл [Mac run44896578294, attempt1](https://github.com/jeep-jim/OSMINOG/actions/runs/44896578294), job `136823418273`, включая весь installed gate, привязку пакетов и обе загрузки artifacts. [Source PR188](https://github.com/jeep-jim/OSMINOG/pull/188) объединён merge `33287e68b6335bdbb9af9f7c98434de0cce6030b`; API и git ancestry подтвердили точный head, дерево source/merge одинаково `d0d69fbadd829b6b6c82769c02313e4993c74104`.
+
+Candidate artifact `14704074358`:279,185,145 bytes, SHA-256 `5ad8dcf12e08dcff1f580340ebe8d45b0a1dcc7e939580f34f9412dab73a0251`. Verification artifact `14704323673`:48,033,560 bytes,554 файла, SHA-256 `5cd55f673c0aa3b156a9f3670d46efb7bf475ca7b0a107622fb8a23a485ed1e5`. Оба ZIP скачаны и сверены с exact API metadata. Все пять независимых проверок фактических bytes — source-evidence, task-stress, feedback/upgrade, motion-trace и owner635 — PASS. Summary SHA `32249a016421cbdba04825c7852c58765e7611ded4cf7eb4a13677e75651d763`; candidate-audit SHA `f263f33230ed78c573b82bf0b24cbb4a2698b1997b9ad98c8c5e91174c132a6a`.
+
+Новая геометрия подтверждена на настоящем дисплее: window/content/viewport1016×676 →1016×648 при неизменном origin(4,29),32px до нижней границы workArea, точное восстановление1016×676 и пустые cleanupErrors. Source paint принят с первого кадра за566.68ms, tiles — с первого за216.73ms, при прежних4500ms/20frames. В ledger17 actual/17 canonical OS frames. Русский запрос вернул10 тематических результатов за1867.08ms, контрольный Python documentation —10 за827.82ms; это время query reply, без последующей визуальной проверки.
+
+Root и отдельный UI reviewer просмотрели новые source/tiles PNG. Bing виден с точным русским запросом; первые Meduza→AI Wave — настоящие загруженные страницы с теми же исходными URL и порядком. Проверены также Agent dark/light/narrow/settings, native layout и pin. Перекрытий или пустых заглушек не найдено. Пределы прежние: organic order подтверждает raw DOM, внешние новости не фактчекались, реклама/cookie banner первого сайта остаются частью сайта, externalModelVerified=false у отдельной HTTP/SSE chat fixture.
+
+Проверено фактическое634→635 обновление с неизменным закрытым профилем и различными процессами;629→635 replacement/relaunch и cookie restart также прошли.
+
+| Точный пакет нового кандидата | Байты | SHA-256 |
+|---|---:|---|
+| Mouse-Browser-6.0.35-mac-arm64.dmg | 139451133 | 8e772d0f24df08c0e2e1adeda76235e6eaa77ab550fcaea91392e1b539e051df |
+| Mouse-Browser-6.0.35-mac-arm64.zip | 141786444 | b12f768971f63601dbffaae78bf573cffc04a76253b7aa93ca70a5c66ec06033 |
+
+[Release PR64](https://github.com/jeep-jim/OSMINOG-Releases/pull/64), head `580af043d55852361c40e69c103527fa95a9e86b`, привязывает эти actual artifacts/packages, source PR188 и подтверждённый merge. Previous629, PUBLISH_OWNER и sibling pins сохранены. Изменение точного Mac pin теперь запускает тот же fresh publisher на main; соответствующее ожидание пути обновлено только для Mac. Publisher steps и независимые проверки не менялись. Полный current contract union:22 скрипта с exit0,490 PASS и1 ожидаемый SKIP проверки пустого шаблона после заполнения настоящего pin. Прежняя запись «491/491» считала все зарегистрированные cases; это уточнение отделяет фактически выполненные от ожидаемо пропущенного. Pin/schema PASS, планы Mac/Windows/Linux=true/false/false.
+
+На момент этой записи PR64 проходит CI; новый fresh publisher и фактическая публикация ещё ожидаются. Публичный статус будет добавлен после проверки выпуска и канала.
+
+Все пять CI workflows exact Release580af завершены SUCCESS: Mac44898194603, Windows44898194682, Linux44898194678 — contract PASS/publishers SKIPPED; registry44898194659 и44898194690 SUCCESS. Full API readback SHA `0df3950451b4f54e6226e2285959bf859acf86a00aabe6d54b710ca22c9fac98`. PR64 объединён merge `a0a013f800b07b7475b8aa6ae5449a108d50ef84`; merge tree `8a6d7fd82f4cc6c2863581928fb80375b6141365` совпадает с проверенным580af. Запущен [fresh Mac publisher44898480279, attempt1](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44898480279). Windows/Linux publisher runs на этом merge не созданы. На этом checkpoint публичный выпуск ещё не подтверждён.
+
+Fresh publisher job `136829862385`: exact import PASS в11:24:03Z, весь свежий installed/previous-version replacement gate PASS в11:35:33Z. Началась независимая повторная проверка отчётов и этап публикации; на этом промежуточном checkpoint public release/channel/anonymous-download ещё не подтверждены.
+
+## Фактическая публикация 6.0.35 — Mac Apple Silicon
+
+[Release ID 453647565](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.35-arm64), tag `quadro-macos-v6.0.35-arm64`, опубликован **21 ноября 2026, 18:37:51 по Красноярску** (`2026-11-21T11:37:51Z`). API подтверждает `draft:false`, `prerelease:true`, пять загруженных assets. Это ad-hoc preview; Apple Developer ID/notarization отсутствуют.
+
+Финальный [publisher 44898480279, attempt 1](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44898480279), merge `a0a013f800b07b7475b8aa6ae5449a108d50ef84`, завершился SUCCESS. Contract job `136829121343` и publisher job `136829862385` SUCCESS. Точные этапы по GitHub API (UTC):
+
+| Этап | Начало | Успешное завершение |
+|---|---|---|
+| Импорт точных source packages | 11:21:55 | 11:24:03 |
+| Свежая установленная проверка и actual previous-version replacement | 11:24:03 | 11:35:33 |
+| Независимая проверка evidence и публикация пакетов | 11:35:33 | 11:37:52 |
+| Переключение статического Mac-канала | 11:37:52 | 11:37:56 |
+| Настоящий updater 6.0.29: анонимные discovery/download; current-модуль 6.0.35 | 11:37:56 | 11:40:00 |
+| Загрузка финального verification artifact | 11:40:00 | 11:40:05 |
+
+### Свежие доказательства после публикации
+
+Verification artifact `14705576681`: **48702184 байта**, SHA-256 `a658bc385dce22132aff598090557c96bf12d6160f6d004239a0b85fd2f2293d`; архив скачан, проверен по API digest/size, извлечено 576 файлов. Все пять независимых actual gates — installed-evidence, task-stress, feedback, motion-trace, owner635 — PASS. Первые четыре пересчитанных отчёта точно равны producer reports. Summary `independent-release-gates/summary.json`: 6370 байт, SHA-256 `5f2ec5f5c4e0a136b4e71e41439f8340ea69618ec1d9cfb179561cff7f29c725`.
+
+Новая свежая выдача Bing содержит те же 10/10 карточек в порядке raw source DOM. Первые две фактически загруженные страницы теперь **AI Wave → официальный Newsroom Anthropic**; обе имеют `loading:false`, пустой error и точные исходные URL. Это другой живой запрос того же текста, поэтому результаты не подменяются прежними Meduza → AI Wave из source CI. Source paint принят на третьем кадре за 2515.49 ms, tile paint — на первом за 897.81 ms; все отвергнутые кадры сохранены, ledger содержит **19 actual / 17 canonical** кадров. Прежние 4500 ms / 20 frames и pixel thresholds сохранены.
+
+Source PNG показывает Bing с точным запросом «новости про антропик», однако верхний собственный блок Bing ещё содержит «Looking that up for you…», а органические строки находятся ниже видимой области. Поэтому один этот PNG не доказывает порядок ссылок: порядок установлен raw DOM snapshot и receipt соответствующих реальных плиток. Независимый reviewer просмотрел source/tiles display и crop, Agent dark400/light400/dark300/settings, закреплённое окно и native layout menu; конкретных UI blockers не обнаружил.
+
+Геометрия свежего probe подтверждена: window/content/viewport 1016×676 → 1016×648 → 1016×676 при origin (4,29); `709 − 677 = 32 px` нижнего зазора; `restored:true`, `cleanupErrors:[]`. Это временная постановка проверочного окна, а не изменение пользовательского layout.
+
+### Реальный старый обновлятор
+
+`channel-verification.json`: 364 байта, SHA-256 `6442a2c98f2dfee105aa654ce434eba828356a1e9467ee9da1aadcd431e0710b`. Исполнялся настоящий updater 6.0.29 из исторического blob `c4a9564bc5a7c3cf2c6798b5eade9680ee0e57cf`, через обычный Node fetch и `env -u GH_TOKEN`; проверенный код не добавляет Authorization, cookies или токены в запросы. Старый updater обнаружил **6.0.35**, скачал **139451133 байта** и повторно проверил SHA-256 `8e772d0f24df08c0e2e1adeda76235e6eaa77ab550fcaea91392e1b539e051df` на диске.
+
+Diagnostics SHA-256 `766e4b46c1c4816619e8196384610be35578cd71c3766f658d2a94da8307c7d7` сохраняет 24 фактических ответа с 6.0.34 и 25-й с 6.0.35; причина задержки распространения не установлена. `currentVersionCheck:true` означает корректный статический канал и `phase:current` для модуля 6.0.35, но не доказывает, что его отдельный ответ содержал именно 6.0.35: более старый канал также даёт current. Точное появление 6.0.35 подтверждено отдельно старым updater и CHANNEL_RESULT. Сам этот шаг не устанавливает приложение; реальное обновление приложения подтверждает предыдущий installed gate.
+
+### Публичные пакеты и платформенные каналы
+
+Публичные asset sizes/digests совпали с точным source candidate и свежим publisher. `mouse-build.json` имеет 6945 байт, SHA-256 `d3b1fcbb10fe8cf53cc0d6717d933894f30ca17e3677f09d2d6c5be75c446ba5`, source `0d4a1390fced54b59c2cf7b49c9d9394549456ac`, source run `44896578294`, version 6.0.35, darwin/arm64, signing ad-hoc, notarized false. `SHA256SUMS.txt`: 304 байта, SHA-256 `0e5a60392c8f65f242842f01e15e29dcdb2c9efc365b30f5808f5b9891127faf`; он содержит прежние точные суммы DMG/ZIP и идентичного Quadro DMG alias.
+
+- [Mouse DMG](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.35-arm64/Mouse-Browser-6.0.35-mac-arm64.dmg): 139451133 байта, SHA-256 `8e772d0f24df08c0e2e1adeda76235e6eaa77ab550fcaea91392e1b539e051df`.
+- [Mouse ZIP](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.35-arm64/Mouse-Browser-6.0.35-mac-arm64.zip): 141786444 байта, SHA-256 `b12f768971f63601dbffaae78bf573cffc04a76253b7aa93ca70a5c66ec06033`.
+- [Mac-канал](https://github.com/jeep-jim/OSMINOG-Releases/blob/main/channels/mouse/macos-arm64.json) теперь 6.0.35, Git blob `e31719f4a6ef9d9746a8b2e9380cfdca4211c26e`; URL, size, digest, publishedAt совпали с релизом.
+- Windows остаётся 6.0.34: `platforms/windows/mouse-x64/latest.json`, Git blob до/после `c6a91468cbbee55facaf85e98988ad8a5b0f0d48`.
+- Linux остаётся 6.0.34: `platforms/linux/mouse-x64/latest.json`, Git blob до/после `6c9ecd97aecb36269cb4dd3f6eaacc7dfcac09a4`.
+
+Public API/feed/run readback сохранён в `public-verification.json`: 53330 байт, SHA-256 `1afcce112745e8ef5022aca102ce215c4da3e3897b6c36fe3df0620f7fff35c4`; дополнительная сверка manifest и неизменных sibling blobs — 856 байт, SHA-256 `a10b97c305838416be11662ac4d1c5ed7b601b120406f7c6d6927d21b1444e65`.
+
+### Границы проверенного результата и продолжение
+
+Выпущены согласованные Agent messenger с моделью/статусом/отправкой и остановкой, отдельные настройки и разрешения, сворачиваемые технические детали и терминал, иконка с поправленным лбом, перенос очков/скриншота/темы, native layout menu с текущим состоянием стола, закрепление pane и стабильность Downloads/Captures. Настоящая end-to-end поисковая приёмка выполнена на Bing; Google, DuckDuckGo и Яндекс представлены адаптерами и контрактными проверками, отдельный живой проход каждого в этом выпуске не утверждается. Содержимое внешних сайтов не фактчекалось.
+
+Agent chat проверен через явно обозначенную HTTP/SSE fixture `mouse635-chat-fixture`, `externalModelVerified:false`; доступность пользовательского Ollama/API не объявляется подтверждённой. История чата относится к столу в пределах текущего сеанса приложения; сохранение её после перезапуска не заявляется. Следующий этап — обратная связь владельца по установленной Mac-версии. Windows/Linux 6.0.35 и их публикация отложены прямым решением владельца. Эта запись завершает выпуск; новую сборку из-за документационного дополнения запускать не требуется.
+
+Итоговая независимая сверка `final-audit.json`: 18138 байт, SHA-256 `226c86936b4cc4523517dfda9321830492e4d3ba7e360967bac539897b7015c3`; включает provenance, hash index, пять gates, actual upgrade, поиск/пиксели и точные границы проверки updater.
