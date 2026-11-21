@@ -64,3 +64,6 @@ Native footer-проверка теперь измеряет новую пози
 Уточнение native проверки после первого source snapshot: общий hit-target helper теперь учитывает top-layer семантику настоящего dialog.showModal(). Внутренний scrollport диалога по-прежнему ограничивает клики, а внешний overflow панели уже не ограничивает поднятое modal окно. Обычный dialog.show() не получает это исключение. Целевые24 helper-теста прошли; два новых сценария проверяют эти различия. Это исправляет измеритель native клика, не подменяет OS-ввод синтетическим.
 
 Повторный полный gate после уточнения modal helper:1132 теста,1126PASS,0FAIL,6Windows-onlySKIP. SHA-256 `mouse635-final-unit-2.log`: `9405e2fa5da91bca5faee5224fc8e7424dfdb4bb18b36b32a0fa1165cdf544f4`.
+
+
+Первый installed Mac run948eeef (`44878048445`, job136767034927) прошёл retained634 gate, но остановился на первом native-click нового owner635: `Click probe is CI smoke-only`. Выявлена пропущенная регистрация `--mouse-635-smoke` в macOS native test allowlist. Добавлен только этот явный режим; обязательные CI=true, абсолютный изолированный профиль и отсутствие API в обычном IPC сохранены. Windows/Linux не имеют версии в allowlist и изменений не требуют.35 целевых native/artwork/controls контрактов прошли; native компиляция и работа клика будут подтверждены новым CI.
