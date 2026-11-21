@@ -61,3 +61,39 @@ test('only a bounded manifest-selected PNG is exposed, never paths or raw manife
  const [row]=await m.install();assert.equal(row.icon,'data:image/png;base64,'+png.toString('base64'));assert.ok(!Object.hasOwn(row,'path'));
  assert.equal(inspectManifest(JSON.stringify({...manifest,icons:{'32':'../icon.png'}})).iconRel,undefined);
 });
+test('opens only a declared managed HTML resource for an enabled registered extension',async t=>{
+ const f=await fixture(t);const id='a'.repeat(32);const registry=new Map();
+ const browserSession={storagePath:f.storage,extensions:{
+  loadExtension:async folder=>{const e={id,path:folder};registry.set(id,e);return e;},
+  getExtension:key=>registry.get(key),removeExtension:key=>registry.delete(key)
+ }};
+ const m=createMouseExtensions({storage:f.storage,session:browserSession,dialog:{
+  showOpenDialog:async()=>({filePaths:[f.source]}),showMessageBox:async()=>({response:1})
+ },isAvailable:()=>allowed});
+ let allowed=true;
+ await fs.mkdir(path.join(f.source,'ui'));
+ await fs.writeFile(path.join(f.source,'ui','panel.html'),'<title>Fixture</title>');
+ await fs.writeFile(path.join(f.source,'manifest.json'),JSON.stringify({...manifest,action:{default_popup:'ui/panel.html'}}));
+ const [row]=await m.install();
+ assert.equal(row.actionPopup,true);
+ const info=await m.openPage(row.id,x=>x);
+ assert.deepEqual(info,{url:'chrome-extension://'+id+'/ui/panel.html',extensionId:id});
+ assert.ok(Object.isFrozen(info));
+ registry.delete(id);
+ await assert.rejects(m.openPage(row.id,()=>assert.fail()),/не загружено/);
+ registry.set(id,{id,path:'/different'});
+ await assert.rejects(m.openPage(row.id,()=>assert.fail()),/не загружено/);
+ await m.setEnabled(row.id,false);
+ await assert.rejects(m.openPage(row.id,()=>assert.fail()),/включите/);
+ await m.setEnabled(row.id,true);
+ allowed=false;
+ await assert.rejects(m.openPage(row.id,()=>assert.fail()),/обычном режиме/);
+ allowed=true;
+ await fs.writeFile(path.join(f.storage,'packages',row.id,'ui/panel.html'),'<title>tampered</title>');
+ await assert.rejects(m.openPage(row.id,()=>assert.fail()),/изменились/);
+});
+test('only strict relative packaged HTML action declarations may be opened',()=>{
+ for(const value of ['https://example.com/a.html','../a.html','/a.html','a/../b.html','%2e%2e/a.html','a.html?x','a.html#x','a.svg','a.js','a\\b.html'])
+   assert.equal(inspectManifest(JSON.stringify({...manifest,action:{default_popup:value}})).popupRel,null,value);
+ assert.equal(inspectManifest(JSON.stringify({...manifest,action:{default_popup:'a/b.html'}})).popupRel,'a/b.html');
+});

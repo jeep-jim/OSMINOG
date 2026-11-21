@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createMouseExtensionsUI=({N,showDialog})=>{
+globalThis.createMouseExtensionsUI=({N,showDialog,placeTab})=>{
  const $=id=>document.getElementById(id);
  const tray=$('mouse-extensions-tray'),toggle=$('mouse-extensions-button'),pins=$('mouse-extensions-pins');
  const modal=$('mouse-extensions-dialog'),list=$('mouse-extensions-list'),install=$('mouse-extensions-install'),status=$('mouse-extensions-status');
@@ -11,6 +11,7 @@ globalThis.createMouseExtensionsUI=({N,showDialog})=>{
  async function run(action,args,focusId){
   if(busy||privateMode())return;busy=true;install.disabled=true;status.textContent='';
   try{const state=await N.extensions(action,args);if(privateMode())return;
+   if(action==='open-page'){if(modal.open)modal.close();await placeTab?.(state);return;}
    entries=Array.isArray(state)?state:Array.isArray(state?.extensions)?state.extensions:[];
    available=true;render();if(focusId)list.querySelectorAll('.mouse-extension-row').forEach(row=>{if(row.dataset.id===focusId)row.focus()});
   }catch(e){if(!privateMode()&&action!=='state')status.textContent=copy().error;}
@@ -23,7 +24,7 @@ globalThis.createMouseExtensionsUI=({N,showDialog})=>{
   pins.replaceChildren();list.replaceChildren();
   const pinned=entries.filter(e=>e.enabled&&e.pinned);
   for(const entry of pinned.slice(0,3)){
-   const p=button('',()=>void open(p,entry.id));p.className='mouse-extension-pin';p.title=entry.name;p.setAttribute('aria-label',entry.name);
+   const p=button('',()=>void (entry.actionPopup?run('open-page',{id:entry.id}):open(p,entry.id)));p.className='mouse-extension-pin';p.title=entry.name;p.setAttribute('aria-label',entry.name);
    if(typeof entry.icon==='string'&&entry.icon.length<32768&&/^data:image\/png;base64,[a-z\d+/=]+$/i.test(entry.icon)){
     const icon=el('img');icon.alt='';icon.src=entry.icon;p.append(icon);
    }else p.append(toggle.querySelector('svg').cloneNode(true));
@@ -35,6 +36,7 @@ globalThis.createMouseExtensionsUI=({N,showDialog})=>{
    const row=el('div','mouse-extension-row');row.dataset.id=entry.id;row.tabIndex=-1;
    row.append(el('strong','',entry.name+(entry.version?' · '+entry.version:'')));
    const actions=el('div','mouse-extension-actions');
+   if(entry.enabled&&entry.actionPopup)actions.append(button(document.documentElement.lang==='en'?'Open page':'Открыть страницу',()=>void run('open-page',{id:entry.id})));
    actions.append(button(entry.enabled?c.off:c.on,()=>void run('set-enabled',{id:entry.id,value:!entry.enabled},entry.id)));
    const pin=button(entry.pinned?c.unpin:c.pin,()=>void run('set-pinned',{id:entry.id,value:!entry.pinned},entry.id));pin.disabled=!entry.enabled;
    actions.append(pin,button(c.remove,()=>void run('remove',{id:entry.id})));row.append(actions);list.append(row);

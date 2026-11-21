@@ -97,7 +97,14 @@ if(ownsProfile)app.whenReady().then(async()=>{
  require('./mouse-stability.cjs').installWorkspace(browser,{report:log});
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state,e.senderFrame)});
- await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
+ const extensionsAvailable=()=>!privateMode?.current&&!privateMode?.busy&&!win.isDestroyed()&&!exitController?.isClosing();
+ let extensions;
+ const extensionRestore=Promise.resolve().then(async()=>{
+  extensions=require('./mouse-extensions.cjs').createMouseExtensions({session:browser.session,dialog,win,
+   storage:path.join(app.getPath('userData'),'mouse-local-extensions'),isAvailable:extensionsAvailable,onUnload:id=>browser.closeManagedExtension(id)});
+  await extensions.restore();
+ }).catch(()=>{extensions=undefined;log('Optional local extensions unavailable at startup');});
+ await browser.initNetwork();await extensionRestore;await browser.command('project',{id:'trader-os-main'});
  settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
@@ -144,13 +151,6 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{tileSearch.close('Режим приватности изменён',{reset:true});importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');return importService.flush();}});
- const extensionsAvailable=()=>!privateMode?.current&&!privateMode?.busy&&!win.isDestroyed()&&!exitController?.isClosing();
- let extensions;
- const extensionRestore=Promise.resolve().then(async()=>{
-  extensions=require('./mouse-extensions.cjs').createMouseExtensions({session:browser.session,dialog,win,
-   storage:path.join(app.getPath('userData'),'mouse-local-extensions'),isAvailable:extensionsAvailable});
-  await extensions.restore();
- }).catch(()=>{extensions=undefined;log('Optional local extensions unavailable at startup');});
  ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
   trusted(e);
   if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
@@ -160,6 +160,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(action==='state')return extensions.state();
   if(action==='install')return extensions.install();
   if(!args||typeof args.id!=='string'||args.id.length>100)throw Error('Не удалось определить расширение');
+  if(action==='open-page')return extensions.openPage(args.id,entry=>{if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');const desk=browser.state().desktopId;return {...browser.openManagedExtension(entry),desk};});
   if(action==='set-enabled'&&typeof args.value==='boolean')return extensions.setEnabled(args.id,args.value);
   if(action==='set-pinned'&&typeof args.value==='boolean')return extensions.setPinned(args.id,args.value);
   if(action==='remove')return extensions.remove(args.id);
