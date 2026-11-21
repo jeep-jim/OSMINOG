@@ -96,7 +96,14 @@ if(ownsProfile)app.whenReady().then(async()=>{
  require('./mouse-stability.cjs').installWorkspace(browser,{report:log});
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state,e.senderFrame)});
- await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
+ const extensionsAvailable=()=>!privateMode?.current&&!privateMode?.busy&&!win.isDestroyed()&&!exitController?.isClosing();
+ let extensions;
+ const extensionRestore=Promise.resolve().then(async()=>{
+  extensions=require('./mouse-extensions.cjs').createMouseExtensions({session:browser.session,dialog,win,
+   storage:path.join(app.getPath('userData'),'mouse-local-extensions'),isAvailable:extensionsAvailable,onUnload:id=>browser.closeManagedExtension(id)});
+  await extensions.restore();
+ }).catch(()=>{extensions=undefined;log('Optional local extensions unavailable at startup');});
+ await browser.initNetwork();await extensionRestore;await browser.command('project',{id:'trader-os-main'});
  settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
@@ -117,6 +124,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  progressBridge=require('./mouse-progress-bridge.cjs').install({win,browser,ipcMain,trusted,progress,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  agentHost=require('./mouse-agent/host.cjs').install({app,win,browser,ipcMain,trusted,progress,dialog,powerMonitor:require('electron').powerMonitor,utilityProcess:require('electron').utilityProcess,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),test});
  app.once('will-quit',()=>{progressBridge.dispose();void agentHost.dispose();progress.dispose();});
+ const mediaPlayer=require('./mouse-media-player.cjs').install({win,browser,ipcMain,trusted,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy||exitController?.isClosing())});
+ app.once('will-quit',()=>mediaPlayer.dispose());
  const previewPowerMonitor=require('electron').powerMonitor;
  const clearDesktopPreviewUI=()=>{desktopService.previews.clear();privateMode?.current?.desktopService?.previews.clear();if(!win.isDestroyed()&&win.webContents.getURL()===entry)win.webContents.send('mouse:previews-cleared');};
  previewPowerMonitor.on('lock-screen',clearDesktopPreviewUI);previewPowerMonitor.on('unlock-screen',clearDesktopPreviewUI);
@@ -140,7 +149,22 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if((action==='maximize'||action==='zoom')&&!isMac){if(win.isMaximized())win.unmaximize();else win.maximize();return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');return importService.flush();}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>{progressBridge.resume();mediaPlayer.resume();},onPrivacyChange:()=>{importService.cancelPending();documentService.clear();progressBridge.clear();mediaPlayer.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');return importService.flush();}});
+ ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
+  trusted(e);
+  if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
+  await extensionRestore;
+  if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
+  if(!extensions)throw Error('Модуль расширений недоступен');
+  if(action==='state')return extensions.state();
+  if(action==='install')return extensions.install();
+  if(!args||typeof args.id!=='string'||args.id.length>100)throw Error('Не удалось определить расширение');
+  if(action==='open-page')return extensions.openPage(args.id,entry=>{if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');const desk=browser.state().desktopId;return {...browser.openManagedExtension(entry),desk};});
+  if(action==='set-enabled'&&typeof args.value==='boolean')return extensions.setEnabled(args.id,args.value);
+  if(action==='set-pinned'&&typeof args.value==='boolean')return extensions.setPinned(args.id,args.value);
+  if(action==='remove')return extensions.remove(args.id);
+  throw Error('Действие не поддерживается');
+ });
  const desktopGesture=await require('./mouse-gesture.cjs').install({win,store,ipcMain,trusted,enabled:()=>settingsService.state().desktopGestures,getContext:()=>({privateMode:privateMode.current,busy:privateMode.busy,browser:privateMode.current?.browser||browser,desktopService:privateMode.current?.desktopService||desktopService})});
  app.once('will-quit',()=>desktopGesture.dispose());
  ipcMain.handle('mouse:privacy',(event)=>{trusted(event);importService.cancelPending();setImmediate(()=>privateMode.toggle().catch(async error=>{if(!exitController.isClosing())await releaseDocumentsUI();if(error.code!=='MOUSE_DOCUMENT_CANCEL'&&!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через '+(isMac?'⌘Q':'Ctrl+Q')+' и повторите.')}));return true;});

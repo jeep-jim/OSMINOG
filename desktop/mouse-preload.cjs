@@ -5,6 +5,8 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  platform:process.platform,arch:process.arch,
  version:process.argv.find(x=>x.startsWith('--mouse-version='))?.split('=').slice(1).join('=')||'6.0.0',
  test:process.argv.includes('--mouse-test'),
+ extensions:(action,args)=>ipcRenderer.invoke('mouse:extensions',action,args),
+ mediaPlayer:(action,args)=>ipcRenderer.invoke('mouse:media-player',action,args),onMediaPlayer:cb=>on('mouse:media-player-state',cb),
  contextMenu:args=>ipcRenderer.invoke('mouse:context-menu',args),onContextAction:cb=>on('mouse:context-action',cb),
  settings:(action,args)=>ipcRenderer.invoke('mouse:settings',action,args),onSettings:cb=>on('mouse:settings-state',cb),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
