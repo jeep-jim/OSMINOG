@@ -53,6 +53,21 @@ test('challenge is explicit and manual take transfers the same WebContents witho
  const adopted=f.source.takeSource('challenge');assert.equal(adopted.view,f.views[0]);assert.equal(wc.listenerCount('will-navigate'),0);assert.equal(wc.listenerCount('unrelated-handler'),1);assert.equal(f.loads.length,1);
  f.source.cancelAll();f.source.dispose();assert.equal(wc.isDestroyed(),false);assert.throws(()=>f.source.sourceFor('challenge'),{code:'SEARCH_SOURCE_STALE'});
 });
+test('provider verification q is an opaque token and manual take preserves that exact source document',async t=>{
+ const challengeURL='https://www.google.com/sorry/index?q=opaque-verification-token&continue=https%3A%2F%2Fwww.google.com%2Fsearch%3Fq%3Dtopic';
+ const f=setup(t,{read:wc=>{wc.url=challengeURL;return snapshot(wc,'google',{rows:[],challenge:'provider-interaction'});}});
+ await assert.rejects(f.source.query({query:'topic',requestId:'opaque-challenge'}),{code:'SEARCH_ENGINE_CHALLENGE'});
+ const live=f.source.sourceFor('opaque-challenge');assert.equal(live.source.query,'topic');assert.equal(live.source.finalURL,challengeURL);
+ const adopted=f.source.takeSource('opaque-challenge');assert.equal(adopted.wc,live.wc);assert.equal(adopted.view,live.view);assert.equal(adopted.wc.getURL(),challengeURL);assert.equal(f.loads.length,1);
+ f.source.cancelAll();assert.equal(adopted.wc.isDestroyed(),false);
+});
+test('a changed query on the normal SERP still rejects both source access and manual take',async t=>{
+ const f=setup(t);await f.source.query({query:'topic',requestId:'normal-query'});
+ f.views[0].webContents.url='https://www.google.com/search?q=another-query';
+ assert.throws(()=>f.source.sourceFor('normal-query'),{code:'SEARCH_SOURCE_STALE'});
+ assert.throws(()=>f.source.takeSource('normal-query'),{code:'SEARCH_SOURCE_STALE'});
+ assert.equal(f.loads.length,1);
+});
 test('malformed native DOM retains a manual source handle instead of a fabricated empty result',async t=>{
  const f=setup(t,{read:wc=>({schema:1,engine:'google',documentURL:wc.url,rows:'not an array'})});
  await assert.rejects(f.source.query({query:'topic',requestId:'layout'}),error=>error.code==='SEARCH_ENGINE_LAYOUT'&&error.manualAction.available===true);

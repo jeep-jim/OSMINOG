@@ -11,7 +11,7 @@ const CONTRACT='selected-engine-native-serp-v1';
 const CONTRACT_MARKER='MOUSE_635_PUBLIC_SEARCH_CONTRACT_PASS';
 const LIVE_MARKER='MOUSE_635_PUBLIC_SEARCH_PASS';
 const UNVERIFIED_MARKER='MOUSE_635_PUBLIC_SEARCH_LIVE_TOPIC_UNVERIFIED';
-const CAPTURES=Object.freeze(['mouse-635-public-search-source.png','mouse-635-public-search-tiles.png']);
+const CAPTURES=Object.freeze(['mouse-635-public-search-engine-menu.png','mouse-635-public-search-source.png','mouse-635-public-search-tiles.png']);
 const CASES=Object.freeze([
  {name:'owner-russian',query:'новости про антропик',topic:['anthropic','антропик']},
  {name:'control',query:'Python documentation',topic:['python']},
@@ -24,6 +24,7 @@ const ENGINES=Object.freeze({
 });
 const QUERY_BUDGET_MS=17000,MAX_RECEIPT_BYTES=16*1024*1024;
 const ERRORS=new Set(['SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT','SEARCH_ENGINE_REDIRECT','SEARCH_ENGINE_CLOSED','SEARCH_TIMEOUT','SEARCH_NETWORK','SEARCH_PROXY','SEARCH_DNS','SEARCH_TLS','SEARCH_HTTP','SEARCH_BLOCKED','SEARCH_RATE_LIMIT']);
+const displayDomain=url=>new URL(url).hostname.replace(/^www\./,'');
 const signature=rows=>sha(Buffer.from(JSON.stringify(rows.map(row=>[row.title,row.rawHref,row.content]))));
 function sourceURL(value,engine,query,{search=true}={}){
  const u=new URL(value),setting=ENGINES[engine];assert.ok(setting,'A known selected browser engine is required');
@@ -111,7 +112,25 @@ function readSearchUI(){
   errorVisible:visible(root?.querySelector('.mouse-search-error')),errorText:root?.querySelector('.mouse-search-error p')?.textContent||'',
   cards:[...(root?.querySelectorAll('.mouse-search-card')||[])].filter(visible).map(card=>({id:card.dataset.resultId,title:card.querySelector('.mouse-search-card-title')?.textContent,source:card.querySelector('.mouse-search-card-domain')?.textContent,bounds:rect(card)}))};
 }
-async function runPublicSearchSmoke(ctx,{fixture,nativeInput,click,screenCapture}={}){
+function readEngineMenu(){
+ const dialog=document.querySelector('#choice-dialog'),rect=el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
+ const visible=el=>!!el&&!el.hidden&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility==='visible'&&el.getBoundingClientRect().width>0&&el.getBoundingClientRect().height>0;
+ return{open:!!dialog?.open,modal:!!dialog?.matches(':modal'),bounds:dialog?rect(dialog):null,viewport:{width:innerWidth,height:innerHeight},options:[...(dialog?.querySelectorAll('button')||[])].map(button=>{
+  const bounds=rect(button),hit=document.elementFromPoint(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
+  return{value:button.dataset.value,text:button.textContent,role:button.getAttribute('role'),selected:button.getAttribute('aria-selected'),disabled:button.disabled,visible:visible(button),hit:hit===button||button.contains(hit),bounds};
+ })};
+}
+function validateEngineMenu(menu,selected){
+ assert.equal(menu.open,true);assert.equal(menu.modal,true);assert.ok(ENGINES[selected]);
+ assert.deepEqual(menu.options.map(option=>({value:option.value,text:option.text})),Object.entries(ENGINES).map(([value,entry])=>({value,text:entry.name})));
+ for(const item of [menu,...menu.options]){
+  const b=item.bounds;assert.ok(b&&['x','y','width','height'].every(key=>Number.isFinite(b[key]))&&b.width>0&&b.height>0);
+  assert.ok(b.x>=0&&b.y>=0&&b.x+b.width<=menu.viewport.width+1&&b.y+b.height<=menu.viewport.height+1,'The actual chooser remains inside the visible window');
+ }
+ for(const option of menu.options){assert.equal(option.role,'option');assert.equal(option.selected,String(option.value===selected));assert.equal(option.disabled,false);assert.equal(option.visible,true);assert.equal(option.hit,true);}
+ return menu;
+}
+async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  const {app,win,browser,tileSearch}=ctx,started=performance.now(),file='mouse-635-public-search.json',observed=[],receipts=[],writes=[],writeErrors=[];
  const source=tileSearch.nativeSource||tileSearch.service.nativeSource,originalHandle=tileSearch.handle;
  const facts={schema:3,contract:CONTRACT,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,packaged:app.isPackaged,
@@ -120,18 +139,25 @@ async function runPublicSearchSmoke(ctx,{fixture,nativeInput,click,screenCapture
   ok:false,contractVerified:false,liveTopicalCapabilityVerified:false,ownerQueryCovered:false,verifiedEngines:[],cases:[],sources:[],inputs:[],blockers:[],cleanupErrors:[],nativeCaptures:[]};
  const save=()=>bounded(fs.writeFile(file,JSON.stringify(facts,null,2)+'\n'),2500,'635 selected-engine evidence write');
  const ui=()=>fixture.js('('+readSearchUI.toString()+')()');
- const key=async name=>{const aliases={HOME:'Home',DOWN:'Down',ENTER:'Return',ESC:'Escape'};assert.equal(nativeInput.testKey(process.platform==='linux'?aliases[name]||name:name),true);await new Promise(resolve=>setTimeout(resolve,45));};
  const nativeClick=async(selector,options)=>{const input=await click(selector,options);facts.inputs.push(input);return input;};
  let unsubscribe,error,preference;
  async function flush(){await bounded(Promise.all(writes),5000,'635 actual DOM receipt writes');if(writeErrors.length)throw Error(writeErrors.join('; '));}
  async function selectEngine(engine){
   const before=await ui();assert.deepEqual(before.engineOptions.map(row=>row.value),Object.keys(ENGINES));assert.ok(!before.engineDisabled&&before.engineReady==='true');
-  const receipt=await nativeClick('.mouse-search-engine',{deferReceipt:true});
-  await key('HOME');for(let i=0;i<Object.keys(ENGINES).indexOf(engine);i++)await key('DOWN');await key('ENTER');
-  await fixture.until(async()=>{receipt.events=await fixture.js('__mouse633Input.read()');const state=await ui();return state.engine===engine&&!state.engineDisabled&&state.engineReady==='true'&&receipt.events.some(event=>event.type==='change'&&event.trusted&&event.matches);},'635 actual native engine choice');
-  assert.ok(receipt.events.some(event=>event.type==='click'&&event.trusted&&event.matches),'The native picker receives the real pointer click');
+  const opener=await nativeClick('.mouse-search-engine');facts.preference={before:preference,opener,menu:{},ui:before};
+  const menu=()=>fixture.js('('+readEngineMenu.toString()+')()');
+  await fixture.until(async()=>{const state=await menu();return state.open&&state.modal&&tileSearch.overlayGate.blocked===true;},'635 actual engine chooser opens through the native barrier');
+  const choice=facts.preference.menu;choice.before=validateEngineMenu(await menu(),before.engine);choice.gateBlockedBefore=tileSearch.overlayGate.blocked;
+  facts.nativeCaptures.push(await screenCapture(CAPTURES[0],'actual search-engine chooser'));choice.capture=CAPTURES[0];
+  choice.after=validateEngineMenu(await menu(),before.engine);choice.gateBlockedAfter=tileSearch.overlayGate.blocked;
+  assert.deepEqual(choice.after,choice.before,'The actual chooser is unchanged during its OS capture');assert.equal(choice.gateBlockedAfter,true);
+  // The shared production chooser dispatches a synthetic change after the real
+  // button click. Acceptance is bound to both trusted pointer events and the
+  // canonical persisted preference, never to that application event's trust bit.
+  const input=await nativeClick('#choice-dialog button[data-value="'+engine+'"]');facts.preference.input=input;
+  await fixture.until(async()=>{const state=await ui(),dialog=await menu();return !dialog.open&&!dialog.modal&&tileSearch.overlayGate.blocked===false&&state.engine===engine&&!state.engineDisabled&&state.engineReady==='true';},'635 actual engine choice and modal release');
   const selected=await fixture.js('MouseNative.start("get").then(value=>value.search)');
-  assert.equal(selected.engine,engine);assert.equal(selected.private,false);facts.preference={before:preference,selected,input:receipt,ui:await ui()};return selected;
+  assert.equal(selected.engine,engine);assert.equal(selected.private,false);facts.preference.selected=selected;facts.preference.ui=await ui();facts.preference.closed={open:false,modal:false,gateBlocked:tileSearch.overlayGate.blocked};return selected;
  }
  async function clearQuery(){
   await nativeClick('#mouse-search-query');
@@ -142,7 +168,7 @@ async function runPublicSearchSmoke(ctx,{fixture,nativeInput,click,screenCapture
  async function captureSource(entry,call,receipt){
   let current;
   try{current=source.sourceFor(call.args.requestId);}catch(failure){
-   entry.sourceFrame={available:false,reason:failure.code||failure.message};facts.nativeCaptures.push(await screenCapture(CAPTURES[0],'selected engine unavailable'));return;
+   entry.sourceFrame={available:false,reason:failure.code||failure.message};facts.nativeCaptures.push(await screenCapture(CAPTURES[1],'selected engine unavailable'));return;
   }
   const {view,wc}=current,read=async()=>{
    const owner=source.sourceFor(call.args.requestId),snapshot=await wc.executeJavaScriptInIsolatedWorld(WORLD_ID,[{code:snapshotScript(entry.engine,false)}],false);
@@ -157,7 +183,7 @@ async function runPublicSearchSmoke(ctx,{fixture,nativeInput,click,screenCapture
    entry.sourceFrame.before=await read();
    assert.equal(entry.sourceFrame.before.webContentsId,receipt.webContentsId);assert.equal(entry.sourceFrame.before.navigationEpoch,receipt.navigationEpoch);
    assert.equal(entry.sourceFrame.before.url,receipt.finalURL);assert.equal(entry.sourceFrame.before.organicSignature,receipt.organicSignature,'The visible provider source retains the extracted organic nodes');
-   facts.nativeCaptures.push(await screenCapture(CAPTURES[0],'actual selected provider SERP'));
+   facts.nativeCaptures.push(await screenCapture(CAPTURES[1],'actual selected provider SERP'));
    entry.sourceFrame.after=await read();
    for(const field of ['source','navigationEpoch','webContentsId','url','bounds','zoom','visible','attached','topmost','surfaceHeld','tilesHidden','window','organicSignature'])assert.deepEqual(entry.sourceFrame.after[field],entry.sourceFrame.before[field],'The source document stays unchanged during its actual OS frame: '+field);
   }finally{
@@ -186,11 +212,11 @@ async function runPublicSearchSmoke(ctx,{fixture,nativeInput,click,screenCapture
   else {assert.deepEqual(entry.ui.cards.map(row=>row.id),first.result.results.map(row=>row.id),'Tile DOM preserves original result order');assert.deepEqual(entry.hostResults.map(row=>row.id),first.result.results.map(row=>row.id),'Host result registry preserves original order');}
   if(first.result.ok!==false)for(const row of first.result.results){
    const card=entry.ui.cards.find(value=>value.id===row.id),host=entry.hostResults.find(value=>value.id===row.id);
-   assert.ok(card&&host);assert.equal(card.title,row.title);assert.equal(card.source,row.source);assert.deepEqual(host,{id:row.id,url:row.url,title:row.title,source:row.source,content:row.content});
+   assert.ok(card&&host);assert.equal(card.title,row.title);assert.equal(card.source,displayDomain(row.url));assert.deepEqual(host,{id:row.id,url:row.url,title:row.title,source:row.source,content:row.content});
   }
   if(index===0){
    await captureSource(entry,first,receipt);entry.uiAfterSource=await ui();assert.equal(entry.uiAfterSource.query,spec.query);assert.deepEqual(entry.uiAfterSource.cards.map(row=>[row.id,row.title,row.source]),entry.ui.cards.map(row=>[row.id,row.title,row.source]));
-   facts.nativeCaptures.push(await screenCapture(CAPTURES[1],'actual selected-engine tile feed'));
+   facts.nativeCaptures.push(await screenCapture(CAPTURES[2],'actual selected-engine tile feed'));
   }
   entry.cleanupStartedAt=performance.now();await clearQuery();await new Promise(setImmediate);
   for(const call of observed.slice(begin).filter(row=>row!==first)){
@@ -246,4 +272,4 @@ async function runPublicSearchSmoke(ctx,{fixture,nativeInput,click,screenCapture
  console.log(CONTRACT_MARKER);console.log(facts.liveTopicalCapabilityVerified?LIVE_MARKER:UNVERIFIED_MARKER);
  return{...facts,reportFile:file,reportSha256:sha(await fs.readFile(file))};
 }
-module.exports=Object.assign(runPublicSearchSmoke,{validateReceipt,validateNativeReply,destination,sourceURL,signature,readSearchUI,CONTRACT,CONTRACT_MARKER,LIVE_MARKER,UNVERIFIED_MARKER,CAPTURES,CASES,ENGINES,QUERY_BUDGET_MS});
+module.exports=Object.assign(runPublicSearchSmoke,{validateReceipt,validateNativeReply,destination,sourceURL,signature,displayDomain,readSearchUI,readEngineMenu,validateEngineMenu,CONTRACT,CONTRACT_MARKER,LIVE_MARKER,UNVERIFIED_MARKER,CAPTURES,CASES,ENGINES,QUERY_BUDGET_MS});

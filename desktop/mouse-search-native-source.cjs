@@ -8,11 +8,11 @@ const LIMITS=Object.freeze({queryMs:15000,pollMs:200,results:24,rows:80,pages:30
 const fail=(code,message)=>new SearchError(code,message);
 const HOSTS=Object.freeze({google:['google.com','www.google.com','google.ru','www.google.ru','consent.google.com','accounts.google.com','sorry.google.com'],bing:['bing.com','www.bing.com','cn.bing.com'],duckduckgo:['duckduckgo.com','www.duckduckgo.com','html.duckduckgo.com','lite.duckduckgo.com'],yandex:['yandex.ru','www.yandex.ru','yandex.com','www.yandex.com','ya.ru','yandex.by','yandex.kz','yandex.uz','yandex.com.tr']});
 function engineURL(engine,value){try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password&&HOSTS[engine]?.includes(url.hostname.toLowerCase())?url:null;}catch{return null;}}
+function searchPath(engine,url){return(engine==='duckduckgo'?['/','/html/','/html','/lite/','/lite']:['/search','/search/']).includes(url.pathname);}
 function searchURL(engine,value,query){
   const url=engineURL(engine,value);if(!url)return null;
-  const paths=engine==='duckduckgo'?['/','/html/','/html','/lite/','/lite']:['/search','/search/'];
   const parameter=engine==='yandex'?'text':'q',values=url.searchParams.getAll(parameter);
-  return paths.includes(url.pathname)&&values.length===1&&values[0]===query?url.href:null;
+  return searchPath(engine,url)&&values.length===1&&values[0]===query?url.href:null;
 }
 function resultURL(engine,value,base){
   try{
@@ -75,7 +75,9 @@ function createNativeSearchSource(options={}){
     const actual=record.wc.getURL(),url=engineURL(record.engine,actual);
     if(!url)throw fail('SEARCH_SOURCE_STALE','Страница поисковика изменилась. Повторите запрос.');
     const values=url.searchParams.getAll(record.engine==='yandex'?'text':'q');
-    if(values.length&&values.some(value=>value!==record.query))throw fail('SEARCH_SOURCE_STALE','Запрос на странице поисковика изменился.');
+    // q/text belong to the user query on a SERP. Provider verification pages
+    // can use those names for opaque tokens; preserve that actual document.
+    if(searchPath(record.engine,url)&&values.length&&values.some(value=>value!==record.query))throw fail('SEARCH_SOURCE_STALE','Запрос на странице поисковика изменился.');
     return{view:record.view,wc:record.wc,webContents:record.wc,navigationEpoch:record.navigationEpoch,source:info(record)};
   }
   function takeSource(requestId){

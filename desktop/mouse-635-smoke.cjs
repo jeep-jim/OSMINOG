@@ -21,14 +21,14 @@ module.exports=async ctx=>{
  const watchdog=setTimeout(()=>{error||=Error('Mouse635 fixed 240000 ms native budget exceeded');facts.ok=false;facts.error||={stage:facts.stage,message:error.message};void diagnosticSave().finally(()=>exit(1));},budgetMs);
  const stage=async(name,work)=>{facts.stage=name;await save();console.log('MOUSE_635_STAGE '+name);return work();};
  async function focus(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await fixture.until(()=>win.isFocused(),'635 window focus');}
- async function click(selector,{navigates=false,deferReceipt=false,xFraction=.5,yFraction=.5}={}){
+ async function click(selector,{navigates=false,xFraction=.5,yFraction=.5}={}){
   await focus();await fixture.js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();let hit;
   await fixture.until(async()=>{hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),${JSON.stringify({xFraction,yFraction})})`);return hit.ready;},'635 native target '+selector);
   await fixture.js(`__mouse633Input.begin(${JSON.stringify(selector)})`);
   const origin=win.getContentBounds(),point={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)};
   assert.equal(await nativeInput.testClick(point.x,point.y),true);
   const result={selector,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',point,at:Date.now(),navigates};facts.nativeInputs.push(result);
-  if(!navigates&&!deferReceipt){await fixture.until(async()=>{result.events=await fixture.js('__mouse633Input.read()');return result.events.some(event=>event.type==='click'&&event.trusted&&event.matches);},'635 trusted click '+selector);await fixture.frame();}
+  if(!navigates){await fixture.until(async()=>{result.events=await fixture.js('__mouse633Input.read()');return result.events.some(event=>event.type==='click'&&event.trusted&&event.matches);},'635 trusted click '+selector);await fixture.frame();}
   await save();return result;
  }
  async function screenCapture(filename,kind){

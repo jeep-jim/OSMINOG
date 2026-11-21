@@ -88,9 +88,24 @@ test('source query and result records from other requests or previous pages are 
 });
 test('native evidence reads the UI and source view without assigning picker value or injecting provider results',()=>{
  const fs=require('node:fs'),source=fs.readFileSync(require.resolve('./mouse-635-public-search-smoke.cjs'),'utf8'),owner=fs.readFileSync(require.resolve('./mouse-635-smoke.cjs'),'utf8');
- assert.ok(source.includes("nativeClick('.mouse-search-engine',{deferReceipt:true})"));assert.ok(source.includes("await key('HOME')"));assert.ok(source.includes("await key('ENTER')"));
- assert.ok(!source.includes('dispatchEvent(')&&!source.includes('.value=')&&!source.includes('configureFixtureService('));
+ assert.ok(source.includes("nativeClick('.mouse-search-engine')"));assert.ok(source.includes("nativeClick('#choice-dialog button[data-value=\"'+engine+'\"]')"));
+ assert.ok(source.includes("screenCapture(CAPTURES[0],'actual search-engine chooser')"));assert.ok(!source.includes("await key('HOME')")&&!source.includes('deferReceipt'));
+ assert.ok(!source.includes('dispatchEvent(')&&!/\.value\s*=(?!=)/.test(source)&&!source.includes('configureFixtureService('));
  assert.ok(source.includes('source.sourceFor(')&&!source.includes('source.takeSource('));assert.ok(source.includes('browser.mouseSurfaceHold=previousHold'));
- assert.ok(owner.includes('if(!navigates&&!deferReceipt)'));
+ assert.ok(owner.includes('if(!navigates)'));assert.ok(!owner.includes('deferReceipt'));
+});
+test('tile display removes only the www prefix while host URL ownership stays exact',()=>{
+ const value=fixture(),row=value.reply.results[0],ui=require('./mouse/search.js').normalizeSearchResults([row])[0];
+ assert.equal(row.url,'https://www.anthropic.com/news');assert.equal(row.source,'www.anthropic.com');
+ assert.equal(C.displayDomain(row.url),'anthropic.com');assert.equal(ui.source,C.displayDomain(row.url));assert.notEqual(ui.source,row.source);
+ assert.equal(C.displayDomain('https://docs.python.org/3/'),'docs.python.org');assert.equal(ui.url,row.url);
+});
+test('the actual modal chooser requires all four visible options and exact current selection',()=>{
+ const menu={open:true,modal:true,bounds:{x:20,y:20,width:180,height:144},viewport:{width:1100,height:800},options:Object.entries(C.ENGINES).map(([value,entry],i)=>({value,text:entry.name,role:'option',selected:String(value==='google'),disabled:false,visible:true,hit:true,bounds:{x:26,y:26+i*32,width:168,height:32}}))};
+ assert.equal(C.validateEngineMenu(menu,'google'),menu);
+ for(const mutate of [value=>value.modal=false,value=>value.options.pop(),value=>value.options[1].value='google',value=>value.options[0].selected='false',value=>value.options[1].text='Unexpected engine',value=>value.options[1].hit=false,value=>value.options[1].disabled=true,value=>value.options[3].bounds.y=799]){
+  const changed=structuredClone(menu);mutate(changed);assert.throws(()=>C.validateEngineMenu(changed,'google'));
+ }
+ assert.deepEqual(C.CAPTURES,['mouse-635-public-search-engine-menu.png','mouse-635-public-search-source.png','mouse-635-public-search-tiles.png']);
 });
 module.exports={fixture};
