@@ -27,7 +27,7 @@
    a narrow window. The complete updater label remains its accessible name. */
 @media(max-width:1050px){
  #statusbar #version-button[data-compact-label]{font-size:0}
- #statusbar #version-button[data-compact-label]::after{content:attr(data-compact-label);font-size:10px}
+ #statusbar #version-button[data-compact-label]::after{content:attr(data-compact-label);font-size:10px;font-weight:600}
 }
 @media(max-width:850px){
  #statusbar #footer-right{gap:3px}
