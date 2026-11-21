@@ -97,3 +97,7 @@ Source public-search smoke теперь сравнивает OS pixels с дву
 Независимый Python Release checker декодирует PNG и сам пересчитывает те же метрики; actual4d95 без нового paint evidence отвергнут. Canonical owner ledger содержит17 кадров, а с сохранёнными rejected attempts допустимо17–55 фактических OS frames. Замороженный Release union:22 скрипта,491/491 PASS, schema SHA привязки и required templates PASS; все три publisher plan остаются false. Summary SHA-256 `3650229f4712ccb8371466beb596c0b06f406b4172cb0c225dff05d635525e5e`.
 
 Полный локальный Mouse набор после paint и geometry исправлений:1212tests /1206PASS /0FAIL /6 Windows-only SKIP,8.741s. Лог `mouse635-final-unit-15.log`, SHA-256 `1a39fc36104f31516791e05ce5ed9f5f37662c9b0ab5b52cdc12d01082d7c87c`. Это контрактная проверка; новый actual Mac paint PASS и выпуск ещё не подтверждены.
+
+### Уточнение подписи отзыва прав
+
+Финальный UI review нашёл устаревшее название «Стоп» в подсказке локальных прав. Текст теперь указывает существующую кнопку «Отключить доступы» в разделе «Работа с браузером» и отдельно объясняет остановку текущего ответа. Поведение разрешений и обеих команд не меняется; syntax и diff checks PASS. На момент этой правки Mac8e027 run44892693561 ещё выполняет installed gate. Следующий точный source с исправленной подписью проходит собственный полный CI; промежуточный пакет8e027 не предназначен для публикации.
