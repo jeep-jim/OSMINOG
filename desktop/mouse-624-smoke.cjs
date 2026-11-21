@@ -37,6 +37,10 @@ async function settingsDiagnostic(operation,label,originalError,errors=[]){
  try{return await bounded(Promise.resolve().then(operation),1500,'624 '+label);}
  catch(error){if(!originalError)throw error;errors.push({label,message:error.message});return{error:error.message};}
 }
+// Renderer expressions cannot close over main-process variables.
+function settingsSnapshotScript(selector){
+ return `(()=>{const dialog=document.querySelector('#settings-dialog'),target=document.querySelector(${JSON.stringify(selector)}),rect=element=>{if(!element)return null;const r=element.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{at:performance.now(),timeOrigin:performance.timeOrigin,viewport:{width:innerWidth,height:innerHeight},focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,agentOpen:MouseTest.model.agentOpen,agentHidden:document.querySelector('#agent-panel').hidden,settingsOpen:MouseTest.model.settingsOpen,dialog:{open:dialog.open,hidden:dialog.hidden,bounds:rect(dialog),scrollTop:dialog.querySelector('.dialog-content')?.scrollTop??null},target:{selector:${JSON.stringify(selector)},bounds:rect(target),hit:(${nativeHitTarget.toString()})(target)}};})()`;
+}
 // A renderer IPC response is not the native fullscreen transition completion.
 // Match the existing six stable baseline observations before measuring a click.
 function settingsRestoreBarrier(expectedBounds){
@@ -88,7 +92,7 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   const diagnostic=(operation,label,error)=>settingsDiagnostic(operation,label,error,(transition.diagnosticErrors??=[]));
   async function settingsSnapshot(stage,selector='[data-action="assistant"]',error){
    return diagnostic(async()=>{
-   const renderer=await js(`(()=>{const dialog=document.querySelector('#settings-dialog'),target=document.querySelector(${JSON.stringify(selector)}),rect=element=>{if(!element)return null;const r=element.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{at:performance.now(),timeOrigin:performance.timeOrigin,viewport:{width:innerWidth,height:innerHeight},focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,agentOpen:MouseTest.model.agentOpen,agentHidden:document.querySelector('#agent-panel').hidden,settingsOpen:MouseTest.model.settingsOpen,dialog:{open:dialog.open,hidden:dialog.hidden,bounds:rect(dialog),scrollTop:dialog.querySelector('.dialog-content')?.scrollTop??null},target:{selector,bounds:rect(target),hit:(${nativeHitTarget.toString()})(target)}};})()`);
+   const renderer=await js(settingsSnapshotScript(selector));
    return{stage,at:Date.now(),bounds:win.getBounds(),contentBounds:win.getContentBounds(),normal:win.getNormalBounds(),fullscreen:win.isFullScreen(),maximized:win.isMaximized(),leftFullscreen,renderer};
    },stage,error);
   }
@@ -220,3 +224,4 @@ module.exports.progressPillState=progressPillState;
 module.exports.selectProgressPill=selectProgressPill;
 module.exports.settingsRestoreBarrier=settingsRestoreBarrier;
 module.exports.settingsDiagnostic=settingsDiagnostic;
+module.exports.settingsSnapshotScript=settingsSnapshotScript;
