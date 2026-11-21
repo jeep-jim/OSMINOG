@@ -39,6 +39,7 @@
  document.querySelectorAll('[data-window]').forEach(b=>b.onclick=()=>safe(()=>N.window(b.dataset.window)));
  let chromeKey='';const chrome=state=>{const inset=Number(state.inset)||0,key=JSON.stringify([!!state.fullscreen,inset]);if(key===chromeKey)return;chromeKey=key;nativeFullscreen=!!state.fullscreen;chromeControls?.fullscreen(nativeFullscreen);document.body.style.setProperty('--chrome-inset',inset+'px');requestLayout()};N.onChrome(chrome);N.chrome().then(chrome).catch(()=>{});
  const overlays=createMouseOverlays({N,restore:requestLayout,error:setStatus,prepare:()=>searchUI?.isOpen?searchUI.prepareOverlay():undefined});
+ createMouseExtensionsUI({N,showDialog:d=>overlays.show(d)});
  const capture=createMouseCapture({N,show:d=>overlays.show(d),restore:requestLayout,locale:()=>m.locale});
  const browsing=createMouseBrowsing({N,openPage,selected,show:d=>overlays.show(d),restore:requestLayout,status:setStatus,locale:()=>m.locale,onSidebar:open=>{if(open)settingsUI?.close();m.libraryOpen=open;applySide();save()}});
  const home=createMouseStart({N,overlays,navigate:navigateStart,locale:()=>m.locale,status:setStatus,openAgent:()=>action('assistant'),desk:()=>m.desktopId});

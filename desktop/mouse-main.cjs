@@ -144,6 +144,27 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
  privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>progressBridge.resume(),onPrivacyChange:()=>{tileSearch.close('Режим приватности изменён',{reset:true});importService.cancelPending();documentService.clear();progressBridge.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();void agentHost.stop('Режим приватности изменён');return importService.flush();}});
+ const extensionsAvailable=()=>!privateMode?.current&&!privateMode?.busy&&!win.isDestroyed()&&!exitController?.isClosing();
+ let extensions;
+ const extensionRestore=Promise.resolve().then(async()=>{
+  extensions=require('./mouse-extensions.cjs').createMouseExtensions({session:browser.session,dialog,win,
+   storage:path.join(app.getPath('userData'),'mouse-local-extensions'),isAvailable:extensionsAvailable});
+  await extensions.restore();
+ }).catch(()=>{extensions=undefined;log('Optional local extensions unavailable at startup');});
+ ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
+  trusted(e);
+  if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
+  await extensionRestore;
+  if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
+  if(!extensions)throw Error('Модуль расширений недоступен');
+  if(action==='state')return extensions.state();
+  if(action==='install')return extensions.install();
+  if(!args||typeof args.id!=='string'||args.id.length>100)throw Error('Не удалось определить расширение');
+  if(action==='set-enabled'&&typeof args.value==='boolean')return extensions.setEnabled(args.id,args.value);
+  if(action==='set-pinned'&&typeof args.value==='boolean')return extensions.setPinned(args.id,args.value);
+  if(action==='remove')return extensions.remove(args.id);
+  throw Error('Действие не поддерживается');
+ });
  const desktopGesture=await require('./mouse-gesture.cjs').install({win,store,ipcMain,trusted,enabled:()=>settingsService.state().desktopGestures,getContext:()=>({privateMode:privateMode.current,busy:privateMode.busy,browser:privateMode.current?.browser||browser,desktopService:privateMode.current?.desktopService||desktopService})});
  app.once('will-quit',()=>desktopGesture.dispose());
  ipcMain.handle('mouse:privacy',(event)=>{trusted(event);importService.cancelPending();setImmediate(()=>privateMode.toggle().catch(async error=>{if(!exitController.isClosing())await releaseDocumentsUI();if(error.code!=='MOUSE_DOCUMENT_CANCEL'&&!win.isDestroyed())win.webContents.send('browser:error','Не удалось переключить режим. Завершите браузер через '+(isMac?'⌘Q':'Ctrl+Q')+' и повторите.')}));return true;});
