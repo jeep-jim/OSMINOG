@@ -111,7 +111,7 @@ class BrowserWorkspace{
   const url=address(wc.getURL());wc.setAudioMuted?.(false);wc.setBackgroundThrottling?.(true);
   // Reuse make so desktop membership, history, shortcuts, zoom and overlay
   // hooks attach normally. Keep the actual document/captcha without loadURL.
-  const t=this.make(url,this.project,false,{lane:'main',[ADOPT_SEARCH_SOURCE]:source,[OPEN_MANAGED_EXTENSION]:managedExtension});t.lane='main';this.save();this.emit();return{id:t.id};
+  const t=this.make(url,this.project,false,{lane:'main',[ADOPT_SEARCH_SOURCE]:source});t.lane='main';this.save();this.emit();return{id:t.id};
  }
  destroy(t){if(!t)return;this.layoutPages?.delete(t);this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
