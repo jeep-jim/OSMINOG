@@ -2,6 +2,35 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<200;n++){if(await fn())return;await sleep(60);}throw Error('Timed out '+label);}
+async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Menu,platform=process.platform,wait=until,pause=sleep,save=record=>fs.writeFile('mouse-635-start-layout.json',JSON.stringify(record,null,2)+'\n')}){
+ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs'),popup=Menu.prototype.popup,started=Date.now();
+ const facts={schema:1,source:'Actual native footer pointer and menu key events',target:'mouse-context-layout-2-x',input:null,keys:[],menu:null,ok:false};let menu;
+ Menu.prototype.popup=function(options){
+  if(service.lastMenu===this&&service.lastTarget?.kind==='layout'){
+   menu=this;facts.menu={target:{...service.lastTarget},shownAt:null,closedAt:null,items:this.items.map(item=>({id:item.id,enabled:item.enabled,visible:item.visible,type:item.type,checked:item.checked}))};
+   this.once('menu-will-show',()=>{facts.menu.shownAt=Date.now();});this.once('menu-will-close',()=>{facts.menu.closedAt=Date.now();});
+  }
+  return Reflect.apply(popup,this,arguments);
+ };
+ try{
+  app.focus({steal:true});win.show();win.focus();win.webContents.focus();await wait(()=>win.isFocused(),'native layout menu window focus');let hit;
+  await wait(async()=>{hit=await js('('+nativeHitTarget.toString()+')(document.querySelector("#layout-menu-button"))');return hit.ready;},'native layout menu pointer target');
+  const origin=win.getContentBounds(),point={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)};
+  facts.input={source:platform==='darwin'?'CGEvent':platform==='win32'?'User32':'XTest',point,at:Date.now()};assert.equal(await nativeInput.testClick(point.x,point.y),true);
+  await wait(()=>facts.menu?.shownAt!==null&&facts.menu?.shownAt!==undefined,'native layout menu actually shown');
+  assert.equal(overlayGate.blocked,false,'Native menu keeps live pages attached');
+  const choices=menu.items.filter(item=>item.visible&&item.enabled&&item.type!=='separator'),index=choices.findIndex(item=>item.id===facts.target);assert.ok(index>=0);
+  const key=async name=>{const value=platform==='linux'?({HOME:'Home',DOWN:'Down',ENTER:'Return'})[name]:name;facts.keys.push({key:name,at:Date.now()});assert.equal(nativeInput.testKey(value),true);await pause(45);};
+  await key('HOME');for(let n=0;n<index;n++)await key('DOWN');await key('ENTER');
+  await wait(()=>facts.menu.closedAt!==null,'native layout menu actually closed');
+  await wait(async()=>{facts.after=await js('(()=>({count:MouseLayout.leaves(MouseTest.model.tree).length,axis:MouseTest.model.tree.axis||"",select:document.querySelector("#layout-select").value,expanded:document.querySelector("#layout-menu-button").getAttribute("aria-expanded")}))()');return facts.after.count===2&&facts.after.axis==='x'&&facts.after.select==='2'&&facts.after.expanded==='false';},'native layout menu applies and closes');
+  facts.ok=true;return facts;
+ }catch(error){facts.error=error.message;throw error;}
+ finally{
+  Menu.prototype.popup=popup;if(menu&&facts.menu.closedAt===null)try{menu.closePopup(win);}catch{}
+  facts.elapsedMs=Date.now()-started;await save(facts);
+ }
+}
 module.exports=async({app,win,browser,store,libraryService,overlayGate,startService})=>{
  const js=s=>win.webContents.executeJavaScript(s);
  async function click(selector){const p=await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)throw Error('Missing click target');const r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.focus();win.webContents.sendInputEvent({type:'mouseMove',...p});win.webContents.sendInputEvent({type:'mouseDown',...p,button:'left',clickCount:1});win.webContents.sendInputEvent({type:'mouseUp',...p,button:'left',clickCount:1});await sleep(140);}
@@ -25,11 +54,8 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  for(const [select,value] of [['#language-select','en'],['#language-select','ru']]){
   await click(select);await until(()=>js('document.querySelector("#choice-dialog").open'),'footer select opens');noGuestAboveModal();await click('#choice-dialog button[data-value="'+value+'"]');await until(()=>!overlayGate.blocked,'choice releases native pages');assert.equal(await js(`document.querySelector('${select}').value`),value);
  }
- const nativeInput=process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput(),previousMenu=libraryService.contextMenu.lastMenu;
- await click('#layout-menu-button');await until(()=>libraryService.contextMenu.lastTarget?.kind==='layout'&&libraryService.contextMenu.lastMenu!==previousMenu,'native footer layout menu');
- const choices=libraryService.contextMenu.lastMenu.items.filter(item=>item.visible&&item.enabled&&item.type!=='separator'),index=choices.findIndex(item=>item.id==='mouse-context-layout-2-x');assert.ok(index>=0);assert.equal(overlayGate.blocked,false,'Native menu keeps live pages attached');
- const key=async name=>{const value=process.platform==='linux'?({HOME:'Home',DOWN:'Down',ENTER:'Return'})[name]:name;assert.equal(nativeInput.testKey(value),true);await sleep(40);};await key('HOME');for(let n=0;n<index;n++)await key('DOWN');await key('ENTER');
- await until(()=>js('document.querySelector("#layout-select").value==="2"&&document.querySelector("#layout-menu-button").getAttribute("aria-expanded")==="false"'),'native layout menu applies and closes');
+ const nativeInput=process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput();
+ await selectNativeLayout({app,win,js,service:libraryService.contextMenu,overlayGate,nativeInput,Menu:require('electron').Menu});
  console.log('MOUSE_FOOTER_CHOOSERS_REAL_CLICK_PASS');
  const server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.setHeader('Content-Type','image/png');require('node:fs').createReadStream(path.join(__dirname,'mouse/brand.png')).pipe(res);return;}res.end('<!doctype html><title>Start target fixture</title><h1>Opened visual bookmark</h1>');});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port+'/start-target';
@@ -65,3 +91,4 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  // Existing layout/persistence regressions still run against the pre-test split.
  await js(`Object.assign(MouseTest.model,${JSON.stringify(old)});MouseTest.renderTree();MouseTest.applySide()`);await until(()=>browser.panels.length>0,'original layout restored');
 };
+module.exports.selectNativeLayout=selectNativeLayout;
