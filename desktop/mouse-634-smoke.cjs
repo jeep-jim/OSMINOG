@@ -92,14 +92,21 @@ module.exports=async ctx=>{
   facts.focusedChrome=await stage('focused-chrome',()=>require('./mouse-634-focused-chrome-smoke.cjs')({fixture,browser,win,click,screenCapture}));
   facts.search=await stage('visual-search',()=>require('./mouse-634-search-smoke.cjs')({ctx,fixture,click,screenCapture}));
   facts.requests=requests;facts.elapsedMs=Date.now()-started;
- }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};try{if(fixture)await screenCapture('mouse-634-owner-feedback-failure.png','failure '+facts.stage);}catch(captureError){facts.failureCaptureError=captureError.message;}}
+ }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};await save();try{if(fixture)await bounded(screenCapture('mouse-634-owner-feedback-failure.png','failure '+facts.stage),5000,'634 failure OS snapshot');}catch(captureError){facts.failureCaptureError=captureError.message;await save();}}
  finally{
+  const restore=async(label,operation)=>{try{return await operation();}catch(cause){cleanupError||=cause;(facts.cleanupErrors||=[]).push({stage:label,message:cause.message});facts.cleanupError={message:cleanupError.message,stack:cleanupError.stack};await save();}};
   try{
    if(downloadListener)browser.session.removeListener('will-download',downloadListener);for(const row of downloads.values())if(!row.done)row.item.cancel();for(const timer of timers)clearInterval(timer);timers.clear();
    for(const server of servers){server.closeAllConnections();await bounded(new Promise(resolve=>server.close(resolve)),2000,'634 fixture HTTP close');}
-   if(fixture){await fixture.js('globalThis.__mouse633Input?.dispose();document.querySelector("#capture-dialog")?.close();MouseTest.browsing.close();MouseTest.desktopUI.close({immediate:true})').catch(()=>{});if(originalZoom)await fixture.js(`MouseNative.zoom('set',{factor:${originalZoom.factor}})`);facts.cleanup=await bounded(fixture.cleanup(),22000,'634 workspace restoration');if(originalLibrary){libraryService.library.data=originalLibrary;libraryService.library.changed();await libraryService.flush();}libraryService.activity.clear();facts.restored=facts.cleanup.restored===true;}
+   if(fixture){
+    await restore('renderer cleanup',()=>bounded(fixture.js('globalThis.__mouse633Input?.dispose();document.querySelector("#capture-dialog")?.close();MouseTest.browsing.close();MouseTest.desktopUI.close({immediate:true})'),2000,'634 renderer cleanup'));
+    if(originalZoom)await restore('zoom restoration',()=>bounded(fixture.js(`MouseNative.zoom('set',{factor:${originalZoom.factor}})`),2000,'634 zoom restoration'));
+    facts.cleanup=await restore('workspace restoration',()=>bounded(fixture.cleanup(),22000,'634 workspace restoration'));
+    if(originalLibrary)await restore('library restoration',async()=>{libraryService.library.data=originalLibrary;libraryService.library.changed();await libraryService.flush();});
+    libraryService.activity.clear();facts.restored=facts.cleanup?.restored===true;
+   }
    if(ownedFolder)await fs.rm(ownedFolder,{recursive:true,force:true});
-  }catch(cause){cleanupError=cause;facts.cleanupError={message:cause.message,stack:cause.stack};}
+  }catch(cause){cleanupError||=cause;(facts.cleanupErrors||=[]).push({stage:'outer cleanup',message:cause.message});facts.cleanupError={message:cleanupError.message,stack:cleanupError.stack};}
   facts.ok=!error&&!cleanupError&&facts.restored;facts.elapsedMs=Date.now()-started;facts.stage=facts.ok?'complete':'failed';await save();clearTimeout(watchdog);
  }
  if(facts.ok){console.log('MOUSE_634_OWNER_FEEDBACK_PASS');exit(0);}else{console.error('MOUSE_634_OWNER_FEEDBACK_FAILED '+facts.error?.message+' '+(facts.cleanupError?.message||''));exit(1);}

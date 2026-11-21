@@ -42,6 +42,56 @@ function searchWheelTargetProblems({pin,native,dom,before,point},pointer=false){
  if(pointer&&(!dom?.pointer?.trusted||Math.round(dom.pointer.x*pin.zoom)!==point.x||Math.round(dom.pointer.y*pin.zoom)!==point.y))problems.push('native-pointer-not-observed');
  return problems;
 }
+async function dispatchSearchWheel({budget,proof,save,dispatch,now=()=>performance.now()}){
+ proof.status='prepared';await budget.run(save,'persist search wheel intent');proof.intentSavedAt=now();
+ // Save the last main-process checkpoint before entering native dispatch. If
+ // Chromium stops answering afterwards, the report must not lose this boundary.
+ proof.dispatchStage='before-send';await budget.run(save,'persist before search wheel dispatch');
+ await budget.run(()=>{proof.sentAt=now();dispatch(proof.sent);proof.dispatchReturnedAt=now();proof.dispatchStage='returned';proof.status='sent';},'send native search wheel');
+ await budget.run(save,'persist dispatched search wheel');
+}
+async function recordSearchWheelFailure({proof,error,save,native,ui,read,timeoutMs=1000}){
+ proof.status='failed';proof.error={message:error.message};proof.failedAt=performance.now();
+ const persist=async()=>{try{await save();}catch(failure){(proof.persistenceErrors||=[]).push(failure.message);}};
+ if(native)try{proof.failureNative=native();}catch(failure){proof.failureNativeError=failure.message;}
+ // Persist the actual failure before asking the potentially unresponsive
+ // renderer for more evidence. Diagnostic timeouts never replace that error.
+ await persist();
+ for(const [key,operation]of [['failureUI',ui],['failure',read]]){
+  if(!operation)continue;
+  try{proof[key]=await wheelPreparationBudget({timeoutMs}).run(operation,'failed search wheel '+key);}
+  catch(failure){proof[key==='failure'?'failureReadError':key+'Error']=failure.message;}
+  await persist();
+ }
+}
+async function removeSearchWheelObserver({wc,remove,timeoutMs=1000}){
+ const receipt={webContentsId:wc?.id??null,startedAt:performance.now(),outcome:'pending',destroyedObserved:false,removalResolved:false};
+ const complete=outcome=>({...receipt,outcome,finishedAt:performance.now()});
+ const destroyed=source=>{receipt.destroyedObserved=true;receipt.destructionSource=source;return complete('webcontents-destroyed');};
+ if(!wc)return complete('no-target');
+ if(wc.isDestroyed())return destroyed('before-subscription');
+ let finished=false,resolveDestroyed;
+ const destruction=new Promise(resolve=>{resolveDestroyed=resolve;}),onDestroyed=()=>{if(!finished)resolveDestroyed(destroyed('destroyed-event'));};
+ wc.once('destroyed',onDestroyed);
+ try{
+  if(wc.isDestroyed())return destroyed('after-subscription');
+  return await wheelPreparationBudget({timeoutMs}).run(()=>Promise.race([
+   Promise.resolve().then(async()=>{if(wc.isDestroyed())return destroyed('before-removal');await remove();if(finished)return;receipt.removalResolved=true;return wc.isDestroyed()?destroyed('after-removal'):complete('observer-removed');}),destruction,
+  ]),'remove search wheel pointer observer');
+ }catch(error){
+  if(wc.isDestroyed())return destroyed('failure-recheck');
+  error.cleanupEvidence={...complete('failed'),message:error.message};throw error;
+ }finally{finished=true;wc.removeListener('destroyed',onDestroyed);}
+}
+async function finishSearchWheel({proof,wc,cleanup,save,timeoutMs=1000}){
+ const alreadyFailed=proof.status==='failed';let finishError;
+ const persist=async()=>{try{await save();}catch(error){finishError||=error;(proof.persistenceErrors||=[]).push(error.message);proof.status='failed';if(!proof.error)proof.error={message:error.message};}};
+ proof.cleanupStartedAt=performance.now();await persist();
+ try{proof.pointerCleanup=await removeSearchWheelObserver({wc,remove:cleanup,timeoutMs});}
+ catch(error){finishError||=error;proof.pointerCleanup=error.cleanupEvidence;proof.cleanupError=error.message;proof.status='failed';if(!proof.error)proof.error={message:error.message};}
+ finally{proof.finishedAt=performance.now();await persist();}
+ if(finishError&&!alreadyFailed)throw finishError;
+}
 async function runSearchSmoke({ctx,fixture,click,screenCapture}){
  const {win,browser,app,tileSearch,overlayGate}=ctx,{nativeImage}=require('electron'),started=Date.now(),file='mouse-634-search.json';assert.ok(tileSearch?.configureFixtureService,'Installed main process owns the search controller');
  const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,packaged:app.isPackaged,profileIsolated:process.env.CI==='true'&&app.getPath('userData')===process.env.MOUSE_TEST_PROFILE,ok:false,source:'Installed search, actual HTTP/OG/model fixtures, native pointer input and full OS pixels',physicalUserDeviceVerified:false,livePublicSearchVerified:false,livePublicModelVerified:false,requests:[],models:[],answers:[],inputs:[],wheel:[],wheelInputs:[],captures:[],stages:[],preserved:false};
@@ -113,12 +163,12 @@ async function runSearchSmoke({ctx,fixture,click,screenCapture}){
    await budget.run(()=>pageJS(record,'globalThis.__mouse634SearchPointer=null;globalThis.__mouse634SearchPointerListener=event=>{globalThis.__mouse634SearchPointer={trusted:event.isTrusted,x:event.clientX,y:event.clientY};};window.addEventListener("pointermove",globalThis.__mouse634SearchPointerListener,true);'),'observe owned search pointer');
    proof.point={x:Math.round(pin.contentBounds.x+pin.bounds.x+point.x),y:Math.round(pin.contentBounds.y+pin.bounds.y+point.y)};
    proof.pointer=await budget.run(()=>fixture.nativeInput.testPointer(proof.point.x,proof.point.y),'move real search pointer');assert.equal(proof.pointer.warpResult,0);assert.equal(proof.pointer.postAccess,true);await waitReady(true);proof.ready=proof.readiness;
-   const beforeWheel=facts.wheel.length,beforeRequests=facts.requests.length;proof.status='prepared';await budget.run(save,'persist search wheel intent');proof.intentSavedAt=performance.now();await budget.run(()=>{proof.sentAt=performance.now();wc.sendInputEvent(proof.sent);proof.status='sent';},'send native search wheel');
+   const beforeWheel=facts.wheel.length,beforeRequests=facts.requests.length;await dispatchSearchWheel({budget,proof,save,dispatch:event=>wc.sendInputEvent(event)});
    await budget.wait(()=>{const receipt=facts.requests.slice(beforeRequests).find(row=>row.kind==='wheel'&&row.receipt.identity===pin.identity&&row.receipt.trusted);proof.receipt=receipt?.receipt||null;proof.forwarded=facts.wheel.slice(beforeWheel);return!!proof.receipt;},'trusted search guest HTTP wheel receipt');
    await budget.wait(()=>{proof.forwarded=facts.wheel.slice(beforeWheel);return proof.forwarded.some(row=>row.id===record.id&&row.revision===pin.revision&&row.deltaX===proof.receipt.deltaX&&row.deltaY===proof.receipt.deltaY);},'search wheel preload to main');
    await budget.wait(async()=>{proof.uiAfter=await ui();return proof.uiAfter.scrollTop>proof.scrollBefore;},'search wheel reaches masonry');proof.scrollAfter=proof.uiAfter.scrollTop;await budget.run(()=>fixture.frame(),'search wheel presentation');proof.completedAt=performance.now();budget.check('search wheel completed');proof.status='completed';
-  }catch(error){proof.status='failed';proof.error={message:error.message};if(native)try{proof.failureNative=native();}catch(failure){proof.failureNativeError=failure.message;}try{proof.failureUI=await ui();}catch(failure){proof.failureUIError=failure.message;}if(read&&wc&&!wc.isDestroyed())try{proof.failure=await wheelPreparationBudget({timeoutMs:1000}).run(read,'failed wheel target snapshot');}catch(failure){proof.failureReadError=failure.message;}throw error;}
-  finally{if(wc&&!wc.isDestroyed())await pageJS(record,'if(globalThis.__mouse634SearchPointerListener)window.removeEventListener("pointermove",globalThis.__mouse634SearchPointerListener,true);delete globalThis.__mouse634SearchPointerListener;delete globalThis.__mouse634SearchPointer;').catch(()=>{});proof.finishedAt=performance.now();await save();}
+  }catch(error){await recordSearchWheelFailure({proof,error,save,native,ui,read:read&&wc&&!wc.isDestroyed()?read:null});throw error;}
+  finally{await finishSearchWheel({proof,wc,save,cleanup:wc?()=>pageJS(record,'if(globalThis.__mouse634SearchPointerListener)window.removeEventListener("pointermove",globalThis.__mouse634SearchPointerListener,true);delete globalThis.__mouse634SearchPointerListener;delete globalThis.__mouse634SearchPointer;'):null});}
  }
  try{
   assert.equal(facts.packaged,true);assert.equal(facts.profileIsolated,true);
@@ -144,12 +194,12 @@ async function runSearchSmoke({ctx,fixture,click,screenCapture}){
   });
   await stage('original-profile-restored',async()=>{if(await fixture.js('MouseTest.model.theme')!==originalTheme)await nativeClick('#statusbar [data-action="theme"]');await fixture.frame();facts.original.after={bank:fixture.bank.snapshot(),prefs:await fixture.js('MouseTest.prefs()'),tabIds:[...browser.tabs.keys()].sort(),native:fixture.records.map(fixture.nativeState),identities:await Promise.all(fixture.records.map(fixture.identity))};assert.deepEqual(facts.original.after.tabIds,originalIds);assert.deepEqual(facts.original.after.bank,originalBank);assert.deepEqual(facts.original.after.prefs,originalPrefs);facts.originalBefore=originalIdentities;facts.originalAfter=facts.original.after.identities;originalIdentities.forEach((before,index)=>fixture.assertIdentity(before,facts.originalAfter[index]));assert.deepEqual(facts.original.after.native,originalNative);await fixture.until(async()=>!(await previewSession.cookies.get({name:'mouse634_search_only'})).length,'634 ephemeral preview cookies cleared');facts.closed.cookies={preview:await previewSession.cookies.get({name:'mouse634_search_only'}),normal:await browser.session.cookies.get({name:'mouse634_search_only'})};assert.equal(facts.closed.cookies.normal.length,0);facts.preserved=true;facts.restoredCapture=await screenCapture('mouse-634-search-restored.png','634 original native workspace restored');});
   assert.ok(facts.requests.some(row=>row.kind==='query'&&row.form.format==='json'&&row.form.q==='mouse634 owned sites'));assert.ok(facts.requests.some(row=>row.kind==='site'&&row.source==='metadata'));assert.ok(facts.requests.some(row=>row.kind==='site'&&row.source==='native'));assert.equal(facts.fixtureError,undefined);facts.ok=true;facts.stage='complete';
- }catch(error){facts.error={stage:facts.stage,message:error.message,stack:error.stack};try{await screenCapture('mouse-634-search-failure.png','634 native search failure');}catch{}throw error;}
+ }catch(error){facts.error={stage:facts.stage,message:error.message,stack:error.stack};await save();try{await wheelPreparationBudget({timeoutMs:5000}).run(()=>screenCapture('mouse-634-search-failure.png','634 native search failure'),'failed search OS snapshot');}catch(failure){facts.failureCaptureError=failure.message;await save();}throw error;}
  finally{
-  const errors=[];tileSearch.views.removeListener('scroll',wheel);try{if(tileSearch.active)await fixture.js('MouseTest.searchUI.close()');}catch(error){errors.push(error.message);tileSearch.close('Native fixture cleanup');}try{if(await fixture.js('MouseTest.capture.isOpen()'))await fixture.js('document.querySelector("#capture-dialog").close()');await fixture.js('MouseTest.desktopUI.close({immediate:true})');if(await fixture.js('MouseTest.model.theme')!==originalTheme)await fixture.js('MouseTest.setTheme('+JSON.stringify(originalTheme)+')');}catch(error){errors.push(error.message);}
-  for(const server of servers){try{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}catch(error){errors.push(error.message);}}try{tileSearch.configureFixtureService({});}catch(error){errors.push(error.message);}facts.elapsedMs=Date.now()-started;if(errors.length){facts.cleanupErrors=errors;facts.ok=false;}await save();if(errors.length&&!facts.error)throw Error('Native search cleanup failed: '+errors.join('; '));
+  const errors=[],cleanupBudget=wheelPreparationBudget({timeoutMs:5000}),cleanupJS=source=>cleanupBudget.run(()=>fixture.js(source),'search renderer cleanup');tileSearch.views.removeListener('scroll',wheel);try{if(tileSearch.active)await cleanupJS('MouseTest.searchUI.close()');}catch(error){errors.push(error.message);tileSearch.close('Native fixture cleanup');}try{if(await cleanupJS('MouseTest.capture.isOpen()'))await cleanupJS('document.querySelector("#capture-dialog").close()');await cleanupJS('MouseTest.desktopUI.close({immediate:true})');if(await cleanupJS('MouseTest.model.theme')!==originalTheme)await cleanupJS('MouseTest.setTheme('+JSON.stringify(originalTheme)+')');}catch(error){errors.push(error.message);}
+  for(const server of servers){try{server.closeAllConnections();await wheelPreparationBudget({timeoutMs:1000}).run(()=>new Promise(resolve=>server.close(resolve)),'search HTTP fixture close');}catch(error){errors.push(error.message);}}try{tileSearch.configureFixtureService({});}catch(error){errors.push(error.message);}facts.elapsedMs=Date.now()-started;if(errors.length){facts.cleanupErrors=errors;facts.ok=false;}await save();if(errors.length&&!facts.error)throw Error('Native search cleanup failed: '+errors.join('; '));
  }
  console.log('MOUSE_634_SEARCH_NATIVE_PASS');
  return{...facts,reportFile:file,reportSha256:sha(await fs.readFile(file))};
 }
-module.exports=Object.assign(runSearchSmoke,{siteHTML,searchRows,readSearchUI,assertSearchGeometry,searchWheelTargetProblems,PALETTE,TYPES});
+module.exports=Object.assign(runSearchSmoke,{siteHTML,searchRows,readSearchUI,assertSearchGeometry,searchWheelTargetProblems,dispatchSearchWheel,recordSearchWheelFailure,removeSearchWheelObserver,finishSearchWheel,PALETTE,TYPES});
