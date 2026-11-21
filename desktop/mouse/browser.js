@@ -2,7 +2,7 @@
 (async()=>{
  const N=globalThis.MouseNative,L=globalThis.MouseLayout,$=s=>document.querySelector(s);
  if(!N){document.body.textContent='Mouse Browser: отсутствует локальный модуль';return}
- let mediaWidget,arrangement,chromeControls,desktopUI,zoomUI,agentUI,progressUI,documentsUI,settingsUI,contextUI,nativeFullscreen=false,aiFocusBusy=false,deskSwitch=Promise.resolve();
+ let arrangement,mediaWidget,chromeControls,desktopUI,zoomUI,agentUI,progressUI,documentsUI,settingsUI,contextUI,nativeFullscreen=false,aiFocusBusy=false,deskSwitch=Promise.resolve();
  const m={mode:'',agentOpen:false,agentState:null,state:{tabs:[]},tabOrder:[],swapDrag:false,tree:L.preset(1),slots:{},pinnedPanes:{},active:'p1',focusPane:'',focusAI:false,theme:'light',locale:'ru',settingsOpen:false,controlSettings:{},libraryOpen:false,libraryWidth:380,aiOpen:false,aiWidth:360,aiId:'',aiPreviewId:'',aiSites:[],aiSessions:{},drag:null,saveTimer:0,ready:false};
  const resizeHUD=createMouseResizeHUD();
  const presets=[{name:'Агент Маус',url:MouseAgentBrand.service},{name:'ChatGPT',url:'https://chatgpt.com/'},{name:'Claude',url:'https://claude.ai/'},{name:'Gemini',url:'https://gemini.google.com/'},{name:'DeepSeek',url:'https://chat.deepseek.com/'}];

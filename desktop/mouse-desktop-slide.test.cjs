@@ -65,7 +65,7 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
   assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
  }};
- const context={m:model,N,desktopUI,searchUI:null,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,searchUI:null,mediaWidget:{render(){events.push('media.render');assert.equal(model.desktopId,'new');}},progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  vm.runInNewContext(browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
@@ -94,6 +94,8 @@ test('renderer prepares incoming progress ownership under the cover before its e
  for(const keepNora of [false,true]){
   const f=rendererSwitchFixture({focus:'',library:false}),result=await f.run(keepNora);
   assert.equal(f.events.filter(event=>event==='progress.prepare').length,1);
+  assert.equal(f.events.filter(event=>event==='media.render').length,1);
+  assert.ok(f.events.indexOf('native:switch')<f.events.indexOf('media.render')&&f.events.indexOf('media.render')<f.events.indexOf('layout'));
   assert.ok(f.events.indexOf('progress.prepare')>f.events.indexOf('renderTree'));
   assert.ok(f.events.indexOf('progress.prepare')<f.events.indexOf('layout'));
   if(keepNora)assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));else assert.equal(f.events.some(event=>event.startsWith('stage:')),false);
