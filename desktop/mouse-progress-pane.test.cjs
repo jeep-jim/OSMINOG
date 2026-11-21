@@ -30,6 +30,10 @@ test('explicit tasks take priority over declared DOM tasks; obsolete navigation/
 // Installed Electron remains the native geometry/frame/count acceptance gate.
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=name=>fs.readFileSync(path.join(__dirname,'mouse',name),'utf8');
+function agentPanel(document){
+ const markup=source('agent-ui.js').match(/panel\.innerHTML=`([\s\S]*?)`;/);assert.ok(markup,'Use the shipped Agent markup for progress integration');
+ const panel=document.createElement('aside');panel.id='agent-panel';panel.innerHTML=markup[1];document.body.append(panel);return panel;
+}
 const nativeLayoutSource=()=>{const script=source('browser.js'),start=script.indexOf(' async function layoutNow(){'),end=script.indexOf('\n\n function restorePane()',start);assert.ok(start>=0&&end>start,'Production native layout function exists');return script.slice(start,end);};
 const microtasks=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
 function fixture(options={}){
@@ -75,7 +79,7 @@ function fixture(options={}){
     if(token.startsWith('</')){stack.pop();continue;}if(!token.startsWith('<')){stack.at(-1).append(token);continue;}
     const match=/^<([\w-]+)([^>]*)>/.exec(token);if(!match)continue;const node=new Element(match[1]);
     for(const attr of match[2].matchAll(/([\w:-]+)(?:="([^"]*)")?/g))node.setAttribute(attr[1],attr[2]??'');
-    stack.at(-1).append(node);if(!voids.has(node.localName))stack.push(node);
+    stack.at(-1).append(node);if(!voids.has(node.localName)&&!token.endsWith('/>'))stack.push(node);
    }
   }
  }
@@ -165,18 +169,30 @@ test('empty per-pane progress renders settle without a childList-driven layout l
  assert.equal(f.document.querySelectorAll('.mouse-pane-progress').length,2);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(node=>node.hidden));
  f.ui.render();await f.flush();idle(f);
 });
-test('page, AI and Agent pills occupy the slot immediately after their own header',async()=>{
+test('page, AI and Agent pills occupy the slot before their own content',async()=>{
  const f=fixture();await f.ready();
  const ai=f.document.createElement('aside');ai.id='ai-panel';ai.innerHTML='<div class="ai-controls"></div><div id="ai-slot"></div>';f.document.body.append(ai);
- const agent=f.document.createElement('aside');agent.id='agent-panel';agent.hidden=true;agent.innerHTML='<header class="agent-heading"></header><div class="agent-scroll"></div><footer class="agent-footer"></footer>';f.document.body.append(agent);
+ const agent=agentPanel(f.document);agent.hidden=true;
  f.model.aiOpen=true;f.model.aiId='chat';const tasks=[renderTask(),renderTask({id:'chat-task',tabId:'chat'}),renderTask({id:'agent-task',source:'agent',tabId:undefined})];f.emit({tasks});await f.flush();
  const order=(element,header,content)=>{const dock=element.querySelector('.mouse-pane-progress');assert.ok(dock);assert.equal(element.children.indexOf(dock),element.children.indexOf(element.querySelector(header))+1);assert.equal(element.children.indexOf(element.querySelector(content)),element.children.indexOf(dock)+1);return dock;};
  for(const pane of f.document.querySelectorAll('.pane'))order(pane,'.pane-head','.page-slot');
  assert.equal(order(ai,'.ai-controls','#ai-slot').hidden,false);assert.equal(ai.querySelector('.mouse-progress-pill').dataset.tabId,'chat');
  ai.hidden=true;agent.hidden=false;f.model.agentOpen=true;f.ui.render();await f.flush();
- assert.equal(ai.querySelector('.mouse-pane-progress'),null);assert.equal(order(agent,'.agent-heading','.agent-scroll').hidden,false);assert.equal(agent.querySelector('.mouse-progress-pill').dataset.progressId,'agent-task');
+ assert.equal(ai.querySelector('.mouse-pane-progress'),null);assert.equal(order(agent,'#agent-chat-error','#agent-chat-page').hidden,false);assert.equal(agent.querySelector('.mouse-progress-pill').dataset.progressId,'agent-task');
  f.reset();f.ui.render();await f.flush();idle(f);
  f.model.privateMode=true;f.ui.render();await f.flush();assert.equal(f.document.querySelectorAll('.mouse-progress-pill').length,0);assert.ok(f.document.querySelectorAll('.mouse-pane-progress').every(dock=>dock.hidden));
+});
+test('opening the inline Agent keeps native layout working with no task, a running task and either inner page',async()=>{
+ const f=fixture();await f.ready();const agent=agentPanel(f.document),chat=agent.querySelector('#agent-chat-page'),settings=agent.querySelector('#agent-settings-page');
+ f.model.agentOpen=true;assert.notEqual(agent.querySelector('.agent-scroll').parentNode,agent,'The transcript now lives inside the chat page');
+ for(const pane of f.document.querySelectorAll('.pane')){pane.style.getPropertyValue=()=> '12';pane.querySelector('.page-slot').getBoundingClientRect=()=>({x:pane.dataset.pane==='p1'?0:326,y:74,width:320,height:612});}
+ const calls=[],context={progressUI:f.ui,desktopUI:null,zoomUI:null,m:f.model,document:f.document,tab:id=>id?{internal:false}:null,overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:()=> '#43536b'}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const layoutNow=vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow',context);
+ await layoutNow();assert.equal(calls.length,1,'Opening an idle Agent must still deliver native page bounds');
+ const dock=agent.querySelector('.mouse-pane-progress');assert.equal(dock.parentNode,agent);assert.equal(agent.children.indexOf(dock),agent.children.indexOf(chat)-1);assert.equal(dock.hidden,true);
+ f.emit({tasks:[renderTask({id:'agent-task',source:'agent',tabId:undefined})]});await f.flush();assert.equal(dock.hidden,false);assert.equal(dock.querySelector('.mouse-progress-pill').dataset.progressId,'agent-task');
+ for(const settingsOpen of [true,false]){chat.hidden=settingsOpen;settings.hidden=!settingsOpen;await layoutNow();assert.equal(agent.querySelector('.mouse-pane-progress'),dock);assert.equal(chat.contains(dock),false);assert.equal(settings.contains(dock),false);assert.equal(dock.hidden,false);}
+ assert.equal(calls.length,3);assert.ok(calls.every(call=>call.action==='layout'&&call.args.panels.length===2&&call.args.panels.every(panel=>panel.x+panel.width<=646)),'The native pages receive the space beside the sidebar on every navigation');
 });
 test('the native layout starts below the header pill and keeps the pane bottom corners',async()=>{
  const slot={x:8,y:104,width:420,height:360},calls=[],pane={dataset:{pane:'p1'},style:{getPropertyValue:()=> '12'},classList:{contains:name=>name==='has-pane-progress'},querySelector:()=>({getBoundingClientRect:()=>({...slot})})};

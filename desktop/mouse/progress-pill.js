@@ -46,7 +46,10 @@
     result.push({key:'ai',kind:'page',tabId:model.aiId||'',element:chat,content:document.querySelector('#ai-slot')});
     if(preview&&!preview.hidden&&model.aiPreviewId)result.push({key:'ai-preview',kind:'page',tabId:model.aiPreviewId,element:preview,content:document.querySelector('#ai-preview-slot')});
    }
-   if(agent&&!agent.hidden&&!model.privateMode&&!model.focusPane&&!model.libraryOpen&&model.agentOpen)result.push({key:'agent',kind:'agent',tabId:'',element:agent,content:agent.querySelector('.agent-scroll')});
+   // The chat scrollport is nested inside its inline page. The shared task
+   // dock belongs to the sidebar, before both chat and settings, so its anchor
+   // must be a direct child of the sidebar as well.
+   if(agent&&!agent.hidden&&!model.privateMode&&!model.focusPane&&!model.libraryOpen&&model.agentOpen)result.push({key:'agent',kind:'agent',tabId:'',element:agent,content:agent.querySelector('#agent-chat-page')});
    return result;
   }
   function paintDownloads(panel,values){

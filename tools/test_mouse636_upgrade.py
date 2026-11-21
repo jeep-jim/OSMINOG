@@ -64,7 +64,9 @@ for(const version of ['6.0.33','6.0.37','6.0.36-extra','prefix6.0.36'])assert.th
             installer = SimpleNamespace(install_deb=install, installed_executable=lambda: root / 'synthetic-executable')
             baseline = {'name': old.name, 'tag': 'synthetic', 'size': old.stat().st_size, 'sha256': upgrade.sha256(old)}
             facts = {}
-            with patch.object(upgrade.sys, 'platform', 'linux'), patch.object(upgrade, 'download_baseline', return_value=old), \
+            with patch.object(upgrade.sys, 'platform', 'linux'), \
+                 patch.object(upgrade, 'OLD_VERSION', upgrade.OLD_VERSIONS['linux']), \
+                 patch.object(upgrade, 'download_baseline', return_value=old), \
                  patch.object(upgrade, 'package_identity', return_value={'synthetic': True}), \
                  patch.object(upgrade, 'sibling', return_value=installer), patch.object(upgrade, 'probe', side_effect=probe):
                 with self.assertRaisesRegex(RuntimeError, 'closed profile'):
