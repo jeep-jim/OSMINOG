@@ -106,3 +106,51 @@ test('the observed close-tooltip shadow is rejected by the unchanged three-chann
  const probes=samplePixels(Buffer.from([216,201,193,255]),size,mapping,[point]);assert.equal(probes[0].tolerance,3);assert.throws(()=>assertPixels(probes,'native tooltip shadow'),/actual corner\/gap pixels/);
  assertPixels(samplePixels(Buffer.from([220,204,196,255]),size,mapping,[point]),'within existing tolerance');
 });
+function readinessFixture({clearAt=2,acquisitionMs=100,deadline=Infinity,failStableAt=0,failure='geometry changed'}={}){
+ let time=0,stableCalls=0;const calls=[],receipts=[],frames=new Map();
+ const probes=clear=>Array.from({length:89},(_,index)=>({kind:index<5?'pane-top-cutout':'workspace-gap',cssPoint:{x:index+.65,y:46.65},expectedRGB:[199,207,223],pixel:{x:index,y:46},actualRGBA:!clear&&index<5?[195,202,218,255]:[199,207,223,255],tolerance:3}));
+ return{calls,receipts,frames,options:{deadline,now:()=>time,
+  stable:async()=>{stableCalls++;if(stableCalls===failStableAt)throw Error(failure);return{geometry:'unchanged',owners:'unchanged',identities:'unchanged'};},
+  capture:async(sequence,limit)=>{calls.push({sequence,deadline:limit});time+=acquisitionMs;const frame={filename:'after-attempt-'+sequence+'.png',displayFilename:'after-attempt-'+sequence+'-display.png',sha256:'fixture-'+sequence,mapping:{scaleX:1,scaleY:1,originX:0,originY:0}};frames.set(frame.filename,probes(sequence>=clearAt));return frame;},
+  inspect:async frame=>frames.get(frame.filename),onAttempt:value=>receipts.push(plain(value))},stableCalls:()=>stableCalls};
+}
+test('post-close readiness retains the shadow frame and accepts a later real frame with the same 89 probes',async()=>{
+ const {waitForClearCapture}=require('./mouse-634-capture-corners.cjs'),f=readinessFixture(),selected=await waitForClearCapture(f.options),r=selected.readiness;
+ assert.deepEqual(f.calls,[{sequence:1,deadline:4500},{sequence:2,deadline:4500}]);assert.equal(r.budgetMs,4500);assert.equal(r.maxAttempts,20);assert.equal(r.acceptedIndex,1);assert.equal(r.attempts.length,2);assert.equal(f.stableCalls(),6);
+ assert.equal(r.attempts[0].accepted,false);assert.equal(r.attempts[0].failedProbes.length,5);assert.equal(r.attempts[0].filename,'after-attempt-1.png');assert.equal(r.attempts[0].displayFilename,'after-attempt-1-display.png');assert.equal(r.attempts[0].probes.length,89);
+ assert.equal(r.attempts[1].accepted,true);assert.deepEqual(r.attempts[1].failedProbes,[]);assert.equal(r.attempts[1].probes.length,89);assert.equal(selected.capture.filename,'after-attempt-2.png');assert.ok(r.attempts.every(a=>a.probes.every(p=>p.tolerance===3)));assert.equal(r.elapsedMs,200);assert.ok(r.finishedAt>=r.startedAt);
+});
+test('a persistent corner defect retains every attempt and fails without relaxing the pixel criteria',async()=>{
+ const {waitForClearCapture}=require('./mouse-634-capture-corners.cjs'),f=readinessFixture({clearAt:Infinity});let failure;
+ await assert.rejects(waitForClearCapture(f.options),error=>{failure=error;return /No clear frame in 20 native acquisitions/.test(error.message);});
+ assert.equal(f.calls.length,20);assert.equal(new Set(f.calls.map(c=>c.deadline)).size,1);assert.equal(failure.readiness.acceptedIndex,null);assert.equal(failure.readiness.attempts.length,20);assert.ok(failure.readiness.attempts.every(a=>!a.accepted&&a.failedProbes.length===5&&a.probes.length===89));assert.equal(new Set(failure.readiness.attempts.map(a=>a.filename)).size,20);
+});
+test('all acquisitions share the original deadline and the remaining fixture budget can only shorten it',async()=>{
+ const {waitForClearCapture}=require('./mouse-634-capture-corners.cjs');
+ for(const [deadline,acquisitionMs,expected]of [[Infinity,2400,4500],[1000,600,1000]]){
+  const f=readinessFixture({clearAt:2,deadline,acquisitionMs});let failure;
+  await assert.rejects(waitForClearCapture(f.options),error=>{failure=error;return /deadline exceeded/.test(error.message);});
+  assert.deepEqual(f.calls,[{sequence:1,deadline:expected},{sequence:2,deadline:expected}]);assert.equal(failure.readiness.timeoutMs,expected);assert.equal(failure.readiness.acceptedIndex,null);assert.ok(failure.readiness.attempts.every(a=>!a.accepted));
+ }
+});
+test('post-close readiness fails immediately when geometry, ownership or identity changes',async()=>{
+ const {waitForClearCapture}=require('./mouse-634-capture-corners.cjs');
+ for(const failure of ['geometry changed','native owner changed','page identity changed'])for(const failStableAt of [1,2]){
+  const f=readinessFixture({failStableAt,failure});let error;
+  await assert.rejects(waitForClearCapture(f.options),value=>{error=value;return value.message===failure;});assert.equal(f.calls.length,failStableAt===1?0:1);assert.equal(error.readiness.acceptedIndex,null);assert.equal(f.stableCalls(),failStableAt);
+  if(failStableAt===2){assert.equal(error.readiness.attempts[0].filename,'after-attempt-1.png');assert.equal(error.readiness.attempts[0].error.message,failure);}
+ }
+});
+test('a late native acquisition cannot write pixels or publish success after the fixed deadline',async()=>{
+ const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');let finish,writes=0;
+ const acquired=new Promise(resolve=>{finish=resolve;});
+ const pending=withinCaptureDeadline(15,async live=>{await acquired;live();writes++;return'committed';},()=>0);
+ await assert.rejects(pending,/deadline exceeded/);finish();await new Promise(setImmediate);assert.equal(writes,0);
+});
+test('post-close readiness cannot accept missing probes or a changed pixel tolerance',async()=>{
+ const {waitForClearCapture}=require('./mouse-634-capture-corners.cjs');
+ for(const invalid of ['missing','tolerance']){
+  const f=readinessFixture({clearAt:1});f.options.inspect=async frame=>{const probes=f.frames.get(frame.filename);if(invalid==='missing')probes.pop();else probes[0].tolerance=4;return probes;};
+  await assert.rejects(waitForClearCapture(f.options),invalid==='missing'?/All unchanged corner probes/:/tolerance stays unchanged/);assert.equal(f.calls.length,1);
+ }
+});

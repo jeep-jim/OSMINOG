@@ -60,6 +60,38 @@ function assertPixels(probes,label){
  const failure=probes.find(probe=>probe.actualRGBA[3]!==255||probe.expectedRGB.some((value,index)=>Math.abs(value-probe.actualRGBA[index])>probe.tolerance));
  assert.ok(!failure,label+' actual corner/gap pixels: '+JSON.stringify(failure));
 }
+// One absolute deadline covers presentation, acquisition and validation. A
+// late acquisition may resolve, but its guard prevents it from writing pixels
+// or adding an accepted receipt after the caller has already timed out.
+async function withinCaptureDeadline(deadline,work,now=()=>performance.now()){
+ assert.ok(Number.isFinite(deadline));let timer,finished=false;
+ const live=()=>{if(finished||now()>=deadline)throw Error('Capture readiness deadline exceeded');};
+ try{
+  live();return await Promise.race([(async()=>{live();const value=await work(live);live();return value;})(),new Promise((_,reject)=>{timer=setTimeout(()=>{finished=true;reject(Error('Capture readiness deadline exceeded'));},Math.max(0,deadline-now()));})]);
+ }finally{finished=true;clearTimeout(timer);}
+}
+async function waitForClearCapture({capture,inspect,stable,deadline=Infinity,onAttempt=()=>{},now=()=>performance.now()}){
+ const started=now(),limit=Math.min(deadline,started+4500),readiness={source:'actual OS corner pixels after trusted pointer park',startedAt:Date.now(),finishedAt:null,budgetMs:4500,maxAttempts:20,timeoutMs:Math.max(0,limit-started),elapsedMs:0,acceptedIndex:null,attempts:[]};
+ onAttempt(readiness);
+ try{
+  const selected=await withinCaptureDeadline(limit,async live=>{
+   for(let sequence=1;sequence<=20;sequence++){
+    const before=await stable();live();
+    const current=await capture(sequence,limit);live();
+    const attempt={...current,sequence,elapsedMs:now()-started,accepted:false,probes:[],failedProbes:[],before};readiness.attempts.push(attempt);onAttempt(readiness);
+    attempt.after=await stable();live();
+    attempt.probes=await inspect(current);live();assert.equal(attempt.probes.length,89,'All unchanged corner probes are required');assert.ok(attempt.probes.every(probe=>probe.tolerance===TOLERANCE),'Corner pixel tolerance stays unchanged');
+    attempt.failedProbes=attempt.probes.filter(probe=>probe.actualRGBA[3]!==255||probe.expectedRGB.some((value,index)=>Math.abs(value-probe.actualRGBA[index])>probe.tolerance));
+    attempt.after=await stable();live();attempt.elapsedMs=now()-started;
+    attempt.accepted=attempt.failedProbes.length===0;attempt.reason=attempt.accepted?'all unchanged corner probes match':'native corner pixels do not match';onAttempt(readiness);
+    if(attempt.accepted){readiness.acceptedIndex=readiness.attempts.length-1;return{capture:current,probes:attempt.probes,after:attempt.after};}
+   }
+   assertPixels(readiness.attempts.at(-1).probes,'No clear frame in 20 native acquisitions');throw Error('No clear native capture');
+  },now);
+  return{...selected,readiness};
+ }catch(error){readiness.error={message:error.message};const pending=readiness.attempts.at(-1);if(pending&&!pending.reason)pending.error={message:error.message};throw Object.assign(error,{readiness});}
+ finally{readiness.finishedAt=Date.now();readiness.elapsedMs=now()-started;onAttempt(readiness);}
+}
 function nativeState(browser,win,targets){
  return targets.map(target=>{const page=browser.get(target.id),view=page.view.getBounds(),parent=page.clipView?.getBounds()||null,root=page.clipView||page.view;return{id:page.id,webContentsId:page.view.webContents.id,bounds:{...page.bounds},actualBounds:{x:view.x+(parent?.x||0),y:view.y+(parent?.y||0),width:view.width,height:view.height},clip:{...page.captureGeometry?.clip},roundBottom:page.captureGeometry?.roundBottom,visible:page.visible===true,viewVisible:page.view.getVisible(),parentVisible:page.clipView?.getVisible()??true,attached:win.contentView.children.includes(root)};});
 }
@@ -89,10 +121,13 @@ async function runCaptureCorners({win,browser,overlayGate,fixture,click,screenCa
  const records=targets.map(target=>{const record=fixture.records.find(value=>value.id===target.id);assert.ok(record,'Every target belongs to the owned native fixture');return record;}),originalTheme=await fixture.js('MouseTest.model.theme');
  const identities=()=>Promise.all(records.map(async record=>({...await fixture.identity(record),raf:await fixture.pageJS(record,'mouse634.raf')})));
  const geometry=()=>fixture.js(`(${captureReadback.toString()})(${JSON.stringify(targets)})`);
- async function pixels(capture,points,phase,theme){
+ async function readPixels(capture,points,phase,theme){
   const bytes=await fs.readFile(capture.filename);assert.equal(sha256(bytes),capture.sha256);assert.equal(bytes.length,capture.bytes);
   const pixelSize={width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)};assert.deepEqual(pixelSize,capture.pixelSize);
-  const decoded=nativeImage.createFromBuffer(bytes);assert.equal(decoded.isEmpty(),false);const probes=samplePixels(decoded.toBitmap({scaleFactor:1}),pixelSize,capture.mapping,points),result={...capture,phase,theme,probes};facts.captures.push(result);assertPixels(probes,theme+' '+phase);return result;
+  const decoded=nativeImage.createFromBuffer(bytes);assert.equal(decoded.isEmpty(),false);const probes=samplePixels(decoded.toBitmap({scaleFactor:1}),pixelSize,capture.mapping,points);return{...capture,phase,theme,probes};
+ }
+ async function pixels(capture,points,phase,theme){
+  const result=await readPixels(capture,points,phase,theme);facts.captures.push(result);assertPixels(result.probes,theme+' '+phase);return result;
  }
  try{
   for(const theme of ['light','dark']){
@@ -117,7 +152,24 @@ async function runCaptureCorners({win,browser,overlayGate,fixture,click,screenCa
    scene.after={geometry:await geometry(),native:nativeState(browser,win,targets),identities:await identities()};validateGeometry(scene.after.geometry,scene.after.native);
    assert.deepEqual(scene.after.geometry,scene.before.geometry,'Capture and close preserve all DOM workspace gaps and corners');assert.deepEqual(scene.after.native,scene.before.native,'Capture and close restore the same native owners, bounds and masks');
    scene.before.identities.forEach((before,index)=>fixture.assertIdentity(before,scene.after.identities[index]));
-   scene.after.capture=(await pixels(await screenCapture(prefix+'-after.png','634 corners after browser capture'),points,'after',theme)).filename;
+   const stable=async()=>{
+    assert.equal(overlayGate.blocked,false,'Capture overlay stays closed during native readiness');
+    const state={geometry:await geometry(),native:nativeState(browser,win,targets),identities:await identities()};validateGeometry(state.geometry,state.native);
+    assert.deepEqual(state.geometry,scene.before.geometry,'Capture readiness cannot change DOM geometry');assert.deepEqual(state.native,scene.before.native,'Capture readiness cannot change native owners or masks');
+    scene.before.identities.forEach((before,index)=>{fixture.assertIdentity(before,state.identities[index]);assert.ok(state.identities[index].raf>before.raf,'Live page animation stays resumed');});return state;
+   };
+   const selected=await waitForClearCapture({deadline:fixture.deadline,stable,
+    capture:(sequence,deadline)=>screenCapture(prefix+'-after-attempt-'+sequence+'.png','634 corners after browser capture',{deadline}),
+    inspect:async capture=>(await readPixels(capture,points,'after',theme)).probes,
+    onAttempt:readiness=>{scene.after.readiness=readiness;}
+   });
+   // Keep every rejected OS frame. The accepted bytes become the existing
+   // canonical filename; the owner ledger holds this same capture object.
+   const capture=selected.capture,afterFilename=prefix+'-after.png',afterDisplayFilename=prefix+'-after-display.png';
+   await fs.rename(capture.filename,afterFilename);await fs.rename(capture.displayFilename,afterDisplayFilename);Object.assign(capture,{filename:afterFilename,displayFilename:afterDisplayFilename});
+   Object.assign(selected.readiness.attempts[selected.readiness.acceptedIndex],capture);
+   facts.captures.push({...capture,phase:'after',theme,probes:selected.probes});assertPixels(selected.probes,theme+' after');
+   scene.after={...selected.after,readiness:selected.readiness,capture:afterFilename};
    scene.preserved=true;scene.stage='complete';
   }
   facts.identityRestored=true;facts.ok=true;console.log('MOUSE_634_CAPTURE_CORNERS_PASS');return facts;
@@ -127,4 +179,4 @@ async function runCaptureCorners({win,browser,overlayGate,fixture,click,screenCa
   if(await fixture.js('MouseTest.model.theme').catch(()=>originalTheme)!==originalTheme)await fixture.js('MouseTest.setTheme('+JSON.stringify(originalTheme)+')').catch(()=>{});
  }
 }
-module.exports=Object.assign(runCaptureCorners,{captureReadback,validateGeometry,capturePoints,samplePixels,assertPixels,installCapturePointerProbe,parkCapturePointer});
+module.exports=Object.assign(runCaptureCorners,{captureReadback,validateGeometry,capturePoints,samplePixels,assertPixels,installCapturePointerProbe,parkCapturePointer,withinCaptureDeadline,waitForClearCapture});

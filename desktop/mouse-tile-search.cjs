@@ -13,6 +13,7 @@ class TileSearch {
   this.shell=this.win.webContents;
   const serviceFactory=options.serviceFactory||require('./mouse-search-service.cjs').createSearchService;
   if(!options.serviceFactory)this.networkTransport=require('./mouse-search-transport.cjs').createSearchTransport({session:require('electron').session,network:()=>this.browser.network||{mode:'system'},testContext:{enabled:this.test===true,app:this.app}});
+  this.nativeSource=options.nativeSource||(!options.serviceFactory?require('./mouse-search-native-source.cjs').createNativeSearchSource({browser:this.browser,win:this.win,testContext:{enabled:this.test===true,app:this.app}}):null);this.sourceRequest=null;
   this.serviceFactory=serviceFactory;this.service=serviceFactory(this.serviceOptions());
   const viewsFactory=options.viewsFactory||require('./mouse-search-views.cjs').createSearchViews;
   this.views=viewsFactory({win:this.win,blocked:()=>this.blocked(),isPrivate:()=>this.isPrivate?.()===true,maxLive:8,
@@ -62,6 +63,7 @@ class TileSearch {
   return this.providerSettings();
  }
  serviceOptions(){return{
+  ...(this.nativeSource?{nativeSource:this.nativeSource}:{}),
   getBraveApiKey:()=>this.braveApiKey(),
   ...(this.networkTransport?{endpointRequest:this.networkTransport.request,transportState:this.networkTransport.state}:{}),
   getSessionToken:async()=>{if(!this.encryptedStorage()||this.isPrivate?.())return '';const data=await this.store?.get?.(['mouseTileSearchSession']);const saved=data?.mouseTileSearchSession;if(saved?.schema!==1||typeof saved.encrypted!=='string'||saved.encrypted.length>8192)return '';try{return this.safeStorage.decryptString(Buffer.from(saved.encrypted,'base64'));}catch{return '';};},
@@ -80,12 +82,12 @@ class TileSearch {
  state(){return{active:this.active,revision:this.revision,query:this.query,filter:this.filter,page:this.page,hasMore:this.hasMore,results:this.results,summary:this.summary,pending:this.pending.size>0,vision:this.vision.state(),provider:this.service.state()};}
  open(){if(this.disposed||this.locked||this.isPrivate?.())throw Error('Поиск Mouse доступен в обычном рабочем столе');this.active=true;this.savedLayout.call(this.browser,[]);this.views.setResults(this.results,{revision:this.revision});this.syncOverlay();return this.state();}
  close(reason='Поиск закрыт',{reset=false}={}){
-  this.active=false;this.revision++;this.chatSerial++;this.service.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop(reason);this.lastVisionContext=null;this.views.close(reason);
+  this.active=false;this.sourceRequest=null;this.revision++;this.chatSerial++;this.service.cancelAll();this.nativeSource?.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop(reason);this.lastVisionContext=null;this.views.close(reason);
   if(reset){this.results=[];this.query='';this.page=0;this.hasMore=false;this.summary='';this.history=[];}
   this.emit('closed',{reason,reset});return{closed:true,revision:this.revision};
  }
  clearResults(){
-  this.requireOpen();this.revision++;this.chatSerial++;this.service.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop('Запрос очищен');this.lastVisionContext=null;
+  this.requireOpen();this.sourceRequest=null;this.revision++;this.chatSerial++;this.service.cancelAll();this.nativeSource?.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop('Запрос очищен');this.lastVisionContext=null;
   this.results=[];this.query='';this.page=0;this.hasMore=false;this.summary='';this.history=[];this.views.setResults([],{revision:this.revision});return{cleared:true,revision:this.revision};
  }
  async search(args){
@@ -94,9 +96,11 @@ class TileSearch {
   if(page===1){this.service.cancelAll();this.pending.clear();this.summaryPending.clear();this.vision.stop('Новый поиск');this.revision++;this.chatSerial++;this.chatPending=false;this.results=[];this.history=[];this.summary='';this.query=query;this.filter=filter;this.page=0;this.hasMore=false;this.views.setResults([],{revision:this.revision});}
   else if(this.pending.size||args.revision!==this.revision||query!==this.query||filter!==this.filter||page!==this.page+1||!this.hasMore)throw Error('Результаты изменились. Повторите поиск.');
   const revision=this.revision;this.pending.add(requestId);
+  const sourceRequest=this.nativeSource?{requestId,revision,query,filter,page,engine:this.browser.mouseSearch?.state().engine,project:this.browser.project,desk:this.browser.mouseDesktops?.bank?.active,manualAvailable:false}:null;
+  this.sourceRequest=sourceRequest;
   try{
    const response=await this.service.query({query,page,filter,requestId});
-   if(!this.active||this.disposed||revision!==this.revision||!this.pending.has(requestId))throw Error('Поиск отменён');
+   if(!this.active||this.disposed||revision!==this.revision||!this.pending.has(requestId)||sourceRequest&&!this.currentSourceRequest(requestId))throw Error('Поиск отменён');
    if(!Array.isArray(response.results))throw Error('Поисковик вернул некорректный ответ');
    const urls=new Set(this.results.map(row=>row.url)),newResults=[];
    for(const row of response.results){if(!row||typeof row.id!=='string'||typeof row.url!=='string'||urls.has(row.url)||this.results.length+newResults.length>=MAX_RESULTS)continue;urls.add(row.url);newResults.push(row);}
@@ -104,7 +108,23 @@ class TileSearch {
    const result={...response,requestId,revision,query,page,results:newResults,hasMore:this.hasMore};
    if(page===1&&this.results.length)void this.summarize(revision,query,this.results.slice(0,12),requestId);
    return result;
+  }catch(error){
+   if(sourceRequest&&this.currentSourceRequest(requestId)&&['SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT'].includes(error.code)&&error.manualAction?.available===true&&error.manualAction.requestId===requestId&&error.manualAction.engine===sourceRequest.engine)sourceRequest.manualAvailable=true;
+   throw error;
   }finally{this.pending.delete(requestId);}
+ }
+ currentSourceRequest(requestId){
+  const request=this.sourceRequest;
+  return this.active&&!this.disposed&&!this.locked&&!this.isPrivate?.()&&request&&request.requestId===requestId&&request.revision===this.revision&&request.query===this.query&&request.filter===this.filter&&request.project===this.browser.project&&request.desk===this.browser.mouseDesktops?.bank?.active&&request.engine===this.browser.mouseSearch?.state().engine?request:null;
+ }
+ openEngine(args){
+  this.requireOpen();const requestId=text(args.requestId,100),request=this.currentSourceRequest(requestId);
+  if(!request?.manualAvailable||!this.nativeSource||typeof this.browser.adoptSearchSource!=='function')throw new SearchError('SEARCH_SOURCE_STALE','Страница поиска уже изменилась. Повторите запрос.');
+  const current=this.nativeSource.sourceFor(requestId);
+  if(!current||current.source?.engine!==request.engine||current.source.query!==request.query||current.source.page!==request.page||current.source.filter!==request.filter)throw new SearchError('SEARCH_SOURCE_STALE','Страница поиска уже изменилась. Повторите запрос.');
+  const source=this.nativeSource.takeSource(requestId);if(!source||source.view!==current.view||source.wc!==current.wc)throw new SearchError('SEARCH_SOURCE_STALE','Страница поиска больше недоступна. Повторите запрос.');
+  let result;try{result=this.browser.adoptSearchSource(source);}catch(error){if(!source.wc.isDestroyed())source.wc.close({waitForBeforeUnload:false});throw error;}
+  this.close();this.emit('open-result',{id:result.id,desk:request.desk});return{id:result.id};
  }
  async summarize(revision,query,results,requestId){
   const id=requestId+'-summary';this.summaryPending.add(id);
@@ -139,13 +159,14 @@ class TileSearch {
   if(this.disposed)throw Error('Поиск закрыт');if(!args||typeof args!=='object'||Array.isArray(args)||Buffer.byteLength(JSON.stringify(args))>MAX_INPUT_BYTES)throw Error('Invalid search request');
   if(action==='provider-settings')return this.providerSettings();if(action==='set-brave-key')return this.setBraveKey(args);
   if(action==='state')return this.state();if(action==='open')return this.open();if(action==='close')return this.close();
-  if(action==='cancel'){const id=text(args.requestId,100);this.pending.delete(id);this.summaryPending.delete(id+'-summary');this.service.cancel(id);this.service.cancel(id+'-summary');return{cancelled:true};}
+  if(action==='cancel'){const id=text(args.requestId,100);this.pending.delete(id);this.summaryPending.delete(id+'-summary');this.service.cancel(id);this.service.cancel(id+'-summary');if(this.sourceRequest?.requestId===id){this.sourceRequest=null;this.nativeSource?.cancel(id);}return{cancelled:true};}
   this.requireOpen();
   if(action==='clear')return this.clearResults();
   if(action==='query')return this.search(args);
   if(action==='layout'){if(args.revision!==this.revision)return{stale:true};return this.views.layout(args);}
   if(action==='prepare-overlay')return this.prepareOverlay();
   if(action==='chat')return this.chat(args);
+  if(action==='open-engine')return this.openEngine(args);
   if(action==='open-result'){const url=this.views.resultURL(args.id);if(!url)throw Error('Результат больше недоступен');const result=await this.browser.command('open',{url,lane:'main'});this.close();this.emit('open-result',{id:result.id,desk:this.browser.mouseDesktops?.bank?.active});return{id:result.id};}
   throw Error('Неизвестная команда поиска');
  }
@@ -154,7 +175,7 @@ class TileSearch {
   this.close('Настройка проверочного сервера',{reset:true});this.service.dispose();this.service=this.serviceFactory({...options,fixtureProfile:this.app.getPath('userData')});return this.service.state();
  }
  dispose(){
-  if(this.disposed)return;this.close('Браузер закрывается',{reset:true});this.disposed=true;this.service.dispose();this.networkTransport?.dispose();this.vision.dispose();this.views.dispose();
+  if(this.disposed)return;this.close('Браузер закрывается',{reset:true});this.disposed=true;this.service.dispose();this.nativeSource?.dispose();this.networkTransport?.dispose();this.vision.dispose();this.views.dispose();
   for(const {emitter,event,listener}of this.watchers)emitter?.removeListener?.(event,listener);this.watchers=[];
   if(this.browser.layout===this.layoutWrapper)this.browser.layout=this.savedLayout;
   if(this.browser.mouseAdditionalCapturePages===this.additionalPages)this.browser.mouseAdditionalCapturePages=this.savedAdditionalPages;

@@ -1,7 +1,8 @@
 'use strict';
 
-// Network and model access stay in the main process. Result pages are untrusted
-// data: no cookies, JavaScript, browser sessions or renderer-provided credentials.
+// The native source reads the selected engine in the ordinary browser session.
+// Its DOM is untrusted data. Model requests and fixture/metadata HTTP stay in the
+// main process, separate from browser cookies and renderer-provided credentials.
 const http = require('node:http');
 const https = require('node:https');
 const dns = require('node:dns').promises;
@@ -12,16 +13,13 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const cheerio = require('cheerio/slim');
 
-// Public structured APIs only. Instant Answer is a reference source, never a
-// full web SERP. Mwmbl supplies real web rows; Brave requires an explicit key.
-const DEFAULT_ENDPOINT = 'https://api.duckduckgo.com/';
-const MWMBL_ENDPOINT = 'https://api.mwmbl.org/api/v2/search/';
-const BRAVE_ENDPOINT = 'https://api.search.brave.com/res/v1/web/search';
-const TRANSLATION_ENDPOINT = 'https://api.mymemory.translated.net/get';
+// Installed search reads the user's selected engine in a native browser view.
+// This sentinel is a state label, never an HTTP endpoint or a hidden fallback.
+const DEFAULT_ENDPOINT = 'native:browser-search';
 const DEFAULT_AI_ENDPOINT = 'https://151.248.113.177:3081';
 const LIMITS = Object.freeze({query:512, page:30, results:24, searchBytes:2*1024*1024,
   metadataBytes:512*1024, modelBytes:128*1024, searchMs:12000, metadataMs:2500,
-  queryMs:30000, modelMs:50000, instantMs:2500, translationMs:6000, metadataBudgetMs:1200, snapshotResults:300, metadataConcurrency:4, queries:3, modelCalls:2,
+  queryMs:16000, modelMs:50000, metadataBudgetMs:1200, snapshotResults:300, metadataConcurrency:4, queries:3, modelCalls:2,
   cacheEntries:8, cacheMs:120000, queue:96});
 let resolverPool;
 
@@ -41,7 +39,9 @@ function networkFailure(error) {
 }
 function publicSearchError(error) {
   if(!(error instanceof SearchError))return null;
-  return {code:error.code,message:error.message,...(error.status?{status:error.status}:{}),retryable:['SEARCH_NETWORK','SEARCH_PROXY','SEARCH_DNS','SEARCH_TIMEOUT','SEARCH_UPSTREAM','SEARCH_BUSY'].includes(error.code)||error.code==='SEARCH_HTTP'&&error.status>=500};
+  const action=error.manualAction;
+  const manualAction=action?.available===true&&typeof action.requestId==='string'&&/^[A-Za-z0-9_:.\-]{1,128}$/.test(action.requestId)&&['google','bing','duckduckgo','yandex'].includes(action.engine)?{available:true,requestId:action.requestId,engine:action.engine}:null;
+  return {code:error.code,message:error.message,...(error.status?{status:error.status}:{}),retryable:['SEARCH_NETWORK','SEARCH_PROXY','SEARCH_DNS','SEARCH_TIMEOUT','SEARCH_UPSTREAM','SEARCH_BUSY','SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT','SEARCH_ENGINE_CHANGED'].includes(error.code)||error.code==='SEARCH_HTTP'&&error.status>=500,...(manualAction?{manualAction}:{})};
 }
 function abortError(signal) {
   return signal?.reason instanceof SearchError ? signal.reason : failure('SEARCH_CANCELLED','Поиск отменён.');
@@ -234,53 +234,6 @@ function caFor(url,configured,defaultOrigin) {
   return undefined;
 }
 
-function instantAnswer(value) {
-  if(typeof value.AbstractText!=='string'||typeof value.AbstractURL!=='string'||!Array.isArray(value.RelatedTopics))throw failure('SEARCH_FORMAT','DuckDuckGo вернул некорректный справочный ответ.');
-  const url=safeURL(value.AbstractURL),text=plain(value.AbstractText,1800);
-  // RelatedTopics, disambiguation and generic Results are not a web-search API.
-  return url&&text?{title:plain(value.Heading,300),text,url,source:plain(value.AbstractSource,100)||new URL(url).hostname}:null;
-}
-function canTryNext(error) {
-  return ['SEARCH_NETWORK','SEARCH_DNS','SEARCH_PROXY','SEARCH_TLS','SEARCH_TIMEOUT','SEARCH_UPSTREAM'].includes(error.code)||error.code==='SEARCH_HTTP'&&error.status>=500;
-}
-function mwmblRows(value,query) {
-  if(value.query!==query||!Array.isArray(value.results)||value.results.length>1000||!Number.isSafeInteger(value.number_of_results)||value.number_of_results!==value.results.length)throw failure('SEARCH_FORMAT','Поисковый API вернул некорректный список результатов.');
-  if(value.results.some(row=>!row||typeof row.url!=='string'||typeof row.title!=='string'||typeof row.content!=='string'))throw failure('SEARCH_FORMAT','Поисковый API вернул некорректный результат.');
-  return value.results;
-}
-function braveRows(value) {
-  if(!value.query||typeof value.query!=='object'||value.web!==undefined&&(!value.web||!Array.isArray(value.web.results)||value.web.results.length>1000))throw failure('SEARCH_FORMAT','Brave вернул некорректный список результатов.');
-  const rows=value.web?.results||[];
-  if(rows.some(row=>!row||typeof row.url!=='string'||typeof row.title!=='string'))throw failure('SEARCH_FORMAT','Brave вернул некорректный результат.');
-  return rows.map(row=>({url:row.url,title:row.title,content:row.description||'',thumbnail:row.thumbnail?.src,type:row.type}));
-}
-
-// Mwmbl currently has sparse Cyrillic coverage and can match only generic words
-// such as “news about”. Never present those rows as coverage of the actual topic.
-// A single, disclosed public translation may expand a short Russian query. This
-// uses MyMemory GET only: no contribution, set/upload API, account or API key.
-const QUERY_STOP_WORDS=new Set(('новости новость последние свежие свежая найди найти найдите поиск про обо для как что это все всё где или также нового сегодня сейчас the and about news latest recent current find search for with how what where from this that are').split(' '));
-function queryTerms(query) {
-  return [...new Set((String(query).normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[]).filter(term=>!QUERY_STOP_WORDS.has(term)))].slice(0,24);
-}
-function topicRows(rows,query) {
-  const terms=queryTerms(query);if(!terms.length)return rows;
-  return rows.filter(row=>{
-    let url=String(row.url||'');try{url=decodeURI(url);}catch{}
-    const text=[url,row.title,row.content,row.description].filter(value=>typeof value==='string').join('\n').normalize('NFKC').toLocaleLowerCase();
-    return terms.every(term=>text.includes(term));
-  });
-}
-function canTranslateQuery(query) {
-  return /[а-яё]/i.test(query)&&!/[іїєґў]/i.test(query)&&Buffer.byteLength(query,'utf8')<=500&&queryTerms(query).length>0;
-}
-function queryTranslation(value) {
-  if(value?.quotaFinished===true||Number(value?.responseStatus)===429)throw failure('SEARCH_RATE_LIMIT','Достигнут лимит перевода поисковых запросов. Повторите позже.',429);
-  const text=value?.responseData?.translatedText;
-  if(Number(value?.responseStatus)!==200||typeof text!=='string'||!text.trim()||text.length>LIMITS.query||/[\x00-\x1f\x7f<>]/.test(text)||!/[a-z]/i.test(text))throw failure('SEARCH_FORMAT','Сервис перевода не вернул корректный поисковый запрос.');
-  return text.trim();
-}
-
 function createSearchService(options={}) {
   const requestedOrigins=options.fixtureOrigins||[];
   if(!Array.isArray(requestedOrigins)||requestedOrigins.length>4||requestedOrigins.length&&
@@ -288,13 +241,13 @@ function createSearchService(options={}) {
     !path.isAbsolute(options.fixtureProfile||'')||path.resolve(options.fixtureProfile)!==path.resolve(process.env.MOUSE_TEST_PROFILE)||
     requestedOrigins.some(value=>{try{const u=new URL(value);return !['127.0.0.1','[::1]'].includes(u.hostname)||!['http:','https:'].includes(u.protocol)||u.origin!==value;}catch{return true;}})))throw failure('SEARCH_TEST_CONFIG','Локальные результаты разрешены только в изолированной CI-проверке.');
   const fixtureOrigins=Object.freeze([...requestedOrigins]);
-  const endpoint=endpointURL(options.endpoint||DEFAULT_ENDPOINT).href,configuredSearch=!!options.endpoint;
+  const configuredSearch=!!options.endpoint,nativeSource=options.nativeSource||null;
+  const endpoint=configuredSearch?endpointURL(options.endpoint).href:DEFAULT_ENDPOINT;
   if(configuredSearch&&!fixtureOrigins.includes(new URL(endpoint).origin))throw failure('SEARCH_TEST_CONFIG','Настраиваемый поисковый endpoint разрешён только изолированной CI-фикстуре.');
   const request=options.request||requestBuffer,endpointRequest=options.endpointRequest||request;
   const metadataPool=new Pool(LIMITS.metadataConcurrency),queryPool=new Pool(LIMITS.queries,6),modelPool=new Pool(LIMITS.modelCalls,4);
   const pending=new Map(),pages=new Map();
-  let destroyed=false,sessionToken='',sessionPending=null,sessionController=null,sessionWaiters=0,lastAttempts=[],braveConfigured=false,lastMwmblAt=0;
-  const publicPool=new Pool(1,6);
+  let destroyed=false,sessionToken='',sessionPending=null,sessionController=null,sessionWaiters=0,lastAttempts=[];
   const ai=options.ai===false?null:{kind:'osminog',endpoint:DEFAULT_AI_ENDPOINT,...options.ai};
   const aiEndpoint=ai?endpointURL(ai.endpoint).href.replace(/\/$/,''):'';
   const transport=(url,extra={})=>endpointRequest(url,{...extra,allowLoopback:loopbackHost(new URL(url).hostname.replace(/^\[|\]$/g,''))});
@@ -307,8 +260,8 @@ function createSearchService(options={}) {
     const item={controller,dispose(){clearTimeout(timer);external?.removeEventListener('abort',abort);if(pending.get(id)===item)pending.delete(id);}};
     pending.set(id,item);return item;
   }
-  function cancel(id){const item=pending.get(typeof id==='object'?id?.requestId:id);if(!item)return false;item.controller.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));item.dispose();return true;}
-  function cancelAll(){for(const id of [...pending.keys()])cancel(id);sessionController?.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));}
+  function cancel(id){const key=typeof id==='object'?id?.requestId:id,item=pending.get(key),nativeCancelled=nativeSource?.cancel?.(key)===true;if(!item)return nativeCancelled;item.controller.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));item.dispose();return true;}
+  function cancelAll(){for(const id of [...pending.keys()])cancel(id);nativeSource?.cancelAll?.();sessionController?.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));}
   async function metadata(result,signal){
     return metadataPool.run(async()=>{
       try{
@@ -341,69 +294,15 @@ function createSearchService(options={}) {
       checkAbort(signal);return{rows:rows.filter(Boolean),completed,limited:controller.signal.aborted};
     }finally{clearTimeout(timer);signal.removeEventListener('abort',abort);}
   }
-  async function api(id,url,extra,attempts,{instant=false}={}) {
-    const started=performance.now(),u=new URL(url),receipt={id,endpoint:u.origin+u.pathname,method:extra.method||'GET',ok:false};attempts.push(receipt);
-    try{const response=await transport(url,{...extra,maxBytes:LIMITS.searchBytes});receipt.status=response.status;receipt.response={bytes:response.body.length,sha256:crypto.createHash('sha256').update(response.body).digest('hex'),contentType:String(response.headers['content-type']||'')};const value=jsonBody(response,{instantAnswer:instant});receipt.ok=true;return value;}
-    catch(error){receipt.error={code:error.code||'SEARCH_NETWORK',...(error.status?{status:error.status}:{}),...(error.causeCode?{causeCode:error.causeCode}:{})};throw error;}
-    finally{receipt.elapsedMs=Math.round(performance.now()-started);lastAttempts=attempts.map(row=>structuredClone(row));}
-  }
-  async function publicPage(clean,cache,signal,deadline) {
-    const attempts=[];
-    if(clean.page>1&&!cache?.provider)throw failure('SEARCH_PAGE','Результаты устарели. Повторите поиск.');
-    if(cache?.provider?.id==='mwmbl'){
-      const start=(clean.page-1)*LIMITS.results;
-      return {rows:cache.sourceRows.slice(start,start+LIMITS.results),hasMore:start+LIMITS.results<cache.sourceRows.length,provider:cache.provider,instantAnswer:cache.instantAnswer,translation:cache.translation,notice:cache.notice,attempts:[],snapshot:true};
-    }
-    let answer=cache?.instantAnswer||null,key='';
-    if(options.getBraveApiKey){key=await withSignal(Promise.resolve().then(()=>options.getBraveApiKey()),signal);if(key!==undefined&&key!==null&&typeof key!=='string')throw failure('SEARCH_CREDENTIALS','Не удалось прочитать ключ поискового API.');key=(key||'').trim();if(key&&(key.length>512||/[^\x21-\x7e]/.test(key)))throw failure('SEARCH_CREDENTIALS','Некорректный ключ поискового API.');}
-    braveConfigured=!!key;
-    if(key||cache?.provider?.id==='brave'){
-      if(!key)throw failure('SEARCH_CREDENTIALS','Ключ поискового API недоступен. Повторите поиск.');
-      if(clean.page>10)throw failure('SEARCH_PAGE','Доступные страницы поиска закончились.');
-      const u=new URL(BRAVE_ENDPOINT);u.search=new URLSearchParams({q:clean.query,count:'20',offset:String(clean.page-1),safesearch:'moderate',text_decorations:'false'}).toString();
-      try{const value=await api('brave',u.href,{signal,timeoutMs:LIMITS.searchMs,headers:{Accept:'application/json','X-Subscription-Token':key}},attempts),rows=braveRows(value);return{rows,hasMore:clean.page<10&&value.query.more_results_available===true,provider:{id:'brave',kind:'web-search',limited:false,pagination:'remote'},instantAnswer:answer,attempts};}
-      catch(error){checkAbort(signal);if(error.status===401)throw failure('SEARCH_CREDENTIALS','Ключ поискового API не принят. Проверьте настройки поиска.',401);if(clean.page>1||!canTryNext(error))throw error;}
-    }
-    if(clean.page===1){
-      const u=new URL(DEFAULT_ENDPOINT);u.search=new URLSearchParams({q:clean.query,format:'json',no_html:'1',no_redirect:'1',skip_disambig:'1'}).toString();
-      try{answer=instantAnswer(await api('duckduckgo-instant',u.href,{signal,timeoutMs:LIMITS.instantMs,headers:{Accept:'application/json'}},attempts,{instant:true}));}
-      catch(error){checkAbort(signal);if(!canTryNext(error))throw error;}
-    }
-    async function mwmbl(query,timeoutMs=LIMITS.searchMs){return publicPool.run(async()=>{
-      const delay=Math.max(0,1000-(Date.now()-lastMwmblAt));
-      if(delay){let timer;try{await withSignal(new Promise(resolve=>{timer=setTimeout(resolve,delay);}),signal);}finally{clearTimeout(timer);}}
-      checkAbort(signal);lastMwmblAt=Date.now();
-      const u=new URL(MWMBL_ENDPOINT);u.search=new URLSearchParams({q:query}).toString();
-      return mwmblRows(await api('mwmbl',u.href,{signal,timeoutMs,headers:{Accept:'application/json'}},attempts),query);
-    },signal);}
-    let rows=await mwmbl(clean.query),translation=null,notice='';
-    if(/[а-яё]/i.test(clean.query)&&queryTerms(clean.query).length){
-      rows=topicRows(rows,clean.query);
-      if(!rows.length){
-        const remaining=()=>Math.floor(deadline-performance.now()-LIMITS.metadataBudgetMs-150);
-        if(canTranslateQuery(clean.query)&&remaining()>4000){
-          const u=new URL(TRANSLATION_ENDPOINT);u.search=new URLSearchParams({q:clean.query,langpair:'ru|en',mt:'1'}).toString();
-          try{
-            const translatedQuery=queryTranslation(await api('mymemory',u.href,{signal,timeoutMs:Math.min(LIMITS.translationMs,remaining()-2000),headers:{Accept:'application/json'}},attempts));
-            if(translatedQuery.toLocaleLowerCase()!==clean.query.toLocaleLowerCase()&&remaining()>1000){
-              translation={provider:'mymemory',originalQuery:clean.query,translatedQuery,from:'ru',to:'en'};
-              rows=topicRows(await mwmbl(translatedQuery,Math.min(LIMITS.searchMs,remaining())),translatedQuery);
-            }
-          }catch(error){checkAbort(signal);if(!canTryNext(error))throw error;notice='Не удалось дополнить запрос переводом. ';}
-        }
-        if(!rows.length)notice+='В доступном источнике нет результатов по всем основным словам запроса. ';
-      }
-    }
-    const seen=new Set(),sourceRows=[];
-    for(const row of rows){const normalized=normalizeResult(row);if(!normalized||seen.has(normalized.id))continue;seen.add(normalized.id);sourceRows.push(normalized);if(sourceRows.length>=LIMITS.snapshotResults)break;}
-    if(translation)notice+='Дополнительно искали через Mwmbl по переводу MyMemory: «'+translation.translatedQuery+'». ';
-    notice+='Выдача доступного источника может быть неполной.';
-    return{rows:sourceRows.slice(0,LIMITS.results),sourceRows,hasMore:sourceRows.length>LIMITS.results,provider:{id:'mwmbl',kind:'web-search',limited:true,pagination:'snapshot',total:sourceRows.length},instantAnswer:answer,translation,notice,attempts};
-  }
   async function query(args={}){
     const clean=queryInput(args.query,args.page??1,args.filter||'all'),id=requestID(args.requestId);
     const started=performance.now(),work=begin(id,args.signal,LIMITS.queryMs),signal=work.controller.signal;
     try{return await queryPool.run(async()=>{
+      if(!configuredSearch){
+        if(!nativeSource?.query)throw failure('SEARCH_ENGINE_UNAVAILABLE','Откройте поиск в браузере и выберите поисковик.');
+        const result=await withSignal(Promise.resolve(nativeSource.query({...clean,requestId:id,signal})),signal);
+        checkAbort(signal);return result;
+      }
       const key=JSON.stringify([clean.query,clean.filter]),now=Date.now();
       let cache=pages.get(key);
       if(cache&&now-cache.at>LIMITS.cacheMs){pages.delete(key);cache=null;}
@@ -416,7 +315,7 @@ function createSearchService(options={}) {
         if(!Array.isArray(value.results)||value.results.length>1000)throw failure('SEARCH_FORMAT','Сервер поиска не прислал список результатов.');
         if(!value.results.length&&Array.isArray(value.unresponsive_engines)&&value.unresponsive_engines.length)throw failure('SEARCH_UPSTREAM','Поисковые системы временно не отвечают. Повторите запрос.');
         data={rows:value.results,hasMore:clean.page<LIMITS.page&&value.results.length>0,provider:{id:'configured-searxng',kind:'web-search',limited:false,pagination:'remote'},instantAnswer:null,attempts:[]};
-      }else data=await publicPage(clean,cache,signal,started+LIMITS.queryMs);
+      }
       checkAbort(signal);
       const seen=new Set();if(cache)for(const [page,value] of cache.pages)if(page<clean.page)for(const result of value.results)seen.add(result.id);
       const unique=[];
@@ -493,11 +392,12 @@ function createSearchService(options={}) {
       checkAbort(signal);return {requestId:id,text:text.trim()};
     },signal);}finally{work.dispose();}
   }
-  async function health(){if(!configuredSearch)return{available:undefined,configured:!destroyed,endpoint,aiConfigured:!!ai,requiresQuery:true};const result=jsonBody(await transport(new URL('/health',endpoint).href,{ca:options.ca,timeoutMs:5000,maxBytes:8192}));return {available:result.ok===true&&result.service==='osminog-mouse-search',endpoint,aiConfigured:!!ai};}
-  return {query,performSearch,cancel,cancelAll,resetCache(){cancelAll();pages.clear();},chat:args=>model(args,false),summarize:args=>model(args,true),health,
-    state:()=>({configured:!destroyed,endpoint,aiConfigured:!!ai,transport:options.transportState?.()||{kind:'node',credentials:'omit'},metadataBudgetMs:LIMITS.metadataBudgetMs,providers:configuredSearch?['configured-searxng']:[...(braveConfigured?['brave']:[]),'duckduckgo-instant','mwmbl'],braveConfigured,lastAttempts:lastAttempts.map(row=>structuredClone(row))}),dispose(){cancelAll();pages.clear();sessionToken='';destroyed=true;}};
+  async function health(){if(!configuredSearch)return{available:undefined,...state(),requiresQuery:true};const result=jsonBody(await transport(new URL('/health',endpoint).href,{ca:options.ca,timeoutMs:5000,maxBytes:8192}));return {available:result.ok===true&&result.service==='osminog-mouse-search',endpoint,aiConfigured:!!ai};}
+  function state(){const native=!configuredSearch&&nativeSource?.state?nativeSource.state():null;return{configured:!destroyed&&(configuredSearch||!!native),endpoint:native?.endpoint||endpoint,aiConfigured:!!ai,transport:native?.transport||options.transportState?.()||{kind:'node',credentials:'omit'},metadataBudgetMs:LIMITS.metadataBudgetMs,providers:native?.providers||(configuredSearch?['configured-searxng']:[]),...(native?{engine:native.engine,engineName:native.engineName}:{}),lastAttempts:lastAttempts.map(row=>structuredClone(row))};}
+  return {query,performSearch,cancel,cancelAll,resetCache(){cancelAll();pages.clear();},chat:args=>model(args,false),summarize:args=>model(args,true),health,state,nativeSource,
+    dispose(){cancelAll();pages.clear();sessionToken='';destroyed=true;}};
 }
 
 let defaultService;
 const performSearch=(q,page,categories,options)=>(defaultService||=createSearchService()).performSearch(q,page,categories,options);
-module.exports={createSearchService,performSearch,parseOpenGraph,normalizeResult,requestBuffer,publicAddress,checkedURL,SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT,instantAnswer,mwmblRows,braveRows,queryTerms,topicRows,canTranslateQuery,queryTranslation,canTryNext,networkFailure,publicSearchError,withSignal,abortError};
+module.exports={createSearchService,performSearch,parseOpenGraph,normalizeResult,requestBuffer,publicAddress,checkedURL,SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,networkFailure,publicSearchError,withSignal,abortError};

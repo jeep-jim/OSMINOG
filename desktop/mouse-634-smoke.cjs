@@ -7,6 +7,7 @@ const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
+const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
 
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,globalCapture,overlayGate}=ctx;
@@ -36,11 +37,14 @@ module.exports=async ctx=>{
   let events;await fixture.until(async()=>{events=await fixture.pageJS(record,`mouse634.clicks.slice(${count})`);return events.some(event=>event.id===selector.slice(1)&&event.trusted);},'634 trusted guest link '+selector);
   const result={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,events};facts.nativeInputs.push(result);return result;
  }
- async function screenCapture(filename,kind){
-  await fixture.frame();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),frame=await bounded(globalCapture.acquire(display),4500,'634 actual OS pixels');assert.equal(frame.kind,'screen');
+ async function screenCapture(filename,kind,{deadline}={}){
+  const acquire=async live=>{
+  await fixture.frame();live();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),remaining=Number.isFinite(deadline)?Math.min(4500,deadline-performance.now()):4500;
+  live();const frame=await bounded(globalCapture.acquire(display),remaining,'634 actual OS pixels');live();assert.equal(frame.kind,'screen');
   const full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=nativeImage.createFromBuffer(full).crop(geometry.cropPixels),png=image.toPNG({scaleFactor:1});
-  await fs.writeFile(filename,png);const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(displayFilename,full);
+  live();await fs.writeFile(filename,png);live();const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(displayFilename,full);live();
   const capture={filename,displayFilename,displaySha256:sha256(full),screenPixelSize,kind,source:'globalCapture.acquire(display)',backend:frame.backend,sha256:sha256(png),bytes:png.length,pixelSize:{width:png.readUInt32BE(16),height:png.readUInt32BE(20)},contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},cropPixels:geometry.cropPixels,mapping:geometry.mapping};facts.captures.push(capture);return capture;
+  };return Number.isFinite(deadline)?withinCaptureDeadline(deadline,acquire):acquire(()=>{});
  }
  function serve(req,res){
   const url=new URL(req.url,'http://localhost'),page=url.pathname.match(/^\/page\/(\d+)\/$/),download=url.pathname.match(/^\/download\/(a|b|chat|preview)$/);res.setHeader('Cache-Control','no-store');

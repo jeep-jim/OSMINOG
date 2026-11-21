@@ -17,11 +17,11 @@ function fixture(t,origin,extras={}){
   t.after(()=>service.dispose());return service;
 }
 
-test('public search defaults are independent from the pinned own AI certificate',()=>{
+test('native selected-engine search is independent from the pinned own AI certificate',()=>{
   const {X509Certificate}=require('node:crypto'),tls=require('node:tls');
   const certificate=new X509Certificate(require('node:fs').readFileSync(path.join(__dirname,'mouse-search-ca.crt')));
   assert.equal(certificate.fingerprint256.replaceAll(':','').toLowerCase(),'18a7d7b3881078171848621de946b777ff682ba729ad6e4d399a1d6bff784d07');
-  assert.equal(DEFAULT_ENDPOINT,'https://api.duckduckgo.com/');
+  assert.equal(DEFAULT_ENDPOINT,'native:browser-search');
   assert.equal(DEFAULT_AI_ENDPOINT,'https://151.248.113.177:3081');
   for(const endpoint of [DEFAULT_AI_ENDPOINT]){
     const host=new URL(endpoint).hostname;assert.equal(publicAddress(host),true);

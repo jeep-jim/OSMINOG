@@ -1,11 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {normalizeSearchResults,searchMasonry,searchMasonryGrid,searchViewport,searchSnapshotPlan,createSearchRequests,createSearchSummary,unwrapSearchReply,searchFailureMessage,searchSourceInfo}=require('./mouse/search.js');
+const {normalizeSearchResults,searchMasonry,searchMasonryGrid,searchViewport,searchSnapshotPlan,createSearchRequests,createSearchSummary,unwrapSearchReply,searchFailureMessage,searchSourceInfo,searchEngineInfo,createSearchEnginePreference,createSearchManualAction}=require('./mouse/search.js');
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};};
 
 test('search cards retain authoritative result IDs and URLs while rejecting executable or credential URLs',()=>{
  const rows=normalizeSearchResults([{id:'a',url:'https://www.example.test',title:'<script>literal title</script>',source:'wrong.test',type:'product',price:'12 500 ₽'},{id:'a',url:'https://other.test/'},{id:'b',url:'javascript:alert(1)'},{id:'c',url:'https://user:secret@example.test/'},{id:'d',url:'file:///profile.txt'},{id:'e',url:'https://example.test/page',type:'unknown'}]);
  assert.equal(rows.length,2);assert.equal(rows[0].id,'a');assert.equal(rows[0].url,'https://www.example.test','Renderer must not canonicalize the main registry URL');assert.equal(rows[0].source,'example.test');assert.equal(rows[0].title,'<script>literal title</script>');assert.equal(rows[0].price,'12 500 ₽');assert.equal(rows[1].type,'article');
+ const ranked=[{id:'z',title:'Third alphabetically',rank:1},{id:'a',title:'First alphabetically',rank:80},{id:'m',title:'Second alphabetically',rank:3}].map(row=>({...row,url:'https://example.test/'+row.id}));assert.deepEqual(normalizeSearchResults(ranked).map(row=>row.id),['z','a','m'],'The renderer preserves received provider order, without sorting by title, ID or a suggested rank');
 });
 test('masonry appends more actual site slots without moving earlier cards',()=>{
  const rows=Array.from({length:16},(_,i)=>({id:'r'+i,type:['article','video','product'][i%3]})),first=searchMasonry(920,rows.slice(0,7)),more=searchMasonry(920,rows);
@@ -68,13 +69,15 @@ test('cancellation remains a distinguishable nonretryable envelope for the rende
  assert.throws(()=>unwrapSearchReply({ok:false}),error=>error.message==='Поиск сейчас недоступен. Попробуйте ещё раз.'&&error.retryable===true);
 });
 
-test('public API instant answers remain source-attributed data, separate from web result normalization',()=>{
- const reply={provider:{id:'duckduckgo',kind:'instant-answer',limited:true,pagination:'none'},notice:'Краткая справка, не полная выдача сайтов.',instantAnswer:{title:'<b>Literal title</b>',text:'Actual API text',source:'DuckDuckGo',url:'https://example.test/answer'},RelatedTopics:[{Text:'Not a search result',FirstURL:'https://other.test/'}]};
- const value=searchSourceInfo(reply);assert.equal(value.provider.kind,'instant-answer');assert.equal(value.provider.pagination,'none');assert.equal(value.answer.source,'DuckDuckGo');assert.equal(value.answer.title,'<b>Literal title</b>');assert.equal(value.answer.url,'https://example.test/answer');assert.equal(value.notice,reply.notice);assert.deepEqual(normalizeSearchResults(reply.results),[]);
+test('source metadata describes only actual native results from a known selected engine',()=>{
+ const raw={id:'yandex',name:'Яндекс',kind:'web-search',transport:'native-serp',pagination:'remote',limited:true,apiKey:'must not copy',url:'https://untrusted.invalid/'},reply={provider:raw,notice:'Результаты Яндекса.',instantAnswer:{text:'Unrelated API answer'}};
+ assert.deepEqual(searchSourceInfo(reply),{provider:{id:'yandex',name:'Яндекс',kind:'web-search',transport:'native-serp',pagination:'remote',limited:true},notice:'Результаты Яндекса.'});
+ for(const provider of [{...raw,id:'api-aggregator'},{...raw,kind:'instant-answer'},{...raw,transport:'api'},null])assert.equal(searchSourceInfo({provider}).provider,null);
+ assert.deepEqual(searchSourceInfo({instantAnswer:{text:'An API abstract is not a search result'}}),{provider:null,notice:''});assert.deepEqual(searchSourceInfo(),{provider:null,notice:''});
 });
-test('source answers cannot introduce executable or credential-bearing URLs and empty abstracts stay empty',()=>{
- for(const url of ['javascript:alert(1)','file:///profile','https://name:secret@example.test/'])assert.equal(searchSourceInfo({instantAnswer:{text:'Actual text',url}}).answer.url,'');
- assert.equal(searchSourceInfo({instantAnswer:{title:'Related topic only',text:''}}).answer,null);assert.deepEqual(searchSourceInfo(),{provider:null,notice:'',answer:null});
+test('provider display data is copied as literal bounded text, without executable attributes or a source-answer widget',()=>{
+ const value=searchSourceInfo({provider:{id:'google',name:'<b>literal</b>',kind:'web-search',transport:'native-serp',limited:'true',pagination:'remote'},notice:'  <script>literal notice</script>  '});
+ assert.equal(value.provider.name,'<b>literal</b>');assert.equal(value.provider.limited,false);assert.equal(value.notice,'<script>literal notice</script>');assert.equal('answer' in value,false);assert.equal(searchSourceInfo({notice:'x'.repeat(700)}).notice.length,600);
 });
 
 test('actual CSS Grid row spans reproduce the existing masonry plan and stable append order exactly',()=>{
@@ -82,4 +85,57 @@ test('actual CSS Grid row spans reproduce the existing masonry plan and stable a
  function reconstruct(plan){const grid=searchMasonryGrid(plan),edges=[0];for(const height of grid.rows){assert.ok(height>0);edges.push(edges.at(-1)+height);}assert.ok(grid.rows.length<=plan.items.length*2);assert.equal(edges.at(-1),plan.height);assert.deepEqual(grid.items.map(item=>item.id),plan.items.map(item=>item.id),'Grid does not reorder the accessible DOM sequence');return grid.items.map(item=>({id:item.id,column:item.column-1,x:(item.column-1)*(grid.columnWidth+grid.gap),y:edges[item.rowStart-1],width:grid.columnWidth,height:edges[item.rowEnd-1]-edges[item.rowStart-1]}));}
  for(const width of [180,640,920,1280,2400]){const first=searchMasonry(width,rows.slice(0,9)),next=searchMasonry(width,rows.slice(0,27));assert.deepEqual(reconstruct(first),first.items);assert.deepEqual(reconstruct(next),next.items);assert.deepEqual(reconstruct(next).slice(0,9),reconstruct(first),'Pagination can add Grid row boundaries without moving existing cards');}
  const large=searchMasonry(920,rows);assert.deepEqual(reconstruct(large),large.items);assert.deepEqual(searchMasonryGrid(searchMasonry(0,[])).items,[]);
+});
+
+const engineState=(engine='google')=>({engine,name:'Ignored nonauthoritative duplicate',engines:[{id:'google',name:'Google'},{id:'bing',name:'Bing'},{id:'duckduckgo',name:'DuckDuckGo'},{id:'yandex',name:'Яндекс'}],private:false});
+test('engine display comes from the shared preference and rejects missing, unknown or inconsistent choices',()=>{
+ const raw=engineState('yandex');raw.engines[0].url='https://untrusted.invalid/';raw.extra='discard';
+ const normalized=searchEngineInfo(raw);assert.deepEqual(normalized,{engine:'yandex',name:'Яндекс',engines:[{id:'google',name:'Google'},{id:'bing',name:'Bing'},{id:'duckduckgo',name:'DuckDuckGo'},{id:'yandex',name:'Яндекс'}],private:false});raw.engines[3].name='mutated';assert.equal(normalized.name,'Яндекс');assert.equal(normalized.engines[3].name,'Яндекс');
+ for(const value of [undefined,{}, {...engineState(),engine:'other'}, {...engineState(),engines:[]}, {...engineState('yandex'),engines:[{id:'google',name:'Google'}]}, {...engineState(),engines:[{id:'google',name:'Google'},{id:'google',name:'Duplicate'}]}, {...engineState(),engines:[{id:'google',name:'  '}]}, {...engineState(),engines:[{id:'google',name:'Google'},{id:'other',name:'Other'}]}])assert.equal(searchEngineInfo(value),null,'No independent fallback engine is invented');
+});
+test('choosing an engine writes only the existing browser preference and displays its authoritative readback',async()=>{
+ const calls=[];let engine='google';const preference=createSearchEnginePreference(async(action,args)=>{calls.push({action,args});if(action==='preferences'){assert.deepEqual(args,{searchEngine:'bing'});engine='yandex';return true;}return{search:engineState(engine)};});
+ assert.equal((await preference.read()).value.engine,'google');const changed=await preference.select('bing');assert.equal(changed.value.engine,'yandex','Another authoritative preference update wins over the requested optimistic value');assert.equal(changed.changed,true);assert.deepEqual(calls,[{action:'get',args:undefined},{action:'preferences',args:{searchEngine:'bing'}},{action:'get',args:undefined}]);
+ changed.value.engines[0].name='mutated';changed.value.engine='duckduckgo';assert.equal(preference.current().engine,'yandex');assert.equal(preference.current().engines[0].name,'Google');assert.equal((await preference.read()).changed,false,'Bookmark notifications need not reset the current query when its engine did not change');
+});
+test('an invalid or uninitialized selection cannot write preferences, and a failed read cannot fabricate success',async()=>{
+ const calls=[],preference=createSearchEnginePreference(async(action,args)=>{calls.push({action,args});return{search:engineState()};});
+ await assert.rejects(preference.select('bing'),/доступный поисковик/);assert.deepEqual(calls,[]);await preference.read();for(const engine of ['other','https://example.test/',undefined])await assert.rejects(preference.select(engine),/доступный поисковик/);assert.equal(calls.filter(row=>row.action==='preferences').length,0);
+ let valid=true;const broken=createSearchEnginePreference(async()=>({search:valid?engineState():{engine:'bing'}}));await broken.read();valid=false;await assert.rejects(broken.select('bing'),/узнать выбранный поисковик/);assert.equal(broken.current().engine,'google');
+});
+test('late preference responses and failures cannot overwrite a newer browser choice',async()=>{
+ for(const rejects of [false,true]){const old=deferred(),fresh=deferred();let count=0;const preference=createSearchEnginePreference(()=>++count===1?old.promise:fresh.promise),first=preference.read(),second=preference.read();fresh.resolve({search:engineState('duckduckgo')});assert.equal((await second).value.engine,'duckduckgo');if(rejects)old.reject(Error('late failure'));else old.resolve({search:engineState('google')});assert.deepEqual(await first,{stale:true});assert.equal(preference.current().engine,'duckduckgo');}
+});
+test('a start notification during the initial engine read refreshes that same operation instead of stranding hidden opening',async()=>{
+ const old=deferred(),fresh=deferred();let gets=0;const preference=createSearchEnginePreference(()=>++gets===1?old.promise:fresh.promise),opening=preference.read();
+ preference.notify();assert.equal(gets,1,'An opening notification does not create a competing read generation');old.resolve({search:engineState('google')});await Promise.resolve();assert.equal(gets,2);assert.equal(preference.current(),null,'The out-of-date snapshot cannot become ready');fresh.resolve({search:engineState('bing')});assert.deepEqual(await opening,{stale:false,changed:true,value:{...engineState('bing'),name:'Bing'}});
+});
+test('closing an opening read or an in-flight preference write never revives its display state',async()=>{
+ const pending=deferred();let reads=0;const opening=createSearchEnginePreference(()=>{reads++;return pending.promise;}),read=opening.read();opening.notify();opening.cancel();pending.resolve({search:engineState('yandex')});assert.deepEqual(await read,{stale:true});assert.equal(opening.current(),null);assert.equal(reads,1,'Close prevents the notification refresh as well');
+ const write=deferred(),calls=[],preference=createSearchEnginePreference((action,args)=>{calls.push({action,args});return action==='get'?Promise.resolve({search:engineState()}):write.promise;});await preference.read();const selected=preference.select('bing');preference.cancel();write.resolve(true);assert.deepEqual(await selected,{stale:true});assert.equal(preference.current().engine,'google');assert.equal(calls.filter(row=>row.action==='get').length,1,'An authorized write may finish, but a closed UI must not fetch or reopen itself');
+});
+test('the setter notification and later external updates share one authoritative refresh before selection becomes ready',async()=>{
+ const readback=deferred(),latest=deferred();let gets=0,preference;preference=createSearchEnginePreference((action)=>{if(action==='preferences'){preference.notify();return Promise.resolve(true);}gets++;return gets===1?Promise.resolve({search:engineState()}):gets===2?readback.promise:latest.promise;});await preference.read();const selected=preference.select('bing');await Promise.resolve();assert.equal(gets,2);preference.notify();readback.resolve({search:engineState('bing')});await Promise.resolve();assert.equal(gets,3);latest.resolve({search:engineState('yandex')});assert.equal((await selected).value.engine,'yandex');
+});
+
+function manualError(code='SEARCH_ENGINE_CHALLENGE',overrides={}){
+ try{unwrapSearchReply({ok:false,error:{code,message:'Поисковик просит пройти проверку на своей странице.',retryable:true,manualAction:{available:true,requestId:'query-1',engine:'google',...overrides}}});}catch(error){return error;}
+}
+const manualContext={requestId:'query-1',query:'новости про антропик',filter:'all',engine:'google'};
+test('only a current engine challenge or unreadable layout can offer opening the actual source page',()=>{
+ for(const code of ['SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT']){const actions=createSearchManualAction(),offer=actions.accept(manualError(code),manualContext);assert.deepEqual(offer,{requestId:'query-1',engine:'google',code});assert.deepEqual(actions.take(manualContext),{requestId:'query-1'});assert.equal(actions.take(manualContext),null);}
+ for(const code of ['SEARCH_HTTP','SEARCH_ENGINE_CHANGED','SEARCH_SLOW_FALLBACK_AVAILABLE']){const error=manualError(code),actions=createSearchManualAction();assert.equal('manualAction' in error,false);assert.equal(actions.accept(error,manualContext),null);}
+});
+test('a manual action cannot substitute another request, engine or renderer-supplied navigation URL',()=>{
+ for(const override of [{available:'true'},{available:false},{requestId:'other'},{engine:'bing'},{engine:'unknown'}]){const actions=createSearchManualAction();assert.equal(actions.accept(manualError('SEARCH_ENGINE_CHALLENGE',override),manualContext),null);assert.equal(actions.take(manualContext),null);}
+ const error=manualError('SEARCH_ENGINE_CHALLENGE',{url:'javascript:alert(1)',redirect:'https://other.test/',script:'untrusted'}),actions=createSearchManualAction(),offer=actions.accept(error,manualContext);error.manualAction.requestId='injected';offer.requestId='mutated';assert.deepEqual(actions.take(manualContext),{requestId:'query-1'},'The command contains only the ID accepted from the matching current request');
+});
+test('changed text, filter or selected engine consumes and invalidates the previous manual action',()=>{
+ for(const change of [{query:'другой запрос'},{filter:'video'},{engine:'yandex'}]){const actions=createSearchManualAction();actions.accept(manualError(),manualContext);assert.equal(actions.current({...manualContext,...change}),null);assert.equal(actions.take({...manualContext,...change}),null);assert.equal(actions.take(manualContext),null);}
+ const actions=createSearchManualAction();actions.accept(manualError(),manualContext);assert.equal(actions.clear(),'query-1');assert.equal(actions.take(manualContext),null);assert.equal(actions.clear(),undefined);
+});
+test('a new query failure replaces the prior manual action and an ordinary failure removes it',()=>{
+ const actions=createSearchManualAction();actions.accept(manualError(),manualContext);const context={...manualContext,requestId:'query-2',query:'новый запрос'};actions.accept(manualError('SEARCH_ENGINE_LAYOUT',{requestId:'query-2'}),context);assert.equal(actions.current(manualContext),null);assert.deepEqual(actions.take(context),{requestId:'query-2'});
+ actions.accept(manualError(),manualContext);assert.equal(actions.accept(new Error('ordinary failure'),manualContext),null);assert.equal(actions.take(manualContext),null);
+ for(const context of [{...manualContext,requestId:'not a request'}, {...manualContext,query:''}, {...manualContext,query:'x'.repeat(513)}, {...manualContext,filter:'unknown'}])assert.equal(actions.accept(manualError('SEARCH_ENGINE_CHALLENGE',{requestId:context.requestId}),context),null);
 });

@@ -4,7 +4,7 @@ const {TileSearch}=require('./mouse-tile-search.cjs');
 const result=(id)=>({id,url:'https://example.com/'+id,title:'Site '+id,type:'article'});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 const captureRecord=(id)=>({id,visible:true,navigationEpoch:1,bounds:{x:20,y:100,width:120,height:160},view:{webContents:{isDestroyed:()=>false,capturePage:async()=>({isEmpty:()=>false,getSize:()=>({width:120,height:160}),toPNG:()=>Buffer.from('owned captured bitmap')})}}});
-function setup({query,summary,chat}={}){
+function setup({query,summary,chat,nativeSource}={}){
  const log=[],sent=[],registered=new Map(),shell=new EventEmitter();shell.send=(channel,value)=>sent.push({channel,value});shell.isDestroyed=()=>false;
  const win=new EventEmitter();Object.assign(win,{webContents:shell,isDestroyed:()=>false,isMinimized:()=>false});
  const browser={tabs:new Map([['original',{id:'original'}]]),providers:new Map(),mouseDesktops:{bank:{active:'desk-3'}},layout:panels=>log.push(['ordinary-layout',panels]),command:async(action,args)=>{log.push(['browser-command',action,args]);return{id:'opened-result'};}};
@@ -13,13 +13,49 @@ function setup({query,summary,chat}={}){
  const service={state:()=>({configured:true}),query:query||(async args=>({...args,results:[result('one')],hasMore:true})),summarize:summary||(async()=>({text:'A fixture summary'})),chat:chat||(async()=>({text:'A fixture answer'})),cancel:id=>log.push(['cancel',id]),cancelAll:()=>log.push(['cancel-all']),dispose:()=>log.push(['service-dispose'])};
  const views=new EventEmitter();Object.assign(views,{state:()=>({pages:[]}),setResults(rows,{revision}){assert.ok(revision>=1);this.rows=rows.slice();this.revision=revision;log.push(['results',rows.map(r=>r.id),revision]);},layout:packet=>{log.push(['search-layout',packet]);return{liveCount:1};},suspend:reason=>log.push(['suspend',reason]),resume:()=>log.push(['resume']),close:reason=>log.push(['views-close',reason]),dispose:()=>log.push(['views-dispose']),capturePages:()=>[],resultURL(id){return this.rows.find(row=>row.id===id)?.url;}});
  const vision={state:()=>({active:visionActive,targetId:'one'}),start:async({id,consent})=>{assert.equal(consent,true);visionActive=true;log.push(['vision-start',id]);return{active:true};},stop:reason=>{visionActive=false;log.push(['vision-stop',reason]);return Promise.resolve({active:false});},snapshot:async()=>({elements:[],scope:'selected-main-frame'}),dispose:()=>log.push(['vision-dispose'])};
- const controller=new TileSearch({app:{getPath:()=>'/tmp/fixture-search'},win,browser,overlayGate:gate,isPrivate:()=>privateMode,serviceFactory:options=>{serviceOptions=options;return service;},viewsFactory:()=>views,visionFactory:()=>vision,powerMonitor:new EventEmitter(),ipcMain:{handle:(channel,handler)=>registered.set(channel,handler),removeHandler:channel=>registered.delete(channel)},trusted:event=>{if(event.trusted!==true)throw Error('Untrusted frame');}});
+ const controller=new TileSearch({app:{getPath:()=>'/tmp/fixture-search'},win,browser,nativeSource,overlayGate:gate,isPrivate:()=>privateMode,serviceFactory:options=>{serviceOptions=options;return service;},viewsFactory:()=>views,visionFactory:()=>vision,powerMonitor:new EventEmitter(),ipcMain:{handle:(channel,handler)=>registered.set(channel,handler),removeHandler:channel=>registered.delete(channel)},trusted:event=>{if(event.trusted!==true)throw Error('Untrusted frame');}});
  return{controller,log,sent,registered,browser,gate,views,vision,service,serviceOptions,setPrivate:value=>{privateMode=value;}};
 }
 test('clearing an empty query removes native results immediately and invalidates outstanding answers without closing the workspace',async()=>{
  const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'before clearing',requestId:'before'});await f.vision.start({id:'one',consent:true});const oldRevision=f.controller.revision;
  const cleared=await f.controller.handle('clear');assert.equal(cleared.cleared,true);assert.ok(cleared.revision>oldRevision);assert.equal(f.controller.active,true);assert.deepEqual(f.views.rows,[]);assert.deepEqual(f.controller.results,[]);assert.equal(f.vision.state().active,false);assert.equal(f.controller.query,'');assert.deepEqual([...f.browser.tabs.keys()],['original']);
  answer.resolve({text:'Late answer must remain cancelled'});await new Promise(setImmediate);assert.equal(f.sent.some(row=>row.value.kind==='summary'),false);f.controller.dispose();
+});
+
+function nativeChallenge(){
+ const {SearchError}=require('./mouse-search-service.cjs');let owned=true,closed=false,takes=0,engine='google';
+ const wc={isDestroyed:()=>closed,close:()=>{closed=true;}},view={webContents:wc},receipt={view,wc,source:{requestId:'manual',query:'новости про антропик',filter:'all',page:1,engine}};
+ const nativeSource={sourceFor:id=>owned&&id===receipt.source.requestId?receipt:null,takeSource:id=>{if(!owned||id!==receipt.source.requestId)return null;takes++;owned=false;return receipt;},cancel:()=>{if(owned)closed=true;},cancelAll:()=>{if(owned)closed=true;},dispose(){this.cancelAll();}};
+ const f=setup({nativeSource,query:async args=>{Object.assign(receipt.source,args,{engine});closed=false;owned=true;const error=new SearchError('SEARCH_ENGINE_CHALLENGE','Поисковик просит проверку.');error.manualAction={available:true,requestId:args.requestId,engine};throw error;}});
+ f.browser.mouseSearch={state:()=>({engine})};f.browser.project='work';f.browser.adoptSearchSource=source=>{assert.equal(source,receipt);return{id:'adopted-source'};};f.controller.open();
+ return{...f,receipt,closed:()=>closed,takes:()=>takes,setEngine:value=>{engine=value;},query:()=>f.controller.search({query:receipt.source.query,requestId:'manual'})};
+}
+test('manual engine action adopts the same owned page and ignores renderer URLs, preserving the transferred page on close',async()=>{
+ const f=nativeChallenge();await assert.rejects(f.query(),{code:'SEARCH_ENGINE_CHALLENGE'});assert.equal(f.serviceOptions.nativeSource,f.controller.nativeSource);
+ assert.deepEqual(await f.controller.handle('open-engine',{requestId:'manual',url:'https://attacker.example'}),{id:'adopted-source'});
+ assert.equal(f.takes(),1);assert.equal(f.closed(),false);assert.equal(f.controller.active,false);assert.deepEqual([...f.browser.tabs.keys()],['original']);
+ assert.ok(f.sent.some(item=>item.value.kind==='open-result'&&item.value.id==='adopted-source'&&item.value.desk==='desk-3'));
+ f.controller.dispose();assert.equal(f.closed(),false,'service disposal cannot destroy the transferred normal tab');
+});
+test('manual engine actions cannot cross a query, cancellation, desk, project, selected engine or close boundary',async()=>{
+ for(const change of ['query','cancel','desk','project','engine','close','clear']){
+  const f=nativeChallenge();await assert.rejects(f.query(),{code:'SEARCH_ENGINE_CHALLENGE'});
+  if(change==='query')await assert.rejects(f.controller.search({query:'other',requestId:'other'}),{code:'SEARCH_ENGINE_CHALLENGE'});
+  if(change==='cancel')await f.controller.handle('cancel',{requestId:'manual'});
+  if(change==='desk')f.browser.mouseDesktops.bank.active='desk-4';
+  if(change==='project')f.browser.project='another';
+  if(change==='engine')f.setEngine('bing');
+  if(change==='close'){f.controller.close();f.controller.open();}
+  if(change==='clear')f.controller.clearResults();
+  await assert.rejects(f.controller.handle('open-engine',{requestId:'manual'}),{code:'SEARCH_SOURCE_STALE'},change);assert.equal(f.takes(),0,change);f.controller.dispose();
+ }
+});
+test('failed native adoption closes the detached source, and a completed ordinary query is not a challenge action',async()=>{
+ const f=nativeChallenge();await assert.rejects(f.query(),{code:'SEARCH_ENGINE_CHALLENGE'});f.browser.adoptSearchSource=()=>{throw Error('view unavailable');};await assert.rejects(f.controller.handle('open-engine',{requestId:'manual'}),/view unavailable/);assert.equal(f.closed(),true);f.controller.dispose();
+ const g=nativeChallenge();g.service.query=async()=>({results:[result('real')],hasMore:false});await g.query();await assert.rejects(g.controller.handle('open-engine',{requestId:'manual'}),{code:'SEARCH_SOURCE_STALE'});assert.equal(g.takes(),0);g.controller.dispose();
+});
+test('late results are rejected after the canonical selected engine changes even before renderer cancellation arrives',async()=>{
+ const f=nativeChallenge(),waiting=deferred();f.service.query=()=>waiting.promise;const promise=f.query(),rejected=assert.rejects(promise,/отменён/);f.setEngine('yandex');waiting.resolve({results:[result('old-engine')],hasMore:false});await rejected;assert.deepEqual(f.controller.results,[]);f.controller.dispose();
 });
 test('cancelling a completed query also cancels its in-flight automatic summary',async()=>{
  const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'summary cancellation',requestId:'q'});await f.controller.handle('cancel',{requestId:'q'});answer.resolve({text:'Late summary'});await new Promise(setImmediate);
