@@ -108,4 +108,75 @@ test('the actual modal chooser requires all four visible options and exact curre
  }
  assert.deepEqual(C.CAPTURES,['mouse-635-public-search-engine-menu.png','mouse-635-public-search-source.png','mouse-635-public-search-tiles.png']);
 });
+function paintedBitmap(width=192,height=160,{blank=false}={}){
+ const data=Buffer.alloc(width*height*4);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const at=(y*width+x)*4,rgb=blank?[255,255,255]:[[242,240,235],[28,44,68],[82,130,180],[135,80,55],[45,155,92]][(Math.floor(x/12)+Math.floor(y/16))%5];
+  data.set([...rgb,255],at);
+ }
+ return{width,height,data};
+}
+function paintArgs(before=paintedBitmap(),after=before,candidate=before){return{before,after,candidate,bounds:{x:0,y:0,width:before.width,height:before.height},mapping:{originX:0,originY:0,scaleX:1,scaleY:1}};}
+test('guest presentation binds informative pixels in both readbacks to actual OS pixels',()=>{
+ const args=paintArgs(),match=C.guestPaintMatch(args);assert.equal(match.accepted,true);assert.ok(match.stableSamples>=256);assert.ok(match.informativeSamples>=64);assert.equal(match.matchedSamples,match.stableSamples);assert.equal(match.referenceColors,5);
+ assert.ok(match.quadrants.every(row=>row.stable>=16&&row.matched===row.stable));assert.deepEqual(match.policy,C.PAINT_POLICY);
+ assert.equal(C.guestPaintMatch({...args,candidate:paintedBitmap(192,160,{blank:true})}).accepted,false,'A stale blank OS window is not provider paint');
+ const displaced=paintedBitmap();for(let y=0;y<displaced.height;y++)for(let x=0;x<displaced.width;x++){const source=(y*displaced.width+(x+12)%displaced.width)*4;args.before.data.copy(displaced.data,(y*displaced.width+x)*4,source,source+4);}
+ assert.equal(C.guestPaintMatch({...args,candidate:displaced}).accepted,false,'A stale or shifted guest does not match');
+});
+test('a matching blank reference and background-dominated OS frame cannot pass',()=>{
+ const blank=paintedBitmap(600,600,{blank:true});assert.equal(C.guestPaintMatch(paintArgs(blank)).accepted,false);
+ const sparse={...blank,data:Buffer.from(blank.data)};let count=0;
+ for(let y=16;y<584&&count<80;y+=4)for(let x=16;x<584&&count<80;x+=4){const rgb=[[20,40,80],[170,80,40],[40,160,90]][count%3];sparse.data.set([...rgb,255],(y*600+x)*4);count++;}
+ const valid=C.guestPaintMatch(paintArgs(sparse));assert.equal(valid.accepted,true);assert.equal(valid.informativeSamples,80);
+ const whiteOS=C.guestPaintMatch(paintArgs(sparse,sparse,blank));assert.ok(whiteOS.matchedSamples/whiteOS.stableSamples>.99);assert.equal(whiteOS.informativeMatchedSamples,0);assert.equal(whiteOS.accepted,false,'Informative pixels have their own threshold');
+});
+test('unstable references, transparent samples and invalid native mapping are rejected',()=>{
+ const args=paintArgs(),changed=paintedBitmap();for(let at=0;at<changed.data.length;at+=4)for(let c=0;c<3;c++)changed.data[at+c]=255-changed.data[at+c];
+ assert.equal(C.guestPaintMatch({...args,after:changed}).accepted,false);
+ const transparent=paintedBitmap();for(let at=3;at<transparent.data.length;at+=4)transparent.data[at]=0;
+ assert.equal(C.guestPaintMatch({...args,candidate:transparent}).accepted,false);
+ for(const mutate of [value=>value.mapping.scaleX=0,value=>value.mapping.originX=-1000,value=>value.bounds.x=200,value=>value.after={...value.after,width:191}]){
+  const bad={...args,bounds:{...args.bounds},mapping:{...args.mapping}};mutate(bad);assert.throws(()=>C.guestPaintMatch(bad));
+ }
+});
+function presentationHarness({frames=[paintedBitmap()],changeIdentity=false,late=false}={}){
+ let now=100,reads=0,captures=0,accepted=0;const bitmap=paintedBitmap(),paint={},objects=[];
+ return{paint,objects,get captures(){return captures;},get accepted(){return accepted;},options:{paint,clock:()=>now,
+  read:async()=>{now+=5;return{id:'source',webContentsId:7,navigationEpoch:changeIdentity&&++reads>1?2:1,bounds:{x:0,y:0,width:192,height:160}};},
+  assertStable:(state,baseline)=>assert.deepEqual(state,baseline),subjects:state=>[state],
+  reference:async(subject,{sequence,index,phase})=>{now+=5;return{receipt:{id:subject.id,webContentsId:7,bounds:subject.bounds,image:{source:'WebContents.capturePage',filename:`reference-${sequence}-${index}-${phase}.png`}},bitmap};},
+  capture:async({sequence})=>{captures++;now+=late?5000:5;const receipt={filename:'attempt-'+sequence+'.png',mapping:{originX:0,originY:0,scaleX:1,scaleY:1}};objects.push(receipt);return{receipt,bitmap:frames[Math.min(captures-1,frames.length-1)]};},
+  accept:async capture=>{accepted++;capture.filename='canonical.png';},
+ }};
+}
+test('presentation retries retain every rejected OS frame and rename the same accepted object',async()=>{
+ const h=presentationHarness({frames:[paintedBitmap(192,160,{blank:true}),paintedBitmap()]}),result=await C.acquireGuestPaint(h.options);
+ assert.equal(h.captures,2);assert.equal(h.accepted,1);assert.equal(result.paint.acceptedIndex,1);assert.equal(h.paint.attempts.length,2);
+ assert.equal(h.paint.attempts[0].accepted,false);assert.equal(h.paint.attempts[0].capture.filename,'attempt-1.png');assert.equal(h.paint.attempts[1].accepted,true);
+ assert.equal(h.paint.attempts[1].capture,h.objects[1]);assert.equal(h.objects[1].filename,'canonical.png');assert.deepEqual(result.before,h.paint.attempts[1].before);assert.deepEqual(result.after,h.paint.attempts[1].after);
+ assert.equal(h.paint.deadline-h.paint.startedAt,4500);assert.ok(h.paint.finishedAt<h.paint.deadline);
+});
+test('a late completed capture and a changed guest identity never become an accepted retry',async()=>{
+ for(const options of [{late:true},{changeIdentity:true}]){
+  const h=presentationHarness(options);await assert.rejects(C.acquireGuestPaint(h.options));assert.equal(h.accepted,0);assert.equal(h.captures,1);assert.equal(h.paint.acceptedIndex,null);assert.equal(h.paint.attempts.length,1);assert.equal(h.paint.attempts[0].accepted,false);assert.ok(h.paint.attempts[0].error);
+ }
+});
+test('a persistently stale compositor exhausts the fixed frame limit without accepting a blank frame',async()=>{
+ const h=presentationHarness({frames:[paintedBitmap(192,160,{blank:true})]});await assert.rejects(C.acquireGuestPaint(h.options),/20 acquisitions/);
+ assert.equal(h.captures,20);assert.equal(h.accepted,0);assert.equal(h.paint.maxFrames,20);assert.equal(h.paint.budgetMs,4500);assert.ok(h.paint.attempts.every(row=>row.accepted===false));
+});
+test('actual topical document readiness tolerates outstanding resources and binds a genuine redirect',()=>{
+ const original='https://www.anthropic.com/news',final='https://www.anthropic.com/news/';
+ const page={visible:true,viewVisible:true,attached:true,error:'',loading:true,resultURL:original,recordURL:final,url:final,document:{url:final,title:'Anthropic',readyState:'interactive',visibilityState:'visible',timeOrigin:1700000000000,bodyText:'Anthropic publishes actual research and product news. '.repeat(4),bodyTextLength:220},navigation:[{event:'start',url:original,at:1},{event:'redirect',url:final,at:2},{event:'commit',url:final,at:3}]};
+ assert.equal(C.pageReady(page,['anthropic']),true);
+ for(const mutate of [value=>value.document.bodyText='Loading',value=>value.document.readyState='loading',value=>value.document.visibilityState='hidden',value=>value.attached=false,value=>value.error='ERR_FAILED',value=>value.navigation.shift(),value=>value.navigation.pop(),value=>value.document.url='https://unrelated.example/',value=>value.document.title='Other site',value=>value.document.bodyText='Ordinary unrelated text '.repeat(6)]){
+  const bad=structuredClone(page);mutate(bad);if(bad.document.title==='Other site')bad.document.bodyText='Ordinary unrelated text '.repeat(6);if(!bad.document.bodyText.includes('Anthropic'))bad.document.title='Other site';assert.equal(C.pageReady(bad,['anthropic']),false);
+ }
+});
+test('native navigation observations precede guest loads and never synthesize a redirect',()=>{
+ const {EventEmitter}=require('node:events'),app=new EventEmitter(),wc=Object.assign(new EventEmitter(),{id:81,isDestroyed:()=>false,getURL:()=> 'https://example.org/final'}),observer=C.observeNativeNavigation(app);
+ app.emit('web-contents-created',{},wc);wc.emit('did-start-navigation',{},'https://example.org/',false,true);wc.emit('did-start-navigation',{},'https://ads.example/',false,false);wc.emit('did-redirect-navigation',{},'https://example.org/final',false,true);wc.emit('did-navigate',{},'https://example.org/final');wc.emit('dom-ready');
+ assert.deepEqual(observer.get(81).map(row=>[row.event,row.url]),[['start','https://example.org/'],['redirect','https://example.org/final'],['commit','https://example.org/final'],['dom-ready','https://example.org/final']]);observer.dispose();assert.equal(app.listenerCount('web-contents-created'),0);assert.equal(wc.listenerCount('did-navigate'),0);
+});
 module.exports={fixture};

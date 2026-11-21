@@ -79,3 +79,21 @@ Release commit `c70aba83da2153f860e91dea4b7f071e229399a7` прошёл470/470 л
 ### Промежуточный legacy checkpoint
 
 Для параллельного выявления оставшихся installed regressions исправление реального layout-menu выделено в следующий промежуточный кандидат, пока отдельно готовится усиленная проверка source/guest paint. Полный локальный Mouse gate:1201tests /1195PASS /0FAIL /6 Windows-only SKIP,11.447s; лог `mouse635-final-unit-13.log`, SHA-256 `40dfce45a7fb61716e1b1139f7e9b5494dd7e36317ee1e0f18c0a878b0be3f49`. Независимый review не выявил блокера в observer/show/close/cleanup последовательности. Этот checkpoint не устраняет визуальный blocker поиска сам по себе и не даёт разрешения на pin или публикацию.
+
+## Mac fa1c: положение окна при настоящем OS click
+
+[Run44891638884, attempt1](https://github.com/jeep-jim/OSMINOG/actions/runs/44891638884), source `fa1c11e84dfed23df4fa6d5283c18f77c25e2593`, job `136808516150`, вновь собрал пакеты и прошёл предшествующие retained634/owner635 проверки. Общий installed gate остановился в `--mouse-smoke-write`: `Timed out native layout menu actually shown`. Verification artifact `14702641653` скачан и проверен:24,855,587 bytes, SHA-256 `5fb790ee23e5d479c589bc02dade2d813e971b9fffd7753e1cc0f9633159f25d`.
+
+Raw `mouse-630-basics-input.json` фиксирует content bounds `{x:-416,y:-192,width:1440,height:960}` при дисплее1024×768. Receipt `mouse-635-start-layout.json` содержит OS point `(-214,754)`, `menu:null`, пустые keys; фокус остался на language-select. Это клиентская точка `(202,946)` в большом renderer, но физический x находится за левым краем экрана. Предшествующие проверки специально используют1440×960; DOM hit-test не проверяет положение окна на дисплее. `mouse-failure.png` снят через window capture и потому не доказывает физическую доступность кнопки.
+
+Исправлен только test helper: на время настоящего OS click он условно вписывает окно в actual workArea существующим `fixtureWindowBounds`, ждёт согласованные window/content/renderer bounds, повторно вычисляет hit и требует точку внутри дисплея. Исходные bounds восстанавливаются в finally при успехе и отказе; diagnosis сохраняет before/fitted/restored geometry. Production layout handler не меняется. Три новые регрессии проверяют исходную геометрию этого отказа, stale viewport без отправки OS input и восстановление при неоткрывшемся меню. Независимый review не выявил блокера; окончательное подтверждение требует следующего установленного Mac run.
+
+## Обязательный actual paint gate
+
+Source public-search smoke теперь сравнивает OS pixels с двумя PNG того же native WebContents, снятыми до и после экрана. Сохраняются исходные reference PNG и все rejected OS frames. Принимается первый кадр, прошедший проверку стабильных информативных точек: пустой совпадающий фон недостаточен. Идентичность request, query, source/guest WebContents, навигации, документа, bounds и окна проверяется до и после. Серия ограничена4500ms и20 попытками; время не сбрасывается между кадрами.
+
+Для сайтов закреплены первые `min(2,actualResultCount)` видимые результаты в исходном порядке. Они должны получить настоящий содержательный документ в пределах15000ms; незавершённые фоновые ресурсы не подменяются фиктивным loading=false. Исходный result URL остаётся привязан к выдаче, а фактическое перенаправление подтверждается событиями реальной навигации. Очистка поиска начинается после доказанного кадра.
+
+Независимый Python Release checker декодирует PNG и сам пересчитывает те же метрики; actual4d95 без нового paint evidence отвергнут. Canonical owner ledger содержит17 кадров, а с сохранёнными rejected attempts допустимо17–55 фактических OS frames. Замороженный Release union:22 скрипта,491/491 PASS, schema SHA привязки и required templates PASS; все три publisher plan остаются false. Summary SHA-256 `3650229f4712ccb8371466beb596c0b06f406b4172cb0c225dff05d635525e5e`.
+
+Полный локальный Mouse набор после paint и geometry исправлений:1212tests /1206PASS /0FAIL /6 Windows-only SKIP,8.741s. Лог `mouse635-final-unit-15.log`, SHA-256 `1a39fc36104f31516791e05ce5ed9f5f37662c9b0ab5b52cdc12d01082d7c87c`. Это контрактная проверка; новый actual Mac paint PASS и выпуск ещё не подтверждены.

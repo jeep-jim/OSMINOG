@@ -31,17 +31,19 @@ module.exports=async ctx=>{
   if(!navigates){await fixture.until(async()=>{result.events=await fixture.js('__mouse633Input.read()');return result.events.some(event=>event.type==='click'&&event.trusted&&event.matches);},'635 trusted click '+selector);await fixture.frame();}
   await save();return result;
  }
- async function screenCapture(filename,kind){
+ async function screenCapture(filename,kind,{deadline}={}){
   if(!filename.endsWith('.png'))filename+='.png';kind||=filename;
   assert.match(filename,/^mouse-635-[a-z0-9-]+\.png$/);
-  await fixture.frame();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();
-  const frame=await bounded(globalCapture.acquire(display),4500,'635 actual OS pixels');assert.equal(frame.kind,'screen');
+  const live=()=>{if(deadline!==undefined)assert.ok(Number.isFinite(deadline)&&performance.now()<deadline,'635 actual OS capture keeps its absolute presentation deadline');};
+  const operation=async(work,label)=>{live();const value=deadline===undefined?await work():await bounded(Promise.resolve().then(work),Math.max(1,deadline-performance.now()),label);live();return value;};
+  await operation(()=>fixture.frame(),'635 OS frame preparation');const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();
+  const frame=await operation(()=>bounded(globalCapture.acquire(display),deadline===undefined?4500:Math.max(1,Math.min(4500,deadline-performance.now())),'635 actual OS pixels'),'635 actual OS acquisition');assert.equal(frame.kind,'screen');
   const full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)};
   const geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),png=nativeImage.createFromBuffer(full).crop(geometry.cropPixels).toPNG({scaleFactor:1});
-  await fs.writeFile(filename,png);const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(displayFilename,full);
+  await operation(()=>fs.writeFile(filename,png),'635 actual OS crop write');const displayFilename=filename.replace(/\.png$/,'-display.png');await operation(()=>fs.writeFile(displayFilename,full),'635 actual OS display write');
   const capture={filename,displayFilename,displaySha256:sha256(full),screenPixelSize,kind,source:'globalCapture.acquire(display)',backend:frame.backend,sha256:sha256(png),bytes:png.length,
    pixelSize:{width:png.readUInt32BE(16),height:png.readUInt32BE(20)},contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},cropPixels:geometry.cropPixels,mapping:geometry.mapping};
-  facts.captures.push(capture);await save();return capture;
+  live();facts.captures.push(capture);await operation(save,'635 actual OS capture evidence');return capture;
  }
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));

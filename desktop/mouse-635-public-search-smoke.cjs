@@ -23,6 +23,8 @@ const ENGINES=Object.freeze({
  yandex:{name:'Яндекс',base:'https://yandex.ru/search/?text=',hosts:['yandex.ru','www.yandex.ru','yandex.com','www.yandex.com','ya.ru','yandex.by','yandex.kz','yandex.uz','yandex.com.tr']},
 });
 const QUERY_BUDGET_MS=17000,MAX_RECEIPT_BYTES=16*1024*1024;
+const PAINT_BUDGET_MS=4500,PAINT_MAX_FRAMES=20,TILE_READY_BUDGET_MS=15000;
+const PAINT_POLICY=Object.freeze({stepDIP:4,insetDIP:16,tolerance:3,minimumSamples:256,minimumStableFraction:.25,minimumColors:4,minimumInformative:64,minimumMatchFraction:.99,minimumInformativeMatchFraction:.95,minimumQuadrantSamples:16});
 const ERRORS=new Set(['SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT','SEARCH_ENGINE_REDIRECT','SEARCH_ENGINE_CLOSED','SEARCH_TIMEOUT','SEARCH_NETWORK','SEARCH_PROXY','SEARCH_DNS','SEARCH_TLS','SEARCH_HTTP','SEARCH_BLOCKED','SEARCH_RATE_LIMIT']);
 const displayDomain=url=>new URL(url).hostname.replace(/^www\./,'');
 const signature=rows=>sha(Buffer.from(JSON.stringify(rows.map(row=>[row.title,row.rawHref,row.content]))));
@@ -130,16 +132,98 @@ function validateEngineMenu(menu,selected){
  for(const option of menu.options){assert.equal(option.role,'option');assert.equal(option.selected,String(option.value===selected));assert.equal(option.disabled,false);assert.equal(option.visible,true);assert.equal(option.hit,true);}
  return menu;
 }
+// Readbacks are references, never the delivered screenshot. A frame is accepted
+// only when the actual display contains the stable, informative pixels of the
+// same guest before and after that OS acquisition. Blank backgrounds cannot
+// pass by outnumbering the text/image pixels.
+function guestPaintMatch({before,after,candidate,bounds,mapping}){
+ const bitmap=value=>value&&Number.isInteger(value.width)&&value.width>0&&Number.isInteger(value.height)&&value.height>0&&Buffer.isBuffer(value.data)&&value.data.length===value.width*value.height*4;
+ assert.ok([before,after,candidate].every(bitmap),'Actual RGBA bitmap bytes are required');
+ assert.equal(before.width,after.width);assert.equal(before.height,after.height);
+ assert.ok(bounds&&['x','y','width','height'].every(key=>Number.isFinite(bounds[key]))&&bounds.width>0&&bounds.height>0);
+ assert.ok(mapping&&['originX','originY','scaleX','scaleY'].every(key=>Number.isFinite(mapping[key]))&&mapping.scaleX>0&&mapping.scaleY>0);
+ const policy={...PAINT_POLICY},sx=before.width/bounds.width,sy=before.height/bounds.height;
+ const trimX=Math.ceil(Math.min(policy.insetDIP,bounds.width/4)*sx),trimY=Math.ceil(Math.min(policy.insetDIP,bounds.height/4)*sy),stepX=Math.max(1,Math.ceil(policy.stepDIP*sx)),stepY=Math.max(1,Math.ceil(policy.stepDIP*sy));
+ const colors=new Map(),samples=[],quadrants=Array.from({length:4},()=>({samples:0,stable:0,matched:0}));let totalSamples=0,stableSamples=0,matchedSamples=0;
+ const close=(a,offset,b,other)=>[0,1,2].every(channel=>Math.abs(a[offset+channel]-b[other+channel])<=policy.tolerance);
+ for(let y=trimY;y<before.height-trimY;y+=stepY)for(let x=trimX;x<before.width-trimX;x+=stepX){
+  const ox=Math.floor(mapping.originX+(bounds.x+(x+.5)/sx)*mapping.scaleX),oy=Math.floor(mapping.originY+(bounds.y+(y+.5)/sy)*mapping.scaleY);
+  assert.ok(ox>=0&&oy>=0&&ox<candidate.width&&oy<candidate.height,'Guest samples must remain inside the unscaled OS crop');
+  const at=(y*before.width+x)*4,os=(oy*candidate.width+ox)*4,q=quadrants[(x>=before.width/2?1:0)+(y>=before.height/2?2:0)];totalSamples++;q.samples++;
+  if(before.data[at+3]!==255||after.data[at+3]!==255||!close(before.data,at,after.data,at))continue;
+  stableSamples++;q.stable++;const bucket=[before.data[at]>>4,before.data[at+1]>>4,before.data[at+2]>>4].join(',');colors.set(bucket,(colors.get(bucket)||0)+1);
+  const matched=candidate.data[os+3]===255&&close(before.data,at,candidate.data,os)&&close(after.data,at,candidate.data,os);if(matched){matchedSamples++;q.matched++;}samples.push({bucket,matched});
+ }
+ let dominant='',maximum=-1;for(const [bucket,count]of colors)if(count>maximum){dominant=bucket;maximum=count;}
+ const informative=samples.filter(row=>row.bucket!==dominant),informativeSamples=informative.length,informativeMatchedSamples=informative.filter(row=>row.matched).length,referenceColors=colors.size;
+ const accepted=stableSamples>=policy.minimumSamples&&stableSamples/totalSamples>=policy.minimumStableFraction&&referenceColors>=policy.minimumColors&&informativeSamples>=policy.minimumInformative&&matchedSamples/stableSamples>=policy.minimumMatchFraction&&informativeMatchedSamples/informativeSamples>=policy.minimumInformativeMatchFraction&&quadrants.every(row=>row.stable>=policy.minimumQuadrantSamples);
+ return{policy,totalSamples,stableSamples,matchedSamples,mismatchedSamples:stableSamples-matchedSamples,informativeSamples,informativeMatchedSamples,referenceColors,quadrants,accepted};
+}
+async function acquireGuestPaint({paint,read,assertStable,subjects,reference,capture,accept,clock=()=>performance.now()}){
+ const startedAt=clock(),deadline=startedAt+PAINT_BUDGET_MS;
+ Object.assign(paint,{source:'same-WebContents readbacks matched to actual native display',budgetMs:PAINT_BUDGET_MS,maxFrames:PAINT_MAX_FRAMES,startedAt,deadline,acceptedIndex:null,attempts:[]});
+ const live=()=>{if(clock()>=deadline)throw Error('635 guest presentation exceeded its fixed 4500 ms deadline');};
+ const within=async(label,work)=>{live();const value=await bounded(Promise.resolve().then(work),Math.max(1,deadline-clock()),label);live();return value;};
+ let baseline;
+ try{
+  for(let sequence=1;sequence<=PAINT_MAX_FRAMES;sequence++){
+   live();const attempt={sequence,startedAt:clock(),referencesBefore:[],referencesAfter:[],comparisons:[],accepted:false};paint.attempts.push(attempt);
+   try{
+    attempt.before=await within('635 guest identity before OS frame',read);baseline||=structuredClone(attempt.before);assertStable(attempt.before,baseline);
+    const owned=subjects(attempt.before);assert.ok(owned.length>0&&owned.length<=2);
+    const before=[],after=[];
+    for(const [index,subject]of owned.entries()){
+     const value=await within('635 guest reference before OS frame',()=>reference(subject,{sequence,index:index+1,phase:'before',deadline}));before.push(value.bitmap);attempt.referencesBefore.push(value.receipt);
+    }
+    const actual=await within('635 native guest OS frame',()=>capture({sequence,deadline}));attempt.capture=actual.receipt;
+    for(const [index,subject]of owned.entries()){
+     const value=await within('635 guest reference after OS frame',()=>reference(subject,{sequence,index:index+1,phase:'after',deadline}));after.push(value.bitmap);attempt.referencesAfter.push(value.receipt);
+    }
+    attempt.after=await within('635 guest identity after OS frame',read);assertStable(attempt.after,baseline);
+    attempt.comparisons=owned.map((subject,index)=>({id:subject.id,webContentsId:subject.webContentsId,...guestPaintMatch({before:before[index],after:after[index],candidate:actual.bitmap,bounds:subject.bounds,mapping:actual.receipt.mapping})}));
+    live();attempt.accepted=attempt.comparisons.every(row=>row.accepted);
+    if(attempt.accepted){await within('635 accepted OS frame naming',()=>accept(actual.receipt));paint.acceptedIndex=sequence-1;}
+    attempt.finishedAt=clock();attempt.elapsedMs=attempt.finishedAt-attempt.startedAt;
+    if(attempt.accepted)return{before:attempt.before,after:attempt.after,paint};
+   }catch(error){attempt.accepted=false;attempt.error=error.message;attempt.finishedAt=clock();attempt.elapsedMs=attempt.finishedAt-attempt.startedAt;throw error;}
+  }
+  throw Error('635 actual OS pixels did not match the visible guest within 20 acquisitions');
+ }finally{paint.finishedAt=clock();paint.elapsedMs=paint.finishedAt-paint.startedAt;}
+}
+function guestDocument(){
+ const bodyText=(document.body?.innerText||'').replace(/\s+/g,' ').trim();
+ return{url:location.href,title:document.title,readyState:document.readyState,visibilityState:document.visibilityState,timeOrigin:performance.timeOrigin,viewport:{width:innerWidth,height:innerHeight},bodyText:bodyText.slice(0,2000),bodyTextLength:bodyText.length};
+}
+function pageReady(page,topic){
+ const d=page?.document;
+ return !!(page&&page.visible&&page.viewVisible&&page.attached&&!page.error&&d&&['interactive','complete'].includes(d.readyState)&&d.visibilityState==='visible'&&Number.isFinite(d.timeOrigin)&&d.timeOrigin>0&&d.url===page.url&&page.recordURL===page.url&&d.bodyTextLength>=80&&d.bodyText.length>=80&&topic.some(term=>(d.title+'\n'+d.bodyText).toLocaleLowerCase().includes(term))&&page.navigation.some(row=>row.event==='start'&&row.url===page.resultURL)&&page.navigation.some(row=>row.event==='commit'&&row.url===page.url));
+}
+function observeNativeNavigation(app){
+ const rows=new Map(),bindings=[];
+ const watch=(_event,wc)=>{
+  if(rows.has(wc.id))return;const entries=[];rows.set(wc.id,entries);
+  const record=(event,url)=>{if(entries.length<100)entries.push({event,url:String(url||''),at:performance.now()});};
+  const on=(name,listener)=>{wc.on(name,listener);bindings.push([wc,name,listener]);};
+  on('did-start-navigation',(event,url,_inPlace,main)=>{if(main!==false&&event.isMainFrame!==false)record('start',url||event.url);});
+  on('did-redirect-navigation',(event,url,_inPlace,main)=>{if(main!==false&&event.isMainFrame!==false)record('redirect',url||event.url);});
+  on('did-navigate',(event,url)=>record('commit',url||event.url));
+  on('dom-ready',()=>record('dom-ready',wc.getURL()));
+  on('did-fail-load',(_event,code,_description,url,main)=>{if(main!==false&&code!==-3)record('failed',url);});
+ };
+ app.on('web-contents-created',watch);
+ return{get:id=>structuredClone(rows.get(id)||[]),dispose(){app.removeListener('web-contents-created',watch);for(const [wc,name,listener]of bindings)if(!wc.isDestroyed())wc.removeListener(name,listener);}};
+}
 async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  const {app,win,browser,tileSearch}=ctx,started=performance.now(),file='mouse-635-public-search.json',observed=[],receipts=[],writes=[],writeErrors=[];
  const source=tileSearch.nativeSource||tileSearch.service.nativeSource,originalHandle=tileSearch.handle;
  const facts={schema:3,contract:CONTRACT,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,packaged:app.isPackaged,
   profileIsolated:process.env.CI==='true'&&path.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')&&path.resolve(app.getPath('userData'))===path.resolve(process.env.MOUSE_TEST_PROFILE),
   fixture:false,source:'installed selected-engine WebContents navigation and actual organic DOM',ipcChannel:'mouse:tile-search',inputMode:'native engine selection and real search UI',physicalUserDeviceVerified:false,
-  ok:false,contractVerified:false,liveTopicalCapabilityVerified:false,ownerQueryCovered:false,verifiedEngines:[],cases:[],sources:[],inputs:[],blockers:[],cleanupErrors:[],nativeCaptures:[]};
+  ok:false,contractVerified:false,liveTopicalCapabilityVerified:false,ownerQueryCovered:false,verifiedEngines:[],cases:[],sources:[],inputs:[],blockers:[],cleanupErrors:[],nativeCaptures:[],canonicalCaptures:[...CAPTURES]};
  const save=()=>bounded(fs.writeFile(file,JSON.stringify(facts,null,2)+'\n'),2500,'635 selected-engine evidence write');
  const ui=()=>fixture.js('('+readSearchUI.toString()+')()');
  const nativeClick=async(selector,options)=>{const input=await click(selector,options);facts.inputs.push(input);return input;};
+ const navigation=observeNativeNavigation(app);
  let unsubscribe,error,preference;
  async function flush(){await bounded(Promise.all(writes),5000,'635 actual DOM receipt writes');if(writeErrors.length)throw Error(writeErrors.join('; '));}
  async function selectEngine(engine){
@@ -165,6 +249,33 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
   for(const type of ['keyDown','keyUp'])win.webContents.sendInputEvent({type,keyCode:'Backspace'});
   await fixture.until(async()=>!(await ui()).query&&!tileSearch.pending.size,'635 normal input clear cancels previous work');
  }
+ function paintOptions(kind,read,assertStable,subjects){
+  const {nativeImage,webContents}=require('electron'),{staticShellReadback,nativeBitmap}=require('./mouse-smoke-frames.cjs');
+  const rgba=bitmap=>{
+   const data=Buffer.from(bitmap.data);for(let offset=0;offset<data.length;offset+=4){const blue=data[offset];data[offset]=data[offset+2];data[offset+2]=blue;}
+   return{width:bitmap.width,height:bitmap.height,data};
+  };
+  const live=deadline=>{if(performance.now()>=deadline)throw Error('635 guest reference exceeded its fixed presentation deadline');};
+  return{read,assertStable,subjects,
+   async reference(subject,{sequence,index,phase,deadline}){
+    live(deadline);const wc=webContents.fromId(subject.webContentsId);assert.ok(wc&&!wc.isDestroyed(),'The reference uses the same live guest WebContents');
+    const image=await bounded(staticShellReadback(wc),Math.max(1,deadline-performance.now()),'635 actual guest readback');live(deadline);
+    const filename='mouse-635-public-search-'+kind+'-reference-'+String(sequence).padStart(2,'0')+'-'+String(index).padStart(2,'0')+'-'+phase+'.png';
+    assert.ok(image.png.length>0&&image.png.length<=16*1024*1024,'The unscaled guest reference has bounded PNG bytes');
+    const receipt={id:subject.id,webContentsId:subject.webContentsId,bounds:structuredClone(subject.bounds),image:{source:'WebContents.capturePage',filename,bytes:image.png.length,sha256:sha(image.png),pixelSize:{width:image.width,height:image.height}}};
+    await fs.writeFile(filename,image.png);live(deadline);return{receipt,bitmap:rgba(image)};
+   },
+   async capture({sequence,deadline}){
+    const filename='mouse-635-public-search-'+kind+'-attempt-'+String(sequence).padStart(2,'0')+'.png',receipt=await screenCapture(filename,'actual selected-engine '+kind,{deadline});facts.nativeCaptures.push(receipt);
+    live(deadline);const bytes=await fs.readFile(receipt.filename);live(deadline);assert.equal(sha(bytes),receipt.sha256);
+    return{receipt,bitmap:rgba(nativeBitmap(nativeImage.createFromBuffer(bytes),receipt.pixelSize,1))};
+   },
+   async accept(capture){
+    const filename=kind==='source'?CAPTURES[1]:CAPTURES[2],displayFilename=filename.replace(/\.png$/,'-display.png');
+    await fs.rename(capture.filename,filename);capture.filename=filename;await fs.rename(capture.displayFilename,displayFilename);capture.displayFilename=displayFilename;
+   },
+  };
+ }
  async function captureSource(entry,call,receipt){
   let current;
   try{current=source.sourceFor(call.args.requestId);}catch(failure){
@@ -180,18 +291,70 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
    const [width,height]=win.getContentSize();view.setBounds({x:0,y:0,width,height});if(win.contentView.children.includes(view))win.contentView.removeChildView(view);
    win.contentView.addChildView(view);view.setVisible(true);app.focus({steal:true});win.show();win.focus();wc.focus();
    await fixture.until(()=>win.isFocused()&&view.getVisible(),'635 source native window foreground');await fixture.frame();
-   entry.sourceFrame.before=await read();
-   assert.equal(entry.sourceFrame.before.webContentsId,receipt.webContentsId);assert.equal(entry.sourceFrame.before.navigationEpoch,receipt.navigationEpoch);
-   assert.equal(entry.sourceFrame.before.url,receipt.finalURL);assert.equal(entry.sourceFrame.before.organicSignature,receipt.organicSignature,'The visible provider source retains the extracted organic nodes');
-   facts.nativeCaptures.push(await screenCapture(CAPTURES[1],'actual selected provider SERP'));
-   entry.sourceFrame.after=await read();
-   for(const field of ['source','navigationEpoch','webContentsId','url','bounds','zoom','visible','attached','topmost','surfaceHeld','tilesHidden','window','organicSignature'])assert.deepEqual(entry.sourceFrame.after[field],entry.sourceFrame.before[field],'The source document stays unchanged during its actual OS frame: '+field);
+   const stable=(state,baseline)=>{
+    assert.equal(state.webContentsId,receipt.webContentsId);assert.equal(state.navigationEpoch,receipt.navigationEpoch);assert.equal(state.url,receipt.finalURL);assert.equal(state.snapshot.documentURL,receipt.finalURL);
+    assert.equal(state.organicSignature,receipt.organicSignature,'The visible provider source retains the extracted organic nodes');
+    assert.ok(['interactive','complete'].includes(state.snapshot.documentReadyState));assert.equal(state.snapshot.visibilityState,'visible');
+    for(const field of ['visible','attached','topmost','surfaceHeld','tilesHidden'])assert.equal(state[field],true,'The actual provider surface remains exposed: '+field);
+    assert.equal(state.window.visible,true);assert.equal(state.window.focused,true);assert.equal(state.window.minimized,false);
+    for(const field of ['source','navigationEpoch','webContentsId','url','bounds','zoom','visible','attached','topmost','surfaceHeld','tilesHidden','window','organicSignature'])assert.deepEqual(state[field],baseline[field],'The source document stays unchanged across actual OS acquisitions: '+field);
+    assert.deepEqual(state.snapshot.viewport,baseline.snapshot.viewport);
+   };
+   const paint=entry.sourceFrame.paint={};Object.assign(entry.sourceFrame,await acquireGuestPaint({paint,...paintOptions('source',read,stable,state=>[{id:'source',webContentsId:state.webContentsId,bounds:state.bounds}])}));
   }finally{
    if(!wc.isDestroyed()){view.setVisible(false);if(win.contentView.children.includes(view))win.contentView.removeChildView(view);view.setBounds(previousBounds);}
    const ownedHold=browser.mouseSurfaceHold===hold;browser.mouseSurfaceHold=previousHold;tileSearch.syncOverlay();win.webContents.focus();await fixture.frame();assert.equal(ownedHold,true,'Provider frame keeps its owned surface hold');
    entry.sourceFrame.restored={attached:win.contentView.children.includes(view),visible:wc.isDestroyed()?false:view.getVisible(),query:tileSearch.query,active:tileSearch.active,surfaceHoldRestored:browser.mouseSurfaceHold===previousHold};
    assert.equal(entry.sourceFrame.restored.attached,false);assert.equal(entry.sourceFrame.restored.visible,false);
   }
+ }
+ async function captureTiles(entry,call){
+  const startedAt=performance.now(),deadline=startedAt+TILE_READY_BUDGET_MS,frame=entry.tileFrame={selectedIds:[],readiness:{budgetMs:TILE_READY_BUDGET_MS,startedAt,lastState:null}};
+  const state=async()=>{
+   const selected=frame.selectedIds;
+   const pages=await Promise.all(selected.map(async id=>{
+    const record=tileSearch.views.records.get(id);if(!record)return{id,missing:true};const view=record.view,wc=view.webContents;
+    if(wc.isDestroyed())return{id,webContentsId:record.webContentsId,destroyed:true};
+    let document=null,documentError;
+    try{document=await bounded(wc.executeJavaScriptInIsolatedWorld(WORLD_ID,[{code:'('+guestDocument.toString()+')()'}],false),1500,'635 live tile document');}catch(error){documentError=error.message;}
+    const page={id,resultURL:record.resultURL,recordURL:record.url,url:wc.isDestroyed()?'':wc.getURL(),webContentsId:wc.id,navigationEpoch:record.navigationEpoch,bounds:view.getBounds(),visible:record.visible,viewVisible:view.getVisible(),attached:win.contentView.children.includes(view),loading:record.loading,error:record.error,zoom:wc.getZoomFactor(),document,navigation:navigation.get(wc.id)};
+    if(documentError)page.documentError=documentError;return page;
+   }));
+   return{query:tileSearch.query,revision:tileSearch.revision,active:tileSearch.active,blocked:tileSearch.blocked(),window:{visible:win.isVisible(),focused:win.isFocused(),minimized:win.isMinimized(),contentBounds:win.getContentBounds()},registry:tileSearch.views.state(),pages};
+  };
+  const registryMatches=current=>current.registry.active&&current.registry.suspended===false&&current.registry.reason===''&&current.registry.revision===current.revision&&JSON.stringify(current.registry.pages.map(row=>row.id))===JSON.stringify(call.result.results.map(row=>row.id))&&current.pages.every(page=>{
+   const record=current.registry.pages.find(row=>row.id===page.id);return record?.live&&record.visible&&!record.error&&['id','url','webContentsId','navigationEpoch','bounds'].every(key=>JSON.stringify(page[key])===JSON.stringify(record[key]));
+  });
+  try{
+   await fixture.until(()=>{
+    const registry=tileSearch.views.state(),visible=registry.pages.filter(page=>page.visible);
+    frame.readiness.lastState={query:tileSearch.query,revision:tileSearch.revision,registry};
+    if(visible.length<Math.min(2,call.result.results.length))return false;frame.selectedIds=visible.slice(0,2).map(page=>page.id);return true;
+   },'635 first visible native result views',Math.max(1,deadline-performance.now()));
+   await fixture.until(async()=>{
+    assert.ok(performance.now()<deadline,'635 external tile readiness keeps its fixed 15000 ms budget');
+    const current=await bounded(state(),Math.max(1,deadline-performance.now()),'635 bounded external tile state');frame.readiness.lastState=current;
+    assert.equal(current.query,entry.query);assert.equal(current.revision,call.result.revision);
+    assert.deepEqual(current.registry.pages.filter(page=>page.visible).slice(0,2).map(page=>page.id),frame.selectedIds,'First visible sites cannot be replaced by faster results');
+    return current.active&&!current.blocked&&current.window.visible&&current.window.focused&&!current.window.minimized&&registryMatches(current)&&current.pages.every(page=>pageReady(page,entry.expectedTopic));
+   },'635 actual topical content in the first visible sites',Math.max(1,deadline-performance.now()));
+   assert.ok(performance.now()<deadline,'635 external content was ready within its fixed budget');
+  }finally{frame.readiness.finishedAt=performance.now();frame.readiness.elapsedMs=frame.readiness.finishedAt-startedAt;}
+  const stable=(current,baseline)=>{
+   assert.equal(current.query,entry.query);assert.equal(current.revision,call.result.revision);assert.equal(current.active,true);assert.equal(current.blocked,false);
+   assert.equal(registryMatches(current),true,'Actual guest documents agree with the complete native result registry');
+   for(const field of ['query','revision','active','blocked','window'])assert.deepEqual(current[field],baseline[field],'The current search remains stable during its native pixels: '+field);
+   assert.equal(current.window.visible,true);assert.equal(current.window.focused,true);assert.equal(current.window.minimized,false);
+   assert.deepEqual(current.registry.pages.filter(page=>page.visible).slice(0,2).map(page=>page.id),frame.selectedIds,'Native proof keeps the first visible result order');
+   assert.deepEqual(current.pages.map(page=>page.id),frame.selectedIds);
+   for(const [index,page]of current.pages.entries()){
+    assert.ok(pageReady(page,entry.expectedTopic),'The same native site retains actual topical document content');
+    assert.equal(page.resultURL,call.result.results.find(row=>row.id===page.id)?.url,'The initial destination remains bound to the provider result');
+    for(const field of ['id','resultURL','recordURL','url','webContentsId','navigationEpoch','bounds','visible','viewVisible','attached','zoom'])assert.deepEqual(page[field],baseline.pages[index][field],'Live tile identity stays stable: '+field);
+    for(const field of ['url','timeOrigin','viewport'])assert.deepEqual(page.document[field],baseline.pages[index].document[field],'Live tile document stays stable: '+field);
+   }
+  };
+  frame.paint={};Object.assign(frame,await acquireGuestPaint({paint:frame.paint,...paintOptions('tiles',state,(current,baseline)=>{stable(current,frame.readiness.lastState);stable(current,baseline);},current=>current.pages.map(page=>({id:page.id,webContentsId:page.webContentsId,bounds:page.bounds})))}));
  }
  async function runCase(spec,index){
   const entry={name:spec.name,query:spec.query,expectedTopic:spec.topic,engine:facts.preference.selected.engine,startedAt:performance.now(),pages:[],additionalQueries:[],ok:false};
@@ -206,7 +369,7 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
   const primary={args:structuredClone(first.args),requestId:first.args.requestId,page:1,startedAt:first.startedAt,completedAt:first.completedAt,result:first.result};
   primary.proof=validateNativeReply(first.result,{engine:entry.engine,query:spec.query,requestId:first.args.requestId,receipts,topic:spec.topic});entry.pages.push(primary);
   await fixture.until(async()=>{const state=await ui();return state.query===spec.query&&state.busy==='false'&&(first.result.ok===false?state.errorVisible:state.cards.length===first.result.results.length);},'635 actual native results or refusal rendered',5000);
-  entry.ui=await ui();entry.hostResults=tileSearch.results.map(row=>({id:row.id,url:tileSearch.views.resultURL(row.id),title:row.title,source:row.source,content:row.content}));
+  entry.ui=await ui();entry.hostResults=tileSearch.results.map(row=>({id:row.id,url:tileSearch.views.records.get(row.id)?.resultURL||row.url,title:row.title,source:row.source,content:row.content}));
   assert.equal(entry.ui.engine,entry.engine);assert.equal(browser.mouseSearch.state().engine,entry.engine);
   if(first.result.ok===false){assert.equal(entry.ui.errorVisible,true);assert.ok(entry.ui.errorText);assert.equal(entry.ui.cards.length,0);}
   else {assert.deepEqual(entry.ui.cards.map(row=>row.id),first.result.results.map(row=>row.id),'Tile DOM preserves original result order');assert.deepEqual(entry.hostResults.map(row=>row.id),first.result.results.map(row=>row.id),'Host result registry preserves original order');}
@@ -216,7 +379,8 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
   }
   if(index===0){
    await captureSource(entry,first,receipt);entry.uiAfterSource=await ui();assert.equal(entry.uiAfterSource.query,spec.query);assert.deepEqual(entry.uiAfterSource.cards.map(row=>[row.id,row.title,row.source]),entry.ui.cards.map(row=>[row.id,row.title,row.source]));
-   facts.nativeCaptures.push(await screenCapture(CAPTURES[2],'actual selected-engine tile feed'));
+   if(first.result.ok!==false&&first.result.results.length)await captureTiles(entry,first);
+   else facts.nativeCaptures.push(await screenCapture(CAPTURES[2],'actual selected-engine refusal or empty feed'));
   }
   entry.cleanupStartedAt=performance.now();await clearQuery();await new Promise(setImmediate);
   for(const call of observed.slice(begin).filter(row=>row!==first)){
@@ -257,7 +421,7 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
   facts.ok=facts.contractVerified;
  }catch(failure){error=failure;facts.error={code:failure.code||'NATIVE_SEARCH_ACCEPTANCE',message:failure.message};facts.ok=false;}
  finally{
-  unsubscribe?.();tileSearch.handle=originalHandle;
+  unsubscribe?.();navigation.dispose();tileSearch.handle=originalHandle;
   try{await bounded(fixture.js('MouseTest.searchUI.close()'),5000,'635 native search cleanup');}catch(failure){facts.cleanupErrors.push(failure.message);tileSearch.close('Native source evidence cleanup',{reset:true});}
   if(preference)try{
    await bounded(fixture.js('MouseNative.start("preferences",'+JSON.stringify({searchEngine:preference.engine})+')'),5000,'635 restore common search preference');
@@ -272,4 +436,4 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  console.log(CONTRACT_MARKER);console.log(facts.liveTopicalCapabilityVerified?LIVE_MARKER:UNVERIFIED_MARKER);
  return{...facts,reportFile:file,reportSha256:sha(await fs.readFile(file))};
 }
-module.exports=Object.assign(runPublicSearchSmoke,{validateReceipt,validateNativeReply,destination,sourceURL,signature,displayDomain,readSearchUI,readEngineMenu,validateEngineMenu,CONTRACT,CONTRACT_MARKER,LIVE_MARKER,UNVERIFIED_MARKER,CAPTURES,CASES,ENGINES,QUERY_BUDGET_MS});
+module.exports=Object.assign(runPublicSearchSmoke,{validateReceipt,validateNativeReply,destination,sourceURL,signature,displayDomain,readSearchUI,readEngineMenu,validateEngineMenu,guestPaintMatch,acquireGuestPaint,pageReady,observeNativeNavigation,PAINT_POLICY,PAINT_BUDGET_MS,PAINT_MAX_FRAMES,TILE_READY_BUDGET_MS,CONTRACT,CONTRACT_MARKER,LIVE_MARKER,UNVERIFIED_MARKER,CAPTURES,CASES,ENGINES,QUERY_BUDGET_MS});

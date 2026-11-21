@@ -2,8 +2,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<200;n++){if(await fn())return;await sleep(60);}throw Error('Timed out '+label);}
-async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Menu,platform=process.platform,wait=until,pause=sleep,save=record=>fs.writeFile('mouse-635-start-layout.json',JSON.stringify(record,null,2)+'\n')}){
- const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs'),popup=Menu.prototype.popup,started=Date.now();
+async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Menu,screen=require('electron').screen,platform=process.platform,wait=until,pause=sleep,save=record=>fs.writeFile('mouse-635-start-layout.json',JSON.stringify(record,null,2)+'\n')}){
+ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs'),{fixtureWindowBounds,containsRect}=require('./mouse-631-smoke-helpers.cjs'),popup=Menu.prototype.popup,started=Date.now(),originalBounds=win.getBounds();
  const facts={schema:1,source:'Actual native footer pointer and menu key events',target:'mouse-context-layout-2-x',input:null,keys:[],menu:null,ok:false};let menu;
  Menu.prototype.popup=function(options){
   if(service.lastMenu===this&&service.lastTarget?.kind==='layout'){
@@ -13,9 +13,16 @@ async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Me
   return Reflect.apply(popup,this,arguments);
  };
  try{
+  // Earlier geometry checks deliberately leave a 1440px window on a smaller
+  // CI display. A renderer hit is not an OS hit until its window is on-screen.
+  const display=screen.getDisplayMatching(originalBounds),work=display.workArea;
+  facts.geometry={before:{window:originalBounds,content:win.getContentBounds()},display:{id:display.id,bounds:display.bounds,workArea:work}};
+  if(!containsRect(work,originalBounds)||!containsRect(work,win.getContentBounds())){facts.geometry.requested=fixtureWindowBounds(work,win.getMinimumSize());win.setBounds(facts.geometry.requested);}
   app.focus({steal:true});win.show();win.focus();win.webContents.focus();await wait(()=>win.isFocused(),'native layout menu window focus');let hit;
+  await wait(async()=>{const content=win.getContentBounds(),viewport=await js('({width:innerWidth,height:innerHeight})');facts.geometry.fitted={window:win.getBounds(),content,viewport};return containsRect(work,win.getBounds())&&containsRect(work,content)&&viewport.width===content.width&&viewport.height===content.height;},'native layout menu on-screen viewport');
   await wait(async()=>{hit=await js('('+nativeHitTarget.toString()+')(document.querySelector("#layout-menu-button"))');return hit.ready;},'native layout menu pointer target');
   const origin=win.getContentBounds(),point={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)};
+  assert.ok(containsRect(work,{...point,width:1,height:1}),'Native menu pointer is inside the actual display work area');
   facts.input={source:platform==='darwin'?'CGEvent':platform==='win32'?'User32':'XTest',point,at:Date.now()};assert.equal(await nativeInput.testClick(point.x,point.y),true);
   await wait(()=>facts.menu?.shownAt!==null&&facts.menu?.shownAt!==undefined,'native layout menu actually shown');
   assert.equal(overlayGate.blocked,false,'Native menu keeps live pages attached');
@@ -28,7 +35,10 @@ async function selectNativeLayout({app,win,js,service,overlayGate,nativeInput,Me
  }catch(error){facts.error=error.message;throw error;}
  finally{
   Menu.prototype.popup=popup;if(menu&&facts.menu.closedAt===null)try{menu.closePopup(win);}catch{}
+  let restoreError;
+  if(facts.geometry?.requested)try{win.setBounds(originalBounds);await wait(async()=>{const content=win.getContentBounds(),viewport=await js('({width:innerWidth,height:innerHeight})');return viewport.width===content.width&&viewport.height===content.height;},'native layout menu original viewport restored');facts.geometry.restored=win.getBounds();assert.deepEqual(facts.geometry.restored,originalBounds);}catch(error){restoreError=error;facts.ok=false;facts.restoreError=error.message;}
   facts.elapsedMs=Date.now()-started;await save(facts);
+  if(restoreError&&!facts.error)throw restoreError;
  }
 }
 module.exports=async({app,win,browser,store,libraryService,overlayGate,startService})=>{
