@@ -196,9 +196,12 @@ test('opening the inline Agent keeps native layout working with no task, a runni
 });
 test('the native layout starts below the header pill and keeps the pane bottom corners',async()=>{
  const slot={x:8,y:104,width:420,height:360},calls=[],pane={dataset:{pane:'p1'},style:{getPropertyValue:()=> '12'},classList:{contains:name=>name==='has-pane-progress'},querySelector:()=>({getBoundingClientRect:()=>({...slot})})};
- const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
- await vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow()',context);
- assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{action:'layout',args:{panels:[{id:'page',...slot,roundBottom:12,roundColor:'#43536b'}]}}]);
+ let seam='';const reads=[];
+ const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{reads.push(key);if(key==='--mouse-grid-seam')return seam;assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const layoutNow=vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow',context);
+ await layoutNow();seam='#354357';await layoutNow();
+ assert.deepEqual(reads,['--mouse-grid-seam','--line','--mouse-grid-seam']);
+ assert.deepEqual(JSON.parse(JSON.stringify(calls)),['#43536b','#354357'].map(roundColor=>({action:'layout',args:{panels:[{id:'page',...slot,roundBottom:12,roundColor}]}})));
 });
 test('download widgets reserve the bottom separately from task selection and byte-only updates do not schedule layout',async()=>{
  let downloads=[];const opened=[],f=fixture({extraTasks:()=>downloads,openDownloads:task=>opened.push(task.id)});await f.ready();f.emit({tasks:[renderTask(),renderTask({id:'second-task',createdAt:100001})]});await f.flush();

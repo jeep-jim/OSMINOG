@@ -14,3 +14,37 @@ body:has([popover]:popover-open) #statusbar{
 /* Keep resize hit targets and native drag logic; remove decorative grip bars. */
 .divider::after,
 .ai-divider::after{display:none!important;content:none!important}
+
+/* A split still has its full resize hit area. Paint only an inset, rounded
+   guide so the active color does not reach pane corners or split junctions. */
+.split > .divider:not([data-pinned="true"]):is(:hover,:focus-visible,.dragging){
+ background:var(--mouse-grid-seam,var(--line));outline:none
+}
+.split > .divider:not([data-pinned="true"]):is(:hover,:focus-visible,.dragging)::before{
+ content:"";position:absolute;pointer-events:none;border-radius:99px;background:var(--mouse-grid-guide,var(--accent))
+}
+.split > .divider[data-axis="x"]::before{
+ inset:min(12px,20%) auto;left:50%;width:2px;transform:translateX(-50%)
+}
+.split > .divider[data-axis="y"]::before{
+ inset:auto min(12px,20%);top:50%;height:2px;transform:translateY(-50%)
+}
+
+/* The native corner mask reads the same exact hex seam as the renderer. */
+html[data-theme="dark"]{--mouse-grid-seam:#354357;--mouse-grid-guide:#829bc1}
+html[data-theme="dark"] #workspace,
+html[data-theme="dark"] #workspace :is(#stage,.branch,.split,.pane,.mouse-pane-downloads),
+html[data-theme="dark"] #workspace .split > .divider{background:var(--mouse-grid-seam)}
+html[data-theme="dark"] #workspace .pane .pane-head .pane-address input{color:var(--muted)}
+html[data-theme="dark"] #workspace .pane .pane-head .pane-address input:focus{color:var(--text)}
+
+/* Keep a small real hover strip outside the native view. Keyboard focus can
+   still reach each control and reveals the complete in-flow header. */
+@media (hover:hover) and (pointer:fine){
+ #stage .pane[data-compact-head] > .pane-head:not(:hover):not(:focus-within){
+  height:5px;min-height:5px;padding-block:0;border-bottom-color:transparent
+ }
+ #stage .pane[data-compact-head] > .pane-head:not(:hover):not(:focus-within) > *{
+  opacity:0;pointer-events:none
+ }
+}
