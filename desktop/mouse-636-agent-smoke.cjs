@@ -37,6 +37,7 @@ function assertInlineView(ui,settings){
 }
 function assertLiveTransition(before,settings,after,assertIdentity){
  assertInlineView(before.ui,false);assertInlineView(settings.ui,true);assertInlineView(after.ui,false);
+ if(before.ui.input)assert.ok(before.ui.selection.start<before.ui.selection.end,'A nonempty draft has an actual native selection before settings navigation');
  for(const value of [settings,after]){
   assert.equal(value.blocked,false);assert.equal(value.surfaceHeld,false);assert.equal(value.gateSequence,before.gateSequence,'Inline navigation does not publish a native modal barrier');
   assert.deepEqual(value.ui.panel,before.ui.panel,'Opening settings preserves the sidebar rectangle');assert.deepEqual(value.native,before.native,'Native pages remain attached, visible and at their current bounds');
@@ -57,7 +58,11 @@ module.exports=async(ctx,{fixture,click,screenCapture})=>{
  const key=async(keyCode,modifiers=[])=>{win.webContents.sendInputEvent({type:'keyDown',keyCode,modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode,modifiers});await fixture.frame();};
  async function text(selector,value){await click(selector);await key('A',[process.platform==='darwin'?'meta':'control']);await key('Backspace');if(value)await win.webContents.insertText(value);await fixture.until(()=>fixture.js(`document.querySelector(${JSON.stringify(selector)}).value===${JSON.stringify(value)}`),'636 chat keyboard input '+selector);}
  const send=async value=>{await text('#agent-task-input',value);await click('#agent-run');};
- const selectedDraft=async value=>{await text('#agent-task-input',value);await key('ArrowLeft');await key('ArrowLeft',['shift']);};
+ const selectedDraft=async value=>{
+  await text('#agent-task-input',value);await key('Left');await key('Left',['shift']);
+  await fixture.until(()=>fixture.js('(()=>{const input=document.querySelector("#agent-task-input");return document.activeElement===input&&input.selectionStart<input.selectionEnd;})()'),'636 draft has a native keyboard selection');
+  const current=await read();assert.equal(current.input,value);assert.equal(current.focus,'agent-task-input');assert.ok(current.selection.start<current.selection.end,'Native Shift+Left selects draft text before its snapshot');
+ };
  const settingsOpen=()=>fixture.until(()=>fixture.js('!document.querySelector("#agent-settings-page").hidden'),'636 settings stays inside Agent');
  const chatOpen=()=>fixture.until(()=>fixture.js('document.querySelector("#agent-settings-page").hidden&&document.activeElement.id==="agent-task-input"'),'636 return to chat restores composer focus');
  function delta(res,value){res.write('data: '+JSON.stringify({choices:[{delta:{content:value}}]})+'\n\n');}

@@ -25,6 +25,12 @@ test('636 inline acceptance refuses transient modal publications, detached pages
   const f=fixture();alter(f);assert.throws(()=>assertLiveTransition(f.before,f.settings,f.after,f.identity));
  }
 });
+test('636 inline acceptance refuses a collapsed draft selection even when navigation preserves it unchanged',()=>{
+ const f=fixture();for(const stage of ['before','settings','after'])f[stage].ui.selection={start:f[stage].ui.input.length,end:f[stage].ui.input.length,direction:'forward'};
+ assert.throws(()=>assertLiveTransition(f.before,f.settings,f.after,f.identity),/actual native selection before settings navigation/);
+ for(const stage of ['before','settings','after']){f[stage].ui.input='';f[stage].ui.selection={start:0,end:0,direction:'forward'};}
+ assert.doesNotThrow(()=>assertLiveTransition(f.before,f.settings,f.after,f.identity),'Initial empty conversation still supports model setup');
+});
 test('636 acceptance requires two live pages before navigation, not a restored empty sidebar',()=>{
  const f=fixture();for(const key of ['visible','parentVisible','cachedVisible','attached']){const value=structuredClone({before:f.before,settings:f.settings,after:f.after});value.before.native[0][key]=false;value.settings.native=value.before.native;value.after.native=value.before.native;assert.throws(()=>assertLiveTransition(value.before,value.settings,value.after,f.identity));}
  const noPages=fixture();for(const key of ['before','settings','after'])noPages[key].native=[];assert.throws(()=>assertLiveTransition(noPages.before,noPages.settings,noPages.after,noPages.identity));
