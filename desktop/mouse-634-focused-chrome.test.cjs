@@ -40,11 +40,11 @@ test('matching chrome requires the same gradient, opaque base, blur and both exp
  const a={backgroundImage:'linear-gradient(rgb(240, 243, 247), rgb(230, 233, 237))',backgroundColor:'rgb(243, 245, 249)',backdropFilter:'blur(12px)',opacity:'1',points:[{fraction:.1},{fraction:.9}]},state={header:a,footer:structuredClone(a)};assertChromeSurfaces(state);
  for(const change of [v=>{v.footer.backgroundImage='none';},v=>{v.footer.backgroundColor='rgb(255, 255, 255)';},v=>{v.footer.backdropFilter='none';},v=>{v.footer.opacity='.9';},v=>{v.footer.points.pop();}]){const wrong=structuredClone(state);change(wrong);assert.throws(()=>assertChromeSurfaces(wrong));}
 });
-function referenceFixture(){
+function referenceFixture(offsets=[.5,1.5,2.5]){
  const style={backgroundImage:'linear-gradient(rgb(240, 243, 247), rgb(230, 233, 237))',backgroundColor:'rgb(243, 245, 249)',backdropFilter:'blur(12px)',opacity:'1'},header={tagName:'HEADER',id:'toolbar',getBoundingClientRect:()=>rect(0,0,400,50)},footer={tagName:'FOOTER',id:'statusbar',getBoundingClientRect:()=>rect(0,780,400,20)},button={tagName:'BUTTON',id:'foreground',parentElement:header,childNodes:[]},transparent={tagName:'DIV',id:'empty-wrap',parentElement:header,childNodes:[]};
  const doc={querySelector:s=>s==='.toolbar'?header:footer,elementFromPoint:x=>x<106?button:transparent};
  const getComputedStyle=(node,pseudo)=>pseudo?{content:'none'}:node===header||node===footer?style:{backgroundImage:'none',backgroundColor:'rgba(0, 0, 0, 0)'};
- const value=vm.runInNewContext('('+chromeGradientReference.toString()+')([.5,1.5,2.5])',{document:doc,getComputedStyle});return JSON.parse(JSON.stringify(value));
+ const value=vm.runInNewContext('('+chromeGradientReference.toString()+')('+JSON.stringify(offsets)+')',{document:doc,getComputedStyle});return JSON.parse(JSON.stringify(value));
 }
 test('retained footer references skip real foreground controls and preserve every original depth',()=>{
  const reference=referenceFixture();assertChromeReference(reference,[.5,1.5,2.5]);assert.deepEqual(reference.references.map(row=>row.point.x),[106,106,106]);assert.deepEqual(reference.references.map(row=>row.hit),['empty-wrap','empty-wrap','empty-wrap']);assert.deepEqual(reference.references.map(row=>row.point.y),[1.25,3.75,6.25]);
@@ -75,6 +75,28 @@ test('pre-modal footer references require all original depths and decoded opaque
  for(const change of [v=>{v.before.references.pop();},v=>{delete v.before.references[0].rgba;},v=>{v.before.references[0].rgba[3]=254;},v=>{v.before.references[0].rgba[0]=NaN;},v=>{v.before.references[0].pixelX=-1;},v=>{v.before.references[0].pixelY=.5;}]){
   const value=preModalFixture();change(value);assert.throws(()=>reusePreModalChromeReference(value.before,value.current,value.modal,[.5,1.5,2.5]));
  }
+});
+function retained623Fixture(){
+ const before={theme:'light',viewport:{width:400,height:800},modal:{open:false,hidden:true,phase:'closed'},reference:referenceFixture([.25,1.25,2.25])},size={width:400,height:800},pixels=Buffer.alloc(size.width*size.height*4,255),png=Buffer.from('unit fixture native image bytes');let captures=0;
+ for(const [index,row]of before.reference.references.entries())pixels.set([247-index,243-index,240-index,255],(Math.floor(row.point.y)*size.width+Math.floor(row.point.x))*4);
+ const image={getSize:()=>size,toBitmap:()=>pixels,toPNG:()=>png},win={capturePage:async()=>{captures++;return image;}},api=require('./mouse-623-smoke.cjs')({win,js:async()=>structuredClone(before)});
+ return{before,pixels,png,api,get captures(){return captures;}};
+}
+test('retained623 archives the exact pre-modal bytes and original quarter-pixel depths for later modal states',async t=>{
+ const files=new Map(),fs=require('node:fs/promises'),{createHash}=require('node:crypto');t.mock.method(fs,'writeFile',async(name,value)=>{files.set(name,Buffer.from(value));});
+ const f=retained623Fixture(),baseline=await f.api.prepareReference('light');assert.equal(f.captures,1);assert.equal(baseline.capture,'mouse-623-footer-reference-light.png');assert.deepEqual(files.get(baseline.capture),f.png);assert.equal(baseline.bytes,f.png.length);assert.equal(baseline.sha256,createHash('sha256').update(f.png).digest('hex'));
+ assert.deepEqual(baseline.reference.references.map(row=>row.offset),[.25,1.25,2.25]);assert.deepEqual(baseline.reference.references.map(row=>row.rgba),[[240,243,247,255],[239,242,246,255],[238,241,245,255]]);assert.deepEqual(JSON.parse(files.get('mouse-623-footer-references.json')).footerReferences,[baseline]);
+ const current={...structuredClone(f.before.reference),references:[]};assert.deepEqual(reusePreModalChromeReference(baseline.reference,current,{open:true,hidden:false,phase:'open'},[.25,1.25,2.25]),baseline.reference);
+ await assert.rejects(f.api.prepareReference('light'),/one actual pre-modal/);assert.equal(f.captures,1);
+});
+test('retained623 refuses a modal, wrong theme, or incomplete reference before capturing any baseline',async t=>{
+ t.mock.method(require('node:fs/promises'),'writeFile',async()=>{throw Error('Invalid baseline must not be archived');});
+ for(const change of [v=>{v.modal.open=true;},v=>{v.modal.hidden=false;},v=>{v.modal.phase='closing';},v=>{v.theme='dark';},v=>{v.reference.references.pop();}]){
+  const f=retained623Fixture();change(f.before);await assert.rejects(f.api.prepareReference('light'));assert.equal(f.captures,0);
+ }
+});
+test('retained623 refuses a nonopaque actual toolbar pixel before archiving it',async t=>{
+ t.mock.method(require('node:fs/promises'),'writeFile',async()=>{throw Error('Nonopaque baseline must not be archived');});const f=retained623Fixture();f.pixels[106*4+3]=0;await assert.rejects(f.api.prepareReference('light'),/opaque/);assert.equal(f.captures,1);
 });
 
 // Synthetic DOM reproduces the archived Linux/Windows HEADER hit underneath

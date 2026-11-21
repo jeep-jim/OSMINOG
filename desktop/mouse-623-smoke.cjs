@@ -1,10 +1,20 @@
 'use strict';
 // Measures the installed, painted burrow in the existing 622 native fixture.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises');
+const {createHash}=require('node:crypto');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
-const {chromeGradientReference,assertChromeReference,sampleChromeReference}=require('./mouse-634-chrome-reference.cjs');
+const {chromeGradientReference,assertChromeReference,sampleChromeReference,reusePreModalChromeReference}=require('./mouse-634-chrome-reference.cjs');
 module.exports=({win,js})=>{
- const frames=[];let result;
+ const frames=[],footerReferences=[],offsets=[.25,1.25,2.25];let result,baseline;
+ async function prepareReference(theme){
+  const before=await js(`(()=>{const tray=document.querySelector('#desktop-tray');return{theme:document.documentElement.dataset.theme,viewport:{width:innerWidth,height:innerHeight},modal:{open:tray.open,hidden:tray.hidden,phase:tray.dataset.motion},reference:(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})};})()`);
+  assert.equal(before.theme,theme);assert.deepEqual(before.modal,{open:false,hidden:true,phase:'closed'},'The actual 623 footer reference is captured before opening Nora');
+  assert.ok(!footerReferences.some(row=>row.theme===theme),'Each theme has one actual pre-modal reference');assertChromeReference(before.reference,offsets);
+  const image=await win.capturePage(),png=image.toPNG(),capture='mouse-623-footer-reference-'+theme+'.png',reference=sampleChromeReference(image,before.viewport,before.reference);
+  await fs.writeFile(capture,png);baseline={theme,viewport:before.viewport,capture,bytes:png.length,sha256:createHash('sha256').update(png).digest('hex'),source:'BrowserWindow.capturePage before modal Nora',reference};footerReferences.push(baseline);
+  await fs.writeFile('mouse-623-footer-references.json',JSON.stringify({footerReferences},null,2)+'\n');
+  return structuredClone(baseline);
+ }
  async function capture(theme,state){
   await js(`new Promise((resolve,reject)=>{const start=performance.now();const poll=()=>{const tray=document.querySelector('#desktop-tray');if(tray.open&&!tray.hidden&&tray.dataset.motion==='open')return resolve();if(performance.now()-start>5000)return reject(Error('Burrow did not settle for geometry capture'));requestAnimationFrame(poll);};poll();})`);
   const control=state==='preview'?'.desk-preview-close':state==='modes'?'#desk-modes .desk-mode:last-child':'.desktop-card[aria-current="true"] .desk-preview-button';
@@ -19,11 +29,14 @@ module.exports=({win,js})=>{
    const profile=right=>depths.map(depth=>{let best,delta=Infinity;for(const p of points){if(right?p.x<r.width*.7:p.x>r.width*.3)continue;const d=Math.abs(p.y-top-depth);if(d<delta){best=p;delta=d;}}if(!best||delta>.75)throw Error('Missing rendered curve sample');return right?r.width-best.x:best.x;});
    const start=path.getPointAtLength(0).matrixTransform(matrix),end=path.getPointAtLength(length).matrixTransform(matrix),probe=document.createElement('i');probe.style.color='var(--panel)';document.body.append(probe);const panel=getComputedStyle(probe).color;probe.remove();
    const contentRect=content.getBoundingClientRect(),target=control.getBoundingClientRect(),hit=(${nativeHitTarget.toString()})(control),sample=MouseTest.desktopUI.motion.sample();
-   return{width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,footerTop:footer.top,footerHeight:footer.height,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBackground:border.backgroundColor,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,footerShadow:border.boxShadow,paths:sample.paths,geometryWrites:sample.geometryWrites,endpoints:{left:start.y,right:end.y},surface:{fill:getComputedStyle(fill).fill,panel,opacity:getComputedStyle(fill).opacity,start:{x:start.x,y:start.y},end:{x:end.x,y:end.y}},content:{overflow:getComputedStyle(content).overflowY,scrollTop:content.scrollTop,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,height:contentRect.height,naturalHeight:sample.contentHeight,availableHeight:sample.availableHeight,fits:sample.fits,visibleHeight:Math.max(0,Math.min(target.bottom,contentRect.bottom,r.bottom)-Math.max(target.top,contentRect.top,r.top)),targetHeight:target.height,accessible:hit.ready}};
+   return{theme:document.documentElement.dataset.theme,modal:{open:tray.open,hidden:tray.hidden,phase:tray.dataset.motion},width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,footerTop:footer.top,footerHeight:footer.height,viewport:{width:innerWidth,height:innerHeight},topCurve:{depths,left:profile(false),right:profile(true)},stroke:line.stroke,footerBackground:border.backgroundColor,footerBorderWidth:parseFloat(border.borderTopWidth),footerImage:border.borderImageSource,footerShadow:border.boxShadow,paths:sample.paths,geometryWrites:sample.geometryWrites,endpoints:{left:start.y,right:end.y},surface:{fill:getComputedStyle(fill).fill,panel,opacity:getComputedStyle(fill).opacity,start:{x:start.x,y:start.y},end:{x:end.x,y:end.y}},content:{overflow:getComputedStyle(content).overflowY,scrollTop:content.scrollTop,scrollHeight:content.scrollHeight,clientHeight:content.clientHeight,height:contentRect.height,naturalHeight:sample.contentHeight,availableHeight:sample.availableHeight,fits:sample.fits,visibleHeight:Math.max(0,Math.min(target.bottom,contentRect.bottom,r.bottom)-Math.max(target.top,contentRect.top,r.top)),targetHeight:target.height,accessible:hit.ready}};
   })()`);
   // Keep the retained borderless silhouette and all seam probes. The 634 owner
   // request gives the footer the same gradient as the upper toolbar.
-  const offsets=[.25,1.25,2.25],reference=await js(`(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})`);assertChromeReference(reference,offsets);
+  // showModal makes the toolbar inert and the Nora scrim dims its pixels.
+  // Reuse the real pre-modal PNG only while its geometry and CSS stay identical.
+  const reference=await js(`(${chromeGradientReference.toString()})(${JSON.stringify(offsets)})`);assert.ok(baseline&&baseline.theme===theme,'A matching 623 pre-modal theme reference is required');assert.equal(measured.theme,theme);assert.deepEqual(measured.viewport,baseline.viewport,'Nora retains the pre-modal viewport');
+  const chromeReference=reusePreModalChromeReference(baseline.reference,reference,measured.modal,offsets);
   assert.equal(measured.stroke,'none',theme+' '+state+' silhouette has no decorative stroke');assert.equal(measured.footerBorderWidth,0,'The footer has no top stroke');assert.equal(measured.footerImage,'none');assert.equal(measured.footerShadow,'none');assert.equal(measured.footerBackground,reference.header.background);
   assert.ok(Math.abs(measured.bottom-measured.footerTop)<=1,'The content-fit panel ends at the footer');
   for(const side of ['left','right'])assert.ok(Math.abs(measured.endpoints[side]-measured.footerTop)<=1,theme+' '+state+' '+side+' silhouette meets the footer');
@@ -33,12 +46,12 @@ module.exports=({win,js})=>{
   assert.ok(measured.topCurve.left[0]-measured.topCurve.left.at(-1)>15,'Upper-left corner remains rounded');assert.ok(measured.topCurve.right[0]-measured.topCurve.right.at(-1)>15,'Upper-right corner remains rounded');
   const image=await win.capturePage();await fs.writeFile('mouse-623-'+state+'-'+theme+'.png',image.toPNG());
   const size=image.getSize(),pixels=image.toBitmap(),sx=size.width/measured.viewport.width,sy=size.height/measured.viewport.height;
-  const chromeReference=sampleChromeReference(image,measured.viewport,reference);
   const footerPixels=[.15,.3,.7,.85].flatMap(fraction=>offsets.map((depth,referenceIndex)=>{const x=measured.viewport.width*fraction,y=measured.footerTop+depth,ix=Math.floor(x*sx),iy=Math.floor(y*sy);assert.ok(ix>=0&&ix<size.width&&iy>=0&&iy<size.height);const i=(iy*size.width+ix)*4,rgb=[pixels[i+2],pixels[i+1],pixels[i]],background=chromeReference.references[referenceIndex].rgba.slice(0,3);assert.ok(rgb.every((value,c)=>Math.abs(value-background[c])<=3),theme+' '+state+' footer matches the actual toolbar gradient at '+JSON.stringify({x,y,rgb,background}));return{x,y,rgb,referenceIndex};}));
-  frames.push({theme,state,...measured,chromeReference,footerPixels});
+  frames.push({theme,state,...measured,chromeReference,chromeReferenceCapture:baseline.capture,footerPixels});
  }
  async function finish(){
   assert.equal(frames.length,6,'Three content-fit states are captured in both themes');
+  assert.deepEqual(footerReferences.map(row=>row.theme),['light','dark'],'Both themes retain their actual pre-modal PNG reference');
   for(const theme of ['light','dark']){
    const compact=frames.find(f=>f.theme===theme&&f.state==='compact');assert.ok(compact);
    for(const state of ['modes','preview']){
@@ -48,7 +61,7 @@ module.exports=({win,js})=>{
     for(const side of ['left','right'])for(let i=0;i<compact.topCurve.depths.length;i++)assert.ok(Math.abs(compact.topCurve[side][i]-other.topCurve[side][i])<=1,theme+' '+state+' keeps its upper '+side+' curve');
    }
   }
-  result={version:'6.0.23',fixedTopCurves:true,contentFit:true,noInternalScroll:true,footerStrokeAbsent:true,footerStationary:true,controlsReachable:true,supersededOldGeometry:true,geometryVersion:'6.0.28',themes:['light','dark'],states:['compact','modes','preview'],frames};
+  result={version:'6.0.23',fixedTopCurves:true,contentFit:true,noInternalScroll:true,footerStrokeAbsent:true,footerStationary:true,controlsReachable:true,supersededOldGeometry:true,geometryVersion:'6.0.28',themes:['light','dark'],states:['compact','modes','preview'],footerReferences,frames};
   await fs.writeFile('mouse-623-verification.json',JSON.stringify(result,null,2)+'\n');
   console.log('MOUSE_628_BURROW_CONTENT_FIT_CONTROLS_PASS');
  }
@@ -132,5 +145,5 @@ module.exports=({win,js})=>{
    await fs.writeFile('mouse-623-verification.json',JSON.stringify(result,null,2)+'\n');console.log('MOUSE_623_AGENT_ENTRY_ASSET',JSON.stringify(result.agentEntry));
   }finally{if(start)await js(`MouseNative.browser('close',{id:${JSON.stringify(start.id)}})`).catch(()=>{});}
  }
- return{capture,finish,verifyTabs,verifyAgentEntry};
+ return{prepareReference,capture,finish,verifyTabs,verifyAgentEntry};
 };
