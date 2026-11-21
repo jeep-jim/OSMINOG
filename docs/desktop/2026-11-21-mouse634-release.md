@@ -201,3 +201,52 @@ Final624 fixture validation:29/29targeted testsPASS,0fail/0skip, including actua
 Verification artifact14688329391: **37273543bytes**, SHA-256 `4ecde6cc7df99b26401ff336b9edf9d83a07f597c1f790a7c58cf8b85e34ffc1`, CRC **463entries PASS**; создан2026-11-21T02:57:13Z в пределах job136703451841. Первое raw artifact14688137632 (165638bytes, SHA-256 `387cdde2241ccb0ba41152afddec07f8f06aa191e0f70b1ff2b34d948bd09ab9`) сохранено отдельно. В624 JSON нативная запись содержит только selector/label, `before` отсутствует, `restoreSamples=[]`, `failureEvents=[]`; failure-before-cleanup snapshot повторяет ту же renderer-ошибку. Значит, новая stable restoration barrier ещё не была пройдена, а проверки обновления633/629 этим неуспешным Mac-прогоном не достигнуты.
 
 Полный owner634 и search634 прошли. В retained628 промежуточные RAF18/18/17/18, surfaces3–4 без backdrop surfaces, DrawRenderPass2–4; максимум closing Dawn1.387ms/.943ms. Независимая проверка623 приняла два baseline PNG, шесть состояний,72 footer probes и шесть reference pixels. Эти измерения описывают конкретный CI-прогон и не являются утверждением о производительности устройства владельца или доказательством причины первого пропущенного native receipt.
+
+
+## 21.11.2026 — принятое дерево bc4cafb и запуск финальных publishers
+
+[PR185](https://github.com/jeep-jim/OSMINOG/pull/185) объединён 03:46:40 UTC. Source `bc4cafb5c2db9cfc80165a7c470c813f0235cd04`, merge `b1b87fb29f74e4917758f27c93ffc775311df32e`, parents `a1fd731555c0f12ecc9e6bad3c7af7e2d9920ee2` и bc4cafb. Merge tree `780b359da490e891ff668ba293a3698c0a762e14` совпадает с протестированным деревом. Все десять workflows завершены SUCCESS.
+
+| Платформа | Принятый run / attempt / job | Независимая проверка |
+|---|---|---|
+| macOS arm64 | [44859182971](https://github.com/jeep-jim/OSMINOG/actions/runs/44859182971/attempts/2) / 2 / 136714375440 | retained UI, tasks, current feedback, motion, 623 pixels, 624 transition |
+| Windows x64 | [44859182960](https://github.com/jeep-jim/OSMINOG/actions/runs/44859182960) / 1 / 136708384007 и modern 136712390489 | один и тот же EXE, обе установки, current/retained native evidence, task/stress, real633 upgrade |
+| Linux x64 | [44859183010](https://github.com/jeep-jim/OSMINOG/actions/runs/44859183010) / 1 / 136708352488 | deb и AppImage, sandbox, native evidence, оба real633 upgrade |
+
+Все исходные candidate/verification ZIP сверены по SHA-256, размеру, CRC и привязке к времени точного успешного job. Replay выполнен неизменёнными production validators из `7090a5c5a899ec3fc430a36b752ec5de3c567fb9`.
+
+### Принятые байты
+
+| Пакет | Размер, bytes | SHA-256 |
+|---|---:|---|
+| Mouse-Browser-6.0.34-mac-arm64.dmg | 139344967 | `fd7bd882aaf948e623b8cb6affec0f9890be959add178cb88250b0a24f45dfab` |
+| Mouse-Browser-6.0.34-mac-arm64.zip | 141704355 | `8f3d2e5868c74d759191201ee244df51c06987ee290d2772bc19fe0f93738721` |
+| Mouse-Browser-6.0.34-Windows-x64.exe | 126570020 | `ab0762924e28151b66728cf79a024c5fa7956e11b724d7fbe015491d15fb11a0` |
+| Mouse-Browser-6.0.34-Linux-x64.AppImage | 137051426 | `6aebb0925d83a5fb505f20dceee969ded130070df96dd2f991eab347466e0f77` |
+| Mouse-Browser-6.0.34-Linux-x64.deb | 106622916 | `f18f38d137f8d6a20e3a810abcfb38b34adbb68b55c040f0614fb58e3d0169ae` |
+
+Точные archive IDs/digests сохранены в опубликованном Git-изменении ready pins: [Mac](https://github.com/jeep-jim/OSMINOG-Releases/blob/0ef0ba1bf324701a9f8dfb940457b9f6030f1706/staging/mouse/6.0.34-arm64/pin.json), [Windows](https://github.com/jeep-jim/OSMINOG-Releases/blob/0ef0ba1bf324701a9f8dfb940457b9f6030f1706/staging/mouse/6.0.34-windows-x64/pin.json), [Linux](https://github.com/jeep-jim/OSMINOG-Releases/blob/0ef0ba1bf324701a9f8dfb940457b9f6030f1706/staging/mouse/6.0.34-linux-x64/pin.json). Это сохранение данных выпуска в Git, ещё не утверждение о доступности установщиков.
+
+### Сохранённый отказ первой трассы bc4cafb
+
+Mac attempt1/job136708351787 завершил native CI успешно, но независимый frozen motion gate отклонил lightClosing generation54/group637: `intervening/ambiguous compositor boundary`. State property4 и BEGIN property0 имели одинаковое `ts=519828684`. Collector сохранял полученные числа без округления; исходный JSON не позволял восстановить порядок этих событий. Candidate14689027491 и verification14689487036 остались отклонёнными и не включены в pins.
+
+После двух независимых проверок выполнена одна новая полная запись на неизменённом bc4cafb. Attempt2/job136714375440 и candidate14690027874/verification14690027890 приняты. Все три closing фазы прошли оригинальный parser; 130122 events и 18 clock anchors. Ограничения исходного анализатора сохранены: temporal correlation не является доказательством общей DOM/model identity или непрерывной compositor lifetime и не заменяет native visual gates. Отдельно прошли native visual checks, 72 footer probes с шестью reference pixels и реальная 624 restoration barrier с шестью последовательными стабильными наблюдениями.
+
+Просмотрены 11 свежих принятых Mac PNG: восемь focused chrome, обе темы поиска и Agent restored. Для light Nora штатный capture predicate принял второй кадр; первый кадр сохранён как отклонённый. Проверки Windows выполнены и на Windows Server 2025; Linux принят в обоих форматах. Эти результаты относятся к CI-системам и тестовым профилям, а не к личному устройству владельца.
+
+### Ready pins и узкое исправление release unit fixtures
+
+Commit `1617ca9d891fd0eb36be181fdd7de57614a33fd8` изменил ровно девять файлов: три pin, три release notes, три PUBLISH_OWNER. Их дерево `7cc807535ca45b8b502a46086101cc45352621a4` независимо пересчитано до push. Все offline pin validators прошли; previous baselines оставлены Mac/Windows629, Linux633.
+
+Три release contract jobs затем обнаружили два тестовых дефекта в `test_mouse634_reuse.py`: тесты читали реальные staging pins и всегда ожидали ready:false. До исправления воспроизведены ровно 2 failures из 8. Commit `0ef0ba1bf324701a9f8dfb940457b9f6030f1706` меняет только этот unit test: временные unready/ready fixtures вызывают реальные offline validators, обязательные шесть provenance keys и все остальные исходные invariants сохранены, corrupt-ready/source/archive/native-evidence/owner cases отклоняются.
+
+После исправления: reuse 11/11 без skip; Linux release 15/15; Windows release 60/60; release-bytes 10 PASS и один ранее существовавший frozen draft-only skip. Независимый review повторил 11/11 и подтвердил неизменность всех 13 staged файлов. SHA изменённого теста `fde6d57b27e85bc6b6d56542a50747fe669170119af49872019490f74f5496aa`. Это единственное tools-отличие от frozen7090; production validators, adapters, workflows и исходные пакеты не менялись. Повторная native source сборка не требуется для изменения unit fixture.
+
+Все пять PR contracts на 0ef0ba1 прошли: Mac44863613922, Windows44863613837, Linux44863613834 и registry44863613839/44863613848. [Release PR62](https://github.com/jeep-jim/OSMINOG-Releases/pull/62) объединён 03:58:54 UTC merge `f0cdcc4051e257b56b1710176592007d255349ad`; tree `6dff5f639f282d5b8588846a1dfafd6dec508295` совпадает с принятым release tree.
+
+### Финальный выпуск ещё выполняется
+
+Запущены [Mac44863799449](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799449), [Windows44863799470](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799470), [Linux44863799473](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799473), push/attempt1 на release merge f0cdcc4. Следующие обязательные доказательства: свежая установка именно закреплённых bytes, независимый replay свежего raw, фактические public assets, latest/versioned feeds и receipts настоящих старых updater-модулей. Этот checkpoint не объявляет их выполненными.
+
+Отдельный внешний search/AI run44797452740 attempt2 ранее подтвердил реальные pagination/video и grounded model reply. Причина прежних HTTP502 по-прежнему не установлена и не объявляется исправленной. Mac остаётся Apple Silicon preview без Developer ID/notarization, Windows — unsigned preview. История отказов и разделение проектов сохраняются. Проверки совместимости профиля и идентичности приложения относятся к описанным CI-прогонам; инфраструктура АвтоЦены не затрагивалась.
