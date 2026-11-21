@@ -53,6 +53,7 @@ function dom(){
    }
   }
   focus(){document.activeElement=this;}
+  setSelectionRange(start,end,direction='none'){this.selectionStart=Math.min(start,this.value.length);this.selectionEnd=Math.min(end,this.value.length);this.selectionDirection=direction;}
   scrollIntoView(){this.scrolled=true;}
   click(){if(this.disabled)return;return this.onclick?.({target:this,preventDefault(){}});}
   change(checked){if(this.disabled)return;this.checked=checked;return this.onchange?.({target:this});}
@@ -82,7 +83,7 @@ test('Local is integrated before Agent UI; folder selection lives in Local and p
  assert.equal(f.$('#agent-stop').disabled,false,'The read-only MCP child can be stopped before the agent gateway is enabled');assert.equal(f.$('#agent-local-refresh').disabled,false);assert.equal(f.$('#agent-local-write').disabled,true);assert.equal(f.$('#agent-local-commands').disabled,true);assert.equal(f.$('#agent-terminal-start').disabled,true);assert.equal(f.$('#agent-local-dev-start').disabled,true);f.dispose();
 });
 test('Ollama onboarding is optional, reads only after a click and changes model settings only after selection',async()=>{
- const f=fixture();await f.ready();assert.deepEqual(f.calls,[]);f.ui.focus();assert.equal(f.$('#agent-settings-dialog').open,false);assert.equal(f.$('#agent-ollama-setup').open,false);f.ui.focusSettings('ollama');await f.flush();assert.equal(f.$('#agent-ollama-setup').open,true);assert.equal(f.$('#agent-panel').getAttribute('aria-label'),'Агент Маус');
+ const f=fixture();await f.ready();assert.deepEqual(f.calls,[]);f.ui.focus();assert.equal(f.$('#agent-settings-page').hidden,true);assert.equal(f.$('#agent-ollama-setup').open,false);f.ui.focusSettings('ollama');await f.flush();assert.equal(f.$('#agent-ollama-setup').open,true);assert.equal(f.$('#agent-panel').getAttribute('aria-label'),'Агент Маус');
  f.$('#agent-endpoint').value='https://chosen.example/v1/';f.$('#agent-model').value='owner-model';f.$('#agent-key').value='fixture-session-key';
  const name='model:<img onerror=fixture>';f.handlers.set('ollama-models',async()=>({available:true,models:[{name,size:5}]}));await f.$('#agent-ollama-check').click();assert.equal(f.$('#agent-endpoint').value,'https://chosen.example/v1/');assert.equal(f.$('#agent-model').value,'owner-model');assert.equal(f.$('#agent-key').value,'fixture-session-key');assert.equal(f.$('#agent-ollama-models-label').hidden,false);assert.equal(f.$('#agent-ollama-models option').textContent,name);assert.equal(f.document.querySelectorAll('img').length,1);
  f.$('#agent-ollama-use').click();assert.equal(f.$('#agent-endpoint').value,'http://127.0.0.1:11434/v1/');assert.equal(f.$('#agent-model').value,name);assert.equal(f.$('#agent-key').value,'');assert.deepEqual(f.calls.map(x=>x.action),['ollama-models']);assert.equal(f.state().enabled,false);assert.equal(f.$('#agent-autonomous').checked,false);f.dispose();
@@ -181,12 +182,12 @@ test('runner rejects a Local reply without structuredContent instead of inventin
 });
 
 
-test('chat opens cleanly, keeps settings modal and diagnostics collapsed, and never turns logs into replies',async()=>{
+test('chat opens cleanly, keeps inline settings hidden and diagnostics collapsed, and never turns logs into replies',async()=>{
  const f=fixture(initial({chat:[],logs:[{text:'write_file step fixture'}]}));await f.ready();f.ui.focus();
- assert.equal(f.$('#agent-settings-dialog').open,false);assert.equal(f.$('#agent-details').open,false);assert.equal(f.$('#agent-terminal-settings').open,false);
- for(const id of ['agent-endpoint','agent-model','agent-folder','agent-autonomous','agent-local-write','agent-terminal-start'])assert.ok(f.$('#agent-settings-dialog').contains(f.$('#'+id)),id);
+ assert.equal(f.$('#agent-settings-page').hidden,true);assert.equal(f.$('#agent-details').open,false);assert.equal(f.$('#agent-terminal-settings').open,false);
+ for(const id of ['agent-endpoint','agent-model','agent-folder','agent-autonomous','agent-local-write','agent-terminal-start'])assert.ok(f.$('#agent-settings-page').contains(f.$('#'+id)),id);
  assert.equal(f.$('#agent-chat-messages').textContent,'');assert.match(f.$('.agent-log').textContent,/write_file/);assert.equal(f.$('#agent-chat-empty').hidden,false);assert.deepEqual(f.calls,[]);
- f.$('#agent-settings-open').click();await f.flush();assert.equal(f.$('#agent-settings-dialog').open,true);f.$('#agent-settings-close').click();assert.equal(f.$('#agent-settings-dialog').open,false);assert.deepEqual(f.calls,[]);f.dispose();
+ f.$('#agent-settings-open').click();await f.flush();assert.equal(f.$('#agent-settings-page').hidden,false);f.$('#agent-settings-close').click();assert.equal(f.$('#agent-settings-page').hidden,true);assert.deepEqual(f.calls,[]);f.dispose();
 });
 test('normal chat submits without CDP or folder, prevents duplicate sends and clears only an accepted draft',async()=>{
  const f=fixture(initial({folder:'',local:null,chat:[]}));await f.ready();const wait=deferred();f.handlers.set('chat',()=>wait.promise);
@@ -195,7 +196,7 @@ test('normal chat submits without CDP or folder, prevents duplicate sends and cl
  assert.equal(f.$('#agent-run').disabled,true);assert.equal(f.$('#agent-task-input').value,'Привет');wait.resolve({...f.state(),running:true,chat:[{id:'u1',role:'user',text:'Привет'}]});await f.flush();assert.equal(f.$('#agent-task-input').value,'');assert.equal(f.$('#agent-chat-stop').hidden,false);assert.equal(f.$('#agent-run').hidden,true);assert.equal(f.$('#agent-chat-messages').textContent,'ВыПривет');assert.equal(f.$('#agent-chat-empty').hidden,true);assert.equal(f.state().enabled,false);f.dispose();
 });
 test('chat failure retains a draft and displays an actionable message inside the panel',async()=>{
- const f=fixture();await f.ready();f.$('#agent-task-input').value='Сохранённый черновик';f.$('.agent-task').submit();await f.flush();assert.equal(f.$('#agent-settings-dialog').open,true);assert.equal(f.$('#agent-chat-error').hidden,false);assert.equal(f.calls.length,0);
+ const f=fixture();await f.ready();f.$('#agent-task-input').value='Сохранённый черновик';f.$('.agent-task').submit();await f.flush();assert.equal(f.$('#agent-settings-page').hidden,false);assert.equal(f.$('#agent-chat-error').hidden,false);assert.equal(f.calls.length,0);
  f.$('#agent-settings-close').click();f.$('#agent-endpoint').value='http://127.0.0.1:11434/v1/';f.$('#agent-model').value='fixture';f.handlers.set('chat',async()=>{throw Error('API модели недоступен');});f.$('.agent-task').submit();await f.flush();assert.equal(f.$('#agent-task-input').value,'Сохранённый черновик');assert.equal(f.$('#agent-chat-error').textContent,'API модели недоступен');assert.equal(f.$('#agent-run').disabled,false);f.dispose();
 });
 test('Enter sends, Shift+Enter and IME composition leave native text entry alone',async()=>{
@@ -213,7 +214,7 @@ test('connection indicator is green only after an actual response and resets whe
  f.emit({...f.state(),chatConnection:'connected',chatModel:'fixture',chatEndpoint:'http://127.0.0.1:11434/v1/'});assert.equal(f.$('.agent-connection-status').dataset.connection,'connected');assert.equal(f.$('#agent-model-select').value,'fixture');f.$('#agent-key').value='session-secret';f.$('#agent-endpoint').value='https://changed.example/v1/';f.$('#agent-endpoint').oninput();assert.equal(f.$('#agent-key').value,'');assert.equal(f.$('.agent-connection-status').dataset.connection,'idle');assert.match(f.$('#agent-state-label').textContent,/не проверена/);f.dispose();
 });
 test('conversation stop and full session stop use separate routes; approvals remain explicit in the chat',async()=>{
- const f=fixture(initial({running:true,chat:[{id:'a1',role:'assistant',text:'Отвечаю',status:'streaming'}],pending:{id:'approve1',summary:'Разрешить запись в выбранную папку?'}}));await f.ready();assert.equal(f.$('.agent-approval').hidden,false);assert.equal(f.$('#agent-settings-dialog').contains(f.$('.agent-approval')),false);f.$('#agent-chat-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'chat-stop');f.$('#agent-deny').click();await f.flush();assert.deepEqual(f.calls.at(-1),{action:'approve',args:{id:'approve1',allow:false}});f.$('#agent-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'stop');f.dispose();
+ const f=fixture(initial({running:true,chat:[{id:'a1',role:'assistant',text:'Отвечаю',status:'streaming'}],pending:{id:'approve1',summary:'Разрешить запись в выбранную папку?'}}));await f.ready();assert.equal(f.$('.agent-approval').hidden,false);assert.equal(f.$('#agent-settings-page').contains(f.$('.agent-approval')),false);f.$('#agent-chat-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'chat-stop');f.$('#agent-deny').click();await f.flush();assert.deepEqual(f.calls.at(-1),{action:'approve',args:{id:'approve1',allow:false}});f.$('#agent-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'stop');f.dispose();
 });
 test('desk transitions keep drafts separate, remove stale transcript and restore the correct conversation',async()=>{
  const s=initial({chatDesk:'desk-1',chat:[{id:'d1',role:'assistant',text:'Текст первого стола'}]}),f=fixture(s);await f.ready();f.$('#agent-task-input').value='Черновик один';f.model.desktopId='desk-2';f.ui.sync();assert.equal(f.$('#agent-chat-messages').textContent,'');assert.equal(f.$('#agent-task-input').value,'');
@@ -222,11 +223,38 @@ test('desk transitions keep drafts separate, remove stale transcript and restore
 });
 
 
-test('pending settings overlay cannot reopen after the panel is hidden, changed to private or moved to another desk',async()=>{
+test('inline settings never opens a modal and closes on desk/privacy transitions',async()=>{
  for(const change of ['hide','private','desk','hide-reopen']){
-  const wait=deferred(),f=fixture(initial(),{showDialog:async dialog=>{await wait.promise;dialog.open=true;}});await f.ready();f.$('#agent-settings-open').click();await f.flush();
+  let overlays=0;const f=fixture(initial(),{showDialog:async()=>{overlays++;}});await f.ready();f.$('#agent-settings-open').click();
+  assert.equal(f.$('#agent-settings-page').localName,'section');assert.equal(f.$('#agent-settings-page').hidden,false);assert.equal(f.document.querySelectorAll('dialog').length,0);assert.equal(overlays,0);assert.equal(f.$('#agent-settings-open').getAttribute('aria-expanded'),'true');
   if(change==='private')f.model.privateMode=true;else if(change==='desk')f.model.desktopId='desk-2';else f.model.agentOpen=false;f.ui.sync();
   if(change==='hide-reopen'){f.model.agentOpen=true;f.ui.sync();}
-  wait.resolve();await f.flush();assert.equal(f.$('#agent-settings-dialog').open,false,change);assert.deepEqual(f.calls,[]);f.dispose();
+  await f.flush();assert.equal(f.$('#agent-settings-page').hidden,true,change);assert.equal(f.$('#agent-panel').dataset.view,'chat');assert.equal(f.$('#agent-settings-open').getAttribute('aria-expanded'),'false');assert.equal(overlays,0);assert.deepEqual(f.calls,[]);f.dispose();
  }
+});
+test('inline settings preserves draft, selection, transcript nodes and chat scroll while replies stream',async()=>{
+ const message={id:'a1',role:'assistant',text:'Начинаю',status:'streaming'},f=fixture(initial({running:true,chat:[message]}));await f.ready();
+ const input=f.$('#agent-task-input'),scroller=f.$('.agent-chat-scroll'),row=f.$('.agent-message-assistant');input.value='Следующий вопрос';input.setSelectionRange(2,8,'backward');input.focus();scroller.scrollHeight=2000;scroller.clientHeight=400;scroller.scrollTop=275;
+ f.$('#agent-settings-open').click();assert.equal(f.$('#agent-chat-page').hidden,true);assert.equal(f.$('#agent-panel').dataset.view,'settings');assert.equal(f.$('#agent-settings-stop').hidden,false);assert.equal(f.$('#agent-endpoint').disabled,true);assert.equal(f.document.activeElement,f.$('#agent-model-settings summary'));
+ f.emit({...f.state(),chat:[{...message,text:'Начинаю и продолжаю ответ'}]});assert.equal(f.$('.agent-message-assistant'),row);assert.match(row.textContent,/продолжаю/);assert.equal(input.value,'Следующий вопрос');assert.equal(f.$('#agent-settings-page').hidden,false);
+ // A hidden scroll container has no rendered height; this must not replace its saved position.
+ scroller.scrollTop=0;scroller.clientHeight=0;scroller.scrollHeight=0;f.emit({...f.state(),chat:[{...message,text:'Последний фрагмент'}]});scroller.clientHeight=400;scroller.scrollHeight=2300;
+ f.$('#agent-settings-close').click();assert.equal(f.$('#agent-chat-page').hidden,false);assert.equal(f.document.activeElement,input);assert.equal(input.value,'Следующий вопрос');assert.deepEqual([input.selectionStart,input.selectionEnd,input.selectionDirection],[2,8,'backward']);assert.equal(scroller.scrollTop,275);assert.equal(f.$('.agent-message-assistant'),row);assert.deepEqual(f.calls,[]);f.dispose();
+});
+test('inline settings keeps response stop and permission review available without granting permissions',async()=>{
+ const f=fixture(initial({enabled:true,running:true,chat:[{id:'a1',role:'assistant',text:'Ответ',status:'streaming'}]}));await f.ready();f.$('#agent-settings-open').click();f.$('#agent-settings-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'chat-stop');assert.equal(f.$('#agent-settings-page').hidden,false);assert.equal(f.$('#agent-local-write').checked,false);assert.equal(f.$('#agent-local-commands').checked,false);
+ f.emit({...f.state(),running:true,pending:{id:'grant-636',summary:'Разрешить запись?'}});assert.equal(f.$('#agent-settings-pending').hidden,false);assert.match(f.$('#agent-settings-progress').textContent,/разрешения/);f.$('#agent-settings-pending').click();assert.equal(f.$('#agent-settings-page').hidden,true);assert.equal(f.document.activeElement,f.$('#agent-deny'));assert.equal(f.$('.agent-approval').scrolled,true);assert.equal(f.calls.length,1,'Showing a request cannot approve it');
+ f.$('#agent-deny').click();await f.flush();assert.deepEqual(f.calls.at(-1),{action:'approve',args:{id:'grant-636',allow:false}});f.dispose();
+});
+test('inline settings exposes an API error and Escape returns to the existing draft without clearing it',async()=>{
+ const f=fixture();await f.ready();const input=f.$('#agent-task-input');input.value='Не потерять текст';input.setSelectionRange(3,3);f.$('.agent-task').submit();await f.flush();assert.equal(f.$('#agent-settings-page').hidden,false);assert.equal(f.$('#agent-chat-page').contains(f.$('#agent-chat-error')),false);assert.equal(f.$('#agent-chat-error').hidden,false);
+ let prevented=0,stopped=0;f.$('#agent-settings-page').onkeydown({key:'Escape',preventDefault(){prevented++;},stopPropagation(){stopped++;}});assert.equal(prevented,1);assert.equal(stopped,1);assert.equal(f.$('#agent-settings-page').hidden,true);assert.equal(f.document.activeElement,input);assert.equal(input.value,'Не потерять текст');assert.equal(input.selectionStart,3);assert.deepEqual(f.calls,[]);f.dispose();
+});
+test('returning from settings follows new streamed text only when the chat was already at the end',async()=>{
+ const f=fixture(initial({running:true,chat:[{id:'a1',role:'assistant',text:'Начало',status:'streaming'}]}));await f.ready();const scroll=f.$('.agent-chat-scroll');scroll.scrollHeight=1000;scroll.clientHeight=400;scroll.scrollTop=600;f.$('#agent-settings-open').click();
+ f.emit({...f.state(),running:false,chat:[{id:'a1',role:'assistant',text:'Готовый ответ',status:'complete'}]});scroll.scrollHeight=1400;f.$('#agent-settings-done').click();assert.equal(scroll.scrollTop,1400);assert.equal(f.$('#agent-settings-stop').hidden,true);assert.equal(f.$('#agent-settings-progress').hidden,true);assert.equal(f.$('.agent-message-assistant').dataset.status,'complete');f.dispose();
+});
+test('a completed or failed response keeps keyboard focus inside settings and cannot replace a running model through onboarding',async()=>{
+ const f=fixture(initial({running:true,chat:[{id:'a1',role:'assistant',text:'Начало',status:'streaming'}]}));await f.ready();f.ui.focusSettings('ollama');f.handlers.set('ollama-models',async()=>({available:true,models:[{name:'different-model'}]}));await f.$('#agent-ollama-check').click();assert.equal(f.$('#agent-ollama-use').disabled,true);f.$('#agent-ollama-use').click();assert.equal(f.$('#agent-model').value,'');
+ f.$('#agent-settings-stop').focus();f.emit({...f.state(),running:false,chat:[{id:'a1',role:'assistant',text:'API модели недоступен',status:'error'}]});assert.equal(f.document.activeElement,f.$('#agent-settings-close'));assert.equal(f.$('#agent-settings-page').hidden,false);assert.equal(f.$('#agent-settings-progress').hidden,false);assert.match(f.$('#agent-settings-progress').textContent,/Не удалось завершить ответ/);assert.equal(f.$('#agent-ollama-use').disabled,false);assert.deepEqual(f.calls.map(x=>x.action),['ollama-models']);f.dispose();
 });

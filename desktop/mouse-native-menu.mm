@@ -123,7 +123,9 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-631-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-633-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-634-smoke"]||
-   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-635-smoke"]);
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-635-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-636-retained-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-636-smoke"]);
 }
 static napi_value testPointer(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}

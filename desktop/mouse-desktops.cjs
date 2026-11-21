@@ -205,7 +205,7 @@ class DesktopBank{
 async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  const saved=await store.get([KEY,'quadroPreferences']);const bank=new DesktopBank(saved[KEY],saved.quadroPreferences||{});
  const rawState=browser.state.bind(browser),oldSave=browser.save.bind(browser),oldCommand=browser.command.bind(browser),oldMake=browser.make.bind(browser),oldLayout=browser.layout.bind(browser),oldDispose=browser.dispose.bind(browser);
- let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false,lastPersisted='';
+ let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false,lastPersisted='',pendingPersist=null,persistRunning=false;
  function rawLiveState(){
   const raw=rawState(),seen=new Set(),tabs=raw.tabs.filter(t=>{const page=browser.tabs.get(t.id),wc=page?.view?.webContents;return !seen.has(t.id)&&seen.add(t.id)&&!page?.provider&&!page?.ephemeral&&(t.internal||wc&&!wc.isDestroyed?.());});
   bank.reconcile(tabs);return{...raw,tabs};
@@ -215,7 +215,19 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  const surfaces=new DesktopSurfaces({browser,bank,win,screen,onImage:(id,image,pin)=>previews.rememberImage(id,image,pin)}),clearPreviews=previews.clear.bind(previews);
  previews.clear=()=>{clearPreviews();surfaces.clear();};
  const lock=()=>{previews.lock();surfaces.lock();},unlock=()=>{previews.unlock();surfaces.unlock();};powerMonitor?.on('lock-screen',lock);powerMonitor?.on('unlock-screen',unlock);
- function persist(){rawLiveState();const value=bank.snapshot(),preferences=bank.preferences(),signature=JSON.stringify([value,preferences]);if(signature===lastPersisted)return queue;lastPersisted=signature;queue=queue.catch(()=>{}).then(()=>store.set({[KEY]:value,quadroPreferences:preferences})).catch(error=>{if(lastPersisted===signature)lastPersisted='';throw error;});return queue;}
+ function persist(){
+  rawLiveState();const value=bank.snapshot(),preferences=bank.preferences(),signature=JSON.stringify([value,preferences]);
+  if(signature===lastPersisted)return queue;
+  lastPersisted=signature;pendingPersist={[KEY]:value,quadroPreferences:preferences};
+  if(!persistRunning){
+   persistRunning=true;
+   queue=Promise.resolve().then(async()=>{try{while(pendingPersist){const next=pendingPersist;pendingPersist=null;await store.set(next);}}catch(error){lastPersisted='';pendingPersist=null;throw error;}finally{persistRunning=false;}});
+   // Fast selection does not wait for disk. Its durable write is still owned
+   // by queue/flush, and a failure remains visible instead of being swallowed.
+   queue.catch(error=>{if(!disposed&&!win.isDestroyed())win.webContents.send('browser:error',error.message);});
+  }
+  return queue;
+ }
  function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState()};}
  browser.state=state;
  browser.mouseAssignDesk=id=>bank.assign(id,creationDesk||bank.active);
@@ -320,8 +332,10 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    }
    const id=action==='add'?bank.add(rawLiveState().tabs):args.id;
    if(!bank.items.some(d=>d.id===id))throw Error('Рабочий стол не найден');
-   await browser.mouseBeforeDesktopChange?.();await previews.capture();
-   oldLayout([]);bank.select(id);await persist();
+   await browser.mouseBeforeDesktopChange?.();
+   // Switching is a selection operation, not a thumbnail request. Nora owns
+   // its captures; the ordinary live path never waits for capturePage or disk.
+   oldLayout([]);bank.select(id);void persist();
    const result={state:state(),preferences:bank.preferences()};browser.emit();return result;
   };
   return serial(run);

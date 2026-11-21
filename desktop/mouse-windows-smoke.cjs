@@ -20,7 +20,7 @@ module.exports=async ctx=>{
  const updateMode=process.argv.includes('--mouse-windows-update-smoke'),readMode=process.argv.includes('--mouse-windows-smoke-read'),mode=updateMode?'update':readMode?'read':'write';
  const js=source=>win.webContents.executeJavaScript(source),exit=require('./mouse-smoke-exit.cjs')({app,win});
  const facts={ok:false,version:app.getVersion(),platform:process.platform,arch:process.arch,mode,pid:process.pid,checks:{},physicalTrackpadVerified:false,liveExternalAccountsVerified:false};
- const expectedProfileVersion=readMode&&process.argv.includes('--mouse-windows-upgrade-from=6.0.29')?'6.0.29':'6.0.35';
+ const expectedProfileVersion=readMode&&process.argv.includes('--mouse-windows-upgrade-from=6.0.29')?'6.0.29':'6.0.36';
  const report='mouse-windows-smoke-'+mode+'.json';
  let server,nativeInput,origin,currentStep='identity';
  const save=()=>fs.writeFile(report,JSON.stringify(facts,null,2)+'\n');
@@ -28,8 +28,8 @@ module.exports=async ctx=>{
  const frame=()=>js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
  async function focus(){win.show();if(win.isMinimized())win.restore();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'native window foreground');await frame();}
  async function click(selector){
-  const inAgentSettings=await js(`!!document.querySelector(${JSON.stringify(selector)})?.closest('#agent-settings-dialog')`);
-  if(inAgentSettings&&!await js('document.querySelector("#agent-settings-dialog").open')){await click('#agent-settings-open');await until(()=>js('document.querySelector("#agent-settings-dialog").open'),'Agent settings dialog opens through its native button');}
+  const inAgentSettings=await js(`!!document.querySelector(${JSON.stringify(selector)})?.closest('#agent-settings-page')`);
+  if(inAgentSettings&&await js('document.querySelector("#agent-settings-page").hidden')){await click('#agent-settings-open');await until(()=>js('!document.querySelector("#agent-settings-page").hidden'),'Agent inline settings opens through its native button');}
   if(inAgentSettings)await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});for(let p=e.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;e.scrollIntoView({block:'nearest',inline:'nearest'});})()`);
   await focus();let point;await until(async()=>{point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return point.ready===true;},'native control '+selector).catch(error=>{error.message+='; last hit test: '+JSON.stringify(point);throw error;});
   const bounds=win.getContentBounds();assert.equal(nativeInput.testClick(bounds.x+point.x,bounds.y+point.y),true);await sleep(80);
@@ -229,7 +229,7 @@ module.exports=async ctx=>{
    ptyPid=agentHost.terminalService.proc.pid;assert.ok(ptyPid>0&&ptyPid!==process.pid&&alive(ptyPid));const failure=await client.terminal('cmd.exe /d /c exit 7');assert.equal(failure.exitCode,7);
    // A new successful command must not inherit the preceding native exit code.
    const recover=await client.terminal("Write-Output 'WINDOWS_PTY_RECOVERED'");assert.equal(recover.exitCode,0);assert.match(recover.stdout,/WINDOWS_PTY_RECOVERED/);
-   const target=await client.open(origin+'/agent-cdp');await click('#agent-settings-close');await until(()=>js('!document.querySelector("#agent-settings-dialog").open'),'Agent settings close before native CDP pointer');await clickOwnedTarget(target);
+   const target=await client.open(origin+'/agent-cdp');await click('#agent-settings-close');await until(()=>js('document.querySelector("#agent-settings-page").hidden'),'Agent settings close before native CDP pointer');await clickOwnedTarget(target);
    await client.clickSelector(target,'#retained');await client.type(target,'Agent typed');assert.ok((await browser.get(target).view.webContents.executeJavaScript('document.querySelector("#retained").value')).includes('Agent typed'));
    const shot=await client.screenshot(target);assert.match(shot.data,/^iVBOR/);proof.cdp={tabId:target,clicked:true,typed:true,nativePNG:true};
    for(const theme of ['light','dark']){await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await frame();await fs.writeFile('mouse-windows-agent-'+theme+'.png',(await win.capturePage()).toPNG());}
@@ -263,8 +263,8 @@ module.exports=async ctx=>{
  }
  async function updateButton(){
   const {updates}=ctx,source=process.env.MOUSE_WINDOWS_TEST_INSTALLER;
-  assert.ok(path.isAbsolute(source||''));const stat=await fs.stat(source),name='Mouse-Browser-6.0.35-Windows-x64.exe';assert.equal(path.basename(source),name);
-  const candidate={version:'6.0.35',name,size:stat.size,hash:await require('./mouse-update.cjs').fileHash(source),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.35-x64/'+name};
+  assert.ok(path.isAbsolute(source||''));const stat=await fs.stat(source),name='Mouse-Browser-6.0.36-Windows-x64.exe';assert.equal(path.basename(source),name);
+  const candidate={version:'6.0.36',name,size:stat.size,hash:await require('./mouse-update.cjs').fileHash(source),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.36-x64/'+name};
   // Only the network transport is local: the actual downloader, digest checks,
   // renderer buttons, IPC, document flush, native helper and installer are used.
   updates.fetcher=async url=>{assert.equal(url,candidate.url);return new Response(require('node:stream').Readable.toWeb(syncFS.createReadStream(source)),{status:200});};
@@ -304,7 +304,7 @@ module.exports=async ctx=>{
   facts.updateHelper=evidence;await fs.writeFile('mouse-windows-update-helper.json',JSON.stringify(evidence,null,2)+'\n');
  }
  try{
-  assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.35');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
+  assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');assert.equal(app.isPackaged,true);assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.36');assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
   assert.equal(await js('document.title'),'Mouse Browser');assert.equal(win.isVisible(),true);assert.ok(win.getNativeWindowHandle().readBigUInt64LE()>0n);
   nativeInput=require('./mouse-windows-input.cjs').createWindowsInput();const shared={...ctx,nativeInput,readMode,expectedSavedVersion:expectedProfileVersion};
   if(updateMode){currentStep='actualUpdateButton';await updateButton();return;}

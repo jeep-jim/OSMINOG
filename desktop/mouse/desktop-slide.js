@@ -1,6 +1,6 @@
 'use strict';
-// The two temporary shell surfaces move together on the compositor. Native
-// pages retain their identities and viewports; no layout IPC runs per frame.
+// Ordinary switches select the existing live views immediately. Pixel-backed
+// transitions are reserved for an already open Nora, which owns a native hold.
 (function(root){
  const DURATION=330,MAX_FRAME_PIXELS=16*1024*1024;
  const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
@@ -94,7 +94,26 @@
    timing:()=>({animationStartedAt,animationEndedAt,animationDurationMs:animationEndedAt?animationEndedAt-animationStartedAt:0})
   };
  }
+ async function live({workspace,model,layout,change,direction=1,N,present=presented}){
+  const startedAt=root.performance.now(),wasInert=workspace.inert;
+  const result={strategy:'live',direction:direction<0?-1:1,animated:false,decoded:false,borrowedHold:false,snapshotCaptures:0,layoutCalls:0,startedAt,phase:'changing'};
+  model.desktopSliding=true;workspace.dataset.sliding='true';workspace.inert=true;
+  try{
+   // Do not capture, clone, hide or wait for outgoing website pixels. Native
+   // pages keep their process, viewport, forms, audio and outstanding requests.
+   await change();result.selectedAt=root.performance.now();
+   result.layoutCalls++;await layout();result.layoutAt=root.performance.now();
+   result.phase='presenting';result.presented=await present(()=>true);
+   if(!result.presented)throw Error('Не удалось отрисовать выбранный рабочий стол.');
+   result.phase='complete';return result;
+  }catch(error){result.phase='failed';result.error=String(error?.message||error);throw error;
+  }finally{
+   workspace.inert=wasInert;delete workspace.dataset.sliding;model.desktopSliding=false;
+   result.totalDurationMs=root.performance.now()-startedAt;if(N?.test)api.last=result;
+  }
+ }
  async function run({workspace,model,layout,change,direction=1,N,lease=null,sceneFactory=createScene,present=presented}){
+  if(!lease)return live({workspace,model,layout,change,direction,N,present});
   const reduced=!!root.matchMedia?.('(prefers-reduced-motion:reduce)').matches;
   if(!N?.desktops||reduced&&!lease){await change();await layout();return;}
   if(lease&&(!lease.token||!lease.outgoing||typeof lease.valid!=='function'||typeof lease.replace!=='function'||typeof lease.abort!=='function'))throw Error('Invalid desktop backdrop lease');
@@ -102,7 +121,7 @@
   model.desktopSliding=true;workspace.dataset.sliding='true';workspace.inert=true;
   let scene,hold=lease?.token||'',changed=false,cancelled=false,committed=false,stopCleared;
   const cancel=()=>{cancelled=true;scene?.cancel();},current=()=>!cancelled&&(!lease||lease.valid());
-  const result={direction:direction<0?-1:1,animated:false,decoded:false,layoutCalls:0,startedAt,borrowedHold:!!lease,reducedMotion:reduced,phase:'preparing-outgoing'};
+  const result={strategy:'nora-snapshot',direction:direction<0?-1:1,animated:false,decoded:false,layoutCalls:0,startedAt,borrowedHold:!!lease,reducedMotion:reduced,phase:'preparing-outgoing'};
   const changeOnce=async()=>{if(changed)return;changed=true;await change();};
   root.addEventListener?.('resize',cancel);root.addEventListener?.('pagehide',cancel);stopCleared=N.onPreviewsCleared?.(cancel);
   try{

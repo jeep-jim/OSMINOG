@@ -11,18 +11,15 @@ function fixture({borrowed=false,reduced=false,failOutgoing=false,failIncoming=f
  const params={N,workspace,model,lease,sceneFactory:(_workspace,_model,_direction,options)=>{calls.push(['scene',{...options}]);return scene;},present:async()=>{calls.push(['present']);return valid;},async change(){calls.push(['change']);model.desktopId='b';},async layout(){calls.push(['layout']);}};
  return{api,params,calls,listeners,workspace,model,scene,lease,invalidate(){valid=false;clears?.();}};
 }
-test('normal desktop slide stages decoded outgoing pixels before hiding and changing, then restores the same native hold',async()=>{
- const f=fixture();const result=await f.api.run(f.params);
- assert.equal(result.animated,true);assert.equal(result.decoded,true);assert.equal(result.layoutCalls,2);assert.equal(result.borrowedHold,false);
- const names=f.calls.map(x=>x[0]);assert.ok(names.indexOf('show')<names.indexOf('change'));
- assert.deepEqual(f.calls.filter(x=>x[0]==='surface-hold').map(x=>x[1]),[{phase:'begin',token:'frame-a'},{phase:'end',token:'frame-a'}]);
- assert.deepEqual(f.calls.filter(x=>x[0]==='surfaces').map(x=>x[1]),[{ids:['a-page'],paintProof:false},{ids:['b-page'],hold:'frame-a',paintProof:false}]);assert.ok(names.indexOf('animate')<names.indexOf('remove'));
+test('ordinary desktop selection uses live pages without capture, clones, native holds or a blocking animation',async()=>{
+ const f=fixture({failOutgoing:true,failIncoming:true});const result=await f.api.run(f.params);
+ assert.equal(result.strategy,'live');assert.equal(result.phase,'complete');assert.equal(result.presented,true);assert.equal(result.snapshotCaptures,0);assert.equal(result.animated,false);assert.equal(result.decoded,false);assert.equal(result.layoutCalls,1);
+ assert.deepEqual(f.calls.map(x=>x[0]),['change','layout','present']);assert.equal(f.model.desktopId,'b');
  assert.equal(f.workspace.style.visibility,'');assert.equal(f.workspace.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.listeners.size,0);
 });
-test('a delayed or invalid outgoing frame does not silently switch desktops without animation',async()=>{
- const f=fixture({failOutgoing:true});await assert.rejects(()=>f.api.run(f.params),/Рабочий стол сохранён/);
- assert.equal(f.model.desktopId,'a');assert.equal(f.calls.some(x=>x[0]==='change'||x[0]==='surface-hold'),false);
- assert.equal(f.workspace.style.visibility,'');assert.equal(f.model.desktopSliding,false);assert.equal(f.api.last.phase,'failed');
+test('live selection errors restore input ownership without triggering a snapshot fallback',async()=>{
+ const f=fixture();f.params.change=async()=>{throw Error('Owned switch failure');};await assert.rejects(()=>f.api.run(f.params),/Owned switch failure/);
+ assert.equal(f.model.desktopId,'a');assert.equal(f.calls.length,0);assert.equal(f.workspace.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.api.last.phase,'failed');
 });
 test('a borrowed Nora hold keeps the dialog background owned through the complete transition and replaces it under cover',async()=>{
  const f=fixture({borrowed:true}),result=await f.api.run(f.params),names=f.calls.map(x=>x[0]);
@@ -68,7 +65,7 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
   assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
  }};
- const context={m:model,N,desktopUI,searchUI:null,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,'hidden');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,searchUI:null,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  vm.runInNewContext(browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
@@ -85,10 +82,10 @@ test('renderer switching behind Nora preserves library and fullscreen geometry u
   assert.equal(f.model.switching,false);
  }
 });
-test('ordinary renderer desktop switch still closes Nora, library and native pane fullscreen before staging',async()=>{
+test('ordinary live desktop switch closes old overlays before selecting the destination',async()=>{
  for(const focus of ['pane','ai']){
   const f=rendererSwitchFixture({focus,library:true}),result=await f.run(false);assert.equal(result.borrowedHold,false);assert.equal(result.phase,'complete');
-  for(const action of ['nora.close','browsing.close','restorePane','window:pane-restore'])assert.ok(f.events.indexOf(action)>=0&&f.events.indexOf(action)<f.events.indexOf('stage:outgoing'));
+  for(const action of ['nora.close','browsing.close','restorePane','window:pane-restore'])assert.ok(f.events.indexOf(action)>=0&&f.events.indexOf(action)<f.events.indexOf('native:switch'));
   assert.equal(f.desktopUI.isOpen,false);assert.equal(f.model.libraryOpen,false);assert.equal(f.model.focusPane,'');assert.equal(f.model.focusAI,false);assert.equal(f.model.switching,false);
  }
 });
@@ -99,7 +96,7 @@ test('renderer prepares incoming progress ownership under the cover before its e
   assert.equal(f.events.filter(event=>event==='progress.prepare').length,1);
   assert.ok(f.events.indexOf('progress.prepare')>f.events.indexOf('renderTree'));
   assert.ok(f.events.indexOf('progress.prepare')<f.events.indexOf('layout'));
-  assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));
-  assert.equal(f.events.filter(event=>event==='layout').length,2);assert.equal(result.layoutCalls,2);
+  if(keepNora)assert.ok(f.events.indexOf('layout')<f.events.indexOf('stage:incoming'));else assert.equal(f.events.some(event=>event.startsWith('stage:')),false);
+  assert.equal(f.events.filter(event=>event==='layout').length,keepNora?2:1);assert.equal(result.layoutCalls,keepNora?2:1);
  }
 });

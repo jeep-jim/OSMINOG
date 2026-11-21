@@ -49,6 +49,16 @@ test('non-Mouse workspaces retain immediate page event notifications',()=>{
  const f=fixture({mouse:false}),page=f.page();for(let n=0;n<4;n++)page.view.webContents.emit('page-title-updated',{},'Legacy '+n);assert.equal(f.sent.length,4);assert.equal(f.builds(),4);assert.equal(f.timers.size,0);
 });
 
+test('inactive desk metadata is batched at 250 ms and a foreground update supersedes it',()=>{
+ const f=fixture(),active=f.page(),hidden=f.page();
+ f.b.mouseDesktops={bank:{active:'desk-1',members:{[active.id]:'desk-1',[hidden.id]:'desk-2'}}};
+ for(let n=0;n<200;n++)hidden.view.webContents.emit('page-title-updated',{},'Hidden '+n);
+ assert.equal(f.timers.size,1);assert.equal([...f.timers.keys()][0].delay,250);assert.equal(f.builds(),0);
+ active.view.webContents.emit('page-title-updated',{},'Foreground');assert.equal(f.timers.size,1);assert.equal([...f.timers.keys()][0].delay,16);
+ f.tick();assert.equal(f.builds(),1);assert.equal(f.sent[0].state.tabs.find(t=>t.id===hidden.id).title,'Hidden 199');
+ assert.equal(f.sent[0].state.tabs.find(t=>t.id===active.id).title,'Foreground');
+});
+
 test('fifty live pages do not add hidden native view polling or geometry writes to unchanged layouts',()=>{
  const f=fixture({stable:true}),pages=Array.from({length:50},()=>f.page()),counts={destroyed:0,visible:0,bounds:0,visibility:0};
  for(const page of pages){const view=page.view,wc=view.webContents;wc.isDestroyed=()=>{counts.destroyed++;return!!wc.dead;};view.getVisible=()=>{counts.visible++;return view.visible;};view.setBounds=bounds=>{counts.bounds++;view.bounds=bounds;};view.setVisible=visible=>{counts.visibility++;view.visible=visible;};}

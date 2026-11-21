@@ -22,10 +22,10 @@ globalThis.createMouseAgentOnboarding=({panel,call,status,onModels=()=>{},onSele
   finally{busy=false;if(!disposed)$('#agent-ollama-check').disabled=false;}
  };
  $('#agent-ollama-use').onclick=()=>{
-  if(disposed||!available.some(item=>item.name===select.value))return;
+  if(disposed||panel.querySelector('#agent-model').disabled||!available.some(item=>item.name===select.value))return;
   panel.querySelector('#agent-endpoint').value='http://127.0.0.1:11434/v1/';panel.querySelector('#agent-model').value=select.value;
   panel.querySelector('#agent-key').value='';panel.querySelector('#agent-model-settings').open=true;
-  message.textContent='Модель выбрана. Закройте настройки и напишите сообщение в чат.';onSelect({endpoint:'http://127.0.0.1:11434/v1/',model:select.value});status('Локальная модель выбрана: '+select.value);
+  message.textContent='Модель выбрана. Нажмите «В чат» и напишите сообщение.';onSelect({endpoint:'http://127.0.0.1:11434/v1/',model:select.value});status('Локальная модель выбрана: '+select.value);
  };
  return{open(){box.open=true;},dispose(){disposed=true;available=[];box.remove();}};
 };

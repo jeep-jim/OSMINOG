@@ -6,7 +6,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
  let server;const exit=require('./mouse-smoke-exit.cjs')({app,win});
  const js=source=>win.webContents.executeJavaScript(source);
  try{
-  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.35');
+  assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');assert.equal(app.getName(),'Mouse Browser');assert.equal(app.getVersion(),'6.0.36');
   assert.equal(await js('document.title'),'Mouse Browser');
   if(process.argv.includes('--mouse-smoke-read')){
    const saved=(await store.get('quadroPreferences')).quadroPreferences;
@@ -84,7 +84,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-tab-flow-smoke.cjs')({win,browser});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-emoji-smoke.cjs')({app,win,browser,nativePanel:true});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-620-smoke.cjs')({app,win,browser,libraryService,localCaptures,updates});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-621-smoke.cjs')({app,win,browser,store});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-621-smoke.cjs')({app,win,browser,store,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-622-smoke.cjs')({app,win,browser,store,agentHost});
   console.log('MOUSE_ARM64_SMOKE_PASS');server?.close();exit(0);
  }catch(error){
