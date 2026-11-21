@@ -52,13 +52,14 @@ function fixture(t){
  Object.assign(ctx.api.m,clone(initial),{ready:true,switching:false,state:{tabs:clone(pages)}});
  t.after(()=>assert.deepEqual(errors,[],'Renderer safe() must not hide a failed action'));
  const dispatch=(name,event)=>{for(const fn of handlers.get(name)||[])fn(event);};
- return{...ctx.api,time,writes,renders,native,bank,dispatch,resolveRestore,pages};
+ return{...ctx.api,time,writes,renders,native,bank,dispatch,resolveRestore,pages,errors};
 }
 
 test('one divider gesture after an unsaved layout saves its baseline and final geometry once, without mid-drag history',async t=>{
  const f=fixture(t);f.changeLayout(3);const baseline=clone(f.prefs());assert.equal(f.writes.length,0);assert.equal(L.leaves(baseline.tree).length,3);
- const divider={classList:classes(),setPointerCapture(){},setAttribute(){}},spec={kind:'pane',path:'',axis:'x',divider,node:{getBoundingClientRect:()=>({left:0,top:0,width:1006,height:806})},a:{style:{}},b:{style:{}}};
+ const focus=[],divider={classList:classes(),focus:options=>focus.push(clone(options)),setPointerCapture(){},setAttribute(){}},spec={kind:'pane',path:'',axis:'x',divider,node:{getBoundingClientRect:()=>({left:0,top:0,width:1006,height:806})},a:{style:{}},b:{style:{}}};
  f.beginDrag({button:0,pointerId:17,preventDefault(){}},spec);
+ assert.deepEqual(focus,[{preventScroll:true}],'The real pointer handler focuses the selected divider despite cancelling the default pointer action');
  // Move before safe() reaches the IPC boundary. The saved baseline must already
  // be an independent snapshot, not the tree object this pointer listener edits.
  f.dispatch('pointermove',{pointerId:17,clientX:650,clientY:100});await flush();
@@ -72,6 +73,22 @@ test('one divider gesture after an unsaved layout saves its baseline and final g
  assert.equal(f.writes.length,2);assert.equal(f.writes[1].history.reason,'resize');assert.equal(f.writes[1].preferences.tree.ratio,.7);assert.deepEqual(f.writes[1].preferences.slots,baseline.slots);
  f.dispatch('pointercancel',{pointerId:17});f.dispatch('blur',{});await f.time.advance(1000);assert.equal(f.writes.length,2,'Repeated gesture-end events must not add saves');
  assert.equal(f.bank.historyState().undoCount,2,'The unsaved layout and completed resize are distinct history steps');f.bank.stepHistory('undo',f.pages);assert.deepEqual(f.bank.preferences().tree,baseline.tree);f.bank.stepHistory('undo',f.pages);assert.equal(L.leaves(f.bank.preferences().tree).length,2);
+});
+
+test('locked and switching divider gestures cannot steal focus or start a resize',async t=>{
+ const f=fixture(t);let focused=0;const spec={kind:'pane',path:'',divider:{focus(){focused++;}}},event={button:0,pointerId:19,preventDefault(){}};
+ f.m.pinnedPanes={p1:'one'};f.beginDrag(event,spec);assert.equal(focused,0);assert.equal(f.m.drag,null);assert.equal(f.native.length,0);assert.match(f.errors.pop(),/открепите окно/);
+ f.m.pinnedPanes={};f.m.switching=true;f.beginDrag(event,spec);assert.equal(focused,0);assert.equal(f.m.drag,null);assert.equal(f.native.length,0);
+});
+
+test('successive divider arrow keys retain focus through real handler rerenders and preserve pin guards',()=>{
+ const keyboard=section('d.onkeydown=e=>{',';node.append(a,d,b)'),m={tree:L.preset(2),slots:{p1:'one',p2:'two'},pinnedPanes:{},switching:false},focus=[],saved=[];let active=null,renders=0,ctx;
+ const build=()=>{ctx.d={focus(options){focus.push(clone(options));active=this;}};ctx.t=m.tree;vm.runInContext(keyboard,ctx);};
+ ctx=vm.createContext({L,m,path:'',stage:{querySelector(selector){assert.equal(selector,'.divider[data-path=""]');return ctx.d;}},renderTree(){renders++;active=null;build();},save(){saved.push(m.tree.ratio);}});build();active=ctx.d;
+ let prevented=0;const key=value=>ctx.d.onkeydown({key:value,preventDefault(){prevented++;}}),old=active;
+ key('ArrowRight');assert.equal(m.tree.ratio,.53);assert.notEqual(active,old);assert.equal(active,ctx.d);key('ArrowLeft');assert.equal(m.tree.ratio,.5);assert.equal(active,ctx.d);assert.deepEqual(saved,[.53,.5]);assert.deepEqual(focus,[{preventScroll:true},{preventScroll:true}]);assert.equal(prevented,2);
+ m.pinnedPanes={p1:'one'};key('ArrowRight');assert.equal(m.tree.ratio,.5);assert.equal(renders,2);assert.equal(saved.length,2);
+ m.pinnedPanes={};m.switching=true;key('ArrowRight');assert.equal(m.tree.ratio,.5);assert.equal(renders,2);assert.equal(saved.length,2);
 });
 
 for(const action of ['split','layout'])test('queued '+action+' waits for history restoration and edits the restored tabs and geometry',async t=>{

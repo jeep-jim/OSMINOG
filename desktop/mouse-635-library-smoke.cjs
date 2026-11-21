@@ -22,10 +22,27 @@ function stable(before,after,{source=true,scroll=true,order=true}={}){
  for(const key of ['kind','view','theme'])assert.equal(after[key],before[key],'Library keeps observed '+key);
  for(const key of ['sameRow','sameImage','sameCheckbox','sameFocus','focusedCheckbox','selected'])assert.equal(after[key],true,'Library keeps '+key);
  assert.equal(after.removed,0,'Existing library row/image never leaves the DOM');
- if(source){assert.equal(after.sameSource,true);assert.equal(after.sourceWrites,0);assert.ok(after.imageSize.width>0&&after.imageSize.height>0);}
+ if(source){assert.equal(after.sameSource,true);assert.equal(after.sourceWrites,0);assert.ok(after.imageSize.width>0&&after.imageSize.height>0);assert.equal(after.thumbnail,true,'A decoded file thumbnail is shown, not a system icon');}
  if(scroll)assert.ok(Math.abs(after.scrollTop-before.scrollTop)<=1,'Library scroll stays fixed');
  assert.ok(Math.abs(after.rowTop-before.rowTop)<=1,'The viewed file stays at the same screen position');
  if(order)assert.deepEqual(after.order,before.order);
+}
+
+function placeholderGeometry(ids){
+ const list=document.querySelector('#library-rows'),box=node=>{if(!node)throw Error('Missing owned preview geometry');const r=node.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
+ return{kind:document.querySelector('#library-dialog').dataset.kind,view:list.dataset.view,scrollTop:list.scrollTop,rows:ids.map(id=>{const row=[...list.querySelectorAll('.library-row')].find(node=>node.dataset.id===id),img=row?.querySelector('.library-icon');return{id,row:box(row),image:box(img),checkbox:box(row?.querySelector('.library-check')),thumbnail:img.classList.contains('library-thumbnail'),decoded:img.dataset.loaded==='true'&&img.naturalWidth>0};})};
+}
+function stablePlaceholderGeometry(before,after,delayedIds){
+ for(const key of ['kind','view'])assert.equal(after[key],before[key],'Preview completion keeps '+key);
+ assert.equal(before.kind,'captures');assert.ok(['list','grid'].includes(before.view));assert.ok(delayedIds.length>0,'Actual archive reads were held');
+ assert.deepEqual(after.rows.map(row=>row.id),before.rows.map(row=>row.id));assert.ok(Math.abs(after.scrollTop-before.scrollTop)<=1,'Preview completion keeps scroll position');
+ for(let i=0;i<before.rows.length;i++){
+  const left=before.rows[i],right=after.rows[i];
+  for(const name of ['row','image','checkbox'])for(const key of ['x','y','width','height']){assert.ok(Number.isFinite(left[name][key])&&Number.isFinite(right[name][key]),'Measured native renderer geometry');assert.ok(Math.abs(right[name][key]-left[name][key])<=1,'Preview completion keeps '+left.id+' '+name+' '+key);}
+  assert.ok(left.image.width>0&&left.image.height>0&&left.checkbox.width>0&&left.checkbox.height>0,'Preview controls have real bounds');
+  if(delayedIds.includes(left.id)){assert.equal(left.thumbnail,false,'Held preview is still a placeholder');assert.equal(right.thumbnail,true,'The real preview replaced its placeholder');assert.equal(right.decoded,true,'The actual preview image decoded');}
+ }
+ for(const id of delayedIds)assert.ok(before.rows.some(row=>row.id===id),'Held preview belongs to the measured archive');
 }
 
 module.exports=async(ctx,{fixture,click,screenCapture,stage})=>{
@@ -33,7 +50,7 @@ module.exports=async(ctx,{fixture,click,screenCapture,stage})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(app.isPackaged,true);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  const profile=path.resolve(app.getPath('userData')),relative=path.relative(profile,archive.root);assert.ok(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative),'Only the isolated archive is used');assert.equal(archive.enabled,false,'The default auto collector remains off');
  const original=structuredClone(lib.data),originalArchive=structuredClone(archive.items),archiveBefore=archive.state(),readsBefore=archive.reads,originalPreview=archive.preview;
- const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,packaged:app.isPackaged,profileIsolated:true,startedAt:new Date().toISOString(),scenario:'installed-library-stability',fixtureOnly:true,realTransfer:false,phases:[],captures:[],notifications:[],previewRequests:[]};
+ const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,packaged:app.isPackaged,profileIsolated:true,startedAt:new Date().toISOString(),scenario:'installed-library-stability',fixtureOnly:true,realTransfer:false,phases:[],captures:[],notifications:[],previewRequests:[],placeholderGeometryChecks:[]};
  const ownedCaptureIds=[],pending=new Set(),gates=new Map(),allGates=new Set();let owned,primaryError,cleanupError,previewSequence=0;
  const save=()=>fs.writeFile('mouse-635-library.json',JSON.stringify(facts,null,2)+'\n');
  const notify=(reason)=>{facts.notifications.push({reason,at:Date.now()});win.webContents.send('mouse:library-changed');};
@@ -43,7 +60,7 @@ module.exports=async(ctx,{fixture,click,screenCapture,stage})=>{
  const image=seed=>{const width=160,height=96,bitmap=Buffer.alloc(width*height*4);for(let n=0;n<bitmap.length;n+=4){bitmap[n]=(seed*29+31)%220;bitmap[n+1]=(seed*47+57)%220;bitmap[n+2]=(seed*61+83)%220;bitmap[n+3]=255;}return nativeImage.createFromBitmap(bitmap,{width,height}).toPNG();};
  const addCapture=async(type,data,title)=>{const row=await archive.add({type,data,title,source:'mouse635-owned-fixture'});assert.ok(row?.id);ownedCaptureIds.push(row.id);return row;};
  const hold=id=>{let release;const promise=new Promise(resolve=>release=resolve),gate={id,promise,release,entered:false};gates.set(id,gate);allGates.add(gate);return gate;};
- archive.preview=function(id){const sequence=++previewSequence,gate=gates.get(id),request={sequence,id,startedAt:Date.now(),controlledDelay:!!gate};facts.previewRequests.push(request);if(gate){gates.delete(id);gate.entered=true;}
+ archive.preview=function(id){const sequence=++previewSequence,gate=gates.get(id),request={sequence,id,startedAt:Date.now(),controlledDelay:!!gate};facts.previewRequests.push(request);if(gate){gates.delete(id);gate.entered=true;gate.sequence=sequence;}
   const work=(async()=>{try{if(gate)await gate.promise;const value=await originalPreview.call(this,id);request.finishedAt=Date.now();request.type=value.type;return value;}catch(error){request.error=String(error.message);throw error;}})();pending.add(work);void work.finally(()=>pending.delete(work)).catch(()=>{});return work;
  };
  try{
@@ -54,9 +71,19 @@ module.exports=async(ctx,{fixture,click,screenCapture,stage})=>{
   facts.owned={downloadIds:downloads.map(row=>row.id),activeId:active.id,captureIds:[...ownedCaptureIds],fileHashes:await Promise.all(downloads.map(async row=>({id:row.id,filename:row.filename,sha256:hash(await fs.readFile(row.path))})))};await save();
   for(const theme of ['light','dark'])for(const kind of ['downloads','captures'])for(const view of ['list','grid']){
    await stage('library-'+kind+'-'+view+'-'+theme,async()=>{
+    // Real lazy archive reads complete after initial layout. Hold them to prove
+    // that loading images cannot move the target or neighbouring checkboxes.
+    const placeholderGates=kind==='captures'?copies.map(row=>hold(row.id)):[];let placeholderReceipt;
     await js(`MouseTest.setTheme(${JSON.stringify(theme)});MouseTest.browsing.open(${JSON.stringify(kind)})`);await click('#library-'+view);
     const id=kind==='downloads'?downloads[5].id:copies[8].id,target=selector(id);
     await js(`document.querySelector(${JSON.stringify(target)}).scrollIntoView({block:'center'});true`);
+    if(placeholderGates.length){
+     await fixture.until(()=>placeholderGates.some(gate=>gate.id===id&&gate.entered),'Owned capture enters controlled preview delay');await fixture.frame();
+     const ids=copies.map(row=>row.id),before=await js(`(${placeholderGeometry.toString()})(${JSON.stringify(ids)})`),entered=placeholderGates.filter(gate=>gate.entered),delayedIds=entered.map(gate=>gate.id),requestSequences=entered.map(gate=>gate.sequence);
+     for(const gate of placeholderGates){if(gates.get(gate.id)===gate)gates.delete(gate.id);gate.release();}
+     await fixture.until(()=>js(`(${JSON.stringify(delayedIds)}).every(id=>{const i=document.querySelector('.library-row[data-id="'+id+'"] .library-icon');return i?.dataset.loaded==='true'&&i.naturalWidth>0;})`),'Held real archive previews decoded');await fixture.frame();
+     const after=await js(`(${placeholderGeometry.toString()})(${JSON.stringify(ids)})`);placeholderReceipt={controlledDelay:true,before,after,delayedIds,requestSequences};facts.placeholderGeometryChecks.push({theme,...placeholderReceipt});await save();stablePlaceholderGeometry(before,after,delayedIds);
+    }
     await fixture.until(()=>js(`(()=>{const i=document.querySelector(${JSON.stringify(target+' .library-icon')});return i?.dataset.loaded==='true'&&i.naturalWidth>0;})()`),'Owned library thumbnail decoded');
     await click(target+' .library-check');await fixture.until(()=>js(`document.querySelector(${JSON.stringify(target+' .library-check')}).checked`),'Native checkbox selected');
     await js(`document.querySelector(${JSON.stringify(target+' .library-check')}).focus();true`);await fixture.frame();
@@ -69,7 +96,7 @@ module.exports=async(ctx,{fixture,click,screenCapture,stage})=>{
     const backgroundArchivePreviewCalls=facts.previewRequests.length-previewStart;if(kind==='captures')assert.equal(backgroundArchivePreviewCalls,0,'Background download updates do not re-decode archive thumbnails');
     const extra=await addCapture('text',Buffer.from('Mouse635 inserted '+theme+' '+kind+' '+view+' '+randomUUID()),'Mouse635 new capture');await js('MouseTest.browsing.render()');await fixture.frame();const inserted=await sample();stable(before,inserted,{scroll:kind!=='captures',order:kind!=='captures'});if(kind==='captures')assert.ok(inserted.order.includes(extra.id));
     await archive.remove([extra.id]);await js('MouseTest.browsing.render()');await fixture.frame();const removed=await sample();stable(before,removed);
-    const capture=await screenCapture('mouse-635-library-'+kind+'-'+view+'-'+theme);facts.captures.push(capture);facts.phases.push({theme,kind,view,before,after,inserted,removed,updates:6,backgroundArchivePreviewCalls,archivePreviewCalls:facts.previewRequests.length-previewStart,capture});await stopProbe();await save();
+    const capture=await screenCapture('mouse-635-library-'+kind+'-'+view+'-'+theme);facts.captures.push(capture);facts.phases.push({theme,kind,view,before,after,inserted,removed,updates:6,backgroundArchivePreviewCalls,archivePreviewCalls:facts.previewRequests.length-previewStart,placeholderGeometry:placeholderReceipt,capture});await stopProbe();await save();
    });
   }
   await stage('library-file-change',async()=>{
@@ -102,3 +129,5 @@ module.exports=async(ctx,{fixture,click,screenCapture,stage})=>{
 module.exports.installLibraryProbe=installLibraryProbe;
 module.exports.sampleLibraryProbe=sampleLibraryProbe;
 module.exports.assertStable=stable;
+module.exports.placeholderGeometry=placeholderGeometry;
+module.exports.assertStablePlaceholderGeometry=stablePlaceholderGeometry;
