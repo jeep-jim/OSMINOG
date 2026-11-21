@@ -3,6 +3,9 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http'),net=require('node:net');
 const {screen}=require('electron');
 const {AgentController}=require('./mouse-agent/agent-connector.cjs');
+const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
+const {bounded}=require('./mouse-631-smoke-helpers.cjs');
 const keys=['mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 const pick=p=>Object.fromEntries(keys.map(k=>[k,p[k]]));
 const pillSelector=id=>'.mouse-pane-progress .mouse-progress-pill[data-progress-id='+JSON.stringify(id)+']';
@@ -28,6 +31,20 @@ async function selectProgressPill(id,{read,click,until},evidence={}){
   await until(async()=>{await sample();return state?.owner===owner&&state.selectedIds.length===1&&state.selectedId!==before&&(state.selectedId!==id||state.visible&&state.hit);},'native Next selects another task in the same pane');step.to=state.selectedId;
  }
  assert.ok(selected(),'Native Next reveals the requested progress task within one cycle: '+JSON.stringify(state));return state;
+}
+// Successful proof must be saved; failure diagnostics cannot replace its cause.
+async function settingsDiagnostic(operation,label,originalError,errors=[]){
+ try{return await bounded(Promise.resolve().then(operation),1500,'624 '+label);}
+ catch(error){if(!originalError)throw error;errors.push({label,message:error.message});return{error:error.message};}
+}
+// A renderer IPC response is not the native fullscreen transition completion.
+// Match the existing six stable baseline observations before measuring a click.
+function settingsRestoreBarrier(expectedBounds){
+ const expected={...expectedBounds};let stable=0;
+ return sample=>{
+  const shell=sample.renderer,ready=sample.leftFullscreen===true&&sample.fullscreen===false&&sample.maximized===false&&['x','y','width','height'].every(key=>sample.bounds[key]===expected[key])&&shell.focusPane===''&&shell.focusAI===false&&shell.settingsOpen===true&&shell.dialog.open===true&&shell.dialog.hidden===false;
+  stable=ready?stable+1:0;return{ready:stable>=6,stable};
+ };
 }
 module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
  const facts={version:'6.0.24'};let records;
@@ -67,6 +84,24 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
  async function verifyLayoutAndHistory({root,bank}){
   const originalBounds=win.getBounds(),work=screen.getDisplayMatching(originalBounds).workArea;let start,verificationError,baselineBounds,enteredFullscreen=false,leftFullscreen=false;
   const entered=()=>{enteredFullscreen=true;},left=()=>{leftFullscreen=true;};
+  const transition=facts.settingsTransition={snapshots:[],restoreSamples:[],nativeInputs:[]};let inputProbeInstalled=false;
+  const diagnostic=(operation,label,error)=>settingsDiagnostic(operation,label,error,(transition.diagnosticErrors??=[]));
+  async function settingsSnapshot(stage,selector='[data-action="assistant"]',error){
+   return diagnostic(async()=>{
+   const renderer=await js(`(()=>{const dialog=document.querySelector('#settings-dialog'),target=document.querySelector(${JSON.stringify(selector)}),rect=element=>{if(!element)return null;const r=element.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{at:performance.now(),timeOrigin:performance.timeOrigin,viewport:{width:innerWidth,height:innerHeight},focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,agentOpen:MouseTest.model.agentOpen,agentHidden:document.querySelector('#agent-panel').hidden,settingsOpen:MouseTest.model.settingsOpen,dialog:{open:dialog.open,hidden:dialog.hidden,bounds:rect(dialog),scrollTop:dialog.querySelector('.dialog-content')?.scrollTop??null},target:{selector,bounds:rect(target),hit:(${nativeHitTarget.toString()})(target)}};})()`);
+   return{stage,at:Date.now(),bounds:win.getBounds(),contentBounds:win.getContentBounds(),normal:win.getNormalBounds(),fullscreen:win.isFullScreen(),maximized:win.isMaximized(),leftFullscreen,renderer};
+   },stage,error);
+  }
+  async function settingsClick(selector,label){
+   const input={selector,label};let inputError;transition.nativeInputs.push(input);await diagnostic(()=>js(`__mouse633Input.begin(${JSON.stringify(selector)})`),'observe '+label);
+   input.before=await settingsSnapshot('before-'+label,selector);
+   try{
+    await click(selector);
+    await until(async()=>{input.events=await diagnostic(()=>js('__mouse633Input.read()'),'read '+label+' receipt');return input.events.some(event=>event.type==='click'&&event.trusted&&event.matches);},'native624 trusted '+label+' click');
+   }catch(error){inputError=error;throw error;}
+   finally{input.events=await diagnostic(()=>js('__mouse633Input.read()'),'final '+label+' receipt',inputError);input.after=await settingsSnapshot('after-'+label,selector,inputError);await diagnostic(saveFacts,'save '+label+' proof',inputError);}
+  }
+
   const nativeContext=async stage=>console.log('MOUSE_624_NATIVE_BOUNDS',JSON.stringify({stage,original:originalBounds,baseline:baselineBounds,actual:win.getBounds(),normal:win.getNormalBounds(),fullscreen:win.isFullScreen(),enteredFullscreen,leftFullscreen,maximized:win.isMaximized(),focused:win.isFocused(),workArea:work,focus:await js('({pane:MouseTest.model.focusPane,ai:MouseTest.model.focusAI,agent:MouseTest.model.agentOpen})').catch(()=>null)}));
   try{
   await nativeContext('before-fixture');
@@ -91,8 +126,15 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   win.once('enter-full-screen',entered);win.once('leave-full-screen',left);
   await js('MouseTest.togglePaneFullscreen("p3")');await until(()=>enteredFullscreen&&win.isFullScreen(),'native focused start pane finishes entering fullscreen');await until(()=>js('MouseTest.model.focusPane==="p3"'),'focused start pane');await painted();await nativeContext('focused-fullscreen');
   await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'Nora ready from focused pane');assert.equal(await js('!!document.querySelector("#desk-settings")'),false,'Nora has no settings gear');await click('#desks-close');await until(()=>js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'Nora closes before footer settings');
-  await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer settings from focused pane');await js('document.querySelector("[data-action=assistant]").scrollIntoView({block:"center"})');await click('[data-action="assistant"]');
-  await until(()=>js('MouseTest.model.agentOpen===true&&!MouseTest.model.focusPane&&!MouseTest.model.focusAI&&!document.querySelector("#agent-panel").hidden'),'Agent service restores focus and opens');await until(()=>leftFullscreen&&!win.isFullScreen()&&JSON.stringify(win.getBounds())===JSON.stringify(bounds),'Agent service restores the actual native window bounds');await painted();await nativeContext('agent-restored');
+  await diagnostic(()=>js(`(${installInputProbe.toString()})()`),'install passive input observer');inputProbeInstalled=true;
+  await settingsClick('#settings-button','footer-settings');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer settings from focused pane');
+  // Settings now restores the focused pane before opening. Wait for its actual
+  // native exit and stable restored geometry before scrolling/measuring Agent.
+  const restored=settingsRestoreBarrier(bounds);
+  await until(async()=>{const sample=await settingsSnapshot('settings-native-restoration'),state=restored(sample);transition.restoreSamples.push({...sample,stable:state.stable});return state.ready;},'native624 settings restores stable native window and renderer');
+  await painted();transition.snapshots.push(await settingsSnapshot('settings-restored'));await diagnostic(saveFacts,'save settings restoration proof');
+  await js('document.querySelector("[data-action=assistant]").scrollIntoView({block:"center"})');await settingsClick('[data-action="assistant"]','agent-service');
+  await until(()=>js('MouseTest.model.agentOpen===true&&!MouseTest.model.focusPane&&!MouseTest.model.focusAI&&!document.querySelector("#agent-panel").hidden'),'Agent service restores focus and opens');await until(()=>leftFullscreen&&!win.isFullScreen()&&JSON.stringify(win.getBounds())===JSON.stringify(bounds),'Agent service restores the actual native window bounds');await painted();await nativeContext('agent-restored');transition.snapshots.push(await settingsSnapshot('agent-open'));await diagnostic(()=>js('__mouse633Input.dispose()'),'dispose passive input observer');inputProbeInstalled=false;await diagnostic(saveFacts,'save Agent click proof');
   await sameLayout(baseline,'Agent service selection');await sameRects(geometry,'Agent service selection');assert.equal(agentHost.state().enabled,false);
   await fs.writeFile('mouse-624-agent-preserved.png',(await win.capturePage()).toPNG());
   await reload();assert.equal(await js('MouseTest.model.agentOpen'),true,'The previously open Agent Mouse panel is restored without enabling it');assert.equal(agentHost.state().enabled,false);await sameLayout(baseline,'Agent service shell reload');await sameRects(geometry,'Agent service shell reload');
@@ -112,8 +154,9 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
   await click('#desktops-button');await historyReady('after reload');await click('#desk-history-back');await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'Undo works after reload');await click('#desk-history-forward');await until(async()=>JSON.stringify(await layout())===JSON.stringify(changed),'Redo works after reload');
   await click('#desk-history-button');await until(()=>js('!document.querySelector("#desk-history-panel").hidden'),'history panel reopens');const entrySelector='#desk-history-panel [data-history-id="'+entry.id+'"] .desk-history-restore';await until(()=>js(`!!document.querySelector(${JSON.stringify(entrySelector)})`),'history entry renders');await js(`document.querySelector(${JSON.stringify(entrySelector)}).scrollIntoView({block:'nearest',inline:'center'})`);await painted();await click(entrySelector);await until(async()=>JSON.stringify(await layout())===JSON.stringify(baseline),'native history row restores the chosen baseline');await samePages('History jump');
   facts.history={undo:true,redo:true,persisted:true,pagesPreserved:true,entryRestore:true};await saveFacts();console.log('MOUSE_624_LAYOUT_UNDO_REDO_PERSIST_PASS');await js('MouseTest.desktopUI.close({immediate:true})');
-  }catch(error){verificationError=error;await nativeContext('failure').catch(()=>{});throw error;}
+  }catch(error){verificationError=error;transition.error={message:error.message,stack:error.stack,at:Date.now()};transition.snapshots.push(await settingsSnapshot('failure-before-cleanup',undefined,error));if(inputProbeInstalled)transition.failureEvents=await diagnostic(()=>js('__mouse633Input.read()'),'failure input receipt',error);await diagnostic(saveFacts,'save failure checkpoint',error);await diagnostic(()=>nativeContext('failure'),'native failure context',error);throw error;}
   finally{
+   if(inputProbeInstalled)await diagnostic(()=>js('globalThis.__mouse633Input?.dispose()'),'cleanup passive input observer',verificationError);
    win.removeListener('enter-full-screen',entered);win.removeListener('leave-full-screen',left);
    // The outer suite closes actual WebContents; this shell-only fixture needs
    // its own cleanup after every identity assertion, including a failed proof.
@@ -175,3 +218,5 @@ module.exports=({win,browser,store,agentHost,js,click,until,sleep,painted})=>{
 };
 module.exports.progressPillState=progressPillState;
 module.exports.selectProgressPill=selectProgressPill;
+module.exports.settingsRestoreBarrier=settingsRestoreBarrier;
+module.exports.settingsDiagnostic=settingsDiagnostic;
