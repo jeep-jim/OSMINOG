@@ -187,15 +187,21 @@ jobs:
           grep -q MOUSE_632_FOOTER_LAYOUT_BOTH_THEMES_PASS mouse-smoke-write.log
           grep -q MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS mouse-smoke-write.log
           test -s mouse-628-motion.json
-          test -s mouse-627-desktop-transition.json
+          test -s mouse-636-desktop-transition.json
           test -s mouse-628-panel-light-opening.png
           test -s mouse-628-panel-light-open.png
           test -s mouse-628-panel-light-closing.png
           test -s mouse-628-panel-dark-opening.png
           test -s mouse-628-panel-dark-open.png
           test -s mouse-628-panel-dark-closing.png
-          test -s mouse-627-desktop-transition-light.png
-          test -s mouse-627-desktop-transition-dark.png
+          test -s mouse-636-desktop-transition-light-forward.png
+          test -s mouse-636-desktop-transition-light-forward-display.png
+          test -s mouse-636-desktop-transition-light-back.png
+          test -s mouse-636-desktop-transition-light-back-display.png
+          test -s mouse-636-desktop-transition-dark-forward.png
+          test -s mouse-636-desktop-transition-dark-forward-display.png
+          test -s mouse-636-desktop-transition-dark-back.png
+          test -s mouse-636-desktop-transition-dark-back-display.png
       - name: Bind release bytes to verified source
         run: |
           (cd dist-mouse && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)

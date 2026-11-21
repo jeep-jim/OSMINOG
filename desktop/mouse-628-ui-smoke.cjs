@@ -44,7 +44,7 @@ function nativeCornerPaintReady(rows,marker,background){
  const matches=(pixel,rgb)=>pixel?.rgba?.[3]===255&&rgb.every((v,i)=>Math.abs(pixel.rgba[i]-v)<=2);
  return rows.length>0&&rows.every(row=>matches(row.before?.inside,marker)&&matches(row.before?.outside,background));
 }
-async function verifyGestureRestart({app,win,browser,store,expectedSavedVersion='6.0.35'}){
+async function verifyGestureRestart({app,win,browser,store,expectedSavedVersion=app.getVersion()}){
  const filename='mouse-629-swipe-tutorial.json',facts=JSON.parse(await fs.readFile(filename,'utf8'));
  assert.equal(facts.version,expectedSavedVersion);assert.equal(facts.successHidden,true);assert.equal(facts.privateIsolated,true);
  assert.equal(facts.source,'nora-wheel');assert.equal(facts.recognizer,'two-finger-or-wheel');assert.equal(win.listenerCount('swipe'),0);
@@ -123,7 +123,7 @@ async function motionNodeOwners(debug,rendererPid){
  }
  report.finishedAt=performance.now();report.elapsedMs=report.finishedAt-startedAt;return report;
 }
-module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInput,readMode=process.argv.includes('--mouse-smoke-read'),expectedSavedVersion='6.0.35'})=>{
+module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInput,readMode=process.argv.includes('--mouse-smoke-read'),expectedSavedVersion=app.getVersion()})=>{
  assert.equal(process.env.CI,'true','The visual fixture must never run in a personal profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  if(readMode)return verifyGestureRestart({app,win,browser,store,expectedSavedVersion});
@@ -441,7 +441,7 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,nativeInpu
  async function verifyGestureAndSlide(){
   const bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),savedPreferences=await js('MouseTest.prefs()'),fromIndex=bank.items.findIndex(d=>d.id===bank.active),leftIndex=Math.min(fromIndex,bank.items.length-2),desks=[bank.items[leftIndex].id,bank.items[leftIndex+1].id],colors=[[199,37,77],[29,125,220]],made=[],packets=[];
   const evidence={version:'6.0.28',simultaneous:false,pngSurfaces:false,compositorOnly:false,nativeIdentityPreserved:false,viewportAndScrollPreserved:false,slowAckBounded:false,noraStayedOpen:false,borrowedHold:true,restored:false,transitions:[]};
-  const tutorial={version:'6.0.35',source:'nora-wheel',inputSource:'Electron webContents.sendInputEvent mouseWheel in the isolated CI profile',syntheticNativeEvent:true,physicalTrackpadVerified:false,recognizer:'two-finger-or-wheel',firstUseShown:false,nonSwitchRetained:false,successHidden:false,reopenHidden:false,restartHidden:false,privateIsolated:false,restored:false,writePid:process.pid,writeMainTimeOrigin:performance.timeOrigin,writeRendererTimeOrigin:await js('performance.timeOrigin'),records:[]};
+  const tutorial={version:app.getVersion(),source:'nora-wheel',inputSource:'Electron webContents.sendInputEvent mouseWheel in the isolated CI profile',syntheticNativeEvent:true,physicalTrackpadVerified:false,recognizer:'two-finger-or-wheel',firstUseShown:false,nonSwitchRetained:false,successHidden:false,reopenHidden:false,restartHidden:false,privateIsolated:false,restored:false,writePid:process.pid,writeMainTimeOrigin:performance.timeOrigin,writeRendererTimeOrigin:await js('performance.timeOrigin'),records:[]};
   const send=win.webContents.send,command=browser.command,surfaces=browser.mouseDesktops.surfaces,capture=surfaces.capture;let active=null,ackDelay=0,server,frameCapture=null,completed=false;
   const persist=async()=>{await fs.writeFile('mouse-628-desktop-transition.json',JSON.stringify(evidence,null,2)+'\n');await fs.writeFile('mouse-629-swipe-tutorial.json',JSON.stringify(tutorial,null,2)+'\n');};
   const shell=()=>js(`(()=>{const t=document.querySelector('#desktop-tray'),c=t.querySelector('.desk-content'),r=t.getBoundingClientRect();return{desktopId:MouseTest.model.desktopId,nora:{open:t.open,hidden:t.hidden,modal:t.matches(':modal'),phase:t.dataset.motion,inert:c.inert,x:r.x,y:r.y,width:r.width,height:r.height},gesture:MouseTest.desktopUI.gesture.diagnostics(),hintHidden:document.querySelector('.desktop-gesture-hint').hidden};})()`);
