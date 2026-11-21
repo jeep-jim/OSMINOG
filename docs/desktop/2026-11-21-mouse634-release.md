@@ -250,3 +250,92 @@ Commit `1617ca9d891fd0eb36be181fdd7de57614a33fd8` изменил ровно де
 Запущены [Mac44863799449](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799449), [Windows44863799470](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799470), [Linux44863799473](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799473), push/attempt1 на release merge f0cdcc4. Следующие обязательные доказательства: свежая установка именно закреплённых bytes, независимый replay свежего raw, фактические public assets, latest/versioned feeds и receipts настоящих старых updater-модулей. Этот checkpoint не объявляет их выполненными.
 
 Отдельный внешний search/AI run44797452740 attempt2 ранее подтвердил реальные pagination/video и grounded model reply. Причина прежних HTTP502 по-прежнему не установлена и не объявляется исправленной. Mac остаётся Apple Silicon preview без Developer ID/notarization, Windows — unsigned preview. История отказов и разделение проектов сохраняются. Проверки совместимости профиля и идентичности приложения относятся к описанным CI-прогонам; инфраструктура АвтоЦены не затрагивалась.
+
+## 21.11.2026 — итоговая публикация 6.0.34 завершена
+
+**Статус: PUBLISHED / VERIFIED_DOWNLOAD для macOS arm64, Windows x64 и Linux x64.** Предыдущие записи «публикация ожидается», отказанные кандидаты и причины их отклонения выше сохранены как история. Независимая итоговая сверка завершена 2026-11-21T04:23:58.902979+00:00; время ниже — UTC.
+
+Принятый source `bc4cafb5c2db9cfc80165a7c470c813f0235cd04`, source merge `b1b87fb29f74e4917758f27c93ffc775311df32e`, release merge `f0cdcc4051e257b56b1710176592007d255349ad`. Публикуются те же байты, которые закреплены в ready pins и прошли source native CI; новые publisher jobs повторно устанавливают именно эти пакеты. Все три запуска — push/attempt1.
+
+### Фактические publishers и публичные releases
+
+| Платформа | Publisher run / attempt / job | Release ID / tag | Опубликован, UTC |
+|---|---|---|---|
+| macOS arm64 | [44863799449](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799449) / 1 / 136723355962 — SUCCESS | [453431903 / quadro-macos-v6.0.34-arm64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.34-arm64) | 2026-11-21T04:15:08Z |
+| Windows x64 | [44863799470](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799470) / 1 / 136723243899 — SUCCESS | [453433788 / mouse-windows-v6.0.34-x64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.34-x64) | 2026-11-21T04:19:05Z |
+| Linux x64 | [44863799473](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44863799473) / 1 / 136723235708 — SUCCESS | [453431132 / mouse-linux-v6.0.34-x64](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.34-x64) | 2026-11-21T04:13:12Z |
+
+### Свежие verification archives и независимый replay
+
+| Платформа | Artifact ID | Размер, bytes | SHA-256 ZIP | CRC entries |
+|---|---:|---:|---|---:|
+| macOS arm64 | 14690849368 | 38104955 | `e89f5091b21e27686ee6cae762ab22a4e606cc4e8d81e7757333d8b6553bd81e` | 506 — PASS |
+| Windows x64 | 14692000338 | 33153132 | `08e1fd81392cf31151fdbf54ba67fe0e189d530691a567afa2524602f491b790` | 506 — PASS |
+| Linux x64 | 14691188440 | 18154266 | `fe6b7bfa39cd11bfda33611922af4960358d3c21d0c3b51f16ec3d2a71a6c83a` | 257 — PASS |
+
+Все три архива фактически скачаны, сверены с API digest/размером и проверены по CRC. Независимый полный replay свежего native evidence выполнен исходными production algorithms [frozen7090](https://github.com/jeep-jim/OSMINOG-Releases/tree/7090a5c5a899ec3fc430a36b752ec5de3c567fb9/tools) и прошёл. Свежие reports привязаны к publisher run, а импортированные source reports — к своим исходным run; эти доказательства не подменяют друг друга.
+
+- **Mac:** retained UI, tasks/stress, current feedback и motion — PASS. Отдельно повторно проверены 623: 72 footer probes + 6 reference pixels; 624: шесть последовательных стабильных наблюдений и два доверенных native clicks. Фактические 629 replacement/relaunch и 633→634 checks сохраняют тестовый профиль. Просмотрены пять свежих кадров поиска, Норы и восстановленного Agent. Motion остаётся в исходной области `unique-compositor-starts-and-dom-completion`, `temporal-correlation`, `directIdentityLink:false`, `continuousCompositorLifetimeProven:false`; missing compositor terminals не выдаются за доказанное непрерывное выполнение.
+- **Windows:** retained/current feedback, task/stress и фактический 633→634 upgrade — PASS. Task/feedback результат независимого replay совпал с сохранённым результатом publisher. Fresh installed report SHA-256 `b91d0a0c8f48acb1f9dd19b277c195e1a5aa20b221542a0cb13d9e32218ea81f` отличается от source report; именно он опубликован в public verification asset.
+- **Linux:** полный frozen replay — PASS; Git blobs всех 145 файлов проверяющего зеркала сверены с frozen7090, результат совпал с publisher evidence, исходный импортированный report сохранился побайтно. Fresh `verificationRun=44863799473/1`, source run `44859183010/1`. Реальные 633→634 процессы: deb PID 3428→3657, AppImage 3774→3900, профили сохранены.
+
+Единственное согласованное tools-отличие от frozen7090 — unit-fixture repair `test_mouse634_reuse.py`, SHA-256 `fde6d57b27e85bc6b6d56542a50747fe669170119af49872019490f74f5496aa`. Уточнение к прежнему checkpoint: отрицательные cases этого теста повреждают metadata claims `verificationArtifact`/`verificationSHA256` в pin, а не native raw. Полные native evidence проверены отдельно неизменёнными production validators.
+
+### Настоящие старые обновляторы
+
+Это отдельная проверка discovery/download, а не обозначение версии всех установленных upgrade-профилей. Receipt получен фактическим publisher; независимый public audit повторно обновлятор не запускал.
+
+| Платформа | Реальный старый модуль | Проверка загрузки и текущей 6.0.34 | SHA-256 receipt |
+|---|---|---|---|
+| macOS arm64 | 6.0.29 | Анонимное обнаружение/скачивание, точные bytes/SHA и current-version check — PASS | `da619ec302a0ff681f2fca98712eac7cdb02726cd612f3a1e4a2e2b2a5916a92` |
+| Windows x64 | 6.0.29 | Анонимное обнаружение/скачивание, точные bytes/SHA и current-version check — PASS | `71ff29a02dfe17e2937850edbc93b4adce2376dfbc699f3b5ece25da377d0efa` |
+| Linux x64 | 6.0.33 | Анонимное обнаружение/скачивание, точные bytes/SHA и current-version check — PASS | `5af37b738a1db2a38c899bb75dd9151ade562b57830d1a2e2678380ad81fe38c` |
+
+### Публичные файлы: полное анонимное скачивание
+
+Все 14 assets действительно скачаны; ссылки ниже относятся к существующим releases. Размеры и SHA-256 пакетов совпали с source-ready pins. Mac Quadro DMG alias совпадает с Mouse DMG. Публичные Windows/Linux manifest, verification report и checksum file побайтно совпали с raw именно соответствующего publisher.
+
+| Платформа | Файл | Размер, bytes | SHA-256 |
+|---|---|---:|---|
+| macOS arm64 | [Mouse-Browser-6.0.34-mac-arm64.dmg](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.34-arm64/Mouse-Browser-6.0.34-mac-arm64.dmg) | 139344967 | `fd7bd882aaf948e623b8cb6affec0f9890be959add178cb88250b0a24f45dfab` |
+| macOS arm64 | [Mouse-Browser-6.0.34-mac-arm64.zip](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.34-arm64/Mouse-Browser-6.0.34-mac-arm64.zip) | 141704355 | `8f3d2e5868c74d759191201ee244df51c06987ee290d2772bc19fe0f93738721` |
+| macOS arm64 | [Quadro-Browser-6.0.34-mac-arm64.dmg](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.34-arm64/Quadro-Browser-6.0.34-mac-arm64.dmg) | 139344967 | `fd7bd882aaf948e623b8cb6affec0f9890be959add178cb88250b0a24f45dfab` |
+| macOS arm64 | [SHA256SUMS.txt](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.34-arm64/SHA256SUMS.txt) | 304 | `8ed7d0d49ae557c2fd780ab11f9b879a12d6ed809f9c0f785d81dd84f981a997` |
+| macOS arm64 | [mouse-build.json](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.34-arm64/mouse-build.json) | 6579 | `d2ec589c84aa7134fbad01f05e6b1fce0239f15241546075f4e9a88081ae2f6f` |
+| Windows x64 | [Mouse-Browser-6.0.34-Windows-x64.exe](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.34-x64/Mouse-Browser-6.0.34-Windows-x64.exe) | 126570020 | `ab0762924e28151b66728cf79a024c5fa7956e11b724d7fbe015491d15fb11a0` |
+| Windows x64 | [SHA256SUMS.txt](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.34-x64/SHA256SUMS.txt) | 103 | `4418fd52e63b6b680eb2a8c7bff2e53c8000560e90c9af8ccfa8a6398d2fa721` |
+| Windows x64 | [mouse-windows-build.json](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.34-x64/mouse-windows-build.json) | 12949 | `96d5a060649e066f53e294ac65047004088beafb2898d738d8f78c5d6b2ed1ed` |
+| Windows x64 | [mouse-windows-verification.json](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.34-x64/mouse-windows-verification.json) | 10750 | `b91d0a0c8f48acb1f9dd19b277c195e1a5aa20b221542a0cb13d9e32218ea81f` |
+| Linux x64 | [Mouse-Browser-6.0.34-Linux-x64.AppImage](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.34-x64/Mouse-Browser-6.0.34-Linux-x64.AppImage) | 137051426 | `6aebb0925d83a5fb505f20dceee969ded130070df96dd2f991eab347466e0f77` |
+| Linux x64 | [Mouse-Browser-6.0.34-Linux-x64.deb](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.34-x64/Mouse-Browser-6.0.34-Linux-x64.deb) | 106622916 | `f18f38d137f8d6a20e3a810abcfb38b34adbb68b55c040f0614fb58e3d0169ae` |
+| Linux x64 | [SHA256SUMS.txt](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.34-x64/SHA256SUMS.txt) | 207 | `1c3d37c330ec990d89f30e91b6912cb0f6e5e1b17ca55b5ac59c559290a36c7a` |
+| Linux x64 | [mouse-linux-build.json](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.34-x64/mouse-linux-build.json) | 14197 | `8b94874193ca71034f89522cc53c29395a82b9a8c917c05b1cd96bd894001614` |
+| Linux x64 | [mouse-linux-verification.json](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.34-x64/mouse-linux-verification.json) | 12303 | `c443ad7de3eb0ea1b4f1e3f813ea777693c6222ea2745d6c212e453275431d0c` |
+
+### Каналы обновлений
+
+Mac использует один channel. У Windows и Linux latest и versioned feeds проверены отдельно; внутри каждой платформы они побайтно равны и соответствуют ожидаемым данным фактического publisher.
+
+| Платформа | Проверенный feed | SHA-256 файла |
+|---|---|---|
+| macOS arm64 | [https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json) | `fbab7910127e0a55c8499d2bd4626978fa7455d28ece726fb44f94130e246e71` |
+| Windows x64 | [https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json) | `56457ebef3df74ffb660ad4d5e09203045151905aec4909ed0546d4e8d95f8ec` |
+| Windows x64 | [https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/releases/6.0.34.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/releases/6.0.34.json) | `56457ebef3df74ffb660ad4d5e09203045151905aec4909ed0546d4e8d95f8ec` |
+| Linux x64 | [https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json) | `d47fd6b5a783d1608f4ca17112c9090d3a81db64da5818ca6c29603ba9655da8` |
+| Linux x64 | [https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/releases/6.0.34.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/releases/6.0.34.json) | `d47fd6b5a783d1608f4ca17112c9090d3a81db64da5818ca6c29603ba9655da8` |
+
+### Контрольные суммы независимых итоговых отчётов
+
+Итоговые отчёты рассчитаны из указанных выше raw archives. Проверяемый код доступен по frozen commit, сами CI-архивы — в соответствующих успешных runs.
+
+| Платформа | Fresh replay JSON SHA-256 | Public GET JSON SHA-256 | Итоговый summary SHA-256 |
+|---|---|---|---|
+| macOS arm64 | `0df4590b876c1ee4b9e855cece2201bcd9d5bb39b64fa3fa7daba3ae1f82e348` | `b973730485652e9f2437f9fadc80aac22a66812078efa3d047e4ab1d2a4bf06e` | `9ed2a6932178e795d6e1e55105e52c5dc8d1c7e96e295fa152373a3b75947b06` |
+| Windows x64 | `255c55af5055bd50591a2980f6746cdcdd313e6d0eb292cb3ae768fd45eb9786` | `698396ff1d3d661cec0ddf96ff53479aaf28a71d2d99ad45ed9848fbfe06ed52` | `3bb3c0dd19b2ac98ea3d88a546ab3cc5045bc96c3cc7d7540491fbd6689b23a6` |
+| Linux x64 | `38ea42682b32bac45949b9c0f454b1d40a1979a761dce40cb42482f3ec5b379e` | `d4aa1b593424be40ca4bd29670848382f38197ab97d9ad096f7fd294d309a540` | `47308f0b0e4f062fed90f4ca457bf309af91a94390f542f1bdc2ad281c89aa91` |
+
+### Границы итогового результата
+
+Mac — Apple Silicon ad-hoc preview без Developer ID/notarization; Windows — unsigned preview. Проверки выполнялись на CI runners и тестовых профилях. Личный Mac/ПК владельца, физический трекпад и внешние аккаунты этим выпуском не объявляются проверенными. Прежняя причина HTTP502 не установлена: отдельный успешный внешний search/AI run44797452740 attempt2 подтверждает только свой датированный результат. CAPTCHA/429 не обходились. Продуктовые ограничения и незакрытые прежние задачи не переписываются как выполненные.
+
+Обновлены четыре общих журнала и данный журнал, с сохранением предыдущих checkpoint. В MOUSE_BROWSER_ROADMAP новый актуальный блок 6.0.34 вынесен наверх, сводка 6.0.31 сохранена как история. Изменения этой финальной записи относятся только к документации; принятый код приложения и опубликованные пакеты не меняются.
