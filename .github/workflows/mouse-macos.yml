@@ -219,6 +219,7 @@ jobs:
             desktop/mouse-*.png
             desktop/mouse-audit.json
             desktop/mouse-agent-audit.json
+            desktop/mouse-613-*.json
             desktop/mouse-622-*.json
             desktop/mouse-623-*.json
             desktop/mouse-624-*.json
