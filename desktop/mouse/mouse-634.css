@@ -21,7 +21,11 @@ body.ai-focused #workspace #ai-panel:not(.has-ai-preview) #ai-chat-pane,body.ai-
 body.pane-focused .has-pane-downloads>.page-slot,body.ai-focused #workspace #ai-panel:not(.has-ai-preview) #ai-slot,body.ai-focused #workspace #ai-preview-slot{border-bottom-left-radius:0;border-bottom-right-radius:0}
 /* One opaque base and the same existing toolbar gradient in both themes,
    including Nora's open state. Underlying modal content cannot tint one bar. */
-.toolbar{background:var(--mouse-chrome-background);background-color:var(--bg)}
-#statusbar,body:has(#desktop-tray[open]) #statusbar{background:var(--mouse-chrome-background)!important;background-color:var(--bg)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.toolbar{background:var(--mouse-chrome-background);background-color:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none}
+#statusbar,body:has(#desktop-tray[open]) #statusbar{background:var(--mouse-chrome-background)!important;background-color:var(--bg)!important;backdrop-filter:none;-webkit-backdrop-filter:none}
+/* Avoid per-control backdrop sampling on the opaque chrome surfaces. */
+.pane-head,:is(#ai-panel,#ai-chat-pane)>.ai-controls,
+:is(.toolbar,#statusbar,.pane-head) :is(button,select),
+:is(#ai-panel,#ai-chat-pane)>.ai-controls :is(button,select){backdrop-filter:none;-webkit-backdrop-filter:none}
 @keyframes mouse-pane-download-wait{from{transform:translateX(0)}to{transform:translateX(257.142857%)}}
 @media(prefers-reduced-motion:reduce){.mouse-download-fill{animation:none!important;transition:none!important}}
