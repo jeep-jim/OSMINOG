@@ -1,7 +1,7 @@
 name: Mouse Browser Windows x64
 on:
   pull_request:
-    paths: ['desktop/**','tools/mouse-windows*','tools/mouse-631-*.py','tools/mouse-632-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/mouse-633-*.cjs','tools/test_mouse_631_*.py','tools/test_mouse_632_*.py','tools/test_mouse_633_*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
+    paths: ['desktop/**','tools/mouse-windows*','tools/mouse-631-*.py','tools/mouse-632-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/mouse-633-*.cjs','tools/test_mouse_631_*.py','tools/test_mouse_632_*.py','tools/test_mouse_633_*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -72,15 +72,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s ../tools -p test_mouse_631_acceptance.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python ../tools/test_mouse635_upgrade.py -v
+          python ../tools/test_mouse636_upgrade.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python ../tools/test_mouse636_baseline_performance.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Mouse Browser NSIS installer
         run: npx electron-builder --config mouse-windows-build.cjs --win nsis --x64 --publish never
       - name: Verify installed app, native UI, restart and profile preservation
-        env:
-          MOUSE_TEST_BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
         id: installed
-        run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.35-Windows-x64.exe
+        run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.36-Windows-x64.exe
       - name: Bind verified installer bytes to source and test evidence
         if: steps.units.outcome == 'success' && steps.installed.outcome == 'success'
         run: node ../tools/mouse-windows-manifest.cjs
@@ -98,7 +98,7 @@ jobs:
         with:
           name: mouse-windows-x64-candidate
           path: |
-            desktop/dist-mouse-windows/Mouse-Browser-6.0.35-Windows-x64.exe
+            desktop/dist-mouse-windows/Mouse-Browser-6.0.36-Windows-x64.exe
             desktop/dist-mouse-windows/SHA256SUMS.txt
             desktop/dist-mouse-windows/mouse-windows-build.json
           if-no-files-found: error
@@ -112,6 +112,7 @@ jobs:
             desktop/mouse-*.png
             desktop/mouse-*.json
             desktop/mouse-631-upgrade/**
+            desktop/mouse-636-baseline-performance/**
           if-no-files-found: warn
           retention-days: 14
   mouse-windows-x64-modern:
@@ -156,11 +157,11 @@ jobs:
                   raise RuntimeError(message)
 
           candidate = Path('dist-mouse-windows')
-          name = 'Mouse-Browser-6.0.35-Windows-x64.exe'
+          name = 'Mouse-Browser-6.0.36-Windows-x64.exe'
           require({p.name for p in candidate.iterdir()} == {name, 'SHA256SUMS.txt', 'mouse-windows-build.json'},
                   'Expected the unchanged three-file source candidate')
           build = json.loads((candidate / 'mouse-windows-build.json').read_text(encoding='utf-8'))
-          require((build['version'], build['platform'], build['arch']) == ('6.0.35', 'win32', 'x64'),
+          require((build['version'], build['platform'], build['arch']) == ('6.0.36', 'win32', 'x64'),
                   'Unexpected source candidate target')
           require(build['source'] == os.environ['MOUSE_SOURCE_SHA'] and str(build['runId']) == os.environ['GITHUB_RUN_ID'],
                   'Candidate does not belong to this exact source run')
@@ -188,7 +189,7 @@ jobs:
           }, indent=2) + '\n', encoding='utf-8')
           print('MOUSE_WINDOWS_MODERN_IMMUTABLE_INPUT_PASS')
       - name: Verify same installed app on modern Windows
-        run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.35-Windows-x64.exe
+        run: python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.36-Windows-x64.exe
       - name: Upload modern Windows verification evidence
         uses: actions/upload-artifact@v4
         if: always()
@@ -199,5 +200,6 @@ jobs:
             desktop/mouse-*.png
             desktop/mouse-*.json
             desktop/mouse-631-upgrade/**
+            desktop/mouse-636-baseline-performance/**
           if-no-files-found: warn
           retention-days: 14

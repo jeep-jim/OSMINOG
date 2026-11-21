@@ -7,7 +7,7 @@ const {createFixture,pageHTML,bounded,sleep}=require('./mouse-631-smoke-helpers.
 const distribution=values=>{const sorted=values.slice().sort((a,b)=>a-b);return{count:values.length,min:sorted[0]??0,p50:sorted[Math.floor((sorted.length-1)*.5)]??0,p95:sorted[Math.floor((sorted.length-1)*.95)]??0,max:sorted.at(-1)??0};};
 
 module.exports=async ctx=>{
- const facts={version:ctx.app.getVersion(),platform:process.platform,arch:process.arch,source:'installed native pages and local HTTP streams',budgetMs:200000,stages:[],captures:[],renderFailures:[],restored:false,ok:false,baselineComparison:{performed:false,reason:'No historical executable was run under this identical fixture; recorded durations are measurements, not a claimed speedup.'}};
+ const facts={version:ctx.app.getVersion(),platform:process.platform,arch:process.arch,source:'installed native pages and local HTTP streams',budgetMs:200000,stages:[],captures:[],renderFailures:[],restored:false,ok:false,baselineComparison:{performed:false,reason:'This process records candidate timings only. The separate mouse-636-performance.json binds both installed runs and compares their raw workloads.'}};
  const save=()=>fs.writeFile('mouse-631-stress.json',JSON.stringify(facts,null,2)+'\n');
  let fixture,server,verificationError,cleanupError,currentStage='setup',operation='setup',interval,frameMonitorStarted=false,motionDebug,motionAttached=false;
  const requests=[],streams=new Map(),restorers=[],captureCalls=[],counts={capturePage:0,getVisible:0,setVisible:0,setBounds:0,nativeCorners:0,state:0},mainGaps=[];
@@ -44,7 +44,7 @@ module.exports=async ctx=>{
  }
  async function rendererMonitor(start){
   if(start){await fixture.js(`(()=>{const s=globalThis.__mouse631Frames={running:true,count:0,gaps:[],max:0,longTasks:[]};let last;const tick=t=>{if(!s.running)return;if(last!==undefined){const gap=t-last;s.gaps.push(gap);if(s.gaps.length>4096)s.gaps.shift();s.max=Math.max(s.max,gap);}last=t;s.count++;s.raf=requestAnimationFrame(tick);};s.raf=requestAnimationFrame(tick);s.observer=new PerformanceObserver(list=>{for(const task of list.getEntries()){s.longTasks.push({startTime:task.startTime,duration:task.duration});if(s.longTasks.length>128)s.longTasks.shift();}});s.observer.observe({type:'longtask',buffered:false});return true;})()`);frameMonitorStarted=true;return;}
-  const result=await fixture.js(`(()=>{const s=globalThis.__mouse631Frames;s.running=false;cancelAnimationFrame(s.raf);s.observer.disconnect();return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks};})()`);frameMonitorStarted=false;result.gapDistribution=distribution(result.gaps);delete result.gaps;return result;
+  const result=await fixture.js(`(()=>{const s=globalThis.__mouse631Frames;s.running=false;cancelAnimationFrame(s.raf);s.observer.disconnect();return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks};})()`);frameMonitorStarted=false;result.gapDistribution=distribution(result.gaps);return result;
  }
  async function startStream(record,id){
   await fixture.pageJS(record,`void mouse631Stream(${JSON.stringify(id)});true`);
@@ -67,7 +67,7 @@ module.exports=async ctx=>{
  try{
   fixture=await createFixture(ctx,'stress',facts.budgetMs);
   // The inherited accessibility preference may intentionally bypass a slide.
-  // This scenario measures the animated path, as the retained Nora fixtures do.
+  // Keep the predecessor fixture preference identical; only the retained Nora uses a snapshot animation in 6.0.36.
   facts.motionMedia={before:await fixture.js('matchMedia("(prefers-reduced-motion:reduce)").matches')};
   motionDebug=fixture.win.webContents.debugger;assert.equal(motionDebug.isAttached(),false);motionDebug.attach('1.3');motionAttached=true;
   await bounded(motionDebug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]}),3000,'Enable stress fixture motion');
@@ -109,7 +109,9 @@ module.exports=async ctx=>{
    for(let n=0;n<switchCount;n++){
     const d=(n+1)%5,id=desks[d],callsBefore=captureCalls.length,countsBefore={...counts},layoutBefore=browser.mouseLayoutCalls||0,start=performance.now();operation='switch-'+n;
     await fixture.switchDesk(id);const elapsedMs=performance.now()-start;assert.ok(elapsedMs<12000);
-    const slide=await fixture.js('structuredClone(MouseDesktopSlide.last)');assert.equal(slide.phase,'complete');assert.equal(slide.animated,true);assert.equal(slide.decoded,true);
+    const slide=await fixture.js('structuredClone(MouseDesktopSlide.last)');assert.equal(slide.phase,'complete');
+    if(Number(ctx.app.getVersion().split('.')[2])>=36){assert.equal(slide.strategy,'live');assert.equal(slide.presented,true);assert.equal(slide.snapshotCaptures,0);assert.equal(slide.animated,false);assert.equal(slide.decoded,false);assert.equal(captureCalls.length,callsBefore);assert.equal(counts.capturePage,countsBefore.capturePage,'A normal switch performs no native image readback');}
+    else{assert.equal(slide.animated,true);assert.equal(slide.decoded,true);}
     const visible=groups[d].slice(0,4),entry={sequence:n+1,from:desks[n%5],to:id,elapsedMs,slide,counts:Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-countsBefore[key]])),layoutCalls:(browser.mouseLayoutCalls||0)-layoutBefore,surfaceCalls:captureCalls.slice(callsBefore),visiblePageIds:visible.map(record=>record.id)};row.switches.push(entry);
     const progress=await switchProgress(target,running[d],running,visible,entry);
     entry.capture=await fixture.captureContent('mouse-631-stress-'+target+'-switch-'+(n+1)+'.png',visible,{shellRegions:progress.regions});facts.captures.push(entry.capture.filename);await save();
@@ -123,7 +125,7 @@ module.exports=async ctx=>{
    operation='complete-streams';row.streams=await finishStreams(running);
    row.afterPages=await readAll(owned);for(let i=0;i<row.beforePages.length;i++)fixture.assertIdentity(row.beforePages[i],row.afterPages[i]);
    assert.equal(facts.renderFailures.length,0,'No guest or shell renderer was replaced or crashed');
-   clearInterval(interval);interval=null;row.mainEventLoop=distribution(mainGaps);row.renderer=await rendererMonitor(false);assert.ok(row.renderer.frames>=2,'The real shell renderer continued presenting frames');
+   clearInterval(interval);interval=null;row.mainEventLoopSamplesMs=mainGaps.slice();row.mainEventLoop=distribution(mainGaps);row.renderer=await rendererMonitor(false);assert.ok(row.renderer.frames>=2,'The real shell renderer continued presenting frames');
    row.layoutCalls=(browser.mouseLayoutCalls||0)-row.layoutCallsBefore;row.counts=Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-row.countsBefore[key]]));row.previewsAfter=previews.diagnostics();row.surfaces=surfaces.diagnostics();row.memoryAfter=process.memoryUsage();row.processesAfter=ctx.app.getAppMetrics();row.elapsedMs=performance.now()-row.startedAt;row.switchLatencyMs=distribution(row.switches.map(item=>item.elapsedMs));
    row.metadata=await Promise.all(owned.map(record=>fixture.pageJS(record,'clearInterval(mouse631.metadataTimer);({index:mouse631.index,updates:mouse631.metadataTicks})')));assert.ok(row.metadata.every(item=>item.updates>0),'Every live page produced real title metadata');
    row.requests=requests.filter(request=>owned.some(record=>record.index===request.index));for(const record of owned)assert.equal(row.requests.filter(request=>request.index===record.index).length,1,'Each live document was loaded exactly once');

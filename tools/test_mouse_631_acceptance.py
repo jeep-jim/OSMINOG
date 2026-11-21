@@ -196,17 +196,11 @@ def fixtures():
         for number in range(1, switches + 1):
             target = desks[number % 5]
             visible = [page for page in pages if page['desk'] == target and page['index'] < 20]
-            calls = []
-            for desk in (desks[(number - 1) % 5], target):
-                owners = [page for page in pages if page['desk'] == desk and page['index'] < 20]
-                calls.append({'error': None, 'diagnostics': {'lastCapture': {'complete': True, 'paintProof': False,
-                               'requestedIds': [page['id'] for page in owners], 'pages': [{'id': page['id'], 'webContentsId': page['webContentsId'], 'bitmapReadouts': 0,
-                               **dict.fromkeys(('queueMs', 'captureMs', 'pngMs', 'base64Ms', 'previewMs'), .1)} for page in owners]}}})
             captured = capture(files, f'mouse-631-stress-{total}-switch-{number}.png', visible,
                                shell=total == 20, pill_ids={stream_owners[number % 5]['id']})
             row['switches'].append({'sequence': number, 'from': desks[(number - 1) % 5], 'to': target, 'elapsedMs': 400,
-                                   'slide': {'phase': 'complete', 'animated': True, 'decoded': True, 'totalDurationMs': 399},
-                                   'visiblePageIds': [page['id'] for page in visible], 'surfaceCalls': calls,
+                                   'slide': {'strategy': 'live', 'phase': 'complete', 'presented': True, 'animated': False, 'decoded': False, 'borrowedHold': False, 'snapshotCaptures': 0, 'layoutCalls': 1, 'startedAt': 100, 'selectedAt': 105, 'layoutAt': 110, 'totalDurationMs': 399},
+                                   'visiblePageIds': [page['id'] for page in visible], 'surfaceCalls': [], 'counts': {'capturePage': 0},
                                    'progress': stress_progress(visible, stream_tasks, captured, target, f'stage{total}-desk{number % 5}'),
                                    'capture': captured})
         row['afterNoraCapture'] = capture(files, f'mouse-631-stress-{total}-after-nora.png', pages[:4])
@@ -227,6 +221,26 @@ class AcceptanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.files, cls.task, cls.stress = fixtures()
+
+    def test_live_switch_cannot_reuse_snapshot_or_unpresented_receipts(self):
+        for changed in ({'strategy': 'nora-snapshot'}, {'animated': True}, {'decoded': True},
+                        {'presented': False}, {'snapshotCaptures': 1}, {'layoutCalls': 0},
+                        {'selectedAt': 99}, {'layoutAt': 104}):
+            with self.subTest(changed=changed):
+                files, task, stress = fixtures()
+                stress['stages'][1]['switches'][0]['slide'].update(changed)
+                files['mouse-631-stress.json'] = json.dumps(stress).encode()
+                with self.assertRaises(ValueError):
+                    CHECK.verify(files.__getitem__)
+
+    def test_live_switch_rejects_actual_capture_counter_or_surface_work(self):
+        for field, value in [('counts', {'capturePage': 1}), ('surfaceCalls', [{'elapsedMs': 1}])]:
+            with self.subTest(field=field):
+                files, task, stress = fixtures()
+                stress['stages'][1]['switches'][0][field] = value
+                files['mouse-631-stress.json'] = json.dumps(stress).encode()
+                with self.assertRaises(ValueError):
+                    CHECK.verify(files.__getitem__)
 
     def test_complete_two_workloads_and_task_contract_is_accepted(self):
         result = CHECK.verify(self.files.__getitem__, expected_platform='win32', expected_arch='x64')

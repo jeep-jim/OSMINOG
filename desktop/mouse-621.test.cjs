@@ -51,47 +51,38 @@ function slideFixture(delay=0,options={}){
  const elapse=async ms=>{time+=ms;for(const [id,timer]of [...timers])if(timer.at<=time){timers.delete(id);timer.fn();}await flush();};
  return{S,w,model,N,events,listeners,run,clock:()=>time,hasCleared:()=>!!cleared,flush,paint,elapse,pendingFrames:()=>frames.size,pendingTimers:()=>timers.size};
 }
-test('desktop transition decodes before hold and restores input, native surfaces and listeners on every outcome',async()=>{
+test('ordinary desktop selection uses live views without decoding or holding surfaces and always restores input',async()=>{
  for(const options of [{},{fail:true},{incomplete:true},{begin:false},{cancelIncoming:true},{reduced:true}]){
-  const f=slideFixture(0,options),error=options.fail?/fixture failure/:options.incomplete?/Не удалось подготовить переход/:options.begin===false?/Рабочий стол изменился/:options.cancelIncoming?/Не удалось подготовить изображение/:null;
+  const f=slideFixture(0,options),error=options.fail?/fixture failure/:null;
   if(error)await assert.rejects(f.run(),error);else await f.run();
-  assert.equal(f.events.filter(x=>x==='change').length,options.incomplete||options.begin===false?0:1,'Failed outgoing preparation cannot silently change the selected desk');assert.equal(f.w.style.transform,'');assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(!!f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);
-  if(!options.reduced&&!options.incomplete&&options.begin!==false)assert.ok(f.events.includes('end'),'owned hold is released even when change or capture is cancelled');
-  if(options.incomplete||options.begin===false||options.cancelIncoming||options.reduced)assert.ok(!f.events.includes('animate-start'));
+  assert.deepEqual(f.events,options.fail?['change']:['change','layout'],'A normal switch never invokes native capture, holds or a compositor scene');assert.equal(f.w.style.transform,'');assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(!!f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);
+  assert.equal(f.S.last.strategy,'live');assert.equal(f.S.last.snapshotCaptures,0);assert.equal(f.S.last.phase,options.fail?'failed':'complete');
  }
- const f=slideFixture();await f.run();assert.deepEqual(f.events,['capture:old','decoded:outgoing','show-old','begin','change','layout','capture:new','decoded:incoming','animate-start','animate-end','end','remove','layout']);assert.equal(f.S.last.decoded,true);assert.equal(f.S.last.animated,true);
+ const f=slideFixture();await f.run();assert.equal(f.S.last.decoded,false);assert.equal(f.S.last.animated,false);assert.equal(f.S.last.presented,true);
  assert.equal(f.S.ease(0),0);assert.equal(f.S.ease(.5),.5);assert.equal(f.S.ease(1),1);
 });
 test('owner final top plus and centered bottom burrow keep distinct actions',()=>{
  const css=fs.readFileSync('mouse/mouse-621.css','utf8'),ui=fs.readFileSync('mouse/desktops.js','utf8');assert.match(css,/#statusbar #desktops-button\{top:auto;bottom:0;width:36px;height:23px;min-width:36px;min-height:23px/);assert.match(css,/#statusbar\{position:relative;z-index:8;overflow:visible\}/);assert.match(css,/\.toolbar>#new-tab\{[^}]*width:28px;height:28px/);assert.match(css,/\.toolbar>#new-tab::before\{display:none!important\}/);assert.match(ui,/button.onclick=open/);assert.match(fs.readFileSync('mouse/browser.js','utf8'),/name==='new-tab'\)return openPage\('mouse:\/\/start'\)/);
 });
-test('250ms native acknowledgements cannot stretch the shared compositor timeline or add per-frame layout calls',async()=>{
+test('ordinary switching waits for one native acknowledgement without a fixed animation or per-frame layout calls',async()=>{
  for(const direction of [-1,1])for(const delay of [0,250]){
   const f=slideFixture(delay,{direction});await f.run();
-  assert.equal(f.events.filter(x=>x==='layout').length,2);assert.equal(f.S.last.layoutCalls,2);assert.equal(f.S.last.animationDurationMs,330);
-  assert.equal(f.S.last.totalDurationMs,330+2*delay);assert.equal(f.clock(),330+2*delay);
-  const start=f.events.indexOf('animate-start'),end=f.events.indexOf('animate-end');assert.deepEqual(f.events.slice(start+1,end),[],'there is no native IPC inside the animation interval');
+  assert.equal(f.events.filter(x=>x==='layout').length,1);assert.equal(f.S.last.layoutCalls,1);assert.equal(f.S.last.animationDurationMs,undefined);
+  assert.equal(f.S.last.totalDurationMs,delay);assert.equal(f.clock(),delay);assert.deepEqual(f.events,['change','layout']);
   assert.equal(f.w.style.transform,'');assert.equal(f.S.last.direction,direction);
  }
 });
-test('incoming desktop materialization finishes two setup frames before animation starts',async()=>{
+test('ordinary desktop selection waits for two actual presentation frames before releasing input',async()=>{
  const f=slideFixture(0,{manualFrames:true}),running=f.run();await f.flush();
- await f.paint();await f.paint();
- assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
- await f.paint();assert.ok(!f.events.includes('animate-start'),'the first incoming setup frame cannot start the animation');
- await f.paint();assert.ok(f.events.includes('animate-start'));
- await f.paint();await f.paint();await running;
- assert.equal(f.S.last.animationDurationMs,330);assert.equal(f.events.filter(x=>x==='layout').length,2);
+ assert.equal(f.model.desktopId,'new');assert.deepEqual(f.events,['change','layout']);assert.equal(f.w.inert,true);
+ await f.paint();assert.equal(f.w.inert,true,'One presentation frame is insufficient');await f.paint();await running;
+ assert.equal(f.S.last.presented,true);assert.equal(f.S.last.animated,false);assert.equal(f.events.filter(x=>x==='layout').length,1);assert.equal(f.w.inert,false);
  assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
 });
-for(const interruption of ['resize','timeout'])test('incoming desktop preparation '+interruption+' releases the hold without starting animation',async()=>{
- const f=slideFixture(0,{manualFrames:true}),running=f.run(),rejected=assert.rejects(running,/Изображение выбранного стола ещё не готово/);await f.flush();await f.paint();await f.paint();
- assert.ok(f.events.includes('decoded:incoming'));assert.ok(!f.events.includes('animate-start'));
- if(interruption==='resize'){f.listeners.get('resize')();await f.paint();await f.paint();}
- else{await f.elapse(1499);assert.ok(!f.events.includes('end'),'Bounded preparation waits for real painted frames instead of silently skipping the slide at120ms');await f.elapse(1);}
- assert.ok(!f.events.includes('animate-start'));assert.equal(f.events.filter(x=>x==='end').length,1);
- await f.paint();await f.paint();await rejected;
- assert.equal(f.events.filter(x=>x==='remove').length,1);assert.equal(f.events.filter(x=>x==='layout').length,2);
+test('a missing live presentation times out without creating surfaces and restores the input state',async()=>{
+ const f=slideFixture(0,{manualFrames:true}),running=f.run(),rejected=assert.rejects(running,/Не удалось отрисовать выбранный рабочий стол/);await f.flush();await f.paint();
+ await f.elapse(1483);assert.equal(f.w.inert,true);await f.elapse(1);await rejected;
+ assert.deepEqual(f.events,['change','layout']);assert.equal(f.S.last.phase,'failed');assert.equal(f.S.last.presented,false);assert.equal(f.S.last.snapshotCaptures,0);
  assert.equal(f.w.style.visibility,'');assert.equal(f.w.inert,false);assert.equal(f.model.desktopSliding,false);assert.equal(f.w.dataset.sliding,undefined);
  assert.equal(f.listeners.size,0);assert.equal(f.hasCleared(),false);assert.equal(f.pendingFrames(),0);assert.equal(f.pendingTimers(),0);
 });

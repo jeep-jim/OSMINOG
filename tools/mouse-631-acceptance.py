@@ -14,7 +14,7 @@ import sys
 import zlib
 from pathlib import Path
 
-VERSION = '6.0.35'
+VERSION = '6.0.36'
 IDENTITY_FIELDS = ('id', 'index', 'desk', 'webContentsId', 'url', 'navigationEpoch',
                    'identity', 'timeOrigin', 'field', 'scrollX', 'scrollY', 'cookie')
 
@@ -508,23 +508,21 @@ def verify_stress(read, facts):
                  and switch.get('to') == target and finite(switch.get('elapsedMs')) and 0 < switch['elapsedMs'] < 12000,
                  'real desktop switch exceeded its retained deadline or chose another desktop')
             slide = switch.get('slide', {})
-            need(slide.get('phase') == 'complete' and slide.get('animated') is True and slide.get('decoded') is True
-                 and finite(slide.get('totalDurationMs')) and 0 < slide['totalDurationMs'] < 12000, 'native desktop transition did not complete')
+            need(slide.get('strategy') == 'live' and slide.get('phase') == 'complete'
+                 and slide.get('presented') is True and slide.get('animated') is False
+                 and slide.get('decoded') is False and slide.get('borrowedHold') is False
+                 and slide.get('snapshotCaptures') == 0 and slide.get('layoutCalls') == 1,
+                 'ordinary636 switch did not present live native pages without a snapshot pipeline')
+            need(all(finite(slide.get(key)) for key in ('startedAt', 'selectedAt', 'layoutAt', 'totalDurationMs'))
+                 and 0 <= slide['startedAt'] <= slide['selectedAt'] <= slide['layoutAt']
+                 and 0 < slide['totalDurationMs'] < 12000
+                 and slide['layoutAt'] - slide['startedAt'] <= slide['totalDurationMs'],
+                 'ordinary636 switch timestamps are incomplete or unordered')
             visible = [page for page in before if page['desk'] == target and page['index'] < 20]
             need(switch.get('visiblePageIds') == [page['id'] for page in visible], 'switch does not present all four owning pages')
-            calls = switch.get('surfaceCalls')
-            need(isinstance(calls, list) and len(calls) == 2, 'outgoing and incoming surface preparation must be measured separately')
-            for call, desk in zip(calls, (desks[(number - 1) % 5], target)):
-                capture = call.get('diagnostics', {}).get('lastCapture', {})
-                need(call.get('error') is None and capture.get('complete') is True and capture.get('paintProof') is False,
-                     'ordinary desktop slide changed the real capture gate or performed unnecessary pixel proof')
-                need(len(capture.get('pages', [])) == 4 and all(page.get('bitmapReadouts') == 0 for page in capture['pages']), 'normal switch bitmap readback work was not eliminated')
-                owners = {page['id']: page for page in before if page['desk'] == desk and page['index'] < 20}
-                need(set(capture.get('requestedIds', [])) == set(owners) and {page.get('id') for page in capture['pages']} == set(owners), 'surface preparation belongs to another desktop')
-                for page in capture['pages']:
-                    need(page.get('webContentsId') == owners[page['id']]['webContentsId']
-                         and all(finite(page.get(key)) and page[key] >= 0 for key in ('queueMs', 'captureMs', 'pngMs', 'base64Ms', 'previewMs')),
-                         'actual outgoing/incoming native capture and encoding timings are missing')
+            need(switch.get('surfaceCalls') == [] and type(switch.get('counts', {}).get('capturePage')) is int
+                 and switch['counts']['capturePage'] == 0,
+                 'ordinary636 switch captured or encoded native page snapshots')
             verify_switch_progress(switch, total, streams, visible)
             probes += verify_capture(read, switch.get('capture'), f'mouse-631-stress-{total}-switch-{number}.png', visible,
                                      shell=total == 20, shell_count=1)

@@ -7,7 +7,6 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  test:process.argv.includes('--mouse-test'),
  contextMenu:args=>ipcRenderer.invoke('mouse:context-menu',args),onContextAction:cb=>on('mouse:context-action',cb),
  settings:(action,args)=>ipcRenderer.invoke('mouse:settings',action,args),onSettings:cb=>on('mouse:settings-state',cb),
- search:(action,args)=>ipcRenderer.invoke('mouse:tile-search',action,args),onSearch:cb=>on('mouse:search-state',cb),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
  agent:(action,args)=>ipcRenderer.invoke('mouse:agent',action,args),onAgent:cb=>on('mouse:agent-state',cb),onTerminal:cb=>on('mouse:terminal-data',cb),onAgentOpen:cb=>on('mouse:agent-open',cb),
  documents:(action,args)=>ipcRenderer.invoke('mouse:documents',action,args),onDocuments:cb=>on('mouse:documents-state',cb),

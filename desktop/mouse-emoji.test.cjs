@@ -44,7 +44,7 @@ test('fixed actions, bounded target and trusted sender are required',()=>{
 test('smiley is before history in existing footer group; pages receive no emoji bridge',()=>{
  const html=fs.readFileSync('mouse/index.html','utf8'),preload=fs.readFileSync('mouse-preload.cjs','utf8');
  assert.equal((html.match(/id="emoji-button"/g)||[]).length,1);
- assert.match(html,/id="footer-library"[^>]*><button id="mouse-search-button"[^>]*>[\s\S]*?<\/button><button id="emoji-button"/);
+ assert.match(html,/id="footer-library"[^>]*><button id="emoji-button"/);
  assert.match(html,/id="emoji-button"[^>]*type="button"[^>]*aria-label="Эмодзи и символы"/);
  assert.match(html,/<script src="emoji.js"><\/script>/);
  assert.match(preload,/emoji:\(action,target\)=>ipcRenderer.invoke\('mouse:emoji',action,target\)/);

@@ -9,22 +9,23 @@
  const bar=document.querySelector('.toolbar'),strip=document.querySelector('#tabstrip');if(!bar||!strip)return;
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),path=document.createElementNS(ns,'path');
  svg.classList.add('mouse-tab-flow');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');svg.append(path);bar.prepend(svg);
- let frame=0,stopped=false,observed=null;
+ let frame=0,stopped=false,observed=null,signature='';
  const resize=new ResizeObserver(schedule);
  function draw(){
   if(stopped)return;
   const active=strip.querySelector('.tab-item.active');
   if(active!==observed){if(observed)resize.unobserve(observed);observed=active;if(observed)resize.observe(observed);}
   const b=bar.getBoundingClientRect(),a=active?.getBoundingClientRect(),s=a&&shape(a.width,b.bottom-a.top);
-  if(!s||!active.getClientRects().length){svg.style.display='none';delete bar.dataset.tabFlow;return;}
+  if(!s||!active.getClientRects().length){if(signature!=='hidden'){signature='hidden';svg.style.display='none';delete bar.dataset.tabFlow;}return;}
+  const next=[active.dataset.tab,a.left-b.left,a.top-b.top,s.width,s.height,s.path].join('|');if(next===signature)return;signature=next;
   svg.style.display='block';svg.style.left=(a.left-b.left-s.radius)+'px';svg.style.top=(a.top-b.top)+'px';svg.style.width=s.width+'px';svg.style.height=s.height+'px';
   svg.setAttribute('viewBox',`0 0 ${s.width} ${s.height}`);path.setAttribute('d',s.path);svg.dataset.tab=active.dataset.tab;bar.dataset.tabFlow='true';
  }
  function schedule(){
   if(stopped)return;
-  // Update immediately for class/scroll changes and again after the existing
-  // tab fitter's animation-frame layout. Decoration never changes tab widths.
-  draw();if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{frame=0;draw();});
+  // Metadata and tab fitting can deliver many mutations in one turn. Read
+  // layout once per frame, and never force it from a MutationObserver callback.
+  if(frame)return;frame=requestAnimationFrame(()=>{frame=0;draw();});
  }
  const mutations=new MutationObserver(schedule);mutations.observe(strip,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','hidden','data-density']});
  resize.observe(bar);resize.observe(strip);strip.addEventListener('scroll',schedule,{passive:true});

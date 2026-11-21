@@ -16,6 +16,27 @@ test('malformed layouts are sanitized and missing desks padded, plus selects a v
  const b=new DesktopBank({schema:1,items:[{id:'bad/../id',layout:{}},{id:'good',name:'Keep',layout:{tree:{evil:true}}}],active:'good'});assert.equal(b.items.length,MAX_DESKS);assert.deepEqual(b.current().layout.tree,L.preset(1));const ids=b.items.map(d=>d.id);for(let i=0;i<20;i++)assert.ok(ids.includes(b.add([])));assert.deepEqual(b.items.map(d=>d.id),ids);const tabs=ids.map((desk,i)=>{const id='tab-'+i;b.assign(id,desk);return{id};});assert.throws(()=>b.add(tabs),/пять столов заняты/);assert.equal(b.items[0].name,'Keep');
 });
 function fixture(){let seq=0;const handlers=new Map(),saved={},layouts=[],win={isDestroyed:()=>false,webContents:{send(){}}};const b={tabs:new Map(),providers:new Map(),state(){return{tabs:[...this.tabs.values()].map(t=>({id:t.id,title:t.title,lane:t.lane,internal:!!t.internal,url:t.url||'',...(t.previewOf?{previewOf:t.previewOf}:{})}))}},make(){const id='p'+(++seq),t={id,title:'Page',lane:'main',view:{webContents:{}}};this.tabs.set(id,t);return t},save:async()=>{},layout:p=>layouts.push(p),dispose(){this.disposed=true},emit(){return this.state()},command:async function(action,args){if(action==='open'){const t=this.make();this.emit();return{id:t.id}}if(action==='state')return this.state();if(action==='layout')return this.layout(args.panels);if(action==='close'){this.tabs.delete(args.id);return this.state()}return true}};return{b,saved,layouts,handlers,win,store:{get:async()=>saved,set:async v=>Object.assign(saved,structuredClone(v))},ipcMain:{handle:(n,h)=>handlers.set(n,h)}};}
+test('live switches do not wait for thumbnails or disk and flush commits the latest complete bank',async()=>{
+ const f=fixture(),page=f.b.make(),service=await install({...f,browser:f.b,trusted:()=>{}}),pending=[],writes=[];
+ service.previews.capture=()=>{throw Error('Switch must not capture');};
+ f.store.set=value=>new Promise(resolve=>{writes.push(structuredClone(value));pending.push(()=>{Object.assign(f.saved,structuredClone(value));resolve();});});
+ const call=id=>f.handlers.get('mouse:desktops')({},'switch',{id,from:service.bank.active,preferences:service.preferences()});
+ await call('desk-1');await call('desk-2');await call('desk-4');
+ assert.equal(service.bank.active,'desk-4');assert.equal(f.b.tabs.get(page.id),page);assert.equal(writes.length,1,'The first disk write has not finished');
+ let flushed=false;const flush=service.flush().then(()=>{flushed=true;});await Promise.resolve();assert.equal(flushed,false);
+ pending.shift()();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(writes.length,2,'Intermediate pending desk snapshots are coalesced');assert.equal(writes[1].mouseDesktopsV1.active,'desk-4');
+ pending.shift()();await flush;assert.equal(flushed,true);assert.equal(f.saved.mouseDesktopsV1.active,'desk-4');assert.equal(f.saved.mouseDesktopsV1.members[page.id],'desk-3');
+ f.b.dispose();
+});
+test('deferred persistence failure is reported and the next switch can durably recover',async()=>{
+ const f=fixture(),errors=[];f.win.webContents.send=(channel,message)=>errors.push({channel,message});
+ const service=await install({...f,browser:f.b,trusted:()=>{}});const saved=f.store.set;
+ f.store.set=async()=>{throw Error('Disk unavailable');};
+ await f.handlers.get('mouse:desktops')({},'switch',{id:'desk-1'});await assert.rejects(()=>service.flush(),/Disk unavailable/);
+ assert.ok(errors.some(e=>e.channel==='browser:error'&&e.message==='Disk unavailable'));
+ f.store.set=saved;await f.handlers.get('mouse:desktops')({},'switch',{id:'desk-2'});await service.flush();assert.equal(f.saved.mouseDesktopsV1.active,'desk-2');f.b.dispose();
+});
 test('host switch preserves page objects, handles popups on source desk and denies hidden actions',async()=>{
  const f=fixture();f.b.make();const service=await install({...f,browser:f.b,trusted:()=>{}}),call=(a,v)=>f.handlers.get('mouse:desktops')({},a,v);const original=f.b.tabs.get('p1');await call('switch',{id:'desk-1',from:'desk-3',preferences:service.preferences()});const second=await f.b.command('open',{});assert.deepEqual(f.b.state().tabs.map(t=>t.id),[second.id]);assert.equal(f.b.tabs.get('p1'),original);await assert.rejects(()=>f.b.command('close',{id:'p1'}),/другому/);f.b.mouseOpenFrom(original,'https://example.test');await new Promise(r=>setImmediate(r));assert.equal(service.bank.members.p3,'desk-3');assert.deepEqual(f.b.state().tabs.map(t=>t.id),[second.id]);await call('switch',{id:'desk-3',from:'desk-1',preferences:service.preferences()});assert.equal(f.b.state().tabs.length,2);assert.equal(f.b.tabs.get('p1'),original);await assert.rejects(()=>call('switch',{id:'desk-2',from:'desk-1'}),/уже изменился/);await service.flush();assert.equal(f.saved.mouseDesktopsV1.active,'desk-3');
 });

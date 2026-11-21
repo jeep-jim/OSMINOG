@@ -24,7 +24,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.35"
+VERSION = "6.0.36"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -535,7 +535,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_635_WINDOWS_REAL_629_TO_635_PROFILE_PASS", flush=True)
+    print("MOUSE_636_WINDOWS_REAL_629_TO_636_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -592,33 +592,31 @@ def main(argv=None) -> int:
         # NSIS has one registered installation per appId. Finish the old/new
         # upgrade first, then install the primary test target; never keep two
         # registered Mouse installations or launch an uninstalled old path.
+        baseline = run_logged([sys.executable, str(Path(__file__).with_name("mouse-636-baseline-performance.py")), "--output", str(output)], env,
+                              output / "mouse-636-baseline-performance.log", 900)
+        verify_markers(baseline.pop("output"), ["MOUSE_636_BASELINE_PERFORMANCE_PASS"])
+        baseline["requiredMarkers"] = ["MOUSE_636_BASELINE_PERFORMANCE_PASS"]
+        baseline["reportSha256"] = sha256(output / "mouse-636-baseline-performance.json")
+        evidence["checks"]["baselinePerformance"] = baseline
+        save()
         evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
         save()
-        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-635-upgrade.py")), str(installer)], env,
-                           output / "mouse-635-upgrade.log", 480)
-        verify_markers(fresh.pop("output"), ["MOUSE_635_REAL_634_TO_635_PROFILE_PASS"])
-        fresh["requiredMarkers"] = ["MOUSE_635_REAL_634_TO_635_PROFILE_PASS"]
-        fresh["reportSha256"] = sha256(output / "mouse-635-upgrade.json")
+        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-636-upgrade.py")), str(installer)], env,
+                           output / "mouse-636-upgrade.log", 480)
+        verify_markers(fresh.pop("output"), ["MOUSE_636_REAL_634_TO_636_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_636_REAL_634_TO_636_PROFILE_PASS"]
+        fresh["reportSha256"] = sha256(output / "mouse-636-upgrade.json")
         evidence["checks"]["freshUpgrade"] = fresh
         save()
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
         executable = target / "Mouse Browser.exe"
-        owner634_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse634 pane feedback")}
-        owner634 = run_logged([str(executable), "--mouse-634-smoke"], owner634_env,
-                              output / "mouse-634-owner-feedback.log", 270)
-        verify_markers(owner634.pop("output"), ["MOUSE_634_OWNER_FEEDBACK_PASS"])
-        owner634["requiredMarkers"] = ["MOUSE_634_OWNER_FEEDBACK_PASS"]
-        owner634["reportSha256"] = sha256(output / "mouse-634-owner-feedback.json")
-        evidence["checks"]["ownerFeedback634"] = owner634
-        save()
-        owner635_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse635 search and files")}
-        owner635 = run_logged([str(executable), "--mouse-635-smoke"], owner635_env,
-                              output / "mouse-635-owner-feedback.log", 270)
-        required635 = ["MOUSE_635_PUBLIC_SEARCH_CONTRACT_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_AGENT_CHAT_PASS", "MOUSE_635_PINNED_PANES_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
-        verify_markers(owner635.pop("output"), required635)
-        owner635["requiredMarkers"] = required635
-        owner635["reportSha256"] = sha256(output / "mouse-635-owner-feedback.json")
-        evidence["checks"]["ownerFeedback635"] = owner635
+        retained636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 retained pane feedback")}
+        retained636 = run_logged([str(executable), "--mouse-636-retained-smoke"], retained636_env,
+                              output / "mouse-636-retained-owner-feedback.log", 270)
+        verify_markers(retained636.pop("output"), ["MOUSE_636_RETAINED_OWNER_FEEDBACK_PASS"])
+        retained636["requiredMarkers"] = ["MOUSE_636_RETAINED_OWNER_FEEDBACK_PASS"]
+        retained636["reportSha256"] = sha256(output / "mouse-636-retained-owner-feedback.json")
+        evidence["checks"]["ownerRetained636"] = retained636
         save()
         owner_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse633 owner feedback")}
         owner = run_logged([str(executable), "--mouse-633-smoke"], owner_env,
@@ -641,6 +639,15 @@ def main(argv=None) -> int:
         regression["stressSha256"] = sha256(output / "mouse-631-stress.json")
         regression["mediaSha256"] = sha256(output / "mouse-632-media.json")
         evidence["checks"]["taskAndFiftyTabs"] = regression
+        save()
+        owner636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 inline Agent and desktop performance")}
+        owner636 = run_logged([str(executable), "--mouse-636-smoke"], owner636_env,
+                              output / "mouse-636-owner-feedback.log", 270)
+        required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_636_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
+        verify_markers(owner636.pop("output"), required636)
+        owner636["requiredMarkers"] = required636
+        owner636["reportSha256"] = sha256(output / "mouse-636-owner-feedback.json")
+        evidence["checks"]["ownerFeedback636"] = owner636
         save()
         for mode, markers in (("write", WRITE_MARKERS), ("read", READ_MARKERS)):
             if mode == "read":

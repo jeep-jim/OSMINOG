@@ -194,7 +194,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  }
  tray.addEventListener('cancel',e=>{e.preventDefault();if(peekId)closePeek();else void close();});
  tray.addEventListener('close',()=>{if(tray.open||opening)return;epoch++;finishClose();});
- async function choose(id,add=false){try{if(!await close())return;await switchDesktop(id,add);render(m.state.desktops);}catch(error){status(error.message)}}
+ async function choose(id,add=false){try{if(!await close({immediate:true}))return;await switchDesktop(id,add);render(m.state.desktops);}catch(error){status(error.message)}}
  function render(next){
   if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&!m.agentOpen?[m.aiId,m.aiPreviewId].filter(id=>tabs.some(t=>t.id===id)):[])]);return{...d,tree:m.tree,slots:m.slots,agentOpen:m.agentOpen,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');history.render(state);if(tray.hidden)return;
   setText(tray.querySelector('.desk-current-name'),state.items.find(d=>d.active)?.name||'');const list=tray.querySelector('.desktop-list'),existing=new Map([...list.children].map(e=>[e.dataset.desk,e])),wanted=new Set();

@@ -33,7 +33,7 @@ function validateFixtureControls(geometry,bounds,points,factor){
 }
 module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- assert.equal(app.getVersion(),'6.0.35');assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
+ assert.equal(app.getVersion(),'6.0.36');assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),bounds=win.getBounds(),fullscreen=win.isFullScreen();
  const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],nora:[],workspace633:{schema:1,gap:6,radius:12,aiScenes:[]},restored:false};
  const pages=[],extraPages=[];let server,verificationError,cleanupError;
