@@ -101,3 +101,50 @@ Source public-search smoke теперь сравнивает OS pixels с дву
 ### Уточнение подписи отзыва прав
 
 Финальный UI review нашёл устаревшее название «Стоп» в подсказке локальных прав. Текст теперь указывает существующую кнопку «Отключить доступы» в разделе «Работа с браузером» и отдельно объясняет остановку текущего ответа. Поведение разрешений и обеих команд не меняется; syntax и diff checks PASS. На момент этой правки Mac8e027 run44892693561 ещё выполняет installed gate. Следующий точный source с исправленной подписью проходит собственный полный CI; промежуточный пакет8e027 не предназначен для публикации.
+
+## Actual8e027: source/tiles paint подтверждён; поздний restart gate остановлен
+
+[Run44892693561, attempt1](https://github.com/jeep-jim/OSMINOG/actions/runs/44892693561), source `8e0274a4d963b94a03daa42141f24f4b5dd1f6ba`, job `136811724836`, прошёл новый owner635 с настоящим source/tiles paint и исправленный legacy OS layout menu. Verification artifact `14702268888`:51,573,203 bytes,584 файла, SHA-256 `7afc5a7f8b49b1cebca6a78aa3ad490a7c94f5a06237b0a47aa26378343d43ab`. ZIP скачан и проверен. Независимые current owner635 и retained634 validators из Release f4db PASS на фактических ZIP bytes.
+
+Ручной просмотр PNG и full-display кадров подтвердил настоящий Bing с точным запросом «новости про антропик», затем реальные страницы Meduza и AI Wave в первых двух плитках. Это те же первые два URL из organic DOM receipt. У обеих страниц loading=false/error пуст. Bing capture показывает верхний AI Overview; органический список расположен ниже, поэтому его порядок проверен DOM receipt, а не сравнением видимой части source PNG. В первой плитке видны собственные реклама и cookie banner Meduza; её статья ниже. Контент внешних страниц здесь служит свидетельством отображения, а не проверкой правдивости публикаций.
+
+Source paint принят на14-й попытке за4096.18ms, с13 сохранёнными rejected frames; tiles — на1-й за489.27ms. Owner ledger:30 actual/17 canonical OS frames. Actual replies для двух запросов заняли2225.49ms и918.13ms (`completedAt − startedAt`); каждый вернул10 тематических результатов. Эти значения не включают последующую визуальную приёмку.
+
+Partial audit SHA-256 `ca082c20a7db3e3ca8b30dd65206a8f9c66dbf15ac47ddbda5ec206ed9b2cf4a`; owner635 SHA `1a4cf69836d0c286498bda166934b5bb2cd5b6b194e0a9a6ab0890e917bd2b5a`; retained634 SHA `32d557136f538314955a707aa8cfc06a197bf5960fc689f79cada6f516d83f90`.
+
+Общий job завершился позднее ошибкой `Mouse628 motion timeout: restarted Nora opens` в `--mouse-smoke-read`. Перед ним library/start/profile-cookie restart markers PASS. Диагностика `mouse-630-nora-restart-diagnostics.json` показывает: open() вызван напрямую, подготовка backdrop началась и отказала по существующему2500ms deadline; все4 native capturePage завершились лишь через2789.7–2838.4ms, completedIds пуст. Сохранились error WebContents старых завершённых loopback серверов и окно `{x:0,y:-31,width:1440,height:960}` на дисплее1024×768. Данные подтверждают позднее завершение capture, но не доказывают, что его причиной был именно выход окна за экран. К перенесённым кнопкам этот отказ не относится.
+
+Кандидат8e027 не пригоден для публикации: общий run failed, candidate artifact отсутствует. Параллельный9feabe с последним уточнением текста продолжает свой installed gate; после любого следующего source amendment необходим новый точный Mac run.
+
+## Финальный source9feabe: полный installed и независимый audit PASS
+
+[Mac run44893434036, attempt1](https://github.com/jeep-jim/OSMINOG/actions/runs/44893434036), job `136813950935`, source `9feabe59aaad4ebbfd01733a0e59c3127f7b3842`, завершён SUCCESS. Весь installed gate, перезапуск Nora и фактическое обновление634→635 прошли. Прежний8e027 capture timeout в этом запуске не повторился; причина различия не объявляется доказанной. Подготовленный отдельно test-only Nora fit proposal (36/36 focused PASS) не включён в source9feabe и проверенные пакеты.
+
+Candidate artifact `14703078902`:279,179,273 bytes, SHA-256 `fe704e36850eeb6688cb979603ca4e3ed76c99281a9767dc0321f880fe2a5d8b`. Verification artifact `14703063968`:53,208,217 bytes,620 файлов, SHA-256 `b96bd832a64a51d039dfa2227525940490aa90016a2aed3b37f612918dfb90d6`. Оба архива скачаны и сверены с API metadata, source/run/attempt/job и временем создания artifacts.
+
+Полный независимый audit текущими Release validators: source-evidence, task-stress, feedback, motion-trace и owner635 — все PASS. Summary SHA-256 `2c54c087b9ba2b84e73dea52e4beaf0035f1fcce5e877bff7519af0b099643b7`; candidate audit SHA `694c265612527641b4ec8247b2e565c53061a763374100ca8eef1f71a2e5db8f`. Финальные реальные PNG отдельно просмотрены: Bing, первые Meduza→AI Wave tiles, Agent dark400/light400/dark300, settings, layout и pin. Визуальных блокеров не выявлено. Порядок organic выдачи подтверждает raw DOM; видимый source capture находится на AI Overview. Внешний model server пользователя не проверялся: Agent acceptance использует явно обозначенный HTTP/SSE fixture.
+
+Точные готовые пакеты:
+
+| Файл | Байты | SHA-256 |
+|---|---:|---|
+| Mouse-Browser-6.0.35-mac-arm64.dmg | 139418049 | 573ccf17e87e7bbcc872e31c96c07e3b0534e68bad903a36d2d1adab9a067a39 |
+| Mouse-Browser-6.0.35-mac-arm64.zip | 141786985 | a8dc39b92264334fa611672a9254fcc6468e09d280fc82437033d7a9cac41909 |
+
+[Source PR187](https://github.com/jeep-jim/OSMINOG/pull/187) объединён merge `17ba263c6b34c0ba83b422ddda743af95a7ff159`. GitHub API и git ancestry подтвердили сохранение проверенного head; дерево source/merge одинаково `339edfbed00b3ee48c80bc94701510699a9e388c`.
+
+Mac pin заполнен механически из actual audit; previous6.0.29 оставлен неизменным. Только Mac PUBLISH_OWNER создан. Ready-state Release union491/491 PASS, plans Mac/Windows/Linux =true/false/false. Все5 CI workflows exact Release head `27905032e0410237408bc0b0f2b4863019cdb583` SUCCESS; три contract jobs PASS, все publisher jobs на PR SKIPPED.
+
+[Release PR63](https://github.com/jeep-jim/OSMINOG-Releases/pull/63) объединён merge `dcae0cfb16d6c1423201ce8d19d4c340bd14f8fc`. [Mac publisher44895271630](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44895271630) запущен для обязательного fresh installed gate на тех же байтах. В этой записи публикация и канал ещё ожидаются; окончательный результат добавляется ниже после фактической проверки.
+
+## Fresh publisher9feabe: системная тень на краю проверочного окна
+
+[Publisher44895271630, attempt1](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44895271630), job `136819981106`, импортировал точные проверенные пакеты, но остановился в свежем installed owner635 на public-search paint. Publish, channel и anonymous updater steps SKIPPED; этот запуск не опубликовал6.0.35. Verification artifact `14704320550`:20,958,100 bytes,173 файла, SHA-256 `4d19c99dc989e96d2bb772170a89456b1a17db68483032228fac44f9fcaea9ea`; архив скачан и проверен.
+
+Actual source Bing уже присутствует на OS frame. На11 complete comparisons rejected только437 background samples из39,606 stable: `(39606−437)/39606 = 98.89663%`, ниже неизменного99%. Все2,189 informative pixels совпали. Отличия расположены только в двух нижних sample rows y652/656: белый reference255 становится OS gray248–251. На полном кадре Dock и его верхняя тень примыкают к этой полосе. Content bounds `{x:4,y:29,width:1016,height:676}` заканчиваются на705 при workArea bottom709; source identity, navigation epoch, foreground и geometry неизменны. Связь полосы с отдельным WindowServer layer не записана, поэтому фактический pixel mismatch отделён от визуального объяснения его источника.
+
+Последняя12-я попытка исчерпала общий4500ms на after-reference capture после11 одинаковых отказов. Это не доказательство медленного поиска или отсутствия отображённой страницы. Плиточная фаза в этом свежем запуске ещё не достигнута. Предыдущий source9feabe полный PASS сохранён в истории, но не заменяет свежую приёмку издателя. Diagnosis JSON SHA-256 `b1e77750ad8bbe680a857dd963f84a3a40130087dc41487d0c93870eb54d2ad7`.
+
+Подготовлено узкое test-only размещение окна public-search выше системного Dock существующим `focusedProbeBounds` с32DIP clearance. Проверка требует реальные native/content/renderer размеры и восстановление исходных bounds в finally. Production search, pixel matcher,99%/95% thresholds,4500ms/15000ms budgets и сохранение всех rejected кадров остаются прежними. Изменённый исходник должен пройти новый полный Mac CI и fresh publisher; повтор старого failed job не используется как исправление.
+
+Focused regression suite для нового размещения и прежнего focused chrome:40/40 PASS. Для исходной геометрии window `{x:4,y:29,width:1016,height:676}` меняется только height до648; lower edge677 равен workArea.bottom709−32. Сохраняются before/requested/fitted/restored geometry и фактический renderer viewport. Проверены точное восстановление, отказ при stale viewport, обработка ошибки fit и неизменная геометрия других платформ. Новый установленный прогон ещё требуется. После failed publisher отдельно подтверждены404 для release/tag635 и побайтно неизменные три feed6.0.34; audit SHA-256 `9be11175f75d0508c5c88dd4996aca507c6a96a90885730855db3cf0feb0de66`.

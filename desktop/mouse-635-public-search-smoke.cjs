@@ -6,6 +6,7 @@ const {createHash}=require('node:crypto');
 const {bounded}=require('./mouse-lifecycle.cjs');
 const {checkedURL,publicSearchError}=require('./mouse-search-service.cjs');
 const {snapshotScript,WORLD_ID}=require('./mouse-search-native-dom.cjs');
+const {focusedProbeBounds,DOCK_CLEARANCE}=require('./mouse-634-focused-chrome-smoke.cjs');
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const CONTRACT='selected-engine-native-serp-v1';
 const CONTRACT_MARKER='MOUSE_635_PUBLIC_SEARCH_CONTRACT_PASS';
@@ -213,6 +214,37 @@ function observeNativeNavigation(app){
  app.on('web-contents-created',watch);
  return{get:id=>structuredClone(rows.get(id)||[]),dispose(){app.removeListener('web-contents-created',watch);for(const [wc,name,listener]of bindings)if(!wc.isDestroyed())wc.removeListener(name,listener);}};
 }
+function createPublicSearchProbeWindow({win,fixture,screen,record,platform=process.platform}){
+ const originalBounds=win.getBounds(),originalContent=win.getContentBounds(),same=(a,b)=>['x','y','width','height'].every(key=>a[key]===b[key]);let adjusted=false;
+ const read=async()=>{const viewport=await fixture.js('({width:innerWidth,height:innerHeight})');return{window:win.getBounds(),content:win.getContentBounds(),viewport};};
+ const settled=async(expected,key,label)=>{
+  const matches=state=>same(state.window,expected)&&state.viewport.width===state.content.width&&state.viewport.height===state.content.height;
+  await fixture.until(async()=>{record[key]=await read();return matches(record[key]);},label);await fixture.frame();record[key]=await read();
+  assert.ok(matches(record[key]),'Measured public-search window and renderer geometry stay settled');return record[key];
+ };
+ record.before={window:originalBounds,content:originalContent};record.restored=false;
+ return{
+  async fit(){
+   try{
+    record.before=await read();assert.deepEqual(record.before.window,originalBounds);
+    const display=screen.getDisplayMatching(originalBounds),minimumSize=win.getMinimumSize();
+    record.display={id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor};record.minimumSize=minimumSize;
+    record.minimumBottomClearance=platform==='darwin'?DOCK_CLEARANCE:0;
+    record.requestedBounds=focusedProbeBounds(originalBounds,display.workArea,minimumSize,platform);adjusted=!same(record.requestedBounds,originalBounds);record.adjusted=adjusted;
+    // The native Dock shadow is outside WebContents pixels. Place the whole
+    // temporary proof window above it before any source or tile is opened.
+    if(adjusted)win.setBounds(record.requestedBounds);
+    await settled(record.requestedBounds,'fitted','635 public-search native window and renderer settle');
+   }catch(error){record.fitError=error.message;throw error;}
+  },
+  async restore(){
+   try{
+    if(adjusted)win.setBounds(originalBounds);
+    const state=await settled(originalBounds,'after','635 public-search original window and renderer restored');assert.deepEqual(state.content,originalContent);record.restored=true;
+   }catch(error){record.restoreError=error.message;throw error;}
+  },
+ };
+}
 async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  const {app,win,browser,tileSearch}=ctx,started=performance.now(),file='mouse-635-public-search.json',observed=[],receipts=[],writes=[],writeErrors=[];
  const source=tileSearch.nativeSource||tileSearch.service.nativeSource,originalHandle=tileSearch.handle;
@@ -224,7 +256,7 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  const ui=()=>fixture.js('('+readSearchUI.toString()+')()');
  const nativeClick=async(selector,options)=>{const input=await click(selector,options);facts.inputs.push(input);return input;};
  const navigation=observeNativeNavigation(app);
- let unsubscribe,error,preference;
+ let unsubscribe,error,preference,probeWindow;
  async function flush(){await bounded(Promise.all(writes),5000,'635 actual DOM receipt writes');if(writeErrors.length)throw Error(writeErrors.join('; '));}
  async function selectEngine(engine){
   const before=await ui();assert.deepEqual(before.engineOptions.map(row=>row.value),Object.keys(ENGINES));assert.ok(!before.engineDisabled&&before.engineReady==='true');
@@ -396,6 +428,7 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  }
  try{
   assert.equal(facts.profileIsolated,true);assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.35');assert.ok(source&&typeof source.observeSearch==='function');
+  probeWindow=createPublicSearchProbeWindow({win,fixture,screen:require('electron').screen,record:facts.probeWindow={}});await probeWindow.fit();
   preference=await fixture.js('MouseNative.start("get").then(value=>value.search)');assert.equal(preference.private,false);
   tileSearch.handle=function(action,args={}){
    if(action!=='query')return originalHandle.call(this,action,args);
@@ -428,6 +461,7 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
    const restored=await fixture.js('MouseNative.start("get").then(value=>value.search)');assert.equal(restored.engine,preference.engine);assert.equal(restored.private,false);
    facts.preferenceRestored={engine:restored.engine,private:restored.private,exact:true};
   }catch(failure){facts.cleanupErrors.push(failure.message);}
+  if(probeWindow)try{await probeWindow.restore();}catch(failure){facts.cleanupErrors.push(failure.message);}
   try{await flush();}catch(failure){facts.cleanupErrors.push(failure.message);}
   facts.elapsedMs=Math.round(performance.now()-started);if(facts.cleanupErrors.length)facts.ok=false;
   try{await save();}catch(failure){error||=failure;}
@@ -436,4 +470,4 @@ async function runPublicSearchSmoke(ctx,{fixture,click,screenCapture}={}){
  console.log(CONTRACT_MARKER);console.log(facts.liveTopicalCapabilityVerified?LIVE_MARKER:UNVERIFIED_MARKER);
  return{...facts,reportFile:file,reportSha256:sha(await fs.readFile(file))};
 }
-module.exports=Object.assign(runPublicSearchSmoke,{validateReceipt,validateNativeReply,destination,sourceURL,signature,displayDomain,readSearchUI,readEngineMenu,validateEngineMenu,guestPaintMatch,acquireGuestPaint,pageReady,observeNativeNavigation,PAINT_POLICY,PAINT_BUDGET_MS,PAINT_MAX_FRAMES,TILE_READY_BUDGET_MS,CONTRACT,CONTRACT_MARKER,LIVE_MARKER,UNVERIFIED_MARKER,CAPTURES,CASES,ENGINES,QUERY_BUDGET_MS});
+module.exports=Object.assign(runPublicSearchSmoke,{validateReceipt,validateNativeReply,destination,sourceURL,signature,displayDomain,readSearchUI,readEngineMenu,validateEngineMenu,guestPaintMatch,acquireGuestPaint,pageReady,observeNativeNavigation,createPublicSearchProbeWindow,PAINT_POLICY,PAINT_BUDGET_MS,PAINT_MAX_FRAMES,TILE_READY_BUDGET_MS,CONTRACT,CONTRACT_MARKER,LIVE_MARKER,UNVERIFIED_MARKER,CAPTURES,CASES,ENGINES,QUERY_BUDGET_MS});

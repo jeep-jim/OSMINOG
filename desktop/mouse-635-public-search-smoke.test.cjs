@@ -179,4 +179,38 @@ test('native navigation observations precede guest loads and never synthesize a 
  app.emit('web-contents-created',{},wc);wc.emit('did-start-navigation',{},'https://example.org/',false,true);wc.emit('did-start-navigation',{},'https://ads.example/',false,false);wc.emit('did-redirect-navigation',{},'https://example.org/final',false,true);wc.emit('did-navigate',{},'https://example.org/final');wc.emit('dom-ready');
  assert.deepEqual(observer.get(81).map(row=>[row.event,row.url]),[['start','https://example.org/'],['redirect','https://example.org/final'],['commit','https://example.org/final'],['dom-ready','https://example.org/final']]);observer.dispose();assert.equal(app.listenerCount('web-contents-created'),0);assert.equal(wc.listenerCount('did-navigate'),0);
 });
+function probeWindowHarness({platform='darwin',height=676,staleFit=false,ignoreRestore=false}={}){
+ const original={x:4,y:29,width:1016,height},workArea={x:0,y:25,width:1024,height:684},record={},changes=[],waits=[];
+ let bounds={...original},viewport={width:original.width,height:original.height},pendingReads=0,reads=0,frames=0;
+ const win={getBounds:()=>({...bounds}),getContentBounds:()=>({...bounds}),getMinimumSize:()=>[800,600],setBounds(value){changes.push({...value});if(ignoreRestore&&changes.length===2)return;bounds={...value};pendingReads=1;}};
+ const fixture={
+  async js(){reads++;if(pendingReads>0){pendingReads--;return{...viewport};}if(!staleFit||bounds.height===original.height)viewport={width:bounds.width,height:bounds.height};return{...viewport};},
+  async until(check,label){let count=0;for(;count<6;count++)if(await check()){waits.push({label,checks:count+1});return;}throw Error('Unsettled '+label);},
+  async frame(){frames++;},
+ };
+ const probe=C.createPublicSearchProbeWindow({win,fixture,platform,record,screen:{getDisplayMatching:()=>({id:1,bounds:{x:0,y:0,width:1024,height:768},workArea,scaleFactor:1})}});
+ return{probe,record,changes,waits,original,workArea,win,get reads(){return reads;},get frames(){return frames;}};
+}
+test('public source proof clears the actual macOS Dock-shadow geometry before querying and waits for the renderer resize',async()=>{
+ const h=probeWindowHarness();await h.probe.fit();
+ assert.deepEqual(h.record.before.window,{x:4,y:29,width:1016,height:676});assert.deepEqual(h.record.requestedBounds,{x:4,y:29,width:1016,height:648});
+ assert.deepEqual(h.record.fitted.window,h.record.requestedBounds);assert.deepEqual(h.record.fitted.viewport,{width:1016,height:648});
+ assert.equal(h.workArea.y+h.workArea.height-h.record.fitted.content.y-h.record.fitted.content.height,32);assert.equal(h.record.minimumBottomClearance,32);
+ assert.equal(h.waits[0].checks,2,'Native bounds changing before the shell viewport is insufficient');assert.equal(h.frames,1);
+ await h.probe.restore();assert.deepEqual(h.win.getBounds(),h.original);assert.deepEqual(h.record.after.content,h.original);assert.deepEqual(h.record.after.viewport,{width:1016,height:676});assert.equal(h.record.restored,true);
+ assert.deepEqual(h.changes,[h.record.requestedBounds,h.original]);assert.equal(C.PAINT_BUDGET_MS,4500);assert.equal(C.PAINT_POLICY.minimumMatchFraction,.99);
+});
+test('a public-source capture failure restores the exact caller geometry in the cleanup path',async()=>{
+ const h=probeWindowHarness();await assert.rejects(async()=>{try{await h.probe.fit();throw Error('Actual source capture failed');}finally{await h.probe.restore();}},/Actual source capture failed/);
+ assert.equal(h.record.restored,true);assert.deepEqual(h.record.after.window,h.original);assert.deepEqual(h.changes.at(-1),h.original);
+});
+test('failed fit and failed restoration cannot silently leave a successful geometry receipt',async()=>{
+ const stale=probeWindowHarness({staleFit:true});await assert.rejects(stale.probe.fit(),/Unsettled/);assert.ok(stale.record.fitError);await stale.probe.restore();assert.equal(stale.record.restored,true);assert.deepEqual(stale.win.getBounds(),stale.original);
+ const failed=probeWindowHarness({ignoreRestore:true});await failed.probe.fit();await assert.rejects(failed.probe.restore(),/Unsettled/);assert.equal(failed.record.restored,false);assert.ok(failed.record.restoreError);
+});
+test('other platforms and already-clear macOS geometry receive no resize mutation',async()=>{
+ for(const options of [{platform:'linux'},{platform:'win32'},{height:600}]){
+  const h=probeWindowHarness(options);await h.probe.fit();await h.probe.restore();assert.deepEqual(h.changes,[]);assert.deepEqual(h.record.fitted.window,h.original);assert.equal(h.record.adjusted,false);assert.equal(h.record.restored,true);
+ }
+});
 module.exports={fixture};
