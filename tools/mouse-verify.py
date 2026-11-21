@@ -57,8 +57,8 @@ owner634,owner634_output=run_logged([str(exe),'--mouse-634-smoke'],owner634_env,
 if owner634.returncode or 'MOUSE_634_OWNER_FEEDBACK_PASS' not in owner634_output.splitlines():raise SystemExit('Mouse634 pane downloads, AI preview and capture verification failed')
 owner635_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner635')}
 owner635,owner635_output=run_logged([str(exe),'--mouse-635-smoke'],owner635_env,pathlib.Path('mouse-635-owner-feedback.log'),270)
-required635=['MOUSE_635_PUBLIC_SEARCH_PASS','MOUSE_635_LIBRARY_STABLE_PASS','MOUSE_635_OWNER_FEEDBACK_PASS']
-if owner635.returncode or not all(marker in owner635_output.splitlines() for marker in required635):raise SystemExit('Mouse635 actual public search or stable library verification failed')
+required635=['MOUSE_635_PUBLIC_SEARCH_PASS','MOUSE_635_LIBRARY_STABLE_PASS','MOUSE_635_AGENT_CHAT_PASS','MOUSE_635_PINNED_PANES_PASS','MOUSE_635_OWNER_FEEDBACK_PASS']
+if owner635.returncode or not all(marker in owner635_output.splitlines() for marker in required635):raise SystemExit('Mouse635 actual public search, Agent chat, pinned panes or stable library verification failed')
 owner_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner633')}
 owner,owner_output=run_logged([str(exe),'--mouse-633-smoke'],owner_env,pathlib.Path('mouse-633-owner-feedback.log'),270)
 if owner.returncode or 'MOUSE_633_OWNER_FEEDBACK_PASS' not in owner_output.splitlines():raise SystemExit('Mouse633 owner feedback native verification failed')

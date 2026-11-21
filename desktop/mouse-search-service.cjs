@@ -17,10 +17,11 @@ const cheerio = require('cheerio/slim');
 const DEFAULT_ENDPOINT = 'https://api.duckduckgo.com/';
 const MWMBL_ENDPOINT = 'https://api.mwmbl.org/api/v2/search/';
 const BRAVE_ENDPOINT = 'https://api.search.brave.com/res/v1/web/search';
+const TRANSLATION_ENDPOINT = 'https://api.mymemory.translated.net/get';
 const DEFAULT_AI_ENDPOINT = 'https://151.248.113.177:3081';
 const LIMITS = Object.freeze({query:512, page:30, results:24, searchBytes:2*1024*1024,
   metadataBytes:512*1024, modelBytes:128*1024, searchMs:12000, metadataMs:2500,
-  queryMs:30000, modelMs:50000, instantMs:2500, metadataBudgetMs:1200, snapshotResults:300, metadataConcurrency:4, queries:3, modelCalls:2,
+  queryMs:30000, modelMs:50000, instantMs:2500, translationMs:6000, metadataBudgetMs:1200, snapshotResults:300, metadataConcurrency:4, queries:3, modelCalls:2,
   cacheEntries:8, cacheMs:120000, queue:96});
 let resolverPool;
 
@@ -254,6 +255,32 @@ function braveRows(value) {
   return rows.map(row=>({url:row.url,title:row.title,content:row.description||'',thumbnail:row.thumbnail?.src,type:row.type}));
 }
 
+// Mwmbl currently has sparse Cyrillic coverage and can match only generic words
+// such as “news about”. Never present those rows as coverage of the actual topic.
+// A single, disclosed public translation may expand a short Russian query. This
+// uses MyMemory GET only: no contribution, set/upload API, account or API key.
+const QUERY_STOP_WORDS=new Set(('новости новость последние свежие свежая найди найти найдите поиск про обо для как что это все всё где или также нового сегодня сейчас the and about news latest recent current find search for with how what where from this that are').split(' '));
+function queryTerms(query) {
+  return [...new Set((String(query).normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[]).filter(term=>!QUERY_STOP_WORDS.has(term)))].slice(0,24);
+}
+function topicRows(rows,query) {
+  const terms=queryTerms(query);if(!terms.length)return rows;
+  return rows.filter(row=>{
+    let url=String(row.url||'');try{url=decodeURI(url);}catch{}
+    const text=[url,row.title,row.content,row.description].filter(value=>typeof value==='string').join('\n').normalize('NFKC').toLocaleLowerCase();
+    return terms.every(term=>text.includes(term));
+  });
+}
+function canTranslateQuery(query) {
+  return /[а-яё]/i.test(query)&&!/[іїєґў]/i.test(query)&&Buffer.byteLength(query,'utf8')<=500&&queryTerms(query).length>0;
+}
+function queryTranslation(value) {
+  if(value?.quotaFinished===true||Number(value?.responseStatus)===429)throw failure('SEARCH_RATE_LIMIT','Достигнут лимит перевода поисковых запросов. Повторите позже.',429);
+  const text=value?.responseData?.translatedText;
+  if(Number(value?.responseStatus)!==200||typeof text!=='string'||!text.trim()||text.length>LIMITS.query||/[\x00-\x1f\x7f<>]/.test(text)||!/[a-z]/i.test(text))throw failure('SEARCH_FORMAT','Сервис перевода не вернул корректный поисковый запрос.');
+  return text.trim();
+}
+
 function createSearchService(options={}) {
   const requestedOrigins=options.fixtureOrigins||[];
   if(!Array.isArray(requestedOrigins)||requestedOrigins.length>4||requestedOrigins.length&&
@@ -320,12 +347,12 @@ function createSearchService(options={}) {
     catch(error){receipt.error={code:error.code||'SEARCH_NETWORK',...(error.status?{status:error.status}:{}),...(error.causeCode?{causeCode:error.causeCode}:{})};throw error;}
     finally{receipt.elapsedMs=Math.round(performance.now()-started);lastAttempts=attempts.map(row=>structuredClone(row));}
   }
-  async function publicPage(clean,cache,signal) {
+  async function publicPage(clean,cache,signal,deadline) {
     const attempts=[];
     if(clean.page>1&&!cache?.provider)throw failure('SEARCH_PAGE','Результаты устарели. Повторите поиск.');
     if(cache?.provider?.id==='mwmbl'){
       const start=(clean.page-1)*LIMITS.results;
-      return {rows:cache.sourceRows.slice(start,start+LIMITS.results),hasMore:start+LIMITS.results<cache.sourceRows.length,provider:cache.provider,instantAnswer:cache.instantAnswer,attempts:[],snapshot:true};
+      return {rows:cache.sourceRows.slice(start,start+LIMITS.results),hasMore:start+LIMITS.results<cache.sourceRows.length,provider:cache.provider,instantAnswer:cache.instantAnswer,translation:cache.translation,notice:cache.notice,attempts:[],snapshot:true};
     }
     let answer=cache?.instantAnswer||null,key='';
     if(options.getBraveApiKey){key=await withSignal(Promise.resolve().then(()=>options.getBraveApiKey()),signal);if(key!==undefined&&key!==null&&typeof key!=='string')throw failure('SEARCH_CREDENTIALS','Не удалось прочитать ключ поискового API.');key=(key||'').trim();if(key&&(key.length>512||/[^\x21-\x7e]/.test(key)))throw failure('SEARCH_CREDENTIALS','Некорректный ключ поискового API.');}
@@ -342,16 +369,36 @@ function createSearchService(options={}) {
       try{answer=instantAnswer(await api('duckduckgo-instant',u.href,{signal,timeoutMs:LIMITS.instantMs,headers:{Accept:'application/json'}},attempts,{instant:true}));}
       catch(error){checkAbort(signal);if(!canTryNext(error))throw error;}
     }
-    const value=await publicPool.run(async()=>{
+    async function mwmbl(query,timeoutMs=LIMITS.searchMs){return publicPool.run(async()=>{
       const delay=Math.max(0,1000-(Date.now()-lastMwmblAt));
       if(delay){let timer;try{await withSignal(new Promise(resolve=>{timer=setTimeout(resolve,delay);}),signal);}finally{clearTimeout(timer);}}
       checkAbort(signal);lastMwmblAt=Date.now();
-      const u=new URL(MWMBL_ENDPOINT);u.search=new URLSearchParams({q:clean.query}).toString();
-      return api('mwmbl',u.href,{signal,timeoutMs:LIMITS.searchMs,headers:{Accept:'application/json'}},attempts);
-    },signal);
-    const rows=mwmblRows(value,clean.query),seen=new Set(),sourceRows=[];
+      const u=new URL(MWMBL_ENDPOINT);u.search=new URLSearchParams({q:query}).toString();
+      return mwmblRows(await api('mwmbl',u.href,{signal,timeoutMs,headers:{Accept:'application/json'}},attempts),query);
+    },signal);}
+    let rows=await mwmbl(clean.query),translation=null,notice='';
+    if(/[а-яё]/i.test(clean.query)&&queryTerms(clean.query).length){
+      rows=topicRows(rows,clean.query);
+      if(!rows.length){
+        const remaining=()=>Math.floor(deadline-performance.now()-LIMITS.metadataBudgetMs-150);
+        if(canTranslateQuery(clean.query)&&remaining()>4000){
+          const u=new URL(TRANSLATION_ENDPOINT);u.search=new URLSearchParams({q:clean.query,langpair:'ru|en',mt:'1'}).toString();
+          try{
+            const translatedQuery=queryTranslation(await api('mymemory',u.href,{signal,timeoutMs:Math.min(LIMITS.translationMs,remaining()-2000),headers:{Accept:'application/json'}},attempts));
+            if(translatedQuery.toLocaleLowerCase()!==clean.query.toLocaleLowerCase()&&remaining()>1000){
+              translation={provider:'mymemory',originalQuery:clean.query,translatedQuery,from:'ru',to:'en'};
+              rows=topicRows(await mwmbl(translatedQuery,Math.min(LIMITS.searchMs,remaining())),translatedQuery);
+            }
+          }catch(error){checkAbort(signal);if(!canTryNext(error))throw error;notice='Не удалось дополнить запрос переводом. ';}
+        }
+        if(!rows.length)notice+='В доступном источнике нет результатов по всем основным словам запроса. ';
+      }
+    }
+    const seen=new Set(),sourceRows=[];
     for(const row of rows){const normalized=normalizeResult(row);if(!normalized||seen.has(normalized.id))continue;seen.add(normalized.id);sourceRows.push(normalized);if(sourceRows.length>=LIMITS.snapshotResults)break;}
-    return{rows:sourceRows.slice(0,LIMITS.results),sourceRows,hasMore:sourceRows.length>LIMITS.results,provider:{id:'mwmbl',kind:'web-search',limited:true,pagination:'snapshot',total:sourceRows.length},instantAnswer:answer,attempts};
+    if(translation)notice+='Дополнительно искали через Mwmbl по переводу MyMemory: «'+translation.translatedQuery+'». ';
+    notice+='Выдача доступного источника может быть неполной.';
+    return{rows:sourceRows.slice(0,LIMITS.results),sourceRows,hasMore:sourceRows.length>LIMITS.results,provider:{id:'mwmbl',kind:'web-search',limited:true,pagination:'snapshot',total:sourceRows.length},instantAnswer:answer,translation,notice,attempts};
   }
   async function query(args={}){
     const clean=queryInput(args.query,args.page??1,args.filter||'all'),id=requestID(args.requestId);
@@ -369,16 +416,16 @@ function createSearchService(options={}) {
         if(!Array.isArray(value.results)||value.results.length>1000)throw failure('SEARCH_FORMAT','Сервер поиска не прислал список результатов.');
         if(!value.results.length&&Array.isArray(value.unresponsive_engines)&&value.unresponsive_engines.length)throw failure('SEARCH_UPSTREAM','Поисковые системы временно не отвечают. Повторите запрос.');
         data={rows:value.results,hasMore:clean.page<LIMITS.page&&value.results.length>0,provider:{id:'configured-searxng',kind:'web-search',limited:false,pagination:'remote'},instantAnswer:null,attempts:[]};
-      }else data=await publicPage(clean,cache,signal);
+      }else data=await publicPage(clean,cache,signal,started+LIMITS.queryMs);
       checkAbort(signal);
       const seen=new Set();if(cache)for(const [page,value] of cache.pages)if(page<clean.page)for(const result of value.results)seen.add(result.id);
       const unique=[];
       for(const raw of data.rows){const result=normalizeResult(raw,fixtureOrigins);if(!result||seen.has(result.id))continue;seen.add(result.id);unique.push(result);if(unique.length>=LIMITS.results)break;}
       const searchFinished=performance.now(),enrichment=await enrich(unique,signal),enriched=enrichment.rows;checkAbort(signal);
       const results=clean.filter==='all'?enriched:enriched.filter(result=>result.type===clean.filter);
-      const result={requestId:id,query:clean.query,page:clean.page,results,hasMore:clean.page<LIMITS.page&&data.hasMore===true&&enriched.length>0,provider:data.provider,instantAnswer:data.instantAnswer,notice:data.provider.limited?'Выдача доступного источника может быть неполной.':'',attempts:data.attempts,timing:{searchMs:Math.round(searchFinished-started),metadataMs:Math.round(performance.now()-searchFinished),totalMs:Math.round(performance.now()-started)},metadata:{attempted:unique.length,completed:enrichment.completed,limited:enrichment.limited}};
+      const result={requestId:id,query:clean.query,page:clean.page,results,hasMore:clean.page<LIMITS.page&&data.hasMore===true&&enriched.length>0,provider:data.provider,instantAnswer:data.instantAnswer,translation:data.translation||null,translatedQuery:data.translation?.translatedQuery||'',notice:data.notice||(data.provider.limited?'Выдача доступного источника может быть неполной.':''),attempts:data.attempts,timing:{searchMs:Math.round(searchFinished-started),metadataMs:Math.round(performance.now()-searchFinished),totalMs:Math.round(performance.now()-started)},metadata:{attempted:unique.length,completed:enrichment.completed,limited:enrichment.limited}};
       if(!cache){cache={at:now,pages:new Map()};pages.set(key,cache);while(pages.size>LIMITS.cacheEntries)pages.delete(pages.keys().next().value);}
-      cache.provider=data.provider;cache.instantAnswer=data.instantAnswer;if(data.sourceRows)cache.sourceRows=data.sourceRows;
+      cache.provider=data.provider;cache.instantAnswer=data.instantAnswer;cache.translation=data.translation;cache.notice=data.notice;if(data.sourceRows)cache.sourceRows=data.sourceRows;
       cache.pages.set(clean.page,result);return {...result,results:results.map(x=>({...x}))};
     },signal);}finally{work.dispose();}
   }
@@ -453,4 +500,4 @@ function createSearchService(options={}) {
 
 let defaultService;
 const performSearch=(q,page,categories,options)=>(defaultService||=createSearchService()).performSearch(q,page,categories,options);
-module.exports={createSearchService,performSearch,parseOpenGraph,normalizeResult,requestBuffer,publicAddress,checkedURL,SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,instantAnswer,mwmblRows,braveRows,canTryNext,networkFailure,publicSearchError,withSignal,abortError};
+module.exports={createSearchService,performSearch,parseOpenGraph,normalizeResult,requestBuffer,publicAddress,checkedURL,SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT,instantAnswer,mwmblRows,braveRows,queryTerms,topicRows,canTranslateQuery,queryTranslation,canTryNext,networkFailure,publicSearchError,withSignal,abortError};

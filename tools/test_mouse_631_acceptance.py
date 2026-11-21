@@ -241,6 +241,18 @@ class AcceptanceTests(unittest.TestCase):
             image = CHECK.decode_png(png(7, 5, raw, channels, list(range(5))))
             self.assertEqual(image['pixels'], raw)
 
+    def test_decoder_preserves_repeated_and_changed_scanlines(self):
+        # Native desktop PNGs mostly encode unchanged rows. Exercise both zero
+        # residual fast paths around real changes and modulo-256 byte overflow.
+        for channels in (3, 4):
+            width = 31
+            first = bytes((index * 53 + 241) % 256 for index in range(width * channels))
+            changed = bytes((value + 23) % 256 for value in first)
+            empty = bytes(width * channels)
+            raw = first + first + changed + changed + empty + empty
+            image = CHECK.decode_png(png(width, 6, raw, channels, [0, 2, 2, 4, 4, 2]))
+            self.assertEqual(image['pixels'], raw)
+
     def test_decoder_rejects_corruption_and_trailing_bytes(self):
         original = self.files['mouse-631-task-ordinary.png']
         for damaged in (original[:-1], original + b'junk', original[:40] + bytes([original[40] ^ 1]) + original[41:]):

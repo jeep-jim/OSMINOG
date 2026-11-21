@@ -28,6 +28,9 @@ module.exports=async ctx=>{
  const frame=()=>js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
  async function focus(){win.show();if(win.isMinimized())win.restore();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'native window foreground');await frame();}
  async function click(selector){
+  const inAgentSettings=await js(`!!document.querySelector(${JSON.stringify(selector)})?.closest('#agent-settings-dialog')`);
+  if(inAgentSettings&&!await js('document.querySelector("#agent-settings-dialog").open')){await click('#agent-settings-open');await until(()=>js('document.querySelector("#agent-settings-dialog").open'),'Agent settings dialog opens through its native button');}
+  if(inAgentSettings)await js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});for(let p=e.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;e.scrollIntoView({block:'nearest',inline:'nearest'});})()`);
   await focus();let point;await until(async()=>{point=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return point.ready===true;},'native control '+selector).catch(error=>{error.message+='; last hit test: '+JSON.stringify(point);throw error;});
   const bounds=win.getContentBounds();assert.equal(nativeInput.testClick(bounds.x+point.x,bounds.y+point.y),true);await sleep(80);
  }
@@ -226,7 +229,7 @@ module.exports=async ctx=>{
    ptyPid=agentHost.terminalService.proc.pid;assert.ok(ptyPid>0&&ptyPid!==process.pid&&alive(ptyPid));const failure=await client.terminal('cmd.exe /d /c exit 7');assert.equal(failure.exitCode,7);
    // A new successful command must not inherit the preceding native exit code.
    const recover=await client.terminal("Write-Output 'WINDOWS_PTY_RECOVERED'");assert.equal(recover.exitCode,0);assert.match(recover.stdout,/WINDOWS_PTY_RECOVERED/);
-   const target=await client.open(origin+'/agent-cdp');await clickOwnedTarget(target);
+   const target=await client.open(origin+'/agent-cdp');await click('#agent-settings-close');await until(()=>js('!document.querySelector("#agent-settings-dialog").open'),'Agent settings close before native CDP pointer');await clickOwnedTarget(target);
    await client.clickSelector(target,'#retained');await client.type(target,'Agent typed');assert.ok((await browser.get(target).view.webContents.executeJavaScript('document.querySelector("#retained").value')).includes('Agent typed'));
    const shot=await client.screenshot(target);assert.match(shot.data,/^iVBOR/);proof.cdp={tabId:target,clicked:true,typed:true,nativePNG:true};
    for(const theme of ['light','dark']){await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await frame();await fs.writeFile('mouse-windows-agent-'+theme+'.png',(await win.capturePage()).toPNG());}

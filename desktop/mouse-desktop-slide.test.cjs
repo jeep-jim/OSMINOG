@@ -56,7 +56,7 @@ test('presentation waits for real frames beyond the former 120 ms cutoff and is 
 function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
  const browserSource=fs.readFileSync('mouse/browser.js','utf8'),begin=browserSource.indexOf('async function switchDesktop('),end=browserSource.indexOf('async function applyMode(',begin);
  assert.ok(begin>=0&&end>begin);const events=[],staged=[];let geometry=1;
- const model={desktopId:'old',state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[]},tree:{id:'source-pane'},slots:{'source-pane':'source-page'},active:'source-pane',libraryOpen:library,focusPane:focus==='pane'?'source-pane':'',focusAI:focus==='ai',switching:false};
+ const model={desktopId:'old',state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[]},tree:{id:'p1'},slots:{'p1':'source-page'},active:'p1',libraryOpen:library,focusPane:focus==='pane'?'p1':'',focusAI:focus==='ai',switching:false};
  const workspace={style:{visibility:''},dataset:{},inert:false},packet=()=>({desk:model.desktopId,complete:true,token:'capture-'+model.desktopId,holdToken:'nora-hold',boundsVersion:geometry,surfaces:[]});
  const lease={token:'nora-hold',outgoing:packet(),valid:()=>true,async replace(){events.push('replace');return true;},async abort(){events.push('abort');}};
  const desktopUI={isOpen:true,async close(){events.push('nora.close');this.isOpen=false;},transitionLease(){events.push('lease');return lease;},render(){events.push('nora.render');}};
@@ -66,9 +66,9 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   events.push('native:'+action);
   if(action==='surfaces')return packet();
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
-  assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'target-pane'},slots:{'target-pane':'target-page'},active:'target-pane',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
+  assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
  }};
- const context={m:model,N,desktopUI,searchUI:null,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,'hidden');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:{validate:tree=>tree,leaves:tree=>[tree.id]},prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
+ const context={m:model,N,desktopUI,searchUI:null,progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,'hidden');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
  vm.runInNewContext(browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
@@ -78,9 +78,9 @@ test('renderer switching behind Nora preserves library and fullscreen geometry u
   assert.equal(result.borrowedHold,true);assert.equal(result.phase,'complete');assert.equal(f.desktopUI.isOpen,true);assert.equal(f.model.libraryOpen,options.library);
   for(const forbidden of ['nora.close','browsing.close','restorePane','window:pane-restore'])assert.equal(f.events.includes(forbidden),false,forbidden+' must not invalidate the borrowed outgoing frame');
   assert.ok(f.events.indexOf('stage:outgoing')<f.events.indexOf('native:switch'));
-  assert.equal(f.staged[0].library,options.library);assert.equal(f.staged[0].focusPane,options.focus==='pane'?'source-pane':'');assert.equal(f.staged[0].focusAI,options.focus==='ai');
+  assert.equal(f.staged[0].library,options.library);assert.equal(f.staged[0].focusPane,options.focus==='pane'?'p1':'');assert.equal(f.staged[0].focusAI,options.focus==='ai');
   if(options.focus==='ai'&&options.targetAI){assert.equal(f.model.focusAI,true);assert.equal(f.model.focusPane,'');}
-  else if(options.focus){assert.equal(f.model.focusAI,false);assert.equal(f.model.focusPane,'target-pane','Retained native fullscreen targets an existing pane on the incoming desktop');}
+  else if(options.focus){assert.equal(f.model.focusAI,false);assert.equal(f.model.focusPane,'p2','Retained native fullscreen targets an existing pane on the incoming desktop');}
   else{assert.equal(f.model.focusAI,false);assert.equal(f.model.focusPane,'');}
   assert.equal(f.model.switching,false);
  }

@@ -3,7 +3,7 @@
 // Arbitrary result metadata keeps the DNS-pinned reader in search-service.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {proxyConfig}=require('./network.cjs');
-const {SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,networkFailure,withSignal,abortError}=require('./mouse-search-service.cjs');
+const {SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT,networkFailure,withSignal,abortError}=require('./mouse-search-service.cjs');
 const fail=(code,message,status)=>new SearchError(code,message,status);
 const PINNED_ORIGINS=new Set([new URL(DEFAULT_AI_ENDPOINT).origin]);
 
@@ -21,14 +21,14 @@ function pinnedCertificateDecision(request,certificate,now=Date.now()){
   }catch{return -2;}
 }
 
-function createSearchTransport({session,network=()=>({mode:'system'}),endpoints=[DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,DEFAULT_AI_ENDPOINT],testContext}={}){
+function createSearchTransport({session,network=()=>({mode:'system'}),endpoints=[DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT,DEFAULT_AI_ENDPOINT],testContext}={}){
   if(!session?.fromPartition)throw Error('Chromium session is required for installed search');
   const allowed=new Set(endpoints.map(value=>new URL(value).origin));
   const ses=session.fromPartition('mouse-search-network-'+crypto.randomUUID(),{cache:false});
   const certificate=new crypto.X509Certificate(fs.readFileSync(path.join(__dirname,'mouse-search-ca.crt')));
   ses.setCertificateVerifyProc((request,callback)=>callback(pinnedCertificateDecision(request,certificate)));
   let currentProxy='',proxyQueue=Promise.resolve(),closed=false;
-  const pending=new Set(),observers=new Set(),publicOrigins=new Set([DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT].map(value=>new URL(value).origin));
+  const pending=new Set(),observers=new Set(),publicOrigins=new Set([DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT].map(value=>new URL(value).origin));
   let sequence=0,faultActive=false;
   const observe=receipt=>{for(const listener of observers){try{listener(receipt);}catch{/* Evidence consumers own their persistence failures. */}}};
   const isolated=()=>testContext?.enabled===true&&process.env.CI==='true'&&path.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')&&path.resolve(testContext.app.getPath('userData'))===path.resolve(process.env.MOUSE_TEST_PROFILE);
@@ -55,11 +55,12 @@ function createSearchTransport({session,network=()=>({mode:'system'}),endpoints=
     if(url.protocol!=='https:'||url.username||url.password||!allowed.has(url.origin))throw fail('SEARCH_ENDPOINT','Неизвестный сервер поиска.');
     if(closed)throw fail('SEARCH_CLOSED','Поиск закрыт.');
     const {signal,timeoutMs=LIMITS.searchMs,maxBytes=LIMITS.searchBytes,method='GET',body,headers={}}=options;
+    if(url.origin===new URL(TRANSLATION_ENDPOINT).origin&&(url.origin+url.pathname!==TRANSLATION_ENDPOINT||method!=='GET'||body!==undefined||url.searchParams.get('langpair')!=='ru|en'||Buffer.byteLength(url.searchParams.get('q')||'','utf8')>500||[...url.searchParams.keys()].some(key=>!['q','langpair','mt'].includes(key))))throw fail('SEARCH_ENDPOINT','Разрешён только перевод короткого поискового запроса.');
     const controller=new AbortController(),externalAbort=()=>controller.abort(abortError(signal));
     if(signal?.aborted)externalAbort();else signal?.addEventListener('abort',externalAbort,{once:true});
     const timer=setTimeout(()=>controller.abort(fail('SEARCH_TIMEOUT','Сервер не ответил вовремя.')),timeoutMs);
     const local=controller.signal;pending.add(controller);let reader;
-    const receipt=publicOrigins.has(url.origin)?{sequence:++sequence,endpoint:url.origin+url.pathname,query:url.searchParams.get('q'),offset:url.searchParams.get('offset'),method,startedAt:performance.now(),transport:'chromium',ok:false}:null;
+    const receipt=publicOrigins.has(url.origin)?{sequence:++sequence,endpoint:url.origin+url.pathname,query:url.searchParams.get('q'),offset:url.searchParams.get('offset'),...(url.origin===new URL(TRANSLATION_ENDPOINT).origin?{languagePair:url.searchParams.get('langpair')}:{}),method,startedAt:performance.now(),transport:'chromium',ok:false}:null;
     try{
       await syncProxy(local);
       const cleanHeaders={Accept:'application/json'};

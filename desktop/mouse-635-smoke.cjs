@@ -55,6 +55,12 @@ module.exports=async ctx=>{
   const helpers={fixture,nativeInput,click,screenCapture,stage};
   facts.library=await stage('stable-file-library',()=>require('./mouse-635-library-smoke.cjs')(ctx,helpers));
   await save();
+  facts.agentChat=await stage('agent-chat',()=>require('./mouse-635-agent-smoke.cjs')(ctx,helpers));
+  console.log('MOUSE_635_AGENT_CHAT_PASS');
+  await save();
+  facts.panes=await stage('pinned-panes',()=>require('./mouse-635-layout-smoke.cjs')(ctx,helpers));
+  console.log('MOUSE_635_PINNED_PANES_PASS');
+  await save();
   facts.publicSearch=await stage('public-search',()=>require('./mouse-635-public-search-smoke.cjs')(ctx,helpers));
   await save();
  }catch(cause){

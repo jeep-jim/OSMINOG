@@ -5,6 +5,8 @@
   const percent=Math.max(0,Math.min(100,Number(state.percent)||0)),busy=state.phase==='downloading';
   button.dataset.progress=String(busy);button.style.setProperty('--update-progress',percent+'%');button.setAttribute('aria-busy',String(busy));
   button.textContent=busy?'v'+version+' · '+Math.floor(percent)+'%':['ready','opened'].includes(state.phase)?'v'+version+' · Установить':state.phase==='installing'?'Установка…':'v'+version+' · Обновить';
+  button.dataset.compactLabel=busy?Math.floor(percent)+'%':['ready','opened'].includes(state.phase)?'Установить':state.phase==='installing'?'Установка…':'v'+version;
+  button.setAttribute('aria-label',button.textContent);
   if(busy)button.title='Скачивание '+Math.floor(percent)+'% — открыть окно обновления';
   if(['ready','opened'].includes(state.phase))button.title='Обновление проверено — открыть установку';
  }

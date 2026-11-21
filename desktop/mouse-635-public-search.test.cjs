@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createSearchService,SearchError,LIMITS,DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,networkFailure}=require('./mouse-search-service.cjs');
+const {createSearchService,SearchError,LIMITS,DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT,networkFailure}=require('./mouse-search-service.cjs');
 const response=(value,type='application/json')=>({status:200,headers:{'content-type':type},body:Buffer.from(JSON.stringify(value))});
 const instant=(extra={})=>({AbstractText:'',AbstractURL:'',RelatedTopics:[],...extra});
 const rows=count=>Array.from({length:count},(_,i)=>({url:'https://example.com/result/'+i,title:'Real row '+i,content:'Returned provider excerpt '+i}));
@@ -21,6 +21,38 @@ test('Mwmbl pagination slices one actual complete snapshot, without inventing re
  const a=await f.service.query({query:'topic',page:1}),b=await f.service.query({query:'topic',page:2}),c=await f.service.query({query:'topic',page:3});
  assert.deepEqual([a.results.length,b.results.length,c.results.length],[24,24,11]);assert.deepEqual([a.hasMore,b.hasMore,c.hasMore],[true,true,false]);assert.equal(new Set([...a.results,...b.results,...c.results].map(x=>x.url)).size,59);
  assert.equal(f.calls.length,2);assert.equal(a.provider.total,59);assert.deepEqual(b.attempts,[]);assert.equal(new URL(f.calls[1].url).searchParams.has('page'),false);
+});
+test('a generic Russian query expands only after unrelated rows, discloses the exact translation and caches both pages',async t=>{
+ const query='новости про космос',translated='Space news',space=rows(31).map(row=>({...row,title:'Space research '+row.title}));
+ const f=setup(t,url=>{const u=new URL(url);if(u.origin===new URL(DEFAULT_ENDPOINT).origin)return response(instant());if(u.origin===new URL(TRANSLATION_ENDPOINT).origin){assert.equal(u.pathname,'/get');assert.equal(u.searchParams.get('q'),query);assert.equal(u.searchParams.get('langpair'),'ru|en');return response({responseStatus:200,quotaFinished:false,responseData:{translatedText:translated}});}const q=u.searchParams.get('q'),results=q===query?[{url:'https://example.com/irrelevant',title:'Новости про автомобили',content:''}]:[...space,{url:'https://example.com/noise',title:'News about cars',content:''}];return response({query:q,number_of_results:results.length,results});});
+ const a=await f.service.query({query}),b=await f.service.query({query,page:2}),cached=await f.service.query({query});
+ assert.equal(a.query,query);assert.equal(a.translatedQuery,translated);assert.deepEqual(a.translation,{provider:'mymemory',originalQuery:query,translatedQuery:translated,from:'ru',to:'en'});assert.match(a.notice,/MyMemory/);assert.ok(a.notice.includes(translated));assert.equal(a.provider.limited,true);
+ assert.deepEqual([a.results.length,b.results.length],[24,7]);assert.equal(a.provider.total,31);assert.equal(b.hasMore,false);assert.ok([...a.results,...b.results].every(row=>row.title.includes('Space')));assert.deepEqual(b.translation,a.translation);assert.equal(b.notice,a.notice);assert.deepEqual(cached.results,a.results);assert.equal(f.calls.length,4);
+ assert.deepEqual(f.calls.map(call=>new URL(call.url).searchParams.get('q')),[query,query,query,translated]);
+});
+test('relevant Cyrillic results keep the original query and never contact a translator',async t=>{
+ const query='новости про космос',results=[{url:'https://example.com/space',title:'Космос сегодня',content:'Новости исследований'},{url:'https://example.com/cars',title:'Новости про автомобили',content:''}];
+ const f=setup(t,url=>new URL(url).origin===new URL(DEFAULT_ENDPOINT).origin?response(instant()):response({query,number_of_results:results.length,results}));
+ const value=await f.service.query({query});assert.equal(value.results.length,1);assert.equal(value.results[0].url,'https://example.com/space');assert.equal(value.translatedQuery,'');assert.equal(value.translation,null);assert.equal(f.calls.length,2);
+});
+test('translation denial, quota and malformed replies stop rather than becoming queries or escaping to another service',async t=>{
+ for(const [value,code] of [[{responseStatus:429,quotaFinished:true},'SEARCH_RATE_LIMIT'],[{responseStatus:200,responseData:{translatedText:'<script>fake</script>'}},'SEARCH_FORMAT'],[{responseStatus:200,responseData:{translatedText:''}},'SEARCH_FORMAT']]){
+  const query='новости про космос',f=setup(t,url=>{const u=new URL(url);return u.origin===new URL(DEFAULT_ENDPOINT).origin?response(instant()):u.origin===new URL(TRANSLATION_ENDPOINT).origin?response(value):response({query,number_of_results:0,results:[]});});
+  await assert.rejects(f.service.query({query}),{code});assert.equal(f.calls.length,3);assert.equal(f.calls.filter(call=>new URL(call.url).origin===new URL(MWMBL_ENDPOINT).origin).length,1);
+ }
+});
+test('a failed translation reports missing coverage and never falls back to unrelated original rows',async t=>{
+ const query='новости про космос',f=setup(t,url=>{const u=new URL(url);if(u.origin===new URL(DEFAULT_ENDPOINT).origin)return response(instant());if(u.origin===new URL(TRANSLATION_ENDPOINT).origin)throw networkFailure({code:'ENETUNREACH'});return response({query,number_of_results:1,results:[{url:'https://example.com/cars',title:'Новости про автомобили',content:''}]});});
+ const value=await f.service.query({query});assert.deepEqual(value.results,[]);assert.equal(value.hasMore,false);assert.match(value.notice,/Не удалось дополнить/);assert.equal(value.attempts.at(-1).error.causeCode,'ENETUNREACH');assert.equal(f.calls.length,3);
+});
+test('oversized Russian queries are never split or sent to bypass the translation byte limit',async t=>{
+ const query='я'.repeat(251),f=setup(t,url=>new URL(url).origin===new URL(DEFAULT_ENDPOINT).origin?response(instant()):response({query,number_of_results:1,results:[{url:'https://example.com/noise',title:'Unrelated news',content:''}]}));
+ const result=await f.service.query({query});assert.equal(f.calls.length,2);assert.deepEqual(result.results,[]);assert.equal(result.translation,null);assert.match(result.notice,/нет результатов/);
+});
+test('cancelling an in-flight translation prevents the expanded public search',async t=>{
+ const query='новости про космос';let started;
+ const translating=new Promise(resolve=>{started=resolve;}),f=setup(t,(url,options)=>{const u=new URL(url);if(u.origin===new URL(DEFAULT_ENDPOINT).origin)return response(instant());if(u.origin===new URL(TRANSLATION_ENDPOINT).origin){started();return new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(options.signal.reason),{once:true}));}return response({query,number_of_results:0,results:[]});});
+ const pending=f.service.query({query,requestId:'cancel-translation'}),rejected=assert.rejects(pending,{code:'SEARCH_CANCELLED'});await translating;f.service.cancel('cancel-translation');await rejected;assert.equal(f.calls.length,3);
 });
 test('primary connection failure reaches the fixed public JSON fallback, with a safe underlying diagnostic code',async t=>{
  const f=setup(t,url=>{if(new URL(url).origin===new URL(DEFAULT_ENDPOINT).origin)throw networkFailure({code:'ENETUNREACH'});return response({query:'topic',number_of_results:1,results:rows(1)});});
@@ -86,6 +118,14 @@ test('actual public IPC source executes through the exposed preload without the 
  assert.equal(await vm.runInContext(publicSearchSource('query',args),context),result);assert.deepEqual(calls,[['query',args]]);
  const literal={query:'"; globalThis.injected=true; //\nPython',page:2,revision:7,requestId:'public635-control-2'};
  assert.equal(await vm.runInContext(publicSearchSource('query',literal),context),result);assert.deepEqual(calls[1],['query',literal]);assert.equal(context.injected,undefined);
+});
+test('installed expansion proof requires original JSON, exact translation bytes and resulting provider URLs',()=>{
+ const {createHash}=require('node:crypto'),{validatePublicPage}=require('./mouse-635-public-search-smoke.cjs'),query='новости про космос',translated='Space news';
+ const receipt=(endpoint,q,value,extra={})=>{const body=Buffer.from(JSON.stringify(value));return{ok:true,endpoint,query:q,method:'GET',transport:'chromium',status:200,contentType:'application/json',bytes:body.length,sha256:createHash('sha256').update(body).digest('hex'),body,...extra};};
+ const original=receipt(MWMBL_ENDPOINT,query,{query,number_of_results:0,results:[]}),translation=receipt(TRANSLATION_ENDPOINT,query,{responseStatus:200,quotaFinished:false,responseData:{translatedText:translated}},{languagePair:'ru|en'}),source=receipt(MWMBL_ENDPOINT,translated,{query:translated,number_of_results:1,results:[{url:'https://example.com/space',title:'Space research',content:''}]});
+ const result={query,page:1,revision:1,provider:{id:'mwmbl',kind:'web-search',limited:true,pagination:'snapshot'},translation:{provider:'mymemory',originalQuery:query,translatedQuery:translated,from:'ru',to:'en'},translatedQuery:translated,notice:'MyMemory: '+translated,results:[{id:'space',url:'https://example.com/space',title:'Space research'}]};
+ const args={query,page:1,receipts:[original,translation,source],topic:['space']};assert.deepEqual(validatePublicPage(result,args).topicMatches,['space']);assert.equal(validatePublicPage(result,args).translationProof.providerQuery,translated);
+ assert.throws(()=>validatePublicPage(result,{...args,receipts:[translation,source]}),/original user query/);assert.throws(()=>validatePublicPage(result,{...args,receipts:[original,source]}),/translation bytes/);assert.throws(()=>validatePublicPage(result,{...args,receipts:[original,{...translation,query:'different'},source]}),/translation bytes/);assert.throws(()=>validatePublicPage({...result,notice:'Undisclosed'},args),/disclosed/);assert.throws(()=>validatePublicPage({...result,results:[{id:'fake',url:'https://example.com/forged',title:'Space'}]},args),/invented/);
 });
 test('actual public IPC source preserves the service error envelope and preload rejection',async()=>{
  const vm=require('node:vm'),{publicSearchSource}=require('./mouse-635-public-search-smoke.cjs');

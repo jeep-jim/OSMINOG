@@ -614,7 +614,7 @@ def main(argv=None) -> int:
         owner635_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse635 search and files")}
         owner635 = run_logged([str(executable), "--mouse-635-smoke"], owner635_env,
                               output / "mouse-635-owner-feedback.log", 270)
-        required635 = ["MOUSE_635_PUBLIC_SEARCH_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
+        required635 = ["MOUSE_635_PUBLIC_SEARCH_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_AGENT_CHAT_PASS", "MOUSE_635_PINNED_PANES_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
         verify_markers(owner635.pop("output"), required635)
         owner635["requiredMarkers"] = required635
         owner635["reportSha256"] = sha256(output / "mouse-635-owner-feedback.json")

@@ -95,7 +95,15 @@ def decode_png(blob, label='screenshot'):
         start = y * (stride + 1)
         method, row = raw[start], bytearray(raw[start + 1:start + 1 + stride])
         need(method in range(5), label + ' has an invalid row filter')
-        if method:
+        # Browser captures contain long unchanged scanline runs. Up and Paeth
+        # with zero residuals both reproduce the previous row exactly. Avoid
+        # a Python iteration for every screen byte while retaining full PNG,
+        # checksum, decompressed-length and independently sampled pixel checks.
+        if method in (2, 4) and not any(row):
+            row = previous[:]
+        elif method == 2:
+            row = bytearray((value + above) & 255 for value, above in zip(row, previous))
+        elif method:
             for x in range(stride):
                 a = row[x - channels] if x >= channels else 0
                 b = previous[x]

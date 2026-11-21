@@ -85,13 +85,13 @@ test('automatic update watcher checks metadata only in ordinary mode and stops c
 test('burrow remains the same accessible new-tab action without changing mascot assets',()=>{const h=fs.readFileSync('mouse/index.html','utf8');assert.match(h,/id="new-tab" data-action="new-tab"[^>]*aria-label="Новая вкладка"><svg class="burrow-plus"/);assert.match(h,/viewBox="0 0 20 20"/);assert.match(h,/class="burrow-plus"/);});
 
 test('new-tab smoke waits beyond the emitted browser state for selection and the active home mount',async()=>{
- const {waitForNewStartTab}=require('./mouse-614-badge-smoke.cjs'),beforeIds=['main'],m={active:'p1',slots:{p1:'main'},state:{tabs:[{id:'main',url:'https://example.test/'}]}};
+ const {waitForNewStartTab}=require('./mouse-614-badge-smoke.cjs'),beforeIds=['main'],m={desktopId:'desk-3',tree:{id:'p1'},pinnedPanes:{},active:'p1',slots:{p1:'main'},state:{tabs:[{id:'main',url:'https://example.test/'}]}};
  let replyOpen,replyState,homeMounted=false,renders=0,saves=0;const requests=[],ticks=[],delays=[];
  const opened=new Promise(resolve=>replyOpen=resolve),state=new Promise(resolve=>replyState=resolve),tabs=[...m.state.tabs,{id:'new-home',internal:true}];
  const N={browser:(action,args)=>{requests.push({action,args});if(action==='open'){m.state={tabs};return opened;}if(action==='state')return state;throw Error('Unexpected browser action: '+action);}};
  const pane={dataset:{pane:'p1'},querySelector:selector=>{assert.equal(selector,'.home-page');return homeMounted?{}:null;}},document={querySelector:selector=>{assert.equal(selector,'.pane.active');return pane;}};
- const ctx=vm.createContext({m,N,document,searchUI:null,renderTree:()=>{renders++;homeMounted=true;},save:()=>saves++,setStatus:value=>assert.equal(value,'')});
- vm.runInContext(section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js new tab fixture',timeout:1000});
+ const ctx=vm.createContext({m,N,L:require('./mouse/layout.js'),document,searchUI:null,renderTree:()=>{renders++;homeMounted=true;},save:()=>saves++,setStatus:value=>assert.equal(value,'')});
+ vm.runInContext(section(' function placementPane(','\n function setActive')+'\n'+section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js new tab fixture',timeout:1000});
  const opening=ctx.openPage('mouse://start');await flush();
  assert.equal(m.state.tabs.length,beforeIds.length+1,'The former count-only wait already passes');assert.equal(m.slots.p1,'main');assert.equal(homeMounted,false);
  const js=async text=>vm.runInContext(text,ctx),sleep=ms=>new Promise(resolve=>{delays.push(ms);ticks.push(resolve);});let settled=false;

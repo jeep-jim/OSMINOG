@@ -24,5 +24,24 @@
  }
  function remove(tree,id){if(tree.id)return tree.id===id?null:tree;const a=remove(tree.a,id),b=remove(tree.b,id);return a&&b?{...tree,a,b}:a||b}
  function minimum(tree,axis){if(tree.id)return axis==='x'?140:100;return tree.axis===axis?minimum(tree.a,axis)+minimum(tree.b,axis)+6:Math.max(minimum(tree.a,axis),minimum(tree.b,axis))}
- const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
+ function currentPreset(tree){
+  if(!tree)return null;const count=leaves(tree).length;if(![1,2,3,4,6,8,9,12].includes(count))return null;
+  const expected=preset(count);if(count===2&&tree.axis==='y')expected.axis='y';
+  const same=(a,b)=>a?.id?!!b?.id:!!a&&!!b&&!b.id&&a.axis===b.axis&&Math.abs(a.ratio-b.ratio)<1e-8&&same(a.a,b.a)&&same(a.b,b.b);
+  return same(tree,expected)?{count,...(count===2?{axis:tree.axis}:{})}:null;
+ }
+ // Pins are optional metadata on one desktop. A pin keeps both its live tab
+ // identity and every ancestor split; free sibling subtrees remain editable.
+ function pins(value){
+  const result={},all=new Set(value?.tree?leaves(value.tree):[]),saved=value?.pinnedPanes;
+  if(saved&&typeof saved==='object'&&!Array.isArray(saved))for(const id of all)if(Object.hasOwn(saved,id)&&typeof saved[id]==='string'&&saved[id].length<=100&&saved[id]===(value.slots?.[id]||''))result[id]=saved[id];
+  return result;
+ }
+ function pinPath(tree,id,path=[]){if(tree.id)return tree.id===id?path:null;return pinPath(tree.a,id,[...path,[tree.axis,tree.ratio,'a']])||pinPath(tree.b,id,[...path,[tree.axis,tree.ratio,'b']]);}
+ function preservesPins(before,after){
+  for(const [id,tab]of Object.entries(pins(before))){const path=after?.tree&&pinPath(after.tree,id);if(!path||tab!==(after.slots?.[id]||'')||JSON.stringify(path)!==JSON.stringify(pinPath(before.tree,id)))return false;}return true;
+ }
+ function assertPins(before,after){if(!preservesPins(before,after))throw Error('Сначала открепите окно: его вкладка, размер и положение закреплены.');}
+ function resizeLocked(value,path){const node=at(value.tree,path),locked=pins(value);return leaves(node).some(id=>Object.hasOwn(locked,id));}
+ const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
 })(globalThis);

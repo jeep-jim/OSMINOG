@@ -4,9 +4,9 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
 const {createHash}=require('node:crypto');
 const {bounded}=require('./mouse-lifecycle.cjs');
-const {DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,LIMITS}=require('./mouse-search-service.cjs');
+const {DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT,LIMITS}=require('./mouse-search-service.cjs');
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
-const API_ENDPOINTS=[DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT];
+const API_ENDPOINTS=[DEFAULT_ENDPOINT,MWMBL_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT];
 const CASES=Object.freeze([
  {name:'owner-russian',query:'новости про антропик',topic:['anthropic','антропик'],pages:2},
  {name:'control',query:'Python documentation',topic:['python'],pages:2},
@@ -15,11 +15,15 @@ const CASES=Object.freeze([
 function publicSearchSource(action,args={}){
  return 'globalThis.MouseNative.search('+JSON.stringify(action)+','+JSON.stringify(args)+')';
 }
+function rawPublicJSON(receipt){
+ assert.equal(receipt.ok,true);assert.ok(Buffer.isBuffer(receipt.body));
+ assert.equal(receipt.status,200);assert.equal(receipt.method,'GET');assert.equal(receipt.transport,'chromium');assert.match(receipt.contentType,/\bjson\b/i);assert.equal(receipt.bytes,receipt.body.length);assert.equal(receipt.sha256,sha(receipt.body));
+ return JSON.parse(receipt.body.toString('utf8'));
+}
 function rawWebRows(receipt){
  if(!receipt.ok||!receipt.body)return[];
  if(![MWMBL_ENDPOINT,BRAVE_ENDPOINT].includes(receipt.endpoint))return[];
- assert.equal(receipt.status,200);assert.equal(receipt.method,'GET');assert.equal(receipt.transport,'chromium');assert.match(receipt.contentType,/\bjson\b/i);assert.equal(receipt.bytes,receipt.body.length);assert.equal(receipt.sha256,sha(receipt.body));
- const value=JSON.parse(receipt.body.toString('utf8'));
+ const value=rawPublicJSON(receipt);
  if(receipt.endpoint===MWMBL_ENDPOINT){assert.equal(value.query,receipt.query);assert.ok(Array.isArray(value.results));assert.equal(value.number_of_results,value.results.length);return value.results;}
  if(receipt.endpoint===BRAVE_ENDPOINT)return value.web?.results||[];
  return[]; // Instant Answer / RelatedTopics are deliberately never web rows.
@@ -31,7 +35,16 @@ function validatePublicPage(result,{query,page,previous=[],receipts,topic=[]}){
  assert.ok(Array.isArray(result.results)&&result.results.length>0,'The live API returned a nonempty page');
  const prior=new Set(previous.map(row=>row.url)),seen=new Set(),sources=new Map();
  const endpoint=result.provider.id==='brave'?BRAVE_ENDPOINT:MWMBL_ENDPOINT;
- const matchingReceipts=receipts.filter(row=>row.ok&&row.endpoint===endpoint&&row.query===query&&(result.provider.id!=='brave'||row.offset===String(page-1)));
+ let providerQuery=query,translationProof=null;
+ if(result.translatedQuery){
+  assert.equal(result.provider.id,'mwmbl');assert.deepEqual(result.translation,{provider:'mymemory',originalQuery:query,translatedQuery:result.translatedQuery,from:'ru',to:'en'});assert.ok(result.notice.includes(result.translatedQuery)&&result.notice.includes('MyMemory'),'The changed provider query is disclosed');
+  const originals=receipts.filter(row=>row.ok&&row.endpoint===MWMBL_ENDPOINT&&row.query===query);assert.ok(originals.length,'The original user query was tried before expansion');for(const receipt of originals)rawWebRows(receipt);
+  const translations=receipts.filter(row=>row.ok&&row.endpoint===TRANSLATION_ENDPOINT&&row.query===query&&row.languagePair==='ru|en');
+  const verified=translations.filter(receipt=>{const value=rawPublicJSON(receipt);assert.equal(Number(value.responseStatus),200);assert.notEqual(value.quotaFinished,true);return typeof value.responseData?.translatedText==='string'&&value.responseData.translatedText.trim()===result.translatedQuery;});
+  assert.ok(verified.length,'The exact expanded query must come from actual public translation bytes');
+  providerQuery=result.translatedQuery;translationProof={originalQuery:query,providerQuery,originalResponseSHA256:originals.map(row=>row.sha256),translationResponseSHA256:verified.map(row=>row.sha256)};
+ }else assert.ok(!result.translation,'No undisclosed query expansion');
+ const matchingReceipts=receipts.filter(row=>row.ok&&row.endpoint===endpoint&&row.query===providerQuery&&(result.provider.id!=='brave'||row.offset===String(page-1)));
  assert.ok(matchingReceipts.length>0,'Returned rows bind to an actual provider response');
  for(const receipt of matchingReceipts)for(const row of rawWebRows(receipt)){try{sources.set(new URL(row.url).href,row);}catch{}}
  for(const row of result.results){
@@ -39,7 +52,7 @@ function validatePublicPage(result,{query,page,previous=[],receipts,topic=[]}){
   assert.ok(typeof row.id==='string'&&typeof row.title==='string'&&row.title.trim());assert.ok(!seen.has(row.url)&&!prior.has(row.url),'Pages contain distinct actual URLs');seen.add(row.url);assert.ok(sources.has(row.url),'No invented result URL outside the actual JSON response');
  }
  const topicMatches=result.results.filter(row=>{const raw=sources.get(row.url),text=[raw.url,raw.title,raw.content,raw.description].filter(value=>typeof value==='string').join('\n').toLocaleLowerCase();return topic.some(term=>text.includes(term));}).map(row=>row.id);
- return{sourceResponseSHA256:[...new Set(matchingReceipts.map(row=>row.sha256))],topicMatches,distinct:true,resultCount:result.results.length};
+ return{sourceResponseSHA256:[...new Set(matchingReceipts.map(row=>row.sha256))],topicMatches,translationProof,distinct:true,resultCount:result.results.length};
 }
 async function runPublicSearchSmoke(ctx,{fixture,click,stage=async(_name,work)=>work()}={}){
  const {app,win,tileSearch}=ctx,started=performance.now(),file='mouse-635-public-search.json',raw=[],writes=[],saveErrors=[];

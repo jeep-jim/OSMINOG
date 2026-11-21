@@ -17,18 +17,18 @@ async function fixture(t,{privateMode=false,platform='darwin',dispose}={}){
 test('native Mouse menu adds current-page favorites and retains legacy link/image/edit callbacks',async t=>{
  const f=await fixture(t),calls=[],legacy=require('./context-menu.cjs').template({copyImageAt:(x,y)=>calls.push(['image',x,y]),downloadURL:url=>calls.push(['download',url]),paste:()=>calls.push(['paste'])},{linkURL:'https://a.test/file',mediaType:'image',srcURL:'https://a.test/image',x:4,y:7,isEditable:true,editFlags:{canPaste:true}},{clipboard:{writeText:value=>calls.push(['clipboard',value])},open:url=>calls.push(['open',url])});
  assert.deepEqual(f.guest('a',legacy),{shown:true,id:'a',pane:'p1'});assert.deepEqual(f.service.lastTarget,{id:'a',pane:'p1',desk:'desk',source:'guest'});
- assert.deepEqual(f.service.lastMenu.items.slice(0,5).map(item=>item.id||item.type),['mouse-context-bookmark','separator','mouse-context-split-x','mouse-context-split-y','mouse-context-grid']);
+ assert.deepEqual(f.service.lastMenu.items.slice(0,6).map(item=>item.id||item.type),['mouse-context-bookmark','separator','mouse-context-pin','mouse-context-split-x','mouse-context-split-y','mouse-context-grid']);
  f.item('mouse-context-bookmark').click();await f.library.flush();await settle();assert.equal(f.saved.quadroLibrary.bookmarks[0].url,'https://a.test/');assert.equal(f.saved.quadroLibrary.bookmarks[0].title,'Owned page');assert.ok(f.sent.some(row=>row[0]==='library-changed'));
  f.service.lastMenu.items.find(row=>row.label==='Копировать изображение').click();f.service.lastMenu.items.find(row=>row.label==='Вставить').click();f.service.lastMenu.items.find(row=>row.label==='Открыть ссылку в новой вкладке').click();await settle();assert.deepEqual(calls,[['image',4,7],['paste'],['open','https://a.test/file']]);
  f.guest('a');assert.equal(f.item('mouse-context-bookmark').enabled,false);assert.equal(f.item('mouse-context-bookmark').label,'Уже в избранном');assert.ok(f.images.every(image=>image.template));
 });
 test('home, document and empty panes offer targeted split/grid with both two-pane orientations',async t=>{
- const f=await fixture(t);assert.equal(f.open({id:'home',pane:'p2',x:42,y:90}).shown,true);assert.equal(f.item('mouse-context-bookmark').enabled,false);f.item('mouse-context-split-y').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{id:'home',pane:'p2',action:'split-y'}]);
- f.prefs.slots.p2='doc';f.open({id:'doc',pane:'p2',x:42,y:90});f.item('mouse-context-layout-2-y').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{id:'doc',pane:'p2',action:'layout',count:2,axis:'y'}]);assert.equal(f.item('mouse-context-grid').submenu.length,9);
- f.prefs.slots.p2='';f.open({pane:'p2',x:799.9,y:599.9});assert.equal(f.item('mouse-context-bookmark').enabled,false);assert.equal(f.service.lastMenu.options.x,799);f.item('mouse-context-split-x').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{id:'',pane:'p2',action:'split-x'}]);
+ const f=await fixture(t);assert.equal(f.open({id:'home',pane:'p2',x:42,y:90}).shown,true);assert.equal(f.item('mouse-context-bookmark').enabled,false);f.item('mouse-context-split-y').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{desk:'desk',id:'home',pane:'p2',action:'split-y'}]);
+ f.prefs.slots.p2='doc';f.open({id:'doc',pane:'p2',x:42,y:90});f.item('mouse-context-layout-2-y').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{desk:'desk',id:'doc',pane:'p2',action:'layout',count:2,axis:'y'}]);assert.equal(f.item('mouse-context-grid').submenu.length,9);
+ f.prefs.slots.p2='';f.open({pane:'p2',x:799.9,y:599.9});assert.equal(f.item('mouse-context-bookmark').enabled,false);assert.equal(f.service.lastMenu.options.x,799);f.item('mouse-context-split-x').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{desk:'desk',id:'',pane:'p2',action:'split-x'}]);
 });
 test('unplaced tabs remain actionable; AI side lane cannot split or replace the main layout',async t=>{
- const f=await fixture(t);assert.equal(f.open({id:'b',x:30,y:10}).shown,true);f.item('mouse-context-split-x').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{id:'b',pane:'',action:'split-x'}]);
+ const f=await fixture(t);assert.equal(f.open({id:'b',x:30,y:10}).shown,true);f.item('mouse-context-split-x').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{desk:'desk',id:'b',pane:'',action:'split-x'}]);
  f.guest('side');for(const id of ['mouse-context-split-x','mouse-context-split-y','mouse-context-grid'])assert.equal(f.item(id).enabled,false);assert.equal(f.item('mouse-context-bookmark').enabled,true);f.prefs.locale='en';f.guest('a');assert.equal(f.item('mouse-context-bookmark').label,'Add to favorites');assert.equal(f.item('mouse-context-layout-2-y').label,'2 panes · stacked');
 });
 test('a stale native menu cannot affect another desktop, removed tab, navigation or reloaded private shell',async t=>{
@@ -47,6 +47,19 @@ test('menu icons are small grayscale coverage bitmaps with distinct visible grid
  const x=iconBitmap('grid',{count:2,axis:'x'}),y=iconBitmap('grid',{count:2,axis:'y'}),star=iconBitmap('star');assert.deepEqual([x.width,x.height,x.scaleFactor],[32,32,2]);assert.notDeepEqual(x.data,y.data);
  for(const image of [x,y,star]){let solid=0,edge=0,clear=0;for(let at=0;at<image.data.length;at+=4){assert.equal(image.data[at],image.data[at+1]);assert.equal(image.data[at+1],image.data[at+2]);const alpha=image.data[at+3];assert.ok(image.data[at]<=alpha,'native bitmap RGB must be premultiplied');if(alpha===255){solid++;assert.equal(image.data[at],128);}else if(alpha)edge++;else{clear++;assert.equal(image.data[at],0,'transparent pixels must not carry gray');}}assert.ok(solid>15&&edge>15&&clear>100);}
  assert.deepEqual(args({id:'a',pane:'p1',x:0,y:0},{width:800,height:600}),{id:'a',pane:'p1',x:0,y:0});
+});
+test('layout-only popup reports its actual preset, preserves tab order and settles only when native menu closes',async t=>{
+ const f=await fixture(t);let settled=false;const result=f.open({kind:'layout',x:40,y:560}).then(value=>{settled=true;return value;});await settle();assert.equal(settled,false);
+ assert.equal(f.service.lastTarget.kind,'layout');assert.equal(f.service.lastMenu.items.length,9);assert.ok(f.service.lastMenu.items.every(item=>item.id.startsWith('mouse-context-layout-')));assert.deepEqual(f.service.lastMenu.items.filter(item=>item.checked).map(item=>item.id),['mouse-context-layout-2-x']);
+ f.item('mouse-context-layout-2-y').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{desk:'desk',id:'',pane:'p1',action:'layout',count:2,axis:'y',preserveOrder:true}]);f.service.lastMenu.closePopup();assert.deepEqual(await result,{shown:true,closed:true});
+ f.prefs.tree.ratio=.42;const custom=f.open({kind:'layout',x:40,y:560});assert.equal(f.service.lastMenu.items.filter(item=>item.checked).length,0);f.service.lastMenu.closePopup();await custom;
+ for(const value of [{kind:'unknown',x:1,y:2},{kind:'layout',id:'a',x:1,y:2},{kind:'layout',pane:'p1',x:1,y:2}])assert.throws(()=>f.open(value),/Некорректная/);
+});
+test('native pin command follows the selected pane and disables actions that would change its geometry',async t=>{
+ const f=await fixture(t);f.guest('a');assert.equal(f.item('mouse-context-pin').label,'Закрепить окно');assert.equal(f.item('mouse-context-pin').enabled,true);f.item('mouse-context-pin').click();await settle();assert.deepEqual(f.sent.at(-1),['mouse:context-action',{desk:'desk',id:'a',pane:'p1',action:'pin'}]);
+ f.prefs.pinnedPanes={p1:'a'};f.guest('a');assert.equal(f.item('mouse-context-pin').label,'Открепить окно');assert.equal(f.item('mouse-context-split-x').enabled,false);assert.equal(f.item('mouse-context-layout-4').enabled,false);assert.equal(f.item('mouse-context-layout-2-x').enabled,true);f.item('mouse-context-pin').click();await settle();assert.equal(f.sent.at(-1)[1].action,'unpin');
+ f.open({id:'b',x:2,y:2});assert.equal(f.item('mouse-context-pin').enabled,false,'Unplaced tab has no pane to pin');f.guest('side');assert.equal(f.item('mouse-context-pin').enabled,false);
+ assert.notDeepEqual(iconBitmap('pin').data,iconBitmap('pin',{filled:true}).data);
 });
 test('closed native window cleanup avoids its destroyed getter and still closes every guest through BrowserWorkspace.dispose',async t=>{
  const fs=require('node:fs'),vm=require('node:vm'),module={exports:{}};

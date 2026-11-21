@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {createSearchTransport,pinnedCertificateDecision}=require('./mouse-search-transport.cjs');
-const {DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,BRAVE_ENDPOINT}=require('./mouse-search-service.cjs');
+const {DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,BRAVE_ENDPOINT,TRANSLATION_ENDPOINT}=require('./mouse-search-service.cjs');
 function setup(t,fetch,network=()=>({mode:'system'}),extra={}){
  const calls=[],proxy=[];let verify;
  const ses={setCertificateVerifyProc:fn=>{verify=fn;},setProxy:async value=>proxy.push(value),closeAllConnections:async()=>{},fetch:async(url,options)=>{calls.push({url,options});return fetch(url,options);}};
@@ -25,6 +25,13 @@ test('trusted provider transport never becomes an arbitrary URL, local-address o
  for(const url of ['http://127.0.0.1/','https://arbitrary.example.com/','https://u:p@api.duckduckgo.com/'])await assert.rejects(f.transport.request(url),{code:'SEARCH_ENDPOINT'});
  await assert.rejects(f.transport.request(DEFAULT_ENDPOINT,{headers:{'X-Subscription-Token':'secret'}}),{code:'SEARCH_ENDPOINT'});
  assert.equal(f.calls.length,0);await f.transport.request(BRAVE_ENDPOINT,{headers:{'X-Subscription-Token':'explicit-test-key'}});assert.equal(f.calls[0].options.headers['X-Subscription-Token'],'explicit-test-key');
+});
+test('query translation transport allows only bounded GET lookup, never public contributions or unrelated parameters',async t=>{
+ const f=setup(t,()=>new Response('{"responseStatus":200}',{headers:{'Content-Type':'application/json'}})),receipts=[];f.transport.observeSearch(row=>receipts.push(row));
+ const url=TRANSLATION_ENDPOINT+'?'+new URLSearchParams({q:'новости про космос',langpair:'ru|en',mt:'1'});
+ await f.transport.request(url);assert.equal(f.calls.length,1);assert.equal(receipts[0].query,'новости про космос');assert.equal(receipts[0].languagePair,'ru|en');assert.equal(f.calls[0].options.credentials,'omit');
+ for(const [target,options] of [[url.replace('/get?','/set?'),{}],[url,{method:'POST',body:'segment'}],[url+'&key=private',{}],[url+'&de=person@example.com',{}],[url.replace('ru%7Cen','en%7Cru'),{}],[TRANSLATION_ENDPOINT+'?'+new URLSearchParams({q:'я'.repeat(251),langpair:'ru|en'}),{}]])await assert.rejects(f.transport.request(target,options),{code:'SEARCH_ENDPOINT'});
+ assert.equal(f.calls.length,1);
 });
 test('only the exact own AI certificate gets narrowly scoped trust; public APIs use normal Chromium TLS',()=>{
  const certificate=new crypto.X509Certificate(fs.readFileSync(path.join(__dirname,'mouse-search-ca.crt'))),now=Date.parse('2026-11-21T12:00:00Z'),hostname=new URL(DEFAULT_AI_ENDPOINT).hostname,request={hostname,certificate:{data:certificate.toString()}};

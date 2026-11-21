@@ -212,12 +212,12 @@ def main(argv=None):
             require(owner634_report.get("ok") is True and owner634_report.get("version") == VERSION,
                     "Mouse634 pane downloads, AI preview and capture did not pass in the installed Linux build")
             evidence["checks"]["ownerFeedback634"] = {**owner634, "reportSha256": sha256(output / "mouse-634-owner-feedback.json")}
-            required635 = ["MOUSE_635_PUBLIC_SEARCH_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
+            required635 = ["MOUSE_635_PUBLIC_SEARCH_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_AGENT_CHAT_PASS", "MOUSE_635_PINNED_PANES_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
             owner635 = run_logged([executable, "--mouse-635-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner635")},
                                   output, "mouse-635-owner-feedback.log", 270, required635)
             owner635_report = json.loads((output / "mouse-635-owner-feedback.json").read_text(encoding="utf-8"))
             require(owner635_report.get("ok") is True and owner635_report.get("version") == VERSION,
-                    "Mouse635 public search and stable library did not pass in the installed Linux build")
+                    "Mouse635 public search, Agent chat, pinned panes and stable library did not pass in the installed Linux build")
             evidence["checks"]["ownerFeedback635"] = {**owner635, "reportSha256": sha256(output / "mouse-635-owner-feedback.json")}
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])
