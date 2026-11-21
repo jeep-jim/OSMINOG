@@ -11,7 +11,7 @@ module.exports=async({app,win,browser})=>{
  const previous=await js('({theme:MouseTest.model.theme,aiOpen:MouseTest.model.aiOpen})');
  const ai=[...browser.tabs.values()].find(t=>t.lane==='side');assert.ok(ai,'existing AI fixture');
  await js(`MouseTest.openAI(${JSON.stringify(ai.url)})`);await sleep(200);
- const r=await js(`(()=>{const p=document.querySelector('#ai-panel').getBoundingClientRect(),h=document.querySelector('.ai-controls').getBoundingClientRect(),v=document.querySelector('#ai-slot').getBoundingClientRect(),i=document.querySelector('#ai-provider-icon').getBoundingClientRect(),n=document.querySelector('#ai-select').getBoundingClientRect();return{top:p.top,head:h.height,slot:v.top,iconLeft:i.left,nameLeft:n.left,headCount:document.querySelectorAll('#ai-panel>.ai-controls').length,extra:!!document.querySelector('#ai-panel>.ai-head')}})()`);
+ const r=await js(`(()=>{const p=document.querySelector('#ai-panel').getBoundingClientRect(),h=document.querySelector('.ai-controls').getBoundingClientRect(),v=document.querySelector('#ai-slot').getBoundingClientRect(),i=document.querySelector('#ai-provider-icon').getBoundingClientRect(),n=document.querySelector('#ai-select').getBoundingClientRect();return{top:p.top,head:h.height,slot:v.top,iconLeft:i.left,nameLeft:n.left,headCount:document.querySelectorAll('#ai-panel>#ai-chat-pane>.ai-controls').length,extra:!!document.querySelector('#ai-panel .ai-head')}})()`);
  assert.equal(r.head,28);assert.equal(r.slot-r.top,28);assert.equal(r.headCount,1);assert.equal(r.extra,false);assert.ok(r.iconLeft>=r.nameLeft);
  const epoch=ai.navigationEpoch||0,wc=ai.view.webContents.id;
  await until(()=>js(`document.querySelector('#ai-provider-icon').src.startsWith('data:image/')`),'actual provider favicon');

@@ -66,15 +66,15 @@ test('fifty live pages do not add hidden native view polling or geometry writes 
 function rendererMetadataFixture(){
  const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),begin=source.indexOf('function receiveState('),end=source.indexOf('N.onState(receiveState)',begin);assert.ok(begin>=0&&end>begin);
  const tabs=Array.from({length:10},(_,i)=>({id:'active-'+i,url:'https://fixture.test/'+i,title:'Title '+i,lane:'main',loading:false,internal:false,back:false,forward:false}));
- const model={ready:true,desktopId:'desk-3',state:{tabs},slots:{p1:tabs[0].id,p2:tabs[1].id,p3:tabs[2].id,p4:tabs[3].id},aiId:'',switching:false},calls={tabs:0,labels:0,ai:0,layout:0,desktops:0,progress:0,saves:0};
- const context={m:model,pendingState:null,tab:id=>model.state.tabs.find(t=>t.id===id),prefs:()=>({slots:model.slots,aiId:model.aiId}),reconcile(){for(const [pane,id]of Object.entries(model.slots))if(!model.state.tabs.some(t=>t.id===id))model.slots[pane]='';if(model.aiId&&!model.state.tabs.some(t=>t.id===model.aiId))model.aiId='';},renderTabs:()=>calls.tabs++,syncPaneLabels:()=>calls.labels++,syncAIIcon:()=>calls.ai++,applySide:()=>calls.layout++,desktopUI:{render:()=>calls.desktops++},progressUI:{render:()=>calls.progress++},save:()=>calls.saves++};
+ const model={ready:true,desktopId:'desk-3',state:{tabs},slots:{p1:tabs[0].id,p2:tabs[1].id,p3:tabs[2].id,p4:tabs[3].id},aiId:'',aiPreviewId:'',switching:false},calls={tabs:0,labels:0,ai:0,preview:0,layout:0,desktops:0,progress:0,saves:0};
+ const context={m:model,pendingState:null,tab:id=>model.state.tabs.find(t=>t.id===id),prefs:()=>({slots:model.slots,aiId:model.aiId}),reconcile(){for(const [pane,id]of Object.entries(model.slots))if(!model.state.tabs.some(t=>t.id===id))model.slots[pane]='';if(model.aiId&&!model.state.tabs.some(t=>t.id===model.aiId))model.aiId='';},renderTabs:()=>calls.tabs++,syncPaneLabels:()=>calls.labels++,syncAIIcon:()=>calls.ai++,syncAIPreview:()=>calls.preview++,applySide:()=>calls.layout++,desktopUI:{render:()=>calls.desktops++},progressUI:{render:()=>calls.progress++},save:()=>calls.saves++};
  vm.runInNewContext(source.slice(begin,end),context);return{model,calls,receive:context.receiveState};
 }
 
 test('background metadata bursts update desktop badges and progress without active DOM rebuild or native layout',()=>{
  const f=rendererMetadataFixture();
  for(let n=0;n<50;n++)f.receive({desktopId:'desk-3',tabs:f.model.state.tabs.map(tab=>({...tab})),desktops:{items:Array.from({length:5},(_,i)=>({id:'desk-'+i,unread:n,title:'Background '+n}))},progress:{sequence:n}});
- assert.deepEqual(f.calls,{tabs:0,labels:0,ai:0,layout:0,desktops:50,progress:50,saves:0});assert.equal(f.model.state.progress.sequence,49);
+ assert.deepEqual(f.calls,{tabs:0,labels:0,ai:0,preview:0,layout:0,desktops:50,progress:50,saves:0});assert.equal(f.model.state.progress.sequence,49);
 });
 
 test('active title, loading and navigation updates remain current without geometrical relayout',()=>{
@@ -82,7 +82,7 @@ test('active title, loading and navigation updates remain current without geomet
  for(const change of [{title:'A current title'},{loading:true},{loading:false,back:true,url:'https://fixture.test/next'}]){
   const next=f.model.state.tabs.map(tab=>({...tab}));Object.assign(next[0],change);f.receive({desktopId:'desk-3',tabs:next,desktops:{items:[]}});assert.deepEqual(Object.fromEntries(Object.keys(change).map(key=>[key,f.model.state.tabs[0][key]])),change);
  }
- assert.deepEqual(f.calls,{tabs:3,labels:3,ai:3,layout:0,desktops:3,progress:3,saves:0});
+ assert.deepEqual(f.calls,{tabs:3,labels:3,ai:3,preview:3,layout:0,desktops:3,progress:3,saves:0});
  const internal=f.model.state.tabs.map(tab=>({...tab}));internal[0].internal=true;f.receive({desktopId:'desk-3',tabs:internal});assert.equal(f.calls.layout,1,'Replacing a native guest with a start/document page requires layout');
  f.receive({desktopId:'desk-3',tabs:internal.filter(tab=>tab.id!=='active-1')});assert.equal(f.model.slots.p2,'');assert.equal(f.calls.layout,2,'Closing a selected page hides its native view');assert.equal(f.calls.saves,1);
  const before={...f.calls};f.model.switching=true;f.receive({desktopId:'desk-4',tabs:[]});assert.deepEqual(f.calls,before,'The active transition owns its state until it settles');

@@ -23,7 +23,7 @@
   const fill=document.createElementNS('http://www.w3.org/2000/svg','path');fill.id='mouse-dock-fill';local.insertBefore(fill,outline);
   const glass=tray.querySelector('.desk-glass');panel.append(local);if(glass)panel.append(glass);panel.append(content);tray.append(panel);
   const scrim=document.createElement('div');scrim.id='mouse-dock-scrim';scrim.hidden=true;scrim.setAttribute('aria-hidden','true');document.body.append(scrim);
-  const toolbar=document.querySelector('.toolbar'),reduced=matchMedia('(prefers-reduced-motion: reduce)'),duration=300;
+  const toolbar=document.querySelector('.toolbar'),reduced=matchMedia('(prefers-reduced-motion: reduce)'),duration=300,backdropOpacity=.24;
   let active=false,goal=0,position=0,movement=null,shade=null,waiter=null,generation=0,geometry=null,geometryDirty=true,measurements=0,geometryWrites=0,preparing=false,preparationFrame=0,parked=false;
   let readyObservation=null;
   const events=[],animationTime=animation=>animation?{currentTime:animation.currentTime,startTime:animation.startTime,pending:animation.pending===true,playState:animation.playState,playbackRate:animation.playbackRate}:null;
@@ -83,7 +83,7 @@
   function complete(to,retainOpen=false){
    if(trace)cancelReadyObservation();
    note('complete',{to});
-   position=to;panel.style.transform=to?'translate3d(0,0,0)':'translate3d(0,100%,0)';scrim.style.opacity=String(to*.12);
+   position=to;panel.style.transform=to?'translate3d(0,0,0)':'translate3d(0,100%,0)';scrim.style.opacity=String(to*backdropOpacity);
    if(to===1&&retainOpen&&!reduced.matches&&movement&&shade){
     if(!parked){
      cancelPreparation();
@@ -103,7 +103,7 @@
    if(movement)return;
    const options={duration,easing:'cubic-bezier(.22,.8,.25,1)',fill:'both'};
    movement=panel.animate([{transform:'translate3d(0,100%,0)'},{transform:'translate3d(0,0,0)'}],options);
-   shade=scrim.animate([{opacity:0},{opacity:.12}],options);
+   shade=scrim.animate([{opacity:0},{opacity:backdropOpacity}],options);
    // Establish direction before the first endpoint timing calculation. At the
    // end boundary a forward effect is after/non-current even with fill:both;
    // changing only its rate later can leave that cached phase non-compositable.

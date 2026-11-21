@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createMouseOverlays=({N,restore,error})=>{
+globalThis.createMouseOverlays=({N,restore,error,prepare})=>{
  const held=new Set();let sequence=0,last=false;
  const active=()=>held.size>0||!!document.querySelector('dialog[open]:not([data-nonmodal])');
  function publish(force=false){const blocked=active();if(!force&&blocked===last)return Promise.resolve();last=blocked;return N.overlay({sequence:++sequence,blocked}).catch(e=>{error(e.message);throw e;});}
@@ -8,6 +8,7 @@ globalThis.createMouseOverlays=({N,restore,error})=>{
   d.addEventListener('close',()=>{held.delete(d);void reconcile().catch(()=>{});});
  }
  async function show(d){
+  if(prepare)await prepare();
   bind(d);held.add(d);
   try{await publish(true);if(!d.open)d.showModal();d.querySelector('input,button,[tabindex]')?.focus();}
   catch(e){held.delete(d);if(d.open)d.close();await publish(true).catch(()=>{});restore();throw e;}

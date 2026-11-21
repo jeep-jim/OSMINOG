@@ -18,7 +18,7 @@ globalThis.MouseDesktopPreview={
  render(host,desk,{N,large=false,tree=desk.tree}={}){
   const panes=desk.preview?.panes||[],lookup=new Map(panes.map(p=>[p.pane,p]));
   const make=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
-  const structure=JSON.stringify([tree,large,lookup.has('ai')]);
+  const structure=JSON.stringify([tree,large,lookup.has('ai'),lookup.has('ai-preview')]);
   host.classList.add('desk-preview');host.classList.toggle('desk-preview-large',large);
   if(mousePreviewLayouts.get(host)!==structure||!host.querySelector(':scope>.desk-preview-main')){
    host.replaceChildren();mousePreviewLayouts.set(host,structure);
@@ -29,7 +29,7 @@ globalThis.MouseDesktopPreview={
     for(const [sub,ratio]of [[t.a,t.ratio],[t.b,1-t.ratio]]){const part=make('span','desk-part');part.style.flex=String(ratio);split.append(part);build(sub,part);}
    }
    const main=make('span','desk-preview-main');host.append(main);build(tree,main);
-   if(lookup.has('ai')){const side=make('span','desk-preview-side');side.style.flex='0 0 24%';host.append(side);build({id:'ai'},side);}
+   if(lookup.has('ai')){const side=make('span','desk-preview-side');side.style.flex='0 0 24%';host.append(side);build(lookup.has('ai-preview')?{axis:'y',ratio:.5,a:{id:'ai'},b:{id:'ai-preview'}}:{id:'ai'},side);}
   }
   for(const cell of host.querySelectorAll('.desk-cell')){
    const p=lookup.get(cell.dataset.pane),src=p?.src||'',hasImage=/^data:image\/(?:jpeg|png);base64,/.test(src);let image=cell.querySelector('.desk-page-image');

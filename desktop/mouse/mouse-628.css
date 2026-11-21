@@ -1,7 +1,7 @@
 /* Owner correction 2026-11-19: surfaces, not permanent decorative outlines. */
 .toolbar,
 .pane-head,
-#ai-panel>.ai-controls,
+:is(#ai-panel,#ai-chat-pane)>.ai-controls,
 #library-dialog,
 #agent-panel,
 .agent-heading,

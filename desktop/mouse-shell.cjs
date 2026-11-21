@@ -3,6 +3,7 @@
 const {desktopCapturer,screen,systemPreferences,nativeImage,clipboard,ClipboardItem,dialog}=require('electron');
 const fs=require('node:fs/promises');
 const {faviconData}=require('./mouse/favicon.js');
+const {layerGeometry}=require('./mouse/capture-core.js');
 const LIMIT=32*1024*1024;
 function captureShortcut(input,platform=process.platform){
  const key=String(input.key).toLowerCase();
@@ -20,6 +21,28 @@ function imageData(image){
  if(image.isEmpty())throw Error('Не удалось получить изображение');
  const data=image.toPNG();pngBuffer('data:image/png;base64,'+data.toString('base64'));
  return 'data:image/png;base64,'+data.toString('base64');
+}
+async function captureBrowser(win,browser){
+ const [width,height]=win.getContentSize(),pages=()=>[...browser.tabs.values(),...browser.providers.values(),...(browser.mouseAdditionalCapturePages?.()||[])].filter(t=>t.visible&&!t.view.webContents.isDestroyed());
+ const geometry=t=>layerGeometry({...t.bounds,...t.captureGeometry});
+ const pins=pages().map(page=>({page,wc:page.view.webContents,epoch:page.navigationEpoch||0,geometry:geometry(page)}));
+ const current=()=>{
+  if(win.isDestroyed?.()||browser.disposed)return false;
+  const size=win.getContentSize(),live=pages();
+  return size[0]===width&&size[1]===height&&live.length===pins.length&&pins.every(pin=>live.includes(pin.page)&&pin.page.view.webContents===pin.wc&&(pin.page.navigationEpoch||0)===pin.epoch&&JSON.stringify(geometry(pin.page))===JSON.stringify(pin.geometry));
+ };
+ const check=()=>{if(!current())throw Error('Окно изменилось во время снимка. Повторите снимок.');};
+ // BrowserWindow.capturePage delegates to the shell WebContents. Native page
+ // readbacks are separate rectangular layers, so retain their actual clip and
+ // corner policy instead of painting over the shell's rounded cutouts.
+ const options={stayHidden:true,stayAwake:false},base=imageData(await win.capturePage(undefined,options)),layers=[];check();
+ for(const pin of pins){
+  if(!pin.geometry)continue;
+  const image=await pin.wc.capturePage(undefined,options);check();
+  const {bounds,clip,roundBottom}=pin.geometry;
+  layers.push({src:imageData(image),...bounds,clip:{...clip},...(pin.geometry.roundTop!==undefined?{roundTop:pin.geometry.roundTop}:{}),roundBottom});
+ }
+ check();return{base,width,height,layers,kind:'browser'};
 }
 async function boundedBody(response,limit){
  if(!response.ok||Number(response.headers.get('content-length'))>limit)throw Error('Icon unavailable');
@@ -64,13 +87,7 @@ function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reus
     if(!source||source.thumbnail.isEmpty())throw Error(process.platform==='darwin'?'Экран недоступен. Проверьте разрешение записи экрана macOS.':'Система не предоставила изображение выбранного экрана.');
     return{base:imageData(source.thumbnail),width:d.size.width,height:d.size.height,layers:[],kind};
    }
-   const [width,height]=win.getContentSize(),base=imageData(await win.capturePage()),layers=[];
-   for(const t of [...browser.tabs.values(),...browser.providers.values()]){
-    if(!t.visible||t.view.webContents.isDestroyed())continue;
-    const bounds=t.bounds;if(!bounds)continue;
-    layers.push({src:imageData(await t.view.webContents.capturePage()),...bounds});
-   }
-   return{base,width,height,layers,kind:'browser'};
+   return await captureBrowser(win,browser);
   }finally{captureBusy=false}
  }
  ipcMain.handle('mouse:capture',async(e,action,args={})=>{
@@ -94,4 +111,4 @@ function install({win,browser,ipcMain,trusted,send,test=false,captureScreen,reus
  const make=browser.make.bind(browser);browser.make=(...args)=>{const t=make(...args);t.view.webContents.on('before-input-event',shortcut);return t};
  return{capture,chrome};
 }
-module.exports={install,pngBuffer,exportPNG,captureShortcut};
+module.exports={install,pngBuffer,exportPNG,captureShortcut,captureBrowser};

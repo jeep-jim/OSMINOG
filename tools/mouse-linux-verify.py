@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.33"
+VERSION = "6.0.34"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -75,11 +75,12 @@ def installed_executable():
     return resolved
 
 
-def install_deb(deb, output, log):
+def install_deb(deb, output, log, *, expected_version=None):
     result = run_logged(["sudo", "-n", "apt-get", "install", "--reinstall", "-y", str(deb)],
                         {**os.environ, "DEBIAN_FRONTEND": "noninteractive"}, output, log, 180)
     version = subprocess.check_output(["dpkg-query", "-W", "-f=${Version}", "mouse-browser"], text=True).strip()
-    require(version == VERSION, "Installed deb version differs from the package under test")
+    require(version == (VERSION if expected_version is None else expected_version),
+            "Installed deb version differs from the package under test")
     desktop = Path("/usr/share/applications/mouse-browser.desktop")
     require(desktop.is_file() and "--no-sandbox" not in desktop.read_text(encoding="utf-8"),
             "Installed desktop entry missing or disables the sandbox")
@@ -137,8 +138,8 @@ def main(argv=None):
     require(re.fullmatch(r"[a-f0-9]{40}", source or "") and str(run_id).isdigit() and str(attempt).isdigit(),
             "Exact source CI provenance missing")
     evidence = {"ok": False, "version": VERSION, "platform": "linux", "arch": "x64", "source": source,
-                "runId": str(run_id), "runAttempt": str(attempt), "firstLinuxRelease": True,
-                "previousVersion": None, "packages": packages, "checks": {}, "ownerDeviceVerified": False,
+                "runId": str(run_id), "runAttempt": str(attempt), "firstLinuxRelease": False,
+                "previousVersion": "6.0.33", "packages": packages, "checks": {}, "ownerDeviceVerified": False,
                 "verificationRun": {"runId": os.environ.get("GITHUB_RUN_ID"), "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT")},
                 "runner": {"system": platform.system(), "release": platform.release(), "version": platform.version(),
                            "display": os.environ["DISPLAY"], "uid": os.getuid()}}
@@ -152,6 +153,16 @@ def main(argv=None):
             # Do not inherit a packaging/test bypass into the shipped executable.
             for key in ("ELECTRON_RUN_AS_NODE", "APPIMAGE", "APPDIR"):
                 env.pop(key, None)
+            current_upgrade = run_logged(
+                [sys.executable, Path(__file__).with_name("mouse-634-upgrade.py"), packages_dir],
+                env, output, "mouse-634-upgrade.log", 720, ["MOUSE_634_REAL_633_TO_634_PROFILE_PASS"])
+            upgrade_report = json.loads((output / "mouse-634-upgrade.json").read_text(encoding="utf-8"))
+            require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.33"
+                    and upgrade_report.get("toVersion") == VERSION and upgrade_report.get("platform") == "linux"
+                    and set(upgrade_report.get("formats", {})) == {"deb", "appimage"},
+                    "Actual published633 profile replacement did not pass for both Linux formats")
+            evidence["checks"]["freshUpgrade"] = {**current_upgrade,
+                    "reportSha256": sha256(output / "mouse-634-upgrade.json")}
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
             executable = installed_executable()
@@ -195,6 +206,12 @@ def main(argv=None):
             evidence["checks"]["retainedTaskStress"] = {**task,
                     "reportSha256": sha256(output / "mouse-631-native.json"), "taskSha256": sha256(output / "mouse-631-task.json"),
                     "stressSha256": sha256(output / "mouse-631-stress.json"), "mediaSha256": sha256(output / "mouse-632-media.json")}
+            owner634 = run_logged([executable, "--mouse-634-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner634")},
+                                  output, "mouse-634-owner-feedback.log", 270, ["MOUSE_634_OWNER_FEEDBACK_PASS"])
+            owner634_report = json.loads((output / "mouse-634-owner-feedback.json").read_text(encoding="utf-8"))
+            require(owner634_report.get("ok") is True and owner634_report.get("version") == VERSION,
+                    "Mouse634 pane downloads, AI preview and capture did not pass in the installed Linux build")
+            evidence["checks"]["ownerFeedback634"] = {**owner634, "reportSha256": sha256(output / "mouse-634-owner-feedback.json")}
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])
             owner_report = json.loads((output / "mouse-633-owner-feedback.json").read_text(encoding="utf-8"))

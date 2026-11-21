@@ -35,6 +35,13 @@ function scheduledFixture(options={}){
   }
  };
 }
+test('native surface snapshots retain clip/corner metadata and invalidate a changed mask during readback',async()=>{
+ const f=fixture(),page=f.add('rounded',{width:400,height:300});page.captureGeometry={clip:{x:4,y:58,width:396,height:292},roundBottom:12};
+ const packet=await f.surfaces.capture({ids:[page.id],paintProof:false});assert.equal(packet.complete,true);
+ assert.deepEqual(packet.surfaces[0].clip,page.captureGeometry.clip);assert.equal(packet.surfaces[0].roundBottom,12);assert.deepEqual(packet.surfaces[0].bounds,page.bounds);
+ let finish;page.view.webContents.capturePage=()=>new Promise(resolve=>{finish=resolve;});const pending=f.surfaces.capture({ids:[page.id],paintProof:false});while(!finish)await new Promise(setImmediate);
+ page.captureGeometry.roundBottom=0;finish(f.image(400,300));const result=await pending;assert.equal(result.complete,false);assert.deepEqual(result.surfaces,[]);assert.equal(result.token,'');f.surfaces.dispose();
+});
 test('ordinary transition frames skip unused full bitmap readout and cannot become a Nora paint proof',async()=>{
  const f=fixture(),page=f.add('a');f.surfaces.enableDiagnostics();let reads=0,shellReads=0;
  page.view.webContents.capturePage=async()=>({...f.image(),toBitmap(){reads++;throw Error('Unused proof must not copy this bitmap');}});f.shell.capturePage=async()=>{shellReads++;return f.image(1000,800);};

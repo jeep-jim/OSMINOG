@@ -27,8 +27,10 @@ test('every pane retains twelve-pixel top and bottom corners at internal and out
  for(const pane of [{top:40,bottom:460},{top:466,bottom:900},{top:40,bottom:900},{top:300,bottom:600}])assert.deepEqual(paneCorners(pane,stage),{top:12,bottom:12});
  const values=new Map(),writes=[],pane={style:{getPropertyValue:name=>values.get(name)||'',setProperty:(name,value)=>{values.set(name,value);writes.push([name,value]);}}};
  const doc={addEventListener(){},removeEventListener(){},querySelectorAll:()=>[],querySelector:selector=>{assert.equal(selector,'#stage');return{querySelectorAll:selector=>{assert.equal(selector,'.pane');return[pane];}};}};
- const ctx=vm.createContext({document:doc,clearTimeout});vm.runInContext(read('mouse/mouse-616-ui.js'),ctx);const controls=ctx.createMouseChromeControls({model:{},tab:()=>null,doc});
- controls.round();assert.deepEqual(writes,[['--pane-round-top','12px'],['--pane-round-bottom','12px']]);controls.round();assert.equal(writes.length,2,'A repeated metadata/layout update must not rewrite unchanged corner styles');controls.dispose();
+ const model={},ctx=vm.createContext({document:doc,clearTimeout});vm.runInContext(read('mouse/mouse-616-ui.js'),ctx);const controls=ctx.createMouseChromeControls({model,tab:()=>null,doc});
+ controls.round();assert.deepEqual(writes,[['--pane-round-top','12px'],['--pane-round-bottom','12px']]);controls.round();assert.equal(writes.length,2,'A repeated metadata/layout update must not rewrite unchanged corner styles');
+ model.focusPane='p1';controls.round();assert.deepEqual(writes.at(-1),['--pane-round-bottom','0px']);assert.equal(values.get('--pane-round-top'),'12px');assert.equal(writes.length,3);controls.round();assert.equal(writes.length,3,'Stationary focused updates do not repaint corner state');
+ model.focusPane='';controls.round();assert.deepEqual(writes.at(-1),['--pane-round-bottom','12px']);assert.equal(writes.length,4);assert.deepEqual(paneCorners({focused:true}),{top:12,bottom:0});controls.dispose();
 });
 test('reload uses actual loading state with bounded click feedback; full screen changes both controls',()=>{
  const s=read('mouse/mouse-616-ui.js'),css=read('mouse/mouse-616.css');

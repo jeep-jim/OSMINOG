@@ -18,8 +18,8 @@
 /* Editing must never hide or cover navigation, fullscreen or close. */
 .pane-head,.pane-head button,.pane-head input,.pane-head form{-webkit-app-region:no-drag}
 .ai-provider{margin-right:8px}
-#ai-panel>.ai-controls{height:28px;min-height:28px;flex:0 0 28px;padding:2px 4px;gap:2px;overflow:hidden;background:linear-gradient(180deg,var(--panel),color-mix(in srgb,var(--panel) 76%,var(--bg)))}
-#ai-panel>.ai-controls>button,#ai-panel>.ai-controls [data-action=ai-back],#ai-panel>.ai-controls [data-action=ai-forward]{width:20px;min-width:20px;height:22px;min-height:22px;padding:0;border-radius:5px;font-size:13px}
+:is(#ai-panel,#ai-chat-pane)>.ai-controls{height:28px;min-height:28px;flex:0 0 28px;padding:2px 4px;gap:2px;overflow:hidden;background:linear-gradient(180deg,var(--panel),color-mix(in srgb,var(--panel) 76%,var(--bg)))}
+:is(#ai-panel,#ai-chat-pane)>.ai-controls>button,:is(#ai-panel,#ai-chat-pane)>.ai-controls [data-action=ai-back],:is(#ai-panel,#ai-chat-pane)>.ai-controls [data-action=ai-forward]{width:20px;min-width:20px;height:22px;min-height:22px;padding:0;border-radius:5px;font-size:13px}
 .ai-provider #ai-select{height:22px;min-height:22px;font-size:10px;padding:2px 27px 2px 23px;appearance:none;-webkit-appearance:none}
 .ai-provider>.favicon{width:13px;height:13px;left:5px}
 .ai-provider:after{content:'';position:absolute;right:10px;top:calc(50% - 4px);width:6px;height:6px;border-right:1.5px solid var(--text);border-bottom:1.5px solid var(--text);transform:rotate(45deg);pointer-events:none}

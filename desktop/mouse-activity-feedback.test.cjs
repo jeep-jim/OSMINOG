@@ -31,7 +31,7 @@ test('paused transfers stay active without pretending to transfer, and terminal 
 
 test('pane tasks carry exact ownership and privacy with no URL, filesystem path or native object',()=>{
  const input=row('download-1',{url:'https://private.invalid/a',path:'/private/private-file',nativeObject:{secret:true}});
- const result=task(input,true,'en');assert.equal(result.id,'download:download-1');assert.equal(result.taskId,'download-1');assert.equal(result.tabId,'tab-a');assert.equal(result.desk,'desk-a');assert.equal(result.privateMode,true);assert.equal(result.estimated,false);
+ const result=task(input,true,'en');assert.equal(result.id,'download:download-1');assert.equal(result.taskId,'download-1');assert.equal(result.tabId,'tab-a');assert.equal(result.desk,'desk-a');assert.equal(result.privateMode,true);assert.equal(result.estimated,false);assert.equal(result.received,25);assert.equal(result.total,100);
  for(const key of ['url','path','nativeObject'])assert.equal(Object.hasOwn(result,key),false);
  for(const [state,phase]of [['completed','completed'],['cancelled','stopped'],['error','error'],['paused','running']])assert.equal(task(row('a',{state}),false).phase,phase);
  assert.match(description(row('a',{received:2048,total:4096}),'en'),/^Downloading · 2\.0 KB \/ 4\.0 KB$/);

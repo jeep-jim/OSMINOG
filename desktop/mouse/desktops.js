@@ -11,9 +11,9 @@ function mouseFloatingBackdrop(N,m,restore){
  const clear=()=>{for(const image of images){image.remove();image.removeAttribute('src');}images=[];surfacePacket=null;};
  function specs(){
   const result=[];
-  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect(),pane=slot?.closest?.('.pane');if(tab&&!tab.internal&&r?.width>1&&r.height>1)result.push({id,slot,roundBottom:parseFloat(pane?.style?.getPropertyValue('--pane-round-bottom'))||0,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
+  const add=(id,slot)=>{const tab=m.state.tabs.find(t=>t.id===id),r=slot?.getBoundingClientRect();if(tab&&!tab.internal&&r?.width>1&&r.height>1&&!result.some(item=>item.id===id))result.push({id,slot,r:{x:r.x,y:r.y,width:r.width,height:r.height}});};
   if(!m.focusAI)for(const pane of document.querySelectorAll('.pane'))add(m.slots[pane.dataset.pane],pane.querySelector('.page-slot'));
-  if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen)add(m.aiId,document.querySelector('#ai-slot'));
+  if(!m.focusPane&&m.aiOpen&&!m.agentOpen&&!m.libraryOpen&&!m.settingsOpen){add(m.aiId,document.querySelector('#ai-slot'));add(m.aiPreviewId,document.querySelector('#ai-preview-slot'));}
   return result;
  }
  // BrowserWorkspace.layout snaps shared endpoints, not width/height alone.
@@ -25,11 +25,13 @@ function mouseFloatingBackdrop(N,m,restore){
  function buildImages(packet,items){
   const byId=new Map((packet.surfaces||[]).map(surface=>[surface.id,surface])),next=[];
   if(byId.size!==items.length)throw Error('Состав рабочего стола изменился.');
-  for(const {id,r,roundBottom}of items){
+  for(const {id,r}of items){
    const surface=byId.get(id);if(!/^data:image\/png;base64,/.test(surface?.src||''))throw Error('Не удалось подготовить изображение вкладки.');
    const expected=nativeBox(r),box=surface.bounds||expected;if(!sameBox(box,expected))throw Error('Размер рабочего стола изменился.');
+   const geometry=MouseCaptureCore.layerGeometry({...box,clip:surface.clip,roundBottom:surface.roundBottom});if(!geometry)throw Error('Область рабочего стола изменилась.');
+   const {clip,roundBottom}=geometry,insets=[clip.y-box.y,box.x+box.width-clip.x-clip.width,box.y+box.height-clip.y-clip.height,clip.x-box.x],inset=insets.every(value=>value===0)?'0':insets.map(value=>value+'px').join(' ');
    const image=document.createElement('img');image.className='mouse-floating-snapshot';image.dataset.tabId=id;image.dataset.roundBottom=String(roundBottom);image.alt='';image.draggable=false;image.setAttribute('aria-hidden','true');image.src=surface.src;
-   Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800',borderRadius:`0 0 ${roundBottom}px ${roundBottom}px`,clipPath:`inset(0 round 0 0 ${roundBottom}px ${roundBottom}px)`});next.push(image);
+   Object.assign(image.style,{position:'fixed',left:box.x+'px',top:box.y+'px',width:box.width+'px',height:box.height+'px',objectFit:'fill',pointerEvents:'none',zIndex:'800',borderRadius:`0 0 ${roundBottom}px ${roundBottom}px`,clipPath:`inset(${inset} round 0 0 ${roundBottom}px ${roundBottom}px)`});next.push(image);
   }
   return next;
  }
@@ -101,7 +103,7 @@ function mouseFloatingBackdrop(N,m,restore){
   ...(trace?{note:phase=>record(phase),diagnostics:()=>({owner,epoch,heldToken:!!heldToken,images:images.length,events:trace.map(event=>({...event,...(event.requestedIds?{requestedIds:[...event.requestedIds]}:{}),...(event.returnedIds?{returnedIds:[...event.returnedIds]}:{})}))})}:{})
  };
 }
-globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,restoreLayout,moveTab,closeTab,activateTab,layout,restoreNative=async()=>layout(),openSettings=()=>{},status})=>{
+globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,restoreLayout,moveTab,closeTab,activateTab,layout,restoreNative=async()=>layout(),beforeOpen=null,status})=>{
  const backdrop=mouseFloatingBackdrop(N,m,restoreNative);globalThis.MouseFloatingBackdrop=backdrop;
  const make=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
  const button=make('button','');button.id='desktops-button';button.type='button';button.title='Рабочие столы';button.setAttribute('aria-label','Рабочие столы');button.setAttribute('aria-expanded','false');button.innerHTML='<span class="burrow-entry" aria-hidden="true"></span><span class="desktop-total-badge" hidden></span>';
@@ -110,7 +112,6 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  tray.innerHTML=`<svg class="desk-burrow-shape" viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true"><defs><clipPath id="mouse-desktop-burrow" clipPathUnits="userSpaceOnUse"><path d="M0 400C25 400 36 385 36 362V72C36 28 68 0 112 0H888C932 0 964 28 964 72V362C964 385 975 400 1000 400Z"/></clipPath></defs><path d="M0 400C25 400 36 385 36 362V72C36 28 68 0 112 0H888C932 0 964 28 964 72V362C964 385 975 400 1000 400" vector-effect="non-scaling-stroke"/></svg><div class="desk-glass" aria-hidden="true"></div><div class="desk-content"><section id="desktop-preview-popover" hidden aria-label="Предпросмотр стола"><div class="desk-peek-heading"><strong></strong><span></span><button class="desk-preview-go" type="button">Перейти ↗</button><button class="desk-preview-close" type="button" aria-label="Закрыть предпросмотр">×</button></div><div class="desk-peek-image"></div><div class="desk-peek-tabs"></div></section><header><div class="desk-title"><strong>Рабочие столы</strong><span class="desk-description">Пять пространств. Всё на своих местах.</span></div><div class="desk-actions"><button id="desk-modes-button" type="button" aria-expanded="false" aria-controls="desk-modes">Режимы <span aria-hidden="true">⌃</span></button><button id="desk-add" type="button" title="Перейти на свободный стол" aria-label="Перейти на свободный стол">+</button><button id="desks-close" type="button" aria-label="Закрыть рабочие столы">×</button></div></header><section id="desk-modes" aria-label="Режимы рабочего стола" inert><div class="desk-modes-inner"><p>Раскладка для текущего стола <strong class="desk-current-name"></strong></p><div class="desk-mode-list"></div><small>Ваши вкладки сохраняются. Сервисы открываются только на пустом столе.</small></div></section><div class="desktop-list"></div><p class="desk-help">Нажмите миниатюру, чтобы посмотреть. «Перейти» откроет стол.</p></div>`;
  document.body.append(tray);let state={items:[],active:''},opening=false,epoch=0,peekId='',modesOpen=false,previewState=null,chipDrag=null,suppressChipClick=0;
  const peek=tray.querySelector('#desktop-preview-popover'),modeButton=tray.querySelector('#desk-modes-button'),modes=tray.querySelector('#desk-modes');
- const settingsButton=make('button','desk-settings','⚙');settingsButton.id='desk-settings';settingsButton.type='button';settingsButton.title='Настройки Mouse Browser';settingsButton.setAttribute('aria-label',settingsButton.title);settingsButton.onclick=()=>openSettings();tray.querySelector('#desks-close').before(settingsButton);
  const content=tray.querySelector('.desk-content');content.inert=true;let motion=null;
  function shapeBurrow(){motion?.sync();}
  const history=createMouseLayoutHistory({N,model:m,header:content.querySelector(':scope>header'),before:modes,restore:restoreLayout,status,show:()=>{closePeek();showModes(false);},changed:()=>{shapeBurrow();layout();}});
@@ -126,7 +127,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   if(!current)return previous?{...previous,...d,preview:snapshot}:d;
   const byId=new Map(current.map(t=>[t.id,t])),oldImages=new Map((snapshot.panes||[]).filter(p=>p.id).map(p=>[p.id,p]));
   const info=id=>{const t=byId.get(id);if(!t)return{id:'',title:'Свободное окно',src:''};const old=oldImages.get(id);let site=t.site;try{site=site||new URL(t.url).hostname.replace(/^www\./,'');}catch{}return{...t,site:site||t.title,src:old?.url===t.url?old.src||'':'',capturedAt:old?.url===t.url?old.capturedAt||0:0};};
-  const slots=d.slots||previous?.slots||{},panes=MouseLayout.leaves(d.tree).map(pane=>({pane,...info(slots[pane])}));if(d.aiOpen&&!d.agentOpen&&d.aiId)panes.push({pane:'ai',...info(d.aiId)});
+  const slots=d.slots||previous?.slots||{},panes=MouseLayout.leaves(d.tree).map(pane=>({pane,...info(slots[pane])}));if(d.aiOpen&&!d.agentOpen&&d.aiId){panes.push({pane:'ai',...info(d.aiId)});const preview=current.find(t=>t.previewOf===d.aiId);if(preview)panes.push({pane:'ai-preview',...info(preview.id)});}
   return{...previous,...d,preview:{...snapshot,panes,tabs:current,extraTabs:current.filter(t=>!t.placed),capturedAt:Math.max(0,...panes.map(p=>p.capturedAt||0))}};
  }
  const words=(n,a,b,c)=>n%10===1&&n%100!==11?a:n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?b:c;
@@ -175,6 +176,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
   opening=true;const ticket=++epoch;
   try{
    await gesture?.ready;if(ticket!==epoch)return;
+   if(beforeOpen)await beforeOpen();if(ticket!==epoch)return;
    if(!await backdrop.show('desktops')||ticket!==epoch)return;
    tray.hidden=false;content.inert=true;tray.showModal();tray.focus({preventScroll:true});button.setAttribute('aria-expanded','true');
    render(m.state.desktops||state);layout();const done=await motion.open();if(done&&ticket===epoch)void refreshPreviews(ticket);
@@ -194,7 +196,7 @@ globalThis.createMouseDesktopUI=({N,model:m,preferences,switchDesktop,applyMode,
  tray.addEventListener('close',()=>{if(tray.open||opening)return;epoch++;finishClose();});
  async function choose(id,add=false){try{if(!await close())return;await switchDesktop(id,add);render(m.state.desktops);}catch(error){status(error.message)}}
  function render(next){
-  if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&!m.agentOpen&&tabs.some(t=>t.id===m.aiId)?[m.aiId]:[])]);return{...d,tree:m.tree,slots:m.slots,agentOpen:m.agentOpen,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');history.render(state);if(tray.hidden)return;
+  if(!next)return;state={...next,items:next.items.map(d=>{if(!d.active)return d;const tabs=MouseTabOrder.ordered(m.state.tabs||[],m.tabOrder),placed=new Set([...Object.values(m.slots).filter(id=>tabs.some(t=>t.id===id&&t.lane!=='side')),...(m.aiOpen&&!m.agentOpen?[m.aiId,m.aiPreviewId].filter(id=>tabs.some(t=>t.id===id)):[])]);return{...d,tree:m.tree,slots:m.slots,agentOpen:m.agentOpen,aiOpen:m.aiOpen,aiId:m.aiId,count:tabs.length,paneCount:placed.size,hiddenCount:tabs.length-placed.size,tabs:tabs.map(t=>({...t,placed:placed.has(t.id)}))};})};const unseen=state.items.filter(d=>!d.active).reduce((sum,d)=>sum+d.unread,0),badge=button.querySelector('.desktop-total-badge');badge.hidden=!unseen;setText(badge,unseen>99?'99+':String(unseen));button.title='Рабочие столы'+(unseen?' · Непрочитано по счётчикам сайтов: '+unseen:'');history.render(state);if(tray.hidden)return;
   setText(tray.querySelector('.desk-current-name'),state.items.find(d=>d.active)?.name||'');const list=tray.querySelector('.desktop-list'),existing=new Map([...list.children].map(e=>[e.dataset.desk,e])),wanted=new Set();
   for(let index=0;index<state.items.length;index++){
    const d=state.items[index];wanted.add(d.id);let tile=existing.get(d.id);

@@ -9,7 +9,10 @@ module.exports=async({win,browser,js,click,until})=>{
  const state=()=>js('MouseNative.agent("state")');let requested=0,websiteId='',server;
  const layout=()=>js('JSON.stringify((({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth})=>({mode,tree,slots,active,tabOrder,aiId,aiSessions,aiOpen,aiWidth}))(MouseTest.prefs()))');
  function retainedPages(){for(const [id,record]of pages){const current=browser.state().tabs.find(t=>t.id===id);assert.ok(current,'Existing tab survives a footer action');assert.equal(current.url,record.url);assert.equal(!!current.internal,record.internal);if(record.wc){const page=browser.tabs.get(id);assert.equal(page,record.page);assert.equal(page.view.webContents,record.wc);assert.equal(page.navigationEpoch||0,record.epoch);assert.equal(record.wc.isDestroyed(),false);}}}
- async function openSettings(){await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'footer632 Nora ready');await click('#desk-settings');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer632 settings visible');}
+ async function openSettings(){
+  await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'footer632 Nora ready');assert.equal(await js('!!document.querySelector("#desk-settings")'),false,'Nora has no settings gear');await click('#desks-close');await until(()=>js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'footer632 Nora closed');
+  await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer632 settings visible');
+ }
  async function openHelper(){await openSettings();await click('[data-action="assistant"]');await until(()=>js('MouseTest.model.agentOpen&&!document.querySelector("#agent-panel").hidden'),'footer632 helper explicitly opened');}
  try{
   assert.equal((await state()).enabled,false,'The fixture must begin with the optional agent disconnected');
