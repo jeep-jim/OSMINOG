@@ -25,10 +25,10 @@ function submitted(){const requestedURL='https://www.bing.com/search?q=original'
 test('ordinary proof requires native submission, unchanged tab ownership and an actual committed fixture URL',()=>{
  S.assertSubmission(submitted());for(const mutate of [row=>row.keyboard[1].isTrusted=false,row=>row.keyboard.push(row.keyboard[1]),row=>row.after.webContentsId=8,row=>row.samePageObject=false,row=>row.navigation=[],row=>row.capturedResolvedURL+='x',row=>row.externalEngineVerified=true]){const row=submitted();mutate(row);assert.throws(()=>S.assertSubmission(row));}
 });
-test('current package removes runtime and retired search smokes but keeps ordinary search and the new absence proof',async()=>{
+test('current source and package remove runtime and retired search smokes but keep ordinary search and the new absence proof',async()=>{
  const build=require('./mouse-build.cjs'),sourceRoot=__dirname;
  for(const file of S.REMOVED_FILES){await assert.rejects(fs.access(path.join(sourceRoot,file)),{code:'ENOENT'});assert.ok(!build.files.includes(file),file);}
- for(const file of S.RETIRED_SMOKES)assert.ok(build.files.includes('!'+file),file);
+ for(const file of S.RETIRED_SMOKES){await assert.rejects(fs.access(path.join(sourceRoot,file)),{code:'ENOENT'});assert.ok(build.files.includes('!'+file),file);}
  assert.ok(build.files.includes('mouse-search.cjs'));assert.ok(build.files.includes('mouse-636-*.cjs'));assert.ok(build.files.includes('!mouse-636-*.test.cjs'));
  const pkg=JSON.parse(await fs.readFile(path.join(sourceRoot,'package.json'),'utf8')),lock=JSON.parse(await fs.readFile(path.join(sourceRoot,'package-lock.json'),'utf8'));assert.equal(pkg.dependencies?.cheerio,undefined);assert.equal(pkg.overrides?.cheerio,undefined);assert.equal(lock.packages?.['node_modules/cheerio'],undefined);
 });
