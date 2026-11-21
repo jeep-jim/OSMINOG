@@ -10,7 +10,7 @@ function fixture(mode='--mouse-smoke-write'){
  return{app,win,runtime,electron,lines,requested,write:line=>lines.push(line),invalidReads:()=>invalidReads};
 }
 test('smoke tracing preserves native exit codes and never reads a destroyed window getter',()=>{
- for(const mode of ['--mouse-smoke-write','--mouse-smoke-read','--mouse-private-smoke','--mouse-windows-smoke-write','--mouse-windows-smoke-read','--mouse-linux-smoke-write','--mouse-linux-smoke-read','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke'])for(const code of [0,1]){
+ for(const mode of ['--mouse-smoke-write','--mouse-smoke-read','--mouse-private-smoke','--mouse-windows-smoke-write','--mouse-windows-smoke-read','--mouse-linux-smoke-write','--mouse-linux-smoke-read','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke','--mouse-635-smoke'])for(const code of [0,1]){
   const f=fixture(mode);install(f)(code);assert.deepEqual(f.requested,[code]);assert.equal(f.invalidReads(),0);
   const entries=f.lines.map(line=>{const at=line.indexOf(' ');return{marker:line.slice(0,at),state:JSON.parse(line.slice(at+1))};});
   assert.deepEqual(entries.map(e=>e.marker),['MOUSE_SMOKE_EXIT_REQUESTED','MOUSE_SMOKE_APP_QUIT','MOUSE_SMOKE_PROCESS_EXIT','MOUSE_SMOKE_EXIT_RETURNED']);assert.ok(entries.every(e=>e.state.code===code&&e.state.mode===mode&&e.state.pid===123));assert.equal(entries[0].state.webContentsCount,1);assert.equal(entries.at(-1).state.webContentsCount,0);assert.equal(entries.at(-1).state.windowDestroyed,true);

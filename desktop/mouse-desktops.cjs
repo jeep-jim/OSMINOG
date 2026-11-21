@@ -7,7 +7,7 @@ const {DesktopPreviews}=require('./mouse-desktop-previews.cjs');
 const {DesktopSurfaces}=require('./mouse-surfaces.cjs');
 const {randomUUID}=require('node:crypto');
 const KEY='mouseDesktopsV1',MAX_DESKS=5,HISTORY_LIMIT=30,HISTORY_BYTES=512*1024;
-const layoutKeys=['tree','slots','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions','mode','agentOpen'];
+const layoutKeys=['tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions','mode','agentOpen'];
 const clone=x=>JSON.parse(JSON.stringify(x));
 const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{},mode:'',agentOpen:false});
 // Focus, title/session metadata and opening the Agent selector alone are not edits
@@ -49,6 +49,7 @@ function layout(value={}){
  out.agentOpen=value.agentOpen===undefined?out.mode==='agents':value.agentOpen===true;
  const leaves=L.leaves(out.tree);out.active=leaves.includes(value.active)?value.active:leaves[0];
  if(value.slots&&typeof value.slots==='object')for(const p of leaves)if(typeof value.slots[p]==='string'&&value.slots[p].length<=100)out.slots[p]=value.slots[p];
+ const pinned=L.pins({...out,pinnedPanes:value.pinnedPanes});if(Object.keys(pinned).length)out.pinnedPanes=pinned;
  out.tabOrder=[...new Set((Array.isArray(value.tabOrder)?value.tabOrder:[]).filter(v=>typeof v==='string'&&v.length<=100))].slice(0,1000);
  out.aiOpen=value.aiOpen===true;out.aiWidth=Math.max(240,Math.min(1600,Number(value.aiWidth)||360));out.aiId=typeof value.aiId==='string'?value.aiId.slice(0,100):'';
  if(value.aiSessions&&typeof value.aiSessions==='object')for(const [k,v]of Object.entries(value.aiSessions).slice(0,30))if(/^https?:\/\//.test(k)&&k.length<8192&&typeof v==='string'&&v.length<=100)out.aiSessions[k]=v;
@@ -94,7 +95,9 @@ class DesktopBank{
   if(pending&&h.past.at(-1)===pending.entry&&sameLayout(pending.entry.layout,d.layout)){h.past.pop();h.current=historyMeta(pending.entry);h.future=pending.future;}
   this.compactHistory(d);
  }
- setLayout(d,next,options={}){
+ setLayout(d,next,options={},pinChange=false){
+  L.assertPins(d.layout,next);
+  if(!pinChange&&JSON.stringify(L.pins(d.layout))!==JSON.stringify(L.pins(next)))throw Error('Закрепление окна меняется только командой «Закрепить» или «Открепить окно».');
   const meta=changeMeta(options),h=d.history,pending=this.historyGroups.get(d.id),changed=!sameLayout(d.layout,next);
   if(changed){
    if(!meta.group||pending?.group!==meta.group){
@@ -106,9 +109,18 @@ class DesktopBank{
   if(meta.group&&meta.commit&&this.historyGroups.get(d.id)?.group===meta.group||!meta.group&&meta.explicitCommit||changed&&!meta.group)this.finishHistoryGroup(d);
   return changed;
  }
+ pinPane(pane,pinned,id){
+  const d=this.current(),p=d.layout;if(typeof pinned!=='boolean'||!L.leaves(p.tree).includes(pane))throw Error('Окно не найдено');
+  if(typeof id!=='string'||id!==(p.slots[pane]||''))throw Error('Содержимое окна уже изменилось');
+  const next=clone(p),pins=L.pins(p);if(pinned)pins[pane]=id;else delete pins[pane];
+  if(Object.keys(pins).length)next.pinnedPanes=pins;else delete next.pinnedPanes;
+  this.setLayout(d,next,{},true);return next;
+ }
+ assertTabUnpinned(id){if(id&&this.items.some(d=>Object.values(L.pins(d.layout)).includes(id)))throw Error('Сначала открепите окно, чтобы закрыть или перенести его вкладку.');}
  liveLayout(value,desk,tabs){
   const p=layout(value),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t])),used=new Set();
   for(const [pane,id]of Object.entries(p.slots)){if(!own.has(id)||own.get(id).lane==='side'||used.has(id))delete p.slots[pane];else used.add(id);}
+  const pinned=L.pins(p);if(Object.keys(pinned).length)p.pinnedPanes=pinned;else delete p.pinnedPanes;
   // Renderer preferences include every live tab in its effective order. Append
   // newly opened IDs to older checkpoints too, so a harmless startup/flush save
   // after undo cannot look like an order edit and discard the redo branch.
@@ -118,7 +130,10 @@ class DesktopBank{
  restoreLayout(historyId,tabs,selected){
   this.reconcile(tabs);const d=this.current(),h=d.history;this.finishHistoryGroup(d);
   if(historyId===h.current.id)return false;
-  const past=h.past.findIndex(e=>e.id===historyId),future=h.future.findIndex(e=>e.id===historyId),current={...h.current,layout:clone(d.layout)};let target;
+  const past=h.past.findIndex(e=>e.id===historyId),future=h.future.findIndex(e=>e.id===historyId),current={...h.current,layout:clone(d.layout)};
+  const candidate=past>=0?h.past[past]:future>=0?h.future[future]:selected?.id===historyId?selected:null;
+  if(!candidate)throw Error('Состояние раскладки больше недоступно');
+  const restored=this.liveLayout({...candidate.layout,pinnedPanes:d.layout.pinnedPanes},d.id,tabs);L.assertPins(d.layout,restored);let target;
   if(past>=0){target=h.past[past];h.future=[...h.future,current,...h.past.slice(past+1).reverse()];h.past=h.past.slice(0,past);}
   else if(future>=0){target=h.future[future];h.past=[...h.past,current,...h.future.slice(future+1).reverse()];h.future=h.future.slice(0,future);}
   // A real pending edit may have branched away from the selected future.
@@ -126,7 +141,7 @@ class DesktopBank{
   // atomically; liveLayout still removes IDs closed during the awaited stop.
   else if(selected?.id===historyId){target=selected;h.past.push(current);h.future=[];}
   else throw Error('Состояние раскладки больше недоступно');
-  d.layout=this.liveLayout(target.layout,d.id,tabs);h.current=historyMeta(target);this.compactHistory(d);return true;
+  d.layout=restored;h.current=historyMeta(target);this.compactHistory(d);return true;
  }
  stepHistory(direction,tabs){
   if(!['undo','redo'].includes(direction))throw Error('Unknown layout history direction');this.reconcile(tabs);const d=this.current();this.finishHistoryGroup(d);const entry=d.history[direction==='undo'?'past':'future'].at(-1);return entry?this.restoreLayout(entry.id,tabs):false;
@@ -142,7 +157,7 @@ class DesktopBank{
   // identities, ownership or lanes needs to walk the bounded history.
   const liveKey=JSON.stringify(tabs.map(t=>[t.id,this.members[t.id],t.lane==='side']).sort((a,b)=>a[0].localeCompare(b[0])));
   if(liveKey===this.historyLiveKey){
-   for(const d of this.items){const own=id=>live.has(id)&&this.members[id]===d.id,p=d.layout;p.tabOrder=p.tabOrder.filter(own);for(const [pane,id]of Object.entries(p.slots))if(!own(id))delete p.slots[pane];if(p.aiId&&!own(p.aiId))p.aiId='';for(const [url,id]of Object.entries(p.aiSessions))if(!own(id))delete p.aiSessions[url];}
+   for(const d of this.items){const own=id=>live.has(id)&&this.members[id]===d.id,p=d.layout;p.tabOrder=p.tabOrder.filter(own);for(const [pane,id]of Object.entries(p.slots))if(!own(id))delete p.slots[pane];const pinned=L.pins(p);if(Object.keys(pinned).length)p.pinnedPanes=pinned;else delete p.pinnedPanes;if(p.aiId&&!own(p.aiId))p.aiId='';for(const [url,id]of Object.entries(p.aiSessions))if(!own(id))delete p.aiSessions[url];}
    return;
   }
   this.historyLiveKey=liveKey;
@@ -160,6 +175,7 @@ class DesktopBank{
   if(!destination)throw Error('Рабочий стол не найден');
   if(before!==undefined&&(typeof before!=='string'||!tabs.some(t=>t.id===before&&this.members[t.id]===desk)))throw Error('Позиция вкладки уже изменилась');
   if(before===id)return{ id,from:source,desk };
+  if(source!==desk)this.assertTabUnpinned(id);
   const linked=source!==desk&&!page.previewOf?this.ordered(source,tabs).filter(t=>t.previewOf===id).map(t=>t.id):[],moving=[id,...linked],movedIds=new Set(moving),detachedPreview=source!==desk&&!!page.previewOf;
   // Validate the destination and insertion point before changing a relation.
   // A chat carries its live lower pages; an explicitly moved lower page becomes
@@ -169,7 +185,7 @@ class DesktopBank{
   const next=clone(destination.layout),order=this.ordered(desk,tabs).map(t=>t.id).filter(x=>!movedIds.has(x)),at=before===undefined?order.length:order.indexOf(before);order.splice(at,0,...moving);next.tabOrder=order;
   if(source!==desk){
    if(page.lane==='side'){if(!next.aiId){next.aiId=id;next.aiOpen=true;}}
-   else{const pane=L.leaves(next.tree).find(p=>!next.slots[p]);if(pane)next.slots[pane]=id;}
+   else{const pane=L.leaves(next.tree).find(p=>!next.slots[p]&&!Object.hasOwn(L.pins(next),p));if(pane)next.slots[pane]=id;}
   }
   this.setLayout(destination,next,{reason:source===desk?'tab-order':'tab-transfer'});this.reconcile(tabs);
   return{id,from:source,desk,...(linked.length?{linked}:{}),...(detachedPreview?{detachedPreview:true}:{})};
@@ -208,6 +224,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  browser.layout=panels=>oldLayout((Array.isArray(panels)?panels:[]).filter(p=>bank.members[p.id]===bank.active));
  browser.command=async(action,args={})=>{
   if(['close','navigate','back','forward','reload'].includes(action)&&bank.members[args.id]!==bank.active)throw Error('Вкладка принадлежит другому рабочему столу');
+  if(action==='close')bank.assertTabUnpinned(args.id);
   const targetDesk=creationDesk||bank.active;
   const result=await oldCommand(action,args);
   if(action==='open'&&result?.id){bank.assign(result.id,targetDesk);await persist();browser.emit();}
@@ -247,7 +264,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    if(typeof args.id!=='string'||bank.members[args.id]!==bank.active)return{src:''};
    return previews.thumbnail(args.id);
   }
-  if(!['switch','add','rename','apply-mode','previews','remember-preview','move-tab','close-tab','history-state','undo','redo','restore-layout'].includes(action))throw Error('Unknown desktop action');
+  if(!['switch','add','rename','apply-mode','previews','remember-preview','move-tab','close-tab','pin-pane','history-state','undo','redo','restore-layout'].includes(action))throw Error('Unknown desktop action');
   // Validate a mode before accepting any accompanying preferences.
   const mode=action==='apply-mode'?Modes.get(args.mode):null;
   const run=async()=>{
@@ -260,6 +277,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    if(action==='restore-layout'&&!selected)throw Error('Состояние раскладки больше недоступно');
    if(args.afterClosePreferences){if(action!=='close-tab'||args.afterClosePreferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.afterClosePreferences);changeMeta(args.history||{});}
    if(args.preferences){if(args.preferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.preferences);changeMeta(args.history||{});bank.savePreferences(args.preferences,args.history||{},tabs);}
+   if(action==='pin-pane'){bank.pinPane(args.pane,args.pinned,args.id);await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
    if(action==='previews'||action==='remember-preview'){await previews.capture();await persist();return previews.snapshot();}
    if(['undo','redo','restore-layout'].includes(action)){
     bank.finishHistoryGroup();const history=bank.historyState(),available=action==='restore-layout'?args.historyId!==history.currentId:action==='undo'?history.canUndo:history.canRedo;let changed=false;
@@ -275,13 +293,15 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
     if(action==='move-tab'){
      if(!bank.items.some(d=>d.id===args.desk))throw Error('Рабочий стол не найден');
      if(args.before!==undefined&&(typeof args.before!=='string'||!tabs.some(t=>t.id===args.before&&bank.members[t.id]===args.desk)))throw Error('Позиция вкладки уже изменилась');
+     if(source!==args.desk)bank.assertTabUnpinned(args.id);
      if(source!==args.desk)await browser.mouseBeforeDesktopChange?.();
      const moved=bank.move(args.id,args.desk,args.before,rawLiveState().tabs);
      if(moved.detachedPreview){const native=browser.tabs.get(args.id);delete native.previewOf;native.lane='main';await oldSave();}
      if(moved.from!==args.desk){for(const id of [args.id,...(moved.linked||[])])previews.drop(id);browser.layout(browser.panels||[]);}
      await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
     }
-    await browser.mouseBeforeDesktopChange?.();const closed=await oldCommand('close',{id:args.id});
+    bank.assertTabUnpinned(args.id);if(args.afterClosePreferences)L.assertPins(bank.current().layout,args.afterClosePreferences);
+    await browser.mouseBeforeDesktopChange?.();bank.assertTabUnpinned(args.id);const closed=await oldCommand('close',{id:args.id});
     if(closed?.cancelled){await persist();return{state:state(),preferences:bank.preferences(),previews:previews.snapshot(),cancelled:true};}
     if(args.afterClosePreferences)bank.savePreferences(args.afterClosePreferences,args.history||{},rawLiveState().tabs);
     previews.drop(args.id);await persist();
@@ -289,12 +309,13 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    }
    if(action==='rename'){const d=bank.items.find(d=>d.id===args.id);if(!d)throw Error('Рабочий стол не найден');d.name=String(args.name||'Стол').trim().slice(0,60)||'Стол';await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
    if(action==='apply-mode'){
+    L.assertPins(bank.current().layout,Modes.arranged(mode.id,rawLiveState().tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout));
     await browser.mouseBeforeDesktopChange?.();await previews.capture();
     const own=()=>rawLiveState().tabs.filter(t=>bank.members[t.id]===bank.active);
     // Even an internal start tab or an AI side tab is user-owned content.
     // Existing pages retain identity, sessions and navigation history.
     if(!own().length)for(const url of mode.sites)await browser.command('open',{url,lane:'main'});
-    const tabs=rawLiveState().tabs,next=bank.liveLayout({...Modes.arranged(mode.id,tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout),agentOpen:mode.id==='agents'},bank.active,tabs);
+    const tabs=rawLiveState().tabs,next=bank.liveLayout({...Modes.arranged(mode.id,tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout),pinnedPanes:bank.current().layout.pinnedPanes,agentOpen:mode.id==='agents'},bank.active,tabs);
     bank.setLayout(bank.current(),next,{reason:'mode:'+mode.id});await persist();browser.emit();return{state:state(),preferences:bank.preferences()};
    }
    const id=action==='add'?bank.add(rawLiveState().tabs):args.id;

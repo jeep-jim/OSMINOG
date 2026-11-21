@@ -4,7 +4,7 @@ const {TileSearch}=require('./mouse-tile-search.cjs');
 const result=(id)=>({id,url:'https://example.com/'+id,title:'Site '+id,type:'article'});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 const captureRecord=(id)=>({id,visible:true,navigationEpoch:1,bounds:{x:20,y:100,width:120,height:160},view:{webContents:{isDestroyed:()=>false,capturePage:async()=>({isEmpty:()=>false,getSize:()=>({width:120,height:160}),toPNG:()=>Buffer.from('owned captured bitmap')})}}});
-function setup({query,summary,chat}={}){
+function setup({query,summary,chat,nativeSource}={}){
  const log=[],sent=[],registered=new Map(),shell=new EventEmitter();shell.send=(channel,value)=>sent.push({channel,value});shell.isDestroyed=()=>false;
  const win=new EventEmitter();Object.assign(win,{webContents:shell,isDestroyed:()=>false,isMinimized:()=>false});
  const browser={tabs:new Map([['original',{id:'original'}]]),providers:new Map(),mouseDesktops:{bank:{active:'desk-3'}},layout:panels=>log.push(['ordinary-layout',panels]),command:async(action,args)=>{log.push(['browser-command',action,args]);return{id:'opened-result'};}};
@@ -13,13 +13,49 @@ function setup({query,summary,chat}={}){
  const service={state:()=>({configured:true}),query:query||(async args=>({...args,results:[result('one')],hasMore:true})),summarize:summary||(async()=>({text:'A fixture summary'})),chat:chat||(async()=>({text:'A fixture answer'})),cancel:id=>log.push(['cancel',id]),cancelAll:()=>log.push(['cancel-all']),dispose:()=>log.push(['service-dispose'])};
  const views=new EventEmitter();Object.assign(views,{state:()=>({pages:[]}),setResults(rows,{revision}){assert.ok(revision>=1);this.rows=rows.slice();this.revision=revision;log.push(['results',rows.map(r=>r.id),revision]);},layout:packet=>{log.push(['search-layout',packet]);return{liveCount:1};},suspend:reason=>log.push(['suspend',reason]),resume:()=>log.push(['resume']),close:reason=>log.push(['views-close',reason]),dispose:()=>log.push(['views-dispose']),capturePages:()=>[],resultURL(id){return this.rows.find(row=>row.id===id)?.url;}});
  const vision={state:()=>({active:visionActive,targetId:'one'}),start:async({id,consent})=>{assert.equal(consent,true);visionActive=true;log.push(['vision-start',id]);return{active:true};},stop:reason=>{visionActive=false;log.push(['vision-stop',reason]);return Promise.resolve({active:false});},snapshot:async()=>({elements:[],scope:'selected-main-frame'}),dispose:()=>log.push(['vision-dispose'])};
- const controller=new TileSearch({app:{getPath:()=>'/tmp/fixture-search'},win,browser,overlayGate:gate,isPrivate:()=>privateMode,serviceFactory:options=>{serviceOptions=options;return service;},viewsFactory:()=>views,visionFactory:()=>vision,powerMonitor:new EventEmitter(),ipcMain:{handle:(channel,handler)=>registered.set(channel,handler),removeHandler:channel=>registered.delete(channel)},trusted:event=>{if(event.trusted!==true)throw Error('Untrusted frame');}});
+ const controller=new TileSearch({app:{getPath:()=>'/tmp/fixture-search'},win,browser,nativeSource,overlayGate:gate,isPrivate:()=>privateMode,serviceFactory:options=>{serviceOptions=options;return service;},viewsFactory:()=>views,visionFactory:()=>vision,powerMonitor:new EventEmitter(),ipcMain:{handle:(channel,handler)=>registered.set(channel,handler),removeHandler:channel=>registered.delete(channel)},trusted:event=>{if(event.trusted!==true)throw Error('Untrusted frame');}});
  return{controller,log,sent,registered,browser,gate,views,vision,service,serviceOptions,setPrivate:value=>{privateMode=value;}};
 }
 test('clearing an empty query removes native results immediately and invalidates outstanding answers without closing the workspace',async()=>{
- const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'before clearing',requestId:'before'});await f.controller.handle('vision-start',{id:'one',revision:f.controller.revision,consent:true});const oldRevision=f.controller.revision;
+ const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'before clearing',requestId:'before'});await f.vision.start({id:'one',consent:true});const oldRevision=f.controller.revision;
  const cleared=await f.controller.handle('clear');assert.equal(cleared.cleared,true);assert.ok(cleared.revision>oldRevision);assert.equal(f.controller.active,true);assert.deepEqual(f.views.rows,[]);assert.deepEqual(f.controller.results,[]);assert.equal(f.vision.state().active,false);assert.equal(f.controller.query,'');assert.deepEqual([...f.browser.tabs.keys()],['original']);
  answer.resolve({text:'Late answer must remain cancelled'});await new Promise(setImmediate);assert.equal(f.sent.some(row=>row.value.kind==='summary'),false);f.controller.dispose();
+});
+
+function nativeChallenge(){
+ const {SearchError}=require('./mouse-search-service.cjs');let owned=true,closed=false,takes=0,engine='google';
+ const wc={isDestroyed:()=>closed,close:()=>{closed=true;}},view={webContents:wc},receipt={view,wc,source:{requestId:'manual',query:'новости про антропик',filter:'all',page:1,engine}};
+ const nativeSource={sourceFor:id=>owned&&id===receipt.source.requestId?receipt:null,takeSource:id=>{if(!owned||id!==receipt.source.requestId)return null;takes++;owned=false;return receipt;},cancel:()=>{if(owned)closed=true;},cancelAll:()=>{if(owned)closed=true;},dispose(){this.cancelAll();}};
+ const f=setup({nativeSource,query:async args=>{Object.assign(receipt.source,args,{engine});closed=false;owned=true;const error=new SearchError('SEARCH_ENGINE_CHALLENGE','Поисковик просит проверку.');error.manualAction={available:true,requestId:args.requestId,engine};throw error;}});
+ f.browser.mouseSearch={state:()=>({engine})};f.browser.project='work';f.browser.adoptSearchSource=source=>{assert.equal(source,receipt);return{id:'adopted-source'};};f.controller.open();
+ return{...f,receipt,closed:()=>closed,takes:()=>takes,setEngine:value=>{engine=value;},query:()=>f.controller.search({query:receipt.source.query,requestId:'manual'})};
+}
+test('manual engine action adopts the same owned page and ignores renderer URLs, preserving the transferred page on close',async()=>{
+ const f=nativeChallenge();await assert.rejects(f.query(),{code:'SEARCH_ENGINE_CHALLENGE'});assert.equal(f.serviceOptions.nativeSource,f.controller.nativeSource);
+ assert.deepEqual(await f.controller.handle('open-engine',{requestId:'manual',url:'https://attacker.example'}),{id:'adopted-source'});
+ assert.equal(f.takes(),1);assert.equal(f.closed(),false);assert.equal(f.controller.active,false);assert.deepEqual([...f.browser.tabs.keys()],['original']);
+ assert.ok(f.sent.some(item=>item.value.kind==='open-result'&&item.value.id==='adopted-source'&&item.value.desk==='desk-3'));
+ f.controller.dispose();assert.equal(f.closed(),false,'service disposal cannot destroy the transferred normal tab');
+});
+test('manual engine actions cannot cross a query, cancellation, desk, project, selected engine or close boundary',async()=>{
+ for(const change of ['query','cancel','desk','project','engine','close','clear']){
+  const f=nativeChallenge();await assert.rejects(f.query(),{code:'SEARCH_ENGINE_CHALLENGE'});
+  if(change==='query')await assert.rejects(f.controller.search({query:'other',requestId:'other'}),{code:'SEARCH_ENGINE_CHALLENGE'});
+  if(change==='cancel')await f.controller.handle('cancel',{requestId:'manual'});
+  if(change==='desk')f.browser.mouseDesktops.bank.active='desk-4';
+  if(change==='project')f.browser.project='another';
+  if(change==='engine')f.setEngine('bing');
+  if(change==='close'){f.controller.close();f.controller.open();}
+  if(change==='clear')f.controller.clearResults();
+  await assert.rejects(f.controller.handle('open-engine',{requestId:'manual'}),{code:'SEARCH_SOURCE_STALE'},change);assert.equal(f.takes(),0,change);f.controller.dispose();
+ }
+});
+test('failed native adoption closes the detached source, and a completed ordinary query is not a challenge action',async()=>{
+ const f=nativeChallenge();await assert.rejects(f.query(),{code:'SEARCH_ENGINE_CHALLENGE'});f.browser.adoptSearchSource=()=>{throw Error('view unavailable');};await assert.rejects(f.controller.handle('open-engine',{requestId:'manual'}),/view unavailable/);assert.equal(f.closed(),true);f.controller.dispose();
+ const g=nativeChallenge();g.service.query=async()=>({results:[result('real')],hasMore:false});await g.query();await assert.rejects(g.controller.handle('open-engine',{requestId:'manual'}),{code:'SEARCH_SOURCE_STALE'});assert.equal(g.takes(),0);g.controller.dispose();
+});
+test('late results are rejected after the canonical selected engine changes even before renderer cancellation arrives',async()=>{
+ const f=nativeChallenge(),waiting=deferred();f.service.query=()=>waiting.promise;const promise=f.query(),rejected=assert.rejects(promise,/отменён/);f.setEngine('yandex');waiting.resolve({results:[result('old-engine')],hasMore:false});await rejected;assert.deepEqual(f.controller.results,[]);f.controller.dispose();
 });
 test('cancelling a completed query also cancels its in-flight automatic summary',async()=>{
  const answer=deferred(),f=setup({summary:()=>answer.promise});f.controller.open();await f.controller.search({query:'summary cancellation',requestId:'q'});await f.controller.handle('cancel',{requestId:'q'});answer.resolve({text:'Late summary'});await new Promise(setImmediate);
@@ -51,7 +87,7 @@ test('pagination is revision-bound, deduplicated, and explicit open uses the aut
  await f.controller.handle('open-result',{id:'two',url:'https://attacker.example'});assert.deepEqual(f.log.find(r=>r[0]==='browser-command'),['browser-command','open',{url:'https://example.com/two',lane:'main'}]);assert.equal(f.controller.active,false);f.controller.dispose();
 });
 test('modal and privacy barriers hide native search pages and revoke selected-page observation',async()=>{
- const f=setup();f.controller.open();await f.controller.search({query:'topic',requestId:'q'});await f.controller.handle('vision-start',{id:'one',consent:true,revision:f.controller.revision});f.log.length=0;
+ const f=setup();f.controller.open();await f.controller.search({query:'topic',requestId:'q'});await f.vision.start({id:'one',consent:true});f.log.length=0;
  f.gate.set({blocked:true});assert.equal(f.log[0][0],'suspend');assert.equal(f.vision.state().active,false);assert.deepEqual(f.log.filter(r=>r[0]==='ordinary-layout').at(-1),['ordinary-layout',[]]);
  f.gate.set({blocked:false});assert.equal(f.log.at(-1)[0],'resume');f.setPrivate(true);await assert.rejects(f.controller.handle('query',{query:'secret'}),/обычном/);f.controller.close('private',{reset:true});assert.deepEqual(f.controller.results,[]);assert.equal(f.controller.query,'');f.controller.dispose();
 });
@@ -64,4 +100,42 @@ test('an old chat completion cannot unlock or overwrite a newer search conversat
  const old=deferred(),next=deferred();let count=0;const f=setup({chat:()=>++count===1?old.promise:next.promise});f.controller.open();await f.controller.search({query:'first',requestId:'q1'});
  const first=f.controller.chat({message:'first question',revision:f.controller.revision,requestId:'c1'}),rejected=assert.rejects(first,/закрыт/);await f.controller.search({query:'second',requestId:'q2'});const second=f.controller.chat({message:'second question',revision:f.controller.revision,requestId:'c2'});
  old.resolve({text:'obsolete'});await rejected;assert.equal(f.controller.chatPending,true);next.resolve({text:'current'});assert.equal((await second).text,'current');assert.deepEqual(f.controller.history,[{role:'user',content:'second question'},{role:'assistant',content:'current'}]);f.controller.dispose();
+});
+test('search IPC cannot activate screen sharing and chat never sends a selected-page snapshot',async()=>{
+ let sent;const f=setup({chat:async args=>{sent=args;return{text:'Source-only answer'};}});f.controller.open();await f.controller.search({query:'source-only',requestId:'q'});
+ for(const action of ['vision-start','vision-stop','vision-state'])await assert.rejects(f.controller.handle(action,{id:'one',consent:true,revision:f.controller.revision}),/Неизвестная/);
+ assert.equal(f.log.some(row=>row[0]==='vision-start'),false);
+ // Even an old internal observer cannot silently add page contents to chat.
+ await f.vision.start({id:'one',consent:true});let snapshots=0;f.vision.snapshot=async()=>{snapshots++;return{private:'must never be sent'};};
+ await f.controller.chat({message:'Summarize sources',revision:f.controller.revision,requestId:'chat'});assert.equal(snapshots,0);assert.equal(Object.hasOwn(sent,'visionContext'),false);assert.equal(sent.results[0].url,'https://example.com/one');f.controller.dispose();
+});
+test('expected provider errors cross IPC as a safe actionable envelope, while caller validation still rejects',async()=>{
+ const {SearchError}=require('./mouse-search-service.cjs');const f=setup({query:async()=>{throw new SearchError('SEARCH_HTTP','Сервер поиска временно недоступен. Повторите запрос.',503);}}),ipc=f.registered.get('mouse:tile-search');
+ await ipc({trusted:true},'open');assert.deepEqual(await ipc({trusted:true},'query',{query:'public'}),{ok:false,error:{code:'SEARCH_HTTP',message:'Сервер поиска временно недоступен. Повторите запрос.',status:503,retryable:true}});assert.throws(()=>ipc({trusted:false},'query',{query:'public'}),/Untrusted/);f.controller.dispose();
+});
+test('production Brave settings store only OS ciphertext and return status, never the saved key',async()=>{
+ const f=setup(),key='explicit-unit-test-key',state={};let plain='',encrypted=0,decrypted=0;
+ f.controller.safeStorage={isEncryptionAvailable:()=>true,getSelectedStorageBackend:()=> 'gnome_libsecret',encryptString:value=>{plain=value;encrypted++;return Buffer.from('opaque-native-ciphertext');},decryptString:value=>{assert.equal(value.toString(),'opaque-native-ciphertext');decrypted++;return plain;}};
+ f.controller.store={get:async()=>state,set:async value=>Object.assign(state,value)};
+ const ipc=f.registered.get('mouse:tile-search'),saved=await ipc({trusted:true},'set-brave-key',{key});assert.equal(saved.braveConfigured,true);assert.equal(saved.braveReadable,true);assert.equal(encrypted,1);assert.equal(JSON.stringify([state,saved,f.controller.state(),f.sent]).includes(key),false);
+ assert.equal(await f.serviceOptions.getBraveApiKey(),key);assert.ok(decrypted>0);const before=decrypted;
+ const cleared=await ipc({trusted:true},'set-brave-key',{key:''});assert.equal(cleared.braveConfigured,false);assert.equal(state.mouseSearchBraveKey.encrypted,'');assert.equal(decrypted,before,'Removal never needs to decrypt the stored key');f.controller.dispose();
+});
+test('unavailable or basic-text storage refuses saves but still allows removal of an unreadable encrypted record',async()=>{
+ const f=setup(),state={mouseSearchBraveKey:{schema:1,encrypted:'broken-record'}};let decrypts=0,encrypts=0;
+ f.controller.safeStorage={isEncryptionAvailable:()=>false,getSelectedStorageBackend:()=> 'basic_text',encryptString:()=>{encrypts++;throw Error('should not encrypt');},decryptString:()=>{decrypts++;throw Error('should not decrypt');}};
+ f.controller.store={get:async()=>state,set:async value=>Object.assign(state,value)};
+ const metadata=await f.controller.providerSettings();assert.equal(metadata.braveSaved,true);assert.equal(metadata.braveReadable,false);assert.equal(metadata.canRemove,true);assert.equal(metadata.secureStorageAvailable,false);
+ await assert.rejects(f.controller.setBraveKey({key:'do-not-save'}),{code:'SEARCH_CREDENTIALS'});assert.equal(encrypts,0);const clear=await f.controller.setBraveKey({key:''});assert.equal(clear.braveSaved,false);assert.equal(decrypts,0);assert.equal(state.mouseSearchBraveKey.encrypted,'');
+ if(process.platform==='linux'){f.controller.safeStorage.isEncryptionAvailable=()=>true;await assert.rejects(f.controller.setBraveKey({key:'do-not-save-basic-text'}),{code:'SEARCH_CREDENTIALS'});assert.equal(encrypts,0);}
+ f.controller.store.get=async()=>{throw Error('private storage failure');};assert.equal((await f.controller.providerSettings()).canRemove,true);f.controller.dispose();
+});
+test('ephemeral CI Brave environment key is ignored outside the exact isolated native test profile',async()=>{
+ const names=['CI','MOUSE_TEST_PROFILE','MOUSE_TEST_BRAVE_SEARCH_API_KEY'],before=Object.fromEntries(names.map(name=>[name,process.env[name]])),f=setup();
+ try{
+  process.env.CI='true';process.env.MOUSE_TEST_PROFILE='/tmp/fixture-search';process.env.MOUSE_TEST_BRAVE_SEARCH_API_KEY='ephemeral-test-only-key';
+  assert.equal(await f.serviceOptions.getBraveApiKey(),'');f.controller.test=true;assert.equal(await f.serviceOptions.getBraveApiKey(),'ephemeral-test-only-key');
+  const info=await f.controller.providerSettings();assert.equal(info.keyStatus,'ci');assert.equal(info.braveSaved,false);assert.equal(JSON.stringify(info).includes('ephemeral-test-only-key'),false);
+  process.env.MOUSE_TEST_PROFILE='/tmp/different-profile';assert.equal(await f.serviceOptions.getBraveApiKey(),'');
+ }finally{for(const name of names){if(before[name]===undefined)delete process.env[name];else process.env[name]=before[name];}f.controller.dispose();}
 });

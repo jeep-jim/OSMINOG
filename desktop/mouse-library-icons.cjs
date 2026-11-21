@@ -2,6 +2,7 @@
 const {webURL}=require('./mouse-library.cjs');
 const {faviconData}=require('./mouse/favicon.js');
 const fs=require('node:fs/promises');
+const {IMAGE,MAX_IMAGE,readBounded}=require('./mouse-capture-archive.cjs');
 function iconURL(value){
  if(typeof value!=='string'||value.length>175000)return '';
  if(/^data:image\/(png|jpeg|x-icon|vnd.microsoft.icon|svg\+xml);base64,[a-zA-Z0-9+/=]+$/.test(value))return value;
@@ -37,12 +38,18 @@ function createIcons({app,browser,library,nativeImage}){
  }
  async function preview(id){
   const row=(library.data.downloads||[]).find(x=>x.id===id);
-  if(!row||row.state!=='completed'||!row.path||!require('./mouse-capture-archive.cjs').IMAGE.test(row.filename||row.path))return '';
-  const stat=await fs.lstat(row.path).catch(()=>null);if(!stat?.isFile()||stat.isSymbolicLink()||stat.size>24*1024*1024)return '';
-  return cached('preview:'+row.id+':'+stat.size+':'+stat.mtimeMs,async()=>{
-   const image=await nativeImage.createThumbnailFromPath(row.path,{width:480,height:320});if(image.isEmpty())return '';
-   const after=await fs.lstat(row.path).catch(()=>null);if(!after||after.size!==stat.size||after.mtimeMs!==stat.mtimeMs||after.isSymbolicLink())return '';
-   const s=image.getSize(),scale=Math.min(1,480/s.width,320/s.height);return image.resize({width:Math.max(1,Math.round(s.width*scale)),height:Math.max(1,Math.round(s.height*scale))}).toDataURL();
+  if(!row||row.state!=='completed'||!row.path||!IMAGE.test(row.filename||row.path))return '';
+  const file=row.path,stat=await fs.lstat(file).catch(()=>null);if(!stat?.isFile()||stat.isSymbolicLink()||stat.size<=0||stat.size>MAX_IMAGE)return '';
+  return cached('preview:'+JSON.stringify([row.id,file,stat.dev,stat.ino,stat.size,stat.mtimeMs,stat.ctimeMs]),async()=>{
+   // Electron exposes OS thumbnail generation on macOS/Windows only. Linux
+   // decodes the same allowlisted, bounded, no-follow file bytes locally.
+   const image=typeof nativeImage.createThumbnailFromPath==='function'
+    ?await nativeImage.createThumbnailFromPath(file,{width:480,height:320})
+    :nativeImage.createFromBuffer(await readBounded(file,MAX_IMAGE));
+   if(image.isEmpty())return '';
+   const after=await fs.lstat(file).catch(()=>null);if(!after?.isFile()||after.isSymbolicLink()||after.size!==stat.size||after.mtimeMs!==stat.mtimeMs||after.ctimeMs!==stat.ctimeMs||after.dev!==stat.dev||after.ino!==stat.ino)return '';
+   const s=image.getSize();if(!Number.isFinite(s.width)||!Number.isFinite(s.height)||s.width<=0||s.height<=0||s.width*s.height>40000000)return '';
+   const scale=Math.min(1,480/s.width,320/s.height);return image.resize({width:Math.max(1,Math.round(s.width*scale)),height:Math.max(1,Math.round(s.height*scale))}).toDataURL();
   });
  }
  return{site,download,preview};

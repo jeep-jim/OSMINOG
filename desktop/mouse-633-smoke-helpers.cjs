@@ -18,7 +18,7 @@ function assertRetained(before,after,{scroll=true,advancing=false}={}){
 // not synthetic events or control handlers.
 function installInputProbe(){
  globalThis.__mouse633Input?.dispose();const events=[];let expected=null,selector='';
- const listener=event=>{events.push({type:event.type,trusted:event.isTrusted,matches:!!expected&&(expected===event.target||expected.contains(event.target)),selector,target:event.target.id||event.target.tagName,at:Date.now(),x:event.clientX??null,y:event.clientY??null});if(events.length>300)events.shift();};
+ const listener=event=>{events.push({type:event.type,trusted:event.isTrusted,matches:!!expected&&(expected===event.target||expected.contains(event.target)),selector,target:event.target.id||event.target.tagName,key:event.key??null,at:Date.now(),x:event.clientX??null,y:event.clientY??null});if(events.length>300)events.shift();};
  for(const type of ['click','input','change','keydown'])document.addEventListener(type,listener,true);
  globalThis.__mouse633Input={begin(value){selector=value;expected=document.querySelector(value);events.length=0;},read(){return events.slice();},dispose(){for(const type of ['click','input','change','keydown'])document.removeEventListener(type,listener,true);delete globalThis.__mouse633Input;}};
 }

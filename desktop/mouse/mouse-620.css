@@ -28,9 +28,13 @@ body.ai-focused #new-tab .burrow-plus{opacity:1!important;color:var(--muted)}
 #library-dialog .library-select-all{padding-right:6px;width:20px;min-width:20px;min-height:24px}
 #library-dialog [data-view=grid] .library-check{top:10px;right:10px}
 #library-dialog [data-view=grid] .library-remove{top:6px;left:6px}
-#library-dialog [data-view=grid] .library-visual:has(.library-thumbnail){width:100%;min-height:112px;padding-top:24px}
-#library-dialog [data-view=grid] .library-thumbnail{width:100%;height:112px;object-fit:contain;border-radius:5px;image-rendering:auto;background:color-mix(in srgb,var(--text) 4%,transparent)}
-#library-dialog [data-view=list] .library-thumbnail{width:30px;height:30px;object-fit:contain}
+/* File previews keep their box while the real image loads, changes or disappears.
+   A late thumbnail must not move the checkbox under an incoming pointer click. */
+#library-dialog:is([data-kind=downloads],[data-kind=captures]) [data-view=grid] .library-visual{width:100%;min-height:112px;padding-top:24px}
+#library-dialog:is([data-kind=downloads],[data-kind=captures]) [data-view=grid] .library-icon{width:100%;height:112px;box-sizing:border-box;object-fit:contain}
+#library-dialog:is([data-kind=downloads],[data-kind=captures]) [data-view=grid] .library-icon:not(.library-thumbnail){padding:38px 0}
+#library-dialog [data-view=grid] .library-thumbnail{border-radius:5px;image-rendering:auto;background:color-mix(in srgb,var(--text) 4%,transparent)}
+#library-dialog:is([data-kind=downloads],[data-kind=captures]) [data-view=list] .library-icon{width:30px;height:30px;object-fit:contain}
 #library-dialog[data-kind=downloads] [data-view=grid] .library-detail{white-space:normal;overflow-wrap:anywhere}
 #library-capture-settings{flex:none;padding:6px 10px;border-bottom:1px solid var(--line)}
 #library-capture-settings[hidden]{display:none}
@@ -59,5 +63,5 @@ body.ai-focused #new-tab .burrow-plus{opacity:1!important;color:var(--muted)}
 /* Reserve a stable control row above capture content; do not inherit dialog-label columns. */
 #library-capture-settings .capture-switch-label{flex-direction:row;justify-content:flex-start}
 #library-dialog[data-kind=captures] #library-rows[data-view=grid]>.library-row{padding-top:34px}
-#library-dialog[data-kind=captures] #library-rows[data-view=grid] .library-visual:has(.library-thumbnail){padding-top:0}
+#library-dialog[data-kind=captures] #library-rows[data-view=grid] .library-visual{padding-top:0}
 #library-dialog[data-kind=captures] #library-rows[data-view=grid] .library-text-preview{margin-top:0}

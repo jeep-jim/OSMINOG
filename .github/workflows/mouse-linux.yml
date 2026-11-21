@@ -1,7 +1,7 @@
 name: Mouse Browser Linux x64
 on:
   pull_request:
-    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
+    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -55,11 +55,13 @@ jobs:
           npm test
           node ../tools/mouse-unit-tests.cjs
           python3 -m unittest discover -s ../tools -p test_mouse_631_acceptance.py -v
-          python3 ../tools/test_mouse634_upgrade.py -v
+          python3 ../tools/test_mouse635_upgrade.py -v
           python3 -m unittest discover -s ../tools -p test_mouse_linux_verify.py -v
       - name: Build Linux AppImage and deb
         run: npx electron-builder --config mouse-linux-build.cjs --linux AppImage deb --x64 --publish never
       - name: Verify installed Linux packages and native behavior
+        env:
+          MOUSE_TEST_BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
         id: installed
         run: |
           dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1100x24' bash -euo pipefail -c '
@@ -83,8 +85,8 @@ jobs:
         with:
           name: mouse-linux-x64-candidate
           path: |
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.34-Linux-x64.AppImage
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.34-Linux-x64.deb
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.35-Linux-x64.AppImage
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.35-Linux-x64.deb
             desktop/dist-mouse-linux/SHA256SUMS.txt
             desktop/dist-mouse-linux/mouse-linux-build.json
           if-no-files-found: error

@@ -29,7 +29,7 @@ module.exports=async({win})=>{
    const rgb=theme==='dark'?[103,230,109]:[22,130,59];let screenshot,textPixels=0,fillPixels=0,evidence;
    for(let attempt=0;attempt<30;attempt++){
     await sleep(100);
-    const meta=await js('(()=>{const b=document.querySelector("#version-button"),r=b.getBoundingClientRect(),c=getComputedStyle(b),canvas=document.createElement("canvas");canvas.width=canvas.height=1;const x=canvas.getContext("2d"),rgb=color=>{x.clearRect(0,0,1,1);x.fillStyle=color;x.fillRect(0,0,1,1);return[...x.getImageData(0,0,1,1).data].slice(0,3);};return{available:b.dataset.updateAvailable,width:innerWidth,height:innerHeight,rect:{x:r.x,y:r.y,width:r.width,height:r.height},border:parseFloat(c.borderTopWidth),shadow:c.boxShadow,text:rgb(c.color),fill:rgb(c.backgroundColor),panel:rgb(getComputedStyle(document.querySelector("#statusbar")).backgroundColor)}})()');
+    const meta=await js('(()=>{const b=document.querySelector("#version-button"),r=b.getBoundingClientRect(),c=getComputedStyle(b),a=getComputedStyle(b,"::after"),canvas=document.createElement("canvas");canvas.width=canvas.height=1;const x=canvas.getContext("2d"),rgb=color=>{x.clearRect(0,0,1,1);x.fillStyle=color;x.fillRect(0,0,1,1);return[...x.getImageData(0,0,1,1).data].slice(0,3);};return{label:b.textContent,compactLabel:b.dataset.compactLabel??null,ariaLabel:b.getAttribute("aria-label"),fontSize:c.fontSize,fontWeight:c.fontWeight,after:{content:a.content,fontSize:a.fontSize,fontWeight:a.fontWeight,color:a.color},available:b.dataset.updateAvailable,width:innerWidth,height:innerHeight,rect:{x:r.x,y:r.y,width:r.width,height:r.height},border:parseFloat(c.borderTopWidth),shadow:c.boxShadow,text:rgb(c.color),fill:rgb(c.backgroundColor),panel:rgb(getComputedStyle(document.querySelector("#statusbar")).backgroundColor)}})()');
     assert.equal(meta.available,'true','known newer release must stay indicated while dialog is closed');
     assert.equal(meta.border,0);assert.equal(meta.shadow,'none');assert.deepEqual(meta.text,rgb);assert.notDeepEqual(meta.fill,meta.panel,'Update availability has its own tinted background');
     screenshot=await win.capturePage();const size=screenshot.getSize(),bytes=screenshot.toBitmap(),sx=size.width/meta.width,sy=size.height/meta.height,sample={left:Math.max(0,Math.floor(meta.rect.x*sx)),top:Math.max(0,Math.floor(meta.rect.y*sy)),right:Math.min(size.width,Math.ceil((meta.rect.x+meta.rect.width)*sx)),bottom:Math.min(size.height,Math.ceil((meta.rect.y+meta.rect.height)*sy))};textPixels=fillPixels=0;
@@ -40,8 +40,11 @@ module.exports=async({win})=>{
     if(textPixels>=16&&fillPixels>=minimumFillPixels)break;
     if(attempt===29)console.log('MOUSE_614_BADGE_PAINT_DIAGNOSTICS',JSON.stringify({theme,...evidence}));
    }
+   const file='mouse-614-burrow-update-'+theme+'.png',check={theme,file,states,...evidence};
+   await fs.writeFile(file,screenshot.toPNG());
+   await fs.writeFile('mouse-614-update-badge-'+theme+'.json',JSON.stringify(check,null,2)+'\n');
    assert.ok(textPixels>=16&&fillPixels>=evidence.minimumFillPixels,'Actual screenshot must contain the green text and tinted update surface: '+JSON.stringify(evidence));
-   const file='mouse-614-burrow-update-'+theme+'.png';await fs.writeFile(file,screenshot.toPNG());checks.push({theme,file,states,...evidence});
+   checks.push(check);
    assert.equal(await state({phase:'current',availableVersion:''}),'false');
    const icon=await js('(()=>{const b=document.querySelector("#new-tab"),s=b.querySelector("svg"),r=s.getBoundingClientRect();return{label:b.getAttribute("aria-label"),plus:b.textContent.includes("＋"),paths:s.querySelectorAll("path").length,width:r.width,height:r.height}})()');
    // Owner621 restores a permanently visible 14px top plus; desktop burrow is tested separately.

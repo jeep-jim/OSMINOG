@@ -7,6 +7,7 @@ const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
+const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
 
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,globalCapture,overlayGate}=ctx;
@@ -36,11 +37,14 @@ module.exports=async ctx=>{
   let events;await fixture.until(async()=>{events=await fixture.pageJS(record,`mouse634.clicks.slice(${count})`);return events.some(event=>event.id===selector.slice(1)&&event.trusted);},'634 trusted guest link '+selector);
   const result={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,events};facts.nativeInputs.push(result);return result;
  }
- async function screenCapture(filename,kind){
-  await fixture.frame();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),frame=await bounded(globalCapture.acquire(display),4500,'634 actual OS pixels');assert.equal(frame.kind,'screen');
+ async function screenCapture(filename,kind,{deadline}={}){
+  const acquire=async live=>{
+  await fixture.frame();live();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds(),remaining=Number.isFinite(deadline)?Math.min(4500,deadline-performance.now()):4500;
+  live();const frame=await bounded(globalCapture.acquire(display),remaining,'634 actual OS pixels');live();assert.equal(frame.kind,'screen');
   const full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64'),screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=nativeImage.createFromBuffer(full).crop(geometry.cropPixels),png=image.toPNG({scaleFactor:1});
-  await fs.writeFile(filename,png);const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(displayFilename,full);
+  live();await fs.writeFile(filename,png);live();const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(displayFilename,full);live();
   const capture={filename,displayFilename,displaySha256:sha256(full),screenPixelSize,kind,source:'globalCapture.acquire(display)',backend:frame.backend,sha256:sha256(png),bytes:png.length,pixelSize:{width:png.readUInt32BE(16),height:png.readUInt32BE(20)},contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},cropPixels:geometry.cropPixels,mapping:geometry.mapping};facts.captures.push(capture);return capture;
+  };return Number.isFinite(deadline)?withinCaptureDeadline(deadline,acquire):acquire(()=>{});
  }
  function serve(req,res){
   const url=new URL(req.url,'http://localhost'),page=url.pathname.match(/^\/page\/(\d+)\/$/),download=url.pathname.match(/^\/download\/(a|b|chat|preview)$/);res.setHeader('Cache-Control','no-store');
@@ -60,7 +64,7 @@ module.exports=async ctx=>{
   await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
  }
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.34');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.35');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());facts.nativeInputSource=inputSource();
   fixture=await createFixture({...ctx,nativeInput},'owner634',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=await listen();facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
   downloadListener=(_event,item,wc)=>{const match=new URL(item.getURL()).pathname.match(/^\/download\/(a|b|chat|preview)$/);if(!match)return;const name=match[1],file=path.join(ownedFolder,'mouse634-'+name+'.bin'),row={name,item,path:file,events:[],webContentsId:wc?.id,done:false};item.setSavePath(file);downloads.set(name,row);const observe=(event,state)=>row.events.push({event,type:event,state,received:item.getReceivedBytes(),total:item.getTotalBytes(),at:Date.now()});observe('start',item.getState());item.on('updated',(_e,state)=>observe('updated',state));item.once('done',(_e,state)=>{observe('done',state);row.done=state;});};browser.session.prependListener('will-download',downloadListener);
@@ -90,7 +94,7 @@ module.exports=async ctx=>{
    facts.captureCorners=await stage('capture-rounded-corners',()=>require('./mouse-634-capture-corners.cjs')({win,browser,globalCapture,overlayGate,fixture,click,screenCapture,targets}));
   });
   facts.focusedChrome=await stage('focused-chrome',()=>require('./mouse-634-focused-chrome-smoke.cjs')({fixture,browser,win,click,screenCapture}));
-  facts.search=await stage('visual-search',()=>require('./mouse-634-search-smoke.cjs')({ctx,fixture,click,screenCapture}));
+  facts.search=await stage('visual-search',()=>require('./mouse-635-search-smoke.cjs')({ctx,fixture,click,screenCapture}));
   facts.requests=requests;facts.elapsedMs=Date.now()-started;
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};await save();try{if(fixture)await bounded(screenCapture('mouse-634-owner-feedback-failure.png','failure '+facts.stage),5000,'634 failure OS snapshot');}catch(captureError){facts.failureCaptureError=captureError.message;await save();}}
  finally{

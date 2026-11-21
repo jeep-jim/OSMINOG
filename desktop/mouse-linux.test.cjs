@@ -7,14 +7,14 @@ const {LinuxInstaller,appImagePath,HELPER}=require('./mouse-linux-update.cjs');
 test('Linux packaging keeps the common runtime and overwrites the unsafe upstream AppRun',async()=>{
  const build=require('./mouse-linux-build.cjs'),root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-linux-pack-'));
  try{
-  assert.equal(build.extraMetadata.version,'6.0.34');assert.equal(build.appId,'black.mouse.browser.linux');assert.equal(build.mac,undefined);assert.equal(build.win,undefined);assert.equal(build.publish,null);assert.deepEqual(build.appImage.executableArgs,[]);
+  assert.equal(build.extraMetadata.version,'6.0.35');assert.equal(build.appId,'black.mouse.browser.linux');assert.equal(build.mac,undefined);assert.equal(build.win,undefined);assert.equal(build.publish,null);assert.deepEqual(build.appImage.executableArgs,[]);
   assert.ok(build.files.includes('mouse-mcp-fs.node'));assert.ok(!build.files.includes('mouse-native-menu.node'));
   const appOutDir=path.join(root,'app'),stage=path.join(root,'stage');await fs.mkdir(appOutDir);await fs.mkdir(stage);await fs.writeFile(path.join(stage,'AppRun'),'UNSAFE_GENERATED_FALLBACK');
   await build.afterPack({appOutDir,electronPlatformName:'linux'});await require('builder-util').copyDir(appOutDir,stage);
   const entry=await fs.readFile(path.join(stage,'AppRun'),'utf8');assert.equal(entry,await fs.readFile(path.join(appOutDir,'AppRun'),'utf8'));assert.doesNotMatch(entry,/--no-sandbox|unshare|NO_SANDBOX/);assert.match(entry,/exec "\$APPDIR\/mouse-browser" "\$@"/);if(process.platform!=='win32')assert.equal((await fs.stat(path.join(stage,'AppRun'))).mode&0o777,0o755);
   const {getConfig,validateConfiguration}=require('app-builder-lib/out/util/config/config'),config=await getConfig(__dirname,'mouse-linux-build.cjs',null);await validateConfiguration(config,{add(){}});
   const {expandMacro}=require('app-builder-lib/out/util/macroExpander'),{getArtifactArchName,Arch}=require('builder-util');
-  for(const ext of ['AppImage','deb'])assert.equal(expandMacro(config.artifactName,getArtifactArchName(Arch.x64,ext),config.extraMetadata,{ext}),`Mouse-Browser-6.0.34-Linux-x64.${ext}`,'the builder format-specific architecture must retain the fixed release channel filename');
+  for(const ext of ['AppImage','deb'])assert.equal(expandMacro(config.artifactName,getArtifactArchName(Arch.x64,ext),config.extraMetadata,{ext}),`Mouse-Browser-6.0.35-Linux-x64.${ext}`,'the builder format-specific architecture must retain the fixed release channel filename');
  }finally{await fs.rm(root,{recursive:true,force:true});}
 });
 test('Linux native input is CI-only and emits bounded real XTest actions',()=>{
@@ -37,7 +37,7 @@ test('Linux native input refuses button events when the X server reports the wro
  for(const stdout of ['X=41\nY=90\nSCREEN=0\nWINDOW=123\n','X=40\nSCREEN=0\n','not a position']){const calls=[],driver=createLinuxInput({runtime,spawnSync:(_program,args)=>{calls.push(args);return{status:0,stdout:args[0]==='getmouselocation'?stdout:''};}});assert.throws(()=>driver.testClick(40,90),/did not reach/);assert.equal(calls.some(args=>args[0]==='click'),false);}
 });
 test('Linux formats use their own fixed channel and never alter existing platform addresses',()=>{
- const target=releaseTarget({platform:'linux',arch:'x64'}),version='6.0.34',tag=target.tagFor(version),prefix='https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+tag+'/',digest='sha256:'+'a'.repeat(64);
+ const target=releaseTarget({platform:'linux',arch:'x64'}),version='6.0.35',tag=target.tagFor(version),prefix='https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+tag+'/',digest='sha256:'+'a'.repeat(64);
  const feed={schema:1,platform:'linux',arch:'x64',version,url:prefix+'Mouse-Browser-'+version+'-Linux-x64.AppImage',size:125000000,digest,packages:{deb:{url:prefix+'Mouse-Browser-'+version+'-Linux-x64.deb',size:124000000,digest}}};
  assert.equal(target.channel,LINUX_CHANNEL);assert.match(CHANNEL,/channels\/mouse\/macos-arm64.json$/);assert.match(WINDOWS_CHANNEL,/platforms\/windows\/mouse-x64\/latest.json$/);
  assert.match(channelCandidate(feed,'6.0.33',target).name,/\.AppImage$/);assert.match(channelCandidate(feed,'6.0.33',{platform:'linux',arch:'x64',format:'deb'}).name,/\.deb$/);
@@ -49,7 +49,7 @@ test('AppImage preparation verifies real bytes, owns its path and leaves the cur
  try{
   await fs.chmod(root,0o700);const target=path.join(root,'Mouse.AppImage'),download=path.join(root,'download.AppImage'),profile=path.join(root,'profile');await fs.mkdir(profile);await fs.writeFile(target,'OLD_EXECUTABLE');
   const bytes=Buffer.alloc(80);bytes.write('\x7fELF',0,'binary');bytes[4]=2;bytes[5]=1;bytes.write('AI',8);bytes[10]=2;bytes.writeUInt16LE(62,18);await fs.writeFile(download,bytes);
-  const candidate={version:'6.0.34',name:'Mouse-Browser-6.0.34-Linux-x64.AppImage',size:bytes.length,hash:crypto.createHash('sha256').update(bytes).digest('hex')};
+  const candidate={version:'6.0.35',name:'Mouse-Browser-6.0.35-Linux-x64.AppImage',size:bytes.length,hash:crypto.createHash('sha256').update(bytes).digest('hex')};
   const app={getVersion:()=> '6.0.33',getPath:()=>profile},installer=new LinuxInstaller({app,quit:async()=>{},executable:target});
   await assert.rejects(installer.prepare(download,{...candidate,hash:'0'.repeat(64)}),/SHA-256/);
   await assert.rejects(installer.prepare(download,{...candidate,version:'6.0.32'}),/пакет/);

@@ -10,10 +10,15 @@ function nativeHitTarget(element,{xFraction=.5,yFraction=.5}={}){
  // can be empty space between lines, so hit-test each visible fragment.
  const clip={left:0,top:0,right:view.innerWidth,bottom:view.innerHeight};
  for(let parent=element.parentElement;parent;parent=parent.parentElement){
-  const css=view.getComputedStyle(parent),x=/^(?:auto|scroll|hidden|clip)$/.test(css.overflowX),y=/^(?:auto|scroll|hidden|clip)$/.test(css.overflowY);if(!x&&!y)continue;
-  const box=parent.getBoundingClientRect(),left=box.left+parent.clientLeft,top=box.top+parent.clientTop;
-  if(x){clip.left=Math.max(clip.left,left);clip.right=Math.min(clip.right,left+parent.clientWidth);}
-  if(y){clip.top=Math.max(clip.top,top);clip.bottom=Math.min(clip.bottom,top+parent.clientHeight);}
+  const css=view.getComputedStyle(parent),x=/^(?:auto|scroll|hidden|clip)$/.test(css.overflowX),y=/^(?:auto|scroll|hidden|clip)$/.test(css.overflowY);
+  if(x||y){
+   const box=parent.getBoundingClientRect(),left=box.left+parent.clientLeft,top=box.top+parent.clientTop;
+   if(x){clip.left=Math.max(clip.left,left);clip.right=Math.min(clip.right,left+parent.clientWidth);}
+   if(y){clip.top=Math.max(clip.top,top);clip.bottom=Math.min(clip.bottom,top+parent.clientHeight);}
+  }
+  // showModal() promotes the dialog to the top layer. Its own scrollport still
+  // clips, but the panel that owns it in the DOM no longer clips its pixels.
+  if(parent.tagName==='DIALOG'&&parent.open&&parent.matches(':modal'))break;
  }
  const fragments=[...element.getClientRects()].filter(r=>r.width>0&&r.height>0),rects=fragments.length?fragments:[bounds],seen=new Set();let lastHit='';
  function hit(x,y){

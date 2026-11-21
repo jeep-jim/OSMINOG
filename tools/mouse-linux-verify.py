@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.34"
+VERSION = "6.0.35"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -139,7 +139,7 @@ def main(argv=None):
             "Exact source CI provenance missing")
     evidence = {"ok": False, "version": VERSION, "platform": "linux", "arch": "x64", "source": source,
                 "runId": str(run_id), "runAttempt": str(attempt), "firstLinuxRelease": False,
-                "previousVersion": "6.0.33", "packages": packages, "checks": {}, "ownerDeviceVerified": False,
+                "previousVersion": "6.0.34", "packages": packages, "checks": {}, "ownerDeviceVerified": False,
                 "verificationRun": {"runId": os.environ.get("GITHUB_RUN_ID"), "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT")},
                 "runner": {"system": platform.system(), "release": platform.release(), "version": platform.version(),
                            "display": os.environ["DISPLAY"], "uid": os.getuid()}}
@@ -154,15 +154,15 @@ def main(argv=None):
             for key in ("ELECTRON_RUN_AS_NODE", "APPIMAGE", "APPDIR"):
                 env.pop(key, None)
             current_upgrade = run_logged(
-                [sys.executable, Path(__file__).with_name("mouse-634-upgrade.py"), packages_dir],
-                env, output, "mouse-634-upgrade.log", 720, ["MOUSE_634_REAL_633_TO_634_PROFILE_PASS"])
-            upgrade_report = json.loads((output / "mouse-634-upgrade.json").read_text(encoding="utf-8"))
-            require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.33"
+                [sys.executable, Path(__file__).with_name("mouse-635-upgrade.py"), packages_dir],
+                env, output, "mouse-635-upgrade.log", 720, ["MOUSE_635_REAL_634_TO_635_PROFILE_PASS"])
+            upgrade_report = json.loads((output / "mouse-635-upgrade.json").read_text(encoding="utf-8"))
+            require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.34"
                     and upgrade_report.get("toVersion") == VERSION and upgrade_report.get("platform") == "linux"
                     and set(upgrade_report.get("formats", {})) == {"deb", "appimage"},
-                    "Actual published633 profile replacement did not pass for both Linux formats")
+                    "Actual published634 profile replacement did not pass for both Linux formats")
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
-                    "reportSha256": sha256(output / "mouse-634-upgrade.json")}
+                    "reportSha256": sha256(output / "mouse-635-upgrade.json")}
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
             executable = installed_executable()
@@ -212,6 +212,13 @@ def main(argv=None):
             require(owner634_report.get("ok") is True and owner634_report.get("version") == VERSION,
                     "Mouse634 pane downloads, AI preview and capture did not pass in the installed Linux build")
             evidence["checks"]["ownerFeedback634"] = {**owner634, "reportSha256": sha256(output / "mouse-634-owner-feedback.json")}
+            required635 = ["MOUSE_635_PUBLIC_SEARCH_CONTRACT_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_AGENT_CHAT_PASS", "MOUSE_635_PINNED_PANES_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
+            owner635 = run_logged([executable, "--mouse-635-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner635")},
+                                  output, "mouse-635-owner-feedback.log", 270, required635)
+            owner635_report = json.loads((output / "mouse-635-owner-feedback.json").read_text(encoding="utf-8"))
+            require(owner635_report.get("ok") is True and owner635_report.get("version") == VERSION,
+                    "Mouse635 public search, Agent chat, pinned panes and stable library did not pass in the installed Linux build")
+            evidence["checks"]["ownerFeedback635"] = {**owner635, "reportSha256": sha256(output / "mouse-635-owner-feedback.json")}
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])
             owner_report = json.loads((output / "mouse-633-owner-feedback.json").read_text(encoding="utf-8"))

@@ -2,26 +2,31 @@
 (function(root){
  const COUNTS=new Set([1,2,3,4,6,8,9,12]);
  function target(model,L,value){
-  if(!value||typeof value!=='object'||!model.ready||model.switching)return null;
-  if(!['split-x','split-y','layout'].includes(value.action))return null;
+  if(!value||typeof value!=='object'||typeof value.desk!=='string'||value.desk!==model.desktopId||!model.ready||model.switching)return null;
+  if(!['split-x','split-y','layout','pin','unpin'].includes(value.action))return null;
+  if(value.preserveOrder!==undefined&&(value.action!=='layout'||value.preserveOrder!==true))return null;
   if(value.action==='layout'&&(!COUNTS.has(value.count)||value.axis!==undefined&&!['x','y'].includes(value.axis)))return null;
   const id=typeof value.id==='string'?value.id:'',leaves=L.leaves(model.tree),tab=id?model.state.tabs.find(item=>item.id===id):null;
   if(id&&(!tab||tab.lane==='side'))return null;
   const pane=id?leaves.find(key=>model.slots[key]===id):leaves.includes(value.pane)?value.pane:null;
-  if(!id&&!pane)return null;
-  return{id,pane,action:value.action,count:value.count,axis:value.axis,desk:model.desktopId};
+  if(!id&&!pane||value.pane!==undefined&&typeof value.pane!=='string'||value.pane&&value.pane!==pane)return null;
+  if(!id&&pane&&model.slots[pane]&&!value.preserveOrder)return null;
+  if(['pin','unpin'].includes(value.action)&&!pane)return null;
+  return{id,pane,action:value.action,count:value.count,axis:value.axis,preserveOrder:value.preserveOrder===true,desk:model.desktopId};
  }
- function createMouseContextMenu({N,model:m,L,activate,setActive,changeLayout,split,restoreFocused,status,flush=async()=>{},document:doc=root.document}){
+ function createMouseContextMenu({N,model:m,L,activate,setActive,changeLayout,split,pinPane,restoreFocused,status,flush=async()=>{},document:doc=root.document}){
   let disposed=false;
   const run=work=>Promise.resolve().then(work).catch(error=>{if(!disposed)status(error.message);});
   async function apply(value){
    const owned=target(m,L,value);if(!owned||disposed)return false;
+   if(['pin','unpin'].includes(owned.action)){await pinPane(owned.pane,owned.action==='pin');return true;}
    await restoreFocused();
    if(disposed||m.switching||m.desktopId!==owned.desk)return false;
-   if(owned.id){const current=target(m,L,value);if(!current)return false;await activate({desk:owned.desk,id:owned.id});}
+   const current=target(m,L,value);if(!current)return false;
+   if(owned.id){await activate({desk:owned.desk,id:owned.id});}
    else if(L.leaves(m.tree).includes(owned.pane))setActive(owned.pane);else return false;
    if(disposed||m.switching||m.desktopId!==owned.desk)return false;
-   if(owned.action==='layout')await changeLayout(owned.count,{axis:owned.axis,firstTab:owned.id});
+   if(owned.action==='layout')await changeLayout(owned.count,{axis:owned.axis,...(owned.preserveOrder?{}:{firstTab:owned.id})});
    else await split(owned.action==='split-x'?'x':'y');
    return true;
   }

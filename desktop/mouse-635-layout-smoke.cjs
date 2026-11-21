@@ -1,0 +1,75 @@
+'use strict';
+// Owned HTTP pages remain real native guests. Menus are chosen with OS keys;
+// the observer only records Electron's production popup and its checked rows.
+const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises');
+const {Menu}=require('electron'),L=require('./mouse/layout.js');
+const {pageHTML,bounded,sleep}=require('./mouse-631-smoke-helpers.cjs');
+const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
+
+module.exports=async(ctx,{fixture,nativeInput,click,screenCapture})=>{
+ const {app,win,browser,store,libraryService,privateMode}=ctx,started=Date.now(),js=fixture.js,records=[],popups=[];
+ const original=await js('JSON.parse(JSON.stringify(MouseTest.prefs()))'),originalBank=browser.mouseDesktops.bank;
+ const facts={schema:1,source:'Installed native Electron Menu, live pane identities and explicit pin IPC',nativeLayoutMenu:false,actualPresetChecked:false,preservesTabOrder:false,pin:false,guards:{},freeSiblingEditable:false,persisted:false,desktopIsolation:false,privateIsolation:false,explicitUnpin:false,livePagePreserved:false,captures:[],menuSnapshots:[],guardResults:[],resizeInputs:[],fixtureFlow:[]};
+ const save=()=>fs.writeFile('mouse-635-panes.json',JSON.stringify(facts,null,2)+'\n');
+ const service=()=>privateMode.current?.libraryService.contextMenu||libraryService.contextMenu;
+ const read=()=>js('JSON.parse(JSON.stringify((({desktopId,tree,slots,pinnedPanes,active})=>({desktopId,tree,slots,pinnedPanes,active}))(MouseTest.model)))');
+ async function flow(phase){const pages=await Promise.all(records.map(async record=>({index:record.index,...await fixture.pageJS(record,`(()=>{const main=document.querySelector('main'),p=main.querySelector('p');return{viewportWidth:innerWidth,mainWidth:main.getBoundingClientRect().width,boxSizing:getComputedStyle(main).boxSizing,lineHeight:getComputedStyle(p).lineHeight,bodyMinHeight:getComputedStyle(document.body).minHeight,scrollAnchoring:getComputedStyle(document.documentElement).overflowAnchor,scrollX,scrollY};})()`)})));facts.fixtureFlow.push({phase,pages});await save();}
+ const key=async(name)=>{const keys={HOME:'Home',DOWN:'Down',ENTER:'Return',ESC:'Escape',RIGHT:'Right',LEFT:'Left'};assert.equal(nativeInput.testKey(process.platform==='linux'?keys[name]||name:name),true);await sleep(45);};
+ const resizeState=()=>js(`(()=>{const d=document.querySelector('.divider[data-path=""]'),a=document.activeElement;return{ratio:MouseTest.model.tree.ratio,focused:a===d,activeElement:{tag:a?.tagName,id:a?.id||'',path:a?.dataset.path??null},locked:d?.getAttribute('aria-disabled')==='true',dragging:MouseTest.model.drag!==null};})()`);
+ async function resizeKey(name,ratio){
+  const before=await resizeState();assert.equal(before.focused,true,'A real pointer click or previous key retained divider focus');assert.equal(before.dragging,false);
+  await js(`__mouse633Input.begin('.divider[data-path=""]')`);const input={key:name,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',before};facts.resizeInputs.push(input);await save();await key(name);
+  await fixture.until(async()=>{input.events=await js('__mouse633Input.read()');input.after=await resizeState();return input.events.some(e=>e.type==='keydown'&&e.key===(name==='RIGHT'?'ArrowRight':'ArrowLeft')&&e.trusted&&e.matches)&&Math.abs(input.after.ratio-ratio)<.0001;},'635 native custom resize');
+  assert.equal(input.after.focused,true,'Keyboard resize keeps focus on the rebuilt divider');await save();
+ }
+ const popup=Menu.prototype.popup;let server,currentMenu=null;
+ Menu.prototype.popup=function(options){if(service().lastMenu===this){const row={target:{...service().lastTarget},items:this.items.map(item=>({id:item.id,label:item.label,checked:item.checked,enabled:item.enabled,type:item.type,hasIcon:!!item.icon&&!item.icon.isEmpty()})),openedAt:null,closedAt:null};facts.menuSnapshots.push(row);this.once('menu-will-show',()=>{row.openedAt=Date.now();});this.once('menu-will-close',()=>{row.closedAt=Date.now();});currentMenu={menu:this,row};popups.push(currentMenu);}return Reflect.apply(popup,this,arguments);};
+ async function choose(id){const {menu,row}=currentMenu,choices=menu.items.filter(item=>item.visible&&item.enabled&&item.type!=='separator'),index=choices.findIndex(item=>item.id===id);assert.ok(index>=0,'Native menu target '+id);await key('HOME');for(let n=0;n<index;n++)await key('DOWN');await key('ENTER');await fixture.until(()=>row.closedAt!==null,'635 native menu selected '+id);currentMenu=null;}
+ async function footer(){const count=popups.length;await click('#layout-menu-button');await fixture.until(()=>popups.length>count&&currentMenu?.row.openedAt!==null,'635 native footer layout popup');assert.equal(currentMenu.row.target.kind,'layout');assert.equal(currentMenu.row.items.length,9);return currentMenu.row;}
+ async function context(record){await js('MouseFlush()');app.focus({steal:true});win.show();win.focus();record.page.view.webContents.focus();await fixture.until(()=>record.page.visible&&win.isFocused(),'635 pin native page visible');const b=record.page.bounds,o=win.getContentBounds(),point={x:Math.round(o.x+b.x+Math.min(60,b.width/2)),y:Math.round(o.y+b.y+Math.min(170,b.height/2))},count=popups.length;assert.equal(nativeInput.testRightClick(point.x,point.y),true);await fixture.until(()=>popups.length>count&&currentMenu?.row.openedAt!==null,'635 pane context popup');assert.equal(currentMenu.row.target.id,record.id);facts.nativeContextPoint=point;return currentMenu.row;}
+ async function rejected(action,source){const result=await js(`(async()=>{try{await (${source});return{rejected:false};}catch(error){return{rejected:true,message:error.message};}})()`);assert.equal(result.rejected,true,'Pinned '+action+' is rejected');assert.match(result.message,/открепите|закреплен|Закрепление/i);facts.guardResults.push({action,...result});facts.guards[action]=true;}
+ async function ready(){await fixture.until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest').catch(()=>false),'635 reloaded shell ready',15000);await js(`(${installInputProbe.toString()})()`);}
+ try{
+  assert.deepEqual(L.pins(original),{},'Isolated owner fixture starts without user pins');
+  // Changing pane width must not reflow this owned document's paragraphs:
+  // Chromium correctly adjusts scroll anchoring after reflow. Keep its normal
+  // anchoring and the exact scroll-identity checks; stabilize only fixture flow.
+  server=http.createServer((req,res)=>{const found=/^\/page\/(\d+)\//.exec(req.url);if(!found){res.writeHead(404);res.end();return;}res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(pageHTML(Number(found[1])).replace('</style>','main{width:280px;box-sizing:border-box}</style>'));});
+  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});const base='http://127.0.0.1:'+server.address().port;
+  records.push(await fixture.open(base+'/page/101/',101),await fixture.open(base+'/page/102/',102));await fixture.setLayout(records);await js('MouseFlush()');
+  facts.pagesBefore=await Promise.all(records.map(fixture.identity));await flow('initial-layout');facts.layoutBefore=await read();const order=L.leaves(facts.layoutBefore.tree).map(id=>facts.layoutBefore.slots[id]);
+  // Make the second pane active to prove the footer preserves visual order.
+  await js('MouseTest.model.active="p2";MouseTest.renderTree();MouseFlush()');let menu=await footer();assert.deepEqual(menu.items.filter(item=>item.checked).map(item=>item.id),['mouse-context-layout-2-x']);assert.ok(menu.items.every(item=>item.hasIcon));
+  facts.captures.push((await screenCapture('mouse-635-layout-native-menu.png','Native layout menu, actual two-pane preset')).filename);
+  await choose('mouse-context-layout-2-y');await fixture.until(()=>js('MouseTest.model.tree.axis==="y"'),'635 stacked native layout');let layout=await read();assert.deepEqual(L.leaves(layout.tree).map(id=>layout.slots[id]),order);
+  menu=await footer();assert.deepEqual(menu.items.filter(item=>item.checked).map(item=>item.id),['mouse-context-layout-2-y']);await choose('mouse-context-layout-2-x');await fixture.until(()=>js('MouseTest.model.tree.axis==="x"'),'635 horizontal native layout');
+  facts.resizePointer=await click('.divider[data-path=""]');facts.resizeAfterClick=await resizeState();await save();await resizeKey('RIGHT',.53);await resizeKey('LEFT',.5);await resizeKey('RIGHT',.53);await js('MouseFlush()');menu=await footer();assert.equal(menu.items.filter(item=>item.checked).length,0);await key('ESC');await fixture.until(()=>menu.closedAt!==null,'635 custom menu closes');currentMenu=null;
+  await flow('custom-resize');facts.nativeLayoutMenu=true;facts.actualPresetChecked=true;facts.preservesTabOrder=true;
+  menu=await context(records[1]);assert.equal(menu.items.find(item=>item.id==='mouse-context-pin').label,'Закрепить окно');await choose('mouse-context-pin');await fixture.until(()=>js(`MouseTest.model.pinnedPanes.p2===${JSON.stringify(records[1].id)}`),'635 selected pane becomes pinned');await js('MouseFlush()');
+  facts.pinned=await read();facts.pinnedBoundsBefore=fixture.nativeState(records[1]);facts.pin=true;assert.equal(await js('document.querySelector(".pane[data-pane=p2] .pane-pin").hidden'),false);
+  facts.captures.push((await screenCapture('mouse-635-pane-pinned.png','Pinned pane keeps its tab, custom size and position')).filename);
+  await rejected('close',`MouseNative.browser('close',{id:${JSON.stringify(records[1].id)}})`);
+  await rejected('replace',`MouseNative.save({...MouseTest.prefs(),slots:{...MouseTest.model.slots,p2:${JSON.stringify(records[0].id)}}})`);
+  await rejected('split',`(()=>{MouseTest.model.active='p2';return MouseTest.split('x');})()`);
+  await rejected('preset','MouseTest.changeLayout(4)');
+  await rejected('transfer',`MouseNative.desktops('move-tab',{id:${JSON.stringify(records[1].id)},desk:'desk-1',from:MouseTest.model.desktopId})`);
+  const beforeResize=await read();await click('.divider[data-path=""]');await key('RIGHT');await fixture.frame();assert.deepEqual((await read()).tree,beforeResize.tree);assert.equal(await js('MouseTest.model.drag===null&&document.querySelector(".divider[data-pinned=true]").getAttribute("aria-disabled")==="true"'),true);facts.guards.resize=true;
+  assert.equal(await js('MouseTest.arrangement.swapPanes("p2","p1")'),false);assert.equal(await js(`MouseTest.arrangement.placeTab(${JSON.stringify(records[0].id)},'p2')`),false);assert.deepEqual((await read()).slots,facts.pinned.slots);facts.guards.drag=true;
+  await js('MouseTest.model.active="p1";MouseTest.split("y");MouseFlush()');facts.afterFreeSplitRenderer=await read();facts.afterFreeSplit=browser.mouseDesktops.preferences();assert.deepEqual(facts.afterFreeSplit.tree,facts.afterFreeSplitRenderer.tree);for(const pane of L.leaves(facts.afterFreeSplit.tree))assert.equal(facts.afterFreeSplit.slots[pane]||'',facts.afterFreeSplitRenderer.slots[pane]||'');await fixture.frame();facts.pinnedBoundsAfter=fixture.nativeState(records[1]);assert.equal(L.leaves(facts.afterFreeSplit.tree).length,3);assert.equal(L.preservesPins(facts.pinned,facts.afterFreeSplit),true);assert.deepEqual(facts.pinnedBoundsAfter.bounds,facts.pinnedBoundsBefore.bounds);facts.freeSiblingEditable=true;
+  await flow('free-sibling-split');await store.queue;const persisted=(await store.get('mouseDesktopsV1')).mouseDesktopsV1,rehydrated=new(require('./mouse-desktops.cjs').DesktopBank)(persisted);assert.deepEqual(rehydrated.preferences().pinnedPanes,facts.pinned.pinnedPanes);assert.deepEqual(rehydrated.preferences().tree,facts.afterFreeSplit.tree);assert.deepEqual(rehydrated.preferences().slots,facts.afterFreeSplit.slots);facts.persistence={key:'mouseDesktopsV1',desktopId:rehydrated.active,pinnedPanes:rehydrated.preferences().pinnedPanes,tree:rehydrated.preferences().tree,slots:rehydrated.preferences().slots,rehydrated:true};facts.persisted=true;
+  const another=originalBank.items.find(d=>d.id!==facts.pinned.desktopId).id;await fixture.switchDesk(another);assert.deepEqual(await js('MouseTest.model.pinnedPanes'),{});await fixture.switchDesk(facts.pinned.desktopId);assert.deepEqual((await read()).pinnedPanes,facts.pinned.pinnedPanes);facts.desktopIsolation=true;
+  await privateMode.enter();await ready();assert.deepEqual(await js('MouseTest.model.pinnedPanes'),{});const privateBefore=await read(),privatePane=L.leaves(privateBefore.tree)[0],privateBinding=privateBefore.slots[privatePane]||'';await js(`MouseTest.pinPane(${JSON.stringify(privatePane)},true)`);assert.deepEqual(privateMode.current.desktopService.preferences().pinnedPanes,{[privatePane]:privateBinding});facts.private={before:privateBefore,pinnedPanes:privateMode.current.desktopService.preferences().pinnedPanes};assert.deepEqual(originalBank.preferences().pinnedPanes,facts.pinned.pinnedPanes);await privateMode.leave();await ready();assert.deepEqual((await read()).pinnedPanes,facts.pinned.pinnedPanes);facts.privateIsolation=true;
+  menu=await context(records[1]);assert.equal(menu.items.find(item=>item.id==='mouse-context-pin').label,'Открепить окно');assert.equal(menu.items.find(item=>item.id==='mouse-context-split-x').enabled,false);await choose('mouse-context-pin');await fixture.until(()=>js('Object.keys(MouseTest.model.pinnedPanes).length===0'),'635 explicit native unpin');assert.equal(await js('document.querySelector(".pane[data-pane=p2] .pane-pin").hidden'),true);facts.explicitUnpin=true;
+  await flow('desk-private-and-unpin-complete');facts.pagesAfter=await Promise.all(records.map(fixture.identity));for(let n=0;n<records.length;n++)fixture.assertIdentity(facts.pagesBefore[n],facts.pagesAfter[n]);facts.livePagePreserved=true;facts.elapsedMs=Date.now()-started;await save();return facts;
+ }catch(error){
+  facts.error={message:String(error.message),stack:String(error.stack).slice(0,6000)};try{facts.failureState=await resizeState();await save();}catch{}throw error;
+ }finally{
+  try{if(currentMenu?.row.closedAt===null){await key('ESC');currentMenu.menu.closePopup(win);}}catch{}Menu.prototype.popup=popup;
+  if(privateMode.current){await privateMode.leave();await ready();}
+  if(originalBank.active!==original.desktopId)await fixture.switchDesk(original.desktopId);
+  await js('(async()=>{for(const pane of Object.keys(MouseTest.model.pinnedPanes))await MouseTest.pinPane(pane,false);})()');
+  for(const record of records)if(browser.tabs.has(record.id))await js(`MouseNative.desktops('close-tab',{id:${JSON.stringify(record.id)}})`);
+  await js(`(async()=>{Object.assign(MouseTest.model,${JSON.stringify(original)},{pinnedPanes:{}});MouseTest.model.state=await MouseNative.browser('state');MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();await MouseTest.save();})()`);
+  if(server){server.closeAllConnections();await bounded(new Promise(resolve=>server.close(resolve)),2500,'635 pinned pane HTTP cleanup');}
+ }
+};

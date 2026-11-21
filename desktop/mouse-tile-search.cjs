@@ -2,6 +2,7 @@
 // Own search workspace. Requests, provider sessions and native page ownership
 // stay in the main process; renderer messages never choose providers or secrets.
 const path=require('node:path');
+const {publicSearchError,SearchError}=require('./mouse-search-service.cjs');
 const {randomUUID}=require('node:crypto');
 const MAX_RESULTS=300,MAX_HISTORY=12,MAX_INPUT_BYTES=128*1024;
 const text=(value,max=4000)=>typeof value==='string'?value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').trim().slice(0,max):'';
@@ -11,6 +12,8 @@ class TileSearch {
   this.active=false;this.disposed=false;this.locked=false;this.revision=1;this.results=[];this.query='';this.filter='all';this.page=0;this.hasMore=false;this.history=[];this.pending=new Set();this.summaryPending=new Set();this.chatPending=false;this.chatSerial=0;this.summary='';this.lastVisionContext=null;this.watchers=[];
   this.shell=this.win.webContents;
   const serviceFactory=options.serviceFactory||require('./mouse-search-service.cjs').createSearchService;
+  if(!options.serviceFactory)this.networkTransport=require('./mouse-search-transport.cjs').createSearchTransport({session:require('electron').session,network:()=>this.browser.network||{mode:'system'},testContext:{enabled:this.test===true,app:this.app}});
+  this.nativeSource=options.nativeSource||(!options.serviceFactory?require('./mouse-search-native-source.cjs').createNativeSearchSource({browser:this.browser,win:this.win,testContext:{enabled:this.test===true,app:this.app}}):null);this.sourceRequest=null;
   this.serviceFactory=serviceFactory;this.service=serviceFactory(this.serviceOptions());
   const viewsFactory=options.viewsFactory||require('./mouse-search-views.cjs').createSearchViews;
   this.views=viewsFactory({win:this.win,blocked:()=>this.blocked(),isPrivate:()=>this.isPrivate?.()===true,maxLive:8,
@@ -19,7 +22,7 @@ class TileSearch {
   this.vision=visionFactory({views:this.views,win:this.win,powerMonitor:this.powerMonitor,isPrivate:()=>this.isPrivate?.()===true,
    onState:state=>{if(!state.active)this.lastVisionContext=null;this.emit('vision',{state});},onContext:context=>{this.lastVisionContext=context;this.emit('vision-context',{context});}});
   this.wrapLayout();
-  if(this.ipcMain)this.ipcMain.handle('mouse:tile-search',(event,action,args={})=>{this.trusted(event);return this.handle(action,args);});
+  if(this.ipcMain)this.ipcMain.handle('mouse:tile-search',(event,action,args={})=>{this.trusted(event);return this.handle(action,args).catch(error=>{const safe=publicSearchError(error);if(safe)return{ok:false,error:safe};throw error;});});
   this.listen(this.powerMonitor,'lock-screen',()=>{this.locked=true;this.close('Экран заблокирован',{reset:true});});
   this.listen(this.powerMonitor,'unlock-screen',()=>{this.locked=false;});
   this.listen(this.win,'minimize',()=>{this.views.suspend('Окно свёрнуто');this.vision.stop('Окно свёрнуто');});
@@ -30,7 +33,39 @@ class TileSearch {
  listen(emitter,event,listener){emitter?.on?.(event,listener);this.watchers.push({emitter,event,listener});}
  emit(kind,value={}){if(this.disposed||this.win.isDestroyed?.()||this.shell.isDestroyed?.())return;this.shell.send('mouse:search-state',{kind,revision:this.revision,...value});}
  encryptedStorage(){try{return this.safeStorage?.isEncryptionAvailable?.()&&(process.platform!=='linux'||['gnome_libsecret','kwallet','kwallet5','kwallet6'].includes(this.safeStorage.getSelectedStorageBackend?.()));}catch{return false;}}
+ isolatedSearchTest(){return this.test===true&&process.env.CI==='true'&&path.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')&&path.resolve(this.app.getPath('userData'))===path.resolve(process.env.MOUSE_TEST_PROFILE);}
+ async braveApiKey(){
+  // CI receives an ephemeral secret only in its explicitly isolated profile.
+  // Ordinary installed clients read only the OS-encrypted profile setting.
+  if(this.isolatedSearchTest()&&process.env.MOUSE_TEST_BRAVE_SEARCH_API_KEY)return process.env.MOUSE_TEST_BRAVE_SEARCH_API_KEY;
+  if(this.isPrivate?.())return '';
+  try{const saved=(await this.store?.get?.(['mouseSearchBraveKey']))?.mouseSearchBraveKey;if(!saved||saved.schema===1&&saved.encrypted==='')return '';
+   if(!this.encryptedStorage()||saved.schema!==1||typeof saved.encrypted!=='string'||saved.encrypted.length>8192)throw Error('Unavailable encrypted key');
+   return this.safeStorage.decryptString(Buffer.from(saved.encrypted,'base64'));
+  }catch{throw new SearchError('SEARCH_CREDENTIALS','Сохранённый ключ поиска недоступен. Сохраните его заново или удалите.');}
+ }
+ async providerSettings(){
+  const secureStorageAvailable=!!this.encryptedStorage();
+  if(this.isolatedSearchTest()&&process.env.MOUSE_TEST_BRAVE_SEARCH_API_KEY)return{braveConfigured:true,braveSaved:false,braveReadable:true,canRemove:false,secureStorageAvailable,keyStatus:'ci'};
+  let saved;try{saved=(await this.store?.get?.(['mouseSearchBraveKey']))?.mouseSearchBraveKey;}catch{return{braveConfigured:false,braveSaved:false,braveReadable:false,canRemove:!!this.store?.set,secureStorageAvailable,keyStatus:'unavailable'};}
+  const present=!!saved&&!(saved.schema===1&&saved.encrypted==='');let readable=false;
+  if(present&&secureStorageAvailable)try{readable=!!await this.braveApiKey();}catch{}
+  return{braveConfigured:present,braveSaved:present,braveReadable:readable,canRemove:present,secureStorageAvailable,keyStatus:present?(readable?'ready':'unavailable'):'missing'};
+ }
+ async setBraveKey(args){
+  if(this.isPrivate?.())throw new SearchError('SEARCH_CREDENTIALS','Настройки поиска доступны в обычном рабочем столе.');
+  if(typeof args.key!=='string'||args.key.length>512||args.key&&/[^\x21-\x7e]/.test(args.key))throw new SearchError('SEARCH_CREDENTIALS','Введите корректный ключ поискового API.');
+  if(!this.store?.set||args.key&&!this.encryptedStorage())throw new SearchError('SEARCH_CREDENTIALS','Защищённое хранилище системы недоступно. Ключ не сохранён.');
+  try{const encrypted=args.key?this.safeStorage.encryptString(args.key).toString('base64'):'';await this.store.set({mouseSearchBraveKey:{schema:1,encrypted}});}
+  catch{throw new SearchError('SEARCH_CREDENTIALS','Не удалось сохранить ключ в защищённом хранилище.');}
+  if(this.service.resetCache)this.service.resetCache();else this.service.cancelAll();
+  if(!args.key&&!(this.isolatedSearchTest()&&process.env.MOUSE_TEST_BRAVE_SEARCH_API_KEY))return{braveConfigured:false,braveSaved:false,braveReadable:false,canRemove:false,secureStorageAvailable:!!this.encryptedStorage(),keyStatus:'missing'};
+  return this.providerSettings();
+ }
  serviceOptions(){return{
+  ...(this.nativeSource?{nativeSource:this.nativeSource}:{}),
+  getBraveApiKey:()=>this.braveApiKey(),
+  ...(this.networkTransport?{endpointRequest:this.networkTransport.request,transportState:this.networkTransport.state}:{}),
   getSessionToken:async()=>{if(!this.encryptedStorage()||this.isPrivate?.())return '';const data=await this.store?.get?.(['mouseTileSearchSession']);const saved=data?.mouseTileSearchSession;if(saved?.schema!==1||typeof saved.encrypted!=='string'||saved.encrypted.length>8192)return '';try{return this.safeStorage.decryptString(Buffer.from(saved.encrypted,'base64'));}catch{return '';};},
   setSessionToken:async token=>{if(!this.encryptedStorage()||this.isPrivate?.()||this.disposed)return;if(typeof token!=='string'||token.length>4096)throw Error('Invalid search session');const encrypted=this.safeStorage.encryptString(token).toString('base64');await this.store?.set?.({mouseTileSearchSession:{schema:1,encrypted}});}
  };}
@@ -47,12 +82,12 @@ class TileSearch {
  state(){return{active:this.active,revision:this.revision,query:this.query,filter:this.filter,page:this.page,hasMore:this.hasMore,results:this.results,summary:this.summary,pending:this.pending.size>0,vision:this.vision.state(),provider:this.service.state()};}
  open(){if(this.disposed||this.locked||this.isPrivate?.())throw Error('Поиск Mouse доступен в обычном рабочем столе');this.active=true;this.savedLayout.call(this.browser,[]);this.views.setResults(this.results,{revision:this.revision});this.syncOverlay();return this.state();}
  close(reason='Поиск закрыт',{reset=false}={}){
-  this.active=false;this.revision++;this.chatSerial++;this.service.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop(reason);this.lastVisionContext=null;this.views.close(reason);
+  this.active=false;this.sourceRequest=null;this.revision++;this.chatSerial++;this.service.cancelAll();this.nativeSource?.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop(reason);this.lastVisionContext=null;this.views.close(reason);
   if(reset){this.results=[];this.query='';this.page=0;this.hasMore=false;this.summary='';this.history=[];}
   this.emit('closed',{reason,reset});return{closed:true,revision:this.revision};
  }
  clearResults(){
-  this.requireOpen();this.revision++;this.chatSerial++;this.service.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop('Запрос очищен');this.lastVisionContext=null;
+  this.requireOpen();this.sourceRequest=null;this.revision++;this.chatSerial++;this.service.cancelAll();this.nativeSource?.cancelAll();this.pending.clear();this.summaryPending.clear();this.chatPending=false;this.vision.stop('Запрос очищен');this.lastVisionContext=null;
   this.results=[];this.query='';this.page=0;this.hasMore=false;this.summary='';this.history=[];this.views.setResults([],{revision:this.revision});return{cleared:true,revision:this.revision};
  }
  async search(args){
@@ -61,9 +96,11 @@ class TileSearch {
   if(page===1){this.service.cancelAll();this.pending.clear();this.summaryPending.clear();this.vision.stop('Новый поиск');this.revision++;this.chatSerial++;this.chatPending=false;this.results=[];this.history=[];this.summary='';this.query=query;this.filter=filter;this.page=0;this.hasMore=false;this.views.setResults([],{revision:this.revision});}
   else if(this.pending.size||args.revision!==this.revision||query!==this.query||filter!==this.filter||page!==this.page+1||!this.hasMore)throw Error('Результаты изменились. Повторите поиск.');
   const revision=this.revision;this.pending.add(requestId);
+  const sourceRequest=this.nativeSource?{requestId,revision,query,filter,page,engine:this.browser.mouseSearch?.state().engine,project:this.browser.project,desk:this.browser.mouseDesktops?.bank?.active,manualAvailable:false}:null;
+  this.sourceRequest=sourceRequest;
   try{
    const response=await this.service.query({query,page,filter,requestId});
-   if(!this.active||this.disposed||revision!==this.revision||!this.pending.has(requestId))throw Error('Поиск отменён');
+   if(!this.active||this.disposed||revision!==this.revision||!this.pending.has(requestId)||sourceRequest&&!this.currentSourceRequest(requestId))throw Error('Поиск отменён');
    if(!Array.isArray(response.results))throw Error('Поисковик вернул некорректный ответ');
    const urls=new Set(this.results.map(row=>row.url)),newResults=[];
    for(const row of response.results){if(!row||typeof row.id!=='string'||typeof row.url!=='string'||urls.has(row.url)||this.results.length+newResults.length>=MAX_RESULTS)continue;urls.add(row.url);newResults.push(row);}
@@ -71,7 +108,23 @@ class TileSearch {
    const result={...response,requestId,revision,query,page,results:newResults,hasMore:this.hasMore};
    if(page===1&&this.results.length)void this.summarize(revision,query,this.results.slice(0,12),requestId);
    return result;
+  }catch(error){
+   if(sourceRequest&&this.currentSourceRequest(requestId)&&['SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT'].includes(error.code)&&error.manualAction?.available===true&&error.manualAction.requestId===requestId&&error.manualAction.engine===sourceRequest.engine)sourceRequest.manualAvailable=true;
+   throw error;
   }finally{this.pending.delete(requestId);}
+ }
+ currentSourceRequest(requestId){
+  const request=this.sourceRequest;
+  return this.active&&!this.disposed&&!this.locked&&!this.isPrivate?.()&&request&&request.requestId===requestId&&request.revision===this.revision&&request.query===this.query&&request.filter===this.filter&&request.project===this.browser.project&&request.desk===this.browser.mouseDesktops?.bank?.active&&request.engine===this.browser.mouseSearch?.state().engine?request:null;
+ }
+ openEngine(args){
+  this.requireOpen();const requestId=text(args.requestId,100),request=this.currentSourceRequest(requestId);
+  if(!request?.manualAvailable||!this.nativeSource||typeof this.browser.adoptSearchSource!=='function')throw new SearchError('SEARCH_SOURCE_STALE','Страница поиска уже изменилась. Повторите запрос.');
+  const current=this.nativeSource.sourceFor(requestId);
+  if(!current||current.source?.engine!==request.engine||current.source.query!==request.query||current.source.page!==request.page||current.source.filter!==request.filter)throw new SearchError('SEARCH_SOURCE_STALE','Страница поиска уже изменилась. Повторите запрос.');
+  const source=this.nativeSource.takeSource(requestId);if(!source||source.view!==current.view||source.wc!==current.wc)throw new SearchError('SEARCH_SOURCE_STALE','Страница поиска больше недоступна. Повторите запрос.');
+  let result;try{result=this.browser.adoptSearchSource(source);}catch(error){if(!source.wc.isDestroyed())source.wc.close({waitForBeforeUnload:false});throw error;}
+  this.close();this.emit('open-result',{id:result.id,desk:request.desk});return{id:result.id};
  }
  async summarize(revision,query,results,requestId){
   const id=requestId+'-summary';this.summaryPending.add(id);
@@ -82,7 +135,7 @@ class TileSearch {
  async chat(args){
   this.requireOpen();if(args.revision!==this.revision)throw Error('Результаты изменились');if(typeof args.message!=='string'||args.message.length>3000)throw Error('Введите вопрос длиной до 3000 символов.');const message=text(args.message,3000);if(!message)throw Error('Напишите вопрос');if(this.chatPending)throw Error('Дождитесь ответа Mouse');
   const revision=this.revision,serial=++this.chatSerial;this.chatPending=true;
-  try{const visionContext=this.vision.state().active?await this.vision.snapshot():null;const answer=await this.service.chat({message,query:this.query,results:this.results.slice(0,15),history:this.history.slice(-MAX_HISTORY),visionContext,requestId:text(args.requestId,100)||randomUUID()});if(!this.active||revision!==this.revision)throw Error('Диалог закрыт');const reply=text(answer.text,16000);if(!reply)throw Error('ИИ не вернул ответ');this.history.push({role:'user',content:message},{role:'assistant',content:reply});this.history=this.history.slice(-MAX_HISTORY);return{revision,text:reply};}
+  try{const answer=await this.service.chat({message,query:this.query,results:this.results.slice(0,15),history:this.history.slice(-MAX_HISTORY),requestId:text(args.requestId,100)||randomUUID()});if(!this.active||revision!==this.revision)throw Error('Диалог закрыт');const reply=text(answer.text,16000);if(!reply)throw Error('ИИ не вернул ответ');this.history.push({role:'user',content:message},{role:'assistant',content:reply});this.history=this.history.slice(-MAX_HISTORY);return{revision,text:reply};}
   finally{if(serial===this.chatSerial)this.chatPending=false;}
  }
  async prepareOverlay(){
@@ -104,17 +157,16 @@ class TileSearch {
  }
  async handle(action,args={}){
   if(this.disposed)throw Error('Поиск закрыт');if(!args||typeof args!=='object'||Array.isArray(args)||Buffer.byteLength(JSON.stringify(args))>MAX_INPUT_BYTES)throw Error('Invalid search request');
+  if(action==='provider-settings')return this.providerSettings();if(action==='set-brave-key')return this.setBraveKey(args);
   if(action==='state')return this.state();if(action==='open')return this.open();if(action==='close')return this.close();
-  if(action==='cancel'){const id=text(args.requestId,100);this.pending.delete(id);this.summaryPending.delete(id+'-summary');this.service.cancel(id);this.service.cancel(id+'-summary');return{cancelled:true};}
+  if(action==='cancel'){const id=text(args.requestId,100);this.pending.delete(id);this.summaryPending.delete(id+'-summary');this.service.cancel(id);this.service.cancel(id+'-summary');if(this.sourceRequest?.requestId===id){this.sourceRequest=null;this.nativeSource?.cancel(id);}return{cancelled:true};}
   this.requireOpen();
   if(action==='clear')return this.clearResults();
   if(action==='query')return this.search(args);
   if(action==='layout'){if(args.revision!==this.revision)return{stale:true};return this.views.layout(args);}
   if(action==='prepare-overlay')return this.prepareOverlay();
   if(action==='chat')return this.chat(args);
-  if(action==='vision-start'){if(args.revision!==this.revision)throw Error('Результаты изменились');return this.vision.start({id:args.id,consent:args.consent===true});}
-  if(action==='vision-stop')return this.vision.stop('Показ экрана выключен');
-  if(action==='vision-state')return this.vision.state();
+  if(action==='open-engine')return this.openEngine(args);
   if(action==='open-result'){const url=this.views.resultURL(args.id);if(!url)throw Error('Результат больше недоступен');const result=await this.browser.command('open',{url,lane:'main'});this.close();this.emit('open-result',{id:result.id,desk:this.browser.mouseDesktops?.bank?.active});return{id:result.id};}
   throw Error('Неизвестная команда поиска');
  }
@@ -123,7 +175,7 @@ class TileSearch {
   this.close('Настройка проверочного сервера',{reset:true});this.service.dispose();this.service=this.serviceFactory({...options,fixtureProfile:this.app.getPath('userData')});return this.service.state();
  }
  dispose(){
-  if(this.disposed)return;this.close('Браузер закрывается',{reset:true});this.disposed=true;this.service.dispose();this.vision.dispose();this.views.dispose();
+  if(this.disposed)return;this.close('Браузер закрывается',{reset:true});this.disposed=true;this.service.dispose();this.nativeSource?.dispose();this.networkTransport?.dispose();this.vision.dispose();this.views.dispose();
   for(const {emitter,event,listener}of this.watchers)emitter?.removeListener?.(event,listener);this.watchers=[];
   if(this.browser.layout===this.layoutWrapper)this.browser.layout=this.savedLayout;
   if(this.browser.mouseAdditionalCapturePages===this.additionalPages)this.browser.mouseAdditionalCapturePages=this.savedAdditionalPages;

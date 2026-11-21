@@ -64,7 +64,7 @@ function dom(){
 }
 const file=(name='src/main.js',extra={})=>({path:name,name:name.split('/').at(-1),type:'file',depth:name.split('/').length,size:4,modifiedAt:100,...extra});
 const initial=(extra={})=>({enabled:false,autonomous:false,running:false,connected:0,desk:'desk-1',port:0,connectionUrl:'',folder:'/project',terminal:false,pending:null,logs:[],local:{connected:true,writeAllowed:false,commandsAllowed:false,busy:false,tree:{entries:[file()],truncated:false},dev:{enabled:false,running:false,command:'',autoRestart:false}},...extra});
-function fixture(start=initial()){
+function fixture(start=initial(),options={}){
  const {document,htmlWrites}=dom(),calls=[],messages=[],handlers=new Map(),subscriptions=new Map(),timers=new Map(),terminalEvents=[];let current=copy(start),timerId=0;
  const model={desktopId:'desk-1',agentOpen:true,privateMode:false,focusPane:'',focusAI:false,libraryOpen:false},listener=(name,fn)=>{subscriptions.set(name,fn);return()=>subscriptions.delete(name);};
  const N={agent:async(action,args={})=>{calls.push({action,args:copy(args)});return handlers.has(action)?handlers.get(action)(args):copy(current);},onAgent:fn=>listener('state',fn),onTerminal:fn=>listener('terminal',fn),onAgentOpen:fn=>listener('open',fn)};
@@ -72,7 +72,7 @@ function fixture(start=initial()){
  class Terminal{constructor(){this.cols=0;this.rows=0;terminalEvents.push(['create']);}open(){terminalEvents.push(['open']);}onData(fn){this.input=fn;terminalEvents.push(['onData',fn]);}write(value){terminalEvents.push(['write',value]);}resize(cols,rows){this.cols=cols;this.rows=rows;terminalEvents.push(['resize',cols,rows]);}focus(){terminalEvents.push(['focus']);}dispose(){terminalEvents.push(['dispose']);}}
  const context={document,window,navigator:{clipboard:{writeText:async value=>messages.push('clipboard:'+value)}},Terminal,ResizeObserver:class{observe(){}disconnect(){terminalEvents.push(['observer-disconnect']);}},setTimeout:(fn,delay)=>{const id=++timerId;timers.set(id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id)};
  vm.createContext(context);vm.runInContext(source('local-workspace.js'),context);vm.runInContext(source('agent-onboarding.js'),context);vm.runInContext(source('agent-ui.js'),context);
- const activated=[],ui=context.createMouseAgentUI({N,model,layout(){},status:message=>messages.push(message),activateTab:id=>activated.push(id)}),$=selector=>document.querySelector(selector);
+ const activated=[],ui=context.createMouseAgentUI({N,model,showDialog:options.showDialog,layout(){},status:message=>messages.push(message),activateTab:id=>activated.push(id)}),$=selector=>document.querySelector(selector);
  return{ui,model,N,document,htmlWrites,calls,messages,handlers,subscriptions,terminalEvents,activated,$,state:()=>copy(current),emit(next){current=copy(next);subscriptions.get('state')(copy(current));},async ready(){await tick();calls.length=0;},rows(){return document.querySelectorAll('.agent-local-entry');},row(name){return this.rows().find(e=>e.dataset.path===name);},flush:tick,runTimers(){const all=[...timers.values()];timers.clear();for(const t of all)t.fn();},dispose(){ui.dispose();}};
 }
 
@@ -82,7 +82,7 @@ test('Local is integrated before Agent UI; folder selection lives in Local and p
  assert.equal(f.$('#agent-stop').disabled,false,'The read-only MCP child can be stopped before the agent gateway is enabled');assert.equal(f.$('#agent-local-refresh').disabled,false);assert.equal(f.$('#agent-local-write').disabled,true);assert.equal(f.$('#agent-local-commands').disabled,true);assert.equal(f.$('#agent-terminal-start').disabled,true);assert.equal(f.$('#agent-local-dev-start').disabled,true);f.dispose();
 });
 test('Ollama onboarding is optional, reads only after a click and changes model settings only after selection',async()=>{
- const f=fixture();await f.ready();assert.deepEqual(f.calls,[]);f.ui.focus();assert.equal(f.$('#agent-ollama-setup').open,true);assert.equal(f.$('#agent-panel').getAttribute('aria-label'),'Агент Маус');
+ const f=fixture();await f.ready();assert.deepEqual(f.calls,[]);f.ui.focus();assert.equal(f.$('#agent-settings-dialog').open,false);assert.equal(f.$('#agent-ollama-setup').open,false);f.ui.focusSettings('ollama');await f.flush();assert.equal(f.$('#agent-ollama-setup').open,true);assert.equal(f.$('#agent-panel').getAttribute('aria-label'),'Агент Маус');
  f.$('#agent-endpoint').value='https://chosen.example/v1/';f.$('#agent-model').value='owner-model';f.$('#agent-key').value='fixture-session-key';
  const name='model:<img onerror=fixture>';f.handlers.set('ollama-models',async()=>({available:true,models:[{name,size:5}]}));await f.$('#agent-ollama-check').click();assert.equal(f.$('#agent-endpoint').value,'https://chosen.example/v1/');assert.equal(f.$('#agent-model').value,'owner-model');assert.equal(f.$('#agent-key').value,'fixture-session-key');assert.equal(f.$('#agent-ollama-models-label').hidden,false);assert.equal(f.$('#agent-ollama-models option').textContent,name);assert.equal(f.document.querySelectorAll('img').length,1);
  f.$('#agent-ollama-use').click();assert.equal(f.$('#agent-endpoint').value,'http://127.0.0.1:11434/v1/');assert.equal(f.$('#agent-model').value,name);assert.equal(f.$('#agent-key').value,'');assert.deepEqual(f.calls.map(x=>x.action),['ollama-models']);assert.equal(f.state().enabled,false);assert.equal(f.$('#agent-autonomous').checked,false);f.dispose();
@@ -98,7 +98,7 @@ test('Ollama help uses only the native named help route; a late probe cannot res
 });
 test('settings sidebar hides the agent surface without revoking its session; section links grant no permissions',async()=>{
  const f=fixture(initial({enabled:true,desk:'desk-1',local:{...initial().local,commandsAllowed:false,writeAllowed:false}}));await f.ready();f.model.settingsOpen=true;f.ui.sync();assert.equal(f.$('#agent-panel').hidden,true);assert.deepEqual(f.calls,[]);
- f.model.settingsOpen=false;f.ui.focusSettings('permissions');assert.equal(f.$('#agent-panel').hidden,false);assert.equal(f.$('#agent-local-workspace').open,true);assert.equal(f.$('#agent-local-workspace').scrolled,true);assert.equal(f.$('#agent-local-write').checked,false);assert.equal(f.$('#agent-local-commands').checked,false);assert.deepEqual(f.calls,[]);f.ui.focusSettings('ollama');assert.equal(f.$('#agent-ollama-setup').open,true);f.dispose();
+ f.model.settingsOpen=false;f.ui.focusSettings('permissions');await f.flush();assert.equal(f.$('#agent-panel').hidden,false);assert.equal(f.$('#agent-local-workspace').open,true);assert.equal(f.$('#agent-local-workspace').scrolled,true);assert.equal(f.$('#agent-local-write').checked,false);assert.equal(f.$('#agent-local-commands').checked,false);assert.deepEqual(f.calls,[]);f.ui.focusSettings('ollama');await f.flush();assert.equal(f.$('#agent-ollama-setup').open,true);f.dispose();
 });
 test('human preview uses structuredContent only and treats filenames/content as literal data',async()=>{
  const name='src/<img onerror=attack>.js',f=fixture(initial({local:{...initial().local,tree:{entries:[file(name)]}}}));await f.ready();
@@ -178,4 +178,55 @@ test('runner rejects a Local reply without structuredContent instead of inventin
  const {run}=require('./mouse-agent/runner.cjs');let step=0,result;
  class Controller{async connect(){return this;}async localTools(){return{tools:[{name:'read_file'}],readOnly:true};}async localFile(){return{content:[{type:'text',text:'unstructured reply'}]};}async close(){}}
  await run({task:'Fixture',cdp:'unused'},{Controller,complete:async(_config,messages)=>{if(step++) {result=messages.at(-1).content;return JSON.stringify({action:'done',args:{text:'Missing tool result'}});}return JSON.stringify({action:'read_file',args:{path:'one.txt'}});}});assert.match(result,/"error":/);assert.doesNotMatch(result,/"ok":true/);
+});
+
+
+test('chat opens cleanly, keeps settings modal and diagnostics collapsed, and never turns logs into replies',async()=>{
+ const f=fixture(initial({chat:[],logs:[{text:'write_file step fixture'}]}));await f.ready();f.ui.focus();
+ assert.equal(f.$('#agent-settings-dialog').open,false);assert.equal(f.$('#agent-details').open,false);assert.equal(f.$('#agent-terminal-settings').open,false);
+ for(const id of ['agent-endpoint','agent-model','agent-folder','agent-autonomous','agent-local-write','agent-terminal-start'])assert.ok(f.$('#agent-settings-dialog').contains(f.$('#'+id)),id);
+ assert.equal(f.$('#agent-chat-messages').textContent,'');assert.match(f.$('.agent-log').textContent,/write_file/);assert.equal(f.$('#agent-chat-empty').hidden,false);assert.deepEqual(f.calls,[]);
+ f.$('#agent-settings-open').click();await f.flush();assert.equal(f.$('#agent-settings-dialog').open,true);f.$('#agent-settings-close').click();assert.equal(f.$('#agent-settings-dialog').open,false);assert.deepEqual(f.calls,[]);f.dispose();
+});
+test('normal chat submits without CDP or folder, prevents duplicate sends and clears only an accepted draft',async()=>{
+ const f=fixture(initial({folder:'',local:null,chat:[]}));await f.ready();const wait=deferred();f.handlers.set('chat',()=>wait.promise);
+ f.$('#agent-endpoint').value='http://127.0.0.1:11434/v1/';f.$('#agent-model').value='fixture-model';f.$('#agent-task-input').value='Привет';f.$('#agent-task-input').oninput();assert.equal(f.$('#agent-run').disabled,false);
+ f.$('.agent-task').submit();f.$('.agent-task').submit();await f.flush();assert.equal(f.calls.length,1);assert.deepEqual(f.calls[0],{action:'chat',args:{endpoint:'http://127.0.0.1:11434/v1/',model:'fixture-model',task:'Привет',key:'',vision:false}});
+ assert.equal(f.$('#agent-run').disabled,true);assert.equal(f.$('#agent-task-input').value,'Привет');wait.resolve({...f.state(),running:true,chat:[{id:'u1',role:'user',text:'Привет'}]});await f.flush();assert.equal(f.$('#agent-task-input').value,'');assert.equal(f.$('#agent-chat-stop').hidden,false);assert.equal(f.$('#agent-run').hidden,true);assert.equal(f.$('#agent-chat-messages').textContent,'ВыПривет');assert.equal(f.$('#agent-chat-empty').hidden,true);assert.equal(f.state().enabled,false);f.dispose();
+});
+test('chat failure retains a draft and displays an actionable message inside the panel',async()=>{
+ const f=fixture();await f.ready();f.$('#agent-task-input').value='Сохранённый черновик';f.$('.agent-task').submit();await f.flush();assert.equal(f.$('#agent-settings-dialog').open,true);assert.equal(f.$('#agent-chat-error').hidden,false);assert.equal(f.calls.length,0);
+ f.$('#agent-settings-close').click();f.$('#agent-endpoint').value='http://127.0.0.1:11434/v1/';f.$('#agent-model').value='fixture';f.handlers.set('chat',async()=>{throw Error('API модели недоступен');});f.$('.agent-task').submit();await f.flush();assert.equal(f.$('#agent-task-input').value,'Сохранённый черновик');assert.equal(f.$('#agent-chat-error').textContent,'API модели недоступен');assert.equal(f.$('#agent-run').disabled,false);f.dispose();
+});
+test('Enter sends, Shift+Enter and IME composition leave native text entry alone',async()=>{
+ const f=fixture();await f.ready();f.$('#agent-endpoint').value='https://fixture.example/v1/';f.$('#agent-model').value='fixture';const input=f.$('#agent-task-input');input.value='Сообщение';let prevented=0;
+ for(const extra of [{shiftKey:true},{isComposing:true},{keyCode:229}])input.onkeydown({key:'Enter',...extra,preventDefault(){prevented++;}});await f.flush();assert.equal(f.calls.length,0);assert.equal(prevented,0);
+ input.onkeydown({key:'Enter',preventDefault(){prevented++;}});await f.flush();assert.equal(prevented,1);assert.equal(f.calls[0].action,'chat');f.dispose();
+});
+test('streaming keeps message nodes and scroll position; unsafe model text and code remain literal',async()=>{
+ const unsafe='<img src=x onerror=attack()>',first={id:'a1',role:'assistant',text:'Начинаю',status:'streaming'},f=fixture(initial({chat:[first]}));await f.ready();const row=f.$('.agent-message-assistant'),scroller=f.$('.agent-chat-scroll');scroller.scrollHeight=2000;scroller.clientHeight=400;scroller.scrollTop=250;
+ const text='Ответ '+unsafe+'\n```html\n<script>attack()</script>\n```';f.emit({...f.state(),chat:[{...first,text,status:'complete'}]});assert.equal(f.$('.agent-message-assistant'),row);assert.equal(scroller.scrollTop,250);assert.equal(f.document.querySelectorAll('img').length,1);assert.equal(f.document.querySelectorAll('script').length,0);assert.equal(f.$('.agent-code-block code').textContent,'<script>attack()</script>');assert.ok(f.htmlWrites.every(x=>!x.value.includes(unsafe)));assert.equal(f.$('.agent-message-status').hidden,true);
+ f.$('.agent-code-heading button').click();await f.flush();assert.ok(f.messages.includes('clipboard:<script>attack()</script>'));f.dispose();
+});
+test('connection indicator is green only after an actual response and resets when the selected API changes',async()=>{
+ const f=fixture(initial({chatConnection:'idle'}));await f.ready();assert.equal(f.$('.agent-connection-status').dataset.connection,'idle');assert.match(f.$('#agent-state-label').textContent,/не подключена/);
+ f.emit({...f.state(),chatConnection:'connected',chatModel:'fixture',chatEndpoint:'http://127.0.0.1:11434/v1/'});assert.equal(f.$('.agent-connection-status').dataset.connection,'connected');assert.equal(f.$('#agent-model-select').value,'fixture');f.$('#agent-key').value='session-secret';f.$('#agent-endpoint').value='https://changed.example/v1/';f.$('#agent-endpoint').oninput();assert.equal(f.$('#agent-key').value,'');assert.equal(f.$('.agent-connection-status').dataset.connection,'idle');assert.match(f.$('#agent-state-label').textContent,/не проверена/);f.dispose();
+});
+test('conversation stop and full session stop use separate routes; approvals remain explicit in the chat',async()=>{
+ const f=fixture(initial({running:true,chat:[{id:'a1',role:'assistant',text:'Отвечаю',status:'streaming'}],pending:{id:'approve1',summary:'Разрешить запись в выбранную папку?'}}));await f.ready();assert.equal(f.$('.agent-approval').hidden,false);assert.equal(f.$('#agent-settings-dialog').contains(f.$('.agent-approval')),false);f.$('#agent-chat-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'chat-stop');f.$('#agent-deny').click();await f.flush();assert.deepEqual(f.calls.at(-1),{action:'approve',args:{id:'approve1',allow:false}});f.$('#agent-stop').click();await f.flush();assert.equal(f.calls.at(-1).action,'stop');f.dispose();
+});
+test('desk transitions keep drafts separate, remove stale transcript and restore the correct conversation',async()=>{
+ const s=initial({chatDesk:'desk-1',chat:[{id:'d1',role:'assistant',text:'Текст первого стола'}]}),f=fixture(s);await f.ready();f.$('#agent-task-input').value='Черновик один';f.model.desktopId='desk-2';f.ui.sync();assert.equal(f.$('#agent-chat-messages').textContent,'');assert.equal(f.$('#agent-task-input').value,'');
+ f.emit({...s,chatDesk:'desk-2',chat:[{id:'d2',role:'assistant',text:'Текст второго стола'}]});assert.match(f.$('#agent-chat-messages').textContent,/второго/);assert.doesNotMatch(f.$('#agent-chat-messages').textContent,/первого/);f.$('#agent-task-input').value='Черновик два';f.model.desktopId='desk-1';f.ui.sync();f.emit(s);assert.equal(f.$('#agent-task-input').value,'Черновик один');assert.match(f.$('#agent-chat-messages').textContent,/первого/);
+ f.model.privateMode=true;f.ui.sync();assert.equal(f.$('#agent-panel').hidden,true);assert.equal(f.$('#agent-task-input').value,'');assert.equal(f.$('#agent-chat-messages').textContent,'');f.dispose();
+});
+
+
+test('pending settings overlay cannot reopen after the panel is hidden, changed to private or moved to another desk',async()=>{
+ for(const change of ['hide','private','desk','hide-reopen']){
+  const wait=deferred(),f=fixture(initial(),{showDialog:async dialog=>{await wait.promise;dialog.open=true;}});await f.ready();f.$('#agent-settings-open').click();await f.flush();
+  if(change==='private')f.model.privateMode=true;else if(change==='desk')f.model.desktopId='desk-2';else f.model.agentOpen=false;f.ui.sync();
+  if(change==='hide-reopen'){f.model.agentOpen=true;f.ui.sync();}
+  wait.resolve();await f.flush();assert.equal(f.$('#agent-settings-dialog').open,false,change);assert.deepEqual(f.calls,[]);f.dispose();
+ }
 });

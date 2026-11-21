@@ -11,6 +11,9 @@ function address(value){
 const {readPage,providerFor}=require('./page-context.cjs');
 const {proxyConfig}=require('./network.cjs');
 const path=require('node:path');
+// Main-process-only transfer. Ordinary open/navigate IPC cannot supply this
+// symbol or adopt a guest created by an untrusted page.
+const ADOPT_SEARCH_SOURCE=Symbol('adopt-search-source');
 class BrowserWorkspace{
  constructor(win,store,options={}){
   this.privateMode=options.privateMode===true;this.store=store;this.snapshots={};this.restored=new Set();this.saveQueue=Promise.resolve();this.win=win;this.tabs=new Map();this.providers=new Map();this.project='';this.panels=[];this.contextIds=[];this.ai=null;this.provider='';this.disposed=false;
@@ -51,9 +54,9 @@ class BrowserWorkspace{
   this.pageStateTimer.unref?.();
  }
  state(){return{activeProvider:this.ai?.id||'',sessions:[...this.providers.values()].filter(t=>t.project===this.project&&!t.ephemeral).map(t=>({id:t.id,title:t.title,favicon:t.favicon||'',url:t.view.webContents.getURL()||t.url,loading:t.loading,session:true,provider:t.provider,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward(),contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin})),project:this.project,tabs:[...this.tabs.values()].filter(t=>t.project===this.project).map(t=>({id:t.id,contextEnabled:!!t.contextOrigin&&t.contextOrigin===new URL(t.view.webContents.getURL()||t.url).origin,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),url:t.view.webContents.getURL()||t.url,title:t.title||t.url,favicon:t.favicon||'',loading:t.loading,error:t.error||'',back:t.view.webContents.navigationHistory.canGoBack(),forward:t.view.webContents.navigationHistory.canGoForward()})),provider:this.provider,contextScope:this.contextScope,contextRevision:this.contextRevision||0}}
- make(url,project,ai=false,{background=false,lane,previewOf=''}={}){
-  const view=new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}});
-  const t={id:randomUUID(),project,url,title:url,view,loading:true,error:'',visible:false,...(lane==='side'?{lane:'side'}:{}),...(previewOf?{previewOf}:{})},wc=view.webContents;
+ make(url,project,ai=false,{background=false,lane,previewOf='',[ADOPT_SEARCH_SOURCE]:source}={}){
+  const view=source?.view||new WebContentsView({webPreferences:{session:this.session,additionalArguments:this.privateMode?['--mouse-private-page']:[],backgroundThrottling:!background,sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true,allowRunningInsecureContent:false,webviewTag:false,preload:path.join(__dirname,'page-pointer-preload.cjs')}}),wc=view.webContents;
+  const t={id:randomUUID(),project,url,title:source?(wc.getTitle?.()||url):url,view,loading:source?!!wc.isLoading?.():true,error:'',visible:false,...(source?{navigationEpoch:source.navigationEpoch||0}:{}),...(lane==='side'?{lane:'side'}:{}),...(previewOf?{previewOf}:{})};
   view.setBorderRadius?.(0);view.setBounds({x:0,y:0,width:1000,height:800});view.setVisible(false);this.win.contentView.addChildView(view);
   wc.setWindowOpenHandler(({url:next})=>{try{if(t.project===this.project){if(this.mouseOpenFrom)this.mouseOpenFrom(t,address(next));else this.open({url:address(next),lane:t.provider?'side':t.lane});}}catch{}return{action:'deny'}});
   wc.on('will-navigate',(e,next)=>{try{const url=address(next);if(t.project===this.project&&this.mousePreviewNavigation?.(t,url)){e.preventDefault();this.mouseOpenFrom(t,url);}}catch{e.preventDefault()}});
@@ -70,7 +73,7 @@ class BrowserWorkspace{
   wc.on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.pageStateChanged()});
   wc.on('render-process-gone',()=>{t.error='Вкладка остановлена. Нажмите обновить.';this.pageStateChanged()});
   if(!ai)this.tabs.set(t.id,t);
-  wc.loadURL(url).catch(e=>{t.error=e.message;this.pageStateChanged()});return t;
+  if(!source)wc.loadURL(url).catch(e=>{t.error=e.message;this.pageStateChanged()});return t;
  }
  get(id){const t=this.tabs.get(id)||[...this.providers.values()].find(t=>t.id===id);if(!t||t.project!==this.project)throw Error('Вкладка не принадлежит открытому проекту');if(t.view?.webContents?.isDestroyed?.()){this.mouseSafety?.forget(t);throw Error('Вкладка уже закрыта');}return t}
  selectProvider(provider,thread='main',{background=false}={}){
@@ -83,6 +86,15 @@ class BrowserWorkspace{
  }
  releaseService(thread){for(const [key,t] of this.providers)if(t.ephemeral&&t.thread===thread){this.providers.delete(key);this.destroy(t)}}
  open({url,lane,previewOf=''}){if(!this.project)throw Error('Сначала откройте проект');if(previewOf&&(!this.tabs.has(previewOf)||this.get(previewOf).lane!=='side'))throw Error('Чат предпросмотра уже закрыт');const t=this.make(address(url),this.project,false,{lane,previewOf});t.lane=lane==='side'?'side':'main';this.save();this.emit();return{id:t.id}}
+ adoptSearchSource(source){
+  if(this.disposed||this.privateMode||!this.project)throw Error('Откройте обычный рабочий стол');
+  const view=source?.view,wc=view?.webContents;
+  if(!(view instanceof WebContentsView)||!wc||wc.isDestroyed()||wc.session!==this.session||source.wc!==wc||[...this.tabs.values(),...this.providers.values()].some(t=>t.view===view))throw Error('Страница поиска больше недоступна');
+  const url=address(wc.getURL());wc.setAudioMuted?.(false);wc.setBackgroundThrottling?.(true);
+  // Reuse make so desktop membership, history, shortcuts, zoom and overlay
+  // hooks attach normally. Keep the actual document/captcha without loadURL.
+  const t=this.make(url,this.project,false,{lane:'main',[ADOPT_SEARCH_SOURCE]:source});t.lane='main';this.save();this.emit();return{id:t.id};
+ }
  destroy(t){if(!t)return;this.layoutPages?.delete(t);this.win.contentView.removeChildView(t.clipView||t.view);if(!t.view.webContents.isDestroyed())t.view.webContents.close({waitForBeforeUnload:false})}
  async command(action,args={}){
   switch(action){

@@ -27,6 +27,20 @@ test('a wrapped inline edit uses an actual line fragment, not the gap in its uni
 test('partly scrolled text chooses a point within the visible scrollport',()=>{
  const f=fixture([rect(20,20,140,50)],{clip:rect(40,63,90,6)}),point=nativeHitTarget(f.element);assert.equal(point.ready,true);assert.ok(point.x>=40&&point.x<130&&point.y>=63&&point.y<69);assert.equal(f.document.elementFromPoint(point.x,point.y),f.element);
 });
+test('top-layer modal controls escape panel clipping, including a dialog with visible overflow',()=>{
+ for(const overflow of ['visible','auto']){
+  const f=fixture([rect(100,30,40,20)]),outer=rect(0,0,40,100),dialog=rect(80,10,90,90);
+  const panel={style:{overflowX:'hidden',overflowY:'hidden'},getBoundingClientRect:()=>outer,clientLeft:0,clientTop:0,clientWidth:40,clientHeight:100};
+  f.element.parentElement={tagName:'DIALOG',open:true,matches:s=>s===':modal',parentElement:panel,style:{overflowX:overflow,overflowY:overflow},getBoundingClientRect:()=>dialog,clientLeft:0,clientTop:0,clientWidth:90,clientHeight:90};
+  const point=nativeHitTarget(f.element);assert.equal(point.ready,true,overflow);assert.equal(f.document.elementFromPoint(point.x,point.y),f.element);
+ }
+});
+test('an open nonmodal dialog remains clipped by its panel and a modal retains its own scrollport',()=>{
+ const f=fixture([rect(100,30,40,20)]),panel={style:{overflowX:'hidden',overflowY:'hidden'},getBoundingClientRect:()=>rect(0,0,40,100),clientLeft:0,clientTop:0,clientWidth:40,clientHeight:100};
+ const dialog={tagName:'DIALOG',open:true,matches:()=>false,parentElement:panel,style:{overflowX:'visible',overflowY:'visible'},getBoundingClientRect:()=>rect(95,25,14,40),clientLeft:0,clientTop:0,clientWidth:14,clientHeight:40};f.element.parentElement=dialog;
+ assert.equal(nativeHitTarget(f.element).ready,false,'show() is not top-layer promotion');dialog.matches=s=>s===':modal';dialog.style.overflowX='auto';
+ const point=nativeHitTarget(f.element);assert.equal(point.ready,true);assert.ok(point.x>=100&&point.x<109,'modal scrollport is still enforced');
+});
 test('a covered first line can use another exposed fragment of the same target',()=>{
  const f=fixture([rect(20,20,140,16),rect(20,42,60,16)],{cover:({y})=>y<40}),point=nativeHitTarget(f.element);assert.equal(point.ready,true);assert.ok(point.y>=42&&point.y<58);
 });

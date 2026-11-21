@@ -24,7 +24,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.34"
+VERSION = "6.0.35"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -535,7 +535,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_634_WINDOWS_REAL_629_TO_634_PROFILE_PASS", flush=True)
+    print("MOUSE_635_WINDOWS_REAL_629_TO_635_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -594,11 +594,11 @@ def main(argv=None) -> int:
         # registered Mouse installations or launch an uninstalled old path.
         evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
         save()
-        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-634-upgrade.py")), str(installer)], env,
-                           output / "mouse-634-upgrade.log", 480)
-        verify_markers(fresh.pop("output"), ["MOUSE_634_REAL_633_TO_634_PROFILE_PASS"])
-        fresh["requiredMarkers"] = ["MOUSE_634_REAL_633_TO_634_PROFILE_PASS"]
-        fresh["reportSha256"] = sha256(output / "mouse-634-upgrade.json")
+        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-635-upgrade.py")), str(installer)], env,
+                           output / "mouse-635-upgrade.log", 480)
+        verify_markers(fresh.pop("output"), ["MOUSE_635_REAL_634_TO_635_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_635_REAL_634_TO_635_PROFILE_PASS"]
+        fresh["reportSha256"] = sha256(output / "mouse-635-upgrade.json")
         evidence["checks"]["freshUpgrade"] = fresh
         save()
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
@@ -610,6 +610,15 @@ def main(argv=None) -> int:
         owner634["requiredMarkers"] = ["MOUSE_634_OWNER_FEEDBACK_PASS"]
         owner634["reportSha256"] = sha256(output / "mouse-634-owner-feedback.json")
         evidence["checks"]["ownerFeedback634"] = owner634
+        save()
+        owner635_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse635 search and files")}
+        owner635 = run_logged([str(executable), "--mouse-635-smoke"], owner635_env,
+                              output / "mouse-635-owner-feedback.log", 270)
+        required635 = ["MOUSE_635_PUBLIC_SEARCH_CONTRACT_PASS", "MOUSE_635_LIBRARY_STABLE_PASS", "MOUSE_635_AGENT_CHAT_PASS", "MOUSE_635_PINNED_PANES_PASS", "MOUSE_635_OWNER_FEEDBACK_PASS"]
+        verify_markers(owner635.pop("output"), required635)
+        owner635["requiredMarkers"] = required635
+        owner635["reportSha256"] = sha256(output / "mouse-635-owner-feedback.json")
+        evidence["checks"]["ownerFeedback635"] = owner635
         save()
         owner_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse633 owner feedback")}
         owner = run_logged([str(executable), "--mouse-633-smoke"], owner_env,

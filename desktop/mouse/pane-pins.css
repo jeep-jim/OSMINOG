@@ -1,0 +1,8 @@
+.pane-head .pane-pin{display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px;width:22px;height:22px;padding:3px;color:var(--accent,#a77bff);border:0;border-radius:5px;background:transparent;cursor:pointer}
+.pane-head .pane-pin[hidden]{display:none!important}
+.pane-pin svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.pane-head .pane-pin:hover{background:color-mix(in srgb,var(--accent,#a77bff) 16%,transparent)}
+.pane[data-pinned=true] .pane-icon{cursor:default}
+.pane-head button:disabled,.tab-close:disabled{cursor:default;opacity:.35}
+.divider[data-pinned=true]{cursor:default}
+.divider[data-pinned=true]:hover,.divider[data-pinned=true]:focus{background:transparent}

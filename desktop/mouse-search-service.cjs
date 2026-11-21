@@ -1,7 +1,8 @@
 'use strict';
 
-// Network and model access stay in the main process. Result pages are untrusted
-// data: no cookies, JavaScript, browser sessions or renderer-provided credentials.
+// The native source reads the selected engine in the ordinary browser session.
+// Its DOM is untrusted data. Model requests and fixture/metadata HTTP stay in the
+// main process, separate from browser cookies and renderer-provided credentials.
 const http = require('node:http');
 const https = require('node:https');
 const dns = require('node:dns').promises;
@@ -12,13 +13,13 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const cheerio = require('cheerio/slim');
 
-// This existing own public address is also an IP SAN in the pinned certificate.
-// Keep normal TLS identity verification; a DNS outage must not break both APIs.
-const DEFAULT_ENDPOINT = 'https://151.248.113.177:3082/search';
+// Installed search reads the user's selected engine in a native browser view.
+// This sentinel is a state label, never an HTTP endpoint or a hidden fallback.
+const DEFAULT_ENDPOINT = 'native:browser-search';
 const DEFAULT_AI_ENDPOINT = 'https://151.248.113.177:3081';
 const LIMITS = Object.freeze({query:512, page:30, results:24, searchBytes:2*1024*1024,
   metadataBytes:512*1024, modelBytes:128*1024, searchMs:12000, metadataMs:2500,
-  queryMs:30000, modelMs:50000, metadataConcurrency:4, queries:3, modelCalls:2,
+  queryMs:16000, modelMs:50000, metadataBudgetMs:1200, snapshotResults:300, metadataConcurrency:4, queries:3, modelCalls:2,
   cacheEntries:8, cacheMs:120000, queue:96});
 let resolverPool;
 
@@ -26,6 +27,22 @@ class SearchError extends Error {
   constructor(code, message, status) { super(message); this.name='SearchError'; this.code=code; if(status)this.status=status; }
 }
 const failure=(code,message,status)=>new SearchError(code,message,status);
+// Keep a small safe diagnostic code; never serialize raw errors, URLs, headers
+// or proxy credentials to the renderer. The previous transport erased errno.
+function networkFailure(error) {
+  const raw=String(error?.code||error?.cause?.code||error?.message||'');
+  const match=raw.match(/(?:net::)?(ERR_[A-Z0-9_]+|E[A-Z0-9_]{2,50})/);
+  const causeCode=match?.[1]||'NETWORK_ERROR';
+  const code=/CERT|TLS|SSL/.test(causeCode)?'SEARCH_TLS':/PROXY|TUNNEL/.test(causeCode)?'SEARCH_PROXY':/NAME_NOT_RESOLVED|ENOTFOUND|EAI_AGAIN/.test(causeCode)?'SEARCH_DNS':'SEARCH_NETWORK';
+  const message=code==='SEARCH_TLS'?'Не удалось проверить защищённое соединение с сервером поиска.':code==='SEARCH_PROXY'?'Не удалось подключиться через настроенный прокси.':code==='SEARCH_DNS'?'Не удалось найти сервер поиска.':'Не удалось подключиться к серверу поиска. Проверьте подключение и повторите запрос.';
+  const result=failure(code,message);result.causeCode=causeCode;return result;
+}
+function publicSearchError(error) {
+  if(!(error instanceof SearchError))return null;
+  const action=error.manualAction;
+  const manualAction=action?.available===true&&typeof action.requestId==='string'&&/^[A-Za-z0-9_:.\-]{1,128}$/.test(action.requestId)&&['google','bing','duckduckgo','yandex'].includes(action.engine)?{available:true,requestId:action.requestId,engine:action.engine}:null;
+  return {code:error.code,message:error.message,...(error.status?{status:error.status}:{}),retryable:['SEARCH_NETWORK','SEARCH_PROXY','SEARCH_DNS','SEARCH_TIMEOUT','SEARCH_UPSTREAM','SEARCH_BUSY','SEARCH_ENGINE_CHALLENGE','SEARCH_ENGINE_LAYOUT','SEARCH_ENGINE_CHANGED'].includes(error.code)||error.code==='SEARCH_HTTP'&&error.status>=500,...(manualAction?{manualAction}:{})};
+}
 function abortError(signal) {
   return signal?.reason instanceof SearchError ? signal.reason : failure('SEARCH_CANCELLED','Поиск отменён.');
 }
@@ -93,7 +110,7 @@ async function requestBuffer(value, options={}) {
       resolverPool||=new Pool(8,32);
       answers=net.isIP(host)?[{address:host,family:net.isIP(host)}]:await withSignal(resolverPool.run(()=>lookup(host,{all:true,verbatim:true}),local),local);
     }
-    catch(error){checkAbort(local);throw failure('SEARCH_DNS','Не удалось найти сервер.');}
+    catch(error){checkAbort(local);const denied=networkFailure(error);denied.code='SEARCH_DNS';denied.message='Не удалось найти сервер поиска.';throw denied;}
     if(!Array.isArray(answers)||!answers.length||answers.some(x=>!publicAddress(x.address)&&!(allowLoopback&&loopbackHost(host)&&loopbackHost(x.address))))throw failure('SEARCH_PRIVATE_URL','Сервер вернул локальный или служебный адрес.');
     const answer=answers.find(x=>x.family===4)||answers[0];
     const response=await new Promise((resolve,reject)=>{
@@ -114,7 +131,7 @@ async function requestBuffer(value, options={}) {
             let target;try{target=checkedURL(location,{base:url.href,allowLoopback:fixtureURL(location,url.href,redirectOrigins)});}catch(error){finish(error);return;}
             finish(null,{redirect:target.href});return;
           }
-          if(status<200||status>=300){res.destroy();finish(failure(status===429?'SEARCH_RATE_LIMIT':'SEARCH_HTTP',status===429?'Слишком много запросов. Повторите позже.':'Сервер поиска временно недоступен.',status));return;}
+          if(status<200||status>=300){res.destroy();finish(failure(status===429?'SEARCH_RATE_LIMIT':status===403?'SEARCH_BLOCKED':'SEARCH_HTTP',status===429?'Слишком много запросов. Повторите позже.':status===403?'Сервер поиска ограничил доступ. Повторите позже.':'Сервер поиска временно недоступен. Повторите запрос.',status));return;}
           const declared=Number(res.headers['content-length']);
           if(Number.isFinite(declared)&&declared>maxBytes){finish(failure('SEARCH_TOO_LARGE','Ответ сервера превышает допустимый размер.'));return;}
           const encoding=String(res.headers['content-encoding']||'identity').toLowerCase();
@@ -130,9 +147,9 @@ async function requestBuffer(value, options={}) {
           stream.on('error',()=>finish(failure('SEARCH_ENCODING','Не удалось прочитать ответ сервера.')));
           stream.on('end',()=>finish(null,{url:url.href,status,headers:res.headers,body:Buffer.concat(chunks),bytes:received}));
         });
-        req.on('error',error=>finish(local.aborted?abortError(local):failure('SEARCH_NETWORK','Не удалось подключиться к серверу.')));
+        req.on('error',error=>finish(local.aborted?abortError(local):networkFailure(error)));
         if(body)req.write(body);req.end();
-      }catch(error){finish(error instanceof SearchError?error:failure('SEARCH_NETWORK','Не удалось подключиться к серверу.'));}
+      }catch(error){finish(error instanceof SearchError?error:networkFailure(error));}
     });
     return response.redirect?hop(response.redirect,remaining-1):response;
   }
@@ -193,8 +210,9 @@ class Pool {
     try{checkAbort(signal);return await task();}finally{const next=this.waiting.shift();if(next)next.resolve();else this.active--;}
   }
 }
-function jsonBody(response) {
-  if(!/\bjson\b/i.test(String(response.headers['content-type']||'')))throw failure('SEARCH_FORMAT','Сервер вернул ответ в неподдерживаемом формате.');
+function jsonBody(response,{instantAnswer=false}={}) {
+  const type=String(response.headers['content-type']||'');
+  if(!/\bjson\b/i.test(type)&&!(instantAnswer&&/^application\/(?:x-)?javascript(?:;|$)/i.test(type)))throw failure('SEARCH_FORMAT','Сервер вернул ответ в неподдерживаемом формате.');
   let value;try{value=JSON.parse(response.body.toString('utf8'));}catch{throw failure('SEARCH_FORMAT','Сервер вернул некорректный JSON.');}
   if(!value||typeof value!=='object'||Array.isArray(value))throw failure('SEARCH_FORMAT','Сервер вернул некорректный JSON.');
   return value;
@@ -223,14 +241,16 @@ function createSearchService(options={}) {
     !path.isAbsolute(options.fixtureProfile||'')||path.resolve(options.fixtureProfile)!==path.resolve(process.env.MOUSE_TEST_PROFILE)||
     requestedOrigins.some(value=>{try{const u=new URL(value);return !['127.0.0.1','[::1]'].includes(u.hostname)||!['http:','https:'].includes(u.protocol)||u.origin!==value;}catch{return true;}})))throw failure('SEARCH_TEST_CONFIG','Локальные результаты разрешены только в изолированной CI-проверке.');
   const fixtureOrigins=Object.freeze([...requestedOrigins]);
-  const endpoint=endpointURL(options.endpoint||DEFAULT_ENDPOINT).href;
-  const request=options.request||requestBuffer;
+  const configuredSearch=!!options.endpoint,nativeSource=options.nativeSource||null;
+  const endpoint=configuredSearch?endpointURL(options.endpoint).href:DEFAULT_ENDPOINT;
+  if(configuredSearch&&!fixtureOrigins.includes(new URL(endpoint).origin))throw failure('SEARCH_TEST_CONFIG','Настраиваемый поисковый endpoint разрешён только изолированной CI-фикстуре.');
+  const request=options.request||requestBuffer,endpointRequest=options.endpointRequest||request;
   const metadataPool=new Pool(LIMITS.metadataConcurrency),queryPool=new Pool(LIMITS.queries,6),modelPool=new Pool(LIMITS.modelCalls,4);
   const pending=new Map(),pages=new Map();
-  let destroyed=false,sessionToken='',sessionPending=null,sessionController=null,sessionWaiters=0;
+  let destroyed=false,sessionToken='',sessionPending=null,sessionController=null,sessionWaiters=0,lastAttempts=[];
   const ai=options.ai===false?null:{kind:'osminog',endpoint:DEFAULT_AI_ENDPOINT,...options.ai};
   const aiEndpoint=ai?endpointURL(ai.endpoint).href.replace(/\/$/,''):'';
-  const transport=(url,extra={})=>request(url,{...extra,allowLoopback:loopbackHost(new URL(url).hostname.replace(/^\[|\]$/g,''))});
+  const transport=(url,extra={})=>endpointRequest(url,{...extra,allowLoopback:loopbackHost(new URL(url).hostname.replace(/^\[|\]$/g,''))});
   function begin(id,external,timeout){
     if(destroyed)throw failure('SEARCH_CLOSED','Поиск закрыт.');
     cancel(id);const controller=new AbortController();
@@ -240,12 +260,12 @@ function createSearchService(options={}) {
     const item={controller,dispose(){clearTimeout(timer);external?.removeEventListener('abort',abort);if(pending.get(id)===item)pending.delete(id);}};
     pending.set(id,item);return item;
   }
-  function cancel(id){const item=pending.get(typeof id==='object'?id?.requestId:id);if(!item)return false;item.controller.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));item.dispose();return true;}
-  function cancelAll(){for(const id of [...pending.keys()])cancel(id);sessionController?.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));}
+  function cancel(id){const key=typeof id==='object'?id?.requestId:id,item=pending.get(key),nativeCancelled=nativeSource?.cancel?.(key)===true;if(!item)return nativeCancelled;item.controller.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));item.dispose();return true;}
+  function cancelAll(){for(const id of [...pending.keys()])cancel(id);nativeSource?.cancelAll?.();sessionController?.abort(failure('SEARCH_CANCELLED','Запрос отменён.'));}
   async function metadata(result,signal){
     return metadataPool.run(async()=>{
       try{
-        const response=await request(result.url,{signal,timeoutMs:LIMITS.metadataMs,maxBytes:LIMITS.metadataBytes,maxRedirects:3,allowLoopback:fixtureURL(result.url,undefined,fixtureOrigins),redirectOrigins:fixtureOrigins,headers:{Accept:'text/html,application/xhtml+xml'}});
+        const response=await withSignal(request(result.url,{signal,timeoutMs:LIMITS.metadataMs,maxBytes:LIMITS.metadataBytes,maxRedirects:3,allowLoopback:fixtureURL(result.url,undefined,fixtureOrigins),redirectOrigins:fixtureOrigins,headers:{Accept:'text/html,application/xhtml+xml'}}),signal);
         if(!/^(?:text\/html|application\/xhtml\+xml)(?:;|$)/i.test(String(response.headers['content-type']||'')))return result;
         const extra=parseOpenGraph(response.body.toString('utf8'),response.url,fixtureOrigins);
         return {...result,title:result.title===result.source&&extra.title?extra.title:result.title,image:result.image||extra.image,content:result.content||extra.content,
@@ -259,26 +279,52 @@ function createSearchService(options={}) {
       }
     },signal);
   }
+  async function enrich(results,signal) {
+    // One total enrichment window, not one timeout per queued batch. The real
+    // search rows survive slow/missing OG; no late callback mutates native cards.
+    const controller=new AbortController(),abort=()=>controller.abort(abortError(signal));
+    signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();
+    const timer=setTimeout(()=>controller.abort(failure('SEARCH_METADATA_BUDGET','Метаданные загружаются слишком долго.')),LIMITS.metadataBudgetMs);
+    let completed=0;
+    try {
+      const rows=await Promise.all(results.map(async result=>{
+        try {const row=await metadata(result,controller.signal);completed++;return row;}
+        catch(error){checkAbort(signal);if(error.code==='SEARCH_METADATA_BUDGET')return result;throw error;}
+      }));
+      checkAbort(signal);return{rows:rows.filter(Boolean),completed,limited:controller.signal.aborted};
+    }finally{clearTimeout(timer);signal.removeEventListener('abort',abort);}
+  }
   async function query(args={}){
     const clean=queryInput(args.query,args.page??1,args.filter||'all'),id=requestID(args.requestId);
-    const work=begin(id,args.signal,LIMITS.queryMs),signal=work.controller.signal;
+    const started=performance.now(),work=begin(id,args.signal,LIMITS.queryMs),signal=work.controller.signal;
     try{return await queryPool.run(async()=>{
+      if(!configuredSearch){
+        if(!nativeSource?.query)throw failure('SEARCH_ENGINE_UNAVAILABLE','Откройте поиск в браузере и выберите поисковик.');
+        const result=await withSignal(Promise.resolve(nativeSource.query({...clean,requestId:id,signal})),signal);
+        checkAbort(signal);return result;
+      }
       const key=JSON.stringify([clean.query,clean.filter]),now=Date.now();
       let cache=pages.get(key);
       if(cache&&now-cache.at>LIMITS.cacheMs){pages.delete(key);cache=null;}
       if(cache?.pages.has(clean.page))return {...cache.pages.get(clean.page),requestId:id,results:cache.pages.get(clean.page).results.map(x=>({...x}))};
-      const form=new URLSearchParams({q:clean.query,format:'json',pageno:String(clean.page),categories:clean.filter==='video'?'videos':'general',safesearch:'1',language:'all'}).toString();
-      const response=await transport(endpoint,{signal,method:'POST',body:form,headers:{'Content-Type':'application/x-www-form-urlencoded','Content-Length':String(Buffer.byteLength(form)),Accept:'application/json'},ca:caFor(endpoint,options.ca,DEFAULT_ENDPOINT),timeoutMs:LIMITS.searchMs,maxBytes:LIMITS.searchBytes});
-      const data=jsonBody(response);
-      if(!Array.isArray(data.results)||data.results.length>1000)throw failure('SEARCH_FORMAT','Сервер поиска не прислал список результатов.');
-      if(!data.results.length&&Array.isArray(data.unresponsive_engines)&&data.unresponsive_engines.length)throw failure('SEARCH_UPSTREAM','Поисковые системы временно не отвечают. Повторите запрос.');
+      let data;
+      if(configuredSearch){
+        const form=new URLSearchParams({q:clean.query,format:'json',pageno:String(clean.page),categories:clean.filter==='video'?'videos':'general',safesearch:'1',language:'all'}).toString();
+        const response=await transport(endpoint,{signal,method:'POST',body:form,headers:{'Content-Type':'application/x-www-form-urlencoded','Content-Length':String(Buffer.byteLength(form)),Accept:'application/json'},ca:options.ca,timeoutMs:LIMITS.searchMs,maxBytes:LIMITS.searchBytes});
+        const value=jsonBody(response);
+        if(!Array.isArray(value.results)||value.results.length>1000)throw failure('SEARCH_FORMAT','Сервер поиска не прислал список результатов.');
+        if(!value.results.length&&Array.isArray(value.unresponsive_engines)&&value.unresponsive_engines.length)throw failure('SEARCH_UPSTREAM','Поисковые системы временно не отвечают. Повторите запрос.');
+        data={rows:value.results,hasMore:clean.page<LIMITS.page&&value.results.length>0,provider:{id:'configured-searxng',kind:'web-search',limited:false,pagination:'remote'},instantAnswer:null,attempts:[]};
+      }
+      checkAbort(signal);
       const seen=new Set();if(cache)for(const [page,value] of cache.pages)if(page<clean.page)for(const result of value.results)seen.add(result.id);
       const unique=[];
-      for(const raw of data.results){const result=normalizeResult(raw,fixtureOrigins);if(!result||seen.has(result.id))continue;seen.add(result.id);unique.push(result);if(unique.length>=LIMITS.results)break;}
-      const enriched=(await Promise.all(unique.map(result=>metadata(result,signal)))).filter(Boolean);checkAbort(signal);
+      for(const raw of data.rows){const result=normalizeResult(raw,fixtureOrigins);if(!result||seen.has(result.id))continue;seen.add(result.id);unique.push(result);if(unique.length>=LIMITS.results)break;}
+      const searchFinished=performance.now(),enrichment=await enrich(unique,signal),enriched=enrichment.rows;checkAbort(signal);
       const results=clean.filter==='all'?enriched:enriched.filter(result=>result.type===clean.filter);
-      const result={requestId:id,query:clean.query,page:clean.page,results,hasMore:clean.page<LIMITS.page&&data.results.length>0&&enriched.length>0};
+      const result={requestId:id,query:clean.query,page:clean.page,results,hasMore:clean.page<LIMITS.page&&data.hasMore===true&&enriched.length>0,provider:data.provider,instantAnswer:data.instantAnswer,translation:data.translation||null,translatedQuery:data.translation?.translatedQuery||'',notice:data.notice||(data.provider.limited?'Выдача доступного источника может быть неполной.':''),attempts:data.attempts,timing:{searchMs:Math.round(searchFinished-started),metadataMs:Math.round(performance.now()-searchFinished),totalMs:Math.round(performance.now()-started)},metadata:{attempted:unique.length,completed:enrichment.completed,limited:enrichment.limited}};
       if(!cache){cache={at:now,pages:new Map()};pages.set(key,cache);while(pages.size>LIMITS.cacheEntries)pages.delete(pages.keys().next().value);}
+      cache.provider=data.provider;cache.instantAnswer=data.instantAnswer;cache.translation=data.translation;cache.notice=data.notice;if(data.sourceRows)cache.sourceRows=data.sourceRows;
       cache.pages.set(clean.page,result);return {...result,results:results.map(x=>({...x}))};
     },signal);}finally{work.dispose();}
   }
@@ -346,11 +392,12 @@ function createSearchService(options={}) {
       checkAbort(signal);return {requestId:id,text:text.trim()};
     },signal);}finally{work.dispose();}
   }
-  async function health(){const result=jsonBody(await transport(new URL('/health',endpoint).href,{ca:caFor(endpoint,options.ca,DEFAULT_ENDPOINT),timeoutMs:5000,maxBytes:8192}));return {available:result.ok===true&&result.service==='osminog-mouse-search',endpoint,aiConfigured:!!ai};}
-  return {query,performSearch,cancel,cancelAll,chat:args=>model(args,false),summarize:args=>model(args,true),health,
-    state:()=>({configured:!destroyed,endpoint,aiConfigured:!!ai}),dispose(){cancelAll();pages.clear();sessionToken='';destroyed=true;}};
+  async function health(){if(!configuredSearch)return{available:undefined,...state(),requiresQuery:true};const result=jsonBody(await transport(new URL('/health',endpoint).href,{ca:options.ca,timeoutMs:5000,maxBytes:8192}));return {available:result.ok===true&&result.service==='osminog-mouse-search',endpoint,aiConfigured:!!ai};}
+  function state(){const native=!configuredSearch&&nativeSource?.state?nativeSource.state():null;return{configured:!destroyed&&(configuredSearch||!!native),endpoint:native?.endpoint||endpoint,aiConfigured:!!ai,transport:native?.transport||options.transportState?.()||{kind:'node',credentials:'omit'},metadataBudgetMs:LIMITS.metadataBudgetMs,providers:native?.providers||(configuredSearch?['configured-searxng']:[]),...(native?{engine:native.engine,engineName:native.engineName}:{}),lastAttempts:lastAttempts.map(row=>structuredClone(row))};}
+  return {query,performSearch,cancel,cancelAll,resetCache(){cancelAll();pages.clear();},chat:args=>model(args,false),summarize:args=>model(args,true),health,state,nativeSource,
+    dispose(){cancelAll();pages.clear();sessionToken='';destroyed=true;}};
 }
 
 let defaultService;
 const performSearch=(q,page,categories,options)=>(defaultService||=createSearchService()).performSearch(q,page,categories,options);
-module.exports={createSearchService,performSearch,parseOpenGraph,normalizeResult,requestBuffer,publicAddress,checkedURL,SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT};
+module.exports={createSearchService,performSearch,parseOpenGraph,normalizeResult,requestBuffer,publicAddress,checkedURL,SearchError,LIMITS,DEFAULT_ENDPOINT,DEFAULT_AI_ENDPOINT,networkFailure,publicSearchError,withSignal,abortError};
