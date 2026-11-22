@@ -17,3 +17,11 @@ test('637 uses the requested dark seam while retained636 keeps its exact native 
  assert.deepEqual(JSON.parse(JSON.stringify(paletteForVersion('6.0.36'))),{light:{hex:'#c7cfdf',rgb:[199,207,223]},dark:{hex:'#43536b',rgb:[67,83,107]}});
  assert.deepEqual(JSON.parse(JSON.stringify(paletteForVersion('6.0.37'))),{light:{hex:'#c7cfdf',rgb:[199,207,223]},dark:{hex:'#354357',rgb:[53,67,87]}});
 });
+test('workspace readback distinguishes requested seams from unchanged control borders',()=>{
+ const {workspaceSeamToken}=require('./mouse-smoke-seam-palette.cjs');
+ for(const [seam,line,expected]of [['','#c7cfdf','#c7cfdf'],['','#43536b','#43536b'],[' #354357 ','#43536b','#354357']]){
+  const style={getPropertyValue:name=>({'--mouse-grid-seam':seam,'--line':line})[name]||''};
+  const observed=workspaceSeamToken(style);assert.equal(observed,expected);
+  const renderer=vm.runInNewContext('('+workspaceSeamToken.toString()+')(style)',{style});assert.equal(renderer,expected,'The same readback runs in the installed renderer');
+ }
+});

@@ -53,7 +53,12 @@ globalThis.createMouseOverlays=({N,restore,error,prepare})=>{
  let anchor=null;
  chooser.addEventListener('close',()=>{anchor?.focus();anchor=null;});
  chooser.addEventListener('click',e=>{if(e.target===chooser){const r=chooser.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)chooser.close();}});
- chooser.addEventListener('keydown',e=>{const buttons=[...chooser.querySelectorAll('button')];const i=buttons.indexOf(document.activeElement);if(buttons.length&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();buttons[i<0?(e.key==='ArrowDown'?0:buttons.length-1):(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();}});
+ chooser.addEventListener('keydown',e=>{
+  // A search input otherwise consumes Escape to clear its query. The chooser
+  // owns dismissal, and the same key must not reach the workspace after close.
+  if(e.key==='Escape'&&!e.isComposing&&!e.defaultPrevented){e.preventDefault();e.stopPropagation();chooser.close();return;}
+  const buttons=[...chooser.querySelectorAll('button')];const i=buttons.indexOf(document.activeElement);if(buttons.length&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();buttons[i<0?(e.key==='ArrowDown'?0:buttons.length-1):(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();}
+ });
  function languageOptions(select){
   const en=document.documentElement.lang==='en',copy=en?{title:'Interface language',find:'Find a language',available:'Available now',planned:'Planned languages',note:'Only Russian and English are translated now.',empty:'No languages found'}:{title:'Язык интерфейса',find:'Найти язык',available:'Доступны сейчас',planned:'В планах',note:'Сейчас переведены только русский и английский.',empty:'Ничего не найдено'};
   const make=(tag,cls,label)=>{const el=document.createElement(tag);el.className=cls;if(label)el.textContent=label;return el;};

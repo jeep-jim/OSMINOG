@@ -26,7 +26,7 @@ function fixture(){
   setAttribute(name,value){this.attributes.set(name,String(value));if(name==='open')this.open=true;notify({type:'attributes',target:this,attributeName:name});}
   removeAttribute(name){if(!this.attributes.has(name))return;this.attributes.delete(name);if(name==='open')this.open=false;notify({type:'attributes',target:this,attributeName:name});}
   addEventListener(name,fn){if(!this.events.has(name))this.events.set(name,[]);this.events.get(name).push(fn);}
-  emit(name){for(const fn of this.events.get(name)||[])fn({target:this});}
+  emit(name,details={}){const event={target:this,...details};for(const fn of this.events.get(name)||[])fn(event);return event;}
   showModal(){assert.ok(this.isConnected);this.setAttribute('open','');}
   close(){this.removeAttribute('open');this.emit('close');}
  }
@@ -81,4 +81,13 @@ test('inserting and immediately showing a dialog retains its pre-open native bar
  const f=fixture();await f.ready();const dialog=f.document.createElement('dialog');f.document.body.append(dialog);const opening=f.overlays.show(dialog);await opening;await f.flush();
  assert.equal(dialog.open,true);assert.equal(f.gate.blocked,true);assert.equal(f.view.visible,false);assert.deepEqual(f.calls.map(call=>call.blocked),[true],'Insertion before the showModal acknowledgement must not clear a pending owned hold');
  dialog.close();await f.flush();assert.equal(f.view.visible,true);
+});
+
+test('one Escape dismisses a searched chooser and releases its native hold without reaching the workspace',async()=>{
+ const f=fixture();await f.ready();const chooser=f.document.querySelectorAll('dialog').find(d=>d.id==='choice-dialog'),search=f.document.createElement('input');
+ search.type='search';search.value='японский';chooser.append(search);await f.overlays.show(chooser);await f.flush();const originalPage=f.page;assert.equal(f.view.visible,false);f.reset();
+ const key=extra=>chooser.emit('keydown',{target:search,key:'Escape',defaultPrevented:false,isComposing:false,preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.propagationStopped=true;},...extra});
+ for(const extra of [{isComposing:true},{defaultPrevented:true}]){const event=key(extra);await f.flush();assert.equal(chooser.open,true);assert.equal(f.view.visible,false);assert.equal(event.propagationStopped,undefined);}
+ const event=key();await f.flush();assert.equal(chooser.open,false);assert.equal(event.defaultPrevented,true,'Cancel the search field clear-only default');assert.equal(event.propagationStopped,true,'Do not close underlying settings or exit fullscreen');
+ assert.equal(search.value,'японский');assert.equal(f.overlays.active(),false);assert.equal(f.view.visible,true);assert.equal(f.page,originalPage);assert.deepEqual(f.calls.map(call=>call.blocked),[false]);assert.equal(f.counts().restores,1);
 });
