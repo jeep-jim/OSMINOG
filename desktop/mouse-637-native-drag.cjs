@@ -1,10 +1,18 @@
 'use strict';
 // CI-only OS input. A native file drag can suspend the Electron main thread's
 // JavaScript until mouse-up, so the entire gesture belongs to this child.
-const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{randomUUID}=require('node:crypto');
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{randomUUID,createHash}=require('node:crypto');
 const FLAG='--mouse-637-features-smoke',PREFIX='MOUSE_637_NATIVE_DRAG ',BUDGET_MS=10000,DRIVER_CALL_MS=7000,LIFECYCLE_MS=BUDGET_MS+6*DRIVER_CALL_MS+1000;
 const SOURCES={darwin:'CGEvent',win32:'User32',linux:'XTest'};
+// Chromium 152 XDragDropClient repeats XdndPosition every 350 ms, while the
+// renderer updates its accepted operation asynchronously. Allow two cycles
+// at the Linux destination; this is input settling, not proof of a drop.
+// https://github.com/chromium/chromium/blob/152.0.7977.130/ui/base/x/x11_drag_drop_client.cc#L713-L731
+const DESTINATION_SETTLE_MS={linux:2*350,darwin:120,win32:120};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const monotonic=()=>process.hrtime.bigint(),nsPattern=/^(?:0|[1-9]\d*)$/;
+function elapsed(origin,clock){const value=clock()-origin;assert.ok(value>=0n,'A process-local monotonic clock cannot go backwards');return value;}
+function readProof(bytes,pid){return{method:'fs.readFileSync',pid,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),base64:bytes.toString('base64')};}
 function scope(runtime){
  assert.equal(runtime.env.CI,'true','Native drag is CI-only');assert.ok(SOURCES[runtime.platform]);
  const paths=runtime.platform==='win32'?path.win32:path.posix;assert.ok(paths.isAbsolute(runtime.env.MOUSE_TEST_PROFILE||''),'Native drag needs an isolated absolute profile');
@@ -37,42 +45,46 @@ function loadDriver(platform){
 }
 function validateHandshake(value,plan,childPid){
  assert.equal(value.schema,1);assert.equal(value.nonce,plan.nonce);assert.equal(value.parentPid,plan.parentPid);assert.equal(value.childPid,childPid);assert.ok(Number.isSafeInteger(value.at));
+ assert.equal(typeof value.parentElapsedNs,'string');assert.match(value.parentElapsedNs,nsPattern);
  assert.deepEqual(value.nativeFile,{...plan.expected,hasIcon:true,keys:['file','icon']},'The native startDrag call must contain this owned file');return value;
 }
-async function runGesture(plan,{runtime=process,driver,now=Date.now,wait=sleep,read=filename=>{try{const data=fs.readFileSync(filename);assert.ok(data.length<=4096);return JSON.parse(data);}catch(error){if(error.code==='ENOENT')return null;throw error;}}}={}){
+async function runGesture(plan,{runtime=process,driver,now=Date.now,clock=monotonic,wait=sleep,read=filename=>{try{return fs.readFileSync(filename);}catch(error){if(error.code==='ENOENT')return null;throw error;}}}={}){
  validatePlan(plan,runtime);driver||=loadDriver(runtime.platform);
  // driverCallLimitMs describes each existing spawnSync command, not a whole
  // phase (Linux uses two or three commands). CGEvent has no such timeout.
- const result={schema:1,method:'independent-native-input-process',platform:runtime.platform,source:plan.source,parentPid:plan.parentPid,childPid:runtime.pid,nonce:plan.nonce,budgetMs:plan.budgetMs,driverCallLimitMs:runtime.platform==='darwin'?null:DRIVER_CALL_MS,deadlineAt:plan.deadlineAt,startedAt:now(),coordinates:plan.coordinates,events:[],handshake:null,released:false,ok:false};let error;
- assert.ok(plan.deadlineAt<=result.startedAt+plan.budgetMs,'Native drag child deadline cannot exceed its fixed budget');
- const deadline=()=>assert.ok(now()<plan.deadlineAt,'Native drag child deadline exceeded');
- const move=p=>{const accepted=driver.testMouse(p.x,p.y,p.phase);assert.equal(accepted,true,'Actual native input driver rejected a drag phase');result.events.push({...p,at:now(),accepted});};
+ const origin=clock(),budgetNs=BigInt(plan.budgetMs)*1000000n,timing={source:'process.hrtime.bigint',scope:'per-process elapsed',child:{elapsedNs:null,eventNs:[],observedHandshakeNs:null}};
+ // Raw Date.now fields remain diagnostic, including the parent's deadlineAt.
+ // No wall-clock or hrtime origin is compared across the two processes.
+ const result={schema:1,method:'independent-native-input-process',platform:runtime.platform,source:plan.source,parentPid:plan.parentPid,childPid:runtime.pid,nonce:plan.nonce,budgetMs:plan.budgetMs,driverCallLimitMs:runtime.platform==='darwin'?null:DRIVER_CALL_MS,destinationSettleMs:DESTINATION_SETTLE_MS[runtime.platform],deadlineAt:plan.deadlineAt,startedAt:now(),coordinates:plan.coordinates,events:[],handshake:null,released:false,ok:false,timing};let error;
+ const deadline=()=>assert.ok(elapsed(origin,clock)<budgetNs,'Native drag child deadline exceeded');
+ const move=p=>{const accepted=driver.testMouse(p.x,p.y,p.phase);assert.equal(accepted,true,'Actual native input driver rejected a drag phase');result.events.push({...p,at:now(),accepted});timing.child.eventNs.push(elapsed(origin,clock).toString());};
  try{
   deadline();move(plan.points[0]);await wait(60);deadline();move(plan.points[1]);
-  while(!result.handshake){deadline();const value=read(plan.handshake);if(value)result.handshake={...validateHandshake(value,plan,runtime.pid),observedAt:now()};else await wait(25);}
+  while(!result.handshake){deadline();const bytes=read(plan.handshake);if(bytes){assert.ok(Buffer.isBuffer(bytes)&&bytes.length>0&&bytes.length<=4096,'The owned handshake read must contain bounded actual bytes');const value=JSON.parse(bytes.toString('utf8'));result.handshake={...validateHandshake(value,plan,runtime.pid),observedAt:now(),read:readProof(bytes,runtime.pid)};timing.child.observedHandshakeNs=elapsed(origin,clock).toString();}else await wait(25);}
   await wait(100);
   for(const p of plan.points.slice(2,12)){deadline();move(p);await wait(22);}
-  await wait(120);deadline();
+  await wait(result.destinationSettleMs);deadline();
  }catch(cause){error=cause;}
  finally{
   // Attempt release even if DOWN threw after posting its OS event. A timeout
   // throws into this finally; neither the parent nor a raw exit sends mouse-up.
   try{move(plan.points[12]);result.released=true;}catch(cause){error||=cause;result.releaseError=String(cause.message||cause);}
-  result.completedAt=now();result.elapsedMs=result.completedAt-result.startedAt;
-  if(result.completedAt>plan.deadlineAt)error||=Error('Native drag child deadline exceeded');
+  result.completedAt=now();result.elapsedMs=result.completedAt-result.startedAt;timing.child.elapsedNs=elapsed(origin,clock).toString();
+  if(BigInt(timing.child.elapsedNs)>budgetNs)error||=Error('Native drag child deadline exceeded');
  }
  result.ok=!error;if(error)result.error=String(error.message||error);return result;
 }
-function createNativeDrag(options,{runtime=process,spawn=require('node:child_process').spawn,screen,now=Date.now,schedule=setTimeout,cancel=clearTimeout}={}){
- const plan=planGesture(options,{runtime,screen,now});let child,started=false,signalled=false;
+function createNativeDrag(options,{runtime=process,spawn=require('node:child_process').spawn,screen,now=Date.now,clock=monotonic,schedule=setTimeout,cancel=clearTimeout}={}){
+ const planned=clock(),plan=planGesture(options,{runtime,screen,now});let child,started=false,signalled=false,forked,issued;
  const signal=nativeFile=>{
   assert.ok(child&&Number.isSafeInteger(child.pid));assert.equal(signalled,false,'One native file drag owns one handshake');
-  const value={schema:1,nonce:plan.nonce,parentPid:runtime.pid,childPid:child.pid,at:now(),nativeFile};validateHandshake(value,plan,child.pid);
-  const temporary=plan.handshake+'.tmp';fs.writeFileSync(temporary,JSON.stringify(value),{flag:'wx',mode:0o600});fs.renameSync(temporary,plan.handshake);signalled=true;
+  const value={schema:1,nonce:plan.nonce,parentPid:runtime.pid,childPid:child.pid,at:now(),parentElapsedNs:elapsed(forked,clock).toString(),nativeFile};validateHandshake(value,plan,child.pid);issued=Buffer.from(JSON.stringify(value));
+  const temporary=plan.handshake+'.tmp';fs.writeFileSync(temporary,issued,{flag:'wx',mode:0o600});fs.renameSync(temporary,plan.handshake);signalled=true;
  };
  async function run(){
-  assert.equal(started,false);started=true;const forkedAt=now();let output='',errors='',receipt,timer,terminationRequested=false,exitCode=null,exitSignal=null,exitAt=null;
+  assert.equal(started,false);started=true;const forkedAt=now();forked=clock();const parentTiming={preparationNs:(forked-planned).toString(),elapsedNs:null},budgetNs=BigInt(plan.budgetMs)*1000000n;let output='',errors='',receipt,timer,terminationRequested=false,exitCode=null,exitSignal=null,exitAt=null;
   try{
+   assert.ok(BigInt(parentTiming.preparationNs)>=0n&&BigInt(parentTiming.preparationNs)<budgetNs,'Native drag parent deadline exceeded before startup');
    await new Promise((resolve,reject)=>{
     // Matches the retained627 native window-drag runner. The known flag is in
     // real OS argv too, preserving the Mac addon's NSProcessInfo CI guard.
@@ -82,12 +94,12 @@ function createNativeDrag(options,{runtime=process,spawn=require('node:child_pro
     // beyond the child deadline before terminating. During a native main-thread
     // loop the child's own deadline/finally, not this timer, releases the mouse.
     timer=schedule(()=>{terminationRequested=true;child.kill();reject(Error('Native drag child lifecycle exceeded '+LIFECYCLE_MS+' ms'));},LIFECYCLE_MS);timer.unref?.();
-    child.stdout.on('data',b=>{output=(output+b).slice(-65536);});child.stderr.on('data',b=>{errors=(errors+b).slice(-8192);});child.once('error',reject);child.once('close',(code,signal)=>{exitCode=code;exitSignal=signal||null;exitAt=now();resolve();});
+    child.stdout.on('data',b=>{output=(output+b).slice(-65536);});child.stderr.on('data',b=>{errors=(errors+b).slice(-8192);});child.once('error',reject);child.once('close',(code,signal)=>{exitCode=code;exitSignal=signal||null;exitAt=now();parentTiming.elapsedNs=elapsed(forked,clock).toString();resolve();});
    });
    const rows=output.split(/\r?\n/).filter(line=>line.startsWith(PREFIX));assert.equal(rows.length,1,'Native drag child must return one receipt: '+errors);receipt=JSON.parse(rows[0].slice(PREFIX.length));
-   Object.assign(receipt,{forkedAt,exitAt,exitCode,exitSignal,lifecycleLimitMs:LIFECYCLE_MS,terminationRequested});assert.equal(receipt.parentPid,runtime.pid);assert.equal(receipt.childPid,child.pid);assert.notEqual(child.pid,runtime.pid);assert.equal(receipt.nonce,plan.nonce);assert.equal(receipt.source,plan.source);assert.equal(receipt.platform,runtime.platform);
-   assert.equal(exitCode,0,receipt.error||errors);assert.equal(receipt.ok,true,receipt.error);assert.equal(receipt.released,true);assert.equal(signalled,true);validateHandshake(receipt.handshake,plan,child.pid);assert.deepEqual(receipt.coordinates,plan.coordinates);assert.deepEqual(receipt.events.map(({x,y,phase})=>({x,y,phase})),plan.points);assert.ok(receipt.events.every(event=>event.accepted===true));return receipt;
-  }catch(error){error.nativeDrag=receipt||{schema:1,method:'independent-native-input-process',platform:runtime.platform,source:plan.source,parentPid:runtime.pid,childPid:child?.pid||null,nonce:plan.nonce,forkedAt,exitAt,exitCode,exitSignal,lifecycleLimitMs:LIFECYCLE_MS,terminationRequested,ok:false,error:String(error.message||error),stderr:errors};throw error;}
+   Object.assign(receipt,{forkedAt,exitAt,exitCode,exitSignal,lifecycleLimitMs:LIFECYCLE_MS,terminationRequested});assert.equal(receipt.parentPid,runtime.pid);assert.equal(receipt.childPid,child.pid);assert.notEqual(child.pid,runtime.pid);assert.equal(receipt.nonce,plan.nonce);assert.equal(receipt.source,plan.source);assert.equal(receipt.platform,runtime.platform);assert.equal(receipt.timing?.source,'process.hrtime.bigint');assert.equal(receipt.timing.scope,'per-process elapsed');receipt.timing.parent=parentTiming;
+   assert.equal(exitCode,0,receipt.error||errors);assert.equal(receipt.ok,true,receipt.error);assert.equal(receipt.released,true);assert.equal(signalled,true);validateHandshake(receipt.handshake,plan,child.pid);assert.deepEqual(receipt.handshake.read,readProof(issued,child.pid));assert.ok(BigInt(parentTiming.preparationNs)+BigInt(parentTiming.elapsedNs)<=budgetNs,'Native drag parent deadline exceeded including startup and exit');assert.deepEqual(receipt.coordinates,plan.coordinates);assert.deepEqual(receipt.events.map(({x,y,phase})=>({x,y,phase})),plan.points);assert.ok(receipt.events.every(event=>event.accepted===true));return receipt;
+  }catch(error){error.nativeDrag=receipt||{schema:1,method:'independent-native-input-process',platform:runtime.platform,source:plan.source,parentPid:runtime.pid,childPid:child?.pid||null,nonce:plan.nonce,forkedAt,exitAt,exitCode,exitSignal,lifecycleLimitMs:LIFECYCLE_MS,terminationRequested,timing:{source:'process.hrtime.bigint',scope:'per-process elapsed',parent:parentTiming},ok:false,error:String(error.message||error),stderr:errors};throw error;}
   finally{cancel(timer);for(const filename of [plan.handshake,plan.handshake+'.tmp'])fs.rmSync(filename,{force:true});}
  }
  return{plan,signal,run};
@@ -95,4 +107,4 @@ function createNativeDrag(options,{runtime=process,spawn=require('node:child_pro
 if(require.main===module){
  (async()=>{assert.equal(process.argv[2],FLAG);const result=await runGesture(JSON.parse(process.argv[3]));process.stdout.write(PREFIX+JSON.stringify(result)+'\n');process.exitCode=result.ok?0:1;})().catch(error=>{process.stderr.write(String(error.stack||error)+'\n');process.exitCode=1;});
 }
-module.exports={createNativeDrag,planGesture,runGesture,validateHandshake,FLAG,PREFIX,BUDGET_MS,DRIVER_CALL_MS,LIFECYCLE_MS};
+module.exports={createNativeDrag,planGesture,runGesture,validateHandshake,FLAG,PREFIX,BUDGET_MS,DRIVER_CALL_MS,LIFECYCLE_MS,DESTINATION_SETTLE_MS};
