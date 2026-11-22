@@ -1,7 +1,7 @@
 name: Mouse Browser macOS arm64
 on:
   pull_request:
-    paths: ['desktop/browser.cjs','desktop/mouse-*','desktop/mouse/**','desktop/mouse-agent/**','desktop/mouse-browser.test.cjs','tools/mouse-verify.py','tools/mouse-631-*.py','tools/mouse-632-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/mouse-633-*.cjs','tools/test_mouse_631_*.py','tools/test_mouse_632_*.py','tools/test_mouse_633_*.py','tools/mouse-unit-tests.cjs','tools/mouse-update-verify.py','.github/workflows/mouse-macos.yml']
+    paths: ['desktop/browser.cjs','desktop/mouse-*','desktop/mouse/**','desktop/mouse-agent/**','desktop/mouse-browser.test.cjs','tools/mouse-verify.py','tools/mouse-631-*.py','tools/mouse-632-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/mouse-637-*.swift','tools/test_mouse637*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/mouse-633-*.cjs','tools/test_mouse_631_*.py','tools/test_mouse_632_*.py','tools/test_mouse_633_*.py','tools/mouse-unit-tests.cjs','tools/mouse-update-verify.py','.github/workflows/mouse-macos.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -74,6 +74,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          xcrun swift ../tools/mouse-637-macos-display.swift --output mouse-637-display.json
+          xcrun swift ../tools/mouse-637-macos-display.swift --verify mouse-637-display.json
           APP="dist-mouse/mac-arm64/Mouse Browser.app"
           test "$(lipo -archs "$APP/Contents/MacOS/Mouse Browser")" = arm64
           codesign --verify --deep --strict "$APP"

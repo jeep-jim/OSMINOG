@@ -17,9 +17,9 @@ function readback(hitTarget){
  return{open:d.open,modal:d.matches(':modal'),phase:d.dataset.phase,theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},bounds:rect(d),viewport:{width:innerWidth,height:innerHeight},radius:style.borderTopLeftRadius,
   overflow:{clientWidth:d.clientWidth,clientHeight:d.clientHeight,scrollWidth:d.scrollWidth,scrollHeight:d.scrollHeight},backdrop:{backgroundColor:backdrop.backgroundColor,opacity:backdrop.opacity},surfaces:{ring:style.backgroundColor,core:getComputedStyle(d,'::before').backgroundColor},
   logo:{bounds:rect(logo),visible:visible(logo),complete:logo.complete,naturalWidth:logo.naturalWidth,naturalHeight:logo.naturalHeight,src:logo.getAttribute('src')},
-  status:{text:d.querySelector('#update-status').textContent,bounds:rect(d.querySelector('#update-status'))},progress:{hidden:d.querySelector('#update-progress').hidden,value:d.querySelector('#update-progress').value},
+  status:{text:d.querySelector('#update-status').textContent,bounds:rect(d.querySelector('#update-status')),color:getComputedStyle(d.querySelector('#update-status')).color},progress:{hidden:d.querySelector('#update-progress').hidden,value:d.querySelector('#update-progress').value},
   meter:meter?{pathLength:meter.getAttribute('pathLength'),dasharray:meter.getAttribute('stroke-dasharray'),progressVisible:d.dataset.progressVisible,opacity:getComputedStyle(meter).opacity}:null,
-  controls:selectors.map(selector=>{const e=document.querySelector(selector);return{selector,visible:visible(e),hidden:e.hidden,disabled:e.disabled===true,label:e.getAttribute('aria-label')||e.textContent.trim(),bounds:rect(e),radius:getComputedStyle(e).borderTopLeftRadius,hit:hitTarget(e,{})}})};
+  controls:selectors.map(selector=>{const e=document.querySelector(selector),css=getComputedStyle(e);return{selector,visible:visible(e),hidden:e.hidden,disabled:e.disabled===true,label:e.getAttribute('aria-label')||e.textContent.trim(),bounds:rect(e),radius:css.borderTopLeftRadius,color:css.color,hit:hitTarget(e,{})}})};
 }
 function presentationWitnesses(value){
  const color=name=>{const match=value.surfaces[name].match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);assert.ok(match,'The existing update '+name+' surface is opaque');return match.slice(1).map(Number);},d=value.bounds;
@@ -29,7 +29,7 @@ function presentationWitnesses(value){
 }
 function assertPresentation(value,phase,theme){
  const near=(a,b,label)=>assert.ok(Math.abs(a-b)<=1.1,label+': '+a+' / '+b),d=value.bounds;
- assert.equal(value.open,true);assert.equal(value.modal,true);assert.equal(value.phase,phase);assert.equal(value.theme,theme);assert.equal(value.appearance.paneMode,'square');
+ assert.equal(value.open,true);assert.equal(value.modal,true);assert.equal(value.phase,phase);assert.equal(value.theme,theme);assert.equal(value.appearance.paneMode,'square');assert.equal(value.appearance.whiteTone,0);
  assert.ok(d.width>=360&&d.height>=360);near(d.width,d.height,'The update window remains a circle in square workspace mode');
  const radius=parseFloat(value.radius);assert.ok(Number.isFinite(radius)&&(value.radius.includes('%')?radius>=49.9:radius>=d.width/2-1.1),'Circular update border radius');
  assert.ok(d.x>=0&&d.y>=0&&d.x+d.width<=value.viewport.width+1&&d.y+d.height<=value.viewport.height+1,'The complete circle stays in the viewport');
@@ -39,7 +39,7 @@ function assertPresentation(value,phase,theme){
  const logo=value.logo;assert.equal(logo.visible,true);assert.equal(logo.complete,true);assert.ok(logo.naturalWidth>0&&logo.naturalHeight>0);assert.equal(logo.src,'mouse-update.svg');assert.ok(logo.bounds.width>=150&&logo.bounds.height>=150);
  near(logo.bounds.x+logo.bounds.width/2,d.x+d.width/2,'The original Mouse logo is horizontally centered');
  near(logo.bounds.y+logo.bounds.height/2,d.y+d.height/2,'The original Mouse logo is vertically centered');
- assert.ok(value.status.text.trim().length>0);assert.equal(value.progress.hidden,phase!=='downloading');if(phase==='downloading')assert.equal(value.progress.value,46);
+ assert.ok(value.status.text.trim().length>0);const ink=theme==='dark'?'rgb(160, 160, 160)':'rgb(36, 40, 49)';assert.equal(value.status.color,ink,'Update status respects the current white-tone setting');assert.equal(value.progress.hidden,phase!=='downloading');if(phase==='downloading')assert.equal(value.progress.value,46);
  const percent=phase==='downloading'?46:['ready','installing'].includes(phase)?100:0;assert.equal(value.meter?.pathLength,'100');assert.equal(value.meter.dasharray,percent+' 100');assert.equal(value.meter.progressVisible,String(percent>0));
  const witnesses=presentationWitnesses(value);assert.deepEqual(witnesses.map(w=>w.expectedRGB),theme==='dark'?[[34,40,50],[21,26,34]]:[[230,232,236],[250,250,250]],'Update circle surfaces follow the actual theme');
  const expected=new Set(['#update-check','#update-minimize','#update-dialog [data-close-dialog]',...(phase==='available'?['#update-download']:phase==='ready'?['#update-install','#update-open']:[])]);
@@ -48,6 +48,7 @@ function assertPresentation(value,phase,theme){
   assert.equal(control.visible,expected.has(control.selector),'State-specific control visibility: '+control.selector);
   if(!control.visible)continue;
   assert.ok(control.label.trim().length>0,'Visible controls have accessible labels');
+  if(control.selector==='#update-check')assert.equal(control.color,ink,'The secondary update action respects the current white-tone setting');
   const disabled=control.selector==='#update-check'&&['downloading','installing'].includes(phase);assert.equal(control.disabled,disabled);
   if(['#update-minimize','#update-dialog [data-close-dialog]'].includes(control.selector)){near(control.bounds.width,control.bounds.height,'Circular close/minimize control');const radius=parseFloat(control.radius);assert.ok(Number.isFinite(radius)&&(control.radius.includes('%')?radius>=49.9:radius>=control.bounds.width/2-1.1),'Close/minimize control has a circular border');}
   if(!disabled){assert.equal(control.hit.ready,true,'The actual ring control is exposed to native input: '+control.selector);const x=control.hit.x-(d.x+d.width/2),y=control.hit.y-(d.y+d.height/2);assert.ok(Math.hypot(x,y)<=d.width/2+1.1,'Control hit point belongs to the circle');}

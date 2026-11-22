@@ -10,7 +10,7 @@ function loadFixture(name,dependencies){
 // fixture window. These tests verify evidence helpers; OS input stays in CI.
 const helpers=loadFixture('mouse-631-smoke-helpers.cjs',{electron:{},'./mouse-628-ui-smoke.cjs':{},'./mouse-smoke-frames.cjs':{}});
 const smoke=loadFixture('mouse-637-ai-preview-smoke.cjs',{'./mouse-631-smoke-helpers.cjs':helpers,'./mouse-smoke-hit-target.cjs':{},electron:{}});
-const {ownedPage,readback,assertGeometry,assertNativeGeometry}=smoke.fixtures;
+const {ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmission}=smoke.fixtures;
 const plain=value=>JSON.parse(JSON.stringify(value));
 
 function renderer({mode='rounded',theme='light',ratio=.5,imageContainer=true}={}){
@@ -62,6 +62,14 @@ test('owned chat click witness records actual event trust and leaves the native 
  anchor.onclick({isTrusted:false,preventDefault(){prevented=true;}});assert.deepEqual(plain(context.mouse637PreviewClick),{trusted:false,at:1234});
  anchor.onclick({isTrusted:true,preventDefault(){prevented=true;}});assert.deepEqual(plain(context.mouse637PreviewClick),{trusted:true,at:1234});
  assert.equal(prevented,false,'The witness must observe the real anchor action, not cancel and replace it');
+});
+
+test('preview address proof rejects incomplete Enter, synthetic or repeated submits, wrong owners and unfocused or noneditable forms',()=>{
+ const to='http://127.0.0.1:41002/page/4/',from='http://127.0.0.1:41002/page/3/';
+ const evidence=(platform='linux')=>({from,to,beforeInput:{aiId:'chat',previewId:'preview',url:from,value:to,focused:true,formId:'ai-preview-address',hasSubmitHandler:true,readOnly:false,disabled:false},nativeKey:{method:'nativeInput.testKey',key:platform==='linux'?'Return':'ENTER',source:platform==='darwin'?'CGEvent':platform==='win32'?'User32':'XTest',pid:123,at:456,accepted:true},keyboard:['keydown','keypress','submit','keyup'].map((type,index)=>({type,key:type==='submit'?null:'Enter',code:type==='submit'?null:'Enter',isTrusted:true,value:to,at:100+index}))});
+ for(const platform of ['linux','darwin','win32'])assert.doesNotThrow(()=>assertAddressSubmission(evidence(platform),'chat','preview',platform));
+ const changes=[row=>row.beforeInput.aiId='other-chat',row=>row.beforeInput.previewId='other-preview',row=>row.beforeInput.url=to,row=>row.beforeInput.value=from,row=>row.beforeInput.focused=false,row=>row.beforeInput.formId='ordinary-address',row=>row.beforeInput.hasSubmitHandler=false,row=>row.beforeInput.readOnly=true,row=>row.beforeInput.disabled=true,row=>row.nativeKey.method='sendInputEvent',row=>row.nativeKey.key='Enter',row=>row.nativeKey.source='User32',row=>row.nativeKey.accepted=false,row=>row.keyboard.splice(1,1),row=>row.keyboard.splice(2,1),row=>row.keyboard[1].isTrusted=false,row=>row.keyboard[2].isTrusted=false,row=>row.keyboard[2].value=from,row=>row.keyboard.push({...row.keyboard[2]}),row=>row.keyboard.reverse()];
+ for(const change of changes){const row=evidence();change(row);assert.throws(()=>assertAddressSubmission(row,'chat','preview','linux'),assert.AssertionError);}
 });
 
 test('readback samples the lower address, loaded image, effective gap and independent renderer owner without mutating them',()=>{

@@ -4,6 +4,7 @@
 const assert=require('node:assert/strict'),http=require('node:http');
 const {pageHTML,sleep}=require('./mouse-631-smoke-helpers.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {inputProbe}=require('./mouse-636-search-removal-smoke.cjs');
 
 function ownedPage(index,previewBase){
  return pageHTML(index).replace('</head>','<link rel="icon" href="/icon.png"></head>').replace('</body>',
@@ -44,8 +45,17 @@ function assertNativeGeometry(value,states,owners){
   assert.deepEqual(actual.bounds,expected);assert.deepEqual(actual.actualBounds,expected);assert.equal(actual.roundBottom,value.mode==='square'?0:12);
  }
 }
+function assertAddressSubmission(value,chatId,previewId,platform){
+ const owner=value.beforeInput;
+ assert.equal(owner.aiId,chatId);assert.equal(owner.previewId,previewId);assert.equal(owner.url,value.from);assert.equal(owner.value,value.to);
+ assert.equal(owner.focused,true);assert.equal(owner.formId,'ai-preview-address');assert.equal(owner.hasSubmitHandler,true);assert.equal(owner.readOnly,false);assert.equal(owner.disabled,false);
+ const key=value.nativeKey;assert.equal(key.method,'nativeInput.testKey');assert.equal(key.key,platform==='linux'?'Return':'ENTER');assert.equal(key.source,platform==='darwin'?'CGEvent':platform==='win32'?'User32':'XTest');assert.equal(key.accepted,true);assert.ok(Number.isSafeInteger(key.pid)&&key.pid>0);assert.ok(Number.isFinite(key.at)&&key.at>0);
+ const events=value.keyboard;assert.ok(Array.isArray(events)&&events.length>0&&events.length<=20);
+ const down=events.findIndex(e=>e.type==='keydown'&&e.key==='Enter'&&e.isTrusted&&e.value===value.to),press=events.findIndex(e=>e.type==='keypress'&&e.key==='Enter'&&e.isTrusted&&e.value===value.to),submit=events.findIndex(e=>e.type==='submit'&&e.isTrusted&&e.value===value.to);
+ assert.ok(down>=0&&press>down&&submit>press,'The actual native Enter sequence submits the focused preview form');assert.equal(events.filter(e=>e.type==='submit').length,1,'Exactly one real form submission');
+}
 
-module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records}){
+module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInput,click,text,capture,theme,openAppearance,closeAppearance,facts,records}){
  const report={schema:1,source:'Owned cross-origin AI source, native resize and native chooser/header transfers',samples:[],ok:false};facts.aiPreview=report;
  const servers=[];let previewBase,chatBase;
  const bitmap=Buffer.alloc(16*16*4);for(let i=0;i<bitmap.length;i+=4){bitmap[i]=191;bitmap[i+1]=143;bitmap[i+2]=37;bitmap[i+3]=255;}
@@ -102,9 +112,19 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   const loadedIcon=require('electron').nativeImage.createFromDataURL(report.initial.icon.url),iconBytes=loadedIcon.toBitmap({scaleFactor:1});assert.deepEqual(loadedIcon.getSize(1),{width:20,height:20});assert.equal(iconBytes.length,1600);
   for(let i=0;i<iconBytes.length;i+=4)assert.deepEqual([...iconBytes.subarray(i,i+4)],[191,143,37,255],'Displayed favicon contains the owned source pixels');
   report.favicon={source:preview.page.favicon,pngDataURL:report.initial.icon.url,pixelSize:{width:20,height:20},expectedRGBA:[37,143,191,255]};
-  const oldId=preview.id,oldContents=preview.page.view.webContents.id,navigationBefore=native(preview);await text('#ai-preview-address-input',previewBase+'/page/4/');await key('Enter');
-  await fixture.until(()=>!preview.page.loading&&preview.page.view.webContents.getURL()===previewBase+'/page/4/','preview address navigates its own native page');preview.index=4;await fixture.preparePage(preview);await awaitFavicon(preview);
-  report.navigation={id:preview.id,webContentsId:preview.page.view.webContents.id,from:previewBase+'/page/3/',to:previewBase+'/page/4/',beforeNative:navigationBefore,afterNative:native(preview),state:await state()};assert.equal(preview.id,oldId);assert.equal(preview.page.view.webContents.id,oldContents);assertGeometry(report.navigation.state,chat.id,preview.id);
+  const oldId=preview.id,oldContents=preview.page.view.webContents.id,navigation=report.navigation={id:preview.id,webContentsId:oldContents,from:previewBase+'/page/3/',to:previewBase+'/page/4/',beforeNative:native(preview)};
+  await text('#ai-preview-address-input',navigation.to);
+  navigation.beforeInput=await fixture.js(`(()=>{const input=document.querySelector('#ai-preview-address-input'),m=MouseTest.model;return{aiId:m.aiId,previewId:m.aiPreviewId,url:m.state.tabs.find(t=>t.id===m.aiPreviewId)?.url,value:input.value,focused:document.activeElement===input,formId:input.form?.id,hasSubmitHandler:typeof input.form?.onsubmit==='function',readOnly:input.readOnly,disabled:input.disabled}})()`);
+  assert.equal(navigation.beforeInput.focused,true);assert.equal(navigation.beforeInput.previewId,preview.id);assert.equal(navigation.beforeInput.value,navigation.to);
+  // Raw Electron keyDown/keyUp omits the Return character used by implicit
+  // form submission. Use the same real OS key path as retained636 navigation.
+  await fixture.js(`(${inputProbe.toString()})('#ai-preview-address-input')`);
+  try{
+   const key=process.platform==='linux'?'Return':'ENTER';navigation.nativeKey={method:'nativeInput.testKey',key,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',pid:process.pid,at:Date.now(),accepted:await nativeInput.testKey(key)};assert.equal(navigation.nativeKey.accepted,true);
+   await fixture.until(()=>!preview.page.loading&&preview.page.view.webContents.getURL()===navigation.to,'preview address navigates its own native page');
+  }finally{navigation.keyboard=await fixture.js('globalThis.__mouse636OrdinaryInput.events');await fixture.js('globalThis.__mouse636OrdinaryInput.dispose();delete globalThis.__mouse636OrdinaryInput;true');}
+  assertAddressSubmission(navigation,chat.id,preview.id,process.platform);preview.index=4;await fixture.preparePage(preview);await awaitFavicon(preview);
+  Object.assign(navigation,{afterNative:native(preview),state:await state()});assert.equal(preview.id,oldId);assert.equal(preview.page.view.webContents.id,oldContents);assertGeometry(navigation.state,chat.id,preview.id);
   let sequence=0;
   for(const mode of ['rounded','square'])for(const color of ['light','dark']){
    await setMode(mode);await theme(color);await fixture.frame();const before=await state(),beforeNative=[native(chat),native(preview)],identityBefore=await fixture.identity(preview);assertGeometry(before,chat.id,preview.id);assertNativeGeometry(before,beforeNative,[report.chatBefore,identityBefore]);
@@ -149,4 +169,4 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
  }
  return report;
 };
-module.exports.fixtures={ownedPage,readback,assertGeometry,assertNativeGeometry};
+module.exports.fixtures={ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmission};
