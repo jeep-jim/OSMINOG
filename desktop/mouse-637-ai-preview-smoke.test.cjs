@@ -194,3 +194,125 @@ test('native geometry evidence rejects hidden, detached, stale-cache and incorre
   assert.throws(()=>checkNative(evidence),assert.AssertionError,'Reject corners inconsistent with '+mode);
  }
 });
+
+// Synthetic scheduling tests execute the actual nested drag helper, serialized
+// DOM listener, hit-target function and shared fixture.until body. They do not
+// launch Electron, emit OS input or establish native acceptance.
+function actualFunction(filename,start,end,context){
+ const source=fs.readFileSync(path.join(__dirname,filename),'utf8'),first=source.indexOf(start),last=source.indexOf(end,first);
+ assert.ok(first>=0&&last>first,'Actual fixture function boundary exists');
+ return vm.runInNewContext('('+source.slice(first,last).trim()+')',context,{filename});
+}
+function dragFixture({releaseDelay=0,release='trusted',down='matching',rejectPhase=null,throwPhase=null,readFailure=false,disposeFailure=false}={}){
+ let now=100,pending=null,installed=false,reads=0;const deadline=1000,nativeCalls=[],sleeps=[],receiptsAtPost=[],listeners=new Map(),facts={nativeInputs:[]};
+ const selector='#ai-preview-divider',target={tagName:'DIV',className:'divider',matches:()=>false,contains:node=>node===target,
+  getBoundingClientRect:()=>({left:80,top:197,right:120,bottom:203,width:40,height:6}),
+  getClientRects:()=>[target.getBoundingClientRect()]},foreign={tagName:'DIV'};
+ const document={defaultView:{innerWidth:1200,innerHeight:820,getComputedStyle:()=>({pointerEvents:'auto',visibility:'visible',display:'block',opacity:'1'})},
+  querySelector:value=>value===selector?target:null,elementFromPoint:()=>target,
+  addEventListener(type,listener){if(!listeners.has(type))listeners.set(type,new Set());listeners.get(type).add(listener);installed=true;},
+  removeEventListener(type,listener){listeners.get(type)?.delete(listener);}};
+ target.ownerDocument=document;
+ const renderer=vm.createContext({document,Date:{now:()=>1795341310000+now}});
+ function emit(type,{trusted=true,matches=true}={}){
+  for(const listener of listeners.get(type)||[])listener({type,isTrusted:trusted,target:matches?target:foreign});
+ }
+ const flush=()=>{if(pending&&now>=pending.at){const next=pending;pending=null;emit('pointerup',{trusted:next.trusted});}};
+ const sleep=async ms=>{sleeps.push(ms);now+=ms;};
+ const until=actualFunction('mouse-631-smoke-helpers.cjs',' async function until(check,label,ms=10000){',' const frame=',{
+  deadline,performance:{now:()=>now},sleep,name:'synthetic-drag',
+ });
+ const fixture={
+  until,
+  frame:async()=>{now+=32;},
+  async js(source){
+   flush();
+   if(source==='__mouse637PreviewDrag.events'){
+    reads++;if(readFailure===true||(readFailure==='final'&&reads>1))throw Error('synthetic readback failure');
+   }
+   if(source.includes('__mouse637PreviewDrag.dispose()')&&disposeFailure)throw Error('synthetic disposal failure');
+   const value=await vm.runInContext(source,renderer);
+   // executeJavaScript returns a copied snapshot. Sharing the live events array
+   // would incorrectly let the old one-shot code observe later DOM events.
+   return value===undefined?undefined:plain(value);
+  },
+ };
+ const nativeInput={testMouse(x,y,phase){
+  assert.equal(installed,true,'The event observer is installed before native posting');
+  nativeCalls.push({x,y,phase});receiptsAtPost.push(facts.nativeInputs.length);
+  if(throwPhase===phase)throw Error('synthetic native phase '+phase+' failure');
+  if(rejectPhase===phase)return false;
+  if(phase===0&&down!=='missing')emit('pointerdown',{trusted:down!=='untrusted',matches:down!=='wrong-target'});
+  if(phase===2&&release!=='missing')pending={at:now+releaseDelay,trusted:release==='trusted'};
+  return true;
+ }};
+ const drag=actualFunction('mouse-637-ai-preview-smoke.cjs',' async function drag(selector,to){',' async function openPreview(',{
+  assert,app:{focus(){}},win:{show(){},focus(){},isFocused:()=>true,webContents:{focus(){}},getContentBounds:()=>({x:4,y:4})},
+  fixture,nativeInput,nativeHitTarget:require('./mouse-smoke-hit-target.cjs').nativeHitTarget,sleep,facts,process:{pid:9424,platform:'linux'},
+ });
+ return{run:()=>drag(selector,40),facts,nativeCalls,sleeps,receiptsAtPost,
+  get now(){return now;},deadline,get reads(){return reads;},get activeListeners(){return[...listeners.values()].reduce((n,s)=>n+s.size,0);}};
+}
+function assertOriginalPointerSequence(fixture){
+ assert.deepEqual(fixture.nativeCalls.map(row=>row.phase),[0,...Array(12).fill(1),2],'Exactly one original down, twelve moves and one release');
+ assert.equal(fixture.sleeps.filter(ms=>ms===20).length,12,'Original twelve20ms move intervals remain');
+ assert.equal(fixture.nativeCalls[0].x,104);assert.equal(fixture.nativeCalls[0].y,204);
+ assert.equal(fixture.nativeCalls.at(-1).x,104);assert.equal(fixture.nativeCalls.at(-1).y,244);
+ assert.ok(fixture.receiptsAtPost.every(count=>count===1),'Attempt is retained before every native event');
+}
+test('actual preview drag retains one receipt and waits for a delayed trusted release beyond two animation frames',async()=>{
+ for(const releaseDelay of [75,0]){
+  const fixture=dragFixture({releaseDelay}),entry=await fixture.run();
+  assertOriginalPointerSequence(fixture);assert.equal(fixture.facts.nativeInputs.length,1);assert.equal(entry,fixture.facts.nativeInputs[0]);
+  assert.deepEqual(plain(entry.events).map(e=>[e.type,e.trusted,e.matches]),[['pointerdown',true,true],['pointerup',true,true]]);
+  assert.equal(entry.error,undefined);assert.equal(fixture.activeListeners,0);
+  assert.ok(fixture.now<fixture.deadline);if(releaseDelay)assert.ok(fixture.reads>=2,'The release was absent from the first copied snapshot');
+ }
+});
+test('actual preview drag rejects missing or untrusted release and missing, untrusted or wrong-target down within the existing shared deadline',async()=>{
+ for(const options of [{release:'missing'},{release:'untrusted'},{down:'missing'},{down:'untrusted'},{down:'wrong-target'}]){
+  const fixture=dragFixture(options);
+  await assert.rejects(fixture.run(),/Mouse631 synthetic-drag timeout/);
+  assertOriginalPointerSequence(fixture);assert.equal(fixture.activeListeners,0);
+  assert.ok(fixture.now>=fixture.deadline&&fixture.now<fixture.deadline+25,'Existing fixture.until deadline and poll interval are retained');
+  const entry=fixture.facts.nativeInputs[0];assert.ok(entry.error?.message.includes('timeout'));assert.ok(Array.isArray(entry.events));
+  if(options.release==='missing')assert.equal(entry.events.some(e=>e.type==='pointerup'),false);
+  if(options.release==='untrusted')assert.equal(entry.events.find(e=>e.type==='pointerup').trusted,false);
+  if(options.down==='wrong-target')assert.equal(entry.events.find(e=>e.type==='pointerdown').matches,false);
+ }
+});
+test('actual preview drag retains a release first observed during final cleanup without converting its deadline failure into success',async()=>{
+ const fixture=dragFixture({releaseDelay:680});
+ await assert.rejects(fixture.run(),/Mouse631 synthetic-drag timeout/);
+ assertOriginalPointerSequence(fixture);assert.equal(fixture.activeListeners,0);
+ const entry=fixture.facts.nativeInputs[0];
+ assert.ok(entry.events.some(e=>e.type==='pointerup'&&e.trusted),'The final raw snapshot still records the late event');
+ assert.ok(entry.error.message.includes('timeout'),'A post-deadline event cannot erase the original failure');
+ assert.ok(fixture.now>=fixture.deadline&&fixture.now<fixture.deadline+25);
+});
+test('actual preview drag never accepts rejected native input and releases exactly once even after a down or move failure',async()=>{
+ for(const phase of [0,1,2])for(const kind of ['rejectPhase','throwPhase']){
+  const fixture=dragFixture({[kind]:phase});
+  await assert.rejects(fixture.run(),kind==='throwPhase'?/synthetic native phase/:/Expected values to be strictly equal/);
+  assert.equal(fixture.nativeCalls.filter(row=>row.phase===2).length,1,'One unconditional release attempt, without replay');
+  assert.equal(fixture.facts.nativeInputs.length,1);assert.ok(fixture.receiptsAtPost.every(count=>count===1));
+  assert.ok(fixture.facts.nativeInputs[0].error?.message);assert.ok(Array.isArray(fixture.facts.nativeInputs[0].events));
+  assert.equal(fixture.activeListeners,0);
+ }
+});
+test('actual preview drag retains terminal readback or disposal failures and still attempts listener cleanup',async()=>{
+ for(const options of [{readFailure:true},{readFailure:'final'},{disposeFailure:true}]){
+  const fixture=dragFixture(options);
+  await assert.rejects(fixture.run(),options.readFailure?/synthetic readback failure/:/synthetic disposal failure/);
+  assertOriginalPointerSequence(fixture);assert.equal(fixture.facts.nativeInputs.length,1);assert.ok(fixture.facts.nativeInputs[0].error?.message);
+  if(options.readFailure)assert.equal(fixture.activeListeners,0);
+  if(options.readFailure==='final')assert.ok(fixture.facts.nativeInputs[0].events.some(e=>e.type==='pointerup'&&e.trusted),'Last successful raw snapshot survives final readback failure');
+ }
+});
+test('actual preview drag preserves the original native error when its optional final readback and disposal also fail',async()=>{
+ const fixture=dragFixture({throwPhase:0,readFailure:true,disposeFailure:true});
+ await assert.rejects(fixture.run(),/synthetic native phase 0 failure/);
+ assert.equal(fixture.nativeCalls.filter(row=>row.phase===2).length,1);
+ const entry=fixture.facts.nativeInputs[0];assert.equal(entry.error.message,'synthetic native phase 0 failure');
+ assert.equal(entry.readbackError,'synthetic readback failure');assert.equal(entry.cleanupError,'synthetic disposal failure');
+});

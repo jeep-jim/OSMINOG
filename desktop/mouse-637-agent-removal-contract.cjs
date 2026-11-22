@@ -34,4 +34,10 @@ function assertPackage(value){
  for(const row of value.paths)assert.equal(row.exists,false,'Removed Agent file remains in installed package: '+row.path);
  assert.deepEqual(value.code.map(row=>row.path),CODE_PATHS);assert.deepEqual(value.code.map(row=>row.evidenceFile),CODE_EVIDENCE);for(const row of value.code){assert.ok(row.bytes>0);assert.match(row.sha256,/^[a-f0-9]{64}$/);assert.deepEqual(row.forbidden,[],'Installed executable still references Agent runtime: '+row.path);}
 }
-module.exports={CONTRACT,REPORT,SELECTORS,APP_PATHS,RESOURCE_PATHS,CODE_PATHS,CODE_EVIDENCE,SETTINGS_SECTIONS,AI_CATALOG,removalReadback,assertReadback,assertPackage};
+function assertPageCookie(page,origin,index){
+ assert.equal(page.index,index);assert.equal(page.url,origin+'/page/'+index+'/','Owned removal page uses the declared cookie path');
+ assert.ok(typeof page.identity==='string'&&page.identity.length>0,'Owned removal page identity is available');
+ assert.equal(typeof page.cookie,'string');const expected='mouse631_'+index+'='+page.identity;
+ assert.equal(page.cookie.split(';').map(pair=>pair.trim()).filter(pair=>pair===expected).length,1,'Owned removal page exposes its expected cookie');
+}
+module.exports={CONTRACT,REPORT,SELECTORS,APP_PATHS,RESOURCE_PATHS,CODE_PATHS,CODE_EVIDENCE,SETTINGS_SECTIONS,AI_CATALOG,removalReadback,assertReadback,assertPackage,assertPageCookie};

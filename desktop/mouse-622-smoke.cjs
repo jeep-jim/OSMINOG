@@ -1,6 +1,6 @@
 'use strict';
 // Installed Electron/macOS proof. Local fixtures are explicitly test pages, never real service accounts.
-const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http');
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http'),path=require('node:path');
 const {screen}=require('electron');
 const {createPresetProof,ownedPresetPage,canonicalServices}=require('./mouse-637-presets-helpers.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');

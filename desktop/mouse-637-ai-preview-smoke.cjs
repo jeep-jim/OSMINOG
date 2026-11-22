@@ -90,11 +90,22 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   const hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{})`);assert.equal(hit.ready,true);
   const origin=win.getContentBounds(),from={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)},end=typeof to==='number'?{x:from.x,y:from.y+to}:{x:Math.round(origin.x+to.x),y:Math.round(origin.y+to.y)};
   await fixture.js(`(()=>{const target=document.querySelector(${JSON.stringify(selector)}),events=[],listener=e=>events.push({type:e.type,trusted:e.isTrusted,matches:e.target===target||target.contains(e.target),at:Date.now()});for(const type of ['pointerdown','pointerup'])document.addEventListener(type,listener,true);globalThis.__mouse637PreviewDrag={events,dispose(){for(const type of ['pointerdown','pointerup'])document.removeEventListener(type,listener,true)}};})()`);
-  try{assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);for(let i=1;i<=12;i++){assert.equal(await nativeInput.testMouse(Math.round(from.x+(end.x-from.x)*i/12),Math.round(from.y+(end.y-from.y)*i/12),1),true);await sleep(20);}}
-  finally{assert.equal(await nativeInput.testMouse(end.x,end.y,2),true);}
-  await fixture.frame();const events=await fixture.js('__mouse637PreviewDrag.events');await fixture.js('__mouse637PreviewDrag.dispose();delete globalThis.__mouse637PreviewDrag');
-  assert.ok(events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches));assert.ok(events.some(e=>e.type==='pointerup'&&e.trusted));
-  const input={selector,action:'drag',pid:process.pid,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',from,to:end,events};facts.nativeInputs.push(input);return input;
+  const input={selector,action:'drag',pid:process.pid,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',from,to:end,events:[]};facts.nativeInputs.push(input);let failure;
+  try{
+   try{assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);for(let i=1;i<=12;i++){assert.equal(await nativeInput.testMouse(Math.round(from.x+(end.x-from.x)*i/12),Math.round(from.y+(end.y-from.y)*i/12),1),true);await sleep(20);}}
+   finally{assert.equal(await nativeInput.testMouse(end.x,end.y,2),true);}
+   await fixture.frame();
+   // Frames do not acknowledge OS input delivery. Observe the same trusted
+   // predicates within fixture.until's existing global deadline before disposal.
+   await fixture.until(async()=>{input.events=await fixture.js('__mouse637PreviewDrag.events');return input.events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches)&&input.events.some(e=>e.type==='pointerup'&&e.trusted);},'AI preview trusted pointer down and up');
+   const events=input.events;assert.ok(events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches));assert.ok(events.some(e=>e.type==='pointerup'&&e.trusted));
+  }catch(cause){failure=cause;input.error={message:cause.message};}
+  finally{
+   try{input.events=await fixture.js('__mouse637PreviewDrag.events');}catch(cause){input.readbackError=cause.message;failure||=cause;}
+   try{await fixture.js('__mouse637PreviewDrag.dispose();delete globalThis.__mouse637PreviewDrag');}catch(cause){input.cleanupError=cause.message;failure||=cause;}
+   if(failure)input.error||={message:failure.message};
+  }
+  if(failure)throw failure;return input;
  }
  async function openPreview(chat,index=3){
   const before=new Set(browser.tabs.keys()),input=await click('#ai-preview-link',chat);let page;
