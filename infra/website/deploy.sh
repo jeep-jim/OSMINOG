@@ -352,7 +352,8 @@ staged = install_release(own_root)
 print('MOUSE_WEBSITE_STAGED commit=' + release + ' path=' + str(staged))
 public_root = Path('/var/www/mouse.black')
 require(not public_root.is_symlink(), 'public webroot is a symlink')
-if not public_root.is_dir() or not os.access(public_root, os.W_OK | os.X_OK):
+nginx_host = Path('/etc/nginx/conf.d/mouse.black.conf')
+if not public_root.is_dir() or not os.access(public_root, os.W_OK | os.X_OK) or not nginx_host.is_file():
     print('deployment_status=ADMIN_SETUP_REQUIRED')
     print('Static release is staged. Dedicated webroot, Nginx host and trusted HTTPS require administrator setup.')
 else:

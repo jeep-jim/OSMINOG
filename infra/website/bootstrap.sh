@@ -261,6 +261,34 @@ apply_config() {
     fail 'Mouse config failed validation; its previous config was restored.'
   fi
 }
+# Reload acknowledges the signal before every worker has adopted the new host.
+# Wait for this exact Mouse marker; never follow a default-host redirect.
+wait_for_mouse_marker() {
+  local scheme=$1 status=000 attempt
+  for attempt in {1..15}; do
+    status=$(curl --silent --show-error --connect-timeout 3 --max-time 5 --noproxy '*' \
+      --resolve mouse.black:80:127.0.0.1 --resolve mouse.black:443:127.0.0.1 \
+      --output "$temp_dir/$scheme-release.json" --write-out '%{http_code}' \
+      "$scheme://mouse.black/release.json" 2> "$temp_dir/$scheme-marker-error.txt") || status=000
+    if [[ $status == 200 ]] && python3 - "$temp_dir/$scheme-release.json" "$release" <<'PYMARKER'
+import hashlib, json, sys
+expected = {"release": hashlib.sha256(("mouse.black/site/" + sys.argv[2]).encode()).hexdigest(), "domain": "mouse.black"}
+try:
+    with open(sys.argv[1]) as source:
+        actual = json.load(source)
+except (OSError, ValueError, UnicodeError):
+    raise SystemExit(1)
+raise SystemExit(0 if actual == expected else 1)
+PYMARKER
+    then
+      printf 'MOUSE_LOCAL_MARKER_VERIFIED scheme=%s attempt=%s\n' "$scheme" "$attempt"
+      return 0
+    fi
+    printf 'MOUSE_LOCAL_MARKER_PENDING scheme=%s status=%s attempt=%s\n' "$scheme" "$status" "$attempt"
+    if [[ $attempt != 15 ]]; then sleep 1; fi
+  done
+  fail "Exact Mouse $scheme marker did not appear after reload (last HTTP status: $status). Redirects were not followed."
+}
 has_existing_cert=no
 if [[ -f "$cert_config/live/mouse.black/fullchain.pem" && -f "$cert_config/live/mouse.black/privkey.pem" ]]; then
   has_existing_cert=yes
@@ -270,14 +298,7 @@ else
 fi
 apply_config
 if [[ $has_existing_cert == no ]]; then
-curl --fail --location --silent --show-error --max-time 15 --noproxy '*' \
-    --resolve mouse.black:80:127.0.0.1 --resolve mouse.black:443:127.0.0.1 \
-    http://mouse.black/release.json > "$temp_dir/served-release.json"
-python3 - "$temp_dir/served-release.json" "$release" <<'PY'
-import hashlib, json, sys
-expected_marker = {"release": hashlib.sha256(("mouse.black/site/" + sys.argv[2]).encode()).hexdigest(), "domain": "mouse.black"}
-assert json.load(open(sys.argv[1])) == expected_marker, "Wrong Mouse release served"
-PY
+wait_for_mouse_marker http
 fi
 
 # A separate ACME account/config isolates this certificate from other projects.
@@ -323,10 +344,5 @@ WantedBy=timers.target
 UNIT
 systemctl daemon-reload
 systemctl enable --now mouse-website-cert-renew.timer
-curl --fail --silent --show-error --max-time 15 --resolve mouse.black:443:127.0.0.1 https://mouse.black/release.json > "$temp_dir/https-release.json"
-python3 - "$temp_dir/https-release.json" "$release" <<'PY'
-import hashlib, json, sys
-expected_marker = {"release": hashlib.sha256(("mouse.black/site/" + sys.argv[2]).encode()).hexdigest(), "domain": "mouse.black"}
-assert json.load(open(sys.argv[1])) == expected_marker, "Wrong HTTPS release served"
-PY
+wait_for_mouse_marker https
 printf '\nMOUSE_WEBSITE_LIVE https://mouse.black\nRelease: %s\nCertificate renewal: mouse-website-cert-renew.timer\n' "$release"
