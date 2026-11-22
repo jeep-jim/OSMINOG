@@ -1,6 +1,6 @@
  'use strict';
 (function(root){
- function paneCorners({focused=false}={}){return{top:12,bottom:focused?0:12};}
+ function paneCorners({focused=false,paneMode='rounded'}={}){return paneMode==='square'?{top:0,bottom:0}:{top:12,bottom:focused?0:12};}
  function install({model,tab,doc=document,clock=()=>performance.now()}){
   const pulses=new WeakMap();let timer=0;
   const prop=(node,key,value)=>{if(node[key]!==value)node[key]=value;},attribute=(node,key,value)=>{if(node.getAttribute(key)!==value)node.setAttribute(key,value);};
@@ -21,7 +21,7 @@
     prop(b,'textContent',b.dataset.settingsAction==='fullscreen'?caption:active?'⤡':'⤢');attribute(b,'aria-pressed',String(!!active));prop(b,'title',caption+' · '+(nativeMaximize?'F11':'⌃⌘F'));attribute(b,'aria-label',b.title);
    }
   }
-  function round(){for(const p of doc.querySelector('#stage').querySelectorAll('.pane')){const c=paneCorners({focused:!!model.focusPane});for(const edge of ['top','bottom']){const name='--pane-round-'+edge,value=c[edge]+'px';if(p.style.getPropertyValue(name)!==value)p.style.setProperty(name,value);}}}
+  function round(){for(const p of doc.querySelector('#stage').querySelectorAll('.pane')){const c=paneCorners({focused:!!model.focusPane,paneMode:model.appearance?.paneMode});for(const edge of ['top','bottom']){const name='--pane-round-'+edge,value=c[edge]+'px';if(p.style.getPropertyValue(name)!==value)p.style.setProperty(name,value);}}}
   sync();fullscreen(false);return{sync,fullscreen,round,dispose(){clearTimeout(timer);doc.removeEventListener('click',feedback,true);}};
  }
  root.createMouseChromeControls=install;

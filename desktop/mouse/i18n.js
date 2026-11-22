@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
  const en={
+ 'Прямоугольная сетка':'Rectangular grid','Без скруглений и отступов между окнами.':'Square corners with no space between panes.','Тон белого':'White tone','Мягкий белый для чтения':'Soft white for reading','Мягкий белый':'Soft white','Основной текст тёмной темы':'Primary text in the dark theme','В инкогнито изменения действуют только до выхода.':'In incognito, changes last only until you leave.',
  'Сайт Mouse Browser':'Mouse Browser website','Перейти на':'Open','Сайт откроется в новой вкладке.':'The website will open in a new tab.','Перейти на сайт':'Visit website','Помощник':'Assistant','Закрыть помощника':'Close assistant','Открыть документ…':'Open document…',
  'Восстановить окно':'Restore window','Развернуть окно':'Maximize window','На этом компьютере':'On this computer','Скриншот окон браузера':'Browser screenshot','Предварительная версия Windows x64 без цифровой подписи издателя.':'Windows x64 preview without a publisher code signature.','Установщик Windows открыт. Следуйте его указаниям.':'Windows installer opened. Follow its instructions.',
  'История':'History','Поиск':'Searches','Закладки':'Bookmarks','Загрузки':'Downloads','Поиск в списке':'Search list','Очистить':'Clear','Показать ещё':'Show more','Полный экран / выйти':'Enter / exit full screen','История · ⌘Y':'History · ⌘Y','Загрузки · ⌘⇧J':'Downloads · ⌘⇧J','Добавить закладку · ⌘D':'Add bookmark · ⌘D','Закрыть скриншот':'Close screenshot',

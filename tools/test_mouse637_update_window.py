@@ -190,11 +190,68 @@ class LinuxIdentityTests(unittest.TestCase):
         native.uid = 1001; native.config = {'profile': '/owned-profile'}; native.target = Path('/requested-not-observed.AppImage')
         native._status = lambda pid: {'pid': pid, 'parentPid': 1, 'uid': 1001, 'state': 'S'}
         native._target_binding = lambda _pid: None
+        native._fuse_runtime_binding = lambda _pid, _mount: None
         fields = ['S', '1'] + ['0'] * 17 + ['1234']
         with patch.object(W.os, 'readlink', return_value=self.exe), \
              patch.object(W.Path, 'read_text', lambda file, **_: self.raw if file.name == 'mountinfo' else '100 (mouse-browser) ' + ' '.join(fields)), \
              patch.object(W.Path, 'read_bytes', return_value=b''):
             self.assertIsNone(native.identity(100))
+
+    def test_daemonized_fuse_runtime_binds_the_same_kernel_pipe_without_initial_environment(self):
+        native = W.LinuxNative.__new__(W.LinuxNative)
+        native.uid = 1001; native.config = {'profile': '/owned-profile'}; native.target = Path('/owned-target.AppImage')
+        native._status = lambda pid: {'pid': pid, 'parentPid': 1, 'uid': 1001, 'state': 'S'}
+        binding = {'kind': 'ancestor executable', 'pid': 200, 'path': str(native.target), 'inode': 9}
+        native._target_binding = lambda pid: binding if pid == 200 else None
+        native._runtime_pids = lambda: iter([200])
+        native._pipe_handles = lambda pid, access: {(15, 98765): 4 if pid == 100 else 5} if (pid, access) in [(100, os.O_RDONLY), (200, os.O_WRONLY)] else {}
+        fields = ['S', '1'] + ['0'] * 17 + ['1234']
+        with patch.object(W.os, 'readlink', return_value=self.exe), \
+             patch.object(W.Path, 'read_text', lambda file, **_: self.raw if file.name == 'mountinfo' else '100 (mouse-browser) ' + ' '.join(fields)), \
+             patch.object(W.Path, 'read_bytes', return_value=b''):
+            result = native.identity(100)
+        self.assertEqual(result['imageBinding']['pid'], 200)
+        self.assertEqual(result['imageBinding']['pipes'], [{'device': 15, 'inode': 98765, 'browserReadFD': 4, 'runtimeWriteFD': 5}])
+        self.assertIsNone(result['environmentAppImage'])
+        self.assertEqual(result['launchAncestry'], [{'pid': 100, 'parentPid': 1, 'uid': 1001, 'state': 'S'}])
+
+    def test_daemon_binding_rejects_other_image_other_pipe_and_runtime_pid_reuse(self):
+        native = W.LinuxNative.__new__(W.LinuxNative)
+        native.target = Path('/owned-target.AppImage'); native.uid = 1001
+        native._runtime_pids = lambda: iter([200])
+        native._status = lambda pid: {'pid': pid, 'parentPid': 1, 'uid': 1001, 'state': 'S'}
+        mount = W.mount_for_executable(self.raw, self.exe)
+        stat = lambda ticks: '200 (image) ' + ' '.join(['S', '1'] + ['0'] * 17 + [str(ticks)])
+        binding = {'kind': 'ancestor executable', 'pid': 200, 'path': str(native.target), 'inode': 9}
+        for failure in ('other-image', 'other-pipe', 'pid-reuse'):
+            with self.subTest(failure=failure):
+                native._target_binding = lambda _pid: None if failure == 'other-image' else binding
+                native._pipe_handles = lambda pid, access: {(15, 123 if failure == 'other-pipe' and pid == 200 else 456): pid}
+                values = iter([stat(1234), stat(9999 if failure == 'pid-reuse' else 1234)])
+                with patch.object(W.Path, 'read_text', lambda *_args, **_kwargs: next(values)):
+                    self.assertIsNone(native._fuse_runtime_binding(100, mount))
+
+    @unittest.skipUnless(os.name == 'posix' and Path('/proc/self/fdinfo').is_dir(), 'Linux proc descriptors required')
+    def test_real_kernel_pipe_descriptor_identity_and_direction_are_observed(self):
+        reader, writer = os.pipe()
+        try:
+            native = W.LinuxNative.__new__(W.LinuxNative)
+            metadata = os.fstat(reader); identity = (metadata.st_dev, metadata.st_ino)
+            reads = native._pipe_handles(os.getpid(), os.O_RDONLY)
+            writes = native._pipe_handles(os.getpid(), os.O_WRONLY)
+            self.assertEqual(reads[identity], reader); self.assertEqual(writes[identity], writer)
+        finally:
+            os.close(reader); os.close(writer)
+
+    def test_runtime_identity_race_rejects_candidate_without_aborting_enumeration(self):
+        native = W.LinuxNative.__new__(W.LinuxNative)
+        native.target = Path('/owned-target.AppImage'); native.uid = 1001
+        native._runtime_pids = lambda: iter([200])
+        native._pipe_handles = lambda _pid, _access: {(15, 456): 4}
+        def invalid_status(_pid):
+            raise RuntimeError('Browser ancestry changes user identity')
+        native._status = invalid_status
+        self.assertIsNone(native._fuse_runtime_binding(100, W.mount_for_executable(self.raw, self.exe)))
 
 
 if __name__ == '__main__':

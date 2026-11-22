@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,changeLayout,applySide,save,zoom,agentSettings,onSidebar,status})=>{
+globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearance,changeLayout,applySide,save,zoom,agentSettings,onSidebar,status})=>{
  const d=document.querySelector('#settings-dialog'),body=d.querySelector('.dialog-content');
  d.dataset.nonmodal='true';d.setAttribute('aria-label','Настройки Mouse Browser');
  d.querySelector('header').innerHTML='<div><strong>Настройки</strong><small>Пульт управления Mouse Browser</small></div><button type="button" data-close-dialog aria-label="Закрыть настройки">×</button>';
@@ -9,6 +9,9 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,changeLayou
   <p id="settings-message" role="status" aria-live="polite" hidden></p>
   <section data-settings-section="appearance"><h3>Внешний вид</h3>
    <label class="settings-switch"><span>Тёмная тема</span><input id="settings-dark" type="checkbox" role="switch"></label>
+   <label class="settings-switch"><span>Прямоугольная сетка<small>Без скруглений и отступов между окнами.</small></span><input id="settings-square-grid" type="checkbox" role="switch"></label>
+   <div class="settings-white-tone"><label for="settings-white-tone">Тон белого</label><output id="settings-white-tone-value" for="settings-white-tone">#D4D4D4</output><input id="settings-white-tone" type="range" min="0" max="100" step="1" value="55" aria-describedby="settings-white-tone-hint"><span id="settings-white-tone-preview">Мягкий белый для чтения</span><button id="settings-white-tone-reset" type="button">Мягкий белый</button><small id="settings-white-tone-hint">Основной текст тёмной темы</small></div>
+   <p id="settings-appearance-private" class="hint" hidden>В инкогнито изменения действуют только до выхода.</p>
    <label class="settings-field"><span>Язык интерфейса</span><select id="settings-language"><option value="ru">Русский</option><option value="en">English</option></select></label>
    <div class="settings-scale"><label for="settings-scale">Масштаб всех страниц</label><output id="settings-scale-value">100%</output><input id="settings-scale" type="range" min="25" max="500" step="5" value="100"><button type="button" id="settings-scale-reset">100%</button><small>Изменения сразу видны в открытых окнах.</small></div>
    ${toggle('showBrandName','Название рядом с логотипом')}${toggle('showFavicons','Значки сайтов во вкладках')}
@@ -41,6 +44,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,changeLayou
  const run=fn=>Promise.resolve().then(fn).catch(e=>{message(e.message,true);status(e.message);});
  function sync(){
   $('#settings-dark').checked=m.theme==='dark';$('#settings-language').value=m.locale;
+  const appearance=MouseAppearance.normalize(m.appearance);$('#settings-square-grid').checked=appearance.paneMode==='square';$('#settings-white-tone').value=appearance.whiteTone;$('#settings-white-tone-value').textContent=MouseAppearance.color(appearance.whiteTone);$('#settings-white-tone').setAttribute('aria-valuetext',MouseAppearance.color(appearance.whiteTone));$('#settings-appearance-private').hidden=!m.privateMode;
   const count=String(MouseLayout.leaves(m.tree).length),select=$('#settings-layout');if(![...select.options].some(option=>option.value===count)){const option=document.createElement('option');option.value=count;option.textContent=count;select.append(option);}select.value=count;$('#settings-ai-width').max=Math.max(240,document.querySelector('#workspace').clientWidth-280);$('#settings-ai-width').value=m.aiWidth;
   for(const input of d.querySelectorAll('[data-setting]')){input.checked=m.controlSettings?.[input.dataset.setting]!==false;input.disabled=!!m.privateMode;}
   d.querySelector('[data-settings-action="privacy"]').textContent=m.privateMode?'Вернуться в обычный режим':'Открыть инкогнито';
@@ -72,6 +76,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,changeLayou
  d.querySelector('[data-close-dialog]').onclick=close;d.addEventListener('close',()=>{if(opened)close();});
  d.addEventListener('click',e=>{const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['assistant','privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});const agent=e.target.closest('[data-agent-settings]');if(agent)void run(async()=>{close();await agentSettings(agent.dataset.agentSettings);});});
  $('#settings-dark').onchange=e=>{setTheme(e.target.checked?'dark':'light');sync();};$('#settings-language').onchange=e=>{setLocale(e.target.value);sync();};
+ $('#settings-square-grid').onchange=e=>setAppearance({paneMode:e.target.checked?'square':'rounded'});$('#settings-white-tone').oninput=e=>setAppearance({whiteTone:Number(e.target.value)});$('#settings-white-tone-reset').onclick=()=>setAppearance({whiteTone:MouseAppearance.DEFAULTS.whiteTone});
  $('#settings-layout').onchange=e=>run(()=>changeLayout(Number(e.target.value)));$('#settings-ai-width').oninput=e=>{m.aiWidth=Number(e.target.value);applySide();save();};
  for(const input of d.querySelectorAll('[data-setting]'))input.onchange=()=>run(async()=>{try{m.controlSettings=await N.settings('set',{[input.dataset.setting]:input.checked});}finally{sync();}});
  $('#settings-scale').oninput=e=>zoom('set',Number(e.target.value)/100);$('#settings-scale-reset').onclick=()=>zoom('reset');

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-function source(name){const module={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,name),'utf8'),{module,exports:module.exports,require:id=>id.startsWith('./')||id==='electron'?{id}:require(id)},{filename:name});return module.exports;}
+function source(name){const module={exports:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,name),'utf8'),{module,exports:module.exports,require:id=>id==='./mouse-smoke-seam-palette.cjs'?require(id):id.startsWith('./')||id==='electron'?{id}:require(id)},{filename:name});return module.exports;}
 test('637 retains the live desktop proof and search absence acceptance used by636',()=>{
  const search=source('mouse-615-smoke.cjs'),desktop=source('mouse-621-smoke.cjs');
  for(const version of ['6.0.36','6.0.37']){

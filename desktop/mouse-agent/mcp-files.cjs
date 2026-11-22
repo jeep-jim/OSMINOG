@@ -74,11 +74,11 @@ class ScopedFiles{
   try{
    const prior=this.native.stat(parent.fd,parent.name);
    if(prior){
-    this.regular(prior);const observed=this.readAt(parent.fd,parent.name,relative,{snapshot:process.platform==='win32'});
+    this.regular(prior);const observed=this.readAt(parent.fd,parent.name,relative,{snapshot:true});
     if(expectedSha256!==observed.sha256)throw invalid('Конфликт файла: сначала прочитайте актуальный файл и передайте его expectedSha256');
-    // Windows timestamps can coincide across rapid writes. Its native commit
-    // compares this bounded snapshot again through the held destination HANDLE.
-    if(process.platform==='win32')prior.expectedBytes=observed.snapshot;
+    // Filesystem timestamps can coincide across rapid writes on every OS.
+    // Native commit compares this bounded snapshot through the destination FD/HANDLE.
+    prior.expectedBytes=observed.snapshot;
    }
    else if(expectedSha256!==undefined)throw invalid('Файл был удалён после чтения');
    tempName='.mouse-local-'+crypto.randomBytes(16).toString('hex')+'.tmp';fd=this.native.openTemp(parent.fd,tempName,prior?prior.mode&0o777:0o600);created=true;

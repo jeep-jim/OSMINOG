@@ -1,0 +1,6 @@
+'use strict';
+// Accepted native workspace colors, independent of the CSS under test. Keep
+// historical releases on their original palette when replaying their checks.
+const PALETTE={light:{hex:'#c7cfdf',rgb:[199,207,223]},dark:{hex:'#43536b',rgb:[67,83,107]}};
+const paletteForVersion=version=>version==='6.0.37'?{...PALETTE,dark:{hex:'#354357',rgb:[53,67,87]}}:PALETTE;
+module.exports={paletteForVersion};

@@ -187,6 +187,86 @@ class LinuxNative:
             pass
         return None
 
+    def _pipe_handles(self, pid, access):
+        """Read kernel pipe identities, including their actual read/write ends."""
+        root = Path('/proc', str(pid))
+        result = {}
+        try:
+            descriptors = sorted((root / 'fd').iterdir(), key=lambda entry: int(entry.name))
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            return result
+        require(len(descriptors) <= 4096, 'Native descriptor evidence is unbounded')
+        for descriptor in descriptors:
+            try:
+                link = os.readlink(descriptor)
+                if re.fullmatch(r'pipe:\[\d+\]', link) is None:
+                    continue
+                metadata = descriptor.stat()
+                flags = re.search(r'^flags:\s+([0-7]+)\s*$', (root / 'fdinfo' / descriptor.name).read_text(encoding='utf-8'), re.M)
+                if stat.S_ISFIFO(metadata.st_mode) and flags and int(flags[1], 8) & os.O_ACCMODE == access:
+                    result[(metadata.st_dev, metadata.st_ino)] = int(descriptor.name)
+            except (FileNotFoundError, ProcessLookupError, PermissionError):
+                continue
+        return result
+
+    def _runtime_pids(self):
+        # Type-2 AppImages daemonize the FUSE child, then exec the app in the
+        # original launcher. Consequently the backing image is not necessarily
+        # an ancestor of Electron. Enumerate only same-user exact image runtimes.
+        entries = [entry for entry in Path('/proc').iterdir() if entry.name.isdigit()]
+        require(len(entries) <= 16384, 'Native process evidence is unbounded')
+        for entry in entries:
+            try:
+                if entry.stat().st_uid != self.uid:
+                    continue
+                executable = (entry / 'exe').stat()
+                if executable.st_dev == self.target_stat.st_dev and executable.st_ino == self.target_stat.st_ino:
+                    yield int(entry.name)
+            except (FileNotFoundError, ProcessLookupError, PermissionError):
+                continue
+
+    def _fuse_runtime_binding(self, pid, mount):
+        # AppImage's inherited keepalive pipe has a read end in the app and a
+        # write end in its daemon. Match the kernel device/inode and direction,
+        # never process names, requested paths or a guessed initial environment.
+        # Source: AppImage/type2-runtime src/runtime/runtime.c (keepalive_pipe).
+        readers = self._pipe_handles(pid, os.O_RDONLY)
+        if not readers:
+            return None
+        matches = []
+        for runtime_pid in self._runtime_pids():
+            try:
+                try:
+                    status = self._status(runtime_pid)
+                except RuntimeError:
+                    # A process enumerated above may exit/reuse its PID or
+                    # change credentials before its status is read. It cannot
+                    # establish identity; do not let it abort other candidates.
+                    continue
+                if status['state'] == 'Z':
+                    continue
+                runtime_root = Path('/proc', str(runtime_pid))
+                before = (runtime_root / 'stat').read_text(encoding='utf-8').rsplit(')', 1)[1].split()[19]
+                binding = self._target_binding(runtime_pid)
+                if binding is None:
+                    continue
+                writers = self._pipe_handles(runtime_pid, os.O_WRONLY)
+                shared = set(readers) & set(writers)
+                if not shared:
+                    continue
+                after = (runtime_root / 'stat').read_text(encoding='utf-8').rsplit(')', 1)[1].split()[19]
+                if after != before or self._target_binding(runtime_pid) != binding:
+                    continue
+                matches.append({'kind': 'exact AppImage runtime and inherited FUSE keepalive pipe',
+                                'pid': runtime_pid, 'path': str(self.target), 'startTicks': int(before),
+                                'backingImage': binding, 'mountId': mount['mountId'],
+                                'pipes': [{'device': device, 'inode': inode, 'browserReadFD': readers[(device, inode)],
+                                           'runtimeWriteFD': writers[(device, inode)]} for device, inode in sorted(shared)]})
+            except (FileNotFoundError, ProcessLookupError, PermissionError):
+                continue
+        require(len(matches) <= 1, 'Multiple AppImage runtimes share the native keepalive pipe')
+        return matches[0] if matches else None
+
     def identity(self, pid):
         try:
             root = Path('/proc', str(pid))
@@ -226,6 +306,8 @@ class LinuxNative:
             require(profile is None or same_path(profile, self.config['profile']), 'Observed native profile conflicts with owned fixture')
             if binding is None and image is not None:
                 binding = {'kind': 'observed initial APPIMAGE environment and read-only FUSE executable', 'pid': pid, 'path': image}
+            if binding is None:
+                binding = self._fuse_runtime_binding(pid, mount)
             if binding is None:
                 return None
             return {'pid': pid, 'executable': executable, 'identity': identity, 'sameUser': True, 'uid': self.uid,
@@ -591,7 +673,7 @@ def execute(config, environment=None, backend=None, clock=time.monotonic, pause=
             if row is not None:
                 break
             pause(.1)
-        require(row is not None, 'No unique automatically relaunched native Mouse window appeared within the fixed budget')
+        require(row is not None, 'No unique ' + ('predecessor' if config['action'] == 'click' else 'automatically relaunched') + ' native Mouse window appeared within the fixed budget')
         process, window = row['process'], row['window']
         current = backend.identity(process['pid'])
         require(current is not None and current['identity'] == process['identity'], 'Native process identity changed before input')

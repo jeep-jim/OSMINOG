@@ -54,6 +54,33 @@ function interfaceReadback(){
   seams:[...document.querySelectorAll('#stage .split,#stage .divider,#stage .pane')].map(e=>({className:e.className,color:getComputedStyle(e).backgroundColor})),
   panes:[...document.querySelectorAll('#stage .pane')].map(e=>{const h=e.querySelector('.pane-head'),a=e.querySelector('.pane-address input');return{id:e.dataset.pane,compact:e.hasAttribute('data-compact-head'),bounds:rect(e),header:rect(h),address:rect(a),addressColor:getComputedStyle(a).color,focused:a===document.activeElement}})};
 }
+function appearanceReadback(){
+ const root=getComputedStyle(document.documentElement),rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}};
+ return{model:{...MouseTest.model.appearance},stored:JSON.parse(localStorage.getItem('mouseAppearance')||'null'),theme:MouseTest.model.theme,
+  primary:root.getPropertyValue('--text-primary').trim().toLowerCase(),textColor:getComputedStyle(document.body).color,
+  gap:parseFloat(root.getPropertyValue('--workspace-gap')),radius:parseFloat(root.getPropertyValue('--pane-radius')),
+  workspace:rect(document.querySelector('#workspace')),stage:rect(document.querySelector('#stage')),panes:[...document.querySelectorAll('#stage .pane')].map(e=>({id:e.dataset.pane,bounds:rect(e),topRadius:parseFloat(getComputedStyle(e).borderTopLeftRadius),bottomRadius:parseFloat(getComputedStyle(e).borderBottomLeftRadius)})),
+  settings:{open:document.querySelector('#settings-dialog').open,square:document.querySelector('#settings-square-grid').checked,
+   tone:Number(document.querySelector('#settings-white-tone').value),value:document.querySelector('#settings-white-tone-value').textContent}};
+}
+function assertAppearance(state,{mode,tone,theme,settings=false}){
+ assert.deepEqual(state.model,{paneMode:mode,whiteTone:tone});assert.deepEqual(state.stored,state.model);
+ assert.equal(state.theme,theme);const channel=Math.round(160+95*tone/100),color='#'+channel.toString(16).padStart(2,'0').repeat(3);
+ assert.equal(state.primary,color);assert.equal(state.gap,mode==='square'?0:6);assert.equal(state.radius,mode==='square'?0:12);
+ if(theme==='dark')assert.equal(state.textColor,`rgb(${channel}, ${channel}, ${channel})`);
+ if(settings){assert.equal(state.settings.open,true);assert.equal(state.settings.square,mode==='square');assert.equal(state.settings.tone,tone)}
+ for(const pane of state.panes){assert.equal(pane.topRadius,mode==='square'?0:12);assert.equal(pane.bottomRadius,mode==='square'?0:12)}
+}
+function assertSquareGeometry(state,native){
+ assert.equal(state.panes.length,2);assert.equal(native.length,2);
+ const panes=[...state.panes].sort((a,b)=>a.bounds.x-b.bounds.x),near=(a,b,label)=>assert.ok(Math.abs(a-b)<1.1,label+': '+a+' / '+b);
+ near(panes[0].bounds.x,state.stage.x,'Square panes start at the stage edge');
+ near(panes[1].bounds.x+panes[1].bounds.width,state.stage.x+state.stage.width,'Square panes fill the stage width');
+ near(panes[0].bounds.x+panes[0].bounds.width,panes[1].bounds.x,'Square panes have no horizontal gap');
+ near(state.stage.y,state.workspace.y,'Square workspace has no upper inset');near(state.stage.y+state.stage.height,state.workspace.y+state.workspace.height,'Square workspace has no lower inset');
+ for(const p of panes){near(p.bounds.y,state.stage.y,'No upper stage inset');near(p.bounds.y+p.bounds.height,state.stage.y+state.stage.height,'No lower stage inset')}
+ for(const p of native){assert.equal(p.roundBottom,0);assert.equal(p.visible,true);assert.equal(p.parentVisible,true);assert.equal(p.attached,true)}
+}
 function sampleWitnesses(bitmap,size,mapping,witnesses){
  assert.equal(bitmap.length,size.width*size.height*4);
  return witnesses.map(witness=>{
@@ -70,7 +97,7 @@ module.exports=async ctx=>{
  let facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,writePid:process.pid,packaged:app.isPackaged,
   profileIsolated:false,budgetMs:BUDGET,physicalUserDeviceVerified:false,chromeWebStoreVerified:false,vkVerified:false,
   source:'Installed app, native input, owned loopback audio, real persistent-session extension and separate-process restoration',phase:'write',stage:'identity',ok:false,restored:false,nativeInputs:[],captures:[]};
- let fixture,nativeInput,server,ownedFolder,error,cleanupError,initialLocale,initialTheme,originalDialog,heldRelease,restoreExecute;
+ let fixture,nativeInput,server,ownedFolder,error,cleanupError,initialLocale,initialTheme,initialAppearance,originalDialog,heldRelease,restoreExecute;
  const ownedIds=new Set(),requests=[],extensionFiles=ownedExtensionFiles();
  const save=()=>bounded(fs.writeFile(REPORT,JSON.stringify(facts,null,2)+'\n'),2500,'637 evidence write');
  const diagnostic=async()=>{try{await save()}catch{}};
@@ -96,8 +123,8 @@ module.exports=async ctx=>{
   await click('.language-chooser-row:has(bdi[lang="'+code+'"])');await fixture.until(()=>fixture.js(`document.documentElement.lang===${JSON.stringify(code)}&&!document.querySelector('#choice-dialog').open`),'locale '+code);
  }
  async function theme(value){if(await fixture.js('MouseTest.model.theme')!==value)await click('#theme-button');await fixture.until(()=>fixture.js(`MouseTest.model.theme===${JSON.stringify(value)}`),'theme '+value)}
- async function dragDivider(dx,dy){
-  const selector='.divider[data-path=""]';await focus();const hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{})`);assert.equal(hit.ready,true);
+ async function dragDivider(dx,dy,{square=false}={}){
+  const selector='.divider[data-path=""]'+(square?' > .divider-hit':'');await focus();const hit=await fixture.js(`(()=>{const target=document.querySelector(${JSON.stringify(selector)});return (${nativeHitTarget.toString()})(target,{yFraction:${square?'10/Math.max(1,target.getBoundingClientRect().height)':'.5'}})})()`);assert.equal(hit.ready,true);
   await fixture.js(`(()=>{const target=document.querySelector(${JSON.stringify(selector)}),events=[];const listener=e=>events.push({type:e.type,trusted:e.isTrusted,matches:e.target===target||target.contains(e.target),at:Date.now()});for(const type of ['pointerdown','pointerup'])document.addEventListener(type,listener,true);globalThis.__mouse637Resize={events,dispose(){for(const type of ['pointerdown','pointerup'])document.removeEventListener(type,listener,true)}};})()`);
   const origin=win.getContentBounds(),from={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)},to={x:Math.round(from.x+dx),y:Math.round(from.y+dy)};
   try{assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);for(let i=1;i<=8;i++){await nativeInput.testMouse(Math.round(from.x+dx*i/8),Math.round(from.y+dy*i/8),1);await sleep(15)}}
@@ -139,7 +166,11 @@ module.exports=async ctx=>{
   const before=new Set(extensions.state().map(e=>e.id));await click('#mouse-extensions-install');let entry;
   await fixture.until(()=>{entry=extensions.state().find(e=>!before.has(e.id));return entry?.enabled},'actual Electron extension loads');ownedIds.add(entry.id);return entry;
  }
- async function restorePreferences(){if(fixture){await fixture.js(`MouseTest.setLocale(${JSON.stringify(initialLocale)});MouseTest.setTheme(${JSON.stringify(initialTheme)});MouseFlush()`);await store.queue}}
+ async function restorePreferences(){if(fixture){await fixture.js(`MouseTest.setLocale(${JSON.stringify(initialLocale)});MouseTest.setTheme(${JSON.stringify(initialTheme)});MouseFlush()`);if((read||error)&&initialAppearance)await fixture.js(`MouseTest.setAppearance(${JSON.stringify(initialAppearance)})`);await store.queue}}
+ async function appearanceState(){return fixture.js(`(${appearanceReadback.toString()})()`)}
+ async function openAppearance(){if(!await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-button');await fixture.until(()=>fixture.js('document.querySelector("#settings-dialog").open'),'appearance settings open')}
+ async function closeAppearance(){if(await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#settings-dialog").open'),'appearance settings closed');await fixture.frame()}
+ async function selectTone(endpoint){await click('#settings-white-tone');await key(endpoint==='min'?'Home':'End');await fixture.until(()=>fixture.js(`MouseTest.model.appearance.whiteTone===${endpoint==='min'?0:100}`),'native text tone '+endpoint)}
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),'Mouse Browser');assert.ok(extensions&&dialog);
   assert.ok([['darwin','arm64'],['win32','x64'],['linux','x64']].some(([p,a])=>p===process.platform&&a===process.arch));
@@ -153,7 +184,17 @@ module.exports=async ctx=>{
   fixture=await createFixture({...ctx,nativeInput},read?'features637-read':'features637-write',phaseBudget);
   await fixture.until(()=>fixture.js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'637 shell ready',15000);
   await fixture.js(`(${installInputProbe.toString()})()`);initialLocale=await fixture.js('MouseTest.model.locale');initialTheme=await fixture.js('MouseTest.model.theme');
+  initialAppearance=read?facts.appearance.initial:await fixture.js('({...MouseTest.model.appearance})');
   if(read){
+   await stage('native-appearance-restart',async()=>{
+    assert.equal(facts.appearance.writeVerified,true);const restored=await appearanceState();
+    assertAppearance(restored,{mode:'square',tone:0,theme:initialTheme});
+    await theme('dark');await openAppearance();const settings=await appearanceState();assertAppearance(settings,{mode:'square',tone:0,theme:'dark',settings:true});
+    await capture('mouse-637-appearance-restored.png');
+    await click('#settings-square-grid');await click('#settings-white-tone-reset');
+    await fixture.until(()=>fixture.js('MouseTest.model.appearance.paneMode==="rounded"&&MouseTest.model.appearance.whiteTone===55'),'native appearance reset after restart');
+    await closeAppearance();facts.appearance.restart={pid:process.pid,writePid:facts.writePid,restored,settings,verified:true};
+   });
    await stage('restart-restore-error',async()=>{
     const entry=extensions.state().find(e=>e.id===facts.restoreFixture.id);assert.ok(entry);assert.equal(entry.enabled,false);assert.equal(entry.error,'load_failed');assert.equal(entry.pinned,true);
     const registry=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'mouse-local-extensions','registry.json'),'utf8'));assert.deepEqual(registry,facts.restoreFixture.registry,'Startup preserves the failed record and its exact saved content hash');
@@ -259,12 +300,43 @@ module.exports=async ctx=>{
     }finally{wc.removeListener('media-started-playing',playing);if(heldRelease){heldRelease();heldRelease=null}if(restoreExecute){restoreExecute();restoreExecute=null}}
    });
    facts.audio.requests=requests;assert.ok(requests.some(x=>x.path==='/audio/one.wav')&&requests.some(x=>x.path==='/audio/two.wav'));
+   await stage('native-appearance-settings',async()=>{
+    await fixture.switchDesk(records[0].desk);await fixture.setLayout(records);
+    const before=await Promise.all(records.map(fixture.identity));
+    facts.appearance={initial:initialAppearance,range:{min:0,max:100,minimum:'#a0a0a0',maximum:'#ffffff',default:55,defaultColor:'#d4d4d4'},samples:[],writeVerified:false};
+    assert.deepEqual(initialAppearance,{paneMode:'rounded',whiteTone:55},'Clean profile keeps the current geometry and starts with soft white');
+    for(const color of ['light','dark']){
+     await theme(color);await openAppearance();const initial=await appearanceState();
+     await selectTone('min');const minimum=await appearanceState();assertAppearance(minimum,{mode:'rounded',tone:0,theme:color,settings:true});
+     await selectTone('max');const maximum=await appearanceState();assertAppearance(maximum,{mode:'rounded',tone:100,theme:color,settings:true});
+     if(color==='light'){assert.equal(minimum.textColor,initial.textColor);assert.equal(maximum.textColor,initial.textColor)}
+     await click('#settings-white-tone-reset');await fixture.until(()=>fixture.js('MouseTest.model.appearance.whiteTone===55'),'default soft white');
+     const reset=await appearanceState();assertAppearance(reset,{mode:'rounded',tone:55,theme:color,settings:true});
+     await capture('mouse-637-appearance-controls-'+color+'.png');
+     await click('#settings-square-grid');await closeAppearance();
+     await fixture.until(()=>records.every(r=>r.page.captureGeometry?.roundBottom===0),'native square pane masks');
+     const beforeResize=records.map(fixture.nativeState),resizeInput=await dragDivider(32,0,{square:true});
+     await fixture.until(()=>Math.abs(records[0].page.bounds.width-beforeResize[0].bounds.width)>=16,'square grid native resize');
+     const square=await appearanceState(),native=records.map(r=>({...fixture.nativeState(r),roundBottom:r.page.captureGeometry.roundBottom}));
+     assertAppearance(square,{mode:'square',tone:55,theme:color});assertSquareGeometry(square,native);
+     await capture('mouse-637-appearance-square-'+color+'.png',await Promise.all(records.map(witness)));
+     await openAppearance();await click('#settings-square-grid');await closeAppearance();
+     await fixture.until(()=>records.every(r=>r.page.captureGeometry?.roundBottom===12),'native rounded pane masks restored');
+     const rounded=await appearanceState();assertAppearance(rounded,{mode:'rounded',tone:55,theme:color});
+     facts.appearance.samples.push({theme:color,initial,minimum,maximum,reset,square,native,rounded,resize:{before:beforeResize,after:native,input:resizeInput}});
+    }
+    const after=await Promise.all(records.map(fixture.identity));for(let i=0;i<before.length;i++)fixture.assertIdentity(before[i],after[i]);
+    facts.appearance.pages={before,after,identityPreserved:true};
+    await openAppearance();await click('#settings-square-grid');await selectTone('min');await closeAppearance();
+    const persisted=await appearanceState();assertAppearance(persisted,{mode:'square',tone:0,theme:'dark'});
+    facts.appearance.persisted=persisted;facts.appearance.writeVerified=true;
+   });
   }
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};await diagnostic();if(fixture)try{await capture('mouse-637-features-failure.png')}catch(captureError){facts.failureCaptureError=captureError.message}}
  finally{
   const cleanup=async(label,work)=>{try{return await work()}catch(cause){cleanupError||=cause;(facts.cleanupErrors||=[]).push({label,message:cause.message});await diagnostic()}};
   if(heldRelease)heldRelease();if(restoreExecute)restoreExecute();if(originalDialog){dialog.showOpenDialog=originalDialog.showOpenDialog;dialog.showMessageBox=originalDialog.showMessageBox}
-  if(fixture){await cleanup('close feature dialogs',()=>fixture.js('document.querySelector("#choice-dialog")?.close();document.querySelector("#mouse-extensions-dialog")?.close();globalThis.__mouse633Input?.dispose();true'));await cleanup('locale/theme restoration',restorePreferences);const workspace=await cleanup('workspace restoration',()=>bounded(fixture.cleanup(),22000,'637 workspace cleanup'));if(read)facts.restart.cleanup=workspace;else facts.writeCleanup=workspace;}
+  if(fixture){await cleanup('close feature dialogs',()=>fixture.js('MouseTest.settingsUI.close();document.querySelector("#choice-dialog")?.close();document.querySelector("#mouse-extensions-dialog")?.close();globalThis.__mouse633Input?.dispose();true'));await cleanup('locale/theme restoration',restorePreferences);const workspace=await cleanup('workspace restoration',()=>bounded(fixture.cleanup(),22000,'637 workspace cleanup'));if(read)facts.restart.cleanup=workspace;else facts.writeCleanup=workspace;}
   if(server){server.closeAllConnections();await cleanup('owned server',()=>bounded(new Promise(resolve=>server.close(resolve)),2500,'637 server shutdown'))}
   if(read||error||cleanupError){
    for(const id of ownedIds)await cleanup('owned extension '+id,async()=>{if(extensions.state().some(e=>e.id===id))await extensions.remove(id);assert.match(id,/^[0-9a-f-]{36}$/i);await fs.rm(path.join(app.getPath('userData'),'mouse-local-extensions','packages',id),{recursive:true,force:true})});
@@ -281,4 +353,4 @@ module.exports=async ctx=>{
  const success=read?facts.ok:facts.writeComplete;
  if(success){console.log(read?'MOUSE_637_FEATURES_NATIVE_PASS':'MOUSE_637_FEATURES_WRITE_PASS');exit(0)}else{console.error('MOUSE_637_FEATURES_FAILED '+(facts.error?.message||cleanupError?.message||'verification incomplete'));exit(1)}
 };
-module.exports.fixtures={ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses};
+module.exports.fixtures={ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,assertAppearance,assertSquareGeometry};

@@ -164,17 +164,28 @@ async function main(input){
   const oldExit=await until(()=>closed&&exited,'predecessor quits through production lifecycle',90000);assert.equal(oldExit.code,0);assert.equal(oldExit.signal,null);facts.oldExit=oldExit;
   await new Promise(resolve=>log.end(resolve));
   const oldText=await fs.readFile(appLog,'utf8');assert.ok(oldText.includes('MOUSE_EXIT_SAVED')&&oldText.includes('MOUSE_APP_QUIT'));
+  facts.oldLifecycle={exitSaved:true,quit:true,appLog:{filename:PREFIX+'-app.log',bytes:Buffer.byteLength(oldText),sha256:hash(oldText)}};
   const events=oldText.split(/\r?\n/).filter(line=>line.startsWith('MOUSE_637_BUTTON_CLICK ')).map(line=>JSON.parse(line.slice('MOUSE_637_BUTTON_CLICK '.length)));
   installClick.event=events.find(event=>event.selector==='#update-install'&&event.trusted===true&&event.button===0);assert.ok(installClick.event,'Install used a real trusted native click');
   const ready=path.join(facts.installerReceipt.stage,'READY');
   await until(async()=>{const value=await fs.readFile(ready,'utf8');return value===TO&&!sync.existsSync(receipt);},'automatic637 startup acknowledgement',150000);
   const startup=await fs.readFile(path.join(input.profile,'mouse-startup.log'),'utf8');assert.ok(startup.includes('MOUSE_READY '+TO));
   facts.acknowledgement={version:TO,readyPath:ready,readySha256:await digest(ready),receiptRemoved:!sync.existsSync(receipt),startupLogSha256:hash(startup),startupReady:true};
+  // Keep the actual bounded lifecycle bytes outside the temporary profile so
+  // the independent publisher can recompute hashes and verify event ordering.
+  async function archive(filename,bytes,limit=16*1024*1024){
+   const data=Buffer.isBuffer(bytes)?bytes:Buffer.from(bytes);assert.ok(data.length>0&&data.length<=limit);
+   await fs.writeFile(path.join(input.output,filename),data);
+   return{filename,bytes:data.length,sha256:hash(data)};
+  }
+  facts.acknowledgement.evidence={ready:await archive(PREFIX+'-ready.log',await fs.readFile(ready),32),
+   startup:await archive(PREFIX+'-startup-ready.log',startup)};
   if(process.platform==='linux')assert.equal(await digest(input.executable),input.candidate.sha256);
   facts.newProcess=await native({action:'witness-quit',excludePid:facts.oldProcess.pid,after:started,expectedVersion:TO});
   assert.equal(facts.newProcess.ok,true);assert.ok(Number.isSafeInteger(facts.newProcess.process?.pid)&&facts.newProcess.process.pid>0);assert.notEqual(facts.newProcess.process.pid,facts.oldProcess.pid);assert.notEqual(facts.newProcess.process.pid,prior.pid);assert.equal(facts.newProcess.window?.visible,true);assert.equal(facts.newProcess.exit?.observed,true);assert.equal(facts.newProcess.exit?.graceful,true);
   const after=await fs.readFile(path.join(input.profile,'mouse-startup.log'),'utf8'),newReady=after.lastIndexOf('MOUSE_READY '+TO);assert.ok(newReady>=0&&after.slice(newReady).includes('MOUSE_EXIT_SAVED')&&after.slice(newReady).includes('MOUSE_APP_QUIT'));
   facts.newLifecycle={ready:true,exitSaved:true,quit:true,startupLogSha256:hash(after)};
+  facts.newLifecycle.evidence=await archive(PREFIX+'-startup-quit.log',after);
   assert.ok(facts.fixtureRequests.some(r=>r.path==='/channel'&&r.complete));assert.ok(facts.fixtureRequests.some(r=>r.path==='/package'&&r.complete&&r.bytes===input.candidate.size));
   facts.ok=true;facts.stage='complete';facts.elapsedMs=Date.now()-started;assert.ok(facts.elapsedMs<BUDGET);await save();console.log('MOUSE_637_UPDATE_BUTTON_NATIVE_PASS');
  }catch(error){facts.error={stage:facts.stage,message:error.message,stack:error.stack};facts.elapsedMs=Date.now()-started;await save();throw error;}

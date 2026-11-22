@@ -4,6 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {bounded,sha256}=require('./mouse-631-smoke-helpers.cjs');
 const {downloadNativeBounds}=require('./mouse-630-feedback-smoke.cjs');
 const {pixelAt,probeDelta}=require('./mouse-634-download-widget-smoke.cjs');
+const {paletteForVersion}=require('./mouse-smoke-seam-palette.cjs');
 
 // macOS Dock paints a shadow above its work-area boundary. The archived OS
 // frame was darker there while the same composed app pixels matched exactly.
@@ -89,7 +90,7 @@ module.exports=async({fixture,browser,win,click,screenCapture})=>{
   const {nativeImage}=require('electron'),expected=[];
   if(corners)for(const row of state.panels){
    const native=state.native.find(item=>item.tabId===row.tabId),record=records.find(item=>item.id===row.tabId);assert.equal(await fixture.pageJS(record,'getComputedStyle(document.documentElement).backgroundColor'),'rgb(243, 240, 232)');
-   const line=await fixture.js('(()=>{const e=document.createElement("span");e.style.color="var(--line)";document.body.append(e);const value=getComputedStyle(e).color;e.remove();return value.match(/[\\d.]+/g).slice(0,3).map(Number);})()');
+   const line=paletteForVersion(facts.version)[state.theme].rgb;
    for(const side of ['left','right'])expected.push({kind:'native-bottom-corner',tabId:row.tabId,side,roundBottom:native.roundBottom,point:{x:side==='left'?native.bounds.x+1.5:native.bounds.x+native.bounds.width-1.5,y:native.bounds.y+native.bounds.height-1.5},expectedRGB:native.roundBottom===0?[243,240,232]:line});
    expected.push({kind:'native-bottom-interior',tabId:row.tabId,point:{x:native.bounds.x+native.bounds.width-24.5,y:native.bounds.y+native.bounds.height-1.5},expectedRGB:[243,240,232]});
   }

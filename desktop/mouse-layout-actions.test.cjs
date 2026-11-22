@@ -43,7 +43,7 @@ function fixture(t){
   window:async()=>{},
   desktops:async(action,args)=>{native.push({action,args:clone(args)});assert.equal(action,'undo');return pendingRestore;}
  };
- const ctx={L,MouseTabOrder,N,document,window,structuredClone,Promise,setTimeout:time.setTimeout,clearTimeout:time.clearTimeout,setStatus:message=>errors.push(message),
+ const ctx={L,MouseAppearance:require('./mouse/appearance.js'),MouseTabOrder,N,document,window,structuredClone,Promise,setTimeout:time.setTimeout,clearTimeout:time.clearTimeout,setStatus:message=>errors.push(message),
   resizeHUD:{begin(){},update(){},end(){}},
   requestLayout(){},renderAISites(){},applySide(){},restorePane(){throw Error('Unexpected fullscreen branch in this fixture');},
   renderTree(){const m=ctx.api.m;renders.push({tree:clone(m.tree),slots:clone(m.slots),active:m.active,switching:m.switching});}

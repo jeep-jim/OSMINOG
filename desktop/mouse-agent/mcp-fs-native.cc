@@ -50,6 +50,27 @@ static napi_value statValue(napi_env e,const struct stat& s){
 }
 static bool equalProperty(napi_env e,napi_value o,const char* key,const std::string& expected){napi_value v;std::string actual;return napi_get_named_property(e,o,key,&v)==napi_ok&&string(e,v,actual)&&actual==expected;}
 static bool regular(const struct stat& s){return S_ISREG(s.st_mode)&&s.st_nlink==1;}
+static bool sameFile(const struct stat& a,const struct stat& b){return a.st_dev==b.st_dev&&a.st_ino==b.st_ino&&a.st_size==b.st_size&&mtime(a)==mtime(b)&&ctime(a)==ctime(b)&&regular(b);}
+static bool equalBytes(napi_env e,napi_value expected,int parent,const std::string& target,const struct stat& current){
+ napi_value snapshot;bool isBuffer=false;void* bytes=nullptr;size_t length=0;
+ if(napi_get_named_property(e,expected,"expectedBytes",&snapshot)!=napi_ok||napi_is_buffer(e,snapshot,&isBuffer)!=napi_ok||!isBuffer||
+  napi_get_buffer_info(e,snapshot,&bytes,&length)!=napi_ok||length>256*1024||current.st_size<0||static_cast<unsigned long long>(current.st_size)!=length)return false;
+ int fd=openat(parent,target.c_str(),O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);if(fd<0)return false;
+ struct stat before,after,named;bool equal=fstat(fd,&before)==0&&sameFile(current,before);
+ unsigned char buffer[4096];size_t offset=0;
+ while(equal&&offset<length){
+  const size_t wanted=length-offset<sizeof(buffer)?length-offset:sizeof(buffer);
+  const ssize_t count=pread(fd,buffer,wanted,static_cast<off_t>(offset));
+  if(count<0&&errno==EINTR)continue;
+  if(count<=0||memcmp(buffer,static_cast<const unsigned char*>(bytes)+offset,static_cast<size_t>(count))!=0){equal=false;break;}
+  offset+=static_cast<size_t>(count);
+ }
+ // Keep the descriptor and directory-entry checks around the bounded read.
+ // This detects content changes with coincident timestamps; it is still a
+ // precommit check, not an atomic compare-and-swap with unrelated writers.
+ equal=equal&&fstat(fd,&after)==0&&sameFile(before,after)&&fstatat(parent,target.c_str(),&named,AT_SYMLINK_NOFOLLOW)==0&&sameFile(after,named);
+ close(fd);return equal;
+}
 static napi_value openRoot(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);std::string path;
  if(n!=1||!string(e,args[0],path)||path.empty()||path[0]!='/')return fail(e,"Invalid root directory");
@@ -94,6 +115,7 @@ static napi_value commit(napi_env e,napi_callback_info info){
  if(!exists&&errno!=ENOENT)return fail(e,"Cannot check current project file",errno);
  if(expectedType==napi_null){if(exists)return fail(e,"File was created by another writer");}
  else if(!exists||!regular(s)||!equalProperty(e,args[3],"dev",std::to_string(s.st_dev))||!equalProperty(e,args[3],"ino",std::to_string(s.st_ino))||!equalProperty(e,args[3],"mtimeNs",std::to_string(mtime(s)))||!equalProperty(e,args[3],"ctimeNs",std::to_string(ctime(s))))return fail(e,"File changed after reading; not overwritten");
+ if(expectedType!=napi_null&&!equalBytes(e,args[3],parent,target,s))return fail(e,"File changed after reading; not overwritten");
  if(expectedType==napi_null){
   // Exclusive creation is atomic even if another writer appears after the
   // metadata check. linkat never replaces an existing directory entry.

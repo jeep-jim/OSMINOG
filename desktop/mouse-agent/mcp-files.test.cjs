@@ -51,7 +51,7 @@ test('new-file conflict and an edited existing file are preserved at commit',()=
   f=fixture({write:true,native:backend});try{if(existing)fs.writeFileSync(path.join(f.root,'race.txt'),'old');const digest=existing?f.files.read('race.txt').sha256:undefined;assert.throws(()=>f.files.write('race.txt','agent replacement',digest),/another writer|changed after/);assert.equal(fs.readFileSync(path.join(f.root,'race.txt'),'utf8'),'concurrent writer');assert.ok(!fs.readdirSync(f.root).some(x=>x.startsWith('.mouse-local-')));}finally{f.close();}
  }
 });
-test('Windows replacement preserves an equal-length edit even when timestamp checks coincide',{skip:process.platform!=='win32'},()=>{
+test('replacement preserves an equal-length edit even when timestamp checks coincide',()=>{
  let f;const backend=new Proxy(Object.fromEntries(Object.getOwnPropertyNames(native).map(k=>[k,native[k]])),{get(target,key){if(key!=='commit')return target[key];return(...args)=>{
   fs.writeFileSync(path.join(f.root,'race.txt'),'new');const current=target.stat(args[0],args[2]);
   // Exercise content conflict independently of timestamp resolution: keep the

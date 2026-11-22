@@ -2825,3 +2825,12 @@ Owner requested one successor to published 6.0.36 for macOS Apple Silicon, Windo
 PR #193's combined language, pane, unpacked-extension and media changes are being completed with Russian locale search, explicit extension restore failures and replacement-track handling. Found and locally reproduced the draft's translation/extension observer startup loop; fixed actual-value notifications and added the two-production-script regression. Native acceptance and publication are still pending. Current predecessor is 6.0.36 on all three platforms; VK and Chrome Web Store compatibility are not asserted.
 
 Scope, failure analysis and required publication evidence: [Mouse 6.0.37 release record](docs/desktop/2026-11-22-mouse637-release.md). Source: [PR #193](https://github.com/jeep-jim/OSMINOG/pull/193).
+
+
+## 22.11.2026 — дополнение к единой Mouse 6.0.37: сетка и мягкий белый
+
+Прямое поручение владельца: продолжить исправление #193 и включить обе настройки в тот же выпуск для macOS Apple Silicon, Windows x64 и Linux x64. Нынешняя раскладка со скруглением 12 px и промежутками 6 px остаётся режимом по умолчанию; новый переключатель включает прямоугольную сетку без промежутков и скруглений. Изменение режима сохраняет вкладки, их содержимое и возможность изменять размеры.
+
+В «Внешний вид» добавлен «Тон белого» 0–100: основной текст тёмного интерфейса от #A0A0A0 до #FFFFFF, по умолчанию #D4D4D4 (значение 55), согласно последней формулировке задания. Выбор сохраняется в localStorage и применяется при загрузке; светлая тема и стили сторонних сайтов не перекрашиваются. В инкогнито изменения действуют только в текущем сеансе. Native-проверка включает реальные действия в настройках, геометрию страниц и восстановление нестандартного выбора отдельным процессом.
+
+На этом этапе исправления подготовлены, но новый выпуск ещё не опубликован. Разбор отказов, текущие проверки и последующие результаты: [журнал 6.0.37](docs/desktop/2026-11-22-mouse637-release.md). Сохраняются один общий исходный коммит, штатное обновление с 6.0.36 и неизменность её опубликованных пакетов.

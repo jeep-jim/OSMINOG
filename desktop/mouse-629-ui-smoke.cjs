@@ -6,12 +6,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=r
 const {screen,nativeImage}=require('electron');
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {paletteForVersion}=require('./mouse-smoke-seam-palette.cjs');
 const workspace633=require('./mouse-633-workspace-geometry.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),copy=value=>JSON.parse(JSON.stringify(value));
 async function until(fn,label){for(let n=0;n<320;n++){if(await fn())return;await sleep(25);}throw Error('Mouse629 UI timeout: '+label);}
 const COLORS=[[171,43,158],[24,117,150],[158,75,32],[75,89,158],[35,130,77],[143,52,86],[83,100,41]];
-const PALETTE={light:{hex:'#c7cfdf',rgb:[199,207,223]},dark:{hex:'#43536b',rgb:[67,83,107]}};
-const paletteForVersion=version=>version==='6.0.37'?{...PALETTE,dark:{hex:'#354357',rgb:[53,67,87]}}:PALETTE;
 const TREE={axis:'x',ratio:.53,a:{axis:'y',ratio:.82,a:{axis:'x',ratio:.39,a:{axis:'y',ratio:.47,a:{id:'p1'},b:{id:'p2'}},b:{id:'p3'}},b:{id:'p4'}},b:{axis:'x',ratio:.41,a:{axis:'y',ratio:.68,a:{id:'p5'},b:{id:'p6'}},b:{id:'p7'}}};
 function sample(image,mapping,point,bitmap){
  const {size,bytes}=bitmap||{size:image.getSize(1),bytes:image.toBitmap({scaleFactor:1})},x=Math.floor(mapping.originX+point.x*mapping.scaleX),y=Math.floor(mapping.originY+point.y*mapping.scaleY);
