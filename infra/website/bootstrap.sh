@@ -76,12 +76,16 @@ for name, expected in entries.items():
     total += len(data)
     if total > 25 * 1024 * 1024 or hashlib.sha256(data).hexdigest() != expected:
         raise SystemExit("Website checksum mismatch")
+    if Path(name).suffix.lower() in {".html", ".css", ".js", ".mjs", ".svg", ".txt", ".json", ".xml", ".webmanifest"}:
+        if b"github.com" in data.lower() or b"githubusercontent.com" in data.lower():
+            raise SystemExit("Public website must not expose repository URLs")
     destination = output / name
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
     destination.write_bytes(data)
     destination.chmod(0o644)
 metadata = json.loads((output / "release.json").read_text())
-if metadata.get("commit") != commit or metadata.get("domain") != "mouse.black":
+expected_marker = {"release": hashlib.sha256(("mouse.black/site/" + commit).encode()).hexdigest(), "domain": "mouse.black"}
+if metadata != expected_marker:
     raise SystemExit("Release identity mismatch")
 shutil.copyfile(manifest, output / "SHA256SUMS")
 (output / "SHA256SUMS").chmod(0o644)
@@ -270,8 +274,9 @@ curl --fail --location --silent --show-error --max-time 15 --noproxy '*' \
     --resolve mouse.black:80:127.0.0.1 --resolve mouse.black:443:127.0.0.1 \
     http://mouse.black/release.json > "$temp_dir/served-release.json"
 python3 - "$temp_dir/served-release.json" "$release" <<'PY'
-import json, sys
-assert json.load(open(sys.argv[1])).get("commit") == sys.argv[2], "Wrong Mouse release served"
+import hashlib, json, sys
+expected_marker = {"release": hashlib.sha256(("mouse.black/site/" + sys.argv[2]).encode()).hexdigest(), "domain": "mouse.black"}
+assert json.load(open(sys.argv[1])) == expected_marker, "Wrong Mouse release served"
 PY
 fi
 
@@ -320,7 +325,8 @@ systemctl daemon-reload
 systemctl enable --now mouse-website-cert-renew.timer
 curl --fail --silent --show-error --max-time 15 --resolve mouse.black:443:127.0.0.1 https://mouse.black/release.json > "$temp_dir/https-release.json"
 python3 - "$temp_dir/https-release.json" "$release" <<'PY'
-import json, sys
-assert json.load(open(sys.argv[1])).get("commit") == sys.argv[2], "Wrong HTTPS release served"
+import hashlib, json, sys
+expected_marker = {"release": hashlib.sha256(("mouse.black/site/" + sys.argv[2]).encode()).hexdigest(), "domain": "mouse.black"}
+assert json.load(open(sys.argv[1])) == expected_marker, "Wrong HTTPS release served"
 PY
 printf '\nMOUSE_WEBSITE_LIVE https://mouse.black\nRelease: %s\nCertificate renewal: mouse-website-cert-renew.timer\n' "$release"

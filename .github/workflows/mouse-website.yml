@@ -120,7 +120,7 @@ jobs:
             if test "$status" = ADMIN_SETUP_REQUIRED; then
               printf 'The files are staged. The public website is not declared live: administrator setup of its dedicated webroot, Nginx host and HTTPS is still required.\n\n'
             else
-              printf 'The public static release symlink was updated. The next step verifies trusted HTTPS and the exact public commit.\n\n'
+              printf 'The public static release symlink was updated. The next step verifies trusted HTTPS and the expected public release marker.\n\n'
             fi
             printf '### Fresh own-user permissions\n\n```text\n'
             cat "$RUNNER_TEMP/mouse-website-permissions.txt"
@@ -132,13 +132,17 @@ jobs:
           EXPECTED_COMMIT: ${{ github.sha }}
         run: |
           python3 - <<'PY'
-          import json, os, urllib.request
+          import hashlib, json, os, urllib.request
+          expected_marker = {
+              'release': hashlib.sha256(('mouse.black/site/' + os.environ['EXPECTED_COMMIT']).encode()).hexdigest(),
+              'domain': 'mouse.black',
+          }
           for host in ('mouse.black', 'www.mouse.black'):
               with urllib.request.urlopen('https://' + host + '/release.json', timeout=20) as response:
                   marker = json.load(response)
                   assert response.status == 200
                   assert response.url.startswith('https://mouse.black/')
-                  assert marker == {'commit': os.environ['EXPECTED_COMMIT'], 'domain': 'mouse.black'}
+                  assert marker == expected_marker
               with urllib.request.urlopen('https://' + host + '/', timeout=20) as response:
                   body = response.read(2 * 1024 * 1024)
                   assert response.status == 200 and b'<html' in body.lower() and b'Mouse' in body
@@ -147,6 +151,10 @@ jobs:
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self, request, response, code, message, headers, new_url):
                   return None
+          def verify_download_headers(response):
+              assert response.headers.get('Location') is None, 'Download must not redirect'
+              headers = '\n'.join(name + ': ' + value for name, value in response.headers.items()).lower()
+              assert 'github' not in headers and 'githubusercontent' not in headers, 'Upstream reference in download headers'
           direct = urllib.request.build_opener(NoRedirect())
           with open('infra/website/downloads.json') as source:
               installers = json.load(source)['files']
@@ -156,11 +164,12 @@ jobs:
               url = 'https://mouse.black' + path
               with direct.open(urllib.request.Request(url, method='HEAD'), timeout=30) as response:
                   assert response.status == 200 and response.url == url
-                  assert not response.headers.get('Location')
+                  verify_download_headers(response)
                   assert int(response.headers['Content-Length']) == item['size']
               request = urllib.request.Request(url, headers={'Range': 'bytes=0-15'})
               with direct.open(request, timeout=30) as response:
                   assert response.status == 206 and response.url == url
+                  verify_download_headers(response)
                   assert response.headers['Content-Range'] == 'bytes 0-15/' + str(item['size'])
                   assert len(response.read(17)) == 16
               print('MOUSE_DIRECT_DOWNLOAD_VERIFIED ' + item['filename'])
