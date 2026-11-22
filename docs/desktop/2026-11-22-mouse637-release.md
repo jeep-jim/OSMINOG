@@ -1130,3 +1130,231 @@ New regression file SHA-256:
 performance/pixel budgets and frozen predecessor verifiers remain unchanged.
 The next common source must receive complete fresh Mac, Windows and Linux
 acceptance; successful2b73 Linux/Windows packages cannot be pinned for it.
+
+## 2026-11-22 — 5a13 platform evidence and bounded input investigation
+
+The common source5a13d620e66e8b25792b3ba26de907c6b66fc422 has tree
+abe7d244841c6bcbc5af982d150d605f5e8c0fd2 and sole parent2b73ad7b.
+All eight auxiliary workflows passed. Neither source nor publisher was merged;
+the owner still awaits6.0.37. All three public feeds remained6.0.36, and all
+three37 release tags were absent at08:30 UTC on22 November2026.
+
+### Linux5a13 complete independent acceptance
+
+[Run45000235012](https://github.com/jeep-jim/OSMINOG/actions/runs/45000235012),
+attempt1/job137139946706, passed native and the full independent actual-package
+gate in139.3729840019987 seconds. All264 verifier files were bound to the actually
+executed publisher3b4febdfd022fba9d38495e4e6b8d2720afd49a5 and unchanged;
+426 consumed raw evidence files remained unchanged. Complete38-frame WRITE/read
+restoration, original real-file transfers, actual updates and original strict
+performance gates passed. Root additionally rehashed both actual packages.
+
+| Object | Artifact | Bytes | SHA-256 |
+|---|---|---|---|
+| Candidate archive | 14745717748 | 241169494 | 662cdea8e78e1bd030a363cd3ae8b9e35a1fb9005df89a26d20f582c1d019d06 |
+| Verification archive | 14745424103 | 40875194 | aa3c4872933fa3e3e62da34da3633228da2ab92b7241c9fca17dc855fbcae723 |
+| Actual AppImage | — | 135776013 | 4ceb01735e681b3be4306ddb6440a3f800dea028902691b0727cb5bcde3142af |
+| Actual DEB | — | 105925464 | 74cf5eb518c359cbab764cdcd876517cb507333976cea94bae1d24023719d4a7 |
+
+Full independent result SHA-256:
+c8b35375b5aa8fe93eebaba9ed26c7a18907c14c2bcfcf5c9940ac2237f046de.
+Provenance SHA-256:
+d08ea9d1492ccb44994c1d44bddac66de0dc8ecab440d00f6f1c6f1edb5dd7a0.
+This acceptance belongs exclusively to5a13; the proposed pin was not applied.
+
+### Windows5a13 complete independent acceptance
+
+[Run45000235140](https://github.com/jeep-jim/OSMINOG/actions/runs/45000235140),
+attempt1, completed successfully with primary job137139947400 and modern
+job137144827447. Full independent gates passed separately in216.33520775899888
+and197.726324638 seconds. All264 immutable3b4 verifier files and819 separately
+bound phase evidence reads were rehashed unchanged. Modern input identifies
+the same actual primary installer and primary verification wrapper. Its actual
+runner was Windows2025 Server10.0.26100, image win25-vs2026/20261116.315.1.
+
+| Object | Artifact | Bytes | SHA-256 |
+|---|---|---|---|
+| Candidate archive | 14746655402 | 125617060 | f8a214b7b1404bf5adf607007103c0926aecdaca4c69b07b467e76d110e91e91 |
+| Primary verification | 14746575666 | 82024546 | b9fd1840fab5db3e9f2d4eb0336a7619298dbd7f633e07a888097177609acfae |
+| Modern verification | 14746388978 | 78839433 | a15539d1f3359dfc2360e87f993d0760933d47deb91b8dc409c59285b6c05a40 |
+| Actual EXE | — | 125904562 | 88c5a2b341e215ddba9772e6b0de263947cd37fd622fdb293e220f28db669e51 |
+
+Root independently rehashed the actual EXE. Aggregate result SHA-256:
+d7cb9d8d8271b827250145400aa9b83dbaa10b9a05970038969264886f44df7e.
+Aggregate provenance SHA-256:
+060ab07cd7d9b77abb1a4f68c0b562bb94893876fb8e1b3b8cf5ff39190ac36d.
+Full Windows acceptance is true for5a13, while sourceMerge is null, the pin is
+unapplied and releaseAcceptance remains false. The performance report's raw
+environment source b059a7cb is GITHUB_SHA; the checked-out build/source manifest
+identifies5a13. These distinct fields are preserved rather than rewritten.
+
+### Both unchanged Mac5a13 attempts remain failed
+
+[Run45000235119](https://github.com/jeep-jim/OSMINOG/actions/runs/45000235119)
+passed unit/build/published636 baseline in both attempts. Attempt1,
+job137139946950, failed the first retained guest link #download-a at104,252.
+Attempt2, job137141782888, was initiated by another continuation at08:01:14 UTC;
+pane downloads passed, then AI #link-blank at924,332 failed. Both preserved
+the original trusted-click timeout and stable sampled bounds/visibility. Neither
+reached current637 strict performance/new features or candidate upload. No third
+unchanged full run was requested by this continuation.
+
+| Attempt | Artifact | Archive bytes | SHA-256 |
+|---|---|---|---|
+| 1 | 14745950267 | 5218617 | bca2a09fd53a2186c90177f27ed31b95e7cb8ad741ae9b40351952f98efa33ad |
+| 2 | 14745249889 | 6147244 | ffd5d4faae79c382f07fce6db0f2b50b3dbe1d941956bbcfb42ab06857a7ce3c |
+
+The original job logs are987630 and987910 bytes, SHA-256 respectively
+3974c1d717312e45a7382e2acac8dd8bd094b95fa6f15aadfdff5d164e8d5e39
+and05631e366bc71773ac502d63daadea01cdee25a56dc10e8187ab21b01bdc23bb.
+The initial sampled focus did not identify where a native down/up was lost.
+Earlier successful runs used the same point and sampled focus/geometry; this
+does not establish identical continuous runtime conditions. The historical
+Design population failure and the owner's physical-Mac rendering complaint
+retain their separate, unestablished causes.
+
+### Three isolated diagnostic outcomes, none release acceptance
+
+1. External ad97f72f8f0035817d2a53be9f97ae94661ce721, sole parent5a13,
+   [run45001732291](https://github.com/jeep-jim/OSMINOG/actions/runs/45001732291),
+   attempt1/job137144542093, reproduced #download-a failure. Artifact14746616051
+   is5215574 bytes/SHA-256
+   440d63f0e0a8670cac873609089ef17a9a9b3354abb51a674bce8d192b0da190.
+   Original retained PID26302 exited1 with ok=false and restored=true. Guest and
+   shell DOM observers recorded only focus/blur, with zero errors/drops and no
+   pointerdown/up, mousedown/up or click. Original crop/display PNG hashes and
+   dimensions were checked, and the failure image was inspected. No native or
+   Electron boundary observer existed, so the earlier loss cannot be localized.
+2. Root's eded84c2cd700f898fb06fc2b8e0acabedb54bde, sole parent5a13,
+   tree8b845886af4b908b6beec3f2eb5c28314e4408a3,
+   [run45002540189](https://github.com/jeep-jim/OSMINOG/actions/runs/45002540189),
+   attempt1/job137147004172, passed one standalone retained invocation without
+   the preceding baseline. PID25856 ran34797.29525ms and restored successfully.
+   Artifact14746069179 is5785920 bytes/SHA-256
+   7498a5a3b52a905cf72b8308b082a5fae4e3a9ad5fa7adb7e8a0331f2747bc78.
+   All seven guest clicks had complete trusted target DOM chains. All77 native
+   events and75 posts had zero errors/drops. Down/up hit the same guest while
+   firstResponder changed shell→guest. Pre-post CG timestamps were all zero;
+   they cannot establish post-to-delivery latency. The raw338335-byte receipt
+   SHA-256 is70f750f0a38ae1b6e52dcc454a482e403c88b3eda4a701953d08af80e1b20a83.
+3. External0364a0890a55b3e49ba321dc1914d14786a7bac3, sole parentad97,
+   tree73834262611c3d5404d488793a7adceecf557cc9,
+   [run45002766834](https://github.com/jeep-jim/OSMINOG/actions/runs/45002766834),
+   attempt1/job137147681397, passed. Artifact14746911759 is11067327 bytes/SHA-256
+   6d968240b23b64627da791398779ae92617162b36bef476f78a57672e447d68e.
+   Retained PID27827 exited0, ok/restored=true. All seven per-click snapshots
+   have complete owned-window AppKit down/up, owned-WebContents Electron
+   mouseDown/up and trusted DOM target chains, with zero errors/drops there.
+   Later final collectors did evict9 AppKit and49 Electron records; the
+   per-click completeness must not be relabelled as whole-run no-drop evidence.
+
+Both external workflows ran the original published636 baseline followed by
+one retained invocation. The unchanged5a helper independently validated each
+baseline, all59 inventory files/hashes, exact immutable636 DMG identity,
+different old/new PIDs and baseline-PASS-before-retained order. Their verifier
+and cut-prefix SHA-256 values match actual5a source:
+cb15af4ecf9a2edf23ddb630c9bd73bfd904e06106241f380b15ed549313c337
+andfb9764377ee96143c0f60008fa261b8bfb11386f50fbaefcb76d5533b16a526d.
+The proposed local follow-up restoring that preface was stopped before any
+runner/test edit, commit, push or invocation after discovering the existing
+external run. Provisional workflow edits were restored. There was no duplicate
+context experiment. All diagnostic branches remain isolated and are never
+merged, pinned or substituted for full installed package gates.
+
+### Publisher610ea12 is a separately reviewed manifest correction
+
+Another continuation advanced PR66 to610ea12feb96b152f2a61d9e84f194ffde75d4a1,
+treee9816f09a3a01ad26845b8ecce44df500fd370c1, sole parent3b4febdf. Its only
+three-file change aligns the current Mac manifest requirement with the actual
+source token real-636-to-637-profile-preserving-replacement, adds regression
+tests and a fixture matching all171 ordered source tokens. The source Mac
+workflow SHA-256 is5dcb1fdc70dd14d747c70862cb597a93c9e5198fbd02afd0a6a3c65a01a9b33c.
+Root passed100/100 tests, three templates and three publish=false plans; all five
+contract/registry workflows passed and native publication remained skipped.
+
+Independent review established unchanged reachable Linux/Windows verifier code;
+262 of264 Python files are byte-identical, and the two changed Python files
+are the current Mac entry and its test. Linux/Windows results remain bound to
+the actually executed3b4 revision, with the610 equivalence review separate.
+Its report SHA-256 is
+c26b8308a43b5b269f4f432f23e5c7e639bf1c2d9b57552c3f11e2994a44e3a9.
+No frozen verifier, workload, assertion, schema, publication workflow, pin,
+marker or feed changed. This publisher-only declaration correction does not
+require source package rebuilding.
+
+## 2026-11-22 — strengthen the existing native-input focus precondition
+
+This change addresses a verifiable gap in CI preparation, not an established
+cause of any historical failure or the owner's physical-Mac rendering problem.
+The retained fixture already requests application/window/shell focus once and
+waits until win.isFocused(). That value alone does not establish completed
+application activation on macOS.
+
+Primary sources were read against the exact installed Electron44.5.0:
+
+- [Browser::Focus and Browser::IsActive](https://github.com/electron/electron/blob/v44.5.0/shell/browser/browser_mac.mm)
+  map the existing public APIs to AppKit activation and NSApplication.isActive.
+- [NativeWindowMac::Focus and IsFocused](https://github.com/electron/electron/blob/v44.5.0/shell/browser/native_window_mac.mm)
+  show that window focus queries only isKeyWindow.
+- [Public API binding](https://github.com/electron/electron/blob/v44.5.0/shell/browser/api/electron_api_app.cc)
+  exports app.isActive() on macOS; the pinned docs/api/app.md and installed
+  electron.d.ts agree. No new native-addon function is necessary.
+- [Apple activation documentation](https://developer.apple.com/documentation/appkit/nsapplication/activate(ignoringotherapps:).md)
+  explicitly permits activation to finish after the request returns and
+  distinguishes making a window key from application activation.
+
+The intended correction keeps the same single app.focus/show/win.focus/shell.focus
+sequence and the same existing until call, label, polling and timeout. On macOS
+its predicate additionally requires actual app.isActive() and win.isVisible().
+Windows/Linux retain the original win.isFocused() predicate and never call the
+Mac-only API. The last successful raw readiness snapshot is saved in the
+existing guest-attempt record without an additional pre-click read.
+
+This tightens a setup condition: it does not retry a click, delay down/up by a
+new dwell, synthesize DOM input, change the real target/trusted-click predicate,
+extend any workload budget, alter the native input driver, add a production
+focus policy or import diagnostic observers. Readiness of a specific Chromium
+guest and actual click delivery remain subject to the original native gate.
+All new-source Mac/Windows/Linux packages must be tested on that source; the
+successful5a packages above are historical evidence after the source advances.
+
+### Final focus-precondition validation before push
+
+The actual old retained focus function was exercised by the new regression:
+with windowFocused=true/appActive=false it finished after the first poll instead
+of waiting for activation. Before integration the nine new cases produced
+6 PASS/3 FAIL; the other failures showed the absent readiness result/record.
+The5030-byte RED log SHA-256 is
+b343326f13f9d76bb0abe4bdc8bfc9e016192d461acb1f17d5c2966b42fee127.
+
+After integration, author and root independently passed all13 targeted cases,
+with zero skips: nine new cases plus four existing guest-observer cases. They
+execute the actual retained focus/guestClick and original until implementation,
+including unchanged10000 ms/25 ms polling, the shorter overall deadline,
+original error identity, one activation sequence, one native post, no Mac API
+reads on Windows/Linux and unchanged rejection of wrong-target/untrusted events.
+The author's3913-byte log SHA-256 is
+25e8da08dbdcb9b57e2a42fe79514be802f47ed07d4538f22d628ba841fd5e09;
+root's3917-byte log SHA-256 is
+93660e65095a2e344319ffaf713b0ffe5caf8a4c1bccf855da185e364b5ecc3b.
+
+Two independent read-only reviews passed. Exact loaded Mac/Windows/Linux build
+filters include mouse-636-native-input-focus.cjs and exclude its test. The
+existing143-file unit enumerator discovers the new test; no build config or
+workflow changes were needed.136 production paths, including the complete
+desktop/mouse directory, browser.cjs, mouse-desktops.cjs and native .mm, remain
+byte-identical to5a13. The .mm SHA-256 remains
+a30000b58233b77e5aa8964bc5bef402152505899c6ea10fb4ebd0d7ee846c39.
+
+Frozen changed-code SHA-256 values:
+
+| File | SHA-256 |
+|---|---|
+| mouse-636-native-input-focus.cjs | f1d9f6c6036348b2fcf537dc86182567bd51952feb73d451f64373a052c63205 |
+| mouse-636-native-input-focus.test.cjs | 616e30b1a38bb5d669ca13549b2f2b8176b76fe68c2b5438aa0dbc56c8e2c6c4 |
+| mouse-636-retained-smoke.cjs | 229cf2498f7740bdf2c8840e5485e8d825c99c9cd9f396524171f97558d8a723 |
+
+Syntax and git diff --check passed. No native acceptance is assigned to these
+changed sources before their own complete installed-package workflows and
+independent artifact checks. Original failed runs remain failed, and diagnostic
+successes do not substitute for those required gates.

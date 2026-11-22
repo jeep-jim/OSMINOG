@@ -10,6 +10,7 @@ const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
 const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
 const {guestInputReadback,nativeGuestInputState,observeGuestClick}=require('./mouse-636-guest-input-diagnostics.cjs');
+const {focusNativeInputWindow}=require('./mouse-636-native-input-focus.cjs');
 
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,globalCapture,overlayGate}=ctx;
@@ -22,7 +23,7 @@ module.exports=async ctx=>{
  const inputSource=()=>process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest';
  const stage=async(name,work)=>{facts.stage=name;await save();console.log('MOUSE_636_RETAINED_STAGE '+name);return work();};
  async function shellReady(){await fixture.until(()=>fixture.js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest').catch(()=>false),'634 ready shell',15000);await fixture.js(`(${installInputProbe.toString()})()`);}
- async function focus(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await fixture.until(()=>win.isFocused(),'634 window focus');}
+ async function focus(){return focusNativeInputWindow({app,win,until:fixture.until});}
  async function click(selector,{navigates=false,xFraction=.5,yFraction=.5}={}){
   await focus();await fixture.js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();let hit;
   await fixture.until(async()=>{hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),${JSON.stringify({xFraction,yFraction})})`);return hit.ready;},'634 native target '+selector);
@@ -32,10 +33,10 @@ module.exports=async ctx=>{
   return result;
  }
  async function guestClick(record,selector){
-  await focus();let hit;
+  const focusReadiness=await focus();let hit;
   await fixture.until(async()=>{hit=await fixture.pageJS(record,`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return hit.ready;},'634 guest target '+selector);
   const factor=record.page.view.webContents.getZoomFactor(),origin=win.getContentBounds(),bounds=record.page.bounds,point={x:Math.round(origin.x+bounds.x+hit.x*factor),y:Math.round(origin.y+bounds.y+hit.y*factor)},beforeGuest=await fixture.pageJS(record,'('+guestInputReadback.toString()+')()'),count=beforeGuest.count;
-  const details={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,hit,factor,contentBounds:{...origin},pageBounds:{...bounds},beforeCount:count,beforeGuest};
+  const details={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,hit,factor,contentBounds:{...origin},pageBounds:{...bounds},beforeCount:count,beforeGuest,focusReadiness};
   const events=await observeGuestClick({attempts:facts.guestClickAttempts,details,readNative:()=>nativeGuestInputState({win,page:record.page,screen,webContents}),post:()=>nativeInput.testClick(point.x,point.y),readEvents:()=>fixture.pageJS(record,'mouse634.clicks.slice('+count+')'),accept:events=>events.some(event=>event.id===selector.slice(1)&&event.trusted),waitFor:fixture.until,label:'634 trusted guest link '+selector,save});
   const result={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,events};facts.nativeInputs.push(result);return result;
  }
