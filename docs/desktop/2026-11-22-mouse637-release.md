@@ -862,3 +862,271 @@ centered mascot, private-tone adapter and current sidebar bounds remain
 compatible. No further concrete contradiction was found. This source review is
 not execution evidence for the remaining Mac stages; all must still pass on the
 next exact common source. d39 platform successes are preserved as history only.
+
+## Exact2b73 native results and isolated preset diagnosis
+
+Source `2b73ad7b7924bf8e87fa0932eea672fe2bb89f52`, tree
+`2a3917f6419342c7d22eb18dab945a992a53e2a2`, retained all production bytes from
+d39 and changed only the reviewed Settings assertion, focused test and journal.
+All eight auxiliary workflows passed. Public feeds were reread at07:23UTC on
+22 November: all three still identify6.0.36 with the existing package hashes.
+
+### Linux actual packages accepted for2b73 only
+
+Run44995533015/attempt1/job137125629841 completed SUCCESS at06:59:27UTC. The full
+independent gate against actual AppImage/DEB bytes passed in131.522733432s with
+all264 Python verifier files bound before and after execution to unchanged
+publisher3b4febdf. All retained gates, strict636 comparison, actual update/profile
+checks,38=36+2 native frames and real file transfers passed. There were449 raw
+evidence files and four candidate files; archive paths and links were checked.
+
+Verification artifact14743454888:40,645,166 bytes, SHA-256
+`1028ed672ccab15091859fa2f1a6ce5f0614bf6eff18b49a5c256ad9eb4f3616`.
+Candidate artifact14744050801:241,168,383 bytes, SHA-256
+`40462359a51e75e2e524cf6ac64111542d73db7a6fde368fbfeebd00025d268f`.
+Actual AppImage135,776,082 bytes/SHA-256
+`61d08e096ca127098b9f5ba2502f12c25b85c5240bcaa5e962d4cf95906d9a4d`;
+DEB105,925,036 bytes/SHA-256
+`c9374eb0f42c2289c8bb373dcf405bb5880c0bc6de495c2a67b07e867aee06d1`.
+The compact provenance SHA-256 is
+`c310ba0330c39852fc6ed8baf0d747c7498af4dcd9d5ae478393e57b77f9cd69`;
+full independent-result SHA-256 is
+`36e93983e61fc441d6244cb975e3cce67063a01e4fb10f988f1921364b4fa741`.
+
+### Windows primary accepted; modern independent sweep still pending here
+
+Run44995532966/attempt1/primary137125662637 completed SUCCESS at07:12:12UTC.
+Its full independent actual-EXE gate passed in213.629s, including the installed
+wrapper, actual636 upgrade/button, all38 frames/native Files/restart, task50,
+all retained feedback/owner/library/performance/scrollbar gates and separate629
+separator pixels. All264 verifier files remained Git-bound and409 consumed raw
+files remained unchanged. Actual EXE125,903,736 bytes/SHA-256
+`ba96926b660100a7510a15c21119ebc15da9e84e05754b2bd2f550c2b2dea19c`.
+Verification artifact14743878921:82,008,664 bytes/SHA-256
+`18f0c310c810c77e6a592c19fa20e0d37a239bca977ce044da6118c980f22a16`.
+Primary full-result SHA-256
+`06a4f971f9b6b71d641d077a992cbca4c1ce6e8b5dcdbce933cecba63ef5b433`;
+compact provenance SHA-256
+`0f4919dd507e0654d4468008ce09c56b6b942cca7c3553d3e2803ac5d0e2a8eb`.
+
+Dependent modern job137130532190 also completed SUCCESS in the same attempt.
+Its artifact14744527143 is78,171,074 bytes/SHA-256
+`c1f50f17595d3d66afb0acb8a3ebeff2458d552cb52d4a1352e8d03cbd379807`,
+700 safely extracted entries. Actual input identifies Windows2025Server,
+10.0.26100/image win25-vs2026. Source/run/attempt, the same EXE and primary
+verification binding passed; the full independent modern sweep was still running
+when this entry was written. It must finish before complete Windows acceptance.
+
+### Mac2b73 failure remains preserved and unexplained
+
+Run44995533011/attempt1/job137125629651 passed the actual published636 baseline,
+strict637 performance and owner636. Strict20-page medians were
+85.246833→60.609333ms and50-page117.741458→56.351833ms under unchanged limits.
+The installed feature WRITE child42073 exited1 after27,825ms in
+`native-populated-presets`, at `mouse-637-presets-helpers.cjs:56`:
+`Every preset pane is populated`.
+
+Support and Trader completed. Design requested all five owned loopback URLs;
+its tree matched, but one slot did not match the actual page list. The failed
+pane/slot/list was not saved before the assertion. Later failure PNGs were made
+after the inner preset finally restored the original desk. They cannot establish
+the failing arrangement or its cause. The inner preset cleanup reports restored;
+the enclosing WRITE is still failed. The new Settings runtime assertion was not
+reached. Package binding and candidate upload were skipped. No rerun of this
+release job was requested.
+
+Verification artifact14743896823:33,695,149 bytes/SHA-256
+`dec1cf9ca49f2e964e4cbbc5aa089d2c2c01fc409b3e8be3969348adad5afc43`;
+316 raw files, complete job log and API provenance are preserved. Eight relevant
+production/fixture files are byte-identical to d39, where Design passed; that
+comparison does not identify a cause. The complete log contains no matching
+render-process-gone, unresponsive or GPU-crash message; absence of those messages
+does not exclude a native failure.
+
+### Isolated2424 diagnostic: non-reproduction with an observed delivery inversion
+
+The separate branch `diagnostic/mouse-637-preset-2b73ad7b` contains commit
+`2424c69dde0e929271d102afb836a2eb847a163b`, tree
+`5944d5b9308bcfad3b591d4300f4dd3c6083410e`, with sole parent2b73. Its11-file
+reviewed remote tree exactly matched the staged local tree and every uploaded
+Git blob. The release source and publisher were not changed by that experiment.
+The branch is never merged, pinned or substituted for release acceptance.
+
+The opt-in collector uses a separate diagnostic WeakMap and extra argument on
+the existing state push, leaving ordinary state fields and return objects intact.
+The successful path records already-computed values without extra authoritative
+state reads. First32 events plus a rolling tail are bounded by512 events/1MiB per
+process and32KiB per record; truncation, eviction and errors are explicit. On the
+original assertion failure it would save exact inputs and main/renderer/native
+PNG before cleanup, while retaining the original exception. One original WRITE,
+fresh profile, original240s/270s deadlines and failed-child status are preserved.
+Author/root44 focused JavaScript tests and root/peer9 Python tests passed with
+zero skips; the independent reviewer also passed all12 new JavaScript tests.
+
+Native push run44997882783/attempt1/job137132752142 completed SUCCESS. Its only
+child24925 exited0 after56,516.477875ms; original WRITE reported53,044ms,
+writeComplete=true and awaitingRestart=true. All seven preset applications
+passed. Design used five actual WebContents18–22, with selected requests9→14;
+the ten preceding page snapshots matched before and after. There are36 WRITE
+capture pairs. There was no READ, full release verifier, release package or
+publication. A successful diagnostic is not a complete release gate.
+
+Artifact14745115225:13,553,069 bytes/SHA-256
+`2a87fc1359801f18290dae667dd1ab0bd056555acfdac11b7ef8a855cc71285c`;
+82 safely extracted files. All80 files in the runner inventory matched their
+size/SHA-256; offline collection validation from the exact diagnostic Git bytes
+passed. The complete job log is50,849 bytes/SHA-256
+`4a709fa58e334b739eb0d6ecca4e67d0a6ae1f015a4cb53e935f4d1c6d5f725d`.
+The raw trace is699,494 bytes/SHA-256
+`ce5207ae579774d309ea33d24e5f1f3e10064ae7444374da415d3201dc8c3251`.
+Independent analysis SHA-256
+`7ef6721b5919b45b87e3f8bedcb907db1632f8a46934467f2d96fddbf053e3f2`.
+
+The original Design failure did not recur. The bounded byte budget evicted
+main events33–284 and renderer33–156 after later successful modes, including
+the complete Design transition. Main retained235/487 records; renderer124/248.
+There were no per-record truncations or collector errors. The retained11
+enter→reconcile pairs did not change slots. This incomplete trace cannot prove
+the absence of a harmful late state throughout the whole scenario.
+
+It does establish one narrower native ordering fact. The final Agents main
+operation built/sent snapshot220 (events482/483), then returned snapshot221
+(events484/485). The corresponding renderer received that result(event244),
+applied it(event245), finished switching(event246), then received
+snapshot220(event247)9.6ms later
+in the same renderer clock and applied it as state-unchanged(event248).
+The invoke response carries no diagnostic sequence field; correlation uses the
+ordered final Agents operation, exact mode, ordered tab metadata and
+returned/current slots. Both snapshots contain the same24 tabs and slot map.
+No slot loss occurred in this observed pair. Root and both independent readers
+confirmed this ordering and its limitation without comparing cross-process clocks.
+
+Separately, the earlier unit probe executes actual release receiveState/reconcile
+functions: injecting an older same-desktop10-tab snapshot after a15-tab Design
+result clears the five new slots; a subsequent fresh15-tab snapshot does not
+restore them. This proves the destructive conditional code path. The new native
+trace establishes that a push built before an invoke result can reach the renderer
+after that result. It does not prove that this exact10→15 sequence caused the
+original Mac Design failure, nor that the owner's physical6.0.36 drawing problem
+has the same cause. Those limits remain explicit for any subsequent correction.
+
+### Windows2b73 independent modern completion
+
+The modern full independent sweep subsequently passed in194.2195734429988s.
+Both native jobs in run44995532966/attempt1 are successful: primary completed
+07:12:12UTC, modern07:26:23UTC. Both complete independent gates passed against
+the same125,903,736-byte EXE, whose SHA-256 root independently reread as
+`ba96926b660100a7510a15c21119ebc15da9e84e05754b2bd2f550c2b2dea19c`.
+All264 publisher verifier files stayed bound to unchanged3b4febdf Git blobs;
+409 primary and410 modern consumed raw files were hash-checked again.
+
+Primary WRITE→READ PIDs7216→1956 and modern2164→7684 each have38 frames and
+three real native file transfers. All installed wrapper, legacy629 migration,
+actual636 upgrade/update-button/profile, display chronology, task50, current637,
+retained feedback/owner/library/performance/scrollbar/separator gates passed.
+Modern input is bound to primary verification SHA-256
+`dcec715609bdd09e67ab3c0744217f2f17f150d1d029980959bb6bd20085d344`;
+modern wrapper SHA-256
+`1934fed9ba087fc33d3ed7fc6d7677b5994c890fb88b7d203f8d75ec4eb9353b`.
+Candidate artifact14744092474 is125,616,135 bytes/SHA-256
+`282c0ef929aa34f8c67fcb78a0b02244d23471573f6865a982e2679dcc0e0dc4`.
+
+Combined independent result SHA-256
+`562dbf063633abf62ebe174cc9f744d6de9f8424d799a8809e6b737c2c0414ab`;
+complete provenance SHA-256
+`3ecd31d8227788a6c8242aef029ab2599fc57a1e71188bbb1b3d55db5bcaa4b3`.
+This is full Windows acceptance for exact2b73 only. It does not accept Mac or
+constitute publication. Any subsequent common source requires all three
+platforms afresh; these accepted Linux/Windows2b73 results remain historical.
+All three637 release-tag lookups returned404 at07:32UTC; source main remained
+123b7d765b72f3e92e5b5dd8f674a6856d534728 and publisher main remained
+ccec613e41622b467ed4f8bfee2a3e9cd5a81831. Version637 is still unpublished.
+
+## Correction: preserve the newest accepted workspace snapshot
+
+The native2424 delivery inversion and the real-source destructive regression
+justify a narrow ordering correction independently of the unexplained original
+Design failure. No diagnostic instrumentation or diagnostic branch is merged.
+Only two production files change: `mouse-desktops.cjs` and `mouse/browser.js`.
+
+The existing final DesktopService state builder adds `snapshot:{epoch,revision}`
+to its already-computed result. A UUID epoch belongs to that service instance;
+the revision increases on each existing snapshot construction. Main emits, init,
+browser state reads and coupled desktop-action results share that order. No
+additional state read, serialization hash, native request or wait is added.
+Normal and private services have separate epochs. Their explicit tab-session
+serialization, preferences whitelist and DesktopBank persistence do not include
+the transport metadata. Start/document wrappers precede the final builder.
+
+One inline renderer receiver binds its canonical epoch only from init. Before
+init it retains at most16 latest epoch/desktop buckets, then clears them and
+selects the newest matching initial snapshot. All production state assignments
+use the receiver. Older, malformed, foreign-owner or inappropriate-desktop
+snapshots are rejected before reconciliation and saving. Ignored switching
+pushes do not raise the accepted revision. The receiver also honors the revision
+in the current model state, preserving compatibility with existing native
+cleanup helpers that directly assign a fresh init/state response.
+
+Coupled desktop results remain strictly accepted with their preferences;
+pin/move/close/restore require the current desktop, while explicit switching
+accepts its requested target. Read-only refresh has a distinct continuation
+rule: an older reply can leave a newer valid current snapshot in place, allowing
+the already-successful action to finish only for the same owner/desktop and a
+still-live target ID. This preserves page/AI opening, navigation, Agent/document
+activation and extension placement without restoring a closed or foreign page.
+It corrects a concrete early-return regression found during independent review
+before the source was pushed. Fresh title/loading/navigation updates and real
+closures still reach their original owners and reconciliation.
+
+A separate one-line native fixture change records `populationFailure` only when
+the original population assertion is about to fail. It copies the exact already
+read mode, pane, ID, hasSlot, preferences and pages into the existing report.
+That report survives the existing cleanup; there is no new state read or wait,
+and the original assertion/message remains unchanged. This preserves useful
+inputs if a different cause recurs in the subsequent full native gate.
+
+### Validation and limits
+
+The original source first failed the new real-source regression for the intended
+reason: an older10-tab push erased all five Design slots after the15-tab invoke
+result. The saved RED log is1,876 bytes/SHA-256
+`be19e163d25d1c3744ba857ae8fe3442c51f407914572aa6998a5e658c49bffe`.
+This controlled unit case is not presented as the missing native Design trace.
+
+Final author and root focused runs each passed95/95 tests with zero skips on
+Node22.23.5. They include17 new ordering cases, the actual main DesktopService
+sequence/non-persistence test, and existing performance/overlay/media/layout/
+AI-close/new-tab/desktop-slide scenarios. The six existing extracted-source
+harnesses now initialize the actual receiver and provide transport stamps;
+their existing native predicates and budgets were not weakened. Root's final
+focused log is25,535 bytes/SHA-256
+`5aee76537778b80007bc0d7a55fb741c5abd4c97d33fc101f4c24d0e5eb861c9`.
+The independent reviewer passed17/17 new cases and, after the last same-desktop
+check, both affected cases again. A second reviewer independently passed17/17
+before that final check and audited all successful read-only continuations.
+The failure-only helper's six existing tests passed, and its report persistence
+was independently traced through preset cleanup and outer feature saves.
+
+One full local `tools/mouse-unit-tests.cjs` preflight produced1261 tests:
+1251 passed, five failed and five existing platform/native cases skipped.
+All five failures identify absent local build dependencies: `ws` in two test
+modules, `mouse-mcp-fs.node` in one, and the official MCP SDK client in two
+manager tests. The skips are four Windows-native cases and the unbuilt Linux
+corner addon. No skips or fallback predicates were introduced. This is explicitly
+not a full local PASS. The raw346,270-byte log has SHA-256
+`0119b103dcff66dbc59d12f9c692b6773d7d154533ed7ed1f1fe647aa2787eca`.
+The final focused95 were rerun after the last guard refinement. The unchanged
+native workflows must prepare their normal dependencies and pass their complete
+unit/build/installed acceptance on the new source before any release decision.
+
+Frozen final production SHA-256 values:
+`mouse-desktops.cjs`=
+`9b9e28ba652f7efe333d11340f3c9b965b34b1661e34bcef6bf4eae3ed5a1120`;
+`mouse/browser.js`=
+`2131f2ac2ff0898e214c4eb1141f338459a501d095cfb85892f487a20582da39`.
+New regression file SHA-256:
+`e766496f81026284148f356b4636893ddbd72a270aee319c480351af65b42c96`.
+`git diff --check` passed. Publisher bytes, native workloads/deadlines, all
+performance/pixel budgets and frozen predecessor verifiers remain unchanged.
+The next common source must receive complete fresh Mac, Windows and Linux
+acceptance; successful2b73 Linux/Windows packages cannot be pinned for it.

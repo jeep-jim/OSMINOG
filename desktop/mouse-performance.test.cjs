@@ -78,7 +78,9 @@ function rendererMetadataFixture(){
  const tabs=Array.from({length:10},(_,i)=>({id:'active-'+i,url:'https://fixture.test/'+i,title:'Title '+i,lane:'main',loading:false,internal:false,back:false,forward:false}));
  const model={ready:true,desktopId:'desk-3',state:{tabs},slots:{p1:tabs[0].id,p2:tabs[1].id,p3:tabs[2].id,p4:tabs[3].id},aiId:'',aiPreviewId:'',switching:false},calls={tabs:0,labels:0,ai:0,preview:0,layout:0,desktops:0,progress:0,saves:0};
  const context={m:model,pendingState:null,tab:id=>model.state.tabs.find(t=>t.id===id),prefs:()=>({slots:model.slots,aiId:model.aiId}),reconcile(){for(const [pane,id]of Object.entries(model.slots))if(!model.state.tabs.some(t=>t.id===id))model.slots[pane]='';if(model.aiId&&!model.state.tabs.some(t=>t.id===model.aiId))model.aiId='';},renderTabs:()=>calls.tabs++,syncPaneLabels:()=>calls.labels++,syncAIIcon:()=>calls.ai++,syncAIPreview:()=>calls.preview++,applySide:()=>calls.layout++,desktopUI:{render:()=>calls.desktops++},progressUI:{render:()=>calls.progress++},save:()=>calls.saves++};
- vm.runInNewContext(source.slice(begin,end),context);return{model,calls,receive:context.receiveState};
+ let revision=1;model.state={...model.state,desktopId:'desk-3',snapshot:{epoch:'unit-metadata',revision}};
+ const receiver=source.slice(source.indexOf('function createStateReceiver('),source.indexOf('\n const resizeHUD'));
+ vm.runInNewContext(receiver+'\nstateReceiver.init(m.state,m.desktopId);\n'+source.slice(begin,end),context);return{model,calls,receive:state=>context.receiveState({...state,snapshot:{epoch:'unit-metadata',revision:++revision}})};
 }
 
 test('background metadata bursts update desktop badges and progress without active DOM rebuild or native layout',()=>{

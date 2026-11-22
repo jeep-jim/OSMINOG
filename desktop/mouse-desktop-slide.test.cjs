@@ -53,7 +53,7 @@ test('presentation waits for real frames beyond the former 120 ms cutoff and is 
 function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
  const browserSource=fs.readFileSync('mouse/browser.js','utf8'),begin=browserSource.indexOf('async function switchDesktop('),end=browserSource.indexOf('async function applyMode(',begin);
  assert.ok(begin>=0&&end>begin);const events=[],staged=[];let geometry=1;
- const model={desktopId:'old',state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[]},tree:{id:'p1'},slots:{'p1':'source-page'},active:'p1',libraryOpen:library,focusPane:focus==='pane'?'p1':'',focusAI:focus==='ai',switching:false};
+ const model={desktopId:'old',state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[],desktopId:'old',snapshot:{epoch:'unit-slide',revision:1}},tree:{id:'p1'},slots:{'p1':'source-page'},active:'p1',libraryOpen:library,focusPane:focus==='pane'?'p1':'',focusAI:focus==='ai',switching:false};
  const workspace={style:{visibility:''},dataset:{},inert:false},packet=()=>({desk:model.desktopId,complete:true,token:'capture-'+model.desktopId,holdToken:'nora-hold',boundsVersion:geometry,surfaces:[]});
  const lease={token:'nora-hold',outgoing:packet(),valid:()=>true,async replace(){events.push('replace');return true;},async abort(){events.push('abort');}};
  const desktopUI={isOpen:true,async close(){events.push('nora.close');this.isOpen=false;},transitionLease(){events.push('lease');return lease;},render(){events.push('nora.render');}};
@@ -63,10 +63,11 @@ function rendererSwitchFixture({focus='',library=true,targetAI=true}={}){
   events.push('native:'+action);
   if(action==='surfaces')return packet();
   if(action==='surface-hold')return args.phase==='begin'?{held:true,token:args.token}:{released:true};
-  assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])]}};
+  assert.equal(action,'switch');return{preferences:{desktopId:'new',tree:{id:'p2'},slots:{'p2':'target-page'},active:'p2',aiOpen:targetAI,aiId:targetAI?'target-ai':'',agentOpen:false},state:{desktops:{items:[{id:'old'},{id:'new'}]},tabs:[{id:'target-page',lane:'main'},...(targetAI?[{id:'target-ai',lane:'side'}]:[])],desktopId:'new',snapshot:{epoch:'unit-slide',revision:2}}};
  }};
  const context={m:model,N,desktopUI,searchUI:null,mediaWidget:{render(){events.push('media.render');assert.equal(model.desktopId,'new');}},progressUI:{prepareLayout(){events.push('progress.prepare');assert.equal(model.desktopId,'new');assert.equal(model.desktopSliding,true);assert.equal(workspace.style.visibility,desktopUI.isOpen?'hidden':'');}},deskSwitch:Promise.resolve(),clearTimeout,arrangement:{cancel(){}},browsing:{hideHints(){},close(){events.push('browsing.close');model.libraryOpen=false;geometry++;}},feedback:{hide(){}},zoomUI:{async close(){events.push('zoom.close');}},overlays:{async sync(){}},restorePane(){events.push('restorePane');model.focusPane='';model.focusAI=false;geometry++;},MouseDesktopSlide:{run:options=>slide.run({...options,sceneFactory:()=>scene,present:async()=>true})},$:()=>workspace,L:require('./mouse/layout.js'),prefs:()=>({}),renderTree(){events.push('renderTree');geometry++;},renderAISites(){},applySide(){},requestLayout(){events.push('requestLayout');},layoutNow:async()=>{events.push('layout');}};
- vm.runInNewContext(browserSource.slice(begin,end),context);
+ const receiver=browserSource.slice(browserSource.indexOf('function createStateReceiver('),browserSource.indexOf('\n const resizeHUD'));
+ vm.runInNewContext(receiver+'\nstateReceiver.init(m.state,m.desktopId);\n'+browserSource.slice(begin,end),context);
  return{events,staged,model,desktopUI,async run(keepNora){await context.switchDesktop('new',false,{keepNora});return slide.last;}};
 }
 test('renderer switching behind Nora preserves library and fullscreen geometry until the outgoing frame is staged',async()=>{

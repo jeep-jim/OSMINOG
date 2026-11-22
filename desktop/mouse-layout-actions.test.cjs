@@ -48,8 +48,8 @@ function fixture(t){
   requestLayout(){},renderAISites(){},applySide(){},restorePane(){throw Error('Unexpected fullscreen branch in this fixture');},
   renderTree(){const m=ctx.api.m;renders.push({tree:clone(m.tree),slots:clone(m.slots),active:m.active,switching:m.switching});}
  };
- vm.runInNewContext(actions+'\nglobalThis.api={m,prefs,save,changeLayout,split,beginDrag,endDrag,restoreLayout};',ctx,{filename:'mouse/browser.js action fixture',timeout:1000});
- Object.assign(ctx.api.m,clone(initial),{ready:true,switching:false,state:{tabs:clone(pages)}});
+ vm.runInNewContext(actions+'\nglobalThis.api={m,stateReceiver,prefs,save,changeLayout,split,beginDrag,endDrag,restoreLayout};',ctx,{filename:'mouse/browser.js action fixture',timeout:1000});
+ Object.assign(ctx.api.m,clone(initial),{ready:true,switching:false,state:{tabs:clone(pages),desktopId:'desk-3',snapshot:{epoch:'unit-layout',revision:1}}});ctx.api.stateReceiver.init(ctx.api.m.state,'desk-3');
  t.after(()=>assert.deepEqual(errors,[],'Renderer safe() must not hide a failed action'));
  const dispatch=(name,event)=>{for(const fn of handlers.get(name)||[])fn(event);};
  return{...ctx.api,time,writes,renders,native,bank,dispatch,resolveRestore,pages,errors};
@@ -96,7 +96,7 @@ for(const action of ['split','layout'])test('queued '+action+' waits for history
  const queued=action==='split'?f.split('y'):f.changeLayout(3);assert.ok(queued&&typeof queued.then==='function');await f.time.advance(500);
  assert.deepEqual(clone(f.prefs()),before);assert.equal(f.renders.length,0);assert.equal(f.writes.length,0);assert.deepEqual(f.native.map(n=>n.action),['undo']);
  const tabs=['restored-a','restored-b','restored-c'].map(id=>({id,lane:'main'})),preferences={...before,tree:{axis:'x',ratio:.31,a:{id:'p7'},b:{id:'p8'}},slots:{p7:'restored-a',p8:'restored-b'},active:'p8',tabOrder:tabs.map(p=>p.id)};
- const restored=clone(preferences);f.resolveRestore({preferences,state:{tabs}});await Promise.all([restoring,queued]);
+ const restored=clone(preferences);f.resolveRestore({preferences,state:{tabs,desktopId:'desk-3',snapshot:{epoch:'unit-layout',revision:2}}});await Promise.all([restoring,queued]);
  assert.equal(f.m.switching,false);assert.equal(f.renders.length,2);assert.deepEqual(f.renders[0].tree,restored.tree);assert.deepEqual(f.renders[0].slots,restored.slots);assert.equal(f.renders[1].switching,false,'The queued edit must run after restore releases its switching gate');
  if(action==='split'){
   assert.equal(f.m.tree.ratio,.31);assert.deepEqual(L.leaves(f.m.tree),['p7','p8','p9']);assert.equal(f.m.tree.b.axis,'y');assert.equal(f.m.active,'p9');assert.deepEqual(clone(f.m.slots),{p7:'restored-a',p8:'restored-b',p9:'restored-c'});

@@ -239,6 +239,7 @@ class DesktopBank{
 async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  const saved=await store.get([KEY,'quadroPreferences']);const bank=new DesktopBank(saved[KEY],saved.quadroPreferences||{});
  const rawState=browser.state.bind(browser),oldSave=browser.save.bind(browser),oldCommand=browser.command.bind(browser),oldMake=browser.make.bind(browser),oldLayout=browser.layout.bind(browser),oldDispose=browser.dispose.bind(browser);
+ const stateEpoch=randomUUID();let stateRevision=0;
  let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false,lastPersisted='',pendingPersist=null,persistRunning=false;
  function rawLiveState(){
   const raw=rawState(),seen=new Set(),tabs=raw.tabs.filter(t=>{const page=browser.tabs.get(t.id),wc=page?.view?.webContents;return !seen.has(t.id)&&seen.add(t.id)&&!page?.provider&&!page?.ephemeral&&(t.internal||wc&&!wc.isDestroyed?.());});
@@ -262,7 +263,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
   }
   return queue;
  }
- function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState()};}
+ function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState(),snapshot:{epoch:stateEpoch,revision:++stateRevision}};}
  browser.state=state;
  browser.mouseAssignDesk=id=>bank.assign(id,creationDesk||bank.active);
  browser.make=(...args)=>{const t=oldMake(...args);bank.assign(t.id,creationDesk||bank.active);return t;};
