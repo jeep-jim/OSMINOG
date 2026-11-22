@@ -70,3 +70,19 @@ test('a user-detached preview survives delayed creation, navigation and persiste
 test('a live navigation error remains visible and is not mistaken for a cancelled relation',async()=>{
  const f=fixture();await f.router.route(f.chat,'https://source.example/first');const gate=deferred();f.holds.navigate=gate.promise;const pending=f.router.route(f.chat,'https://source.example/failure');await until(()=>f.entered.navigate>0);gate.reject(Error('Owned navigation failed'));await assert.rejects(pending,/Owned navigation failed/);assert.deepEqual(f.discarded,[]);assert.equal(f.browser.tabs.size,2);
 });
+test('moving a pending lower preview into a pane on the same desk preserves the detached page',async()=>{
+ for(const stage of ['open','navigate','persist']){
+  const f=fixture();f.bank.savePreferences({...f.bank.preferences(),aiOpen:true,aiId:f.chat.id});
+  if(stage==='navigate')await f.router.route(f.chat,'https://source.example/first');
+  const gate=deferred(),before=f.entered[stage];f.holds[stage]=gate.promise;
+  const pending=f.router.route(f.chat,'https://source.example/next');await until(()=>f.entered[stage]>before);
+  const preview=f.opened[0],wc=preview.view.webContents;
+  const moved=f.bank.detachPreview(preview.id,'p1',[...f.browser.tabs.values()]);
+  assert.equal(moved.detachedPreview,true);assert.equal(preview.lane,'main');assert.equal(preview.previewOf,undefined);
+  gate.resolve();assert.equal(await pending,null,'An older link transaction cannot reclaim the moved pane');
+  assert.equal(f.browser.tabs.get(preview.id),preview);assert.equal(preview.view.webContents,wc);
+  assert.equal(f.bank.members[preview.id],'desk-3');assert.equal(f.bank.preferences().slots.p1,preview.id);assert.deepEqual(f.discarded,[]);
+  f.holds[stage]=null;const next=await f.router.route(f.chat,'https://source.example/new-preview');
+  assert.notEqual(next.id,preview.id);assert.equal(f.browser.tabs.get(preview.id),preview);assert.equal(f.bank.preferences().slots.p1,preview.id);
+ }
+});

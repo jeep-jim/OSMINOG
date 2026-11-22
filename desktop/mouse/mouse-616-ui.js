@@ -4,8 +4,8 @@
  function install({model,tab,doc=document,clock=()=>performance.now()}){
   const pulses=new WeakMap();let timer=0;
   const prop=(node,key,value)=>{if(node[key]!==value)node[key]=value;},attribute=(node,key,value)=>{if(node.getAttribute(key)!==value)node.setAttribute(key,value);};
-  const all=()=>[...doc.querySelectorAll('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"]')];
-  function state(b){if(b.dataset.action==='ai-reload')return tab(model.aiId);const p=b.closest('.pane');return tab(model.slots[p?.dataset.pane||model.active]);}
+  const all=()=>[...doc.querySelectorAll('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"],[data-action="ai-preview-reload"]')];
+  function state(b){if(b.dataset.action==='ai-preview-reload')return tab(model.aiPreviewId);if(b.dataset.action==='ai-reload')return tab(model.aiId);const p=b.closest('.pane');return tab(model.slots[p?.dataset.pane||model.active]);}
   function sync(){
    for(const b of all()){
     if(!b.querySelector('.mouse-reload-glyph')){const glyph=doc.createElement('span');glyph.className='mouse-reload-glyph';glyph.setAttribute('aria-hidden','true');glyph.textContent='↻';b.replaceChildren(glyph);}
@@ -13,7 +13,7 @@
     prop(b,'disabled',!item);prop(b.dataset,'loading',String(busy||pulse));b.classList.toggle('mouse-reload-feedback',pulse);attribute(b,'aria-busy',String(busy));
    }
   }
-  function feedback(event){const b=event.target.closest?.('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"]');if(!b||b.disabled)return;pulses.set(b,clock()+500);sync();clearTimeout(timer);timer=setTimeout(sync,520);}
+  function feedback(event){const b=event.target.closest?.('[data-pane-action="reload"],[data-action="reload"],[data-action="ai-reload"],[data-action="ai-preview-reload"]');if(!b||b.disabled)return;pulses.set(b,clock()+500);sync();clearTimeout(timer);timer=setTimeout(sync,520);}
   doc.addEventListener('click',feedback,true);
   function fullscreen(active){
    const nativeMaximize=['win32','linux'].includes(root.MouseNative?.platform),selector='[data-action="fullscreen"],[data-settings-action="fullscreen"]',caption=active?'Выйти из полного экрана':'Полный экран';

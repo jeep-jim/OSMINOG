@@ -13,6 +13,7 @@ async function install({e,app,win,store,ipcMain,trusted,isPrivate=()=>false,test
  let settings=(await store.get('mouseCaptureArchive')).mouseCaptureArchive||{enabled:false,folder:defaults};if(typeof settings.folder!=='string'||!path.isAbsolute(settings.folder))settings.folder=defaults;
  const persist=async()=>store.set({mouseCaptureArchive:{enabled:archive.enabled,folder:archive.folder}});
  const deny=()=>{if(blockedError)throw Error(blockedError);if(paused())throw Error('Локальный архив недоступен в инкогнито или при блокировке устройства');};
+ const fileTools=require('./mouse-637-library-actions.cjs'),fileActions=fileTools.create({app,win,...fileTools.nativeOptions(e),isAvailable:()=>!blockedError&&!paused()&&!archive.closed});
  async function action(command,args={}){
   if(command==='state')return archive.state();deny();
   if(command==='toggle'){
@@ -30,6 +31,13 @@ async function install({e,app,win,store,ipcMain,trusted,isPrivate=()=>false,test
   }
   if(command==='list')return archive.list(args.query,args.offset);
   if(command==='preview')return archive.preview(args.id);
+  if(command==='context-menu'||command==='drag'){
+   const row=archive.items.find(x=>x.id===args.id);if(!row)throw Error('Копия не найдена');
+   const valid=()=>archive.items.includes(row)&&!paused()&&!archive.closed;
+   if(command==='drag')return fileActions.drag({filename:path.parse(row.title).name+(row.type==='text'?'.txt':'.png'),read:()=>readBounded(path.join(root,row.file),row.type==='text'?MAX_TEXT:MAX_IMAGE),valid});
+   const locale=(await store.get('quadroPreferences')).quadroPreferences?.locale||'ru',en=locale==='en';deny();
+   return fileActions.menu({row,kind:'captures',locale,x:args.x,y:args.y,valid,actions:[{id:'preview',label:en?'Preview':'Просмотр'},{id:'copy',label:en?'Copy':'Копировать'},{id:'remove',label:en?'Delete local copy':'Удалить локальную копию'}]});
+  }
   if(command==='remove'||command==='remove-selected'){
    const ids=command==='remove'?archive.selected({ids:[args.id]}):archive.selected(args);if(!ids.length)return{cleared:false,count:0};
    const answer=await e.dialog.showMessageBox(win,{type:'question',buttons:['Отмена','Удалить локальные копии'],defaultId:0,cancelId:0,message:'Удалить локальные копии: '+ids.length+'?',detail:'Будут удалены только выбранные копии в папке Mouse Captures. Исходные скриншоты, скачанные файлы и текущий буфер обмена не изменяются.'});if(answer.response!==1)return{cleared:false,count:0};deny();return{cleared:true,count:await archive.remove(ids)};
@@ -47,6 +55,6 @@ async function install({e,app,win,store,ipcMain,trusted,isPrivate=()=>false,test
  e.powerMonitor.on('lock-screen',lock);e.powerMonitor.on('unlock-screen',unlock);e.powerMonitor.on('suspend',lock);e.powerMonitor.on('resume',unlock);
  archive.folder=settings.folder;
  if(settings.enabled===true&&!test&&!blockedError){try{await archive.configure({enabled:true,folder:settings.folder});}catch(error){archive.error=error.message;archive.enabled=false;await persist();}}
- return{archive,action,privacyChanged:()=>{archive.epoch++;archive.wasPaused=true;},dispose:async()=>{e.powerMonitor.removeListener('lock-screen',lock);e.powerMonitor.removeListener('unlock-screen',unlock);e.powerMonitor.removeListener('suspend',lock);e.powerMonitor.removeListener('resume',unlock);await archive.dispose();}};
+ return{archive,action,fileActions,privacyChanged:()=>{archive.epoch++;archive.wasPaused=true;},dispose:async()=>{fileActions.dispose();e.powerMonitor.removeListener('lock-screen',lock);e.powerMonitor.removeListener('unlock-screen',unlock);e.powerMonitor.removeListener('suspend',lock);e.powerMonitor.removeListener('resume',unlock);await archive.dispose();}};
 }
 module.exports={install,recordExport};

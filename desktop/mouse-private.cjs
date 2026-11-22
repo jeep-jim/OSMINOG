@@ -36,6 +36,7 @@ class PrivateMode {
   else if(process.platform==='win32'){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-mcp-fs.node').paneCorners(win.getNativeWindowHandle(),rects);};}
   else if(process.platform==='linux')require('./mouse-linux-corners.cjs').install(win,browser);
   require('./mouse-stability.cjs').installWorkspace(browser);
+  require('./mouse-637-sidebar-dim.cjs').install(browser);
   // Explicitly bind only this private workspace's pages. Embedded views can
   // report no owning BrowserWindow while native fullscreen reparents them.
   const makePrivate=browser.make.bind(browser);
@@ -50,7 +51,7 @@ class PrivateMode {
    const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
    require('./mouse-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.mouseChromeGuard});
    register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state,event.senderFrame);});
-   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine});
+   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine,isAvailable:()=>!this.busy&&this.current?.browser===browser});
    current.libraryService=libraryService;
    // Do not even keep private visit/search/closed lists in the library UI.
    for(const name of ['visit','title','input','closed'])libraryService.library[name]=()=>{};

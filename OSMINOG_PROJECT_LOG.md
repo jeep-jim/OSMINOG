@@ -2839,3 +2839,13 @@ Scope, failure analysis and required publication evidence: [Mouse 6.0.37 release
 ### 2026-11-22 — 6.0.37: native continuation after 3ca4b8b
 
 The installed Linux run confirmed the published 6.0.36 upgrade and actual update-button automatic relaunch/profile preservation, then exposed a retained separator readback using the control-border token instead of the workspace seam. The readback now follows the effective workspace token without changing independent expected colors or PNG tolerances. Mac installed acceptance exposed the first Escape clearing language search without closing its chooser; the production chooser now closes once while preserving lower overlays and live page ownership. Focused suites pass 33 and 48 tests respectively. Full native acceptance and publication remain pending. Exact failed-run evidence, successful Linux sub-gates and unready publisher PR #66 are recorded in [the 6.0.37 release journal](docs/desktop/2026-11-22-mouse637-release.md#native-follow-up-on-3ca4b8b-observed-update-success-and-remaining-ui-corrections).
+
+
+### 2026-11-22 — единая 6.0.37: сайты под ИИ, пресеты и боковые панели
+
+Владелец дополнил текущий выпуск: высота/адрес/favicon и перенос живого сайта из-под ИИ; автоматически заполненные пресеты (контент 6×2, поддержка — четыре чата слева и Google Карты справа, трейдер — график/календарь/скринер/крипторынок); возвращение режима «Агенты» с отдельным localhost слева и тёмной стартовой областью; затемнение основных страниц при боковой панели; клик и настоящий файловый drag из библиотеки, остальные действия/дата через контекстное меню. Все прежние задачи 6.0.37 и сохранение профиля остаются обязательными. Исходные mode-ID/transfer проверки проходят; actual native acceptance ещё не принята. Следующий прогон исправляет ошибочную цель compact-header smoke (103 вместо минимальных 100 px), выявленную на всех трёх ОС в 589f95a. [Подробности, источники адресов и точные результаты](docs/desktop/2026-11-22-mouse637-release.md#2026-11-22--lower-ai-websites-populated-presets-and-quieter-side-panels). Публикации новой версии пока нет.
+
+
+### 2026-11-22 — единая 6.0.37: настройки, файлы и готовые режимы
+
+В общую ветку добавлены затемнение основных страниц при открытой боковой панели, тёмный фон панели как у toolbar, открытие карточки файла нажатием, настоящий native drag файла и контекстное меню с метаданными. Нижний сайт ИИ, готовые режимы и localhost включены в тот же installed feature scenario для трёх ОС. Целевые прогоны112/112,146/146,67/67 и отдельный lifecycle10/10 — пересекающиеся наборы, не общий счётчик. Реальная нативная приёмка и публикация ещё ожидаются; каналы6.0.36 не менялись. Подробности: docs/desktop/2026-11-22-mouse637-release.md.

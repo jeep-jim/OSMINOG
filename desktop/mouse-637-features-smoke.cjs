@@ -247,7 +247,7 @@ module.exports=async ctx=>{
      if(color==='dark')assert.notEqual(focused.panes[0].addressColor,state.panes[0].addressColor,'Focused dark address is more prominent than its resting text');
      const normalNative=records.map(fixture.nativeState);
      await fixture.js('MouseTest.model.tree={axis:"y",ratio:.5,a:{id:"p1"},b:{id:"p2"}};MouseTest.renderTree();MouseTest.requestLayout();MouseTest.save()');
-     await fixture.frame();const divider=await fixture.js('(()=>{const p=document.querySelector(".pane[data-pane=p1]").getBoundingClientRect(),d=document.querySelector(".divider[data-path=\\"\\"]").getBoundingClientRect();return{distance:p.y+103-(d.y+d.height/2)}})()');
+     await fixture.frame();const divider=await fixture.js('(()=>{const p=document.querySelector(".pane[data-pane=p1]").getBoundingClientRect(),d=document.querySelector(".divider[data-path=\\"\\"]").getBoundingClientRect();return{distance:p.y+MouseLayout.minimum({id:"p1"},"y")-(d.y+d.height/2)}})()');
      await dragDivider(0,divider.distance);await click('#native-witness',records[1]);
      let compact;await fixture.until(async()=>{compact=await fixture.js(`(${interfaceReadback.toString()})()`);return compact.panes[0].compact&&compact.panes[0].header.height<=5.5},'real compact header strip');
      const compactNatives=records.map(fixture.nativeState),compactNative=compactNatives[0];await capture('mouse-637-interface-'+color+'.png',[await witness(records[1])]);
@@ -300,6 +300,11 @@ module.exports=async ctx=>{
     }finally{wc.removeListener('media-started-playing',playing);if(heldRelease){heldRelease();heldRelease=null}if(restoreExecute){restoreExecute();restoreExecute=null}}
    });
    facts.audio.requests=requests;assert.ok(requests.some(x=>x.path==='/audio/one.wav')&&requests.some(x=>x.path==='/audio/two.wav'));
+   await stage('native-ai-preview-window',()=>require('./mouse-637-ai-preview-smoke.cjs')({app,win,browser,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records}));
+   const combinedContext={...ctx,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records};
+   await stage('native-populated-presets',()=>require('./mouse-637-presets-smoke.cjs')(combinedContext));
+   await stage('native-sidebar-focus',()=>require('./mouse-637-sidebar-focus-smoke.cjs')(combinedContext));
+   await stage('native-library-file-actions',()=>require('./mouse-637-library-actions-smoke.cjs')(combinedContext));
    await stage('native-appearance-settings',async()=>{
     await fixture.switchDesk(records[0].desk);await fixture.setLayout(records);
     const before=await Promise.all(records.map(fixture.identity));

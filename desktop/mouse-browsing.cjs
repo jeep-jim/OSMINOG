@@ -2,11 +2,13 @@
 const {Library,webURL}=require('./mouse-library.cjs');
 const {randomUUID}=require('node:crypto');
 const path=require('node:path'),fs=require('node:fs/promises');
-async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=false,searchEngine}){
+async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=false,searchEngine,isAvailable=()=>true}){
  const library=await new Library(store).init(),live=new Map(),retryURLs=new Map();
  const activity=new (require('./mouse-download-activity.cjs').DownloadActivity)({privateMode:browser.privateMode===true,resolveOrigin:origin=>{const desk=browser.mouseDesktops?.bank?.members?.[origin.tabId];return desk&&browser.tabs.has(origin.tabId)?{tabId:origin.tabId,desk}:{tabId:'',desk:''};}});
  const search=await require('./mouse-search.cjs').create({store,privateMode:browser.privateMode===true,inheritedEngine:searchEngine});browser.mouseSearch=search;
  const icons=require('./mouse-library-icons.cjs').createIcons({app,browser,library,nativeImage:require('electron').nativeImage});
+ const fileTools=require('./mouse-637-library-actions.cjs'),fileActions=fileTools.create({app,win,...fileTools.nativeOptions(require('electron')),isAvailable:()=>!browser.disposed&&isAvailable()});
+ const disposeBrowser=browser.dispose.bind(browser);browser.dispose=(...args)=>{fileActions.dispose();return disposeBrowser(...args);};
  // Coalesce bursts without postponing every progress update until a transfer
  // becomes quiet. Continuous downloads must still reach the visible indicator.
  let timer;const notify=()=>{if(timer)return;timer=setTimeout(()=>{timer=null;if(!win.isDestroyed())win.webContents.send('mouse:library-changed')},120);timer.unref?.()};
@@ -59,6 +61,15 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
   if(action==='preview')return icons.preview(args.id);
   if(action==='suggest')return library.suggestions(args.query);
   if(action==='list')return library.list(args.kind,args.query,args.offset);
+  if(action==='context-menu'||action==='drag'){
+   if(args.kind!=='downloads')throw Error('Недопустимая запись файла');const row=library.data.downloads.find(x=>x.id===args.id);if(!row)throw Error('Загрузка не найдена');
+   const valid=()=>!browser.disposed&&library.data.downloads.includes(row);
+   if(action==='drag'){if(row.state!=='completed'||!row.path)throw Error('Файл ещё не скачан');return fileActions.drag({file:row.path,valid:()=>valid()&&row.state==='completed'});}
+   const locale=(await store.get('quadroPreferences')).quadroPreferences?.locale||'ru',en=locale==='en',actions=[];
+   if(['progressing','paused'].includes(row.state)){actions.push({id:row.state==='paused'?'resume':'pause',label:en?(row.state==='paused'?'Resume':'Pause'):(row.state==='paused'?'Продолжить':'Пауза')},{id:'cancel',label:en?'Cancel':'Отменить'});}
+   else{if(row.state==='completed')actions.push({id:'open',label:en?'Open':'Открыть'},{id:'show',label:en?'Show in folder':'В папке'});else if(row.url)actions.push({id:'retry',label:en?'Retry':'Повторить'});actions.push({id:'remove',label:en?'Remove entry':'Удалить запись'});}
+   return fileActions.menu({row,kind:'downloads',locale,x:args.x,y:args.y,valid,actions});
+  }
   if(action==='icon')return args.kind==='downloads'?icons.download(args.id):icons.site(args.url);
   if(action==='remove-selected'){
    const ids=library.selected(args.kind,args);if(!ids.length)return{cleared:false,count:0};
@@ -77,6 +88,6 @@ async function install({app,win,browser,store,ipcMain,trusted,shell,dialog,test=
   if(action==='download')return download(args.action,args.id);
   throw Error('Unsupported library action');
  });
- return{library,search,flush:()=>Promise.all([library.flush(),search.flush()]),live,activity,contextMenu,icon:icons.site};
+ return{library,search,flush:()=>Promise.all([library.flush(),search.flush()]),live,activity,contextMenu,fileActions,icon:icons.site};
 }
 module.exports={install};

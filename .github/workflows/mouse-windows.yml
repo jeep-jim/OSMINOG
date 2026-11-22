@@ -123,6 +123,7 @@ jobs:
             desktop/mouse-*.log
             desktop/mouse-*.png
             desktop/mouse-*.json
+            desktop/mouse-637-library-source.txt
             desktop/mouse-631-upgrade/**
             desktop/mouse-637-baseline-performance/**
           if-no-files-found: warn
@@ -213,6 +214,7 @@ jobs:
             desktop/mouse-*.log
             desktop/mouse-*.png
             desktop/mouse-*.json
+            desktop/mouse-637-library-source.txt
             desktop/mouse-631-upgrade/**
             desktop/mouse-637-baseline-performance/**
           if-no-files-found: warn

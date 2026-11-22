@@ -67,3 +67,59 @@ globalThis.createMouseLocalUI=({panel,getState,call,status})=>{
  local('#agent-local-dev-stop').onclick=()=>void run('local-dev-stop');
  render(getState());return{render,dispose(){disposed=true;clearFile();section.remove();}};
 };
+
+// The Agents preset starts with a shell-owned Localhost landing. Opening a
+// running project uses the ordinary navigation path in that same tab; merely
+// mounting this page does not start a server or connect an Agent/model.
+(function(root){
+ function localURL(value){
+  const raw=String(value??'').trim();
+  if(!raw||raw.length>2048||/\s/.test(raw))throw Error('Введите адрес Localhost или порт от 1 до 65535');
+  if(/^\d+$/.test(raw)){
+   const port=Number(raw);if(!Number.isInteger(port)||port<1||port>65535)throw Error('Порт должен быть от 1 до 65535');
+   return'http://127.0.0.1:'+port+'/';
+  }
+  let url;try{url=new URL(/^https?:\/\//i.test(raw)?raw:'http://'+raw);}catch{throw Error('Введите корректный адрес Localhost');}
+  if(!['http:','https:'].includes(url.protocol)||!['localhost','127.0.0.1','[::1]'].includes(url.hostname)||url.username||url.password)throw Error('Нужен адрес HTTP или HTTPS на Localhost без логина и пароля');
+  if(url.port&&(!Number.isInteger(Number(url.port))||Number(url.port)<1||Number(url.port)>65535))throw Error('Порт должен быть от 1 до 65535');
+  return url.href;
+ }
+ root.createMouseLocalPreviewUI=({navigate,locale=()=> 'ru',status=()=>{},configure,doc=document})=>{
+  const roots=new Map(),tr=(ru,en)=>locale()==='en'?en:ru;
+  const make=(tag,cls,text)=>{const node=doc.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node;};
+  const current=info=>roots.get(info.root)===info&&info.root.isConnected;
+  function paint(info){
+   info.root.setAttribute('aria-label',tr('Предпросмотр Localhost','Localhost preview'));
+   info.badge.textContent=tr('Локальный проект','Local project');info.heading.textContent='Localhost';
+   info.description.textContent=tr('Откройте приложение, запущенное на вашем компьютере. Результат появится здесь, рядом с агентом.','Open an app running on your computer. It will appear here, next to the agent.');
+   info.labelText.textContent=tr('Адрес или порт','Address or port');info.input.setAttribute('aria-label',info.labelText.textContent);
+   info.input.placeholder='http://localhost:5173';info.open.textContent=tr('Открыть','Open');info.settings.textContent=tr('Настройки проекта','Project settings');
+   info.note.textContent=tr('Для запуска проекта укажите папку и команду в настройках агента.','To start a project, choose its folder and command in the agent settings.');
+  }
+  async function run(info,action){
+   if(info.busy||!current(info))return;info.busy=true;info.input.disabled=info.open.disabled=info.settings.disabled=true;info.message.textContent='';
+   try{await Promise.resolve().then(()=>current(info)?action():undefined);}
+   catch(cause){if(current(info)){const message=String(cause?.message||cause);info.message.textContent=message;status(message);}}
+   finally{info.busy=false;if(current(info))info.input.disabled=info.open.disabled=info.settings.disabled=false;}
+  }
+  function mount(slot,pane,enabled){
+   for(const section of roots.keys())if(!section.isConnected)roots.delete(section);
+   let section=slot.querySelector('.localhost-start');
+   if(!enabled){if(section){roots.delete(section);section.remove();}return;}
+   const empty=slot.querySelector('.empty');if(empty)empty.hidden=true;
+   if(section){const existing=roots.get(section);if(existing)paint(existing);return;}
+   section=make('section','localhost-start');const card=make('div','localhost-start-card'),symbol=make('span','localhost-start-symbol','›_');symbol.setAttribute('aria-hidden','true');
+   const badge=make('p','localhost-start-badge'),heading=make('h2','localhost-start-title'),description=make('p','localhost-start-description'),form=make('form','localhost-start-form'),label=make('label','localhost-start-label'),labelText=make('span'),row=make('div','localhost-start-input-row'),input=make('input','localhost-start-address'),open=make('button','localhost-start-open');
+   input.type='text';input.autocomplete='off';input.spellcheck=false;input.maxLength=2048;input.value='http://127.0.0.1:3000/';open.type='submit';
+   row.append(input,open);label.append(labelText,row);form.append(label);
+   const message=make('p','localhost-start-message'),note=make('p','localhost-start-note'),settings=make('button','localhost-start-settings');message.setAttribute('role','status');settings.type='button';settings.hidden=typeof configure!=='function';
+   card.append(symbol,badge,heading,description,form,message,settings,note);section.append(card);slot.append(section);
+   const info={root:section,pane,badge,heading,description,labelText,input,open,message,note,settings,busy:false};roots.set(section,info);paint(info);
+   form.onsubmit=event=>{event.preventDefault();return run(info,()=>navigate(localURL(input.value),info.pane));};
+   settings.onclick=()=>run(info,()=>configure?.());
+  }
+  function refresh(){for(const [section,info]of roots){if(!section.isConnected){roots.delete(section);continue;}paint(info);}}
+  return{mount,refresh};
+ };
+ root.MouseLocalPreview=Object.freeze({url:localURL});
+})(globalThis);

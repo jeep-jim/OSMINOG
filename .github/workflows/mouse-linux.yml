@@ -105,6 +105,7 @@ jobs:
             desktop/mouse-*.log
             desktop/mouse-*.png
             desktop/mouse-*.json
+            desktop/mouse-637-library-source.txt
             desktop/mouse-linux-appimage/**
             desktop/mouse-637-baseline-performance/**
           if-no-files-found: warn
