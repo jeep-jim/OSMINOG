@@ -1,7 +1,7 @@
 /* Mouse's monochrome world. Fonts and assets are served by this site. */
 @font-face {
   font-family: "Mouse Display";
-  src: url("fonts/MouseGrid.ttf") format("truetype");
+  src: url("/fonts/MouseGrid.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -29,7 +29,8 @@
 }
 * { box-sizing: border-box; }
 html { min-width: 300px; background: var(--paper); scroll-behavior: smooth; }
-body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; background: var(--paper); color: var(--ink); transition: background-color .32s, color .32s; }
+body { margin: 0; min-height: 100vh; min-height: 100svh; background: var(--paper); color: var(--ink); transition: background-color .32s, color .32s; }
+.first-screen { min-height: 100vh; min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; }
 a { color: inherit; }
 button, summary, a, select { -webkit-tap-highlight-color: transparent; }
 button, select { font: inherit; }
@@ -90,7 +91,19 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
 .install-panel a { text-underline-offset: 3px; }
 .site-footer { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 27px 48px 30px; font-size: 14px; line-height: 1.55; }
 .footer-signature { font-weight: 600; letter-spacing: -.015em; }
+.footer-signature { text-decoration-color: var(--line); text-underline-offset: 4px; }
 .site-footer p { margin: 0; max-width: 58ch; text-align: end; color: var(--soft-ink); }
+.about { width: min(1120px, calc(100% - 96px)); margin: 0 auto; padding: 64px 0 72px; border-top: 1px solid var(--line); scroll-margin-top: 24px; }
+.about h2 { margin: 0 0 36px; font-size: clamp(24px, 3vw, 36px); line-height: 1.25; letter-spacing: -.025em; font-weight: 600; }
+.about-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; }
+.about h3 { margin: 0 0 12px; font-size: 18px; line-height: 1.4; font-weight: 600; }
+.about p { margin: 0; font-size: 16px; line-height: 1.75; color: var(--soft-ink); }
+.language-directory { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); }
+.language-directory summary { width: fit-content; font-size: 16px; cursor: pointer; }
+.language-count { margin-inline-start: 8px; color: var(--soft-ink); font-variant-numeric: tabular-nums; }
+.language-links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin-top: 28px; }
+.language-links a { width: fit-content; font-size: 16px; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.language-links a[aria-current="page"] { font-weight: 600; text-decoration: none; }
 .mobile-break { display: none; }
 @keyframes mouse-blink { 0%, 27%, 31%, 34%, 37%, 74%, 78%, 100% { transform: scaleY(1); } 29%, 35.5%, 76% { transform: scaleY(.08); } }
 @keyframes mouse-sniff { 0%, 48%, 58%, 67%, 100% { transform: translateY(0); } 52%, 62% { transform: translateY(-.16px) scale(1.025); } }
@@ -113,6 +126,10 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
   .release-line { flex-wrap: wrap; gap: 3px 14px; margin-top: 10px; }
   .site-footer { padding: 20px 24px 26px; align-items: center; }
   .mobile-break { display: block; }
+  .about { width: calc(100% - 48px); padding: 44px 0 48px; }
+  .about-grid { grid-template-columns: 1fr; gap: 28px; }
+  .about h2 { margin-bottom: 28px; }
+  .language-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 440px) {
   .wordmark { font-size: 15px; }

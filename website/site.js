@@ -24,13 +24,16 @@
     const match = byCode.get(aliases[base] || base);
     return match ? match.code : null;
   };
+  // A published language URL always renders the same language, including before JS.
+  // Saved/browser preferences never silently replace its indexable HTML.
+  const staticLanguage = matchLanguage(root.dataset.staticLanguage);
   let requestedLanguage = null;
   try {
     const parameter = new URLSearchParams(window.location.search).get('lang');
     const exact = parameter && byCode.get(parameter.replace(/_/g, '-').toLowerCase());
     requestedLanguage = exact ? exact.code : null;
   } catch (_) { /* The static page also works without URL parsing. */ }
-  let language = requestedLanguage || matchLanguage(readPreference(languageKey));
+  let language = staticLanguage || requestedLanguage || matchLanguage(readPreference(languageKey));
   if (!language) {
     for (const preferred of navigator.languages || [navigator.language || 'en']) {
       language = matchLanguage(preferred);
@@ -94,9 +97,11 @@
       const translated = text(node.dataset.i18nAria);
       if (translated) node.setAttribute('aria-label', translated);
     });
-    if (text('pageTitle')) document.title = text('pageTitle');
-    const description = document.querySelector('meta[name="description"]');
-    if (description && text('metaDescription')) description.content = text('metaDescription');
+    if (!staticLanguage) {
+      if (text('pageTitle')) document.title = text('pageTitle');
+      const description = document.querySelector('meta[name="description"]');
+      if (description && text('metaDescription')) description.content = text('metaDescription');
+    }
     fitHeadline();
     if (languagePicker) languagePicker.update({ selectedCode: language, labels: languageLabels() });
     if (updateLocation) {
@@ -110,6 +115,14 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    if (staticLanguage && requestedLanguage && requestedLanguage !== staticLanguage) {
+      // Preserve old explicitly selected ?lang= links, without language auto-redirects.
+      const url = new URL(window.location.href);
+      url.pathname = '/' + requestedLanguage.toLowerCase() + '/';
+      url.searchParams.delete('lang');
+      window.location.replace(url);
+      return;
+    }
     const languageHost = document.getElementById('language-picker');
     languagePicker = window.MouseLanguagePicker.create({
       host: languageHost,
@@ -117,8 +130,14 @@
       selectedCode: language,
       labels: languageLabels(),
       onSelect(value) {
-        setLanguage(value, true);
-        savePreference(languageKey, language);
+        const next = matchLanguage(value);
+        if (!next) return;
+        savePreference(languageKey, next);
+        if (staticLanguage) {
+          window.location.assign('/' + next.toLowerCase() + '/');
+        } else {
+          setLanguage(next, true);
+        }
       }
     });
     languageHost.hidden = false;
