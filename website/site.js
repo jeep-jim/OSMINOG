@@ -48,12 +48,19 @@
     const fallback = i18n.messages.en || i18n.messages.ru || {};
     return active[key] || fallback[key] || '';
   };
+  let languagePicker = null;
+  const languageLabels = () => ({
+    languageLabel: text('languageLabel'),
+    languageSearch: text('languageSearch'),
+    languageNoResults: text('languageNoResults'),
+    languageClose: text('languageClose')
+  });
   const setTheme = (value) => {
     theme = value === 'light' ? 'light' : 'dark';
     root.dataset.theme = theme;
     const light = theme === 'light';
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = light ? '#ffffff' : '#000000';
+    if (meta) meta.content = light ? '#ffffff' : '#1e1e1e';
     const button = document.getElementById('theme-switch');
     if (button) {
       const label = text(light ? 'themeDark' : 'themeLight') || (light ? 'Выключить свет' : 'Включить свет');
@@ -79,11 +86,7 @@
     if (text('pageTitle')) document.title = text('pageTitle');
     const description = document.querySelector('meta[name="description"]');
     if (description && text('metaDescription')) description.content = text('metaDescription');
-    const selector = document.getElementById('language-select');
-    if (selector) {
-      selector.value = language;
-      selector.title = text('languageLabel');
-    }
+    if (languagePicker) languagePicker.update({ selectedCode: language, labels: languageLabels() });
     if (updateLocation) {
       try {
         const url = new URL(window.location.href);
@@ -95,22 +98,18 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    const selector = document.getElementById('language-select');
-    const options = document.createDocumentFragment();
-    for (const item of languages) {
-      const option = document.createElement('option');
-      option.value = item.code;
-      option.textContent = item.name;
-      option.lang = item.code;
-      option.dir = item.dir || 'ltr';
-      options.appendChild(option);
-    }
-    selector.replaceChildren(options);
-    selector.closest('.language-control').hidden = false;
-    selector.addEventListener('change', () => {
-      setLanguage(selector.value, true);
-      savePreference(languageKey, language);
+    const languageHost = document.getElementById('language-picker');
+    languagePicker = window.MouseLanguagePicker.create({
+      host: languageHost,
+      languages,
+      selectedCode: language,
+      labels: languageLabels(),
+      onSelect(value) {
+        setLanguage(value, true);
+        savePreference(languageKey, language);
+      }
     });
+    languageHost.hidden = false;
 
     const button = document.getElementById('theme-switch');
     button.hidden = false;
