@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import io
 import json
 import os
@@ -90,6 +91,75 @@ class WindowsVerificationContracts(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'observing baseline'):
                     verify.main([str(installer), '--output', str(root / 'output')])
             self.assertEqual(order, ['complete legacy WRITE replacement READ', 'prepare then independent verify', 'mouse-637-baseline-performance.py'])
+
+    def test_feature_reports_survive_later_failure_and_final_wrapper_save(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installer = root / 'candidate.exe'
+            installer.write_bytes(b'unit fixture only')
+            output = root / 'output'
+            output.mkdir()
+            for name in ('mouse-637-baseline-performance', 'mouse-637-update-button', 'mouse-637-upgrade',
+                         'mouse-636-retained-owner-feedback', 'mouse-633-owner-feedback', 'mouse-631-native',
+                         'mouse-631-task', 'mouse-631-stress', 'mouse-632-media', 'mouse-636-owner-feedback'):
+                (output / (name + '.json')).write_bytes(b'{"unitFixtureOnly":true}\n')
+            written = {'schema': 1, 'version': verify.VERSION, 'pid': 1072, 'writePid': 1072,
+                       'phase': 'write', 'ok': False, 'restored': False, 'fixture': 'Сохранённые байты'}
+            completed = {**written, 'phase': 'complete', 'ok': True, 'restored': True, 'restart': {'pid': 2904}}
+            raw_write = (json.dumps(written, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+            raw_read = (json.dumps(completed, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+            markers = {
+                'mouse-637-baseline-performance.log': ['MOUSE_637_BASELINE_PERFORMANCE_PASS'],
+                'mouse-637-update-button.log': ['MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS'],
+                'mouse-637-upgrade.log': ['MOUSE_637_REAL_636_TO_637_PROFILE_PASS'],
+                'mouse-636-retained-owner-feedback.log': ['MOUSE_636_RETAINED_OWNER_FEEDBACK_PASS'],
+                'mouse-633-owner-feedback.log': ['MOUSE_633_OWNER_FEEDBACK_PASS'],
+                'mouse-631-native.log': ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',
+                                         'MOUSE_631_INSTALLED_TASK_STRESS_PASS', 'MOUSE_632_STATIONARY_MEDIA_PASS'],
+                'mouse-636-owner-feedback.log': ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS',
+                                                'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS',
+                                                'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS'],
+                'mouse-637-features-write.log': ['MOUSE_637_FEATURES_WRITE_PASS'],
+                'mouse-637-features-read.log': ['MOUSE_637_FEATURES_NATIVE_PASS'],
+            }
+            before_failure = {}
+            def run(args, env, log, timeout):
+                if log.name == 'mouse-windows-smoke-write.log':
+                    before_failure['feature'] = (output / 'mouse-637-features.json').read_bytes()
+                    before_failure['wrapper'] = json.loads((output / 'mouse-windows-verification.json').read_bytes())
+                    raise RuntimeError('retained native write failed after completed features')
+                pid = 1000
+                if log.name == 'mouse-637-features-write.log':
+                    (output / 'mouse-637-features.json').write_bytes(raw_write)
+                    pid = written['pid']
+                elif log.name == 'mouse-637-features-read.log':
+                    (output / 'mouse-637-features.json').write_bytes(raw_read)
+                    pid = completed['restart']['pid']
+                text = '\n'.join(markers[log.name]) + '\n'
+                log.write_text(text, encoding='utf-8')
+                return {'pid': pid, 'exitCode': 0, 'elapsedMs': 1, 'log': log.name, 'output': text}
+            with mock.patch.dict(os.environ, {'CI': 'true', 'RUNNER_TEMP': directory}), \
+                    mock.patch.object(verify, 'user32'), \
+                    mock.patch.object(verify, 'version_upgrade', return_value={'ok': True}), \
+                    mock.patch.object(verify, 'prepare_current_display', return_value={'ok': True}), \
+                    mock.patch.object(verify, 'install', return_value={'pid': 999, 'exitCode': 0}), \
+                    mock.patch.object(verify, 'run_logged', side_effect=run), \
+                    mock.patch.object(verify.subprocess, 'run'):
+                with self.assertRaisesRegex(RuntimeError, 'retained native write failed'):
+                    verify.main([str(installer), '--output', str(output)])
+            self.assertEqual(before_failure['feature'], raw_read)
+            final = json.loads((output / 'mouse-windows-verification.json').read_bytes())
+            self.assertFalse(final['ok'])
+            self.assertEqual(final['error']['message'], 'retained native write failed after completed features')
+            self.assertNotIn('error', before_failure['wrapper'])
+            self.assertEqual(final['checks']['features637'], before_failure['wrapper']['checks']['features637'])
+            for phase, raw, filename, pid in (('write', raw_write, 'mouse-637-features-write.json', 1072),
+                                            ('read', raw_read, 'mouse-637-features.json', 2904)):
+                self.assertEqual((output / filename).read_bytes(), raw)
+                process = final['checks']['features637'][phase]
+                self.assertEqual((process['pid'], process['report']), (pid, filename))
+                self.assertEqual(process['reportSha256'], hashlib.sha256(raw).hexdigest())
+            self.assertEqual(final['checks']['features637']['reportSha256'], hashlib.sha256(raw_read).hexdigest())
 
     def test_signature_measurement_preserves_native_errors_and_reads_utf8_file(self):
         with tempfile.TemporaryDirectory() as directory:

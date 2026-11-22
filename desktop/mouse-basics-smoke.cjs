@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {waitForDownloadRow}=require('./mouse-630-feedback-smoke.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let i=0;i<200;i++){if(await fn())return;await sleep(60)}throw Error('Timed out '+label)}
 function basicsInputBudget({timeoutMs=12000,now=()=>performance.now(),setTimer=setTimeout,clearTimer=clearTimeout}={}){
@@ -174,7 +175,8 @@ module.exports=async({app,win,browser,libraryService})=>{
   await js(`MouseNative.library('download',{id:${JSON.stringify(id)},action:'pause'})`);assert.equal(lib.data.downloads[0].state,'paused');
   await js(`MouseNative.library('download',{id:${JSON.stringify(id)},action:'resume'})`);await until(()=>lib.data.downloads.find(x=>x.id===id)?.state==='completed','real download completed');
   assert.equal((await fs.readFile(destination)).length,262144);
-  await click('#downloads-button');await until(()=>js('document.querySelector("#library-dialog").open'),'downloads UI');assert.ok(await js('document.querySelector("#library-rows").textContent.includes("mouse-fixture.bin")'));await click('#library-close');
+  const completedDownload=lib.data.downloads.find(item=>item.id===id);assert.equal(completedDownload.filename,'mouse-fixture.bin');
+  await click('#downloads-button');const libraryRow=await waitForDownloadRow({js,id:completedDownload.id,filename:completedDownload.filename});assert.equal(libraryRow.id,completedDownload.id);assert.equal(libraryRow.control.aria,completedDownload.filename);await click('#library-close');
   await js(`MouseNative.library('remove',{kind:'downloads',id:${JSON.stringify(id)}})`);assert.ok((await fs.stat(destination)).isFile(),'Removing list entry never deletes file');
   console.log('MOUSE_DOWNLOAD_PROGRESS_PAUSE_RESUME_FILE_PASS');
   for(const fullscreen of [false,true]){

@@ -616,10 +616,10 @@ def main(argv=None) -> int:
                 "installerSha256": sha256(installer), "profile": str(profile),
                 "physicalUserDeviceVerified": False, "liveExternalAccountsVerified": False,
                 "checks": {}}
-    report = output / "mouse-windows-verification.json"
+    wrapper_report = output / "mouse-windows-verification.json"
 
     def save():
-        report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        wrapper_report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     try:
         # NSIS has one registered installation per appId. Finish the old/new
