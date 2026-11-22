@@ -339,11 +339,11 @@ def kill_owned_tree(process: subprocess.Popen) -> None:
         process.wait(timeout=10)
 
 
-def run_logged(args, env, output: Path, timeout: float) -> dict:
+def run_logged(args, env, output: Path, timeout: float | None) -> dict:
     started = time.monotonic()
     with output.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(args, env=env, cwd=output.parent, stdout=log, stderr=subprocess.STDOUT)
-        deadline = started + timeout
+        deadline = started + timeout if timeout is not None else float("inf")
         exit_request = None
         try:
             while process.poll() is None:
@@ -363,8 +363,10 @@ def run_logged(args, env, output: Path, timeout: float) -> dict:
     print(text, flush=True)
     if process.returncode != 0:
         raise RuntimeError(f"Native process failed with code {process.returncode}; see {output.name}")
+    finished = time.monotonic()
     return {"pid": process.pid, "exitCode": process.returncode,
-            "elapsedMs": round((time.monotonic() - started) * 1000), "log": output.name,
+            "startedAtMs": started * 1000, "finishedAtMs": finished * 1000,
+            "elapsedMs": round((finished - started) * 1000), "log": output.name,
             "output": text}
 
 
@@ -545,6 +547,37 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
             "preserved": preserved}
 
 
+def prepare_current_display(env: dict, output: Path) -> dict:
+    """Prepare the current workload only after the complete immutable629 proof.
+
+    Both PowerShell invocations retain the workflow's existing overall budget;
+    no legacy/native scenario deadline or supported display mode is changed.
+    """
+    helper = Path(__file__).with_name("mouse-637-windows-display.ps1").resolve()
+    report = output / "mouse-637-display.json"
+    if not helper.is_file() or report.exists():
+        raise RuntimeError("Current Windows display requires its exact source helper and a fresh receipt")
+    command = ["pwsh", "-NoProfile", "-File", str(helper), "-OutputPath", str(report)]
+    processes = {}
+    for phase, marker in (("prepare", "MOUSE_637_WINDOWS_DISPLAY_PREPARED"),
+                          ("verify", "MOUSE_637_WINDOWS_DISPLAY_PERSISTENCE_PASS")):
+        args = command if phase == "prepare" else command + ["-Verify"]
+        log = output / ("mouse-637-display-" + phase + ".log")
+        process = run_logged(args, env, log, None)
+        verify_markers(process.pop("output"), [marker])
+        process.update(requiredMarkers=[marker], logSha256=sha256(log))
+        processes[phase] = process
+        receipt = json.loads(report.read_text(encoding="utf-8-sig"))
+        if (receipt.get("ok") is not True or receipt.get("version") != VERSION
+                or receipt.get("platform") != "win32" or receipt.get("pid") != processes["prepare"]["pid"]):
+            raise RuntimeError("Current Windows display preparation receipt is not from the actual process")
+        if phase == "verify" and (receipt.get("processExitVerified") is not True
+                or receipt.get("persistence", {}).get("pid") != process["pid"]
+                or process["pid"] == processes["prepare"]["pid"]):
+            raise RuntimeError("Current Windows display was not verified by a distinct exited process")
+    return {"ok": True, "report": report.name, "reportSha256": sha256(report), **processes}
+
+
 def main(argv=None) -> int:
     # The Windows runner's redirected Python stdout can retain an ANSI code
     # page even though Electron logs and our owned paths are UTF-8/Unicode.
@@ -592,6 +625,15 @@ def main(argv=None) -> int:
         # NSIS has one registered installation per appId. Finish the old/new
         # upgrade first, then install the primary test target; never keep two
         # registered Mouse installations or launch an uninstalled old path.
+        # The unchanged629 package runs in the runner's incoming display mode.
+        # Two failures after changing that mode motivated this controlled
+        # ordering; they did not identify an internal629 capture predicate.
+        evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
+        save()
+        evidence["checks"]["displayPreparation"] = prepare_current_display(env, output)
+        save()
+        # The published636 baseline and every current workload now share the
+        # same independently verified advertised display mode.
         baseline = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-baseline-performance.py")), "--output", str(output)], env,
                               output / "mouse-637-baseline-performance.log", 900)
         verify_markers(baseline.pop("output"), ["MOUSE_637_BASELINE_PERFORMANCE_PASS"])
@@ -605,8 +647,6 @@ def main(argv=None) -> int:
         button.update(requiredMarkers=["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"],
                       logSha256=sha256(output / "mouse-637-update-button.log"), reportSha256=sha256(output / "mouse-637-update-button.json"))
         evidence["checks"]["updateFrom636"] = button
-        save()
-        evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
         save()
         fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-upgrade.py")), str(installer)], env,
                            output / "mouse-637-upgrade.log", 480)

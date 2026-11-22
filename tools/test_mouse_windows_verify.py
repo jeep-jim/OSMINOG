@@ -17,6 +17,80 @@ spec.loader.exec_module(verify)
 
 
 class WindowsVerificationContracts(unittest.TestCase):
+    def test_display_preparation_uses_two_exited_processes_and_binds_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            calls = []
+            def run(args, env, log, timeout):
+                calls.append(args)
+                self.assertIsNone(timeout, 'Only the unchanged overall workflow deadline bounds these commands')
+                phase = 'verify' if '-Verify' in args else 'prepare'
+                marker = 'MOUSE_637_WINDOWS_DISPLAY_' + ('PERSISTENCE_PASS' if phase == 'verify' else 'PREPARED')
+                pid = 102 if phase == 'verify' else 101
+                log.write_text(marker + '\n', encoding='utf-8')
+                receipt = {'ok': True, 'version': '6.0.37', 'platform': 'win32', 'pid': 101}
+                if phase == 'verify':
+                    receipt.update(processExitVerified=True, persistence={'pid': pid})
+                (output / 'mouse-637-display.json').write_text(json.dumps(receipt), encoding='utf-8')
+                return {'pid': pid, 'exitCode': 0, 'startedAtMs': pid, 'finishedAtMs': pid + .5,
+                        'elapsedMs': 1, 'log': log.name, 'output': marker + '\n'}
+            with mock.patch.object(verify, 'run_logged', side_effect=run):
+                result = verify.prepare_current_display({'CI': 'true'}, output)
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(calls[0][:3], ['pwsh', '-NoProfile', '-File'])
+            self.assertNotIn('-Verify', calls[0])
+            self.assertIn('-Verify', calls[1])
+            self.assertEqual(result['prepare']['pid'], 101)
+            self.assertEqual(result['verify']['pid'], 102)
+            self.assertEqual(result['reportSha256'], verify.sha256(output / 'mouse-637-display.json'))
+
+    def test_display_failure_never_runs_the_second_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(verify, 'run_logged', side_effect=RuntimeError('native prepare failed')) as run:
+                with self.assertRaisesRegex(RuntimeError, 'native prepare failed'):
+                    verify.prepare_current_display({'CI': 'true'}, Path(directory))
+            self.assertEqual(run.call_count, 1)
+
+    def test_complete_legacy_and_both_display_processes_are_required_before_baseline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installer = root / 'candidate.exe'
+            installer.write_bytes(b'unit fixture only')
+            for failed in ('legacy', 'display'):
+                with self.subTest(failed=failed), mock.patch.dict(os.environ, {'CI': 'true', 'RUNNER_TEMP': directory}), \
+                        mock.patch.object(verify, 'user32'), \
+                        mock.patch.object(verify, 'version_upgrade', side_effect=RuntimeError('legacy failure') if failed == 'legacy' else None, return_value={'ok': True}) as legacy, \
+                        mock.patch.object(verify, 'prepare_current_display', side_effect=RuntimeError('display failure')) as display, \
+                        mock.patch.object(verify, 'run_logged') as current:
+                    with self.assertRaisesRegex(RuntimeError, failed + ' failure'):
+                        verify.main([str(installer), '--output', str(root / failed)])
+                    legacy.assert_called_once()
+                    self.assertEqual(display.call_count, 0 if failed == 'legacy' else 1)
+                    current.assert_not_called()
+
+    def test_current_baseline_is_first_after_successful_legacy_and_display(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            installer = root / 'candidate.exe'
+            installer.write_bytes(b'unit fixture only')
+            order = []
+            def legacy(*_args):
+                order.append('complete legacy WRITE replacement READ')
+                return {'ok': True}
+            def display(*_args):
+                order.append('prepare then independent verify')
+                return {'ok': True}
+            def baseline(args, *_args):
+                order.append(Path(args[1]).name)
+                raise RuntimeError('stop after observing baseline invocation')
+            with mock.patch.dict(os.environ, {'CI': 'true', 'RUNNER_TEMP': directory}), mock.patch.object(verify, 'user32'), \
+                    mock.patch.object(verify, 'version_upgrade', side_effect=legacy), \
+                    mock.patch.object(verify, 'prepare_current_display', side_effect=display), \
+                    mock.patch.object(verify, 'run_logged', side_effect=baseline):
+                with self.assertRaisesRegex(RuntimeError, 'observing baseline'):
+                    verify.main([str(installer), '--output', str(root / 'output')])
+            self.assertEqual(order, ['complete legacy WRITE replacement READ', 'prepare then independent verify', 'mouse-637-baseline-performance.py'])
+
     def test_signature_measurement_preserves_native_errors_and_reads_utf8_file(self):
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / "Mouse Browser.exe"

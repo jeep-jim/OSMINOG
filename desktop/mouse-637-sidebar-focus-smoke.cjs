@@ -33,7 +33,7 @@ function assertShell(value,enabled,kind){
 module.exports=async function verifySidebarFocus({browser,fixture,click,capture,theme,facts,records}){
  const report={schema:1,opacity:.14,source:'Owned native and browser-owned panes, real OS capture and trusted native clicks',samples:[],ok:false};facts.sidebarFocus=report;
  const owned=ownedPage(),server=http.createServer((req,res)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'unsafe-inline'; style-src 'self'; img-src 'self' data:; connect-src 'self'");if(req.url==='/site.css'){res.writeHead(200,{'Content-Type':'text/css'});res.end(owned.css);}else if(req.url==='/page/5/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(owned.html);}else{res.writeHead(404);res.end();}});
- let primary,start;
+ let primary,start,error,cleanupError;
  const readShell=()=>fixture.js('('+shellReadback.toString()+')()'),readGuest=()=>fixture.pageJS(primary,'('+guestReadback.toString()+')()');
  const native=page=>{const value=fixture.nativeState(page);assert.equal(browser.tabs.get(page.id),page.page);for(const key of ['visible','parentVisible','cachedVisible','attached'])assert.equal(value[key],true);return{...value,dim:browser.mouseSidebarDim.state(page.page)};};
  async function settle(enabled,kind){
@@ -47,7 +47,8 @@ module.exports=async function verifySidebarFocus({browser,fixture,click,capture,
  }
  try{
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});report.origin='http://127.0.0.1:'+server.address().port;report.csp="style-src 'self'";
-  primary=await fixture.open(report.origin+'/page/5/',5);const opened=await browser.command('open',{url:'mouse://start',lane:'main'});start={id:opened.id,desk:fixture.bank.active,page:browser.get(opened.id)};fixture.created.push(start);
+  primary=await fixture.open(report.origin+'/page/5/',5);const opened=await browser.command('open',{url:'mouse://start',lane:'main'});start={id:opened.id,desk:fixture.bank.active};
+  assert.equal(browser.state().tabs.find(tab=>tab.id===start.id)?.internal,true,'The start-page fixture is owned by browser chrome');assert.equal(browser.tabs.has(start.id),false,'An internal start page has no native WebContents');
   const tree=L.preset(3),slots={p1:primary.id,p2:records[1].id,p3:start.id};
   await fixture.js(`(async()=>{MouseTest.settingsUI.close();MouseTest.browsing.close();MouseTest.model.state=await MouseNative.browser('state');Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:'p1',mode:'',aiOpen:false,agentOpen:false,focusAI:false,focusPane:''});MouseTest.renderTree();MouseTest.applySide();const slot=document.querySelector('.pane[data-pane="p3"] .page-slot'),w=document.createElement('div');w.id='mouse-637-shell-witness';w.setAttribute('aria-hidden','true');for(const [key,value]of Object.entries({position:'absolute',left:'24px',top:'174px',width:'72px',height:'32px',background:'rgb(37,143,191)',zIndex:'10',pointerEvents:'none'}))w.style[key]=value;slot.append(w);await MouseTest.save();MouseTest.requestLayout();})()`);
   await fixture.until(()=>primary.page.visible&&records[1].page.visible&&primary.page.bounds?.height>280,'owned native and start layout is visible');await fixture.frame();
@@ -65,10 +66,17 @@ module.exports=async function verifySidebarFocus({browser,fixture,click,capture,
    const after=await settle(false),afterIdentities=await Promise.all([fixture.identity(primary),fixture.identity(records[1])]);for(let i=0;i<identities.length;i++)fixture.assertIdentity(identities[i],afterIdentities[i]);assert.deepEqual(after.guest.author,before.guest.author);sample.after={...after,identities:afterIdentities};sample.captures.restored=await shot('mouse-637-sidebar-restored-'+color+'.png',false);
   }
   report.ok=true;
+ }catch(cause){error=cause;
  }finally{
-  server.closeAllConnections();await new Promise(resolve=>server.close(resolve));
-  if(report.ok){await fixture.setLayout(records);for(const item of [primary,start])await fixture.js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(item.id)}})`);}
+  try{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));if(report.ok){await fixture.setLayout(records);await fixture.js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(primary.id)}})`);}}
+  catch(cause){cleanupError=cause;}
+  // mouse://start lives in the start-page service, outside browser.tabs and
+  // the native fixture cleanup. Close only our internal ID on every outcome.
+  try{if(start){await fixture.js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(start.id)}})`);assert.equal(browser.state().tabs.some(tab=>tab.id===start.id),false);}}
+  catch(cause){cleanupError||=cause;}
+  report.ok=!error&&!cleanupError;
  }
+ if(error||cleanupError)throw error||cleanupError;
  return report;
 };
 module.exports.fixtures={ownedPage,shellReadback,guestReadback,assertGuest,assertShell,ORIGINAL,DIMMED};

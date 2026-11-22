@@ -93,10 +93,6 @@ jobs:
       - name: Verify installed app, native UI, restart and profile preservation
         id: installed
         run: |
-          pwsh -NoProfile -File ../tools/mouse-637-windows-display.ps1 -OutputPath mouse-637-display.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pwsh -NoProfile -File ../tools/mouse-637-windows-display.ps1 -Verify -OutputPath mouse-637-display.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.37-Windows-x64.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Bind verified installer bytes to source and test evidence
@@ -211,10 +207,6 @@ jobs:
           print('MOUSE_WINDOWS_MODERN_IMMUTABLE_INPUT_PASS')
       - name: Verify same installed app on modern Windows
         run: |
-          pwsh -NoProfile -File ../tools/mouse-637-windows-display.ps1 -OutputPath mouse-637-display.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pwsh -NoProfile -File ../tools/mouse-637-windows-display.ps1 -Verify -OutputPath mouse-637-display.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ../tools/mouse-windows-verify.py dist-mouse-windows/Mouse-Browser-6.0.37-Windows-x64.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload modern Windows verification evidence
