@@ -1,0 +1,161 @@
+name: Mouse website on GitHub Pages
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'infra/website/**'
+      - '.github/workflows/mouse-pages.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'infra/website/**'
+      - '.github/workflows/mouse-pages.yml'
+  workflow_dispatch:
+    inputs:
+      verify_live:
+        description: 'Verify mouse.black after its DNS and HTTPS are ready'
+        type: boolean
+        required: false
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: mouse-pages-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Static Pages preflight (no installer downloads)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build all locales and validate SEO without fetching installers
+        run: >-
+          python3 infra/website/build-pages.py
+          --output "$RUNNER_TEMP/mouse-pages-preflight"
+          --source-commit "$GITHUB_SHA"
+          --check-only
+
+  build:
+    name: Build complete Pages artifact
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read existing Pages settings (owner setup required)
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: 'false'
+      - name: Explain missing Pages setup
+        if: failure() && steps.pages.outcome == 'failure'
+        run: |
+          echo '::error::Owner setup required: Settings > Pages > Source = GitHub Actions, Custom domain = mouse.black. This workflow does not enable Pages or change settings.'
+          echo 'Pages settings could not be read. No installers were downloaded and no deployment was attempted.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Require custom mouse.black domain and Actions publication before downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGES_HOST: ${{ steps.pages.outputs.host }}
+          PAGES_ORIGIN: ${{ steps.pages.outputs.origin }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          # A first artifact may precede DNS/certificate issuance. HTTPS readiness
+          # is established only by the optional post-deploy live gate below.
+          origin = os.environ.get('PAGES_ORIGIN')
+          if (os.environ.get('PAGES_HOST') != 'mouse.black'
+                  or os.environ.get('PAGES_BASE_PATH') != ''
+                  or origin not in {'http://mouse.black', 'https://mouse.black'}
+                  or os.environ.get('PAGES_BASE_URL') != origin):
+              raise SystemExit('MOUSE_PAGES_SETUP_REQUIRED: Pages must use mouse.black with no repository path. Configure the custom domain in Settings > Pages first; no installers were downloaded.')
+          request = urllib.request.Request(
+              os.environ['GITHUB_API_URL'] + '/repos/' + os.environ['GITHUB_REPOSITORY'] + '/pages',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+              method='GET',
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  settings = json.load(response)
+          except (urllib.error.URLError, ValueError) as error:
+              raise SystemExit('MOUSE_PAGES_SETUP_REQUIRED: unable to verify existing Pages settings; no installers were downloaded.') from error
+          if settings.get('cname') != 'mouse.black' or settings.get('build_type') != 'workflow':
+              raise SystemExit('MOUSE_PAGES_SETUP_REQUIRED: owner must select GitHub Actions and custom domain mouse.black in Settings > Pages; no settings were changed.')
+          print('MOUSE_PAGES_SETTINGS_VERIFIED domain=mouse.black build_type=workflow')
+          PY
+      - name: Build static site and copy all three verified installers
+        run: >-
+          python3 infra/website/build-pages.py
+          --output "$RUNNER_TEMP/mouse-pages"
+          --source-commit "$GITHUB_SHA"
+      - name: Upload isolated Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/mouse-pages
+          retention-days: 1
+          # The v4 action excludes dotfiles, including the staging .nojekyll.
+          # Custom Actions deploy this static artifact without running Jekyll.
+
+  deploy:
+    name: Deploy prepared artifact to mouse.black
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Check out exact source for optional live verification
+        if: inputs.verify_live == true
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Rebuild expected static files without downloading installers
+        if: inputs.verify_live == true
+        run: >-
+          python3 infra/website/build-site.py
+          --output "$RUNNER_TEMP/mouse-pages-site"
+      - name: Verify custom-domain HTTPS, all discovery metadata and direct downloads
+        if: inputs.verify_live == true
+        run: >-
+          python3 infra/website/verify-pages-live.py
+          --site "$RUNNER_TEMP/mouse-pages-site"
+          --release "$GITHUB_SHA"
+      - name: Record that public readiness has not been verified
+        if: inputs.verify_live != true
+        run: |
+          echo 'Pages accepted the artifact. Public mouse.black DNS, HTTPS and downloads have not been verified by this run. After DNS and HTTPS are ready, dispatch this workflow with verify_live enabled.' >> "$GITHUB_STEP_SUMMARY"
