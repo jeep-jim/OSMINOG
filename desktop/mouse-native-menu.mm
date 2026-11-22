@@ -130,6 +130,88 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-restore-read"]);
 }
+// Isolated CI diagnostics only. Observation never changes or consumes an event.
+static id inputDiagnosticMonitor=nil,inputDiagnosticWindowObserver=nil;
+static BOOL inputDiagnosticStarted=NO,inputDiagnosticStopped=NO;
+static NSMutableArray* inputDiagnosticEvents;
+static NSMutableArray* inputDiagnosticPosts;
+static NSMutableArray* inputDiagnosticErrors;
+static NSUInteger inputDiagnosticEventTotal=0,inputDiagnosticPostTotal=0,inputDiagnosticErrorTotal=0;
+static NSDictionary* inputDiagnosticInitialState;
+static NSDictionary* inputDiagnosticFinalState;
+static NSString* inputDiagnosticText(NSString* value){if(!value)return @"";return value.length>128?[value substringToIndex:128]:value;}
+static NSString* inputDiagnosticIdentity(id value){return value?[NSString stringWithFormat:@"%p",(__bridge void*)value]:@"";}
+static NSString* inputDiagnosticUnsigned(uint64_t value){return[NSString stringWithFormat:@"%llu",(unsigned long long)value];}
+static void inputDiagnosticError(NSString* stage,NSException* error){
+ @try{inputDiagnosticErrorTotal++;if(inputDiagnosticErrors.count<32)[inputDiagnosticErrors addObject:@{@"stage":inputDiagnosticText(stage),@"name":inputDiagnosticText(error.name),@"reason":inputDiagnosticText(error.reason)}];}@catch(NSException* ignored){}
+}
+static NSDictionary* inputDiagnosticPoint(NSPoint p){return @{@"x":@(p.x),@"y":@(p.y)};}
+static NSDictionary* inputDiagnosticRect(NSRect r){return @{@"x":@(r.origin.x),@"y":@(r.origin.y),@"width":@(r.size.width),@"height":@(r.size.height)};}
+static NSDictionary* inputDiagnosticResponder(NSResponder* responder){return @{@"class":inputDiagnosticText(responder?NSStringFromClass(responder.class):@""),@"identity":inputDiagnosticIdentity(responder)};}
+struct InputDiagnosticButtons{bool combinedDown=false,hidDown=false;CGEventFlags combinedFlags=0,hidFlags=0;};
+static InputDiagnosticButtons inputDiagnosticButtons(){InputDiagnosticButtons value;value.combinedDown=CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState,kCGMouseButtonLeft);value.hidDown=CGEventSourceButtonState(kCGEventSourceStateHIDSystemState,kCGMouseButtonLeft);value.combinedFlags=CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState);value.hidFlags=CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState);return value;}
+static NSDictionary* inputDiagnosticButtonJSON(InputDiagnosticButtons value){return @{@"combinedSession":@{@"leftDown":@(value.combinedDown),@"flags":inputDiagnosticUnsigned(value.combinedFlags)},@"hidSystem":@{@"leftDown":@(value.hidDown),@"flags":inputDiagnosticUnsigned(value.hidFlags)}};}
+static NSDictionary* inputDiagnosticState(){
+ NSWindow* window=mouseWindow;
+ return @{@"observedSystemUptime":@(NSProcessInfo.processInfo.systemUptime),@"appActive":@(NSApp.active),@"targetWindowNumber":window?@(window.windowNumber):NSNull.null,@"keyWindowNumber":NSApp.keyWindow?@(NSApp.keyWindow.windowNumber):NSNull.null,@"mainWindowNumber":NSApp.mainWindow?@(NSApp.mainWindow.windowNumber):NSNull.null,@"targetKey":@(window&&window.keyWindow),@"targetMain":@(window&&window.mainWindow),@"targetVisible":@(window&&window.visible),@"firstResponder":inputDiagnosticResponder(window.firstResponder),@"buttons":inputDiagnosticButtonJSON(inputDiagnosticButtons())};
+}
+static NSDictionary* inputDiagnosticSafeState(){@try{return inputDiagnosticState();}@catch(NSException* error){inputDiagnosticError(@"state",error);return @{@"diagnosticError":inputDiagnosticText(error.name)};}}
+static void inputDiagnosticAppend(NSMutableArray* rows,NSDictionary* value){
+ // Preserve the first64 and latest448 observations instead of losing the failure tail.
+ if(rows.count==512)[rows removeObjectAtIndex:64];[rows addObject:value];
+}
+static NSDictionary* inputDiagnosticEvent(NSEvent* event,NSUInteger sequence){
+ NSWindow* window=event.window;NSView* content=window.contentView;NSPoint point=event.locationInWindow;NSView* hit=nil;
+ // hitTest takes SUPERview coordinates. A nil event.window has screen coordinates.
+ if(window&&content){NSPoint parentPoint=content.superview?[content.superview convertPoint:point fromView:nil]:point;hit=[content hitTest:parentPoint];}
+ NSMutableArray* ancestry=[NSMutableArray new];NSView* view=hit;
+ for(NSUInteger depth=0;view&&depth<8;depth++,view=view.superview){[ancestry addObject:@{@"class":inputDiagnosticText(NSStringFromClass(view.class)),@"identity":inputDiagnosticIdentity(view),@"frame":inputDiagnosticRect(view.frame),@"bounds":inputDiagnosticRect(view.bounds),@"hidden":@(view.hidden),@"alpha":@(view.alphaValue)}];}
+ CGEventRef cg=event.CGEvent;const BOOL buttonEvent=event.type==NSEventTypeLeftMouseDown||event.type==NSEventTypeLeftMouseUp;
+ return @{@"sequence":@(sequence),@"type":@(event.type),@"eventNumber":@(event.eventNumber),@"buttonNumber":buttonEvent?(id)@(event.buttonNumber):NSNull.null,@"clickCount":buttonEvent?(id)@(event.clickCount):NSNull.null,@"timestampSeconds":@(event.timestamp),@"timestampClock":@"NSEvent seconds since system startup",@"observedSystemUptime":@(NSProcessInfo.processInfo.systemUptime),@"cgTimestampNs":cg?inputDiagnosticUnsigned(CGEventGetTimestamp(cg)):NSNull.null,@"cgTimestampClock":@"CGEvent nanoseconds since startup",@"modifierFlags":inputDiagnosticUnsigned(event.modifierFlags),@"cgFlags":cg?inputDiagnosticUnsigned(CGEventGetFlags(cg)):NSNull.null,@"windowNumber":@(event.windowNumber),@"windowPresent":@(window!=nil),@"targetWindow":@(window&&window==mouseWindow),@"windowKey":@(window&&window.keyWindow),@"windowMain":@(window&&window.mainWindow),@"location":inputDiagnosticPoint(point),@"coordinateSpace":window?@"window base":@"screen (nil event.window)",@"firstResponder":inputDiagnosticResponder(window.firstResponder),@"hitAncestry":ancestry,@"ancestryTruncated":@(view!=nil),@"buttons":inputDiagnosticButtonJSON(inputDiagnosticButtons()),@"appActive":@(NSApp.active)};
+}
+static bool inputDiagnosticAllowed(){
+ const char* flag=std::getenv("MOUSE_637_INPUT_DIAGNOSTIC");
+ return NSThread.isMainThread&&flag&&std::strcmp(flag,"1")==0&&nativeInputProbeAllowed()&&[NSProcessInfo.processInfo.arguments containsObject:@"--mouse-636-retained-smoke"];
+}
+static void stopInputDiagnostic(){
+ if(!inputDiagnosticStarted||inputDiagnosticStopped)return;inputDiagnosticStopped=YES;
+ id monitor=inputDiagnosticMonitor;inputDiagnosticMonitor=nil;
+ id observer=inputDiagnosticWindowObserver;inputDiagnosticWindowObserver=nil;
+ @try{if(monitor)[NSEvent removeMonitor:monitor];}@catch(NSException* error){inputDiagnosticError(@"remove-monitor",error);}
+ @try{if(observer)[NSNotificationCenter.defaultCenter removeObserver:observer];}@catch(NSException* error){inputDiagnosticError(@"remove-close-observer",error);}
+ inputDiagnosticFinalState=inputDiagnosticSafeState();
+}
+static napi_value inputDiagnosticJSON(napi_env env){
+ @try{
+  NSDictionary* value=@{@"schema":@1,@"supported":@YES,@"started":@(inputDiagnosticStarted),@"stopped":@(inputDiagnosticStopped),@"retention":@{@"limit":@512,@"first":@64,@"tail":@448},@"events":@{@"total":@(inputDiagnosticEventTotal),@"dropped":@(inputDiagnosticEventTotal-(inputDiagnosticEvents?inputDiagnosticEvents.count:0)),@"records":inputDiagnosticEvents?:@[]},@"posts":@{@"total":@(inputDiagnosticPostTotal),@"dropped":@(inputDiagnosticPostTotal-(inputDiagnosticPosts?inputDiagnosticPosts.count:0)),@"records":inputDiagnosticPosts?:@[]},@"initialState":inputDiagnosticInitialState?:NSNull.null,@"finalState":inputDiagnosticFinalState?:NSNull.null,@"currentState":inputDiagnosticSafeState(),@"diagnosticErrors":inputDiagnosticErrors?:@[],@"diagnosticErrorTotal":@(inputDiagnosticErrorTotal),@"monitorScope":@"app-local pre-dispatch; nested tracking loops may bypass this monitor; original NSEvent returned unchanged"};
+  NSError* error=nil;NSData* data=[NSJSONSerialization dataWithJSONObject:value options:0 error:&error];
+  if(data){napi_value result;napi_create_string_utf8(env,(const char*)data.bytes,data.length,&result);return result;}
+ }@catch(NSException* error){inputDiagnosticError(@"serialize",error);}
+ napi_value result;const char* fallback="{\"supported\":true,\"started\":false,\"stopped\":true,\"diagnosticError\":\"Native diagnostic JSON serialization failed\"}";napi_create_string_utf8(env,fallback,NAPI_AUTO_LENGTH,&result);return result;
+}
+static bool inputDiagnosticGuard(napi_env env){@try{if(inputDiagnosticAllowed())return true;}@catch(NSException* error){inputDiagnosticError(@"guard",error);}napi_throw_error(env,nullptr,"Input diagnostics require isolated retained CI and explicit diagnostic environment");return false;}
+static napi_value inputDiagnosticStart(napi_env env,napi_callback_info info){
+ if(!inputDiagnosticGuard(env))return nullptr;
+ if(inputDiagnosticStarted)return inputDiagnosticJSON(env);
+ @try{
+  inputDiagnosticEvents=[NSMutableArray new];inputDiagnosticPosts=[NSMutableArray new];inputDiagnosticErrors=[NSMutableArray new];inputDiagnosticEventTotal=inputDiagnosticPostTotal=inputDiagnosticErrorTotal=0;inputDiagnosticStopped=NO;inputDiagnosticInitialState=inputDiagnosticSafeState();inputDiagnosticFinalState=nil;
+  if(!mouseWindow){inputDiagnosticStopped=YES;[inputDiagnosticErrors addObject:@{@"stage":@"start",@"name":@"MissingTargetWindow",@"reason":@"No installed Mouse native window"}];inputDiagnosticErrorTotal++;return inputDiagnosticJSON(env);}
+  inputDiagnosticMonitor=[NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskMouseMoved|NSEventMaskLeftMouseDown|NSEventMaskLeftMouseUp) handler:^NSEvent*(NSEvent* event){
+   @try{if(inputDiagnosticStarted&&!inputDiagnosticStopped){inputDiagnosticEventTotal++;inputDiagnosticAppend(inputDiagnosticEvents,inputDiagnosticEvent(event,inputDiagnosticEventTotal));}}@catch(NSException* error){inputDiagnosticError(@"local-event",error);}return event;
+  }];
+  inputDiagnosticStarted=inputDiagnosticMonitor!=nil;
+  if(inputDiagnosticStarted)inputDiagnosticWindowObserver=[NSNotificationCenter.defaultCenter addObserverForName:NSWindowWillCloseNotification object:mouseWindow queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){stopInputDiagnostic();}];
+  else{inputDiagnosticStopped=YES;[inputDiagnosticErrors addObject:@{@"stage":@"start",@"name":@"MissingMonitor",@"reason":@"AppKit returned no event monitor"}];inputDiagnosticErrorTotal++;}
+ }@catch(NSException* error){inputDiagnosticError(@"start",error);stopInputDiagnostic();}
+ return inputDiagnosticJSON(env);
+}
+static napi_value inputDiagnosticRead(napi_env env,napi_callback_info info){if(!inputDiagnosticGuard(env))return nullptr;return inputDiagnosticJSON(env);}
+static napi_value inputDiagnosticStop(napi_env env,napi_callback_info info){if(!inputDiagnosticGuard(env))return nullptr;stopInputDiagnostic();return inputDiagnosticJSON(env);}
+struct InputDiagnosticPost{CGEventType type=kCGEventNull;bool created=false,postCalled=false;CGEventTimestamp timestamp=0;CGEventFlags flags=0;};
+static void inputDiagnosticRecordPosts(const InputDiagnosticPost* posts,size_t count,double x,double y,InputDiagnosticButtons before,InputDiagnosticButtons after){
+ @try{for(size_t i=0;i<count;i++){const auto& post=posts[i];inputDiagnosticPostTotal++;inputDiagnosticAppend(inputDiagnosticPosts,@{@"sequence":@(inputDiagnosticPostTotal),@"method":@"testClick",@"type":@(post.type),@"index":@(i),@"point":@{@"x":@(x),@"y":@(y)},@"created":@(post.created),@"postCalled":@(post.postCalled),@"timestampNs":post.created?inputDiagnosticUnsigned(post.timestamp):NSNull.null,@"timestampClock":@"CGEvent nanoseconds since startup",@"flags":post.created?inputDiagnosticUnsigned(post.flags):NSNull.null,@"beforeSequenceButtons":inputDiagnosticButtonJSON(before),@"afterSequenceButtons":inputDiagnosticButtonJSON(after)});}}@catch(NSException* error){inputDiagnosticError(@"posted-events",error);}
+}
+
 static napi_value testPointer(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
  size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
@@ -142,8 +224,10 @@ static napi_value testClick(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Click probe is CI smoke-only");return nullptr;}
  size_t n=2;napi_value args[2];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);double x=0,y=0;
  if(n!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y)){napi_throw_error(e,nullptr,"Invalid click probe");return nullptr;}
+ const bool diagnostic=inputDiagnosticStarted&&!inputDiagnosticStopped&&inputDiagnosticMonitor!=nil;InputDiagnosticPost posts[3];size_t postIndex=0;InputDiagnosticButtons before;if(diagnostic)before=inputDiagnosticButtons();
  CGPoint p=CGPointMake(x,y);CGWarpMouseCursorPosition(p);
- for(CGEventType type : {kCGEventMouseMoved,kCGEventLeftMouseDown,kCGEventLeftMouseUp}){CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}}
+ for(CGEventType type : {kCGEventMouseMoved,kCGEventLeftMouseDown,kCGEventLeftMouseUp}){CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(diagnostic){posts[postIndex].type=type;posts[postIndex].created=event!=nullptr;}if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);if(diagnostic){posts[postIndex].timestamp=CGEventGetTimestamp(event);posts[postIndex].flags=CGEventGetFlags(event);}CGEventPost(kCGHIDEventTap,event);if(diagnostic)posts[postIndex].postCalled=true;CFRelease(event);}postIndex++;}
+ if(diagnostic)inputDiagnosticRecordPosts(posts,postIndex,x,y,before,inputDiagnosticButtons());
  napi_value value;napi_get_boolean(e,CGPreflightPostEventAccess(),&value);return value;
 }
 static napi_value testRightClick(napi_env e,napi_callback_info info){
@@ -245,7 +329,7 @@ static napi_value testMouse(napi_env e,napi_callback_info info){
  CGPoint p=CGPointMake(x,y);CGEventType type=kind==0?kCGEventLeftMouseDown:kind==1?kCGEventLeftMouseDragged:kCGEventLeftMouseUp;CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}napi_value value;napi_get_boolean(e,true,&value);return value;
 }
 static napi_value init(napi_env e,napi_value exports){
- napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
- napi_define_properties(e,exports,11,d);return exports;
+ napi_property_descriptor d[]={{"inputDiagnosticStart",0,inputDiagnosticStart,0,0,0,napi_default,0},{"inputDiagnosticRead",0,inputDiagnosticRead,0,0,0,napi_default,0},{"inputDiagnosticStop",0,inputDiagnosticStop,0,0,0,napi_default,0},{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
+ napi_define_properties(e,exports,14,d);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

@@ -1,0 +1,64 @@
+name: Mouse 6.0.37 macOS input diagnostic only
+on:
+  push:
+    branches: ['diagnostic/mouse-637-input-5a13d620']
+permissions:
+  contents: read
+jobs:
+  diagnostic-only:
+    if: github.ref == 'refs/heads/diagnostic/mouse-637-input-5a13d620'
+    runs-on: macos-15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 2}
+      - name: Bind this isolated diagnostic to the exact failed release source
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-list --parents -n 1 HEAD)" = "$GITHUB_SHA 5a13d620e66e8b25792b3ba26de907c6b66fc422"
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: test "$(uname -m)" = arm64
+      - run: npm ci
+      - name: Prepare the existing packaged runtime
+        run: |
+          npm ci --prefix mouse-agent
+          node mouse-agent/prepare.cjs
+          npm run prepare:runtime
+          node mouse-native-build.cjs
+          node mouse-icon.cjs
+      - name: Diagnostic isolation and affected scenario contracts
+        run: |
+          node --test mouse-637-input-diagnostic.test.cjs mouse-636-guest-input-diagnostics.test.cjs mouse-634-download-widget.test.cjs mouse-smoke-hit-target.test.cjs
+          python3 ../tools/test_mouse637_input_diagnostic.py -v
+      - name: Build an isolated app directory without release packages
+        run: npx electron-builder --config mouse-build.cjs --mac dir --arm64 --publish never
+      - name: Run exactly one original retained workload with bounded diagnostic recording
+        run: |
+          set -euo pipefail
+          xcrun swift ../tools/mouse-637-macos-display.swift --output mouse-637-input-diagnostic-display.json
+          xcrun swift ../tools/mouse-637-macos-display.swift --verify mouse-637-input-diagnostic-display.json
+          APP="dist-mouse/mac-arm64/Mouse Browser.app"
+          test "$(lipo -archs "$APP/Contents/MacOS/Mouse Browser")" = arm64
+          codesign --verify --deep --strict "$APP"
+          INSTALL="$RUNNER_TEMP/Mouse input diagnostic/Mouse Browser.app"
+          mkdir -p "$(dirname "$INSTALL")"
+          ditto "$APP" "$INSTALL"
+          python3 ../tools/mouse-637-input-diagnostic.py "$INSTALL/Contents/MacOS/Mouse Browser" --output "$GITHUB_WORKSPACE/desktop/mouse-637-input-diagnostic"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-637-macos-input-diagnostic-only
+          path: |
+            desktop/mouse-637-input-diagnostic-display.json
+            desktop/mouse-637-input-diagnostic/**
+          if-no-files-found: error
+          retention-days: 14
