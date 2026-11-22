@@ -101,10 +101,52 @@ The source was published through the existing GitHub connector with a
 non-forced expected-head update; the local CLI had no push credentials.
 
 The existing website [run 45046471600](https://github.com/jeep-jim/OSMINOG/actions/runs/45046471600)
-is finishing its independent public gate. Validate already passed 51 Python
-tests, 4 Node tests, the 72-language SEO build and the 37-member source bundle.
-The existing osminog deployment path was used. No DNS, tariff, Nginx, root
-access, AvtoCena, native-browser release or release feed changes were made.
+published the site successfully, but its subsequent independent runner-side
+verification did not finish within the website job's 30-minute limit.
+The overall website job concluded `cancelled`; do not report the entire run
+as successful. Validate passed 51 Python tests, 4 Node tests, the 72-language
+SEO build and the 37-member source bundle. The existing osminog deployment
+path was used. No DNS, tariff, Nginx, root access, AvtoCena, native-browser
+release or release feed changes were made.
+
+### Server publication and completed checks
+
+The own-user publication step succeeded. At 2026-11-22 16:55:43 UTC its
+server-side verifier confirmed HTTPS and redirects, Russian/English/Arabic
+HTML, 72 sitemap entries, 73 hreflang entries, the current catalog, and full
+SHA256 plus HEAD/Range checks of all three public installers. It emitted
+`MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3`.
+Deployment identity: `d675c0ef86ee9af61237e115eff1a43dfc4a9115`.
+
+| Platform | Version | Verified SHA256 |
+| --- | --- | --- |
+| macOS arm64 | 6.0.37 | `3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2` |
+| Windows x64 | 6.0.37 | `19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35` |
+| Linux x64 | 6.0.37 | `e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79` |
+
+A subsequent real automatic timer execution was observed at
+`2026-11-22T16:56:45.507285+00:00`. The installation emitted both
+`MOUSE_RELEASE_TIMER_VERIFIED` for the exact source and
+`MOUSE_WEBSITE_AUTOMATION_LIVE https://mouse.black`.
+
+### Independent external check limitation
+
+The Actions runner independently resolved the public catalog and exact
+deployment identity at 16:56:47 UTC, then rebuilt and validated the expected
+72-language output. Its subsequent `verify-pages-live.py` process had no
+flushed progress output before cancellation at 17:25:32 UTC. Consequently,
+the exact URL or file where that external pass stopped is not established;
+the absence of a checksum error is not a completed external verification.
+Do not claim that this second pass confirmed all three complete downloads or
+that the reason for its long duration has been diagnosed.
+
+The completed deployment and browser observations remain separately verified.
+No rollback, cancellation by the assistant, automatic rerun or weakened gate
+was introduced. Deployment evidence artifact: `14764298757`,
+`mouse-website-deployment-evidence.zip` (1,874 bytes), ZIP SHA256
+`8934f6edacdd947c1ea81cdcb0da76c2a65177f38509c7462b674a238495acd5`.
+Any later external verification should be recorded as new evidence rather
+than rewriting this cancelled run as success.
 
 ## Published browser observations
 
