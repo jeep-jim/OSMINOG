@@ -74,3 +74,8 @@ Runtime — собственный user systemd под osminog, /opt/osminog/cha
 ## 2026-11-10 — Chrome Light 5.0.0 published
 
 Read `docs/light/2026-11-10-release.md` before further Chrome/desktop work. The owner explicitly replaced the old full-tool scope with light text/media storage and GPT/DeepSeek only. Active Chrome release is built by `python3 light/build.py`; do not republish the root historical full-workspace package as the current product. Free is now 100 images per month, not per day. Preserve legacy data and disclose incomplete snapshot migration. Windows/macOS are published unsigned previews, not signed production installers. Android/ocean remains a separate project surface.
+
+
+## 2026-11-22 — разрешено разовое подключение mouse.black
+
+Владелец явно ответил «Разрешаю!» на конкретное предложение однократно проверить и использовать существующий административный доступ общего REG-сервера через временный служебный workflow в AvtoCena для подготовленного Mouse website bootstrap. Разрешение относится к staged source `e9b73014c5ca716f8c1c12483f087c42d504f57f`, bootstrap SHA256 `21397fe27c9452979d3f484a2b4aa9dbfe36461f0dcf6b080dc677ec92e22226`: отдельные Mouse webroot/vhost/HTTPS, сертификат и продление, проверка Nginx и reload. До/после — проверка здоровья существующего сайта; временный workflow после завершения удалить. Приложение/данные АвтоЦены, существующие ключи, тариф и DNS не менять; приватные ключи не извлекать и не копировать между проектами. Постоянная публикация остаётся в OSMINOG под osminog, без sudo/docker. Разрешение не запрашивать повторно в пределах этой конкретной операции. Итог и закрытие исключения записать в журнал сайта.
