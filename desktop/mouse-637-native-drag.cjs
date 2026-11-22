@@ -52,7 +52,9 @@ async function runGesture(plan,{runtime=process,driver,now=Date.now,wait=sleep,r
   while(!result.handshake){deadline();const value=read(plan.handshake);if(value)result.handshake={...validateHandshake(value,plan,runtime.pid),observedAt:now()};else await wait(25);}
   await wait(100);
   for(const p of plan.points.slice(2,12)){deadline();move(p);await wait(22);}
-  await wait(120);deadline();
+  // X11 asynchronous XDND target negotiation must run before the real OS UP.
+  // The same 13 native phases, fixed 10s acceptance and unconditional release remain unchanged.
+  await wait(runtime.platform==='linux'?520:120);deadline();
  }catch(cause){error=cause;}
  finally{
   // Attempt release even if DOWN threw after posting its OS event. A timeout
