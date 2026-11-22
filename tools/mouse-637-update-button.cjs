@@ -76,6 +76,87 @@ function injection(config){
   ...(process.platform==='linux'?{linuxInstallerSha256:crypto.createHash('sha256').update(fs.readFileSync(p.join(appPath,'mouse-linux-update.cjs'))).digest('hex')}:{}),
   transportOnly:true,selectionUnchanged:true,verificationUnchanged:true,installerUnchanged:true};
 }
+// Serialized into the already authenticated predecessor main process. Never
+// select another window or change profile preferences/minimum dimensions.
+function ownedMacWindow(command='read',requested=null){
+ const require=globalThis.require||(process.mainModule&&process.mainModule.require.bind(process.mainModule));
+ const e=require('electron'),p=require('node:path'),w=globalThis.__mouse637Button?.win;
+ if(process.platform!=='darwin'||process.env.CI!=='true'||!p.isAbsolute(process.env.MOUSE_TEST_PROFILE||'')||!e.app.isPackaged||e.app.getVersion()!=='6.0.36'||!w||w.isDestroyed()||!/\/mouse\/index\.html$/.test(w.webContents.getURL()))throw Error('Expected owned installed CI Mac predecessor window');
+ if(command==='leave-fullscreen'){
+  if(w.isFullScreen())w.setFullScreen(false);
+  if(w.isSimpleFullScreen())w.setSimpleFullScreen(false);
+ }else if(command==='unmaximize'){
+  if(w.isFullScreen()||w.isSimpleFullScreen())throw Error('Predecessor fullscreen transition has not finished');
+  if(w.isMaximized())w.unmaximize();
+ }else if(command==='set-bounds'){
+  if(w.isFullScreen()||w.isSimpleFullScreen()||w.isMaximized())throw Error('Predecessor window is not in normal mode');
+  const area=e.screen.getDisplayMatching(w.getBounds()).workArea,min=w.getMinimumSize();
+  if(!requested||!['x','y','width','height'].every(key=>Number.isSafeInteger(requested[key]))||requested.width<Math.max(1,min[0])||requested.height<Math.max(1,min[1])||requested.x<area.x||requested.y<area.y||requested.x+requested.width>area.x+area.width||requested.y+requested.height>area.y+area.height)throw Error('Requested predecessor bounds do not fit the live work area and unchanged minimum size');
+  w.setBounds(requested,false);
+ }else if(command!=='read')throw Error('Unknown predecessor window preparation command');
+ const rect=value=>({x:value.x,y:value.y,width:value.width,height:value.height}),windowBounds=rect(w.getBounds()),display=e.screen.getDisplayMatching(windowBounds);
+ return{pid:process.pid,windowId:w.id,at:Date.now(),coordinateSpace:'quartz-screen-points',windowBounds,contentBounds:rect(w.getContentBounds()),minimumSize:[...w.getMinimumSize()],
+  fullScreen:w.isFullScreen(),simpleFullScreen:w.isSimpleFullScreen(),maximized:w.isMaximized(),minimized:w.isMinimized(),visible:w.isVisible(),zoomFactor:w.webContents.getZoomFactor(),
+  display:{id:display.id,bounds:rect(display.bounds),workArea:rect(display.workArea),scaleFactor:display.scaleFactor}};
+}
+const sameRect=(a,b)=>!!a&&!!b&&['x','y','width','height'].every(key=>a[key]===b[key]);
+const containsRect=(a,b)=>b.x>=a.x&&b.y>=a.y&&b.x+b.width<=a.x+a.width&&b.y+b.height<=a.y+a.height;
+function validRect(rect,label){assert.ok(rect&&['x','y','width','height'].every(key=>Number.isFinite(rect[key]))&&rect.width>0&&rect.height>0,label);}
+function fitMacWindowBounds(geometry){
+ const {windowBounds:bounds,display,minimumSize:min}=geometry;
+ validRect(bounds,'Invalid predecessor bounds');validRect(display?.bounds,'Invalid live display');validRect(display?.workArea,'Invalid live work area');
+ assert.ok(containsRect(display.bounds,display.workArea),'Live work area must belong to the matching display');
+ assert.ok(Array.isArray(min)&&min.length===2&&min.every(value=>Number.isFinite(value)&&value>=0),'Invalid predecessor minimum size');
+ const area=display.workArea,left=Math.ceil(area.x),top=Math.ceil(area.y),right=Math.floor(area.x+area.width),bottom=Math.floor(area.y+area.height);
+ assert.ok(right-left>=Math.max(1,Math.ceil(min[0]))&&bottom-top>=Math.max(1,Math.ceil(min[1])),'Live work area cannot fit the unchanged predecessor minimum size');
+ const width=Math.min(right-left,Math.max(1,Math.ceil(min[0]),Math.round(bounds.width))),height=Math.min(bottom-top,Math.max(1,Math.ceil(min[1]),Math.round(bounds.height)));
+ return{x:Math.max(left,Math.min(Math.round(bounds.x),right-width)),y:Math.max(top,Math.min(Math.round(bounds.y),bottom-height)),width,height};
+}
+function macWindowReady(geometry){
+ fitMacWindowBounds(geometry);validRect(geometry.contentBounds,'Invalid predecessor content bounds');
+ assert.equal(geometry.coordinateSpace,'quartz-screen-points');assert.equal(geometry.zoomFactor,1,'Native predecessor coordinates require an unzoomed shell');
+ assert.ok(geometry.visible&&!geometry.minimized&&!geometry.fullScreen&&!geometry.simpleFullScreen&&!geometry.maximized,'Predecessor window must be visible in normal mode');
+ assert.ok(containsRect(geometry.display.workArea,geometry.windowBounds)&&containsRect(geometry.windowBounds,geometry.contentBounds)&&containsRect(geometry.display.workArea,geometry.contentBounds),'Actual predecessor window and content must fit the live work area');
+}
+function sameMacGeometry(a,b){
+ return a.pid===b.pid&&a.windowId===b.windowId&&sameRect(a.windowBounds,b.windowBounds)&&sameRect(a.contentBounds,b.contentBounds)&&a.zoomFactor===b.zoomFactor&&JSON.stringify(a.display)===JSON.stringify(b.display)&&JSON.stringify(a.minimumSize)===JSON.stringify(b.minimumSize);
+}
+const viewportMatches=(viewport,geometry)=>viewport?.width===geometry.contentBounds.width&&viewport?.height===geometry.contentBounds.height;
+async function prepareMacPredecessorWindow({operate,renderer,until,receipt,pid}){
+ const read=async()=>receipt.lastObserved=await operate('read');
+ receipt.before=await read();assert.equal(receipt.before.pid,pid);receipt.commands=[];
+ if(receipt.before.fullScreen||receipt.before.simpleFullScreen){
+  receipt.commands.push('leave-fullscreen');await operate('leave-fullscreen');
+  await until(async()=>{const value=await read();return !value.fullScreen&&!value.simpleFullScreen&&value;},'predecessor exits fullscreen');
+ }
+ if(receipt.lastObserved.maximized){
+  receipt.commands.push('unmaximize');await operate('unmaximize');
+  await until(async()=>{const value=await read();return !value.maximized&&value;},'predecessor exits maximized mode');
+ }
+ receipt.normal=await read();assert.deepEqual(receipt.normal.minimumSize,receipt.before.minimumSize);
+ receipt.requested=fitMacWindowBounds(receipt.normal);
+ if(!sameRect(receipt.normal.windowBounds,receipt.requested)){
+  receipt.commands.push('set-bounds');await operate('set-bounds',receipt.requested);
+ }
+ receipt.after=await until(async()=>{
+  const first=await read();macWindowReady(first);
+  if(!sameRect(first.windowBounds,receipt.requested)||JSON.stringify(first.display)!==JSON.stringify(receipt.normal.display))return false;
+  receipt.viewport=await renderer();const second=await read();macWindowReady(second);
+  return sameMacGeometry(first,second)&&viewportMatches(receipt.viewport,second)&&second;
+ },'predecessor window and renderer fit live work area');
+ assert.equal(receipt.after.pid,pid);assert.equal(receipt.after.windowId,receipt.before.windowId);assert.deepEqual(receipt.after.minimumSize,receipt.before.minimumSize);
+ return receipt;
+}
+function macTargetPoint(geometry,hit,prepared){
+ macWindowReady(geometry);assert.ok(sameMacGeometry(geometry,prepared),'Predecessor geometry changed after window preparation');
+ assert.ok(hit?.ready===true&&Number.isFinite(hit.x)&&Number.isFinite(hit.y)&&viewportMatches(hit.viewport,geometry),'Fresh predecessor target must match the settled renderer viewport');
+ assert.ok(hit.x>=0&&hit.y>=0&&hit.x<hit.viewport.width&&hit.y<hit.viewport.height,'Predecessor target lies outside the renderer viewport');
+ // Electron Mac bounds and CGEvent positions are logical/Quartz points.
+ // display.scaleFactor is evidence only, never a multiplier for this point.
+ const point={x:Math.round(geometry.contentBounds.x+hit.x),y:Math.round(geometry.contentBounds.y+hit.y)};
+ for(const rect of [geometry.display.bounds,geometry.display.workArea,geometry.windowBounds,geometry.contentBounds])assert.ok(point.x>=rect.x&&point.y>=rect.y&&point.x<rect.x+rect.width&&point.y<rect.y+rect.height,'Native predecessor target must be on-screen inside the live work area and content');
+ return point;
+}
 async function connect(url){
  assert.match(url,/^ws:\/\/127\.0\.0\.1:\d+\//);const socket=new WebSocket(url),pending=new Map();let sequence=0;
  await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
@@ -137,12 +218,22 @@ async function main(input){
   async function click(selector,{disconnect=false}={}){
    await evaluate(client,`(()=>{const e=${rq}('electron'),w=__mouse637Button.win;e.app.focus({steal:true});w.show();w.focus();w.webContents.focus();return true;})()`);
    await until(()=>evaluate(client,'__mouse637Button.win.isFocused()'),'native predecessor focus');
+   let preparation,macOperate;
+   if(process.platform==='darwin'){
+    preparation={selector,at:Date.now()};(facts.windowPreparations??=[]).push(preparation);
+    macOperate=(command='read',bounds=null)=>evaluate(client,'('+ownedMacWindow.toString()+')('+JSON.stringify(command)+','+JSON.stringify(bounds)+')');
+    await prepareMacPredecessorWindow({operate:macOperate,renderer:()=>shell('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve({width:innerWidth,height:innerHeight,devicePixelRatio}))))'),until,receipt:preparation,pid:facts.oldProcess.pid});
+   }
    await shell('document.querySelector('+JSON.stringify(selector)+')?.scrollIntoView({block:"nearest",inline:"nearest"});true');
-   const hit=await until(()=>shell('('+nativeHitTarget.toString()+')(document.querySelector('+JSON.stringify(selector)+'))').then(value=>value.ready&&value),'native update target '+selector);
-   const point=await evaluate(client,`(()=>{const e=${rq}('electron'),r=__mouse637Button.win.getContentBounds(),p={x:Math.round(r.x+${hit.x}),y:Math.round(r.y+${hit.y})};return process.platform==='win32'?e.screen.dipToScreenPoint(p):p;})()`);
+   const hitCode='('+nativeHitTarget.toString()+')(document.querySelector('+JSON.stringify(selector)+'))';
+   const hit=await until(()=>shell(macOperate?'(()=>{const hit='+hitCode+';return{...hit,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio}};})()':hitCode).then(value=>value.ready&&value),'native update target '+selector);
+   let point;
+   if(macOperate){const geometry=await macOperate();preparation.target={...geometry,hit};point=macTargetPoint(geometry,hit,preparation.after);preparation.target.point=point;}
+   else point=await evaluate(client,`(()=>{const e=${rq}('electron'),r=__mouse637Button.win.getContentBounds(),p={x:Math.round(r.x+${hit.x}),y:Math.round(r.y+${hit.y})};return process.platform==='win32'?e.screen.dipToScreenPoint(p):p;})()`);
    if(disconnect){await client.close();client=null;facts.inspectorClosedBeforeInstall=true;await save();}
    const result=await native({action:'click',pid:facts.oldProcess.pid,x:point.x,y:point.y});assert.equal(result.ok,true);
    const row={selector,point,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',at:Date.now(),driver:result};facts.nativeInputs.push(row);
+   if(preparation)row.geometry=preparation.target;
    if(!disconnect)row.event=await until(async()=>{const rows=await shell('__mouse637ButtonClicks');return rows.find(event=>event.selector===selector&&event.trusted===true&&event.button===0);},'trusted update click '+selector);
    await save();return row;
   }
@@ -196,5 +287,5 @@ async function main(input){
   for(const server of [fixture,profileFixture])if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  }
 }
-module.exports={validateInput,channelFor,fixtureTransport,attachTransport,injection,FROM,TO,SOURCE,UPDATER_BLOB,PREFIX};
+module.exports={validateInput,channelFor,fixtureTransport,attachTransport,injection,ownedMacWindow,fitMacWindowBounds,prepareMacPredecessorWindow,macTargetPoint,FROM,TO,SOURCE,UPDATER_BLOB,PREFIX};
 if(require.main===module)main(JSON.parse(process.argv[2]||'{}')).catch(error=>{console.error(error);process.exitCode=1;});

@@ -67,3 +67,49 @@ Root заново сверил оба archive SHA и оба исходных log
 3. AI drag сохраняет попытку до первого native post и ожидает прежние matching trusted down/trusted up через существующий bounded fixture.until до удаления listener. Сохранены один down,12moves с20ms и один finally release, прежние predicates, UI, driver, hit-target, frame и global deadline. Raw events и ошибки сохраняются при отказе; late cleanup event не превращает timeout вPASS. Actual-helper delayed-release regression падает на прежнем one-shot snapshot и проходит после исправления; missing/untrusted/wrongtarget/driver/cleanup failures остаются rejected.19/19 адресных тестов прошли. Причина исторического Linux8a отсутствующего pointerup всё ещё не установлена.
 
 Независимый review всех трёх изменений завершён PASS. Root повторил полный Mouse unit enumerator:1201tests,1197PASS,0FAIL,4native-platform SKIP,10.586685362s; log SHA256d19536554e7d449c7558b75f330e5464491b9e2433821280f7ee62668647d518. Пропуски по-прежнему требуют реальных платформенных native модулей. Cookie RED log8f27a410a8c726438656a4809689bbfbaff325c80081b7bf8c406051e3ef3a9e; GREEN logd76bf6914839c1ad5f14d38ef48523a5d947df9e9ec061c3ac54ab5d7a405c48. Source diff check и syntax прошли. Готовится новый общий source commit и новые native runs; прежняя частичная приёмка8a не переносится, все pins неготовы, публикации нет.
+
+
+## 2026-11-22 — be86: Linux принят, Mac остановлен на реальном обновлении 636
+
+Общий source `be86c86653783f29951fdfb378aa0259837cd1d2`, tree `71315ce31f948fdc4584d969912893260820cc89`, parent8a. Publisher `ae72af72836b766b9b04ee883e251c93294db3f2`, tree `8026d611ffa7e02ed6589977bb03da28b427aaba`, parent98. Все8 вспомогательных source workflow и все5 publisher contract/registry workflow прошли; native publisher jobs пропущены при unready pins. Root publisher units119/119 PASS,0SKIP. Публичный выпуск этим не подтверждён.
+
+### Linux be86: полная нативная и независимая приёмка
+
+[Run45010898422](https://github.com/jeep-jim/OSMINOG/actions/runs/45010898422), attempt1/job137172777321 завершился SUCCESS10:17:35 UTC. Полный offline independent helper исполнил неизменённый ae72 на настоящих AppImage/DEB и исходных raw: ok=true.423 tracked publisher tools/staging файлов связаны с Git до/после,433 raw verification файлов. Cookie-scoped /page/201/ и /page/202/ содержат точные непустые cookies; все4 AI resize cases имеют trusted down/up без input.error.
+
+Candidate14750495110:228453582 bytes, SHA256 `b5f264a8fb8b045ece43cd12c78bba42444d8a65abb42135a7851958dac2d146`. Verification14749983107:39492551 bytes, SHA256 `f8361ce4809d674a2beaee942e5072bbd17662254f40d860b54c0a4623d3bb79`. AppImage127838280 bytes/SHA256 `0580de679cf2bf04a4c12dd5c703636089dd1c859030e8bfdd636549514434b4`; DEB101114080 bytes/SHA256 `c6004776b23322dd43b348d61f37d4c6d8c75ce58e404d6b6a966a0e13589629`.
+
+Independent report279692 bytes/SHA256 `4755755ab45ea2232d59ff67c06c245578fa8ca3c3af05acbe0ae989e246b4c3`; combined provenance41701 bytes/SHA256 `df24c17522f6ec7069d293add4f9dd0b6e5bebbce9d181e8d874861acac96e88`. Root отдельно пересчитал оба ZIP, actual package bytes, report и raw API files и сверил exact run/attempt/job/source. Приёмка относится только к Linux be86, не к будущему source.
+
+### Mac be86: сохранённый отказ и видимая геометрия
+
+[Run45010898616](https://github.com/jeep-jim/OSMINOG/actions/runs/45010898616), attempt1/job137172777623: installed step17 FAILURE10:22:34 UTC, job завершён10:22:49. Текущие и retained browser checks, general WRITE/READ,622/624, normal/close/private прошли; заключительный actual-published636 update-button остановился на первом `#version-button`: `trusted update click #version-button: undefined`. Profile WRITE прошёл; candidate upload пропущен. Это не полная приёмка Mac.
+
+Verification14750451118:66675347 bytes/SHA256 `f9922e44bda77bfc652ee4bc354a4e891f611d8647f0529214f555ec9823767f`; CRC652 ZIP entries проверены. Полный job log1045926 bytes/SHA256 `dc7e2c18467e698e066bf3107087098d1cd87fd011b496d6764262edb0d0e09a`. Raw native report4276 bytes/SHA256 `0efdd9c00b6d1fdd2f4534d6f6faad1d15998a9a7e1e5150bef5a27deca40620`. Root и два независимых чтения подтвердили исходные байты.
+
+Raw фиксирует один CGEvent click в(1347,915), owned636 PID41177, native window{x:80,y:-31,width:1440,height:960}, foregroundVerified=true, stage=predecessor-startup; captures и fixtureRequests пусты. Девять current geometry reports этого же run фиксируют display1600×900, workArea{x:0,y:25,width:1600,height:802}. Точка y915 ниже записанного дисплея. Helper проверял только point внутри owned window; DOM hit проверял viewport. Live display sample непосредственно при клике не сохранён, поэтому точный механизм OS delivery и физический Mac владельца не объявляются доказанными.
+
+Exact опубликованный636 mouse-main задаёт окно1440×960/min800×600. В CI driver перед первым DOM target отсутствовала подготовка размера окна к рабочей области. Узкое исправление готовится только для owned predecessor Mac window: live workArea fit/readback и свежая видимость native point. Не менять опубликованные636 bytes, updater/installer, настоящий CGEvent, trusted click, число вводов, deadlines или profile preservation. Window geometry не входит в проверяемый профиль; cookies/storage/bookmark/tab/theme/widths проверяются по-прежнему.
+
+### Windows be86 и дальнейшая граница
+
+[Run45010898421](https://github.com/jeep-jim/OSMINOG/actions/runs/45010898421), attempt1: primary137172806187 SUCCESS10:25:10 UTC; modern137177188114 начался10:25:12, installed step10:25:28 и на момент этой записи ещё выполняется. Полной Windows приёмки пока нет.
+
+Publisher ae72 можно сохранить побайтно: его current helper fetch уже проверяет Git blob exact tested source; additive geometry fields не ослабляют существующие проверки raw report hashes/bindings (новые JSON bytes хешируются заново), три обязательных trusted clicks, native process/window/foreground, stock install/relaunch и old/new profile gates. Новый source всё равно требует собственных трёх платформенных запусков и полной независимой проверки actual packages. Pins остаются false/null; merge и публикация не выполнены. Неизменённый Mac rerun не запрошен.
+
+Полный source PR193 body на be86 (63047 characters, updated_at2026-11-22T10:27:22Z) сохранён в [архиве PR193](2026-11-22-mouse637-pr193-history.md), чтобы текущий статус PR можно было сократить без потери истории.
+
+
+## 2026-11-22 — проверенная подготовка окна Mac; кандидат поверх be86
+
+Исправление ограничено `tools/mouse-637-update-button.cjs` и его unit test. Только для darwin в уже проверенном installed636 main используется `__mouse637Button.win`; снимаются live matching display/workArea, window/content bounds, minimumSize, режимы и zoom. Окно при необходимости выходит из fullscreen/maximized и вписывается в рабочую область без снижения минимальных размеров. Слишком маленькая область — отказ. После setBounds прежний bounded until проверяет actual bounds и два renderer RAF; перед каждым из трёх исходных кликов nativeHitTarget выполняется заново, а live geometry/viewport/point повторно проверяются. Координаты остаются Quartz points; нет умножения на scaleFactor, переноса точки к иной цели или replay native input.
+
+Additive windowPreparations/geometry receipts сохраняют before/normal/requested/after, последнее наблюдение и цель, в том числе при отказе. Исходные transport/injection/ownership, inspector, глобальный300000ms budget, until/native wrapper, один native post и trusted-click predicate на selector, Install disconnect, stock download/install/relaunch/profile tail сохранены побайтно. Девять связанных source файлов, включая production main/updater/installer/native driver/profile probe/hit-target, не изменены. Windows/Linux используют прежнее вычисление native point.
+
+Independent review PASS. Автор и root независимо исполнили28/28 tests PASS,0SKIP на фактическом local Node24.22.3. CI Node22/native acceptance ещё обязательна; локальные OS adapters явно синтетические. Root отдельно подставил exact git-be86 helper24046 bytes/SHA256 `a8fa204ec64047b44dbe1c1ce81daa27820bfe156af4d810c3f38405a4dff1cc` под тот же actual nested-path regression: ожидаемый RED1/1 с `trusted update click #version-button: undefined`, logfile1235 bytes/SHA256 `bc49b7853a1650821ffb1ebe43dbd611bed828e26ca4c344bb9e8b25c3f14864`. Root GREEN log3142 bytes/SHA256 `2567020bc6c4a69e8584de643c672b0d0e4c394a5a644aa2483e737c09111637`. Author GREEN/invariants JSON2491 bytes/SHA256 `d51f14e0d0083641264cb3df11ac78aabe34059c32ba117eafb5c61fc443eb8c`; его отдельный GREEN log SHA256 `2812e7fc9897fc1b64c8b920b67384564e12e7d88583b287af485d52b86225b6`. Syntax и diff checks PASS. Никакого повторного CI/native baseline запуска для unit RED не было.
+
+Замороженные изменения: helper33012 bytes/SHA256 `4ee35c839768182099288556197ba60c3235d6e276c5152b1dc17b62b40b54be`; test23242 bytes/SHA256 `dacf4cb9a6cb42d655a9b1eaca3f0ee829e6c761a1de6995514b7125b36d1fd0`. Полный diff — эти2 tool files,2 append-only журнала и архив PR193. Product/runtime, native driver, сайт и publisher ae72 не меняются.
+
+Перед новой branch update обе Windows be86 native jobs завершились SUCCESS: primary137172806187 в10:25:10 UTC; modern137177188114 в10:41:01 UTC (installed step10:25:28–10:40:52). Root сверил raw attempt1 jobs API. Be86 independent actual-EXE sweep ещё выполняется отдельно. Новый source не отменяет законченный Windows attempt и не наследует его приёмку.
+
+Новый common source должен пройти свои Mac/Linux/Windows gates и actual-package independent ae72. При публикации остаются обязательными exact-source merge/provenance, три готовых pins и свежие native publisher/public updater gates. До этого pins остаются false/null и37 не объявляется опубликованной.
