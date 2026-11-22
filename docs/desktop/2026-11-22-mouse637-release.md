@@ -550,3 +550,161 @@ performance threshold/workload change or diagnostic-branch merge is inferred.
 All native platforms must execute the original full gates again on that common
 source, followed by independent actual package acceptance. Historical failures
 remain recorded and no public package is replaced.
+
+## 22 November, 06:15 UTC — source0a95 native results and retained language selector
+
+The exact private-text correction was pushed as
+`0a95c8ab0ab440f662ce8e65288589d592e50157`, tree
+`aa12390bdf0c3357f2717fa26771e1e5b0e24922`, parent859052cd. The reviewed local
+tree and remote tree matched before the compare-and-swap ref update. All eight
+auxiliary source workflows passed. No production graphics/performance changes
+or diagnostic-branch files were added.
+
+### Mac0a95: strict performance and current features pass; retained chooser fails
+
+[44991966566](https://github.com/jeep-jim/OSMINOG/actions/runs/44991966566),
+attempt1/job137114766705, failed the installed-app step at06:11:17 UTC.
+Verification artifact14741429834 contains44,988,938 bytes, SHA-256
+`0de5a623587e719b9fa8c6efd709f2176d8e6c019fe6b02ae35ae6940ea066f0`.
+Package binding/upload was skipped, so the complete release gate remains failed.
+
+The unchanged strict published636 comparison now passed:20-page median
+73.058625ms to74.989458ms (delta+1.930833ms within16.666667ms);50-page median
+68.212750ms to59.549750ms (delta-8.663000ms). Candidate20 p95/max are
+76.063083/87.958917ms;50 p95/max are83.074875/107.587292ms, within the original
+250/600ms ceilings. The prior72/859 failures are retained, not reclassified.
+This runner result does not establish the cause of Anton's36 graphics report.
+
+Current637 native feature WRITE46385 and restart READ47811 exited0 with the
+required markers and separate reports. Root inspected the actual new Mac circle
+PNG: original centered mouse, curved lower actions, round close/minimize and
+strong dark backdrop are present. Its ready-to-install text is an intentionally
+exercised presentation state, not proof of a public release or owner installation.
+
+The later full WRITE process passed `MOUSE_ALL_FOOTER_MODALS_NATIVE_BARRIER_RACE_PASS`
+and then failed in the retained language-choice loop in `mouse-start-smoke.cjs`.
+That loop still selects `#choice-dialog button[data-value="en"]` and then `ru`.
+Actual `overlays.js` languageOptions creates enabled `button.language-chooser-row`
+with `bdi.lang`, while data-value belongs only to the separate generic chooser
+branch. The raw failure screenshot shows the open new language picker, search,
+and visible Russian/English rows; failure state records the modal barrier.
+The existing current637 feature scenario already selects those real rows through
+`:has(bdi[lang=...])` successfully. The retained click helper throws on the missing
+old selector and Electron exposes the generic script-execution failure.
+
+A narrow fixture correction is being reviewed: use the exact enabled language
+button with its actual bdi language, retaining the same real pointer sequence,
+modal/native-page barrier, English→Russian order, selection assertion and native
+layout-menu scenario. Production chooser attributes/behavior are unchanged.
+All smoke/test files were searched for the old chooser pattern: the only other
+match is the valid generic AI preview target `data-value="p2"`, which is retained.
+The private611 correction was not reached by this Mac WRITE process.
+
+### Linux0a95: source acceptance passed; exact artifacts undergoing independent gate
+
+[44991966576](https://github.com/jeep-jim/OSMINOG/actions/runs/44991966576),
+attempt1/job137114767127, completed successfully at06:11:35 UTC. New verification
+artifact14742382990 is40,736,403 bytes, SHA-256
+`03c3fade1981d6918331d5bbc2f0da7b7071f08e22e56b829f662c97719fca16`.
+Candidate artifact14742512455 is241,168,006 bytes, SHA-256
+`cb728128432211dfd72814112ac058ffb0f4f880eccfefb17d97d7521142bdf9`.
+Both archives passed independent size/hash and safe-extraction checks. Actual
+AppImage is135,776,082 bytes/SHA-256
+`0c9911ff8e845de7f2cb09b3e217d5e3efad52f3d8f2c7fe84d48c5883497fb8`;
+DEB is105,924,504 bytes/SHA-256
+`2641ec7c9ccd0bec23822a00e2503cd34349311da76b6e02fa957fbbb75d6e05`.
+The full independent publisher3b verification is in progress; no acceptance for
+a later source is inferred.
+
+Windows0a95 run44991966591 attempt1/primary137114767190 is still running its
+installed step at this observation. All three pins remain unready. The public
+feeds were reread at06:06 UTC as6.0.36; all three37 release tag endpoints returned
+404. Neither a release nor a38 version bump is warranted by these partial results.
+
+### Exact0a95 Linux acceptance and reviewed language fixture correction
+
+The full independent `mouse637-linux-evidence.py.verify` completed successfully
+in129.58381806 seconds against the exact0a95 package and evidence bytes above.
+All264 Python verifier files were bound to publisher3b4febdf Git bytes before and
+after. Retained gates, published636 comparison, actual profile replacement and
+update-button scenarios, all38 frames, restart and trusted Files proofs passed.
+Actual feature processes are WRITE9896/READ11213; the three file transfers retain
+their309/116/309-byte payloads, all13 phases and730.969/730.439/730.585ms destination
+dwell. This acceptance belongs only to0a95 and is not reused for a later commit.
+
+Mac0a95 current637 features also passed the independent publisher validator in
+41.043 seconds:38 frames, native input/file receipts, WRITE/restart bindings and
+the circular updater. This is a component result; strict performance was a
+source-native PASS, not a separately recomputed independent comparison here.
+No complete Mac package/upgrade acceptance is possible for this failed run.
+
+The retained language fixture correction is exactly one selector replacement:
+`#choice-dialog button.language-chooser-row:enabled:has(bdi[lang="en"])` and the
+same expression for `ru`. The pointer move/down/up helper,140ms click wait,
+existing polling, modal/native-view barrier, value assertions and subsequent
+native menu checks are unchanged. There is no production DOM or UI change.
+
+The regression test executes the actual shipped `overlays.js`, its real language
+catalog and the retained loop taken from `mouse-start-smoke.cjs`, using the
+existing owned DOM harness and real host OverlayGate. It checks two enabled
+language buttons, noninteractive planned languages, English→Russian changes,
+four click-dispatch calls and the exact barrier sequence/restored native view.
+Root review found that the initial harness getter did not reflect dataset into
+data-* attributes; this was corrected before acceptance. A positive control now
+executes the actual separate generic chooser branch and proves that its genuine
+`button[data-value="p2"]` exists, selects p2 and preserves hidden/disabled choices.
+Thus the language selector regression is not an artifact of an incomplete getter.
+
+Author and root focused Node22.23.5 runs pass18/18, zero skipped; independent
+reviewer reran only the affected overlay file,8/8. An in-memory substitution of
+the original0a95 retained loop produces exactly the expected missing-en-target
+failure while the generic chooser and six existing overlay tests pass. Native
+OS interaction is still required by the complete installed CI; the unit harness
+does not claim that proof. Root's first focused invocation lacked the existing
+Electron dependency path and reported six module-resolution setup failures;
+its log was retained before rerunning with the already installed desktop
+NODE_PATH and correct focused test list. No source change was made for that
+environment correction.
+
+Final reviewed SHA-256 values: `mouse-start-smoke.cjs`
+`04c4d008512ce98671f39900e580fb457c203d7d4c7f9ec35f29d7ed6664306b`;
+`mouse-overlay-metadata.test.cjs`
+`cc53d99d4014ed4443f233ebd5994a87f03d23142bc406e77a2d7e5fd4a7bc3b`.
+`git diff --check` passed. Publication pins and production code remain unchanged.
+
+### Windows0a95 primary completed; prepare the next common candidate
+
+Windows run44991966591 attempt1/primary137114767190 completed successfully at
+06:21:17 UTC, including installed acceptance, package binding and both artifact
+uploads. Verification artifact14743055141 is81,767,847 bytes, SHA-256
+`1bddd24ea8bdf2a3b9830b2ba823eaae97094c50596fd2848bb545f4026aed52`;
+its actual archive was downloaded, hash-checked and safely extracted (701 files).
+The complete terminal job log is794,202 bytes, SHA-256
+`8fd37b7b24306cb2d97a6fd8064310151b1673b7369553928bc6e685a5d61da4`.
+GitHub also records candidate artifact14741759915,125,616,101 bytes, archive
+SHA-256 `6e66b1610d18c7466e42736b5d8727dd3af629ca114309a18b400fbedc361e87`.
+Those archive metadata are not a separate verification of actual EXE bytes.
+
+Current WRITE process7692 passed private isolation in3392ms, including the actual
+`MOUSE_611_PRIVATE_THEME_ASSETS_AND_LIVE_SWITCH_PASS` marker and both private-theme
+PNGs. Later private cleanup, native profile write/read and the complete wrapper
+also passed. Wrapper raw SHA-256 is
+`d3942d1856524c064c40635ec580efa16de2c07933e064c2efb6c4c023a5ecc6`.
+Its17 successful checks include reinstall/read, actual update-button replacement,
+post-update profile and ordinary launch. The earlier859 private-text failure is
+preserved; the narrowly corrected expectation is now exercised by native Windows.
+
+Dependent modern job137118930356 started after primary success but is not accepted
+here. Because Mac0a95 already failed the stale language selector, this common
+source cannot be published. The next required source push will supersede the
+unfinished modern run through the existing cancel-in-progress policy; cancelled
+or partial work will not be counted as PASS. The final candidate must pass both
+Windows jobs on one attempt and full independent actual-package verification.
+
+A targeted read-only review of the remaining Mac legacy scenarios found no further
+deterministic contradiction in the changed library, AI preview and updater areas.
+Preserved library semantic controls, main AI IDs, updater close/minimize and the
+>=150px centered mascot remain compatible. This source review is not a substitute
+for completing those native scenarios. The next candidate contains only the
+reviewed retained language selector, its production-DOM regression tests and this
+journal; production code, frozen validators and all acceptance budgets are intact.
