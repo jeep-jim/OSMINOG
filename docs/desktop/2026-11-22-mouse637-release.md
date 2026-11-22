@@ -1522,3 +1522,51 @@ The next common source still needs its own full native and independent package
 checks on all three platforms, both Windows jobs, accepted source merge and
 fresh publisher installation gates. Linux85 acceptance remains historical for
 any later source; Mac85 remains failed. No readiness pin is being applied here.
+
+
+## 2026-11-22 09:23 UTC — source554 Mac retained622 отказ; Linux полная приёмка
+
+Общий source остаётся `554fbd5c1da7dbe385fab1385d8f51dc06595d4f`, tree `341a27fbad5a8ab07a18890d69703c1e25690055`, sole parent85d97a10; publisher610ea12 не изменён. Все8 вспомогательных554 workflow прошли. Повторные неизменённые запуски не создавались.
+
+### Фактический Mac554
+
+[Run45005647659](https://github.com/jeep-jim/OSMINOG/actions/runs/45005647659), attempt1/job137156525168, step17 завершился FAILURE09:17:16 UTC. Published636 baseline, retained636 (все7 guest actions), strict637 performance и637 WRITE/READ (38 кадров) прошли раньше в том же запуске. Исправленная Local628 очистка теперь `status=pass`, `completed=true`, `restored=true`; owned landing `b786db14-6e5b-4699-8268-491a7b64afc5` учтён. Это не полная приёмка Mac.
+
+Новый отказ в `--mouse-smoke-write`, `mouse-622-smoke.cjs:96`: после одобренного Agent ввода полное значение `#draft` ожидалось `agent-622`, фактически `preserved-pagent-622reset-88472ae9-ec77-429e-9f59-2aa93076b6fc`. Исходный sentinel — `preserved-preset-88472ae9-ec77-429e-9f59-2aa93076b6fc`; точное разложение actual = original[:11] + `agent-622` + original[11:]. Значит вставка выполнена; замена всего поля не выполнена. Raw не содержит selectionStart/end или receipt Meta+A, поэтому причину несработавшего выделения не устанавливаем.
+
+Verification artifact14748430320:70405412 bytes, SHA256 `63674fbb9cb826c3eb6e1387582f8379d5075758b8f027d4a1738d033e304d72`;662 файла безопасно извлечены и повторно проверены. Log1111584 bytes/SHA256 `7619fcb4e7562d8a55eeb05ce7be4d1ef2829c80145a51e6c5264550b1252053`. Root отдельно перепроверил архив, log и7 существенных raw-входов. Candidate upload пропущен; DMG/ZIP artifact и full independent Mac acceptance отсутствуют. Immutable610 offline sweep на failed native не запускался.
+
+### Linux554
+
+[Run45005647693](https://github.com/jeep-jim/OSMINOG/actions/runs/45005647693), attempt1/job137156525531: native SUCCESS09:13:19 UTC. Полный independent sweep под неизменённым610ea12 выполнен один раз, PASS138.701562570 s. Все264 файла валидаторов связаны с Git до/после;426 evidence файлов,38 кадров,180 native inputs, restart,7 guest clicks,3 настоящие передачи файлов, update636→637/profile и строгий performance проверены. Root перепроверил actual packages, оба архива и independent result.
+
+Candidate14747509384:241170511 bytes/SHA256 `9525e48d8322d1e080f2b044569f390c70ec92d86378f610b93c00a249f7a79c`. Verification14747294998:40801462 bytes/SHA256 `900eebd42f463b0f80875ce06ac4a5ad569953bf0a54fe6d887150fc077efc86`. AppImage135775865 bytes/SHA256 `2b2452737461f84265509a7913a88d2d34092f263cc7ff4835d94186b91eaba8`; DEB105926792 bytes/SHA256 `88a7073eb63a6fe5a1aba5a94358abda0256816e638e767ccbd5b0c1a19f608b`. Independent result331309 bytes/SHA256 `8711800a5400a2b2e7f748679d004ca72813f5f1128706a4bf3898e90501282f`; provenance10475 bytes/SHA256 `5974eb62676e20879749c94f1c6623e5fc47af1afbc06d633fdcbc225bc31349`. Proposed pin неприменён, ready=false/sourceMerge=null. Приёмка относится только к554.
+
+### Узкая причина конфликта fixture и продолжение
+
+Два независимых чтения actual source подтвердили: исходный636 retained622 вводил через прежний approval/SDK в пустой `#draft`. Новый637 shared preset proof заполняет то же поле sentinel для проверки сохранения формы, а622 добавил synthetic Cmd/Ctrl+A без readback selection. SDK/host по прежнему контракту вставляет текст в выбранное поле, не обещая очистить его. Production-дефект на этих данных не доказан.
+
+Выбрано разделить две owned test fields: оставить preservation sentinel нетронутым, дать retained622 Agent-сценарию отдельное пустое поле, сохранить исходные approved click/type и строгое полное значение, дополнительно проверить сохранность sentinel. Исправление и actual-source regression готовятся локально; native success заранее не объявляется. Никаких production SDK/host, permissions, private boundaries, native workloads, frozen validators или бюджетов менять для этого не разрешено.
+
+Windows45005647664/attempt1/primary137156556757 в09:22:48 UTC ещё выполняет installed step10. Если source сменится до обеих native Windows проверок, сохраняем terminal history, не запускаем полный offline sweep superseded554 и не переносим приёмку. Новому общему source нужны собственные три platform gates.
+
+В09:21:32 UTC все3 public feed по-прежнему6.0.36. Source193/publisher66 draft/open, все pins unready. Круглый updater и combined changes в candidate, но37 не опубликована. Исправление зависаний на физическом Mac владельца не утверждается.
+
+
+## 2026-11-22 09:31 UTC — изоляция retained622 Agent ввода; actual-source regression
+
+Узкое исправление готово: новый `mouse-637-agent-input-fixture.cjs` используется только622 fixture и добавляет отдельный пустой `#agent-draft` только в корневую localhost-страницу. Для остальных страниц байты общей `ownedPresetPage` сохраняются. Префикс637 включается существующим build glob, build configuration не менялась. `mouse-622-smoke.cjs` сохраняет прежние approved click/type и полное строгое значение `agent-622`; synthetic SelectAll подготовки этой стадии больше нет. Shared `#draft` не выбирается, не очищается и не редактируется.
+
+До ввода проверяются точный sentinel, пустота и доступность нового поля, finite page identity/timeOrigin и actual WebContents ID. После ввода проверяются полный результат и неизменность sentinel, актуального WebContents ID, native URL, href, timeOrigin, identity и navigationEpoch. Каждый readback заново берёт `page.view.webContents`; before/after сохраняются в `facts.agentInput` и существующем failure context. Никаких новых waits, retries или бюджетов. SDK/host, shared preset proof, native input helpers, permissions и private data paths не изменены. Эти дополнительные raw-поля совместимы с неизменённым publisher610 reader; validator не редактировался.
+
+Root отдельно подтвердил baseline provenance: immutable36 Mac pin указывает source `7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3`, merge `94d5c3d1b7fa7652a0f55b73ba3847458b3d053f`, PR190. Его622 source25516 bytes/SHA256 `51a3f4fabadd18ae0941eee7ae26a7fca69c1903b1a896ebfb782671b2a6285e` действительно создаёт пустой #draft и проверяет approved click/type без SelectAll. Это совпадает с прочитанным peer ancestor061bab77 по байтам. Причину исторического Mac shortcut отказа не объявляем установленной.
+
+Независимый новый `mouse-622-agent-input-fixture.test.cjs` исполняет фактические HTTP callback, approve и Agent stage из source622, настоящий shared preset seed, AgentController и AgentHost с их scope/consent checks. Только DOM/CDP окружение — явно unit adapter.8/8 PASS,0 skip подNode22.23.5; peer review и root review PASS. Тест охватывает root-only field, сохранение seed, отсутствие/занятость/disabled/readOnly target, повреждение sentinel до/после, отклонённое согласие без CDP insert, замену актуального WC и строгие output/navigation/timeOrigin/identity assertions.
+
+Неизменённый554 source25579 bytes/SHA256 `35de273010c93eff4c8c392610e87a2188f658d251f887bf0fceed59e8bd7957` побайтно сверен root с Git. Тот же тест даёт RED именно на прежнем strict full value: `preserved-pagent-622reset-owned-agent-page` против `agent-622`. Unit adapter моделирует наблюдённую невыделенную позицию11 и не утверждает причин Mac keyboard behavior. RED log1559 bytes/SHA256 `60ad8d87e80eb16d125c805cbc953dad4a9beaeed956061131beaab3c3afaa06`; GREEN2340 bytes/SHA256 `33263c7f84b63a519270898faab613fc8f2c0a507ff5c1d9e2bc4623b5e46384`.
+
+Root отдельно исполнил все8 новых cases:PASS. В том же необязательном расширенном запуске прежний `mouse-agent.test.cjs` не загрузился из-за отсутствующего локального ws dependency; этот общий запуск имеетexit1, не называется зелёным. Log3768 bytes/SHA256 `5916bea895fd6ca399f44a46d1d8f4ab25736d143cca849023871ffb1521169b`. После подключения уже установленного private runtime через временный node_modules symlink, удалённый после остановки проверки отдельный старый suite не завершился за примерно65s и был остановлен(exit130); full local Agent suite PASS не заявляется, причина незавершения не установлена. Это не меняет обязательный полный CI unit/native gate нового source; новый8-case regression и его independent author run оба прошли. Новых повторов optional тестов не делаем.
+
+Замороженные файлы: helper2699 bytes/SHA256 `b13645768f520b119a45de173ed27244c031a1550c3b36df2e2ede56e8662692`;622smoke25382 bytes/SHA256 `1d49f753d0c561026930a230c9d97cb843542ecee9b2739c72f8fbf2dc86d51a`; новыйtest13139 bytes/SHA256 `40107d2d522ffb7dab2b65ed7acd5b34654afef597b92e7b4e8837f03e113e6b`. Вместе с этим append-only журналом planned source delta — ровно4 файла. Commit ещё не создан на момент записи; перед push required fresh554 lease и проверка полного Git tree. Новый source потребует собственные Mac/Linux/Windows gates; старый Linux554 PASS не переносится.
+
+Windows554 primary137156556757 завершилсяSUCCESS, modern137162028752 выполняется. Первичные candidate14748147808 иverification14748147815 сохранены: ZIP125617142 bytes/SHA256 `f611d1916b8d7cf0ef57c8208f8781f3fc5a3b0a8a18c3ddb6370f93733d4949`; ZIP82012042 bytes/SHA256 `cab6e09a999c5f63ab7c0ed53b6df7935bccceee0a9f4604d7250e1567182ca3`. EXE125904616 bytes/SHA256 `2f54f4fbb84630707e189cb5ada1db44554c67c57d4a6c7796e4af070cec0c02` связан с manifest/raw. Полный independent554 Windows sweep не запускался при подготовке следующегоsource. Publisher610 и все unready pins остаются прежними;37 не опубликована.

@@ -3,7 +3,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=require('node:http'),path=require('node:path'),net=require('node:net');
 const {screen}=require('electron');
 const {AgentController}=require('./mouse-agent/agent-connector.cjs');
-const {createPresetProof,ownedPresetPage,canonicalServices}=require('./mouse-637-presets-helpers.cjs');
+const {createPresetProof,canonicalServices}=require('./mouse-637-presets-helpers.cjs');
+const {ownedAgentInputPage,verifyAgentInput}=require('./mouse-637-agent-input-fixture.cjs');
 const {createHash}=require('node:crypto');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -14,7 +15,7 @@ module.exports=async({app,win,browser,store,agentHost})=>{
  const burrow623=require('./mouse-623-smoke.cjs')({win,js});
  const features624=require('./mouse-624-smoke.cjs')({win,browser,store,agentHost,js,click,until,sleep,painted});
  let server,modelServer,client,captureTab,captureOriginal,releaseModelCompletion,lastClick=null,intercepted=false,modelRequests=0,workerPid=0,ptyPid=0;
- const selected=[];
+ const selected=[],agentInput={};
  const proof=createPresetProof({app,win,browser,agentHost,js,until,selectedRequests:selected,modelRequests:()=>modelRequests,
   click:async selector=>{await click(selector);return copy(lastClick);},
   text:async(selector,value)=>{const modifiers=[process.platform==='darwin'?'meta':'control'];await click(selector);win.webContents.sendInputEvent({type:'keyDown',keyCode:'A',modifiers});win.webContents.sendInputEvent({type:'keyUp',keyCode:'A',modifiers});win.webContents.sendInputEvent({type:'keyDown',keyCode:'Backspace'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Backspace'});await win.webContents.insertText(value);},
@@ -57,7 +58,7 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   const work=screen.getPrimaryDisplay().workArea;win.setBounds({x:work.x+8,y:work.y+8,width:Math.min(1200,work.width-16),height:Math.min(820,work.height-16)});await activate();
   await js('MouseTest.desktopUI.close({immediate:true});MouseTest.zoomUI.close();MouseTest.browsing.close();MouseTest.feedback.hide()');
   const fixtureFavicon=await fs.readFile(path.join(__dirname,'mouse/brand.png'));
-  server=http.createServer((req,res)=>{if((req.url||'').split('?')[0]==='/favicon.png'){res.setHeader('Content-Type','image/png');res.end(fixtureFavicon);return;}res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(ownedPresetPage(decodeURIComponent((req.url||'/').split('/').pop())));});
+  server=http.createServer((req,res)=>{if((req.url||'').split('?')[0]==='/favicon.png'){res.setHeader('Content-Type','image/png');res.end(fixtureFavicon);return;}res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(ownedAgentInputPage(decodeURIComponent((req.url||'/').split('/').pop())));});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const root='http://127.0.0.1:'+server.address().port;
   presetEvidence.fixtureOrigin=root;const serviceURLs=canonicalServices();
   browser.session.webRequest.onBeforeRequest({urls:serviceURLs},(details,done)=>{selected.push(details.url);done({redirectURL:root+'/suggested/'+encodeURIComponent(details.url)});});intercepted=true;
@@ -93,7 +94,7 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   client=await new AgentController(connection.connectionUrl).connect();assert.deepEqual((await client.tabs()).map(t=>t.targetId).sort(),allIds,'Only current desk tabs are exposed');
   const target=agentPreviewId,wc=browser.get(target).view.webContents;assert.ok((await client.dom(target)).root);assert.match((await client.read(target)).text,/local test fixture/);
   await approve(client.clickSelector(target,'#action'),'click');assert.equal(await wc.executeJavaScript('window.clicks'),1);
-  await approve(client.clickSelector(target,'#draft'),'click');const selectAll=[process.platform==='darwin'?'meta':'control'];wc.sendInputEvent({type:'keyDown',keyCode:'A',modifiers:selectAll});wc.sendInputEvent({type:'keyUp',keyCode:'A',modifiers:selectAll});await approve(client.type(target,'agent-622'),'type');assert.equal(await wc.executeJavaScript('document.querySelector("#draft").value'),'agent-622');
+  await verifyAgentInput({client,target,page:browser.get(target),approve,evidence:agentInput});
   const image=await client.screenshot(target);assert.deepEqual([...Buffer.from(image.data,'base64').subarray(0,8)],[137,80,78,71,13,10,26,10]);
   const terminal=await approve(client.terminal("printf 'MOUSE622_PTY_OK\\n'"),'terminal');assert.equal(terminal.exitCode,0);assert.match(terminal.stdout,/MOUSE622_PTY_OK/);ptyPid=agentHost.terminalService.proc.pid;
   const sideEffect=await client.send('Runtime.evaluate',{expression:'document.body.dataset.forbidden="yes"'},await client.session(target));assert.ok(sideEffect.exceptionDetails);assert.equal(await wc.executeJavaScript('document.body.dataset.forbidden'),undefined);
@@ -117,9 +118,9 @@ module.exports=async({app,win,browser,store,agentHost})=>{
   await click('#agent-stop');await until(()=>!agentHost.state().enabled,'native Stop action');await until(()=>!alive(ptyPid),'PTY process exit');assert.equal(agentHost.state().enabled,false);assert.equal(agentHost.state().terminal,false);assert.equal(agentHost.state().connectionUrl,'');assert.ok(await closedPort(connection.port));
   await js(`document.querySelector('#agent-local-port').value=${server.address().port};document.querySelector('.agent-localhost button').scrollIntoView({block:'center'})`);const beforePreview=new Set(browser.tabs.keys());await click('.agent-localhost button');let actualLocal;await until(()=>{actualLocal=[...browser.tabs.values()].find(t=>!beforePreview.has(t.id)&&t.view.webContents.getURL()===root+'/');return actualLocal;},'localhost preview opens inside Mouse');await click('#agent-settings-close');await until(()=>js('document.querySelector("#agent-settings-page").hidden'),'Localhost settings close before page input');await until(()=>js(`MouseTest.model.agentPreviewId===${JSON.stringify(actualLocal.id)}&&MouseTest.model.presetTabs.agents[0]===${JSON.stringify(actualLocal.id)}`),'existing Agent localhost action updates dedicated mode identity');const localBefore=(await pages([actualLocal.id]))[0],beforeReturn=browser.state().tabs.map(t=>t.id).sort();await js('MouseTest.applyMode("agents")');await until(()=>actualLocal.visible,'return to actual launched local app');const localAfter=(await pages([actualLocal.id]))[0];preserved([localBefore],[localAfter]);assert.deepEqual(browser.state().tabs.map(t=>t.id).sort(),beforeReturn);presetEvidence.agentLanding.settingsLaunch={before:localBefore,after:localAfter,previousId:agentPreviewId,previousRetained:browser.tabs.has(agentPreviewId),beforeIds:beforeReturn,afterIds:browser.state().tabs.map(t=>t.id).sort()};assert.equal(presetEvidence.agentLanding.settingsLaunch.previousRetained,true);
   await features624.verifyPillStop();
-  const facts={fixedDesks:5,suggestedRequests:selected.length,preservedTabs:allIds.length,hiddenCaptures,realThumbnails:true,localModelFixtureRequests:modelRequests,externalWorker:true,ptyStdout:true,autonomousActions:true,stoppedListener:true,localhostPreview:true,presetEvidence};await fs.writeFile('mouse-622-verification.json',JSON.stringify(facts,null,2)+'\n');console.log('MOUSE_622_AGENT_CDP_PTY_WORKER_STOP_PASS',JSON.stringify({...facts,presetEvidence:{schema:1,applications:presetEvidence.applications.length,selectedRequests:selected.length}}));
+  const facts={fixedDesks:5,suggestedRequests:selected.length,preservedTabs:allIds.length,hiddenCaptures,realThumbnails:true,localModelFixtureRequests:modelRequests,externalWorker:true,ptyStdout:true,autonomousActions:true,stoppedListener:true,localhostPreview:true,presetEvidence,agentInput};await fs.writeFile('mouse-622-verification.json',JSON.stringify(facts,null,2)+'\n');console.log('MOUSE_622_AGENT_CDP_PTY_WORKER_STOP_PASS',JSON.stringify({...facts,presetEvidence:{schema:1,applications:presetEvidence.applications.length,selectedRequests:selected.length}}));
  }catch(error){
-  console.log('MOUSE_622_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),focused:win.isFocused(),modelRequests,agent:agentHost?{enabled:agentHost.state().enabled,running:agentHost.state().running,desk:agentHost.state().desk,pending:agentHost.state().pending?.type}:null}));await fs.writeFile('mouse-622-failure.png',(await win.capturePage()).toPNG());throw error;
+  console.log('MOUSE_622_FAILURE_CONTEXT',JSON.stringify({lastClick,window:win.getBounds(),focused:win.isFocused(),modelRequests,agentInput,agent:agentHost?{enabled:agentHost.state().enabled,running:agentHost.state().running,desk:agentHost.state().desk,pending:agentHost.state().pending?.type}:null}));await fs.writeFile('mouse-622-failure.png',(await win.capturePage()).toPNG());throw error;
  }finally{
   releaseModelCompletion?.();
   if(captureTab&&captureOriginal)captureTab.capturePage=captureOriginal;
