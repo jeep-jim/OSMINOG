@@ -66,11 +66,16 @@ DOWNLOADS_ROOT = Path('/opt/osminog/website/downloads')
 EXTENSIONS = {'.html', '.css', '.js', '.mjs', '.svg', '.png', '.jpg', '.jpeg',
               '.webp', '.gif', '.avif', '.ico', '.woff', '.woff2', '.ttf', '.otf',
               '.txt', '.json', '.xml', '.webmanifest'}
+TEXT_EXTENSIONS = {'.html', '.css', '.js', '.mjs', '.svg', '.txt', '.json', '.xml', '.webmanifest'}
 mode = sys.argv[1]
 
 def require(ok, reason):
     if not ok:
         raise SystemExit('MOUSE_WEBSITE_REJECTED: ' + reason)
+
+def public_marker(source_commit):
+    identity = hashlib.sha256(('mouse.black/site/' + source_commit).encode()).hexdigest()
+    return {'release': identity, 'domain': 'mouse.black'}
 
 def parse_downloads(data):
     require(len(data) <= 16384, 'download manifest size')
@@ -206,7 +211,7 @@ def validate(payload, release):
     for name, data in payload.items():
         valid_path(name)
         require(len(data) <= MAX_FILE, 'file size: ' + name)
-        if PurePosixPath(name).suffix in ('.html', '.js', '.mjs', '.json'):
+        if PurePosixPath(name).suffix.lower() in TEXT_EXTENSIONS:
             require(b'github.com' not in data.lower() and b'githubusercontent.com' not in data.lower(),
                     'public website must not expose repository URLs')
     require({'index.html', 'release.json', 'SHA256SUMS'} <= payload.keys(), 'required files missing')
@@ -216,7 +221,7 @@ def validate(payload, release):
         lines = payload['SHA256SUMS'].decode('ascii').splitlines()
     except (ValueError, UnicodeError):
         raise SystemExit('MOUSE_WEBSITE_REJECTED: invalid release metadata')
-    require(marker == {'commit': release, 'domain': 'mouse.black'}, 'release identity')
+    require(marker == public_marker(release), 'release identity')
     expected = {}
     for line in lines:
         match = re.fullmatch(r'([0-9a-f]{64})  (.+)', line)
@@ -247,8 +252,7 @@ if mode == '--package':
         require(len(payload) < MAX_FILES - 2, 'source file count')
         payload[name] = path.read_bytes()
         require(sum(map(len, payload.values())) <= MAX_TOTAL, 'source size')
-    payload['release.json'] = (json.dumps({'commit': release, 'domain': 'mouse.black'},
-                                        separators=(',', ':')) + '\n').encode()
+    payload['release.json'] = (json.dumps(public_marker(release), separators=(',', ':')) + '\n').encode()
     payload['SHA256SUMS'] = ''.join(
         hashlib.sha256(data).hexdigest() + '  ' + name + '\n'
         for name, data in sorted(payload.items())).encode('ascii')
