@@ -93,7 +93,34 @@ revision and remains unresolved.
 
 ## Delivery status
 
-Prepared and locally verified. Publication evidence will be appended after the
-existing Mouse website workflow and its independent public checks complete.
-Deploy through OSMINOG's existing osminog access on REG only. No DNS, tariff,
-Nginx, root access, AvtoCena, native-browser release or release feed changes.
+Source `8ddde2077ee2b7d74a33246c9e3270df8ec345d2` is published at
+<https://mouse.black/>. Its tree `65373c026dd406c684d91b9783485d312370baad`
+exactly matches the reviewed local commit. The concurrent documentation
+commit `33fb28e6bcb66e2aeda3eaf6c03a0189f5ed9712` is preserved as its parent.
+The source was published through the existing GitHub connector with a
+non-forced expected-head update; the local CLI had no push credentials.
+
+The existing website [run 45046471600](https://github.com/jeep-jim/OSMINOG/actions/runs/45046471600)
+is finishing its independent public gate. Validate already passed 51 Python
+tests, 4 Node tests, the 72-language SEO build and the 37-member source bundle.
+The existing osminog deployment path was used. No DNS, tariff, Nginx, root
+access, AvtoCena, native-browser release or release feed changes were made.
+
+## Published browser observations
+
+The live browser at <https://mouse.black/> rendered the new actual captures,
+integrated toolbar, translated controls, mouse and one-line headline. All
+three download links displayed 6.0.37, including macOS.
+
+Opening the viewer and maximizing Figma loaded its actual Community page;
+the control changed to the Russian Restore grid label and tooltip. Escape
+restored the grid. A pointer move over YouTube resolved that capture to
+`grayscale(0)` while the other three panes remained at `grayscale(0.75)`;
+all four images were decoded and loaded. Closing restored the landing.
+The public dark floor and burrow bottom both measured 608.390625 px, and
+the floor/gradient/download border all resolved to RGB 80/80/80.
+
+Screenshots captured from the published page, stored only as documentation:
+
+- [Published landing](previews/2026-11-22-real-sites-home.jpg)
+- [Published interactive grid, YouTube in color](previews/2026-11-22-real-sites-grid.jpg)
