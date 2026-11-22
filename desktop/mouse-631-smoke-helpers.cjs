@@ -97,8 +97,9 @@ async function createFixture(ctx,name,budgetMs){
 
  async function switchDesk(id,options){
   assert.ok(bank.items.some(item=>item.id===id),'Only an existing owned desktop is selected');
-  await bounded(js(`MouseTest.switchDesktop(${JSON.stringify(id)},false,${JSON.stringify(options||{})})`),12000,'switch '+id);
-  await until(()=>js(`!MouseTest.model.switching&&MouseTest.model.desktopId===${JSON.stringify(id)}`),'settled desktop '+id);
+  const invoke=(kind,code)=>ctx.performanceDiagnostic?ctx.performanceDiagnostic.invoke(kind,code,js):js(code);
+  await bounded(invoke('switch',`MouseTest.switchDesktop(${JSON.stringify(id)},false,${JSON.stringify(options||{})})`),12000,'switch '+id);
+  await until(()=>invoke('settled',`!MouseTest.model.switching&&MouseTest.model.desktopId===${JSON.stringify(id)}`),'settled desktop '+id);
   assert.equal(bank.active,id);
  }
  async function preparePage(record){

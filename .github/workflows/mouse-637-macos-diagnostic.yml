@@ -1,0 +1,57 @@
+name: Mouse 6.0.37 macOS performance diagnostics only
+on:
+  push:
+    branches: ['diagnostic/mouse-637-macos-performance-859052cd']
+permissions:
+  contents: read
+jobs:
+  diagnostic-only:
+    if: github.ref == 'refs/heads/diagnostic/mouse-637-macos-performance-859052cd'
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_FOR_PULL_REQUEST: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: test "$(uname -m)" = arm64
+      - run: npm ci
+      - name: Prepare the existing packaged runtime
+        run: |
+          npm ci --prefix mouse-agent
+          node mouse-agent/prepare.cjs
+          npm run prepare:runtime
+          node mouse-native-build.cjs
+          node mouse-icon.cjs
+      - name: Diagnostic isolation contracts
+        run: |
+          node --test mouse-637-performance-diagnostic.test.cjs mouse-631-stress-smoke.test.cjs
+          python3 ../tools/test_mouse637_performance_diagnostic.py -v
+      - name: Build an isolated diagnostic app, with no release packages
+        run: npx electron-builder --config mouse-build.cjs --mac dir --arm64 --publish never
+      - name: Run the existing workload in two separate isolated processes
+        run: |
+          set -euo pipefail
+          xcrun swift ../tools/mouse-637-macos-display.swift --output mouse-637-diagnostic-display.json
+          xcrun swift ../tools/mouse-637-macos-display.swift --verify mouse-637-diagnostic-display.json
+          APP="dist-mouse/mac-arm64/Mouse Browser.app"
+          test "$(lipo -archs "$APP/Contents/MacOS/Mouse Browser")" = arm64
+          codesign --verify --deep --strict "$APP"
+          INSTALL="$RUNNER_TEMP/Mouse diagnostic/Mouse Browser.app"
+          mkdir -p "$(dirname "$INSTALL")"
+          ditto "$APP" "$INSTALL"
+          python3 ../tools/mouse-637-performance-diagnostic.py "$INSTALL/Contents/MacOS/Mouse Browser" --output "$GITHUB_WORKSPACE/desktop/mouse-637-performance-diagnostic"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-637-macos-performance-diagnostic-only
+          path: |
+            desktop/mouse-637-diagnostic-display.json
+            desktop/mouse-637-performance-diagnostic/**
+          if-no-files-found: error
+          retention-days: 14

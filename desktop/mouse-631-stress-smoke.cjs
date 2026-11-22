@@ -139,13 +139,16 @@ module.exports=async ctx=>{
   return result;
  }
  try{
-  fixture=await createFixture(ctx,'stress',facts.budgetMs);
+  const performanceDiagnostic=process.env.MOUSE_637_PERFORMANCE_DIAGNOSTIC==='1'?require('./mouse-637-performance-diagnostic.cjs').createPerformanceDiagnostic({app:ctx.app}):null;
+  fixture=await createFixture(performanceDiagnostic?{...ctx,performanceDiagnostic}:ctx,'stress',facts.budgetMs);
+  if(performanceDiagnostic)fixture.performanceDiagnostic=performanceDiagnostic;
   // The inherited accessibility preference may intentionally bypass a slide.
   // Keep the predecessor fixture preference identical; only the retained Nora uses a snapshot animation in 6.0.36.
   facts.motionMedia={before:await fixture.js('matchMedia("(prefers-reduced-motion:reduce)").matches')};
   motionDebug=fixture.win.webContents.debugger;assert.equal(motionDebug.isAttached(),false);motionDebug.attach('1.3');motionAttached=true;
   await bounded(motionDebug.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]}),3000,'Enable stress fixture motion');
   facts.motionMedia.normal=await fixture.js('matchMedia("(prefers-reduced-motion:reduce)").matches');assert.equal(facts.motionMedia.normal,false);
+  if(performanceDiagnostic)await performanceDiagnostic.start({debugger:motionDebug,fixture});
   const {browser,win,bank}=fixture,desks=bank.items.map(item=>item.id);assert.equal(desks.length,5);facts.desks=desks;
   server=http.createServer((req,res)=>{
    const url=new URL(req.url,'http://localhost');
@@ -182,11 +185,12 @@ module.exports=async ctx=>{
    const running=[];for(let d=0;d<5;d++)running.push(await startStream(groups[d][target===20?0:4],'stage'+target+'-desk'+d));
    row.streamsBefore=running;await rendererMonitor(true);mainGaps.length=0;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();mainGaps.push(now-lastTick);lastTick=now;},25);
    for(let n=0;n<switchCount;n++){
+    if(performanceDiagnostic)performanceDiagnostic.beginSwitch({stage:target,sequence:n+1});
     const d=(n+1)%5,id=desks[d],callsBefore=captureCalls.length,countsBefore={...counts},layoutBefore=browser.mouseLayoutCalls||0,mainCallTimings=switchTimings.begin(target,n+1),start=performance.now();operation='switch-'+n;mainCallTimings.startedAt=start;
     let elapsedMs;
     try{await fixture.switchDesk(id);elapsedMs=performance.now()-start;}
     catch(error){row.failedSwitchMainCallTimings=mainCallTimings;throw error;}
-    finally{switchTimings.end(elapsedMs===undefined?performance.now():start+elapsedMs);}
+    finally{switchTimings.end(elapsedMs===undefined?performance.now():start+elapsedMs);if(performanceDiagnostic)performanceDiagnostic.endSwitch();}
     assert.ok(elapsedMs<12000);
     const slide=await fixture.js('structuredClone(MouseDesktopSlide.last)');assert.equal(slide.phase,'complete');
     if(Number(ctx.app.getVersion().split('.')[2])>=36){assert.equal(slide.strategy,'live');assert.equal(slide.presented,true);assert.equal(slide.snapshotCaptures,0);assert.equal(slide.animated,false);assert.equal(slide.decoded,false);assert.equal(captureCalls.length,callsBefore);assert.equal(counts.capturePage,countsBefore.capturePage,'A normal switch performs no native image readback');}
@@ -214,6 +218,7 @@ module.exports=async ctx=>{
  }catch(error){verificationError=error;facts.error={message:error.message,stack:error.stack};if(error.capture)facts.failureCapture=error.capture;facts.surfaceCalls=captureCalls;await save();}
  finally{
   clearInterval(interval);for(const stream of streams.values()){clearInterval(stream.timer);if(!stream.res.writableEnded)stream.res.end();}
+  if(fixture?.performanceDiagnostic)try{await fixture.performanceDiagnostic.stop(verificationError?'workload-error':'workload-complete');}catch(error){facts.performanceDiagnosticError={message:error.message};}
   if(frameMonitorStarted&&fixture)await rendererMonitor(false).catch(error=>{facts.rendererCleanupError=error.message;});
   for(const restore of restorers.reverse())try{restore();}catch(error){facts.wrapperCleanupError=error.message;}
   if(fixture)try{facts.cleanup=await bounded(fixture.cleanup(),22000,'stress cleanup');facts.restored=true;}catch(error){cleanupError=error;facts.cleanupError={message:error.message,stack:error.stack};}
