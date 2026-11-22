@@ -4,22 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1e1e1e">
-  <meta name="description" content="Mouse Browser — локальный браузер с тихим характером. Скачать для macOS Apple Silicon, Windows x64 и Linux x64.">
   <meta name="color-scheme" content="dark light">
-  <title>Твой компьютер — твои правила | Mouse Browser</title>
-  <link rel="canonical" href="https://mouse.black/">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="fonts/MouseGrid.ttf" as="font" type="font/ttf" crossorigin>
-  <script src="i18n.js"></script>
-  <script src="language-picker.js"></script>
-  <script src="site.js"></script>
-  <link rel="stylesheet" href="site.css">
-  <link rel="stylesheet" href="language-picker.css">
+  <!-- SEO_METADATA -->
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/MouseGrid.ttf" as="font" type="font/ttf" crossorigin>
+  <script src="/i18n.js" defer></script>
+  <script src="/language-picker.js" defer></script>
+  <script src="/site.js" defer></script>
+  <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/language-picker.css">
 </head>
 <body>
+  <div class="first-screen">
   <a class="skip-link" href="#downloads" data-i18n="skipDownload">Перейти к загрузке</a>
   <header class="site-header">
-    <a class="wordmark" href="./" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">mouse<span class="wordmark-domain">.black</span></a>
+    <a class="wordmark" href="/" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">mouse<span class="wordmark-domain">.black</span></a>
     <div class="header-controls">
       <div class="language-control" id="language-picker" hidden></div>
       <button class="theme-switch" type="button" id="theme-switch" aria-label="Включить светлую тему" aria-pressed="false" hidden>
@@ -82,8 +81,33 @@
   </main>
 
   <footer class="site-footer">
-    <span class="footer-signature" data-i18n="footerSignature">Тише мыши</span>
+    <a class="footer-signature" href="#about" data-i18n="footerSignature">Тише мыши</a>
     <p data-i18n="footerPrivacy">На этом сайте нет аналитики и рекламных трекеров.</p>
   </footer>
+  </div>
+
+  <section class="about" id="about" aria-labelledby="about-heading">
+    <h2 id="about-heading" data-i18n="aboutTitle">Браузер с несколькими окнами</h2>
+    <div class="about-grid">
+      <article>
+        <h3 data-i18n="splitTitle">Разделение экрана в браузере</h3>
+        <p data-i18n="splitText">Открывай сайты рядом в одном окне, располагай вкладки в сетке и меняй размеры панелей. Разделяй задачи по рабочим столам.</p>
+      </article>
+      <article>
+        <h3 data-i18n="privateTitle">Приватный просмотр</h3>
+        <p data-i18n="privateText">Для приватного просмотра Mouse создаёт отдельную временную сессию. Обычный профиль хранится на устройстве. Приватный режим не скрывает IP-адрес от сайтов и провайдера.</p>
+      </article>
+      <article>
+        <h3 data-i18n="desktopTitle">Для Windows, Mac и Linux</h3>
+        <p data-i18n="desktopText">Установщики для macOS Apple Silicon, Windows x64 и Linux x64 доступны напрямую с mouse.black.</p>
+      </article>
+    </div>
+    <details class="language-directory">
+      <summary><span data-i18n="languageLabel">Язык</span> <span class="language-count">72</span></summary>
+      <nav class="language-links" aria-label="Язык" data-i18n-aria="languageLabel">
+        <!-- LANGUAGE_LINKS -->
+      </nav>
+    </details>
+  </section>
 </body>
 </html>
