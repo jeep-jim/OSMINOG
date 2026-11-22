@@ -1,0 +1,126 @@
+name: Mouse website — stage and publish own static files
+on:
+  push:
+    branches: [main, feat/mouse-black-landing-20261122]
+    paths: ['website/**', 'infra/website/**', '.github/workflows/mouse-website.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mouse-website-deploy
+  cancel-in-progress: false
+jobs:
+  website:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/mouse-black-landing-20261122'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: osminog-reg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate and package only the static website
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n infra/website/deploy.sh
+          bash -n infra/website/bootstrap.sh
+          bash infra/website/deploy.sh --package website "$GITHUB_SHA" "$RUNNER_TEMP/mouse-website.tar.gz"
+          archive_sha=$(sha256sum "$RUNNER_TEMP/mouse-website.tar.gz" | cut -d ' ' -f 1)
+          bash infra/website/deploy.sh --verify "$GITHUB_SHA" "$RUNNER_TEMP/mouse-website.tar.gz" "$archive_sha"
+      - name: Inspect own permissions and stage the verified release
+        id: publish
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
+          SSH_USER: ${{ vars.OSMINOG_REG_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test "${SSH_USER:-osminog}" = osminog
+          test -n "$SSH_PRIVATE_KEY"
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          key=$(mktemp); hosts=$(mktemp)
+          trap 'rm -f "$key" "$hosts"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
+          unset SSH_PRIVATE_KEY
+          ssh-keygen -y -f "$key" >/dev/null
+          printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
+          ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 'bash -s' <<'PROBE' | tee "$RUNNER_TEMP/mouse-website-permissions.txt"
+          set -euo pipefail
+          test "$(id -un)" = osminog
+          test "$(id -u)" -ne 0
+          date -u +%Y-%m-%dT%H:%M:%SZ
+          id
+          for path in /opt/osminog /opt/osminog/website /var/www/mouse.black /etc/nginx/conf.d /etc/nginx/conf.d/mouse.black.conf; do
+            if test -e "$path"; then
+              stat -c 'PATH %n owner=%U group=%G mode=%a type=%F' "$path"
+              if test -w "$path"; then printf 'WRITABLE %s\n' "$path"; else printf 'NOT_WRITABLE %s\n' "$path"; fi
+            else printf 'ABSENT %s\n' "$path"; fi
+          done
+          for binary in nginx certbot sudo; do command -v "$binary" || true; done
+          if command -v sudo >/dev/null; then
+            printf '%s\n' 'Own noninteractive sudo permission listing:'
+            timeout 10 sudo -n -l 2>&1 || true
+          fi
+          ss -ltn '( sport = :80 or sport = :443 or sport = :3081 or sport = :3082 )'
+          PROBE
+          archive_sha=$(sha256sum "$RUNNER_TEMP/mouse-website.tar.gz" | cut -d ' ' -f 1)
+          deploy_sha=$(sha256sum infra/website/deploy.sh | cut -d ' ' -f 1)
+          bootstrap_sha=$(sha256sum infra/website/bootstrap.sh | cut -d ' ' -f 1)
+          # Upload only the reviewed scripts to the dedicated user's own website area.
+          for item in deploy bootstrap; do
+            script_sha=$deploy_sha
+            if test "$item" = bootstrap; then script_sha=$bootstrap_sha; fi
+            remote="/opt/osminog/website/$item-$GITHUB_SHA.sh"
+            ssh "${ssh_args[@]}" osminog@151.248.113.177 "set -e; umask 077; test \"\$(id -un)\" = osminog; test \"\$(id -u)\" -ne 0; test -d /opt/osminog; test ! -L /opt/osminog; test ! -L /opt/osminog/website; mkdir -p /opt/osminog/website; test ! -L '$remote'; temporary=\$(mktemp '/opt/osminog/website/.script-XXXXXXXX'); trap 'rm -f \"\$temporary\"' EXIT; cat > \"\$temporary\"; printf '%s  %s\\n' '$script_sha' \"\$temporary\" | sha256sum --check --status; chmod 600 \"\$temporary\"; mv -T \"\$temporary\" '$remote'" < "infra/website/$item.sh"
+          done
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --receive '$GITHUB_SHA' '$archive_sha'" < "$RUNNER_TEMP/mouse-website.tar.gz" | tee "$RUNNER_TEMP/mouse-website-deploy.txt"
+          status=$(sed -n 's/^deployment_status=//p' "$RUNNER_TEMP/mouse-website-deploy.txt")
+          [[ "$status" = ADMIN_SETUP_REQUIRED || "$status" = CONTENT_PUBLISHED ]]
+          printf 'status=%s\n' "$status" >> "$GITHUB_OUTPUT"
+          {
+            printf '## Mouse website\n\nSource commit: `%s`\n\n' "$GITHUB_SHA"
+            printf 'Deployment outcome: **%s**\n\n' "$status"
+            printf 'Verified static release: `/opt/osminog/website/releases/%s`\n\n' "$GITHUB_SHA"
+            printf 'Reviewed administrator script: `/opt/osminog/website/bootstrap-%s.sh`\n\n' "$GITHUB_SHA"
+            printf 'Administrator script SHA256: `%s`\n\n' "$bootstrap_sha"
+            if test "$status" = ADMIN_SETUP_REQUIRED; then
+              printf 'The files are staged. The public website is not declared live: administrator setup of its dedicated webroot, Nginx host and HTTPS is still required.\n\n'
+            else
+              printf 'The public static release symlink was updated. The next step verifies trusted HTTPS and the exact public commit.\n\n'
+            fi
+            printf '### Fresh own-user permissions\n\n```text\n'
+            cat "$RUNNER_TEMP/mouse-website-permissions.txt"
+            printf '\n```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify the exact public release over trusted HTTPS
+        if: steps.publish.outputs.status == 'CONTENT_PUBLISHED'
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          for host in ('mouse.black', 'www.mouse.black'):
+              with urllib.request.urlopen('https://' + host + '/release.json', timeout=20) as response:
+                  marker = json.load(response)
+                  assert response.status == 200
+                  assert response.url.startswith('https://mouse.black/')
+                  assert marker == {'commit': os.environ['EXPECTED_COMMIT'], 'domain': 'mouse.black'}
+              with urllib.request.urlopen('https://' + host + '/', timeout=20) as response:
+                  body = response.read(2 * 1024 * 1024)
+                  assert response.status == 200 and b'<html' in body.lower() and b'Mouse' in body
+              print('MOUSE_WEBSITE_HTTPS_VERIFIED ' + host)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('\n**Verified live:** both domain names reach the expected release through trusted HTTPS.\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-website-deployment-evidence
+          path: |
+            ${{ runner.temp }}/mouse-website-permissions.txt
+            ${{ runner.temp }}/mouse-website-deploy.txt
+          if-no-files-found: ignore
+          retention-days: 14
