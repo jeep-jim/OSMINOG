@@ -12,10 +12,12 @@ module.exports=async function verifyPresets({app,win,browser,store,agentHost,fix
  await js('MouseTest.desktopUI.close({immediate:true});globalThis.MouseFlush?.()');await store.queue;
  const original=await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})'),savedBank=bank.snapshot(),globals=copy(bank.global),originalIds=new Set(Object.keys(bank.members));
  const originalPages=new Map([...browser.tabs.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0}])),originalRecords=await Promise.all(records.map(fixture.identity));
- const nativeInputStart=facts.nativeInputs.length,selected=[],proof=createPresetProof({app,win,browser,agentHost,js,until,click,text,setTheme:theme,frame,selectedRequests:selected,
+ let diagnostic;
+ const nativeInputStart=facts.nativeInputs.length,selected=[],proof=createPresetProof({app,win,browser,agentHost,js,until,click,text,setTheme:theme,frame,selectedRequests:selected,diagnostic:()=>diagnostic,
   captureLanding:(read,rgb)=>capture('mouse-637-localhost-'+read.theme+'.png',[{name:'Localhost landing background',point:{x:read.pane.x+12,y:read.pane.y+12},expectedRGB:rgb}])});
  const report=proof.evidence;facts.presets=report;report.ok=false;let server,intercepted=false,failure;
  try{
+  if(process.env.MOUSE_637_PRESET_DIAGNOSTIC==='1')diagnostic=await require('./mouse-637-preset-diagnostic.cjs').beginDiagnostic({app,win,browser,js});
   proof.assertDisconnected(proof.capabilities());
   const favicon=await fs.readFile(path.join(__dirname,'mouse/brand.png'));
   server=http.createServer((req,res)=>{res.setHeader('Cache-Control','no-store');if((req.url||'').split('?')[0]==='/favicon.png'){res.setHeader('Content-Type','image/png');res.end(favicon);return;}res.setHeader('Content-Type','text/html; charset=utf-8');res.end(ownedPresetPage(decodeURIComponent((req.url||'/').split('/').pop())));});
@@ -24,8 +26,9 @@ module.exports=async function verifyPresets({app,win,browser,store,agentHost,fix
   const result=await proof.runCatalog();await proof.restoreAgent();
   assert.equal(result.allIds.length,24);assert.equal(selected.length,27);assert.equal(report.applications.length,7);
   report.primaryPages=result.allIds.length;report.nativeInputStart=nativeInputStart;report.nativeInputEnd=facts.nativeInputs.length;report.inputCount=report.nativeInputEnd-nativeInputStart;
- }catch(error){failure=error;}
+ }catch(error){failure=error;if(diagnostic)await diagnostic.failure(error,()=>capture('mouse-637-presets-failure-before-cleanup.png')).catch(()=>{});}
  finally{
+  if(diagnostic)await diagnostic.finish(failure).catch(()=>{});
   const errors=[],created=Object.keys(bank.members).filter(id=>!originalIds.has(id));
   // Register every new owner for the enclosing fixture's final fallback too.
   for(const id of created)if(!fixture.created.some(record=>record.id===id))fixture.created.push({id,desk:bank.members[id],page:browser.tabs.get(id)});

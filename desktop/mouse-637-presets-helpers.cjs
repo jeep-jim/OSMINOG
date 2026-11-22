@@ -27,7 +27,7 @@ function assertDisconnected(value){
 }
 function preserved(before,after){assert.deepEqual(after,before,'Every existing page keeps identity, navigation, form and scroll state');}
 
-function createPresetProof({app,win,browser,agentHost,js,until,click,text,setTheme,frame,captureLanding,selectedRequests,modelRequests=()=>0}){
+function createPresetProof({app,win,browser,agentHost,js,until,click,text,setTheme,frame,captureLanding,selectedRequests,modelRequests=()=>0,diagnostic}){
  assert.ok(agentHost,'The installed Agent host is available for the capability checks');
  const bank=browser.mouseDesktops.bank,selected=selectedRequests,inputSource=process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest';
  const evidence={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,packaged:app.isPackaged,source:'Owned loopback pages opened by native preset controls; no external account access',catalog:Modes.modes.map(({id,sites,tree})=>({id,sites:copy(sites),tree:copy(tree)})),applications:[],selectedRequests:selected,agentLanding:null};
@@ -53,7 +53,7 @@ function createPresetProof({app,win,browser,agentHost,js,until,click,text,setThe
   await until(()=>js(`MouseTest.model.mode===${JSON.stringify(mode)}&&!MouseTest.model.switching&&!document.querySelector(${JSON.stringify(selector)}).disabled`),'preset '+mode+' settles');await closeTray();
   await until(()=>browser.state().tabs.every(tab=>tab.internal||!browser.get(tab.id).loading&&browser.get(tab.id).view.webContents.getURL().startsWith(evidence.fixtureOrigin+'/')),'preset '+mode+' owned native pages load');await frame();
   const state=await js('MouseTest.prefs()');assert.deepEqual(state.tree,spec.tree);assert.equal(state.aiOpen,false);assert.equal(state.agentOpen,mode==='agents');
-  const ids=L.leaves(state.tree),all=await pages(),selectedPages=ids.map((pane,index)=>{const id=state.slots[pane],page=all.find(row=>row.id===id);assert.ok(page,'Every preset pane is populated');return{pane,url:spec.sites[index],id,webContentsId:page.webContentsId,observedURL:page.url,identity:page.identity,internal:page.internal};});assert.equal(new Set(selectedPages.map(row=>row.id)).size,spec.sites.length);
+  const ids=L.leaves(state.tree),all=await pages(),selectedPages=ids.map((pane,index)=>{const id=state.slots[pane],page=all.find(row=>row.id===id);if(!page)try{diagnostic?.()?.failedSelection({mode,pane,id:id??null,hasSlot:Object.hasOwn(state.slots,pane),state,all,leaves:ids});}catch{}assert.ok(page,'Every preset pane is populated');return{pane,url:spec.sites[index],id,webContentsId:page.webContentsId,observedURL:page.url,identity:page.identity,internal:page.internal};});assert.equal(new Set(selectedPages.map(row=>row.id)).size,spec.sites.length);
   for(const row of selectedPages){if(row.internal){assert.equal(mode,'agents');assert.equal(row.observedURL,'mouse://start');}else{const page=browser.get(row.id);assert.equal(row.observedURL,evidence.fixtureOrigin+'/suggested/'+encodeURIComponent(row.url));assert.equal(page.visible,true);assert.ok(page.bounds.width>1&&page.bounds.height>1);}}
   const afterPages=await pages(beforePages.map(row=>row.id));preserved(beforePages,afterPages);const automaticAfter=capabilities();assertDisconnected(automaticAfter);
   const requestDelta=selected.length-requestBefore;assert.equal(requestDelta,planned.missing.filter(site=>site.url!=='mouse://start').length);

@@ -262,7 +262,8 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
   }
   return queue;
  }
- function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState()};}
+ function tracePreset(kind,value){const trace=browser.mousePresetDiagnostic;if(!trace)return null;try{return trace.note(kind,value());}catch(error){try{trace.error('main-hook',error);}catch{}return null;}}
+ function state(){const raw=rawLiveState(),result={...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState()};try{browser.mousePresetDiagnostic?.state(result);}catch{}return result;}
  browser.state=state;
  browser.mouseAssignDesk=id=>bank.assign(id,creationDesk||bank.active);
  browser.make=(...args)=>{const t=oldMake(...args);bank.assign(t.id,creationDesk||bank.active);return t;};
@@ -289,11 +290,13 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  function validatePreferences(p){if(!p||typeof p!=='object'||Array.isArray(p)||JSON.stringify(p).length>100000)throw Error('Invalid desktop preferences');L.validate(p.tree);}
  function savePreferences(p,meta={}){
   validatePreferences(p);changeMeta(meta);
+  const diagnosticRequest=tracePreset('save-enqueue',()=>({preferences:p}));
   return serial(async()=>{
+   tracePreset('save-start',()=>({request:diagnosticRequest,active:bank.active,preferences:p,layout:bank.current().layout}));
    if(disposed||browser.disposed)throw Error('Рабочее пространство закрыто');
    const tabs=rawLiveState().tabs,before=JSON.stringify(bank.historyState());
    if(!bank.savePreferences(p,meta,tabs))return false;await persist();
-   if(before!==JSON.stringify(bank.historyState()))browser.emit();return true;
+   if(before!==JSON.stringify(bank.historyState()))browser.emit();tracePreset('save-return',()=>({request:diagnosticRequest,active:bank.active,layout:bank.current().layout}));return true;
   });
  }
  ipcMain.handle('mouse:desktops',async(event,action,args={})=>{
@@ -313,7 +316,9 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
   if(!['switch','add','rename','apply-mode','previews','remember-preview','move-tab','detach-preview','close-tab','pin-pane','history-state','undo','redo','restore-layout'].includes(action))throw Error('Unknown desktop action');
   // Validate a mode before accepting any accompanying preferences.
   const mode=action==='apply-mode'?Modes.get(args.mode):null;
+  const diagnosticRequest=tracePreset('desktop-enqueue',()=>({action,mode:mode?.id,from:args.from,preferences:args.preferences}));
   const run=async()=>{
+   tracePreset('desktop-start',()=>({request:diagnosticRequest,action,mode:mode?.id,active:bank.active,preferences:args.preferences,layout:bank.current().layout}));
    if(disposed||browser.disposed)throw Error('Рабочее пространство закрыто');
    if(args.from&&args.from!==bank.active)throw Error('Рабочий стол уже изменился');
    const tabs=rawLiveState().tabs;
@@ -329,7 +334,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
     const moved=bank.detachPreview(args.id,args.pane,rawLiveState().tabs),native=browser.tabs.get(args.id);delete native.previewOf;native.lane='main';previews.drop(args.id);
     await oldSave();await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
    }
-   if(action==='previews'||action==='remember-preview'){await previews.capture();await persist();return previews.snapshot();}
+   if(action==='previews'||action==='remember-preview'){await previews.capture();await persist();const result=previews.snapshot();tracePreset('preview-return',()=>({request:diagnosticRequest,action,active:bank.active,layout:bank.current().layout}));return result;}
    if(['undo','redo','restore-layout'].includes(action)){
     bank.finishHistoryGroup();const history=bank.historyState(),available=action==='restore-layout'?args.historyId!==history.currentId:action==='undo'?history.canUndo:history.canRedo;let changed=false;
     if(available){
@@ -364,12 +369,13 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
     L.assertPins(bank.current().layout,Modes.plan(mode.id,own(),bank.current().layout).layout);
     await browser.mouseBeforeDesktopChange?.();await previews.capture();
     const planned=Modes.plan(mode.id,own(),bank.current().layout),selectedIds=planned.selectedIds.slice();
+    tracePreset('mode-plan',()=>({request:diagnosticRequest,mode:mode.id,selectedIds,missingIndexes:planned.missing.map(site=>site.index)}));
     L.assertPins(bank.current().layout,planned.layout);
     // Presets select their own live pages. Displaced tabs remain alive in the
     // same desktop; repeating a mode reuses IDs even after a login redirect.
-    for(const {index,url}of planned.missing){const opened=await browser.command('open',{url,lane:'main'});selectedIds[index]=opened.id;}
+    for(const {index,url}of planned.missing){const opened=await browser.command('open',{url,lane:'main'});selectedIds[index]=opened.id;tracePreset('mode-opened',()=>({request:diagnosticRequest,mode:mode.id,index,id:opened.id}));}
     const tabs=rawLiveState().tabs,next=bank.liveLayout({...Modes.arranged(mode.id,tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout,{selectedIds}),pinnedPanes:bank.current().layout.pinnedPanes},bank.active,tabs);
-    bank.setLayout(bank.current(),next,{reason:'mode:'+mode.id});await persist();browser.emit();return{state:state(),preferences:bank.preferences()};
+    bank.setLayout(bank.current(),next,{reason:'mode:'+mode.id});tracePreset('mode-arranged',()=>({request:diagnosticRequest,mode:mode.id,selectedIds,layout:next}));await persist();browser.emit();const result={state:state(),preferences:bank.preferences()};tracePreset('mode-return',()=>({request:diagnosticRequest,mode:mode.id,state:result.state,preferences:result.preferences}));return result;
    }
    const id=action==='add'?bank.add(rawLiveState().tabs):args.id;
    if(!bank.items.some(d=>d.id===id))throw Error('Рабочий стол не найден');

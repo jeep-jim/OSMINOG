@@ -29,6 +29,6 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  start:(action,args)=>ipcRenderer.invoke('mouse:start',action,args),onStart:cb=>on('mouse:start-changed',cb),
  window:action=>ipcRenderer.invoke('mouse:window',action),
  update:action=>ipcRenderer.invoke('mouse:update',action),
- onState:cb=>on('browser:state',cb),onFocus:cb=>on('browser:focus',cb),onError:cb=>on('browser:error',cb),
+ onState:cb=>{const listener=(_event,state,diagnostic)=>diagnostic===undefined?cb(state):cb(state,diagnostic);ipcRenderer.on('browser:state',listener);return()=>ipcRenderer.removeListener('browser:state',listener)},onFocus:cb=>on('browser:focus',cb),onError:cb=>on('browser:error',cb),
  onMenu:cb=>on('mouse:menu',cb),onUpdate:cb=>on('mouse:update-state',cb)
 }));

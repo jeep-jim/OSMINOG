@@ -12,6 +12,10 @@
  const safe=fn=>Promise.resolve().then(fn).catch(e=>setStatus(e.message));
  const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e};
  const prefs=()=>({desktopId:m.desktopId,mode:m.mode,agentPreviewId:m.agentPreviewId,presetTabs:m.presetTabs,agentOpen:m.agentOpen,tree:m.tree,tabOrder:MouseTabOrder.ordered(m.state.tabs,m.tabOrder).map(t=>t.id),slots:m.slots,...(Object.keys(m.pinnedPanes).length?{pinnedPanes:m.pinnedPanes}:{}),active:m.active,theme:m.theme,locale:m.locale,libraryWidth:m.libraryWidth,aiOpen:m.aiOpen,aiWidth:m.aiWidth,aiPreviewRatio:m.aiPreviewRatio,aiId:m.aiId,aiSites:m.aiSites,aiSessions:m.aiSessions});
+ function tracePreset(kind,incoming,diagnostic,extra){
+  const trace=globalThis.MousePresetDiagnostic;if(!trace)return;
+  try{const ids=state=>state?.tabs?.slice(0,64).map(({id,lane,internal,previewOf})=>({id,lane,internal,previewOf}));trace.record(kind,{...(typeof extra==='function'?extra():extra),model:{desktopId:m.desktopId,mode:m.mode,switching:!!m.switching,ready:m.ready,tree:m.tree,slots:m.slots,tabOrder:m.tabOrder,presetTabs:m.presetTabs,aiId:m.aiId,agentPreviewId:m.agentPreviewId,tabCount:m.state.tabs.length,tabs:ids(m.state)},incoming:incoming?{desktopId:incoming.desktopId,tabCount:incoming.tabs.length,tabs:ids(incoming),sequence:diagnostic?.__mouse637PresetSnapshot?.sequence??null}:null});}catch(error){try{trace.error('renderer-hook',error);}catch{}}
+ }
  function save(reason='layout'){if(!m.ready||m.switching)return;m.saveReason=typeof reason==='string'?reason:'layout';clearTimeout(m.saveTimer);m.saveTimer=setTimeout(()=>{if(m.drag||m.switching)return;const snapshot=structuredClone(prefs());safe(()=>N.save(snapshot,{reason:m.saveReason}));},200)}
  function selected(){return tab(m.slots[m.active])}
  function reconcile(fill=false){m.tabOrder=m.tabOrder.filter(id=>tab(id));for(const [url,id]of Object.entries(m.aiSessions))if(!tab(id))delete m.aiSessions[url];if(m.aiId&&!tab(m.aiId))m.aiId='';m.aiPreviewId=m.state.tabs.find(t=>t.previewOf===m.aiId&&t.lane==='side')?.id||'';const ids=L.leaves(m.tree);for(const pane of Object.keys(m.slots))if(!ids.includes(pane))delete m.slots[pane];if(!ids.includes(m.active))m.active=ids[0];const used=new Set();for(const id of ids){if(!tab(m.slots[id])||tab(m.slots[id]).lane==='side'||used.has(m.slots[id]))m.slots[id]='';else used.add(m.slots[id])}if(fill)for(const t of mainTabs()){if(used.has(t.id))continue;const id=ids.find(p=>!m.slots[p]&&!Object.hasOwn(L.pins(m),p));if(!id)break;m.slots[id]=t.id;used.add(t.id)}m.pinnedPanes=L.pins(m);}
@@ -260,8 +264,8 @@
   deskSwitch=operation.catch(()=>{});return operation;
  }
  async function applyMode(mode){
-  while(m.switching)await deskSwitch;MouseModes.get(mode);m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();browsing.close();
-  const operation=(async()=>{if(m.focusPane||m.focusAI){restorePane();await N.window('pane-restore');}await N.desktops('remember-preview',{preferences:prefs()});const result=await N.desktops('apply-mode',{mode,from:m.desktopId,preferences:prefs()});const p=result.preferences;m.state=result.state;m.mode=p.mode||'';m.agentPreviewId=p.agentPreviewId||'';m.presetTabs=p.presetTabs||{};m.agentOpen=p.agentOpen===true;m.tree=L.validate(p.tree);m.slots=p.slots||{};m.pinnedPanes=L.pins(p);m.active=p.active;m.tabOrder=p.tabOrder||[];m.aiOpen=p.aiOpen===true;m.aiWidth=p.aiWidth||360;m.aiPreviewRatio=L.previewRatio(p.aiPreviewRatio);m.aiId=p.aiId||'';m.aiSessions=p.aiSessions||{};renderTree();renderAISites();applySide();desktopUI?.render(m.state.desktops);})().finally(()=>{m.switching=false;requestLayout();});deskSwitch=operation.catch(()=>{});return operation;
+  while(m.switching)await deskSwitch;MouseModes.get(mode);tracePreset('mode-begin',null,null,{requestedMode:mode});m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();browsing.close();
+  const operation=(async()=>{if(m.focusPane||m.focusAI){restorePane();await N.window('pane-restore');}await N.desktops('remember-preview',{preferences:prefs()});const result=await N.desktops('apply-mode',{mode,from:m.desktopId,preferences:prefs()});const p=result.preferences;tracePreset('mode-result',result.state,null,()=>({requestedMode:mode,returned:{mode:p.mode,tree:p.tree,slots:p.slots,presetTabs:p.presetTabs}}));m.state=result.state;m.mode=p.mode||'';m.agentPreviewId=p.agentPreviewId||'';m.presetTabs=p.presetTabs||{};m.agentOpen=p.agentOpen===true;m.tree=L.validate(p.tree);m.slots=p.slots||{};m.pinnedPanes=L.pins(p);m.active=p.active;m.tabOrder=p.tabOrder||[];m.aiOpen=p.aiOpen===true;m.aiWidth=p.aiWidth||360;m.aiPreviewRatio=L.previewRatio(p.aiPreviewRatio);m.aiId=p.aiId||'';m.aiSessions=p.aiSessions||{};renderTree();renderAISites();applySide();desktopUI?.render(m.state.desktops);tracePreset('mode-rendered',null,null,{requestedMode:mode});})().finally(()=>{m.switching=false;tracePreset('mode-finally',null,null,{requestedMode:mode});requestLayout();});deskSwitch=operation.catch(()=>{});return operation;
  }
  async function restoreLayout(action,historyId){
   while(m.switching)await deskSwitch;m.switching=true;clearTimeout(m.saveTimer);arrangement?.cancel();endDrag();
@@ -292,14 +296,15 @@
  contextUI=createMouseContextMenu({N,model:m,L,flush:()=>globalThis.MouseFlush?.(),activate:activateDesktopTab,setActive,changeLayout,split,pinPane,restoreFocused:async()=>{if(m.focusPane||m.focusAI){restorePane();await N.window('pane-restore');}},status:setStatus});
  chromeControls=createMouseChromeControls({model:m,tab});chromeControls.fullscreen(nativeFullscreen);
  let pendingState=null;
- function receiveState(state){
-  if(!m.ready){pendingState=state;return}if(m.switching||state.desktopId&&m.desktopId!==state.desktopId)return;
+ function receiveState(state,diagnostic){
+  tracePreset('state-enter',state,diagnostic);
+  if(!m.ready){pendingState=state;tracePreset('state-deferred',state,diagnostic);return}if(m.switching||state.desktopId&&m.desktopId!==state.desktopId){tracePreset('state-dropped',state,diagnostic);return;}
   // Background desk titles/unread counts do not change this desk's native
   // geometry. Keep its model and badges current without rebuilding its chrome.
   const unchanged=state.tabs.length===m.state.tabs.length&&state.tabs.every((next,i)=>{const previous=m.state.tabs[i],keys=Object.keys(next);return keys.length===Object.keys(previous).length&&keys.every(key=>next[key]===previous[key]);});
-  if(unchanged){m.state=state;desktopUI?.render(state.desktops);progressUI?.render();return;}
+  if(unchanged){m.state=state;desktopUI?.render(state.desktops);progressUI?.render();tracePreset('state-unchanged',state,diagnostic);return;}
   const selection=()=>JSON.stringify([Object.entries(m.slots).map(([pane,id])=>[pane,id,!!tab(id),!!tab(id)?.internal]),m.aiId,!!tab(m.aiId),!!tab(m.aiId)?.internal,m.aiPreviewId,!!tab(m.aiPreviewId)]);
-  const before=JSON.stringify(prefs()),nativeBefore=selection();m.state=state;reconcile();renderTabs();syncPaneLabels();syncAIIcon();syncAIPreview();
+  const before=JSON.stringify(prefs()),nativeBefore=selection();m.state=state;reconcile();tracePreset('state-reconciled',state,diagnostic);renderTabs();syncPaneLabels();syncAIIcon();syncAIPreview();
   // Loading/title/favicon changes still reach their existing UI owners. Only
   // replacing a native page (or its start page) needs a new native layout here.
   if(selection()!==nativeBefore)applySide();desktopUI?.render(state.desktops);progressUI?.render();if(JSON.stringify(prefs())!==before)save();
