@@ -401,3 +401,152 @@ Root review caught a diagnostic-payload limit risk before push. The final option
 A separate CI-only retained guest-click helper records `guestClickAttempts` independently of successful `nativeInputs`. Before the sole native click it copies the actual point/hit/factor/count and raw page/native/window geometry, cursor and focus. Driver return and actual existing poll events remain in memory until normal later saves; no save/extra IPC/frame/wait is inserted between driver and the original wait. On failure it saves diagnostics before cleanup and rethrows the same original exception, even if diagnostic reads/save fail. The existing success receipt is produced only after the unchanged trusted-event predicate;10-second wait and240-second outer budget remain. Four focused regressions cover timeout evidence, one-post success, diagnostic failure preserving the original error and nonasserting raw mismatch readback. Packaging already includes the new helper and excludes its test. Helper SHA256 `5c0b59e294cf703ce03479d0453151fbc8b5b07caeffcd3b9e57ada2740b02c1`.
 
 Root's final combined exact Node22.23.5 run passes53/53, zero skipped: pointer fixture, stress diagnostics, strict636/637 performance, guest-input diagnostics, retained routing and Windows driver contracts. These unit/contract results do not accept the next native candidate. Every platform must complete again, Windows modern input included, with independent actual package/artifact acceptance before release.
+
+## 2026-11-22 — source859 native outcomes and next scoped fixture correction
+
+The common source `859052cddf974b43eb614dabcb3bb44d2466ddef`, tree
+`0c87eb334a75d1069bb0a8258b52250c89154e9d`, completed all eight auxiliary
+workflows. Native outcomes below do not collectively accept this source.
+Fresh reads of all three public feeds at05:47UTC still identify6.0.36.
+Publisher `3b4febdfd022fba9d38495e4e6b8d2720afd49a5` remains unchanged;
+all three pins are unready and no publication marker exists.
+
+### Linux859: full native and independent package acceptance
+
+[44989569360](https://github.com/jeep-jim/OSMINOG/actions/runs/44989569360),
+attempt1/job137107463352, succeeded. Verification artifact14741127385 is
+40,782,997 bytes, SHA-256
+`43713c6e4f88ebc576b6dacb0236b477d0850735945bbb7bce4154f60d002849`.
+Candidate artifact14741815583 is241,167,851 bytes, SHA-256
+`3ce8ea63fe82fb7c90e43918419d3c5966aaa74d8beaa55282436c00dd72adbf`.
+The actual AppImage is135,775,864 bytes/SHA-256
+`61f83696dac6856d561467a23ab971c59d67493afdd6ebd354bf78e0db62f1aa`;
+the deb is105,924,688 bytes/SHA-256
+`bdc5e491e3477a840952f97ec153965719c16a378b91c08a86ccf3ebf1c2280f`.
+
+One full independent `mouse637-linux-evidence.py.verify` sweep accepted those
+bytes in162.154984 seconds using exact publisher3b/treee9ef2055. All264 Python
+validator files were bound to Git blobs before and after. This includes retained
+gates, strict current/predecessor performance, actual update-button/profile
+replacements,38 feature frames and three trusted real file drops. New pointer
+receipts show actual XTest parking at(2,2), all six dividers at rest in four
+theme/size scenes, and seven successful retained guest-click attempts.
+The circular-updater PNGs are actual presentation fixtures, not a claim of public
+installer discovery or a physical owner-device upgrade.
+
+### Mac859: strict performance failure retained, attribution still incomplete
+
+[44989569356](https://github.com/jeep-jim/OSMINOG/actions/runs/44989569356),
+attempt1/job137107463312, passed the previously failed trusted download click
+and reached the strict desktop performance comparison. It failed20-page median:
+baseline103.963833ms, candidate155.994583ms, unchanged allowance16.666667ms,
+limit120.630500ms. The50-page comparison is within its original limits.
+Verification artifact14741497388 is29,997,536 bytes, SHA-256
+`dc1f5e0e205a54bf395c66a8efdb2ae4a75862d8abf39069f541e5ec90b215bb`.
+Current38-frame/package acceptance was not reached.
+
+All captured LoAF script arrays are empty despite successful supported
+observation, so these data cannot identify a JavaScript cause or prove no
+JavaScript work. The20-page switch2 outer190.604167ms includes an81.9ms slide;
+the rest cannot be labelled product layout time. Existing main `browser.state`
+calls take at most3.873292ms individually; one switch's `setVisible` total
+53.799ms does not explain the other slow samples. No blind rerun or production
+graphics/performance patch is inferred from these data.
+
+A separate diagnostic branch, never a release candidate or merge target, is
+`diagnostic/mouse-637-macos-performance-859052cd`. Its isolated unprofiled and
+profiled installed631 workloads preserve the original scenarios and write
+separate CPU profiles, clock brackets and existing-IPC markers. Main PR193 and
+publisher pins are unaffected. Diagnostic source2f395619/run44991248791 failed
+before app build because its unit test compared macOS temporary-path aliases;
+Node23/23 passed, Python3/4 passed, and no CPU evidence was collected. The
+canonical-path expectation and an explicit real-child symlink reproduction
+passed4/4 locally. Source2a9857a5/run44991415819 has passed the native contracts
+and packaged-app build and begun the isolated replay step; CPU evidence is not
+yet confirmed. Its results are
+diagnostic only and cannot replace original release acceptance.
+
+### Windows859: resting-divider correction proved, private text expectation stale
+
+[44989569319](https://github.com/jeep-jim/OSMINOG/actions/runs/44989569319),
+attempt1/primary job137107463445, failed later at retained private isolation;
+dependent modern-input job137111636412 was skipped. Verification
+artifact14741588776 is81,633,440 bytes, SHA-256
+`9d55224e824348428f38012baa395f20469f2998032a01ea92576bfdf2c2a365`.
+No candidate EXE artifact exists, so complete package acceptance is not claimed.
+
+The new629 receipt now directly records the previously inferred hover state:
+dark initial cursor(1037,793), one hovered divider/active guide; after real User32
+parking, cursor(2,2), all six dividers neither hovered, focused nor dragged,
+and no guide pseudo-content. All four theme/size scenes passed their original
+resting-pixel predicates. The independent current637 feature gate accepted all
+38 native frames, three trusted file drops and actual WRITE5468/READ7596
+processes. Display chronology and retained task/feedback/owner/library/strict
+performance component gates passed independently. They do not waive the failed
+private scenario, skipped modern job or absent package bytes.
+
+The failure is precisely `mouse-611-smoke.cjs`: actual `.home-page` computed text
+`rgb(212, 212, 212)` versus the old literal `rgb(245, 241, 255)`. The37 appearance
+stylesheet intentionally binds dark primary text to the selected white tone;
+default55 gives `round(160 + 95 * 55 / 100) = 212 = D4`. All earlier assertions
+for mascot body, purple glasses, white glints, SVG/head assets, filter and private
+background passed. The later private data/cleanup/normal-profile predicates
+were not reached and remain mandatory in the next full native run.
+
+The narrow current-source fixture correction adds actual version, tone and
+computed `--text-primary` to the same existing DOM readback. Only exact6.0.37
+requires integer tone0–100 and independently computes the expected hex/RGB.
+The original light colour, both backgrounds, artwork pixels, tab identities,
+light→dark→light sequence, frame waits,350ms delay, capture filenames and final
+theme restoration are unchanged. Other versions retain the old expectation.
+No production CSS, mascot, privacy storage or frozen publisher dependency changes.
+
+Root's exact Node22.23.5 run passes21/21, zero skipped, including six meaningful
+new tests that execute the retained fixture/readback against an owned unit
+document: default/endpoints, rejection of old lavender in637, legacy636
+expectation, invalid tone/variable/text and unchanged artwork/background guards.
+Independent review found no blocker. Fixture SHA-256
+`8405946a71648137741974a619a315c7f512901a90a010aa7b79dba75b91c716`;
+new test SHA-256
+`c6d09ed0c9aa6f06b596049971a72db02e9e7d6937c04dff153d316bf9ad2fcb`.
+This is a fixture correction awaiting new native evidence, not a graphics fix.
+
+### Mac CPU replay completed; no causal production patch established
+
+The separate diagnostic [44991415819](https://github.com/jeep-jim/OSMINOG/actions/runs/44991415819),
+attempt1/job137113079334 on source2a9857a5, completed. Artifact14741433673 is
+10,179,751 bytes/SHA-256
+`56a4f3937d7542983d6faf945de75f8e5e31bcb9acc49a90189dca42309cbb75`.
+All123 inventoried files matched their size/hash receipts; separate processes
+21988/23149 exited0 with all four original task/stress/media markers. The actual
+CPU profiles and receipt are complete with no reported errors or marker drops:
+main193,988 bytes/SHA-256
+`30384847732d4806c0bb2656cf862b1d8992e01285338dcb383dc3871931aabe`,4008 samples;
+renderer103,199 bytes/SHA-256
+`a94bd8083848965bb3e0c76330fd8f75c677c98dc1b84bc2cb53d20764a7afda`,4081 samples.
+There are90 main and60 renderer switch/IPC markers with separate clock domains.
+
+Unprofiled20/50 medians are70.197583/74.869500ms; profiled medians are
+80.852458/71.554458ms. Neither profiled stage contains a recorded renderer long
+task. The historical859 median155.994583ms and first50-page368.705875ms outer
+sample were not reproduced. These are separate diagnostic processes/runner,
+with no paired published636 baseline, so none is a strict release-comparison
+PASS or proof of the cause of the earlier failure. CPU stacks include icon
+classification, whole-shell localization, settings and Agent rendering; many
+main samples are classified idle. These observations do not establish the
+historical regression's cause or the owner36 graphical problem.
+
+The renderer profile/main-clock command brackets permit an offset interval
+12.228125ms wide, not exact clock synchronization. Requested1ms sampling had an
+actual median4.595ms and maximum132.215ms between samples. Independent analysis
+therefore reports certain/possible sample membership, not exact CPU milliseconds;
+global idle proportions are not transferred to measured switch windows. Existing
+icon-contrast and tab-flow code is byte-identical between36 and859, which is
+another reason not to infer a37-only production defect from those stack names.
+
+The next common candidate therefore contains only the justified private-text
+fixture correction and its tests/documentation. No production graphics change,
+performance threshold/workload change or diagnostic-branch merge is inferred.
+All native platforms must execute the original full gates again on that common
+source, followed by independent actual package acceptance. Historical failures
+remain recorded and no public package is replaced.
