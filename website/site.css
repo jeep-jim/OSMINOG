@@ -10,9 +10,9 @@
   color-scheme: dark;
   --paper: #1e1e1e;
   --ink: #fff;
-  --burrow-floor: #383838;
+  --burrow-floor: var(--line);
   --soft-ink: rgb(255 255 255 / .66);
-  --line: rgb(255 255 255 / .25);
+  --line: #505050;
   --body-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
   --display-font: "Mouse Display", var(--body-font);
   font-family: var(--body-font);
@@ -25,7 +25,7 @@
   --paper: #fff;
   --ink: #000;
   --soft-ink: rgb(0 0 0 / .61);
-  --line: rgb(0 0 0 / .24);
+  --line: #b8b8b8;
 }
 * { box-sizing: border-box; }
 html { min-width: 300px; background: var(--paper); scroll-behavior: smooth; }
@@ -162,20 +162,21 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
-/* The workspace fills the backdrop; the original mouse stays in the foreground. */
+/* The backdrop and foreground share an exact floor edge. */
 .first-screen { position: relative; display: flex; flex-direction: column; }
-.first-screen .site-header { position: absolute; top: 0; left: 0; z-index: 8; background: linear-gradient(to bottom, var(--paper), transparent); }
+.first-screen .site-header { position: absolute; top: 0; left: 0; z-index: 8; background: linear-gradient(to bottom, var(--paper) 35%, transparent); }
 .first-screen main { flex: 1; display: block; padding-top: 0; }
 .first-screen .hero { margin-inline: auto; max-width: none; }
-.hero-visual { position: relative; isolation: isolate; width: calc(100% + 48px); height: clamp(500px, 64svh, 720px); margin-inline-start: -24px; margin-bottom: 27px; }
-.hero-visual .burrow-stage { position: absolute; z-index: 5; bottom: -10.714286px; left: calc(50% - 125px); width: 250px; height: 225px; margin: 0; pointer-events: none; }
-.hero-visual .burrow-stage::before { width: calc(100vw - 48px); }
+.hero-visual { position: relative; isolation: isolate; width: calc(100% + 48px); height: clamp(520px, 65svh, 740px); margin-inline-start: -24px; margin-bottom: 27px; }
+.hero-visual::after { content: ""; position: absolute; z-index: 6; bottom: 0; left: 24px; right: 24px; height: 1px; background: var(--line); pointer-events: none; }
+.hero-visual .burrow-stage { position: absolute; z-index: 5; bottom: 0; left: 50%; width: 250px; height: auto; aspect-ratio: 7 / 6; transform: translateX(-50%); margin: 0; pointer-events: none; }
+.hero-visual .burrow-stage::before { content: none; }
 @media (max-width: 760px) {
-  .hero-visual { height: clamp(480px, 64svh, 620px); margin-bottom: 24px; }
-  .hero-visual .burrow-stage { left: calc(50% - 105px); width: 210px; height: 189px; bottom: -9px; }
-  .hero-visual .burrow-stage::before { width: calc(100vw - 36px); }
+  .hero-visual { height: clamp(490px, 65svh, 650px); margin-bottom: 24px; }
+  .hero-visual .burrow-stage { width: 210px; }
+  .hero-visual::after { left: 18px; right: 18px; }
 }
 @media (max-width: 440px) {
   .hero-visual { width: calc(100% + 44px); margin-inline-start: -22px; }
-  .hero-visual .burrow-stage { left: calc(50% - 95px); width: 190px; height: 171px; bottom: -8.142857px; }
+  .hero-visual .burrow-stage { width: 190px; }
 }

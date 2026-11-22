@@ -1,311 +1,583 @@
-/* Local HTML scenes. Public screenshots, when supplied, are served by mouse.black. */
+/* Real website captures, served locally. The tiles are interactive; the sites are screenshots. */
 (() => {
   'use strict';
   const EN = {
     showcaseTitle: 'Your workspace, in motion',
-    showcaseSupport: 'Support', showcaseSupportText: 'Messages, maps and mail — together',
-    showcaseTrading: 'Trading', showcaseTradingText: 'Charts, news and your research — in view',
-    showcaseAi: 'AI', showcaseAiText: 'Compare ideas and keep your documents beside them',
+    showcaseSupport: 'Support', showcaseSupportText: 'Help, resources and maps — together',
+    showcaseTrading: 'Trading', showcaseTradingText: 'Charts and market research — side by side',
+    showcaseAi: 'AI', showcaseAiText: 'AI answers, tools and documentation — in view',
     showcaseDevelopment: 'Development', showcaseDevelopmentText: 'Your editor, assistant and documentation — side by side',
     showcaseContent: 'Content', showcaseContentText: 'Create, review and plan in one workspace',
-    showcaseDesign: 'Design', showcaseDesignText: 'Your canvas, references and ideas — connected',
+    showcaseDesign: 'Design', showcaseDesignText: 'Find inspiration and keep your references together',
     showcaseExpand: 'Explore full screen', showcaseClose: 'Close', showcasePause: 'Pause',
     showcasePlay: 'Play', showcasePrevious: 'Previous scene', showcaseNext: 'Next scene',
-    showcaseHint: 'Swipe up over the preview to explore', showcaseDemo: 'Demo scenes',
-    showcaseScenesLabel: 'Workspaces'
+    showcaseHint: 'Swipe up over the preview to explore', showcaseDemo: 'Real website captures',
+    showcaseScenesLabel: 'Workspaces', showcaseMove: 'Move window',
+    showcaseResize: 'Resize windows', showcaseRestore: 'Restore grid', showcaseCaptured: 'Captured website'
   };
-  const icon = (name) => {
+  const icon = name => {
     const paths = {
       expand: '<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/>',
-      close: '<path d="m6 6 12 12M18 6 6 18"/>',
+      restore: '<path d="M9 3v6H3M15 3v6h6M21 15h-6v6M3 15h6v6"/>',
       pause: '<path d="M8 5v14M16 5v14"/>',
-      play: '<path d="m9 5 11 7-11 7Z"/>',
-      previous: '<path d="m15 5-7 7 7 7"/>',
-      next: '<path d="m9 5 7 7-7 7"/>'
+      play: '<path d="m9 5 11 7-11 7Z"/>'
     };
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths[name] + '</svg>';
   };
-  const lines = '<div class="showcase-note-lines" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>';
-  const mini = (initial, name, copy) => '<div class="showcase-mini-row"><span class="showcase-avatar">' + initial + '</span><span class="showcase-mini-copy"><b>' + name + '</b><small>' + copy + '</small></span></div>';
-  const page = (content) => '<div class="showcase-demo-page">' + content + '</div>';
-  const docs = page('<div class="showcase-demo-eyebrow">Working document</div><h3>Launch notes</h3><p>One shared view of the next steps</p><h4>Make room for good work</h4><p>Keep the brief, your references and the conversation close at hand</p>' + mini('1', 'Explore', 'Collect the useful details') + mini('2', 'Create', 'Turn the idea into a first draft') + mini('3', 'Review', 'Refine it with the team') + lines);
-  const chatgpt = page('<div class="showcase-demo-eyebrow">ChatGPT</div><div class="showcase-ai-heading">Let’s work through it</div><div class="showcase-ai-prompt">Help me turn this project brief into a clear plan</div><div class="showcase-answer"><p>Here is a practical starting point</p><ul><li>Define the main idea</li><li>Collect the essential material</li><li>Create a first version</li></ul><p>Keep the brief open beside this conversation as you refine it</p></div>');
-  const claude = page('<div class="showcase-demo-eyebrow">Claude</div><div class="showcase-ai-heading">A fresh perspective</div><div class="showcase-ai-prompt">Review this idea and suggest a simpler approach</div><div class="showcase-answer"><p>Start with the part that matters most</p><p>Use one clear example, then add only what helps explain it</p><ul><li>Make the structure easy to follow</li><li>Keep the next step visible</li></ul></div>');
-  const map = '<div class="showcase-map"><svg viewBox="0 0 500 400" preserveAspectRatio="xMidYMid slice" aria-label="Illustrative city map"><rect width="500" height="400" fill="currentColor" opacity=".08"/><g fill="none" stroke="currentColor" opacity=".27" stroke-width="11"><path d="M-20 60 520 350M-20 350 520 60M90-20 150 420M320-20 270 420M-20 180 520 180M-20 285 520 265"/></g><path d="M20 400C180 280 70 160 220 0" fill="none" stroke="currentColor" stroke-width="34" opacity=".13"/><g fill="currentColor"><circle cx="320" cy="190" r="9"/><circle cx="174" cy="130" r="6" opacity=".5"/><circle cx="244" cy="288" r="6" opacity=".5"/></g><circle cx="320" cy="190" r="21" fill="none" stroke="currentColor" opacity=".3"/><text x="342" y="195" fill="currentColor" font-family="Arial,sans-serif" font-size="13">Meeting point</text></svg><span class="showcase-map-label">Search Google Maps</span><span class="showcase-map-attribution">Illustrative workspace</span></div>';
-  const chart = '<div class="showcase-chart-page"><div class="showcase-chart-heading"><strong>Market overview</strong><span>Illustrative chart · 1D</span></div><svg class="showcase-chart" viewBox="0 0 600 290" preserveAspectRatio="none" aria-label="Illustrative market chart, not live prices"><g class="showcase-chart-grid"><path d="M0 50H600M0 100H600M0 150H600M0 200H600M0 250H600M100 0V290M200 0V290M300 0V290M400 0V290M500 0V290"/></g><g class="showcase-chart-volume"><path d="M15 290v-22h14v22M40 290v-33h14v33M65 290v-26h14v26M90 290v-40h14v40M115 290v-35h14v35M140 290v-55h14v55M165 290v-28h14v28M190 290v-42h14v42M215 290v-50h14v50M240 290v-40h14v40M265 290v-57h14v57M290 290v-66h14v66M315 290v-30h14v30M340 290v-40h14v40M365 290v-45h14v45M390 290v-61h14v61M415 290v-76h14v76M440 290v-52h14v52M465 290v-48h14v48M490 290v-35h14v35M515 290v-65h14v65M540 290v-74h14v74M565 290v-65h14v65"/></g><path class="showcase-chart-line" d="M0 210 20 192 40 200 60 170 80 187 100 163 120 171 140 143 160 159 180 128 200 140 220 109 240 120 260 85 280 99 300 122 320 110 340 135 360 113 380 87 400 102 420 66 440 87 460 70 480 98 500 79 520 63 540 47 560 60 580 41 600 48"/></svg></div>';
-  const code = `<div class="showcase-code"><aside class="showcase-code-files"><b>EXPLORER</b><span>⌄ studio-site</span><span>　⌄ src</span><span>　　App.tsx</span><span>　　styles.css</span><span>　　main.tsx</span><span>　package.json</span></aside><div class="showcase-code-main"><pre><em>import</em> { useState } <em>from</em> "react";
-
-<em>export default function</em> Workspace() {
-  const [mode, setMode] = useState("create");
-
-  return (
-    &lt;main className="workspace"&gt;
-      &lt;h1&gt;Make room for your ideas&lt;/h1&gt;
-      &lt;Canvas mode={mode} /&gt;
-    &lt;/main&gt;
-  );
-}</pre><div class="showcase-code-terminal">TERMINAL<br>Local development workspace<br>Ready for your next idea</div></div></div>`;
-  const figma = '<div class="showcase-figma"><aside class="showcase-figma-layers"><b>Design file</b><span>Layers</span><span>⌄ Landing</span><span>　Header</span><span>　Hero</span><span>　Canvas</span><span>　Footer</span></aside><div class="showcase-figma-canvas"><div class="showcase-figma-artboard"><div class="showcase-artboard-logo">STUDIO / FORM</div><div class="showcase-artboard-title">Make<br>space<br>for ideas</div><div class="showcase-artboard-footer"><span>Thoughtfully made</span><span>Explore</span></div></div></div></div>';
-  const play = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 4 13 8-13 8Z"/></svg>';
   const services = {
-    telegram: { name: 'Telegram', host: 'web.telegram.org', mark: 'T', html: page('<div class="showcase-demo-eyebrow">Support team</div><div class="showcase-bubble">Could you share the meeting location?</div><div class="showcase-bubble is-mine">I have the map open — sending the details next</div>' + mini('S', 'Support', 'Keep the conversation in view')) },
-    whatsapp: { name: 'WhatsApp', host: 'web.whatsapp.com', mark: 'W', html: page('<div class="showcase-demo-eyebrow">Customer conversations</div>' + mini('A', 'Alex', 'Thanks, that is helpful') + mini('J', 'Jamie', 'A quick question about the plan') + mini('R', 'Robin', 'Ready when you are')) },
-    maps: { name: 'Google Maps', host: 'maps.google.com', mark: 'G', html: map },
-    mail: { name: 'Gmail', host: 'mail.google.com', mark: 'M', html: page('<h4>Inbox</h4>' + mini('B', 'Project brief', 'The details for our next meeting') + mini('T', 'Team update', 'Notes and shared documents') + mini('C', 'Customer enquiry', 'A question about availability')) },
-    slack: { name: 'Slack', host: 'slack.com', mark: 'S', html: page('<div class="showcase-demo-eyebrow"># team-support</div><div class="showcase-bubble">The updated guide is ready for review</div><p>Keep your team close while you help customers</p>') },
-    tradingview: { name: 'TradingView', host: 'tradingview.com', mark: 'T', html: chart },
-    calendar: { name: 'Economic calendar', host: 'investing.com', mark: 'C', html: page('<h4>Research calendar</h4>' + mini('•', 'Market briefing', 'Read the latest releases') + mini('•', 'Economic indicators', 'Compare the published data') + mini('•', 'Company reports', 'Review the source material')) },
-    news: { name: 'Financial news', host: 'reuters.com', mark: 'R', html: page('<div class="showcase-demo-eyebrow">Research desk</div><h4>Read the story behind the chart</h4><p>Keep original reporting and source documents beside your analysis</p>' + lines) },
-    watchlist: { name: 'Watchlist', host: 'tradingview.com', mark: 'W', html: page('<h4>Research list</h4><table class="showcase-watch"><tbody><tr><td>Equities</td><td>Review</td></tr><tr><td>Currencies</td><td>Review</td></tr><tr><td>Commodities</td><td>Review</td></tr></tbody></table>') },
-    notes: { name: 'Research notes', host: 'docs.google.com', mark: 'N', html: page('<h4>Trading journal</h4><p>Write down your reasoning</p>' + mini('1', 'Sources', 'What changed?') + mini('2', 'Questions', 'What needs checking?') + lines) },
-    chatgpt: { name: 'ChatGPT', host: 'chatgpt.com', mark: 'C', html: chatgpt },
-    claude: { name: 'Claude', host: 'claude.ai', mark: 'C', html: claude },
-    docs: { name: 'Google Docs', host: 'docs.google.com', mark: 'D', html: docs },
-    vscode: { name: 'VS Code for the Web', host: 'vscode.dev', mark: 'V', html: code },
-    mdn: { name: 'MDN Web Docs', host: 'developer.mozilla.org', mark: 'M', html: page('<div class="showcase-demo-eyebrow">Web documentation</div><h3>CSS grid layout</h3><p>A flexible foundation for two-dimensional layouts</p><h4>Build with the documentation beside you</h4>' + lines) },
-    figma: { name: 'Figma', host: 'figma.com', mark: 'F', html: figma },
-    youtube: { name: 'YouTube', host: 'youtube.com', mark: 'Y', html: page('<div class="showcase-video">' + play + '</div><h4>From a first sketch to a finished idea</h4><p>Review your references as you create</p>') },
-    instagram: { name: 'Instagram', host: 'instagram.com', mark: 'I', html: page('<h4>studio.form</h4><p>Ideas, experiments and things in progress</p><div class="showcase-social-grid"><span>Aa</span><span>FORM</span><span>◯</span><span>GRID</span><span>✳</span><span>TYPE</span></div>') },
-    plan: { name: 'Content plan', host: 'docs.google.com', mark: 'P', html: page('<h4>From idea to publish</h4>' + mini('✓', 'Collect references', 'Ready') + mini('2', 'Create the draft', 'In progress') + mini('3', 'Review together', 'Next')) },
-    references: { name: 'Design references', host: 'figma.com', mark: 'R', html: page('<div class="showcase-demo-eyebrow">Visual direction</div><h3>Less noise<br>More clarity</h3><div class="showcase-social-grid"><span>Aa</span><span>◯</span><span>↗</span></div>') }
+    maps: { name: 'Google Maps', host: 'maps.google.com' },
+    tradingview: { name: 'TradingView', host: 'tradingview.com' },
+    youtube: { name: 'YouTube', host: 'youtube.com' },
+    vscode: { name: 'VS Code for the Web', host: 'vscode.dev' },
+    github: { name: 'GitHub', host: '' },
+    mdn: { name: 'MDN Web Docs', host: 'developer.mozilla.org' },
+    figma: { name: 'Figma Community', host: 'figma.com' },
+    huggingface: { name: 'Hugging Face Spaces', host: 'huggingface.co' },
+    perplexity: { name: 'Perplexity', host: 'perplexity.ai' },
+    discord: { name: 'Discord Help Center', host: 'support.discord.com' },
+    finviz: { name: 'Finviz', host: 'finviz.com' }
   };
   const scenes = [
-    { id: 'support', key: 'Support', panes: ['telegram','whatsapp','maps','mail','slack'], rects: [[0,0,26,50],[0,50,26,50],[26,0,45,100],[71,0,29,50],[71,50,29,50]] },
-    { id: 'trading', key: 'Trading', panes: ['tradingview','calendar','news','watchlist','notes'], rects: [[0,0,65,66],[65,0,35,66],[0,66,40,34],[40,66,25,34],[65,66,35,34]] },
-    { id: 'ai', key: 'Ai', panes: ['chatgpt','claude','docs'], rects: [[0,0,33,100],[33,0,33,100],[66,0,34,100]] },
-    { id: 'development', key: 'Development', panes: ['vscode','claude','mdn'], rects: [[0,0,67,100],[67,0,33,60],[67,60,33,40]] },
-    { id: 'content', key: 'Content', panes: ['figma','youtube','instagram','plan'], rects: [[0,0,55,65],[55,0,45,65],[0,65,55,35],[55,65,45,35]] },
-    { id: 'design', key: 'Design', panes: ['figma','chatgpt','references'], rects: [[0,0,68,100],[68,0,32,62],[68,62,32,38]] }
+    { id: 'support', key: 'Support', action: 'drag', count: 3,
+      sources: ['discord','mdn','maps'],
+      rects: [[0,0,32,50],[0,50,32,50],[32,0,68,100]],
+      portrait: [[0,0,50,32],[50,0,50,32],[0,32,100,68]] },
+    { id: 'trading', key: 'Trading', action: 'resize', count: 2,
+      sources: ['tradingview','finviz'],
+      rects: [[0,0,63,100],[63,0,37,100]],
+      portrait: [[0,0,100,54],[0,54,100,46]] },
+    { id: 'ai', key: 'Ai', action: 'zoom', count: 3,
+      sources: ['perplexity','huggingface','mdn'],
+      rects: [[0,0,38,100],[38,0,34,100],[72,0,28,100]],
+      portrait: [[0,0,50,64],[50,0,50,64],[0,64,100,36]] },
+    { id: 'development', key: 'Development', action: 'drag', count: 4,
+      sources: ['vscode','perplexity','mdn','github'],
+      rects: [[0,0,60,100],[60,0,40,44],[60,44,40,28],[60,72,40,28]],
+      portrait: [[0,0,100,52],[0,52,50,27],[50,52,50,27],[0,79,100,21]] },
+    { id: 'content', key: 'Content', action: 'resize', count: 4,
+      sources: ['youtube','figma','perplexity','huggingface'],
+      rects: [[0,0,54,62],[54,0,46,62],[0,62,38,38],[38,62,62,38]],
+      portrait: [[0,0,50,58],[50,0,50,58],[0,58,50,42],[50,58,50,42]] },
+    { id: 'design', key: 'Design', action: 'zoom', count: 3,
+      sources: ['figma','perplexity','youtube'],
+      rects: [[0,0,64,100],[64,0,36,62],[64,62,36,38]],
+      portrait: [[0,0,100,60],[0,60,60,40],[60,60,40,40]] }
   ];
-  const portraitRects = {
-    support: [[0,0,50,30],[50,0,50,30],[0,30,100,42],[0,72,50,28],[50,72,50,28]],
-    trading: [[0,0,100,48],[0,48,50,26],[50,48,50,26],[0,74,50,26],[50,74,50,26]],
-    ai: [[0,0,50,64],[50,0,50,64],[0,64,100,36]],
-    development: [[0,0,100,58],[0,58,50,42],[50,58,50,42]],
-    content: [[0,0,50,58],[50,0,50,58],[0,58,50,42],[50,58,50,42]],
-    design: [[0,0,100,60],[0,60,60,40],[60,60,40,40]]
-  };
+  const balanced = count => ({
+    0: [], 1: [[0,0,100,100]], 2: [[0,0,50,100],[50,0,50,100]],
+    3: [[0,0,60,100],[60,0,40,50],[60,50,40,50]],
+    4: [[0,0,50,50],[50,0,50,50],[0,50,50,50],[50,50,50,50]],
+    5: [[0,0,50,100],[50,0,25,50],[75,0,25,50],[50,50,25,50],[75,50,25,50]]
+  }[count] || []);
+  const cloneRects = rects => rects.map(rect => [...rect]);
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const near = (a, b) => Math.abs(a - b) < .02;
+  const localCapture = value => typeof value === 'string' && /^\/showcase\/[a-z0-9][a-z0-9._-]*\.(webp|jpg|jpeg|png)$/.test(value);
   let controller = null;
+
   function create(root) {
     if (!root || root.dataset.showcaseReady === 'true') return controller;
     const experience = root.querySelector('.showcase-experience');
     const dock = root.querySelector('.showcase-dock');
     const canvas = root.querySelector('.showcase-canvas');
+    const frame = root.querySelector('.showcase-frame');
     const dialog = root.querySelector('.showcase-dialog');
     const dialogHost = root.querySelector('.showcase-dialog-host');
-    if (!experience || !dock || !canvas || !dialog || !dialogHost) return null;
+    const modes = root.querySelector('.showcase-modes');
+    const modePicker = root.querySelector('.showcase-mode-picker');
+    if (!experience || !dock || !canvas || !frame || !dialog || !dialogHost || !modes) return null;
     root.dataset.showcaseReady = 'true';
+    root.style.setProperty('--showcase-duration', '4600ms');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const portrait = matchMedia('(max-width: 600px) and (orientation: portrait)');
-    const duration = 6800;
-    let index = 0, timer = null, cleanTimer = null, userPaused = reduced.matches, visible = true;
-    let savedScroll = 0, savedFocus = null, savedOverflow = '', expanded = false, touch = null, wheel = 0, wheelAt = 0;
-    let assets = window.MOUSE_SHOWCASE_ASSETS || {};
-    const text = key => {
-      const language = document.documentElement.lang;
-      return window.MOUSE_I18N?.messages?.[language]?.[key] || window.MOUSE_I18N?.messages?.en?.[key] || EN[key] || '';
-    };
-    const paneNodes = [];
+    const duration = 4600, gap = 5;
+    const timers = new Set(), paneNodes = [], handles = new Map(), failed = new Set();
+    let assets = window.MOUSE_SHOWCASE_ASSETS || {}, sources = [];
+    let index = 4, gridRects = [], paneSlots = [], zoomed = -1, geometryEpoch = 0;
+    let userPaused = reduced.matches, visible = true, expanded = false, gesture = null;
+    let savedScroll = 0, savedFocus = null, savedOverflow = '', touch = null, wheel = 0, wheelAt = 0;
+    let hoverPoint = null, cleanTimer = null, autoDragged = null;
+    const text = key => window.MOUSE_I18N?.messages?.[document.documentElement.lang]?.[key] || window.MOUSE_I18N?.messages?.en?.[key] || EN[key] || '';
+    const closePicker = () => { if (modePicker) modePicker.open = false; };
+    const rectFor = paneIndex => gridRects[paneSlots[paneIndex]];
+    const canPlay = () => !userPaused && !modePicker?.open && visible && document.visibilityState !== 'hidden' && !gesture && sources.length > 0;
+    const announce = (message, language = document.documentElement.lang || 'en') => { const node = root.querySelector('[data-showcase-status]'); if (node) { node.lang = language; node.textContent = message; } };
+
     canvas.replaceChildren();
     for (let i = 0; i < 5; i++) {
       const pane = document.createElement('article');
-      pane.className = 'showcase-pane';
-      pane.innerHTML = '<div class="showcase-pane-head"><span class="showcase-service-mark" aria-hidden="true"></span><span class="showcase-service-name"></span><span class="showcase-service-host"></span></div><div class="showcase-pane-page"></div>';
+      pane.className = 'showcase-pane'; pane.dataset.paneIndex = String(i);
+      pane.innerHTML = '<div class="showcase-pane-head"><button class="showcase-pane-drag" type="button"><span class="showcase-service-mark" aria-hidden="true"></span><span class="showcase-service-name"></span><span class="showcase-service-host"></span></button><button class="showcase-pane-zoom" type="button">' + icon('expand') + '</button></div><div class="showcase-pane-page"></div>';
+      pane.querySelector('.showcase-pane-zoom').addEventListener('click', () => {
+        if (!expanded) return;
+        manual(); setZoom(zoomed === i ? -1 : i, true);
+      });
+      pane.querySelector('.showcase-pane-page').addEventListener('dblclick', () => {
+        if (expanded) { manual(); setZoom(zoomed === i ? -1 : i, true); }
+      });
+      pane.querySelector('.showcase-pane-drag').addEventListener('keydown', event => {
+        if (!expanded || zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+        event.preventDefault(); manual();
+        const current = rectFor(i), horizontal = /Left|Right/.test(event.key), direction = /Left|Up/.test(event.key) ? -1 : 1;
+        const axis = horizontal ? 0 : 1, cross = horizontal ? 1 : 0;
+        const center = r => r[axis] + r[axis + 2] / 2;
+        const choices = sources.map((_, j) => ({ j, r: rectFor(j) })).filter(item => item.j !== i && (center(item.r) - center(current)) * direction > .1);
+        choices.sort((a, b) => {
+          const distance = r => Math.abs(center(r) - center(current)) + Math.abs(r[cross] + r[cross + 2] / 2 - current[cross] - current[cross + 2] / 2) * .8;
+          return distance(a.r) - distance(b.r);
+        });
+        if (choices.length) { swap(i, choices[0].j); announce(sources[i].name + ' — ' + text('showcaseMove')); }
+      });
       canvas.append(pane); paneNodes.push(pane);
     }
-    const modes = root.querySelector('.showcase-modes');
+    const cursor = document.createElement('div');
+    cursor.className = 'showcase-cursor'; cursor.hidden = true; cursor.setAttribute('aria-hidden', 'true');
+    cursor.innerHTML = '<svg viewBox="0 0 28 32" aria-hidden="true"><path d="M3 2v24l6-6 5 10 5-3-5-9 9-1Z" fill="white" stroke="black" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="showcase-cursor-label"></span>';
+    canvas.append(cursor);
     modes.replaceChildren();
     scenes.forEach((scene, sceneIndex) => {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'showcase-mode'; button.dataset.scene = scene.id;
       button.dataset.showcaseKey = 'showcase' + scene.key; button.setAttribute('aria-pressed', 'false');
-      button.addEventListener('click', () => select(sceneIndex, true));
+      button.addEventListener('click', () => { closePicker(); select(sceneIndex, true); });
       modes.append(button);
     });
-    function layer(serviceId) {
-      const service = services[serviceId];
+
+    function availableSources() {
+      return Object.entries(assets).flatMap(([id, value]) => {
+        const entry = typeof value === 'string' ? { src: value } : value;
+        if (!entry || !localCapture(entry.src) || failed.has(entry.src)) return [];
+        const defaults = services[id] || { name: id, host: '' };
+        return [{ id, src: entry.src, name: String(entry.name || defaults.name).slice(0,100), host: String(entry.host ?? defaults.host).slice(0,100), alt: String(entry.alt || (entry.name || defaults.name) + ' — captured public website').slice(0,240), fit: ['contain','cover'].includes(entry.fit) ? entry.fit : '', position: /^(left|center|right|top|bottom)( (left|center|right|top|bottom))?$/.test(entry.position || '') ? entry.position : '' }];
+      });
+    }
+    function sceneSources(scene) {
+      const available = availableSources(), byId = new Map(available.map(item => [item.id, item]));
+      const chosen = [], seen = new Set();
+      for (const id of scene.sources) {
+        const item = byId.get(id);
+        if (item && !seen.has(item.src)) { chosen.push(item); seen.add(item.src); }
+        if (chosen.length >= scene.count) break;
+      }
+      return chosen;
+    }
+    function layer(source) {
       const element = document.createElement('div'); element.className = 'showcase-page-layer';
-      const path = assets[serviceId];
-      if (typeof path === 'string' && /^\/showcase\/[a-z0-9][a-z0-9._-]*\.(webp|jpg|jpeg|png)$/.test(path)) {
-        const image = document.createElement('img'); image.className = 'showcase-capture';
-        image.alt = service.name + ' public preview'; image.decoding = 'async'; image.draggable = false;
-        const fallback = document.createElement('div'); fallback.className = 'showcase-page-layer';
-        fallback.innerHTML = service.html; element.append(fallback);
-        image.addEventListener('load', () => fallback.remove(), { once: true });
-        image.addEventListener('error', () => image.remove(), { once: true });
-        image.src = path; element.append(image);
-      } else element.innerHTML = service.html;
+      const image = document.createElement('img'); image.className = 'showcase-capture';
+      image.alt = source.alt; image.decoding = 'async'; image.draggable = false;
+      if (source.fit) image.style.objectFit = source.fit;
+      if (source.position) image.style.objectPosition = source.position;
+      image.addEventListener('error', () => {
+        if (failed.has(source.src)) return;
+        failed.add(source.src);
+        // A failed capture is omitted. Never substitute an invented service UI.
+        if (sources.some(item => item.src === source.src)) select(index);
+      }, { once: true });
+      image.src = source.src; element.append(image);
       return element;
     }
-    function pauseTimer() {
-      clearTimeout(timer); timer = null; root.classList.remove('is-playing');
-      root.querySelectorAll('.showcase-mode').forEach(button => button.classList.remove('is-counting'));
+    function baseRects() {
+      const scene = scenes[index];
+      return cloneRects(sources.length === scene.count ? (expanded && portrait.matches ? scene.portrait : scene.rects) : balanced(sources.length));
+    }
+    function drawRect(element, rect) {
+      const [x,y,w,h] = rect;
+      element.style.left = x + '%'; element.style.top = y + '%';
+      element.style.width = 'calc(' + w + '% - ' + (x + w < 99.99 ? gap : 0) + 'px)';
+      element.style.height = 'calc(' + h + '% - ' + (y + h < 99.99 ? gap : 0) + 'px)';
+    }
+    function layoutGeometry(reset = false) {
+      if (reset) { geometryEpoch++; gridRects = baseRects(); }
+      canvas.classList.toggle('has-zoomed-pane', zoomed >= 0);
+      paneNodes.forEach((pane, i) => {
+        const used = i < sources.length, obscured = zoomed >= 0 && zoomed !== i;
+        pane.classList.toggle('is-unused', !used);
+        pane.classList.toggle('is-zoomed', zoomed === i);
+        pane.classList.toggle('is-occluded', obscured);
+        pane.inert = !used || obscured;
+        if (!used || obscured) pane.setAttribute('aria-hidden', 'true'); else pane.removeAttribute('aria-hidden');
+        if (used) drawRect(pane, zoomed === i ? [0,0,100,100] : rectFor(i));
+        const drag = pane.querySelector('.showcase-pane-drag'), zoom = pane.querySelector('.showcase-pane-zoom');
+        drag.tabIndex = expanded && used && !obscured && zoomed < 0 ? 0 : -1;
+        zoom.tabIndex = expanded && used && !obscured ? 0 : -1;
+        zoom.hidden = !used; zoom.disabled = !expanded;
+        zoom.innerHTML = icon(zoomed === i ? 'restore' : 'expand');
+        if (used) {
+          const label = text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand');
+          zoom.setAttribute('aria-label', sources[i].name + ' — ' + label);
+          zoom.title = label;
+        }
+      });
+      drawHandles(); updateHover();
+    }
+    function boundaries() {
+      const out = [];
+      for (const axis of [0,1]) {
+        const cross = axis === 0 ? 1 : 0;
+        const values = [...new Set(gridRects.map(rect => +rect[axis].toFixed(3)).filter(value => value > .02 && value < 99.98))].sort((a,b) => a-b);
+        values.forEach((value, ordinal) => {
+          const left = gridRects.filter(rect => near(rect[axis] + rect[axis + 2], value));
+          const right = gridRects.filter(rect => near(rect[axis], value));
+          const intervals = [];
+          for (const a of left) for (const b of right) {
+            const start = Math.max(a[cross], b[cross]), end = Math.min(a[cross] + a[cross + 2], b[cross] + b[cross + 2]);
+            if (end - start > .02) intervals.push([start,end]);
+          }
+          intervals.sort((a,b) => a[0]-b[0]);
+          const merged = [];
+          for (const interval of intervals) {
+            const last = merged.at(-1);
+            if (last && interval[0] <= last[1] + .02) last[1] = Math.max(last[1], interval[1]);
+            else merged.push([...interval]);
+          }
+          merged.forEach(([start,end], segment) => out.push({ axis, value, start, end, key: axis + ':' + ordinal + ':' + segment }));
+        });
+      }
+      return out;
+    }
+    function boundaryLimits(boundary, rects = gridRects) {
+      const size = boundary.axis === 0 ? canvas.clientWidth : canvas.clientHeight;
+      const minimum = Math.min(boundary.axis === 0 ? 18 : 20, (boundary.axis === 0 ? 100 : 70) / Math.max(1,size) * 100);
+      let min = 0, max = 100;
+      for (const rect of rects) {
+        if (near(rect[boundary.axis] + rect[boundary.axis + 2], boundary.value)) min = Math.max(min, rect[boundary.axis] + minimum);
+        if (near(rect[boundary.axis], boundary.value)) max = Math.min(max, rect[boundary.axis] + rect[boundary.axis + 2] - minimum);
+      }
+      return { min, max };
+    }
+    function resized(rects, boundary, target) {
+      const { min,max } = boundaryLimits(boundary, rects), value = clamp(target,min,max), delta = value - boundary.value;
+      return rects.map(rect => {
+        const result = [...rect];
+        if (near(rect[boundary.axis] + rect[boundary.axis + 2], boundary.value)) result[boundary.axis + 2] += delta;
+        else if (near(rect[boundary.axis], boundary.value)) { result[boundary.axis] += delta; result[boundary.axis + 2] -= delta; }
+        return result;
+      });
+    }
+    function drawHandles() {
+      const active = new Set();
+      for (const boundary of boundaries()) {
+        active.add(boundary.key);
+        let handle = handles.get(boundary.key);
+        if (!handle) {
+          handle = document.createElement('button'); handle.type = 'button';
+          handle.className = 'showcase-resize-handle'; handle.setAttribute('role','separator');
+          handle.addEventListener('keydown', event => {
+            const current = handle.geometry, horizontal = current.axis === 0;
+            if (!expanded || zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
+            if ((horizontal && /Up|Down/.test(event.key)) || (!horizontal && /Left|Right/.test(event.key))) return;
+            event.preventDefault(); manual();
+            const limits = boundaryLimits(current), step = event.shiftKey ? 5 : 2;
+            const target = event.key === 'Home' ? limits.min : event.key === 'End' ? limits.max : current.value + (/Left|Up/.test(event.key) ? -step : step);
+            gridRects = resized(gridRects, current, target); layoutGeometry();
+          });
+          canvas.insertBefore(handle,cursor); handles.set(boundary.key,handle);
+        }
+        handle.geometry = boundary; handle.dataset.axis = boundary.axis === 0 ? 'x' : 'y';
+        handle.hidden = !expanded || zoomed >= 0;
+        handle.tabIndex = expanded && zoomed < 0 ? 0 : -1;
+        handle.setAttribute('aria-label', text('showcaseResize'));
+        handle.lang = document.documentElement.lang || 'en';
+        handle.setAttribute('aria-orientation', boundary.axis === 0 ? 'vertical' : 'horizontal');
+        const limits = boundaryLimits(boundary);
+        handle.setAttribute('aria-valuemin', String(Math.round(limits.min)));
+        handle.setAttribute('aria-valuemax', String(Math.round(limits.max)));
+        handle.setAttribute('aria-valuenow', String(Math.round(boundary.value)));
+        if (boundary.axis === 0) {
+          handle.style.left = 'calc(' + boundary.value + '% - ' + gap/2 + 'px)'; handle.style.top = boundary.start + '%';
+          handle.style.height = (boundary.end-boundary.start) + '%'; handle.style.width = '';
+        } else {
+          handle.style.top = 'calc(' + boundary.value + '% - ' + gap/2 + 'px)'; handle.style.left = boundary.start + '%';
+          handle.style.width = (boundary.end-boundary.start) + '%'; handle.style.height = '';
+        }
+      }
+      for (const [key,handle] of handles) if (!active.has(key)) { handle.remove(); handles.delete(key); }
+    }
+    function point(clientX, clientY) {
+      const box = canvas.getBoundingClientRect();
+      return { x:(clientX-box.left)/Math.max(1,box.width)*100, y:(clientY-box.top)/Math.max(1,box.height)*100 };
+    }
+    function controlPoint(paneIndex, selector) {
+      const box = paneNodes[paneIndex].querySelector(selector).getBoundingClientRect();
+      return point(box.left + box.width/2,box.top + box.height/2);
+    }
+    function paneAt(position, exclude = -1) {
+      if (zoomed >= 0) return zoomed === exclude ? -1 : zoomed;
+      return sources.findIndex((_,i) => {
+        const rect = rectFor(i);
+        return i !== exclude && position.x >= rect[0] && position.x <= rect[0]+rect[2] && position.y >= rect[1] && position.y <= rect[1]+rect[3];
+      });
+    }
+    function updateHover() {
+      const target = hoverPoint ? paneAt(point(hoverPoint.x,hoverPoint.y)) : -1;
+      paneNodes.forEach((pane,i) => pane.classList.toggle('is-hovered',i === target));
+    }
+    function swap(a,b) {
+      [paneSlots[a],paneSlots[b]] = [paneSlots[b],paneSlots[a]];
+      layoutGeometry();
+    }
+    function setZoom(value, focus = false) {
+      zoomed = value; layoutGeometry();
+      if (focus && value >= 0) paneNodes[value].querySelector('.showcase-pane-zoom').focus({ preventScroll:true });
+    }
+    function after(callback, delay) {
+      const timer = setTimeout(() => { timers.delete(timer); if (canPlay()) callback(); },delay);
+      timers.add(timer);
+    }
+    function clearMotion() {
+      if (autoDragged) { autoDragged.classList.remove('is-grabbed'); autoDragged.style.transform = ''; autoDragged = null; }
+      paneNodes.forEach(pane => pane.classList.remove('is-drop-target'));
+      cursor.hidden = true; cursor.classList.remove('is-pressed');
+      delete root.dataset.autoAction;
+    }
+    function stopPlayback() {
+      timers.forEach(clearTimeout); timers.clear(); clearMotion();
+      root.classList.remove('is-playing');
+      modes.querySelectorAll('button').forEach(button => button.classList.remove('is-counting'));
+    }
+    function cursorAt(x,y,label) {
+      cursor.hidden = false; cursor.style.left = x + '%'; cursor.style.top = y + '%';
+      cursor.querySelector('.showcase-cursor-label').textContent = label;
+    }
+    function demonstrate() {
+      if (sources.length < 2 || zoomed >= 0) return;
+      const epoch = geometryEpoch, action = scenes[index].action;
+      root.dataset.autoAction = action;
+      const valid = callback => () => { if (geometryEpoch === epoch) callback(); };
+      if (action === 'drag') {
+        const from = 0, to = Math.min(2,sources.length-1);
+        const { x,y } = controlPoint(from,'.showcase-pane-drag');
+        cursorAt(x,y,text('showcaseMove'));
+        after(valid(() => {
+          cursor.classList.add('is-pressed'); autoDragged = paneNodes[from]; autoDragged.classList.add('is-grabbed');
+          paneNodes[to].classList.add('is-drop-target');
+        }),350);
+        after(valid(() => {
+          const target = controlPoint(to,'.showcase-pane-drag'), tx = target.x, ty = target.y, box = canvas.getBoundingClientRect();
+          autoDragged.style.transform = 'translate(' + (tx-x)*box.width/100 + 'px,' + (ty-y)*box.height/100 + 'px) scale(1.018)';
+          cursorAt(tx,ty,text('showcaseMove'));
+        }),550);
+        after(valid(() => {
+          if (autoDragged) autoDragged.style.transform = '';
+          swap(from,to); cursor.classList.remove('is-pressed');
+        }),1150);
+        after(valid(clearMotion),1750);
+      } else if (action === 'resize') {
+        const boundary = boundaries().sort((a,b) => (b.end-b.start)-(a.end-a.start))[0];
+        if (!boundary) return;
+        const middle = (boundary.start+boundary.end)/2;
+        cursorAt(boundary.axis === 0 ? boundary.value : middle,boundary.axis === 0 ? middle : boundary.value,text('showcaseResize'));
+        after(valid(() => cursor.classList.add('is-pressed')),300);
+        after(valid(() => {
+          const limits = boundaryLimits(boundary), target = clamp(boundary.value + (boundary.value>55?-16:17),limits.min,limits.max);
+          gridRects = resized(gridRects,boundary,target); layoutGeometry();
+          cursorAt(boundary.axis === 0 ? target : middle,boundary.axis === 0 ? middle : target,text('showcaseResize'));
+        }),500);
+        after(valid(() => cursor.classList.remove('is-pressed')),1150);
+        after(valid(clearMotion),1700);
+      } else {
+        const target = 0, position = controlPoint(target,'.showcase-pane-zoom');
+        cursorAt(position.x,position.y,text('showcaseExpand'));
+        after(valid(() => cursor.classList.add('is-pressed')),300);
+        after(valid(() => { setZoom(target); cursor.classList.remove('is-pressed'); cursor.hidden = true; }),470);
+        after(valid(() => { const restored = controlPoint(target,'.showcase-pane-zoom'); cursorAt(restored.x,restored.y,text('showcaseRestore')); }),1900);
+        after(valid(() => { cursor.classList.add('is-pressed'); }),2200);
+        after(valid(() => { setZoom(-1); clearMotion(); }),2400);
+      }
     }
     function schedule() {
-      pauseTimer();
-      if (userPaused || !visible || document.visibilityState === 'hidden') return;
+      stopPlayback();
+      if (!canPlay()) return;
+      if (zoomed >= 0) setZoom(-1);
       root.classList.add('is-playing');
       const active = modes.children[index];
       requestAnimationFrame(() => { if (root.classList.contains('is-playing')) active.classList.add('is-counting'); });
-      timer = setTimeout(() => select((index + 1) % scenes.length), duration);
+      if (!reduced.matches) after(demonstrate,550);
+      after(() => select(index+1),duration);
+    }
+    function manual() {
+      userPaused = true; stopPlayback(); closePicker(); refreshLanguage();
     }
     function refreshLanguage() {
-      root.querySelectorAll('[data-showcase-key]').forEach(node => { node.textContent = text(node.dataset.showcaseKey); });
-      root.querySelectorAll('[data-showcase-aria]').forEach(node => node.setAttribute('aria-label', text(node.dataset.showcaseAria)));
-      const scene = scenes[index];
-      root.querySelector('[data-showcase-title]').textContent = text('showcase' + scene.key);
-      root.querySelector('[data-showcase-description]').textContent = text('showcase' + scene.key + 'Text');
-      const chromeScene = root.querySelector('[data-showcase-chrome-scene]');
-      chromeScene.textContent = text('showcase' + scene.key);
-      chromeScene.lang = document.documentElement.lang || 'en';
-      chromeScene.dir = 'auto';
-      const pause = root.querySelector('[data-showcase-pause]');
-      pause.innerHTML = icon(userPaused ? 'play' : 'pause');
-      pause.setAttribute('aria-label', text(userPaused ? 'showcasePlay' : 'showcasePause'));
-      pause.setAttribute('aria-pressed', String(userPaused));
-    }
-    function layoutGeometry() {
-      const scene = scenes[index];
-      const rects = expanded && portrait.matches ? portraitRects[scene.id] : scene.rects;
-      paneNodes.forEach((pane, i) => {
-        if (!rects[i]) return;
-        const [x,y,w,h] = rects[i];
-        pane.style.left = x + '%'; pane.style.top = y + '%';
-        pane.style.width = 'calc(' + w + '% - ' + (x + w < 100 ? 5 : 0) + 'px)';
-        pane.style.height = 'calc(' + h + '% - ' + (y + h < 100 ? 5 : 0) + 'px)';
+      const scene = scenes[index], language = document.documentElement.lang || 'en';
+      root.querySelectorAll('[data-showcase-key]').forEach(node => { node.textContent = text(node.dataset.showcaseKey); node.lang=language; });
+      root.querySelectorAll('[data-showcase-aria]').forEach(node => { node.setAttribute('aria-label',text(node.dataset.showcaseAria)); node.lang=language; });
+      modes.lang=language; modes.dir='auto';
+      for (const selector of ['[data-showcase-title]','[data-showcase-chrome-scene]']) root.querySelectorAll(selector).forEach(node => {
+        node.textContent = text('showcase'+scene.key); node.lang = language; node.dir = 'auto';
       });
+      root.querySelectorAll('[data-showcase-description]').forEach(node => { node.textContent = text('showcase'+scene.key+'Text'); node.lang = language; node.dir = 'auto'; });
+      const pause = root.querySelector('[data-showcase-pause]');
+      pause.innerHTML = icon(userPaused ? 'play' : 'pause'); pause.lang=language;
+      pause.setAttribute('aria-label',text(userPaused ? 'showcasePlay' : 'showcasePause'));
+      pause.setAttribute('aria-pressed',String(userPaused));
+      paneNodes.forEach((pane,i) => {
+        if (!sources[i]) return;
+        const drag = pane.querySelector('.showcase-pane-drag'), zoom = pane.querySelector('.showcase-pane-zoom');
+        drag.lang = language; zoom.lang = language;
+        drag.setAttribute('aria-label',sources[i].name + ' — ' + text('showcaseMove'));
+        drag.title = text('showcaseMove');
+        zoom.setAttribute('aria-label',sources[i].name + ' — ' + text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand'));
+        zoom.title = text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand');
+      });
+      handles.forEach(handle => { handle.setAttribute('aria-label',text('showcaseResize')); handle.lang = language; });
+      cursor.querySelector('.showcase-cursor-label').lang = language;
     }
-    function select(next, announce = false) {
-      index = ((next % scenes.length) + scenes.length) % scenes.length;
-      const scene = scenes[index];
-      clearTimeout(cleanTimer);
-      paneNodes.forEach((pane, i) => {
-        const serviceId = scene.panes[i];
-        if (!serviceId) { pane.classList.add('is-unused'); pane.setAttribute('aria-hidden', 'true'); return; }
-        pane.classList.remove('is-unused'); pane.removeAttribute('aria-hidden');
-        const service = services[serviceId];
-        pane.querySelector('.showcase-service-mark').textContent = service.mark;
-        pane.querySelector('.showcase-service-name').textContent = service.name;
-        pane.querySelector('.showcase-service-host').textContent = service.host;
-        pane.setAttribute('aria-label', service.name);
-        const body = pane.querySelector('.showcase-pane-page');
-        // Fast manual changes keep only the newest layer, never an animation backlog.
+    function select(next, announceChange = false) {
+      stopPlayback(); cancelGesture(); clearTimeout(cleanTimer); zoomed = -1;
+      index = ((next%scenes.length)+scenes.length)%scenes.length;
+      root.dataset.scene = scenes[index].id;
+      sources = sceneSources(scenes[index]); paneSlots = sources.map((_,i) => i);
+      paneNodes.forEach((pane,i) => {
+        const source = sources[i], body = pane.querySelector('.showcase-pane-page');
+        pane.style.transform = ''; pane.classList.remove('is-grabbed','is-drop-target');
+        if (!source) { body.replaceChildren(); delete pane.dataset.service; return; }
+        pane.setAttribute('aria-label',source.name); pane.dataset.service = source.id;
+        pane.querySelector('.showcase-service-mark').textContent = source.name.slice(0,1);
+        pane.querySelector('.showcase-service-name').textContent = source.name;
+        pane.querySelector('.showcase-service-host').textContent = source.host;
         const previous = body.lastElementChild;
         Array.from(body.children).forEach(node => { if (node !== previous) node.remove(); });
-        if (previous) {
-          previous.classList.remove('is-old', 'is-new');
-          previous.removeAttribute('aria-hidden');
-        }
-        const fresh = layer(serviceId);
+        if (previous) { previous.classList.remove('is-old','is-new'); previous.removeAttribute('aria-hidden'); }
+        if (previous?.dataset.src === source.src) return;
+        const fresh = layer(source); fresh.dataset.src = source.src;
         if (previous && !reduced.matches) {
-          previous.setAttribute('aria-hidden', 'true');
-          fresh.classList.add('is-new'); body.append(fresh);
+          previous.setAttribute('aria-hidden','true'); fresh.classList.add('is-new'); body.append(fresh);
           requestAnimationFrame(() => {
             if (previous.parentNode === body) previous.classList.add('is-old');
             if (fresh.parentNode === body) fresh.classList.remove('is-new');
           });
         } else body.replaceChildren(fresh);
       });
-      layoutGeometry();
-      cleanTimer = setTimeout(() => root.querySelectorAll('.showcase-page-layer.is-old').forEach(node => node.remove()), 850);
-      modes.querySelectorAll('button').forEach((button, i) => button.setAttribute('aria-pressed', String(i === index)));
-      refreshLanguage();
-      if (announce) root.querySelector('[data-showcase-status]').textContent = text('showcase' + scene.key);
-      schedule();
+      layoutGeometry(true);
+      cleanTimer = setTimeout(() => root.querySelectorAll('.showcase-page-layer.is-old').forEach(node => node.remove()),600);
+      modes.querySelectorAll('button').forEach((button,i) => button.setAttribute('aria-pressed',String(i===index)));
+      refreshLanguage(); if (announceChange) announce(text('showcase'+scenes[index].key),document.documentElement.lang || 'en'); schedule();
     }
+    function cancelGesture() {
+      if (!gesture) return;
+      const ended=gesture; gesture=null;
+      if (canvas.hasPointerCapture?.(ended.id)) canvas.releasePointerCapture(ended.id);
+      if (ended.kind === 'drag') paneNodes[ended.pane].style.transform = '';
+      paneNodes.forEach(pane => pane.classList.remove('is-grabbed','is-drop-target'));
+      root.classList.remove('is-manipulating');
+    }
+    canvas.addEventListener('pointerdown',event => {
+      if (!expanded || gesture || !event.isPrimary || event.button !== 0 || zoomed >= 0) return;
+      const drag = event.target.closest('.showcase-pane-drag'), handle = event.target.closest('.showcase-resize-handle');
+      if (!drag && !handle) return;
+      manual(); event.preventDefault();
+      if (drag) {
+        const pane = Number(drag.closest('.showcase-pane').dataset.paneIndex);
+        gesture = { kind:'drag', id:event.pointerId, pane, startX:event.clientX, startY:event.clientY, target:-1, focus:drag };
+        paneNodes[pane].classList.add('is-grabbed');
+      } else {
+        gesture = { kind:'resize', id:event.pointerId, boundary:{...handle.geometry}, rects:cloneRects(gridRects), focus:handle };
+      }
+      root.classList.add('is-manipulating'); canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove',event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      event.preventDefault();
+      const position = point(event.clientX,event.clientY);
+      if (gesture.kind === 'drag') {
+        paneNodes[gesture.pane].style.transform = 'translate('+(event.clientX-gesture.startX)+'px,'+(event.clientY-gesture.startY)+'px) scale(1.018)';
+        gesture.target = paneAt(position,gesture.pane);
+        paneNodes.forEach((pane,i) => pane.classList.toggle('is-drop-target',i===gesture.target));
+      } else {
+        gridRects = resized(gesture.rects,gesture.boundary,gesture.boundary.axis === 0 ? position.x : position.y);
+        layoutGeometry();
+      }
+    });
+    canvas.addEventListener('pointerup',event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const ended = gesture;
+      cancelGesture();
+      if (ended.kind === 'drag' && ended.target >= 0) { swap(ended.pane,ended.target); announce(sources[ended.pane].name + ' — ' + text('showcaseMove')); }
+      if (ended.focus.isConnected) ended.focus.focus({ preventScroll:true });
+    });
+    canvas.addEventListener('pointercancel',cancelGesture);
+    canvas.addEventListener('lostpointercapture',() => { if (gesture) cancelGesture(); });
+    canvas.addEventListener('focusin',() => { if (expanded) manual(); });
+    frame.addEventListener('pointermove',event => { if (event.pointerType !== 'touch') { hoverPoint={x:event.clientX,y:event.clientY}; updateHover(); } });
+    frame.addEventListener('pointerleave',() => { hoverPoint=null; updateHover(); });
+
     function expand() {
       if (expanded || typeof dialog.showModal !== 'function') return;
-      savedScroll = window.scrollY; savedFocus = document.activeElement;
-      savedOverflow = document.documentElement.style.overflow;
-      dock.style.height = dock.getBoundingClientRect().height + 'px';
-      dialogHost.append(experience); dialog.showModal();
-      document.documentElement.style.overflow = 'hidden';
-      expanded = true; visible = true; wheel = 0;
-      layoutGeometry();
-      root.querySelector('[data-showcase-close]').focus({ preventScroll: true });
-      schedule();
+      stopPlayback(); closePicker(); savedScroll=window.scrollY; savedFocus=document.activeElement;
+      savedOverflow=document.documentElement.style.overflow;
+      dock.style.height=dock.getBoundingClientRect().height+'px';
+      dialogHost.append(experience); dialog.showModal(); document.documentElement.style.overflow='hidden';
+      expanded=true; visible=true; wheel=0; zoomed=-1; root.classList.add('is-expanded');
+      layoutGeometry(true); root.querySelector('[data-showcase-close]').focus({ preventScroll:true }); schedule();
     }
     function restore() {
       if (!expanded) return;
-      expanded = false; dock.append(experience); dock.style.height = '';
-      layoutGeometry();
-      document.documentElement.style.overflow = savedOverflow;
-      const behavior = document.documentElement.style.scrollBehavior;
-      document.documentElement.style.scrollBehavior = 'auto';
-      window.scrollTo(0, savedScroll);
-      if (savedFocus && savedFocus.isConnected && typeof savedFocus.focus === 'function') savedFocus.focus({ preventScroll: true });
-      requestAnimationFrame(() => { document.documentElement.style.scrollBehavior = behavior; });
-      visible = root.getBoundingClientRect().bottom > 0 && root.getBoundingClientRect().top < innerHeight;
-      schedule();
+      stopPlayback(); cancelGesture(); closePicker(); expanded=false; zoomed=-1;
+      root.classList.remove('is-expanded'); dock.append(experience); dock.style.height='';
+      layoutGeometry(true); document.documentElement.style.overflow=savedOverflow;
+      const behavior=document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0,savedScroll);
+      if (savedFocus?.isConnected && typeof savedFocus.focus === 'function') savedFocus.focus({ preventScroll:true });
+      requestAnimationFrame(() => { document.documentElement.style.scrollBehavior=behavior; });
+      visible=root.getBoundingClientRect().bottom>0 && root.getBoundingClientRect().top<innerHeight;
+      hoverPoint=null; updateHover(); schedule();
     }
-    root.querySelector('[data-showcase-expand]').addEventListener('click', expand);
-    root.querySelector('[data-showcase-preview-hit]')?.addEventListener('click', expand);
-    root.querySelector('[data-showcase-close]').addEventListener('click', () => dialog.close());
-    dialog.addEventListener('close', restore);
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
-    root.querySelector('[data-showcase-pause]').addEventListener('click', () => { userPaused = !userPaused; refreshLanguage(); schedule(); });
-    root.querySelector('[data-showcase-previous]').addEventListener('click', () => select(index - 1, true));
-    root.querySelector('[data-showcase-next]').addEventListener('click', () => select(index + 1, true));
-    const frame = root.querySelector('.showcase-frame');
+    root.querySelector('[data-showcase-expand]').addEventListener('click',expand);
+    root.querySelector('[data-showcase-preview-hit]')?.addEventListener('click',expand);
+    root.querySelector('[data-showcase-close]').addEventListener('click',() => dialog.close());
+    dialog.addEventListener('close',restore);
+    dialog.addEventListener('cancel',event => {
+      if (zoomed>=0) { event.preventDefault(); const previous=zoomed; manual(); setZoom(-1); paneNodes[previous].querySelector('.showcase-pane-zoom').focus({ preventScroll:true }); }
+    });
+    dialog.addEventListener('click',event => { if (event.target===dialog) dialog.close(); });
+    root.querySelector('[data-showcase-pause]').addEventListener('click',() => {
+      userPaused=!userPaused; refreshLanguage(); schedule();
+    });
+    root.querySelector('[data-showcase-previous]').addEventListener('click',() => { closePicker(); select(index-1,true); });
+    root.querySelector('[data-showcase-next]').addEventListener('click',() => { closePicker(); select(index+1,true); });
+    modePicker?.addEventListener('toggle',schedule);
     if (typeof dialog.showModal === 'function') {
       root.classList.add('showcase-gesture-enabled');
-      frame.addEventListener('wheel', event => {
-        if (expanded || event.ctrlKey || event.metaKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
-        const now = performance.now();
-        if (now - wheelAt > 350) wheel = 0;
-        wheelAt = now; wheel += Math.max(0, -event.deltaY);
-        if (event.deltaY >= 0) { wheel = 0; return; }
-        if (wheel >= 42) { event.preventDefault(); expand(); }
-      }, { passive: false });
-      frame.addEventListener('touchstart', event => {
-        if (!expanded && event.touches.length === 1) touch = { x: event.touches[0].clientX, y: event.touches[0].clientY, time: performance.now() };
-        else touch = null;
-      }, { passive: true });
-      frame.addEventListener('touchmove', event => {
-        if (!touch || expanded || event.touches.length !== 1) return;
-        const dx = event.touches[0].clientX - touch.x, dy = touch.y - event.touches[0].clientY;
-        // Claim only a clear upward gesture early enough to prevent native scrolling.
-        // Downward, horizontal and multi-touch gestures keep their normal behavior.
-        const upward = dy > 6 && Math.abs(dx) < dy * .65 && performance.now() - touch.time < 1100;
-        if (upward) event.preventDefault();
-        if (upward && dy > 58) { touch = null; expand(); }
-      }, { passive: false });
-      frame.addEventListener('touchend', () => { touch = null; }, { passive: true });
-      frame.addEventListener('touchcancel', () => { touch = null; }, { passive: true });
-    } else {
-      root.querySelector('[data-showcase-expand]').hidden = true;
-      const previewHit = root.querySelector('[data-showcase-preview-hit]');
-      if (previewHit) previewHit.hidden = true;
-      root.querySelector('.showcase-hint').hidden = true;
+      frame.addEventListener('wheel',event => {
+        if (expanded || event.ctrlKey || event.metaKey || Math.abs(event.deltaX)>Math.abs(event.deltaY)) return;
+        const now=performance.now(); if(now-wheelAt>350)wheel=0;
+        wheelAt=now; wheel+=Math.max(0,-event.deltaY);
+        if(event.deltaY>=0){wheel=0;return;}
+        if(wheel>=42){event.preventDefault();expand();}
+      },{passive:false});
+      frame.addEventListener('touchstart',event => {
+        touch=!expanded&&event.touches.length===1?{x:event.touches[0].clientX,y:event.touches[0].clientY,time:performance.now()}:null;
+      },{passive:true});
+      frame.addEventListener('touchmove',event => {
+        if(!touch||expanded||event.touches.length!==1)return;
+        const dx=event.touches[0].clientX-touch.x,dy=touch.y-event.touches[0].clientY;
+        const upward=dy>6&&Math.abs(dx)<dy*.65&&performance.now()-touch.time<1100;
+        if(upward)event.preventDefault(); if(upward&&dy>58){touch=null;expand();}
+      },{passive:false});
+      frame.addEventListener('touchend',()=>{touch=null;},{passive:true});
+      frame.addEventListener('touchcancel',()=>{touch=null;},{passive:true});
     }
     if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver(entries => {
-        if (expanded) return;
-        visible = entries[0].isIntersecting; schedule();
-      }, { threshold: .1 });
-      observer.observe(root);
+      new IntersectionObserver(entries => { if(!expanded){visible=entries[0].isIntersecting;schedule();} },{threshold:.1}).observe(root);
     }
-    document.addEventListener('visibilitychange', schedule);
-    document.addEventListener('mouse:language', refreshLanguage);
-    new MutationObserver(refreshLanguage).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
-    const onReduced = () => { if (reduced.matches) userPaused = true; refreshLanguage(); schedule(); };
-    if (reduced.addEventListener) reduced.addEventListener('change', onReduced);
-    else if (reduced.addListener) reduced.addListener(onReduced);
-    if (portrait.addEventListener) portrait.addEventListener('change', layoutGeometry);
-    else if (portrait.addListener) portrait.addListener(layoutGeometry);
-    root.querySelectorAll('[data-showcase-interactive]').forEach(node => { node.hidden = false; });
-    if (typeof dialog.showModal !== 'function') {
-      const previewHit = root.querySelector('[data-showcase-preview-hit]');
-      if (previewHit) previewHit.hidden = true;
+    document.addEventListener('visibilitychange',schedule);
+    document.addEventListener('mouse:language',refreshLanguage);
+    new MutationObserver(refreshLanguage).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+    const onReduced=()=>{if(reduced.matches)userPaused=true;refreshLanguage();schedule();};
+    const onPortrait=()=>{cancelGesture();clearMotion();layoutGeometry(true);};
+    if(reduced.addEventListener)reduced.addEventListener('change',onReduced);else reduced.addListener?.(onReduced);
+    if(portrait.addEventListener)portrait.addEventListener('change',onPortrait);else portrait.addListener?.(onPortrait);
+    root.querySelectorAll('[data-showcase-interactive]').forEach(node=>{node.hidden=false;});
+    if(typeof dialog.showModal!=='function'){
+      root.querySelector('[data-showcase-expand]').hidden=true;
+      const hit=root.querySelector('[data-showcase-preview-hit]');if(hit)hit.hidden=true;
+      const hint=root.querySelector('.showcase-hint');if(hint)hint.hidden=true;
     }
-    select(0);
-    return {
-      refreshLanguage,
-      setAssets(value) { assets = value && typeof value === 'object' ? value : {}; select(index); }
-    };
+    select(index);
+    return { refreshLanguage, setAssets(value){assets=value&&typeof value==='object'?value:{};failed.clear();select(index);} };
   }
-  function init() { controller = create(document.getElementById('mouse-showcase')) || controller; return controller; }
-  window.MouseShowcase = Object.freeze({ init, refreshLanguage() { controller?.refreshLanguage(); }, setAssets(value) { controller?.setAssets(value); } });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
-  else init();
+  function init(){controller=create(document.getElementById('mouse-showcase'))||controller;return controller;}
+  window.MouseShowcase=Object.freeze({init,refreshLanguage(){controller?.refreshLanguage();},setAssets(value){controller?.setAssets(value);}});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

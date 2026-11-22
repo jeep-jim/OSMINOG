@@ -22,6 +22,7 @@ SHOWCASE_FIELDS = {
     'showcaseDesign', 'showcaseDesignText', 'showcaseExpand', 'showcaseClose',
     'showcasePause', 'showcasePlay', 'showcasePrevious', 'showcaseNext',
     'showcaseHint', 'showcaseDemo', 'showcaseScenesLabel',
+    'showcaseMove', 'showcaseResize', 'showcaseRestore',
 }
 PLATFORMS = {
     'macos': {'suffix': 'mac-arm64.dmg', 'label': 'macOS', 'key': 'mac',

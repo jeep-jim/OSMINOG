@@ -157,3 +157,11 @@ not part of the public website package:
 The captured and illustrative panels are demonstration content. This record
 does not claim live third-party sessions, native-browser screen recording,
 physical touch-device testing or a resolved VPN routing issue.
+
+## Later owner revision — real website tiles
+
+The owner subsequently requested replacing illustrative service interfaces
+with actual website captures, faster motion, interactive window manipulation
+and integrated controls. The new implementation and delivery evidence are
+recorded in [the real-sites revision](2026-11-22-real-sites-showcase.md).
+Keep the earlier record above as historical evidence of the first delivery.

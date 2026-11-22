@@ -43,38 +43,32 @@
   <div class="showcase-dock">
     <div class="showcase-experience">
       <div class="showcase-frame">
-        <div class="showcase-window" lang="en" dir="ltr">
+        <div class="showcase-window">
           <div class="showcase-chrome">
-            <span class="showcase-window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span class="showcase-chrome-name">Mouse Browser</span>
-            <span class="showcase-chrome-scene" data-showcase-chrome-scene>Support</span>
-            <span class="showcase-chrome-version">Your workspace</span>
-          </div>
-          <div class="showcase-canvas" aria-label="English demonstration pages">
-            <div class="showcase-fallback">
-              <div><div class="showcase-pane-head">Telegram</div><div class="showcase-demo-page"><div class="showcase-demo-eyebrow">Support team</div><div class="showcase-bubble">Could you share the meeting location?</div><div class="showcase-bubble is-mine">I have the map open</div></div></div>
-              <div><div class="showcase-pane-head">Google Maps</div><div class="showcase-map"><svg viewBox="0 0 300 240" aria-label="Illustrative map"><g fill="none" stroke="currentColor" opacity=".25" stroke-width="9"><path d="M0 50 300 220M0 220 300 50M70 0 90 240M210 0 185 240M0 110H300M0 185H300"/></g><circle cx="160" cy="110" r="7" fill="currentColor"/><circle cx="160" cy="110" r="18" fill="none" stroke="currentColor" opacity=".3"/></svg><span class="showcase-map-label">Search Google Maps</span><span class="showcase-map-attribution">Illustrative workspace</span></div></div>
-              <div><div class="showcase-pane-head">Gmail</div><div class="showcase-demo-page"><h4>Inbox</h4><p>Project brief</p><div class="showcase-note-lines" aria-hidden="true"><i></i><i></i><i></i></div><h4>Team update</h4><p>Notes and shared documents</p></div></div>
+            <span class="showcase-chrome-name">Mouse</span>
+            <details class="showcase-mode-picker" data-showcase-interactive>
+              <summary class="showcase-mode-trigger"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="2"/><path d="M9 3v14M9 10h8.5"/></svg><span data-showcase-title data-showcase-chrome-scene data-i18n="showcaseSupport">Support</span><svg class="showcase-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary>
+              <div class="showcase-modes" role="group" data-showcase-aria="showcaseScenesLabel" aria-label="Workspaces" data-showcase-interactive hidden></div>
+            </details>
+            <p class="showcase-caption-text" data-showcase-description data-i18n="showcaseSupportText">Messages, maps and mail — together</p>
+            <div class="showcase-inline-controls" data-showcase-interactive hidden>
+              <button class="showcase-button showcase-button-icon" type="button" data-showcase-previous data-showcase-aria="showcasePrevious" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+              <button class="showcase-button showcase-button-icon" type="button" data-showcase-pause aria-label="Pause" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button>
+              <button class="showcase-button showcase-button-icon" type="button" data-showcase-next data-showcase-aria="showcaseNext" aria-label="Next scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+              <button class="showcase-button showcase-button-icon showcase-expand" type="button" data-showcase-expand data-showcase-aria="showcaseExpand" aria-label="Explore full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg></button>
             </div>
           </div>
-          <div class="showcase-nora"><span>Mouse Browser</span><span>Workspaces</span><span>Local workspace</span></div>
+          <div class="showcase-canvas" lang="en" dir="ltr" aria-label="English demonstration pages">
+            <div class="showcase-fallback">
+              <figure><figcaption>Google Maps</figcaption><img src="/showcase/maps.jpg" alt="Google Maps, London" width="867" height="856"></figure>
+              <figure><figcaption>TradingView</figcaption><img src="/showcase/tradingview.jpg" alt="TradingView public chart" width="1363" height="936"></figure>
+              <figure><figcaption>YouTube</figcaption><img src="/showcase/youtube.jpg" alt="The official Figma channel on YouTube" width="1096" height="705"></figure>
+            </div>
+          </div>
+          <div class="showcase-nora"><span data-showcase-key="showcaseDemo" data-i18n="showcaseDemo">Demo scenes</span><span class="showcase-hint" data-showcase-key="showcaseHint" data-i18n="showcaseHint">Swipe up over the preview to explore</span></div>
         </div>
         <button class="showcase-preview-hit" type="button" data-showcase-preview-hit data-showcase-aria="showcaseExpand" data-showcase-interactive aria-label="Explore full screen" hidden></button>
       </div>
-      <div class="showcase-caption">
-        <div class="showcase-caption-copy">
-          <p class="showcase-caption-title" data-showcase-title data-i18n="showcaseSupport">Support</p>
-          <p class="showcase-caption-text" data-showcase-description data-i18n="showcaseSupportText">Messages, maps and mail — together</p>
-        </div>
-        <div class="showcase-inline-controls" data-showcase-interactive hidden>
-          <button class="showcase-button showcase-button-icon" type="button" data-showcase-previous data-showcase-aria="showcasePrevious" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
-          <button class="showcase-button showcase-button-icon" type="button" data-showcase-pause aria-label="Pause" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button>
-          <button class="showcase-button showcase-button-icon" type="button" data-showcase-next data-showcase-aria="showcaseNext" aria-label="Next scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
-          <button class="showcase-button showcase-expand" type="button" data-showcase-expand data-showcase-aria="showcaseExpand" aria-label="Explore full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg><span data-showcase-key="showcaseExpand" data-i18n="showcaseExpand">Explore full screen</span></button>
-        </div>
-      </div>
-      <div class="showcase-modes" role="group" data-showcase-aria="showcaseScenesLabel" aria-label="Workspaces" data-showcase-interactive hidden></div>
-      <p class="showcase-helper"><span class="showcase-hint" data-showcase-key="showcaseHint" data-i18n="showcaseHint">Swipe up over the preview to explore</span> <span class="showcase-demo-label" data-showcase-key="showcaseDemo" data-i18n="showcaseDemo">Demo scenes</span></p>
       <span class="sr-only" aria-live="polite" data-showcase-status></span>
     </div>
   </div>
@@ -84,7 +78,7 @@
   </dialog>
 </section>
       <div class="burrow-stage">
-        <svg class="burrow" viewBox="0 0 280 252" role="img" aria-labelledby="mouse-title">
+        <svg class="burrow" viewBox="0 0 280 240" role="img" aria-labelledby="mouse-title">
           <title id="mouse-title" data-i18n="mouseLabel">Мышка выглядывает из норки и моргает</title>
           <defs>
             <linearGradient id="burrow-depth" x1="0" y1="0" x2="0" y2="1">
