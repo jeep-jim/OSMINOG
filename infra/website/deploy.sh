@@ -63,6 +63,13 @@ MAX_FILE = 10 * 1024 * 1024
 MAX_FILES = 200
 DISK_RESERVE = 500 * 1024 * 1024
 DOWNLOADS_ROOT = Path('/opt/osminog/website/downloads')
+VERSION_PATTERN = r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)'
+INSTALLER_PATTERN = r'Mouse-Browser-(' + VERSION_PATTERN + r')-(mac-arm64\.dmg|Windows-x64\.exe|Linux-x64\.AppImage)'
+PLATFORMS = {
+    'mac-arm64.dmg': ('macos', 'quadro-macos-v{}-arm64'),
+    'Windows-x64.exe': ('windows', 'mouse-windows-v{}-x64'),
+    'Linux-x64.AppImage': ('linux', 'mouse-linux-v{}-x64'),
+}
 EXTENSIONS = {'.html', '.css', '.js', '.mjs', '.svg', '.png', '.jpg', '.jpeg',
               '.webp', '.gif', '.avif', '.ico', '.woff', '.woff2', '.ttf', '.otf',
               '.txt', '.json', '.xml', '.webmanifest'}
@@ -86,28 +93,40 @@ def parse_downloads(data):
     require(isinstance(manifest, dict) and set(manifest) == {'version', 'files'},
             'download manifest fields')
     version = manifest['version']
-    require(isinstance(version, str) and re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version),
+    require(isinstance(version, str) and re.fullmatch(VERSION_PATTERN, version),
             'download version')
-    expected = {
-        f'Mouse-Browser-{version}-mac-arm64.dmg': f'quadro-macos-v{version}-arm64',
-        f'Mouse-Browser-{version}-Windows-x64.exe': f'mouse-windows-v{version}-x64',
-        f'Mouse-Browser-{version}-Linux-x64.AppImage': f'mouse-linux-v{version}-x64',
-    }
     require(isinstance(manifest['files'], list) and len(manifest['files']) == 3,
             'three installers required')
     seen = set()
+    versions = []
     for item in manifest['files']:
         require(isinstance(item, dict) and set(item) == {'filename', 'url', 'size', 'sha256'},
                 'installer fields')
         name = item['filename']
-        require(isinstance(name, str) and name in expected and name not in seen, 'installer filename')
-        seen.add(name)
-        expected_url = 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + expected[name] + '/' + name
+        match = re.fullmatch(INSTALLER_PATTERN, name) if isinstance(name, str) else None
+        require(match is not None, 'installer filename')
+        file_version, suffix = match.groups()
+        require(suffix not in seen, 'duplicate installer platform')
+        seen.add(suffix)
+        versions.append(tuple(map(int, file_version.split('.'))))
+        tag = PLATFORMS[suffix][1].format(file_version)
+        expected_url = 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + tag + '/' + name
         require(item['url'] == expected_url, 'installer source')
         require(type(item['size']) is int and 0 < item['size'] <= 512 * 1024 * 1024, 'installer size')
         require(isinstance(item['sha256'], str) and re.fullmatch(r'[0-9a-f]{64}', item['sha256']),
                 'installer checksum')
+    require(seen == set(PLATFORMS), 'three distinct installer platforms required')
+    require(tuple(map(int, version.split('.'))) == max(versions), 'download version must be the newest installer version')
     return manifest
+
+def public_downloads(manifest):
+    files = []
+    for item in manifest['files']:
+        file_version, suffix = re.fullmatch(INSTALLER_PATTERN, item['filename']).groups()
+        files.append({'platform': PLATFORMS[suffix][0], 'version': file_version,
+                      'filename': item['filename'], 'url': '/downloads/' + item['filename'],
+                      'size': item['size'], 'sha256': item['sha256']})
+    return {'schema': 1, 'version': manifest['version'], 'files': files}
 
 def download_root():
     require(not DOWNLOADS_ROOT.is_symlink(), 'downloads directory is a symlink')
@@ -123,16 +142,22 @@ def load_downloads():
 
 def verified_installer(path, item):
     require(not path.is_symlink(), 'installer is a symlink')
-    if not path.is_file() or path.stat().st_size != item['size']:
+    if not path.exists():
         return False
+    require(path.is_file() and not path.stat().st_mode & 0o111,
+            'immutable installer is not a regular nonexecutable file')
+    require(path.stat().st_size == item['size'], 'existing immutable installer size differs')
     digest = hashlib.sha256()
     with path.open('rb') as source:
         for block in iter(lambda: source.read(1024 * 1024), b''):
             digest.update(block)
-    return digest.hexdigest() == item['sha256']
+    require(digest.hexdigest() == item['sha256'], 'existing immutable installer checksum differs')
+    return True
 
 def install_installer(source, target, item):
     require(not target.is_symlink(), 'installer target is a symlink')
+    if verified_installer(target, item):
+        return
     require(shutil.disk_usage(target.parent).free >= item['size'] + DISK_RESERVE,
             'installer needs free space plus 500 MiB reserve')
     descriptor, temporary_name = tempfile.mkstemp(prefix='.incoming-installer-', dir=target.parent)
@@ -149,9 +174,16 @@ def install_installer(source, target, item):
                 require(size <= item['size'], 'installer larger than recorded size')
                 digest.update(block)
                 output.write(block)
+            output.flush()
+            os.fsync(output.fileno())
         require(size == item['size'] and digest.hexdigest() == item['sha256'], 'installer bytes do not match manifest')
         temporary.chmod(0o644)
-        os.replace(temporary, target)
+        # Publishing a versioned installer must never replace existing bytes,
+        # including a file created between the initial check and this commit.
+        try:
+            os.link(temporary, target)
+        except FileExistsError:
+            require(verified_installer(target, item), 'immutable installer collision')
     finally:
         if temporary.exists():
             temporary.unlink()
@@ -165,6 +197,8 @@ if mode == '--downloads-manifest':
         data = source.read(16385)
     require(hashlib.sha256(data).hexdigest() == sys.argv[2], 'download manifest checksum')
     manifest = parse_downloads(data)
+    for item in manifest['files']:
+        verified_installer(download_root() / item['filename'], item)
     target = download_root() / 'manifest.json'
     require(not target.is_symlink(), 'download manifest is a symlink')
     descriptor, temporary_name = tempfile.mkstemp(prefix='.manifest-', dir=DOWNLOADS_ROOT)
@@ -345,6 +379,11 @@ def install_release(root):
 
 own_root = Path('/opt/osminog/website')
 downloads = load_downloads()
+try:
+    catalog = json.loads(payload.get('downloads.json', b''))
+except (ValueError, UnicodeError):
+    raise SystemExit('MOUSE_WEBSITE_REJECTED: public download catalog missing or invalid')
+require(catalog == public_downloads(downloads), 'public download catalog differs from verified installers')
 for item in downloads['files']:
     require(verified_installer(DOWNLOADS_ROOT / item['filename'], item),
             'required installer is not fully staged: ' + item['filename'])

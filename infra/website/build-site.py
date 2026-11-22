@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render every supported language into static HTML; no runtime service required."""
 import argparse
+from copy import deepcopy
 from html import escape
 import json
 from pathlib import Path
@@ -14,6 +15,68 @@ SOURCE = ROOT / 'website'
 ORIGIN = 'https://mouse.black'
 SEO_FIELDS = {'pageTitle', 'metaDescription', 'aboutTitle', 'splitTitle', 'splitText',
               'privateTitle', 'privateText', 'desktopTitle', 'desktopText'}
+PLATFORMS = {
+    'macos': {'suffix': 'mac-arm64.dmg', 'label': 'macOS', 'key': 'mac',
+              'os': 'macOS (Apple Silicon)'},
+    'windows': {'suffix': 'Windows-x64.exe', 'label': 'Windows', 'key': 'windows',
+                'os': 'Windows (x64)'},
+    'linux': {'suffix': 'Linux-x64.AppImage', 'label': 'Linux', 'key': 'linux',
+              'os': 'Linux (x64)'},
+}
+VERSION = r'[0-9]+\.[0-9]+\.[0-9]+'
+
+
+def version_key(value):
+    assert isinstance(value, str) and re.fullmatch(VERSION, value), 'Invalid download version'
+    parts = tuple(map(int, value.split('.')))
+    assert all(part <= 9007199254740991 for part in parts), 'Download version is too large'
+    return parts
+
+
+def public_downloads(downloads):
+    """Derive a small public manifest without carrying any upstream addresses."""
+    assert isinstance(downloads, dict) and set(downloads) == {'version', 'files'}, 'Invalid download manifest'
+    assert isinstance(downloads['files'], list) and len(downloads['files']) == 3, 'Three installers required'
+    files = {}
+    for item in downloads['files']:
+        assert isinstance(item, dict) and set(item) == {'filename', 'url', 'size', 'sha256'}, 'Invalid installer fields'
+        assert isinstance(item['filename'], str), 'Invalid installer filename'
+        matches = [(platform, re.fullmatch('Mouse-Browser-(' + VERSION + ')-' + re.escape(info['suffix']), item['filename']))
+                   for platform, info in PLATFORMS.items()]
+        matches = [(platform, match) for platform, match in matches if match]
+        assert len(matches) == 1, 'Unsupported installer filename'
+        platform, match = matches[0]
+        assert platform not in files, 'Duplicate installer platform'
+        version = match.group(1)
+        version_key(version)
+        assert type(item['size']) is int and 0 < item['size'] <= 512 * 1024 * 1024, 'Invalid installer size'
+        assert isinstance(item['sha256'], str) and re.fullmatch('[0-9a-f]{64}', item['sha256']), 'Invalid installer checksum'
+        files[platform] = {'platform': platform, 'version': version, 'filename': item['filename'],
+                           'url': '/downloads/' + item['filename'], 'size': item['size'], 'sha256': item['sha256']}
+    assert set(files) == set(PLATFORMS), 'Missing installer platform'
+    latest = max((item['version'] for item in files.values()), key=version_key)
+    assert downloads['version'] == latest, 'Top-level version must be the latest platform version'
+    return {'schema': 1, 'version': latest, 'files': [files[platform] for platform in PLATFORMS]}
+
+
+def localized_downloads(catalog, public):
+    """Keep localised templates alongside their rendered values for open tabs."""
+    result = deepcopy(catalog)
+    shared_version = len({item['version'] for item in public['files']}) == 1
+    versions = ' · '.join(PLATFORMS[item['platform']]['label'] + ' ' + item['version'] for item in public['files'])
+    for messages in result['messages'].values():
+        messages['releaseTemplate'] = messages.get('releaseTemplate', messages['releaseLabel'])
+        assert '{version}' in messages['releaseTemplate'], 'Release label must be a localized version template'
+        messages['releaseLabel'] = (messages['releaseTemplate'].replace('{version}', public['version'])
+                                    if shared_version else versions)
+        for item in public['files']:
+            key = PLATFORMS[item['platform']]['key']
+            messages[key + 'AriaTemplate'] = messages.get(key + 'AriaTemplate', messages[key + 'Aria'])
+            messages[key + 'MetaBase'] = messages.get(key + 'MetaBase', messages[key + 'Meta'])
+            assert '{version}' in messages[key + 'AriaTemplate'], 'Download aria label must be a version template'
+            messages[key + 'Aria'] = messages[key + 'AriaTemplate'].replace('{version}', item['version'])
+            messages[key + 'Meta'] = messages[key + 'MetaBase'] + ('' if shared_version else ' · ' + item['version'])
+    return result
 
 
 def load_catalog():
@@ -83,22 +146,31 @@ def metadata(language, catalog, downloads):
                           'twitter:description': text['metaDescription'], 'twitter:image': image,
                           'twitter:image:alt': 'Mouse Browser'}.items():
         tags.append('<meta name="' + name + '" content="' + escape(content, quote=True) + '">')
+    public = public_downloads(downloads)
+    shared_version = len({item['version'] for item in public['files']}) == 1
+    common = {'@type': 'SoftwareApplication', 'name': 'Mouse Browser', 'url': url,
+              'description': text['metaDescription'], 'applicationCategory': 'UtilitiesApplication',
+              'applicationSubCategory': 'Web browser', 'image': image,
+              'featureList': [text['splitTitle'], text['privateTitle'], text['desktopTitle']]}
+    if shared_version:
+        software = [{**common, '@id': ORIGIN + '/#software', 'softwareVersion': public['version'],
+                     'operatingSystem': [info['os'] for info in PLATFORMS.values()],
+                     'downloadUrl': [ORIGIN + item['url'] for item in public['files']]}]
+    else:
+        software = [{**common, '@id': ORIGIN + '/#software-' + item['platform'],
+                     'softwareVersion': item['version'], 'operatingSystem': PLATFORMS[item['platform']]['os'],
+                     'downloadUrl': ORIGIN + item['url']} for item in public['files']]
     graph = {
         '@context': 'https://schema.org',
         '@graph': [
             {'@type': 'WebSite', '@id': ORIGIN + '/#website', 'url': ORIGIN + '/',
              'name': 'Mouse Browser', 'alternateName': ['Mouse', 'mouse.black'],
              'inLanguage': [item['code'] for item in catalog['languages']]},
-            {'@type': 'SoftwareApplication', '@id': ORIGIN + '/#software', 'name': 'Mouse Browser',
-             'url': url, 'description': text['metaDescription'], 'softwareVersion': downloads['version'],
-             'applicationCategory': 'UtilitiesApplication', 'applicationSubCategory': 'Web browser',
-             'operatingSystem': ['macOS (Apple Silicon)', 'Windows (x64)', 'Linux (x64)'],
-             'downloadUrl': [ORIGIN + '/downloads/' + item['filename'] for item in downloads['files']],
-             'image': image,
-             'featureList': [text['splitTitle'], text['privateTitle'], text['desktopTitle']]},
+            *software,
             {'@type': 'WebPage', '@id': url + '#webpage', 'url': url, 'name': text['pageTitle'],
              'description': text['metaDescription'], 'inLanguage': code,
-             'isPartOf': {'@id': ORIGIN + '/#website'}, 'mainEntity': {'@id': ORIGIN + '/#software'}},
+             'isPartOf': {'@id': ORIGIN + '/#website'},
+             'mainEntity': [{'@id': node['@id']} for node in software]},
         ],
     }
     encoded = json.dumps(graph, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
@@ -113,6 +185,14 @@ def render(source, language, catalog, downloads):
                     '" data-theme="dark" data-static-language="' + code + '">', result, count=1)
     result = result.replace('<!-- SEO_METADATA -->', metadata(language, catalog, downloads))
     result = result.replace('class="wordmark" href="/"', 'class="wordmark" href="/' + code.lower() + '/"')
+    for item in public_downloads(downloads)['files']:
+        # Rewrite only the corresponding platform anchor, keeping icons/layout intact.
+        pattern = r'<a\b[^>]*\bdata-platform="' + item['platform'] + r'"[^>]*>'
+        def anchor(match):
+            element = re.sub(r'\bhref="[^"]*"', 'href="' + item['url'] + '"', match.group(0))
+            return re.sub(r'\bdownload="[^"]*"', 'download="' + item['filename'] + '"', element)
+        result, count = re.subn(pattern, anchor, result)
+        assert count == 1, 'One download anchor per platform is required'
     links = []
     for item in catalog['languages']:
         current = ' aria-current="page"' if item['code'] == code else ''
@@ -124,7 +204,10 @@ def render(source, language, catalog, downloads):
     return result
 
 
-def build(output):
+def build(output, downloads=None, catalog=None):
+    downloads = downloads if downloads is not None else json.loads((ROOT / 'infra/website/downloads.json').read_text())
+    public = public_downloads(downloads)
+    catalog = localized_downloads(catalog if catalog is not None else load_catalog(), public)
     output = output.resolve()
     assert not output.is_relative_to(SOURCE.resolve()) and output != ROOT, 'Choose a separate output directory'
     output.mkdir(parents=True, exist_ok=True)
@@ -137,8 +220,6 @@ def build(output):
             assert not Path(relative).is_absolute() and '..' not in Path(relative).parts
             if target.is_file() and not target.is_symlink():
                 target.unlink()
-    catalog = load_catalog()
-    downloads = json.loads((ROOT / 'infra/website/downloads.json').read_text())
     source = (SOURCE / 'index.html').read_text()
     files = []
     for path in sorted(SOURCE.rglob('*')):
@@ -153,6 +234,10 @@ def build(output):
     data = json.dumps(catalog, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
     (output / 'i18n.js').write_text('/* Local translations. No network calls. */\nwindow.MOUSE_I18N = Object.freeze(' + data + ');\n')
     files.append('i18n.js')
+    public_json = json.dumps(public, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
+    (output / 'downloads.json').write_text(public_json + '\n')
+    (output / 'downloads-current.js').write_text('window.MOUSE_DOWNLOADS_CURRENT=' + public_json + ';\n')
+    files.extend(['downloads.json', 'downloads-current.js'])
     for language in catalog['languages']:
         relative = language['code'].lower() + '/index.html'
         target = output / relative
@@ -178,5 +263,16 @@ def build(output):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True)
-    build(parser.parse_args().output)
+    parser.add_argument('--output', type=Path)
+    parser.add_argument('--downloads', type=Path, help='Resolved private installer manifest')
+    parser.add_argument('--catalog', type=Path, help='Previously exported complete translation catalog (no Node needed)')
+    parser.add_argument('--export-catalog', type=Path, help='Export the complete template catalog as JSON')
+    args = parser.parse_args()
+    if args.output is None and args.export_catalog is None:
+        parser.error('--output or --export-catalog is required')
+    catalog = json.loads(args.catalog.read_text()) if args.catalog else load_catalog()
+    if args.export_catalog:
+        args.export_catalog.write_text(json.dumps(catalog, ensure_ascii=False, separators=(',', ':')) + '\n')
+    if args.output:
+        downloads = json.loads(args.downloads.read_text()) if args.downloads else None
+        build(args.output, downloads=downloads, catalog=catalog)

@@ -3,35 +3,57 @@ on:
   push:
     branches: [main]
     paths: ['website/**', 'infra/website/**', '.github/workflows/mouse-website.yml']
+  pull_request:
+    paths: ['website/**', 'infra/website/**', '.github/workflows/mouse-website.yml']
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: mouse-website-deploy
+  group: mouse-website-${{ github.event.pull_request.number || 'deploy' }}
   cancel-in-progress: false
 jobs:
-  website:
-    if: github.ref == 'refs/heads/main'
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: osminog-reg
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Validate and package only the static website
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify independent releases, immutable downloads and open-page refresh
         shell: bash
         run: |
           set -euo pipefail
           bash -n infra/website/deploy.sh
           bash -n infra/website/bootstrap.sh
           bash infra/website/deploy.sh --validate-downloads infra/website/downloads.json
-          python3 infra/website/build-site.py --output "$RUNNER_TEMP/mouse-website-site"
-          python3 infra/website/verify-seo.py "$RUNNER_TEMP/mouse-website-site"
-          bash infra/website/deploy.sh --package "$RUNNER_TEMP/mouse-website-site" "$GITHUB_SHA" "$RUNNER_TEMP/mouse-website.tar.gz"
-          archive_sha=$(sha256sum "$RUNNER_TEMP/mouse-website.tar.gz" | cut -d ' ' -f 1)
-          bash infra/website/deploy.sh --verify "$GITHUB_SHA" "$RUNNER_TEMP/mouse-website.tar.gz" "$archive_sha"
-      - name: Inspect own permissions and stage the verified release
+          python3 -m unittest discover -s infra/website -p 'test_*.py' -v
+          node --test infra/website/test-site-downloads.cjs
+          python3 infra/website/build-site.py --output "$RUNNER_TEMP/mouse-website-validation"
+          python3 infra/website/verify-seo.py "$RUNNER_TEMP/mouse-website-validation"
+          python3 infra/website/make-sync-bundle.py --source "$GITHUB_SHA" --output "$RUNNER_TEMP/mouse-sync-validation.tar.gz"
+  website:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: osminog-reg
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Package the reviewed renderer and continuous release synchronizer
+        run: python3 infra/website/make-sync-bundle.py --source "$GITHUB_SHA" --output "$RUNNER_TEMP/mouse-website-sync.tar.gz"
+      - name: Publish with own user and observe an automatic release check
         id: publish
         env:
           SSH_PRIVATE_KEY: ${{ secrets.OSMINOG_REG_SSH_KEY }}
@@ -43,6 +65,13 @@ jobs:
           test "${SSH_USER:-osminog}" = osminog
           test -n "$SSH_PRIVATE_KEY"
           [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          # A queued/rerun older website revision must not replace newer code.
+          # Unrelated browser/documentation commits may advance main safely.
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet "$GITHUB_SHA" FETCH_HEAD -- website infra/website .github/workflows/mouse-website.yml; then
+            printf '%s\n' 'MOUSE_SOURCE_SUPERSEDED: publish the current website revision instead.' >&2
+            exit 1
+          fi
           key=$(mktemp); hosts=$(mktemp)
           trap 'rm -f "$key" "$hosts"' EXIT
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$key"
@@ -50,101 +79,63 @@ jobs:
           ssh-keygen -y -f "$key" >/dev/null
           printf '%s\n' '151.248.113.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwiP6mOUcqHc5+Xvih7YY0Ikc7TyNsIoLoFTVx1JcSV' > "$hosts"
           ssh_args=(-i "$key" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hosts" -o ServerAliveInterval=15 -o ServerAliveCountMax=2)
-          ssh "${ssh_args[@]}" osminog@151.248.113.177 'bash -s' <<'PROBE' | tee "$RUNNER_TEMP/mouse-website-permissions.txt"
-          set -euo pipefail
-          test "$(id -un)" = osminog
-          test "$(id -u)" -ne 0
-          date -u +%Y-%m-%dT%H:%M:%SZ
-          id
-          for path in /opt/osminog /opt/osminog/website /var/www/mouse.black /etc/nginx/conf.d /etc/nginx/conf.d/mouse.black.conf; do
-            if test -e "$path"; then
-              stat -c 'PATH %n owner=%U group=%G mode=%a type=%F' "$path"
-              if test -w "$path"; then printf 'WRITABLE %s\n' "$path"; else printf 'NOT_WRITABLE %s\n' "$path"; fi
-            else printf 'ABSENT %s\n' "$path"; fi
-          done
-          for binary in nginx certbot sudo; do command -v "$binary" || true; done
-          if command -v sudo >/dev/null; then
-            printf '%s\n' 'Own noninteractive sudo permission listing:'
-            timeout 10 sudo -n -l 2>&1 || true
-          fi
-          ss -ltn '( sport = :80 or sport = :443 or sport = :3081 or sport = :3082 )'
-          PROBE
-          archive_sha=$(sha256sum "$RUNNER_TEMP/mouse-website.tar.gz" | cut -d ' ' -f 1)
-          deploy_sha=$(sha256sum infra/website/deploy.sh | cut -d ' ' -f 1)
-          bootstrap_sha=$(sha256sum infra/website/bootstrap.sh | cut -d ' ' -f 1)
-          downloads_sha=$(sha256sum infra/website/downloads.json | cut -d ' ' -f 1)
-          # Upload only the reviewed scripts to the dedicated user's own website area.
-          for item in deploy bootstrap; do
-            script_sha=$deploy_sha
-            if test "$item" = bootstrap; then script_sha=$bootstrap_sha; fi
-            remote="/opt/osminog/website/$item-$GITHUB_SHA.sh"
-            ssh "${ssh_args[@]}" osminog@151.248.113.177 "set -e; umask 077; test \"\$(id -un)\" = osminog; test \"\$(id -u)\" -ne 0; test -d /opt/osminog; test ! -L /opt/osminog; test ! -L /opt/osminog/website; mkdir -p /opt/osminog/website; test ! -L '$remote'; temporary=\$(mktemp '/opt/osminog/website/.script-XXXXXXXX'); trap 'rm -f \"\$temporary\"' EXIT; cat > \"\$temporary\"; printf '%s  %s\\n' '$script_sha' \"\$temporary\" | sha256sum --check --status; chmod 600 \"\$temporary\"; mv -T \"\$temporary\" '$remote'" < "infra/website/$item.sh"
-          done
-          ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --downloads-manifest '$downloads_sha'" < infra/website/downloads.json
-          python3 - <<'PY' > "$RUNNER_TEMP/mouse-downloads.tsv"
-          import json
-          with open('infra/website/downloads.json') as source:
-              manifest = json.load(source)
-          for item in manifest['files']:
-              print(item['filename'], item['url'], item['size'], item['sha256'], sep='\t')
-          PY
-          # Download anonymously on the runner, then upload only missing verified bytes.
-          # Visitors receive the files from mouse.black; these upstream URLs never enter the site.
-          while IFS=$'\t' read -r filename url size checksum; do
-            if ssh -n "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --downloads-check '$filename'"; then
-              printf 'Verified installer already staged: %s\n' "$filename"
-              continue
-            else
-              check_status=$?
-              if test "$check_status" -ne 3; then exit "$check_status"; fi
-            fi
-            installer="$RUNNER_TEMP/$filename"
-            curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-              --connect-timeout 15 --max-time 300 --retry 2 --retry-max-time 360 \
-              --max-filesize "$size" --output "$installer" "$url"
-            test "$(stat -c %s "$installer")" = "$size"
-            printf '%s  %s\n' "$checksum" "$installer" | sha256sum --check --status
-            timeout 480 ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --receive-download '$filename'" < "$installer"
-            rm -f "$installer"
-          done < "$RUNNER_TEMP/mouse-downloads.tsv" | tee "$RUNNER_TEMP/mouse-downloads-deploy.txt"
-          ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --receive '$GITHUB_SHA' '$archive_sha'" < "$RUNNER_TEMP/mouse-website.tar.gz" | tee "$RUNNER_TEMP/mouse-website-deploy.txt"
-          status=$(sed -n 's/^deployment_status=//p' "$RUNNER_TEMP/mouse-website-deploy.txt")
-          [[ "$status" = ADMIN_SETUP_REQUIRED || "$status" = CONTENT_PUBLISHED ]]
-          printf 'status=%s\n' "$status" >> "$GITHUB_OUTPUT"
+          installer_sha=$(sha256sum infra/website/install-sync.py | cut -d ' ' -f 1)
+          bundle_sha=$(sha256sum "$RUNNER_TEMP/mouse-website-sync.tar.gz" | cut -d ' ' -f 1)
+          remote="/opt/osminog/website/install-sync-$GITHUB_SHA.py"
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "set -e; umask 077; test \"\$(id -un)\" = osminog; test \"\$(id -u)\" -ne 0; test -d /opt/osminog/website; test ! -L /opt/osminog; test ! -L /opt/osminog/website; test ! -L '$remote'; temporary=\$(mktemp '/opt/osminog/website/.sync-installer-XXXXXXXX'); trap 'rm -f \"\$temporary\"' EXIT; cat > \"\$temporary\"; printf '%s  %s\\n' '$installer_sha' \"\$temporary\" | sha256sum --check --status; chmod 600 \"\$temporary\"; mv -T \"\$temporary\" '$remote'" < infra/website/install-sync.py
+          timeout 1500 ssh "${ssh_args[@]}" osminog@151.248.113.177 "PYTHONDONTWRITEBYTECODE=1 python3 '$remote' --source '$GITHUB_SHA' --sha256 '$bundle_sha'" < "$RUNNER_TEMP/mouse-website-sync.tar.gz" | tee "$RUNNER_TEMP/mouse-website-sync.txt"
+          grep -q '^MOUSE_RELEASE_TIMER_VERIFIED ' "$RUNNER_TEMP/mouse-website-sync.txt"
+          grep -q '^MOUSE_WEBSITE_AUTOMATION_LIVE https://mouse.black$' "$RUNNER_TEMP/mouse-website-sync.txt"
           {
-            printf '## Mouse website\n\nSource commit: `%s`\n\n' "$GITHUB_SHA"
-            printf 'Deployment outcome: **%s**\n\n' "$status"
-            printf 'Verified static release: `/opt/osminog/website/releases/%s`\n\n' "$GITHUB_SHA"
-            printf 'Reviewed administrator script: `/opt/osminog/website/bootstrap-%s.sh`\n\n' "$GITHUB_SHA"
-            printf 'Administrator script SHA256: `%s`\n\n' "$bootstrap_sha"
-            printf 'Installer manifest: `/opt/osminog/website/downloads/manifest.json`\n\nSHA256: `%s`\n\n' "$downloads_sha"
-            printf 'Three installers are size- and SHA256-verified in the dedicated staging directory. Prepared public links use `/downloads/<filename>` on mouse.black; actual delivery is verified only after public content publication.\n\n'
-            if test "$status" = ADMIN_SETUP_REQUIRED; then
-              printf 'The files are staged. The public website is not declared live: administrator setup of its dedicated webroot, Nginx host and HTTPS is still required.\n\n'
-            else
-              printf 'The public static release symlink was updated. The next step verifies trusted HTTPS and the expected public release marker.\n\n'
-            fi
-            printf '### Fresh own-user permissions\n\n```text\n'
-            cat "$RUNNER_TEMP/mouse-website-permissions.txt"
+            printf '## Mouse website continuous releases\n\nRenderer source: `%s`\n\n' "$GITHUB_SHA"
+            printf 'Own-user synchronization checks the official published macOS, Windows and Linux feeds independently, every 60 seconds after the previous check completes. New files must match published release metadata and their complete SHA256 before an atomic site switch.\n\n'
+            printf 'Observed a real subsequent timer execution. No root, DNS, other-project credentials or browser-release workflow changes are involved.\n\n'
+            printf '### Publication and automatic-check evidence\n\n```text\n'
+            cat "$RUNNER_TEMP/mouse-website-sync.txt"
             printf '\n```\n'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Verify the exact public release and direct installers over trusted HTTPS
-        if: steps.publish.outputs.status == 'CONTENT_PUBLISHED'
+      - name: Independently verify the exact public website and all installers
         shell: bash
         run: |
           set -euo pipefail
-          python3 infra/website/verify-pages-live.py \
-            --site "$RUNNER_TEMP/mouse-website-site" \
-            --release "$GITHUB_SHA" | tee "$RUNNER_TEMP/mouse-website-live.txt"
-          printf '\n**Verified live:** domain aliases remain on mouse.black; trusted HTTPS serves the exact release marker, homepage, robots and 72-URL sitemap. Russian, English and Arabic match the built HTML and canonical/hreflang metadata. All three installers are served directly without upstream redirects and match their expected sizes, full SHA256 and range bytes.\n' >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY'
+          import importlib.util, json, os, sys, urllib.request
+          from pathlib import Path
+          sys.path.insert(0, 'infra/website')
+          from release_catalog import public_to_manifest
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+          opener = urllib.request.build_opener(NoRedirect())
+          with opener.open('https://mouse.black/downloads.json', timeout=30) as response:
+              assert response.status == 200
+              assert 'no-cache' in response.headers.get('Cache-Control', '')
+              payload = response.read(65537)
+              assert len(payload) <= 65536
+          manifest = public_to_manifest(json.loads(payload))
+          path = Path(os.environ['RUNNER_TEMP']) / 'mouse-current-downloads.json'
+          path.write_text(json.dumps(manifest))
+          spec = importlib.util.spec_from_file_location('mouse_sync_identity', 'infra/website/sync-releases.py')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          identity = module.deployment_id(os.environ['GITHUB_SHA'], manifest)
+          (Path(os.environ['RUNNER_TEMP']) / 'mouse-deployment-id').write_text(identity)
+          print('MOUSE_PUBLIC_CATALOG_RESOLVED deployment=' + identity)
+          PY
+          identity=$(cat "$RUNNER_TEMP/mouse-deployment-id")
+          [[ "$identity" =~ ^[0-9a-f]{40}$ ]]
+          python3 infra/website/build-site.py --output "$RUNNER_TEMP/mouse-website-expected" --downloads "$RUNNER_TEMP/mouse-current-downloads.json"
+          python3 infra/website/verify-seo.py "$RUNNER_TEMP/mouse-website-expected" --downloads "$RUNNER_TEMP/mouse-current-downloads.json"
+          python3 infra/website/verify-pages-live.py --site "$RUNNER_TEMP/mouse-website-expected" --release "$identity" --downloads "$RUNNER_TEMP/mouse-current-downloads.json" | tee "$RUNNER_TEMP/mouse-website-live.txt"
+          printf '\n**Verified live:** exact renderer and current per-platform catalog, same-domain HTTPS, 72-language SEO, and all three complete installer hashes/HEAD/Range responses. Open pages refresh only from mouse.black.\n' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mouse-website-deployment-evidence
           path: |
-            ${{ runner.temp }}/mouse-website-permissions.txt
-            ${{ runner.temp }}/mouse-website-deploy.txt
-            ${{ runner.temp }}/mouse-downloads-deploy.txt
+            ${{ runner.temp }}/mouse-website-sync.txt
             ${{ runner.temp }}/mouse-website-live.txt
+            ${{ runner.temp }}/mouse-current-downloads.json
+            ${{ runner.temp }}/mouse-deployment-id
           if-no-files-found: ignore
           retention-days: 14
