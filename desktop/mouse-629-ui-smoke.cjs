@@ -31,12 +31,28 @@ function validateFixtureControls(geometry,bounds,points,factor){
  }
  return true;
 }
+function dividerInteractionReadback(){
+ return [...document.querySelectorAll('#stage .divider')].map(element=>{const r=element.getBoundingClientRect();return{bounds:{x:r.x,y:r.y,width:r.width,height:r.height},hovered:element.matches(':hover'),focused:element.matches(':focus-visible'),dragging:element.classList.contains('dragging'),guideContent:getComputedStyle(element,'::before').content};});
+}
+async function parkPointerForPixels({native,workArea,windowBounds,readCursor,readDividers,waitFor,painted,receipt}){
+ const contains=(r,p)=>p.x>=r.x&&p.y>=r.y&&p.x<r.x+r.width&&p.y<r.y+r.height;
+ for(const r of [workArea,windowBounds])assert.ok(r&&['x','y','width','height'].every(key=>Number.isFinite(r[key]))&&r.width>4&&r.height>4,'Pointer parking requires actual display/window bounds');
+ const candidates=[{x:workArea.x+2,y:workArea.y+2},{x:workArea.x+workArea.width-3,y:workArea.y+2},{x:workArea.x+2,y:workArea.y+workArea.height-3},{x:workArea.x+workArea.width-3,y:workArea.y+workArea.height-3}];
+ const point=candidates.find(value=>contains(workArea,value)&&!contains(windowBounds,value));
+ assert.ok(point,'At-rest native pixels require an unoccupied display point outside the fixture window');
+ Object.assign(receipt,{point,workArea,windowBounds,before:{cursor:readCursor(),dividers:await readDividers()}});
+ receipt.native=await native.testPointer(point.x,point.y);
+ assert.equal(receipt.native?.warpResult,0);assert.equal(receipt.native?.postAccess,true);
+ const atRest=async()=>{const cursor=readCursor(),dividers=await readDividers();receipt.after={cursor,dividers};return Math.abs(cursor.x-point.x)<=1&&Math.abs(cursor.y-point.y)<=1&&dividers.length>=6&&dividers.every(row=>!row.hovered&&!row.focused&&!row.dragging);};
+ await waitFor(atRest,'native pointer leaves every divider before at-rest pixel sampling');
+ await painted();assert.equal(await atRest(),true,'Native pointer and divider states remain at rest through painting');return receipt;
+}
 module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
  assert.ok(['6.0.36','6.0.37'].includes(app.getVersion()));assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
  const PALETTE=paletteForVersion(app.getVersion());
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),bounds=win.getBounds(),fullscreen=win.isFullScreen();
- const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],nora:[],workspace633:{schema:1,gap:6,radius:12,aiScenes:[]},restored:false};
+ const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],pointerRest:[],nora:[],workspace633:{schema:1,gap:6,radius:12,aiScenes:[]},restored:false};
  const pages=[],extraPages=[];let server,verificationError,cleanupError;
  const painted=async()=>{await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await sleep(80);};
  async function activate(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'window focus');}
@@ -73,6 +89,11 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
  function workspacePixels(row,captured){if(process.platform==='linux')for(const phase of ['before','after'])workspace633.validateLinuxMasks(captured.metadata.nativePaneCorners[phase].native,row.nativePanels.length);row.probes=row.points.map(point=>({...point,...sample(captured.image,captured.metadata.mapping,point.point,captured.bitmap)}));return row.probes.every(matches);}
  async function finishWorkspace(row){row.identityAfter=await identities();assert.deepEqual(row.identityAfter,row.identityBefore,'Workspace pixels preserve native page identities and viewports');workspace633.validateNative(row.geometry,[...pages,...extraPages.filter(page=>page.visible)].map(page=>workspace633.nativePanel(page,win)));delete row.points;for(const probe of row.probes)assert.ok(matches(probe),'Current633 workspace gap/corner pixels: '+JSON.stringify(probe));}
  async function separators(theme,variant){
+  // Native corner clicks in the previous AI scene can become a divider hover
+  // after resizing. Move the actual OS pointer; retain every original pixel
+  // probe and colour instead of accepting the intentional hover guide as rest.
+  const pointerRest={theme,variant};facts.pointerRest.push(pointerRest);
+  await parkPointerForPixels({native:nativeInput||require('./mouse-native-menu.node'),workArea:screen.getDisplayMatching(win.getBounds()).workArea,windowBounds:win.getBounds(),readCursor:()=>screen.getCursorScreenPoint(),readDividers:()=>js('('+dividerInteractionReadback.toString()+')()'),waitFor:until,painted,receipt:pointerRest});
   const expected=PALETTE[theme],geometry=await js(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{actualToken:(${workspaceSeamToken.toString()})(getComputedStyle(document.documentElement)),stageColor:getComputedStyle(document.querySelector('#stage')).backgroundColor,dividerColors:[...document.querySelectorAll('#stage .divider')].map(e=>getComputedStyle(e).backgroundColor),dividers:[...document.querySelectorAll('#stage .divider')].map(rect),panes:[...document.querySelectorAll('#stage .pane')].map(e=>({id:MouseTest.model.slots[e.dataset.pane],slot:rect(e.querySelector('.page-slot')),roundBottom:parseFloat(e.style.getPropertyValue('--pane-round-bottom'))||0})),viewport:{width:innerWidth,height:innerHeight}};})()`);
   assert.equal(geometry.actualToken,expected.hex);assert.equal(geometry.stageColor,'rgb('+expected.rgb.join(', ')+')');assert.equal(geometry.panes.length,7);assert.ok(geometry.dividers.length>=6);assert.ok(geometry.dividerColors.every(color=>color==='rgb('+expected.rgb.join(', ')+')'));
   const points=[];
@@ -173,4 +194,5 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
 };
 module.exports.fixtureControlsReadback=fixtureControlsReadback;
 module.exports.validateFixtureControls=validateFixtureControls;
+module.exports.parkPointerForPixels=parkPointerForPixels;
 module.exports.paletteForVersion=paletteForVersion;

@@ -85,3 +85,113 @@ test('passive switch timing preserves native exceptions and unwinds parent spans
  assert.equal(scope.calls[1].parentId,scope.calls[0].id);assert.equal(scope.calls[2].parentId,null);
  assert.equal(scope.calls[0].elapsedMs,3);assert.equal(scope.calls[1].elapsedMs,1);assert.equal(scope.calls[2].elapsedMs,1);
 });
+
+test('passive state and layout context preserve exact results and diagnostic errors cannot mask native failures',()=>{
+ let now=0,described=0;const timings=timingHarness(()=>now++),receiver={},argument={},returned=Promise.resolve('unchanged'),failure=Error('original state failure');
+ const describe=()=>{described++;return{activeDesk:'desk-b',requestedPanelIds:['left','right']};};
+ function original(value){assert.equal(this,receiver);assert.equal(value,argument);return returned;}
+ assert.equal(timings.call('browser.layout',original,receiver,[argument],undefined,describe),returned);assert.equal(described,0);
+ const scope=timings.begin(20,1);
+ assert.equal(timings.call('browser.layout',original,receiver,[argument],undefined,describe),returned);
+ assert.equal(timings.call('browser.state',original,receiver,[argument]),returned);
+ assert.throws(()=>timings.call('browser.layout',()=>{throw failure;},receiver,[],undefined,()=>{throw Error('context unavailable');}),error=>error===failure);
+ timings.end(10);
+ assert.equal(described,1);assert.deepEqual(JSON.parse(JSON.stringify(scope.calls[0].context)),{activeDesk:'desk-b',requestedPanelIds:['left','right']});
+ assert.equal(scope.calls[1].method,'browser.state');assert.equal(scope.calls[1].threw,undefined);
+ assert.equal(scope.calls[2].contextError,'context unavailable');assert.equal(scope.calls[2].threw,true);
+});
+
+// These are unit-only renderer API adapters. Evaluate the actual serialized
+// function in a fresh realm, as fixture.js does; no browser/native proof is claimed.
+function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure=false}={}){
+ const declarations={module:{exports:{}},require:name=>name==='./mouse-631-smoke-helpers.cjs'?{}:require(name)};
+ vm.runInNewContext(source,declarations,{filename:'mouse-631-stress-smoke.cjs'});
+ const monitorSource=declarations.rendererMonitorInPage.toString(),pending=new Map(),observers=[],cancelled=[];let nextId=0,scheduled=0;
+ class MockPerformanceObserver{
+  static get supportedEntryTypes(){return supported;}
+  constructor(callback){this.callback=callback;this.records=[];this.disconnected=false;observers.push(this);}
+  observe(options){this.options=JSON.parse(JSON.stringify(options));if(options.type==='long-animation-frame'&&observeFailure)throw Error('optional observe unavailable');}
+  takeRecords(){if(takeFailure)throw Error('optional records unavailable');return this.records.splice(0);}
+  disconnect(){this.disconnected=true;}
+ }
+ const renderer=vm.createContext({PerformanceObserver:MockPerformanceObserver,requestAnimationFrame:callback=>{scheduled++;pending.set(++nextId,callback);return nextId;},cancelAnimationFrame:id=>{cancelled.push(id);pending.delete(id);}});
+ const call=start=>vm.runInContext(`(${monitorSource})(${start})`,renderer);
+ return{
+  start:()=>call(true),stop:()=>JSON.parse(JSON.stringify(call(false))),
+  tick:time=>{assert.equal(pending.size,1,'Only the original monitor frame may be pending');const [id,callback]=pending.entries().next().value;pending.delete(id);callback(time);},
+  observer:type=>observers.find(observer=>observer.options?.type===type),
+  emit:(type,entries)=>observers.find(observer=>observer.options?.type===type).callback({getEntries:()=>entries}),
+  pending,observers,cancelled,get scheduled(){return scheduled;}
+ };
+}
+
+test('renderer diagnostics use the original rAF clock and preserve legacy samples without extra frames',()=>{
+ const monitor=monitorHarness();assert.equal(monitor.start(),true);
+ for(const time of [0,16,33,93])monitor.tick(time);
+ monitor.emit('longtask',[{startTime:20,duration:51}]);
+ const {diagnostics,...legacy}=monitor.stop();
+ assert.deepEqual(legacy,{frames:4,gaps:[16,17,60],maxGapMs:60,longTasks:[{startTime:20,duration:51}]});
+ assert.equal(diagnostics.clock,'renderer.performance.now');assert.deepEqual(diagnostics.frameIntervals,[{startTime:0,endTime:16,duration:16},{startTime:16,endTime:33,duration:17},{startTime:33,endTime:93,duration:60}]);
+ assert.equal(diagnostics.droppedFrameIntervals,0);assert.equal(diagnostics.longAnimationFrames.supported,false);assert.equal(diagnostics.longAnimationFrames.observeError,null);
+ assert.equal(monitor.scheduled,5);assert.equal(monitor.pending.size,0);assert.equal(monitor.cancelled.length,1);assert.equal(monitor.observers.length,1);assert.equal(monitor.observers[0].disconnected,true);
+ assert.deepEqual(monitor.observers[0].options,{type:'longtask',buffered:false});
+});
+
+test('renderer diagnostics stay bounded while legacy gaps and long tasks retain their original rolling windows',()=>{
+ const monitor=monitorHarness();monitor.start();for(let index=0;index<4100;index++)monitor.tick(index*10);
+ monitor.emit('longtask',Array.from({length:130},(_,index)=>({startTime:index,duration:50+index})));
+ const result=monitor.stop(),intervals=result.diagnostics.frameIntervals;
+ assert.equal(result.frames,4100);assert.equal(result.gaps.length,4096);assert.ok(result.gaps.every(gap=>gap===10));assert.equal(result.maxGapMs,10);
+ assert.equal(result.longTasks.length,128);assert.equal(result.longTasks[0].startTime,2);assert.equal(result.longTasks.at(-1).startTime,129);
+ assert.equal(intervals.length,4096);assert.deepEqual(intervals[0],{startTime:0,endTime:10,duration:10});assert.deepEqual(intervals.at(-1),{startTime:40980,endTime:40990,duration:10});assert.equal(result.diagnostics.droppedFrameIntervals,3);
+ assert.equal(monitor.scheduled,4101);assert.equal(monitor.pending.size,0);
+});
+
+test('optional LoAF stores only bounded plain fields and keeps unavailable numeric attribution null',()=>{
+ const monitor=monitorHarness({supported:['longtask','long-animation-frame']});monitor.start();monitor.tick(1);
+ const windowObject={};windowObject.circular=windowObject;
+ const script={startTime:2,duration:7,executionStart:3,forcedStyleAndLayoutDuration:Infinity,sourceCharPosition:12,invokerType:'event-listener',invoker:'x'.repeat(1100),sourceURL:'file:///app/'+'directory/'.repeat(12)+'desktop/browser.js',sourceFunctionName:'renderTree',windowAttribution:'self',window:windowObject};
+ const row={startTime:1,duration:80,renderStart:20,styleAndLayoutStart:NaN,blockingDuration:30,scripts:Array(34).fill(script)};
+ monitor.emit('long-animation-frame',[row]);
+ monitor.observer('long-animation-frame').records.push({startTime:90,duration:60,scripts:[]});
+ const result=monitor.stop(),loaf=result.diagnostics.longAnimationFrames;
+ assert.equal(loaf.supported,true);assert.equal(loaf.observeError,null);assert.equal(loaf.entries.length,2);assert.equal(loaf.entries[0].scripts.length,8);
+ assert.deepEqual(Object.keys(loaf.entries[0]),['startTime','duration','renderStart','styleAndLayoutStart','blockingDuration','scripts']);
+ assert.equal(loaf.entries[0].styleAndLayoutStart,null);assert.equal(loaf.entries[1].renderStart,null);assert.equal(loaf.entries[1].blockingDuration,null);
+ assert.equal(loaf.entries[0].scripts[0].forcedStyleAndLayoutDuration,null);assert.equal(loaf.entries[0].scripts[0].invoker.length,64);assert.equal('window' in loaf.entries[0].scripts[0],false);
+ assert.deepEqual(loaf.textTruncation,{strategy:'head+ellipsis+tail',maxUTF16Units:64});
+ const location=loaf.entries[0].scripts[0].sourceURL;assert.equal(location.length,64);assert.ok(location.startsWith('file:///app/'));assert.ok(location.includes('…'));assert.ok(location.endsWith('desktop/browser.js'));
+ assert.deepEqual(loaf.truncated,{frames:0,scripts:26,strings:16});assert.deepEqual(monitor.observer('long-animation-frame').options,{type:'long-animation-frame',buffered:false});
+ assert.equal(monitor.observer('long-animation-frame').disconnected,true);assert.equal(monitor.scheduled,2);
+});
+
+test('optional LoAF caps frame entries and cannot break legacy monitor when observation or readback is unavailable',()=>{
+ const capped=monitorHarness({supported:['longtask','long-animation-frame']});capped.start();capped.emit('long-animation-frame',Array.from({length:130},(_,index)=>({startTime:index,duration:51,scripts:[]})));
+ const loaf=capped.stop().diagnostics.longAnimationFrames;assert.equal(loaf.entries.length,64);assert.equal(loaf.entries[0].startTime,0);assert.equal(loaf.entries.at(-1).startTime,129);assert.equal(loaf.truncated.frames,66);
+ for(const option of ['observeFailure','takeFailure']){
+  const monitor=monitorHarness({supported:['longtask','long-animation-frame'],[option]:true});monitor.start();monitor.tick(10);monitor.tick(30);
+  const result=monitor.stop();assert.equal(result.frames,2);assert.deepEqual(result.gaps,[20]);assert.equal(result.maxGapMs,20);assert.match(result.diagnostics.longAnimationFrames.observeError,/optional .* unavailable/);
+  assert.ok(monitor.observers.every(observer=>observer.disconnected));assert.equal(monitor.pending.size,0);assert.equal(monitor.scheduled,3);
+ }
+});
+
+test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with a 2 MiB legacy reserve',()=>{
+ // NUL and lone-surrogate escaping costs six bytes per UTF-16 unit, more than
+ // valid multibyte text. Use the real helper and the exact pretty-JSON save form.
+ for(const character of ['\u0000','\ud800','界','😀'])for(const units of [64,128]){
+  const monitor=monitorHarness({supported:['longtask','long-animation-frame']});monitor.start();
+  const number=-0.0000010000000000000002;
+  for(let index=0;index<4097;index++)monitor.tick(index%2?number:-number);
+  const script=Object.fromEntries(['startTime','duration','executionStart','forcedStyleAndLayoutDuration','sourceCharPosition'].map(key=>[key,number]));
+  for(const key of ['invokerType','invoker','sourceURL','sourceFunctionName','windowAttribution'])script[key]=character.repeat(units).slice(0,units);
+  const frame=Object.fromEntries(['startTime','duration','renderStart','styleAndLayoutStart','blockingDuration'].map(key=>[key,number]));frame.scripts=Array(9).fill(script);
+  monitor.emit('long-animation-frame',Array(65).fill(frame));
+  monitor.emit('long-animation-frame',[{get startTime(){throw Error('\u0000'.repeat(512));}}]);
+  const {diagnostics}=monitor.stop(),loaf=diagnostics.longAnimationFrames;
+  assert.equal(diagnostics.frameIntervals.length,4096);assert.equal(loaf.entries.length,64);assert.ok(loaf.entries.every(entry=>entry.scripts.length===8));
+  assert.equal(loaf.observeError.length,512);assert.deepEqual(loaf.truncated,{frames:1,scripts:65,strings:units>64?65*8*5:0});
+  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics},{rendererDiagnostics:diagnostics}]};
+  const bytes=Buffer.byteLength(JSON.stringify(report,null,2)+'\n','utf8');
+  assert.ok(bytes<8*1024*1024,`${bytes} bytes with ${units} units of ${JSON.stringify(character)} exceeds the existing report limit`);
+ }
+});

@@ -14,16 +14,69 @@ function createSwitchTimings(now=()=>performance.now()){
  return{
   begin(stage,switchSequence){parentId=null;return active={schema:1,clock:'main.performance.now',stage,switchSequence,calls:[]};},
   end(endedAt){if(active)active.endedAt=endedAt;active=null;parentId=null;},
-  call(method,original,receiver,args,pageIndex){
+  call(method,original,receiver,args,pageIndex,describe){
    if(!active)return original.apply(receiver,args);
    const calls=active.calls,parent=parentId,row={id:calls.length+1,parentId:parent,method};
    if(pageIndex!==undefined)row.pageIndex=pageIndex;
+   if(describe)try{row.context=describe();}catch(error){row.contextError=String(error?.message||error).slice(0,256);}
    calls.push(row);parentId=row.id;row.startedAt=now();
    try{return original.apply(receiver,args);}
    catch(error){row.threw=true;throw error;}
    finally{row.elapsedMs=now()-row.startedAt;parentId=parent;}
   }
  };
+}
+
+// Serialized into the existing installed-renderer monitor. These optional
+// observations use its existing callbacks and never request another frame.
+function rendererMonitorInPage(start){
+ if(start){
+  const diagnostics={schema:1,clock:'renderer.performance.now',frameTimeSource:'requestAnimationFrame callback timestamp',frameIntervals:[],droppedFrameIntervals:0,longAnimationFrames:{supported:false,observeError:null,entries:[],truncated:{frames:0,scripts:0,strings:0}}};
+  const s=globalThis.__mouse631Frames={running:true,count:0,gaps:[],max:0,longTasks:[],diagnostics};let last;
+  const tick=t=>{
+   if(!s.running)return;
+   if(last!==undefined){
+    const gap=t-last;s.gaps.push(gap);if(s.gaps.length>4096)s.gaps.shift();s.max=Math.max(s.max,gap);
+    const row={startTime:last,endTime:t,duration:gap};
+    if(diagnostics.frameIntervals.length<4096)diagnostics.frameIntervals.push(row);
+    else{diagnostics.frameIntervals[4095]=row;diagnostics.droppedFrameIntervals++;}
+   }
+   last=t;s.count++;s.raf=requestAnimationFrame(tick);
+  };
+  s.raf=requestAnimationFrame(tick);
+  s.observer=new PerformanceObserver(list=>{for(const task of list.getEntries()){s.longTasks.push({startTime:task.startTime,duration:task.duration});if(s.longTasks.length>128)s.longTasks.shift();}});
+  s.observer.observe({type:'longtask',buffered:false});
+  // Two fully populated stages must fit the existing 8 MiB raw-report reader,
+  // including pretty JSON, six-byte escaped UTF-16 units and legacy evidence.
+  const maxLoafFrames=64,maxLoafScripts=8,maxLoafText=64;
+  const loaf=diagnostics.longAnimationFrames,number=value=>typeof value==='number'&&Number.isFinite(value)?value:null;
+  loaf.textTruncation={strategy:'head+ellipsis+tail',maxUTF16Units:maxLoafText};
+  const text=value=>{if(typeof value!=='string')return null;if(value.length<=maxLoafText)return value;loaf.truncated.strings++;const head=Math.floor((maxLoafText-1)/2);return value.slice(0,head)+'…'+value.slice(-(maxLoafText-1-head));};
+  const record=entries=>{
+   try{for(const entry of entries){
+    const row={};for(const key of ['startTime','duration','renderStart','styleAndLayoutStart','blockingDuration'])row[key]=number(entry[key]);
+    const scripts=entry.scripts,amount=Number.isSafeInteger(scripts?.length)&&scripts.length>=0?scripts.length:0;row.scripts=[];loaf.truncated.scripts+=Math.max(0,amount-maxLoafScripts);
+    for(let i=0;i<Math.min(amount,maxLoafScripts);i++){
+     const script=scripts[i],value={};
+     for(const key of ['startTime','duration','executionStart','forcedStyleAndLayoutDuration','sourceCharPosition'])value[key]=number(script[key]);
+     for(const key of ['invokerType','invoker','sourceURL','sourceFunctionName','windowAttribution'])value[key]=text(script[key]);
+     row.scripts.push(value);
+    }
+    if(loaf.entries.length<maxLoafFrames)loaf.entries.push(row);else{loaf.entries[maxLoafFrames-1]=row;loaf.truncated.frames++;}
+   }}catch(error){loaf.observeError=String(error?.message||error).slice(0,512);}
+  };
+  try{
+   loaf.supported=Array.isArray(PerformanceObserver.supportedEntryTypes)&&PerformanceObserver.supportedEntryTypes.includes('long-animation-frame');
+   if(loaf.supported){s.loafObserver=new PerformanceObserver(list=>record(list.getEntries()));s.loafObserver.observe({type:'long-animation-frame',buffered:false});s.recordLoaf=record;}
+  }catch(error){loaf.observeError=String(error?.message||error).slice(0,512);try{s.loafObserver?.disconnect();}catch{}s.loafObserver=null;}
+  return true;
+ }
+ const s=globalThis.__mouse631Frames;s.running=false;cancelAnimationFrame(s.raf);s.observer.disconnect();
+ if(s.loafObserver){
+  try{s.recordLoaf(s.loafObserver.takeRecords());}catch(error){s.diagnostics.longAnimationFrames.observeError=String(error?.message||error).slice(0,512);}
+  finally{try{s.loafObserver.disconnect();}catch(error){s.diagnostics.longAnimationFrames.observeError=String(error?.message||error).slice(0,512);}}
+ }
+ return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks,diagnostics:s.diagnostics};
 }
 
 module.exports=async ctx=>{
@@ -64,8 +117,8 @@ module.exports=async ctx=>{
   return{evidence:{streamId:owner.id,state,ui},regions};
  }
  async function rendererMonitor(start){
-  if(start){await fixture.js(`(()=>{const s=globalThis.__mouse631Frames={running:true,count:0,gaps:[],max:0,longTasks:[]};let last;const tick=t=>{if(!s.running)return;if(last!==undefined){const gap=t-last;s.gaps.push(gap);if(s.gaps.length>4096)s.gaps.shift();s.max=Math.max(s.max,gap);}last=t;s.count++;s.raf=requestAnimationFrame(tick);};s.raf=requestAnimationFrame(tick);s.observer=new PerformanceObserver(list=>{for(const task of list.getEntries()){s.longTasks.push({startTime:task.startTime,duration:task.duration});if(s.longTasks.length>128)s.longTasks.shift();}});s.observer.observe({type:'longtask',buffered:false});return true;})()`);frameMonitorStarted=true;return;}
-  const result=await fixture.js(`(()=>{const s=globalThis.__mouse631Frames;s.running=false;cancelAnimationFrame(s.raf);s.observer.disconnect();return{frames:s.count,gaps:s.gaps,maxGapMs:s.max,longTasks:s.longTasks};})()`);frameMonitorStarted=false;result.gapDistribution=distribution(result.gaps);return result;
+  if(start){await fixture.js(`(${rendererMonitorInPage.toString()})(true)`);frameMonitorStarted=true;return;}
+  const result=await fixture.js(`(${rendererMonitorInPage.toString()})(false)`);frameMonitorStarted=false;result.gapDistribution=distribution(result.gaps);return result;
  }
  async function startStream(record,id){
   await fixture.pageJS(record,`void mouse631Stream(${JSON.stringify(id)});true`);
@@ -110,8 +163,8 @@ module.exports=async ctx=>{
   });await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
   const surfaces=browser.mouseDesktops.surfaces,previews=browser.mouseDesktops.previews;surfaces.enableDiagnostics();previews.enableDiagnostics();
   wrap(surfaces,'capture',original=>async function(...args){const start=performance.now(),stage=currentStage,kind=operation;let result,error;try{result=await original.apply(this,args);return result;}catch(reason){error=String(reason.message);throw reason;}finally{captureCalls.push({stage,operation:kind,args:structuredClone(args),startedAt:start,elapsedMs:performance.now()-start,error:error||null,diagnostics:surfaces.diagnostics()});}});
-  wrap(browser,'state',original=>function(...args){counts.state++;return original.apply(this,args);});
-  wrap(browser,'layout',original=>function(...args){return switchTimings.call('browser.layout',original,this,args);});
+  wrap(browser,'state',original=>function(...args){counts.state++;return switchTimings.call('browser.state',original,this,args);});
+  wrap(browser,'layout',original=>function(...args){return switchTimings.call('browser.layout',original,this,args,undefined,()=>({activeDesk:bank.active,requestedPanelIds:Array.isArray(args[0])?args[0].slice(0,100).map(panel=>typeof panel?.id==='string'?panel.id:''):[]}));});
   if(browser.mouseCornerMask)wrap(browser,'mouseCornerMask',original=>function(...args){counts.nativeCorners++;return switchTimings.call('nativeCorners',original,this,args);});
   const shellGone=(_event,details)=>facts.renderFailures.push({event:'shell-render-process-gone',details,stage:currentStage});win.webContents.on('render-process-gone',shellGone);restorers.push(()=>win.webContents.removeListener('render-process-gone',shellGone));
   const groups=desks.map(()=>[]);let nextIndex=0;
@@ -151,7 +204,7 @@ module.exports=async ctx=>{
    operation='complete-streams';row.streams=await finishStreams(running);
    row.afterPages=await readAll(owned);for(let i=0;i<row.beforePages.length;i++)fixture.assertIdentity(row.beforePages[i],row.afterPages[i]);
    assert.equal(facts.renderFailures.length,0,'No guest or shell renderer was replaced or crashed');
-   clearInterval(interval);interval=null;row.mainEventLoopSamplesMs=mainGaps.slice();row.mainEventLoop=distribution(mainGaps);row.renderer=await rendererMonitor(false);assert.ok(row.renderer.frames>=2,'The real shell renderer continued presenting frames');
+   clearInterval(interval);interval=null;row.mainEventLoopSamplesMs=mainGaps.slice();row.mainEventLoop=distribution(mainGaps);const {diagnostics,...renderer}=await rendererMonitor(false);row.renderer=renderer;row.rendererDiagnostics=diagnostics;assert.ok(row.renderer.frames>=2,'The real shell renderer continued presenting frames');
    row.layoutCalls=(browser.mouseLayoutCalls||0)-row.layoutCallsBefore;row.counts=Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-row.countsBefore[key]]));row.previewsAfter=previews.diagnostics();row.surfaces=surfaces.diagnostics();row.memoryAfter=process.memoryUsage();row.processesAfter=ctx.app.getAppMetrics();row.elapsedMs=performance.now()-row.startedAt;row.switchLatencyMs=distribution(row.switches.map(item=>item.elapsedMs));
    row.metadata=await Promise.all(owned.map(record=>fixture.pageJS(record,'clearInterval(mouse631.metadataTimer);({index:mouse631.index,updates:mouse631.metadataTicks})')));assert.ok(row.metadata.every(item=>item.updates>0),'Every live page produced real title metadata');
    row.requests=requests.filter(request=>owned.some(record=>record.index===request.index));for(const record of owned)assert.equal(row.requests.filter(request=>request.index===record.index).length,1,'Each live document was loaded exactly once');

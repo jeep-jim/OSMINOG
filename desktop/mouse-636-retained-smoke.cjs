@@ -2,18 +2,19 @@
 // Retained installed acceptance for 636: downloads, AI preview, capture and focus.
 // Tile search was removed by the owner; its historical 634/635 gates remain in their release history.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
-const {screen,nativeImage}=require('electron');
+const {screen,nativeImage,webContents}=require('electron');
 const {createFixture,pageHTML,bounded,sha256}=require('./mouse-631-smoke-helpers.cjs');
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
 const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
+const {guestInputReadback,nativeGuestInputState,observeGuestClick}=require('./mouse-636-guest-input-diagnostics.cjs');
 
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,globalCapture,overlayGate}=ctx;
  const started=Date.now(),budgetMs=240000,exit=require('./mouse-smoke-exit.cjs')({app,win});
- const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,budgetMs,packaged:app.isPackaged,profileIsolated:false,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,source:'Installed app, native pointer input, owned HTTP/download fixtures and actual composed/OS pixels',removedFeatures:['tile-search'],stage:'identity',ok:false,restored:false,nativeInputs:[],captures:[]};
+ const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,budgetMs,packaged:app.isPackaged,profileIsolated:false,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,source:'Installed app, native pointer input, owned HTTP/download fixtures and actual composed/OS pixels',removedFeatures:['tile-search'],stage:'identity',ok:false,restored:false,nativeInputs:[],guestClickAttempts:[],captures:[]};
  const save=()=>fs.writeFile('mouse-636-retained-owner-feedback.json',JSON.stringify(facts,null,2)+'\n');
  const watchdog=setTimeout(()=>{facts.error={stage:facts.stage,message:'Mouse636 retained fixed 240000 ms native budget exceeded'};void save().finally(()=>exit(1));},budgetMs);
  let fixture,nativeInput,ownedFolder,originalLibrary,originalZoom,downloadListener,error,cleanupError,base='',previewBase='';
@@ -33,9 +34,9 @@ module.exports=async ctx=>{
  async function guestClick(record,selector){
   await focus();let hit;
   await fixture.until(async()=>{hit=await fixture.pageJS(record,`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return hit.ready;},'634 guest target '+selector);
-  const factor=record.page.view.webContents.getZoomFactor(),origin=win.getContentBounds(),bounds=record.page.bounds,point={x:Math.round(origin.x+bounds.x+hit.x*factor),y:Math.round(origin.y+bounds.y+hit.y*factor)},count=await fixture.pageJS(record,'mouse634.clicks.length');
-  assert.equal(await nativeInput.testClick(point.x,point.y),true);
-  let events;await fixture.until(async()=>{events=await fixture.pageJS(record,`mouse634.clicks.slice(${count})`);return events.some(event=>event.id===selector.slice(1)&&event.trusted);},'634 trusted guest link '+selector);
+  const factor=record.page.view.webContents.getZoomFactor(),origin=win.getContentBounds(),bounds=record.page.bounds,point={x:Math.round(origin.x+bounds.x+hit.x*factor),y:Math.round(origin.y+bounds.y+hit.y*factor)},beforeGuest=await fixture.pageJS(record,'('+guestInputReadback.toString()+')()'),count=beforeGuest.count;
+  const details={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,hit,factor,contentBounds:{...origin},pageBounds:{...bounds},beforeCount:count,beforeGuest};
+  const events=await observeGuestClick({attempts:facts.guestClickAttempts,details,readNative:()=>nativeGuestInputState({win,page:record.page,screen,webContents}),post:()=>nativeInput.testClick(point.x,point.y),readEvents:()=>fixture.pageJS(record,'mouse634.clicks.slice('+count+')'),accept:events=>events.some(event=>event.id===selector.slice(1)&&event.trusted),waitFor:fixture.until,label:'634 trusted guest link '+selector,save});
   const result={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,events};facts.nativeInputs.push(result);return result;
  }
  async function screenCapture(filename,kind,{deadline}={}){
