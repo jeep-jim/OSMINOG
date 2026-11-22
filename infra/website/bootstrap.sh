@@ -5,7 +5,7 @@ set -euo pipefail
 umask 022
 fail() { printf 'MOUSE_SETUP_ERROR: %s\n' "$*" >&2; exit 1; }
 [[ $(id -u) == 0 ]] || fail 'Run this reviewed installer in the server administrator console.'
-[[ $# == 1 && $1 =~ ^[0-9a-f]{40}$ ]] || fail 'Usage: bootstrap.sh <verified-source-commit>'
+[[ $# == 1 && $1 =~ ^[0-9a-f]{40}$ ]] || fail 'Usage: bootstrap.sh <verified-deployment-id>'
 release=$1
 source_dir=/opt/osminog/website/releases/$release
 public_dir=/var/www/mouse.black
@@ -103,43 +103,81 @@ install -d -m 755 -o osminog -g osminog "$public_dir/releases"
 [[ ! -L "$public_dir/downloads" ]] || fail 'Unexpected public downloads symlink.'
 install -d -m 755 -o osminog -g osminog "$public_dir/downloads"
 # Copy actual verified installers. No redirect or upstream URL is served to visitors.
-python3 - /opt/osminog/website/downloads "$public_dir/downloads" <<'PY'
+python3 - /opt/osminog/website/downloads "$public_dir/downloads" "$temp_dir/site/downloads.json" <<'PY'
 import hashlib, json, os, pwd, re, shutil, stat, sys, tempfile
 from pathlib import Path
 source, output = Path(sys.argv[1]), Path(sys.argv[2])
 if source.resolve() != source or output.resolve() != output:
     raise SystemExit("Unexpected downloads path")
 manifest = source / "manifest.json"
-if manifest.is_symlink() or not manifest.is_file() or manifest.stat().st_size > 65536:
+if manifest.is_symlink() or not manifest.is_file() or manifest.stat().st_size > 16384:
     raise SystemExit("Verified download manifest has not been staged")
 metadata = json.loads(manifest.read_text())
-files = metadata.get("files", [])
-version = metadata.get("version", "")
-if not re.fullmatch(r"\d+\.\d+\.\d+", version) or len(files) != 3:
+if not isinstance(metadata, dict) or set(metadata) != {"version", "files"}:
     raise SystemExit("Invalid installer manifest")
-suffixes = {"mac-arm64.dmg", "Windows-x64.exe", "Linux-x64.AppImage"}
-expected_names = {"Mouse-Browser-" + version + "-" + suffix for suffix in suffixes}
-if {item.get("filename") for item in files} != expected_names:
-    raise SystemExit("Unexpected platform filenames")
+files, version = metadata["files"], metadata["version"]
+version_pattern = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+installer_pattern = r"Mouse-Browser-(" + version_pattern + r")-(mac-arm64\.dmg|Windows-x64\.exe|Linux-x64\.AppImage)"
+platforms = {
+    "mac-arm64.dmg": ("macos", "quadro-macos-v{}-arm64"),
+    "Windows-x64.exe": ("windows", "mouse-windows-v{}-x64"),
+    "Linux-x64.AppImage": ("linux", "mouse-linux-v{}-x64"),
+}
+if not isinstance(version, str) or not re.fullmatch(version_pattern, version) or not isinstance(files, list) or len(files) != 3:
+    raise SystemExit("Invalid installer manifest")
+seen, versions, public_files = set(), [], []
+for item in files:
+    if not isinstance(item, dict) or set(item) != {"filename", "url", "size", "sha256"}:
+        raise SystemExit("Invalid installer fields")
+    name = item["filename"]
+    match = re.fullmatch(installer_pattern, name) if isinstance(name, str) else None
+    if match is None:
+        raise SystemExit("Unexpected platform filename")
+    file_version, suffix = match.groups()
+    if suffix in seen:
+        raise SystemExit("Duplicate installer platform")
+    seen.add(suffix)
+    versions.append(tuple(map(int, file_version.split("."))))
+    expected_url = "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/" + platforms[suffix][1].format(file_version) + "/" + name
+    if item["url"] != expected_url:
+        raise SystemExit("Unexpected installer source")
+    digest, size = item["sha256"], item["size"]
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest) or type(size) is not int or not 0 < size <= 512 * 1024 * 1024:
+        raise SystemExit("Invalid installer hash or size")
+    public_files.append({"platform": platforms[suffix][0], "version": file_version,
+                         "filename": name, "url": "/downloads/" + name,
+                         "size": size, "sha256": digest})
+if seen != set(platforms) or tuple(map(int, version.split("."))) != max(versions):
+    raise SystemExit("Manifest version must equal the newest installer version")
+catalog = Path(sys.argv[3])
+if catalog.is_symlink() or not catalog.is_file() or catalog.stat().st_size > 16384:
+    raise SystemExit("Verified public download catalog is missing")
+if json.loads(catalog.read_text()) != {"schema": 1, "version": version, "files": public_files}:
+    raise SystemExit("Public download catalog differs from verified installers")
+
+def existing_installer(target, digest, size):
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        raise SystemExit("Unsafe installer destination")
+    if not target.exists():
+        return False
+    existing_hash = hashlib.sha256()
+    with target.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            existing_hash.update(chunk)
+    if target.stat().st_size != size or existing_hash.hexdigest() != digest or target.stat().st_mode & 0o111:
+        raise SystemExit("An immutable public installer already exists with different bytes or mode")
+    return True
+
 reserve = 500 * 1024 * 1024
 for item in files:
     name, digest, size = item["filename"], item.get("sha256", ""), item.get("size")
-    if not re.fullmatch(r"[0-9a-f]{64}", digest) or not isinstance(size, int) or not 0 < size <= 500 * 1024 * 1024:
-        raise SystemExit("Invalid installer hash or size")
     path = source / name
     if path.is_symlink() or not path.is_file() or path.stat().st_size != size or path.stat().st_mode & 0o111:
         raise SystemExit("Missing or unexpected installer file: " + name)
     target = output / name
-    if target.is_symlink() or (target.exists() and not target.is_file()):
-        raise SystemExit("Unsafe installer destination")
-    if target.exists():
-        existing_hash = hashlib.sha256()
-        with target.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""): existing_hash.update(chunk)
-        if target.stat().st_size == size and existing_hash.hexdigest() == digest:
-            print("MOUSE_INSTALLER_ALREADY_VERIFIED " + name)
-            continue
-        raise SystemExit("An immutable public installer already exists with different bytes")
+    if existing_installer(target, digest, size):
+        print("MOUSE_INSTALLER_ALREADY_VERIFIED " + name)
+        continue
     if shutil.disk_usage(output).free < size + reserve:
         raise SystemExit("Insufficient free disk with 500 MiB reserve")
     fd, temporary = tempfile.mkstemp(prefix=".installer-", dir=output)
@@ -159,7 +197,11 @@ for item in files:
         account = pwd.getpwnam("osminog")
         os.chmod(temporary, 0o644)
         os.chown(temporary, account.pw_uid, account.pw_gid)
-        os.replace(temporary, target)
+        try:
+            os.link(temporary, target)
+        except FileExistsError:
+            if not existing_installer(target, digest, size):
+                raise SystemExit("Immutable public installer collision")
         print("MOUSE_INSTALLER_VERIFIED " + name)
     finally:
         if os.path.exists(temporary): os.unlink(temporary)

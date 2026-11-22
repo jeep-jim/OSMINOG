@@ -8,6 +8,7 @@ indexed the pages or that installer binaries are present in the build folder.
 from __future__ import annotations
 
 import json
+import argparse
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
@@ -33,6 +34,11 @@ VOID_TAGS = {
 }
 TEXT_SUFFIXES = {".html", ".css", ".js", ".mjs", ".json", ".svg", ".xml", ".txt", ".webmanifest"}
 SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+PLATFORMS = {
+    "macos": ("mac-arm64.dmg", "mac", "macOS", "macOS (Apple Silicon)"),
+    "windows": ("Windows-x64.exe", "windows", "Windows", "Windows (x64)"),
+    "linux": ("Linux-x64.AppImage", "linux", "Linux", "Linux (x64)"),
+}
 
 
 def normalized(value: str) -> str:
@@ -150,8 +156,10 @@ def matches_simple(node: Element, selector: str) -> bool:
 
 
 class Verifier:
-    def __init__(self, directory: Path):
+    def __init__(self, directory: Path, downloads=None, catalog=None):
         self.directory = directory.resolve()
+        self.downloads = downloads
+        self.catalog = catalog
         self.errors: list[str] = []
         self.hidden_selectors: list[str] = []
         self.asset_count = 0
@@ -193,11 +201,59 @@ class Verifier:
         self.check(len(codes) == len(set(codes)) == 72, "i18n.js: expected 72 distinct languages")
         self.check(set(codes) == set(EXPECTED_CODES), "i18n.js: supported language catalog changed")
         self.check(set(messages) == set(codes), "i18n.js: translations do not match the language catalog")
+        if self.catalog is not None:
+            self.check(languages == self.catalog["languages"], "i18n.js: exported language catalog changed")
         for code in codes:
             for key in SEO_FIELDS | {"pageTitle", "metaDescription"}:
                 value = messages.get(code, {}).get(key)
                 self.check(isinstance(value, str) and bool(value.strip()), f"i18n.js: {code}.{key} is empty or missing")
+                if self.catalog is not None:
+                    self.check(value == self.catalog["messages"][code][key], f"i18n.js: {code}.{key} differs from the exported catalog")
+            text = messages[code]
+            shared = len({item["version"] for item in self.public_downloads["files"]}) == 1
+            template = text.get("releaseTemplate", "")
+            self.check("{version}" in template, f"i18n.js: {code} lacks its localized release template")
+            release = (template.replace("{version}", self.public_downloads["version"]) if shared else
+                       " · ".join(PLATFORMS[item["platform"]][2] + " " + item["version"] for item in self.public_downloads["files"]))
+            self.check(text.get("releaseLabel") == release, f"i18n.js: {code} release label does not describe the current platform versions")
+            for item in self.public_downloads["files"]:
+                key = PLATFORMS[item["platform"]][1]
+                aria = text.get(key + "AriaTemplate", "")
+                self.check("{version}" in aria and text.get(key + "Aria") == aria.replace("{version}", item["version"]),
+                           f"i18n.js: {code}.{key} download accessibility version is stale")
+                meta = text.get(key + "MetaBase", "")
+                self.check(bool(meta) and text.get(key + "Meta") == meta + ("" if shared else " · " + item["version"]),
+                           f"i18n.js: {code}.{key} download label is stale")
         return languages, messages
+
+    def load_downloads(self):
+        manifest = self.downloads if self.downloads is not None else json.loads(Path(__file__).with_name("downloads.json").read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict) or set(manifest) != {"version", "files"} or not isinstance(manifest["files"], list) or len(manifest["files"]) != 3:
+            raise ValueError("Expected one private manifest containing exactly three platform installers")
+        found = {}
+        for item in manifest["files"]:
+            if not isinstance(item, dict) or set(item) != {"filename", "url", "size", "sha256"}:
+                raise ValueError("Unexpected installer manifest fields")
+            matches = [(platform, re.fullmatch(r"Mouse-Browser-([0-9]+\.[0-9]+\.[0-9]+)-" + re.escape(info[0]), item["filename"])) for platform, info in PLATFORMS.items()]
+            matches = [(platform, match) for platform, match in matches if match]
+            if len(matches) != 1 or matches[0][0] in found:
+                raise ValueError("Unsupported or duplicate installer platform")
+            platform, match = matches[0]
+            if type(item["size"]) is not int or not 0 < item["size"] <= 512 * 1024 * 1024 or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"]):
+                raise ValueError("Invalid installer size or checksum")
+            found[platform] = {"platform": platform, "version": match.group(1), "filename": item["filename"],
+                               "url": "/downloads/" + item["filename"], "size": item["size"], "sha256": item["sha256"]}
+        expected = {"schema": 1, "version": manifest["version"], "files": [found[platform] for platform in PLATFORMS]}
+        newest = max((item["version"] for item in expected["files"]), key=lambda version: tuple(map(int, version.split("."))))
+        self.check(expected["version"] == newest, "Top-level download version is not the newest platform version")
+        public = json.loads((self.directory / "downloads.json").read_text(encoding="utf-8"))
+        self.check(public == expected, "downloads.json: public download data differs from the resolved installers")
+        source = (self.directory / "downloads-current.js").read_text(encoding="utf-8")
+        match = re.fullmatch(r"\s*window\.MOUSE_DOWNLOADS_CURRENT\s*=\s*(\{.*\})\s*;\s*", source, flags=re.S)
+        self.check(match is not None, "downloads-current.js: expected only the public JSON assignment")
+        if match:
+            self.check(json.loads(match.group(1)) == expected, "downloads-current.js: current public data differs from the resolved installers")
+        return expected
 
     def scan_public_files(self):
         for path in self.directory.rglob("*"):
@@ -229,7 +285,7 @@ class Verifier:
                 return False
         return True
 
-    def structured_data(self, document: Document, source: str, canonical: str, code: str, version: str):
+    def structured_data(self, document: Document, source: str, canonical: str, code: str, downloads: dict):
         objects: list[dict] = []
 
         def schema_context(value):
@@ -264,19 +320,33 @@ class Verifier:
 
         for kind in ("SoftwareApplication", "WebSite", "WebPage"):
             nodes = [node for node in objects if kind in (node["@type"] if isinstance(node["@type"], list) else [node["@type"]])]
-            self.check(len(nodes) == 1, f"{source}: expected exactly one JSON-LD {kind}")
+            shared = len({item["version"] for item in downloads["files"]}) == 1
+            count = 3 if kind == "SoftwareApplication" and not shared else 1
+            self.check(len(nodes) == count, f"{source}: expected exactly {count} JSON-LD {kind}")
+            actual_downloads = []
             for node in nodes:
                 self.check(isinstance(node.get("name"), str) and bool(node["name"].strip()), f"{source}: {kind}.name missing")
                 if kind == "SoftwareApplication":
-                    self.check(node.get("softwareVersion") == version, f"{source}: SoftwareApplication.softwareVersion differs from installer manifest")
+                    urls = node.get("downloadUrl")
+                    urls = urls if isinstance(urls, list) else [urls]
+                    actual_downloads.extend(urls)
+                    expected_files = [item for item in downloads["files"] if ORIGIN + item["url"] in urls]
+                    self.check(bool(expected_files) and all(node.get("softwareVersion") == item["version"] for item in expected_files),
+                               f"{source}: SoftwareApplication.softwareVersion differs from its platform installer")
+                    if not shared and len(expected_files) == 1:
+                        self.check(len(urls) == 1 and node.get("operatingSystem") == PLATFORMS[expected_files[0]["platform"]][3],
+                                   f"{source}: SoftwareApplication platform does not match its installer")
                 elif kind == "WebSite":
                     self.check(node.get("url") == ORIGIN + "/", f"{source}: WebSite.url must be the public root")
                 elif kind == "WebPage":
                     accepted_urls = {canonical, ORIGIN + "/"} if source == "index.html" else {canonical}
                     self.check(node.get("url") in accepted_urls, f"{source}: WebPage.url differs from its canonical page")
                     self.check(node.get("inLanguage") == code, f"{source}: WebPage.inLanguage differs from HTML language")
+            if kind == "SoftwareApplication":
+                self.check(len(actual_downloads) == 3 and set(actual_downloads) == {ORIGIN + item["url"] for item in downloads["files"]},
+                           f"{source}: JSON-LD download URLs differ from the three current installers")
 
-    def page(self, path: Path, code: str, languages: list, messages: dict, downloads: set[str], version: str):
+    def page(self, path: Path, code: str, languages: list, messages: dict, downloads: dict):
         source = path.relative_to(self.directory).as_posix()
         document = Document(path.read_text(encoding="utf-8"))
         self.check(not document.duplicate_attrs, f"{source}: duplicate HTML attributes")
@@ -345,6 +415,9 @@ class Verifier:
             url = node.attrs["href"] or ""
             if url.startswith("/downloads/"):
                 actual_downloads.append(url)
+                expected_file = next((item for item in downloads["files"] if item["url"] == url), None)
+                self.check(expected_file is not None and node.attrs.get("download") == expected_file["filename"] and
+                           node.attrs.get("data-platform") == expected_file["platform"], f"{source}: platform/download filename differs from its URL")
                 continue
             if url.startswith("#"):
                 self.check(url == "#" or unquote(url[1:]) in ids, f"{source}: broken fragment link: {url}")
@@ -358,8 +431,8 @@ class Verifier:
             if "hreflang" in node.attrs:
                 self.check(ORIGIN + url in expected_alternates.values(), f"{source}: language link has no generated page: {url}")
                 self.check(expected_alternates.get(node.attrs["hreflang"]) == ORIGIN + url, f"{source}: language link and hreflang disagree")
-        self.check(len(actual_downloads) == 3 and set(actual_downloads) == downloads, f"{source}: exactly three same-domain installer links must match the manifest")
-        self.structured_data(document, source, canonical, code, version)
+        self.check(len(actual_downloads) == 3 and set(actual_downloads) == {item["url"] for item in downloads["files"]}, f"{source}: exactly three same-domain installer links must match the manifest")
+        self.structured_data(document, source, canonical, code, downloads)
 
     def sitemap_and_robots(self, codes: list[str]):
         sitemap = ET.parse(self.directory / "sitemap.xml").getroot()
@@ -403,20 +476,17 @@ class Verifier:
     def run(self):
         if not self.directory.is_dir():
             raise ValueError("Expected the generated static website directory")
+        self.public_downloads = self.load_downloads()
         languages, messages = self.load_catalog()
         codes = [language["code"] for language in languages]
-        manifest = json.loads(Path(__file__).with_name("downloads.json").read_text(encoding="utf-8"))
-        version = manifest["version"]
-        self.check(isinstance(version, str) and bool(version), "Installer manifest version is missing")
-        downloads = {"/downloads/" + item["filename"] for item in manifest["files"]}
-        self.check(len(manifest["files"]) == len(downloads) == 3, "Installer manifest must contain exactly three distinct files")
+        version = self.public_downloads["version"]
         expected_paths = {"index.html", *(code.lower() + "/index.html" for code in codes)}
         actual_paths = {path.relative_to(self.directory).as_posix() for path in self.directory.rglob("*.html")}
         self.check(actual_paths == expected_paths, f"Expected73 HTML pages; missing={sorted(expected_paths - actual_paths)}, extra={sorted(actual_paths - expected_paths)}")
         self.scan_public_files()
         for source in sorted(actual_paths & expected_paths):
             code = "ru" if source == "index.html" else next(code for code in codes if source.startswith(code.lower() + "/"))
-            self.page(self.directory / source, code, languages, messages, downloads, version)
+            self.page(self.directory / source, code, languages, messages, self.public_downloads)
         self.sitemap_and_robots(codes)
         if self.errors:
             print("MOUSE_SEO_REJECTED", file=sys.stderr)
@@ -430,11 +500,15 @@ class Verifier:
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python3 infra/website/verify-seo.py GENERATED_SITE_DIRECTORY", file=sys.stderr)
-        return 2
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", type=Path)
+    parser.add_argument("--downloads", type=Path, help="Resolved private installer manifest")
+    parser.add_argument("--catalog", type=Path, help="Exported complete translation catalog")
+    args = parser.parse_args()
     try:
-        return Verifier(Path(sys.argv[1])).run()
+        downloads = json.loads(args.downloads.read_text()) if args.downloads else None
+        catalog = json.loads(args.catalog.read_text()) if args.catalog else None
+        return Verifier(args.directory, downloads=downloads, catalog=catalog).run()
     except (OSError, ValueError, KeyError, TypeError, ET.ParseError) as error:
         print(f"MOUSE_SEO_REJECTED: {error}", file=sys.stderr)
         return 1

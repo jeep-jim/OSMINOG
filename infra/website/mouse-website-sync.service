@@ -1,0 +1,17 @@
+[Unit]
+Description=Keep Mouse website installers on the verified published releases
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/osminog/website/automation/current
+ExecStart=/usr/bin/python3 /opt/osminog/website/automation/current/infra/website/sync-releases.py
+Environment=PYTHONDONTWRITEBYTECODE=1
+UMask=0077
+NoNewPrivileges=yes
+CPUQuota=25%
+MemoryMax=192M
+MemorySwapMax=0
+TasksMax=16
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=20min

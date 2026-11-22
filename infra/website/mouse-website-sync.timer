@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the official Mouse release feeds every minute
+
+[Timer]
+OnStartupSec=30s
+OnUnitInactiveSec=60s
+AccuracySec=1s
+Unit=mouse-website-sync.service
+
+[Install]
+WantedBy=timers.target

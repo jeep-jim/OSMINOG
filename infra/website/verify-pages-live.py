@@ -8,8 +8,48 @@ from xml.etree import ElementTree
 parser = argparse.ArgumentParser(description='Verify the actual Mouse custom-domain deployment and direct downloads')
 parser.add_argument('--site', required=True, type=Path)
 parser.add_argument('--release', required=True)
+parser.add_argument('--downloads', type=Path, default=Path(__file__).resolve().parent / 'downloads.json')
 args = parser.parse_args()
-assert re.fullmatch(r'[0-9a-f]{40}', args.release), 'Expected a full source commit'
+assert re.fullmatch(r'[0-9a-f]{40}', args.release), 'Expected a 40-character deployment identity'
+
+def read_download_manifest(path):
+    data = path.read_bytes()
+    assert len(data) <= 16384, 'Download manifest too large'
+    manifest = json.loads(data)
+    assert isinstance(manifest, dict) and set(manifest) == {'version', 'files'}, 'Invalid download manifest fields'
+    version_pattern = r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)'
+    filename_pattern = r'Mouse-Browser-(' + version_pattern + r')-(mac-arm64\.dmg|Windows-x64\.exe|Linux-x64\.AppImage)'
+    platforms = {
+        'mac-arm64.dmg': ('macos', 'quadro-macos-v{}-arm64'),
+        'Windows-x64.exe': ('windows', 'mouse-windows-v{}-x64'),
+        'Linux-x64.AppImage': ('linux', 'mouse-linux-v{}-x64'),
+    }
+    version, files = manifest['version'], manifest['files']
+    assert isinstance(version, str) and re.fullmatch(version_pattern, version), 'Invalid download version'
+    assert isinstance(files, list) and len(files) == 3, 'Three installers required'
+    seen, versions, public_files = set(), [], []
+    for item in files:
+        assert isinstance(item, dict) and set(item) == {'filename', 'url', 'size', 'sha256'}, 'Invalid installer fields'
+        filename = item['filename']
+        match = re.fullmatch(filename_pattern, filename) if isinstance(filename, str) else None
+        assert match is not None, 'Invalid installer filename'
+        file_version, suffix = match.groups()
+        assert suffix not in seen, 'Duplicate installer platform'
+        seen.add(suffix)
+        versions.append(tuple(map(int, file_version.split('.'))))
+        expected_url = 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + platforms[suffix][1].format(file_version) + '/' + filename
+        assert item['url'] == expected_url, 'Unexpected installer source'
+        assert type(item['size']) is int and 0 < item['size'] <= 512 * 1024 * 1024, 'Invalid installer size'
+        assert isinstance(item['sha256'], str) and re.fullmatch(r'[0-9a-f]{64}', item['sha256']), 'Invalid installer checksum'
+        public_files.append({'platform': platforms[suffix][0], 'version': file_version,
+                             'filename': filename, 'url': '/downloads/' + filename,
+                             'size': item['size'], 'sha256': item['sha256']})
+    assert seen == set(platforms), 'Three distinct installer platforms required'
+    assert tuple(map(int, version.split('.'))) == max(versions), 'Download version must equal the newest installer version'
+    return manifest, {'schema': 1, 'version': version, 'files': public_files}
+
+download_manifest, expected_download_catalog = read_download_manifest(args.downloads)
+installers = download_manifest['files']
 origin = 'https://mouse.black'
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, response, code, message, headers, new_url):
@@ -122,14 +162,19 @@ for language, direction in (('ru', 'ltr'), ('en', 'ltr'), ('ar', 'rtl')):
     assert set(page.alternates.values()) - {origin + '/'} == set(locations), 'Hreflang and sitemap differ'
     print('MOUSE_SEO_HTML_VERIFIED ' + language)
 print('MOUSE_SEO_DISCOVERY_VERIFIED sitemap=72 hreflang=73')
+catalog = read_public('/downloads.json')
+assert catalog == (built_site / 'downloads.json').read_bytes(), 'Wrong public download catalog served'
+assert json.loads(catalog) == expected_download_catalog, 'Public download catalog does not match independently verified installers'
+catalog_script = built_site / 'downloads-current.js'
+if catalog_script.is_file():
+    assert read_public('/downloads-current.js') == catalog_script.read_bytes(), 'Wrong download refresh script served'
+print('MOUSE_DOWNLOAD_CATALOG_VERIFIED platforms=3 version=' + download_manifest['version'])
+
 def verify_download_headers(response):
     assert response.headers.get('Location') is None, 'Download must not redirect'
     headers = '\n'.join(name + ': ' + value for name, value in response.headers.items()).lower()
-    # Pages may expose its hosting provider, e.g. x-github-request-id.
-    # Reject repository/upstream URLs, not the provider's ordinary response metadata.
+    # Reject repository/upstream URLs in every response header.
     assert not re.search(r'(?:https?:)?//[^\s]*(?:github\.com|githubusercontent\.com)', headers), 'Upstream URL in download headers'
-with (Path(__file__).resolve().parent / 'downloads.json').open() as source:
-    installers = json.load(source)['files']
 for item in installers:
     path = '/downloads/' + item['filename']
     assert path.encode() in body, 'Download link missing from public page'
@@ -138,7 +183,7 @@ for item in installers:
         assert response.status == 200 and response.url == url
         verify_download_headers(response)
         assert int(response.headers['Content-Length']) == item['size']
-    # Verify the bytes actually served by Pages, not only the advertised size.
+    # Verify the bytes actually served by Mouse, not only the advertised size.
     digest = hashlib.sha256()
     received = 0
     prefix = b''
