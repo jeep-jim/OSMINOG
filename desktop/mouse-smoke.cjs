@@ -62,7 +62,7 @@ module.exports=async({app,win,browser,store,libraryService,overlayGate,startServ
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-625-search-smoke.cjs')({app,win,browser,store,privateMode,startService,libraryService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-performance-smoke.cjs')({app,win,browser,store});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-627-window-smoke.cjs')({app,win,browser,overlayGate});
-  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-local-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,agentHost});
+  if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-local-smoke.cjs')({app,win,browser,store,privateMode,globalCapture,agentHost,startService});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-628-progress-smoke.cjs')({app,win,browser,store,privateMode,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-630-feedback-smoke.cjs')({app,win,browser,store,libraryService,privateMode,globalCapture});
   if(!process.argv.includes('--mouse-smoke-read'))await require('./mouse-630-nora-smoke.cjs')({app,win,browser,store,overlayGate,globalCapture,privateMode});

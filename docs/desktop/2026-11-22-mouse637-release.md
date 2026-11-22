@@ -1358,3 +1358,167 @@ Syntax and git diff --check passed. No native acceptance is assigned to these
 changed sources before their own complete installed-package workflows and
 independent artifact checks. Original failed runs remain failed, and diagnostic
 successes do not substitute for those required gates.
+
+## 2026-11-22 08:59 UTC — source85 native outcome and owned Local fixture cleanup
+
+Common source85d97a101f6d6f24d52bd5cfb8e771eb8269c534, tree
+dd2db50b5c7ecdb6943b8df5ad385c4bd73fdae8, was pushed with an expected5a
+head lease after all four uploaded blobs and the complete tree matched the
+reviewed local bytes. All eight auxiliary workflows passed. Public37 has not
+been published and all three publisher610 pins remain unready.
+
+### Mac85: earlier gates passed, strict Local restoration failed
+
+[Mac run45004119570](https://github.com/jeep-jim/OSMINOG/actions/runs/45004119570),
+attempt1/job137151801797, failed the installed step at08:53:14 UTC. The source
+build and units passed. The same attempt passed its published636 baseline,
+retained636 native clicks, strict637 performance and new637 WRITE/READ features
+before failing in the later retained `--mouse-smoke-write` Local fixture.
+
+The original verification artifact14747068228 is48,613,694 bytes, SHA-256
+24c4f8d5a12fea2f7f50666a4bb33c9f5af76f860a522f787fb487258b005f4a.
+It was safely extracted into412 files (61,560,820 expanded bytes); root
+independently rehashed the archive and every extracted file. Complete job log:
+1,078,855 bytes, SHA-256
+c33a795d9eeb3479c92fc3f8ade05fb614af9d3e5fa833db0148f07c886274cd.
+The retained Local report is54,816 bytes, SHA-256
+8a041272be1ad76a9c0d78c00e8915427875aba52d3a3b54723b743219e6a730.
+
+All seven guest-click records carry the successful exact readiness snapshot
+`{windowFocused:true,appActive:true,visible:true}`, one native post and the
+required trusted target event. This is a successful observed85 run of that
+subgate, not proof of the historical lost-click cause. Strict637 performance
+and38 new feature frames passed. Both actual circular updater captures were
+visually inspected: centered original mouse, annular controls/curved labels,
+round close/minimize and strong dimming. Those declared visual-state fixtures
+do not independently establish update transport or installation.
+
+The failing assertion is the original `bank.snapshot()` deep equality in
+`mouse-628-local-smoke.cjs:157`. Raw Local has `completed:true`, no workload
+error, `restored:false`, and a cleanup error. An extra internal start ID
+99226ddd-6115-46af-9484-80c804001e89 appears in final membership/history; it is
+different from the actual fixture localhost page
+578fdb4b-f297-414e-a9f7-063619b24eda. The raw failure does not record the extra
+ID's creation instant, so that instant is not claimed from the archive. The
+private transition checks had already passed; this is not evidence of private
+data leaking into the normal profile.
+
+Actual source review identifies a deterministic fixture restoration gap:
+the fixture explicitly applies the current Agents preset, which creates its
+dedicated internal `mouse://start` landing when it has no remembered preview.
+`mouse-start.cjs` keeps these identities in its separate `startService.tabs`
+map. The old fixture snapshots only native `browser.tabs` and closes only its
+new native localhost page. The new internal landing therefore survives its
+cleanup and authoritative reconciliation correctly adds it back into the bank.
+The existing strict bank assertion exposed that incomplete cleanup.
+
+A minimal correction is being tested in the retained fixture and its caller:
+pass the existing startService, snapshot all original internal start IDs,
+capture the exact Agents landing ID returned after the existing awaited mode
+setup, and record ownership only if it is new to both original maps and is
+actually present in startService.tabs. Cleanup closes only that known owned
+internal ID, alongside the existing known localhost cleanup. All original
+bank/native-page identity, URL and navigation-epoch assertions remain; a new
+strict equality also covers every original internal start ID. Unknown extra
+tabs must still cause failure. No production mode/page lifecycle, user data,
+native input, timeout, workload, pixel or performance acceptance changes.
+
+No unchanged85 retry was requested. No candidate package artifact was uploaded
+because source binding/upload were skipped after the failure. Full independent
+Mac actual-package acceptance is false. Passing earlier subgates cannot replace
+the complete required Mac run.
+
+### Linux85: complete native and independent actual-package acceptance
+
+[Linux run45004119568](https://github.com/jeep-jim/OSMINOG/actions/runs/45004119568),
+attempt1/job137151801928, completed SUCCESS at08:53:39 UTC. The full independent
+unchanged publisher610 gate ran once in137.807809673 seconds and passed. All264
+Python verifier files matched publisher610 Git bytes before and after, and426
+consumed evidence files remained unchanged. The full chain includes original
+retained gates,38 feature frames/WRITE+restart, actual Files transfers, strict
+published636 comparison, replacement and profile preservation.
+
+| Linux85 evidence | Bytes | SHA-256 |
+|---|---:|---|
+| Candidate artifact14746499410 | 241170243 | fb07a5e842a110e96e49ab656a9f856bbecc8678400315999375b67b028cefb8 |
+| Verification artifact14746773836 | 40869676 | 44689d1e1a2f862f4a8569b0301666c4883788af9aed3ff465c1e5e2662991e0 |
+| Actual AppImage | 135776054 | fedd81ae33fa5e6af648e7d08612b7078ac4972c1c032e16219656911e11d73d |
+| Actual DEB | 105926088 | 7e0a6cab3e31c0cddaa4888ed9279e5a70deb7b9dcbddb182afe2cd97469ceda |
+| Full independent result | 331570 | 1011dde85fcc618bb5b0d4c18b9b437ac23358261302cf1dcdb9057b356c0c08 |
+| Provenance record | 9862 | f218283ed57ed13f5499818c1683cc8a3100bdd3c082fec7930d017405a6828f |
+
+Root rehashed both archives, both actual packages and the full result. The
+proposed pin remains unapplied with ready:false/sourceMerge:null. This result
+belongs only to85 and must not transfer to a later common source.
+
+### Windows85 and external historical continuation
+
+At08:59:30 UTC Windows45004119569/attempt1 primary137151802053 was still
+executing installed step10; its modern job did not yet exist. No Windows85
+acceptance is assigned. Any source change requires newly bound native and
+independent results for the final common source on all platforms.
+
+A fresh read of both PR descriptions also discovered an external historical
+5a attempt3 report: run45000235119/attempt3/job137151485860 failed in published636
+baseline OS pixels before launching candidate637. That is distinct from the
+current85 Local failure. The external continuation also reports0364 diagnostic
+attempt2 failing in baseline before the retained candidate. This continuation
+did not request either repeat; earlier no-third/no-repeat statements record its
+own decisions at those times. Both external histories remain in the PR bodies;
+no original failed attempt is overwritten or reclassified as success.
+
+The monitor was updated to strict read-only status with this current blocker,
+historical distinctions and no independent rerun/merge/publish authority. The
+source/publisher PR descriptions preserve prior entries and identify the local
+fixture repair under review. The owner's physical Mac still requires testing
+after a real public37 update; its rendering complaint is not declared fixed.
+
+### Local fixture correction — completed review and actual-source RED/GREEN
+
+The correction above is implemented. The actual old85 Local fixture was loaded
+unchanged from Git for a controlled RED run (outside the repository). Its
+original strict bank comparison fails after real Agents setup because the new
+internal ID remains in membership, order and history. The historical source is
+36,695 bytes, SHA-256
+f81454ce38be5c411f7fecf384441eb6b8ac3812f90842f940565ea1f22bb0b9;
+root compared it byte-for-byte with `git show85:desktop/mouse-628-local-smoke.cjs`.
+The failing one-test RED log is11,020 bytes, SHA-256
+d0c21d6a2ad20dee2710119f000a8db052b804ae37674974b8b254196e03a6c8.
+This is the original restoration assertion failing, not a missing new helper
+or a fixture setup exception.
+
+The new six-case test installs actual mouse-start and DesktopService in their
+production order, uses the actual renderer preferences projection/TabOrder and
+executes the current fixture's snapshot, Agents setup, catch/finally and strict
+assertions. Only Electron surfaces are explicit unit adapters. Coverage includes
+preserving active/other-desktop native and internal pages, reusing existing
+native/internal Agent landings, refusing to sweep unexpected extra pages,
+already-closed owned pages, exact cleanup-error identity and precedence of an
+original workload error. These unit results do not claim native GUI acceptance.
+
+Author:6/6 PASS, zero skips;1925-byte log SHA-256
+d00374aa3db6f2421f3a04c32abc0c40e62aca8b94e5c88649767ae263a91c25.
+Root independently ran those six plus the five existing Local theme/visibility
+tests under exactNode22.23.5:11/11 PASS, zero skips;3225-byte log SHA-256
+b1056744d33d6bfcbdeb4109672575fa056954832e564198272ce1f696d95d8e.
+The new test is automatically selected by the existing Mouse unit enumerator;
+no workflow or build configuration changes are needed.
+
+Independent read-only review of both changed fixture files, the new test and
+actual Start/Desktop/Modes/private lifecycles passed without blockers. Ownership
+is restricted to the recorded new normal start ID; the normal store is not
+replaced with the ephemeral private store. Existing native actions, target and
+pixel predicates, budgets and all previous restoration assertions are unchanged.
+The caller passes the already existing startService; no production lifecycle
+change or blanket removal of new tabs is introduced.
+
+| Changed test code | SHA-256 |
+|---|---|
+| mouse-628-local-smoke.cjs | 3338789efb1471edeb9ca19ede7d809b0ec55ef700e9349ef2cc652b77ee20af |
+| mouse-smoke.cjs | 9a3d8de6909401903be6e75a4016356dada5b2231ca2562a1c36a5647f19e883 |
+| mouse-628-local-fixture-cleanup.test.cjs | 3367974e090c0faa9143b290001b04b1f90340cedffe31a48eaab0f7816bd5b2 |
+
+The next common source still needs its own full native and independent package
+checks on all three platforms, both Windows jobs, accepted source merge and
+fresh publisher installation gates. Linux85 acceptance remains historical for
+any later source; Mac85 remains failed. No readiness pin is being applied here.

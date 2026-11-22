@@ -35,17 +35,18 @@ async function readLocalSettingsThemeProbe(execute){
  if(result?.ok!==true)throw Object.assign(Error('Local settings theme probe: '+(result?.error?.message||'missing renderer receipt')),{rendererError:result?.error||{name:'Error',message:'missing renderer receipt',stack:''}});
  return result.probe;
 }
-module.exports=async({app,win,browser,store,privateMode,globalCapture,agentHost})=>{
+module.exports=async({app,win,browser,store,privateMode,globalCapture,agentHost,startService})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(process.arch,'arm64');assert.equal(process.platform,'darwin');assert.equal(privateMode.current,null);
  const js=source=>win.webContents.executeJavaScript(source),native=require('./mouse-native-menu.node'),addon=require('./mouse-mcp-fs.node');
  const original=await js('MouseTest.prefs()'),transient=await js('({focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})'),bank=browser.mouseDesktops.bank,savedBank=bank.snapshot(),bounds=win.getBounds(),fullscreen=win.isFullScreen(),maximized=win.isMaximized(),originalDialog=agentHost.dialog,originalFolder=agentHost.folder,originalLogs=copy(agentHost.logs);
  const originalPages=new Map([...browser.tabs].map(([id,page])=>[id,{page,wc:page.view?.webContents,url:page.view?.webContents.getURL(),epoch:page.navigationEpoch||0}]));
+ const originalStartIds=new Set(startService.tabs.keys());
  const base=path.join(app.getPath('userData'),'mouse628-local-fixture'),project=path.join(base,'project'),outside=path.join(base,'outside');await fsp.mkdir(project,{recursive:true});await fsp.mkdir(outside,{recursive:true});
  const initial='Mouse628 Local UTF-8: привет €\n',updated='Mouse628 Local updated through MCP\n',secret='MOUSE628_OUTSIDE_SENTINEL_NOT_READ_OR_CHANGED';
  await fsp.writeFile(path.join(project,'message.txt'),initial);await fsp.writeFile(path.join(outside,'secret.txt'),secret);await fsp.symlink(outside,path.join(project,'outside-dir'));await fsp.symlink(path.join(outside,'secret.txt'),path.join(project,'outside-link'));await fsp.link(path.join(outside,'secret.txt'),path.join(project,'outside-hardlink'));
  const facts={version:app.getVersion(),source:'installed Electron arm64 with official MCP stdio and owned PTY',fixture:true,physicalExternalModelVerified:false,status:'running',limits:LIMITS,tools:[],denials:[],permissions:[],actions:[],watchEvents:[],clicks:[],captures:[],fdRaces:[],restored:false};
  const save=()=>fsp.writeFile('mouse-628-local.json',JSON.stringify(facts,null,2)+'\n');
- let client,verificationError,cleanupError,openedId,devPid=0,devPty=0,serverPid=0;
+ let client,verificationError,cleanupError,openedId,ownedAgentTab='',devPid=0,devPty=0,serverPid=0;
  const action=record=>{if(facts.actions.length<256)facts.actions.push({at:performance.now(),...copy(record)});},change=record=>{if(facts.watchEvents.length<128)facts.watchEvents.push({at:performance.now(),...copy(record)});};agentHost.mcp.on('action',action);agentHost.mcp.on('change',change);
  const frame=async()=>{await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await sleep(60);};
  async function placeWindow(){
@@ -108,7 +109,11 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,agentHost}
  async function endpoint(record){const response=await fetch('http://127.0.0.1:'+record.port+'/api',{signal:AbortSignal.timeout(3000)});assert.equal(response.status,200);return response.json();}
  try{
   facts.window={inherited:{bounds,fullscreen,maximized},initial:await placeWindow()};
-  assert.equal(agentHost.state().enabled,false);await js('MouseTest.desktopUI.close({immediate:true});MouseTest.restorePane();MouseTest.model.focusAI=false;MouseTest.model.libraryOpen=false;MouseTest.model.aiWidth=620;MouseTest.applyMode("agents")');await until(()=>js('!document.querySelector("#agent-panel").hidden'),'Agent Mouse visible');
+  assert.equal(agentHost.state().enabled,false);const agentLanding=await js('(async()=>{MouseTest.desktopUI.close({immediate:true});MouseTest.restorePane();MouseTest.model.focusAI=false;MouseTest.model.libraryOpen=false;MouseTest.model.aiWidth=620;await MouseTest.applyMode("agents");return MouseTest.model.agentPreviewId;})()');
+  // This fixture's Agents preset may create its own internal start page. It is
+  // stored separately from browser.tabs; never sweep unrelated live pages.
+  if(!originalPages.has(agentLanding)&&!originalStartIds.has(agentLanding)){assert.ok(startService.tabs.has(agentLanding),'Local fixture owns the newly created Agents start page');ownedAgentTab=agentLanding;}
+  facts.agentLanding={id:agentLanding,createdByFixture:!!ownedAgentTab};await until(()=>js('!document.querySelector("#agent-panel").hidden'),'Agent Mouse visible');
   agentHost.dialog={...originalDialog,showMessageBox:async()=>({response:1}),showOpenDialog:async()=>({canceled:false,filePaths:[project]})};
   await toggle('#agent-autonomous',true);await click('#agent-enable');await until(()=>agentHost.state().enabled,'Owner fixture enables Agent Mouse');await click('#agent-folder');await until(()=>agentHost.mcp.connected&&!agentHost.localBusy,'Packaged MCP child connects');
   client=await new AgentController(agentHost.state().connectionUrl).connect();serverPid=agentHost.mcp.transport.pid;assert.ok(Number.isInteger(serverPid)&&serverPid>0&&serverPid!==process.pid&&alive(serverPid));
@@ -152,9 +157,11 @@ module.exports=async({app,win,browser,store,privateMode,globalCapture,agentHost}
   try{
    await client?.close().catch(()=>{});await agentHost.stop('Завершена проверка Локал');if(privateMode.current)await privateMode.toggle();
    if(openedId&&browser.tabs.has(openedId))await browser.command('close',{id:openedId});
+   if(ownedAgentTab&&startService.tabs.has(ownedAgentTab))await browser.command('close',{id:ownedAgentTab});
    agentHost.dialog=originalDialog;agentHost.folder=originalFolder;agentHost.logs=originalLogs;agentHost.emit();
    await js('globalThis.MouseFlush?.()');Object.assign(bank,new(require('./mouse-desktops.cjs').DesktopBank)(savedBank,original));browser.emit();await js(`(async()=>{const initial=await MouseNative.init();Object.assign(MouseTest.model,${JSON.stringify(original)},${JSON.stringify(transient)});MouseTest.model.state=initial.state;MouseTest.model.switching=false;MouseTest.setTheme(${JSON.stringify(original.theme)});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();await MouseTest.save();})()`);if(win.isFullScreen()){win.setFullScreen(false);await until(()=>!win.isFullScreen(),'Local cleanup exits fullscreen');}win.setBounds(bounds);if(maximized)win.maximize();if(fullscreen){win.setFullScreen(true);await until(()=>win.isFullScreen(),'Local cleanup restores fullscreen');}await browser.save();await store.queue;
    assert.deepEqual(bank.snapshot(),savedBank);assert.deepEqual([...browser.tabs.keys()].sort(),[...originalPages.keys()].sort());for(const[id,record]of originalPages){const page=browser.get(id);assert.equal(page,record.page);assert.equal(page.view?.webContents,record.wc);if(record.wc){assert.equal(record.wc.getURL(),record.url);assert.equal(page.navigationEpoch||0,record.epoch);}}
+   assert.deepEqual([...startService.tabs.keys()].sort(),[...originalStartIds].sort());
    assert.equal(agentHost.mcp.connected,false);assert.equal(agentHost.dev.state().running,false);facts.restored=true;
   }catch(error){cleanupError=error;facts.cleanupError=String(error.stack||error).slice(0,5000);}
   agentHost.mcp.removeListener('action',action);agentHost.mcp.removeListener('change',change);facts.status=!verificationError&&!cleanupError&&facts.completed&&facts.restored?'pass':'fail';await save();
