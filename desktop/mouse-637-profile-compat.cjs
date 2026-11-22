@@ -1,11 +1,16 @@
 'use strict';
-// Acceptance-only629 →637 schema expectation. Never normalize the observed
-// preferences or fill omissions during a same-version637 restart.
+// Acceptance-only published629/636 →637 schema expectation. The owner's
+// explicit Agent removal retires only its layout keys, not pages or other data.
+// Never normalize observations or fill omissions during a same-version restart.
 const assert=require('node:assert/strict');
 function expectedProfilePreferences(record,currentVersion){
  const saved=structuredClone(record.preferences);
- return record.version==='6.0.29'&&currentVersion==='6.0.37'
-  ?{agentPreviewId:'',aiPreviewRatio:.5,presetTabs:{},...saved}:saved;
+ if(currentVersion!=='6.0.37'||!['6.0.29','6.0.36'].includes(record.version))return saved;
+ const expected=record.version==='6.0.29'?{aiPreviewRatio:.5,presetTabs:{},...saved}:saved;
+ delete expected.agentOpen;delete expected.agentPreviewId;
+ if(expected.mode==='agents')expected.mode='';
+ if(expected.presetTabs&&typeof expected.presetTabs==='object')delete expected.presetTabs.agents;
+ return expected;
 }
 function assertProfilePreferences(record,currentVersion,actual){
  assert.deepEqual(actual,expectedProfilePreferences(record,currentVersion),'Reinstalled application preserves exact workspace preferences and declared schema defaults');

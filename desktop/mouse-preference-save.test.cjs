@@ -14,12 +14,12 @@ async function workspace(file){
  return{store,browser,service,save:(preferences)=>handlers.get('mouse:save')({trusted:true},preferences,{reason:'ai-preview-resize'})};
 }
 
-test('actual normal and private save handlers retain per-desktop preview geometry and live preset bindings without crossing profiles',async()=>{
+test('actual normal and private save handlers strip retired panel metadata while retaining preview geometry, live web presets and profile isolation',async()=>{
  const normal=await workspace('mouse-main.cjs'),privateSpace=await workspace('mouse-private.cjs');
  try{
-  const page=normal.browser.tabs.get('local'),settings={...normal.service.preferences(),tree:L.preset(1),slots:{p1:'local'},aiPreviewRatio:.68,agentPreviewId:'local',presetTabs:{agents:['local'],support:['chat-service','local']}};
+  const page=normal.browser.tabs.get('local'),settings={...normal.service.preferences(),tree:L.preset(1),slots:{p1:'local'},aiPreviewRatio:.68,mode:'agents',agentOpen:true,agentPreviewId:'local',presetTabs:{agents:['local'],support:['chat-service','local']}};
   await normal.save(settings);await normal.service.flush();
-  const check=(value,ratio)=>{assert.equal(value.aiPreviewRatio,ratio);assert.equal(value.agentPreviewId,'local');assert.deepEqual(value.presetTabs,{agents:['local'],support:['chat-service','local']});};
+  const check=(value,ratio)=>{assert.equal(value.aiPreviewRatio,ratio);assert.equal(value.mode,'');assert.equal(Object.hasOwn(value,'agentOpen'),false);assert.equal(Object.hasOwn(value,'agentPreviewId'),false);assert.deepEqual(value.presetTabs,{support:['chat-service','local']});};
   check(normal.service.preferences(),.68);assert.equal(normal.browser.tabs.get('local'),page);
   const durable=await normal.store.get([KEY,'quadroPreferences']),reopened=new DesktopBank(durable[KEY],durable.quadroPreferences);check(reopened.preferences(),.68);
   normal.service.bank.select('desk-1');await normal.save({...normal.service.preferences(),aiPreviewRatio:.31});assert.equal(normal.service.preferences().aiPreviewRatio,.31);assert.equal(normal.service.preferences().agentPreviewId,undefined);assert.equal(normal.service.preferences().presetTabs,undefined);

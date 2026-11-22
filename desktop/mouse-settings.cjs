@@ -1,6 +1,6 @@
 'use strict';
 const KEY='mouseControlSettings';
-const DEFAULTS=Object.freeze({restoreAgent:true,showBrandName:true,showFavicons:true,desktopGestures:true,downloadBounce:true,downloadBadge:true});
+const DEFAULTS=Object.freeze({showBrandName:true,showFavicons:true,desktopGestures:true,downloadBounce:true,downloadBadge:true});
 function normalize(value){const out={...DEFAULTS};if(value&&typeof value==='object')for(const key of Object.keys(out))if(typeof value[key]==='boolean')out[key]=value[key];return out;}
 function patch(value){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length===0)throw Error('Некорректные настройки');for(const [key,enabled]of Object.entries(value))if(!Object.hasOwn(DEFAULTS,key)||typeof enabled!=='boolean')throw Error('Неизвестная настройка');return{...value};}
 async function install({store,win,ipcMain,trusted,isPrivate=()=>false}){

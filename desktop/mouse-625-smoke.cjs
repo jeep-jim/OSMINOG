@@ -9,7 +9,7 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const copy=value=>JSON.parse(JSON.stringify(value));
-const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
+const layoutKeys=['desktopId','mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 async function until(fn,label,n=240){for(let i=0;i<n;i++){if(await fn())return;await sleep(60);}throw Error('Mouse625 timeout: '+label);}
 function paintedPDFText(image,{scaleFactor,pixelSize},probe){
  const bytes=image.toBitmap({scaleFactor}),{width,height}=pixelSize,sx=width/probe.viewport.width,sy=height/probe.viewport.height;

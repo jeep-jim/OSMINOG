@@ -9,7 +9,7 @@ async function waitForAIClosed({js,windowed,browser,id,webContents}){
 function assertVisibleAIPresets(snapshot,scope){
  assert.ok(scope==='normal'||scope==='private');assert.equal(snapshot.privateMode,scope==='private','The visible card contract belongs to the actual browser mode');
  const external=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'];
- assert.deepEqual(snapshot.urls,scope==='private'?external:['mouse://agent',...external],'Only ordinary mode offers Agent Mouse alongside the four external providers');return true;
+ assert.deepEqual(snapshot.urls,external,'Normal and private browsers retain all four external providers without the removed Agent');return true;
 }
 module.exports=async({win,browser,scope='normal'})=>{
  const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),wasFull=win.isFullScreen();

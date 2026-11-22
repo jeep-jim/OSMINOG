@@ -35,7 +35,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             desktop/package-lock.json
-            desktop/mouse-agent/package-lock.json
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -43,17 +42,11 @@ jobs:
         run: |
           npm ci
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm ci --prefix mouse-agent
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm audit --omit=dev --audit-level=high --json > mouse-windows-audit.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm audit --prefix mouse-agent --omit=dev --audit-level=high --json > mouse-windows-agent-audit.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Prepare native Windows runtime and owner artwork
         run: |
           $env:npm_config_python = Join-Path $env:pythonLocation 'python.exe'
-          node mouse-agent/prepare.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run prepare:runtime
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node mouse-native-build.cjs
@@ -126,6 +119,7 @@ jobs:
             desktop/mouse-*.png
             desktop/mouse-*.json
             desktop/mouse-637-library-source.txt
+            desktop/mouse-637-agent-code-*.cjs
             desktop/mouse-631-upgrade/**
             desktop/mouse-637-baseline-performance/**
           if-no-files-found: warn
@@ -219,6 +213,7 @@ jobs:
             desktop/mouse-*.png
             desktop/mouse-*.json
             desktop/mouse-637-library-source.txt
+            desktop/mouse-637-agent-code-*.cjs
             desktop/mouse-631-upgrade/**
             desktop/mouse-637-baseline-performance/**
           if-no-files-found: warn

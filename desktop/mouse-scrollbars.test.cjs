@@ -30,7 +30,7 @@ test('sandbox preload installs scrollbar CSS before DOM ready at user cascade or
  const actual=run();
  assert.deepEqual(actual.inserted,[{css:CSS,options:{cssOrigin:'user'}}]);
  assert.equal(actual.messages.length,0);
- assert.deepEqual(actual.exposed.map(x=>[x.name,Object.keys(x.api)]),[['MouseAgent',['updateProgress']]]);
+ assert.deepEqual(actual.exposed.map(x=>[x.name,Object.keys(x.api)]),[]);
 });
 test('private browsing receives the same presentation without any persistence or activity IPC',()=>{
  const actual=run({privateMode:true});

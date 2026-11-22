@@ -7,12 +7,14 @@ const {DesktopPreviews}=require('./mouse-desktop-previews.cjs');
 const {DesktopSurfaces}=require('./mouse-surfaces.cjs');
 const {randomUUID}=require('node:crypto');
 const KEY='mouseDesktopsV1',MAX_DESKS=5,HISTORY_LIMIT=30,HISTORY_BYTES=512*1024;
-const layoutKeys=['tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiPreviewRatio','aiId','aiSessions','mode','agentOpen','agentPreviewId','presetTabs'];
+const layoutKeys=['tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiPreviewRatio','aiId','aiSessions','mode','presetTabs'];
+// Retired profile keys must never become global preferences when layout fields change.
+const retiredLayoutKeys=new Set(['agentOpen','agentPreviewId']);
 const clone=x=>JSON.parse(JSON.stringify(x));
-const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{},mode:'',agentOpen:false});
-// Focus, title/session metadata and opening the Agent selector alone are not edits
-// to the grid. Their values still travel with a real layout checkpoint.
-const layoutSignature=p=>JSON.stringify([p.tree,p.slots,p.tabOrder,p.aiOpen,p.aiWidth,L.previewRatio(p.aiPreviewRatio),p.aiId,p.mode,p.agentPreviewId||'']);
+const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{},mode:''});
+// Focus and title/session metadata are not edits to the grid.
+// Their values still travel with a real layout checkpoint.
+const layoutSignature=p=>JSON.stringify([p.tree,p.slots,p.tabOrder,p.aiOpen,p.aiWidth,L.previewRatio(p.aiPreviewRatio),p.aiId,p.mode]);
 const sameLayout=(a,b)=>layoutSignature(a)===layoutSignature(b);
 function historyMeta(value,reason='layout'){
  return{id:typeof value?.id==='string'&&/^[a-z\d_-]{1,100}$/i.test(value.id)?value.id:randomUUID(),createdAt:Number.isSafeInteger(value?.createdAt)&&value.createdAt>=0?value.createdAt:Date.now(),reason:typeof value?.reason==='string'&&value.reason.trim()?value.reason.trim().slice(0,80):reason};
@@ -44,7 +46,6 @@ function unread(title){
  return m?Math.min(999999,Number(m[1]||m[2])||0):0;
 }
 function prunePresetTabs(p,isMain){
- if(p.agentPreviewId&&!isMain(p.agentPreviewId))delete p.agentPreviewId;
  if(!p.presetTabs)return;
  for(const [mode,ids]of Object.entries(p.presetTabs)){
   p.presetTabs[mode]=ids.map(id=>isMain(id)?id:'');
@@ -55,7 +56,6 @@ function prunePresetTabs(p,isMain){
 function layout(value={}){
  const out=blank();try{out.tree=L.validate(value.tree);}catch{}
  out.mode=Modes.modes.some(m=>m.id===value.mode)?value.mode:'';
- out.agentOpen=value.agentOpen===undefined?out.mode==='agents':value.agentOpen===true;
  const leaves=L.leaves(out.tree);out.active=leaves.includes(value.active)?value.active:leaves[0];
  if(value.slots&&typeof value.slots==='object')for(const p of leaves)if(typeof value.slots[p]==='string'&&value.slots[p].length<=100)out.slots[p]=value.slots[p];
  const pinned=L.pins({...out,pinnedPanes:value.pinnedPanes});if(Object.keys(pinned).length)out.pinnedPanes=pinned;
@@ -63,7 +63,6 @@ function layout(value={}){
  out.aiOpen=value.aiOpen===true;out.aiWidth=Math.max(240,Math.min(1600,Number(value.aiWidth)||360));out.aiId=typeof value.aiId==='string'?value.aiId.slice(0,100):'';
  if(value.aiPreviewRatio!==undefined)out.aiPreviewRatio=L.previewRatio(value.aiPreviewRatio);
  if(value.aiSessions&&typeof value.aiSessions==='object')for(const [k,v]of Object.entries(value.aiSessions).slice(0,30))if(/^https?:\/\//.test(k)&&k.length<8192&&typeof v==='string'&&v.length<=100)out.aiSessions[k]=v;
- if(typeof value.agentPreviewId==='string'&&value.agentPreviewId&&value.agentPreviewId.length<=100)out.agentPreviewId=value.agentPreviewId;
  if(value.presetTabs&&typeof value.presetTabs==='object'&&!Array.isArray(value.presetTabs)){
   const cached={};for(const mode of Modes.modes){const ids=value.presetTabs[mode.id];if(!Array.isArray(ids))continue;const clean=ids.slice(0,mode.sites.length).map(id=>typeof id==='string'&&id.length<=100?id:'');if(clean.some(Boolean))cached[mode.id]=clean;}
   if(Object.keys(cached).length)out.presetTabs=cached;
@@ -91,13 +90,13 @@ class DesktopBank{
   }
   for(let n=1;this.items.length<MAX_DESKS;n++){const id='desk-'+n;if(!this.items.some(d=>d.id===id))this.items.push({id,name:'Стол '+(this.items.length+1),layout:blank(),history:readHistory()});}
   if(!this.items.some(x=>x.id===this.active))this.active=this.items[0].id;
-  for(const [k,v]of Object.entries(preferences))if(!layoutKeys.includes(k)&&k!=='desktopId'&&v!==undefined)this.global[k]=clone(v);
+  for(const [k,v]of Object.entries(preferences))if(!layoutKeys.includes(k)&&!retiredLayoutKeys.has(k)&&k!=='desktopId'&&v!==undefined)this.global[k]=clone(v);
  }
  current(){return this.items.find(d=>d.id===this.active);}
  historyState(desk=this.active,entries=false){
   const d=this.items.find(x=>x.id===desk);if(!d)throw Error('Рабочий стол не найден');
   const h=d.history,info={desktopId:desk,currentId:h.current.id,canUndo:!!h.past.length,canRedo:!!h.future.length,undoCount:h.past.length,redoCount:h.future.length,undoReason:h.past.length?h.current.reason:'',redoReason:h.future.at(-1)?.reason||'',limit:HISTORY_LIMIT};
-  if(entries){const entry=(e,position,p=e.layout)=>({id:e.id,createdAt:e.createdAt,reason:e.reason,position,tree:clone(p.tree),slots:{...p.slots},tabOrder:[...p.tabOrder],aiOpen:p.aiOpen,aiId:p.aiId,aiWidth:p.aiWidth,aiPreviewRatio:L.previewRatio(p.aiPreviewRatio),agentOpen:p.agentOpen,mode:p.mode,...(p.agentPreviewId?{agentPreviewId:p.agentPreviewId}:{}),...(p.presetTabs?{presetTabs:clone(p.presetTabs)}:{})});info.entries=[...h.past.map(e=>entry(e,'past')),entry(h.current,'current',d.layout),...h.future.slice().reverse().map(e=>entry(e,'future'))];}
+  if(entries){const entry=(e,position,p=e.layout)=>({id:e.id,createdAt:e.createdAt,reason:e.reason,position,tree:clone(p.tree),slots:{...p.slots},tabOrder:[...p.tabOrder],aiOpen:p.aiOpen,aiId:p.aiId,aiWidth:p.aiWidth,aiPreviewRatio:L.previewRatio(p.aiPreviewRatio),mode:p.mode,...(p.presetTabs?{presetTabs:clone(p.presetTabs)}:{})});info.entries=[...h.past.map(e=>entry(e,'past')),entry(h.current,'current',d.layout),...h.future.slice().reverse().map(e=>entry(e,'future'))];}
   return info;
  }
  historyEntry(id){const d=this.current(),h=d.history;if(id===h.current.id)return{...h.current,layout:clone(d.layout)};const e=[...h.past,...h.future].find(e=>e.id===id);return e?clone(e):null;}
@@ -185,7 +184,7 @@ class DesktopBank{
   }
  }
  ordered(desk,tabs){const d=this.items.find(d=>d.id===desk),byId=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t])),seen=new Set();return[...(d?.layout.tabOrder||[]),...byId.keys()].filter(id=>byId.has(id)&&!seen.has(id)&&seen.add(id)).map(id=>byId.get(id));}
- placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&!d.layout.agentOpen&&own.has(d.layout.aiId)?[d.layout.aiId,...[...own.values()].filter(t=>t.previewOf===d.layout.aiId).map(t=>t.id)]:[])]);}
+ placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&own.has(d.layout.aiId)?[d.layout.aiId,...[...own.values()].filter(t=>t.previewOf===d.layout.aiId).map(t=>t.id)]:[])]);}
  previewPlacement(id,pane,tabs,preferences=this.current().layout){
   const d=this.current(),page=tabs.find(t=>t.id===id),parent=page&&tabs.find(t=>t.id===page.previewOf),next=layout(preferences);
   if(typeof id!=='string'||!page||page.lane!=='side'||!parent||parent.lane!=='side'||parent.previewOf||this.members[id]!==d.id||this.members[parent.id]!==d.id||next.aiId!==parent.id)throw Error('Сайт больше не принадлежит открытому ИИ-чату');
@@ -233,7 +232,7 @@ class DesktopBank{
  }
  select(id){if(!this.items.some(x=>x.id===id))throw Error('Рабочий стол не найден');this.finishHistoryGroup();this.active=id;return this.preferences();}
  add(tabs=[]){this.sync(tabs);const empty=this.items.filter(d=>!tabs.some(t=>this.members[t.id]===d.id)),desk=empty.find(d=>d.id!==this.active)||empty[0];if(!desk)throw Error('Все пять столов заняты. Освободите один из них.');return desk.id;}
- describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,agentOpen:d.layout.agentOpen,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
+ describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
  snapshot(){return{schema:2,active:this.active,items:clone(this.items),members:{...this.members},...(this.recovery?{recovery:clone(this.recovery)}:{})};}
 }
 async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){

@@ -9,23 +9,20 @@ if(process.platform==='win32'&&process.arch==='x64'){
   process.env.npm_execpath&&path.resolve(path.dirname(process.env.npm_execpath),'../node_modules/node-gyp/bin/node-gyp.js')].filter(Boolean);
  try{candidates.push(require.resolve('node-gyp/bin/node-gyp.js'));}catch{}
  const gyp=candidates.find(file=>fs.existsSync(file));if(!gyp)throw Error('The pinned Node installation must include npm and node-gyp');
- const root=path.join(__dirname,'mouse-agent/native-win');
+ const root=path.join(__dirname,'mouse-native/native-win');
  cp.execFileSync(process.execPath,[gyp,'rebuild','--directory',root,'--arch=x64','--target='+process.versions.node],{stdio:'inherit',cwd:__dirname});
- fs.copyFileSync(path.join(root,'build/Release/mouse_mcp_fs.node'),path.join(__dirname,'mouse-mcp-fs.node'));
- const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove','ownProcess','stopProcessTree','primaryDown','paneCorners','paneCornersState','launchUpdateHelper','updateHelperStatus','stopUpdateHelper','releaseUpdateHelper'])if(typeof native[name]!=='function')throw Error('Missing Windows native export: '+name);
+ fs.copyFileSync(path.join(root,'build/Release/mouse_platform.node'),path.join(__dirname,'mouse-platform.node'));
+ const native=require('./mouse-platform.node');for(const name of ['openRoot','openRead','primaryDown','paneCorners','paneCornersState','launchUpdateHelper','updateHelperStatus','stopUpdateHelper','releaseUpdateHelper'])if(typeof native[name]!=='function')throw Error('Missing Windows native export: '+name);
  console.log('MOUSE_WINDOWS_NATIVE_X64_BUILT');
  return;
 }
 const include=path.resolve(path.dirname(process.execPath),'../include/node');
 if(!fs.existsSync(path.join(include,'node_api.h')))throw Error('Pinned Node distribution headers missing: '+include);
 if(process.platform==='linux'&&process.arch==='x64'){
- cp.execFileSync('g++',['-std=c++17','-shared','-fPIC','-I',include,'mouse-agent/mcp-fs-native.cc','mouse-agent/pane-corners-linux.cc','-lX11','-lXext','-o','mouse-mcp-fs.node'],{stdio:'inherit',cwd:__dirname});
- const native=require('./mouse-mcp-fs.node');for(const name of ['openRoot','openDir','openRead','openTemp','stat','list','commit','remove','primaryDown','paneCorners','paneCornersState'])if(typeof native[name]!=='function')throw Error('Missing Linux native export: '+name);
+ cp.execFileSync('g++',['-std=c++17','-shared','-fPIC','-I',include,'mouse-native/platform-linux.cc','mouse-native/pane-corners-linux.cc','-lX11','-lXext','-o','mouse-platform.node'],{stdio:'inherit',cwd:__dirname});
+ const native=require('./mouse-platform.node');for(const name of ['primaryDown','paneCorners','paneCornersState'])if(typeof native[name]!=='function')throw Error('Missing Linux native export: '+name);
  console.log('MOUSE_LINUX_NATIVE_X64_BUILT');return;
 }
 if(process.platform!=='darwin'||process.arch!=='arm64')throw Error('Build on macOS Apple Silicon, Windows x64 or Linux x64');
-cp.execFileSync('xcrun',['clang++','-std=c++17','-arch','arm64','-mmacosx-version-min=13.0','-bundle','-undefined','dynamic_lookup','-I',include,'mouse-agent/mcp-fs-native.cc','-o','mouse-mcp-fs.node'],{stdio:'inherit',cwd:__dirname});
-if(!process.argv.includes('--mcp-only')){
 cp.execFileSync('xcrun',['clang++','-std=c++17','-fobjc-arc','-arch','arm64','-mmacosx-version-min=13.0','-bundle','-undefined','dynamic_lookup','-I',include,'-include','QuartzCore/QuartzCore.h','-framework','Cocoa','-framework','CoreGraphics','-framework','QuartzCore','mouse-native-menu.mm','-o','mouse-native-menu.node'],{stdio:'inherit',cwd:__dirname});
 cp.execFileSync('xcrun',['clang++','-std=c++17','-fobjc-arc','-arch','arm64','-mmacosx-version-min=13.0','-bundle','-undefined','dynamic_lookup','-I',include,'-include','QuartzCore/QuartzCore.h','-framework','Cocoa','-framework','CoreGraphics','-framework','QuartzCore','-framework','ScreenCaptureKit','-framework','CoreMedia','-framework','CoreVideo','-framework','CoreImage','mouse-screen-capture.mm','-o','mouse-screen-capture.node'],{stdio:'inherit',cwd:__dirname});
-}

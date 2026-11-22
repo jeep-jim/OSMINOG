@@ -63,7 +63,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
  function nativePaneCorners(){
   if(process.platform!=='win32'&&process.platform!=='linux')return;
   if(process.platform==='linux')try{return{native:browser.mouseCornerMask.state()};}catch(error){return{error:String(error.stack||error).slice(0,4000)};}
-  try{return{electron:{windowBounds:win.getBounds(),contentBounds:win.getContentBounds(),contentViewBounds:win.contentView.getBounds(),visible:win.isVisible(),focused:win.isFocused(),surfaceHeld:!!browser.mouseSurfaceHold},native:require('./mouse-mcp-fs.node').paneCornersState(win.getNativeWindowHandle())};}
+  try{return{electron:{windowBounds:win.getBounds(),contentBounds:win.getContentBounds(),contentViewBounds:win.contentView.getBounds(),visible:win.isVisible(),focused:win.isFocused(),surfaceHeld:!!browser.mouseSurfaceHold},native:require('./mouse-platform.node').paneCornersState(win.getNativeWindowHandle())};}
   catch(error){return{error:String(error.stack||error).slice(0,4000)};}
  }
  async function capture(name){
@@ -165,7 +165,7 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));for(let i=0;i<7;i++){const opened=await browser.command('open',{url:'http://127.0.0.1:'+server.address().port+'/'+i,lane:'main'});pages.push(browser.get(opened.id));}
   await until(()=>pages.every(page=>!page.loading&&!page.error),'seven native fixture pages load');
   const leaves=require('./mouse/layout.js').leaves(TREE),slots=Object.fromEntries(leaves.map((id,i)=>[id,pages[i].id]));
-  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(TREE)},slots:${JSON.stringify(slots)},active:'p1',aiOpen:false,agentOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);await until(()=>pages.every(page=>page.visible),'seven native panes visible');
+  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(TREE)},slots:${JSON.stringify(slots)},active:'p1',aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);await until(()=>pages.every(page=>page.visible),'seven native panes visible');
   for(const theme of ['light','dark']){
    win.setBounds(initialBounds);await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);await painted();await separators(theme,'initial');
    win.setBounds({...initialBounds,width:initialBounds.width-37,height:initialBounds.height-23});await painted();await separators(theme,'resized');await nora(theme);await aiGeometry(theme);

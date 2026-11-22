@@ -1,5 +1,5 @@
 'use strict';
-globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearance,changeLayout,applySide,save,zoom,agentSettings,onSidebar,status})=>{
+globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearance,changeLayout,applySide,save,zoom,onSidebar,status})=>{
  const d=document.querySelector('#settings-dialog'),body=d.querySelector('.dialog-content');
  d.dataset.nonmodal='true';d.setAttribute('aria-label','Настройки Mouse Browser');
  d.querySelector('header').innerHTML='<div><strong>Настройки</strong><small>Пульт управления Mouse Browser</small></div><button type="button" data-close-dialog aria-label="Закрыть настройки">×</button>';
@@ -23,10 +23,6 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
    ${toggle('desktopGestures','Переключать столы жестом','Два пальца по горизонтали или колесо в Норе.')}
    <div class="dialog-actions"><button type="button" data-settings-action="desktops">Рабочие столы</button><button type="button" data-settings-action="new-desktop">Добавить стол</button></div>
   </section>
-  <section data-settings-section="agent"><h3>Агент Маус</h3><p class="hint">Агент рядом с вашими страницами. Подключение модели и запуск задачи остаются под вашим управлением.</p>
-   <div class="dialog-actions"><button type="button" data-action="assistant">Открыть Агент Маус</button><button type="button" data-agent-settings="ollama">Подключить Ollama</button><button type="button" data-agent-settings="model">Модель и API</button><button type="button" data-agent-settings="permissions">Файлы и терминал</button></div>
-   ${toggle('restoreAgent','Восстанавливать открытую панель агента','Возвращает панель после запуска; не запускает задачи автоматически.')}
-  </section>
   <section data-settings-section="imports"><h3>Перенос данных</h3><p class="hint">Выберите файл экспорта из другого браузера. Исходные данные остаются на месте.</p>
    <div class="dialog-actions"><button type="button" id="settings-import-bookmarks">Импорт закладок</button><button type="button" id="settings-import-passwords">Импорт паролей CSV</button></div>
    <p id="settings-import-state" class="hint"></p><p class="hint">Закладки: HTML или Chromium JSON. Пароли сохраняются локально с шифрованием ОС и копируются по вашей команде; автоматического заполнения форм пока нет.</p>
@@ -48,7 +44,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
   const count=String(MouseLayout.leaves(m.tree).length),select=$('#settings-layout');if(![...select.options].some(option=>option.value===count)){const option=document.createElement('option');option.value=count;option.textContent=count;select.append(option);}select.value=count;$('#settings-ai-width').max=Math.max(240,document.querySelector('#workspace').clientWidth-280);$('#settings-ai-width').value=m.aiWidth;
   for(const input of d.querySelectorAll('[data-setting]')){input.checked=m.controlSettings?.[input.dataset.setting]!==false;input.disabled=!!m.privateMode;}
   d.querySelector('[data-settings-action="privacy"]').textContent=m.privateMode?'Вернуться в обычный режим':'Открыть инкогнито';
-  for(const input of d.querySelectorAll('[data-action="assistant"],[data-agent-settings],#settings-import-bookmarks,#settings-import-passwords,#settings-archive,#settings-archive-folder'))input.disabled=!!m.privateMode;
+  for(const input of d.querySelectorAll('#settings-import-bookmarks,#settings-import-passwords,#settings-archive,#settings-archive-folder'))input.disabled=!!m.privateMode;
   $('#settings-version').textContent=N.version;const mod=N.platform==='darwin'?'⌘':'Ctrl+';
   $('#settings-shortcuts').textContent=`${mod}T — новая вкладка · ${mod}L — адрес · ${mod}O — документ · ${mod}W — закрыть вкладку · Esc — закрыть панель.`;
   document.querySelector('#settings-button')?.setAttribute('aria-expanded',String(opened));
@@ -74,7 +70,7 @@ globalThis.createMouseSettings=({N,model:m,action,setTheme,setLocale,setAppearan
  async function open(){if(opened)return close();opened=true;message('');sync();if(!d.open)d.show();onSidebar(true);document.querySelector('#settings-button')?.setAttribute('aria-expanded','true');$('#settings-search').focus({preventScroll:true});await Promise.allSettled([N.zoom('state').then(zoomState),N.update('state').then(updateState),archiveState(),importState()]);}
  function close(){opened=false;serial++;clearTimeout(queryTimer);if(d.open)d.close();onSidebar(false);document.querySelector('#settings-button')?.setAttribute('aria-expanded','false');}
  d.querySelector('[data-close-dialog]').onclick=close;d.addEventListener('close',()=>{if(opened)close();});
- d.addEventListener('click',e=>{const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['assistant','privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});const agent=e.target.closest('[data-agent-settings]');if(agent)void run(async()=>{close();await agentSettings(agent.dataset.agentSettings);});});
+ d.addEventListener('click',e=>{const a=e.target.closest('[data-settings-action]');if(a)void run(async()=>{if(['privacy','desktops','new-desktop','history','bookmarks','downloads','captures','start-settings','screenshot','website','fullscreen'].includes(a.dataset.settingsAction))close();return action(a.dataset.settingsAction);});});
  $('#settings-dark').onchange=e=>{setTheme(e.target.checked?'dark':'light');sync();};$('#settings-language').onchange=e=>{setLocale(e.target.value);sync();};
  $('#settings-square-grid').onchange=e=>setAppearance({paneMode:e.target.checked?'square':'rounded'});$('#settings-white-tone').oninput=e=>setAppearance({whiteTone:Number(e.target.value)});$('#settings-white-tone-reset').onclick=()=>setAppearance({whiteTone:MouseAppearance.DEFAULTS.whiteTone});
  $('#settings-layout').onchange=e=>run(()=>changeLayout(Number(e.target.value)));$('#settings-ai-width').oninput=e=>{m.aiWidth=Number(e.target.value);applySide();save();};

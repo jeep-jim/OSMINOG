@@ -45,11 +45,11 @@ test('AI focus is transient and reuses native fullscreen ownership without navig
  assert.match(ui,/for\(const pane of m\.focusAI\?\[\]:document\.querySelectorAll/);
  assert.match(fs.readFileSync('mouse/mouse-614.css','utf8'),/body\.ai-focused #stage/);
 });
-test('the installed fullscreen card predicate distinguishes ordinary Agent entry from private external providers',()=>{
- const {assertVisibleAIPresets}=require('./mouse-614-smoke.cjs'),external=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'],normal=['mouse://agent',...external];
- assert.equal(assertVisibleAIPresets({privateMode:false,urls:normal},'normal'),true);assert.equal(assertVisibleAIPresets({privateMode:true,urls:external},'private'),true);
- assert.throws(()=>assertVisibleAIPresets({privateMode:false,urls:external},'normal'),'The normal restored Agent entry is mandatory');
- assert.throws(()=>assertVisibleAIPresets({privateMode:true,urls:normal},'private'),'Private mode must not leak the Agent entry');
+test('the installed fullscreen card predicate retains all ordinary providers in normal and private modes',()=>{
+ const {assertVisibleAIPresets}=require('./mouse-614-smoke.cjs'),external=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'],retired=['mouse://agent',...external];
+ assert.equal(assertVisibleAIPresets({privateMode:false,urls:external},'normal'),true);assert.equal(assertVisibleAIPresets({privateMode:true,urls:external},'private'),true);
+ assert.throws(()=>assertVisibleAIPresets({privateMode:false,urls:retired},'normal'),'The removed Agent cannot remain in normal mode');
+ assert.throws(()=>assertVisibleAIPresets({privateMode:true,urls:retired},'private'),'Private mode must not leak the Agent entry');
  assert.throws(()=>assertVisibleAIPresets({privateMode:true,urls:[external[0],external[1],external[1],external[3]]},'private'),'A matching card count cannot substitute a provider');
  assert.throws(()=>assertVisibleAIPresets({privateMode:false,urls:external},'private'),'The caller scope cannot substitute the real renderer privacy state');
 });

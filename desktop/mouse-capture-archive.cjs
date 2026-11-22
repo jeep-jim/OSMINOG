@@ -9,7 +9,7 @@ async function openNoFollow(file){
  // Windows ignores O_NOFOLLOW. The shared native boundary opens the leaf
  // relative to a held parent HANDLE, inspects reparse metadata, and gives Node
  // the same already-validated handle. Never fall back to check-then-open.
- const native=require('./mouse-mcp-fs.node');let fd,parent;
+ const native=require('./mouse-platform.node');let fd,parent;
  try{parent=native.openRoot(path.dirname(path.resolve(file)));fd=native.openRead(parent,path.basename(file));}
  catch(error){if([2,3].includes(error.win32Error)&&/cannot be opened|cannot be read/.test(error.message))error.code='ENOENT';throw error;}
  finally{if(parent!==undefined)nodeFS.closeSync(parent);}

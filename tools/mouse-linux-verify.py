@@ -220,12 +220,12 @@ def main(argv=None):
             require(retained636_report.get("ok") is True and retained636_report.get("version") == VERSION,
                     "Mouse636 retained pane downloads, AI preview and capture did not pass in the installed Linux build")
             evidence["checks"]["ownerRetained636"] = {**retained636, "reportSha256": sha256(output / "mouse-636-retained-owner-feedback.json")}
-            required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
+            required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_637_AGENT_REMOVAL_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
             owner636 = run_logged([executable, "--mouse-637-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner636")},
                                   output, "mouse-636-owner-feedback.log", 270, required636)
             owner636_report = json.loads((output / "mouse-636-owner-feedback.json").read_text(encoding="utf-8"))
             require(owner636_report.get("ok") is True and owner636_report.get("version") == VERSION,
-                    "Mouse636 search removal, inline Agent, performance, pinned panes and stable library did not pass in the installed Linux build")
+                    "Mouse636 search removal, removed Agent, performance, pinned panes and stable library did not pass in the installed Linux build")
             evidence["checks"]["ownerFeedback636"] = {**owner636, "reportSha256": sha256(output / "mouse-636-owner-feedback.json")}
             features_env = {**env, "MOUSE_TEST_PROFILE": str(root / "features637")}
             feature_processes = {}

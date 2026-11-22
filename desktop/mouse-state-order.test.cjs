@@ -103,7 +103,7 @@ test('an older openPage state response cannot overwrite a newer accepted mode or
 
 test('an older openAI state response cannot restore obsolete AI ownership or custom-site preferences',async()=>{
  const f=renderer();let resolveState;const pending=new Promise(resolve=>resolveState=resolve);
- Object.assign(f.ctx,{URL,MouseAgentBrand:{service:'mouse://agent'},presets:[],N:{browser:async action=>action==='open'?{id:'opened-ai'}:pending},deskSwitch:Promise.resolve(),renderAISites:()=>f.calls.render++,setStatus(){},syncAIIcon(){},$(){return{};}});
+ Object.assign(f.ctx,{URL,presets:[],N:{browser:async action=>action==='open'?{id:'opened-ai'}:pending},deskSwitch:Promise.resolve(),renderAISites:()=>f.calls.render++,setStatus(){},syncAIIcon(){},$(){return{};}});
  vm.runInContext(section(' async function openAI(','\n\n const aiIcons=')+'\nglobalThis.openAI=openAI;',f.ctx);
  const operation=f.ctx.openAI('https://owned-ai.test/');await flush();acceptDesign(f);const before=copy({slots:f.model.slots,aiId:f.model.aiId,aiSessions:f.model.aiSessions,aiSites:f.model.aiSites});resolveState(snapshot(20,[...f.old,{id:'opened-ai',lane:'side'}]));await operation;
  assert.deepEqual(copy({slots:f.model.slots,aiId:f.model.aiId,aiSessions:f.model.aiSessions,aiSites:f.model.aiSites}),before);assert.equal(f.model.state.snapshot.revision,21);assert.deepEqual(f.calls,{save:0,render:0,layout:0});
@@ -120,21 +120,20 @@ test('a newer accepted snapshot retaining the new page lets openPage finish with
 
 test('a newer accepted snapshot retaining the new AI page lets openAI finish without rolling state back',async()=>{
  const f=renderer();acceptDesign(f);let resolveState;const pending=new Promise(resolve=>resolveState=resolve),calls=[];
- Object.assign(f.ctx,{URL,MouseAgentBrand:{service:'mouse://agent'},presets:[],N:{browser:async action=>{calls.push(action);return action==='open'?{id:'opened-ai'}:pending;}},deskSwitch:Promise.resolve(),renderAISites:()=>f.calls.render++,setStatus(){},syncAIIcon(){},$(){return{};}});
+ Object.assign(f.ctx,{URL,presets:[],N:{browser:async action=>{calls.push(action);return action==='open'?{id:'opened-ai'}:pending;}},deskSwitch:Promise.resolve(),renderAISites:()=>f.calls.render++,setStatus(){},syncAIIcon(){},$(){return{};}});
  vm.runInContext(section(' async function openAI(','\n\n const aiIcons=')+'\nglobalThis.openAI=openAI;',f.ctx);
  const operation=f.ctx.openAI('https://owned-ai.test/');await flush();const tabs=[...f.tabs,{id:'opened-ai',lane:'side',title:'Fresh AI title'}],current=snapshot(23,tabs);f.ctx.receive(current);Object.assign(f.calls,{save:0,render:0,layout:0});
  resolveState(snapshot(22,tabs.map(t=>({...t,title:'Old title'}))));await operation;
  assert.equal(f.model.state,current);assert.equal(f.model.aiId,'opened-ai');assert.equal(f.model.aiSessions['https://owned-ai.test/'],'opened-ai');assert.equal(f.model.aiSites[0].url,'https://owned-ai.test/');assert.equal(f.model.aiOpen,true);assert.deepEqual(f.calls,{save:1,render:1,layout:1});assert.deepEqual(calls,['open','state']);
 });
 
-test('actual navigation, extension, Agent and document continuations use current live IDs after a stale read-only refresh',async()=>{
- for(const kind of ['navigate','extension','agent','document'])for(const present of [true,false]){
-  const f=renderer();acceptDesign(f);const id='design-0';f.model.state.tabs.find(t=>t.id===id).internal=true;f.model.agentOpen=true;let resolveState;const pending=new Promise(resolve=>resolveState=resolve),activated=[];
+test('actual navigation, extension and document continuations use current live IDs after a stale read-only refresh',async()=>{
+ for(const kind of ['navigate','extension','document'])for(const present of [true,false]){
+  const f=renderer();acceptDesign(f);const id='design-0';f.model.state.tabs.find(t=>t.id===id).internal=true;let resolveState;const pending=new Promise(resolve=>resolveState=resolve),activated=[];
   Object.assign(f.ctx,{N:{browser:async action=>action==='navigate'?true:pending},deskSwitch:Promise.resolve(),setStatus(){},setActive(){},renderTree:()=>f.calls.render++,requestLayout:()=>f.calls.layout++,activateDesktopTab:async value=>activated.push(copy(value)),overlays:{show(){}},createMouseExtensionsUI:config=>{f.ctx.extension=config;},createMouseDocumentsUI:config=>{f.ctx.documents=config;return config;},documentsUI:null});
   vm.runInContext(section(' function placementPane(','\n function setActive'),f.ctx);let operation;
-  if(kind==='navigate'){vm.runInContext(section(' async function navigateStart(','\n async function chooseWebAI')+'\nglobalThis.navigateStart=navigateStart;',f.ctx);operation=f.ctx.navigateStart('https://current.test/','p1');}
+  if(kind==='navigate'){vm.runInContext(section(' async function navigateStart(','\n async function openAI')+'\nglobalThis.navigateStart=navigateStart;',f.ctx);operation=f.ctx.navigateStart('https://current.test/','p1');}
   else if(kind==='extension'){vm.runInContext(section(' createMouseExtensionsUI(','\n const capture='),f.ctx);operation=f.ctx.extension.placeTab({id,desk:'desk-2'});}
-  else if(kind==='agent'){vm.runInContext(section(' async function activateAgentTab(','\n async function action(')+'\nglobalThis.activateAgentTab=activateAgentTab;',f.ctx);operation=f.ctx.activateAgentTab(id);}
   else{vm.runInContext(source.split('\n').find(row=>row.startsWith(' documentsUI=')),f.ctx);operation=f.ctx.documents.activate(id);}
   await flush();const tabs=f.tabs.filter(t=>present||t.id!==id).map(t=>({...t,title:'Current title',internal:false})),current=snapshot(23,tabs);f.ctx.receive(current);Object.assign(f.calls,{save:0,render:0,layout:0});const before=copy(f.model.slots);
   resolveState(snapshot(22,f.tabs));await operation;assert.equal(f.model.state,current,kind+' preserves newest state');

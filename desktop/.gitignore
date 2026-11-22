@@ -11,5 +11,4 @@ protocol.cjs
 page-pointer-preload.cjs
 *.node
 dist-mouse*/
-mouse-agent/native-win/build/
-mouse/agent-vendor/
+mouse-native/native-win/build/

@@ -71,8 +71,8 @@ if regression.returncode or not all(marker in regression_output.splitlines() for
 subprocess.run([sys.executable,str(pathlib.Path(__file__).with_name('mouse-631-acceptance.py')),'--directory','.', '--platform','darwin','--arch','arm64'],check=True)
 owner636_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'owner636')}
 owner636,owner636_output=run_logged([str(exe),'--mouse-637-smoke'],owner636_env,pathlib.Path('mouse-636-owner-feedback.log'),270)
-required636=['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
-if owner636.returncode or not all(marker in owner636_output.splitlines() for marker in required636):raise SystemExit('Mouse636 removed search, inline Agent, live performance, pinned panes or stable library verification failed')
+required636=['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_637_AGENT_REMOVAL_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
+if owner636.returncode or not all(marker in owner636_output.splitlines() for marker in required636):raise SystemExit('Mouse636 removed search, removed Agent, live performance, pinned panes or stable library verification failed')
 features_env={**os.environ,'CI':'true','MOUSE_TEST_PROFILE':str(root/'features637')}
 feature_processes={}
 for phase,flag,marker,budget in [('write','--mouse-637-features-smoke','MOUSE_637_FEATURES_WRITE_PASS',270),('read','--mouse-637-features-restore-read','MOUSE_637_FEATURES_NATIVE_PASS',120)]:

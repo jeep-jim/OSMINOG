@@ -9,7 +9,7 @@ const {closingReversalPair,observeNoraReversal}=require('./mouse-smoke-reversal.
 const {createMotionTrace,MARKER_PREFIX,bounded}=require('./mouse-smoke-trace.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){for(let i=0;i<400;i++){if(await fn())return;await sleep(25);}throw Error('Mouse627 motion timeout: '+label);}
-const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
+const layoutKeys=['desktopId','mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 function paintedPanel(pixels,size,geometry){
  const sx=size.width/geometry.viewport.width,sy=size.height/geometry.viewport.height,top=geometry.baseline-geometry.height,columns=[.2,.5,.8].map(f=>Math.floor((geometry.left+geometry.width*f)*sx)),fill=geometry.fill,line=geometry.line;
  const rgb=(x,y)=>{const i=(y*size.width+x)*4;return[pixels[i+2],pixels[i+1],pixels[i],pixels[i+3]];},distance=(a,b)=>Math.max(...b.map((v,i)=>Math.abs(a[i]-v))),solid=p=>p[3]===255&&distance(p,fill)<=2;

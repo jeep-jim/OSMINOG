@@ -124,7 +124,7 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
  try{
   previewBase=await start(false);chatBase=await start(true);report.origins={chat:chatBase,preview:previewBase};
   const opened=await browser.command('open',{url:chatBase+'/page/2/',lane:'side'}),chat={id:opened.id,index:2,desk:fixture.bank.active,page:browser.get(opened.id)};fixture.created.push(chat);await fixture.preparePage(chat);
-  await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,agentOpen:false,libraryOpen:false,aiId:${JSON.stringify(chat.id)},aiWidth:400,aiPreviewRatio:.5});MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,libraryOpen:false,aiId:${JSON.stringify(chat.id)},aiWidth:400,aiPreviewRatio:.5});MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await fixture.until(()=>chat.page.visible&&chat.page.bounds?.height>180,'owned AI chat displayed');report.chatBefore=await fixture.identity(chat);
   const first=await openPreview(chat),preview=first.record;report.open={input:first.input,chatClick:await fixture.pageJS(chat,'mouse637PreviewClick')};assert.equal(report.open.chatClick.trusted,true);
   await awaitFavicon(preview);

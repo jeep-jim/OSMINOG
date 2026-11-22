@@ -10,10 +10,8 @@ test('Windows Mouse NSIS identity, runtime, version and profile preservation',()
  for(const icon of [win.win.icon,win.nsis.installerIcon,win.nsis.uninstallerIcon,win.nsis.installerHeaderIcon])assert.equal(icon,'icons/mouse-browser.ico');
  assert.ok(win.files.includes('icons/mouse-browser.ico'));assert.equal(win.nsis.createDesktopShortcut,true);
  assert.equal(win.mac,undefined);assert.equal(win.dmg,undefined);
- assert.ok(!win.files.includes('mouse-native-menu.node'));assert.ok(win.files.includes('mouse-mcp-fs.node'));
- const filters=win.extraResources.find(x=>x.from==='mouse-agent/node_modules').filter;
- assert.ok(!filters.some(x=>/^!node-pty\/prebuilds\/win32-(?:\*|x64)/.test(x)));
- assert.ok(filters.includes('!node-pty/prebuilds/darwin-*/**/*'));
+ assert.ok(!win.files.includes('mouse-native-menu.node'));assert.ok(win.files.includes('mouse-platform.node'));
+ assert.deepEqual(win.extraResources,[]);assert.deepEqual(win.asarUnpack,['mouse-platform.node']);
  assert.equal(mac.extraMetadata.version,win.extraMetadata.version);
 });
 test('Windows ICO contains complete PNG images with matching shell directory sizes',()=>{

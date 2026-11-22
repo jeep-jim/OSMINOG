@@ -1,28 +1,26 @@
 'use strict';
 // All three installed platforms run this same native-control proof. The URLs
 // are the production catalog; their content is redirected to owned loopback
-// documents, with no service account login or Agent access enabled.
+// documents, with no service account login .
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
 const {createPresetProof,ownedPresetPage,canonicalServices}=require('./mouse-637-presets-helpers.cjs');
 const {DesktopBank}=require('./mouse-desktops.cjs');
 const copy=value=>JSON.parse(JSON.stringify(value));
 
-module.exports=async function verifyPresets({app,win,browser,store,agentHost,fixture,click,text,capture,theme,facts,records}){
+module.exports=async function verifyPresets({app,win,browser,store,fixture,click,text,capture,theme,facts,records}){
  const {js,until,frame,bank}=fixture;
  await js('MouseTest.desktopUI.close({immediate:true});globalThis.MouseFlush?.()');await store.queue;
  const original=await js('({preferences:MouseTest.prefs(),focusPane:MouseTest.model.focusPane,focusAI:MouseTest.model.focusAI,libraryOpen:MouseTest.model.libraryOpen})'),savedBank=bank.snapshot(),globals=copy(bank.global),originalIds=new Set(Object.keys(bank.members));
  const originalPages=new Map([...browser.tabs.values()].map(page=>[page.id,{page,wc:page.view.webContents,url:page.view.webContents.getURL(),epoch:page.navigationEpoch||0}])),originalRecords=await Promise.all(records.map(fixture.identity));
- const nativeInputStart=facts.nativeInputs.length,selected=[],proof=createPresetProof({app,win,browser,agentHost,js,until,click,text,setTheme:theme,frame,selectedRequests:selected,
-  captureLanding:(read,rgb)=>capture('mouse-637-localhost-'+read.theme+'.png',[{name:'Localhost landing background',point:{x:read.pane.x+12,y:read.pane.y+12},expectedRGB:rgb}])});
+ const nativeInputStart=facts.nativeInputs.length,selected=[],proof=createPresetProof({app,browser,js,until,click,frame,selectedRequests:selected});
  const report=proof.evidence;facts.presets=report;report.ok=false;let server,intercepted=false,failure;
  try{
-  proof.assertDisconnected(proof.capabilities());
   const favicon=await fs.readFile(path.join(__dirname,'mouse/brand.png'));
   server=http.createServer((req,res)=>{res.setHeader('Cache-Control','no-store');if((req.url||'').split('?')[0]==='/favicon.png'){res.setHeader('Content-Type','image/png');res.end(favicon);return;}res.setHeader('Content-Type','text/html; charset=utf-8');res.end(ownedPresetPage(decodeURIComponent((req.url||'/').split('/').pop())));});
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)});report.fixtureOrigin='http://127.0.0.1:'+server.address().port;
   browser.session.webRequest.onBeforeRequest({urls:canonicalServices()},(details,done)=>{selected.push(details.url);done({redirectURL:report.fixtureOrigin+'/suggested/'+encodeURIComponent(details.url)});});intercepted=true;
-  const result=await proof.runCatalog();await proof.restoreAgent();
-  assert.equal(result.allIds.length,24);assert.equal(selected.length,27);assert.equal(report.applications.length,7);
+  const result=await proof.runCatalog();
+  assert.equal(result.allIds.length,23);assert.equal(selected.length,27);assert.equal(report.applications.length,6);
   report.primaryPages=result.allIds.length;report.nativeInputStart=nativeInputStart;report.nativeInputEnd=facts.nativeInputs.length;report.inputCount=report.nativeInputEnd-nativeInputStart;
  }catch(error){failure=error;}
  finally{

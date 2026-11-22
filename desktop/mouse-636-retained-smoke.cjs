@@ -75,7 +75,7 @@ module.exports=async ctx=>{
   facts.downloads=await stage('pane-download-widgets',()=>require('./mouse-634-download-widget-smoke.cjs')({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base}));
   await stage('ai-link-preview',async()=>{
    const chat=await fixture.open(base+'/page/2/',2);await browser.command('move-lane',{id:chat.id,lane:'side'});
-   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,agentOpen:false,aiWidth:380,aiId:${JSON.stringify(chat.id)},aiSessions:{[${JSON.stringify(base+'/page/2/')}]:${JSON.stringify(chat.id)}}});MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
+   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,aiWidth:380,aiId:${JSON.stringify(chat.id)},aiSessions:{[${JSON.stringify(base+'/page/2/')}]:${JSON.stringify(chat.id)}}});MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
    await fixture.until(()=>chat.page.visible&&chat.page.bounds.height>250,'634 visible chat');await fixture.frame();
    const before=await fixture.js(`(${aiReadback.toString()})()`),chatBefore=await fixture.identity(chat),mainBefore=await Promise.all(mains.map(fixture.identity)),totalBefore=browser.tabs.size,chatHeightBefore=chat.page.bounds.height;
    const ai=facts.aiPreview={ok:false,before,chatBefore,mainBefore};await save();

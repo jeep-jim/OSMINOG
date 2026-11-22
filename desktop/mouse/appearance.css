@@ -1,7 +1,7 @@
 /* Appearance belongs to browser chrome and browser-owned pages only. Native
    website renderers retain their own styles, colours, media and live state. */
 :root[data-pane-mode=square]{--workspace-gap:0px;--pane-radius:0px}
-:root[data-pane-mode=square] #workspace :is(#ai-panel,#ai-chat-pane,#ai-preview-pane,#library-dialog,#settings-dialog,#agent-panel){border-radius:0}
+:root[data-pane-mode=square] #workspace :is(#ai-panel,#ai-chat-pane,#ai-preview-pane,#library-dialog,#settings-dialog){border-radius:0}
 :root[data-pane-mode=square] #workspace :is(#ai-slot,#ai-preview-slot,.page-slot){border-radius:0}
 :root[data-pane-mode=square] #stage .pane.mouse-drop-target::after{border-radius:0}
 :root[data-pane-mode=square] section.mouse-pane-downloads>button.mouse-download-pill{border-radius:0}
@@ -13,13 +13,11 @@
 :root[data-pane-mode=square] .ai-divider>.divider-hit{inset:0 -3px}
 :root[data-pane-mode=square] .divider[data-axis=y]>.divider-hit{inset:-3px 0}
 
-html[data-theme=dark] #agent-panel{--chat-text:var(--text-primary)}
 :root[data-theme=dark] .home-page{--home-ink:var(--text-primary);color:var(--home-ink)}
 :root[data-theme=dark] .home-page :is(.home-customize,.home-more){color:var(--text-primary)!important}
-:root[data-theme=dark] :is(.home-agent-open,.resize-size-hud,.desktop-total-badge,.desk-badge,.background-preset),
+:root[data-theme=dark] :is(.resize-size-hud,.desktop-total-badge,.desk-badge,.background-preset),
 :root[data-theme=dark] #downloads-button .mouse-download-badge,
-:root[data-theme=dark] section.mouse-pane-downloads>button.mouse-download-pill,
-:root[data-theme=dark] #agent-panel :is(#agent-allow,#agent-enable,#agent-settings-done,.agent-task button){color:var(--text-primary)}
+:root[data-theme=dark] section.mouse-pane-downloads>button.mouse-download-pill{color:var(--text-primary)}
 
 #settings-dialog .settings-white-tone{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;margin:16px 0 20px;font-size:11px}
 #settings-dialog .settings-white-tone>label{display:block;margin:0}

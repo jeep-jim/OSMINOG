@@ -110,7 +110,7 @@ module.exports=async({app,win,browser,store,libraryService,privateMode,globalCap
  const feedback=async(run=js)=>run(`(${captureFeedbackSample.toString()})()`);
  try{
   server=http.createServer(createDownloadFixture({known,requests:facts.downloads.httpRequests,canRetry:()=>allowRetry,canFinishKnown:()=>finishKnown}));await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));root='http://127.0.0.1:'+server.address().port;attach(browser,libraryService,'normal');
-  await js(`MouseTest.restorePane();MouseTest.changeLayout(1);MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.applySide();MouseTest.openPage(${JSON.stringify(root+'/fixture')})`);
+  await js(`MouseTest.restorePane();MouseTest.changeLayout(1);MouseTest.model.aiOpen=false;MouseTest.applySide();MouseTest.openPage(${JSON.stringify(root+'/fixture')})`);
   let normalPage;await until(()=>{normalPage=[...browser.tabs.values()].find(page=>page.url===root+'/fixture'&&!page.loading);return normalPage?.visible;},'normal owner page');
   const first=await start('known',normalPage);await until(()=>first.received>0&&first.state==='progressing','actual known bytes');
   await js(`MouseNative.library('download',{id:${JSON.stringify(first.id)},action:'pause'})`);await sample('known',first.id,'paused');await js(`MouseNative.library('download',{id:${JSON.stringify(first.id)},action:'resume'})`);

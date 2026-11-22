@@ -4,7 +4,7 @@
 const {randomUUID}=require('node:crypto');
 const MAX_ACTIVE=64,MAX_PER_OWNER=4,MAX_HISTORY=24,HISTORY_TTL=60000,STALE_TTL=30*60*1000;
 const COMPLETED_VISIBLE=0,STOPPED_VISIBLE=5000,EMIT_INTERVAL=100,MAX_ETA_SECONDS=7*24*60*60;
-const SOURCES=new Set(['agent','terminal','page','shell']),KINDS=new Set(['reported','observed']),FINAL=new Set(['completed','stopped','cancelled','error']);
+const SOURCES=new Set(['page','shell']),KINDS=new Set(['reported','observed']),FINAL=new Set(['completed','stopped','cancelled','error']);
 class ProgressLimitError extends Error{constructor(){super('Progress task limit reached');this.name='ProgressLimitError';this.code='MOUSE_PROGRESS_LIMIT';}}
 function cleanText(value,limit=240){
  if(value===undefined||value===null)return'';if(typeof value!=='string')throw Error('Progress text must be a string');

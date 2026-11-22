@@ -211,7 +211,7 @@ module.exports=async function run({app,win,browser,store}){
   assert.equal(facts.encapsulated.length,8);
  }
  try{
-  await js('(async()=>{MouseTest.restorePane();await MouseNative.window("pane-restore");MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.model.libraryOpen=false;MouseTest.model.focusPane="";MouseTest.model.focusAI=false;MouseTest.changeLayout(1);MouseTest.applySide();await MouseTest.save();})()');
+  await js('(async()=>{MouseTest.restorePane();await MouseNative.window("pane-restore");MouseTest.model.aiOpen=false;MouseTest.model.libraryOpen=false;MouseTest.model.focusPane="";MouseTest.model.focusAI=false;MouseTest.changeLayout(1);MouseTest.applySide();await MouseTest.save();})()');
   crossServer=http.createServer((_req,res)=>{res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(frameFixtureHTML);});
   await new Promise((resolve,reject)=>{crossServer.once('error',reject);crossServer.listen(0,'127.0.0.1',resolve);});
   server=http.createServer((req,res)=>{if(req.url==='/favicon.ico'){res.writeHead(204);res.end();return;}res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(req.url==='/mouse632-frame'?frameFixtureHTML:req.url==='/mouse632-encapsulated'?encapsulatedFixtureHTML.replace('__CROSS_FRAME__','http://127.0.0.1:'+crossServer.address().port+'/mouse632-cross-frame'):fixtureHTML);});

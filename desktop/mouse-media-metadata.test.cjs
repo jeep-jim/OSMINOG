@@ -5,7 +5,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 // presentation/compositor simulation; the installed-app media smoke covers
 // the complete renderer and native WebContentsView hierarchy separately.
 function renderer(){
- const writes=[],mounts={home:0,documents:0,layouts:0},homeMounts=[],localMounts=[],nodes=new Map();
+ const writes=[],mounts={home:0,documents:0,layouts:0},homeMounts=[],nodes=new Map();
  function node(name){
   const values={textContent:'',title:'',value:'',disabled:false,hidden:false},attrs=new Map(),children=new Map(),classes=new Set();
   const result={name,children,getAttribute:key=>attrs.get(key)??null,setAttribute(key,value){attrs.set(key,String(value));writes.push({node:name,key,value});},querySelector:key=>children.get(key)||null,replaceChildren(){writes.push({node:name,key:'children'});},prepend(){writes.push({node:name,key:'children'});},classList:{toggle(key,enabled){if(classes.has(key)===enabled)return;enabled?classes.add(key):classes.delete(key);writes.push({node:name,key:'class',value:key});}}};
@@ -18,14 +18,14 @@ function renderer(){
  const document={activeElement:null,querySelector:selector=>globals.get(selector),querySelectorAll:selector=>selector==='.pane'?panes:selector.includes('reload')?reloads:[],createElement:()=>node('new'),addEventListener(){},removeEventListener(){}};
  const tabs=Array.from({length:10},(_,i)=>({id:'tab-'+i,title:'Title '+i,url:'https://fixture.test/'+i,lane:'main',loading:false,internal:false}));
  const m={pinnedPanes:{},ready:true,desktopId:'desk',state:{tabs},active:'p1',slots:Object.fromEntries(panes.map((p,i)=>[p.name,tabs[i].id])),aiId:''};
- const context={document,m,aiPreviewUI:null,performance:{now:()=>0},setTimeout,clearTimeout,MouseNative:{platform:'darwin'},$:(selector)=>globals.get(selector),tab:id=>m.state.tabs.find(t=>t.id===id),selected:()=>m.state.tabs.find(t=>t.id===m.slots[m.active]),favicon:()=>node('favicon'),el:()=>node('mascot'),home:{mount:(slot,pane,enabled)=>{mounts.home++;homeMounts.push({slot,pane,enabled});}},localPreviewUI:{mount:(slot,pane,enabled)=>localMounts.push({slot,pane,enabled})},documentsUI:{mount:()=>mounts.documents++},prefs:()=>({slots:m.slots}),reconcile(){},renderTabs(){},syncAIIcon(){},applySide:()=>mounts.layouts++,desktopUI:{render(){}},progressUI:{render(){}},save(){}};
+ const context={document,m,aiPreviewUI:null,performance:{now:()=>0},setTimeout,clearTimeout,MouseNative:{platform:'darwin'},$:(selector)=>globals.get(selector),tab:id=>m.state.tabs.find(t=>t.id===id),selected:()=>m.state.tabs.find(t=>t.id===m.slots[m.active]),favicon:()=>node('favicon'),el:()=>node('mascot'),home:{mount:(slot,pane,enabled)=>{mounts.home++;homeMounts.push({slot,pane,enabled});}},documentsUI:{mount:()=>mounts.documents++},prefs:()=>({slots:m.slots}),reconcile(){},renderTabs(){},syncAIIcon(){},applySide:()=>mounts.layouts++,desktopUI:{render(){}},progressUI:{render(){}},save(){}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'mouse/mouse-616-ui.js'),'utf8'),context);context.chromeControls=context.createMouseChromeControls({model:m,tab:context.tab,doc:document});
  const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),begin=source.indexOf('const paneBindings='),end=source.indexOf('function changeLayout(',begin),receive=source.indexOf('function receiveState('),receiveEnd=source.indexOf('N.onState(receiveState)',receive),preview=source.indexOf('function syncAIPreview('),previewEnd=source.indexOf('function applySide(',preview);
  let revision=1;m.state={...m.state,desktopId:'desk',snapshot:{epoch:'unit-media',revision}};const receiver=source.slice(source.indexOf('function createStateReceiver('),source.indexOf('\n const resizeHUD'));
  assert.ok(begin>=0&&end>begin&&receive>=0&&receiveEnd>receive&&preview>=0&&previewEnd>preview);vm.runInContext(receiver+'\nstateReceiver.init(m.state,m.desktopId);\n'+source.slice(begin,end)+'\n'+source.slice(preview,previewEnd)+'\n'+source.slice(receive,receiveEnd),context);
- context.syncPaneLabels();context.syncAIPreview();writes.length=homeMounts.length=localMounts.length=0;for(const key of Object.keys(mounts))mounts[key]=0;
+ context.syncPaneLabels();context.syncAIPreview();writes.length=homeMounts.length=0;for(const key of Object.keys(mounts))mounts[key]=0;
  const notify=state=>context.receiveState({...state,snapshot:{epoch:'unit-media',revision:++revision}});
- return{m,document,panes,nodes,writes,mounts,homeMounts,localMounts,sync:context.syncPaneLabels,syncPreview:context.syncAIPreview,receive:notify,change(index,fields){const next=m.state.tabs.map(t=>({...t}));Object.assign(next[index],fields);notify({desktopId:'desk',tabs:next});}};
+ return{m,document,panes,nodes,writes,mounts,homeMounts,sync:context.syncPaneLabels,syncPreview:context.syncAIPreview,receive:notify,change(index,fields){const next=m.state.tabs.map(t=>({...t}));Object.assign(next[index],fields);notify({desktopId:'desk',tabs:next});}};
 }
 
 test('track titles update only the owning labels and do not remount any pane content',()=>{
@@ -55,13 +55,14 @@ test('replacing a selected page still mounts its new content and requests native
  f.change(0,{internal:false});assert.equal(f.mounts.home,2);assert.equal(f.mounts.layouts,2);
 });
 
-test('only the dedicated internal Agents page mounts the local preview and unrelated metadata leaves it intact',()=>{
- const f=renderer();f.m.mode='agents';f.m.agentPreviewId='tab-1';f.change(1,{internal:true});
- assert.equal(f.localMounts.at(-1).pane,'p2');assert.equal(f.localMounts.at(-1).enabled,true);assert.equal(f.homeMounts.at(-1).enabled,false);
- f.change(2,{internal:true});assert.equal(f.localMounts.at(-1).pane,'p3');assert.equal(f.localMounts.at(-1).enabled,false);assert.equal(f.homeMounts.at(-1).enabled,true,'An unrelated existing start page stays a start page');
- f.localMounts.length=f.homeMounts.length=0;for(let i=0;i<20;i++)f.change(0,{title:'Track '+i});assert.deepEqual(f.localMounts,[]);assert.deepEqual(f.homeMounts,[]);
- f.m.mode='support';f.sync();assert.equal(f.localMounts.length,1);assert.equal(f.localMounts[0].pane,'p2');assert.equal(f.localMounts[0].enabled,false);assert.equal(f.homeMounts[0].enabled,true);
- f.m.mode='agents';f.change(1,{documentId:'document',documentKind:'text',revision:1});assert.equal(f.localMounts.at(-1).enabled,false);assert.equal(f.homeMounts.at(-1).enabled,false,'A document on the same ID is never covered by the landing');
+test('retained internal pages mount ordinary home while the same IDs still support localhost and documents',()=>{
+ const f=renderer(),id=f.m.state.tabs[1].id;f.change(1,{internal:true,url:'mouse://start'});
+ assert.equal(f.homeMounts.at(-1).pane,'p2');assert.equal(f.homeMounts.at(-1).enabled,true);
+ f.change(2,{internal:true,url:'mouse://start'});assert.equal(f.homeMounts.at(-1).pane,'p3');assert.equal(f.homeMounts.at(-1).enabled,true);
+ f.homeMounts.length=0;for(let i=0;i<20;i++)f.change(0,{title:'Track '+i});assert.deepEqual(f.homeMounts,[]);
+ f.m.mode='support';f.sync();assert.deepEqual(f.homeMounts,[],'Web preset metadata does not replace an existing start page');
+ f.change(1,{internal:false,url:'http://127.0.0.1:5173/'});assert.equal(f.m.state.tabs[1].id,id);assert.equal(f.homeMounts.at(-1).pane,'p2');assert.equal(f.homeMounts.at(-1).enabled,false);
+ f.change(1,{internal:true,documentId:'document',documentKind:'text',revision:1});assert.equal(f.m.state.tabs[1].id,id);assert.equal(f.homeMounts.at(-1).enabled,false,'A document on the same ID is never covered by the start page');
 });
 
 function chrome(platform){

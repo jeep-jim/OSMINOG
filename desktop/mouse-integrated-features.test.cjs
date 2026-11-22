@@ -1,10 +1,11 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),{readFileSync}=require('node:fs'),{join}=require('node:path');
 const read=f=>readFileSync(join(__dirname,f),'utf8');
-test('the release base retains inline Agent and live desktop switching without experimental search',()=>{
+test('the release base retains ordinary web AI and live desktop switching without the built-in Agent or experimental search',()=>{
  const html=read('mouse/index.html'),ui=read('mouse/browser.js'),main=read('mouse-main.cjs'),browser=read('browser.cjs');
  assert.doesNotMatch(html+ui+main+browser,/mouse-search-button|install\(\{app,win,browser,overlayGate,store,ipcMain,trusted,powerMonitor.*tileSearch|adoptSearchSource|createMouseSearchUI/);
- assert.match(ui,/agentUI=createMouseAgentUI/);
+ assert.doesNotMatch(html+ui+main,/createMouseAgentUI|MouseAgentBrand|mouse:agent|agentHost/);
+ assert.match(ui,/async function openAI/);
  assert.match(ui,/switchDesktop/);
  assert.match(html,/<div id="mouse-extensions-tray"[^]*?<span id="layout-control-title"/);
  assert.match(html,/<footer id="statusbar"[^]*?<section id="mouse-media-widget"[^]*?<\/footer>/);

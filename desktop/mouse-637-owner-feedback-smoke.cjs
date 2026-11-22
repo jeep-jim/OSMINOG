@@ -1,5 +1,5 @@
 'use strict';
-// Installed 6.0.37 owner feedback: removed tile search, inline Agent settings,
+// Installed 6.0.37 owner feedback: removed tile search and Agent runtime/UI,
 // stable files/pins, and an independently recorded predecessor comparison.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
 const {screen,nativeImage}=require('electron');
@@ -33,7 +33,7 @@ module.exports=async ctx=>{
  }
  async function screenCapture(filename,kind,{deadline}={}){
   if(!filename.endsWith('.png'))filename+='.png';kind||=filename;
-  assert.match(filename,/^mouse-(635|636)-[a-z0-9-]+\.png$/);
+  assert.match(filename,/^mouse-(635|636|637)-[a-z0-9-]+\.png$/);
   const live=()=>{if(deadline!==undefined)assert.ok(Number.isFinite(deadline)&&performance.now()<deadline,'636 actual OS capture keeps its absolute presentation deadline');};
   const operation=async(work,label)=>{live();const value=deadline===undefined?await work():await bounded(Promise.resolve().then(work),Math.max(1,deadline-performance.now()),label);live();return value;};
   await operation(()=>fixture.frame(),'636 OS frame preparation');const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();
@@ -57,7 +57,7 @@ module.exports=async ctx=>{
   const helpers={fixture,nativeInput,click,screenCapture,stage};
   facts.library=await stage('stable-file-library',()=>require('./mouse-635-library-smoke.cjs')(ctx,helpers));
   await save();
-  facts.agentInline=await stage('agent-inline-settings',()=>require('./mouse-636-agent-smoke.cjs')(ctx,helpers));
+  facts.agentRemoval=await stage('agent-removed',()=>require('./mouse-637-agent-removal-smoke.cjs')(ctx,helpers));
   await save();
   facts.panes=await stage('pinned-panes',()=>require('./mouse-635-layout-smoke.cjs')(ctx,helpers));
   console.log('MOUSE_636_PINNED_PANES_PASS');

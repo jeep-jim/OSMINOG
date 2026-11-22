@@ -8,7 +8,7 @@ test('Linux packaging keeps the common runtime and overwrites the unsafe upstrea
  const build=require('./mouse-linux-build.cjs'),root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-linux-pack-'));
  try{
   assert.equal(build.extraMetadata.version,'6.0.37');assert.equal(build.appId,'black.mouse.browser.linux');assert.equal(build.mac,undefined);assert.equal(build.win,undefined);assert.equal(build.publish,null);assert.deepEqual(build.appImage.executableArgs,[]);
-  assert.ok(build.files.includes('mouse-mcp-fs.node'));assert.ok(!build.files.includes('mouse-native-menu.node'));
+  assert.ok(build.files.includes('mouse-platform.node'));assert.ok(!build.files.includes('mouse-native-menu.node'));
   const appOutDir=path.join(root,'app'),stage=path.join(root,'stage');await fs.mkdir(appOutDir);await fs.mkdir(stage);await fs.writeFile(path.join(stage,'AppRun'),'UNSAFE_GENERATED_FALLBACK');
   await build.afterPack({appOutDir,electronPlatformName:'linux'});await require('builder-util').copyDir(appOutDir,stage);
   const entry=await fs.readFile(path.join(stage,'AppRun'),'utf8');assert.equal(entry,await fs.readFile(path.join(appOutDir,'AppRun'),'utf8'));assert.doesNotMatch(entry,/--no-sandbox|unshare|NO_SANDBOX/);assert.match(entry,/exec "\$APPDIR\/mouse-browser" "\$@"/);if(process.platform!=='win32')assert.equal((await fs.stat(path.join(stage,'AppRun'))).mode&0o777,0o755);

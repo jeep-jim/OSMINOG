@@ -16,7 +16,7 @@ const actions=[
  section(' function reconcile(','\n function setActive'),
  section(' function changeLayout(','\n async function mutateDesktopTabs'),
  section(' function beginDrag(','\n const libraryDivider='),
- section(' async function restoreLayout(','\n async function activateAgentTab')
+ section(' async function restoreLayout(','\n async function action(')
 ].join('\n');
 
 function clock(){
@@ -31,7 +31,7 @@ function classes(){const values=new Set();return{add:value=>values.add(value),re
 function fixture(t){
  const time=clock(),handlers=new Map(),writes=[],renders=[],native=[],errors=[];
  const pages=['one','two','three','four'].map(id=>({id,lane:'main',url:'https://fixture.example/'+id}));
- const initial={desktopId:'desk-3',mode:'',agentOpen:false,tree:L.preset(2),slots:{p1:'one',p2:'two'},active:'p2',tabOrder:pages.map(p=>p.id),aiOpen:false,aiWidth:360,aiId:'',aiSessions:{}};
+ const initial={desktopId:'desk-3',mode:'',tree:L.preset(2),slots:{p1:'one',p2:'two'},active:'p2',tabOrder:pages.map(p=>p.id),aiOpen:false,aiWidth:360,aiId:'',aiSessions:{}};
  const bank=new DesktopBank(null,initial);bank.reconcile(pages);
  const events={addEventListener(name,fn){if(!handlers.has(name))handlers.set(name,[]);handlers.get(name).push(fn);}};
  const document={...events,body:{classList:classes()}},window={...events};

@@ -37,7 +37,7 @@ test('preset planning reuses same-desktop matching pages and preserves unrelated
  const support=Modes.get('support'),unrelated=page('work','https://owned.example/work'),whatsapp=page('whatsapp',support.sites[1]),chat=page('ai','https://chat.example/',{lane:'side'}),document=page('document','mouse://document/owned',{internal:true,documentId:'owned'}),tabs=[unrelated,whatsapp,chat,document],before=structuredClone(tabs);
  const previous={slots:{p1:unrelated.id},active:'p1',tabOrder:['document','work','whatsapp','ai'],aiOpen:true,aiId:'ai',aiSessions:{'https://chat.example/':'ai'}},plan=Modes.plan('support',tabs,previous);
  assert.equal(plan.selectedIds[1],'whatsapp');assert.equal(plan.missing.length,4);assert.ok(plan.missing.every(item=>item.index!==1));assert.equal(plan.layout.slots.p2,'whatsapp');
- assert.equal(plan.layout.aiOpen,false);assert.equal(plan.layout.agentOpen,false);assert.equal(plan.layout.aiId,'ai');assert.deepEqual(plan.layout.aiSessions,previous.aiSessions);
+ assert.equal(plan.layout.aiOpen,false);assert.equal(Object.hasOwn(plan.layout,'agentOpen'),false);assert.equal(plan.layout.aiId,'ai');assert.deepEqual(plan.layout.aiSessions,previous.aiSessions);
  assert.ok(plan.layout.tabOrder.includes('work'));assert.ok(plan.layout.tabOrder.includes('document'));assert.equal(plan.layout.tabOrder.filter(id=>id==='whatsapp').length,1);
  assert.deepEqual(tabs,before);assert.equal(tabs[0],unrelated);assert.equal(tabs[1],whatsapp);assert.equal(tabs[2],chat);assert.equal(tabs[3],document);assert.deepEqual(previous.slots,{p1:'work'});
  const selectedIds=[...plan.selectedIds],opened=plan.missing.map(({index,url})=>{const item=page('new-'+index,url);selectedIds[index]=item.id;return item;}),result=Modes.arranged('support',[...tabs,...opened],previous,{selectedIds});
@@ -56,18 +56,15 @@ test('remembered preset identities survive login redirects and mode cycles witho
 test('closed and foreign remembered pages become missing; duplicate or side/document placement cannot produce an accepted preset',()=>{
  const known=page('known',Modes.get('support').sites[0]),tabs=[known,page('ai','https://chat.example/',{lane:'side'}),page('doc','mouse://document/test',{documentId:'test'})];
  const previous={presetTabs:{support:['known','foreign','closed','ai','doc']},agentPreviewId:'foreign'},plan=Modes.plan('support',tabs,previous);
- assert.deepEqual(plan.selectedIds,['known','','','','']);assert.equal(plan.missing.length,4);assert.deepEqual(plan.layout.presetTabs.support,['known','','','','']);assert.equal(plan.layout.agentPreviewId,'');
+ assert.deepEqual(plan.selectedIds,['known','','','','']);assert.equal(plan.missing.length,4);assert.deepEqual(plan.layout.presetTabs.support,['known','','','','']);assert.equal(Object.hasOwn(plan.layout,'agentPreviewId'),false);
  for(const selectedIds of [['known','known','','',''],['known','ai','','',''],['known','doc','','',''],['foreign','','','','']])assert.throws(()=>Modes.arranged('support',tabs,previous,{selectedIds}),/недоступна/);
  assert.throws(()=>Modes.arranged('support',tabs,previous,{selectedIds:['known']}),/Неполный/);assert.throws(()=>Modes.plan('missing',tabs,previous),/Неизвестный/);
 });
 
-test('Agents owns one dedicated landing identity and keeps the actual local app when that tab later navigates',()=>{
- const ordinaryStart=page('ordinary-start','mouse://start',{internal:true}),work=page('work','https://owned.example/'),tabs=[ordinaryStart,work],previous={slots:{p1:'work'},tabOrder:['work','ordinary-start'],aiOpen:true,aiId:'chat'};
- const first=Modes.plan('agents',tabs,previous);assert.deepEqual(first.missing,[{index:0,url:'mouse://start'}]);assert.deepEqual(first.selectedIds,['']);assert.equal(L.leaves(first.layout.tree).length,1);assert.equal(first.layout.agentOpen,true);assert.equal(first.layout.aiOpen,false);
- const landing=page('agent-local','mouse://start',{internal:true});tabs.push(landing);
- const applied=Modes.arranged('agents',tabs,previous,{selectedIds:[landing.id]});assert.equal(applied.agentPreviewId,landing.id);assert.equal(applied.slots.p1,landing.id);assert.ok(applied.tabOrder.includes('ordinary-start')&&applied.tabOrder.includes('work'));
- landing.internal=false;landing.url='http://127.0.0.1:5173/editor';
- const repeated=Modes.plan('agents',tabs,applied);assert.deepEqual(repeated.missing,[]);assert.deepEqual(repeated.selectedIds,[landing.id]);assert.equal(repeated.layout.agentPreviewId,landing.id);
- const foreign=Modes.plan('agents',[ordinaryStart,work],applied);assert.equal(foreign.missing.length,1);assert.equal(foreign.layout.agentPreviewId,'');
- assert.deepEqual(ordinaryStart,page('ordinary-start','mouse://start',{internal:true}));
+test('the removed mode cannot open pages and remaining presets discard its metadata while preserving all page identities',()=>{
+ const ordinaryStart=page('ordinary-start','mouse://start',{internal:true}),work=page('work','http://127.0.0.1:5173/editor'),chat=page('chat','https://chat.example/',{lane:'side'}),tabs=[ordinaryStart,work,chat],before=structuredClone(tabs);
+ const previous={mode:'agents',agentOpen:true,agentPreviewId:work.id,presetTabs:{agents:[work.id]},slots:{p1:work.id},tabOrder:[work.id,ordinaryStart.id,chat.id],aiOpen:true,aiId:chat.id},saved=structuredClone(previous);
+ assert.deepEqual(Modes.modes.map(mode=>mode.id),['trader','support','design','content']);assert.throws(()=>Modes.plan('agents',tabs,previous),/Неизвестный/);
+ const next=Modes.plan('support',tabs,previous).layout;assert.equal(Object.hasOwn(next,'agentOpen'),false);assert.equal(Object.hasOwn(next,'agentPreviewId'),false);assert.equal(Object.hasOwn(next.presetTabs,'agents'),false);
+ assert.equal(next.aiId,chat.id);for(const id of [ordinaryStart.id,work.id])assert.ok(next.tabOrder.includes(id));assert.deepEqual(tabs,before);assert.deepEqual(previous,saved);assert.equal(tabs[0],ordinaryStart);assert.equal(tabs[1],work);assert.equal(tabs[2],chat);
 });

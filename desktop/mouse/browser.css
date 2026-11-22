@@ -10,7 +10,6 @@ dialog{padding:0;border:1px solid var(--line);border-radius:13px;background:var(
 #statusbar #footer-left .brand>img{width:19px;height:17px;min-width:19px;flex:none}
 :root[data-platform=win32] #statusbar #footer-left .brand>img{image-rendering:auto}
 #settings-dialog #documents-button{display:inline-flex;align-items:center;gap:5px}
-#agent-panel #agent-close{width:26px;min-width:26px;height:26px;min-height:26px;padding:0;font-size:18px}
 /* Equal icon boxes and deliberate gaps keep the footer's groups readable. */
 #statusbar #footer-left{gap:6px}
 #statusbar #footer-left .control-group{gap:5px;margin-right:8px}

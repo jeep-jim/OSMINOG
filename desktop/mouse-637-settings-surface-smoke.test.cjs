@@ -31,7 +31,7 @@ function cssScene({theme='dark',version='6.0.37',withoutSidebar=false,changeCSS=
   const parts=selector.trim().split(/\s+/);if(!simple(parts.pop(),node))return false;
   for(let i=parts.length-1;i>=0;i--){node=node.parent;while(node&&!simple(parts[i],node))node=node.parent;if(!node)return false;}return true;
  }
- const index=fs.readFileSync(path.join(__dirname,'mouse/index.html'),'utf8'),sheets=[...index.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match=>match[1]).filter(name=>!name.startsWith('agent-vendor/')&&(!withoutSidebar||name!=='sidebar-dim.css'));
+ const index=fs.readFileSync(path.join(__dirname,'mouse/index.html'),'utf8'),sheets=[...index.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(match=>match[1]).filter(name=>(!withoutSidebar||name!=='sidebar-dim.css'));
  assert.ok(sheets.indexOf('sidebar-dim.css')>sheets.indexOf('mouse-633.css')||withoutSidebar);
  const rules=[];
  for(const name of sheets){

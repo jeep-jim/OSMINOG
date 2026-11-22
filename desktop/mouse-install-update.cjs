@@ -171,7 +171,7 @@ async function startWindowsHelper(plan,{native,env=process.env}={}){
  try{
   err=await fs.open(plan.helperErr,'a',0o600);
   const encoded=Buffer.from(WINDOWS_HELPER,'utf16le').toString('base64');
-  const runtime=native||require('./mouse-mcp-fs.node'),entries=Object.entries(environment).filter(([,value])=>value!=null).map(([key,value])=>key+'='+String(value));
+  const runtime=native||require('./mouse-platform.node'),entries=Object.entries(environment).filter(([,value])=>value!=null).map(([key,value])=>key+'='+String(value));
   return observeWindowsHelper(runtime,runtime.launchUpdateHelper(encoded,entries,plan.stage,out.fd,err.fd));
  }finally{await out.close();await err?.close();}
 }

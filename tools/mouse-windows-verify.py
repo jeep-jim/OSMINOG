@@ -51,9 +51,10 @@ BASELINE_629_WRITE_MARKERS = [
 ]
 SUPERSEDED_DOCUMENT_MARKERS = {"MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PASS",
                                "MOUSE_627_DOCUMENT_TABS_NATIVE_PASS", "MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS"}
-WRITE_MARKERS = [marker for marker in BASELINE_629_WRITE_MARKERS if marker not in SUPERSEDED_DOCUMENT_MARKERS] + [
+RETIRED_AGENT_MARKERS = {"MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS"}
+WRITE_MARKERS = [marker for marker in BASELINE_629_WRITE_MARKERS if marker not in SUPERSEDED_DOCUMENT_MARKERS | RETIRED_AGENT_MARKERS] + [
     "MOUSE_632_DOCUMENTS_VIEW_ONLY_PASS", "MOUSE_632_FOOTER_LAYOUT_BOTH_THEMES_PASS",
-    "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS", "MOUSE_633_AGENT_VISIBLE_RESTORE_WITHOUT_AUTOENABLE_PASS",
+    "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS",
     "MOUSE_630_DOWNLOAD_ACTIVITY_PASS", "MOUSE_630_CAPTURE_FEEDBACK_PASS",
     "MOUSE_630_NORA_NATIVE_FOREGROUND_PASS", "MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS",
     "MOUSE_630_PAGE_SCROLL_PRESERVED_PASS", "MOUSE_630_PRIVATE_DOWNLOAD_SCOPE_PASS",
@@ -687,10 +688,10 @@ def main(argv=None) -> int:
         regression["mediaSha256"] = sha256(output / "mouse-632-media.json")
         evidence["checks"]["taskAndFiftyTabs"] = regression
         save()
-        owner636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 inline Agent and desktop performance")}
+        owner636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 removed Agent and desktop performance")}
         owner636 = run_logged([str(executable), "--mouse-637-smoke"], owner636_env,
                               output / "mouse-636-owner-feedback.log", 270)
-        required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
+        required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_637_AGENT_REMOVAL_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
         verify_markers(owner636.pop("output"), required636)
         owner636["requiredMarkers"] = required636
         owner636["reportSha256"] = sha256(output / "mouse-636-owner-feedback.json")

@@ -116,7 +116,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                 'mouse-633-owner-feedback.log': ['MOUSE_633_OWNER_FEEDBACK_PASS'],
                 'mouse-631-native.log': ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',
                                          'MOUSE_631_INSTALLED_TASK_STRESS_PASS', 'MOUSE_632_STATIONARY_MEDIA_PASS'],
-                'mouse-636-owner-feedback.log': ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS',
+                'mouse-636-owner-feedback.log': ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_637_AGENT_REMOVAL_PASS',
                                                 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS',
                                                 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS'],
                 'mouse-637-features-write.log': ['MOUSE_637_FEATURES_WRITE_PASS'],
@@ -257,7 +257,6 @@ class WindowsVerificationContracts(unittest.TestCase):
             "MOUSE_628_OPEN_NORA_DESKTOP_SLIDE_NATIVE_PASS",
             "MOUSE_629_TWO_FINGER_WHEEL_TUTORIAL_WRITE_PASS",
             "MOUSE_WINDOWS_PRIVATE_MEMORY_ISOLATION_PASS",
-            "MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS",
             "MOUSE_WINDOWS_PROFILE_WRITE_PASS",
             "MOUSE_WINDOWS_X64_SMOKE_PASS",
             "MOUSE_WINDOWS_NATIVE_CLOSE_REQUESTED",
@@ -268,14 +267,14 @@ class WindowsVerificationContracts(unittest.TestCase):
             "MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS",
         }
         # The actual published629 upgrade fixture retains its original editor gates.
-        self.assertEqual(baseline, retained | superseded_editing)
+        self.assertEqual(baseline, retained | superseded_editing | {"MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS"})
         self.assertEqual(len(baseline), len(verify.BASELINE_629_WRITE_MARKERS))
         self.assertTrue(superseded_editing.isdisjoint(required))
+        self.assertNotIn("MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS", required)
         current = {
             "MOUSE_632_DOCUMENTS_VIEW_ONLY_PASS",
             "MOUSE_632_FOOTER_LAYOUT_BOTH_THEMES_PASS",
             "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS",
-            "MOUSE_633_AGENT_VISIBLE_RESTORE_WITHOUT_AUTOENABLE_PASS",
             "MOUSE_630_DOWNLOAD_ACTIVITY_PASS",
             "MOUSE_630_CAPTURE_FEEDBACK_PASS",
             "MOUSE_630_NORA_NATIVE_FOREGROUND_PASS",

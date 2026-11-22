@@ -54,5 +54,5 @@ function create({app,win,nativeImage,Menu,primaryDown,isAvailable=()=>true}){
  function dispose(){if(disposed)return;disposed=true;invalidate();shell.removeListener('did-start-navigation',invalidate);for(const timer of timers)clearTimeout(timer);timers.clear();for(const dir of [...dirs])void remove(dir);}
  return{menu,drag,dispose,get lastMenu(){return lastMenu;}};
 }
-function nativeOptions(e){let native;return{nativeImage:e.nativeImage,Menu:e.Menu,primaryDown:()=>{native??=require(process.platform==='darwin'?'./mouse-native-menu.node':'./mouse-mcp-fs.node');return native.primaryDown();}};}
+function nativeOptions(e){let native;return{nativeImage:e.nativeImage,Menu:e.Menu,primaryDown:()=>{native??=require(process.platform==='darwin'?'./mouse-native-menu.node':'./mouse-platform.node');return native.primaryDown();}};}
 module.exports={metadata,create,nativeOptions};

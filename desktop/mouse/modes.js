@@ -1,6 +1,6 @@
 'use strict';
 // Shared declarative presets. A preset opens ordinary web pages; it does not
-// connect accounts or grant the Agent any browser, file or terminal access.
+// connect accounts or change permissions.
 (function(root){
  const pane=n=>({id:'p'+n}),split=(axis,ratio,a,b)=>({axis,ratio,a,b});
  const col=(...n)=>n.length===1?pane(n[0]):split('y',1/n.length,pane(n[0]),col(...n.slice(1)));
@@ -11,7 +11,6 @@
   {id:'design',name:'Разработка и дизайн',hint:'Макет, репозиторий, документация и поиск',icon:'M8 5L2 12l6 7 M16 5l6 7-6 7 M14 3l-4 18',tree:split('x',.64,split('y',.66,pane(1),split('x',.5,pane(2),pane(3))),col(4,5)),sites:['https://www.figma.com/','https://github.com/','https://developer.mozilla.org/','https://stackoverflow.com/','https://www.google.com/']},
   // Column-major order matches the supplied six-column, two-row workspace.
   {id:'content',name:'Контент и соцсети',hint:'12 сайтов · 6 колонок и 2 ряда',icon:'M4 5h16v14H4z M9 8l6 4-6 4V8 M2 2h5 M17 22h5',tree:columns(col(1,2),col(3,4),col(5,6),col(7,8),col(9,10),col(11,12)),sites:['https://www.instagram.com/explore/','https://www.twitch.tv/','https://www.tiktok.com/explore','https://www.youtube.com/','https://x.com/','https://www.facebook.com/','https://www.reddit.com/','https://www.threads.com/','https://web.telegram.org/k/','https://web.wechat.com/','https://web.whatsapp.com/','https://web.max.ru/']},
-  {id:'agents',name:'Агенты',hint:'Localhost слева · Агент Маус справа',icon:'M5 7h14v13H5z M12 3v4 M9 11v2 M15 11v2 M9 16h6 M2 10v6 M22 10v6',tree:pane(1),sites:['mouse://start']}
  ];
  function get(id){const m=modes.find(x=>x.id===id);if(!m)throw Error('Неизвестный режим рабочего стола');return JSON.parse(JSON.stringify(m));}
  const leaves=t=>t.id?[t.id]:[...leaves(t.a),...leaves(t.b)];
@@ -26,30 +25,30 @@
  function selections(spec,tabs,previous){
   const pages=new Map(tabs.filter(t=>t.lane!=='side'&&!t.documentId).map(t=>[t.id,t])),ordered=order(tabs,previous),used=new Set(),remembered=previous.presetTabs?.[spec.id];
   return spec.sites.map((url,index)=>{
-   // The Agent landing owns its own internal tab. Returning after opening an
-   // actual local app keeps that native tab, including its current page state.
-   const saved=spec.id==='agents'?previous.agentPreviewId:Array.isArray(remembered)?remembered[index]:'';
-   const reusable=candidate=>pages.has(candidate)&&!used.has(candidate)&&(spec.id==='agents'||!pages.get(candidate).internal);
+   const saved=Array.isArray(remembered)?remembered[index]:'';
+   const reusable=candidate=>pages.has(candidate)&&!used.has(candidate)&&!pages.get(candidate).internal;
    let id=reusable(saved)?saved:'';
    // Shared services (for example Telegram in Support and Content) keep their
    // existing identity even after an authentication redirect changed the URL.
-   if(!id&&spec.id!=='agents')for(const mode of modes){
+   if(!id)for(const mode of modes){
     const saved=previous.presetTabs?.[mode.id];if(!Array.isArray(saved))continue;
     const index=mode.sites.findIndex(site=>urlKey(site)===urlKey(url));if(index>=0&&reusable(saved[index])){id=saved[index];break;}
    }
-   if(!id&&spec.id!=='agents')id=ordered.find(candidate=>reusable(candidate)&&urlKey(pages.get(candidate).url)===urlKey(url))||'';
+   if(!id)id=ordered.find(candidate=>reusable(candidate)&&urlKey(pages.get(candidate).url)===urlKey(url))||'';
    if(id)used.add(id);return id;
   });
  }
  function arranged(id,tabs,previous={},options={}){
   const spec=get(id),ordered=order(tabs,previous),valid=new Set(tabs.filter(t=>t.lane!=='side'&&!t.documentId).map(t=>t.id)),selected=options.selectedIds===undefined?selections(spec,tabs,previous):options.selectedIds;
   if(!Array.isArray(selected)||selected.length!==spec.sites.length)throw Error('Неполный набор страниц режима');
-  const used=new Set();for(const tab of selected){if(tab!==''&&(!valid.has(tab)||used.has(tab)||id!=='agents'&&tabs.find(page=>page.id===tab)?.internal))throw Error('Страница режима недоступна');if(tab)used.add(tab);}
+  const used=new Set();for(const tab of selected){if(tab!==''&&(!valid.has(tab)||used.has(tab)||tabs.find(page=>page.id===tab)?.internal))throw Error('Страница режима недоступна');if(tab)used.add(tab);}
   const ids=leaves(spec.tree),slots=Object.fromEntries(ids.map((pane,index)=>[pane,selected[index]||''])),presetTabs={};
   for(const mode of modes){const saved=previous.presetTabs?.[mode.id];if(Array.isArray(saved))presetTabs[mode.id]=mode.sites.map((_,index)=>valid.has(saved[index])?saved[index]:'');}
   presetTabs[id]=[...selected];
-  const active=ids.find(pane=>previous.slots?.[previous.active]&&slots[pane]===previous.slots[previous.active])||ids[0],agentPreviewId=id==='agents'?selected[0]||'':valid.has(previous.agentPreviewId)?previous.agentPreviewId:'';
-  return{...previous,mode:id,tree:spec.tree,slots,active,tabOrder:[...new Set([...selected.filter(Boolean),...ordered])],aiOpen:false,agentOpen:id==='agents',presetTabs,agentPreviewId};
+  const active=ids.find(pane=>previous.slots?.[previous.active]&&slots[pane]===previous.slots[previous.active])||ids[0];
+  // Older profiles may still carry the removed panel keys at this boundary.
+  const {agentOpen,agentPreviewId,...kept}=previous;
+  return{...kept,mode:id,tree:spec.tree,slots,active,tabOrder:[...new Set([...selected.filter(Boolean),...ordered])],aiOpen:false,presetTabs};
  }
  function plan(id,tabs,previous={}){
   const spec=get(id),selectedIds=selections(spec,tabs,previous),sites=spec.sites.map((url,index)=>({index,url,id:selectedIds[index]}));
