@@ -6,7 +6,7 @@ const {randomUUID}=require('node:crypto'),{screen}=require('electron');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label,n=240){for(let i=0;i<n;i++){if(await fn())return;await sleep(60);}throw Error('Mouse625 search timeout: '+label);}
 const copy=value=>JSON.parse(JSON.stringify(value));
-const layoutKeys=['desktopId','mode','agentOpen','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
+const layoutKeys=['desktopId','mode','tree','slots','active','tabOrder','aiId','aiSessions','aiOpen','aiWidth'];
 module.exports=async({app,win,browser,store,privateMode,startService,libraryService,nativeInput})=>{
  assert.equal(process.env.CI,'true','Search smoke is restricted to the isolated CI profile');
  assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));

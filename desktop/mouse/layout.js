@@ -23,7 +23,8 @@
   return{tree:visit(tree),id:newId};
  }
  function remove(tree,id){if(tree.id)return tree.id===id?null:tree;const a=remove(tree.a,id),b=remove(tree.b,id);return a&&b?{...tree,a,b}:a||b}
- function minimum(tree,axis){if(tree.id)return axis==='x'?140:100;return tree.axis===axis?minimum(tree.a,axis)+minimum(tree.b,axis)+6:Math.max(minimum(tree.a,axis),minimum(tree.b,axis))}
+ function minimum(tree,axis,gap=6){if(tree.id)return axis==='x'?140:100;return tree.axis===axis?minimum(tree.a,axis,gap)+minimum(tree.b,axis,gap)+gap:Math.max(minimum(tree.a,axis,gap),minimum(tree.b,axis,gap))}
+ function previewRatio(value){return Number.isFinite(value)?clamp(value,.1,.9):.5;}
  function currentPreset(tree){
   if(!tree)return null;const count=leaves(tree).length;if(![1,2,3,4,6,8,9,12].includes(count))return null;
   const expected=preset(count);if(count===2&&tree.axis==='y')expected.axis='y';
@@ -43,5 +44,5 @@
  }
  function assertPins(before,after){if(!preservesPins(before,after))throw Error('Сначала открепите окно: его вкладка, размер и положение закреплены.');}
  function resizeLocked(value,path){const node=at(value.tree,path),locked=pins(value);return leaves(node).some(id=>Object.hasOwn(locked,id));}
- const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
+ const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum,previewRatio,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
 })(globalThis);

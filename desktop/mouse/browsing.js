@@ -12,6 +12,20 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
  const bytes=n=>!n?'0 B':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KB':(n/1048576).toFixed(1)+' MB';
  const names={history:()=>tr('История','History'),searches:()=>tr('Поиск','Searches'),bookmarks:()=>tr('Закладки','Bookmarks'),downloads:()=>tr('Загрузки','Downloads'),captures:()=>tr('Скриншоты и текст','Screenshots and text')};
  const library=(action,args)=>args.kind==='captures'?N.archive(action,args):N.library(action,args);
+ async function fileAction(rowKind,item,action){
+  if(kind!==rowKind||!d.open||!rowRecords.has(item.id)||rowKind==='captures'&&document.documentElement.dataset.private==='true')return;
+  if(action==='preview'&&rowKind==='captures')return previewCapture(item);
+  if(action==='copy'&&rowKind==='captures')return N.archive('copy',{id:item.id});
+  if(action==='remove'){const result=await library('remove',{kind:rowKind,id:item.id});if(result?.cleared===false)return;selection.delete(item.id);excluded.delete(item.id);await render();return;}
+  if(rowKind==='downloads'&&['open','show','pause','resume','cancel','retry'].includes(action))return N.library('download',{id:item.id,action});
+ }
+ function fileControls(row,label,rowKind,item){
+  let dragged=false;const open=label.onclick;label.onclick=event=>{if(dragged){dragged=false;return;}return open?.(event);};label.onpointerdown=()=>{dragged=false;};
+  const context=event=>{event.preventDefault();event.stopPropagation?.();const box=label.getBoundingClientRect(),x=Number.isFinite(event.clientX)&&event.clientX>0?event.clientX:box.x+box.width/2,y=Number.isFinite(event.clientY)&&event.clientY>0?event.clientY:box.y+box.height/2;
+   void run(async()=>{const result=await library('context-menu',{kind:rowKind,id:item.id,x:Math.max(0,Math.min(innerWidth-1,Math.round(x))),y:Math.max(0,Math.min(innerHeight-1,Math.round(y)))});if(result?.action)await fileAction(rowKind,rowRecords.get(item.id)?.item||item,result.action);});};
+  row.oncontextmenu=context;label.onkeydown=event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10')context(event);else if(event.key==='Enter'||event.key===' ')dragged=false;};
+  label.draggable=rowKind==='captures'||item.state==='completed';label.ondragstart=event=>{event.preventDefault();event.stopPropagation?.();event.dataTransfer?.clearData();if(event.isTrusted!==true||!label.draggable)return;dragged=true;void run(()=>library('drag',{kind:rowKind,id:item.id}));};
+ }
  const preview=make('dialog','local-preview-dialog');preview.id='local-preview-dialog';preview.innerHTML='<header><strong id="local-preview-title"></strong><button type="button" aria-label="Закрыть">×</button></header><div class="local-preview-body"></div>';document.body.append(preview);preview.querySelector('button').onclick=()=>preview.close();preview.addEventListener('close',()=>{if(stalePreviewCloses)stalePreviewCloses--;else previewGeneration++;restore()});
  async function previewCapture(item){const serial=++previewGeneration,result=await N.archive('preview',{id:item.id});if(serial!==previewGeneration||kind!=='captures'||!d.open||document.documentElement.dataset.private==='true'||!rowRecords.has(item.id))return;const body=preview.querySelector('.local-preview-body');previewContentSerial=serial;body.replaceChildren();preview.querySelector('strong').textContent=result.title;if(result.type==='text')body.append(make('pre','local-text-full',result.text));else{const img=make('img');img.src=result.src;img.alt=result.title;body.append(img);}if(!preview.open)await show(preview);
   // Native overlay preparation is asynchronous too. An obsolete show must not
@@ -65,25 +79,26 @@ globalThis.createMouseBrowsing=({N,openPage,selected,show,restore,status,locale,
    if(date!==day){day=date;const key=day+':'+days.size;days.add(key);let heading=dayRecords.get(key);if(!heading){heading=make('h3','library-day',day);dayRecords.set(key,heading);}nodes.push(heading);}
    const shape=JSON.stringify(rowKind==='downloads'?{...item,received:undefined,total:undefined}:item)+'|'+locale();let record=rowRecords.get(item.id);
    if(record&&record.shape===shape){record.item=item;if(rowKind==='downloads')downloadProgress(record.row,item);nodes.push(record.row);if(item.url||['downloads','captures'].includes(rowKind))icons.push(record);continue;}
-   const row=record?.row||make('article','library-row');row.dataset.id=item.id;const body=make('div','library-body'),actions=make('div','library-actions');
+   const row=record?.row||make('article','library-row');row.dataset.id=item.id;const body=make('div','library-body'),actions=make('div','library-actions'),fileRow=['captures','downloads'].includes(rowKind),contentOnly=rowKind==='captures'||rowKind==='downloads'&&item.state==='completed';row.classList.toggle('library-file-row',fileRow);row.classList.toggle('library-content-only',contentOnly);
    const title=String(item.title||item.query||item.filename||item.url||'');
-   const visual=make('span','library-visual'),img=record?.img||make('img','library-icon');if(!record){img.alt='';img.src=['downloads','captures'].includes(rowKind)?fileFallback:'globe.svg';}visual.append(img);
+   const visual=make('span','library-visual'),img=record?.img||make('img','library-icon');if(!record){img.alt='';img.draggable=false;img.src=['downloads','captures'].includes(rowKind)?fileFallback:'globe.svg';}visual.append(img);
    if(rowKind==='downloads'){const ext=(item.filename||'').match(/\.([\p{L}\p{N}]{1,8})$/u)?.[1]||'FILE';visual.append(make('small','library-extension',ext.toUpperCase()));}
-   const label=rowKind==='captures'?button(title,()=>previewCapture(item),'library-name'):rowKind==='downloads'?make('strong','library-name',title):button(title,async()=>{await openPage(item.url||item.query);restore()},'library-name');label.title=title;body.append(label);
+   const label=rowKind==='captures'?button('',()=>previewCapture(item),'library-name library-file-open'):rowKind==='downloads'?(contentOnly?button('',()=>N.library('download',{id:item.id,action:'open'}),'library-name library-file-open'):make('strong','library-name',title)):button(title,async()=>{await openPage(item.url||item.query);restore()},'library-name');label.title=title;label.setAttribute('aria-label',title||tr('Открыть файл','Open file'));body.append(label);
    if(rowKind==='captures'){
-    if(item.type==='text'){const text=button(item.snippet,()=>previewCapture(item),'library-text-preview');body.append(text);visual.hidden=true;}else{visual.classList.add('library-capture-image');visual.onclick=()=>run(()=>previewCapture(item));visual.setAttribute('role','button');visual.tabIndex=0;visual.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();void run(()=>previewCapture(item))}};}actions.append(button(tr('Просмотр','Preview'),()=>previewCapture(item)),button(tr('Копировать','Copy'),()=>N.archive('copy',{id:item.id})));
+    if(item.type==='text'){label.classList.add('library-text-preview');label.textContent=item.snippet;visual.hidden=true;}else{visual.classList.add('library-capture-image');label.append(visual);}
    }else if(rowKind==='downloads'){
     const state={completed:tr('Готово','Complete'),paused:tr('Пауза','Paused'),progressing:tr('Скачивается','Downloading'),cancelled:tr('Отменено','Cancelled'),interrupted:tr('Прервано','Interrupted')}[item.state]||item.state;
     body.append(make('small','library-detail',state+' · '+bytes(item.received)+(item.total?' / '+bytes(item.total):'')));
     if(['progressing','paused'].includes(item.state)){const progress=make('progress');progress.setAttribute('aria-label',title);if(Number.isFinite(item.total)&&item.total>0){progress.max=item.total;progress.value=Math.min(item.total,Math.max(0,item.received||0));}else{progress.removeAttribute('value');progress.setAttribute('aria-valuetext',tr('Размер файла неизвестен','File size is unknown'));}body.append(progress);actions.append(button(item.state==='paused'?tr('Продолжить','Resume'):tr('Пауза','Pause'),()=>N.library('download',{id:item.id,action:item.state==='paused'?'resume':'pause'})),button(tr('Отменить','Cancel'),()=>N.library('download',{id:item.id,action:'cancel'})));}
-    else if(item.state==='completed')actions.append(button(tr('Открыть','Open'),()=>N.library('download',{id:item.id,action:'open'})),button(tr('В папке','Show in folder'),()=>N.library('download',{id:item.id,action:'show'})));
+    else if(item.state==='completed')label.append(visual);
     else if(item.url)actions.append(button(tr('Повторить','Retry'),()=>N.library('download',{id:item.id,action:'retry'})));
    }else body.append(make('small','library-detail',item.url||date));
    let checkbox;if(!['progressing','paused'].includes(item.state)){
-    const remove=button('×',async()=>{await library('remove',{kind:rowKind,id:item.id});selection.delete(item.id);excluded.delete(item.id);await render()},'library-remove');remove.title=tr('Удалить запись','Remove entry');remove.setAttribute('aria-label',remove.title+': '+title);actions.append(remove);
+    if(!fileRow){const remove=button('×',async()=>{await library('remove',{kind:rowKind,id:item.id});selection.delete(item.id);excluded.delete(item.id);await render()},'library-remove');remove.title=tr('Удалить запись','Remove entry');remove.setAttribute('aria-label',remove.title+': '+title);actions.append(remove);}
     checkbox=record?.checkbox||make('input','library-check');checkbox.type='checkbox';checkbox.dataset.id=item.id;checkbox.setAttribute('aria-label',tr('Выделить: ','Select: ')+title);checkbox.onchange=()=>{if(allSelected){if(checkbox.checked)excluded.delete(item.id);else excluded.add(item.id)}else if(checkbox.checked)selection.add(item.id);else selection.delete(item.id);controls()};
    }
-   reconcile(row,[...(checkbox?[checkbox]:[]),visual,body,actions]);record=Object.assign(record||{row,img},{item,shape,checkbox});rowRecords.set(item.id,record);nodes.push(row);if(item.url||['downloads','captures'].includes(rowKind))icons.push(record);
+   if(fileRow)fileControls(row,label,rowKind,item);
+   reconcile(row,[...(checkbox?[checkbox]:[]),...(!contentOnly||visual.hidden?[visual]:[]),body,...(actions.children.length?[actions]:[])]);record=Object.assign(record||{row,img},{item,shape,checkbox});rowRecords.set(item.id,record);nodes.push(row);if(item.url||['downloads','captures'].includes(rowKind))icons.push(record);
   }
   for(const key of dayRecords.keys())if(!days.has(key))dayRecords.delete(key);reconcile(list,nodes);list.scrollTop=scrollTop;if(anchor?.isConnected)list.scrollTop+=anchor.getBoundingClientRect().top-anchorTop;for(const record of icons)setIcon(record,rowKind);
   $('#library-count').textContent=rows.length+' / '+total+' · '+names[kind]();$('#library-more').hidden=rows.length>=total;$('#library-more').textContent=tr('Показать все','Show all');controls();

@@ -24,7 +24,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.36"
+VERSION = "6.0.37"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -51,9 +51,10 @@ BASELINE_629_WRITE_MARKERS = [
 ]
 SUPERSEDED_DOCUMENT_MARKERS = {"MOUSE_625_DOCUMENTS_NATIVE_EDIT_SAVE_PRESERVE_PASS",
                                "MOUSE_627_DOCUMENT_TABS_NATIVE_PASS", "MOUSE_627_PDF_EXISTING_TEXT_NATIVE_PASS"}
-WRITE_MARKERS = [marker for marker in BASELINE_629_WRITE_MARKERS if marker not in SUPERSEDED_DOCUMENT_MARKERS] + [
+RETIRED_AGENT_MARKERS = {"MOUSE_WINDOWS_AGENT_PTY_LOCAL_MCP_PASS"}
+WRITE_MARKERS = [marker for marker in BASELINE_629_WRITE_MARKERS if marker not in SUPERSEDED_DOCUMENT_MARKERS | RETIRED_AGENT_MARKERS] + [
     "MOUSE_632_DOCUMENTS_VIEW_ONLY_PASS", "MOUSE_632_FOOTER_LAYOUT_BOTH_THEMES_PASS",
-    "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS", "MOUSE_633_AGENT_VISIBLE_RESTORE_WITHOUT_AUTOENABLE_PASS",
+    "MOUSE_632_WEBSITE_OFFER_NEW_TAB_PASS",
     "MOUSE_630_DOWNLOAD_ACTIVITY_PASS", "MOUSE_630_CAPTURE_FEEDBACK_PASS",
     "MOUSE_630_NORA_NATIVE_FOREGROUND_PASS", "MOUSE_630_NATIVE_WHEEL_DESKTOPS_PASS",
     "MOUSE_630_PAGE_SCROLL_PRESERVED_PASS", "MOUSE_630_PRIVATE_DOWNLOAD_SCOPE_PASS",
@@ -339,11 +340,11 @@ def kill_owned_tree(process: subprocess.Popen) -> None:
         process.wait(timeout=10)
 
 
-def run_logged(args, env, output: Path, timeout: float) -> dict:
+def run_logged(args, env, output: Path, timeout: float | None) -> dict:
     started = time.monotonic()
     with output.open("w", encoding="utf-8") as log:
         process = subprocess.Popen(args, env=env, cwd=output.parent, stdout=log, stderr=subprocess.STDOUT)
-        deadline = started + timeout
+        deadline = started + timeout if timeout is not None else float("inf")
         exit_request = None
         try:
             while process.poll() is None:
@@ -363,8 +364,10 @@ def run_logged(args, env, output: Path, timeout: float) -> dict:
     print(text, flush=True)
     if process.returncode != 0:
         raise RuntimeError(f"Native process failed with code {process.returncode}; see {output.name}")
+    finished = time.monotonic()
     return {"pid": process.pid, "exitCode": process.returncode,
-            "elapsedMs": round((time.monotonic() - started) * 1000), "log": output.name,
+            "startedAtMs": started * 1000, "finishedAtMs": finished * 1000,
+            "elapsedMs": round((finished - started) * 1000), "log": output.name,
             "output": text}
 
 
@@ -535,7 +538,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_636_WINDOWS_REAL_629_TO_636_PROFILE_PASS", flush=True)
+    print("MOUSE_637_WINDOWS_REAL_629_TO_637_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -543,6 +546,37 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
             "newRead": read, "closedProfileUnchanged": True, "closedProfileSha256": before_profile,
             "oldReportSha256": sha256(old_report_path), "newReportSha256": sha256(new_report_path),
             "preserved": preserved}
+
+
+def prepare_current_display(env: dict, output: Path) -> dict:
+    """Prepare the current workload only after the complete immutable629 proof.
+
+    Both PowerShell invocations retain the workflow's existing overall budget;
+    no legacy/native scenario deadline or supported display mode is changed.
+    """
+    helper = Path(__file__).with_name("mouse-637-windows-display.ps1").resolve()
+    report = output / "mouse-637-display.json"
+    if not helper.is_file() or report.exists():
+        raise RuntimeError("Current Windows display requires its exact source helper and a fresh receipt")
+    command = ["pwsh", "-NoProfile", "-File", str(helper), "-OutputPath", str(report)]
+    processes = {}
+    for phase, marker in (("prepare", "MOUSE_637_WINDOWS_DISPLAY_PREPARED"),
+                          ("verify", "MOUSE_637_WINDOWS_DISPLAY_PERSISTENCE_PASS")):
+        args = command if phase == "prepare" else command + ["-Verify"]
+        log = output / ("mouse-637-display-" + phase + ".log")
+        process = run_logged(args, env, log, None)
+        verify_markers(process.pop("output"), [marker])
+        process.update(requiredMarkers=[marker], logSha256=sha256(log))
+        processes[phase] = process
+        receipt = json.loads(report.read_text(encoding="utf-8-sig"))
+        if (receipt.get("ok") is not True or receipt.get("version") != VERSION
+                or receipt.get("platform") != "win32" or receipt.get("pid") != processes["prepare"]["pid"]):
+            raise RuntimeError("Current Windows display preparation receipt is not from the actual process")
+        if phase == "verify" and (receipt.get("processExitVerified") is not True
+                or receipt.get("persistence", {}).get("pid") != process["pid"]
+                or process["pid"] == processes["prepare"]["pid"]):
+            raise RuntimeError("Current Windows display was not verified by a distinct exited process")
+    return {"ok": True, "report": report.name, "reportSha256": sha256(report), **processes}
 
 
 def main(argv=None) -> int:
@@ -583,29 +617,43 @@ def main(argv=None) -> int:
                 "installerSha256": sha256(installer), "profile": str(profile),
                 "physicalUserDeviceVerified": False, "liveExternalAccountsVerified": False,
                 "checks": {}}
-    report = output / "mouse-windows-verification.json"
+    wrapper_report = output / "mouse-windows-verification.json"
 
     def save():
-        report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        wrapper_report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     try:
         # NSIS has one registered installation per appId. Finish the old/new
         # upgrade first, then install the primary test target; never keep two
         # registered Mouse installations or launch an uninstalled old path.
-        baseline = run_logged([sys.executable, str(Path(__file__).with_name("mouse-636-baseline-performance.py")), "--output", str(output)], env,
-                              output / "mouse-636-baseline-performance.log", 900)
-        verify_markers(baseline.pop("output"), ["MOUSE_636_BASELINE_PERFORMANCE_PASS"])
-        baseline["requiredMarkers"] = ["MOUSE_636_BASELINE_PERFORMANCE_PASS"]
-        baseline["reportSha256"] = sha256(output / "mouse-636-baseline-performance.json")
-        evidence["checks"]["baselinePerformance"] = baseline
-        save()
+        # The unchanged629 package runs in the runner's incoming display mode.
+        # Two failures after changing that mode motivated this controlled
+        # ordering; they did not identify an internal629 capture predicate.
         evidence["checks"]["versionUpgrade"] = version_upgrade(installer, root, env, output)
         save()
-        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-636-upgrade.py")), str(installer)], env,
-                           output / "mouse-636-upgrade.log", 480)
-        verify_markers(fresh.pop("output"), ["MOUSE_636_REAL_634_TO_636_PROFILE_PASS"])
-        fresh["requiredMarkers"] = ["MOUSE_636_REAL_634_TO_636_PROFILE_PASS"]
-        fresh["reportSha256"] = sha256(output / "mouse-636-upgrade.json")
+        evidence["checks"]["displayPreparation"] = prepare_current_display(env, output)
+        save()
+        # The published636 baseline and every current workload now share the
+        # same independently verified advertised display mode.
+        baseline = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-baseline-performance.py")), "--output", str(output)], env,
+                              output / "mouse-637-baseline-performance.log", 900)
+        verify_markers(baseline.pop("output"), ["MOUSE_637_BASELINE_PERFORMANCE_PASS"])
+        baseline["requiredMarkers"] = ["MOUSE_637_BASELINE_PERFORMANCE_PASS"]
+        baseline["reportSha256"] = sha256(output / "mouse-637-baseline-performance.json")
+        evidence["checks"]["baselinePerformance"] = baseline
+        save()
+        button = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-update-button.py")), str(installer)], env,
+                            output / "mouse-637-update-button.log", 720)
+        verify_markers(button.pop("output"), ["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"])
+        button.update(requiredMarkers=["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"],
+                      logSha256=sha256(output / "mouse-637-update-button.log"), reportSha256=sha256(output / "mouse-637-update-button.json"))
+        evidence["checks"]["updateFrom636"] = button
+        save()
+        fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-upgrade.py")), str(installer)], env,
+                           output / "mouse-637-upgrade.log", 480)
+        verify_markers(fresh.pop("output"), ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"]
+        fresh["reportSha256"] = sha256(output / "mouse-637-upgrade.json")
         evidence["checks"]["freshUpgrade"] = fresh
         save()
         evidence["checks"]["installation"] = install(installer, target, env, output / "mouse-windows-install.log")
@@ -640,14 +688,38 @@ def main(argv=None) -> int:
         regression["mediaSha256"] = sha256(output / "mouse-632-media.json")
         evidence["checks"]["taskAndFiftyTabs"] = regression
         save()
-        owner636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 inline Agent and desktop performance")}
-        owner636 = run_logged([str(executable), "--mouse-636-smoke"], owner636_env,
+        owner636_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse636 removed Agent and desktop performance")}
+        owner636 = run_logged([str(executable), "--mouse-637-smoke"], owner636_env,
                               output / "mouse-636-owner-feedback.log", 270)
-        required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_636_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
+        required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_637_AGENT_REMOVAL_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
         verify_markers(owner636.pop("output"), required636)
         owner636["requiredMarkers"] = required636
         owner636["reportSha256"] = sha256(output / "mouse-636-owner-feedback.json")
         evidence["checks"]["ownerFeedback636"] = owner636
+        save()
+        features_env = {**env, "MOUSE_TEST_PROFILE": str(root / "Mouse637 features and restore")}
+        feature_processes = {}
+        for phase, flag, marker, budget in (("write", "--mouse-637-features-smoke", "MOUSE_637_FEATURES_WRITE_PASS", 270),
+                                            ("read", "--mouse-637-features-restore-read", "MOUSE_637_FEATURES_NATIVE_PASS", 120)):
+            log = output / ("mouse-637-features-" + phase + ".log")
+            result = run_logged([str(executable), flag], features_env, log, budget)
+            verify_markers(result.pop("output"), [marker])
+            report = output / "mouse-637-features.json"
+            if phase == "write":
+                saved = output / "mouse-637-features-write.json"
+                saved.write_bytes(report.read_bytes())
+                report = saved
+            result.update(requiredMarkers=[marker], logSha256=sha256(log), report=report.name, reportSha256=sha256(report))
+            feature_processes[phase] = result
+        report = output / "mouse-637-features.json"
+        features = json.loads(report.read_text(encoding="utf-8"))
+        if not (features.get("ok") is True and features.get("restored") is True and features.get("version") == VERSION
+                and features.get("pid") == feature_processes["write"]["pid"]
+                and features.get("restart", {}).get("pid") == feature_processes["read"]["pid"]
+                and features["pid"] != features["restart"]["pid"]):
+            raise RuntimeError("Mouse637 features did not restore in a distinct actual process")
+        feature_processes["reportSha256"] = sha256(report)
+        evidence["checks"]["features637"] = feature_processes
         save()
         for mode, markers in (("write", WRITE_MARKERS), ("read", READ_MARKERS)):
             if mode == "read":

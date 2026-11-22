@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
 const {DesktopBank,install,unread,MAX_DESKS}=require('./mouse-desktops.cjs'),L=require('./mouse/layout.js');
 test('five desks migrate the entire existing layout into the central third desk without loss',()=>{
- const p={tree:L.preset(4),slots:{p1:'one',p2:'two'},active:'p2',aiOpen:true,aiId:'ai',aiSessions:{'https://example.test/':'ai'},theme:'dark',tabOrder:['two','one']},b=new DesktopBank(null,p);b.sync([{id:'one'},{id:'two'},{id:'ai'}]);assert.equal(b.items.length,5);assert.equal(b.active,'desk-3');assert.deepEqual(b.preferences(),{...p,aiWidth:360,desktopId:'desk-3',mode:'',agentOpen:false});b.select('desk-1');assert.deepEqual(b.preferences().slots,{});assert.equal(b.preferences().theme,'dark');b.select('desk-3');assert.deepEqual(b.preferences().slots,p.slots);
+ const p={tree:L.preset(4),slots:{p1:'one',p2:'two'},active:'p2',aiOpen:true,aiId:'ai',aiSessions:{'https://example.test/':'ai'},theme:'dark',tabOrder:['two','one']},b=new DesktopBank(null,p);b.sync([{id:'one'},{id:'two'},{id:'ai'}]);assert.equal(b.items.length,5);assert.equal(b.active,'desk-3');assert.deepEqual(b.preferences(),{...p,aiWidth:360,desktopId:'desk-3',mode:''});b.select('desk-1');assert.deepEqual(b.preferences().slots,{});assert.equal(b.preferences().theme,'dark');b.select('desk-3');assert.deepEqual(b.preferences().slots,p.slots);
 });
 test('independent layout, membership and order survive restart; stale shell save is rejected',()=>{
  const b=new DesktopBank(null,{});b.assign('original');b.savePreferences({desktopId:'desk-3',tree:L.preset(2),slots:{p1:'original'},active:'p1',theme:'dark'});b.select('desk-1');b.assign('second');b.savePreferences({desktopId:'desk-1',tree:L.preset(3),slots:{p2:'second'},active:'p2'});assert.equal(b.savePreferences({desktopId:'desk-3',tree:L.preset(1),slots:{}}),false);
@@ -15,7 +15,19 @@ test('badges use explicit website title numbers and private banks never share no
 test('malformed layouts are sanitized and missing desks padded, plus selects a vacancy without creating a sixth',()=>{
  const b=new DesktopBank({schema:1,items:[{id:'bad/../id',layout:{}},{id:'good',name:'Keep',layout:{tree:{evil:true}}}],active:'good'});assert.equal(b.items.length,MAX_DESKS);assert.deepEqual(b.current().layout.tree,L.preset(1));const ids=b.items.map(d=>d.id);for(let i=0;i<20;i++)assert.ok(ids.includes(b.add([])));assert.deepEqual(b.items.map(d=>d.id),ids);const tabs=ids.map((desk,i)=>{const id='tab-'+i;b.assign(id,desk);return{id};});assert.throws(()=>b.add(tabs),/пять столов заняты/);assert.equal(b.items[0].name,'Keep');
 });
-function fixture(){let seq=0;const handlers=new Map(),saved={},layouts=[],win={isDestroyed:()=>false,webContents:{send(){}}};const b={tabs:new Map(),providers:new Map(),state(){return{tabs:[...this.tabs.values()].map(t=>({id:t.id,title:t.title,lane:t.lane,internal:!!t.internal,url:t.url||'',...(t.previewOf?{previewOf:t.previewOf}:{})}))}},make(){const id='p'+(++seq),t={id,title:'Page',lane:'main',view:{webContents:{}}};this.tabs.set(id,t);return t},save:async()=>{},layout:p=>layouts.push(p),dispose(){this.disposed=true},emit(){return this.state()},command:async function(action,args){if(action==='open'){const t=this.make();this.emit();return{id:t.id}}if(action==='state')return this.state();if(action==='layout')return this.layout(args.panels);if(action==='close'){this.tabs.delete(args.id);return this.state()}return true}};return{b,saved,layouts,handlers,win,store:{get:async()=>saved,set:async v=>Object.assign(saved,structuredClone(v))},ipcMain:{handle:(n,h)=>handlers.set(n,h)}};}
+function fixture(){let seq=0;const handlers=new Map(),saved={},layouts=[],win={isDestroyed:()=>false,webContents:{send(){}}};const b={tabs:new Map(),providers:new Map(),state(){return{tabs:[...this.tabs.values()].map(t=>({id:t.id,title:t.title,lane:t.lane,internal:!!t.internal,url:t.url||'',...(t.previewOf?{previewOf:t.previewOf}:{})}))}},make(){const id='p'+(++seq),t={id,title:'Page',lane:'main',view:{webContents:{}}};this.tabs.set(id,t);return t},save:async()=>{},layout:p=>layouts.push(p),dispose(){this.disposed=true},emit(){return this.state()},command:async function(action,args){if(action==='open'){const t=this.make();t.url=args?.url||'';t.lane=args?.lane||'main';t.internal=t.url==='mouse://start';this.emit();return{id:t.id}}if(action==='state')return this.state();if(action==='layout')return this.layout(args.panels);if(action==='close'){this.tabs.delete(args.id);return this.state()}return true}};return{b,saved,layouts,handlers,win,store:{get:async()=>saved,set:async v=>Object.assign(saved,structuredClone(v))},ipcMain:{handle:(n,h)=>handlers.set(n,h)}};}
+test('final desktop snapshots share one increasing transport sequence without persisting it or reading state twice',async()=>{
+ const f=fixture(),sent=[],raw=f.b.state;let reads=0;f.b.state=function(){reads++;return raw.call(this);};f.b.win=f.win;f.b.emit=require('./browser.cjs').BrowserWorkspace.prototype.emit;f.win.webContents.send=(channel,state)=>{if(channel==='browser:state')sent.push(state);};
+ const service=await install({...f,browser:f.b,trusted:()=>{}});reads=0;
+ const first=service.state();assert.equal(reads,1);f.b.emit();assert.equal(reads,2);const invoked=await f.b.command('state');assert.equal(reads,3);
+ assert.match(first.snapshot.epoch,/^[a-f0-9-]{36}$/);assert.equal(first.snapshot.revision,1);assert.equal(sent.at(-1).snapshot.revision,2);assert.equal(invoked.snapshot.revision,3);
+ const result=await f.handlers.get('mouse:desktops')({},'apply-mode',{mode:'design',from:'desk-3',preferences:service.preferences()});
+ assert.equal(result.state.snapshot.epoch,first.snapshot.epoch);assert.ok(result.state.snapshot.revision>sent.at(-1).snapshot.revision,'The invoke result follows the already emitted state in main, regardless of renderer delivery order');
+ const revisions=sent.map(state=>state.snapshot.revision);assert.ok(revisions.every((value,index)=>index===0||value>revisions[index-1]));assert.ok(sent.every(state=>state.snapshot.epoch===first.snapshot.epoch));assert.equal(result.state.tabs.length,5);
+ await service.flush();for(const value of [f.saved,service.preferences(),service.bank.snapshot()])assert.ok(!JSON.stringify(value).includes(first.snapshot.epoch),'Transport identity is not a profile/session preference');
+ const other=fixture(),privateService=await install({...other,browser:other.b,trusted:()=>{}}),privateState=privateService.state();assert.notEqual(privateState.snapshot.epoch,first.snapshot.epoch);assert.equal(privateState.snapshot.revision,1);
+ f.b.dispose();other.b.dispose();
+});
 test('live switches do not wait for thumbnails or disk and flush commits the latest complete bank',async()=>{
  const f=fixture(),page=f.b.make(),service=await install({...f,browser:f.b,trusted:()=>{}}),pending=[],writes=[];
  service.previews.capture=()=>{throw Error('Switch must not capture');};
@@ -44,23 +56,47 @@ test('legacy overflow desks fold into fifth without losing pages and preserve th
  const old={schema:1,active:'desk-8',items:Array.from({length:8},(_,i)=>({id:'desk-'+(i+1),name:'Old '+(i+1),layout:{tree:L.preset(i===7?2:1),slots:{p1:'t'+i},tabOrder:['t'+i],active:'p1'}})),members:Object.fromEntries(Array.from({length:8},(_,i)=>['t'+i,'desk-'+(i+1)]))};
  const b=new DesktopBank(old),snap=b.snapshot();assert.equal(b.items.length,5);assert.equal(b.active,'desk-5');assert.equal(b.preferences().slots.p1,'t7');for(let i=4;i<8;i++)assert.equal(b.members['t'+i],'desk-5');assert.deepEqual(snap.recovery,old);assert.deepEqual(b.preferences().tabOrder,['t7','t4','t5','t6']);assert.equal(snap.schema,2);const re=new DesktopBank(snap);assert.deepEqual(re.snapshot().recovery,old);assert.equal(re.describe(Array.from({length:8},(_,i)=>({id:'t'+i}))).items.reduce((n,d)=>n+d.count,0),8);
 });
-test('five modes keep pane counts and applying to existing main, internal or AI tabs opens no suggestions',async()=>{
- const Modes=require('./mouse/modes.js');assert.deepEqual(Modes.modes.map(m=>[m.id,L.leaves(m.tree).length]),[['trader',5],['support',7],['design',5],['content',6],['agents',3]]);
+test('four presets populate existing desks while retaining every main, internal and AI page object',async()=>{
+ const Modes=require('./mouse/modes.js');assert.deepEqual(Modes.modes.map(m=>[m.id,L.leaves(m.tree).length]),[['trader',4],['support',5],['design',5],['content',12]]);
  for(const kind of ['main','side','internal']){
-  const f=fixture(),t=f.b.make();t.lane=kind==='side'?'side':'main';t.internal=kind==='internal';const service=await install({...f,browser:f.b,trusted:()=>{}}),call=(a,args)=>f.handlers.get('mouse:desktops')({},a,args),before=[...f.b.tabs.values()];let stops=0;f.b.mouseBeforeDesktopChange=async()=>{stops++;};
-  const r=await call('apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()});assert.equal(r.preferences.mode,'support');assert.equal(L.leaves(r.preferences.tree).length,7);assert.deepEqual([...f.b.tabs.values()],before);assert.equal(stops,1);await assert.rejects(call('apply-mode',{mode:'invalid',from:'desk-3'}),/Неизвестный/);assert.equal(service.preferences().mode,'support');f.b.dispose();
+  const f=fixture(),t=f.b.make();t.lane=kind==='side'?'side':'main';t.internal=kind==='internal';const service=await install({...f,browser:f.b,trusted:()=>{}}),call=(a,args)=>f.handlers.get('mouse:desktops')({},a,args);let stops=0;f.b.mouseBeforeDesktopChange=async()=>{stops++;};
+  const r=await call('apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()});assert.equal(r.preferences.mode,'support');assert.equal(L.leaves(r.preferences.tree).length,5);assert.equal(f.b.tabs.get(t.id),t);assert.equal(f.b.tabs.size,6);assert.ok(!Object.values(r.preferences.slots).includes(t.id));assert.equal(stops,1);
+  assert.deepEqual(Object.values(r.preferences.slots).map(id=>f.b.tabs.get(id).url),Modes.get('support').sites);assert.equal(r.preferences.aiOpen,false);
+  await assert.rejects(call('apply-mode',{mode:'invalid',from:'desk-3'}),/Неизвестный/);assert.equal(service.preferences().mode,'support');f.b.dispose();
  }
 });
-test('empty desktop seeds support exactly once; applying a second grid preserves every tab',async()=>{
- const f=fixture(),urls=[],base=f.b.command;f.b.command=async function(action,args){if(action==='open')urls.push(args.url);return base.call(this,action,args);};const service=await install({...f,browser:f.b,trusted:()=>{}}),call=(a,args)=>f.handlers.get('mouse:desktops')({},a,args);
- await call('apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()});assert.deepEqual(urls,require('./mouse/modes.js').get('support').sites);const pages=[...f.b.tabs.values()];await call('apply-mode',{mode:'design',from:'desk-3',preferences:service.preferences()});assert.equal(urls.length,7);assert.deepEqual([...f.b.tabs.values()],pages);assert.equal(L.leaves(service.preferences().tree).length,5);assert.equal(service.preferences().tabOrder.length,7);assert.equal(service.bank.describe(f.b.state().tabs).items[2].mode,'design');await assert.rejects(call('apply-mode',{mode:'trader',from:'desk-1'}),/уже изменился/);f.b.dispose();
+test('mode cycling reuses its live login-redirected pages and creates only missing services',async()=>{
+ const Modes=require('./mouse/modes.js'),f=fixture(),urls=[],base=f.b.command;f.b.command=async function(action,args){if(action==='open')urls.push(args.url);return base.call(this,action,args);};const service=await install({...f,browser:f.b,trusted:()=>{}}),call=mode=>f.handlers.get('mouse:desktops')({},'apply-mode',{mode,from:'desk-3',preferences:service.preferences()});
+ await call('support');assert.deepEqual(urls,Modes.get('support').sites);const pages=[...f.b.tabs.values()],selected=structuredClone(service.preferences().slots);for(const page of pages)page.url='https://signed-in.example/'+page.id;
+ await call('design');assert.equal(urls.length,10);for(const page of pages)assert.equal(f.b.tabs.get(page.id),page);assert.equal(L.leaves(service.preferences().tree).length,5);assert.equal(service.preferences().tabOrder.length,10);
+ await call('support');assert.deepEqual(service.preferences().slots,selected);assert.equal(urls.length,10,'Login redirects do not create duplicate preset tabs');
+ const closed=selected.p2;await f.b.command('close',{id:closed});await call('support');assert.equal(urls.length,11);assert.equal(urls.at(-1),Modes.get('support').sites[1]);assert.notEqual(service.preferences().slots.p2,closed);assert.equal(service.preferences().slots.p1,selected.p1);
+ await assert.rejects(f.handlers.get('mouse:desktops')({},'apply-mode',{mode:'trader',from:'desk-1'}),/уже изменился/);f.b.dispose();
 });
-test('agents mode hides the replaced AI panel while preserving its live page and saved session',async()=>{
- const Modes=require('./mouse/modes.js'),f=fixture(),main=f.b.make(),ai=f.b.make();ai.lane='side';const opened=[],base=f.b.command;f.b.command=async function(action,args){if(action==='open')opened.push(args.url);return base.call(this,action,args);};
- const service=await install({...f,browser:f.b,trusted:()=>{}}),previous={...service.preferences(),slots:{p1:main.id},aiOpen:true,aiId:ai.id,aiSessions:{'https://chat.example/':ai.id}};await service.savePreferences(previous);
- const result=await f.handlers.get('mouse:desktops')({},'apply-mode',{mode:'agents',from:'desk-3',preferences:previous});assert.equal(result.preferences.aiOpen,false);assert.equal(result.preferences.aiId,ai.id);assert.deepEqual(result.preferences.aiSessions,previous.aiSessions);assert.deepEqual([...f.b.tabs.values()],[main,ai]);assert.deepEqual(opened,[]);
- const summary=result.state.desktops.items[2],preview=service.previews.snapshot().items[2];assert.equal(summary.count,2);assert.equal(summary.paneCount,1);assert.equal(summary.hiddenCount,1);assert.ok(!preview.preview.panes.some(p=>p.pane==='ai'));assert.ok(preview.preview.extraTabs.some(t=>t.id===ai.id));
- for(const mode of ['trader','support','design','content'])assert.equal(Modes.arranged(mode,result.state.tabs,previous).aiOpen,true);f.b.dispose();
+test('loading a retired mode keeps native localhost, internal start and web AI identities while removing only its metadata',async()=>{
+ const f=fixture(),local=f.b.make(),start=f.b.make(),ai=f.b.make();local.url='http://127.0.0.1:5173/editor';start.internal=true;start.url='mouse://start';ai.lane='side';ai.url='https://chat.example/';
+ const old={tree:L.preset(2),slots:{p1:local.id,p2:start.id},pinnedPanes:{p2:start.id},active:'p1',tabOrder:[local.id,start.id,ai.id],aiOpen:true,aiWidth:420,aiId:ai.id,aiSessions:{'https://chat.example/':ai.id},mode:'agents',agentOpen:true,agentPreviewId:local.id,presetTabs:{agents:[local.id]},theme:'dark'};
+ f.saved.quadroPreferences=structuredClone(old);f.saved.mouseDesktopsV1={schema:2,active:'desk-3',items:[{id:'desk-3',name:'Owned desk',layout:structuredClone(old)}],members:Object.fromEntries([local,start,ai].map(page=>[page.id,'desk-3']))};
+ const originals=[...f.b.tabs.values()],effects=[],command=f.b.command;f.b.command=async function(action,args){effects.push(action);return command.call(this,action,args);};
+ const service=await install({...f,browser:f.b,trusted:()=>{}}),next=service.preferences();
+ assert.equal(next.mode,'');for(const key of ['agentOpen','agentPreviewId']){assert.equal(Object.hasOwn(next,key),false);assert.equal(Object.hasOwn(service.bank.global,key),false);}
+ assert.equal(next.presetTabs,undefined);for(const key of ['tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions','theme'])assert.deepEqual(next[key],old[key]);
+ assert.deepEqual([...f.b.tabs.values()],originals);assert.equal(f.b.tabs.get(local.id),local);assert.equal(local.url,'http://127.0.0.1:5173/editor');assert.equal(f.b.tabs.get(start.id),start);assert.equal(f.b.tabs.get(ai.id),ai);assert.deepEqual(effects,[]);
+ await assert.rejects(f.handlers.get('mouse:desktops')({},'apply-mode',{mode:'agents',from:'desk-3'}),/Неизвестный/);assert.deepEqual(effects,[]);
+ await service.flush();assert.equal(Object.hasOwn(f.saved.quadroPreferences,'agentOpen'),false);assert.equal(Object.hasOwn(f.saved.quadroPreferences,'agentPreviewId'),false);
+ const restored=new DesktopBank(f.saved.mouseDesktopsV1,f.saved.quadroPreferences);assert.deepEqual(restored.preferences(),next);assert.deepEqual(restored.snapshot().members,Object.fromEntries(originals.map(page=>[page.id,'desk-3'])));f.b.dispose();
+});
+
+test('preset IDs are per-desktop, bounded and pruned after close or cross-desktop transfer',()=>{
+ const b=new DesktopBank(),tabs=[{id:'local',lane:'main',url:'http://localhost:4321/'},{id:'chat',lane:'side'},{id:'foreign',lane:'main'}];b.assign('local','desk-3');b.assign('chat','desk-3');b.assign('foreign','desk-1');
+ b.savePreferences({desktopId:'desk-3',tree:L.preset(1),slots:{p1:'local'},agentPreviewId:'local',presetTabs:{agents:['local'],support:['local','chat','foreign','gone','local','overflow'],unknown:['local']}});b.reconcile(tabs);
+ assert.equal(b.preferences().agentPreviewId,undefined);assert.deepEqual(b.preferences().presetTabs,{support:['local','','','','local']});assert.equal(b.global.agentPreviewId,undefined);assert.equal(b.global.presetTabs,undefined);
+ const restored=new DesktopBank(b.snapshot(),b.preferences());restored.reconcile(tabs);assert.equal(restored.preferences().agentPreviewId,undefined);restored.select('desk-1');assert.equal(restored.preferences().agentPreviewId,undefined);assert.equal(restored.preferences().presetTabs,undefined);restored.select('desk-3');
+ restored.members.local='desk-1';restored.reconcile(tabs);assert.equal(restored.preferences().agentPreviewId,undefined);assert.equal(restored.preferences().presetTabs,undefined);assert.ok(restored.historyState('desk-3',true).entries.every(entry=>!entry.agentPreviewId&&!entry.presetTabs));
+});
+test('a preset cannot move pinned content and rejects before opening any services',async()=>{
+ const f=fixture(),page=f.b.make(),service=await install({...f,browser:f.b,trusted:()=>{}});await service.savePreferences({...service.preferences(),slots:{p1:page.id}});service.bank.pinPane('p1',true,page.id);const before=[...f.b.tabs.values()];
+ await assert.rejects(f.handlers.get('mouse:desktops')({},'apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()}),/закрепл/);assert.deepEqual([...f.b.tabs.values()],before);assert.equal(service.preferences().slots.p1,page.id);f.b.dispose();
 });
 test('authoritative reconciliation removes closed references while retaining all unplaced live tabs',()=>{
  const b=new DesktopBank(),tabs=Array.from({length:24},(_,i)=>({id:'tab-'+i,title:'Page '+i,url:'https://'+i+'.test/',favicon:'https://'+i+'.test/icon.png',lane:'main'}));b.sync(tabs);
@@ -119,4 +155,55 @@ test('host preview transfer applies serialized relation changes to the same nati
 test('identical shell preferences do not enqueue repeated desktop storage writes',async()=>{
  const f=fixture();f.b.make();let writes=0;const base=f.store.set;f.store.set=async v=>{writes++;return base(v);};const service=await install({...f,browser:f.b,trusted:()=>{}});assert.equal(writes,1);
  await Promise.all(Array.from({length:25},()=>service.savePreferences(service.preferences())));assert.equal(writes,1);await service.savePreferences({...service.preferences(),theme:'dark'});assert.equal(writes,2);f.b.dispose();
+});
+test('lower-site transfer replaces only a pane assignment and saves the same native page as a main tab',async()=>{
+ const f=fixture(),chat=f.b.make(),preview=f.b.make(),displaced=f.b.make();chat.lane=preview.lane='side';preview.previewOf=chat.id;
+ const wc=preview.view.webContents;wc.liveForm={value:'unsent fixture text'};wc.scrollY=412;const sessions=[];let saveBarrier,enteredSave;
+ f.b.save=async()=>{sessions.push([...f.b.tabs.values()].map(({id,lane,previewOf})=>({id,lane,...(previewOf?{previewOf}:{})})));enteredSave?.();await saveBarrier;};
+ const actions=[],command=f.b.command;f.b.command=async function(action,args){actions.push(action);return command.call(this,action,args);};
+ const service=await install({...f,browser:f.b,trusted:()=>{}}),call=(action,args)=>f.handlers.get('mouse:desktops')({},action,args);
+ await service.savePreferences({...service.preferences(),tree:L.preset(2),slots:{p1:displaced.id},aiOpen:true,aiId:chat.id,aiPreviewRatio:.63});
+ let release,entered;saveBarrier=new Promise(resolve=>release=resolve);const saving=new Promise(resolve=>entered=resolve);enteredSave=entered;
+ const moving=call('detach-preview',{id:preview.id,pane:'p1',from:'desk-3',preferences:service.preferences()});await saving;
+ assert.equal(f.b.tabs.get(preview.id),preview);assert.equal(preview.view.webContents,wc);assert.equal(preview.lane,'main');assert.equal(preview.previewOf,undefined,'The native relation changes before the first awaited save');
+ assert.deepEqual(wc.liveForm,{value:'unsent fixture text'});assert.equal(wc.scrollY,412);assert.equal(f.b.tabs.get(displaced.id),displaced);assert.equal(f.b.tabs.get(chat.id),chat);assert.deepEqual(actions,[]);
+ release();const result=await moving;assert.equal(result.preferences.slots.p1,preview.id);assert.equal(result.preferences.aiId,chat.id);assert.equal(result.preferences.aiPreviewRatio,.63);assert.equal(result.moved.replaced,displaced.id);assert.ok(result.preferences.tabOrder.includes(displaced.id));
+ assert.deepEqual(sessions.at(-1).find(page=>page.id===preview.id),{id:preview.id,lane:'main'});await service.flush();assert.equal(f.saved.mouseDesktopsV1.items[2].layout.slots.p1,preview.id);
+ const undo=await call('undo',{from:'desk-3'});assert.equal(undo.preferences.slots.p1,displaced.id);assert.equal(preview.lane,'main');assert.equal(preview.previewOf,undefined,'Undo restores placement, not obsolete native ownership');assert.equal(f.b.tabs.get(preview.id),preview);
+ const redo=await call('redo',{from:'desk-3'});assert.equal(redo.preferences.slots.p1,preview.id);assert.deepEqual(actions,[]);f.b.dispose();
+});
+test('invalid lower-site transfers reject accompanying edits before they change preferences or native ownership',async()=>{
+ const f=fixture(),chat=f.b.make(),preview=f.b.make(),ordinary=f.b.make();chat.lane=preview.lane='side';preview.previewOf=chat.id;
+ const service=await install({...f,browser:f.b,trusted:e=>{if(!e.trusted)throw Error('Untrusted frame');}}),call=(args,event={trusted:true})=>f.handlers.get('mouse:desktops')(event,'detach-preview',args);
+ await service.savePreferences({...service.preferences(),tree:L.preset(2),slots:{p1:ordinary.id},aiOpen:true,aiId:chat.id,theme:'dark'});
+ for(const change of [{id:'missing'},{id:ordinary.id},{pane:'missing'},{from:'desk-1'},{preferences:{...service.preferences(),aiId:'other'}},{preferences:{...service.preferences(),desktopId:'desk-1'}}]){
+  const snapshot=service.bank.snapshot(),saved=structuredClone(f.saved),preferences=service.preferences();
+  await assert.rejects(call({id:preview.id,pane:'p2',from:'desk-3',preferences:{...preferences,theme:'light',aiPreviewRatio:.8},...change}));
+  assert.deepEqual(service.bank.snapshot(),snapshot);assert.deepEqual(service.preferences(),preferences);assert.deepEqual(f.saved,saved);assert.equal(preview.previewOf,chat.id);assert.equal(preview.lane,'side');
+ }
+ await assert.rejects(call({id:preview.id,pane:'p2'},{}),/Untrusted/);
+ service.bank.pinPane('p1',true,ordinary.id);const snapshot=service.bank.snapshot(),pinned=service.preferences();
+ await assert.rejects(call({id:preview.id,pane:'p1',preferences:{...pinned,theme:'light'}}),/открепите/);
+ const forged={...pinned,theme:'light'};delete forged.pinnedPanes;await assert.rejects(call({id:preview.id,pane:'p1',preferences:forged}),/открепите|Закреп/);
+ assert.deepEqual(service.bank.snapshot(),snapshot);assert.equal(service.preferences().theme,'dark');assert.equal(preview.previewOf,chat.id);f.b.dispose();
+});
+test('preview height is per desktop, restartable and undoable without changing older default checkpoints',()=>{
+ const b=new DesktopBank();assert.equal(L.previewRatio(b.preferences().aiPreviewRatio),.5);const initial=b.historyState().currentId;
+ b.savePreferences({...b.preferences(),aiPreviewRatio:.5},{reason:'ai-preview-resize'});assert.equal(b.historyState().currentId,initial);assert.equal(b.historyState().canUndo,false);
+ b.savePreferences({...b.preferences(),aiPreviewRatio:.68},{reason:'ai-preview-resize'});assert.equal(b.historyState().undoReason,'ai-preview-resize');
+ b.select('desk-1');assert.equal(L.previewRatio(b.preferences().aiPreviewRatio),.5);b.savePreferences({...b.preferences(),aiPreviewRatio:.31},{reason:'ai-preview-resize'});
+ const restored=new DesktopBank(b.snapshot(),b.preferences());assert.equal(restored.preferences().aiPreviewRatio,.31);assert.equal(restored.global.aiPreviewRatio,undefined);
+ restored.select('desk-3');assert.equal(restored.preferences().aiPreviewRatio,.68);assert.equal(restored.historyState('desk-3',true).entries.at(-1).aiPreviewRatio,.68);
+ restored.stepHistory('undo',[]);assert.equal(L.previewRatio(restored.preferences().aiPreviewRatio),.5);restored.stepHistory('redo',[]);assert.equal(restored.preferences().aiPreviewRatio,.68);
+ for(const [value,expected]of [[-9,.1],[4,.9],[null,.5],['.7',.5],[NaN,.5],[undefined,.5]])assert.equal(L.previewRatio(value),expected);
+});
+test('private lower-site transfer and height stay in its independent in-memory bank',async()=>{
+ const {MemoryStore}=require('./mouse-private-core.cjs'),normal=fixture(),privateWorkspace=fixture();
+ const normalService=await install({...normal,browser:normal.b,trusted:()=>{}});await normalService.savePreferences({...normalService.preferences(),aiPreviewRatio:.7,theme:'dark'});const before=structuredClone(normal.saved);
+ const chat=privateWorkspace.b.make(),preview=privateWorkspace.b.make();chat.lane=preview.lane='side';preview.previewOf=chat.id;
+ const store=new MemoryStore(),privateService=await install({...privateWorkspace,browser:privateWorkspace.b,store,trusted:()=>{}});
+ await privateService.savePreferences({...privateService.preferences(),aiOpen:true,aiId:chat.id,aiPreviewRatio:.36});
+ await privateWorkspace.handlers.get('mouse:desktops')({},'detach-preview',{id:preview.id,pane:'p1',from:'desk-3',preferences:privateService.preferences()});
+ assert.equal(privateService.preferences().slots.p1,preview.id);assert.equal(privateService.preferences().aiPreviewRatio,.36);assert.deepEqual(normal.saved,before);assert.equal(normalService.preferences().aiPreviewRatio,.7);
+ assert.equal((await store.get('quadroPreferences')).quadroPreferences.aiPreviewRatio,.36);privateWorkspace.b.dispose();store.destroy();assert.deepEqual(await store.get(['mouseDesktopsV1','quadroPreferences']),{});normal.b.dispose();
 });

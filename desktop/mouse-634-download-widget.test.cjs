@@ -5,6 +5,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {downloadNativeBounds,assertDownloadPaneGeometry}=require('./mouse-630-feedback-smoke.cjs');
 const {assertIndependentGeometry,pixelAt,probeDelta,PALETTE,ownedDownloadURL}=require('./mouse-634-download-widget-smoke.cjs');
 const {ownerPage}=require('./mouse-634-smoke-helpers.cjs');
+const {paletteForVersion}=require('./mouse-smoke-seam-palette.cjs');
 const clone=value=>structuredClone(value);
 test('chat and cross-origin preview each download from their own fixed HTTP fixture',()=>{
  const base='http://127.0.0.1:31001',previewBase='http://127.0.0.1:31002';
@@ -46,4 +47,17 @@ test('OS pixel sampling uses recorded DIP mapping, actual BGRA bytes and rejects
  const size={width:20,height:20},bitmap=Buffer.alloc(20*20*4),mapping={originX:.25,originY:.5,scaleX:2,scaleY:2},point={x:3.25,y:4.25};
  const at=(9*20+6)*4;bitmap.set([60,130,7,255],at);const pixel=pixelAt(bitmap,size,mapping,point);assert.deepEqual(pixel,{x:6,y:9,rgba:[7,130,60,255]});assert.equal(probeDelta(pixel.rgba,PALETTE.fill),0);assert.ok(probeDelta([40,84,202,255],PALETTE.fill)>12);
  assert.throws(()=>pixelAt(bitmap,size,mapping,{x:50,y:4}));assert.throws(()=>pixelAt(bitmap.subarray(4),size,mapping,point));
+});
+test('dark download gaps reject the control border color and retain the published predecessor palette',()=>{
+ // Actual failed637 macOS/Windows receipts had [53,67,87,255] at both gap
+ // positions. Only --line's old expectation was wrong; tolerance stays12.
+ const seam637=[53,67,87,255],seam636=[67,83,107,255];
+ assert.equal(probeDelta(seam637,paletteForVersion('6.0.37').dark.rgb),0);
+ assert.ok(probeDelta(seam636,paletteForVersion('6.0.37').dark.rgb)>12);
+ for(const version of ['6.0.34','6.0.35','6.0.36']){
+  assert.equal(probeDelta(seam636,paletteForVersion(version).dark.rgb),0);
+  assert.ok(probeDelta(seam637,paletteForVersion(version).dark.rgb)>12);
+ }
+ assert.equal(probeDelta([199,207,223,255],paletteForVersion('6.0.37').light.rgb),0);
+ assert.ok(probeDelta([0,0,0,255],paletteForVersion('6.0.37').dark.rgb)>12);
 });

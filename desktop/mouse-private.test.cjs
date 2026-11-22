@@ -17,20 +17,20 @@ test('private cleanup clears storage, cache, auth, resolver and network; no sile
  await clearPrivateSession(Object.fromEntries(names.map(n=>[n,async()=>seen.push(n)])));assert.deepEqual(seen.sort(),names.sort());
  await assert.rejects(()=>clearPrivateSession(Object.fromEntries(names.map(n=>[n,async()=>{if(n==='clearCache')throw Error('fixture');}]))),/очистить/);
 });
-test('incognito page exposes only two frozen task aliases and excludes wallet, file and wallpaper authority',async()=>{
+test('incognito page exposes only the frozen browser task API and excludes wallet, file and wallpaper authority',async()=>{
  const preload=fs.readFileSync(require.resolve('./mouse-page-preload.cjs'),'utf8');assert.doesNotMatch(preload,/ethereum|wallet|executeJavaScript|eval\(/);
  for(const isMainFrame of [true,false]){
   const bridges=[],listeners=[],calls=[];
   const electron={contextBridge:{exposeInMainWorld:(name,api)=>bridges.push({name,api})},ipcRenderer:{invoke:(channel,args)=>{calls.push({channel,args:structuredClone(args)});return Promise.resolve(channel==='mouse:page-progress-context'?{documentToken:'owned-document'}:{accepted:true});}}};
   require('node:vm').runInNewContext(preload,{process:{isMainFrame},require(name){assert.equal(name,'electron');return electron;},document:{addEventListener:name=>listeners.push(name)}},{timeout:1000});
-  assert.deepEqual(bridges.map(b=>b.name),isMainFrame?['MouseAgent','browser']:[]);assert.deepEqual(listeners,isMainFrame?['dragstart']:[]);
+  assert.deepEqual(bridges.map(b=>b.name),isMainFrame?['browser']:[]);assert.deepEqual(listeners,isMainFrame?['dragstart']:[]);
   if(isMainFrame){
-   for(const [index,method]of ['updateProgress','setProgress'].entries()){
+   for(const [index,method]of ['setProgress'].entries()){
     const api=bridges[index].api;assert.deepEqual(Object.keys(api),[method]);assert.equal(Object.isFrozen(api),true);const descriptor=Object.getOwnPropertyDescriptor(api,method);assert.equal(descriptor.writable,false);assert.equal(descriptor.configurable,false);
     await api[method](null,'Waiting',{taskId:'own-task',sourceId:'another-page',privateMode:false,channel:'mouse:save',file:'/private/path',command:'forged',wallet:'forged'});
    }
    const report={channel:'mouse:page-progress',args:{percent:null,statusText:'Waiting',taskId:'own-task',phase:undefined,etaSeconds:undefined,documentToken:'owned-document'}};
-   assert.deepEqual(calls,[{channel:'mouse:page-progress-context',args:undefined},report,report]);
+   assert.deepEqual(calls,[{channel:'mouse:page-progress-context',args:undefined},report]);
   }else assert.deepEqual(calls,[]);
  }
  assert.match(fs.readFileSync(require.resolve('./mouse-start.cjs'),'utf8'),/if\(privateMode\)throw Error/);

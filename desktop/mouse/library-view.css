@@ -38,3 +38,17 @@
 #library-dialog[data-kind=downloads] #library-rows[data-view=list] .library-actions{grid-column:2/4;grid-row:2;justify-content:flex-start}
 #library-dialog[data-kind=downloads] #library-rows[data-view=list] .library-body{grid-column:2/4}
 #library-dialog[data-kind=downloads] #library-rows[data-view=list] .library-remove{margin-left:auto}
+/* Files open from their content; names and actions live in the native context
+   menu. Keep a fixed preview box so lazy decoding cannot move selection. */
+#library-dialog #library-rows .library-content-only .library-file-open{display:block;width:100%;min-height:0;padding:0;border:0;background:transparent;white-space:normal;text-align:left;-webkit-line-clamp:unset;cursor:pointer;user-select:none;touch-action:pan-y}
+#library-dialog #library-rows .library-content-only .library-file-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+#library-dialog #library-rows .library-file-open .library-visual{width:100%;min-height:0;padding:0;display:flex}
+#library-dialog #library-rows[data-view=list]>.library-content-only{grid-template-columns:minmax(0,1fr) 18px;align-items:start}
+#library-dialog #library-rows[data-view=list]>.library-content-only .library-body{grid-column:1;grid-row:1}
+#library-dialog #library-rows[data-view=list]>.library-content-only .library-check{grid-column:2;grid-row:1;margin-top:3px}
+#library-dialog #library-rows[data-view=list] .library-file-open .library-icon{width:100%;height:108px;box-sizing:border-box;object-fit:contain}
+#library-dialog #library-rows[data-view=list] .library-file-open .library-icon:not(.library-thumbnail){padding:33px 0}
+#library-dialog #library-rows[data-view=grid]>.library-content-only{padding-top:34px}
+#library-dialog #library-rows[data-view=grid] .library-file-open .library-icon{width:100%;height:112px;box-sizing:border-box;object-fit:contain}
+#library-dialog #library-rows .library-file-open.library-text-preview{padding:8px;max-height:130px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+#library-dialog #library-rows[data-view=grid] .library-file-open.library-text-preview{margin-top:0;min-height:112px}

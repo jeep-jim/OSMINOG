@@ -2816,3 +2816,48 @@ Source `7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3` принят через [PR190
 Опубликованы [Mac DMG/ZIP](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.36-arm64), [Windows EXE](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.36-x64), [Linux AppImage/DEB](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.36-x64). Все три канала показывают 6.0.36; размеры и SHA-256 публичных assets, latest и versioned feeds отдельно сверены с source pins. Настоящие прежние updater-модули анонимно обнаружили и полностью скачали новые пакеты с проверкой хешей. Свежая установленная приёмка и обновление профиля прошли на каждой платформе.
 
 В финальном source CI при 50 страницах/пяти столах/десяти переключениях медиана на одном runner прежде → 6.0.36: Mac 592.980 → 58.627 мс, Windows 546.620 → 52.831 мс, Linux 569.053 → 44.412 мс; обычные переключения у кандидата не снимают native images. Это измерения CI, не физического устройства владельца. Сборки остаются предварительными; Mac ad-hoc без Apple notarization, Windows/Linux unsigned. Внешний личный модельный сервис не проверялся; удаление поискового deployment-кода не утверждает выключение удалённого сервера. Полные source/package/publisher/artifact SHA, история исправлений, каналы и ограничения — в [журнале завершённого выпуска](docs/desktop/2026-11-21-mouse636-performance.md).
+
+
+## 2026-11-22 — Mouse 6.0.37 continuation of PR #193
+
+Owner requested one successor to published 6.0.36 for macOS Apple Silicon, Windows x64 and Linux x64, using the existing update button; primary owner computer: MacBook. Audited releases and active builds before selecting the free 6.0.37 number. Preserve all published 6.0.36 packages and its desktop performance, inline Agent settings and removed tile search.
+
+PR #193's combined language, pane, unpacked-extension and media changes are being completed with Russian locale search, explicit extension restore failures and replacement-track handling. Found and locally reproduced the draft's translation/extension observer startup loop; fixed actual-value notifications and added the two-production-script regression. Native acceptance and publication are still pending. Current predecessor is 6.0.36 on all three platforms; VK and Chrome Web Store compatibility are not asserted.
+
+Scope, failure analysis and required publication evidence: [Mouse 6.0.37 release record](docs/desktop/2026-11-22-mouse637-release.md). Source: [PR #193](https://github.com/jeep-jim/OSMINOG/pull/193).
+
+
+## 22.11.2026 — дополнение к единой Mouse 6.0.37: сетка и мягкий белый
+
+Прямое поручение владельца: продолжить исправление #193 и включить обе настройки в тот же выпуск для macOS Apple Silicon, Windows x64 и Linux x64. Нынешняя раскладка со скруглением 12 px и промежутками 6 px остаётся режимом по умолчанию; новый переключатель включает прямоугольную сетку без промежутков и скруглений. Изменение режима сохраняет вкладки, их содержимое и возможность изменять размеры.
+
+В «Внешний вид» добавлен «Тон белого» 0–100: основной текст тёмного интерфейса от #A0A0A0 до #FFFFFF, по умолчанию #D4D4D4 (значение 55), согласно последней формулировке задания. Выбор сохраняется в localStorage и применяется при загрузке; светлая тема и стили сторонних сайтов не перекрашиваются. В инкогнито изменения действуют только в текущем сеансе. Native-проверка включает реальные действия в настройках, геометрию страниц и восстановление нестандартного выбора отдельным процессом.
+
+На этом этапе исправления подготовлены, но новый выпуск ещё не опубликован. Разбор отказов, текущие проверки и последующие результаты: [журнал 6.0.37](docs/desktop/2026-11-22-mouse637-release.md). Сохраняются один общий исходный коммит, штатное обновление с 6.0.36 и неизменность её опубликованных пакетов.
+
+
+### 2026-11-22 — 6.0.37: native continuation after 3ca4b8b
+
+The installed Linux run confirmed the published 6.0.36 upgrade and actual update-button automatic relaunch/profile preservation, then exposed a retained separator readback using the control-border token instead of the workspace seam. The readback now follows the effective workspace token without changing independent expected colors or PNG tolerances. Mac installed acceptance exposed the first Escape clearing language search without closing its chooser; the production chooser now closes once while preserving lower overlays and live page ownership. Focused suites pass 33 and 48 tests respectively. Full native acceptance and publication remain pending. Exact failed-run evidence, successful Linux sub-gates and unready publisher PR #66 are recorded in [the 6.0.37 release journal](docs/desktop/2026-11-22-mouse637-release.md#native-follow-up-on-3ca4b8b-observed-update-success-and-remaining-ui-corrections).
+
+
+### 2026-11-22 — единая 6.0.37: сайты под ИИ, пресеты и боковые панели
+
+Владелец дополнил текущий выпуск: высота/адрес/favicon и перенос живого сайта из-под ИИ; автоматически заполненные пресеты (контент 6×2, поддержка — четыре чата слева и Google Карты справа, трейдер — график/календарь/скринер/крипторынок); возвращение режима «Агенты» с отдельным localhost слева и тёмной стартовой областью; затемнение основных страниц при боковой панели; клик и настоящий файловый drag из библиотеки, остальные действия/дата через контекстное меню. Все прежние задачи 6.0.37 и сохранение профиля остаются обязательными. Исходные mode-ID/transfer проверки проходят; actual native acceptance ещё не принята. Следующий прогон исправляет ошибочную цель compact-header smoke (103 вместо минимальных 100 px), выявленную на всех трёх ОС в 589f95a. [Подробности, источники адресов и точные результаты](docs/desktop/2026-11-22-mouse637-release.md#2026-11-22--lower-ai-websites-populated-presets-and-quieter-side-panels). Публикации новой версии пока нет.
+
+
+### 2026-11-22 — единая 6.0.37: настройки, файлы и готовые режимы
+
+В общую ветку добавлены затемнение основных страниц при открытой боковой панели, тёмный фон панели как у toolbar, открытие карточки файла нажатием, настоящий native drag файла и контекстное меню с метаданными. Нижний сайт ИИ, готовые режимы и localhost включены в тот же installed feature scenario для трёх ОС. Целевые прогоны112/112,146/146,67/67 и отдельный lifecycle10/10 — пересекающиеся наборы, не общий счётчик. Реальная нативная приёмка и публикация ещё ожидаются; каналы6.0.36 не менялись. Подробности: docs/desktop/2026-11-22-mouse637-release.md.
+
+
+### 2026-11-22 — сверка 6.0.37 и круглое окно обновления
+
+Все 55 последних файлов из прежнего рабочего дерева побайтно совпадают с кандидатом 42e6dca в PR #193. Однако реальные каналы всё ещё отдают 6.0.36: три installed-прогона 42e6dca завершились отказом. Подготовлены узкие исправления проверок: ожидаемый цвет живой страницы под 14% затемнением настроек, фактическая доступность кнопок адаптивного медиаплеера и три новых ожидаемых поля при чтении профиля 6.0.29. Сохранение данных, native input, размеры/пиксельные допуски и сроки не ослаблены.
+
+Владелец добавил круглое окно обновления по рисунку: логотип и статус по центру, действия сегментами кольца, круглые кнопки справа сверху и сильное затемнение вокруг. Это входит в ещё не опубликованную 6.0.37 с отдельной проверкой двух тем; реальные загрузка, установка и сохранение профиля остаются обязательными. Публикация не подтверждена. [Точные прогоны, причины отказов и условия выпуска](docs/desktop/2026-11-22-mouse637-release.md#2026-11-22--recovered-release-state-and-circular-updater-request).
+
+
+### 22.11.2026 — владелец отменил встроенного агента Mouse
+
+Последнее прямое поручение: полностью удалить Agent Mouse из актуального браузера, включая чат, настройки, режим «Агенты», Local MCP, терминал, автономное выполнение и модельные подключения. Это заменяет прежние требования этих функций. Удаление готовится в том же следующем выпуске 6.0.37; историческая документация и опубликованные пакеты сохраняются. Общие браузерные операции, вкладки и профиль должны пережить переход. Старый кандидат554 с агентом не публиковать; требуется новая приёмка всех трёх платформ. [Границы, миграция и фактические доказательства](docs/desktop/2026-11-22-mouse637-agent-removal.md).

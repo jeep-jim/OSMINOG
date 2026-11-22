@@ -1,10 +1,18 @@
 /* Each right-column page owns its toolbar, native slot and download footer. */
-#workspace #ai-panel{background:var(--line);overflow:visible;border-radius:var(--pane-radius,12px);gap:var(--workspace-gap,6px)}
+#workspace #ai-panel{background:var(--mouse-grid-seam,var(--line));overflow:visible;border-radius:var(--pane-radius,12px);gap:0}
 #ai-chat-pane,#ai-preview-pane{position:relative;display:flex;flex-direction:column;flex:1 1 0;min-width:0;min-height:0;overflow:hidden;border-radius:var(--pane-radius,12px);background:var(--panel)}
 #ai-preview-pane[hidden]{display:none}
 #ai-chat-pane>.ai-controls{flex:none;border-radius:var(--pane-radius,12px) var(--pane-radius,12px) 0 0}
 #ai-chat-pane>.ai-controls>button{border-radius:10px}
 #ai-preview-slot{position:relative;flex:1;min-height:0;min-width:0;overflow:hidden;background:var(--bg)}
 #ai-preview-pane>.pane-head{flex:none;min-width:0;border-radius:var(--pane-radius,12px) var(--pane-radius,12px) 0 0}
-#ai-preview-title{flex:1;min-width:0;padding:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted)}
-#ai-chat-pane.has-pane-downloads,#ai-preview-pane.has-pane-downloads{border-bottom-left-radius:0;border-bottom-right-radius:0;background:var(--line)}
+#ai-preview-divider{flex:none;background:var(--mouse-grid-seam,var(--line))}
+#ai-preview-divider:is(:hover,:focus-visible,.dragging){outline:none}
+#ai-preview-divider:is(:hover,:focus-visible,.dragging)::before{content:'';position:absolute;inset:auto min(12px,20%);top:50%;height:2px;transform:translateY(-50%);border-radius:99px;pointer-events:none;background:var(--mouse-grid-guide,var(--accent))}
+#ai-preview-target{appearance:none;-webkit-appearance:none;flex:none;width:20px;min-width:20px;height:22px;min-height:22px;padding:0;border:0;border-radius:10px;color:transparent;font-size:0;background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%237c8ca4' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 14 6 6m0 7V6h7'/%3E%3C/svg%3E") center/16px 16px no-repeat}
+#ai-preview-target:hover{background-color:var(--hover)}
+#ai-preview-pane .pane-icon .favicon{width:13px;height:13px;margin:0 2px}
+#ai-preview-pane .pane-address input{border-radius:10px}
+html[data-theme=dark] #ai-preview-pane .pane-address input{color:var(--muted)}
+html[data-theme=dark] #ai-preview-pane .pane-address input:focus{color:var(--text)}
+#ai-chat-pane.has-pane-downloads,#ai-preview-pane.has-pane-downloads{border-bottom-left-radius:0;border-bottom-right-radius:0;background:var(--mouse-grid-seam,var(--line))}

@@ -19,10 +19,9 @@ if(process.isMainFrame){
   const version=documentVersion,owner=await context();if(!documentActive||version!==documentVersion)throw Error('Страница задачи уже изменилась');
   return ipcRenderer.invoke('mouse:page-progress',{percent,statusText,taskId:options?.taskId,phase:options?.phase,etaSeconds:options?.etaSeconds,documentToken:owner.documentToken});
  };
- contextBridge.exposeInMainWorld('MouseAgent',Object.freeze({updateProgress}));
  // Electron refuses to bind over an existing main-world property. Wait until
  // the site's initial scripts ran, and leave its own `browser` namespace alone.
- const browserAlias=()=>{try{contextBridge.exposeInMainWorld('browser',Object.freeze({setProgress:updateProgress}));}catch{/* MouseAgent remains the collision-free canonical API. */}};
+ const browserAlias=()=>{try{contextBridge.exposeInMainWorld('browser',Object.freeze({setProgress:updateProgress}));}catch{/* The page owns an existing browser namespace. */}};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',browserAlias,{once:true});else browserAlias();
  if(typeof window!=='undefined'){
   window.addEventListener('pagehide',()=>{documentActive=false;resetTaskContext();});

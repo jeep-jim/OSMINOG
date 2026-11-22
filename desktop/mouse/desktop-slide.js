@@ -22,7 +22,7 @@
    if(bounds.width>1&&bounds.height>1&&intersects(area,bounds))list.push({id,slot,bounds});
   }
   const ai=workspace.querySelector('#ai-slot'),tab=tabs.get(model.aiId);
-  if(ai&&tab&&!tab.internal&&model.aiOpen&&(!model.agentOpen||model.privateMode)&&!model.focusPane&&!model.libraryOpen){const bounds=box(ai.getBoundingClientRect());if(bounds.width>1&&bounds.height>1&&intersects(area,bounds))list.push({id:tab.id,slot:ai,bounds});}
+  if(ai&&tab&&!tab.internal&&model.aiOpen&&!model.focusPane&&!model.libraryOpen){const bounds=box(ai.getBoundingClientRect());if(bounds.width>1&&bounds.height>1&&intersects(area,bounds))list.push({id:tab.id,slot:ai,bounds});}
   return list;
  }
  function createScene(workspace,model,direction,{borrowedHold=false}={}){

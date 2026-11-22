@@ -4,6 +4,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
 const {sha256,colorFor}=require('./mouse-631-smoke-helpers.cjs');
 const {downloadPaneSample,downloadNativeBounds,assertDownloadPaneGeometry}=require('./mouse-630-feedback-smoke.cjs');
+const {paletteForVersion}=require('./mouse-smoke-seam-palette.cjs');
 const PALETTE={track:[83,207,139],fill:[7,130,60]},PIXEL_TOLERANCE=12;
 
 function widgetSnapshot(tabIds,samplePane){
@@ -78,7 +79,9 @@ module.exports=async({fixture,browser,win,libraryService,guestClick,screenCaptur
    if(pill){
     const r=pill.bounds,p=Number(pill.ariaNow)/100;assert.ok(p>.02&&p<.95,'Known held bytes provide both filled and remaining pixels');
     for(const [kind,x,color]of [['fill',r.x+r.width*p/2,PALETTE.fill],['track',r.x+r.width*(1+p)/2,PALETTE.track]])for(const dy of [-2,0,2])expected.push({kind,tabId:row.tabId,point:{x,y:r.y+r.height/2+dy},expectedRGB:color});
-    const line=await fixture.js('getComputedStyle(document.documentElement).getPropertyValue("--line").trim()');const lineRGB=await fixture.js(`(()=>{const probe=document.createElement('span');probe.style.color=${JSON.stringify(line)};document.body.append(probe);const color=getComputedStyle(probe).color;probe.remove();return color.match(/[\\d.]+/g).slice(0,3).map(Number);})()`);
+    // The workspace has a separate darker seam in 637. Do not read --line,
+    // which still styles controls, or derive an expectation from a bad frame.
+    const lineRGB=paletteForVersion(facts.version)[snapshot.theme].rgb;
     expected.push({kind:'gap',tabId:row.tabId,point:{x:r.x+r.width/2,y:r.y-3},expectedRGB:lineRGB});
    }
    const content=await fixture.pageJS(records[i],'(()=>{const element=document.querySelector("#region-a"),r=element.getBoundingClientRect();return{bounds:{x:r.x,y:r.y,width:r.width,height:r.height},color:getComputedStyle(element).backgroundColor};})()'),color=colorFor(records[i].index,0),r=content.bounds;

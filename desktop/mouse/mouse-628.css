@@ -3,22 +3,17 @@
 .pane-head,
 :is(#ai-panel,#ai-chat-pane)>.ai-controls,
 #library-dialog,
-#agent-panel,
-.agent-heading,
-.agent-footer,
 .toolbar .tab-item,
 .address-suggestions,
 .resize-size-hud,
 body>#status,
 #library-dialog #library-rows .library-row,
-#agent-panel :is(details,.agent-log,.agent-approval,.agent-terminal),
 .mouse-progress-pill,
 body>dialog,
 body>dialog header,
 body>dialog footer{border:0!important}
 :is(.toolbar,#statusbar,.pane-head,.ai-controls,#desktop-tray,#global-zoom-panel) :is(button,select,input),
 #library-dialog :is(button,select,input),
-#agent-panel :is(button,select,input,textarea),
 #statusbar #footer-library>button,
 #statusbar #ai-toggle[aria-pressed=true],
 :root[data-theme] .toolbar>#new-tab{border:0!important;box-shadow:none!important}
@@ -41,10 +36,9 @@ body:has(#desktop-tray[open]) #statusbar{border:0!important;border-image:none!im
 .mouse-pane-progress .mouse-progress-download-icon{position:absolute;left:8px;width:16px;text-align:center;color:var(--progress-color);font-size:16px;line-height:18px;pointer-events:none}
 .mouse-pane-progress .mouse-progress-status{font-size:10px}
 .mouse-pane-progress .mouse-progress-value{font-size:10px}
-.mouse-pane-progress .mouse-progress-stop,.mouse-pane-progress .mouse-progress-dismiss,.mouse-pane-progress .mouse-progress-downloads{flex:none}
+.mouse-pane-progress .mouse-progress-dismiss,.mouse-pane-progress .mouse-progress-downloads{flex:none}
 .mouse-pane-progress .mouse-progress-pill[data-download-state=paused] .mouse-progress-fill{animation:none;opacity:.35}
 .mouse-pane-progress .mouse-progress-pill[data-phase=error]{background:color-mix(in srgb,#df8468 14%,var(--panel))}
-#agent-panel>.mouse-pane-progress{background:var(--panel)}
 #desktop-tray{border:0!important;box-shadow:none!important;outline:0;overflow:hidden}
 #desktop-tray #mouse-dock-outline{stroke:none!important;fill:none}
 #desktops-button::before{content:none!important;display:none!important}

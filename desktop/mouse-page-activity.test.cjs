@@ -87,7 +87,7 @@ test('generated sandbox preload requires only Electron, keeps aliases narrow, an
   vm.runInNewContext(source,context,{timeout:1000});f.advance(0);await settle();assert.deepEqual(required,['electron']);
   const enabled=options.isMainFrame!==false&&!options.privateMode&&options.protocol!=='file:';
   assert.equal(calls.length,enabled?1:0);assert.deepEqual([...mainEvents.keys()],enabled?['mouse:page-activity-resync']:[]);if(enabled){assert.equal(calls[0].channel,'mouse:page-activity');assert.equal(calls[0].percent,37);assert.equal(calls[0].kind,'dom');assert.equal(calls[0].documentToken,'current-document');mainEvents.get('mouse:page-activity-resync')();f.advance(250);await settle();assert.equal(calls.length,2);f.window.emit('pagehide');assert.equal(f.timers.size,0);f.window.emit('pageshow');f.advance(250);await settle();assert.equal(calls.length,3);}
-  assert.deepEqual(bridges.map(b=>b.name),options.isMainFrame===false?[]:options.existingBrowser?['MouseAgent']:['MouseAgent','browser']);if(bridges.length){assert.deepEqual(Object.keys(bridges[0].api),['updateProgress']);if(bridges[1])assert.deepEqual(Object.keys(bridges[1].api),['setProgress']);}
+  assert.deepEqual(bridges.map(b=>b.name),options.isMainFrame===false||options.existingBrowser?[]:['browser']);if(bridges.length)assert.deepEqual(Object.keys(bridges[0].api),['setProgress']);
  }
 });
 test('unrelated busy/style/text mutation storms never restart a document scan or read geometry',()=>{
@@ -119,7 +119,7 @@ test('a pending preload report cannot cross pagehide into a different document c
  const f=fixture(),bridges=[],calls=[];let resolveContext,contexts=0;
  const source=fs.readFileSync(path.join(__dirname,'mouse-page-preload.cjs'),'utf8');
  vm.runInNewContext(source,{document:f.document,window:f.window,process:{isMainFrame:true},require(name){assert.equal(name,'electron');return{contextBridge:{exposeInMainWorld:(name,api)=>bridges.push({name,api})},ipcRenderer:{invoke(channel,value){if(channel==='mouse:page-progress-context'){contexts++;return contexts===1?new Promise(resolve=>{resolveContext=resolve;}):Promise.resolve({documentToken:'new-document'});}calls.push({channel,value});return Promise.resolve({accepted:true});}}};}},{timeout:1000});
- const api=bridges[0].api,pending=api.updateProgress(37,'Old task',{taskId:'old'});f.window.emit('pagehide');resolveContext({documentToken:'old-document'});await assert.rejects(pending,/изменилась/);assert.equal(calls.length,0);
+ const api=bridges[0].api,pending=api.setProgress(37,'Old task',{taskId:'old'});f.window.emit('pagehide');resolveContext({documentToken:'old-document'});await assert.rejects(pending,/изменилась/);assert.equal(calls.length,0);
  f.window.emit('pageshow');await bridges.find(bridge=>bridge.name==='browser').api.setProgress(42,'New task',{taskId:'new',etaSeconds:30});assert.equal(contexts,2);assert.equal(calls.length,1);assert.equal(calls[0].value.documentToken,'new-document');assert.equal(calls[0].value.etaSeconds,30);
 });
 test('actual Mouse beforePack produces the bundled sandbox preload',async()=>{

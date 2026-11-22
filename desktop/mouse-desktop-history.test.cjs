@@ -4,7 +4,7 @@ const {DesktopBank,install,HISTORY_LIMIT,HISTORY_BYTES}=require('./mouse-desktop
 const L=require('./mouse/layout.js');
 const copy=x=>structuredClone(x);
 const pages=[{id:'one',lane:'main'},{id:'two',lane:'main'},{id:'three',lane:'main'},{id:'ai',lane:'side'}];
-const custom=()=>({tree:{axis:'x',ratio:.37,a:{id:'p1'},b:{axis:'y',ratio:.63,a:{id:'p2'},b:{id:'p3'}}},slots:{p1:'one',p2:'two',p3:'three'},active:'p2',tabOrder:['three','one','two','ai'],aiOpen:true,aiId:'ai',aiWidth:412,aiSessions:{'https://chat.example/':'ai'},mode:'',agentOpen:false});
+const custom=()=>({tree:{axis:'x',ratio:.37,a:{id:'p1'},b:{axis:'y',ratio:.63,a:{id:'p2'},b:{id:'p3'}}},slots:{p1:'one',p2:'two',p3:'three'},active:'p2',tabOrder:['three','one','two','ai'],aiOpen:true,aiId:'ai',aiWidth:412,aiSessions:{'https://chat.example/':'ai'},mode:''});
 function makeBank(p=custom()){const b=new DesktopBank(null,p);b.reconcile(pages);return b;}
 function edit(b,p,meta={reason:'layout'},tabs=pages){assert.equal(b.savePreferences({...b.preferences(),...p},meta,tabs),true);return copy(b.current().layout);}
 function fixture(saved={}){
@@ -14,11 +14,11 @@ function fixture(saved={}){
 }
 async function host(f){const service=await install(f);return{service,call:(action,args={})=>f.handlers.get('mouse:desktops')({trusted:true},action,args)};}
 
-test('history restores exact trees, ratios, order and AI settings; selector-only and focus changes create no checkpoint',()=>{
+test('history restores exact trees, ratios, order and AI settings; session metadata and focus changes create no checkpoint',()=>{
  const b=makeBank(),original=copy(b.current().layout),initialId=b.historyState().currentId;
- edit(b,{agentOpen:true,active:'p3'},{reason:'ai-panel'});assert.equal(b.historyState().currentId,initialId);assert.equal(b.historyState().undoCount,0);
+ edit(b,{active:'p3'},{reason:'ai-panel'});assert.equal(b.historyState().currentId,initialId);assert.equal(b.historyState().undoCount,0);
  const before=copy(b.current().layout),tree=copy(before.tree);tree.ratio=.72;tree.b.ratio=.28;
- const after=edit(b,{tree,slots:{p1:'two',p2:'three'},tabOrder:['ai','two','one','three'],active:'p1',aiOpen:false,aiWidth:560,agentOpen:false},{reason:'resize'}),afterId=b.historyState().currentId;
+ const after=edit(b,{tree,slots:{p1:'two',p2:'three'},tabOrder:['ai','two','one','three'],active:'p1',aiOpen:false,aiWidth:560},{reason:'resize'}),afterId=b.historyState().currentId;
  assert.equal(b.historyState().undoCount,1);assert.equal(b.historyState().undoReason,'resize');assert.equal(b.stepHistory('undo',pages),true);assert.deepEqual(b.current().layout,before);assert.equal(b.historyState().currentId,initialId);assert.equal(b.historyState().redoReason,'resize');
  assert.equal(b.stepHistory('redo',pages),true);assert.deepEqual(b.current().layout,after);assert.equal(b.historyState().currentId,afterId);assert.deepEqual(original.tree,before.tree);
 });
@@ -57,7 +57,7 @@ test('history has both a step bound and a byte bound, including untrusted saved 
 
 test('title, favicon and session metadata preserve history identity, bounds and redo',()=>{
  const b=makeBank();edit(b,{aiWidth:488},{reason:'ai-resize'});b.stepHistory('undo',pages);const initial=copy(b.historyState('desk-3',true));
- for(let i=0;i<60;i++){b.reconcile(pages.map(p=>({...p,title:'Updated '+i,favicon:'https://icons.test/'+i})));edit(b,{theme:i%2?'light':'dark',agentOpen:!!(i%2),active:i%2?'p1':'p2',aiSessions:{'https://new.example/':'ai'}},{reason:'metadata'});}
+ for(let i=0;i<60;i++){b.reconcile(pages.map(p=>({...p,title:'Updated '+i,favicon:'https://icons.test/'+i})));edit(b,{theme:i%2?'light':'dark',active:i%2?'p1':'p2',aiSessions:{'https://new.example/':'ai'}},{reason:'metadata'});}
  assert.equal(b.historyState().currentId,initial.currentId);assert.equal(b.historyState().undoCount,initial.undoCount);assert.equal(b.historyState().redoCount,initial.redoCount);assert.equal(b.historyState('desk-3',true).entries.at(-1).id,initial.entries.at(-1).id);assert.ok(!JSON.stringify(b.historyState('desk-3',true)).includes('https://'));assert.ok(!Object.hasOwn(b.describe(pages).items[2].history,'entries'));
 });
 
@@ -69,22 +69,29 @@ test('atomic history jumps retain a valid past/future cursor and branch only aft
  b.restoreLayout(ids[2],pages);edit(b,{aiWidth:900},{reason:'ai-resize'});assert.equal(b.historyState().redoCount,0);assert.throws(()=>b.restoreLayout(ids[4],pages),/недоступно/);
 });
 
-test('old agents mode migrates Agent visibility without rewriting layout or recording selector-only history',()=>{
- const p={...custom(),mode:'agents'};delete p.agentOpen;const b=makeBank(p);assert.equal(b.preferences().agentOpen,true);assert.deepEqual(b.preferences().tree,p.tree);assert.equal(b.historyState().undoCount,0);edit(b,{agentOpen:false},{reason:'ai-panel'});assert.equal(b.preferences().mode,'agents');assert.equal(b.historyState().undoCount,0);const restored=new DesktopBank(b.snapshot());assert.equal(restored.preferences().agentOpen,false);
+test('retired mode and panel keys disappear from current and saved history layouts without losing placements or redo',()=>{
+ const before={...custom(),mode:'agents',agentOpen:true,agentPreviewId:'one',presetTabs:{agents:['one']}},current={...before,tree:L.preset(2),slots:{p1:'two',p2:'three'},active:'p1'},future={...before,aiWidth:620};
+ const saved={schema:2,active:'desk-3',members:Object.fromEntries(pages.map(page=>[page.id,'desk-3'])),items:[{id:'desk-3',name:'Keep',layout:current,history:{schema:1,current:{id:'current',createdAt:2,reason:'layout'},past:[{id:'past',createdAt:1,reason:'initial',layout:before}],future:[{id:'future',createdAt:3,reason:'ai-resize',layout:future}]}}]},input=copy(saved);
+ const b=new DesktopBank(saved,{...before,theme:'dark'});b.reconcile(pages);const inspect=bank=>{for(const state of [bank.preferences(),bank.global,...bank.historyState('desk-3',true).entries]){assert.equal(Object.hasOwn(state,'agentOpen'),false);assert.equal(Object.hasOwn(state,'agentPreviewId'),false);assert.equal(state.presetTabs?.agents,undefined);}assert.equal(bank.preferences().mode,'');};
+ inspect(b);assert.deepEqual(b.preferences().slots,current.slots);assert.deepEqual(b.snapshot().members,saved.members);assert.deepEqual(b.historyState('desk-3',true).entries.map(entry=>entry.id),['past','current','future']);
+ assert.equal(b.stepHistory('undo',pages),true);assert.deepEqual(b.preferences().tree,before.tree);assert.deepEqual(b.preferences().slots,before.slots);assert.equal(b.preferences().aiId,'ai');inspect(b);
+ const restarted=new DesktopBank(b.snapshot(),b.preferences());restarted.reconcile(pages);assert.equal(restarted.stepHistory('redo',pages),true);assert.deepEqual(restarted.preferences().slots,current.slots);assert.equal(restarted.stepHistory('redo',pages),true);assert.equal(restarted.preferences().aiWidth,620);inspect(restarted);assert.deepEqual(saved,input,'Migration never mutates its supplied profile snapshot');
 });
 
-test('host serializes saves with undo, awaits agent stop, preserves page objects and persists after shell restart',async()=>{
+test('host serializes saves with undo, awaits the owned pre-change barrier, preserves page objects and persists after shell restart',async()=>{
  const f=fixture();for(const p of pages)f.browser.make(p);f.saved.quadroPreferences=custom();const {service,call}=await host(f),original=copy(service.preferences()),identities=[...f.browser.tabs.values()];let releaseStop;const stopGate=new Promise(r=>{releaseStop=r;});f.browser.mouseBeforeDesktopChange=()=>stopGate;
  const tree=copy(original.tree);tree.ratio=.76;const saving=service.savePreferences({...original,tree},{reason:'resize'}),undo=call('undo',{from:'desk-3'});await saving;await new Promise(r=>setImmediate(r));assert.equal(service.preferences().tree.ratio,.76);releaseStop();const undone=await undo;assert.equal(undone.changed,true);assert.deepEqual(undone.preferences,original);assert.equal(undone.history.canRedo,true);assert.deepEqual([...f.browser.tabs.values()],identities);assert.deepEqual(f.effects,[]);assert.equal(Object.hasOwn(undone.state.layoutHistory,'entries'),false);
  await service.flush();const f2=fixture(copy(f.saved));for(const p of pages)f2.browser.make(p);const host2=await host(f2),redone=await host2.call('redo',{from:'desk-3'});assert.equal(redone.preferences.tree.ratio,.76);assert.equal(redone.history.currentId,f.saved.mouseDesktopsV1.items[2].history.future.at(-1).id);assert.deepEqual(f2.effects,[]);f.browser.dispose();f2.browser.dispose();
 });
 
-test('host mode application checkpoints custom layout and selector save preserves grid and existing page identities',async()=>{
+test('host web preset checkpoints custom layout, reuses its pages and preserves every identity on undo',async()=>{
  const f=fixture();for(const p of pages)f.browser.make(p);f.saved.quadroPreferences=custom();const {service,call}=await host(f),original=copy(service.preferences()),identities=[...f.browser.tabs.values()];
- await service.savePreferences({...original,agentOpen:true},{reason:'ai-panel'});assert.deepEqual(service.preferences().tree,original.tree);assert.deepEqual(service.preferences().slots,original.slots);assert.equal(service.preferences().aiOpen,true);assert.equal(service.preferences().aiId,'ai');assert.equal(service.bank.historyState().undoCount,0);assert.equal(service.state().desktops.items[2].paneCount,3);
- const applied=await call('apply-mode',{mode:'agents',from:'desk-3',preferences:service.preferences()});assert.equal(applied.preferences.agentOpen,true);assert.equal(applied.preferences.aiOpen,false);assert.equal(applied.state.layoutHistory.undoCount,1);assert.equal(applied.state.layoutHistory.undoReason,'mode:agents');assert.deepEqual(f.effects,[]);
- const repeated=await call('apply-mode',{mode:'agents',from:'desk-3',preferences:service.preferences()});assert.equal(repeated.state.layoutHistory.currentId,applied.state.layoutHistory.currentId);assert.equal(repeated.state.layoutHistory.undoCount,1);assert.deepEqual(repeated.preferences.tabOrder,['one','two','three','ai']);
- const undo=await call('undo',{from:'desk-3',preferences:service.preferences()});assert.deepEqual(undo.preferences,{...original,agentOpen:true});assert.deepEqual([...f.browser.tabs.values()],identities);assert.deepEqual(f.effects,[]);await call('apply-mode',{mode:'design',from:'desk-3'});assert.equal(service.preferences().agentOpen,false);f.browser.dispose();
+ const applied=await call('apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()}),selected=Object.values(applied.preferences.slots),opened=selected.map(id=>f.browser.tabs.get(id));
+ assert.equal(applied.preferences.aiOpen,false);assert.equal(applied.state.layoutHistory.undoCount,1);assert.equal(applied.state.layoutHistory.undoReason,'mode:support');assert.equal(selected.length,5);assert.equal(f.effects.length,5);assert.ok(f.effects.every(effect=>effect[0]==='open'));assert.equal(applied.preferences.aiId,'ai');
+ const repeated=await call('apply-mode',{mode:'support',from:'desk-3',preferences:service.preferences()});assert.equal(repeated.state.layoutHistory.currentId,applied.state.layoutHistory.currentId);assert.equal(repeated.state.layoutHistory.undoCount,1);assert.deepEqual(Object.values(repeated.preferences.slots),selected);assert.equal(f.effects.length,5);
+ const undo=await call('undo',{from:'desk-3',preferences:service.preferences()});assert.deepEqual(undo.preferences,{...original,tabOrder:[...original.tabOrder,...selected]});assert.deepEqual([...f.browser.tabs.values()],[...identities,...opened]);assert.equal(f.effects.length,5,'Undo changes layout without closing or reloading pages');
+ const redo=await call('redo',{from:'desk-3',preferences:service.preferences()});assert.deepEqual(Object.values(redo.preferences.slots),selected);assert.equal(f.effects.length,5);
+ await call('apply-mode',{mode:'design',from:'desk-3'});for(const page of [...identities,...opened])assert.equal(f.browser.tabs.get(page.id),page);assert.ok(f.effects.every(effect=>effect[0]==='open'));f.browser.dispose();
 });
 
 test('actual host close removes ID from every history state; undo never reloads or fills the vacant pane',async()=>{

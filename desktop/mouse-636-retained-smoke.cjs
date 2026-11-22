@@ -2,18 +2,20 @@
 // Retained installed acceptance for 636: downloads, AI preview, capture and focus.
 // Tile search was removed by the owner; its historical 634/635 gates remain in their release history.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
-const {screen,nativeImage}=require('electron');
+const {screen,nativeImage,webContents}=require('electron');
 const {createFixture,pageHTML,bounded,sha256}=require('./mouse-631-smoke-helpers.cjs');
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
 const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
+const {guestInputReadback,nativeGuestInputState,observeGuestClick}=require('./mouse-636-guest-input-diagnostics.cjs');
+const {focusNativeInputWindow}=require('./mouse-636-native-input-focus.cjs');
 
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,globalCapture,overlayGate}=ctx;
  const started=Date.now(),budgetMs=240000,exit=require('./mouse-smoke-exit.cjs')({app,win});
- const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,budgetMs,packaged:app.isPackaged,profileIsolated:false,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,source:'Installed app, native pointer input, owned HTTP/download fixtures and actual composed/OS pixels',removedFeatures:['tile-search'],stage:'identity',ok:false,restored:false,nativeInputs:[],captures:[]};
+ const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,budgetMs,packaged:app.isPackaged,profileIsolated:false,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,source:'Installed app, native pointer input, owned HTTP/download fixtures and actual composed/OS pixels',removedFeatures:['tile-search'],stage:'identity',ok:false,restored:false,nativeInputs:[],guestClickAttempts:[],captures:[]};
  const save=()=>fs.writeFile('mouse-636-retained-owner-feedback.json',JSON.stringify(facts,null,2)+'\n');
  const watchdog=setTimeout(()=>{facts.error={stage:facts.stage,message:'Mouse636 retained fixed 240000 ms native budget exceeded'};void save().finally(()=>exit(1));},budgetMs);
  let fixture,nativeInput,ownedFolder,originalLibrary,originalZoom,downloadListener,error,cleanupError,base='',previewBase='';
@@ -21,7 +23,7 @@ module.exports=async ctx=>{
  const inputSource=()=>process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest';
  const stage=async(name,work)=>{facts.stage=name;await save();console.log('MOUSE_636_RETAINED_STAGE '+name);return work();};
  async function shellReady(){await fixture.until(()=>fixture.js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest').catch(()=>false),'634 ready shell',15000);await fixture.js(`(${installInputProbe.toString()})()`);}
- async function focus(){app.focus({steal:true});win.show();win.focus();win.webContents.focus();await fixture.until(()=>win.isFocused(),'634 window focus');}
+ async function focus(){return focusNativeInputWindow({app,win,until:fixture.until});}
  async function click(selector,{navigates=false,xFraction=.5,yFraction=.5}={}){
   await focus();await fixture.js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();let hit;
   await fixture.until(async()=>{hit=await fixture.js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),${JSON.stringify({xFraction,yFraction})})`);return hit.ready;},'634 native target '+selector);
@@ -31,11 +33,11 @@ module.exports=async ctx=>{
   return result;
  }
  async function guestClick(record,selector){
-  await focus();let hit;
+  const focusReadiness=await focus();let hit;
   await fixture.until(async()=>{hit=await fixture.pageJS(record,`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return hit.ready;},'634 guest target '+selector);
-  const factor=record.page.view.webContents.getZoomFactor(),origin=win.getContentBounds(),bounds=record.page.bounds,point={x:Math.round(origin.x+bounds.x+hit.x*factor),y:Math.round(origin.y+bounds.y+hit.y*factor)},count=await fixture.pageJS(record,'mouse634.clicks.length');
-  assert.equal(await nativeInput.testClick(point.x,point.y),true);
-  let events;await fixture.until(async()=>{events=await fixture.pageJS(record,`mouse634.clicks.slice(${count})`);return events.some(event=>event.id===selector.slice(1)&&event.trusted);},'634 trusted guest link '+selector);
+  const factor=record.page.view.webContents.getZoomFactor(),origin=win.getContentBounds(),bounds=record.page.bounds,point={x:Math.round(origin.x+bounds.x+hit.x*factor),y:Math.round(origin.y+bounds.y+hit.y*factor)},beforeGuest=await fixture.pageJS(record,'('+guestInputReadback.toString()+')()'),count=beforeGuest.count;
+  const details={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,hit,factor,contentBounds:{...origin},pageBounds:{...bounds},beforeCount:count,beforeGuest,focusReadiness};
+  const events=await observeGuestClick({attempts:facts.guestClickAttempts,details,readNative:()=>nativeGuestInputState({win,page:record.page,screen,webContents}),post:()=>nativeInput.testClick(point.x,point.y),readEvents:()=>fixture.pageJS(record,'mouse634.clicks.slice('+count+')'),accept:events=>events.some(event=>event.id===selector.slice(1)&&event.trusted),waitFor:fixture.until,label:'634 trusted guest link '+selector,save});
   const result={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,events};facts.nativeInputs.push(result);return result;
  }
  async function screenCapture(filename,kind,{deadline}={}){
@@ -65,7 +67,7 @@ module.exports=async ctx=>{
   await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
  }
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.36');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.37'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());facts.nativeInputSource=inputSource();
   fixture=await createFixture({...ctx,nativeInput},'owner636-retained',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=await listen();facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
   downloadListener=(_event,item,wc)=>{const match=new URL(item.getURL()).pathname.match(/^\/download\/(a|b|chat|preview)$/);if(!match)return;const name=match[1],file=path.join(ownedFolder,'mouse634-'+name+'.bin'),row={name,item,path:file,events:[],webContentsId:wc?.id,done:false};item.setSavePath(file);downloads.set(name,row);const observe=(event,state)=>row.events.push({event,type:event,state,received:item.getReceivedBytes(),total:item.getTotalBytes(),at:Date.now()});observe('start',item.getState());item.on('updated',(_e,state)=>observe('updated',state));item.once('done',(_e,state)=>{observe('done',state);row.done=state;});};browser.session.prependListener('will-download',downloadListener);
@@ -73,7 +75,7 @@ module.exports=async ctx=>{
   facts.downloads=await stage('pane-download-widgets',()=>require('./mouse-634-download-widget-smoke.cjs')({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base}));
   await stage('ai-link-preview',async()=>{
    const chat=await fixture.open(base+'/page/2/',2);await browser.command('move-lane',{id:chat.id,lane:'side'});
-   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,agentOpen:false,aiWidth:380,aiId:${JSON.stringify(chat.id)},aiSessions:{[${JSON.stringify(base+'/page/2/')}]:${JSON.stringify(chat.id)}}});MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
+   await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,aiWidth:380,aiId:${JSON.stringify(chat.id)},aiSessions:{[${JSON.stringify(base+'/page/2/')}]:${JSON.stringify(chat.id)}}});MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
    await fixture.until(()=>chat.page.visible&&chat.page.bounds.height>250,'634 visible chat');await fixture.frame();
    const before=await fixture.js(`(${aiReadback.toString()})()`),chatBefore=await fixture.identity(chat),mainBefore=await Promise.all(mains.map(fixture.identity)),totalBefore=browser.tabs.size,chatHeightBefore=chat.page.bounds.height;
    const ai=facts.aiPreview={ok:false,before,chatBefore,mainBefore};await save();

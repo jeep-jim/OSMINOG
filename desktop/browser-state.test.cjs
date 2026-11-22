@@ -95,3 +95,41 @@ test('AI outbound same-window links call the preview route without navigating th
  chat.view.webContents.emit('will-navigate',event,'https://source.example/article');assert.equal(prevented,1);assert.deepEqual(opened,[{parent:chat.id,url:'https://source.example/article'}]);assert.equal(chat.view.webContents.getURL(),'https://chat.example/conversation');
  chat.view.webContents.emit('will-navigate',event,'https://chat.example/next');main.view.webContents.emit('will-navigate',event,'https://source.example/normal');assert.equal(prevented,1);assert.equal(opened.length,1);
 });
+
+test('navigation retains a known favicon when Electron suppresses the same URL set',async()=>{
+ const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});
+ const page=b.get(b.open({url:'https://first.example/page/3/'}).id),wc=page.view.webContents,icon='https://assets.example/shared.png';
+ wc.emit('page-favicon-updated',{},[icon]);
+ for(const url of ['https://first.example/page/4/','https://second.example/page/1/']){
+  wc.emit('did-start-navigation',{},url,false,true);await b.command('navigate',{id:page.id,url});
+  // Electron 44 deduplicates the same favicon URL set for this WebContents,
+  // including when a different origin legitimately uses that shared icon.
+  wc.emit('did-navigate',{},url,200,'OK');
+  const actual=b.state().tabs.find(t=>t.id===page.id);
+  assert.equal(actual.url,url);assert.equal(actual.favicon,icon);assert.equal(b.get(page.id).view.webContents,wc);
+ }
+});
+
+test('changed and empty favicon events replace metadata before or after a navigation commit',async()=>{
+ for(const beforeCommit of [true,false])for(const icons of [['https://second.example/new.png'],[]]){
+  const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});
+  const page=b.get(b.open({url:'https://first.example/'}).id),wc=page.view.webContents,url='https://second.example/';
+  wc.emit('page-favicon-updated',{},['https://first.example/old.png']);
+  wc.emit('did-start-navigation',{},url,false,true);await b.command('navigate',{id:page.id,url});
+  if(beforeCommit)wc.emit('page-favicon-updated',{},icons);
+  wc.emit('did-navigate',{},url,200,'OK');
+  if(!beforeCommit)wc.emit('page-favicon-updated',{},icons);
+  assert.equal(b.state().tabs.find(t=>t.id===page.id).favicon,icons[0]||'',`${beforeCommit?'before':'after'} commit: ${icons.length?'changed':'empty'} set`);
+ }
+});
+
+test('a failed main navigation keeps its error and last favicon until an actual empty update',async()=>{
+ const b=new BrowserWorkspace(host(),storage());await b.command('project',{id:'work'});
+ const page=b.get(b.open({url:'https://first.example/'}).id),wc=page.view.webContents,icon='https://first.example/icon.png';
+ wc.emit('page-favicon-updated',{},[icon]);wc.emit('did-start-navigation',{},'https://unavailable.example/',false,true);
+ wc.emit('did-start-loading');wc.emit('did-fail-load',{},-105,'ERR_NAME_NOT_RESOLVED','https://unavailable.example/',true);
+ let actual=b.state().tabs.find(t=>t.id===page.id);
+ assert.equal(actual.error,'ERR_NAME_NOT_RESOLVED');assert.equal(actual.loading,false);assert.equal(actual.favicon,icon);
+ wc.emit('page-favicon-updated',{},[]);actual=b.state().tabs.find(t=>t.id===page.id);
+ assert.equal(actual.favicon,'');assert.equal(actual.error,'ERR_NAME_NOT_RESOLVED');
+});

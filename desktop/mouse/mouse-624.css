@@ -1,6 +1,5 @@
 /* One continuous burrow outline; its endpoint follows the footer border centre. */
 #desktop-tray{bottom:27.5px}
-#agent-panel{min-width:240px;max-width:none;border-left:0}
 .desk-content>header>.desk-history-controls{flex:1;display:flex;flex-direction:row;justify-content:center;align-items:center;gap:7px;color:#28b965;min-width:170px}
 .desk-content>header>div:first-child{flex:1}
 .desk-history-controls button{border:0;background:transparent;color:inherit;padding:4px;min-width:26px;border-radius:14px}
@@ -23,7 +22,7 @@ body.has-progress-pills{grid-template-rows:calc(40px + var(--chrome-inset,0px)) 
 .mouse-progress-fill{position:absolute;inset:0;z-index:-1;background:color-mix(in srgb,var(--progress-color) 19%,transparent);transform-origin:left;transform:scaleX(var(--progress));transition:transform .35s ease}
 .mouse-progress-mouse{position:absolute;left:7px;width:19px;height:21px;object-fit:contain;image-rendering:pixelated;pointer-events:none}
 .mouse-progress-copy{display:flex;flex:1;min-width:0;flex-direction:column;justify-content:center;gap:1px;line-height:1.12}.mouse-progress-label,.mouse-progress-status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mouse-progress-label{font-size:8px;color:var(--muted)}.mouse-progress-status{font-size:10px}.mouse-progress-value{font-variant-numeric:tabular-nums;flex:none;font-weight:600}
-.mouse-progress-pill button{min-height:20px;width:20px;height:20px;min-width:20px;padding:0;border:0;border-radius:50%;background:transparent;font-size:13px}.mouse-progress-pill button:hover{background:var(--hover)}.mouse-progress-stop{color:#e77f91}.mouse-progress-dismiss{color:var(--muted)}
+.mouse-progress-pill button{min-height:20px;width:20px;height:20px;min-width:20px;padding:0;border:0;border-radius:50%;background:transparent;font-size:13px}.mouse-progress-pill button:hover{background:var(--hover)}.mouse-progress-dismiss{color:var(--muted)}
 .mouse-progress-pill[data-phase=running][data-indeterminate=true] .mouse-progress-fill{transform:scaleX(1);opacity:.35;animation:mouse-progress-wait 1.8s ease-in-out infinite}
 .mouse-progress-pill[data-phase=error]{border-color:#df8468}.mouse-progress-pill[data-phase=stopped]{opacity:.7}
 @keyframes mouse-progress-wait{50%{opacity:.85}}

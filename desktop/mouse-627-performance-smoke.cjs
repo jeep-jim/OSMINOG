@@ -51,7 +51,7 @@ module.exports=async({app,win,browser,store})=>{
   for(let n=0;n<facts.panes;n++){const result=await browser.command('open',{url:root+'/pane/'+n,lane:'main'});pages.push(browser.get(result.id));}
   await until(()=>pages.every(page=>!page.loading&&!page.error),'eight local page fixtures finish loading');
   const tree=require('./mouse/layout.js').preset(facts.panes),leaves=require('./mouse/layout.js').leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,pages[i].id]));
-  await js(`(()=>{const m=MouseTest.model;Object.assign(m,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,agentOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();return MouseTest.save();})()`);
+  await js(`(()=>{const m=MouseTest.model;Object.assign(m,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();return MouseTest.save();})()`);
   await until(()=>pages.every(page=>page.visible),'all eight native panes are visible');await painted();
   for(const page of pages){const wc=page.view.webContents;identities.set(page.id,{page,wc,url:wc.getURL(),epoch:page.navigationEpoch||0,...await wc.executeJavaScript('({timeOrigin:performance.timeOrigin,identity:mouse627Identity,field:document.querySelector("#retained").value,ticks:mouse627Ticks})')});}
   await fs.writeFile('mouse-627-performance.png',(await win.capturePage()).toPNG());

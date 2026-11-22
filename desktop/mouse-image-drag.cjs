@@ -5,7 +5,7 @@ function source(value){if(typeof value!=='string'||value.length>24*1024*1024)thr
 function owned(browser,event){if(!browser||browser.disposed)return null;return [...browser.tabs.values()].find(t=>t.visible&&!t.view.webContents.isDestroyed()&&t.view.webContents===event.sender&&event.senderFrame===t.view.webContents.mainFrame)||null;}
 async function read(response){if(!response.ok||!/^image\/(png|jpeg|webp)(?:;|$)/i.test(response.headers.get('content-type')||'')||Number(response.headers.get('content-length'))>LIMIT)throw Error('Это изображение нельзя перенести как файл');let count=0;const chunks=[],reader=response.body.getReader();try{for(;;){const {done,value}=await reader.read();if(done)break;count+=value.length;if(count>LIMIT)throw Error('Изображение больше 16 МБ');chunks.push(Buffer.from(value));}}finally{await reader.cancel().catch(()=>{});}return Buffer.concat(chunks);}
 function install({app,win,ipcMain,getBrowser,isTransition}){
- const {nativeImage}=require('electron'),native=process.platform==='darwin'?require('./mouse-native-menu.node'):require('./mouse-mcp-fs.node');let generation=0,busy=false,disposed=false;const dirs=new Set(),timers=new Set();
+ const {nativeImage}=require('electron'),native=process.platform==='darwin'?require('./mouse-native-menu.node'):require('./mouse-platform.node');let generation=0,busy=false,disposed=false;const dirs=new Set(),timers=new Set();
  const remove=dir=>{dirs.delete(dir);return fs.rm(dir,{recursive:true,force:true}).catch(()=>{});};
  function cancel(){generation++;for(const timer of timers)clearTimeout(timer);timers.clear();for(const dir of [...dirs])void remove(dir);}
  ipcMain.handle('mouse:image-drag',async(event,args)=>{

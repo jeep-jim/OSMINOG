@@ -1,0 +1,16 @@
+/* Browser-chrome controls only; local extensions do not run in this shell. */
+#mouse-extensions-tray,#mouse-extensions-pins{display:flex;align-items:center;gap:2px;flex:none}
+#statusbar #mouse-extensions-button,#statusbar .mouse-extension-pin{width:23px;min-width:23px;padding:0;display:grid;place-items:center}
+#statusbar #mouse-extensions-button[aria-expanded=true]{background:var(--selected)}
+.mouse-extension-pin svg,.mouse-extension-pin img{width:14px;height:14px;object-fit:contain}
+html[data-private="true"] #mouse-extensions-tray{display:none!important}
+#mouse-extensions-dialog{width:min(480px,calc(100vw - 36px))}
+.mouse-extensions-content{padding:14px 16px}
+#mouse-extensions-note,#mouse-extensions-status{font-size:12px;color:var(--muted);line-height:1.4}
+#mouse-extensions-list{display:grid;gap:7px;max-height:min(48vh,350px);overflow:auto}
+.mouse-extension-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px;border:1px solid var(--line);border-radius:8px}
+.mouse-extension-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mouse-extension-actions{display:flex;gap:4px;flex-wrap:wrap}
+.mouse-extension-actions>button{font-size:11px;padding:3px 5px}
+.mouse-extension-restore-error{grid-column:1/-1;margin:0;font-size:12px;line-height:1.4;color:var(--text);white-space:normal;overflow-wrap:anywhere}
+@media(max-width:420px){.mouse-extension-row{grid-template-columns:minmax(0,1fr)}}

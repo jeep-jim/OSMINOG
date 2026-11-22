@@ -20,12 +20,12 @@ function closeFixture(){
  const initial={desktopId:'desk-3',tree:L.preset(1),slots:{p1:'main'},active:'p1',tabOrder:pages.map(p=>p.id),aiOpen:true,aiId:id,aiWidth:389,aiSessions:{'https://other.test/':'other-ai','https://selected.test/':id}};
  // Transport fixtures describe a delayed, already persisted close result. The
  // renderer actions and their acceptance/reconciliation below are production code.
- const result={state:{tabs:clone(pages.filter(p=>p.id!==id))},preferences:{...clone(initial),tabOrder:['main','other-ai'],aiOpen:false,aiId:'',aiSessions:{'https://other.test/':'other-ai'}}};
+ const result={state:{tabs:clone(pages.filter(p=>p.id!==id)),desktopId:'desk-3',snapshot:{epoch:'unit-close',revision:2}},preferences:{...clone(initial),tabOrder:['main','other-ai'],aiOpen:false,aiId:'',aiSessions:{'https://other.test/':'other-ai'}}};
  const response=new Promise(resolve=>resolveResponse=resolve);
  const N={window:async command=>{assert.equal(command,'pane-restore');native.windowed=true;},desktops:async(command,args)=>{assert.equal(command,'close-tab');assert.equal(args.id,id);assert.equal(args.afterClosePreferences.aiOpen,false);requests.push(clone(args));browser.tabs.delete(id);native.destroyed=true;return response;},save:async()=>{throw Error('Unexpected renderer normalization write');},browser:async()=>{throw Error('Unexpected renderer browser command');}};
- const ctx=vm.createContext({N,L,MouseTabOrder,structuredClone,setTimeout,clearTimeout,requestLayout:()=>layouts.push('layout'),renderTree:()=>renders.push('tree'),renderTabs:()=>renders.push('tabs'),syncPaneLabels:()=>renders.push('labels'),renderAISites:()=>renders.push('ai'),applySide:()=>renders.push('side')});
- vm.runInContext(closeActions+'\nglobalThis.api={m,action};globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js close action fixture',timeout:1000});
- Object.assign(ctx.api.m,clone(initial),{ready:true,switching:false,focusAI:true,state:{tabs:clone(pages)}});
+ const ctx=vm.createContext({N,L,MouseAppearance:require('./mouse/appearance.js'),MouseTabOrder,structuredClone,setTimeout,clearTimeout,requestLayout:()=>layouts.push('layout'),renderTree:()=>renders.push('tree'),renderTabs:()=>renders.push('tabs'),syncPaneLabels:()=>renders.push('labels'),renderAISites:()=>renders.push('ai'),applySide:()=>renders.push('side')});
+ vm.runInContext(closeActions+'\nglobalThis.api={m,action,stateReceiver};globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js close action fixture',timeout:1000});
+ Object.assign(ctx.api.m,clone(initial),{ready:true,switching:false,focusAI:true,state:{tabs:clone(pages),desktopId:'desk-3',snapshot:{epoch:'unit-close',revision:1}}});ctx.api.stateReceiver.init(ctx.api.m.state,'desk-3');
  const module={exports:{}};vm.runInNewContext(fs.readFileSync('mouse-614-smoke.cjs','utf8'),{module,exports:module.exports,require,setTimeout,clearTimeout},{filename:'mouse-614-smoke.cjs'});
  const js=async text=>vm.runInContext(text,ctx),windowed=()=>native.windowed;
  return{...ctx.api,browser,webContents,native,requests,renders,layouts,time,delays,id,windowed,js,respond:()=>resolveResponse(clone(result)),wait:()=>module.exports.waitForAIClosed({js,windowed,browser,id,webContents})};
@@ -45,11 +45,11 @@ test('AI focus is transient and reuses native fullscreen ownership without navig
  assert.match(ui,/for\(const pane of m\.focusAI\?\[\]:document\.querySelectorAll/);
  assert.match(fs.readFileSync('mouse/mouse-614.css','utf8'),/body\.ai-focused #stage/);
 });
-test('the installed fullscreen card predicate distinguishes ordinary Agent entry from private external providers',()=>{
- const {assertVisibleAIPresets}=require('./mouse-614-smoke.cjs'),external=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'],normal=['mouse://agent',...external];
- assert.equal(assertVisibleAIPresets({privateMode:false,urls:normal},'normal'),true);assert.equal(assertVisibleAIPresets({privateMode:true,urls:external},'private'),true);
- assert.throws(()=>assertVisibleAIPresets({privateMode:false,urls:external},'normal'),'The normal restored Agent entry is mandatory');
- assert.throws(()=>assertVisibleAIPresets({privateMode:true,urls:normal},'private'),'Private mode must not leak the Agent entry');
+test('the installed fullscreen card predicate retains all ordinary providers in normal and private modes',()=>{
+ const {assertVisibleAIPresets}=require('./mouse-614-smoke.cjs'),external=['https://chatgpt.com/','https://claude.ai/','https://gemini.google.com/','https://chat.deepseek.com/'],retired=['mouse://agent',...external];
+ assert.equal(assertVisibleAIPresets({privateMode:false,urls:external},'normal'),true);assert.equal(assertVisibleAIPresets({privateMode:true,urls:external},'private'),true);
+ assert.throws(()=>assertVisibleAIPresets({privateMode:false,urls:retired},'normal'),'The removed Agent cannot remain in normal mode');
+ assert.throws(()=>assertVisibleAIPresets({privateMode:true,urls:retired},'private'),'Private mode must not leak the Agent entry');
  assert.throws(()=>assertVisibleAIPresets({privateMode:true,urls:[external[0],external[1],external[1],external[3]]},'private'),'A matching card count cannot substitute a provider');
  assert.throws(()=>assertVisibleAIPresets({privateMode:false,urls:external},'private'),'The caller scope cannot substitute the real renderer privacy state');
 });
@@ -85,22 +85,22 @@ test('automatic update watcher checks metadata only in ordinary mode and stops c
 test('burrow remains the same accessible new-tab action without changing mascot assets',()=>{const h=fs.readFileSync('mouse/index.html','utf8');assert.match(h,/id="new-tab" data-action="new-tab"[^>]*aria-label="Новая вкладка"><svg class="burrow-plus"/);assert.match(h,/viewBox="0 0 20 20"/);assert.match(h,/class="burrow-plus"/);});
 
 test('new-tab smoke waits beyond the emitted browser state for selection and the active home mount',async()=>{
- const {waitForNewStartTab}=require('./mouse-614-badge-smoke.cjs'),beforeIds=['main'],m={desktopId:'desk-3',tree:{id:'p1'},pinnedPanes:{},active:'p1',slots:{p1:'main'},state:{tabs:[{id:'main',url:'https://example.test/'}]}};
+ const {waitForNewStartTab}=require('./mouse-614-badge-smoke.cjs'),beforeIds=['main'],m={desktopId:'desk-3',tree:{id:'p1'},pinnedPanes:{},active:'p1',slots:{p1:'main'},state:{tabs:[{id:'main',url:'https://example.test/'}],desktopId:'desk-3',snapshot:{epoch:'unit-start',revision:1}}};
  let replyOpen,replyState,homeMounted=false,renders=0,saves=0;const requests=[],ticks=[],delays=[];
  const opened=new Promise(resolve=>replyOpen=resolve),state=new Promise(resolve=>replyState=resolve),tabs=[...m.state.tabs,{id:'new-home',internal:true}];
- const N={browser:(action,args)=>{requests.push({action,args});if(action==='open'){m.state={tabs};return opened;}if(action==='state')return state;throw Error('Unexpected browser action: '+action);}};
+ const N={browser:(action,args)=>{requests.push({action,args});if(action==='open'){m.state={tabs,desktopId:'desk-3',snapshot:{epoch:'unit-start',revision:2}};return opened;}if(action==='state')return state;throw Error('Unexpected browser action: '+action);}};
  const pane={dataset:{pane:'p1'},querySelector:selector=>{assert.equal(selector,'.home-page');return homeMounted?{}:null;}},document={querySelector:selector=>{assert.equal(selector,'.pane.active');return pane;}};
- const ctx=vm.createContext({m,N,L:require('./mouse/layout.js'),document,searchUI:null,renderTree:()=>{renders++;homeMounted=true;},save:()=>saves++,setStatus:value=>assert.equal(value,'')});
- vm.runInContext(section(' function placementPane(','\n function setActive')+'\n'+section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js new tab fixture',timeout:1000});
+ const ctx=vm.createContext({m,N,L:require('./mouse/layout.js'),document,searchUI:null,tab:id=>m.state.tabs.find(t=>t.id===id),renderTree:()=>{renders++;homeMounted=true;},save:()=>saves++,setStatus:value=>assert.equal(value,'')});
+ vm.runInContext(section(' function createStateReceiver(','\n const resizeHUD')+'\nstateReceiver.init(m.state,m.desktopId);\n'+section(' function placementPane(','\n function setActive')+'\n'+section(' async function openPage(','\n async function navigateStart')+'\nglobalThis.openPage=openPage;globalThis.MouseTest={model:m};',ctx,{filename:'mouse/browser.js new tab fixture',timeout:1000});
  const opening=ctx.openPage('mouse://start');await flush();
  assert.equal(m.state.tabs.length,beforeIds.length+1,'The former count-only wait already passes');assert.equal(m.slots.p1,'main');assert.equal(homeMounted,false);
  const js=async text=>vm.runInContext(text,ctx),sleep=ms=>new Promise(resolve=>{delays.push(ms);ticks.push(resolve);});let settled=false;
  const waiting=waitForNewStartTab({js,sleep,beforeIds}).then(()=>{settled=true;});await flush();
  const tick=async()=>{assert.ok(ticks.length,'The wait remains pending');ticks.shift()();await flush();};
  await tick();assert.equal(settled,false,'Early browser state must not substitute for the openPage result');
- replyOpen({id:'new-home'});await flush();assert.equal(m.slots.p1,'new-home');assert.equal(m.state.tabs.find(t=>t.id===m.slots.p1).internal,true);assert.equal(homeMounted,false);
- await tick();assert.equal(settled,false,'Selection without the corresponding active home DOM is still incomplete');
- replyState({tabs});await opening;await tick();await waiting;
+ replyOpen({id:'new-home'});await flush();assert.equal(m.slots.p1,'main');assert.equal(homeMounted,false);
+ await tick();assert.equal(settled,false,'Opening without an accepted state and active home DOM is still incomplete');
+ replyState({tabs,desktopId:'desk-3',snapshot:{epoch:'unit-start',revision:3}});await opening;await tick();await waiting;
  assert.equal(homeMounted,true);assert.equal(renders,1);assert.equal(saves,1);assert.deepEqual(m.state.tabs.map(t=>t.id),['main','new-home']);assert.deepEqual(requests.map(r=>r.action),['open','state']);assert.ok(delays.every(ms=>ms===30));
 });
 

@@ -50,11 +50,11 @@ function pageHTML(index,{slowImage=false}={}){
    const state=mouse631.stream={id,requests:1,chunks:[],done:false,error:null,startedAt:performance.now()};
    const status=document.querySelector('#stream-status');
    try{
-     await MouseAgent.updateProgress(null,'Owned HTTP stream '+id,{taskId:'stream-'+id,phase:'running'});
+     await browser.setProgress(null,'Owned HTTP stream '+id,{taskId:'stream-'+id,phase:'running'});
      const response=await fetch('/stream/'+id);if(!response.ok)throw Error('Stream HTTP '+response.status);
      const reader=response.body.getReader(),decoder=new TextDecoder();let text='';
      for(;;){const next=await reader.read();if(next.done)break;text+=decoder.decode(next.value,{stream:true});let end;
-       while((end=text.indexOf('\\n'))>=0){const line=text.slice(0,end);text=text.slice(end+1);if(!line)continue;const item=JSON.parse(line);if(item.done){state.expected=item.count;state.done=true;state.finishedAt=performance.now();await MouseAgent.updateProgress(100,'Owned HTTP stream complete',{taskId:'stream-'+id,phase:'completed'});}else{state.chunks.push(item.value);status.textContent='Received '+state.chunks.length+' chunks · '+id;}}
+       while((end=text.indexOf('\\n'))>=0){const line=text.slice(0,end);text=text.slice(end+1);if(!line)continue;const item=JSON.parse(line);if(item.done){state.expected=item.count;state.done=true;state.finishedAt=performance.now();await browser.setProgress(100,'Owned HTTP stream complete',{taskId:'stream-'+id,phase:'completed'});}else{state.chunks.push(item.value);status.textContent='Received '+state.chunks.length+' chunks · '+id;}}
      }
      if(!state.done||state.chunks.length!==state.expected)throw Error('Incomplete stream');
    }catch(error){state.error=String(error.message);}
@@ -116,7 +116,7 @@ async function createFixture(ctx,name,budgetMs){
  async function setLayout(records){
   assert.ok(records.length===2||records.length===4);assert.ok(records.every(record=>record.desk===bank.active));
   const tree=require('./mouse/layout.js').preset(records.length),leaves=require('./mouse/layout.js').leaves(tree),slots=Object.fromEntries(leaves.map((id,i)=>[id,records[i].id]));
-  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,agentOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
+  await js(`Object.assign(MouseTest.model,{tree:${JSON.stringify(tree)},slots:${JSON.stringify(slots)},active:${JSON.stringify(leaves[0])},aiOpen:false,libraryOpen:false,focusPane:'',focusAI:false});MouseTest.renderTree();MouseTest.renderAISites();MouseTest.applySide();MouseTest.requestLayout();MouseTest.save()`);
   await until(()=>records.every(record=>record.page.visible&&record.page.bounds?.width>80&&record.page.bounds?.height>100),'native split panes appear');await frame();
   geometry.native=records.map(nativeState);await recordGeometry('split-panes');
   // Both fixed page regions end at this CSS-derived position. The unchanged

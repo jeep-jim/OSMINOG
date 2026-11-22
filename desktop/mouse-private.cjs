@@ -33,9 +33,10 @@ class PrivateMode {
   const collect=[remember(win,'resize'),remember(win,'closed'),remember(win.webContents,'did-start-navigation')];
   const browser=new (require('./browser.cjs').BrowserWorkspace)(win,store,{session:ses,privateMode:true});browser.mouseRoundedPanes=true;
   if(process.platform==='darwin'){browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);}
-  else if(process.platform==='win32'){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-mcp-fs.node').paneCorners(win.getNativeWindowHandle(),rects);};}
+  else if(process.platform==='win32'){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-platform.node').paneCorners(win.getNativeWindowHandle(),rects);};}
   else if(process.platform==='linux')require('./mouse-linux-corners.cjs').install(win,browser);
   require('./mouse-stability.cjs').installWorkspace(browser);
+  require('./mouse-637-sidebar-dim.cjs').install(browser);
   // Explicitly bind only this private workspace's pages. Embedded views can
   // report no owning BrowserWindow while native fullscreen reparents them.
   const makePrivate=browser.make.bind(browser);
@@ -50,7 +51,7 @@ class PrivateMode {
    const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
    require('./mouse-shell.cjs').install({win,browser,ipcMain:register,trusted,send,test,captureScreen:()=>this.globalCapture.request(),reuseChrome:win.mouseChromeGuard});
    register.handle('mouse:overlay',(event,state)=>{trusted(event);return gate.set(state,event.senderFrame);});
-   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine});
+   const libraryService=await require('./mouse-browsing.cjs').install({app:this.e.app,win,browser,store,ipcMain:register,trusted,shell:this.e.shell,dialog:this.e.dialog,test,searchEngine:normalBrowser.mouseSearch?.state().engine,isAvailable:()=>!this.busy&&this.current?.browser===browser});
    current.libraryService=libraryService;
    // Do not even keep private visit/search/closed lists in the library UI.
    for(const name of ['visit','title','input','closed'])libraryService.library[name]=()=>{};
@@ -72,7 +73,6 @@ class PrivateMode {
    for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:documents','mouse:desktop-gesture'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
    handlers.set('mouse:settings',(event,action)=>{trusted(event);if(action!=='state')throw Error('Постоянные настройки меняются в обычном режиме');return router.normal.get('mouse:settings')(event,'state');});
-   handlers.set('mouse:agent',(event,action)=>{trusted(event);if(action==='state')return{enabled:false,running:false,connected:0,desk:'',logs:[],pending:null};throw Error('Agent Mouse доступен в обычном режиме');});
    handlers.set('mouse:progress',(event,action)=>{trusted(event);if(action==='state')return{tasks:[],revision:0};throw Error('Прогресс подключённого ИИ доступен в обычном режиме');});
    handlers.set('mouse:update',()=>{throw Error('Обновление доступно в обычном режиме');});
    // Explicit file downloads are allowed, but clearly distinguished from ephemeral browsing data.

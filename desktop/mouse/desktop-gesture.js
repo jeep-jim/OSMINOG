@@ -19,7 +19,7 @@ function createMouseDesktopGesture({N,tray,content,model,switchBehind,switchClos
   if(disposed||!supported||visible()||disabled()||model.ready===false)return null;
   const matches=selector=>path.some(node=>node?.matches?.(selector));
   if(matches('#desktops-button'))return 'control';
-  if(matches('.pane,#ai-panel,#agent-panel'))return 'panel';return null;
+  if(matches('.pane,#ai-panel'))return 'panel';return null;
  },send:packet=>{void N.desktopGesture('wheel',packet).catch(error=>{if(!disposed)status(error.message);});}}):null;
  function paint(){
   // The parent dialog already hides this content while Nora is closed. Keep

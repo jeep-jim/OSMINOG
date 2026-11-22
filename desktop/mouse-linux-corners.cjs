@@ -4,7 +4,7 @@
 // The addon verifies the supplied parent and reports unsupported backends;
 // this module never selects an Ozone backend or weakens Chromium isolation.
 const owners=new WeakMap();
-function install(win,browser,{native=require('./mouse-mcp-fs.node'),screen=require('electron').screen}={}){
+function install(win,browser,{native=require('./mouse-platform.node'),screen=require('electron').screen}={}){
  const handle=win.getNativeWindowHandle();let last=[],signature='',disposed=false;
  const clear=()=>{signature='';if(owners.get(win)!==paint)return 0;owners.delete(win);return native.paneCorners(handle,[],{width:0,height:0});};
  const paint=rects=>{

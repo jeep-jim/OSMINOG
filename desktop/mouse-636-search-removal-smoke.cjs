@@ -85,7 +85,7 @@ module.exports=async(ctx,{fixture,click,nativeInput}={})=>{
  const filename='mouse-636-search-removal.json',save=()=>fs.writeFile(filename,JSON.stringify(facts,null,2)+'\n'),records=[],requests=[];let server,originalLoad,wrappedWC,observer,original,originalEngine,savedSearch,error;
  const native=nativeInput||ctx.nativeInput;
  try{
-  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.36');assert.equal(privateMode?.current??null,null);assert.ok(fixture&&click&&native?.testKey);facts.profileIsolated=true;
+  assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.37'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(privateMode?.current??null,null);assert.ok(fixture&&click&&native?.testKey);facts.profileIsolated=true;
   facts.packagedFiles=await packageReadback(__dirname);assertPackage(facts.packagedFiles);facts.host=hostReadback({ipcMain,browser});assertHost(facts.host);
   facts.native={before:nativeInventory({browser,electron})};assertInventory(facts.native.before);facts.ui.push(await fixture.js(`(${uiReadback.toString()})()`));assertUI(facts.ui[0]);
   original=await fixture.js('MouseTest.prefs()');originalEngine=browser.mouseSearch.state().engine;savedSearch=await store.get('mouseSearch');

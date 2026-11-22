@@ -1,0 +1,37 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const verify=require('./mouse-637-update-ui-smoke.cjs');
+const {PHASES,snapshot,presentationWitnesses,assertPresentation}=verify.fixtures;
+function presentation(phase='ready',theme='dark'){
+ const positions={'#update-download':[500,620],'#update-install':[440,580],'#update-open':[600,650],'#update-check':phase==='ready'?[760,580]:phase==='available'?[700,620]:[600,650],'#update-minimize':[440,200],'#update-dialog [data-close-dialog]':[760,200]};
+ const visible=new Set(['#update-check','#update-minimize','#update-dialog [data-close-dialog]',...(phase==='available'?['#update-download']:phase==='ready'?['#update-install','#update-open']:[])]);
+ const percent=phase==='downloading'?46:['ready','installing'].includes(phase)?100:0;
+ return{open:true,modal:true,phase,theme,appearance:{paneMode:'square',whiteTone:0},bounds:{x:300,y:100,width:600,height:600},viewport:{width:1200,height:820},radius:'50%',overflow:{clientWidth:600,clientHeight:600,scrollWidth:600,scrollHeight:600},backdrop:{backgroundColor:'rgba(0, 0, 0, 0.82)',opacity:'1'},surfaces:theme==='dark'?{ring:'rgb(34, 40, 50)',core:'rgb(21, 26, 34)'}:{ring:'rgb(230, 232, 236)',core:'rgb(250, 250, 250)'},logo:{visible:true,complete:true,naturalWidth:220,naturalHeight:220,src:'mouse-update.svg',bounds:{x:525,y:325,width:150,height:150}},status:{text:'Owned phase '+phase,color:theme==='dark'?'rgb(160, 160, 160)':'rgb(36, 40, 49)',bounds:{x:450,y:500,width:300,height:30}},progress:{hidden:phase!=='downloading',value:phase==='downloading'?46:0},meter:{pathLength:'100',dasharray:percent+' 100',progressVisible:String(percent>0),opacity:percent>0?'.92':'0'},controls:Object.entries(positions).map(([selector,[x,y]])=>{const circular=['#update-minimize','#update-dialog [data-close-dialog]'].includes(selector),width=circular?40:100;return{selector,visible:visible.has(selector),hidden:!visible.has(selector),disabled:selector==='#update-check'&&['downloading','installing'].includes(phase),label:selector,bounds:visible.has(selector)?{x:x-width/2,y:y-20,width,height:40}:{x:0,y:0,width:0,height:0},radius:circular?'50%':'0px',color:theme==='dark'?'rgb(160, 160, 160)':'rgb(36, 40, 49)',hit:{ready:visible.has(selector)&&!(selector==='#update-check'&&['downloading','installing'].includes(phase)),x,y}}})};
+}
+test('visual update snapshots retain the actual app version and never construct transport or installer inputs',()=>{
+ assert.deepEqual(PHASES,['current','available','downloading','ready','installing','error']);
+ for(const phase of PHASES){const state=snapshot(phase,'6.0.37');assert.equal(state.phase,phase);assert.equal(state.currentVersion,'6.0.37');assert.equal(state.latestVersion,'6.0.37');assert.equal(state.canInstall,phase==='ready'||phase==='installing');assert.ok(!('url'in state)&&!('file'in state)&&!('candidate'in state));assertPresentation(presentation(phase,'light'),phase,'light');assertPresentation(presentation(phase,'dark'),phase,'dark');}
+ assert.equal(snapshot('downloading','6.0.37').percent,46);assert.throws(()=>snapshot('publish','6.0.37'));
+});
+test('circular update gate rejects square clipping, weak backdrop, displaced logo, hidden actions and non-native hit targets',()=>{
+ const changes=[value=>value.bounds.height=400,value=>value.radius='12px',value=>value.bounds.x=-1,value=>value.overflow.scrollHeight=650,value=>value.backdrop.backgroundColor='rgba(0, 0, 0, 0.14)',value=>value.backdrop.opacity='.5',value=>value.logo.bounds.width=120,value=>value.logo.bounds.x+=8,value=>value.logo.bounds.y+=8,value=>value.logo.complete=false,value=>value.logo.src='other.svg',value=>value.controls.find(c=>c.selector==='#update-install').visible=false,value=>value.controls.find(c=>c.selector==='#update-open').hit.ready=false,value=>value.controls.find(c=>c.selector==='#update-check').label='',value=>value.controls.find(c=>c.selector==='#update-check').bounds.y=380,value=>value.controls.find(c=>c.selector==='#update-minimize').hit.x=1200,value=>value.controls.find(c=>c.selector==='#update-minimize').bounds.width=80,value=>value.controls.find(c=>c.selector==='#update-dialog [data-close-dialog]').radius='4px',value=>value.meter.pathLength='360',value=>value.meter.dasharray='46 100',value=>value.meter.progressVisible='false',value=>value.surfaces.ring='rgb(230, 232, 236)',value=>value.status.color='rgb(227, 230, 235)',value=>value.controls.find(c=>c.selector==='#update-check').color='rgb(227, 230, 235)',value=>value.appearance.whiteTone=55,value=>value.appearance.paneMode='rounded'];
+ for(const change of changes){const value=presentation();change(value);assert.throws(()=>assertPresentation(value,'ready','dark'));}
+ const downloading=presentation('downloading');downloading.controls.find(c=>c.selector==='#update-check').disabled=false;assert.throws(()=>assertPresentation(downloading,'downloading','dark'));
+});
+test('OS witnesses use existing circle surfaces and avoid the mascot and circular edges',()=>{
+ for(const theme of ['light','dark']){
+  const value=presentation('available',theme),before=structuredClone(value),points=presentationWitnesses(value);assert.deepEqual(value,before);assert.equal(points.length,2);
+  assert.deepEqual(points.map(point=>point.name),['update circle ring','update circle core']);assert.deepEqual(points.map(point=>point.point),[{x:600,y:133},{x:450,y:400}]);
+  for(const {point}of points){const d=value.bounds,logo=value.logo.bounds;assert.ok(Math.hypot(point.x-(d.x+d.width/2),point.y-(d.y+d.height/2))<d.width/2-20);assert.ok(point.x<logo.x||point.x>logo.x+logo.width||point.y<logo.y||point.y>logo.y+logo.height);}
+ }
+ const invalid=presentation();invalid.surfaces.core='rgba(21, 26, 34, .5)';assert.throws(()=>presentationWitnesses(invalid));
+});
+test('an aborted native presentation run restores every original updater state key without calling the real updater',async()=>{
+ const original={phase:'idle',percent:0,currentVersion:'6.0.37',availableVersion:'',existingOnly:'preserved'},saved=structuredClone(original),candidate={owned:'candidate'},file={owned:'file'};
+ const updates={state:original,candidate,file,task:null,set(value){Object.assign(this.state,value);return{...this.state}},run(){assert.fail('Visual fixture must never run updater actions')}};
+ const originalPresentation={theme:'dark',appearance:{paneMode:'square',whiteTone:0},dialogOpen:false};let themes=[],closed=false;
+ const fixture={async js(code){if(code.includes('document.querySelector("#update-dialog").close()')){closed=true;return true;}return structuredClone(originalPresentation);},async frame(){},async until(){throw Error('owned pre-open failure')},async identity(record){return{id:record.id}},nativeState(){return{visible:true,parentVisible:true,cachedVisible:true,attached:true}}};
+ const page={},records=[{id:'owned',page}],facts={};
+ await assert.rejects(verify({app:{getVersion:()=> '6.0.37'},updates,browser:{get:()=>page},fixture,click:async()=>assert.fail('No native click after failed presentation'),capture:async()=>assert.fail('No capture after failure'),theme:async value=>themes.push(value),facts,records}),/owned pre-open failure/);
+ assert.equal(updates.state,original);assert.deepEqual(updates.state,saved);assert.equal(updates.candidate,candidate);assert.equal(updates.file,file);assert.equal(updates.task,null);assert.equal(closed,true);assert.deepEqual(themes,['light','dark']);assert.equal(facts.updateDialog.restored,true);assert.equal(facts.updateDialog.ok,false);
+});

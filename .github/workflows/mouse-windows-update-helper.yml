@@ -5,9 +5,9 @@ on:
       - 'desktop/mouse-install-update.cjs'
       - 'desktop/mouse-windows-helper*'
       - 'desktop/mouse-native-build.cjs'
-      - 'desktop/mouse-agent/*.cc'
-      - 'desktop/mouse-agent/*.h'
-      - 'desktop/mouse-agent/native-win/**'
+      - 'desktop/mouse-native/*.cc'
+      - 'desktop/mouse-native/*.h'
+      - 'desktop/mouse-native/native-win/**'
       - '.github/workflows/mouse-windows-update-helper.yml'
   workflow_dispatch:
 permissions:
@@ -59,10 +59,10 @@ jobs:
           const sourceFiles=cp.execFileSync('git',['ls-files','--',
             '.github/workflows/mouse-windows-update-helper.yml','desktop/mouse-install-update.cjs',
             'desktop/mouse-windows-helper*','desktop/mouse-native-build.cjs',
-            'desktop/mouse-agent/*.cc','desktop/mouse-agent/*.h','desktop/mouse-agent/native-win/*'
+            'desktop/mouse-native/*.cc','desktop/mouse-native/*.h','desktop/mouse-native/native-win/*'
           ],{encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean).sort();
           const sources=Object.fromEntries(sourceFiles.map(file=>[file,sha256(fs.readFileSync(file))]));
-          const name='mouse-mcp-fs.node',bytes=fs.readFileSync('desktop/'+name);
+          const name='mouse-platform.node',bytes=fs.readFileSync('desktop/'+name);
           assert.equal(bytes.toString('ascii',0,2),'MZ');
           const pe=bytes.readUInt32LE(0x3c);assert.equal(bytes.toString('ascii',pe,pe+4),'PE\0\0');assert.equal(bytes.readUInt16LE(pe+4),0x8664);
           const addon={name,size:bytes.length,sha256:sha256(bytes)};
@@ -79,7 +79,7 @@ jobs:
         with:
           name: mouse-windows-update-helper-native-${{ github.run_attempt }}
           path: |
-            desktop/mouse-mcp-fs.node
+            desktop/mouse-platform.node
             desktop/mouse-windows-helper-native.json
           if-no-files-found: error
           retention-days: 14
@@ -129,7 +129,7 @@ jobs:
           'use strict';
           const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto'),cp=require('node:child_process'),os=require('node:os');
           const dir='desktop/helper-native-input',manifestName='mouse-windows-helper-native.json';
-          assert.deepEqual(fs.readdirSync(dir).sort(),['mouse-mcp-fs.node',manifestName].sort());
+          assert.deepEqual(fs.readdirSync(dir).sort(),['mouse-platform.node',manifestName].sort());
           const manifest=JSON.parse(fs.readFileSync(dir+'/'+manifestName,'utf8'));
           const source=cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
           assert.equal(source,process.env.MOUSE_SOURCE_SHA);assert.equal(manifest.source,source);
@@ -138,7 +138,7 @@ jobs:
           assert.equal(manifest.platform,process.platform);assert.equal(manifest.arch,process.arch);assert.equal(manifest.nodeVersion,process.versions.node);
           const sha256=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
           for(const [file,digest]of Object.entries(manifest.sources))assert.equal(sha256(fs.readFileSync(file)),digest,'Source bytes differ: '+file);
-          assert.equal(manifest.addon.name,'mouse-mcp-fs.node');
+          assert.equal(manifest.addon.name,'mouse-platform.node');
           const bytes=fs.readFileSync(dir+'/'+manifest.addon.name),digest=sha256(bytes);
           assert.equal(bytes.length,manifest.addon.size);assert.equal(digest,manifest.addon.sha256);assert.equal(digest,process.env.MOUSE_HELPER_ADDON_SHA256);
           fs.copyFileSync(dir+'/'+manifest.addon.name,'desktop/'+manifest.addon.name);
@@ -163,7 +163,7 @@ jobs:
           const counts=Object.fromEntries(['tests','pass','fail','cancelled','skipped'].map(name=>{
             const matches=[...log.matchAll(new RegExp('^# '+name+' (\\d+)\\s*$','gm'))];return[name,matches.length?Number(matches.at(-1)[1]):null];
           }));
-          const afterSha256=crypto.createHash('sha256').update(fs.readFileSync('desktop/mouse-mcp-fs.node')).digest('hex');
+          const afterSha256=crypto.createHash('sha256').update(fs.readFileSync('desktop/mouse-platform.node')).digest('hex');
           const ok=exitCode===0&&Object.values(markers).every(Boolean)&&counts.tests>=2&&counts.pass===counts.tests&&counts.fail===0&&counts.cancelled===0&&counts.skipped===0&&afterSha256===input.addon.sha256;
           fs.writeFileSync('desktop/mouse-windows-helper-verification.json',JSON.stringify({...input,ok,exitCode,markers,counts,afterSha256},null,2)+'\n');
           assert.equal(ok,true,'Actual Windows helper acceptance failed; see bounded TAP diagnostics');

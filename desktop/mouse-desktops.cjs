@@ -7,12 +7,14 @@ const {DesktopPreviews}=require('./mouse-desktop-previews.cjs');
 const {DesktopSurfaces}=require('./mouse-surfaces.cjs');
 const {randomUUID}=require('node:crypto');
 const KEY='mouseDesktopsV1',MAX_DESKS=5,HISTORY_LIMIT=30,HISTORY_BYTES=512*1024;
-const layoutKeys=['tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiId','aiSessions','mode','agentOpen'];
+const layoutKeys=['tree','slots','pinnedPanes','active','tabOrder','aiOpen','aiWidth','aiPreviewRatio','aiId','aiSessions','mode','presetTabs'];
+// Retired profile keys must never become global preferences when layout fields change.
+const retiredLayoutKeys=new Set(['agentOpen','agentPreviewId']);
 const clone=x=>JSON.parse(JSON.stringify(x));
-const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{},mode:'',agentOpen:false});
-// Focus, title/session metadata and opening the Agent selector alone are not edits
-// to the grid. Their values still travel with a real layout checkpoint.
-const layoutSignature=p=>JSON.stringify([p.tree,p.slots,p.tabOrder,p.aiOpen,p.aiWidth,p.aiId,p.mode]);
+const blank=()=>({tree:L.preset(1),slots:{},active:'p1',tabOrder:[],aiOpen:false,aiWidth:360,aiId:'',aiSessions:{},mode:''});
+// Focus and title/session metadata are not edits to the grid.
+// Their values still travel with a real layout checkpoint.
+const layoutSignature=p=>JSON.stringify([p.tree,p.slots,p.tabOrder,p.aiOpen,p.aiWidth,L.previewRatio(p.aiPreviewRatio),p.aiId,p.mode]);
 const sameLayout=(a,b)=>layoutSignature(a)===layoutSignature(b);
 function historyMeta(value,reason='layout'){
  return{id:typeof value?.id==='string'&&/^[a-z\d_-]{1,100}$/i.test(value.id)?value.id:randomUUID(),createdAt:Number.isSafeInteger(value?.createdAt)&&value.createdAt>=0?value.createdAt:Date.now(),reason:typeof value?.reason==='string'&&value.reason.trim()?value.reason.trim().slice(0,80):reason};
@@ -43,16 +45,28 @@ function unread(title){
  const s=String(title||'').trim(),m=/^(?:\((\d{1,6})\)|\[(\d{1,6})\])\s*\S/.exec(s)||/\S.*\s\((\d{1,6})\)$/.exec(s);
  return m?Math.min(999999,Number(m[1]||m[2])||0):0;
 }
+function prunePresetTabs(p,isMain){
+ if(!p.presetTabs)return;
+ for(const [mode,ids]of Object.entries(p.presetTabs)){
+  p.presetTabs[mode]=ids.map(id=>isMain(id)?id:'');
+  if(!p.presetTabs[mode].some(Boolean))delete p.presetTabs[mode];
+ }
+ if(!Object.keys(p.presetTabs).length)delete p.presetTabs;
+}
 function layout(value={}){
  const out=blank();try{out.tree=L.validate(value.tree);}catch{}
  out.mode=Modes.modes.some(m=>m.id===value.mode)?value.mode:'';
- out.agentOpen=value.agentOpen===undefined?out.mode==='agents':value.agentOpen===true;
  const leaves=L.leaves(out.tree);out.active=leaves.includes(value.active)?value.active:leaves[0];
  if(value.slots&&typeof value.slots==='object')for(const p of leaves)if(typeof value.slots[p]==='string'&&value.slots[p].length<=100)out.slots[p]=value.slots[p];
  const pinned=L.pins({...out,pinnedPanes:value.pinnedPanes});if(Object.keys(pinned).length)out.pinnedPanes=pinned;
  out.tabOrder=[...new Set((Array.isArray(value.tabOrder)?value.tabOrder:[]).filter(v=>typeof v==='string'&&v.length<=100))].slice(0,1000);
  out.aiOpen=value.aiOpen===true;out.aiWidth=Math.max(240,Math.min(1600,Number(value.aiWidth)||360));out.aiId=typeof value.aiId==='string'?value.aiId.slice(0,100):'';
+ if(value.aiPreviewRatio!==undefined)out.aiPreviewRatio=L.previewRatio(value.aiPreviewRatio);
  if(value.aiSessions&&typeof value.aiSessions==='object')for(const [k,v]of Object.entries(value.aiSessions).slice(0,30))if(/^https?:\/\//.test(k)&&k.length<8192&&typeof v==='string'&&v.length<=100)out.aiSessions[k]=v;
+ if(value.presetTabs&&typeof value.presetTabs==='object'&&!Array.isArray(value.presetTabs)){
+  const cached={};for(const mode of Modes.modes){const ids=value.presetTabs[mode.id];if(!Array.isArray(ids))continue;const clean=ids.slice(0,mode.sites.length).map(id=>typeof id==='string'&&id.length<=100?id:'');if(clean.some(Boolean))cached[mode.id]=clean;}
+  if(Object.keys(cached).length)out.presetTabs=cached;
+ }
  return out;
 }
 class DesktopBank{
@@ -76,13 +90,13 @@ class DesktopBank{
   }
   for(let n=1;this.items.length<MAX_DESKS;n++){const id='desk-'+n;if(!this.items.some(d=>d.id===id))this.items.push({id,name:'Стол '+(this.items.length+1),layout:blank(),history:readHistory()});}
   if(!this.items.some(x=>x.id===this.active))this.active=this.items[0].id;
-  for(const [k,v]of Object.entries(preferences))if(!layoutKeys.includes(k)&&k!=='desktopId'&&v!==undefined)this.global[k]=clone(v);
+  for(const [k,v]of Object.entries(preferences))if(!layoutKeys.includes(k)&&!retiredLayoutKeys.has(k)&&k!=='desktopId'&&v!==undefined)this.global[k]=clone(v);
  }
  current(){return this.items.find(d=>d.id===this.active);}
  historyState(desk=this.active,entries=false){
   const d=this.items.find(x=>x.id===desk);if(!d)throw Error('Рабочий стол не найден');
   const h=d.history,info={desktopId:desk,currentId:h.current.id,canUndo:!!h.past.length,canRedo:!!h.future.length,undoCount:h.past.length,redoCount:h.future.length,undoReason:h.past.length?h.current.reason:'',redoReason:h.future.at(-1)?.reason||'',limit:HISTORY_LIMIT};
-  if(entries){const entry=(e,position,p=e.layout)=>({id:e.id,createdAt:e.createdAt,reason:e.reason,position,tree:clone(p.tree),slots:{...p.slots},tabOrder:[...p.tabOrder],aiOpen:p.aiOpen,aiId:p.aiId,aiWidth:p.aiWidth,agentOpen:p.agentOpen,mode:p.mode});info.entries=[...h.past.map(e=>entry(e,'past')),entry(h.current,'current',d.layout),...h.future.slice().reverse().map(e=>entry(e,'future'))];}
+  if(entries){const entry=(e,position,p=e.layout)=>({id:e.id,createdAt:e.createdAt,reason:e.reason,position,tree:clone(p.tree),slots:{...p.slots},tabOrder:[...p.tabOrder],aiOpen:p.aiOpen,aiId:p.aiId,aiWidth:p.aiWidth,aiPreviewRatio:L.previewRatio(p.aiPreviewRatio),mode:p.mode,...(p.presetTabs?{presetTabs:clone(p.presetTabs)}:{})});info.entries=[...h.past.map(e=>entry(e,'past')),entry(h.current,'current',d.layout),...h.future.slice().reverse().map(e=>entry(e,'future'))];}
   return info;
  }
  historyEntry(id){const d=this.current(),h=d.history;if(id===h.current.id)return{...h.current,layout:clone(d.layout)};const e=[...h.past,...h.future].find(e=>e.id===id);return e?clone(e):null;}
@@ -125,6 +139,7 @@ class DesktopBank{
   // newly opened IDs to older checkpoints too, so a harmless startup/flush save
   // after undo cannot look like an order edit and discard the redo branch.
   p.tabOrder=[...new Set([...p.tabOrder.filter(id=>own.has(id)),...own.keys()])].slice(0,1000);if(p.aiId&&!own.has(p.aiId))p.aiId='';for(const [url,id]of Object.entries(p.aiSessions))if(!own.has(id))delete p.aiSessions[url];
+  prunePresetTabs(p,id=>own.has(id)&&own.get(id).lane!=='side');
   return p;
  }
  restoreLayout(historyId,tabs,selected){
@@ -157,7 +172,8 @@ class DesktopBank{
   // identities, ownership or lanes needs to walk the bounded history.
   const liveKey=JSON.stringify(tabs.map(t=>[t.id,this.members[t.id],t.lane==='side']).sort((a,b)=>a[0].localeCompare(b[0])));
   if(liveKey===this.historyLiveKey){
-   for(const d of this.items){const own=id=>live.has(id)&&this.members[id]===d.id,p=d.layout;p.tabOrder=p.tabOrder.filter(own);for(const [pane,id]of Object.entries(p.slots))if(!own(id))delete p.slots[pane];const pinned=L.pins(p);if(Object.keys(pinned).length)p.pinnedPanes=pinned;else delete p.pinnedPanes;if(p.aiId&&!own(p.aiId))p.aiId='';for(const [url,id]of Object.entries(p.aiSessions))if(!own(id))delete p.aiSessions[url];}
+   const main=new Set(tabs.filter(t=>t.lane!=='side').map(t=>t.id));
+   for(const d of this.items){const own=id=>live.has(id)&&this.members[id]===d.id,p=d.layout;p.tabOrder=p.tabOrder.filter(own);for(const [pane,id]of Object.entries(p.slots))if(!own(id))delete p.slots[pane];const pinned=L.pins(p);if(Object.keys(pinned).length)p.pinnedPanes=pinned;else delete p.pinnedPanes;if(p.aiId&&!own(p.aiId))p.aiId='';for(const [url,id]of Object.entries(p.aiSessions))if(!own(id))delete p.aiSessions[url];prunePresetTabs(p,id=>own(id)&&main.has(id));}
    return;
   }
   this.historyLiveKey=liveKey;
@@ -168,7 +184,24 @@ class DesktopBank{
   }
  }
  ordered(desk,tabs){const d=this.items.find(d=>d.id===desk),byId=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t])),seen=new Set();return[...(d?.layout.tabOrder||[]),...byId.keys()].filter(id=>byId.has(id)&&!seen.has(id)&&seen.add(id)).map(id=>byId.get(id));}
- placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&!d.layout.agentOpen&&own.has(d.layout.aiId)?[d.layout.aiId,...[...own.values()].filter(t=>t.previewOf===d.layout.aiId).map(t=>t.id)]:[])]);}
+ placed(desk,tabs){const d=this.items.find(d=>d.id===desk),own=new Map(tabs.filter(t=>this.members[t.id]===desk).map(t=>[t.id,t]));return new Set([...Object.values(d.layout.slots).filter(id=>own.has(id)&&own.get(id).lane!=='side'),...(d.layout.aiOpen&&own.has(d.layout.aiId)?[d.layout.aiId,...[...own.values()].filter(t=>t.previewOf===d.layout.aiId).map(t=>t.id)]:[])]);}
+ previewPlacement(id,pane,tabs,preferences=this.current().layout){
+  const d=this.current(),page=tabs.find(t=>t.id===id),parent=page&&tabs.find(t=>t.id===page.previewOf),next=layout(preferences);
+  if(typeof id!=='string'||!page||page.lane!=='side'||!parent||parent.lane!=='side'||parent.previewOf||this.members[id]!==d.id||this.members[parent.id]!==d.id||next.aiId!==parent.id)throw Error('Сайт больше не принадлежит открытому ИИ-чату');
+  if(typeof pane!=='string'||!L.leaves(next.tree).includes(pane))throw Error('Окно не найдено');
+  L.assertPins(d.layout,next);
+  if(Object.hasOwn(L.pins(next),pane)||Object.hasOwn(L.pins(d.layout),pane))throw Error('Сначала открепите окно, чтобы переместить в него сайт');
+  const replaced=next.slots[pane]||'';for(const [key,value]of Object.entries(next.slots))if(value===id)delete next.slots[key];next.slots[pane]=id;next.active=pane;
+  next.tabOrder=[...new Set([...next.tabOrder,...this.ordered(d.id,tabs).map(t=>t.id),id])];
+  L.assertPins(d.layout,next);return{page,next,replaced,parentId:parent.id};
+ }
+ detachPreview(id,pane,tabs){
+  const {page,next,replaced,parentId}=this.previewPlacement(id,pane,tabs),d=this.current();
+  // Only metadata and placement change: the host applies this relation to the
+  // same native page. The displaced tab remains alive in the ordinary tab strip.
+  this.setLayout(d,next,{reason:'preview-transfer'});delete page.previewOf;page.lane='main';this.reconcile(tabs);
+  return{id,pane,desk:d.id,sourceId:parentId,replaced,detachedPreview:true};
+ }
  move(id,desk,before,tabs){
   this.reconcile(tabs);const page=tabs.find(t=>t.id===id),source=this.members[id],destination=this.items.find(d=>d.id===desk);
   if(!page||!source)throw Error('Вкладка уже закрыта');
@@ -199,12 +232,13 @@ class DesktopBank{
  }
  select(id){if(!this.items.some(x=>x.id===id))throw Error('Рабочий стол не найден');this.finishHistoryGroup();this.active=id;return this.preferences();}
  add(tabs=[]){this.sync(tabs);const empty=this.items.filter(d=>!tabs.some(t=>this.members[t.id]===d.id)),desk=empty.find(d=>d.id!==this.active)||empty[0];if(!desk)throw Error('Все пять столов заняты. Освободите один из них.');return desk.id;}
- describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,agentOpen:d.layout.agentOpen,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
+ describe(tabs){this.sync(tabs);return{active:this.active,items:this.items.map(d=>{const own=this.ordered(d.id,tabs),count=own.reduce((n,t)=>n+unread(t.title),0),placed=this.placed(d.id,tabs),paneCount=placed.size;return{id:d.id,name:d.name,mode:d.layout.mode,history:this.historyState(d.id),unread:Math.min(999999,count),count:own.length,paneCount,hiddenCount:own.length-paneCount,tree:clone(d.layout.tree),slots:{...d.layout.slots},aiOpen:d.layout.aiOpen,aiId:d.layout.aiId,tabs:own.map(t=>({id:t.id,title:String(t.title||t.url||'Новая вкладка').slice(0,1000),url:String(t.url||'').slice(0,8192),favicon:String(t.favicon||'').slice(0,200000),internal:!!t.internal,lane:t.lane||'main',...(t.previewOf?{previewOf:t.previewOf}:{}),placed:placed.has(t.id)})),panes:Object.fromEntries(Object.entries(d.layout.slots).map(([p,id])=>[p,own.find(t=>t.id===id)?.title||''])),active:d.id===this.active};})};}
  snapshot(){return{schema:2,active:this.active,items:clone(this.items),members:{...this.members},...(this.recovery?{recovery:clone(this.recovery)}:{})};}
 }
 async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
  const saved=await store.get([KEY,'quadroPreferences']);const bank=new DesktopBank(saved[KEY],saved.quadroPreferences||{});
  const rawState=browser.state.bind(browser),oldSave=browser.save.bind(browser),oldCommand=browser.command.bind(browser),oldMake=browser.make.bind(browser),oldLayout=browser.layout.bind(browser),oldDispose=browser.dispose.bind(browser);
+ const stateEpoch=randomUUID();let stateRevision=0;
  let queue=Promise.resolve(),switchQueue=Promise.resolve(),creationDesk='',disposed=false,lastPersisted='',pendingPersist=null,persistRunning=false;
  function rawLiveState(){
   const raw=rawState(),seen=new Set(),tabs=raw.tabs.filter(t=>{const page=browser.tabs.get(t.id),wc=page?.view?.webContents;return !seen.has(t.id)&&seen.add(t.id)&&!page?.provider&&!page?.ephemeral&&(t.internal||wc&&!wc.isDestroyed?.());});
@@ -228,7 +262,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
   }
   return queue;
  }
- function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState()};}
+ function state(){const raw=rawLiveState();return{...raw,tabs:raw.tabs.filter(t=>bank.members[t.id]===bank.active),desktops:bank.describe(raw.tabs),desktopId:bank.active,layoutHistory:bank.historyState(),snapshot:{epoch:stateEpoch,revision:++stateRevision}};}
  browser.state=state;
  browser.mouseAssignDesk=id=>bank.assign(id,creationDesk||bank.active);
  browser.make=(...args)=>{const t=oldMake(...args);bank.assign(t.id,creationDesk||bank.active);return t;};
@@ -276,7 +310,7 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    if(typeof args.id!=='string'||bank.members[args.id]!==bank.active)return{src:''};
    return previews.thumbnail(args.id);
   }
-  if(!['switch','add','rename','apply-mode','previews','remember-preview','move-tab','close-tab','pin-pane','history-state','undo','redo','restore-layout'].includes(action))throw Error('Unknown desktop action');
+  if(!['switch','add','rename','apply-mode','previews','remember-preview','move-tab','detach-preview','close-tab','pin-pane','history-state','undo','redo','restore-layout'].includes(action))throw Error('Unknown desktop action');
   // Validate a mode before accepting any accompanying preferences.
   const mode=action==='apply-mode'?Modes.get(args.mode):null;
   const run=async()=>{
@@ -287,9 +321,14 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    // An invalid history ID must not accept or checkpoint accompanying edits.
    const selected=action==='restore-layout'&&typeof args.historyId==='string'?bank.historyEntry(args.historyId):null;
    if(action==='restore-layout'&&!selected)throw Error('Состояние раскладки больше недоступно');
+   if(action==='detach-preview'){if(args.preferences)validatePreferences(args.preferences);bank.previewPlacement(args.id,args.pane,tabs,args.preferences||bank.preferences());}
    if(args.afterClosePreferences){if(action!=='close-tab'||args.afterClosePreferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.afterClosePreferences);changeMeta(args.history||{});}
    if(args.preferences){if(args.preferences.desktopId!==bank.active)throw Error('Раскладка другого стола');validatePreferences(args.preferences);changeMeta(args.history||{});bank.savePreferences(args.preferences,args.history||{},tabs);}
    if(action==='pin-pane'){bank.pinPane(args.pane,args.pinned,args.id);await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
+   if(action==='detach-preview'){
+    const moved=bank.detachPreview(args.id,args.pane,rawLiveState().tabs),native=browser.tabs.get(args.id);delete native.previewOf;native.lane='main';previews.drop(args.id);
+    await oldSave();await persist();const result={state:state(),preferences:bank.preferences(),previews:previews.snapshot(),moved};browser.emit();return result;
+   }
    if(action==='previews'||action==='remember-preview'){await previews.capture();await persist();return previews.snapshot();}
    if(['undo','redo','restore-layout'].includes(action)){
     bank.finishHistoryGroup();const history=bank.historyState(),available=action==='restore-layout'?args.historyId!==history.currentId:action==='undo'?history.canUndo:history.canRedo;let changed=false;
@@ -321,13 +360,15 @@ async function install({browser,store,ipcMain,trusted,win,powerMonitor,screen}){
    }
    if(action==='rename'){const d=bank.items.find(d=>d.id===args.id);if(!d)throw Error('Рабочий стол не найден');d.name=String(args.name||'Стол').trim().slice(0,60)||'Стол';await persist();browser.emit();return{state:state(),preferences:bank.preferences()};}
    if(action==='apply-mode'){
-    L.assertPins(bank.current().layout,Modes.arranged(mode.id,rawLiveState().tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout));
-    await browser.mouseBeforeDesktopChange?.();await previews.capture();
     const own=()=>rawLiveState().tabs.filter(t=>bank.members[t.id]===bank.active);
-    // Even an internal start tab or an AI side tab is user-owned content.
-    // Existing pages retain identity, sessions and navigation history.
-    if(!own().length)for(const url of mode.sites)await browser.command('open',{url,lane:'main'});
-    const tabs=rawLiveState().tabs,next=bank.liveLayout({...Modes.arranged(mode.id,tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout),pinnedPanes:bank.current().layout.pinnedPanes,agentOpen:mode.id==='agents'},bank.active,tabs);
+    L.assertPins(bank.current().layout,Modes.plan(mode.id,own(),bank.current().layout).layout);
+    await browser.mouseBeforeDesktopChange?.();await previews.capture();
+    const planned=Modes.plan(mode.id,own(),bank.current().layout),selectedIds=planned.selectedIds.slice();
+    L.assertPins(bank.current().layout,planned.layout);
+    // Presets select their own live pages. Displaced tabs remain alive in the
+    // same desktop; repeating a mode reuses IDs even after a login redirect.
+    for(const {index,url}of planned.missing){const opened=await browser.command('open',{url,lane:'main'});selectedIds[index]=opened.id;}
+    const tabs=rawLiveState().tabs,next=bank.liveLayout({...Modes.arranged(mode.id,tabs.filter(t=>bank.members[t.id]===bank.active),bank.current().layout,{selectedIds}),pinnedPanes:bank.current().layout.pinnedPanes},bank.active,tabs);
     bank.setLayout(bank.current(),next,{reason:'mode:'+mode.id});await persist();browser.emit();return{state:state(),preferences:bank.preferences()};
    }
    const id=action==='add'?bank.add(rawLiveState().tabs):args.id;

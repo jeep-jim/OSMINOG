@@ -1,0 +1,5 @@
+/* The native page owns a matching input-transparent layer. This one paints the
+   browser-owned pane chrome, documents and start/local pages beneath the sidebar. */
+#stage{position:relative}
+body.sidebar-dimmed #stage::after{content:'';position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.14);pointer-events:none;user-select:none}
+html[data-theme=dark] #workspace :is(#settings-dialog,#library-dialog){background:var(--mouse-chrome-background);background-color:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none}

@@ -8,7 +8,7 @@ if(process.platform!=='win32'||process.arch!=='x64')throw Error('Manifest requir
 const evidencePath=path.join(desktop,'mouse-windows-verification.json');
 const evidence=JSON.parse(fs.readFileSync(evidencePath,'utf8'));
 if(evidence.ok!==true||evidence.version!==version||evidence.platform!=='win32'||evidence.arch!=='x64')throw Error('Installed Windows verification incomplete');
-for(const name of ['mouse-windows-audit.json','mouse-windows-agent-audit.json']){
+for(const name of ['mouse-windows-audit.json']){
  const audit=JSON.parse(fs.readFileSync(path.join(desktop,name),'utf8'));
  if(audit.error||!audit.metadata||audit.metadata.vulnerabilities.high||audit.metadata.vulnerabilities.critical)throw Error('Production dependency audit failed: '+name);
 }
@@ -20,7 +20,7 @@ const source=cp.execFileSync('git',['rev-parse','HEAD'],{cwd:desktop,encoding:'u
 if(!/^[a-f0-9]{40}$/.test(source))throw Error('Source commit missing');
 const metadata={version,productName:'Mouse Browser',platform:'win32',arch:'x64',source,
  runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,
- tests:['tile-search-removed','agent-inline-settings','live-desktop-switch-performance','stable-download-and-capture-dom','agent-messenger-native-streaming','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls'],
+ tests:['real-636-to-637-profile-preserving-replacement','combined637-native-features','real-636-to-637-native-update-button','real-629-to-637-profile-preserving-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
  signing,authenticode:signature,ownerDeviceVerified:false,
  package:{name,size,sha256:installerHash},
  verification:{file:path.basename(evidencePath),sha256:sha(evidencePath),result:evidence},

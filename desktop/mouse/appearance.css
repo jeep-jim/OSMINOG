@@ -1,0 +1,28 @@
+/* Appearance belongs to browser chrome and browser-owned pages only. Native
+   website renderers retain their own styles, colours, media and live state. */
+:root[data-pane-mode=square]{--workspace-gap:0px;--pane-radius:0px}
+:root[data-pane-mode=square] #workspace :is(#ai-panel,#ai-chat-pane,#ai-preview-pane,#library-dialog,#settings-dialog){border-radius:0}
+:root[data-pane-mode=square] #workspace :is(#ai-slot,#ai-preview-slot,.page-slot){border-radius:0}
+:root[data-pane-mode=square] #stage .pane.mouse-drop-target::after{border-radius:0}
+:root[data-pane-mode=square] section.mouse-pane-downloads>button.mouse-download-pill{border-radius:0}
+/* A zero-width seam still has a pointer target over the neighbouring chrome.
+   The existing separator keeps its keyboard focus and resize commands. */
+.divider-hit{display:none}
+:root[data-pane-mode=square] .divider>.divider-hit{display:block;position:absolute;z-index:1;touch-action:none;cursor:inherit}
+:root[data-pane-mode=square] .divider[data-axis=x]>.divider-hit,
+:root[data-pane-mode=square] .ai-divider>.divider-hit{inset:0 -3px}
+:root[data-pane-mode=square] .divider[data-axis=y]>.divider-hit{inset:-3px 0}
+
+:root[data-theme=dark] .home-page{--home-ink:var(--text-primary);color:var(--home-ink)}
+:root[data-theme=dark] .home-page :is(.home-customize,.home-more){color:var(--text-primary)!important}
+:root[data-theme=dark] :is(.resize-size-hud,.desktop-total-badge,.desk-badge,.background-preset),
+:root[data-theme=dark] #downloads-button .mouse-download-badge,
+:root[data-theme=dark] section.mouse-pane-downloads>button.mouse-download-pill{color:var(--text-primary)}
+
+#settings-dialog .settings-white-tone{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;margin:16px 0 20px;font-size:11px}
+#settings-dialog .settings-white-tone>label{display:block;margin:0}
+#settings-dialog .settings-white-tone>input{width:100%;grid-column:1/-1}
+#settings-white-tone-value{font-variant-numeric:tabular-nums;font-family:ui-monospace,monospace}
+#settings-white-tone-preview{grid-column:1/-1;padding:10px 12px;border-radius:8px;background:#19212e;color:var(--text-primary);font-size:14px}
+#settings-white-tone-reset{justify-self:start;font-size:10px;min-height:26px}
+#settings-dialog .settings-white-tone>small{font-size:10px;color:var(--muted);text-align:right}

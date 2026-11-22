@@ -77,7 +77,7 @@ module.exports=async({app,win,browser,store,overlayGate,globalCapture,privateMod
   server=http.createServer((req,res)=>{const index=req.url==='/right'?1:0;res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<!doctype html><meta charset="utf-8"><title>Nora native foreground '+index+'</title><style>html,body{margin:0;background:rgb('+colors[index].join(',')+')}body{min-height:2600px}</style><script>window.marker=Math.random()</script>');});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   for(const [index,desk]of desks.entries()){
    await js(`MouseTest.switchDesktop(${JSON.stringify(desk)})`);await js(`MouseTest.openPage(${JSON.stringify('http://127.0.0.1:'+server.address().port+(index?'/right':'/left'))})`);const id=await js('MouseTest.model.slots[MouseTest.model.active]');await until(()=>!browser.get(id).loading,'native fixture page loaded');const page=browser.get(id);made.push({id,desk,index,page,wc:page.view.webContents});
-   await js(`MouseTest.changeLayout(1);MouseTest.model.slots={p1:${JSON.stringify(id)}};MouseTest.model.active='p1';MouseTest.model.aiOpen=false;MouseTest.model.agentOpen=false;MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);await painted();await page.view.webContents.executeJavaScript('scrollTo(0,137)');
+   await js(`MouseTest.changeLayout(1);MouseTest.model.slots={p1:${JSON.stringify(id)}};MouseTest.model.active='p1';MouseTest.model.aiOpen=false;MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);await painted();await page.view.webContents.executeJavaScript('scrollTo(0,137)');
   }
   await js(`MouseTest.switchDesktop(${JSON.stringify(desks[0])})`);await painted();
   // Normal-motion assertions require an explicit baseline. The runner may

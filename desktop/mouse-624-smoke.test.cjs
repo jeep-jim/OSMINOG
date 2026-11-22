@@ -31,18 +31,18 @@ function snapshotRenderer(selector,state='visible'){
  const targetBounds={x:554,y:322,width:125,height:28,left:554,top:322,right:679,bottom:350},dialogBounds={x:480,y:160,width:360,height:400},queries=[];
  const target={ownerDocument:null,parentElement:null,disabled:false,tagName:'BUTTON',className:'',getBoundingClientRect:()=>targetBounds,getClientRects:()=>[targetBounds],matches:()=>false,contains:node=>node===target};
  const dialog={open:true,hidden:false,getBoundingClientRect:()=>dialogBounds,querySelector:name=>name==='.dialog-content'?{scrollTop:17}:null};
- const document={defaultView:{innerWidth:1008,innerHeight:668,getComputedStyle:()=>({pointerEvents:'auto',visibility:state==='hidden'?'hidden':'visible',display:'block',opacity:'1'})},querySelector:name=>{queries.push(name);return name==='#settings-dialog'?dialog:name==='#agent-panel'?{hidden:true}:name===selector&&state!=='missing'?target:null;},elementFromPoint:()=>target};target.ownerDocument=document;
- return{queries,targetBounds,context:{document,innerWidth:1008,innerHeight:668,performance:{now:()=>1234,timeOrigin:100000},MouseTest:{model:{focusPane:'',focusAI:false,agentOpen:false,settingsOpen:true}}}};
+ const document={defaultView:{innerWidth:1008,innerHeight:668,getComputedStyle:()=>({pointerEvents:'auto',visibility:state==='hidden'?'hidden':'visible',display:'block',opacity:'1'})},querySelector:name=>{queries.push(name);return name==='#settings-dialog'?dialog:name===selector&&state!=='missing'?target:null;},elementFromPoint:()=>target};target.ownerDocument=document;
+ return{queries,targetBounds,context:{document,innerWidth:1008,innerHeight:668,performance:{now:()=>1234,timeOrigin:100000},MouseTest:{model:{focusPane:'',focusAI:false,settingsOpen:true}}}};
 }
-for(const selector of ['#settings-button','[data-action="assistant"]']){
+for(const selector of ['#settings-button','#settings-dialog [data-close-dialog]']){
  test('624 actual serialized snapshot resolves '+selector+' without ambient main-process variables',()=>{
   const fixture=snapshotRenderer(selector);assert.equal(Object.hasOwn(fixture.context,'selector'),false);
   const snapshot=vm.runInNewContext(smoke.exports.settingsSnapshotScript(selector),fixture.context);
   assert.equal(snapshot.target.selector,selector);assert.equal(snapshot.target.hit.ready,true);assert.equal(snapshot.target.hit.x,617);assert.equal(snapshot.target.hit.y,336);
   assert.deepEqual(JSON.parse(JSON.stringify(snapshot.target.bounds)),{x:554,y:322,width:125,height:28});
   assert.equal(snapshot.at,1234);assert.equal(snapshot.timeOrigin,100000);assert.equal(snapshot.viewport.width,1008);assert.equal(snapshot.viewport.height,668);
-  assert.equal(snapshot.focusPane,'');assert.equal(snapshot.focusAI,false);assert.equal(snapshot.agentOpen,false);assert.equal(snapshot.agentHidden,true);assert.equal(snapshot.settingsOpen,true);
-  assert.equal(snapshot.dialog.open,true);assert.equal(snapshot.dialog.hidden,false);assert.equal(snapshot.dialog.scrollTop,17);assert.deepEqual(fixture.queries,['#settings-dialog',selector,'#agent-panel']);
+  assert.equal(snapshot.focusPane,'');assert.equal(snapshot.focusAI,false);assert.equal(Object.hasOwn(snapshot,'agentOpen'),false);assert.equal(Object.hasOwn(snapshot,'agentHidden'),false);assert.equal(snapshot.settingsOpen,true);
+  assert.equal(snapshot.dialog.open,true);assert.equal(snapshot.dialog.hidden,false);assert.equal(snapshot.dialog.scrollTop,17);assert.deepEqual(fixture.queries,['#settings-dialog',selector]);
  });
  test('624 actual serialized snapshot preserves '+selector+' when its target is missing or hidden',()=>{
   for(const state of ['missing','hidden']){

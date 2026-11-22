@@ -27,13 +27,9 @@ module.exports={
  // this architecture as x86_64 for AppImage and amd64 for deb.
  artifactName:'Mouse-Browser-${version}-Linux-x64.${ext}',
  files:[...mouse.files.filter(file=>!['mouse-native-menu.node','mouse-screen-capture.node'].includes(file)),
-  'mouse-linux*.cjs','!mouse-linux*.test.cjs'],
- asarUnpack:['mouse-mcp-fs.node'],
- extraResources:[...mouse.extraResources.filter(item=>item.from!=='mouse-agent/node_modules'),
-  {from:'mouse-agent/node_modules',to:'mouse-agent-node_modules/node_modules',filter:[
-   '**/*','!**/test/**','!**/tests/**','!node-pty/prebuilds/darwin-*/**/*',
-   '!node-pty/prebuilds/win32-*/**/*','!node-pty/prebuilds/linux-arm64/**/*'
-  ]}],
+  'mouse-platform.node','mouse-linux*.cjs','!mouse-linux*.test.cjs'],
+ asarUnpack:['mouse-platform.node'],
+ extraResources:[],
  afterPack:async({appOutDir,electronPlatformName})=>{
   if(electronPlatformName!=='linux')throw Error('Mouse Linux package requires the Linux target');
   await fs.promises.writeFile(path.join(appOutDir,'AppRun'),APP_RUN,{mode:0o755});
