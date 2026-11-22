@@ -88,13 +88,78 @@ shutil.copyfile(manifest, output / "SHA256SUMS")
 PY
 
 # Only this domain's dedicated webroot is managed. The project home stays private.
-install -d -m 755 /var/www
+if [[ ! -e /var/www ]]; then install -d -m 755 /var/www; fi
+[[ -d /var/www ]] || fail 'The existing public parent is not a directory.'
 if [[ -e "$public_dir" ]]; then
   [[ -d "$public_dir" && $(stat -c %U "$public_dir") == osminog ]] || fail 'Unexpected existing Mouse webroot ownership.'
 else
   install -d -m 755 -o osminog -g osminog "$public_dir"
 fi
 install -d -m 755 -o osminog -g osminog "$public_dir/releases"
+[[ ! -L "$public_dir/downloads" ]] || fail 'Unexpected public downloads symlink.'
+install -d -m 755 -o osminog -g osminog "$public_dir/downloads"
+# Copy actual verified installers. No redirect or upstream URL is served to visitors.
+python3 - /opt/osminog/website/downloads "$public_dir/downloads" <<'PY'
+import hashlib, json, os, pwd, re, shutil, stat, sys, tempfile
+from pathlib import Path
+source, output = Path(sys.argv[1]), Path(sys.argv[2])
+if source.resolve() != source or output.resolve() != output:
+    raise SystemExit("Unexpected downloads path")
+manifest = source / "manifest.json"
+if manifest.is_symlink() or not manifest.is_file() or manifest.stat().st_size > 65536:
+    raise SystemExit("Verified download manifest has not been staged")
+metadata = json.loads(manifest.read_text())
+files = metadata.get("files", [])
+version = metadata.get("version", "")
+if not re.fullmatch(r"\d+\.\d+\.\d+", version) or len(files) != 3:
+    raise SystemExit("Invalid installer manifest")
+suffixes = {"mac-arm64.dmg", "Windows-x64.exe", "Linux-x64.AppImage"}
+expected_names = {"Mouse-Browser-" + version + "-" + suffix for suffix in suffixes}
+if {item.get("filename") for item in files} != expected_names:
+    raise SystemExit("Unexpected platform filenames")
+reserve = 500 * 1024 * 1024
+for item in files:
+    name, digest, size = item["filename"], item.get("sha256", ""), item.get("size")
+    if not re.fullmatch(r"[0-9a-f]{64}", digest) or not isinstance(size, int) or not 0 < size <= 500 * 1024 * 1024:
+        raise SystemExit("Invalid installer hash or size")
+    path = source / name
+    if path.is_symlink() or not path.is_file() or path.stat().st_size != size or path.stat().st_mode & 0o111:
+        raise SystemExit("Missing or unexpected installer file: " + name)
+    target = output / name
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        raise SystemExit("Unsafe installer destination")
+    if target.exists():
+        existing_hash = hashlib.sha256()
+        with target.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""): existing_hash.update(chunk)
+        if target.stat().st_size == size and existing_hash.hexdigest() == digest:
+            print("MOUSE_INSTALLER_ALREADY_VERIFIED " + name)
+            continue
+        raise SystemExit("An immutable public installer already exists with different bytes")
+    if shutil.disk_usage(output).free < size + reserve:
+        raise SystemExit("Insufficient free disk with 500 MiB reserve")
+    fd, temporary = tempfile.mkstemp(prefix=".installer-", dir=output)
+    try:
+        calculated = hashlib.sha256()
+        copied = 0
+        with path.open("rb") as incoming, os.fdopen(fd, "wb") as outgoing:
+            for chunk in iter(lambda: incoming.read(1024 * 1024), b""):
+                copied += len(chunk)
+                if copied > size: raise SystemExit("Installer changed during transfer")
+                calculated.update(chunk)
+                outgoing.write(chunk)
+            outgoing.flush()
+            os.fsync(outgoing.fileno())
+        if copied != size or calculated.hexdigest() != digest:
+            raise SystemExit("Installer checksum mismatch")
+        account = pwd.getpwnam("osminog")
+        os.chmod(temporary, 0o644)
+        os.chown(temporary, account.pw_uid, account.pw_gid)
+        os.replace(temporary, target)
+        print("MOUSE_INSTALLER_VERIFIED " + name)
+    finally:
+        if os.path.exists(temporary): os.unlink(temporary)
+PY
 if [[ -e "$public_dir/releases/$release" ]]; then
   [[ ! -L "$public_dir/releases/$release" ]] || fail 'Unexpected release symlink.'
   diff -qr "$temp_dir/site" "$public_dir/releases/$release" >/dev/null || fail 'Existing release bytes differ.'
@@ -121,6 +186,14 @@ server {
     access_log off;
     error_log /var/log/nginx/mouse.black.error.log warn;
     location ^~ /.well-known/acme-challenge/ { root /var/lib/mouse-website/acme; default_type text/plain; }
+    location ~ ^/downloads/(Mouse-Browser-[0-9.]+-(mac-arm64\.dmg|Windows-x64\.exe|Linux-x64\.AppImage))$ {
+        alias /var/www/mouse.black/downloads/$1;
+        autoindex off;
+        default_type application/octet-stream;
+        add_header Content-Disposition attachment always;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Content-Type-Options nosniff always;
+    }
     location = /SHA256SUMS { return 404; }
     location / { try_files $uri $uri/ =404; }
     add_header Cache-Control "no-cache" always;
@@ -157,6 +230,14 @@ server {
     index index.html;
     access_log off;
     error_log /var/log/nginx/mouse.black.error.log warn;
+    location ~ ^/downloads/(Mouse-Browser-[0-9.]+-(mac-arm64\.dmg|Windows-x64\.exe|Linux-x64\.AppImage))$ {
+        alias /var/www/mouse.black/downloads/$1;
+        autoindex off;
+        default_type application/octet-stream;
+        add_header Content-Disposition attachment always;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Content-Type-Options nosniff always;
+    }
     location = /SHA256SUMS { return 404; }
     location / { try_files $uri $uri/ =404; }
     add_header Cache-Control "no-cache" always;
@@ -176,12 +257,15 @@ apply_config() {
     fail 'Mouse config failed validation; its previous config was restored.'
   fi
 }
+has_existing_cert=no
 if [[ -f "$cert_config/live/mouse.black/fullchain.pem" && -f "$cert_config/live/mouse.black/privkey.pem" ]]; then
+  has_existing_cert=yes
   write_https > "$temp_dir/candidate.conf"
 else
   write_http > "$temp_dir/candidate.conf"
 fi
 apply_config
+if [[ $has_existing_cert == no ]]; then
 curl --fail --location --silent --show-error --max-time 15 --noproxy '*' \
     --resolve mouse.black:80:127.0.0.1 --resolve mouse.black:443:127.0.0.1 \
     http://mouse.black/release.json > "$temp_dir/served-release.json"
@@ -189,6 +273,7 @@ python3 - "$temp_dir/served-release.json" "$release" <<'PY'
 import json, sys
 assert json.load(open(sys.argv[1])).get("commit") == sys.argv[2], "Wrong Mouse release served"
 PY
+fi
 
 # A separate ACME account/config isolates this certificate from other projects.
 # Webroot validation keeps the existing Nginx process serving throughout.
@@ -201,7 +286,9 @@ fi
 write_https > "$temp_dir/candidate.conf"
 apply_config
 
-install -d -m 755 /usr/local/libexec
+[[ ! -L /usr/local/libexec ]] || fail 'Unexpected certificate hook parent symlink.'
+if [[ ! -e /usr/local/libexec ]]; then install -d -m 755 /usr/local/libexec; fi
+[[ -d /usr/local/libexec ]] || fail 'The existing certificate hook parent is not a directory.'
 cat > /usr/local/libexec/mouse-website-cert-renewed <<'HOOK'
 #!/usr/bin/env bash
 set -euo pipefail

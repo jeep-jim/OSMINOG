@@ -1,37 +1,123 @@
-/* Theme stays on this device. This page makes no analytics requests. */
+/* Preferences stay on this device. No network calls or tracking. */
 (() => {
   'use strict';
   const root = document.documentElement;
-  const storageKey = 'mouse.black.theme';
-  let theme = 'dark';
+  const themeKey = 'mouse.black.theme';
+  const languageKey = 'mouse.black.language';
+  const i18n = window.MOUSE_I18N || { languages: [{ code: 'ru', name: 'Русский', dir: 'ltr' }], messages: {} };
+  const languages = i18n.languages;
+  const byCode = new Map(languages.map((item) => [item.code.toLowerCase(), item]));
+  const readPreference = (key) => {
+    try { return localStorage.getItem(key); } catch (_) { return null; }
+  };
+  const savePreference = (key, value) => {
+    try { localStorage.setItem(key, value); } catch (_) { /* Preferences are optional. */ }
+  };
+  const matchLanguage = (candidate) => {
+    if (typeof candidate !== 'string') return null;
+    const value = candidate.replace(/_/g, '-').toLowerCase();
+    if (byCode.has(value)) return byCode.get(value).code;
+    const base = value.split('-')[0];
+    if (base === 'zh') return /hant|-(tw|hk|mo)(-|$)/.test(value) ? 'zh-Hant' : 'zh-Hans';
+    if (base === 'pt') return value.startsWith('pt-br') ? 'pt-BR' : 'pt-PT';
+    const aliases = { no: 'nb', nn: 'nb', tl: 'fil', iw: 'he', in: 'id' };
+    const match = byCode.get(aliases[base] || base);
+    return match ? match.code : null;
+  };
+  let requestedLanguage = null;
   try {
-    if (localStorage.getItem(storageKey) === 'light') theme = 'light';
-  } catch (_) {
-    // Browsing and theme switching still work with storage disabled.
+    const parameter = new URLSearchParams(window.location.search).get('lang');
+    const exact = parameter && byCode.get(parameter.replace(/_/g, '-').toLowerCase());
+    requestedLanguage = exact ? exact.code : null;
+  } catch (_) { /* The static page also works without URL parsing. */ }
+  let language = requestedLanguage || matchLanguage(readPreference(languageKey));
+  if (!language) {
+    for (const preferred of navigator.languages || [navigator.language || 'en']) {
+      language = matchLanguage(preferred);
+      if (language) break;
+    }
   }
+  language = language || (byCode.has('en') ? 'en' : 'ru');
+  let theme = readPreference(themeKey) === 'light' ? 'light' : 'dark';
   root.dataset.theme = theme;
+  root.lang = language;
+  root.dir = (byCode.get(language.toLowerCase()) || {}).dir || 'ltr';
 
-  const setTheme = (nextTheme) => {
-    theme = nextTheme === 'light' ? 'light' : 'dark';
+  const text = (key) => {
+    const active = i18n.messages[language] || {};
+    const fallback = i18n.messages.en || i18n.messages.ru || {};
+    return active[key] || fallback[key] || '';
+  };
+  const setTheme = (value) => {
+    theme = value === 'light' ? 'light' : 'dark';
     root.dataset.theme = theme;
     const light = theme === 'light';
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = light ? '#ffffff' : '#000000';
     const button = document.getElementById('theme-switch');
     if (button) {
+      const label = text(light ? 'themeDark' : 'themeLight') || (light ? 'Выключить свет' : 'Включить свет');
       button.setAttribute('aria-pressed', String(light));
-      button.setAttribute('aria-label', light ? 'Включить тёмную тему' : 'Включить светлую тему');
-      button.querySelector('.theme-label').textContent = light ? 'Выключить свет' : 'Включить свет';
+      button.setAttribute('aria-label', label);
+      button.setAttribute('title', label);
+      button.querySelector('.theme-label').textContent = label;
     }
+  };
+  const setLanguage = (value, updateLocation = false) => {
+    language = matchLanguage(value) || language;
+    const definition = byCode.get(language.toLowerCase());
+    root.lang = language;
+    root.dir = definition && definition.dir === 'rtl' ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-i18n]').forEach((node) => {
+      const translated = text(node.dataset.i18n);
+      if (translated) node.textContent = translated;
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach((node) => {
+      const translated = text(node.dataset.i18nAria);
+      if (translated) node.setAttribute('aria-label', translated);
+    });
+    if (text('pageTitle')) document.title = text('pageTitle');
+    const description = document.querySelector('meta[name="description"]');
+    if (description && text('metaDescription')) description.content = text('metaDescription');
+    const selector = document.getElementById('language-select');
+    if (selector) {
+      selector.value = language;
+      selector.title = text('languageLabel');
+    }
+    if (updateLocation) {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('lang', language);
+        window.history.replaceState(null, '', url);
+      } catch (_) { /* Local file previews can restrict history updates. */ }
+    }
+    setTheme(theme);
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    const selector = document.getElementById('language-select');
+    const options = document.createDocumentFragment();
+    for (const item of languages) {
+      const option = document.createElement('option');
+      option.value = item.code;
+      option.textContent = item.name;
+      option.lang = item.code;
+      option.dir = item.dir || 'ltr';
+      options.appendChild(option);
+    }
+    selector.replaceChildren(options);
+    selector.closest('.language-control').hidden = false;
+    selector.addEventListener('change', () => {
+      setLanguage(selector.value, true);
+      savePreference(languageKey, language);
+    });
+
     const button = document.getElementById('theme-switch');
     button.hidden = false;
-    setTheme(theme);
+    setLanguage(language);
     button.addEventListener('click', () => {
       setTheme(theme === 'dark' ? 'light' : 'dark');
-      try { localStorage.setItem(storageKey, theme); } catch (_) { /* Optional preference. */ }
+      savePreference(themeKey, theme);
     });
 
     const details = document.querySelector('.install-details');

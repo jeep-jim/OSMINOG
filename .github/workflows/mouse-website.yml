@@ -1,4 +1,4 @@
-name: Mouse website — stage and publish own static files
+name: Mouse website — publish site and verified installers
 on:
   push:
     branches: [main, feat/mouse-black-landing-20261122]
@@ -13,7 +13,7 @@ jobs:
   website:
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/mouse-black-landing-20261122'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 30
     environment: osminog-reg
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,7 @@ jobs:
           set -euo pipefail
           bash -n infra/website/deploy.sh
           bash -n infra/website/bootstrap.sh
+          bash infra/website/deploy.sh --validate-downloads infra/website/downloads.json
           bash infra/website/deploy.sh --package website "$GITHUB_SHA" "$RUNNER_TEMP/mouse-website.tar.gz"
           archive_sha=$(sha256sum "$RUNNER_TEMP/mouse-website.tar.gz" | cut -d ' ' -f 1)
           bash infra/website/deploy.sh --verify "$GITHUB_SHA" "$RUNNER_TEMP/mouse-website.tar.gz" "$archive_sha"
@@ -69,6 +70,7 @@ jobs:
           archive_sha=$(sha256sum "$RUNNER_TEMP/mouse-website.tar.gz" | cut -d ' ' -f 1)
           deploy_sha=$(sha256sum infra/website/deploy.sh | cut -d ' ' -f 1)
           bootstrap_sha=$(sha256sum infra/website/bootstrap.sh | cut -d ' ' -f 1)
+          downloads_sha=$(sha256sum infra/website/downloads.json | cut -d ' ' -f 1)
           # Upload only the reviewed scripts to the dedicated user's own website area.
           for item in deploy bootstrap; do
             script_sha=$deploy_sha
@@ -76,6 +78,33 @@ jobs:
             remote="/opt/osminog/website/$item-$GITHUB_SHA.sh"
             ssh "${ssh_args[@]}" osminog@151.248.113.177 "set -e; umask 077; test \"\$(id -un)\" = osminog; test \"\$(id -u)\" -ne 0; test -d /opt/osminog; test ! -L /opt/osminog; test ! -L /opt/osminog/website; mkdir -p /opt/osminog/website; test ! -L '$remote'; temporary=\$(mktemp '/opt/osminog/website/.script-XXXXXXXX'); trap 'rm -f \"\$temporary\"' EXIT; cat > \"\$temporary\"; printf '%s  %s\\n' '$script_sha' \"\$temporary\" | sha256sum --check --status; chmod 600 \"\$temporary\"; mv -T \"\$temporary\" '$remote'" < "infra/website/$item.sh"
           done
+          ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --downloads-manifest '$downloads_sha'" < infra/website/downloads.json
+          python3 - <<'PY' > "$RUNNER_TEMP/mouse-downloads.tsv"
+          import json
+          with open('infra/website/downloads.json') as source:
+              manifest = json.load(source)
+          for item in manifest['files']:
+              print(item['filename'], item['url'], item['size'], item['sha256'], sep='\t')
+          PY
+          # Download anonymously on the runner, then upload only missing verified bytes.
+          # Visitors receive the files from mouse.black; these upstream URLs never enter the site.
+          while IFS=$'\t' read -r filename url size checksum; do
+            if ssh -n "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --downloads-check '$filename'"; then
+              printf 'Verified installer already staged: %s\n' "$filename"
+              continue
+            else
+              check_status=$?
+              if test "$check_status" -ne 3; then exit "$check_status"; fi
+            fi
+            installer="$RUNNER_TEMP/$filename"
+            curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+              --connect-timeout 15 --max-time 300 --retry 2 --retry-max-time 360 \
+              --max-filesize "$size" --output "$installer" "$url"
+            test "$(stat -c %s "$installer")" = "$size"
+            printf '%s  %s\n' "$checksum" "$installer" | sha256sum --check --status
+            timeout 480 ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --receive-download '$filename'" < "$installer"
+            rm -f "$installer"
+          done < "$RUNNER_TEMP/mouse-downloads.tsv" | tee "$RUNNER_TEMP/mouse-downloads-deploy.txt"
           ssh "${ssh_args[@]}" osminog@151.248.113.177 "bash '/opt/osminog/website/deploy-$GITHUB_SHA.sh' --receive '$GITHUB_SHA' '$archive_sha'" < "$RUNNER_TEMP/mouse-website.tar.gz" | tee "$RUNNER_TEMP/mouse-website-deploy.txt"
           status=$(sed -n 's/^deployment_status=//p' "$RUNNER_TEMP/mouse-website-deploy.txt")
           [[ "$status" = ADMIN_SETUP_REQUIRED || "$status" = CONTENT_PUBLISHED ]]
@@ -86,6 +115,8 @@ jobs:
             printf 'Verified static release: `/opt/osminog/website/releases/%s`\n\n' "$GITHUB_SHA"
             printf 'Reviewed administrator script: `/opt/osminog/website/bootstrap-%s.sh`\n\n' "$GITHUB_SHA"
             printf 'Administrator script SHA256: `%s`\n\n' "$bootstrap_sha"
+            printf 'Installer manifest: `/opt/osminog/website/downloads/manifest.json`\n\nSHA256: `%s`\n\n' "$downloads_sha"
+            printf 'Three installers are size- and SHA256-verified in the dedicated staging directory. Public downloads use `/downloads/<filename>` on mouse.black without upstream redirects.\n\n'
             if test "$status" = ADMIN_SETUP_REQUIRED; then
               printf 'The files are staged. The public website is not declared live: administrator setup of its dedicated webroot, Nginx host and HTTPS is still required.\n\n'
             else
@@ -111,9 +142,30 @@ jobs:
               with urllib.request.urlopen('https://' + host + '/', timeout=20) as response:
                   body = response.read(2 * 1024 * 1024)
                   assert response.status == 200 and b'<html' in body.lower() and b'Mouse' in body
+                  assert b'github.com' not in body.lower() and b'githubusercontent.com' not in body.lower()
               print('MOUSE_WEBSITE_HTTPS_VERIFIED ' + host)
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, request, response, code, message, headers, new_url):
+                  return None
+          direct = urllib.request.build_opener(NoRedirect())
+          with open('infra/website/downloads.json') as source:
+              installers = json.load(source)['files']
+          for item in installers:
+              path = '/downloads/' + item['filename']
+              assert path.encode() in body, 'Download link missing from public page'
+              url = 'https://mouse.black' + path
+              with direct.open(urllib.request.Request(url, method='HEAD'), timeout=30) as response:
+                  assert response.status == 200 and response.url == url
+                  assert not response.headers.get('Location')
+                  assert int(response.headers['Content-Length']) == item['size']
+              request = urllib.request.Request(url, headers={'Range': 'bytes=0-15'})
+              with direct.open(request, timeout=30) as response:
+                  assert response.status == 206 and response.url == url
+                  assert response.headers['Content-Range'] == 'bytes 0-15/' + str(item['size'])
+                  assert len(response.read(17)) == 16
+              print('MOUSE_DIRECT_DOWNLOAD_VERIFIED ' + item['filename'])
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('\n**Verified live:** both domain names reach the expected release through trusted HTTPS.\n')
+              summary.write('\n**Verified live:** both domain names reach the expected release through trusted HTTPS. All three installers are served directly by mouse.black with the expected sizes and range support; redirects are rejected.\n')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -122,5 +174,6 @@ jobs:
           path: |
             ${{ runner.temp }}/mouse-website-permissions.txt
             ${{ runner.temp }}/mouse-website-deploy.txt
+            ${{ runner.temp }}/mouse-downloads-deploy.txt
           if-no-files-found: ignore
           retention-days: 14

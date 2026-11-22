@@ -9,68 +9,67 @@
   <title>Mouse Browser — твой компьютер, твои правила</title>
   <link rel="canonical" href="https://mouse.black/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="i18n.js"></script>
   <script src="site.js"></script>
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
-  <a class="skip-link" href="#downloads">Перейти к загрузке</a>
+  <a class="skip-link" href="#downloads" data-i18n="skipDownload">Перейти к загрузке</a>
   <header class="site-header">
-    <a class="wordmark" href="./" aria-label="Mouse Browser — главная">mouse<span class="wordmark-domain">.black</span></a>
-    <button class="theme-switch" type="button" id="theme-switch" aria-label="Включить светлую тему" aria-pressed="false" hidden>
+    <a class="wordmark" href="./" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">mouse<span class="wordmark-domain">.black</span></a>
+    <div class="header-controls">
+      <label class="language-control" for="language-select" hidden>
+        <span class="sr-only" data-i18n="languageLabel">Язык</span>
+        <svg class="language-globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c3 3 4.5 5.8 4.5 8.5s-1.5 5.5-4.5 8.5c-3-3-4.5-5.8-4.5-8.5s1.5-5.5 4.5-8.5Z"/></svg>
+        <select id="language-select" aria-label="Язык" data-i18n-aria="languageLabel"><option value="ru" lang="ru">Русский</option></select>
+        <svg class="language-chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"/></svg>
+      </label>
+      <button class="theme-switch" type="button" id="theme-switch" aria-label="Включить светлую тему" aria-pressed="false" hidden>
       <span class="theme-label">Включить свет</span>
       <span class="theme-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor"/></svg></span>
-    </button>
+      </button>
+    </div>
   </header>
 
   <main id="main">
     <section class="hero" aria-labelledby="headline">
       <div class="burrow-stage">
         <svg class="burrow" viewBox="0 0 240 210" role="img" aria-labelledby="mouse-title">
-          <title id="mouse-title">Мышка тихо сидит в своей норке и моргает</title>
-          <defs>
-            <clipPath id="burrow-interior"><path d="M12 192C42 192 54 174 54 144V90C54 42 78 6 120 6S186 42 186 90V144C186 174 198 192 228 192Z"/></clipPath>
-          </defs>
-          <path class="burrow-opening" d="M12 192C42 192 54 174 54 144V90C54 42 78 6 120 6S186 42 186 90V144C186 174 198 192 228 192Z"/>
-          <g clip-path="url(#burrow-interior)">
-            <g class="mouse-character">
-              <path class="mouse-tail" d="M143 184C160 190 177 181 176 171C175 163 164 163 162 171"/>
-              <path class="mouse-body" d="M120 146C100 146 90 164 91 183C91 194 98 201 120 201S149 194 149 183C150 164 140 146 120 146Z"/>
-              <ellipse class="mouse-belly" cx="120" cy="178" rx="17" ry="17"/>
-              <g class="mouse-head" transform="translate(63 49) scale(6)">
-                <path class="mouse-ink" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM14 0h1v1h-1zM15 0h1v1h-1zM16 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM13 1h1v1h-1zM14 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM17 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM15 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM18 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM16 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM17 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM4 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM0 10h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM2 12h1v1h-1zM6 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM16 12h1v1h-1zM1 13h1v1h-1zM6 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM17 13h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM5 15h1v1h-1zM6 15h1v1h-1zM7 15h1v1h-1zM8 15h1v1h-1zM9 15h1v1h-1zM10 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1z"/>
-                <g class="mouse-gaze"><g class="mouse-eyes"><rect x="7" y="7" width="2" height="2"/><rect x="10" y="7" width="2" height="2"/></g></g>
-              </g>
-              <path class="mouse-paws" d="M97 188h15v8H95v-5ZM128 188h15l2 3v5h-17Z"/>
-            </g>
+          <title id="mouse-title" data-i18n="mouseLabel">Мышка выглядывает из норки и моргает</title>
+          <path class="burrow-opening" d="M24 192H216V180H198V162H186V78H180V54H168V36H150V24H138V18H102V24H90V36H72V54H60V78H54V162H42V180H24Z"/>
+          <g class="mouse-head" transform="translate(63 78) scale(6)">
+            <path class="mouse-ink" d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM14 0h1v1h-1zM15 0h1v1h-1zM16 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM13 1h1v1h-1zM14 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM17 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM15 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM18 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM16 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM17 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM4 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM0 10h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM2 12h1v1h-1zM6 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM16 12h1v1h-1zM1 13h1v1h-1zM6 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM17 13h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM8 15h1v1h-1zM9 15h1v1h-1zM10 15h1v1h-1z"/>
+            <g class="mouse-eyes"><rect x="7" y="7" width="2" height="2"/><rect x="10" y="7" width="2" height="2"/></g>
+            <path class="mouse-nose" d="M5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM5 15h1v1h-1zM6 15h1v1h-1zM7 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1z"/>
           </g>
-          <path class="floor-line" d="M0 192H240"/>
+          <path class="floor-line" d="M12 192H228"/>
         </svg>
       </div>
-      <p class="eyebrow">Mouse Browser</p>
-      <h1 id="headline">Твой компьютер.<br>Твои правила.</h1>
-      <p class="intro">Локальный браузер с&nbsp;тихим характером.<br>Твоё пространство. Под&nbsp;твоим контролем.</p>
+      <p class="eyebrow" data-i18n="eyebrow">Mouse Browser</p>
+      <h1 id="headline"><span data-i18n="headlineLine1">Твой компьютер.</span><br><span data-i18n="headlineLine2">Твои правила.</span></h1>
+      <p class="intro"><span data-i18n="introLine1">Локальный браузер с тихим характером.</span><br><span data-i18n="introLine2">Твоё пространство. Под твоим контролем.</span></p>
 
-      <div class="downloads" id="downloads" aria-label="Скачать Mouse Browser">
-        <a class="download" href="https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.36-arm64/Mouse-Browser-6.0.36-mac-arm64.dmg" aria-label="Скачать Mouse Browser 6.0.36 для macOS Apple Silicon, файл DMG">
+      <div class="downloads" id="downloads" aria-label="Скачать Mouse Browser" data-i18n-aria="downloadsLabel">
+        <a class="download" href="/downloads/Mouse-Browser-6.0.36-mac-arm64.dmg" download="Mouse-Browser-6.0.36-mac-arm64.dmg" data-i18n-aria="macAria" aria-label="Скачать Mouse Browser 6.0.36 для macOS Apple Silicon, файл DMG">
           <svg class="platform-icon apple-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.05 12.54c.03 3.06 2.68 4.08 2.71 4.09-.02.07-.42 1.45-1.39 2.87-.85 1.23-1.73 2.45-3.12 2.47-1.36.03-1.8-.8-3.36-.8s-2.05.78-3.34.83c-1.34.05-2.36-1.32-3.22-2.55-1.75-2.52-3.08-7.12-1.29-10.22.89-1.54 2.48-2.52 4.2-2.55 1.31-.03 2.55.88 3.35.88.8 0 2.29-1.09 3.86-.93.66.03 2.51.27 3.69 2.01-.1.06-2.2 1.28-2.09 3.9ZM14.48 4.66c.72-.87 1.2-2.08 1.07-3.28-1.04.04-2.3.7-3.05 1.57-.67.77-1.25 2-1.09 3.18 1.16.09 2.34-.59 3.07-1.47Z"/></svg>
-          <span class="download-copy"><span class="download-name">Скачать для Mac</span><span class="download-meta">Apple Silicon · DMG</span></span>
+          <span class="download-copy"><span class="download-name" data-i18n="macLabel">Скачать для Mac</span><span class="download-meta" data-i18n="macMeta">Apple Silicon · DMG</span></span>
         </a>
-        <a class="download" href="https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.36-x64/Mouse-Browser-6.0.36-Windows-x64.exe" aria-label="Скачать Mouse Browser 6.0.36 для Windows x64, файл EXE">
+        <a class="download" href="/downloads/Mouse-Browser-6.0.36-Windows-x64.exe" download="Mouse-Browser-6.0.36-Windows-x64.exe" data-i18n-aria="windowsAria" aria-label="Скачать Mouse Browser 6.0.36 для Windows x64, файл EXE">
           <svg class="platform-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 3h9v9H2Zm11 0h9v9h-9ZM2 14h9v9H2Zm11 0h9v9h-9Z" transform="translate(0 -1)"/></svg>
-          <span class="download-copy"><span class="download-name">Скачать для Windows</span><span class="download-meta">64-bit · EXE</span></span>
+          <span class="download-copy"><span class="download-name" data-i18n="windowsLabel">Скачать для Windows</span><span class="download-meta" data-i18n="windowsMeta">64-bit · EXE</span></span>
         </a>
-        <a class="download" href="https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.36-x64/Mouse-Browser-6.0.36-Linux-x64.AppImage" aria-label="Скачать Mouse Browser 6.0.36 для Linux x64, файл AppImage">
+        <a class="download" href="/downloads/Mouse-Browser-6.0.36-Linux-x64.AppImage" download="Mouse-Browser-6.0.36-Linux-x64.AppImage" data-i18n-aria="linuxAria" aria-label="Скачать Mouse Browser 6.0.36 для Linux x64, файл AppImage">
           <svg class="platform-icon linux-icon" viewBox="0 0 28 28" aria-hidden="true"><path fill="currentColor" d="M13.9 1.5C10.4 1.5 8.6 4.4 8.6 8c0 3.2-1.2 4.6-2.5 6.7-1 1.8-1.7 3.5-1.2 5.5l-1.8 3c-.6 1 .2 1.9 1.2 2l5.2.8 2-1.6c1.6.5 3.5.5 5.1 0l2 1.6 5.3-.8c1.1-.1 1.7-1.1 1.1-2l-1.9-3c.6-2-.1-3.8-1.2-5.5-1.4-2.1-2.5-3.6-2.5-6.8 0-3.5-1.9-6.4-5.5-6.4Z"/><path class="platform-cutout" d="M11 12c-2.3 2.9-3.7 6.2-2.5 9.4 1.8 3.1 9.1 3.1 10.9 0 1.1-3.2-.2-6.5-2.6-9.4Z"/><ellipse class="platform-cutout" cx="11.1" cy="8.7" rx="1.65" ry="2.5"/><ellipse class="platform-cutout" cx="16.8" cy="8.7" rx="1.65" ry="2.5"/><ellipse fill="currentColor" cx="11.5" cy="9.1" rx=".75" ry="1.3"/><ellipse fill="currentColor" cx="16.4" cy="9.1" rx=".75" ry="1.3"/><path class="platform-cutout" d="m10.1 12 3.9-2 3.9 2-3.9 2.5Z"/><path fill="none" class="platform-stroke" stroke-width=".8" d="m10.5 12 3.5 1 3.5-1M6 22l4 1.5M18 23.5l4-1.5"/></svg>
-          <span class="download-copy"><span class="download-name">Скачать для Linux</span><span class="download-meta">64-bit · AppImage</span></span>
+          <span class="download-copy"><span class="download-name" data-i18n="linuxLabel">Скачать для Linux</span><span class="download-meta" data-i18n="linuxMeta">64-bit · AppImage</span></span>
         </a>
       </div>
       <div class="release-line">
-        <span>Предварительная версия 6.0.36</span>
+        <span data-i18n="releaseLabel">Предварительная версия 6.0.36</span>
         <details class="install-details">
-          <summary>Об установке</summary>
+          <summary data-i18n="installLabel">Об установке</summary>
           <div class="install-panel">
-            <p>Mac — для процессоров Apple Silicon. Эта сборка пока без нотариализации Apple; версия для Windows — без цифровой подписи.</p>
-            <p>Для Linux здесь доступен AppImage. Другие пакеты и история выпусков — <a href="https://github.com/jeep-jim/OSMINOG-Releases/releases" target="_blank" rel="noopener noreferrer">на GitHub</a>.</p>
+            <p data-i18n="installNote">Mac — для процессоров Apple Silicon. Эта сборка пока без нотариализации Apple; версия для Windows — без цифровой подписи.</p>
+            <p data-i18n="platformNote">Для Linux доступен AppImage. Все установщики загружаются с нашего сервера.</p>
           </div>
         </details>
       </div>
@@ -78,8 +77,8 @@
   </main>
 
   <footer class="site-footer">
-    <span class="footer-signature">Тише мыши.</span>
-    <p>На этом сайте нет аналитики<br class="mobile-break"> и&nbsp;рекламных трекеров.</p>
+    <span class="footer-signature" data-i18n="footerSignature">Тише мыши.</span>
+    <p data-i18n="footerPrivacy">На этом сайте нет аналитики и рекламных трекеров.</p>
   </footer>
 </body>
 </html>
