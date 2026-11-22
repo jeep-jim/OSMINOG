@@ -62,7 +62,36 @@ function guestInputReadback(traceOptions){
  catch(error){return{count,diagnosticError:{message:error?.message||String(error)}};}
 }
 
-function nativeGuestInputState({win,page,screen,webContents}){
+// This Electron boundary runs before renderer forwarding. It proves only that
+// the owned WebContents received a mouse event at that boundary, not DOM delivery.
+function createBrowserInputTrace(){
+ const LIMIT=64,FIRST=16,SURFACES=16,STRING=96,MODIFIERS=8,ERRORS=4;
+ const listeners=new Map(),events=[],errors=[],truncated={strings:0,modifiers:0};let total=0,dropped=0,errorCount=0,droppedSurfaces=0,disposed=false;
+ const number=value=>typeof value==='number'&&Number.isFinite(value)?value:null;
+ const text=value=>{const result=String(value??'');if(result.length<=STRING)return result;truncated.strings++;return result.slice(0,STRING);};
+ const error=reason=>{errorCount++;if(errors.length<ERRORS)errors.push({message:text(reason?.message||reason),at:performance.now()});};
+ function observe(wc,surface){
+  try{
+  if(disposed||listeners.has(wc.id))return;
+  if(listeners.size>=SURFACES){droppedSurfaces++;return;}
+  const id=wc.id,label=text(surface);
+  const handler=(event,input)=>{
+   if(disposed)return;
+   try{
+    const modifiers=Array.isArray(input?.modifiers)?input.modifiers:[];if(modifiers.length>MODIFIERS)truncated.modifiers++;
+    const row={sequence:++total,at:performance.now(),webContentsId:id,surface:label,type:text(input?.type),x:number(input?.x),y:number(input?.y),movementX:number(input?.movementX),movementY:number(input?.movementY),button:text(input?.button),clickCount:number(input?.clickCount),modifiers:modifiers.slice(0,MODIFIERS).map(text),defaultPreventedAtObserver:event?.defaultPrevented===true};
+    if(events.length>=LIMIT){events.splice(FIRST,1);dropped++;}events.push(row);
+   }catch(reason){error(reason);}
+  };
+  wc.on('before-mouse-event',handler);listeners.set(id,{wc,label,handler});
+  }catch(reason){error(reason);}
+ }
+ function snapshot(){return{schema:1,clock:{kind:'main-performance',timeOrigin:performance.timeOrigin,now:performance.now()},scope:'Owned WebContents before-mouse-event before renderer forwarding; not proof of DOM delivery',disposed,limits:{events:LIMIT,firstEvents:FIRST,surfaces:SURFACES,stringUnits:STRING,modifiers:MODIFIERS,errors:ERRORS},surfaces:[...listeners].map(([webContentsId,row])=>({webContentsId,surface:row.label})),droppedSurfaces,observedEvents:total,droppedEvents:dropped,events:structuredClone(events),truncated:{...truncated},errorCount,droppedErrors:Math.max(0,errorCount-ERRORS),errors:structuredClone(errors)};}
+ function dispose(){if(!disposed){disposed=true;for(const {wc,handler} of listeners.values()){try{wc.removeListener('before-mouse-event',handler);}catch(reason){error(reason);}}listeners.clear();}return snapshot();}
+ return{observe,snapshot,dispose};
+}
+
+function nativeGuestInputState({win,page,screen,webContents,readAppKit,readBrowser}){
  const wc=page.view.webContents;
  return{
   windowBounds:diagnostic(()=>win.getBounds()),contentBounds:diagnostic(()=>win.getContentBounds()),
@@ -73,7 +102,8 @@ function nativeGuestInputState({win,page,screen,webContents}){
    parentBounds:diagnostic(()=>page.clipView?.getBounds()||null),visible:diagnostic(()=>page.view.getVisible()),
    parentVisible:diagnostic(()=>page.clipView?.getVisible()??true),cachedVisible:diagnostic(()=>!!page.visible),
    attached:diagnostic(()=>win.contentView.children.includes(page.clipView||page.view))},
-  url:diagnostic(()=>wc.getURL()),loading:diagnostic(()=>wc.isLoadingMainFrame())
+  url:diagnostic(()=>wc.getURL()),loading:diagnostic(()=>wc.isLoadingMainFrame()),
+  ...(readAppKit?{appkit:diagnostic(readAppKit)}:{}),...(readBrowser?{browserInput:diagnostic(readBrowser)}:{})
  };
 }
 
@@ -103,4 +133,4 @@ async function observeGuestClick({attempts,details,readNative,post,readEvents,ac
  }
 }
 
-module.exports={guestInputReadback,nativeGuestInputState,observeGuestClick,installInputTrace,inputTraceReadback};
+module.exports={guestInputReadback,nativeGuestInputState,observeGuestClick,installInputTrace,inputTraceReadback,createBrowserInputTrace};

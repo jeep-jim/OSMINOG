@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cctype>
 static void clearPaneTrim();
+static void clearInputTrace();
 #include <initializer_list>
 static __weak NSWindow* mouseWindow=nil;
 static NSMutableArray* observers;
@@ -86,7 +87,7 @@ static napi_value install(napi_env e,napi_callback_info info){
  size_t n=1;napi_value args[1];napi_get_cb_info(e,info,&n,args,nullptr,nullptr);
  if(!NSThread.isMainThread||n!=1){napi_throw_error(e,nullptr,"Main UI thread and native handle required");return nullptr;}
  NSWindow* w=windowFrom(e,args[0]);if(!w){napi_throw_error(e,nullptr,"Invalid native window");return nullptr;}
- clearPaneTrim();windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
+ clearInputTrace();clearPaneTrim();windowClosing=NO;mouseWindow=w;observers=[NSMutableArray new];hiddenTitleViews=[NSHashTable weakObjectsHashTable];hiddenTitleWindows=[NSHashTable weakObjectsHashTable];windowCorners();suppressTitleChrome();
  NSNotificationCenter* c=NSNotificationCenter.defaultCenter;
  [observers addObject:[c addObserverForName:NSApplicationDidUpdateNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){queueTitleChrome();}]];
 
@@ -95,7 +96,7 @@ static napi_value install(napi_env e,napi_callback_info info){
  [observers addObject:[c addObserverForName:NSWindowDidBecomeKeyNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){ensureSystemMenu();}]];
  [observers addObject:[c addObserverForName:NSWindowWillExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){restoreHover();}]];
  [observers addObject:[c addObserverForName:NSWindowDidExitFullScreenNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){menuHeld=NO;windowCorners();if(hasSaved){@try{NSApp.presentationOptions=savedOptions;}@catch(NSException* e){}hasSaved=NO;}}]];
- [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){windowClosing=YES;clearPaneTrim();restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
+ [observers addObject:[c addObserverForName:NSWindowWillCloseNotification object:w queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note){windowClosing=YES;clearInputTrace();clearPaneTrim();restoreHover();for(id token in observers)[NSNotificationCenter.defaultCenter removeObserver:token];observers=nil;mouseWindow=nil;}]];
  return state(e,info);
 }
 static napi_value reveal(napi_env e,napi_callback_info info){
@@ -129,6 +130,102 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-restore-read"]);
+}
+// Opt-in, owned-window diagnostics only. The monitor returns the exact original
+// NSEvent and never posts input, changes focus or pumps the event loop. Local
+// monitors see NSApplication sendEvent dispatch, not nested tracking loops.
+static id inputTraceMonitor;
+static __weak NSWindow* inputTraceWindow;
+static NSMutableArray<NSDictionary*>* inputTraceEvents;
+static NSMutableArray<NSDictionary*>* inputTraceErrors;
+static NSPointerArray* inputTraceIdentities;
+static NSMutableDictionary<NSString*,NSNumber*>* inputTraceSkippedNil;
+static NSMutableDictionary<NSString*,NSNumber*>* inputTraceSkippedOther;
+static NSUInteger inputTraceTotal=0,inputTraceDropped=0,inputTraceErrorCount=0,inputTraceTruncatedStrings=0,inputTraceTruncatedChains=0,inputTraceTruncatedIdentities=0;
+static bool inputTraceAllowed(){
+ const char* flag=std::getenv("MOUSE_GUEST_INPUT_DIAGNOSTICS");
+ return nativeInputProbeAllowed()&&flag&&std::strcmp(flag,"1")==0&&[NSProcessInfo.processInfo.arguments containsObject:@"--mouse-636-retained-smoke"];
+}
+static NSString* inputTraceText(NSString* value){if(!value)return @"";if(value.length<=96)return value;inputTraceTruncatedStrings++;return [value substringToIndex:96];}
+static id inputTraceNumber(double value){return std::isfinite(value)?@(value):NSNull.null;}
+static NSDictionary* inputTracePoint(NSPoint p){return @{@"x":inputTraceNumber(p.x),@"y":inputTraceNumber(p.y)};}
+static NSDictionary* inputTraceRect(NSRect r){return @{@"x":inputTraceNumber(r.origin.x),@"y":inputTraceNumber(r.origin.y),@"width":inputTraceNumber(r.size.width),@"height":inputTraceNumber(r.size.height)};}
+static id inputTraceIdentity(id object){
+ if(!object)return NSNull.null;
+ for(NSUInteger i=0;i<inputTraceIdentities.count;i++)if([inputTraceIdentities pointerAtIndex:i]==(__bridge void*)object)return @(i+1);
+ if(inputTraceIdentities.count>=64){inputTraceTruncatedIdentities++;return NSNull.null;}
+ [inputTraceIdentities addPointer:(__bridge void*)object];return @(inputTraceIdentities.count);
+}
+static id inputTraceDescribe(id object){
+ if(!object)return NSNull.null;
+ NSMutableDictionary* result=[@{@"class":inputTraceText(NSStringFromClass([object class])),@"identity":inputTraceIdentity(object)} mutableCopy];
+ if([object isKindOfClass:NSView.class]){NSView* view=(NSView*)object;[result addEntriesFromDictionary:@{@"frame":inputTraceRect(view.frame),@"bounds":inputTraceRect(view.bounds),@"flipped":@(view.flipped),@"hidden":@(view.hidden),@"hiddenOrAncestorHidden":@([view isHiddenOrHasHiddenAncestor]),@"windowNumber":view.window?@(view.window.windowNumber):NSNull.null}];}
+ return result;
+}
+static NSDictionary* inputTraceWindowState(NSWindow* w){
+ return @{@"appActive":@(NSApp.active),@"ownedWindowNumber":w?@(w.windowNumber):NSNull.null,@"ownedKeyWindow":@(w&&w.keyWindow),@"ownedMainWindow":@(w&&w.mainWindow),@"appKeyIsOwned":@(w&&NSApp.keyWindow==w),@"appMainIsOwned":@(w&&NSApp.mainWindow==w),@"visible":@(w&&w.visible),@"miniaturized":@(w&&w.miniaturized),@"firstResponder":inputTraceDescribe(w.firstResponder)};
+}
+static NSDictionary* inputTraceHit(NSWindow* w,NSPoint windowPoint){
+ NSView* receiver=w.contentView;NSView* parent=receiver.superview;
+ // NSView hitTest: takes SUPERview coordinates, matching Chromium's hit guard.
+ NSPoint point=parent?[parent convertPoint:windowPoint fromView:nil]:windowPoint;
+ NSView* hit=receiver?[receiver hitTest:point]:nil;NSMutableArray* chain=[NSMutableArray new];NSView* view=hit;
+ while(view&&chain.count<8){[chain addObject:inputTraceDescribe(view)];view=view.superview;}
+ BOOL truncated=view!=nil;if(truncated)inputTraceTruncatedChains++;
+ return @{@"scope":@"contentView hitTest observation before dispatch; not proof of final recipient",@"locationInWindow":inputTracePoint(windowPoint),@"receiver":inputTraceDescribe(receiver),@"receiverSuperview":inputTraceDescribe(parent),@"hitTestPointInReceiverSuperview":inputTracePoint(point),@"hit":inputTraceDescribe(hit),@"hitSuperviewChain":chain,@"chainTruncated":@(truncated)};
+}
+static void inputTraceRecordError(NSException* exception){
+ inputTraceErrorCount++;if(inputTraceErrors.count<4)[inputTraceErrors addObject:@{@"name":inputTraceText(exception.name),@"message":inputTraceText(exception.reason),@"observedSystemUptimeSeconds":inputTraceNumber(NSProcessInfo.processInfo.systemUptime)}];
+}
+static void clearInputTrace(){
+ if(inputTraceMonitor)[NSEvent removeMonitor:inputTraceMonitor];inputTraceMonitor=nil;inputTraceWindow=nil;
+ inputTraceEvents=nil;inputTraceErrors=nil;inputTraceIdentities=nil;inputTraceSkippedNil=nil;inputTraceSkippedOther=nil;
+}
+static napi_value inputTraceValue(napi_env e,id object){
+ napi_value value;
+ if(!object||object==NSNull.null){napi_get_null(e,&value);return value;}
+ if([object isKindOfClass:NSString.class]){napi_create_string_utf8(e,[(NSString*)object UTF8String],NAPI_AUTO_LENGTH,&value);return value;}
+ if([object isKindOfClass:NSNumber.class]){if(CFGetTypeID((__bridge CFTypeRef)object)==CFBooleanGetTypeID())napi_get_boolean(e,[(NSNumber*)object boolValue],&value);else napi_create_double(e,[(NSNumber*)object doubleValue],&value);return value;}
+ if([object isKindOfClass:NSArray.class]){napi_create_array_with_length(e,[(NSArray*)object count],&value);uint32_t i=0;for(id item in (NSArray*)object)napi_set_element(e,value,i++,inputTraceValue(e,item));return value;}
+ if([object isKindOfClass:NSDictionary.class]){napi_create_object(e,&value);for(NSString* key in (NSDictionary*)object)napi_set_named_property(e,value,key.UTF8String,inputTraceValue(e,[(NSDictionary*)object objectForKey:key]));return value;}
+ napi_get_null(e,&value);return value;
+}
+static napi_value inputTraceInstall(napi_env e,napi_callback_info info){
+ if(!NSThread.isMainThread||!inputTraceAllowed()){napi_throw_error(e,nullptr,"Input trace is opt-in retained CI smoke-only on the main UI thread");return nullptr;}
+ size_t count=1;napi_value args[1];napi_get_cb_info(e,info,&count,args,nullptr,nullptr);
+ if(count!=1||windowClosing||!mouseWindow||windowFrom(e,args[0])!=mouseWindow){napi_throw_error(e,nullptr,"Input trace requires the installed owned window");return nullptr;}
+ @try{
+  if(inputTraceMonitor)return inputTraceValue(e,@{@"installed":@YES,@"reused":@YES});
+  inputTraceWindow=mouseWindow;inputTraceEvents=[NSMutableArray new];inputTraceErrors=[NSMutableArray new];inputTraceIdentities=[NSPointerArray weakObjectsPointerArray];inputTraceSkippedNil=[NSMutableDictionary new];inputTraceSkippedOther=[NSMutableDictionary new];
+  inputTraceTotal=inputTraceDropped=inputTraceErrorCount=inputTraceTruncatedStrings=inputTraceTruncatedChains=inputTraceTruncatedIdentities=0;
+  inputTraceMonitor=[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskMouseMoved|NSEventMaskLeftMouseDown|NSEventMaskLeftMouseUp handler:^NSEvent*(NSEvent* event){
+   @try{
+    NSWindow* owned=inputTraceWindow;NSString* type=event.type==NSEventTypeMouseMoved?@"mouseMoved":event.type==NSEventTypeLeftMouseDown?@"leftMouseDown":@"leftMouseUp";
+    if(owned&&event.window==owned&&event.windowNumber==owned.windowNumber){
+     NSUInteger sequence=++inputTraceTotal;
+     NSDictionary* row=@{@"sequence":@(sequence),@"type":type,@"typeNumber":@(event.type),@"eventNumber":@(event.eventNumber),@"eventTimestampSeconds":inputTraceNumber(event.timestamp),@"observedSystemUptimeSeconds":inputTraceNumber(NSProcessInfo.processInfo.systemUptime),@"windowNumber":@(event.windowNumber),@"ownedWindowMatched":@YES,@"locationInWindow":inputTracePoint(event.locationInWindow),@"buttonNumber":@(event.buttonNumber),@"clickCount":event.type==NSEventTypeMouseMoved?NSNull.null:@(event.clickCount),@"modifierFlags":@(event.modifierFlags),@"window":inputTraceWindowState(owned),@"hitTest":inputTraceHit(owned,event.locationInWindow)};
+     if(inputTraceEvents.count>=64){[inputTraceEvents removeObjectAtIndex:16];inputTraceDropped++;}[inputTraceEvents addObject:row];
+    }else{NSMutableDictionary* skipped=event.window?inputTraceSkippedOther:inputTraceSkippedNil;skipped[type]=@([skipped[type] unsignedIntegerValue]+1);}
+   }@catch(NSException* exception){@try{inputTraceRecordError(exception);}@catch(NSException* ignored){}}
+   return event;
+  }];
+  return inputTraceValue(e,@{@"installed":@(inputTraceMonitor!=nil),@"reused":@NO,@"ownedWindowNumber":@(mouseWindow.windowNumber)});
+ }@catch(NSException* exception){clearInputTrace();return inputTraceValue(e,@{@"installed":@NO,@"diagnosticError":inputTraceText(exception.name)});}
+}
+static napi_value inputTraceRead(napi_env e,napi_callback_info info){
+ if(!NSThread.isMainThread||!inputTraceAllowed()){napi_throw_error(e,nullptr,"Input trace is opt-in retained CI smoke-only on the main UI thread");return nullptr;}
+ size_t count=2;napi_value args[2];napi_get_cb_info(e,info,&count,args,nullptr,nullptr);double x=0,y=0;
+ if(count!=0&&(count!=2||napi_get_value_double(e,args[0],&x)!=napi_ok||napi_get_value_double(e,args[1],&y)!=napi_ok||!std::isfinite(x)||!std::isfinite(y))){napi_throw_error(e,nullptr,"Input trace point must be two finite content-relative coordinates");return nullptr;}
+ @try{
+  NSWindow* w=inputTraceWindow;id hit=NSNull.null;NSView* root=w.contentView;
+  if(count==2&&root){NSPoint local=NSMakePoint(NSMinX(root.bounds)+x,root.flipped?NSMinY(root.bounds)+y:NSMaxY(root.bounds)-y);hit=@{@"requestedContentTopLeftPoint":inputTracePoint(NSMakePoint(x,y)),@"convertedContentPoint":inputTracePoint(local),@"result":inputTraceHit(w,[root convertPoint:local toView:nil])};}
+  NSDictionary* snapshot=@{@"schema":@1,@"installed":@(inputTraceMonitor!=nil),@"scope":@"owned NSWindow local NSApplication sendEvent dispatch; nested tracking loops excluded",@"clock":@{@"kind":@"appkit-system-uptime",@"units":@"seconds",@"now":inputTraceNumber(NSProcessInfo.processInfo.systemUptime)},@"limits":@{@"events":@64,@"firstEvents":@16,@"classStringUnits":@96,@"viewChain":@8,@"identities":@64,@"errors":@4},@"observedEvents":@(inputTraceTotal),@"droppedEvents":@(inputTraceDropped),@"events":inputTraceEvents?:@[],@"skippedNilWindowByType":inputTraceSkippedNil?:@{},@"skippedOtherWindowByType":inputTraceSkippedOther?:@{},@"window":inputTraceWindowState(w),@"requestedHitTest":hit,@"truncated":@{@"strings":@(inputTraceTruncatedStrings),@"chains":@(inputTraceTruncatedChains),@"identities":@(inputTraceTruncatedIdentities)},@"errorCount":@(inputTraceErrorCount),@"errors":inputTraceErrors?:@[]};
+  return inputTraceValue(e,snapshot);
+ }@catch(NSException* exception){return inputTraceValue(e,@{@"diagnosticError":inputTraceText(exception.name)});}
+}
+static napi_value inputTraceDispose(napi_env e,napi_callback_info info){
+ if(!NSThread.isMainThread||!inputTraceAllowed()){napi_throw_error(e,nullptr,"Input trace is opt-in retained CI smoke-only on the main UI thread");return nullptr;}
+ @try{clearInputTrace();return inputTraceValue(e,@{@"removed":@YES});}@catch(NSException* exception){return inputTraceValue(e,@{@"removed":@NO,@"diagnosticError":inputTraceText(exception.name)});}
 }
 static napi_value testPointer(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
@@ -246,6 +343,8 @@ static napi_value testMouse(napi_env e,napi_callback_info info){
 }
 static napi_value init(napi_env e,napi_value exports){
  napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
- napi_define_properties(e,exports,11,d);return exports;
+ napi_define_properties(e,exports,11,d);
+ napi_property_descriptor diagnostics[]={{"inputTraceInstall",0,inputTraceInstall,0,0,0,napi_default,0},{"inputTraceRead",0,inputTraceRead,0,0,0,napi_default,0},{"inputTraceDispose",0,inputTraceDispose,0,0,0,napi_default,0}};
+ napi_define_properties(e,exports,3,diagnostics);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

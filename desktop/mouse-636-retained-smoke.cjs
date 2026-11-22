@@ -9,7 +9,7 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {ownerPage,aiReadback,assertSplit,observeChatNavigation,assertCanceledChatNavigation}=require('./mouse-634-smoke-helpers.cjs');
 const {withinCaptureDeadline}=require('./mouse-634-capture-corners.cjs');
-const {guestInputReadback,nativeGuestInputState,observeGuestClick,installInputTrace,inputTraceReadback}=require('./mouse-636-guest-input-diagnostics.cjs');
+const {guestInputReadback,nativeGuestInputState,observeGuestClick,installInputTrace,inputTraceReadback,createBrowserInputTrace}=require('./mouse-636-guest-input-diagnostics.cjs');
 
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,globalCapture,overlayGate}=ctx;
@@ -17,7 +17,7 @@ module.exports=async ctx=>{
  const facts={schema:1,version:app.getVersion(),platform:process.platform,arch:process.arch,pid:process.pid,budgetMs,packaged:app.isPackaged,profileIsolated:false,physicalUserDeviceVerified:false,liveExternalAccountsVerified:false,source:'Installed app, native pointer input, owned HTTP/download fixtures and actual composed/OS pixels',removedFeatures:['tile-search'],stage:'identity',ok:false,restored:false,nativeInputs:[],guestClickAttempts:[],captures:[]};
  const save=()=>fs.writeFile('mouse-636-retained-owner-feedback.json',JSON.stringify(facts,null,2)+'\n');
  const watchdog=setTimeout(()=>{facts.error={stage:facts.stage,message:'Mouse636 retained fixed 240000 ms native budget exceeded'};void save().finally(()=>exit(1));},budgetMs);
- let fixture,nativeInput,ownedFolder,originalLibrary,originalZoom,downloadListener,error,cleanupError,base='',previewBase='';
+ let fixture,nativeInput,browserInputTrace,appKitTrace=false,ownedFolder,originalLibrary,originalZoom,downloadListener,error,cleanupError,base='',previewBase='';
  const streams=new Map(),downloads=new Map(),timers=new Set(),servers=[],requests=[];
  const inputSource=()=>process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest';
  const stage=async(name,work)=>{facts.stage=name;await save();console.log('MOUSE_636_RETAINED_STAGE '+name);return work();};
@@ -36,11 +36,13 @@ module.exports=async ctx=>{
   await fixture.until(async()=>{hit=await fixture.pageJS(record,`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}))`);return hit.ready;},'634 guest target '+selector);
   const factor=record.page.view.webContents.getZoomFactor(),origin=win.getContentBounds(),bounds=record.page.bounds,point={x:Math.round(origin.x+bounds.x+hit.x*factor),y:Math.round(origin.y+bounds.y+hit.y*factor)},traceOptions={selector,point:{x:hit.x,y:hit.y}},beforeGuest=await fixture.pageJS(record,'('+guestInputReadback.toString()+')('+(traceEnabled?JSON.stringify(traceOptions):'')+')'),count=beforeGuest.count;
   const details={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,hit,factor,contentBounds:{...origin},pageBounds:{...bounds},beforeCount:count,beforeGuest};
+  const readAppKit=appKitTrace?()=>nativeInput.inputTraceRead(point.x-origin.x,point.y-origin.y):undefined,readBrowser=browserInputTrace?()=>browserInputTrace.snapshot():undefined;
   const readTrace=traceEnabled?async()=>{
    const readers=[{surface:'guest',webContentsId:record.page.view.webContents.id,read:()=>fixture.pageJS(record,`(${inputTraceReadback.toString()})(${JSON.stringify(traceOptions)})`)},{surface:'shell',webContentsId:win.webContents.id,read:()=>fixture.js(`(${inputTraceReadback.toString()})(${JSON.stringify({point:{x:point.x-origin.x,y:point.y-origin.y}})})`)}];
-   const results=await Promise.allSettled(readers.map(row=>row.read()));return Object.fromEntries(results.map((result,i)=>[readers[i].surface,{webContentsId:readers[i].webContentsId,...(result.status==='fulfilled'?result.value:{diagnosticError:{message:result.reason?.message||String(result.reason)}})}]));
+   const native={};for(const [name,read] of [['appkit',readAppKit],['browserInput',readBrowser]])if(read){try{native[name]=read();}catch(reason){native[name]={diagnosticError:{message:reason?.message||String(reason)}};}}
+   const results=await Promise.allSettled(readers.map(row=>row.read()));return{...native,...Object.fromEntries(results.map((result,i)=>[readers[i].surface,{webContentsId:readers[i].webContentsId,...(result.status==='fulfilled'?result.value:{diagnosticError:{message:result.reason?.message||String(result.reason)}})}]))};
   }:undefined;
-  const events=await observeGuestClick({attempts:facts.guestClickAttempts,details,readNative:()=>nativeGuestInputState({win,page:record.page,screen,webContents}),post:()=>nativeInput.testClick(point.x,point.y),readEvents:()=>fixture.pageJS(record,'mouse634.clicks.slice('+count+')'),accept:events=>events.some(event=>event.id===selector.slice(1)&&event.trusted),waitFor:fixture.until,label:'634 trusted guest link '+selector,save,...(readTrace?{readTrace}:{})});
+  const events=await observeGuestClick({attempts:facts.guestClickAttempts,details,readNative:()=>nativeGuestInputState({win,page:record.page,screen,webContents,readAppKit,readBrowser}),post:()=>nativeInput.testClick(point.x,point.y),readEvents:()=>fixture.pageJS(record,'mouse634.clicks.slice('+count+')'),accept:events=>events.some(event=>event.id===selector.slice(1)&&event.trusted),waitFor:fixture.until,label:'634 trusted guest link '+selector,save,...(readTrace?{readTrace}:{})});
   const result={selector,source:inputSource(),point,tabId:record.id,webContentsId:record.page.view.webContents.id,events};facts.nativeInputs.push(result);return result;
  }
  async function screenCapture(filename,kind,{deadline}={}){
@@ -67,18 +69,22 @@ module.exports=async ctx=>{
  async function registeredPreview(chat,index){
   let page;await fixture.until(()=>{page=[...browser.tabs.values()].find(t=>t.previewOf===chat.id);return page&&!page.loading&&!page.error&&page.visible;},'634 lower native preview appears',15000);
   const record={id:page.id,index,desk:fixture.bank.active,page};if(!fixture.created.some(item=>item.id===record.id))fixture.created.push(record);
-  await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
+  browserInputTrace?.observe(page.view.webContents,'guest');await fixture.preparePage(record);await fixture.until(()=>fixture.js(`MouseTest.model.aiPreviewId===${JSON.stringify(record.id)}`),'634 renderer preview owner');await fixture.frame();return record;
  }
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.ok(['6.0.36','6.0.37'].includes(app.getVersion()),'Retained636 acceptance requires636 or637');assert.equal(app.getName(),'Mouse Browser');facts.profileIsolated=true;
-  if(traceEnabled){facts.inputDiagnostics={enabled:true,kind:'passive-owned-DOM-events',nativeInputChanged:false,acceptanceChanged:false,clockComparison:'Order events only within the same recorded renderer/main performance clock'};console.log('MOUSE_636_GUEST_INPUT_DIAGNOSTICS_ENABLED');}
+  if(traceEnabled){facts.inputDiagnostics={enabled:true,kind:'passive-owned-AppKit-Electron-DOM-events',nativeInputChanged:false,acceptanceChanged:false,clockComparison:'Order events only within the same recorded renderer/main performance or AppKit system-uptime clock'};console.log('MOUSE_636_GUEST_INPUT_DIAGNOSTICS_ENABLED');}
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());facts.nativeInputSource=inputSource();
+  if(traceEnabled){
+   browserInputTrace=createBrowserInputTrace();browserInputTrace.observe(win.webContents,'shell');
+   if(process.platform==='darwin'){appKitTrace=true;try{facts.inputDiagnostics.appKitInstall=nativeInput.inputTraceInstall(win.getNativeWindowHandle());}catch(reason){facts.inputDiagnostics.appKitInstall={diagnosticError:{message:reason?.message||String(reason)}};}}
+  }
   fixture=await createFixture({...ctx,nativeInput},'owner636-retained',budgetMs);await shellReady();originalLibrary=structuredClone(libraryService.library.data);originalZoom=await fixture.js('MouseNative.zoom("state")');ownedFolder=await fs.mkdtemp(path.join(app.getPath('userData'),'mouse634-owned-'));base=await listen();previewBase=await listen();facts.fixtureOrigins=[base,previewBase];facts.requests=requests;
   downloadListener=(_event,item,wc)=>{const match=new URL(item.getURL()).pathname.match(/^\/download\/(a|b|chat|preview)$/);if(!match)return;const name=match[1],file=path.join(ownedFolder,'mouse634-'+name+'.bin'),row={name,item,path:file,events:[],webContentsId:wc?.id,done:false};item.setSavePath(file);downloads.set(name,row);const observe=(event,state)=>row.events.push({event,type:event,state,received:item.getReceivedBytes(),total:item.getTotalBytes(),at:Date.now()});observe('start',item.getState());item.on('updated',(_e,state)=>observe('updated',state));item.once('done',(_e,state)=>{observe('done',state);row.done=state;});};browser.session.prependListener('will-download',downloadListener);
-  fixture.records=[];for(let i=0;i<2;i++)fixture.records.push(await fixture.open(base+'/page/'+i+'/',i));const mains=[...fixture.records];await fixture.setLayout(mains);await fixture.js('MouseNative.zoom("set",{factor:1})');
+  fixture.records=[];for(let i=0;i<2;i++){const record=await fixture.open(base+'/page/'+i+'/',i);browserInputTrace?.observe(record.page.view.webContents,'guest');fixture.records.push(record);}const mains=[...fixture.records];await fixture.setLayout(mains);await fixture.js('MouseNative.zoom("set",{factor:1})');
   facts.downloads=await stage('pane-download-widgets',()=>require('./mouse-634-download-widget-smoke.cjs')({fixture,browser,win,libraryService,guestClick,screenCapture,streams,downloads,base}));
   await stage('ai-link-preview',async()=>{
-   const chat=await fixture.open(base+'/page/2/',2);await browser.command('move-lane',{id:chat.id,lane:'side'});
+   const chat=await fixture.open(base+'/page/2/',2);browserInputTrace?.observe(chat.page.view.webContents,'guest');await browser.command('move-lane',{id:chat.id,lane:'side'});
    await fixture.js(`Object.assign(MouseTest.model,{aiOpen:true,agentOpen:false,aiWidth:380,aiId:${JSON.stringify(chat.id)},aiSessions:{[${JSON.stringify(base+'/page/2/')}]:${JSON.stringify(chat.id)}}});MouseTest.renderAISites();MouseTest.applySide();MouseTest.save()`);
    await fixture.until(()=>chat.page.visible&&chat.page.bounds.height>250,'634 visible chat');await fixture.frame();
    const before=await fixture.js(`(${aiReadback.toString()})()`),chatBefore=await fixture.identity(chat),mainBefore=await Promise.all(mains.map(fixture.identity)),totalBefore=browser.tabs.size,chatHeightBefore=chat.page.bounds.height;
@@ -104,6 +110,11 @@ module.exports=async ctx=>{
   facts.requests=requests;facts.elapsedMs=Date.now()-started;
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};await save();try{if(fixture)await bounded(screenCapture('mouse-636-retained-owner-feedback-failure.png','failure '+facts.stage),5000,'634 failure OS snapshot');}catch(captureError){facts.failureCaptureError=captureError.message;await save();}}
  finally{
+  if(browserInputTrace){try{facts.inputDiagnostics.browserCleanup=browserInputTrace.dispose();}catch(reason){facts.inputDiagnostics.browserCleanup={diagnosticError:{message:reason?.message||String(reason)}};}}
+  if(appKitTrace){
+   try{facts.inputDiagnostics.appKitFinal=nativeInput.inputTraceRead();}catch(reason){facts.inputDiagnostics.appKitFinal={diagnosticError:{message:reason?.message||String(reason)}};}
+   try{facts.inputDiagnostics.appKitCleanup=nativeInput.inputTraceDispose();}catch(reason){facts.inputDiagnostics.appKitCleanup={diagnosticError:{message:reason?.message||String(reason)}};}
+  }
   const restore=async(label,operation)=>{try{return await operation();}catch(cause){cleanupError||=cause;(facts.cleanupErrors||=[]).push({stage:label,message:cause.message});facts.cleanupError={message:cleanupError.message,stack:cleanupError.stack};await save();}};
   try{
    if(downloadListener)browser.session.removeListener('will-download',downloadListener);for(const row of downloads.values())if(!row.done)row.item.cancel();for(const timer of timers)clearInterval(timer);timers.clear();

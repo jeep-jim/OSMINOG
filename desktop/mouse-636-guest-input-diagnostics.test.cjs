@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {guestInputReadback,nativeGuestInputState,observeGuestClick,installInputTrace,inputTraceReadback}=require('./mouse-636-guest-input-diagnostics.cjs');
+const {guestInputReadback,nativeGuestInputState,observeGuestClick,installInputTrace,inputTraceReadback,createBrowserInputTrace}=require('./mouse-636-guest-input-diagnostics.cjs');
 
 function scene(){
  const calls=[],facts={guestClickAttempts:[],nativeInputs:[]};
@@ -133,4 +133,44 @@ test('collector errors remain bounded and dispose removes every passive listener
  const r=s.snapshot();assert.equal(r.events.length,10);assert.equal(r.errors.length,4);assert.ok(r.errorCount>=10);assert.equal(r.droppedErrors,r.errorCount-4);
  vm.runInContext('__mouse636InputTrace.dispose()',s.context);
  assert.equal(s.listeners.size,0);assert.equal(s.removed.length,8);assert.deepEqual(s.snapshot(),{unavailable:true});
+});
+
+test('Electron boundary records owned input without canceling, retaining event objects or claiming DOM trust',()=>{
+ const {EventEmitter}=require('node:events'),shell=Object.assign(new EventEmitter(),{id:1}),guest=Object.assign(new EventEmitter(),{id:2}),other=Object.assign(new EventEmitter(),{id:3});
+ const trace=createBrowserInputTrace();trace.observe(shell,'shell');trace.observe(guest,'guest');trace.observe(guest,'guest');
+ assert.equal(shell.listenerCount('before-mouse-event'),1);assert.equal(guest.listenerCount('before-mouse-event'),1);assert.equal(other.listenerCount('before-mouse-event'),0);
+ const event={defaultPrevented:false,preventDefault(){throw Error('Diagnostic canceled native input');}},input={type:'mouseDown',x:100,y:149,button:'left',clickCount:1,modifiers:['leftButtonDown']};
+ shell.emit('before-mouse-event',event,{...input,type:'mouseLeave'});guest.emit('before-mouse-event',event,input);guest.emit('before-mouse-event',event,{...input,type:'mouseUp'});
+ input.x=999;input.modifiers.push('changed');
+ const read=trace.snapshot();assert.deepEqual(read.events.map(row=>[row.webContentsId,row.type]),[[1,'mouseLeave'],[2,'mouseDown'],[2,'mouseUp']]);
+ assert.equal(event.defaultPrevented,false);assert.equal(read.events[1].x,100);assert.deepEqual(read.events[1].modifiers,['leftButtonDown']);assert.equal(read.events[1].trusted,undefined);
+ assert.equal(read.clock.kind,'main-performance');assert.ok(read.events[0].at<=read.events[2].at);
+ read.events[0].type='changed';assert.equal(trace.snapshot().events[0].type,'mouseLeave');
+ assert.equal(trace.dispose().disposed,true);assert.equal(shell.listenerCount('before-mouse-event'),0);assert.equal(guest.listenerCount('before-mouse-event'),0);
+ guest.emit('before-mouse-event',event,input);assert.equal(trace.snapshot().observedEvents,3);
+});
+
+test('Electron event, surface and error storage stays bounded with explicit drops',()=>{
+ const {EventEmitter}=require('node:events'),trace=createBrowserInputTrace(),surfaces=Array.from({length:18},(_,id)=>Object.assign(new EventEmitter(),{id}));
+ surfaces.forEach(wc=>trace.observe(wc,'guest'));
+ for(let i=0;i<140;i++)surfaces[0].emit('before-mouse-event',{}, {type:'mouseMove',x:i,button:'x'.repeat(1000),modifiers:Array(20).fill('m'.repeat(1000))});
+ const row=trace.snapshot();assert.equal(row.surfaces.length,16);assert.equal(row.droppedSurfaces,2);assert.equal(row.observedEvents,140);assert.equal(row.droppedEvents,76);assert.equal(row.events.length,64);
+ assert.deepEqual(row.events.slice(0,16).map(event=>event.sequence),Array.from({length:16},(_,i)=>i+1));assert.deepEqual(row.events.slice(16).map(event=>event.sequence),Array.from({length:48},(_,i)=>i+93));
+ assert.equal(row.events[0].button.length,96);assert.equal(row.events[0].modifiers.length,8);assert.equal(row.truncated.modifiers,140);
+ for(let i=0;i<10;i++)trace.observe({get id(){throw Error('destroyed WebContents');}},'guest');
+ const errors=trace.snapshot();assert.equal(errors.errorCount,10);assert.equal(errors.errors.length,4);assert.equal(errors.droppedErrors,6);
+ trace.dispose();assert.ok(surfaces.every(wc=>wc.listenerCount('before-mouse-event')===0));
+});
+
+test('optional AppKit and Electron observations occur at original before/post/failure read points and cannot alter timeout',async()=>{
+ const s=scene(),reads=[],original=new Error('original timeout');
+ const page={bounds:{},visible:true,view:{getBounds:()=>({}),getVisible:()=>true,webContents:{isFocused:()=>false,getURL:()=>'',isLoadingMainFrame:()=>false}}};
+ const win={getBounds:()=>({}),getContentBounds:()=>({}),isFocused:()=>true,webContents:{isFocused:()=>true},contentView:{children:[page.view]}};
+ const args={win,page,screen:{getCursorScreenPoint:()=>({})},webContents:{getFocusedWebContents:()=>null},readAppKit:()=>{reads.push('appkit');return{observedEvents:reads.length};},readBrowser:()=>{reads.push('browser');throw Error('browser read unavailable');}};
+ s.args.readNative=()=>{s.calls.push('native');return nativeGuestInputState(args);};
+ s.args.waitFor=async check=>{s.calls.push('wait');await check();throw original;};
+ await assert.rejects(observeGuestClick(s.args),error=>error===original);
+ assert.deepEqual(s.calls,['native','post','native','wait','read-events','native','save']);assert.deepEqual(reads,['appkit','browser','appkit','browser','appkit','browser']);
+ const attempt=s.facts.guestClickAttempts[0];assert.equal(attempt.before.native.appkit.observedEvents,1);assert.equal(attempt.posted.native.appkit.observedEvents,3);assert.equal(attempt.failedNative.native.appkit.observedEvents,5);assert.equal(attempt.before.native.browserInput.diagnosticError.message,'browser read unavailable');
+ assert.equal(attempt.error.message,original.message);assert.deepEqual(s.facts.nativeInputs,[]);
 });
