@@ -15,6 +15,14 @@ SOURCE = ROOT / 'website'
 ORIGIN = 'https://mouse.black'
 SEO_FIELDS = {'pageTitle', 'metaDescription', 'aboutTitle', 'splitTitle', 'splitText',
               'privateTitle', 'privateText', 'desktopTitle', 'desktopText'}
+SHOWCASE_FIELDS = {
+    'showcaseTitle', 'showcaseSupport', 'showcaseSupportText', 'showcaseTrading',
+    'showcaseTradingText', 'showcaseAi', 'showcaseAiText', 'showcaseDevelopment',
+    'showcaseDevelopmentText', 'showcaseContent', 'showcaseContentText',
+    'showcaseDesign', 'showcaseDesignText', 'showcaseExpand', 'showcaseClose',
+    'showcasePause', 'showcasePlay', 'showcasePrevious', 'showcaseNext',
+    'showcaseHint', 'showcaseDemo', 'showcaseScenesLabel',
+}
 PLATFORMS = {
     'macos': {'suffix': 'mac-arm64.dmg', 'label': 'macOS', 'key': 'mac',
               'os': 'macOS (Apple Silicon)'},
@@ -87,13 +95,18 @@ vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),box,{timeout:1000});
 process.stdout.write(JSON.stringify(box.window.MOUSE_I18N));"""
     data = json.loads(subprocess.check_output(['node', '-e', script, str(SOURCE / 'i18n.js')], text=True))
     seo = json.loads((SOURCE / 'seo-i18n.json').read_text())
+    showcase = json.loads((SOURCE / 'showcase-i18n.json').read_text())
     codes = [item['code'] for item in data['languages']]
     assert len(codes) == len(set(codes)) == 72, 'The exact Mouse language catalog is required'
     assert set(seo) == set(codes), 'SEO translations must cover every Mouse language'
+    assert set(showcase) == set(codes), 'Showcase translations must cover every Mouse language'
     for code in codes:
         assert set(seo[code]) == SEO_FIELDS, f'Unexpected SEO fields: {code}'
         assert all(isinstance(value, str) and value.strip() for value in seo[code].values()), code
         data['messages'][code].update(seo[code])
+        assert set(showcase[code]) == SHOWCASE_FIELDS, f'Unexpected showcase fields: {code}'
+        assert all(isinstance(value, str) and value.strip() for value in showcase[code].values()), code
+        data['messages'][code].update(showcase[code])
     return data
 
 
@@ -223,7 +236,7 @@ def build(output, downloads=None, catalog=None):
     source = (SOURCE / 'index.html').read_text()
     files = []
     for path in sorted(SOURCE.rglob('*')):
-        if not path.is_file() or path.name in {'index.html', 'i18n.js', 'seo-i18n.json'}:
+        if not path.is_file() or path.name in {'index.html', 'i18n.js', 'seo-i18n.json', 'showcase-i18n.json'}:
             continue
         assert not path.is_symlink(), 'No symlink assets'
         relative = path.relative_to(SOURCE)

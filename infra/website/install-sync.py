@@ -42,7 +42,7 @@ def decode_bundle(data, checksum, source):
             allowed = name == 'SOURCE.json' or (
                 name.startswith('infra/website/') and name.removeprefix('infra/website/') in RUNTIME_FILES)
             allowed = allowed or (name.startswith('website/') and path.suffix.lower() in
-                                  {'.html', '.css', '.js', '.json', '.svg', '.png', '.woff2', '.ttf'})
+                                  {'.html', '.css', '.js', '.json', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.woff2', '.ttf'})
             if not allowed or not member.isfile() or member.mode & 0o111 or name in files:
                 raise ValueError('Unexpected archive member: ' + name)
             if not 0 <= member.size <= 10 * 1024 * 1024 or len(files) >= 100:

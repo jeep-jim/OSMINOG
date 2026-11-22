@@ -15,7 +15,10 @@
   <script src="/language-picker.js" defer></script>
   <script src="/downloads-current.js" defer></script>
   <script src="/site.js" defer></script>
+  <script src="/showcase-assets.js" defer></script>
+  <script src="/showcase.js" defer></script>
   <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/showcase.css">
   <link rel="stylesheet" href="/language-picker.css">
 </head>
 <body>
@@ -34,6 +37,52 @@
 
   <main id="main">
     <section class="hero" aria-labelledby="headline">
+      <div class="hero-visual">
+        <section class="showcase" id="mouse-showcase" aria-labelledby="showcase-title">
+  <h2 class="sr-only" id="showcase-title" data-i18n="showcaseTitle">Your workspace, in motion</h2>
+  <div class="showcase-dock">
+    <div class="showcase-experience">
+      <div class="showcase-frame">
+        <div class="showcase-window" lang="en" dir="ltr">
+          <div class="showcase-chrome">
+            <span class="showcase-window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="showcase-chrome-name">Mouse Browser</span>
+            <span class="showcase-chrome-scene" data-showcase-chrome-scene>Support</span>
+            <span class="showcase-chrome-version">Your workspace</span>
+          </div>
+          <div class="showcase-canvas" aria-label="English demonstration pages">
+            <div class="showcase-fallback">
+              <div><div class="showcase-pane-head">Telegram</div><div class="showcase-demo-page"><div class="showcase-demo-eyebrow">Support team</div><div class="showcase-bubble">Could you share the meeting location?</div><div class="showcase-bubble is-mine">I have the map open</div></div></div>
+              <div><div class="showcase-pane-head">Google Maps</div><div class="showcase-map"><svg viewBox="0 0 300 240" aria-label="Illustrative map"><g fill="none" stroke="currentColor" opacity=".25" stroke-width="9"><path d="M0 50 300 220M0 220 300 50M70 0 90 240M210 0 185 240M0 110H300M0 185H300"/></g><circle cx="160" cy="110" r="7" fill="currentColor"/><circle cx="160" cy="110" r="18" fill="none" stroke="currentColor" opacity=".3"/></svg><span class="showcase-map-label">Search Google Maps</span><span class="showcase-map-attribution">Illustrative workspace</span></div></div>
+              <div><div class="showcase-pane-head">Gmail</div><div class="showcase-demo-page"><h4>Inbox</h4><p>Project brief</p><div class="showcase-note-lines" aria-hidden="true"><i></i><i></i><i></i></div><h4>Team update</h4><p>Notes and shared documents</p></div></div>
+            </div>
+          </div>
+          <div class="showcase-nora"><span>Mouse Browser</span><span>Workspaces</span><span>Local workspace</span></div>
+        </div>
+        <button class="showcase-preview-hit" type="button" data-showcase-preview-hit data-showcase-aria="showcaseExpand" data-showcase-interactive aria-label="Explore full screen" hidden></button>
+      </div>
+      <div class="showcase-caption">
+        <div class="showcase-caption-copy">
+          <p class="showcase-caption-title" data-showcase-title data-i18n="showcaseSupport">Support</p>
+          <p class="showcase-caption-text" data-showcase-description data-i18n="showcaseSupportText">Messages, maps and mail — together</p>
+        </div>
+        <div class="showcase-inline-controls" data-showcase-interactive hidden>
+          <button class="showcase-button showcase-button-icon" type="button" data-showcase-previous data-showcase-aria="showcasePrevious" aria-label="Previous scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+          <button class="showcase-button showcase-button-icon" type="button" data-showcase-pause aria-label="Pause" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button>
+          <button class="showcase-button showcase-button-icon" type="button" data-showcase-next data-showcase-aria="showcaseNext" aria-label="Next scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          <button class="showcase-button showcase-expand" type="button" data-showcase-expand data-showcase-aria="showcaseExpand" aria-label="Explore full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg><span data-showcase-key="showcaseExpand" data-i18n="showcaseExpand">Explore full screen</span></button>
+        </div>
+      </div>
+      <div class="showcase-modes" role="group" data-showcase-aria="showcaseScenesLabel" aria-label="Workspaces" data-showcase-interactive hidden></div>
+      <p class="showcase-helper"><span class="showcase-hint" data-showcase-key="showcaseHint" data-i18n="showcaseHint">Swipe up over the preview to explore</span> <span class="showcase-demo-label" data-showcase-key="showcaseDemo" data-i18n="showcaseDemo">Demo scenes</span></p>
+      <span class="sr-only" aria-live="polite" data-showcase-status></span>
+    </div>
+  </div>
+  <dialog class="showcase-dialog" aria-labelledby="showcase-dialog-title">
+    <div class="showcase-dialog-bar"><span class="showcase-dialog-heading" id="showcase-dialog-title">Mouse Browser</span><button class="showcase-button showcase-button-icon" type="button" data-showcase-close data-showcase-aria="showcaseClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <div class="showcase-dialog-host"></div>
+  </dialog>
+</section>
       <div class="burrow-stage">
         <svg class="burrow" viewBox="0 0 280 252" role="img" aria-labelledby="mouse-title">
           <title id="mouse-title" data-i18n="mouseLabel">Мышка выглядывает из норки и моргает</title>
@@ -51,6 +100,7 @@
             <path class="mouse-nose" d="M5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM5 15h1v1h-1zM6 15h1v1h-1zM7 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1z"/>
           </g>
         </svg>
+      </div>
       </div>
       <p class="eyebrow" data-i18n="eyebrow">Mouse Browser</p>
       <h1 id="headline"><span data-i18n="headlineLine1">Твой компьютер</span> <span data-i18n="headlineLine2">— твои правила</span></h1>

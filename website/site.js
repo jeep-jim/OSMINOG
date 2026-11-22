@@ -215,6 +215,7 @@
     }
     setTheme(theme);
     applyDownloadLabels();
+    window.MouseShowcase?.refreshLanguage();
   };
 
   document.addEventListener('DOMContentLoaded', () => {
