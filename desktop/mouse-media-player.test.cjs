@@ -128,3 +128,49 @@ test('optional native media-session metadata includes bounded text only; absence
  s=await start(f,p);assert.equal(s.trackTitle,undefined);assert.equal(s.artist,undefined);assert.equal(s.title,'Source title');
  session.metadata=null;s=await start(f,p);assert.equal(s.title,'Source title');assert.equal(s.trackTitle,undefined);
 });
+
+function holdNextRead(page){
+ const wc=page.view.webContents,execute=wc.executeJavaScriptInIsolatedWorld.bind(wc);let release,held=false;
+ wc.executeJavaScriptInIsolatedWorld=(...args)=>{
+  if(!held&&args[1][0].code.includes(')("read",')){
+   held=true;return new Promise(resolve=>{release=()=>resolve(execute(...args))});
+  }
+  return execute(...args);
+ };
+ return()=>{assert.ok(held,'The real isolated read is pending');release()};
+}
+test('a native play signal during refresh preserves replacement media and controls its new track',async t=>{
+ const f=fixture(t),p=f.browser.make('tab','work'),unrelated=f.browser.make('other','spare');
+ const original=p.doc.add(),other=unrelated.doc.add();p.doc.navigator.mediaSession.metadata={title:'First track'};
+ const before=await start(f,p),release=holdNextRead(p);
+ p.view.webContents.emit('media-paused');
+ original.isConnected=false;
+ const replacement=p.doc.add();p.doc.navigator.mediaSession.metadata={title:'Replacement track',artist:'Owned artist'};
+ for(let i=0;i<5;i++)p.view.webContents.emit('media-started-playing');
+ release();await flush();await flush();
+ const after=(await f.call('state')).player;
+ assert.ok(after,'A replacement native play signal must survive the pending read');
+ assert.notEqual(after.id,before.id);assert.equal(after.trackTitle,'Replacement track');assert.equal(after.artist,'Owned artist');
+ assert.ok(f.sent.every(([,state])=>state.player),'The widget is not cleared between the old read and native replacement discovery');
+ assert.equal(f.ops.length,3,'Duplicate native events coalesce into one additional discovery');
+ await f.call('pause',{id:after.id});assert.equal(replacement.paused,true);
+ assert.equal(original.pauseCalls,undefined);assert.equal(other.paused,false);assert.equal(f.ops.includes('other'),false);
+});
+test('a new track on the same media element refreshes metadata without replacing its identity',async t=>{
+ const f=fixture(t),p=f.browser.make('tab','work');p.doc.add();
+ const before=await start(f,p),release=holdNextRead(p);
+ p.view.webContents.emit('media-paused');p.doc.navigator.mediaSession.metadata={title:'Next track'};
+ p.view.webContents.emit('media-started-playing');release();await flush();await flush();
+ const after=(await f.call('state')).player;
+ assert.equal(after.id,before.id);assert.equal(after.trackTitle,'Next track');
+});
+for(const revoke of ['privacy','navigation','dismiss'])test('queued native media discovery is revoked by '+revoke,async t=>{
+ const f=fixture(t),p=f.browser.make('tab','work'),original=p.doc.add();
+ const before=await start(f,p),release=holdNextRead(p);
+ p.view.webContents.emit('media-paused');original.isConnected=false;p.doc.add();p.view.webContents.emit('media-started-playing');
+ if(revoke==='privacy'){f.privacy(true);f.control.clear();f.privacy(false);f.control.resume()}
+ else if(revoke==='navigation'){p.view.webContents.emit('did-start-navigation',{},{isMainFrame:true,isSameDocument:false});p.view.webContents.emit('did-navigate')}
+ else await f.call('dismiss',{id:before.id});
+ release();await flush();await flush();
+ assert.equal((await f.call('state')).player,null);assert.equal(f.ops.length,2);
+});

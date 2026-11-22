@@ -104,7 +104,7 @@ function install({win,browser,ipcMain,trusted,isPrivate=()=>false,powerMonitor,e
  function clear(){
   active=null;clearInterval(timer);timer=undefined;
   // Revoke any in-flight discover/read, including across a quick privacy round-trip.
-  for(const b of bindings.values())b.epoch++;
+  for(const b of bindings.values()){b.epoch++;b.rediscover=null;}
   publish();
  }
  function forget(b){
@@ -118,7 +118,12 @@ function install({win,browser,ipcMain,trusted,isPrivate=()=>false,powerMonitor,e
   let job;
   try{job=Promise.resolve(execute(b.wc,action,id,seconds))}catch{b.pending=false;return{status:'unsupported'}}
   let timeout;
-  const actual=job.then(x=>x,()=>({status:'unsupported'})).finally(()=>{b.pending=false});
+  const actual=job.then(x=>x,()=>({status:'unsupported'})).finally(()=>{
+   b.pending=false;
+   // Drain after the current read/command has applied its result. A native play
+   // signal may refer to a replacement element while that operation is pending.
+   if(b.rediscover===b.epoch)setImmediate(()=>drainDiscovery(b));
+  });
   const result=await Promise.race([actual,new Promise(resolve=>{timeout=setTimeout(()=>resolve({status:'timeout'}),DEADLINE);timeout.unref?.()})]);
   clearTimeout(timeout);
   return b.epoch===epoch&&context(b)?result:{status:'expired'};
@@ -130,7 +135,7 @@ function install({win,browser,ipcMain,trusted,isPrivate=()=>false,powerMonitor,e
    if(active!==owner)return;
    const m=r?.id===owner.id&&safeMedia(r.media);
    if(r?.status==='ok'&&m){owner.media=m;publish()}
-   else if(r?.status==='missing'||r?.status==='expired')forget(b)
+   else if(r?.status==='expired'||(r?.status==='missing'&&b.rediscover!==b.epoch))forget(b)
   });
  }
  async function discover(b){
@@ -143,7 +148,7 @@ function install({win,browser,ipcMain,trusted,isPrivate=()=>false,powerMonitor,e
    const r=await operation(b,'discover',id,active?.binding===b?active.id:null);
    const ctx=context(b);
    if(!ctx||b.dismissed||(active&&active.binding!==b))return;
-   if(r?.status==='ambiguous'||r?.status==='unsupported'){forget(b);return}
+   if(r?.status==='ambiguous'||r?.status==='unsupported'||r?.status==='missing'){forget(b);return}
    const goodId=r?.id===id||(active?.binding===b&&r?.id===active.id);
    const media=goodId&&safeMedia(r.media);
    if(r?.status!=='ok'||!media||media.paused)return;
@@ -153,15 +158,23 @@ function install({win,browser,ipcMain,trusted,isPrivate=()=>false,powerMonitor,e
    publish();
   }finally{probes--}
  }
+ function drainDiscovery(b){
+  if(b.pending||b.rediscover!==b.epoch)return;
+  b.rediscover=null;void discover(b);
+ }
+ function nativePlay(b){
+  if(!context(b)||b.dismissed)return;
+  b.rediscover=b.epoch;drainDiscovery(b);
+ }
  function bind(page){
   const wc=page?.view?.webContents;
   if(!wc||typeof wc.executeJavaScriptInIsolatedWorld!=='function'||bindings.has(wc))return;
-  const b={page,wc,epoch:0,navigating:false,pending:false,dismissed:false,off:[]};
+  const b={page,wc,epoch:0,navigating:false,pending:false,rediscover:null,dismissed:false,off:[]};
   const on=(e,f)=>b.off.push(listen(wc,e,f));
   bindings.set(wc,b);
-  on('media-started-playing',()=>void discover(b));
+  on('media-started-playing',()=>nativePlay(b));
   on('media-paused',()=>refresh(b));
-  const reset=()=>{b.epoch++;b.navigating=true;b.dismissed=false;forget(b)};
+  const reset=()=>{b.epoch++;b.rediscover=null;b.navigating=true;b.dismissed=false;forget(b)};
   // New and legacy Electron argument forms; a same-document history/hash change is not a reload.
   on('did-start-navigation',(_event,detail,inPlace,isMainFrame)=>{
    const d=typeof detail==='object'&&detail?detail:{isMainFrame,isSameDocument:inPlace};
@@ -186,7 +199,7 @@ function install({win,browser,ipcMain,trusted,isPrivate=()=>false,powerMonitor,e
   const owner=active, b=owner?.binding, ctx=b&&context(b);
   if(!ctx||args.id!==owner.id)throw Error('Исходная вкладка недоступна');
   if(action==='return')return{desk:ctx.deskId,id:b.page.id};
-  if(action==='dismiss'){b.dismissed=true;b.epoch++;forget(b);return snapshot()}
+  if(action==='dismiss'){b.dismissed=true;b.epoch++;b.rediscover=null;forget(b);return snapshot()}
   if(action==='seek'&&!owner.media.canSeek)throw Error('Перемотка недоступна');
   const r=await operation(b,action,owner.id,args.seconds);
   if(active!==owner||!context(b)||r?.status==='expired')throw Error('Исходная вкладка изменилась');

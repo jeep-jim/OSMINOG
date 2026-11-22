@@ -3,8 +3,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {newStartTabReady}=require('./mouse-614-badge-smoke.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<120;i++){if(await f())return;await sleep(50);}throw Error('Mouse615 timeout: '+label);}
+const searchRemovedForVersion=version=>['6.0.36','6.0.37'].includes(version);
 module.exports=async({win,browser})=>{
- const tileSearchRemoved=await win.webContents.executeJavaScript('MouseNative.version')==='6.0.36';
+ const tileSearchRemoved=searchRemovedForVersion(await win.webContents.executeJavaScript('MouseNative.version'));
  const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),theme=await js('MouseTest.model.theme'),beforeIds=new Set(browser.state().tabs.map(t=>t.id)),footerCases=[];
  const point=selector=>js(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.scrollIntoView({block:'nearest',inline:'nearest'});const r=e.getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);
  const move=async selector=>{const p=await point(selector);win.webContents.sendInputEvent({type:'mouseMove',...p});await sleep(180);return p;};
@@ -51,3 +52,4 @@ module.exports=async({win,browser})=>{
   await js(`MouseTest.setTheme(${JSON.stringify(theme)})`);win.setBounds(bounds);
  }
 };
+module.exports.searchRemovedForVersion=searchRemovedForVersion;

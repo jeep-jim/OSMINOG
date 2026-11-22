@@ -12,3 +12,5 @@ html[data-private="true"] #mouse-extensions-tray{display:none!important}
 .mouse-extension-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mouse-extension-actions{display:flex;gap:4px;flex-wrap:wrap}
 .mouse-extension-actions>button{font-size:11px;padding:3px 5px}
+.mouse-extension-restore-error{grid-column:1/-1;margin:0;font-size:12px;line-height:1.4;color:var(--text);white-space:normal;overflow-wrap:anywhere}
+@media(max-width:420px){.mouse-extension-row{grid-template-columns:minmax(0,1fr)}}

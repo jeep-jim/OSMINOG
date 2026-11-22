@@ -21,3 +21,10 @@ test('filters by endonym, current English name and tag without touching locale s
  assert.deepEqual(mouseLanguageSearch('!missing!'),[]);
  assert.ok(mouseInterfaceLanguages().find(x=>x.code==='ja').available===false);
 });
+test('Russian language names find both Chinese scripts without enabling untranslated locales',()=>{
+ assert.deepEqual(mouseLanguageSearch('  КИТАЙСКИЙ  ').map(x=>x.code),['zh-Hans','zh-Hant']);
+ assert.deepEqual(mouseLanguageSearch('китайский').map(x=>x.available),[false,false]);
+ for(const [name,code]of [['английский','en'],['русский','ru'],['японский','ja'],['французский','fr']])
+  assert.equal(mouseLanguageSearch(name)[0]?.code,code,name);
+ assert.deepEqual(mouseInterfaceLanguages().filter(x=>x.available).map(x=>x.code),['ru','en']);
+});

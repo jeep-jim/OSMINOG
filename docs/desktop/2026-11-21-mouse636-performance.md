@@ -64,3 +64,88 @@ Mac остаётся предварительной ad-hoc сборкой без
 [Windows run 44911906656](https://github.com/jeep-jim/OSMINOG/actions/runs/44911906656) прошёл проверки inline Agent, выделения, поиска, performance и write, затем выявил старую константу 6.0.35 в отчёте обучения жестам при повторном запуске. Writer и два default expected-version теперь получают `app.getVersion()`. Состояние жеста `mouseDesktopWheelHintV2={completed:true}` не меняется; явная версия предшественника 6.0.29 для реального upgrade и строгое сравнение сохранённого состояния сохранены. Новая регрессия проверяет текущую версию, отказ для устаревшего отчёта и явный predecessor; целевые tutorial/gesture/frame проверки — 70/70 PASS.
 
 Один дополнительный Chrome diagnostics job этого кандидата получил timeout 20 секунд при повторном подключении CDP. Тот же clipboard test в canonical Chrome run 44911906646 на том же source прошёл, как и предыдущие diagnostics на 331ac2d. Этот отдельный job перезапущен; ни функциональные assertions, ни исходники Chrome не отключались и не менялись.
+
+## Финальный source 7c09b6c принят на трёх платформах
+
+Финальный source `7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3` прошёл все 11 проверок PR, включая полный установленный Mouse, два Windows runner-образа и независимую диагностику Chrome. [PR190](https://github.com/jeep-jim/OSMINOG/pull/190) объединён обычным merge в `94d5c3d1b7fa7652a0f55b73ba3847458b3d053f`; проверенный source остался неизменённым предком main. Финальные нативные прогоны — attempt 1:
+
+| Платформа | Source run | Job | Candidate artifact | Verification artifact |
+| --- | --- | --- | --- | --- |
+| macOS arm64 | [44913896930](https://github.com/jeep-jim/OSMINOG/actions/runs/44913896930) | 136875265234 | 14710914882 | 14710894848 |
+| Windows x64 | [44913896890](https://github.com/jeep-jim/OSMINOG/actions/runs/44913896890) | 136875265386 | 14711870532 | 14711124026 |
+| Windows x64, второй образ | [тот же run](https://github.com/jeep-jim/OSMINOG/actions/runs/44913896890/job/136879429468) | 136879429468 | тот же EXE | 14711947630 |
+| Linux x64 | [44913896859](https://github.com/jeep-jim/OSMINOG/actions/runs/44913896859) | 136875265715 | 14711222212 | 14711033421 |
+
+Исходные архивы отдельно скачаны, сверены по полным SHA-256 и повторно проверены строгими release validators без пропуска assertions. Подтверждены точные package/manifest/source/run связи, native PNG и исходные JSON, удаление плиточного поиска, настройки в панели, реальные обновления профиля и обычный запуск. В Linux базовые тесты — 178/178 PASS; Mouse — 1070 PASS, 6 платформенных SKIP, 0 FAIL. Windows modern проверил тот же неизменённый EXE. Chrome diagnostics финального source [44913896846](https://github.com/jeep-jim/OSMINOG/actions/runs/44913896846) — 28/28 PASS; исторический failed job 51a82a0 также прошёл повторный запуск.
+
+Все шесть сценариев Agent на каждой платформе сохраняют настоящий непустой диапазон выделения в черновике, текст и фокус при переходе в настройки и обратно. Отдельно просмотрены исходные Mac кадры настроек в светлой теме при ширине 400 px и чата в тёмной при 300 px: настройки находятся внутри Agent справа, рядом остаются живые страницы. Возврат подписан «В чат» / «Вернуться в чат». Поток ответа и Stop проверены с собственным HTTP/SSE fixture; это не проверка личного модельного сервиса владельца.
+
+### Фактическое сравнение обычного переключения столов
+
+Измерения ниже получены в финальных source runs на одном и том же нативном runner для прежнего опубликованного пакета и кандидата. Сценарий — 50 страниц, пять столов, десять переключений; это данные CI, а не физического Mac Pro владельца. Предшественники: Mac 6.0.35, Windows/Linux 6.0.34.
+
+| Платформа | Медиана прежде, мс | Медиана 6.0.36, мс | p95 6.0.36, мс | Максимум 6.0.36, мс |
+| --- | ---: | ---: | ---: | ---: |
+| macOS arm64 | 592.980 | 58.627 | 88.212 | 93.865 |
+| Windows x64 | 546.620 | 52.831 | 56.148 | 66.218 |
+| Linux x64 | 569.053 | 44.412 | 60.346 | 70.352 |
+
+В сценарии с 20 страницами медиана также уменьшилась: Mac 558.289 → 60.966 мс, Windows 545.644 → 51.291 мс, Linux 577.595 → 51.025 мс. Во всех сравнениях у кандидата ноль native image captures при обычном переключении. Идентичность живых документов и их состояние проверены отдельно; размеры выборок не позволяют обещать одинаковое ускорение на любом устройстве или сайте.
+
+### Привязка и запуск публикации
+
+[Release PR65](https://github.com/jeep-jim/OSMINOG-Releases/pull/65) содержит ready pins всех трёх платформ с одним source и sourceMerge. Перед merge пройдены 19 контрактных проверок, общий all-platform guard и пять PR workflows. Финальный ready commit `bbefb9ead612a28ed1de75a8abc43d9baf1541f3` объединён в `aeb77792e36a17d6ecf367cd16d9e3bfe863eee2`.
+
+Фактические push publishers: [macOS 44917016749](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917016749), [Windows 44917016603](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917016603), [Linux 44917016689](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917016689). Их результаты и публичные каналы фиксируются отдельно после завершения; зелёный PR contract сам по себе не считается публикацией.
+
+В publisher дополнена строгая совместимость Mac compositor trace 6.0.36: допускается наблюдавшийся в Electron/Chromium 152.0.7977.130 маршрут FINISHED внутри уникального `AnimationHost::ActivateAnimations` с родителем `ActivateSyncTree`. Связи pointer/group/property/thread/PID, DOM endpoints, время и исходные байты обязательны; произвольный FINISHED не принимается. Замороженный 6.0.28 validator не изменён; 19 текущих и 47 прежних trace проверок прошли. Финальный Mac source использует прежний маршрут UpdateAnimationState (`activationFinishCount=0`). Это не доказательство естественного compositor finish без ограничений: `naturalCompositorFinishProven=false`, `directIdentityLink=false` сохранены.
+
+### Исправление кодировки Windows publisher
+
+Первый фактический [Windows publisher 44917016603](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917016603/job/136884784676) остановился до импорта EXE: общий all-platform preflight пытался прочитать русские Mac release notes через `Path.read_text()` с Windows default cp1252 и получил `UnicodeDecodeError` на байте `0x81`, позиция 73. Публикация и смена Windows-канала в этом запуске не выполнялись.
+
+В [release commit baeff8ac7dcde75e7af8d6e4b0795e1b91c78c6b](https://github.com/jeep-jim/OSMINOG-Releases/commit/baeff8ac7dcde75e7af8d6e4b0795e1b91c78c6b) четыре чтения новых файлов 6.0.36 получили явную UTF-8; Windows publish job получил `PYTHONUTF8=1`, чтобы retained readers Linux notes и дочерние Python процессы также использовали UTF-8. Замороженные алгоритмы, source и package pins не менялись. До исправления новая cp1252 регрессия воспроизвела тот же отказ; после исправления все 21 проверки прошли, включая настоящий all-platform preflight в дочернем Python с UTF-8 mode и locale C.
+
+Изменение Windows workflow запустило [новый Windows publisher 44917454695](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917454695) на `baeff8a`. Идущие Mac/Linux publishers на `aeb7779` не отменялись и не перезапускались. Фактический результат повторной публикации записывается далее после завершения.
+
+## Фактическая публикация 6.0.36
+
+### Linux x64
+
+[Выпуск Linux 6.0.36](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.36-x64), release ID `453778199`, опубликован 21 ноября 2026 в 22:17:21 по Красноярску (15:17:21 UTC), `draft=false`, `prerelease=true`. [Publisher 44917016689](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917016689), job `136884793098`, attempt 1, завершился SUCCESS. Точный импорт, свежая установленная проверка, публикация обоих форматов, смена канала и анонимное скачивание прошли.
+
+- [AppImage](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.36-x64/Mouse-Browser-6.0.36-Linux-x64.AppImage): 135673552 байта; SHA-256 `e126ee0e50c1bc8e4e1108600e5b2e9e74af609feac0fff8d8de7b3c0b79f090`.
+- [DEB](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.36-x64/Mouse-Browser-6.0.36-Linux-x64.deb): 105853084 байта; SHA-256 `6de6baf09263ade5ea20fec2984cb183d6909cb7a7646b8c8d917cf33c0d7d7f`.
+
+Независимое чтение публичного Releases API подтвердило эти размеры и digests. `platforms/linux/mouse-x64/latest.json` и `platforms/linux/mouse-x64/releases/6.0.36.json` совпали целиком: версия 6.0.36, оба URL/размера/хеша соответствуют принятым source-пакетам. Реальный прежний updater 6.0.34 без токена обнаружил и полностью скачал AppImage и DEB, проверил их SHA-256; текущая 6.0.36 получила `currentVersionCheck=true` для обоих форматов. В `linux-channel-verification.json` зафиксированы `anonymous=true`, `comparisonVersionIsFixture=false`, `olderReleasedLinuxUpdaterVerified=true`.
+
+Publisher verification artifact `14712433290`: 28653615 байт, SHA-256 `11f176b8b2d49378293859a5ce61fac3ddaff58e577b9fb748979b5f986096c2`. Исходные receipts прочитаны без повторного запуска native/strict тестов: source и installed independent evidence `ok=true`, свежая проверка связана с run `44917016689`/attempt 1 и неизменённым source `7c09b6c`. `ownerDeviceVerified=false` остаётся явным ограничением.
+
+### macOS arm64
+
+[Выпуск Mac 6.0.36](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.36-arm64), release ID `453780852`, опубликован 21 ноября 2026 в 22:21:57 по Красноярску (15:21:57 UTC), `draft=false`, `prerelease=true`. [Publisher 44917016749](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917016749), job `136884799754`, attempt 1, завершился SUCCESS. Пройдены свежая установка, реальные обновления 6.0.29 → 6.0.36 и 6.0.35 → 6.0.36, независимые native/task/feedback/trace gates, публикация и проверка обновлятора.
+
+- [DMG](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.36-arm64/Mouse-Browser-6.0.36-mac-arm64.dmg): 137981934 байта; SHA-256 `8688b4db4bd8d9541d93508ecdb3260727d9c6a975f336cfcd2b086caae704fb`.
+- [ZIP](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.36-arm64/Mouse-Browser-6.0.36-mac-arm64.zip): 140347143 байта; SHA-256 `8a09929b313afeb9e41aa52f0c079a9044806a41d6b9c301ce66ea9a93034ab0`.
+
+Публичные assets отдельно сверены с pins; legacy `Quadro-Browser-6.0.36-mac-arm64.dmg` имеет те же байты, что Mouse DMG. `channels/mouse/macos-arm64.json` содержит версию 6.0.36 и точные URL/размер/digest. Реальный updater 6.0.29 без токена получил новую версию на попытке 20 после ответов 6.0.35, полностью скачал и проверил DMG. `channel-verification.json` содержит `anonymousDiscovery=true`, `verifiedDownload=true`, `currentVersionCheck=true`; предыдущие ответы сохранены в диагностике, не скрыты.
+
+Publisher verification artifact `14712692737`: 49666712 байт, SHA-256 `9a4be446eac3dcf568b90f6352219309826b28d4160151f3398cee0b0b5010ca`. Прочитаны исходные receipts свежих gates; trace `mouse636-motion-trace-evidence-v1` имеет PASS, 130632 события и привязку к source `7c09b6c`, source run `44913896930`, publisher `44917016749`/attempt 1 и release merge `aeb7779`. Это ad-hoc preview без Developer ID/нотариализации, не проверка физического устройства владельца.
+
+### Windows x64
+
+[Выпуск Windows 6.0.36](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.36-x64), release ID `453782050`, опубликован 21 ноября 2026 в 22:23:41 по Красноярску (15:23:41 UTC), `draft=false`, `prerelease=true`. Исправленный [publisher 44917454695](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/44917454695), job `136886078196`, attempt 1, на `baeff8a` завершился SUCCESS. Исходный failed publisher остаётся в истории; повторный не заменяет его результат задним числом.
+
+[EXE Windows x64](https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.36-x64/Mouse-Browser-6.0.36-Windows-x64.exe): 125834363 байта; SHA-256 `443496508013d5734e8a81c7eb0ddb33cedad4149440da3c04ff891486c6cf61`. Публичный asset ID `775984529`; размер и digest отдельно сверены с принятой source-сборкой и двумя Windows source runner-образами.
+
+Свежий installed report имеет `ok=true` и все 14 групп проверок, включая inline Agent, удаление поиска, performance, реальные upgrade-сценарии, повторную установку, перезапуск и обычный запуск. `reinstallation.profileUnchanged=true`, `postUpdateProfile.exitCode=0`; реальное обновление 6.0.34 → 6.0.36 прошло. UI-тест кнопки обновления использует локальный поток установщика той же версии; он не выдаётся за публичную загрузку. Её отдельно подтверждает `windows-channel-verification.json`: `anonymous=true`, `verifiedDownload=true`, `currentVersionCheck=true`, `previousVersion=6.0.29`, `comparisonVersionIsFixture=false`, точные EXE size/SHA-256.
+
+`platforms/windows/mouse-x64/latest.json` и `platforms/windows/mouse-x64/releases/6.0.36.json` совпали целиком и указывают на этот EXE. Publisher verification artifact `14712981906`: 40879195 байт, SHA-256 `075eae6221146dfcf94e2d83765bfacd3e527225f7c14d0ec940c68a97b4c602`; ZIP и исходные receipts прочитаны, повторные native/strict прогоны после успеха не запускались. Публичный installed report имеет SHA-256 `72628598d566c64449e792af2b67fbe9b1dcdc2b8340f4047cb55e17edba8340`. Windows остаётся unsigned preview.
+
+### Итог трёх платформ
+
+Публикация 6.0.36 завершена для macOS arm64, Windows x64 и Linux x64. На общей финальной ветке releases `b109edbb5ece16146d5f71897fb98df87923f4b2` отдельно прочитаны все пять Mouse feed-файлов: три текущих канала и две versioned-записи Windows/Linux. Все показывают 6.0.36 и точные проверенные пакеты. Git blob Mac feed — `f6e79361f1b46ada83fbc462bfbd5c4dedd94bcd`; оба Windows feed — `a4317769bfc798852c56568450db825b10efac1a`; оба Linux feed — `7dd27e593f916ff259a574f18e3de0d09b492dea`. Последовательные публикации сохранили соседние платформенные каналы. Общий Chrome/OSMINOG registry не заменяет эту отдельную проверку Mouse feeds.
+
+Собственный плиточный поиск удалён из интерфейса и рабочего кода проекта; обычная адресная строка сохранена. Настройки Agent открываются внутри его текущей панели с возвратом «В чат», сохранением переписки, черновика и выделения. Обычное переключение столов использует живые страницы без прежнего захвата изображений и обязательного ожидания анимации. Эти изменения включены в опубликованные пакеты.
+
+Для получения изменений на Mac: кнопка версии внизу окна → «Скачать обновление» → «Установить и перезапустить»; после перезапуска ожидаемая версия 6.0.36. Сохранение профиля и обновление проверены на CI. Физический Mac Pro, личные аккаунты и внешний модельный сервис владельца не объявляются проверенными. Удаление прежнего поискового deployment-кода не означает подтверждённого выключения удалённого сервера. Следующий пользовательский шаг — установить уже доступную 6.0.36; повторное разрешение на этот выпуск не требуется.

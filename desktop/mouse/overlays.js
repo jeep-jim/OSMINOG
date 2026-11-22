@@ -4,17 +4,17 @@ const MOUSE_LIVE_LANGUAGES=new Set(['ru','en']);
 let mouseLanguageCatalog;
 function mouseInterfaceLanguages(){
  if(mouseLanguageCatalog)return mouseLanguageCatalog;
- const english=new Intl.DisplayNames(['en'],{type:'language'});
+ const english=new Intl.DisplayNames(['en'],{type:'language'}),russian=new Intl.DisplayNames(['ru'],{type:'language'});
  const labelOverrides={'zh-Hans':'简体中文','zh-Hant':'繁體中文','pt-BR':'Português (Brasil)','pt-PT':'Português (Portugal)','fil':'Filipino / Tagalog'};
  mouseLanguageCatalog=Object.freeze(MOUSE_LANGUAGE_CODES.map(code=>Object.freeze({
   code,label:labelOverrides[code]||new Intl.DisplayNames([code],{type:'language'}).of(code),
-  english:english.of(code),available:MOUSE_LIVE_LANGUAGES.has(code)
+  english:english.of(code),russian:russian.of(code),available:MOUSE_LIVE_LANGUAGES.has(code)
  })));
  return mouseLanguageCatalog;
 }
 function mouseLanguageSearch(value){
  const q=value.trim().toLocaleLowerCase().normalize('NFD').replace(/\p{M}/gu,'');
- return mouseInterfaceLanguages().filter(x=>(x.label+' '+x.english+' '+x.code).toLocaleLowerCase().normalize('NFD').replace(/\p{M}/gu,'').includes(q));
+ return mouseInterfaceLanguages().filter(x=>(x.label+' '+x.english+' '+x.russian+' '+x.code).toLocaleLowerCase().normalize('NFD').replace(/\p{M}/gu,'').includes(q));
 }
 if(typeof module==='object'&&module.exports)module.exports={mouseInterfaceLanguages,mouseLanguageSearch};
 globalThis.createMouseOverlays=({N,restore,error,prepare})=>{

@@ -11,6 +11,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms)),copy=value=>JSON.pa
 async function until(fn,label){for(let n=0;n<320;n++){if(await fn())return;await sleep(25);}throw Error('Mouse629 UI timeout: '+label);}
 const COLORS=[[171,43,158],[24,117,150],[158,75,32],[75,89,158],[35,130,77],[143,52,86],[83,100,41]];
 const PALETTE={light:{hex:'#c7cfdf',rgb:[199,207,223]},dark:{hex:'#43536b',rgb:[67,83,107]}};
+const paletteForVersion=version=>version==='6.0.37'?{...PALETTE,dark:{hex:'#354357',rgb:[53,67,87]}}:PALETTE;
 const TREE={axis:'x',ratio:.53,a:{axis:'y',ratio:.82,a:{axis:'x',ratio:.39,a:{axis:'y',ratio:.47,a:{id:'p1'},b:{id:'p2'}},b:{id:'p3'}},b:{id:'p4'}},b:{axis:'x',ratio:.41,a:{axis:'y',ratio:.68,a:{id:'p5'},b:{id:'p6'}},b:{id:'p7'}}};
 function sample(image,mapping,point,bitmap){
  const {size,bytes}=bitmap||{size:image.getSize(1),bytes:image.toBitmap({scaleFactor:1})},x=Math.floor(mapping.originX+point.x*mapping.scaleX),y=Math.floor(mapping.originY+point.y*mapping.scaleY);
@@ -33,7 +34,8 @@ function validateFixtureControls(geometry,bounds,points,factor){
 }
 module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- assert.equal(app.getVersion(),'6.0.36');assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
+ assert.ok(['6.0.36','6.0.37'].includes(app.getVersion()));assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
+ const PALETTE=paletteForVersion(app.getVersion());
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),bounds=win.getBounds(),fullscreen=win.isFullScreen();
  const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],nora:[],workspace633:{schema:1,gap:6,radius:12,aiScenes:[]},restored:false};
  const pages=[],extraPages=[];let server,verificationError,cleanupError;
@@ -172,3 +174,4 @@ module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInpu
 };
 module.exports.fixtureControlsReadback=fixtureControlsReadback;
 module.exports.validateFixtureControls=validateFixtureControls;
+module.exports.paletteForVersion=paletteForVersion;

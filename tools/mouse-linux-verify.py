@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.36"
+VERSION = "6.0.37"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -139,7 +139,7 @@ def main(argv=None):
             "Exact source CI provenance missing")
     evidence = {"ok": False, "version": VERSION, "platform": "linux", "arch": "x64", "source": source,
                 "runId": str(run_id), "runAttempt": str(attempt), "firstLinuxRelease": False,
-                "previousVersion": "6.0.34", "packages": packages, "checks": {}, "ownerDeviceVerified": False,
+                "previousVersion": "6.0.36", "packages": packages, "checks": {}, "ownerDeviceVerified": False,
                 "verificationRun": {"runId": os.environ.get("GITHUB_RUN_ID"), "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT")},
                 "runner": {"system": platform.system(), "release": platform.release(), "version": platform.version(),
                            "display": os.environ["DISPLAY"], "uid": os.getuid()}}
@@ -153,20 +153,24 @@ def main(argv=None):
             # Do not inherit a packaging/test bypass into the shipped executable.
             for key in ("ELECTRON_RUN_AS_NODE", "APPIMAGE", "APPDIR"):
                 env.pop(key, None)
-            baseline = run_logged([sys.executable, Path(__file__).with_name("mouse-636-baseline-performance.py"), "--output", output],
-                                  env, output, "mouse-636-baseline-performance.log", 900, ["MOUSE_636_BASELINE_PERFORMANCE_PASS"])
-            evidence["checks"]["baselinePerformance"] = {**baseline, "reportSha256": sha256(output / "mouse-636-baseline-performance.json")}
+            baseline = run_logged([sys.executable, Path(__file__).with_name("mouse-637-baseline-performance.py"), "--output", output],
+                                  env, output, "mouse-637-baseline-performance.log", 900, ["MOUSE_637_BASELINE_PERFORMANCE_PASS"])
+            evidence["checks"]["baselinePerformance"] = {**baseline, "reportSha256": sha256(output / "mouse-637-baseline-performance.json")}
             write_json(report_path, evidence)
             current_upgrade = run_logged(
-                [sys.executable, Path(__file__).with_name("mouse-636-upgrade.py"), packages_dir],
-                env, output, "mouse-636-upgrade.log", 720, ["MOUSE_636_REAL_634_TO_636_PROFILE_PASS"])
-            upgrade_report = json.loads((output / "mouse-636-upgrade.json").read_text(encoding="utf-8"))
-            require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.34"
+                [sys.executable, Path(__file__).with_name("mouse-637-upgrade.py"), packages_dir],
+                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"])
+            upgrade_report = json.loads((output / "mouse-637-upgrade.json").read_text(encoding="utf-8"))
+            require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.36"
                     and upgrade_report.get("toVersion") == VERSION and upgrade_report.get("platform") == "linux"
                     and set(upgrade_report.get("formats", {})) == {"deb", "appimage"},
-                    "Actual published634 profile replacement did not pass for both Linux formats")
+                    "Actual published636 profile replacement did not pass for both Linux formats")
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
-                    "reportSha256": sha256(output / "mouse-636-upgrade.json")}
+                    "reportSha256": sha256(output / "mouse-637-upgrade.json")}
+            button = run_logged([sys.executable, Path(__file__).with_name("mouse-637-update-button.py"), packages_dir],
+                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"])
+            evidence["checks"]["updateFrom636"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
+            write_json(report_path, evidence)
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
             executable = installed_executable()
@@ -216,13 +220,34 @@ def main(argv=None):
             require(retained636_report.get("ok") is True and retained636_report.get("version") == VERSION,
                     "Mouse636 retained pane downloads, AI preview and capture did not pass in the installed Linux build")
             evidence["checks"]["ownerRetained636"] = {**retained636, "reportSha256": sha256(output / "mouse-636-retained-owner-feedback.json")}
-            required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_636_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
-            owner636 = run_logged([executable, "--mouse-636-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner636")},
+            required636 = ['MOUSE_635_LIBRARY_STABLE_PASS', 'MOUSE_636_AGENT_INLINE_PASS', 'MOUSE_636_PINNED_PANES_PASS', 'MOUSE_636_SEARCH_REMOVAL_PASS', 'MOUSE_637_PERFORMANCE_PASS', 'MOUSE_636_OWNER_FEEDBACK_PASS']
+            owner636 = run_logged([executable, "--mouse-637-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner636")},
                                   output, "mouse-636-owner-feedback.log", 270, required636)
             owner636_report = json.loads((output / "mouse-636-owner-feedback.json").read_text(encoding="utf-8"))
             require(owner636_report.get("ok") is True and owner636_report.get("version") == VERSION,
                     "Mouse636 search removal, inline Agent, performance, pinned panes and stable library did not pass in the installed Linux build")
             evidence["checks"]["ownerFeedback636"] = {**owner636, "reportSha256": sha256(output / "mouse-636-owner-feedback.json")}
+            features_env = {**env, "MOUSE_TEST_PROFILE": str(root / "features637")}
+            feature_processes = {}
+            for phase, flag, marker, budget in (("write", "--mouse-637-features-smoke", "MOUSE_637_FEATURES_WRITE_PASS", 270),
+                                                ("read", "--mouse-637-features-restore-read", "MOUSE_637_FEATURES_NATIVE_PASS", 120)):
+                result = run_logged([executable, flag], features_env, output, "mouse-637-features-" + phase + ".log", budget, [marker])
+                report = output / "mouse-637-features.json"
+                if phase == "write":
+                    saved = output / "mouse-637-features-write.json"
+                    saved.write_bytes(report.read_bytes())
+                    report = saved
+                feature_processes[phase] = {**result, "report": report.name, "reportSha256": sha256(report)}
+            feature_file = output / "mouse-637-features.json"
+            features = json.loads(feature_file.read_text(encoding="utf-8"))
+            require(features.get("ok") is True and features.get("restored") is True and features.get("version") == VERSION
+                    and features.get("pid") == feature_processes["write"]["pid"]
+                    and features.get("restart", {}).get("pid") == feature_processes["read"]["pid"]
+                    and features["pid"] != features["restart"]["pid"],
+                    "Mouse637 features did not restore in a distinct actual process")
+            feature_processes["reportSha256"] = sha256(feature_file)
+            evidence["checks"]["features637"] = feature_processes
+            write_json(report_path, evidence)
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])
             owner_report = json.loads((output / "mouse-633-owner-feedback.json").read_text(encoding="utf-8"))

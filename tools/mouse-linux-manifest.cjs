@@ -12,7 +12,7 @@ for(const name of ['mouse-linux-audit.json','mouse-linux-agent-audit.json']){con
 const packages={};for(const extension of ['AppImage','deb']){const name=`Mouse-Browser-${version}-Linux-x64.${extension}`,target=path.join(out,name);packages[name]={size:fs.statSync(target).size,sha256:sha(target)};}
 if(JSON.stringify(packages)!==JSON.stringify(evidence.packages))throw Error('Linux package bytes changed after installed acceptance');
 const metadata={version,productName:'Mouse Browser',platform:'linux',arch:'x64',source,runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,
- tests:['tile-search-removed','agent-inline-settings','live-desktop-switch-performance','stable-download-and-capture-dom','agent-messenger-native-streaming','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls'],
+ tests:['real-636-to-637-profile-preserving-replacement','combined637-native-features','real-636-to-637-native-update-button','tile-search-removed','agent-inline-settings','live-desktop-switch-performance','stable-download-and-capture-dom','agent-messenger-native-streaming','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls'],
  signing:'unsigned',ownerDeviceVerified:false,packages,verification:{file:path.basename(file),sha256:sha(file),result:evidence},
  updateChannel:require('../desktop/mouse-update.cjs').LINUX_CHANNEL};
 fs.writeFileSync(path.join(out,'mouse-linux-build.json'),JSON.stringify(metadata,null,2)+'\n');

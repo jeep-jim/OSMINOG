@@ -5,7 +5,8 @@ globalThis.createMouseExtensionsUI=({N,showDialog,placeTab})=>{
  const modal=$('mouse-extensions-dialog'),list=$('mouse-extensions-list'),install=$('mouse-extensions-install'),status=$('mouse-extensions-status');
  let entries=[],busy=false,available=false,opener=null;
  const privateMode=()=>document.documentElement.dataset.private==='true';
- const copy=()=>document.documentElement.lang==='en'?{title:'Extensions',pins:'Pinned extensions',note:'Load an unpacked folder. Only compatible extensions; Chrome Web Store installation is unavailable.',install:'Load folder',empty:'No extensions installed',on:'Enable',off:'Disable',pin:'Pin',unpin:'Unpin',remove:'Remove from Mouse',error:'Could not complete the extension action.',overflow:'More extensions'}:{title:'Расширения',pins:'Закреплённые расширения',note:'Загрузка из распакованной папки. Только совместимые расширения; установка из Chrome Web Store пока недоступна.',install:'Установить из папки',empty:'Расширений пока нет',on:'Включить',off:'Выключить',pin:'Закрепить',unpin:'Открепить',remove:'Убрать из Mouse',error:'Не удалось выполнить действие с расширением.',overflow:'Другие расширения'};
+ let observedLanguage=document.documentElement.lang,observedPrivate=privateMode();
+ const copy=()=>document.documentElement.lang==='en'?{title:'Extensions',pins:'Pinned extensions',note:'Load an unpacked folder. Only compatible extensions; Chrome Web Store installation is unavailable.',install:'Load folder',empty:'No extensions installed',on:'Enable',off:'Disable',pin:'Pin',unpin:'Unpin',remove:'Remove from Mouse',error:'Could not complete the extension action.',restoreError:'Could not restore this extension. Remove it from Mouse and reinstall it from the original unpacked folder.',overflow:'More extensions'}:{title:'Расширения',pins:'Закреплённые расширения',note:'Загрузка из распакованной папки. Только совместимые расширения; установка из Chrome Web Store пока недоступна.',install:'Установить из папки',empty:'Расширений пока нет',on:'Включить',off:'Выключить',pin:'Закрепить',unpin:'Открепить',remove:'Убрать из Mouse',error:'Не удалось выполнить действие с расширением.',restoreError:'Не удалось восстановить расширение. Уберите его из Mouse и установите заново из исходной распакованной папки.',overflow:'Другие расширения'};
  const el=(tag,cls,label)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(label)x.textContent=label;return x};
  const button=(text,fn)=>{const b=el('button','',text);b.type='button';b.onclick=fn;return b};
  async function run(action,args,focusId){
@@ -33,13 +34,15 @@ globalThis.createMouseExtensionsUI=({N,showDialog,placeTab})=>{
   if(pinned.length>3){const b=button('+'+(pinned.length-3),()=>void open(b));b.title=c.overflow;pins.append(b);}
   if(!entries.length)list.append(el('p','',c.empty));
   for(const entry of entries){
-   const row=el('div','mouse-extension-row');row.dataset.id=entry.id;row.tabIndex=-1;
+   const row=el('div','mouse-extension-row');row.dataset.id=entry.id;row.dataset.state=entry.error==='load_failed'?'restore-error':entry.enabled?'enabled':'disabled';row.tabIndex=-1;
    row.append(el('strong','',entry.name+(entry.version?' · '+entry.version:'')));
    const actions=el('div','mouse-extension-actions');
    if(entry.enabled&&entry.actionPopup)actions.append(button(document.documentElement.lang==='en'?'Open page':'Открыть страницу',()=>void run('open-page',{id:entry.id})));
    actions.append(button(entry.enabled?c.off:c.on,()=>void run('set-enabled',{id:entry.id,value:!entry.enabled},entry.id)));
    const pin=button(entry.pinned?c.unpin:c.pin,()=>void run('set-pinned',{id:entry.id,value:!entry.pinned},entry.id));pin.disabled=!entry.enabled;
-   actions.append(pin,button(c.remove,()=>void run('remove',{id:entry.id})));row.append(actions);list.append(row);
+   actions.append(pin,button(c.remove,()=>void run('remove',{id:entry.id})));row.append(actions);
+   if(row.dataset.state==='restore-error'){const message=el('p','mouse-extension-restore-error',c.restoreError);message.setAttribute('role','status');row.append(message);}
+   list.append(row);
   }
  }
  async function open(from,id){
@@ -49,6 +52,11 @@ globalThis.createMouseExtensionsUI=({N,showDialog,placeTab})=>{
  }
  toggle.onclick=()=>void open(toggle);install.onclick=()=>void run('install');
  modal.addEventListener('close',()=>{toggle.setAttribute('aria-expanded','false');(opener?.isConnected?opener:toggle).focus();opener=null;});
- new MutationObserver(()=>{if(privateMode()){tray.hidden=true;if(modal.open)modal.close();}else if(available)render();else void run('state');}).observe(document.documentElement,{attributes:true,attributeFilter:['data-private','lang']});
+ new MutationObserver(()=>{
+  const language=document.documentElement.lang,privateState=privateMode();
+  if(language===observedLanguage&&privateState===observedPrivate)return;
+  observedLanguage=language;observedPrivate=privateState;
+  if(privateMode()){tray.hidden=true;if(modal.open)modal.close();}else if(available)render();else void run('state');
+ }).observe(document.documentElement,{attributes:true,attributeFilter:['data-private','lang']});
  void run('state');
 };

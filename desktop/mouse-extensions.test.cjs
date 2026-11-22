@@ -53,6 +53,19 @@ test('source changes after consent or managed changes before restore fail closed
   await assert.rejects(n.install(),/обычные файлы/);
  }
 });
+test('a disabled extension has a distinct restore failure and clears it after valid bytes return',async t=>{
+ const f=await fixture(t),m=f.create(),[row]=await m.install();
+ await m.setEnabled(row.id,false);
+ const target=path.join(f.storage,'packages',row.id,'safe.js'),original=await fs.readFile(target);
+ await fs.unlink(target);
+ const restored=f.create(),[failed]=await restored.restore();
+ assert.equal(failed.enabled,false);assert.equal(failed.error,'load_failed');
+ assert.equal(JSON.stringify(failed).includes(f.storage),false);
+ await fs.writeFile(target,original);
+ const [recovered]=await restored.restore();
+ assert.equal(recovered.enabled,false);assert.equal(recovered.error,undefined);
+ assert.equal(f.calls.filter(c=>c[0]==='load').length,1,'Verification of a disabled entry must not activate it');
+});
 test('only a bounded manifest-selected PNG is exposed, never paths or raw manifest data',async t=>{
  const f=await fixture(t),m=f.create();
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCSsAAAAASUVORK5CYII=','base64');

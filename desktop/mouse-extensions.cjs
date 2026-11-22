@@ -162,7 +162,7 @@ function createMouseExtensions({session,dialog,win,storage,isAvailable=()=>true,
       allowed();await init();allowed();
       for(const e of entries){
         if(loaded.has(e.id)) continue;
-        try{if(e.enabled)await load(e);else await verify(e);}catch(err){e.error=err.message;}
+        try{if(e.enabled)await load(e);else await verify(e);delete e.error;}catch(err){e.error=err.message;}
       }
       return dump();
     }),

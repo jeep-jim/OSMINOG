@@ -20,6 +20,38 @@ test('build and IPC isolate the manager to the persistent page session and trust
  assert.match(preload,/extensions:\(action,args\)=>ipcRenderer\.invoke\('mouse:extensions',action,args\)/);
  assert.match(build,/'mouse-extensions\.cjs'/);
 });
+test('restoration errors remain distinct from disabled extensions and explain reinstall in RU and EN',async()=>{
+ const vm=require('node:vm'),flush=()=>new Promise(resolve=>setImmediate(resolve));
+ class Element{
+  constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.attributes={};this.textContent='';this.className='';this.isConnected=true;this.listeners={}}
+  append(...children){this.children.push(...children)}replaceChildren(...children){this.children=[...children]}
+  setAttribute(name,value){this.attributes[name]=value}addEventListener(event,fn){this.listeners[event]=fn}
+  focus(){}cloneNode(){return new Element(this.tagName)}
+  querySelector(selector){return this.querySelectorAll(selector)[0]||null}
+  querySelectorAll(selector){return this.children.flatMap(child=>[...(selector==='svg'?child.tagName==='SVG':child.className.split(' ').includes(selector.slice(1)))?[child]:[],...child.querySelectorAll(selector)])}
+ }
+ const ids=['tray','button','pins','dialog','list','install','status','title','note'];
+ const nodes=new Map(ids.map(id=>['mouse-extensions-'+id,new Element()]));nodes.get('mouse-extensions-button').append(new Element('svg'));
+ const root={lang:'ru',dataset:{private:'false'}},document={documentElement:root,getElementById:id=>nodes.get(id),createElement:tag=>new Element(tag)};
+ let observe,entries=[{id:'disabled',name:'Disabled fixture',enabled:false,pinned:false},{id:'broken',name:'Failed fixture',enabled:false,pinned:true,error:'load_failed'}];
+ const calls=[],context=vm.createContext({document,MutationObserver:class{constructor(callback){observe=callback}observe(){}}});
+ vm.runInContext(read('mouse/extensions.js'),context);
+ context.createMouseExtensionsUI({N:{extensions:async(action,args)=>{calls.push([action,args]);if(action==='remove')entries=entries.filter(e=>e.id!==args.id);return entries}},showDialog:async()=>{}});
+ await flush();
+ const rows=()=>nodes.get('mouse-extensions-list').children;
+ let [disabled,failed]=rows();
+ assert.equal(disabled.dataset.state,'disabled');assert.equal(failed.dataset.state,'restore-error');
+ assert.equal(disabled.querySelector('.mouse-extension-restore-error'),null);
+ assert.match(failed.querySelector('.mouse-extension-restore-error').textContent,/Не удалось восстановить.*заново.*папки/);
+ assert.equal(nodes.get('mouse-extensions-pins').children.length,0,'A failed pinned extension must not appear usable');
+ observe();assert.equal(rows()[0],disabled,'Same-value locale/private mutations must not rebuild the body');assert.equal(rows()[1],failed);
+ root.lang='en';observe();[disabled,failed]=rows();
+ assert.match(failed.querySelector('.mouse-extension-restore-error').textContent,/Could not restore.*reinstall.*folder/);
+ const remove=failed.querySelector('.mouse-extension-actions').children.find(b=>b.textContent==='Remove from Mouse');
+ remove.onclick();await flush();
+ assert.equal(rows().length,1);assert.equal(rows()[0].dataset.state,'disabled');
+ assert.equal(calls.at(-1)[0],'remove');assert.equal(calls.at(-1)[1].id,'broken');
+});
 test('trusted managed extension guest reuses a pane tab and cannot persist, navigate or grant permissions',async()=>{
  const {EventEmitter}=require('node:events'),vm=require('node:vm');
  const ext='a'.repeat(32),url='chrome-extension://'+ext+'/ui/page.html',persisted=[];
