@@ -55,6 +55,17 @@
     languageNoResults: text('languageNoResults'),
     languageClose: text('languageClose')
   });
+  const fitHeadline = () => {
+    const headline = document.getElementById('headline');
+    if (!headline) return;
+    headline.style.fontSize = '';
+    const available = headline.clientWidth;
+    const actual = headline.scrollWidth;
+    if (available > 0 && actual > available) {
+      const size = parseFloat(getComputedStyle(headline).fontSize);
+      headline.style.fontSize = `${Math.floor(size * available / actual * 100) / 100}px`;
+    }
+  };
   const setTheme = (value) => {
     theme = value === 'light' ? 'light' : 'dark';
     root.dataset.theme = theme;
@@ -86,6 +97,7 @@
     if (text('pageTitle')) document.title = text('pageTitle');
     const description = document.querySelector('meta[name="description"]');
     if (description && text('metaDescription')) description.content = text('metaDescription');
+    fitHeadline();
     if (languagePicker) languagePicker.update({ selectedCode: language, labels: languageLabels() });
     if (updateLocation) {
       try {
@@ -114,6 +126,8 @@
     const button = document.getElementById('theme-switch');
     button.hidden = false;
     setLanguage(language);
+    window.addEventListener('resize', fitHeadline, { passive: true });
+    if (document.fonts) document.fonts.ready.then(fitHeadline);
     button.addEventListener('click', () => {
       setTheme(theme === 'dark' ? 'light' : 'dark');
       savePreference(themeKey, theme);
