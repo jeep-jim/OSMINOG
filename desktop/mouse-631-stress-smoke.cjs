@@ -6,17 +6,38 @@ const {createHash}=require('node:crypto');
 const {createFixture,pageHTML,bounded,sleep}=require('./mouse-631-smoke-helpers.cjs');
 const distribution=values=>{const sorted=values.slice().sort((a,b)=>a-b);return{count:values.length,min:sorted[0]??0,p50:sorted[Math.floor((sorted.length-1)*.5)]??0,p95:sorted[Math.floor((sorted.length-1)*.95)]??0,max:sorted.at(-1)??0};};
 
+// Optional diagnostics for synchronous main-process calls in the existing
+// measured switch only. Parent spans include their children: do not sum them.
+// These times do not measure renderer DOM work or isolate IPC queue latency.
+function createSwitchTimings(now=()=>performance.now()){
+ let active=null,parentId=null;
+ return{
+  begin(stage,switchSequence){parentId=null;return active={schema:1,clock:'main.performance.now',stage,switchSequence,calls:[]};},
+  end(endedAt){if(active)active.endedAt=endedAt;active=null;parentId=null;},
+  call(method,original,receiver,args,pageIndex){
+   if(!active)return original.apply(receiver,args);
+   const calls=active.calls,parent=parentId,row={id:calls.length+1,parentId:parent,method};
+   if(pageIndex!==undefined)row.pageIndex=pageIndex;
+   calls.push(row);parentId=row.id;row.startedAt=now();
+   try{return original.apply(receiver,args);}
+   catch(error){row.threw=true;throw error;}
+   finally{row.elapsedMs=now()-row.startedAt;parentId=parent;}
+  }
+ };
+}
+
 module.exports=async ctx=>{
  const facts={version:ctx.app.getVersion(),platform:process.platform,arch:process.arch,source:'installed native pages and local HTTP streams',budgetMs:200000,stages:[],captures:[],renderFailures:[],restored:false,ok:false,baselineComparison:{performed:false,reason:'This process records candidate timings only. The separate mouse-636-performance.json binds both installed runs and compares their raw workloads.'}};
  const save=()=>fs.writeFile('mouse-631-stress.json',JSON.stringify(facts,null,2)+'\n');
  let fixture,server,verificationError,cleanupError,currentStage='setup',operation='setup',interval,frameMonitorStarted=false,motionDebug,motionAttached=false;
  const requests=[],streams=new Map(),restorers=[],captureCalls=[],counts={capturePage:0,getVisible:0,setVisible:0,setBounds:0,nativeCorners:0,state:0},mainGaps=[];
+ const switchTimings=createSwitchTimings();
  let lastTick=performance.now();
  function wrap(object,name,wrapper){const original=object[name];assert.equal(typeof original,'function',name+' is callable');object[name]=wrapper(original);restorers.push(()=>{object[name]=original;});}
  function instrument(record){
   const wc=record.page.view.webContents;
   wrap(wc,'capturePage',original=>function(...args){counts.capturePage++;return original.apply(this,args);});
-  for(const name of ['getVisible','setVisible','setBounds'])wrap(record.page.view,name,original=>function(...args){counts[name]++;return original.apply(this,args);});
+  for(const name of ['getVisible','setVisible','setBounds'])wrap(record.page.view,name,original=>function(...args){counts[name]++;return switchTimings.call(name,original,this,args,record.index);});
   const failure=(_event,details)=>facts.renderFailures.push({tabId:record.id,index:record.index,event:'render-process-gone',details,stage:currentStage});wc.on('render-process-gone',failure);restorers.push(()=>wc.removeListener('render-process-gone',failure));
  }
  async function readAll(records){return Promise.all(records.map(record=>fixture.identity(record)));}
@@ -90,7 +111,8 @@ module.exports=async ctx=>{
   const surfaces=browser.mouseDesktops.surfaces,previews=browser.mouseDesktops.previews;surfaces.enableDiagnostics();previews.enableDiagnostics();
   wrap(surfaces,'capture',original=>async function(...args){const start=performance.now(),stage=currentStage,kind=operation;let result,error;try{result=await original.apply(this,args);return result;}catch(reason){error=String(reason.message);throw reason;}finally{captureCalls.push({stage,operation:kind,args:structuredClone(args),startedAt:start,elapsedMs:performance.now()-start,error:error||null,diagnostics:surfaces.diagnostics()});}});
   wrap(browser,'state',original=>function(...args){counts.state++;return original.apply(this,args);});
-  if(browser.mouseCornerMask)wrap(browser,'mouseCornerMask',original=>function(...args){counts.nativeCorners++;return original.apply(this,args);});
+  wrap(browser,'layout',original=>function(...args){return switchTimings.call('browser.layout',original,this,args);});
+  if(browser.mouseCornerMask)wrap(browser,'mouseCornerMask',original=>function(...args){counts.nativeCorners++;return switchTimings.call('nativeCorners',original,this,args);});
   const shellGone=(_event,details)=>facts.renderFailures.push({event:'shell-render-process-gone',details,stage:currentStage});win.webContents.on('render-process-gone',shellGone);restorers.push(()=>win.webContents.removeListener('render-process-gone',shellGone));
   const groups=desks.map(()=>[]);let nextIndex=0;
   for(let d=0;d<5;d++){
@@ -107,12 +129,16 @@ module.exports=async ctx=>{
    const running=[];for(let d=0;d<5;d++)running.push(await startStream(groups[d][target===20?0:4],'stage'+target+'-desk'+d));
    row.streamsBefore=running;await rendererMonitor(true);mainGaps.length=0;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now();mainGaps.push(now-lastTick);lastTick=now;},25);
    for(let n=0;n<switchCount;n++){
-    const d=(n+1)%5,id=desks[d],callsBefore=captureCalls.length,countsBefore={...counts},layoutBefore=browser.mouseLayoutCalls||0,start=performance.now();operation='switch-'+n;
-    await fixture.switchDesk(id);const elapsedMs=performance.now()-start;assert.ok(elapsedMs<12000);
+    const d=(n+1)%5,id=desks[d],callsBefore=captureCalls.length,countsBefore={...counts},layoutBefore=browser.mouseLayoutCalls||0,mainCallTimings=switchTimings.begin(target,n+1),start=performance.now();operation='switch-'+n;mainCallTimings.startedAt=start;
+    let elapsedMs;
+    try{await fixture.switchDesk(id);elapsedMs=performance.now()-start;}
+    catch(error){row.failedSwitchMainCallTimings=mainCallTimings;throw error;}
+    finally{switchTimings.end(elapsedMs===undefined?performance.now():start+elapsedMs);}
+    assert.ok(elapsedMs<12000);
     const slide=await fixture.js('structuredClone(MouseDesktopSlide.last)');assert.equal(slide.phase,'complete');
     if(Number(ctx.app.getVersion().split('.')[2])>=36){assert.equal(slide.strategy,'live');assert.equal(slide.presented,true);assert.equal(slide.snapshotCaptures,0);assert.equal(slide.animated,false);assert.equal(slide.decoded,false);assert.equal(captureCalls.length,callsBefore);assert.equal(counts.capturePage,countsBefore.capturePage,'A normal switch performs no native image readback');}
     else{assert.equal(slide.animated,true);assert.equal(slide.decoded,true);}
-    const visible=groups[d].slice(0,4),entry={sequence:n+1,from:desks[n%5],to:id,elapsedMs,slide,counts:Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-countsBefore[key]])),layoutCalls:(browser.mouseLayoutCalls||0)-layoutBefore,surfaceCalls:captureCalls.slice(callsBefore),visiblePageIds:visible.map(record=>record.id)};row.switches.push(entry);
+    const visible=groups[d].slice(0,4),entry={sequence:n+1,from:desks[n%5],to:id,elapsedMs,slide,mainCallTimings,counts:Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-countsBefore[key]])),layoutCalls:(browser.mouseLayoutCalls||0)-layoutBefore,surfaceCalls:captureCalls.slice(callsBefore),visiblePageIds:visible.map(record=>record.id)};row.switches.push(entry);
     const progress=await switchProgress(target,running[d],running,visible,entry);
     entry.capture=await fixture.captureContent('mouse-631-stress-'+target+'-switch-'+(n+1)+'.png',visible,{shellRegions:progress.regions});facts.captures.push(entry.capture.filename);await save();
    }

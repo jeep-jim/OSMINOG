@@ -2,10 +2,11 @@
 // Real OS file drags from the installed library into two retained Chromium
 // panes. Only the isolated profile's owned image/text copies are involved.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),syncFS=require('node:fs'),path=require('node:path'),{randomUUID}=require('node:crypto');
-const {nativeImage,Menu,clipboard}=require('electron');
+const {nativeImage,Menu,clipboard,screen}=require('electron');
 const {sha256,sleep}=require('./mouse-631-smoke-helpers.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {metadata}=require('./mouse-637-library-actions.cjs');
+const {createNativeDrag}=require('./mouse-637-native-drag.cjs');
 const IMAGE_RGB=[218,55,96],DOWNLOAD_RGB=[37,143,191],TEXT='Mouse637 owned library text\nНастоящий текстовый файл — данные для переноса.';
 
 function readback(){
@@ -49,7 +50,7 @@ module.exports=async function verifyLibraryActions({app,win,browser,libraryServi
   await capture(filename,[{name:'owned archive thumbnail',entryId:fileByKey('archive-image').id,point:{x:image.x+image.width/2,y:image.y+image.height/2},expectedRGB:IMAGE_RGB},guestWitness()]);
  }
  win.webContents.startDrag=function(options){
-  if(pendingDrag){const data=syncFS.readFileSync(options.file);assert.ok(data.length<100000,'Only the small owned file fixture is observed');pendingDrag.nativeFile={name:path.basename(options.file),size:data.length,sha256:sha256(data),hasIcon:!options.icon.isEmpty(),keys:Object.keys(options).sort()};}
+  if(pendingDrag){const data=syncFS.readFileSync(options.file);assert.ok(data.length<100000,'Only the small owned file fixture is observed');pendingDrag.entry.nativeFile={name:path.basename(options.file),size:data.length,sha256:sha256(data),hasIcon:!options.icon.isEmpty(),keys:Object.keys(options).sort()};pendingDrag.signal(pendingDrag.entry.nativeFile);}
   return Reflect.apply(originalDrag,this,arguments);
  };
  Menu.prototype.popup=function(options){
@@ -72,12 +73,12 @@ module.exports=async function verifyLibraryActions({app,win,browser,libraryServi
  }
  async function transfer(file,target,index){
   await focus();await fixture.pageJS(target,'__mouse637LibraryReceiver.drops.length=0;__mouse637LibraryReceiver.over.length=0;true');const control=selector(file.id),from=await hit(control),nativeBefore=fixture.nativeState(target),bounds=nativeBefore.bounds,origin=win.getContentBounds(),to={x:Math.round(origin.x+bounds.x+98),y:Math.round(origin.y+bounds.y+198)};
-  const before=await fixture.identity(target),clipBefore=sha256(Buffer.from(await clipboard.readText())),entry={fileKey:file.key,targetTabId:target.id,pane:'p'+(index+1),before,nativeBefore,clipboardBefore:clipBefore,sourceState:await state(),contentBounds:origin};report.transfers.push(entry);await observe(control,['pointerdown','dragstart','pointercancel','pointerup']);pendingDrag=entry;
+  const before=await fixture.identity(target),clipBefore=sha256(Buffer.from(await clipboard.readText())),entry={fileKey:file.key,targetTabId:target.id,pane:'p'+(index+1),before,nativeBefore,clipboardBefore:clipBefore,sourceState:await state(),contentBounds:origin};report.transfers.push(entry);await observe(control,['pointerdown','dragstart','pointercancel','pointerup']);
+  const gesture=createNativeDrag({from,to,folder,file:{name:file.dragName,size:file.size,sha256:file.sha256},remainingMs:fixture.deadline-performance.now()},{screen});pendingDrag={entry,signal:gesture.signal};
   try{
-   assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);await sleep(60);assert.equal(await nativeInput.testMouse(from.x-14,from.y+8,1),true);
-   await fixture.until(()=>!!entry.nativeFile,'actual Electron native file drag started');await sleep(100);
-   for(let step=1;step<=10;step++){assert.equal(await nativeInput.testMouse(Math.round(from.x+(to.x-from.x)*step/10),Math.round(from.y+(to.y-from.y)*step/10),1),true);await sleep(22);}await sleep(120);
-  }finally{assert.equal(await nativeInput.testMouse(to.x,to.y,2),true);pendingDrag=null;}
+   entry.gesture=await gesture.run();
+  }catch(cause){if(cause.nativeDrag)entry.gesture=cause.nativeDrag;throw cause;}
+  finally{pendingDrag=null;}
   await fixture.until(()=>fixture.pageJS(target,'__mouse637LibraryReceiver.drops.length===1'),'OS file drop reached the intended live page');
   const events=await fixture.js('__mouse637LibraryInput.events');await fixture.js('__mouse637LibraryInput.dispose()');assert.ok(events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches));assert.ok(events.some(e=>e.type==='dragstart'&&e.trusted&&e.matches));
   entry.input={selector:control,action:'file-drag',pid:process.pid,source,from,to,events};facts.nativeInputs.push(entry.input);entry.received=await fixture.pageJS(target,'__mouse637LibraryReceiver.drops[0]');entry.over=await fixture.pageJS(target,'__mouse637LibraryReceiver.over.slice()');assert.ok(entry.over.some(event=>event.trusted));assertReceived(entry.received,file,raw.get(file.key));

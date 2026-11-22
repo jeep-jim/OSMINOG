@@ -42,3 +42,46 @@ test('stress fixture records a failed inherited motion restoration and remains f
  const result=await trial(true,{restoreMismatch:true});
  assert.equal(result.attached,false);assert.equal(result.report.ok,false);assert.match(result.report.motionCleanupError.message,/restores the inherited motion preference/);
 });
+
+function timingHarness(now){
+ const sandbox={module:{exports:{}},require:name=>name==='./mouse-631-smoke-helpers.cjs'?{}:require(name)};
+ vm.runInNewContext(source,sandbox,{filename:'mouse-631-stress-smoke.cjs'});
+ return sandbox.createSwitchTimings(now);
+}
+
+test('passive switch timing leaves calls outside the measured window unchanged',()=>{
+ const timings=timingHarness(()=>{throw Error('An inactive diagnostic must not read the clock');});
+ const receiver={},argument={},result={};
+ function original(value){assert.equal(this,receiver);assert.equal(value,argument);return result;}
+ assert.equal(timings.call('setBounds',original,receiver,[argument],7),result);
+ const first=timings.begin(20,1);timings.end(42);
+ assert.equal(timings.call('setBounds',original,receiver,[argument],7),result);
+ assert.equal(first.calls.length,0);assert.equal(first.endedAt,42);
+ const second=timings.begin(50,2);timings.end(84);
+ assert.notEqual(first,second);assert.equal(second.stage,50);assert.equal(second.switchSequence,2);assert.equal(second.calls.length,0);
+});
+
+test('passive switch timing records nested native wall spans without changing returns or receivers',()=>{
+ let now=10;const timings=timingHarness(()=>now),scope=timings.begin(20,3),browser={},page={},argument={},result={};
+ scope.startedAt=9;
+ const returned=timings.call('browser.layout',function(value){
+  assert.equal(this,browser);assert.equal(value,argument);now=12;
+  assert.equal(timings.call('setBounds',function(bounds){assert.equal(this,page);assert.equal(bounds,argument);now=17;return result;},page,[argument],7),result);
+  now=20;return result;
+ },browser,[argument]);
+ timings.end(22);
+ assert.equal(returned,result);assert.equal(scope.clock,'main.performance.now');assert.equal(scope.startedAt,9);assert.equal(scope.endedAt,22);
+ assert.deepEqual(JSON.parse(JSON.stringify(scope.calls)),[
+  {id:1,parentId:null,method:'browser.layout',startedAt:10,elapsedMs:10},
+  {id:2,parentId:1,method:'setBounds',pageIndex:7,startedAt:12,elapsedMs:5}
+ ]);
+});
+
+test('passive switch timing preserves native exceptions and unwinds parent spans',()=>{
+ let now=1;const timings=timingHarness(()=>now++),scope=timings.begin(50,9),failure=Error('native operation failed');
+ assert.throws(()=>timings.call('browser.layout',()=>timings.call('setVisible',()=>{throw failure;},null,[false],4),null,[]),error=>error===failure);
+ const result={};assert.equal(timings.call('nativeCorners',()=>result,null,[[]]),result);timings.end(now);
+ assert.equal(scope.calls[0].threw,true);assert.equal(scope.calls[1].threw,true);
+ assert.equal(scope.calls[1].parentId,scope.calls[0].id);assert.equal(scope.calls[2].parentId,null);
+ assert.equal(scope.calls[0].elapsedMs,3);assert.equal(scope.calls[1].elapsedMs,1);assert.equal(scope.calls[2].elapsedMs,1);
+});
