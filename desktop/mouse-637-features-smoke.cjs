@@ -44,9 +44,24 @@ function languageReadback(){
 }
 function widgetReadback(){
  const root=document.querySelector('#mouse-media-widget'),r=root.getBoundingClientRect(),css=getComputedStyle(root),rect=e=>{const b=e.getBoundingClientRect();return{x:b.x,y:b.y,width:b.width,height:b.height}};
+ const visible=!root.hidden&&css.display!=='none'&&css.visibility==='visible'&&r.width>0&&r.height>0;
+ const shown=selector=>{const e=root.querySelector(selector),b=e.getBoundingClientRect(),style=getComputedStyle(e);return visible&&!e.hidden&&style.display!=='none'&&style.visibility==='visible'&&Number(style.opacity)>0&&b.width>0&&b.height>0&&Math.min(b.right,r.right,innerWidth)>Math.max(b.left,r.left,0)&&Math.min(b.bottom,r.bottom,innerHeight)>Math.max(b.top,r.top,0)};
  return{hidden:root.hidden,mode:root.dataset.mode,room:root.dataset.room,visible:!root.hidden&&css.display!=='none'&&css.visibility==='visible'&&r.width>0&&r.height>0,
   title:root.querySelector('[data-media=title]').textContent,seekHidden:root.querySelector('[data-media=seek]').hidden,bounds:rect(root),
+  roomPixels:parseFloat(root.style.getPropertyValue('--mouse-media-room')),titleVisible:shown('[data-media=title]'),seekVisible:shown('[data-media=seek]'),dismissVisible:shown('[data-media=dismiss]'),
   returnBounds:rect(root.querySelector('[data-media=return]')),desktopId:MouseTest.model.desktopId};
+}
+function mediaFixtureBounds(bounds,work,room){
+ for(const value of [bounds,work])assert.ok(value&&['x','y','width','height'].every(key=>Number.isFinite(value[key]))&&value.width>0&&value.height>0,'Media fixture needs actual finite native geometry');
+ assert.ok(Number.isFinite(room)&&room>=0,'Media fixture needs the measured footer space');
+ const left=Math.ceil(work.x),top=Math.ceil(work.y),right=Math.floor(work.x+work.width),bottom=Math.floor(work.y+work.height);
+ assert.ok(bounds.width<=right-left&&bounds.height<=bottom-top,'Current media fixture fits the actual display');
+ // The production widget caps its full width at 287px. It is positioned after
+ // the window midpoint, so each additional footer pixel needs two window pixels.
+ // Keep the real window within its display even when that desired space is scarce;
+ // the subsequent native hit checks must still prove every required control.
+ const width=Math.min(right-left,Math.ceil(bounds.width+2*Math.max(0,287-room))),height=Math.ceil(bounds.height);
+ return{x:Math.max(left,Math.min(Math.round(bounds.x),right-width)),y:Math.max(top,Math.min(Math.round(bounds.y),bottom-height)),width,height};
 }
 function interfaceReadback(){
  const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}},root=getComputedStyle(document.documentElement);
@@ -279,8 +294,12 @@ module.exports=async ctx=>{
      await fixture.until(()=>fixture.pageJS(record,'[...document.querySelectorAll("audio")].every(e=>e.readyState>=2)'),'real PCM audio preloaded');await click('#media-play',record);
      const player=()=>fixture.js('MouseNative.mediaPlayer("state")');let state;
      await fixture.until(async()=>{state=await player();return state.player?.trackTitle==='Owned first track'&&!state.player.paused},'real native audio appears in widget');assert.ok(nativeEvents.length>0);
-     const full=await fixture.js(`(${widgetReadback.toString()})()`),nativeBefore=fixture.nativeState(record);assert.equal(full.mode,'full');assert.equal(full.visible,true);assert.equal(full.seekHidden,false);await capture('mouse-637-media-full.png',[await witness(record)]);
-     const origin=fixture.bank.active,other=fixture.bank.items.find(d=>d.id!==origin)?.id;assert.ok(other);await fixture.switchDesk(other);const compact=await fixture.js(`(${widgetReadback.toString()})()`);assert.equal(compact.mode,'compact');assert.equal(compact.visible,true);assert.equal(compact.seekHidden,true);assert.equal((await player()).player.id,state.player.id);await capture('mouse-637-media-compact.png');
+     const beforeBounds=win.getBounds(),workArea=screen.getDisplayMatching(beforeBounds).workArea,initialWidget=await fixture.js(`(${widgetReadback.toString()})()`),requestedBounds=mediaFixtureBounds(beforeBounds,workArea,initialWidget.roomPixels);
+     facts.mediaGeometry={beforeBounds,workArea,initialWidget,requestedBounds};win.setBounds(requestedBounds);await fixture.frame();
+     let fullControls;await fixture.until(async()=>{fullControls=await fixture.js(`Object.fromEntries(['toggle','title','seek','return','dismiss'].map(name=>[name,(${nativeHitTarget.toString()})(document.querySelector('#mouse-media-widget [data-media='+name+']'),{})]))`);return Object.values(fullControls).every(hit=>hit.ready)},'637 full media controls fit the actual native window');
+     facts.mediaGeometry.appliedBounds=win.getBounds();facts.mediaGeometry.fullControls=fullControls;
+     const full=await fixture.js(`(${widgetReadback.toString()})()`),nativeBefore=fixture.nativeState(record);assert.equal(full.mode,'full');assert.equal(full.visible,true);assert.equal(full.seekHidden,false);assert.equal(full.titleVisible,true);assert.equal(full.seekVisible,true);assert.equal(full.dismissVisible,true);await capture('mouse-637-media-full.png',[await witness(record)]);
+     const origin=fixture.bank.active,other=fixture.bank.items.find(d=>d.id!==origin)?.id;assert.ok(other);await fixture.switchDesk(other);const compact=await fixture.js(`(${widgetReadback.toString()})()`);assert.equal(compact.mode,'compact');assert.equal(compact.visible,true);assert.equal(compact.seekHidden,true);assert.equal(compact.seekVisible,false);assert.equal(compact.dismissVisible,false);assert.equal((await player()).player.id,state.player.id);await capture('mouse-637-media-compact.png');
      await click('#mouse-media-widget [data-media=return]');await fixture.until(()=>fixture.bank.active===origin&&record.page.visible,'widget returns to actual source desktop');const returned=await fixture.js(`(${widgetReadback.toString()})()`);assert.equal(returned.mode,'full');
      const before=state.player,execute=wc.executeJavaScriptInIsolatedWorld.bind(wc);let held=false,heldAt;
      restoreExecute=()=>{wc.executeJavaScriptInIsolatedWorld=execute};
@@ -296,7 +315,8 @@ module.exports=async ctx=>{
      await click('#mouse-media-widget [data-media=toggle]');await fixture.until(()=>fixture.pageJS(record,'!document.querySelector("#audio-two").paused'),'widget resumes replacement original element');
      const unrelated=await fixture.pageJS(records[1],'[...document.querySelectorAll("audio")].every(e=>e.paused)');assert.equal(unrelated,true);
      facts.media={full,compact,returned,nativeBefore,nativeAfter:fixture.nativeState(record),originDesktop:origin,otherDesktop:other,nativeEvents,before,after,replacement:{readPending:true,heldAt,distinctElement:true,distinctPlayerId:before.id!==after.id,guest},pauseResumeOriginal:true,unrelatedPaused:true};
-     await click('#mouse-media-widget [data-media=dismiss]');assert.equal(await fixture.pageJS(record,'document.querySelector("#audio-two").paused'),false);await fixture.pageJS(record,'document.querySelector("#audio-two").pause();true');
+     const dismissInput=await click('#mouse-media-widget [data-media=dismiss]');await fixture.until(()=>fixture.js('document.querySelector("#mouse-media-widget").hidden'),'native dismiss hides the media widget');assert.equal(await fixture.pageJS(record,'document.querySelector("#audio-two").paused'),false);facts.media.dismiss={input:dismissInput,hidden:true,audioStillPlaying:true};await fixture.pageJS(record,'document.querySelector("#audio-two").pause();true');
+     win.setBounds(beforeBounds);await fixture.frame();facts.mediaGeometry.restoredBounds=win.getBounds();assert.deepEqual(facts.mediaGeometry.restoredBounds,beforeBounds);
     }finally{wc.removeListener('media-started-playing',playing);if(heldRelease){heldRelease();heldRelease=null}if(restoreExecute){restoreExecute();restoreExecute=null}}
    });
    facts.audio.requests=requests;assert.ok(requests.some(x=>x.path==='/audio/one.wav')&&requests.some(x=>x.path==='/audio/two.wav'));
@@ -336,6 +356,7 @@ module.exports=async ctx=>{
     const persisted=await appearanceState();assertAppearance(persisted,{mode:'square',tone:0,theme:'dark'});
     facts.appearance.persisted=persisted;facts.appearance.writeVerified=true;
    });
+   await stage('native-update-burrow',()=>require('./mouse-637-update-ui-smoke.cjs')(combinedContext));
   }
  }catch(cause){error=cause;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};await diagnostic();if(fixture)try{await capture('mouse-637-features-failure.png')}catch(captureError){facts.failureCaptureError=captureError.message}}
  finally{
@@ -358,4 +379,4 @@ module.exports=async ctx=>{
  const success=read?facts.ok:facts.writeComplete;
  if(success){console.log(read?'MOUSE_637_FEATURES_NATIVE_PASS':'MOUSE_637_FEATURES_WRITE_PASS');exit(0)}else{console.error('MOUSE_637_FEATURES_FAILED '+(facts.error?.message||cleanupError?.message||'verification incomplete'));exit(1)}
 };
-module.exports.fixtures={ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,assertAppearance,assertSquareGeometry};
+module.exports.fixtures={ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,assertAppearance,assertSquareGeometry,widgetReadback,mediaFixtureBounds};

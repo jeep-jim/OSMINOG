@@ -1,0 +1,23 @@
+{
+  "version": "6.0.36",
+  "files": [
+    {
+      "filename": "Mouse-Browser-6.0.36-mac-arm64.dmg",
+      "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/quadro-macos-v6.0.36-arm64/Mouse-Browser-6.0.36-mac-arm64.dmg",
+      "size": 137981934,
+      "sha256": "8688b4db4bd8d9541d93508ecdb3260727d9c6a975f336cfcd2b086caae704fb"
+    },
+    {
+      "filename": "Mouse-Browser-6.0.36-Windows-x64.exe",
+      "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-windows-v6.0.36-x64/Mouse-Browser-6.0.36-Windows-x64.exe",
+      "size": 125834363,
+      "sha256": "443496508013d5734e8a81c7eb0ddb33cedad4149440da3c04ff891486c6cf61"
+    },
+    {
+      "filename": "Mouse-Browser-6.0.36-Linux-x64.AppImage",
+      "url": "https://github.com/jeep-jim/OSMINOG-Releases/releases/download/mouse-linux-v6.0.36-x64/Mouse-Browser-6.0.36-Linux-x64.AppImage",
+      "size": 135673552,
+      "sha256": "e126ee0e50c1bc8e4e1108600e5b2e9e74af609feac0fff8d8de7b3c0b79f090"
+    }
+  ]
+}

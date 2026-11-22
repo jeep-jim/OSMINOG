@@ -8,6 +8,7 @@ const fs=require('node:fs/promises'),syncFS=require('node:fs'),path=require('nod
 const {screen,globalShortcut}=require('electron');
 const {AgentController}=require('./mouse-agent/agent-connector.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
+const {assertProfilePreferences}=require('./mouse-637-profile-compat.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const PRIVATE_MARKER='MOUSE_WINDOWS_PRIVATE_SENTINEL_629';
 const PROFILE_KEY='mouseWindows629Verification';
@@ -254,7 +255,7 @@ module.exports=async ctx=>{
  }
  async function readProfile(){
   const record=(await store.get(PROFILE_KEY))[PROFILE_KEY];assert.equal(record.version,expectedProfileVersion);assert.notEqual(record.writePid,process.pid);assert.deepEqual(browser.mouseDesktops.bank.items.map(d=>d.id),record.deskIds);assert.equal(record.deskIds.length,5);
-  assert.deepEqual(await js('MouseTest.prefs()'),record.preferences,'Reinstalled application preserves exact workspace preferences');
+  assertProfilePreferences(record,app.getVersion(),await js('MouseTest.prefs()'));
   if(record.updateToken)assert.equal((await store.get('mouseWindowsUpdateSentinel')).mouseWindowsUpdateSentinel,record.updateToken,'Actual updater retains the existing profile');
   assert.equal((await browser.session.cookies.get({url:record.origin,name:'mouse-windows-persistent'}))[0]?.value,record.token);
   assert.ok(libraryService.library.data.bookmarks.some(value=>value.title==='Windows persisted bookmark'&&value.url===record.origin+'/persisted'));
