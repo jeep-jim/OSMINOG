@@ -10,7 +10,7 @@ function loadFixture(name,dependencies){
 // fixture window. These tests verify evidence helpers; OS input stays in CI.
 const helpers=loadFixture('mouse-631-smoke-helpers.cjs',{electron:{},'./mouse-628-ui-smoke.cjs':{},'./mouse-smoke-frames.cjs':{}});
 const smoke=loadFixture('mouse-637-ai-preview-smoke.cjs',{'./mouse-631-smoke-helpers.cjs':helpers,'./mouse-smoke-hit-target.cjs':{},electron:{}});
-const {ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmission}=smoke.fixtures;
+const {ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmission,traceFaviconNavigation}=smoke.fixtures;
 const plain=value=>JSON.parse(JSON.stringify(value));
 
 function renderer({mode='rounded',theme='light',ratio=.5,imageContainer=true}={}){
@@ -70,6 +70,21 @@ test('preview address proof rejects incomplete Enter, synthetic or repeated subm
  for(const platform of ['linux','darwin','win32'])assert.doesNotThrow(()=>assertAddressSubmission(evidence(platform),'chat','preview',platform));
  const changes=[row=>row.beforeInput.aiId='other-chat',row=>row.beforeInput.previewId='other-preview',row=>row.beforeInput.url=to,row=>row.beforeInput.value=from,row=>row.beforeInput.focused=false,row=>row.beforeInput.formId='ordinary-address',row=>row.beforeInput.hasSubmitHandler=false,row=>row.beforeInput.readOnly=true,row=>row.beforeInput.disabled=true,row=>row.nativeKey.method='sendInputEvent',row=>row.nativeKey.key='Enter',row=>row.nativeKey.source='User32',row=>row.nativeKey.accepted=false,row=>row.keyboard.splice(1,1),row=>row.keyboard.splice(2,1),row=>row.keyboard[1].isTrusted=false,row=>row.keyboard[2].isTrusted=false,row=>row.keyboard[2].value=from,row=>row.keyboard.push({...row.keyboard[2]}),row=>row.keyboard.reverse()];
  for(const change of changes){const row=evidence();change(row);assert.throws(()=>assertAddressSubmission(row,'chat','preview','linux'),assert.AssertionError);}
+});
+
+test('favicon diagnostics observe native order and metadata without changing handlers and remove only their own listeners',()=>{
+ const wc=new(require('node:events').EventEmitter)();wc.id=41;wc.url='http://127.0.0.1:41002/page/3/';wc.getURL=()=>wc.url;
+ const page={favicon:'http://127.0.0.1:41002/icon.png',navigationEpoch:1,view:{webContents:wc}};
+ let productionCalls=0;const production=()=>{productionCalls++;page.favicon='';};wc.on('did-navigate',production);
+ const trace=traceFaviconNavigation(page),to='http://127.0.0.1:41002/page/4/';
+ wc.emit('did-start-navigation',{},to,false,true);wc.url=to;page.navigationEpoch=2;wc.emit('did-navigate',{},to);
+ const icons=['http://127.0.0.1:41002/icon.png'];page.favicon=icons[0];wc.emit('page-favicon-updated',{},icons);icons[0]='changed-after-event';
+ const events=plain(trace.events);assert.deepEqual(events.map(event=>event.type),['did-start-navigation','did-navigate','page-favicon-updated']);
+ assert.equal(events[0].url,'http://127.0.0.1:41002/page/3/');assert.equal(events[0].targetURL,to);assert.equal(events[0].isSameDocument,false);assert.equal(events[0].isMainFrame,true);
+ assert.equal(events[1].url,to);assert.equal(events[1].favicon,'');assert.equal(events[1].navigationEpoch,2);
+ assert.deepEqual(events[2].icons,[page.favicon]);assert.ok(events.every(event=>event.webContentsId===41&&Number.isFinite(event.at)));assert.equal(productionCalls,1);
+ trace.dispose();trace.dispose();assert.deepEqual(wc.listeners('did-navigate'),[production]);assert.equal(wc.listenerCount('did-start-navigation'),0);assert.equal(wc.listenerCount('page-favicon-updated'),0);
+ wc.emit('did-navigate',{},to);assert.equal(productionCalls,2);assert.equal(trace.events.length,3);
 });
 
 test('readback samples the lower address, loaded image, effective gap and independent renderer owner without mutating them',()=>{

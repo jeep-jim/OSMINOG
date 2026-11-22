@@ -54,6 +54,17 @@ function assertAddressSubmission(value,chatId,previewId,platform){
  const down=events.findIndex(e=>e.type==='keydown'&&e.key==='Enter'&&e.isTrusted&&e.value===value.to),press=events.findIndex(e=>e.type==='keypress'&&e.key==='Enter'&&e.isTrusted&&e.value===value.to),submit=events.findIndex(e=>e.type==='submit'&&e.isTrusted&&e.value===value.to);
  assert.ok(down>=0&&press>down&&submit>press,'The actual native Enter sequence submits the focused preview form');assert.equal(events.filter(e=>e.type==='submit').length,1,'Exactly one real form submission');
 }
+function traceFaviconNavigation(page){
+ const wc=page.view.webContents,events=[];
+ const record=(type,details)=>events.push({type,at:Date.now(),webContentsId:wc.id,url:wc.getURL(),favicon:page.favicon||'',navigationEpoch:page.navigationEpoch||0,...details});
+ const listeners={
+  'did-start-navigation':(_event,url,isSameDocument,isMainFrame)=>record('did-start-navigation',{targetURL:url,isSameDocument,isMainFrame}),
+  'did-navigate':(_event,url)=>record('did-navigate',{targetURL:url}),
+  'page-favicon-updated':(_event,icons)=>record('page-favicon-updated',{icons:Array.isArray(icons)?icons.slice():[]})
+ };
+ for(const [event,listener]of Object.entries(listeners))wc.on(event,listener);
+ return{events,dispose(){for(const [event,listener]of Object.entries(listeners))wc.removeListener(event,listener);}};
+}
 
 module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInput,click,text,capture,theme,openAppearance,closeAppearance,facts,records}){
  const report={schema:1,source:'Owned cross-origin AI source, native resize and native chooser/header transfers',samples:[],ok:false};facts.aiPreview=report;
@@ -98,8 +109,17 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
    return page.visible&&page.bounds&&Object.keys(bounds).every(key=>page.bounds[key]===bounds[key]);
   },'detached preview reaches its actual ordinary native pane');await fixture.frame();
  }
- async function awaitFavicon(record){
-  await fixture.until(async()=>{const s=await state();return s.tabs.find(t=>t.id===record.id)?.favicon===previewBase+'/icon.png'&&s.icon.url.startsWith('data:image/png;base64,')&&s.icon.complete&&s.icon.width===20&&s.icon.height===20},'actual preview favicon loaded');
+ async function awaitFavicon(record,diagnostic){
+  let lastState=null;
+  try{await fixture.until(async()=>{const s=lastState=await state();return s.tabs.find(t=>t.id===record.id)?.favicon===previewBase+'/icon.png'&&s.icon.url.startsWith('data:image/png;base64,')&&s.icon.complete&&s.icon.width===20&&s.icon.height===20},'actual preview favicon loaded');}
+  catch(cause){
+   if(diagnostic){
+    diagnostic.faviconFailure={at:Date.now(),lastState};
+    try{const page=record.page,wc=page.view.webContents;diagnostic.faviconFailure.native={id:page.id,webContentsId:wc.id,url:wc.getURL(),favicon:page.favicon||'',navigationEpoch:page.navigationEpoch||0};}
+    catch(error){diagnostic.faviconFailure.nativeError=String(error.message);}
+   }
+   throw cause;
+  }
  }
  try{
   previewBase=await start(false);chatBase=await start(true);report.origins={chat:chatBase,preview:previewBase};
@@ -119,11 +139,14 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
   // Raw Electron keyDown/keyUp omits the Return character used by implicit
   // form submission. Use the same real OS key path as retained636 navigation.
   await fixture.js(`(${inputProbe.toString()})('#ai-preview-address-input')`);
+  const faviconTrace=traceFaviconNavigation(preview.page);navigation.faviconEvents=faviconTrace.events;
   try{
-   const key=process.platform==='linux'?'Return':'ENTER';navigation.nativeKey={method:'nativeInput.testKey',key,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',pid:process.pid,at:Date.now(),accepted:await nativeInput.testKey(key)};assert.equal(navigation.nativeKey.accepted,true);
-   await fixture.until(()=>!preview.page.loading&&preview.page.view.webContents.getURL()===navigation.to,'preview address navigates its own native page');
-  }finally{navigation.keyboard=await fixture.js('globalThis.__mouse636OrdinaryInput.events');await fixture.js('globalThis.__mouse636OrdinaryInput.dispose();delete globalThis.__mouse636OrdinaryInput;true');}
-  assertAddressSubmission(navigation,chat.id,preview.id,process.platform);preview.index=4;await fixture.preparePage(preview);await awaitFavicon(preview);
+   try{
+    const key=process.platform==='linux'?'Return':'ENTER';navigation.nativeKey={method:'nativeInput.testKey',key,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',pid:process.pid,at:Date.now(),accepted:await nativeInput.testKey(key)};assert.equal(navigation.nativeKey.accepted,true);
+    await fixture.until(()=>!preview.page.loading&&preview.page.view.webContents.getURL()===navigation.to,'preview address navigates its own native page');
+   }finally{navigation.keyboard=await fixture.js('globalThis.__mouse636OrdinaryInput.events');await fixture.js('globalThis.__mouse636OrdinaryInput.dispose();delete globalThis.__mouse636OrdinaryInput;true');}
+   assertAddressSubmission(navigation,chat.id,preview.id,process.platform);preview.index=4;await fixture.preparePage(preview);await awaitFavicon(preview,navigation);
+  }finally{faviconTrace.dispose();}
   Object.assign(navigation,{afterNative:native(preview),state:await state()});assert.equal(preview.id,oldId);assert.equal(preview.page.view.webContents.id,oldContents);assertGeometry(navigation.state,chat.id,preview.id);
   let sequence=0;
   for(const mode of ['rounded','square'])for(const color of ['light','dark']){
@@ -169,4 +192,4 @@ module.exports=async function verifyAIPreview({app,win,browser,fixture,nativeInp
  }
  return report;
 };
-module.exports.fixtures={ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmission};
+module.exports.fixtures={ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmission,traceFaviconNavigation};

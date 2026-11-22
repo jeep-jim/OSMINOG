@@ -72,7 +72,9 @@ class BrowserWorkspace{
   wc.on('page-title-updated',(_e,title)=>{if(title===t.title)return;t.title=title;this.pageStateChanged(t)});
   wc.on('did-start-loading',()=>{const changed=!t.loading||!!t.error;t.loading=true;t.error='';if(changed)this.pageStateChanged(t)});
   wc.on('did-stop-loading',()=>{wc.send('osminog.pointer.mode',!!this.pointerEnabled&&!providerFor(wc.getURL()));const changed=t.loading;t.loading=false;if(changed)this.pageStateChanged(t)});
-  wc.on('did-navigate',()=>{t.favicon='';this.pageStateChanged(t);this.save()});wc.on('did-navigate-in-page',(_e,_url,main)=>{if(main===false)return;this.pageStateChanged(t);this.save()});
+  // Electron retains the last favicon URL set across navigations and suppresses
+  // identical updates. Only page-favicon-updated, including [], replaces it.
+  wc.on('did-navigate',()=>{this.pageStateChanged(t);this.save()});wc.on('did-navigate-in-page',(_e,_url,main)=>{if(main===false)return;this.pageStateChanged(t);this.save()});
   wc.on('did-fail-load',(_e,code,description,_url,main)=>{if(main&&code!==-3){t.error=description;t.loading=false;this.pageStateChanged(t)}});
   wc.on('preload-error',(_e,_path,error)=>{t.error='Не удалось загрузить коннектор: '+error.message;this.pageStateChanged(t)});
   wc.on('render-process-gone',()=>{t.error='Вкладка остановлена. Нажмите обновить.';this.pageStateChanged(t)});
