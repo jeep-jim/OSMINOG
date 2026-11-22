@@ -708,3 +708,157 @@ Preserved library semantic controls, main AI IDs, updater close/minimize and the
 for completing those native scenarios. The next candidate contains only the
 reviewed retained language selector, its production-DOM regression tests and this
 journal; production code, frozen validators and all acceptance budgets are intact.
+
+## d39 native results and retained dark-sidebar expectation — 2026-11-22
+
+The reviewed language fixture was committed as
+`d39d910cf8b4219268a57c936833ddba4fde6da1`, exact tree
+`6b0a67f1b3f01d1716fad4c5681c534130018a2a`, with parent0a95. All eight auxiliary
+source workflows passed. The public platform feeds were read again after06:45 UTC:
+all three still identify6.0.36. Source main remains123b7d765b72f3e92e5b5dd8f674a6856d534728;
+publisher main remainsccec613e41622b467ed4f8bfee2a3e9cd5a81831. No published
+package is changed, and all three637 pins remain unready.
+
+### Linux d39: complete acceptance, valid only for these exact bytes
+
+Run44993563876 attempt1/job137119677026 completed successfully. Verification
+artifact14743480683 is40,749,922 bytes, SHA-256
+`18e2dd575de0f0e4cf0d9010e9c3ab68de5bbc6c6bea5683f0dbdaeb70657551`.
+Candidate artifact14742733799 is241,168,489 bytes, SHA-256
+`69f3b1ddbc93db370b8ce80292fda833ac573f98fd9ce7e1d74c727ee8cb4817`.
+Actual AppImage is135,776,083 bytes/SHA-256
+`7ecd354bb38eb798804e4dcd9e356c9c2f48dda5eda72c3166a2d8f47d6d4af0`;
+DEB is105,925,076 bytes/SHA-256
+`9f2b3f5724b882bf8ca3888f3d5d773fa6cbef064e4d9adc3e65498dd1305a9d`.
+
+The complete independent publisher3b `mouse637-linux-evidence.py.verify` passed
+in129.107533752 seconds, with all264 Python validator files bound to their Git
+bytes before and after. Retained gates, strict published636 comparison, actual
+profile replacement/update button,38 frames, restart and trusted native Files
+proofs passed. WRITE9858 and READ11173 retain180 native input receipts and all13
+file phases; the three received payloads are309/116/309 bytes. This result cannot
+accept a later source commit. Saved independent-result JSON SHA-256 is
+`c62d2ede81df72db87849b91912f45e39a6fe49148fbb516ce72eaef9a44479a`.
+
+### Mac d39 attempt1: preserve the failed published636 baseline
+
+Run44993563942 attempt1/job137119676947 failed before candidate native acceptance.
+The actual published636 baseline process25511 completed the20-page scenario and
+all ten50-page switches, but its mandatory final page-identity readback timed out
+on page4 after12000ms. The final50-page identity proof is incomplete. This is a
+preserved failure, not a performance pass, and its cause was not established.
+
+Baseline DMG and installed executable hashes, workflow, verification, baseline,
+upgrade, display and stress paths are identical to the preceding successful0a95
+baseline. Original artifact14743625319 is5,246,561 bytes, SHA-256
+`7b6c81f8556fae20baf0bb0548688b0cd90c01207f6ea622be92f40d5799fe33`;
+the complete977,035-byte job log has SHA-256
+`6bb75048abcb56148facb7db96f8e4f34dba18255678e564c08dc8639b75c1e2`.
+Both were hash-checked and preserved with raw inventory before independently
+reviewing and requesting one complete unchanged repeat at06:33:19 UTC. No budget,
+timeout, workload, fixture or production code was changed for that repeat.
+
+### Mac d39 attempt2: baseline/performance passed; later stale polish assertion
+
+The sole repeat, attempt2/job137121737863, completed FAILURE at06:41:15 UTC. Its
+published636 baseline passed. The original strict637 performance criteria passed:
+20-page median58.977083→52.364542ms and50-page57.029959→60.315542ms. New features
+passed with38 native frames, WRITE31491 and READ32618. The corrected real-pointer
+language chooser passed `MOUSE_FOOTER_CHOOSERS_REAL_CLICK_PASS`; the next library
+geometry/resize/no-reload scenario also passed.
+
+The full retained WRITE process32705 then failed at
+`desktop/mouse-polish-smoke.cjs:35`. Its first theme is dark, but the old assertion
+unconditionally requires Settings `backdropFilter` to contain `blur`. The actual
+production `mouse/sidebar-dim.css`, loaded after `mouse-633.css`, deliberately
+sets dark Settings and Library to the toolbar surface with both backdrop filters
+`none`. This is the combined637 sidebar requirement recorded earlier in this
+journal. Production styling does not need a change to satisfy the old test.
+Failure state records an open nonmodal Settings panel, `overlayBlocked=false`,
+`surfaceHeld=false`, `body.sidebar-dimmed` and a ready renderer with no active
+desktop transition. The computed filter itself was not recorded in that failure
+JSON; the assertion, stylesheet order and actual screenshot establish the stale
+expectation without inventing a raw value.
+
+Attempt2 verification artifact14742694924 is45,754,781 bytes, SHA-256
+`0ecdbb8f0b3a879a54ba596d27bfe66465e17d8b32ef957a3e2e3499e299d4fa`.
+Its378 raw files were safely extracted separately from attempt1. Complete job
+log is1,021,937 bytes, SHA-256
+`85c76a959708e3108f49e3f812d23d1cbb994ec827ecb8479f0b08534533f11b`;
+the failure analysis/inventory SHA-256 is
+`dc15f53ee9c701cb5b4e585bafd7ba7da74e67fedf750125222172979ecae4ea`.
+Package binding/upload was skipped. No full Mac acceptance is claimed and no
+third repeat is requested. The next source must correct this retained expectation
+and pass every platform gate again.
+
+The owner's36 rendering/freezing report remains an unverified physical-Mac
+scenario. Passing runner comparisons and the completed circular-updater images
+do not establish that this case is fixed or that the user's device has updated.
+
+### Windows d39: primary passed; later common source still required
+
+Run44993563841 attempt1/primary137119703836 completed SUCCESS at06:45:24 UTC.
+Installed verification, package binding and both uploads passed. Actual
+verification artifact14743642529 is82,004,514 bytes, SHA-256
+`6d191a26ffd14d481af6b93e224b4309193ddb91a3e657f66b59171c8d3b527c`;
+its701 files were safely extracted after size/digest verification. The complete
+795,486-byte job log has SHA-256
+`00771b1165975a4320f9dd721a4c2fe55b8eecf9e5f4676efcc6c7f802e5d51c`.
+The17-check wrapper is successful, raw SHA-256
+`b1f6b71d78bf5745fffa05c49acbdcbd02a7216a54f029c31d2acc1be2742934`.
+It includes actual update-button replacement and profile/ordinary launch checks.
+Private611 passed in process7428, and all38 feature frames passed across
+WRITE9156/READ8428 with raw report/log hashes matching the wrapper. The native
+strict comparison passed:20-page median53.9128→56.4770ms and50-page60.1214→63.2947ms.
+
+GitHub records candidate artifact14743612511,125,616,160 bytes, SHA-256
+`0f6c274c9ac41899fdc359c42ecb583aab40d3e3697b6fecf1c6d3b567f29d5c`.
+Actual EXE bytes and the full independent publisher gate were not processed for
+this source already blocked by Mac. Modern job137124497761 started at06:45:27
+and was observed in its installed check; no terminal outcome is claimed here.
+The next common source must pass both Windows jobs in one attempt and full
+independent actual-package acceptance. Existing cancel-in-progress may supersede
+unfinished d39 work when that necessary source correction is pushed; cancellation
+must not be counted as success. Provenance SHA-256 is
+`6b882fa41863ed9f30e432af4863b80032c2d3cd1b3da94969d04ca9e05ed1dc`.
+
+### Reviewed version-scoped polish fixture correction
+
+The retained polish scenario now reads the actual installed `MouseNative.version`,
+theme and computed Settings/toolbar surfaces through one renderer call. Only for
+exact6.0.37 in dark theme it requires `backdropFilter === 'none'` and identical
+nonempty computed background image and base color to the actual toolbar. Light
+theme and every other version retain the original blur requirement. The native
+pointer sequence,150ms click wait, polling, sidebar geometry, no-reload identity,
+button spacing, monochrome icon, fullscreen/native menu assertions and pass
+markers are unchanged. Production CSS/code, workflows and publisher validators
+are unchanged; this is a fixture correction, not a rendering-performance patch.
+
+The new focused test executes the exported actual renderer readback and assertion.
+Its owned DOM/CSS harness reads the real stylesheets in `index.html` order and
+resolves only the relevant surface declarations. Positive controls cover actual
+dark637, light637 and retained blur. Negative controls reject changed dark blur,
+gradient/base color, removed sidebar override, wrong exact version, missing
+version and removed light/legacy blur. This limited source/cascade unit test does
+not implement Chromium and does not claim native computed-color/pixel acceptance.
+That remains mandatory in the installed Mac scenario.
+
+Author and root both ran the new test plus existing `mouse-polish.test.cjs` and
+`mouse-621.test.cjs` on Node22.23.5:51/51 PASS, zero skipped. The independent
+reviewer reran the affected new test:5/5 PASS, zero skipped. `git diff --check`
+passed. Frozen reviewed SHA-256 values are `mouse-polish-smoke.cjs`
+`63a02f556d81a83e7899cc845c3f03b6c6a9e34031256025a9a43749b4cb00da`
+and `mouse-637-settings-surface-smoke.test.cjs`
+`efed464d30d0afe6c1a10c21c7664259dff9f72d19732d9532941d1e9f54fc38`.
+The existing unit enumerator automatically includes this new file on all three
+platforms, without a workflow modification.
+
+A separate read-only review followed the remaining Mac smoke order and scanned
+all36 subsequent/nested scenarios for stale sidebar blur, text-tone, library
+label and updater-geometry predicates. Detailed checks covered documents632,
+local628, feedback630, mascot609, badge614, library619, archive620, final and
+AI612. Preserved semantic controls, content-only download names, actual ≥150px
+centered mascot, private-tone adapter and current sidebar bounds remain
+compatible. No further concrete contradiction was found. This source review is
+not execution evidence for the remaining Mac stages; all must still pass on the
+next exact common source. d39 platform successes are preserved as history only.

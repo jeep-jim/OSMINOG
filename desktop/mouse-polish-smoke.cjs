@@ -2,6 +2,20 @@
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),{screen}=require('electron');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){for(let n=0;n<200;n++){if(await fn())return;await sleep(60)}throw Error('Timed out '+label);}
+function settingsSurfaceReadback(){
+ const surface=selector=>{const style=getComputedStyle(document.querySelector(selector));return{backdropFilter:style.backdropFilter,backgroundImage:style.backgroundImage,backgroundColor:style.backgroundColor};};
+ return{version:MouseNative.version,theme:MouseTest.model.theme,settings:surface('#settings-dialog'),toolbar:surface('.toolbar')};
+}
+function assertSettingsSurface(value){
+ assert.equal(typeof value.version,'string','The installed version is read from MouseNative');
+ if(value.version==='6.0.37'&&value.theme==='dark'){
+  assert.equal(value.settings.backdropFilter,'none','637 dark Settings keeps its solid sidebar surface');
+  for(const key of ['backgroundImage','backgroundColor']){
+   assert.equal(typeof value.toolbar[key],'string');assert.notEqual(value.toolbar[key],'');
+   assert.equal(value.settings[key],value.toolbar[key],'637 dark Settings shares the actual toolbar '+key);
+  }
+ }else assert.ok(value.settings.backdropFilter.includes('blur'),'Light and retained Settings keep their backdrop blur');
+}
 module.exports=async({win,browser,overlayGate})=>{
  const js=s=>win.webContents.executeJavaScript(s);
  const click=async selector=>{const p=await js(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`);win.focus();win.webContents.focus();for(const type of ['mouseMove','mouseDown','mouseUp'])win.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});await sleep(150);};
@@ -32,7 +46,7 @@ module.exports=async({win,browser,overlayGate})=>{
   await js(`MouseTest.setTheme('${theme}')`);assert.equal(await js('getComputedStyle(document.querySelector("#contrast-fixture")).filter'),theme==='dark'?'invert(1)':'none');
   await js('MouseTest.action("settings")');await until(async()=>await js('document.querySelector("#settings-dialog").open')&&!overlayGate.blocked,'settings live sidebar');
   const gap=await js('(()=>{const [a,b]=document.querySelectorAll("#settings-dialog .dialog-actions button"),r=a.getBoundingClientRect(),s=b.getBoundingClientRect();return s.top>r.bottom-1?s.top-r.bottom:s.left-r.right})()');assert.ok(gap>=7,'Settings action spacing');
-  assert.ok((await js('getComputedStyle(document.querySelector("#settings-dialog")).backdropFilter')).includes('blur'));
+  assertSettingsSurface(await js('('+settingsSurfaceReadback.toString()+')()'));
   await click('#settings-dialog [data-close-dialog]');
  }
  await js('document.querySelector("#contrast-fixture")?.remove()');
@@ -47,3 +61,4 @@ module.exports=async({win,browser,overlayGate})=>{
  console.log('MOUSE_DYNAMIC_MENU_REVEAL_NO_PERMANENT_BAND_PASS');
  await js('MouseTest.action("bookmarks")');await sleep(150);await fs.writeFile('mouse-605-sidebar-dark.png',(await win.capturePage()).toPNG());await click('#library-close');
 };
+module.exports.fixtures={settingsSurfaceReadback,assertSettingsSurface};
