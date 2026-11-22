@@ -52,7 +52,10 @@ def read_public(path):
     url = origin + path
     with direct.open(url, timeout=20) as response:
         assert response.status == 200 and response.url == url, 'Canonical SEO URL must return 200 directly'
-        assert 'noindex' not in response.headers.get('X-Robots-Tag', '').lower(), 'SEO URL must remain indexable'
+        robot_directives = ','.join(response.headers.get_all('X-Robots-Tag', [])).lower()
+        assert not re.search(r'\b(?:noindex|none)\b', robot_directives), 'SEO URL must remain indexable'
+        if path.endswith('/'):
+            assert response.headers.get_content_type() == 'text/html', 'Page must be served as HTML'
         data = response.read(2 * 1024 * 1024 + 1)
         assert len(data) <= 2 * 1024 * 1024, 'Unexpected SEO response size'
     assert b'github.com' not in data.lower() and b'githubusercontent.com' not in data.lower()
@@ -124,7 +127,7 @@ def verify_download_headers(response):
     headers = '\n'.join(name + ': ' + value for name, value in response.headers.items()).lower()
     # Pages may expose its hosting provider, e.g. x-github-request-id.
     # Reject repository/upstream URLs, not the provider's ordinary response metadata.
-    assert not re.search(r'https?://[^\s]*(?:github\.com|githubusercontent\.com)', headers), 'Upstream URL in download headers'
+    assert not re.search(r'(?:https?:)?//[^\s]*(?:github\.com|githubusercontent\.com)', headers), 'Upstream URL in download headers'
 with (Path(__file__).resolve().parent / 'downloads.json').open() as source:
     installers = json.load(source)['files']
 for item in installers:
@@ -135,11 +138,30 @@ for item in installers:
         assert response.status == 200 and response.url == url
         verify_download_headers(response)
         assert int(response.headers['Content-Length']) == item['size']
+    # Verify the bytes actually served by Pages, not only the advertised size.
+    digest = hashlib.sha256()
+    received = 0
+    prefix = b''
+    with direct.open(url, timeout=30) as response:
+        assert response.status == 200 and response.url == url
+        verify_download_headers(response)
+        assert int(response.headers['Content-Length']) == item['size']
+        while True:
+            block = response.read(min(1024 * 1024, item['size'] - received + 1))
+            if not block:
+                break
+            if received == 0:
+                prefix = block[:16]
+            received += len(block)
+            assert received <= item['size'], 'Public installer exceeds the expected size'
+            digest.update(block)
+    assert received == item['size'], 'Truncated public installer'
+    assert digest.hexdigest() == item['sha256'], 'Public installer SHA256 mismatch'
     request = urllib.request.Request(url, headers={'Range': 'bytes=0-15'})
     with direct.open(request, timeout=30) as response:
         assert response.status == 206 and response.url == url
         verify_download_headers(response)
         assert response.headers['Content-Range'] == 'bytes 0-15/' + str(item['size'])
-        assert len(response.read(17)) == 16
-    print('MOUSE_DIRECT_DOWNLOAD_VERIFIED ' + item['filename'])
-print('MOUSE_PAGES_LIVE_VERIFIED languages=72 downloads=3')
+        assert response.read(17) == prefix, 'Range response must contain the verified installer bytes'
+    print('MOUSE_DIRECT_DOWNLOAD_VERIFIED ' + item['filename'] + ' sha256=' + item['sha256'])
+print('MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3')
