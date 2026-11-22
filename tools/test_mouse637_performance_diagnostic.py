@@ -38,7 +38,10 @@ class DiagnosticIsolationTests(unittest.TestCase):
 
     def test_distinct_cwd_profiles_and_explicit_opt_in_keep_original_failure_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            real = Path(temporary) / 'real'
+            real.mkdir()
+            root = Path(temporary) / 'alias'
+            root.symlink_to(real, target_is_directory=True)
             old = root / 'mouse-637-performance.json'
             failed = b'{"ok":false,"error":"original failed median"}\n'
             old.write_bytes(failed)
@@ -48,7 +51,9 @@ class DiagnosticIsolationTests(unittest.TestCase):
                 result = D.run_child([sys.executable, '-c', child], directory, profile,
                                      profiled=profiled, base_env={D.DIAGNOSTIC_ENV: '1'})
                 state = json.loads((directory / 'child.json').read_text())
-                self.assertEqual(state, {'cwd': str(directory), 'profile': str(profile),
+                # macOS exposes temporary paths through /var -> /private/var;
+                # the child and runner both report their canonical directories.
+                self.assertEqual(state, {'cwd': str(directory.resolve()), 'profile': str(profile.resolve()),
                                          'flag': '1' if profiled else None, 'ci': 'true'})
                 self.assertTrue(result['workloadCompleted'])
                 self.assertTrue(result['diagnosticOnly'])
