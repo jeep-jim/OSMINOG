@@ -2,9 +2,9 @@
 
 ## Status and owner decisions
 
-The existing `mouse.black` landing is published. Publication of this showcase
-change is **pending**; local previews and tests do not establish a production
-deployment.
+The showcase is **published and verified** at <https://mouse.black/>.
+Source commit: `e2df826c6676e98130bdf76489937f3e601368a8`.
+Deployment identity: `4e9f3a6e84b75116d955569b3af581c37cba8262`.
 
 The owner's latest reference replaces the standalone preview card with a wide
 workspace backdrop behind the foreground mouse and burrow. The backdrop fills
@@ -122,8 +122,38 @@ it does not recreate captured images or restart the playback timer. Ordinary
 downward wheel scrolling reaches the download section; upward wheel motion
 over the preview, upward touch gestures and the explicit button expand it.
 
-Before reporting publication complete, run the existing deployment/live gates
-and verify the public showcase JS, CSS and each capture resolve successfully
-from `mouse.black`. The existing live gate alone does not individually fetch
-all newly added showcase assets. Record the actual production source and
-verification outcome after deployment.
+## Production verification
+
+[Website workflow 45032129125](https://github.com/jeep-jim/OSMINOG/actions/runs/45032129125)
+completed successfully. Both `validate` and `website` jobs passed. The external
+live gate completed at 2026-11-22 14:22:02 UTC (21:22:02 Asia/Krasnoyarsk).
+It verified the exact deployed renderer, 72 sitemap URLs, 73 hreflang entries,
+Russian/English/Arabic HTML, HTTPS redirects and all three complete installer
+hashes plus HEAD/Range behavior. An actual subsequent automatic sync execution
+was observed at `2026-11-22T14:20:39.075751+00:00`.
+
+| Platform | Published version | Complete installer SHA256 |
+| --- | --- | --- |
+| macOS arm64 | 6.0.36 | `8688b4db4bd8d9541d93508ecdb3260727d9c6a975f336cfcd2b086caae704fb` |
+| Windows x64 | 6.0.37 | `19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35` |
+| Linux x64 | 6.0.37 | `e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79` |
+
+A separate external HTTP check fetched all nine changed public runtime assets:
+`showcase.js`, `showcase.css`, `showcase-assets.js`, four capture JPEGs,
+`site.css` and `site.js`. Every request returned 200 at the exact same-origin
+URL with the expected MIME type and an exact SHA256 match to the source file.
+The main page retained its Google verification tag, index/follow directive
+and Russian canonical URL; the sitemap returned 200 with 72 same-origin URLs.
+
+The production browser check confirmed the Russian captions, full-screen
+Trading scene with the loaded local chart, Escape return to the landing and
+the visible foreground mouse. Download links showed the per-platform versions
+in the table above. Evidence screenshots are repository documentation only,
+not part of the public website package:
+
+- [Published home page](previews/2026-11-22-showcase-home.jpg)
+- [Published full-screen Trading scene](previews/2026-11-22-showcase-trading.jpg)
+
+The captured and illustrative panels are demonstration content. This record
+does not claim live third-party sessions, native-browser screen recording,
+physical touch-device testing or a resolved VPN routing issue.
