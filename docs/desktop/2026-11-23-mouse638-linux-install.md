@@ -1,5 +1,21 @@
 # Mouse 6.0.38 — Linux installation follow-up
 
+## Accepted Ubuntu 24.04 evidence
+
+Source `e79f14bcee3355efed9ab3dfd2fc65dde5d0eff6` passed both jobs in
+[run 45172737181, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737181).
+Independent publisher e520 accepted the main Linux evidence, rendering/Store
+evidence and Noble evidence. The actual deb is 101,179,068 bytes, SHA256
+`5ac5335d4be1fff1b60ed14c7ee1e8055b5ceb83d1b79a89b2d26b75e6d2fe26`.
+Noble used those same bytes and the main job's ASAR. Its clean dependency
+check took 29.134 seconds, host installation 9.836 seconds, native write
+61.468 seconds and restart/read 1.719 seconds. Both native processes exited
+successfully, with distinct PIDs and unchanged namespace policy.
+
+This accepts that exact source on CI Ubuntu 24.04. The common release remains
+blocked by a separate Windows fixture-cleanup failure; any successor source
+must complete its own native evidence. No owner's Mint-device result is claimed.
+
 ## CI preparation failures and correction — 23 November 2026
 
 Source `02538ac9727bd20a3e2a155fc64ebb7733510c26` passed the main installed
@@ -127,7 +143,6 @@ Local validation after the transport correction: all eighteen Linux Python
 verification/binding tests passed. Actual shell regressions cover trust-field
 preservation, read-only mounts, failed update/install and host exit/log handling.
 The container and host probes pass Bash syntax checking; workflow YAML retains
-separate original and Ubuntu 24.04 verification artifacts. Native Ubuntu 24.04
-execution is pending;
-this record does not claim validation on the owner's Mint device or a public
-6.0.38 release.
+separate original and Ubuntu 24.04 verification artifacts. The accepted Ubuntu 24.04
+execution is recorded above; this record does not claim validation on the owner's
+Mint device or a public 6.0.38 release.

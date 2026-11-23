@@ -1,6 +1,44 @@
 # Mouse 6.0.38 — rendering and Chrome Web Store
 
-## Current native findings and next candidate
+## Current acceptance and Windows cleanup follow-up
+
+Source `e79f14bcee3355efed9ab3dfd2fc65dde5d0eff6` passed
+[Mac CI](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737298) and all seven
+independent Mac publisher groups, including unchanged performance limits.
+[Linux CI](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737181), its clean
+Ubuntu 24.04/native gate and all corresponding independent readers passed.
+[Windows main](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737104/job/137686212239)
+and its complete independent source reader passed. No 6.0.38 release is public.
+
+The additional [modern Windows job](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737104/job/137695135548)
+failed during `TemporaryDirectory` cleanup in `mouse-637-upgrade.py`, when
+deleting `Previous Mouse в637/Mouse Browser.exe` raised `WinError 32`.
+Before cleanup, predecessor PID 8720 and candidate PID 10216 both recorded
+native exit code 0, signal null, application-quit/save markers and successful
+profile probes. Their Node probes returned 0, the closed profile was unchanged
+by replacement, and the retained profile checks passed. The holder of the
+remaining file handle was not recorded. The common upgrade PASS marker was
+not printed and the outer verification failed; these facts are not a passing
+modern result.
+
+The follow-up is limited to bounded cleanup of the owned temporary fixture
+for this Windows sharing violation and truthful failure reporting. Cleanup
+must complete before the overall PASS marker; persistent locks and unrelated
+errors must still fail. Native/profile/update checks and their process budgets
+remain required. The next common source needs fresh native acceptance before
+the authorized Mac → Linux → Windows publication.
+
+The implemented cleanup uses the standard temporary-directory cleanup, with
+at most ten seconds of retries only for Windows error 32 after both successful
+native exits. It records attempts, elapsed time and errors, rejects persistent
+locks and preserves the original native failure if cleanup also fails. The
+overall report is now `ok:false` for a cleanup error. Independent review found
+no publisher-contract change was needed. Local cleanup tests: ten passed;
+the eleventh, a real Windows `CreateFileW` sharing-violation fixture, requires
+Windows and runs through the existing Windows CI test command. Fresh native
+results remain required.
+
+## Earlier native failures and corrections
 
 Source `6c3e52eda0671065a6bcf03084b8a545ee7849d2` includes main `d4185b0` without changing its website files. All installers were built, but native acceptance remains incomplete and no 6.0.38 package is published. Runs: [Mac 45151589578](https://github.com/jeep-jim/OSMINOG/actions/runs/45151589578), [Linux 45151589519](https://github.com/jeep-jim/OSMINOG/actions/runs/45151589519), [Windows 45151589825](https://github.com/jeep-jim/OSMINOG/actions/runs/45151589825).
 

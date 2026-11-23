@@ -8,6 +8,7 @@ This helper is only executed on the native, unprivileged CI installation runner.
 """
 from __future__ import annotations
 import argparse
+from contextlib import contextmanager
 import hashlib
 import importlib.util
 import json
@@ -18,11 +19,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 
 OLD_VERSIONS = {'darwin': '6.0.37', 'win32': '6.0.37', 'linux': '6.0.37'}
 OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.37')
 VERSION = '6.0.38'
+CLEANUP_RETRY_SECONDS = 10.0
 METHOD = 'verified package replacement and actual old/new profile processes; retained629 gate tests updater'
 LINUX_METHOD = 'verified deb and AppImage replacement with actual old/new profile processes'
 BASELINES = {
@@ -42,6 +45,70 @@ BASELINES = {
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def cleanup_owned_directory(temporary, evidence):
+    """Retry only a sharing violation on this owned directory after native exit."""
+    rows = [evidence.get(key) for key in ('oldWrite', 'newRead')]
+    results = [row.get('result') if isinstance(row, dict) else None for row in rows]
+    exited = all(isinstance(result, dict) and result.get('ok') is True
+                 and type(result.get('pid')) is int and result['pid'] > 0
+                 and isinstance(result.get('nativeExit'), dict)
+                 and type(result.get('nativeExit', {}).get('code')) is int
+                 and result.get('nativeExit') == {'code': 0, 'signal': None} for result in results)
+    started = time.monotonic()
+    deadline = started + CLEANUP_RETRY_SECONDS
+    receipt = {'ok': False, 'attempts': 0, 'retryBudgetMs': CLEANUP_RETRY_SECONDS * 1000,
+               'nativeExitsVerified': exited, 'errors': []}
+    evidence['cleanup'] = receipt
+    last_error = None
+    try:
+        while True:
+            if last_error is not None and time.monotonic() >= deadline:
+                raise last_error
+            receipt['attempts'] += 1
+            try:
+                # The standard cleanup detaches its finalizer before rmtree;
+                # failed explicit cleanup cannot trigger an unbounded GC retry.
+                temporary.cleanup()
+            except OSError as error:
+                details = {'attempt': receipt['attempts'], 'elapsedMs': round((time.monotonic() - started) * 1000, 3),
+                           'type': type(error).__name__, 'winerror': getattr(error, 'winerror', None), 'message': str(error)}
+                receipt['errors'].append(details)
+                print('MOUSE_638_UPGRADE_CLEANUP_ATTEMPT_FAILED ' + json.dumps(details), flush=True)
+                remaining = deadline - time.monotonic()
+                if sys.platform != 'win32' or getattr(error, 'winerror', None) != 32 or not exited or remaining <= 0:
+                    raise
+                last_error = error
+                time.sleep(min(0.25, remaining))
+                continue
+            if last_error is not None and time.monotonic() >= deadline:
+                raise TimeoutError('Owned upgrade directory cleanup exceeded its retry deadline')
+            receipt.update(ok=True, elapsedMs=round((time.monotonic() - started) * 1000, 3))
+            print('MOUSE_638_UPGRADE_CLEANUP_PASS ' + json.dumps(receipt), flush=True)
+            return
+    except BaseException as error:
+        evidence['ok'] = False
+        receipt.update(elapsedMs=round((time.monotonic() - started) * 1000, 3),
+                       error={'type': type(error).__name__, 'winerror': getattr(error, 'winerror', None), 'message': str(error)})
+        print('MOUSE_638_UPGRADE_CLEANUP_FAIL ' + json.dumps(receipt), flush=True)
+        raise
+
+
+@contextmanager
+def owned_upgrade_directory(evidence):
+    temporary = tempfile.TemporaryDirectory(prefix='mouse637-upgrade-', dir=os.environ.get('RUNNER_TEMP'))
+    try:
+        yield Path(temporary.name)
+    except BaseException as body_error:
+        evidence['ok'] = False
+        try:
+            cleanup_owned_directory(temporary, evidence)
+        except BaseException as cleanup_error:
+            body_error.add_note('Owned upgrade directory cleanup also failed: ' + str(cleanup_error))
+        raise
+    else:
+        cleanup_owned_directory(temporary, evidence)
 
 
 def sha256(file):
@@ -206,8 +273,7 @@ def main(argv=None):
     evidence = {'ok': False, 'fromVersion': OLD_VERSION, 'toVersion': VERSION, 'platform': sys.platform,
                 'physicalUserDeviceVerified': False}
     try:
-        with tempfile.TemporaryDirectory(prefix='mouse637-upgrade-', dir=os.environ.get('RUNNER_TEMP')) as temporary:
-            root = Path(temporary)
+        with owned_upgrade_directory(evidence) as root:
             if sys.platform == 'linux':
                 require(candidate.is_dir(), 'Linux upgrade requires both candidate packages')
                 packages = {format_: candidate / ('Mouse-Browser-' + VERSION + '-Linux-x64.' + extension)
@@ -223,6 +289,7 @@ def main(argv=None):
             else:
                 transition(candidate, BASELINES[sys.platform], root, output, node, facts=evidence)
     except Exception as error:
+        evidence['ok'] = False
         evidence['error'] = {'type': type(error).__name__, 'message': str(error)}
         raise
     finally:
