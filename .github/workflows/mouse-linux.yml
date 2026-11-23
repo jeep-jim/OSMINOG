@@ -131,10 +131,25 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install native Ubuntu 24.04 test session tools
+        timeout-minutes: 3
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb openbox xdotool x11-utils dbus-x11 pulseaudio apparmor
-          test "$(id -u)" -ne 0
+          set -euo pipefail
+          set +e
+          timeout --signal=TERM --kill-after=5s 120s bash -euo pipefail -c '
+            export DEBIAN_FRONTEND=noninteractive
+            apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1)
+            printf "%s\n" MOUSE_NOBLE_HOST_APT_UPDATE
+            sudo -n apt-get "${apt_options[@]}" update --error-on=any
+            printf "%s\n" MOUSE_NOBLE_HOST_APT_INSTALL
+            sudo -n --preserve-env=DEBIAN_FRONTEND apt-get "${apt_options[@]}" install -y xvfb openbox xdotool x11-utils dbus-x11 pulseaudio apparmor
+            test "$(id -u)" -ne 0
+            printf "%s\n" MOUSE_NOBLE_HOST_TOOLS_PASS
+          ' 2>&1 | tee mouse-linux-noble-host-tools.log
+          results=("${PIPESTATUS[@]}")
+          set -e
+          printf 'MOUSE_NOBLE_HOST_TOOLS_EXIT timeout=%s tee=%s\n' "${results[0]}" "${results[1]}" | tee -a mouse-linux-noble-host-tools.log
+          if test "${results[0]}" -ne 0; then exit "${results[0]}"; fi
+          exit "${results[1]}"
       - name: Check clean package dependencies and native Ubuntu 24.04 launch
         run: |
           dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1100x24' bash -euo pipefail -c '

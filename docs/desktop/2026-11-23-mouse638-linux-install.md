@@ -1,5 +1,48 @@
 # Mouse 6.0.38 — Linux installation follow-up
 
+## CI preparation failures and correction — 23 November 2026
+
+Source `02538ac9727bd20a3e2a155fc64ebb7733510c26` passed the main installed
+Linux job in both attempts of [run 45154295105](https://github.com/jeep-jim/OSMINOG/actions/runs/45154295105).
+Both actual package archives were also accepted by the independent publisher
+Linux and rendering/Store readers. The additional Ubuntu 24.04 gate did not
+complete, so these results do not authorize publication yet.
+
+- Attempt 1, Noble job `137628954314`: the clean container's APT update fetched
+  33.9 MB in 436 seconds. Dependency installation had started when the existing
+  480-second limit expired; `ldd` and native Ubuntu 24.04 launch were not reached.
+- Attempt 2, Noble job `137640791827`: host `apt-get update` selected the runner's
+  AWS cloud mirror, then tried its HTTPS archive fallback. Its last download
+  line was at 10:48:59 UTC; the job was cancelled at 11:08:56 by the existing
+  20-minute limit. Host-tool installation and the verifier never started.
+  There is no Noble verification artifact for attempt 2.
+
+The logs establish stalled dependency preparation, without identifying a
+particular network failure or a Mouse runtime defect. The runner's mirror
+selection is defined in the pinned
+[official runner-images source](https://github.com/actions/runner-images/blob/0e63d4f9d2c29043b4cf1d2f40d1812a7cde1369/images/ubuntu/scripts/build/configure-apt-sources.sh).
+The failed attempts remain retained separately from any successor evidence.
+
+The successor changes only CI dependency preparation. Host APT now has
+15-second HTTP/HTTPS inactivity limits, one retry and a 120-second outer
+bootstrap deadline. Its dedicated log records update/install progress and
+the actual command and log-writer exit statuses; the workflow step retains
+time to save that evidence on failure.
+
+The clean container receives only a read-only mirror configuration, preferring
+the runner's known cloud mirror and retaining the image's HTTP archive/security
+fallbacks. This avoids requiring an extra CA package in the minimal image.
+Only the Ubuntu repository URIs change; suites, components, keyring and
+`Signed-By` remain intact. APT still verifies signed indexes and packages, and
+an incomplete update is an error. Source files, mirror bytes and their hashes
+are logged. No host package database, indexes or libraries enter the container.
+
+The sole explicit package install remains `/candidate.deb` with
+`--no-install-recommends`. The 480/180/300/100-second dependency, installation
+and native-process limits, full `ldd` checks, sandbox/profile checks and the
+20-minute job limit are unchanged. The successor still needs a complete
+fresh Ubuntu 24.04 result before release.
+
 ## Owner report
 
 On 23 November 2026 the owner clarified that Linux installation does not work
@@ -49,8 +92,11 @@ restoration in a different process. Restricted-user-namespace hosts must have
 the package's matching AppArmor profile. Host namespace policy is recorded
 before and after and must stay unchanged. No test changes the owner's machine.
 
-Local validation: seven Python verification/binding tests passed, the container
-probe passes Bash syntax checking, and workflow YAML has separate original and
-Ubuntu 24.04 verification artifacts. Native Ubuntu 24.04 execution is pending;
+Local validation after the transport correction: all fourteen Linux Python
+verification/binding tests passed. Actual shell regressions cover trust-field
+preservation, read-only mounts, failed update/install and host exit/log handling.
+The container and host probes pass Bash syntax checking; workflow YAML retains
+separate original and Ubuntu 24.04 verification artifacts. Native Ubuntu 24.04
+execution is pending;
 this record does not claim validation on the owner's Mint device or a public
 6.0.38 release.

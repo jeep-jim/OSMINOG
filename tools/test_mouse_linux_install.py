@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -9,10 +10,122 @@ spec = importlib.util.spec_from_file_location('mouse_linux_install', Path(__file
 install = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(install)
 
+SOURCES = '''# URI in a comment stays https://archive.ubuntu.com/ubuntu/
+Types: deb
+URIs: http://archive.ubuntu.com/ubuntu/
+Suites: noble noble-updates noble-backports
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+Types: deb
+URIs:\thttps://security.ubuntu.com/ubuntu/  http://archive.ubuntu.com/ubuntu
+Suites: noble-security
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+Check-Valid-Until: yes
+
+Types: deb
+URIs: https://example.invalid/http://archive.ubuntu.com/ubuntu/
+Suites: unchanged
+Signed-By: /keep/this/keyring
+'''
+
+
+def bootstrap_script():
+    lines = (Path(__file__).parents[1] / '.github/workflows/mouse-linux.yml').read_text().splitlines()
+    start = lines.index('      - name: Install native Ubuntu 24.04 test session tools')
+    stop = next(i for i in range(start + 1, len(lines)) if lines[i].startswith('      - '))
+    run = next(i for i in range(start, stop) if lines[i] == '        run: |')
+    return '\n'.join(line[10:] for line in lines[run + 1:stop]) + '\n'
+
 
 class CleanInstallBindingTests(unittest.TestCase):
     def test_dependency_probe_is_valid_bash(self):
         subprocess.run(['bash', '-n'], input=install.CLEAN_INSTALL, text=True, check=True)
+
+    def test_cloud_mirror_is_selected_without_tls_bootstrap_or_untrusted_sources(self):
+        for host in ('azure.archive.ubuntu.com', 'us-east-2.ec2.archive.ubuntu.com'):
+            raw = (f'http://{host}/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\n'
+                   'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
+            self.assertEqual(install.apt_mirrors(raw),
+                             f'http://{host}/ubuntu/\tpriority:1\n'
+                             'http://archive.ubuntu.com/ubuntu/\tpriority:2\n'
+                             'http://security.ubuntu.com/ubuntu/\tpriority:3\n')
+        fallback = install.apt_mirrors('')
+        for unsafe in ('file:/host/packages', 'http://user@azure.archive.ubuntu.com/ubuntu/',
+                       'https://azure.archive.ubuntu.com.evil/ubuntu/', 'http://azure.archive.ubuntu.com:80/ubuntu/',
+                       'http://azure.archive.ubuntu.com/ubuntu/?trusted=yes'):
+            with self.subTest(unsafe=unsafe):
+                self.assertEqual(install.apt_mirrors(unsafe), fallback)
+
+    def test_actual_shell_changes_only_ubuntu_uri_tokens_and_preserves_trust_fields(self):
+        with tempfile.TemporaryDirectory() as root:
+            sources, mirrors = Path(root) / 'ubuntu.sources', Path(root) / 'mirrors.txt'
+            sources.write_text(SOURCES); sources.chmod(0o644)
+            mirrors.write_text(install.apt_mirrors(''))
+            before_hash = install.VERIFY.sha256(sources)
+            command = ['bash', '-euo', 'pipefail', '-c', install.APT_SOURCE_SETUP +
+                       '\nconfigure_apt_transport "$1" "$2"', 'probe', str(sources), str(mirrors)]
+            result = subprocess.run(command, text=True, capture_output=True, check=True)
+            expected = SOURCES.replace('URIs: http://archive.ubuntu.com/ubuntu/', f'URIs: mirror+file:{mirrors}')
+            expected = expected.replace('URIs:\thttps://security.ubuntu.com/ubuntu/  http://archive.ubuntu.com/ubuntu',
+                                        f'URIs:\tmirror+file:{mirrors}  mirror+file:{mirrors}')
+            self.assertEqual(sources.read_text(), expected)
+            self.assertEqual(sources.stat().st_mode & 0o777, 0o644)
+            self.assertIn(before_hash, result.stdout)
+            self.assertIn(install.VERIFY.sha256(sources), result.stdout)
+            self.assertIn(install.VERIFY.sha256(mirrors), result.stdout)
+            subprocess.run(command, text=True, capture_output=True, check=True)
+            self.assertEqual(sources.read_text(), expected, 'Reapplying the same transport is idempotent')
+
+    def test_unknown_sources_fail_before_any_source_mutation(self):
+        with tempfile.TemporaryDirectory() as root:
+            sources, mirrors = Path(root) / 'ubuntu.sources', Path(root) / 'mirrors.txt'
+            original = 'Types: deb\nURIs: http://example.invalid/ubuntu/\nSigned-By: /original/key\n'
+            sources.write_text(original); mirrors.write_text(install.apt_mirrors(''))
+            result = subprocess.run(['bash', '-euo', 'pipefail', '-c', install.APT_SOURCE_SETUP +
+                                     '\nconfigure_apt_transport "$1" "$2"', 'probe', str(sources), str(mirrors)],
+                                    env={**os.environ, 'TMPDIR': root}, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 24)
+            self.assertEqual(sources.read_text(), original)
+
+    def test_docker_receives_only_candidate_and_transport_readonly_mounts(self):
+        with tempfile.TemporaryDirectory(prefix='mouse apt ') as root:
+            deb, mirrors = Path(root) / 'candidate.deb', Path(root) / 'mirrors.log'
+            command = install.clean_dependency_command(deb, mirrors)
+            self.assertEqual(command[:4], ['docker', 'run', '--rm', '--pull=always'])
+            self.assertEqual([command[i + 1] for i, word in enumerate(command) if word == '--mount'],
+                             [f'type=bind,src={deb},dst=/candidate.deb,readonly',
+                              f'type=bind,src={mirrors},dst={install.MIRROR_TARGET},readonly'])
+            self.assertEqual(command[8:], ['ubuntu:24.04', 'bash', '-c', install.CLEAN_INSTALL,
+                                          'mouse-clean-install', '/etc/apt/sources.list.d/ubuntu.sources', install.MIRROR_TARGET])
+            with self.assertRaisesRegex(RuntimeError, 'unsupported separator'):
+                install.clean_dependency_command(Path(root) / 'bad,readonly=false.deb', mirrors)
+
+    def test_apt_errors_abort_actual_clean_script_before_success_marker(self):
+        for failed_phase, code in [('update', 41), ('install', 42)]:
+            with self.subTest(phase=failed_phase), tempfile.TemporaryDirectory() as root:
+                directory = Path(root); binary = directory / 'bin'; binary.mkdir()
+                sources, mirrors, calls = directory / 'ubuntu.sources', directory / 'mirrors.txt', directory / 'calls'
+                sources.write_text(SOURCES); mirrors.write_text(install.apt_mirrors(''))
+                apt = binary / 'apt-get'
+                apt.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$APT_CALLS"\n'
+                               'case " $* " in *" $APT_FAIL "*) exit "$APT_EXIT";; esac\n')
+                apt.chmod(0o755)
+                result = subprocess.run(['bash', '-c', install.CLEAN_INSTALL, 'probe', str(sources), str(mirrors)],
+                                        env={**os.environ, 'PATH': str(binary) + os.pathsep + os.environ['PATH'],
+                                             'TMPDIR': root, 'APT_CALLS': str(calls), 'APT_FAIL': failed_phase, 'APT_EXIT': str(code)},
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, code, result.stderr)
+                self.assertNotIn('MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS', result.stdout)
+                commands = calls.read_text().splitlines()
+                self.assertEqual(len(commands), 1 if failed_phase == 'update' else 2)
+                self.assertIn('update --error-on=any', commands[0])
+                for command in commands:
+                    for option in ('Acquire::http::Timeout=15', 'Acquire::https::Timeout=15', 'Acquire::Retries=1'):
+                        self.assertIn(option, command)
+                if failed_phase == 'install':
+                    self.assertTrue(commands[1].endswith('install --no-install-recommends -y /candidate.deb'))
 
     def test_install_rejects_bytes_or_source_that_differ_from_native_candidate(self):
         with tempfile.TemporaryDirectory() as root:
@@ -32,6 +145,39 @@ class CleanInstallBindingTests(unittest.TestCase):
             deb.write_bytes(b'package-byte-binding-mutated')
             with self.assertRaisesRegex(RuntimeError, 'package bytes'):
                 install.verify_manifest(manifest, deb, source)
+
+
+class HostBootstrapTests(unittest.TestCase):
+    def test_workflow_bootstrap_has_valid_bash(self):
+        subprocess.run(['bash', '-n'], input=bootstrap_script(), text=True, check=True)
+
+    def test_workflow_preserves_apt_failure_timeout_and_success_through_tee(self):
+        for phase, expected in [('update', 43), ('install', 44), ('timeout', 124), ('success', 0)]:
+            with self.subTest(phase=phase), tempfile.TemporaryDirectory() as root:
+                directory = Path(root); binary = directory / 'bin'; binary.mkdir()
+                sudo = binary / 'sudo'
+                sudo.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$APT_CALLS"\n'
+                                'case " $* " in *" $APT_FAIL "*) exit "$APT_EXIT";; esac\n')
+                sudo.chmod(0o755)
+                (binary / 'id').write_text('#!/bin/bash\nprintf "1001\\n"\n'); (binary / 'id').chmod(0o755)
+                if phase == 'timeout':
+                    (binary / 'timeout').write_text('#!/bin/bash\nexit 124\n'); (binary / 'timeout').chmod(0o755)
+                calls = directory / 'calls'
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', bootstrap_script()], cwd=directory,
+                                        env={**os.environ, 'PATH': str(binary) + os.pathsep + os.environ['PATH'],
+                                             'APT_CALLS': str(calls), 'APT_FAIL': phase, 'APT_EXIT': str(expected)},
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, expected, result.stderr)
+                log = (directory / 'mouse-linux-noble-host-tools.log').read_text()
+                self.assertIn(f'MOUSE_NOBLE_HOST_TOOLS_EXIT timeout={expected} tee=0', log)
+                self.assertEqual('MOUSE_NOBLE_HOST_TOOLS_PASS' in log, phase == 'success')
+                if phase == 'update':
+                    self.assertNotIn('MOUSE_NOBLE_HOST_APT_INSTALL', log)
+                if phase != 'timeout':
+                    for command in calls.read_text().splitlines():
+                        self.assertIn('Acquire::http::Timeout=15', command)
+                        self.assertIn('Acquire::https::Timeout=15', command)
+                        self.assertIn('Acquire::Retries=1', command)
 
 
 if __name__ == '__main__':

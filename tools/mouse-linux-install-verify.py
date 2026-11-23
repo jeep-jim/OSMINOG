@@ -19,10 +19,54 @@ SPEC = importlib.util.spec_from_file_location("mouse_linux_verify", Path(__file_
 VERIFY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VERIFY)
 
+MIRROR_TARGET = "/etc/apt/mouse638-mirrors.txt"
+
+# Keep the image's suites, components and Ubuntu keyring. Only repository
+# transport changes; the host contributes no package lists, database or libs.
+APT_SOURCE_SETUP = r'''configure_apt_transport() {
+  local sources="$1" mirrors="$2" prepared
+  test -s "$sources"
+  test -s "$mirrors"
+  printf '%s\n' MOUSE_APT_MIRRORS
+  cat "$mirrors"
+  sha256sum "$mirrors"
+  printf '%s\n' MOUSE_APT_SOURCES_BEFORE
+  cat "$sources"
+  sha256sum "$sources"
+  prepared="$(mktemp)"
+  awk -v replacement="mirror+file:$mirrors" '
+    tolower($1) == "uris:" {
+      rest = $0; result = ""
+      while (match(rest, /[^[:space:]]+/)) {
+        result = result substr(rest, 1, RSTART - 1)
+        token = substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART + RLENGTH)
+        if (token ~ /^https?:\/\/(archive|security)\.ubuntu\.com\/ubuntu\/?$/) {
+          token = replacement; matched++
+        } else if (token == replacement) matched++
+        result = result token
+      }
+      print result rest; next
+    }
+    { print }
+    END { if (!matched) exit 24 }
+  ' "$sources" > "$prepared"
+  cat "$prepared" > "$sources"
+  rm -- "$prepared"
+  printf '%s\n' MOUSE_APT_SOURCES_AFTER
+  cat "$sources"
+  sha256sum "$sources"
+}
+'''
+
 CLEAN_INSTALL = r'''set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install --no-install-recommends -y /candidate.deb
+''' + APT_SOURCE_SETUP + r'''
+configure_apt_transport "${1:?Ubuntu sources file required}" "${2:?Mirror list required}"
+apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1)
+printf 'MOUSE_APT_OPTIONS'; printf ' %s' "${apt_options[@]}"; printf '\n'
+apt-get "${apt_options[@]}" update --error-on=any
+apt-get "${apt_options[@]}" install --no-install-recommends -y /candidate.deb
 test "$(dpkg-query -W -f='${Version}' mouse-browser)" = 6.0.38
 executable="$(readlink -f /usr/bin/mouse-browser)"
 test -x "$executable"
@@ -37,6 +81,37 @@ while IFS= read -r -d '' library; do
 done < <(find "$(dirname "$executable")" -type f \( -name '*.so' -o -name '*.node' \) -print0)
 printf '%s\n' MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS
 '''
+
+
+def apt_mirrors(runner_list):
+    """Use the runner's known cloud mirror, with the image's HTTP fallbacks.
+
+    The minimal Ubuntu image need not contain a CA bundle. HTTP retains APT's
+    signed-index/package verification without installing bootstrap packages.
+    """
+    mirrors = []
+    for line in runner_list.splitlines():
+        words = line.split()
+        if not words or words[0].startswith("#"):
+            continue
+        cloud = re.fullmatch(r"https?://(azure\.archive\.ubuntu\.com|us-east-2\.ec2\.archive\.ubuntu\.com)/ubuntu/?", words[0])
+        if cloud:
+            uri = "http://" + cloud[1] + "/ubuntu/"
+            if uri not in mirrors:
+                mirrors.append(uri)
+    mirrors += ["http://archive.ubuntu.com/ubuntu/", "http://security.ubuntu.com/ubuntu/"]
+    return "".join(f"{uri}\tpriority:{index}\n" for index, uri in enumerate(mirrors, 1))
+
+
+def clean_dependency_command(deb, mirrors):
+    paths = [str(Path(value).resolve()) for value in (deb, mirrors)]
+    VERIFY.require(all("," not in value and "\n" not in value and "\r" not in value for value in paths),
+                   "Docker bind paths contain an unsupported separator")
+    return ["docker", "run", "--rm", "--pull=always",
+            "--mount", f"type=bind,src={paths[0]},dst=/candidate.deb,readonly",
+            "--mount", f"type=bind,src={paths[1]},dst={MIRROR_TARGET},readonly",
+            "ubuntu:24.04", "bash", "-c", CLEAN_INSTALL, "mouse-clean-install",
+            "/etc/apt/sources.list.d/ubuntu.sources", MIRROR_TARGET]
 
 
 def policy_state():
@@ -78,9 +153,14 @@ def main(argv=None):
                 "package": {"name": deb.name, "size": deb.stat().st_size, "sha256": VERIFY.sha256(deb)},
                 "policyBefore": before}
     try:
+        runner_mirrors = Path("/etc/apt/apt-mirrors.txt")
+        mirror_file = output / "mouse-linux-noble-apt-mirrors.log"
+        mirror_file.write_text(apt_mirrors(runner_mirrors.read_text() if runner_mirrors.is_file() else ""), encoding="utf-8")
+        evidence["aptTransport"] = {"runnerMirrorList": str(runner_mirrors),
+                                    "runnerMirrorListSha256": VERIFY.sha256(runner_mirrors) if runner_mirrors.is_file() else None,
+                                    "mirrors": mirror_file.name, "mirrorsSha256": VERIFY.sha256(mirror_file)}
         evidence["cleanDependencies"] = VERIFY.run_logged(
-            ["docker", "run", "--rm", "--pull=always", "--mount", f"type=bind,src={deb},dst=/candidate.deb,readonly",
-             "ubuntu:24.04", "bash", "-c", CLEAN_INSTALL], dict(os.environ), output,
+            clean_dependency_command(deb, mirror_file), dict(os.environ), output,
             "mouse-linux-clean-dependencies.log", 480, ["MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS"])
         evidence["containerImage"] = json.loads(subprocess.check_output(
             ["docker", "image", "inspect", "ubuntu:24.04", "--format", "{{json .RepoDigests}}"], text=True))
