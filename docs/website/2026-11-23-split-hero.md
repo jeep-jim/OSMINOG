@@ -21,4 +21,14 @@ On 2026-11-23 the owner requested a first screen that demonstrates split browsin
 
 ## Publication receipt
 
-Pending the existing OSMINOG own-user website workflow and independent live verification. Record the published source, run and live screenshot here after success.
+Published and independently verified on 2026-11-23 at 14:34 Krasnoyarsk time (07:34 UTC).
+
+- Source `2e8717d4d7c1dcc1c0ba21dbe631b9e2a7940250`; tree `a49b596f468009cf5e526e448661e102fb92603f` exactly matched the locally reviewed tree. Main was updated non-force against expected parent `023034e8ded27ba23418af2f9f630fe22635281c` and read back.
+- Own-user [website run 45131836807](https://github.com/jeep-jim/OSMINOG/actions/runs/45131836807) completed successfully: validation job `137548869918` and publication job `137548984896` both passed.
+- Deployment identity `ca76397ec1ed4ee788ee5080eb46ec3a13ab14b5`. The installed release timer completed a new check for this source at `2026-11-23T07:34:02.501479+00:00`; the workflow confirmed `MOUSE_WEBSITE_AUTOMATION_LIVE https://mouse.black`.
+- Independent external verification completed at `2026-11-23T07:34:45Z`: HTTPS and canonical redirects, exact Russian/English/Arabic HTML, 72 sitemap languages, 73 language-graph entries and all three complete installer SHA256 values passed. Receipt: `MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3`.
+- Public macOS, Windows and Linux downloads remain 6.0.37 and are served from mouse.black. This change did not publish a browser release.
+- Artifact `14797609657`, `mouse-website-deployment-evidence`, 2298 bytes; ZIP SHA256 `8e423a716dc0e7f29c92d00f20eb02f48a35d6a184362469b90e9c5338a51ab1`.
+- Live browser review of [the Russian landing](https://mouse.black/ru/) confirmed both 645 × 782 px windows at 1348 px content width, no horizontal overflow, the ordinary-text monthly price and three same-domain download links. [Live screenshot](evidence/2026-11-23-split-hero-live.jpg), SHA256 `fa90105512c522688a2b9c992f7bc9b82554cda689d57c3039323c9cc220c087`.
+
+The local preview was stopped after verification. Subscription checkout and entitlements remain unimplemented and are labelled coming soon.
