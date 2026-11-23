@@ -92,16 +92,22 @@
 .showcase-fallback figure { margin: 0; overflow: hidden; border: 1px solid var(--showcase-stroke); border-radius: 7px; }
 .showcase-fallback figcaption { height: 29px; padding: 8px; background: var(--showcase-panel); font: 11px/1 var(--body-font); }
 .showcase-fallback img { display: block; width: 100%; height: calc(100% - 29px); object-fit: cover; object-position: top; filter: grayscale(1); }
-/* A single browser toolbar holds every control; the mouse owns the foreground. */
+/* The complete presentation occupies the right window; fullscreen keeps its own chrome. */
 .hero-visual .showcase { position: absolute; inset: 0; margin: 0; }
-.hero-visual .showcase-dock { position: absolute; inset: 104px 18px 0; }
+.hero-visual .showcase-dock { position: absolute; inset: 0; }
 .showcase-dock .showcase-experience { height: 100%; }
-.showcase-dock .showcase-canvas { -webkit-mask-image: linear-gradient(#000 0%, #000 54%, rgb(0 0 0 / .65) 76%, transparent 100%); mask-image: linear-gradient(#000 0%, #000 54%, rgb(0 0 0 / .65) 76%, transparent 100%); }
-.showcase-dock .showcase-capture { opacity: .62; }
-.showcase-dock .showcase-pane:is(:hover, .is-hovered, .is-grabbed, .is-zoomed) .showcase-capture { opacity: 1; }
-.showcase-dock .showcase-pane-head { opacity: .8; }
+.showcase-dock .showcase-frame { border: 1px solid var(--line); border-radius: 12px; }
+.showcase-dock .showcase-chrome { gap: 8px; border: 0; border-bottom: 1px solid var(--line); border-radius: 11px 11px 0 0; }
+.showcase-dock .showcase-chrome-name, .showcase-dock .showcase-caption-text { display: none; }
+.showcase-dock .showcase-mode-trigger { gap: 6px; padding-inline: 4px; }
+.showcase-dock .showcase-canvas { margin: 6px; }
+.showcase-dock .showcase-capture { opacity: 1; }
+.showcase-dock .showcase-service-host { display: none; }
 .showcase-dock .showcase-nora { display: none; }
-.showcase-dock .showcase-cursor { opacity: .85; }
+@container hero-preview (min-width: 740px) {
+  .showcase-dock .showcase-caption-text { display: block; }
+  .showcase-dock .showcase-service-host { display: block; }
+}
 /* The viewer is the same DOM, expanded into a keyboard-accessible dialog. */
 .showcase-dialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); border: 0; background: var(--paper); color: var(--ink); overflow: hidden; }
 .showcase-dialog::backdrop { background: rgb(0 0 0 / .9); }
@@ -121,7 +127,6 @@
 @keyframes showcase-open { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes showcase-click { from { opacity: .8; transform: scale(.4); } to { opacity: 0; transform: scale(1.5); } }
 @media (max-width: 760px) {
-  .hero-visual .showcase-dock { inset: 92px 10px 0; }
   .showcase-chrome { gap: 7px; padding-inline: 7px; flex-basis: 42px; }
   .showcase-chrome-name { display: none; }
   .showcase-caption-text { display: none; }

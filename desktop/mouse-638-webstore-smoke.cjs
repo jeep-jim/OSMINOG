@@ -10,7 +10,7 @@ const readRuntime=()=>({url:location.href,title:document.title,mode:document.doc
 function storeReadback(){
  const visible=e=>{const r=e.getBoundingClientRect();return r.width>2&&r.height>2&&getComputedStyle(e).visibility!=='hidden';};
  const buttons=[...document.querySelectorAll('button,[role="button"]')].filter(visible),button=buttons.find(e=>/^Add to (?:Chrome|Mouse(?: Browser)?)$/i.test(e.textContent.trim()));
- const selector=e=>{const chain=[];for(let at=e;at&&at.nodeType===1;at=at.parentElement){chain.unshift(at.localName+':nth-child('+([...at.parentElement?.children||[]].indexOf(at)+1)+')');if(at===document.documentElement)break;}return chain.join(' > ');};
+ const selector=e=>{const chain=[];for(let at=e;at&&at.nodeType===1;at=at.parentElement){if(at===document.documentElement){chain.unshift(at.localName);break;}chain.unshift(at.localName+':nth-child('+([...at.parentElement?.children||[]].indexOf(at)+1)+')');}return chain.join(' > ');};
  return{url:location.href,title:document.title,api:typeof globalThis.chrome?.webstorePrivate?.beginInstallWithManifest3,button:button?{selector:selector(button),text:button.textContent.trim(),disabled:!!button.disabled||button.getAttribute('aria-disabled')==='true',...(()=>{const r=button.getBoundingClientRect();return{bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};})()}:null,buttons:buttons.map(e=>e.textContent.trim()).filter(Boolean).slice(0,24)};
 }
 module.exports=async ctx=>{
@@ -110,3 +110,4 @@ module.exports=async ctx=>{
   restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  }
 };
+module.exports.fixtures={storeReadback};
