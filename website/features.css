@@ -229,7 +229,8 @@
   font-size: clamp(128px, 18vw, 208px);
   font-weight: 400;
   line-height: 1.1;
-  letter-spacing: -.045em;
+  /* Native side bearings leave exactly one 140-unit square in the 1000-unit font. */
+  letter-spacing: 0;
   direction: ltr;
   unicode-bidi: isolate;
 }

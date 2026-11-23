@@ -50,17 +50,33 @@ module.exports=async ctx=>{
   return{tree,slots};
  }
  async function capture(filename,options={}){
-  const {probes=[],reference=false,meta={}}=options;assert.match(filename,/^mouse-638-[a-z0-9-]+\.png$/);await fixture.frame();
+  const {probes=[],reference=false,meta={},popupWindow}=options;assert.match(filename,/^mouse-638-[a-z0-9-]+\.png$/);await fixture.frame();
   const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();
   assert.equal(globalCapture.permission(),process.platform==='darwin'?'granted':'not-required');
+  const popupState=()=>popupWindow.isDestroyed()?{visible:false,bounds:null}:{visible:popupWindow.isVisible(),bounds:popupWindow.getBounds()};
   let last,png,full;const attempts=[];
   for(let attempt=1;attempt<=6;attempt++){
+   const popupBefore=popupWindow?popupState():null;
    const frame=await bounded(globalCapture.acquire(display),4500,'638 OS display readback');assert.equal(frame.kind,'screen');assert.ok(frame.backend);
-   full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64');const screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=nativeImage.createFromBuffer(full).crop(geometry.cropPixels);
+   const popupAfter=popupWindow?popupState():null;
+   full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64');const screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),displayImage=nativeImage.createFromBuffer(full),image=displayImage.crop(geometry.cropPixels);
    png=image.toPNG({scaleFactor:1});const pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)},bitmap=image.toBitmap({scaleFactor:1});
    const observed=probes.map(probe=>{const value=sample(bitmap,pixelSize,geometry.mapping,probe.point);return{...probe,x:value.x,y:value.y,actualRGBA:value.rgba,tolerance:3};});
-   const accepted=observed.every(p=>p.actualRGBA[3]===255&&p.expectedRGB.every((n,i)=>Math.abs(n-p.actualRGBA[i])<=3));attempts.push({attempt,accepted});
-   last={filename,displayFilename:filename.replace(/\.png$/,'-display.png'),source:'globalCapture.acquire(display)',kind:'screen',backend:frame.backend,pid:process.pid,bytes:png.length,sha256:sha256(png),displaySha256:sha256(full),screenPixelSize,pixelSize,contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},...geometry,probes:observed,attempts,meta};
+   let popup;
+   if(popupWindow){
+    const bounds=popupAfter.bounds,visible=popupBefore.visible&&popupAfter.visible,stable=!!bounds&&!!popupBefore.bounds&&['x','y','width','height'].every(k=>Number.isFinite(bounds[k])&&bounds[k]===popupBefore.bounds[k])&&bounds.width>0&&bounds.height>0,levels=[];
+    if(stable){
+     const mapping={scaleX:screenPixelSize.width/display.bounds.width,scaleY:screenPixelSize.height/display.bounds.height,originX:-display.bounds.x*screenPixelSize.width/display.bounds.width,originY:-display.bounds.y*screenPixelSize.height/display.bounds.height},points=[];
+     for(const fx of [.1,.25,.5,.75,.9])for(const fy of [.1,.25,.5,.75,.9])points.push({x:bounds.x+bounds.width*fx,y:bounds.y+bounds.height*fy});
+     if(points.every(p=>{const x=Math.floor(mapping.originX+p.x*mapping.scaleX),y=Math.floor(mapping.originY+p.y*mapping.scaleY);return x>=0&&y>=0&&x<screenPixelSize.width&&y<screenPixelSize.height;})){
+      const pixels=displayImage.toBitmap({scaleFactor:1});for(const point of points)levels.push(sample(pixels,screenPixelSize,mapping,point).rgba.slice(0,3).reduce((sum,n)=>sum+n,0));
+     }
+    }
+    const range=levels.length===25?Math.max(...levels)-Math.min(...levels):null;
+    popup={before:popupBefore,after:popupAfter,bounds,visible,stable,levels,range,accepted:visible&&stable&&range!==null&&range>=45};
+   }
+   const accepted=observed.every(p=>p.actualRGBA[3]===255&&p.expectedRGB.every((n,i)=>Math.abs(n-p.actualRGBA[i])<=3))&&(!popupWindow||popup.accepted);attempts.push({attempt,accepted,...(popup?{popup}:{})});
+   last={filename,displayFilename:filename.replace(/\.png$/,'-display.png'),source:'globalCapture.acquire(display)',kind:'screen',backend:frame.backend,pid:process.pid,bytes:png.length,sha256:sha256(png),displaySha256:sha256(full),screenPixelSize,pixelSize,contentBounds,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},...geometry,probes:observed,attempts,...(popup?{popup}:{}),meta:{...meta,...(popup?.bounds?{bounds:popup.bounds}:{})}};
    if(accepted)break;await sleep(40);
   }
   await fs.writeFile(filename,png);await fs.writeFile(last.displayFilename,full);
@@ -124,14 +140,20 @@ module.exports=async ctx=>{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),'Mouse Browser');assert.ok(browser.mousePageTone);
   assert.ok([['darwin','arm64'],['win32','x64'],['linux','x64']].some(([p,a])=>p===process.platform&&a===process.arch));
   if(read){facts=JSON.parse(await fs.readFile(REPORT,'utf8'));assert.equal(facts.version,VERSION);assert.equal(facts.writeComplete,true);assert.equal(facts.awaitingRestart,true);assert.notEqual(facts.writePid,process.pid);assert.equal(facts.profile,path.resolve(app.getPath('userData')));facts.phase='read';facts.restart={pid:process.pid,writePid:facts.writePid,budgetMs,startedAt:Date.now()};}
+  if(read)await stage('appearance-preferences-restart',async()=>{
+   const shell=source=>bounded(win.webContents.executeJavaScript(source),12000,'feedback638-read shell JS'),deadline=performance.now()+15000;let ready=false;
+   do{ready=await shell('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest');if(ready)break;await sleep(25);}while(performance.now()<deadline);
+   assert.ok(ready,'638 ready');
+   // Record persisted preferences before createFixture saves or changes any UI.
+   facts.restart.appearance=await shell('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},stored:JSON.parse(localStorage.getItem("mouseAppearance"))})');
+   assert.deepEqual(facts.restart.appearance,{theme:'dark',appearance:{paneMode:'square',whiteTone:0},stored:{paneMode:'square',whiteTone:0}});await save();
+  });
   facts.profileIsolated=true;nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());
   fixture=await createFixture({...ctx,nativeInput},read?'feedback638-read':'feedback638-write',budgetMs);await fixture.until(()=>js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest'),'638 ready',15000);
   initial=read?facts.initial:await js('(async()=>({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},zoom:(await MouseNative.zoom("state")).factor}))()');facts.initial=initial;
   server=http.createServer((request,response)=>{response.setHeader('Cache-Control','no-store');if(request.url==='/tone'){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(tonePage());return;}const match=/^\/page\/(\d+)\/$/.exec(request.url);if(match){response.setHeader('Content-Type','text/html; charset=utf-8');response.end(pageHTML(Number(match[1])));return;}response.statusCode=404;response.end('owned fixture not found');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;
-  if(read){
-   await stage('appearance-and-website-restart',async()=>{const restored=await js('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},stored:JSON.parse(localStorage.getItem("mouseAppearance"))})');assert.deepEqual(restored,{theme:'dark',appearance:{paneMode:'square',whiteTone:0},stored:{paneMode:'square',whiteTone:0}});facts.restart.appearance=restored;const record=await fixture.open(base+'/tone',31,{prepare:false});await layout([record]);facts.restart.tone=await toneCapture(record,'restored',160);});
-  }else{
+  if(!read){
    await stage('eight-live-panes-both-styles-and-themes',async()=>{
     const records=[];for(let index=1;index<=8;index++)records.push(await fixture.open(base+'/page/'+index+'/',index));await layout(records);facts.gridInitial=await Promise.all(records.map(fixture.identity));
     for(const [mode,theme]of [['rounded','dark'],['rounded','light'],['square','light'],['square','dark']]){await appearance(mode,100,theme);await gridCapture(records,mode+'-'+theme);}
@@ -158,6 +180,14 @@ module.exports=async ctx=>{
    });
   }
   await stage(read?'live-chrome-web-store-restart':'live-chrome-web-store-install',async()=>{facts.webStore??={};const value=await require('./mouse-638-webstore-smoke.cjs')({...ctx,fixture,nativeInput,click,capture,facts,read,save});facts.webStore[read?'restart':'write']=value;await save();});
+  if(read)await stage('appearance-and-website-restart',async()=>{
+   // Restored Dark Reader also transforms colours. Finish its complete native
+   // restart/removal lifecycle before opening the independent PageTone document.
+   assert.equal(facts.webStore.restart.removed,true);
+   facts.restart.appearanceAfterStore=await js('({theme:MouseTest.model.theme,appearance:{...MouseTest.model.appearance},stored:JSON.parse(localStorage.getItem("mouseAppearance"))})');
+   assert.deepEqual(facts.restart.appearanceAfterStore,facts.restart.appearance);await save();
+   const record=await fixture.open(base+'/tone',31,{prepare:false});await layout([record]);facts.restart.tone=await toneCapture(record,'restored',160);
+  });
   await closeStarts();facts.cleanup=await fixture.cleanup();facts.cleanup.ownedStartTabsClosed=ownedStartTabs.length;fixture=null;
   if(read){await win.webContents.executeJavaScript(`MouseTest.setAppearance(${JSON.stringify(initial.appearance)});MouseTest.setTheme(${JSON.stringify(initial.theme)});MouseTest.zoomUI.change("set",${initial.zoom});MouseFlush()`);await store.queue;facts.ok=true;facts.restored=true;facts.awaitingRestart=false;facts.restart.completedAt=Date.now();facts.restart.elapsedMs=Date.now()-started;}
   else{await win.webContents.executeJavaScript('MouseTest.setAppearance({paneMode:"square",whiteTone:0});MouseTest.setTheme("dark");MouseFlush()');await store.queue;facts.writeComplete=true;facts.awaitingRestart=true;facts.writeElapsedMs=Date.now()-started;}

@@ -4,9 +4,15 @@
 // permission response or renderer-dispatched click is used here.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http'),{createHash}=require('node:crypto');
 const {detailID}=require('./mouse-web-store.cjs');
+const {bounded}=require('./mouse-631-smoke-helpers.cjs');
 const ID='eimadpbcbfnmbkopoojfekhnkhdbieeh',STORE_URL='https://chromewebstore.google.com/detail/dark-reader/'+ID+'?hl=en';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const readRuntime=()=>({url:location.href,title:document.title,mode:document.documentElement.getAttribute('data-darkreader-mode'),scheme:document.documentElement.getAttribute('data-darkreader-scheme'),styles:[...document.querySelectorAll('style.darkreader')].map(s=>({className:s.className,bytes:s.textContent.length})),background:getComputedStyle(document.querySelector('#owned-white')).backgroundColor,color:getComputedStyle(document.querySelector('#owned-white')).color,originalBackground:document.querySelector('#owned-white').style.backgroundColor,text:document.querySelector('#owned-white').textContent});
+function popupReadback(){
+ const element=document.querySelector('.loader'),style=element&&getComputedStyle(element),loader=element?{className:element.className,hidden:!!element.hidden,display:style.display,visibility:style.visibility}:null,buttons=document.querySelectorAll('button').length,text=document.body.innerText;
+ return{url:location.href,title:document.title,id:chrome.runtime.id,version:chrome.runtime.getManifest().version,text:text.slice(0,400),buttons,fontsStatus:document.fonts.status,loader,
+  ready:buttons>0&&text.length>40&&(!loader||loader.hidden||loader.display==='none'||loader.visibility==='hidden')};
+}
 function storeReadback(){
  const navigator=globalThis.navigator,data=navigator?.userAgentData;
  const userAgentData=data?{brands:Array.from(data.brands||[],({brand,version})=>({brand,version})),mobile:data.mobile,platform:data.platform}:null;
@@ -89,9 +95,13 @@ module.exports=async ctx=>{
   await openManager();if(!entry().pinned){await click(row+' [data-action="set-pinned"]');await fixture.until(()=>entry()?.pinned,'638 pinned store extension');}await closeManager();
   await fixture.until(()=>js(`!!document.querySelector(${JSON.stringify(pin)})`),'638 actual toolbar action');value.actionInput=await click(pin);
   let popup;await fixture.until(()=>{popup=compat.instance.api.browserAction.popup;return popup&&!popup.isDestroyed()&&popup.browserWindow?.isVisible();},'638 real extension action popup',15000);await popup.whenReady();
-  const wc=popup.browserWindow.webContents;await fixture.until(()=>wc.executeJavaScript('document.querySelectorAll("button").length>0&&document.body.innerText.length>40'),'638 live Dark Reader popup UI',15000);
-  value.action=await wc.executeJavaScript('({url:location.href,title:document.title,id:chrome.runtime.id,version:chrome.runtime.getManifest().version,text:document.body.innerText.slice(0,400),buttons:document.querySelectorAll("button").length})');assert.equal(value.action.id,ID);assert.equal(value.action.version,entry().version);assert.ok(value.action.url.startsWith('chrome-extension://'+ID+'/'));
-  value.action.bounds=popup.browserWindow.getBounds();value.action.capture=(await capture('mouse-638-webstore-action-'+(read?'restart':'write')+'.png',{meta:{kind:'webstore-action',extensionId:ID,bounds:value.action.bounds}})).filename;
+  const wc=popup.browserWindow.webContents,popupDeadline=performance.now()+15000;
+  // The signed popup renders controls before its own loader transition ends.
+  // Observe that state and its own renderer frames without changing its styles.
+  await fixture.until(async()=>(await wc.executeJavaScript(`(${popupReadback.toString()})()`)).ready,'638 live Dark Reader popup UI',15000);
+  await bounded(wc.executeJavaScript('(async()=>{await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true;})()'),Math.max(1,popupDeadline-performance.now()),'638 popup fonts and renderer frame');
+  value.action=await wc.executeJavaScript(`(${popupReadback.toString()})()`);assert.equal(value.action.ready,true);assert.equal(value.action.id,ID);assert.equal(value.action.version,entry().version);assert.ok(value.action.url.startsWith('chrome-extension://'+ID+'/'));
+  const actionCapture=await capture('mouse-638-webstore-action-'+(read?'restart':'write')+'.png',{popupWindow:popup.browserWindow,meta:{kind:'webstore-action',extensionId:ID}});value.action.bounds=actionCapture.popup.bounds;value.action.capture=actionCapture.filename;
   // Focusing the main window closes the production popup. Disable/enable are
   // real manager buttons, followed by ordinary reloads to verify content hooks.
   await openManager();await click(row+' [data-action="set-enabled"]');await fixture.until(()=>entry()?.enabled===false,'638 Web Store extension disabled');await closeManager();
@@ -137,4 +147,4 @@ module.exports=async ctx=>{
   restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  }
 };
-module.exports.fixtures={storeReadback,installControlReadback,installProgressReadback};
+module.exports.fixtures={storeReadback,installControlReadback,installProgressReadback,popupReadback};

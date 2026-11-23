@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {storeReadback,installControlReadback}=require('./mouse-638-webstore-smoke.cjs').fixtures;
+const {storeReadback,installControlReadback,popupReadback}=require('./mouse-638-webstore-smoke.cjs').fixtures;
 
 function fixture(){
  const nodes=[];
@@ -70,4 +70,14 @@ test('serialized Mouse install readback retains unavailable and hidden states in
  }
  f.manager.open=false;assert.equal(f.read().managerOpen,false);delete f.model.slots.p1;assert.equal(f.read().tabId,null);
  f.context.document.querySelector=()=>null;assert.equal(f.read(),null);
+});
+
+test('popup readback waits for its original loader to disappear even when live controls and text already exist',()=>{
+ let loader={className:'loader loader--complete',hidden:false},style={display:'block',visibility:'visible',backgroundColor:'rgba(20, 30, 36, 0)'};
+ const context={location:{href:'chrome-extension://owned/ui/popup/index.html'},chrome:{runtime:{id:'owned',getManifest:()=>({version:'4.9.135'})}},getComputedStyle:element=>{assert.equal(element,loader);return style;},document:{title:'Dark Reader settings',body:{innerText:'Loading, please wait\nDark Reader\n'+ 'actual control '.repeat(8)},fonts:{status:'loaded'},querySelector:selector=>{assert.equal(selector,'.loader');return loader;},querySelectorAll:selector=>{assert.equal(selector,'button');return Array.from({length:25});}}};
+ const read=()=>JSON.parse(JSON.stringify(vm.runInNewContext('('+popupReadback.toString()+')()',context))),before=JSON.stringify({loader,style});
+ let value=read();assert.equal(value.buttons,25);assert.equal(value.ready,false,'A transparent but transitioning loader is not completion');assert.equal(JSON.stringify({loader,style}),before);
+ style.display='none';value=read();assert.equal(value.ready,true);assert.equal(value.loader.display,'none');assert.equal(value.fontsStatus,'loaded');assert.equal(value.id,'owned');assert.equal(value.version,'4.9.135');
+ style.display='block';style.visibility='hidden';assert.equal(read().ready,true);style.visibility='visible';loader.hidden=true;assert.equal(read().ready,true);loader=null;assert.equal(read().ready,true);
+ context.document.querySelectorAll=()=>[];assert.equal(read().ready,false);context.document.querySelectorAll=()=>[{}];context.document.body.innerText='Loading';assert.equal(read().ready,false);
 });
