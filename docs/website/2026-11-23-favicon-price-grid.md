@@ -21,4 +21,13 @@ Owner request on 2026-11-23: remove the favicon badge/outline, use a large black
 
 ## Publication
 
-Pending the website deployment workflow and independent live verification.
+Published and independently verified on 2026-11-23 at 16:47 Krasnoyarsk time (09:47 UTC).
+
+- Source `17e4efab943a1d224d83cbe130972732371e86ec`, tree `770b825f346fb895089f8411567c3f524d8d0dbf` exactly matched the reviewed tree. Non-force main update used expected parent `c931d5af9cbe93dc1f7719346c5f6f0c1a3f70ec` and was read back.
+- [Website run 45149880782](https://github.com/jeep-jim/OSMINOG/actions/runs/45149880782): validation job `137608306113` and publication job `137608445906` both successful.
+- Deployment `7cf062eea56e614594010b2800f9baddc020eef6`; release timer checked this source at `2026-11-23T09:47:04.400157+00:00`, followed by `MOUSE_WEBSITE_AUTOMATION_LIVE https://mouse.black`.
+- Independent live gate at `2026-11-23T09:47:48Z`: HTTPS/canonical redirects, Russian/English/Arabic HTML, 72 sitemap languages, 73 language graph entries and all three complete installer SHA256 values passed: `MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3`. Official public downloads remain 6.0.37 on mouse.black.
+- Evidence artifact `14805218381`, 2301 bytes, ZIP SHA256 `33dd08f6900237e35b61f8377a723e3317418f158faabe90051bc1bb87d5f151`.
+- Live Chromium review of [the Russian pricing section](https://mouse.black/ru/#pricing) confirmed the new versioned favicon link, native price spacing at 208 px, and footer/about edges x=114..1234 at document width 1348 px. [Live screenshot](evidence/2026-11-23-favicon-price-grid-live.jpg), SHA256 `c92f83917ca857cb38fc72df826e69d390e51b40d7bd23c6fa65c53e4dfcf055`.
+
+No physical-device or Safari-specific favicon cache test was performed. The website's browser theme signal is the reported `prefers-color-scheme` preference. The local preview was stopped after verification.
