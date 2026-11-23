@@ -2,6 +2,18 @@
 (() => {
   'use strict';
   const root = document.documentElement;
+  // The tab icon follows the browser's preference, independently of the page switch.
+  const favicon = document.getElementById('site-favicon');
+  if (favicon && typeof window.matchMedia === 'function') {
+    const browserTheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const syncFavicon = () => {
+      const path = browserTheme.matches ? '/favicon-dark.svg' : '/favicon.svg';
+      favicon.setAttribute('href', path + '?v=20261123-3');
+    };
+    syncFavicon();
+    if (browserTheme.addEventListener) browserTheme.addEventListener('change', syncFavicon);
+    else browserTheme.addListener(syncFavicon);
+  }
   const themeKey = 'mouse.black.theme';
   const languageKey = 'mouse.black.language';
   const i18n = window.MOUSE_I18N || { languages: [{ code: 'ru', name: 'Русский', dir: 'ltr' }], messages: {} };
