@@ -66,7 +66,7 @@ function installMouseWebStore({app,browser,win,ipcMain,dialog,extensions,isAvail
    // Navigation after the completed transaction cannot undo its truthful result.
    // Only send the guest notification while the original owner is still current.
    try{if(valid())notify(wc,'installed',installed);}catch{}return{result:'success'};
-  }catch(error){receipt.result=error.code==='USER_CANCELLED'?'user_cancelled':'install_error';return{result:receipt.result,message:/^(?:CRX_|USER_CANCELLED)/.test(error.code||'')||/^(?:В Mouse|Поддерживаются|Темы, приложения|Расширения доступны|Страница установки|Не удалось прочитать|Расширение не загрузилось)/.test(error.message)?error.message:'Не удалось установить расширение. Проверьте подключение и повторите.'};}
+  }catch(error){receipt.result=error.code==='USER_CANCELLED'?'user_cancelled':'install_error';receipt.failedAt=Date.now();receipt.error={code:String(error.code||'').slice(0,100),message:String(error.message||error).slice(0,2000)};return{result:receipt.result,message:/^(?:CRX_|USER_CANCELLED)/.test(error.code||'')||/^(?:В Mouse|Поддерживаются|Темы, приложения|Расширения доступны|Страница установки|Не удалось прочитать|Расширение не загрузилось)/.test(error.message)?error.message:'Не удалось установить расширение. Проверьте подключение и повторите.'};}
   finally{browserPending.delete(controller);if(pending.get(wc)===controller)pending.delete(wc);}
  }
  async function invoke(event,method,args=[]){

@@ -8,7 +8,7 @@
 
 - Исходники: [jeep-jim/OSMINOG](https://github.com/jeep-jim/OSMINOG); публикация: [jeep-jim/OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена — отдельный проект; её доступы и workflows не использовать.
 - Продукт: `desktop/mouse-main.cjs`, `mouse-preload.cjs`, `mouse-update.cjs`, `mouse-build.cjs`, `desktop/mouse/`. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
-- [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203), ветка `fix/mouse638-ordered-release`. Сверять свежий head/checks; предыдущий `7b10a86` не прошёл Store и Mac performance.
+- [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203), ветка `fix/mouse638-ordered-release`. Сверять свежий head/checks; `5f4f962` прошёл Mac pixels/performance, Store остановился до согласия.
 - Документы задачи: [638: графика и Store](docs/desktop/2026-11-23-mouse638-rendering-webstore.md), [638: установка Linux](docs/desktop/2026-11-23-mouse638-linux-install.md).
 
 ## Решения владельца
@@ -25,7 +25,7 @@
 - **Mac:** исправлен пропущенный native export `paneCorners`; число свойств вычисляется из массива, сборка проверяет экспорты.
 - **Linux:** AppImage открылся через «Открыть с помощью» в Mint 22.3/X11; причина сбоя запуска не доказана. `.deb` уже существовал. Добавлены зависимости `libgbm1`, `libasound2t64 | libasound2` и проверка Ubuntu 24.04. Sandbox и политику user namespaces не отключать.
 
-Локально: **1276 passed, 0 failed, 4 native skipped** из 1280. Python638: 16/16. Shared-core ранее: 176 passed, пять socket-случаев блокирует EPERM среды. Нативная приёмка не завершена. Publisher [PR72](https://github.com/jeep-jim/OSMINOG-Releases/pull/72) объединён; 120 тестов прошли, pins `ready:false`.
+Локально: **1285 passed, 0 failed, 4 native skipped** из 1289. Python638: 16/16. Shared-core ранее: 176 passed, пять socket-случаев блокирует EPERM среды. Нативная приёмка не завершена. Publisher [PR72](https://github.com/jeep-jim/OSMINOG-Releases/pull/72) объединён; 120 тестов прошли, pins `ready:false`.
 
 ## Завершение выпуска
 

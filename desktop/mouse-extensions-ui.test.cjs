@@ -58,10 +58,10 @@ test('the browser install control appears only for a verified current store page
  const request=f.calls.find(c=>c.action==='install-store-page');
  assert.equal(request.args.tabId,f.tabId);assert.deepEqual(Object.keys(request.args),['tabId'],'The renderer never chooses an extension ID or download URL');
  assert.equal(f.nodes.get('mouse-extensions-status').textContent,'Установка отменена.');assert.equal(f.install.disabled,false);
- f.result={result:'install_error',extensions:[]};f.install.onclick();await f.flush();
- assert.match(f.nodes.get('mouse-extensions-status').textContent,/Не удалось/);assert.equal(f.install.disabled,false);
+ f.result={result:'install_error',message:'Поддерживаются расширения Chrome Manifest V3.',extensions:[]};f.install.onclick();await f.flush();
+ assert.equal(f.nodes.get('mouse-extensions-status').textContent,f.result.message);assert.equal(f.nodes.get('mouse-extensions-status').dataset.result,'install_error');assert.equal(f.install.disabled,false);
  f.result={result:'success',extensions:[{id:'a'.repeat(32),name:'Installed extension',enabled:true,pinned:false}]};
- f.install.onclick();await f.flush();assert.equal(f.install.disabled,true);assert.equal(f.install.textContent,'Установлено в Mouse');
+ f.install.onclick();await f.flush();assert.equal(f.install.disabled,true);assert.equal(f.install.textContent,'Установлено в Mouse');assert.equal(f.nodes.get('mouse-extensions-status').dataset.result,'success');
  f.root.lang='en';f.observe();assert.equal(f.install.textContent,'Installed in Mouse');
  assert.match(f.nodes.get('mouse-extensions-note').textContent,/return to this menu/);
 });

@@ -126,3 +126,11 @@ test('navigation after the synchronous Store commit preserves the completed inst
  f.afterInstall=async()=>{assert.equal(f.bridge.installEvidence(f.wc).result,'success');assert.ok(f.bridge.installEvidence(f.wc).completeAt);f.wc.url=f.frame.url='https://example.com/';f.wc.emit('did-start-navigation',{},f.wc.url,false,true);};
  f.shellGesture();assert.equal((await f.bridge.installFromBrowser('owned')).result,'success');assert.equal(f.extensions.state()[0].enabled,true);assert.equal(f.bridge.installEvidence(f.wc).completionSource,'browser-control');assert.equal(sent,0);f.bridge.dispose();
 });
+
+test('a failed Store download retains its exact internal diagnostic without presenting it as installation success',async()=>{
+ const f=fixture();f.beforeInstall=async()=>{throw Object.assign(Error('Redirect was cancelled'),{code:'ERR_TEST_REDIRECT'});};f.shellGesture();
+ const result=await f.bridge.installFromBrowser('owned'),receipt=f.bridge.installEvidence(f.wc);
+ assert.equal(result.result,'install_error');assert.match(result.message,/Не удалось установить/);assert.doesNotMatch(result.message,/ERR_TEST_REDIRECT|Redirect was cancelled/);
+ assert.deepEqual(receipt.error,{code:'ERR_TEST_REDIRECT',message:'Redirect was cancelled'});assert.ok(receipt.failedAt>=receipt.beginAt);
+ assert.equal(receipt.completeAt,undefined);assert.deepEqual(f.extensions.state(),[]);f.bridge.dispose();
+});

@@ -27,13 +27,13 @@ globalThis.createMouseExtensionsUI=({N,showDialog,placeTab,currentTab=()=>undefi
   }catch{if(epoch===storePageEpoch){storePage=null;renderStorePage();}}
  }
  async function run(action,args,focusId){
-  if(busy||privateMode())return;busy=true;install.disabled=true;store.disabled=true;renderStorePage();status.textContent='';
+  if(busy||privateMode())return;busy=true;install.disabled=true;store.disabled=true;renderStorePage();status.textContent='';status.dataset.result=action==='install-store-page'?'pending':'';status.dataset.detail='';
   try{const state=await N.extensions(action,args);if(privateMode())return;
    if(action==='open-page'||action==='open-store'){if(modal.open)modal.close();await placeTab?.(state);return;}
    entries=Array.isArray(state)?state:Array.isArray(state?.extensions)?state.extensions:[];
-   if(action==='install-store-page')status.textContent=state?.result==='success'?copy().installed:state?.result==='user_cancelled'?copy().cancelled:copy().error;
+   if(action==='install-store-page'){status.dataset.result=state?.result||'install_error';status.textContent=state?.result==='success'?copy().installed:state?.result==='user_cancelled'?copy().cancelled:typeof state?.message==='string'&&state.message?state.message.slice(0,500):copy().error;}
    available=true;render();if(focusId)list.querySelectorAll('.mouse-extension-row').forEach(row=>{if(row.dataset.id===focusId)row.focus()});
-  }catch(e){if(!privateMode()&&action!=='state')status.textContent=copy().error;}
+  }catch(e){if(!privateMode()&&action!=='state'){status.textContent=copy().error;if(action==='install-store-page'){status.dataset.result='ipc_error';status.dataset.detail=String(e?.message||e).slice(0,1000);}}}
   finally{busy=false;install.disabled=false;store.disabled=false;renderStorePage();}
  }
  function render(){
@@ -67,7 +67,7 @@ globalThis.createMouseExtensionsUI=({N,showDialog,placeTab,currentTab=()=>undefi
   }
  }
  async function open(from,id){
-  if(!available||privateMode()||modal.open)return;opener=from;clearStorePage();status.textContent='';render();toggle.setAttribute('aria-expanded','true');
+  if(!available||privateMode()||modal.open)return;opener=from;clearStorePage();status.textContent='';status.dataset.result='';status.dataset.detail='';render();toggle.setAttribute('aria-expanded','true');
   try{await showDialog(modal);await refreshStorePage();if(id)list.querySelectorAll('.mouse-extension-row').forEach(row=>{if(row.dataset.id===id)row.focus()});}
   catch{toggle.setAttribute('aria-expanded','false');}
  }

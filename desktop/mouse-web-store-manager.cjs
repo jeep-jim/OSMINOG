@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs/promises'),path=require('node:path'),{createHash,randomUUID}=require('node:crypto');
 const {ID,LIMITS,downloadCrx,verifyCrx,archiveFiles,extractVerified}=require('./mouse-extension-crx.cjs');
+const {createStoreFetch}=require('./mouse-web-store-fetch.cjs');
 const UUID=/^[a-f0-9-]{36}$/,HASH=/^[a-f0-9]{64}$/;
 const digest=b=>createHash('sha256').update(b).digest('hex');
 const text=value=>typeof value==='string'&&value.length<=200&&!/[\x00-\x1f\u202a-\u202e\u2066-\u2069]/.test(value)?value:'';
@@ -33,8 +34,9 @@ function permissionText(info){
   'Разрешения: '+(info.permissions.join(', ')||'нет')+'\n'+(info.optionalPermissions.length||info.optionalSites.length?'Дополнительный доступ — только после отдельного запроса.\n':'')+
   'Расширение работает в обычном профиле. Доступ к локальным файлам и приватным окнам выключен. Некоторые API Google Chrome в Mouse могут быть недоступны.';
 }
-function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onUnload=()=>{},onChanged=()=>{},chromeVersion=process.versions.chrome}){
+function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onUnload=()=>{},onChanged=()=>{},chromeVersion=process.versions.chrome,request}){
  const root=path.join(storage,'web-store'),packages=path.join(root,'packages'),registry=path.join(root,'registry.json');
+ const fetchStore=createStoreFetch({session,request});
  let entries=[],initialized=false,queue=Promise.resolve();const loaded=new Map();
  const serial=fn=>{const result=queue.then(fn);queue=result.catch(()=>{});return result;};
  const allowed=()=>{if(!isAvailable())throw Error('Расширения доступны только в обычном режиме');};
@@ -74,7 +76,7 @@ function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onU
   installStore:(id,{valid=()=>true,signal,onCommit=()=>{}}={})=>serial(async()=>{
    allowed();await init();if(!ID.test(id))throw Error('Некорректный ID расширения');const guard=()=>{allowed();if(!valid()||signal?.aborted)throw Error('Страница установки изменилась. Повторите установку из магазина.');};guard();
    const old=entries.find(e=>e.id===id);if(old&&loaded.has(id)){onCommit();return state();}if(entries.length>=80&&!old)throw Error('Достигнут предел числа расширений');
-   const crx=await downloadCrx({fetch:session.fetch.bind(session),id,chromeVersion,signal});guard();
+   const crx=await downloadCrx({fetch:fetchStore,id,chromeVersion,signal});guard();
    const files=archiveFiles(crx.archive),manifest=JSON.parse(files.get('manifest.json').toString()),info=inspectStoreManifest(manifest,files);
    const decision=await dialog.showMessageBox(win,{type:'question',title:'Установить расширение из Chrome Web Store?',message:info.name+' '+info.version,detail:permissionText(info),buttons:['Отмена','Установить расширение'],defaultId:0,cancelId:0,noLink:true});guard();
    if(decision.response!==1){const error=Error('Установка отменена');error.code='USER_CANCELLED';throw error;}

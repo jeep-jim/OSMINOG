@@ -21,6 +21,10 @@ function installControlReadback(){
  const r=button.getBoundingClientRect(),style=getComputedStyle(button);
  return{selector,tabId:MouseTest.model.slots[MouseTest.model.active]||null,managerOpen:!!manager?.open,text:button.textContent.trim(),disabled:!!button.disabled,visible:!button.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&r.width>2&&r.height>2,bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};
 }
+function installProgressReadback(){
+ const status=document.querySelector('#mouse-extensions-status');
+ return{result:status?.dataset.result||'',message:status?.textContent||'',detail:status?.dataset.detail||''};
+}
 module.exports=async ctx=>{
  const {app,win,browser,extensions,dialog,webStore,fixture,nativeInput,click,capture,facts,read,save}=ctx,compat=ctx.extensionCompatibility||ctx.extensionCompat;
  assert.equal(process.env.CI,'true');assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE||''));assert.equal(app.isPackaged,true);assert.ok(extensions&&dialog&&compat&&webStore);
@@ -114,7 +118,13 @@ module.exports=async ctx=>{
    await fixture.until(async()=>{out.installControl=await js(`(${installControlReadback.toString()})()`);return out.installControl?.managerOpen&&out.installControl.visible&&!out.installControl.disabled&&out.installControl.tabId===record.id;},'638 production Install in Mouse control',15000);
    out.installPath='browser-control';out.installControl.capture=(await capture('mouse-638-webstore-install-control.png',{meta:{kind:'webstore-install-control',tabId:record.id,extensionId:ID,shellWebContentsId:win.webContents.id}})).filename;
    observeConsent();out.installInput=await click('#mouse-extensions-install-page');assert.equal(out.installInput.tabId,null);out.nativeInstallClick=out.installInput.events.some(e=>e.type==='click'&&e.trusted&&e.matches);
-   await fixture.until(()=>{if(consentError)throw consentError;return entry()?.enabled&&out.consent?.response===1;},'638 signed live CRX install after native consent',85000);
+   await fixture.until(async()=>{
+    out.bridge=webStore.installEvidence(guest);out.installStatus=await js(`(${installProgressReadback.toString()})()`);out.managerState=extensions.state();
+    if(consentError)throw consentError;
+    const failure=out.bridge?.result&&out.bridge.result!=='success'?out.bridge.result:out.installStatus.result&&!['pending','success'].includes(out.installStatus.result)?out.installStatus.result:null;
+    if(failure)throw Error('638 Store installation '+failure+': '+(out.bridge?.error?.message||out.installStatus.detail||out.installStatus.message));
+    return out.bridge?.result==='success'&&!!out.bridge.completeAt&&entry()?.enabled&&out.consent?.response===1;
+   },'638 verified Store installation and native consent',85000);
    await fixture.until(()=>webStore.installEvidence(guest)?.completeAt,'638 production browser-control installation completion',15000);
    out.bridge=webStore.installEvidence(guest);assert.equal(out.bridge.requestSource,'browser-control');assert.equal(out.bridge.completionSource,'browser-control');assert.equal(out.bridge.tabId,record.id);assert.equal(out.bridge.webContentsId,guest.id);assert.equal(out.bridge.nativeGestureWebContentsId,win.webContents.id);assert.equal(out.bridge.extensionId,ID);assert.equal(out.bridge.result,'success');assert.equal(out.bridge.nativeGestureType,'mouseDown');assert.equal(out.bridge.url,out.storeURL);assert.ok(out.bridge.completeAt>=out.bridge.beginAt);
    out.nativeConsent=out.consent.originalNativeDialog&&out.consent.response===1&&!!out.consent.input&&!!out.consent.capture;assert.equal(out.nativeConsent,true);assert.equal(out.consent.message,entry().name+' '+entry().version);out.evidence=await evidence();out.installed=true;
@@ -127,4 +137,4 @@ module.exports=async ctx=>{
   restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  }
 };
-module.exports.fixtures={storeReadback,installControlReadback};
+module.exports.fixtures={storeReadback,installControlReadback,installProgressReadback};
