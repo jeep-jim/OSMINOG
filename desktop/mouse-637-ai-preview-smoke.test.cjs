@@ -14,7 +14,7 @@ const {ownedPage,readback,assertGeometry,assertNativeGeometry,assertAddressSubmi
 const plain=value=>JSON.parse(JSON.stringify(value));
 
 function renderer({mode='rounded',theme='light',ratio=.5,imageContainer=true}={}){
- const gap=mode==='square'?0:6,column={x:800,y:48,width:400,height:600},chatHeight=(column.height-gap)*ratio,previewY=column.y+chatHeight+gap;
+ const gap=mode==='square'?1:6,column={x:800,y:48,width:400,height:600},chatHeight=(column.height-gap)*ratio,previewY=column.y+chatHeight+gap;
  const rectangles={
   '#ai-panel':column,
   '#ai-chat-pane':{x:column.x,y:column.y,width:column.width,height:chatHeight},
@@ -119,9 +119,9 @@ test('geometry evidence rejects invalid ratios, a stale divider percentage, and 
  const mismatch=renderer().read();mismatch.ratio=.4;mismatch.dividerValue=40;assert.throws(()=>assertGeometry(mismatch,'chat','preview'),/stored ratio/);
 });
 
-test('geometry evidence rejects residual square gaps, missing rounded gaps, overlaps, offsets and clipped native content',()=>{
+test('geometry evidence rejects missing or oversized square seams, missing rounded gaps, overlaps, offsets and clipped native content',()=>{
  const failures=[
-  ['square',value=>{value.gap=6;}],['rounded',value=>{value.gap=0;}],
+  ['square',value=>{value.gap=0;}],['square',value=>{value.gap=6;}],['rounded',value=>{value.gap=0;}],
   ['square',value=>{value.divider.height=6;}],['rounded',value=>{value.divider.y+=4;}],
   ['rounded',value=>{value.preview.y-=12;}],['square',value=>{value.preview.x+=4;}],
   ['rounded',value=>{value.preview.width-=12;}],['square',value=>{value.chat.y+=4;}],
