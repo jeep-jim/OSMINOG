@@ -42,7 +42,7 @@
 .feature-tunnels path { vector-effect: non-scaling-stroke; }
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 .feature-card {
@@ -106,7 +106,7 @@
   .feature-card:hover .feature-floating,
   .feature-card:focus-within .feature-floating { transform: translateY(-4px); }
 }
-/* A side tunnel keeps the four rooms connected when the row becomes a list. */
+/* A side tunnel keeps the three rooms connected when the row becomes a list. */
 @media (max-width: 850px) {
   .features { max-width: 680px; padding: 68px 8px 52px; }
   .features-heading { font-size: clamp(21px, 3.3vw, 27px); }
@@ -189,4 +189,111 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .feature-illustration .feature-floating { transition: none; transform: none; }
+}
+
+/* One quiet price, on the same surface as the three everyday essentials. */
+.pricing {
+  position: relative;
+  width: min(880px, 100%);
+  margin: 0 auto;
+  padding: 64px 20px 88px;
+  color: var(--ink);
+  text-align: center;
+  scroll-margin-top: 32px;
+}
+.pricing::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 34px;
+  background: var(--line);
+}
+.pricing-heading {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 400;
+  line-height: 1.4;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.pricing-price { margin: 25px 0 28px; }
+.pricing-amount {
+  display: block;
+  width: fit-content;
+  margin-inline: auto;
+  font-family: var(--display-font);
+  font-size: clamp(128px, 18vw, 208px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -.045em;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.pricing-period {
+  display: block;
+  margin-top: 7px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--soft-ink);
+}
+.pricing-description {
+  max-width: 48ch;
+  margin: 0 auto;
+  font-size: 18px;
+  line-height: 1.65;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.pricing-settings {
+  margin: 12px auto 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--soft-ink);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.pricing-note {
+  margin: 28px 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--soft-ink);
+}
+.pricing-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 12px 26px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color .22s, background-color .22s, border-color .22s;
+}
+.pricing-download:hover {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+:is(:lang(am), :lang(ar), :lang(hy), :lang(bn), :lang(my), :lang(zh-Hans), :lang(zh-Hant), :lang(ka), :lang(el), :lang(gu), :lang(hi), :lang(ja), :lang(kn), :lang(kk), :lang(ko), :lang(ml), :lang(mr), :lang(mn), :lang(fa), :lang(pa), :lang(ta), :lang(te), :lang(th), :lang(ur), :lang(he), :lang(az), :lang(km), :lang(lo), :lang(ne), :lang(si)) .pricing-heading {
+  font-family: var(--body-font);
+  font-weight: 550;
+  letter-spacing: -.015em;
+  text-transform: none;
+}
+@media (max-width: 520px) {
+  .pricing { padding: 52px 0 64px; }
+  .pricing::before { height: 26px; }
+  .pricing-heading { font-size: 24px; }
+  .pricing-description { font-size: 16px; }
 }

@@ -26,7 +26,8 @@ SHOWCASE_FIELDS = {
 }
 FEATURE_FIELDS = {
     'featuresTitle', 'captureTitle', 'captureText', 'workspaceTitle', 'workspaceText',
-    'extensionsTitle', 'extensionsText', 'importTitle', 'importText',
+    'desksTitle', 'desksText', 'pricingTitle', 'pricingPeriod', 'pricingDescription',
+    'pricingSettings', 'pricingNote', 'pricingDownload',
 }
 PLATFORMS = {
     'macos': {'suffix': 'mac-arm64.dmg', 'label': 'macOS', 'key': 'mac',
@@ -174,7 +175,7 @@ def metadata(language, catalog, downloads):
     common = {'@type': 'SoftwareApplication', 'name': 'Mouse Browser', 'url': url,
               'description': text['metaDescription'], 'applicationCategory': 'UtilitiesApplication',
               'applicationSubCategory': 'Web browser', 'image': image,
-              'featureList': [text['splitTitle'], text['privateTitle'], text['desktopTitle']]}
+              'featureList': [text['workspaceTitle'], text['desksTitle'], text['captureTitle']]}
     if shared_version:
         software = [{**common, '@id': ORIGIN + '/#software', 'softwareVersion': public['version'],
                      'operatingSystem': [info['os'] for info in PLATFORMS.values()],
