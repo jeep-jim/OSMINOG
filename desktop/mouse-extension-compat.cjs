@@ -63,8 +63,18 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
    const popup=args[0]?.popup;if(popup&&(/^[a-z][a-z\d+.-]*:/i.test(popup)||popup.startsWith('//'))&&!extensionOrigin(popup,id))throw Error('Всплывающее окно должно принадлежать расширению');
   }
   if(method==='tabs.create'||method==='tabs.update'){
-   const details=method==='tabs.create'?args[0]:(typeof args[0]==='object'?args[0]:args[1]),url=details?.url;
-   if(typeof url==='string'&&/^chrome-extension:/i.test(url)&&!extensionOrigin(url,id))throw Error('Вкладка расширения должна принадлежать вызывающему расширению');
+   const index=method==='tabs.create'||typeof args[0]==='object'?0:1,details=args[index],url=details?.url;
+   if(url!==undefined&&typeof url!=='string')throw Error('Некорректный адрес вкладки');
+   if(typeof url==='string'&&url){
+    // Upstream resolves relative URLs before loading them directly. Validate
+    // that same resolved URL so //another-extension cannot bypass ownership
+    // and tabs.update cannot bypass Mouse's ordinary navigation schemes.
+    const target=new URL(url,'chrome-extension://'+id+'/');
+    if(target.protocol==='chrome-extension:'){
+     if(!extensionOrigin(target.href,id))throw Error('Вкладка расширения должна принадлежать вызывающему расширению');
+    }else if(!['http:','https:'].includes(target.protocol)||target.username||target.password)throw Error('Можно открыть только адрес HTTP или HTTPS без пароля');
+    args=[...args];args[index]={...details,url:target.href};
+   }
   }
   if(method==='permissions.request'){
    const recent=event.type==='frame'?gestures.get(event.sender):null;

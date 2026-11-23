@@ -47,6 +47,24 @@ test('tab creation and updates cannot open another installed extension, and opti
  const f=fixture();for(const [method,args]of [['tabs.create',[{url:'chrome-extension://'+B+'/options.html'}]],['tabs.update',[41,{url:'chrome-extension://'+B+'/options.html'}]],['webNavigation.getAllFrames',[{tabId:41}]],['cookies.getAll',[{}]],['contextMenus.create',[{id:'x'}]]])await assert.rejects(f.router.onExtensionMessage(f.event(A),A,method,...args));assert.equal(f.calls.length,0);
  f.result={id:41,url:'chrome-extension://'+A+'/options.html'};await f.router.onExtensionMessage(f.event(A),A,'tabs.create',{url:'chrome-extension://'+A+'/options.html'});assert.equal(f.calls.length,1);
 });
+test('tab URLs are resolved before ownership and navigation checks',async()=>{
+ const f=fixture(),blocked=['//'+B+'/options.html','file:///tmp/private.txt','data:text/html,local','javascript:alert(1)','https://user:password@owned.example/page','chrome-extension://user@'+A+'/options.html',['file:///tmp/private.txt'],null,42];
+ for(const method of ['tabs.create','tabs.update'])for(const url of blocked){
+  const args=method==='tabs.create'?[{url}]:[41,{url}];
+  await assert.rejects(f.router.onExtensionMessage(f.event(A),A,method,...args));
+ }
+ assert.equal(f.calls.length,0);
+ for(const [method,args,index,expected]of [
+  ['tabs.create',[{url:'options.html'}],3,'chrome-extension://'+A+'/options.html'],
+  ['tabs.update',[41,{url:'/options.html'}],4,'chrome-extension://'+A+'/options.html'],
+  ['tabs.update',[{url:'./options.html'}],3,'chrome-extension://'+A+'/options.html'],
+  ['tabs.create',[{url:'https://owned.example/page'}],3,SITE],
+  ['tabs.update',[41,{url:'http://owned.example/page'}],4,'http://owned.example/page']
+ ]){
+  await f.router.onExtensionMessage(f.event(A),A,method,...args);
+  assert.equal(f.calls.at(-1)[index].url,expected);
+ }
+});
 test('worker listeners authenticate scope before upstream loses its native sender',()=>{
  const f=fixture(),event={type:'service-worker',session:f.session,serviceWorker:{scope:'chrome-extension://'+A+'/'}};
  f.delegate.onAddListener(event,B,'tabs.onUpdated');assert.equal(f.listenerCalls.length,0);
