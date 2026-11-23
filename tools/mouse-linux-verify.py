@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -19,7 +20,8 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.37"
+VERSION = "6.0.38"
+PREVIOUS_VERSION = "6.0.37"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -111,6 +113,13 @@ def native_report(directory, name):
     return report
 
 
+def verify_upgrade_report(report):
+    require(report.get("ok") is True and report.get("fromVersion") == PREVIOUS_VERSION
+            and report.get("toVersion") == VERSION and report.get("platform") == "linux"
+            and set(report.get("formats", {})) == {"deb", "appimage"},
+            "Actual published637 profile replacement did not pass for both Linux formats")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
@@ -139,7 +148,7 @@ def main(argv=None):
             "Exact source CI provenance missing")
     evidence = {"ok": False, "version": VERSION, "platform": "linux", "arch": "x64", "source": source,
                 "runId": str(run_id), "runAttempt": str(attempt), "firstLinuxRelease": False,
-                "previousVersion": "6.0.36", "packages": packages, "checks": {}, "ownerDeviceVerified": False,
+                "previousVersion": PREVIOUS_VERSION, "packages": packages, "checks": {}, "ownerDeviceVerified": False,
                 "verificationRun": {"runId": os.environ.get("GITHUB_RUN_ID"), "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT")},
                 "runner": {"system": platform.system(), "release": platform.release(), "version": platform.version(),
                            "display": os.environ["DISPLAY"], "uid": os.getuid()}}
@@ -159,17 +168,14 @@ def main(argv=None):
             write_json(report_path, evidence)
             current_upgrade = run_logged(
                 [sys.executable, Path(__file__).with_name("mouse-637-upgrade.py"), packages_dir],
-                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"])
+                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"])
             upgrade_report = json.loads((output / "mouse-637-upgrade.json").read_text(encoding="utf-8"))
-            require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.36"
-                    and upgrade_report.get("toVersion") == VERSION and upgrade_report.get("platform") == "linux"
-                    and set(upgrade_report.get("formats", {})) == {"deb", "appimage"},
-                    "Actual published636 profile replacement did not pass for both Linux formats")
+            verify_upgrade_report(upgrade_report)
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
                     "reportSha256": sha256(output / "mouse-637-upgrade.json")}
             button = run_logged([sys.executable, Path(__file__).with_name("mouse-637-update-button.py"), packages_dir],
-                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"])
-            evidence["checks"]["updateFrom636"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
+                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"])
+            evidence["checks"]["updateFrom637"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
             write_json(report_path, evidence)
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
@@ -247,6 +253,12 @@ def main(argv=None):
                     "Mouse637 features did not restore in a distinct actual process")
             feature_processes["reportSha256"] = sha256(feature_file)
             evidence["checks"]["features637"] = feature_processes
+            write_json(report_path, evidence)
+            feedback_spec = importlib.util.spec_from_file_location("mouse638_feedback_run", Path(__file__).with_name("mouse-638-feedback-run.py"))
+            feedback_runner = importlib.util.module_from_spec(feedback_spec)
+            feedback_spec.loader.exec_module(feedback_runner)
+            evidence["checks"]["feedback638"] = feedback_runner.run(executable, output, root / "feedback638",
+                                                                  platform="linux", arch="x64", env=env)
             write_json(report_path, evidence)
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])

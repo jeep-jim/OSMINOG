@@ -5,7 +5,7 @@ function fixture(){
  const nodes=new Map(),writes=[],effects=[],tabs=[{id:'preview',previewOf:'chat',lane:'side',url:'https://source.test/article',title:'Article',favicon:'https://source.test/icon.svg'},{id:'main1',url:'https://music.test/',title:'Track one'},{id:'main2',url:'https://work.test/',title:'Work'}];
  const model={tree:L.preset(2),slots:{p1:'main1',p2:'main2'},pinnedPanes:{},aiPreviewId:'preview',aiPreviewRatio:.5,locale:'ru'},doc={activeElement:null,querySelector:s=>nodes.get(s),createElement:tag=>node(tag)};
  function node(name){
-  const events=new Map(),attrs=new Map(),classes=new Set(),values={value:'',title:'',disabled:false,hidden:false,textContent:''},n={name,children:[],clientHeight:400,rect:{top:40,height:400},getBoundingClientRect(){return this.rect;},getAttribute:k=>attrs.get(k)??null,setAttribute(k,v){attrs.set(k,v);writes.push([name,k,v]);},addEventListener(k,fn){events.set(k,fn);},fire(k,event={}){return events.get(k)?.(event);},replaceChildren(...children){this.children=children;writes.push([name,'children']);},querySelector:s=>nodes.get(name+'/'+s),focus(){doc.activeElement=n;n.fire('focus');},blur(){if(doc.activeElement===n)doc.activeElement=null;n.fire('blur');},classList:{add:k=>classes.add(k),remove:k=>classes.delete(k),contains:k=>classes.has(k)}};
+  const events=new Map(),attrs=new Map(),classes=new Set(),values={value:'',title:'',disabled:false,hidden:false,textContent:''},n={name,children:[],clientWidth:400,clientHeight:400,rect:{top:40,width:400,height:400},getBoundingClientRect(){return this.rect;},getAttribute:k=>attrs.get(k)??null,setAttribute(k,v){attrs.set(k,v);writes.push([name,k,v]);},addEventListener(k,fn){events.set(k,fn);},fire(k,event={}){return events.get(k)?.(event);},replaceChildren(...children){this.children=children;writes.push([name,'children']);},querySelector:s=>nodes.get(name+'/'+s),focus(){doc.activeElement=n;n.fire('focus');},blur(){if(doc.activeElement===n)doc.activeElement=null;n.fire('blur');},classList:{add:k=>classes.add(k),remove:k=>classes.delete(k),contains:k=>classes.has(k)}};
   n.style=new Proxy({},{set(target,key,value){target[key]=value;writes.push([name,'style.'+key,value]);return true;}});n.dataset=new Proxy({},{set(target,key,value){target[key]=value;writes.push([name,'data.'+key,value]);return true;}});
   for(const key of Object.keys(values))Object.defineProperty(n,key,{get:()=>values[key],set(value){values[key]=value;writes.push([name,key,value]);}});
   nodes.set(name,n);return n;
@@ -37,10 +37,10 @@ test('editing and submitting a lower URL stays bound to that live preview; Escap
 });
 
 test('vertical resize controls adjust the split, reserve chrome and footer space, and reset by double click',()=>{
- for(const gap of [6,0]){
+ for(const gap of [6,1]){
   const f=fixture(),divider=f.nodes.get('#ai-preview-divider');divider.rect.height=gap;f.nodes.get('#ai-panel').rect.height=800+gap;
   divider.onpointerdown({button:0});assert.equal(f.effects[0][0],'drag');assert.equal(f.effects[0][1],'ai-preview');assert.equal(f.effects[0][2],divider);
-  assert.equal(f.ui.resize(40+560),.7);assert.equal(f.nodes.get('#ai-chat-pane').style.flex,'0.7 1 0%');assert.equal(divider.getAttribute('aria-valuenow'),'70');assert.equal(f.effects.some(e=>e[0]==='save'),false,'Pointer movements commit together on endDrag');
+  assert.equal(f.ui.resize(40+560),.7);assert.equal(f.nodes.get('#ai-chat-pane').style.flex,'0 0 560px');assert.equal(divider.getAttribute('aria-valuenow'),'70');assert.equal(f.effects.some(e=>e[0]==='save'),false,'Pointer movements commit together on endDrag');
   const up=key('ArrowUp');divider.onkeydown(up);assert.equal(up.prevented,true);assert.ok(Math.abs(f.model.aiPreviewRatio-.67)<1e-12);assert.deepEqual(f.effects.at(-1),['save','ai-preview-resize']);
   f.nodes.get('#ai-slot').clientHeight=f.nodes.get('#ai-preview-slot').clientHeight=100;
   divider.onkeydown(key('Home'));assert.equal(f.model.aiPreviewRatio,.415);divider.onkeydown(key('End'));assert.equal(f.model.aiPreviewRatio,.585,'Each owner retains its actual toolbar/footer plus page area');

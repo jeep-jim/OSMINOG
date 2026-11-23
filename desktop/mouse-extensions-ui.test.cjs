@@ -6,8 +6,9 @@ test('the puzzle and pins sit before the window layout controls',()=>{
  const tray=markup.indexOf('id="mouse-extensions-tray"'),layout=markup.indexOf('id="layout-control-title"');
  assert.ok(tray>markup.indexOf('id="footer-left"')&&tray<layout);
  assert.match(markup,/aria-controls="mouse-extensions-dialog"/);
- assert.match(markup,/расширения; установка из Chrome Web Store пока недоступна/i);
  const ui=read('mouse/extensions.js');
+ assert.match(ui,/Открыть Chrome Web Store/);
+ assert.match(ui,/store\.onclick=.*run\('open-store'\)/);
  assert.match(ui,/entries\.filter\(e=>e\.enabled&&e\.pinned\)/);
  assert.match(ui,/privateMode\(\)\)\{tray\.hidden=true/);
  assert.match(ui,/showDialog\(modal\)/);
@@ -24,7 +25,7 @@ test('restoration errors remain distinct from disabled extensions and explain re
  const vm=require('node:vm'),flush=()=>new Promise(resolve=>setImmediate(resolve));
  class Element{
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.attributes={};this.textContent='';this.className='';this.isConnected=true;this.listeners={}}
-  append(...children){this.children.push(...children)}replaceChildren(...children){this.children=[...children]}
+  append(...children){this.children.push(...children)}replaceChildren(...children){this.children=[...children]}after(...children){this.afterElements=children;}
   setAttribute(name,value){this.attributes[name]=value}addEventListener(event,fn){this.listeners[event]=fn}
   focus(){}cloneNode(){return new Element(this.tagName)}
   querySelector(selector){return this.querySelectorAll(selector)[0]||null}

@@ -5,7 +5,7 @@
 const assert=require('node:assert/strict');
 function expectedProfilePreferences(record,currentVersion){
  const saved=structuredClone(record.preferences);
- if(currentVersion!=='6.0.37'||!['6.0.29','6.0.36'].includes(record.version))return saved;
+ if(currentVersion!=='6.0.38'||!['6.0.29','6.0.36'].includes(record.version))return saved;
  const expected=record.version==='6.0.29'?{aiPreviewRatio:.5,presetTabs:{},...saved}:saved;
  delete expected.agentOpen;delete expected.agentPreviewId;
  if(expected.mode==='agents')expected.mode='';

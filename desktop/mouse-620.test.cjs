@@ -16,7 +16,8 @@ test('620 latest correction uses twelve-pixel pane seams without changing round 
  assert.deepEqual(paneCorners({top:200.5,bottom:500.5},{top:40,bottom:900}),{top:12,bottom:12});
  assert.match(css,/clip-path:inset\(0 round var\(--pane-round-top\)/);
  assert.match(native,/CGContextClearRect/);assert.match(native,/CGFloat radius=12/);
- assert.match(native,/NSMakeRect\(x-\(side\?0:1\),y,radius\+1,radius\+1\)/);
+ assert.match(native,/NSMakeRect\(x,y,radius,radius\)/);
+ assert.doesNotMatch(native,/NSMakeRect\(x-\(side\?0:1\),y,radius\+1,radius\+1\)/,'Corner chrome stays inside the tile after integer-DIP renderer snapping');
  assert.match(native,/hitTest:\(NSPoint\)point\{return nil;\}/);
  assert.match(host,/Number\(p.roundBottom\)===12/);
  assert.match(css,/#stage \.pane-head button,:is\(#ai-panel,#ai-chat-pane\)>\.ai-controls>button\{border-radius:10px\}/);

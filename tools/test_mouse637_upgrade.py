@@ -28,7 +28,7 @@ const {validateProfileVersion}=require(process.argv[1]);
 const pair=JSON.parse(process.argv[2]);
 assert.equal(validateProfileVersion(pair.old),pair.old);
 assert.equal(validateProfileVersion(pair.new),pair.new);
-for(const version of ['6.0.33','6.0.38','6.0.37-extra','prefix6.0.37'])assert.throws(()=>validateProfileVersion(version));"""
+for(const version of ['6.0.33','6.0.39','6.0.38-extra','prefix6.0.38'])assert.throws(()=>validateProfileVersion(version));"""
         subprocess.run(['node', '-e', script, str(helper), json.dumps({'old': upgrade.OLD_VERSION, 'new': upgrade.VERSION})], check=True, timeout=10)
 
     def test_baseline_download_checks_actual_length_and_digest_before_installation(self):
@@ -71,7 +71,7 @@ for(const version of ['6.0.33','6.0.38','6.0.37-extra','prefix6.0.37'])assert.th
                  patch.object(upgrade, 'sibling', return_value=installer), patch.object(upgrade, 'probe', side_effect=probe):
                 with self.assertRaisesRegex(RuntimeError, 'closed profile'):
                     upgrade.transition(candidate, baseline, root / 'owned', root, 'synthetic-node', 'deb', facts)
-            self.assertEqual(calls, ['6.0.36', '6.0.37'])
+            self.assertEqual(calls, ['6.0.37', '6.0.38'])
             self.assertFalse(facts['ok'])
             self.assertIn('oldWrite', facts)
             self.assertNotIn('newRead', facts)

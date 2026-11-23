@@ -20,21 +20,21 @@ import sys
 import tempfile
 import urllib.request
 
-OLD_VERSIONS = {'darwin': '6.0.36', 'win32': '6.0.36', 'linux': '6.0.36'}
-OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.36')
-VERSION = '6.0.37'
+OLD_VERSIONS = {'darwin': '6.0.37', 'win32': '6.0.37', 'linux': '6.0.37'}
+OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.37')
+VERSION = '6.0.38'
 METHOD = 'verified package replacement and actual old/new profile processes; retained629 gate tests updater'
 LINUX_METHOD = 'verified deb and AppImage replacement with actual old/new profile processes'
 BASELINES = {
-    'darwin': {'name': 'Mouse-Browser-6.0.36-mac-arm64.dmg', 'tag': 'quadro-macos-v6.0.36-arm64',
-               'size': 137981934, 'sha256': '8688b4db4bd8d9541d93508ecdb3260727d9c6a975f336cfcd2b086caae704fb'},
-    'win32': {'name': 'Mouse-Browser-6.0.36-Windows-x64.exe', 'tag': 'mouse-windows-v6.0.36-x64',
-              'size': 125834363, 'sha256': '443496508013d5734e8a81c7eb0ddb33cedad4149440da3c04ff891486c6cf61'},
+    'darwin': {'name': 'Mouse-Browser-6.0.37-mac-arm64.dmg', 'tag': 'quadro-macos-v6.0.37-arm64',
+               'size': 130545757, 'sha256': '3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2'},
+    'win32': {'name': 'Mouse-Browser-6.0.37-Windows-x64.exe', 'tag': 'mouse-windows-v6.0.37-x64',
+              'size': 113416843, 'sha256': '19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35'},
     'linux': {
-        'appimage': {'name': 'Mouse-Browser-6.0.36-Linux-x64.AppImage', 'tag': 'mouse-linux-v6.0.36-x64',
-                     'size': 135673552, 'sha256': 'e126ee0e50c1bc8e4e1108600e5b2e9e74af609feac0fff8d8de7b3c0b79f090'},
-        'deb': {'name': 'Mouse-Browser-6.0.36-Linux-x64.deb', 'tag': 'mouse-linux-v6.0.36-x64',
-                'size': 105853084, 'sha256': '6de6baf09263ade5ea20fec2984cb183d6909cb7a7646b8c8d917cf33c0d7d7f'},
+        'appimage': {'name': 'Mouse-Browser-6.0.37-Linux-x64.AppImage', 'tag': 'mouse-linux-v6.0.37-x64',
+                     'size': 127838276, 'sha256': 'e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79'},
+        'deb': {'name': 'Mouse-Browser-6.0.37-Linux-x64.deb', 'tag': 'mouse-linux-v6.0.37-x64',
+                'size': 101113500, 'sha256': '4518bad5c606ec5dca98c62c7d624aa3df6f0b906713fb6a40cb317877008c66'},
     },
 }
 
@@ -227,7 +227,7 @@ def main(argv=None):
         raise
     finally:
         report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print('MOUSE_637_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_637_PROFILE_PASS', flush=True)
+    print('MOUSE_638_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_638_PROFILE_PASS', flush=True)
     return 0
 
 

@@ -13,6 +13,7 @@ import base64
 import ctypes
 from ctypes import wintypes
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -24,7 +25,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.37"
+VERSION = "6.0.38"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -73,6 +74,13 @@ def sha256(file: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def feedback638(executable, output, profile, env):
+    spec = importlib.util.spec_from_file_location("mouse638_feedback_run", Path(__file__).with_name("mouse-638-feedback-run.py"))
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner.run(executable, output, profile, platform="win32", arch="x64", env=env)
 
 
 def authenticode(file: Path, env: dict) -> dict:
@@ -172,6 +180,12 @@ def native_input(action: str, values: list[str]) -> None:
     if os.environ.get("CI") != "true" or not Path(os.environ.get("MOUSE_TEST_PROFILE", "")).is_absolute():
         raise RuntimeError("Native input requires an isolated CI profile")
     api = user32()
+    if action == "dialog-buttons":
+        if len(values) != 1 or not values[0].isdigit() or int(values[0]) <= 0:
+            raise ValueError("Native dialog requires one actual application PID")
+        print("MOUSE_WINDOWS_DIALOG_BUTTONS " + json.dumps(native_dialog_buttons(api, int(values[0])), ensure_ascii=False), flush=True)
+        print("MOUSE_WINDOWS_INPUT_OK", flush=True)
+        return
     pointer = ctypes.c_size_t
 
     class MouseInput(ctypes.Structure):
@@ -270,6 +284,43 @@ def native_windows(api, pid: int | None) -> list[dict]:
     if not api.EnumWindows(collect, 0):
         raise RuntimeError("Cannot enumerate real Windows application windows")
     return windows
+
+
+def native_dialog_buttons(api, pid: int) -> list[dict]:
+    """Read visible native dialog controls owned by exactly one application."""
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    api.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    api.GetClassNameW.restype = ctypes.c_int
+    api.IsWindowEnabled.argtypes = [wintypes.HWND]
+    api.IsWindowEnabled.restype = wintypes.BOOL
+    api.EnumChildWindows.argtypes = [wintypes.HWND, callback_type, wintypes.LPARAM]
+    api.EnumChildWindows.restype = wintypes.BOOL
+    buttons = []
+    for window in native_windows(api, pid):
+        kind = ctypes.create_unicode_buffer(256)
+        api.GetClassNameW(window['handle'], kind, len(kind))
+        if kind.value != '#32770' or window['minimized']:
+            continue
+        @callback_type
+        def collect(handle, _unused):
+            owner = wintypes.DWORD()
+            api.GetWindowThreadProcessId(handle, ctypes.byref(owner))
+            child_kind = ctypes.create_unicode_buffer(256)
+            api.GetClassNameW(handle, child_kind, len(child_kind))
+            if owner.value != pid or child_kind.value.casefold() != 'button' or not api.IsWindowVisible(handle) or not api.IsWindowEnabled(handle):
+                return True
+            text = ctypes.create_unicode_buffer(api.GetWindowTextLengthW(handle) + 1)
+            api.GetWindowTextW(handle, text, len(text))
+            bounds = wintypes.RECT()
+            if api.GetWindowRect(handle, ctypes.byref(bounds)) and bounds.right > bounds.left and bounds.bottom > bounds.top:
+                buttons.append({'title': text.value.replace('&', ''), 'pid': pid, 'windowTitle': window['title'],
+                                'window': window['handle'], 'handle': int(handle),
+                                'bounds': {'x': bounds.left, 'y': bounds.top, 'width': bounds.right - bounds.left, 'height': bounds.bottom - bounds.top}})
+            return True
+        # EnumChildWindows returns zero even when a window has no children;
+        # the empty readback cannot authorize a button click in the caller.
+        api.EnumChildWindows(window['handle'], collect, 0)
+    return buttons
 
 
 def process_image(pid: int) -> str | None:
@@ -538,7 +589,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_637_WINDOWS_REAL_629_TO_637_PROFILE_PASS", flush=True)
+    print("MOUSE_638_WINDOWS_REAL_629_TO_638_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -644,15 +695,15 @@ def main(argv=None) -> int:
         save()
         button = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-update-button.py")), str(installer)], env,
                             output / "mouse-637-update-button.log", 720)
-        verify_markers(button.pop("output"), ["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"])
-        button.update(requiredMarkers=["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"],
+        verify_markers(button.pop("output"), ["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"])
+        button.update(requiredMarkers=["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"],
                       logSha256=sha256(output / "mouse-637-update-button.log"), reportSha256=sha256(output / "mouse-637-update-button.json"))
-        evidence["checks"]["updateFrom636"] = button
+        evidence["checks"]["updateFrom637"] = button
         save()
         fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-upgrade.py")), str(installer)], env,
                            output / "mouse-637-upgrade.log", 480)
-        verify_markers(fresh.pop("output"), ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"])
-        fresh["requiredMarkers"] = ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"]
+        verify_markers(fresh.pop("output"), ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"]
         fresh["reportSha256"] = sha256(output / "mouse-637-upgrade.json")
         evidence["checks"]["freshUpgrade"] = fresh
         save()
@@ -720,6 +771,8 @@ def main(argv=None) -> int:
             raise RuntimeError("Mouse637 features did not restore in a distinct actual process")
         feature_processes["reportSha256"] = sha256(report)
         evidence["checks"]["features637"] = feature_processes
+        save()
+        evidence["checks"]["feedback638"] = feedback638(executable, output, root / "Mouse638 feedback and restore", env)
         save()
         for mode, markers in (("write", WRITE_MARKERS), ("read", READ_MARKERS)):
             if mode == "read":

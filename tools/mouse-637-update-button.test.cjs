@@ -8,7 +8,7 @@ const {nativeHitTarget}=require('../desktop/mouse-smoke-hit-target.cjs');
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const names={darwin:'mac-arm64.dmg',win32:'Windows-x64.exe',linux:'Linux-x64.AppImage'};
 function candidate(platform,bytes=Buffer.from('owned new package')){
- const target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'}),name='Mouse-Browser-6.0.37-'+names[platform];
+ const target=releaseTarget({platform,arch:platform==='darwin'?'arm64':'x64'}),name='Mouse-Browser-6.0.38-'+names[platform];
  return{name,version:D.TO,size:bytes.length,sha256:sha(bytes),path:path.join(os.tmpdir(),name),url:'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/'+target.tagFor(D.TO)+'/'+name};
 }
 function input(platform){return{version:D.TO,fromVersion:D.FROM,reportPrefix:D.PREFIX,
@@ -23,7 +23,7 @@ test('the current packaged updater is byte-identical to the published636 module 
 test('native probe accepts only exact current/predecessor, platform name, canonical package and owned profile contract',()=>{
  for(const platform of Object.keys(names)){
   assert.equal(D.validateInput(input(platform),platform),true);
-  for(const modify of [x=>x.version='6.0.36',x=>x.fromVersion='6.0.35',x=>x.baseline.updaterBlobSHA='a'.repeat(40),x=>x.baseline.source='a'.repeat(40),x=>x.profile='relative',x=>x.python='python',x=>x.ownerSentinel.name='../owner.txt',x=>x.candidate.url+='?fixture=1',x=>x.candidate.name='Mouse-Browser-6.0.36-'+names[platform],x=>x.candidate.size=0]){
+  for(const modify of [x=>x.version='6.0.37',x=>x.fromVersion='6.0.35',x=>x.baseline.updaterBlobSHA='a'.repeat(40),x=>x.baseline.source='a'.repeat(40),x=>x.profile='relative',x=>x.python='python',x=>x.ownerSentinel.name='../owner.txt',x=>x.candidate.url+='?fixture=1',x=>x.candidate.name='Mouse-Browser-6.0.37-'+names[platform],x=>x.candidate.size=0]){
    const value=input(platform);modify(value);assert.throws(()=>D.validateInput(value,platform));
   }
  }

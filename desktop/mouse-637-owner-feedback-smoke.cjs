@@ -1,5 +1,5 @@
 'use strict';
-// Installed 6.0.37 owner feedback: removed tile search and Agent runtime/UI,
+// Installed 6.0.38 owner feedback: removed tile search and Agent runtime/UI,
 // stable files/pins, and an independently recorded predecessor comparison.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
 const {screen,nativeImage}=require('electron');
@@ -48,7 +48,7 @@ module.exports=async ctx=>{
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));
   assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
-  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.37');assert.equal(app.getName(),'Mouse Browser');
+  assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),'6.0.38');assert.equal(app.getName(),'Mouse Browser');
   assert.ok([['darwin','arm64'],['win32','x64'],['linux','x64']].some(([platform,arch])=>platform===process.platform&&arch===process.arch));facts.profileIsolated=true;
   nativeInput=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());
   fixture=await createFixture({...ctx,nativeInput},'owner636',budgetMs);

@@ -26,6 +26,7 @@ function shell(){
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.attrs={};this.className='';this.listeners={};this.isConnected=true;all.push(this);this.dataset=new Proxy({},{set:(object,key,value)=>{object[key]=String(value);this.setAttribute('data-'+key,value);return true;}})}
   contains(target){return target===this||this.children.some(child=>child===target||child instanceof Element&&child.contains(target))}
   append(...children){for(const child of children){child.parentElement=this;this.children.push(child);}mutation(this,'childList')}
+  after(...children){const parent=this.parentElement;if(!parent)return;const index=parent.children.indexOf(this);for(const child of children)child.parentElement=parent;parent.children.splice(index+1,0,...children);mutation(parent,'childList')}
   replaceChildren(...children){for(const child of this.children)child.parentElement=null;this.children=[];this.append(...children)}
   get textContent(){return this.children.map(child=>child instanceof Text?child.data:child.textContent).join('')}
   set textContent(value){this.replaceChildren(new Text(String(value)))}

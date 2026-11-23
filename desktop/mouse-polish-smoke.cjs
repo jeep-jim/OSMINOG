@@ -8,7 +8,7 @@ function settingsSurfaceReadback(){
 }
 function assertSettingsSurface(value){
  assert.equal(typeof value.version,'string','The installed version is read from MouseNative');
- if(value.version==='6.0.37'&&value.theme==='dark'){
+ if(value.version==='6.0.38'&&value.theme==='dark'){
   assert.equal(value.settings.backdropFilter,'none','637 dark Settings keeps its solid sidebar surface');
   for(const key of ['backgroundImage','backgroundColor']){
    assert.equal(typeof value.toolbar[key],'string');assert.notEqual(value.toolbar[key],'');

@@ -24,6 +24,21 @@
  }
  function remove(tree,id){if(tree.id)return tree.id===id?null:tree;const a=remove(tree.a,id),b=remove(tree.b,id);return a&&b?{...tree,a,b}:a||b}
  function minimum(tree,axis,gap=6){if(tree.id)return axis==='x'?140:100;return tree.axis===axis?minimum(tree.a,axis,gap)+minimum(tree.b,axis,gap)+gap:Math.max(minimum(tree.a,axis,gap),minimum(tree.b,axis,gap))}
+ // Native WebContentsView bounds use integer device-independent pixels. Give
+ // the DOM the same partition before native placement instead of rounding
+ // each page independently after fractional flex layout. Ratios stay intact.
+ function pixelLayout(tree,width,height,gap=6){
+  if(![width,height,gap].every(Number.isFinite)||width<0||height<0||gap<0)throw Error('Invalid pixel layout');
+  const branches=[],panes=[],seam=Math.round(gap);
+  function visit(node,x,y,w,h,path){
+   if(node.id){panes.push({id:node.id,x,y,width:w,height:h});return;}
+   const size=node.axis==='x'?w:h,space=Math.min(size,seam),available=size-space,a=Math.round(available*clamp(node.ratio,.08,.92)),b=available-a;
+   branches.push({path,axis:node.axis,a,b,gap:space});
+   if(node.axis==='x'){visit(node.a,x,y,a,h,path+'a');visit(node.b,x+a+space,y,b,h,path+'b');}
+   else{visit(node.a,x,y,w,a,path+'a');visit(node.b,x,y+a+space,w,b,path+'b');}
+  }
+  visit(tree,0,0,Math.round(width),Math.round(height),'');return{branches,panes};
+ }
  function previewRatio(value){return Number.isFinite(value)?clamp(value,.1,.9):.5;}
  function currentPreset(tree){
   if(!tree)return null;const count=leaves(tree).length;if(![1,2,3,4,6,8,9,12].includes(count))return null;
@@ -44,5 +59,5 @@
  }
  function assertPins(before,after){if(!preservesPins(before,after))throw Error('Сначала открепите окно: его вкладка, размер и положение закреплены.');}
  function resizeLocked(value,path){const node=at(value.tree,path),locked=pins(value);return leaves(node).some(id=>Object.hasOwn(locked,id));}
- const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum,previewRatio,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
+ const api={LIMIT,clamp,leaves,preset,validate,at,ratio,split,remove,minimum,pixelLayout,previewRatio,currentPreset,pins,preservesPins,assertPins,resizeLocked};if(typeof module==='object'&&module.exports)module.exports=api;else root.MouseLayout=Object.freeze(api);
 })(globalThis);

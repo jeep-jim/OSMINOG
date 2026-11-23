@@ -14,7 +14,9 @@ test('the release base retains ordinary web AI and live desktop switching withou
 test('player renders immediately on every accepted desktop change, and neither feature leaks into private mode',()=>{
  const ui=read('mouse/browser.js'),main=read('mouse-main.cjs'),browser=read('browser.cjs');
  assert.equal((ui.match(/m\.desktopId=p\.desktopId;mediaWidget\?\.render\(\);/g)||[]).length,2);
- assert.match(main,/await extensionRestore;await browser\.command\('project'/);
+ const registration=main.indexOf("require('./mouse-web-store.cjs').installMouseWebStore"),project=main.indexOf("await browser.command('project'"),desktops=main.indexOf("desktopService=await require('./mouse-desktops.cjs').install"),restore=main.indexOf('const extensionRestore=extensions.restore()');
+ assert.ok(registration>0&&registration<project,'store preload is registered before restored pages load');
+ assert.ok(project<desktops&&desktops<restore,'extension workers start only after their tabs can join a project and desktop');
  assert.match(main,/onPrivacyChange:\(\)=>\{[^}]*mediaPlayer\.clear\(\)/);
  assert.match(browser,/if\(this\.disposed\|\|this\.privateMode\|\|!this\.project/);
 });

@@ -25,6 +25,15 @@ function createLinuxInput({runtime=process,spawnSync=require('node:child_process
   testPointer:(x,y)=>{move(x,y);return{warpResult:0,postAccess:true};},
   testMouse:(x,y,phase)=>{if(![0,1,2].includes(phase))throw Error('Invalid native pointer phase');move(x,y);return phase===1?true:send([phase===0?'mousedown':'mouseup','1']);},
   testKey:chord=>{if(typeof chord!=='string'||!chord||chord.length>80||!/^[-+a-zA-Z0-9_]+$/.test(chord))throw Error('Invalid native key chord');return send(['key','--clearmodifiers',chord]);},
+  testFocusedDialog:()=>{
+   if(!Number.isInteger(runtime.pid)||runtime.pid<=0)throw Error('Native dialog requires the actual application PID');
+   const window=run(['getactivewindow']).trim();if(!/^\d+$/.test(window))throw Error('Invalid active X11 window');
+   const pid=Number(run(['getwindowpid',window]).trim()),title=run(['getwindowname',window]).trim();
+   if(pid!==runtime.pid)throw Error('The active native dialog is not owned by this application');
+   const result=spawnSync('/usr/bin/xprop',['-id',window,'_NET_WM_WINDOW_TYPE','WM_TRANSIENT_FOR'],{env:runtime.env,encoding:'utf8',timeout:7000,maxBuffer:65536});
+   if(result.error||result.status!==0||!/_NET_WM_WINDOW_TYPE_DIALOG/.test(result.stdout||'')||!/WM_TRANSIENT_FOR.*window id # 0x[0-9a-f]+/i.test(result.stdout||''))throw Error('The focused owned X11 window is not a native transient dialog');
+   return{pid,window,title,source:'XTest',nativeType:'_NET_WM_WINDOW_TYPE_DIALOG',transient:true};
+  },
   testWheel:(x,y,delta)=>{move(x,y);if(!Number.isInteger(delta)||!delta||Math.abs(delta)>50)throw Error('Invalid native wheel count');return send(['click','--repeat',Math.abs(delta),'--delay','12',delta>0?'5':'4']);}
  };
 }

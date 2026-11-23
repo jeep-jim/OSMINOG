@@ -37,7 +37,7 @@ async function installedRemovalFixture(mutateIdentity=()=>{}){
   assertIdentity(before,after){assert.deepEqual(after,before);}
  };
  const click=async selector=>{if(selector==='#theme-button')theme=theme==='light'?'dark':'light';else if(selector==='#settings-button')settings=true;else if(selector==='#settings-dialog [data-close-dialog]')settings=false;else throw Error('Unexpected click: '+selector);};
- const app={getVersion:()=> '6.0.37',isPackaged:true,getAppPath:()=>'/owned-test-app'};
+ const app={getVersion:()=> '6.0.38',isPackaged:true,getAppPath:()=>'/owned-test-app'};
  const result=await smoke({app,win:{}},{fixture,click,screenCapture:async filename=>({filename})});return{result,opened};
 }
 function readback(){return{theme:'light',selectors:Object.fromEntries(C.SELECTORS.map(selector=>[selector,0])),preloadKeys:[],globals:[],modelKeys:[],modes:['trader','support','design','content'],presetKeys:['support'],aiOptions:[...C.AI_CATALOG,'custom'],settingsSections:['appearance','workspace','imports','privacy','capture','downloads','documents','updates','about']};}

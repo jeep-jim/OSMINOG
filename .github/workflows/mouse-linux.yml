@@ -1,7 +1,7 @@
 name: Mouse Browser Linux x64
 on:
   pull_request:
-    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
+    paths: ['desktop/**','tools/mouse-linux*','tools/mouse-631-*.py','tools/mouse-633-*.py','tools/mouse-634-*.py','tools/mouse-634-*.cjs','tools/mouse-635-*.py','tools/mouse-635-*.cjs','tools/mouse-636-*.py','tools/mouse-637-*.py','tools/mouse-637-*.cjs','tools/test_mouse637*.py','tools/mouse-638-*','tools/test_mouse638*.py','tools/mouse-636-*.cjs','tools/test_mouse636*.py','tools/test_mouse635*.py','tools/test_mouse_634_*.py','tools/test_mouse634*.py','tools/test_mouse_631_*.py','tools/test_mouse_linux*.py','tools/mouse-unit-tests.cjs','.github/workflows/mouse-linux.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -54,13 +54,14 @@ jobs:
           node ../tools/mouse-unit-tests.cjs
           node --test ../tools/mouse-637-update-button.test.cjs
           python3 -m unittest discover -s ../tools -p test_mouse_631_acceptance.py -v
+          python3 -m unittest discover -s ../tools -p 'test_mouse638*.py' -v
           python3 ../tools/test_mouse637_upgrade.py
           python3 ../tools/test_mouse637_baseline_performance.py
           python3 ../tools/test_mouse637_update_button.py
           python3 ../tools/test_mouse637_update_window.py
           python3 ../tools/test_mouse636_upgrade.py -v
           python3 ../tools/test_mouse636_baseline_performance.py -v
-          python3 -m unittest discover -s ../tools -p test_mouse_linux_verify.py -v
+          python3 -m unittest discover -s ../tools -p 'test_mouse_linux*.py' -v
       - name: Build Linux AppImage and deb
         run: npx electron-builder --config mouse-linux-build.cjs --linux AppImage deb --x64 --publish never
       - name: Verify installed Linux packages and native behavior
@@ -87,8 +88,8 @@ jobs:
         with:
           name: mouse-linux-x64-candidate
           path: |
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.37-Linux-x64.AppImage
-            desktop/dist-mouse-linux/Mouse-Browser-6.0.37-Linux-x64.deb
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.38-Linux-x64.AppImage
+            desktop/dist-mouse-linux/Mouse-Browser-6.0.38-Linux-x64.deb
             desktop/dist-mouse-linux/SHA256SUMS.txt
             desktop/dist-mouse-linux/mouse-linux-build.json
           if-no-files-found: error
@@ -101,9 +102,55 @@ jobs:
             desktop/mouse-*.log
             desktop/mouse-*.png
             desktop/mouse-*.json
+            desktop/mouse-638-*.crx
             desktop/mouse-637-library-source.txt
             desktop/mouse-637-agent-code-*.cjs
             desktop/mouse-linux-appimage/**
             desktop/mouse-637-baseline-performance/**
           if-no-files-found: warn
+          retention-days: 14
+  mouse-linux-install-noble:
+    needs: mouse-linux-x64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+        shell: bash
+    env:
+      MOUSE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: mouse-linux-x64-candidate
+          path: desktop/dist-mouse-linux
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install native Ubuntu 24.04 test session tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb openbox xdotool x11-utils dbus-x11 pulseaudio apparmor
+          test "$(id -u)" -ne 0
+      - name: Check clean package dependencies and native Ubuntu 24.04 launch
+        run: |
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1100x24' bash -euo pipefail -c '
+            openbox > mouse-linux-noble-openbox.log 2>&1 &
+            pulseaudio --start --exit-idle-time=-1
+            pactl load-module module-null-sink sink_name=mouse_ci
+            pactl set-default-sink mouse_ci
+            python3 ../tools/mouse-linux-install-verify.py dist-mouse-linux
+          '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mouse-linux-install-noble-verification
+          path: |
+            desktop/mouse-*.log
+            desktop/mouse-*.json
+            desktop/mouse-*.png
+          if-no-files-found: error
           retention-days: 14
