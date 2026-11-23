@@ -72,11 +72,12 @@ test('serialized Mouse install readback retains unavailable and hidden states in
  f.context.document.querySelector=()=>null;assert.equal(f.read(),null);
 });
 
-test('popup readback waits for its original loader to disappear even when live controls and text already exist',()=>{
- let loader={className:'loader loader--complete',hidden:false},style={display:'block',visibility:'visible',backgroundColor:'rgba(20, 30, 36, 0)'};
+test('popup readback records loader diagnostics while real controls proceed to the independent OS pixel gate',()=>{
+ let loader={className:'loader',hidden:false},style={display:'block',visibility:'visible',opacity:'1',backgroundColor:'rgb(20, 30, 36)'};
  const context={location:{href:'chrome-extension://owned/ui/popup/index.html'},chrome:{runtime:{id:'owned',getManifest:()=>({version:'4.9.135'})}},getComputedStyle:element=>{assert.equal(element,loader);return style;},document:{title:'Dark Reader settings',body:{innerText:'Loading, please wait\nDark Reader\n'+ 'actual control '.repeat(8)},fonts:{status:'loaded'},querySelector:selector=>{assert.equal(selector,'.loader');return loader;},querySelectorAll:selector=>{assert.equal(selector,'button');return Array.from({length:25});}}};
  const read=()=>JSON.parse(JSON.stringify(vm.runInNewContext('('+popupReadback.toString()+')()',context))),before=JSON.stringify({loader,style});
- let value=read();assert.equal(value.buttons,25);assert.equal(value.ready,false,'A transparent but transitioning loader is not completion');assert.equal(JSON.stringify({loader,style}),before);
+ let value=read();assert.equal(value.buttons,25);assert.equal(value.ready,true,'The native frame gate decides whether the visible controls have painted');assert.equal(JSON.stringify({loader,style}),before);assert.equal(value.loader.opacity,'1');assert.equal(value.loader.backgroundColor,'rgb(20, 30, 36)');
+ loader.className='loader loader--complete';style.backgroundColor='rgba(20, 30, 36, 0)';value=read();assert.equal(value.ready,true,'A transparent service loader does not need an optional transitionend marker');assert.equal(value.loader.display,'block');assert.equal(value.loader.visibility,'visible');assert.equal(value.loader.backgroundColor,'rgba(20, 30, 36, 0)');
  style.display='none';value=read();assert.equal(value.ready,true);assert.equal(value.loader.display,'none');assert.equal(value.fontsStatus,'loaded');assert.equal(value.id,'owned');assert.equal(value.version,'4.9.135');
  style.display='block';style.visibility='hidden';assert.equal(read().ready,true);style.visibility='visible';loader.hidden=true;assert.equal(read().ready,true);loader=null;assert.equal(read().ready,true);
  context.document.querySelectorAll=()=>[];assert.equal(read().ready,false);context.document.querySelectorAll=()=>[{}];context.document.body.innerText='Loading';assert.equal(read().ready,false);

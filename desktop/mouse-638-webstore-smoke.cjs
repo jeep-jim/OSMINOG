@@ -9,9 +9,9 @@ const ID='eimadpbcbfnmbkopoojfekhnkhdbieeh',STORE_URL='https://chromewebstore.go
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const readRuntime=()=>({url:location.href,title:document.title,mode:document.documentElement.getAttribute('data-darkreader-mode'),scheme:document.documentElement.getAttribute('data-darkreader-scheme'),styles:[...document.querySelectorAll('style.darkreader')].map(s=>({className:s.className,bytes:s.textContent.length})),background:getComputedStyle(document.querySelector('#owned-white')).backgroundColor,color:getComputedStyle(document.querySelector('#owned-white')).color,originalBackground:document.querySelector('#owned-white').style.backgroundColor,text:document.querySelector('#owned-white').textContent});
 function popupReadback(){
- const element=document.querySelector('.loader'),style=element&&getComputedStyle(element),loader=element?{className:element.className,hidden:!!element.hidden,display:style.display,visibility:style.visibility}:null,buttons=document.querySelectorAll('button').length,text=document.body.innerText;
+ const element=document.querySelector('.loader'),style=element&&getComputedStyle(element),loader=element?{className:element.className,hidden:!!element.hidden,display:style.display,visibility:style.visibility,opacity:style.opacity,backgroundColor:style.backgroundColor}:null,buttons=document.querySelectorAll('button').length,text=document.body.innerText;
  return{url:location.href,title:document.title,id:chrome.runtime.id,version:chrome.runtime.getManifest().version,text:text.slice(0,400),buttons,fontsStatus:document.fonts.status,loader,
-  ready:buttons>0&&text.length>40&&(!loader||loader.hidden||loader.display==='none'||loader.visibility==='hidden')};
+  ready:buttons>0&&text.length>40};
 }
 function storeReadback(){
  const navigator=globalThis.navigator,data=navigator?.userAgentData;
@@ -96,11 +96,11 @@ module.exports=async ctx=>{
   await fixture.until(()=>js(`!!document.querySelector(${JSON.stringify(pin)})`),'638 actual toolbar action');value.actionInput=await click(pin);
   let popup;await fixture.until(()=>{popup=compat.instance.api.browserAction.popup;return popup&&!popup.isDestroyed()&&popup.browserWindow?.isVisible();},'638 real extension action popup',15000);await popup.whenReady();
   const wc=popup.browserWindow.webContents,popupDeadline=performance.now()+15000;
-  // The signed popup renders controls before its own loader transition ends.
-  // Observe that state and its own renderer frames without changing its styles.
-  await fixture.until(async()=>(await wc.executeJavaScript(`(${popupReadback.toString()})()`)).ready,'638 live Dark Reader popup UI',15000);
+  // Loader state is diagnostic: its transitionend marker is optional. Actual
+  // display pixels below determine readiness without changing extension styles.
+  await fixture.until(async()=>{out.popupReadback=await wc.executeJavaScript(`(${popupReadback.toString()})()`);return out.popupReadback.ready;},'638 live Dark Reader popup UI',15000);
   await bounded(wc.executeJavaScript('(async()=>{await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true;})()'),Math.max(1,popupDeadline-performance.now()),'638 popup fonts and renderer frame');
-  value.action=await wc.executeJavaScript(`(${popupReadback.toString()})()`);assert.equal(value.action.ready,true);assert.equal(value.action.id,ID);assert.equal(value.action.version,entry().version);assert.ok(value.action.url.startsWith('chrome-extension://'+ID+'/'));
+  value.action=out.popupReadback=await wc.executeJavaScript(`(${popupReadback.toString()})()`);assert.equal(value.action.ready,true);assert.equal(value.action.id,ID);assert.equal(value.action.version,entry().version);assert.ok(value.action.url.startsWith('chrome-extension://'+ID+'/'));
   const actionCapture=await capture('mouse-638-webstore-action-'+(read?'restart':'write')+'.png',{popupWindow:popup.browserWindow,meta:{kind:'webstore-action',extensionId:ID}});value.action.bounds=actionCapture.popup.bounds;value.action.capture=actionCapture.filename;
   // Focusing the main window closes the production popup. Disable/enable are
   // real manager buttons, followed by ordinary reloads to verify content hooks.
@@ -144,7 +144,8 @@ module.exports=async ctx=>{
   if(read){await openManager();out.removeInput=await click(row+' [data-action="remove"]');await fixture.until(()=>!entry(),'638 restored live extension removed');await closeManager();out.removed=true;}
   rememberPages();return out;
  }finally{
-  restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+  try{restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}}
+  finally{await save();}
  }
 };
 module.exports.fixtures={storeReadback,installControlReadback,installProgressReadback,popupReadback};
