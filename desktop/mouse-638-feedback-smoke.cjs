@@ -88,12 +88,15 @@ module.exports=async ctx=>{
   const hit=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{yFraction:.12})`);assert.equal(hit.ready,true);
   await js(`(()=>{const target=document.querySelector(${JSON.stringify(selector)}),events=[];const fn=e=>events.push({type:e.type,trusted:e.isTrusted,matches:e.target===target||target.contains(e.target),x:e.clientX,y:e.clientY});for(const type of ['pointerdown','pointermove','pointerup'])document.addEventListener(type,fn,true);globalThis.__mouse638Drag={events,dispose(){for(const type of ['pointerdown','pointermove','pointerup'])document.removeEventListener(type,fn,true)}};})()`);
   const origin=win.getContentBounds(),from={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)},to={x:Math.round(origin.x+toPoint.x),y:Math.round(origin.y+toPoint.y)},before=await Promise.all(records.map(fixture.identity));
+  const receipt={selector,action:'drag',kind,from,to,pid:process.pid,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',events:[],before,completed:false};facts.nativeInputs.push(receipt);facts.drags.push(receipt);await save();
+  try{
   try{assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);for(let i=1;i<=12;i++){assert.equal(await nativeInput.testMouse(Math.round(from.x+(to.x-from.x)*i/12),Math.round(from.y+(to.y-from.y)*i/12),1),true);await sleep(18);}}
   finally{assert.equal(await nativeInput.testMouse(to.x,to.y,2),true);}
   await fixture.until(()=>js('!MouseTest.model.drag&&!MouseTest.model.swapDrag'),'638 drag settled');await fixture.until(expect,'638 native drag changed the actual layout');await fixture.frame();
-  const events=await js('__mouse638Drag.events');await js('__mouse638Drag.dispose();delete globalThis.__mouse638Drag');assert.ok(events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches));assert.ok(events.some(e=>e.type==='pointermove'&&e.trusted));assert.ok(events.some(e=>e.type==='pointerup'&&e.trusted));
+  const events=await js('__mouse638Drag.events');assert.ok(events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches));assert.ok(events.some(e=>e.type==='pointermove'&&e.trusted));assert.ok(events.some(e=>e.type==='pointerup'&&e.trusted));
   const after=await Promise.all(records.map(fixture.identity));before.forEach((value,i)=>fixture.assertIdentity(value,after[i]));
-  const receipt={selector,action:'drag',kind,from,to,pid:process.pid,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',events,before,after};facts.nativeInputs.push(receipt);facts.drags.push(receipt);await save();return receipt;
+  Object.assign(receipt,{after,completed:true});return receipt;
+  }finally{receipt.events=await js('__mouse638Drag.events');await js('__mouse638Drag.dispose();delete globalThis.__mouse638Drag');await save();}
  }
  async function toneCapture(record,name,channel,{dynamic=false}={}){
   await fixture.until(()=>fixture.pageJS(record,`getComputedStyle(document.querySelector('#neutral-light')).color==='rgb(${channel}, ${channel}, ${channel})'`),'638 actual neutral website colour');
@@ -134,7 +137,7 @@ module.exports=async ctx=>{
     for(const [mode,theme]of [['rounded','dark'],['rounded','light'],['square','light'],['square','dark']]){await appearance(mode,100,theme);await gridCapture(records,mode+'-'+theme);}
     for(const mode of ['square','rounded']){
      await appearance(mode,100,'dark');const state=await js(`(${gridReadback.toString()})()`),root=state.dividers.find(d=>d.path===''),old=await js('MouseTest.model.tree.ratio');
-     await drag('.divider[data-path=""]'+(mode==='square'?' > .divider-hit':''),{x:root.bounds.x+root.bounds.width/2+28,y:root.bounds.y+root.bounds.height*.12},{kind:'resize-'+mode,records,expect:()=>js(`Math.abs(MouseTest.model.tree.ratio-${old})>.005`)});await gridCapture(records,mode+'-after-resize');
+     await drag('.divider[data-path=""]',{x:root.bounds.x+root.bounds.width/2+28,y:root.bounds.y+root.bounds.height*.12},{kind:'resize-'+mode,records,expect:()=>js(`Math.abs(MouseTest.model.tree.ratio-${old})>.005`)});await gridCapture(records,mode+'-after-resize');
      const current=await js(`(${gridReadback.toString()})()`),source=current.panes[0],target=current.panes[1];
      await drag('.tab-item[data-tab="'+source.tabId+'"] .tab-title',{x:target.bounds.x+target.bounds.width/2,y:target.bounds.y+target.bounds.height/2},{kind:'swap-'+mode,records,expect:()=>js(`MouseTest.model.slots[${JSON.stringify(target.id)}]===${JSON.stringify(source.tabId)}`)});await gridCapture(records,mode+'-after-swap');
     }
