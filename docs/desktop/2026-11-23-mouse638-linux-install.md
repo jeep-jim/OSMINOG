@@ -1,6 +1,55 @@
 # Mouse 6.0.38 — Linux installation follow-up
 
-## Latest accepted Ubuntu 24.04 evidence
+## Published 6.0.38 and accepted Ubuntu 24.04 evidence
+
+The common accepted source is `b9d243dd7507da3c5b5397c62391315c09794db8`,
+merged in [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203) as
+`4d3953456f09448c5b2c2bd463496f27fe6c8a9e`.
+[Source run 45185688213, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45185688213)
+passed native job `137730561367` and clean Ubuntu 24.04 job `137736459380`.
+The three independent source reader groups accepted the same packages and
+ASAR `8114744cebad155762842bffeafaa3b85fba1e7836e26f3f2cce63c9785b377e`.
+
+| Package | Bytes | SHA256 |
+| --- | ---: | --- |
+| Mouse-Browser-6.0.38-Linux-x64.AppImage | 127949079 | `ad8192a991b6485e447e6e33acd899567df885095bf3f7581c0a6d1457bbad90` |
+| Mouse-Browser-6.0.38-Linux-x64.deb | 101179004 | `08cb079dda38f049d9dd56bebba22a1ae1e575e0c1e0555e4e9e8ab655cd4d8b` |
+
+The Noble receipt binds that exact deb and ASAR. Clean dependency verification,
+host installation, native write and restart/read completed in 21.246, 8.535,
+61.938 and 1.368 seconds respectively. Processes 6263 and 7023 exited with zero;
+namespace policy remained unchanged. This is Ubuntu 24.04 CI evidence, not a
+result on the owner's Linux Mint 22.3/X11 device.
+
+[Publisher run 45202332513, attempt 2](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45202332513/attempts/2)
+completed fresh installed acceptance, publication and anonymous updater checks
+on publisher `f50204b9c4533ea3bb8623c80919acb9a7b4ed46`.
+The [public release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.38-x64)
+was published at 2026-11-23 15:33:30 UTC. All five public assets were downloaded
+in full without authorization and matched their recorded SHA256 values. The
+published manifest, verification report and checksum file also match the raw
+publisher artifact; manifest and checksums match the accepted source candidate.
+
+Both [latest feed](https://github.com/jeep-jim/OSMINOG-Releases/blob/e3df06614825d6ba0bd37e26a50fde19b15042ec/platforms/linux/mouse-x64/latest.json)
+and [version feed](https://github.com/jeep-jim/OSMINOG-Releases/blob/e3df06614825d6ba0bd37e26a50fde19b15042ec/platforms/linux/mouse-x64/releases/6.0.38.json)
+contain these exact package URLs, sizes and hashes. The actual published 6.0.37
+updater discovered, downloaded and verified both formats anonymously and
+confirmed the current-version check. Source attempt 1 remains distinct from
+publisher attempt 2: publisher attempt 1 hit a GitHub API rate limit before
+native work; the unchanged retry passed.
+
+From the directory containing the downloaded deb, install with:
+
+```sh
+sudo apt install ./Mouse-Browser-6.0.38-Linux-x64.deb
+```
+
+The screenshot of an AppImage program chooser did not establish the cause of
+the owner's earlier launch issue. The dependency correction and CI result do
+not claim that this particular device has now been tested. Historical evidence
+below remains available for targeted investigation.
+
+## Earlier accepted Ubuntu 24.04 evidence
 
 Source `eb948797dd919ade788349efd152728d47614244` passed both jobs in
 [run 45179250078, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45179250078)

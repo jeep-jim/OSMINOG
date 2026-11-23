@@ -1,43 +1,45 @@
 # Mouse Browser — рабочая сводка
 
-23.11.2026. **6.0.38**, порядок выпуска **Mac → Linux → Windows**. Все три официальных feeds уже указывают 6.0.38 с опубликованными assets; независимый публичный full-hash gate сайта для 6.0.38 пока не подтверждён. Приёмку браузера ведёт отдельная задача.
+23.11.2026. **6.0.38 опубликована.** Порядок выпуска: **Mac → Linux → Windows**. Обновлять эту сводку, не накапливать историю; доказательства — в документах задач и Git.
 
-По поручению Антона сводка заменяет большой контекст. Обновлять состояние, не дописывать историю. Прежний текст — в Git; подробности — в документах задачи.
+## Проект и решения владельца
 
-## Где работать
+- Исходники: [OSMINOG](https://github.com/jeep-jim/OSMINOG); публикация: [OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена — отдельный проект; её доступы/workflows не использовать.
+- Фокус Антона: много окон/столов, локальное автосохранение, плавность и сохранение страниц. Плиточный поиск отменён в 636.
+- **Agent Mouse удалён в 637:** чат агента, режим «Агенты», Local MCP, терминал и модельные подключения. Не возвращать по старым заданиям. Обычные сайты боковой ИИ-панели остаются.
+- Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы и совместимость обновляторов. Не перезаписывать опубликованные пакеты/адреса. Маскот, очки и Dock без новой просьбы не менять.
+- Продукт: `desktop/mouse-main.cjs`, `desktop/mouse/`; preload/update/build рядом. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
 
-- Исходники: [jeep-jim/OSMINOG](https://github.com/jeep-jim/OSMINOG); публикация: [jeep-jim/OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена — отдельный проект; её доступы и workflows не использовать.
-- Продукт: `desktop/mouse-main.cjs`, `mouse-preload.cjs`, `mouse-update.cjs`, `mouse-build.cjs`, `desktop/mouse/`. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
-- [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203), ветка `fix/mouse638-ordered-release`. Сверять свежий head/checks; подробный статус нативной приёмки — в PR.
-- Документы задачи: [638: графика и Store](docs/desktop/2026-11-23-mouse638-rendering-webstore.md), [638: установка Linux](docs/desktop/2026-11-23-mouse638-linux-install.md).
+## Что входит в 638
 
-## Решения владельца
+- **Графика:** целочисленные границы; исправлены надписи/иконки новой вкладки и разрывы фона. Прямоугольная сетка: разделитель 1 px, без радиусов; обычный режим: промежутки 6 px, скругления 12 px. Обе темы, resize/drag, плавность множества страниц обязательны.
+- **Тон белого:** интерфейс и нейтральный светлый текст тёмных веб-страниц; цветные элементы и светлые поверхности сохраняются. Применение сразу и после перезапуска, без потери состояния страниц.
+- **Chrome Web Store:** страница расширения → меню расширений → «Установить в Mouse». CRX3/ID/подписи, нативное согласие, привязка к текущей странице/столу и отмена незавершённой установки при смене контекста. Проверены работа, перезапуск, переключение и удаление. Не все Chrome API поддерживаются.
+- **Mac:** восстановлен native export `paneCorners`, сборка проверяет экспорты.
+- **Linux:** `.deb` существовал; добавлены `libgbm1`, `libasound2t64 | libasound2` и чистая приёмка Ubuntu 24.04. На снимках владельца — Mint 22.3/X11 и выбор программы для AppImage; причина сбоя не доказана. Sandbox и политику user namespaces не отключать.
 
-Фокус — много окон, рабочие столы, локальное автосохранение; приоритет — плавная работа и сохранение страниц. Плиточный поиск отменён в 636. Agent Mouse удалён в 637: чат агента, режим «Агенты», Local MCP, терминал и модельные подключения. Не возвращать их по историческим заданиям. Обычные сайты боковой ИИ-панели остаются.
+Документы: [графика/Store/приёмка](docs/desktop/2026-11-23-mouse638-rendering-webstore.md), [установка Linux](docs/desktop/2026-11-23-mouse638-linux-install.md).
 
-Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы и совместимость обновляторов. Опубликованные пакеты и адреса не перезаписывать. Маскот/очки и Dock без новой просьбы не менять.
+## Принятый source и границы Git
 
-## Кандидат 6.0.38
+- Source: `b9d243dd7507da3c5b5397c62391315c09794db8`.
+- [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203) merged: `4d3953456f09448c5b2c2bd463496f27fe6c8a9e`; дерево совпадает с принятым source.
+- Source native + независимая приёмка **PASS**: Mac, Linux/Ubuntu 24.04, Windows main/modern; пиксели/ввод, Store/подписи, профиль и обновление **637 → 638**. Устройство владельца этим не проверено.
+- **Не двигать `fix/mouse638-ordered-release` после merge:** publisher проверяет исходный head PR203. Любая новая работа и документация — в новой ветке от `main`; принятые source/pins не переписывать.
+- Native проверки и независимые читатели не ослаблять. Source PASS и merge сами по себе не означают публикацию.
 
-- **Графика:** новая вкладка без пропадающих надписей/иконок и разрыва фона; целочисленные границы. Прямоугольная сетка: разделитель 1 px, без радиусов. Обычный режим: 6 px промежутки, 12 px скругления. Проверить resize/drag и переключения при множестве страниц в обеих темах.
-- **Тон белого:** интерфейс и нейтральный светлый текст тёмных веб-страниц; сохранить цветные элементы и светлые поверхности. Настройка действует сразу и после перезапуска без потери состояния страниц.
-- **Chrome Web Store:** открыть страницу расширения → меню расширений → «Установить в Mouse». Проверки CRX3/ID/подписи, нативное согласие, привязка к странице/столу, откат при смене контекста. Нужна живая проверка работы, перезапуска и удаления; не все Chrome API поддерживаются.
-- **Mac:** исправлен пропущенный native export `paneCorners`; число свойств вычисляется из массива, сборка проверяет экспорты.
-- **Linux:** AppImage открылся через «Открыть с помощью» в Mint 22.3/X11; причина сбоя запуска не доказана. `.deb` уже существовал. Добавлены зависимости `libgbm1`, `libasound2t64 | libasound2` и проверка Ubuntu 24.04. Sandbox и политику user namespaces не отключать.
+## Выпуск 638 — PUBLIC PASS, 23.11.2026
 
-Локально: **1297 passed, 0 failed, 4 native skipped** из 1301. Python638: 16/16. Shared-core ранее: 176 passed, пять socket-случаев блокирует EPERM среды. Нативная приёмка не завершена. Publisher: 132 теста прошли; pins `ready:false`.
+- **Mac PUBLIC PASS:** [run 45193897169](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45193897169), [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.38-arm64), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/41a67ead28dda6bdff7c19b8ae4946f9fad91c59/staging/mouse/6.0.38-arm64/pin.json). Все 5 assets проверены по байтам; обновляторы 637/629 — PASS.
+- **Linux PUBLIC PASS:** [run 45202332513, attempt 2](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45202332513/attempts/2), [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.38-x64), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/f50204b9c4533ea3bb8623c80919acb9a7b4ed46/staging/mouse/6.0.38-linux-x64/pin.json). Все 5 assets, оба feed и настоящий updater637 для AppImage/deb — PASS.
+- **Windows PUBLIC PASS:** [run 45208368038](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45208368038), [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.38-x64), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/c33b7b5cd53edcb54c35a450dd83d0d19d2d965d/staging/mouse/6.0.38-windows-x64/pin.json). Все 4 assets, оба feed и обновляторы 629/637 — PASS.
 
-## Завершение выпуска
+Размеры/SHA256 пакетов брать из pins. Далее: разбирать конкретные отзывы владельца об установке и работе этих пакетов. Mac — Apple Silicon, ad-hoc preview без Developer ID/notarization; Windows — unsigned preview.
 
-1. Сверить PR/head/checks; сохранить параллельные изменения сайта. Workflows: `.github/workflows/mouse-macos.yml`, `mouse-linux.yml`, `mouse-windows.yml`; проверки — `tools/mouse-verify.py` и платформенные сценарии. Логи читать по конкретному отказу.
-2. Принять установленную сборку: обе темы, сетка/скругления, реальные клики/drag, PageTone, Store-установка, профиль, обновление **6.0.37 → 6.0.38**. Linux — оба формата и Ubuntu 24.04. Проверки не ослаблять ради зелёного статуса.
-3. Публиковать **macOS Apple Silicon**, подтвердить файл и feed; затем **Linux x64**, затем **Windows x64**. Проверки кандидатов могут идти параллельно. Сборка/merge не означают публикацию.
-4. Записать source/publisher SHA, run, release/feed, проверенные размер/SHA256 и штатное обновление. Mac — ad-hoc preview без Developer ID/notarization; Windows — unsigned preview. CI не является проверкой устройства владельца.
+## Сайт и автообновление
 
-## Сайт и предыдущий выпуск
+[mouse.black](https://mouse.black/) — отдельный webroot/HTTPS под osminog; bootstrap завершён. Все три загрузки 638: HTTPS, полные байты/SHA256 и Range PASS 23.11.2026, 16:22 UTC. Таймер переносит проверенные официальные загрузки по платформам, проверяя каналы через 60 секунд после предыдущего запуска. Выпуск браузера не требует повторного bootstrap, доступа к АвтоЦене или root. Сохранять параллельные изменения сайта. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md) — только для задач сайта.
 
-[mouse.black](https://mouse.black/) работает на отдельном webroot/HTTPS под osminog; bootstrap завершён. Таймер переносит проверенные официальные загрузки отдельно по платформам, проверяя каналы через 60 секунд после предыдущего запуска. Browser release не требует повторной настройки сайта или доступа к АвтоЦене/root. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md) — только для задач сайта.
+Лендинг: сплит, 72 языка, $3/месяц; подписка «скоро», checkout/права не внедрены. Автосбор — новый буфер/снимки выбранной папки при открытом Mouse, не страницы из кеша. [Тариф](docs/website/2026-11-23-one-fair-plan.md).
 
-Последняя **независимо проверенная** раздача сайта: macOS/Windows/Linux 6.0.37 ([website run 45172026289](https://github.com/jeep-jim/OSMINOG/actions/runs/45172026289)). Официальные feeds уже содержат **6.0.38 для macOS arm64, Linux x64 и Windows x64**; GitHub Release assets всех трёх платформ опубликованы и совпадают с feed по именам, URL, размеру и SHA256 (Mac 21:53:39; Linux 22:33:30; Windows 23:15:57 Красноярск). **Публичный каталог mouse.black/downloads.json и полный SHA256 новых файлов 6.0.38 с самого сайта в текущей проверке подтвердить не удалось**: web fetch не открывает ресурс, curl не разрешает DNS. Это не доказательство сбоя сайта. Серверный таймер не трогать; следующий контроль — HTTP-каталог, прямые HTTPS/HEAD/Range и полные SHA256 только новых файлов (Linux/Windows 6.0.38 и ранее не подтверждённого Mac 6.0.38). [Журнал сайта](docs/website/2026-11-22-mouse-black-launch.md). Принятый Mac source 637: `0021084ccb9537e657d21e6f0c8e812dee6b461f`; [publisher run 45041006104](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45041006104). [Журнал 637](docs/desktop/2026-11-22-mouse637-release.md) — архив для адресного поиска.
-
-Лендинг: сплит, 72 языка, $3/месяц; подписка «скоро», checkout/права не внедрены. [Сплит](docs/website/2026-11-23-split-hero.md) · [Фавиконка/сетка](docs/website/2026-11-23-favicon-price-grid.md) · [Норка/заголовок — опубликовано](docs/website/2026-11-23-light-burrow.md). Автосбор — новый буфер/снимки выбранной папки при открытом Mouse, не страницы из кеша. [Тариф](docs/website/2026-11-23-one-fair-plan.md).
+Автообновление: проверять реальные публичные байты по размеру/SHA256 и feed; сохранять профиль и совместимость обновляторов.
