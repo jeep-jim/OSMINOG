@@ -82,7 +82,7 @@ bool ensureCornerClass(){
  return RegisterClassW(&cls)!=0;
 }
 bool drawCorner(Corner& corner,int width,int height,double cx,double cy,double radius,uint32_t color,const char*& stage){
- // A top-down, premultiplied BGRA DIB. Supersampling only the tiny 13-DIP
+ // A top-down, premultiplied BGRA DIB. Supersampling only the tiny 12-DIP
  // cutouts makes the native arc smooth at fractional display scales.
  BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
  info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
@@ -149,11 +149,10 @@ bool paintPaneTrim(PaneTrim& trim){
  for(const auto& pane:trim.panes){
   if(pane.x+pane.width>(client.right-client.left)/scale+1||pane.y+pane.height>(client.bottom-client.top)/scale+1)continue;
   for(int side=0;side<2;side++){
-   // Match the Mac trim's one-DIP overpaint outside the arc: this covers a
-   // fractional DOM/native endpoint rim without altering the 12-DIP circle.
-   const double left=(side?pane.x+pane.width-12:pane.x-1)*scale,top=(pane.y+pane.height-12)*scale;
+   // Shared integer-DIP endpoints need no overpaint into neighbouring seams.
+   const double left=(side?pane.x+pane.width-12:pane.x)*scale,top=(pane.y+pane.height-12)*scale;
    const int x=static_cast<int>(std::floor(left)),y=static_cast<int>(std::floor(top));
-   const int width=static_cast<int>(std::ceil(left+13*scale))-x,height=static_cast<int>(std::ceil(top+13*scale))-y;
+   const int width=static_cast<int>(std::ceil(left+12*scale))-x,height=static_cast<int>(std::ceil(top+12*scale))-y;
    const double cx=(side?pane.x+pane.width-12:pane.x+12)*scale-x,cy=(pane.y+pane.height-12)*scale-y;
    if(used==trim.corners.size())trim.corners.emplace_back();Corner& corner=trim.corners[used++];
    if(!corner.window){

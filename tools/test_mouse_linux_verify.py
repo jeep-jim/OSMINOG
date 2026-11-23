@@ -9,6 +9,18 @@ spec.loader.exec_module(verify)
 
 
 class LinuxVerificationTests(unittest.TestCase):
+    def test_current_upgrade_accepts_the_actual_published_predecessor(self):
+        verify.verify_upgrade_report({'ok': True, 'fromVersion': '6.0.37', 'toVersion': '6.0.38',
+                                      'platform': 'linux', 'formats': {'deb': {}, 'appimage': {}}})
+
+    def test_old_or_partial_upgrade_cannot_accept_the_new_release(self):
+        valid = {'ok': True, 'fromVersion': '6.0.37', 'toVersion': '6.0.38',
+                 'platform': 'linux', 'formats': {'deb': {}, 'appimage': {}}}
+        for changed in ({'fromVersion': '6.0.36'}, {'toVersion': '6.0.37'},
+                        {'formats': {'deb': {}}}, {'platform': 'win32'}, {'ok': False}):
+            with self.subTest(changed=changed), self.assertRaisesRegex(RuntimeError, 'published637'):
+                verify.verify_upgrade_report({**valid, **changed})
+
     def test_nonzero_exit_cannot_pass_even_with_a_success_marker(self):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, 'exited 7'):

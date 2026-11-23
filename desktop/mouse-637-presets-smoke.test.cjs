@@ -13,7 +13,7 @@ function pageProof(){
  let field={value:''},context=vm.createContext({window:{identity:.123},performance:{timeOrigin:1000},scrollX:0,scrollY:0,document:{querySelector:selector=>selector==='#draft'?field:null}});
  const wc={id:25,getURL:()=> 'http://127.0.0.1:41000/suggested/owned',executeJavaScript:async source=>vm.runInContext(source,context)},page={id:'owned-page',view:{webContents:wc},navigationEpoch:0},tabs=[{id:page.id,url:wc.getURL(),internal:false}],bank={active:'desk-2'};
  const browser={mouseDesktops:{bank},state:()=>({tabs}),get:id=>{assert.equal(id,page.id);return page;}};
- const proof=createPresetProof({app:{getVersion:()=> '6.0.37',isPackaged:false},browser,selectedRequests:[]});
+ const proof=createPresetProof({app:{getVersion:()=> '6.0.38',isPackaged:false},browser,selectedRequests:[]});
  return{proof,page,tabs,field,wc,reload(){field={value:''};context=vm.createContext({window:{identity:.987},performance:{timeOrigin:2000},scrollX:0,scrollY:0,document:{querySelector:selector=>selector==='#draft'?field:null}});}};
 }
 test('preservation snapshots seed each owned form only once and detect a replaced renderer or reload',async()=>{

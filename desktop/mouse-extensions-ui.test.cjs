@@ -6,8 +6,9 @@ test('the puzzle and pins sit before the window layout controls',()=>{
  const tray=markup.indexOf('id="mouse-extensions-tray"'),layout=markup.indexOf('id="layout-control-title"');
  assert.ok(tray>markup.indexOf('id="footer-left"')&&tray<layout);
  assert.match(markup,/aria-controls="mouse-extensions-dialog"/);
- assert.match(markup,/расширения; установка из Chrome Web Store пока недоступна/i);
  const ui=read('mouse/extensions.js');
+ assert.match(ui,/Открыть Chrome Web Store/);
+ assert.match(ui,/store\.onclick=.*run\('open-store'\)/);
  assert.match(ui,/entries\.filter\(e=>e\.enabled&&e\.pinned\)/);
  assert.match(ui,/privateMode\(\)\)\{tray\.hidden=true/);
  assert.match(ui,/showDialog\(modal\)/);
@@ -20,11 +21,72 @@ test('build and IPC isolate the manager to the persistent page session and trust
  assert.match(preload,/extensions:\(action,args\)=>ipcRenderer\.invoke\('mouse:extensions',action,args\)/);
  assert.match(build,/'mouse-extensions\.cjs'/);
 });
+function storeManagerFixture(){
+ const vm=require('node:vm');
+ class Element{
+  constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.attributes={};this.textContent='';this.className='';this.isConnected=true;this.listeners={};this.open=false;}
+  append(...children){this.children.push(...children)}replaceChildren(...children){this.children=[...children]}after(...children){this.afterElements=children}
+  setAttribute(name,value){this.attributes[name]=value}addEventListener(event,fn){this.listeners[event]=fn}focus(){}cloneNode(){return new Element(this.tagName)}
+  close(){this.open=false;this.listeners.close?.()}
+  querySelector(selector){return this.querySelectorAll(selector)[0]||null}
+  querySelectorAll(selector){return this.children.flatMap(child=>[...(selector==='svg'?child.tagName==='SVG':child.className.split(' ').includes(selector.slice(1)))?[child]:[],...child.querySelectorAll(selector)])}
+ }
+ const nodes=new Map(['tray','button','pins','dialog','list','install','status','title','note'].map(id=>['mouse-extensions-'+id,new Element()]));
+ nodes.get('mouse-extensions-button').append(new Element('svg'));
+ const root={lang:'ru',dataset:{private:'false'}},document={documentElement:root,getElementById:id=>nodes.get(id),createElement:tag=>new Element(tag)},calls=[];
+ let observer;
+ const f={nodes,root,calls,tabId:'owned-tab',entries:[],page:{tabId:'owned-tab',extensionId:'a'.repeat(32),url:'https://chromewebstore.google.com/detail/fixture/'+'a'.repeat(32)},
+  result:{result:'user_cancelled',extensions:[]},flush:()=>new Promise(resolve=>setImmediate(resolve)),observe:()=>observer()};
+ const context=vm.createContext({document,MutationObserver:class{constructor(fn){observer=fn}observe(){}}});
+ vm.runInContext(read('mouse/extensions.js'),context);
+ context.createMouseExtensionsUI({currentTab:()=>f.tabId,showDialog:async modal=>{modal.open=true},N:{extensions:async(action,args)=>{
+  calls.push({action,args});if(action==='store-page')return typeof f.page==='function'?f.page(args):f.page;
+  if(action==='install-store-page')return typeof f.result==='function'?f.result(args):f.result;
+  return f.entries;
+ }}});
+ f.install=nodes.get('mouse-extensions-note').afterElements.find(el=>el.id==='mouse-extensions-install-page');
+ f.open=async()=>{nodes.get('mouse-extensions-button').onclick();await f.flush()};
+ return f;
+}
+test('the browser install control appears only for a verified current store page and reports the real result',async()=>{
+ const f=storeManagerFixture();await f.flush();assert.equal(f.install.hidden,true);
+ f.page=null;await f.open();assert.equal(f.install.hidden,true);
+ f.nodes.get('mouse-extensions-dialog').close();
+ f.page={tabId:f.tabId,extensionId:'a'.repeat(32)};await f.open();
+ assert.equal(f.install.hidden,false);assert.equal(f.install.disabled,false);assert.equal(f.install.textContent,'Установить в Mouse');
+ f.install.onclick();await f.flush();
+ const request=f.calls.find(c=>c.action==='install-store-page');
+ assert.equal(request.args.tabId,f.tabId);assert.deepEqual(Object.keys(request.args),['tabId'],'The renderer never chooses an extension ID or download URL');
+ assert.equal(f.nodes.get('mouse-extensions-status').textContent,'Установка отменена.');assert.equal(f.install.disabled,false);
+ f.result={result:'install_error',message:'Поддерживаются расширения Chrome Manifest V3.',extensions:[]};f.install.onclick();await f.flush();
+ assert.equal(f.nodes.get('mouse-extensions-status').textContent,f.result.message);assert.equal(f.nodes.get('mouse-extensions-status').dataset.result,'install_error');assert.equal(f.install.disabled,false);
+ f.result={result:'success',extensions:[{id:'a'.repeat(32),name:'Installed extension',enabled:true,pinned:false}]};
+ f.install.onclick();await f.flush();assert.equal(f.install.disabled,true);assert.equal(f.install.textContent,'Установлено в Mouse');assert.equal(f.nodes.get('mouse-extensions-status').dataset.result,'success');
+ f.root.lang='en';f.observe();assert.equal(f.install.textContent,'Installed in Mouse');
+ assert.match(f.nodes.get('mouse-extensions-note').textContent,/return to this menu/);
+});
+test('store installation consumes one UI request while busy and rejects a stale selected tab',async()=>{
+ const f=storeManagerFixture();await f.flush();await f.open();let finish;
+ f.result=()=>new Promise(resolve=>{finish=resolve});f.install.onclick();f.install.onclick();
+ assert.equal(f.install.disabled,true);assert.equal(f.calls.filter(c=>c.action==='install-store-page').length,1);
+ finish({result:'user_cancelled',extensions:[]});await f.flush();
+ f.tabId='another-tab';f.install.onclick();await f.flush();
+ assert.equal(f.install.hidden,true);assert.equal(f.calls.filter(c=>c.action==='install-store-page').length,1);
+});
+test('late store context cannot reopen a closed manager or reappear in private mode',async()=>{
+ const f=storeManagerFixture();await f.flush();let answer;
+ f.page=()=>new Promise(resolve=>{answer=resolve});await f.open();
+ f.nodes.get('mouse-extensions-dialog').close();answer({tabId:f.tabId,extensionId:'a'.repeat(32)});await f.flush();
+ assert.equal(f.install.hidden,true);
+ await f.open();f.root.dataset.private='true';f.observe();answer({tabId:f.tabId,extensionId:'a'.repeat(32)});await f.flush();
+ assert.equal(f.install.hidden,true);assert.equal(f.nodes.get('mouse-extensions-dialog').open,false);
+ f.install.onclick();assert.equal(f.calls.some(c=>c.action==='install-store-page'),false);
+});
 test('restoration errors remain distinct from disabled extensions and explain reinstall in RU and EN',async()=>{
  const vm=require('node:vm'),flush=()=>new Promise(resolve=>setImmediate(resolve));
  class Element{
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.attributes={};this.textContent='';this.className='';this.isConnected=true;this.listeners={}}
-  append(...children){this.children.push(...children)}replaceChildren(...children){this.children=[...children]}
+  append(...children){this.children.push(...children)}replaceChildren(...children){this.children=[...children]}after(...children){this.afterElements=children;}
   setAttribute(name,value){this.attributes[name]=value}addEventListener(event,fn){this.listeners[event]=fn}
   focus(){}cloneNode(){return new Element(this.tagName)}
   querySelector(selector){return this.querySelectorAll(selector)[0]||null}

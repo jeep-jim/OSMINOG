@@ -15,7 +15,6 @@ from pathlib import Path
 import platform
 import subprocess
 import sys
-import tempfile
 import time
 
 
@@ -32,9 +31,9 @@ NAME = FOLDER + '.json'
 MARKERS = ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',
            'MOUSE_631_INSTALLED_TASK_STRESS_PASS', 'MOUSE_632_STATIONARY_MEDIA_PASS']
 REPORTS = ['mouse-631-native.json', 'mouse-631-task.json', 'mouse-631-stress.json', 'mouse-632-media.json']
-PUBLISHED_SOURCES = {'darwin': '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3',
-                     'win32': '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3',
-                     'linux': '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3'}
+PUBLISHED_SOURCES = {'darwin': '0021084ccb9537e657d21e6f0c8e812dee6b461f',
+                     'win32': '0021084ccb9537e657d21e6f0c8e812dee6b461f',
+                     'linux': '0021084ccb9537e657d21e6f0c8e812dee6b461f'}
 
 
 def utc():
@@ -114,6 +113,16 @@ def measure(executable, profile, output, env):
     return process
 
 
+def baseline_native_exit_verified(facts):
+    """Allow cleanup retries only after the unchanged workload was validated."""
+    process = facts.get('process')
+    return (facts.get('ok') is True and facts.get('nativeWorkloadValidated') is True
+            and not facts.get('error') and isinstance(process, dict)
+            and type(process.get('pid')) is int and process['pid'] > 0
+            and type(process.get('exitCode')) is int and process['exitCode'] == 0
+            and not process.get('timedOut') and not process.get('error'))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path.cwd())
@@ -129,7 +138,7 @@ def main(argv=None):
     raw_output.mkdir()
     old_version = U.OLD_VERSIONS[sys.platform]
     baseline = U.BASELINES[sys.platform]['deb'] if sys.platform == 'linux' else U.BASELINES[sys.platform]
-    facts = {'schema': 1, 'kind': 'published-baseline-stress-run', 'version': '6.0.37', 'ok': False,
+    facts = {'schema': 1, 'kind': 'published-baseline-stress-run', 'version': '6.0.38', 'ok': False,
              'platform': sys.platform, 'arch': 'arm64' if sys.platform == 'darwin' else 'x64',
              'baselineVersion': old_version, 'baselineSource': PUBLISHED_SOURCES[sys.platform],
              'baseline': {**baseline, 'url': U.baseline_url(baseline)}, 'rawDirectory': FOLDER,
@@ -140,8 +149,8 @@ def main(argv=None):
                         'sha': os.environ.get('GITHUB_SHA'), 'host': platform.node(), 'system': platform.system(),
                         'machine': platform.machine(), 'display': os.environ.get('DISPLAY')}}
     try:
-        with tempfile.TemporaryDirectory(prefix='mouse637-baseline-', dir=os.environ.get('RUNNER_TEMP')) as temporary:
-            root = Path(temporary)
+        with U.owned_upgrade_directory(facts, prefix='mouse637-baseline-',
+                                       native_exit_check=baseline_native_exit_verified) as root:
             package = U.download_baseline(baseline, root)
             profile = root / 'Isolated previous-version performance profile'
             env = {**os.environ, 'CI': 'true', 'MOUSE_TEST_PROFILE': str(profile), 'GDK_SCALE': '1', 'GDK_DPI_SCALE': '1'}
@@ -163,8 +172,10 @@ def main(argv=None):
             facts['process'] = measure(executable, profile, raw_output, env)
             validate_process(raw_output, facts['process'], old_version, sys.platform)
             facts['files'] = inventory(raw_output)
+            facts['nativeWorkloadValidated'] = True
             facts['ok'] = True
     except Exception as error:
+        facts['ok'] = False
         facts['error'] = {'type': type(error).__name__, 'message': str(error)}
         raise
     finally:

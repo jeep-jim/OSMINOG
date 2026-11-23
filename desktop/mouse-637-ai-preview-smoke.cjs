@@ -22,7 +22,7 @@ function readback(){
   tabs:m.state.tabs.map(t=>({id:t.id,lane:t.lane,previewOf:t.previewOf||'',url:t.url,favicon:t.favicon||''})),dividerValue:Number(document.querySelector('#ai-preview-divider').getAttribute('aria-valuenow'))};
 }
 function assertGeometry(value,chatId,previewId){
- const near=(a,b,what)=>assert.ok(Math.abs(a-b)<1.1,what+': '+a+' / '+b),gap=value.mode==='square'?0:6;
+ const near=(a,b,what)=>assert.ok(Math.abs(a-b)<1.1,what+': '+a+' / '+b),gap=value.mode==='square'?1:6;
  assert.equal(value.aiId,chatId);assert.equal(value.previewId,previewId);assert.equal(value.gap,gap);
  assert.ok(Number.isFinite(value.ratio)&&value.ratio>0&&value.ratio<1);assert.equal(value.dividerValue,Math.round(value.ratio*100));
  near(value.preview.y,value.chat.y+value.chat.height+gap,'AI pages share the exact chosen gap');

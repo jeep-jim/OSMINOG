@@ -137,6 +137,19 @@ async function createFixture(ctx,name,budgetMs){
   assert.deepEqual(actual,bounds,'Actual native View hierarchy keeps the recorded page geometry');
   return{tabId:page.id,index:record.index,desk:bank.members[page.id],webContentsId:page.view.webContents.id,bounds,viewBounds:view,parentBounds:parent,actualBounds:actual,visible:page.view.getVisible(),parentVisible:page.clipView?.getVisible()??true,cachedVisible:!!page.visible,attached:win.contentView.children.includes(root)};
  }
+ async function parkPointerForShellCapture(record,state,contentBounds){
+  // A native title tooltip is present in the OS capture but not capturePage().
+  // Move off the chrome into this owned page without clicking or altering UI.
+  const bounds=state.bounds,zoom=record.page.view.webContents.getZoomFactor();assert.ok(Number.isFinite(zoom)&&zoom>0);
+  const point={x:Math.floor(contentBounds.x+bounds.x+bounds.width/2),y:Math.floor(contentBounds.y+bounds.y+bounds.height-24)};
+  const local={x:(point.x-contentBounds.x-bounds.x)/zoom,y:(point.y-contentBounds.y-bounds.y)/zoom};
+  const target=await pageJS(record,`(()=>{const p=${JSON.stringify(local)},hit=document.elementFromPoint(p.x,p.y);return{index:mouse631.index,identity:mouse631.identity,inside:p.x>0&&p.y>0&&p.x<innerWidth&&p.y<innerHeight,tag:hit?.tagName||null,neutral:!!hit&&!hit.closest('[title],a,button,input,textarea,select,[contenteditable],[role="button"]')};})()`);
+  assert.equal(target.index,record.index);assert.equal(target.identity,record.before.identity);assert.ok(target.inside&&target.neutral,'Native pointer target is title-free owned fixture content');
+  const native=ctx.nativeInput||(process.platform==='darwin'?require('./mouse-native-menu.node'):process.platform==='win32'?require('./mouse-windows-input.cjs').createWindowsInput():require('./mouse-linux-input.cjs').createLinuxInput());
+  const before=screen.getCursorScreenPoint(),result=await native.testPointer(point.x,point.y);assert.equal(result?.warpResult,0);assert.equal(result?.postAccess,true);
+  await frame();const actual=screen.getCursorScreenPoint();assert.ok(Math.abs(actual.x-point.x)<=1&&Math.abs(actual.y-point.y)<=1,'Actual native pointer reached the owned fixture page');
+  return{tabId:record.id,webContentsId:state.webContentsId,point,local,zoom,tag:target.tag,before,actual,native:result};
+ }
  async function captureContent(filename,records,{shellRegions=[]}={}){
   assert.equal(globalCapture.permission(),process.platform==='darwin'?'granted':'not-required');
   const contentBounds=win.getContentBounds(),display=screen.getDisplayMatching(win.getBounds()),states=records.map(nativeState);
@@ -145,6 +158,7 @@ async function createFixture(ctx,name,budgetMs){
   assert.ok(states.every(state=>state.visible&&state.parentVisible&&state.cachedVisible&&state.attached));
   const content=[];
   for(const record of records){const dom=await pageJS(record,'({index:mouse631.index,identity:mouse631.identity,regions:["a","b"].map(part=>{const element=document.querySelector("#region-"+part),r=element.getBoundingClientRect();return{part,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},color:getComputedStyle(element).backgroundColor};})})');assert.equal(dom.index,record.index);assert.equal(dom.identity,record.before.identity);content.push({tabId:record.id,...dom});}
+  const pointerParking=shellRegions.length?await parkPointerForShellCapture(records[0],states[0],contentBounds):null;
   const themeProbe=shellRegions.length?await js(`(${staticThemeProbe.toString()})()`):null;
   const background=themeProbe?{...themeProbe,...cornerBackground(themeProbe.css)}:null;
   const attempts=[],begin=performance.now();let last;
@@ -170,7 +184,7 @@ async function createFixture(ctx,name,budgetMs){
    last={png,full,kind:frame.kind,backend:frame.backend,screenPixelSize,...geometry,pixelSize,probes,reference,shellMatch};if(accepted)break;
   }
   assert.ok(last,'OS capture produced a frame');const displayFilename=filename.replace(/\.png$/,'-display.png');await fs.writeFile(filename,last.png);await fs.writeFile(displayFilename,last.full);
-  const result={filename,sha256:sha256(last.png),displayFilename,displaySha256:sha256(last.full),source:'globalCapture.acquire(display)',kind:last.kind,backend:last.backend,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},contentBounds,fixtureGeometry,screenPixelSize:last.screenPixelSize,cropPixels:last.cropPixels,mapping:last.mapping,pixelSize:last.pixelSize,native:states,content,probes:last.probes,attempts};
+  const result={filename,sha256:sha256(last.png),displayFilename,displaySha256:sha256(last.full),source:'globalCapture.acquire(display)',kind:last.kind,backend:last.backend,display:{id:display.id,bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},contentBounds,fixtureGeometry,screenPixelSize:last.screenPixelSize,cropPixels:last.cropPixels,mapping:last.mapping,pixelSize:last.pixelSize,native:states,content,probes:last.probes,attempts,...(pointerParking?{pointerParking}:{})};
   if(last.reference){const referenceFilename=filename.replace(/\.png$/,'-shell-reference.png');await fs.writeFile(referenceFilename,last.reference.png);result.shell={filename:referenceFilename,sha256:sha256(last.reference.png),pixelSize:{width:last.reference.width,height:last.reference.height},regions:shellRegions,background,match:last.shellMatch};}
   if(!attempts.at(-1).accepted)throw Object.assign(Error('Mouse631 actual OS pixels do not show every live page content region'),{capture:result});
   return result;

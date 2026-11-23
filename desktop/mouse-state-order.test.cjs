@@ -138,8 +138,29 @@ test('actual navigation, extension and document continuations use current live I
   await flush();const tabs=f.tabs.filter(t=>present||t.id!==id).map(t=>({...t,title:'Current title',internal:false})),current=snapshot(23,tabs);f.ctx.receive(current);Object.assign(f.calls,{save:0,render:0,layout:0});const before=copy(f.model.slots);
   resolveState(snapshot(22,f.tabs));await operation;assert.equal(f.model.state,current,kind+' preserves newest state');
   if(!present){assert.deepEqual(f.model.slots,before);assert.deepEqual(f.calls,{save:0,render:0,layout:0});assert.equal(activated.length,0);}
-  else if(kind==='document'){assert.deepEqual(activated,[{desk:'desk-2',id}]);assert.equal(f.calls.layout,1);}
+  else if(kind==='document'||kind==='extension'){assert.deepEqual(activated,[{desk:'desk-2',id}]);assert.equal(f.calls.layout,1);}
   else{assert.equal(f.calls.save,1,kind+' completes successful action');assert.equal(f.calls.render,1);assert.equal(f.model.slots.p1,id);}
+ }
+});
+
+test('actual extension selection keeps chat and source previews in their lane and preserves main slots',async()=>{
+ for(const role of ['chat','preview','visible-main','new-main']){
+  const f=renderer(),chat={id:'owned-chat',lane:'side'},preview={id:'owned-preview',lane:'side',previewOf:chat.id},newMain={id:'owned-new-main',lane:'main'};
+  const current=snapshot(24,[...f.old,chat,preview,newMain]);assert.equal(f.ctx.receiver.refresh(current,'desk-2'),true);
+  Object.assign(f.model,{tree:L.preset(2),slots:{p1:f.old[0].id,p2:f.old[1].id},active:'p2',aiId:'',aiOpen:false});
+  const before=copy(f.model.slots),id=({chat:chat.id,preview:preview.id,'visible-main':f.old[0].id,'new-main':newMain.id})[role];
+  Object.assign(f.ctx,{N:{browser:async()=>current},overlays:{show(){}},createMouseExtensionsUI:config=>{f.ctx.extension=config;},renderAISites(){},requestLayout:()=>f.calls.layout++,setActive:pane=>{f.model.active=pane;},renderTree:()=>vm.runInContext('reconcile()',f.ctx)});
+  f.ctx.desktopUI.close=()=>{};
+  vm.runInContext(section(' function placementPane(','\n function setActive')+'\n'+section(' async function activateDesktopTab(','\n // Keep the page view')+'\n'+section(' createMouseExtensionsUI(','\n const capture='),f.ctx);
+  await f.ctx.extension.placeTab({id,desk:'desk-2'});
+  if(role==='chat'||role==='preview'){
+   assert.deepEqual(copy(f.model.slots),before,'Side activation must not clear or replace a main slot');
+   assert.equal(f.model.aiId,chat.id);assert.equal(f.model.aiOpen,true);
+  }else if(role==='visible-main'){
+   assert.deepEqual(copy(f.model.slots),before);assert.equal(f.model.active,'p1');
+  }else{
+   assert.deepEqual(copy(f.model.slots),{p1:before.p1,p2:newMain.id});assert.equal(f.model.active,'p2');
+  }
  }
 });
 

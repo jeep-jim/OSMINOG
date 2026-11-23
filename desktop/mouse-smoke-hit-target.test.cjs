@@ -2,13 +2,26 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const rect=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
-function fixture(fragments,{bounds,clip,style={},selector='',cover=()=>false,child=false}={}){
+function fixture(fragments,{bounds,clip,style={},selector='',cover=()=>false,child=false,hitFragments=fragments}={}){
  bounds||=rect(Math.min(...fragments.map(r=>r.left)),Math.min(...fragments.map(r=>r.top)),Math.max(...fragments.map(r=>r.right))-Math.min(...fragments.map(r=>r.left)),Math.max(...fragments.map(r=>r.bottom))-Math.min(...fragments.map(r=>r.top)));
  const defaultStyle={pointerEvents:'auto',opacity:'1',visibility:'visible',display:'inline',overflowX:'visible',overflowY:'visible'},element={tagName:'SPAN',className:'word-text',disabled:false,matches:value=>value===selector,getBoundingClientRect:()=>bounds,getClientRects:()=>fragments},descendant={tagName:'B',className:'',parent:element},other={tagName:'P',className:'line-gap'},overlay={tagName:'DIV',className:'overlay'},inside=(point,r)=>point.x>=r.left&&point.x<r.right&&point.y>=r.top&&point.y<r.bottom;
  element.contains=value=>value===element||value===descendant;
  if(clip)element.parentElement={style:{overflowX:'hidden',overflowY:'hidden'},parentElement:null,getBoundingClientRect:()=>clip,clientLeft:0,clientTop:0,clientWidth:clip.width,clientHeight:clip.height};
- const document={querySelector:()=>({dataset:{density:'compact'}}),elementFromPoint(x,y){if(cover({x,y}))return overlay;return fragments.some(r=>inside({x,y},r))&&(!clip||inside({x,y},clip))?(child?descendant:element):other;},defaultView:{innerWidth:200,innerHeight:150,getComputedStyle:value=>({...defaultStyle,...(value===element?style:value.style)})}};element.ownerDocument=document;return{element,document,overlay};
+ const document={querySelector:()=>({dataset:{density:'compact'}}),elementFromPoint(x,y){if(cover({x,y}))return overlay;return hitFragments.some(r=>inside({x,y},r))&&(!clip||inside({x,y},clip))?(child?descendant:element):other;},defaultView:{innerWidth:200,innerHeight:150,getComputedStyle:value=>({...defaultStyle,...(value===element?style:value.style)})}};element.ownerDocument=document;return{element,document,overlay};
 }
+test('one-pixel native separators keep integer input inside their own bounds despite overflowing hit children',()=>{
+ for(const [bounds,expanded,expected]of [[rect(77,40,1,90),rect(74,40,7,90),{ready:true,x:77,y:85}],[rect(20,77,90,1),rect(20,74,90,7),{ready:true,x:65,y:77}]]){
+  const f=fixture([bounds],{child:true,hitFragments:[expanded]}),point=nativeHitTarget(f.element);assert.deepEqual(point,expected);assert.equal(f.element.contains(f.document.elementFromPoint(point.x,point.y)),true);
+ }
+});
+test('native hit points respect fractional visible bounds and reject a target with no integer position',()=>{
+ const f=fixture([rect(77.1,20,1.1,40)],{child:true,hitFragments:[rect(74,20,7,40)]}),point=nativeHitTarget(f.element);assert.deepEqual(point,{ready:true,x:78,y:40});
+ const narrow=fixture([rect(77.1,20,.3,40)],{child:true,hitFragments:[rect(74,20,7,40)]});assert.equal(nativeHitTarget(narrow.element).ready,false);
+ const clipped=fixture([rect(70,20,20,40)],{clip:rect(77.1,20,1.1,40)});assert.deepEqual(nativeHitTarget(clipped.element),{ready:true,x:78,y:40});
+});
+test('a covered one-pixel separator cannot escape to its overflowing child beside the native page',()=>{
+ const f=fixture([rect(77,40,1,90)],{child:true,hitFragments:[rect(74,40,7,90)],cover:({x})=>x===77});assert.equal(nativeHitTarget(f.element).ready,false);
+});
 test('a wrapped inline edit uses an actual line fragment, not the gap in its union box',()=>{
  const f=fixture([rect(20,20,140.5,16),rect(20,42,60,15.25)]),union=f.element.getBoundingClientRect();assert.equal(f.element.contains(f.document.elementFromPoint(union.left+union.width/2,union.top+union.height/2)),false);
  const point=nativeHitTarget(f.element);assert.equal(point.ready,true);assert.ok(point.y<36||point.y>=42);assert.equal(f.element.contains(f.document.elementFromPoint(point.x,point.y)),true);

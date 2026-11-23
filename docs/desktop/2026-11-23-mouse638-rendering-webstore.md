@@ -1,5 +1,117 @@
 # Mouse 6.0.38 — rendering and Chrome Web Store
 
+## Current acceptance and shared owned-fixture cleanup
+
+Source `eb948797dd919ade788349efd152728d47614244` passed both
+[Linux jobs](https://github.com/jeep-jim/OSMINOG/actions/runs/45179250078)
+and all three independent publisher reader groups against the actual package
+bytes. The clean Ubuntu 24.04 receipt matches the same deb and ASAR. Its
+[Windows main job](https://github.com/jeep-jim/OSMINOG/actions/runs/45179249851/job/137708460222)
+also passed, including the real `CreateFileW` sharing-violation fixture and
+the full predecessor-profile transition. The only skipped cleanup-suite test
+on Windows requires an unprivileged Unix filesystem owner.
+
+The [modern Windows job](https://github.com/jeep-jim/OSMINOG/actions/runs/45179249851/job/137719143112)
+then failed at a different plain `TemporaryDirectory` cleanup in
+`mouse-637-update-button.py`: deleting the owned `Mouse installed/Mouse Browser.exe`
+raised `WinError 32`. Native profile writer PID 3516, updater predecessor PID
+6452, automatically relaunched candidate PID 3372, and fresh profile reader
+PID 7252 had already exited successfully; Node update driver PID 5844 returned
+zero. The relaunch receipt recorded an observed graceful exit without forced
+termination. The update/profile results passed, but the final wrapper marker
+was withheld and the job failed. The remaining handle owner is unknown.
+
+The follow-up reuses the bounded cleanup for this second owned fixture and
+the active predecessor-performance fixture. The latter has the same plain
+temporary-directory cleanup and an incorrect `ok:true` report on a subsequent
+cleanup exception; no baseline-performance sharing violation was observed in
+this run. Each path must independently prove its completed native processes
+before retrying Windows error 32. Persistent locks, other errors and incomplete
+native work remain failures. Performance measurement and its timing limits
+are unchanged; cleanup happens after the measured process has exited.
+
+The shared helper preserves the original two-profile exit predicate by
+default. Button cleanup additionally requires the actual updater driver,
+predecessor exit, graceful candidate exit without forced termination, and
+save/quit receipts. Baseline cleanup requires its validated unchanged workload,
+raw inventory and a successful native process receipt. A failed guard cannot
+enable retries. A guard exception still detaches the temporary finalizer and
+fails the helper; an original body exception remains primary.
+
+Focused local suites: 13 upgrade tests (12 passed, one real-Windows skip),
+nine button tests and nine baseline tests passed. Main-entry fixtures verify
+actual directory removal before the final marker, persistent error 32 bounded
+to ten seconds, immediate failure for other errors/unverified exits, and
+truthful reports with the original native error retained. No workflow,
+application, publisher or native timing criterion changed.
+
+The Mac run's first attempt ended without a runner, steps or artifacts.
+[Attempt 2](https://github.com/jeep-jim/OSMINOG/actions/runs/45179249881/attempts/2)
+uses the same source and passed installed native acceptance in job
+`137718634736`. Independent Mac artifact readers were not run for this
+superseded source after the modern Windows failure. All publisher pins remain
+unready; a successor source still requires fresh platform acceptance before
+publication.
+
+## Previous acceptance and first Windows cleanup fix
+
+Source `e79f14bcee3355efed9ab3dfd2fc65dde5d0eff6` passed
+[Mac CI](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737298) and all seven
+independent Mac publisher groups, including unchanged performance limits.
+[Linux CI](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737181), its clean
+Ubuntu 24.04/native gate and all corresponding independent readers passed.
+[Windows main](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737104/job/137686212239)
+and its complete independent source reader passed. No 6.0.38 release is public.
+
+The additional [modern Windows job](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737104/job/137695135548)
+failed during `TemporaryDirectory` cleanup in `mouse-637-upgrade.py`, when
+deleting `Previous Mouse в637/Mouse Browser.exe` raised `WinError 32`.
+Before cleanup, predecessor PID 8720 and candidate PID 10216 both recorded
+native exit code 0, signal null, application-quit/save markers and successful
+profile probes. Their Node probes returned 0, the closed profile was unchanged
+by replacement, and the retained profile checks passed. The holder of the
+remaining file handle was not recorded. The common upgrade PASS marker was
+not printed and the outer verification failed; these facts are not a passing
+modern result.
+
+The follow-up is limited to bounded cleanup of the owned temporary fixture
+for this Windows sharing violation and truthful failure reporting. Cleanup
+must complete before the overall PASS marker; persistent locks and unrelated
+errors must still fail. Native/profile/update checks and their process budgets
+remain required. The next common source needs fresh native acceptance before
+the authorized Mac → Linux → Windows publication.
+
+The implemented cleanup uses the standard temporary-directory cleanup, with
+at most ten seconds of retries only for Windows error 32 after both successful
+native exits. It records attempts, elapsed time and errors, rejects persistent
+locks and preserves the original native failure if cleanup also fails. The
+overall report is now `ok:false` for a cleanup error. Independent review found
+no publisher-contract change was needed. Local cleanup tests: ten passed;
+the eleventh, a real Windows `CreateFileW` sharing-violation fixture, requires
+Windows and runs through the existing Windows CI test command. Fresh native
+results remain required.
+
+## Earlier native failures and corrections
+
+Source `6c3e52eda0671065a6bcf03084b8a545ee7849d2` includes main `d4185b0` without changing its website files. All installers were built, but native acceptance remains incomplete and no 6.0.38 package is published. Runs: [Mac 45151589578](https://github.com/jeep-jim/OSMINOG/actions/runs/45151589578), [Linux 45151589519](https://github.com/jeep-jim/OSMINOG/actions/runs/45151589519), [Windows 45151589825](https://github.com/jeep-jim/OSMINOG/actions/runs/45151589825).
+
+Linux and Windows stopped at the newly added popup DOM readiness condition, despite both real OS failure screenshots showing a fully drawn Dark Reader interface. The helper incorrectly required the extension's internal loader to be hidden/display:none. Its standard completed state can already be transparent before the separate transitionend marker. The old reports did not retain that loader's exact computed state, so they do not establish its precise phase.
+
+The follow-up removes that internal lifecycle condition from readiness. It retains the real DOM controls, extension ID/version/URL, fonts and the popup's own renderer frames within the same 15-second budget. Final readiness still requires the real native popup to be visible, have stable bounds and satisfy the original 25-point full-screen pixel range of at least 45 within six attempts. Loader class and computed display/visibility/opacity/background are saved diagnostically before a timeout. No CSS, production behavior, pixel threshold, retry count or total 180-second budget is changed. Executing the capture code against archived PNG bytes rejects the blank Mac write frame (range 0) and accepts its drawn restart frame (range 194); the Linux drawn frame also passes (range 143). These are replay checks, not fresh native acceptance.
+
+Mac attempt 1 passed retained native pixels but failed the 20-page median performance criterion: published 637 baseline 49.729833 ms, candidate 66.519125 ms, allowed 66.396499667 ms, excess 0.122625333 ms. Its 50-page median 52.348708 ms, p95 80.823292 ms and maximum 85.422584 ms passed. One unchanged exact-head retry was requested to check reproducibility. The measured switching code matches prior passing 5f/a4 candidates byte-for-byte; pointer parking occurs after the measured interval. Available timings do not establish a particular load source. The failed attempt is not accepted and no performance criterion changed.
+
+The retained corrections remain:
+
+- Record persisted appearance before any fixture UI changes; complete the full restored Store runtime/toggle/native-removal lifecycle; then open a new PageTone document with unchanged exact RGB, SVG/media and OS-pixel requirements. This separates Mouse's colour check from Dark Reader's confirmed blue transformation `[45,145,235]` to `[61,160,237]`.
+- Move the real pointer to a verified neutral owned guest location before static shell captures, preventing the observed hover-tooltip overlap. Actual cursor position, page identity and zoom are verified; animation and pixel limits remain intact.
+- Require seven integer DOM/native Nora pane rectangles for 638. Preserve the 971-pixel viewport, real owners, snapshots, overlay pixels, visibility, documents, scroll and before/during/after equality. Publisher [PR73](https://github.com/jeep-jim/OSMINOG-Releases/pull/73) is merged; historical 632/637 readers retain their original fractional contract.
+- Keep the original signed CRX and every runtime resource. Electron 44.5.0 [LoadUnpacked](https://github.com/electron/electron/blob/v44.5.0/shell/browser/extensions/electron_extension_loader.cc) deletes root `_metadata`; normalization omits only `_metadata/verified_contents.json` and rejects unknown reserved contents. Real Dark Reader 4.9.135 has 89 archive files and 88 runtime files; CRX 858,730 bytes, SHA256 `0b7857ae92fd3aeab4292bb755aa0f108de6b68bc12f18d0c87fe757cdd40a9d`. The native redirect adapter retains same-session transport, omitted credentials, allowlisting before each hop, cancellation, size limits and the 60-second deadline.
+
+Current local freeze: 1,301 Mouse tests, 1,297 passed, zero failed, four native skips. Source Python acceptance remains 16/16. Publisher 132/132 tests and all three template contracts pass; all pins remain unready. The next common source must complete installed acceptance, Ubuntu 24.04 and modern Windows gates before Mac → Linux → Windows publication.
+
+The sections below retain the original request and implementation evidence.
+
 ## Owner request and initial state — 23 November 2026, Krasnoyarsk
 
 The owner supplied six screenshots of Mouse Browser 6.0.37 and requested one corrected release for macOS Apple Silicon, Windows x64 and Linux x64. The owner reports the rendering faults on both Mac and Windows; Linux has not been observed by the owner. Publication is authorized after validation. The separately developed mouse.black landing page and AvtoCena are outside this task. Built-in Agent Mouse remains removed.

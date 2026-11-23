@@ -89,6 +89,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;
+ require('./mouse-page-tone.cjs').install(browser,{report:log});
  if(isMac){browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);}
  else if(isWindows){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-platform.node').paneCorners(win.getNativeWindowHandle(),rects);};}
  else if(isLinux)require('./mouse-linux-corners.cjs').install(win,browser);
@@ -97,13 +98,17 @@ if(ownsProfile)app.whenReady().then(async()=>{
  overlayGate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
  ipcMain.handle('mouse:overlay',(e,state)=>{trusted(e);return overlayGate.set(state,e.senderFrame)});
  const extensionsAvailable=()=>!privateMode?.current&&!privateMode?.busy&&!win.isDestroyed()&&!exitController?.isClosing();
- let extensions;
- const extensionRestore=Promise.resolve().then(async()=>{
-  extensions=require('./mouse-extensions.cjs').createMouseExtensions({session:browser.session,dialog,win,
-   storage:path.join(app.getPath('userData'),'mouse-local-extensions'),isAvailable:extensionsAvailable,onUnload:id=>browser.closeManagedExtension(id)});
-  await extensions.restore();
- }).catch(()=>{extensions=undefined;log('Optional local extensions unavailable at startup');});
- await browser.initNetwork();await extensionRestore;await browser.command('project',{id:'trader-os-main'});
+ const notifyExtensions=()=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:extensions-changed');};
+ const extensions=require('./mouse-extensions.cjs').createMouseExtensions({session:browser.session,dialog,win,
+  storage:path.join(app.getPath('userData'),'mouse-local-extensions'),isAvailable:extensionsAvailable,onUnload:id=>browser.closeManagedExtension(id),onChanged:notifyExtensions});
+ // Register the store preload before restored pages load. Extension background
+ // workers start later, after the desktop bank can assign their welcome tabs.
+ const extensionCompat=require('./mouse-extension-compat.cjs').installExtensionCompatibility({browser,win,dialog,isAvailable:extensionsAvailable,onChanged:notifyExtensions,
+  onSelect:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:extension-tab',state);}});
+ browser.mouseExtensionContextMenu=(wc,params)=>extensionCompat.contextMenu(wc,params);
+ const webStore=require('./mouse-web-store.cjs').installMouseWebStore({app,browser,win,ipcMain,dialog,extensions,isAvailable:extensionsAvailable,onChanged:notifyExtensions});
+ app.once('will-quit',()=>{webStore.dispose();extensionCompat.suspend();extensionCompat.dispose();});
+ await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
  settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
@@ -119,6 +124,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
  documentService=new (require('./mouse-documents.cjs').DocumentService)({win,dialog,ipcMain,trusted,readOnly:true,isPrivate:()=>!!privateMode?.current,emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:documents-state',state);}});
  require('./mouse-document-tabs.cjs').install({browser,documents:documentService,closeDocument:closeDocumentTab,library:libraryService.library});
  desktopService=await require('./mouse-desktops.cjs').install({win,browser,store,ipcMain,trusted,powerMonitor:require('electron').powerMonitor,screen:require('electron').screen});
+ const extensionRestore=extensions.restore().catch(error=>{log('EXTENSIONS_RESTORE_FAILED '+error.message);});
+ await extensionRestore;
  app.once('will-quit',()=>documentService.dispose());
  progress=new (require('./mouse-progress.cjs').ProgressStore)({emit:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:progress-state',state);}});
  progressBridge=require('./mouse-progress-bridge.cjs').install({win,browser,ipcMain,trusted,progress,powerMonitor:require('electron').powerMonitor,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
@@ -146,9 +153,10 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:save',async(e,p,history)=>{trusted(e);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid preferences');const value={tree:require('./mouse/layout.js').validate(p.tree),slots:p.slots,pinnedPanes:p.pinnedPanes,tabOrder:Array.isArray(p.tabOrder)?[...new Set(p.tabOrder.filter(id=>typeof id==='string'&&id.length<=100))].slice(0,1000):[],active:p.active,theme:p.theme,locale:p.locale==='en'?'en':'ru',libraryWidth:Math.max(300,Math.min(1600,Number(p.libraryWidth)||380)),aiOpen:p.aiOpen===true,aiWidth:Number(p.aiWidth)||360,aiPreviewRatio:p.aiPreviewRatio,aiId:p.aiId,aiSites:p.aiSites,aiSessions:p.aiSessions,desktopId:p.desktopId,mode:p.mode,presetTabs:p.presetTabs};return desktopService.savePreferences(value,history)});
  ipcMain.handle('mouse:browser',(e,action,args={})=>{trusted(e);if(!allowed.has(action))throw Error('Unsupported browser action');return browser.command(action,args)});
  ipcMain.handle('mouse:window',(e,action)=>{trusted(e);if(action==='pane-fullscreen'){paneFocus.enter();return true}if(action==='pane-restore'){paneFocus.leave();return true}if(action==='quit'){void exitController.request();return true}if(action==='minimize'){void require('./mouse-lifecycle.cjs').leaveFullscreen(win).then(()=>{if(!win.isDestroyed())win.minimize()});return true}if((action==='maximize'||action==='zoom')&&!isMac){if(win.isMaximized())win.unmaximize();else win.maximize();return true}if(action==='fullscreen'||action==='zoom'){win.setFullScreen(!win.isFullScreen());return true}if(action==='exit-fullscreen'){if(win.isFullScreen())win.setFullScreen(false);return true}throw Error('Unsupported window action')});
+ ipcMain.handle('mouse:appearance',(e,value)=>{trusted(e);return (privateMode?.current?.browser||browser).mousePageTone.set(value);});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>{progressBridge.resume();mediaPlayer.resume();},onPrivacyChange:()=>{importService.cancelPending();documentService.clear();progressBridge.clear();mediaPlayer.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return importService.flush();}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>{progressBridge.resume();mediaPlayer.resume();},onPrivacyChange:()=>{extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();mediaPlayer.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return importService.flush();}});
  ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
   trusted(e);
   if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
@@ -157,7 +165,15 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(!extensions)throw Error('Модуль расширений недоступен');
   if(action==='state')return extensions.state();
   if(action==='install')return extensions.install();
+  if(action==='store-page')return webStore.currentPage(args?.tabId);
+  if(action==='install-store-page')return{...await webStore.installFromBrowser(args?.tabId),extensions:extensions.state()};
+  if(action==='open-store'){
+   const id=typeof args?.id==='string'&&/^[a-p]{32}$/.test(args.id)?args.id:'';
+   const url='https://chromewebstore.google.com/'+(id?'detail/'+id:'');
+   return {...browser.open({url,lane:'main'}),desk:browser.state().desktopId};
+  }
   if(!args||typeof args.id!=='string'||args.id.length>100)throw Error('Не удалось определить расширение');
+  if(action==='activate'){const id=extensions.chromiumId(args.id);if(!id)throw Error('Расширение выключено');extensionCompat.activate(id,args);return extensions.state();}
   if(action==='open-page')return extensions.openPage(args.id,entry=>{if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');const desk=browser.state().desktopId;return {...browser.openManagedExtension(entry),desk};});
   if(action==='set-enabled'&&typeof args.value==='boolean')return extensions.setEnabled(args.id,args.value);
   if(action==='set-pinned'&&typeof args.value==='boolean')return extensions.setPinned(args.id,args.value);
@@ -175,6 +191,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
+ if(test&&process.argv.some(x=>['--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read'].includes(x)))await require('./mouse-638-feedback-smoke.cjs')({app,win,browser,store,startService,globalCapture,extensions,extensionCompatibility:extensionCompat,webStore,dialog,privateMode,settingsService,ipcMain});
  if(test&&process.argv.some(x=>['--mouse-637-features-smoke','--mouse-637-features-restore-read'].includes(x)))await require('./mouse-637-features-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,documentService,privateMode,settingsService,importService,ipcMain,extensions,dialog});
  if(test&&process.argv.includes('--mouse-637-smoke'))await require('./mouse-637-owner-feedback-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,documentService,privateMode,settingsService,importService,ipcMain});
  if(test&&process.argv.includes('--mouse-636-retained-smoke'))await require('./mouse-636-retained-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,documentService,privateMode,settingsService,importService,ipcMain});

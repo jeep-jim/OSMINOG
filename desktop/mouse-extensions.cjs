@@ -96,7 +96,7 @@ async function snapshot(root, destination) {
   return {manifest:{...manifest,actionPopup:html.has(manifest.popupRel),popupRel:html.has(manifest.popupRel)?manifest.popupRel:null},hash:digest.digest('hex'),...(icon?{icon:'data:image/png;base64,'+icon.toString('base64')}:{})};
 }
 
-function createMouseExtensions({session,dialog,win,storage,isAvailable=()=>true,onUnload=()=>{}}) {
+function createLocalExtensions({session,dialog,win,storage,isAvailable=()=>true,onUnload=()=>{}}) {
   if(!session?.storagePath || !session?.extensions?.loadExtension || !session?.extensions?.removeExtension || !path.isAbsolute(storage))
     throw Error('Нужен постоянный раздел браузера и папка расширений');
   const registry=path.join(storage,'registry.json'), managed=path.join(storage,'packages');
@@ -208,5 +208,24 @@ function createMouseExtensions({session,dialog,win,storage,isAvailable=()=>true,
       return dump(); // deliberately preserve the managed bytes
     })
   });
+}
+function createMouseExtensions(options){
+ const local=createLocalExtensions(options),store=require('./mouse-web-store-manager.cjs').createStoreManager(options);
+ const isStore=id=>chromiumIdPattern.test(id||''),state=()=>[...local.state(),...store.state()];
+ const operation=(name,id,...args)=>(isStore(id)?store:local)[name](id,...args);
+ const changed=()=>{try{options.onChanged?.();}catch{}};
+ return Object.freeze({
+  state,
+  restore:async()=>{await local.restore();await store.restore();return state();},
+  install:async()=>{await local.install();changed();return state();},
+  installStore:async(...args)=>{await store.installStore(...args);return state();},
+  setEnabled:async(...args)=>{await operation('setEnabled',...args);changed();return state();},
+  setPinned:async(...args)=>{await operation('setPinned',...args);changed();return state();},
+  remove:async(...args)=>{await operation('remove',...args);changed();return state();},
+  openPage:(...args)=>operation('openPage',...args),
+  chromiumId:id=>isStore(id)?store.chromiumId(id):null,
+  storeEvidence:id=>store.storeEvidence(id),
+  getStoreExtension:id=>store.getExtension(id)
+ });
 }
 module.exports={createMouseExtensions,inspectManifest};

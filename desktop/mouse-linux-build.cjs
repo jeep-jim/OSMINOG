@@ -41,6 +41,8 @@ module.exports={
   executableArgs:[]},
  appImage:{executableArgs:[]},
  deb:{packageName:'mouse-browser',maintainer:'Mouse Browser',
-  depends:['libgtk-3-0','libnotify4','libnss3','libx11-6','libxext6','libxss1','libxtst6','xdg-utils','libatspi2.0-0','libuuid1','libsecret-1-0']},
+  // Electron links both libraries directly. Keep the pre-t64 name as an
+  // alternative for Ubuntu 22.04 while selecting native ALSA on Ubuntu 24.04.
+  depends:['libgtk-3-0','libnotify4','libnss3','libx11-6','libxext6','libxss1','libxtst6','xdg-utils','libatspi2.0-0','libuuid1','libsecret-1-0','libgbm1','libasound2t64 | libasound2']},
  publish:null
 };

@@ -8,7 +8,9 @@ async function fixture(t){
  const win={webContents:shell,isDestroyed:()=>false,getContentBounds:()=>({width:1200,height:800})};
  const icon={isEmpty:()=>false},app={getPath:()=>root,getFileIcon:async()=>icon},Menu={buildFromTemplate:items=>{const menu={items,popup(options){this.options=options;},closePopup(){this.options?.callback();}};menus.push(menu);return menu;}};
  const service=create({app,win,Menu,nativeImage:{createFromBuffer:()=>({isEmpty:()=>true})},primaryDown:()=>down,isAvailable:()=>available});
- t.after(async()=>{service.dispose();await fs.rm(root,{recursive:true,force:true});});
+ // dispose removes drag directories asynchronously; Windows can briefly lock
+ // one while this fixture removes its parent. Keep teardown failures observable.
+ t.after(async()=>{service.dispose();await fs.rm(root,{recursive:true,force:true,maxRetries:3,retryDelay:100});});
  return{root,shell,menus,drags,service,icon,setDown:value=>down=value,setAvailable:value=>available=value,setValid:value=>valid=value,valid:()=>valid};
 }
 test('native archive drag contains actual readable file bytes without changing the source',async t=>{

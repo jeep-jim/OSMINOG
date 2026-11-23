@@ -21,8 +21,14 @@ function nativeHitTarget(element,{xFraction=.5,yFraction=.5}={}){
   if(parent.tagName==='DIALOG'&&parent.open&&parent.matches(':modal'))break;
  }
  const fragments=[...element.getClientRects()].filter(r=>r.width>0&&r.height>0),rects=fragments.length?fragments:[bounds],seen=new Set();let lastHit='';
+ // Native input uses integer coordinates. A one-pixel separator's rounded
+ // midpoint is already inside the neighbouring native page. Overflowing DOM
+ // children can still pass elementFromPoint there, so keep the point inside
+ // the target's own visible bounds as well as checking the DOM hit.
+ const pixels={left:Math.ceil(Math.max(bounds.left,clip.left)),top:Math.ceil(Math.max(bounds.top,clip.top)),right:Math.ceil(Math.min(bounds.left+bounds.width,clip.right))-1,bottom:Math.ceil(Math.min(bounds.top+bounds.height,clip.bottom))-1};
  function hit(x,y){
-  x=Math.round(x);y=Math.round(y);if(x<clip.left||x>=clip.right||y<clip.top||y>=clip.bottom)return null;const key=x+','+y;if(seen.has(key))return null;seen.add(key);
+  if(pixels.left>pixels.right||pixels.top>pixels.bottom)return null;
+  x=Math.max(pixels.left,Math.min(pixels.right,Math.round(x)));y=Math.max(pixels.top,Math.min(pixels.bottom,Math.round(y)));const key=x+','+y;if(seen.has(key))return null;seen.add(key);
   const target=document.elementFromPoint(x,y);lastHit=target?target.tagName.toLowerCase()+(target.className?'.'+String(target.className).trim().replace(/\s+/g,'.'):''):'none';return element.contains(target)?{ready:true,x,y}:null;
  }
  // Preserve an explicitly chosen canvas location when it is actually exposed.

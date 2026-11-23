@@ -52,12 +52,12 @@ test('dark download gaps reject the control border color and retain the publishe
  // Actual failed637 macOS/Windows receipts had [53,67,87,255] at both gap
  // positions. Only --line's old expectation was wrong; tolerance stays12.
  const seam637=[53,67,87,255],seam636=[67,83,107,255];
- assert.equal(probeDelta(seam637,paletteForVersion('6.0.37').dark.rgb),0);
- assert.ok(probeDelta(seam636,paletteForVersion('6.0.37').dark.rgb)>12);
+ assert.equal(probeDelta(seam637,paletteForVersion('6.0.38').dark.rgb),0);
+ assert.ok(probeDelta(seam636,paletteForVersion('6.0.38').dark.rgb)>12);
  for(const version of ['6.0.34','6.0.35','6.0.36']){
   assert.equal(probeDelta(seam636,paletteForVersion(version).dark.rgb),0);
   assert.ok(probeDelta(seam637,paletteForVersion(version).dark.rgb)>12);
  }
- assert.equal(probeDelta([199,207,223,255],paletteForVersion('6.0.37').light.rgb),0);
- assert.ok(probeDelta([0,0,0,255],paletteForVersion('6.0.37').dark.rgb)>12);
+ assert.equal(probeDelta([199,207,223,255],paletteForVersion('6.0.38').light.rgb),0);
+ assert.ok(probeDelta([0,0,0,255],paletteForVersion('6.0.38').dark.rgb)>12);
 });

@@ -1,10 +1,13 @@
-"""Synthetic package/profile fixtures only; no native packages are executed."""
+"""Synthetic package/profile fixtures and an owned Windows file handle; no app runs."""
+from contextlib import redirect_stdout
 import hashlib
 import importlib.util
 import io
 import json
 import os
 import subprocess
+import sys
+import time
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -20,6 +23,235 @@ class Response(io.BytesIO):
     status = 200
 
 
+class Clock:
+    def __init__(self):
+        self.now, self.waits = 0.0, []
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.waits.append(seconds)
+        self.now += seconds
+
+
+def completed_native_exits():
+    return {'ok': True, **{key: {'result': {'ok': True, 'pid': pid,
+                            'nativeExit': {'code': 0, 'signal': None}}}
+                           for key, pid in (('oldWrite', 101), ('newRead', 202))}}
+
+
+def sharing_error(code=32):
+    error = PermissionError('Synthetic Windows sharing violation')
+    error.winerror = code
+    return error
+
+
+class CleanupTests(unittest.TestCase):
+    def test_custom_guard_runs_after_body_and_truthy_nonbool_does_not_authorize_retry(self):
+        evidence, observed = {}, []
+        def guard(facts):
+            observed.append(facts.get('bodyFinished'))
+            return 1
+        with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+             patch.object(upgrade.sys, 'platform', 'win32'), \
+             patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=sharing_error()) as remove, \
+             patch.object(upgrade.time, 'sleep') as sleep, redirect_stdout(io.StringIO()):
+            with self.assertRaises(PermissionError):
+                with upgrade.owned_upgrade_directory(evidence, prefix='mouse637-custom-', native_exit_check=guard) as owned:
+                    self.assertTrue(owned.name.startswith('mouse637-custom-'))
+                    (owned / 'owned').write_bytes(b'fixture')
+                    evidence['bodyFinished'] = True
+            self.assertEqual(observed, [True])
+            self.assertEqual(remove.call_count, 1)
+            sleep.assert_not_called()
+            self.assertFalse(evidence['cleanup']['nativeExitsVerified'])
+
+    def test_guard_exception_still_cleans_directory_and_preserves_body_failure(self):
+        for body_error in (None, RuntimeError('original runtime failure')):
+            with self.subTest(body_error=body_error), tempfile.TemporaryDirectory() as parent:
+                guard_error, evidence = RuntimeError('native exit guard failure'), completed_native_exits()
+                def guard(_facts):
+                    raise guard_error
+                with patch.dict(os.environ, {'RUNNER_TEMP': parent}), redirect_stdout(io.StringIO()):
+                    with self.assertRaises(RuntimeError) as caught:
+                        with upgrade.owned_upgrade_directory(evidence, native_exit_check=guard) as owned:
+                            (owned / 'owned').write_bytes(b'fixture')
+                            if body_error is not None:
+                                raise body_error
+                self.assertIs(caught.exception, body_error or guard_error)
+                self.assertFalse(owned.exists())
+                self.assertFalse(evidence['ok'])
+                self.assertFalse(evidence['cleanup']['nativeExitsVerified'])
+                self.assertEqual(evidence['cleanup']['attempts'], 1)
+                self.assertEqual(evidence['cleanup']['nativeExitCheckError']['message'], str(guard_error))
+
+    def test_transient_sharing_violation_retries_then_really_removes_owned_directory(self):
+        original = tempfile.TemporaryDirectory._rmtree
+        clock, evidence, attempts = Clock(), completed_native_exits(), []
+        def remove(name, **kwargs):
+            attempts.append(name)
+            if len(attempts) == 1:
+                raise sharing_error()
+            return original(name, **kwargs)
+        with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+             patch.object(upgrade.sys, 'platform', 'win32'), \
+             patch.object(upgrade.time, 'monotonic', side_effect=clock.monotonic), \
+             patch.object(upgrade.time, 'sleep', side_effect=clock.sleep), \
+             patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=remove), redirect_stdout(io.StringIO()):
+            with upgrade.owned_upgrade_directory(evidence) as owned:
+                (owned / 'Mouse Browser.exe').write_bytes(b'owned synthetic executable')
+            self.assertFalse(owned.exists())
+            self.assertEqual(attempts, [str(owned), str(owned)])
+            self.assertTrue(evidence['ok'])
+            self.assertTrue(evidence['cleanup']['ok'])
+            self.assertEqual(evidence['cleanup']['errors'][0]['winerror'], 32)
+            self.assertGreater(evidence['cleanup']['elapsedMs'], 0)
+
+    def test_persistent_sharing_violation_stops_at_deadline_and_detaches_finalizer(self):
+        factory, instances = tempfile.TemporaryDirectory, []
+        clock, evidence, error = Clock(), completed_native_exits(), sharing_error()
+        def create(*args, **kwargs):
+            value = factory(*args, **kwargs); instances.append(value); return value
+        with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+             patch.object(upgrade.sys, 'platform', 'win32'), \
+             patch.object(upgrade.time, 'monotonic', side_effect=clock.monotonic), \
+             patch.object(upgrade.time, 'sleep', side_effect=clock.sleep), \
+             patch.object(factory, '_rmtree', side_effect=error) as remove, \
+             patch.object(upgrade.tempfile, 'TemporaryDirectory', side_effect=create), redirect_stdout(io.StringIO()):
+            with self.assertRaises(PermissionError) as caught:
+                with upgrade.owned_upgrade_directory(evidence) as owned:
+                    (owned / 'Mouse Browser.exe').write_bytes(b'owned')
+            self.assertIs(caught.exception, error)
+            self.assertTrue(owned.exists())
+            self.assertFalse(instances[0]._finalizer.alive)
+            self.assertGreater(remove.call_count, 1)
+            self.assertLessEqual(remove.call_count, 41)
+            self.assertEqual(clock.now, 10.0)
+            self.assertEqual(evidence['cleanup']['elapsedMs'], 10000)
+            self.assertFalse(evidence['cleanup']['ok'])
+            self.assertFalse(evidence['ok'])
+
+    def test_other_errors_platforms_or_unverified_native_exits_never_retry(self):
+        missing, failed, malformed = (completed_native_exits() for _ in range(3))
+        del missing['newRead']
+        failed['newRead']['result']['nativeExit']['code'] = 1
+        malformed['newRead']['result']['nativeExit'] = None
+        cases = [('win32', 5, completed_native_exits()), ('linux', 32, completed_native_exits()),
+                 ('win32', 32, missing), ('win32', 32, failed), ('win32', 32, malformed)]
+        for platform_, code, evidence in cases:
+            with self.subTest(platform=platform_, code=code, evidence=evidence), tempfile.TemporaryDirectory() as parent:
+                clock, error = Clock(), sharing_error(code)
+                with patch.dict(os.environ, {'RUNNER_TEMP': parent}), patch.object(upgrade.sys, 'platform', platform_), \
+                     patch.object(upgrade.time, 'monotonic', side_effect=clock.monotonic), \
+                     patch.object(upgrade.time, 'sleep', side_effect=clock.sleep), \
+                     patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=error) as remove, redirect_stdout(io.StringIO()):
+                    with self.assertRaises(PermissionError):
+                        with upgrade.owned_upgrade_directory(evidence) as owned:
+                            (owned / 'Mouse Browser.exe').write_bytes(b'owned')
+                    self.assertEqual(remove.call_count, 1)
+                    self.assertEqual(clock.waits, [])
+                    self.assertFalse(evidence['ok'])
+
+    def test_delayed_wakeup_cannot_start_another_attempt_after_deadline(self):
+        clock, evidence = Clock(), completed_native_exits()
+        def delayed(_seconds):
+            clock.now = 11.0
+        with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+             patch.object(upgrade.sys, 'platform', 'win32'), \
+             patch.object(upgrade.time, 'monotonic', side_effect=clock.monotonic), \
+             patch.object(upgrade.time, 'sleep', side_effect=delayed), \
+             patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=sharing_error()) as remove, redirect_stdout(io.StringIO()):
+            with self.assertRaises(PermissionError):
+                with upgrade.owned_upgrade_directory(evidence):
+                    pass
+            self.assertEqual(remove.call_count, 1)
+            self.assertFalse(evidence['ok'])
+
+    def test_retry_that_finishes_after_deadline_still_fails(self):
+        original = tempfile.TemporaryDirectory._rmtree
+        clock, evidence, count = Clock(), completed_native_exits(), 0
+        def remove(name, **kwargs):
+            nonlocal count
+            count += 1
+            if count == 1:
+                raise sharing_error()
+            original(name, **kwargs)
+            clock.now = 11.0
+        with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+             patch.object(upgrade.sys, 'platform', 'win32'), \
+             patch.object(upgrade.time, 'monotonic', side_effect=clock.monotonic), \
+             patch.object(upgrade.time, 'sleep', side_effect=clock.sleep), \
+             patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=remove), redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(TimeoutError, 'retry deadline'):
+                with upgrade.owned_upgrade_directory(evidence) as owned:
+                    (owned / 'Mouse Browser.exe').write_bytes(b'owned')
+            self.assertFalse(owned.exists())
+            self.assertFalse(evidence['ok'])
+            self.assertFalse(evidence['cleanup']['ok'])
+
+    def test_main_records_cleanup_failure_and_preserves_original_body_exception(self):
+        for body_error in (None, RuntimeError('Actual native profile assertion failed')):
+            with self.subTest(body_error=body_error), tempfile.TemporaryDirectory() as parent:
+                clock, output, log, error = Clock(), Path(parent), io.StringIO(), sharing_error()
+                def transition(*args, facts):
+                    (args[2] / 'Mouse Browser.exe').write_bytes(b'owned')
+                    facts.update(completed_native_exits())
+                    if body_error is not None:
+                        raise body_error
+                with patch.dict(os.environ, {'CI': 'true', 'RUNNER_TEMP': parent}), \
+                     patch.object(upgrade.sys, 'platform', 'win32'), patch.object(upgrade.Path, 'cwd', return_value=output), \
+                     patch.object(upgrade.shutil, 'which', return_value='synthetic-node'), \
+                     patch.object(upgrade.subprocess, 'run', return_value=SimpleNamespace(returncode=0)), \
+                     patch.object(upgrade, 'transition', side_effect=transition), \
+                     patch.object(upgrade.time, 'monotonic', side_effect=clock.monotonic), \
+                     patch.object(upgrade.time, 'sleep', side_effect=clock.sleep), \
+                     patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=error), redirect_stdout(log):
+                    with self.assertRaises(type(body_error or error)) as caught:
+                        upgrade.main([str(output / 'synthetic-candidate.exe')])
+                self.assertIs(caught.exception, body_error or error)
+                report = json.loads((output / 'mouse-637-upgrade.json').read_text())
+                self.assertFalse(report['ok'])
+                self.assertFalse(report['cleanup']['ok'])
+                self.assertEqual(report['cleanup']['error']['winerror'], 32)
+                self.assertEqual(report['error']['message'], str(body_error or error))
+                self.assertNotIn('MOUSE_638_REAL_637_TO_638_PROFILE_PASS', log.getvalue())
+                if body_error is not None:
+                    self.assertTrue(any('cleanup also failed' in note for note in body_error.__notes__))
+
+    @unittest.skipUnless(sys.platform == 'win32', 'Requires the real Windows file-sharing contract')
+    def test_real_windows_handle_blocks_delete_until_retry_releases_it(self):
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                                      wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        kernel.CreateFileW.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes, kernel.CloseHandle.restype = [wintypes.HANDLE], wintypes.BOOL
+        handle, evidence, sleep = None, completed_native_exits(), time.sleep
+        def release_on_observed_retry(seconds):
+            nonlocal handle
+            self.assertEqual(evidence['cleanup']['errors'][-1]['winerror'], 32)
+            self.assertTrue(kernel.CloseHandle(handle))
+            handle = None
+            sleep(seconds)
+        try:
+            with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+                 patch.object(upgrade.time, 'sleep', side_effect=release_on_observed_retry), redirect_stdout(io.StringIO()):
+                with upgrade.owned_upgrade_directory(evidence) as owned:
+                    file = owned / 'Mouse Browser.exe'; file.write_bytes(b'owned file-handle fixture; never executed')
+                    handle = kernel.CreateFileW(str(file), 0x80000000, 3, None, 3, 0x80, None)
+                    if handle == ctypes.c_void_p(-1).value:
+                        handle = None
+                        raise ctypes.WinError(ctypes.get_last_error())
+                self.assertFalse(owned.exists())
+                self.assertGreaterEqual(evidence['cleanup']['attempts'], 2)
+                self.assertTrue(evidence['cleanup']['ok'])
+        finally:
+            if handle is not None:
+                kernel.CloseHandle(handle)
+
+
 class UpgradeTests(unittest.TestCase):
     def test_native_probe_accepts_the_same_old_and_new_versions_as_the_upgrade_driver(self):
         helper = Path(__file__).with_name('mouse-637-profile-upgrade.cjs').resolve()
@@ -28,7 +260,7 @@ const {validateProfileVersion}=require(process.argv[1]);
 const pair=JSON.parse(process.argv[2]);
 assert.equal(validateProfileVersion(pair.old),pair.old);
 assert.equal(validateProfileVersion(pair.new),pair.new);
-for(const version of ['6.0.33','6.0.38','6.0.37-extra','prefix6.0.37'])assert.throws(()=>validateProfileVersion(version));"""
+for(const version of ['6.0.33','6.0.39','6.0.38-extra','prefix6.0.38'])assert.throws(()=>validateProfileVersion(version));"""
         subprocess.run(['node', '-e', script, str(helper), json.dumps({'old': upgrade.OLD_VERSION, 'new': upgrade.VERSION})], check=True, timeout=10)
 
     def test_baseline_download_checks_actual_length_and_digest_before_installation(self):
@@ -71,7 +303,7 @@ for(const version of ['6.0.33','6.0.38','6.0.37-extra','prefix6.0.37'])assert.th
                  patch.object(upgrade, 'sibling', return_value=installer), patch.object(upgrade, 'probe', side_effect=probe):
                 with self.assertRaisesRegex(RuntimeError, 'closed profile'):
                     upgrade.transition(candidate, baseline, root / 'owned', root, 'synthetic-node', 'deb', facts)
-            self.assertEqual(calls, ['6.0.36', '6.0.37'])
+            self.assertEqual(calls, ['6.0.37', '6.0.38'])
             self.assertFalse(facts['ok'])
             self.assertIn('oldWrite', facts)
             self.assertNotIn('newRead', facts)

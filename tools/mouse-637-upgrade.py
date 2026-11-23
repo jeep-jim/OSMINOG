@@ -8,6 +8,7 @@ This helper is only executed on the native, unprivileged CI installation runner.
 """
 from __future__ import annotations
 import argparse
+from contextlib import contextmanager
 import hashlib
 import importlib.util
 import json
@@ -18,23 +19,25 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 
-OLD_VERSIONS = {'darwin': '6.0.36', 'win32': '6.0.36', 'linux': '6.0.36'}
-OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.36')
-VERSION = '6.0.37'
+OLD_VERSIONS = {'darwin': '6.0.37', 'win32': '6.0.37', 'linux': '6.0.37'}
+OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.37')
+VERSION = '6.0.38'
+CLEANUP_RETRY_SECONDS = 10.0
 METHOD = 'verified package replacement and actual old/new profile processes; retained629 gate tests updater'
 LINUX_METHOD = 'verified deb and AppImage replacement with actual old/new profile processes'
 BASELINES = {
-    'darwin': {'name': 'Mouse-Browser-6.0.36-mac-arm64.dmg', 'tag': 'quadro-macos-v6.0.36-arm64',
-               'size': 137981934, 'sha256': '8688b4db4bd8d9541d93508ecdb3260727d9c6a975f336cfcd2b086caae704fb'},
-    'win32': {'name': 'Mouse-Browser-6.0.36-Windows-x64.exe', 'tag': 'mouse-windows-v6.0.36-x64',
-              'size': 125834363, 'sha256': '443496508013d5734e8a81c7eb0ddb33cedad4149440da3c04ff891486c6cf61'},
+    'darwin': {'name': 'Mouse-Browser-6.0.37-mac-arm64.dmg', 'tag': 'quadro-macos-v6.0.37-arm64',
+               'size': 130545757, 'sha256': '3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2'},
+    'win32': {'name': 'Mouse-Browser-6.0.37-Windows-x64.exe', 'tag': 'mouse-windows-v6.0.37-x64',
+              'size': 113416843, 'sha256': '19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35'},
     'linux': {
-        'appimage': {'name': 'Mouse-Browser-6.0.36-Linux-x64.AppImage', 'tag': 'mouse-linux-v6.0.36-x64',
-                     'size': 135673552, 'sha256': 'e126ee0e50c1bc8e4e1108600e5b2e9e74af609feac0fff8d8de7b3c0b79f090'},
-        'deb': {'name': 'Mouse-Browser-6.0.36-Linux-x64.deb', 'tag': 'mouse-linux-v6.0.36-x64',
-                'size': 105853084, 'sha256': '6de6baf09263ade5ea20fec2984cb183d6909cb7a7646b8c8d917cf33c0d7d7f'},
+        'appimage': {'name': 'Mouse-Browser-6.0.37-Linux-x64.AppImage', 'tag': 'mouse-linux-v6.0.37-x64',
+                     'size': 127838276, 'sha256': 'e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79'},
+        'deb': {'name': 'Mouse-Browser-6.0.37-Linux-x64.deb', 'tag': 'mouse-linux-v6.0.37-x64',
+                'size': 101113500, 'sha256': '4518bad5c606ec5dca98c62c7d624aa3df6f0b906713fb6a40cb317877008c66'},
     },
 }
 
@@ -42,6 +45,86 @@ BASELINES = {
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def profile_native_exits_verified(evidence):
+    """Both actual profile probes must have observed a successful native exit."""
+    rows = [evidence.get(key) for key in ('oldWrite', 'newRead')]
+    results = [row.get('result') if isinstance(row, dict) else None for row in rows]
+    return all(isinstance(result, dict) and result.get('ok') is True
+               and type(result.get('pid')) is int and result['pid'] > 0
+               and isinstance(result.get('nativeExit'), dict)
+               and type(result.get('nativeExit', {}).get('code')) is int
+               and result.get('nativeExit') == {'code': 0, 'signal': None} for result in results)
+
+
+def cleanup_owned_directory(temporary, evidence, *, native_exit_check=None):
+    """Retry only a sharing violation on this owned directory after native exit."""
+    started = time.monotonic()
+    deadline = started + CLEANUP_RETRY_SECONDS
+    check = profile_native_exits_verified if native_exit_check is None else native_exit_check
+    check_error = None
+    try:
+        exited = check(evidence) is True
+    except BaseException as error:
+        # A broken guard never permits retry, but the ordinary owned cleanup
+        # still runs and detaches its finalizer before the guard error escapes.
+        exited, check_error = False, error
+    receipt = {'ok': False, 'attempts': 0, 'retryBudgetMs': CLEANUP_RETRY_SECONDS * 1000,
+               'nativeExitsVerified': exited, 'errors': []}
+    if check_error is not None:
+        receipt['nativeExitCheckError'] = {'type': type(check_error).__name__, 'message': str(check_error)}
+    evidence['cleanup'] = receipt
+    last_error = None
+    try:
+        while True:
+            if last_error is not None and time.monotonic() >= deadline:
+                raise last_error
+            receipt['attempts'] += 1
+            try:
+                # The standard cleanup detaches its finalizer before rmtree;
+                # failed explicit cleanup cannot trigger an unbounded GC retry.
+                temporary.cleanup()
+            except OSError as error:
+                details = {'attempt': receipt['attempts'], 'elapsedMs': round((time.monotonic() - started) * 1000, 3),
+                           'type': type(error).__name__, 'winerror': getattr(error, 'winerror', None), 'message': str(error)}
+                receipt['errors'].append(details)
+                print('MOUSE_638_UPGRADE_CLEANUP_ATTEMPT_FAILED ' + json.dumps(details), flush=True)
+                remaining = deadline - time.monotonic()
+                if sys.platform != 'win32' or getattr(error, 'winerror', None) != 32 or not exited or remaining <= 0:
+                    raise
+                last_error = error
+                time.sleep(min(0.25, remaining))
+                continue
+            if last_error is not None and time.monotonic() >= deadline:
+                raise TimeoutError('Owned upgrade directory cleanup exceeded its retry deadline')
+            if check_error is not None:
+                raise check_error
+            receipt.update(ok=True, elapsedMs=round((time.monotonic() - started) * 1000, 3))
+            print('MOUSE_638_UPGRADE_CLEANUP_PASS ' + json.dumps(receipt), flush=True)
+            return
+    except BaseException as error:
+        evidence['ok'] = False
+        receipt.update(elapsedMs=round((time.monotonic() - started) * 1000, 3),
+                       error={'type': type(error).__name__, 'winerror': getattr(error, 'winerror', None), 'message': str(error)})
+        print('MOUSE_638_UPGRADE_CLEANUP_FAIL ' + json.dumps(receipt), flush=True)
+        raise
+
+
+@contextmanager
+def owned_upgrade_directory(evidence, *, prefix='mouse637-upgrade-', native_exit_check=None):
+    temporary = tempfile.TemporaryDirectory(prefix=prefix, dir=os.environ.get('RUNNER_TEMP'))
+    try:
+        yield Path(temporary.name)
+    except BaseException as body_error:
+        evidence['ok'] = False
+        try:
+            cleanup_owned_directory(temporary, evidence, native_exit_check=native_exit_check)
+        except BaseException as cleanup_error:
+            body_error.add_note('Owned upgrade directory cleanup also failed: ' + str(cleanup_error))
+        raise
+    else:
+        cleanup_owned_directory(temporary, evidence, native_exit_check=native_exit_check)
 
 
 def sha256(file):
@@ -206,8 +289,7 @@ def main(argv=None):
     evidence = {'ok': False, 'fromVersion': OLD_VERSION, 'toVersion': VERSION, 'platform': sys.platform,
                 'physicalUserDeviceVerified': False}
     try:
-        with tempfile.TemporaryDirectory(prefix='mouse637-upgrade-', dir=os.environ.get('RUNNER_TEMP')) as temporary:
-            root = Path(temporary)
+        with owned_upgrade_directory(evidence) as root:
             if sys.platform == 'linux':
                 require(candidate.is_dir(), 'Linux upgrade requires both candidate packages')
                 packages = {format_: candidate / ('Mouse-Browser-' + VERSION + '-Linux-x64.' + extension)
@@ -223,11 +305,12 @@ def main(argv=None):
             else:
                 transition(candidate, BASELINES[sys.platform], root, output, node, facts=evidence)
     except Exception as error:
+        evidence['ok'] = False
         evidence['error'] = {'type': type(error).__name__, 'message': str(error)}
         raise
     finally:
         report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print('MOUSE_637_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_637_PROFILE_PASS', flush=True)
+    print('MOUSE_638_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_638_PROFILE_PASS', flush=True)
     return 0
 
 

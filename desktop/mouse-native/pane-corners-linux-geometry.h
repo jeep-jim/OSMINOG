@@ -14,12 +14,12 @@ struct Shape {
 // centre; only the inverse lower quadrant is opaque. The 12-DIP circle and
 // the guest viewport stay unchanged, including fractional display scales.
 inline Shape corner(const Pane& pane,double sx,double sy,bool right){
- const double left=(right?pane.x+pane.width-12:pane.x-1)*sx;
+ const double left=(right?pane.x+pane.width-12:pane.x)*sx;
  const double top=(pane.y+pane.height-12)*sy;
- const double end=(right?pane.x+pane.width+1:pane.x+12)*sx;
+ const double end=(right?pane.x+pane.width:pane.x+12)*sx;
  Shape shape{static_cast<int>(std::floor(left)),static_cast<int>(std::floor(top)),0,0,0,0,12*sx,12*sy,pane.color,{}};
  shape.width=static_cast<int>(std::ceil(end))-shape.x;
- shape.height=static_cast<int>(std::ceil((pane.y+pane.height+1)*sy))-shape.y;
+ shape.height=static_cast<int>(std::ceil((pane.y+pane.height)*sy))-shape.y;
  shape.cx=(right?pane.x+pane.width-12:pane.x+12)*sx-shape.x;
  shape.cy=(pane.y+pane.height-12)*sy-shape.y;
  for(int y=0;y<shape.height;y++){

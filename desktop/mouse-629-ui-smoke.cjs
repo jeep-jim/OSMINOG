@@ -49,7 +49,7 @@ async function parkPointerForPixels({native,workArea,windowBounds,readCursor,rea
 }
 module.exports=async({app,win,browser,store,globalCapture,overlayGate,nativeInput})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));
- assert.ok(['6.0.36','6.0.37'].includes(app.getVersion()));assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
+ assert.ok(['6.0.36','6.0.38'].includes(app.getVersion()));assert.equal(globalCapture?.permission(),process.platform==='darwin'?'granted':'not-required');
  const PALETTE=paletteForVersion(app.getVersion());
  const js=source=>win.webContents.executeJavaScript(source),bank=browser.mouseDesktops.bank,original=await js('MouseTest.prefs()'),savedBank=bank.snapshot(),savedGlobal=copy(bank.global),before=new Set(browser.tabs.keys()),bounds=win.getBounds(),fullscreen=win.isFullScreen();
  const facts={version:app.getVersion(),baselineVersion:'6.0.27',platform:process.platform,arch:process.arch,paneCount:7,separators:[],pointerRest:[],nora:[],workspace633:{schema:1,gap:6,radius:12,aiScenes:[]},restored:false};

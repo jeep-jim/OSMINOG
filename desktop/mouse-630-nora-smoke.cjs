@@ -7,6 +7,24 @@ const {createHash}=require('node:crypto');
 const {screenCropGeometry,cornerBackground}=require('./mouse-628-ui-smoke.cjs');
 const {staticShellReadback,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const INTEGER_LAYOUT_CONTRACT='integer-dom-native-endpoints-638';
+const endpointBox=r=>({x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.x+r.width)-Math.round(r.x),height:Math.round(r.y+r.height)-Math.round(r.y)});
+function assertSevenPaneGeometry(before,version){
+ if(version!=='6.0.38'){
+  assert.ok(before.slots.some(row=>Math.round(row.width)!==endpointBox(row).width||Math.round(row.height)!==endpointBox(row).height),'Seven-pane geometry reproduces the endpoint/independent-span mismatch');return null;
+ }
+ assert.ok(Array.isArray(before.slots)&&Array.isArray(before.pages),'Seven-pane geometry contains actual DOM slots and native pages');
+ assert.equal(before.slots.length,7);assert.equal(before.pages.length,7);
+ const slotIds=new Set(),pages=new Map();
+ for(const page of before.pages){assert.ok(typeof page.id==='string'&&page.id&&!pages.has(page.id),'Seven native pages have distinct IDs');pages.set(page.id,page);}
+ for(const row of before.slots){
+  assert.ok(typeof row.id==='string'&&row.id&&!slotIds.has(row.id),'Seven DOM slots have distinct IDs');slotIds.add(row.id);
+  assert.ok(['x','y','width','height'].every(key=>Number.isInteger(row[key]))&&row.width>0&&row.height>0,'Mouse638 DOM pane coordinates and dimensions are integer DIPs');
+  const page=pages.get(row.id);assert.ok(page,'Every DOM slot has its actual native page');
+  assert.deepEqual(page.bounds,endpointBox(row),'Mouse638 actual native roots exactly match the integer DOM endpoints');
+ }
+ return INTEGER_LAYOUT_CONTRACT;
+}
 async function until(fn,label){for(let n=0;n<400;n++){if(await fn())return;await sleep(25);}throw Error('Mouse630 Nora timeout: '+label);}
 module.exports=async({app,win,browser,store,overlayGate,globalCapture,privateMode})=>{
  assert.equal(process.env.CI,'true');assert.ok(process.env.MOUSE_TEST_PROFILE);assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(privateMode.current,null);
@@ -57,14 +75,14 @@ module.exports=async({app,win,browser,store,overlayGate,globalCapture,privateMod
   const previousBounds=win.getBounds(),area=screen.getDisplayMatching(previousBounds).workArea;assert.ok(area.width>=987,'The exact 971px seven-pane viewport fits this display');win.setBounds({...previousBounds,x:area.x+8,width:971});await painted();
   for(let index=0;index<6;index++){await js(`MouseTest.openPage(${JSON.stringify('http://127.0.0.1:'+server.address().port+'/fractional-'+index)})`);const id=await js('MouseTest.model.slots[MouseTest.model.active]');await until(()=>!browser.get(id).loading,'fractional fixture page loads');const page=browser.get(id);fractionalMade.push({id,desk:desks[0],index:0,page,wc:page.view.webContents});}
   const pages=[made[0],...fractionalMade],slots=Object.fromEntries(pages.map((page,index)=>['p'+(index+1),page.id])),tree={axis:'x',ratio:.53,a:{axis:'y',ratio:.82,a:{axis:'x',ratio:.39,a:{axis:'y',ratio:.47,a:{id:'p1'},b:{id:'p2'}},b:{id:'p3'}},b:{id:'p4'}},b:{axis:'x',ratio:.41,a:{axis:'y',ratio:.68,a:{id:'p5'},b:{id:'p6'}},b:{id:'p7'}}};
-  const dom=()=>js(`Array.from(document.querySelectorAll('.pane'),pane=>{const r=pane.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[pane.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height};})`),box=r=>({x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.x+r.width)-Math.round(r.x),height:Math.round(r.y+r.height)-Math.round(r.y)});
+  const dom=()=>js(`Array.from(document.querySelectorAll('.pane'),pane=>{const r=pane.querySelector('.page-slot').getBoundingClientRect();return{id:MouseTest.model.slots[pane.dataset.pane],x:r.x,y:r.y,width:r.width,height:r.height};})`),box=endpointBox;
   const observe=async()=>({slots:await dom(),rootOrder:rootOrder(),pages:await Promise.all(pages.map(async({id,page,wc})=>{assert.equal(browser.get(id),page);assert.equal(page.view.webContents,wc);return{id,webContentsId:wc.id,url:wc.getURL(),epoch:page.navigationEpoch||0,bounds:{...(page.clipView||page.view).getBounds()},cachedBounds:{...page.bounds},viewBounds:{...page.view.getBounds()},clipBounds:page.clipView?{...page.clipView.getBounds()}:null,...await wc.executeJavaScript('({timeOrigin:performance.timeOrigin,width:innerWidth,height:innerHeight,scrollX,scrollY,marker:window.marker})')};}))});
   await js(`MouseTest.model.tree=${JSON.stringify(tree)};MouseTest.model.slots=${JSON.stringify(slots)};MouseTest.model.active='p1';MouseTest.renderTree();MouseTest.applySide();MouseTest.setTheme('light');MouseTest.save()`);
-  await until(async()=>{const rows=await dom();return rows.length===7&&rows.every(row=>{const page=browser.get(row.id),actual=(page.clipView||page.view).getBounds(),expected=box(row);return page.visible&&Object.keys(expected).every(key=>actual[key]===expected[key]);});},'all seven actual native roots use snapped endpoints');await painted();await Promise.all(pages.map(({wc})=>wc.executeJavaScript('scrollTo(0,137)')));const before=await observe();facts.fractionalPending={before};
-  assert.ok(before.slots.some(row=>Math.round(row.width)!==box(row).width||Math.round(row.height)!==box(row).height),'Seven-pane geometry reproduces the endpoint/independent-span mismatch');
+  await until(async()=>{const rows=await dom();return rows.length===7&&rows.every(row=>{const page=browser.get(row.id),actual=(page.clipView||page.view).getBounds(),expected=box(row);return page.visible&&Object.keys(expected).every(key=>actual[key]===expected[key]);});},'all seven actual native roots use snapped endpoints');await painted();await Promise.all(pages.map(({wc})=>wc.executeJavaScript('scrollTo(0,137)')));const before=await observe(),layoutContract=facts.version==='6.0.38'?INTEGER_LAYOUT_CONTRACT:null;facts.fractionalPending={before,...(layoutContract?{layoutContract}:{})};
+  assertSevenPaneGeometry(before,facts.version);
   await open();const during=await observe(),snapshots=await js(`Array.from(document.querySelectorAll('.mouse-floating-snapshot'),image=>{const r=image.getBoundingClientRect();return{id:image.dataset.tabId,bounds:{x:r.x,y:r.y,width:r.width,height:r.height},complete:image.complete,naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,src:image.src};})`);assert.equal(snapshots.length,7);
   for(const [index,snapshot]of snapshots.entries()){const page=during.pages.find(page=>page.id===snapshot.id);assert.ok(page);assert.deepEqual(snapshot.bounds,page.bounds);assert.equal(snapshot.complete,true);const bytes=Buffer.from(snapshot.src.slice(snapshot.src.indexOf(',')+1),'base64');assert.deepEqual({width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20)},{width:snapshot.naturalWidth,height:snapshot.naturalHeight});snapshot.file='mouse-630-nora-light-fractional-seven-page-'+index+'.png';snapshot.sha256=createHash('sha256').update(bytes).digest('hex');await fs.writeFile(snapshot.file,bytes);delete snapshot.src;}
-  const row=await foreground('light','fractional-seven',pages);Object.assign(row,{before,during,snapshots});await js('MouseTest.desktopUI.close()');await closed();await until(()=>!overlayGate.blocked&&!browser.mouseSurfaceHold,'seven-pane native pages restore');row.after=await observe();assert.deepEqual(during,before,'Seven-pane native identity, slot geometry and parents stay unchanged under Nora');assert.deepEqual(row.after,before,'Seven-pane close restores the same pages, scroll and viewports');delete facts.fractionalPending;await save();
+  const row=await foreground('light','fractional-seven',pages);Object.assign(row,{before,during,snapshots,...(layoutContract?{layoutContract}:{})});await js('MouseTest.desktopUI.close()');await closed();await until(()=>!overlayGate.blocked&&!browser.mouseSurfaceHold,'seven-pane native pages restore');row.after=await observe();assert.deepEqual(during,before,'Seven-pane native identity, slot geometry and parents stay unchanged under Nora');assert.deepEqual(row.after,before,'Seven-pane close restores the same pages, scroll and viewports');delete facts.fractionalPending;await save();
   for(const {id}of fractionalMade)await browser.command('close',{id});win.setBounds(previousBounds);await js(`MouseTest.changeLayout(1);MouseTest.model.slots={p1:${JSON.stringify(made[0].id)}};MouseTest.model.active='p1';MouseTest.renderTree();MouseTest.applySide();MouseTest.save()`);await painted();
  }
  async function reverse(){
@@ -109,4 +127,5 @@ module.exports=async({app,win,browser,store,overlayGate,globalCapture,privateMod
  }
  console.log('MOUSE_630_NORA_NATIVE_FOREGROUND_PASS');
 };
+module.exports.fixtures={assertSevenPaneGeometry};
 

@@ -17,15 +17,14 @@ import platform
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 
 spec = importlib.util.spec_from_file_location('mouse637_button_upgrade', Path(__file__).with_name('mouse-637-upgrade.py'))
 U = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(U)
-SOURCE = '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3'
+SOURCE = '0021084ccb9537e657d21e6f0c8e812dee6b461f'
 UPDATER_BLOB = '91ab363f926774825caf8055b2d3d81bf0d51264'
-MARKER = 'MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS'
+MARKER = 'MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS'
 NATIVE_MARKER = 'MOUSE_637_UPDATE_BUTTON_NATIVE_PASS'
 
 
@@ -34,7 +33,7 @@ def candidate_identity(candidate, target_platform):
     expected = 'Mouse-Browser-' + U.VERSION + '-' + suffix
     U.require(candidate.name == expected, 'Native update candidate has another platform/version name')
     identity = U.package_identity(candidate)
-    tag = {'darwin': 'quadro-macos-v6.0.37-arm64', 'win32': 'mouse-windows-v6.0.37-x64', 'linux': 'mouse-linux-v6.0.37-x64'}[target_platform]
+    tag = {'darwin': 'quadro-macos-v6.0.38-arm64', 'win32': 'mouse-windows-v6.0.38-x64', 'linux': 'mouse-linux-v6.0.38-x64'}[target_platform]
     return {**identity, 'version': U.VERSION, 'path': str(candidate),
             'url': 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + tag + '/' + expected}
 
@@ -63,6 +62,32 @@ def native(node, config, env, output):
     return {'pid': process.pid, 'exitCode': process.returncode, 'elapsedMs': round((time.monotonic() - started) * 1000),
             'log': log.name, 'logSha256': U.sha256(log), 'requiredMarkers': [NATIVE_MARKER],
             'report': report.name, 'reportSha256': U.sha256(report), 'result': result}
+
+
+def native_update_exits_verified(facts):
+    """Include the updater's two launches between the old/new profile probes."""
+    if not U.profile_native_exits_verified(facts):
+        return False
+    native = facts.get('native')
+    if not isinstance(native, dict) or type(native.get('pid')) is not int or native['pid'] <= 0 \
+            or type(native.get('exitCode')) is not int or native['exitCode'] != 0:
+        return False
+    result = native.get('result')
+    if not isinstance(result, dict) or result.get('ok') is not True:
+        return False
+    old, old_exit, new = result.get('oldProcess'), result.get('oldExit'), result.get('newProcess')
+    if not isinstance(old, dict) or type(old.get('pid')) is not int or old['pid'] <= 0 \
+            or not isinstance(old_exit, dict) or type(old_exit.get('code')) is not int \
+            or old_exit != {'code': 0, 'signal': None} or not isinstance(new, dict):
+        return False
+    process, exit_ = new.get('process'), new.get('exit')
+    if new.get('ok') is not True or new.get('terminationUsed') is not False \
+            or not isinstance(process, dict) or type(process.get('pid')) is not int or process['pid'] <= 0 \
+            or not isinstance(exit_, dict) or type(exit_.get('exitCode')) is not int or exit_['exitCode'] != 0 \
+            or exit_.get('observed') is not True or exit_.get('graceful') is not True or exit_.get('terminationUsed') is not False:
+        return False
+    return all(isinstance(result.get(key), dict) and result[key].get('exitSaved') is True
+               and result[key].get('quit') is True for key in ('oldLifecycle', 'newLifecycle'))
 
 
 def transition(candidate, root, output, node, facts):
@@ -142,16 +167,17 @@ def main(argv=None):
         U.require(os.getuid() > 0 and os.environ.get('DISPLAY'), 'Owned unprivileged Linux desktop required')
     candidate = args.package.resolve()
     if candidate.is_dir() and sys.platform == 'linux':
-        candidate /= 'Mouse-Browser-6.0.37-Linux-x64.AppImage'
+        candidate /= 'Mouse-Browser-6.0.38-Linux-x64.AppImage'
     candidate_identity(candidate, sys.platform)
     node = shutil.which('node')
     U.require(node, 'Node with built-in WebSocket is required')
     subprocess.run([node, '-e', 'if(typeof WebSocket!=="function")process.exit(1)'], check=True, timeout=10)
     output, facts = Path.cwd(), {'ok': False}
     try:
-        with tempfile.TemporaryDirectory(prefix='mouse637-button-', dir=os.environ.get('RUNNER_TEMP')) as temporary:
-            transition(candidate, Path(temporary), output, node, facts)
+        with U.owned_upgrade_directory(facts, prefix='mouse637-button-', native_exit_check=native_update_exits_verified) as root:
+            transition(candidate, root, output, node, facts)
     except Exception as error:
+        facts['ok'] = False
         facts['error'] = {'type': type(error).__name__, 'message': str(error)}
         raise
     finally:

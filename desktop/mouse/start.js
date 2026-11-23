@@ -66,14 +66,21 @@ globalThis.createMouseStart=({N,overlays,navigate,locale,status})=>{
   return wrapper;
  }
  function paint(root,info,items=data?.bookmarks.items||[]){
-  if(!data||!root.isConnected)return;const pref=data.preferences;root.dataset.background=pref.background;
-  root.style.backgroundImage=pref.background==='custom'&&data.backgroundData?'linear-gradient(#10182c38,#10182c55),url("'+data.backgroundData+'")':'';
-  const grid=root.querySelector('.favorites-grid');grid.replaceChildren();for(const item of items)grid.append(tile(item,info.pane));
-  const add=button('',()=>editBookmark(null),'favorite-open favorite-add');add.append(make('span','home-site-icon','＋'),make('span','home-site-label',tr('Добавить сайт','Add website')));grid.append(add);
+  if(!data||!root.isConnected)return;const pref=data.preferences;if(root.dataset.background!==pref.background)root.dataset.background=pref.background;
+  const background=pref.background==='custom'&&data.backgroundData?'linear-gradient(#10182c38,#10182c55),url("'+data.backgroundData+'")':'';
+  if(info.background!==background){root.style.backgroundImage=background;info.background=background;}
+  // Downloads and visits notify the same library. Keep existing bookmark DOM,
+  // image decodes and focused controls when none of their own data changed.
+  const bookmarkKey=JSON.stringify([locale(),items.map(({id,url,title})=>({id,url,title}))]);
+  if(info.bookmarkKey!==bookmarkKey){
+   const grid=root.querySelector('.favorites-grid');grid.replaceChildren();for(const item of items)grid.append(tile(item,info.pane));
+   const add=button('',()=>editBookmark(null),'favorite-open favorite-add');add.append(make('span','home-site-icon','＋'),make('span','home-site-label',tr('Добавить сайт','Add website')));grid.append(add);info.bookmarkKey=bookmarkKey;
+  }
   root.querySelector('.home-favorites-title').textContent=tr('Избранное','Favorites');root.querySelector('.home-welcome').textContent=tr('Новая вкладка','New tab');root.querySelector('.home-query').placeholder=tr('Поиск или адрес сайта','Search or enter website');
   const engineButton=root.querySelector('.home-search-engine');engineButton.disabled=!data.search;engineButton.querySelector('.home-search-engine-name').textContent=data.search?.name||'Google';engineButton.dataset.searchEngine=data.search?.engine||'google';engineButton.setAttribute('aria-label',tr('Поисковик: ','Search engine: ')+(data.search?.name||'Google'));engineButton.title=tr('Выбрать поисковик','Choose search engine');
   const more=root.querySelector('.home-more');more.hidden=items.length>=data.bookmarks.total;more.textContent=tr('Показать ещё','Show more');info.items=items;
-  const recent=root.querySelector('.recent-grid');recent.replaceChildren();for(const item of data.recent)recent.append(tile(item,info.pane,true));
+  const recentKey=JSON.stringify([locale(),data.recent.map(({id,url,title})=>({id,url,title}))]);
+  if(info.recentKey!==recentKey){const recent=root.querySelector('.recent-grid');recent.replaceChildren();for(const item of data.recent)recent.append(tile(item,info.pane,true));info.recentKey=recentKey;}
   const section=root.querySelector('.home-recent');section.hidden=!pref.showRecent||!data.recent.length;root.querySelector('.home-recent-title').textContent=tr('Недавно посещённые','Recently visited');
   root.querySelector('.home-customize').textContent=tr('⚙ Настроить страницу','⚙ Customize start page');
  }

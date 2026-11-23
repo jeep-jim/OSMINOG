@@ -1,12 +1,17 @@
 /* Appearance belongs to browser chrome and browser-owned pages only. Native
    website renderers retain their own styles, colours, media and live state. */
-:root[data-pane-mode=square]{--workspace-gap:0px;--pane-radius:0px}
+:root[data-pane-mode=square]{--workspace-gap:1px;--pane-radius:0px}
+/* Adjacent square pages keep a real one-pixel seam. The outside of the
+   workspace remains flush; page zoom does not scale browser chrome. */
+:root[data-pane-mode=square] #workspace{padding:0}
+:root[data-pane-mode=square] body.ai-focused #workspace #ai-panel{inset:0}
+:root[data-pane-mode=square] #workspace :is(#library-dialog,#settings-dialog){border-left:0}
 :root[data-pane-mode=square] #workspace :is(#ai-panel,#ai-chat-pane,#ai-preview-pane,#library-dialog,#settings-dialog){border-radius:0}
 :root[data-pane-mode=square] #workspace :is(#ai-slot,#ai-preview-slot,.page-slot){border-radius:0}
 :root[data-pane-mode=square] #stage .pane.mouse-drop-target::after{border-radius:0}
 :root[data-pane-mode=square] section.mouse-pane-downloads>button.mouse-download-pill{border-radius:0}
-/* A zero-width seam still has a pointer target over the neighbouring chrome.
-   The existing separator keeps its keyboard focus and resize commands. */
+/* The fine seam still has a comfortable pointer target over neighbouring
+   chrome. Keyboard focus and resize commands use the same separator. */
 .divider-hit{display:none}
 :root[data-pane-mode=square] .divider>.divider-hit{display:block;position:absolute;z-index:1;touch-action:none;cursor:inherit}
 :root[data-pane-mode=square] .divider[data-axis=x]>.divider-hit,
