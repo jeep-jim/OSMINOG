@@ -27,8 +27,9 @@
   color-scheme: light;
   --paper: #fff;
   --ink: #000;
-  --burrow-ceiling: var(--paper);
+  --burrow-ceiling: var(--line);
   --burrow-middle: #f2f2f2;
+  --burrow-floor: var(--paper);
   --mouse-ink: #000;
   --soft-ink: rgb(0 0 0 / .61);
   --line: #b8b8b8;
@@ -59,7 +60,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visib
 main { display: flex; align-items: center; justify-content: center; padding: 10px 24px 28px; }
 .hero { text-align: center; width: 100%; max-width: 1280px; }
 .burrow-stage { position: relative; width: 250px; height: 225px; margin: 0 auto 22px; }
-.burrow-stage::before { content: ""; position: absolute; left: 50%; bottom: 4.7619048%; width: calc(100vw - 96px); height: 1px; transform: translateX(-50%); background: var(--burrow-floor); pointer-events: none; }
+.burrow-stage::before { content: ""; position: absolute; left: 50%; bottom: 4.7619048%; width: calc(100vw - 96px); height: 1px; transform: translateX(-50%); background: var(--line); pointer-events: none; }
 .burrow { position: relative; display: block; width: 100%; height: 100%; overflow: visible; }
 .burrow-opening { fill: url(#burrow-depth); shape-rendering: geometricPrecision; }
 .burrow-gradient-ceiling { stop-color: var(--burrow-ceiling); }
@@ -222,7 +223,7 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
   width: calc(100% + var(--hero-inset) * 2);
   margin: 0 calc(var(--hero-inset) * -1) 28px;
 }
-.hero-mascot::after { content: ""; position: absolute; inset: auto 0 0; height: 1px; background: var(--burrow-floor); pointer-events: none; }
+.hero-mascot::after { content: ""; position: absolute; inset: auto 0 0; height: 1px; background: var(--line); pointer-events: none; }
 .hero-copy .burrow-stage { width: 185px; height: auto; aspect-ratio: 7 / 6; margin: 0 auto; pointer-events: none; }
 .hero-copy .burrow-stage::before { content: none; }
 .hero-copy h1 { font-size: clamp(18px, 2.25vw, 38px); }
