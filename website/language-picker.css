@@ -1,6 +1,6 @@
 .language-picker-host { position: relative; }
-.language-picker-trigger { width: 100%; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 10px 11px 10px 13px; padding-inline: 13px 11px; border: 1px solid var(--line); border-radius: 24px; background: var(--paper); color: var(--ink); font: inherit; font-size: 14px; line-height: 1.2; cursor: pointer; transition: border-color .2s; }
-.language-picker-trigger:hover, .language-picker-trigger[aria-expanded="true"] { border-color: var(--ink); }
+.language-picker-trigger { width: 100%; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 10px 11px 10px 13px; padding-inline: 13px 11px; border: 0; border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.2; cursor: pointer; }
+.language-picker-trigger:hover .language-picker-current { text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--line); }
 .language-picker-icon { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .language-picker-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; text-align: start; }
 .language-picker-chevron { width: 16px; height: 16px; flex-basis: 16px; transition: transform .2s; }

@@ -24,6 +24,10 @@ SHOWCASE_FIELDS = {
     'showcaseHint', 'showcaseDemo', 'showcaseScenesLabel',
     'showcaseMove', 'showcaseResize', 'showcaseRestore',
 }
+FEATURE_FIELDS = {
+    'featuresTitle', 'captureTitle', 'captureText', 'workspaceTitle', 'workspaceText',
+    'extensionsTitle', 'extensionsText', 'importTitle', 'importText',
+}
 PLATFORMS = {
     'macos': {'suffix': 'mac-arm64.dmg', 'label': 'macOS', 'key': 'mac',
               'os': 'macOS (Apple Silicon)'},
@@ -97,10 +101,12 @@ process.stdout.write(JSON.stringify(box.window.MOUSE_I18N));"""
     data = json.loads(subprocess.check_output(['node', '-e', script, str(SOURCE / 'i18n.js')], text=True))
     seo = json.loads((SOURCE / 'seo-i18n.json').read_text())
     showcase = json.loads((SOURCE / 'showcase-i18n.json').read_text())
+    features = json.loads((SOURCE / 'features-i18n.json').read_text())
     codes = [item['code'] for item in data['languages']]
     assert len(codes) == len(set(codes)) == 72, 'The exact Mouse language catalog is required'
     assert set(seo) == set(codes), 'SEO translations must cover every Mouse language'
     assert set(showcase) == set(codes), 'Showcase translations must cover every Mouse language'
+    assert set(features) == set(codes), 'Feature translations must cover every Mouse language'
     for code in codes:
         assert set(seo[code]) == SEO_FIELDS, f'Unexpected SEO fields: {code}'
         assert all(isinstance(value, str) and value.strip() for value in seo[code].values()), code
@@ -108,6 +114,9 @@ process.stdout.write(JSON.stringify(box.window.MOUSE_I18N));"""
         assert set(showcase[code]) == SHOWCASE_FIELDS, f'Unexpected showcase fields: {code}'
         assert all(isinstance(value, str) and value.strip() for value in showcase[code].values()), code
         data['messages'][code].update(showcase[code])
+        assert set(features[code]) == FEATURE_FIELDS, f'Unexpected feature fields: {code}'
+        assert all(isinstance(value, str) and value.strip() for value in features[code].values()), code
+        data['messages'][code].update(features[code])
     return data
 
 
@@ -237,7 +246,7 @@ def build(output, downloads=None, catalog=None):
     source = (SOURCE / 'index.html').read_text()
     files = []
     for path in sorted(SOURCE.rglob('*')):
-        if not path.is_file() or path.name in {'index.html', 'i18n.js', 'seo-i18n.json', 'showcase-i18n.json'}:
+        if not path.is_file() or path.name in {'index.html', 'i18n.js', 'seo-i18n.json', 'showcase-i18n.json', 'features-i18n.json'}:
             continue
         assert not path.is_symlink(), 'No symlink assets'
         relative = path.relative_to(SOURCE)

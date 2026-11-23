@@ -20,12 +20,13 @@
   <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/showcase.css">
   <link rel="stylesheet" href="/language-picker.css">
+  <link rel="stylesheet" href="/features.css">
 </head>
 <body>
   <div class="first-screen">
   <a class="skip-link" href="#downloads" data-i18n="skipDownload">Перейти к загрузке</a>
   <header class="site-header">
-    <a class="wordmark" href="/" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">mouse<span class="wordmark-domain">.black</span></a>
+    <a class="wordmark" href="/" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">MOUSE</a>
     <div class="header-controls">
       <div class="language-control" id="language-picker" hidden></div>
       <button class="theme-switch" type="button" id="theme-switch" aria-label="Включить светлую тему" aria-pressed="false" hidden>
@@ -82,8 +83,8 @@
           <title id="mouse-title" data-i18n="mouseLabel">Мышка выглядывает из норки и моргает</title>
           <defs>
             <linearGradient id="burrow-depth" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#030303"/>
-              <stop offset=".5" stop-color="#0b0b0b"/>
+              <stop class="burrow-gradient-ceiling" offset="0"/>
+              <stop class="burrow-gradient-middle" offset=".5"/>
               <stop class="burrow-gradient-floor" offset="1"/>
             </linearGradient>
           </defs>
@@ -96,8 +97,7 @@
         </svg>
       </div>
       </div>
-      <p class="eyebrow" data-i18n="eyebrow">Mouse Browser</p>
-      <h1 id="headline"><span data-i18n="headlineLine1">Твой компьютер</span> <span data-i18n="headlineLine2">— твои правила</span></h1>
+      <h1 id="headline"><span data-i18n="headlineLine1">Твой браузер</span> <span data-i18n="headlineLine2">— твои правила</span></h1>
       <p class="intro"><span data-i18n="introLine1">Открыл и работаешь</span><br><span data-i18n="introLine2">Сайты, чаты и ИИ — рядом, в одной сетке</span></p>
 
       <div class="downloads" id="downloads" aria-label="Скачать Mouse Browser" data-i18n-aria="downloadsLabel">
@@ -126,6 +126,109 @@
         </details>
       </div>
     </section>
+
+<section class="features" id="features" aria-labelledby="features-heading">
+  <h2 class="features-heading" id="features-heading" data-i18n="featuresTitle">Устраивайся поудобнее</h2>
+  <div class="features-network">
+    <svg class="feature-tunnels" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M600 0v16c0 18-16 26-40 26H194c-28 0-44 14-44 38M600 16c0 18 16 26 40 26h366c28 0 44 14 44 38"/>
+      <path d="M490 42c-26 0-40 14-40 38M710 42c26 0 40 14 40 38"/>
+    </svg>
+    <div class="features-grid">
+      <article class="feature-card feature-capture">
+        <div class="feature-room" aria-hidden="true">
+          <svg class="feature-illustration" viewBox="0 0 202 140" focusable="false">
+            <path class="feature-muted" d="M25 119h152"/>
+            <g class="feature-floating">
+              <rect class="feature-wash" x="39" y="38" width="87" height="67" rx="5" transform="rotate(-8 82 72)"/>
+              <path class="feature-muted" d="m43 84 19-24 17 15 11-11 20 23"/>
+              <circle class="feature-ink" cx="99" cy="51" r="4"/>
+              <rect class="feature-sheet" x="73" y="53" width="86" height="62" rx="5"/>
+              <path d="M87 69h26m-26 11h56m-56 9h46m-46 9h31"/>
+              <path class="feature-muted" d="M153 33v-8m-4 4 4-4 4 4M34 106v9h9"/>
+            </g>
+          </svg>
+        </div>
+        <div class="feature-copy">
+          <h3 data-i18n="captureTitle">Полезное рядом</h3>
+          <p data-i18n="captureText">Включи автосбор скопированного текста и снимков из выбранной папки. Всё сохраняется локально, пока Mouse открыт</p>
+        </div>
+      </article>
+      <article class="feature-card feature-workspace">
+        <div class="feature-room" aria-hidden="true">
+          <svg class="feature-illustration" viewBox="0 0 202 140" focusable="false">
+            <path class="feature-muted" d="M15 119h172"/>
+            <g class="feature-floating">
+              <rect class="feature-sheet" x="14" y="32" width="174" height="82" rx="5"/>
+              <path class="feature-muted" d="M14 45h174"/>
+              <path d="M23 39h3m5 0h3m5 0h3"/>
+              <rect class="feature-wash" x="22" y="53" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="51" y="53" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="80" y="53" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="109" y="53" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="22" y="72" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="51" y="72" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="80" y="72" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="109" y="72" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="22" y="91" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="51" y="91" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="80" y="91" width="24" height="14" rx="1.5"/>
+              <rect class="feature-wash" x="109" y="91" width="24" height="14" rx="1.5"/>
+              <path class="feature-muted" d="M141 45v69"/>
+              <path d="m163 58 2.5 7.5L173 68l-7.5 2.5L163 78l-2.5-7.5L153 68l7.5-2.5Z"/>
+              <path class="feature-muted" d="M150 87h28m-28 6h22m-22 6h25"/>
+            </g>
+          </svg>
+        </div>
+        <div class="feature-copy">
+          <h3 data-i18n="workspaceTitle">Всё перед глазами</h3>
+          <p data-i18n="workspaceText">До 12 окон на одном столе и отдельная панель для ИИ-чатов. Меняй размеры и расположение под свою задачу</p>
+        </div>
+      </article>
+      <article class="feature-card feature-extensions">
+        <div class="feature-room" aria-hidden="true">
+          <svg class="feature-illustration" viewBox="0 0 202 140" focusable="false">
+            <path class="feature-muted" d="M25 119h152"/>
+            <g class="feature-floating">
+              <rect class="feature-sheet" x="28" y="39" width="146" height="70" rx="5"/>
+              <path class="feature-muted" d="M28 60h146"/>
+              <path d="M39 49h35"/>
+              <rect class="feature-wash" x="114" y="44" width="12" height="12" rx="2"/>
+              <rect class="feature-wash" x="132" y="44" width="12" height="12" rx="2"/>
+              <path d="m155 44 5 5-2 2-2-1-4 4m-2-3 5 5"/>
+              <path class="feature-wash" d="M66 77h14v-5a8 8 0 0 1 16 0v5h14v14h5a8 8 0 0 1 0 16h-5v14H96v-5a8 8 0 0 0-16 0v5H66v-14h5a8 8 0 0 0 0-16h-5Z"/>
+              <path class="feature-muted" d="M128 78h27m-27 9h18m-27 9h27"/>
+            </g>
+          </svg>
+        </div>
+        <div class="feature-copy">
+          <h3 data-i18n="extensionsTitle">Свои инструменты</h3>
+          <p data-i18n="extensionsText">Устанавливай совместимые расширения из папки и закрепляй их на панели</p>
+        </div>
+      </article>
+      <article class="feature-card feature-import">
+        <div class="feature-room" aria-hidden="true">
+          <svg class="feature-illustration" viewBox="0 0 202 140" focusable="false">
+            <path class="feature-muted" d="M25 119h152"/>
+            <g class="feature-floating">
+              <path class="feature-wash" d="M29 58V44a4 4 0 0 1 4-4h19l8 8h18a4 4 0 0 1 4 4v53a4 4 0 0 1-4 4H33a4 4 0 0 1-4-4Z"/>
+              <path d="M45 60h19v27l-9.5-6L45 87Z"/>
+              <rect class="feature-sheet" x="120" y="40" width="54" height="69" rx="5"/>
+              <path class="feature-muted" d="M120 52h54"/>
+              <path d="M130 61h12v18l-6-4-6 4Z"/>
+              <circle cx="154" cy="88" r="5"/>
+              <path d="m150.5 91.5-7.5 7.5m1.5-1.5 3 3m-1-5 3 3M88 75h25m-6-6 6 6-6 6"/>
+            </g>
+          </svg>
+        </div>
+        <div class="feature-copy">
+          <h3 data-i18n="importTitle">Переезжай с привычным</h3>
+          <p data-i18n="importText">Перенеси закладки и сохранённые пароли из файлов экспорта другого браузера</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
   </main>
 
   <footer class="site-footer">
@@ -150,12 +253,11 @@
         <p data-i18n="desktopText">Установщики для macOS Apple Silicon, Windows x64 и Linux x64 доступны напрямую с mouse.black.</p>
       </article>
     </div>
-    <details class="language-directory">
-      <summary><span data-i18n="languageLabel">Язык</span> <span class="language-count">72</span></summary>
+    <div class="language-directory">
       <nav class="language-links" aria-label="Язык" data-i18n-aria="languageLabel">
         <!-- LANGUAGE_LINKS -->
       </nav>
-    </details>
+    </div>
   </section>
 </body>
 </html>
