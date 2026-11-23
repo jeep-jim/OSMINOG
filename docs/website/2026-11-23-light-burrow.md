@@ -23,4 +23,10 @@ Published and independently verified on 2026-11-23 at 19:09 Krasnoyarsk time (12
 
 While publication was completing, the owner requested “Скриншоты и текст” instead of “Полезное рядом”. Updated the Russian fallback and captureTitle in all 72 locale entries (English: “Screenshots and text”), preserving every other translation field and the feature description. Translation wording follows the existing capture descriptions; independent native-speaker review of every language has not been performed.
 
-Static build/SEO passed again (73 pages / 72 locales). A structural comparison confirmed captureTitle is the only changed field in each locale. Follow-up publication pending.
+Static build/SEO passed again (73 pages / 72 locales). A structural comparison confirmed captureTitle is the only changed field in each locale. Follow-up published and independently verified on 2026-11-23 at 19:14 Krasnoyarsk time (12:14 UTC).
+
+- Source 1eb42a4dc1b5732abe696597a3dedeeaebaba3d3; tree 13dfa13a03fdde404ab1db8eb90ac0c1ae3bf593 matched the reviewed tree. Expected parent a8a21638ef90bc5afb5d4e308f69bf5d8f7c7653, non-force update and read-back verified.
+- [Website run 45172026289](https://github.com/jeep-jim/OSMINOG/actions/runs/45172026289) succeeded: validation 137683695285, publication 137683844070. Deployment 9c8c4ecd68a6bb9b989b4438792bf5b2963d1f90 includes both the burrow correction and the 72 renamed headings.
+- Timer checked this source at 2026-11-23T12:13:42.488573+00:00. Independent external live gate at 12:14:29 UTC verified exact RU/EN/AR pages with the updated feature names, HTTPS/redirects, the language graph and all three complete installer SHA256 values. Receipt: MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3.
+- Artifact 14817197238, 2301 bytes; ZIP SHA256 058e30fff1d26d894173267c4051e03e815f06667f33bb438534c8edc83a55c0.
+- The feature description and every other locale field are preserved. No browser build, checkout, DNS or AvtoCena changes were made.
