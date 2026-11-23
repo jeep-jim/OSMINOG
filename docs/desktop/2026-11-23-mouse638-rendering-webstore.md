@@ -1,6 +1,65 @@
 # Mouse 6.0.38 — rendering and Chrome Web Store
 
-## Current acceptance and shared owned-fixture cleanup
+## Published 6.0.38 and accepted source
+
+The accepted application source is `b9d243dd7507da3c5b5397c62391315c09794db8`.
+[Source PR #203](https://github.com/jeep-jim/OSMINOG/pull/203) merged it as
+`4d3953456f09448c5b2c2bd463496f27fe6c8a9e`; both commits have tree
+`478bc17850267fe25463718a3fac71a3d1942bb3`. Later documentation commits do not
+change the pinned application source. Keep `fix/mouse638-ordered-release` at
+that accepted head; use a new branch for further work.
+
+| Platform | Accepted source evidence | Public publisher state |
+| --- | --- | --- |
+| macOS arm64 | [45185688039, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45185688039), native and seven independent reader groups PASS | [45193897169, attempt 1](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45193897169): PUBLIC PASS; all five assets and actual 6.0.37/6.0.29 anonymous updater receipts |
+| Linux x64 | [45185688213, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45185688213), main and Ubuntu 24.04 jobs plus all three independent reader groups PASS | [45202332513, attempt 2](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45202332513/attempts/2): PUBLIC PASS; all five assets, both feeds and actual 6.0.37 updater for AppImage/deb |
+| Windows x64 | [45185687846, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45185687846), main and modern native jobs plus both independent readers PASS | [45208368038, attempt 1](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45208368038): PUBLIC PASS; all four assets, both feeds and actual 6.0.37/6.0.29 anonymous updater receipts |
+
+Exact package sizes, hashes, source and artifact identities are preserved in
+the publisher pins: [Mac at 41a67ead](https://github.com/jeep-jim/OSMINOG-Releases/blob/41a67ead28dda6bdff7c19b8ae4946f9fad91c59/staging/mouse/6.0.38-arm64/pin.json),
+[Linux at f50204b9](https://github.com/jeep-jim/OSMINOG-Releases/blob/f50204b9c4533ea3bb8623c80919acb9a7b4ed46/staging/mouse/6.0.38-linux-x64/pin.json),
+[Windows at c33b7b5](https://github.com/jeep-jim/OSMINOG-Releases/blob/c33b7b5cd53edcb54c35a450dd83d0d19d2d965d/staging/mouse/6.0.38-windows-x64/pin.json).
+The Windows public release was published at 2026-11-23 16:15:57 UTC. Its four
+full anonymous asset downloads matched the pinned installer and recorded
+metadata; the public verification report matched the raw publisher archive.
+Canonical latest/version feeds were independently observed at 6.0.38 without
+query parameters at 16:26:06 UTC. All three native publishers and public
+acceptance are complete.
+
+Mac remains an ad-hoc preview without Developer ID/notarization; Windows is
+unsigned. CI acceptance does not establish a result on the owner's Mint device.
+
+### Public website delivery
+
+Direct anonymous checks on 23 November 2026 confirmed all three official
+canonical feeds, [mouse.black/downloads.json](https://mouse.black/downloads.json)
+and the [homepage](https://mouse.black/) at 6.0.38 by 16:21:26 UTC. Full same-origin
+downloads of the Mac DMG, Linux AppImage and Windows EXE matched the pinned
+sizes and SHA256 values. Each file returned HTTPS HEAD 200 with exact length,
+full GET 200 without redirects and Range 206 with the correct first 16 bytes.
+The final range check completed at 16:22:19 UTC. Earlier reads still observed
+Windows 6.0.37 and were retained separately; no timer execution time was inferred
+from HTTP headers. This was read-only verification of the existing automatic
+delivery, with no website, timer or infrastructure changes.
+
+### Publisher correction found at activation
+
+The first local ready-Linux plan exposed a dropped return value in the 638
+`validate_template()` wrapper: the retained `pin()` calls that function and
+then indexes its validated mapping. [Publisher PR #75](https://github.com/jeep-jim/OSMINOG-Releases/pull/75)
+returns the same mapping after both retained and additional validation in the
+Linux and Windows wrappers. Windows `pin()` reads JSON directly, so an identical
+Windows runtime failure is not claimed. The three new tests call the actual
+ready/unready publisher functions and reject 18 malformed ready cases. All
+135 publisher tests and the live ordered-publication plans passed.
+
+Linux publisher attempt 1 then stopped before native work when GitHub's public
+release metadata API returned HTTP 403 rate limit exceeded. A single retry of
+the same immutable publisher commit completed successfully as attempt 2. Source
+run/attempt/package pins remained unchanged. Earlier investigation follows;
+its pending and failure descriptions are historical, not the current status.
+
+## Earlier acceptance and shared owned-fixture cleanup
 
 Source `eb948797dd919ade788349efd152728d47614244` passed both
 [Linux jobs](https://github.com/jeep-jim/OSMINOG/actions/runs/45179250078)

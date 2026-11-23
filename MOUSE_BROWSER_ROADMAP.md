@@ -28,17 +28,17 @@
 - **Не двигать `fix/mouse638-ordered-release` после merge:** publisher проверяет исходный head PR203. Любая новая работа и документация — в новой ветке от `main`; принятые source/pins не переписывать.
 - Native проверки и независимые читатели не ослаблять. Source PASS и merge сами по себе не означают публикацию.
 
-## Публикация — срез 23.11.2026, 15:43 UTC
+## Выпуск638 — PUBLIC PASS, 23.11.2026
 
 - **Mac PUBLIC PASS:** [run 45193897169](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45193897169), [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.38-arm64), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/41a67ead28dda6bdff7c19b8ae4946f9fad91c59/staging/mouse/6.0.38-arm64/pin.json). Все 5 assets проверены по байтам; обновляторы 637/629 — PASS.
 - **Linux PUBLIC PASS:** [run 45202332513, attempt 2](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45202332513/attempts/2), [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.38-x64), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/f50204b9c4533ea3bb8623c80919acb9a7b4ed46/staging/mouse/6.0.38-linux-x64/pin.json). Все 5 assets, оба feed и настоящий updater637 для AppImage/deb — PASS.
-- **Windows PUBLIC PENDING:** [run 45208368038](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45208368038), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/c33b7b5cd53edcb54c35a450dd83d0d19d2d965d/staging/mouse/6.0.38-windows-x64/pin.json). PR76 объединён; финальный native publisher запущен, публичный PASS ещё не подтверждён.
+- **Windows PUBLIC PASS:** [run 45208368038](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45208368038), [release](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.38-x64), [точный pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/c33b7b5cd53edcb54c35a450dd83d0d19d2d965d/staging/mouse/6.0.38-windows-x64/pin.json). Все 4 assets, оба feed и обновляторы 629/637 — PASS.
 
-Размеры/SHA256 пакетов брать из pins. Далее: завершить Windows native/public/feed/updater проверки, сверить сайт и записать фактический итог. Mac — Apple Silicon, ad-hoc preview без Developer ID/notarization; Windows — unsigned preview.
+Размеры/SHA256 пакетов брать из pins. Далее: разбирать конкретные отзывы владельца об установке и работе этих пакетов. Mac — Apple Silicon, ad-hoc preview без Developer ID/notarization; Windows — unsigned preview.
 
 ## Сайт и автообновление
 
-[mouse.black](https://mouse.black/) — отдельный webroot/HTTPS под osminog; bootstrap завершён. Mac638: полная публичная загрузка/SHA256 PASS в 15:13:33 UTC. Таймер переносит проверенные официальные загрузки по платформам, проверяя каналы через 60 секунд после предыдущего запуска. Выпуск браузера не требует повторного bootstrap, доступа к АвтоЦене или root. Сохранять параллельные изменения сайта. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md) — только для задач сайта.
+[mouse.black](https://mouse.black/) — отдельный webroot/HTTPS под osminog; bootstrap завершён. Все три загрузки638: HTTPS, полные байты/SHA256 и Range PASS 23.11.2026, 16:22 UTC. Таймер переносит проверенные официальные загрузки по платформам, проверяя каналы через 60 секунд после предыдущего запуска. Выпуск браузера не требует повторного bootstrap, доступа к АвтоЦене или root. Сохранять параллельные изменения сайта. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md) — только для задач сайта.
 
 Лендинг: сплит, 72 языка, $3/месяц; подписка «скоро», checkout/права не внедрены. Автосбор — новый буфер/снимки выбранной папки при открытом Mouse, не страницы из кеша. [Тариф](docs/website/2026-11-23-one-fair-plan.md).
 
