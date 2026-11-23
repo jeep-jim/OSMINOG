@@ -131,11 +131,11 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install native Ubuntu 24.04 test session tools
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
           set -euo pipefail
           set +e
-          timeout --signal=TERM --kill-after=5s 120s bash -euo pipefail -c '
+          timeout --signal=TERM --kill-after=5s 240s bash -euo pipefail -c '
             export DEBIAN_FRONTEND=noninteractive
             apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1)
             printf "%s\n" MOUSE_NOBLE_HOST_APT_UPDATE

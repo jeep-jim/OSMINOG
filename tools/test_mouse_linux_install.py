@@ -43,14 +43,14 @@ class CleanInstallBindingTests(unittest.TestCase):
     def test_dependency_probe_is_valid_bash(self):
         subprocess.run(['bash', '-n'], input=install.CLEAN_INSTALL, text=True, check=True)
 
-    def test_cloud_mirror_is_selected_without_tls_bootstrap_or_untrusted_sources(self):
+    def test_cloud_mirror_keeps_official_https_fallback_without_untrusted_sources(self):
         for host in ('azure.archive.ubuntu.com', 'us-east-2.ec2.archive.ubuntu.com'):
             raw = (f'http://{host}/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\n'
                    'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
             self.assertEqual(install.apt_mirrors(raw),
                              f'http://{host}/ubuntu/\tpriority:1\n'
-                             'http://archive.ubuntu.com/ubuntu/\tpriority:2\n'
-                             'http://security.ubuntu.com/ubuntu/\tpriority:3\n')
+                             'https://archive.ubuntu.com/ubuntu/\tpriority:2\n'
+                             'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
         fallback = install.apt_mirrors('')
         for unsafe in ('file:/host/packages', 'http://user@azure.archive.ubuntu.com/ubuntu/',
                        'https://azure.archive.ubuntu.com.evil/ubuntu/', 'http://azure.archive.ubuntu.com:80/ubuntu/',
@@ -61,11 +61,12 @@ class CleanInstallBindingTests(unittest.TestCase):
     def test_actual_shell_changes_only_ubuntu_uri_tokens_and_preserves_trust_fields(self):
         with tempfile.TemporaryDirectory() as root:
             sources, mirrors = Path(root) / 'ubuntu.sources', Path(root) / 'mirrors.txt'
+            ca = Path(root) / 'ca.crt'; ca.write_text('Public CA fixture; no TLS request runs in this unit test\n')
             sources.write_text(SOURCES); sources.chmod(0o644)
             mirrors.write_text(install.apt_mirrors(''))
             before_hash = install.VERIFY.sha256(sources)
             command = ['bash', '-euo', 'pipefail', '-c', install.APT_SOURCE_SETUP +
-                       '\nconfigure_apt_transport "$1" "$2"', 'probe', str(sources), str(mirrors)]
+                       '\nconfigure_apt_transport "$1" "$2" "$3"', 'probe', str(sources), str(mirrors), str(ca)]
             result = subprocess.run(command, text=True, capture_output=True, check=True)
             expected = SOURCES.replace('URIs: http://archive.ubuntu.com/ubuntu/', f'URIs: mirror+file:{mirrors}')
             expected = expected.replace('URIs:\thttps://security.ubuntu.com/ubuntu/  http://archive.ubuntu.com/ubuntu',
@@ -75,44 +76,71 @@ class CleanInstallBindingTests(unittest.TestCase):
             self.assertIn(before_hash, result.stdout)
             self.assertIn(install.VERIFY.sha256(sources), result.stdout)
             self.assertIn(install.VERIFY.sha256(mirrors), result.stdout)
+            self.assertIn(install.VERIFY.sha256(ca), result.stdout)
             subprocess.run(command, text=True, capture_output=True, check=True)
             self.assertEqual(sources.read_text(), expected, 'Reapplying the same transport is idempotent')
 
     def test_unknown_sources_fail_before_any_source_mutation(self):
         with tempfile.TemporaryDirectory() as root:
             sources, mirrors = Path(root) / 'ubuntu.sources', Path(root) / 'mirrors.txt'
+            ca = Path(root) / 'ca.crt'; ca.write_text('Public CA unit fixture\n')
             original = 'Types: deb\nURIs: http://example.invalid/ubuntu/\nSigned-By: /original/key\n'
             sources.write_text(original); mirrors.write_text(install.apt_mirrors(''))
             result = subprocess.run(['bash', '-euo', 'pipefail', '-c', install.APT_SOURCE_SETUP +
-                                     '\nconfigure_apt_transport "$1" "$2"', 'probe', str(sources), str(mirrors)],
+                                     '\nconfigure_apt_transport "$1" "$2" "$3"', 'probe', str(sources), str(mirrors), str(ca)],
                                     env={**os.environ, 'TMPDIR': root}, text=True, capture_output=True)
             self.assertEqual(result.returncode, 24)
             self.assertEqual(sources.read_text(), original)
 
-    def test_docker_receives_only_candidate_and_transport_readonly_mounts(self):
+    def test_docker_receives_only_candidate_mirror_and_single_ca_readonly_mounts(self):
         with tempfile.TemporaryDirectory(prefix='mouse apt ') as root:
             deb, mirrors = Path(root) / 'candidate.deb', Path(root) / 'mirrors.log'
-            command = install.clean_dependency_command(deb, mirrors)
+            ca = Path(root) / 'ca.crt'; ca.write_text('Public CA unit fixture\n')
+            command = install.clean_dependency_command(deb, mirrors, ca)
             self.assertEqual(command[:4], ['docker', 'run', '--rm', '--pull=always'])
             self.assertEqual([command[i + 1] for i, word in enumerate(command) if word == '--mount'],
                              [f'type=bind,src={deb},dst=/candidate.deb,readonly',
-                              f'type=bind,src={mirrors},dst={install.MIRROR_TARGET},readonly'])
-            self.assertEqual(command[8:], ['ubuntu:24.04', 'bash', '-c', install.CLEAN_INSTALL,
-                                          'mouse-clean-install', '/etc/apt/sources.list.d/ubuntu.sources', install.MIRROR_TARGET])
-            with self.assertRaisesRegex(RuntimeError, 'unsupported separator'):
-                install.clean_dependency_command(Path(root) / 'bad,readonly=false.deb', mirrors)
+                              f'type=bind,src={mirrors},dst={install.MIRROR_TARGET},readonly',
+                              f'type=bind,src={ca},dst={install.CA_TARGET},readonly'])
+            self.assertEqual(command[10:], ['ubuntu:24.04', 'bash', '-c', install.CLEAN_INSTALL,
+                                           'mouse-clean-install', '/etc/apt/sources.list.d/ubuntu.sources',
+                                           install.MIRROR_TARGET, install.CA_TARGET])
+            for index in range(3):
+                for separator in (',readonly=false', '\n', '\r'):
+                    values = [deb, mirrors, ca]; values[index] = Path(root) / ('bad' + separator)
+                    with self.subTest(index=index, separator=separator), self.assertRaisesRegex(RuntimeError, 'unsupported separator'):
+                        install.clean_dependency_command(*values)
+
+    def test_missing_empty_or_directory_ca_is_rejected_before_docker(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = Path(root); empty = directory / 'empty.crt'; empty.touch()
+            for ca in (directory / 'missing.crt', empty, directory):
+                with self.subTest(ca=ca), self.assertRaisesRegex(RuntimeError, 'CA bundle is missing or empty'):
+                    install.clean_dependency_command(directory / 'candidate.deb', directory / 'mirrors.txt', ca)
+
+    def test_empty_ca_aborts_shell_before_sources_change_or_apt(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = Path(root); sources, mirrors, ca = (directory / name for name in ('ubuntu.sources', 'mirrors.txt', 'empty.crt'))
+            sources.write_text(SOURCES); mirrors.write_text(install.apt_mirrors('')); ca.touch()
+            result = subprocess.run(['bash', '-c', install.CLEAN_INSTALL, 'probe', str(sources), str(mirrors), str(ca)],
+                                    text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(sources.read_text(), SOURCES)
+            self.assertNotIn('MOUSE_APT_OPTIONS', result.stdout)
+            self.assertNotIn('MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS', result.stdout)
 
     def test_apt_errors_abort_actual_clean_script_before_success_marker(self):
         for failed_phase, code in [('update', 41), ('install', 42)]:
             with self.subTest(phase=failed_phase), tempfile.TemporaryDirectory() as root:
                 directory = Path(root); binary = directory / 'bin'; binary.mkdir()
                 sources, mirrors, calls = directory / 'ubuntu.sources', directory / 'mirrors.txt', directory / 'calls'
+                ca = directory / 'ca.crt'; ca.write_text('Public CA unit fixture\n')
                 sources.write_text(SOURCES); mirrors.write_text(install.apt_mirrors(''))
                 apt = binary / 'apt-get'
                 apt.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$APT_CALLS"\n'
                                'case " $* " in *" $APT_FAIL "*) exit "$APT_EXIT";; esac\n')
                 apt.chmod(0o755)
-                result = subprocess.run(['bash', '-c', install.CLEAN_INSTALL, 'probe', str(sources), str(mirrors)],
+                result = subprocess.run(['bash', '-c', install.CLEAN_INSTALL, 'probe', str(sources), str(mirrors), str(ca)],
                                         env={**os.environ, 'PATH': str(binary) + os.pathsep + os.environ['PATH'],
                                              'TMPDIR': root, 'APT_CALLS': str(calls), 'APT_FAIL': failed_phase, 'APT_EXIT': str(code)},
                                         text=True, capture_output=True)
@@ -123,6 +151,10 @@ class CleanInstallBindingTests(unittest.TestCase):
                 self.assertIn('update --error-on=any', commands[0])
                 for command in commands:
                     for option in ('Acquire::http::Timeout=15', 'Acquire::https::Timeout=15', 'Acquire::Retries=1'):
+                        self.assertIn(option, command)
+                    for option in (f'Acquire::https::CAInfo={ca}', 'Acquire::https::Verify-Peer=true',
+                                   'Acquire::https::Verify-Host=true', 'Acquire::AllowInsecureRepositories=false',
+                                   'APT::Get::AllowUnauthenticated=false'):
                         self.assertIn(option, command)
                 if failed_phase == 'install':
                     self.assertTrue(commands[1].endswith('install --no-install-recommends -y /candidate.deb'))

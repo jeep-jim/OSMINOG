@@ -20,13 +20,18 @@ VERIFY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VERIFY)
 
 MIRROR_TARGET = "/etc/apt/mouse638-mirrors.txt"
+CA_TARGET = "/etc/apt/mouse638-ca-certificates.crt"
 
 # Keep the image's suites, components and Ubuntu keyring. Only repository
 # transport changes; the host contributes no package lists, database or libs.
 APT_SOURCE_SETUP = r'''configure_apt_transport() {
-  local sources="$1" mirrors="$2" prepared
+  local sources="$1" mirrors="$2" ca="$3" prepared
   test -s "$sources"
   test -s "$mirrors"
+  test -f "$ca"
+  test -s "$ca"
+  printf '%s\n' MOUSE_APT_CA_BUNDLE
+  sha256sum "$ca"
   printf '%s\n' MOUSE_APT_MIRRORS
   cat "$mirrors"
   sha256sum "$mirrors"
@@ -62,8 +67,10 @@ APT_SOURCE_SETUP = r'''configure_apt_transport() {
 CLEAN_INSTALL = r'''set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 ''' + APT_SOURCE_SETUP + r'''
-configure_apt_transport "${1:?Ubuntu sources file required}" "${2:?Mirror list required}"
-apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1)
+configure_apt_transport "${1:?Ubuntu sources file required}" "${2:?Mirror list required}" "${3:?CA bundle required}"
+apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1
+             -o "Acquire::https::CAInfo=$3" -o Acquire::https::Verify-Peer=true -o Acquire::https::Verify-Host=true
+             -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false)
 printf 'MOUSE_APT_OPTIONS'; printf ' %s' "${apt_options[@]}"; printf '\n'
 apt-get "${apt_options[@]}" update --error-on=any
 apt-get "${apt_options[@]}" install --no-install-recommends -y /candidate.deb
@@ -84,10 +91,10 @@ printf '%s\n' MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS
 
 
 def apt_mirrors(runner_list):
-    """Use the runner's known cloud mirror, with the image's HTTP fallbacks.
+    """Use the runner's known cloud mirror and official HTTPS fallbacks.
 
-    The minimal Ubuntu image need not contain a CA bundle. HTTP retains APT's
-    signed-index/package verification without installing bootstrap packages.
+    The minimal Ubuntu image receives only the host's public CA trust bundle
+    as a separate read-only file; no CA or runtime package is preinstalled.
     """
     mirrors = []
     for line in runner_list.splitlines():
@@ -99,19 +106,22 @@ def apt_mirrors(runner_list):
             uri = "http://" + cloud[1] + "/ubuntu/"
             if uri not in mirrors:
                 mirrors.append(uri)
-    mirrors += ["http://archive.ubuntu.com/ubuntu/", "http://security.ubuntu.com/ubuntu/"]
+    mirrors += ["https://archive.ubuntu.com/ubuntu/", "https://security.ubuntu.com/ubuntu/"]
     return "".join(f"{uri}\tpriority:{index}\n" for index, uri in enumerate(mirrors, 1))
 
 
-def clean_dependency_command(deb, mirrors):
-    paths = [str(Path(value).resolve()) for value in (deb, mirrors)]
+def clean_dependency_command(deb, mirrors, ca_bundle):
+    paths = [str(Path(value).resolve()) for value in (deb, mirrors, ca_bundle)]
     VERIFY.require(all("," not in value and "\n" not in value and "\r" not in value for value in paths),
                    "Docker bind paths contain an unsupported separator")
+    VERIFY.require(Path(paths[2]).is_file() and Path(paths[2]).stat().st_size > 0,
+                   "Public APT CA bundle is missing or empty")
     return ["docker", "run", "--rm", "--pull=always",
             "--mount", f"type=bind,src={paths[0]},dst=/candidate.deb,readonly",
             "--mount", f"type=bind,src={paths[1]},dst={MIRROR_TARGET},readonly",
+            "--mount", f"type=bind,src={paths[2]},dst={CA_TARGET},readonly",
             "ubuntu:24.04", "bash", "-c", CLEAN_INSTALL, "mouse-clean-install",
-            "/etc/apt/sources.list.d/ubuntu.sources", MIRROR_TARGET]
+            "/etc/apt/sources.list.d/ubuntu.sources", MIRROR_TARGET, CA_TARGET]
 
 
 def policy_state():
@@ -154,13 +164,18 @@ def main(argv=None):
                 "policyBefore": before}
     try:
         runner_mirrors = Path("/etc/apt/apt-mirrors.txt")
+        ca_bundle = Path("/etc/ssl/certs/ca-certificates.crt")
+        VERIFY.require(ca_bundle.is_file() and ca_bundle.stat().st_size > 0,
+                       "Public APT CA bundle is missing or empty")
         mirror_file = output / "mouse-linux-noble-apt-mirrors.log"
         mirror_file.write_text(apt_mirrors(runner_mirrors.read_text() if runner_mirrors.is_file() else ""), encoding="utf-8")
         evidence["aptTransport"] = {"runnerMirrorList": str(runner_mirrors),
                                     "runnerMirrorListSha256": VERIFY.sha256(runner_mirrors) if runner_mirrors.is_file() else None,
-                                    "mirrors": mirror_file.name, "mirrorsSha256": VERIFY.sha256(mirror_file)}
+                                    "mirrors": mirror_file.name, "mirrorsSha256": VERIFY.sha256(mirror_file),
+                                    "caBundle": str(ca_bundle), "caBundleBytes": ca_bundle.stat().st_size,
+                                    "caBundleSha256": VERIFY.sha256(ca_bundle)}
         evidence["cleanDependencies"] = VERIFY.run_logged(
-            clean_dependency_command(deb, mirror_file), dict(os.environ), output,
+            clean_dependency_command(deb, mirror_file, ca_bundle), dict(os.environ), output,
             "mouse-linux-clean-dependencies.log", 480, ["MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS"])
         evidence["containerImage"] = json.loads(subprocess.check_output(
             ["docker", "image", "inspect", "ubuntu:24.04", "--format", "{{json .RepoDigests}}"], text=True))

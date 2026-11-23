@@ -23,15 +23,31 @@ selection is defined in the pinned
 [official runner-images source](https://github.com/actions/runner-images/blob/0e63d4f9d2c29043b4cf1d2f40d1812a7cde1369/images/ubuntu/scripts/build/configure-apt-sources.sh).
 The failed attempts remain retained separately from any successor evidence.
 
+The first bounded successor, `6c2c690`, passed host APT update in 14.21 seconds.
+Fetching 71.6 MB then took 93 seconds, including retries: its log contains
+208 `Ign` lines for the HTTP EC2 mirror and 104 successful `Get` lines for
+the HTTPS archive fallback. Package setup reached libc-bin triggers before
+the new 120-second host deadline expired.
+[Noble job 137664701272](https://github.com/jeep-jim/OSMINOG/actions/runs/45164749324/job/137664701272)
+retained the actual host log and exit code 124; it did not reach the verifier.
+The auxiliary bootstrap allowance is therefore 240 seconds, with a five-minute
+step limit for termination and log handling. This changes neither native
+acceptance budgets nor the overall 20-minute job limit.
+
 The successor changes only CI dependency preparation. Host APT now has
-15-second HTTP/HTTPS inactivity limits, one retry and a 120-second outer
+15-second HTTP/HTTPS inactivity limits, one retry and a 240-second outer
 bootstrap deadline. Its dedicated log records update/install progress and
 the actual command and log-writer exit statuses; the workflow step retains
 time to save that evidence on failure.
 
-The clean container receives only a read-only mirror configuration, preferring
-the runner's known cloud mirror and retaining the image's HTTP archive/security
-fallbacks. This avoids requiring an extra CA package in the minimal image.
+The clean container receives read-only mirror configuration and the runner's
+public CA bundle as a separate APT configuration file. It prefers the runner's
+known cloud mirror and retains the official runner's HTTPS archive/security
+fallbacks. APT uses the explicit
+[`Acquire::https::CAInfo` option](https://manpages.ubuntu.com/manpages/noble/man1/apt-transport-https.1.html)
+to verify HTTPS without installing an extra CA package in the minimal image;
+peer and hostname verification remain enabled. The bundle must exist and be
+nonempty before Docker starts, and its size and SHA256 are recorded.
 Only the Ubuntu repository URIs change; suites, components, keyring and
 `Signed-By` remain intact. APT still verifies signed indexes and packages, and
 an incomplete update is an error. Source files, mirror bytes and their hashes
@@ -92,7 +108,7 @@ restoration in a different process. Restricted-user-namespace hosts must have
 the package's matching AppArmor profile. Host namespace policy is recorded
 before and after and must stay unchanged. No test changes the owner's machine.
 
-Local validation after the transport correction: all fourteen Linux Python
+Local validation after the transport correction: all sixteen Linux Python
 verification/binding tests passed. Actual shell regressions cover trust-field
 preservation, read-only mounts, failed update/install and host exit/log handling.
 The container and host probes pass Bash syntax checking; workflow YAML retains
