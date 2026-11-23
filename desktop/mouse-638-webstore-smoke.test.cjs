@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {storeReadback}=require('./mouse-638-webstore-smoke.cjs').fixtures;
+const {storeReadback,installControlReadback}=require('./mouse-638-webstore-smoke.cjs').fixtures;
 
 function fixture(){
  const nodes=[];
@@ -17,11 +17,11 @@ function fixture(){
  const install=element('button',section,' Add to Chrome ');
  const document={documentElement:html,title:'Dark Reader - Chrome Web Store',querySelectorAll(selector){assert.equal(selector,'button,[role="button"]');return nodes.filter(n=>n.localName==='button'||n.getAttribute('role')==='button');}};
  const context={document,location:{href:'https://chromewebstore.google.com/detail/dark-reader/eimadpbcbfnmbkopoojfekhnkhdbieeh?hl=en'},
-  chrome:{webstorePrivate:{beginInstallWithManifest3(){}}},getComputedStyle:node=>({visibility:node.visibility})};
+  chrome:{webstorePrivate:{beginInstallWithManifest3(){}}},navigator:{userAgent:'MouseBrowser/6.0.38 Chrome/152.0.7936.0',userAgentData:{brands:[{brand:'Chromium',version:'152'},{brand:'Not_A Brand',version:'99'}],mobile:false,platform:'Linux'}},getComputedStyle:node=>({visibility:node.visibility})};
  // Execute the same closed-over-free serialization used in the installed
  // Web Store renderer, rather than a second implementation of the readback.
  const read=()=>JSON.parse(JSON.stringify(vm.runInNewContext('('+storeReadback.toString()+')()',context)));
- return{html,install,unrelated,read};
+ return{html,install,unrelated,read,navigator:context.navigator};
 }
 
 test('serialized live Store readback creates a rooted install selector without an impossible root child index',()=>{
@@ -39,4 +39,35 @@ test('live Store readback retains disabled controls and supports the actual role
  let value=f.read();assert.equal(value.button.text,'Add to Mouse Browser');assert.equal(value.button.disabled,true);assert.match(value.button.selector,/ > div:nth-child\(3\)$/);
  delete f.install.attributes['aria-disabled'];f.install.disabled=true;assert.equal(f.read().button.disabled,true);
  f.install.visibility='hidden';value=f.read();assert.equal(value.button,null);assert.deepEqual(value.buttons,['Share']);
+});
+
+test('serialized Store diagnostics preserve the real user agent and client hint brands without advertising Chrome',()=>{
+ const f=fixture(),before=JSON.parse(JSON.stringify(f.navigator)),value=f.read();
+ assert.equal(value.userAgent,before.userAgent);assert.deepEqual(value.userAgentData,before.userAgentData);
+ assert.deepEqual(f.navigator,before);assert.equal(value.userAgentData.brands.some(value=>value.brand==='Google Chrome'),false);
+ delete f.navigator.userAgentData;assert.equal(f.read().userAgentData,null);
+});
+
+function shellFixture(){
+ const button={hidden:false,disabled:false,textContent:' Установить в Mouse ',style:{display:'inline-block',visibility:'visible'},bounds:{x:140,y:170,width:230,height:34},getBoundingClientRect(){return{...this.bounds};}},manager={open:true},model={active:'p1',slots:{p1:'owned-store-tab'}};
+ const context={MouseTest:{model},getComputedStyle:node=>node.style,document:{querySelector(selector){if(selector==='#mouse-extensions-install-page')return button;if(selector==='#mouse-extensions-dialog')return manager;throw Error('Unexpected shell selector '+selector);}}};
+ const read=()=>JSON.parse(JSON.stringify(vm.runInNewContext('('+installControlReadback.toString()+')()',context)));
+ return{button,manager,model,context,read};
+}
+
+test('serialized Mouse install control observes the actual shell button and owning tab independently of Google eligibility',()=>{
+ const f=shellFixture(),before=JSON.stringify({button:f.button,model:f.model}),value=f.read();
+ assert.deepEqual(value,{selector:'#mouse-extensions-install-page',tabId:'owned-store-tab',managerOpen:true,text:'Установить в Mouse',disabled:false,visible:true,bounds:{x:140,y:170,width:230,height:34}});
+ assert.equal(JSON.stringify({button:f.button,model:f.model}),before);
+ f.model.active='p2';f.model.slots.p2='another-tab';assert.equal(f.read().tabId,'another-tab');
+ f.button.textContent='Install in Mouse';assert.equal(f.read().text,'Install in Mouse');
+});
+
+test('serialized Mouse install readback retains unavailable and hidden states instead of manufacturing readiness',()=>{
+ const f=shellFixture();f.button.disabled=true;assert.equal(f.read().disabled,true);
+ for(const hide of [()=>{f.button.hidden=true;},()=>{f.button.style.display='none';},()=>{f.button.style.visibility='hidden';},()=>{f.button.bounds.width=0;}]){
+  f.button.hidden=false;f.button.style.display='inline-block';f.button.style.visibility='visible';f.button.bounds.width=230;hide();assert.equal(f.read().visible,false);
+ }
+ f.manager.open=false;assert.equal(f.read().managerOpen,false);delete f.model.slots.p1;assert.equal(f.read().tabId,null);
+ f.context.document.querySelector=()=>null;assert.equal(f.read(),null);
 });

@@ -71,9 +71,9 @@ function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onU
   storeEvidence:id=>{const e=entries.find(x=>x.id===id);return e?.evidence?structuredClone(e.evidence):null;},
   getExtension:id=>loaded.get(id),
   restore:()=>serial(async()=>{allowed();await init();for(const e of entries){if(loaded.has(e.id))continue;try{if(e.enabled)await load(e);else await verified(e);delete e.error;}catch(error){e.error=error.message;}}notify();return state();}),
-  installStore:(id,{valid=()=>true,signal}={})=>serial(async()=>{
+  installStore:(id,{valid=()=>true,signal,onCommit=()=>{}}={})=>serial(async()=>{
    allowed();await init();if(!ID.test(id))throw Error('Некорректный ID расширения');const guard=()=>{allowed();if(!valid()||signal?.aborted)throw Error('Страница установки изменилась. Повторите установку из магазина.');};guard();
-   const old=entries.find(e=>e.id===id);if(old&&loaded.has(id))return state();if(entries.length>=80&&!old)throw Error('Достигнут предел числа расширений');
+   const old=entries.find(e=>e.id===id);if(old&&loaded.has(id)){onCommit();return state();}if(entries.length>=80&&!old)throw Error('Достигнут предел числа расширений');
    const crx=await downloadCrx({fetch:session.fetch.bind(session),id,chromeVersion,signal});guard();
    const files=archiveFiles(crx.archive),manifest=JSON.parse(files.get('manifest.json').toString()),info=inspectStoreManifest(manifest,files);
    const decision=await dialog.showMessageBox(win,{type:'question',title:'Установить расширение из Chrome Web Store?',message:info.name+' '+info.version,detail:permissionText(info),buttons:['Отмена','Установить расширение'],defaultId:0,cancelId:0,noLink:true});guard();
@@ -82,7 +82,13 @@ function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onU
    let committed=false;try{
     await fs.writeFile(path.join(base,'extension.crx'),crx.bytes,{flag:'wx',mode:0o600});await fs.writeFile(path.join(base,'receipt.json'),JSON.stringify(crx.evidence)+'\n',{flag:'wx',mode:0o600});await extractVerified(crx,folder(e));guard();if(old)unload(old);
     await load(e);guard();const before=entries;entries=entries.filter(x=>x!==old).concat(e);
-    try{await save();committed=true;}catch(error){entries=before;unload(e);throw error;}notify();return state();
+    let saved=false;
+    try{
+     await save();saved=true;guard();
+     // The trusted caller records completion synchronously at this boundary.
+     // A page/privacy change during the atomic write still rolls the write back.
+     onCommit();committed=true;
+    }catch(error){entries=before;unload(e);if(saved)await save();throw error;}notify();return state();
    }catch(error){if(!committed){unload(e);if(old?.enabled)await load(old).catch(()=>{});await fs.rm(base,{recursive:true,force:true});}throw error;}
   }),
   setEnabled:(id,enabled)=>serial(async()=>{allowed();await init();if(typeof enabled!=='boolean')throw Error('Неверное значение');const e=entry(id),before=e.enabled;if(enabled&&!loaded.has(id))await load(e);if(!enabled)unload(e);e.enabled=enabled;

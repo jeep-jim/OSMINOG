@@ -8,7 +8,7 @@
 
 - Исходники: [jeep-jim/OSMINOG](https://github.com/jeep-jim/OSMINOG); публикация: [jeep-jim/OSMINOG-Releases](https://github.com/jeep-jim/OSMINOG-Releases). АвтоЦена — отдельный проект; её доступы и workflows не использовать.
 - Продукт: `desktop/mouse-main.cjs`, `mouse-preload.cjs`, `mouse-update.cjs`, `mouse-build.cjs`, `desktop/mouse/`. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
-- [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203), ветка `fix/mouse638-ordered-release`; исправление native hit-point — `82f6b8bcb38419e05285275ff912981df57c4648`. Сверять свежий head/checks.
+- [PR #203](https://github.com/jeep-jim/OSMINOG/pull/203), ветка `fix/mouse638-ordered-release`. Сверять свежий head/checks; предыдущий `7b10a86` не прошёл Store и Mac performance.
 - Документы задачи: [638: графика и Store](docs/desktop/2026-11-23-mouse638-rendering-webstore.md), [638: установка Linux](docs/desktop/2026-11-23-mouse638-linux-install.md).
 
 ## Решения владельца
@@ -21,11 +21,11 @@
 
 - **Графика:** новая вкладка без пропадающих надписей/иконок и разрыва фона; целочисленные границы. Прямоугольная сетка: разделитель 1 px, без радиусов. Обычный режим: 6 px промежутки, 12 px скругления. Проверить resize/drag и переключения при множестве страниц в обеих темах.
 - **Тон белого:** интерфейс и нейтральный светлый текст тёмных веб-страниц; сохранить цветные элементы и светлые поверхности. Настройка действует сразу и после перезапуска без потери состояния страниц.
-- **Chrome Web Store:** установка совместимого расширения с его страницы, проверка CRX3/ID/подписи, явное разрешение, включение/отключение, закрепление, удаление и восстановление. Полная совместимость со всеми Chrome API не заявляется; нужна живая проверка установки.
+- **Chrome Web Store:** открыть страницу расширения → меню расширений → «Установить в Mouse». Проверки CRX3/ID/подписи, нативное согласие, привязка к странице/столу, откат при смене контекста. Нужна живая проверка работы, перезапуска и удаления; не все Chrome API поддерживаются.
 - **Mac:** исправлен пропущенный native export `paneCorners`; число свойств вычисляется из массива, сборка проверяет экспорты.
 - **Linux:** AppImage открылся через «Открыть с помощью» в Mint 22.3/X11; причина сбоя запуска не доказана. `.deb` уже существовал. Добавлены зависимости `libgbm1`, `libasound2t64 | libasound2` и проверка Ubuntu 24.04. Sandbox и политику user namespaces не отключать.
 
-Локально: **1257 passed, 0 failed, 4 native skipped** из 1261. Python638: 11/11; Linux: 7/7. Shared-core: 176 passed, пять socket-случаев не выполнены из-за EPERM среды. Нативная приёмка ещё не завершена. Publisher [PR71](https://github.com/jeep-jim/OSMINOG-Releases/pull/71) объединён, все pins пока `ready:false`.
+Локально: **1276 passed, 0 failed, 4 native skipped** из 1280. Python638: 16/16. Shared-core ранее: 176 passed, пять socket-случаев блокирует EPERM среды. Нативная приёмка не завершена. Publisher [PR72](https://github.com/jeep-jim/OSMINOG-Releases/pull/72) объединён; 120 тестов прошли, pins `ready:false`.
 
 ## Завершение выпуска
 
@@ -40,4 +40,4 @@
 
 Публичные загрузки всех трёх ОС 6.0.37: [website run 45093429988](https://github.com/jeep-jim/OSMINOG/actions/runs/45093429988). Принятый Mac source 637: `0021084ccb9537e657d21e6f0c8e812dee6b461f`; [publisher run 45041006104](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45041006104). [Журнал 637](docs/desktop/2026-11-22-mouse637-release.md) — архив для адресного поиска.
 
-Лендинг: текст и загрузки слева, презентация справа; цена повторена словами на 72 языках. [Задача и статус публикации](docs/website/2026-11-23-split-hero.md). $3/месяц, подписка «скоро»; checkout и права не внедрены. Автосбор — новый буфер/снимки выбранной папки при работающем Mouse, не страницы из кеша. [Тариф](docs/website/2026-11-23-one-fair-plan.md).
+Опубликован сплит: текст слева, презентация справа; цена словами на 72 языках. [Публикация и проверка](docs/website/2026-11-23-split-hero.md). $3/месяц, подписка «скоро»; checkout и права не внедрены. Автосбор — новый буфер/снимки выбранной папки при работающем Mouse, не страницы из кеша. [Тариф](docs/website/2026-11-23-one-fair-plan.md).

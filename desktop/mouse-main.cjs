@@ -165,6 +165,8 @@ if(ownsProfile)app.whenReady().then(async()=>{
   if(!extensions)throw Error('Модуль расширений недоступен');
   if(action==='state')return extensions.state();
   if(action==='install')return extensions.install();
+  if(action==='store-page')return webStore.currentPage(args?.tabId);
+  if(action==='install-store-page')return{...await webStore.installFromBrowser(args?.tabId),extensions:extensions.state()};
   if(action==='open-store'){
    const id=typeof args?.id==='string'&&/^[a-p]{32}$/.test(args.id)?args.id:'';
    const url='https://chromewebstore.google.com/'+(id?'detail/'+id:'');

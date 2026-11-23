@@ -8,10 +8,18 @@ const ID='eimadpbcbfnmbkopoojfekhnkhdbieeh',STORE_URL='https://chromewebstore.go
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const readRuntime=()=>({url:location.href,title:document.title,mode:document.documentElement.getAttribute('data-darkreader-mode'),scheme:document.documentElement.getAttribute('data-darkreader-scheme'),styles:[...document.querySelectorAll('style.darkreader')].map(s=>({className:s.className,bytes:s.textContent.length})),background:getComputedStyle(document.querySelector('#owned-white')).backgroundColor,color:getComputedStyle(document.querySelector('#owned-white')).color,originalBackground:document.querySelector('#owned-white').style.backgroundColor,text:document.querySelector('#owned-white').textContent});
 function storeReadback(){
+ const navigator=globalThis.navigator,data=navigator?.userAgentData;
+ const userAgentData=data?{brands:Array.from(data.brands||[],({brand,version})=>({brand,version})),mobile:data.mobile,platform:data.platform}:null;
  const visible=e=>{const r=e.getBoundingClientRect();return r.width>2&&r.height>2&&getComputedStyle(e).visibility!=='hidden';};
  const buttons=[...document.querySelectorAll('button,[role="button"]')].filter(visible),button=buttons.find(e=>/^Add to (?:Chrome|Mouse(?: Browser)?)$/i.test(e.textContent.trim()));
  const selector=e=>{const chain=[];for(let at=e;at&&at.nodeType===1;at=at.parentElement){if(at===document.documentElement){chain.unshift(at.localName);break;}chain.unshift(at.localName+':nth-child('+([...at.parentElement?.children||[]].indexOf(at)+1)+')');}return chain.join(' > ');};
- return{url:location.href,title:document.title,api:typeof globalThis.chrome?.webstorePrivate?.beginInstallWithManifest3,button:button?{selector:selector(button),text:button.textContent.trim(),disabled:!!button.disabled||button.getAttribute('aria-disabled')==='true',...(()=>{const r=button.getBoundingClientRect();return{bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};})()}:null,buttons:buttons.map(e=>e.textContent.trim()).filter(Boolean).slice(0,24)};
+ return{url:location.href,title:document.title,userAgent:navigator?.userAgent||'',userAgentData,api:typeof globalThis.chrome?.webstorePrivate?.beginInstallWithManifest3,button:button?{selector:selector(button),text:button.textContent.trim(),disabled:!!button.disabled||button.getAttribute('aria-disabled')==='true',...(()=>{const r=button.getBoundingClientRect();return{bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};})()}:null,buttons:buttons.map(e=>e.textContent.trim()).filter(Boolean).slice(0,24)};
+}
+function installControlReadback(){
+ const selector='#mouse-extensions-install-page',button=document.querySelector(selector),manager=document.querySelector('#mouse-extensions-dialog');
+ if(!button)return null;
+ const r=button.getBoundingClientRect(),style=getComputedStyle(button);
+ return{selector,tabId:MouseTest.model.slots[MouseTest.model.active]||null,managerOpen:!!manager?.open,text:button.textContent.trim(),disabled:!!button.disabled,visible:!button.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&r.width>2&&r.height>2,bounds:{x:r.x,y:r.y,width:r.width,height:r.height}};
 }
 module.exports=async ctx=>{
  const {app,win,browser,extensions,dialog,webStore,fixture,nativeInput,click,capture,facts,read,save}=ctx,compat=ctx.extensionCompatibility||ctx.extensionCompat;
@@ -95,13 +103,22 @@ module.exports=async ctx=>{
    await openManager();const before=new Set(browser.tabs.keys());out.openStoreInput=await click('#mouse-extensions-store');
    let record;await fixture.until(()=>{const page=[...browser.tabs.values()].find(p=>!before.has(p.id)&&!p.managedExtension);if(page)record={id:page.id,page,index:100,desk:fixture.bank.active};return!!record;},'638 store opens from browser extension menu');rememberPages();
    await browser.command('navigate',{id:record.id,url:STORE_URL});await show(record);await fixture.until(()=>detailID(record.page.view.webContents.getURL())===ID&&!record.page.loading,'638 live Chrome Web Store detail',45000);
-   let state;await fixture.until(async()=>{state=await fixture.pageJS(record,`(${storeReadback.toString()})()`);out.lastStoreReadback=state;return state.api==='function'&&state.button&&!state.button.disabled;},'638 actual Chrome Web Store install control',30000);
-   out.storeURL=state.url;out.storePage=state;out.storeCapture=(await capture('mouse-638-webstore-detail.png',{meta:{kind:'webstore-detail',url:state.url,extensionId:ID,button:state.button}})).filename;
-   observeConsent();out.installInput=await click(state.button.selector,record);out.nativeInstallClick=out.installInput.events.some(e=>e.type==='click'&&e.trusted&&e.matches);
+   // Google's server-rendered Chrome eligibility is diagnostic only. Mouse's
+   // production control installs from this owned detail page without claiming
+   // another browser identity or replacing Google's document/package.
+   const state=await fixture.pageJS(record,`(${storeReadback.toString()})()`),guest=record.page.view.webContents;
+   out.lastStoreReadback=state;out.storeURL=state.url;out.storePage=state;out.storeOwner={tabId:record.id,webContentsId:guest.id,url:guest.getURL(),native:fixture.nativeState(record)};out.shellWebContentsId=win.webContents.id;
+   assert.equal(detailID(state.url),ID);assert.equal(state.url,out.storeOwner.url);assert.equal(browser.tabs.get(record.id),record.page);
+   out.storeCapture=(await capture('mouse-638-webstore-detail.png',{meta:{kind:'webstore-detail',url:state.url,extensionId:ID,button:state.button}})).filename;
+   await openManager();await js('document.querySelector("#mouse-extensions-install-page")?.scrollIntoView({block:"nearest",inline:"nearest"});true');await fixture.frame();
+   await fixture.until(async()=>{out.installControl=await js(`(${installControlReadback.toString()})()`);return out.installControl?.managerOpen&&out.installControl.visible&&!out.installControl.disabled&&out.installControl.tabId===record.id;},'638 production Install in Mouse control',15000);
+   out.installPath='browser-control';out.installControl.capture=(await capture('mouse-638-webstore-install-control.png',{meta:{kind:'webstore-install-control',tabId:record.id,extensionId:ID,shellWebContentsId:win.webContents.id}})).filename;
+   observeConsent();out.installInput=await click('#mouse-extensions-install-page');assert.equal(out.installInput.tabId,null);out.nativeInstallClick=out.installInput.events.some(e=>e.type==='click'&&e.trusted&&e.matches);
    await fixture.until(()=>{if(consentError)throw consentError;return entry()?.enabled&&out.consent?.response===1;},'638 signed live CRX install after native consent',85000);
-   await fixture.until(()=>webStore.installEvidence(record.page.view.webContents)?.completeAt,'638 CWS completeInstall callback',15000);
-   out.bridge=webStore.installEvidence(record.page.view.webContents);assert.equal(out.bridge.extensionId,ID);assert.equal(out.bridge.result,'success');assert.equal(out.bridge.nativeGestureType,'mouseDown');assert.equal(out.bridge.url,out.storeURL);assert.ok(out.bridge.completeAt>=out.bridge.beginAt);
+   await fixture.until(()=>webStore.installEvidence(guest)?.completeAt,'638 production browser-control installation completion',15000);
+   out.bridge=webStore.installEvidence(guest);assert.equal(out.bridge.requestSource,'browser-control');assert.equal(out.bridge.completionSource,'browser-control');assert.equal(out.bridge.tabId,record.id);assert.equal(out.bridge.webContentsId,guest.id);assert.equal(out.bridge.nativeGestureWebContentsId,win.webContents.id);assert.equal(out.bridge.extensionId,ID);assert.equal(out.bridge.result,'success');assert.equal(out.bridge.nativeGestureType,'mouseDown');assert.equal(out.bridge.url,out.storeURL);assert.ok(out.bridge.completeAt>=out.bridge.beginAt);
    out.nativeConsent=out.consent.originalNativeDialog&&out.consent.response===1&&!!out.consent.input&&!!out.consent.capture;assert.equal(out.nativeConsent,true);assert.equal(out.consent.message,entry().name+' '+entry().version);out.evidence=await evidence();out.installed=true;
+   await closeManager();
   }
   restoreDialog?.();restoreDialog=null;rememberPages();out.runtime=await runtime();out.runtimeVerified=true;out.pinned=entry().pinned;
   if(read){await openManager();out.removeInput=await click(row+' [data-action="remove"]');await fixture.until(()=>!entry(),'638 restored live extension removed');await closeManager();out.removed=true;}
@@ -110,4 +127,4 @@ module.exports=async ctx=>{
   restoreDialog?.();rememberPages();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
  }
 };
-module.exports.fixtures={storeReadback};
+module.exports.fixtures={storeReadback,installControlReadback};

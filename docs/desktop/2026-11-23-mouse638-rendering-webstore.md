@@ -1,5 +1,15 @@
 # Mouse 6.0.38 — rendering and Chrome Web Store
 
+## Current native findings and next candidate
+
+The `7b10a86a65caddfce27ff908d4d6e7e42a895dc1` Linux and Windows candidates passed the new pane, drag, new-tab and page-tone checks before the live Store installation stopped. The captured Store document displayed “Switch to Chrome”; Mouse's native consent was never reached. The new production path opens the existing Extensions menu from the selected Store detail page and uses **Install in Mouse**. Main derives the extension ID from that owned HTTPS page, consumes a separate one-use native shell gesture, binds the current profile/desktop/frame/URL, and keeps the verified Google CRX3 package and native permission confirmation. Google's button and browser-brand checks are diagnostic, not an installation prerequisite. The installed test and independent publisher reader bind the real shell click to its separate Store guest and still require signatures, runtime pixels, restart and removal.
+
+On the second macOS attempt, the 50-page desk-switch median was 71.986042 ms against the published 6.0.37 median of 54.635708 ms plus one 60 Hz frame (71.302375 ms): a 0.683667 ms excess. The performance gate remains unchanged. A separately demonstrated metadata inefficiency in the pinned extension adapter is removed: each title update now traverses the live tab order once and stops at its owner, instead of creating two full page arrays. Local behavior tests do not establish a native performance pass; the next candidate must pass the installed gate.
+
+Native runs for these findings: [Mac](https://github.com/jeep-jim/OSMINOG/actions/runs/45133087785), [Linux](https://github.com/jeep-jim/OSMINOG/actions/runs/45133087842), [Windows](https://github.com/jeep-jim/OSMINOG/actions/runs/45133087968). Publication remains pending. The sections below retain the original request and implementation evidence.
+
+The browser-controlled completion is recorded synchronously after the registry save and a final owner/loaded-ID check. Navigation, private-mode change or abort during the actual registry rename rolls back the registry, unloads the new extension and removes its package. Navigation after that completed transaction does not turn a successful installation into a false error. Local freeze: 1,280 Mouse tests, 1,276 passed, zero failed, four native skips; source Python acceptance: 16/16; independent bridge/manager/UI review: 30/30. Publisher PR72 is merged with its 120 tests passed and all platform pins still unready.
+
 ## Owner request and initial state — 23 November 2026, Krasnoyarsk
 
 The owner supplied six screenshots of Mouse Browser 6.0.37 and requested one corrected release for macOS Apple Silicon, Windows x64 and Linux x64. The owner reports the rendering faults on both Mac and Windows; Linux has not been observed by the owner. Publication is authorized after validation. The separately developed mouse.black landing page and AvtoCena are outside this task. Built-in Agent Mouse remains removed.

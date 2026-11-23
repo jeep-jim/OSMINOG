@@ -8,5 +8,5 @@ function proxyConfig(input={}){
  return{mode,server:url.origin==='null'?`${url.protocol}//${url.host}`:url.origin};
 }
 // Keep the actual Chromium version/platform. Only remove application product tokens.
-function browserUserAgent(value){return String(value||'').replace(/\s(?:Electron|osminog-desktop|OSMINOG-Preview)\/[^\s]+/gi,'')}
+function browserUserAgent(value){return String(value||'').replace(/\s(?:Electron|osminog-desktop|OSMINOG-Preview|MouseBrowser)\/[^\s]+/gi,'')}
 module.exports={proxyConfig,browserUserAgent};

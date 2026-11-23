@@ -36,7 +36,16 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
    if(permissions.some(p=>typeof p!=='string'||!declared.has(p)||p==='nativeMessaging')||origins.some(p=>typeof p!=='string'||!declaredHosts.includes(p)))return false;
    const response=await dialog.showMessageBox(win,{type:'question',title:'Дополнительный доступ расширения',message:extension.name,detail:'Разрешения: '+(permissions.join(', ')||'нет')+'\nСайты: '+(origins.join(', ')||'нет'),buttons:['Запретить','Разрешить'],defaultId:0,cancelId:0,noLink:true});allowed();return response.response===1;
   },
-  assignTabDetails:(details,wc)=>{const page=pageFor(wc);if(page){details.id=wc.id;details.incognito=false;details.discarded=wc.isDestroyed();details.index=pages().filter(p=>p.project===browser.project&&!p.managedExtension).indexOf(page);}}
+  assignTabDetails:(details,wc)=>{
+   // Metadata changes do not change tab order. Read the live order once,
+   // without materializing every page twice or caching a stale tab index.
+   let index=0;
+   for(const collection of [browser.tabs,browser.providers])for(const page of collection.values()){
+    const included=page.project===browser.project&&!page.managedExtension;
+    if(page.view.webContents===wc){details.id=wc.id;details.incognito=false;details.discarded=wc.isDestroyed();details.index=included?index:-1;return;}
+    if(included)index++;
+   }
+  }
  });
  // The package is pinned to 4.10.0. Its action/router internals are deliberately
  // confined to this adapter; no raw IPC or cross-session API is exposed to the

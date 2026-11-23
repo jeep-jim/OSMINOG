@@ -145,3 +145,51 @@ test('live extension tab removal still closes its page and window removal stays 
  f.available=false;assert.throws(()=>callbacks.removeTab(f.wc),/приватном/);
  assert.equal(closed.length,1);
 });
+
+// Metadata must preserve the current Maps' order, including restored keys and
+// provider pages. This is deliberately uncached: equal-size replacement and
+// project/managed changes must be visible on the very next callback.
+test('tab metadata index follows live ownership, order and project changes without cache invalidation',()=>{
+ const f=fixture(),assign=f.compat.instance.options.assignTabDetails;
+ const make=(id,project=f.browser.project,managedExtension)=>({id,project,...(managedExtension?{managedExtension}:{}),view:{webContents:{id:100+id.length,isDestroyed:()=>false}}});
+ const other=make('other','other-project'),managed=make('managed',f.browser.project,A),a=make('alpha'),b=make('beta'),provider=make('provider');
+ const unknown={id:999,isDestroyed:()=>false};
+ const reference=wc=>{const details={sentinel:true,index:987},pages=[...f.browser.tabs.values(),...f.browser.providers.values()],page=pages.find(p=>p.view.webContents===wc);if(page){details.id=wc.id;details.incognito=false;details.discarded=wc.isDestroyed();details.index=pages.filter(p=>p.project===f.browser.project&&!p.managedExtension).indexOf(page);}return details;};
+ const check=()=>{for(const wc of [f.wc,a.view.webContents,b.view.webContents,other.view.webContents,managed.view.webContents,provider.view.webContents,unknown]){const actual={sentinel:true,index:987};assign(actual,wc);assert.deepEqual(actual,reference(wc));}};
+ f.browser.tabs.set(other.id,other);f.browser.tabs.set(managed.id,managed);f.browser.tabs.set(a.id,a);f.browser.tabs.set(b.id,b);f.browser.providers.set('provider-key',provider);check();
+ f.browser.tabs.delete(a.id);check();f.browser.tabs.set(a.id,a);check();
+ // Same-size replacement cannot be detected solely by Map.size.
+ f.browser.tabs.delete(b.id);f.browser.tabs.set('replacement',make('replacement'));check();
+ // Provider removal/reinsertion and restored tab IDs can also change order.
+ f.browser.providers.delete('provider-key');check();f.browser.providers.set('restored-provider-key',provider);check();
+ f.browser.tabs.delete(f.page.id);f.browser.tabs.set('restored-id',f.page);check();
+ f.browser.project='other-project';check();f.browser.project=f.page.project;check();
+ a.managedExtension=A;check();delete a.managedExtension;check();
+ a.project='other-project';check();a.project=f.page.project;check();
+ f.browser.tabs.clear();check();f.browser.providers.clear();check();
+});
+
+test('metadata lookup stops at its live page instead of visiting unrelated trailing pages',()=>{
+ const f=fixture(),assign=f.compat.instance.options.assignTabDetails,values=f.browser.tabs.values.bind(f.browser.tabs);let visits=0;
+ f.browser.tabs.values=function*(){for(const page of values()){visits++;yield page;}throw Error('Metadata traversed beyond the requested live page');};
+ f.browser.providers.values=()=>{throw Error('Metadata traversed unrelated provider pages');};
+ const details={};assign(details,f.wc);assert.equal(details.index,0);assert.equal(visits,1);
+});
+
+test('actual pinned upstream title updates preserve details with one live metadata traversal',()=>{
+ const f=fixture(),source=fs.readFileSync(require.resolve('electron-chrome-extensions'),'utf8');
+ const section=(start,end)=>{const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert.ok(a>=0&&b>a,start);return source.slice(a,b);};
+ const exact=vm.runInNewContext(`(()=>{${section('var ExtensionStore = class','\n// src/browser/api/context-menus.ts')};${section('var _TabsAPI = class','\n// src/browser/api/web-navigation.ts')};return{Store:ExtensionStore,Tabs:TabsAPI};})()`,{import_node_events2:{EventEmitter},import_electron4:{},d4:()=>{},WindowsAPI:{WINDOW_ID_NONE:-1,WINDOW_ID_CURRENT:-2}});
+ f.win.id=1;f.win.getSize=()=>[1200,800];
+ for(let i=1;i<50;i++){const wc=new EventEmitter();Object.assign(wc,{id:41+i,session:f.session,isDestroyed:()=>false});f.browser.tabs.set('page-'+i,{id:'page-'+i,project:f.browser.project,view:{webContents:wc}});}
+ for(const page of f.browser.tabs.values()){const wc=page.view.webContents;wc.title='before';wc.favicon='';wc.audioMuted=false;wc.getType=()=> 'browserView';wc.getTitle=()=>wc.title;wc.getURL=()=>SITE;wc.isLoading=()=>false;wc.isCurrentlyAudible=()=>false;}
+ const values=f.browser.tabs.values.bind(f.browser.tabs);let visits=0,providerVisits=0;
+ f.browser.tabs.values=function*(){for(const page of values()){visits++;yield page;}};
+ const providers=f.browser.providers.values.bind(f.browser.providers);f.browser.providers.values=function*(){providerVisits++;yield* providers();};
+ const store=new exact.Store({assignTabDetails:f.compat.instance.options.assignTabDetails}),events=[],ctx={store,router:{apiHandler:()=>()=>{},broadcastEvent:(...args)=>events.push(args)}};
+ new exact.Tabs(ctx);for(const page of values())store.addTab(page.view.webContents,f.win);
+ visits=providerVisits=0;events.length=0;
+ for(const page of values()){page.view.webContents.title='after';page.view.webContents.emit('page-title-updated');}
+ assert.equal(visits,50*51/2,'Each metadata callback stops at its target in live insertion order');assert.equal(providerVisits,0,'Ordinary tabs do not enumerate provider pages');
+ assert.equal(events.length,50);for(let i=0;i<events.length;i++){const [name,id,change,details]=events[i];assert.equal(name,'tabs.onUpdated');assert.equal(id,41+i);assert.equal(change.title,'after');assert.equal(details.index,i);assert.equal(details.title,'after');assert.equal(details.url,SITE);}
+});

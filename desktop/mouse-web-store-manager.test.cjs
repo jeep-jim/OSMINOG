@@ -10,12 +10,13 @@ function privatePackage(){
  const archive=packageZip({'manifest.json':JSON.stringify({manifest_version:3,name:'Owned manager unit fixture',version:'1.2.3',permissions:['storage'],host_permissions:['https://owned.example/*'],action:{default_popup:'popup.html'},background:{service_worker:'background.js'}}),'popup.html':'<title>Owned fixture</title>','background.js':'void 0;'}),signature=crypto.sign('SHA256',Buffer.concat([Buffer.from('CRX3 SignedData\0'),size,header,archive]),privateKey),protobuf=Buffer.concat([field(3,Buffer.concat([field(1,pub),field(2,signature)])),field(10000,header)]),prefix=Buffer.alloc(12);prefix.write('Cr24');prefix.writeUInt32LE(3,4);prefix.writeUInt32LE(protobuf.length,8);return{id,bytes:Buffer.concat([prefix,protobuf,archive])};
 }
 async function fixture(t){
- const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse638-manager-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const unit=privatePackage(),module={exports:{}},calls=[],loaded=new Map();let available=true,response=1,valid=true,onConfirm=()=>{},loadId=unit.id;
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse638-manager-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const unit=privatePackage(),module={exports:{}},calls=[],loaded=new Map();let available=true,response=1,valid=true,onConfirm=()=>{},onRegistryWrite=()=>{},onChanged=()=>{},loadId=unit.id;
  const verified=()=>CRX.verifyCrx(unit.bytes,unit.id,{requirePublisher:false}),shim={...CRX,verifyCrx:(bytes,id)=>CRX.verifyCrx(bytes,id,{requirePublisher:false}),downloadCrx:async()=>{calls.push(['download']);const result=verified();return{...result,bytes:unit.bytes,evidence:{...result.evidence,requestedURL:'https://clients2.google.com/owned-unit-only',downloadURL:'https://clients2.googleusercontent.com/owned-unit-only',downloadedAt:new Date().toISOString()}};}};
- vm.runInNewContext('(function(require,module,exports){'+fsSync.readFileSync(path.join(__dirname,'mouse-web-store-manager.cjs'),'utf8')+'\n})',{Buffer,Map,Set,Promise,structuredClone,process,Date})(name=>name==='./mouse-extension-crx.cjs'?shim:require(name),module,module.exports);
+ const storeFS={...fs,rename:async(...args)=>{const result=await fs.rename(...args);if(args[1]===path.join(root,'web-store','registry.json'))await onRegistryWrite();return result;}};
+ vm.runInNewContext('(function(require,module,exports){'+fsSync.readFileSync(path.join(__dirname,'mouse-web-store-manager.cjs'),'utf8')+'\n})',{Buffer,Map,Set,Promise,structuredClone,process,Date})(name=>name==='./mouse-extension-crx.cjs'?shim:name==='node:fs/promises'?storeFS:require(name),module,module.exports);
  const session={fetch:async()=>assert.fail('Unit downloader is explicitly stubbed'),extensions:{loadExtension:async(folder,options)=>{calls.push(['load',folder,options]);const ext={id:loadId,path:folder,manifest:JSON.parse(await fs.readFile(path.join(folder,'manifest.json'),'utf8'))};loaded.set(loadId,ext);return ext;},getExtension:id=>loaded.get(id),removeExtension:id=>{calls.push(['unload',id]);loaded.delete(id);}}},dialog={showMessageBox:async(_win,options)=>{calls.push(['consent',options]);await onConfirm();return{response};}};
- const create=()=>module.exports.createStoreManager({session,dialog,storage:root,isAvailable:()=>available,chromeVersion:'152.0.0.0'});
- return{root,id:unit.id,bytes:unit.bytes,calls,loaded,create,guard:()=>valid,set available(v){available=v;},set response(v){response=v;},set valid(v){valid=v;},set onConfirm(v){onConfirm=v;},set loadId(v){loadId=v;}};
+ const create=()=>module.exports.createStoreManager({session,dialog,storage:root,isAvailable:()=>available,onChanged:()=>onChanged(),chromeVersion:'152.0.0.0'});
+ return{root,id:unit.id,bytes:unit.bytes,calls,loaded,create,guard:()=>valid,set available(v){available=v;},set response(v){response=v;},set valid(v){valid=v;},set onConfirm(v){onConfirm=v;},set onRegistryWrite(v){onRegistryWrite=v;},set onChanged(v){onChanged=v;},set loadId(v){loadId=v;}};
 }
 test('store install shows the signed manifest, uses the verified ID and restores pin/disable state',async t=>{
  const f=await fixture(t),manager=f.create();assert.equal((await manager.restore()).length,0);const rows=await manager.installStore(f.id),row=rows[0];assert.equal(row.id,f.id);assert.equal(row.name,'Owned manager unit fixture');assert.equal(row.source,'chrome-web-store');assert.equal(row.enabled,true);
@@ -39,4 +40,29 @@ test('restoration re-verifies signed bytes and every unpacked byte before loadin
 });
 test('failed atomic registry commit unloads the new extension instead of reporting an installed success',async t=>{
  const f=await fixture(t),manager=f.create();await manager.restore();await fs.mkdir(path.join(f.root,'web-store','registry.json'));await assert.rejects(manager.installStore(f.id));assert.equal(manager.state().length,0);assert.equal(f.loaded.size,0);assert.deepEqual(await fs.readdir(path.join(f.root,'web-store','packages')),[]);
+});
+
+test('navigation, privacy or abort during the real registry rename rolls back disk, loaded state and package before completion',async t=>{
+ for(const reason of ['navigation','privacy','abort']){
+  const f=await fixture(t),manager=f.create(),controller=new AbortController();await manager.restore();let commits=0;const persisted=[];
+  f.onRegistryWrite=async()=>{persisted.push(JSON.parse(await fs.readFile(path.join(f.root,'web-store','registry.json'),'utf8')).length);if(reason==='navigation')f.valid=false;else if(reason==='privacy')f.available=false;else controller.abort();};
+  await assert.rejects(manager.installStore(f.id,{valid:f.guard,signal:controller.signal,onCommit:()=>{commits++;}}),reason==='privacy'?/обычном режиме/:/Страница установки/);
+  assert.equal(commits,0);assert.deepEqual(persisted,[1,0]);assert.equal(f.loaded.size,0);assert.equal(manager.chromiumId(f.id),null);assert.deepEqual(JSON.parse(await fs.readFile(path.join(f.root,'web-store','registry.json'),'utf8')),[]);assert.deepEqual(await fs.readdir(path.join(f.root,'web-store','packages')),[]);
+  f.available=true;f.valid=true;assert.equal(manager.state().length,0);assert.equal((await f.create().restore()).length,0);
+ }
+});
+
+test('a rejected final commit restores the previous disabled pinned registry and keeps its original package',async t=>{
+ const f=await fixture(t),manager=f.create();await manager.installStore(f.id);await manager.setPinned(f.id,true);await manager.setEnabled(f.id,false);
+ const registry=path.join(f.root,'web-store','registry.json'),before=await fs.readFile(registry,'utf8'),packages=await fs.readdir(path.join(f.root,'web-store','packages'));let commitCalls=0;
+ await assert.rejects(manager.installStore(f.id,{onCommit:()=>{commitCalls++;assert.equal(f.loaded.size,1);throw Error('Owned final context changed');}}),/Owned final context changed/);
+ assert.equal(commitCalls,1);assert.equal(await fs.readFile(registry,'utf8'),before);assert.deepEqual(await fs.readdir(path.join(f.root,'web-store','packages')),packages);assert.equal(f.loaded.size,0);assert.equal(manager.state()[0].enabled,false);assert.equal(manager.state()[0].pinned,true);
+});
+
+test('Store completion observes the actual loaded ID and persisted registry before later owner changes, including already loaded entries',async t=>{
+ const f=await fixture(t),manager=f.create();await manager.restore();const order=[];
+ f.onChanged=()=>{order.push('changed');f.valid=false;};
+ await manager.installStore(f.id,{valid:f.guard,onCommit:()=>{order.push('commit');assert.equal(f.guard(),true);assert.equal(manager.chromiumId(f.id),f.id);assert.equal(JSON.parse(fsSync.readFileSync(path.join(f.root,'web-store','registry.json'),'utf8'))[0].id,f.id);}});
+ assert.deepEqual(order,['commit','changed']);assert.equal(f.loaded.size,1);assert.equal(manager.state()[0].enabled,true);f.valid=true;
+ let alreadyLoaded=0;await manager.installStore(f.id,{valid:f.guard,onCommit:()=>{alreadyLoaded++;assert.equal(manager.chromiumId(f.id),f.id);}});assert.equal(alreadyLoaded,1);assert.equal(f.calls.filter(call=>call[0]==='download').length,1);
 });
