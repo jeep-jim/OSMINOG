@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs/promises'),path=require('node:path'),{createHash,randomUUID}=require('node:crypto');
-const {ID,LIMITS,downloadCrx,verifyCrx,archiveFiles,extractVerified}=require('./mouse-extension-crx.cjs');
+const {ID,LIMITS,downloadCrx,verifyCrx,runtimeFiles,extractVerified}=require('./mouse-extension-crx.cjs');
 const {createStoreFetch}=require('./mouse-web-store-fetch.cjs');
 const UUID=/^[a-f0-9-]{36}$/,HASH=/^[a-f0-9]{64}$/;
 const digest=b=>createHash('sha256').update(b).digest('hex');
@@ -55,8 +55,7 @@ function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onU
  async function checkedFile(file,max){const st=await fs.lstat(file);if(!st.isFile()||st.isSymbolicLink()||st.size>max)throw Error('Файлы расширения повреждены');const bytes=await fs.readFile(file);if(bytes.length!==st.size)throw Error('Файл расширения изменился');return bytes;}
  async function verified(e){
   const base=packagePath(e);if((await fs.lstat(base)).isSymbolicLink()||(await fs.lstat(folder(e))).isSymbolicLink())throw Error('Недопустимая папка расширения');
-  const bytes=await checkedFile(path.join(base,'extension.crx'),LIMITS.download);if(digest(bytes)!==e.crxSha256)throw Error('Пакет расширения изменился');const crx=verifyCrx(bytes,e.id),files=archiveFiles(crx.archive),manifest=JSON.parse(files.get('manifest.json').toString());
-  if(manifest.key&&manifest.key!==crx.publicKey)throw Error('Ключ расширения изменился');manifest.key=crx.publicKey;files.set('manifest.json',Buffer.from(JSON.stringify(manifest)+'\n'));
+  const bytes=await checkedFile(path.join(base,'extension.crx'),LIMITS.download);if(digest(bytes)!==e.crxSha256)throw Error('Пакет расширения изменился');const crx=verifyCrx(bytes,e.id),files=runtimeFiles(crx),manifest=JSON.parse(files.get('manifest.json').toString());
   const seen=new Set();async function walk(dir,relative=''){for(const name of await fs.readdir(dir)){const rel=relative?relative+'/'+name:name,target=path.join(dir,name),st=await fs.lstat(target);if(st.isSymbolicLink())throw Error('Ссылки в папке расширения не поддерживаются');if(st.isDirectory()){await walk(target,rel);continue;}const expected=files.get(rel);if(!st.isFile()||!expected||st.size!==expected.length||!(await checkedFile(target,LIMITS.file)).equals(expected))throw Error('Файлы расширения изменились; установите его заново из магазина');seen.add(rel);}}
   await walk(folder(e));if(seen.size!==files.size)throw Error('Не все файлы расширения доступны');
   e.info=inspectStoreManifest(manifest,files);e.version=e.info.version;
@@ -77,7 +76,7 @@ function createStoreManager({session,dialog,win,storage,isAvailable=()=>true,onU
    allowed();await init();if(!ID.test(id))throw Error('Некорректный ID расширения');const guard=()=>{allowed();if(!valid()||signal?.aborted)throw Error('Страница установки изменилась. Повторите установку из магазина.');};guard();
    const old=entries.find(e=>e.id===id);if(old&&loaded.has(id)){onCommit();return state();}if(entries.length>=80&&!old)throw Error('Достигнут предел числа расширений');
    const crx=await downloadCrx({fetch:fetchStore,id,chromeVersion,signal});guard();
-   const files=archiveFiles(crx.archive),manifest=JSON.parse(files.get('manifest.json').toString()),info=inspectStoreManifest(manifest,files);
+   const files=runtimeFiles(crx),manifest=JSON.parse(files.get('manifest.json').toString()),info=inspectStoreManifest(manifest,files);
    const decision=await dialog.showMessageBox(win,{type:'question',title:'Установить расширение из Chrome Web Store?',message:info.name+' '+info.version,detail:permissionText(info),buttons:['Отмена','Установить расширение'],defaultId:0,cancelId:0,noLink:true});guard();
    if(decision.response!==1){const error=Error('Установка отменена');error.code='USER_CANCELLED';throw error;}
    const e={id,package:randomUUID(),crxSha256:crx.evidence.sha256,version:info.version,enabled:true,pinned:old?.pinned||false,info};const base=packagePath(e);await fs.mkdir(base,{mode:0o700});

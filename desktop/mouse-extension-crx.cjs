@@ -103,11 +103,24 @@ function archiveFiles(bytes){
  if(!result.has('manifest.json')||result.get('manifest.json').length>256*1024)fail('CRX_MANIFEST','В расширении нет допустимого manifest.json.');
  return result;
 }
-async function extractVerified(crx,destination){
- const files=archiveFiles(crx.archive);let manifest;try{manifest=JSON.parse(files.get('manifest.json').toString('utf8'));}catch{fail('CRX_MANIFEST','Некорректный manifest.json.');}
+function runtimeFiles(crx){
+ const files=archiveFiles(crx.archive);
+ // Electron 44.5.0 LoadUnpacked deletes the reserved root _metadata directory:
+ // https://github.com/electron/electron/blob/v44.5.0/shell/browser/extensions/electron_extension_loader.cc
+ // Keep the original signed CRX intact. Only the Store verification metadata is
+ // omitted from runtime; unknown contents/aliases fail rather than lose resources.
+ for(const name of files.keys())if(name.split('/')[0].toLowerCase()==='_metadata'){
+  if(name!=='_metadata/verified_contents.json')fail('CRX_METADATA','Неподдерживаемые файлы в служебной папке расширения.');
+  files.delete(name);
+ }
+ let manifest;try{manifest=JSON.parse(files.get('manifest.json').toString('utf8'));}catch{fail('CRX_MANIFEST','Некорректный manifest.json.');}
  if(!manifest||typeof manifest!=='object'||Array.isArray(manifest))fail('CRX_MANIFEST','Некорректный manifest.json.');
  if(manifest.key&&manifest.key!==crx.publicKey)fail('CRX_ID','Ключ manifest.json не соответствует подписи.');
  manifest.key=crx.publicKey;files.set('manifest.json',Buffer.from(JSON.stringify(manifest)+'\n'));
+ return files;
+}
+async function extractVerified(crx,destination){
+ const files=runtimeFiles(crx),manifest=JSON.parse(files.get('manifest.json').toString('utf8'));
  await fs.mkdir(destination,{mode:0o700});
  for(const [name,bytes] of files){const target=path.join(destination,...name.split('/'));await fs.mkdir(path.dirname(target),{recursive:true,mode:0o700});await fs.writeFile(target,bytes,{flag:'wx',mode:0o600});}
  return manifest;
@@ -137,4 +150,4 @@ async function downloadCrx({fetch,id,chromeVersion,signal}){
  }catch(e){if(controller.signal.aborted&&e.code!=='CRX_SIZE')fail('CRX_DOWNLOAD','Загрузка расширения отменена или не завершилась за 60 секунд.');throw e;}
  finally{clearTimeout(timeout);signal?.removeEventListener('abort',abort);}
 }
-module.exports={ID,LIMITS,PUBLISHER_KEY_SHA256,verifyCrx,archiveFiles,extractVerified,downloadURL,allowedDownloadURL,downloadCrx};
+module.exports={ID,LIMITS,PUBLISHER_KEY_SHA256,verifyCrx,archiveFiles,runtimeFiles,extractVerified,downloadURL,allowedDownloadURL,downloadCrx};

@@ -27,6 +27,20 @@ test('extracts a verified ordinary package and injects only the verified ID key'
  assert.equal(m.key,data.pub.toString('base64'));assert.equal(await fs.readFile(path.join(folder,'popup.html'),'utf8'),data.files['popup.html']);
  const mismatch=signed({files:{'manifest.json':JSON.stringify({...manifest,key:'different'})}});await assert.rejects(CRX.extractVerified(CRX.verifyCrx(mismatch.bytes,mismatch.id,{requirePublisher:false}),path.join(root,'wrong')),{code:'CRX_ID'});await assert.rejects(fs.stat(path.join(root,'wrong')),{code:'ENOENT'});
 });
+test('runtime extraction omits only Electron-reserved Store metadata while retaining the signed archive',async t=>{
+ const metadata='{"unitOnly":"signed Store metadata"}',data=signed({algorithm:'ec',files:{'manifest.json':JSON.stringify(manifest),'popup.html':'<title>Owned fixture</title>','_metadata/verified_contents.json':metadata,'assets/_metadata/resource.json':'{"resource":true}'}}),original=Buffer.from(data.bytes),crx=CRX.verifyCrx(data.bytes,data.id,{requirePublisher:false});
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse638-metadata-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const folder=path.join(root,'extension');await CRX.extractVerified(crx,folder);
+ await assert.rejects(fs.stat(path.join(folder,'_metadata')),{code:'ENOENT'});assert.equal(await fs.readFile(path.join(folder,'assets/_metadata/resource.json'),'utf8'),'{"resource":true}');
+ assert.equal(await fs.readFile(path.join(folder,'popup.html'),'utf8'),data.files['popup.html']);assert.deepEqual(data.bytes,original);assert.equal(CRX.archiveFiles(crx.archive).get('_metadata/verified_contents.json').toString(),metadata);
+ const expected=CRX.runtimeFiles(crx);assert.equal(expected.size,3);for(const [name,bytes]of expected)assert.deepEqual(await fs.readFile(path.join(folder,name)),bytes);
+});
+test('unrecognized or case-aliased files in reserved metadata cannot hide code or resources',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse638-badmetadata-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ for(const [i,name]of ['_metadata/background.js','_metadata/resource.json','_Metadata/verified_contents.json','_metadata/Verified_Contents.json','_metadata'].entries()){
+  const data=signed({algorithm:'ec',files:{'manifest.json':JSON.stringify(manifest),[name]:'owned unit-only data'}}),crx=CRX.verifyCrx(data.bytes,data.id,{requirePublisher:false}),folder=path.join(root,String(i));
+  await assert.rejects(CRX.extractVerified(crx,folder),{code:'CRX_METADATA'});await assert.rejects(fs.stat(folder),{code:'ENOENT'});
+ }
+});
 test('rejects ZIP traversal, Windows aliases, case collisions, symlinks, native payload and oversized output',()=>{
  for(const name of ['../escape.js','/escape.js','a\\b.js','a/../b.js','NUL.txt','con/a.js','name./a.js','space /a.js','x.exe']){
   assert.throws(()=>CRX.archiveFiles(packageZip({'manifest.json':JSON.stringify(manifest),[name]:'x'})),name);
