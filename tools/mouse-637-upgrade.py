@@ -47,19 +47,33 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
-def cleanup_owned_directory(temporary, evidence):
-    """Retry only a sharing violation on this owned directory after native exit."""
+def profile_native_exits_verified(evidence):
+    """Both actual profile probes must have observed a successful native exit."""
     rows = [evidence.get(key) for key in ('oldWrite', 'newRead')]
     results = [row.get('result') if isinstance(row, dict) else None for row in rows]
-    exited = all(isinstance(result, dict) and result.get('ok') is True
-                 and type(result.get('pid')) is int and result['pid'] > 0
-                 and isinstance(result.get('nativeExit'), dict)
-                 and type(result.get('nativeExit', {}).get('code')) is int
-                 and result.get('nativeExit') == {'code': 0, 'signal': None} for result in results)
+    return all(isinstance(result, dict) and result.get('ok') is True
+               and type(result.get('pid')) is int and result['pid'] > 0
+               and isinstance(result.get('nativeExit'), dict)
+               and type(result.get('nativeExit', {}).get('code')) is int
+               and result.get('nativeExit') == {'code': 0, 'signal': None} for result in results)
+
+
+def cleanup_owned_directory(temporary, evidence, *, native_exit_check=None):
+    """Retry only a sharing violation on this owned directory after native exit."""
     started = time.monotonic()
     deadline = started + CLEANUP_RETRY_SECONDS
+    check = profile_native_exits_verified if native_exit_check is None else native_exit_check
+    check_error = None
+    try:
+        exited = check(evidence) is True
+    except BaseException as error:
+        # A broken guard never permits retry, but the ordinary owned cleanup
+        # still runs and detaches its finalizer before the guard error escapes.
+        exited, check_error = False, error
     receipt = {'ok': False, 'attempts': 0, 'retryBudgetMs': CLEANUP_RETRY_SECONDS * 1000,
                'nativeExitsVerified': exited, 'errors': []}
+    if check_error is not None:
+        receipt['nativeExitCheckError'] = {'type': type(check_error).__name__, 'message': str(check_error)}
     evidence['cleanup'] = receipt
     last_error = None
     try:
@@ -84,6 +98,8 @@ def cleanup_owned_directory(temporary, evidence):
                 continue
             if last_error is not None and time.monotonic() >= deadline:
                 raise TimeoutError('Owned upgrade directory cleanup exceeded its retry deadline')
+            if check_error is not None:
+                raise check_error
             receipt.update(ok=True, elapsedMs=round((time.monotonic() - started) * 1000, 3))
             print('MOUSE_638_UPGRADE_CLEANUP_PASS ' + json.dumps(receipt), flush=True)
             return
@@ -96,19 +112,19 @@ def cleanup_owned_directory(temporary, evidence):
 
 
 @contextmanager
-def owned_upgrade_directory(evidence):
-    temporary = tempfile.TemporaryDirectory(prefix='mouse637-upgrade-', dir=os.environ.get('RUNNER_TEMP'))
+def owned_upgrade_directory(evidence, *, prefix='mouse637-upgrade-', native_exit_check=None):
+    temporary = tempfile.TemporaryDirectory(prefix=prefix, dir=os.environ.get('RUNNER_TEMP'))
     try:
         yield Path(temporary.name)
     except BaseException as body_error:
         evidence['ok'] = False
         try:
-            cleanup_owned_directory(temporary, evidence)
+            cleanup_owned_directory(temporary, evidence, native_exit_check=native_exit_check)
         except BaseException as cleanup_error:
             body_error.add_note('Owned upgrade directory cleanup also failed: ' + str(cleanup_error))
         raise
     else:
-        cleanup_owned_directory(temporary, evidence)
+        cleanup_owned_directory(temporary, evidence, native_exit_check=native_exit_check)
 
 
 def sha256(file):

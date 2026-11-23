@@ -1,6 +1,59 @@
 # Mouse 6.0.38 — rendering and Chrome Web Store
 
-## Current acceptance and Windows cleanup follow-up
+## Current acceptance and shared owned-fixture cleanup
+
+Source `eb948797dd919ade788349efd152728d47614244` passed both
+[Linux jobs](https://github.com/jeep-jim/OSMINOG/actions/runs/45179250078)
+and all three independent publisher reader groups against the actual package
+bytes. The clean Ubuntu 24.04 receipt matches the same deb and ASAR. Its
+[Windows main job](https://github.com/jeep-jim/OSMINOG/actions/runs/45179249851/job/137708460222)
+also passed, including the real `CreateFileW` sharing-violation fixture and
+the full predecessor-profile transition. The only skipped cleanup-suite test
+on Windows requires an unprivileged Unix filesystem owner.
+
+The [modern Windows job](https://github.com/jeep-jim/OSMINOG/actions/runs/45179249851/job/137719143112)
+then failed at a different plain `TemporaryDirectory` cleanup in
+`mouse-637-update-button.py`: deleting the owned `Mouse installed/Mouse Browser.exe`
+raised `WinError 32`. Native profile writer PID 3516, updater predecessor PID
+6452, automatically relaunched candidate PID 3372, and fresh profile reader
+PID 7252 had already exited successfully; Node update driver PID 5844 returned
+zero. The relaunch receipt recorded an observed graceful exit without forced
+termination. The update/profile results passed, but the final wrapper marker
+was withheld and the job failed. The remaining handle owner is unknown.
+
+The follow-up reuses the bounded cleanup for this second owned fixture and
+the active predecessor-performance fixture. The latter has the same plain
+temporary-directory cleanup and an incorrect `ok:true` report on a subsequent
+cleanup exception; no baseline-performance sharing violation was observed in
+this run. Each path must independently prove its completed native processes
+before retrying Windows error 32. Persistent locks, other errors and incomplete
+native work remain failures. Performance measurement and its timing limits
+are unchanged; cleanup happens after the measured process has exited.
+
+The shared helper preserves the original two-profile exit predicate by
+default. Button cleanup additionally requires the actual updater driver,
+predecessor exit, graceful candidate exit without forced termination, and
+save/quit receipts. Baseline cleanup requires its validated unchanged workload,
+raw inventory and a successful native process receipt. A failed guard cannot
+enable retries. A guard exception still detaches the temporary finalizer and
+fails the helper; an original body exception remains primary.
+
+Focused local suites: 13 upgrade tests (12 passed, one real-Windows skip),
+nine button tests and nine baseline tests passed. Main-entry fixtures verify
+actual directory removal before the final marker, persistent error 32 bounded
+to ten seconds, immediate failure for other errors/unverified exits, and
+truthful reports with the original native error retained. No workflow,
+application, publisher or native timing criterion changed.
+
+The Mac run's first attempt ended without a runner, steps or artifacts.
+[Attempt 2](https://github.com/jeep-jim/OSMINOG/actions/runs/45179249881/attempts/2)
+uses the same source and passed installed native acceptance in job
+`137718634736`. Independent Mac artifact readers were not run for this
+superseded source after the modern Windows failure. All publisher pins remain
+unready; a successor source still requires fresh platform acceptance before
+publication.
+
+## Previous acceptance and first Windows cleanup fix
 
 Source `e79f14bcee3355efed9ab3dfd2fc65dde5d0eff6` passed
 [Mac CI](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737298) and all seven

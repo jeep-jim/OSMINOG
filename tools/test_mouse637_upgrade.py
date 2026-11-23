@@ -48,6 +48,44 @@ def sharing_error(code=32):
 
 
 class CleanupTests(unittest.TestCase):
+    def test_custom_guard_runs_after_body_and_truthy_nonbool_does_not_authorize_retry(self):
+        evidence, observed = {}, []
+        def guard(facts):
+            observed.append(facts.get('bodyFinished'))
+            return 1
+        with tempfile.TemporaryDirectory() as parent, patch.dict(os.environ, {'RUNNER_TEMP': parent}), \
+             patch.object(upgrade.sys, 'platform', 'win32'), \
+             patch.object(tempfile.TemporaryDirectory, '_rmtree', side_effect=sharing_error()) as remove, \
+             patch.object(upgrade.time, 'sleep') as sleep, redirect_stdout(io.StringIO()):
+            with self.assertRaises(PermissionError):
+                with upgrade.owned_upgrade_directory(evidence, prefix='mouse637-custom-', native_exit_check=guard) as owned:
+                    self.assertTrue(owned.name.startswith('mouse637-custom-'))
+                    (owned / 'owned').write_bytes(b'fixture')
+                    evidence['bodyFinished'] = True
+            self.assertEqual(observed, [True])
+            self.assertEqual(remove.call_count, 1)
+            sleep.assert_not_called()
+            self.assertFalse(evidence['cleanup']['nativeExitsVerified'])
+
+    def test_guard_exception_still_cleans_directory_and_preserves_body_failure(self):
+        for body_error in (None, RuntimeError('original runtime failure')):
+            with self.subTest(body_error=body_error), tempfile.TemporaryDirectory() as parent:
+                guard_error, evidence = RuntimeError('native exit guard failure'), completed_native_exits()
+                def guard(_facts):
+                    raise guard_error
+                with patch.dict(os.environ, {'RUNNER_TEMP': parent}), redirect_stdout(io.StringIO()):
+                    with self.assertRaises(RuntimeError) as caught:
+                        with upgrade.owned_upgrade_directory(evidence, native_exit_check=guard) as owned:
+                            (owned / 'owned').write_bytes(b'fixture')
+                            if body_error is not None:
+                                raise body_error
+                self.assertIs(caught.exception, body_error or guard_error)
+                self.assertFalse(owned.exists())
+                self.assertFalse(evidence['ok'])
+                self.assertFalse(evidence['cleanup']['nativeExitsVerified'])
+                self.assertEqual(evidence['cleanup']['attempts'], 1)
+                self.assertEqual(evidence['cleanup']['nativeExitCheckError']['message'], str(guard_error))
+
     def test_transient_sharing_violation_retries_then_really_removes_owned_directory(self):
         original = tempfile.TemporaryDirectory._rmtree
         clock, evidence, attempts = Clock(), completed_native_exits(), []

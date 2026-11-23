@@ -1,6 +1,21 @@
 # Mouse 6.0.38 — Linux installation follow-up
 
-## Accepted Ubuntu 24.04 evidence
+## Latest accepted Ubuntu 24.04 evidence
+
+Source `eb948797dd919ade788349efd152728d47614244` passed both jobs in
+[run 45179250078, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45179250078)
+and all three independent publisher e520 reader groups. Actual deb bytes:
+101,180,112; SHA256 `024b98fec9213912018760b7bf4e9b5a36640253e23bcb1d10046953f8e119b3`.
+The Noble evidence uses that exact package and the accepted main ASAR
+`8114744cebad155762842bffeafaa3b85fba1e7836e26f3f2cce63c9785b377e`.
+Clean dependency verification took 22.665 seconds, host installation 9.089
+seconds, native write 61.950 seconds and restart/read 1.421 seconds. Both
+native processes, PIDs 6357 and 7132, exited successfully with unchanged
+namespace policy. This does not claim a result on the owner's Mint device.
+Publication still awaits a common source with passing modern Windows
+acceptance and the ordered publisher runs.
+
+## Earlier accepted Ubuntu 24.04 evidence
 
 Source `e79f14bcee3355efed9ab3dfd2fc65dde5d0eff6` passed both jobs in
 [run 45172737181, attempt 1](https://github.com/jeep-jim/OSMINOG/actions/runs/45172737181).
