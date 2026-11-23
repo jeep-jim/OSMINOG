@@ -1,0 +1,307 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-23T01:17:39.047Z",
+  "repository": "jeep-jim/OSMINOG",
+  "source_commit": "f3b858db0356e40bb23f7a500d3e09331ee6f6ac",
+  "source_tree": "93f955a638705cd68ffd9b69f974e3ee01fa7fa3",
+  "deployment_id": "6d257a0a15ef4888b2c05f6d595a01bef0557849",
+  "public_url": "https://mouse.black",
+  "workflow": {
+    "id": 426452143,
+    "name": "Mouse website — publish site and verified installers",
+    "path": ".github/workflows/mouse-website.yml",
+    "run_id": 45093429988,
+    "run_number": 15,
+    "run_attempt": 1,
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-23T01:14:30Z",
+    "updated_at": "2026-11-23T01:16:46Z",
+    "html_url": "https://github.com/jeep-jim/OSMINOG/actions/runs/45093429988",
+    "api_url": "https://api.github.com/repos/jeep-jim/OSMINOG/actions/runs/45093429988"
+  },
+  "jobs": [
+    {
+      "id": 137427872530,
+      "name": "validate",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-23T01:14:33Z",
+      "completed_at": "2026-11-23T01:14:45Z",
+      "html_url": "https://github.com/jeep-jim/OSMINOG/actions/runs/45093429988/job/137427872530",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-23T01:14:34Z",
+          "completed_at": "2026-11-23T01:14:35Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-23T01:14:35Z",
+          "completed_at": "2026-11-23T01:14:38Z"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-23T01:14:38Z",
+          "completed_at": "2026-11-23T01:14:38Z"
+        },
+        {
+          "name": "Verify independent releases, immutable downloads and open-page refresh",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-23T01:14:38Z",
+          "completed_at": "2026-11-23T01:14:43Z"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-23T01:14:43Z",
+          "completed_at": "2026-11-23T01:14:43Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-23T01:14:43Z",
+          "completed_at": "2026-11-23T01:14:44Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-23T01:14:44Z",
+          "completed_at": "2026-11-23T01:14:44Z"
+        }
+      ]
+    },
+    {
+      "id": 137427947734,
+      "name": "website",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-23T01:14:49Z",
+      "completed_at": "2026-11-23T01:16:45Z",
+      "html_url": "https://github.com/jeep-jim/OSMINOG/actions/runs/45093429988/job/137427947734",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-23T01:14:49Z",
+          "completed_at": "2026-11-23T01:14:50Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-23T01:14:50Z",
+          "completed_at": "2026-11-23T01:14:52Z"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-23T01:14:52Z",
+          "completed_at": "2026-11-23T01:14:54Z"
+        },
+        {
+          "name": "Package the reviewed renderer and continuous release synchronizer",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-23T01:14:54Z",
+          "completed_at": "2026-11-23T01:14:54Z"
+        },
+        {
+          "name": "Publish with own user and observe an automatic release check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-23T01:14:54Z",
+          "completed_at": "2026-11-23T01:16:09Z"
+        },
+        {
+          "name": "Independently verify the exact public website and all installers",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-23T01:16:09Z",
+          "completed_at": "2026-11-23T01:16:43Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-23T01:16:43Z",
+          "completed_at": "2026-11-23T01:16:44Z"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-23T01:16:44Z",
+          "completed_at": "2026-11-23T01:16:44Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-23T01:16:44Z",
+          "completed_at": "2026-11-23T01:16:44Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-11-23T01:16:44Z",
+          "completed_at": "2026-11-23T01:16:44Z"
+        }
+      ]
+    }
+  ],
+  "validation_markers": [
+    "2026-11-23T01:14:38.7905995Z MOUSE_DOWNLOAD_MANIFEST_VERIFIED version=6.0.36",
+    "2026-11-23T01:14:42.6447550Z Ran 51 tests in 3.694s",
+    "2026-11-23T01:14:42.6447810Z OK",
+    "2026-11-23T01:14:42.7590834Z # tests 4",
+    "2026-11-23T01:14:42.7591412Z # pass 4",
+    "2026-11-23T01:14:42.7591698Z # fail 0",
+    "2026-11-23T01:14:42.9154501Z MOUSE_SEO_BUILD languages=72 html=73 files=101",
+    "2026-11-23T01:14:43.5638987Z MOUSE_SEO_VERIFIED pages=73 languages=72 sitemap_urls=72 version=6.0.36",
+    "2026-11-23T01:14:43.7268212Z MOUSE_SYNC_BUNDLE_VERIFIED source=f3b858db0356e40bb23f7a500d3e09331ee6f6ac files=39"
+  ],
+  "publication_and_independent_verification_markers": [
+    "2026-11-23T01:14:54.9478945Z MOUSE_SYNC_BUNDLE_VERIFIED source=f3b858db0356e40bb23f7a500d3e09331ee6f6ac files=39",
+    "2026-11-23T01:15:01.8571684Z MOUSE_SEO_VERIFIED pages=73 languages=72 sitemap_urls=72 version=6.0.37",
+    "2026-11-23T01:15:02.1159175Z MOUSE_WEBSITE_PACKAGE_VERIFIED files=103",
+    "2026-11-23T01:15:02.2404707Z MOUSE_WEBSITE_ARCHIVE_VERIFIED commit=6d257a0a15ef4888b2c05f6d595a01bef0557849",
+    "2026-11-23T01:15:02.5759701Z MOUSE_DOWNLOAD_MANIFEST_STAGED version=6.0.37",
+    "2026-11-23T01:15:03.2266158Z MOUSE_WEBSITE_STAGED commit=6d257a0a15ef4888b2c05f6d595a01bef0557849 path=/opt/osminog/website/releases/6d257a0a15ef4888b2c05f6d595a01bef0557849",
+    "2026-11-23T01:15:03.2267494Z MOUSE_DOWNLOAD_PUBLISHED Mouse-Browser-6.0.37-mac-arm64.dmg sha256=3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2",
+    "2026-11-23T01:15:03.2269093Z MOUSE_DOWNLOAD_PUBLISHED Mouse-Browser-6.0.37-Windows-x64.exe sha256=19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35",
+    "2026-11-23T01:15:03.2270350Z MOUSE_DOWNLOAD_PUBLISHED Mouse-Browser-6.0.37-Linux-x64.AppImage sha256=e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79",
+    "2026-11-23T01:15:06.4160372Z MOUSE_DOMAIN_REDIRECT_VERIFIED http://mouse.black/",
+    "2026-11-23T01:15:06.4161120Z MOUSE_DOMAIN_REDIRECT_VERIFIED http://www.mouse.black/",
+    "2026-11-23T01:15:06.4161847Z MOUSE_DOMAIN_REDIRECT_VERIFIED https://www.mouse.black/",
+    "2026-11-23T01:15:06.4162460Z MOUSE_WEBSITE_HTTPS_VERIFIED mouse.black",
+    "2026-11-23T01:15:06.4162929Z MOUSE_SEO_HTML_VERIFIED ru",
+    "2026-11-23T01:15:06.4163320Z MOUSE_SEO_HTML_VERIFIED en",
+    "2026-11-23T01:15:06.4163720Z MOUSE_SEO_HTML_VERIFIED ar",
+    "2026-11-23T01:15:06.4164226Z MOUSE_SEO_DISCOVERY_VERIFIED sitemap=72 hreflang=73",
+    "2026-11-23T01:15:06.4164895Z MOUSE_DOWNLOAD_CATALOG_VERIFIED platforms=3 version=6.0.37",
+    "2026-11-23T01:15:06.4166383Z MOUSE_DIRECT_DOWNLOAD_VERIFIED Mouse-Browser-6.0.37-mac-arm64.dmg sha256=3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2",
+    "2026-11-23T01:15:06.4167742Z MOUSE_DIRECT_DOWNLOAD_VERIFIED Mouse-Browser-6.0.37-Windows-x64.exe sha256=19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35",
+    "2026-11-23T01:15:06.4169112Z MOUSE_DIRECT_DOWNLOAD_VERIFIED Mouse-Browser-6.0.37-Linux-x64.AppImage sha256=e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79",
+    "2026-11-23T01:15:06.4170169Z MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3",
+    "2026-11-23T01:15:06.4412330Z MOUSE_SEO_BUILD languages=72 html=73 files=101",
+    "2026-11-23T01:15:06.4413742Z MOUSE_RELEASE_SYNC_PUBLISHED deployment=6d257a0a15ef4888b2c05f6d595a01bef0557849",
+    "2026-11-23T01:16:09.6529879Z MOUSE_RELEASE_TIMER_VERIFIED source=f3b858db0356e40bb23f7a500d3e09331ee6f6ac checkedAt=2026-11-23T01:16:08.426418+00:00",
+    "2026-11-23T01:16:09.6533796Z MOUSE_WEBSITE_AUTOMATION_LIVE https://mouse.black",
+    "2026-11-23T01:16:10.4253533Z MOUSE_PUBLIC_CATALOG_RESOLVED deployment=6d257a0a15ef4888b2c05f6d595a01bef0557849",
+    "2026-11-23T01:16:10.6600129Z MOUSE_SEO_BUILD languages=72 html=73 files=101",
+    "2026-11-23T01:16:11.7593667Z MOUSE_SEO_VERIFIED pages=73 languages=72 sitemap_urls=72 version=6.0.37",
+    "2026-11-23T01:16:43.2461562Z MOUSE_DOMAIN_REDIRECT_VERIFIED http://mouse.black/",
+    "2026-11-23T01:16:43.2462660Z MOUSE_DOMAIN_REDIRECT_VERIFIED http://www.mouse.black/",
+    "2026-11-23T01:16:43.2463726Z MOUSE_DOMAIN_REDIRECT_VERIFIED https://www.mouse.black/",
+    "2026-11-23T01:16:43.2465435Z MOUSE_WEBSITE_HTTPS_VERIFIED mouse.black",
+    "2026-11-23T01:16:43.2466264Z MOUSE_SEO_HTML_VERIFIED ru",
+    "2026-11-23T01:16:43.2466918Z MOUSE_SEO_HTML_VERIFIED en",
+    "2026-11-23T01:16:43.2467420Z MOUSE_SEO_HTML_VERIFIED ar",
+    "2026-11-23T01:16:43.2468057Z MOUSE_SEO_DISCOVERY_VERIFIED sitemap=72 hreflang=73",
+    "2026-11-23T01:16:43.2468883Z MOUSE_DOWNLOAD_CATALOG_VERIFIED platforms=3 version=6.0.37",
+    "2026-11-23T01:16:43.2470417Z MOUSE_DIRECT_DOWNLOAD_VERIFIED Mouse-Browser-6.0.37-mac-arm64.dmg sha256=3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2",
+    "2026-11-23T01:16:43.2472232Z MOUSE_DIRECT_DOWNLOAD_VERIFIED Mouse-Browser-6.0.37-Windows-x64.exe sha256=19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35",
+    "2026-11-23T01:16:43.2473594Z MOUSE_DIRECT_DOWNLOAD_VERIFIED Mouse-Browser-6.0.37-Linux-x64.AppImage sha256=e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79",
+    "2026-11-23T01:16:43.2474654Z MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3"
+  ],
+  "timer": {
+    "source": "f3b858db0356e40bb23f7a500d3e09331ee6f6ac",
+    "checked_at": "2026-11-23T01:16:08.426418+00:00",
+    "marker_logged_at": "2026-11-23T01:16:09.6529879Z"
+  },
+  "downloads": [
+    {
+      "platform": "mac-arm64",
+      "filename": "Mouse-Browser-6.0.37-mac-arm64.dmg",
+      "version": "6.0.37",
+      "sha256": "3c8d727eabcec91c4893f94762b6834080344e35320edaaf1f7555bf407ae1a2"
+    },
+    {
+      "platform": "windows-x64",
+      "filename": "Mouse-Browser-6.0.37-Windows-x64.exe",
+      "version": "6.0.37",
+      "sha256": "19487826aa51b2027d5a4d497529be62a5e2180402ea24e5d700da48f4cd0e35"
+    },
+    {
+      "platform": "linux-x64",
+      "filename": "Mouse-Browser-6.0.37-Linux-x64.AppImage",
+      "version": "6.0.37",
+      "sha256": "e35d46095d2bf8617fc981ee8f41b5bbe885ed8de4083cee4b890e45ade4bf79"
+    }
+  ],
+  "scope": {
+    "built_html_pages": 73,
+    "built_languages": 72,
+    "sitemap_languages": 72,
+    "sampled_live_languages": [
+      "ru",
+      "en",
+      "ar"
+    ],
+    "independent_complete_installer_sha256_count": 3,
+    "own_user_publish_step_success": true,
+    "independent_runner_verify_step_success": true,
+    "artifact_upload_step_success": true,
+    "full_workflow_success": true
+  },
+  "artifacts": [
+    {
+      "id": 14782695810,
+      "name": "mouse-website-deployment-evidence",
+      "size_in_bytes": 2301,
+      "url": "https://api.github.com/repos/jeep-jim/OSMINOG/actions/artifacts/14782695810",
+      "archive_download_url": "https://api.github.com/repos/jeep-jim/OSMINOG/actions/artifacts/14782695810/zip",
+      "expired": false,
+      "created_at": "2026-11-23T01:16:43Z",
+      "expires_at": "2026-12-07T01:16:43Z",
+      "updated_at": "2026-11-23T01:16:43Z",
+      "digest": "sha256:bbec5aa7fd1958493185f8ec7b9a0e11d576eb316f0cea289a8cc7ce53c93642",
+      "workflow_run": {
+        "id": 45093429988,
+        "repository_id": 1345931696,
+        "head_repository_id": 1345931696,
+        "head_branch": "main",
+        "head_sha": "f3b858db0356e40bb23f7a500d3e09331ee6f6ac"
+      }
+    }
+  ],
+  "sources": [
+    "https://api.github.com/repos/jeep-jim/OSMINOG/actions/runs/45093429988",
+    "https://api.github.com/repos/jeep-jim/OSMINOG/actions/runs/45093429988/jobs",
+    "https://api.github.com/repos/jeep-jim/OSMINOG/actions/jobs/137427872530/logs",
+    "https://api.github.com/repos/jeep-jim/OSMINOG/actions/jobs/137427947734/logs",
+    "https://api.github.com/repos/jeep-jim/OSMINOG/actions/runs/45093429988/artifacts"
+  ]
+}

@@ -91,5 +91,40 @@ official per-platform catalog independently.
 
 ## Delivery status
 
-Source is ready for the existing own-user publication workflow. Public
-deployment is not yet asserted; record its actual result below.
+Published source: `f3b858db0356e40bb23f7a500d3e09331ee6f6ac`.
+Its tree `93f955a638705cd68ffd9b69f974e3ee01fa7fa3` exactly matches the reviewed
+local source. The non-forced expected-parent update preserved main
+`31239316aee12d3eb13b7e74934f99e7ba6c3ad4`.
+
+The complete [publication run 45093429988](https://github.com/jeep-jim/OSMINOG/actions/runs/45093429988)
+succeeded on 2026-11-23. Validate job `137427872530` and website job
+`137427947734` both passed. Own-user publication finished at 01:16:09 UTC;
+the independent public verification finished at 01:16:43 UTC. The complete
+external gate passed.
+
+- Deployment identity: `6d257a0a15ef4888b2c05f6d595a01bef0557849`.
+- Automatic next check observed at `2026-11-23T01:16:08.426418+00:00`.
+- The independent verifier confirmed HTTPS, same-domain downloads, 72 sitemap
+  URLs, 73 hreflang entries and live Russian, English and Arabic pages.
+- All three complete 6.0.37 installers passed SHA256/HEAD/Range checks.
+- Final marker: `MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3`.
+- GitHub evidence artifact: `14782695810`, archive SHA256
+  `bbec5aa7fd1958493185f8ec7b9a0e11d576eb316f0cea289a8cc7ce53c93642`.
+
+The root independently re-read the completed successful run for the exact
+source and inspected the published page at <https://mouse.black/>. It showed
+MOUSE, the browser headline, four feature burrows and three 6.0.37 same-origin
+download links. The live foreground width was 212.5 px and baseline delta
+was zero. In light mode, the mouse was black and the top stop white; after
+the colour transition, floor/gradient/download border all resolved to
+RGB 184/184/184. In dark mode, all three resolved to RGB 80/80/80. Both header
+trigger borders were zero, the eyebrow was absent and all 72 bottom links
+were rendered without a disclosure. No horizontal overflow appeared in the
+inspected desktop viewport.
+
+Saved evidence:
+
+- [Structured deployment evidence](evidence/2026-11-23-feature-burrows.json)
+- [Published dark landing](previews/2026-11-23-feature-burrows-home.jpg)
+- [Published light landing](previews/2026-11-23-feature-burrows-light.jpg)
+- [Published connected feature burrows](previews/2026-11-23-feature-burrows-rooms.jpg)
