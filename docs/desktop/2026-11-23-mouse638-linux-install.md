@@ -34,16 +34,31 @@ The auxiliary bootstrap allowance is therefore 240 seconds, with a five-minute
 step limit for termination and log handling. This changes neither native
 acceptance budgets nor the overall 20-minute job limit.
 
+On `6666a54`, host update completed in 19.283 seconds, but the following
+220.720 seconds did not finish the 71.6 MB download before that 240-second
+bound. The install log has 79 package `Get` lines, all from the HTTP EC2 mirror,
+with no `Ign` or `Err` lines and no use of HTTPS fallback. There is no final
+`Fetched` line, unpacking or configuration.
+[Noble job 137677670055](https://github.com/jeep-jim/OSMINOG/actions/runs/45168906068/job/137677670055)
+retained exit 124 and the host log; clean dependency and native checks were
+skipped. The successor therefore prioritizes the official HTTPS archive and
+security mirrors on both host and container, retaining recognized cloud
+mirrors as later fallbacks. The time limits do not increase again.
+
 The successor changes only CI dependency preparation. Host APT now has
 15-second HTTP/HTTPS inactivity limits, one retry and a 240-second outer
 bootstrap deadline. Its dedicated log records update/install progress and
 the actual command and log-writer exit statuses; the workflow step retains
 time to save that evidence on failure.
 
+Before changing the host's mirror list, a read-only helper checks that every
+active Ubuntu URI field references that exact list. Only the list is installed
+with elevated permission. Source and mirror configuration bytes, sizes and
+hashes are logged before and after; the source file must remain byte-identical.
+
 The clean container receives read-only mirror configuration and the runner's
-public CA bundle as a separate APT configuration file. It prefers the runner's
-known cloud mirror and retains the official runner's HTTPS archive/security
-fallbacks. APT uses the explicit
+public CA bundle as a separate APT configuration file. Its mirror order matches
+the host's official HTTPS archive/security preference. APT uses the explicit
 [`Acquire::https::CAInfo` option](https://manpages.ubuntu.com/manpages/noble/man1/apt-transport-https.1.html)
 to verify HTTPS without installing an extra CA package in the minimal image;
 peer and hostname verification remain enabled. The bundle must exist and be
@@ -108,7 +123,7 @@ restoration in a different process. Restricted-user-namespace hosts must have
 the package's matching AppArmor profile. Host namespace policy is recorded
 before and after and must stay unchanged. No test changes the owner's machine.
 
-Local validation after the transport correction: all sixteen Linux Python
+Local validation after the transport correction: all eighteen Linux Python
 verification/binding tests passed. Actual shell regressions cover trust-field
 preservation, read-only mounts, failed update/install and host exit/log handling.
 The container and host probes pass Bash syntax checking; workflow YAML retains

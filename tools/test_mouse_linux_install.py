@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 import unittest
+from urllib.parse import quote
 
 spec = importlib.util.spec_from_file_location('mouse_linux_install', Path(__file__).with_name('mouse-linux-install-verify.py'))
 install = importlib.util.module_from_spec(spec)
@@ -30,6 +31,24 @@ Suites: unchanged
 Signed-By: /keep/this/keyring
 '''
 
+HOST_SOURCES = '''Types: deb
+URIs: mirror+file:@MIRRORS@
+Suites: noble noble-updates noble-backports
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+Types: deb
+URIs: mirror+file:@MIRRORS@
+Suites: noble-security
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+Check-Valid-Until: yes
+'''
+
+RUNNER_MIRRORS = ('http://us-east-2.ec2.archive.ubuntu.com/ubuntu/\tpriority:1\n'
+                  'https://archive.ubuntu.com/ubuntu/\tpriority:2\n'
+                  'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
+
 
 def bootstrap_script():
     lines = (Path(__file__).parents[1] / '.github/workflows/mouse-linux.yml').read_text().splitlines()
@@ -43,14 +62,14 @@ class CleanInstallBindingTests(unittest.TestCase):
     def test_dependency_probe_is_valid_bash(self):
         subprocess.run(['bash', '-n'], input=install.CLEAN_INSTALL, text=True, check=True)
 
-    def test_cloud_mirror_keeps_official_https_fallback_without_untrusted_sources(self):
+    def test_official_https_archives_precede_recognized_cloud_fallback(self):
         for host in ('azure.archive.ubuntu.com', 'us-east-2.ec2.archive.ubuntu.com'):
             raw = (f'http://{host}/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\n'
                    'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
             self.assertEqual(install.apt_mirrors(raw),
-                             f'http://{host}/ubuntu/\tpriority:1\n'
-                             'https://archive.ubuntu.com/ubuntu/\tpriority:2\n'
-                             'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
+                             'https://archive.ubuntu.com/ubuntu/\tpriority:1\n'
+                             'https://security.ubuntu.com/ubuntu/\tpriority:2\n'
+                             f'http://{host}/ubuntu/\tpriority:3\n')
         fallback = install.apt_mirrors('')
         for unsafe in ('file:/host/packages', 'http://user@azure.archive.ubuntu.com/ubuntu/',
                        'https://azure.archive.ubuntu.com.evil/ubuntu/', 'http://azure.archive.ubuntu.com:80/ubuntu/',
@@ -180,36 +199,111 @@ class CleanInstallBindingTests(unittest.TestCase):
 
 
 class HostBootstrapTests(unittest.TestCase):
+    def prepare_fixture(self, directory, phase, expected, source_text=None):
+        binary = directory / 'bin'; binary.mkdir()
+        sources, mirrors = directory / 'ubuntu.sources', directory / 'apt-mirrors.txt'
+        sources.write_text((HOST_SOURCES if source_text is None else source_text).replace('@MIRRORS@', quote(str(mirrors), safe='/')))
+        mirrors.write_text(RUNNER_MIRRORS)
+        sudo = binary / 'sudo'
+        sudo.write_text('''#!/bin/bash
+set -euo pipefail
+test "$1" = -n; shift
+printf '%s\\n' "$*" >> "$PRIVILEGED_CALLS"
+if test "$1" = install; then
+  test "$#" -eq 6
+  test "$2" = -m && test "$3" = 0644 && test "$4" = --
+  test "$5" = mouse-linux-noble-host-mirrors.log && test "$6" = "$APT_MIRROR_PATH"
+  if test "$APT_FAIL" = config; then exit "$APT_EXIT"; fi
+  exec "$@"
+fi
+case " $* " in *" apt-get "*) ;; *) exit 92;; esac
+printf '%s\\n' "$*" >> "$APT_CALLS"
+case " $* " in *" $APT_FAIL "*) exit "$APT_EXIT";; esac
+''')
+        sudo.chmod(0o755)
+        (binary / 'id').write_text('#!/bin/bash\nprintf "1001\\n"\n'); (binary / 'id').chmod(0o755)
+        if phase == 'timeout':
+            (binary / 'timeout').write_text('#!/bin/bash\nexit 124\n'); (binary / 'timeout').chmod(0o755)
+        # Execute the real workflow body; only filesystem locations move into this fixture.
+        script = bootstrap_script().replace('/etc/apt/sources.list.d/ubuntu.sources', str(sources))
+        script = script.replace('/etc/apt/apt-mirrors.txt', str(mirrors))
+        script = script.replace('../tools/mouse-linux-install-verify.py', str(Path(install.__file__).resolve()))
+        env = {**os.environ, 'PATH': str(binary) + os.pathsep + os.environ['PATH'],
+               'APT_CALLS': str(directory / 'calls'), 'PRIVILEGED_CALLS': str(directory / 'privileged'),
+               'APT_MIRROR_PATH': str(mirrors), 'APT_FAIL': phase, 'APT_EXIT': str(expected)}
+        return script, env, sources, mirrors
+
     def test_workflow_bootstrap_has_valid_bash(self):
         subprocess.run(['bash', '-n'], input=bootstrap_script(), text=True, check=True)
 
+    def test_host_cli_checks_binding_and_only_prints_shared_https_first_list(self):
+        with tempfile.TemporaryDirectory(prefix='mouse host apt ') as root:
+            directory = Path(root); _, _, sources, mirrors = self.prepare_fixture(directory, 'success', 0)
+            original = sources.read_bytes(), mirrors.read_bytes()
+            result = subprocess.run(['python3', install.__file__, '--host-mirrors', str(sources), str(mirrors)],
+                                    text=True, capture_output=True, check=True)
+            self.assertEqual(result.stdout, install.apt_mirrors(RUNNER_MIRRORS))
+            self.assertEqual((sources.read_bytes(), mirrors.read_bytes()), original, 'The CLI must be read-only')
+            self.assertEqual(install.apt_mirrors(result.stdout), result.stdout, 'Host and container reuse the same stable order')
+
+    def test_unbound_or_additional_uri_fails_before_any_privileged_write_or_apt(self):
+        invalid = [
+            '# URIs: mirror+file:@MIRRORS@\nTypes: deb\n',
+            HOST_SOURCES.replace('mirror+file:@MIRRORS@', 'mirror+file:@MIRRORS@.wrong'),
+            HOST_SOURCES.replace('mirror+file:@MIRRORS@', 'http://archive.ubuntu.com/ubuntu/'),
+            HOST_SOURCES.replace('URIs: mirror+file:@MIRRORS@', 'URIs: mirror+file:@MIRRORS@\n https://example.invalid/ubuntu/'),
+        ]
+        for source_text in invalid:
+            with self.subTest(source=source_text), tempfile.TemporaryDirectory(prefix='mouse host apt ') as root:
+                directory = Path(root)
+                script, env, sources, mirrors = self.prepare_fixture(directory, 'success', 0, source_text)
+                original = sources.read_bytes(), mirrors.read_bytes()
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=directory,
+                                        env=env, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('exact mirror list', result.stdout)
+                self.assertEqual((sources.read_bytes(), mirrors.read_bytes()), original)
+                self.assertFalse((directory / 'privileged').exists())
+                self.assertFalse((directory / 'calls').exists())
+                self.assertNotIn('MOUSE_NOBLE_HOST_TOOLS_PASS', result.stdout)
+
     def test_workflow_preserves_apt_failure_timeout_and_success_through_tee(self):
-        for phase, expected in [('update', 43), ('install', 44), ('timeout', 124), ('success', 0)]:
-            with self.subTest(phase=phase), tempfile.TemporaryDirectory() as root:
-                directory = Path(root); binary = directory / 'bin'; binary.mkdir()
-                sudo = binary / 'sudo'
-                sudo.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$APT_CALLS"\n'
-                                'case " $* " in *" $APT_FAIL "*) exit "$APT_EXIT";; esac\n')
-                sudo.chmod(0o755)
-                (binary / 'id').write_text('#!/bin/bash\nprintf "1001\\n"\n'); (binary / 'id').chmod(0o755)
-                if phase == 'timeout':
-                    (binary / 'timeout').write_text('#!/bin/bash\nexit 124\n'); (binary / 'timeout').chmod(0o755)
+        for phase, expected in [('config', 45), ('update', 43), ('install', 44), ('timeout', 124), ('success', 0)]:
+            with self.subTest(phase=phase), tempfile.TemporaryDirectory(prefix='mouse host apt ') as root:
+                directory = Path(root)
+                script, env, sources, mirrors = self.prepare_fixture(directory, phase, expected)
+                original_sources, original_mirrors_hash = sources.read_bytes(), install.VERIFY.sha256(mirrors)
                 calls = directory / 'calls'
-                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', bootstrap_script()], cwd=directory,
-                                        env={**os.environ, 'PATH': str(binary) + os.pathsep + os.environ['PATH'],
-                                             'APT_CALLS': str(calls), 'APT_FAIL': phase, 'APT_EXIT': str(expected)},
-                                        text=True, capture_output=True)
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=directory,
+                                        env=env, text=True, capture_output=True)
                 self.assertEqual(result.returncode, expected, result.stderr)
                 log = (directory / 'mouse-linux-noble-host-tools.log').read_text()
                 self.assertIn(f'MOUSE_NOBLE_HOST_TOOLS_EXIT timeout={expected} tee=0', log)
                 self.assertEqual('MOUSE_NOBLE_HOST_TOOLS_PASS' in log, phase == 'success')
+                self.assertEqual(sources.read_bytes(), original_sources)
+                if phase in ('config', 'timeout'):
+                    self.assertEqual(mirrors.read_text(), RUNNER_MIRRORS)
+                    self.assertFalse(calls.exists())
+                    continue
+                self.assertEqual(mirrors.read_text(), install.apt_mirrors(RUNNER_MIRRORS))
+                self.assertEqual(mirrors.stat().st_mode & 0o777, 0o644)
+                for marker in ('SOURCES_BEFORE', 'SOURCES_AFTER', 'MIRRORS_BEFORE', 'MIRRORS_AFTER'):
+                    self.assertIn('MOUSE_NOBLE_HOST_APT_' + marker, log)
+                for digest in (original_mirrors_hash, install.VERIFY.sha256(mirrors), install.VERIFY.sha256(sources)):
+                    self.assertIn(digest, log)
+                self.assertIn(str(len(original_sources)) + ' ' + str(sources), log)
+                self.assertIn(str(mirrors.stat().st_size) + ' ' + str(mirrors), log)
+                privileged = (directory / 'privileged').read_text().splitlines()
+                self.assertEqual(privileged[0], 'install -m 0644 -- mouse-linux-noble-host-mirrors.log ' + str(mirrors))
                 if phase == 'update':
                     self.assertNotIn('MOUSE_NOBLE_HOST_APT_INSTALL', log)
-                if phase != 'timeout':
-                    for command in calls.read_text().splitlines():
-                        self.assertIn('Acquire::http::Timeout=15', command)
-                        self.assertIn('Acquire::https::Timeout=15', command)
-                        self.assertIn('Acquire::Retries=1', command)
+                commands = calls.read_text().splitlines()
+                self.assertEqual(len(commands), 1 if phase == 'update' else 2)
+                for command in commands:
+                    for option in ('Acquire::http::Timeout=15', 'Acquire::https::Timeout=15', 'Acquire::Retries=1',
+                                   'Acquire::https::Verify-Peer=true', 'Acquire::https::Verify-Host=true',
+                                   'Acquire::AllowInsecureRepositories=false', 'APT::Get::AllowUnauthenticated=false'):
+                        self.assertIn(option, command)
 
 
 if __name__ == '__main__':

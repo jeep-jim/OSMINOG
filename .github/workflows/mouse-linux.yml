@@ -137,7 +137,21 @@ jobs:
           set +e
           timeout --signal=TERM --kill-after=5s 240s bash -euo pipefail -c '
             export DEBIAN_FRONTEND=noninteractive
-            apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1)
+            host_sources="/etc/apt/sources.list.d/ubuntu.sources"
+            host_mirrors="/etc/apt/apt-mirrors.txt"
+            host_apt_receipt() { printf "%s\n" "$1"; cat "$2"; wc -c "$2"; sha256sum "$2"; }
+            host_sources_before="$(sha256sum "$host_sources")"
+            host_apt_receipt MOUSE_NOBLE_HOST_APT_SOURCES_BEFORE "$host_sources"
+            host_apt_receipt MOUSE_NOBLE_HOST_APT_MIRRORS_BEFORE "$host_mirrors"
+            python3 "../tools/mouse-linux-install-verify.py" --host-mirrors "$host_sources" "$host_mirrors" > mouse-linux-noble-host-mirrors.log
+            sudo -n install -m 0644 -- mouse-linux-noble-host-mirrors.log "$host_mirrors"
+            host_apt_receipt MOUSE_NOBLE_HOST_APT_MIRRORS_AFTER "$host_mirrors"
+            host_apt_receipt MOUSE_NOBLE_HOST_APT_SOURCES_AFTER "$host_sources"
+            cmp -- mouse-linux-noble-host-mirrors.log "$host_mirrors"
+            test "$(sha256sum "$host_sources")" = "$host_sources_before"
+            apt_options=(-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=1
+                         -o Acquire::https::Verify-Peer=true -o Acquire::https::Verify-Host=true
+                         -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false)
             printf "%s\n" MOUSE_NOBLE_HOST_APT_UPDATE
             sudo -n apt-get "${apt_options[@]}" update --error-on=any
             printf "%s\n" MOUSE_NOBLE_HOST_APT_INSTALL

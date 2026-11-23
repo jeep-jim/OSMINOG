@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from urllib.parse import quote
 
 SPEC = importlib.util.spec_from_file_location("mouse_linux_verify", Path(__file__).with_name("mouse-linux-verify.py"))
 VERIFY = importlib.util.module_from_spec(SPEC)
@@ -91,12 +92,12 @@ printf '%s\n' MOUSE_LINUX_CLEAN_DEB_DEPENDENCIES_PASS
 
 
 def apt_mirrors(runner_list):
-    """Use the runner's known cloud mirror and official HTTPS fallbacks.
+    """Prefer official HTTPS archives, retaining known cloud mirrors as fallback.
 
     The minimal Ubuntu image receives only the host's public CA trust bundle
     as a separate read-only file; no CA or runtime package is preinstalled.
     """
-    mirrors = []
+    mirrors = ["https://archive.ubuntu.com/ubuntu/", "https://security.ubuntu.com/ubuntu/"]
     for line in runner_list.splitlines():
         words = line.split()
         if not words or words[0].startswith("#"):
@@ -106,8 +107,29 @@ def apt_mirrors(runner_list):
             uri = "http://" + cloud[1] + "/ubuntu/"
             if uri not in mirrors:
                 mirrors.append(uri)
-    mirrors += ["https://archive.ubuntu.com/ubuntu/", "https://security.ubuntu.com/ubuntu/"]
     return "".join(f"{uri}\tpriority:{index}\n" for index, uri in enumerate(mirrors, 1))
+
+
+def host_apt_mirrors(sources, mirrors):
+    """Read the actual runner binding and emit a list; never write host config."""
+    expected = "mirror+file:" + quote(str(mirrors), safe="/")
+    uri_fields, current = [], None
+    for line in sources.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        if line.startswith((" ", "\t")):
+            if current is not None:
+                current.extend(line.split())
+            continue
+        field = re.fullmatch(r"URIs:\s*(.*)", line, re.I)
+        current = field[1].split() if field else None
+        if current is not None:
+            uri_fields.append(current)
+    VERIFY.require(uri_fields and all(values == [expected] for values in uri_fields),
+                   "Host Ubuntu sources do not exclusively reference the exact mirror list")
+    VERIFY.require(mirrors.is_file() and mirrors.stat().st_size > 0,
+                   "Host APT mirror list is missing or empty")
+    return apt_mirrors(mirrors.read_text(encoding="utf-8"))
 
 
 def clean_dependency_command(deb, mirrors, ca_bundle):
@@ -142,8 +164,17 @@ def verify_manifest(manifest, deb, source):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("directory", type=Path)
+    parser.add_argument("directory", type=Path, nargs="?")
+    parser.add_argument("--host-mirrors", type=Path, nargs=2, metavar=("SOURCES", "MIRRORS"),
+                        help="Validate the runner's existing mirror binding and print an HTTPS-first list")
     args = parser.parse_args(argv)
+    if args.host_mirrors:
+        if args.directory is not None:
+            parser.error("--host-mirrors does not accept a package directory")
+        print(host_apt_mirrors(*args.host_mirrors), end="")
+        return 0
+    if args.directory is None:
+        parser.error("a package directory is required")
     VERIFY.require(os.getuid() > 0 and os.environ.get("CI") == "true"
                    and re.fullmatch(r":\d+(?:\.\d+)?", os.environ.get("DISPLAY", "")),
                    "Clean-install native check needs an owned unprivileged CI X11 session")
