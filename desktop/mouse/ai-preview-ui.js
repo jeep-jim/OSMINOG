@@ -9,9 +9,16 @@ globalThis.createMouseAIPreviewUI=({model:m,tab,favicon,beginDrag,save,layout,na
   return{total,min:minimum(chat,'#ai-slot'),max:1-minimum(pane,'#ai-preview-slot')};
  }
  function bounded(value){const range=limits();return MouseLayout.clamp(MouseLayout.previewRatio(value),range.min,range.max);}
+ function snap(){
+  const page=tab(m.aiPreviewId),height=panel.getBoundingClientRect().height;
+  if(!page){style(chat,'flex','1 1 0%');return;}
+  if(height<=0)return;
+  const geometry=MouseLayout.pixelLayout({axis:'y',ratio:MouseLayout.previewRatio(m.aiPreviewRatio),a:{id:'chat'},b:{id:'preview'}},panel.clientWidth,height,divider.getBoundingClientRect().height).branches[0];
+  style(chat,'flex','0 0 '+geometry.a+'px');style(pane,'flex','0 0 '+geometry.b+'px');
+ }
  function sync(){
   const page=tab(m.aiPreviewId);prop(divider,'hidden',!page);
-  const ratio=MouseLayout.previewRatio(m.aiPreviewRatio);style(chat,'flex',page?ratio+' 1 0%':'1 1 0%');style(pane,'flex',(1-ratio)+' 1 0%');
+  const ratio=MouseLayout.previewRatio(m.aiPreviewRatio);snap();
   const percent=String(Math.round(ratio*100));if(divider.getAttribute('aria-valuenow')!==percent)divider.setAttribute('aria-valuenow',percent);
   if(doc.activeElement!==input)prop(input,'value',page?.url||'');prop(input,'title',page?.title||page?.url||'');prop(input,'disabled',!page);
   const key=page?[page.id,page.url,page.favicon||''].join('|'):'';if(icon.dataset.key!==key){icon.dataset.key=key;icon.replaceChildren(...(page?[favicon(page)]:[]));}
@@ -29,5 +36,5 @@ globalThis.createMouseAIPreviewUI=({model:m,tab,favicon,beginDrag,save,layout,na
  input.addEventListener('focus',()=>head.classList.add('address-editing'));input.addEventListener('blur',()=>head.classList.remove('address-editing'));
  input.addEventListener('keydown',event=>{if(event.key!=='Escape'||event.isComposing)return;event.preventDefault();event.stopPropagation();input.value=tab(m.aiPreviewId)?.url||'';input.blur();});
  target.onchange=()=>{const destination=target.value,id=m.aiPreviewId;target.value='';if(destination&&id)void run(()=>move(destination,id));};
- return{sync,resize,setRatio};
+ return{sync,snap,resize,setRatio};
 };

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -19,7 +20,7 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.37"
+VERSION = "6.0.38"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -159,7 +160,7 @@ def main(argv=None):
             write_json(report_path, evidence)
             current_upgrade = run_logged(
                 [sys.executable, Path(__file__).with_name("mouse-637-upgrade.py"), packages_dir],
-                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_637_REAL_636_TO_637_PROFILE_PASS"])
+                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"])
             upgrade_report = json.loads((output / "mouse-637-upgrade.json").read_text(encoding="utf-8"))
             require(upgrade_report.get("ok") is True and upgrade_report.get("fromVersion") == "6.0.36"
                     and upgrade_report.get("toVersion") == VERSION and upgrade_report.get("platform") == "linux"
@@ -168,8 +169,8 @@ def main(argv=None):
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
                     "reportSha256": sha256(output / "mouse-637-upgrade.json")}
             button = run_logged([sys.executable, Path(__file__).with_name("mouse-637-update-button.py"), packages_dir],
-                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS"])
-            evidence["checks"]["updateFrom636"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
+                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"])
+            evidence["checks"]["updateFrom637"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
             write_json(report_path, evidence)
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
@@ -247,6 +248,12 @@ def main(argv=None):
                     "Mouse637 features did not restore in a distinct actual process")
             feature_processes["reportSha256"] = sha256(feature_file)
             evidence["checks"]["features637"] = feature_processes
+            write_json(report_path, evidence)
+            feedback_spec = importlib.util.spec_from_file_location("mouse638_feedback_run", Path(__file__).with_name("mouse-638-feedback-run.py"))
+            feedback_runner = importlib.util.module_from_spec(feedback_spec)
+            feedback_spec.loader.exec_module(feedback_runner)
+            evidence["checks"]["feedback638"] = feedback_runner.run(executable, output, root / "feedback638",
+                                                                  platform="linux", arch="x64", env=env)
             write_json(report_path, evidence)
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])

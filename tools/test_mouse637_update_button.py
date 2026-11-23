@@ -13,15 +13,15 @@ spec.loader.exec_module(B)
 class ActualButtonWrapperTests(unittest.TestCase):
     def test_platform_version_name_and_canonical_download_are_exact(self):
         identity = {'size': 60000000, 'sha256': 'a' * 64}
-        for platform, suffix, tag in [('darwin', 'mac-arm64.dmg', 'quadro-macos-v6.0.37-arm64'),
-                                      ('win32', 'Windows-x64.exe', 'mouse-windows-v6.0.37-x64'),
-                                      ('linux', 'Linux-x64.AppImage', 'mouse-linux-v6.0.37-x64')]:
-            name = 'Mouse-Browser-6.0.37-' + suffix
+        for platform, suffix, tag in [('darwin', 'mac-arm64.dmg', 'quadro-macos-v6.0.38-arm64'),
+                                      ('win32', 'Windows-x64.exe', 'mouse-windows-v6.0.38-x64'),
+                                      ('linux', 'Linux-x64.AppImage', 'mouse-linux-v6.0.38-x64')]:
+            name = 'Mouse-Browser-6.0.38-' + suffix
             with patch.object(B.U, 'package_identity', return_value={'name': name, **identity}):
                 actual = B.candidate_identity(Path('/owned') / name, platform)
                 self.assertEqual(actual['url'], 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + tag + '/' + name)
                 self.assertEqual(actual['sha256'], identity['sha256'])
-                for wrong in [name.replace('6.0.37', '6.0.36'), 'other-' + name, name + '.zip']:
+                for wrong in [name.replace('6.0.38', '6.0.37'), 'other-' + name, name + '.zip']:
                     with self.assertRaises(RuntimeError):
                         B.candidate_identity(Path('/owned') / wrong, platform)
 

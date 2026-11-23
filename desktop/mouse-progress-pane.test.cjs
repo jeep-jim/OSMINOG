@@ -111,7 +111,7 @@ test('incoming ownership preparation mounts known docks before the shipped layou
  // The slot model reports dock occupancy; the executed measurement is the
  // shipped layoutNow. Real DOM and OS pixel geometry stay native CI gates.
  for(const pane of f.document.querySelectorAll('.pane'))pane.querySelector('.page-slot').getBoundingClientRect=()=>{const occupied=!!pane.querySelector('.mouse-pane-progress')&&!pane.querySelector('.mouse-pane-progress').hidden;return{x:pane.dataset.pane==='p1'?0:511,y:occupied?96:68,width:505,height:occupied?245:273};};
- const calls=[],context={progressUI:f.ui,desktopUI:null,zoomUI:null,m:f.model,document:f.document,tab:id=>id?{internal:false}:null,overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:()=> '#43536b'}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const calls=[],context={progressUI:f.ui,desktopUI:null,zoomUI:null,m:f.model,document:f.document,tab:id=>id?{internal:false}:null,overlays:{active:()=>false},snapPaneLayout(){},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:()=> '#43536b'}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
  const layoutNow=vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow',context);
  await layoutNow();assert.equal(calls.length,1);assert.deepEqual(JSON.parse(JSON.stringify(calls[0].args.panels.map(p=>({id:p.id,y:p.y,height:p.height})))),[{id:'c',y:96,height:245},{id:'d',y:68,height:273}]);
  f.emit({tasks:[{...incoming,percent:67,statusText:'Новые данные'}]});f.ui.prepareLayout();await f.advance(1200);
@@ -186,7 +186,7 @@ test('the browser progress API keeps its active page owner without a retired glo
 test('the native layout starts below the header pill and keeps the pane bottom corners',async()=>{
  const slot={x:8,y:104,width:420,height:360},calls=[],pane={dataset:{pane:'p1'},style:{getPropertyValue:()=> '12'},classList:{contains:name=>name==='has-pane-progress'},querySelector:()=>({getBoundingClientRect:()=>({...slot})})};
  let seam='';const reads=[];
- const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{reads.push(key);if(key==='--mouse-grid-seam')return seam;assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
+ const context={progressUI:{render(){}},desktopUI:null,zoomUI:null,m:{slots:{p1:'page'}},document:{querySelector:()=>null,querySelectorAll:()=>[pane],documentElement:{}},tab:()=>({internal:false}),overlays:{active:()=>false},snapPaneLayout(){},chromeControls:{round(){}},getComputedStyle:()=>({getPropertyValue:key=>{reads.push(key);if(key==='--mouse-grid-seam')return seam;assert.equal(key,'--line');return '#43536b';}}),browsing:{bounds:()=>null},feedback:{bounds:()=>null},N:{browser:async(action,args)=>calls.push({action,args})}};
  const layoutNow=vm.runInNewContext(nativeLayoutSource()+'\nlayoutNow',context);
  await layoutNow();seam='#354357';await layoutNow();
  assert.deepEqual(reads,['--mouse-grid-seam','--line','--mouse-grid-seam']);

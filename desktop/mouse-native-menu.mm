@@ -128,7 +128,39 @@ static bool nativeInputProbeAllowed(){
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-636-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-smoke"]||
    [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-smoke"]||
-   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-restore-read"]);
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-637-features-restore-read"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-638-feedback-smoke"]||
+   [NSProcessInfo.processInfo.arguments containsObject:@"--mouse-638-feedback-restore-read"]);
+}
+// Read the real native alert controls for installed CI acceptance. This does
+// not choose or press a button; the existing native pointer path does that.
+static void collectDialogButtons(napi_env e,NSView* view,napi_value result,uint32_t& count,unsigned depth,double primaryTop){
+ if(!view||view.hidden||view.alphaValue<=0||depth>24||count>=128)return;
+ if([view isKindOfClass:NSButton.class]){
+  NSButton* button=(NSButton*)view;NSString* title=button.title;
+  if(title.length&&button.window.visible){
+   NSRect rect=[button.window convertRectToScreen:[button convertRect:button.bounds toView:nil]];
+   if(rect.size.width>0&&rect.size.height>0){
+    napi_value item,label,bounds,source,windowTitle;napi_create_object(e,&item);napi_create_object(e,&bounds);napi_create_string_utf8(e,title.UTF8String,NAPI_AUTO_LENGTH,&label);napi_set_named_property(e,item,"title",label);
+    number(e,bounds,"x",NSMinX(rect));number(e,bounds,"y",primaryTop-NSMaxY(rect));number(e,bounds,"width",rect.size.width);number(e,bounds,"height",rect.size.height);napi_set_named_property(e,item,"bounds",bounds);boolean(e,item,"enabled",button.enabled);number(e,item,"pid",NSProcessInfo.processInfo.processIdentifier);
+    napi_create_string_utf8(e,"Cocoa",NAPI_AUTO_LENGTH,&source);napi_set_named_property(e,item,"source",source);napi_create_string_utf8(e,button.window.title.UTF8String?:"",NAPI_AUTO_LENGTH,&windowTitle);napi_set_named_property(e,item,"windowTitle",windowTitle);
+    napi_set_element(e,result,count++,item);
+   }
+  }
+ }
+ for(NSView* child in view.subviews)collectDialogButtons(e,child,result,count,depth+1,primaryTop);
+}
+static napi_value testDialogButtons(napi_env e,napi_callback_info info){
+ if(!nativeInputProbeAllowed()||!NSThread.isMainThread){napi_throw_error(e,nullptr,"Dialog probe is CI smoke-only on the main thread");return nullptr;}
+ napi_value result;napi_create_array(e,&result);uint32_t count=0;
+ NSScreen* primary=NSScreen.screens.firstObject;double primaryTop=primary?NSMaxY(primary.frame):0;
+ for(NSWindow* window in NSApp.windows){
+  if(!window.visible||window==mouseWindow)continue;
+  // NSAlert may be an attached sheet or a standalone modal window. All
+  // candidates here belong to this process, never another application.
+  collectDialogButtons(e,window.contentView,result,count,0,primaryTop);
+ }
+ return result;
 }
 static napi_value testPointer(napi_env e,napi_callback_info info){
  if(!nativeInputProbeAllowed()){napi_throw_error(e,nullptr,"Pointer probe is CI smoke-only");return nullptr;}
@@ -189,10 +221,9 @@ static napi_value testKey(napi_env e,napi_callback_info info){
   NSColor* color=item[@"color"];
   for(int side=0;side<2;side++){
    CGFloat x=side?NSMaxX(p)-radius:NSMinX(p);
-   // The DOM may end on a fractional DIP while the guest uses snapped endpoints.
-   // One DIP of divider-colored overpaint OUTSIDE the arc covers that square rim;
-   // the circle itself stays exactly 12 DIP and the page viewport never changes.
-   NSRect corner=NSMakeRect(x-(side?0:1),y,radius+1,radius+1);
+   // Renderer and guest share integer-DIP endpoints. Paint only inside this
+   // pane: the old outer strip left square tails at split intersections.
+   NSRect corner=NSMakeRect(x,y,radius,radius);
    if(!NSIntersectsRect(corner,dirty))continue;
    [NSGraphicsContext saveGraphicsState];NSRectClip(corner);
    NSBezierPath* path=[NSBezierPath bezierPathWithRect:corner];
@@ -245,7 +276,7 @@ static napi_value testMouse(napi_env e,napi_callback_info info){
  CGPoint p=CGPointMake(x,y);CGEventType type=kind==0?kCGEventLeftMouseDown:kind==1?kCGEventLeftMouseDragged:kCGEventLeftMouseUp;CGEventRef event=CGEventCreateMouseEvent(nullptr,type,p,kCGMouseButtonLeft);if(event){CGEventSetIntegerValueField(event,kCGMouseEventClickState,1);CGEventPost(kCGHIDEventTap,event);CFRelease(event);}napi_value value;napi_get_boolean(e,true,&value);return value;
 }
 static napi_value init(napi_env e,napi_value exports){
- napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
+ napi_property_descriptor d[]={{"primaryDown",0,primaryDown,0,0,0,napi_default,0},{"testMouse",0,testMouse,0,0,0,napi_default,0},{"install",0,install,0,0,0,napi_default,0},{"state",0,state,0,0,0,napi_default,0},{"reveal",0,reveal,0,0,0,napi_default,0},{"release",0,release,0,0,0,napi_default,0},{"testPointer",0,testPointer,0,0,0,napi_default,0},{"testClick",0,testClick,0,0,0,napi_default,0},{"testRightClick",0,testRightClick,0,0,0,napi_default,0},{"testKey",0,testKey,0,0,0,napi_default,0},{"testDialogButtons",0,testDialogButtons,0,0,0,napi_default,0},{"paneCorners",0,paneCorners,0,0,0,napi_default,0}};
  napi_define_properties(e,exports,11,d);return exports;
 }
 NAPI_MODULE(mouse_native_menu,init)

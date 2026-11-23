@@ -29,7 +29,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                 marker = 'MOUSE_637_WINDOWS_DISPLAY_' + ('PERSISTENCE_PASS' if phase == 'verify' else 'PREPARED')
                 pid = 102 if phase == 'verify' else 101
                 log.write_text(marker + '\n', encoding='utf-8')
-                receipt = {'ok': True, 'version': '6.0.37', 'platform': 'win32', 'pid': 101}
+                receipt = {'ok': True, 'version': '6.0.38', 'platform': 'win32', 'pid': 101}
                 if phase == 'verify':
                     receipt.update(processExitVerified=True, persistence={'pid': pid})
                 (output / 'mouse-637-display.json').write_text(json.dumps(receipt), encoding='utf-8')
@@ -110,8 +110,8 @@ class WindowsVerificationContracts(unittest.TestCase):
             raw_read = (json.dumps(completed, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
             markers = {
                 'mouse-637-baseline-performance.log': ['MOUSE_637_BASELINE_PERFORMANCE_PASS'],
-                'mouse-637-update-button.log': ['MOUSE_637_REAL_636_TO_637_UPDATE_BUTTON_PASS'],
-                'mouse-637-upgrade.log': ['MOUSE_637_REAL_636_TO_637_PROFILE_PASS'],
+                'mouse-637-update-button.log': ['MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS'],
+                'mouse-637-upgrade.log': ['MOUSE_638_REAL_637_TO_638_PROFILE_PASS'],
                 'mouse-636-retained-owner-feedback.log': ['MOUSE_636_RETAINED_OWNER_FEEDBACK_PASS'],
                 'mouse-633-owner-feedback.log': ['MOUSE_633_OWNER_FEEDBACK_PASS'],
                 'mouse-631-native.log': ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',
@@ -143,6 +143,7 @@ class WindowsVerificationContracts(unittest.TestCase):
                     mock.patch.object(verify, 'version_upgrade', return_value={'ok': True}), \
                     mock.patch.object(verify, 'prepare_current_display', return_value={'ok': True}), \
                     mock.patch.object(verify, 'install', return_value={'pid': 999, 'exitCode': 0}), \
+                    mock.patch.object(verify, 'feedback638', return_value={'unitFixtureOnly': True}), \
                     mock.patch.object(verify, 'run_logged', side_effect=run), \
                     mock.patch.object(verify.subprocess, 'run'):
                 with self.assertRaisesRegex(RuntimeError, 'retained native write failed'):

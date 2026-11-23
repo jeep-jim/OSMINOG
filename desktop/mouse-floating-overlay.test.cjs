@@ -168,7 +168,9 @@ test('T+ reserves actual native viewport space and restores the same live pages 
  const panes=rects.map((rect,index)=>{const id='page-'+index,view=new NativeView();view.webContents={isDestroyed:()=>false};win.contentView.addChildView(view);tabs.set(id,{id,project:'owned',lane:'main',view,visible:false});return{dataset:{pane:id},style:{getPropertyValue:()=>''},querySelector:()=>({getBoundingClientRect:()=>({...rect})})};});
  const browser={win,project:'owned',mouseRoundedPanes:true,tabs,providers:new Map()},originalViews=[...tabs.values()].map(page=>page.view);
  let zoom=null,hint=null;
- const ctx={m:{slots:{'page-0':'page-0','page-1':'page-1'}},tab:id=>tabs.get(id),progressUI:null,chromeControls:null,
+ // This fixture supplies already snapped slots; the dedicated 638 layout
+ // suite executes the real snapping function across fractional split ratios.
+ const ctx={m:{slots:{'page-0':'page-0','page-1':'page-1'}},tab:id=>tabs.get(id),progressUI:null,chromeControls:null,snapPaneLayout(){},
   document:{documentElement:{},querySelector:()=>null,querySelectorAll:()=>panes},getComputedStyle:()=>({getPropertyValue:()=>'#43536b'}),
   desktopUI:{holdsNative:false,bounds:()=>null},overlays:{active:()=>false},browsing:{bounds:()=>hint},feedback:{bounds:()=>null},zoomUI:{bounds:()=>zoom},
   N:{browser:async(action,args)=>{assert.equal(action,'layout');nativeModule.exports.BrowserWorkspace.prototype.layout.call(browser,args.panels);}}

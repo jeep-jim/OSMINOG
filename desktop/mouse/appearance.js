@@ -7,6 +7,7 @@
   return{paneMode:value?.paneMode==='square'?'square':'rounded',whiteTone:typeof value?.whiteTone==='number'&&Number.isFinite(value.whiteTone)?Math.round(Math.max(0,Math.min(100,value.whiteTone))):DEFAULTS.whiteTone};
  }
  function color(value){const n=normalize({whiteTone:value}).whiteTone,hex=Math.round(160+95*n/100).toString(16).padStart(2,'0').toUpperCase();return'#'+hex.repeat(3);}
+ function gap(value){return normalize(value).paneMode==='square'?1:6;}
  function read(storage){try{return normalize(JSON.parse((storage||root.localStorage).getItem(KEY)));}catch{return{...DEFAULTS};}}
  function apply(value,target=root.document?.documentElement){
   const settings=normalize(value);if(!target)return settings;
@@ -23,7 +24,7 @@
   if(!privateMode){try{(storage||root.localStorage).setItem(KEY,JSON.stringify(settings));persisted=true;}catch{persisted=false;}}
   return{settings,persisted};
  }
- const api=Object.freeze({KEY,DEFAULTS,normalize,color,read,apply,update});
+ const api=Object.freeze({KEY,DEFAULTS,normalize,color,gap,read,apply,update});
  if(typeof module==='object'&&module.exports)module.exports=api;
  else{root.MouseAppearance=api;apply(read());}
 })(globalThis);

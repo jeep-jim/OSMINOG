@@ -31,21 +31,21 @@ test('corrupt saved data and denied storage retain usable defaults; invalid writ
  const root=target(),updated=appearance.update(appearance.DEFAULTS,{whiteTone:100},{target:root,storage:denied});assert.equal(updated.persisted,false);assert.equal(root.style.getPropertyValue('--text-primary'),'#FFFFFF');
  const storage=memory();storage.setItem(appearance.KEY,'previous');for(const changes of [{},{paneMode:'dense'},{whiteTone:-1},{whiteTone:101},{whiteTone:NaN},{whiteTone:1.5},{whiteTone:'1'},{unknown:true}])assert.throws(()=>appearance.update(appearance.DEFAULTS,changes,{target:root,storage}));assert.equal(storage.getItem(appearance.KEY),'previous');
 });
-test('square mode removes all pane corner masks and gap from resize minima; rounded mode retains current focused behavior',()=>{
+test('square mode removes corner masks and retains one-pixel seams in resize minima; rounded mode retains current focused behavior',()=>{
  for(const focused of [false,true])assert.deepEqual(paneCorners({paneMode:'square',focused}),{top:0,bottom:0});
  assert.deepEqual(paneCorners(),{top:12,bottom:12});assert.deepEqual(paneCorners({focused:true}),{top:12,bottom:0});
- const tree={axis:'x',ratio:.5,a:{id:'p1'},b:{axis:'x',ratio:.5,a:{id:'p2'},b:{id:'p3'}}};assert.equal(L.minimum(tree,'x'),432);assert.equal(L.minimum(tree,'x',0),420);
+ const tree={axis:'x',ratio:.5,a:{id:'p1'},b:{axis:'x',ratio:.5,a:{id:'p2'},b:{id:'p3'}}};assert.equal(appearance.gap({paneMode:'square'}),1);assert.equal(appearance.gap({paneMode:'rounded'}),6);assert.equal(L.minimum(tree,'x',appearance.gap({paneMode:'rounded'})),432);assert.equal(L.minimum(tree,'x',appearance.gap({paneMode:'square'})),422);
 });
 
 test('shell appearance controller retains live tabs and only persists after normal-profile initialization',()=>{
  const storage=memory(),root=target(),tabs=[{id:'live-tab',url:'https://example.test'}],slots={p1:'live-tab'},tree={id:'p1'};
- const m={appearance:appearance.read(storage),state:{tabs},slots,tree},calls={layout:0,round:0,sync:0};
- const context=vm.createContext({m,MouseAppearance:{update:(current,changes,options)=>appearance.update(current,changes,{...options,target:root,storage})},settingsUI:{sync(){calls.sync++;}},chromeControls:{round(){calls.round++;}},requestLayout(){calls.layout++;},setStatus(){}});
+ const m={theme:'dark',appearance:appearance.read(storage),state:{tabs},slots,tree},calls={layout:0,round:0,sync:0},pageAppearance=[];
+ const context=vm.createContext({m,N:{appearance:async value=>{pageAppearance.push(JSON.parse(JSON.stringify(value)));}},MouseAppearance:{update:(current,changes,options)=>appearance.update(current,changes,{...options,target:root,storage})},settingsUI:{sync(){calls.sync++;}},chromeControls:{round(){calls.round++;}},requestLayout(){calls.layout++;},setStatus(){}});
  const source=fs.readFileSync(require.resolve('./mouse/browser.js'),'utf8').match(/ function setAppearance\(changes\)\{[^\n]+/)[0];
  vm.runInContext(source,context);
  context.setAppearance({whiteTone:0});assert.equal(storage.getItem(appearance.KEY),null);assert.equal(root.style.getPropertyValue('--text-primary'),'#A0A0A0');
  m.privateMode=false;context.setAppearance({whiteTone:100});assert.equal(appearance.read(storage).whiteTone,100);assert.equal(calls.layout,0);assert.equal(calls.round,0);
  context.setAppearance({paneMode:'square'});assert.equal(calls.layout,1);assert.equal(calls.round,1);assert.equal(appearance.read(storage).paneMode,'square');
  const saved=storage.getItem(appearance.KEY);m.privateMode=true;context.setAppearance({paneMode:'rounded',whiteTone:55});assert.equal(storage.getItem(appearance.KEY),saved);
- assert.equal(m.state.tabs,tabs);assert.equal(m.slots,slots);assert.equal(m.tree,tree);assert.equal(calls.sync,4);
+ assert.equal(m.state.tabs,tabs);assert.equal(m.slots,slots);assert.equal(m.tree,tree);assert.equal(calls.sync,4);assert.deepEqual(pageAppearance,[{theme:'dark',whiteTone:0},{theme:'dark',whiteTone:100},{theme:'dark',whiteTone:100},{theme:'dark',whiteTone:55}]);
 });

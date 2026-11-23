@@ -7,14 +7,14 @@ const {LinuxInstaller,appImagePath,HELPER}=require('./mouse-linux-update.cjs');
 test('Linux packaging keeps the common runtime and overwrites the unsafe upstream AppRun',async()=>{
  const build=require('./mouse-linux-build.cjs'),root=await fs.mkdtemp(path.join(os.tmpdir(),'mouse-linux-pack-'));
  try{
-  assert.equal(build.extraMetadata.version,'6.0.37');assert.equal(build.appId,'black.mouse.browser.linux');assert.equal(build.mac,undefined);assert.equal(build.win,undefined);assert.equal(build.publish,null);assert.deepEqual(build.appImage.executableArgs,[]);
+  assert.equal(build.extraMetadata.version,'6.0.38');assert.equal(build.appId,'black.mouse.browser.linux');assert.equal(build.mac,undefined);assert.equal(build.win,undefined);assert.equal(build.publish,null);assert.deepEqual(build.appImage.executableArgs,[]);
   assert.ok(build.files.includes('mouse-platform.node'));assert.ok(!build.files.includes('mouse-native-menu.node'));
   const appOutDir=path.join(root,'app'),stage=path.join(root,'stage');await fs.mkdir(appOutDir);await fs.mkdir(stage);await fs.writeFile(path.join(stage,'AppRun'),'UNSAFE_GENERATED_FALLBACK');
   await build.afterPack({appOutDir,electronPlatformName:'linux'});await require('builder-util').copyDir(appOutDir,stage);
   const entry=await fs.readFile(path.join(stage,'AppRun'),'utf8');assert.equal(entry,await fs.readFile(path.join(appOutDir,'AppRun'),'utf8'));assert.doesNotMatch(entry,/--no-sandbox|unshare|NO_SANDBOX/);assert.match(entry,/exec "\$APPDIR\/mouse-browser" "\$@"/);if(process.platform!=='win32')assert.equal((await fs.stat(path.join(stage,'AppRun'))).mode&0o777,0o755);
   const {getConfig,validateConfiguration}=require('app-builder-lib/out/util/config/config'),config=await getConfig(__dirname,'mouse-linux-build.cjs',null);await validateConfiguration(config,{add(){}});
   const {expandMacro}=require('app-builder-lib/out/util/macroExpander'),{getArtifactArchName,Arch}=require('builder-util');
-  for(const ext of ['AppImage','deb'])assert.equal(expandMacro(config.artifactName,getArtifactArchName(Arch.x64,ext),config.extraMetadata,{ext}),`Mouse-Browser-6.0.37-Linux-x64.${ext}`,'the builder format-specific architecture must retain the fixed release channel filename');
+  for(const ext of ['AppImage','deb'])assert.equal(expandMacro(config.artifactName,getArtifactArchName(Arch.x64,ext),config.extraMetadata,{ext}),`Mouse-Browser-6.0.38-Linux-x64.${ext}`,'the builder format-specific architecture must retain the fixed release channel filename');
  }finally{await fs.rm(root,{recursive:true,force:true});}
 });
 test('Linux native input is CI-only and emits bounded real XTest actions',()=>{

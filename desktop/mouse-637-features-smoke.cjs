@@ -1,5 +1,5 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.37 interface features.
+// Installed, two-process acceptance for the combined 6.0.38 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
@@ -8,7 +8,7 @@ const {createFixture,pageHTML,bounded,sha256,sleep}=require('./mouse-631-smoke-h
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.37',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.38',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -81,7 +81,7 @@ function appearanceReadback(){
 function assertAppearance(state,{mode,tone,theme,settings=false}){
  assert.deepEqual(state.model,{paneMode:mode,whiteTone:tone});assert.deepEqual(state.stored,state.model);
  assert.equal(state.theme,theme);const channel=Math.round(160+95*tone/100),color='#'+channel.toString(16).padStart(2,'0').repeat(3);
- assert.equal(state.primary,color);assert.equal(state.gap,mode==='square'?0:6);assert.equal(state.radius,mode==='square'?0:12);
+ assert.equal(state.primary,color);assert.equal(state.gap,mode==='square'?1:6);assert.equal(state.radius,mode==='square'?0:12);
  if(theme==='dark')assert.equal(state.textColor,`rgb(${channel}, ${channel}, ${channel})`);
  if(settings){assert.equal(state.settings.open,true);assert.equal(state.settings.square,mode==='square');assert.equal(state.settings.tone,tone)}
  for(const pane of state.panes){assert.equal(pane.topRadius,mode==='square'?0:12);assert.equal(pane.bottomRadius,mode==='square'?0:12)}
@@ -91,7 +91,7 @@ function assertSquareGeometry(state,native){
  const panes=[...state.panes].sort((a,b)=>a.bounds.x-b.bounds.x),near=(a,b,label)=>assert.ok(Math.abs(a-b)<1.1,label+': '+a+' / '+b);
  near(panes[0].bounds.x,state.stage.x,'Square panes start at the stage edge');
  near(panes[1].bounds.x+panes[1].bounds.width,state.stage.x+state.stage.width,'Square panes fill the stage width');
- near(panes[0].bounds.x+panes[0].bounds.width,panes[1].bounds.x,'Square panes have no horizontal gap');
+ near(panes[0].bounds.x+panes[0].bounds.width+1,panes[1].bounds.x,'Square panes keep one CSS pixel separator');
  near(state.stage.y,state.workspace.y,'Square workspace has no upper inset');near(state.stage.y+state.stage.height,state.workspace.y+state.workspace.height,'Square workspace has no lower inset');
  for(const p of panes){near(p.bounds.y,state.stage.y,'No upper stage inset');near(p.bounds.y+p.bounds.height,state.stage.y+state.stage.height,'No lower stage inset')}
  for(const p of native){assert.equal(p.roundBottom,0);assert.equal(p.visible,true);assert.equal(p.parentVisible,true);assert.equal(p.attached,true)}

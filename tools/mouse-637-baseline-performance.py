@@ -32,9 +32,9 @@ NAME = FOLDER + '.json'
 MARKERS = ['MOUSE_631_TASK_ONLY_NATIVE_PASS', 'MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS',
            'MOUSE_631_INSTALLED_TASK_STRESS_PASS', 'MOUSE_632_STATIONARY_MEDIA_PASS']
 REPORTS = ['mouse-631-native.json', 'mouse-631-task.json', 'mouse-631-stress.json', 'mouse-632-media.json']
-PUBLISHED_SOURCES = {'darwin': '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3',
-                     'win32': '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3',
-                     'linux': '7c09b6cb9885ce72be41e8f16a35d4c55c9ecde3'}
+PUBLISHED_SOURCES = {'darwin': '0021084ccb9537e657d21e6f0c8e812dee6b461f',
+                     'win32': '0021084ccb9537e657d21e6f0c8e812dee6b461f',
+                     'linux': '0021084ccb9537e657d21e6f0c8e812dee6b461f'}
 
 
 def utc():
@@ -129,7 +129,7 @@ def main(argv=None):
     raw_output.mkdir()
     old_version = U.OLD_VERSIONS[sys.platform]
     baseline = U.BASELINES[sys.platform]['deb'] if sys.platform == 'linux' else U.BASELINES[sys.platform]
-    facts = {'schema': 1, 'kind': 'published-baseline-stress-run', 'version': '6.0.37', 'ok': False,
+    facts = {'schema': 1, 'kind': 'published-baseline-stress-run', 'version': '6.0.38', 'ok': False,
              'platform': sys.platform, 'arch': 'arm64' if sys.platform == 'darwin' else 'x64',
              'baselineVersion': old_version, 'baselineSource': PUBLISHED_SOURCES[sys.platform],
              'baseline': {**baseline, 'url': U.baseline_url(baseline)}, 'rawDirectory': FOLDER,

@@ -45,7 +45,7 @@ function fixture(t){
  };
  const ctx={L,MouseAppearance:require('./mouse/appearance.js'),MouseTabOrder,N,document,window,structuredClone,Promise,setTimeout:time.setTimeout,clearTimeout:time.clearTimeout,setStatus:message=>errors.push(message),
   resizeHUD:{begin(){},update(){},end(){}},
-  requestLayout(){},renderAISites(){},applySide(){},restorePane(){throw Error('Unexpected fullscreen branch in this fixture');},
+  requestLayout(){},snapPaneLayout(){},renderAISites(){},applySide(){},restorePane(){throw Error('Unexpected fullscreen branch in this fixture');},
   renderTree(){const m=ctx.api.m;renders.push({tree:clone(m.tree),slots:clone(m.slots),active:m.active,switching:m.switching});}
  };
  vm.runInNewContext(actions+'\nglobalThis.api={m,stateReceiver,prefs,save,changeLayout,split,beginDrag,endDrag,restoreLayout};',ctx,{filename:'mouse/browser.js action fixture',timeout:1000});
