@@ -58,8 +58,7 @@
   const next=await N.browser('state');
   if(m.privateMode||m.switching||next.desktopId!==desk||m.desktopId!==desk)return;
   if(!stateReceiver.refresh(next,desk)||!tab(id))return;
-  const pane=placementPane(m.active,id);m.slots[pane]=id;m.active=pane;
-  renderTree();save();requestLayout();
+  await activateDesktopTab({desk,id});requestLayout();
  }});
  const capture=createMouseCapture({N,show:d=>overlays.show(d),restore:requestLayout,locale:()=>m.locale});
  const browsing=createMouseBrowsing({N,openPage,selected,show:d=>overlays.show(d),restore:requestLayout,status:setStatus,locale:()=>m.locale,onSidebar:open=>{if(open)settingsUI?.close();m.libraryOpen=open;applySide();save()}});

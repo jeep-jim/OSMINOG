@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {EventEmitter}=require('node:events');
 const A='a'.repeat(32),B='b'.repeat(32),SITE='https://owned.example/page';
-function fixture(){
+function fixture({onSelect=()=>{}}={}){
  const app=new EventEmitter(),ipcMain=new EventEmitter(),module={exports:{}};
  const electron={app,ipcMain},source=fs.readFileSync(path.join(__dirname,'mouse-extension-compat.cjs'),'utf8');
  vm.runInNewContext('(function(require,module,exports){'+source+'\n})',{URL,Map,Set,WeakMap,WeakSet,Number,Object,Array,RegExp,Date,queueMicrotask})(name=>name==='electron'?electron:require(name),module,module.exports);
@@ -14,10 +14,50 @@ function fixture(){
   constructor(options){super();this.options=options;this.ctx={router:{delegate,listeners:new Map(),addListener(){},onExtensionMessage:async(...args)=>{calls.push(args);return result;},sendEvent:(...args)=>sent.push(args)},store:{getActiveTabOfCurrentWindow:()=>wc}};this.api={browserAction:{activateClick:()=>created++,getState:()=>({}),getPopupUrl:()=>null},permissions:{permissionMap:new Map([...ext].map(([id,e])=>[id,{permissions:e.manifest.permissions,origins:e.manifest.host_permissions}]))}};}
   addTab(){}selectTab(){}getContextMenuItems(){return[];}
  }
- const compat=module.exports.installExtensionCompatibility({browser,win,dialog:{showMessageBox:async()=>({response:1})},isAvailable:()=>available,Extensions:FakeExtensions});
+ const compat=module.exports.installExtensionCompatibility({browser,win,dialog:{showMessageBox:async()=>({response:1})},isAvailable:()=>available,onSelect,Extensions:FakeExtensions});
  const event=id=>({type:'frame',sender:{session},senderFrame:{url:'chrome-extension://'+id+'/popup.html'}});
- return{...module.exports,app,ipcMain,compat,router:compat.instance.ctx.router,ext,session,wc,page,event,sent,calls,listenerCalls,delegate,get created(){return created;},set result(v){result=v;},set available(v){available=v;}};
+ return{...module.exports,app,ipcMain,compat,router:compat.instance.ctx.router,ext,session,wc,page,browser,win,event,sent,calls,listenerCalls,delegate,get created(){return created;},set result(v){result=v;},set available(v){available=v;}};
 }
+// Execute the pinned dependency's actual selection path. The prior no-op fake
+// could not reproduce selectTab -> onActivated -> store -> implementation echo.
+function upstreamSelection(f){
+ const source=fs.readFileSync(require.resolve('electron-chrome-extensions'),'utf8');
+ const section=(start,end)=>{const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert.ok(a>=0&&b>a,start);return source.slice(a,b);};
+ const storeSource=section('var ExtensionStore = class','\n// src/browser/api/context-menus.ts');
+ const activationSource=section('  onActivated(tabId) {','\n};\n_TabsAPI.TAB_ID_NONE');
+ const selectionStart=source.lastIndexOf('  selectTab(tab) {'),selectionEnd=source.indexOf('\n  /**',selectionStart);
+ assert.ok(selectionStart>=0&&selectionEnd>selectionStart);
+ const exact=vm.runInNewContext(`(()=>{${storeSource};return{Store:ExtensionStore,onActivated:({${activationSource}}).onActivated,selectTab:({${source.slice(selectionStart,selectionEnd)}}).selectTab};})()`,{import_node_events2:{EventEmitter},import_electron4:{}});
+ const instance=f.compat.instance,store=new exact.Store(instance.options),events=[];
+ instance.ctx.store=store;instance.ctx.router.broadcastEvent=(...args)=>events.push(args);
+ instance.api.tabs={ctx:instance.ctx,onActivated:exact.onActivated};instance.checkWebContentsArgument=wc=>assert.equal(wc.session,f.session);instance.selectTab=exact.selectTab;
+ store.tabs.add(f.wc);store.tabToWindow.set(f.wc,f.win);
+ const reset=()=>store.windowToActiveTab.set(f.win,{id:42,isDestroyed:()=>false});reset();
+ return{instance,store,events,reset};
+}
+test('native focus synchronizes real upstream active state without requesting host placement',()=>{
+ const selected=[],f=fixture({onSelect:value=>selected.push(value)}),u=upstreamSelection(f);
+ for(const role of ['main','chat','preview']){
+  f.page.lane=role==='main'?'main':'side';f.page.previewOf=role==='preview'?'owned-chat':'';u.reset();
+  f.wc.emit('focus');assert.equal(u.store.getActiveTabFromWebContents(f.wc),f.wc);
+  assert.deepEqual(selected,[],role+' native focus is not an extension selection command');
+ }
+ assert.equal(u.events.filter(([name])=>name==='tabs.onActivated').length,3,'Extensions still receive native activation updates');
+});
+test('an explicit upstream selection requests exactly one host activation for main and side tabs',()=>{
+ const selected=[],f=fixture({onSelect:value=>selected.push(value)}),u=upstreamSelection(f);
+ for(const lane of ['main','side']){
+  f.page.lane=lane;u.reset();selected.length=0;
+  u.instance.api.tabs.onActivated(f.wc.id);
+  assert.deepEqual(JSON.parse(JSON.stringify(selected)),[{id:f.page.id,desk:'owned-desk'}]);
+  assert.equal(u.store.getActiveTabFromWebContents(f.wc),f.wc);
+ }
+});
+test('native extension action synchronization cannot place a side tab into the workspace',()=>{
+ const selected=[],f=fixture({onSelect:value=>selected.push(value)}),u=upstreamSelection(f);f.page.lane='side';
+ f.compat.activate(A,{tabId:f.page.id});
+ assert.equal(u.store.getActiveTabFromWebContents(f.wc),f.wc);assert.equal(f.created,1);assert.deepEqual(selected,[]);
+});
 test('Chrome match patterns never include privileged schemes or lookalike/subdomain suffixes',()=>{
  const f=fixture();for(const [pattern,url,match]of [['https://*.example.com/*','https://sub.example.com/a',true],['https://*.example.com/*','https://example.com/a',true],['https://*.example.com/*','https://example.com.evil/a',false],['<all_urls>','chrome-extension://'+A+'/x',false],['*://*/*','file:///private',false],['https://owned.example/path*','http://owned.example/path',false]])assert.equal(f.matchHost(pattern,url),match);
 });
@@ -77,4 +117,31 @@ test('activeTab permission follows the native action and clears on navigation or
  f.compat.activate(A,{tabId:f.page.id});assert.equal(f.created,1);assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,SITE);
  f.wc.emit('did-start-navigation',{},SITE+'/next',false,true);assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,undefined);
  f.compat.activate(A,{tabId:f.page.id});f.compat.suspend();assert.equal((await f.router.onExtensionMessage(f.event(A),A,'tabs.get',41)).url,undefined);
+});
+test('upstream native destruction callbacks finish without requesting another close',async()=>{
+ const f=fixture(),callbacks=f.compat.instance.options,closed=[];
+ f.browser.command=(...args)=>{closed.push(args);return Promise.resolve();};
+ // TabsAPI calls store.removeTab from webContents.destroyed; that store then
+ // calls the same implementation hook used by chrome.tabs.remove.
+ f.wc.once('destroyed',()=>callbacks.removeTab(f.wc));
+ f.wc.isDestroyed=()=>true;f.available=false;
+ assert.doesNotThrow(()=>f.wc.emit('destroyed'));
+ // WindowsAPI likewise calls store.removeWindow from BrowserWindow.closed.
+ const nativeWindow=new EventEmitter();nativeWindow.isDestroyed=()=>true;let removal;
+ nativeWindow.once('closed',()=>{removal=callbacks.removeWindow(nativeWindow);});
+ nativeWindow.emit('closed');await assert.doesNotReject(removal);
+ f.wc.isDestroyed=()=>false;f.browser.disposed=true;
+ assert.doesNotThrow(()=>callbacks.removeTab(f.wc));
+ f.browser.disposed=false;f.win.isDestroyed=()=>true;
+ assert.doesNotThrow(()=>callbacks.removeTab(f.wc));
+ assert.deepEqual(closed,[]);
+});
+test('live extension tab removal still closes its page and window removal stays forbidden',async()=>{
+ const f=fixture(),callbacks=f.compat.instance.options,closed=[];
+ f.browser.command=(...args)=>{closed.push(args);return Promise.resolve();};
+ callbacks.removeTab(f.wc);
+ assert.deepEqual(JSON.parse(JSON.stringify(closed)),[['close',{id:f.page.id}]]);
+ await assert.rejects(callbacks.removeWindow(f.win),/Расширение не может закрыть окно/);
+ f.available=false;assert.throws(()=>callbacks.removeTab(f.wc),/приватном/);
+ assert.equal(closed.length,1);
 });

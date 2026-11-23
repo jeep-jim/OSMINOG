@@ -13,17 +13,22 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
  const pages=()=>[...browser.tabs.values(),...browser.providers.values()];
  const pageFor=wc=>pages().find(page=>page.view.webContents===wc);
  const allowed=()=>{if(!isAvailable()||browser.disposed||win.isDestroyed())throw Error('Расширения недоступны в приватном режиме');};
- let instance,registering=0;const tracked=new WeakSet(),watched=new WeakSet(),gestures=new WeakMap(),activeGrants=new Map();
- const select=wc=>{if(registering)return;allowed();const page=pageFor(wc);if(!page||page.project!==browser.project)throw Error('Вкладка недоступна');instance.selectTab(wc);onSelect({id:page.id,desk:browser.state().desktopId});};
+ let instance,registering=0,syncingSelection=0;const tracked=new WeakSet(),watched=new WeakSet(),gestures=new WeakMap(),activeGrants=new Map();
+ // Upstream echoes selectTab() through its implementation callback. Native
+ // focus/action bookkeeping must not become a request to place a browser tab.
+ const syncSelection=wc=>{syncingSelection++;try{instance.selectTab(wc);}finally{syncingSelection--;}};
+ const select=wc=>{if(registering||syncingSelection)return;allowed();const page=pageFor(wc);if(!page||page.project!==browser.project)throw Error('Вкладка недоступна');syncSelection(wc);onSelect({id:page.id,desk:browser.state().desktopId});};
  instance=new Class({session:browser.session,
   createTab:async details=>{allowed();const url=details.url||'https://www.google.com/';let result;
    if(url.startsWith('chrome-extension://')){const parsed=new URL(url);result=browser.openManagedExtension({url,extensionId:parsed.hostname});}
    else result=browser.open({url,lane:'main'});
    const page=browser.get(result.id);track(page);if(details.active!==false)select(page.view.webContents);return[page.view.webContents,win];},
   selectTab:wc=>select(wc),
-  removeTab:wc=>{allowed();const page=pageFor(wc);if(page)void browser.command('close',{id:page.id});},
+  // Upstream also invokes these callbacks from native destroyed/closed events.
+  // Those are bookkeeping notifications, not extension requests to close again.
+  removeTab:wc=>{if(wc.isDestroyed()||browser.disposed||win.isDestroyed())return;allowed();const page=pageFor(wc);if(page)void browser.command('close',{id:page.id});},
   createWindow:async()=>{throw Error('Создание отдельных окон расширением пока не поддерживается; используйте вкладки.');},
-  removeWindow:async()=>{throw Error('Расширение не может закрыть окно Mouse.');},
+  removeWindow:async target=>{if(target.isDestroyed())return;throw Error('Расширение не может закрыть окно Mouse.');},
   requestPermissions:async(extension,request)=>{
    allowed();const manifest=extension.manifest,permissions=request.permissions||[],origins=request.origins||[];
    if(!Array.isArray(permissions)||!Array.isArray(origins)||permissions.length>100||origins.length>100) return false;
@@ -129,7 +134,7 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
  }
  function watchContents(_event,wc){if(!wc||wc.session!==browser.session||watched.has(wc))return;watched.add(wc);const input=(_event,event)=>{if((event.type==='mouseDown'&&event.button==='left')||(event.type==='keyDown'&&['Enter',' ','Space'].includes(event.key)))gestures.set(wc,Date.now());};wc.on('before-mouse-event',input);wc.on('before-input-event',input);}
  app.on('web-contents-created',watchContents);
- function track(page){const wc=page.view.webContents;if(tracked.has(wc)||page.managedExtension||wc.isDestroyed())return;tracked.add(wc);registering++;try{instance.addTab(wc,win);}finally{registering--;}wc.on('focus',()=>{if(isAvailable())instance.selectTab(wc);});wc.on('did-start-navigation',(_e,_url,inPlace,main)=>{if(main!==false&&!inPlace)for(const [id,target]of activeGrants)if(target===wc.id)activeGrants.delete(id);});}
+ function track(page){const wc=page.view.webContents;if(tracked.has(wc)||page.managedExtension||wc.isDestroyed())return;tracked.add(wc);registering++;try{instance.addTab(wc,win);}finally{registering--;}wc.on('focus',()=>{if(isAvailable())syncSelection(wc);});wc.on('did-start-navigation',(_e,_url,inPlace,main)=>{if(main!==false&&!inPlace)for(const [id,target]of activeGrants)if(target===wc.id)activeGrants.delete(id);});}
  const make=browser.make.bind(browser);browser.make=(...args)=>{const page=make(...args);if(pageFor(page.view.webContents))track(page);else queueMicrotask(()=>{if(pageFor(page.view.webContents)&&!page.view.webContents.isDestroyed())track(page);});return page;};for(const page of pages())track(page);
  let updateQueued=false;const changed=()=>{if(updateQueued)return;updateQueued=true;queueMicrotask(()=>{updateQueued=false;try{onChanged();}catch{}});};
  browser.session.extensions.on('extension-loaded',changed);browser.session.extensions.on('extension-unloaded',changed);
@@ -137,7 +142,7 @@ function installExtensionCompatibility({browser,win,dialog,isAvailable,onChanged
  return Object.freeze({
   instance,
   activate(id,{tabId,anchor}={}){allowed();if(!ID.test(id||'')||!browser.session.extensions.getExtension(id))throw Error('Расширение выключено');
-   const page=typeof tabId==='string'?pages().find(p=>p.id===tabId&&!p.managedExtension):null;if(page)instance.selectTab(page.view.webContents);
+   const page=typeof tabId==='string'?pages().find(p=>p.id===tabId&&!p.managedExtension):null;if(page)syncSelection(page.view.webContents);
    const current=page?.view.webContents||instance.ctx.store.getActiveTabOfCurrentWindow();if(!current||current.isDestroyed())throw Error('Сначала откройте страницу для расширения');
    const ext=browser.session.extensions.getExtension(id);if(ext.manifest.permissions?.includes('activeTab'))activeGrants.set(id,current.id);
    const popup=action.getPopupUrl(id,current.id);if(popup&&!extensionOrigin(popup,id))throw Error('Всплывающее окно должно принадлежать расширению');
