@@ -19,6 +19,13 @@ import xml.etree.ElementTree as ET
 
 
 ORIGIN = "https://mouse.black"
+# These are user-activated help links inside the installation dialog, never
+# installers, assets, redirects or runtime dependencies. Everything else remains
+# subject to the same-origin gate.
+INSTALL_HELP_URLS = {
+    "https://support.apple.com/102445",
+    "https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation",
+}
 EXPECTED_CODES = (
     "ru en sq am ar hy bn bs bg my ca zh-Hans zh-Hant hr cs da nl et fi fr ka de "
     "el gu hi hu is id it ja kn kk ko lv lt mk ms ml mr mn nb fa pl pt-BR pt-PT "
@@ -421,6 +428,13 @@ class Verifier:
                 continue
             if url.startswith("#"):
                 self.check(url == "#" or unquote(url[1:]) in ids, f"{source}: broken fragment link: {url}")
+                continue
+            if (url in INSTALL_HELP_URLS and
+                    "install-source" in (node.attrs.get("class") or "").split() and
+                    any(parent.attrs.get("id") == "install-guide" for parent in node.ancestors()) and
+                    node.attrs.get("target") == "_blank" and
+                    {"noopener", "noreferrer"} <= set((node.attrs.get("rel") or "").split()) and
+                    "download" not in node.attrs and "data-platform" not in node.attrs):
                 continue
             parsed = urlsplit(url)
             if parsed.scheme or parsed.netloc:

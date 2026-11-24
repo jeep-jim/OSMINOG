@@ -109,6 +109,28 @@ class RendererTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 builder.public_downloads(invalid)
 
+    def test_install_help_exception_does_not_allow_external_downloads_or_assets(self):
+        manifest = self.candidate(['6.0.37'] * 3)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / 'site'
+            self.render(output, manifest)
+            path = output / 'ru/index.html'
+            html = path.read_text()
+            # Even an approved help URL cannot become a download. A lookalike
+            # host, a link outside the help dialog, and an external image fail.
+            html = html.replace('class="install-source"', 'download="setup.exe" class="install-source"', 1)
+            html = html.replace('</body>', '''
+<a class="install-source" href="https://support.apple.com.invalid.example/102445" target="_blank" rel="noopener noreferrer">Help</a>
+<a class="install-source" href="https://support.apple.com/102445" target="_blank" rel="noopener noreferrer">Outside dialog</a>
+<img src="https://support.apple.com/102445" alt="External asset">
+</body>''')
+            path.write_text(html)
+            verifier = seo.Verifier(output, downloads=manifest, catalog=self.catalog)
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(verifier.run(), 1)
+            self.assertEqual(sum('external page link' in error for error in verifier.errors), 3)
+            self.assertTrue(any('asset must use a root-absolute same-origin path' in error for error in verifier.errors))
+
 
 if __name__ == '__main__':
     unittest.main()

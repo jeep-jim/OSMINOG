@@ -14,13 +14,17 @@
   <script src="/i18n.js" defer></script>
   <script src="/language-picker.js" defer></script>
   <script src="/downloads-current.js" defer></script>
+  <script src="/manifest.js" defer></script>
   <script src="/site.js" defer></script>
+  <script src="/manifest-city.js" defer></script>
   <script src="/showcase-assets.js" defer></script>
   <script src="/showcase.js" defer></script>
   <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/showcase.css">
   <link rel="stylesheet" href="/language-picker.css">
   <link rel="stylesheet" href="/features.css">
+  <link rel="stylesheet" href="/manifest-city.css">
+  <link rel="stylesheet" href="/manifest.css">
 </head>
 <body>
   <div class="first-screen">
@@ -39,13 +43,19 @@
   <main id="main">
     <section class="hero hero-split" aria-labelledby="headline">
       <div class="hero-copy-window">
-        <div class="hero-copy-chrome" aria-hidden="true">
+        <div class="hero-copy-chrome">
           <svg class="hero-split-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M10 3v14"/><path d="M4.5 5.5h3v9h-3Z" fill="currentColor" stroke="none"/></svg>
-          <span class="hero-copy-tab">Mouse</span>
+          <span class="hero-copy-tab" data-i18n="manifestLabel">Манифест</span>
+          <p class="manifest-caption" data-i18n="manifestCaption">Свобода начинается с выбора</p>
           <span class="hero-copy-address">mouse.black</span>
         </div>
         <div class="hero-copy">
           <div class="hero-mascot">
+            <div class="manifest-city" aria-hidden="true"><canvas></canvas></div>
+            <button class="city-pause" type="button" data-city-pause aria-pressed="false" aria-label="Остановить мышиный марш" data-i18n-aria="cityPause">
+              <svg data-city-pause-icon viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 3h3v10H4zm5 0h3v10H9z"/></svg>
+              <svg data-city-play-icon viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="m4 2 9 6-9 6z"/></svg>
+            </button>
       <div class="burrow-stage">
         <svg class="burrow" viewBox="0 0 280 240" role="img" aria-labelledby="mouse-title">
           <title id="mouse-title" data-i18n="mouseLabel">Мышка выглядывает из норки и моргает</title>
@@ -93,6 +103,15 @@
           </div>
         </details>
       </div>
+      <aside class="hero-manifest" aria-labelledby="manifest-lead">
+        <p class="manifest-lead" id="manifest-lead" data-i18n="manifestLead">Мышь пошла на принципы.</p>
+        <p class="manifest-summary" data-i18n="manifestSummary">За свободный выбор программ. За независимое распространение. Установка — с короткой инструкцией.</p>
+        <div class="manifest-links">
+          <button class="manifest-text-button" type="button" data-manifest-open data-i18n="manifestRead">Манифест Mouse</button>
+          <button class="manifest-text-button manifest-guide-link" type="button" data-install-guide="macos" aria-label="Установка на Mac" data-i18n-aria="installMacTitle">Mac</button>
+          <button class="manifest-text-button manifest-guide-link" type="button" data-install-guide="windows" aria-label="Установка на Windows" data-i18n-aria="installWindowsTitle">Windows</button>
+        </div>
+      </aside>
         </div>
       </div>
       <div class="hero-visual">
@@ -261,5 +280,60 @@
       </nav>
     </div>
   </section>
+  <dialog class="mouse-modal" id="manifest-dialog" aria-labelledby="manifest-title">
+    <div class="mouse-modal-header">
+      <span class="mouse-modal-eyebrow" data-i18n="manifestRead">Манифест Mouse</span>
+      <button class="mouse-modal-close" type="button" data-modal-close aria-label="Закрыть" data-i18n-aria="installClose"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13"/></svg></button>
+    </div>
+    <div class="mouse-modal-body">
+      <h2 id="manifest-title" data-i18n="manifestTitle">Твой компьютер. Твой выбор.</h2>
+      <p class="manifest-position" data-i18n="manifestBody">Мы против платы за право распространять свой инструмент. Mouse приходит прямо от команды к тебе. Для текущей версии мы выбрали независимый выпуск без платных сертификатов.</p>
+      <p class="manifest-position" data-i18n="manifestPrivacy">Профиль и автосохранения хранятся на твоём устройстве. Мы за удобство без слежки. У сайтов, которые ты открываешь, свои правила конфиденциальности.</p>
+      <p class="manifest-reality" data-i18n="manifestSigning">Текущая сборка macOS не нотариализована Apple, а установщик Windows не имеет подписи издателя. Поэтому система может показать предупреждение. Отсутствие подписи само по себе не доказывает безопасность или приватность.</p>
+      <div class="manifest-links">
+        <button class="manifest-text-button" type="button" data-install-guide="macos" data-i18n="installMacTitle">Установка на Mac</button>
+        <button class="manifest-text-button" type="button" data-install-guide="windows" data-i18n="installWindowsTitle">Установка на Windows</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog class="mouse-modal" id="install-guide" aria-labelledby="install-title">
+    <div class="mouse-modal-header">
+      <span class="mouse-modal-eyebrow" data-i18n="installGuide">Как установить Mouse</span>
+      <button class="mouse-modal-close" type="button" data-modal-close aria-label="Закрыть" data-i18n-aria="installClose"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13"/></svg></button>
+    </div>
+    <div class="mouse-modal-body">
+      <div class="install-tabs" role="tablist" aria-label="Как установить Mouse" data-i18n-aria="installGuide">
+        <button class="install-tab" id="install-tab-macos" type="button" role="tab" data-install-tab="macos" aria-controls="install-panel-macos" aria-selected="true">Mac</button>
+        <button class="install-tab" id="install-tab-windows" type="button" role="tab" data-install-tab="windows" aria-controls="install-panel-windows" aria-selected="false" tabindex="-1">Windows</button>
+      </div>
+      <h2 id="install-title" data-i18n="installMacTitle">Установка на Mac</h2>
+      <section data-install-panel="macos" id="install-panel-macos" role="tabpanel" aria-labelledby="install-tab-macos">
+        <p class="install-intro" data-i18n="installMacIntro">Для Mac с Apple Silicon. Эта сборка пока без нотариализации Apple.</p>
+        <ol class="install-steps">
+          <li data-i18n="installMacStep1">Открой скачанный DMG и перетащи Mouse в «Программы».</li>
+          <li data-i18n="installMacStep2">Запусти Mouse. Если macOS не может проверить разработчика, открой «Системные настройки» → «Конфиденциальность и безопасность».</li>
+          <li data-i18n="installMacStep3">Если доверяешь файлу с mouse.black, выбери «Всё равно открыть» (Open Anyway) и подтверди запуск.</li>
+        </ol>
+        <a class="install-source" href="https://support.apple.com/102445" target="_blank" rel="noopener noreferrer" data-i18n="installSource">Инструкция производителя системы</a>
+      </section>
+      <section data-install-panel="windows" id="install-panel-windows" role="tabpanel" aria-labelledby="install-tab-windows" hidden>
+        <p class="install-intro" data-i18n="installWindowsIntro">Для Windows x64. Установщик пока без цифровой подписи издателя.</p>
+        <ol class="install-steps">
+          <li data-i18n="installWindowsStep1">Запусти установщик, скачанный с mouse.black.</li>
+          <li data-i18n="installWindowsStep2">Если SmartScreen сообщает о нераспознанном приложении, нажми «Подробнее» (More info).</li>
+          <li data-i18n="installWindowsStep3">Проверь имя файла. Если доверяешь ему и кнопка доступна, нажми «Выполнить в любом случае» (Run anyway).</li>
+        </ol>
+        <p class="install-limit" data-i18n="installWindowsLimit">Если кнопки продолжения нет, Smart App Control или правила администратора могут блокировать запуск. Эти шаги такую блокировку не снимают.</p>
+        <a class="install-source" href="https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation" target="_blank" rel="noopener noreferrer" data-i18n="installSource">Инструкция производителя системы</a>
+      </section>
+      <p class="install-safety" data-i18n="installSafety">Эти шаги — для предупреждения о непроверенном издателе. При сообщении о вредоносном или повреждённом файле остановись. Защиту системы отключать не нужно.</p>
+      <div class="install-file">
+        <span class="install-file-label" data-i18n="installFile">Файл с mouse.black</span>
+        <code class="install-filename" data-install-filename></code>
+        <button class="install-retry" type="button" data-install-retry data-i18n="installRetry">Скачать файл</button>
+      </div>
+      <p class="install-download-note" data-i18n="installDownloadNote">Инструкция останется открытой. Скачивание файла отображается в браузере.</p>
+    </div>
+  </dialog>
 </body>
 </html>

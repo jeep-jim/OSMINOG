@@ -24,7 +24,12 @@
     "showcaseScenesLabel": "Сценарии рабочего стола",
     "showcaseMove": "Переместить окно",
     "showcaseResize": "Изменить размер окон",
-    "showcaseRestore": "Вернуть сетку"
+    "showcaseRestore": "Вернуть сетку",
+    "showcaseTry": "Попробуй сам",
+    "showcaseWindows": "Окна",
+    "showcaseSideBySide": "Рядом",
+    "showcaseStacked": "Друг над другом",
+    "showcaseTabs": "Открытые вкладки"
   },
   "en": {
     "showcaseTitle": "Your screen, your flow",
@@ -51,7 +56,12 @@
     "showcaseScenesLabel": "Workspace scenes",
     "showcaseMove": "Move window",
     "showcaseResize": "Resize windows",
-    "showcaseRestore": "Restore grid"
+    "showcaseRestore": "Restore grid",
+    "showcaseTry": "Try it yourself",
+    "showcaseWindows": "Windows",
+    "showcaseSideBySide": "Side by side",
+    "showcaseStacked": "Stacked",
+    "showcaseTabs": "Open tabs"
   },
   "sq": {
     "showcaseTitle": "Ekrani yt, ritmi yt",
@@ -78,7 +88,12 @@
     "showcaseScenesLabel": "Skena të hapësirës së punës",
     "showcaseMove": "Zhvendos dritaren",
     "showcaseResize": "Ndrysho madhësinë e dritareve",
-    "showcaseRestore": "Rikthe rrjetën"
+    "showcaseRestore": "Rikthe rrjetën",
+    "showcaseTry": "Provoje vetë",
+    "showcaseWindows": "Dritare",
+    "showcaseSideBySide": "Krah për krah",
+    "showcaseStacked": "Njëra mbi tjetrën",
+    "showcaseTabs": "Skedat e hapura"
   },
   "am": {
     "showcaseTitle": "የእርስዎ ማያ ገጽ፣ የእርስዎ የሥራ ሂደት",
@@ -105,7 +120,12 @@
     "showcaseScenesLabel": "የሥራ ቦታ ትዕይንቶች",
     "showcaseMove": "መስኮቱን አንቀሳቅስ",
     "showcaseResize": "የመስኮቶችን መጠን ቀይር",
-    "showcaseRestore": "ፍርግርጉን መልስ"
+    "showcaseRestore": "ፍርግርጉን መልስ",
+    "showcaseTry": "ራስዎ ይሞክሩ",
+    "showcaseWindows": "መስኮቶች",
+    "showcaseSideBySide": "ጎን ለጎን",
+    "showcaseStacked": "ከላይ ወደ ታች",
+    "showcaseTabs": "ክፍት ትሮች"
   },
   "ar": {
     "showcaseTitle": "شاشتك، إيقاعك",
@@ -132,7 +152,12 @@
     "showcaseScenesLabel": "مشاهد مساحة العمل",
     "showcaseMove": "تحريك النافذة",
     "showcaseResize": "تغيير حجم النوافذ",
-    "showcaseRestore": "استعادة الشبكة"
+    "showcaseRestore": "استعادة الشبكة",
+    "showcaseTry": "جرّب بنفسك",
+    "showcaseWindows": "النوافذ",
+    "showcaseSideBySide": "جنبًا إلى جنب",
+    "showcaseStacked": "فوق بعضها",
+    "showcaseTabs": "علامات التبويب المفتوحة"
   },
   "hy": {
     "showcaseTitle": "Քո էկրանը, քո ռիթմը",
@@ -159,7 +184,12 @@
     "showcaseScenesLabel": "Աշխատանքային տարածքի տեսարաններ",
     "showcaseMove": "Տեղափոխել պատուհանը",
     "showcaseResize": "Փոխել պատուհանների չափը",
-    "showcaseRestore": "Վերականգնել ցանցը"
+    "showcaseRestore": "Վերականգնել ցանցը",
+    "showcaseTry": "Փորձիր ինքդ",
+    "showcaseWindows": "Պատուհաններ",
+    "showcaseSideBySide": "Կողք կողքի",
+    "showcaseStacked": "Մեկը մյուսի վերևում",
+    "showcaseTabs": "Բաց ներդիրներ"
   },
   "bn": {
     "showcaseTitle": "আপনার স্ক্রিন, আপনার ছন্দ",
@@ -186,7 +216,12 @@
     "showcaseScenesLabel": "কর্মক্ষেত্রের দৃশ্য",
     "showcaseMove": "উইন্ডো সরান",
     "showcaseResize": "উইন্ডোগুলোর আকার বদলান",
-    "showcaseRestore": "গ্রিড ফিরিয়ে আনুন"
+    "showcaseRestore": "গ্রিড ফিরিয়ে আনুন",
+    "showcaseTry": "নিজে চেষ্টা করুন",
+    "showcaseWindows": "উইন্ডো",
+    "showcaseSideBySide": "পাশাপাশি",
+    "showcaseStacked": "একটির উপরে অন্যটি",
+    "showcaseTabs": "খোলা ট্যাব"
   },
   "bs": {
     "showcaseTitle": "Tvoj ekran, tvoj ritam",
@@ -213,7 +248,12 @@
     "showcaseScenesLabel": "Scene radnog prostora",
     "showcaseMove": "Pomjeri prozor",
     "showcaseResize": "Promijeni veličinu prozora",
-    "showcaseRestore": "Vrati mrežu"
+    "showcaseRestore": "Vrati mrežu",
+    "showcaseTry": "Isprobaj sam",
+    "showcaseWindows": "Prozori",
+    "showcaseSideBySide": "Jedan pored drugog",
+    "showcaseStacked": "Jedan iznad drugog",
+    "showcaseTabs": "Otvorene kartice"
   },
   "bg": {
     "showcaseTitle": "Твоят екран, твоят ритъм",
@@ -240,7 +280,12 @@
     "showcaseScenesLabel": "Сцени на работното пространство",
     "showcaseMove": "Премести прозореца",
     "showcaseResize": "Промени размера на прозорците",
-    "showcaseRestore": "Възстанови мрежата"
+    "showcaseRestore": "Възстанови мрежата",
+    "showcaseTry": "Опитай сам",
+    "showcaseWindows": "Прозорци",
+    "showcaseSideBySide": "Един до друг",
+    "showcaseStacked": "Един над друг",
+    "showcaseTabs": "Отворени раздели"
   },
   "my": {
     "showcaseTitle": "သင့်မျက်နှာပြင်၊ သင့်အလုပ်စီးဆင်းမှု",
@@ -267,7 +312,12 @@
     "showcaseScenesLabel": "အလုပ်နေရာမြင်ကွင်းများ",
     "showcaseMove": "ဝင်းဒိုးကို ရွှေ့ရန်",
     "showcaseResize": "ဝင်းဒိုးများ၏ အရွယ်အစားပြောင်းရန်",
-    "showcaseRestore": "ဇယားကွက်ကို မူလအတိုင်း ပြန်ထားရန်"
+    "showcaseRestore": "ဇယားကွက်ကို မူလအတိုင်း ပြန်ထားရန်",
+    "showcaseTry": "ကိုယ်တိုင် စမ်းကြည့်ပါ",
+    "showcaseWindows": "ဝင်းဒိုးများ",
+    "showcaseSideBySide": "ဘေးချင်းယှဉ်",
+    "showcaseStacked": "အပေါ်အောက်",
+    "showcaseTabs": "ဖွင့်ထားသော တက်ဘ်များ"
   },
   "ca": {
     "showcaseTitle": "La teva pantalla, el teu ritme",
@@ -294,7 +344,12 @@
     "showcaseScenesLabel": "Escenes de l'espai de treball",
     "showcaseMove": "Mou la finestra",
     "showcaseResize": "Canvia la mida de les finestres",
-    "showcaseRestore": "Restaura la graella"
+    "showcaseRestore": "Restaura la graella",
+    "showcaseTry": "Prova-ho tu mateix",
+    "showcaseWindows": "Finestres",
+    "showcaseSideBySide": "De costat",
+    "showcaseStacked": "Una sobre l’altra",
+    "showcaseTabs": "Pestanyes obertes"
   },
   "zh-Hans": {
     "showcaseTitle": "你的屏幕，你的节奏",
@@ -321,7 +376,12 @@
     "showcaseScenesLabel": "工作区场景",
     "showcaseMove": "移动窗口",
     "showcaseResize": "调整窗口大小",
-    "showcaseRestore": "还原网格"
+    "showcaseRestore": "还原网格",
+    "showcaseTry": "亲自试试看",
+    "showcaseWindows": "窗口",
+    "showcaseSideBySide": "并排",
+    "showcaseStacked": "上下排列",
+    "showcaseTabs": "已打开的标签页"
   },
   "zh-Hant": {
     "showcaseTitle": "你的螢幕，你的節奏",
@@ -348,7 +408,12 @@
     "showcaseScenesLabel": "工作區場景",
     "showcaseMove": "移動視窗",
     "showcaseResize": "調整視窗大小",
-    "showcaseRestore": "還原網格"
+    "showcaseRestore": "還原網格",
+    "showcaseTry": "親自試試看",
+    "showcaseWindows": "視窗",
+    "showcaseSideBySide": "並排",
+    "showcaseStacked": "上下排列",
+    "showcaseTabs": "已開啟的分頁"
   },
   "hr": {
     "showcaseTitle": "Tvoj zaslon, tvoj ritam",
@@ -375,7 +440,12 @@
     "showcaseScenesLabel": "Scene radnog prostora",
     "showcaseMove": "Pomakni prozor",
     "showcaseResize": "Promijeni veličinu prozora",
-    "showcaseRestore": "Vrati mrežu"
+    "showcaseRestore": "Vrati mrežu",
+    "showcaseTry": "Isprobaj sam",
+    "showcaseWindows": "Prozori",
+    "showcaseSideBySide": "Jedan pokraj drugog",
+    "showcaseStacked": "Jedan iznad drugog",
+    "showcaseTabs": "Otvorene kartice"
   },
   "cs": {
     "showcaseTitle": "Tvoje obrazovka, tvoje tempo",
@@ -402,7 +472,12 @@
     "showcaseScenesLabel": "Scény pracovního prostoru",
     "showcaseMove": "Přesunout okno",
     "showcaseResize": "Změnit velikost oken",
-    "showcaseRestore": "Obnovit mřížku"
+    "showcaseRestore": "Obnovit mřížku",
+    "showcaseTry": "Vyzkoušej si to",
+    "showcaseWindows": "Okna",
+    "showcaseSideBySide": "Vedle sebe",
+    "showcaseStacked": "Nad sebou",
+    "showcaseTabs": "Otevřené karty"
   },
   "da": {
     "showcaseTitle": "Din skærm, dit flow",
@@ -429,7 +504,12 @@
     "showcaseScenesLabel": "Scener med arbejdsområder",
     "showcaseMove": "Flyt vindue",
     "showcaseResize": "Tilpas vinduernes størrelse",
-    "showcaseRestore": "Gendan gitter"
+    "showcaseRestore": "Gendan gitter",
+    "showcaseTry": "Prøv selv",
+    "showcaseWindows": "Vinduer",
+    "showcaseSideBySide": "Side om side",
+    "showcaseStacked": "Over hinanden",
+    "showcaseTabs": "Åbne faner"
   },
   "nl": {
     "showcaseTitle": "Jouw scherm, jouw ritme",
@@ -456,7 +536,12 @@
     "showcaseScenesLabel": "Werkruimtescènes",
     "showcaseMove": "Venster verplaatsen",
     "showcaseResize": "Vensterformaten wijzigen",
-    "showcaseRestore": "Raster herstellen"
+    "showcaseRestore": "Raster herstellen",
+    "showcaseTry": "Probeer het zelf",
+    "showcaseWindows": "Vensters",
+    "showcaseSideBySide": "Naast elkaar",
+    "showcaseStacked": "Boven elkaar",
+    "showcaseTabs": "Geopende tabbladen"
   },
   "et": {
     "showcaseTitle": "Sinu ekraan, sinu rütm",
@@ -483,7 +568,12 @@
     "showcaseScenesLabel": "Tööruumi stseenid",
     "showcaseMove": "Liiguta akent",
     "showcaseResize": "Muuda akende suurust",
-    "showcaseRestore": "Taasta ruudustik"
+    "showcaseRestore": "Taasta ruudustik",
+    "showcaseTry": "Proovi ise",
+    "showcaseWindows": "Aknad",
+    "showcaseSideBySide": "Kõrvuti",
+    "showcaseStacked": "Üksteise kohal",
+    "showcaseTabs": "Avatud vahelehed"
   },
   "fi": {
     "showcaseTitle": "Sinun näyttösi, sinun rytmisi",
@@ -510,7 +600,12 @@
     "showcaseScenesLabel": "Työtilanäkymät",
     "showcaseMove": "Siirrä ikkunaa",
     "showcaseResize": "Muuta ikkunoiden kokoa",
-    "showcaseRestore": "Palauta ruudukko"
+    "showcaseRestore": "Palauta ruudukko",
+    "showcaseTry": "Kokeile itse",
+    "showcaseWindows": "Ikkunat",
+    "showcaseSideBySide": "Vierekkäin",
+    "showcaseStacked": "Päällekkäin",
+    "showcaseTabs": "Avoimet välilehdet"
   },
   "fr": {
     "showcaseTitle": "Votre écran, votre rythme",
@@ -537,7 +632,12 @@
     "showcaseScenesLabel": "Scènes d’espace de travail",
     "showcaseMove": "Déplacer la fenêtre",
     "showcaseResize": "Redimensionner les fenêtres",
-    "showcaseRestore": "Rétablir la grille"
+    "showcaseRestore": "Rétablir la grille",
+    "showcaseTry": "Essayez vous-même",
+    "showcaseWindows": "Fenêtres",
+    "showcaseSideBySide": "Côte à côte",
+    "showcaseStacked": "Superposées",
+    "showcaseTabs": "Onglets ouverts"
   },
   "ka": {
     "showcaseTitle": "შენი ეკრანი, შენი რიტმი",
@@ -564,7 +664,12 @@
     "showcaseScenesLabel": "სამუშაო სივრცის სცენები",
     "showcaseMove": "ფანჯრის გადატანა",
     "showcaseResize": "ფანჯრების ზომის შეცვლა",
-    "showcaseRestore": "ბადის აღდგენა"
+    "showcaseRestore": "ბადის აღდგენა",
+    "showcaseTry": "თავად სცადე",
+    "showcaseWindows": "ფანჯრები",
+    "showcaseSideBySide": "გვერდიგვერდ",
+    "showcaseStacked": "ერთმანეთის ზემოთ",
+    "showcaseTabs": "ღია ჩანართები"
   },
   "de": {
     "showcaseTitle": "Dein Bildschirm, dein Flow",
@@ -591,7 +696,12 @@
     "showcaseScenesLabel": "Arbeitsbereich-Szenen",
     "showcaseMove": "Fenster verschieben",
     "showcaseResize": "Fenstergröße ändern",
-    "showcaseRestore": "Raster wiederherstellen"
+    "showcaseRestore": "Raster wiederherstellen",
+    "showcaseTry": "Probiere es selbst",
+    "showcaseWindows": "Fenster",
+    "showcaseSideBySide": "Nebeneinander",
+    "showcaseStacked": "Übereinander",
+    "showcaseTabs": "Geöffnete Tabs"
   },
   "el": {
     "showcaseTitle": "Η οθόνη σου, ο ρυθμός σου",
@@ -618,7 +728,12 @@
     "showcaseScenesLabel": "Σκηνές χώρου εργασίας",
     "showcaseMove": "Μετακίνηση παραθύρου",
     "showcaseResize": "Αλλαγή μεγέθους παραθύρων",
-    "showcaseRestore": "Επαναφορά πλέγματος"
+    "showcaseRestore": "Επαναφορά πλέγματος",
+    "showcaseTry": "Δοκίμασέ το",
+    "showcaseWindows": "Παράθυρα",
+    "showcaseSideBySide": "Δίπλα δίπλα",
+    "showcaseStacked": "Το ένα πάνω από το άλλο",
+    "showcaseTabs": "Ανοιχτές καρτέλες"
   },
   "gu": {
     "showcaseTitle": "તમારી સ્ક્રીન, તમારી લય",
@@ -645,7 +760,12 @@
     "showcaseScenesLabel": "કાર્યસ્થળનાં દૃશ્યો",
     "showcaseMove": "વિન્ડો ખસેડો",
     "showcaseResize": "વિન્ડોનાં કદ બદલો",
-    "showcaseRestore": "ગ્રીડ પાછી લાવો"
+    "showcaseRestore": "ગ્રીડ પાછી લાવો",
+    "showcaseTry": "જાતે અજમાવો",
+    "showcaseWindows": "વિન્ડોઝ",
+    "showcaseSideBySide": "બાજુબાજુ",
+    "showcaseStacked": "એકની ઉપર બીજું",
+    "showcaseTabs": "ખુલ્લા ટૅબ"
   },
   "hi": {
     "showcaseTitle": "आपकी स्क्रीन, आपकी लय",
@@ -672,7 +792,12 @@
     "showcaseScenesLabel": "कार्यक्षेत्र के दृश्य",
     "showcaseMove": "विंडो खिसकाएँ",
     "showcaseResize": "विंडो के आकार बदलें",
-    "showcaseRestore": "ग्रिड वापस लाएँ"
+    "showcaseRestore": "ग्रिड वापस लाएँ",
+    "showcaseTry": "खुद आज़माएँ",
+    "showcaseWindows": "विंडो",
+    "showcaseSideBySide": "अगल-बगल",
+    "showcaseStacked": "ऊपर-नीचे",
+    "showcaseTabs": "खुले टैब"
   },
   "hu": {
     "showcaseTitle": "A te képernyőd, a te ritmusod",
@@ -699,7 +824,12 @@
     "showcaseScenesLabel": "Munkatérjelenetek",
     "showcaseMove": "Ablak áthelyezése",
     "showcaseResize": "Ablakok átméretezése",
-    "showcaseRestore": "Rács visszaállítása"
+    "showcaseRestore": "Rács visszaállítása",
+    "showcaseTry": "Próbáld ki",
+    "showcaseWindows": "Ablakok",
+    "showcaseSideBySide": "Egymás mellett",
+    "showcaseStacked": "Egymás felett",
+    "showcaseTabs": "Megnyitott lapok"
   },
   "is": {
     "showcaseTitle": "Þinn skjár, þinn taktur",
@@ -726,7 +856,12 @@
     "showcaseScenesLabel": "Atriði úr vinnusvæðum",
     "showcaseMove": "Færa glugga",
     "showcaseResize": "Breyta stærð glugga",
-    "showcaseRestore": "Endurheimta grind"
+    "showcaseRestore": "Endurheimta grind",
+    "showcaseTry": "Prófaðu sjálf/ur",
+    "showcaseWindows": "Gluggar",
+    "showcaseSideBySide": "Hlið við hlið",
+    "showcaseStacked": "Hver yfir öðrum",
+    "showcaseTabs": "Opnir flipar"
   },
   "id": {
     "showcaseTitle": "Layarmu, alurmu",
@@ -753,7 +888,12 @@
     "showcaseScenesLabel": "Adegan ruang kerja",
     "showcaseMove": "Pindahkan jendela",
     "showcaseResize": "Ubah ukuran jendela",
-    "showcaseRestore": "Pulihkan kisi"
+    "showcaseRestore": "Pulihkan kisi",
+    "showcaseTry": "Coba sendiri",
+    "showcaseWindows": "Jendela",
+    "showcaseSideBySide": "Berdampingan",
+    "showcaseStacked": "Bertumpuk",
+    "showcaseTabs": "Tab terbuka"
   },
   "it": {
     "showcaseTitle": "Il tuo schermo, il tuo ritmo",
@@ -780,7 +920,12 @@
     "showcaseScenesLabel": "Scene degli spazi di lavoro",
     "showcaseMove": "Sposta finestra",
     "showcaseResize": "Ridimensiona le finestre",
-    "showcaseRestore": "Ripristina griglia"
+    "showcaseRestore": "Ripristina griglia",
+    "showcaseTry": "Prova tu stesso",
+    "showcaseWindows": "Finestre",
+    "showcaseSideBySide": "Affiancate",
+    "showcaseStacked": "Una sopra l’altra",
+    "showcaseTabs": "Schede aperte"
   },
   "ja": {
     "showcaseTitle": "あなたの画面、あなたのペース",
@@ -807,7 +952,12 @@
     "showcaseScenesLabel": "ワークスペースのシーン",
     "showcaseMove": "ウィンドウを移動",
     "showcaseResize": "ウィンドウのサイズを変更",
-    "showcaseRestore": "グリッドを元に戻す"
+    "showcaseRestore": "グリッドを元に戻す",
+    "showcaseTry": "自分で試してみよう",
+    "showcaseWindows": "ウィンドウ",
+    "showcaseSideBySide": "左右に並べる",
+    "showcaseStacked": "上下に並べる",
+    "showcaseTabs": "開いているタブ"
   },
   "kn": {
     "showcaseTitle": "ನಿಮ್ಮ ಪರದೆ, ನಿಮ್ಮ ಲಯ",
@@ -834,7 +984,12 @@
     "showcaseScenesLabel": "ಕಾರ್ಯಕ್ಷೇತ್ರದ ದೃಶ್ಯಗಳು",
     "showcaseMove": "ವಿಂಡೋ ಸರಿಸಿ",
     "showcaseResize": "ವಿಂಡೋಗಳ ಗಾತ್ರ ಬದಲಿಸಿ",
-    "showcaseRestore": "ಗ್ರಿಡ್ ಮರುಸ್ಥಾಪಿಸಿ"
+    "showcaseRestore": "ಗ್ರಿಡ್ ಮರುಸ್ಥಾಪಿಸಿ",
+    "showcaseTry": "ನೀವೇ ಪ್ರಯತ್ನಿಸಿ",
+    "showcaseWindows": "ವಿಂಡೋಗಳು",
+    "showcaseSideBySide": "ಅಕ್ಕಪಕ್ಕ",
+    "showcaseStacked": "ಒಂದರ ಮೇಲೊಂದು",
+    "showcaseTabs": "ತೆರೆದ ಟ್ಯಾಬ್‌ಗಳು"
   },
   "kk": {
     "showcaseTitle": "Сенің экраның, сенің ырғағың",
@@ -861,7 +1016,12 @@
     "showcaseScenesLabel": "Жұмыс кеңістігінің көріністері",
     "showcaseMove": "Терезені жылжыту",
     "showcaseResize": "Терезелердің өлшемін өзгерту",
-    "showcaseRestore": "Торды қалпына келтіру"
+    "showcaseRestore": "Торды қалпына келтіру",
+    "showcaseTry": "Өзіңіз байқап көріңіз",
+    "showcaseWindows": "Терезелер",
+    "showcaseSideBySide": "Қатар",
+    "showcaseStacked": "Бірінің үстінде бірі",
+    "showcaseTabs": "Ашық қойындылар"
   },
   "ko": {
     "showcaseTitle": "나의 화면, 나의 흐름",
@@ -888,7 +1048,12 @@
     "showcaseScenesLabel": "작업 공간 장면",
     "showcaseMove": "창 이동",
     "showcaseResize": "창 크기 조절",
-    "showcaseRestore": "그리드 복원"
+    "showcaseRestore": "그리드 복원",
+    "showcaseTry": "직접 사용해 보세요",
+    "showcaseWindows": "창",
+    "showcaseSideBySide": "나란히",
+    "showcaseStacked": "위아래로",
+    "showcaseTabs": "열린 탭"
   },
   "lv": {
     "showcaseTitle": "Tavs ekrāns, tavs ritms",
@@ -915,7 +1080,12 @@
     "showcaseScenesLabel": "Darbvietu ainas",
     "showcaseMove": "Pārvietot logu",
     "showcaseResize": "Mainīt logu izmērus",
-    "showcaseRestore": "Atjaunot režģi"
+    "showcaseRestore": "Atjaunot režģi",
+    "showcaseTry": "Izmēģini pats",
+    "showcaseWindows": "Logi",
+    "showcaseSideBySide": "Blakus",
+    "showcaseStacked": "Viens virs otra",
+    "showcaseTabs": "Atvērtās cilnes"
   },
   "lt": {
     "showcaseTitle": "Tavo ekranas, tavo ritmas",
@@ -942,7 +1112,12 @@
     "showcaseScenesLabel": "Darbo erdvės scenos",
     "showcaseMove": "Perkelti langą",
     "showcaseResize": "Keisti langų dydį",
-    "showcaseRestore": "Atkurti tinklelį"
+    "showcaseRestore": "Atkurti tinklelį",
+    "showcaseTry": "Išbandyk pats",
+    "showcaseWindows": "Langai",
+    "showcaseSideBySide": "Greta",
+    "showcaseStacked": "Vienas virš kito",
+    "showcaseTabs": "Atverti skirtukai"
   },
   "mk": {
     "showcaseTitle": "Твојот екран, твојот ритам",
@@ -969,7 +1144,12 @@
     "showcaseScenesLabel": "Сцени на работниот простор",
     "showcaseMove": "Премести го прозорецот",
     "showcaseResize": "Промени ја големината на прозорците",
-    "showcaseRestore": "Врати ја мрежата"
+    "showcaseRestore": "Врати ја мрежата",
+    "showcaseTry": "Пробај сам",
+    "showcaseWindows": "Прозорци",
+    "showcaseSideBySide": "Еден до друг",
+    "showcaseStacked": "Еден над друг",
+    "showcaseTabs": "Отворени јазичиња"
   },
   "ms": {
     "showcaseTitle": "Layar anda, rentak anda",
@@ -996,7 +1176,12 @@
     "showcaseScenesLabel": "Adegan ruang kerja",
     "showcaseMove": "Alihkan tetingkap",
     "showcaseResize": "Ubah saiz tetingkap",
-    "showcaseRestore": "Pulihkan grid"
+    "showcaseRestore": "Pulihkan grid",
+    "showcaseTry": "Cuba sendiri",
+    "showcaseWindows": "Tetingkap",
+    "showcaseSideBySide": "Sebelah menyebelah",
+    "showcaseStacked": "Bertindan",
+    "showcaseTabs": "Tab terbuka"
   },
   "ml": {
     "showcaseTitle": "നിങ്ങളുടെ സ്ക്രീൻ, നിങ്ങളുടെ താളം",
@@ -1023,7 +1208,12 @@
     "showcaseScenesLabel": "പ്രവർത്തനയിട രംഗങ്ങൾ",
     "showcaseMove": "വിൻഡോ നീക്കുക",
     "showcaseResize": "വിൻഡോകളുടെ വലുപ്പം മാറ്റുക",
-    "showcaseRestore": "ഗ്രിഡ് പുനഃസ്ഥാപിക്കുക"
+    "showcaseRestore": "ഗ്രിഡ് പുനഃസ്ഥാപിക്കുക",
+    "showcaseTry": "സ്വയം പരീക്ഷിക്കുക",
+    "showcaseWindows": "വിൻഡോകൾ",
+    "showcaseSideBySide": "അടുത്തടുത്തായി",
+    "showcaseStacked": "ഒന്നിനു മുകളിൽ മറ്റൊന്ന്",
+    "showcaseTabs": "തുറന്ന ടാബുകൾ"
   },
   "mr": {
     "showcaseTitle": "तुमची स्क्रीन, तुमची लय",
@@ -1050,7 +1240,12 @@
     "showcaseScenesLabel": "कार्यक्षेत्राची दृश्ये",
     "showcaseMove": "विंडो हलवा",
     "showcaseResize": "विंडोंचा आकार बदला",
-    "showcaseRestore": "ग्रिड पूर्ववत करा"
+    "showcaseRestore": "ग्रिड पूर्ववत करा",
+    "showcaseTry": "स्वतः वापरून पाहा",
+    "showcaseWindows": "विंडो",
+    "showcaseSideBySide": "शेजारी शेजारी",
+    "showcaseStacked": "एकावर एक",
+    "showcaseTabs": "उघडे टॅब"
   },
   "mn": {
     "showcaseTitle": "Таны дэлгэц, таны хэмнэл",
@@ -1077,7 +1272,12 @@
     "showcaseScenesLabel": "Ажлын орчны үзүүлэн",
     "showcaseMove": "Цонхыг зөөх",
     "showcaseResize": "Цонхнуудын хэмжээг өөрчлөх",
-    "showcaseRestore": "Торыг сэргээх"
+    "showcaseRestore": "Торыг сэргээх",
+    "showcaseTry": "Өөрөө туршаад үз",
+    "showcaseWindows": "Цонхнууд",
+    "showcaseSideBySide": "Зэрэгцээ",
+    "showcaseStacked": "Дээр доор",
+    "showcaseTabs": "Нээлттэй табууд"
   },
   "nb": {
     "showcaseTitle": "Din skjerm, din flyt",
@@ -1104,7 +1304,12 @@
     "showcaseScenesLabel": "Arbeidsområdescener",
     "showcaseMove": "Flytt vindu",
     "showcaseResize": "Endre størrelse på vinduer",
-    "showcaseRestore": "Gjenopprett rutenett"
+    "showcaseRestore": "Gjenopprett rutenett",
+    "showcaseTry": "Prøv selv",
+    "showcaseWindows": "Vinduer",
+    "showcaseSideBySide": "Side om side",
+    "showcaseStacked": "Over hverandre",
+    "showcaseTabs": "Åpne faner"
   },
   "fa": {
     "showcaseTitle": "صفحهٔ تو، ریتم تو",
@@ -1131,7 +1336,12 @@
     "showcaseScenesLabel": "صحنه‌های فضای کار",
     "showcaseMove": "جابه‌جایی پنجره",
     "showcaseResize": "تغییر اندازهٔ پنجره‌ها",
-    "showcaseRestore": "بازگرداندن چیدمان شبکه‌ای"
+    "showcaseRestore": "بازگرداندن چیدمان شبکه‌ای",
+    "showcaseTry": "خودتان امتحان کنید",
+    "showcaseWindows": "پنجره‌ها",
+    "showcaseSideBySide": "کنار هم",
+    "showcaseStacked": "روی هم",
+    "showcaseTabs": "زبانه‌های باز"
   },
   "pl": {
     "showcaseTitle": "Twój ekran, Twój rytm",
@@ -1158,7 +1368,12 @@
     "showcaseScenesLabel": "Sceny przestrzeni roboczej",
     "showcaseMove": "Przenieś okno",
     "showcaseResize": "Zmień rozmiar okien",
-    "showcaseRestore": "Przywróć siatkę"
+    "showcaseRestore": "Przywróć siatkę",
+    "showcaseTry": "Wypróbuj sam",
+    "showcaseWindows": "Okna",
+    "showcaseSideBySide": "Obok siebie",
+    "showcaseStacked": "Jedno nad drugim",
+    "showcaseTabs": "Otwarte karty"
   },
   "pt-BR": {
     "showcaseTitle": "Sua tela, seu ritmo",
@@ -1185,7 +1400,12 @@
     "showcaseScenesLabel": "Cenas do espaço de trabalho",
     "showcaseMove": "Mover janela",
     "showcaseResize": "Redimensionar janelas",
-    "showcaseRestore": "Restaurar grade"
+    "showcaseRestore": "Restaurar grade",
+    "showcaseTry": "Experimente você mesmo",
+    "showcaseWindows": "Janelas",
+    "showcaseSideBySide": "Lado a lado",
+    "showcaseStacked": "Uma sobre a outra",
+    "showcaseTabs": "Abas abertas"
   },
   "pt-PT": {
     "showcaseTitle": "O teu ecrã, o teu ritmo",
@@ -1212,7 +1432,12 @@
     "showcaseScenesLabel": "Cenas do espaço de trabalho",
     "showcaseMove": "Mover janela",
     "showcaseResize": "Redimensionar janelas",
-    "showcaseRestore": "Restaurar grelha"
+    "showcaseRestore": "Restaurar grelha",
+    "showcaseTry": "Experimenta tu mesmo",
+    "showcaseWindows": "Janelas",
+    "showcaseSideBySide": "Lado a lado",
+    "showcaseStacked": "Uma sobre a outra",
+    "showcaseTabs": "Separadores abertos"
   },
   "pa": {
     "showcaseTitle": "ਤੁਹਾਡੀ ਸਕ੍ਰੀਨ, ਤੁਹਾਡੀ ਲੈਅ",
@@ -1239,7 +1464,12 @@
     "showcaseScenesLabel": "ਕਾਰਜ-ਖੇਤਰ ਦੇ ਦ੍ਰਿਸ਼",
     "showcaseMove": "ਵਿੰਡੋ ਹਿਲਾਓ",
     "showcaseResize": "ਵਿੰਡੋਆਂ ਦਾ ਆਕਾਰ ਬਦਲੋ",
-    "showcaseRestore": "ਗ੍ਰਿਡ ਮੁੜ ਬਹਾਲ ਕਰੋ"
+    "showcaseRestore": "ਗ੍ਰਿਡ ਮੁੜ ਬਹਾਲ ਕਰੋ",
+    "showcaseTry": "ਖੁਦ ਅਜ਼ਮਾਓ",
+    "showcaseWindows": "ਵਿੰਡੋਜ਼",
+    "showcaseSideBySide": "ਨਾਲੋ-ਨਾਲ",
+    "showcaseStacked": "ਇੱਕ ਦੇ ਉੱਪਰ ਦੂਜੀ",
+    "showcaseTabs": "ਖੁੱਲ੍ਹੀਆਂ ਟੈਬਾਂ"
   },
   "ro": {
     "showcaseTitle": "Ecranul tău, ritmul tău",
@@ -1266,7 +1496,12 @@
     "showcaseScenesLabel": "Scene ale spațiului de lucru",
     "showcaseMove": "Mută fereastra",
     "showcaseResize": "Redimensionează ferestrele",
-    "showcaseRestore": "Restabilește grila"
+    "showcaseRestore": "Restabilește grila",
+    "showcaseTry": "Încearcă singur",
+    "showcaseWindows": "Ferestre",
+    "showcaseSideBySide": "Una lângă alta",
+    "showcaseStacked": "Una deasupra celeilalte",
+    "showcaseTabs": "File deschise"
   },
   "sr": {
     "showcaseTitle": "Твој екран, твој ритам",
@@ -1293,7 +1528,12 @@
     "showcaseScenesLabel": "Сцене радног простора",
     "showcaseMove": "Помери прозор",
     "showcaseResize": "Промени величину прозора",
-    "showcaseRestore": "Врати мрежу"
+    "showcaseRestore": "Врати мрежу",
+    "showcaseTry": "Испробај сам",
+    "showcaseWindows": "Прозори",
+    "showcaseSideBySide": "Један поред другог",
+    "showcaseStacked": "Један изнад другог",
+    "showcaseTabs": "Отворене картице"
   },
   "sk": {
     "showcaseTitle": "Tvoja obrazovka, tvoje tempo",
@@ -1320,7 +1560,12 @@
     "showcaseScenesLabel": "Scény pracovného priestoru",
     "showcaseMove": "Presunúť okno",
     "showcaseResize": "Zmeniť veľkosť okien",
-    "showcaseRestore": "Obnoviť mriežku"
+    "showcaseRestore": "Obnoviť mriežku",
+    "showcaseTry": "Vyskúšaj si to",
+    "showcaseWindows": "Okná",
+    "showcaseSideBySide": "Vedľa seba",
+    "showcaseStacked": "Nad sebou",
+    "showcaseTabs": "Otvorené karty"
   },
   "sl": {
     "showcaseTitle": "Tvoj zaslon, tvoj ritem",
@@ -1347,7 +1592,12 @@
     "showcaseScenesLabel": "Prizori delovnega prostora",
     "showcaseMove": "Premakni okno",
     "showcaseResize": "Spremeni velikost oken",
-    "showcaseRestore": "Obnovi mrežo"
+    "showcaseRestore": "Obnovi mrežo",
+    "showcaseTry": "Preizkusi sam",
+    "showcaseWindows": "Okna",
+    "showcaseSideBySide": "Drugo ob drugem",
+    "showcaseStacked": "Drugo nad drugim",
+    "showcaseTabs": "Odprti zavihki"
   },
   "so": {
     "showcaseTitle": "Shaashaddaada, habkaaga shaqo",
@@ -1374,7 +1624,12 @@
     "showcaseScenesLabel": "Muuqaallada goobta shaqada",
     "showcaseMove": "Dhaqaaji daaqadda",
     "showcaseResize": "Beddel cabbirka daaqadaha",
-    "showcaseRestore": "Soo celi shaxda"
+    "showcaseRestore": "Soo celi shaxda",
+    "showcaseTry": "Adigu tijaabi",
+    "showcaseWindows": "Daaqado",
+    "showcaseSideBySide": "Dhinac dhinac",
+    "showcaseStacked": "Midba midka kale korkiisa",
+    "showcaseTabs": "Tabyada furan"
   },
   "es": {
     "showcaseTitle": "Tu pantalla, tu ritmo",
@@ -1401,7 +1656,12 @@
     "showcaseScenesLabel": "Escenas del espacio de trabajo",
     "showcaseMove": "Mover ventana",
     "showcaseResize": "Cambiar el tamaño de las ventanas",
-    "showcaseRestore": "Restaurar cuadrícula"
+    "showcaseRestore": "Restaurar cuadrícula",
+    "showcaseTry": "Pruébalo tú mismo",
+    "showcaseWindows": "Ventanas",
+    "showcaseSideBySide": "Una al lado de otra",
+    "showcaseStacked": "Una encima de otra",
+    "showcaseTabs": "Pestañas abiertas"
   },
   "sw": {
     "showcaseTitle": "Skrini yako, mtiririko wako",
@@ -1428,7 +1688,12 @@
     "showcaseScenesLabel": "Maonyesho ya eneo la kazi",
     "showcaseMove": "Sogeza dirisha",
     "showcaseResize": "Badili ukubwa wa madirisha",
-    "showcaseRestore": "Rejesha gridi"
+    "showcaseRestore": "Rejesha gridi",
+    "showcaseTry": "Jaribu mwenyewe",
+    "showcaseWindows": "Dirisha",
+    "showcaseSideBySide": "Kando kwa kando",
+    "showcaseStacked": "Moja juu ya jingine",
+    "showcaseTabs": "Vichupo vilivyo wazi"
   },
   "sv": {
     "showcaseTitle": "Din skärm, ditt flöde",
@@ -1455,7 +1720,12 @@
     "showcaseScenesLabel": "Arbetsytans scener",
     "showcaseMove": "Flytta fönster",
     "showcaseResize": "Ändra fönsterstorlek",
-    "showcaseRestore": "Återställ rutnät"
+    "showcaseRestore": "Återställ rutnät",
+    "showcaseTry": "Prova själv",
+    "showcaseWindows": "Fönster",
+    "showcaseSideBySide": "Sida vid sida",
+    "showcaseStacked": "Ovanpå varandra",
+    "showcaseTabs": "Öppna flikar"
   },
   "fil": {
     "showcaseTitle": "Screen mo, daloy mo",
@@ -1482,7 +1752,12 @@
     "showcaseScenesLabel": "Mga eksena ng workspace",
     "showcaseMove": "Ilipat ang window",
     "showcaseResize": "Baguhin ang laki ng mga window",
-    "showcaseRestore": "Ibalik ang grid"
+    "showcaseRestore": "Ibalik ang grid",
+    "showcaseTry": "Subukan mo mismo",
+    "showcaseWindows": "Mga window",
+    "showcaseSideBySide": "Magkatabi",
+    "showcaseStacked": "Magkapatong",
+    "showcaseTabs": "Mga bukas na tab"
   },
   "ta": {
     "showcaseTitle": "உங்கள் திரை, உங்கள் ஓட்டம்",
@@ -1509,7 +1784,12 @@
     "showcaseScenesLabel": "பணியிடக் காட்சிகள்",
     "showcaseMove": "சாளரத்தை நகர்த்து",
     "showcaseResize": "சாளரங்களின் அளவை மாற்று",
-    "showcaseRestore": "கட்ட அமைப்பை மீட்டமை"
+    "showcaseRestore": "கட்ட அமைப்பை மீட்டமை",
+    "showcaseTry": "நீங்களே முயற்சிக்கவும்",
+    "showcaseWindows": "சாளரங்கள்",
+    "showcaseSideBySide": "அருகருகே",
+    "showcaseStacked": "ஒன்றின் மேல் ஒன்று",
+    "showcaseTabs": "திறந்த தாவல்கள்"
   },
   "te": {
     "showcaseTitle": "మీ తెర, మీ లయ",
@@ -1536,7 +1816,12 @@
     "showcaseScenesLabel": "కార్యక్షేత్ర దృశ్యాలు",
     "showcaseMove": "విండోను తరలించండి",
     "showcaseResize": "విండోల పరిమాణం మార్చండి",
-    "showcaseRestore": "గ్రిడ్‌ను పునరుద్ధరించండి"
+    "showcaseRestore": "గ్రిడ్‌ను పునరుద్ధరించండి",
+    "showcaseTry": "మీరే ప్రయత్నించండి",
+    "showcaseWindows": "విండోలు",
+    "showcaseSideBySide": "పక్కపక్కన",
+    "showcaseStacked": "ఒకదానిపై మరొకటి",
+    "showcaseTabs": "తెరిచిన ట్యాబ్‌లు"
   },
   "th": {
     "showcaseTitle": "หน้าจอของคุณ จังหวะของคุณ",
@@ -1563,7 +1848,12 @@
     "showcaseScenesLabel": "ฉากพื้นที่ทำงาน",
     "showcaseMove": "ย้ายหน้าต่าง",
     "showcaseResize": "ปรับขนาดหน้าต่าง",
-    "showcaseRestore": "คืนค่าตาราง"
+    "showcaseRestore": "คืนค่าตาราง",
+    "showcaseTry": "ลองด้วยตัวคุณเอง",
+    "showcaseWindows": "หน้าต่าง",
+    "showcaseSideBySide": "เคียงข้างกัน",
+    "showcaseStacked": "บนล่าง",
+    "showcaseTabs": "แท็บที่เปิดอยู่"
   },
   "tr": {
     "showcaseTitle": "Senin ekranın, senin akışın",
@@ -1590,7 +1880,12 @@
     "showcaseScenesLabel": "Çalışma alanı sahneleri",
     "showcaseMove": "Pencereyi taşı",
     "showcaseResize": "Pencereleri yeniden boyutlandır",
-    "showcaseRestore": "Izgarayı geri yükle"
+    "showcaseRestore": "Izgarayı geri yükle",
+    "showcaseTry": "Kendin dene",
+    "showcaseWindows": "Pencereler",
+    "showcaseSideBySide": "Yan yana",
+    "showcaseStacked": "Üst üste",
+    "showcaseTabs": "Açık sekmeler"
   },
   "uk": {
     "showcaseTitle": "Твій екран, твій ритм",
@@ -1617,7 +1912,12 @@
     "showcaseScenesLabel": "Сценарії робочого столу",
     "showcaseMove": "Перемістити вікно",
     "showcaseResize": "Змінити розмір вікон",
-    "showcaseRestore": "Відновити сітку"
+    "showcaseRestore": "Відновити сітку",
+    "showcaseTry": "Спробуй сам",
+    "showcaseWindows": "Вікна",
+    "showcaseSideBySide": "Поруч",
+    "showcaseStacked": "Одне над одним",
+    "showcaseTabs": "Відкриті вкладки"
   },
   "ur": {
     "showcaseTitle": "آپ کی اسکرین، آپ کا انداز",
@@ -1644,7 +1944,12 @@
     "showcaseScenesLabel": "ورک اسپیس کے مناظر",
     "showcaseMove": "ونڈو منتقل کریں",
     "showcaseResize": "ونڈوز کا سائز بدلیں",
-    "showcaseRestore": "گرڈ بحال کریں"
+    "showcaseRestore": "گرڈ بحال کریں",
+    "showcaseTry": "خود آزمائیں",
+    "showcaseWindows": "ونڈوز",
+    "showcaseSideBySide": "ساتھ ساتھ",
+    "showcaseStacked": "ایک کے اوپر دوسری",
+    "showcaseTabs": "کھلے ٹیب"
   },
   "vi": {
     "showcaseTitle": "Màn hình của bạn, nhịp làm việc của bạn",
@@ -1671,7 +1976,12 @@
     "showcaseScenesLabel": "Các cảnh không gian làm việc",
     "showcaseMove": "Di chuyển cửa sổ",
     "showcaseResize": "Đổi kích thước cửa sổ",
-    "showcaseRestore": "Khôi phục lưới"
+    "showcaseRestore": "Khôi phục lưới",
+    "showcaseTry": "Tự mình trải nghiệm",
+    "showcaseWindows": "Cửa sổ",
+    "showcaseSideBySide": "Cạnh nhau",
+    "showcaseStacked": "Xếp chồng",
+    "showcaseTabs": "Các thẻ đang mở"
   },
   "he": {
     "showcaseTitle": "המסך שלך, הקצב שלך",
@@ -1698,7 +2008,12 @@
     "showcaseScenesLabel": "סצנות של סביבות עבודה",
     "showcaseMove": "הזזת חלון",
     "showcaseResize": "שינוי גודל החלונות",
-    "showcaseRestore": "שחזור רשת החלונות"
+    "showcaseRestore": "שחזור רשת החלונות",
+    "showcaseTry": "נסו בעצמכם",
+    "showcaseWindows": "חלונות",
+    "showcaseSideBySide": "זה לצד זה",
+    "showcaseStacked": "זה מעל זה",
+    "showcaseTabs": "כרטיסיות פתוחות"
   },
   "uz": {
     "showcaseTitle": "Sening ekraning, sening ritming",
@@ -1725,7 +2040,12 @@
     "showcaseScenesLabel": "Ish maydoni sahnalari",
     "showcaseMove": "Oynani ko‘chirish",
     "showcaseResize": "Oynalar o‘lchamini o‘zgartirish",
-    "showcaseRestore": "Katakli tartibni tiklash"
+    "showcaseRestore": "Katakli tartibni tiklash",
+    "showcaseTry": "O‘zingiz sinab ko‘ring",
+    "showcaseWindows": "Oynalar",
+    "showcaseSideBySide": "Yonma-yon",
+    "showcaseStacked": "Ustma-ust",
+    "showcaseTabs": "Ochiq varaqlar"
   },
   "az": {
     "showcaseTitle": "Sənin ekranın, sənin ritmin",
@@ -1752,7 +2072,12 @@
     "showcaseScenesLabel": "İş sahəsi səhnələri",
     "showcaseMove": "Pəncərəni köçür",
     "showcaseResize": "Pəncərələrin ölçüsünü dəyiş",
-    "showcaseRestore": "Toru bərpa et"
+    "showcaseRestore": "Toru bərpa et",
+    "showcaseTry": "Özünüz sınayın",
+    "showcaseWindows": "Pəncərələr",
+    "showcaseSideBySide": "Yan-yana",
+    "showcaseStacked": "Üst-üstə",
+    "showcaseTabs": "Açıq vərəqlər"
   },
   "af": {
     "showcaseTitle": "Jou skerm, jou ritme",
@@ -1779,7 +2104,12 @@
     "showcaseScenesLabel": "Werkruimtetonele",
     "showcaseMove": "Skuif venster",
     "showcaseResize": "Verander venstergroottes",
-    "showcaseRestore": "Herstel rooster"
+    "showcaseRestore": "Herstel rooster",
+    "showcaseTry": "Probeer dit self",
+    "showcaseWindows": "Vensters",
+    "showcaseSideBySide": "Langs mekaar",
+    "showcaseStacked": "Bo mekaar",
+    "showcaseTabs": "Oop oortjies"
   },
   "eu": {
     "showcaseTitle": "Zure pantaila, zure erritmoa",
@@ -1806,7 +2136,12 @@
     "showcaseScenesLabel": "Lan-eremuko eszenak",
     "showcaseMove": "Mugitu leihoa",
     "showcaseResize": "Aldatu leihoen tamaina",
-    "showcaseRestore": "Berrezarri sareta"
+    "showcaseRestore": "Berrezarri sareta",
+    "showcaseTry": "Probatu zeuk",
+    "showcaseWindows": "Leihoak",
+    "showcaseSideBySide": "Elkarren ondoan",
+    "showcaseStacked": "Bata bestearen gainean",
+    "showcaseTabs": "Fitxa irekiak"
   },
   "gl": {
     "showcaseTitle": "A túa pantalla, o teu ritmo",
@@ -1833,7 +2168,12 @@
     "showcaseScenesLabel": "Escenas do espazo de traballo",
     "showcaseMove": "Mover xanela",
     "showcaseResize": "Cambiar o tamaño das xanelas",
-    "showcaseRestore": "Restaurar grella"
+    "showcaseRestore": "Restaurar grella",
+    "showcaseTry": "Próbao ti mesmo",
+    "showcaseWindows": "Xanelas",
+    "showcaseSideBySide": "Unha ao lado da outra",
+    "showcaseStacked": "Unha enriba da outra",
+    "showcaseTabs": "Lapelas abertas"
   },
   "km": {
     "showcaseTitle": "អេក្រង់របស់អ្នក ចង្វាក់របស់អ្នក",
@@ -1860,7 +2200,12 @@
     "showcaseScenesLabel": "ឈុតកន្លែងធ្វើការ",
     "showcaseMove": "ផ្លាស់ទីបង្អួច",
     "showcaseResize": "ប្ដូរទំហំបង្អួច",
-    "showcaseRestore": "ស្ដារប្លង់ក្រឡាចត្រង្គ"
+    "showcaseRestore": "ស្ដារប្លង់ក្រឡាចត្រង្គ",
+    "showcaseTry": "សាកល្បងដោយខ្លួនឯង",
+    "showcaseWindows": "បង្អួច",
+    "showcaseSideBySide": "នៅជាប់គ្នា",
+    "showcaseStacked": "លើក្រោម",
+    "showcaseTabs": "ផ្ទាំងដែលបើក"
   },
   "lo": {
     "showcaseTitle": "ໜ້າຈໍຂອງເຈົ້າ ຈັງຫວະຂອງເຈົ້າ",
@@ -1887,7 +2232,12 @@
     "showcaseScenesLabel": "ສາກພື້ນທີ່ເຮັດວຽກ",
     "showcaseMove": "ຍ້າຍໜ້າຕ່າງ",
     "showcaseResize": "ປັບຂະໜາດໜ້າຕ່າງ",
-    "showcaseRestore": "ຄືນຄ່າຕາຕະລາງ"
+    "showcaseRestore": "ຄືນຄ່າຕາຕະລາງ",
+    "showcaseTry": "ລອງດ້ວຍຕົນເອງ",
+    "showcaseWindows": "ໜ້າຕ່າງ",
+    "showcaseSideBySide": "ຂ້າງກັນ",
+    "showcaseStacked": "ເທິງລຸ່ມ",
+    "showcaseTabs": "ແຖບທີ່ເປີດ"
   },
   "ne": {
     "showcaseTitle": "तपाईंको स्क्रिन, तपाईंको लय",
@@ -1914,7 +2264,12 @@
     "showcaseScenesLabel": "कार्यक्षेत्रका दृश्यहरू",
     "showcaseMove": "विन्डो सार्नुहोस्",
     "showcaseResize": "विन्डोहरूको आकार बदल्नुहोस्",
-    "showcaseRestore": "ग्रिड पुनर्स्थापना गर्नुहोस्"
+    "showcaseRestore": "ग्रिड पुनर्स्थापना गर्नुहोस्",
+    "showcaseTry": "आफैँ प्रयास गर्नुहोस्",
+    "showcaseWindows": "विन्डोहरू",
+    "showcaseSideBySide": "छेउछाउमा",
+    "showcaseStacked": "माथि तल",
+    "showcaseTabs": "खुला ट्याबहरू"
   },
   "si": {
     "showcaseTitle": "ඔබේ තිරය, ඔබේ රිද්මය",
@@ -1941,6 +2296,11 @@
     "showcaseScenesLabel": "වැඩ අවකාශ දර්ශන",
     "showcaseMove": "කවුළුව ගෙනයන්න",
     "showcaseResize": "කවුළු ප්‍රමාණ වෙනස් කරන්න",
-    "showcaseRestore": "ජාලකය යළි සකසන්න"
+    "showcaseRestore": "ජාලකය යළි සකසන්න",
+    "showcaseTry": "ඔබම උත්සාහ කරන්න",
+    "showcaseWindows": "කවුළු",
+    "showcaseSideBySide": "එක ළඟ",
+    "showcaseStacked": "එකක් මත එකක්",
+    "showcaseTabs": "විවෘත ටැබ්"
   }
 }

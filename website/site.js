@@ -228,6 +228,7 @@
     setTheme(theme);
     applyDownloadLabels();
     window.MouseShowcase?.refreshLanguage();
+    window.MouseManifest?.refreshLanguage();
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -278,6 +279,8 @@
             event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
         event.preventDefault();
         if (waiting.has(anchor)) return;
+        // Installation help accompanies the download; it never becomes a gate.
+        try { window.MouseManifest?.openGuide(anchor.getAttribute('data-platform')); } catch (_) { /* Keep the direct download usable. */ }
         waiting.add(anchor);
         anchor.setAttribute('aria-busy', 'true');
         try {
@@ -285,6 +288,7 @@
         } finally {
           waiting.delete(anchor);
           anchor.removeAttribute('aria-busy');
+          try { window.MouseManifest?.refreshDownload(); } catch (_) { /* Help cannot block a download. */ }
           replaying.add(anchor);
           try { anchor.click(); } finally { replaying.delete(anchor); }
         }

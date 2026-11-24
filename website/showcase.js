@@ -13,7 +13,9 @@
     showcasePlay: 'Play', showcasePrevious: 'Previous scene', showcaseNext: 'Next scene',
     showcaseHint: 'Swipe up over the preview to explore', showcaseDemo: 'Real website captures',
     showcaseScenesLabel: 'Workspaces', showcaseMove: 'Move window',
-    showcaseResize: 'Resize windows', showcaseRestore: 'Restore grid', showcaseCaptured: 'Captured website'
+    showcaseResize: 'Resize windows', showcaseRestore: 'Restore grid', showcaseCaptured: 'Captured website',
+    showcaseTry: 'Try it yourself', showcaseWindows: 'Windows', showcaseSideBySide: 'Side by side',
+    showcaseStacked: 'Stacked', showcaseTabs: 'Open tabs'
   };
   const icon = name => {
     const paths = {
@@ -63,12 +65,38 @@
       rects: [[0,0,64,100],[64,0,36,62],[64,62,36,38]],
       portrait: [[0,0,100,60],[0,60,60,40],[60,60,40,40]] }
   ];
-  const balanced = count => ({
-    0: [], 1: [[0,0,100,100]], 2: [[0,0,50,100],[50,0,50,100]],
-    3: [[0,0,60,100],[60,0,40,50],[60,50,40,50]],
-    4: [[0,0,50,50],[50,0,50,50],[0,50,50,50],[50,50,50,50]],
-    5: [[0,0,50,100],[50,0,25,50],[75,0,25,50],[50,50,25,50],[75,50,25,50]]
-  }[count] || []);
+  const uniformGrid = (columns, rows) => Array.from({ length: columns * rows }, (_, i) => [
+    i % columns * 100 / columns, Math.floor(i / columns) * 100 / rows, 100 / columns, 100 / rows
+  ]);
+  const layouts = [
+    { id: '1', columns: 1, rows: 1 },
+    { id: '2', columns: 2, rows: 1, key: 'showcaseSideBySide' },
+    { id: '2-stacked', columns: 1, rows: 2, key: 'showcaseStacked' },
+    { id: '3', columns: 3, rows: 1 },
+    { id: '4', columns: 2, rows: 2 },
+    { id: '6', columns: 3, rows: 2 },
+    { id: '8', columns: 4, rows: 2 },
+    { id: '9', columns: 3, rows: 3 },
+    { id: '12', columns: 4, rows: 3 }
+  ];
+  const balanced = count => {
+    const known = layouts.find(item => item.columns * item.rows === count);
+    if (known) return uniformGrid(known.columns, known.rows);
+    if (!count) return [];
+    // A missing capture still leaves a complete grid, without an empty placeholder.
+    const columns = Math.ceil(Math.sqrt(count)), rows = Math.ceil(count / columns), result = [];
+    for (let row = 0; row < rows; row++) {
+      const inRow = Math.min(columns, count - row * columns);
+      for (let column = 0; column < inRow; column++) result.push([column * 100 / inRow, row * 100 / rows, 100 / inRow, 100 / rows]);
+    }
+    return result;
+  };
+  const gridIcon = (columns = 2, rows = 2) => {
+    let lines = '<rect x="2" y="3" width="20" height="18"/>';
+    for (let i = 1; i < columns; i++) lines += '<path d="M' + (2 + 20 * i / columns) + ' 3v18"/>';
+    for (let i = 1; i < rows; i++) lines += '<path d="M2 ' + (3 + 18 * i / rows) + 'h20"/>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">' + lines + '</svg>';
+  };
   const cloneRects = rects => rects.map(rect => [...rect]);
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const near = (a, b) => Math.abs(a - b) < .02;
@@ -93,30 +121,51 @@
     const duration = 4600, gap = 5;
     const timers = new Set(), paneNodes = [], handles = new Map(), failed = new Set();
     let assets = window.MOUSE_SHOWCASE_ASSETS || {}, sources = [];
-    let index = 4, gridRects = [], paneSlots = [], zoomed = -1, geometryEpoch = 0;
+    let index = 4, gridRects = [], paneSlots = [], zoomed = -1, geometryEpoch = 0, layoutId = null, activePane = 0;
     let userPaused = reduced.matches, visible = true, expanded = false, gesture = null;
     let savedScroll = 0, savedFocus = null, savedOverflow = '', touch = null, wheel = 0, wheelAt = 0;
     let hoverPoint = null, cleanTimer = null, autoDragged = null;
     const text = key => window.MOUSE_I18N?.messages?.[document.documentElement.lang]?.[key] || window.MOUSE_I18N?.messages?.en?.[key] || EN[key] || '';
-    const closePicker = () => { if (modePicker) modePicker.open = false; };
+    const tabNodes = [];
+    const chrome = root.querySelector('.showcase-chrome');
+    const nora = root.querySelector('.showcase-nora');
+    const tabs = document.createElement('div');
+    tabs.className = 'showcase-tabs'; tabs.setAttribute('role', 'toolbar'); tabs.dataset.showcaseAria = 'showcaseTabs';
+    const layoutPicker = document.createElement('details');
+    layoutPicker.className = 'showcase-layout-picker';
+    layoutPicker.innerHTML = '<summary class="showcase-layout-trigger">' + gridIcon() + '<span data-showcase-layout-label></span><svg class="showcase-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="showcase-layouts" role="group" data-showcase-aria="showcaseWindows"></div>';
+    const layoutMenu = layoutPicker.querySelector('.showcase-layouts');
+    const legend = document.createElement('div');
+    legend.className = 'showcase-legend';
+    legend.innerHTML = '<span class="showcase-invitation" data-showcase-key="showcaseTry"></span><span class="showcase-disclosure" data-showcase-key="showcaseDemo"></span>';
+    // The native Mouse metaphor: current tabs above, desktop/grid controls below.
+    if (chrome && nora) {
+      const controls = root.querySelector('.showcase-inline-controls');
+      nora.replaceChildren(layoutPicker);
+      if (modePicker) nora.append(modePicker);
+      if (controls) nora.append(controls);
+      chrome.replaceChildren(tabs);
+      nora.after(legend);
+    }
+    root.querySelector('[data-showcase-preview-hit]')?.remove();
+    const closePicker = () => { if (modePicker) modePicker.open = false; layoutPicker.open = false; };
     const rectFor = paneIndex => gridRects[paneSlots[paneIndex]];
-    const canPlay = () => !userPaused && !modePicker?.open && visible && document.visibilityState !== 'hidden' && !gesture && sources.length > 0;
+    const canPlay = () => !userPaused && !modePicker?.open && !layoutPicker.open && visible && document.visibilityState !== 'hidden' && !gesture && sources.length > 0;
     const announce = (message, language = document.documentElement.lang || 'en') => { const node = root.querySelector('[data-showcase-status]'); if (node) { node.lang = language; node.textContent = message; } };
 
     canvas.replaceChildren();
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 12; i++) {
       const pane = document.createElement('article');
       pane.className = 'showcase-pane'; pane.dataset.paneIndex = String(i);
       pane.innerHTML = '<div class="showcase-pane-head"><button class="showcase-pane-drag" type="button"><span class="showcase-service-mark" aria-hidden="true"></span><span class="showcase-service-name"></span><span class="showcase-service-host"></span></button><button class="showcase-pane-zoom" type="button">' + icon('expand') + '</button></div><div class="showcase-pane-page"></div>';
       pane.querySelector('.showcase-pane-zoom').addEventListener('click', () => {
-        if (!expanded) return;
         manual(); setZoom(zoomed === i ? -1 : i, true);
       });
       pane.querySelector('.showcase-pane-page').addEventListener('dblclick', () => {
-        if (expanded) { manual(); setZoom(zoomed === i ? -1 : i, true); }
+        manual(); setZoom(zoomed === i ? -1 : i, true);
       });
       pane.querySelector('.showcase-pane-drag').addEventListener('keydown', event => {
-        if (!expanded || zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+        if (zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
         event.preventDefault(); manual();
         const current = rectFor(i), horizontal = /Left|Right/.test(event.key), direction = /Left|Up/.test(event.key) ? -1 : 1;
         const axis = horizontal ? 0 : 1, cross = horizontal ? 1 : 0;
@@ -139,9 +188,71 @@
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'showcase-mode'; button.dataset.scene = scene.id;
       button.dataset.showcaseKey = 'showcase' + scene.key; button.setAttribute('aria-pressed', 'false');
-      button.addEventListener('click', () => { closePicker(); select(sceneIndex, true); });
+      button.addEventListener('click', () => { manual(); select(sceneIndex, true); });
       modes.append(button);
     });
+    layouts.forEach(layout => {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'showcase-layout-option'; button.dataset.layout = layout.id;
+      button.innerHTML = gridIcon(layout.columns, layout.rows) + '<span class="showcase-layout-count">' + layout.columns * layout.rows + '</span><span class="showcase-layout-description"></span><span class="showcase-layout-check" aria-hidden="true">✓</span>';
+      button.addEventListener('click', () => {
+        manual(); layoutId = layout.id; select(index, false, true);
+        layoutPicker.querySelector('summary').focus({ preventScroll: true });
+        announce(text('showcaseWindows') + ': ' + sources.length + (layout.key ? ' — ' + text(layout.key) : ''));
+      });
+      layoutMenu.append(button);
+    });
+    function menuKeyboard(picker, list) {
+      picker.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus({ preventScroll:true }); return; }
+        if (!['ArrowDown','ArrowUp','Home','End'].includes(event.key)) return;
+        event.preventDefault(); picker.open = true;
+        const buttons = Array.from(list.querySelectorAll('button'));
+        const current = buttons.indexOf(document.activeElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
+        buttons[next]?.focus({ preventScroll: true });
+      });
+      picker.addEventListener('toggle', () => {
+        if (picker.open) { userPaused = true; stopPlayback(); refreshLanguage(); }
+      });
+    }
+    menuKeyboard(layoutPicker, layoutMenu);
+    if (modePicker) menuKeyboard(modePicker, modes);
+
+    function syncTabState() {
+      tabNodes.forEach((tab, i) => {
+        tab.setAttribute('aria-pressed', String(i === activePane));
+        tab.tabIndex = i === activePane ? 0 : -1;
+      });
+      paneNodes.forEach((pane, i) => pane.classList.toggle('is-active-pane', i === activePane));
+    }
+    function focusPane(i, fromKeyboard = false) {
+      if (!sources[i]) return;
+      manual(); activePane = i;
+      if (zoomed >= 0) setZoom(i);
+      syncTabState();
+      if (fromKeyboard) tabNodes[i]?.focus({ preventScroll: true });
+      else paneNodes[i].querySelector(zoomed >= 0 ? '.showcase-pane-zoom' : '.showcase-pane-drag').focus({ preventScroll: true });
+      tabNodes[i]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    }
+    function refreshTabs() {
+      tabs.replaceChildren(); tabNodes.length = 0;
+      sources.forEach((source, i) => {
+        const tab = document.createElement('button');
+        tab.type = 'button'; tab.className = 'showcase-tab'; tab.title = source.name;
+        const mark = document.createElement('span'); mark.className = 'showcase-tab-mark'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = source.name.slice(0, 1);
+        const title = document.createElement('span'); title.textContent = source.name;
+        tab.append(mark, title); tab.addEventListener('click', () => focusPane(i));
+        tab.addEventListener('keydown', event => {
+          if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? sources.length - 1 : (i + (event.key === 'ArrowLeft' ? -1 : 1) + sources.length) % sources.length;
+          focusPane(next, true);
+        });
+        tabs.append(tab); tabNodes.push(tab);
+      });
+      syncTabState();
+    }
 
     function availableSources() {
       return Object.entries(assets).flatMap(([id, value]) => {
@@ -161,6 +272,19 @@
       }
       return chosen;
     }
+    function selectedSources(scene) {
+      const selected = layouts.find(item => item.id === layoutId);
+      if (!selected) return sceneSources(scene);
+      const pool = sceneSources(scene), seen = new Set(pool.map(item => item.src));
+      for (const source of availableSources()) if (!seen.has(source.src)) { pool.push(source); seen.add(source.src); }
+      if (!pool.length) return [];
+      const count = selected.columns * selected.rows;
+      // All panels retain actual captures; a repeated tab is labelled explicitly.
+      return Array.from({ length: count }, (_, i) => {
+        const source = pool[i % pool.length], copy = Math.floor(i / pool.length) + 1;
+        return copy === 1 ? source : { ...source, name: source.name + ' · ' + copy };
+      });
+    }
     function layer(source) {
       const element = document.createElement('div'); element.className = 'showcase-page-layer';
       const image = document.createElement('img'); image.className = 'showcase-capture';
@@ -171,13 +295,15 @@
         if (failed.has(source.src)) return;
         failed.add(source.src);
         // A failed capture is omitted. Never substitute an invented service UI.
-        if (sources.some(item => item.src === source.src)) select(index);
+        if (sources.some(item => item.src === source.src)) select(index, false, true);
       }, { once: true });
       image.src = source.src; element.append(image);
       return element;
     }
     function baseRects() {
       const scene = scenes[index];
+      const selected = layouts.find(item => item.id === layoutId);
+      if (selected && sources.length === selected.columns * selected.rows) return uniformGrid(selected.columns, selected.rows);
       return cloneRects(sources.length === scene.count ? (expanded && portrait.matches ? scene.portrait : scene.rects) : balanced(sources.length));
     }
     function drawRect(element, rect) {
@@ -198,9 +324,9 @@
         if (!used || obscured) pane.setAttribute('aria-hidden', 'true'); else pane.removeAttribute('aria-hidden');
         if (used) drawRect(pane, zoomed === i ? [0,0,100,100] : rectFor(i));
         const drag = pane.querySelector('.showcase-pane-drag'), zoom = pane.querySelector('.showcase-pane-zoom');
-        drag.tabIndex = expanded && used && !obscured && zoomed < 0 ? 0 : -1;
-        zoom.tabIndex = expanded && used && !obscured ? 0 : -1;
-        zoom.hidden = !used; zoom.disabled = !expanded;
+        drag.tabIndex = used && !obscured && zoomed < 0 ? 0 : -1;
+        zoom.tabIndex = used && !obscured ? 0 : -1;
+        zoom.hidden = !used; zoom.disabled = false;
         zoom.innerHTML = icon(zoomed === i ? 'restore' : 'expand');
         if (used) {
           const label = text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand');
@@ -208,7 +334,7 @@
           zoom.title = label;
         }
       });
-      drawHandles(); updateHover();
+      drawHandles(); updateHover(); syncTabState();
     }
     function boundaries() {
       const out = [];
@@ -264,7 +390,7 @@
           handle.className = 'showcase-resize-handle'; handle.setAttribute('role','separator');
           handle.addEventListener('keydown', event => {
             const current = handle.geometry, horizontal = current.axis === 0;
-            if (!expanded || zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
+            if (zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
             if ((horizontal && /Up|Down/.test(event.key)) || (!horizontal && /Left|Right/.test(event.key))) return;
             event.preventDefault(); manual();
             const limits = boundaryLimits(current), step = event.shiftKey ? 5 : 2;
@@ -274,8 +400,8 @@
           canvas.insertBefore(handle,cursor); handles.set(boundary.key,handle);
         }
         handle.geometry = boundary; handle.dataset.axis = boundary.axis === 0 ? 'x' : 'y';
-        handle.hidden = !expanded || zoomed >= 0;
-        handle.tabIndex = expanded && zoomed < 0 ? 0 : -1;
+        handle.hidden = zoomed >= 0;
+        handle.tabIndex = zoomed < 0 ? 0 : -1;
         handle.setAttribute('aria-label', text('showcaseResize'));
         handle.lang = document.documentElement.lang || 'en';
         handle.setAttribute('aria-orientation', boundary.axis === 0 ? 'vertical' : 'horizontal');
@@ -317,6 +443,7 @@
       layoutGeometry();
     }
     function setZoom(value, focus = false) {
+      if (value >= 0) activePane = value;
       zoomed = value; layoutGeometry();
       if (focus && value >= 0) paneNodes[value].querySelector('.showcase-pane-zoom').focus({ preventScroll:true });
     }
@@ -422,12 +549,24 @@
       });
       handles.forEach(handle => { handle.setAttribute('aria-label',text('showcaseResize')); handle.lang = language; });
       cursor.querySelector('.showcase-cursor-label').lang = language;
+      layoutPicker.lang = language;
+      layoutPicker.querySelector('[data-showcase-layout-label]').textContent = text('showcaseWindows') + ' · ' + sources.length;
+      layoutMenu.querySelectorAll('button').forEach((button, i) => {
+        const layout = layouts[i], count = layout.columns * layout.rows;
+        button.querySelector('.showcase-layout-description').textContent = layout.key ? text(layout.key) : '';
+        button.setAttribute('aria-label', text('showcaseWindows') + ': ' + count + (layout.key ? ' — ' + text(layout.key) : ''));
+        button.setAttribute('aria-pressed', String(layout.id === layoutId));
+      });
     }
-    function select(next, announceChange = false) {
+    function select(next, announceChange = false, keepLayout = false) {
       stopPlayback(); cancelGesture(); clearTimeout(cleanTimer); zoomed = -1;
+      if (!keepLayout) layoutId = null;
       index = ((next%scenes.length)+scenes.length)%scenes.length;
       root.dataset.scene = scenes[index].id;
-      sources = sceneSources(scenes[index]); paneSlots = sources.map((_,i) => i);
+      sources = selectedSources(scenes[index]); paneSlots = sources.map((_,i) => i);
+      activePane = 0;
+      root.dataset.layout = layoutId || 'scene';
+      root.dataset.windowCount = String(sources.length);
       paneNodes.forEach((pane,i) => {
         const source = sources[i], body = pane.querySelector('.showcase-pane-page');
         pane.style.transform = ''; pane.classList.remove('is-grabbed','is-drop-target');
@@ -449,6 +588,7 @@
           });
         } else body.replaceChildren(fresh);
       });
+      refreshTabs();
       layoutGeometry(true);
       cleanTimer = setTimeout(() => root.querySelectorAll('.showcase-page-layer.is-old').forEach(node => node.remove()),600);
       modes.querySelectorAll('button').forEach((button,i) => button.setAttribute('aria-pressed',String(i===index)));
@@ -463,12 +603,13 @@
       root.classList.remove('is-manipulating');
     }
     canvas.addEventListener('pointerdown',event => {
-      if (!expanded || gesture || !event.isPrimary || event.button !== 0 || zoomed >= 0) return;
+      if (gesture || !event.isPrimary || event.button !== 0 || zoomed >= 0) return;
       const drag = event.target.closest('.showcase-pane-drag'), handle = event.target.closest('.showcase-resize-handle');
       if (!drag && !handle) return;
       manual(); event.preventDefault();
       if (drag) {
         const pane = Number(drag.closest('.showcase-pane').dataset.paneIndex);
+        activePane = pane; syncTabState();
         gesture = { kind:'drag', id:event.pointerId, pane, startX:event.clientX, startY:event.clientY, target:-1, focus:drag };
         paneNodes[pane].classList.add('is-grabbed');
       } else {
@@ -498,24 +639,34 @@
     });
     canvas.addEventListener('pointercancel',cancelGesture);
     canvas.addEventListener('lostpointercapture',() => { if (gesture) cancelGesture(); });
-    canvas.addEventListener('focusin',() => { if (expanded) manual(); });
+    canvas.addEventListener('focusin',event => {
+      manual();
+      const pane = event.target.closest('.showcase-pane');
+      if (pane) { activePane = Number(pane.dataset.paneIndex); syncTabState(); }
+    });
+    frame.addEventListener('keydown',event => {
+      if (event.key === 'Escape' && zoomed >= 0) {
+        event.preventDefault(); event.stopPropagation(); const previous = zoomed; manual(); setZoom(-1);
+        paneNodes[previous].querySelector('.showcase-pane-zoom').focus({ preventScroll:true });
+      }
+    });
     frame.addEventListener('pointermove',event => { if (event.pointerType !== 'touch') { hoverPoint={x:event.clientX,y:event.clientY}; updateHover(); } });
     frame.addEventListener('pointerleave',() => { hoverPoint=null; updateHover(); });
 
     function expand() {
       if (expanded || typeof dialog.showModal !== 'function') return;
-      stopPlayback(); closePicker(); savedScroll=window.scrollY; savedFocus=document.activeElement;
+      manual(); savedScroll=window.scrollY; savedFocus=document.activeElement;
       savedOverflow=document.documentElement.style.overflow;
       dock.style.height=dock.getBoundingClientRect().height+'px';
       dialogHost.append(experience); dialog.showModal(); document.documentElement.style.overflow='hidden';
-      expanded=true; visible=true; wheel=0; zoomed=-1; root.classList.add('is-expanded');
-      layoutGeometry(true); root.querySelector('[data-showcase-close]').focus({ preventScroll:true }); schedule();
+      expanded=true; visible=true; wheel=0; root.classList.add('is-expanded');
+      layoutGeometry(); root.querySelector('[data-showcase-close]').focus({ preventScroll:true }); schedule();
     }
     function restore() {
       if (!expanded) return;
-      stopPlayback(); cancelGesture(); closePicker(); expanded=false; zoomed=-1;
+      stopPlayback(); cancelGesture(); closePicker(); expanded=false;
       root.classList.remove('is-expanded'); dock.append(experience); dock.style.height='';
-      layoutGeometry(true); document.documentElement.style.overflow=savedOverflow;
+      layoutGeometry(); document.documentElement.style.overflow=savedOverflow;
       const behavior=document.documentElement.style.scrollBehavior;
       document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0,savedScroll);
       if (savedFocus?.isConnected && typeof savedFocus.focus === 'function') savedFocus.focus({ preventScroll:true });
@@ -534,20 +685,23 @@
     root.querySelector('[data-showcase-pause]').addEventListener('click',() => {
       userPaused=!userPaused; refreshLanguage(); schedule();
     });
-    root.querySelector('[data-showcase-previous]').addEventListener('click',() => { closePicker(); select(index-1,true); });
-    root.querySelector('[data-showcase-next]').addEventListener('click',() => { closePicker(); select(index+1,true); });
-    modePicker?.addEventListener('toggle',schedule);
+    root.querySelector('[data-showcase-previous]').addEventListener('click',() => { manual(); select(index-1,true); });
+    root.querySelector('[data-showcase-next]').addEventListener('click',() => { manual(); select(index+1,true); });
+    document.addEventListener('pointerdown',event => {
+      if (!layoutPicker.contains(event.target)) layoutPicker.open = false;
+      if (modePicker && !modePicker.contains(event.target)) modePicker.open = false;
+    });
     if (typeof dialog.showModal === 'function') {
       root.classList.add('showcase-gesture-enabled');
       frame.addEventListener('wheel',event => {
-        if (expanded || event.ctrlKey || event.metaKey || Math.abs(event.deltaX)>Math.abs(event.deltaY)) return;
+        if (expanded || userPaused || gesture || event.target.closest('button,summary,details') || event.ctrlKey || event.metaKey || Math.abs(event.deltaX)>Math.abs(event.deltaY)) return;
         const now=performance.now(); if(now-wheelAt>350)wheel=0;
         wheelAt=now; wheel+=Math.max(0,-event.deltaY);
         if(event.deltaY>=0){wheel=0;return;}
         if(wheel>=42){event.preventDefault();expand();}
       },{passive:false});
       frame.addEventListener('touchstart',event => {
-        touch=!expanded&&event.touches.length===1?{x:event.touches[0].clientX,y:event.touches[0].clientY,time:performance.now()}:null;
+        touch=!expanded&&!userPaused&&!gesture&&!event.target.closest('button,summary,details')&&event.touches.length===1?{x:event.touches[0].clientX,y:event.touches[0].clientY,time:performance.now()}:null;
       },{passive:true});
       frame.addEventListener('touchmove',event => {
         if(!touch||expanded||event.touches.length!==1)return;
@@ -565,7 +719,7 @@
     document.addEventListener('mouse:language',refreshLanguage);
     new MutationObserver(refreshLanguage).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
     const onReduced=()=>{if(reduced.matches)userPaused=true;refreshLanguage();schedule();};
-    const onPortrait=()=>{cancelGesture();clearMotion();layoutGeometry(true);};
+    const onPortrait=()=>{cancelGesture();clearMotion();layoutGeometry(!userPaused && !layoutId);};
     if(reduced.addEventListener)reduced.addEventListener('change',onReduced);else reduced.addListener?.(onReduced);
     if(portrait.addEventListener)portrait.addEventListener('change',onPortrait);else portrait.addListener?.(onPortrait);
     root.querySelectorAll('[data-showcase-interactive]').forEach(node=>{node.hidden=false;});
@@ -575,7 +729,7 @@
       const hint=root.querySelector('.showcase-hint');if(hint)hint.hidden=true;
     }
     select(index);
-    return { refreshLanguage, setAssets(value){assets=value&&typeof value==='object'?value:{};failed.clear();select(index);} };
+    return { refreshLanguage, setAssets(value){assets=value&&typeof value==='object'?value:{};failed.clear();select(index,false,true);} };
   }
   function init(){controller=create(document.getElementById('mouse-showcase'))||controller;return controller;}
   window.MouseShowcase=Object.freeze({init,refreshLanguage(){controller?.refreshLanguage();},setAssets(value){controller?.setAssets(value);}});
