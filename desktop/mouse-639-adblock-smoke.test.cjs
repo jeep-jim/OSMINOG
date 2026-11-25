@@ -1,6 +1,8 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,assertPage,SCRIPT,COLORS,PREFIX,sha}=require('./mouse-639-adblock-smoke.cjs').fixtures;
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
+const {fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,noraReadback,assertPage,SCRIPT,COLORS,PREFIX,sha}=require('./mouse-639-adblock-smoke.cjs').fixtures;
+const smoke=fs.readFileSync(path.join(__dirname,'mouse-639-adblock-smoke.cjs'),'utf8');
+function actualFunction(start,end){const a=smoke.indexOf(start),b=smoke.indexOf(end,a);assert.ok(a>=0&&b>a);return smoke.slice(a,b).trim();}
 
 test('the owned real HTTP fixture records each delivered script and never serves cacheable responses',async()=>{
  const owned=await createHTTPFixture();try{
@@ -49,4 +51,76 @@ test('native click probe is a passive observer and retains actual event trust ac
  assert.equal(messages.length,0);assert.equal(listeners[0].options.capture,true);assert.equal(listeners[0].options.once,true);
  for(const trusted of [false,true])listeners[0].callback({type:'click',isTrusted:trusted,target,clientX:11,clientY:22});
  assert.deepEqual(messages.map(value=>JSON.parse(value.slice(16)).trusted),[false,true]);assert.ok(messages.every(value=>JSON.parse(value.slice(16)).matches));
+});
+
+test('Mac native 639 input keeps the exact CI/profile guard and retained flag allowlist',()=>{
+ const code=fs.readFileSync(path.join(__dirname,'mouse-native-menu.mm'),'utf8'),body=code.match(/static bool nativeInputProbeAllowed\(\)\{([\s\S]*?)\n\}/)[1];
+ assert.match(body,/const char\* ci=std::getenv\("CI"\),\*profile=std::getenv\("MOUSE_TEST_PROFILE"\);/);
+ const flags=[...body.matchAll(/containsObject:@"([^"]+)"/g)].map(match=>match[1]);
+ assert.deepEqual(flags,['--mouse-smoke-write','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke','--mouse-635-smoke','--mouse-636-retained-smoke','--mouse-636-smoke','--mouse-637-smoke','--mouse-637-features-smoke','--mouse-637-features-restore-read','--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read','--mouse-639-adblock-smoke','--mouse-639-adblock-read']);
+ // Evaluate the actual C++ predicate with only its platform syntax translated;
+ // this is a guard contract test, not a claim of executing AppKit on Linux.
+ const expression=body.match(/return ([\s\S]*?);/)[1].replace('std::strcmp(ci,"true")==0','ci==="true"').replace(/\[NSProcessInfo\.processInfo\.arguments containsObject:@"([^"]+)"\]/g,(_,flag)=>'args.includes('+JSON.stringify(flag)+')');
+ const allowed=vm.runInNewContext('(ci,profile,args)=>!!('+expression+')');
+ for(const flag of flags){
+  assert.equal(allowed('true','/owned/ci-profile',[flag]),true,flag);
+  for(const ci of [null,'','false','TRUE','1'])assert.equal(allowed(ci,'/owned/ci-profile',[flag]),false);
+  for(const profile of [null,'','relative/profile','C:\\profile'])assert.equal(allowed('true',profile,[flag]),false);
+ }
+ for(const args of [[],['--mouse-639'],['--mouse-639-adblock'],['--mouse-639-adblock-smoke-extra'],['--mouse-unknown-smoke']])assert.equal(allowed('true','/owned/ci-profile',args),false);
+ const clickBody=code.match(/static napi_value testClick\([^\n]+\{([\s\S]*?)\n\}/)[1];
+ assert.match(clickBody,/^\n if\(!nativeInputProbeAllowed\(\)\)\{napi_throw_error\(e,nullptr,"Click probe is CI smoke-only"\);return nullptr;\}/);
+});
+
+function noraScene(){
+ const content={inert:false},tray={open:true,hidden:false,dataset:{motion:'open'},querySelector:()=>content},ui={isOpen:true,isPreparing:false,holdsNative:true,motion:{isSettled:true}},model={switching:false,desktopId:'desk-0'};
+ const context={document:{querySelector:selector=>selector==='#desktop-tray'?tray:null},MouseTest:{desktopUI:ui,model}};
+ return{content,tray,ui,model,context,read:()=>vm.runInNewContext('('+noraReadback.toString()+')()',context)};
+}
+test('Nora readback rejects modal-open before its actual animation, input and native hold settle',()=>{
+ const f=noraScene();assert.equal(f.read().ready,true);
+ for(const [target,key,bad]of [[f.tray,'open',false],[f.tray,'hidden',true],[f.tray.dataset,'motion','opening'],[f.content,'inert',true],[f.ui,'isOpen',false],[f.ui,'isPreparing',true],[f.ui,'holdsNative',false],[f.ui.motion,'isSettled',false]]){
+  const saved=target[key];target[key]=bad;assert.equal(f.read().ready,false,key);target[key]=saved;
+ }
+ assert.equal(f.read().ready,true);
+ f.tray.dataset.motion='opening';f.content.inert=true;f.ui.isPreparing=true;assert.equal(f.read().open,true);assert.equal(f.read().ready,false);
+ const missing=vm.runInNewContext('('+noraReadback.toString()+')()',{document:{querySelector:()=>null}});assert.equal(missing.ready,false);
+});
+
+test('the actual desk switch waits for settled Nora before one native transition without scrolling or reactivation',async()=>{
+ const f=noraScene(),calls=[],waits=[];let ready=false;
+ const click=async(selector,options)=>{
+  calls.push({selector,options});
+  if(selector==='#desktops-button'){f.tray.dataset.motion='opening';f.content.inert=true;f.ui.isPreparing=true;f.ui.motion.isSettled=false;return{ticket:'unit-open'};}
+  assert.equal(ready,true);assert.equal(f.read().ready,true);assert.equal(options.activate,false);assert.equal(options.scroll,false);
+  f.model.desktopId='desk-1';f.tray.open=false;return{ticket:'unit-switch'};
+ };
+ const until=async(check,label)=>{
+  waits.push(label);
+  if(label==='Nora fully open'){
+   assert.equal(await check(),false,'open=true during preparation is insufficient');
+   f.tray.dataset.motion='open';f.content.inert=false;f.ui.isPreparing=false;f.ui.motion.isSettled=true;f.ui.holdsNative=false;
+   assert.equal(await check(),false,'the native-page hold is still required');f.ui.holdsNative=true;
+   assert.equal(await check(),true);ready=true;
+  }else assert.equal(await check(),true);
+ };
+ const switchDesk=vm.runInNewContext('('+actualFunction('async function switchDesk(','\n async function togglePrivate(')+')',{click,until,noraReadback,js:async source=>vm.runInNewContext(source,f.context)});
+ assert.equal((await switchDesk('desk-1')).ticket,'unit-switch');
+ assert.deepEqual(calls.map(value=>value.selector),['#desktops-button','.desktop-card[data-desk="desk-1"] .desk-open']);
+ assert.deepEqual(waits,['Nora fully open','native desk switch']);
+});
+
+test('an exposed Nora click still requires foreground focus, native delivery and a trusted matching event',async()=>{
+ for(const mode of ['success','unfocused','inactive-mac','hidden-mac','driver-failure','untrusted','wrong-target']){
+  const pending=new Map(),part={inputs:[]},facts={},calls=[];let polls=0;
+  const forbidden=()=>{throw Error('An open Nora must not be refocused or shown again');};
+  const win={show:forbidden,focus:forbidden,isFocused:()=>mode!=='unfocused',isVisible:()=>mode!=='hidden-mac',webContents:{focus:forbidden},getContentBounds:()=>({x:10,y:20})};
+  const context={app:{focus:forbidden,isActive:()=>mode!=='inactive-mac'},win,process:{pid:123,platform:mode.endsWith('-mac')?'darwin':'linux'},fixture:{frame:async()=>{calls.push('frame');}},facts,part,pending,assert,inputProbe,nativeHitTarget:function nativeHitTarget(){},randomUUID:()=> 'unit-click',
+   js:async source=>{assert.doesNotMatch(source,/scrollIntoView/);if(source.includes('function nativeHitTarget'))return{ready:true,x:40,y:50};assert.ok(source.includes('function inputProbe'));calls.push('observer');},
+   until:async(check,label)=>{polls++;if(!await check())throw Error(label);},
+   nativeInput:{testClick:async(x,y)=>{calls.push('native');assert.deepEqual([x,y],[50,70]);if(mode==='driver-failure')return false;pending.get('unit-click').events.push({type:'click',trusted:mode!=='untrusted',matches:mode!=='wrong-target'});return true;}}};
+  const click=vm.runInNewContext('('+actualFunction('async function click(','\n function nativeState(')+')',context);
+  if(mode==='success'){assert.equal((await click('.desk-open',{activate:false,scroll:false})).ticket,'unit-click');assert.deepEqual(calls,['frame','observer','native']);assert.equal(polls,3);assert.equal(pending.size,0);}
+  else{await assert.rejects(click('.desk-open',{activate:false,scroll:false}));if(['unfocused','inactive-mac','hidden-mac'].includes(mode))assert.deepEqual(calls,[]);else assert.equal(calls.filter(value=>value==='native').length,1);}
+ }
 });

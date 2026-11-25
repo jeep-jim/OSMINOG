@@ -39,6 +39,11 @@ function inputProbe(selector,ticket){
  const listener=event=>console.log('MOUSE_639_INPUT '+JSON.stringify({ticket,selector,type:event.type,trusted:event.isTrusted,matches:!!target&&(event.target===target||target.contains(event.target)),at:Date.now(),x:event.clientX,y:event.clientY}));
  document.addEventListener('click',listener,{capture:true,once:true});globalThis.__mouse639Input=()=>document.removeEventListener('click',listener,true);
 }
+function noraReadback(){
+ const tray=document.querySelector('#desktop-tray'),content=tray?.querySelector('.desk-content'),ui=globalThis.MouseTest?.desktopUI;
+ const state={open:tray?.open===true,hidden:tray?.hidden!==false,phase:tray?.dataset.motion||'missing',inert:content?.inert!==false,isOpen:ui?.isOpen===true,preparing:ui?.isPreparing!==false,holdsNative:ui?.holdsNative===true,settled:ui?.motion?.isSettled===true};
+ return{...state,ready:state.open&&!state.hidden&&state.phase==='open'&&!state.inert&&state.isOpen&&!state.preparing&&state.holdsNative&&state.settled};
+}
 function assertPage(value,counts,blocked){
  assert.deepEqual(value.attempted,{allowed:1,advertising:1});assert.deepEqual(value.executed,{allowed:1,advertising:blocked?0:1});
  assert.deepEqual(value.settled,{allowed:'load',advertising:blocked?'error':'load'});assert.deepEqual(counts,{page:1,allowed:1,advertising:blocked?0:1});
@@ -58,10 +63,11 @@ async function run(ctx){
  const js=source=>bounded(win.webContents.executeJavaScript(source),10000,'639 shell JS');
  const ready=async()=>{try{return await js('document.documentElement.dataset.mouseReady==="true"&&!!globalThis.MouseTest');}catch{return false;}};
  const until=async(check,label,ms=10000)=>{const end=Math.min(startedAt+budgetMs,Date.now()+ms);do{if(await check())return;await sleep(25);}while(Date.now()<end);throw Error('Mouse639 timeout: '+label);};
- async function click(selector){
-  app.focus({steal:true});win.show();win.focus();win.webContents.focus();await until(()=>win.isFocused(),'native focus');
-  await js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();
-  let hit;await until(async()=>{hit=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{})`);return hit.ready;},'native hit target '+selector);
+ async function click(selector,{activate=true,scroll=true}={}){
+  if(activate){app.focus({steal:true});win.show();win.focus();win.webContents.focus();}
+  await until(()=>win.isFocused()&&(process.platform!=='darwin'||app.isActive()&&win.isVisible()),'native focus');
+  if(scroll)await js(`document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({block:'nearest',inline:'nearest'});true`);await fixture.frame();
+  let hit;try{await until(async()=>{hit=await js(`(${nativeHitTarget.toString()})(document.querySelector(${JSON.stringify(selector)}),{})`);return hit.ready;},'native hit target '+selector);}catch(error){facts.inputFailure={selector,hit};throw error;}
   const ticket=randomUUID(),origin=win.getContentBounds(),point={x:Math.round(origin.x+hit.x),y:Math.round(origin.y+hit.y)};
   const receipt={ticket,selector,action:'click',pid:process.pid,source:process.platform==='darwin'?'CGEvent':process.platform==='win32'?'User32':'XTest',point,at:Date.now(),events:[]};pending.set(ticket,receipt);part.inputs.push(receipt);
   await js(`(${inputProbe.toString()})(${JSON.stringify(selector)},${JSON.stringify(ticket)})`);assert.equal(await nativeInput.testClick(point.x,point.y),true);
@@ -113,7 +119,14 @@ async function run(ctx){
   for(const source of SOURCES){const row=seed.records.find(value=>value.source===source.id);assert.ok(row);assert.equal(row.url,source.url);const raw=await fs.readFile(path.join(app.getPath('userData'),'mouse-adblock',source.id+'.json'));assert.equal(sha(raw),row.sha256);const value=validRecord(JSON.parse(raw),source);assert.ok(Date.now()-Date.parse(value.updatedAt)<3600000);assert.equal(value.synthetic,true);records.push({source:source.id,sha256:sha(raw),textSha256:value.sha256,updatedAt:value.updatedAt});}
   return{seedSha256:sha(bytes),records,state:adBlock.state()};
  }
- async function switchDesk(id){await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray").open'),'Nora opens');const input=await click('.desktop-card[data-desk="'+id+'"] .desk-open');await until(()=>js(`!MouseTest.model.switching&&MouseTest.model.desktopId===${JSON.stringify(id)}&&!document.querySelector('#desktop-tray').open`),'native desk switch',15000);return input;}
+ async function switchDesk(id){
+  await click('#desktops-button');
+  // showModal() precedes native surface readback and the 300 ms opening. Do
+  // not focus or scroll the inert, translated panel while it is preparing.
+  await until(async()=>{const state=await js(`(${noraReadback.toString()})()`);return state.ready;},'Nora fully open');
+  const input=await click('.desktop-card[data-desk="'+id+'"] .desk-open',{activate:false,scroll:false});
+  await until(()=>js(`!MouseTest.model.switching&&MouseTest.model.desktopId===${JSON.stringify(id)}&&!document.querySelector('#desktop-tray').open`),'native desk switch',15000);return input;
+ }
  async function togglePrivate(enabled){const input=await click('#private-button');await until(async()=>!!privateMode.current===enabled&&!privateMode.busy&&await ready(),'private context switch',20000);assert.equal(await js('MouseTest.model.privateMode'),enabled);return input;}
  try{
   assert.equal(process.env.CI,'true');assert.ok(path.isAbsolute(process.env.MOUSE_TEST_PROFILE||''));assert.equal(path.resolve(app.getPath('userData')),path.resolve(process.env.MOUSE_TEST_PROFILE));assert.equal(app.isPackaged,true);assert.equal(app.getVersion(),VERSION);assert.equal(app.getName(),'Mouse Browser');assert.ok(globalCapture&&adBlock&&privateMode);
@@ -142,7 +155,7 @@ async function run(ctx){
   part.cache=await checkCache();facts.cleanup=await fixture.cleanup();fixture=null;await settingsService.flush();await store.queue;
   part.finalSettings=(await store.get('mouseControlSettings')).mouseControlSettings;assert.equal(part.finalSettings.blockAds,!read);part.completedAt=Date.now();part.elapsedMs=part.completedAt-startedAt;
   facts.writeComplete=true;facts.awaitingRestart=!read;facts.ok=read;facts.restored=read;
- }catch(cause){error=cause;facts.ok=false;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};if(fixture){try{await capture('failure');}catch(captureError){facts.captureError=captureError.message;}try{if(privateMode.current)await privateMode.toggle();facts.failureCleanup=await fixture.cleanup();}catch(cleanupError){facts.cleanupError=cleanupError.message;}}}
+ }catch(cause){error=cause;facts.ok=false;facts.error={stage:facts.stage,message:cause.message,stack:cause.stack};if(fixture){try{facts.failureUI=await js(`({nora:(${noraReadback.toString()})(),motion:globalThis.MouseTest?.desktopUI?.motion?.diagnostics?.(),backdrop:globalThis.MouseTest?.desktopUI?.diagnostics?.(),focused:document.hasFocus(),scroll:{x:scrollX,y:scrollY}})`);}catch(readbackError){facts.failureUIError=readbackError.message;}try{await capture('failure');}catch(captureError){facts.captureError=captureError.message;}try{if(privateMode.current)await privateMode.toggle();facts.failureCleanup=await fixture.cleanup();}catch(cleanupError){facts.cleanupError=cleanupError.message;}}}
  finally{
   if(httpFixture){const filename='mouse-639-adblock-http-'+phase+'.json',value={schema:1,synthetic:true,version:VERSION,pid:process.pid,origin:httpFixture.base,hits:httpFixture.hits},raw=JSON.stringify(value,null,2)+'\n';await fs.writeFile(filename,raw);part.http={file:filename,sha256:sha(raw)};await httpFixture.close();}
   win.webContents.removeListener('console-message',consoleInput);clearTimeout(watchdog);await save();
@@ -150,4 +163,4 @@ async function run(ctx){
  if(error){console.error('MOUSE_639_ADBLOCK_FAIL',error.stack);return exit(1);}console.log(read?'MOUSE_639_ADBLOCK_NATIVE_PASS':'MOUSE_639_ADBLOCK_WRITE_PASS');return exit(0);
 }
 module.exports=run;
-module.exports.fixtures={fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,assertPage,SCRIPT,COLORS,PREFIX,sha};
+module.exports.fixtures={fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,noraReadback,assertPage,SCRIPT,COLORS,PREFIX,sha};
