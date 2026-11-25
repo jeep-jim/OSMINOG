@@ -92,7 +92,7 @@
 .showcase-fallback figure { margin: 0; overflow: hidden; border: 1px solid var(--showcase-stroke); border-radius: 7px; }
 .showcase-fallback figcaption { height: 29px; padding: 8px; background: var(--showcase-panel); font: 11px/1 var(--body-font); }
 .showcase-fallback img { display: block; width: 100%; height: calc(100% - 29px); object-fit: cover; object-position: top; filter: grayscale(1); }
-/* The complete presentation occupies the right window; fullscreen keeps its own chrome. */
+/* The complete presentation occupies the browser window; fullscreen keeps its own chrome. */
 .hero-visual .showcase { position: absolute; inset: 0; margin: 0; }
 .hero-visual .showcase-dock { position: absolute; inset: 0; }
 .showcase-dock .showcase-experience { height: 100%; }

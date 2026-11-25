@@ -1,13 +1,14 @@
-/* The city has its own row; the original burrow sits below it in normal flow. */
+/* A tiny, local pixel city. The original burrow remains in the foreground. */
 .hero-mascot:has(.manifest-city) {
-  height: 200px;
-  flex: 0 0 200px;
+  height: 230px;
+  display: flex;
+  align-items: flex-end;
   isolation: isolate;
 }
 .manifest-city {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   overflow: hidden;
   pointer-events: none;
   contain: layout paint;
@@ -21,6 +22,7 @@
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+.hero-mascot:has(.manifest-city) .burrow-stage { z-index: 1; flex-shrink: 0; }
 .hero-mascot:has(.manifest-city)::after { z-index: 2; }
 [data-city-pause] {
   display: inline-grid;
@@ -41,5 +43,5 @@
 [data-city-pause][aria-pressed="true"] [data-city-play-icon] { display: block; }
 [data-city-pause][aria-pressed="true"] [data-city-pause-icon] { display: none; }
 @media (max-width: 560px) {
-  .hero-mascot:has(.manifest-city) { height: 176px; flex-basis: 176px; }
+  .hero-mascot:has(.manifest-city) { height: 200px; }
 }
