@@ -52,4 +52,21 @@ No claim is made that Mouse uniquely has split screen, a flexible grid or worksp
 
 ## Publication
 
-Pending exact-tree upload, CI and the existing own-user production workflow. Public success will be recorded here after the workflow and live inspection finish.
+**PUBLIC PASS on 25.11.2026.** [PR #213](https://github.com/jeep-jim/OSMINOG/pull/213) merged as `fb262be650e487c7a81e7c3bc73c95b97985b928`. The uploaded PR head `0dd195a2904850c8652888ee12ee763677cc0398` and locally tested source `74c0d4900f8f81aaea486f18052fe3512e98e07c` have the identical tree `affe90c300170e5e18c6c38eef2d693e454c7063`.
+
+- [PR website CI 45578272231](https://github.com/jeep-jim/OSMINOG/actions/runs/45578272231): PASS, 71 Python and 25 Node tests, strict build/SEO and source bundle. CI's checked-in catalog fixture is 6.0.36; publication independently resolved the current 6.0.38 packages below.
+- [Production run 45578500314](https://github.com/jeep-jim/OSMINOG/actions/runs/45578500314): **success**, completed at 08:44:20 UTC / 15:44:20 Asia/Krasnoyarsk. Both `validate` and `website` passed. Deployment identity: `6f44f2b9a0689a7876a44b9f3d0d36448a6fa91b`.
+- Own-user publication verified a real subsequent timer check at `2026-11-25T08:43:25.510619+00:00`. HTTPS and canonical redirects passed; 72-language sitemap/hreflang passed; exact live Russian, English and Arabic HTML samples passed.
+- All three full installer SHA256, HEAD and Range checks passed. Current packages remain 6.0.38: macOS `a6b88d66f4e240fad5f9be6fe166d08a22231d84e81fcd81ac545fae797c78bb`, Windows `7647487decd235b493dfe0c03107ca3adc44360a20bc1d31aae8ca2a07379eb7`, Linux `ad8192a991b6485e447e6e33acd899567df885095bf3f7581c0a6d1457bbad90`.
+- Direct UI inspection of [the published comparison](https://mouse.black/ru/#browser-comparison): all eleven choices and ten logo images present; five desktop buttons; Content has four panes/tabs, Trading two, and returning restores Content. Selecting Chrome shows two panes and hides Mouse's desktop strip; returning to Mouse restores desktop 1. Persistent model disclosure is visible; no page horizontal overflow.
+- Download statistics remain **UNAVAILABLE** as before; this task does not activate the separate server component. No invented counters are shown.
+
+Key production evidence:
+
+```text
+MOUSE_RELEASE_SYNC_PUBLISHED deployment=6f44f2b9a0689a7876a44b9f3d0d36448a6fa91b
+MOUSE_RELEASE_TIMER_VERIFIED source=fb262be650e487c7a81e7c3bc73c95b97985b928 checkedAt=2026-11-25T08:43:25.510619+00:00
+MOUSE_WEBSITE_AUTOMATION_LIVE https://mouse.black
+MOUSE_SEO_VERIFIED pages=73 languages=72 sitemap_urls=72 version=6.0.38
+MOUSE_PAGES_LIVE_VERIFIED sitemap_languages=72 sampled_languages=3 downloads_sha256=3
+```
