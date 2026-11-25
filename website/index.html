@@ -240,15 +240,56 @@
 </section>
 
 <section class="pricing" id="pricing" aria-labelledby="pricing-heading">
+  <div class="pricing-pixel-scene" aria-hidden="true">
+    <svg class="pixel-trap" viewBox="0 0 80 64" shape-rendering="crispEdges">
+      <path class="trap-metal" d="M12 12h56v4H12zM8 16h4v30H8zm60 0h4v30h-4zM12 46h56v4H12zM16 8h4v4h-4zm44 0h4v4h-4z"/>
+      <path class="trap-wire" d="M20 16h4v24h-4zm4 0h32v4H24zm32 4h4v20h-4z"/>
+      <path class="trap-base" d="M0 50h80v6H0zM4 56h72v4H4z"/>
+      <path class="trap-cross" d="M34 24h4v4h-4zm4 4h4v4h-4zm4 4h4v4h-4zm4 4h4v4h-4zm0-12h4v4h-4zm-4 4h4v4h-4zm-4 4h4v4h-4zm-4 4h4v4h-4z"/>
+    </svg>
+    <span class="pricing-scene-break">≠</span>
+    <svg class="pixel-cheese" viewBox="0 0 80 64" shape-rendering="crispEdges">
+      <path class="cheese-rind" d="M8 26h8v-4h12v-4h12v-4h12v-4h12v6h4v30H8z"/>
+      <path class="cheese-body" d="M8 32h60v20H8zM16 28h52v4H16z"/>
+      <path class="cheese-edge" d="M8 46h60v6H8zM8 32h6v20H8z"/>
+      <path class="cheese-hole" d="M26 34h8v8h-8zm24 4h10v8H50zM46 20h6v6h-6z"/>
+      <path class="cheese-spark" d="M72 16h4v4h-4zm4-4h4v4h-4zM4 14h4v4H4z"/>
+    </svg>
+  </div>
   <h2 class="pricing-heading" id="pricing-heading" data-i18n="pricingTitle">Один честный тариф</h2>
-  <p class="pricing-price">
-    <bdi class="pricing-amount" dir="ltr">$3</bdi>
-    <span class="pricing-period" data-i18n="pricingPeriod">3 доллара США в месяц</span>
-  </p>
-  <p class="pricing-description" data-i18n="pricingDescription">Окна, столы и локальное автосохранение. Три главные функции на каждый день — всё в одном тарифе</p>
-  <p class="pricing-settings" data-i18n="pricingSettings">Всё остальное — в настройках ;)</p>
-  <p class="pricing-note" data-i18n="pricingNote">Подписка скоро</p>
-  <a class="pricing-download" href="#downloads" data-i18n="pricingDownload">Скачать Mouse</a>
+  <p class="pricing-description" data-i18n="pricingDescription">Mouse — бесплатный браузер. «Сыр» за $3 в месяц — будущий тариф с дополнительными возможностями.</p>
+  <div class="pricing-plans">
+    <article class="pricing-plan pricing-plan-free" aria-labelledby="plan-free-title">
+      <div class="pricing-plan-top">
+        <div class="pricing-plan-name" id="plan-free-title">MOUSE <span>FREE</span></div>
+        <span class="pricing-plan-symbol" aria-hidden="true">◌</span>
+      </div>
+      <div class="pricing-plan-amount" dir="ltr">$0</div>
+      <div class="pricing-plan-metrics">
+        <div class="pricing-plan-metric"><strong>4</strong><span data-i18n="workspaceTitle">Окна рядом</span></div>
+        <div class="pricing-plan-metric"><strong>2</strong><span data-i18n="desksTitle">Каждой задаче — свой стол</span></div>
+      </div>
+      <a class="pricing-download" href="#downloads" data-i18n="pricingDownload">Скачать Mouse</a>
+    </article>
+    <article class="pricing-plan pricing-plan-cheese" aria-labelledby="plan-cheese-title">
+      <div class="pricing-plan-top">
+        <div class="pricing-plan-name" id="plan-cheese-title">MOUSE <span>CHEESE</span></div>
+        <svg class="pricing-cheese-small" viewBox="0 0 24 24" shape-rendering="crispEdges" aria-hidden="true">
+          <path fill="currentColor" d="M2 10h4V8h4V6h4V4h6v4h2v12H2z"/>
+          <path fill="var(--paper)" d="M7 12h4v4H7zm8 3h4v3h-4zM15 7h3v3h-3z"/>
+        </svg>
+      </div>
+      <div class="pricing-plan-amount" dir="ltr">$3</div>
+      <div class="pricing-plan-metrics">
+        <div class="pricing-plan-metric"><strong>12</strong><span data-i18n="workspaceTitle">Окна рядом</span></div>
+        <div class="pricing-plan-metric"><strong>5</strong><span data-i18n="desksTitle">Каждой задаче — свой стол</span></div>
+      </div>
+      <p class="pricing-plan-extra" data-i18n="captureTitle">Скриншоты и текст</p>
+      <p class="pricing-plan-period" data-i18n="pricingPeriod">3 доллара США в месяц</p>
+      <span class="pricing-coming-soon" data-i18n="pricingNote">Подписка скоро</span>
+    </article>
+  </div>
+  <p class="pricing-settings" data-i18n="pricingSettings">Разделение на бесплатный и платный уровни пока только планируется. Сейчас действующие возможности Mouse доступны без оплаты.</p>
 </section>
   </main>
 
