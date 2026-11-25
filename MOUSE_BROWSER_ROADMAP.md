@@ -38,7 +38,7 @@
 
 ## Сайт и автообновление
 
-25.11 Free/Cheese site concept: PR #205, NOT LIVE. Details: docs/website/2026-11-25-free-cheese-pricing.md.
+25.11 Free/Cheese LIVE: PR205, CI45551355664 PASS. Details: docs/website/2026-11-25-free-cheese-pricing.md.
 
 [mouse.black](https://mouse.black/) — свой webroot/HTTPS под osminog. Три загрузки 638: SHA256/Range PASS 23.11.2026. Таймер проверяет официальные каналы через 60 секунд после предыдущего запуска. Сохранять свежие загрузки по платформам и параллельные изменения сайта. [Инфраструктура](docs/website/2026-11-22-mouse-black-launch.md).
 
