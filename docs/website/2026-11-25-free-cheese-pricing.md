@@ -13,7 +13,7 @@
 
 ## Acceptance / evidence
 
-Pending GitHub Actions validation of PR #205 and browser review of desktop/mobile widths, dark/light and RTL. A source commit or passing synthetic test alone will not be described as deployed. Do not publish another browser build; the existing Mouse installer update service remains independent of pricing.
+Published 2026-11-25 by squash merge of PR #205, source `34e37e7866713e2dbae665b59874e9438b8fe7c1`. [Mouse website run 45551355664](https://github.com/jeep-jim/OSMINOG/actions/runs/45551355664) completed **SUCCESS**: validation, own-user publishing, real automatic release timer, independent public HTTPS and all three installer SHA256 checks. Public deployment identity: `c035a6917cea7f5958640fd031ec82a5a6b4569c`. 73 generated HTML pages, 72 sitemap locales, three sample rendered locales verified. The public files are the existing **6.0.38** Mac/Windows/Linux installers, not a new browser build. The GitHub website gate does not constitute independent human visual review of all themes or all 72 translations.
 
 ## After website acceptance
 
