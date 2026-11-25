@@ -39,6 +39,11 @@ The renderer and SEO verifier passed for 73 HTML pages / 72 sitemap languages us
 
 ## Publication
 
-Prepared from main `a426f4a94a8207cf4ed45a3d6ea045aa7c802b62`. Local verification is complete; exact PR validation, published source and independent production checks will be recorded here after completion.
+- [PR #211](https://github.com/jeep-jim/OSMINOG/pull/211), prepared from main `a426f4a94a8207cf4ed45a3d6ea045aa7c802b62`; reviewed head `9d40f6091208bf4bf038dd8a782cc6a6e053197e`. Local and remote trees match: `bda52a11631a9067806f4ca4cddf57f58079aab9`.
+- [Website PR gate 45568410145](https://github.com/jeep-jim/OSMINOG/actions/runs/45568410145) completed successfully for that exact head at `2026-11-25T07:28:56Z` (14:28:56 Krasnoyarsk). Validate job `139048788683` passed; the deployment job was skipped as expected for a PR.
+- Published source: `7eda7e8b473662ef4c2baeab69649ec4e245a7e0`. [Production run 45568571334](https://github.com/jeep-jim/OSMINOG/actions/runs/45568571334) completed successfully at `2026-11-25T07:32:10Z` (14:32:10 Krasnoyarsk). Validation job `139049337037` and website job `139049472892` both passed.
+- Deployment identity: `da1aa6b952071e204c85ac8b5c649cd2addff0cf`. A real subsequent release-timer check was observed at `07:31:26.606571Z`. Independent public HTTPS, RU/EN/AR HTML, 72-locale sitemap / 73 hreflang and all three complete installer SHA256 / HEAD / Range checks passed at `07:32:07Z`; all installers remain 6.0.38.
+- Direct browser inspection of [the public page](https://mouse.black/ru/) and [feature section](https://mouse.black/ru/#features) confirmed the mouse wordmark, purple text, aligned release row, new feature title, removed subtitle, tracks and pixel illustrations. The top manifesto button opened the public dialog. The public + increased three tabs to four while keeping three visible windows; selecting Google Maps worked. Both captions were in the browser toolbar.
+- Metrics still report `MOUSE_DOWNLOAD_STATS_UNAVAILABLE since=None checkedAt=2026-11-25T07:30:25.934098+00:00`. This task did not activate the logger. Durable publication evidence is in the task document; the workflow artifact is also available as `15000404544` with the workflow's retention period.
 
 This website task does not change native releases, installers, billing or the inactive download logger. [The existing administrator activation boundary](2026-11-25-download-metrics.md) remains.
