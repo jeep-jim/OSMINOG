@@ -31,6 +31,31 @@ function armFrameCapture(contents,{select,timeoutMs=4000,maxFrames=120}={}){
  }catch(error){fail(error);}
  return{result,ready,cancel};
 }
+// A restored WebContents can finish a failed navigation before its native
+// widget has presented even one frame. A restart persistence fixture must
+// observe that first presentation before testing a subsequent UI action.
+// This never changes a page, asks production to capture it, or opens the UI.
+async function observeNativePagePresentations(pages,{current,timeoutMs=4000}={}){
+ if(!Array.isArray(pages)||pages.length>16||typeof current!=='function'||!Number.isFinite(timeoutMs)||timeoutMs<=0)throw Error('Invalid restored page observation');
+ if(new Set(pages.map(page=>page.id)).size!==pages.length||new Set(pages.map(page=>page.contents)).size!==pages.length||pages.some(page=>!page.id||!page.contents||!['width','height'].every(key=>Number.isSafeInteger(page.viewport?.[key])&&page.viewport[key]>0)))throw Error('Invalid restored page identities or viewport');
+ const captures=[],deadline=performance.now()+timeoutMs;
+ const live=()=>{if(performance.now()>=deadline)throw Error('Restored page presentation timed out');};
+ const check=page=>{live();const same=current(page)===true;live();if(!same)throw Error('Restored page changed before its first presentation: '+page.id);};
+ try{
+  for(const page of pages){
+   check(page);
+   const capture=armFrameCapture(page.contents,{timeoutMs:Math.max(1,deadline-performance.now()),select(image,frame){
+    check(page);
+    if(image.isEmpty?.()||frame.pixelSize.width!==Math.round(page.viewport.width*frame.scaleFactor)||frame.pixelSize.height!==Math.round(page.viewport.height*frame.scaleFactor))return null;
+    return{id:page.id,webContentsId:page.contents.id,viewport:{...page.viewport}};
+   }});
+   captures.push({page,capture});
+  }
+  const frames=await Promise.all(captures.map(async({page,capture})=>{const frame=await capture.result;check(page);return{id:page.id,...frame};}));
+  for(const page of pages)check(page);
+  return frames;
+ }finally{for(const {capture}of captures)capture.cancel();}
+}
 // Static chrome needs a different proof from the moving-frame selector above.
 // desktopCapturer returns asynchronously prepared source thumbnails; a DOM/RAF
 // observation does not bind that thumbnail to the current shell presentation.
@@ -101,4 +126,4 @@ async function acquireFreshNativeFrame({reference,capture,select,assertStable=as
  catch(error){if(!error.readiness)Object.assign(error,{readiness:readiness(),lastCapture,lastReference});throw error;}
  finally{finished=true;clearTimeout(timer);}
 }
-module.exports={armFrameCapture,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame};
+module.exports={armFrameCapture,observeNativePagePresentations,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame};

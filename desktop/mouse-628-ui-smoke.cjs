@@ -6,7 +6,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=r
 const {screen,clipboard,ClipboardItem,nativeImage}=require('electron');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {workspaceSeamToken}=require('./mouse-smoke-seam-palette.cjs');
-const {armFrameCapture}=require('./mouse-smoke-frames.cjs');
+const {armFrameCapture,observeNativePagePresentations}=require('./mouse-smoke-frames.cjs');
 const {closingReversalPair,observeNoraReversal,runNoraReversalTrials}=require('./mouse-smoke-reversal.cjs');
 const {createMotionTrace,MARKER_PREFIX,bounded}=require('./mouse-smoke-trace.cjs');
 const {chromeGradientReference,assertChromeReference,sampleChromeReference,reusePreModalChromeReference}=require('./mouse-634-chrome-reference.cjs');
@@ -69,7 +69,22 @@ async function verifyGestureRestart({app,win,browser,store,expectedSavedVersion=
  }
  try{const surfaces=browser.mouseDesktops?.surfaces;if(surfaces?.diagnostics?.().enabled!==true)surfaces?.enableDiagnostics?.();}catch(error){diagnosticError('enable surfaces',error);}
  try{
-  await js('MouseTest.desktopUI.gesture.ready');try{diagnostic.before=await restartSnapshot('before-open');await saveDiagnostic();}catch(error){diagnosticError('before-open evidence',error);}await js('MouseTest.desktopUI.open()');
+  await js('MouseTest.desktopUI.gesture.ready');
+  // The write process owns its loopback servers; restored URLs can therefore
+  // finish with a network error before a native framebuffer exists. Observe
+  // real presentations of the same visible views before the single open().
+  // The production 2500 ms capture/1500 ms paint budgets remain untouched.
+  const snapshot=page=>({id:page.id,epoch:page.navigationEpoch||0,url:page.view.webContents.getURL(),bounds:page.bounds,viewport:page.view.getBounds(),visible:page.visible,viewVisible:page.view.getVisible(),clip:page.clipView?.getBounds?.()||null});
+  const selected=[...new Set((browser.panels||[]).map(panel=>panel.id))].map(id=>browser.tabs.get(id)||[...browser.providers.values()].find(page=>page.id===id)).filter(page=>page?.visible);
+  const pages=selected.map(page=>({id:page.id,page,view:page.view,clipView:page.clipView,contents:page.view.webContents,viewport:page.view.getBounds(),state:JSON.stringify(snapshot(page))}));
+  diagnostic.presentation={source:'beginFrameSubscription',timeoutMs:4000,startedAt:performance.now(),pages:[]};
+  const frames=await observeNativePagePresentations(pages,{timeoutMs:4000,current:pin=>!pin.contents.isDestroyed()&&browser.get(pin.id)===pin.page&&pin.page.view===pin.view&&pin.page.clipView===pin.clipView&&pin.view.webContents===pin.contents&&JSON.stringify(snapshot(pin.page))===pin.state});
+  for(let index=0;index<frames.length;index++){
+   const {png,...frame}=frames[index],file='mouse-630-nora-restart-page-'+index+'.png';
+   await fs.writeFile(file,png);diagnostic.presentation.pages.push({...frame,file,sha256:createHash('sha256').update(png).digest('hex'),bytes:png.length});
+  }
+  diagnostic.presentation.finishedAt=performance.now();
+  try{diagnostic.before=await restartSnapshot('before-open');await saveDiagnostic();}catch(error){diagnosticError('before-open evidence',error);}await js('MouseTest.desktopUI.open()');
   await until(()=>js('document.querySelector("#desktop-tray").dataset.motion==="open"'),'restarted Nora opens');
   const observed=await js('({gesture:MouseTest.desktopUI.gesture.diagnostics(),hintHidden:document.querySelector(".desktop-gesture-hint").hidden,noraOpen:document.querySelector("#desktop-tray").open,timeOrigin:performance.timeOrigin})');
   assert.equal(observed.gesture.learned,true);assert.equal(observed.hintHidden,true);assert.equal(observed.noraOpen,true);
