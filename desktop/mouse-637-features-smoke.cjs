@@ -167,7 +167,10 @@ module.exports=async ctx=>{
  }
  async function extensionButton(id,label){
   const selector='.mouse-extension-row[data-id="'+id+'"] .mouse-extension-actions>button';
-  const index=await fixture.js(`[...document.querySelectorAll(${JSON.stringify(selector)})].findIndex(e=>e.textContent===${JSON.stringify(label)})`);assert.ok(index>=0,'Extension action '+label);return click(selector+':nth-child('+(index+1)+')');
+  // The main-process registry can already contain a reinstalled extension
+  // while the IPC response has not yet rebuilt its renderer row.
+  let index=-1;await fixture.until(async()=>{index=await fixture.js(`[...document.querySelectorAll(${JSON.stringify(selector)})].findIndex(e=>e.textContent===${JSON.stringify(label)})`);return index>=0;},'Extension action '+label);
+  return click(selector+':nth-child('+(index+1)+')');
  }
  async function openExtensions(){await click('#mouse-extensions-button');await fixture.until(()=>fixture.js('document.querySelector("#mouse-extensions-dialog").open'),'extensions dialog')}
  async function closeExtensions(){await click('#mouse-extensions-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#mouse-extensions-dialog").open'),'extensions dialog closes')}
