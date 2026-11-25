@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
-const {fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,noraReadback,assertPage,SCRIPT,COLORS,PREFIX,sha}=require('./mouse-639-adblock-smoke.cjs').fixtures;
+const {fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,noraReadback,settingsCaptureReadback,settingsGuestOverlaps,settingsPixelContrast,settingsFrameAcceptance,assertPage,SCRIPT,COLORS,PREFIX,sha}=require('./mouse-639-adblock-smoke.cjs').fixtures;
 const smoke=fs.readFileSync(path.join(__dirname,'mouse-639-adblock-smoke.cjs'),'utf8');
 function actualFunction(start,end){const a=smoke.indexOf(start),b=smoke.indexOf(end,a);assert.ok(a>=0&&b>a);return smoke.slice(a,b).trim();}
 
@@ -123,4 +123,62 @@ test('an exposed Nora click still requires foreground focus, native delivery and
   if(mode==='success'){assert.equal((await click('.desk-open',{activate:false,scroll:false})).ticket,'unit-click');assert.deepEqual(calls,['frame','observer','native']);assert.equal(polls,3);assert.equal(pending.size,0);}
   else{await assert.rejects(click('.desk-open',{activate:false,scroll:false}));if(['unfocused','inactive-mac','hidden-mac'].includes(mode))assert.deepEqual(calls,[]);else assert.equal(calls.filter(value=>value==='native').length,1);}
  }
+});
+
+test('settings capture visibility allows the disabled private switch but rejects clipping and DOM coverage',()=>{
+ const bounds={x:1148,y:425,width:31,height:18},ui={open:true,checked:true,disabled:true,privateMode:true,bounds},body={scrollLeft:0,scrollTop:210,getBoundingClientRect:()=>({x:820,y:105,width:380,height:655})},panel={querySelector:()=>body,getBoundingClientRect:()=>({x:820,y:44,width:380,height:716})};
+ const input={isConnected:true,disabled:true,contains:node=>node===input};let covered=false;
+ const context={document:{querySelector:selector=>selector==='#settings-dialog'?panel:input,elementFromPoint:()=>covered?panel:input},getComputedStyle:(_element,pseudo)=>pseudo?{transform:'matrix(1, 0, 0, 1, 13, 0)'}:{display:'block',visibility:'visible',opacity:'.45',backgroundColor:'rgb(42, 79, 210)'},innerWidth:1200,innerHeight:794};
+ const read=vm.runInNewContext('('+settingsCaptureReadback.toString()+')',context);
+ assert.equal(read(()=>ui).visible,true);assert.equal(read(()=>ui).ui.disabled,true);assert.equal(input.disabled,true);
+ covered=true;assert.equal(read(()=>ui).visible,false);covered=false;
+ bounds.y=755;assert.equal(read(()=>ui).visible,false);bounds.y=425;input.isConnected=false;assert.equal(read(()=>ui).visible,false);
+});
+
+test('the settings sidebar rejects actual overlapping attached guests and respects native clipping and visibility',()=>{
+ const panel={x:820,y:44,width:380,height:716},view=bounds=>({getBounds:()=>bounds,getVisible:()=>true});
+ const guest={id:'owned-page',bounds:{x:0,y:74,width:814,height:686},view:view({x:0,y:74,width:1200,height:686})};
+ assert.equal(settingsGuestOverlaps([guest],[guest.view],panel).length,1,'cached narrowed page bounds must not hide the actual full-width native surface');
+ guest.clipView=view({x:0,y:74,width:814,height:686});assert.deepEqual(settingsGuestOverlaps([guest],[guest.clipView],panel),[],'the clipping view owns actual window coordinates');
+ guest.clipView=view({x:810,y:74,width:20,height:686});assert.equal(settingsGuestOverlaps([guest],[guest.clipView],panel).length,1);
+ assert.deepEqual(settingsGuestOverlaps([guest],[],panel),[]);guest.clipView.getVisible=()=>false;assert.deepEqual(settingsGuestOverlaps([guest],[guest.clipView],panel),[]);
+ guest.clipView.getVisible=()=>true;guest.view.getVisible=()=>false;assert.deepEqual(settingsGuestOverlaps([guest],[guest.clipView],panel),[]);
+});
+
+function settingsState(){return{snapshot:{ui:{open:true,checked:false,disabled:false,privateMode:false,status:'off',bounds:{x:10,y:10,width:10,height:10}},panel:{x:8,y:0,width:42,height:40},body:{x:8,y:2,width:42,height:38},scroll:{x:0,y:100},style:{thumbTransform:'none'},visible:true},guests:[]};}
+function checkboxBitmap(size,bounds,blank=false){const pixels=Buffer.alloc(size.width*size.height*4);for(let y=0;y<size.height;y++)for(let x=0;x<size.width;x++){const i=(y*size.width+x)*4,thumb=!blank&&x>=bounds.x&&x<bounds.x+bounds.width/2&&y>=bounds.y&&y<bounds.y+bounds.height;pixels[i]=thumb?255:232;pixels[i+1]=thumb?255:240;pixels[i+2]=thumb?255:243;pixels[i+3]=255;}return pixels;}
+
+test('UI frame acceptance rejects the recorded blank guest background, moving geometry and stale status',()=>{
+ const size={width:50,height:40},mapping={originX:0,originY:0,scaleX:1,scaleY:1},before=settingsState();
+ const blank=settingsPixelContrast(checkboxBitmap(size,before.snapshot.ui.bounds,true),size,mapping,before.snapshot.ui.bounds);
+ assert.deepEqual(blank.shades,Array(16).fill(715));assert.equal(blank.contrast,0);assert.equal(settingsFrameAcceptance(before,structuredClone(before),blank).accepted,false);
+ const painted=settingsPixelContrast(checkboxBitmap(size,before.snapshot.ui.bounds),size,mapping,before.snapshot.ui.bounds);assert.equal(painted.opaque,true);assert.ok(painted.contrast>=20);
+ assert.equal(settingsFrameAcceptance(before,structuredClone(before),painted).accepted,true);
+ for(const mutate of [s=>s.snapshot.ui.bounds.y++,s=>s.snapshot.ui.status='ready',s=>s.snapshot.scroll.y++,s=>s.snapshot.style.thumbTransform='matrix(1,0,0,1,13,0)',s=>s.snapshot.visible=false,s=>s.guests.push({id:'covering-guest'})]){const after=structuredClone(before);mutate(after);assert.equal(settingsFrameAcceptance(before,after,painted).accepted,false);}
+ assert.equal(settingsFrameAcceptance({...before,guests:[{id:'covering-guest'}]},before,painted).accepted,false);
+ assert.equal(settingsFrameAcceptance(before,before,{...painted,contrast:19}).accepted,false);assert.equal(settingsFrameAcceptance(before,before,{...painted,contrast:20}).accepted,true);
+ assert.equal(settingsPixelContrast(checkboxBitmap(size,before.snapshot.ui.bounds),size,{...mapping,originX:100},before.snapshot.ui.bounds).opaque,false);
+});
+
+test('the actual OS capture retries blank and changing UI frames, binds the accepted state and stops at six attempts',async()=>{
+ for(const permanentlyBlank of [false,true]){
+  const size={width:50,height:40},header=Buffer.alloc(24),state=settingsState(),part={captures:[]},writes=[];header.writeUInt32BE(size.width,16);header.writeUInt32BE(size.height,20);let acquisitions=0;
+  const display={bounds:{x:0,y:0,...size},workArea:{x:0,y:0,...size},scaleFactor:1},geometry={cropPixels:{x:0,y:0,...size},mapping:{originX:0,originY:0,scaleX:1,scaleY:1}};
+  const context={phase:'write',part,facts:{},assert,Buffer,process:{pid:123,platform:'darwin'},sha,settingsPixelContrast,settingsFrameAcceptance,
+   fixture:{frame:async()=>{}},screen:{getDisplayMatching:()=>display},win:{getBounds:()=>display.bounds,getContentBounds:()=>display.bounds},screenCropGeometry:()=>geometry,
+   readSettingsCapture:async()=>structuredClone(state),until:async check=>{for(let i=0;i<10;i++)if(await check())return;throw Error('readiness timed out');},
+   bounded:async operation=>await operation,sleep:async()=>{},save:async()=>{},fs:{writeFile:async(name,bytes)=>{writes.push({name,bytes});}},
+   globalCapture:{permission:()=> 'granted',acquire:async()=>{acquisitions++;if(acquisitions===2)state.snapshot.ui.bounds.x=12;return{kind:'screen',backend:'unit-readback',base:'data:image/png;base64,'+header.toString('base64')};}},
+   nativeImage:{createFromBuffer:()=>({crop:()=>({toPNG:()=>header,toBitmap:()=>checkboxBitmap(size,state.snapshot.ui.bounds,permanentlyBlank||acquisitions===1)})})}};
+  const capture=vm.runInNewContext('('+actualFunction('async function capture(','\n async function openSettings(')+')',context);
+  if(permanentlyBlank){await assert.rejects(capture('initial-off',{settings:true}));assert.equal(acquisitions,6);assert.equal(part.captures[0].accepted,false);}
+  else{assert.equal(await capture('initial-off',{settings:true}),'mouse-639-adblock-write-initial-off.png');assert.equal(acquisitions,3);assert.equal(part.captures[0].accepted,true);assert.equal(part.captures[0].ui.bounds.x,12);assert.deepEqual(Array.from(part.captures[0].uiAttempts,row=>row.accepted),[false,false,true]);}
+  assert.equal(writes.length,2,'only the final actual window/display buffers are written');assert.equal(part.captures[0].uiAttempts.length,acquisitions);
+ }
+});
+
+test('the actual settings receipt uses the UI readback bound to the accepted OS frame',async()=>{
+ const accepted=settingsState().snapshot.ui,part={captures:[],ui:[]};accepted.bounds.x=12;
+ const settingsShot=vm.runInNewContext('('+actualFunction('async function settingsShot(','\n async function changeEnabled(')+')',{assert,part,openSettings:async()=>{},capture:async(name,options)=>{assert.equal(options.settings,true);part.captures.push({ui:accepted});return name+'.png';}});
+ assert.equal(await settingsShot('initial-off'),accepted);assert.equal(part.ui[0].bounds,accepted.bounds);assert.equal(part.ui[0].capture,'initial-off.png');
 });

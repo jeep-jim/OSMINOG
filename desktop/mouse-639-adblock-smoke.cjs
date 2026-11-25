@@ -44,6 +44,38 @@ function noraReadback(){
  const state={open:tray?.open===true,hidden:tray?.hidden!==false,phase:tray?.dataset.motion||'missing',inert:content?.inert!==false,isOpen:ui?.isOpen===true,preparing:ui?.isPreparing!==false,holdsNative:ui?.holdsNative===true,settled:ui?.motion?.isSettled===true};
  return{...state,ready:state.open&&!state.hidden&&state.phase==='open'&&!state.inert&&state.isOpen&&!state.preparing&&state.holdsNative&&state.settled};
 }
+function settingsCaptureReadback(readSettings){
+ const ui=readSettings(),input=document.querySelector('[data-setting="blockAds"]'),panel=document.querySelector('#settings-dialog'),body=panel.querySelector('.dialog-content');
+ const rect=element=>{const r=element.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};},panelBounds=rect(panel),bodyBounds=rect(body),b=ui.bounds,style=getComputedStyle(input),thumb=getComputedStyle(input,'::before');
+ const hit=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2),inside=r=>b.x>=r.x&&b.y>=r.y&&b.x+b.width<=r.x+r.width&&b.y+b.height<=r.y+r.height;
+ // A disabled private checkbox is still visible evidence. This readback must
+ // not use nativeHitTarget(), which deliberately rejects disabled controls.
+ const visible=ui.open&&input.isConnected&&b.width>0&&b.height>0&&style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)>0&&inside(panelBounds)&&inside(bodyBounds)&&inside({x:0,y:0,width:innerWidth,height:innerHeight})&&!!hit&&input.contains(hit);
+ return{ui,panel:panelBounds,body:bodyBounds,scroll:{x:body.scrollLeft,y:body.scrollTop},style:{opacity:style.opacity,background:style.backgroundColor,thumbTransform:thumb.transform},visible};
+}
+function settingsGuestOverlaps(pages,children,panel){
+ const overlaps=[];
+ for(const page of pages){
+  const view=page.view,surface=page.clipView||view;if(!view||!children.includes(surface)||!surface.getVisible()||!view.getVisible())continue;
+  // The attached clipping view owns window coordinates; its child may start
+  // at (0,0). Cached page.bounds cannot establish actual native placement.
+  const b=surface.getBounds();if(b.x<panel.x+panel.width&&b.x+b.width>panel.x&&b.y<panel.y+panel.height&&b.y+b.height>panel.y)overlaps.push({id:page.id,bounds:{...b}});
+ }
+ return overlaps;
+}
+function settingsPixelContrast(pixels,size,mapping,bounds){
+ const shades=[];let opaque=true;
+ for(const x of [.2,.4,.6,.8])for(const y of [.2,.4,.6,.8]){
+  const px=Math.floor(mapping.originX+(bounds.x+bounds.width*x)*mapping.scaleX),py=Math.floor(mapping.originY+(bounds.y+bounds.height*y)*mapping.scaleY);
+  if(!Number.isInteger(px)||!Number.isInteger(py)||px<0||py<0||px>=size.width||py>=size.height)return{contrast:0,opaque:false,shades,reason:'outside-capture'};
+  const at=(py*size.width+px)*4;shades.push(pixels[at]+pixels[at+1]+pixels[at+2]);opaque=opaque&&pixels[at+3]===255;
+ }
+ return{contrast:Math.max(...shades)-Math.min(...shades),opaque,shades};
+}
+function settingsFrameAcceptance(before,after,pixelReadback){
+ const stable=before.snapshot.visible&&after.snapshot.visible&&JSON.stringify(before.snapshot)===JSON.stringify(after.snapshot),nativeClear=before.guests.length===0&&after.guests.length===0;
+ return{stable,nativeClear,...pixelReadback,accepted:stable&&nativeClear&&pixelReadback.opaque&&pixelReadback.contrast>=20};
+}
 function assertPage(value,counts,blocked){
  assert.deepEqual(value.attempted,{allowed:1,advertising:1});assert.deepEqual(value.executed,{allowed:1,advertising:blocked?0:1});
  assert.deepEqual(value.settled,{allowed:'load',advertising:blocked?'error':'load'});assert.deepEqual(counts,{page:1,allowed:1,advertising:blocked?0:1});
@@ -77,22 +109,34 @@ async function run(ctx){
   const page=record.page,view=page.view.getBounds(),parent=page.clipView?.getBounds()||null,bounds={...page.bounds},actual={x:view.x+(parent?.x||0),y:view.y+(parent?.y||0),width:view.width,height:view.height};assert.deepEqual(actual,bounds);
   return{tabId:record.id,desk:record.workspace.mouseDesktops.bank.members[record.id],webContentsId:page.view.webContents.id,bounds,viewBounds:view,parentBounds:parent,actualBounds:actual,visible:page.view.getVisible(),parentVisible:page.clipView?.getVisible()??true,cachedVisible:!!page.visible,attached:win.contentView.children.includes(page.clipView||page.view),zoom:page.view.webContents.getZoomFactor()};
  }
- async function capture(name,{probes=[],ui=null}={}){
+ async function readSettingsCapture(){
+  const snapshot=await js(`(${settingsCaptureReadback.toString()})(${settingsReadback.toString()})`),workspace=privateMode.current?.browser||browser;
+  return{snapshot,guests:settingsGuestOverlaps([...workspace.tabs.values(),...workspace.providers.values()],win.contentView.children,snapshot.panel)};
+ }
+ async function capture(name,{probes=[],settings=false}={}){
   const filename='mouse-639-adblock-'+phase+'-'+name+'.png';assert.match(filename,/^mouse-639-adblock-[a-z0-9-]+\.png$/);
   await fixture.frame();const display=screen.getDisplayMatching(win.getBounds()),contentBounds=win.getContentBounds();assert.equal(globalCapture.permission(),process.platform==='darwin'?'granted':'not-required');
-  let out,png,full;for(let attempt=1;attempt<=6;attempt++){
+  const uiAttempts=[];let out,png,full;for(let attempt=1;attempt<=6;attempt++){
+   let beforeUI=null,preparation=null;
+   if(settings){
+    preparation={reads:0,first:null};let previous=null;
+    try{await until(async()=>{const next=await readSettingsCapture();preparation.reads++;preparation.first??=next;const stable=previous&&JSON.stringify(previous.snapshot)===JSON.stringify(next.snapshot);previous=next;beforeUI=next;if(stable&&next.snapshot.visible&&next.guests.length===0)return true;await fixture.frame();return false;},'visible stable settings sidebar');}
+    catch(error){facts.uiCaptureFailure={name,preparation,last:beforeUI};throw error;}
+   }
    const frame=await bounded(globalCapture.acquire(display),4500,'639 OS screen readback');assert.equal(frame.kind,'screen');assert.ok(frame.backend);
    full=Buffer.from(frame.base.slice(frame.base.indexOf(',')+1),'base64');const screenPixelSize={width:full.readUInt32BE(16),height:full.readUInt32BE(20)},geometry=screenCropGeometry(display.bounds,contentBounds,screenPixelSize),image=nativeImage.createFromBuffer(full).crop(geometry.cropPixels);
    png=image.toPNG({scaleFactor:1});const pixelSize={width:png.readUInt32BE(16),height:png.readUInt32BE(20)},pixels=image.toBitmap({scaleFactor:1});
    const observed=probes.map(probe=>{const x=Math.floor(geometry.mapping.originX+probe.point.x*geometry.mapping.scaleX),y=Math.floor(geometry.mapping.originY+probe.point.y*geometry.mapping.scaleY);assert.ok(x>=0&&y>=0&&x<pixelSize.width&&y<pixelSize.height);const at=(y*pixelSize.width+x)*4;return{...probe,x,y,actualRGBA:[pixels[at+2],pixels[at+1],pixels[at],pixels[at+3]]};});
-   const accepted=observed.every(probe=>probe.actualRGBA[3]===255&&probe.expectedRGB.every((channel,index)=>Math.abs(channel-probe.actualRGBA[index])<=3));
-   out={filename,displayFilename:filename.replace(/\.png$/,'-display.png'),pid:process.pid,source:'globalCapture.acquire(display)',kind:frame.kind,backend:frame.backend,sha256:sha(png),displaySha256:sha(full),screenPixelSize,pixelSize,display:{bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},contentBounds,...geometry,probes:observed,ui,attempt,accepted};if(accepted)break;await sleep(40);
+   let ui=null,uiAccepted=true;
+   if(settings){const afterUI=await readSettingsCapture(),readback=settingsPixelContrast(pixels,pixelSize,geometry.mapping,beforeUI.snapshot.ui.bounds),gate=settingsFrameAcceptance(beforeUI,afterUI,readback);uiAttempts.push({attempt,preparation,before:beforeUI,after:afterUI,...gate});ui=beforeUI.snapshot.ui;uiAccepted=gate.accepted;}
+   const accepted=uiAccepted&&observed.every(probe=>probe.actualRGBA[3]===255&&probe.expectedRGB.every((channel,index)=>Math.abs(channel-probe.actualRGBA[index])<=3));
+   out={filename,displayFilename:filename.replace(/\.png$/,'-display.png'),pid:process.pid,source:'globalCapture.acquire(display)',kind:frame.kind,backend:frame.backend,sha256:sha(png),displaySha256:sha(full),screenPixelSize,pixelSize,display:{bounds:display.bounds,workArea:display.workArea,scaleFactor:display.scaleFactor},contentBounds,...geometry,probes:observed,ui,...(settings?{uiAttempts}:{}),attempt,accepted};if(accepted)break;await sleep(40);
   }
   await fs.writeFile(filename,png);await fs.writeFile(out.displayFilename,full);part.captures.push(out);await save();assert.equal(out.accepted,true);return filename;
  }
  async function openSettings(){if(!await js('document.querySelector("#settings-dialog").open'))await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'settings open');await js('document.querySelector("[data-setting=blockAds]").scrollIntoView({block:"center"});true');await fixture.frame();}
  async function closeSettings(){if(await js('document.querySelector("#settings-dialog").open'))await click('#settings-dialog [data-close-dialog]');await until(()=>js('!document.querySelector("#settings-dialog").open'),'settings close');}
- async function settingsShot(name){await openSettings();const ui=await js(`(${settingsReadback.toString()})()`);assert.equal(ui.open,true);const filename=await capture(name,{ui});part.ui.push({name,...ui,capture:filename});return ui;}
+ async function settingsShot(name){await openSettings();const filename=await capture(name,{settings:true}),ui=part.captures.at(-1).ui;assert.equal(ui.open,true);part.ui.push({name,...ui,capture:filename});return ui;}
  async function changeEnabled(name,enabled){
   await openSettings();const before=await js(`(${settingsReadback.toString()})()`);assert.equal(before.disabled,false);assert.equal(before.checked,!enabled);
   const input=await click('[data-setting="blockAds"]');await settingsService.flush();await until(()=>settingsService.state().blockAds===enabled&&adBlock.state().enabled===enabled&&(!enabled||adBlock.state().phase==='ready'&&adBlock.state().lists===2),'saved setting and active filters',15000);
@@ -163,4 +207,4 @@ async function run(ctx){
  if(error){console.error('MOUSE_639_ADBLOCK_FAIL',error.stack);return exit(1);}console.log(read?'MOUSE_639_ADBLOCK_NATIVE_PASS':'MOUSE_639_ADBLOCK_WRITE_PASS');return exit(0);
 }
 module.exports=run;
-module.exports.fixtures={fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,noraReadback,assertPage,SCRIPT,COLORS,PREFIX,sha};
+module.exports.fixtures={fixturePage,createHTTPFixture,pageReadback,settingsReadback,inputProbe,noraReadback,settingsCaptureReadback,settingsGuestOverlaps,settingsPixelContrast,settingsFrameAcceptance,assertPage,SCRIPT,COLORS,PREFIX,sha};
