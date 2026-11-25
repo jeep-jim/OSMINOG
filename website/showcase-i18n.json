@@ -29,7 +29,9 @@
     "showcaseWindows": "Окна",
     "showcaseSideBySide": "Рядом",
     "showcaseStacked": "Друг над другом",
-    "showcaseTabs": "Открытые вкладки"
+    "showcaseTabs": "Открытые вкладки",
+    "showcaseNewTab": "Новая вкладка",
+    "showcaseChooseSite": "Выбери сайт"
   },
   "en": {
     "showcaseTitle": "Your screen, your flow",
@@ -61,7 +63,9 @@
     "showcaseWindows": "Windows",
     "showcaseSideBySide": "Side by side",
     "showcaseStacked": "Stacked",
-    "showcaseTabs": "Open tabs"
+    "showcaseTabs": "Open tabs",
+    "showcaseNewTab": "New tab",
+    "showcaseChooseSite": "Choose a site"
   },
   "sq": {
     "showcaseTitle": "Ekrani yt, ritmi yt",
@@ -93,7 +97,9 @@
     "showcaseWindows": "Dritare",
     "showcaseSideBySide": "Krah për krah",
     "showcaseStacked": "Njëra mbi tjetrën",
-    "showcaseTabs": "Skedat e hapura"
+    "showcaseTabs": "Skedat e hapura",
+    "showcaseNewTab": "Skedë e re",
+    "showcaseChooseSite": "Zgjidh një faqe interneti"
   },
   "am": {
     "showcaseTitle": "የእርስዎ ማያ ገጽ፣ የእርስዎ የሥራ ሂደት",
@@ -125,7 +131,9 @@
     "showcaseWindows": "መስኮቶች",
     "showcaseSideBySide": "ጎን ለጎን",
     "showcaseStacked": "ከላይ ወደ ታች",
-    "showcaseTabs": "ክፍት ትሮች"
+    "showcaseTabs": "ክፍት ትሮች",
+    "showcaseNewTab": "አዲስ ትር",
+    "showcaseChooseSite": "ድረ ገጽ ይምረጡ"
   },
   "ar": {
     "showcaseTitle": "شاشتك، إيقاعك",
@@ -157,7 +165,9 @@
     "showcaseWindows": "النوافذ",
     "showcaseSideBySide": "جنبًا إلى جنب",
     "showcaseStacked": "فوق بعضها",
-    "showcaseTabs": "علامات التبويب المفتوحة"
+    "showcaseTabs": "علامات التبويب المفتوحة",
+    "showcaseNewTab": "علامة تبويب جديدة",
+    "showcaseChooseSite": "اختر موقعًا"
   },
   "hy": {
     "showcaseTitle": "Քո էկրանը, քո ռիթմը",
@@ -189,7 +199,9 @@
     "showcaseWindows": "Պատուհաններ",
     "showcaseSideBySide": "Կողք կողքի",
     "showcaseStacked": "Մեկը մյուսի վերևում",
-    "showcaseTabs": "Բաց ներդիրներ"
+    "showcaseTabs": "Բաց ներդիրներ",
+    "showcaseNewTab": "Նոր ներդիր",
+    "showcaseChooseSite": "Ընտրիր կայք"
   },
   "bn": {
     "showcaseTitle": "আপনার স্ক্রিন, আপনার ছন্দ",
@@ -221,7 +233,9 @@
     "showcaseWindows": "উইন্ডো",
     "showcaseSideBySide": "পাশাপাশি",
     "showcaseStacked": "একটির উপরে অন্যটি",
-    "showcaseTabs": "খোলা ট্যাব"
+    "showcaseTabs": "খোলা ট্যাব",
+    "showcaseNewTab": "নতুন ট্যাব",
+    "showcaseChooseSite": "একটি সাইট বেছে নিন"
   },
   "bs": {
     "showcaseTitle": "Tvoj ekran, tvoj ritam",
@@ -253,7 +267,9 @@
     "showcaseWindows": "Prozori",
     "showcaseSideBySide": "Jedan pored drugog",
     "showcaseStacked": "Jedan iznad drugog",
-    "showcaseTabs": "Otvorene kartice"
+    "showcaseTabs": "Otvorene kartice",
+    "showcaseNewTab": "Nova kartica",
+    "showcaseChooseSite": "Odaberi web-stranicu"
   },
   "bg": {
     "showcaseTitle": "Твоят екран, твоят ритъм",
@@ -285,7 +301,9 @@
     "showcaseWindows": "Прозорци",
     "showcaseSideBySide": "Един до друг",
     "showcaseStacked": "Един над друг",
-    "showcaseTabs": "Отворени раздели"
+    "showcaseTabs": "Отворени раздели",
+    "showcaseNewTab": "Нов раздел",
+    "showcaseChooseSite": "Избери сайт"
   },
   "my": {
     "showcaseTitle": "သင့်မျက်နှာပြင်၊ သင့်အလုပ်စီးဆင်းမှု",
@@ -317,7 +335,9 @@
     "showcaseWindows": "ဝင်းဒိုးများ",
     "showcaseSideBySide": "ဘေးချင်းယှဉ်",
     "showcaseStacked": "အပေါ်အောက်",
-    "showcaseTabs": "ဖွင့်ထားသော တက်ဘ်များ"
+    "showcaseTabs": "ဖွင့်ထားသော တက်ဘ်များ",
+    "showcaseNewTab": "တက်ဘ်အသစ်",
+    "showcaseChooseSite": "ဝဘ်ဆိုက်တစ်ခု ရွေးပါ"
   },
   "ca": {
     "showcaseTitle": "La teva pantalla, el teu ritme",
@@ -349,7 +369,9 @@
     "showcaseWindows": "Finestres",
     "showcaseSideBySide": "De costat",
     "showcaseStacked": "Una sobre l’altra",
-    "showcaseTabs": "Pestanyes obertes"
+    "showcaseTabs": "Pestanyes obertes",
+    "showcaseNewTab": "Pestanya nova",
+    "showcaseChooseSite": "Tria un lloc web"
   },
   "zh-Hans": {
     "showcaseTitle": "你的屏幕，你的节奏",
@@ -381,7 +403,9 @@
     "showcaseWindows": "窗口",
     "showcaseSideBySide": "并排",
     "showcaseStacked": "上下排列",
-    "showcaseTabs": "已打开的标签页"
+    "showcaseTabs": "已打开的标签页",
+    "showcaseNewTab": "新标签页",
+    "showcaseChooseSite": "选择网站"
   },
   "zh-Hant": {
     "showcaseTitle": "你的螢幕，你的節奏",
@@ -413,7 +437,9 @@
     "showcaseWindows": "視窗",
     "showcaseSideBySide": "並排",
     "showcaseStacked": "上下排列",
-    "showcaseTabs": "已開啟的分頁"
+    "showcaseTabs": "已開啟的分頁",
+    "showcaseNewTab": "新分頁",
+    "showcaseChooseSite": "選擇網站"
   },
   "hr": {
     "showcaseTitle": "Tvoj zaslon, tvoj ritam",
@@ -445,7 +471,9 @@
     "showcaseWindows": "Prozori",
     "showcaseSideBySide": "Jedan pokraj drugog",
     "showcaseStacked": "Jedan iznad drugog",
-    "showcaseTabs": "Otvorene kartice"
+    "showcaseTabs": "Otvorene kartice",
+    "showcaseNewTab": "Nova kartica",
+    "showcaseChooseSite": "Odaberi web-stranicu"
   },
   "cs": {
     "showcaseTitle": "Tvoje obrazovka, tvoje tempo",
@@ -477,7 +505,9 @@
     "showcaseWindows": "Okna",
     "showcaseSideBySide": "Vedle sebe",
     "showcaseStacked": "Nad sebou",
-    "showcaseTabs": "Otevřené karty"
+    "showcaseTabs": "Otevřené karty",
+    "showcaseNewTab": "Nová karta",
+    "showcaseChooseSite": "Vyber web"
   },
   "da": {
     "showcaseTitle": "Din skærm, dit flow",
@@ -509,7 +539,9 @@
     "showcaseWindows": "Vinduer",
     "showcaseSideBySide": "Side om side",
     "showcaseStacked": "Over hinanden",
-    "showcaseTabs": "Åbne faner"
+    "showcaseTabs": "Åbne faner",
+    "showcaseNewTab": "Ny fane",
+    "showcaseChooseSite": "Vælg et websted"
   },
   "nl": {
     "showcaseTitle": "Jouw scherm, jouw ritme",
@@ -541,7 +573,9 @@
     "showcaseWindows": "Vensters",
     "showcaseSideBySide": "Naast elkaar",
     "showcaseStacked": "Boven elkaar",
-    "showcaseTabs": "Geopende tabbladen"
+    "showcaseTabs": "Geopende tabbladen",
+    "showcaseNewTab": "Nieuw tabblad",
+    "showcaseChooseSite": "Kies een website"
   },
   "et": {
     "showcaseTitle": "Sinu ekraan, sinu rütm",
@@ -573,7 +607,9 @@
     "showcaseWindows": "Aknad",
     "showcaseSideBySide": "Kõrvuti",
     "showcaseStacked": "Üksteise kohal",
-    "showcaseTabs": "Avatud vahelehed"
+    "showcaseTabs": "Avatud vahelehed",
+    "showcaseNewTab": "Uus vaheleht",
+    "showcaseChooseSite": "Vali veebisait"
   },
   "fi": {
     "showcaseTitle": "Sinun näyttösi, sinun rytmisi",
@@ -605,7 +641,9 @@
     "showcaseWindows": "Ikkunat",
     "showcaseSideBySide": "Vierekkäin",
     "showcaseStacked": "Päällekkäin",
-    "showcaseTabs": "Avoimet välilehdet"
+    "showcaseTabs": "Avoimet välilehdet",
+    "showcaseNewTab": "Uusi välilehti",
+    "showcaseChooseSite": "Valitse sivusto"
   },
   "fr": {
     "showcaseTitle": "Votre écran, votre rythme",
@@ -637,7 +675,9 @@
     "showcaseWindows": "Fenêtres",
     "showcaseSideBySide": "Côte à côte",
     "showcaseStacked": "Superposées",
-    "showcaseTabs": "Onglets ouverts"
+    "showcaseTabs": "Onglets ouverts",
+    "showcaseNewTab": "Nouvel onglet",
+    "showcaseChooseSite": "Choisis un site"
   },
   "ka": {
     "showcaseTitle": "შენი ეკრანი, შენი რიტმი",
@@ -669,7 +709,9 @@
     "showcaseWindows": "ფანჯრები",
     "showcaseSideBySide": "გვერდიგვერდ",
     "showcaseStacked": "ერთმანეთის ზემოთ",
-    "showcaseTabs": "ღია ჩანართები"
+    "showcaseTabs": "ღია ჩანართები",
+    "showcaseNewTab": "ახალი ჩანართი",
+    "showcaseChooseSite": "აირჩიე საიტი"
   },
   "de": {
     "showcaseTitle": "Dein Bildschirm, dein Flow",
@@ -701,7 +743,9 @@
     "showcaseWindows": "Fenster",
     "showcaseSideBySide": "Nebeneinander",
     "showcaseStacked": "Übereinander",
-    "showcaseTabs": "Geöffnete Tabs"
+    "showcaseTabs": "Geöffnete Tabs",
+    "showcaseNewTab": "Neuer Tab",
+    "showcaseChooseSite": "Wähle eine Website"
   },
   "el": {
     "showcaseTitle": "Η οθόνη σου, ο ρυθμός σου",
@@ -733,7 +777,9 @@
     "showcaseWindows": "Παράθυρα",
     "showcaseSideBySide": "Δίπλα δίπλα",
     "showcaseStacked": "Το ένα πάνω από το άλλο",
-    "showcaseTabs": "Ανοιχτές καρτέλες"
+    "showcaseTabs": "Ανοιχτές καρτέλες",
+    "showcaseNewTab": "Νέα καρτέλα",
+    "showcaseChooseSite": "Επίλεξε ιστότοπο"
   },
   "gu": {
     "showcaseTitle": "તમારી સ્ક્રીન, તમારી લય",
@@ -765,7 +811,9 @@
     "showcaseWindows": "વિન્ડોઝ",
     "showcaseSideBySide": "બાજુબાજુ",
     "showcaseStacked": "એકની ઉપર બીજું",
-    "showcaseTabs": "ખુલ્લા ટૅબ"
+    "showcaseTabs": "ખુલ્લા ટૅબ",
+    "showcaseNewTab": "નવી ટૅબ",
+    "showcaseChooseSite": "સાઇટ પસંદ કરો"
   },
   "hi": {
     "showcaseTitle": "आपकी स्क्रीन, आपकी लय",
@@ -797,7 +845,9 @@
     "showcaseWindows": "विंडो",
     "showcaseSideBySide": "अगल-बगल",
     "showcaseStacked": "ऊपर-नीचे",
-    "showcaseTabs": "खुले टैब"
+    "showcaseTabs": "खुले टैब",
+    "showcaseNewTab": "नया टैब",
+    "showcaseChooseSite": "कोई साइट चुनें"
   },
   "hu": {
     "showcaseTitle": "A te képernyőd, a te ritmusod",
@@ -829,7 +879,9 @@
     "showcaseWindows": "Ablakok",
     "showcaseSideBySide": "Egymás mellett",
     "showcaseStacked": "Egymás felett",
-    "showcaseTabs": "Megnyitott lapok"
+    "showcaseTabs": "Megnyitott lapok",
+    "showcaseNewTab": "Új lap",
+    "showcaseChooseSite": "Válassz webhelyet"
   },
   "is": {
     "showcaseTitle": "Þinn skjár, þinn taktur",
@@ -861,7 +913,9 @@
     "showcaseWindows": "Gluggar",
     "showcaseSideBySide": "Hlið við hlið",
     "showcaseStacked": "Hver yfir öðrum",
-    "showcaseTabs": "Opnir flipar"
+    "showcaseTabs": "Opnir flipar",
+    "showcaseNewTab": "Nýr flipi",
+    "showcaseChooseSite": "Veldu vef"
   },
   "id": {
     "showcaseTitle": "Layarmu, alurmu",
@@ -893,7 +947,9 @@
     "showcaseWindows": "Jendela",
     "showcaseSideBySide": "Berdampingan",
     "showcaseStacked": "Bertumpuk",
-    "showcaseTabs": "Tab terbuka"
+    "showcaseTabs": "Tab terbuka",
+    "showcaseNewTab": "Tab baru",
+    "showcaseChooseSite": "Pilih situs"
   },
   "it": {
     "showcaseTitle": "Il tuo schermo, il tuo ritmo",
@@ -925,7 +981,9 @@
     "showcaseWindows": "Finestre",
     "showcaseSideBySide": "Affiancate",
     "showcaseStacked": "Una sopra l’altra",
-    "showcaseTabs": "Schede aperte"
+    "showcaseTabs": "Schede aperte",
+    "showcaseNewTab": "Nuova scheda",
+    "showcaseChooseSite": "Scegli un sito"
   },
   "ja": {
     "showcaseTitle": "あなたの画面、あなたのペース",
@@ -957,7 +1015,9 @@
     "showcaseWindows": "ウィンドウ",
     "showcaseSideBySide": "左右に並べる",
     "showcaseStacked": "上下に並べる",
-    "showcaseTabs": "開いているタブ"
+    "showcaseTabs": "開いているタブ",
+    "showcaseNewTab": "新しいタブ",
+    "showcaseChooseSite": "サイトを選択"
   },
   "kn": {
     "showcaseTitle": "ನಿಮ್ಮ ಪರದೆ, ನಿಮ್ಮ ಲಯ",
@@ -989,7 +1049,9 @@
     "showcaseWindows": "ವಿಂಡೋಗಳು",
     "showcaseSideBySide": "ಅಕ್ಕಪಕ್ಕ",
     "showcaseStacked": "ಒಂದರ ಮೇಲೊಂದು",
-    "showcaseTabs": "ತೆರೆದ ಟ್ಯಾಬ್‌ಗಳು"
+    "showcaseTabs": "ತೆರೆದ ಟ್ಯಾಬ್‌ಗಳು",
+    "showcaseNewTab": "ಹೊಸ ಟ್ಯಾಬ್",
+    "showcaseChooseSite": "ಸೈಟ್ ಆಯ್ಕೆಮಾಡಿ"
   },
   "kk": {
     "showcaseTitle": "Сенің экраның, сенің ырғағың",
@@ -1021,7 +1083,9 @@
     "showcaseWindows": "Терезелер",
     "showcaseSideBySide": "Қатар",
     "showcaseStacked": "Бірінің үстінде бірі",
-    "showcaseTabs": "Ашық қойындылар"
+    "showcaseTabs": "Ашық қойындылар",
+    "showcaseNewTab": "Жаңа қойынды",
+    "showcaseChooseSite": "Сайтты таңда"
   },
   "ko": {
     "showcaseTitle": "나의 화면, 나의 흐름",
@@ -1053,7 +1117,9 @@
     "showcaseWindows": "창",
     "showcaseSideBySide": "나란히",
     "showcaseStacked": "위아래로",
-    "showcaseTabs": "열린 탭"
+    "showcaseTabs": "열린 탭",
+    "showcaseNewTab": "새 탭",
+    "showcaseChooseSite": "사이트 선택"
   },
   "lv": {
     "showcaseTitle": "Tavs ekrāns, tavs ritms",
@@ -1085,7 +1151,9 @@
     "showcaseWindows": "Logi",
     "showcaseSideBySide": "Blakus",
     "showcaseStacked": "Viens virs otra",
-    "showcaseTabs": "Atvērtās cilnes"
+    "showcaseTabs": "Atvērtās cilnes",
+    "showcaseNewTab": "Jauna cilne",
+    "showcaseChooseSite": "Izvēlies vietni"
   },
   "lt": {
     "showcaseTitle": "Tavo ekranas, tavo ritmas",
@@ -1117,7 +1185,9 @@
     "showcaseWindows": "Langai",
     "showcaseSideBySide": "Greta",
     "showcaseStacked": "Vienas virš kito",
-    "showcaseTabs": "Atverti skirtukai"
+    "showcaseTabs": "Atverti skirtukai",
+    "showcaseNewTab": "Nauja kortelė",
+    "showcaseChooseSite": "Pasirink svetainę"
   },
   "mk": {
     "showcaseTitle": "Твојот екран, твојот ритам",
@@ -1149,7 +1219,9 @@
     "showcaseWindows": "Прозорци",
     "showcaseSideBySide": "Еден до друг",
     "showcaseStacked": "Еден над друг",
-    "showcaseTabs": "Отворени јазичиња"
+    "showcaseTabs": "Отворени јазичиња",
+    "showcaseNewTab": "Ново јазиче",
+    "showcaseChooseSite": "Избери веб-страница"
   },
   "ms": {
     "showcaseTitle": "Layar anda, rentak anda",
@@ -1181,7 +1253,9 @@
     "showcaseWindows": "Tetingkap",
     "showcaseSideBySide": "Sebelah menyebelah",
     "showcaseStacked": "Bertindan",
-    "showcaseTabs": "Tab terbuka"
+    "showcaseTabs": "Tab terbuka",
+    "showcaseNewTab": "Tab baharu",
+    "showcaseChooseSite": "Pilih laman web"
   },
   "ml": {
     "showcaseTitle": "നിങ്ങളുടെ സ്ക്രീൻ, നിങ്ങളുടെ താളം",
@@ -1213,7 +1287,9 @@
     "showcaseWindows": "വിൻഡോകൾ",
     "showcaseSideBySide": "അടുത്തടുത്തായി",
     "showcaseStacked": "ഒന്നിനു മുകളിൽ മറ്റൊന്ന്",
-    "showcaseTabs": "തുറന്ന ടാബുകൾ"
+    "showcaseTabs": "തുറന്ന ടാബുകൾ",
+    "showcaseNewTab": "പുതിയ ടാബ്",
+    "showcaseChooseSite": "ഒരു സൈറ്റ് തിരഞ്ഞെടുക്കൂ"
   },
   "mr": {
     "showcaseTitle": "तुमची स्क्रीन, तुमची लय",
@@ -1245,7 +1321,9 @@
     "showcaseWindows": "विंडो",
     "showcaseSideBySide": "शेजारी शेजारी",
     "showcaseStacked": "एकावर एक",
-    "showcaseTabs": "उघडे टॅब"
+    "showcaseTabs": "उघडे टॅब",
+    "showcaseNewTab": "नवीन टॅब",
+    "showcaseChooseSite": "साइट निवडा"
   },
   "mn": {
     "showcaseTitle": "Таны дэлгэц, таны хэмнэл",
@@ -1277,7 +1355,9 @@
     "showcaseWindows": "Цонхнууд",
     "showcaseSideBySide": "Зэрэгцээ",
     "showcaseStacked": "Дээр доор",
-    "showcaseTabs": "Нээлттэй табууд"
+    "showcaseTabs": "Нээлттэй табууд",
+    "showcaseNewTab": "Шинэ таб",
+    "showcaseChooseSite": "Сайт сонгох"
   },
   "nb": {
     "showcaseTitle": "Din skjerm, din flyt",
@@ -1309,7 +1389,9 @@
     "showcaseWindows": "Vinduer",
     "showcaseSideBySide": "Side om side",
     "showcaseStacked": "Over hverandre",
-    "showcaseTabs": "Åpne faner"
+    "showcaseTabs": "Åpne faner",
+    "showcaseNewTab": "Ny fane",
+    "showcaseChooseSite": "Velg et nettsted"
   },
   "fa": {
     "showcaseTitle": "صفحهٔ تو، ریتم تو",
@@ -1341,7 +1423,9 @@
     "showcaseWindows": "پنجره‌ها",
     "showcaseSideBySide": "کنار هم",
     "showcaseStacked": "روی هم",
-    "showcaseTabs": "زبانه‌های باز"
+    "showcaseTabs": "زبانه‌های باز",
+    "showcaseNewTab": "برگهٔ جدید",
+    "showcaseChooseSite": "یک سایت انتخاب کنید"
   },
   "pl": {
     "showcaseTitle": "Twój ekran, Twój rytm",
@@ -1373,7 +1457,9 @@
     "showcaseWindows": "Okna",
     "showcaseSideBySide": "Obok siebie",
     "showcaseStacked": "Jedno nad drugim",
-    "showcaseTabs": "Otwarte karty"
+    "showcaseTabs": "Otwarte karty",
+    "showcaseNewTab": "Nowa karta",
+    "showcaseChooseSite": "Wybierz stronę"
   },
   "pt-BR": {
     "showcaseTitle": "Sua tela, seu ritmo",
@@ -1405,7 +1491,9 @@
     "showcaseWindows": "Janelas",
     "showcaseSideBySide": "Lado a lado",
     "showcaseStacked": "Uma sobre a outra",
-    "showcaseTabs": "Abas abertas"
+    "showcaseTabs": "Abas abertas",
+    "showcaseNewTab": "Nova aba",
+    "showcaseChooseSite": "Escolha um site"
   },
   "pt-PT": {
     "showcaseTitle": "O teu ecrã, o teu ritmo",
@@ -1437,7 +1525,9 @@
     "showcaseWindows": "Janelas",
     "showcaseSideBySide": "Lado a lado",
     "showcaseStacked": "Uma sobre a outra",
-    "showcaseTabs": "Separadores abertos"
+    "showcaseTabs": "Separadores abertos",
+    "showcaseNewTab": "Novo separador",
+    "showcaseChooseSite": "Escolhe um site"
   },
   "pa": {
     "showcaseTitle": "ਤੁਹਾਡੀ ਸਕ੍ਰੀਨ, ਤੁਹਾਡੀ ਲੈਅ",
@@ -1469,7 +1559,9 @@
     "showcaseWindows": "ਵਿੰਡੋਜ਼",
     "showcaseSideBySide": "ਨਾਲੋ-ਨਾਲ",
     "showcaseStacked": "ਇੱਕ ਦੇ ਉੱਪਰ ਦੂਜੀ",
-    "showcaseTabs": "ਖੁੱਲ੍ਹੀਆਂ ਟੈਬਾਂ"
+    "showcaseTabs": "ਖੁੱਲ੍ਹੀਆਂ ਟੈਬਾਂ",
+    "showcaseNewTab": "ਨਵੀਂ ਟੈਬ",
+    "showcaseChooseSite": "ਕੋਈ ਸਾਈਟ ਚੁਣੋ"
   },
   "ro": {
     "showcaseTitle": "Ecranul tău, ritmul tău",
@@ -1501,7 +1593,9 @@
     "showcaseWindows": "Ferestre",
     "showcaseSideBySide": "Una lângă alta",
     "showcaseStacked": "Una deasupra celeilalte",
-    "showcaseTabs": "File deschise"
+    "showcaseTabs": "File deschise",
+    "showcaseNewTab": "Filă nouă",
+    "showcaseChooseSite": "Alege un site"
   },
   "sr": {
     "showcaseTitle": "Твој екран, твој ритам",
@@ -1533,7 +1627,9 @@
     "showcaseWindows": "Прозори",
     "showcaseSideBySide": "Један поред другог",
     "showcaseStacked": "Један изнад другог",
-    "showcaseTabs": "Отворене картице"
+    "showcaseTabs": "Отворене картице",
+    "showcaseNewTab": "Нова картица",
+    "showcaseChooseSite": "Изабери сајт"
   },
   "sk": {
     "showcaseTitle": "Tvoja obrazovka, tvoje tempo",
@@ -1565,7 +1661,9 @@
     "showcaseWindows": "Okná",
     "showcaseSideBySide": "Vedľa seba",
     "showcaseStacked": "Nad sebou",
-    "showcaseTabs": "Otvorené karty"
+    "showcaseTabs": "Otvorené karty",
+    "showcaseNewTab": "Nová karta",
+    "showcaseChooseSite": "Vyber web"
   },
   "sl": {
     "showcaseTitle": "Tvoj zaslon, tvoj ritem",
@@ -1597,7 +1695,9 @@
     "showcaseWindows": "Okna",
     "showcaseSideBySide": "Drugo ob drugem",
     "showcaseStacked": "Drugo nad drugim",
-    "showcaseTabs": "Odprti zavihki"
+    "showcaseTabs": "Odprti zavihki",
+    "showcaseNewTab": "Nov zavihek",
+    "showcaseChooseSite": "Izberi spletno mesto"
   },
   "so": {
     "showcaseTitle": "Shaashaddaada, habkaaga shaqo",
@@ -1629,7 +1729,9 @@
     "showcaseWindows": "Daaqado",
     "showcaseSideBySide": "Dhinac dhinac",
     "showcaseStacked": "Midba midka kale korkiisa",
-    "showcaseTabs": "Tabyada furan"
+    "showcaseTabs": "Tabyada furan",
+    "showcaseNewTab": "Tab cusub",
+    "showcaseChooseSite": "Dooro bog internet"
   },
   "es": {
     "showcaseTitle": "Tu pantalla, tu ritmo",
@@ -1661,7 +1763,9 @@
     "showcaseWindows": "Ventanas",
     "showcaseSideBySide": "Una al lado de otra",
     "showcaseStacked": "Una encima de otra",
-    "showcaseTabs": "Pestañas abiertas"
+    "showcaseTabs": "Pestañas abiertas",
+    "showcaseNewTab": "Nueva pestaña",
+    "showcaseChooseSite": "Elige un sitio"
   },
   "sw": {
     "showcaseTitle": "Skrini yako, mtiririko wako",
@@ -1693,7 +1797,9 @@
     "showcaseWindows": "Dirisha",
     "showcaseSideBySide": "Kando kwa kando",
     "showcaseStacked": "Moja juu ya jingine",
-    "showcaseTabs": "Vichupo vilivyo wazi"
+    "showcaseTabs": "Vichupo vilivyo wazi",
+    "showcaseNewTab": "Kichupo kipya",
+    "showcaseChooseSite": "Chagua tovuti"
   },
   "sv": {
     "showcaseTitle": "Din skärm, ditt flöde",
@@ -1725,7 +1831,9 @@
     "showcaseWindows": "Fönster",
     "showcaseSideBySide": "Sida vid sida",
     "showcaseStacked": "Ovanpå varandra",
-    "showcaseTabs": "Öppna flikar"
+    "showcaseTabs": "Öppna flikar",
+    "showcaseNewTab": "Ny flik",
+    "showcaseChooseSite": "Välj en webbplats"
   },
   "fil": {
     "showcaseTitle": "Screen mo, daloy mo",
@@ -1757,7 +1865,9 @@
     "showcaseWindows": "Mga window",
     "showcaseSideBySide": "Magkatabi",
     "showcaseStacked": "Magkapatong",
-    "showcaseTabs": "Mga bukas na tab"
+    "showcaseTabs": "Mga bukas na tab",
+    "showcaseNewTab": "Bagong tab",
+    "showcaseChooseSite": "Pumili ng site"
   },
   "ta": {
     "showcaseTitle": "உங்கள் திரை, உங்கள் ஓட்டம்",
@@ -1789,7 +1899,9 @@
     "showcaseWindows": "சாளரங்கள்",
     "showcaseSideBySide": "அருகருகே",
     "showcaseStacked": "ஒன்றின் மேல் ஒன்று",
-    "showcaseTabs": "திறந்த தாவல்கள்"
+    "showcaseTabs": "திறந்த தாவல்கள்",
+    "showcaseNewTab": "புதிய தாவல்",
+    "showcaseChooseSite": "ஒரு தளத்தைத் தேர்ந்தெடு"
   },
   "te": {
     "showcaseTitle": "మీ తెర, మీ లయ",
@@ -1821,7 +1933,9 @@
     "showcaseWindows": "విండోలు",
     "showcaseSideBySide": "పక్కపక్కన",
     "showcaseStacked": "ఒకదానిపై మరొకటి",
-    "showcaseTabs": "తెరిచిన ట్యాబ్‌లు"
+    "showcaseTabs": "తెరిచిన ట్యాబ్‌లు",
+    "showcaseNewTab": "కొత్త ట్యాబ్",
+    "showcaseChooseSite": "సైట్‌ను ఎంచుకోండి"
   },
   "th": {
     "showcaseTitle": "หน้าจอของคุณ จังหวะของคุณ",
@@ -1853,7 +1967,9 @@
     "showcaseWindows": "หน้าต่าง",
     "showcaseSideBySide": "เคียงข้างกัน",
     "showcaseStacked": "บนล่าง",
-    "showcaseTabs": "แท็บที่เปิดอยู่"
+    "showcaseTabs": "แท็บที่เปิดอยู่",
+    "showcaseNewTab": "แท็บใหม่",
+    "showcaseChooseSite": "เลือกเว็บไซต์"
   },
   "tr": {
     "showcaseTitle": "Senin ekranın, senin akışın",
@@ -1885,7 +2001,9 @@
     "showcaseWindows": "Pencereler",
     "showcaseSideBySide": "Yan yana",
     "showcaseStacked": "Üst üste",
-    "showcaseTabs": "Açık sekmeler"
+    "showcaseTabs": "Açık sekmeler",
+    "showcaseNewTab": "Yeni sekme",
+    "showcaseChooseSite": "Bir site seç"
   },
   "uk": {
     "showcaseTitle": "Твій екран, твій ритм",
@@ -1917,7 +2035,9 @@
     "showcaseWindows": "Вікна",
     "showcaseSideBySide": "Поруч",
     "showcaseStacked": "Одне над одним",
-    "showcaseTabs": "Відкриті вкладки"
+    "showcaseTabs": "Відкриті вкладки",
+    "showcaseNewTab": "Нова вкладка",
+    "showcaseChooseSite": "Вибери сайт"
   },
   "ur": {
     "showcaseTitle": "آپ کی اسکرین، آپ کا انداز",
@@ -1949,7 +2069,9 @@
     "showcaseWindows": "ونڈوز",
     "showcaseSideBySide": "ساتھ ساتھ",
     "showcaseStacked": "ایک کے اوپر دوسری",
-    "showcaseTabs": "کھلے ٹیب"
+    "showcaseTabs": "کھلے ٹیب",
+    "showcaseNewTab": "نیا ٹیب",
+    "showcaseChooseSite": "کوئی سائٹ منتخب کریں"
   },
   "vi": {
     "showcaseTitle": "Màn hình của bạn, nhịp làm việc của bạn",
@@ -1981,7 +2103,9 @@
     "showcaseWindows": "Cửa sổ",
     "showcaseSideBySide": "Cạnh nhau",
     "showcaseStacked": "Xếp chồng",
-    "showcaseTabs": "Các thẻ đang mở"
+    "showcaseTabs": "Các thẻ đang mở",
+    "showcaseNewTab": "Thẻ mới",
+    "showcaseChooseSite": "Chọn trang web"
   },
   "he": {
     "showcaseTitle": "המסך שלך, הקצב שלך",
@@ -2013,7 +2137,9 @@
     "showcaseWindows": "חלונות",
     "showcaseSideBySide": "זה לצד זה",
     "showcaseStacked": "זה מעל זה",
-    "showcaseTabs": "כרטיסיות פתוחות"
+    "showcaseTabs": "כרטיסיות פתוחות",
+    "showcaseNewTab": "כרטיסייה חדשה",
+    "showcaseChooseSite": "בחירת אתר"
   },
   "uz": {
     "showcaseTitle": "Sening ekraning, sening ritming",
@@ -2045,7 +2171,9 @@
     "showcaseWindows": "Oynalar",
     "showcaseSideBySide": "Yonma-yon",
     "showcaseStacked": "Ustma-ust",
-    "showcaseTabs": "Ochiq varaqlar"
+    "showcaseTabs": "Ochiq varaqlar",
+    "showcaseNewTab": "Yangi varaq",
+    "showcaseChooseSite": "Sayt tanlang"
   },
   "az": {
     "showcaseTitle": "Sənin ekranın, sənin ritmin",
@@ -2077,7 +2205,9 @@
     "showcaseWindows": "Pəncərələr",
     "showcaseSideBySide": "Yan-yana",
     "showcaseStacked": "Üst-üstə",
-    "showcaseTabs": "Açıq vərəqlər"
+    "showcaseTabs": "Açıq vərəqlər",
+    "showcaseNewTab": "Yeni vərəq",
+    "showcaseChooseSite": "Sayt seç"
   },
   "af": {
     "showcaseTitle": "Jou skerm, jou ritme",
@@ -2109,7 +2239,9 @@
     "showcaseWindows": "Vensters",
     "showcaseSideBySide": "Langs mekaar",
     "showcaseStacked": "Bo mekaar",
-    "showcaseTabs": "Oop oortjies"
+    "showcaseTabs": "Oop oortjies",
+    "showcaseNewTab": "Nuwe oortjie",
+    "showcaseChooseSite": "Kies ’n webwerf"
   },
   "eu": {
     "showcaseTitle": "Zure pantaila, zure erritmoa",
@@ -2141,7 +2273,9 @@
     "showcaseWindows": "Leihoak",
     "showcaseSideBySide": "Elkarren ondoan",
     "showcaseStacked": "Bata bestearen gainean",
-    "showcaseTabs": "Fitxa irekiak"
+    "showcaseTabs": "Fitxa irekiak",
+    "showcaseNewTab": "Fitxa berria",
+    "showcaseChooseSite": "Aukeratu webgune bat"
   },
   "gl": {
     "showcaseTitle": "A túa pantalla, o teu ritmo",
@@ -2173,7 +2307,9 @@
     "showcaseWindows": "Xanelas",
     "showcaseSideBySide": "Unha ao lado da outra",
     "showcaseStacked": "Unha enriba da outra",
-    "showcaseTabs": "Lapelas abertas"
+    "showcaseTabs": "Lapelas abertas",
+    "showcaseNewTab": "Nova pestana",
+    "showcaseChooseSite": "Escolle un sitio"
   },
   "km": {
     "showcaseTitle": "អេក្រង់របស់អ្នក ចង្វាក់របស់អ្នក",
@@ -2205,7 +2341,9 @@
     "showcaseWindows": "បង្អួច",
     "showcaseSideBySide": "នៅជាប់គ្នា",
     "showcaseStacked": "លើក្រោម",
-    "showcaseTabs": "ផ្ទាំងដែលបើក"
+    "showcaseTabs": "ផ្ទាំងដែលបើក",
+    "showcaseNewTab": "ផ្ទាំងថ្មី",
+    "showcaseChooseSite": "ជ្រើសរើសគេហទំព័រ"
   },
   "lo": {
     "showcaseTitle": "ໜ້າຈໍຂອງເຈົ້າ ຈັງຫວະຂອງເຈົ້າ",
@@ -2237,7 +2375,9 @@
     "showcaseWindows": "ໜ້າຕ່າງ",
     "showcaseSideBySide": "ຂ້າງກັນ",
     "showcaseStacked": "ເທິງລຸ່ມ",
-    "showcaseTabs": "ແຖບທີ່ເປີດ"
+    "showcaseTabs": "ແຖບທີ່ເປີດ",
+    "showcaseNewTab": "ແຖບໃໝ່",
+    "showcaseChooseSite": "ເລືອກເວັບໄຊ"
   },
   "ne": {
     "showcaseTitle": "तपाईंको स्क्रिन, तपाईंको लय",
@@ -2269,7 +2409,9 @@
     "showcaseWindows": "विन्डोहरू",
     "showcaseSideBySide": "छेउछाउमा",
     "showcaseStacked": "माथि तल",
-    "showcaseTabs": "खुला ट्याबहरू"
+    "showcaseTabs": "खुला ट्याबहरू",
+    "showcaseNewTab": "नयाँ ट्याब",
+    "showcaseChooseSite": "साइट छान्नुहोस्"
   },
   "si": {
     "showcaseTitle": "ඔබේ තිරය, ඔබේ රිද්මය",
@@ -2301,6 +2443,8 @@
     "showcaseWindows": "කවුළු",
     "showcaseSideBySide": "එක ළඟ",
     "showcaseStacked": "එකක් මත එකක්",
-    "showcaseTabs": "විවෘත ටැබ්"
+    "showcaseTabs": "විවෘත ටැබ්",
+    "showcaseNewTab": "නව ටැබ් එකක්",
+    "showcaseChooseSite": "වෙබ් අඩවියක් තෝරන්න"
   }
 }

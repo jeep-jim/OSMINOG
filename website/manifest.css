@@ -1,8 +1,10 @@
 /* A small manifesto, with practical help at the moment of downloading. */
-:root { --manifest-accent: #c2ef79; --manifest-tint: #22271d; }
-:root[data-theme="light"] { --manifest-accent: #416717; --manifest-tint: #f1f6e9; }
+:root { --manifest-accent: #a855f7; --manifest-tint: #281f30; }
+:root[data-theme="light"] { --manifest-tint: #f7effe; }
 .hero-copy-chrome { gap: 8px; }
 .hero-copy-chrome .hero-copy-tab { color: var(--manifest-accent); }
+.hero-copy-tab { padding: 5px 0; border: 0; border-radius: 2px; background: transparent; cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; }
+.hero-copy-tab:hover, .hero-copy-tab:focus-visible { text-decoration-color: currentColor; }
 .manifest-caption { flex: 1; min-width: 0; margin: 0; padding-inline: 8px; font: 12px/1.4 var(--body-font); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-copy-chrome .hero-copy-address { margin-left: 0; font-size: 11px; }
 .hero-copy { justify-content: flex-start; padding-top: 0; padding-bottom: 23px; }
@@ -10,11 +12,11 @@
 .hero-copy .intro { margin-top: 16px; }
 .hero-copy .downloads { margin-top: 22px; }
 .hero-copy .download { min-height: 96px; }
-.hero-copy .mobile-coming-soon { margin-top: 12px; }
-.hero-copy .release-line { margin-top: 7px; }
+.release-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 7px 18px; margin-top: 12px; }
+.hero-copy .mobile-coming-soon, .hero-copy .release-line { margin: 0; }
 .hero-manifest { margin-top: 23px; padding-top: 18px; border-top: 1px solid var(--line); }
 .manifest-lead { margin: 0; color: var(--manifest-accent); font-size: 17px; font-weight: 600; line-height: 1.35; }
-.manifest-summary { max-width: 52ch; margin: 9px auto 0; color: var(--soft-ink); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
+.manifest-summary { margin: 9px 0 0; color: var(--soft-ink); font-size: 14px; line-height: 1.5; }
 .manifest-links { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; }
 .manifest-text-button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 0; border: 0; background: none; color: var(--ink); font: 500 13px/1.4 var(--body-font); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
 .manifest-text-button:hover { color: var(--manifest-accent); }

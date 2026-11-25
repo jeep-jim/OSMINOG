@@ -1,6 +1,34 @@
 /* Real website captures, served locally. The tiles are interactive; the sites are screenshots. */
 (() => {
   'use strict';
+  // Tabs and visible grid slots are separate: adding a tab must not add a
+  // thirteenth window or discard a visitor's tabs when the scene changes.
+  function createTabWorkspace() {
+    let base = [], added = [], sequence = 0;
+    const start = (tabId, name) => ({ tabId, id: tabId, kind: 'start', name, host: '' });
+    return {
+      get tabs() { return [...base, ...added]; },
+      reset(sources) { base = [...sources]; },
+      add(name) {
+        const tab = start('user-' + (++sequence), name);
+        added.push(tab); return tab;
+      },
+      choose(tabId, source) {
+        const index = added.findIndex(tab => tab.tabId === tabId);
+        if (index < 0) return null;
+        const tab = { ...source, tabId };
+        added[index] = tab; return tab;
+      },
+      refresh(available, name) {
+        const captures = new Set(available.map(source => source.src));
+        added = added.map(tab => tab.kind === 'start' || !captures.has(tab.src) ? start(tab.tabId, name) : tab);
+      }
+    };
+  }
+  if (typeof module === 'object' && module.exports) {
+    module.exports = Object.freeze({ createTabWorkspace });
+    return;
+  }
   const EN = {
     showcaseTitle: 'Your workspace, in motion',
     showcaseSupport: 'Support', showcaseSupportText: 'Help, resources and maps — together',
@@ -15,14 +43,16 @@
     showcaseScenesLabel: 'Workspaces', showcaseMove: 'Move window',
     showcaseResize: 'Resize windows', showcaseRestore: 'Restore grid', showcaseCaptured: 'Captured website',
     showcaseTry: 'Try it yourself', showcaseWindows: 'Windows', showcaseSideBySide: 'Side by side',
-    showcaseStacked: 'Stacked', showcaseTabs: 'Open tabs'
+    showcaseStacked: 'Stacked', showcaseTabs: 'Open tabs',
+    showcaseNewTab: 'New tab', showcaseChooseSite: 'Choose a site'
   };
   const icon = name => {
     const paths = {
       expand: '<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/>',
       restore: '<path d="M9 3v6H3M15 3v6h6M21 15h-6v6M3 15h6v6"/>',
       pause: '<path d="M8 5v14M16 5v14"/>',
-      play: '<path d="m9 5 11 7-11 7Z"/>'
+      play: '<path d="m9 5 11 7-11 7Z"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>'
     };
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths[name] + '</svg>';
   };
@@ -127,25 +157,31 @@
     let hoverPoint = null, cleanTimer = null, autoDragged = null;
     const text = key => window.MOUSE_I18N?.messages?.[document.documentElement.lang]?.[key] || window.MOUSE_I18N?.messages?.en?.[key] || EN[key] || '';
     const tabNodes = [];
+    const tabWorkspace = createTabWorkspace();
     const chrome = root.querySelector('.showcase-chrome');
     const nora = root.querySelector('.showcase-nora');
     const tabs = document.createElement('div');
     tabs.className = 'showcase-tabs'; tabs.setAttribute('role', 'toolbar'); tabs.dataset.showcaseAria = 'showcaseTabs';
+    const newTabButton = document.createElement('button');
+    newTabButton.type = 'button'; newTabButton.className = 'showcase-button showcase-new-tab';
+    newTabButton.dataset.showcaseAria = 'showcaseNewTab'; newTabButton.innerHTML = icon('plus');
+    newTabButton.addEventListener('click', addTab);
     const layoutPicker = document.createElement('details');
     layoutPicker.className = 'showcase-layout-picker';
     layoutPicker.innerHTML = '<summary class="showcase-layout-trigger">' + gridIcon() + '<span data-showcase-layout-label></span><svg class="showcase-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="showcase-layouts" role="group" data-showcase-aria="showcaseWindows"></div>';
     const layoutMenu = layoutPicker.querySelector('.showcase-layouts');
-    const legend = document.createElement('div');
-    legend.className = 'showcase-legend';
-    legend.innerHTML = '<span class="showcase-invitation" data-showcase-key="showcaseTry"></span><span class="showcase-disclosure" data-showcase-key="showcaseDemo"></span>';
+    const invitation = document.createElement('span');
+    invitation.className = 'showcase-invitation'; invitation.dataset.showcaseKey = 'showcaseTry';
+    const disclosure = document.createElement('span');
+    disclosure.className = 'showcase-disclosure'; disclosure.dataset.showcaseKey = 'showcaseDemo';
     // The native Mouse metaphor: current tabs above, desktop/grid controls below.
     if (chrome && nora) {
       const controls = root.querySelector('.showcase-inline-controls');
       nora.replaceChildren(layoutPicker);
       if (modePicker) nora.append(modePicker);
+      nora.append(invitation, disclosure);
       if (controls) nora.append(controls);
-      chrome.replaceChildren(tabs);
-      nora.after(legend);
+      chrome.replaceChildren(tabs, newTabButton);
     }
     root.querySelector('[data-showcase-preview-hit]')?.remove();
     const closePicker = () => { if (modePicker) modePicker.open = false; layoutPicker.open = false; };
@@ -220,38 +256,80 @@
     if (modePicker) menuKeyboard(modePicker, modes);
 
     function syncTabState() {
+      const activeId = sources[activePane]?.tabId;
+      const open = tabWorkspace.tabs;
       tabNodes.forEach((tab, i) => {
-        tab.setAttribute('aria-pressed', String(i === activePane));
-        tab.tabIndex = i === activePane ? 0 : -1;
+        const active = open[i]?.tabId === activeId;
+        tab.setAttribute('aria-pressed', String(active));
+        tab.tabIndex = active ? 0 : -1;
       });
       paneNodes.forEach((pane, i) => pane.classList.toggle('is-active-pane', i === activePane));
     }
-    function focusPane(i, fromKeyboard = false) {
-      if (!sources[i]) return;
-      manual(); activePane = i;
-      if (zoomed >= 0) setZoom(i);
+    function focusTab(tabIndex, fromKeyboard = false) {
+      const tab = tabWorkspace.tabs[tabIndex];
+      if (!tab) return;
+      manual();
+      const visiblePane = sources.findIndex(source => source.tabId === tab.tabId);
+      if (visiblePane >= 0) activePane = visiblePane;
+      else {
+        if (!sources.length) { activePane = 0; paneSlots = [0]; gridRects = [[0,0,100,100]]; }
+        sources[activePane] = tab;
+        renderPane(activePane, false);
+      }
+      root.dataset.windowCount = String(sources.length);
+      if (zoomed >= 0) setZoom(activePane);
+      layoutGeometry(); refreshLanguage();
       syncTabState();
-      if (fromKeyboard) tabNodes[i]?.focus({ preventScroll: true });
-      else paneNodes[i].querySelector(zoomed >= 0 ? '.showcase-pane-zoom' : '.showcase-pane-drag').focus({ preventScroll: true });
-      tabNodes[i]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      // Keep tab focus in the strip; content remains reachable with Tab. This
+      // also prevents scene re-renders from stealing keyboard navigation.
+      tabNodes[tabIndex]?.focus({ preventScroll: true });
+      tabNodes[tabIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
     }
     function refreshTabs() {
+      const focusedId = document.activeElement?.dataset.showcaseTab;
       tabs.replaceChildren(); tabNodes.length = 0;
-      sources.forEach((source, i) => {
+      tabWorkspace.tabs.forEach((source, i) => {
         const tab = document.createElement('button');
-        tab.type = 'button'; tab.className = 'showcase-tab'; tab.title = source.name;
-        const mark = document.createElement('span'); mark.className = 'showcase-tab-mark'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = source.name.slice(0, 1);
+        tab.type = 'button'; tab.className = 'showcase-tab'; tab.title = source.name; tab.dataset.showcaseTab = source.tabId;
+        const mark = document.createElement('span'); mark.className = 'showcase-tab-mark'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = source.kind === 'start' ? '+' : source.name.slice(0, 1);
         const title = document.createElement('span'); title.textContent = source.name;
-        tab.append(mark, title); tab.addEventListener('click', () => focusPane(i));
+        tab.append(mark, title); tab.addEventListener('click', () => focusTab(i));
         tab.addEventListener('keydown', event => {
           if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
           event.preventDefault();
-          const next = event.key === 'Home' ? 0 : event.key === 'End' ? sources.length - 1 : (i + (event.key === 'ArrowLeft' ? -1 : 1) + sources.length) % sources.length;
-          focusPane(next, true);
+          const open = tabWorkspace.tabs;
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? open.length - 1 : (i + (event.key === 'ArrowLeft' ? -1 : 1) + open.length) % open.length;
+          focusTab(next, true);
         });
         tabs.append(tab); tabNodes.push(tab);
       });
       syncTabState();
+      if (focusedId) (tabNodes.find(tab => tab.dataset.showcaseTab === focusedId) || tabNodes.find(tab => tab.tabIndex === 0))?.focus({ preventScroll: true });
+    }
+
+    function addTab() {
+      manual(); cancelGesture();
+      const tab = tabWorkspace.add(text('showcaseNewTab'));
+      if (!sources.length) { sources = [tab]; paneSlots = [0]; gridRects = [[0,0,100,100]]; activePane = 0; }
+      else sources[activePane] = tab;
+      renderPane(activePane, false); refreshTabs(); layoutGeometry(); refreshLanguage();
+      root.dataset.windowCount = String(sources.length);
+      root.dataset.tabCount = String(tabWorkspace.tabs.length);
+      tabNodes.at(-1)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      paneNodes[activePane].querySelector('.showcase-start-choice')?.focus({ preventScroll: true });
+      announce(text('showcaseNewTab') + ' — ' + text('showcaseChooseSite'));
+    }
+
+    function chooseSite(tabId, source) {
+      manual();
+      const chosen = tabWorkspace.choose(tabId, source);
+      if (!chosen) return;
+      const visiblePane = sources.findIndex(tab => tab.tabId === tabId);
+      if (visiblePane < 0) return;
+      sources[visiblePane] = chosen; activePane = visiblePane;
+      renderPane(visiblePane, false); refreshTabs(); layoutGeometry(); refreshLanguage();
+      paneNodes[visiblePane].querySelector(zoomed >= 0 ? '.showcase-pane-zoom' : '.showcase-pane-drag').focus({ preventScroll: true });
+      announce(chosen.name);
     }
 
     function availableSources() {
@@ -287,6 +365,24 @@
     }
     function layer(source) {
       const element = document.createElement('div'); element.className = 'showcase-page-layer';
+      if (source.kind === 'start') {
+        element.classList.add('showcase-start');
+        element.lang = document.documentElement.lang || 'en'; element.dir = 'auto';
+        const heading = document.createElement('h3'); heading.dataset.showcaseKey = 'showcaseNewTab';
+        const prompt = document.createElement('p'); prompt.dataset.showcaseKey = 'showcaseChooseSite';
+        const choices = document.createElement('div'); choices.className = 'showcase-start-choices';
+        choices.setAttribute('role', 'group'); choices.dataset.showcaseAria = 'showcaseChooseSite';
+        availableSources().forEach(choice => {
+          const button = document.createElement('button'); button.type = 'button'; button.className = 'showcase-start-choice';
+          button.dataset.showcaseSource = choice.id; button.title = choice.name;
+          const mark = document.createElement('span'); mark.className = 'showcase-tab-mark'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = choice.name.slice(0, 1);
+          const name = document.createElement('bdi'); name.textContent = choice.name;
+          button.append(mark, name); button.addEventListener('click', () => chooseSite(source.tabId, choice));
+          choices.append(button);
+        });
+        element.append(heading, prompt, choices);
+        return element;
+      }
       const image = document.createElement('img'); image.className = 'showcase-capture';
       image.alt = source.alt; image.decoding = 'async'; image.draggable = false;
       if (source.fit) image.style.objectFit = source.fit;
@@ -295,10 +391,31 @@
         if (failed.has(source.src)) return;
         failed.add(source.src);
         // A failed capture is omitted. Never substitute an invented service UI.
-        if (sources.some(item => item.src === source.src)) select(index, false, true);
+        if (sources.some(item => item.src === source.src) || tabWorkspace.tabs.some(tab => tab.src === source.src)) select(index, false, true);
       }, { once: true });
       image.src = source.src; element.append(image);
       return element;
+    }
+    function renderPane(i, animate = true) {
+      const pane = paneNodes[i], source = sources[i], body = pane.querySelector('.showcase-pane-page');
+      pane.style.transform = ''; pane.classList.remove('is-grabbed','is-drop-target');
+      if (!source) { body.replaceChildren(); delete pane.dataset.service; return; }
+      pane.setAttribute('aria-label', source.name); pane.dataset.service = source.id;
+      pane.querySelector('.showcase-service-mark').textContent = source.kind === 'start' ? '+' : source.name.slice(0,1);
+      pane.querySelector('.showcase-service-name').textContent = source.name;
+      pane.querySelector('.showcase-service-host').textContent = source.host;
+      const previous = body.lastElementChild, sourceKey = source.src || source.tabId;
+      Array.from(body.children).forEach(node => { if (node !== previous) node.remove(); });
+      if (previous) { previous.classList.remove('is-old','is-new'); previous.removeAttribute('aria-hidden'); }
+      if (previous?.dataset.src === sourceKey) return;
+      const fresh = layer(source); fresh.dataset.src = sourceKey;
+      if (previous && animate && !reduced.matches) {
+        previous.setAttribute('aria-hidden','true'); fresh.classList.add('is-new'); body.append(fresh);
+        requestAnimationFrame(() => {
+          if (previous.parentNode === body) previous.classList.add('is-old');
+          if (fresh.parentNode === body) fresh.classList.remove('is-new');
+        });
+      } else body.replaceChildren(fresh);
     }
     function baseRects() {
       const scene = scenes[index];
@@ -527,8 +644,15 @@
     }
     function refreshLanguage() {
       const scene = scenes[index], language = document.documentElement.lang || 'en';
-      root.querySelectorAll('[data-showcase-key]').forEach(node => { node.textContent = text(node.dataset.showcaseKey); node.lang=language; });
+      tabWorkspace.tabs.forEach((source, i) => {
+        if (source.kind !== 'start') return;
+        source.name = text('showcaseNewTab');
+        const tab = tabNodes[i];
+        if (tab) { tab.title = source.name; tab.lastElementChild.textContent = source.name; tab.lang = language; }
+      });
+      root.querySelectorAll('[data-showcase-key]').forEach(node => { node.textContent = text(node.dataset.showcaseKey); node.lang=language; node.dir='auto'; });
       root.querySelectorAll('[data-showcase-aria]').forEach(node => { node.setAttribute('aria-label',text(node.dataset.showcaseAria)); node.lang=language; });
+      newTabButton.title = text('showcaseNewTab');
       modes.lang=language; modes.dir='auto';
       for (const selector of ['[data-showcase-title]','[data-showcase-chrome-scene]']) root.querySelectorAll(selector).forEach(node => {
         node.textContent = text('showcase'+scene.key); node.lang = language; node.dir = 'auto';
@@ -541,6 +665,12 @@
       paneNodes.forEach((pane,i) => {
         if (!sources[i]) return;
         const drag = pane.querySelector('.showcase-pane-drag'), zoom = pane.querySelector('.showcase-pane-zoom');
+        if (sources[i].kind === 'start') {
+          pane.setAttribute('aria-label', sources[i].name);
+          pane.querySelector('.showcase-service-name').textContent = sources[i].name;
+          const start = pane.querySelector('.showcase-start');
+          if (start) { start.lang = language; start.dir = 'auto'; }
+        }
         drag.lang = language; zoom.lang = language;
         drag.setAttribute('aria-label',sources[i].name + ' — ' + text('showcaseMove'));
         drag.title = text('showcaseMove');
@@ -563,31 +693,15 @@
       if (!keepLayout) layoutId = null;
       index = ((next%scenes.length)+scenes.length)%scenes.length;
       root.dataset.scene = scenes[index].id;
-      sources = selectedSources(scenes[index]); paneSlots = sources.map((_,i) => i);
+      sources = selectedSources(scenes[index]).map((source, i) => ({ ...source, tabId: 'scene-' + index + '-' + i }));
+      tabWorkspace.refresh(availableSources(), text('showcaseNewTab'));
+      tabWorkspace.reset(sources);
+      paneSlots = sources.map((_,i) => i);
       activePane = 0;
       root.dataset.layout = layoutId || 'scene';
       root.dataset.windowCount = String(sources.length);
-      paneNodes.forEach((pane,i) => {
-        const source = sources[i], body = pane.querySelector('.showcase-pane-page');
-        pane.style.transform = ''; pane.classList.remove('is-grabbed','is-drop-target');
-        if (!source) { body.replaceChildren(); delete pane.dataset.service; return; }
-        pane.setAttribute('aria-label',source.name); pane.dataset.service = source.id;
-        pane.querySelector('.showcase-service-mark').textContent = source.name.slice(0,1);
-        pane.querySelector('.showcase-service-name').textContent = source.name;
-        pane.querySelector('.showcase-service-host').textContent = source.host;
-        const previous = body.lastElementChild;
-        Array.from(body.children).forEach(node => { if (node !== previous) node.remove(); });
-        if (previous) { previous.classList.remove('is-old','is-new'); previous.removeAttribute('aria-hidden'); }
-        if (previous?.dataset.src === source.src) return;
-        const fresh = layer(source); fresh.dataset.src = source.src;
-        if (previous && !reduced.matches) {
-          previous.setAttribute('aria-hidden','true'); fresh.classList.add('is-new'); body.append(fresh);
-          requestAnimationFrame(() => {
-            if (previous.parentNode === body) previous.classList.add('is-old');
-            if (fresh.parentNode === body) fresh.classList.remove('is-new');
-          });
-        } else body.replaceChildren(fresh);
-      });
+      root.dataset.tabCount = String(tabWorkspace.tabs.length);
+      paneNodes.forEach((_,i) => renderPane(i));
       refreshTabs();
       layoutGeometry(true);
       cleanTimer = setTimeout(() => root.querySelectorAll('.showcase-page-layer.is-old').forEach(node => node.remove()),600);

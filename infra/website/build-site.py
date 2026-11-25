@@ -24,6 +24,7 @@ SHOWCASE_FIELDS = {
     'showcaseHint', 'showcaseDemo', 'showcaseScenesLabel',
     'showcaseMove', 'showcaseResize', 'showcaseRestore',
     'showcaseTry', 'showcaseWindows', 'showcaseSideBySide', 'showcaseStacked', 'showcaseTabs',
+    'showcaseNewTab', 'showcaseChooseSite',
 }
 FEATURE_FIELDS = {
     'featuresTitle', 'captureTitle', 'captureText', 'workspaceTitle', 'workspaceText',

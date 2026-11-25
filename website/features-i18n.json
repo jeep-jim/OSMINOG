@@ -1,6 +1,6 @@
 {
   "ru": {
-    "featuresTitle": "Три вещи на каждый день",
+    "featuresTitle": "Основные функции на каждый день",
     "workspaceTitle": "Окна рядом",
     "workspaceText": "До 12 окон на одном столе. Располагай сайты рядом, меняй размеры и разворачивай нужное окно",
     "desksTitle": "Каждой задаче — свой стол",
@@ -21,7 +21,7 @@
     "pricingDesksLabel": "Рабочих столов"
   },
   "en": {
-    "featuresTitle": "Three everyday essentials",
+    "featuresTitle": "Essential features for every day",
     "workspaceTitle": "Your websites, side by side",
     "workspaceText": "Up to 12 windows on one desktop. Arrange websites side by side, resize them or expand one when you need to focus",
     "desksTitle": "A desktop for every task",
@@ -42,7 +42,7 @@
     "pricingDesksLabel": "Desktops"
   },
   "sq": {
-    "featuresTitle": "Tri veçori thelbësore për çdo ditë",
+    "featuresTitle": "Funksionet kryesore për çdo ditë",
     "workspaceTitle": "Faqet e tua, krah për krah",
     "workspaceText": "Deri në 12 dritare në një desktop. Vendosi faqet krah për krah, ndrysho madhësinë e tyre ose zmadho njërën kur duhet të përqendrohesh",
     "desksTitle": "Një desktop për çdo detyrë",
@@ -63,7 +63,7 @@
     "pricingDesksLabel": "Desktopë"
   },
   "am": {
-    "featuresTitle": "ለዕለት ተዕለት ሦስት አስፈላጊ ባህሪያት",
+    "featuresTitle": "የዕለት ተዕለት አስፈላጊ ተግባራት",
     "workspaceTitle": "ድረ ገጾችዎ፣ ጎን ለጎን",
     "workspaceText": "በአንድ ዴስክቶፕ ላይ እስከ 12 መስኮቶች። ድረ ገጾችን ጎን ለጎን ያደራጁ፣ መጠናቸውን ይቀይሩ ወይም ማተኮር ሲፈልጉ አንዱን ያስፉ",
     "desksTitle": "ለእያንዳንዱ ተግባር የራሱ ዴስክቶፕ",
@@ -84,7 +84,7 @@
     "pricingDesksLabel": "ዴስክቶፖች"
   },
   "ar": {
-    "featuresTitle": "ثلاث ميزات أساسية لكل يوم",
+    "featuresTitle": "الميزات الأساسية لكل يوم",
     "workspaceTitle": "مواقعك جنبًا إلى جنب",
     "workspaceText": "حتى 12 نافذة على سطح مكتب واحد. رتّب المواقع جنبًا إلى جنب، وغيّر أحجامها أو وسّع إحداها عندما تحتاج إلى التركيز",
     "desksTitle": "سطح مكتب لكل مهمة",
@@ -105,7 +105,7 @@
     "pricingDesksLabel": "أسطح المكتب"
   },
   "hy": {
-    "featuresTitle": "Երեք կարևոր գործառույթ ամեն օրվա համար",
+    "featuresTitle": "Հիմնական հնարավորություններ ամեն օրվա համար",
     "workspaceTitle": "Քո կայքերը՝ կողք կողքի",
     "workspaceText": "Մինչև 12 պատուհան մեկ աշխատասեղանի վրա։ Դասավորիր կայքերը կողք կողքի, փոխիր դրանց չափերը կամ մեծացրու մեկը, երբ պետք է կենտրոնանալ",
     "desksTitle": "Ամեն առաջադրանքի համար՝ իր աշխատասեղանը",
@@ -126,7 +126,7 @@
     "pricingDesksLabel": "Աշխատասեղաններ"
   },
   "bn": {
-    "featuresTitle": "প্রতিদিনের তিনটি জরুরি সুবিধা",
+    "featuresTitle": "প্রতিদিনের প্রয়োজনীয় ফিচার",
     "workspaceTitle": "আপনার ওয়েবসাইটগুলো পাশাপাশি",
     "workspaceText": "একটি ডেস্কটপে সর্বোচ্চ 12টি উইন্ডো। ওয়েবসাইটগুলো পাশাপাশি সাজান, আকার বদলান বা মনোযোগ দিতে চাইলে একটি বড় করে নিন",
     "desksTitle": "প্রতিটি কাজের জন্য আলাদা ডেস্কটপ",
@@ -147,7 +147,7 @@
     "pricingDesksLabel": "ডেস্কটপ"
   },
   "bs": {
-    "featuresTitle": "Tri osnovne funkcije za svaki dan",
+    "featuresTitle": "Osnovne funkcije za svaki dan",
     "workspaceTitle": "Tvoje web-stranice, jedna pored druge",
     "workspaceText": "Do 12 prozora na jednoj radnoj površini. Postavi web-stranice jednu pored druge, promijeni im veličinu ili proširi jedan prozor kada se trebaš usredotočiti",
     "desksTitle": "Radna površina za svaki zadatak",
@@ -168,7 +168,7 @@
     "pricingDesksLabel": "Radne površine"
   },
   "bg": {
-    "featuresTitle": "Три основни функции за всеки ден",
+    "featuresTitle": "Основни функции за всеки ден",
     "workspaceTitle": "Твоите сайтове един до друг",
     "workspaceText": "До 12 прозореца на един работен плот. Подреди сайтовете един до друг, променяй размерите им или разгъни един прозорец, когато искаш да се съсредоточиш",
     "desksTitle": "Работен плот за всяка задача",
@@ -189,7 +189,7 @@
     "pricingDesksLabel": "Работни плотове"
   },
   "my": {
-    "featuresTitle": "နေ့စဉ်အတွက် မရှိမဖြစ် လုပ်ဆောင်ချက်သုံးခု",
+    "featuresTitle": "နေ့စဉ်အတွက် မရှိမဖြစ် လုပ်ဆောင်ချက်များ",
     "workspaceTitle": "သင့်ဝဘ်ဆိုက်များကို ဘေးချင်းယှဉ်ထားပါ",
     "workspaceText": "ဒက်စ်တော့တစ်ခုတွင် ဝင်းဒိုး 12 ခုအထိ။ ဝဘ်ဆိုက်များကို ဘေးချင်းယှဉ်စီပါ၊ အရွယ်အစားပြောင်းပါ သို့မဟုတ် အာရုံစိုက်လိုသည့်အခါ ဝင်းဒိုးတစ်ခုကို ချဲ့ပါ",
     "desksTitle": "အလုပ်တစ်ခုစီအတွက် ဒက်စ်တော့တစ်ခု",
@@ -210,7 +210,7 @@
     "pricingDesksLabel": "ဒက်စ်တော့များ"
   },
   "ca": {
-    "featuresTitle": "Tres funcions essencials per al dia a dia",
+    "featuresTitle": "Funcions essencials per a cada dia",
     "workspaceTitle": "Els teus llocs web, de costat",
     "workspaceText": "Fins a 12 finestres en un sol escriptori. Col·loca els llocs web de costat, canvia’n la mida o amplia una finestra quan necessitis concentrar-te",
     "desksTitle": "Un escriptori per a cada tasca",
@@ -231,7 +231,7 @@
     "pricingDesksLabel": "Escriptoris"
   },
   "zh-Hans": {
-    "featuresTitle": "日常必备的三项功能",
+    "featuresTitle": "日常必备功能",
     "workspaceTitle": "让网站并排显示",
     "workspaceText": "一个桌面最多容纳 12 个窗口。并排放置网站，调整窗口大小，或在需要专注时展开其中一个",
     "desksTitle": "每项任务都有自己的桌面",
@@ -252,7 +252,7 @@
     "pricingDesksLabel": "桌面"
   },
   "zh-Hant": {
-    "featuresTitle": "日常必備的三項功能",
+    "featuresTitle": "日常必備功能",
     "workspaceTitle": "讓網站並排顯示",
     "workspaceText": "一個桌面最多容納 12 個視窗。並排放置網站，調整視窗大小，或在需要專注時展開其中一個",
     "desksTitle": "每項任務都有自己的桌面",
@@ -273,7 +273,7 @@
     "pricingDesksLabel": "桌面"
   },
   "hr": {
-    "featuresTitle": "Tri osnovne funkcije za svaki dan",
+    "featuresTitle": "Osnovne funkcije za svaki dan",
     "workspaceTitle": "Tvoje web-stranice, jedna uz drugu",
     "workspaceText": "Do 12 prozora na jednoj radnoj površini. Postavi web-stranice jednu uz drugu, promijeni im veličinu ili proširi jedan prozor kada se trebaš usredotočiti",
     "desksTitle": "Radna površina za svaki zadatak",
@@ -294,7 +294,7 @@
     "pricingDesksLabel": "Radne površine"
   },
   "cs": {
-    "featuresTitle": "Tři základní funkce na každý den",
+    "featuresTitle": "Základní funkce pro každý den",
     "workspaceTitle": "Tvoje weby vedle sebe",
     "workspaceText": "Až 12 oken na jedné ploše. Uspořádej weby vedle sebe, měň jejich velikost nebo jedno okno rozbal, když se potřebuješ soustředit",
     "desksTitle": "Plocha pro každý úkol",
@@ -315,7 +315,7 @@
     "pricingDesksLabel": "Pracovní plochy"
   },
   "da": {
-    "featuresTitle": "Tre vigtige funktioner til hverdagen",
+    "featuresTitle": "Grundlæggende funktioner til hver dag",
     "workspaceTitle": "Dine websites, side om side",
     "workspaceText": "Op til 12 vinduer på ét skrivebord. Placer websites side om side, tilpas størrelsen, eller udvid et vindue, når du har brug for at fokusere",
     "desksTitle": "Et skrivebord til hver opgave",
@@ -336,7 +336,7 @@
     "pricingDesksLabel": "Skriveborde"
   },
   "nl": {
-    "featuresTitle": "Drie onmisbare functies voor elke dag",
+    "featuresTitle": "Essentiële functies voor elke dag",
     "workspaceTitle": "Je websites naast elkaar",
     "workspaceText": "Tot 12 vensters op één bureaublad. Zet websites naast elkaar, pas het formaat aan of vergroot één venster wanneer je je wilt concentreren",
     "desksTitle": "Een bureaublad voor elke taak",
@@ -357,7 +357,7 @@
     "pricingDesksLabel": "Bureaubladen"
   },
   "et": {
-    "featuresTitle": "Kolm olulist funktsiooni igaks päevaks",
+    "featuresTitle": "Olulised funktsioonid igaks päevaks",
     "workspaceTitle": "Sinu veebilehed kõrvuti",
     "workspaceText": "Kuni 12 akent ühel töölaual. Paiguta veebilehed kõrvuti, muuda nende suurust või suurenda üht akent, kui pead keskenduma",
     "desksTitle": "Iga ülesande jaoks oma töölaud",
@@ -378,7 +378,7 @@
     "pricingDesksLabel": "Töölauad"
   },
   "fi": {
-    "featuresTitle": "Kolme arjen perustoimintoa",
+    "featuresTitle": "Tärkeimmät toiminnot jokaiseen päivään",
     "workspaceTitle": "Verkkosivusi rinnakkain",
     "workspaceText": "Jopa 12 ikkunaa yhdellä työpöydällä. Aseta verkkosivut rinnakkain, muuta niiden kokoa tai laajenna yksi ikkuna, kun haluat keskittyä",
     "desksTitle": "Oma työpöytä joka tehtävälle",
@@ -399,7 +399,7 @@
     "pricingDesksLabel": "Työpöydät"
   },
   "fr": {
-    "featuresTitle": "Trois essentiels du quotidien",
+    "featuresTitle": "Les fonctions essentielles du quotidien",
     "workspaceTitle": "Tes sites côte à côte",
     "workspaceText": "Jusqu’à 12 fenêtres sur un seul bureau. Place tes sites côte à côte, redimensionne les fenêtres ou agrandis-en une quand tu as besoin de te concentrer",
     "desksTitle": "Un bureau pour chaque tâche",
@@ -420,7 +420,7 @@
     "pricingDesksLabel": "Bureaux"
   },
   "ka": {
-    "featuresTitle": "სამი მთავარი ფუნქცია ყოველდღე",
+    "featuresTitle": "ძირითადი ფუნქციები ყოველდღე",
     "workspaceTitle": "შენი საიტები გვერდიგვერდ",
     "workspaceText": "ერთ სამუშაო მაგიდაზე 12-მდე ფანჯარა. განათავსე საიტები გვერდიგვერდ, შეცვალე მათი ზომა ან გააფართოვე ერთი ფანჯარა, როცა კონცენტრირება გჭირდება",
     "desksTitle": "თითოეულ დავალებას თავისი სამუშაო მაგიდა",
@@ -441,7 +441,7 @@
     "pricingDesksLabel": "სამუშაო მაგიდები"
   },
   "de": {
-    "featuresTitle": "Drei wichtige Funktionen für jeden Tag",
+    "featuresTitle": "Wichtige Funktionen für jeden Tag",
     "workspaceTitle": "Deine Websites nebeneinander",
     "workspaceText": "Bis zu 12 Fenster auf einem Desktop. Ordne Websites nebeneinander an, passe ihre Größe an oder vergrößere ein Fenster, wenn du dich konzentrieren möchtest",
     "desksTitle": "Ein Desktop für jede Aufgabe",
@@ -462,7 +462,7 @@
     "pricingDesksLabel": "Desktops"
   },
   "el": {
-    "featuresTitle": "Τρεις βασικές λειτουργίες για κάθε μέρα",
+    "featuresTitle": "Βασικές λειτουργίες για κάθε μέρα",
     "workspaceTitle": "Οι ιστότοποί σου δίπλα δίπλα",
     "workspaceText": "Έως 12 παράθυρα σε μία επιφάνεια εργασίας. Βάλε τους ιστοτόπους δίπλα δίπλα, άλλαξε το μέγεθος των παραθύρων ή μεγάλωσε ένα όταν χρειάζεται να συγκεντρωθείς",
     "desksTitle": "Μια επιφάνεια εργασίας για κάθε δουλειά",
@@ -483,7 +483,7 @@
     "pricingDesksLabel": "Επιφάνειες εργασίας"
   },
   "gu": {
-    "featuresTitle": "રોજિંદી ત્રણ જરૂરી સુવિધાઓ",
+    "featuresTitle": "દરરોજ માટે જરૂરી સુવિધાઓ",
     "workspaceTitle": "તમારી વેબસાઇટો બાજુબાજુ",
     "workspaceText": "એક ડેસ્કટૉપ પર વધુમાં વધુ 12 વિન્ડો. વેબસાઇટોને બાજુબાજુ ગોઠવો, તેમનું કદ બદલો અથવા ધ્યાન કેન્દ્રિત કરવું હોય ત્યારે એક વિન્ડો મોટી કરો",
     "desksTitle": "દરેક કામ માટે અલગ ડેસ્કટૉપ",
@@ -504,7 +504,7 @@
     "pricingDesksLabel": "ડેસ્કટોપ"
   },
   "hi": {
-    "featuresTitle": "हर दिन की तीन ज़रूरी सुविधाएँ",
+    "featuresTitle": "हर दिन की ज़रूरी सुविधाएँ",
     "workspaceTitle": "आपकी वेबसाइटें साथ-साथ",
     "workspaceText": "एक डेस्कटॉप पर अधिकतम 12 विंडो। वेबसाइटों को साथ-साथ रखें, उनका आकार बदलें या ध्यान केंद्रित करना हो तो एक विंडो बड़ी कर लें",
     "desksTitle": "हर काम के लिए अलग डेस्कटॉप",
@@ -525,7 +525,7 @@
     "pricingDesksLabel": "डेस्कटॉप"
   },
   "hu": {
-    "featuresTitle": "Három alapfunkció a mindennapokra",
+    "featuresTitle": "Alapvető funkciók minden napra",
     "workspaceTitle": "A weboldalaid egymás mellett",
     "workspaceText": "Akár 12 ablak egy asztalon. Rendezd egymás mellé a weboldalakat, méretezd át őket, vagy nagyíts ki egy ablakot, ha összpontosítani szeretnél",
     "desksTitle": "Külön asztal minden feladathoz",
@@ -546,7 +546,7 @@
     "pricingDesksLabel": "Asztalok"
   },
   "is": {
-    "featuresTitle": "Þrír lykileiginleikar fyrir hvern dag",
+    "featuresTitle": "Helstu eiginleikar fyrir hvern dag",
     "workspaceTitle": "Vefsíðurnar þínar hlið við hlið",
     "workspaceText": "Allt að 12 gluggar á einu skjáborði. Raðaðu vefsíðum hlið við hlið, breyttu stærð þeirra eða stækkaðu einn glugga þegar þú þarft að einbeita þér",
     "desksTitle": "Skjáborð fyrir hvert verkefni",
@@ -567,7 +567,7 @@
     "pricingDesksLabel": "Skjáborð"
   },
   "id": {
-    "featuresTitle": "Tiga fitur penting untuk setiap hari",
+    "featuresTitle": "Fitur utama untuk setiap hari",
     "workspaceTitle": "Situs-situsmu berdampingan",
     "workspaceText": "Hingga 12 jendela dalam satu desktop. Susun situs berdampingan, ubah ukurannya, atau perbesar satu jendela saat kamu perlu fokus",
     "desksTitle": "Satu desktop untuk setiap tugas",
@@ -588,7 +588,7 @@
     "pricingDesksLabel": "Desktop"
   },
   "it": {
-    "featuresTitle": "Tre funzioni essenziali ogni giorno",
+    "featuresTitle": "Funzioni essenziali per ogni giorno",
     "workspaceTitle": "I tuoi siti, uno accanto all’altro",
     "workspaceText": "Fino a 12 finestre su una sola scrivania. Affianca i siti, ridimensiona le finestre o ingrandiscine una quando hai bisogno di concentrarti",
     "desksTitle": "Una scrivania per ogni attività",
@@ -609,7 +609,7 @@
     "pricingDesksLabel": "Desktop"
   },
   "ja": {
-    "featuresTitle": "毎日に欠かせない3つの機能",
+    "featuresTitle": "毎日に欠かせない基本機能",
     "workspaceTitle": "ウェブサイトを並べて表示",
     "workspaceText": "1つのデスクトップに最大12個のウィンドウ。サイトを並べて表示し、サイズを変えたり、集中したいときには1つを広げたりできます",
     "desksTitle": "タスクごとにデスクトップを",
@@ -630,7 +630,7 @@
     "pricingDesksLabel": "デスクトップ"
   },
   "kn": {
-    "featuresTitle": "ಪ್ರತಿದಿನದ ಮೂರು ಅಗತ್ಯ ಸೌಲಭ್ಯಗಳು",
+    "featuresTitle": "ಪ್ರತಿದಿನಕ್ಕೆ ಅಗತ್ಯವಾದ ವೈಶಿಷ್ಟ್ಯಗಳು",
     "workspaceTitle": "ನಿಮ್ಮ ವೆಬ್‌ಸೈಟ್‌ಗಳು ಅಕ್ಕಪಕ್ಕದಲ್ಲಿ",
     "workspaceText": "ಒಂದೇ ಡೆಸ್ಕ್‌ಟಾಪ್‌ನಲ್ಲಿ ಗರಿಷ್ಠ 12 ವಿಂಡೋಗಳು. ವೆಬ್‌ಸೈಟ್‌ಗಳನ್ನು ಅಕ್ಕಪಕ್ಕದಲ್ಲಿ ಜೋಡಿಸಿ, ಅವುಗಳ ಗಾತ್ರ ಬದಲಿಸಿ ಅಥವಾ ಗಮನ ಕೇಂದ್ರೀಕರಿಸಬೇಕಾದಾಗ ಒಂದು ವಿಂಡೋವನ್ನು ದೊಡ್ಡದಾಗಿಸಿ",
     "desksTitle": "ಪ್ರತಿ ಕೆಲಸಕ್ಕೂ ಪ್ರತ್ಯೇಕ ಡೆಸ್ಕ್‌ಟಾಪ್",
@@ -651,7 +651,7 @@
     "pricingDesksLabel": "ಡೆಸ್ಕ್‌ಟಾಪ್‌ಗಳು"
   },
   "kk": {
-    "featuresTitle": "Күн сайын қажет үш мүмкіндік",
+    "featuresTitle": "Күнделікті қажет негізгі мүмкіндіктер",
     "workspaceTitle": "Сайттарың қатар тұрсын",
     "workspaceText": "Бір жұмыс үстелінде 12 терезеге дейін. Сайттарды қатар орналастыр, өлшемдерін өзгерт немесе назарыңды шоғырландыру қажет болса, бір терезені үлкейт",
     "desksTitle": "Әр тапсырмаға — өз жұмыс үстелі",
@@ -672,7 +672,7 @@
     "pricingDesksLabel": "Жұмыс үстелдері"
   },
   "ko": {
-    "featuresTitle": "매일 필요한 세 가지 기능",
+    "featuresTitle": "매일 필요한 주요 기능",
     "workspaceTitle": "웹사이트를 나란히",
     "workspaceText": "하나의 데스크톱에 최대 12개의 창을 배치하세요. 웹사이트를 나란히 놓고 크기를 조절하거나, 집중하고 싶을 때 창 하나를 넓힐 수 있어요",
     "desksTitle": "작업마다 별도의 데스크톱",
@@ -693,7 +693,7 @@
     "pricingDesksLabel": "데스크톱"
   },
   "lv": {
-    "featuresTitle": "Trīs pamatfunkcijas katrai dienai",
+    "featuresTitle": "Galvenās funkcijas ikdienai",
     "workspaceTitle": "Tavas vietnes blakus cita citai",
     "workspaceText": "Līdz 12 logiem vienā darbvirsmā. Izkārto vietnes blakus, maini logu izmērus vai izvērs vienu logu, kad nepieciešams koncentrēties",
     "desksTitle": "Darbvirsma katram uzdevumam",
@@ -714,7 +714,7 @@
     "pricingDesksLabel": "Darbvirsmas"
   },
   "lt": {
-    "featuresTitle": "Trys svarbiausios kasdienės funkcijos",
+    "featuresTitle": "Pagrindinės funkcijos kasdienai",
     "workspaceTitle": "Tavo svetainės greta",
     "workspaceText": "Iki 12 langų viename darbalaukyje. Išdėliok svetaines greta, keisk langų dydį arba išplėsk vieną langą, kai reikia susikaupti",
     "desksTitle": "Darbalaukis kiekvienai užduočiai",
@@ -735,7 +735,7 @@
     "pricingDesksLabel": "Darbalaukiai"
   },
   "mk": {
-    "featuresTitle": "Три основни функции за секој ден",
+    "featuresTitle": "Основни функции за секој ден",
     "workspaceTitle": "Твоите веб-страници една до друга",
     "workspaceText": "До 12 прозорци на една работна површина. Нареди ги веб-страниците една до друга, менувај ја големината на прозорците или прошири еден кога треба да се сосредоточиш",
     "desksTitle": "Работна површина за секоја задача",
@@ -756,7 +756,7 @@
     "pricingDesksLabel": "Работни површини"
   },
   "ms": {
-    "featuresTitle": "Tiga keperluan harian",
+    "featuresTitle": "Ciri penting untuk setiap hari",
     "workspaceTitle": "Laman web anda, bersebelahan",
     "workspaceText": "Sehingga 12 tetingkap pada satu desktop. Susun laman web bersebelahan, ubah saiznya atau besarkan satu apabila anda perlu fokus",
     "desksTitle": "Satu desktop untuk setiap tugasan",
@@ -777,7 +777,7 @@
     "pricingDesksLabel": "Desktop"
   },
   "ml": {
-    "featuresTitle": "ദിവസവും വേണ്ട മൂന്ന് കാര്യങ്ങൾ",
+    "featuresTitle": "ദൈനംദിന ആവശ്യങ്ങൾക്കുള്ള പ്രധാന സവിശേഷതകൾ",
     "workspaceTitle": "നിങ്ങളുടെ വെബ്‌സൈറ്റുകൾ അടുത്തടുത്തായി",
     "workspaceText": "ഒരു ഡെസ്‌ക്‌ടോപ്പിൽ പരമാവധി 12 വിൻഡോകൾ. വെബ്‌സൈറ്റുകൾ അടുത്തടുത്തായി ക്രമീകരിക്കൂ, വലുപ്പം മാറ്റൂ, അല്ലെങ്കിൽ ശ്രദ്ധ കേന്ദ്രീകരിക്കേണ്ടപ്പോൾ ഒന്ന് വലുതാക്കൂ",
     "desksTitle": "ഓരോ ജോലിക്കും ഒരു ഡെസ്‌ക്‌ടോപ്പ്",
@@ -798,7 +798,7 @@
     "pricingDesksLabel": "ഡെസ്‌ക്‌ടോപ്പുകൾ"
   },
   "mr": {
-    "featuresTitle": "रोजच्या तीन आवश्यक सुविधा",
+    "featuresTitle": "दररोजची आवश्यक वैशिष्ट्ये",
     "workspaceTitle": "तुमच्या वेबसाइट्स, शेजारीशेजारी",
     "workspaceText": "एका डेस्कटॉपवर जास्तीत जास्त 12 विंडो. वेबसाइट्स शेजारीशेजारी मांडा, त्यांचा आकार बदला किंवा लक्ष केंद्रित करायचे असेल तेव्हा एखादी मोठी करा",
     "desksTitle": "प्रत्येक कामासाठी एक डेस्कटॉप",
@@ -819,7 +819,7 @@
     "pricingDesksLabel": "डेस्कटॉप"
   },
   "mn": {
-    "featuresTitle": "Өдөр тутмын гурван хэрэгцээ",
+    "featuresTitle": "Өдөр тутамд хэрэгтэй үндсэн боломжууд",
     "workspaceTitle": "Вэбсайтуудаа зэрэгцүүл",
     "workspaceText": "Нэг ажлын талбарт 12 хүртэлх цонх. Вэбсайтуудаа зэрэгцүүлж байрлуул, хэмжээг нь өөрчил эсвэл төвлөрөх хэрэгтэй үед нэгийг нь томруул",
     "desksTitle": "Ажил бүрд тусдаа ажлын талбар",
@@ -840,7 +840,7 @@
     "pricingDesksLabel": "Ажлын талбарууд"
   },
   "nb": {
-    "featuresTitle": "Tre nyttige funksjoner i hverdagen",
+    "featuresTitle": "Viktige funksjoner for hver dag",
     "workspaceTitle": "Nettstedene dine, side om side",
     "workspaceText": "Opptil 12 vinduer på ett skrivebord. Plasser nettsteder side om side, endre størrelsen eller utvid ett når du trenger å konsentrere deg",
     "desksTitle": "Et skrivebord for hver oppgave",
@@ -861,7 +861,7 @@
     "pricingDesksLabel": "Skrivebord"
   },
   "fa": {
-    "featuresTitle": "سه قابلیت ضروری برای هر روز",
+    "featuresTitle": "قابلیت‌های اصلی برای هر روز",
     "workspaceTitle": "وب‌سایت‌هایت، کنار هم",
     "workspaceText": "تا ۱۲ پنجره در یک میز کار. وب‌سایت‌ها را کنار هم بچین، اندازه‌شان را تغییر بده یا وقتی به تمرکز نیاز داری، یکی را بزرگ‌تر کن",
     "desksTitle": "یک میز کار برای هر فعالیت",
@@ -882,7 +882,7 @@
     "pricingDesksLabel": "میزکارها"
   },
   "pl": {
-    "featuresTitle": "Trzy przydatne funkcje na co dzień",
+    "featuresTitle": "Najważniejsze funkcje na co dzień",
     "workspaceTitle": "Twoje strony, obok siebie",
     "workspaceText": "Do 12 okien na jednym pulpicie. Ustawiaj strony obok siebie, zmieniaj ich rozmiar lub powiększ jedno okno, gdy potrzebujesz się skupić",
     "desksTitle": "Osobny pulpit do każdego zadania",
@@ -903,7 +903,7 @@
     "pricingDesksLabel": "Pulpity"
   },
   "pt-BR": {
-    "featuresTitle": "Três recursos essenciais para o dia a dia",
+    "featuresTitle": "Recursos essenciais para o dia a dia",
     "workspaceTitle": "Seus sites, lado a lado",
     "workspaceText": "Até 12 janelas em uma área de trabalho. Organize sites lado a lado, ajuste o tamanho ou amplie uma janela quando precisar se concentrar",
     "desksTitle": "Uma área de trabalho para cada tarefa",
@@ -924,7 +924,7 @@
     "pricingDesksLabel": "Áreas de trabalho"
   },
   "pt-PT": {
-    "featuresTitle": "Três funções essenciais para o dia a dia",
+    "featuresTitle": "Funcionalidades essenciais para o dia a dia",
     "workspaceTitle": "Os teus sites, lado a lado",
     "workspaceText": "Até 12 janelas numa área de trabalho. Organiza os sites lado a lado, ajusta o tamanho ou amplia uma janela quando precisares de te concentrar",
     "desksTitle": "Uma área de trabalho para cada tarefa",
@@ -945,7 +945,7 @@
     "pricingDesksLabel": "Ambientes de trabalho"
   },
   "pa": {
-    "featuresTitle": "ਰੋਜ਼ਾਨਾ ਦੀਆਂ ਤਿੰਨ ਜ਼ਰੂਰੀ ਸਹੂਲਤਾਂ",
+    "featuresTitle": "ਹਰ ਦਿਨ ਲਈ ਜ਼ਰੂਰੀ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ",
     "workspaceTitle": "ਤੁਹਾਡੀਆਂ ਵੈੱਬਸਾਈਟਾਂ, ਨਾਲ-ਨਾਲ",
     "workspaceText": "ਇੱਕ ਡੈਸਕਟਾਪ ’ਤੇ ਵੱਧ ਤੋਂ ਵੱਧ 12 ਵਿੰਡੋਜ਼। ਵੈੱਬਸਾਈਟਾਂ ਨੂੰ ਨਾਲ-ਨਾਲ ਲਗਾਓ, ਉਨ੍ਹਾਂ ਦਾ ਆਕਾਰ ਬਦਲੋ ਜਾਂ ਧਿਆਨ ਕੇਂਦਰਿਤ ਕਰਨ ਲਈ ਕਿਸੇ ਇੱਕ ਨੂੰ ਵੱਡਾ ਕਰੋ",
     "desksTitle": "ਹਰ ਕੰਮ ਲਈ ਇੱਕ ਡੈਸਕਟਾਪ",
@@ -966,7 +966,7 @@
     "pricingDesksLabel": "ਡੈਸਕਟਾਪ"
   },
   "ro": {
-    "featuresTitle": "Trei funcții esențiale zi de zi",
+    "featuresTitle": "Funcții esențiale pentru fiecare zi",
     "workspaceTitle": "Site-urile tale, unul lângă altul",
     "workspaceText": "Până la 12 ferestre pe un singur desktop. Așază site-urile unul lângă altul, redimensionează-le sau mărește o fereastră când ai nevoie să te concentrezi",
     "desksTitle": "Un desktop pentru fiecare sarcină",
@@ -987,7 +987,7 @@
     "pricingDesksLabel": "Desktopuri"
   },
   "sr": {
-    "featuresTitle": "Три свакодневне потребе",
+    "featuresTitle": "Основне функције за сваки дан",
     "workspaceTitle": "Твоји сајтови, један поред другог",
     "workspaceText": "До 12 прозора на једној радној површини. Поређај сајтове један поред другог, промени им величину или увећај један прозор када желиш да се усредсредиш",
     "desksTitle": "Радна површина за сваки задатак",
@@ -1008,7 +1008,7 @@
     "pricingDesksLabel": "Радне површине"
   },
   "sk": {
-    "featuresTitle": "Tri užitočné funkcie na každý deň",
+    "featuresTitle": "Základné funkcie na každý deň",
     "workspaceTitle": "Tvoje weby vedľa seba",
     "workspaceText": "Až 12 okien na jednej ploche. Usporiadaj weby vedľa seba, zmeň ich veľkosť alebo zväčši jedno okno, keď sa potrebuješ sústrediť",
     "desksTitle": "Plocha pre každú úlohu",
@@ -1029,7 +1029,7 @@
     "pricingDesksLabel": "Pracovné plochy"
   },
   "sl": {
-    "featuresTitle": "Tri uporabne funkcije za vsak dan",
+    "featuresTitle": "Osnovne funkcije za vsak dan",
     "workspaceTitle": "Tvoja spletna mesta, drugo ob drugem",
     "workspaceText": "Do 12 oken na enem namizju. Postavi spletna mesta drugo ob drugo, spremeni jim velikost ali povečaj eno okno, ko se moraš osredotočiti",
     "desksTitle": "Namizje za vsako nalogo",
@@ -1050,7 +1050,7 @@
     "pricingDesksLabel": "Namizja"
   },
   "so": {
-    "featuresTitle": "Saddex waxyaalood oo maalin kasta muhiim ah",
+    "featuresTitle": "Sifooyinka muhiimka ah ee maalin kasta",
     "workspaceTitle": "Mareegahaaga oo is barbar yaal",
     "workspaceText": "Ilaa 12 daaqadood hal goob shaqo. Mareegaha is barbar dhig, cabbirkooda beddel ama mid ballaari marka aad u baahan tahay inaad diiradda saarto",
     "desksTitle": "Goob shaqo oo hawl kasta u gaar ah",
@@ -1071,7 +1071,7 @@
     "pricingDesksLabel": "Goobaha shaqada"
   },
   "es": {
-    "featuresTitle": "Tres funciones esenciales para el día a día",
+    "featuresTitle": "Funciones esenciales para cada día",
     "workspaceTitle": "Tus sitios web, uno al lado del otro",
     "workspaceText": "Hasta 12 ventanas en un escritorio. Coloca los sitios web uno al lado del otro, cambia su tamaño o amplía una ventana cuando necesites concentrarte",
     "desksTitle": "Un escritorio para cada tarea",
@@ -1092,7 +1092,7 @@
     "pricingDesksLabel": "Escritorios"
   },
   "sw": {
-    "featuresTitle": "Vipengele vitatu muhimu kila siku",
+    "featuresTitle": "Vipengele muhimu kwa kila siku",
     "workspaceTitle": "Tovuti zako, kando kwa kando",
     "workspaceText": "Hadi madirisha 12 kwenye eneo moja la kazi. Panga tovuti kando kwa kando, badilisha ukubwa wake au panua dirisha moja unapohitaji kuzingatia",
     "desksTitle": "Eneo la kazi kwa kila jukumu",
@@ -1113,7 +1113,7 @@
     "pricingDesksLabel": "Maeneo ya kazi"
   },
   "sv": {
-    "featuresTitle": "Tre användbara funktioner i vardagen",
+    "featuresTitle": "Viktiga funktioner för varje dag",
     "workspaceTitle": "Dina webbplatser, sida vid sida",
     "workspaceText": "Upp till 12 fönster på ett skrivbord. Placera webbplatser sida vid sida, ändra storleken eller förstora ett fönster när du behöver fokusera",
     "desksTitle": "Ett skrivbord för varje uppgift",
@@ -1134,7 +1134,7 @@
     "pricingDesksLabel": "Skrivbord"
   },
   "fil": {
-    "featuresTitle": "Tatlong kailangan sa araw-araw",
+    "featuresTitle": "Mahahalagang feature para sa araw-araw",
     "workspaceTitle": "Mga website mo, magkakatabi",
     "workspaceText": "Hanggang 12 window sa isang desktop. Ayusin ang mga website nang magkakatabi, baguhin ang laki o palakihin ang isang window kapag kailangan mong magpokus",
     "desksTitle": "Isang desktop para sa bawat gawain",
@@ -1155,7 +1155,7 @@
     "pricingDesksLabel": "Mga desktop"
   },
   "ta": {
-    "featuresTitle": "அன்றாடத் தேவைகளுக்கான மூன்று வசதிகள்",
+    "featuresTitle": "ஒவ்வொரு நாளுக்கும் தேவையான முக்கிய அம்சங்கள்",
     "workspaceTitle": "உங்கள் இணையதளங்கள், அருகருகே",
     "workspaceText": "ஒரே டெஸ்க்டாப்பில் அதிகபட்சம் 12 சாளரங்கள். இணையதளங்களை அருகருகே அமைக்கவும், அளவை மாற்றவும் அல்லது கவனம் செலுத்த வேண்டியபோது ஒரு சாளரத்தைப் பெரிதாக்கவும்",
     "desksTitle": "ஒவ்வொரு பணிக்கும் ஒரு டெஸ்க்டாப்",
@@ -1176,7 +1176,7 @@
     "pricingDesksLabel": "டெஸ்க்டாப்புகள்"
   },
   "te": {
-    "featuresTitle": "రోజువారీ అవసరాలకు మూడు సదుపాయాలు",
+    "featuresTitle": "ప్రతిరోజూ అవసరమైన ముఖ్య ఫీచర్లు",
     "workspaceTitle": "మీ వెబ్‌సైట్‌లు, పక్కపక్కనే",
     "workspaceText": "ఒకే డెస్క్‌టాప్‌పై గరిష్ఠంగా 12 విండోలు. వెబ్‌సైట్‌లను పక్కపక్కన అమర్చండి, పరిమాణం మార్చండి లేదా దృష్టి పెట్టాల్సినప్పుడు ఒక విండోను పెద్దది చేయండి",
     "desksTitle": "ప్రతి పనికీ ఒక డెస్క్‌టాప్",
@@ -1197,7 +1197,7 @@
     "pricingDesksLabel": "డెస్క్‌టాప్‌లు"
   },
   "th": {
-    "featuresTitle": "สามฟีเจอร์สำคัญในทุกวัน",
+    "featuresTitle": "ฟีเจอร์หลักสำหรับทุกวัน",
     "workspaceTitle": "เว็บไซต์ของคุณ วางเคียงข้างกัน",
     "workspaceText": "เปิดได้สูงสุด 12 หน้าต่างบนเดสก์ท็อปเดียว จัดวางเว็บไซต์เคียงข้างกัน ปรับขนาด หรือขยายหน้าต่างหนึ่งเมื่อต้องการจดจ่อ",
     "desksTitle": "เดสก์ท็อปสำหรับทุกงาน",
@@ -1218,7 +1218,7 @@
     "pricingDesksLabel": "เดสก์ท็อป"
   },
   "tr": {
-    "featuresTitle": "Günlük üç temel özellik",
+    "featuresTitle": "Her gün için temel özellikler",
     "workspaceTitle": "Web sitelerin yan yana",
     "workspaceText": "Tek masaüstünde 12’ye kadar pencere. Web sitelerini yan yana yerleştir, boyutlarını değiştir veya odaklanman gerektiğinde bir pencereyi büyüt",
     "desksTitle": "Her iş için bir masaüstü",
@@ -1239,7 +1239,7 @@
     "pricingDesksLabel": "Masaüstleri"
   },
   "uk": {
-    "featuresTitle": "Три корисні функції на щодень",
+    "featuresTitle": "Основні функції на кожен день",
     "workspaceTitle": "Твої сайти поруч",
     "workspaceText": "До 12 вікон на одному робочому столі. Розташовуй сайти поруч, змінюй розміри або розгортай одне вікно, коли потрібно зосередитися",
     "desksTitle": "Робочий стіл для кожного завдання",
@@ -1260,7 +1260,7 @@
     "pricingDesksLabel": "Робочих столів"
   },
   "ur": {
-    "featuresTitle": "روزمرہ کی تین ضروری سہولتیں",
+    "featuresTitle": "ہر روز کے لیے ضروری خصوصیات",
     "workspaceTitle": "آپ کی ویب سائٹس، ساتھ ساتھ",
     "workspaceText": "ایک ڈیسک ٹاپ پر زیادہ سے زیادہ 12 ونڈوز۔ ویب سائٹس ساتھ ساتھ رکھیں، ان کا سائز بدلیں یا توجہ مرکوز کرنے کے لیے کسی ایک ونڈو کو بڑا کر لیں",
     "desksTitle": "ہر کام کے لیے ایک ڈیسک ٹاپ",
@@ -1281,7 +1281,7 @@
     "pricingDesksLabel": "ڈیسک ٹاپس"
   },
   "vi": {
-    "featuresTitle": "Ba tính năng thiết yếu mỗi ngày",
+    "featuresTitle": "Các tính năng thiết yếu cho mỗi ngày",
     "workspaceTitle": "Các trang web của bạn, cạnh nhau",
     "workspaceText": "Tối đa 12 cửa sổ trên một màn hình làm việc. Xếp các trang web cạnh nhau, đổi kích thước hoặc mở rộng một cửa sổ khi cần tập trung",
     "desksTitle": "Một màn hình làm việc cho mỗi việc",
@@ -1302,7 +1302,7 @@
     "pricingDesksLabel": "Màn hình làm việc"
   },
   "he": {
-    "featuresTitle": "שלוש יכולות שימושיות ליום־יום",
+    "featuresTitle": "התכונות העיקריות לכל יום",
     "workspaceTitle": "אתרי האינטרנט שלך, זה לצד זה",
     "workspaceText": "עד 12 חלונות בשולחן עבודה אחד. אפשר לסדר אתרים זה לצד זה, לשנות את הגודל שלהם או להגדיל חלון אחד כשצריך להתרכז",
     "desksTitle": "שולחן עבודה לכל משימה",
@@ -1323,7 +1323,7 @@
     "pricingDesksLabel": "שולחנות עבודה"
   },
   "uz": {
-    "featuresTitle": "Kundalik uchta zarur imkoniyat",
+    "featuresTitle": "Har kun uchun asosiy funksiyalar",
     "workspaceTitle": "Veb-saytlaring yonma-yon",
     "workspaceText": "Bitta ish stolida 12 tagacha oyna. Veb-saytlarni yonma-yon joylashtir, o‘lchamini o‘zgartir yoki diqqatni jamlash kerak bo‘lganda bitta oynani kattalashtir",
     "desksTitle": "Har bir vazifa uchun alohida ish stoli",
@@ -1344,7 +1344,7 @@
     "pricingDesksLabel": "Ish stollari"
   },
   "az": {
-    "featuresTitle": "Gündəlik üç vacib imkan",
+    "featuresTitle": "Hər gün üçün əsas funksiyalar",
     "workspaceTitle": "Veb-saytların yan-yana",
     "workspaceText": "Bir iş masasında 12-dək pəncərə. Veb-saytları yan-yana yerləşdir, ölçülərini dəyiş və ya diqqətini toplamaq lazım olduqda bir pəncərəni böyüt",
     "desksTitle": "Hər tapşırıq üçün bir iş masası",
@@ -1365,7 +1365,7 @@
     "pricingDesksLabel": "İş masaları"
   },
   "af": {
-    "featuresTitle": "Drie noodsaaklike funksies vir elke dag",
+    "featuresTitle": "Noodsaaklike funksies vir elke dag",
     "workspaceTitle": "Jou webwerwe, langs mekaar",
     "workspaceText": "Tot 12 vensters op een werkskerm. Rangskik webwerwe langs mekaar, verander hul grootte of vergroot een venster wanneer jy moet fokus",
     "desksTitle": "’n Werkskerm vir elke taak",
@@ -1386,7 +1386,7 @@
     "pricingDesksLabel": "Werkskerms"
   },
   "eu": {
-    "featuresTitle": "Eguneroko hiru funtzio erabilgarri",
+    "featuresTitle": "Eguneroko funtzio nagusiak",
     "workspaceTitle": "Zure webguneak, elkarren ondoan",
     "workspaceText": "Gehienez 12 leiho mahaigain bakarrean. Jarri webguneak elkarren ondoan, aldatu haien tamaina edo handitu leiho bat arreta jarri behar duzunean",
     "desksTitle": "Zeregin bakoitzerako mahaigain bat",
@@ -1407,7 +1407,7 @@
     "pricingDesksLabel": "Mahaigainak"
   },
   "gl": {
-    "featuresTitle": "Tres funcións esenciais para o día a día",
+    "featuresTitle": "Funcións esenciais para cada día",
     "workspaceTitle": "Os teus sitios web, un ao lado do outro",
     "workspaceText": "Ata 12 xanelas nun escritorio. Coloca os sitios web un ao lado do outro, cambia o seu tamaño ou amplía unha xanela cando necesites concentrarte",
     "desksTitle": "Un escritorio para cada tarefa",
@@ -1428,7 +1428,7 @@
     "pricingDesksLabel": "Escritorios"
   },
   "km": {
-    "featuresTitle": "មុខងារចាំបាច់បីសម្រាប់រាល់ថ្ងៃ",
+    "featuresTitle": "មុខងារសំខាន់ៗសម្រាប់រាល់ថ្ងៃ",
     "workspaceTitle": "គេហទំព័ររបស់អ្នក នៅក្បែរគ្នា",
     "workspaceText": "រហូតដល់ 12 បង្អួចនៅលើផ្ទៃតុតែមួយ។ រៀបចំគេហទំព័រនៅក្បែរគ្នា ប្ដូរទំហំ ឬពង្រីកបង្អួចមួយនៅពេលអ្នកត្រូវការផ្ដោតអារម្មណ៍",
     "desksTitle": "ផ្ទៃតុមួយសម្រាប់កិច្ចការនីមួយៗ",
@@ -1449,7 +1449,7 @@
     "pricingDesksLabel": "ផ្ទៃតុ"
   },
   "lo": {
-    "featuresTitle": "ສາມຟັງຊັນຈຳເປັນສຳລັບທຸກມື້",
+    "featuresTitle": "ຟັງຊັນຫຼັກສຳລັບທຸກມື້",
     "workspaceTitle": "ເວັບໄຊຂອງທ່ານ ວາງຄຽງຂ້າງກັນ",
     "workspaceText": "ສູງສຸດ 12 ໜ້າຕ່າງໃນເດັສທັອບດຽວ. ຈັດວາງເວັບໄຊຄຽງຂ້າງກັນ, ປັບຂະໜາດ ຫຼືຂະຫຍາຍໜ້າຕ່າງໜຶ່ງເມື່ອຕ້ອງການສຸມໃສ່",
     "desksTitle": "ເດັສທັອບໜຶ່ງສຳລັບແຕ່ລະວຽກ",
@@ -1470,7 +1470,7 @@
     "pricingDesksLabel": "ເດັສທັອບ"
   },
   "ne": {
-    "featuresTitle": "हरेक दिनका तीन आवश्यक सुविधा",
+    "featuresTitle": "हरेक दिनका लागि आवश्यक सुविधाहरू",
     "workspaceTitle": "तपाईंका वेबसाइटहरू, सँगसँगै",
     "workspaceText": "एउटै डेस्कटपमा बढीमा 12 विन्डो। वेबसाइटहरू सँगसँगै मिलाउनुहोस्, तिनको आकार बदल्नुहोस् वा ध्यान केन्द्रित गर्नुपर्दा कुनै एउटा विन्डो ठूलो बनाउनुहोस्",
     "desksTitle": "हरेक कामका लागि एउटा डेस्कटप",
@@ -1491,7 +1491,7 @@
     "pricingDesksLabel": "डेस्कटपहरू"
   },
   "si": {
-    "featuresTitle": "දිනපතා අවශ්‍ය පහසුකම් තුනක්",
+    "featuresTitle": "එදිනෙදා අවශ්‍ය ප්‍රධාන විශේෂාංග",
     "workspaceTitle": "ඔබේ වෙබ් අඩවි, එක ළඟ",
     "workspaceText": "එකම ඩෙස්ක්ටොප් එකක කවුළු 12ක් දක්වා. වෙබ් අඩවි එක ළඟ සකසන්න, ඒවායේ ප්‍රමාණය වෙනස් කරන්න හෝ අවධානය යොමු කිරීමට අවශ්‍ය විට එක් කවුළුවක් විශාල කරන්න",
     "desksTitle": "සෑම කාර්යයකටම ඩෙස්ක්ටොප් එකක්",

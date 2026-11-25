@@ -32,7 +32,7 @@ jobs:
           bash -n infra/website/bootstrap.sh
           bash infra/website/deploy.sh --validate-downloads infra/website/downloads.json
           python3 -m unittest discover -s infra/website -p 'test_*.py' -v
-          node --test infra/website/test-site-downloads.cjs infra/website/test-download-metrics.cjs
+          node --test infra/website/test-site-downloads.cjs infra/website/test-download-metrics.cjs infra/website/test-showcase-tabs.cjs
           python3 infra/website/build-site.py --output "$RUNNER_TEMP/mouse-website-validation"
           python3 infra/website/verify-seo.py "$RUNNER_TEMP/mouse-website-validation"
           python3 infra/website/make-sync-bundle.py --source "$GITHUB_SHA" --output "$RUNNER_TEMP/mouse-sync-validation.tar.gz"
