@@ -4,7 +4,7 @@
   --feature-sheet: color-mix(in srgb, var(--paper) 96%, var(--ink));
   --feature-wash: color-mix(in srgb, var(--paper) 88%, var(--ink));
   --feature-detail: color-mix(in srgb, var(--paper) 30%, var(--ink));
-  width: 100%;
+  width: min(1200px, 100%);
   margin: 0 auto;
   padding: 84px 8px 72px;
   color: var(--ink);
@@ -94,6 +94,7 @@
   overflow-wrap: anywhere;
 }
 .feature-copy p {
+  max-width: 34ch;
   margin: 0 auto;
   color: var(--soft-ink);
   font-family: var(--body-font);
