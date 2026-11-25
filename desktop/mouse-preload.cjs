@@ -10,6 +10,7 @@ if(process.isMainFrame)contextBridge.exposeInMainWorld('MouseNative',Object.free
  mediaPlayer:(action,args)=>ipcRenderer.invoke('mouse:media-player',action,args),onMediaPlayer:cb=>on('mouse:media-player-state',cb),
  contextMenu:args=>ipcRenderer.invoke('mouse:context-menu',args),onContextAction:cb=>on('mouse:context-action',cb),
  settings:(action,args)=>ipcRenderer.invoke('mouse:settings',action,args),onSettings:cb=>on('mouse:settings-state',cb),
+ adBlockState:()=>ipcRenderer.invoke('mouse:adblock-state'),onAdBlockState:cb=>on('mouse:adblock-state',cb),
  import:(action,args)=>ipcRenderer.invoke('mouse:import',action,args),
  documents:(action,args)=>ipcRenderer.invoke('mouse:documents',action,args),onDocuments:cb=>on('mouse:documents-state',cb),
  desktops:(action,args)=>ipcRenderer.invoke('mouse:desktops',action,args),

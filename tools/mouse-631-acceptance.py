@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent, dependency-free verification of installed Mouse 6.0.38 evidence.
+"""Independent, dependency-free verification of installed Mouse 6.0.39 evidence.
 
 verify(read) accepts a bounded filename -> bytes reader, including ZipFile.read.
 It decodes the archived native PNGs; JSON success flags alone are insufficient.
@@ -14,7 +14,7 @@ import sys
 import zlib
 from pathlib import Path
 
-VERSION = '6.0.38'
+VERSION = '6.0.39'
 IDENTITY_FIELDS = ('id', 'index', 'desk', 'webContentsId', 'url', 'navigationEpoch',
                    'identity', 'timeOrigin', 'field', 'scrollX', 'scrollY', 'cookie')
 

@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {armFrameCapture,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
+const {armFrameCapture,observeNativePagePresentations,nativeBitmap,staticShellReadback,staticThemeProbe,nativeStaticFrameMatch,acquireFreshNativeFrame}=require('./mouse-smoke-frames.cjs');
 function fixture(){const contents=new EventEmitter(),events=[];contents.beginFrameSubscription=(onlyDirty,callback)=>{assert.equal(onlyDirty,false);contents.frame=callback;events.push('armed');};contents.endFrameSubscription=()=>events.push('ended');return{contents,events,image(value){return{value,getScaleFactors:()=>[1,2],getSize:s=>({width:50*s,height:30*s}),toPNG:({scaleFactor})=>{events.push('encoded '+value+' at '+scaleFactor);return Buffer.from(value);}};}};}
 test('arms before action; rejects endpoints and encodes only the selected actual frame at its native scale',async()=>{const f=fixture(),seen=[],capture=armFrameCapture(f.contents,{select(image,frame){seen.push(frame);return image.value==='middle'?{top:27}:null;}});assert.deepEqual(f.events,['armed']);f.contents.frame(f.image('closed'),{x:0,y:0,width:100,height:60});f.contents.frame(f.image('middle'),{x:4,y:9,width:20,height:12});f.contents.frame(f.image('late'),{});const result=await capture.result;assert.deepEqual(f.events,['armed','ended','encoded middle at 2']);assert.equal(result.source,'beginFrameSubscription');assert.equal(result.sequence,2);assert.equal(result.scaleFactor,2);assert.deepEqual(result.pixelSize,{width:100,height:60});assert.deepEqual(result.metadata,{top:27});assert.equal(result.png.toString(),'middle');assert.equal(seen.length,2);assert.equal(f.contents.listenerCount('destroyed'),0);capture.cancel();assert.equal(f.events.filter(x=>x==='ended').length,1);});
 test('pixel selector failure always unsubscribes and never encodes',async()=>{const f=fixture(),capture=armFrameCapture(f.contents,{select(){throw Error('bad pixels');}});f.contents.frame(f.image('bad'),{});await assert.rejects(capture.result,/bad pixels/);assert.deepEqual(f.events,['armed','ended']);});
@@ -19,6 +19,48 @@ test('ready and result reject together when timeout, cancel or destruction prece
 });
 test('a malformed first framebuffer or throwing selector never signals readiness',async()=>{
  for(const malformed of [true,false]){const f=fixture(),capture=armFrameCapture(f.contents,{select(){if(!malformed)throw Error('invalid bitmap data');return null;}}),image=f.image('bad');if(malformed)image.getSize=()=>({width:NaN,height:60});f.contents.frame(image,{});const outcomes=await Promise.allSettled([capture.ready,capture.result]);assert.ok(outcomes.every(value=>value.status==='rejected'));assert.strictEqual(outcomes[0].reason,outcomes[1].reason);assert.deepEqual(f.events,['armed','ended']);}
+});
+
+function presentedPage(id){const f=fixture();f.contents.id=id;return{...f,page:{id:String(id),contents:f.contents,viewport:{width:50,height:30}}};}
+test('restored page readiness requires actual current-size presentations from every selected view',async()=>{
+ const a=presentedPage(1),b=presentedPage(2),pages=[a.page,b.page];let completed=false;
+ const pending=observeNativePagePresentations(pages,{current:()=>true}).then(result=>{completed=true;return result;});
+ await Promise.resolve();assert.equal(completed,false);
+ const stale=a.image('old-size');stale.getSize=s=>({width:100*s,height:60*s});a.contents.frame(stale,{});
+ a.contents.frame(a.image('first'),{});await Promise.resolve();assert.equal(completed,false);
+ b.contents.frame(b.image('second'),{});const frames=await pending;
+ assert.deepEqual(frames.map(frame=>[frame.id,frame.source,frame.metadata.viewport,frame.png.toString()]),[['1','beginFrameSubscription',{width:50,height:30},'first'],['2','beginFrameSubscription',{width:50,height:30},'second']]);
+ assert.equal(frames[0].sequence,2);for(const f of [a,b])assert.equal(f.events.filter(value=>value==='ended').length,1);
+ assert.ok(!a.events.some(value=>value.includes('old-size')),'A stale-size frame is never encoded as the baseline');
+});
+test('restored page observation fails and releases every subscription when a page changes',async()=>{
+ const a=presentedPage(1),b=presentedPage(2);let valid=true;
+ const pending=observeNativePagePresentations([a.page,b.page],{current:()=>valid});valid=false;
+ a.contents.frame(a.image('changed'),{});await assert.rejects(pending,/page changed/);
+ for(const f of [a,b])assert.deepEqual(f.events,['armed','ended']);
+});
+test('restored page observation rechecks an earlier completed page after all frames arrive',async()=>{
+ const a=presentedPage(1),b=presentedPage(2);let changed='';
+ const pending=observeNativePagePresentations([a.page,b.page],{current:page=>page.id!==changed});
+ a.contents.frame(a.image('first'),{});await Promise.resolve();await Promise.resolve();changed='1';b.contents.frame(b.image('second'),{});
+ await assert.rejects(pending,/page changed/);for(const f of [a,b])assert.equal(f.events.filter(value=>value==='ended').length,1);
+});
+test('missing restored presentations time out without substituting a timer or a fabricated frame',async()=>{
+ const a=presentedPage(1),b=presentedPage(2);const pending=observeNativePagePresentations([a.page,b.page],{current:()=>true,timeoutMs:2});
+ a.contents.frame(a.image('first'),{});await assert.rejects(pending,/timed out/);assert.deepEqual(b.events,['armed','ended']);
+ assert.equal(a.contents.listenerCount('destroyed'),0);assert.equal(b.contents.listenerCount('destroyed'),0);
+});
+test('restored observation validates unique identities, positive dimensions and a live ownership check before subscribing',async()=>{
+ for(const kind of ['duplicate','dimensions','ownership']){
+  const a=presentedPage(1),pages=kind==='duplicate'?[a.page,a.page]:[a.page];if(kind==='dimensions')a.page.viewport.height=0;
+  await assert.rejects(observeNativePagePresentations(pages,{current:()=>kind!=='ownership'}),/Invalid restored|page changed/);assert.deepEqual(a.events,[]);
+ }
+ assert.deepEqual(await observeNativePagePresentations([],{current:()=>true}),[]);
+});
+test('restored presentation cannot be accepted after a synchronous callback outlives the common deadline',async()=>{
+ const a=presentedPage(1);let checkingFrame=false;
+ const pending=observeNativePagePresentations([a.page],{timeoutMs:5,current:()=>{if(checkingFrame){const until=performance.now()+10;while(performance.now()<until){}}return true;}});
+ checkingFrame=true;a.contents.frame(a.image('late'),{});await assert.rejects(pending,/timed out/);assert.deepEqual(a.events,['armed','ended']);
 });
 
 function nativeCornerHelpers(){

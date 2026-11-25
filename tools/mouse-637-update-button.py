@@ -22,9 +22,9 @@ import time
 spec = importlib.util.spec_from_file_location('mouse637_button_upgrade', Path(__file__).with_name('mouse-637-upgrade.py'))
 U = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(U)
-SOURCE = '0021084ccb9537e657d21e6f0c8e812dee6b461f'
+SOURCE = 'b9d243dd7507da3c5b5397c62391315c09794db8'
 UPDATER_BLOB = '91ab363f926774825caf8055b2d3d81bf0d51264'
-MARKER = 'MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS'
+MARKER = 'MOUSE_639_REAL_638_TO_639_UPDATE_BUTTON_PASS'
 NATIVE_MARKER = 'MOUSE_637_UPDATE_BUTTON_NATIVE_PASS'
 
 
@@ -33,7 +33,7 @@ def candidate_identity(candidate, target_platform):
     expected = 'Mouse-Browser-' + U.VERSION + '-' + suffix
     U.require(candidate.name == expected, 'Native update candidate has another platform/version name')
     identity = U.package_identity(candidate)
-    tag = {'darwin': 'quadro-macos-v6.0.38-arm64', 'win32': 'mouse-windows-v6.0.38-x64', 'linux': 'mouse-linux-v6.0.38-x64'}[target_platform]
+    tag = {'darwin': 'quadro-macos-v6.0.39-arm64', 'win32': 'mouse-windows-v6.0.39-x64', 'linux': 'mouse-linux-v6.0.39-x64'}[target_platform]
     return {**identity, 'version': U.VERSION, 'path': str(candidate),
             'url': 'https://github.com/jeep-jim/OSMINOG-Releases/releases/download/' + tag + '/' + expected}
 
@@ -167,7 +167,7 @@ def main(argv=None):
         U.require(os.getuid() > 0 and os.environ.get('DISPLAY'), 'Owned unprivileged Linux desktop required')
     candidate = args.package.resolve()
     if candidate.is_dir() and sys.platform == 'linux':
-        candidate /= 'Mouse-Browser-6.0.38-Linux-x64.AppImage'
+        candidate /= 'Mouse-Browser-6.0.39-Linux-x64.AppImage'
     candidate_identity(candidate, sys.platform)
     node = shutil.which('node')
     U.require(node, 'Node with built-in WebSocket is required')

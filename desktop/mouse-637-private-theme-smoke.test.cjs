@@ -5,7 +5,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(require.resolve('./mouse-611-smoke.cjs'),'utf8');
 
 function fixture(options={}){
- const version=options.version||'6.0.38',tone=Object.hasOwn(options,'tone')?options.tone:55;
+ const version=options.version||'6.0.39',tone=Object.hasOwn(options,'tone')?options.tone:55;
  const traces={themes:[],captures:[],messages:[],readbacks:0},root={dataset:{private:'true'}},home={};
  const model={theme:'dark',state:{tabs:[{id:'private-start'}]},appearance:{whiteTone:tone}};
  const byte=Number.isFinite(tone)?Math.round(160+95*tone/100):212;
@@ -28,7 +28,7 @@ function fixture(options={}){
    if(element===mascot)return{filter:value('filter','none')};
    assert.equal(element,home);traces.readbacks++;
    return{backgroundColor:value('background',model.theme==='light'?'rgb(237, 238, 240)':'rgb(23, 24, 34)'),
-    color:value('text',model.theme==='light'?'rgb(25, 25, 35)':version==='6.0.38'?`rgb(${byte}, ${byte}, ${byte})`:'rgb(245, 241, 255)')};
+    color:value('text',model.theme==='light'?'rgb(25, 25, 35)':version==='6.0.39'?`rgb(${byte}, ${byte}, ${byte})`:'rgb(245, 241, 255)')};
   }
  });
  const loaded={exports:{}};

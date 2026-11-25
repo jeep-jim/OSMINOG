@@ -1,5 +1,5 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.38 interface features.
+// Installed, two-process acceptance for the combined 6.0.39 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
@@ -8,7 +8,7 @@ const {createFixture,pageHTML,bounded,sha256,sleep}=require('./mouse-631-smoke-h
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.38',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.39',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -167,7 +167,10 @@ module.exports=async ctx=>{
  }
  async function extensionButton(id,label){
   const selector='.mouse-extension-row[data-id="'+id+'"] .mouse-extension-actions>button';
-  const index=await fixture.js(`[...document.querySelectorAll(${JSON.stringify(selector)})].findIndex(e=>e.textContent===${JSON.stringify(label)})`);assert.ok(index>=0,'Extension action '+label);return click(selector+':nth-child('+(index+1)+')');
+  // The main-process registry can already contain a reinstalled extension
+  // while the IPC response has not yet rebuilt its renderer row.
+  let index=-1;await fixture.until(async()=>{index=await fixture.js(`[...document.querySelectorAll(${JSON.stringify(selector)})].findIndex(e=>e.textContent===${JSON.stringify(label)})`);return index>=0;},'Extension action '+label);
+  return click(selector+':nth-child('+(index+1)+')');
  }
  async function openExtensions(){await click('#mouse-extensions-button');await fixture.until(()=>fixture.js('document.querySelector("#mouse-extensions-dialog").open'),'extensions dialog')}
  async function closeExtensions(){await click('#mouse-extensions-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#mouse-extensions-dialog").open'),'extensions dialog closes')}

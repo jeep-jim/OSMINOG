@@ -20,8 +20,8 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.38"
-PREVIOUS_VERSION = "6.0.37"
+VERSION = "6.0.39"
+PREVIOUS_VERSION = "6.0.38"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -120,6 +120,13 @@ def verify_upgrade_report(report):
             "Actual published637 profile replacement did not pass for both Linux formats")
 
 
+def adblock639(executable, output, profile, env):
+    spec = importlib.util.spec_from_file_location("mouse639_adblock_run", Path(__file__).with_name("mouse-639-adblock-run.py"))
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner.run(executable, output, profile, platform="linux", arch="x64", env=env)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
@@ -168,14 +175,14 @@ def main(argv=None):
             write_json(report_path, evidence)
             current_upgrade = run_logged(
                 [sys.executable, Path(__file__).with_name("mouse-637-upgrade.py"), packages_dir],
-                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"])
+                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_639_REAL_638_TO_639_PROFILE_PASS"])
             upgrade_report = json.loads((output / "mouse-637-upgrade.json").read_text(encoding="utf-8"))
             verify_upgrade_report(upgrade_report)
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
                     "reportSha256": sha256(output / "mouse-637-upgrade.json")}
             button = run_logged([sys.executable, Path(__file__).with_name("mouse-637-update-button.py"), packages_dir],
-                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"])
-            evidence["checks"]["updateFrom637"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
+                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_639_REAL_638_TO_639_UPDATE_BUTTON_PASS"])
+            evidence["checks"]["updateFrom638"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
             write_json(report_path, evidence)
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
             evidence["checks"]["debInstallation"] = install_deb(deb, output, "mouse-linux-install.log")
@@ -259,6 +266,8 @@ def main(argv=None):
             feedback_spec.loader.exec_module(feedback_runner)
             evidence["checks"]["feedback638"] = feedback_runner.run(executable, output, root / "feedback638",
                                                                   platform="linux", arch="x64", env=env)
+            write_json(report_path, evidence)
+            evidence["checks"]["adblock639"] = adblock639(executable, output, root / "adblock639", env)
             write_json(report_path, evidence)
             owner = run_logged([executable, "--mouse-633-smoke"], {**env, "MOUSE_TEST_PROFILE": str(root / "owner633")},
                                output, "mouse-633-owner-feedback.log", 270, ["MOUSE_633_OWNER_FEEDBACK_PASS"])

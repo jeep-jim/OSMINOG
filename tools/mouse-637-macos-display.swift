@@ -12,7 +12,7 @@ let arguments = Array(CommandLine.arguments.dropFirst())
 let output = arguments.count == 2 ? URL(fileURLWithPath: arguments[1]) : nil
 let pid = Int(ProcessInfo.processInfo.processIdentifier)
 var report: [String: Any] = [
-    "schema": 1, "version": "6.0.38", "platform": "darwin",
+    "schema": 1, "version": "6.0.39", "platform": "darwin",
     "source": "CoreGraphics advertised display modes", "scope": "forSession",
     "minimum": ["width": minimumWidth, "height": minimumHeight],
     "pid": pid, "startedAt": ISO8601DateFormatter().string(from: Date()), "ok": false
@@ -71,9 +71,9 @@ do {
                           userInfo: [NSLocalizedDescriptionKey: "Display receipt is not an object"])
         }
         report = prepared
-        try require(report["schema"] as? Int == 1 && report["version"] as? String == "6.0.38"
+        try require(report["schema"] as? Int == 1 && report["version"] as? String == "6.0.39"
                     && report["scope"] as? String == "forSession" && report["ok"] as? Bool == true,
-                    "Display preparation did not produce a successful 6.0.38 session receipt")
+                    "Display preparation did not produce a successful 6.0.39 session receipt")
         let preparedMinimum = report["minimum"] as? [String: Int]
         try require(preparedMinimum?["width"] == minimumWidth && preparedMinimum?["height"] == minimumHeight,
                     "Display receipt must retain the required logical 1440x900 minimum")

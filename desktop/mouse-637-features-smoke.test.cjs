@@ -4,6 +4,22 @@ const source=fs.readFileSync(path.join(__dirname,'mouse-637-features-smoke.cjs')
 const dependencies={electron:{},'./mouse-631-smoke-helpers.cjs':{pageHTML:index=>'<!doctype html><html><body><h1>'+index+'</h1></body></html>'},'./mouse-628-ui-smoke.cjs':{},'./mouse-smoke-hit-target.cjs':{},'./mouse-633-smoke-helpers.cjs':{}};
 vm.runInNewContext(source,{module:moduleFixture,require:name=>dependencies[name]??require(name),Buffer,process});
 const {ownedWave,ownedMediaPage,ownedExtensionFiles,sampleWitnesses,mediaFixtureBounds}=moduleFixture.exports.fixtures;
+function extensionButtonFixture(states){
+ const start=source.indexOf('async function extensionButton('),end=source.indexOf('async function openExtensions(',start);assert.ok(start>=0&&end>start);
+ let reads=0;const clicks=[],selector='.mouse-extension-row[data-id="owned-id"] .mouse-extension-actions>button';
+ const fixture={async js(script){const labels=states[Math.min(reads++,states.length-1)];return vm.runInNewContext(script,{document:{querySelectorAll(actual){assert.equal(actual,selector);return labels.map(textContent=>({textContent}));}}});},async until(check,label){for(let i=0;i<states.length;i++)if(await check())return;throw Error('Fixture deadline: '+label);}};
+ const run=vm.runInNewContext('('+source.slice(start,end).trim()+')',{fixture,JSON,click:async actual=>{clicks.push({selector:actual,read:reads});return'actual native click receipt';}});
+ return{run,clicks,selector};
+}
+test('extension removal waits for the reinstalled renderer row after the main registry is ready',async()=>{
+ const f=extensionButtonFixture([[],['Open page'],['Open page','Disable','Pin','Remove from Mouse']]);
+ assert.equal(await f.run('owned-id','Remove from Mouse'),'actual native click receipt');
+ assert.deepEqual(f.clicks,[{selector:f.selector+':nth-child(4)',read:3}]);
+});
+test('an absent or untranslated extension action keeps the bounded failure and sends no native click',async()=>{
+ const f=extensionButtonFixture([[],['Открыть страницу','Выключить','Закрепить','Убрать из Mouse']]);
+ await assert.rejects(f.run('owned-id','Remove from Mouse'),/Fixture deadline: Extension action Remove from Mouse/);assert.deepEqual(f.clicks,[]);
+});
 test('the native media fixture serves bounded, distinct real PCM tracks rather than remote media',()=>{
  const one=ownedWave(440),two=ownedWave(554);
  assert.equal(one.toString('ascii',0,4),'RIFF');assert.equal(one.readUInt32LE(4),one.length-8);

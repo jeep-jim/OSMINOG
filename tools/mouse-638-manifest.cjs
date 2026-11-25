@@ -4,7 +4,7 @@ const sha=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest
 function bind(directory,platform,arch,wrapper){
  const read=name=>JSON.parse(fs.readFileSync(path.join(directory,name),'utf8'));
  const accepted=read('mouse-638-acceptance.json'),processes=read('mouse-638-feedback-processes.json'),report=read('mouse-638-feedback.json');
- for(const value of [accepted,processes,report]){assert.equal(value.version,'6.0.38');assert.equal(value.platform,platform);assert.equal(value.arch,arch);}
+ for(const value of [accepted,processes,report]){assert.equal(value.version,'6.0.39');assert.equal(value.platform,platform);assert.equal(value.arch,arch);}
  assert.equal(accepted.ok,true);assert.equal(report.ok,true);assert.equal(report.restored,true);
  assert.equal(processes.reportSha256,sha(path.join(directory,'mouse-638-feedback.json')));
  assert.equal(processes.write.pid,report.pid);assert.equal(processes.read.pid,report.restart.pid);assert.notEqual(processes.write.pid,processes.read.pid);

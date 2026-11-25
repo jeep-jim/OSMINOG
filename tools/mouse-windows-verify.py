@@ -25,7 +25,7 @@ import time
 import uuid
 import urllib.request
 
-VERSION = "6.0.38"
+VERSION = "6.0.39"
 PRIVATE_MARKER = "MOUSE_WINDOWS_PRIVATE_SENTINEL_629"
 BASELINE_629_WRITE_MARKERS = [
     "MOUSE_WINDOWS_NATIVE_PAGES_NAVIGATION_PASS",
@@ -78,6 +78,13 @@ def sha256(file: Path) -> str:
 
 def feedback638(executable, output, profile, env):
     spec = importlib.util.spec_from_file_location("mouse638_feedback_run", Path(__file__).with_name("mouse-638-feedback-run.py"))
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner.run(executable, output, profile, platform="win32", arch="x64", env=env)
+
+
+def adblock639(executable, output, profile, env):
+    spec = importlib.util.spec_from_file_location("mouse639_adblock_run", Path(__file__).with_name("mouse-639-adblock-run.py"))
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
     return runner.run(executable, output, profile, platform="win32", arch="x64", env=env)
@@ -589,7 +596,7 @@ def version_upgrade(installer: Path, root: Path, env: dict, output: Path) -> dic
         raise RuntimeError("Updated application did not preserve the real629 profile")
     if old_write["pid"] == read["pid"] or old_report["pid"] == new_report["pid"]:
         raise RuntimeError("Version replacement did not use distinct native processes")
-    print("MOUSE_638_WINDOWS_REAL_629_TO_638_PROFILE_PASS", flush=True)
+    print("MOUSE_639_WINDOWS_REAL_629_TO_639_PROFILE_PASS", flush=True)
     return {"ok": True, "fromVersion": "6.0.29", "toVersion": VERSION,
             "method": "NSIS replacement followed by native profile READ; actual updater tested separately",
             "baseline": {"url": baseline_url, "size": received, "sha256": digest.hexdigest()},
@@ -695,15 +702,15 @@ def main(argv=None) -> int:
         save()
         button = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-update-button.py")), str(installer)], env,
                             output / "mouse-637-update-button.log", 720)
-        verify_markers(button.pop("output"), ["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"])
-        button.update(requiredMarkers=["MOUSE_638_REAL_637_TO_638_UPDATE_BUTTON_PASS"],
+        verify_markers(button.pop("output"), ["MOUSE_639_REAL_638_TO_639_UPDATE_BUTTON_PASS"])
+        button.update(requiredMarkers=["MOUSE_639_REAL_638_TO_639_UPDATE_BUTTON_PASS"],
                       logSha256=sha256(output / "mouse-637-update-button.log"), reportSha256=sha256(output / "mouse-637-update-button.json"))
-        evidence["checks"]["updateFrom637"] = button
+        evidence["checks"]["updateFrom638"] = button
         save()
         fresh = run_logged([sys.executable, str(Path(__file__).with_name("mouse-637-upgrade.py")), str(installer)], env,
                            output / "mouse-637-upgrade.log", 480)
-        verify_markers(fresh.pop("output"), ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"])
-        fresh["requiredMarkers"] = ["MOUSE_638_REAL_637_TO_638_PROFILE_PASS"]
+        verify_markers(fresh.pop("output"), ["MOUSE_639_REAL_638_TO_639_PROFILE_PASS"])
+        fresh["requiredMarkers"] = ["MOUSE_639_REAL_638_TO_639_PROFILE_PASS"]
         fresh["reportSha256"] = sha256(output / "mouse-637-upgrade.json")
         evidence["checks"]["freshUpgrade"] = fresh
         save()
@@ -773,6 +780,8 @@ def main(argv=None) -> int:
         evidence["checks"]["features637"] = feature_processes
         save()
         evidence["checks"]["feedback638"] = feedback638(executable, output, root / "Mouse638 feedback and restore", env)
+        save()
+        evidence["checks"]["adblock639"] = adblock639(executable, output, root / "Mouse639 AdBlock and restore", env)
         save()
         for mode, markers in (("write", WRITE_MARKERS), ("read", READ_MARKERS)):
             if mode == "read":

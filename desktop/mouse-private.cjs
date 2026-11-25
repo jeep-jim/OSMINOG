@@ -25,6 +25,7 @@ class PrivateMode {
   const partition='mouse-private-'+randomUUID();
   const ses=this.e.session.fromPartition(partition,{cache:false});
   if(ses.isPersistent())throw Error('Приватная сессия не должна сохраняться на диск');
+  const detachAdBlock=this.attachAdBlockSession?.(ses);
   normalGate.blocked=true;normalGate.hide();
   const emit=normalBrowser.emit;normalBrowser.emit=()=>{};
   const handlers=new Map(),listeners=[];
@@ -46,7 +47,7 @@ class PrivateMode {
   });return page;};
   collect.forEach(fn=>fn());
   const gate=new (require('./mouse-overlays.cjs').OverlayGate)(browser,win);
-  const current={store,ses,partition,browser,gate,handlers,emit,listeners,libraryService:null,startService:null};this.current=current;
+  const current={store,ses,partition,browser,gate,handlers,emit,listeners,detachAdBlock,libraryService:null,startService:null};this.current=current;
   try{
    browser.contextScope=[];await browser.initNetwork();await browser.command('project',{id:'mouse-private'});
    const send=name=>{if(!win.isDestroyed())win.webContents.send('mouse:menu',name);};
@@ -71,7 +72,7 @@ class PrivateMode {
    register.handle('mouse:save',async(event,p,history)=>{trusted(event);if(!p||typeof p!=='object'||JSON.stringify(p).length>100000)throw Error('Invalid private preferences');require('./mouse/layout.js').validate(p.tree);return desktopService.savePreferences(p,history);});
    const allowed=new Set(['state','open','close','navigate','back','forward','reload','layout','save']);
    register.handle('mouse:browser',(event,action,args={})=>{trusted(event);if(!allowed.has(action))throw Error('Unsupported private action');return browser.command(action,args);});
-   for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:appearance','mouse:documents','mouse:desktop-gesture'])handlers.set(name,router.normal.get(name));
+   for(const name of ['mouse:privacy','mouse:window','mouse:theme','mouse:appearance','mouse:documents','mouse:desktop-gesture','mouse:adblock-state'])handlers.set(name,router.normal.get(name));
    handlers.set('mouse:global-capture-admin',(event,action,args)=>{trusted(event);if(!['state','request','permission'].includes(action))throw Error('Настройки системного сочетания меняются в обычном режиме');return router.normal.get('mouse:global-capture-admin')(event,action,args);});
    handlers.set('mouse:settings',(event,action)=>{trusted(event);if(action!=='state')throw Error('Постоянные настройки меняются в обычном режиме');return router.normal.get('mouse:settings')(event,'state');});
    handlers.set('mouse:progress',(event,action)=>{trusted(event);if(action==='state')return{tasks:[],revision:0};throw Error('Прогресс подключённого ИИ доступен в обычном режиме');});
@@ -88,6 +89,7 @@ class PrivateMode {
   c.browser.emit=()=>{};c.gate.blocked=true;c.gate.hide();
   for(const item of c.libraryService?.live.values()||[])item.cancel();
   c.browser.dispose();
+  c.detachAdBlock?.();
   for(const [target,event,fn] of c.listeners)target.removeListener(event,fn);
   if(c.libraryService){clearTimeout(c.libraryService.library.timer);c.libraryService.library.ready=false;c.libraryService.library.data={};c.libraryService.activity?.clear();}
   c.ses.removeAllListeners('will-download');

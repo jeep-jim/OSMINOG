@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 test('Windows Mouse NSIS identity, runtime, version and profile preservation',()=>{
  const win=require('./mouse-windows-build.cjs'),mac=require('./mouse-build.cjs');
  assert.equal(win.productName,'Mouse Browser');assert.equal(win.extraMetadata.main,'mouse-main.cjs');
- assert.equal(win.extraMetadata.version,'6.0.38');assert.equal(win.appId,'black.mouse.browser.windows');
+ assert.equal(win.extraMetadata.version,'6.0.39');assert.equal(win.appId,'black.mouse.browser.windows');
  assert.notEqual(win.appId,mac.appId);assert.deepEqual(win.win.target,[{target:'nsis',arch:['x64']}]);
  assert.equal(win.nsis.deleteAppDataOnUninstall,false);assert.equal(win.nsis.perMachine,false);
  assert.equal(win.nsis.allowToChangeInstallationDirectory,true);assert.equal(win.publish,null);

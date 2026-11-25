@@ -180,10 +180,10 @@ class CleanInstallBindingTests(unittest.TestCase):
 
     def test_install_rejects_bytes_or_source_that_differ_from_native_candidate(self):
         with tempfile.TemporaryDirectory() as root:
-            deb = Path(root) / 'Mouse-Browser-6.0.38-Linux-x64.deb'
+            deb = Path(root) / 'Mouse-Browser-6.0.39-Linux-x64.deb'
             deb.write_bytes(b'package-byte-binding-fixture')
             source = 'a' * 40
-            manifest = {'version': '6.0.38', 'source': source, 'platform': 'linux', 'arch': 'x64',
+            manifest = {'version': '6.0.39', 'source': source, 'platform': 'linux', 'arch': 'x64',
                         'packages': {deb.name: {'size': deb.stat().st_size, 'sha256': install.VERIFY.sha256(deb)}}}
             install.verify_manifest(manifest, deb, source)
             for change in ({'source': 'b' * 40}, {'version': '6.0.37'}, {'platform': 'win32'}, {'arch': 'arm64'}):
