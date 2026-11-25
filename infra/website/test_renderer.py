@@ -100,6 +100,23 @@ class RendererTests(unittest.TestCase):
             self.assertTrue(any('download' in error for error in verifier.errors))
             self.assertTrue(any('only the public JSON assignment' in error for error in verifier.errors))
 
+    def test_comparison_sources_remain_scoped_to_evidence_and_cannot_be_downloads(self):
+        manifest = self.candidate(['6.0.38'] * 3)
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / 'site'
+            self.render(output, manifest)
+            path = output / 'ru/index.html'
+            original = path.read_text()
+            source_url = 'https://support.google.com/chrome/answer/16971124'
+            html = original.replace('class="comparison-source" href="' + source_url + '"',
+                                    'download="setup.exe" class="comparison-source" href="' + source_url + '"', 1)
+            html = html.replace('</body>', '<a class="comparison-source" href="' + source_url + '" target="_blank" rel="noopener noreferrer">Outside evidence</a></body>')
+            path.write_text(html)
+            verifier = seo.Verifier(output, downloads=manifest, catalog=self.catalog)
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertNotEqual(verifier.run(), 0)
+            self.assertEqual(sum('external page link' in error for error in verifier.errors), 2)
+
     def test_rejects_duplicate_platform_and_incorrect_global_version(self):
         for invalid in [self.candidate(['6.0.37', '6.0.36', '6.0.36']), self.candidate(['6.0.37'] * 3)]:
             if invalid['files'][1]['filename'].startswith('Mouse-Browser-6.0.36'):

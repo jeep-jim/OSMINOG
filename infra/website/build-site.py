@@ -32,6 +32,19 @@ FEATURE_FIELDS = {
     'pricingSettings', 'pricingNote', 'pricingDownload', 'pricingTrial',
     'statsLabel', 'statsNote', 'pricingBrowserMode', 'pricingGridLabel', 'pricingDesksLabel',
 }
+COMPARISON_FIELDS = {
+    'compareTitle', 'compareMouseName', 'compareChoose', 'compareMouseTag',
+    'compareTwoTag', 'compareOneTag', 'compareFourTag', 'compareVivaldiTag',
+    'compareYandexTag', 'compareArcTag', 'compareHint', 'compareCounts',
+    'compareModel', 'compareSources', 'compareChecked', 'compareOrdinary',
+    'compareSplit', 'compareTiling', 'compareWebApp', 'compareMacWindows',
+    'compareWorkspaces', 'compareScenes', 'compareAddress', 'compareSwap',
+    'compareDocs', 'compareMouseNote', 'compareTwoAxisNote', 'compareFirefoxNote',
+    'compareSafariNote', 'compareOperaNote', 'compareYandexNote', 'compareVivaldiNote',
+    'compareArcNote', 'compareZenNote', 'compareExamplesNote', 'compareSourceNative',
+    'compareSourceSplit', 'compareSourceSpaces', 'compareSourceStatus',
+    'compareDesktops', 'compareDesktopCount', 'compareDesktop',
+}
 MANIFEST_FIELDS = {
     'manifestLabel', 'manifestCaption', 'manifestLead', 'manifestSummary',
     'manifestRead', 'manifestTitle', 'manifestBody', 'manifestPrivacy', 'manifestSigning',
@@ -117,12 +130,14 @@ process.stdout.write(JSON.stringify(box.window.MOUSE_I18N));"""
     showcase = json.loads((SOURCE / 'showcase-i18n.json').read_text())
     features = json.loads((SOURCE / 'features-i18n.json').read_text())
     manifesto = json.loads((SOURCE / 'manifest-i18n.json').read_text())
+    comparison = json.loads((SOURCE / 'comparison-i18n.json').read_text())
     codes = [item['code'] for item in data['languages']]
     assert len(codes) == len(set(codes)) == 72, 'The exact Mouse language catalog is required'
     assert set(seo) == set(codes), 'SEO translations must cover every Mouse language'
     assert set(showcase) == set(codes), 'Showcase translations must cover every Mouse language'
     assert set(features) == set(codes), 'Feature translations must cover every Mouse language'
     assert set(manifesto) == set(codes), 'Manifesto and installation translations must cover every Mouse language'
+    assert set(comparison) == set(codes), 'Browser comparison translations must cover every Mouse language'
     for code in codes:
         assert set(seo[code]) == SEO_FIELDS, f'Unexpected SEO fields: {code}'
         assert all(isinstance(value, str) and value.strip() for value in seo[code].values()), code
@@ -136,6 +151,12 @@ process.stdout.write(JSON.stringify(box.window.MOUSE_I18N));"""
         assert set(manifesto[code]) == MANIFEST_FIELDS, f'Unexpected manifesto fields: {code}'
         assert all(isinstance(value, str) and value.strip() for value in manifesto[code].values()), code
         data['messages'][code].update(manifesto[code])
+        assert set(comparison[code]) == COMPARISON_FIELDS, f'Unexpected browser comparison fields: {code}'
+        assert all(isinstance(value, str) and value.strip() for value in comparison[code].values()), code
+        for key, placeholders in {'compareTitle': ['{mouse}'], 'compareChecked': ['{date}'],
+                                  'compareDesktop': ['{name}', '{number}']}.items():
+            assert sorted(re.findall(r'\{[^{}]+\}', comparison[code][key])) == placeholders, f'Invalid comparison placeholders: {code}.{key}'
+        data['messages'][code].update(comparison[code])
     return data
 
 
@@ -149,6 +170,14 @@ def hreflang(code):
 
 
 def translate_html(source, messages):
+    # Keep the brand accent while allowing each language to place the brand naturally.
+    heading = escape(messages['compareTitle']).replace('{mouse}',
+        '<span class="comparison-brand">' + escape(messages['compareMouseName']) + '</span>')
+    source = re.sub(r'(<h2\b[^>]*\bdata-compare-heading[^>]*>).*?</h2>',
+                    lambda match: match.group(1) + heading + '</h2>', source, flags=re.S)
+    checked = escape(messages['compareChecked'].replace('{date}', '25.11.2026'))
+    source = re.sub(r'(<p\b[^>]*\bdata-compare-checked[^>]*>).*?</p>',
+                    lambda match: match.group(1) + checked + '</p>', source, flags=re.S)
     def text(match):
         tag, attributes, key = match.group(1, 2, 3)
         assert key in messages, 'Missing translation: ' + key
@@ -268,7 +297,7 @@ def build(output, downloads=None, catalog=None):
     source = (SOURCE / 'index.html').read_text()
     files = []
     for path in sorted(SOURCE.rglob('*')):
-        if not path.is_file() or path.name in {'index.html', 'i18n.js', 'seo-i18n.json', 'showcase-i18n.json', 'features-i18n.json', 'manifest-i18n.json'}:
+        if not path.is_file() or path.name in {'index.html', 'i18n.js', 'seo-i18n.json', 'showcase-i18n.json', 'features-i18n.json', 'manifest-i18n.json', 'comparison-i18n.json'}:
             continue
         assert not path.is_symlink(), 'No symlink assets'
         relative = path.relative_to(SOURCE)

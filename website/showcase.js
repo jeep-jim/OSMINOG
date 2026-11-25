@@ -9,24 +9,54 @@
     return {
       get tabs() { return [...base, ...added]; },
       reset(sources) { base = [...sources]; },
+      ensure(sources) {
+        const present = new Set([...base, ...added].map(tab => tab.tabId));
+        for (const tab of sources) if (!present.has(tab.tabId)) { base.push(tab); present.add(tab.tabId); }
+      },
+      snapshot() { return JSON.parse(JSON.stringify({ base, added, sequence })); },
+      restore(saved) {
+        const copy = JSON.parse(JSON.stringify(saved));
+        base = copy.base; added = copy.added; sequence = copy.sequence;
+      },
       add(name) {
         const tab = start('user-' + (++sequence), name);
         added.push(tab); return tab;
       },
       choose(tabId, source) {
-        const index = added.findIndex(tab => tab.tabId === tabId);
+        const collection = added.some(tab => tab.tabId === tabId) ? added : base;
+        const index = collection.findIndex(tab => tab.tabId === tabId);
         if (index < 0) return null;
         const tab = { ...source, tabId };
-        added[index] = tab; return tab;
+        collection[index] = tab; return tab;
       },
       refresh(available, name) {
         const captures = new Set(available.map(source => source.src));
-        added = added.map(tab => tab.kind === 'start' || !captures.has(tab.src) ? start(tab.tabId, name) : tab);
+        const refresh = tab => tab.kind === 'start' || !captures.has(tab.src) ? start(tab.tabId, name) : tab;
+        base = base.map(refresh); added = added.map(refresh);
       }
     };
   }
+  function chooseVisibleTabs(tabs, previous, count, activeId) {
+    const byId = new Map(tabs.map(tab => [tab.tabId, tab]));
+    let visible = previous.map(tab => byId.get(typeof tab === 'string' ? tab : tab.tabId)).filter(Boolean);
+    if (visible.length > count && visible.some(tab => tab.tabId === activeId)) {
+      visible = [byId.get(activeId), ...visible.filter(tab => tab.tabId !== activeId)];
+    }
+    const seen = new Set();
+    return [...visible, ...tabs].filter(tab => !seen.has(tab.tabId) && seen.add(tab.tabId)).slice(0, count);
+  }
+  function createBrowserStateBank() {
+    const states = new Map(), lastScenes = new Map();
+    const copy = value => JSON.parse(JSON.stringify(value));
+    const key = (browser, scene) => JSON.stringify([browser, scene]);
+    return {
+      remember(browser, scene, value) { states.set(key(browser, scene), copy(value)); lastScenes.set(browser, scene); },
+      recall(browser, scene) { const value = states.get(key(browser, scene)); return value ? copy(value) : null; },
+      lastScene(browser) { return lastScenes.get(browser); }
+    };
+  }
   if (typeof module === 'object' && module.exports) {
-    module.exports = Object.freeze({ createTabWorkspace });
+    module.exports = Object.freeze({ createTabWorkspace, chooseVisibleTabs, createBrowserStateBank });
     return;
   }
   const EN = {
@@ -44,7 +74,11 @@
     showcaseResize: 'Resize windows', showcaseRestore: 'Restore grid', showcaseCaptured: 'Captured website',
     showcaseTry: 'Try it yourself', showcaseWindows: 'Windows', showcaseSideBySide: 'Side by side',
     showcaseStacked: 'Stacked', showcaseTabs: 'Open tabs',
-    showcaseNewTab: 'New tab', showcaseChooseSite: 'Choose a site'
+    showcaseNewTab: 'New tab', showcaseChooseSite: 'Choose a site',
+    compareScenes: 'Website examples', compareWorkspaces: 'Workspaces', compareAddress: 'Address of the selected capture',
+    compareSwap: 'Swap pages', compareWebApp: 'Pinned YouTube web app', compareMacWindows: 'Two macOS windows',
+    compareModel: 'Interactive model · real website captures',
+    compareDesktops: 'Desktops', compareDesktop: 'Desktop {number}: {name}', compareDesktopCount: '5 desktops'
   };
   const icon = name => {
     const paths = {
@@ -52,7 +86,8 @@
       restore: '<path d="M9 3v6H3M15 3v6h6M21 15h-6v6M3 15h6v6"/>',
       pause: '<path d="M8 5v14M16 5v14"/>',
       play: '<path d="m9 5 11 7-11 7Z"/>',
-      plus: '<path d="M12 5v14M5 12h14"/>'
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      swap: '<path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/>'
     };
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths[name] + '</svg>';
   };
@@ -95,6 +130,7 @@
       rects: [[0,0,64,100],[64,0,36,62],[64,62,36,38]],
       portrait: [[0,0,100,60],[0,60,60,40],[60,60,40,40]] }
   ];
+  const mouseDesktops = [4, 1, 3, 5, 0];
   const uniformGrid = (columns, rows) => Array.from({ length: columns * rows }, (_, i) => [
     i % columns * 100 / columns, Math.floor(i / columns) * 100 / rows, 100 / columns, 100 / rows
   ]);
@@ -103,12 +139,25 @@
     { id: '2', columns: 2, rows: 1, key: 'showcaseSideBySide' },
     { id: '2-stacked', columns: 1, rows: 2, key: 'showcaseStacked' },
     { id: '3', columns: 3, rows: 1 },
+    { id: '3-stacked', columns: 1, rows: 3, key: 'showcaseStacked' },
     { id: '4', columns: 2, rows: 2 },
+    { id: '4-horizontal', columns: 4, rows: 1, key: 'showcaseSideBySide' },
+    { id: '4-stacked', columns: 1, rows: 4, key: 'showcaseStacked' },
     { id: '6', columns: 3, rows: 2 },
     { id: '8', columns: 4, rows: 2 },
     { id: '9', columns: 3, rows: 3 },
-    { id: '12', columns: 4, rows: 3 }
+    { id: '12', columns: 4, rows: 3 },
+    { id: 'mac-split', columns: 2, rows: 1, key: 'compareMacWindows' },
+    { id: 'web-app', columns: 2, rows: 1, key: 'compareWebApp' }
   ];
+  const mouseProfile = {
+    id: 'mouse', name: 'Mouse', allowedLayouts: ['1','2','2-stacked','3','4','6','8','9','12'],
+    defaultLayout: null, chrome: 'mouse-panes', organization: 'workspaces', paneSwap: 'drag', paneResize: true, paneExpand: true
+  };
+  const browserProfiles = () => {
+    const entries = Array.isArray(window.MOUSE_BROWSER_PROFILES) ? window.MOUSE_BROWSER_PROFILES : [];
+    return new Map([mouseProfile, ...entries].filter(item => item && typeof item.id === 'string').map(item => [item.id, item]));
+  };
   const balanced = count => {
     const known = layouts.find(item => item.columns * item.rows === count);
     if (known) return uniformGrid(known.columns, known.rows);
@@ -148,6 +197,7 @@
     root.style.setProperty('--showcase-duration', '4600ms');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const portrait = matchMedia('(max-width: 600px) and (orientation: portrait)');
+    const sidebarWidth = matchMedia('(min-width: 761px)');
     const duration = 4600, gap = 5;
     const timers = new Set(), paneNodes = [], handles = new Map(), failed = new Set();
     let assets = window.MOUSE_SHOWCASE_ASSETS || {}, sources = [];
@@ -158,6 +208,16 @@
     const text = key => window.MOUSE_I18N?.messages?.[document.documentElement.lang]?.[key] || window.MOUSE_I18N?.messages?.en?.[key] || EN[key] || '';
     const tabNodes = [];
     const tabWorkspace = createTabWorkspace();
+    const stateBank = createBrowserStateBank();
+    let browserId = 'mouse', profile = browserProfiles().get('mouse') || mouseProfile, sceneReady = false;
+    const sequence = () => browserId === 'mouse' ? mouseDesktops : scenes.map((_, i) => i);
+    const allowedLayout = id => Array.isArray(profile.allowedLayouts) && profile.allowedLayouts.includes(id) && layouts.some(layout => layout.id === id);
+    const swapKind = () => layoutId === 'web-app' ? 'none' : profile.paneSwap === true ? (browserId === 'mouse' ? 'drag' : 'button') : profile.paneSwap || 'none';
+    const canDrag = () => sources.length > 1 && swapKind() === 'drag';
+    const canResize = () => sources.length > 1 && layoutId !== 'web-app' && profile.paneResize === true;
+    const canExpandPane = () => profile.paneExpand === true;
+    const editablePane = () => layoutId === 'web-app' ? 1 : clamp(activePane, 0, Math.max(0, sources.length - 1));
+    const chromeMode = () => layoutId === 'mac-split' ? 'os-windows' : layoutId === 'web-app' ? 'web-app' : profile.chrome === 'mouse-panes' ? 'mouse-panes' : 'single-address';
     const chrome = root.querySelector('.showcase-chrome');
     const nora = root.querySelector('.showcase-nora');
     const tabs = document.createElement('div');
@@ -170,18 +230,59 @@
     layoutPicker.className = 'showcase-layout-picker';
     layoutPicker.innerHTML = '<summary class="showcase-layout-trigger">' + gridIcon() + '<span data-showcase-layout-label></span><svg class="showcase-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="showcase-layouts" role="group" data-showcase-aria="showcaseWindows"></div>';
     const layoutMenu = layoutPicker.querySelector('.showcase-layouts');
+    const swapButton = document.createElement('button');
+    swapButton.type = 'button'; swapButton.className = 'showcase-button showcase-swap';
+    swapButton.dataset.showcaseAria = 'compareSwap'; swapButton.innerHTML = icon('swap');
+    swapButton.addEventListener('click', () => {
+      if (sources.length < 2 || swapKind() === 'none') return;
+      manual(); cancelGesture();
+      const first = editablePane(); swap(first, (first + 1) % sources.length); rememberCurrent();
+      announce(text('compareSwap'));
+    });
+    const addressbar = document.createElement('div');
+    addressbar.className = 'showcase-addressbar';
+    const addressValue = document.createElement('bdi');
+    addressValue.className = 'showcase-address-value'; addressbar.append(addressValue);
+    const desktopBar = document.createElement('div');
+    desktopBar.className = 'showcase-desktops';
+    const desktopLabel = document.createElement('span');
+    desktopLabel.className = 'showcase-desktops-label'; desktopLabel.dataset.showcaseKey = 'compareDesktops';
+    const desktopButtons = document.createElement('div');
+    desktopButtons.className = 'showcase-desktop-buttons'; desktopButtons.setAttribute('role', 'group');
+    desktopButtons.dataset.showcaseAria = 'compareDesktops';
+    mouseDesktops.forEach((sceneIndex, ordinal) => {
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'showcase-desktop'; button.dataset.desktop = String(ordinal + 1);
+      const number = document.createElement('span'); number.className = 'showcase-desktop-number'; number.textContent = String(ordinal + 1);
+      const name = document.createElement('span'); name.className = 'showcase-desktop-name';
+      button.append(number, name);
+      button.addEventListener('click', () => { manual(); select(sceneIndex, true); });
+      button.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault(); manual();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? mouseDesktops.length - 1 : (ordinal + (event.key === 'ArrowLeft' ? -1 : 1) + mouseDesktops.length) % mouseDesktops.length;
+        select(mouseDesktops[next], true); desktopButtons.children[next].focus({ preventScroll: true });
+      });
+      desktopButtons.append(button);
+    });
+    desktopBar.append(desktopLabel, desktopButtons);
+    const organizationLabel = document.createElement('span');
+    organizationLabel.className = 'showcase-organization-label';
+    modePicker?.querySelector('summary')?.prepend(organizationLabel);
     const invitation = document.createElement('span');
     invitation.className = 'showcase-invitation'; invitation.dataset.showcaseKey = 'showcaseTry';
     const disclosure = document.createElement('span');
-    disclosure.className = 'showcase-disclosure'; disclosure.dataset.showcaseKey = 'showcaseDemo';
+    disclosure.className = 'showcase-disclosure'; disclosure.dataset.showcaseKey = 'compareModel';
     // The native Mouse metaphor: current tabs above, desktop/grid controls below.
     if (chrome && nora) {
       const controls = root.querySelector('.showcase-inline-controls');
-      nora.replaceChildren(layoutPicker);
+      nora.replaceChildren(layoutPicker, swapButton);
       if (modePicker) nora.append(modePicker);
       nora.append(invitation, disclosure);
       if (controls) nora.append(controls);
       chrome.replaceChildren(tabs, newTabButton);
+      chrome.after(addressbar);
+      canvas.after(desktopBar);
     }
     root.querySelector('[data-showcase-preview-hit]')?.remove();
     const closePicker = () => { if (modePicker) modePicker.open = false; layoutPicker.open = false; };
@@ -195,13 +296,15 @@
       pane.className = 'showcase-pane'; pane.dataset.paneIndex = String(i);
       pane.innerHTML = '<div class="showcase-pane-head"><button class="showcase-pane-drag" type="button"><span class="showcase-service-mark" aria-hidden="true"></span><span class="showcase-service-name"></span><span class="showcase-service-host"></span></button><button class="showcase-pane-zoom" type="button">' + icon('expand') + '</button></div><div class="showcase-pane-page"></div>';
       pane.querySelector('.showcase-pane-zoom').addEventListener('click', () => {
+        if (!canExpandPane()) return;
         manual(); setZoom(zoomed === i ? -1 : i, true);
       });
       pane.querySelector('.showcase-pane-page').addEventListener('dblclick', () => {
+        if (!canExpandPane()) return;
         manual(); setZoom(zoomed === i ? -1 : i, true);
       });
       pane.querySelector('.showcase-pane-drag').addEventListener('keydown', event => {
-        if (zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+        if (!canDrag() || zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
         event.preventDefault(); manual();
         const current = rectFor(i), horizontal = /Left|Right/.test(event.key), direction = /Left|Up/.test(event.key) ? -1 : 1;
         const axis = horizontal ? 0 : 1, cross = horizontal ? 1 : 0;
@@ -232,7 +335,8 @@
       button.type = 'button'; button.className = 'showcase-layout-option'; button.dataset.layout = layout.id;
       button.innerHTML = gridIcon(layout.columns, layout.rows) + '<span class="showcase-layout-count">' + layout.columns * layout.rows + '</span><span class="showcase-layout-description"></span><span class="showcase-layout-check" aria-hidden="true">✓</span>';
       button.addEventListener('click', () => {
-        manual(); layoutId = layout.id; select(index, false, true);
+        if (!allowedLayout(layout.id)) return;
+        manual(); changeLayout(layout.id);
         layoutPicker.querySelector('summary').focus({ preventScroll: true });
         announce(text('showcaseWindows') + ': ' + sources.length + (layout.key ? ' — ' + text(layout.key) : ''));
       });
@@ -243,7 +347,7 @@
         if (event.key === 'Escape') { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus({ preventScroll:true }); return; }
         if (!['ArrowDown','ArrowUp','Home','End'].includes(event.key)) return;
         event.preventDefault(); picker.open = true;
-        const buttons = Array.from(list.querySelectorAll('button'));
+        const buttons = Array.from(list.querySelectorAll('button')).filter(button => !button.hidden && !button.disabled);
         const current = buttons.indexOf(document.activeElement);
         const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
         buttons[next]?.focus({ preventScroll: true });
@@ -255,7 +359,29 @@
     menuKeyboard(layoutPicker, layoutMenu);
     if (modePicker) menuKeyboard(modePicker, modes);
 
+    function updateProfileUI() {
+      root.dataset.browser = browserId;
+      root.dataset.browserChrome = chromeMode();
+      root.dataset.paneDrag = String(canDrag());
+      root.dataset.organization = profile.organization || 'examples';
+      desktopBar.hidden = browserId !== 'mouse';
+      if (modePicker) modePicker.hidden = browserId === 'mouse';
+      addressbar.hidden = ['mouse-panes', 'os-windows'].includes(chromeMode());
+      swapButton.hidden = sources.length < 2 || swapKind() === 'none';
+      const hasWebApp = availableSources().some(source => source.id === 'youtube');
+      layoutMenu.querySelectorAll('button').forEach(button => {
+        const available = allowedLayout(button.dataset.layout) && (button.dataset.layout !== 'web-app' || hasWebApp);
+        button.hidden = !available; button.disabled = !available;
+      });
+      const heading = root.querySelector('.showcase-dialog-heading');
+      if (heading) heading.textContent = profile.name || browserId;
+      tabs.setAttribute('aria-orientation', ['arc', 'zen'].includes(browserId) && sidebarWidth.matches ? 'vertical' : 'horizontal');
+    }
+    function notifyBrowser() {
+      document.dispatchEvent(new CustomEvent('mouse:browser-change', { detail: { id: browserId, layoutId } }));
+    }
     function syncTabState() {
+      if (layoutId === 'web-app' && sources.length > 1) activePane = 1;
       const activeId = sources[activePane]?.tabId;
       const open = tabWorkspace.tabs;
       tabNodes.forEach((tab, i) => {
@@ -264,6 +390,10 @@
         tab.tabIndex = active ? 0 : -1;
       });
       paneNodes.forEach((pane, i) => pane.classList.toggle('is-active-pane', i === activePane));
+      const source = sources[activePane];
+      addressValue.textContent = source?.kind === 'start' ? text('showcaseNewTab') : source?.host || source?.name || '';
+      addressbar.setAttribute('aria-label', text('compareAddress'));
+      addressbar.title = text('compareAddress');
     }
     function focusTab(tabIndex, fromKeyboard = false) {
       const tab = tabWorkspace.tabs[tabIndex];
@@ -272,6 +402,7 @@
       const visiblePane = sources.findIndex(source => source.tabId === tab.tabId);
       if (visiblePane >= 0) activePane = visiblePane;
       else {
+        activePane = editablePane();
         if (!sources.length) { activePane = 0; paneSlots = [0]; gridRects = [[0,0,100,100]]; }
         sources[activePane] = tab;
         renderPane(activePane, false);
@@ -295,10 +426,11 @@
         const title = document.createElement('span'); title.textContent = source.name;
         tab.append(mark, title); tab.addEventListener('click', () => focusTab(i));
         tab.addEventListener('keydown', event => {
-          if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+          const vertical = ['arc', 'zen'].includes(browserId) && sidebarWidth.matches;
+          if (!(vertical ? ['ArrowUp','ArrowDown','Home','End'] : ['ArrowLeft','ArrowRight','Home','End']).includes(event.key)) return;
           event.preventDefault();
           const open = tabWorkspace.tabs;
-          const next = event.key === 'Home' ? 0 : event.key === 'End' ? open.length - 1 : (i + (event.key === 'ArrowLeft' ? -1 : 1) + open.length) % open.length;
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? open.length - 1 : (i + (['ArrowLeft','ArrowUp'].includes(event.key) ? -1 : 1) + open.length) % open.length;
           focusTab(next, true);
         });
         tabs.append(tab); tabNodes.push(tab);
@@ -310,6 +442,7 @@
     function addTab() {
       manual(); cancelGesture();
       const tab = tabWorkspace.add(text('showcaseNewTab'));
+      activePane = editablePane();
       if (!sources.length) { sources = [tab]; paneSlots = [0]; gridRects = [[0,0,100,100]]; activePane = 0; }
       else sources[activePane] = tab;
       renderPane(activePane, false); refreshTabs(); layoutGeometry(); refreshLanguage();
@@ -328,7 +461,8 @@
       if (visiblePane < 0) return;
       sources[visiblePane] = chosen; activePane = visiblePane;
       renderPane(visiblePane, false); refreshTabs(); layoutGeometry(); refreshLanguage();
-      paneNodes[visiblePane].querySelector(zoomed >= 0 ? '.showcase-pane-zoom' : '.showcase-pane-drag').focus({ preventScroll: true });
+      const target = canExpandPane() && zoomed >= 0 ? paneNodes[visiblePane].querySelector('.showcase-pane-zoom') : canDrag() ? paneNodes[visiblePane].querySelector('.showcase-pane-drag') : tabNodes.find(tab => tab.dataset.showcaseTab === tabId);
+      target?.focus({ preventScroll: true });
       announce(chosen.name);
     }
 
@@ -350,18 +484,28 @@
       }
       return chosen;
     }
-    function selectedSources(scene) {
-      const selected = layouts.find(item => item.id === layoutId);
-      if (!selected) return sceneSources(scene);
+    function sourcePool(scene) {
       const pool = sceneSources(scene), seen = new Set(pool.map(item => item.src));
       for (const source of availableSources()) if (!seen.has(source.src)) { pool.push(source); seen.add(source.src); }
-      if (!pool.length) return [];
-      const count = selected.columns * selected.rows;
-      // All panels retain actual captures; a repeated tab is labelled explicitly.
-      return Array.from({ length: count }, (_, i) => {
+      return pool;
+    }
+    function ensureCaptureTabs(count) {
+      const pool = sourcePool(scenes[index]).filter(source => layoutId !== 'web-app' || source.id !== 'youtube');
+      if (!pool.length) return;
+      const existing = new Set(tabWorkspace.tabs.map(tab => tab.tabId));
+      const additions = [];
+      for (let i = 0; tabWorkspace.tabs.length + additions.length < count; i++) {
         const source = pool[i % pool.length], copy = Math.floor(i / pool.length) + 1;
-        return copy === 1 ? source : { ...source, name: source.name + ' · ' + copy };
-      });
+        const tabId = 'capture-' + source.id + '-' + copy;
+        if (existing.has(tabId)) continue;
+        const tab = { ...source, tabId, ...(copy > 1 ? { name: source.name + ' · ' + copy } : {}) };
+        additions.push(tab); existing.add(tabId);
+      }
+      tabWorkspace.ensure(additions);
+    }
+    function webAppSource() {
+      const youtube = availableSources().find(source => source.id === 'youtube');
+      return youtube ? { ...youtube, tabId: 'web-app-youtube', kind: 'web-app' } : null;
     }
     function layer(source) {
       const element = document.createElement('div'); element.className = 'showcase-page-layer';
@@ -390,8 +534,8 @@
       image.addEventListener('error', () => {
         if (failed.has(source.src)) return;
         failed.add(source.src);
-        // A failed capture is omitted. Never substitute an invented service UI.
-        if (sources.some(item => item.src === source.src) || tabWorkspace.tabs.some(tab => tab.src === source.src)) select(index, false, true);
+        // Keep the tab identity, but return a failed capture to the real chooser.
+        if (sources.some(item => item.src === source.src) || tabWorkspace.tabs.some(tab => tab.src === source.src)) refreshAssets();
       }, { once: true });
       image.src = source.src; element.append(image);
       return element;
@@ -401,9 +545,10 @@
       pane.style.transform = ''; pane.classList.remove('is-grabbed','is-drop-target');
       if (!source) { body.replaceChildren(); delete pane.dataset.service; return; }
       pane.setAttribute('aria-label', source.name); pane.dataset.service = source.id;
+      pane.classList.toggle('is-web-app', source.kind === 'web-app');
       pane.querySelector('.showcase-service-mark').textContent = source.kind === 'start' ? '+' : source.name.slice(0,1);
       pane.querySelector('.showcase-service-name').textContent = source.name;
-      pane.querySelector('.showcase-service-host').textContent = source.host;
+      pane.querySelector('.showcase-service-host').textContent = source.kind === 'web-app' ? text('compareWebApp') : source.host;
       const previous = body.lastElementChild, sourceKey = source.src || source.tabId;
       Array.from(body.children).forEach(node => { if (node !== previous) node.remove(); });
       if (previous) { previous.classList.remove('is-old','is-new'); previous.removeAttribute('aria-hidden'); }
@@ -420,6 +565,7 @@
     function baseRects() {
       const scene = scenes[index];
       const selected = layouts.find(item => item.id === layoutId);
+      if (layoutId === 'web-app' && sources.length === 2) return [[0,0,34,100], [34,0,66,100]];
       if (selected && sources.length === selected.columns * selected.rows) return uniformGrid(selected.columns, selected.rows);
       return cloneRects(sources.length === scene.count ? (expanded && portrait.matches ? scene.portrait : scene.rects) : balanced(sources.length));
     }
@@ -441,9 +587,10 @@
         if (!used || obscured) pane.setAttribute('aria-hidden', 'true'); else pane.removeAttribute('aria-hidden');
         if (used) drawRect(pane, zoomed === i ? [0,0,100,100] : rectFor(i));
         const drag = pane.querySelector('.showcase-pane-drag'), zoom = pane.querySelector('.showcase-pane-zoom');
-        drag.tabIndex = used && !obscured && zoomed < 0 ? 0 : -1;
-        zoom.tabIndex = used && !obscured ? 0 : -1;
-        zoom.hidden = !used; zoom.disabled = false;
+        drag.disabled = !canDrag();
+        drag.tabIndex = used && !obscured && zoomed < 0 && canDrag() ? 0 : -1;
+        zoom.tabIndex = used && !obscured && canExpandPane() ? 0 : -1;
+        zoom.hidden = !used || !canExpandPane(); zoom.disabled = !canExpandPane();
         zoom.innerHTML = icon(zoomed === i ? 'restore' : 'expand');
         if (used) {
           const label = text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand');
@@ -499,7 +646,7 @@
     }
     function drawHandles() {
       const active = new Set();
-      for (const boundary of boundaries()) {
+      for (const boundary of canResize() ? boundaries() : []) {
         active.add(boundary.key);
         let handle = handles.get(boundary.key);
         if (!handle) {
@@ -507,7 +654,7 @@
           handle.className = 'showcase-resize-handle'; handle.setAttribute('role','separator');
           handle.addEventListener('keydown', event => {
             const current = handle.geometry, horizontal = current.axis === 0;
-            if (zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
+            if (!canResize() || zoomed >= 0 || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
             if ((horizontal && /Up|Down/.test(event.key)) || (!horizontal && /Left|Right/.test(event.key))) return;
             event.preventDefault(); manual();
             const limits = boundaryLimits(current), step = event.shiftKey ? 5 : 2;
@@ -556,10 +703,12 @@
       paneNodes.forEach((pane,i) => pane.classList.toggle('is-hovered',i === target));
     }
     function swap(a,b) {
+      if (swapKind() === 'none' || !sources[a] || !sources[b]) return;
       [paneSlots[a],paneSlots[b]] = [paneSlots[b],paneSlots[a]];
       layoutGeometry();
     }
     function setZoom(value, focus = false) {
+      if (value >= 0 && !canExpandPane()) return;
       if (value >= 0) activePane = value;
       zoomed = value; layoutGeometry();
       if (focus && value >= 0) paneNodes[value].querySelector('.showcase-pane-zoom').focus({ preventScroll:true });
@@ -578,6 +727,7 @@
       timers.forEach(clearTimeout); timers.clear(); clearMotion();
       root.classList.remove('is-playing');
       modes.querySelectorAll('button').forEach(button => button.classList.remove('is-counting'));
+      desktopButtons.querySelectorAll('button').forEach(button => button.classList.remove('is-counting'));
     }
     function cursorAt(x,y,label) {
       cursor.hidden = false; cursor.style.left = x + '%'; cursor.style.top = y + '%';
@@ -586,6 +736,7 @@
     function demonstrate() {
       if (sources.length < 2 || zoomed >= 0) return;
       const epoch = geometryEpoch, action = scenes[index].action;
+      if (action === 'drag' && !canDrag() || action === 'resize' && !canResize() || action === 'zoom' && !canExpandPane()) return;
       root.dataset.autoAction = action;
       const valid = callback => () => { if (geometryEpoch === epoch) callback(); };
       if (action === 'drag') {
@@ -634,10 +785,10 @@
       if (!canPlay()) return;
       if (zoomed >= 0) setZoom(-1);
       root.classList.add('is-playing');
-      const active = modes.children[index];
-      requestAnimationFrame(() => { if (root.classList.contains('is-playing')) active.classList.add('is-counting'); });
+      const active = browserId === 'mouse' ? desktopButtons.children[mouseDesktops.indexOf(index)] : modes.children[index];
+      requestAnimationFrame(() => { if (root.classList.contains('is-playing')) active?.classList.add('is-counting'); });
       if (!reduced.matches) after(demonstrate,550);
-      after(() => select(index+1),duration);
+      after(() => advanceScene(1),duration);
     }
     function manual() {
       userPaused = true; stopPlayback(); closePicker(); refreshLanguage();
@@ -654,6 +805,18 @@
       root.querySelectorAll('[data-showcase-aria]').forEach(node => { node.setAttribute('aria-label',text(node.dataset.showcaseAria)); node.lang=language; });
       newTabButton.title = text('showcaseNewTab');
       modes.lang=language; modes.dir='auto';
+      const organizationKey = profile.organization === 'workspaces' ? 'compareWorkspaces' : 'compareScenes';
+      modes.dataset.showcaseAria = organizationKey; modes.setAttribute('aria-label', text(organizationKey));
+      organizationLabel.textContent = text(organizationKey); organizationLabel.lang = language; organizationLabel.dir = 'auto';
+      desktopBar.lang = language;
+      desktopButtons.querySelectorAll('button').forEach((button, ordinal) => {
+        const sceneIndex = mouseDesktops[ordinal], name = text('showcase' + scenes[sceneIndex].key);
+        button.querySelector('.showcase-desktop-name').textContent = name;
+        const label = text('compareDesktop').replace('{number}', String(ordinal + 1)).replace('{name}', name);
+        button.title = label; button.setAttribute('aria-label', label);
+        button.setAttribute('aria-pressed', String(index === sceneIndex));
+      });
+      swapButton.title = text('compareSwap');
       for (const selector of ['[data-showcase-title]','[data-showcase-chrome-scene]']) root.querySelectorAll(selector).forEach(node => {
         node.textContent = text('showcase'+scene.key); node.lang = language; node.dir = 'auto';
       });
@@ -671,9 +834,10 @@
           const start = pane.querySelector('.showcase-start');
           if (start) { start.lang = language; start.dir = 'auto'; }
         }
+        if (sources[i].kind === 'web-app') pane.querySelector('.showcase-service-host').textContent = text('compareWebApp');
         drag.lang = language; zoom.lang = language;
-        drag.setAttribute('aria-label',sources[i].name + ' — ' + text('showcaseMove'));
-        drag.title = text('showcaseMove');
+        drag.setAttribute('aria-label',sources[i].name + (canDrag() ? ' — ' + text('showcaseMove') : ''));
+        drag.title = canDrag() ? text('showcaseMove') : sources[i].host;
         zoom.setAttribute('aria-label',sources[i].name + ' — ' + text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand'));
         zoom.title = text(zoomed === i ? 'showcaseRestore' : 'showcaseExpand');
       });
@@ -681,32 +845,118 @@
       cursor.querySelector('.showcase-cursor-label').lang = language;
       layoutPicker.lang = language;
       layoutPicker.querySelector('[data-showcase-layout-label]').textContent = text('showcaseWindows') + ' · ' + sources.length;
-      layoutMenu.querySelectorAll('button').forEach((button, i) => {
-        const layout = layouts[i], count = layout.columns * layout.rows;
+      layoutMenu.querySelectorAll('button').forEach(button => {
+        const layout = layouts.find(item => item.id === button.dataset.layout), count = layout.columns * layout.rows;
         button.querySelector('.showcase-layout-description').textContent = layout.key ? text(layout.key) : '';
         button.setAttribute('aria-label', text('showcaseWindows') + ': ' + count + (layout.key ? ' — ' + text(layout.key) : ''));
         button.setAttribute('aria-pressed', String(layout.id === layoutId));
       });
+      syncTabState();
     }
-    function select(next, announceChange = false, keepLayout = false) {
-      stopPlayback(); cancelGesture(); clearTimeout(cleanTimer); zoomed = -1;
-      if (!keepLayout) layoutId = null;
-      index = ((next%scenes.length)+scenes.length)%scenes.length;
+    function rememberCurrent() {
+      if (!sceneReady) return;
+      stateBank.remember(browserId, index, {
+        tabs: tabWorkspace.snapshot(), layoutId, sources: sources.map(source => source.tabId),
+        gridRects, paneSlots, activePane, zoomed
+      });
+    }
+    function placeTabs(previous = [], activeId = '') {
+      const selected = layouts.find(item => item.id === layoutId);
+      const count = selected ? selected.columns * selected.rows : scenes[index].count;
+      ensureCaptureTabs(layoutId === 'web-app' ? 1 : count);
+      if (layoutId === 'web-app') {
+        const app = webAppSource();
+        if (!app) { layoutId = '1'; return placeTabs(previous, activeId); }
+        const open = tabWorkspace.tabs, ordered = [...open.filter(tab => tab.id !== 'youtube'), ...open.filter(tab => tab.id === 'youtube')];
+        const main = chooseVisibleTabs(ordered, previous.filter(tab => tab.kind !== 'web-app' && tab.id !== 'youtube'), 1, activeId);
+        sources = main.length ? [app, main[0]] : [];
+        activePane = sources.length ? 1 : 0;
+      } else {
+        sources = chooseVisibleTabs(tabWorkspace.tabs, previous.filter(tab => tab.kind !== 'web-app'), count, activeId);
+        activePane = Math.max(0, sources.findIndex(source => source.tabId === activeId));
+      }
+      paneSlots = sources.map((_, i) => i); zoomed = -1; geometryEpoch++;
+      gridRects = baseRects();
+    }
+    function loadScene(sceneIndex) {
+      index = sceneIndex;
+      const saved = stateBank.recall(browserId, index);
+      if (saved) {
+        tabWorkspace.restore(saved.tabs);
+        tabWorkspace.refresh(availableSources(), text('showcaseNewTab'));
+        layoutId = saved.layoutId === null && browserId === 'mouse' ? null : allowedLayout(saved.layoutId) ? saved.layoutId : allowedLayout(profile.defaultLayout) ? profile.defaultLayout : '1';
+        const byId = new Map(tabWorkspace.tabs.map(tab => [tab.tabId, tab]));
+        const app = layoutId === 'web-app' ? webAppSource() : null;
+        sources = saved.sources.map(id => id === 'web-app-youtube' ? app : byId.get(id)).filter(Boolean);
+        if (layoutId !== saved.layoutId || sources.length !== saved.sources.length || !sources.length && availableSources().length) placeTabs(sources, byId.get(saved.sources[saved.activePane])?.tabId);
+        else {
+          gridRects = cloneRects(saved.gridRects); paneSlots = [...saved.paneSlots];
+          activePane = clamp(saved.activePane, 0, Math.max(0, sources.length - 1));
+          zoomed = canExpandPane() && saved.zoomed < sources.length ? saved.zoomed : -1;
+          geometryEpoch++;
+        }
+      } else {
+        tabWorkspace.restore({ base: [], added: [], sequence: 0 });
+        layoutId = allowedLayout(profile.defaultLayout) ? profile.defaultLayout : browserId === 'mouse' ? null : '1';
+        placeTabs();
+      }
+      sceneReady = true;
+    }
+    function renderCurrent(animate = true) {
       root.dataset.scene = scenes[index].id;
-      sources = selectedSources(scenes[index]).map((source, i) => ({ ...source, tabId: 'scene-' + index + '-' + i }));
-      tabWorkspace.refresh(availableSources(), text('showcaseNewTab'));
-      tabWorkspace.reset(sources);
-      paneSlots = sources.map((_,i) => i);
-      activePane = 0;
       root.dataset.layout = layoutId || 'scene';
       root.dataset.windowCount = String(sources.length);
       root.dataset.tabCount = String(tabWorkspace.tabs.length);
-      paneNodes.forEach((_,i) => renderPane(i));
+      updateProfileUI();
+      paneNodes.forEach((_,i) => renderPane(i, animate));
       refreshTabs();
-      layoutGeometry(true);
+      layoutGeometry();
       cleanTimer = setTimeout(() => root.querySelectorAll('.showcase-page-layer.is-old').forEach(node => node.remove()),600);
       modes.querySelectorAll('button').forEach((button,i) => button.setAttribute('aria-pressed',String(i===index)));
-      refreshLanguage(); if (announceChange) announce(text('showcase'+scenes[index].key),document.documentElement.lang || 'en'); schedule();
+      refreshLanguage();
+    }
+    function select(next, announceChange = false) {
+      stopPlayback(); cancelGesture(); clearTimeout(cleanTimer); rememberCurrent();
+      const available = sequence(), normalized = ((next % scenes.length) + scenes.length) % scenes.length;
+      loadScene(available.includes(normalized) ? normalized : available[0]);
+      renderCurrent(); rememberCurrent(); notifyBrowser();
+      if (announceChange) announce(text('showcase' + scenes[index].key));
+      schedule();
+    }
+    function advanceScene(direction) {
+      const order = sequence(), current = order.indexOf(index);
+      select(order[(current + direction + order.length) % order.length], true);
+    }
+    function changeLayout(id) {
+      if (!allowedLayout(id) || id === 'web-app' && !webAppSource()) return false;
+      stopPlayback(); cancelGesture(); clearTimeout(cleanTimer);
+      const activeId = sources[activePane]?.tabId;
+      const ordered = sources.map((source, i) => ({ source, slot: paneSlots[i] })).sort((a, b) => a.slot - b.slot).map(item => item.source);
+      layoutId = id; placeTabs(ordered, activeId);
+      renderCurrent(false); rememberCurrent(); notifyBrowser();
+      return true;
+    }
+    function setBrowser(id) {
+      const next = browserProfiles().get(id);
+      if (!next) return false;
+      if (id === browserId) {
+        manual(); cancelGesture(); rememberCurrent(); notifyBrowser();
+        return true;
+      }
+      stopPlayback(); cancelGesture(); clearTimeout(cleanTimer); closePicker(); rememberCurrent();
+      userPaused = true; browserId = id; profile = next;
+      loadScene(stateBank.lastScene(id) ?? 4);
+      renderCurrent(false); rememberCurrent(); notifyBrowser();
+      return true;
+    }
+    function refreshAssets() {
+      stopPlayback(); cancelGesture(); clearTimeout(cleanTimer);
+      const previous = sources, activeId = sources[activePane]?.tabId;
+      tabWorkspace.refresh(availableSources(), text('showcaseNewTab'));
+      const byId = new Map(tabWorkspace.tabs.map(tab => [tab.tabId, tab]));
+      sources = previous.map(source => source.kind === 'web-app' ? webAppSource() : byId.get(source.tabId)).filter(Boolean);
+      if (sources.length !== previous.length || !sources.length && availableSources().length) placeTabs(sources, activeId);
+      geometryEpoch++; renderCurrent(false); rememberCurrent(); notifyBrowser(); schedule();
     }
     function cancelGesture() {
       if (!gesture) return;
@@ -717,9 +967,15 @@
       root.classList.remove('is-manipulating');
     }
     canvas.addEventListener('pointerdown',event => {
-      if (gesture || !event.isPrimary || event.button !== 0 || zoomed >= 0) return;
+      if (gesture || !event.isPrimary || event.button !== 0) return;
+      const selectedPane = event.target.closest('.showcase-pane');
+      if (selectedPane && (layoutId !== 'web-app' || !selectedPane.classList.contains('is-web-app'))) {
+        activePane = Number(selectedPane.dataset.paneIndex); syncTabState();
+      }
+      if (zoomed >= 0) return;
       const drag = event.target.closest('.showcase-pane-drag'), handle = event.target.closest('.showcase-resize-handle');
       if (!drag && !handle) return;
+      if (drag && !canDrag() || handle && !canResize()) return;
       manual(); event.preventDefault();
       if (drag) {
         const pane = Number(drag.closest('.showcase-pane').dataset.paneIndex);
@@ -756,7 +1012,7 @@
     canvas.addEventListener('focusin',event => {
       manual();
       const pane = event.target.closest('.showcase-pane');
-      if (pane) { activePane = Number(pane.dataset.paneIndex); syncTabState(); }
+      if (pane && !pane.classList.contains('is-web-app')) { activePane = Number(pane.dataset.paneIndex); syncTabState(); }
     });
     frame.addEventListener('keydown',event => {
       if (event.key === 'Escape' && zoomed >= 0) {
@@ -799,8 +1055,8 @@
     root.querySelector('[data-showcase-pause]').addEventListener('click',() => {
       userPaused=!userPaused; refreshLanguage(); schedule();
     });
-    root.querySelector('[data-showcase-previous]').addEventListener('click',() => { manual(); select(index-1,true); });
-    root.querySelector('[data-showcase-next]').addEventListener('click',() => { manual(); select(index+1,true); });
+    root.querySelector('[data-showcase-previous]').addEventListener('click',() => { manual(); advanceScene(-1); });
+    root.querySelector('[data-showcase-next]').addEventListener('click',() => { manual(); advanceScene(1); });
     document.addEventListener('pointerdown',event => {
       if (!layoutPicker.contains(event.target)) layoutPicker.open = false;
       if (modePicker && !modePicker.contains(event.target)) modePicker.open = false;
@@ -836,6 +1092,7 @@
     const onPortrait=()=>{cancelGesture();clearMotion();layoutGeometry(!userPaused && !layoutId);};
     if(reduced.addEventListener)reduced.addEventListener('change',onReduced);else reduced.addListener?.(onReduced);
     if(portrait.addEventListener)portrait.addEventListener('change',onPortrait);else portrait.addListener?.(onPortrait);
+    if(sidebarWidth.addEventListener)sidebarWidth.addEventListener('change',updateProfileUI);else sidebarWidth.addListener?.(updateProfileUI);
     root.querySelectorAll('[data-showcase-interactive]').forEach(node=>{node.hidden=false;});
     if(typeof dialog.showModal!=='function'){
       root.querySelector('[data-showcase-expand]').hidden=true;
@@ -843,9 +1100,9 @@
       const hint=root.querySelector('.showcase-hint');if(hint)hint.hidden=true;
     }
     select(index);
-    return { refreshLanguage, setAssets(value){assets=value&&typeof value==='object'?value:{};failed.clear();select(index,false,true);} };
+    return { refreshLanguage, setBrowser, setAssets(value){assets=value&&typeof value==='object'?value:{};failed.clear();refreshAssets();} };
   }
   function init(){controller=create(document.getElementById('mouse-showcase'))||controller;return controller;}
-  window.MouseShowcase=Object.freeze({init,refreshLanguage(){controller?.refreshLanguage();},setAssets(value){controller?.setAssets(value);}});
+  window.MouseShowcase=Object.freeze({init,refreshLanguage(){controller?.refreshLanguage();},setBrowser(id){return (controller || init())?.setBrowser(id) || false;},setAssets(value){controller?.setAssets(value);}});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

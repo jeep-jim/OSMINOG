@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "retrieved_date": "2026-11-25",
+  "verified_at_utc": "2026-11-25T08:18:12Z",
+  "purpose": "Original full-color browser identity assets for the interactive browser layout demonstration.",
+  "preservation_policy": "Original vendor colors, geometry, transparency and intrinsic padding are preserved. No generated or redrawn marks, added frames, circles or monochrome conversions. Official brand artwork may itself contain a background or enclosing shape.",
+  "asset_ownership": "Brand marks remain the property of their respective owners; source attribution is not a claim of ownership or endorsement.",
+  "assets": [
+    {
+      "id": "chrome",
+      "file": "website/browser-logos/chrome.svg",
+      "source": {
+        "url": "https://www.google.com/chrome/static/images/chrome-logo.svg",
+        "resolved_url": "https://www.google.com/chrome/static/images/chrome-logo.svg",
+        "content_type": "image/svg+xml",
+        "sha256": "2bb1a2c9b9ae4d36f62ea53811554636cf3c5b74d9845e1dbacca0ce62dc7880",
+        "bytes": 1429,
+        "discovered_on": "https://www.google.com/chrome/",
+        "authority": "official-vendor",
+        "attribution": "Google Chrome — Google",
+        "width": 48.0,
+        "height": 48.0
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "2bb1a2c9b9ae4d36f62ea53811554636cf3c5b74d9845e1dbacca0ce62dc7880",
+        "bytes": 1429,
+        "width": 48.0,
+        "height": 48.0,
+        "transformation": "none; original vendor SVG bytes preserved"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      }
+    },
+    {
+      "id": "firefox",
+      "file": "website/browser-logos/firefox.svg",
+      "source": {
+        "url": "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/browser/branding/official/content/about-logo.svg",
+        "resolved_url": "https://raw.githubusercontent.com/mozilla-firefox/firefox/main/browser/branding/official/content/about-logo.svg",
+        "content_type": "image/svg+xml",
+        "sha256": "f31b10673f2e62510a18cb79c32555d88aa806ede13b128e3e7e3072bfc05cbc",
+        "bytes": 10472,
+        "discovered_on": "https://github.com/mozilla-firefox/firefox/tree/main/browser/branding/official/content",
+        "authority": "official-project-github",
+        "attribution": "Firefox — Mozilla",
+        "width": 512.0,
+        "height": 512.0
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "f31b10673f2e62510a18cb79c32555d88aa806ede13b128e3e7e3072bfc05cbc",
+        "bytes": 10472,
+        "width": 512.0,
+        "height": 512.0,
+        "transformation": "none; original vendor SVG bytes preserved"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      }
+    },
+    {
+      "id": "safari",
+      "file": "website/browser-logos/safari.svg",
+      "source": {
+        "url": "https://ipcdn-web.apple.com/assets/v2/web/5f4add15-31bf-47d0-9c96-48fb4e7e0173",
+        "resolved_url": "https://ipcdn-web.apple.com/assets/v2/web/5f4add15-31bf-47d0-9c96-48fb4e7e0173",
+        "content_type": "image/png",
+        "sha256": "0e1b5343f28a2ba844a9e07a371daf82f2fba50d075224222ff44a8baefbbb8d",
+        "bytes": 8570,
+        "discovered_on": "https://support.apple.com/guide/safari/use-tabs-for-webpages-sfri11576/mac",
+        "authority": "official-vendor",
+        "attribution": "Safari — Apple",
+        "width": 60,
+        "height": 60
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "ff7fdf11256901cbc84df00c66aa37f005b353be6158fd52a3e48215dd6dd11e",
+        "bytes": 11579,
+        "width": 60.0,
+        "height": 60.0,
+        "transformation": "unchanged original PNG embedded as data:image/png;base64 in an SVG wrapper; no image resampling, recoloring, cropping or additional shapes"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      }
+    },
+    {
+      "id": "edge",
+      "file": "website/browser-logos/edge.svg",
+      "source": {
+        "url": "https://edgecdn-embza6g8cacagcbn.z01.azurefd.net/welcome/static/favicon.png",
+        "resolved_url": "https://edgecdn-embza6g8cacagcbn.z01.azurefd.net/welcome/static/favicon.png",
+        "content_type": "image/png",
+        "sha256": "4d755ac02a070a1b4bb1b6f1c88ab493440109a8ac1e314aaced92f94cdc98e9",
+        "bytes": 7904,
+        "discovered_on": "https://explore.microsoft.com/en-us/edge",
+        "authority": "official-vendor",
+        "attribution": "Microsoft Edge — Microsoft",
+        "width": 96,
+        "height": 96
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "52121017e9aec761b1b1d81dd4539c4164ef07daf0a1509be97e9b5d4974d6f8",
+        "bytes": 10691,
+        "width": 96.0,
+        "height": 96.0,
+        "transformation": "unchanged original PNG embedded as data:image/png;base64 in an SVG wrapper; no image resampling, recoloring, cropping or additional shapes"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      }
+    },
+    {
+      "id": "brave",
+      "file": "website/browser-logos/brave.svg",
+      "source": {
+        "url": "https://brave.com/static-assets/images/brave-logo-sans-text.svg",
+        "resolved_url": "https://brave.com/static-assets/images/brave-logo-sans-text.svg",
+        "content_type": "image/svg+xml",
+        "sha256": "2530f80fdf2144b62f96953a81c6988c9c31a6cc7c9de72e069079485817cbe7",
+        "bytes": 4084,
+        "discovered_on": "https://brave.com/brave-branding-assets/",
+        "authority": "official-vendor",
+        "attribution": "Brave — Brave Software",
+        "width": 56.0,
+        "height": 64.0
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "2530f80fdf2144b62f96953a81c6988c9c31a6cc7c9de72e069079485817cbe7",
+        "bytes": 4084,
+        "width": 56.0,
+        "height": 64.0,
+        "transformation": "none; original vendor SVG bytes preserved"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      }
+    },
+    {
+      "id": "opera",
+      "file": "website/browser-logos/opera.svg",
+      "source": {
+        "url": "https://cdn-production-opera-website.operacdn.com/staticfiles/assets/images/logo/opera-150.677391b2c420.png",
+        "resolved_url": "https://cdn-production-opera-website.operacdn.com/staticfiles/assets/images/logo/opera-150.677391b2c420.png",
+        "content_type": "image/png",
+        "sha256": "052cf57519a168df002549701f322775ba7f09687e35b5a37a494f5a49281aeb",
+        "bytes": 3771,
+        "discovered_on": "https://www.opera.com/",
+        "authority": "official-vendor",
+        "attribution": "Opera — Opera",
+        "width": 150,
+        "height": 150
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "b43c27eaf801b3c6e940f2d43fa8cff99c2d867b353323a9443fac2de4dc2e3f",
+        "bytes": 5185,
+        "width": 150.0,
+        "height": 150.0,
+        "transformation": "unchanged original PNG embedded as data:image/png;base64 in an SVG wrapper; no image resampling, recoloring, cropping or additional shapes"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      },
+      "note": "Transparent full-color Opera mark referenced by the current official homepage vk:image metadata. The separate apple-touch PNG has an opaque white square and was not used."
+    },
+    {
+      "id": "yandex",
+      "file": "website/browser-logos/yandex.svg",
+      "source": {
+        "url": "https://disk.yandex.ru/d/FN9KR4AQO6xhgA",
+        "member": "Yandex-Browser-Icon-White-Chip_2026.svg",
+        "download_resolver_url": "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FFN9KR4AQO6xhgA&path=%2FYandex-Browser-Icon-White-Chip_2026.svg",
+        "content_type": "image/svg+xml",
+        "sha256": "fcc1cf8600660ad83db5db6d860139d3e603f2d6c721d72fee409e7ee5a67d54",
+        "bytes": 2508,
+        "discovered_on": "https://browser.yandex.ru/c/for_media",
+        "authority": "official-vendor",
+        "attribution": "Яндекс Браузер — Яндекс",
+        "width": 900.0,
+        "height": 900.0
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "fcc1cf8600660ad83db5db6d860139d3e603f2d6c721d72fee409e7ee5a67d54",
+        "bytes": 2508,
+        "width": 900.0,
+        "height": 900.0,
+        "transformation": "none; original vendor SVG bytes preserved"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      },
+      "note": "Official full-color 2026 White-Chip mark. Its gradient symbol and circular chip are part of the vendor source; no enclosing shape was added."
+    },
+    {
+      "id": "vivaldi",
+      "file": "website/browser-logos/vivaldi.svg",
+      "source": {
+        "url": "https://vivaldi.com/wp-content/uploads/cropped-favicon-192x192.png",
+        "resolved_url": "https://vivaldi.com/wp-content/uploads/cropped-favicon-192x192.png",
+        "content_type": "image/png",
+        "sha256": "3dd5292801e7d67d2f69beb268e88cadb8985db8aa02f163d443508930098a22",
+        "bytes": 11219,
+        "discovered_on": "https://vivaldi.com/press/",
+        "authority": "official-vendor",
+        "attribution": "Vivaldi Technologies",
+        "width": 192,
+        "height": 192
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "03dffd2510027aa2f9454f5f0ac1e8499de84e18aaab96398147f1fba5104e98",
+        "bytes": 15117,
+        "width": 192.0,
+        "height": 192.0,
+        "transformation": "unchanged original PNG embedded as data:image/png;base64 in an SVG wrapper; no image resampling, recoloring, cropping or additional shapes"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      },
+      "note": "Original 192px vendor website icon, also referenced on its official press page. The source PNG is embedded unchanged."
+    },
+    {
+      "id": "arc",
+      "file": "website/browser-logos/arc.svg",
+      "source": {
+        "url": "https://arc.net/farewell/assets/arc-logo/color.svg",
+        "resolved_url": "https://arc.net/farewell/assets/arc-logo/color.svg",
+        "content_type": "image/svg+xml",
+        "sha256": "5fafd026d12eaedeeef8b589fc09ea9ac7fe7ded3fed0c3cf4322519cd7d312b",
+        "bytes": 3993,
+        "discovered_on": "https://arc.net/",
+        "authority": "official-vendor",
+        "attribution": "Arc — The Browser Company",
+        "width": 262.329,
+        "height": 219.92
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "5fafd026d12eaedeeef8b589fc09ea9ac7fe7ded3fed0c3cf4322519cd7d312b",
+        "bytes": 3993,
+        "width": 262.329,
+        "height": 219.92,
+        "transformation": "none; original vendor SVG bytes preserved"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      }
+    },
+    {
+      "id": "zen",
+      "file": "website/browser-logos/zen.svg",
+      "source": {
+        "url": "https://raw.githubusercontent.com/zen-browser/desktop/dev/configs/branding/release/content/about-logo.svg",
+        "resolved_url": "https://raw.githubusercontent.com/zen-browser/desktop/dev/configs/branding/release/content/about-logo.svg",
+        "content_type": "image/svg+xml",
+        "sha256": "0e699470cd67d16c14983bccfa4e7d820f2ba1ebb4685d41a9ba7b42c8c213f6",
+        "bytes": 1485,
+        "discovered_on": "https://github.com/zen-browser/desktop/tree/dev/configs/branding/release/content",
+        "authority": "official-project-github",
+        "attribution": "Zen Browser — Zen Browser project",
+        "width": 1024.0,
+        "height": 1024.0
+      },
+      "output": {
+        "content_type": "image/svg+xml",
+        "sha256": "0e699470cd67d16c14983bccfa4e7d820f2ba1ebb4685d41a9ba7b42c8c213f6",
+        "bytes": 1485,
+        "width": 1024.0,
+        "height": 1024.0,
+        "transformation": "none; original vendor SVG bytes preserved"
+      },
+      "validation": {
+        "xml": "pass",
+        "self_contained": true,
+        "external_resource_references": 0,
+        "scripts_and_event_handlers": 0,
+        "original_colors_preserved": true
+      },
+      "note": "Original official release-brand SVG with the vendor orange #F76F53; not a recolored or black-and-white derivative."
+    }
+  ]
+}

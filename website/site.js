@@ -231,6 +231,7 @@
     setTheme(theme);
     applyDownloadLabels();
     window.MouseShowcase?.refreshLanguage();
+    window.MouseComparison?.refreshLanguage();
     window.MouseManifest?.refreshLanguage();
   };
 
