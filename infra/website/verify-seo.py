@@ -26,6 +26,27 @@ INSTALL_HELP_URLS = {
     "https://support.apple.com/102445",
     "https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation",
 }
+# User-activated evidence links for the comparison, never network dependencies.
+# Keep the allowlist exact and confined to the comparison's source panel.
+COMPARISON_SOURCE_URLS = {
+    "https://support.google.com/chrome/answer/16971124",
+    "https://support.apple.com/guide/safari/use-tabs-for-webpages-sfri11576/mac",
+    "https://support.apple.com/guide/mac-help/mchl4fbe2921/mac",
+    "https://support.mozilla.org/en-US/kb/split-view-firefox",
+    "https://www.microsoft.com/en-us/edge/features/split-screen",
+    "https://support.microsoft.com/en-us/edge/getting-started-with-microsoft-edge-workspaces",
+    "https://support.brave.app/hc/en-us/articles/35087087593997-How-do-I-use-Split-view-in-Brave",
+    "https://brave.com/latest/",
+    "https://www.opera.com/features/splitscreen",
+    "https://www.opera.com/features/workspaces",
+    "https://yandex.ru/support/browser/ru/personalization/web-app",
+    "https://help.vivaldi.com/desktop/tabs/tab-tiling/",
+    "https://vivaldi.com/features/workspaces/",
+    "https://start.arc.net/master-multitasking",
+    "https://resources.arc.net/hc/en-us/articles/44412972248471-Arc-Sunset-Key-Dates-and-What-to-Expect",
+    "https://docs.zen-browser.app/user-manual/split-view",
+    "https://docs.zen-browser.app/user-manual/workspaces",
+}
 EXPECTED_CODES = (
     "ru en sq am ar hy bn bs bg my ca zh-Hans zh-Hant hr cs da nl et fi fr ka de "
     "el gu hi hu is id it ja kn kk ko lv lt mk ms ml mr mn nb fa pl pt-BR pt-PT "
@@ -374,6 +395,12 @@ class Verifier:
         self.check(len(descriptions) == 1 and normalized(descriptions[0].attrs.get("content") or "") == normalized(expected["metaDescription"]), f"{source}: description does not match locale")
         h1 = document.tags("h1")
         self.check(len(h1) == 1 and bool(normalized(h1[0].text())), f"{source}: expected one nonempty server-rendered h1")
+        comparison_heading = [node for node in document.tags("h2") if "data-compare-heading" in node.attrs]
+        self.check(len(comparison_heading) == 1 and normalized(comparison_heading[0].text()) == normalized(expected["compareTitle"].replace("{mouse}", expected["compareMouseName"])),
+                   f"{source}: comparison heading must be localized before JavaScript")
+        comparison_date = [node for node in document.tags("p") if "data-compare-checked" in node.attrs]
+        self.check(len(comparison_date) == 1 and normalized(comparison_date[0].text()) == normalized(expected["compareChecked"].replace("{date}", "25.11.2026")),
+                   f"{source}: comparison source date must be localized")
         seen_seo = set()
         for node in document.elements:
             key = node.attrs.get("data-i18n")
@@ -432,6 +459,13 @@ class Verifier:
             if (url in INSTALL_HELP_URLS and
                     "install-source" in (node.attrs.get("class") or "").split() and
                     any(parent.attrs.get("id") == "install-guide" for parent in node.ancestors()) and
+                    node.attrs.get("target") == "_blank" and
+                    {"noopener", "noreferrer"} <= set((node.attrs.get("rel") or "").split()) and
+                    "download" not in node.attrs and "data-platform" not in node.attrs):
+                continue
+            if (url in COMPARISON_SOURCE_URLS and
+                    "comparison-source" in (node.attrs.get("class") or "").split() and
+                    any(parent.attrs.get("id") == "comparison-evidence" for parent in node.ancestors()) and
                     node.attrs.get("target") == "_blank" and
                     {"noopener", "noreferrer"} <= set((node.attrs.get("rel") or "").split()) and
                     "download" not in node.attrs and "data-platform" not in node.attrs):
