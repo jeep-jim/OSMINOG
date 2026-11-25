@@ -14,6 +14,8 @@
   <script src="/i18n.js" defer></script>
   <script src="/language-picker.js" defer></script>
   <script src="/downloads-current.js" defer></script>
+  <script src="/download-stats.js" defer></script>
+  <script src="/download-metrics.js" defer></script>
   <script src="/manifest.js" defer></script>
   <script src="/site.js" defer></script>
   <script src="/manifest-city.js" defer></script>
@@ -30,7 +32,10 @@
   <div class="first-screen">
   <a class="skip-link" href="#downloads" data-i18n="skipDownload">Перейти к загрузке</a>
   <header class="site-header">
-    <a class="wordmark" href="/" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">MOUSE</a>
+    <div class="site-brand">
+      <a class="wordmark" href="/" aria-label="Mouse Browser — главная" data-i18n-aria="homeLabel">MOUSE</a>
+      <p class="brand-slogan" data-i18n="introLine1">Открыл и работаешь</p>
+    </div>
     <div class="header-controls">
       <div class="language-control" id="language-picker" hidden></div>
       <button class="theme-switch" type="button" id="theme-switch" aria-label="Включить светлую тему" aria-pressed="false" hidden>
@@ -56,6 +61,7 @@
               <svg data-city-pause-icon viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 3h3v10H4zm5 0h3v10H9z"/></svg>
               <svg data-city-play-icon viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="m4 2 9 6-9 6z"/></svg>
             </button>
+          </div>
       <div class="burrow-stage">
         <svg class="burrow" viewBox="0 0 280 240" role="img" aria-labelledby="mouse-title">
           <title id="mouse-title" data-i18n="mouseLabel">Мышка выглядывает из норки и моргает</title>
@@ -74,23 +80,30 @@
           </g>
         </svg>
       </div>
-          </div>
       <h1 id="headline"><span data-i18n="headlineLine1">Твой браузер</span> <span data-i18n="headlineLine2">— твои правила</span></h1>
-      <p class="intro"><span data-i18n="introLine1">Открыл и работаешь</span><br><span data-i18n="introLine2">Сайты, чаты и ИИ — рядом, в одной сетке</span></p>
 
       <div class="downloads" id="downloads" aria-label="Скачать Mouse Browser" data-i18n-aria="downloadsLabel">
+        <div class="download-option">
         <a class="download" data-platform="macos" href="/downloads/Mouse-Browser-6.0.36-mac-arm64.dmg" download="Mouse-Browser-6.0.36-mac-arm64.dmg" data-i18n-aria="macAria" aria-label="Скачать Mouse Browser 6.0.36 для macOS Apple Silicon, файл DMG">
           <svg class="platform-icon apple-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.05 12.54c.03 3.06 2.68 4.08 2.71 4.09-.02.07-.42 1.45-1.39 2.87-.85 1.23-1.73 2.45-3.12 2.47-1.36.03-1.8-.8-3.36-.8s-2.05.78-3.34.83c-1.34.05-2.36-1.32-3.22-2.55-1.75-2.52-3.08-7.12-1.29-10.22.89-1.54 2.48-2.52 4.2-2.55 1.31-.03 2.55.88 3.35.88.8 0 2.29-1.09 3.86-.93.66.03 2.51.27 3.69 2.01-.1.06-2.2 1.28-2.09 3.9ZM14.48 4.66c.72-.87 1.2-2.08 1.07-3.28-1.04.04-2.3.7-3.05 1.57-.67.77-1.25 2-1.09 3.18 1.16.09 2.34-.59 3.07-1.47Z"/></svg>
           <span class="download-copy"><span class="download-name" data-i18n="macLabel">Скачать для Mac</span><span class="download-meta" data-i18n="macMeta">Apple Silicon · DMG</span></span>
         </a>
+        <div class="download-fineprint"><span data-download-version="macos" dir="ltr">v6.0.36</span><details class="download-stats" data-download-stats="macos" hidden><summary data-i18n-aria="statsLabel" aria-label="Скачивания"><span data-stats-count dir="ltr"></span></summary><div class="download-stats-panel"><strong data-i18n="statsLabel">Скачивания</strong><p data-i18n="statsNote">Запуски загрузки по версии. Не число пользователей.</p><dl data-stats-versions></dl><time data-stats-since></time></div></details></div>
+        </div>
+        <div class="download-option">
         <a class="download" data-platform="windows" href="/downloads/Mouse-Browser-6.0.36-Windows-x64.exe" download="Mouse-Browser-6.0.36-Windows-x64.exe" data-i18n-aria="windowsAria" aria-label="Скачать Mouse Browser 6.0.36 для Windows x64, файл EXE">
           <svg class="platform-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 3h9v9H2Zm11 0h9v9h-9ZM2 14h9v9H2Zm11 0h9v9h-9Z" transform="translate(0 -1)"/></svg>
           <span class="download-copy"><span class="download-name" data-i18n="windowsLabel">Скачать для Windows</span><span class="download-meta" data-i18n="windowsMeta">64-bit · EXE</span></span>
         </a>
+        <div class="download-fineprint"><span data-download-version="windows" dir="ltr">v6.0.36</span><details class="download-stats" data-download-stats="windows" hidden><summary data-i18n-aria="statsLabel" aria-label="Скачивания"><span data-stats-count dir="ltr"></span></summary><div class="download-stats-panel"><strong data-i18n="statsLabel">Скачивания</strong><p data-i18n="statsNote">Запуски загрузки по версии. Не число пользователей.</p><dl data-stats-versions></dl><time data-stats-since></time></div></details></div>
+        </div>
+        <div class="download-option">
         <a class="download" data-platform="linux" href="/downloads/Mouse-Browser-6.0.36-Linux-x64.AppImage" download="Mouse-Browser-6.0.36-Linux-x64.AppImage" data-i18n-aria="linuxAria" aria-label="Скачать Mouse Browser 6.0.36 для Linux x64, файл AppImage">
           <svg class="platform-icon linux-icon" viewBox="0 0 28 28" aria-hidden="true"><path fill="currentColor" d="M13.9 1.5C10.4 1.5 8.6 4.4 8.6 8c0 3.2-1.2 4.6-2.5 6.7-1 1.8-1.7 3.5-1.2 5.5l-1.8 3c-.6 1 .2 1.9 1.2 2l5.2.8 2-1.6c1.6.5 3.5.5 5.1 0l2 1.6 5.3-.8c1.1-.1 1.7-1.1 1.1-2l-1.9-3c.6-2-.1-3.8-1.2-5.5-1.4-2.1-2.5-3.6-2.5-6.8 0-3.5-1.9-6.4-5.5-6.4Z"/><path class="platform-cutout" d="M11 12c-2.3 2.9-3.7 6.2-2.5 9.4 1.8 3.1 9.1 3.1 10.9 0 1.1-3.2-.2-6.5-2.6-9.4Z"/><ellipse class="platform-cutout" cx="11.1" cy="8.7" rx="1.65" ry="2.5"/><ellipse class="platform-cutout" cx="16.8" cy="8.7" rx="1.65" ry="2.5"/><ellipse fill="currentColor" cx="11.5" cy="9.1" rx=".75" ry="1.3"/><ellipse fill="currentColor" cx="16.4" cy="9.1" rx=".75" ry="1.3"/><path class="platform-cutout" d="m10.1 12 3.9-2 3.9 2-3.9 2.5Z"/><path fill="none" class="platform-stroke" stroke-width=".8" d="m10.5 12 3.5 1 3.5-1M6 22l4 1.5M18 23.5l4-1.5"/></svg>
           <span class="download-copy"><span class="download-name" data-i18n="linuxLabel">Скачать для Linux</span><span class="download-meta" data-i18n="linuxMeta">64-bit · AppImage</span></span>
         </a>
+        <div class="download-fineprint"><span data-download-version="linux" dir="ltr">v6.0.36</span><details class="download-stats" data-download-stats="linux" hidden><summary data-i18n-aria="statsLabel" aria-label="Скачивания"><span data-stats-count dir="ltr"></span></summary><div class="download-stats-panel"><strong data-i18n="statsLabel">Скачивания</strong><p data-i18n="statsNote">Запуски загрузки по версии. Не число пользователей.</p><dl data-stats-versions></dl><time data-stats-since></time></div></details></div>
+        </div>
       </div>
       <p class="mobile-coming-soon" data-i18n="mobileComingSoon">iOS и Android — скоро</p>
       <div class="release-line">
@@ -159,6 +172,7 @@
 
 <section class="features" id="features" aria-labelledby="features-heading">
   <h2 class="features-heading" id="features-heading" data-i18n="featuresTitle">Три вещи на каждый день</h2>
+  <p class="features-intro" data-i18n="introLine2">Сайты, чаты и ИИ — рядом, в одной сетке</p>
   <div class="features-network">
     <svg class="feature-tunnels" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <path d="M600 0v16c0 18-16 26-40 26H244c-28 0-44 14-44 38M600 16c0 18 16 26 40 26h316c28 0 44 14 44 38"/>
@@ -241,11 +255,21 @@
 
 <section class="pricing" id="pricing" aria-labelledby="pricing-heading">
   <div class="pricing-pixel-scene" aria-hidden="true">
-    <svg class="pixel-trap" viewBox="0 0 80 64" shape-rendering="crispEdges">
-      <path class="trap-metal" d="M12 12h56v4H12zM8 16h4v30H8zm60 0h4v30h-4zM12 46h56v4H12zM16 8h4v4h-4zm44 0h4v4h-4z"/>
-      <path class="trap-wire" d="M20 16h4v24h-4zm4 0h32v4H24zm32 4h4v20h-4z"/>
-      <path class="trap-base" d="M0 50h80v6H0zM4 56h72v4H4z"/>
-      <path class="trap-cross" d="M34 24h4v4h-4zm4 4h4v4h-4zm4 4h4v4h-4zm4 4h4v4h-4zm0-12h4v4h-4zm-4 4h4v4h-4zm-4 4h4v4h-4zm-4 4h4v4h-4z"/>
+    <svg class="pixel-trap" viewBox="0 0 104 80" shape-rendering="crispEdges">
+      <path class="trap-shadow" d="M8 65h74v8H8z"/>
+      <path class="trap-wood-edge" d="M8 48h14v4h18v4h18v4h18v-4h6v-4h6v-4h6v-4h6v8h-6v4h-6v4h-6v4h-6v4H58v-4H40v-4H22v-4H8z"/>
+      <path class="trap-wood" d="M8 44h6v-4h6v-4h6v-4h6v-4h6v4h18v4h18v4h18v4h8v4h-6v4h-6v4h-6v4h-6v4H58v-4H40v-4H22v-4H8z"/>
+      <path class="trap-grain" d="M36 35h13v2H36zm14 17h15v2H50zm28-8h12v2H78z"/>
+      <path class="trap-metal" d="M20 45h5v5h-5zm21 10h6v5h-6z"/>
+      <path class="trap-bail" d="M22 46 8 12 30 24 44 56"/>
+      <path class="trap-bail-highlight" d="M22 44 9 14 29 25 42 53"/>
+      <path class="trap-spring" d="M22 43h4v8h-4zm6 3h4v8h-4zm6 3h4v8h-4zm6 3h4v8h-4z"/>
+      <path class="trap-steel" d="M22 43h2v5h-2zm6 3h2v5h-2zm6 3h2v5h-2zm6 3h2v5h-2z"/>
+      <path class="trap-plate" d="M63 46h5v-4h18v4h5v4h-5v4H68v-4h-5z"/>
+      <path class="trap-trigger" d="M34 48h18v-3h17"/>
+      <path class="cheese-rind" d="M65 42h5v-3h5v-3h8v15H65z"/>
+      <path class="cheese-body" d="M65 43h18v8H65z"/>
+      <path class="cheese-hole" d="M69 45h3v3h-3zm9-6h3v3h-3z"/>
     </svg>
     <span class="pricing-scene-break">≠</span>
     <svg class="pixel-cheese" viewBox="0 0 80 64" shape-rendering="crispEdges">
@@ -256,7 +280,7 @@
       <path class="cheese-spark" d="M72 16h4v4h-4zm4-4h4v4h-4zM4 14h4v4H4z"/>
     </svg>
   </div>
-  <h2 class="pricing-heading" id="pricing-heading" data-i18n="pricingTitle">Один честный тариф</h2>
+  <h2 class="pricing-heading" id="pricing-heading" data-i18n="pricingTitle">Бесплатный сыр — только в мышеловке?</h2>
   <p class="pricing-description" data-i18n="pricingDescription">Mouse — бесплатный браузер. «Сыр» за $3 в месяц — будущий тариф с дополнительными возможностями.</p>
   <div class="pricing-plans">
     <article class="pricing-plan pricing-plan-free" aria-labelledby="plan-free-title">
@@ -269,6 +293,7 @@
         <div class="pricing-plan-metric"><strong>4</strong><span data-i18n="workspaceTitle">Окна рядом</span></div>
         <div class="pricing-plan-metric"><strong>2</strong><span data-i18n="desksTitle">Каждой задаче — свой стол</span></div>
       </div>
+      <p class="pricing-trial" data-i18n="pricingTrial">7 дней — все функции</p>
       <a class="pricing-download" href="#downloads" data-i18n="pricingDownload">Скачать Mouse</a>
     </article>
     <article class="pricing-plan pricing-plan-cheese" aria-labelledby="plan-cheese-title">
@@ -295,7 +320,7 @@
 
   <footer class="site-footer">
     <a class="footer-signature" href="#about" data-i18n="footerSignature">Тише мыши</a>
-    <p data-i18n="footerPrivacy">На этом сайте нет аналитики и рекламных трекеров.</p>
+    <p data-i18n="footerPrivacy">Без рекламных трекеров и отслеживающих cookie.</p>
   </footer>
   </div>
 

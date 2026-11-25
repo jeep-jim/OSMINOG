@@ -136,6 +136,8 @@
       const info = platformInfo[item.platform];
       const anchor = document.querySelector('.download[data-platform="' + item.platform + '"]');
       if (!anchor) continue;
+      const version = document.querySelector('[data-download-version="' + item.platform + '"]');
+      if (version) version.textContent = 'v' + item.version;
       anchor.setAttribute('href', item.url);
       anchor.setAttribute('download', item.filename);
       const aria = text(info.key + 'AriaTemplate');
@@ -152,6 +154,7 @@
         : currentDownloads.files.map((item) => platformInfo[item.platform].label + ' ' + item.version).join(' · ');
       if (footer.textContent !== label) footer.textContent = label;
     }
+    try { window.MouseDownloadStats?.update(currentDownloads); } catch (_) { /* Optional totals cannot block installer refresh. */ }
   };
   const acceptDownloads = (candidate) => {
     const next = validDownloads(candidate);

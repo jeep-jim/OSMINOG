@@ -13,7 +13,9 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 SCRIPTS = ('build-site.py', 'verify-seo.py', 'verify-pages-live.py', 'deploy.sh',
            'downloads.json', 'release_catalog.py', 'sync-releases.py',
-           'mouse-website-sync.service', 'mouse-website-sync.timer')
+           'mouse-website-sync.service', 'mouse-website-sync.timer',
+           'download-stats.py', 'activate-download-stats.py',
+           'mouse-download-stats.service', 'mouse-download-stats.timer')
 
 
 def package(output, source):

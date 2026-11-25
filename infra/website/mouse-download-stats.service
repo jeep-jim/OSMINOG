@@ -1,0 +1,17 @@
+[Unit]
+Description=Aggregate Mouse installer request starts without visitor identifiers
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/osminog/website/automation/current
+ExecStart=/usr/bin/python3 /opt/osminog/website/automation/current/infra/website/download-stats.py
+Environment=PYTHONDONTWRITEBYTECODE=1
+UMask=0077
+NoNewPrivileges=yes
+CPUQuota=10%
+MemoryMax=96M
+MemorySwapMax=0
+TasksMax=8
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=45s

@@ -4,7 +4,7 @@
   --feature-sheet: color-mix(in srgb, var(--paper) 96%, var(--ink));
   --feature-wash: color-mix(in srgb, var(--paper) 88%, var(--ink));
   --feature-detail: color-mix(in srgb, var(--paper) 30%, var(--ink));
-  width: min(1200px, 100%);
+  width: 100%;
   margin: 0 auto;
   padding: 84px 8px 72px;
   color: var(--ink);
@@ -28,6 +28,7 @@
   margin-top: 30px;
   padding-top: 80px;
 }
+.features-intro { margin: 12px 0 0; color: var(--soft-ink); font-size: 17px; line-height: 1.55; text-wrap: balance; }
 .feature-tunnels {
   position: absolute;
   inset: 0 0 auto;
@@ -93,7 +94,6 @@
   overflow-wrap: anywhere;
 }
 .feature-copy p {
-  max-width: 34ch;
   margin: 0 auto;
   color: var(--soft-ink);
   font-family: var(--body-font);
@@ -220,12 +220,19 @@
   margin: 8px auto 18px;
 }
 .pixel-trap, .pixel-cheese { width: 84px; height: 68px; overflow: visible; }
-.pixel-trap { transform: rotate(-8deg); transition: transform .25s ease; }
+.pixel-trap { width: 112px; height: 86px; }
 .pixel-cheese { filter: drop-shadow(0 4px 0 rgb(0 0 0 / .07)); animation: cheese-bob 3.8s ease-in-out infinite; }
-.trap-metal, .trap-wire { fill: var(--ink); }
-.trap-wire { opacity: .45; }
-.trap-base { fill: var(--line); }
-.trap-cross { fill: #de8c6d; }
+.trap-metal { fill: var(--ink); }
+.trap-bail { fill: none; stroke: var(--ink); stroke-width: 5; stroke-linejoin: miter; }
+.trap-bail-highlight { fill: none; stroke: #a8adb2; stroke-width: 2; stroke-linejoin: miter; }
+.trap-trigger { fill: none; stroke: #73797f; stroke-width: 2; }
+.trap-steel { fill: #c8cdd1; }
+.trap-spring { fill: #73797f; }
+.trap-plate { fill: #8c9297; }
+.trap-shadow { fill: var(--line); opacity: .35; }
+.trap-wood { fill: #c79b64; }
+.trap-wood-edge { fill: #97683c; }
+.trap-grain { fill: #ae7b45; }
 .cheese-rind { fill: #e5a63f; }
 .cheese-body { fill: #ffd36b; }
 .cheese-edge { fill: #f5bc4b; }
@@ -327,6 +334,7 @@
 .pricing-download:hover { transform: translateY(-2px); opacity: .85; }
 .pricing-coming-soon { color: var(--soft-ink); border-style: dashed; cursor: default; }
 .pricing-plan-extra { margin: -6px 0 4px; font-size: 14px; line-height: 1.5; }
+.pricing-trial { margin: -6px 0 24px; font-size: 16px; font-weight: 500; line-height: 1.5; }
 .pricing-plan-period { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--soft-ink); }
 .pricing-settings {
   max-width: 68ch;
@@ -356,7 +364,8 @@
   .pricing-plan { padding: 18px; }
   .pricing-plan-metrics { gap: 9px; }
   .pricing-plan-amount { font-size: 90px; }
-  .pixel-trap, .pixel-cheese { width: 70px; }
+  .pixel-trap { width: 98px; }
+  .pixel-cheese { width: 70px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pixel-cheese { animation: none; }

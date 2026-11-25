@@ -47,6 +47,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visib
 .skip-link { position: absolute; top: 12px; left: 12px; padding: 12px 20px; z-index: 10; background: var(--ink); color: var(--paper); transform: translateY(-160%); }
 .skip-link:focus { transform: translateY(0); }
 .site-header { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 30px 48px; }
+.site-brand { display: grid; gap: 6px; min-width: 0; }
+.brand-slogan { margin: 0; font: 400 12px/1.35 var(--body-font); color: var(--soft-ink); }
 .wordmark { font-family: var(--display-font); font-size: 26px; font-weight: 400; letter-spacing: 0; text-transform: uppercase; text-decoration: none; line-height: 1; }
 .wordmark { direction: ltr; unicode-bidi: isolate; flex-shrink: 0; }
 .header-controls { display: flex; align-items: center; gap: 22px; }
@@ -76,6 +78,20 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
 :is(:lang(am), :lang(ar), :lang(hy), :lang(bn), :lang(my), :lang(zh-Hans), :lang(zh-Hant), :lang(ka), :lang(el), :lang(gu), :lang(hi), :lang(ja), :lang(kn), :lang(kk), :lang(ko), :lang(ml), :lang(mr), :lang(mn), :lang(fa), :lang(pa), :lang(ta), :lang(te), :lang(th), :lang(ur), :lang(he), :lang(az), :lang(km), :lang(lo), :lang(ne), :lang(si)) h1 { font-family: var(--body-font); font-weight: 600; letter-spacing: -.02em; text-transform: none; }
 .intro { margin: 23px 0 0; font-size: 18px; line-height: 1.55; letter-spacing: -.012em; color: var(--soft-ink); }
 .downloads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: min(100%, 778px); margin: 35px auto 0; scroll-margin-top: 26px; }
+.download-option { min-width: 0; display: grid; grid-template-rows: 1fr auto; }
+.download-fineprint { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 10px; min-height: 22px; padding-top: 6px; color: var(--soft-ink); font: 400 12px/1.35 var(--display-font); font-variant-numeric: tabular-nums; }
+.download-stats { position: relative; }
+.download-stats summary { cursor: pointer; list-style: none; padding: 1px 4px; border-radius: 3px; }
+.download-stats summary::-webkit-details-marker { display: none; }
+.download-stats summary:hover, .download-stats[open] summary { color: var(--ink); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.download-stats-panel { position: absolute; z-index: 6; inset-block-start: calc(100% + 8px); inset-inline-end: 0; width: 250px; max-width: calc(100vw - 40px); padding: 16px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--paper); box-shadow: 0 8px 30px rgb(0 0 0 / .12); font: 400 14px/1.5 var(--body-font); text-align: start; }
+.download-stats-panel p { margin: 7px 0 12px; color: var(--soft-ink); }
+.download-stats-panel dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; max-height: 200px; overflow-y: auto; margin: 0; font: 400 13px/1.4 var(--display-font); }
+.download-stats-panel dd { margin: 0; }
+.download-stats-panel time { display: block; margin-top: 12px; color: var(--soft-ink); font-size: 12px; }
+@media (min-width: 561px) {
+  .download-option:first-child .download-stats-panel { inset-inline-start: 0; inset-inline-end: auto; }
+}
 .download { display: flex; align-items: center; justify-content: center; gap: 15px; min-width: 0; min-height: 80px; padding: 17px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--ink); text-decoration: none; transition: background-color .22s, color .22s, border-color .22s, transform .22s; }
 .download:hover { --button-cutout: var(--ink); --button-stroke: var(--paper); color: var(--paper); background: var(--ink); border-color: var(--ink); transform: translateY(-3px); }
 .download:active { transform: translateY(-1px); }
@@ -97,7 +113,7 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
 .install-panel p { margin: 0 0 12px; }
 .install-panel p:last-child { margin-bottom: 0; }
 .install-panel a { text-underline-offset: 3px; }
-.site-footer, .about { width: min(1120px, calc(100% - 96px)); margin-inline: auto; }
+.site-footer, .about { width: calc(100% - 96px); margin-inline: auto; }
 .site-footer { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 27px 0 30px; font-size: 14px; line-height: 1.55; }
 .footer-signature { font-weight: 600; letter-spacing: -.015em; }
 .footer-signature { text-decoration-color: var(--line); text-underline-offset: 4px; }
@@ -221,10 +237,10 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
 .hero-mascot {
   position: relative;
   width: calc(100% + var(--hero-inset) * 2);
-  margin: 0 calc(var(--hero-inset) * -1) 28px;
+  margin: 0 calc(var(--hero-inset) * -1);
 }
 .hero-mascot::after { content: ""; position: absolute; inset: auto 0 0; height: 1px; background: var(--line); pointer-events: none; }
-.hero-copy .burrow-stage { width: 185px; height: auto; aspect-ratio: 7 / 6; margin: 0 auto; pointer-events: none; }
+.hero-copy .burrow-stage { width: clamp(120px, 8vw, 140px); height: auto; aspect-ratio: 7 / 6; margin: 8px auto 14px; pointer-events: none; }
 .hero-copy .burrow-stage::before { content: none; }
 .hero-copy h1 { font-size: clamp(18px, 2.25vw, 38px); }
 .hero-copy .intro { margin-top: 22px; font-size: clamp(16px, 1.2vw, 19px); }
@@ -248,12 +264,17 @@ h1 { margin: 0; font-family: var(--display-font); font-size: clamp(10px, 3.25vw,
   .hero-split { --hero-inset: 20px; }
   .hero-copy-chrome { min-height: 42px; flex-basis: 42px; padding-inline: 12px; }
   .hero-copy { padding-top: 26px; padding-bottom: 26px; }
-  .hero-copy .burrow-stage { width: 156px; }
-  .hero-mascot { margin-bottom: 22px; }
+  .hero-copy .burrow-stage { width: 112px; margin: 8px auto 12px; }
+  .hero-mascot { margin-bottom: 0; }
   .hero-copy .intro { font-size: 16px; margin-top: 18px; }
   .hero-copy .downloads { grid-template-columns: minmax(0, 1fr); max-width: 340px; gap: 8px; margin-top: 24px; }
   .hero-copy .download { flex-direction: row; justify-content: flex-start; gap: 16px; min-height: 68px; padding: 12px 18px; }
   .hero-copy .download-copy { text-align: start; gap: 5px; }
   .hero-copy .mobile-coming-soon, .hero-copy .release-line { font-size: 12px; }
   .hero-visual { height: 430px; }
+  .download-stats-panel { position: fixed; inset: auto 20px 20px; width: auto; max-width: none; }
+}
+@media (max-width: 400px) {
+  .hero-copy h1 { white-space: normal; font-size: 20px; line-height: 1.25; }
+  .hero-copy h1 span { display: block; }
 }

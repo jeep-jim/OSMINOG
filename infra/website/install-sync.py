@@ -18,9 +18,11 @@ import time
 
 BASE = Path('/opt/osminog/website')
 AUTOMATION = BASE / 'automation'
-UNITS = ('mouse-website-sync.service', 'mouse-website-sync.timer')
+UNITS = ('mouse-website-sync.service', 'mouse-website-sync.timer',
+         'mouse-download-stats.service', 'mouse-download-stats.timer')
 RUNTIME_FILES = {'build-site.py', 'verify-seo.py', 'verify-pages-live.py', 'deploy.sh',
-                 'downloads.json', 'release_catalog.py', 'sync-releases.py', 'catalog.json', *UNITS}
+                 'downloads.json', 'release_catalog.py', 'sync-releases.py', 'catalog.json',
+                 'download-stats.py', 'activate-download-stats.py', *UNITS}
 MAX_SIZE = 25 * 1024 * 1024
 
 
@@ -167,6 +169,17 @@ def install(files, source):
         run('systemctl', '--user', 'daemon-reload', timeout=30)
     run('systemctl', '--user', 'enable', '--now', 'mouse-website-sync.timer', timeout=30)
     run('systemctl', '--user', 'start', 'mouse-website-sync.service')
+    # Aggregation is independent of immutable website releases and never grants
+    # this user access to Nginx configuration. Missing logger stays unavailable.
+    run('systemctl', '--user', 'enable', '--now', 'mouse-download-stats.timer', timeout=30)
+    run('systemctl', '--user', 'start', 'mouse-download-stats.service', timeout=60)
+    if capture('systemctl', '--user', 'is-active', 'mouse-download-stats.timer') != 'active':
+        raise RuntimeError('Mouse download metrics timer is not active')
+    metrics = json.loads((BASE / 'metrics/last-check.json').read_bytes())
+    if metrics.get('status') not in ('active', 'unavailable'):
+        raise RuntimeError('Unexpected Mouse download metrics state')
+    print('MOUSE_DOWNLOAD_STATS_' + metrics['status'].upper() +
+          ' since=' + str(metrics.get('since')) + ' checkedAt=' + str(metrics.get('updatedAt')), flush=True)
     if capture('systemctl', '--user', 'is-active', 'mouse-website-sync.timer') != 'active':
         raise RuntimeError('Mouse release timer is not active')
     if capture('systemctl', '--user', 'show', 'mouse-website-sync.service', '-p', 'ExecMainStatus', '--value') != '0':
