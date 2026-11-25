@@ -111,6 +111,7 @@
   },
   "dependencies": {
     "electron-chrome-extensions": "4.10.0",
-    "electron-updater": "6.8.9"
+    "electron-updater": "6.8.9",
+    "tldts": "7.5.5"
   }
 }

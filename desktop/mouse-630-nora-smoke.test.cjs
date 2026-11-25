@@ -11,21 +11,21 @@ function capturedWindowsGeometry(){
 }
 
 test('Mouse638 accepts the seven actual Windows integer DOM/native rectangles with its explicit contract',()=>{
- assert.equal(assertSevenPaneGeometry(capturedWindowsGeometry(),'6.0.38'),'integer-dom-native-endpoints-638');
+ assert.equal(assertSevenPaneGeometry(capturedWindowsGeometry(),'6.0.39'),'integer-dom-native-endpoints-638');
 });
 
 test('Mouse638 rejects fractional coordinates and sizes even when rounded native bounds still match',()=>{
  for(const key of ['x','y','width','height']){
   const before=capturedWindowsGeometry();before.slots[0][key]+=.125;
-  assert.throws(()=>assertSevenPaneGeometry(before,'6.0.38'),/integer DIPs/);
+  assert.throws(()=>assertSevenPaneGeometry(before,'6.0.39'),/integer DIPs/);
  }
- for(const value of [NaN,Infinity]){const before=capturedWindowsGeometry();before.slots[0].x=value;assert.throws(()=>assertSevenPaneGeometry(before,'6.0.38'),/integer DIPs/);}
- for(const value of [0,-1]){const before=capturedWindowsGeometry();before.slots[0].height=value;assert.throws(()=>assertSevenPaneGeometry(before,'6.0.38'),/integer DIPs/);}
+ for(const value of [NaN,Infinity]){const before=capturedWindowsGeometry();before.slots[0].x=value;assert.throws(()=>assertSevenPaneGeometry(before,'6.0.39'),/integer DIPs/);}
+ for(const value of [0,-1]){const before=capturedWindowsGeometry();before.slots[0].height=value;assert.throws(()=>assertSevenPaneGeometry(before,'6.0.39'),/integer DIPs/);}
 });
 
 test('Mouse638 rejects missing or duplicate ownership and a one-pixel actual native mismatch',()=>{
  for(const mutate of [b=>b.slots.pop(),b=>b.pages.pop(),b=>b.slots[1].id=b.slots[0].id,b=>b.pages[1].id=b.pages[0].id,b=>b.pages[0].id='another-page',b=>b.pages[0].bounds.width++]){
-  const before=capturedWindowsGeometry();mutate(before);assert.throws(()=>assertSevenPaneGeometry(before,'6.0.38'));
+  const before=capturedWindowsGeometry();mutate(before);assert.throws(()=>assertSevenPaneGeometry(before,'6.0.39'));
  }
 });
 
@@ -36,5 +36,5 @@ test('previous releases retain their fractional endpoint mismatch precondition w
   assert.equal(assertSevenPaneGeometry(before,version),null);
   assert.throws(()=>assertSevenPaneGeometry(capturedWindowsGeometry(),version),/endpoint\/independent-span mismatch/);
  }
- assert.throws(()=>assertSevenPaneGeometry(before,'6.0.38'),/integer DIPs/);
+ assert.throws(()=>assertSevenPaneGeometry(before,'6.0.39'),/integer DIPs/);
 });

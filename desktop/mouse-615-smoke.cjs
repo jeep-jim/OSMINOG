@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const {newStartTabReady}=require('./mouse-614-badge-smoke.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<120;i++){if(await f())return;await sleep(50);}throw Error('Mouse615 timeout: '+label);}
-const searchRemovedForVersion=version=>['6.0.36','6.0.38'].includes(version);
+const searchRemovedForVersion=version=>['6.0.36','6.0.39'].includes(version);
 module.exports=async({win,browser})=>{
  const tileSearchRemoved=searchRemovedForVersion(await win.webContents.executeJavaScript('MouseNative.version'));
  const js=s=>win.webContents.executeJavaScript(s),bounds=win.getBounds(),theme=await js('MouseTest.model.theme'),beforeIds=new Set(browser.state().tabs.map(t=>t.id)),footerCases=[];

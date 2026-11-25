@@ -9,6 +9,8 @@ const evidencePath=path.join(desktop,'mouse-windows-verification.json');
 const evidence=JSON.parse(fs.readFileSync(evidencePath,'utf8'));
 if(evidence.ok!==true||evidence.version!==version||evidence.platform!=='win32'||evidence.arch!=='x64')throw Error('Installed Windows verification incomplete');
 const feedback638=require('./mouse-638-manifest.cjs').bind(desktop,'win32','x64',evidence.checks?.feedback638);
+if(!evidence.checks?.adblock639)throw Error('Installed AdBlock639 wrapper missing');
+const adblock639=require('./mouse-639-manifest.cjs').bind(desktop,'win32','x64',evidence.checks.adblock639);
 if(!evidence.checks?.feedback638)throw Error('Installed Windows638 feedback wrapper missing');
 for(const name of ['mouse-windows-audit.json']){
  const audit=JSON.parse(fs.readFileSync(path.join(desktop,name),'utf8'));
@@ -22,8 +24,8 @@ const source=cp.execFileSync('git',['rev-parse','HEAD'],{cwd:desktop,encoding:'u
 if(!/^[a-f0-9]{40}$/.test(source))throw Error('Source commit missing');
 const metadata={version,productName:'Mouse Browser',platform:'win32',arch:'x64',source,
  runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,
- tests:['real-637-to-638-profile-preserving-replacement','combined637-native-features','real-637-to-638-native-update-button','real-629-to-638-profile-preserving-install','new-tab-compositor-pixels','square-grid-one-pixel-separators','native-rounded-drag-seams','live-website-white-tone','chrome-web-store-direct-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
- feedback638,
+ tests:['native-adblock-network-ui-restart','real-638-to-639-profile-preserving-replacement','combined637-native-features','real-638-to-639-native-update-button','real-629-to-639-profile-preserving-install','new-tab-compositor-pixels','square-grid-one-pixel-separators','native-rounded-drag-seams','live-website-white-tone','chrome-web-store-direct-install','tile-search-removed','live-desktop-switch-performance','stable-download-and-capture-dom','current-desktop-native-layout-menu','pinned-pane-layout-preservation','owner-upper-privacy-right-screenshot-controls','agent-removed-no-runtime-ui-or-ipc'],
+ feedback638,adblock639,
  signing,authenticode:signature,ownerDeviceVerified:false,
  package:{name,size,sha256:installerHash},
  verification:{file:path.basename(evidencePath),sha256:sha(evidencePath),result:evidence},

@@ -15,7 +15,7 @@ function splitSelectors(text){
 function expandIs(selector){
  const match=selector.match(/:is\(([^()]*)\)/);return match?splitSelectors(match[1]).flatMap(part=>expandIs(selector.replace(match[0],part))):[selector];
 }
-function cssScene({theme='dark',version='6.0.38',withoutSidebar=false,changeCSS=(name,css)=>css}={}){
+function cssScene({theme='dark',version='6.0.39',withoutSidebar=false,changeCSS=(name,css)=>css}={}){
  const html={tag:'html',id:'',classes:[],attrs:{'data-theme':theme,'data-platform':'darwin'}},body={tag:'body',id:'',classes:[],attrs:{},parent:html};
  const workspace={tag:'main',id:'workspace',classes:[],attrs:{},parent:body},settings={tag:'dialog',id:'settings-dialog',classes:[],attrs:{open:''},parent:workspace},toolbar={tag:'header',id:'',classes:['toolbar'],attrs:{},parent:body};
  function simple(selector,node){
@@ -70,21 +70,21 @@ function cssScene({theme='dark',version='6.0.38',withoutSidebar=false,changeCSS=
 }
 
 test('actual loaded637 dark CSS passes the retained assertion through its actual DOM readback',()=>{
- const scene=cssScene(),value=scene.readback();assert.equal(value.version,'6.0.38');assert.equal(value.theme,'dark');
+ const scene=cssScene(),value=scene.readback();assert.equal(value.version,'6.0.39');assert.equal(value.theme,'dark');
  assert.equal(value.settings.backdropFilter,'none');assert.match(value.settings.backgroundImage,/^linear-gradient\(/);assert.equal(value.settings.backgroundColor,'#10151e');
  assert.deepEqual(value.settings,value.toolbar);scene.check();
 });
 
 test('actual light Settings keeps blur and the legacy branch retains the pre637 declarations',()=>{
  const light=cssScene({theme:'light'});assert.equal(light.readback().settings.backdropFilter,'blur(18px)');light.check();
- for(const version of ['6.0.36','6.0.39','6.0.380','6.0.38-beta']){
+ for(const version of ['6.0.36','6.0.40','6.0.390','6.0.39-beta']){
   const legacy=cssScene({version,withoutSidebar:true});assert.equal(legacy.readback().settings.backdropFilter,'blur(18px)');legacy.check();
  }
 });
 
-test('the solid dark exception applies only to exact installed6.0.38',()=>{
- for(const version of ['6.0.36','6.0.39','6.0.380','6.0.38-beta'])assert.throws(()=>cssScene({version}).check(),/keep their backdrop blur/);
- for(const version of [undefined,null,637,{version:'6.0.38'}]){
+test('the solid dark exception applies only to exact installed6.0.39',()=>{
+ for(const version of ['6.0.36','6.0.40','6.0.390','6.0.39-beta'])assert.throws(()=>cssScene({version}).check(),/keep their backdrop blur/);
+ for(const version of [undefined,null,637,{version:'6.0.39'}]){
   const value=cssScene().readback();value.version=version;assert.throws(()=>assertSettingsSurface(value),/installed version/);
  }
 });

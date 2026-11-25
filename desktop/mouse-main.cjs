@@ -19,7 +19,7 @@ fs.mkdirSync(app.getPath('userData'),{recursive:true});
 const logFile=path.join(app.getPath('userData'),'mouse-startup.log');
 function log(s){fs.appendFileSync(logFile,new Date().toISOString()+' '+s+'\n');console.log(s)}
 let paneFocus;
-let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,progress,progressBridge,documentService,documentPreparation,documentClosing,settingsService,importService;
+let win,browser,store,exitController,libraryService,overlayGate,startService,globalCapture,privateMode,localCaptures,desktopService,pageZoom,imageDrag,progress,progressBridge,documentService,documentPreparation,documentClosing,settingsService,importService,adBlock;
 const ipcRouter=require('./mouse-private-core.cjs').installIPCSwitch(ipcMain,()=>win?.webContents);
 const entry=pathToFileURL(path.join(__dirname,'mouse/index.html')).href;
 async function releaseDocumentsUI(){if(!win||win.isDestroyed()||win.webContents.isDestroyed()||win.webContents.getURL()!==entry)return;try{await require('./mouse-lifecycle.cjs').bounded(win.webContents.executeJavaScript('globalThis.MouseDocumentsTransaction?.(false)'),7000,'Document controls');}catch(error){log('DOCUMENT_UI_RELEASE_FAILED '+error.message);}}
@@ -86,9 +86,17 @@ if(ownsProfile)app.whenReady().then(async()=>{
  // No menu-bar status item: the Dock icon and native application menu are sufficient.
  app.setAboutPanelOptions({applicationName:'Mouse Browser',applicationVersion:app.getVersion(),copyright:'Mouse Browser · mouse.black',credits:isMac?'mouse.black · macOS Apple Silicon':isLinux?'mouse.black · Linux x64':'mouse.black · Windows x64'});
  session.defaultSession.setPermissionRequestHandler((_wc,_p,callback)=>callback(false));
+ adBlock=new (require('./mouse-adblock.cjs').MouseAdBlock)({directory:path.join(app.getPath('userData'),'mouse-adblock'),report:log,
+  notify:state=>{if(!win.isDestroyed()&&!win.webContents.isDestroyed())win.webContents.send('mouse:adblock-state',state);}});
+ settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy),onChange:values=>adBlock.setEnabled(values.blockAds)});
+ await adBlock.initialize(settingsService.state().blockAds);
+ adBlock.attach(session.defaultSession);
+ ipcMain.handle('mouse:adblock-state',event=>{trusted(event);return adBlock.state();});
+ app.once('will-quit',()=>adBlock.dispose());
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault()});
  browser=new (require('./browser.cjs').BrowserWorkspace)(win,store);browser.mouseRoundedPanes=true;
+ adBlock.attach(browser.session);
  require('./mouse-page-tone.cjs').install(browser,{report:log});
  if(isMac){browser.mouseCornerMask=rects=>require('./mouse-native-menu.node').paneCorners(rects);}
  else if(isWindows){browser.mouseCornerMask=rects=>{if(!win.isDestroyed())require('./mouse-platform.node').paneCorners(win.getNativeWindowHandle(),rects);};}
@@ -109,7 +117,6 @@ if(ownsProfile)app.whenReady().then(async()=>{
  const webStore=require('./mouse-web-store.cjs').installMouseWebStore({app,browser,win,ipcMain,dialog,extensions,isAvailable:extensionsAvailable,onChanged:notifyExtensions});
  app.once('will-quit',()=>{webStore.dispose();extensionCompat.suspend();extensionCompat.dispose();});
  await browser.initNetwork();await browser.command('project',{id:'trader-os-main'});
- settingsService=await require('./mouse-settings.cjs').install({store,win,ipcMain,trusted,isPrivate:()=>!!(privateMode?.current||privateMode?.busy)});
  // Custom AI links are ordinary sandboxed webpages. No automatic AI executor or background context reader.
  browser.contextScope=[];
  globalCapture=await new (require('./mouse-global-capture.cjs').GlobalCapture)({electron:require('electron'),app,mainWindow:win,store,trusted,entryDirectory:__dirname,test,platform:process.platform}).init();
@@ -156,7 +163,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  ipcMain.handle('mouse:appearance',(e,value)=>{trusted(e);return (privateMode?.current?.browser||browser).mousePageTone.set(value);});
  ipcMain.handle('mouse:theme',(e,theme)=>{trusted(e);if(!['dark','light'].includes(theme))throw Error('Unsupported theme');nativeTheme.themeSource=theme;updateDock();win.setBackgroundColor(theme==='light'?'#f3f5f9':'#10151e');return true});
  ipcMain.handle('mouse:update',async(e,action)=>{trusted(e);if(action==='state')return{...updates.state};if(!['check','download','open','install'].includes(action))throw Error('Unsupported update action');if(action!=='install')return updates.run(action);try{await prepareDocuments();return await updates.run(action);}catch(error){if(error.code==='MOUSE_DOCUMENT_CANCEL')return{...updates.state};throw error;}finally{if(!exitController.isClosing()&&!privateMode?.busy)await releaseDocumentsUI();}});
- privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,onPrivacySettled:()=>{progressBridge.resume();mediaPlayer.resume();},onPrivacyChange:()=>{extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();mediaPlayer.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return importService.flush();}});
+ privateMode=new (require('./mouse-private.cjs').PrivateMode)({e:require('electron'),win,entry,normalBrowser:browser,normalGate:overlayGate,normalStore:store,router:ipcRouter,trusted,globalCapture,paneFocus,test,prepareDocuments,documentService,closeDocumentTab,attachAdBlockSession:ses=>adBlock.attach(ses),onPrivacySettled:()=>{progressBridge.resume();mediaPlayer.resume();},onPrivacyChange:()=>{extensionCompat.suspend();importService.cancelPending();documentService.clear();progressBridge.clear();mediaPlayer.clear();localCaptures.privacyChanged();imageDrag.cancel();clearDesktopPreviewUI();return importService.flush();}});
  ipcMain.handle('mouse:extensions',async(e,action,args={})=>{
   trusted(e);
   if(!extensionsAvailable())throw Error('Расширения недоступны в приватном режиме');
@@ -191,6 +198,7 @@ if(ownsProfile)app.whenReady().then(async()=>{
  await win.webContents.executeJavaScript("new Promise((resolve,reject)=>{let n=0;const t=setInterval(()=>{const s=document.documentElement.dataset.mouseReady;if(s==='true'){clearInterval(t);resolve()}else if(s==='error'||++n>300){clearInterval(t);reject(Error('Mouse UI failed to start'))}},100)})");
  log('MOUSE_READY '+app.getVersion());
  await require('./mouse-install-update.cjs').acknowledge(app).catch(()=>{});
+ if(test&&process.argv.some(x=>['--mouse-639-adblock-smoke','--mouse-639-adblock-read'].includes(x)))await require('./mouse-639-adblock-smoke.cjs')({app,win,browser,store,privateMode,settingsService,adBlock,ipcMain,globalCapture});
  if(test&&process.argv.some(x=>['--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read'].includes(x)))await require('./mouse-638-feedback-smoke.cjs')({app,win,browser,store,startService,globalCapture,extensions,extensionCompatibility:extensionCompat,webStore,dialog,privateMode,settingsService,ipcMain});
  if(test&&process.argv.some(x=>['--mouse-637-features-smoke','--mouse-637-features-restore-read'].includes(x)))await require('./mouse-637-features-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,documentService,privateMode,settingsService,importService,ipcMain,extensions,dialog});
  if(test&&process.argv.includes('--mouse-637-smoke'))await require('./mouse-637-owner-feedback-smoke.cjs')({app,win,browser,store,libraryService,overlayGate,startService,globalCapture,paneFocus,localCaptures,updates,documentService,privateMode,settingsService,importService,ipcMain});
