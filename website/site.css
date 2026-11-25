@@ -50,7 +50,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visib
 .site-brand { display: grid; gap: 6px; min-width: 0; }
 .brand-slogan { margin: 0; font: 400 12px/1.35 var(--body-font); color: var(--soft-ink); }
 .wordmark { font-family: var(--display-font); font-size: 26px; font-weight: 400; letter-spacing: 0; text-transform: uppercase; text-decoration: none; line-height: 1; }
-.wordmark { direction: ltr; unicode-bidi: isolate; flex-shrink: 0; }
+.wordmark { display: inline-flex; align-items: center; gap: 8px; direction: ltr; unicode-bidi: isolate; flex-shrink: 0; width: fit-content; }
+.brand-icon { display: block; width: 1em; height: 1em; flex: 0 0 1em; fill: currentColor; shape-rendering: crispEdges; }
 .header-controls { display: flex; align-items: center; gap: 22px; }
 .language-control { width: 176px; position: relative; display: flex; align-items: center; }
 .theme-switch { display: flex; align-items: center; gap: 12px; padding: 0; border: 0; color: var(--ink); background: transparent; cursor: pointer; }
