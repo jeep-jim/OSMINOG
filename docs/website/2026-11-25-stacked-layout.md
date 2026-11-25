@@ -46,4 +46,13 @@ The added shared line is “Обычный режим — вкладки без 
 
 The three new strings are required in every locale by the static renderer. The pricing title/description were also aligned with Free/Cheese in the remaining 70 locales after Arabic QA exposed the old single-plan copy beside the new “both plans” sentence. This resolves the earlier task's recorded pricing-translation gap; it is not a claim of native-speaker review.
 
-Follow-up validation: 73 pages / 72 sitemap locales build and verify against the current 6.0.38 catalog. Desktop and 390px/320px phone browser checks, including RTL, confirmed that the shared line and explicit plan labels fit without horizontal overflow. Publication evidence follows after the website gate.
+Follow-up validation: 73 pages / 72 sitemap locales build and verify against the current 6.0.38 catalog. Desktop and 390px/320px phone browser checks, including RTL, confirmed that the shared line and explicit plan labels fit without horizontal overflow. A scoped catalog comparison confirmed that only the three new fields plus the two intended pricing fields changed.
+
+### Follow-up publication — PASS
+
+- [PR #209](https://github.com/jeep-jim/OSMINOG/pull/209), reviewed head `33cb6556000fedb056ad553223f71dfe5995f868`, exact tested tree `3bc04061da26f6b6a77c143b58c2e15cded41def`.
+- [Website PR gate 45562147096](https://github.com/jeep-jim/OSMINOG/actions/runs/45562147096) passed before merge. Published source: `24067e13623284ee0ef113833867971eec6cba6a`.
+- [Production run 45562312247](https://github.com/jeep-jim/OSMINOG/actions/runs/45562312247) completed successfully at `2026-11-25T06:42:33Z` (13:42:33 Krasnoyarsk). Validation job `139028707144` and website job `139028847014` both passed.
+- Deployment identity `d1235a0351fabe6346f338633f40fa91af968e36`; a real subsequent release-sync tick was observed at `06:41:52.377142Z`. Independent public HTTPS, RU/EN/AR, 72-language sitemap and all three complete installer SHA256/HEAD/Range checks passed at `06:42:30Z`. Installers remain 6.0.38.
+- Direct browser inspection of [the published pricing section](https://mouse.black/ru/#pricing) confirmed the shared ordinary-mode sentence, both pairs of precise metric labels, the Free seven-day line and the future-tiers disclaimer. The restored vertical layout remains in place.
+- Metrics remain unavailable pending administrator activation: `since=None`, check `2026-11-25T06:40:52.115073+00:00`. No native release, billing or logger-activation action was performed.
