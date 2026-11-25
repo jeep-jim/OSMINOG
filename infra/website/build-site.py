@@ -29,7 +29,7 @@ FEATURE_FIELDS = {
     'featuresTitle', 'captureTitle', 'captureText', 'workspaceTitle', 'workspaceText',
     'desksTitle', 'desksText', 'pricingTitle', 'pricingPeriod', 'pricingDescription',
     'pricingSettings', 'pricingNote', 'pricingDownload', 'pricingTrial',
-    'statsLabel', 'statsNote',
+    'statsLabel', 'statsNote', 'pricingBrowserMode', 'pricingGridLabel', 'pricingDesksLabel',
 }
 MANIFEST_FIELDS = {
     'manifestLabel', 'manifestCaption', 'manifestLead', 'manifestSummary',
