@@ -326,7 +326,8 @@
 }
 .pricing-download:hover { transform: translateY(-2px); opacity: .85; }
 .pricing-coming-soon { color: var(--soft-ink); border-style: dashed; cursor: default; }
-.pricing-plan-extra { margin: -6px 0 14px; font-size: 14px; line-height: 1.5; }
+.pricing-plan-extra { margin: -6px 0 4px; font-size: 14px; line-height: 1.5; }
+.pricing-plan-period { margin: 0 0 16px; font-size: 13px; line-height: 1.5; color: var(--soft-ink); }
 .pricing-settings {
   max-width: 68ch;
   margin: 27px auto 0;
@@ -335,7 +336,6 @@
   color: var(--soft-ink);
   text-wrap: pretty;
 }
-.pricing-period { margin: 11px auto 0; font-size: 13px; line-height: 1.5; color: var(--soft-ink); }
 @keyframes cheese-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 :is(:lang(am), :lang(ar), :lang(hy), :lang(bn), :lang(my), :lang(zh-Hans), :lang(zh-Hant), :lang(ka), :lang(el), :lang(gu), :lang(hi), :lang(ja), :lang(kn), :lang(kk), :lang(ko), :lang(ml), :lang(mr), :lang(mn), :lang(fa), :lang(pa), :lang(ta), :lang(te), :lang(th), :lang(ur), :lang(he), :lang(az), :lang(km), :lang(lo), :lang(ne), :lang(si)) .pricing-heading {
   font-family: var(--body-font);
