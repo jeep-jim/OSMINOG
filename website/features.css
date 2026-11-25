@@ -250,11 +250,19 @@
 }
 .pricing-description {
   max-width: 58ch;
-  margin: 16px auto 32px;
+  margin: 16px auto 14px;
   font-size: 17px;
   line-height: 1.65;
   color: var(--soft-ink);
   text-wrap: pretty;
+}
+.pricing-browser-mode {
+  max-width: 58ch;
+  margin: 0 auto 32px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.55;
+  text-wrap: balance;
 }
 .pricing-plans {
   display: grid;
