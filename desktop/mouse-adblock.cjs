@@ -65,8 +65,15 @@ class MouseAdBlock{
  setEnabled(value){
   if(this.disposed)return;
   const enabled=value===true;if(enabled===this.enabled)return;
+  // Do not send browser traffic through the Main process while opted out.
+  // Register before enabling; an incomplete registration rolls back to off.
+  if(enabled){
+   const started=[];
+   try{for(const entry of this.sessions.values()){entry.start();started.push(entry);}}
+   catch(error){for(const entry of started)entry.stop();throw error;}
+  }
   this.enabled=enabled;this.generation++;
-  if(!enabled){clearInterval(this.timer);this.timer=null;for(const controller of this.controllers)controller.abort();this.loading=false;this.emit();return;}
+  if(!enabled){for(const entry of this.sessions.values())entry.stop();clearInterval(this.timer);this.timer=null;for(const controller of this.controllers)controller.abort();this.loading=false;this.emit();return;}
   this.loading=!this.prepared;this.emit();
   this.timer=setInterval(()=>void this.refresh().catch(()=>this.reportFailure('REFRESH_FAILED')),60*60*1000);this.timer.unref?.();
   void this.prepare().then(()=>this.refresh()).catch(()=>{this.loading=false;this.emit();this.reportFailure('PREPARE_FAILED');});
@@ -105,21 +112,25 @@ class MouseAdBlock{
   });return this.inFlight;
  }
  attach(ses){
+  if(this.disposed)throw Error('AdBlock controller is disposed');
   if(!ses?.webRequest?.onBeforeRequest)throw Error('Electron Session.webRequest is required');
   if(this.sessions.has(ses))return this.sessions.get(ses).detach;
-  // Mouse owns one listener for this event on its shell, persistent browsing
-  // and ephemeral private sessions. Toggling changes only enabled state.
+  // Remember shell, persistent and private Sessions without installing a hook
+  // until enabled. Keep one owned callback per Session across toggles.
+  let attached=true,active=false;
   const listener=(details,callback)=>{
    let cancel=false;
-   if(this.enabled&&!this.disposed){try{
+   if(attached&&this.enabled&&!this.disposed){try{
     let frameUrl='',topUrl='';try{frameUrl=details.frame?.url||'';}catch{}try{topUrl=details.webContents?.getURL?.()||'';}catch{}
     cancel=this.engine.shouldBlock({...details,frameUrl,topUrl});
    }catch{this.reportFailure('REQUEST_ALLOWED');}}
    callback({cancel});
   };
-  const detach=()=>{if(!this.sessions.has(ses))return;this.sessions.delete(ses);try{ses.webRequest.onBeforeRequest(null);}catch{}};
-  ses.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*','ws://*/*','wss://*/*']},listener);
-  this.sessions.set(ses,{listener,detach});return detach;
+  const start=()=>{if(active)return;ses.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*','ws://*/*','wss://*/*']},listener);active=true;};
+  const stop=()=>{if(!active)return;try{ses.webRequest.onBeforeRequest(null);active=false;}catch{this.reportFailure('SESSION_DETACH_FAILED');}};
+  const detach=()=>{if(!attached)return;attached=false;this.sessions.delete(ses);stop();};
+  if(this.enabled)start();
+  this.sessions.set(ses,{listener,detach,start,stop});return detach;
  }
  dispose(){
   if(this.disposed)return;this.setEnabled(false);this.disposed=true;

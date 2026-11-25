@@ -14,12 +14,16 @@ test('disabled profiles neither download nor read lists and existing sessions sh
  await service.initialize();assert.equal(service.state().enabled,false);assert.equal(service.prepared,false);assert.equal(downloads,0);
  const normal=fakeSession(),privateSession=fakeSession(),shell=fakeSession();
  const detach=service.attach(normal);assert.equal(service.attach(normal),detach);service.attach(privateSession);service.attach(shell);
- for(const ses of [normal,privateSession,shell])assert.deepEqual(request(ses),{cancel:false});
+ for(const ses of [normal,privateSession,shell]){assert.equal(ses.listener,null);assert.equal(ses.calls,0);}
  service.setEnabled(true);await service.prepare();await service.refresh();
  for(const ses of [normal,privateSession,shell]){assert.deepEqual(request(ses),{cancel:true});assert.deepEqual(request(ses,'https://vk.com/audio/song.mp3'),{cancel:false});assert.equal(ses.calls,1);}
  assert.equal(service.state().phase,'fallback');assert.equal(downloads,2);
- service.setEnabled(false);for(const ses of [normal,privateSession,shell]){assert.deepEqual(request(ses),{cancel:false});assert.equal(ses.calls,1);}
+ const queued=normal.listener;
+ service.setEnabled(false);for(const ses of [normal,privateSession,shell]){assert.equal(ses.listener,null);assert.equal(ses.calls,2);}
+ assert.deepEqual(request({listener:queued}),{cancel:false});
  detach();assert.equal(normal.listener,null);assert.equal(service.sessions.size,2);
+ service.setEnabled(true);await service.refresh();assert.equal(normal.listener,null);assert.equal(normal.calls,2);
+ for(const ses of [privateSession,shell]){assert.deepEqual(request(ses),{cancel:true});assert.equal(ses.calls,3);}
 });
 test('fresh verified local lists work offline, including after a new controller is created',async t=>{
  let downloads=0;const service=await fixture(t,{fetchList:async()=>{downloads++;throw Error('must not contact a server');}});
@@ -48,11 +52,26 @@ test('turning off aborts subscription transfers and cannot late-enable filtering
  const service=await fixture(t,{fetchList:(_source,{signal})=>new Promise((resolve,reject)=>{startedResolve();signal.addEventListener('abort',()=>{aborted++;reject(Error('aborted'));},{once:true});})});
  service.setEnabled(true);await started;const pending=service.inFlight;service.setEnabled(false);await pending;
  assert.ok(aborted>0);assert.equal(service.state().phase,'off');assert.equal(service.state().lists,0);
- const ses=fakeSession();service.attach(ses);assert.deepEqual(request(ses),{cancel:false});
+ const ses=fakeSession();service.attach(ses);assert.equal(ses.listener,null);assert.equal(ses.calls,0);
 });
 test('unexpected matching errors fail open and answer the Electron callback exactly once',async t=>{
- const service=await fixture(t);const ses=fakeSession();service.attach(ses);service.enabled=true;service.engine={count:0,shouldBlock(){throw Error('bad frame');}};
+ const service=await fixture(t,{fetchList:async()=>{throw Error('offline');}});const ses=fakeSession();service.attach(ses);service.setEnabled(true);await service.prepare();await service.refresh();service.engine={count:0,shouldBlock(){throw Error('bad frame');}};
  assert.deepEqual(request(ses),{cancel:false});
+});
+test('new enabled Sessions use one callback and private disposal never reinstalls its hook',async t=>{
+ const service=await fixture(t,{fetchList:async()=>{throw Error('offline');}});await service.initialize(true);await service.refresh();
+ const privateSession=fakeSession(),detach=service.attach(privateSession),queued=privateSession.listener;
+ assert.equal(service.attach(privateSession),detach);service.setEnabled(true);assert.equal(privateSession.calls,1);assert.deepEqual(request(privateSession),{cancel:true});
+ detach();detach();assert.equal(privateSession.calls,2);assert.equal(privateSession.listener,null);assert.deepEqual(request({listener:queued}),{cancel:false});
+ service.setEnabled(false);service.setEnabled(true);await service.refresh();assert.equal(privateSession.calls,2);assert.equal(service.sessions.size,0);
+ const normal=fakeSession();service.attach(normal);const afterDispose=normal.listener;service.dispose();service.dispose();
+ assert.equal(normal.calls,2);assert.equal(normal.listener,null);assert.deepEqual(request({listener:afterDispose}),{cancel:false});assert.throws(()=>service.attach(fakeSession()),/disposed/);
+});
+test('a failed enable rolls back installed hooks and keeps the controller off',async t=>{
+ const service=await fixture(t,{fetchList:async()=>{throw Error('must remain off');}}),first=fakeSession(),broken=fakeSession();service.attach(first);service.attach(broken);
+ broken.webRequest.onBeforeRequest=()=>{throw Error('Session unavailable');};
+ assert.throws(()=>service.setEnabled(true),/Session unavailable/);assert.equal(service.enabled,false);assert.equal(service.timer,null);assert.equal(service.preparing,null);
+ assert.equal(first.listener,null);assert.equal(first.calls,2);assert.equal(service.sessions.size,2);
 });
 test('list validation rejects incomplete manifests, HTML, future dates and damaged hashes',()=>{
  for(const bad of ['<html>Access denied</html>','[Adblock Plus 2.0]\n||ads.test^',list()+'\n%include other-file%',list()+'\0'])assert.throws(()=>validateText(bad));
