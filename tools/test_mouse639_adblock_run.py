@@ -15,7 +15,7 @@ spec.loader.exec_module(R)
 
 class Runner(unittest.TestCase):
     def paths(self, root):
-        root = Path(root)
+        root = Path(root).resolve()
         executable = root / 'not-a-native-executable-unit-only'
         executable.write_bytes(b'unit process fixture only')
         output = root / 'output'

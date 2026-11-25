@@ -12,7 +12,7 @@
 
 ## В работе — 639
 
-AdBlock: off по умолчанию, EasyList/RU AdList локально, все сессии и инкогнито. Идёт приёмка; не опубликован. [Задача](docs/desktop/2026-11-25-mouse639-adblock.md).
+AdBlock: off по умолчанию, EasyList/RU AdList локально, все сессии и инкогнито. [PR215](https://github.com/jeep-jim/OSMINOG/pull/215): CI; не опубликован. [Задача](docs/desktop/2026-11-25-mouse639-adblock.md).
 
 ## Что входит в 638
 
