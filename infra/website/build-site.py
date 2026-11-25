@@ -28,7 +28,8 @@ SHOWCASE_FIELDS = {
 FEATURE_FIELDS = {
     'featuresTitle', 'captureTitle', 'captureText', 'workspaceTitle', 'workspaceText',
     'desksTitle', 'desksText', 'pricingTitle', 'pricingPeriod', 'pricingDescription',
-    'pricingSettings', 'pricingNote', 'pricingDownload',
+    'pricingSettings', 'pricingNote', 'pricingDownload', 'pricingTrial',
+    'statsLabel', 'statsNote',
 }
 MANIFEST_FIELDS = {
     'manifestLabel', 'manifestCaption', 'manifestLead', 'manifestSummary',
@@ -233,6 +234,9 @@ def render(source, language, catalog, downloads):
             return re.sub(r'\bdownload="[^"]*"', 'download="' + item['filename'] + '"', element)
         result, count = re.subn(pattern, anchor, result)
         assert count == 1, 'One download anchor per platform is required'
+        version_pattern = r'(<span\b[^>]*\bdata-download-version="' + item['platform'] + r'"[^>]*>)[^<]*(</span>)'
+        result, count = re.subn(version_pattern, lambda match: match.group(1) + 'v' + item['version'] + match.group(2), result)
+        assert count == 1, 'One visible version per download platform is required'
     links = []
     for item in catalog['languages']:
         current = ' aria-current="page"' if item['code'] == code else ''

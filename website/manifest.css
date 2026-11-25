@@ -14,7 +14,7 @@
 .hero-copy .release-line { margin-top: 7px; }
 .hero-manifest { margin-top: 23px; padding-top: 18px; border-top: 1px solid var(--line); }
 .manifest-lead { margin: 0; color: var(--manifest-accent); font-size: 17px; font-weight: 600; line-height: 1.35; }
-.manifest-summary { max-width: 52ch; margin: 9px auto 0; color: var(--soft-ink); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
+.manifest-summary { margin: 9px 0 0; color: var(--soft-ink); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
 .manifest-links { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; }
 .manifest-text-button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 0; border: 0; background: none; color: var(--ink); font: 500 13px/1.4 var(--body-font); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
 .manifest-text-button:hover { color: var(--manifest-accent); }

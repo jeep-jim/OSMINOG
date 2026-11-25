@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Mouse download aggregates independently of release publication
+
+[Timer]
+OnBootSec=45s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=mouse-download-stats.service
+
+[Install]
+WantedBy=timers.target

@@ -12,7 +12,10 @@
     "pricingDescription": "Не в нашей норке. Mouse останется бесплатным: 2 стола и 4 окна. Для тех, кому нужно больше, готовим «Сыр» за $3 в месяц.",
     "pricingSettings": "Это будущая модель тарифов, а не действующие ограничения. Пока подписка не запущена, все текущие функции Mouse доступны без оплаты.",
     "pricingNote": "Подписка скоро",
-    "pricingDownload": "Скачать Mouse"
+    "pricingDownload": "Скачать Mouse",
+    "pricingTrial": "7 дней — все функции",
+    "statsLabel": "Скачивания",
+    "statsNote": "Запуски загрузки по версии. Не число пользователей."
   },
   "en": {
     "featuresTitle": "Three everyday essentials",
@@ -27,7 +30,10 @@
     "pricingDescription": "Not in our burrow. Mouse will stay free: 2 desktops and 4 windows. Need more? Cheese is our planned $3/month tier.",
     "pricingSettings": "These are proposed future tiers, not current limits. Until subscriptions launch, all existing Mouse features remain free to use.",
     "pricingNote": "Subscription coming soon",
-    "pricingDownload": "Download Mouse"
+    "pricingDownload": "Download Mouse",
+    "pricingTrial": "7 days — all features",
+    "statsLabel": "Downloads",
+    "statsNote": "Download starts by version. Not a user count."
   },
   "sq": {
     "featuresTitle": "Tri veçori thelbësore për çdo ditë",
@@ -40,9 +46,12 @@
     "pricingTitle": "Një plan me çmim të drejtë",
     "pricingPeriod": "3 dollarë amerikanë në muaj",
     "pricingDescription": "Dritare, desktopë dhe ruajtje automatike lokale. Tri veçori thelbësore për çdo ditë, së bashku në një plan",
-    "pricingSettings": "Gjithçka tjetër është te cilësimet ;)",
+    "pricingSettings": "Këto janë plane të propozuara për të ardhmen, jo kufizime aktuale. Derisa të hapen abonimet, të gjitha veçoritë ekzistuese të Mouse mbeten falas.",
     "pricingNote": "Abonimi vjen së shpejti",
-    "pricingDownload": "Shkarko Mouse"
+    "pricingDownload": "Shkarko Mouse",
+    "pricingTrial": "7 ditë — të gjitha veçoritë",
+    "statsLabel": "Shkarkime",
+    "statsNote": "Nisje shkarkimesh sipas versionit. Jo numri i përdoruesve."
   },
   "am": {
     "featuresTitle": "ለዕለት ተዕለት ሦስት አስፈላጊ ባህሪያት",
@@ -55,9 +64,12 @@
     "pricingTitle": "አንድ ተመጣጣኝ ዕቅድ",
     "pricingPeriod": "በወር 3 የአሜሪካን ዶላር",
     "pricingDescription": "መስኮቶች፣ ዴስክቶፖች እና በመሣሪያዎ ላይ ራስ-ሰር ማስቀመጥ። ለዕለት ተዕለት ሦስት አስፈላጊ ባህሪያት፣ ሁሉም በአንድ ዕቅድ",
-    "pricingSettings": "የቀሩት ሁሉ በቅንብሮች ውስጥ ናቸው ;)",
+    "pricingSettings": "እነዚህ ለወደፊት የታቀዱ የዋጋ ዕቅዶች ናቸው፤ አሁን ተግባራዊ የሆኑ ገደቦች አይደሉም። የደንበኝነት ክፍያ እስኪጀምር ድረስ፣ ሁሉም አሁን ያሉ የMouse ተግባራት በነጻ ይገኛሉ።",
     "pricingNote": "የደንበኝነት ምዝገባ በቅርቡ",
-    "pricingDownload": "Mouse ያውርዱ"
+    "pricingDownload": "Mouse ያውርዱ",
+    "pricingTrial": "7 ቀናት — ሁሉም ተግባራት",
+    "statsLabel": "ማውረዶች",
+    "statsNote": "በስሪት የተከፋፈሉ የማውረድ ጅማሬዎች። የተጠቃሚዎች ቁጥር አይደለም።"
   },
   "ar": {
     "featuresTitle": "ثلاث ميزات أساسية لكل يوم",
@@ -70,9 +82,12 @@
     "pricingTitle": "خطة واحدة بسعر عادل",
     "pricingPeriod": "3 دولارات أمريكية شهريًا",
     "pricingDescription": "نوافذ وأسطح مكتب وحفظ تلقائي محلي. ثلاث ميزات أساسية لكل يوم، مجتمعة في خطة واحدة",
-    "pricingSettings": "كل ما عدا ذلك في الإعدادات ;)",
+    "pricingSettings": "هذه خطط اشتراك مقترحة للمستقبل، وليست قيودًا مطبّقة حاليًا. حتى إطلاق الاشتراكات، تبقى جميع ميزات Mouse الحالية متاحة مجانًا.",
     "pricingNote": "الاشتراك قريبًا",
-    "pricingDownload": "تنزيل Mouse"
+    "pricingDownload": "تنزيل Mouse",
+    "pricingTrial": "7 أيام — جميع الميزات",
+    "statsLabel": "التنزيلات",
+    "statsNote": "عمليات بدء التنزيل حسب الإصدار. ليست عدد المستخدمين."
   },
   "hy": {
     "featuresTitle": "Երեք կարևոր գործառույթ ամեն օրվա համար",
@@ -85,9 +100,12 @@
     "pricingTitle": "Մեկ արդար սակագին",
     "pricingPeriod": "Ամսական 3 ԱՄՆ դոլար",
     "pricingDescription": "Պատուհաններ, աշխատասեղաններ և ավտոմատ պահպանում սարքում։ Երեք կարևոր գործառույթ ամեն օրվա համար՝ մեկ սակագնով",
-    "pricingSettings": "Մնացած ամեն ինչ կարգավորումներում է ;)",
+    "pricingSettings": "Սրանք ապագայի համար առաջարկվող սակագնային փաթեթներ են, ոչ թե գործող սահմանափակումներ։ Մինչև բաժանորդագրությունների գործարկումը Mouse-ի բոլոր առկա հնարավորությունները մնում են անվճար։",
     "pricingNote": "Բաժանորդագրությունը՝ շուտով",
-    "pricingDownload": "Ներբեռնել Mouse"
+    "pricingDownload": "Ներբեռնել Mouse",
+    "pricingTrial": "7 օր — բոլոր հնարավորությունները",
+    "statsLabel": "Ներբեռնումներ",
+    "statsNote": "Ներբեռնումների մեկնարկները՝ ըստ տարբերակի։ Օգտատերերի թիվը չէ։"
   },
   "bn": {
     "featuresTitle": "প্রতিদিনের তিনটি জরুরি সুবিধা",
@@ -100,9 +118,12 @@
     "pricingTitle": "ন্যায্য দামে একটিই প্ল্যান",
     "pricingPeriod": "প্রতি মাসে 3 মার্কিন ডলার",
     "pricingDescription": "উইন্ডো, ডেস্কটপ আর ডিভাইসে স্বয়ংক্রিয় সংরক্ষণ। প্রতিদিনের তিনটি জরুরি সুবিধা এক প্ল্যানে",
-    "pricingSettings": "বাকি সব সেটিংসে আছে ;)",
+    "pricingSettings": "এগুলো ভবিষ্যতের জন্য প্রস্তাবিত প্ল্যান, বর্তমানে কার্যকর সীমা নয়। সাবস্ক্রিপশন চালু না হওয়া পর্যন্ত Mouse-এর বর্তমান সব ফিচার বিনামূল্যে ব্যবহার করা যাবে।",
     "pricingNote": "সাবস্ক্রিপশন শীঘ্রই আসছে",
-    "pricingDownload": "Mouse ডাউনলোড করুন"
+    "pricingDownload": "Mouse ডাউনলোড করুন",
+    "pricingTrial": "7 দিন — সব ফিচার",
+    "statsLabel": "ডাউনলোড",
+    "statsNote": "সংস্করণ অনুযায়ী শুরু হওয়া ডাউনলোড। ব্যবহারকারীর সংখ্যা নয়।"
   },
   "bs": {
     "featuresTitle": "Tri osnovne funkcije za svaki dan",
@@ -115,9 +136,12 @@
     "pricingTitle": "Jedan paket po poštenoj cijeni",
     "pricingPeriod": "3 američka dolara mjesečno",
     "pricingDescription": "Prozori, radne površine i lokalno automatsko spremanje. Tri osnovne funkcije za svaki dan, zajedno u jednom paketu",
-    "pricingSettings": "Sve ostalo je u postavkama ;)",
+    "pricingSettings": "Ovo su predloženi budući paketi, a ne trenutna ograničenja. Dok se pretplate ne uvedu, sve postojeće funkcije Mousea ostaju besplatne.",
     "pricingNote": "Pretplata stiže uskoro",
-    "pricingDownload": "Preuzmi Mouse"
+    "pricingDownload": "Preuzmi Mouse",
+    "pricingTrial": "7 dana — sve funkcije",
+    "statsLabel": "Preuzimanja",
+    "statsNote": "Započeta preuzimanja po verziji. Nije broj korisnika."
   },
   "bg": {
     "featuresTitle": "Три основни функции за всеки ден",
@@ -130,9 +154,12 @@
     "pricingTitle": "Един план на честна цена",
     "pricingPeriod": "3 щатски долара на месец",
     "pricingDescription": "Прозорци, работни плотове и локално автоматично запазване. Три основни функции за всеки ден, заедно в един план",
-    "pricingSettings": "Всичко останало е в настройките ;)",
+    "pricingSettings": "Това са предложени бъдещи планове, а не действащи ограничения. До пускането на абонаментите всички съществуващи функции на Mouse остават безплатни.",
     "pricingNote": "Абонаментът идва скоро",
-    "pricingDownload": "Изтегли Mouse"
+    "pricingDownload": "Изтегли Mouse",
+    "pricingTrial": "7 дни — всички функции",
+    "statsLabel": "Изтегляния",
+    "statsNote": "Започнати изтегляния по версия. Не е брой потребители."
   },
   "my": {
     "featuresTitle": "နေ့စဉ်အတွက် မရှိမဖြစ် လုပ်ဆောင်ချက်သုံးခု",
@@ -145,9 +172,12 @@
     "pricingTitle": "သင့်တင့်သောစျေးနှုန်းဖြင့် အစီအစဉ်တစ်ခုတည်း",
     "pricingPeriod": "တစ်လလျှင် အမေရိကန်ဒေါ်လာ 3",
     "pricingDescription": "ဝင်းဒိုးများ၊ ဒက်စ်တော့များနှင့် စက်ထဲတွင် အလိုအလျောက်သိမ်းဆည်းမှု။ နေ့စဉ်အတွက် မရှိမဖြစ် လုပ်ဆောင်ချက်သုံးခုကို အစီအစဉ်တစ်ခုတည်းတွင် ရယူပါ",
-    "pricingSettings": "ကျန်တာအားလုံးက ဆက်တင်များထဲမှာပါ ;)",
+    "pricingSettings": "ဤအစီအစဉ်များသည် အနာဂတ်အတွက် အဆိုပြုထားသော စျေးနှုန်းအစီအစဉ်များဖြစ်ပြီး လက်ရှိကန့်သတ်ချက်များ မဟုတ်ပါ။ စာရင်းသွင်းဝန်ဆောင်မှု မစတင်မီအထိ Mouse ၏ လက်ရှိလုပ်ဆောင်ချက်အားလုံးကို အခမဲ့ အသုံးပြုနိုင်ပါသည်။",
     "pricingNote": "မကြာမီ စာရင်းသွင်းနိုင်ပါမည်",
-    "pricingDownload": "Mouse ကို ဒေါင်းလုဒ်လုပ်ပါ"
+    "pricingDownload": "Mouse ကို ဒေါင်းလုဒ်လုပ်ပါ",
+    "pricingTrial": "7 ရက် — လုပ်ဆောင်ချက်အားလုံး",
+    "statsLabel": "ဒေါင်းလုဒ်များ",
+    "statsNote": "ဗားရှင်းအလိုက် စတင်ထားသော ဒေါင်းလုဒ်အရေအတွက်။ အသုံးပြုသူအရေအတွက် မဟုတ်ပါ။"
   },
   "ca": {
     "featuresTitle": "Tres funcions essencials per al dia a dia",
@@ -160,9 +190,12 @@
     "pricingTitle": "Un únic pla a un preu just",
     "pricingPeriod": "3 dòlars dels EUA al mes",
     "pricingDescription": "Finestres, escriptoris i desament automàtic local. Tres funcions essencials per al dia a dia, juntes en un sol pla",
-    "pricingSettings": "La resta és a la configuració ;)",
+    "pricingSettings": "Aquests són plans proposats per al futur, no limitacions actuals. Fins que es posin en marxa les subscripcions, totes les funcions actuals de Mouse continuen sent gratuïtes.",
     "pricingNote": "Subscripció disponible aviat",
-    "pricingDownload": "Baixa Mouse"
+    "pricingDownload": "Baixa Mouse",
+    "pricingTrial": "7 dies — totes les funcions",
+    "statsLabel": "Baixades",
+    "statsNote": "Baixades iniciades per versió. No és el nombre d’usuaris."
   },
   "zh-Hans": {
     "featuresTitle": "日常必备的三项功能",
@@ -175,9 +208,12 @@
     "pricingTitle": "一个套餐，价格实在",
     "pricingPeriod": "每月 3 美元",
     "pricingDescription": "窗口、桌面和本地自动保存。三项日常必备功能，一个套餐全包含",
-    "pricingSettings": "其他功能都在设置里 ;)",
+    "pricingSettings": "这些是未来拟推出的套餐，并非当前限制。订阅服务上线前，Mouse 的所有现有功能仍可免费使用。",
     "pricingNote": "订阅即将推出",
-    "pricingDownload": "下载 Mouse"
+    "pricingDownload": "下载 Mouse",
+    "pricingTrial": "7 天 — 全部功能",
+    "statsLabel": "下载",
+    "statsNote": "按版本统计的下载发起次数，并非用户人数。"
   },
   "zh-Hant": {
     "featuresTitle": "日常必備的三項功能",
@@ -190,9 +226,12 @@
     "pricingTitle": "一個方案，價格實在",
     "pricingPeriod": "每月 3 美元",
     "pricingDescription": "視窗、桌面和本機自動儲存。三項日常必備功能，一個方案全包含",
-    "pricingSettings": "其他功能都在設定裡 ;)",
+    "pricingSettings": "這些是未來擬推出的方案，並非目前的限制。訂閱服務上線前，Mouse 的所有現有功能仍可免費使用。",
     "pricingNote": "訂閱即將推出",
-    "pricingDownload": "下載 Mouse"
+    "pricingDownload": "下載 Mouse",
+    "pricingTrial": "7 天 — 全部功能",
+    "statsLabel": "下載",
+    "statsNote": "依版本統計的下載啟動次數，並非使用者人數。"
   },
   "hr": {
     "featuresTitle": "Tri osnovne funkcije za svaki dan",
@@ -205,9 +244,12 @@
     "pricingTitle": "Jedan paket po poštenoj cijeni",
     "pricingPeriod": "3 američka dolara mjesečno",
     "pricingDescription": "Prozori, radne površine i lokalno automatsko spremanje. Tri osnovne funkcije za svaki dan, zajedno u jednom paketu",
-    "pricingSettings": "Sve ostalo je u postavkama ;)",
+    "pricingSettings": "Ovo su predloženi budući paketi, a ne trenutačna ograničenja. Do uvođenja pretplata sve postojeće funkcije Mousea ostaju besplatne.",
     "pricingNote": "Pretplata stiže uskoro",
-    "pricingDownload": "Preuzmi Mouse"
+    "pricingDownload": "Preuzmi Mouse",
+    "pricingTrial": "7 dana — sve funkcije",
+    "statsLabel": "Preuzimanja",
+    "statsNote": "Započeta preuzimanja po verziji. Nije broj korisnika."
   },
   "cs": {
     "featuresTitle": "Tři základní funkce na každý den",
@@ -220,9 +262,12 @@
     "pricingTitle": "Jeden férový tarif",
     "pricingPeriod": "3 americké dolary měsíčně",
     "pricingDescription": "Okna, plochy a místní automatické ukládání. Tři základní funkce na každý den, společně v jednom tarifu",
-    "pricingSettings": "Všechno ostatní je v nastavení ;)",
+    "pricingSettings": "Jde o navrhované budoucí tarify, ne o současná omezení. Do spuštění předplatného zůstávají všechny stávající funkce Mouse zdarma.",
     "pricingNote": "Předplatné už brzy",
-    "pricingDownload": "Stáhnout Mouse"
+    "pricingDownload": "Stáhnout Mouse",
+    "pricingTrial": "7 dní — všechny funkce",
+    "statsLabel": "Stažení",
+    "statsNote": "Zahájená stahování podle verze. Nejde o počet uživatelů."
   },
   "da": {
     "featuresTitle": "Tre vigtige funktioner til hverdagen",
@@ -235,9 +280,12 @@
     "pricingTitle": "Én plan til en fair pris",
     "pricingPeriod": "3 amerikanske dollar pr. måned",
     "pricingDescription": "Vinduer, skriveborde og lokal automatisk lagring. Tre vigtige funktioner til hverdagen, samlet i én plan",
-    "pricingSettings": "Alt andet finder du i indstillingerne ;)",
+    "pricingSettings": "Dette er foreslåede fremtidige abonnementer, ikke nuværende begrænsninger. Indtil abonnementerne lanceres, er alle eksisterende funktioner i Mouse fortsat gratis.",
     "pricingNote": "Abonnement kommer snart",
-    "pricingDownload": "Download Mouse"
+    "pricingDownload": "Download Mouse",
+    "pricingTrial": "7 dage — alle funktioner",
+    "statsLabel": "Downloads",
+    "statsNote": "Påbegyndte downloads efter version. Ikke antal brugere."
   },
   "nl": {
     "featuresTitle": "Drie onmisbare functies voor elke dag",
@@ -250,9 +298,12 @@
     "pricingTitle": "Eén abonnement voor een eerlijke prijs",
     "pricingPeriod": "3 Amerikaanse dollar per maand",
     "pricingDescription": "Vensters, bureaubladen en lokaal automatisch opslaan. Drie onmisbare functies voor elke dag, samen in één abonnement",
-    "pricingSettings": "Al het andere vind je in de instellingen ;)",
+    "pricingSettings": "Dit zijn voorgestelde toekomstige abonnementen, geen huidige beperkingen. Tot de abonnementen beschikbaar zijn, blijven alle bestaande functies van Mouse gratis te gebruiken.",
     "pricingNote": "Abonnement binnenkort beschikbaar",
-    "pricingDownload": "Download Mouse"
+    "pricingDownload": "Download Mouse",
+    "pricingTrial": "7 dagen — alle functies",
+    "statsLabel": "Downloads",
+    "statsNote": "Gestarte downloads per versie. Geen gebruikersaantal."
   },
   "et": {
     "featuresTitle": "Kolm olulist funktsiooni igaks päevaks",
@@ -265,9 +316,12 @@
     "pricingTitle": "Üks pakett ausa hinnaga",
     "pricingPeriod": "3 USA dollarit kuus",
     "pricingDescription": "Aknad, töölauad ja kohalik automaatsalvestus. Kolm olulist funktsiooni igaks päevaks, koos ühes paketis",
-    "pricingSettings": "Kõik muu leiad seadetest ;)",
+    "pricingSettings": "Need on tulevikuks kavandatud paketid, mitte praegused piirangud. Kuni tellimuste käivitamiseni jäävad kõik Mouse’i olemasolevad funktsioonid tasuta kasutatavaks.",
     "pricingNote": "Tellimus tuleb peagi",
-    "pricingDownload": "Laadi Mouse alla"
+    "pricingDownload": "Laadi Mouse alla",
+    "pricingTrial": "7 päeva — kõik funktsioonid",
+    "statsLabel": "Allalaadimised",
+    "statsNote": "Alustatud allalaadimised versioonide kaupa. Mitte kasutajate arv."
   },
   "fi": {
     "featuresTitle": "Kolme arjen perustoimintoa",
@@ -280,9 +334,12 @@
     "pricingTitle": "Yksi paketti, reilu hinta",
     "pricingPeriod": "3 Yhdysvaltain dollaria kuukaudessa",
     "pricingDescription": "Ikkunat, työpöydät ja paikallinen automaattinen tallennus. Kolme arjen perustoimintoa yhdessä paketissa",
-    "pricingSettings": "Kaikki muu löytyy asetuksista ;)",
+    "pricingSettings": "Nämä ovat suunniteltuja tulevia paketteja, eivät nykyisiä rajoituksia. Kunnes tilaukset tulevat käyttöön, kaikki Mousen nykyiset toiminnot ovat edelleen maksuttomia.",
     "pricingNote": "Tilaus tulossa pian",
-    "pricingDownload": "Lataa Mouse"
+    "pricingDownload": "Lataa Mouse",
+    "pricingTrial": "7 päivää — kaikki toiminnot",
+    "statsLabel": "Lataukset",
+    "statsNote": "Aloitetut lataukset versioittain. Ei käyttäjämäärä."
   },
   "fr": {
     "featuresTitle": "Trois essentiels du quotidien",
@@ -295,9 +352,12 @@
     "pricingTitle": "Une formule au juste prix",
     "pricingPeriod": "3 dollars américains par mois",
     "pricingDescription": "Fenêtres, bureaux et sauvegarde automatique locale. Trois essentiels du quotidien, réunis dans une seule formule",
-    "pricingSettings": "Tout le reste est dans les réglages ;)",
+    "pricingSettings": "Il s’agit de formules envisagées pour l’avenir, pas de limites actuelles. Jusqu’au lancement des abonnements, toutes les fonctionnalités actuelles de Mouse restent gratuites.",
     "pricingNote": "Abonnement bientôt disponible",
-    "pricingDownload": "Télécharger Mouse"
+    "pricingDownload": "Télécharger Mouse",
+    "pricingTrial": "7 jours — toutes les fonctionnalités",
+    "statsLabel": "Téléchargements",
+    "statsNote": "Téléchargements lancés par version. Ce n’est pas le nombre d’utilisateurs."
   },
   "ka": {
     "featuresTitle": "სამი მთავარი ფუნქცია ყოველდღე",
@@ -310,9 +370,12 @@
     "pricingTitle": "ერთი ტარიფი სამართლიან ფასად",
     "pricingPeriod": "თვეში 3 აშშ დოლარი",
     "pricingDescription": "ფანჯრები, სამუშაო მაგიდები და ლოკალური ავტომატური შენახვა. სამი მთავარი ფუნქცია ყოველდღე — ყველაფერი ერთ ტარიფში",
-    "pricingSettings": "დანარჩენი ყველაფერი პარამეტრებშია ;)",
+    "pricingSettings": "ეს სამომავლოდ შემოთავაზებული სატარიფო გეგმებია და არა მოქმედი შეზღუდვები. გამოწერების ამოქმედებამდე Mouse-ის ყველა არსებული ფუნქცია უფასო რჩება.",
     "pricingNote": "გამოწერა მალე იქნება ხელმისაწვდომი",
-    "pricingDownload": "ჩამოტვირთე Mouse"
+    "pricingDownload": "ჩამოტვირთე Mouse",
+    "pricingTrial": "7 დღე — ყველა ფუნქცია",
+    "statsLabel": "ჩამოტვირთვები",
+    "statsNote": "დაწყებული ჩამოტვირთვები ვერსიების მიხედვით. ეს მომხმარებლების რაოდენობა არ არის."
   },
   "de": {
     "featuresTitle": "Drei wichtige Funktionen für jeden Tag",
@@ -325,9 +388,12 @@
     "pricingTitle": "Ein Tarif zum fairen Preis",
     "pricingPeriod": "3 US-Dollar pro Monat",
     "pricingDescription": "Fenster, Desktops und lokales automatisches Speichern. Drei wichtige Funktionen für jeden Tag, zusammen in einem Tarif",
-    "pricingSettings": "Alles Weitere findest du in den Einstellungen ;)",
+    "pricingSettings": "Dies sind geplante zukünftige Tarife, keine derzeit geltenden Einschränkungen. Bis zum Start der Abonnements bleiben alle bestehenden Funktionen von Mouse kostenlos nutzbar.",
     "pricingNote": "Abo kommt bald",
-    "pricingDownload": "Mouse herunterladen"
+    "pricingDownload": "Mouse herunterladen",
+    "pricingTrial": "7 Tage — alle Funktionen",
+    "statsLabel": "Downloads",
+    "statsNote": "Gestartete Downloads nach Version. Keine Nutzerzahl."
   },
   "el": {
     "featuresTitle": "Τρεις βασικές λειτουργίες για κάθε μέρα",
@@ -340,9 +406,12 @@
     "pricingTitle": "Ένα πρόγραμμα σε δίκαιη τιμή",
     "pricingPeriod": "3 δολάρια ΗΠΑ τον μήνα",
     "pricingDescription": "Παράθυρα, επιφάνειες εργασίας και τοπική αυτόματη αποθήκευση. Τρεις βασικές λειτουργίες για κάθε μέρα, μαζί σε ένα πρόγραμμα",
-    "pricingSettings": "Όλα τα υπόλοιπα είναι στις ρυθμίσεις ;)",
+    "pricingSettings": "Αυτά είναι προτεινόμενα μελλοντικά πακέτα, όχι τρέχοντες περιορισμοί. Μέχρι την έναρξη των συνδρομών, όλες οι υπάρχουσες λειτουργίες του Mouse παραμένουν δωρεάν.",
     "pricingNote": "Η συνδρομή έρχεται σύντομα",
-    "pricingDownload": "Λήψη του Mouse"
+    "pricingDownload": "Λήψη του Mouse",
+    "pricingTrial": "7 ημέρες — όλες οι λειτουργίες",
+    "statsLabel": "Λήψεις",
+    "statsNote": "Λήψεις που ξεκίνησαν ανά έκδοση. Δεν είναι αριθμός χρηστών."
   },
   "gu": {
     "featuresTitle": "રોજિંદી ત્રણ જરૂરી સુવિધાઓ",
@@ -355,9 +424,12 @@
     "pricingTitle": "વાજબી કિંમતે એક જ પ્લાન",
     "pricingPeriod": "દર મહિને 3 યુએસ ડૉલર",
     "pricingDescription": "વિન્ડો, ડેસ્કટૉપ અને ઉપકરણ પર આપમેળે સાચવવાની સુવિધા. રોજિંદી ત્રણ જરૂરી સુવિધાઓ એક જ પ્લાનમાં",
-    "pricingSettings": "બાકી બધું સેટિંગ્સમાં છે ;)",
+    "pricingSettings": "આ ભવિષ્ય માટે પ્રસ્તાવિત પ્લાન છે, હાલમાં લાગુ મર્યાદાઓ નથી. સબ્સ્ક્રિપ્શન શરૂ થાય ત્યાં સુધી Mouseની હાલની બધી સુવિધાઓ મફતમાં ઉપલબ્ધ રહેશે.",
     "pricingNote": "સબ્સ્ક્રિપ્શન ટૂંક સમયમાં",
-    "pricingDownload": "Mouse ડાઉનલોડ કરો"
+    "pricingDownload": "Mouse ડાઉનલોડ કરો",
+    "pricingTrial": "7 દિવસ — બધી સુવિધાઓ",
+    "statsLabel": "ડાઉનલોડ",
+    "statsNote": "વર્ઝન પ્રમાણે શરૂ થયેલા ડાઉનલોડ. વપરાશકર્તાઓની સંખ્યા નથી."
   },
   "hi": {
     "featuresTitle": "हर दिन की तीन ज़रूरी सुविधाएँ",
@@ -370,9 +442,12 @@
     "pricingTitle": "उचित कीमत पर एक ही प्लान",
     "pricingPeriod": "प्रति माह 3 अमेरिकी डॉलर",
     "pricingDescription": "विंडो, डेस्कटॉप और डिवाइस पर अपने-आप सहेजने की सुविधा। हर दिन की तीन ज़रूरी सुविधाएँ, एक ही प्लान में",
-    "pricingSettings": "बाकी सब सेटिंग्स में है ;)",
+    "pricingSettings": "ये भविष्य के लिए प्रस्तावित प्लान हैं, अभी लागू सीमाएँ नहीं। सब्सक्रिप्शन शुरू होने तक Mouse की सभी मौजूदा सुविधाएँ मुफ़्त रहेंगी।",
     "pricingNote": "सब्सक्रिप्शन जल्द आ रहा है",
-    "pricingDownload": "Mouse डाउनलोड करें"
+    "pricingDownload": "Mouse डाउनलोड करें",
+    "pricingTrial": "7 दिन — सभी सुविधाएँ",
+    "statsLabel": "डाउनलोड",
+    "statsNote": "संस्करण के अनुसार शुरू हुए डाउनलोड। उपयोगकर्ताओं की संख्या नहीं।"
   },
   "hu": {
     "featuresTitle": "Három alapfunkció a mindennapokra",
@@ -385,9 +460,12 @@
     "pricingTitle": "Egy csomag, méltányos ár",
     "pricingPeriod": "3 amerikai dollár havonta",
     "pricingDescription": "Ablakok, asztalok és helyi automatikus mentés. Három alapfunkció a mindennapokra, együtt egy csomagban",
-    "pricingSettings": "Minden mást a beállításokban találsz ;)",
+    "pricingSettings": "Ezek a jövőre tervezett csomagok, nem jelenleg érvényes korlátozások. Az előfizetések indulásáig a Mouse összes meglévő funkciója ingyenesen használható.",
     "pricingNote": "Hamarosan előfizethetsz",
-    "pricingDownload": "Mouse letöltése"
+    "pricingDownload": "Mouse letöltése",
+    "pricingTrial": "7 nap — minden funkció",
+    "statsLabel": "Letöltések",
+    "statsNote": "Elindított letöltések verziónként. Nem a felhasználók száma."
   },
   "is": {
     "featuresTitle": "Þrír lykileiginleikar fyrir hvern dag",
@@ -400,9 +478,12 @@
     "pricingTitle": "Ein áskrift á sanngjörnu verði",
     "pricingPeriod": "3 Bandaríkjadalir á mánuði",
     "pricingDescription": "Gluggar, skjáborð og sjálfvirk vistun í tækinu. Þrír lykileiginleikar fyrir hvern dag, saman í einni áskrift",
-    "pricingSettings": "Allt annað er í stillingunum ;)",
+    "pricingSettings": "Þetta eru fyrirhugaðar áskriftarleiðir, ekki núverandi takmarkanir. Þar til áskriftir verða í boði er áfram ókeypis að nota alla núverandi eiginleika Mouse.",
     "pricingNote": "Áskrift í boði fljótlega",
-    "pricingDownload": "Sækja Mouse"
+    "pricingDownload": "Sækja Mouse",
+    "pricingTrial": "7 dagar — allir eiginleikar",
+    "statsLabel": "Niðurhöl",
+    "statsNote": "Hafin niðurhöl eftir útgáfu. Ekki fjöldi notenda."
   },
   "id": {
     "featuresTitle": "Tiga fitur penting untuk setiap hari",
@@ -415,9 +496,12 @@
     "pricingTitle": "Satu paket dengan harga wajar",
     "pricingPeriod": "3 dolar AS per bulan",
     "pricingDescription": "Jendela, desktop, dan penyimpanan otomatis lokal. Tiga fitur penting untuk setiap hari, bersama dalam satu paket",
-    "pricingSettings": "Yang lainnya ada di pengaturan ;)",
+    "pricingSettings": "Ini adalah paket yang direncanakan untuk masa mendatang, bukan batasan yang berlaku saat ini. Hingga langganan diluncurkan, semua fitur Mouse yang ada tetap gratis digunakan.",
     "pricingNote": "Langganan segera hadir",
-    "pricingDownload": "Unduh Mouse"
+    "pricingDownload": "Unduh Mouse",
+    "pricingTrial": "7 hari — semua fitur",
+    "statsLabel": "Unduhan",
+    "statsNote": "Unduhan yang dimulai menurut versi. Bukan jumlah pengguna."
   },
   "it": {
     "featuresTitle": "Tre funzioni essenziali ogni giorno",
@@ -430,9 +514,12 @@
     "pricingTitle": "Un solo piano, un prezzo giusto",
     "pricingPeriod": "3 dollari USA al mese",
     "pricingDescription": "Finestre, scrivanie e salvataggio automatico locale. Tre funzioni essenziali ogni giorno, insieme in un unico piano",
-    "pricingSettings": "Tutto il resto è nelle impostazioni ;)",
+    "pricingSettings": "Questi sono piani proposti per il futuro, non limiti attuali. Fino al lancio degli abbonamenti, tutte le funzioni attuali di Mouse restano gratuite.",
     "pricingNote": "Abbonamento in arrivo",
-    "pricingDownload": "Scarica Mouse"
+    "pricingDownload": "Scarica Mouse",
+    "pricingTrial": "7 giorni — tutte le funzioni",
+    "statsLabel": "Download",
+    "statsNote": "Download avviati per versione. Non è il numero di utenti."
   },
   "ja": {
     "featuresTitle": "毎日に欠かせない3つの機能",
@@ -445,9 +532,12 @@
     "pricingTitle": "納得の価格で、ひとつのプラン",
     "pricingPeriod": "月額3米ドル",
     "pricingDescription": "ウィンドウ、デスクトップ、端末への自動保存。毎日に欠かせない3つの機能を、ひとつのプランに",
-    "pricingSettings": "その他の機能は設定にあります ;)",
+    "pricingSettings": "これは今後予定しているプランであり、現在適用されている制限ではありません。サブスクリプションの提供開始までは、Mouse の既存のすべての機能を引き続き無料で利用できます。",
     "pricingNote": "サブスクリプションは近日公開",
-    "pricingDownload": "Mouse をダウンロード"
+    "pricingDownload": "Mouse をダウンロード",
+    "pricingTrial": "7 日間 — すべての機能",
+    "statsLabel": "ダウンロード",
+    "statsNote": "バージョン別のダウンロード開始回数です。ユーザー数ではありません。"
   },
   "kn": {
     "featuresTitle": "ಪ್ರತಿದಿನದ ಮೂರು ಅಗತ್ಯ ಸೌಲಭ್ಯಗಳು",
@@ -460,9 +550,12 @@
     "pricingTitle": "ನ್ಯಾಯವಾದ ಬೆಲೆಯಲ್ಲಿ ಒಂದೇ ಪ್ಲಾನ್",
     "pricingPeriod": "ತಿಂಗಳಿಗೆ 3 ಅಮೆರಿಕದ ಡಾಲರ್‌ಗಳು",
     "pricingDescription": "ವಿಂಡೋಗಳು, ಡೆಸ್ಕ್‌ಟಾಪ್‌ಗಳು ಮತ್ತು ಸಾಧನದಲ್ಲೇ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಉಳಿಸುವ ಸೌಲಭ್ಯ. ಪ್ರತಿದಿನದ ಮೂರು ಅಗತ್ಯ ಸೌಲಭ್ಯಗಳು ಒಂದೇ ಪ್ಲಾನ್‌ನಲ್ಲಿ",
-    "pricingSettings": "ಉಳಿದೆಲ್ಲವೂ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿವೆ ;)",
+    "pricingSettings": "ಇವು ಭವಿಷ್ಯಕ್ಕಾಗಿ ಪ್ರಸ್ತಾಪಿಸಲಾದ ಯೋಜನೆಗಳೇ ಹೊರತು ಪ್ರಸ್ತುತ ಮಿತಿಗಳಲ್ಲ. ಚಂದಾದಾರಿಕೆಗಳು ಪ್ರಾರಂಭವಾಗುವವರೆಗೆ Mouseನ ಎಲ್ಲಾ ಅಸ್ತಿತ್ವದಲ್ಲಿರುವ ವೈಶಿಷ್ಟ್ಯಗಳನ್ನು ಉಚಿತವಾಗಿ ಬಳಸಬಹುದು.",
     "pricingNote": "ಚಂದಾದಾರಿಕೆ ಶೀಘ್ರದಲ್ಲೇ",
-    "pricingDownload": "Mouse ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ"
+    "pricingDownload": "Mouse ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+    "pricingTrial": "7 ದಿನಗಳು — ಎಲ್ಲಾ ವೈಶಿಷ್ಟ್ಯಗಳು",
+    "statsLabel": "ಡೌನ್‌ಲೋಡ್‌ಗಳು",
+    "statsNote": "ಆವೃತ್ತಿಯ ಪ್ರಕಾರ ಪ್ರಾರಂಭವಾದ ಡೌನ್‌ಲೋಡ್‌ಗಳು. ಬಳಕೆದಾರರ ಸಂಖ್ಯೆ ಅಲ್ಲ."
   },
   "kk": {
     "featuresTitle": "Күн сайын қажет үш мүмкіндік",
@@ -475,9 +568,12 @@
     "pricingTitle": "Бір тариф, әділ баға",
     "pricingPeriod": "Айына 3 АҚШ доллары",
     "pricingDescription": "Терезелер, жұмыс үстелдері және құрылғыда автоматты сақтау. Күн сайын қажет үш мүмкіндік — бәрі бір тарифте",
-    "pricingSettings": "Қалғанының бәрі баптауларда ;)",
+    "pricingSettings": "Бұл — болашаққа ұсынылған тарифтер, қазіргі шектеулер емес. Жазылым іске қосылғанға дейін Mouse-тың барлық қолданыстағы мүмкіндіктері тегін болады.",
     "pricingNote": "Жазылым жақында қолжетімді болады",
-    "pricingDownload": "Mouse жүктеп алу"
+    "pricingDownload": "Mouse жүктеп алу",
+    "pricingTrial": "7 күн — барлық мүмкіндіктер",
+    "statsLabel": "Жүктеулер",
+    "statsNote": "Нұсқалар бойынша басталған жүктеулер. Пайдаланушылар саны емес."
   },
   "ko": {
     "featuresTitle": "매일 필요한 세 가지 기능",
@@ -490,9 +586,12 @@
     "pricingTitle": "합리적인 요금제 하나",
     "pricingPeriod": "월 미화 3달러",
     "pricingDescription": "창, 데스크톱, 기기 내 자동 저장. 매일 필요한 세 가지 기능을 하나의 요금제로 이용하세요",
-    "pricingSettings": "나머지 기능은 설정에서 찾을 수 있어요 ;)",
+    "pricingSettings": "이는 향후 도입을 검토 중인 요금제이며, 현재 적용되는 제한이 아닙니다. 구독이 출시될 때까지 Mouse의 모든 기존 기능은 계속 무료로 사용할 수 있습니다.",
     "pricingNote": "구독 서비스 출시 예정",
-    "pricingDownload": "Mouse 다운로드"
+    "pricingDownload": "Mouse 다운로드",
+    "pricingTrial": "7일 — 모든 기능",
+    "statsLabel": "다운로드",
+    "statsNote": "버전별 다운로드 시작 횟수입니다. 사용자 수가 아닙니다."
   },
   "lv": {
     "featuresTitle": "Trīs pamatfunkcijas katrai dienai",
@@ -505,9 +604,12 @@
     "pricingTitle": "Viens plāns par godīgu cenu",
     "pricingPeriod": "3 ASV dolāri mēnesī",
     "pricingDescription": "Logi, darbvirsmas un lokāla automātiskā saglabāšana. Trīs pamatfunkcijas katrai dienai vienā plānā",
-    "pricingSettings": "Viss pārējais ir iestatījumos ;)",
+    "pricingSettings": "Tie ir nākotnei plānoti tarifi, nevis pašreizēji ierobežojumi. Līdz abonementu ieviešanai visas esošās Mouse funkcijas joprojām ir pieejamas bez maksas.",
     "pricingNote": "Abonements būs pieejams drīzumā",
-    "pricingDownload": "Lejupielādēt Mouse"
+    "pricingDownload": "Lejupielādēt Mouse",
+    "pricingTrial": "7 dienas — visas funkcijas",
+    "statsLabel": "Lejupielādes",
+    "statsNote": "Sāktās lejupielādes pa versijām. Tas nav lietotāju skaits."
   },
   "lt": {
     "featuresTitle": "Trys svarbiausios kasdienės funkcijos",
@@ -520,9 +622,12 @@
     "pricingTitle": "Vienas planas už sąžiningą kainą",
     "pricingPeriod": "3 JAV doleriai per mėnesį",
     "pricingDescription": "Langai, darbalaukiai ir vietinis automatinis išsaugojimas. Trys svarbiausios kasdienės funkcijos viename plane",
-    "pricingSettings": "Visa kita rasi nustatymuose ;)",
+    "pricingSettings": "Tai siūlomi būsimi planai, o ne dabartiniai apribojimai. Kol prenumeratos nepaleistos, visomis esamomis Mouse funkcijomis galima naudotis nemokamai.",
     "pricingNote": "Prenumerata jau netrukus",
-    "pricingDownload": "Atsisiųsti Mouse"
+    "pricingDownload": "Atsisiųsti Mouse",
+    "pricingTrial": "7 dienos — visos funkcijos",
+    "statsLabel": "Atsisiuntimai",
+    "statsNote": "Pradėti atsisiuntimai pagal versiją. Tai nėra naudotojų skaičius."
   },
   "mk": {
     "featuresTitle": "Три основни функции за секој ден",
@@ -535,9 +640,12 @@
     "pricingTitle": "Еден план по фер цена",
     "pricingPeriod": "3 американски долари месечно",
     "pricingDescription": "Прозорци, работни површини и локално автоматско зачувување. Три основни функции за секој ден, заедно во еден план",
-    "pricingSettings": "Сè друго е во поставките ;)",
+    "pricingSettings": "Ова се предложени идни пакети, а не тековни ограничувања. До воведувањето на претплатите, сите постојни функции на Mouse остануваат бесплатни.",
     "pricingNote": "Претплатата доаѓа наскоро",
-    "pricingDownload": "Преземи Mouse"
+    "pricingDownload": "Преземи Mouse",
+    "pricingTrial": "7 дена — сите функции",
+    "statsLabel": "Преземања",
+    "statsNote": "Започнати преземања по верзија. Не е број на корисници."
   },
   "ms": {
     "featuresTitle": "Tiga keperluan harian",
@@ -550,9 +658,12 @@
     "pricingTitle": "Satu pelan dengan harga berpatutan",
     "pricingPeriod": "3 dolar AS sebulan",
     "pricingDescription": "Tetingkap, desktop dan penyimpanan automatik setempat. Tiga keperluan harian dalam satu pelan",
-    "pricingSettings": "Yang lain kekal dalam tetapan ;)",
+    "pricingSettings": "Ini ialah pelan yang dicadangkan untuk masa hadapan, bukan had semasa. Sehingga langganan dilancarkan, semua ciri Mouse yang sedia ada kekal percuma untuk digunakan.",
     "pricingNote": "Langganan akan datang",
-    "pricingDownload": "Muat turun Mouse"
+    "pricingDownload": "Muat turun Mouse",
+    "pricingTrial": "7 hari — semua ciri",
+    "statsLabel": "Muat turun",
+    "statsNote": "Muat turun yang dimulakan mengikut versi. Bukan bilangan pengguna."
   },
   "ml": {
     "featuresTitle": "ദിവസവും വേണ്ട മൂന്ന് കാര്യങ്ങൾ",
@@ -565,9 +676,12 @@
     "pricingTitle": "ന്യായമായ നിരക്കിൽ ഒരൊറ്റ പ്ലാൻ",
     "pricingPeriod": "പ്രതിമാസം 3 യുഎസ് ഡോളർ",
     "pricingDescription": "വിൻഡോകൾ, ഡെസ്‌ക്‌ടോപ്പുകൾ, ഉപകരണത്തിൽ സ്വയമേവ സംരക്ഷിക്കൽ. ദിവസവും വേണ്ട മൂന്ന് കാര്യങ്ങൾ ഒരൊറ്റ പ്ലാനിൽ",
-    "pricingSettings": "ബാക്കിയുള്ളതെല്ലാം ക്രമീകരണങ്ങളിൽത്തന്നെ ;)",
+    "pricingSettings": "ഇവ ഭാവിയിലേക്ക് നിർദ്ദേശിച്ച പ്ലാനുകളാണ്, നിലവിലെ പരിധികളല്ല. സബ്‌സ്‌ക്രിപ്‌ഷനുകൾ ആരംഭിക്കുന്നതുവരെ Mouse-ന്റെ നിലവിലുള്ള എല്ലാ സവിശേഷതകളും സൗജന്യമായി ഉപയോഗിക്കാം.",
     "pricingNote": "സബ്‌സ്‌ക്രിപ്‌ഷൻ ഉടൻ വരുന്നു",
-    "pricingDownload": "Mouse ഡൗൺലോഡ് ചെയ്യൂ"
+    "pricingDownload": "Mouse ഡൗൺലോഡ് ചെയ്യൂ",
+    "pricingTrial": "7 ദിവസം — എല്ലാ സവിശേഷതകളും",
+    "statsLabel": "ഡൗൺലോഡുകൾ",
+    "statsNote": "പതിപ്പ് അനുസരിച്ച് ആരംഭിച്ച ഡൗൺലോഡുകൾ. ഉപയോക്താക്കളുടെ എണ്ണമല്ല."
   },
   "mr": {
     "featuresTitle": "रोजच्या तीन आवश्यक सुविधा",
@@ -580,9 +694,12 @@
     "pricingTitle": "वाजवी दरात एकच प्लॅन",
     "pricingPeriod": "दरमहा 3 अमेरिकन डॉलर",
     "pricingDescription": "विंडो, डेस्कटॉप आणि डिव्हाइसवर आपोआप जतन करण्याची सुविधा. रोजच्या तीन आवश्यक सुविधा एकाच प्लॅनमध्ये",
-    "pricingSettings": "बाकी सर्व सेटिंग्जमध्येच ;)",
+    "pricingSettings": "हे भविष्यासाठी प्रस्तावित प्लॅन आहेत, सध्या लागू असलेल्या मर्यादा नाहीत. सदस्यत्व सुरू होईपर्यंत Mouseची सध्याची सर्व वैशिष्ट्ये मोफत वापरता येतील.",
     "pricingNote": "सदस्यता लवकरच येत आहे",
-    "pricingDownload": "Mouse डाउनलोड करा"
+    "pricingDownload": "Mouse डाउनलोड करा",
+    "pricingTrial": "7 दिवस — सर्व वैशिष्ट्ये",
+    "statsLabel": "डाउनलोड",
+    "statsNote": "आवृत्तीनुसार सुरू झालेले डाउनलोड. वापरकर्त्यांची संख्या नाही."
   },
   "mn": {
     "featuresTitle": "Өдөр тутмын гурван хэрэгцээ",
@@ -595,9 +712,12 @@
     "pricingTitle": "Боломжийн үнэтэй нэг багц",
     "pricingPeriod": "Сард 3 америк доллар",
     "pricingDescription": "Цонх, ажлын талбар, төхөөрөмж дээрх автомат хадгалалт. Өдөр тутмын гурван хэрэгцээ нэг багцад",
-    "pricingSettings": "Бусад бүх зүйл тохиргоондоо үлдэнэ ;)",
+    "pricingSettings": "Эдгээр нь ирээдүйд нэвтрүүлэхээр төлөвлөсөн багцууд болохоос одоо мөрдөж буй хязгаарлалт биш. Захиалгын үйлчилгээ эхлэх хүртэл Mouse-ийн одоо байгаа бүх боломжийг үнэгүй ашиглах боломжтой.",
     "pricingNote": "Захиалгын үйлчилгээ удахгүй",
-    "pricingDownload": "Mouse татах"
+    "pricingDownload": "Mouse татах",
+    "pricingTrial": "7 хоног — бүх боломж",
+    "statsLabel": "Таталтууд",
+    "statsNote": "Хувилбар бүрээр эхэлсэн таталтын тоо. Хэрэглэгчдийн тоо биш."
   },
   "nb": {
     "featuresTitle": "Tre nyttige funksjoner i hverdagen",
@@ -610,9 +730,12 @@
     "pricingTitle": "Ett abonnement til en rimelig pris",
     "pricingPeriod": "3 amerikanske dollar per måned",
     "pricingDescription": "Vinduer, skrivebord og lokal automatisk lagring. Tre nyttige hverdagsfunksjoner samlet i ett abonnement",
-    "pricingSettings": "Alt annet blir i innstillingene ;)",
+    "pricingSettings": "Dette er foreslåtte fremtidige abonnementer, ikke nåværende begrensninger. Inntil abonnementene lanseres, er alle eksisterende funksjoner i Mouse fortsatt gratis å bruke.",
     "pricingNote": "Abonnement kommer snart",
-    "pricingDownload": "Last ned Mouse"
+    "pricingDownload": "Last ned Mouse",
+    "pricingTrial": "7 dager — alle funksjoner",
+    "statsLabel": "Nedlastinger",
+    "statsNote": "Påbegynte nedlastinger per versjon. Ikke antall brukere."
   },
   "fa": {
     "featuresTitle": "سه قابلیت ضروری برای هر روز",
@@ -625,9 +748,12 @@
     "pricingTitle": "یک طرح با قیمت منصفانه",
     "pricingPeriod": "ماهانه 3 دلار آمریکا",
     "pricingDescription": "پنجره‌ها، میزهای کار و ذخیرهٔ خودکار روی دستگاه. سه قابلیت ضروری روزانه، همه در یک طرح",
-    "pricingSettings": "بقیهٔ امکانات در تنظیمات می‌مانند ;)",
+    "pricingSettings": "این‌ها طرح‌های پیشنهادی برای آینده‌اند، نه محدودیت‌های فعلی. تا زمان راه‌اندازی اشتراک‌ها، استفاده از همهٔ قابلیت‌های موجود Mouse رایگان می‌ماند.",
     "pricingNote": "اشتراک به‌زودی",
-    "pricingDownload": "دانلود Mouse"
+    "pricingDownload": "دانلود Mouse",
+    "pricingTrial": "7 روز — همهٔ قابلیت‌ها",
+    "statsLabel": "دانلودها",
+    "statsNote": "دانلودهای آغازشده به تفکیک نسخه. نه تعداد کاربران."
   },
   "pl": {
     "featuresTitle": "Trzy przydatne funkcje na co dzień",
@@ -640,9 +766,12 @@
     "pricingTitle": "Jeden plan w uczciwej cenie",
     "pricingPeriod": "3 dolary amerykańskie miesięcznie",
     "pricingDescription": "Okna, pulpity i lokalny automatyczny zapis. Trzy przydatne funkcje na co dzień w jednym planie",
-    "pricingSettings": "Cała reszta zostaje w ustawieniach ;)",
+    "pricingSettings": "To proponowane przyszłe plany, a nie obecne ograniczenia. Do uruchomienia subskrypcji wszystkie istniejące funkcje Mouse pozostają bezpłatne.",
     "pricingNote": "Subskrypcja już wkrótce",
-    "pricingDownload": "Pobierz Mouse"
+    "pricingDownload": "Pobierz Mouse",
+    "pricingTrial": "7 dni — wszystkie funkcje",
+    "statsLabel": "Pobrania",
+    "statsNote": "Rozpoczęte pobrania według wersji. To nie liczba użytkowników."
   },
   "pt-BR": {
     "featuresTitle": "Três recursos essenciais para o dia a dia",
@@ -655,9 +784,12 @@
     "pricingTitle": "Um único plano com preço justo",
     "pricingPeriod": "3 dólares americanos por mês",
     "pricingDescription": "Janelas, áreas de trabalho e salvamento automático local. Três recursos essenciais para o dia a dia em um único plano",
-    "pricingSettings": "Todo o resto fica nas configurações ;)",
+    "pricingSettings": "Estes são planos propostos para o futuro, não limitações atuais. Até o lançamento das assinaturas, todos os recursos existentes do Mouse continuam gratuitos.",
     "pricingNote": "Assinatura em breve",
-    "pricingDownload": "Baixar Mouse"
+    "pricingDownload": "Baixar Mouse",
+    "pricingTrial": "7 dias — todos os recursos",
+    "statsLabel": "Downloads",
+    "statsNote": "Downloads iniciados por versão. Não é o número de usuários."
   },
   "pt-PT": {
     "featuresTitle": "Três funções essenciais para o dia a dia",
@@ -670,9 +802,12 @@
     "pricingTitle": "Um único plano a um preço justo",
     "pricingPeriod": "3 dólares americanos por mês",
     "pricingDescription": "Janelas, áreas de trabalho e gravação automática local. Três funções essenciais para o dia a dia num único plano",
-    "pricingSettings": "Tudo o resto fica nas definições ;)",
+    "pricingSettings": "Estes são planos propostos para o futuro, não limites atuais. Até ao lançamento das subscrições, todas as funcionalidades existentes do Mouse continuam gratuitas.",
     "pricingNote": "Subscrição em breve",
-    "pricingDownload": "Transferir o Mouse"
+    "pricingDownload": "Transferir o Mouse",
+    "pricingTrial": "7 dias — todas as funcionalidades",
+    "statsLabel": "Transferências",
+    "statsNote": "Transferências iniciadas por versão. Não é o número de utilizadores."
   },
   "pa": {
     "featuresTitle": "ਰੋਜ਼ਾਨਾ ਦੀਆਂ ਤਿੰਨ ਜ਼ਰੂਰੀ ਸਹੂਲਤਾਂ",
@@ -685,9 +820,12 @@
     "pricingTitle": "ਵਾਜਬ ਕੀਮਤ ’ਤੇ ਇੱਕੋ ਪਲਾਨ",
     "pricingPeriod": "ਪ੍ਰਤੀ ਮਹੀਨਾ 3 ਅਮਰੀਕੀ ਡਾਲਰ",
     "pricingDescription": "ਵਿੰਡੋਜ਼, ਡੈਸਕਟਾਪ ਅਤੇ ਡਿਵਾਈਸ ’ਤੇ ਆਪਣੇ ਆਪ ਸੰਭਾਲਣ ਦੀ ਸਹੂਲਤ। ਰੋਜ਼ਾਨਾ ਦੀਆਂ ਤਿੰਨ ਜ਼ਰੂਰੀ ਸਹੂਲਤਾਂ ਇੱਕੋ ਪਲਾਨ ਵਿੱਚ",
-    "pricingSettings": "ਬਾਕੀ ਸਭ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਹੀ ਰਹਿੰਦਾ ਹੈ ;)",
+    "pricingSettings": "ਇਹ ਭਵਿੱਖ ਲਈ ਪ੍ਰਸਤਾਵਿਤ ਪਲਾਨ ਹਨ, ਮੌਜੂਦਾ ਪਾਬੰਦੀਆਂ ਨਹੀਂ। ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਸ਼ੁਰੂ ਹੋਣ ਤੱਕ Mouse ਦੀਆਂ ਸਾਰੀਆਂ ਮੌਜੂਦਾ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਮੁਫ਼ਤ ਵਰਤੀਆਂ ਜਾ ਸਕਦੀਆਂ ਹਨ।",
     "pricingNote": "ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਜਲਦੀ ਆ ਰਹੀ ਹੈ",
-    "pricingDownload": "Mouse ਡਾਊਨਲੋਡ ਕਰੋ"
+    "pricingDownload": "Mouse ਡਾਊਨਲੋਡ ਕਰੋ",
+    "pricingTrial": "7 ਦਿਨ — ਸਾਰੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ",
+    "statsLabel": "ਡਾਊਨਲੋਡ",
+    "statsNote": "ਵਰਜਨ ਅਨੁਸਾਰ ਸ਼ੁਰੂ ਹੋਏ ਡਾਊਨਲੋਡ। ਵਰਤੋਂਕਾਰਾਂ ਦੀ ਗਿਣਤੀ ਨਹੀਂ।"
   },
   "ro": {
     "featuresTitle": "Trei funcții esențiale zi de zi",
@@ -700,9 +838,12 @@
     "pricingTitle": "Un singur plan la un preț corect",
     "pricingPeriod": "3 dolari americani pe lună",
     "pricingDescription": "Ferestre, desktopuri și salvare automată locală. Trei funcții esențiale zi de zi, împreună într-un singur plan",
-    "pricingSettings": "Restul rămâne în setări ;)",
+    "pricingSettings": "Acestea sunt planuri propuse pentru viitor, nu limite actuale. Până la lansarea abonamentelor, toate funcțiile existente ale Mouse rămân gratuite.",
     "pricingNote": "Abonamentul va fi disponibil în curând",
-    "pricingDownload": "Descarcă Mouse"
+    "pricingDownload": "Descarcă Mouse",
+    "pricingTrial": "7 zile — toate funcțiile",
+    "statsLabel": "Descărcări",
+    "statsNote": "Descărcări începute pe versiune. Nu este numărul de utilizatori."
   },
   "sr": {
     "featuresTitle": "Три свакодневне потребе",
@@ -715,9 +856,12 @@
     "pricingTitle": "Један план по поштеној цени",
     "pricingPeriod": "3 америчка долара месечно",
     "pricingDescription": "Прозори, радне површине и локално аутоматско чување. Три свакодневне потребе у једном плану",
-    "pricingSettings": "Све остало остаје у подешавањима ;)",
+    "pricingSettings": "Ово су предложени будући пакети, а не тренутна ограничења. До увођења претплата све постојеће функције Mouse-а остају бесплатне.",
     "pricingNote": "Претплата стиже ускоро",
-    "pricingDownload": "Преузми Mouse"
+    "pricingDownload": "Преузми Mouse",
+    "pricingTrial": "7 дана — све функције",
+    "statsLabel": "Преузимања",
+    "statsNote": "Започета преузимања по верзији. Није број корисника."
   },
   "sk": {
     "featuresTitle": "Tri užitočné funkcie na každý deň",
@@ -730,9 +874,12 @@
     "pricingTitle": "Jeden plán za férovú cenu",
     "pricingPeriod": "3 americké doláre mesačne",
     "pricingDescription": "Okná, plochy a miestne automatické ukladanie. Tri užitočné funkcie na každý deň v jednom pláne",
-    "pricingSettings": "Všetko ostatné zostáva v nastaveniach ;)",
+    "pricingSettings": "Ide o navrhované budúce programy, nie o súčasné obmedzenia. Do spustenia predplatného zostávajú všetky existujúce funkcie Mouse bezplatné.",
     "pricingNote": "Predplatné už čoskoro",
-    "pricingDownload": "Stiahnuť Mouse"
+    "pricingDownload": "Stiahnuť Mouse",
+    "pricingTrial": "7 dní — všetky funkcie",
+    "statsLabel": "Stiahnutia",
+    "statsNote": "Začaté sťahovania podľa verzie. Nejde o počet používateľov."
   },
   "sl": {
     "featuresTitle": "Tri uporabne funkcije za vsak dan",
@@ -745,9 +892,12 @@
     "pricingTitle": "En paket po pošteni ceni",
     "pricingPeriod": "3 ameriški dolarji na mesec",
     "pricingDescription": "Okna, namizja in lokalno samodejno shranjevanje. Tri uporabne funkcije za vsak dan v enem paketu",
-    "pricingSettings": "Vse drugo ostaja v nastavitvah ;)",
+    "pricingSettings": "To so predlagani prihodnji paketi, ne trenutne omejitve. Do uvedbe naročnin ostajajo vse obstoječe funkcije Mouse brezplačne.",
     "pricingNote": "Naročnina bo na voljo kmalu",
-    "pricingDownload": "Prenesi Mouse"
+    "pricingDownload": "Prenesi Mouse",
+    "pricingTrial": "7 dni — vse funkcije",
+    "statsLabel": "Prenosi",
+    "statsNote": "Začeti prenosi po različicah. To ni število uporabnikov."
   },
   "so": {
     "featuresTitle": "Saddex waxyaalood oo maalin kasta muhiim ah",
@@ -760,9 +910,12 @@
     "pricingTitle": "Hal qorshe oo qiimihiisu macquul yahay",
     "pricingPeriod": "3 doolar oo Maraykan ah bishii",
     "pricingDescription": "Daaqado, goobo shaqo iyo kaydin toos ah oo qalabkaaga lagu sameeyo. Saddex waxyaalood oo maalin kasta muhiim ah, kuna wada jira hal qorshe",
-    "pricingSettings": "Wax kasta oo kale waxay ku jiraan dejimaha ;)",
+    "pricingSettings": "Kuwani waa qorshayaal mustaqbalka loo soo jeediyey, mana aha xaddidaado hadda jira. Ilaa isdiiwaangelinta lacagta ahi bilaabato, dhammaan sifooyinka hadda jira ee Mouse waa bilaash.",
     "pricingNote": "Rukunku dhowaan ayuu imanayaa",
-    "pricingDownload": "Soo deji Mouse"
+    "pricingDownload": "Soo deji Mouse",
+    "pricingTrial": "7 maalmood — dhammaan sifooyinka",
+    "statsLabel": "Soo-dejinnada",
+    "statsNote": "Soo-dejinno la bilaabay oo nooc walba loo tiriyey. Ma aha tirada isticmaalayaasha."
   },
   "es": {
     "featuresTitle": "Tres funciones esenciales para el día a día",
@@ -775,9 +928,12 @@
     "pricingTitle": "Un único plan a un precio justo",
     "pricingPeriod": "3 dólares estadounidenses al mes",
     "pricingDescription": "Ventanas, escritorios y guardado automático local. Tres funciones esenciales para el día a día en un único plan",
-    "pricingSettings": "Todo lo demás queda en los ajustes ;)",
+    "pricingSettings": "Estos son planes propuestos para el futuro, no límites actuales. Hasta el lanzamiento de las suscripciones, todas las funciones actuales de Mouse siguen siendo gratuitas.",
     "pricingNote": "Suscripción disponible próximamente",
-    "pricingDownload": "Descargar Mouse"
+    "pricingDownload": "Descargar Mouse",
+    "pricingTrial": "7 días — todas las funciones",
+    "statsLabel": "Descargas",
+    "statsNote": "Descargas iniciadas por versión. No es el número de usuarios."
   },
   "sw": {
     "featuresTitle": "Vipengele vitatu muhimu kila siku",
@@ -790,9 +946,12 @@
     "pricingTitle": "Mpango mmoja kwa bei ya haki",
     "pricingPeriod": "Dola 3 za Marekani kwa mwezi",
     "pricingDescription": "Madirisha, maeneo ya kazi na kuhifadhi kiotomatiki kwenye kifaa. Vipengele vitatu muhimu kila siku, pamoja katika mpango mmoja",
-    "pricingSettings": "Kila kitu kingine kinabaki kwenye mipangilio ;)",
+    "pricingSettings": "Hii ni mipango iliyopendekezwa kwa siku zijazo, si mipaka ya sasa. Hadi usajili wa kulipia utakapoanzishwa, vipengele vyote vilivyopo vya Mouse vitaendelea kuwa bila malipo.",
     "pricingNote": "Usajili unakuja hivi karibuni",
-    "pricingDownload": "Pakua Mouse"
+    "pricingDownload": "Pakua Mouse",
+    "pricingTrial": "Siku 7 — vipengele vyote",
+    "statsLabel": "Vipakuliwa",
+    "statsNote": "Upakuaji ulioanzishwa kwa kila toleo. Siyo idadi ya watumiaji."
   },
   "sv": {
     "featuresTitle": "Tre användbara funktioner i vardagen",
@@ -805,9 +964,12 @@
     "pricingTitle": "Ett abonnemang till ett rimligt pris",
     "pricingPeriod": "3 amerikanska dollar per månad",
     "pricingDescription": "Fönster, skrivbord och lokal autosparning. Tre användbara vardagsfunktioner i ett abonnemang",
-    "pricingSettings": "Allt annat finns kvar i inställningarna ;)",
+    "pricingSettings": "Det här är föreslagna framtida abonnemang, inte nuvarande begränsningar. Tills abonnemangen lanseras är alla befintliga funktioner i Mouse fortfarande gratis att använda.",
     "pricingNote": "Abonnemang kommer snart",
-    "pricingDownload": "Ladda ner Mouse"
+    "pricingDownload": "Ladda ner Mouse",
+    "pricingTrial": "7 dagar — alla funktioner",
+    "statsLabel": "Nedladdningar",
+    "statsNote": "Påbörjade nedladdningar per version. Inte antal användare."
   },
   "fil": {
     "featuresTitle": "Tatlong kailangan sa araw-araw",
@@ -820,9 +982,12 @@
     "pricingTitle": "Isang plan sa patas na presyo",
     "pricingPeriod": "3 dolyar ng US bawat buwan",
     "pricingDescription": "Mga window, desktop at awtomatikong pag-save sa device. Tatlong kailangan sa araw-araw, magkakasama sa iisang plan",
-    "pricingSettings": "Nasa settings pa rin ang lahat ng iba pa ;)",
+    "pricingSettings": "Mga planong iminungkahi para sa hinaharap ang mga ito, hindi kasalukuyang limitasyon. Hangga’t hindi pa inilulunsad ang mga subscription, libre pa ring gamitin ang lahat ng kasalukuyang feature ng Mouse.",
     "pricingNote": "Paparating na ang subscription",
-    "pricingDownload": "I-download ang Mouse"
+    "pricingDownload": "I-download ang Mouse",
+    "pricingTrial": "7 araw — lahat ng feature",
+    "statsLabel": "Mga download",
+    "statsNote": "Mga download na sinimulan ayon sa bersyon. Hindi bilang ng mga gumagamit."
   },
   "ta": {
     "featuresTitle": "அன்றாடத் தேவைகளுக்கான மூன்று வசதிகள்",
@@ -835,9 +1000,12 @@
     "pricingTitle": "ஒரே திட்டம், நியாயமான விலையில்",
     "pricingPeriod": "மாதத்திற்கு 3 அமெரிக்க டாலர்கள்",
     "pricingDescription": "சாளரங்கள், டெஸ்க்டாப்புகள் மற்றும் சாதனத்தில் தானாகச் சேமித்தல். அன்றாடத் தேவைகளுக்கான மூன்று வசதிகளும் ஒரே திட்டத்தில்",
-    "pricingSettings": "மற்றவை அனைத்தும் அமைப்புகளிலேயே ;)",
+    "pricingSettings": "இவை எதிர்காலத்திற்காக முன்மொழியப்பட்ட திட்டங்கள்; தற்போதைய வரம்புகள் அல்ல. சந்தாக்கள் அறிமுகமாகும் வரை Mouse-இன் தற்போதைய அனைத்து அம்சங்களையும் இலவசமாகப் பயன்படுத்தலாம்.",
     "pricingNote": "சந்தா விரைவில் வருகிறது",
-    "pricingDownload": "Mouse-ஐப் பதிவிறக்குங்கள்"
+    "pricingDownload": "Mouse-ஐப் பதிவிறக்குங்கள்",
+    "pricingTrial": "7 நாட்கள் — அனைத்து அம்சங்களும்",
+    "statsLabel": "பதிவிறக்கங்கள்",
+    "statsNote": "பதிப்புவாரியாகத் தொடங்கப்பட்ட பதிவிறக்கங்கள். பயனர்களின் எண்ணிக்கை அல்ல."
   },
   "te": {
     "featuresTitle": "రోజువారీ అవసరాలకు మూడు సదుపాయాలు",
@@ -850,9 +1018,12 @@
     "pricingTitle": "ఒకే ప్లాన్, న్యాయమైన ధర",
     "pricingPeriod": "నెలకు 3 అమెరికా డాలర్లు",
     "pricingDescription": "విండోలు, డెస్క్‌టాప్‌లు, పరికరంలో ఆటోమేటిక్‌గా సేవ్ చేసే సదుపాయం. రోజువారీ అవసరాలకు మూడు సదుపాయాలు ఒకే ప్లాన్‌లో",
-    "pricingSettings": "మిగతావన్నీ సెట్టింగ్‌లలోనే ;)",
+    "pricingSettings": "ఇవి భవిష్యత్తు కోసం ప్రతిపాదించిన ప్లాన్‌లు, ప్రస్తుతం అమల్లో ఉన్న పరిమితులు కావు. సబ్‌స్క్రిప్షన్‌లు ప్రారంభమయ్యే వరకు Mouseలో ప్రస్తుతం ఉన్న అన్ని ఫీచర్లను ఉచితంగా ఉపయోగించవచ్చు.",
     "pricingNote": "సబ్‌స్క్రిప్షన్ త్వరలో",
-    "pricingDownload": "Mouse డౌన్‌లోడ్ చేయండి"
+    "pricingDownload": "Mouse డౌన్‌లోడ్ చేయండి",
+    "pricingTrial": "7 రోజులు — అన్ని ఫీచర్లు",
+    "statsLabel": "డౌన్‌లోడ్‌లు",
+    "statsNote": "వెర్షన్ ప్రకారం ప్రారంభమైన డౌన్‌లోడ్‌లు. వినియోగదారుల సంఖ్య కాదు."
   },
   "th": {
     "featuresTitle": "สามฟีเจอร์สำคัญในทุกวัน",
@@ -865,9 +1036,12 @@
     "pricingTitle": "แพ็กเกจเดียว ในราคาที่เป็นธรรม",
     "pricingPeriod": "3 ดอลลาร์สหรัฐต่อเดือน",
     "pricingDescription": "หน้าต่าง เดสก์ท็อป และการบันทึกอัตโนมัติบนอุปกรณ์ สามฟีเจอร์สำคัญในทุกวัน รวมในแพ็กเกจเดียว",
-    "pricingSettings": "ที่เหลืออยู่ในการตั้งค่า ;)",
+    "pricingSettings": "นี่คือแพ็กเกจที่เสนอไว้สำหรับอนาคต ไม่ใช่ข้อจำกัดในปัจจุบัน ฟีเจอร์ทั้งหมดที่มีอยู่ของ Mouse ยังคงใช้งานได้ฟรีจนกว่าจะเปิดให้สมัครสมาชิก",
     "pricingNote": "เปิดให้สมัครสมาชิกเร็ว ๆ นี้",
-    "pricingDownload": "ดาวน์โหลด Mouse"
+    "pricingDownload": "ดาวน์โหลด Mouse",
+    "pricingTrial": "7 วัน — ทุกฟีเจอร์",
+    "statsLabel": "ดาวน์โหลด",
+    "statsNote": "จำนวนครั้งที่เริ่มดาวน์โหลดแยกตามเวอร์ชัน ไม่ใช่จำนวนผู้ใช้"
   },
   "tr": {
     "featuresTitle": "Günlük üç temel özellik",
@@ -880,9 +1054,12 @@
     "pricingTitle": "Adil fiyatlı tek plan",
     "pricingPeriod": "Aylık 3 ABD doları",
     "pricingDescription": "Pencereler, masaüstleri ve yerel otomatik kayıt. Günlük üç temel özellik tek planda",
-    "pricingSettings": "Diğer her şey ayarlarda kalır ;)",
+    "pricingSettings": "Bunlar gelecekte sunulması planlanan paketlerdir, mevcut kısıtlamalar değildir. Abonelikler başlayana kadar Mouse’un mevcut tüm özellikleri ücretsiz kullanılabilir.",
     "pricingNote": "Abonelik yakında",
-    "pricingDownload": "Mouse’u indir"
+    "pricingDownload": "Mouse’u indir",
+    "pricingTrial": "7 gün — tüm özellikler",
+    "statsLabel": "İndirmeler",
+    "statsNote": "Sürüme göre başlatılan indirmeler. Kullanıcı sayısı değildir."
   },
   "uk": {
     "featuresTitle": "Три корисні функції на щодень",
@@ -895,9 +1072,12 @@
     "pricingTitle": "Один тариф за чесною ціною",
     "pricingPeriod": "3 долари США на місяць",
     "pricingDescription": "Вікна, робочі столи й локальне автозбереження. Три корисні функції на щодень в одному тарифі",
-    "pricingSettings": "Усе інше залишається в налаштуваннях ;)",
+    "pricingSettings": "Це запропоновані майбутні тарифи, а не чинні обмеження. До запуску підписки всі поточні функції Mouse залишаються безкоштовними.",
     "pricingNote": "Підписка з’явиться незабаром",
-    "pricingDownload": "Завантажити Mouse"
+    "pricingDownload": "Завантажити Mouse",
+    "pricingTrial": "7 днів — усі функції",
+    "statsLabel": "Завантаження",
+    "statsNote": "Розпочаті завантаження за версіями. Це не кількість користувачів."
   },
   "ur": {
     "featuresTitle": "روزمرہ کی تین ضروری سہولتیں",
@@ -910,9 +1090,12 @@
     "pricingTitle": "منصفانہ قیمت پر ایک ہی پلان",
     "pricingPeriod": "ماہانہ 3 امریکی ڈالر",
     "pricingDescription": "ونڈوز، ڈیسک ٹاپس اور آلے پر خودکار طور پر محفوظ کرنے کی سہولت۔ روزمرہ کی تین ضروری سہولتیں ایک ہی پلان میں",
-    "pricingSettings": "باقی سب سیٹنگز میں رہے گا ;)",
+    "pricingSettings": "یہ مستقبل کے لیے مجوزہ پلان ہیں، موجودہ پابندیاں نہیں۔ سبسکرپشن شروع ہونے تک Mouse کی تمام موجودہ خصوصیات مفت استعمال کی جا سکتی ہیں۔",
     "pricingNote": "سبسکرپشن جلد آ رہی ہے",
-    "pricingDownload": "Mouse ڈاؤن لوڈ کریں"
+    "pricingDownload": "Mouse ڈاؤن لوڈ کریں",
+    "pricingTrial": "7 دن — تمام خصوصیات",
+    "statsLabel": "ڈاؤن لوڈز",
+    "statsNote": "ورژن کے لحاظ سے شروع ہونے والے ڈاؤن لوڈز۔ صارفین کی تعداد نہیں۔"
   },
   "vi": {
     "featuresTitle": "Ba tính năng thiết yếu mỗi ngày",
@@ -925,9 +1108,12 @@
     "pricingTitle": "Một gói duy nhất, giá hợp lý",
     "pricingPeriod": "3 đô la Mỹ mỗi tháng",
     "pricingDescription": "Cửa sổ, màn hình làm việc và tự động lưu trên thiết bị. Ba tính năng thiết yếu mỗi ngày trong cùng một gói",
-    "pricingSettings": "Mọi thứ khác vẫn nằm trong phần cài đặt ;)",
+    "pricingSettings": "Đây là các gói dự kiến cho tương lai, không phải giới hạn hiện tại. Cho đến khi dịch vụ đăng ký ra mắt, mọi tính năng hiện có của Mouse vẫn được sử dụng miễn phí.",
     "pricingNote": "Sắp có gói đăng ký",
-    "pricingDownload": "Tải Mouse"
+    "pricingDownload": "Tải Mouse",
+    "pricingTrial": "7 ngày — mọi tính năng",
+    "statsLabel": "Lượt tải xuống",
+    "statsNote": "Lượt bắt đầu tải xuống theo phiên bản. Không phải số người dùng."
   },
   "he": {
     "featuresTitle": "שלוש יכולות שימושיות ליום־יום",
@@ -940,9 +1126,12 @@
     "pricingTitle": "תוכנית אחת במחיר הוגן",
     "pricingPeriod": "3 דולרים אמריקאיים לחודש",
     "pricingDescription": "חלונות, שולחנות עבודה ושמירה אוטומטית מקומית. שלוש יכולות שימושיות ליום־יום, יחד בתוכנית אחת",
-    "pricingSettings": "כל השאר נשאר בהגדרות ;)",
+    "pricingSettings": "אלה מסלולים מוצעים לעתיד, ולא מגבלות שחלות כעת. עד להשקת המינויים, כל התכונות הקיימות של Mouse יישארו זמינות לשימוש בחינם.",
     "pricingNote": "המינוי יהיה זמין בקרוב",
-    "pricingDownload": "הורדת Mouse"
+    "pricingDownload": "הורדת Mouse",
+    "pricingTrial": "7 ימים — כל התכונות",
+    "statsLabel": "הורדות",
+    "statsNote": "הורדות שהחלו לפי גרסה. זה אינו מספר המשתמשים."
   },
   "uz": {
     "featuresTitle": "Kundalik uchta zarur imkoniyat",
@@ -955,9 +1144,12 @@
     "pricingTitle": "Maqbul narxda bitta tarif",
     "pricingPeriod": "Oyiga 3 AQSH dollari",
     "pricingDescription": "Oynalar, ish stollari va qurilmada avtomatik saqlash. Kundalik uchta zarur imkoniyat bitta tarifda",
-    "pricingSettings": "Qolgan hammasi sozlamalarda qoladi ;)",
+    "pricingSettings": "Bular kelajak uchun taklif etilgan tariflar, hozirgi cheklovlar emas. Obunalar ishga tushguncha Mouse’ning barcha mavjud funksiyalaridan bepul foydalanish mumkin.",
     "pricingNote": "Obuna tez orada",
-    "pricingDownload": "Mouse’ni yuklab ol"
+    "pricingDownload": "Mouse’ni yuklab ol",
+    "pricingTrial": "7 kun — barcha funksiyalar",
+    "statsLabel": "Yuklab olishlar",
+    "statsNote": "Versiya bo‘yicha boshlangan yuklab olishlar. Foydalanuvchilar soni emas."
   },
   "az": {
     "featuresTitle": "Gündəlik üç vacib imkan",
@@ -970,9 +1162,12 @@
     "pricingTitle": "Münasib qiymətə tək plan",
     "pricingPeriod": "Ayda 3 ABŞ dolları",
     "pricingDescription": "Pəncərələr, iş masaları və cihazda avtomatik saxlama. Gündəlik üç vacib imkan bir planda",
-    "pricingSettings": "Qalan hər şey ayarlarda qalır ;)",
+    "pricingSettings": "Bunlar gələcək üçün təklif olunan tariflərdir, mövcud məhdudiyyətlər deyil. Abunəliklər istifadəyə verilənədək Mouse-un bütün mövcud funksiyaları pulsuz qalır.",
     "pricingNote": "Abunəlik tezliklə",
-    "pricingDownload": "Mouse yüklə"
+    "pricingDownload": "Mouse yüklə",
+    "pricingTrial": "7 gün — bütün funksiyalar",
+    "statsLabel": "Endirmələr",
+    "statsNote": "Versiyaya görə başladılmış endirmələr. İstifadəçi sayı deyil."
   },
   "af": {
     "featuresTitle": "Drie noodsaaklike funksies vir elke dag",
@@ -985,9 +1180,12 @@
     "pricingTitle": "Een plan teen ’n billike prys",
     "pricingPeriod": "3 Amerikaanse dollar per maand",
     "pricingDescription": "Vensters, werkskerms en outomatiese plaaslike stoor. Drie noodsaaklike funksies vir elke dag, saam in een plan",
-    "pricingSettings": "Al die ander dinge bly in die instellings ;)",
+    "pricingSettings": "Dit is voorgestelde toekomstige planne, nie huidige beperkings nie. Totdat intekeninge beskikbaar is, bly alle bestaande Mouse-funksies gratis om te gebruik.",
     "pricingNote": "Intekening kom binnekort",
-    "pricingDownload": "Laai Mouse af"
+    "pricingDownload": "Laai Mouse af",
+    "pricingTrial": "7 dae — alle funksies",
+    "statsLabel": "Aflaaie",
+    "statsNote": "Aflaaie wat begin is, per weergawe. Nie die aantal gebruikers nie."
   },
   "eu": {
     "featuresTitle": "Eguneroko hiru funtzio erabilgarri",
@@ -1000,9 +1198,12 @@
     "pricingTitle": "Plan bakarra, prezio justuan",
     "pricingPeriod": "3 dolar estatubatuar hilean",
     "pricingDescription": "Leihoak, mahaigainak eta gordetze automatiko lokala. Eguneroko hiru funtzio erabilgarri, plan bakarrean",
-    "pricingSettings": "Gainerako guztia ezarpenetan geratzen da ;)",
+    "pricingSettings": "Etorkizunerako proposatutako planak dira, ez egungo mugak. Harpidetzak abian jarri arte, Mouseren egungo funtzio guztiak doan erabil daitezke.",
     "pricingNote": "Harpidetza laster",
-    "pricingDownload": "Deskargatu Mouse"
+    "pricingDownload": "Deskargatu Mouse",
+    "pricingTrial": "7 egun — funtzio guztiak",
+    "statsLabel": "Deskargak",
+    "statsNote": "Hasitako deskargak bertsioaren arabera. Ez da erabiltzaile kopurua."
   },
   "gl": {
     "featuresTitle": "Tres funcións esenciais para o día a día",
@@ -1015,9 +1216,12 @@
     "pricingTitle": "Un único plan a un prezo xusto",
     "pricingPeriod": "3 dólares estadounidenses ao mes",
     "pricingDescription": "Xanelas, escritorios e gardado automático local. Tres funcións esenciais para o día a día nun único plan",
-    "pricingSettings": "Todo o demais queda na configuración ;)",
+    "pricingSettings": "Estes son plans propostos para o futuro, non límites actuais. Ata o lanzamento das subscricións, todas as funcións actuais de Mouse seguen a ser gratuítas.",
     "pricingNote": "Subscrición dispoñible proximamente",
-    "pricingDownload": "Descargar Mouse"
+    "pricingDownload": "Descargar Mouse",
+    "pricingTrial": "7 días — todas as funcións",
+    "statsLabel": "Descargas",
+    "statsNote": "Descargas iniciadas por versión. Non é o número de usuarios."
   },
   "km": {
     "featuresTitle": "មុខងារចាំបាច់បីសម្រាប់រាល់ថ្ងៃ",
@@ -1030,9 +1234,12 @@
     "pricingTitle": "គម្រោងតែមួយ តម្លៃសមរម្យ",
     "pricingPeriod": "3 ដុល្លារអាមេរិកក្នុងមួយខែ",
     "pricingDescription": "បង្អួច ផ្ទៃតុ និងការរក្សាទុកដោយស្វ័យប្រវត្តិនៅលើឧបករណ៍។ មុខងារចាំបាច់បីសម្រាប់រាល់ថ្ងៃ រួមគ្នាក្នុងគម្រោងតែមួយ",
-    "pricingSettings": "អ្វីៗផ្សេងទៀតនៅក្នុងការកំណត់ ;)",
+    "pricingSettings": "ទាំងនេះជាគម្រោងដែលបានស្នើឡើងសម្រាប់ពេលអនាគត មិនមែនជាដែនកំណត់បច្ចុប្បន្នទេ។ រហូតដល់ការជាវត្រូវបានដាក់ឱ្យដំណើរការ មុខងារដែលមានស្រាប់ទាំងអស់របស់ Mouse នៅតែអាចប្រើបានដោយឥតគិតថ្លៃ។",
     "pricingNote": "សេវាជាវនឹងមកដល់ឆាប់ៗនេះ",
-    "pricingDownload": "ទាញយក Mouse"
+    "pricingDownload": "ទាញយក Mouse",
+    "pricingTrial": "7 ថ្ងៃ — មុខងារទាំងអស់",
+    "statsLabel": "ការទាញយក",
+    "statsNote": "ការទាញយកដែលបានចាប់ផ្តើមតាមកំណែ។ មិនមែនជាចំនួនអ្នកប្រើប្រាស់ទេ។"
   },
   "lo": {
     "featuresTitle": "ສາມຟັງຊັນຈຳເປັນສຳລັບທຸກມື້",
@@ -1045,9 +1252,12 @@
     "pricingTitle": "ແພັກເກດດຽວ ໃນລາຄາທີ່ເໝາະສົມ",
     "pricingPeriod": "3 ໂດລາສະຫະລັດຕໍ່ເດືອນ",
     "pricingDescription": "ໜ້າຕ່າງ, ເດັສທັອບ ແລະການບັນທຶກອັດຕະໂນມັດໃນອຸປະກອນ. ສາມຟັງຊັນຈຳເປັນສຳລັບທຸກມື້ ລວມຢູ່ໃນແພັກເກດດຽວ",
-    "pricingSettings": "ສ່ວນອື່ນໆຍັງຢູ່ໃນການຕັ້ງຄ່າ ;)",
+    "pricingSettings": "ນີ້ແມ່ນແຜນຄ່າບໍລິການທີ່ສະເໜີສຳລັບອະນາຄົດ, ບໍ່ແມ່ນຂໍ້ຈຳກັດໃນປັດຈຸບັນ. ຈົນກວ່າຈະເປີດໃຫ້ສະໝັກສະມາຊິກ, ທຸກຟັງຊັນທີ່ມີຢູ່ຂອງ Mouse ຍັງໃຊ້ໄດ້ຟຣີ.",
     "pricingNote": "ການສະໝັກສະມາຊິກຈະມາໃນໄວໆນີ້",
-    "pricingDownload": "ດາວໂຫຼດ Mouse"
+    "pricingDownload": "ດາວໂຫຼດ Mouse",
+    "pricingTrial": "7 ມື້ — ທຸກຟັງຊັນ",
+    "statsLabel": "ການດາວໂຫຼດ",
+    "statsNote": "ການດາວໂຫຼດທີ່ເລີ່ມຕົ້ນແຍກຕາມເວີຊັນ. ບໍ່ແມ່ນຈຳນວນຜູ້ໃຊ້."
   },
   "ne": {
     "featuresTitle": "हरेक दिनका तीन आवश्यक सुविधा",
@@ -1060,9 +1270,12 @@
     "pricingTitle": "उचित मूल्यमा एउटै योजना",
     "pricingPeriod": "प्रति महिना 3 अमेरिकी डलर",
     "pricingDescription": "विन्डो, डेस्कटप र यन्त्रमा स्वतः सेभ गर्ने सुविधा। हरेक दिनका तीन आवश्यक सुविधा एउटै योजनामा",
-    "pricingSettings": "बाँकी सबै सेटिङमै रहन्छ ;)",
+    "pricingSettings": "यी भविष्यका लागि प्रस्तावित योजनाहरू हुन्, अहिले लागू सीमाहरू होइनन्। सदस्यता सुरु नहुँदासम्म Mouse का सबै हालका सुविधाहरू निःशुल्क प्रयोग गर्न सकिन्छ।",
     "pricingNote": "सदस्यता छिट्टै आउँदैछ",
-    "pricingDownload": "Mouse डाउनलोड गर्नुहोस्"
+    "pricingDownload": "Mouse डाउनलोड गर्नुहोस्",
+    "pricingTrial": "7 दिन — सबै सुविधाहरू",
+    "statsLabel": "डाउनलोडहरू",
+    "statsNote": "संस्करणअनुसार सुरु भएका डाउनलोडहरू। प्रयोगकर्ताको सङ्ख्या होइन।"
   },
   "si": {
     "featuresTitle": "දිනපතා අවශ්‍ය පහසුකම් තුනක්",
@@ -1075,8 +1288,11 @@
     "pricingTitle": "සාධාරණ මිලකට එකම සැලසුමක්",
     "pricingPeriod": "මසකට ඇමරිකානු ඩොලර් 3 ක්",
     "pricingDescription": "කවුළු, ඩෙස්ක්ටොප් සහ උපාංගයේ ස්වයංක්‍රීයව සුරැකීම. දිනපතා අවශ්‍ය පහසුකම් තුනක් එකම සැලසුමක",
-    "pricingSettings": "අනෙක් සියල්ල සැකසීම් තුළම ;)",
+    "pricingSettings": "මේවා අනාගතය සඳහා යෝජිත සැලසුම් මිස දැනට ක්‍රියාත්මක සීමා නොවේ. දායකත්වයන් ආරම්භ වන තුරු Mouse හි දැනට ඇති සියලු විශේෂාංග නොමිලේ භාවිත කළ හැකිය.",
     "pricingNote": "දායකත්වය ළඟදීම",
-    "pricingDownload": "Mouse බාගන්න"
+    "pricingDownload": "Mouse බාගන්න",
+    "pricingTrial": "දින 7 — සියලු විශේෂාංග",
+    "statsLabel": "බාගැනීම්",
+    "statsNote": "අනුවාදය අනුව ආරම්භ වූ බාගැනීම්. පරිශීලකයන් ගණන නොවේ."
   }
 }
