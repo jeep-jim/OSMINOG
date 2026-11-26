@@ -24,7 +24,7 @@ test('address editing keeps actual controls reachable and clears stale edit styl
 test('footer is preserved, only successful AI-open status text is suppressed',()=>{
  const html=read('mouse/index.html'),app=read('mouse/browser.js');
  for(const id of ['statusbar','footer-left','footer-right','version-button','history-button','downloads-button'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
- assert.match(html,/<strong>Mouse Browser<\/strong>/);assert.doesNotMatch(app,/ИИ открыт как отдельная веб-страница/);assert.match(app,/setStatus\(/);
+ assert.match(html,/<button class="brand"[^>]*><img src="mouse-head.svg" alt=""><\/button>/);assert.doesNotMatch(html,/<strong>Mouse Browser<\/strong>/);assert.doesNotMatch(app,/ИИ открыт как отдельная веб-страница/);assert.match(app,/setStatus\(/);
 });
 test('internal and outer pane corner radius is twelve in shell and native compositor',()=>{
  const {paneCorners}=require('./mouse/mouse-616-ui.js'),stage={top:40,bottom:900};
