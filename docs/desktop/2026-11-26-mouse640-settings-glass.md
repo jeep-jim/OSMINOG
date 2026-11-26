@@ -115,4 +115,4 @@ Overview-кадры установленного 640 на Mac arm64, Linux x64 �
 
 ### Предшественник Windows 639
 
-Предшественник Windows 6.0.39 уже **PUBLIC VERIFIED**: [publisher run 45727151888](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45727151888), attempt 2, job `139604658711`, SUCCESS. Feed содержит `publishedAt: 2026-11-26T01:04:22Z`; публичный `Mouse-Browser-6.0.39-Windows-x64.exe` независимо скачан целиком: 113701515 байт, SHA256 `abe87dda375fa2c56c723b1839ba5bcd6faaa980f019220cf8e16f53fc4eb881`. Это receipt 639, а не публикация 640.
+Предшественник Windows 6.0.39 уже **PUBLIC VERIFIED**: [publisher run 45727151888](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45727151888), attempt 2, job `139604658711`, SUCCESS. При проверке выпуска 639 feed содержал `publishedAt: 2026-11-26T01:04:22Z`; публичный `Mouse-Browser-6.0.39-Windows-x64.exe` независимо скачан целиком: 113701515 байт, SHA256 `abe87dda375fa2c56c723b1839ba5bcd6faaa980f019220cf8e16f53fc4eb881`. Это receipt 639, а не публикация 640.
