@@ -5,7 +5,7 @@
 const assert=require('node:assert/strict');
 function zoomPresentation(version,kind){
  assert.ok(kind==='popover'||kind==='settings','Known live zoom control');
- const dimmed=version==='6.0.39'&&kind==='settings';
+ const dimmed=version==='6.0.40'&&kind==='settings';
  return{kind,dimmed,expectedRGB:dimmed?[202,34,133]:[235,40,155]};
 }
 function presentationSettled(states,enabled){

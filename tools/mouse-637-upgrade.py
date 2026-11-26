@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Replace real published predecessor packages with639 and preserve actual profiles.
+"""Replace real published predecessor packages with640 and preserve actual profiles.
 
-All platforms advance the actual published638. Mac/Windows retain their
+All platforms advance the actual published639. Mac/Windows retain their
 independent legacy updater gates. Linux exercises both
-published638 formats in separate owned profiles; it is no longer a first release.
+published639 formats in separate owned profiles; it is no longer a first release.
 This helper is only executed on the native, unprivileged CI installation runner.
 """
 from __future__ import annotations
@@ -22,22 +22,22 @@ import tempfile
 import time
 import urllib.request
 
-OLD_VERSIONS = {'darwin': '6.0.38', 'win32': '6.0.38', 'linux': '6.0.38'}
-OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.38')
-VERSION = '6.0.39'
+OLD_VERSIONS = {'darwin': '6.0.39', 'win32': '6.0.39', 'linux': '6.0.39'}
+OLD_VERSION = OLD_VERSIONS.get(sys.platform, '6.0.39')
+VERSION = '6.0.40'
 CLEANUP_RETRY_SECONDS = 10.0
 METHOD = 'verified package replacement and actual old/new profile processes; retained629 gate tests updater'
 LINUX_METHOD = 'verified deb and AppImage replacement with actual old/new profile processes'
 BASELINES = {
-    'darwin': {'name': 'Mouse-Browser-6.0.38-mac-arm64.dmg', 'tag': 'quadro-macos-v6.0.38-arm64',
-               'size': 130633100, 'sha256': 'a6b88d66f4e240fad5f9be6fe166d08a22231d84e81fcd81ac545fae797c78bb'},
-    'win32': {'name': 'Mouse-Browser-6.0.38-Windows-x64.exe', 'tag': 'mouse-windows-v6.0.38-x64',
-              'size': 113486100, 'sha256': '7647487decd235b493dfe0c03107ca3adc44360a20bc1d31aae8ca2a07379eb7'},
+    'darwin': {'name': 'Mouse-Browser-6.0.39-mac-arm64.dmg', 'tag': 'quadro-macos-v6.0.39-arm64',
+               'size': 131415060, 'sha256': '6b567f1969e232403c9395a30b2b48feeea2c242555c8e586d68e1f4c9da5800'},
+    'win32': {'name': 'Mouse-Browser-6.0.39-Windows-x64.exe', 'tag': 'mouse-windows-v6.0.39-x64',
+              'size': 113701515, 'sha256': 'abe87dda375fa2c56c723b1839ba5bcd6faaa980f019220cf8e16f53fc4eb881'},
     'linux': {
-        'appimage': {'name': 'Mouse-Browser-6.0.38-Linux-x64.AppImage', 'tag': 'mouse-linux-v6.0.38-x64',
-                     'size': 127949079, 'sha256': 'ad8192a991b6485e447e6e33acd899567df885095bf3f7581c0a6d1457bbad90'},
-        'deb': {'name': 'Mouse-Browser-6.0.38-Linux-x64.deb', 'tag': 'mouse-linux-v6.0.38-x64',
-                'size': 101179004, 'sha256': '08cb079dda38f049d9dd56bebba22a1ae1e575e0c1e0555e4e9e8ab655cd4d8b'},
+        'appimage': {'name': 'Mouse-Browser-6.0.39-Linux-x64.AppImage', 'tag': 'mouse-linux-v6.0.39-x64',
+                     'size': 128740190, 'sha256': '25c26970b5d7e0720dcbda67e581ce48651016bdb59671a552468d915b4cf853'},
+        'deb': {'name': 'Mouse-Browser-6.0.39-Linux-x64.deb', 'tag': 'mouse-linux-v6.0.39-x64',
+                'size': 101329168, 'sha256': 'a666f0c14224cd1e21e34f2653a9b8fef5052a135db79bd3edf53cb1024c178f'},
     },
 }
 
@@ -310,7 +310,7 @@ def main(argv=None):
         raise
     finally:
         report.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print('MOUSE_639_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_639_PROFILE_PASS', flush=True)
+    print('MOUSE_640_REAL_' + '6' + OLD_VERSION.rsplit('.', 1)[-1] + '_TO_640_PROFILE_PASS', flush=True)
     return 0
 
 

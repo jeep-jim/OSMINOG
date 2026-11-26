@@ -61,6 +61,7 @@ module.exports=async ctx=>{
    await click('#desktops-button');await until(()=>js('document.querySelector("#desktop-tray")?.dataset.motion==="open"'),'Nora is fully open');facts.entry.nora=true;
    assert.equal(await js('!!document.querySelector("#desk-settings")'),false,'Nora has no settings gear');await click('#desks-close');await until(()=>js('!MouseTest.desktopUI.holdsNative&&!document.querySelector("#desktop-tray").open'),'Nora closes before footer settings');
    await click('#settings-button');await until(()=>js('document.querySelector("#settings-dialog").open'),'footer settings dialog opens');facts.entry.settings=true;
+   await click('#settings-dialog .settings-nav-item[data-settings-page=documents]');await until(()=>js('!document.querySelector("[data-settings-section=documents]").hidden'),'document category exposes its actual picker control');
    const barrier=nativeState();facts.settingsBarriers.push(barrier);assert.equal(barrier.gate.blocked,false,'Settings keeps native pages live');const side=await js('(()=>{const r=document.querySelector("#settings-dialog").getBoundingClientRect();return{x:r.x,right:r.right}})()');await until(()=>browser.panels.every(page=>page.x+page.width<=side.x+2),'native pages leave the settings sidebar uncovered');assert.equal(await js('document.querySelector("#settings-dialog").matches(":modal")'),false);barrier.sidebar=side;
   }
   const paneSelector=id=>'.document-pane[data-document-id="'+id+'"]';

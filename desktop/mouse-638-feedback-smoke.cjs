@@ -8,7 +8,7 @@ const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
 const {tonePage,gridReadback,newTabReadback,toneReadback,rgb,sample,assertGrid}=require('./mouse-638-feedback-helpers.cjs');
-const L=require('./mouse/layout.js'),VERSION='6.0.39',REPORT='mouse-638-feedback.json';
+const L=require('./mouse/layout.js'),VERSION='6.0.40',REPORT='mouse-638-feedback.json';
 
 module.exports=async ctx=>{
  const {app,win,browser,store,globalCapture}=ctx,read=process.argv.includes('--mouse-638-feedback-restore-read'),budgetMs=read?180000:360000,started=Date.now();
@@ -36,6 +36,7 @@ module.exports=async ctx=>{
   if(await js('MouseTest.model.theme')!==theme)await click('#theme-button');
   await fixture.until(()=>js(`MouseTest.model.theme===${JSON.stringify(theme)}`),'638 theme '+theme);
   await click('#settings-button');await fixture.until(()=>js('document.querySelector("#settings-dialog").open'),'638 appearance settings');
+  await click('#settings-dialog .settings-nav-item[data-settings-page=appearance]');await fixture.until(()=>js('!document.querySelector("[data-settings-section=appearance]").hidden'),'638 appearance category');
   if(await js('MouseTest.model.appearance.paneMode')!==mode)await click('#settings-square-grid');
   await click('#settings-white-tone');await key(tone===0?'Home':'End');
   await fixture.until(()=>js(`MouseTest.model.appearance.paneMode===${JSON.stringify(mode)}&&MouseTest.model.appearance.whiteTone===${tone}`),'638 native appearance change');

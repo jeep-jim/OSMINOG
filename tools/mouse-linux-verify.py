@@ -20,8 +20,8 @@ import sys
 import tempfile
 import time
 
-VERSION = "6.0.39"
-PREVIOUS_VERSION = "6.0.38"
+VERSION = "6.0.40"
+PREVIOUS_VERSION = "6.0.39"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -175,13 +175,13 @@ def main(argv=None):
             write_json(report_path, evidence)
             current_upgrade = run_logged(
                 [sys.executable, Path(__file__).with_name("mouse-637-upgrade.py"), packages_dir],
-                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_639_REAL_638_TO_639_PROFILE_PASS"])
+                env, output, "mouse-637-upgrade.log", 720, ["MOUSE_640_REAL_639_TO_640_PROFILE_PASS"])
             upgrade_report = json.loads((output / "mouse-637-upgrade.json").read_text(encoding="utf-8"))
             verify_upgrade_report(upgrade_report)
             evidence["checks"]["freshUpgrade"] = {**current_upgrade,
                     "reportSha256": sha256(output / "mouse-637-upgrade.json")}
             button = run_logged([sys.executable, Path(__file__).with_name("mouse-637-update-button.py"), packages_dir],
-                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_639_REAL_638_TO_639_UPDATE_BUTTON_PASS"])
+                                env, output, "mouse-637-update-button.log", 720, ["MOUSE_640_REAL_639_TO_640_UPDATE_BUTTON_PASS"])
             evidence["checks"]["updateFrom638"] = {**button, "reportSha256": sha256(output / "mouse-637-update-button.json")}
             write_json(report_path, evidence)
             deb = packages_dir / f"Mouse-Browser-{VERSION}-Linux-x64.deb"
@@ -260,6 +260,9 @@ def main(argv=None):
                     "Mouse637 features did not restore in a distinct actual process")
             feature_processes["reportSha256"] = sha256(feature_file)
             evidence["checks"]["features637"] = feature_processes
+            settings_spec = importlib.util.spec_from_file_location('mouse640_settings', Path(__file__).with_name('mouse-640-settings-acceptance.py'))
+            settings_reader = importlib.util.module_from_spec(settings_spec); settings_spec.loader.exec_module(settings_reader)
+            evidence['checks']['settings640'] = settings_reader.run(output, platform='linux', arch='x64')
             write_json(report_path, evidence)
             feedback_spec = importlib.util.spec_from_file_location("mouse638_feedback_run", Path(__file__).with_name("mouse-638-feedback-run.py"))
             feedback_runner = importlib.util.module_from_spec(feedback_spec)

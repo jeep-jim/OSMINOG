@@ -1,5 +1,5 @@
 'use strict';
-// Installed, two-process acceptance for the combined 6.0.39 interface features.
+// Installed, two-process acceptance for the combined 6.0.40 interface features.
 // Only the CI-owned profile, loopback PCM audio and a locally generated extension
 // are used. Product commands still originate in the actual native shell/guest UI.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),http=require('node:http');
@@ -8,7 +8,7 @@ const {createFixture,pageHTML,bounded,sha256,sleep}=require('./mouse-631-smoke-h
 const {screenCropGeometry}=require('./mouse-628-ui-smoke.cjs');
 const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {installInputProbe}=require('./mouse-633-smoke-helpers.cjs');
-const VERSION='6.0.39',REPORT='mouse-637-features.json',BUDGET=240000;
+const VERSION='6.0.40',REPORT='mouse-637-features.json',BUDGET=240000;
 
 function ownedWave(frequency=440){
  const rate=8000,seconds=45,samples=rate*seconds,data=Buffer.alloc(44+samples*2);
@@ -186,7 +186,7 @@ module.exports=async ctx=>{
  }
  async function restorePreferences(){if(fixture){await fixture.js(`MouseTest.setLocale(${JSON.stringify(initialLocale)});MouseTest.setTheme(${JSON.stringify(initialTheme)});MouseFlush()`);if((read||error)&&initialAppearance)await fixture.js(`MouseTest.setAppearance(${JSON.stringify(initialAppearance)})`);await store.queue}}
  async function appearanceState(){return fixture.js(`(${appearanceReadback.toString()})()`)}
- async function openAppearance(){if(!await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-button');await fixture.until(()=>fixture.js('document.querySelector("#settings-dialog").open'),'appearance settings open')}
+ async function openAppearance(){if(!await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-button');await fixture.until(()=>fixture.js('document.querySelector("#settings-dialog").open'),'appearance settings open');await click('#settings-dialog .settings-nav-item[data-settings-page=appearance]');await fixture.until(()=>fixture.js('!document.querySelector("[data-settings-section=appearance]").hidden'),'appearance category visible')}
  async function closeAppearance(){if(await fixture.js('document.querySelector("#settings-dialog").open'))await click('#settings-dialog [data-close-dialog]');await fixture.until(()=>fixture.js('!document.querySelector("#settings-dialog").open'),'appearance settings closed');await fixture.frame()}
  async function selectTone(endpoint){await click('#settings-white-tone');await key(endpoint==='min'?'Home':'End');await fixture.until(()=>fixture.js(`MouseTest.model.appearance.whiteTone===${endpoint==='min'?0:100}`),'native text tone '+endpoint)}
  try{
@@ -327,6 +327,7 @@ module.exports=async ctx=>{
    const combinedContext={...ctx,fixture,nativeInput,click,key,text,capture,theme,openAppearance,closeAppearance,facts,records};
    await stage('native-populated-presets',()=>require('./mouse-637-presets-smoke.cjs')(combinedContext));
    await stage('native-sidebar-focus',()=>require('./mouse-637-sidebar-focus-smoke.cjs')(combinedContext));
+   await stage('native-settings-discoverability',()=>require('./mouse-640-settings-smoke.cjs')(combinedContext));
    await stage('native-library-file-actions',()=>require('./mouse-637-library-actions-smoke.cjs')(combinedContext));
    await stage('native-appearance-settings',async()=>{
     await fixture.switchDesk(records[0].desk);await fixture.setLayout(records);

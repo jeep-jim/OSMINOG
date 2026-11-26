@@ -8,7 +8,13 @@ function settingsSurfaceReadback(){
 }
 function assertSettingsSurface(value){
  assert.equal(typeof value.version,'string','The installed version is read from MouseNative');
- if(value.version==='6.0.39'&&value.theme==='dark'){
+ if(value.version==='6.0.40'){
+  const match=value.settings.backdropFilter.match(/blur\(([0-9.]+)px\)/);
+  assert.ok(match&&Number(match[1])>=16,'640 Settings has the actual glass backdrop blur');
+  const alpha=value.settings.backgroundColor.match(/^rgba\([\d., ]+,\s*([0-9.]+)\)$/);
+  assert.ok(alpha&&Number(alpha[1])>=.65&&Number(alpha[1])<1,'640 Settings has a legible translucent base');
+  assert.notEqual(value.settings.backgroundColor,value.toolbar.backgroundColor,'640 Settings has its own glass surface');
+ }else if(value.version==='6.0.39'&&value.theme==='dark'){
   assert.equal(value.settings.backdropFilter,'none','637 dark Settings keeps its solid sidebar surface');
   for(const key of ['backgroundImage','backgroundColor']){
    assert.equal(typeof value.toolbar[key],'string');assert.notEqual(value.toolbar[key],'');
@@ -45,7 +51,8 @@ module.exports=async({win,browser,overlayGate})=>{
  for(const theme of ['dark','light']){
   await js(`MouseTest.setTheme('${theme}')`);assert.equal(await js('getComputedStyle(document.querySelector("#contrast-fixture")).filter'),theme==='dark'?'invert(1)':'none');
   await js('MouseTest.action("settings")');await until(async()=>await js('document.querySelector("#settings-dialog").open')&&!overlayGate.blocked,'settings live sidebar');
-  const gap=await js('(()=>{const [a,b]=document.querySelectorAll("#settings-dialog .dialog-actions button"),r=a.getBoundingClientRect(),s=b.getBoundingClientRect();return s.top>r.bottom-1?s.top-r.bottom:s.left-r.right})()');assert.ok(gap>=7,'Settings action spacing');
+  await click('#settings-dialog [data-settings-page=privacy]');
+  const gap=await js('(()=>{const group=[...document.querySelectorAll("#settings-dialog .dialog-actions")].find(e=>e.getBoundingClientRect().height>0&&e.querySelectorAll("button").length>=2),[a,b]=group.querySelectorAll("button"),r=a.getBoundingClientRect(),s=b.getBoundingClientRect();return s.top>r.bottom-1?s.top-r.bottom:s.left-r.right})()');assert.ok(gap>=7,'Settings action spacing');
   assertSettingsSurface(await js('('+settingsSurfaceReadback.toString()+')()'));
   await click('#settings-dialog [data-close-dialog]');
  }

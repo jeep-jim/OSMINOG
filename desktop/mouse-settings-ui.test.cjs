@@ -45,7 +45,7 @@ function fixture({settings={},readState,settingsSet,withoutAdBlock=false}={}){
  if(!withoutAdBlock){N.adBlockState=readState||(async()=>({enabled:false,phase:'off',lists:0,rules:0,updatedAt:null}));N.onAdBlockState=callback=>changed=callback;}
  const context={document,MouseAppearance,MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(panel,context);vm.runInContext(locale,context);
  const ui=context.createMouseSettings({N,model,action(){},setTheme(){},setLocale(){},setAppearance(){},changeLayout(){},applySide(){},save(){},zoom(){},onSidebar(){},status:message=>errors.push(message)});
- return{ui,model,calls,errors,$:selector=>document.querySelector(selector),emit:state=>changed(state),locale:value=>context.MouseLocale.apply(value)};
+ return{ui,model,calls,errors,document,click:selector=>{const target=document.querySelector(selector);for(const callback of document.querySelector('#settings-dialog').events.get('click')||[])callback({target});},$:selector=>document.querySelector(selector),emit:state=>changed(state),locale:value=>context.MouseLocale.apply(value)};
 }
 test('the new switch is opt-in, lives in Privacy and keeps the other switches default-on',async()=>{
  const f=fixture({withoutAdBlock:true});await f.ui.open();
@@ -80,4 +80,35 @@ test('the real locale layer translates the switch, reload hint and each filter s
   f.emit({enabled:phase!=='off',phase});f.locale('en');assert.equal(f.$('#settings-adblock-state').textContent,text);
  }
  f.locale('ru');assert.match(label.textContent,/Блокировать рекламу/);assert.equal(f.$('#settings-adblock-state').textContent,'Базовые правила · списки недоступны');
+});
+
+test('settings open on a visible ad control and navigation isolates each category',async()=>{
+ const f=fixture();await f.ui.open();
+ assert.equal(f.$('[data-settings-section=privacy]').hidden,false);
+ assert.equal(f.$('[data-settings-section=appearance]').hidden,true);
+ assert.equal(f.$('.settings-nav-item[data-settings-page=overview]').getAttribute('aria-current'),'page');
+ f.click('.settings-nav-item[data-settings-page=appearance]');
+ assert.equal(f.$('[data-settings-section=privacy]').hidden,true);
+ assert.equal(f.$('[data-settings-section=appearance]').hidden,false);
+ assert.equal(f.$('[data-settings-section=interface]').hidden,false);
+ assert.equal(f.$('[data-settings-section=scale]').hidden,false);
+ assert.equal(f.$('[data-settings-section=capture]').hidden,true);
+ f.ui.close();await f.ui.open();assert.equal(f.$('[data-settings-section=privacy]').hidden,false);
+});
+test('global search finds familiar words, has an empty state and restores the chosen section',async()=>{
+ const f=fixture();await f.ui.open();f.click('.settings-nav-item[data-settings-page=appearance]');
+ const input=f.$('#settings-search');
+ for(const query of ['AdBlock','ВК','реклама','ads']){input.value=query;input.oninput();assert.equal(f.$('[data-settings-section=privacy]').hidden,false);assert.equal(f.$('[data-settings-section=appearance]').hidden,true);assert.equal(f.$('[data-settings-section=downloads]').hidden,true);assert.equal(f.$('[data-settings-section=capture]').hidden,true);assert.equal(f.$('#settings-empty').hidden,true);}
+ input.value='Сбрасывается';input.oninput();assert.equal(f.$('[data-settings-section=downloads]').hidden,false);
+ input.value='скриншот';input.oninput();assert.equal(f.$('[data-settings-section=capture]').hidden,false);
+ input.value='unmatched-query-640';input.oninput();assert.equal(f.$('#settings-empty').hidden,false);
+ f.$('#settings-search-clear').onclick();assert.equal(input.value,'');assert.equal(f.$('#settings-empty').hidden,true);assert.equal(f.$('[data-settings-section=appearance]').hidden,false);assert.equal(f.$('[data-settings-section=privacy]').hidden,true);
+ input.value='AdBlock';input.oninput();let stopped=false,prevented=false;input.onkeydown({key:'Escape',stopPropagation(){stopped=true;},preventDefault(){prevented=true;}});
+ assert.equal(input.value,'');assert.equal(f.ui.isOpen(),true);assert.equal(stopped,true);assert.equal(prevented,true);
+});
+test('the visible on/off label follows committed settings and keyboard focus returns on close',async()=>{
+ const f=fixture({settings:{blockAds:true}});await f.ui.open();assert.equal(f.$('#settings-blockads-label').textContent,'Включена');
+ f.model.controlSettings.blockAds=false;f.ui.sync();assert.equal(f.$('#settings-blockads-label').textContent,'Выключена');
+ f.model.privateMode=true;f.ui.sync();assert.equal(f.$('#settings-private-note').hidden,false);assert.equal(f.$('[data-setting=blockAds]').disabled,true);
+ f.ui.close();assert.equal(f.document.activeElement,f.$('#settings-button'));
 });
