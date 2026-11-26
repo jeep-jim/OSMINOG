@@ -1,9 +1,11 @@
 """Synthetic reader-unit fixtures. These never constitute native acceptance."""
 import copy
+import fnmatch
 import importlib.util
 import json
 import math
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -77,6 +79,22 @@ def absent():
 
 
 class Workspace641ReaderTests(unittest.TestCase):
+    def test_native_workflow_artifacts_preserve_all_641_raw_evidence_on_failure(self):
+        root = Path(__file__).resolve().parents[1]
+        required = ['mouse-641-workspace-acceptance.json', 'mouse-641-workspace.json', 'mouse-641-workspace-write.json',
+                    'mouse-641-workspace-processes.json', 'mouse-641-adblock-cache.json', 'mouse-641-adblock-cache-easylist.json',
+                    'mouse-641-adblock-cache-ruadlist.json', 'mouse-641-http-write.json', 'mouse-641-http-read.json',
+                    'mouse-641-workspace-write.log', 'mouse-641-workspace-read.log',
+                    'mouse-641-write-classic-link.png', 'mouse-641-write-classic-link-display.png']
+        for workflow, artifact in [('mouse-macos.yml', 'mouse-arm64-verification'), ('mouse-linux.yml', 'mouse-linux-x64-verification'),
+                                   ('mouse-windows.yml', 'mouse-windows-x64-verification'), ('mouse-windows.yml', 'mouse-windows-x64-modern-verification')]:
+            text = (root / '.github/workflows' / workflow).read_text()
+            block = text.split('name: ' + artifact + '\n', 1)[1].split('retention-days:', 1)[0]
+            paths = re.findall(r'^\s+(desktop/\S+)$', block, re.M)
+            for name in required:
+                with self.subTest(workflow=workflow, artifact=artifact, name=name):
+                    self.assertTrue(any(fnmatch.fnmatchcase('desktop/' + name, pattern) for pattern in paths), name + ' would be lost from the native artifact')
+
     def test_split_choice_gap_drag_carry_and_both_tiny_headers_form_one_required_flow(self):
         value, ledger = layout_fixture(); W.verify_layout(value, 'linux', 101, ledger)
         mutations = [lambda v: v['empty']['home'].update(search=False), lambda v: v['empty']['home'].update(favorites=False),

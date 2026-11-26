@@ -276,6 +276,7 @@ jobs:
             desktop/mouse-638-*.json
             desktop/mouse-639-*.json
             desktop/mouse-640-*.json
+            desktop/mouse-641-*.json
             desktop/mouse-638-*.crx
             desktop/mouse-637-library-source.txt
             desktop/mouse-637-agent-code-*.cjs

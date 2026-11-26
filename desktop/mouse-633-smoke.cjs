@@ -10,7 +10,7 @@ const {nativeHitTarget}=require('./mouse-smoke-hit-target.cjs');
 const {ownerPage,colorBounds,assertRetained,installInputProbe,downloadReadback,installDownloadProbe,settingsReadback,METER_WIDTH,METER_HEIGHT}=require('./mouse-633-smoke-helpers.cjs');
 const {zoomPresentation,presentationSettled}=require('./mouse-637-zoom-smoke.cjs');
 const SETTINGS=['showBrandName','showFavicons','desktopGestures','downloadBounce','downloadBadge'];
-const SECTIONS=['privacy','overview-links','appearance','interface','scale','workspace','imports','passwords','private-browsing','capture','downloads','documents','updates','about'];
+const SECTIONS=['privacy','overview-links','appearance','surface-theme','surface-top','surface-bottom','surface-workspace','interface','scale','workspace','imports','passwords','adblock-exclusions','private-browsing','capture','downloads','documents','updates','about'];
 const clone=value=>structuredClone(value);
 
 module.exports=async ctx=>{

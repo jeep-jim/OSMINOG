@@ -21,7 +21,7 @@ import tempfile
 import time
 
 VERSION = "6.0.41"
-PREVIOUS_VERSION = "6.0.39"
+PREVIOUS_VERSION = "6.0.40"
 TASK_MARKERS = ["MOUSE_631_TASK_ONLY_NATIVE_PASS", "MOUSE_631_FIFTY_TABS_FIVE_DESKTOPS_NATIVE_PASS",
                 "MOUSE_631_INSTALLED_TASK_STRESS_PASS", "MOUSE_632_STATIONARY_MEDIA_PASS"]
 
@@ -117,7 +117,7 @@ def verify_upgrade_report(report):
     require(report.get("ok") is True and report.get("fromVersion") == PREVIOUS_VERSION
             and report.get("toVersion") == VERSION and report.get("platform") == "linux"
             and set(report.get("formats", {})) == {"deb", "appimage"},
-            "Actual published637 profile replacement did not pass for both Linux formats")
+            "Actual published640 profile replacement did not pass for both Linux formats")
 
 
 def adblock639(executable, output, profile, env):
