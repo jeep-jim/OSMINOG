@@ -35,15 +35,19 @@ jobs:
           node-version: '22'
       - name: Bind public catalog to all three published 6.0.41 releases
         shell: bash
+        env:
+          MOUSE_PUBLIC_METADATA_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$MOUSE_RENDERER_SOURCE"
           python3 - <<'PY'
-          import hashlib, importlib.util, json, os, re, subprocess, sys, urllib.request
+          import hashlib, importlib.util, json, os, re, subprocess, sys, time, urllib.request
           from datetime import datetime, timezone
           from pathlib import Path
           sys.path.insert(0, 'infra/website')
           import release_catalog as catalog
+          metadata_token = os.environ.pop('MOUSE_PUBLIC_METADATA_TOKEN', '')
+          assert metadata_token and '\r' not in metadata_token and '\n' not in metadata_token, 'Read-only metadata token is required'
           root = Path(os.environ['RUNNER_TEMP']) / 'mouse-public-readonly'
           root.mkdir()
           def save(name, value):
@@ -108,21 +112,56 @@ jobs:
               assert packages == accepted_packages[platform], 'Publisher pin differs from accepted package bytes: ' + platform
               assert all(type(package['size']) is int for package in packages.values())
               pinned_packages[platform] = packages
+          release_api_urls = frozenset({
+              'https://api.github.com/repos/jeep-jim/OSMINOG-Releases/releases/tags/quadro-macos-v6.0.41-arm64',
+              'https://api.github.com/repos/jeep-jim/OSMINOG-Releases/releases/tags/mouse-windows-v6.0.41-x64',
+              'https://api.github.com/repos/jeep-jim/OSMINOG-Releases/releases/tags/mouse-linux-v6.0.41-x64'})
+          def fetch_release_metadata(url):
+              assert url in release_api_urls, 'Unexpected authenticated metadata endpoint'
+              request = urllib.request.Request(url, headers={
+                  'Accept': 'application/json', 'User-Agent': 'Mouse-Website-Release-Sync/1.0',
+                  'Cache-Control': 'no-cache', 'Pragma': 'no-cache',
+                  'Authorization': 'Bearer ' + metadata_token})
+              with urllib.request.build_opener(catalog._NoRedirect()).open(request, timeout=20) as response:
+                  catalog.require(response.status == 200 and response.url == url, 'metadata response is not successful or exact')
+                  deadline, chunks, received, limit = time.monotonic() + 30, [], 0, 1024 * 1024
+                  while True:
+                      catalog.require(time.monotonic() <= deadline, 'metadata read exceeded time limit')
+                      block = response.read1(min(64 * 1024, limit - received + 1))
+                      if not block:
+                          break
+                      received += len(block)
+                      catalog.require(received <= limit, 'metadata exceeds size limit')
+                      chunks.append(block)
+              value = json.loads(b''.join(chunks))
+              catalog.require(isinstance(value, dict), 'metadata must be an object')
+              return value
           observations = []
           def observed_fetch(url):
+              assert url in catalog.FEED_URLS or url in release_api_urls, 'Unexpected diagnostic metadata endpoint'
+              authenticated = url in release_api_urls
+              receipt = {'url': url, 'authenticated': authenticated,
+                  'authMode': 'github-token-release-metadata' if authenticated else 'anonymous'}
               try:
-                  value = catalog.fetch_public_json(url)
-                  observations.append({'url': url, 'observedAt': now(), 'value': value})
+                  value = fetch_release_metadata(url) if authenticated else catalog.fetch_public_json(url)
+                  catalog.require(metadata_token not in json.dumps(value, ensure_ascii=False), 'Unexpected credential material in metadata')
+                  receipt['value'] = value
                   return value
               except Exception as error:
-                  observations.append({'url': url, 'observedAt': now(), 'error': str(error)[:500]})
-                  raise
+                  status = getattr(error, 'code', None)
+                  receipt['error'] = type(error).__name__ + (' HTTP ' + str(status) if type(status) is int else '')
+                  raise ValueError('Official metadata fetch failed: ' + receipt['error']) from None
               finally:
+                  receipt['observedAt'] = now()
+                  observations.append(receipt)
                   save('official-feed-and-release-observations.json', observations)
           seed = json.loads(Path('infra/website/downloads.json').read_text())
           assert all(catalog.version_tuple(catalog.filename_details(x['filename'])[1]) <
                      catalog.version_tuple(wanted) for x in seed['files'])
-          manifest, reports = catalog.resolve_releases(seed, fetch_json=observed_fetch)
+          try:
+              manifest, reports = catalog.resolve_releases(seed, fetch_json=observed_fetch)
+          finally:
+              metadata_token = ''
           save('official-resolution.json', {'reports': reports, 'manifest': manifest})
           assert reports == ['UPDATE ' + platform + ' ' + wanted for platform in catalog.PLATFORMS], \
               'All three official feeds and published release assets must already be 6.0.41'
