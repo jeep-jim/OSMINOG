@@ -73,7 +73,12 @@ module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hi
   held={...await js('('+dragReadback.toString()+')()'),mouseDown:nativeButton.primaryDown()};assert.equal(held.active,true);assert.equal(held.mouseDown,true);assert.equal(fixture.bank.members[records[0].id],originDesk,'Live source stays owned by its original desk while held');
   carryCapture=await capture('desk-edge-held');await move(absolute(await panePoint('p1')));
  }});
- await until(()=>fixture.bank.members[records[0].id]===destination,'641 released drag transfers exact source');
+ try{await until(()=>fixture.bank.members[records[0].id]===destination,'641 released drag transfers exact source');}
+ catch(cause){
+  let ui=null;try{ui=await js('('+dragReadback.toString()+')()');}catch(error){ui={readbackError:String(error.message)};}
+  console.error('MOUSE_641_EDGE_DROP_DIAGNOSTIC',JSON.stringify({originDesk,destination,membership:fixture.bank.members[records[0].id],ui,release:carryInput?.released,inputs:part.inputs.slice(-3).map(value=>({action:value.action,selector:value.selector,events:value.events?.filter(event=>['dragstart','dragend','pointerup','pointercancel'].includes(event.type))}))}));
+  throw cause;
+ }
  report.edgeCarry={input:carryInput,before:carryBefore,after:await fixture.identity(records[0]),whileHeld:held,hoverMs,direction,capture:carryCapture,afterCapture:await capture('desk-edge-dropped')};
  for(const key of ['id','index','webContentsId','url','navigationEpoch','identity','timeOrigin','field','scrollX','scrollY','cookie'])assert.deepEqual(report.edgeCarry.after[key],carryBefore[key]);assert.equal(report.edgeCarry.after.desk,destination);
  // Scoped cleanup of this movement uses the regular checked desktop mutation.
