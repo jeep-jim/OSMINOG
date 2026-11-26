@@ -1,3 +1,5 @@
+.workspace-demo-heading { min-width: 0; max-width: 1050px; margin: 24px auto 12px; color: var(--ink); font: 400 clamp(18px, 2.4vw, 32px)/1.45 var(--display-font); text-align: center; text-wrap: balance; overflow-wrap: break-word; }
+[dir="rtl"] .workspace-demo-heading { direction: rtl; }
 /* Real website captures in an interactive, entirely same-origin Mouse workspace. */
 .showcase {
   --showcase-duration: 4600ms;
@@ -188,29 +190,6 @@
 .showcase-address-value { display: block; width: 100%; min-width: 0; padding: 5px 12px; border: 1px solid var(--showcase-stroke); border-radius: 6px; color: var(--showcase-secondary); background: var(--showcase-surface); font: 12px/1.3 var(--body-font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .showcase-desktops[hidden], .showcase-addressbar[hidden], .showcase-swap[hidden], .showcase-mode-picker[hidden], .showcase-layout-option[hidden], .showcase-pane-zoom[hidden] { display: none; }
 .showcase-pane-drag:disabled { opacity: 1; cursor: default; }
-.showcase[data-browser-chrome="single-address"][data-pane-drag="false"] .showcase-pane-head,
-.showcase[data-browser-chrome="web-app"] .showcase-pane:not(.is-web-app) .showcase-pane-head { display: none; }
-.showcase[data-browser-chrome="single-address"][data-pane-drag="false"] .showcase-pane-page,
-.showcase[data-browser-chrome="web-app"] .showcase-pane:not(.is-web-app) .showcase-pane-page { top: 0; }
-.showcase[data-browser-chrome="single-address"] .showcase-pane.is-active-pane,
-.showcase[data-browser-chrome="web-app"] .showcase-pane.is-active-pane { border-color: var(--showcase-secondary); }
-.showcase[data-browser-chrome="os-windows"] .showcase-pane-head { height: 45px; }
-.showcase[data-browser-chrome="os-windows"] .showcase-pane-page { top: 45px; }
-.showcase[data-browser-chrome="os-windows"] .showcase-pane-drag { display: grid; grid-template-columns: 16px minmax(0, 1fr); grid-template-rows: 1fr 1fr; column-gap: 7px; row-gap: 0; padding: 5px; }
-.showcase[data-browser-chrome="os-windows"] .showcase-service-mark { grid-column: 1; grid-row: 1 / 3; }
-.showcase[data-browser-chrome="os-windows"] .showcase-service-name { grid-column: 2; grid-row: 1; }
-.showcase[data-browser-chrome="os-windows"] .showcase-service-host { display: block; grid-column: 2; grid-row: 2; margin-left: 0; font-size: 10px; }
-/* Arc and Zen use a left tab strip in the desktop model; mobile keeps it compact. */
-@media (min-width: 761px) {
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-window { display: grid; grid-template-columns: clamp(136px, 17%, 190px) minmax(0, 1fr); grid-template-rows: 36px minmax(0, 1fr) auto; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-chrome { grid-column: 1; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-height: 0; padding: 8px; border-right: 1px solid var(--showcase-stroke); border-bottom: 0; border-radius: 11px 0 0 0; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-tabs { flex: 1 1 auto; flex-direction: column; align-self: stretch; width: 100%; max-width: none; min-height: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-tab { flex: 0 0 auto; width: 100%; max-width: none; min-height: 36px; padding: 8px; border-radius: 5px; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-new-tab { align-self: flex-start; margin-top: 0; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-addressbar { grid-column: 2; grid-row: 1; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-canvas { grid-column: 2; grid-row: 2; }
-  .showcase:is([data-browser="arc"], [data-browser="zen"]) .showcase-nora { grid-column: 1 / -1; grid-row: 3; }
-}
 @keyframes showcase-open { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes showcase-click { from { opacity: .8; transform: scale(.4); } to { opacity: 0; transform: scale(1.5); } }
 @media (max-width: 760px) {

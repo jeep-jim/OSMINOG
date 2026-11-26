@@ -94,7 +94,7 @@ test('seeding a larger layout does not duplicate existing captures or replace ch
   assert.equal(workspace.tabs[1].src, '/showcase/youtube.jpg');
 });
 
-test('browser and desktop switches restore independent tabs, geometry and active state', () => {
+test('five Mouse desktops retain independent tabs, geometry and active state', () => {
   const bank = createBrowserStateBank(), workspace = createTabWorkspace();
   workspace.ensure([capture('maps'), capture('figma')]);
   const added = Array.from({ length: 16 }, () => workspace.add('New tab'));
@@ -105,16 +105,15 @@ test('browser and desktop switches restore independent tabs, geometry and active
   };
   bank.remember('mouse', 4, content);
   bank.remember('mouse', 1, { ...content, layoutId: '1', activePane: 0 });
-  bank.remember('chrome', 4, { ...content, layoutId: '2-stacked', paneSlots: [0, 1] });
+  for (const scene of [3, 5, 0]) bank.remember('mouse', scene, { ...content, layoutId: '2-stacked', paneSlots: [0, 1] });
   content.gridRects[0][2] = 90;
   const restored = bank.recall('mouse', 4);
   assert.deepEqual(restored.gridRects, [[0, 0, 63, 100], [63, 0, 37, 100]]);
   assert.deepEqual(restored.paneSlots, [1, 0]);
   assert.equal(restored.activePane, 1);
   assert.equal(bank.recall('mouse', 1).layoutId, '1');
-  assert.equal(bank.recall('chrome', 4).layoutId, '2-stacked');
-  assert.equal(bank.lastScene('mouse'), 1);
-  assert.equal(bank.lastScene('chrome'), 4);
+  for (const scene of [3, 5, 0]) assert.equal(bank.recall('mouse', scene).layoutId, '2-stacked');
+  assert.equal(bank.lastScene('mouse'), 0);
   workspace.restore(restored.tabs);
   assert.equal(workspace.tabs.length, 18);
   assert.equal(workspace.tabs.at(-1).src, '/showcase/youtube.jpg');

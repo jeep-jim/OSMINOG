@@ -20,11 +20,9 @@
   <script src="/site.js" defer></script>
   <script src="/manifest-city.js" defer></script>
   <script src="/showcase-assets.js" defer></script>
-  <script src="/browser-comparison.js" defer></script>
   <script src="/showcase.js" defer></script>
   <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/showcase.css">
-  <link rel="stylesheet" href="/browser-comparison.css">
   <link rel="stylesheet" href="/language-picker.css">
   <link rel="stylesheet" href="/features.css">
   <link rel="stylesheet" href="/manifest-city.css">
@@ -131,124 +129,9 @@
       </aside>
         </div>
       </div>
-      <section class="browser-comparison" id="browser-comparison" aria-labelledby="comparison-heading" data-selected-browser="mouse">
-        <h2 class="comparison-heading" id="comparison-heading" data-compare-heading>Сравни, как работают <span class="comparison-brand">Маус</span> и другие браузеры</h2>
-        <p class="comparison-hint" data-i18n="compareHint">Нажми на логотип и попробуй разные режимы</p>
-        <div class="comparison-browsers" role="group" data-i18n-aria="compareChoose" aria-label="Выбери браузер">
-      <button class="comparison-browser" type="button" data-browser-choice="chrome" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/chrome.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Chrome</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareTwoTag">2 окна. Скучно</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="safari" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/safari.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Safari</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareOneTag">1 страница. Классика</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="firefox" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/firefox.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Firefox</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareTwoTag">2 окна. Скучно</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="edge" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/edge.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Edge</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareTwoTag">2 окна. Скучно</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="brave" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/brave.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Brave</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareTwoTag">2 окна. Скучно</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="mouse" aria-pressed="true" aria-controls="mouse-showcase" tabindex="0">
-        <span class="comparison-logo-space"><svg class="comparison-logo" viewBox="0 -1 19 19" aria-hidden="true" focusable="false"><path d="M2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM14 0h1v1h-1zM15 0h1v1h-1zM16 0h1v1h-1zM1 1h1v1h-1zM2 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM13 1h1v1h-1zM14 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM17 1h1v1h-1zM0 2h1v1h-1zM1 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM15 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM18 2h1v1h-1zM0 3h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM16 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM0 4h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM17 5h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM14 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM0 10h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM2 12h1v1h-1zM6 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM16 12h1v1h-1zM1 13h1v1h-1zM6 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM17 13h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM5 15h1v1h-1zM6 15h1v1h-1zM7 15h1v1h-1zM8 15h1v1h-1zM9 15h1v1h-1zM10 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1z"/></svg></span>
-        <bdi class="comparison-browser-name">Mouse</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareMouseTag">12 окон. Свобода</span><span class="comparison-desktop-count" data-i18n="compareDesktopCount">5 рабочих столов</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="opera" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/opera.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Opera</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareFourTag">4 окна. Уже интереснее</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="yandex" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/yandex.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Yandex</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareYandexTag">Сайт + приложение</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="vivaldi" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/vivaldi.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Vivaldi</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareVivaldiTag">Без лимита. Своя сетка</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="arc" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/arc.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Arc</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareArcTag">Split View. Свой стиль</span>
-      </button>
-      <button class="comparison-browser" type="button" data-browser-choice="zen" aria-pressed="false" aria-controls="mouse-showcase" tabindex="-1">
-        <span class="comparison-logo-space"><img class="comparison-logo" src="/browser-logos/zen.svg" width="52" height="52" alt="" loading="lazy" decoding="async"></span>
-        <bdi class="comparison-browser-name">Zen</bdi>
-        <span class="comparison-browser-tag" data-i18n="compareFourTag">4 окна. Уже интереснее</span>
-      </button>
-        </div>
-        <p class="comparison-counts" data-i18n="compareCounts">Числа — страницы, видимые одновременно; вкладок может быть больше.</p>
-        <div class="comparison-context" aria-live="polite" aria-atomic="true">
-          <p class="comparison-selected-title"><bdi data-compare-name>Mouse</bdi><span aria-hidden="true">·</span><span data-compare-mode data-i18n="compareTiling">Сетка страниц</span></p>
-          <p class="comparison-selected-note" data-compare-note data-i18n="compareMouseNote">До 12 окон рядом, 5 рабочих столов и свои размеры окон.</p>
-        </div>
-        <details class="comparison-evidence" id="comparison-evidence">
-          <summary data-i18n="compareSources">Режимы и источники</summary>
-          <p data-i18n="compareExamplesNote">Показаны основные режимы настольных версий. Это схема работы, а не запущенные браузеры.</p>
-          <p data-compare-checked>Проверено 25.11.2026</p>
-        <div class="comparison-reference" data-browser-reference="chrome" hidden>
-          <p><bdi>Chrome</bdi> · <span data-i18n="compareTwoAxisNote">Две страницы рядом или друг над другом.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://support.google.com/chrome/answer/16971124" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="safari" hidden>
-          <p><bdi>Safari</bdi> · <span data-i18n="compareSafariNote">Одна страница во вкладке. Два отдельных окна — средствами macOS.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://support.apple.com/guide/safari/use-tabs-for-webpages-sfri11576/mac" data-i18n="compareOrdinary" target="_blank" rel="noopener noreferrer">Обычные вкладки</a> <a class="comparison-source" href="https://support.apple.com/guide/mac-help/mchl4fbe2921/mac" data-i18n="compareMacWindows" target="_blank" rel="noopener noreferrer">Два окна macOS</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="firefox" hidden>
-          <p><bdi>Firefox</bdi> · <span data-i18n="compareFirefoxNote">Две страницы рядом. Split View доступен с Firefox 149.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://support.mozilla.org/en-US/kb/split-view-firefox" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="edge" hidden>
-          <p><bdi>Edge</bdi> · <span data-i18n="compareTwoAxisNote">Две страницы рядом или друг над другом.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://www.microsoft.com/en-us/edge/features/split-screen" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a> <a class="comparison-source" href="https://support.microsoft.com/en-us/edge/getting-started-with-microsoft-edge-workspaces" data-i18n="compareSourceSpaces" target="_blank" rel="noopener noreferrer">Рабочие пространства</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="brave" hidden>
-          <p><bdi>Brave</bdi> · <span data-i18n="compareTwoAxisNote">Две страницы рядом или друг над другом.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://support.brave.app/hc/en-us/articles/35087087593997-How-do-I-use-Split-view-in-Brave" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a> <a class="comparison-source" href="https://brave.com/latest/" data-i18n="compareSourceStatus" target="_blank" rel="noopener noreferrer">Статус продукта</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="mouse">
-          <p><bdi>Mouse</bdi> · <span data-i18n="compareMouseNote">До 12 окон рядом, 5 рабочих столов и свои размеры окон.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="#features" data-i18n="featuresTitle">Основные функции на каждый день</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="opera" hidden>
-          <p><bdi>Opera</bdi> · <span data-i18n="compareOperaNote">До 4 страниц: рядом, друг над другом или сеткой.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://www.opera.com/features/splitscreen" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a> <a class="comparison-source" href="https://www.opera.com/features/workspaces" data-i18n="compareSourceSpaces" target="_blank" rel="noopener noreferrer">Рабочие пространства</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="yandex" hidden>
-          <p><bdi>Yandex</bdi> · <span data-i18n="compareYandexNote">Сайт рядом с закреплённым веб-приложением. Слева в примере — YouTube.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://yandex.ru/support/browser/ru/personalization/web-app" data-i18n="compareWebApp" target="_blank" rel="noopener noreferrer">Сайт + веб-приложение</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="vivaldi" hidden>
-          <p><bdi>Vivaldi</bdi> · <span data-i18n="compareVivaldiNote">Предела числа плиток нет. Здесь — примеры до 12; размеры и порядок можно менять.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://help.vivaldi.com/desktop/tabs/tab-tiling/" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a> <a class="comparison-source" href="https://vivaldi.com/features/workspaces/" data-i18n="compareSourceSpaces" target="_blank" rel="noopener noreferrer">Рабочие пространства</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="arc" hidden>
-          <p><bdi>Arc</bdi> · <span data-i18n="compareArcNote">Две страницы — пример, не предел. Arc для Mac и Windows прекращает работу 22.12.2026; новые аккаунты закрыты.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://start.arc.net/master-multitasking" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a> <a class="comparison-source" href="https://resources.arc.net/hc/en-us/articles/44412972248471-Arc-Sunset-Key-Dates-and-What-to-Expect" data-i18n="compareSourceStatus" target="_blank" rel="noopener noreferrer">Статус продукта</a></div>
-        </div>
-        <div class="comparison-reference" data-browser-reference="zen" hidden>
-          <p><bdi>Zen</bdi> · <span data-i18n="compareZenNote">До 4 страниц: рядом, друг над другом или сеткой.</span></p>
-          <div class="comparison-reference-links"><a class="comparison-source" href="https://docs.zen-browser.app/user-manual/split-view" data-i18n="compareSourceSplit" target="_blank" rel="noopener noreferrer">Разделение экрана</a> <a class="comparison-source" href="https://docs.zen-browser.app/user-manual/workspaces" data-i18n="compareSourceSpaces" target="_blank" rel="noopener noreferrer">Рабочие пространства</a></div>
-        </div>
-        </details>
-      </section>
+      <h2 class="workspace-demo-heading" id="workspace-demo-heading" data-i18n="demoTitle">Визуальный пример работы столов и сетки окон</h2>
       <div class="hero-visual">
-        <section class="showcase" id="mouse-showcase" aria-labelledby="showcase-title">
-  <h2 class="sr-only" id="showcase-title" data-i18n="showcaseTitle">Your workspace, in motion</h2>
+        <section class="showcase" id="mouse-showcase" aria-labelledby="workspace-demo-heading">
   <div class="showcase-dock">
     <div class="showcase-experience">
       <div class="showcase-frame">
@@ -274,7 +157,7 @@
               <figure><figcaption>YouTube</figcaption><img src="/showcase/youtube.jpg" alt="The official Figma channel on YouTube" width="1096" height="705"></figure>
             </div>
           </div>
-          <div class="showcase-nora"><span data-showcase-key="compareModel" data-i18n="compareModel">Интерактивная схема · реальные снимки сайтов</span><span class="showcase-hint" data-showcase-key="showcaseHint" data-i18n="showcaseHint">Swipe up over the preview to explore</span></div>
+          <div class="showcase-nora"><span data-showcase-key="demoModel" data-i18n="demoModel">Интерактивная схема · реальные снимки сайтов</span><span class="showcase-hint" data-showcase-key="showcaseHint" data-i18n="showcaseHint">Swipe up over the preview to explore</span></div>
         </div>
         <button class="showcase-preview-hit" type="button" data-showcase-preview-hit data-showcase-aria="showcaseExpand" data-showcase-interactive aria-label="Explore full screen" hidden></button>
       </div>
