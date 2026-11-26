@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {install,LINK_CHANNEL,SOURCE_CHANNEL,EVENT,CONTROL,DRAG_MS,END_GRACE_MS}=require('./mouse-workspace-gestures.cjs');
+const {install,LINK_CHANNEL,SOURCE_CHANNEL,EVENT,CONTROL,DRAG_MS,END_GRACE_MS,RELEASE_CLAIM_MS}=require('./mouse-workspace-gestures.cjs');
 const UUID='12345678-1234-4123-8123-123456789abc',NEXT='abcdefab-1234-4123-8123-123456789abc';
 function fixture(t){
  let time=1000,nativeDown=true,busy=false,cursor={x:200,y:300},nextTimer=0;const handlers=new Map(),timers=new Map(),messages=[],opened=[];
@@ -46,6 +46,21 @@ test('a second begin cannot extend the same nonce and a different real gesture r
 test('guest dragend permits a pending shell drop during the short grace then expires exactly that drag',t=>{
  const f=fixture(t);f.begin();f.source({phase:'end',token:UUID});assert.equal(f.controller.state().ending,true);assert.equal([...f.timers.values()].filter(row=>row.ms===END_GRACE_MS).length,1);assert.equal(f.take().accepted,true);
  f.source({phase:'end',token:UUID});assert.equal(f.controller.state(),null);f.begin(NEXT);f.source({phase:'end',token:NEXT});const grace=[...f.timers.values()].find(row=>row.ms===END_GRACE_MS);grace.fn();assert.equal(f.controller.state(),null);assert.equal(f.latest().phase,'end');assert.deepEqual(f.take(NEXT),{accepted:false});
+});
+test('a real button release over the focused destination gets a bounded cross-desktop nonce claim',t=>{
+ const f=fixture(t);f.begin();f.bank.active='desk-b';f.page.visible=false;f.view.getVisible=()=>false;
+ f.down(false);f.cursor({x:250,y:375});f.source({phase:'end',token:UUID});
+ const grace=[...f.timers.values()].find(row=>row.ms===END_GRACE_MS);assert.ok(grace);grace.fn();
+ assert.deepEqual(f.latest(),{phase:'release',token:UUID,id:'source',desk:'desk-a',x:150,y:175});
+ assert.equal(f.controller.state().ending,true);assert.ok([...f.timers.values()].some(row=>row.ms===RELEASE_CLAIM_MS));
+ assert.equal(f.take().accepted,true);assert.equal(f.controller.state(),null);assert.equal(f.timers.size,0);
+});
+test('an OS release must never transfer for an outside pointer, a still-held button or a blurred window',t=>{
+ for(const forbidden of [f=>f.down(true),f=>{f.down(false);f.cursor({x:10,y:10});},f=>{f.down(false);f.win.isFocused=()=>false;}]){
+  const f=fixture(t);f.begin();f.bank.active='desk-b';forbidden(f);f.source({phase:'end',token:UUID});
+  const grace=[...f.timers.values()].find(row=>row.ms===END_GRACE_MS);assert.ok(grace);grace.fn();
+  assert.equal(f.latest().phase,'end');assert.equal(f.controller.state(),null);assert.deepEqual(f.take(),{accepted:false});
+ }
 });
 test('navigation, changed membership, replacement browser, privacy transition and expiry invalidate a drop',t=>{
  for(const mutate of [f=>{f.page.navigationEpoch++;},f=>{f.wc.mainFrame.url='https://other.test/';},f=>{f.bank.members.source='desk-b';},f=>{f.current({...f.browser});},f=>{f.busy(true);},f=>{f.advance(DRAG_MS+1);},f=>{f.browser.tabs.delete('source');}]){
