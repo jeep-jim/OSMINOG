@@ -3,7 +3,7 @@
 const {webURL}=require('./mouse-page-interactions.cjs').createPageInteractionTools();
 const LINK_CHANNEL='mouse:page-link',SOURCE_CHANNEL='mouse:page-arrange-source',EVENT='mouse:page-arrange',CONTROL='mouse:page-arrange-control';
 const TOKEN=/^[a-f\d]{8}-[a-f\d]{4}-4[a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
-const DRAG_MS=120000,END_GRACE_MS=120;
+const DRAG_MS=120000,END_GRACE_MS=120,RELEASE_CLAIM_MS=2000;
 const rectangle=value=>value&&['x','y','width','height'].every(key=>Number.isFinite(value[key]))&&value.width>0&&value.height>0?value:null;
 const contains=(box,point)=>!!box&&!!point&&point.x>=box.x&&point.y>=box.y&&point.x<box.x+box.width&&point.y<box.y+box.height;
 function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,primaryDown,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}={}){
@@ -67,7 +67,24 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
   if(record.endTimer!==null)return;
   // Guest dragend and shell drop arrive from different renderers. Let an
   // already-dispatched drop claim its one-use nonce before ending this drag.
-  record.endTimer=setTimer(()=>{if(active===record)removeRecord('end');},END_GRACE_MS);record.endTimer?.unref?.();
+  record.endTimer=setTimer(()=>{
+   if(active!==record)return;
+   // Native HTML dragend can precede the shell's drop after a desktop switch.
+   // Only a real OS button release over this focused window may request a
+   // second, short chance to claim the original one-use page nonce.
+   if(valid(record)&&record.bank.active!==record.desk&&win.isFocused?.()===true){
+    try{
+     const bounds=rectangle(win.getContentBounds()),cursor=screen.getCursorScreenPoint();
+     const point=bounds&&cursor?{x:cursor.x-bounds.x,y:cursor.y-bounds.y}:null;
+     if(primaryDown()===false&&contains({x:0,y:0,width:bounds.width,height:bounds.height},point)){
+      send({phase:'release',token:record.token,id:record.page.id,desk:record.desk,x:point.x,y:point.y});
+      record.endTimer=setTimer(()=>{if(active===record)removeRecord('end');},RELEASE_CLAIM_MS);
+      record.endTimer?.unref?.();return;
+     }
+    }catch{/* A missing native cursor receipt must not authorize a move. */}
+   }
+   removeRecord('end');
+  },END_GRACE_MS);record.endTimer?.unref?.();
  }
  function command(event,action,args={}){
   trusted(event);if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(key=>key!=='token'))throw Error('Некорректный запрос переноса окна.');
@@ -83,4 +100,4 @@ function install({win,ipcMain,trusted,getBrowser,isTransition=()=>false,screen,p
  ipcMain.on(LINK_CHANNEL,link);ipcMain.on(SOURCE_CHANNEL,source);ipcMain.handle(CONTROL,command);win.once('closed',dispose);win.on('blur',cancel);shell.on('did-start-navigation',shellNavigation);shell.on('render-process-gone',cancel);
  return{cancel,dispose,state:()=>active?{token:active.token,id:active.page.id,desk:active.desk,ending:active.endTimer!==null}:null};
 }
-module.exports={install,LINK_CHANNEL,SOURCE_CHANNEL,EVENT,CONTROL,DRAG_MS,END_GRACE_MS,TOKEN,rectangle,contains};
+module.exports={install,LINK_CHANNEL,SOURCE_CHANNEL,EVENT,CONTROL,DRAG_MS,END_GRACE_MS,RELEASE_CLAIM_MS,TOKEN,rectangle,contains};
