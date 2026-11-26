@@ -3,6 +3,8 @@ const assert=require('node:assert/strict');
 const test=require('node:test');
 const fs=require('node:fs');
 const vm=require('node:vm');
+const {EventEmitter}=require('node:events');
+const {createMotionTrace,DEFAULT_LIMITS,MARKER_PREFIX}=require('./mouse-smoke-trace.cjs');
 const source=fs.readFileSync(require.resolve('./mouse-631-stress-smoke.cjs'),'utf8');
 
 // Exercise the actual fixture's setup/finally without pretending to run native
@@ -204,12 +206,72 @@ test('main-loop diagnostics preserve supplied tick timestamps and gaps, cap samp
  Object.freeze(next.samples);assert.doesNotThrow(()=>record(next,60,90,30));assert.doesNotThrow(()=>record(null,0,25,25));
 });
 
+function timelineHarness(options){
+ const sandbox={module:{exports:{}},require:name=>name==='./mouse-631-smoke-helpers.cjs'?{}:require(name)};
+ vm.runInNewContext(source,sandbox,{filename:'mouse-631-stress-smoke.cjs'});
+ return sandbox.createStressTimeline(options.debug,options);
+}
+function timelineFixture({platform='darwin',missingEnd=false,wrongPid=false,dataLossOccurred=false,startFailure=false}={}){
+ const calls=[],saved=[],identity={mouse:'6.0.41',platform:'darwin',arch:'arm64',mainPid:21,shellPid:42,stage:20,switchCount:5,electron:'44.5.0',chrome:'152',node:'22',v8:'fixture'};
+ const events=Array.from({length:5},(_,index)=>['begin','end'].map(phase=>({pid:wrongPid?99:42,tid:7,cat:'blink.user_timing',name:MARKER_PREFIX+'stress20.'+(index+1)+'.switch.'+phase,ph:'R',ts:1000+index*100+(phase==='end'?80:0)}))).flat();
+ if(missingEnd)events.pop();events.push({pid:42,tid:7,cat:'renderer.scheduler',name:'RunTask',ph:'X',ts:1000,dur:60,tdur:5,args:{task_type:'MainThreadTask'}},{cat:'devtools.timeline',name:'ResourceSendRequest',ph:'I',args:{url:'https://secret.invalid/'}});
+ const debug=new EventEmitter();debug.sendCommand=async(method,params)=>{
+  calls.push({method,params});if(method==='Tracing.start'&&startFailure)throw Error('optional tracing unavailable');
+  if(method==='Tracing.end')queueMicrotask(()=>debug.emit('message',{},'Tracing.tracingComplete',{stream:'owned-trace',traceFormat:'json',streamCompression:'none',dataLossOccurred}));
+  if(method==='IO.read')return{data:JSON.stringify({traceEvents:events}),eof:true};return{};
+ };
+ let identities=0,created=0;
+ const timeline=timelineHarness({debug,platform,identity:()=>{identities++;return identity;},makeTrace:(owned,options)=>{created++;assert.equal(owned,debug);return createMotionTrace(owned,{...options,write:async(file,data)=>saved.push({file,data})});}});
+ return{timeline,calls,saved,debug,identity,get identities(){return identities;},get created(){return created;}};
+}
+
+test('Mac20 timeline uses the real bounded sanitized transport and retains all five shell switch anchors separately',async()=>{
+ const f=timelineFixture();assert.equal(await f.timeline.start(),true);assert.equal(f.identities,1);assert.equal(f.created,1);
+ const stopping=f.timeline.stop('stage20-complete');assert.equal(f.timeline.stop('cleanup'),stopping);const receipt=await stopping;
+ assert.equal(receipt.complete,true);assert.equal(receipt.allSwitchAnchorsRetained,true);assert.equal(receipt.dataLossOccurred,false);
+ assert.deepEqual(JSON.parse(JSON.stringify(receipt.switchAnchors)),Array.from({length:5},(_,index)=>({sequence:index+1,begin:1,end:1})));
+ assert.equal(receipt.identity,f.identity);assert.equal(receipt.file,'mouse-631-stage20-timeline.json');assert.equal(receipt.markerPrefix,MARKER_PREFIX+'stress20.');assert.deepEqual(receipt.limits,DEFAULT_LIMITS);
+ assert.equal(f.saved.length,1);assert.equal(f.saved[0].file,receipt.file);assert.doesNotMatch(f.saved[0].data,/secret\.invalid|ResourceSendRequest/);assert.equal(JSON.stringify(receipt).includes('traceEvents'),false);
+ const artifact=JSON.parse(f.saved[0].data);assert.equal(artifact.traceEvents.length,11);assert.deepEqual(artifact.mouseMotionTrace.versions,f.identity);assert.equal(artifact.mouseMotionTrace.config.traceConfig.traceBufferSizeInKb,16384);
+ assert.equal(f.calls.filter(call=>call.method==='Tracing.start').length,1);assert.equal(f.calls.filter(call=>call.method==='Tracing.end').length,1);assert.equal(f.calls.filter(call=>call.method==='IO.close').length,1);assert.equal(f.debug.listenerCount('message'),0);assert.equal(f.debug.listenerCount('detach'),0);
+});
+
+test('timeline distinguishes a drained stream from lost, missing or wrong-renderer switch anchors',async()=>{
+ for(const options of [{missingEnd:true},{wrongPid:true},{dataLossOccurred:true}]){
+  const f=timelineFixture(options);await f.timeline.start();const receipt=await f.timeline.stop('stage20-complete');assert.equal(receipt.complete,true);
+  assert.equal(receipt.allSwitchAnchorsRetained,!!options.dataLossOccurred);assert.equal(receipt.dataLossOccurred,!!options.dataLossOccurred);
+  if(options.missingEnd)assert.equal(receipt.switchAnchors[4].end,0);
+  if(options.wrongPid)assert.ok(receipt.switchAnchors.every(row=>row.begin===0&&row.end===0));
+  assert.equal(f.debug.listenerCount('message'),0);assert.equal(f.debug.listenerCount('detach'),0);
+ }
+});
+
+test('Linux and Windows timeline are inactive without reading identity or invoking the debugger transport',async()=>{
+ for(const platform of ['linux','win32']){
+  const f=timelineFixture({platform});assert.equal(f.timeline.enabled,false);assert.equal(await f.timeline.start(),false);await f.timeline.stop('cleanup');
+  assert.equal(f.created,0);assert.equal(f.identities,0);assert.equal(f.calls.length,0);assert.equal(f.saved.length,0);assert.equal(f.timeline.receipt.identity,undefined);
+ }
+});
+
+test('timeline transport failure preserves the original verification error and still closes the stream and listeners',async()=>{
+ const f=timelineFixture({startFailure:true}),original=Error('original native verification failed');assert.equal(await f.timeline.start(),false);
+ await assert.rejects(async()=>{try{throw original;}finally{await f.timeline.stop('verification-error');}},error=>error===original);
+ assert.equal(f.timeline.receipt.started,false);assert.ok(f.timeline.receipt.errors.some(error=>/optional tracing unavailable/.test(error.message)));
+ assert.equal(f.calls.filter(call=>call.method==='Tracing.end').length,1);assert.equal(f.calls.filter(call=>call.method==='IO.close').length,1);assert.equal(f.debug.listenerCount('message'),0);assert.equal(f.debug.listenerCount('detach'),0);
+});
+
+test('timeline start/stop exceptions are bounded diagnostics and early cleanup never starts a later trace',async()=>{
+ let created=0;const early=timelineHarness({platform:'darwin',identity:()=>{throw Error('identity must remain unread');},makeTrace:()=>{created++;}});await early.stop('cleanup');assert.equal(await early.start(),false);assert.equal(created,0);
+ const failed=timelineHarness({platform:'darwin',identity:()=>({shellPid:42}),makeTrace:()=>{throw Error('https://private.invalid/'+'x'.repeat(500));}});assert.equal(await failed.start(),false);await failed.stop('cleanup');assert.equal(failed.receipt.errors.length,1);assert.ok(failed.receipt.errors[0].message.length<=240);assert.doesNotMatch(failed.receipt.errors[0].message,/private\.invalid/);
+ const stop=timelineHarness({platform:'darwin',identity:()=>({shellPid:42}),makeTrace:()=>({active:true,start:async()=>{},stop:async()=>{throw Error('optional stop failure');}})});assert.equal(await stop.start(),true);assert.equal((await stop.stop('cleanup')).complete,false);assert.equal(stop.receipt.errors[0].stage,'stop');
+});
+
 // These are unit-only renderer API adapters. Evaluate the actual serialized
 // function in a fresh realm, as fixture.js does; no browser/native proof is claimed.
-function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure=false,nativeTest=false,now=()=>{throw Error('Inactive trace must not read the clock');}}={}){
+function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure=false,nativeTest=false,timeline=false,markFailure=false,markNow=()=>0,now=()=>{throw Error('Inactive trace must not read the clock');}}={}){
  const declarations={module:{exports:{}},require:name=>name==='./mouse-631-smoke-helpers.cjs'?{}:require(name)};
  vm.runInNewContext(source,declarations,{filename:'mouse-631-stress-smoke.cjs'});
- const monitorSource=declarations.rendererMonitorInPage.toString(),pending=new Map(),observers=[],cancelled=[];let nextId=0,scheduled=0;
+ const monitorSource=declarations.rendererMonitorInPage.toString(),pending=new Map(),observers=[],cancelled=[],marks=[],clearedMarks=[];let nextId=0,scheduled=0;
  class MockPerformanceObserver{
   static get supportedEntryTypes(){return supported;}
   constructor(callback){this.callback=callback;this.records=[];this.disconnected=false;observers.push(this);}
@@ -217,9 +279,9 @@ function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure
   takeRecords(){if(takeFailure)throw Error('optional records unavailable');return this.records.splice(0);}
   disconnect(){this.disconnected=true;}
  }
- const renderer=vm.createContext({MouseNative:{test:nativeTest},performance:{now},PerformanceObserver:MockPerformanceObserver,requestAnimationFrame:callback=>{scheduled++;pending.set(++nextId,callback);return nextId;},cancelAnimationFrame:id=>{cancelled.push(id);pending.delete(id);}});
+ const renderer=vm.createContext({MouseNative:{test:nativeTest},performance:{now,mark:name=>{if(markFailure)throw Error('optional marker unavailable');const mark={name,startTime:markNow()};marks.push(mark);return mark;},clearMarks:name=>clearedMarks.push(name)},PerformanceObserver:MockPerformanceObserver,requestAnimationFrame:callback=>{scheduled++;pending.set(++nextId,callback);return nextId;},cancelAnimationFrame:id=>{cancelled.push(id);pending.delete(id);}});
  vm.runInContext(fs.readFileSync(require.resolve('./mouse/desktop-slide.js'),'utf8'),renderer);
- const call=start=>vm.runInContext(`(${monitorSource})(${start})`,renderer);
+ const call=start=>vm.runInContext(`(${monitorSource})(${start},${JSON.stringify(timeline?MARKER_PREFIX+'stress20.':'')})`,renderer);
  return{
   start:()=>call(true),stop:()=>JSON.parse(JSON.stringify(call(false))),
   tick:time=>{assert.equal(pending.size,1,'Only the original monitor frame may be pending');const [id,callback]=pending.entries().next().value;pending.delete(id);callback(time);},
@@ -227,7 +289,7 @@ function monitorHarness({supported=['longtask'],observeFailure=false,takeFailure
   emit:(type,entries)=>observers.find(observer=>observer.options?.type===type).callback({getEntries:()=>entries}),
   trace:(phase,frameTime)=>renderer.MouseDesktopSlide.trace(phase,frameTime),
   snapshot:()=>{const value=renderer.__mouse631Frames?.switchTrace?.snapshot();return value?JSON.parse(JSON.stringify(value)):null;},
-  pending,observers,cancelled,get scheduled(){return scheduled;}
+  pending,observers,cancelled,marks,clearedMarks,get scheduled(){return scheduled;}
  };
 }
 
@@ -251,6 +313,22 @@ test('switch trace requires both native test mode and a running monitor, and ign
  const trace=monitor.snapshot();assert.equal(trace.clock,'renderer.performance.now');assert.equal(trace.limit,512);assert.equal(trace.sequence,1);assert.equal(trace.closed,true);assert.equal(trace.startedAt,1);assert.equal(trace.endedAt,4);
  assert.deepEqual(trace.records,[{phase:'switch.begin',at:1},{phase:'present.raf1',at:2,frameTime:-4,callbackNow:2},{phase:'present.raf2',at:3,frameTime:0,callbackNow:3},{phase:'switch.end',at:4}]);
  monitor.trace('render.end');assert.equal(reads,4);assert.deepEqual(monitor.stop().switchTrace,trace);monitor.trace('switch.begin');assert.equal(reads,4);assert.equal(monitor.scheduled,1);
+});
+
+test('Mac timeline anchors use actual PerformanceMark timestamps at the existing switch boundaries without extra frames',()=>{
+ let now=10,markTime=10.125;const monitor=monitorHarness({nativeTest:true,timeline:true,now:()=>now++,markNow:()=>markTime++});monitor.start();
+ monitor.trace('render.begin');monitor.trace('switch.begin');monitor.trace('layout.geometry');monitor.trace('layout.end');monitor.trace('switch.end');
+ const trace=monitor.snapshot();assert.equal(trace.closed,true);assert.equal(trace.startedAt,10);assert.equal(trace.endedAt,13);assert.equal(trace.timelineMarkerErrors,0);
+ assert.deepEqual(trace.timelineMarkers,[{name:MARKER_PREFIX+'stress20.1.switch.begin',startTime:10.125},{name:MARKER_PREFIX+'stress20.1.switch.end',startTime:11.125}]);
+ assert.deepEqual(monitor.clearedMarks,monitor.marks.map(mark=>mark.name));assert.equal(monitor.scheduled,1);monitor.stop();assert.equal(monitor.pending.size,0);
+ for(const options of [{nativeTest:true},{timeline:true}]){const disabled=monitorHarness({...options,now:()=>1});disabled.start();disabled.trace('switch.begin');disabled.trace('switch.end');assert.equal(disabled.marks.length,0);disabled.stop();}
+});
+
+test('timeline marker failures cannot prevent switch closure and overflow still records the real end anchor',()=>{
+ const failed=monitorHarness({nativeTest:true,timeline:true,markFailure:true,now:()=>1});failed.start();failed.trace('switch.begin');failed.trace('switch.end');const partial=failed.stop().switchTrace;
+ assert.equal(partial.closed,true);assert.equal(partial.timelineMarkers.length,0);assert.equal(partial.timelineMarkerErrors,2);assert.equal(failed.scheduled,1);
+ const capped=monitorHarness({nativeTest:true,timeline:true,now:()=>1,markNow:()=>2});capped.start();capped.trace('switch.begin');for(let i=0;i<600;i++)capped.trace('state.begin');capped.trace('switch.end');
+ const trace=capped.stop().switchTrace;assert.equal(trace.records.length,512);assert.equal(trace.dropped,90);assert.equal(trace.closed,true);assert.equal(trace.timelineMarkers.length,2);assert.equal(trace.timelineMarkers[1].name,MARKER_PREFIX+'stress20.1.switch.end');assert.equal(capped.scheduled,1);
 });
 
 test('switch trace caps actual records, counts dropped events, closes after overflow and resets for the next switch',()=>{
@@ -310,7 +388,7 @@ test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with 
  // valid multibyte text. Use the real helper and the exact pretty-JSON save form.
  for(const character of ['\u0000','\ud800','界','😀'])for(const units of [64,128]){
   const number=-0.0000010000000000000002;
-  const monitor=monitorHarness({supported:['longtask','long-animation-frame'],nativeTest:true,now:()=>number});monitor.start();
+  const monitor=monitorHarness({supported:['longtask','long-animation-frame'],nativeTest:true,timeline:true,markNow:()=>number,now:()=>number});monitor.start();
   for(let index=0;index<4097;index++)monitor.tick(index%2?number:-number);
   const script=Object.fromEntries(['startTime','duration','executionStart','forcedStyleAndLayoutDuration','sourceCharPosition'].map(key=>[key,number]));
   for(const key of ['invokerType','invoker','sourceURL','sourceFunctionName','windowAttribution'])script[key]=character.repeat(units).slice(0,units);
@@ -327,7 +405,8 @@ test('two fully populated diagnostic stages fit the unchanged 8 MiB reader with 
   await Promise.all(promises);timings.end(number);assert.equal(mainCallTimings.layoutCommands.records.length,32);assert.equal(mainCallTimings.layoutCommands.dropped,1);
   const mainLoop=mainLoopHarness(),mainEventLoopDiagnostics=mainLoop.diagnostics();for(let i=0;i<513;i++)mainLoop.record(mainEventLoopDiagnostics,number,number,number);
   assert.equal(mainEventLoopDiagnostics.samples.length,512);assert.equal(mainEventLoopDiagnostics.dropped,1);
-  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,switches:Array.from({length:5},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings},{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,switches:Array.from({length:10},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings}],lastSwitchRendererTrace:switchTrace};
+  const timeline=timelineHarness({platform:'darwin',identity:()=>({mouse:'6.0.41',shellPid:42,mainPid:21,stage:20,switchCount:5}),makeTrace:()=>({active:true,start:async()=>{},stop:async()=>({traceEvents:[],mouseMotionTrace:{complete:false,limits:DEFAULT_LIMITS,errors:Array.from({length:8},()=>({stage:'stop',message:character.repeat(512)}))}})})});await timeline.start();const nativeTimeline=await timeline.stop('fixture');assert.equal(nativeTimeline.errors.length,4);
+  const report={legacyRawReserve:'x'.repeat(2*1024*1024),stages:[{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,nativeTimeline,switches:Array.from({length:5},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings},{rendererDiagnostics:diagnostics,mainEventLoopDiagnostics,switches:Array.from({length:10},()=>({rendererTrace:switchTrace,mainCallTimings})),failedSwitchMainCallTimings:mainCallTimings}],lastSwitchRendererTrace:switchTrace};
   const bytes=Buffer.byteLength(JSON.stringify(report,null,2)+'\n','utf8');
   assert.ok(bytes<8*1024*1024,`${bytes} bytes with ${units} units of ${JSON.stringify(character)} exceeds the existing report limit`);
  }

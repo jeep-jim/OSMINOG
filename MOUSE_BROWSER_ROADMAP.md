@@ -24,7 +24,7 @@
 
 [PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). В source влита main `435369a013cb2f5ff995194015acf1142922c034` с опубликованным сайтом.
 
-Head `43a89ed0` не принят. Windows45819906327:641 independent, exact edge drop и address/Ctrl+A PASS; поздний632 footer потерял classic start при восстановлении fixture. Linux45819906411:641/upgrade PASS,632 category click не достиг shell;guard0,Nora closed, native sidebar barrier стоял после клика. Mac45819906382:performance20/50 FAIL; locale≤2.3 мс, остаются дорогие setVisible и command/IPC/renderer gap. Modern/Noble skipped. Готовятся632 readiness/fixture corrections и пассивная диагностика. ReleasesPR90/91/92 подготовлены; pins не активированы,641 не опубликована. Точные receipts и границы — в задаче.
+Head `1ab8f4e` не принят,8 общих workflows SUCCESS. Linux45825293634:primary/Noble и full archives/readers PASS. Windows45825294055:632 footer/documents PASS,625 Escape повторно переключал classic в grid; product guard+7regressions готовы,modern skipped. Mac45825293617:performance20/50 p50 FAIL; outer command settled быстро, причина задержки до renderer continuation открыта. Готова bounded отдельная Chromium trace20stage. Full Node1595pass/9skip,Python159pass/2skip; нужны новые native gates. ReleasesPR90/91/92 подготовлены; pins не активированы,641 не опубликована. Receipts — в задаче.
 
 ## Сохранённые возможности и ограничения
 

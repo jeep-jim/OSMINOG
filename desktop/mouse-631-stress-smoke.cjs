@@ -5,6 +5,7 @@ const http=require('node:http');
 const {createHash}=require('node:crypto');
 const {types}=require('node:util');
 const {createFixture,pageHTML,bounded,sleep}=require('./mouse-631-smoke-helpers.cjs');
+const {createMotionTrace,MARKER_PREFIX}=require('./mouse-smoke-trace.cjs');
 const distribution=values=>{const sorted=values.slice().sort((a,b)=>a-b);return{count:values.length,min:sorted[0]??0,p50:sorted[Math.floor((sorted.length-1)*.5)]??0,p95:sorted[Math.floor((sorted.length-1)*.95)]??0,max:sorted.at(-1)??0};};
 
 // Optional diagnostics for synchronous main-process calls in the existing
@@ -50,9 +51,33 @@ function recordMainLoopTick(diagnostics,previousAt,at,gapMs){
  try{if(diagnostics.samples.length<diagnostics.limit)diagnostics.samples.push({previousAt,at,gapMs});else diagnostics.dropped++;}catch{}
 }
 
+// A separate diagnostic artifact for the five existing Mac20 switches. Reuse
+// the bounded/sanitized transport; its stream is never embedded in the 8 MiB raw.
+function createStressTimeline(debug,{platform=process.platform,identity,makeTrace=createMotionTrace}={}){
+ const enabled=platform==='darwin',receipt={file:'mouse-631-stage20-timeline.json',stage:20,switchCount:5,markerPrefix:MARKER_PREFIX+'stress20.',started:false,complete:false,errors:[]};
+ let trace,startPromise,stopPromise;
+ const note=(stage,error)=>{if(receipt.errors.length<4)receipt.errors.push({stage,message:String(error?.message||error).replace(/\b(?:https?|file|data):\S+/gi,'[redacted]').slice(0,240)});};
+ return{enabled,receipt,
+  start(){if(startPromise)return startPromise;return startPromise=(async()=>{
+   if(!enabled||stopPromise)return false;
+   try{receipt.identity=identity();trace=makeTrace(debug,{file:receipt.file,versions:receipt.identity});await trace.start();receipt.started=trace.active===true;return receipt.started;}
+   catch(error){note('start',error);return false;}
+  })();},
+  stop(reason){if(stopPromise)return stopPromise;return stopPromise=(async()=>{
+   if(!enabled)return receipt;if(startPromise)await startPromise;
+   if(trace)try{
+    const {mouseMotionTrace:meta,traceEvents}=await trace.stop(reason);for(const key of ['complete','reason','dataLossOccurred','bytes','eventCount','droppedEvents','limitedEvents','limits'])receipt[key]=meta[key];for(const error of meta.errors||[])note(error.stage,error.message);
+    receipt.switchAnchors=Array.from({length:5},(_,index)=>{const sequence=index+1,name=receipt.markerPrefix+sequence+'.switch.';return{sequence,begin:traceEvents.filter(event=>event.pid===receipt.identity.shellPid&&event.name===name+'begin'&&event.cat?.split(',').includes('blink.user_timing')).length,end:traceEvents.filter(event=>event.pid===receipt.identity.shellPid&&event.name===name+'end'&&event.cat?.split(',').includes('blink.user_timing')).length};});
+    receipt.allSwitchAnchorsRetained=receipt.switchAnchors.every(row=>row.begin===1&&row.end===1);
+   }catch(error){receipt.complete=false;note('stop',error);}
+   return receipt;
+  })();}
+ };
+}
+
 // Serialized into the existing installed-renderer monitor. These optional
 // observations use its existing callbacks and never request another frame.
-function rendererMonitorInPage(start){
+function rendererMonitorInPage(start,timelinePrefix=''){
  if(start){
   const diagnostics={schema:1,clock:'renderer.performance.now',frameTimeSource:'requestAnimationFrame callback timestamp',frameIntervals:[],droppedFrameIntervals:0,longAnimationFrames:{supported:false,observeError:null,entries:[],truncated:{frames:0,scripts:0,strings:0}}};
   const s=globalThis.__mouse631Frames={running:true,count:0,gaps:[],max:0,longTasks:[],diagnostics};let last;
@@ -63,12 +88,17 @@ function rendererMonitorInPage(start){
   s.switchTrace={
    record(phase,frameTime){
     if(!s.running||!globalThis.MouseNative?.test||!phases.has(phase))return;
-    if(phase==='switch.begin'){activeTrace={schema:1,clock:'renderer.performance.now',sequence:++traceSequence,limit:512,records:[],dropped:0,closed:false};lastTrace=null;}
+    if(phase==='switch.begin'){activeTrace={schema:1,clock:'renderer.performance.now',sequence:++traceSequence,limit:512,records:[],dropped:0,closed:false};if(timelinePrefix){activeTrace.timelineMarkers=[];activeTrace.timelineMarkerErrors=0;}lastTrace=null;}
     if(!activeTrace)return;const trace=activeTrace;
     try{
      const now=trace.records.length<512||phase==='switch.end'?performance.now():null;
      if(phase==='switch.begin')trace.startedAt=now;
      if(trace.records.length<512){const row={phase,at:now};if((phase==='present.raf1'||phase==='present.raf2')&&Number.isFinite(frameTime)){row.frameTime=frameTime;row.callbackNow=now;}trace.records.push(row);}else trace.dropped++;
+     if(timelinePrefix&&(phase==='switch.begin'||phase==='switch.end')){
+      const name=timelinePrefix+trace.sequence+'.'+phase;
+      try{const mark=performance.mark(name);if(Number.isFinite(mark?.startTime))trace.timelineMarkers.push({name,startTime:mark.startTime});else trace.timelineMarkerErrors++;}
+      catch{trace.timelineMarkerErrors++;}finally{try{performance.clearMarks(name);}catch{}}
+     }
      if(phase==='switch.end'){trace.endedAt=now;trace.closed=true;}
     }finally{if(phase==='switch.end'){lastTrace=trace;activeTrace=null;}}
    },
@@ -125,7 +155,7 @@ function rendererMonitorInPage(start){
 module.exports=async ctx=>{
  const facts={version:ctx.app.getVersion(),platform:process.platform,arch:process.arch,source:'installed native pages and local HTTP streams',budgetMs:200000,stages:[],captures:[],renderFailures:[],restored:false,ok:false,baselineComparison:{performed:false,reason:'This process records candidate timings only. The separate mouse-636-performance.json binds both installed runs and compares their raw workloads.'}};
  const save=()=>fs.writeFile('mouse-631-stress.json',JSON.stringify(facts,null,2)+'\n');
- let fixture,server,verificationError,cleanupError,currentStage='setup',operation='setup',interval,frameMonitorStarted=false,motionDebug,motionAttached=false;
+ let fixture,server,verificationError,cleanupError,currentStage='setup',operation='setup',interval,frameMonitorStarted=false,motionDebug,motionAttached=false,stageTimeline;
  const requests=[],streams=new Map(),restorers=[],captureCalls=[],counts={capturePage:0,getVisible:0,setVisible:0,setBounds:0,nativeCorners:0,state:0},mainGaps=[];
  const switchTimings=createSwitchTimings();
  let lastTick=performance.now();
@@ -159,8 +189,8 @@ module.exports=async ctx=>{
   }
   return{evidence:{streamId:owner.id,state,ui},regions};
  }
- async function rendererMonitor(start){
-  if(start){await fixture.js(`(${rendererMonitorInPage.toString()})(true)`);frameMonitorStarted=true;return;}
+ async function rendererMonitor(start,timeline=false){
+  if(start){await fixture.js(`(${rendererMonitorInPage.toString()})(true,${JSON.stringify(timeline?MARKER_PREFIX+'stress20.':'')})`);frameMonitorStarted=true;return;}
   const result=await fixture.js(`(${rendererMonitorInPage.toString()})(false)`);frameMonitorStarted=false;result.gapDistribution=distribution(result.gaps);return result;
  }
  async function startStream(record,id){
@@ -224,7 +254,9 @@ module.exports=async ctx=>{
    const row={ownedPageCount:target,totalBrowserPages:browser.tabs.size,deskCount:5,pagesPerDesk:groups.map(group=>group.length),switchCount,switches:[],beforePages:await readAll(owned),layoutCallsBefore:browser.mouseLayoutCalls||0,countsBefore:{...counts},previewsBefore:previews.diagnostics(),memoryBefore:process.memoryUsage(),processesBefore:ctx.app.getAppMetrics(),startedAt:performance.now()};facts.stages.push(row);await save();
    await Promise.all(owned.map(record=>fixture.pageJS(record,`mouse631.metadataTicks=0;mouse631.metadataTimer=setInterval(()=>{document.title='Mouse631 page ${record.index} · '+(++mouse631.metadataTicks);},250);true`)));
    const running=[];for(let d=0;d<5;d++)running.push(await startStream(groups[d][target===20?0:4],'stage'+target+'-desk'+d));
-   row.streamsBefore=running;await rendererMonitor(true);row.mainEventLoopDiagnostics={schema:1,clock:'main.performance.now',limit:512,samples:[],dropped:0};mainGaps.length=0;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now(),gapMs=now-lastTick;mainGaps.push(gapMs);recordMainLoopTick(row.mainEventLoopDiagnostics,lastTick,now,gapMs);lastTick=now;},25);
+   row.streamsBefore=running;let timeline=false;
+   if(target===20&&process.platform==='darwin'){stageTimeline=createStressTimeline(motionDebug,{identity:()=>({mouse:ctx.app.getVersion(),platform:process.platform,arch:process.arch,mainPid:process.pid,shellPid:win.webContents.getOSProcessId(),stage:20,switchCount:5,...Object.fromEntries(['electron','chrome','node','v8'].map(key=>[key,process.versions[key]]))})});row.nativeTimeline=stageTimeline.receipt;timeline=await stageTimeline.start();}
+   await rendererMonitor(true,timeline);row.mainEventLoopDiagnostics={schema:1,clock:'main.performance.now',limit:512,samples:[],dropped:0};mainGaps.length=0;lastTick=performance.now();interval=setInterval(()=>{const now=performance.now(),gapMs=now-lastTick;mainGaps.push(gapMs);recordMainLoopTick(row.mainEventLoopDiagnostics,lastTick,now,gapMs);lastTick=now;},25);
    for(let n=0;n<switchCount;n++){
     const d=(n+1)%5,id=desks[d],callsBefore=captureCalls.length,countsBefore={...counts},layoutBefore=browser.mouseLayoutCalls||0,mainCallTimings=switchTimings.begin(target,n+1),start=performance.now();operation='switch-'+n;mainCallTimings.startedAt=start;
     let elapsedMs;
@@ -253,6 +285,7 @@ module.exports=async ctx=>{
    row.layoutCalls=(browser.mouseLayoutCalls||0)-row.layoutCallsBefore;row.counts=Object.fromEntries(Object.keys(counts).map(key=>[key,counts[key]-row.countsBefore[key]]));row.previewsAfter=previews.diagnostics();row.surfaces=surfaces.diagnostics();row.memoryAfter=process.memoryUsage();row.processesAfter=ctx.app.getAppMetrics();row.elapsedMs=performance.now()-row.startedAt;row.switchLatencyMs=distribution(row.switches.map(item=>item.elapsedMs));
    row.metadata=await Promise.all(owned.map(record=>fixture.pageJS(record,'clearInterval(mouse631.metadataTimer);({index:mouse631.index,updates:mouse631.metadataTicks})')));assert.ok(row.metadata.every(item=>item.updates>0),'Every live page produced real title metadata');
    row.requests=requests.filter(request=>owned.some(record=>record.index===request.index));for(const record of owned)assert.equal(row.requests.filter(request=>request.index===record.index).length,1,'Each live document was loaded exactly once');
+   if(target===20&&stageTimeline)await stageTimeline.stop('stage20-complete');
    await save();
   }
   facts.surfaceCalls=captureCalls;facts.elapsedMs=performance.now()-fixture.started;
@@ -261,6 +294,7 @@ module.exports=async ctx=>{
   switchTimings.stop();
   clearInterval(interval);for(const stream of streams.values()){clearInterval(stream.timer);if(!stream.res.writableEnded)stream.res.end();}
   if(frameMonitorStarted&&fixture)await rendererMonitor(false).then(result=>{if(result.switchTrace)facts.lastSwitchRendererTrace=result.switchTrace;}).catch(error=>{facts.rendererCleanupError=error.message;});
+  if(stageTimeline)await stageTimeline.stop(verificationError?'verification-error':'cleanup');
   for(const restore of restorers.reverse())try{restore();}catch(error){facts.wrapperCleanupError=error.message;}
   if(fixture)try{facts.cleanup=await bounded(fixture.cleanup(),22000,'stress cleanup');facts.restored=true;}catch(error){cleanupError=error;facts.cleanupError={message:error.message,stack:error.stack};}
   if(motionAttached)try{
