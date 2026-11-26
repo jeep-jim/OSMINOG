@@ -57,7 +57,7 @@ test('Mac native 639 input keeps the exact CI/profile guard and retained flag al
  const code=fs.readFileSync(path.join(__dirname,'mouse-native-menu.mm'),'utf8'),body=code.match(/static bool nativeInputProbeAllowed\(\)\{([\s\S]*?)\n\}/)[1];
  assert.match(body,/const char\* ci=std::getenv\("CI"\),\*profile=std::getenv\("MOUSE_TEST_PROFILE"\);/);
  const flags=[...body.matchAll(/containsObject:@"([^"]+)"/g)].map(match=>match[1]);
- assert.deepEqual(flags,['--mouse-smoke-write','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke','--mouse-635-smoke','--mouse-636-retained-smoke','--mouse-636-smoke','--mouse-637-smoke','--mouse-637-features-smoke','--mouse-637-features-restore-read','--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read','--mouse-639-adblock-smoke','--mouse-639-adblock-read']);
+ assert.deepEqual(flags,['--mouse-smoke-write','--mouse-631-smoke','--mouse-633-smoke','--mouse-634-smoke','--mouse-635-smoke','--mouse-636-retained-smoke','--mouse-636-smoke','--mouse-637-smoke','--mouse-637-features-smoke','--mouse-637-features-restore-read','--mouse-638-feedback-smoke','--mouse-638-feedback-restore-read','--mouse-639-adblock-smoke','--mouse-639-adblock-read','--mouse-641-workspace-smoke','--mouse-641-workspace-read']);
  // Evaluate the actual C++ predicate with only its platform syntax translated;
  // this is a guard contract test, not a claim of executing AppKit on Linux.
  const expression=body.match(/return ([\s\S]*?);/)[1].replace('std::strcmp(ci,"true")==0','ci==="true"').replace(/\[NSProcessInfo\.processInfo\.arguments containsObject:@"([^"]+)"\]/g,(_,flag)=>'args.includes('+JSON.stringify(flag)+')');
