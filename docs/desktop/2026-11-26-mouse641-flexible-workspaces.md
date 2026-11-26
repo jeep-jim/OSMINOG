@@ -2,7 +2,11 @@
 
 ## Статус
 
-Реализация начата от свежего `main` — `85fa6dc6128c24016a97bc96c68022d159914da4`. 6.0.40 опубликована и остаётся проверенным предшественником. Новый выпуск ещё не принят и не опубликован. Порядок по поручению владельца: Mac → Linux → Windows.
+Source 6.0.41 принят в [PR218](https://github.com/jeep-jim/OSMINOG/pull/218): head `3a32e02a8893b4c2f1397cd0a08e94af737f42fc`, обычный merge `ceaef4d7d22d91a2b5ab4decd05f1c16e5ea9dd1`, одинаковое дерево `bf4b60b717d14479f621709ba242ed0c0e569b70`. Все 11 source workflows и полные offline-цепочки publisher readers после Releases PR93 завершились PASS. 6.0.40 остаётся опубликованным проверенным предшественником. Порядок выпуска по поручению владельца: Mac → Linux → Windows.
+
+**Публичная приёмка 641:** **Mac, Linux и Windows PUBLIC VERIFIED** по завершённым fresh publishers, повторным production readers и полным публичным квитанциям ниже. Платформенная публикация 6.0.41 выполнена в порядке **Mac → Linux → Windows**. **Сайт PASS:** отдельный [read-only run 45870017081](https://github.com/jeep-jim/OSMINOG/actions/runs/45870017081), attempt 1, проверил все 72 языка и полные байты трёх установщиков; независимая приёмка отчёта завершилась PASS.
+
+Ниже сохранена история промежуточных проверок; актуальные source-результаты и окончательные публичные receipts собраны в разделе «Итоговая приёмка 6.0.41».
 
 ## Прямое поручение владельца
 
@@ -257,3 +261,105 @@ Recording охватывает весь прежний20-stage, включая N
 Frozen focused tests50/50 (30stress +20shared transport),syntax/diff PASS. Реальный transport проверен mock CDP events: все5shell anchor pairs, missing/wrongPID/dataLoss отдельно, фильтрация URL/request данных, stream/listener cleanup, start/stop exceptions и original error preservation. Serialized renderer test проверяет actual mark timestamps, отсутствие дополнительных frames, optional mark errors/overflow и closed trace. Worst-case8MiB test с прежним2MiB reserve:8344814<8388608 bytes,остаток43794; raw event stream отдельно. Escape correction независимо перепроверена7/7; root прочитал actual handlers/trace integration и два Windows PNG.
 
 После независимых frozen reviews полный Mouse suite:1604tests,1595pass/9native-platformskip/0fail; source Python161tests,159pass/2skip/0fail. Node12.046s,Python29.865s. Per-switch loop и существующие assert строки проверены byte-for-byte относительно1ab: неизменны. Shared trace helper и publisher/schema/предыдущие629/640 gates не менялись. Все6 source/doc files готовы к следующему exact-head native CI; локальные результаты не заменяют установленную проверку и не означают публикацию.
+
+## Итоговая приёмка 6.0.41
+
+### Принятый исходный код и границы документации
+
+[Source PR218](https://github.com/jeep-jim/OSMINOG/pull/218) принят обычным merge. Проверенный head — `3a32e02a8893b4c2f1397cd0a08e94af737f42fc`; merge — `ceaef4d7d22d91a2b5ab4decd05f1c16e5ea9dd1`; дерево обоих — `bf4b60b717d14479f621709ba242ed0c0e569b70`. Принятая source-ветка сохранена. Документы после выпуска ведутся отдельной веткой от свежего main.
+
+Последующий `0a2347bd30d808961d69d9f12aae484d44634e91` имеет единственного родителя CEA и меняет только roadmap (+2 строки) и website launch doc (+13 строк): `docs(mouse): record verified website installer delivery 6.0.40 [skip ci]`. Эта история сохранена; она не меняет принятый код пакетов и source pins.
+
+### Проверки source и offline-приёмка
+
+Все 11 workflows проверенного head завершились SUCCESS. Установленные платформенные проверки:
+
+| Платформа | Source run | Обязательные продолжения |
+| --- | --- | --- |
+| Mac Apple Silicon | [45830569948](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569948) | Native source verification |
+| Linux x64 | [45830569937](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569937) | Primary и Ubuntu Noble |
+| Windows x64 | [45830569936](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569936), attempt 1 | Primary job `139945934660` и modern job `139957514950` |
+
+Локальный source suite: Node 1595 PASS, 9 platform skips, 0 FAIL; Python 159 PASS, 2 skips, 0 FAIL. Publisher contracts: 220/220 PASS. Эти результаты дополняют native CI и не заменяют установленные проверки.
+
+Полные архивы сверены по фактическому размеру и SHA256, source/run/attempt/job и package/executable identity. На архивных данных выполнены обязательные production reader chains: Mac, Linux/Noble, Windows primary/modern. В Windows полный primary replay прошёл 25 сохранённых этапов, modern — 9; это повторное чтение фактических source evidence, без новой установки publisher и без публикации.
+
+[Releases PR93](https://github.com/jeep-jim/OSMINOG-Releases/pull/93), merge `bd1b1e6fa4eaadaf6c678206679d3b82d65609dd`, согласовал только reader 641 с новой геометрией списка библиотеки. После независимого review полные offline chains прошли PASS. SHA256 адаптера `tools/mouse641-reuse.py` — `e502a8b4d9230bc303411fc975fb1b53034af9ce0e4288f290678fd29341bf89`. Frozen gates 629/640, исходный код и байты проверенных source-пакетов этим исправлением не менялись. Первоначальный failed modern report сохранён отдельно от успешного полного replay.
+
+Windows native evidence дополнительно подтверждает: перенос у края меняет стол один раз за одно посещение края, держит исходное владение страницей до отпускания и сохраняет её identity; фактический hold primary 800.464 ms, modern 800.4247 ms. Ctrl+A подтверждён наблюдением actual shell WebContents, trusted DOM Control и полным выделением того же focused input; реальные ввод/Enter и URL-переход сохранены. 625 Escape больше не передаёт уже обработанный modal Escape в переход classic → grid. Уровень источников ввода не повышается: открывающий click — User32, существующий 625 Escape — `webContents.sendInputEvent`.
+
+### Свежая установка publisher и публичные результаты
+
+
+
+| Платформа | Activation PR / merge | Publisher run / итог | Публичная проверка |
+| --- | --- | --- | --- |
+| Mac | [PR94](https://github.com/jeep-jim/OSMINOG-Releases/pull/94), `d1c2ceb2cef26deae1d0cefc02542b194f1ebe3f` | [45844915958](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45844915958); SUCCESS, attempt 1; fresh installed/native и retained/current production readers PASS. | PUBLIC VERIFIED: canonical feed; actual629/640 full DMG/current641; полный DMG+ZIP дополнительно проверен production gate PR95. |
+| Linux | [PR95](https://github.com/jeep-jim/OSMINOG-Releases/pull/95), merge [`42e71474a9f8c520e5569f4dd0aebf47003f9924`](https://github.com/jeep-jim/OSMINOG-Releases/commit/42e71474a9f8c520e5569f4dd0aebf47003f9924) | [45852450598](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45852450598), attempt 1 — SUCCESS; fresh/offline PASS. | PUBLIC VERIFIED: полные AppImage/deb, actual640/current641 checks, canonical и versioned feed. |
+| Windows | [PR96](https://github.com/jeep-jim/OSMINOG-Releases/pull/96), merge [`5270d24baee4994ac0a3e0b255106279270b5b8d`](https://github.com/jeep-jim/OSMINOG-Releases/commit/5270d24baee4994ac0a3e0b255106279270b5b8d) | [45858493199](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45858493199), attempt 1 — SUCCESS; независимый fresh/public audit 14/14, сохранённые отчёты 6/6 совпали. | Полный EXE проверен анонимно actual629/actual640 updater; current641 — PASS. Canonical и versioned feeds совпадают с принятыми size/SHA. |
+
+**Mac — точные receipts**
+
+[Activation PR94](https://github.com/jeep-jim/OSMINOG-Releases/pull/94) принят merge [`d1c2ceb2cef26deae1d0cefc02542b194f1ebe3f`](https://github.com/jeep-jim/OSMINOG-Releases/commit/d1c2ceb2cef26deae1d0cefc02542b194f1ebe3f); [Mac pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/d1c2ceb2cef26deae1d0cefc02542b194f1ebe3f/staging/mouse/6.0.41-arm64/pin.json) закрепляет принятый source `3a32e02a`. [Publisher 45844915958](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45844915958), attempt 1: contract `139995955343` и [mouse-release `139996836668`](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45844915958/job/139996836668) — SUCCESS. Fresh installed/native-проверка выполнена 26.11.2026, 22:09:25–22:26:31 KRAT (UTC+7). Полный verification artifact `15132926807`: 108058645 байт, SHA256 `a532962e244675887d0031dd1af7e74712f7f07226baf9040d37f169de5a020e`.
+
+Независимый offline replay принят: 13 групп, 747 входных файлов, точное совпадение 8 пересчитанных saved reports; SHA256 отчёта `ec2441a1d76bbacaae69d299139518a8c0908012151b8679e38e35509e96f20e`. Проверены fresh retained/native и текущие 638/639/640/641 readers, 629→641 replacement/relaunch/profile path и 640→641 replacement/native update-button. В fresh 640→641 fixture сохранены cookie, localStorage, bookmark, tab и preferences между разными процессами. Fresh performance прошёл прежние пределы: p50 20/50 страниц — 64.095000/62.882375 ms при границах 89.278584/71.458584 ms; p95 ≤250 ms, max ≤600 ms. Этот результат относится к точному принятому запуску.
+
+[Release `quadro-macos-v6.0.41-arm64`](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/quadro-macos-v6.0.41-arm64), ID `459597369`, опубликован 22:32:17 KRAT (UTC+7); non-draft prerelease, пять assets. Mac publisher создаёт только [canonical feed](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/channels/mouse/macos-arm64.json). Actual 629/640 updater receipts подтвердили полную анонимную загрузку DMG и current641 checks. Полная анонимная загрузка **DMG и ZIP** дополнительно подтверждена штатным production gate [PR95 / run 45851734433 / job 140019557944](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45851734433/job/140019557944), attempt 1, 22:43:48–22:43:56 KRAT (UTC+7): [точные code/PIN bytes](https://github.com/jeep-jim/OSMINOG-Releases/blob/0142230fdc79524520191349302042cb73393215/tools/mouse641-publish-plan.py) и оба ready pin связывают успешный шаг с обязательным чтением обоих файлов до EOF и сверкой размера/SHA256. Отдельные счётчики передачи для каждого файла этот gate не печатает; publication jobs в PR были skipped.
+
+| Публичный пакет | Размер, байт | SHA256 |
+| --- | ---: | --- |
+| Mouse-Browser-6.0.41-mac-arm64.dmg | 131533136 | `ee9c8c4af98667556d9ce93917e683343237d88b55ede060eb0b5b015758a727` |
+| Mouse-Browser-6.0.41-mac-arm64.zip | 131555539 | `a8886a415b67bb5865258fa98d66eadcd78ce36cd175aef1b006c3c79044b1df` |
+
+Итоговая Mac acceptance-квитанция: PASS / publicVerifiedFull=true, SHA256 `10426afb42981e637358a762aa4fc717a29e2127f50b4455a809efa1ef5a6092`. Mac остаётся ad-hoc preview без Developer ID/notarization; этот статус не обозначает Developer ID-подпись всех файлов релиза.
+
+**Linux — точные receipts**
+
+[Activation PR95](https://github.com/jeep-jim/OSMINOG-Releases/pull/95) принят merge [`42e71474a9f8c520e5569f4dd0aebf47003f9924`](https://github.com/jeep-jim/OSMINOG-Releases/commit/42e71474a9f8c520e5569f4dd0aebf47003f9924); [Linux pin](https://github.com/jeep-jim/OSMINOG-Releases/blob/42e71474a9f8c520e5569f4dd0aebf47003f9924/staging/mouse/6.0.41-linux-x64/pin.json) закрепляет тот же source `3a32e02a`. [Publisher 45852450598](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45852450598), attempt 1: contract `140022050917` и [publish-linux `140023079054`](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45852450598/job/140023079054) — SUCCESS. Fresh native-проверка выполнена 26.11.2026, 22:53:35–23:06:17 KRAT (UTC+7). Полный verification artifact `15134489085`: 72111719 байт, SHA256 `0a968f376172be4660532397a4b697f57a500a2513c0c8dee8d0f76f331f6ffd`.
+
+Независимый replay принят: 11 групп, 635 входных файлов, точное совпадение 5 пересчитанных saved reports; SHA256 отчёта `7b9729ba7ca93cc2b4866bfbded41f1c757471f0ba7c323af592e9f0133c4afb`. Fresh verification связан с publisher run `45852450598/1`, исходный wrapper — с source run `45830569937/1`; исполняемый файл и app.asar свежей установки совпадают с принятыми source bytes. Retained Linux и текущие 638/639/640/641 readers прошли. Обновление 640→641 проверено отдельно для deb и AppImage: разные old/new процессы, неизменный закрытый профиль, сохранены cookie, localStorage, bookmark, tab и preferences. Fresh p50 для 20/50 страниц — 35.083993/38.289505 ms при прежних границах 56.239076/56.730583 ms; p95 ≤250 ms, max ≤600 ms.
+
+[Release `mouse-linux-v6.0.41-x64`](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-linux-v6.0.41-x64), ID `459639904`, опубликован 23:10:07 KRAT (UTC+7); non-draft prerelease, пять assets. Actual published640 updater выполнил полную анонимную загрузку **AppImage и deb**, сверил размер/SHA256 и current641 checks. Повторная публичная проверка 23:10:59 KRAT (UTC+7) и независимый audit подтвердили оба равных JSON: [canonical latest.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/latest.json) и [versioned releases/6.0.41.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/linux/mouse-x64/releases/6.0.41.json). SHA256 исходной public-readback квитанции `7b73a469b5851595f3322d1b0b0e8582ef8d3a35f9448752009d9f591ea2d6b1`; публичный native report совпадает с этим fresh run.
+
+| Публичный пакет | Размер, байт | SHA256 |
+| --- | ---: | --- |
+| Mouse-Browser-6.0.41-Linux-x64.AppImage | 128822176 | `d68443f65a82d108162a2f528c4898abc8406150f270a19e09b3a257f84238f0` |
+| Mouse-Browser-6.0.41-Linux-x64.deb | 101395748 | `42b1f88a013fffe8b786b1d2db910f3662b9f1f85f334a7042525e2a19571532` |
+
+Итог Linux: fresh/offline/public-feed acceptance PASS. Оба публичных формата и оба feed подтверждены; source/native, fresh installed и public receipts сохранены раздельно.
+
+**Windows — точные receipts**
+
+[Activation PR96](https://github.com/jeep-jim/OSMINOG-Releases/pull/96) принят merge [`5270d24baee4994ac0a3e0b255106279270b5b8d`](https://github.com/jeep-jim/OSMINOG-Releases/commit/5270d24baee4994ac0a3e0b255106279270b5b8d). [Publisher 45858493199](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45858493199), attempt 1: contract `140043026898` и [publish-windows `140043793918`](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45858493199/job/140043793918) — SUCCESS. Fresh installed/native-шаг выполнен с **26.11.2026 23:41:30 до 27.11.2026 00:07:27 KRAT (UTC+7)**. Verification artifact `15139788207`: 120769116 байт, полный SHA256 `70b1ba095c6940f08c5a390be2f06630a5089d948a71a6a67ac7e762f928c1c8`. Независимый offline audit: **14/14 групп PASS**, 621 входной файл, **6/6** пересчитанных отчётов совпали с сохранёнными; SHA256 полного отчёта `ce900a064f95f05ce215d5c55ea618e63c7c00254906fc1a3bf06e9547123d8c`.
+
+Пройдены замена actual629→641 и actual640→641 с native READ прежнего тестового профиля в новых процессах, а также отдельный actual640 update-button путь. Подтверждение сохранности относится к выполненным fixtures; локальная замена и последующая загрузка из публичного канала проверялись раздельно. В сравнении с actual640 на том же Windows runner p50 для 20 страниц — **66.0037→63.7476 мс** (5 переключений), для 50 — **72.4699→71.8283 мс** (10). Сохранён прежний предел median = baseline + 16.6666666667 мс; candidate p95 **64.8075/80.8395 мс** и max **68.2387/85.5721 мс** укладываются в прежние 250/600 мс.
+
+[Release `mouse-windows-v6.0.41-x64`](https://github.com/jeep-jim/OSMINOG-Releases/releases/tag/mouse-windows-v6.0.41-x64), ID `459705947`, опубликован **27.11.2026 00:14:09 KRAT**; non-draft prerelease, четыре assets. Полная анонимная загрузка EXE через фактические updater-модули 6.0.29 и 6.0.40, а также current641 checks — PASS: `Mouse-Browser-6.0.41-Windows-x64.exe`, **113759784 байт**, SHA256 `1e6f4860869fe1060dde1f009fad4fd74b4f4f3adb2cf0f28122047d66e0c341`. [Canonical latest.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/latest.json) и [versioned releases/6.0.41.json](https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/main/platforms/windows/mouse-x64/releases/6.0.41.json) совпадают с принятыми release/PIN metadata. Публичный native report совпадает с fresh-отчётом. Установщик и установленный исполняемый файл имеют Authenticode `NotSigned`; это unsigned preview.
+
+Первый дополнительный локальный аудитор неверно трактовал время API, указанное с точностью до секунды, как точную границу. После привязки к точным channel/upload log groups полный повтор аудита прошёл; первоначальный отчёт сохранён. Эта коррекция не меняла production-код, pins или пакеты и не запускала повторный native CI.
+
+Mac подтверждён через canonical feed; отдельного versioned Mac feed publisher не создаёт. Linux и Windows подтверждены через canonical и versioned feeds. Полные публичные DMG/ZIP, AppImage/deb и EXE сверены по размерам/SHA256 с принятыми pins; отдельный full-byte gate Mac ZIP указан в Mac receipts. Неизменяемыми остаются опубликованные пакеты и их versioned asset URLs; canonical feed указывает на текущую опубликованную версию.
+
+### Ограничения и сайт
+
+Mac — ad-hoc preview без Developer ID/notarization; Windows — unsigned preview. Linux source gate включает Ubuntu 24.04; физическая система Mint владельца отдельно не проверена. Работа расширений не означает поддержку всех Chrome API. Сохранение профиля подтверждено в выполненных upgrade fixtures: Mac actual629→641 и actual640→641; Linux actual640→641 отдельно для AppImage и deb; Windows actual629→641 и actual640→641. Данные old/new процессов, профильные проверки и отдельные update-button пути приведены в receipts каждой платформы. Эти выводы относятся к указанным сценариям и квитанциям. Опубликованные пакеты и immutable asset URLs не перезаписывать.
+
+[Website PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован ранее: сравнения с конкурентами удалены, сохранена демонстрация 5 столов/12 окон и точный пиксельный заголовок. Merge сайта — `435369a013cb2f5ff995194015acf1142922c034`. Доказательства и отдельные ограничения сайта — в [website task](../website/2026-11-26-own-workspace-demo.md) и [launch history](../website/2026-11-22-mouse-black-launch.md). Публикация сайта не подменяет платформенную публикацию 6.0.41.
+
+### Финальная доставка 6.0.41 через mouse.black
+
+[Read-only run 45870017081](https://github.com/jeep-jim/OSMINOG/actions/runs/45870017081), attempt 1, [job `140082692796`](https://github.com/jeep-jim/OSMINOG/actions/runs/45870017081/job/140082692796) — **SUCCESS**, **27.11.2026 00:42:43–00:44:59 KRAT (UTC+7)**; основной live-шаг — 00:42:51–00:44:55. Проверенный workflow head — [`7325673d072e4b0e2a2ad4b2b78d757b9596fd2c`](https://github.com/jeep-jim/OSMINOG/commit/7325673d072e4b0e2a2ad4b2b78d757b9596fd2c), tree `5dcc8d0b0488abc1e95025515091577906632c67`; PR workflow исполнялся на synthetic merge `72d86fb437b0227cf61596b4a7e28fa9f1e763bb`. Artifact `15142047392`: **19251 байт**, SHA256 `38d618a1b1bfe89322b6e54d58197ab4db26cbacc9a1d3be6642856c2b1d773e`. Независимый offline review — **PASS**, SHA256 `55d798bcbc838686b872bfbcb7b5b6160f2e543b3c1932053e1d735076d7d36c`.
+
+Получен HTTP 200 для **72 уникальных языковых страниц**; workflow сравнил каждое HTML-тело побайтово с эталоном, построенным неизменённым renderer [`435369a013cb2f5ff995194015acf1142922c034`](https://github.com/jeep-jim/OSMINOG/commit/435369a013cb2f5ff995194015acf1142922c034). Каталог содержит три платформы 6.0.41 и связан с принятыми source/pins. Полностью скачаны три same-domain установщика ниже; фактические размер и SHA256 совпали с опубликованными пакетами. Для каждого дополнительно получены **HEAD 200 и Range 206**, включая размер в Content-Length/Content-Range.
+
+| Установщик на mouse.black | Размер, байт | SHA256 |
+| --- | ---: | --- |
+| [Mouse-Browser-6.0.41-mac-arm64.dmg](https://mouse.black/downloads/Mouse-Browser-6.0.41-mac-arm64.dmg) | 131533136 | `ee9c8c4af98667556d9ce93917e683343237d88b55ede060eb0b5b015758a727` |
+| [Mouse-Browser-6.0.41-Windows-x64.exe](https://mouse.black/downloads/Mouse-Browser-6.0.41-Windows-x64.exe) | 113759784 | `1e6f4860869fe1060dde1f009fad4fd74b4f4f3adb2cf0f28122047d66e0c341` |
+| [Mouse-Browser-6.0.41-Linux-x64.AppImage](https://mouse.black/downloads/Mouse-Browser-6.0.41-Linux-x64.AppImage) | 128822176 | `d68443f65a82d108162a2f528c4898abc8406150f270a19e09b3a257f84238f0` |
+
+Deployment identity — `630a82e381d2f467ef1dca082065cac9031234b7`. Проверка marker подтверждена точным неизменённым кодом verifier и успешным CI marker; raw marker response в архив не включён. Этот запуск не выполнял deploy и не менял production host. [Диагностический PR220](https://github.com/jeep-jim/OSMINOG/pull/220) закрыт **27.11.2026 00:50:41 KRAT без слияния workflow**; все шесть связанных workflows завершились SUCCESS, ветка и результаты сохранены.
+
+[Первый read-only run 45868412008](https://github.com/jeep-jim/OSMINOG/actions/runs/45868412008) остановился на `HTTP 403: rate limit exceeded` при анонимном чтении GitHub release API. В исправленном workflow авторизация применяется только к трём точным read-only запросам release metadata. Чтение feed, pins, страниц сайта, каталога и скачивание установщиков остаются анонимными; первоначальный failed run сохранён отдельно.
+
+**Ручная проверка веб-интерфейса**, 26.11.2026 23:47:48 KRAT: точный заголовок «Визуальный пример работы столов и сетки окон», загруженный шрифт `Mouse Display`, переключение столов 1→3→1, открытие/закрытие полноэкранного режима, значение вертикального разделителя 60→51, обмен панелей VS Code/Perplexity и рендер 12 панелей. После проверки восстановлены стол 1 и четыре панели. **27.11.2026 00:19:48 KRAT** на всех трёх кнопках загрузки наблюдалась версия 6.0.41. Эти действия относятся к веб-демонстрации; ручная native-проверка конфигураций 5 столов/12 окон ими не заявляется. Мобильный интерфейс отдельно не проверялся.

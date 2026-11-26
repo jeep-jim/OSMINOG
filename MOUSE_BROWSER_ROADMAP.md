@@ -1,6 +1,6 @@
 # Mouse Browser — рабочая сводка
 
-26.11.2026. **6.0.41 в работе; 6.0.40 опубликована на всех платформах.** Порядок нового выпуска: **Mac → Linux → Windows**. Сводка ≤8000 байт; подробности и доказательства — в документах задач, PR и pins.
+27.11.2026, KRAT (UTC+7). **6.0.41 PUBLIC VERIFIED на Mac, Linux и Windows.** Выпуск выполнен в порядке **Mac → Linux → Windows**. Сводка ≤8000 UTF-8 байт; доказательства — в документах задач, PR и pins.
 
 ## Проект и решения владельца
 
@@ -10,21 +10,19 @@
 - Сохранять профиль, App ID, Chromium partition, cookies, вкладки, столы, совместимость обновляторов. Опубликованные пакеты/адреса неизменяемы. Маскот, очки и Dock без новой просьбы не менять.
 - Продукт: `desktop/mouse-main.cjs`, `desktop/mouse/`; preload/update/build рядом. Правила: [desktop/AGENTS.md](desktop/AGENTS.md).
 
-## Принятый source — 640
+## Опубликованный предшественник — 640
 
-Пользователь не заметил AdBlock в длинной ленте настроек. Новый интерфейс: девять разделов, поиск, AdBlock на первом экране, явные состояния, цветные SVG, тёмное/белое стекло, независимая сохраняемая ширина. Все прежние IPC и ограничения инкогнито сохраняются. [Задача](docs/desktop/2026-11-26-mouse640-settings-glass.md).
+Настройки: девять разделов, поиск, AdBlock на первом экране, тёмное/белое стекло, сохраняемая ширина; прежние IPC и ограничения инкогнито сохранены. Source принят в [PR216](https://github.com/jeep-jim/OSMINOG/pull/216). **640 PUBLIC VERIFIED на Mac, Linux и Windows:** полные DMG/ZIP/AppImage/deb/EXE и feed сверены по размеру/SHA256. Точные source/publisher receipts — в [задаче 640](docs/desktop/2026-11-26-mouse640-settings-glass.md).
 
-В [PR216](https://github.com/jeep-jim/OSMINOG/pull/216) принят head `7428ecf52698e62468bb7befb9d7d2d06ee7b6d9`; merge `7e0de1d371f206c26879d502ab2e4b470731da53`. Дерево обоих `0c98e782ae21f4818ec6ab83d037e54ca7f3e444`. Принятую ветку `feat/mouse640-settings-glass-20261126` не двигать; последующие документы — отдельная ветка от main.
+## Принятый source — 641
 
-Нативные source-gates SUCCESS: [Mac 45730096243](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096243), [Linux + Noble 45730096469](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096469), [Windows + modern 45730096285](https://github.com/jeep-jim/OSMINOG/actions/runs/45730096285), Windows attempt 2. Новый gate проверяет AdBlock сразу после открытия, до прокрутки к контролу; старый тест мог сам прокрутить скрытую ниже настройку. Нативные светлые/тёмные кадры трёх платформ визуально проверены; подробные границы проверки — в задаче.
+[PR218](https://github.com/jeep-jim/OSMINOG/pull/218) принят обычным merge `ceaef4d7`: проверенный head `3a32e02a`, одинаковое дерево `bf4b60b7`. Все 11 source workflows SUCCESS, включая [Mac](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569948), [Linux + Noble](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569937) и [Windows + modern](https://github.com/jeep-jim/OSMINOG/actions/runs/45830569936). Полные идентификаторы, границы и доказательства — в [задаче 641](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md).
 
-**640 PUBLIC VERIFIED:** Mac — [45738926996](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45738926996); Linux — [45742571751](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45742571751); Windows — [45744897208](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45744897208), все publisher SUCCESS. Канонические feed 6.0.40 и полные публичные DMG/ZIP/AppImage/deb/EXE сверены по размеру и SHA256; точные receipts и ссылки — в задаче.
+Локально: Node 1595 PASS/9 skip; Python 159 PASS/2 skip; publisher 220/220 PASS. Полные offline-цепочки production readers прошли после [Releases PR93](https://github.com/jeep-jim/OSMINOG-Releases/pull/93): адаптация геометрии библиотеки только для 641; frozen 629/640 и source-пакеты не изменены. Проверка source и offline readers не заменяет свежую установку publisher и публичные receipts.
 
-## Текущая задача — 641
+**Публикация 641:** **Mac/Linux/Windows PUBLIC VERIFIED:** [Mac](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45844915958), [Linux](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45852450598), [Windows](https://github.com/jeep-jim/OSMINOG-Releases/actions/runs/45858493199). Fresh native, upgrades и полные публичные пакеты приняты.
 
-[PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). В source влита main `435369a013cb2f5ff995194015acf1142922c034` с опубликованным сайтом.
-
-Head `1ab8f4e` не принят,8 общих workflows SUCCESS. Linux45825293634:primary/Noble и full archives/readers PASS. Windows45825294055:632 footer/documents PASS,625 Escape повторно переключал classic в grid; product guard+7regressions готовы,modern skipped. Mac45825293617:performance20/50 p50 FAIL; outer command settled быстро, причина задержки до renderer continuation открыта. Готова bounded отдельная Chromium trace20stage. Full Node1595pass/9skip,Python159pass/2skip; нужны новые native gates. ReleasesPR90/91/92 подготовлены; pins не активированы,641 не опубликована. Receipts — в задаче.
+Принятую source-ветку не двигать. Финальные документы — отдельная ветка от свежего main; сохранить последующую docs-only историю, включая `0a2347bd`.
 
 ## Сохранённые возможности и ограничения
 
@@ -43,3 +41,5 @@ Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будуща�
 26.11 [PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован: конкуренты удалены, оставлены5 столов/12 окон и пиксельный заголовок. [Публикация и live QA](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md).
 
 26.11 15:58:03 KRAT: [website gate 45787306736](https://github.com/jeep-jim/OSMINOG/actions/runs/45787306736) — 640 x3, direct HTTPS/full SHA256 PASS; 22:09 DNS недоступен.
+
+27.11, **сайт 6.0.41 PASS:** [45870017081](https://github.com/jeep-jim/OSMINOG/actions/runs/45870017081), 72 языка, полные DMG/AppImage/EXE с size/SHA256, HEAD 200/Range 206. Ручная web-QA; mobile не проверен.
