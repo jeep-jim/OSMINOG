@@ -1,0 +1,233 @@
+name: Mouse website — read-only public 6.0.41 audit
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/mouse-website-public-readonly.yml']
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+concurrency:
+  group: mouse-website-public-readonly-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  public-readonly:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUNBUFFERED: '1'
+      MOUSE_RENDERER_SOURCE: '435369a013cb2f5ff995194015acf1142922c034'
+      MOUSE_REQUIRED_VERSION: '6.0.41'
+      MOUSE_PUBLISHER_PIN_REF: '5270d24baee4994ac0a3e0b255106279270b5b8d'
+    steps:
+      - name: Read the accepted website renderer
+        uses: actions/checkout@v4
+        with:
+          ref: '435369a013cb2f5ff995194015acf1142922c034'
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Bind public catalog to all three published 6.0.41 releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$MOUSE_RENDERER_SOURCE"
+          python3 - <<'PY'
+          import hashlib, importlib.util, json, os, re, subprocess, sys, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          sys.path.insert(0, 'infra/website')
+          import release_catalog as catalog
+          root = Path(os.environ['RUNNER_TEMP']) / 'mouse-public-readonly'
+          root.mkdir()
+          def save(name, value):
+              (root / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+          def now():
+              return datetime.now(timezone.utc).isoformat()
+          source = os.environ['MOUSE_RENDERER_SOURCE']
+          wanted = os.environ['MOUSE_REQUIRED_VERSION']
+          pin_ref = os.environ['MOUSE_PUBLISHER_PIN_REF']
+          assert re.fullmatch(r'[0-9a-f]{40}', pin_ref), 'An exact accepted Windows activation merge is required'
+          paths = ['infra/website/build-site.py', 'infra/website/release_catalog.py',
+                   'infra/website/verify-pages-live.py', 'infra/website/verify-seo.py',
+                   'infra/website/sync-releases.py', 'website/index.html']
+          save('provenance.json', {'startedAt': now(), 'rendererSource': source,
+              'rendererTree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip(),
+              'requiredVersion': wanted, 'publisherPinRef': pin_ref, 'event': os.environ['GITHUB_EVENT_NAME'],
+              'eventSHA': os.environ['GITHUB_SHA'], 'run': os.environ['GITHUB_RUN_ID'],
+              'attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'workflowRef': os.environ.get('GITHUB_WORKFLOW_REF'),
+              'workflowSHA': os.environ.get('GITHUB_WORKFLOW_SHA'),
+              'sourceFilesSHA256': {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in paths},
+              'deployExecuted': False, 'hostMutationExecuted': False})
+          accepted_source = '3a32e02a8893b4c2f1397cd0a08e94af737f42fc'
+          accepted_merge = 'ceaef4d7d22d91a2b5ab4decd05f1c16e5ea9dd1'
+          accepted_packages = {
+              'macos': {
+                  'Mouse-Browser-6.0.41-mac-arm64.dmg': {'size': 131533136, 'sha256': 'ee9c8c4af98667556d9ce93917e683343237d88b55ede060eb0b5b015758a727'},
+                  'Mouse-Browser-6.0.41-mac-arm64.zip': {'size': 131555539, 'sha256': 'a8886a415b67bb5865258fa98d66eadcd78ce36cd175aef1b006c3c79044b1df'}},
+              'linux': {
+                  'Mouse-Browser-6.0.41-Linux-x64.AppImage': {'size': 128822176, 'sha256': 'd68443f65a82d108162a2f528c4898abc8406150f270a19e09b3a257f84238f0'},
+                  'Mouse-Browser-6.0.41-Linux-x64.deb': {'size': 101395748, 'sha256': '42b1f88a013fffe8b786b1d2db910f3662b9f1f85f334a7042525e2a19571532'}},
+              'windows': {
+                  'Mouse-Browser-6.0.41-Windows-x64.exe': {'size': 113759784, 'sha256': '1e6f4860869fe1060dde1f009fad4fd74b4f4f3adb2cf0f28122047d66e0c341'}}}
+          class PinNoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+          pin_opener = urllib.request.build_opener(PinNoRedirect())
+          pin_receipts, pinned_packages = [], {}
+          for platform, folder in [('macos', '6.0.41-arm64'), ('linux', '6.0.41-linux-x64'),
+                                   ('windows', '6.0.41-windows-x64')]:
+              url = 'https://raw.githubusercontent.com/jeep-jim/OSMINOG-Releases/' + pin_ref + '/staging/mouse/' + folder + '/pin.json'
+              request = urllib.request.Request(url, headers={'Accept': 'application/json', 'Cache-Control': 'no-cache'})
+              with pin_opener.open(request, timeout=30) as response:
+                  raw = response.read(65537)
+                  filename = 'publisher-pin-' + platform + '.raw.json'
+                  (root / filename).write_bytes(raw)
+                  pin_receipts.append({'platform': platform, 'ref': pin_ref, 'url': url,
+                      'finalURL': response.url, 'status': response.status, 'observedAt': now(),
+                      'rawFile': filename, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
+                  save('publisher-pin-readbacks.json', pin_receipts)
+                  assert response.status == 200 and response.url == url and 0 < len(raw) <= 65536
+              pin = json.loads(raw)
+              assert pin.get('ready') is True and pin.get('version') == '6.0.41'
+              assert pin.get('source') == accepted_source and pin.get('sourceMerge') == accepted_merge
+              assert type(pin.get('sourcePR')) is int and pin['sourcePR'] == 218
+              if platform == 'windows':
+                  package = pin.get('package', {})
+                  assert set(package) == {'name', 'size', 'sha256'}
+                  packages = {package['name']: {'size': package['size'], 'sha256': package['sha256']}}
+              else:
+                  packages = pin.get('packages')
+              assert packages == accepted_packages[platform], 'Publisher pin differs from accepted package bytes: ' + platform
+              assert all(type(package['size']) is int for package in packages.values())
+              pinned_packages[platform] = packages
+          observations = []
+          def observed_fetch(url):
+              try:
+                  value = catalog.fetch_public_json(url)
+                  observations.append({'url': url, 'observedAt': now(), 'value': value})
+                  return value
+              except Exception as error:
+                  observations.append({'url': url, 'observedAt': now(), 'error': str(error)[:500]})
+                  raise
+              finally:
+                  save('official-feed-and-release-observations.json', observations)
+          seed = json.loads(Path('infra/website/downloads.json').read_text())
+          assert all(catalog.version_tuple(catalog.filename_details(x['filename'])[1]) <
+                     catalog.version_tuple(wanted) for x in seed['files'])
+          manifest, reports = catalog.resolve_releases(seed, fetch_json=observed_fetch)
+          save('official-resolution.json', {'reports': reports, 'manifest': manifest})
+          assert reports == ['UPDATE ' + platform + ' ' + wanted for platform in catalog.PLATFORMS], \
+              'All three official feeds and published release assets must already be 6.0.41'
+          assert all(catalog.filename_details(x['filename'])[1] == wanted for x in manifest['files'])
+          for item in manifest['files']:
+              platform, version = catalog.filename_details(item['filename'])
+              assert version == wanted and {'size': item['size'], 'sha256': item['sha256']} == \
+                  pinned_packages[platform][item['filename']], 'Official website package differs from accepted pin'
+          save('publisher-pin-manifest-binding.json', {'ok': True, 'publisherPinRef': pin_ref,
+              'source': accepted_source, 'sourceMerge': accepted_merge, 'sourcePR': 218,
+              'acceptedFivePackageMetadata': pinned_packages, 'selectedWebsiteManifest': manifest})
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+          url = 'https://mouse.black/downloads.json'
+          request = urllib.request.Request(url, headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'})
+          with urllib.request.build_opener(NoRedirect()).open(request, timeout=30) as response:
+              raw = response.read(65537)
+              (root / 'public-downloads.raw.json').write_bytes(raw)
+              save('public-catalog-http.json', {'url': url, 'finalURL': response.url,
+                  'status': response.status, 'headers': dict(response.headers.items()),
+                  'observedAt': now(), 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
+              assert response.status == 200 and response.url == url and len(raw) <= 65536
+              assert 'no-cache' in response.headers.get('Cache-Control', '').lower()
+          assert catalog.public_to_manifest(json.loads(raw)) == manifest, \
+              'The public website catalog has not reached the three verified 6.0.41 releases'
+          save('downloads-manifest.json', manifest)
+          spec = importlib.util.spec_from_file_location('reviewed_sync_identity', 'infra/website/sync-releases.py')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          identity = module.deployment_id(source, manifest)
+          (root / 'deployment-id.txt').write_text(identity + '\n')
+          print('MOUSE641_PUBLIC_METADATA_AND_SITE_CATALOG_PASS deployment=' + identity)
+          PY
+      - name: Verify exact live HTML, catalog and complete same-domain installer bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          proof="$RUNNER_TEMP/mouse-public-readonly"
+          identity=$(cat "$proof/deployment-id.txt")
+          [[ "$identity" =~ ^[0-9a-f]{40}$ ]]
+          python3 infra/website/build-site.py --output "$proof/expected-site" --downloads "$proof/downloads-manifest.json" 2>&1 | tee "$proof/build.log"
+          python3 infra/website/verify-seo.py "$proof/expected-site" --downloads "$proof/downloads-manifest.json" 2>&1 | tee "$proof/seo.log"
+          python3 infra/website/verify-pages-live.py --site "$proof/expected-site" --release "$identity" --downloads "$proof/downloads-manifest.json" 2>&1 | tee "$proof/live.log"
+          python3 - <<'PY'
+          import hashlib, json, os, re, urllib.request
+          from pathlib import Path
+          from xml.etree import ElementTree
+          root = Path(os.environ['RUNNER_TEMP']) / 'mouse-public-readonly'
+          site, origin = root / 'expected-site', 'https://mouse.black'
+          result = {'ok': False, 'languagePages': [], 'downloads': [],
+                    'fullDownloadGateLogSHA256': hashlib.sha256((root / 'live.log').read_bytes()).hexdigest()}
+          def save():
+              (root / 'public-readback-details.json').write_text(json.dumps(result, indent=2) + '\n')
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+          opener = urllib.request.build_opener(NoRedirect())
+          save()
+          sitemap = ElementTree.fromstring((site / 'sitemap.xml').read_bytes())
+          urls = [n.text for n in sitemap.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url/{http://www.sitemaps.org/schemas/sitemap/0.9}loc')]
+          assert len(urls) == len(set(urls)) == 72
+          for url in urls:
+              assert re.fullmatch(r'https://mouse\.black/[a-z0-9-]+/', url)
+              with opener.open(url, timeout=20) as response:
+                  body = response.read(2 * 1024 * 1024 + 1)
+                  assert response.status == 200 and response.url == url and len(body) <= 2 * 1024 * 1024
+                  assert response.headers.get_content_type() == 'text/html'
+                  assert not re.search(r'\b(?:noindex|none)\b', ','.join(response.headers.get_all('X-Robots-Tag', [])).lower())
+                  assert body == (site / url[len(origin) + 1:] / 'index.html').read_bytes()
+                  result['languagePages'].append({'url': url, 'status': response.status,
+                      'bytes': len(body), 'sha256': hashlib.sha256(body).hexdigest()})
+                  save()
+          for item in json.loads((root / 'downloads-manifest.json').read_text())['files']:
+              url = origin + '/downloads/' + item['filename']
+              row = {'url': url, 'filename': item['filename'],
+                     'fullDownloadVerifiedBy': 'completed unmodified verify-pages-live.py',
+                     'size': item['size'], 'fullDownloadSHA256': item['sha256']}
+              for method, headers in [('HEAD', {}), ('GET', {'Range': 'bytes=0-15'})]:
+                  with opener.open(urllib.request.Request(url, method=method, headers=headers), timeout=30) as response:
+                      assert response.url == url and response.headers.get('Location') is None
+                      assert not re.search(r'(?:https?:)?//[^\s]*(?:github\.com|githubusercontent\.com)', str(response.headers).lower())
+                      observed = {'status': response.status, 'headers': dict(response.headers.items())}
+                      if method == 'HEAD':
+                          assert response.status == 200 and int(response.headers['Content-Length']) == item['size']
+                          row['head'] = observed
+                      else:
+                          body = response.read(17)
+                          assert response.status == 206 and response.headers['Content-Range'] == 'bytes 0-15/' + str(item['size']) and len(body) == 16
+                          row['range'] = {**observed, 'bytesHex': body.hex()}
+              result['downloads'].append(row)
+              save()
+          result['ok'] = True
+          save()
+          print('MOUSE641_PUBLIC_FULL_READBACK_PASS language_pages=72 installers=3')
+          PY
+          printf '%s\n' 'Read-only public audit PASS: accepted renderer; all three 6.0.41 catalog entries; all 72 live language pages; complete DMG/AppImage/EXE SHA256; actual HEAD/Range receipts. No deployment or host mutation was executed.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep receipts even when an external check fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mouse-website-public-readonly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/mouse-public-readonly/*.json
+            ${{ runner.temp }}/mouse-public-readonly/*.txt
+            ${{ runner.temp }}/mouse-public-readonly/*.log
+          if-no-files-found: error
+          retention-days: 14
