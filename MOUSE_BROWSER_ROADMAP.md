@@ -24,7 +24,7 @@
 
 [PR218](https://github.com/jeep-jim/OSMINOG/pull/218), [требования и доказательства](docs/desktop/2026-11-26-mouse641-flexible-workspaces.md). База main `85fa6dc6128c24016a97bc96c68022d159914da4`.
 
-На head `27965f51bc4ad389c7bc71ec9630a43d78c243b4` все три source-gate FAIL: fake timer; дополнительно Linux — старое ожидание639 вместо baseline640, Windows — клик внутри неизменяемой629. Ошибки таймера/версии исправлены; перенос привязан к получателю и координатам при dragend, Escape отменяет источник. Локально:1476 pass/9 native skip; Python155 pass/2 skip. Следующий шаг — полный native-прогон и независимый publisher; 641 ещё не опубликована, feeds остаются640. Подробные логи и границы проверки — в задаче.
+На head `7cf6d9f` Mac/Linux прошли новые641 WRITE/READ и baseline640, затем остановились на старом checkbox/CSS glass. Windows прошёл629/640 upgrade, затем завис на HTML drag. Исправлены четыре controls, glass cascade и независимый Windows input child с held/drop proof; reader/publisher сверены. Локально1493 pass/9 skip, Python159 pass/2 skip. Следующий gate — полный installed CI и publisher;641 не опубликована. Логи и границы — в задаче.
 
 ## Сохранённые возможности и ограничения
 
@@ -40,4 +40,4 @@
 
 Free/Cheese: Free 2 стола/4 окна, Cheese 5/12 за $3 — будущая модель. Сейчас все функции бесплатны; оплаты/ограничений нет.
 
-PR213 опубликован 25.11: 10 браузеров + Mouse, цветные лого, режимы, 5 независимых столов. [Задача](docs/website/2026-11-25-browser-comparison.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md). Сохранять параллельные изменения сайта и свежие загрузки.
+26.11 [PR219](https://github.com/jeep-jim/OSMINOG/pull/219) опубликован: конкуренты удалены, оставлены5 столов/12 окон и пиксельный заголовок. [Публикация и live QA](docs/website/2026-11-26-own-workspace-demo.md). Счётчик UNAVAILABLE: нужен администратор Mouse vhost. [Процедура](docs/website/2026-11-25-download-metrics.md).

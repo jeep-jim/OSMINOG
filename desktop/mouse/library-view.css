@@ -54,14 +54,16 @@
 #library-dialog #library-rows[data-view=grid] .library-file-open.library-text-preview{margin-top:0;min-height:112px}
 
 /* Library641: the same glass, semantic color icons and quiet cards as Settings.
-   Every existing row, checkbox and action keeps its original native binding. */
+   Every existing row, checkbox and action keeps its original native binding.
+   Restore the glass color above the 628 important border reset, keeping its zero
+   width. Square panes retain appearance.css's shared currentColor edge. */
 html[data-theme] body #workspace #library-dialog[data-glass=true],
 html[data-theme] #local-preview-dialog[data-library-glass=true] {
  --library-ink:#1b2638;--library-secondary:#5b687c;--library-tertiary:#738096;
  --library-surface:rgba(247,249,253,.94);--library-card:rgba(255,255,255,.78);--library-line:rgba(123,142,170,.2);--library-rule:rgba(123,142,170,.15);
  --library-control:rgba(255,255,255,.86);--library-hover:#fff;--library-focus:#137af0;--library-selected:rgba(26,122,239,.12);--library-selected-ink:#125fbd;
  --text:var(--library-ink);--muted:var(--library-secondary);--panel:var(--library-control);--line:var(--library-line);--selected:var(--library-selected);--accent:var(--library-focus);
- color:var(--library-ink);background:linear-gradient(155deg,rgba(163,187,225,.045),transparent 52%),var(--library-surface);border-color:var(--library-line);box-shadow:-12px 0 38px rgba(0,0,0,.07),1px 0 0 rgba(255,255,255,.035) inset;backdrop-filter:blur(28px) saturate(135%);-webkit-backdrop-filter:blur(28px) saturate(135%);isolation:isolate;
+ color:var(--library-ink);background:linear-gradient(155deg,rgba(163,187,225,.045),transparent 52%),var(--library-surface);border-color:var(--library-line)!important;box-shadow:-12px 0 38px rgba(0,0,0,.07),1px 0 0 rgba(255,255,255,.035) inset;backdrop-filter:blur(28px) saturate(135%);-webkit-backdrop-filter:blur(28px) saturate(135%);isolation:isolate;
 }
 html[data-theme=dark] body #workspace #library-dialog[data-glass=true],
 html[data-theme=dark] #local-preview-dialog[data-library-glass=true] {
@@ -69,6 +71,7 @@ html[data-theme=dark] #local-preview-dialog[data-library-glass=true] {
  --library-surface:rgba(21,29,42,.95);--library-card:rgba(255,255,255,.035);--library-line:rgba(187,207,235,.11);--library-rule:rgba(187,207,235,.09);
  --library-control:rgba(210,226,250,.065);--library-hover:rgba(210,226,250,.12);--library-focus:#78b7ff;--library-selected:rgba(67,144,245,.18);--library-selected-ink:#c2ddff;
 }
+:root[data-pane-mode=square] body #workspace #library-dialog[data-glass=true]{border-color:currentColor!important}
 #library-dialog[data-glass=true]{container-type:inline-size;font-size:12px}
 #library-dialog[data-glass=true]>header{display:grid;grid-template-columns:36px minmax(0,1fr) 30px;gap:12px 11px;height:auto;min-height:0;padding:18px 16px 13px;border-bottom:1px solid var(--library-rule);background:transparent}
 #library-dialog[data-glass=true] .library-heading-copy{display:flex;flex-direction:column;gap:2px;min-width:0}

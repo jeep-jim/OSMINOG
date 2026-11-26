@@ -13,30 +13,68 @@ function dragReadback(){
   affordance:{visible:!!indicator&&visible(indicator.querySelector('.insert-badge')),axis:indicator?.dataset.axis||'',text:indicator?.textContent||'',svg:!!indicator?.querySelector('svg'),target:target?.dataset.pane||'',edge:target?.dataset.insertEdge||'',neighbor:neighbor?.dataset.pane||'',bounds:indicator?rect(indicator):null},
   edge:[...document.querySelectorAll('.mouse-drag-edge')].map(e=>({id:e.id,hover:e.dataset.hover==='true',bounds:rect(e)})),desktops:[...document.querySelectorAll('[data-drag-desk]')].map(e=>({id:e.dataset.dragDesk,active:e.dataset.active==='true'}))};
 }
+function installEdgeObservation({edgeId,destination,timeoutMs=9000}){
+ globalThis.__mouse641HeldEdge?.dispose();
+ const value={schema:1,clock:'renderer performance.now',edgeId,destination,originDesktop:MouseTest.model.desktopId,armedAtMs:performance.now(),hoverAtMs:null,switchedAtMs:null,elapsedMs:null,ok:false};
+ let frame=0,finished=false,resolve;const promise=new Promise(done=>{resolve=done;});
+ const finish=error=>{if(finished)return;finished=true;cancelAnimationFrame(frame);if(error)value.error=error;else value.ok=true;resolve({...value});};
+ function check(){
+  const now=performance.now(),m=MouseTest.model,edge=document.getElementById(edgeId);
+  if(value.hoverAtMs===null&&m.swapDrag===true&&edge?.dataset.hover==='true')value.hoverAtMs=now;
+  if(m.desktopId===destination&&!m.switching){value.switchedAtMs=now;value.elapsedMs=value.hoverAtMs===null?null:now-value.hoverAtMs;finish(value.hoverAtMs===null?'Desktop changed without an observed held edge hover':m.swapDrag!==true?'Desktop changed after the drag ended':null);return;}
+  if(now-value.armedAtMs>=timeoutMs){finish('Held desktop edge observation timed out');return;}frame=requestAnimationFrame(check);
+ }
+ globalThis.__mouse641HeldEdge={promise,dispose:()=>finish('Held desktop edge observer disposed')};frame=requestAnimationFrame(check);return true;
+}
 function assertHeader(pane){
  const b=pane.bounds,h=pane.header.bounds;assert.equal(pane.header.visible,true);assert.equal(pane.header.opacity,1);assert.equal(pane.header.visibility,'visible');assert.notEqual(pane.header.display,'none');
  assert.ok(h.height>=28&&h.width>0&&h.x>=b.x-1&&h.y>=b.y-1&&h.x+h.width<=b.x+b.width+1&&h.y+h.height<=b.y+b.height+1,'Even a tiny pane contains its whole visible header');
 }
 const order=state=>L.leaves(state.tree).map(id=>state.slots[id]||'');
 
-module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hit,capture,nativeInput,source,until,js,inputProbe}){
+module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hit,capture,nativeInput,source,until,js,inputProbe,stage=()=>{},remainingMs=()=>15000}){
  const {app,win,browser}=ctx,report={schema:1,source:'Installed native split, chooser, held drag and divider controls',ok:false,headers:[]};
+ part.layout=report;
+ const mark=(name,detail={})=>{report.stage=name;stage(name,detail);};
  const nativeButton=process.platform==='darwin'?require('./mouse-native-menu.node'):require('./mouse-platform.node');
  const absolute=p=>{const b=win.getContentBounds();return{x:Math.round(b.x+p.x),y:Math.round(b.y+p.y)};};
  const panePoint=async(id,fx=.5,fy=.5)=>js(`(()=>{const r=document.querySelector('.pane[data-pane="'+${JSON.stringify(id)}+'"]').getBoundingClientRect();return{x:r.x+r.width*${fx},y:r.y+r.height*${fy}};})()`);
- async function drag(selector,record,to,{during,arrangement=true}={}){
+ // The renderer owns this wait. A Node timer in the parent can stop servicing
+ // callbacks during Windows OLE; it must never be needed to send mouse-up.
+ const waitShell=(condition,label,ms=9000)=>js(`new Promise((resolve,reject)=>{const end=performance.now()+${Math.min(ms,9000)};function check(){if(${condition})return resolve(true);if(performance.now()>=end)return reject(Error(${JSON.stringify(label)}));requestAnimationFrame(check);}check();})`);
+ async function drag(selector,record,to,{during,arrangement=true,finish=null,edgeWatch=null}={}){
   const evaluate=record?s=>fixture.pageJS(record,s):js;app.focus({steal:true});win.focus();(record?.page.view.webContents||win.webContents).focus();
   const from=await hit(selector,record);await evaluate('('+inputProbe.toString()+')('+JSON.stringify(selector)+')');
   const row={id:randomUUID(),selector,tabId:record?.id||null,pid:process.pid,source,action:'drag',from,to:{...to},at:Date.now(),events:[],released:false,points:[]};part.inputs.push(row);let current=from;
-  const move=async point=>{current={x:Math.round(point.x),y:Math.round(point.y)};assert.equal(await nativeInput.testMouse(current.x,current.y,1),true);row.points.push({...current,at:Date.now()});await sleep(20);};
-  try{
-   assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);
-   if(arrangement){await move({x:from.x+12,y:from.y+7});await until(()=>js('MouseTest.model.swapDrag===true'),'641 actual drag starts');}
-   const start={...current};for(let i=1;i<=12;i++)await move({x:start.x+(to.x-start.x)*i/12,y:start.y+(to.y-start.y)*i/12});
-   if(during)await during({row,move});row.to={...current};
-  }finally{
-   try{row.events=await evaluate('__mouse641Input.events');}
-   finally{assert.equal(await nativeInput.testMouse(current.x,current.y,2),true);row.released=true;row.finishedAt=Date.now();}
+  if(process.platform==='win32'&&record){
+   const gesture=require('./mouse-641-native-drag.cjs').createNativeDrag({from,to,finish,remainingMs:remainingMs()},{screen:require('electron').screen});
+   if(edgeWatch)await js('('+installEdgeObservation.toString()+')('+JSON.stringify(edgeWatch)+')');
+   row.to={...finish||to};mark('html-child-start',{inputId:row.id,kind:gesture.plan.kind,nonce:gesture.plan.nonce});
+   // Attach both outcomes immediately. Even a blocked observer never owns the
+   // child's motion or release; the child executes its complete fixed plan.
+   const completion=gesture.run().then(value=>{row.nativeDrag=value;return null;},error=>{row.nativeDrag=error.nativeDrag;return error;});let observationError;
+   try{
+    await waitShell('MouseTest.model.swapDrag===true','641 actual native HTML drag starts');mark('html-drag-observed',{inputId:row.id,mouseDown:nativeButton.primaryDown()});
+    if(during)await during({row,waitShell,independent:true,observedElapsed:gesture.parentElapsedNs,edgeObservation:()=>js('__mouse641HeldEdge.promise')});
+    else{await waitShell('!!document.querySelector(".pane.mouse-drop-target[data-pane=p2]")','641 actual native HTML pane target');assert.equal(nativeButton.primaryDown(),true,'The real HTML drop target must be observed before UP');}
+   }catch(error){observationError=error;row.observationError=String(error.message||error);mark('html-observation-failed',{inputId:row.id,error:row.observationError});}
+   const childError=await completion;row.released=row.nativeDrag?.released===true;row.finishedAt=Date.now();
+   row.points=(row.nativeDrag?.events||[]).flatMap((event,index)=>event.phase===1?[{...row.nativeDrag.coordinates.samples[index].logical,at:event.at}]:[]);
+   mark('html-child-exited',{inputId:row.id,exitCode:row.nativeDrag?.exitCode,released:row.released,error:childError?.message||null});
+   if(edgeWatch)await js('__mouse641HeldEdge?.dispose();delete globalThis.__mouse641HeldEdge;true');
+   if(observationError)throw observationError;if(childError)throw childError;
+   row.events=await evaluate('__mouse641Input.events');
+  }else{
+   const move=async point=>{current={x:Math.round(point.x),y:Math.round(point.y)};assert.equal(await nativeInput.testMouse(current.x,current.y,1),true);row.points.push({...current,at:Date.now()});await sleep(20);};
+   try{
+    assert.equal(await nativeInput.testMouse(from.x,from.y,0),true);
+    if(arrangement){await move({x:from.x+12,y:from.y+7});await until(()=>js('MouseTest.model.swapDrag===true'),'641 actual drag starts');}
+    const start={...current};for(let i=1;i<=12;i++)await move({x:start.x+(to.x-start.x)*i/12,y:start.y+(to.y-start.y)*i/12});
+    if(during)await during({row,move});row.to={...current};
+   }finally{
+    try{row.events=await evaluate('__mouse641Input.events');}
+    finally{assert.equal(await nativeInput.testMouse(current.x,current.y,2),true);row.released=true;row.finishedAt=Date.now();}
+   }
   }
   assert.ok(row.events.some(e=>e.type==='pointerdown'&&e.trusted&&e.matches),'Native drag started on the owned visible target');
   try{await until(()=>js('!MouseTest.model.swapDrag&&!MouseTest.model.drag&&!MouseTest.model.switching'),'641 released drag settles');}
@@ -62,19 +100,25 @@ module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hi
  await until(async()=>{const value=await grid();return order(value).length===3&&order(value)[1]===third.id;},'641 insertion adds pane between two existing panes');
  const inserted=await grid();report.insertion={input:insertInput,insertedId:third.id,before:insertedBefore,after:inserted,beforeOrder:order(insertedBefore),afterOrder:order(inserted),affordance:insertionDuring.affordance,whileHeld:insertionDuring,capture:insertionCapture,afterCapture:await capture('inserted-pane')};assert.deepEqual(order(inserted),[records[0].id,third.id,records[1].id]);
  // Start a real HTML drag in empty website content and exchange page placement.
- await fixture.setLayout(records);const blankBefore=await fixture.identity(records[0]),blankGrid=await grid();
+ mark('blank-drag-setup');await fixture.setLayout(records);const blankBefore=await fixture.identity(records[0]),blankGrid=await grid();
  const blankInput=await drag('#blank-drag',records[0],absolute(await panePoint('p2')));let blankAfter;
  await until(async()=>{blankAfter=await grid();return blankAfter.slots.p2===records[0].id;},'641 blank website drag changes placement');
  report.blankDrag={input:blankInput,before:blankBefore,after:await fixture.identity(records[0]),beforePane:'p1',afterPane:'p2',gridBefore:blankGrid,gridAfter:blankAfter,capture:await capture('blank-drag-moved')};fixture.assertIdentity(report.blankDrag.before,report.blankDrag.after);
  // Prepare one empty destination, then let the still-held native drag switch it.
  const desks=fixture.bank.items,index=desks.findIndex(d=>d.id===originDesk),direction=index<desks.length-1?1:-1,destination=desks[index+direction]?.id;assert.ok(destination&&destination!==originDesk);
- await fixture.switchDesk(destination);await js('Object.assign(MouseTest.model,{tree:{id:"p1"},slots:{p1:""},active:"p1",classicTabId:"",aiOpen:false,focusAI:false,focusPane:"",libraryOpen:false});MouseTest.renderTree();MouseTest.applySide();MouseTest.save();MouseTest.requestLayout();');await fixture.frame();
+ mark('edge-carry-setup');await fixture.switchDesk(destination);await js('Object.assign(MouseTest.model,{tree:{id:"p1"},slots:{p1:""},active:"p1",classicTabId:"",aiOpen:false,focusAI:false,focusPane:"",libraryOpen:false});MouseTest.renderTree();MouseTest.applySide();MouseTest.save();MouseTest.requestLayout();');await fixture.frame();
+ const destinationPoint=absolute(await panePoint('p1'));
  await fixture.switchDesk(originDesk);await fixture.setLayout(records);const carryBefore=await fixture.identity(records[0]);
  const edge=await js(`(()=>{const r=document.querySelector('#workspace').getBoundingClientRect();return{x:${direction}>0?r.right-8:r.left+8,y:r.top+r.height/2}})()`);let held,hoverMs,carryCapture;
- const carryInput=await drag('#blank-drag',records[0],absolute(edge),{during:async({move})=>{
-  const hoverStarted=Date.now();await until(()=>js(`MouseTest.model.desktopId===${JSON.stringify(destination)}&&!MouseTest.model.switching`),'641 held drag switches workspace edge',12000);hoverMs=Date.now()-hoverStarted;
-  held={...await js('('+dragReadback.toString()+')()'),mouseDown:nativeButton.primaryDown()};assert.equal(held.active,true);assert.equal(held.mouseDown,true);assert.equal(fixture.bank.members[records[0].id],originDesk,'Live source stays owned by its original desk while held');
-  carryCapture=await capture('desk-edge-held');await move(absolute(await panePoint('p1')));
+ const carryInput=await drag('#blank-drag',records[0],absolute(edge),{finish:destinationPoint,edgeWatch:{destination,edgeId:direction>0?'mouse-drag-edge-right':'mouse-drag-edge-left'},during:async({move,independent,observedElapsed,edgeObservation})=>{
+  const hoverStarted=Date.now(),condition=`MouseTest.model.desktopId===${JSON.stringify(destination)}&&!MouseTest.model.switching`;
+  let edgeTiming;if(independent){edgeTiming=await edgeObservation();assert.equal(edgeTiming.ok,true,edgeTiming.error);hoverMs=edgeTiming.elapsedMs;assert.ok(hoverMs>=600,'The renderer must observe a real edge hover before the desktop switch');}else{await until(()=>js(condition),'641 held drag switches workspace edge',12000);hoverMs=Date.now()-hoverStarted;}
+  held={...await js('('+dragReadback.toString()+')()'),mouseDown:nativeButton.primaryDown(),sourceMembership:fixture.bank.members[records[0].id],originDesk,sourceTabId:records[0].id,observerPid:process.pid,observedAt:Date.now()};
+  if(independent){held.observedElapsedNs=observedElapsed();held.edgeObservation=edgeTiming;}
+  assert.equal(held.desktopId,destination);assert.equal(held.active,true);assert.equal(held.mouseDown,true);assert.equal(held.sourceMembership,originDesk,'Live source stays owned by its original desk while held');mark('edge-switched-while-held',{inputId:part.inputs.at(-1).id,held});
+  carryCapture=await capture('desk-edge-held',{synchronous:!!independent});held.captureFinishedAt=Date.now();held.mouseDownAfterCapture=nativeButton.primaryDown();held.sourceMembershipAfterCapture=fixture.bank.members[records[0].id];
+  if(independent){held.captureElapsedNs=observedElapsed();assert.equal(held.mouseDownAfterCapture,true,'Held display capture must finish before native UP');assert.equal(held.sourceMembershipAfterCapture,originDesk,'Source ownership must remain unchanged through the held display capture');mark('edge-held-capture-finished',{inputId:part.inputs.at(-1).id,held});}
+  else await move(absolute(await panePoint('p1')));
  }});
  try{await until(()=>fixture.bank.members[records[0].id]===destination,'641 released drag transfers exact source');}
  catch(cause){
@@ -98,4 +142,4 @@ module.exports=async function layoutFlow({ctx,fixture,records,part,grid,click,hi
  }
  await fixture.setLayout(records);report.ok=true;return report;
 };
-module.exports.fixtures={dragReadback,assertHeader,order};
+module.exports.fixtures={dragReadback,installEdgeObservation,assertHeader,order};
