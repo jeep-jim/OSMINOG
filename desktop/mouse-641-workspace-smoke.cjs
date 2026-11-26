@@ -12,6 +12,28 @@ function inputProbe(selector){
  for(const type of types)document.addEventListener(type,listener,true);
  globalThis.__mouse641Input={events,dispose(){for(const type of types)document.removeEventListener(type,listener,true);}};
 }
+function classicDocumentReadback(){return{url:location.href,readyState:document.readyState,index:globalThis.mouse631?.index??null};}
+async function waitClassicNativePage({browser,active,expectedURL,index,nativePages,until,readPage}){
+ const page=browser.tabs.get(active),wc=page?.view?.webContents;assert.ok(wc,'The activated classic tab must own an actual WebContents');
+ const webContentsId=wc.id;let result;
+ const actual=()=>{
+  if(browser.tabs.get(active)!==page||page.view.webContents!==wc||wc.id!==webContentsId||wc.isDestroyed()||page.loading||page.error||wc.isLoadingMainFrame()||wc.getURL()!==expectedURL)return null;
+  const rows=nativePages();return rows.length===1&&rows[0].id===active&&rows[0].webContentsId===webContentsId&&rows[0].url===expectedURL&&rows[0].visible===true&&rows[0].attached===true?rows:null;
+ };
+ const ready=value=>value?.url===expectedURL&&value.readyState==='complete'&&value.index===index;
+ await until(async()=>{
+  if(!actual())return false;
+  const document=await readPage(page,'('+classicDocumentReadback.toString()+')()');if(!ready(document)||!actual())return false;
+  // Readiness of the shell/new native view does not establish a committed
+  // destination document. Wait for this exact page's own frames, then re-read
+  // its real URL, loading state and native owner before recording/capturing.
+  const framed=await readPage(page,'new Promise(resolve=>requestAnimationFrame(first=>requestAnimationFrame(second=>resolve({...('+classicDocumentReadback.toString()+')(),frameTimes:[first,second]}))))');
+  const native=actual();if(!native||!ready(framed))return false;
+  assert.ok(Array.isArray(framed.frameTimes)&&framed.frameTimes.length===2&&framed.frameTimes.every(Number.isFinite)&&framed.frameTimes[1]>=framed.frameTimes[0]);
+  result={native,document:{webContentsId,...framed}};return true;
+ },'641 committed classic destination '+expectedURL);
+ return result;
+}
 function gridReadback(){
  const m=MouseTest.model,rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};
  const visible=e=>!!e&&e.getBoundingClientRect().width>0&&e.getBoundingClientRect().height>0&&getComputedStyle(e).visibility==='visible';
@@ -88,8 +110,11 @@ async function run(ctx){
     const before=await grid(),beforeIds=new Set(browser.tabs.keys()),input=['link','blank-link','window-open'].includes(kind)?await click(kind==='link'?'#ordinary-link':kind==='blank-link'?'#new-tab-link':'#window-open-link',records[0]):await click(kind==='new-tab'?'#new-tab':'.tab-item[data-tab="'+records[1].id+'"] .tab-title');let state;
     await until(async()=>{state=await grid();return state.classicTabId&&(kind!=='top-tab'||state.classicTabId===records[1].id);},'native641 classic '+kind);assertClassic(state,state.classicTabId);sameGrid(before,state);
     const active=state.classicTabId;for(const page of browser.tabs.values())if(!beforeIds.has(page.id))fixture.created.push({id:page.id,index:2,desk:fixture.bank.active,page});
-    if(kind==='new-tab'){assert.equal(state.panes[0].home.visible,true);assert.equal(state.panes[0].home.search,true);assert.equal(state.panes[0].home.favorites,true);}else{await until(()=>nativePages().length===1&&nativePages()[0].id===active,'one actual641 native page');}
-    const row={kind,input,before,active,state,native:nativePages(),capture:await capture('classic-'+kind),returnInput:await click('#return-to-grid')};await until(async()=>{row.returned=await grid();return row.returned.mode==='grid'&&!row.returned.classicTabId;},'native641 grid return');sameGrid(before,row.returned);row.identities=await Promise.all(records.map(fixture.identity));for(let i=0;i<records.length;i++)fixture.assertIdentity(part.identitiesBefore[i],row.identities[i]);classic.cases.push(row);if(kind==='new-tab')await js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(active)}})`);
+    let committed;const linkedIndex={link:3,'blank-link':2,'window-open':5}[kind];
+    if(kind==='new-tab'){assert.equal(state.panes[0].home.visible,true);assert.equal(state.panes[0].home.search,true);assert.equal(state.panes[0].home.favorites,true);}
+    else if(linkedIndex!==undefined)committed=await waitClassicNativePage({browser,active,expectedURL:base+'/page/'+linkedIndex+'/',index:linkedIndex,nativePages,until,readPage:(page,script)=>fixture.pageJS({page,index:linkedIndex},script)});
+    else await until(()=>nativePages().length===1&&nativePages()[0].id===active,'one actual641 native page');
+    const row={kind,input,before,active,state,native:committed?.native||nativePages(),document:committed?.document,capture:await capture('classic-'+kind),returnInput:await click('#return-to-grid')};await until(async()=>{row.returned=await grid();return row.returned.mode==='grid'&&!row.returned.classicTabId;},'native641 grid return');sameGrid(before,row.returned);row.identities=await Promise.all(records.map(fixture.identity));for(let i=0;i<records.length;i++)fixture.assertIdentity(part.identitiesBefore[i],row.identities[i]);classic.cases.push(row);if(kind==='new-tab')await js(`MouseTest.mutateDesktopTabs('close-tab',{id:${JSON.stringify(active)}})`);
    }
    facts.stage='gap-insertion-and-empty-pane';part.layout=await require('./mouse-641-layout-flow.cjs')({ctx,fixture,records,part,grid,click,key,hit,capture,nativeInput,source,until,js,inputProbe,stage:layoutStage,remainingMs:()=>Math.max(1,startedAt+budgetMs-Date.now())});
    facts.stage='site-exceptions';await closeSettings();const token=randomUUID(),adURL=base+ads.PREFIX+'page?token='+token,adRecord=await fixture.open(adURL,7,{prepare:false});await fixture.setLayout([adRecord,records[1]]);
@@ -115,4 +140,4 @@ async function run(ctx){
  if(error){console.error('MOUSE_641_WORKSPACE_FAIL',error.stack);return exit(1);}console.log(read?'MOUSE_641_WORKSPACE_NATIVE_PASS':'MOUSE_641_WORKSPACE_WRITE_PASS');return exit(0);
 }
 module.exports=run;
-module.exports.fixtures={inputProbe,gridReadback,surfaceReadback,libraryReadback,sameGrid,assertClassic};
+module.exports.fixtures={inputProbe,classicDocumentReadback,waitClassicNativePage,gridReadback,surfaceReadback,libraryReadback,sameGrid,assertClassic};
