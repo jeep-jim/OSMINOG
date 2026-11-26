@@ -18,11 +18,15 @@ function dom(){
   constructor(tag){this.nodeType=1;this.tagName=tag.toUpperCase();this.children=[];this.parentElement=null;this.attrs={};this.dataset={};this.id='';this.className='';this.hidden=false;this.disabled=false;this.checked=false;this.open=false;this.events=new Map();this.clientWidth=1200;const styles=new Map();this.style={setProperty:(name,value)=>styles.set(name,String(value)),getPropertyValue:name=>styles.get(name)||'',removeProperty:name=>styles.delete(name)};}
   setAttribute(key,value){this.attrs[key]=String(value);if(key==='id'||key==='class')this[key==='class'?'className':'id']=String(value);else if(['hidden','disabled','checked'].includes(key))this[key]=true;else if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]=String(value);else if(key==='value')this.value=String(value);}
   getAttribute(key){return this.attrs[key]??null;}hasAttribute(key){return Object.hasOwn(this.attrs,key);}
+  get firstElementChild(){return this.children.find(node=>node.nodeType===1)||null;}
+  get classList(){return{toggle:(name,force)=>{const names=new Set(this.className.split(/\s+/).filter(Boolean)),enabled=force??!names.has(name);if(enabled)names.add(name);else names.delete(name);this.className=[...names].join(' ');return enabled;}};}
   get options(){return this.children.filter(node=>node.tagName==='OPTION');}
   get value(){return this._value??(this.tagName==='OPTION'?this.textContent:'');}set value(value){this._value=String(value);}
   get textContent(){return this.children.map(node=>node.nodeType===3?node.data:node.textContent).join('');}
   set textContent(value){this.replaceChildren();this.append({nodeType:3,data:String(value),children:[],parentElement:null});}
   append(...nodes){for(const node of nodes){if(node.parentElement)node.parentElement.children=node.parentElement.children.filter(child=>child!==node);node.parentElement=this;this.children.push(node);}}
+  before(...nodes){if(!this.parentElement)return;const parent=this.parentElement;for(const node of nodes){if(node.parentElement)node.parentElement.children=node.parentElement.children.filter(child=>child!==node);node.parentElement=parent;}parent.children.splice(parent.children.indexOf(this),0,...nodes);}
+  cloneNode(deep=false){const clone=new Element(this.tagName);for(const [key,value]of Object.entries(this.attrs))clone.setAttribute(key,value);clone.id=this.id;clone.className=this.className;if(deep)clone.append(...this.children.map(node=>node.nodeType===1?node.cloneNode(true):{...node,children:[],parentElement:null}));return clone;}
   replaceChildren(...nodes){for(const node of this.children)node.parentElement=null;this.children=[];this.append(...nodes);}
   set innerHTML(value){this.replaceChildren();const stack=[this],voids=new Set(['input','br','img']);for(const token of String(value).match(/<[^>]*>|[^<]+/g)||[]){
    if(token.startsWith('</')){stack.pop();continue;}if(!token.startsWith('<')){stack.at(-1).append({nodeType:3,data:token,children:[],parentElement:null});continue;}
@@ -46,6 +50,20 @@ function fixture({settings={},readState,settingsSet,withoutAdBlock=false}={}){
  const context={document,MouseAppearance,MouseLayout,NodeFilter:{SHOW_TEXT:4},MutationObserver:class{observe(){}},queueMicrotask,setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(surfaces,context);vm.runInContext(panel,context);vm.runInContext(locale,context);
  const ui=context.createMouseSettings({N,model,action(){},setTheme(){},setLocale(){},setAppearance(){},changeLayout(){},applySide(){},save(){},zoom(){},onSidebar(){},status:message=>errors.push(message)});
  return{ui,model,calls,errors,document,click:selector=>{const target=document.querySelector(selector);for(const callback of document.querySelector('#settings-dialog').events.get('click')||[])callback({target});},$:selector=>document.querySelector(selector),emit:state=>changed(state),locale:value=>context.MouseLocale.apply(value)};
+}
+function renderFixture(f){
+ // Execute the complete shipped renderer function and pane template. Only
+ // adjacent native/layout services are stubbed; settings use their real DOM.
+ const source=fs.readFileSync(path.join(__dirname,'mouse/browser.js'),'utf8'),start=source.indexOf(' function renderTree(){'),end=source.indexOf('\n function beginDrag(',start);
+ assert.ok(start>=0&&end>start);
+ const markup=fs.readFileSync(path.join(__dirname,'mouse/index.html'),'utf8').split('<template id="pane-template">')[1]?.split('</template>')[0];assert.ok(markup);
+ const el=(tag,className='',text)=>{const node=f.document.createElement(tag);node.className=className;if(text!==undefined)node.textContent=text;return node;};
+ const template=el('template');template.id='pane-template';template.content=el('div');template.content.innerHTML=markup;
+ const stage=el('div');stage.id='stage';f.$('#workspace').append(stage);const select=el('select');select.id='layout-select';f.document.body.append(template,select);
+ Object.assign(f.model,{pinnedPanes:{},slots:{},active:'p1'});let syncs=0,layouts=0;
+ const context=vm.createContext({document:f.document,$:f.$,m:f.model,L:MouseLayout,el,browsing:{hideHints(){},bind(){}},reconcile(){},syncView(){},visibleTree:()=>f.model.tree,paneChromeBounds:{disconnect(){},observe(){}},syncLayoutControl(){},renderTabs(){},arrangement:null,syncPaneLabels(){},settingsUI:{isOpen:f.ui.isOpen,sync(){syncs++;f.ui.sync();}},snapPaneLayout(){},requestLayout(){layouts++;}});
+ vm.runInContext(source.slice(start,end),context);
+ return{render:()=>context.renderTree(),get syncs(){return syncs;},get layouts(){return layouts;},stage};
 }
 test('the new switch is opt-in, lives in Privacy and keeps the other switches default-on',async()=>{
  const f=fixture({withoutAdBlock:true});await f.ui.open();
@@ -113,4 +131,32 @@ test('the visible on/off label follows committed settings and keyboard focus ret
  f.model.controlSettings.blockAds=false;f.ui.sync();assert.equal(f.$('#settings-blockads-label').textContent,'Выключена');
  f.model.privateMode=true;f.ui.sync();assert.equal(f.$('#settings-private-note').hidden,false);assert.equal(f.$('[data-setting=blockAds]').disabled,true);
  f.ui.close();assert.equal(f.document.activeElement,f.$('#settings-button'));
+});
+
+test('renderTree keeps rebuilding panes while syncing settings only when the panel is open',async()=>{
+ const f=fixture(),renderer=renderFixture(f);await f.ui.open();f.ui.close();
+ f.model.tree=MouseLayout.preset(4);f.model.aiWidth=430;renderer.render();renderer.render();
+ assert.equal(renderer.syncs,0,'closed settings do no work during repeated workspace renders');
+ assert.equal(renderer.stage.querySelectorAll('.pane').length,4);assert.equal(f.$('#layout-select').value,'4');assert.equal(renderer.layouts,2);
+ assert.equal(f.$('#settings-layout').value,'1');assert.equal(f.$('#settings-ai-width').value,'300');
+ await f.ui.open();assert.equal(f.$('#settings-layout').value,'4');assert.equal(f.$('#settings-ai-width').value,'430');
+ f.model.tree=MouseLayout.preset(6);f.model.aiWidth=510;renderer.render();
+ assert.equal(renderer.syncs,1);assert.equal(renderer.stage.querySelectorAll('.pane').length,6);assert.equal(f.$('#settings-layout').value,'6');assert.equal(f.$('#settings-ai-width').value,'510');
+ f.ui.close();renderer.render();assert.equal(renderer.syncs,1,'closing stops only the renderer-driven settings sync');assert.equal(renderer.layouts,4);
+});
+
+test('opening settings applies hidden model changes before showing the panel',async()=>{
+ const f=fixture(),renderer=renderFixture(f);await f.ui.open();f.ui.close();
+ Object.assign(f.model,{tree:MouseLayout.preset(12),aiWidth:670,theme:'light',locale:'en',appearance:{paneMode:'square',whiteTone:90},privateMode:true,controlSettings:{blockAds:true,showFavicons:false}});
+ renderer.render();assert.equal(renderer.syncs,0);
+ const dialog=f.$('#settings-dialog'),show=dialog.show.bind(dialog);let shown=0;
+ dialog.show=()=>{
+  assert.equal(f.$('#settings-layout').value,'12');assert.equal(f.$('#settings-ai-width').value,'670');
+  assert.equal(f.$('#settings-dark').checked,false);assert.equal(f.$('#settings-language').value,'en');
+  assert.equal(f.$('#settings-square-grid').checked,true);assert.equal(f.$('#settings-white-tone').value,'90');
+  assert.equal(f.$('[data-setting=blockAds]').checked,true);assert.equal(f.$('[data-setting=blockAds]').disabled,true);assert.equal(f.$('[data-setting=showFavicons]').checked,false);
+  shown++;show();
+ };
+ await f.ui.open();assert.equal(shown,1);assert.equal(f.ui.isOpen(),true);assert.equal(dialog.open,true);
+ f.ui.close();f.model.aiWidth=720;f.ui.sync();assert.equal(f.$('#settings-ai-width').value,'720','the explicit sync API still works while closed');
 });

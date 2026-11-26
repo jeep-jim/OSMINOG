@@ -15,6 +15,44 @@ const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 async function until(check,label,timeout=15000){const deadline=Date.now()+timeout;do{if(await check())return;await sleep(50);}while(Date.now()<deadline);throw Error('Windows native verification timed out: '+label);}
 function alive(pid){if(!Number.isInteger(pid)||pid<=0)return false;try{process.kill(pid,0);return true;}catch(error){return error.code!=='ESRCH';}}
 
+function addressSelectionProbe(action,selector){
+ const key='__mouseWindowsAddressSelection';
+ if(action==='arm'){
+  globalThis[key]?.dispose();
+  const input=document.querySelector(selector);if(!input)throw Error('Native address input is absent');
+  const keys=[],listener=event=>{if(keys.length<16)keys.push({key:event.key,control:event.ctrlKey,alt:event.altKey,meta:event.metaKey,trusted:event.isTrusted,targetSame:event.target===input,focused:document.activeElement===input,at:Date.now()});};
+  input.addEventListener('keydown',listener,{capture:true,passive:true});
+  globalThis[key]={input,keys,dispose:()=>input.removeEventListener('keydown',listener,true)};
+ }
+ const state=globalThis[key];if(!state)throw Error('Native address selection observer is absent');
+ if(action==='dispose'){state.dispose();delete globalThis[key];return true;}
+ const input=state.input;
+ return{sameInput:document.querySelector(selector)===input,connected:input.isConnected,focused:document.activeElement===input,documentFocused:document.hasFocus(),
+  value:input.value,selectionStart:input.selectionStart,selectionEnd:input.selectionEnd,keys:state.keys.map(event=>({...event})),at:Date.now()};
+}
+
+async function fillNativeAddress({selector,url,click,js,testKey,insertText,until,receipt,now=Date.now}){
+ await click(selector);
+ // SendInput acknowledges queued OS input. Observe its actual focused target
+ // and completed selection before insertText can race ahead of CTRL+A.
+ const deadline=now()+15000,probe=action=>js('('+addressSelectionProbe.toString()+')('+JSON.stringify(action)+','+JSON.stringify(selector)+')');
+ const focused=value=>value.sameInput&&value.connected&&value.focused&&value.documentFocused;
+ const wait=(check,label)=>{const remaining=deadline-now();if(remaining<=0)throw Error('Windows native verification timed out: '+label);return until(check,label,remaining);};
+ try{
+  await probe('arm');receipt.stage='focus';
+  await wait(async()=>{receipt.focus=await probe('read');return focused(receipt.focus);},'native address input focus');
+  assert.equal(testKey('CTRL+A'),true);receipt.stage='selection';
+  await wait(async()=>{
+   const value=receipt.selection=await probe('read');
+   return focused(value)&&value.value===receipt.focus.value&&value.selectionStart===0&&value.selectionEnd===value.value.length&&
+    value.keys.some(event=>event.key.toLowerCase()==='a'&&event.control&&!event.alt&&!event.meta&&event.trusted&&event.targetSame&&event.focused);
+  },'native address CTRL+A selection');
+  await insertText(url);receipt.stage='value';
+  await wait(async()=>{receipt.inserted=await probe('read');return focused(receipt.inserted)&&receipt.inserted.value===url;},'native address value');
+  receipt.stage='ready';
+ }finally{await probe('dispose').catch(()=>{});}
+}
+
 module.exports=async ctx=>{
  const {app,win,browser,store,libraryService,privateMode,globalCapture}=ctx;
  const updateMode=process.argv.includes('--mouse-windows-update-smoke'),readMode=process.argv.includes('--mouse-windows-smoke-read'),mode=updateMode?'update':readMode?'read':'write';
@@ -71,13 +109,13 @@ module.exports=async ctx=>{
   assert.deepEqual(classic.tree,before.tree);assert.deepEqual(classic.slots,before.slots);assert.deepEqual(await sourceIdentity(),beforeIdentity);assert.equal(browser.get(sourceId),sourcePage);
   // Same-page history is exercised through the visible address input. Anchors
   // intentionally create classic tabs in641 and cannot be used as that setup.
-  const addressInputs=[];
+  const addressInputs=[];facts.navigation={addressInputs};
   async function address(url){
-   const selector='.pane[data-pane="p0"] .pane-address input';await click(selector);assert.equal(nativeInput.testKey('CTRL+A'),true);await win.webContents.insertText(url);
-   await until(()=>js('document.querySelector('+JSON.stringify(selector)+').value==='+JSON.stringify(url)),'native address value');
+   const selector='.pane[data-pane="p0"] .pane-address input',receipt={selector,source:'User32',pid:process.pid,url};addressInputs.push(receipt);
+   await fillNativeAddress({selector,url,click,js,testKey:chord=>nativeInput.testKey(chord),insertText:value=>win.webContents.insertText(value),until,receipt});
    await js(`globalThis.__mouseWindowsAddress=[];document.querySelector(${JSON.stringify(selector)}).form.addEventListener('submit',event=>__mouseWindowsAddress.push({trusted:event.isTrusted,at:Date.now(),value:event.target.querySelector('input').value}),{capture:true,once:true});true`);
    assert.equal(nativeInput.testKey('ENTER'),true);await until(()=>!page.loading&&page.view.webContents.getURL()===url,'native address commits '+url);
-   const events=await js('__mouseWindowsAddress');assert.equal(events.length,1);assert.equal(events[0].trusted,true);assert.equal(events[0].value,url);addressInputs.push({selector,source:'User32',pid:process.pid,url,events});
+   const events=await js('__mouseWindowsAddress');assert.equal(events.length,1);assert.equal(events[0].trusted,true);assert.equal(events[0].value,url);receipt.events=events;
   }
   await address(origin+'/first');await address(origin+'/second');
   facts.navigation={id,link:linkInput,sourceId,sourceWebContentsId:sourcePage.view.webContents.id,beforeGrid:before,classic,sourceBefore:beforeIdentity,sourceAfter:await sourceIdentity(),addressInputs,native:{url:page.view.webContents.getURL(),back:page.view.webContents.navigationHistory.canGoBack(),forward:page.view.webContents.navigationHistory.canGoForward()},guest:await page.view.webContents.executeJavaScript('({historyLength:history.length,userActivation:navigator.userActivation.hasBeenActive})')};await save();
@@ -266,3 +304,4 @@ module.exports=async ctx=>{
   clearTimeout(watchdog);server?.closeAllConnections?.();server?.close();exit(1);
  }
 };
+module.exports.fixtures={fillNativeAddress};
